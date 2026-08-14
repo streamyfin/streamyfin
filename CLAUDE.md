@@ -160,6 +160,7 @@ import { apiAtom } from "@/providers/JellyfinProvider";
 - Use existing atoms, hooks, and utilities before creating new ones
 - Use Conventional Commits: `feat(scope):`, `fix(scope):`, `chore(scope):`
 - **Translations**: When adding a translation key to a Text component, ensure the key exists in both `translations/en.json` and `translations/sv.json`. Before adding new keys, check if an existing key already covers the use case.
+- **Server images**: For images hosted on the Jellyfin or Jellyseerr server, import `Image` from `@/components/common/ServerImage` instead of `expo-image` — it attaches the user's custom proxy auth headers. Bundled assets and data URIs can keep using `expo-image` directly. See [docs/custom-headers.md](docs/custom-headers.md).
 
 ## Platform Considerations
 

@@ -62,7 +62,8 @@
     "select_your_server": "Select Your Server",
     "add_server_to_get_started": "Add a server to get started",
     "add_server": "Add Server",
-    "change_server": "Change Server"
+    "change_server": "Change Server",
+    "swipe_for_options": "Svep en server för alternativ"
   },
   "save_account": {
     "title": "Spara konto",
@@ -1074,5 +1075,34 @@
     "scan_with_phone": "Scan with the Streamyfin app on your phone",
     "logging_in": "Logging in...",
     "logging_in_description": "Connecting to your server"
+  },
+  "custom_headers": {
+    "title": "Anpassade headers",
+    "description": "Extra HTTP-headers som skickas med varje förfrågan till den här servern. Behövs när den ligger bakom en åtkomstgateway som Cloudflare Zero Trust eller Pangolin.",
+    "advanced_title": "Avancerat: anpassade headers",
+    "integration_description": "Vilka headers som ska skickas till den här tjänsten. Återanvänd Jellyfin-headers när tjänsten ligger bakom samma gateway.",
+    "no_headers": "Inga headers konfigurerade",
+    "header_key": "Headernamn",
+    "header_value": "Headervärde",
+    "header_name_placeholder": "X-Api-Key",
+    "header_value_placeholder": "Värde",
+    "add_preset": "Lägg till förinställning",
+    "add_custom": "Lägg till header",
+    "clear_headers": "Rensa headers",
+    "presets_title": "Välj en förinställning",
+    "source_jellyfin": "Jellyfin",
+    "source_custom": "Anpassad",
+    "source_none": "Ingen",
+    "using_jellyfin_headers": "Använder Jellyfins headers",
+    "no_jellyfin_headers": "Inga headers konfigurerade för Jellyfin",
+    "integration_none": "Inga anpassade headers skickas till den här tjänsten.",
+    "security_note": "Headervärden lagras i enhetens nyckelring, inte i appens egen lagring.",
+    "done": "Klar",
+    "show_value": "Visa värde",
+    "hide_value": "Dölj värde",
+    "enabled": "Aktiverad",
+    "header_count_one": "{{count}} header",
+    "header_count_other": "{{count}} headers",
+    "header_count": "{{count}} headers"
   }
 }

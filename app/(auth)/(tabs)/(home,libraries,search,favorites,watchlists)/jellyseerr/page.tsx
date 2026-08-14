@@ -8,7 +8,6 @@ import {
 } from "@gorhom/bottom-sheet";
 import type { BottomSheetModalMethods } from "@gorhom/bottom-sheet/lib/typescript/types";
 import { useQuery } from "@tanstack/react-query";
-import { Image } from "expo-image";
 import { useLocalSearchParams, useNavigation } from "expo-router";
 import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -17,6 +16,7 @@ import { Platform, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { toast } from "sonner-native";
 import { Button } from "@/components/Button";
+import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { GenreTags } from "@/components/GenreTags";
 import Cast from "@/components/jellyseerr/Cast";

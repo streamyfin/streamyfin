@@ -203,25 +203,29 @@ public class BackgroundDownloaderModule: Module {
     }
 
     AsyncFunction("startDownload") {
-      (urlString: String, destinationPath: String?, metadata: DownloadMetadataRecord?) -> Int in
+      (urlString: String, destinationPath: String?, metadata: DownloadMetadataRecord?,
+        headers: [String: String]?) -> Int in
       try self.stateQueue.sync {
         try self.beginDownloadLocked(
           urlString: urlString,
           destinationPath: destinationPath,
-          metadata: metadata?.toMetadata()
+          metadata: metadata?.toMetadata(),
+          headers: headers
         )
       }
     }
 
     AsyncFunction("enqueueDownload") {
-      (urlString: String, destinationPath: String?, metadata: DownloadMetadataRecord?) -> Int in
+      (urlString: String, destinationPath: String?, metadata: DownloadMetadataRecord?,
+        headers: [String: String]?) -> Int in
       try self.stateQueue.sync { () throws -> Int in
         let wasEmpty = self.downloadQueue.isEmpty
         self.downloadQueue.append(
           QueuedDownloadInfo(
             url: urlString,
             destinationPath: destinationPath,
-            metadata: metadata?.toMetadata()
+            metadata: metadata?.toMetadata(),
+            headers: headers
           )
         )
         self.queueDidChangeLocked()
@@ -358,7 +362,8 @@ public class BackgroundDownloaderModule: Module {
   private func beginDownloadLocked(
     urlString: String,
     destinationPath: String?,
-    metadata: DownloadActivityMetadata?
+    metadata: DownloadActivityMetadata?,
+    headers: [String: String]? = nil
   ) throws -> Int {
     guard let url = URL(string: urlString) else {
       throw DownloadError.invalidURL
@@ -376,6 +381,9 @@ public class BackgroundDownloaderModule: Module {
     var request = URLRequest(url: url)
     request.httpMethod = "GET"
     request.timeoutInterval = 300
+    headers?.forEach { key, value in
+      request.setValue(value, forHTTPHeaderField: key)
+    }
 
     let task = session.downloadTask(with: request)
     let taskId = task.taskIdentifier
@@ -383,7 +391,8 @@ public class BackgroundDownloaderModule: Module {
     downloadTasks[taskId] = DownloadTaskInfo(
       url: urlString,
       destinationPath: destinationPath,
-      metadata: metadata
+      metadata: metadata,
+      headers: headers
     )
     persistTasksLocked()
 
@@ -622,7 +631,8 @@ public class BackgroundDownloaderModule: Module {
     return try beginDownloadLocked(
       urlString: next.url,
       destinationPath: next.destinationPath,
-      metadata: next.metadata
+      metadata: next.metadata,
+      headers: next.headers
     )
   }
 

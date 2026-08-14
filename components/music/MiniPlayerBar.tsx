@@ -1,5 +1,4 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Image } from "expo-image";
 import { useAtom } from "jotai";
 import React, { useCallback, useMemo } from "react";
 import {
@@ -21,6 +20,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { GlassSurface } from "@/components/common/GlassSurface";
+import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import useRouter from "@/hooks/useAppRouter";
 import { apiAtom } from "@/providers/JellyfinProvider";

@@ -1,6 +1,6 @@
-import { Image } from "expo-image";
 import type { FC } from "react";
 import { View } from "react-native";
+import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { CONTROLS_CONSTANTS } from "./constants";
 

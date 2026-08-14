@@ -13,13 +13,16 @@ import expo.modules.kotlin.modules.ModuleDefinition
 data class DownloadTaskInfo(
   val url: String,
   val destinationPath: String?,
-  val itemId: String? = null
+  val itemId: String? = null,
+  /** Custom proxy auth headers for a server behind an access gateway. */
+  val headers: Map<String, String>? = null
 )
 
 private data class QueuedDownload(
   val url: String,
   val destinationPath: String?,
-  val itemId: String?
+  val itemId: String?,
+  val headers: Map<String, String>?
 )
 
 class BackgroundDownloaderModule : Module() {
@@ -90,10 +93,10 @@ class BackgroundDownloaderModule : Module() {
     // `metadata` carries the iOS Live Activity payload; here only `itemId` is used, echoed back in
     // events so JS can correlate them without a taskId bookkeeping layer. The parameter must exist
     // on both platforms regardless — JS always passes three arguments.
-    AsyncFunction("startDownload") { urlString: String, destinationPath: String?, metadata: Map<String, Any?>?, promise: Promise ->
+    AsyncFunction("startDownload") { urlString: String, destinationPath: String?, metadata: Map<String, Any?>?, headers: Map<String, String>?, promise: Promise ->
       try {
         val taskId = synchronized(stateLock) {
-          startDownloadLocked(urlString, destinationPath, metadata?.get("itemId") as? String)
+          startDownloadLocked(urlString, destinationPath, metadata?.get("itemId") as? String, headers)
         }
         promise.resolve(taskId)
       } catch (e: Exception) {
@@ -101,7 +104,7 @@ class BackgroundDownloaderModule : Module() {
       }
     }
 
-    AsyncFunction("enqueueDownload") { urlString: String, destinationPath: String?, metadata: Map<String, Any?>?, promise: Promise ->
+    AsyncFunction("enqueueDownload") { urlString: String, destinationPath: String?, metadata: Map<String, Any?>?, headers: Map<String, String>?, promise: Promise ->
       try {
         Log.d(TAG, "Enqueuing download: url=$urlString")
 
@@ -112,7 +115,8 @@ class BackgroundDownloaderModule : Module() {
             QueuedDownload(
               url = urlString,
               destinationPath = destinationPath,
-              itemId = metadata?.get("itemId") as? String
+              itemId = metadata?.get("itemId") as? String,
+              headers = headers
             )
           )
           Log.d(TAG, "Queue size: ${downloadQueue.size}")
@@ -197,7 +201,12 @@ class BackgroundDownloaderModule : Module() {
     }
   }
 
-  private fun startDownloadLocked(urlString: String, destinationPath: String?, itemId: String?): Int {
+  private fun startDownloadLocked(
+    urlString: String,
+    destinationPath: String?,
+    itemId: String?,
+    headers: Map<String, String>? = null
+  ): Int {
     val taskId = taskIdCounter++
 
     if (destinationPath == null) {
@@ -207,7 +216,8 @@ class BackgroundDownloaderModule : Module() {
     downloadTasks[taskId] = DownloadTaskInfo(
       url = urlString,
       destinationPath = destinationPath,
-      itemId = itemId
+      itemId = itemId,
+      headers = headers
     )
 
     // Start foreground service if not running
@@ -229,6 +239,7 @@ class BackgroundDownloaderModule : Module() {
       taskId = taskId,
       url = urlString,
       destinationPath = destinationPath,
+      headers = headers,
       onProgress = { bytesWritten, totalBytes ->
         handleProgress(taskId, bytesWritten, totalBytes)
       },
@@ -261,7 +272,7 @@ class BackgroundDownloaderModule : Module() {
     Log.d(TAG, "Processing next in queue: ${next.url}")
 
     return try {
-      startDownloadLocked(next.url, next.destinationPath, next.itemId)
+      startDownloadLocked(next.url, next.destinationPath, next.itemId, next.headers)
     } catch (e: Exception) {
       Log.e(TAG, "Error processing queue item: ${e.message}", e)
       // Try to process next item

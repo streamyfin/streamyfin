@@ -1,4 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
+import {
+  BottomSheetTextInput,
+  useBottomSheetInternal,
+} from "@gorhom/bottom-sheet";
 import { BlurView } from "expo-blur";
 import { useRef, useState } from "react";
 import {
@@ -19,6 +23,8 @@ interface InputProps extends TextInputProps {
 export function Input(props: InputProps) {
   const { style, extraClassName = "", ...otherProps } = props;
   const inputRef = useRef<TextInput>(null);
+  // `true` asks for null instead of a throw when there is no sheet above us.
+  const inBottomSheet = useBottomSheetInternal(true) !== null;
   const [isFocused, setIsFocused] = useState(false);
   const scale = useRef(new Animated.Value(1)).current;
   // TV-only: scales the input font with the tvTypographyScale setting.
@@ -136,16 +142,23 @@ export function Input(props: InputProps) {
     );
   }
 
+  const sharedProps = {
+    className: `p-4 rounded-xl bg-neutral-900 ${extraClassName}`,
+    allowFontScaling: false,
+    style: [{ color: "white" }, style],
+    placeholderTextColor: "#9CA3AF",
+    clearButtonMode: "while-editing" as const,
+    ...otherProps,
+  };
+
+  // Inside a bottom sheet the plain TextInput is invisible to the sheet, which
+  // then can't move out of the keyboard's way or let its content scroll while
+  // the keyboard covers it. Gorhom's own input reports focus back to the sheet.
+  // It takes a different ref type, and only the TV branch above uses that ref.
+  if (inBottomSheet) {
+    return <BottomSheetTextInput {...sharedProps} />;
+  }
+
   // Mobile version unchanged
-  return (
-    <TextInput
-      ref={inputRef}
-      className={`p-4 rounded-xl bg-neutral-900 ${extraClassName}`}
-      allowFontScaling={false}
-      style={[{ color: "white" }, style]}
-      placeholderTextColor={"#9CA3AF"}
-      clearButtonMode='while-editing'
-      {...otherProps}
-    />
-  );
+  return <TextInput ref={inputRef} {...sharedProps} />;
 }

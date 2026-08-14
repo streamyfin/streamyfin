@@ -5,7 +5,6 @@ import type {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
-import { Image } from "expo-image";
 import { useAtom } from "jotai";
 import React, {
   useCallback,
@@ -34,6 +33,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import TextTicker from "react-native-text-ticker";
 import type { VolumeResult } from "react-native-volume-manager";
 import { Badge } from "@/components/Badge";
+import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { CreatePlaylistModal } from "@/components/music/CreatePlaylistModal";
 import { PlaylistPickerSheet } from "@/components/music/PlaylistPickerSheet";

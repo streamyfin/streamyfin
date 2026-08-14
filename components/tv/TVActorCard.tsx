@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Image } from "expo-image";
 import React from "react";
 import { Animated, Pressable, View } from "react-native";
+import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import { scaleSize } from "@/utils/scaleSize";
