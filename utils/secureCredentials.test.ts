@@ -24,9 +24,6 @@ const {
   recordAccountSignIn,
   updateAccountToken,
 } = await import("./secureCredentials");
-// bun's mock.module registry is shared across test files, so mmkv may be backed
-// by another file's map. Reset through the same storage object the code writes
-// to rather than the map declared above.
 const { storage } = await import("./mmkv");
 
 const SERVER = "https://jf.example.com";
@@ -54,7 +51,7 @@ const seed = async (
 
 beforeEach(() => {
   mmkvStore.clear();
-  storage.delete("previousServers");
+  storage.remove("previousServers");
   secureStoreValues.clear();
   uuidCounter = 0;
 });
@@ -190,7 +187,18 @@ describe("recordAccountSignIn", () => {
   });
 
   test("refreshes a known account rather than duplicating it", async () => {
-    await seed("alice", "u1", "device-alice");
+    // Seeded with a token signIn does not write, so the assertion below fails
+    // if the refresh never happens.
+    await saveAccountCredential({
+      serverUrl: SERVER,
+      serverName: "Test",
+      token: "stale-token",
+      userId: "u1",
+      username: "alice",
+      savedAt: 1,
+      securityType: "none",
+      deviceId: "device-alice",
+    });
 
     await signIn("u1", "alice", "device-alice");
 

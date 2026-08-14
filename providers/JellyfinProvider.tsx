@@ -323,7 +323,16 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
   const clearAccountScopedState = useCallback(async () => {
     queryClient.clear();
     storage.remove("REACT_QUERY_OFFLINE_CACHE");
-    await clearAllJellyseerData();
+    try {
+      // Reaches an external service, so it must not be able to abort an
+      // authentication that already succeeded — same reasoning as the logout
+      // teardown above.
+      await clearAllJellyseerData();
+    } catch (e) {
+      writeErrorLog(
+        `Failed to clear Jellyseerr data: ${e instanceof Error ? e.message : e}`,
+      );
+    }
   }, [queryClient, clearAllJellyseerData]);
 
   const handleSessionExpired = useCallback(() => {
@@ -419,13 +428,15 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
 
           const { AccessToken, User } = authResponse.data;
           // The token is bound to the id the request went out under.
+          // Teardown first: adopting the device id publishes it to MMKV, and
+          // an await between that and setApi would let the socket reconnect
+          // under the new device id while still holding the old token.
+          await clearAccountScopedState();
+
           const accountJellyfin = adoptDeviceId(quickConnectDeviceId);
           if (!accountJellyfin)
             throw new Error("Failed to create SDK instance");
           setQuickConnectDeviceId(null);
-          // Quick Connect can land on a different account than the one already
-          // signed in, so it needs the same teardown as the other paths.
-          await clearAccountScopedState();
 
           setUser(User);
           setApi(
@@ -806,8 +817,8 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       try {
         const response = await getUserApi(apiInstance).getCurrentUser();
 
-        adoptDeviceId(credentialDeviceId);
         await clearAccountScopedState();
+        adoptDeviceId(credentialDeviceId);
 
         // Token is valid, update state
         setApi(apiInstance);
@@ -911,8 +922,8 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
         });
 
       if (auth.data.AccessToken && auth.data.User) {
-        adoptDeviceId(accountDeviceId);
         await clearAccountScopedState();
+        adoptDeviceId(accountDeviceId);
 
         setUser(auth.data.User);
         storage.set("user", JSON.stringify(auth.data.User));

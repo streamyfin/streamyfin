@@ -8,23 +8,25 @@
  * together, depending on load order.
  *
  * Every suite that needs storage goes through this one double, and clears
- * `mmkvStore` between tests.
+ * `mmkvStore` between tests. It mirrors the methods this codebase calls — no
+ * more, so a call the real v4 API does not have cannot pass here.
  */
 export const mmkvStore = new Map<string, string>();
 
 export const mmkvMock = () => ({
   createMMKV: () => ({
     getString: (key: string) => mmkvStore.get(key),
-    getBoolean: (key: string) => mmkvStore.get(key) === "true",
-    set: (key: string, value: string | boolean) => {
+    getBoolean: (key: string) =>
+      mmkvStore.has(key) ? mmkvStore.get(key) === "true" : undefined,
+    getNumber: (key: string) =>
+      mmkvStore.has(key) ? Number(mmkvStore.get(key)) : undefined,
+    getAllKeys: () => Array.from(mmkvStore.keys()),
+    set: (key: string, value: string | number | boolean) => {
       mmkvStore.set(key, String(value));
     },
-    delete: (key: string) => {
-      mmkvStore.delete(key);
+    setAny: (key: string, value: unknown) => {
+      mmkvStore.set(key, JSON.stringify(value));
     },
-    remove: (key: string) => {
-      mmkvStore.delete(key);
-    },
-    getAllKeys: () => Array.from(mmkvStore.keys()),
+    remove: (key: string) => mmkvStore.delete(key),
   }),
 });

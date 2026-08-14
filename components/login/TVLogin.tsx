@@ -115,6 +115,12 @@ export const TVLogin: React.FC = () => {
   const isAnyModalOpen =
     showSaveModal || pinModalVisible || passwordModalVisible;
 
+  // Server address awaiting a Quick Connect start, set by the re-auth prompt
+  // and consumed once the api points at that server.
+  const [pendingQuickConnect, setPendingQuickConnect] = useState<string | null>(
+    null,
+  );
+
   // Pairing state (companion login via phone)
   const [showPairingQR, setShowPairingQR] = useState(false);
   const [pairingCode, setPairingCode] = useState("");
@@ -284,13 +290,14 @@ export const TVLogin: React.FC = () => {
       {
         text: t("login.quick_connect"),
         // Quick Connect posts through the api, which the user-selection screen
-        // has not created yet.
-        onPress: async () => {
+        // has not created yet. Request it and let the effect below start once
+        // the api actually points at this server — calling it straight after
+        // setServer would use the api captured when this alert was built.
+        onPress: () => {
           setCurrentScreen("user-selection");
-          if (currentServer) {
-            await setServer({ address: currentServer.address });
-          }
-          await handleQuickConnect();
+          if (!currentServer) return;
+          setServer({ address: currentServer.address });
+          setPendingQuickConnect(currentServer.address);
         },
       },
       {
@@ -537,6 +544,15 @@ export const TVLogin: React.FC = () => {
       );
     }
   };
+
+  // Start a requested Quick Connect only once the api actually points at the
+  // server it should post to. setServer resolves before the atom has
+  // propagated here, so the request cannot be fired inline.
+  useEffect(() => {
+    if (!pendingQuickConnect || api?.basePath !== pendingQuickConnect) return;
+    setPendingQuickConnect(null);
+    handleQuickConnect();
+  }, [pendingQuickConnect, api?.basePath]);
 
   // Navigate to QR screen with a fresh code and active listener
   const goToQRScreen = useCallback(() => {
