@@ -618,7 +618,7 @@ export const Controls: FC<Props> = ({
     episodeView,
     onHideControls: hideControls,
     timeout: CONTROLS_CONSTANTS.TIMEOUT,
-    disabled: true,
+    disabled: false,
   });
 
   const switchOnEpisodeMode = useCallback(() => {
