@@ -779,6 +779,25 @@ export default function SettingsTV() {
             </>
           )}
 
+          {/* Native Android TV player opt-in — Android TV, default off */}
+          {isAndroidTv && (
+            <>
+              <TVSettingsToggle
+                disabledByAdmin={
+                  pluginSettings?.nativeVideoPlayerAndroidTV?.locked
+                }
+                label={t("home.settings.video_player.native_tv")}
+                value={settings.nativeVideoPlayerAndroidTV === true}
+                onToggle={(value) =>
+                  updateSettings({ nativeVideoPlayerAndroidTV: value })
+                }
+              />
+              <Text style={playerNoteStyle}>
+                {t("home.settings.video_player.native_android_tv_note")}
+              </Text>
+            </>
+          )}
+
           <TVSettingsToggle
             disabledByAdmin={pluginSettings?.showResumeDialog?.locked}
             label={t("home.settings.other.resume_dialog")}
