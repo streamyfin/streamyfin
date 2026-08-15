@@ -157,7 +157,9 @@ interface JellyfinContextValue {
     serverName?: string;
   }) => Promise<void>;
   logout: () => Promise<void>;
-  initiateQuickConnect: () => Promise<string | undefined>;
+  initiateQuickConnect: (options?: {
+    saveAccount?: boolean;
+  }) => Promise<string | undefined>;
   stopQuickConnectPolling: () => void;
   loginWithSavedCredential: (
     serverUrl: string,
@@ -229,6 +231,11 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
   const [quickConnectDeviceId, setQuickConnectDeviceId] = useState<
     string | null
   >(null);
+  // Whether the attempt asked for the account to be saved. Quick Connect has no
+  // save step of its own, so the answer has to be carried from the screen that
+  // started it through to the approval.
+  const [quickConnectSaveAccount, setQuickConnectSaveAccount] =
+    useState<boolean>(false);
   const { settings, setPluginSettings, refreshStreamyfinPluginSettings } =
     useSettings();
   const { clearAllJellyseerData, jellyseerrUser, setJellyseerrUser } =
@@ -421,35 +428,40 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     [],
   );
 
-  const initiateQuickConnect = useCallback(async () => {
-    if (!api) return;
-    // Quick Connect cannot name the account upfront. Adopting this id now
-    // would strand the running session, whose token is bound to the old one.
-    const attemptDeviceId = mintDeviceId();
-    setQuickConnectDeviceId(attemptDeviceId);
-    try {
-      const response = await api.axiosInstance.post(
-        `${api.basePath}/QuickConnect/Initiate`,
-        null,
-        {
-          headers: authHeaders(attemptDeviceId),
-        },
-      );
-      if (response?.status === 200) {
-        setSecret(response?.data?.Secret);
-        setIsPolling(true);
-        return response.data?.Code;
+  const initiateQuickConnect = useCallback(
+    async (options?: { saveAccount?: boolean }) => {
+      if (!api) return;
+      // Quick Connect cannot name the account upfront. Adopting this id now
+      // would strand the running session, whose token is bound to the old one.
+      const attemptDeviceId = mintDeviceId();
+      setQuickConnectDeviceId(attemptDeviceId);
+      setQuickConnectSaveAccount(options?.saveAccount ?? false);
+      try {
+        const response = await api.axiosInstance.post(
+          `${api.basePath}/QuickConnect/Initiate`,
+          null,
+          {
+            headers: authHeaders(attemptDeviceId),
+          },
+        );
+        if (response?.status === 200) {
+          setSecret(response?.data?.Secret);
+          setIsPolling(true);
+          return response.data?.Code;
+        }
+        throw new Error("Failed to initiate quick connect");
+      } catch (error) {
+        console.error(error);
+        throw error;
       }
-      throw new Error("Failed to initiate quick connect");
-    } catch (error) {
-      console.error(error);
-      throw error;
-    }
-  }, [api, authHeaders]);
+    },
+    [api, authHeaders],
+  );
 
   const stopQuickConnectPolling = useCallback(() => {
     setIsPolling(false);
     setSecret(null);
+    setQuickConnectSaveAccount(false);
     setQuickConnectDeviceId(null);
   }, []);
 
@@ -500,10 +512,10 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
           });
 
           // Whoever approved meant to sign in, even if that is not the account
-          // we asked to re-authenticate. Saving a new one is TV-only: there the
-          // switcher is the way in and no save prompt exists, whereas on mobile
-          // the user answers the protection picker first (see
-          // PendingAccountSaveModal) and may well decline.
+          // we asked to re-authenticate. A known account is always refreshed;
+          // saving an unknown one needs the consent the screen collected before
+          // starting the attempt. Mobile leaves this false and runs its own
+          // protection picker afterwards (see PendingAccountSaveModal).
           if (User?.Id) {
             await recordAccountSignIn({
               serverUrl,
@@ -511,7 +523,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
               username: User.Name || "",
               token: AccessToken,
               deviceId: quickConnectDeviceId,
-              saveIfNew: Platform.isTV,
+              saveIfNew: quickConnectSaveAccount,
               primaryImageTag: User.PrimaryImageTag ?? undefined,
             });
           }
@@ -525,6 +537,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
           setIsPolling(false);
           setSecret(null);
           setQuickConnectDeviceId(null);
+          setQuickConnectSaveAccount(false);
           if (error.response?.status === 400) {
             throw new Error("The code has expired. Please try again.");
           }
@@ -540,6 +553,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     authHeaders,
     jellyfin,
     quickConnectDeviceId,
+    quickConnectSaveAccount,
     adoptDeviceId,
     activateSession,
     clearAccountScopedState,

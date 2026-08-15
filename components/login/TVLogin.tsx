@@ -532,9 +532,9 @@ export const TVLogin: React.FC = () => {
   };
 
   // Handle quick connect
-  const handleQuickConnect = async () => {
+  const handleQuickConnect = async (saveAccount = false) => {
     try {
-      const code = await initiateQuickConnect();
+      const code = await initiateQuickConnect({ saveAccount });
       if (code) {
         Alert.alert(
           t("login.quick_connect"),
@@ -564,7 +564,9 @@ export const TVLogin: React.FC = () => {
     )
       return;
     setPendingQuickConnect(null);
-    handleQuickConnect();
+    // Re-authenticating an account that is already saved: its token is
+    // refreshed either way, so there is nothing here to consent to.
+    handleQuickConnect(false);
   }, [pendingQuickConnect, api?.basePath]);
 
   // Navigate to QR screen with a fresh code and active listener

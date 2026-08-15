@@ -17,7 +17,8 @@ interface TVAddUserFormProps {
     password: string,
     saveAccount: boolean,
   ) => Promise<void>;
-  onQuickConnect: () => Promise<void>;
+  /** Takes the save toggle too: it sits above both buttons, so it governs both. */
+  onQuickConnect: (saveAccount: boolean) => Promise<void>;
   onBack: () => void;
   loading?: boolean;
   disabled?: boolean;
@@ -173,7 +174,7 @@ export const TVAddUserForm: React.FC<TVAddUserFormProps> = ({
 
         {/* Quick Connect Button */}
         <Button
-          onPress={onQuickConnect}
+          onPress={() => onQuickConnect(saveAccount)}
           color='black'
           className='bg-neutral-800 border border-neutral-700'
         >
