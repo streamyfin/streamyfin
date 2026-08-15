@@ -988,7 +988,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       if (!jellyfin) throw new Error("Jellyfin not initialized");
 
       // Reuse this account's own id so the refreshed token replaces its
-      // predecessor instead of revoking another account's.
+      // predecessor instead of displacing another account's session.
       const accountDeviceId = resolveDeviceIdForLogin(serverUrl, username);
       const accountJellyfin = buildJellyfin(accountDeviceId);
       if (!accountJellyfin) throw new Error("Failed to create SDK instance");
@@ -1109,8 +1109,9 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
         const storedUser = getUserFromStorage();
 
         // The signed-in account keeps the shared id its token was issued
-        // under; regenerating would revoke the token being restored. The
-        // migration itself refuses an id another account has already claimed.
+        // under; regenerating would strand it, and on ≤10.8 servers would
+        // revoke the token being restored. The migration itself refuses an id
+        // another account has already claimed.
         if (serverUrl && storedUser?.Id) {
           await migrateCurrentAccountDeviceId(
             serverUrl,

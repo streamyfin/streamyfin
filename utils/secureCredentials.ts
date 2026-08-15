@@ -211,9 +211,10 @@ export async function saveAccountCredential(
 }
 
 /**
- * Resolve the device id to authenticate a username under. Jellyfin binds one
- * access token per device id, so accounts must not share one: a known account
- * reuses its own id, anyone else gets a fresh one.
+ * Resolve the device id to authenticate a username under. A device id carries
+ * one active session, and on Jellyfin ≤10.8 only one access token, so accounts
+ * sharing one displace each other: a known account reuses its own id, anyone
+ * else gets a fresh one.
  */
 export function resolveDeviceIdForLogin(
   serverUrl: string,
@@ -230,7 +231,8 @@ export function resolveDeviceIdForLogin(
 
 /**
  * Adopt the legacy install-wide device id for the currently signed-in account,
- * whose token was issued under it. Regenerating instead would revoke it.
+ * whose token was issued under it. Regenerating instead would move the account
+ * off that id, and on ≤10.8 servers would revoke the token outright.
  */
 export async function migrateCurrentAccountDeviceId(
   serverUrl: string,
