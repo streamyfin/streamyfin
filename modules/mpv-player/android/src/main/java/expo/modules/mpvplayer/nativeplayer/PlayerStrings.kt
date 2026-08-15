@@ -41,7 +41,8 @@ class PlayerStrings(private val strings: Map<String, String>) {
             "sleepTimerOff" to "Turn Off",
             "searchSubtitles" to "Search Subtitles",
             "searchFailed" to "Search failed",
-            "noSubtitlesFound" to "No subtitles found"
+            "noSubtitlesFound" to "No subtitles found",
+            "nowPlaying" to "Now Playing"
         )
     }
 
@@ -51,6 +52,8 @@ class PlayerStrings(private val strings: Map<String, String>) {
         if (!fallback.isNullOrBlank()) return fallback
         return DEFAULTS[key] ?: key
     }
+
+    fun str(key: String, fallback: String? = null): String = get(key, fallback)
 
     fun formatEndsAt(timeFormatted: String): String {
         val template = get("endsAt", "Ends at %TIME%")

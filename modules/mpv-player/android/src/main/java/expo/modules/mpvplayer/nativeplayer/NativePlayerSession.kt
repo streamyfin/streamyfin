@@ -87,6 +87,11 @@ class NativePlayerSession(
         viewModel.onDismissRequested = { reason ->
             dismiss(reason = reason)
         }
+        viewModel.onHapticRequested = {
+            hostActivity?.window?.decorView?.performHapticFeedback(
+                android.view.HapticFeedbackConstants.VIRTUAL_KEY
+            )
+        }
     }
 
     fun present(config: PlayerPresentConfigRecord, promise: Promise) {
@@ -125,6 +130,13 @@ class NativePlayerSession(
                 val mediaCtrl = MediaSessionController(activity, viewModel)
                 mediaSessionController = mediaCtrl
                 mediaCtrl.start()
+
+                viewModel.onPlaybackStateSync = {
+                    mediaSessionController?.updatePlaybackState()
+                }
+                viewModel.onMetadataSync = {
+                    mediaSessionController?.updateMetadata()
+                }
 
                 viewModel.apply(config)
 

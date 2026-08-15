@@ -32,6 +32,8 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
     var onRotateRequested: (() -> Unit)? = null
     var onHDRModeDetected: ((Boolean, Double) -> Unit)? = null
     var onHapticRequested: (() -> Unit)? = null
+    var onPlaybackStateSync: (() -> Unit)? = null
+    var onMetadataSync: (() -> Unit)? = null
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -97,6 +99,8 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
 
     var uiOptions by mutableStateOf(UIOptionsRecord())
     var strings by mutableStateOf(PlayerStrings(emptyMap()))
+
+    fun str(key: String, fallback: String? = null): String = strings.get(key, fallback)
 
     // Controllers
     var volumeController: SystemVolumeController? = null
@@ -177,6 +181,8 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
         authoritativePosition = startPos
         displayPosition = startPos
         hasAuthoritativePosition = false
+        onMetadataSync?.invoke()
+        onPlaybackStateSync?.invoke()
         showControls()
     }
 
@@ -227,6 +233,7 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
 
     fun updateMetadata(newMetadata: MetadataRecord) {
         metadata = newMetadata
+        onMetadataSync?.invoke()
     }
 
     fun updateEpisodeList(episodes: List<EpisodeListItemRecord>) {
@@ -334,6 +341,7 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
         displayPosition = clamped
         authoritativePosition = clamped
         renderer?.seekTo(clamped)
+        onPlaybackStateSync?.invoke()
         scheduleAutoHide()
     }
 
@@ -359,6 +367,7 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
         speed = newSpeed
         renderer?.setSpeed(newSpeed)
         emit?.invoke("onSpeedChange", mapOf("speed" to newSpeed))
+        onPlaybackStateSync?.invoke()
         scheduleAutoHide()
     }
 
@@ -562,13 +571,17 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
         countdownJob?.cancel()
         countdownJob = scope.launch {
             var rem = initialSecs
-            while (rem > 0 && isPlaying) {
+            // The countdown must survive a pause: only tick while playing,
+            // but keep the loop alive so it resumes when playback does.
+            while (rem > 0) {
                 delay(500L)
-                rem -= 0.5
-                countdownRemaining = max(0.0, rem)
-                if (rem <= 0.0) {
-                    fireNextEpisode(reason = "countdown")
-                    break
+                if (isPlaying) {
+                    rem -= 0.5
+                    countdownRemaining = max(0.0, rem)
+                    if (rem <= 0.0) {
+                        fireNextEpisode(reason = "countdown")
+                        break
+                    }
                 }
             }
         }
@@ -577,13 +590,36 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
     fun skipActiveSegment() {
         val segment = activeSegment ?: return
         haptic()
+        if (segment.type == "Outro") {
+            disarmCountdownForEpisodeChange()
+        }
         seekTo(segment.endSec)
+    }
+
+    /**
+     * Kill the countdown for good before an episode change: cancelCountdown()
+     * alone leaves countdownCanceled false, so checkSegmentsAndCountdown can
+     * re-arm it while the next episode is still loading and fire a second
+     * advance.
+     */
+    fun disarmCountdownForEpisodeChange() {
+        countdownCanceled = true
+        cancelCountdown()
+        countdownRemaining = null
     }
 
     fun playNextEpisodeNow() {
         haptic()
-        cancelCountdown()
+        disarmCountdownForEpisodeChange()
         fireNextEpisode(reason = "userTap")
+    }
+
+    fun playPreviousEpisode() {
+        haptic()
+        disarmCountdownForEpisodeChange()
+        emit?.invoke("onPreviousEpisodeRequested", mapOf(
+            "positionSec" to displayPosition
+        ))
     }
 
     fun cancelNextEpisodeCountdown() {
@@ -612,9 +648,55 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
         fireNextEpisode(reason = "userTap")
     }
 
+    // MARK: - Chapters
+    fun currentChapterIndex(): Int {
+        if (chapters.isEmpty()) return -1
+        val pos = if (isScrubbing) scrubPosition else displayPosition
+        for (i in chapters.indices.reversed()) {
+            if (pos >= chapters[i].startSec) {
+                return i
+            }
+        }
+        return -1
+    }
+
+    fun chapterName(at: Double = displayPosition): String? {
+        if (chapters.isEmpty()) return null
+        for (i in chapters.indices.reversed()) {
+            if (at >= chapters[i].startSec) {
+                return chapters[i].name ?: "${i + 1}"
+            }
+        }
+        return null
+    }
+
+    fun goToNextChapter() {
+        val currentIndex = currentChapterIndex()
+        val nextIndex = currentIndex + 1
+        if (nextIndex in chapters.indices) {
+            seekTo(chapters[nextIndex].startSec)
+        }
+    }
+
+    fun goToPreviousChapter() {
+        val currentIndex = currentChapterIndex()
+        if (currentIndex < 0) return
+        val currentChapter = chapters[currentIndex]
+        val timeInChapter = displayPosition - currentChapter.startSec
+        if (timeInChapter > PlayerConstants.CHAPTER_RESTART_THRESHOLD_SEC || currentIndex == 0) {
+            seekTo(currentChapter.startSec)
+        } else {
+            val prevIndex = currentIndex - 1
+            if (prevIndex in chapters.indices) {
+                seekTo(chapters[prevIndex].startSec)
+            }
+        }
+    }
+
     // MARK: - Episode List & Subtitle Search
     fun selectEpisode(itemId: String) {
         haptic()
+        disarmCountdownForEpisodeChange()
         emit?.invoke("onEpisodeSelected", mapOf(
             "itemId" to itemId,
             "positionSec" to displayPosition
@@ -665,7 +747,10 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
 
     override fun onPositionChanged(position: Double, duration: Double, cacheSeconds: Double) {
         authoritativePosition = position
-        this.duration = duration
+        if (this.duration != duration) {
+            this.duration = duration
+            onMetadataSync?.invoke()
+        }
         this.cacheSeconds = cacheSeconds
         hasAuthoritativePosition = true
 
@@ -695,6 +780,7 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
         } else {
             autoHideJob?.cancel()
         }
+        onPlaybackStateSync?.invoke()
         emit?.invoke("onPlaybackStateChange", mapOf(
             "isPaused" to isPaused,
             "isPlaying" to playing,
@@ -705,6 +791,7 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
 
     override fun onLoadingChanged(isLoading: Boolean) {
         isBuffering = isLoading
+        onPlaybackStateSync?.invoke()
         emit?.invoke("onPlaybackStateChange", mapOf(
             "isPaused" to !isPlaying,
             "isPlaying" to isPlaying,
@@ -715,6 +802,7 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
 
     override fun onReadyToSeek() {
         isReadyToSeek = true
+        onPlaybackStateSync?.invoke()
         emit?.invoke("onPlaybackStateChange", mapOf(
             "isPaused" to !isPlaying,
             "isPlaying" to isPlaying,
