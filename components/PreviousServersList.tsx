@@ -72,6 +72,11 @@ export const PreviousServersList: React.FC<PreviousServersListProps> = ({
     server: SavedServer,
     account: SavedServerAccount,
   ) => {
+    // A successful login unmounts this screen, so the sheet used to close
+    // itself by accident. Now that a rejected token keeps the account, the
+    // failure path comes back here and an open sheet swallows every tap.
+    setAccountsSheetOpen(false);
+
     switch (account.securityType) {
       case "none":
         // Quick login without protection
