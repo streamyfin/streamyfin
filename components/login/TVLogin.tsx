@@ -9,6 +9,8 @@ import { useTVMenuKeyInterception } from "@/hooks/useTVBackPress";
 import { apiAtom, useJellyfin } from "@/providers/JellyfinProvider";
 import { selectedTVServerAtom } from "@/utils/atoms/selectedTVServer";
 import type { CustomHeader } from "@/utils/customHeaders";
+import { normalizeHttpBaseUrl } from "@/utils/customHeaders/urlMatching";
+import { getOrSetDeviceId } from "@/utils/device";
 import {
   checkJellyfinServer,
   ServerTooOldError,
@@ -479,6 +481,9 @@ export const TVLogin: React.FC = () => {
               securityType,
               pinHash,
               primaryImageTag: user.PrimaryImageTag ?? undefined,
+              // The login above adopted this account's own id; leaving it off
+              // would put the account back on a borrowed one.
+              deviceId: getOrSetDeviceId(),
             });
           }
         } catch (saveError) {
@@ -549,7 +554,15 @@ export const TVLogin: React.FC = () => {
   // server it should post to. setServer resolves before the atom has
   // propagated here, so the request cannot be fired inline.
   useEffect(() => {
-    if (!pendingQuickConnect || api?.basePath !== pendingQuickConnect) return;
+    // A saved address may carry a trailing slash the SDK's basePath drops, and
+    // a mismatch here silently strands the request that offers the way back in.
+    if (
+      !pendingQuickConnect ||
+      !api?.basePath ||
+      normalizeHttpBaseUrl(api.basePath) !==
+        normalizeHttpBaseUrl(pendingQuickConnect)
+    )
+      return;
     setPendingQuickConnect(null);
     handleQuickConnect();
   }, [pendingQuickConnect, api?.basePath]);

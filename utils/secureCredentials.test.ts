@@ -128,6 +128,31 @@ describe("migrateCurrentAccountDeviceId", () => {
     await migrateCurrentAccountDeviceId(SERVER, "unknown", "legacy-device");
     expect(accountsOf()).toEqual([]);
   });
+
+  test("declines an id another account already owns", async () => {
+    // Otherwise the migration hands two accounts the same device, recreating
+    // the collision this mechanism exists to prevent.
+    await seed("alice", "u1", "legacy-device");
+    await seed("bob", "u2", undefined);
+
+    await migrateCurrentAccountDeviceId(SERVER, "u2", "legacy-device");
+
+    expect(
+      (await getAccountCredential(SERVER, "u2"))?.deviceId,
+    ).toBeUndefined();
+  });
+
+  test("declines an id owned on a different server", async () => {
+    // The legacy id is install-wide, so its owner can sit under any server.
+    await seed("alice", "u1", "legacy-device", "https://other.example.com");
+    await seed("bob", "u2", undefined);
+
+    await migrateCurrentAccountDeviceId(SERVER, "u2", "legacy-device");
+
+    expect(
+      (await getAccountCredential(SERVER, "u2"))?.deviceId,
+    ).toBeUndefined();
+  });
 });
 
 describe("updateAccountToken", () => {
@@ -156,13 +181,19 @@ describe("updateAccountToken", () => {
 });
 
 describe("recordAccountSignIn", () => {
-  const signIn = (userId: string, username: string, deviceId: string) =>
+  const signIn = (
+    userId: string,
+    username: string,
+    deviceId: string,
+    saveIfNew = true,
+  ) =>
     recordAccountSignIn({
       serverUrl: SERVER,
       userId,
       username,
       token: `token-${userId}`,
       deviceId,
+      saveIfNew,
       primaryImageTag: "tag",
     });
 
@@ -225,6 +256,36 @@ describe("recordAccountSignIn", () => {
     const credential = await getAccountCredential(SERVER, "u1");
     expect(credential?.securityType).toBe("pin");
     expect(credential?.pinHash).toBe("hash");
+  });
+
+  test("leaves an unknown account unsaved when saving was not asked for", async () => {
+    // Consent lives with the caller: a Quick Connect sign-in on a shared phone
+    // must not persist a token the user declined to save.
+    await signIn("u1", "alice", "device-alice", false);
+
+    expect(await getAccountCredential(SERVER, "u1")).toBeNull();
+    expect(accountsOf()).toEqual([]);
+  });
+
+  test("still refreshes a known account when saving was not asked for", async () => {
+    // The stored token was rejected; without this the account can never be
+    // revived and its switcher entry stays dead.
+    await saveAccountCredential({
+      serverUrl: SERVER,
+      serverName: "Test",
+      token: "stale-token",
+      userId: "u1",
+      username: "alice",
+      savedAt: 1,
+      securityType: "none",
+      deviceId: "device-alice",
+    });
+
+    await signIn("u1", "alice", "fresh-device", false);
+
+    const credential = await getAccountCredential(SERVER, "u1");
+    expect(credential?.token).toBe("token-u1");
+    expect(credential?.deviceId).toBe("fresh-device");
   });
 
   test("keeps accounts separate when a second user signs in", async () => {

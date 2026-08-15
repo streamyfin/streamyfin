@@ -240,6 +240,13 @@ export async function migrateCurrentAccountDeviceId(
   const credential = await getAccountCredential(serverUrl, userId);
   if (!credential || credential.deviceId) return;
 
+  // Stamping an id another account already owns would put both back on one
+  // device, which is the collision this whole mechanism exists to avoid.
+  const claimed = getPreviousServers().some((server) =>
+    server.accounts.some((a) => a.deviceId === legacyDeviceId),
+  );
+  if (claimed) return;
+
   credential.deviceId = legacyDeviceId;
   await SecureStore.setItemAsync(
     credentialKey(serverUrl, userId),
@@ -253,19 +260,23 @@ export async function migrateCurrentAccountDeviceId(
 }
 
 /**
- * Persist a successful sign-in: refresh a known account's token, or save the
- * account if this is the first time it has signed in on this device.
+ * Persist a successful sign-in: refresh a known account's token, or — when
+ * `saveIfNew` — save the account if this is its first sign-in on this device.
  *
- * Quick Connect has no "save this account" step — whoever approves the code
- * decides who signs in — so without this an account added that way would
- * authenticate but never appear in the switcher.
+ * The refresh is unconditional because a saved account whose stored token was
+ * rejected has no other way back: leave it stale and its switcher entry is dead
+ * for good. Saving is opt-in, since it is the caller that knows whether the
+ * user consented to being remembered.
  */
 export async function recordAccountSignIn(params: {
   serverUrl: string;
   userId: string;
   username: string;
   token: string;
-  deviceId: string;
+  /** Id the token was issued under. Omit when it is not known: a credential
+   * predating per-account ids must not be stamped with a borrowed one. */
+  deviceId?: string;
+  saveIfNew: boolean;
   primaryImageTag?: string;
 }): Promise<void> {
   const existing = await getAccountCredential(params.serverUrl, params.userId);
@@ -279,6 +290,7 @@ export async function recordAccountSignIn(params: {
     );
     return;
   }
+  if (!params.saveIfNew) return;
   await saveAccountCredential({
     serverUrl: params.serverUrl,
     // Empty keeps whatever name the server list already holds.

@@ -27,6 +27,7 @@ import { JellyseerrApi, useJellyseerr } from "@/hooks/useJellyseerr";
 import { settingsAtom, useSettings } from "@/utils/atoms/settings";
 import { getIntegrationHeaders } from "@/utils/customHeaders";
 import {
+  getBaseDeviceId,
   getOrSetDeviceId,
   mintDeviceId,
   setActiveDeviceId,
@@ -42,7 +43,6 @@ import {
 import { storage } from "@/utils/mmkv";
 import {
   type AccountSecurityType,
-  addAccountToServer,
   addServerToList,
   deleteAccountCredential,
   deleteJellyseerrPassword,
@@ -335,6 +335,56 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     }
   }, [queryClient, clearAllJellyseerData]);
 
+  // Publish an authorized session. Four login paths reach this point and each
+  // used to write the same five lines by hand, which is how one of them ends up
+  // forgetting the serverUrl or ordering the writes differently.
+  const activateSession = useCallback(
+    (session: {
+      api: Api;
+      serverUrl: string;
+      token: string;
+      user: UserDto;
+    }) => {
+      setUser(session.user);
+      setApi(session.api);
+      storage.set("serverUrl", session.serverUrl);
+      storage.set("token", session.token);
+      storage.set("user", JSON.stringify(session.user));
+    },
+    [setUser, setApi],
+  );
+
+  // Jellyfin access tokens do not expire, so a session nobody keeps a reference
+  // to stays live on the server for good. Logging out tells the server to drop
+  // it — unless a saved account still holds this exact token, since quick login
+  // replays it and revoking would leave that entry unusable.
+  const revokeUnsavedSessionToken = useCallback(async () => {
+    const token = storage.getString("token");
+    if (!api?.basePath || !token) return;
+
+    try {
+      if (user?.Id) {
+        const saved = await getAccountCredential(api.basePath, user.Id);
+        if (saved?.token === token) return;
+      }
+    } catch (e) {
+      // Leaving a token live is what every previous release did; failing the
+      // logout over it would be worse.
+      writeErrorLog(
+        `Failed to check for a saved token: ${e instanceof Error ? e.message : e}`,
+      );
+      return;
+    }
+
+    // Fire-and-forget, like the push-token cleanup above: the SDK's axios
+    // instance carries no timeout, so awaiting this would stall the logout for
+    // the full TCP timeout whenever the server is unreachable.
+    api
+      .post("/Sessions/Logout", null)
+      .then((_r) => writeInfoLog("Revoked session token"))
+      .catch((_e) => writeErrorLog("Failed to revoke session token"));
+  }, [api, user?.Id]);
+
   const handleSessionExpired = useCallback(() => {
     if (sessionExpiredRef.current) return; // run once per session
     sessionExpiredRef.current = true;
@@ -438,15 +488,22 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
             throw new Error("Failed to create SDK instance");
           setQuickConnectDeviceId(null);
 
-          setUser(User);
-          setApi(
-            createApiWithCustomHeaders(accountJellyfin, serverUrl, AccessToken),
-          );
-          storage.set("token", AccessToken);
-          storage.set("user", JSON.stringify(User));
+          activateSession({
+            api: createApiWithCustomHeaders(
+              accountJellyfin,
+              serverUrl,
+              AccessToken,
+            ),
+            serverUrl,
+            token: AccessToken,
+            user: User,
+          });
 
-          // Whoever approved meant to sign in, even if that is not the
-          // account we asked to re-authenticate.
+          // Whoever approved meant to sign in, even if that is not the account
+          // we asked to re-authenticate. Saving a new one is TV-only: there the
+          // switcher is the way in and no save prompt exists, whereas on mobile
+          // the user answers the protection picker first (see
+          // PendingAccountSaveModal) and may well decline.
           if (User?.Id) {
             await recordAccountSignIn({
               serverUrl,
@@ -454,6 +511,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
               username: User.Name || "",
               token: AccessToken,
               deviceId: quickConnectDeviceId,
+              saveIfNew: Platform.isTV,
               primaryImageTag: User.PrimaryImageTag ?? undefined,
             });
           }
@@ -476,7 +534,16 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       console.error("Error polling Quick Connect:", error);
       throw error;
     }
-  }, [api, secret, authHeaders, jellyfin, quickConnectDeviceId, adoptDeviceId]);
+  }, [
+    api,
+    secret,
+    authHeaders,
+    jellyfin,
+    quickConnectDeviceId,
+    adoptDeviceId,
+    activateSession,
+    clearAccountScopedState,
+  ]);
 
   useEffect(() => {
     (async () => {
@@ -607,16 +674,28 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
           // which is only reachable after a logout that already tore the
           // previous account's state down.
           adoptDeviceId(accountDeviceId);
-          setUser(auth.data.User);
-          storage.set("user", JSON.stringify(auth.data.User));
-          setApi(
-            createApiWithCustomHeaders(
+          activateSession({
+            api: createApiWithCustomHeaders(
               accountJellyfin,
               serverUrl,
               auth.data.AccessToken,
             ),
+            serverUrl,
+            token: auth.data.AccessToken,
+            user: auth.data.User,
+          });
+
+          // An account that is already saved gets its stored token refreshed
+          // whether or not this login asked to save it. Skipping that strands a
+          // rejected credential on its dead token, and the switcher entry then
+          // fails forever with no way back.
+          await updateAccountToken(
+            serverUrl,
+            auth.data.User.Id || "",
+            auth.data.AccessToken,
+            auth.data.User.PrimaryImageTag ?? undefined,
+            accountDeviceId,
           );
-          storage.set("token", auth.data?.AccessToken);
 
           // Save credentials to secure storage if requested
           if (options?.saveAccount) {
@@ -772,6 +851,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
           writeErrorLog("Failed to delete expo push token for device"),
         );
 
+      await revokeUnsavedSessionToken();
       await clearSessionState();
     },
     onError: (error) => {
@@ -794,13 +874,13 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
         throw new Error("No saved credential found");
       }
 
-      // Credentials predating device ids fall back to the active id, which
-      // after upgrading is still the one they were issued under. Borrowed for
-      // the request but never written back: tokens are scoped per server, so
-      // two accounts on different servers can both be live here, and
-      // persisting the borrowed id would leave them sharing one.
+      // Credentials predating device ids fall back to the install-wide id they
+      // were actually issued under, not to whichever id happens to be active —
+      // that one belongs to the account being switched away from. Borrowed for
+      // the request but never written back, so the next password login mints an
+      // id of this account's own instead of settling on a shared one.
       const ownsDeviceId = credential.deviceId !== undefined;
-      const credentialDeviceId = credential.deviceId ?? getOrSetDeviceId();
+      const credentialDeviceId = credential.deviceId ?? getBaseDeviceId();
       const credentialJellyfin = buildJellyfin(credentialDeviceId);
       if (!credentialJellyfin) throw new Error("Failed to create SDK instance");
 
@@ -821,11 +901,12 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
         adoptDeviceId(credentialDeviceId);
 
         // Token is valid, update state
-        setApi(apiInstance);
-        setUser(response.data);
-        storage.set("serverUrl", serverUrl);
-        storage.set("token", credential.token);
-        storage.set("user", JSON.stringify(response.data));
+        activateSession({
+          api: apiInstance,
+          serverUrl,
+          token: credential.token,
+          user: response.data,
+        });
 
         // Refresh a changed avatar, and keep the account's own device id. An
         // account that never had one keeps it that way, so its next password
@@ -925,17 +1006,16 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
         await clearAccountScopedState();
         adoptDeviceId(accountDeviceId);
 
-        setUser(auth.data.User);
-        storage.set("user", JSON.stringify(auth.data.User));
-        setApi(
-          createApiWithCustomHeaders(
+        activateSession({
+          api: createApiWithCustomHeaders(
             accountJellyfin,
             serverUrl,
             auth.data.AccessToken,
           ),
-        );
-        storage.set("serverUrl", serverUrl);
-        storage.set("token", auth.data.AccessToken);
+          serverUrl,
+          token: auth.data.AccessToken,
+          user: auth.data.User,
+        });
 
         // Update the saved credential with new token and image tag
         await updateAccountToken(
@@ -1015,12 +1095,13 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
         const storedUser = getUserFromStorage();
 
         // The signed-in account keeps the shared id its token was issued
-        // under; regenerating would revoke the token being restored.
+        // under; regenerating would revoke the token being restored. The
+        // migration itself refuses an id another account has already claimed.
         if (serverUrl && storedUser?.Id) {
           await migrateCurrentAccountDeviceId(
             serverUrl,
             storedUser.Id,
-            getOrSetDeviceId(),
+            getBaseDeviceId(),
           );
         }
 
@@ -1050,38 +1131,26 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
               if (getTokenFromStorage() !== token) return;
               setUser(response.data);
 
-              // Migrate current session to secure storage if not already saved
+              // Migrate current session to secure storage if not already saved,
+              // and otherwise pick up a changed avatar.
               if (storedUser?.Id && storedUser?.Name) {
-                const existingCredential = await getAccountCredential(
+                const known = await getAccountCredential(
                   serverUrl,
                   storedUser.Id,
                 );
-                if (!existingCredential) {
-                  await saveAccountCredential({
-                    serverUrl,
-                    serverName: "",
-                    token,
-                    userId: storedUser.Id,
-                    username: storedUser.Name,
-                    savedAt: Date.now(),
-                    securityType: "none",
-                    primaryImageTag: response.data.PrimaryImageTag ?? undefined,
-                    deviceId: getOrSetDeviceId(),
-                  });
-                } else if (
-                  response.data.PrimaryImageTag !==
-                  existingCredential.primaryImageTag
-                ) {
-                  // Update image tag if it has changed
-                  addAccountToServer(serverUrl, existingCredential.serverName, {
-                    userId: existingCredential.userId,
-                    username: existingCredential.username,
-                    securityType: existingCredential.securityType,
-                    savedAt: existingCredential.savedAt,
-                    primaryImageTag: response.data.PrimaryImageTag ?? undefined,
-                    deviceId: existingCredential.deviceId,
-                  });
-                }
+                await recordAccountSignIn({
+                  serverUrl,
+                  userId: storedUser.Id,
+                  username: storedUser.Name,
+                  token,
+                  // This session's token was issued under the active id, so a
+                  // first save records that. A credential that already exists
+                  // keeps whatever it has: an account still on the legacy id
+                  // must stay unstamped so its next login mints its own.
+                  deviceId: known ? known.deviceId : getOrSetDeviceId(),
+                  saveIfNew: true,
+                  primaryImageTag: response.data.PrimaryImageTag ?? undefined,
+                });
               }
             })
             .catch((e) => {
