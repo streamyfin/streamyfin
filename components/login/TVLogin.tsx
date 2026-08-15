@@ -1,4 +1,3 @@
-import type { PublicSystemInfo } from "@jellyfin/sdk/lib/generated-client";
 import { useLocalSearchParams, useNavigation } from "expo-router";
 import { t } from "i18next";
 import { useAtom, useAtomValue } from "jotai";
@@ -9,6 +8,11 @@ import { Text } from "@/components/common/Text";
 import { useTVMenuKeyInterception } from "@/hooks/useTVBackPress";
 import { apiAtom, useJellyfin } from "@/providers/JellyfinProvider";
 import { selectedTVServerAtom } from "@/utils/atoms/selectedTVServer";
+import type { CustomHeader } from "@/utils/customHeaders";
+import {
+  checkJellyfinServer,
+  ServerTooOldError,
+} from "@/utils/jellyfin/checkServer";
 import { storage } from "@/utils/mmkv";
 import {
   generatePairingCode,
@@ -174,86 +178,51 @@ export const TVLogin: React.FC = () => {
     });
   }, [serverName, navigation]);
 
-  // Server URL checking
-  const checkUrl = useCallback(async (url: string) => {
-    setLoadingServerCheck(true);
-    const baseUrl = url.replace(/^https?:\/\//i, "");
-    const protocols = ["https", "http"];
-    try {
-      return checkHttp(baseUrl, protocols);
-    } catch (e) {
-      if (e instanceof Error && e.message === "Server too old") {
-        throw e;
-      }
-      return undefined;
-    } finally {
-      setLoadingServerCheck(false);
-    }
-  }, []);
-
-  async function checkHttp(baseUrl: string, protocols: string[]) {
-    for (const protocol of protocols) {
-      try {
-        const response = await fetch(
-          `${protocol}://${baseUrl}/System/Info/Public`,
-          { mode: "cors" },
-        );
-        if (response.ok) {
-          const data = (await response.json()) as PublicSystemInfo;
-          const serverVersion = data.Version?.split(".");
-          if (serverVersion && +serverVersion[0] <= 10) {
-            if (+serverVersion[1] < 10) {
-              Alert.alert(
-                t("login.too_old_server_text"),
-                t("login.too_old_server_description"),
-              );
-              throw new Error("Server too old");
-            }
-          }
-          setServerName(data.ServerName || "");
-          return `${protocol}://${baseUrl}`;
-        }
-      } catch (e) {
-        if (e instanceof Error && e.message === "Server too old") {
-          throw e;
-        }
-      }
-    }
-    return undefined;
-  }
-
   // Handle connecting to a new server
   const handleConnect = useCallback(
-    async (url: string) => {
-      url = url.trim().replace(/\/$/, "");
+    async (url: string, headers?: CustomHeader[]) => {
+      setLoadingServerCheck(true);
       try {
-        const result = await checkUrl(url);
-        if (result === undefined) {
+        const result = await checkJellyfinServer(
+          url.trim().replace(/\/$/, ""),
+          headers,
+        );
+        if (!result) {
           Alert.alert(
             t("login.connection_failed"),
             t("login.could_not_connect_to_server"),
           );
           return;
         }
-        await setServer({ address: result });
+        setServerName(result.name);
+        await setServer({ address: result.url });
 
         // Update server list and get the new server data
         refreshServers();
 
         // Find or create server entry
         const servers = getPreviousServers();
-        const server = servers.find((s) => s.address === result);
+        const server = servers.find((s) => s.address === result.url);
 
         if (server) {
           setCurrentServer(server);
-          setSelectedTVServer({ address: result, name: serverName });
+          setSelectedTVServer({ address: result.url, name: result.name });
           setCurrentScreen("user-selection");
         }
       } catch (error) {
+        if (error instanceof ServerTooOldError) {
+          Alert.alert(
+            t("login.too_old_server_text"),
+            t("login.too_old_server_description"),
+          );
+          return;
+        }
         if (__DEV__) console.error("[TVLogin] Error in handleConnect:", error);
+      } finally {
+        setLoadingServerCheck(false);
       }
     },
-    [checkUrl, setServer, serverName, setSelectedTVServer],
+    [setServer, setSelectedTVServer],
   );
 
   // Handle selecting an existing server

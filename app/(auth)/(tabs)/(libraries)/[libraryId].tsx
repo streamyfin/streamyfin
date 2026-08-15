@@ -11,7 +11,6 @@ import {
 } from "@jellyfin/sdk/lib/utils/api";
 import { FlashList, type FlashListRef } from "@shopify/flash-list";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
-import { Image } from "expo-image";
 import {
   useFocusEffect,
   useLocalSearchParams,
@@ -29,6 +28,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import {
   getItemNavigation,

@@ -1,13 +1,13 @@
 import type { Api } from "@jellyfin/sdk";
 import type { BaseItemKind } from "@jellyfin/sdk/lib/generated-client";
 import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
-import { Image } from "expo-image";
 import { t } from "i18next";
 import { useAtom } from "jotai";
 import { useCallback, useEffect, useState } from "react";
 import { Text, View } from "react-native";
 // PNG ASSET
 import heart from "@/assets/icons/heart.fill.png";
+import { Image } from "@/components/common/ServerImage";
 import { Colors } from "@/constants/Colors";
 import useRouter from "@/hooks/useAppRouter";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";

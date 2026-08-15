@@ -81,6 +81,7 @@ jobs:
           - "format"
           - "typecheck"
           - "i18n:check"
+          - "test:unit"
 
     steps:
       - parallel:

@@ -137,6 +137,8 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	/// Result id a download is in flight for (row spinner).
 	@Published var downloadingResultId: String?
 	@Published var episodeList: [EpisodeListItemRecord] = []
+	/// Custom proxy auth headers for the thumbnails above (see RemoteImage).
+	@Published var imageHeaders: [String: String]?
 	@Published var trickplay: TrickplayProvider?
 	/// Active sleep-timer preset (nil = off). Only the selection is published —
 	/// the countdown itself is a wall-clock deadline, so nothing rebuilds the
@@ -309,6 +311,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		}
 		currentItemId = newItemId
 		metadata = config.metadata
+		imageHeaders = config.imageHeaders
 		chapters = config.chapters.sorted { $0.startSec < $1.startSec }
 		segments = config.segments
 		nextEpisode = config.nextEpisode

@@ -8,7 +8,6 @@ import {
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
-import { Image } from "expo-image";
 import { useAtom } from "jotai";
 import React, {
   useCallback,
@@ -26,6 +25,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Input } from "@/components/common/Input";
+import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { useAddToPlaylist } from "@/hooks/usePlaylistMutations";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";

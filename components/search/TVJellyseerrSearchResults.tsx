@@ -1,8 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Image } from "expo-image";
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { Animated, FlatList, Pressable, View } from "react-native";
+import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { useTVFocusAnimation } from "@/components/tv/hooks/useTVFocusAnimation";
 import { TVJellyseerrPosterCard } from "@/components/tv/TVJellyseerrPosterCard";

@@ -14,6 +14,7 @@ import { AppState, type AppStateStatus } from "react-native";
 import { useNetworkAwareQueryClient } from "@/hooks/useNetworkAwareQueryClient";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { useNetworkStatus } from "@/providers/NetworkStatusProvider";
+import { getJellyfinHeaders, hasHeaders } from "@/utils/customHeaders";
 import { getOrSetDeviceId } from "@/utils/device";
 
 // Query keys that depend on the set of library items and should be refreshed
@@ -81,6 +82,13 @@ interface WebSocketContextType {
 }
 
 const WebSocketContext = createContext<WebSocketContextType | null>(null);
+
+/** React Native's WebSocket constructor, which also takes request headers. */
+type RNWebSocketConstructor = new (
+  url: string,
+  protocols: string[] | string | undefined,
+  options: { headers: Record<string, string> },
+) => WebSocket;
 
 export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
   const api = useAtomValue(apiAtom);
@@ -177,7 +185,15 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
       api.accessToken
     }&deviceId=${deviceId}`;
 
-    const newWebSocket = new WebSocket(url);
+    // React Native's WebSocket takes request headers as a third argument (the
+    // DOM typings don't know about it), so a server behind an access gateway
+    // can complete the upgrade handshake.
+    const customHeaders = getJellyfinHeaders(api.basePath);
+    const newWebSocket = hasHeaders(customHeaders)
+      ? new (WebSocket as unknown as RNWebSocketConstructor)(url, undefined, {
+          headers: customHeaders,
+        })
+      : new WebSocket(url);
     let keepAliveInterval: ReturnType<typeof setInterval> | null = null;
 
     const maxReconnectAttempts = 5;

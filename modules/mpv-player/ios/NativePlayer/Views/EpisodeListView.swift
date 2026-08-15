@@ -85,12 +85,8 @@ struct EpisodeListView: View {
 	@ViewBuilder
 	private func thumbnail(for episode: EpisodeListItemRecord) -> some View {
 		if let imageUrl = episode.imageUrl, let url = URL(string: imageUrl) {
-			AsyncImage(url: url) { phase in
-				if case .success(let image) = phase {
-					image.resizable().aspectRatio(contentMode: .fill)
-				} else {
-					Color.gray.opacity(0.3)
-				}
+			RemoteImage(url: url, headers: viewModel.imageHeaders) {
+				Color.gray.opacity(0.3)
 			}
 		} else {
 			Color.gray.opacity(0.3)
