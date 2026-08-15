@@ -263,6 +263,15 @@ final class MPVLayerRenderer {
         checkError(mpv_set_option_string(handle, "target-colorspace-hint", "yes"))
         #endif
 
+        // Audio output: with Atmos "Continuous Audio Output" enabled, some HDMI
+        // routes report 32 output channels, which the audiounit AO cannot open -
+        // playback stays silent. Prefer the avfoundation AO
+        // (AVSampleBufferAudioRenderer), which handles these routes, with
+        // audiounit as fallback if it fails to initialize. iOS is unchanged.
+        #if os(tvOS)
+        checkError(mpv_set_option_string(handle, "ao", "avfoundation,audiounit"))
+        #endif
+
         // Subtitle and audio settings
         checkError(mpv_set_option_string(mpv, "sub-scale-with-window", "no"))
         checkError(mpv_set_option_string(mpv, "sub-use-margins", "no"))
