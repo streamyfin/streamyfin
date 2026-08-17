@@ -25,11 +25,7 @@ import { toast } from "sonner-native";
 import useRouter from "@/hooks/useAppRouter";
 import { useInterval } from "@/hooks/useInterval";
 import { JellyseerrApi, useJellyseerr } from "@/hooks/useJellyseerr";
-import {
-  pluginSettingsAtom,
-  settingsAtom,
-  useSettings,
-} from "@/utils/atoms/settings";
+import { settingsAtom, useSettings } from "@/utils/atoms/settings";
 import { getIntegrationHeaders } from "@/utils/customHeaders";
 import { getOrSetDeviceId } from "@/utils/device";
 import { createApiWithCustomHeaders } from "@/utils/jellyfin/createApi";
@@ -505,28 +501,6 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
           );
           storage.set("token", auth.data?.AccessToken);
 
-          // Remember the password for Jellyseerr auto-login. Jellyseerr
-          // authenticates with the password rather than the Jellyfin token, so
-          // there is no token-shaped alternative. Deliberately narrow: only
-          // when the Streamyfin plugin supplies the Jellyseerr URL, and only
-          // while autoLoginJellyseerr is on. Goes to the platform secure store,
-          // never MMKV. Users who typed their own URL get nothing stored.
-          if (api.basePath && auth.data.User.Id) {
-            const pluginUrl =
-              store.get(pluginSettingsAtom)?.jellyseerrServerUrl?.value;
-            const autoLogin =
-              store.get(settingsAtom)?.autoLoginJellyseerr !== false;
-            if (pluginUrl && autoLogin) {
-              await saveJellyseerrPassword(
-                api.basePath,
-                auth.data.User.Id,
-                password,
-              ).catch((e) =>
-                writeErrorLog(`Could not store Jellyseerr password: ${e}`),
-              );
-            }
-          }
-
           // Save credentials to secure storage if requested
           if (api.basePath && options?.saveAccount) {
             const securityType = options.securityType || "none";
@@ -558,11 +532,30 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
 
           const recentPluginSettings = await refreshStreamyfinPluginSettings();
           // With a plugin-provided API key the auto-connect effect signs in
-          // without a password — don't also start a password session here.
+          // without a password — don't start a password session here, and
+          // don't store the password either.
           if (
             recentPluginSettings?.jellyseerrServerUrl?.value &&
             !recentPluginSettings?.jellyseerrApiKey?.value
           ) {
+            // Remember the password so Jellyseerr can be signed in again on
+            // later launches. Jellyseerr authenticates with the password
+            // rather than the Jellyfin token, so there is no token-shaped
+            // alternative. Goes to the platform secure store, never MMKV;
+            // users who typed their own URL get nothing stored, and the
+            // autoLoginJellyseerr toggle opts out.
+            const autoLogin =
+              store.get(settingsAtom)?.autoLoginJellyseerr !== false;
+            if (api.basePath && auth.data.User.Id && autoLogin) {
+              await saveJellyseerrPassword(
+                api.basePath,
+                auth.data.User.Id,
+                password,
+              ).catch((e) =>
+                writeErrorLog(`Could not store Jellyseerr password: ${e}`),
+              );
+            }
+
             const jellyseerrApi = new JellyseerrApi(
               recentPluginSettings.jellyseerrServerUrl.value,
               getIntegrationHeaders("jellyseerr"),

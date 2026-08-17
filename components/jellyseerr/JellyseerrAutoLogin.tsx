@@ -31,13 +31,17 @@ export const JellyseerrAutoLogin: React.FC = () => {
   const pluginUrl = pluginSettings?.jellyseerrServerUrl?.value;
   const serverUrl = settings?.jellyseerrServerUrl;
   const enabled = settings?.autoLoginJellyseerr !== false;
+  // With an API key configured, the passwordless sign-in in JellyfinProvider
+  // owns this setup — no password is stored and none should be replayed.
+  const apiKey = settings?.jellyseerrApiKey;
   const username = user?.Name;
   const userId = user?.Id;
 
   useEffect(() => {
     if (attempted.current) return;
     // Plugin-provided URL only — see the note above.
-    if (!enabled || !pluginUrl || !serverUrl || !username || !userId) return;
+    if (!enabled || apiKey || !pluginUrl || !serverUrl || !username || !userId)
+      return;
     // Already signed in (session restored from storage) — nothing to do.
     if (jellyseerrUser) return;
 
@@ -74,6 +78,7 @@ export const JellyseerrAutoLogin: React.FC = () => {
     })();
   }, [
     enabled,
+    apiKey,
     pluginUrl,
     serverUrl,
     username,
