@@ -57,15 +57,13 @@ export const JellyseerrAutoLogin: React.FC = () => {
       try {
         // Same headers as every other Jellyseerr call — without them the
         // sign-in fails behind an auth gateway (custom-header setups).
+        // No test() first: it toasts on every failure path, and this runs
+        // unprompted at launch — login() failing into the catch below is
+        // the silent behavior we want.
         const api = new JellyseerrApi(
           serverUrl,
           getIntegrationHeaders("jellyseerr"),
         );
-        const result = await api.test();
-        if (!result.isValid) {
-          writeErrorLog("Jellyseerr auto-login: server did not validate");
-          return;
-        }
         setJellyseerrUser(await api.login(username, password));
         writeInfoLog("Jellyseerr auto-login succeeded");
       } catch (e) {

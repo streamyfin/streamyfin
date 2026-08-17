@@ -538,31 +538,47 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
             recentPluginSettings?.jellyseerrServerUrl?.value &&
             !recentPluginSettings?.jellyseerrApiKey?.value
           ) {
-            // Remember the password so Jellyseerr can be signed in again on
-            // later launches. Jellyseerr authenticates with the password
-            // rather than the Jellyfin token, so there is no token-shaped
-            // alternative. Goes to the platform secure store, never MMKV;
-            // users who typed their own URL get nothing stored, and the
-            // autoLoginJellyseerr toggle opts out.
-            const autoLogin =
-              store.get(settingsAtom)?.autoLoginJellyseerr !== false;
-            if (api.basePath && auth.data.User.Id && autoLogin) {
-              await saveJellyseerrPassword(
-                api.basePath,
-                auth.data.User.Id,
-                password,
-              ).catch((e) =>
-                writeErrorLog(`Could not store Jellyseerr password: ${e}`),
-              );
-            }
-
             const jellyseerrApi = new JellyseerrApi(
               recentPluginSettings.jellyseerrServerUrl.value,
               getIntegrationHeaders("jellyseerr"),
             );
+            const jellyfinServerUrl = api.basePath;
+            const jellyfinUserId = auth.data.User.Id;
             await jellyseerrApi.test().then((result) => {
               if (result.isValid && result.requiresPass) {
-                jellyseerrApi.login(username, password).then(setJellyseerrUser);
+                jellyseerrApi
+                  .login(username, password)
+                  .then((seerrUser) => {
+                    setJellyseerrUser(seerrUser);
+                    // Remember the password so Jellyseerr can be signed in
+                    // again on later launches — but only once it has proven
+                    // to work. Jellyseerr authenticates with the password
+                    // rather than the Jellyfin token, so there is no
+                    // token-shaped alternative. Goes to the platform secure
+                    // store, never MMKV; users who typed their own URL get
+                    // nothing stored, and the autoLoginJellyseerr toggle
+                    // opts out.
+                    const autoLogin =
+                      store.get(settingsAtom)?.autoLoginJellyseerr !== false;
+                    if (jellyfinServerUrl && jellyfinUserId && autoLogin) {
+                      saveJellyseerrPassword(
+                        jellyfinServerUrl,
+                        jellyfinUserId,
+                        password,
+                      ).catch((e) =>
+                        writeErrorLog(
+                          `Could not store Jellyseerr password: ${e}`,
+                        ),
+                      );
+                    }
+                  })
+                  .catch((e) =>
+                    writeErrorLog(
+                      `Jellyseerr sign-in at login failed: ${
+                        e instanceof Error ? e.message : e
+                      }`,
+                    ),
+                  );
               }
             });
           }

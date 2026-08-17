@@ -220,6 +220,10 @@ export async function deleteAccountCredential(
   const key = credentialKey(serverUrl, userId);
   await SecureStore.deleteItemAsync(key);
 
+  // Forgetting the account also forgets its Jellyseerr password — it must
+  // not outlive the credential it belongs to.
+  await deleteJellyseerrPassword(serverUrl, userId);
+
   // Remove account from previousServers
   removeAccountFromServer(serverUrl, userId);
 }

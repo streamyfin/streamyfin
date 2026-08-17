@@ -8,6 +8,9 @@ import { useIntegrationHeaders } from "@/hooks/useIntegrationHeaders";
 import { JellyseerrApi, useJellyseerr } from "@/hooks/useJellyseerr";
 import { userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
+import { writeErrorLog } from "@/utils/log";
+import { storage } from "@/utils/mmkv";
+import { deleteJellyseerrPassword } from "@/utils/secureCredentials";
 import { jellyseerrProbe } from "@/utils/serverUrl/probes/jellyseerr";
 import { resolveServerUrl } from "@/utils/serverUrl/resolve";
 import { Button } from "../Button";
@@ -185,9 +188,20 @@ export const JellyseerrSettings = () => {
                 >
                   <SettingSwitch
                     value={settings?.autoLoginJellyseerr !== false}
-                    onValueChange={(value) =>
-                      updateSettings({ autoLoginJellyseerr: value })
-                    }
+                    onValueChange={(value) => {
+                      updateSettings({ autoLoginJellyseerr: value });
+                      // Opting out also forgets the already-stored password —
+                      // the flag alone would leave the secret on the device.
+                      const jellyfinUrl = storage.getString("serverUrl");
+                      if (!value && jellyfinUrl && user?.Id) {
+                        deleteJellyseerrPassword(jellyfinUrl, user.Id).catch(
+                          (e) =>
+                            writeErrorLog(
+                              `Failed to delete Jellyseerr password: ${e}`,
+                            ),
+                        );
+                      }
+                    }}
                   />
                 </ListItem>
               </ListGroup>
