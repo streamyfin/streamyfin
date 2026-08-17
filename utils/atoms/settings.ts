@@ -451,6 +451,26 @@ export type StreamyfinPluginConfig = {
   settings: PluginLockableSettings;
 };
 
+// Settings whose values are secrets. They must never reach the app log,
+// which users read in-app and paste into bug reports.
+const SENSITIVE_SETTING_KEYS: ReadonlySet<keyof Settings> = new Set([
+  "jellyseerrApiKey",
+  "openSubtitlesApiKey",
+] as const);
+
+export const redactPluginSettings = (
+  settings: PluginLockableSettings | undefined,
+): PluginLockableSettings | undefined =>
+  settings &&
+  (Object.fromEntries(
+    Object.entries(settings).map(([key, lockable]) => [
+      key,
+      SENSITIVE_SETTING_KEYS.has(key as keyof Settings) && lockable?.value
+        ? { ...lockable, value: "[redacted]" }
+        : lockable,
+    ]),
+  ) as PluginLockableSettings);
+
 export const defaultValues: Settings = {
   home: null,
   deviceProfile: "Expo",
@@ -657,7 +677,10 @@ export const useSettings = () => {
     }
     const newPluginSettings = await api.getStreamyfinPluginConfig().then(
       ({ data }) => {
-        writeInfoLog("Got plugin settings", data?.settings);
+        writeInfoLog(
+          "Got plugin settings",
+          redactPluginSettings(data?.settings),
+        );
         return data?.settings;
       },
       (_err) => undefined,
