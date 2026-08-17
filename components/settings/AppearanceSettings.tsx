@@ -5,6 +5,7 @@ import { Linking, Platform } from "react-native";
 import { SettingSwitch } from "@/components/common/SettingSwitch";
 import DisabledSetting from "@/components/settings/DisabledSetting";
 import useRouter from "@/hooks/useAppRouter";
+import { isHeroCarouselAvailable } from "@/modules";
 import { useSettings } from "@/utils/atoms/settings";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
@@ -44,7 +45,10 @@ export const AppearanceSettings: React.FC = () => {
             }
           />
         </ListItem>
-        {Platform.OS === "ios" && (
+        {/* The switch tracks the native view rather than a platform: it is
+            the only way back once the carousel's own menu turns it off, so it
+            has to be offered wherever the carousel can render. */}
+        {isHeroCarouselAvailable() && (
           <ListItem
             title={t("home.settings.appearance.show_hero_carousel")}
             subtitle={t("home.settings.appearance.show_hero_carousel_hint")}

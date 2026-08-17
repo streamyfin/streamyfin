@@ -1,6 +1,10 @@
 {
-  "platforms": ["apple"],
+  "platforms": ["apple", "android"],
+  "coreFeatures": ["compose"],
   "apple": {
     "modules": ["HeroCarouselModule"]
+  },
+  "android": {
+    "modules": ["expo.modules.herocarousel.HeroCarouselModule"]
   }
 }
