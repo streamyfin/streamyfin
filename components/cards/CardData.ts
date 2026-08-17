@@ -118,18 +118,26 @@ export function buildItemCards(
         ? getPortraitImageUrl({ api, item })
         : getWideImageUrl({ api, item, useEpisodePoster });
 
+    const progress = getItemProgressPercentage(item) / 100;
+    // Strict === false: items without UserData (unknown state) get no dot.
+    const unwatched = isMovieOrEpisode(item) && item.UserData?.Played === false;
+    const unplayedCount =
+      isAggregate(item) && !item.UserData?.Played ? unplayed : 0;
+    const dimmed = selectedId != null && item.Id !== selectedId;
+
+    // Default fields are left out rather than sent as 0/false/null: the whole
+    // list is serialised on every change, and a library page is mostly
+    // defaults. The native decoder fills them in.
     return [
       {
         id: item.Id,
         title: item.Name ?? "",
-        subtitle,
-        imageUrl: imageUrl ?? null,
-        progress: getItemProgressPercentage(item) / 100,
-        // Strict === false: items without UserData (unknown state) get no dot.
-        unwatched: isMovieOrEpisode(item) && item.UserData?.Played === false,
-        unplayedCount:
-          isAggregate(item) && !item.UserData?.Played ? unplayed : 0,
-        dimmed: selectedId != null && item.Id !== selectedId,
+        ...(subtitle ? { subtitle } : {}),
+        ...(imageUrl ? { imageUrl } : {}),
+        ...(progress > 0 ? { progress } : {}),
+        ...(unwatched ? { unwatched } : {}),
+        ...(unplayedCount > 0 ? { unplayedCount } : {}),
+        ...(dimmed ? { dimmed } : {}),
       },
     ];
   });

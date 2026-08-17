@@ -111,6 +111,9 @@ class GlassCardRowExpoView: ExpoView {
   let onItemLongPress = EventDispatcher()
   let onEndReached = EventDispatcher()
 
+  /// Only touched on the main thread; identifies the newest payload.
+  private var payloadSequence = 0
+
   required init(appContext: AppContext? = nil) {
     super.init(appContext: appContext)
     setupHostingController()
@@ -156,12 +159,26 @@ class GlassCardRowExpoView: ExpoView {
 
   // MARK: - Props
 
+  /// Decoding is O(list length), and a new page arrives mid-scroll — exactly
+  /// when a main-thread stall shows. Decode off-main and publish the result,
+  /// dropping it if a newer payload has landed meanwhile.
   func setPayload(_ payload: String) {
-    guard let data = payload.data(using: .utf8),
-      let decoded = try? JSONDecoder().decode(GlassCardRowPayload.self, from: data)
-    else {
-      return
+    payloadSequence &+= 1
+    let sequence = payloadSequence
+    guard let data = payload.data(using: .utf8) else { return }
+
+    DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+      guard
+        let decoded = try? JSONDecoder().decode(GlassCardRowPayload.self, from: data)
+      else { return }
+      DispatchQueue.main.async {
+        guard let self, sequence == self.payloadSequence else { return }
+        self.apply(decoded)
+      }
     }
+  }
+
+  private func apply(_ decoded: GlassCardRowPayload) {
     if decoded.items != state.items {
       state.items = decoded.items
     }

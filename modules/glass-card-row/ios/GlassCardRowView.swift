@@ -1,3 +1,4 @@
+import CryptoKit
 import SwiftUI
 import UIKit
 
@@ -305,16 +306,42 @@ extension Color {
 
 // MARK: - Image loading
 
-/// Header-aware image loader with an in-memory cache. The Jellyfin server can
-/// sit behind an auth proxy (Cloudflare Access, Pangolin, ...), so every
-/// request carries the custom headers passed down from JS.
+/// Header-aware image loader. The Jellyfin server can sit behind an auth proxy
+/// (Cloudflare Access, Pangolin, ...), so every request carries the custom
+/// headers passed down from JS.
+///
+/// Three layers, in order: decoded images in memory, encoded bytes on disk, then
+/// the network. The disk layer is what stops a cold launch re-downloading every
+/// poster — the JS path gets that from expo-image's own disk cache, so without
+/// it the native cards would be the slower of the two on first paint.
 final class GlassCardImageLoader {
   static let shared = GlassCardImageLoader()
 
+  /// Decoded images, so scrolling back to a card doesn't decode it again.
   private let cache = NSCache<NSString, UIImage>()
+  /// One request per URL: the same poster shows up in several rows at once, and
+  /// a card that re-renders mid-flight must not start a second download.
+  private var inFlight: [String: Task<UIImage?, Never>] = [:]
+  private let lock = NSLock()
+
+  private let directory: URL?
+  private let diskQueue = DispatchQueue(label: "glass-card-image-disk", qos: .utility)
+  /// Bytes on disk are cheap; this only bounds unbounded growth.
+  private let diskBudget = 256 * 1024 * 1024
 
   private init() {
     cache.totalCostLimit = 64 * 1024 * 1024
+
+    directory = FileManager.default
+      .urls(for: .cachesDirectory, in: .userDomainMask)
+      .first?
+      .appendingPathComponent("GlassCardImages", isDirectory: true)
+
+    if let directory {
+      try? FileManager.default.createDirectory(
+        at: directory, withIntermediateDirectories: true)
+      diskQueue.async { [weak self] in self?.pruneDisk() }
+    }
   }
 
   func cached(_ urlString: String) -> UIImage? {
@@ -325,6 +352,33 @@ final class GlassCardImageLoader {
     if let hit = cached(urlString) {
       return hit
     }
+
+    lock.lock()
+    if let existing = inFlight[urlString] {
+      lock.unlock()
+      return await existing.value
+    }
+    let task = Task<UIImage?, Never> { [weak self] in
+      await self?.fetch(urlString, headers: headers) ?? nil
+    }
+    inFlight[urlString] = task
+    lock.unlock()
+
+    let image = await task.value
+
+    lock.lock()
+    inFlight[urlString] = nil
+    lock.unlock()
+
+    return image
+  }
+
+  private func fetch(_ urlString: String, headers: [String: String]) async -> UIImage? {
+    if let data = readFromDisk(urlString), let image = UIImage(data: data) {
+      store(image, data: data, for: urlString, writeToDisk: false)
+      return image
+    }
+
     guard let url = URL(string: urlString) else {
       return nil
     }
@@ -340,8 +394,62 @@ final class GlassCardImageLoader {
     else {
       return nil
     }
-    cache.setObject(image, forKey: urlString as NSString, cost: data.count)
+
+    store(image, data: data, for: urlString, writeToDisk: true)
     return image
+  }
+
+  private func store(
+    _ image: UIImage, data: Data, for urlString: String, writeToDisk: Bool
+  ) {
+    cache.setObject(image, forKey: urlString as NSString, cost: data.count)
+    guard writeToDisk, let url = fileURL(for: urlString) else { return }
+    diskQueue.async {
+      try? data.write(to: url, options: .atomic)
+    }
+  }
+
+  // MARK: - Disk
+
+  /// The URL carries the image tag, so the same URL always means the same
+  /// bytes and a plain hash of it is a safe key.
+  private func fileURL(for urlString: String) -> URL? {
+    guard let directory else { return nil }
+    let digest = SHA256.hash(data: Data(urlString.utf8))
+    let name = digest.map { String(format: "%02x", $0) }.joined()
+    return directory.appendingPathComponent(name)
+  }
+
+  private func readFromDisk(_ urlString: String) -> Data? {
+    guard let url = fileURL(for: urlString) else { return nil }
+    return try? Data(contentsOf: url)
+  }
+
+  /// Oldest files go first once the folder passes its budget. Runs once at
+  /// startup, off the main thread.
+  private func pruneDisk() {
+    guard let directory else { return }
+    let keys: [URLResourceKey] = [.contentAccessDateKey, .fileSizeKey]
+    guard
+      let files = try? FileManager.default.contentsOfDirectory(
+        at: directory, includingPropertiesForKeys: keys)
+    else { return }
+
+    let entries = files.compactMap { url -> (URL, Date, Int)? in
+      guard let values = try? url.resourceValues(forKeys: Set(keys)),
+        let size = values.fileSize
+      else { return nil }
+      return (url, values.contentAccessDate ?? .distantPast, size)
+    }
+
+    var total = entries.reduce(0) { $0 + $1.2 }
+    guard total > diskBudget else { return }
+
+    for entry in entries.sorted(by: { $0.1 < $1.1 }) {
+      try? FileManager.default.removeItem(at: entry.0)
+      total -= entry.2
+      if total <= diskBudget { break }
+    }
   }
 }
 

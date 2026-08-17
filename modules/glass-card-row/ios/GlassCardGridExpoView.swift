@@ -39,6 +39,9 @@ class GlassCardGridExpoView: ExpoView {
   let onItemLongPress = EventDispatcher()
   let onEndReached = EventDispatcher()
 
+  /// Only touched on the main thread; identifies the newest payload.
+  private var payloadSequence = 0
+
   required init(appContext: AppContext? = nil) {
     super.init(appContext: appContext)
     setupHostingController()
@@ -75,12 +78,26 @@ class GlassCardGridExpoView: ExpoView {
 
   // MARK: - Props
 
+  /// Off-main for the same reason as the row, and it matters more here: paging
+  /// a library appends to a list that keeps growing, so every page would
+  /// otherwise re-decode everything before it, mid-scroll.
   func setPayload(_ payload: String) {
-    guard let data = payload.data(using: .utf8),
-      let decoded = try? JSONDecoder().decode(GlassCardGridPayload.self, from: data)
-    else {
-      return
+    payloadSequence &+= 1
+    let sequence = payloadSequence
+    guard let data = payload.data(using: .utf8) else { return }
+
+    DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+      guard
+        let decoded = try? JSONDecoder().decode(GlassCardGridPayload.self, from: data)
+      else { return }
+      DispatchQueue.main.async {
+        guard let self, sequence == self.payloadSequence else { return }
+        self.apply(decoded)
+      }
     }
+  }
+
+  private func apply(_ decoded: GlassCardGridPayload) {
     if decoded.items != state.items {
       state.items = decoded.items
     }
