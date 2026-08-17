@@ -212,11 +212,11 @@ export const IntroSheet = forwardRef<IntroSheetRef>((_, ref) => {
                   {t("home.intro.crash_reports_description")}
                 </Text>
               </View>
+              {/* Presentational only — the row press above is the single
+                  mutation path, so a tap on the switch can't double-toggle. */}
               <SettingSwitch
                 value={settings?.sentryEnabled === true}
-                onValueChange={(sentryEnabled) =>
-                  updateSettings({ sentryEnabled })
-                }
+                pointerEvents='none'
               />
             </TouchableOpacity>
           </View>

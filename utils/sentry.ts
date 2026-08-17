@@ -1,5 +1,8 @@
 import * as Sentry from "@sentry/react-native";
-import { storage } from "@/utils/mmkv";
+import {
+  readStoredPluginSettings,
+  readStoredSettings,
+} from "@/utils/storedSettings";
 
 // Public Sentry DSN for org "streamyfin", project "react-native". A DSN only
 // allows submitting events, so shipping it in the client bundle is fine.
@@ -11,18 +14,17 @@ const SENTRY_DSN =
 let initialized = false;
 
 /**
- * Reads the user's crash-report preference straight from MMKV. This runs at
- * app startup, before Jotai hydrates settingsAtom, so it parses the persisted
- * settings JSON directly instead of going through useSettings. Reporting is
- * on by default; only an explicit opt-out disables it.
+ * Reads the crash-report preference straight from MMKV. This runs at app
+ * startup, before Jotai hydrates settingsAtom, so it parses the persisted
+ * blobs directly instead of going through useSettings. Reporting is on by
+ * default; an explicit user opt-out — or a server admin lock — disables it.
  */
 const hasSentryConsent = (): boolean => {
-  try {
-    const json = storage.getString("settings");
-    return json ? JSON.parse(json).sentryEnabled !== false : true;
-  } catch {
-    return true;
+  const lock = readStoredPluginSettings().sentryEnabled;
+  if (lock?.locked === true) {
+    return lock.value === true;
   }
+  return readStoredSettings().sentryEnabled !== false;
 };
 
 // Jellyfin/Jellyseerr URLs carry credentials in the query string (api_key=...,
@@ -64,16 +66,21 @@ const scrubDeep = (value: unknown, seen = new WeakSet<object>()): unknown => {
 const initializeSentry = () => {
   if (initialized || !SENTRY_DSN) return;
   initialized = true;
-  Sentry.init({
-    dsn: SENTRY_DSN,
-    environment: __DEV__ ? "development" : "production",
-    sendDefaultPii: false,
-    // Errors only — no performance tracing, session replay or screenshots.
-    tracesSampleRate: 0,
-    beforeSend: (event) => scrubDeep(event) as typeof event,
-    beforeBreadcrumb: (breadcrumb) =>
-      scrubDeep(breadcrumb) as typeof breadcrumb,
-  });
+  try {
+    Sentry.init({
+      dsn: SENTRY_DSN,
+      environment: __DEV__ ? "development" : "production",
+      sendDefaultPii: false,
+      // Errors only — no performance tracing, session replay or screenshots.
+      tracesSampleRate: 0,
+      beforeSend: (event) => scrubDeep(event) as typeof event,
+      beforeBreadcrumb: (breadcrumb) =>
+        scrubDeep(breadcrumb) as typeof breadcrumb,
+    });
+  } catch (error) {
+    initialized = false;
+    console.warn("Failed to initialize Sentry:", error);
+  }
 };
 
 /** Starts Sentry at app launch, unless the user has opted out. */
@@ -83,17 +90,27 @@ export const initializeSentryIfConsented = () => {
   }
 };
 
+// Consent changes run strictly in sequence: Sentry.close() tears the native
+// SDK down asynchronously, and an init racing ahead of an in-flight close
+// (off-then-on double tap) would be shut down by it once it lands.
+let lifecycle: Promise<unknown> = Promise.resolve();
+
 /**
- * Applies a consent change at runtime (called from updateSettings when the
- * user flips the crash-report switch). Enabling starts the SDK immediately;
- * disabling stops it for this session, and the startup gate keeps it off on
- * the next launch.
+ * Applies a consent change at runtime. Enabling starts the SDK; disabling
+ * stops it for this session, and the startup gate keeps it off on the next
+ * launch.
  */
 export const applySentryConsent = (enabled: boolean) => {
-  if (enabled) {
-    initializeSentry();
-  } else if (initialized) {
-    initialized = false;
-    Sentry.close();
-  }
+  lifecycle = lifecycle
+    .then(() => {
+      if (enabled) {
+        initializeSentry();
+      } else if (initialized) {
+        initialized = false;
+        return Sentry.close();
+      }
+    })
+    .catch((error) => {
+      console.warn("Failed to apply Sentry consent change:", error);
+    });
 };

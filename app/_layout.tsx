@@ -69,7 +69,11 @@ if (Platform.isTV) {
 import * as Sentry from "@sentry/react-native";
 import useRouter from "@/hooks/useAppRouter";
 import { userAtom } from "@/providers/JellyfinProvider";
-import { initializeSentryIfConsented } from "@/utils/sentry";
+import { effectiveSettingsAtom, settingsAtom } from "@/utils/atoms/settings";
+import {
+  applySentryConsent,
+  initializeSentryIfConsented,
+} from "@/utils/sentry";
 import { store as jotaiStore, store } from "@/utils/store";
 import "react-native-reanimated";
 import {
@@ -84,8 +88,19 @@ configureReanimatedLogger({
   strict: false,
 });
 
-// Crash reporting is on by default; this is a no-op if the user opted out.
+// Crash reporting is on by default; this is a no-op if the user opted out
+// (or a server admin locked it off). After startup, consent tracks the
+// effective settings, so the switch, plugin-pushed defaults, and admin locks
+// all take effect immediately.
 initializeSentryIfConsented();
+jotaiStore.sub(effectiveSettingsAtom, () => {
+  // Ignore changes until the persisted settings hydrate; before that the
+  // effective value is just defaults and would override a stored opt-out.
+  if (jotaiStore.get(settingsAtom) === null) return;
+  applySentryConsent(
+    jotaiStore.get(effectiveSettingsAtom).sentryEnabled !== false,
+  );
+});
 
 if (!Platform.isTV) {
   Notifications.setNotificationHandler({
