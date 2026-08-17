@@ -28,6 +28,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { CardGrid } from "@/components/cards/CardGrid";
 import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import {
@@ -49,6 +50,7 @@ import { useOrientation } from "@/hooks/useOrientation";
 import { useRefreshLibraryOnFocus } from "@/hooks/useRefreshLibraryOnFocus";
 import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
 import { useTVOptionModal } from "@/hooks/useTVOptionModal";
+import { isGlassCardGridAvailable } from "@/modules/glass-card-row";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import {
@@ -969,6 +971,11 @@ const Page = () => {
   }, [showOptions, t, tvFilterByOptions, setFilter, _setFilterBy]);
 
   const insets = useSafeAreaInsets();
+  // The nav bar is transparent on iOS, so the pinned filter bar has to clear it
+  // itself — the FlashList path gets this from contentInsetAdjustmentBehavior.
+  // Same safe-area + nav-bar constant the other transparent-header screens use;
+  // @react-navigation/elements can't be imported directly under expo-router.
+  const headerHeight = insets.top + 50;
 
   if (isLoading || isLibraryLoading)
     return (
@@ -979,6 +986,48 @@ const Page = () => {
 
   // Mobile return
   if (!Platform.isTV) {
+    // The whole grid is one native view where that exists. Its own scrolling
+    // means the filter bar can't ride along as a list header, so it is pinned
+    // above instead — below the transparent nav bar, hence the header inset.
+    if (isGlassCardGridAvailable()) {
+      return (
+        <View
+          style={{
+            flex: 1,
+            paddingLeft: insets.left,
+            paddingRight: insets.right,
+          }}
+        >
+          <View style={{ paddingTop: headerHeight }}>
+            <ListHeaderComponent />
+          </View>
+          {flatData.length === 0 ? (
+            <View className='flex flex-col items-center justify-center flex-1'>
+              <Text className='font-bold text-xl text-neutral-500'>
+                {t("library.no_results")}
+              </Text>
+            </View>
+          ) : (
+            <CardGrid
+              items={flatData}
+              columns={nrOfCols}
+              loadingMore={isFetching && !isLoading}
+              onEndReached={() => {
+                if (hasNextPage) {
+                  fetchNextPage();
+                }
+              }}
+              // Clears the floating tab bar, which overlays the grid.
+              contentInsetBottom={insets.bottom + 100}
+              // Filters changed underneath: jump back to the top rather than
+              // staying deep in the previous result set.
+              scrollToTopToken={filterSignature}
+            />
+          )}
+        </View>
+      );
+    }
+
     return (
       <FlashList
         ref={flashListRef}

@@ -12,11 +12,13 @@ import { useAtom } from "jotai";
 import { useCallback, useMemo } from "react";
 import { useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { CardGrid } from "@/components/cards/CardGrid";
 import { Text } from "@/components/common/Text";
 import { TouchableItemRouter } from "@/components/common/TouchableItemRouter";
 import { ItemCardText } from "@/components/ItemCardText";
 import { Loader } from "@/components/Loader";
 import { ItemPoster } from "@/components/posters/ItemPoster";
+import { isGlassCardGridAvailable } from "@/modules/glass-card-row";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 
 type FavoriteTypes =
@@ -167,6 +169,26 @@ export default function FavoritesSeeAllScreen() {
         <View className='justify-center items-center h-full'>
           <Loader />
         </View>
+      ) : isGlassCardGridAvailable() ? (
+        // The whole grid is one native view; nothing scrolls above it here, so
+        // it simply fills the screen under the transparent nav bar.
+        flatData.length === 0 ? (
+          <View className='flex flex-col items-center justify-center h-full py-12'>
+            <Text className='font-bold text-xl text-neutral-500'>
+              {t("home.no_items")}
+            </Text>
+          </View>
+        ) : (
+          <CardGrid
+            items={flatData}
+            columns={nrOfCols}
+            loadingMore={isFetching}
+            onEndReached={handleEndReached}
+            contentInsetTop={insets.top + 50}
+            // Clears the floating tab bar, which overlays the grid.
+            contentInsetBottom={insets.bottom + 100}
+          />
+        )
       ) : (
         <FlashList
           data={flatData}

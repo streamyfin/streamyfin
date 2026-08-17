@@ -3,15 +3,9 @@ import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import { useAtom } from "jotai";
 import type React from "react";
-import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { View, type ViewProps } from "react-native";
-import { HorizontalScroll } from "@/components/common/HorizontalScroll";
-import { Text } from "@/components/common/Text";
-import { TouchableItemRouter } from "@/components/common/TouchableItemRouter";
-import { ItemCardText } from "@/components/ItemCardText";
-import MoviePoster from "@/components/posters/MoviePoster";
-import { POSTER_CAROUSEL_HEIGHT } from "@/constants/Values";
+import type { ViewProps } from "react-native";
+import { CardRow } from "@/components/cards/CardRow";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 
 interface Props extends ViewProps {
@@ -62,35 +56,14 @@ export const MoreMoviesWithActor: React.FC<Props> = ({
     enabled: !!api && !!user?.Id && !!actorId,
   });
 
-  const renderItem = useCallback(
-    (item: BaseItemDto, idx: number) => (
-      <TouchableItemRouter
-        key={item.Id ?? idx}
-        item={item}
-        className='flex flex-col w-28'
-      >
-        <View>
-          <MoviePoster item={item} />
-          <ItemCardText item={item} />
-        </View>
-      </TouchableItemRouter>
-    ),
-    [],
-  );
-
-  if (items?.length === 0) return null;
-
   return (
-    <View {...props}>
-      <Text className='text-lg font-bold mb-2 px-4'>
-        {t("item_card.more_with", { name: actorName ?? "" })}
-      </Text>
-      <HorizontalScroll
-        data={items}
-        loading={isLoading}
-        height={POSTER_CAROUSEL_HEIGHT}
-        renderItem={renderItem}
-      />
-    </View>
+    <CardRow
+      {...props}
+      title={t("item_card.more_with", { name: actorName ?? "" })}
+      kind='portrait'
+      items={items ?? []}
+      loading={isLoading}
+      hideIfEmpty
+    />
   );
 };

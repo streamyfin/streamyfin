@@ -9,6 +9,17 @@ export type {
 export { default as BackgroundDownloader } from "./background-downloader";
 // ExoPlayer (Android TV)
 export { ExoPlayerView } from "./exoplayer-player";
+// Glass Card Row (iOS phone/tablet)
+export type {
+  GlassCardRowItem,
+  GlassCardRowLayout,
+  GlassCardRowViewProps,
+} from "./glass-card-row";
+export {
+  GlassCardRowView,
+  glassCardRowHeight,
+  isGlassCardRowAvailable,
+} from "./glass-card-row";
 // Glass Poster (tvOS 26+)
 export type { GlassPosterViewProps } from "./glass-poster";
 export { GlassPosterView, isGlassEffectAvailable } from "./glass-poster";

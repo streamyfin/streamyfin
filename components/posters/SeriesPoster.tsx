@@ -5,7 +5,7 @@ import { View } from "react-native";
 import { Image } from "@/components/common/ServerImage";
 import { WatchedIndicator } from "@/components/WatchedIndicator";
 import { apiAtom } from "@/providers/JellyfinProvider";
-import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
+import { getPortraitImageUrl } from "@/utils/jellyfin/image/getPortraitImageUrl";
 
 type MoviePosterProps = {
   item: BaseItemDto;
@@ -15,16 +15,10 @@ type MoviePosterProps = {
 const SeriesPoster: React.FC<MoviePosterProps> = ({ item }) => {
   const [api] = useAtom(apiAtom);
 
-  const url = useMemo(() => {
-    if (item.Type === "Episode") {
-      return `${api?.basePath}/Items/${item.SeriesId}/Images/Primary?fillHeight=389&quality=80&tag=${item.SeriesPrimaryImageTag}`;
-    }
-    return getPrimaryImageUrl({
-      api,
-      item,
-      width: 300,
-    });
-  }, [item]);
+  const url = useMemo(
+    () => getPortraitImageUrl({ api, item, width: 300 }),
+    [api, item],
+  );
 
   const blurhash = useMemo(() => {
     const key = item.ImageTags?.Primary as string;
