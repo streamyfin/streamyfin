@@ -216,9 +216,18 @@ export const isNativePlayerSupportedTV =
   Number.parseInt(String(Platform.Version), 10) >= 26;
 
 /**
+ * Whether the fully-native player can run on the current platform as the
+ * Android TV variant. It is opt-in via `nativeVideoPlayerAndroidTV` (default false),
+ * and requires Android TV.
+ */
+export const isNativePlayerSupportedAndroidTV =
+  Platform.OS === "android" && Boolean(Platform.isTV);
+
+/**
  * Resolve the actually-active video player for the current settings.
  * MPV is the default on Android; users can opt into ExoPlayer on
  * Android TV or the Native player on Android mobile via settings.videoPlayer.
+ * On Android TV, users can opt into the native player via `nativeVideoPlayerAndroidTV`.
  * On iPhone/iPad the fully-native player is the default: an unset `videoPlayer`
  * (user never chose) or an explicit `Native` selection resolves to Native,
  * while an explicit MPV choice is the opt-out and wins. On Apple TV (tvOS 26+)
@@ -231,7 +240,12 @@ export const isNativePlayerSupportedTV =
  */
 export const getActiveVideoPlayer = (
   settings:
-    | Partial<Pick<Settings, "videoPlayer" | "nativeVideoPlayerTV">>
+    | Partial<
+        Pick<
+          Settings,
+          "videoPlayer" | "nativeVideoPlayerTV" | "nativeVideoPlayerAndroidTV"
+        >
+      >
     | null
     | undefined,
 ): VideoPlayer => {
@@ -239,6 +253,12 @@ export const getActiveVideoPlayer = (
     return VideoPlayer.ExoPlayer;
   }
   if (isNativePlayerSupportedTV && settings?.nativeVideoPlayerTV !== false) {
+    return VideoPlayer.Native;
+  }
+  if (
+    isNativePlayerSupportedAndroidTV &&
+    settings?.nativeVideoPlayerAndroidTV === true
+  ) {
     return VideoPlayer.Native;
   }
   if (
@@ -257,7 +277,12 @@ export const getActiveVideoPlayer = (
  */
 export const getActivePlayerType = (
   settings:
-    | Partial<Pick<Settings, "videoPlayer" | "nativeVideoPlayerTV">>
+    | Partial<
+        Pick<
+          Settings,
+          "videoPlayer" | "nativeVideoPlayerTV" | "nativeVideoPlayerAndroidTV"
+        >
+      >
     | null
     | undefined,
 ): "mpv" | "exoplayer" => {
@@ -384,6 +409,8 @@ export type Settings = {
   // TV-specific settings
   /** Apple TV only: use the fully-native tvOS player (default on; needs tvOS 26+). */
   nativeVideoPlayerTV: boolean;
+  /** Android TV only: use the fully-native Android TV player (opt-in; default off). */
+  nativeVideoPlayerAndroidTV?: boolean;
   showHomeBackdrop: boolean;
   showTVHeroCarousel: boolean;
   tvTypographyScale: TVTypographyScale;
@@ -507,6 +534,7 @@ export const defaultValues: Settings = {
   useEpisodeImagesForNextUp: false,
   // TV-specific settings
   nativeVideoPlayerTV: true,
+  nativeVideoPlayerAndroidTV: false,
   showHomeBackdrop: true,
   showTVHeroCarousel: true,
   tvTypographyScale: TVTypographyScale.Default,

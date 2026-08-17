@@ -71,6 +71,7 @@ import { useWebSocketContext } from "@/providers/WebSocketProvider";
 import {
   getActiveVideoPlayer,
   isNativePlayerSupported,
+  isNativePlayerSupportedAndroidTV,
   isNativePlayerSupportedTV,
   useSettings,
   VideoPlayer,
@@ -238,7 +239,9 @@ export const NativePlayerProvider: React.FC<{
   // native is decided per-request by getActiveVideoPlayer (the TV opt-in
   // toggle); the inner WS "Play" handler already respects it.
   const enabled =
-    (isNativePlayerSupported || isNativePlayerSupportedTV) &&
+    (isNativePlayerSupported ||
+      isNativePlayerSupportedTV ||
+      isNativePlayerSupportedAndroidTV) &&
     isNativePlayerModuleAvailable();
 
   if (!enabled) {

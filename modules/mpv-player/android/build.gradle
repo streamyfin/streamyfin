@@ -77,4 +77,6 @@ dependencies {
   implementation 'androidx.activity:activity-ktx:1.9.3'
   implementation 'androidx.savedstate:savedstate-ktx:1.2.1'
   implementation 'androidx.core:core-ktx:1.18.0'
+  // Android TV Compose material
+  implementation 'androidx.tv:tv-material:1.0.0'
 }
