@@ -1,3 +1,5 @@
+// Must stay above every other import: it runs the storage migrations.
+import "@/utils/bootstrap";
 import "@/augmentations";
 import { ActionSheetProvider } from "@expo/react-native-action-sheet";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
