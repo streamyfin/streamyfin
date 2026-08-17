@@ -1,6 +1,6 @@
 import { useMutation } from "@tanstack/react-query";
 import { useAtom } from "jotai";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { View } from "react-native";
 import { toast } from "sonner-native";
@@ -37,6 +37,14 @@ export const JellyseerrSettings = () => {
   const [jellyseerrApiKeyInput, setJellyseerrApiKeyInput] = useState<string>(
     settings?.jellyseerrApiKey ?? "",
   );
+
+  // The stored key can change after mount (plugin settings load async, and a
+  // login rewrites it). Keep the field in sync so what's on screen is always
+  // the key that a password login would clear — otherwise a stored key could
+  // be wiped invisibly behind an empty-looking input.
+  useEffect(() => {
+    setJellyseerrApiKeyInput(settings?.jellyseerrApiKey ?? "");
+  }, [settings?.jellyseerrApiKey]);
 
   const [jellyseerrServerUrl, setjellyseerrServerUrl] = useState<string>(
     settings?.jellyseerrServerUrl ?? "",
