@@ -40,6 +40,7 @@ import {
   writeInfoLog,
   writeToLog,
 } from "@/utils/log";
+import { runStorageMigrations } from "@/utils/migrations";
 import { storage } from "@/utils/mmkv";
 
 const Notifications = !Platform.isTV ? require("expo-notifications") : null;
@@ -88,6 +89,10 @@ configureReanimatedLogger({
   level: ReanimatedLogLevel.warn,
   strict: false,
 });
+
+// Bring locally stored data up to date before anything reads it — this is the
+// first app module to evaluate, so the providers below all see migrated state.
+runStorageMigrations();
 
 // Crash reporting is on by default; this is a no-op if the user opted out
 // (or a server admin locked it off). After startup, consent tracks the
