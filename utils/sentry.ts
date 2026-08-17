@@ -25,14 +25,41 @@ const hasSentryConsent = (): boolean => {
   }
 };
 
-// Jellyfin/Jellyseerr URLs carry credentials in the query string (api_key=...)
-// and the origin reveals the user's private server address, so both are
-// scrubbed from everything that leaves the app; the request path survives
-// because it's what makes an error debuggable.
+// Jellyfin/Jellyseerr URLs carry credentials in the query string (api_key=...,
+// the WebSocket's ApiKey=...) and the origin reveals the user's private server
+// address, so both are scrubbed from everything that leaves the app; the
+// request path survives because it's what makes an error debuggable.
 const scrubUrl = (value: string): string =>
   value
-    .replace(/(https?:\/\/[^\s"'?]+)\?[^\s"']*/g, "$1")
-    .replace(/https?:\/\/[^/\s"']+/g, "https://[server]");
+    .replace(/((?:https?|wss?):\/\/[^\s"'?]+)\?[^\s"']*/g, "$1")
+    .replace(/((?:https?|wss?):\/\/)[^/\s"']+/g, "$1[server]");
+
+// URLs can hide anywhere in an event, not just the fields with a `url` name:
+// console breadcrumbs keep raw console arguments in data.arguments, and
+// extra/contexts carry arbitrary payloads. So every string in the outgoing
+// object is scrubbed, however deeply nested.
+const scrubDeep = (value: unknown, seen = new WeakSet<object>()): unknown => {
+  if (typeof value === "string") {
+    return scrubUrl(value);
+  }
+  if (value !== null && typeof value === "object") {
+    if (seen.has(value)) {
+      return value;
+    }
+    seen.add(value);
+    if (Array.isArray(value)) {
+      for (let i = 0; i < value.length; i++) {
+        value[i] = scrubDeep(value[i], seen);
+      }
+    } else {
+      const record = value as Record<string, unknown>;
+      for (const key of Object.keys(record)) {
+        record[key] = scrubDeep(record[key], seen);
+      }
+    }
+  }
+  return value;
+};
 
 const initializeSentry = () => {
   if (initialized || !SENTRY_DSN) return;
@@ -43,29 +70,9 @@ const initializeSentry = () => {
     sendDefaultPii: false,
     // Errors only — no performance tracing, session replay or screenshots.
     tracesSampleRate: 0,
-    beforeSend(event) {
-      if (event.request?.url) {
-        event.request.url = scrubUrl(event.request.url);
-      }
-      for (const exception of event.exception?.values ?? []) {
-        if (exception.value) {
-          exception.value = scrubUrl(exception.value);
-        }
-      }
-      if (event.message) {
-        event.message = scrubUrl(event.message);
-      }
-      return event;
-    },
-    beforeBreadcrumb(breadcrumb) {
-      if (typeof breadcrumb.data?.url === "string") {
-        breadcrumb.data.url = scrubUrl(breadcrumb.data.url);
-      }
-      if (breadcrumb.message) {
-        breadcrumb.message = scrubUrl(breadcrumb.message);
-      }
-      return breadcrumb;
-    },
+    beforeSend: (event) => scrubDeep(event) as typeof event,
+    beforeBreadcrumb: (breadcrumb) =>
+      scrubDeep(breadcrumb) as typeof breadcrumb,
   });
 };
 
