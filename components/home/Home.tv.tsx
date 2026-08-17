@@ -561,8 +561,8 @@ export const Home = () => {
   // Determine if hero should be shown (separate setting from backdrop)
   // We need this early to calculate which sections will actually be rendered
   const showHero = useMemo(() => {
-    return heroItems && heroItems.length > 0 && settings.showTVHeroCarousel;
-  }, [heroItems, settings.showTVHeroCarousel]);
+    return heroItems && heroItems.length > 0 && settings.showHeroCarousel;
+  }, [heroItems, settings.showHeroCarousel]);
 
   // Get sections that will actually be rendered (accounting for hero slicing)
   // When hero is shown, skip the first sections since hero already displays that content
