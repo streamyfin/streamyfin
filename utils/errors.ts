@@ -1,4 +1,4 @@
-import { isCancel } from "axios";
+import { isAxiosError, isCancel } from "axios";
 
 /**
  * Marks errors that are user-facing outcomes rather than app defects — a
@@ -41,6 +41,19 @@ export const isAbortLikeError = (error: unknown): boolean =>
   isCancel(error) ||
   (error instanceof Error &&
     (error.name === "AbortError" || error.name === "CanceledError"));
+
+/**
+ * True for requests that never got an HTTP response — the server is
+ * unreachable (LAN-only server while roaming, DNS failure, timeout). That is
+ * the user's environment, not an app bug, so it must never become a Sentry
+ * event. Covers both axios errors and React Native's fetch TypeError.
+ */
+export const isConnectivityError = (error: unknown): boolean => {
+  if (isAxiosError(error)) return !error.response;
+  return (
+    error instanceof TypeError && /network request failed/i.test(error.message)
+  );
+};
 
 export const isExpectedError = (error: unknown): boolean =>
   error !== null &&

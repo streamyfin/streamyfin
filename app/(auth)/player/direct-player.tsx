@@ -1625,11 +1625,16 @@ export default function DirectPlayerPage() {
                   );
                   // Attach the negotiation and decode facts that make a
                   // player error diagnosable; the native probe is
-                  // best-effort and must never block the error path.
+                  // best-effort and must never block or swallow the error
+                  // path — a wedged player may never settle the promise, so
+                  // it races a timeout.
                   void (async () => {
-                    const technical = await getTechnicalInfo().catch(
-                      () => ({}),
-                    );
+                    const technical = await Promise.race([
+                      getTechnicalInfo().catch(() => ({})),
+                      new Promise<Record<string, never>>((resolve) =>
+                        setTimeout(() => resolve({}), 2000),
+                      ),
+                    ]);
                     logAndCaptureError(
                       "Video playback error",
                       e.nativeEvent?.error ?? e.nativeEvent,

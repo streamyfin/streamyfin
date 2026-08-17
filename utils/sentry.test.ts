@@ -64,6 +64,33 @@ describe("scrubDeep — the privacy boundary for outgoing Sentry data", () => {
     );
   });
 
+  test("titles with apostrophes are redacted too", () => {
+    expect(scrubDeep("/var/mobile/Documents/Don't Look Up (2021).mp4")).toBe(
+      "/var/mobile/Documents/[media].mp4",
+    );
+  });
+
+  test("credential params are redacted even in server-relative URLs", () => {
+    expect(
+      scrubDeep("/videos/xyz/master.m3u8?DeviceId=abc&api_key=SECRET"),
+    ).toBe("/videos/xyz/[media].m3u8?DeviceId=abc&api_key=[redacted]");
+  });
+
+  test("credential params survive an unencoded space breaking the URL regex", () => {
+    expect(
+      scrubDeep("https://host.example.com/My Show S01E02.mp4?ApiKey=SECRET"),
+    ).toBe("https://[server]/[media].mp4?ApiKey=[redacted]");
+  });
+
+  test("scheme-less hosts in native error strings are redacted", () => {
+    expect(
+      scrubDeep("Failed to connect to jellyfin.local/192.168.1.5:8096"),
+    ).toBe("Failed to connect to [server]");
+    expect(scrubDeep("Connection refused by 192.168.1.5:8096")).toBe(
+      "Connection refused by [ip]",
+    );
+  });
+
   test("media basenames inside server URL paths are redacted as well", () => {
     expect(scrubDeep("https://x.example.com/videos/abc-123/stream.mp4")).toBe(
       "https://[server]/videos/abc-123/[media].mp4",

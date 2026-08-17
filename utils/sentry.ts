@@ -33,8 +33,24 @@ const hasSentryConsent = (): boolean => {
 // sidecar subs, poster staging), so any path basename with a media extension
 // reveals what the user watches. Replace the basename, keep the extension —
 // the container is what makes a decode error debuggable, the title never is.
+// Apostrophes stay in the basename class: excluding them punched a hole for
+// every title containing one ("Don't Look Up").
 const MEDIA_FILENAME_PATTERN =
-  /([/\\])([^/\\"'\n]+)\.(mp4|mkv|m4v|mov|avi|webm|mpg|mpeg|wmv|flv|m2ts|mts|m3u8|mpd|mp3|m4a|m4b|flac|aac|ogg|oga|opus|wav|wma|srt|ass|ssa|vtt|sub|idx|jpg|jpeg|png|webp|gif|bif|nfo)\b/gi;
+  /([/\\])([^/\\"\n]+)\.(mp4|mkv|m4v|mov|avi|webm|mpg|mpeg|wmv|flv|m2ts|mts|m3u8|mpd|mp3|m4a|m4b|flac|aac|ogg|oga|opus|wav|wma|srt|ass|ssa|vtt|sub|idx|jpg|jpeg|png|webp|gif|bif|nfo)\b/gi;
+
+// Credential query parameters can appear outside scheme-anchored URLs:
+// server-relative paths ("/Videos/{id}/stream?ApiKey=...") and URLs broken by
+// an unencoded space escape the URL regexes, so known credential params are
+// redacted wherever they occur.
+const CREDENTIAL_PARAM_PATTERN =
+  /([?&](?:api_key|apikey|x-emby-token|access_token|token)=)[^&\s"']+/gi;
+
+// Native error strings can embed the private server address without a scheme:
+// Android's OkHttp writes "Failed to connect to host/1.2.3.4:8096". Redact the
+// known phrases plus any bare IPv4 (LAN servers are usually IPs).
+const SCHEMELESS_HOST_PATTERN =
+  /((?:failed to connect to|unable to resolve host)[: ]+)[^\s"']+/gi;
+const IPV4_PATTERN = /\b\d{1,3}(?:\.\d{1,3}){3}(?::\d+)?\b/g;
 
 // Jellyfin/Jellyseerr URLs carry credentials in the query string (api_key=...,
 // the WebSocket's ApiKey=...) and the origin reveals the user's private server
@@ -44,6 +60,9 @@ const scrubUrl = (value: string): string =>
   value
     .replace(/((?:https?|wss?):\/\/[^\s"'?]+)\?[^\s"']*/g, "$1")
     .replace(/((?:https?|wss?):\/\/)[^/\s"']+/g, "$1[server]")
+    .replace(CREDENTIAL_PARAM_PATTERN, "$1[redacted]")
+    .replace(SCHEMELESS_HOST_PATTERN, "$1[server]")
+    .replace(IPV4_PATTERN, "[ip]")
     .replace(MEDIA_FILENAME_PATTERN, "$1[media].$3");
 
 // URLs can hide anywhere in an event, not just the fields with a `url` name:

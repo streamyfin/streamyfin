@@ -610,18 +610,21 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
           }
         }
       } catch (error) {
-        // Wrong credentials are user input, not an app defect — WARN keeps
-        // them out of Sentry; anything else becomes an event.
+        // Wrong credentials and unreachable servers are the user's input and
+        // environment, not app defects — log them as WARN locally. Nothing
+        // here reaches Sentry directly; unexpected errors rethrown below are
+        // reported once by the global mutation handler.
         writeToLog(
-          axios.isAxiosError(error) && error.response?.status === 401
+          axios.isAxiosError(error) &&
+            (!error.response || error.response.status === 401)
             ? "WARN"
             : "ERROR",
           `Login failed against ${api.basePath}: ${describeRequestError(error)}`,
         );
         if (axios.isAxiosError(error)) {
-          // The writeErrorLog above already reported the technical failure;
-          // what's thrown from here is only a translated message for the
-          // login form, so it's marked expected to keep it out of Sentry.
+          // What's thrown from here is only a translated message for the
+          // login form, so it's marked expected to keep it out of Sentry's
+          // global mutation handler.
           switch (error.response?.status) {
             case 401:
               throw markExpectedError(
@@ -799,7 +802,8 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
         .authenticateUserByName(username, password)
         .catch((error) => {
           writeToLog(
-            axios.isAxiosError(error) && error.response?.status === 401
+            axios.isAxiosError(error) &&
+              (!error.response || error.response.status === 401)
               ? "WARN"
               : "ERROR",
             `Login (saved server) failed against ${serverUrl}: ${describeRequestError(error)}`,

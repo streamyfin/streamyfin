@@ -32,8 +32,10 @@ const MusicPlaybackEngine = Platform.isTV
   ? () => null
   : require("@/components/music/MusicPlaybackEngine").MusicPlaybackEngine;
 
-// A crash inside a tab screen keeps the tab shell alive and offers a retry,
-// instead of blanking the whole app (the root layout has the outer boundary).
+// Catches render crashes inside the tab navigator before they bubble to the
+// root boundary. The fallback replaces the whole navigator (tab bar
+// included) and retry remounts it fresh, discarding navigation state — but
+// the session, providers, and root layout survive.
 export { RouteErrorBoundary as ErrorBoundary } from "@/components/RouteErrorBoundary";
 
 const { Navigator } = createNativeBottomTabNavigator();

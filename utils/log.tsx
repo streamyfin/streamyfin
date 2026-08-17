@@ -1,9 +1,14 @@
 import * as Sentry from "@sentry/react-native";
 import { useQuery } from "@tanstack/react-query";
+import { isAxiosError } from "axios";
 import { atomWithStorage, createJSONStorage } from "jotai/utils";
 import type React from "react";
 import { createContext, useContext } from "react";
-import { markErrorReported } from "./errors";
+import {
+  isAbortLikeError,
+  isConnectivityError,
+  markErrorReported,
+} from "./errors";
 import { storage } from "./mmkv";
 
 export type LogLevel = "INFO" | "WARN" | "ERROR" | "DEBUG";
@@ -58,41 +63,47 @@ const appendLogEntry = (level: LogLevel, message: string, data?: any) => {
     message,
   });
 
-  // `data` is often a caught error now — guard against non-serializable
-  // payloads (circular refs) so the logging path itself can never throw.
-  let safeData = data;
-  if (data !== undefined) {
-    try {
-      JSON.stringify(data);
-    } catch {
-      safeData = String(data);
-    }
-  }
-
   const newEntry: LogEntry = {
     timestamp: new Date().toISOString(),
     level: level,
     message: message,
-    data: safeData,
+    data: data,
   };
 
-  const currentLogs = storage.getString("logs");
-  const logs: LogEntry[] = currentLogs ? JSON.parse(currentLogs) : [];
+  // The logging path itself must never throw: a corrupt persisted blob or a
+  // non-serializable `data` payload (circular refs) falls back instead of
+  // taking down the caller — which is often itself a catch block.
+  let logs: LogEntry[];
+  try {
+    const currentLogs = storage.getString("logs");
+    logs = currentLogs ? JSON.parse(currentLogs) : [];
+  } catch {
+    logs = [];
+  }
   logs.push(newEntry);
 
   const maxLogs = 100;
   const recentLogs = logs.slice(Math.max(logs.length - maxLogs, 0));
 
-  storage.set("logs", JSON.stringify(recentLogs));
+  try {
+    storage.set("logs", JSON.stringify(recentLogs));
+  } catch {
+    newEntry.data = String(data);
+    try {
+      storage.set("logs", JSON.stringify(recentLogs));
+    } catch {
+      // Even the fallback failed — drop the write rather than throw.
+    }
+  }
 };
 
+// Sentry capture is always explicit (logAndCaptureError), never a side
+// effect of log level: writeErrorLog has dozens of legacy call sites that
+// include routine environmental noise (permission denials, servers without
+// the plugin), and a level-triggered capture would silently opt in every
+// present and future one of them.
 export const writeToLog = (level: LogLevel, message: string, data?: any) => {
   appendLogEntry(level, message, data);
-  // ERROR-level logs become real Sentry events (not just breadcrumbs): the
-  // message alone is sent, so grouping stays stable and `data` stays local.
-  if (level === "ERROR") {
-    Sentry.captureMessage(message, "error");
-  }
 };
 
 const stringifyErrorValue = (value: unknown): string | undefined => {
@@ -105,21 +116,53 @@ const stringifyErrorValue = (value: unknown): string | undefined => {
   }
 };
 
+// The local log is exportable (Settings → Logs shares it as logs.txt), so a
+// caught error is reduced to a curated shape before it is persisted: a raw
+// AxiosError serializes its request config INCLUDING the Authorization and
+// X-Api-Key headers, and a plain Error stringifies to "{}" (message/stack
+// are non-enumerable) — both wrong, in opposite directions.
+const describeErrorForLog = (error: unknown): unknown => {
+  if (isAxiosError(error)) {
+    return {
+      name: error.name,
+      message: error.message,
+      code: error.code,
+      status: error.response?.status,
+      url: error.config?.url?.split("?")[0],
+    };
+  }
+  if (error instanceof Error) {
+    return {
+      name: error.name,
+      message: error.message,
+      stack: error.stack?.split("\n").slice(0, 8).join("\n"),
+    };
+  }
+  return error;
+};
+
 /**
- * Records a failure both in the local log and as a Sentry exception. Prefer
- * this over writeErrorLog when the caught error object is available — a real
- * stack trace groups and debugs far better than a message string.
+ * Records a failure both in the local log and as a Sentry exception — the
+ * ONLY path that turns handled errors into Sentry events. Prefer it over
+ * writeErrorLog when the caught error object is available.
+ *
+ * Connectivity failures (aborted requests, no HTTP response) stay in the
+ * local log but are never sent: an unreachable server is the user's
+ * environment, not an app bug.
  *
  * `context` is SENT to Sentry (after URL scrubbing), so pass only curated
  * values (codecs, status codes, item IDs) — never raw payloads or settings
- * blobs. The `error` value doubles as the local log's `data`.
+ * blobs.
  */
 export const logAndCaptureError = (
   message: string,
   error: unknown,
   context?: Record<string, unknown>,
 ) => {
-  appendLogEntry("ERROR", message, error);
+  appendLogEntry("ERROR", message, describeErrorForLog(error));
+  if (isAbortLikeError(error) || isConnectivityError(error)) {
+    return;
+  }
   // If this error is later rethrown into React Query, the global handler in
   // app/_layout.tsx must not report it again.
   markErrorReported(error);

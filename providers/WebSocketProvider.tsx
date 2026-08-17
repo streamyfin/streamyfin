@@ -17,7 +17,7 @@ import { apiAtom } from "@/providers/JellyfinProvider";
 import { useNetworkStatus } from "@/providers/NetworkStatusProvider";
 import { getJellyfinHeaders, hasHeaders } from "@/utils/customHeaders";
 import { getOrSetDeviceId } from "@/utils/device";
-import { logAndCaptureError, writeErrorLog } from "@/utils/log";
+import { logAndCaptureError } from "@/utils/log";
 
 // Query keys that depend on the set of library items and should be refreshed
 // when the server reports that the library changed (items added/removed/updated).
@@ -94,7 +94,14 @@ type RNWebSocketConstructor = new (
 
 export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
   const api = useAtomValue(apiAtom);
-  const { isConnected: isNetworkConnected } = useNetworkStatus();
+  const { isConnected: isNetworkConnected, serverConnected } =
+    useNetworkStatus();
+  // The give-up report fires at most once per session: after the first
+  // exhaustion the attempt counter stays maxed, so every later foreground/
+  // network flip would re-trigger it.
+  const reportedSocketGiveUpRef = useRef(false);
+  const serverConnectedRef = useRef(serverConnected);
+  serverConnectedRef.current = serverConnected;
   const [ws, setWs] = useState<WebSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [lastMessage, setLastMessage] = useState<WebSocketMessage | null>(null);
@@ -229,11 +236,19 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
           reconnectTimeoutRef.current = null;
           connectWebSocket();
         }, reconnectDelay);
-      } else if (isNetworkConnected) {
-        // All retries burned while the network is up: the server itself is
-        // rejecting the socket, which silently kills remote control and live
-        // updates until the next app foreground.
-        writeErrorLog("WebSocket gave up reconnecting while online");
+      } else if (
+        serverConnectedRef.current === true &&
+        !reportedSocketGiveUpRef.current
+      ) {
+        // All retries burned while the SERVER is reachable (a real probe,
+        // not just device connectivity): the server itself is rejecting the
+        // socket, which silently kills remote control and live updates
+        // until the next app foreground.
+        reportedSocketGiveUpRef.current = true;
+        logAndCaptureError(
+          "WebSocket gave up reconnecting while server is reachable",
+          null,
+        );
       }
     };
 
@@ -375,9 +390,10 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
           },
         });
       } catch (error) {
-        // A connectivity failure is expected noise, but a server rejection
-        // means remote control silently never works for this session.
-        if (isAxiosError(error) && !error.response) return;
+        // Connectivity failures are filtered centrally; 401 is routine
+        // session expiry (the auth interceptor handles it). What remains is
+        // a server rejection that silently breaks remote control.
+        if (isAxiosError(error) && error.response?.status === 401) return;
         logAndCaptureError("Posting session capabilities failed", error);
       }
     };
