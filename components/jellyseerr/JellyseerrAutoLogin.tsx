@@ -3,6 +3,7 @@ import { useEffect, useRef } from "react";
 import { JellyseerrApi, useJellyseerr } from "@/hooks/useJellyseerr";
 import { userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
+import { getIntegrationHeaders } from "@/utils/customHeaders";
 import { writeErrorLog, writeInfoLog } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
 import { getJellyseerrPassword } from "@/utils/secureCredentials";
@@ -50,7 +51,12 @@ export const JellyseerrAutoLogin: React.FC = () => {
       if (!password) return;
 
       try {
-        const api = new JellyseerrApi(serverUrl);
+        // Same headers as every other Jellyseerr call — without them the
+        // sign-in fails behind an auth gateway (custom-header setups).
+        const api = new JellyseerrApi(
+          serverUrl,
+          getIntegrationHeaders("jellyseerr"),
+        );
         const result = await api.test();
         if (!result.isValid) {
           writeErrorLog("Jellyseerr auto-login: server did not validate");
