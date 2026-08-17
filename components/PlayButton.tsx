@@ -199,14 +199,19 @@ export const PlayButton: React.FC<Props> = ({
                           basePath: api.basePath,
                         });
                         if (!url || s.Index == null) return [];
+                        // Only server-relative URLs get the token — an
+                        // IsExternalUrl sub lives on a third-party host that
+                        // must never see the Jellyfin access token.
+                        const needsApiKey =
+                          !s.IsExternalUrl && !/[?&]api_?key=/i.test(url);
                         return [
                           {
                             id: s.Index,
                             type: "text" as const,
                             subtype: "subtitles" as const,
-                            contentId: /api_?key=/i.test(url)
-                              ? url
-                              : `${url}${url.includes("?") ? "&" : "?"}api_key=${api.accessToken}`,
+                            contentId: needsApiKey
+                              ? `${url}${url.includes("?") ? "&" : "?"}api_key=${encodeURIComponent(api.accessToken)}`
+                              : url,
                             contentType: "text/vtt",
                             language: s.Language ?? "und",
                             name: s.DisplayTitle ?? undefined,
