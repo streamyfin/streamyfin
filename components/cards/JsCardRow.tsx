@@ -1,4 +1,5 @@
 import { LinearGradient } from "expo-linear-gradient";
+import { useMemo } from "react";
 import { ScrollView, TouchableOpacity, View } from "react-native";
 import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
@@ -155,6 +156,14 @@ export const JsCardRow: React.FC<RowProps> = ({
 }) => {
   const layout = CARD_LAYOUTS[kind];
 
+  // Settle on a card rather than drifting to an arbitrary offset, matching the
+  // native row. The first card starts at contentInset, so the offsets are
+  // measured from there.
+  const snapOffsets = useMemo(
+    () => cards.map((_, index) => index * (layout.cardWidth + layout.spacing)),
+    [cards, layout.cardWidth, layout.spacing],
+  );
+
   const handleScroll = (event: any) => {
     if (!onEndReached) return;
     const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
@@ -169,6 +178,8 @@ export const JsCardRow: React.FC<RowProps> = ({
       showsHorizontalScrollIndicator={false}
       onScroll={handleScroll}
       scrollEventThrottle={16}
+      snapToOffsets={snapOffsets}
+      decelerationRate='fast'
       contentContainerStyle={{
         paddingHorizontal: layout.contentInset,
         paddingVertical: layout.verticalPadding,

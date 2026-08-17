@@ -84,7 +84,9 @@ private struct GlassCardScroller: View {
           }
         }
         .padding(.vertical, layout.verticalPadding)
+        .modifier(SnapTargetLayout())
       }
+      .modifier(SnapToCards())
       .onAppear { scroll(proxy, to: scrollToId, animated: false) }
       .onChange(of: scrollToId) { newValue in
         scroll(proxy, to: newValue, animated: true)
@@ -104,6 +106,35 @@ private struct GlassCardScroller: View {
       } else {
         proxy.scrollTo(id, anchor: .leading)
       }
+    }
+  }
+}
+
+// MARK: - Snapping
+
+/// The row settles on a card rather than drifting to an arbitrary offset, the
+/// way the JS list did with `snapToOffsets`. Each card's leading gap is part of
+/// its identified view, so the alignment keeps the row's inset.
+///
+/// iOS 17 introduced the scroll-target API; below that the row scrolls freely,
+/// which is the graceful degradation — the alternative is reimplementing the
+/// deceleration maths by hand.
+private struct SnapTargetLayout: ViewModifier {
+  func body(content: Content) -> some View {
+    if #available(iOS 17.0, *) {
+      content.scrollTargetLayout()
+    } else {
+      content
+    }
+  }
+}
+
+private struct SnapToCards: ViewModifier {
+  func body(content: Content) -> some View {
+    if #available(iOS 17.0, *) {
+      content.scrollTargetBehavior(.viewAligned)
+    } else {
+      content
     }
   }
 }
