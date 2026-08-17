@@ -364,6 +364,8 @@ export type Settings = {
   subtitleSize: number;
   safeAreaInControlsEnabled: boolean;
   jellyseerrServerUrl?: string;
+  /** Seerr admin API key: signs the user in via their Jellyfin ID, no password. */
+  jellyseerrApiKey?: string;
   useKefinTweaks: boolean;
   hiddenLibraries?: string[];
   enableH265ForChromecast: boolean;
@@ -488,6 +490,7 @@ export const defaultValues: Settings = {
   subtitleSize: 100, // Scale value * 100, so 100 = 1.0x
   safeAreaInControlsEnabled: true,
   jellyseerrServerUrl: undefined,
+  jellyseerrApiKey: undefined,
   useKefinTweaks: false,
   hiddenLibraries: [],
   enableH265ForChromecast: false,
