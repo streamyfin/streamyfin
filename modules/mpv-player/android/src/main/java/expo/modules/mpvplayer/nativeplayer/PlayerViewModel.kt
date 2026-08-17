@@ -781,51 +781,6 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
         fireNextEpisode(reason = "userTap")
     }
 
-    // MARK: - Chapters
-    fun currentChapterIndex(): Int {
-        if (chapters.isEmpty()) return -1
-        val pos = if (isScrubbing) scrubPosition else displayPosition
-        for (i in chapters.indices.reversed()) {
-            if (pos >= chapters[i].startSec) {
-                return i
-            }
-        }
-        return -1
-    }
-
-    fun chapterName(at: Double = displayPosition): String? {
-        if (chapters.isEmpty()) return null
-        for (i in chapters.indices.reversed()) {
-            if (at >= chapters[i].startSec) {
-                return chapters[i].name ?: "${i + 1}"
-            }
-        }
-        return null
-    }
-
-    fun goToNextChapter() {
-        val currentIndex = currentChapterIndex()
-        val nextIndex = currentIndex + 1
-        if (nextIndex in chapters.indices) {
-            seekTo(chapters[nextIndex].startSec)
-        }
-    }
-
-    fun goToPreviousChapter() {
-        val currentIndex = currentChapterIndex()
-        if (currentIndex < 0) return
-        val currentChapter = chapters[currentIndex]
-        val timeInChapter = displayPosition - currentChapter.startSec
-        if (timeInChapter > PlayerConstants.CHAPTER_RESTART_THRESHOLD_SEC || currentIndex == 0) {
-            seekTo(currentChapter.startSec)
-        } else {
-            val prevIndex = currentIndex - 1
-            if (prevIndex in chapters.indices) {
-                seekTo(chapters[prevIndex].startSec)
-            }
-        }
-    }
-
     // MARK: - TV Menus
     fun openTvMenu(screen: TvMenuScreen) {
         tvMenuRoute = listOf(screen)
