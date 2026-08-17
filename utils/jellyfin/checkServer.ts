@@ -4,7 +4,7 @@ import {
   normalizeCustomHeaders,
   optionsWithOptionalHeaders,
 } from "@/utils/customHeaders";
-import { writeErrorLog, writeInfoLog } from "@/utils/log";
+import { writeInfoLog, writeToLog } from "@/utils/log";
 import {
   getServerCustomHeaders,
   updateServerCustomHeaders,
@@ -86,7 +86,13 @@ export async function checkJellyfinServer(
         ),
       );
       if (!response.ok) {
-        writeErrorLog(`Server check: ${url} answered HTTP ${response.status}`);
+        // WARN, not ERROR: probe failures are routine (http probe against an
+        // https-only server, typos, offline) and must not become Sentry
+        // events — they stay in the local log and breadcrumb trail.
+        writeToLog(
+          "WARN",
+          `Server check: ${url} answered HTTP ${response.status}`,
+        );
         continue;
       }
 
@@ -103,7 +109,8 @@ export async function checkJellyfinServer(
       return { url, name: data.ServerName || "" };
     } catch (e) {
       if (e instanceof ServerTooOldError) throw e;
-      writeErrorLog(
+      writeToLog(
+        "WARN",
         `Server check: ${url} failed — ${
           abort.signal.aborted
             ? `timed out after ${probeTimeoutMs}ms`
@@ -117,6 +124,8 @@ export async function checkJellyfinServer(
     }
   }
 
-  writeErrorLog(`Server check: no protocol worked for "${host}"`);
+  // Environmental (wrong address, server down), not an app defect — local
+  // log only.
+  writeToLog("WARN", `Server check: no protocol worked for "${host}"`);
   return undefined;
 }

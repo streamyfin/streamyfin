@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { atomWithStorage, createJSONStorage } from "jotai/utils";
 import type React from "react";
 import { createContext, useContext } from "react";
+import { markErrorReported } from "./errors";
 import { storage } from "./mmkv";
 
 export type LogLevel = "INFO" | "WARN" | "ERROR" | "DEBUG";
@@ -47,21 +48,32 @@ function useLogProvider() {
   };
 }
 
-export const writeToLog = (level: LogLevel, message: string, data?: any) => {
-  // Mirror app logs into Sentry as breadcrumbs (never events) so crash
-  // reports carry the log trail leading up to them. `data` stays local:
-  // it can hold raw URLs and payloads the URL scrubber wouldn't reach.
+// Mirror app logs into Sentry as breadcrumbs so crash reports carry the log
+// trail leading up to them. `data` stays local: it can hold raw URLs and
+// payloads the URL scrubber wouldn't reach (hosts without a scheme, tokens).
+const appendLogEntry = (level: LogLevel, message: string, data?: any) => {
   Sentry.addBreadcrumb({
     category: "app.log",
     level: SENTRY_BREADCRUMB_LEVELS[level],
     message,
   });
 
+  // `data` is often a caught error now — guard against non-serializable
+  // payloads (circular refs) so the logging path itself can never throw.
+  let safeData = data;
+  if (data !== undefined) {
+    try {
+      JSON.stringify(data);
+    } catch {
+      safeData = String(data);
+    }
+  }
+
   const newEntry: LogEntry = {
     timestamp: new Date().toISOString(),
     level: level,
     message: message,
-    data: data,
+    data: safeData,
   };
 
   const currentLogs = storage.getString("logs");
@@ -72,6 +84,65 @@ export const writeToLog = (level: LogLevel, message: string, data?: any) => {
   const recentLogs = logs.slice(Math.max(logs.length - maxLogs, 0));
 
   storage.set("logs", JSON.stringify(recentLogs));
+};
+
+export const writeToLog = (level: LogLevel, message: string, data?: any) => {
+  appendLogEntry(level, message, data);
+  // ERROR-level logs become real Sentry events (not just breadcrumbs): the
+  // message alone is sent, so grouping stays stable and `data` stays local.
+  if (level === "ERROR") {
+    Sentry.captureMessage(message, "error");
+  }
+};
+
+const stringifyErrorValue = (value: unknown): string | undefined => {
+  if (typeof value === "string") return value;
+  if (value === null || value === undefined) return undefined;
+  try {
+    return JSON.stringify(value).slice(0, 500);
+  } catch {
+    return String(value);
+  }
+};
+
+/**
+ * Records a failure both in the local log and as a Sentry exception. Prefer
+ * this over writeErrorLog when the caught error object is available — a real
+ * stack trace groups and debugs far better than a message string.
+ *
+ * `context` is SENT to Sentry (after URL scrubbing), so pass only curated
+ * values (codecs, status codes, item IDs) — never raw payloads or settings
+ * blobs. The `error` value doubles as the local log's `data`.
+ */
+export const logAndCaptureError = (
+  message: string,
+  error: unknown,
+  context?: Record<string, unknown>,
+) => {
+  appendLogEntry("ERROR", message, error);
+  // If this error is later rethrown into React Query, the global handler in
+  // app/_layout.tsx must not report it again.
+  markErrorReported(error);
+  Sentry.withScope((scope) => {
+    if (context) {
+      scope.setContext("details", context);
+    }
+    if (error instanceof Error) {
+      scope.setExtra("log_message", message);
+      Sentry.captureException(error);
+    } else {
+      // Non-Error values (native event strings, rejected payloads) get
+      // wrapped in a synthetic Error whose stack points here, so group by
+      // log message + detail instead: one issue per distinct failure, not
+      // one blob per call site. (Fingerprints are scrubbed like the rest of
+      // the event, so URLs in the detail don't fragment grouping.)
+      const detail = stringifyErrorValue(error);
+      scope.setFingerprint(detail ? [message, detail] : [message]);
+      Sentry.captureException(
+        new Error(detail ? `${message}: ${detail}` : message),
+      );
+    }
+  });
 };
 
 export const writeInfoLog = (message: string, data?: any) =>

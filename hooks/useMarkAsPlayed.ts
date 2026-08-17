@@ -1,6 +1,7 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
+import { logAndCaptureError } from "@/utils/log";
 import { useHaptic } from "./useHaptic";
 import { usePlaybackManager } from "./usePlaybackManager";
 import { useInvalidatePlaybackProgressCache } from "./useRevalidatePlaybackProgressCache";
@@ -50,7 +51,13 @@ export const useMarkAsPlayed = (items: BaseItemDto[]) => {
             return played ? markItemPlayed(item.Id) : markItemUnplayed(item.Id);
           }),
         );
-      } catch (_error) {
+      } catch (error) {
+        // The optimistic update is rolled back, so without a report this
+        // user action fails with zero trace anywhere.
+        logAndCaptureError("Marking item played/unplayed failed", error, {
+          played,
+          itemCount: itemIds.length,
+        });
         for (const { queries } of previousQueriesByItemId) {
           for (const [queryKey, data] of queries) {
             queryClient.setQueryData(queryKey, data);

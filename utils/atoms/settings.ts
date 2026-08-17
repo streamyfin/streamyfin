@@ -13,7 +13,7 @@ import { Platform } from "react-native";
 import { BITRATES, type Bitrate } from "@/components/BitrateSelector";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { apiAtom } from "@/providers/JellyfinProvider";
-import { writeInfoLog } from "@/utils/log";
+import { logAndCaptureError, writeInfoLog } from "@/utils/log";
 import {
   PLUGIN_SETTINGS_KEY,
   readStoredSettings,
@@ -613,7 +613,8 @@ const saveSettings = (settings: Settings) => {
     const jsonValue = JSON.stringify(settings);
     storage.set(SETTINGS_KEY, jsonValue);
   } catch (error) {
-    console.error("Failed to save settings:", error);
+    // The user's change is silently lost when this fails.
+    logAndCaptureError("Saving settings failed", error);
   }
 };
 
@@ -622,7 +623,8 @@ const loadPluginSettings = () => {
   try {
     return storage.get<PluginLockableSettings>(STREAMYFIN_PLUGIN_SETTINGS);
   } catch (error) {
-    console.error("Failed to load plugin settings:", error);
+    // Without the plugin settings the server admin's policy is not applied.
+    logAndCaptureError("Loading plugin settings failed", error);
     return undefined;
   }
 };

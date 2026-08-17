@@ -85,7 +85,7 @@ import {
   isImageBasedSubtitle,
   type SubtitleSelectablePlayer,
 } from "@/utils/jellyfin/subtitleUtils";
-import { writeToLog } from "@/utils/log";
+import { logAndCaptureError, writeToLog } from "@/utils/log";
 import {
   buildNativePlayerConfig,
   buildNativePlayerStrings,
@@ -598,11 +598,9 @@ const NativePlayerProviderInner: React.FC<{
         strings: buildNativePlayerStrings(t),
         item: options.item,
       }).catch((error) => {
-        writeToLog(
-          "ERROR",
-          "NativePlayer config build failed",
-          error instanceof Error ? error.message : String(error),
-        );
+        logAndCaptureError("NativePlayer config build failed", error, {
+          offline: req.offline,
+        });
         return null;
       });
       if (!built) return false;
@@ -665,11 +663,9 @@ const NativePlayerProviderInner: React.FC<{
           await presentNativePlayer(built.config);
         }
       } catch (error) {
-        writeToLog(
-          "ERROR",
-          "NativePlayer present/load failed",
-          error instanceof Error ? error.message : String(error),
-        );
+        logAndCaptureError("NativePlayer present/load failed", error, {
+          replace: !!options.replace,
+        });
         if (options.replace && previous) {
           // The in-place swap failed midway: the old server session is
           // already closed and the stream state is unknown — tear the whole
@@ -1488,7 +1484,13 @@ const NativePlayerProviderInner: React.FC<{
       }),
 
       addNativePlayerListener("onError", (payload) => {
-        writeToLog("ERROR", "NativePlayer playback error", payload.error);
+        const session = sessionRef.current;
+        logAndCaptureError("NativePlayer playback error", payload.error, {
+          container: session?.stream?.mediaSource?.Container,
+          transcoding: !!session?.stream?.mediaSource?.TranscodingUrl,
+          offline: session?.offline,
+          itemType: session?.item?.Type,
+        });
       }),
 
       addNativePlayerListener("onPlaybackEnded", (payload) => {

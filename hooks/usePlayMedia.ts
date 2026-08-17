@@ -10,6 +10,7 @@ import {
   VideoPlayer,
 } from "@/utils/atoms/settings";
 import { shuffleQueueAtom } from "@/utils/atoms/shuffleQueue";
+import { writeErrorLog } from "@/utils/log";
 import {
   type PlayRequest,
   toDirectPlayerQuery,
@@ -63,8 +64,14 @@ export const usePlayMedia = () => {
       }
 
       // Never stack the JS route under a still-presented native player (a
-      // failed in-place swap keeps the old native session on screen).
-      if (isNativePlayerPresented()) return;
+      // failed in-place swap keeps the old native session on screen). From
+      // the user's side this is a Play tap that did nothing, so record it.
+      if (isNativePlayerPresented()) {
+        writeErrorLog(
+          "Play request dropped: native player still presented after failed present",
+        );
+        return;
+      }
 
       router.push(`/player/direct-player?${toDirectPlayerQuery(req)}`);
     },

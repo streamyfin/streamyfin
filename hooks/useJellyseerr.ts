@@ -51,7 +51,7 @@ import type {
   SeasonWithEpisodes,
   TvDetails,
 } from "@/utils/jellyseerr/server/models/Tv";
-import { writeErrorLog } from "@/utils/log";
+import { logAndCaptureError, writeErrorLog, writeToLog } from "@/utils/log";
 import { isVersionBelow } from "@/utils/serverUrl/semver";
 
 interface SearchParams {
@@ -444,10 +444,19 @@ export class JellyseerrApi {
         return response;
       },
       (error: AxiosError) => {
-        writeErrorLog(
-          `Jellyseerr response error\nerror: ${error.toString()}\nurl: ${error?.config?.url}`,
-          error.response?.data,
-        );
+        if (error.response) {
+          // A real server response — one capture covers the entire
+          // Jellyseerr surface. The response body stays in the local log.
+          logAndCaptureError("Jellyseerr response error", error, {
+            status: error.response.status,
+            url: error.config?.url,
+          });
+          writeToLog("DEBUG", "Jellyseerr response body", error.response.data);
+        } else {
+          // No response = connectivity; routine when away from the server,
+          // so keep it out of Sentry but in the local log trail.
+          writeToLog("WARN", `Jellyseerr unreachable: ${error.toString()}`);
+        }
         if (error.response?.status === 403) {
           clearJellyseerrStorageData();
         }
@@ -480,7 +489,10 @@ export class JellyseerrApi {
         return config;
       },
       (error) => {
-        console.error("Jellyseerr request error", error);
+        logAndCaptureError("Jellyseerr request setup failed", error);
+        // Without re-rejecting, axios would proceed with an undefined config
+        // and fail somewhere unrelated.
+        return Promise.reject(error);
       },
     );
   }

@@ -1,4 +1,5 @@
 import { getSessionApi } from "@jellyfin/sdk/lib/utils/api";
+import { isAxiosError } from "axios";
 import { useAtomValue } from "jotai";
 import {
   createContext,
@@ -16,6 +17,7 @@ import { apiAtom } from "@/providers/JellyfinProvider";
 import { useNetworkStatus } from "@/providers/NetworkStatusProvider";
 import { getJellyfinHeaders, hasHeaders } from "@/utils/customHeaders";
 import { getOrSetDeviceId } from "@/utils/device";
+import { logAndCaptureError, writeErrorLog } from "@/utils/log";
 
 // Query keys that depend on the set of library items and should be refreshed
 // when the server reports that the library changed (items added/removed/updated).
@@ -157,10 +159,9 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
       try {
         handler(message.Data, message);
       } catch (error) {
-        console.error(
-          `Error handling WebSocket message type "${message.MessageType}":`,
-          error,
-        );
+        logAndCaptureError("WebSocket message handler threw", error, {
+          messageType: message.MessageType,
+        });
       }
     }
   }, []);
@@ -228,6 +229,11 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
           reconnectTimeoutRef.current = null;
           connectWebSocket();
         }, reconnectDelay);
+      } else if (isNetworkConnected) {
+        // All retries burned while the network is up: the server itself is
+        // rejecting the socket, which silently kills remote control and live
+        // updates until the next app foreground.
+        writeErrorLog("WebSocket gave up reconnecting while online");
       }
     };
 
@@ -245,7 +251,7 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
         // Pub/sub: deliver to every subscriber without coalescing.
         dispatchMessage(message);
       } catch (error) {
-        console.error("Error parsing WebSocket message:", error);
+        logAndCaptureError("Error parsing WebSocket message", error);
       }
     };
     setWs(newWebSocket);
@@ -368,8 +374,11 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
             SupportsPersistentIdentifier: true,
           },
         });
-      } catch {
-        // Silently fail - expected when offline or server unreachable
+      } catch (error) {
+        // A connectivity failure is expected noise, but a server rejection
+        // means remote control silently never works for this session.
+        if (isAxiosError(error) && !error.response) return;
+        logAndCaptureError("Posting session capabilities failed", error);
       }
     };
 

@@ -68,7 +68,7 @@ import {
   getMpvAudioId,
   isImageBasedSubtitle,
 } from "@/utils/jellyfin/subtitleUtils";
-import { writeToLog } from "@/utils/log";
+import { logAndCaptureError, writeToLog } from "@/utils/log";
 import {
   isLocalSubtitleIndex,
   localSubtitleIndex,
@@ -356,7 +356,9 @@ export default function DirectPlayerPage() {
         setItem(fetchedItem);
         setItemStatus({ isLoading: false, isError: false });
       } catch (error) {
-        console.error("Failed to fetch item:", error);
+        logAndCaptureError("Failed to fetch item for player", error, {
+          offline,
+        });
         setItemStatus({ isLoading: false, isError: true });
       }
     };
@@ -509,14 +511,31 @@ export default function DirectPlayerPage() {
               audioMode: settings.audioTranscodeMode,
             }),
           });
-          if (!res) return null;
+          if (!res) {
+            // Without flipping isError this path used to leave the loading
+            // spinner up forever.
+            logAndCaptureError("getStreamUrl returned no stream", null, {
+              itemType: item.Type,
+              player: getActivePlayerType(settings),
+            });
+            setStreamStatus({ isLoading: false, isError: true });
+            return null;
+          }
           const { mediaSource, sessionId, url, requiredHttpHeaders } = res;
 
           if (!sessionId || !mediaSource || !url) {
+            logAndCaptureError("Stream response incomplete", null, {
+              itemType: item.Type,
+              player: getActivePlayerType(settings),
+              hasSessionId: !!sessionId,
+              hasMediaSource: !!mediaSource,
+              hasUrl: !!url,
+            });
             Alert.alert(
               t("player.error"),
               t("player.failed_to_get_stream_url"),
             );
+            setStreamStatus({ isLoading: false, isError: true });
             return null;
           }
           result = { mediaSource, sessionId, url, requiredHttpHeaders };
@@ -525,7 +544,11 @@ export default function DirectPlayerPage() {
         setStreamStatus({ isLoading: false, isError: false });
         return result;
       } catch (error) {
-        console.error("Failed to fetch stream:", error);
+        logAndCaptureError("Failed to fetch stream", error, {
+          itemType: item?.Type,
+          player: getActivePlayerType(settings),
+          offline,
+        });
         setStreamStatus({ isLoading: false, isError: true });
         return null;
       }
@@ -1600,7 +1623,25 @@ export default function DirectPlayerPage() {
                     t("player.error"),
                     t("player.an_error_occurred_while_playing_the_video"),
                   );
-                  writeToLog("ERROR", "Video Error", e.nativeEvent);
+                  // Attach the negotiation and decode facts that make a
+                  // player error diagnosable; the native probe is
+                  // best-effort and must never block the error path.
+                  void (async () => {
+                    const technical = await getTechnicalInfo().catch(
+                      () => ({}),
+                    );
+                    logAndCaptureError(
+                      "Video playback error",
+                      e.nativeEvent?.error ?? e.nativeEvent,
+                      {
+                        playMethod,
+                        transcodeReasons,
+                        container: stream?.mediaSource?.Container,
+                        offline,
+                        technical,
+                      },
+                    );
+                  })();
                 }}
                 onTracksReady={() => {
                   setTracksReady(true);

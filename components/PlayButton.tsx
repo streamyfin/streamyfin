@@ -43,6 +43,7 @@ import {
   getExternalSubtitleUrl,
   isExternalSubtitle,
 } from "@/utils/jellyfin/subtitleUtils";
+import { logAndCaptureError } from "@/utils/log";
 import type { PlayRequest } from "@/utils/nativePlayer/playRequest";
 import { formatDuration, runtimeTicksToMinutes } from "@/utils/time";
 import { chromecast } from "../utils/profiles/chromecast";
@@ -317,8 +318,10 @@ export const PlayButton: React.FC<Props> = ({
                           client
                             .setActiveTrackIds([activeSubtitle.id])
                             .catch((e) => {
-                              console.error(
-                                "Chromecast setActiveTrackIds failed:",
+                              // Subtitles are silently missing on the cast
+                              // device when this fails.
+                              logAndCaptureError(
+                                "Chromecast setActiveTrackIds failed",
                                 e,
                               );
                             });
@@ -330,14 +333,14 @@ export const PlayButton: React.FC<Props> = ({
                         CastContext.showExpandedControls();
                       })
                       .catch((e) => {
-                        console.error("Chromecast loadMedia failed:", e);
+                        logAndCaptureError("Chromecast loadMedia failed", e);
                         Alert.alert(
                           t("player.client_error"),
                           t("player.chromecast_playback_failed"),
                         );
                       });
                   } catch (e) {
-                    console.error("Chromecast stream setup failed:", e);
+                    logAndCaptureError("Chromecast stream setup failed", e);
                     Alert.alert(
                       t("player.client_error"),
                       t("player.could_not_create_stream_for_chromecast"),

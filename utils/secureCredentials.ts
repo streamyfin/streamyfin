@@ -7,6 +7,7 @@ import {
   secureCustomHeaderMetadata,
 } from "./customHeaders/secureValues";
 import type { CustomHeader } from "./customHeaders/types";
+import { logAndCaptureError } from "./log";
 import { storage } from "./mmkv";
 
 const CREDENTIAL_KEY_PREFIX = "credential_";
@@ -557,8 +558,13 @@ export async function migrateToMultiAccount(): Promise<void> {
 
     storage.set("previousServers", JSON.stringify(migratedServers));
     storage.set(MULTI_ACCOUNT_MIGRATED_KEY, true);
-  } catch {
-    // If parsing fails, reset to empty array
+  } catch (error) {
+    // If parsing fails, reset to empty array. This destroys the user's saved
+    // server list, so it must never happen silently.
+    logAndCaptureError(
+      "Saved-servers migration failed; resetting previousServers",
+      error,
+    );
     storage.set("previousServers", "[]");
     storage.set(MULTI_ACCOUNT_MIGRATED_KEY, true);
   }

@@ -8,6 +8,7 @@ import type {
   DownloadStartedEvent,
 } from "@/modules";
 import { BackgroundDownloader } from "@/modules";
+import { logAndCaptureError } from "@/utils/log";
 import {
   getNotificationContent,
   sendDownloadNotification,
@@ -230,7 +231,11 @@ export function useDownloadEventHandlers({
             removeProcess(itemId);
           }, 2000);
         } catch (error) {
-          console.error("Error handling download completion:", error);
+          // A download that finished on disk gets discarded here — one of
+          // the worst silent failures the app has, so always report it.
+          logAndCaptureError("Handling download completion failed", error, {
+            itemType: getPendingDownload(itemId)?.item?.Type,
+          });
           removePendingDownload(itemId);
           updateProcess(itemId, { status: "error" });
           clearSpeedData(itemId);
@@ -252,7 +257,9 @@ export function useDownloadEventHandlers({
         const record = getPendingDownload(itemId);
         if (!record) return;
 
-        console.error(`Download error for ${itemId}:`, event.error);
+        logAndCaptureError("Download failed", event.error, {
+          itemType: record.item?.Type,
+        });
 
         removePendingDownload(itemId);
         updateProcess(itemId, { status: "error" });

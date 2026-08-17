@@ -45,6 +45,7 @@ import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { getIntegrationHeaders } from "@/utils/customHeaders";
+import { isAbortLikeError } from "@/utils/errors";
 import { eventBus } from "@/utils/eventBus";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { MediaType } from "@/utils/jellyseerr/server/constants/media";
@@ -53,6 +54,7 @@ import type {
   PersonResult,
   TvResult,
 } from "@/utils/jellyseerr/server/models/Search";
+import { logAndCaptureError } from "@/utils/log";
 import { createStreamystatsApi } from "@/utils/streamystats";
 
 type SearchType = "Library" | "Discover";
@@ -227,9 +229,10 @@ export default function SearchPage() {
 
         return (response2.data.Items as BaseItemDto[]) || [];
       } catch (error) {
-        // Silently handle aborted requests
-        if (error instanceof Error && error.name === "AbortError") {
-          return [];
+        // Aborted requests are routine; anything else used to render as
+        // "no results" with no trace of the failure.
+        if (!isAbortLikeError(error)) {
+          logAndCaptureError("Search request failed", error);
         }
         return [];
       }
@@ -266,9 +269,8 @@ export default function SearchPage() {
 
         return (searchApi.data.Items as BaseItemDto[]) || [];
       } catch (error) {
-        // Silently handle aborted requests
-        if (error instanceof Error && error.name === "AbortError") {
-          return [];
+        if (!isAbortLikeError(error)) {
+          logAndCaptureError("Music search request failed", error);
         }
         return [];
       }

@@ -1,8 +1,10 @@
 import * as Sentry from "@sentry/react-native";
+import { Platform } from "react-native";
 import {
   readStoredPluginSettings,
   readStoredSettings,
 } from "@/utils/storedSettings";
+import { getVersionInfo } from "@/utils/version";
 
 // Public Sentry DSN for org "streamyfin", project "react-native". A DSN only
 // allows submitting events, so shipping it in the client bundle is fine.
@@ -67,12 +69,26 @@ const initializeSentry = () => {
   if (initialized || !SENTRY_DSN) return;
   initialized = true;
   try {
+    // Build-identity tags so an event can be pinned to an exact source state.
+    // `release`/`dist` stay at the SDK's native defaults — overriding them
+    // would break the association with the source maps the Expo plugin
+    // uploads under those default names.
+    const build = getVersionInfo();
     Sentry.init({
       dsn: SENTRY_DSN,
       environment: __DEV__ ? "development" : "production",
       sendDefaultPii: false,
       // Errors only — no performance tracing, session replay or screenshots.
       tracesSampleRate: 0,
+      initialScope: {
+        tags: {
+          tv: String(Platform.isTV),
+          "build.commit": build.commit ?? "unknown",
+          "build.branch": build.branch ?? "unknown",
+          "build.profile": build.profile ?? "local",
+          "build.run": build.runNumber ?? "none",
+        },
+      },
       beforeSend: (event) => scrubDeep(event) as typeof event,
       beforeBreadcrumb: (breadcrumb) =>
         scrubDeep(breadcrumb) as typeof breadcrumb,
