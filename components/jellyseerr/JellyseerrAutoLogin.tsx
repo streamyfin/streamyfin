@@ -4,7 +4,7 @@ import { JellyseerrApi, useJellyseerr } from "@/hooks/useJellyseerr";
 import { userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { getIntegrationHeaders } from "@/utils/customHeaders";
-import { writeErrorLog, writeInfoLog } from "@/utils/log";
+import { writeInfoLog, writeToLog } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
 import { getJellyseerrPassword } from "@/utils/secureCredentials";
 
@@ -69,7 +69,10 @@ export const JellyseerrAutoLogin: React.FC = () => {
       } catch (e) {
         // Silent on purpose: this runs unprompted at launch, so a failure
         // belongs in the log rather than as a toast over the home screen.
-        writeErrorLog(
+        // WARN keeps it out of Sentry too — server-side failures are already
+        // captured once by the JellyseerrApi response interceptor.
+        writeToLog(
+          "WARN",
           `Jellyseerr auto-login failed: ${e instanceof Error ? e.message : e}`,
         );
       }

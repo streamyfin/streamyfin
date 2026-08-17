@@ -18,6 +18,7 @@ mock.module("@/utils/log", () => ({
   writeInfoLog: () => undefined,
   writeErrorLog: () => undefined,
   writeDebugLog: () => undefined,
+  logAndCaptureError: () => undefined,
   readFromLog: () => [],
 }));
 

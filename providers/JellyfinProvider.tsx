@@ -28,8 +28,14 @@ import { JellyseerrApi, useJellyseerr } from "@/hooks/useJellyseerr";
 import { settingsAtom, useSettings } from "@/utils/atoms/settings";
 import { getIntegrationHeaders } from "@/utils/customHeaders";
 import { getOrSetDeviceId } from "@/utils/device";
+import { markExpectedError } from "@/utils/errors";
 import { createApiWithCustomHeaders } from "@/utils/jellyfin/createApi";
-import { writeErrorLog, writeInfoLog } from "@/utils/log";
+import {
+  logAndCaptureError,
+  writeErrorLog,
+  writeInfoLog,
+  writeToLog,
+} from "@/utils/log";
 import { storage } from "@/utils/mmkv";
 import {
   type AccountSecurityType,
@@ -604,31 +610,54 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
           }
         }
       } catch (error) {
-        writeErrorLog(
+        // Wrong credentials and unreachable servers are the user's input and
+        // environment, not app defects — log them as WARN locally. Nothing
+        // here reaches Sentry directly; unexpected errors rethrown below are
+        // reported once by the global mutation handler.
+        writeToLog(
+          axios.isAxiosError(error) &&
+            (!error.response || error.response.status === 401)
+            ? "WARN"
+            : "ERROR",
           `Login failed against ${api.basePath}: ${describeRequestError(error)}`,
         );
         if (axios.isAxiosError(error)) {
+          // What's thrown from here is only a translated message for the
+          // login form, so it's marked expected to keep it out of Sentry's
+          // global mutation handler.
           switch (error.response?.status) {
             case 401:
-              throw new Error(t("login.invalid_username_or_password"));
+              throw markExpectedError(
+                new Error(t("login.invalid_username_or_password")),
+              );
             case 403:
-              throw new Error(
-                t("login.user_does_not_have_permission_to_log_in"),
+              throw markExpectedError(
+                new Error(t("login.user_does_not_have_permission_to_log_in")),
               );
             case 408:
-              throw new Error(
-                t("login.server_is_taking_too_long_to_respond_try_again_later"),
+              throw markExpectedError(
+                new Error(
+                  t(
+                    "login.server_is_taking_too_long_to_respond_try_again_later",
+                  ),
+                ),
               );
             case 429:
-              throw new Error(
-                t("login.server_received_too_many_requests_try_again_later"),
+              throw markExpectedError(
+                new Error(
+                  t("login.server_received_too_many_requests_try_again_later"),
+                ),
               );
             case 500:
-              throw new Error(t("login.there_is_a_server_error"));
+              throw markExpectedError(
+                new Error(t("login.there_is_a_server_error")),
+              );
             default:
-              throw new Error(
-                t(
-                  "login.an_unexpected_error_occurred_did_you_enter_the_correct_url",
+              throw markExpectedError(
+                new Error(
+                  t(
+                    "login.an_unexpected_error_occurred_did_you_enter_the_correct_url",
+                  ),
                 ),
               );
           }
@@ -720,12 +749,12 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
             error.response?.status === 403
           ) {
             await deleteAccountCredential(serverUrl, userId);
-            throw new Error(t("server.session_expired"));
+            throw markExpectedError(new Error(t("server.session_expired")));
           }
 
           // Network error - server not reachable (no response means server didn't respond)
           if (!error.response) {
-            throw new Error(t("home.server_unreachable"));
+            throw markExpectedError(new Error(t("home.server_unreachable")));
           }
         }
 
@@ -736,7 +765,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
             error.message.toLowerCase().includes("econnrefused") ||
             error.message.toLowerCase().includes("timeout"))
         ) {
-          throw new Error(t("home.server_unreachable"));
+          throw markExpectedError(new Error(t("home.server_unreachable")));
         }
 
         throw error;
@@ -772,7 +801,11 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       const auth = await apiInstance
         .authenticateUserByName(username, password)
         .catch((error) => {
-          writeErrorLog(
+          writeToLog(
+            axios.isAxiosError(error) &&
+              (!error.response || error.response.status === 401)
+              ? "WARN"
+              : "ERROR",
             `Login (saved server) failed against ${serverUrl}: ${describeRequestError(error)}`,
           );
           throw error;
@@ -936,7 +969,9 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
             });
         }
       } catch (e) {
-        console.error(e);
+        // A failure here silently drops the user into an unauthenticated
+        // state at launch, so it must be visible in crash reports.
+        logAndCaptureError("Jellyfin startup initialization failed", e);
       } finally {
         setInitialLoaded(true);
       }

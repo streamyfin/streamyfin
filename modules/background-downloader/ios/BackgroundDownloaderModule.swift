@@ -505,6 +505,35 @@ public class BackgroundDownloaderModule: Module {
       return
     }
 
+    // A non-2xx response still "completes" the transfer, but the file on disk
+    // is the server's error body (auth page, JSON error), not the media.
+    // Recording it as a successful download only fails much later, at
+    // playback, so surface it as a download error here. (Android already
+    // rejects these in OkHttpDownloadManager.)
+    if let httpResponse = downloadTask.response as? HTTPURLResponse,
+       !(200...299).contains(httpResponse.statusCode) {
+      backgroundDownloaderLog.error(
+        "Task \(taskId) finished with HTTP \(httpResponse.statusCode); treating as failure"
+      )
+      finishLiveActivity(taskId: taskId, state: .failed)
+
+      var payload: [String: Any] = [
+        "taskId": taskId,
+        "error": "Server responded with HTTP \(httpResponse.statusCode)"
+      ]
+      if let itemId = taskInfo.metadata?.itemId {
+        payload["itemId"] = itemId
+      }
+      sendEvent("onDownloadError", payload)
+
+      downloadTasks.removeValue(forKey: taskId)
+      lastProgressTime.removeValue(forKey: taskId)
+      persistTasksLocked()
+
+      processNextInQueueSafelyLocked()
+      return
+    }
+
     let fileManager = FileManager.default
 
     do {

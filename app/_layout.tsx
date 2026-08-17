@@ -3,8 +3,14 @@ import { ActionSheetProvider } from "@expo/react-native-action-sheet";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import NetInfo from "@react-native-community/netinfo";
 import { createSyncStoragePersister } from "@tanstack/query-sync-storage-persister";
-import { onlineManager, QueryClient } from "@tanstack/react-query";
+import {
+  MutationCache,
+  onlineManager,
+  QueryCache,
+  QueryClient,
+} from "@tanstack/react-query";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
+import { isAxiosError } from "axios";
 import * as BackgroundTask from "expo-background-task";
 import * as Device from "expo-device";
 import { Image } from "expo-image";
@@ -34,6 +40,12 @@ import {
   registerBackgroundFetchAsyncSessions,
 } from "@/utils/background-tasks";
 import { getOrSetDeviceId } from "@/utils/device";
+import {
+  isAbortLikeError,
+  isConnectivityError,
+  isErrorReported,
+  isExpectedError,
+} from "@/utils/errors";
 import {
   LogProvider,
   writeErrorLog,
@@ -249,6 +261,10 @@ function RootLayout() {
 // Sentry.wrap is inert while the SDK is not initialized (crash reporting off).
 export default Sentry.wrap(RootLayout);
 
+// Render-phase crashes anywhere in the tree get a retry screen instead of a
+// blank app, and the error reaches Sentry with its component stack.
+export { RouteErrorBoundary as ErrorBoundary } from "@/components/RouteErrorBoundary";
+
 // Set up online manager for network-aware query behavior
 onlineManager.setEventListener((setOnline) => {
   return NetInfo.addEventListener((state) => {
@@ -256,7 +272,60 @@ onlineManager.setEventListener((setOnline) => {
   });
 });
 
+// Every React Query failure funnels through here instead of needing per-call
+// handlers. Skipped: anything while offline, aborted requests, connectivity
+// failures with no HTTP response — axios or fetch — (an unreachable server
+// is the user's environment, not an app bug), and 401s (session expiry has
+// its own interceptor in JellyfinProvider).
+const shouldReportDataError = (error: unknown): boolean => {
+  if (!onlineManager.isOnline()) return false;
+  if (isExpectedError(error) || isErrorReported(error)) return false;
+  if (isAbortLikeError(error) || isConnectivityError(error)) return false;
+  if (isAxiosError(error) && error.response?.status === 401) return false;
+  return true;
+};
+
+// A persistently failing query refetches on every mount (staleTime 0), and
+// Sentry's Dedupe integration only drops an event identical to the
+// immediately-previous one — two alternating failing queries defeat it. One
+// report per (source, key, status) per session is enough.
+const reportedDataErrors = new Set<string>();
+
+const reportDataError = (
+  source: "query" | "mutation",
+  key: readonly unknown[] | undefined,
+  error: unknown,
+) => {
+  if (!shouldReportDataError(error)) return;
+  const dedupeKey = [
+    source,
+    typeof key?.[0] === "string" ? key[0] : "?",
+    isAxiosError(error) ? (error.response?.status ?? "no-status") : "no-http",
+    error instanceof Error ? error.name : typeof error,
+  ].join("|");
+  if (reportedDataErrors.has(dedupeKey)) return;
+  if (reportedDataErrors.size < 200) reportedDataErrors.add(dedupeKey);
+  Sentry.withScope((scope) => {
+    // Only the key's first element (the query's name) is sent — later
+    // elements can carry search text or item titles, and the name alone
+    // already says which data path failed.
+    scope.setContext("data_layer", {
+      source,
+      key: typeof key?.[0] === "string" ? key[0] : undefined,
+      keyLength: key?.length,
+    });
+    Sentry.captureException(error);
+  });
+};
+
 const queryClient = new QueryClient({
+  queryCache: new QueryCache({
+    onError: (error, query) => reportDataError("query", query.queryKey, error),
+  }),
+  mutationCache: new MutationCache({
+    onError: (error, _variables, _context, mutation) =>
+      reportDataError("mutation", mutation.options.mutationKey, error),
+  }),
   defaultOptions: {
     queries: {
       staleTime: 0, // Always stale - triggers background refetch on mount

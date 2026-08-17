@@ -28,6 +28,7 @@ import { useNetworkStatus } from "@/providers/NetworkStatusProvider";
 import { settingsAtom } from "@/utils/atoms/settings";
 import { getJellyfinHeadersForUrl } from "@/utils/customHeaders";
 import { getAudioStreamUrl } from "@/utils/jellyfin/audio/getAudioStreamUrl";
+import { logAndCaptureError } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
 
 // Conditionally import TrackPlayer only on non-TV platforms
@@ -916,7 +917,8 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
           loadRemainingTracksInBackground(finalQueue, finalIndex, preferLocal);
         }
       } catch (error) {
-        console.error("[MusicPlayer] Error loading queue:", error);
+        // Tapping a track just stops spinning when this fails.
+        logAndCaptureError("Loading music queue failed", error);
         setState((prev) => ({
           ...prev,
           isLoading: false,
@@ -1023,8 +1025,9 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         if (tracks.length > 0) {
           playQueue(tracks, startIndex);
         }
-      } catch {
-        // Silently fail
+      } catch (error) {
+        // Tapping play on an album does nothing at all when this fails.
+        logAndCaptureError("Fetching album tracks for playback failed", error);
       }
     },
     [api, user?.Id, playQueue],
@@ -1047,8 +1050,12 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         if (tracks.length > 0) {
           playQueue(tracks, startIndex);
         }
-      } catch {
-        // Silently fail
+      } catch (error) {
+        // Tapping play on a playlist does nothing at all when this fails.
+        logAndCaptureError(
+          "Fetching playlist tracks for playback failed",
+          error,
+        );
       }
     },
     [api, user?.Id, playQueue],

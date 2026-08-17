@@ -2,6 +2,7 @@ import { getItemsApi, getUserLibraryApi } from "@jellyfin/sdk/lib/utils/api";
 import { AxiosError } from "axios";
 import { useAtomValue } from "jotai";
 import { useDownload } from "@/providers/DownloadProvider";
+import { logAndCaptureError } from "@/utils/log";
 import { apiAtom, userAtom } from "../providers/JellyfinProvider";
 import { useNetworkStatus } from "./useNetworkStatus";
 
@@ -41,8 +42,8 @@ export const useTwoWaySync = () => {
         // A 404 means the item was deleted server-side while still downloaded
         // locally, there is nothing to sync and no error worth surfacing.
         if (!(error instanceof AxiosError && error.response?.status === 404)) {
-          console.error(
-            "Failed to fetch remote item during syncPlaybackState:",
+          logAndCaptureError(
+            "Fetching remote item during playback sync failed",
             error,
           );
         }
@@ -90,8 +91,10 @@ export const useTwoWaySync = () => {
           },
         });
       } catch (error) {
-        console.error(
-          "Failed to update item user data during syncPlaybackState:",
+        // Offline watch progress silently never reaches the server when
+        // this fails, so report it.
+        logAndCaptureError(
+          "Pushing offline playback state to server failed",
           error,
         );
         // The write never reached the server, so the caller must not treat

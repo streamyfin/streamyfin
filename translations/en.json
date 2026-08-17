@@ -588,7 +588,8 @@
     "movies": "Movies",
     "loading": "Loading...",
     "seeAll": "See all",
-    "close": "Close"
+    "close": "Close",
+    "something_went_wrong": "Something went wrong"
   },
   "search": {
     "search": "Search...",

@@ -10,6 +10,7 @@ import CastContext, {
 } from "react-native-google-cast";
 import { getAudioContentType } from "@/utils/jellyfin/audio/getAudioContentType";
 import { getAudioStreamUrl } from "@/utils/jellyfin/audio/getAudioStreamUrl";
+import { logAndCaptureError } from "@/utils/log";
 
 interface UseMusicCastOptions {
   api: Api | null;
@@ -124,7 +125,9 @@ export const useMusicCast = ({ api, userId }: UseMusicCastOptions) => {
 
         return true;
       } catch (error) {
-        console.error("Failed to cast music queue:", error);
+        // Returning false gives the caller no user feedback either, so this
+        // is the only trace that casting failed.
+        logAndCaptureError("Casting music queue failed", error);
         return false;
       }
     },

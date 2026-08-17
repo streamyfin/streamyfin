@@ -51,7 +51,7 @@ import type {
   SeasonWithEpisodes,
   TvDetails,
 } from "@/utils/jellyseerr/server/models/Tv";
-import { writeErrorLog } from "@/utils/log";
+import { logAndCaptureError, writeErrorLog, writeToLog } from "@/utils/log";
 import { isVersionBelow } from "@/utils/serverUrl/semver";
 
 interface SearchParams {
@@ -116,6 +116,38 @@ export type TestResult =
   | {
       isValid: false;
     };
+
+// The response interceptor fires once per axios attempt, and React Query
+// retries a failing request up to 3× — without a throttle one user-visible
+// failure emits several Sentry events. 401/403 are excluded entirely:
+// expired cookies are routine and self-heal via auto-login.
+const recentJellyseerrReports = new Map<string, number>();
+const JELLYSEERR_REPORT_THROTTLE_MS = 60_000;
+
+const shouldReportJellyseerrError = (
+  status: number | undefined,
+  path: string | undefined,
+): boolean => {
+  if (status === 401 || status === 403) return false;
+  const key = `${status}|${path}`;
+  const now = Date.now();
+  const last = recentJellyseerrReports.get(key);
+  if (last !== undefined && now - last < JELLYSEERR_REPORT_THROTTLE_MS) {
+    return false;
+  }
+  recentJellyseerrReports.set(key, now);
+  return true;
+};
+
+const truncateForLog = (value: unknown): string | undefined => {
+  if (value === null || value === undefined) return undefined;
+  try {
+    const text = typeof value === "string" ? value : JSON.stringify(value);
+    return text.slice(0, 500);
+  } catch {
+    return String(value).slice(0, 500);
+  }
+};
 
 export class JellyseerrApi {
   axios: AxiosInstance;
@@ -449,10 +481,35 @@ export class JellyseerrApi {
         return response;
       },
       (error: AxiosError) => {
-        writeErrorLog(
-          `Jellyseerr response error\nerror: ${error.toString()}\nurl: ${error?.config?.url}`,
-          error.response?.data,
-        );
+        const status = error.response?.status;
+        const path = error.config?.url?.split("?")[0];
+        if (error.response && shouldReportJellyseerrError(status, path)) {
+          // A real server response — one capture covers the entire
+          // Jellyseerr surface. 401/403 are excluded (expired cookies are
+          // routine and self-heal via auto-login), and repeats of the same
+          // status+path are throttled: this fires once per axios attempt,
+          // so React Query retries would otherwise emit several events for
+          // one user-visible failure.
+          logAndCaptureError("Jellyseerr response error", error, {
+            status,
+            // Relative URLs escape the scheme-anchored scrubber, and search
+            // requests put the user's typed query in the query string.
+            url: path,
+          });
+        } else if (!error.response) {
+          // No response = connectivity; routine when away from the server,
+          // so keep it out of Sentry but in the local log trail.
+          writeToLog("WARN", `Jellyseerr unreachable: ${error.toString()}`);
+        }
+        if (error.response) {
+          // Body stays local-only and truncated — a proxy's HTML error page
+          // must not bloat the 100-entry log blob.
+          writeToLog(
+            "DEBUG",
+            "Jellyseerr response body",
+            truncateForLog(error.response.data),
+          );
+        }
         if (error.response?.status === 403) {
           clearJellyseerrStorageData();
         }
@@ -485,7 +542,10 @@ export class JellyseerrApi {
         return config;
       },
       (error) => {
-        console.error("Jellyseerr request error", error);
+        logAndCaptureError("Jellyseerr request setup failed", error);
+        // Without re-rejecting, axios would proceed with an undefined config
+        // and fail somewhere unrelated.
+        return Promise.reject(error);
       },
     );
   }

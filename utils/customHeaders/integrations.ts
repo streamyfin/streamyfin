@@ -1,3 +1,4 @@
+import { logAndCaptureError } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
 import { normalizeCustomHeaders } from "./normalize";
 import {
@@ -11,6 +12,8 @@ import type { HeaderConfig, HeaderSource, IntegrationKey } from "./types";
 export const INTEGRATION_CONFIG_KEY_PREFIX = "custom_headers_config_";
 
 const DEFAULT_CONFIG: HeaderConfig = { source: "none", customHeaders: [] };
+
+let reportedCorruptHeaderConfig = false;
 
 function configStorageKey(integrationKey: IntegrationKey): string {
   return `${INTEGRATION_CONFIG_KEY_PREFIX}${integrationKey}`;
@@ -32,7 +35,14 @@ function parseHeaderConfig(stored?: string): HeaderConfig {
         ? parsed.customHeaders
         : [],
     };
-  } catch {
+  } catch (error) {
+    // Falling back silently drops the user's custom auth headers, which then
+    // looks exactly like a server outage on every request. Report once per
+    // session — this parser can run on every outgoing request.
+    if (!reportedCorruptHeaderConfig) {
+      reportedCorruptHeaderConfig = true;
+      logAndCaptureError("Custom-header config failed to parse", error);
+    }
     return { ...DEFAULT_CONFIG, customHeaders: [] };
   }
 }

@@ -13,6 +13,7 @@ import { BackgroundDownloader } from "@/modules";
 import { getJellyfinHeadersForUrl } from "@/utils/customHeaders";
 import { getOrSetDeviceId } from "@/utils/device";
 import useDownloadHelper, { estimateDownloadSize } from "@/utils/download";
+import { logAndCaptureError } from "@/utils/log";
 import { downloadAdditionalAssets } from "../additionalDownloads";
 import {
   clearAllDownloadedItems,
@@ -204,7 +205,9 @@ export function useDownloadOperations({
           }),
         );
       } catch (error) {
-        console.error("Failed to start download:", error);
+        logAndCaptureError("Failed to start download", error, {
+          itemType: item.Type,
+        });
         if (item.Id) {
           removePendingDownload(item.Id);
           removeProcess(item.Id);
