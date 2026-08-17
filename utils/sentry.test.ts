@@ -32,7 +32,50 @@ mock.module("react-native", () => ({
   Platform: { OS: "ios", isTV: false },
 }));
 
-const { scrubDeep } = await import("./sentry");
+const { scrubDeep, isUserInteractionBreadcrumb } = await import("./sentry");
+
+describe("isUserInteractionBreadcrumb — no behaviour tracking, no titles", () => {
+  test("drops touch breadcrumbs, whose labels are media titles", () => {
+    // Shape taken from a real event: the label is a media card's
+    // accessibility label, i.e. the title of what the user was browsing.
+    expect(
+      isUserInteractionBreadcrumb({
+        type: "user",
+        category: "touch",
+        message: "Touch event within element: Map 1213",
+        data: { path: [{ label: "Map 1213", name: "Text" }] },
+      }),
+    ).toBe(true);
+  });
+
+  test("drops ui.* interaction breadcrumbs", () => {
+    expect(
+      isUserInteractionBreadcrumb({
+        category: "ui.multiClick",
+        message: "HeroCarousel",
+      }),
+    ).toBe(true);
+    expect(isUserInteractionBreadcrumb({ category: "ui.lifecycle" })).toBe(
+      true,
+    );
+  });
+
+  test("keeps app logs and http breadcrumbs", () => {
+    expect(
+      isUserInteractionBreadcrumb({
+        category: "app.log",
+        message: "Download failed",
+      }),
+    ).toBe(false);
+    expect(
+      isUserInteractionBreadcrumb({
+        type: "http",
+        category: "xhr",
+        data: { url: "https://[server]/Sessions" },
+      }),
+    ).toBe(false);
+  });
+});
 
 describe("scrubDeep — the privacy boundary for outgoing Sentry data", () => {
   test("server origin is replaced and query strings are stripped", () => {
@@ -73,13 +116,19 @@ describe("scrubDeep — the privacy boundary for outgoing Sentry data", () => {
   test("credential params are redacted even in server-relative URLs", () => {
     expect(
       scrubDeep("/videos/xyz/master.m3u8?DeviceId=abc&api_key=SECRET"),
-    ).toBe("/videos/xyz/[media].m3u8?DeviceId=abc&api_key=[redacted]");
+    ).toBe("/videos/xyz/[media].m3u8?DeviceId=[redacted]&api_key=[redacted]");
   });
 
   test("credential params survive an unencoded space breaking the URL regex", () => {
     expect(
       scrubDeep("https://host.example.com/My Show S01E02.mp4?ApiKey=SECRET"),
     ).toBe("https://[server]/[media].mp4?ApiKey=[redacted]");
+  });
+
+  test("identifying query params are redacted in relative URLs", () => {
+    expect(scrubDeep("/Items/Latest?userId=5403820992&limit=8")).toBe(
+      "/Items/Latest?userId=[redacted]&limit=8",
+    );
   });
 
   test("scheme-less hosts in native error strings are redacted", () => {

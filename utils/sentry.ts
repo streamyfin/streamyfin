@@ -42,8 +42,10 @@ const MEDIA_FILENAME_PATTERN =
 // server-relative paths ("/Videos/{id}/stream?ApiKey=...") and URLs broken by
 // an unencoded space escape the URL regexes, so known credential params are
 // redacted wherever they occur.
+// `userId`/`deviceId` are not credentials, but they identify the person and
+// their install across events, so they are redacted alongside the secrets.
 const CREDENTIAL_PARAM_PATTERN =
-  /([?&](?:api_key|apikey|x-emby-token|access_token|token)=)[^&\s"']+/gi;
+  /([?&](?:api_key|apikey|x-emby-token|access_token|token|userid|deviceid)=)[^&\s"']+/gi;
 
 // Native error strings can embed the private server address without a scheme:
 // Android's OkHttp writes "Failed to connect to host/1.2.3.4:8096". Redact the
@@ -95,6 +97,36 @@ export const scrubDeep = (
   return value;
 };
 
+// Touch and UI-interaction breadcrumbs record which control was tapped, and
+// their labels are accessibility labels — on a media card that IS the title.
+// They are also behaviour tracking, which this app deliberately doesn't do.
+export const isUserInteractionBreadcrumb = (
+  breadcrumb: Sentry.Breadcrumb,
+): boolean =>
+  breadcrumb.type === "user" ||
+  breadcrumb.category === "touch" ||
+  breadcrumb.category?.startsWith("ui.") === true;
+
+/**
+ * sentry-cocoa options that the React Native SDK forwards verbatim (it hands
+ * the whole options object to the native SDK) but doesn't declare in its
+ * TypeScript surface.
+ *
+ * These matter because natively-created breadcrumbs and natively-captured
+ * events (native crashes, watchdog terminations) are assembled and sent by
+ * the native layer — they NEVER pass through the `beforeSend` /
+ * `beforeBreadcrumb` scrubbers below. Swizzling is what feeds them: it adds a
+ * breadcrumb per NSURLSession request carrying the raw server URL and query
+ * string (the user's private domain, and `userId=`), plus UIKit touch and
+ * view-controller breadcrumbs. None of that is usable here — tracing is off,
+ * and the JS layer already emits its own scrubbed XHR breadcrumbs — so it is
+ * disabled at the source rather than filtered after the fact.
+ */
+const NATIVE_SDK_OPTIONS = {
+  enableSwizzling: false,
+  enableNetworkBreadcrumbs: false,
+} as Partial<Parameters<typeof Sentry.init>[0]>;
+
 const initializeSentry = () => {
   if (initialized || !SENTRY_DSN) return;
   initialized = true;
@@ -105,6 +137,7 @@ const initializeSentry = () => {
     // uploads under those default names.
     const build = getVersionInfo();
     Sentry.init({
+      ...NATIVE_SDK_OPTIONS,
       dsn: SENTRY_DSN,
       environment: __DEV__ ? "development" : "production",
       sendDefaultPii: false,
@@ -126,7 +159,9 @@ const initializeSentry = () => {
       },
       beforeSend: (event) => scrubDeep(event) as typeof event,
       beforeBreadcrumb: (breadcrumb) =>
-        scrubDeep(breadcrumb) as typeof breadcrumb,
+        isUserInteractionBreadcrumb(breadcrumb)
+          ? null
+          : (scrubDeep(breadcrumb) as typeof breadcrumb),
     });
   } catch (error) {
     initialized = false;
