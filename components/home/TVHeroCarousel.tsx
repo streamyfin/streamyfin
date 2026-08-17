@@ -1,6 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAtomValue } from "jotai";
 import React, {
@@ -21,6 +20,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ProgressBar } from "@/components/common/ProgressBar";
+import { Image, prefetchServerImage } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { getItemNavigation } from "@/components/common/TouchableItemRouter";
 import { type ScaledTVSizes, useScaledTVSizes } from "@/constants/TVSizes";
@@ -70,6 +70,18 @@ const HeroCard: React.FC<HeroCardProps> = React.memo(
       if (item.Type === "Episode") {
         if (item.ParentThumbItemId && item.ParentThumbImageTag) {
           return `${api.basePath}/Items/${item.ParentThumbItemId}/Images/Thumb?fillHeight=400&quality=80&tag=${item.ParentThumbImageTag}`;
+        }
+        // Series without a Thumb: fall back to its backdrop, like other Jellyfin
+        // clients do. The tagless Thumb request below 404s in that case.
+        const parentBackdropTag = item.ParentBackdropImageTags?.[0];
+        if (item.ParentBackdropItemId && parentBackdropTag) {
+          return `${api.basePath}/Items/${item.ParentBackdropItemId}/Images/Backdrop?fillHeight=400&quality=80&tag=${parentBackdropTag}`;
+        }
+        // Neither parent pair resolved. The tagless series request below is a
+        // 404 whenever the series has no Thumb, which leaves the hero blank, so
+        // try the episode's own image first like the poster cards do.
+        if (item.ImageTags?.Primary) {
+          return `${api.basePath}/Items/${item.Id}/Images/Primary?fillHeight=400&quality=80&tag=${item.ImageTags.Primary}`;
         }
         if (item.SeriesId) {
           return `${api.basePath}/Items/${item.SeriesId}/Images/Thumb?fillHeight=400&quality=80`;
@@ -261,7 +273,7 @@ export const TVHeroCarousel: React.FC<TVHeroCarouselProps> = ({
       // out of the memory cache avoids bloat when the user cycles through
       // hero items quickly.
       try {
-        await Image.prefetch(backdropUrl, "disk");
+        await prefetchServerImage(backdropUrl, api?.basePath, "disk");
       } catch {
         // Continue even if prefetch fails
       }
@@ -309,7 +321,7 @@ export const TVHeroCarousel: React.FC<TVHeroCarouselProps> = ({
     return () => {
       isCancelled = true;
     };
-  }, [backdropUrl]);
+  }, [backdropUrl, api?.basePath]);
 
   // Handle card focus with debounce
   const handleCardFocus = useCallback(

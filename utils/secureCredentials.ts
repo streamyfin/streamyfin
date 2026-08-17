@@ -1,5 +1,12 @@
 import * as Crypto from "expo-crypto";
 import * as SecureStore from "expo-secure-store";
+import {
+  bumpCustomHeadersVersion,
+  deleteSecureCustomHeaderValues,
+  resolveCustomHeaderValues,
+  secureCustomHeaderMetadata,
+} from "./customHeaders/secureValues";
+import type { CustomHeader } from "./customHeaders/types";
 import { storage } from "./mmkv";
 
 const CREDENTIAL_KEY_PREFIX = "credential_";
@@ -53,6 +60,8 @@ export interface SavedServer {
   name?: string;
   accounts: SavedServerAccount[];
   localNetworkConfig?: LocalNetworkConfig;
+  /** Proxy auth headers for this server; values live in SecureStore. */
+  customHeaders?: CustomHeader[];
 }
 
 /**
@@ -344,11 +353,14 @@ export async function removeServerFromList(serverUrl: string): Promise<void> {
       const key = credentialKey(serverUrl, account.userId);
       await SecureStore.deleteItemAsync(key);
     }
+    deleteSecureCustomHeaderValues(server.customHeaders ?? []);
   }
 
   // Remove server from list
   const filtered = servers.filter((s) => s.address !== serverUrl);
   storage.set("previousServers", JSON.stringify(filtered));
+  // The header values are gone; anything caching them has to re-read.
+  bumpCustomHeadersVersion();
 }
 
 /**
@@ -410,6 +422,54 @@ export function getServerLocalConfig(
   const servers = getPreviousServers();
   const server = servers.find((s) => s.address === serverUrl);
   return server?.localNetworkConfig;
+}
+
+/**
+ * Replace the custom proxy headers for a server. Values are moved into
+ * SecureStore; only their names and SecureStore keys reach MMKV.
+ *
+ * The server entry is created if it doesn't exist yet — headers are configured
+ * during login, before the server has any accounts.
+ */
+export function updateServerCustomHeaders(
+  serverUrl: string,
+  headers: CustomHeader[],
+): void {
+  const servers = getPreviousServers();
+  const existingIndex = servers.findIndex((s) => s.address === serverUrl);
+  const previousHeaders =
+    existingIndex >= 0 ? (servers[existingIndex].customHeaders ?? []) : [];
+
+  // `headers` carries the values as typed; re-reading them from SecureStore
+  // here would hand back the previous secret and silently discard the edit.
+  const customHeaders = secureCustomHeaderMetadata(
+    `server:${serverUrl}`,
+    headers,
+    previousHeaders,
+  );
+
+  if (existingIndex >= 0) {
+    servers[existingIndex] = { ...servers[existingIndex], customHeaders };
+  } else {
+    // Same placement and cap as addServerToList — headers are configured before
+    // the connection succeeds, so this can be what creates the entry.
+    servers.unshift({ address: serverUrl, accounts: [], customHeaders });
+    servers.splice(10);
+  }
+
+  storage.set("previousServers", JSON.stringify(servers));
+  bumpCustomHeadersVersion();
+}
+
+/**
+ * Custom proxy headers for a server, with their SecureStore values filled in.
+ */
+export function getServerCustomHeaders(serverUrl: string): CustomHeader[] {
+  const servers = getPreviousServers();
+  const server = servers.find((s) => s.address === serverUrl);
+  // This is a read: it must not write, because it runs during render (every
+  // <Image> resolves its headers through it).
+  return resolveCustomHeaderValues(server?.customHeaders ?? []);
 }
 
 /**

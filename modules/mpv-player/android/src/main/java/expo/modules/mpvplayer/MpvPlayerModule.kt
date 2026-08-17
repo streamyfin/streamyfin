@@ -53,8 +53,11 @@ class MpvPlayerModule : Module() {
             }
 
             // Now Playing metadata for media controls (iOS-only, no-op on Android)
-            // Android handles media session differently via MediaSessionCompat
-            Prop("nowPlayingMetadata") { _: MpvPlayerView, _: Map<String, String>? ->
+            // Android handles media session differently via MediaSessionCompat.
+            // Typed loosely on purpose: the metadata carries nested values
+            // (artworkHeaders), and a Map<String, String> signature makes Expo
+            // reject the whole prop rather than ignore what it can't convert.
+            Prop("nowPlayingMetadata") { _: MpvPlayerView, _: Map<String, Any?>? ->
                 // No-op on Android - media session integration would require MediaSessionCompat
             }
 

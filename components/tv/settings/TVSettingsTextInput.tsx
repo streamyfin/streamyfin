@@ -1,4 +1,5 @@
 import React, { useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { Animated, Pressable, TextInput } from "react-native";
 import { Text } from "@/components/common/Text";
 import { useScaledTVTypography } from "@/constants/TVTypography";
@@ -13,6 +14,8 @@ export interface TVSettingsTextInputProps {
   onBlur?: () => void;
   secureTextEntry?: boolean;
   disabled?: boolean;
+  /** Locked by the Streamyfin plugin; dims the row and says so. */
+  disabledByAdmin?: boolean;
 }
 
 export const TVSettingsTextInput: React.FC<TVSettingsTextInputProps> = ({
@@ -23,7 +26,10 @@ export const TVSettingsTextInput: React.FC<TVSettingsTextInputProps> = ({
   onBlur,
   secureTextEntry,
   disabled,
+  disabledByAdmin,
 }) => {
+  const { t } = useTranslation();
+  const isDisabled = disabled || disabledByAdmin;
   const typography = useScaledTVTypography();
   const inputRef = useRef<TextInput>(null);
   const { focused, handleFocus, handleBlur, animatedStyle } =
@@ -39,8 +45,8 @@ export const TVSettingsTextInput: React.FC<TVSettingsTextInputProps> = ({
       onPress={() => inputRef.current?.focus()}
       onFocus={handleFocus}
       onBlur={handleInputBlur}
-      disabled={disabled}
-      focusable={!disabled}
+      disabled={isDisabled}
+      focusable={!isDisabled}
     >
       <Animated.View
         style={[
@@ -53,6 +59,7 @@ export const TVSettingsTextInput: React.FC<TVSettingsTextInputProps> = ({
             paddingVertical: scaleSize(16),
             paddingHorizontal: scaleSize(24),
             marginBottom: scaleSize(8),
+            opacity: isDisabled ? 0.4 : 1,
           },
         ]}
       >
@@ -65,6 +72,17 @@ export const TVSettingsTextInput: React.FC<TVSettingsTextInputProps> = ({
         >
           {label}
         </Text>
+        {disabledByAdmin && (
+          <Text
+            style={{
+              fontSize: typography.callout,
+              color: "#EF4444",
+              marginBottom: scaleSize(8),
+            }}
+          >
+            {t("home.settings.disabled_by_admin")}
+          </Text>
+        )}
         <TextInput
           ref={inputRef}
           value={value}

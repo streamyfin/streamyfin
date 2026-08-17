@@ -9,8 +9,8 @@ import {
   View,
   type ViewProps,
 } from "react-native";
-import { GlassEffectView } from "react-native-glass-effect-view";
 import { useScaledTVTypography } from "@/constants/TVTypography";
+import { GlassSurface } from "./common/GlassSurface";
 import { Text } from "./common/Text";
 
 interface TagProps {
@@ -31,7 +31,7 @@ export const Tag: React.FC<
   if (Platform.OS === "ios" && !Platform.isTV) {
     return (
       <View>
-        <GlassEffectView style={styles.glass}>
+        <GlassSurface style={styles.glass}>
           <View
             style={{
               paddingHorizontal: 8,
@@ -40,7 +40,7 @@ export const Tag: React.FC<
           >
             <Text>{text}</Text>
           </View>
-        </GlassEffectView>
+        </GlassSurface>
       </View>
     );
   }

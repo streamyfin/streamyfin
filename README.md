@@ -35,6 +35,7 @@
 - 🤖 **Seerr (formerly Jellyseerr) integration**: Request media directly in the app
 - 👁️ **Sessions view:** View all active sessions currently streaming on your server
 - 📡 **Chromecast**: Cast your media to any Chromecast-enabled device
+- 🔐 **Custom auth headers**: Reach servers behind an access gateway such as Cloudflare Zero Trust or Pangolin ([docs](./docs/custom-headers.md))
 
 ## 🧪 Experimental Features
 
@@ -253,7 +254,7 @@ A special mention to the following people and projects for their contributions:
 
 ## ⭐ Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=streamyfin/streamyfin&type=Date)](https://star-history.com/#streamyfin/streamyfin&Date)
+[![Star History Chart](https://star-history.dera.page/svg?repos=streamyfin/streamyfin&type=Date)](https://star-history.dera.page/#streamyfin/streamyfin&Date)
 
 ## 📄 License
 

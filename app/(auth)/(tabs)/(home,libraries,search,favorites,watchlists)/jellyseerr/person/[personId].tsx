@@ -1,9 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
-import { Image } from "expo-image";
 import { useLocalSearchParams } from "expo-router";
 import { orderBy, uniqBy } from "lodash";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import ParallaxSlideShow from "@/components/jellyseerr/ParallaxSlideShow";
 import { OverviewText } from "@/components/OverviewText";

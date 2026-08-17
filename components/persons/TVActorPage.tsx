@@ -2,7 +2,6 @@ import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
-import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSegments } from "expo-router";
 import { useAtom } from "jotai";
@@ -23,6 +22,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Image, prefetchServerImage } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { getItemNavigation } from "@/components/common/TouchableItemRouter";
 import { Loader } from "@/components/Loader";
@@ -158,7 +158,7 @@ export const TVActorPage: React.FC<TVActorPageProps> = ({ personId }) => {
     const performCrossfade = async () => {
       // Disk-only prefetch to avoid pinning large backdrops in memory cache.
       try {
-        await Image.prefetch(backdropUrl, "disk");
+        await prefetchServerImage(backdropUrl, api?.basePath, "disk");
       } catch {
         // Continue even if prefetch fails
       }
@@ -211,7 +211,7 @@ export const TVActorPage: React.FC<TVActorPageProps> = ({ personId }) => {
     return () => {
       isCancelled = true;
     };
-  }, [backdropUrl]);
+  }, [backdropUrl, api?.basePath]);
 
   // Get actor image URL
   const actorImageUrl = useMemo(() => {

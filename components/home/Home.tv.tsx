@@ -12,7 +12,6 @@ import {
   getUserViewsApi,
 } from "@jellyfin/sdk/lib/utils/api";
 import { type QueryFunction, useQuery } from "@tanstack/react-query";
-import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -26,6 +25,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button } from "@/components/Button";
+import { Image, prefetchServerImage } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { InfiniteScrollingCollectionList } from "@/components/home/InfiniteScrollingCollectionList.tv";
 import { StreamystatsPromotedWatchlists } from "@/components/home/StreamystatsPromotedWatchlists.tv";
@@ -144,7 +144,7 @@ export const Home = () => {
       // decoded ARGB) is too large to pin in the memory cache on every
       // focus change. Disk cache is fast enough for a 500ms crossfade.
       try {
-        await Image.prefetch(backdropUrl, "disk");
+        await prefetchServerImage(backdropUrl, api?.basePath, "disk");
       } catch {
         // Continue even if prefetch fails
       }
@@ -196,7 +196,7 @@ export const Home = () => {
     return () => {
       isCancelled = true;
     };
-  }, [backdropUrl]);
+  }, [backdropUrl, api?.basePath]);
 
   const {
     data,
@@ -820,6 +820,7 @@ export const Home = () => {
                     queryKey={section.queryKey}
                     queryFn={section.queryFn}
                     orientation={section.orientation}
+                    displayShowName={true}
                     hideIfEmpty
                     pageSize={section.pageSize}
                     isFirstSection={isFirstSection}

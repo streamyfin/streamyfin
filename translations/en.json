@@ -62,7 +62,8 @@
     "select_your_server": "Select your server",
     "add_server_to_get_started": "Add a server to get started",
     "add_server": "Add server",
-    "change_server": "Change server"
+    "change_server": "Change server",
+    "swipe_for_options": "Swipe a server for options"
   },
   "save_account": {
     "title": "Save account",
@@ -149,6 +150,8 @@
       },
       "appearance": {
         "title": "Appearance",
+        "download_live_activity": "Live Activity",
+        "download_live_activity_hint": "Show download progress on the Lock Screen and in the Dynamic Island.",
         "merge_next_up_continue_watching": "Merge Continue watching & Next up",
         "merge_next_up_continue_watching_hint": "Combine Continue Watching and Next Up into a single home row.",
         "use_episode_images_next_up": "Use episode images for Next Up & Continue Watching",
@@ -224,8 +227,14 @@
         "title": "Video player",
         "exoplayer": "ExoPlayer",
         "mpv": "MPV",
+        "native": "Native (recommended)",
+        "classic": "Classic",
+        "native_note": "Both options use the same MPV engine, this only changes the player controls. The native player uses native system controls and opens instantly. Switch back if you run into playback issues.",
         "exoplayer_note": "ExoPlayer does not support advanced ASS/SSA subtitle styling or horizontal subtitle alignment. Switch to MPV if you need those.",
-        "mpv_note": "MPV on TV does not currently pass HDR metadata to the display, so HDR10/HDR10+ content is tone-mapped to SDR. Switch to ExoPlayer for HDR output."
+        "mpv_note": "MPV on TV does not currently pass HDR metadata to the display, so HDR10/HDR10+ content is tone-mapped to SDR. Switch to ExoPlayer for HDR output.",
+        "native_tv": "Native player (experimental)",
+        "native_tv_note": "Use the new fully-native Apple TV player. Turn it off to fall back to the previous player if you run into playback issues.",
+        "native_android_tv_note": "Use the new fully-native Android TV player. Turn it off to fall back to the previous player if you run into playback issues."
       },
       "buffer": {
         "title": "Buffer settings",
@@ -251,6 +260,13 @@
         "left_side_brightness_description": "Swipe up/down on the left side to adjust brightness",
         "right_side_volume": "Right side volume control",
         "right_side_volume_description": "Swipe up/down on the right side to adjust volume",
+        "hold_to_speed": "Hold to change speed",
+        "hold_to_speed_description": "Press and hold the video to play at the speed below until released",
+        "hold_to_speed_rate": "Hold speed",
+        "pinch_to_zoom": "Pinch to zoom",
+        "pinch_to_zoom_description": "Pinch out to fill the screen, pinch in to fit",
+        "double_tap_to_seek": "Double tap to seek",
+        "double_tap_to_seek_description": "Double tap the left or right side of the video to skip backward or forward",
         "hide_volume_slider": "Hide volume slider",
         "hide_volume_slider_description": "Hide the volume slider in the video player",
         "hide_brightness_slider": "Hide brightness slider",
@@ -262,6 +278,7 @@
         "audio_language": "Audio language",
         "audio_hint": "Choose a default audio language.",
         "none": "None",
+        "original_language": "Original language",
         "language": "Language",
         "transcode_mode": {
           "title": "Audio transcoding",
@@ -278,6 +295,7 @@
         "subtitle_language": "Subtitle language",
         "subtitle_mode": "Subtitle mode",
         "set_subtitle_track": "Set subtitle track from previous item",
+        "subtitles_on_mute": "Turn on subtitles when muted",
         "subtitle_size": "Subtitle size",
         "none": "None",
         "language": "Language",
@@ -333,6 +351,7 @@
         "hide_libraries": "Hide libraries",
         "select_libraries_you_want_to_hide": "Select the libraries you want to hide from the Library tab and home page sections.",
         "disable_haptic_feedback": "Disable haptic feedback",
+        "resume_dialog": "Ask to resume or start over",
         "default_quality": "Default quality",
         "default_playback_speed": "Default playback speed",
         "auto_play_next_episode": "Auto-play next episode",
@@ -352,6 +371,10 @@
       },
       "plugins": {
         "plugins_title": "Plugins",
+        "wikidata_awards": "Awards from Wikidata",
+        "wikidata_awards_hint": "Show Oscar and award status on movie and series pages. This device asks Wikidata directly, not your Jellyfin server.",
+        "opensubtitles_enabled": "Search OpenSubtitles",
+        "opensubtitles_enabled_hint": "Let this device search OpenSubtitles directly when your Jellyfin server has no subtitle provider. Turning this off keeps subtitle searches on your server and leaves any saved API key alone.",
         "jellyseerr": {
           "server_url": "Server URL",
           "server_url_hint": "Example: http(s)://your-host.url\n(add port if required)",
@@ -501,6 +524,12 @@
       "something_went_wrong": "Something went wrong",
       "could_not_get_stream_url_from_jellyfin": "Could not get the stream URL from Jellyfin",
       "eta": "ETA {{eta}}",
+      "live_activity": {
+        "downloading": "Downloading",
+        "completed": "Downloaded",
+        "failed": "Download failed",
+        "queued": "Queued"
+      },
       "toasts": {
         "you_are_not_allowed_to_download_files": "You are not allowed to download files.",
         "deleted_all_movies_successfully": "Deleted all movies successfully!",
@@ -549,7 +578,8 @@
     "episodes": "Episodes",
     "movies": "Movies",
     "loading": "Loading...",
-    "seeAll": "See all"
+    "seeAll": "See all",
+    "close": "Close"
   },
   "search": {
     "search": "Search...",
@@ -674,6 +704,7 @@
     "an_error_occurred_while_playing_the_video": "An error occurred while playing the video. Check logs in settings.",
     "client_error": "Client error",
     "could_not_create_stream_for_chromecast": "Could not create a stream for Chromecast",
+    "chromecast_playback_failed": "Chromecast could not play this stream",
     "message_from_server": "Message from server: {{message}}",
     "next_episode": "Next episode",
     "continue_watching": "Continue watching",
@@ -685,6 +716,17 @@
     "downloaded_file_cancel": "Cancel",
     "swipe_down_settings": "Swipe down for settings",
     "ends_at": "Ends at {{time}}",
+    "zoom_to_fill": "Zoom to fill",
+    "subtitle_sync": "Subtitle sync",
+    "audio_sync": "Audio sync",
+    "volume_boost": "Volume boost",
+    "dialogue_boost": "Dialogue boost",
+    "mono_audio": "Mono audio",
+    "rotate": "Rotate",
+    "lock_controls": "Lock controls",
+    "unlock": "Unlock",
+    "sleep_timer": "Sleep timer",
+    "sleep_timer_off": "Turn off",
     "search_subtitles": "Search subtitles",
     "subtitle_tracks": "Tracks",
     "subtitle_search": "Search & download",
@@ -696,6 +738,8 @@
     "search_failed": "Search failed",
     "no_subtitle_provider": "No subtitle provider configured on server",
     "no_subtitles_found": "No subtitles found",
+    "now_playing": "Now Playing",
+    "subtitle_apply_failed": "The subtitle was downloaded but couldn't be applied",
     "add_opensubtitles_key_hint": "Add OpenSubtitles API key in settings for client-side fallback",
     "settings": "Settings",
     "skip_intro": "Skip intro",
@@ -852,6 +896,17 @@
       "failed_to_approve_request": "Failed to approve request",
       "failed_to_decline_request": "Failed to decline request"
     }
+  },
+  "awards": {
+    "won_oscar": "Won {{count}} Oscar",
+    "won_oscars": "Won {{count}} Oscars",
+    "nominated_for_oscar": "Nominated for {{count}} Oscar",
+    "nominated_for_oscars": "Nominated for {{count}} Oscars",
+    "win": "{{count}} win",
+    "wins": "{{count}} wins",
+    "nomination": "{{count}} nomination",
+    "nominations": "{{count}} nominations",
+    "wins_and_nominations": "{{wins}} & {{nominations}}"
   },
   "accessibility": {
     "play_button": "Play button",
@@ -1026,5 +1081,34 @@
     "scan_with_phone": "Scan with the Streamyfin app on your phone",
     "logging_in": "Logging in...",
     "logging_in_description": "Connecting to your server"
+  },
+  "custom_headers": {
+    "title": "Custom headers",
+    "description": "Extra HTTP headers sent with every request to this server. Needed when it sits behind an access gateway such as Cloudflare Zero Trust or Pangolin.",
+    "advanced_title": "Advanced: custom headers",
+    "integration_description": "Which headers to send to this service. Reuse the Jellyfin headers when it sits behind the same gateway.",
+    "no_headers": "No headers configured",
+    "header_key": "Header name",
+    "header_value": "Header value",
+    "header_name_placeholder": "X-Api-Key",
+    "header_value_placeholder": "Value",
+    "add_preset": "Add preset",
+    "add_custom": "Add header",
+    "clear_headers": "Clear headers",
+    "presets_title": "Choose a preset",
+    "source_jellyfin": "Jellyfin",
+    "source_custom": "Custom",
+    "source_none": "None",
+    "using_jellyfin_headers": "Using the Jellyfin headers",
+    "no_jellyfin_headers": "No headers configured for Jellyfin",
+    "integration_none": "No custom headers are sent to this service.",
+    "security_note": "Header values are stored in the device keychain, not in the app's own storage.",
+    "done": "Done",
+    "show_value": "Show value",
+    "hide_value": "Hide value",
+    "enabled": "Enabled",
+    "header_count_one": "{{count}} header",
+    "header_count_other": "{{count}} headers",
+    "header_count": "{{count}} headers"
   }
 }

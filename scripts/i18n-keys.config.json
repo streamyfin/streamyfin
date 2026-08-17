@@ -41,6 +41,8 @@
     "player.stopPlayingConfirm",
     "home.settings.other.show_large_home_carousel",
     "home.settings.logs.delete_all_logs",
-    "home.suggested_episodes"
+    "home.suggested_episodes",
+    "custom_headers.header_count_one",
+    "custom_headers.header_count_other"
   ]
 }

@@ -19,6 +19,7 @@ interface Props<T> {
 }
 
 const SEARCH_THRESHOLD = 15;
+const ROW_RADIUS = 20;
 
 /**
  * Sheet content for FilterButton, rendered inside the GlobalModal bottom
@@ -28,6 +29,11 @@ const SEARCH_THRESHOLD = 15;
  *
  * Uses a virtualized BottomSheetFlatList — filter lists (genres, tags, years)
  * can contain thousands of entries.
+ *
+ * The sheet sizes itself to this content, and it measures the scrollable's
+ * content rather than the view tree: a title sitting next to the list is not
+ * counted, and the sheet then opens too short and clips its last rows. So the
+ * title, the count and the search box are the list's header instead.
  */
 export const FilterSheetContent = <T,>({
   title,
@@ -72,63 +78,65 @@ export const FilterSheetContent = <T,>({
   };
 
   return (
-    <View
+    <BottomSheetFlatList
+      data={filteredData}
+      keyExtractor={(item, index) => `${renderItemLabel(item)}-${index}`}
+      keyboardShouldPersistTaps='handled'
+      initialNumToRender={20}
       style={{
-        flex: 1,
         paddingLeft: Math.max(16, insets.left),
         paddingRight: Math.max(16, insets.right),
       }}
-    >
-      <Text className='font-bold text-2xl mt-2'>{title}</Text>
-      <Text className='mb-2 text-neutral-500'>
-        {t("search.x_items", { count: data.length })}
-      </Text>
-      {showSearch && (
-        <Input
-          placeholder={t("search.search")}
-          className='my-2 border-neutral-800 border'
-          value={search}
-          onChangeText={setSearch}
-          returnKeyType='done'
-        />
-      )}
-      <View
-        style={{
-          flex: 1,
-          borderRadius: 20,
-          overflow: "hidden",
-          marginBottom: Math.max(16, insets.bottom),
-        }}
-      >
-        <BottomSheetFlatList
-          data={filteredData}
-          keyExtractor={(item, index) => `${renderItemLabel(item)}-${index}`}
-          keyboardShouldPersistTaps='handled'
-          initialNumToRender={20}
-          ItemSeparatorComponent={() => (
-            <View
-              style={{ height: StyleSheet.hairlineWidth }}
-              className='bg-neutral-700'
+      contentContainerStyle={{ paddingBottom: Math.max(16, insets.bottom) }}
+      ListHeaderComponent={
+        <>
+          <Text className='font-bold text-2xl mt-2'>{title}</Text>
+          <Text className='mb-2 text-neutral-500'>
+            {t("search.x_items", { count: data.length })}
+          </Text>
+          {showSearch && (
+            <Input
+              placeholder={t("search.search")}
+              className='my-2 border-neutral-800 border'
+              value={search}
+              onChangeText={setSearch}
+              returnKeyType='done'
             />
           )}
-          renderItem={({ item }) => {
-            const selected = values.some((v) => isEqual(v, item));
-            return (
-              <TouchableOpacity
-                onPress={() => select(item)}
-                className='bg-neutral-800 px-4 py-3 flex flex-row items-center justify-between'
-              >
-                <Text className='flex shrink'>{renderItemLabel(item)}</Text>
-                <Ionicons
-                  name={selected ? "radio-button-on" : "radio-button-off"}
-                  size={24}
-                  color='white'
-                />
-              </TouchableOpacity>
-            );
-          }}
+        </>
+      }
+      ItemSeparatorComponent={() => (
+        <View
+          style={{ height: StyleSheet.hairlineWidth }}
+          className='bg-neutral-700'
         />
-      </View>
-    </View>
+      )}
+      renderItem={({ item, index }) => {
+        const selected = values.some((v) => isEqual(v, item));
+        // The rounded block used to come from a wrapper around the list; the
+        // list now carries its own header, so the ends round themselves.
+        const isFirst = index === 0;
+        const isLast = index === filteredData.length - 1;
+        return (
+          <TouchableOpacity
+            onPress={() => select(item)}
+            style={{
+              borderTopLeftRadius: isFirst ? ROW_RADIUS : 0,
+              borderTopRightRadius: isFirst ? ROW_RADIUS : 0,
+              borderBottomLeftRadius: isLast ? ROW_RADIUS : 0,
+              borderBottomRightRadius: isLast ? ROW_RADIUS : 0,
+            }}
+            className='bg-neutral-800 px-4 py-3 flex flex-row items-center justify-between'
+          >
+            <Text className='flex shrink'>{renderItemLabel(item)}</Text>
+            <Ionicons
+              name={selected ? "radio-button-on" : "radio-button-off"}
+              size={24}
+              color='white'
+            />
+          </TouchableOpacity>
+        );
+      }}
+    />
   );
 };

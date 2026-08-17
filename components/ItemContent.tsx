@@ -2,14 +2,15 @@ import type {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
-import { Image } from "expo-image";
 import { useNavigation } from "expo-router";
 import { useAtom } from "jotai";
 import React, { useEffect, useMemo, useState } from "react";
 import { Platform, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { type Bitrate } from "@/components/BitrateSelector";
+import { HeaderButtonGroup } from "@/components/common/HeaderButton";
 import { ItemImage } from "@/components/common/ItemImage";
+import { Image } from "@/components/common/ServerImage";
 import { DownloadSingleItem } from "@/components/DownloadItem";
 import { ItemPeopleSections } from "@/components/item/ItemPeopleSections";
 import { MediaSourceButton } from "@/components/MediaSourceButton";
@@ -24,6 +25,7 @@ import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
 import { useImageColorsReturn } from "@/hooks/useImageColorsReturn";
 import { useOrientation } from "@/hooks/useOrientation";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
+import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { useSettings } from "@/utils/atoms/settings";
@@ -59,6 +61,14 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
 }) => {
   const [api] = useAtom(apiAtom);
   const isOffline = useOfflineMode();
+  const { getDownloadedItemById } = useDownload();
+  // A download pins the tracks it was pulled with, and only the record knows
+  // them: resolving against the server media source hands back an index for a
+  // stream the local file may not contain.
+  const downloadedTracks =
+    isOffline && item?.Id
+      ? getDownloadedItemById(item.Id)?.userData
+      : undefined;
   const { settings } = useSettings();
   const { orientation } = useOrientation();
   const navigation = useNavigation();
@@ -75,20 +85,12 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
   >(undefined);
 
   // Use itemWithSources for play settings since it has MediaSources data
-  const playSettingsOptions = useMemo(
-    () => ({ applyLanguagePreferences: true }),
-    [],
-  );
   const {
     defaultAudioIndex,
     defaultBitrate,
     defaultMediaSource,
     defaultSubtitleIndex,
-  } = useDefaultPlaySettings(
-    itemWithSources ?? item,
-    settings,
-    playSettingsOptions,
-  );
+  } = useDefaultPlaySettings(itemWithSources ?? item, settings);
 
   const logoUrl = useMemo(
     () => (item ? getLogoImageUrlById({ api, item }) : null),
@@ -108,26 +110,27 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
     setSelectedOptions(() => ({
       bitrate: defaultBitrate,
       mediaSource: defaultMediaSource ?? undefined,
-      subtitleIndex: defaultSubtitleIndex ?? -1,
-      audioIndex: defaultAudioIndex,
+      subtitleIndex:
+        downloadedTracks?.subtitleStreamIndex ?? defaultSubtitleIndex ?? -1,
+      audioIndex: downloadedTracks?.audioStreamIndex ?? defaultAudioIndex,
     }));
   }, [
     defaultAudioIndex,
     defaultBitrate,
     defaultSubtitleIndex,
     defaultMediaSource,
+    downloadedTracks,
   ]);
 
   useEffect(() => {
     if (!Platform.isTV && itemWithSources) {
       navigation.setOptions({
         headerRight: () =>
-          item &&
-          (Platform.OS === "ios" ? (
-            <View className='flex flex-row items-center pl-2'>
-              <Chromecast.Chromecast width={22} height={22} />
+          item && (
+            <HeaderButtonGroup>
+              <Chromecast.Chromecast />
               {item.Type !== "Program" && (
-                <View className='flex flex-row items-center'>
+                <>
                   {!Platform.isTV && (
                     <DownloadSingleItem item={itemWithSources} size='large' />
                   )}
@@ -142,32 +145,10 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
                     !settings.hideWatchlistsTab && (
                       <AddToWatchlist item={item} />
                     )}
-                </View>
+                </>
               )}
-            </View>
-          ) : (
-            <View className='flex flex-row items-center space-x-2'>
-              <Chromecast.Chromecast width={22} height={22} />
-              {item.Type !== "Program" && (
-                <View className='flex flex-row items-center space-x-2'>
-                  {!Platform.isTV && (
-                    <DownloadSingleItem item={itemWithSources} size='large' />
-                  )}
-                  {user?.Policy?.IsAdministrator &&
-                    !settings.hideRemoteSessionButton && (
-                      <PlayInRemoteSessionButton item={item} size='large' />
-                    )}
-
-                  <PlayedStatus items={[item]} size='large' />
-                  <AddToFavorites item={item} />
-                  {settings.streamyStatsServerUrl &&
-                    !settings.hideWatchlistsTab && (
-                      <AddToWatchlist item={item} />
-                    )}
-                </View>
-              )}
-            </View>
-          )),
+            </HeaderButtonGroup>
+          ),
       });
     }
   }, [

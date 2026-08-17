@@ -9,6 +9,8 @@ import { useCallback, useLayoutEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { RefreshControl, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { HeaderButton } from "@/components/common/HeaderButton";
+import { HeaderIcon } from "@/components/common/HeaderIcon";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
 import { CreatePlaylistModal } from "@/components/music/CreatePlaylistModal";
@@ -53,13 +55,9 @@ export default function PlaylistsScreen() {
   useLayoutEffect(() => {
     navigation.setOptions({
       headerRight: () => (
-        <TouchableOpacity
-          onPress={() => setCreateModalOpen(true)}
-          className='mr-4'
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <Ionicons name='add' size={28} color='white' />
-        </TouchableOpacity>
+        <HeaderButton onPress={() => setCreateModalOpen(true)}>
+          <HeaderIcon name='add' />
+        </HeaderButton>
       ),
     });
   }, [navigation]);
