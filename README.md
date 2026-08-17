@@ -254,7 +254,7 @@ A special mention to the following people and projects for their contributions:
 
 ## ⭐ Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=streamyfin/streamyfin&type=Date)](https://star-history.com/#streamyfin/streamyfin&Date)
+[![Star History Chart](https://star-history.dera.page/svg?repos=streamyfin/streamyfin&type=Date)](https://star-history.dera.page/#streamyfin/streamyfin&Date)
 
 ## 📄 License
 
