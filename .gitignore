@@ -6,6 +6,8 @@ package-lock.json
 # Expo and React Native Build Artifacts
 .expo/
 dist/
+dist-web/
+desktop/
 web-build/
 .tsbuildinfo
 

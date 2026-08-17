@@ -1,14 +1,13 @@
 package expo.modules.mpvplayer
 
-import android.app.UiModeManager
 import android.content.Context
-import android.content.res.Configuration
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.system.Os
 import android.util.Log
 import android.view.Surface
+import expo.modules.mpvplayer.nativeplayer.MpvOwnership
 import java.io.File
 import java.util.Locale
 
@@ -32,8 +31,7 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
     }
 
     private fun isTvDevice(): Boolean {
-        val uiModeManager = context.getSystemService(Context.UI_MODE_SERVICE) as UiModeManager
-        return uiModeManager.currentModeType == Configuration.UI_MODE_TYPE_TELEVISION
+        return DeviceKind.isTelevision(context)
     }
 
     /**
@@ -68,6 +66,9 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
         fun onTracksReady()
         fun onError(message: String)
         fun onVideoDimensionsChanged(width: Int, height: Int)
+        fun onPlaybackEnded() {}
+        fun onChaptersChanged(chapters: List<Map<String, Any>>) {}
+        fun onHDRModeDetected(isHdr: Boolean, fps: Double) {}
     }
     
     var delegate: Delegate? = null
@@ -76,6 +77,7 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
     
     private var surface: Surface? = null
     private var isRunning = false
+    private var currentOwner: MpvOwnership.Owner = MpvOwnership.Owner.NONE
 
     // This renderer's own mpv handle. Per-instance (not singleton) — each
     // player screen gets a fresh mpv handle and drops the reference on stop.
@@ -157,8 +159,18 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
      */
     val isTv: Boolean = isTvDevice()
 
-    fun start(voDriver: String = "gpu-next") {
+    fun start(
+        voDriver: String = "gpu-next",
+        owner: MpvOwnership.Owner = MpvOwnership.Owner.EMBEDDED_VIEW
+    ) {
         if (isRunning) return
+
+        if (!MpvOwnership.claim(owner)) {
+            Log.w(TAG, "Cannot start renderer: mpv already owned by ${MpvOwnership.owner}")
+            delegate?.onError("MPV player is already in use by another session")
+            return
+        }
+        currentOwner = owner
 
         try {
             // Per-instance handle — see class-level comment. Each player gets
@@ -259,8 +271,13 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
             observeProperties()
             
             isRunning = true
-            Log.i(TAG, "MPV renderer started")
+            Log.i(TAG, "MPV renderer started (owner=$owner)")
         } catch (e: Exception) {
+            val ownerToRelease = currentOwner
+            currentOwner = MpvOwnership.Owner.NONE
+            if (ownerToRelease != MpvOwnership.Owner.NONE) {
+                MpvOwnership.release(ownerToRelease)
+            }
             Log.e(TAG, "Failed to start MPV renderer: ${e.message}")
             delegate?.onError("Failed to start renderer: ${e.message}")
         }
@@ -269,6 +286,12 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
     fun stop() {
         if (!isRunning) return
         isRunning = false
+
+        val ownerToRelease = currentOwner
+        currentOwner = MpvOwnership.Owner.NONE
+        if (ownerToRelease != MpvOwnership.Owner.NONE) {
+            MpvOwnership.release(ownerToRelease)
+        }
 
         val m = mpv
         mpv = null
@@ -543,8 +566,10 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
         mpv?.observeProperty("time-pos", MPV_FORMAT_DOUBLE)
         mpv?.observeProperty("pause", MPV_FORMAT_FLAG)
         mpv?.observeProperty("track-list/count", MPV_FORMAT_INT64)
+        mpv?.observeProperty("chapter-list/count", MPV_FORMAT_INT64)
         mpv?.observeProperty("paused-for-cache", MPV_FORMAT_FLAG)
         mpv?.observeProperty("demuxer-cache-duration", MPV_FORMAT_DOUBLE)
+        mpv?.observeProperty("eof-reached", MPV_FORMAT_FLAG)
         // Video dimensions for PiP aspect ratio
         mpv?.observeProperty("video-params/w", MPV_FORMAT_INT64)
         mpv?.observeProperty("video-params/h", MPV_FORMAT_INT64)
@@ -583,6 +608,17 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
     
     fun getSpeed(): Double {
         return mpv?.getPropertyDouble("speed") ?: _playbackSpeed
+    }
+
+    fun getChapters(): List<Map<String, Any>> {
+        val chapters = mutableListOf<Map<String, Any>>()
+        val count = mpv?.getPropertyInt("chapter-list/count") ?: 0
+        for (i in 0 until count) {
+            val title = mpv?.getPropertyString("chapter-list/$i/title") ?: ""
+            val time = mpv?.getPropertyDouble("chapter-list/$i/time") ?: 0.0
+            chapters.add(mapOf("name" to title, "startSec" to time))
+        }
+        return chapters
     }
     
     // MARK: - Subtitle Controls
@@ -678,6 +714,10 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
     fun setSubtitleScale(scale: Double) {
         mpv?.setPropertyDouble("sub-scale", scale)
     }
+
+    fun setSubtitleDelay(seconds: Double) {
+        mpv?.setPropertyDouble("sub-delay", seconds)
+    }
     
     fun setSubtitleMarginY(margin: Int) {
         mpv?.setPropertyInt("sub-margin-y", margin)
@@ -742,6 +782,30 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
     fun setAudioTrack(trackId: Int) {
         Log.i(TAG, "setAudioTrack: setting aid to $trackId")
         mpv?.setPropertyInt("aid", trackId)
+    }
+
+    fun setAudioDelay(seconds: Double) {
+        mpv?.setPropertyDouble("audio-delay", seconds)
+    }
+
+    fun setVolumeBoost(percent: Int) {
+        mpv?.setPropertyInt("volume-max", 200)
+        mpv?.setPropertyInt("volume", percent)
+    }
+
+    fun setDialogueBoost(enabled: Boolean) {
+        if (enabled) {
+            mpv?.setPropertyString(
+                "af",
+                "lavfi=[equalizer=f=100:t=q:w=1.2:g=-6,equalizer=f=2800:t=q:w=1.2:g=5]"
+            )
+        } else {
+            mpv?.setPropertyString("af", "")
+        }
+    }
+
+    fun setMonoDownmix(enabled: Boolean) {
+        mpv?.setPropertyString("audio-channels", if (enabled) "mono" else "auto-safe")
     }
     
     fun getCurrentAudioTrack(): Int {
@@ -836,6 +900,13 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
             info["estimatedVfFps"] = it
         }
 
+        // Color metadata / HDR detection properties
+        mpv?.getPropertyString("video-params/gamma")?.let { info["gamma"] = it }
+        mpv?.getPropertyString("video-params/primaries")?.let { info["primaries"] = it }
+        mpv?.getPropertyString("video-params/colormatrix")?.let { info["colormatrix"] = it }
+        mpv?.getPropertyString("video-params/colorlevels")?.let { info["colorlevels"] = it }
+        mpv?.getPropertyString("video-params/pixelformat")?.let { info["pixelformat"] = it }
+
         return info
     }
 
@@ -852,6 +923,10 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
                     Log.i(TAG, "Track list updated: $value tracks available")
                     mainHandler.post { delegate?.onTracksReady() }
                 }
+            }
+            "chapter-list/count" -> {
+                val chapters = getChapters()
+                mainHandler.post { delegate?.onChaptersChanged(chapters) }
             }
             "video-params/w" -> {
                 val width = value.toInt()
@@ -889,6 +964,12 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
                 if (value != _isLoading) {
                     _isLoading = value
                     mainHandler.post { delegate?.onLoadingChanged(value) }
+                }
+            }
+            "eof-reached" -> {
+                if (value) {
+                    Log.i(TAG, "EOF reached (property)")
+                    mainHandler.post { delegate?.onPlaybackEnded() }
                 }
             }
         }
@@ -976,7 +1057,11 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
                 }
             }
             MPVLib.MPV_EVENT_END_FILE -> {
-                Log.i(TAG, "Playback ended")
+                Log.i(TAG, "Playback ended (MPV_EVENT_END_FILE)")
+                val eof = mpv?.getPropertyBoolean("eof-reached") ?: false
+                if (eof) {
+                    mainHandler.post { delegate?.onPlaybackEnded() }
+                }
             }
             MPVLib.MPV_EVENT_SHUTDOWN -> {
                 Log.w(TAG, "MPV shutdown")
