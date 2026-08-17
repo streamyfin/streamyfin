@@ -18,6 +18,12 @@ class HeroCarouselModule : Module() {
       Prop("payload") { view: HeroCarouselExpoView, payload: String ->
         view.setPayload(payload)
       }
+
+      // The composition is pinned to the Activity so a tab switch can't kill
+      // it, which means nothing else would ever tear it down.
+      OnViewDestroys { view: HeroCarouselExpoView ->
+        view.dispose()
+      }
     }
   }
 }

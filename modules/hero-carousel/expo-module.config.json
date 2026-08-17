@@ -1,6 +1,5 @@
 {
   "platforms": ["apple", "android"],
-  "coreFeatures": ["compose"],
   "apple": {
     "modules": ["HeroCarouselModule"]
   },
