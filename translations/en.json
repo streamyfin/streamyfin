@@ -158,6 +158,8 @@
         "merge_next_up_continue_watching_hint": "Combine Continue Watching and Next Up into a single home row.",
         "use_episode_images_next_up": "Use episode images for Next Up & Continue Watching",
         "use_episode_images_next_up_hint": "Show each episode's own thumbnail in the Next Up and Continue Watching rows instead of the series image.",
+        "native_media_cards": "Native media cards",
+        "native_media_cards_hint": "Draw poster rows and grids with a native view. Turn off to render the same cards in JavaScript.",
         "hide_remote_session_button": "Hide remote session button",
         "hide_remote_session_button_hint": "Hide the remote-sessions button from the home header.",
         "show_home_backdrop": "Dynamic home backdrop",

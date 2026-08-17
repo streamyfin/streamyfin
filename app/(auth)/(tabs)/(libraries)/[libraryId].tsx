@@ -29,6 +29,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CardGrid } from "@/components/cards/CardGrid";
+import { useNativeMediaCards } from "@/components/cards/useNativeMediaCards";
 import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import {
@@ -971,6 +972,7 @@ const Page = () => {
   }, [showOptions, t, tvFilterByOptions, setFilter, _setFilterBy]);
 
   const insets = useSafeAreaInsets();
+  const nativeCards = useNativeMediaCards();
   // The nav bar is transparent on iOS, so the pinned filter bar has to clear it
   // itself — the FlashList path gets this from contentInsetAdjustmentBehavior.
   // Same safe-area + nav-bar constant the other transparent-header screens use;
@@ -989,7 +991,7 @@ const Page = () => {
     // The whole grid is one native view where that exists. Its own scrolling
     // means the filter bar can't ride along as a list header, so it is pinned
     // above instead — below the transparent nav bar, hence the header inset.
-    if (isGlassCardGridAvailable()) {
+    if (nativeCards && isGlassCardGridAvailable()) {
       return (
         <View
           style={{

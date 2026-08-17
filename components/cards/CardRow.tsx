@@ -15,6 +15,7 @@ import {
 import { CardRowSkeleton } from "./CardRowSkeleton";
 import { JsCardRow } from "./JsCardRow";
 import { useItemCardBehavior } from "./useItemCardBehavior";
+import { useNativeMediaCards } from "./useNativeMediaCards";
 
 interface Props extends ViewProps {
   /** Section heading. Omit for a bare row. */
@@ -82,6 +83,7 @@ export const CardRow: React.FC<Props> = ({
   enableActionSheet = true,
   ...props
 }) => {
+  const nativeCards = useNativeMediaCards();
   const { cards, imageHeaders, handlePress, handleLongPress, actionSheet } =
     useItemCardBehavior({
       items,
@@ -93,6 +95,10 @@ export const CardRow: React.FC<Props> = ({
       onPressId,
       enableActionSheet,
     });
+
+  // The setting only chooses between two renderers of the same cards; it can't
+  // conjure a native view where none exists.
+  const drawNatively = nativeCards && isGlassCardRowAvailable();
 
   const isEmpty = cards.length === 0;
   if (hideIfEmpty && isEmpty && !loading) return null;
@@ -116,7 +122,7 @@ export const CardRow: React.FC<Props> = ({
             <Text className='text-neutral-500'>{emptyText}</Text>
           </View>
         ) : null
-      ) : isGlassCardRowAvailable() ? (
+      ) : drawNatively ? (
         <GlassCardRowView
           items={cards}
           imageHeaders={imageHeaders}

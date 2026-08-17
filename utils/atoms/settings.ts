@@ -420,6 +420,12 @@ export type Settings = {
   // Use the episode's own image (instead of the series thumb) for the
   // "Next Up" and "Continue Watching" home rows.
   useEpisodeImagesForNextUp: boolean;
+  /**
+   * Draw media card rows and grids with the native view where one exists
+   * (iPhone/iPad today). Off renders the same cards in React Native instead —
+   * the two are meant to look alike, so this is for comparing them.
+   */
+  nativeMediaCards: boolean;
   // TV-specific settings
   /** Apple TV only: use the fully-native tvOS player (default on; needs tvOS 26+). */
   nativeVideoPlayerTV: boolean;
@@ -570,6 +576,7 @@ export const defaultValues: Settings = {
   usePopularPlugin: true,
   mergeNextUpAndContinueWatching: false,
   useEpisodeImagesForNextUp: false,
+  nativeMediaCards: true,
   // TV-specific settings
   nativeVideoPlayerTV: true,
   nativeVideoPlayerAndroidTV: false,

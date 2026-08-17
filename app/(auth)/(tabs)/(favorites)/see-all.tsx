@@ -13,6 +13,7 @@ import { useCallback, useMemo } from "react";
 import { useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CardGrid } from "@/components/cards/CardGrid";
+import { useNativeMediaCards } from "@/components/cards/useNativeMediaCards";
 import { Text } from "@/components/common/Text";
 import { TouchableItemRouter } from "@/components/common/TouchableItemRouter";
 import { ItemCardText } from "@/components/ItemCardText";
@@ -47,6 +48,7 @@ function isFavoriteType(value: unknown): value is FavoriteTypes {
 
 export default function FavoritesSeeAllScreen() {
   const insets = useSafeAreaInsets();
+  const nativeCards = useNativeMediaCards();
   const { width: screenWidth } = useWindowDimensions();
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
@@ -169,7 +171,7 @@ export default function FavoritesSeeAllScreen() {
         <View className='justify-center items-center h-full'>
           <Loader />
         </View>
-      ) : isGlassCardGridAvailable() ? (
+      ) : nativeCards && isGlassCardGridAvailable() ? (
         // The whole grid is one native view; nothing scrolls above it here, so
         // it simply fills the screen under the transparent nav bar.
         flatData.length === 0 ? (

@@ -70,6 +70,19 @@ export const AppearanceSettings: React.FC = () => {
             }
           />
         </ListItem>
+        {Platform.OS === "ios" && !Platform.isTV && (
+          <ListItem
+            title={t("home.settings.appearance.native_media_cards")}
+            subtitle={t("home.settings.appearance.native_media_cards_hint")}
+          >
+            <SettingSwitch
+              value={settings.nativeMediaCards}
+              onValueChange={(value) =>
+                updateSettings({ nativeMediaCards: value })
+              }
+            />
+          </ListItem>
+        )}
         <ListItem
           title={t("home.settings.appearance.hide_remote_session_button")}
           subtitle={t(
