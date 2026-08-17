@@ -25,7 +25,7 @@ import { toast } from "sonner-native";
 import useRouter from "@/hooks/useAppRouter";
 import { useInterval } from "@/hooks/useInterval";
 import { JellyseerrApi, useJellyseerr } from "@/hooks/useJellyseerr";
-import { useSettings } from "@/utils/atoms/settings";
+import { settingsAtom, useSettings } from "@/utils/atoms/settings";
 import { getIntegrationHeaders } from "@/utils/customHeaders";
 import { getOrSetDeviceId } from "@/utils/device";
 import { createApiWithCustomHeaders } from "@/utils/jellyfin/createApi";
@@ -36,10 +36,12 @@ import {
   addAccountToServer,
   addServerToList,
   deleteAccountCredential,
+  deleteJellyseerrPassword,
   getAccountCredential,
   hashPIN,
   migrateToMultiAccount,
   saveAccountCredential,
+  saveJellyseerrPassword,
   updateAccountToken,
 } from "@/utils/secureCredentials";
 import { store } from "@/utils/store";
@@ -232,6 +234,11 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
   // device inherits the previous user's data).
   // Saved credentials are kept so the user can quick-login again.
   const clearSessionState = useCallback(async () => {
+    // Read before the wipe below: the Jellyseerr password is filed under the
+    // Jellyfin server URL + user id, and both are about to be cleared.
+    const jellyfinUrl = storage.getString("serverUrl");
+    const jellyfinUserId = store.get(userAtom)?.Id;
+
     // All synchronous teardown first: if the async Jellyseerr cleanup below
     // fails or resolves late (user may already be re-authenticating), the
     // session/cache state is already gone.
@@ -243,6 +250,12 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     setApi(null);
     setPluginSettings(undefined);
     queryClient.clear();
+
+    if (jellyfinUrl && jellyfinUserId) {
+      await deleteJellyseerrPassword(jellyfinUrl, jellyfinUserId).catch((e) =>
+        writeErrorLog(`Failed to clear Jellyseerr password: ${e}`),
+      );
+    }
 
     try {
       await clearAllJellyseerData();
@@ -519,7 +532,8 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
 
           const recentPluginSettings = await refreshStreamyfinPluginSettings();
           // With a plugin-provided API key the auto-connect effect signs in
-          // without a password — don't also start a password session here.
+          // without a password — don't start a password session here, and
+          // don't store the password either.
           if (
             recentPluginSettings?.jellyseerrServerUrl?.value &&
             !recentPluginSettings?.jellyseerrApiKey?.value
@@ -528,9 +542,43 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
               recentPluginSettings.jellyseerrServerUrl.value,
               getIntegrationHeaders("jellyseerr"),
             );
+            const jellyfinServerUrl = api.basePath;
+            const jellyfinUserId = auth.data.User.Id;
             await jellyseerrApi.test().then((result) => {
               if (result.isValid && result.requiresPass) {
-                jellyseerrApi.login(username, password).then(setJellyseerrUser);
+                jellyseerrApi
+                  .login(username, password)
+                  .then((seerrUser) => {
+                    setJellyseerrUser(seerrUser);
+                    // Remember the password so Jellyseerr can be signed in
+                    // again on later launches — but only once it has proven
+                    // to work. Jellyseerr authenticates with the password
+                    // rather than the Jellyfin token, so there is no
+                    // token-shaped alternative. Goes to the platform secure
+                    // store, never MMKV; users who typed their own URL get
+                    // nothing stored, and the autoLoginJellyseerr toggle
+                    // opts out.
+                    const autoLogin =
+                      store.get(settingsAtom)?.autoLoginJellyseerr !== false;
+                    if (jellyfinServerUrl && jellyfinUserId && autoLogin) {
+                      saveJellyseerrPassword(
+                        jellyfinServerUrl,
+                        jellyfinUserId,
+                        password,
+                      ).catch((e) =>
+                        writeErrorLog(
+                          `Could not store Jellyseerr password: ${e}`,
+                        ),
+                      );
+                    }
+                  })
+                  .catch((e) =>
+                    writeErrorLog(
+                      `Jellyseerr sign-in at login failed: ${
+                        e instanceof Error ? e.message : e
+                      }`,
+                    ),
+                  );
               }
             });
           }

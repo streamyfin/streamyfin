@@ -366,6 +366,13 @@ export type Settings = {
   jellyseerrServerUrl?: string;
   /** Seerr admin API key: signs the user in via their Jellyfin ID, no password. */
   jellyseerrApiKey?: string;
+  /**
+   * Sign in to Jellyseerr automatically on launch using the Jellyfin password.
+   * Jellyseerr's /auth/jellyfin endpoint takes the password rather than the
+   * Jellyfin token, so enabling this persists that password in the platform
+   * secure store. Nothing is stored unless a Jellyseerr server is configured.
+   */
+  autoLoginJellyseerr: boolean;
   useKefinTweaks: boolean;
   hiddenLibraries?: string[];
   enableH265ForChromecast: boolean;
@@ -511,6 +518,7 @@ export const defaultValues: Settings = {
   safeAreaInControlsEnabled: true,
   jellyseerrServerUrl: undefined,
   jellyseerrApiKey: undefined,
+  autoLoginJellyseerr: true,
   useKefinTweaks: false,
   hiddenLibraries: [],
   enableH265ForChromecast: false,

@@ -386,6 +386,8 @@
           "movie_quota_days": "Filmkvot Dagar",
           "tv_quota_limit": "Gräns för TV-kvot",
           "tv_quota_days": "Tv-kvot Dagar",
+          "auto_login_title": "Logga in automatiskt",
+          "auto_login_description": "Logga in på Seerr vid start med ditt Jellyfin-lösenord. Lösenordet sparas i enhetens säkra lagring och tas bort när du loggar ut.",
           "reset_jellyseerr_config_button": "Återställ Seerr Konfiguration",
           "unlimited": "Obegränsat",
           "plus_n_more": "+{{n}} mer",

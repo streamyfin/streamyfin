@@ -392,6 +392,8 @@
           "movie_quota_days": "Movie quota days",
           "tv_quota_limit": "TV quota limit",
           "tv_quota_days": "TV quota days",
+          "auto_login_title": "Sign in automatically",
+          "auto_login_description": "Sign in to Seerr on launch using your Jellyfin password. The password is kept in the device's secure storage and removed when you log out.",
           "reset_jellyseerr_config_button": "Reset Seerr config",
           "unlimited": "Unlimited",
           "plus_n_more": "+{{n}} more",

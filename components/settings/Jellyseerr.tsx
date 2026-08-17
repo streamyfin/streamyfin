@@ -8,11 +8,15 @@ import { useIntegrationHeaders } from "@/hooks/useIntegrationHeaders";
 import { JellyseerrApi, useJellyseerr } from "@/hooks/useJellyseerr";
 import { userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
+import { writeErrorLog } from "@/utils/log";
+import { storage } from "@/utils/mmkv";
+import { deleteJellyseerrPassword } from "@/utils/secureCredentials";
 import { jellyseerrProbe } from "@/utils/serverUrl/probes/jellyseerr";
 import { resolveServerUrl } from "@/utils/serverUrl/resolve";
 import { Button } from "../Button";
 import { Input } from "../common/Input";
 import { ServerUrlField } from "../common/ServerUrlField";
+import { SettingSwitch } from "../common/SettingSwitch";
 import { Text } from "../common/Text";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
@@ -172,6 +176,44 @@ export const JellyseerrSettings = () => {
                 }
               />
             </ListGroup>
+
+            {/* Only meaningful when the plugin supplies the URL — that is the
+                only case in which the password is stored at all. */}
+            {pluginSettings?.jellyseerrServerUrl?.value ? (
+              <ListGroup
+                className='mt-4'
+                title={t("home.settings.plugins.jellyseerr.auto_login_title")}
+                description={
+                  <Text className='text-xs text-neutral-500'>
+                    {t(
+                      "home.settings.plugins.jellyseerr.auto_login_description",
+                    )}
+                  </Text>
+                }
+              >
+                <ListItem
+                  title={t("home.settings.plugins.jellyseerr.auto_login_title")}
+                >
+                  <SettingSwitch
+                    value={settings?.autoLoginJellyseerr !== false}
+                    onValueChange={(value) => {
+                      updateSettings({ autoLoginJellyseerr: value });
+                      // Opting out also forgets the already-stored password —
+                      // the flag alone would leave the secret on the device.
+                      const jellyfinUrl = storage.getString("serverUrl");
+                      if (!value && jellyfinUrl && user?.Id) {
+                        deleteJellyseerrPassword(jellyfinUrl, user.Id).catch(
+                          (e) =>
+                            writeErrorLog(
+                              `Failed to delete Jellyseerr password: ${e}`,
+                            ),
+                        );
+                      }
+                    }}
+                  />
+                </ListItem>
+              </ListGroup>
+            ) : null}
 
             <View className='p-4'>
               <Button color='red' onPress={clearData}>
