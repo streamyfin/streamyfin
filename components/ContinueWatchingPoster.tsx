@@ -6,6 +6,7 @@ import { useMemo } from "react";
 import { View } from "react-native";
 import { Image } from "@/components/common/ServerImage";
 import { apiAtom } from "@/providers/JellyfinProvider";
+import { getWideImageUrl } from "@/utils/jellyfin/image/getWideImageUrl";
 import { ProgressBar } from "./common/ProgressBar";
 import { WatchedIndicator } from "./WatchedIndicator";
 
@@ -27,44 +28,11 @@ const ContinueWatchingPoster: React.FC<ContinueWatchingPosterProps> = ({
   /**
    * Get horizontal poster for movie and episode, with failover to primary.
    */
-  const url = useMemo(() => {
-    if (!api) {
-      return;
-    }
-    if (item.Type === "Episode" && useEpisodePoster) {
-      return `${api?.basePath}/Items/${item.Id}/Images/Primary?fillHeight=389&quality=80`;
-    }
-    if (item.Type === "Episode") {
-      // Matched pair: the parent that owns the Thumb (ParentThumbItemId), not the
-      // backdrop owner — otherwise the Thumb tag is requested on the wrong item → black.
-      if (item.ParentThumbItemId && item.ParentThumbImageTag) {
-        return `${api?.basePath}/Items/${item.ParentThumbItemId}/Images/Thumb?fillHeight=389&quality=80&tag=${item.ParentThumbImageTag}`;
-      }
-
-      return `${api?.basePath}/Items/${item.Id}/Images/Primary?fillHeight=389&quality=80`;
-    }
-    if (item.Type === "Movie") {
-      if (item.ImageTags?.Thumb) {
-        return `${api?.basePath}/Items/${item.Id}/Images/Thumb?fillHeight=389&quality=80&tag=${item.ImageTags?.Thumb}`;
-      }
-
-      return `${api?.basePath}/Items/${item.Id}/Images/Primary?fillHeight=389&quality=80`;
-    }
-    if (item.Type === "Program") {
-      if (item.ImageTags?.Thumb) {
-        return `${api?.basePath}/Items/${item.Id}/Images/Thumb?fillHeight=389&quality=80&tag=${item.ImageTags?.Thumb}`;
-      }
-
-      return `${api?.basePath}/Items/${item.Id}/Images/Primary?fillHeight=389&quality=80`;
-    }
-
-    if (item.ImageTags?.Thumb) {
-      return `${api?.basePath}/Items/${item.Id}/Images/Thumb?fillHeight=389&quality=80&tag=${item.ImageTags?.Thumb}`;
-    }
-
-    return `${api?.basePath}/Items/${item.Id}/Images/Primary?fillHeight=389&quality=80`;
+  const url = useMemo(
+    () => getWideImageUrl({ api, item, useEpisodePoster }),
     // useEpisodePoster in deps so flipping the prop re-computes the URL live.
-  }, [api, item, useEpisodePoster]);
+    [api, item, useEpisodePoster],
+  );
 
   if (!url)
     return <View className='aspect-video border border-neutral-800 w-44' />;

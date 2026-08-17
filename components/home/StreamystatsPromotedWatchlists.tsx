@@ -8,19 +8,13 @@ import { useRouter } from "expo-router";
 import { useAtomValue } from "jotai";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { ScrollView, View, type ViewProps } from "react-native";
-import { SectionHeader } from "@/components/common/SectionHeader";
+import { View, type ViewProps } from "react-native";
+import { CardRow } from "@/components/cards/CardRow";
 import { Text } from "@/components/common/Text";
-import MoviePoster from "@/components/posters/MoviePoster";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { createStreamystatsApi } from "@/utils/streamystats/api";
 import type { StreamystatsWatchlist } from "@/utils/streamystats/types";
-import { TouchableItemRouter } from "../common/TouchableItemRouter";
-import { ItemCardText } from "../ItemCardText";
-import SeriesPoster from "../posters/SeriesPoster";
-
-const ITEM_WIDTH = 120; // w-28 (112px) + mr-2 (8px)
 
 interface WatchlistSectionProps extends ViewProps {
   watchlist: StreamystatsWatchlist;
@@ -83,10 +77,6 @@ const WatchlistSection: React.FC<WatchlistSectionProps> = ({
     refetchOnWindowFocus: false,
   });
 
-  const snapOffsets = useMemo(() => {
-    return items?.map((_, index) => index * ITEM_WIDTH) ?? [];
-  }, [items]);
-
   const handleSeeAll = () => {
     router.push({
       pathname: "/(auth)/(tabs)/(watchlists)/[watchlistId]",
@@ -97,52 +87,15 @@ const WatchlistSection: React.FC<WatchlistSectionProps> = ({
   if (!isLoading && (!items || items.length === 0)) return null;
 
   return (
-    <View {...props}>
-      <SectionHeader
-        title={watchlist.name}
-        actionLabel={t("common.seeAll", { defaultValue: "See all" })}
-        actionDisabled={isLoading}
-        onPressAction={handleSeeAll}
-      />
-      {isLoading ? (
-        <View className='flex flex-row gap-2 px-4'>
-          {[1, 2, 3].map((i) => (
-            <View className='w-28' key={i}>
-              <View className='bg-neutral-900 aspect-[2/3] w-full rounded-md mb-1' />
-              <View className='rounded-md overflow-hidden mb-1 self-start'>
-                <Text
-                  className='text-neutral-900 bg-neutral-900 rounded-md'
-                  numberOfLines={1}
-                >
-                  Loading...
-                </Text>
-              </View>
-            </View>
-          ))}
-        </View>
-      ) : (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          snapToOffsets={snapOffsets}
-          decelerationRate='fast'
-        >
-          <View className='px-4 flex flex-row'>
-            {items?.map((item) => (
-              <TouchableItemRouter
-                item={item}
-                key={item.Id}
-                className='mr-2 w-28'
-              >
-                {item.Type === "Movie" && <MoviePoster item={item} />}
-                {item.Type === "Series" && <SeriesPoster item={item} />}
-                <ItemCardText item={item} />
-              </TouchableItemRouter>
-            ))}
-          </View>
-        </ScrollView>
-      )}
-    </View>
+    <CardRow
+      {...props}
+      title={watchlist.name}
+      seeAllLabel={t("common.seeAll", { defaultValue: "See all" })}
+      onPressSeeAll={handleSeeAll}
+      kind='portrait'
+      items={items ?? []}
+      loading={isLoading}
+    />
   );
 };
 
