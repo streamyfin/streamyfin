@@ -10,7 +10,16 @@ mock.module("react-native-mmkv", () => ({
     delete: (key: string) => void store.delete(key),
   }),
 }));
-mock.module("@/utils/log", () => ({ writeInfoLog: () => undefined }));
+// Bun's mock.module retroactively re-links every module already importing the
+// specifier, so a log mock must cover the module's full function surface —
+// a missing name breaks OTHER test files' modules that import it.
+mock.module("@/utils/log", () => ({
+  writeToLog: () => undefined,
+  writeInfoLog: () => undefined,
+  writeErrorLog: () => undefined,
+  writeDebugLog: () => undefined,
+  readFromLog: () => [],
+}));
 
 const { getSeriesTrackMemory, rememberSeriesTrackFromRow } = await import(
   "./seriesTrackMemory"

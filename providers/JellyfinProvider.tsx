@@ -52,6 +52,24 @@ interface Server {
   address: string;
 }
 
+// Compact wire-level description of a failed request for the in-app log —
+// the user-facing alert only shows a translated message, which hides whether
+// the failure was DNS, TLS, a timeout or an HTTP status.
+const describeRequestError = (error: unknown): string => {
+  if (axios.isAxiosError(error)) {
+    return [
+      error.code,
+      error.response ? `HTTP ${error.response.status}` : "no response",
+      error.message,
+    ]
+      .filter(Boolean)
+      .join(", ");
+  }
+  return error instanceof Error
+    ? `${error.name}: ${error.message}`
+    : String(error);
+};
+
 const initialApi = (() => {
   try {
     const token = storage.getString("token") || null;
@@ -415,6 +433,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
 
       if (!apiInstance?.basePath) throw new Error("Failed to connect");
 
+      writeInfoLog(`Server set: ${server.address}`);
       setApi(apiInstance);
       storage.set("serverUrl", server.address);
     },
@@ -487,6 +506,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       if (!api || !jellyfin) throw new Error("API not initialized");
 
       try {
+        writeInfoLog(`Login: authenticating against ${api.basePath}`);
         const auth = await api.authenticateUserByName(username, password);
 
         if (auth.data.AccessToken && auth.data.User) {
@@ -584,6 +604,9 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
           }
         }
       } catch (error) {
+        writeErrorLog(
+          `Login failed against ${api.basePath}: ${describeRequestError(error)}`,
+        );
         if (axios.isAxiosError(error)) {
           switch (error.response?.status) {
             case 401:
@@ -745,7 +768,15 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       }
 
       // Authenticate with password
-      const auth = await apiInstance.authenticateUserByName(username, password);
+      writeInfoLog(`Login (saved server): authenticating against ${serverUrl}`);
+      const auth = await apiInstance
+        .authenticateUserByName(username, password)
+        .catch((error) => {
+          writeErrorLog(
+            `Login (saved server) failed against ${serverUrl}: ${describeRequestError(error)}`,
+          );
+          throw error;
+        });
 
       if (auth.data.AccessToken && auth.data.User) {
         // Clear React Query cache to prevent data from previous account lingering
