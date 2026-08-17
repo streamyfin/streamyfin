@@ -13,10 +13,11 @@ mock.module("react-native-mmkv", () => ({
 // Bun's mock.module retroactively re-links every module already importing the
 // specifier, so a log mock must cover the module's full function surface —
 // a missing name breaks OTHER test files' modules that import it.
+const errors: string[] = [];
 mock.module("@/utils/log", () => ({
   writeToLog: () => undefined,
   writeInfoLog: () => undefined,
-  writeErrorLog: () => undefined,
+  writeErrorLog: (message: string) => void errors.push(message),
   writeDebugLog: () => undefined,
   readFromLog: () => [],
 }));
@@ -36,7 +37,10 @@ const store = {
 
 const version = () => data.get("storageSchemaVersion");
 
-beforeEach(() => data.clear());
+beforeEach(() => {
+  data.clear();
+  errors.length = 0;
+});
 
 describe("runStorageMigrations", () => {
   test("stamps a fresh install without running migrations", () => {
@@ -54,6 +58,21 @@ describe("runStorageMigrations", () => {
 
     expect(data.has("hasShownIntro")).toBe(false);
     expect(data.get("token")).toBe("abc");
+    expect(version()).toBe(LATEST_SCHEMA_VERSION);
+  });
+
+  test("logs a migration that throws and still moves the version on", () => {
+    data.set("token", "abc");
+    const failing = {
+      ...store,
+      remove: () => {
+        throw new Error("remove failed");
+      },
+    };
+
+    runStorageMigrations(failing);
+
+    expect(errors[0]).toBe("Storage migration 1 failed");
     expect(version()).toBe(LATEST_SCHEMA_VERSION);
   });
 
