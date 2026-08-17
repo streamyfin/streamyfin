@@ -8,6 +8,8 @@ import { CARD_LAYOUTS, type CardData, type CardKind } from "./CardData";
 type CardProps = {
   card: CardData;
   kind: CardKind;
+  /** Overrides the kind's card width — a grid sizes cards by its columns. */
+  width?: number;
   onPress: () => void;
   onLongPress?: () => void;
 };
@@ -20,11 +22,13 @@ type CardProps = {
 export const Card: React.FC<CardProps> = ({
   card,
   kind,
+  width,
   onPress,
   onLongPress,
 }) => {
   const layout = CARD_LAYOUTS[kind];
-  const height = layout.cardWidth / layout.aspectRatio;
+  const cardWidth = width ?? layout.cardWidth;
+  const height = cardWidth / (card.aspectRatio ?? layout.aspectRatio);
   const progress = Math.min(Math.max(card.progress ?? 0, 0), 1);
   const unplayed = card.unplayedCount ?? 0;
 
@@ -33,7 +37,7 @@ export const Card: React.FC<CardProps> = ({
       onPress={onPress}
       onLongPress={onLongPress}
       style={{
-        width: layout.cardWidth,
+        width: cardWidth,
         height,
         borderRadius: layout.cornerRadius,
         overflow: "hidden",

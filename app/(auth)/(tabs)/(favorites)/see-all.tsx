@@ -12,11 +12,9 @@ import { useAtom } from "jotai";
 import { useCallback, useMemo } from "react";
 import { useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useCardGrid } from "@/components/cards/useCardGrid";
 import { Text } from "@/components/common/Text";
-import { TouchableItemRouter } from "@/components/common/TouchableItemRouter";
-import { ItemCardText } from "@/components/ItemCardText";
 import { Loader } from "@/components/Loader";
-import { ItemPoster } from "@/components/posters/ItemPoster";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 
 type FavoriteTypes =
@@ -114,34 +112,7 @@ export default function FavoritesSeeAllScreen() {
     return 6;
   }, [screenWidth]);
 
-  const renderItem = useCallback(
-    ({ item, index }: { item: BaseItemDto; index: number }) => (
-      <TouchableItemRouter
-        item={item}
-        style={{
-          width: "100%",
-        }}
-      >
-        <View
-          style={{
-            alignSelf:
-              index % nrOfCols === 0
-                ? "flex-end"
-                : (index + 1) % nrOfCols === 0
-                  ? "flex-start"
-                  : "center",
-            width: "89%",
-          }}
-        >
-          <ItemPoster item={item} />
-          <ItemCardText item={item} />
-        </View>
-      </TouchableItemRouter>
-    ),
-    [nrOfCols],
-  );
-
-  const keyExtractor = useCallback((item: BaseItemDto) => item.Id || "", []);
+  const grid = useCardGrid({ items: flatData, columns: nrOfCols });
 
   const handleEndReached = useCallback(() => {
     if (hasNextPage) {
@@ -169,9 +140,9 @@ export default function FavoritesSeeAllScreen() {
         </View>
       ) : (
         <FlashList
-          data={flatData}
-          renderItem={renderItem}
-          keyExtractor={keyExtractor}
+          data={grid.data}
+          renderItem={grid.renderItem}
+          keyExtractor={grid.keyExtractor}
           numColumns={nrOfCols}
           onEndReached={handleEndReached}
           onEndReachedThreshold={0.8}
@@ -182,12 +153,7 @@ export default function FavoritesSeeAllScreen() {
             paddingRight: insets.right,
           }}
           ItemSeparatorComponent={() => (
-            <View
-              style={{
-                width: 10,
-                height: 10,
-              }}
-            />
+            <View style={{ height: grid.rowGap }} />
           )}
           ListEmptyComponent={
             <View className='flex flex-col items-center justify-center h-full py-12'>
@@ -205,6 +171,7 @@ export default function FavoritesSeeAllScreen() {
           }
         />
       )}
+      {grid.actionSheet}
     </>
   );
 }

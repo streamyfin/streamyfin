@@ -19,6 +19,11 @@ export type CardData = {
   unplayedCount?: number;
   /** Faded back because another card in the row is the current one. */
   dimmed?: boolean;
+  /**
+   * Overrides the kind's aspect ratio, for items whose artwork isn't the shape
+   * the container expects — an album among posters, say.
+   */
+  aspectRatio?: number;
 };
 
 export type CardKind = "wide" | "portrait" | "episode";
@@ -44,7 +49,7 @@ export const CARD_LAYOUTS: Record<
 > = {
   // Landscape stills.
   wide: {
-    cardWidth: 220,
+    cardWidth: 200,
     aspectRatio: 16 / 9,
     cornerRadius: 14,
     spacing: 10,
@@ -55,7 +60,7 @@ export const CARD_LAYOUTS: Record<
   // Portrait posters. The title sits on the card, and a shallower frost covers
   // less of a tall poster.
   portrait: {
-    cardWidth: 132,
+    cardWidth: 118,
     aspectRatio: 10 / 15,
     cornerRadius: 12,
     spacing: 10,
@@ -85,6 +90,17 @@ const isMovieOrEpisode = (item: BaseItemDto) =>
   item.Type === "Movie" || item.Type === "Episode";
 const isAggregate = (item: BaseItemDto) =>
   item.Type === "Series" || item.Type === "BoxSet";
+
+/**
+ * Only these have a poster; an episode borrows its series'. Everything else a
+ * library can hold — albums, artists, playlists, folders — has square artwork,
+ * and stretching it to 10:15 would crop the cover.
+ */
+const hasPortraitArtwork = (item: BaseItemDto) =>
+  item.Type === "Movie" ||
+  item.Type === "Series" ||
+  item.Type === "BoxSet" ||
+  item.Type === "Episode";
 
 type BuildOptions = {
   api?: Api | null;
@@ -128,6 +144,9 @@ export function buildItemCards(
     const unplayedCount =
       isAggregate(item) && !item.UserData?.Played ? unplayed : 0;
     const dimmed = selectedId != null && item.Id !== selectedId;
+    // Only portrait rows and grids mix in items without a poster.
+    const aspectRatio =
+      kind === "portrait" && !hasPortraitArtwork(item) ? 1 : undefined;
 
     return [
       {
@@ -139,6 +158,7 @@ export function buildItemCards(
         unwatched,
         unplayedCount,
         dimmed,
+        aspectRatio,
       },
     ];
   });

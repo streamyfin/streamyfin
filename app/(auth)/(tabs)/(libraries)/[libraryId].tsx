@@ -28,17 +28,14 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import type { CardData } from "@/components/cards/CardData";
+import { useCardGrid } from "@/components/cards/useCardGrid";
 import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
-import {
-  getItemNavigation,
-  TouchableItemRouter,
-} from "@/components/common/TouchableItemRouter";
+import { getItemNavigation } from "@/components/common/TouchableItemRouter";
 import { FilterButton } from "@/components/filters/FilterButton";
 import { ResetFiltersButton } from "@/components/filters/ResetFiltersButton";
-import { ItemCardText } from "@/components/ItemCardText";
 import { Loader } from "@/components/Loader";
-import { ItemPoster } from "@/components/posters/ItemPoster";
 import { TVFilterButton, TVFocusablePoster } from "@/components/tv";
 import { TVPosterCard } from "@/components/tv/TVPosterCard";
 import { useScaledTVPosterSizes } from "@/constants/TVPosterSizes";
@@ -49,7 +46,6 @@ import { useOrientation } from "@/hooks/useOrientation";
 import { useRefreshLibraryOnFocus } from "@/hooks/useRefreshLibraryOnFocus";
 import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
 import { useTVOptionModal } from "@/hooks/useTVOptionModal";
-import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import {
   FilterByOption,
@@ -485,7 +481,7 @@ const Page = () => {
     );
   }, [data]);
 
-  const flashListRef = useRef<FlashListRef<BaseItemDto>>(null);
+  const flashListRef = useRef<FlashListRef<CardData>>(null);
 
   // Jump the grid back to the top when the filters or the sort change, reset
   // included, instead of staying deep in the previous result set.
@@ -516,37 +512,7 @@ const Page = () => {
     }
   }, [isFetching, flatData]);
 
-  const renderItem = useCallback(
-    ({ item, index }: { item: BaseItemDto; index: number }) => (
-      <TouchableItemRouter
-        key={item.Id}
-        style={{
-          width: "100%",
-          marginBottom: 4,
-        }}
-        item={item}
-      >
-        <View
-          style={{
-            alignSelf:
-              orientation === ScreenOrientation.OrientationLock.PORTRAIT_UP
-                ? index % nrOfCols === 0
-                  ? "flex-end"
-                  : (index + 1) % nrOfCols === 0
-                    ? "flex-start"
-                    : "center"
-                : "center",
-            width: "89%",
-          }}
-        >
-          {/* <MoviePoster item={item} /> */}
-          <ItemPoster item={item} />
-          <ItemCardText item={item} />
-        </View>
-      </TouchableItemRouter>
-    ),
-    [orientation, nrOfCols],
-  );
+  const grid = useCardGrid({ items: flatData, columns: nrOfCols });
 
   const renderTVItem = useCallback(
     (item: BaseItemDto) => {
@@ -629,7 +595,6 @@ const Page = () => {
     [router, showItemActions, api, typography],
   );
 
-  const keyExtractor = useCallback((item: BaseItemDto) => item.Id || "", []);
   const generalFilters = useFilterOptions();
   const ListHeaderComponent = useCallback(
     () => (
@@ -980,43 +945,41 @@ const Page = () => {
   // Mobile return
   if (!Platform.isTV) {
     return (
-      <FlashList
-        ref={flashListRef}
-        key={orientation}
-        ListEmptyComponent={
-          <View className='flex flex-col items-center justify-center h-full'>
-            <Text className='font-bold text-xl text-neutral-500'>
-              {t("library.no_results")}
-            </Text>
-          </View>
-        }
-        contentInsetAdjustmentBehavior='automatic'
-        data={flatData}
-        renderItem={renderItem}
-        extraData={[orientation, nrOfCols]}
-        keyExtractor={keyExtractor}
-        numColumns={nrOfCols}
-        onEndReached={() => {
-          if (hasNextPage) {
-            fetchNextPage();
+      <>
+        <FlashList
+          ref={flashListRef}
+          key={orientation}
+          ListEmptyComponent={
+            <View className='flex flex-col items-center justify-center h-full'>
+              <Text className='font-bold text-xl text-neutral-500'>
+                {t("library.no_results")}
+              </Text>
+            </View>
           }
-        }}
-        onEndReachedThreshold={1}
-        ListHeaderComponent={ListHeaderComponent}
-        contentContainerStyle={{
-          paddingBottom: 24,
-          paddingLeft: insets.left,
-          paddingRight: insets.right,
-        }}
-        ItemSeparatorComponent={() => (
-          <View
-            style={{
-              width: 10,
-              height: 10,
-            }}
-          />
-        )}
-      />
+          contentInsetAdjustmentBehavior='automatic'
+          data={grid.data}
+          renderItem={grid.renderItem}
+          extraData={[orientation, nrOfCols]}
+          keyExtractor={grid.keyExtractor}
+          numColumns={nrOfCols}
+          onEndReached={() => {
+            if (hasNextPage) {
+              fetchNextPage();
+            }
+          }}
+          onEndReachedThreshold={1}
+          ListHeaderComponent={ListHeaderComponent}
+          contentContainerStyle={{
+            paddingBottom: 24,
+            paddingLeft: insets.left,
+            paddingRight: insets.right,
+          }}
+          ItemSeparatorComponent={() => (
+            <View style={{ height: grid.rowGap }} />
+          )}
+        />
+        {grid.actionSheet}
+      </>
     );
   }
 
