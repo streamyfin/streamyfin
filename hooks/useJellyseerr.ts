@@ -163,14 +163,19 @@ export class JellyseerrApi {
         const { status, headers, data } = response;
         if (inRange(status, 200, 299)) {
           if (data.version && isVersionBelow(data.version, "2.0.0")) {
-            const error = t(
-              "jellyseerr.toasts.jellyseerr_does_not_meet_requirements",
-            );
             writeErrorLog(
               `Jellyseerr version ${data.version} is below the required 2.0.0`,
             );
-            toast.error(error);
-            throw Error(error);
+            toast.error(
+              t("jellyseerr.toasts.jellyseerr_does_not_meet_requirements"),
+            );
+            // Return rather than throw: the catch below exists for transport
+            // failures and would stack a second, misleading "could not test
+            // the server URL" toast on top of this precise one.
+            return {
+              isValid: false,
+              requiresPass: false,
+            };
           }
 
           storage.setAny(
