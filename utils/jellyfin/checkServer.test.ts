@@ -14,17 +14,21 @@ mock.module("@/utils/customHeaders", () => ({
 // Bun's mock.module retroactively re-links every module already importing the
 // specifier, so a log mock must cover the module's full function surface —
 // a missing name breaks OTHER test files' modules that import it.
-const infoLogs: string[] = [];
-const errorLogs: string[] = [];
+const loggedMessages: Array<{ level: string; message: string }> = [];
 mock.module("@/utils/log", () => ({
-  writeToLog: () => undefined,
+  writeToLog: (level: string, message: string) => {
+    loggedMessages.push({ level, message });
+  },
   writeInfoLog: (message: string) => {
-    infoLogs.push(message);
+    loggedMessages.push({ level: "INFO", message });
   },
   writeErrorLog: (message: string) => {
-    errorLogs.push(message);
+    loggedMessages.push({ level: "ERROR", message });
   },
   writeDebugLog: () => undefined,
+  logAndCaptureError: (message: string) => {
+    loggedMessages.push({ level: "ERROR", message });
+  },
   readFromLog: () => [],
 }));
 
@@ -94,8 +98,7 @@ const routes = (impl: {
 
 beforeEach(() => {
   fetchCalls = [];
-  infoLogs.length = 0;
-  errorLogs.length = 0;
+  loggedMessages.length = 0;
   savedHeaders.clear();
   persistedHeaders.length = 0;
   fetchImpl = networkError;
@@ -187,8 +190,12 @@ describe("checkJellyfinServer probing", () => {
     );
 
     expect(result?.url).toBe("http://192.168.1.10:8096");
+    // Probe failures are routine (fallback still succeeds here), so they log
+    // as WARN — local trail only, never a Sentry event.
     expect(
-      errorLogs.some((m) => m.includes("timed out after 20ms")),
+      loggedMessages.some(
+        (m) => m.level === "WARN" && m.message.includes("timed out after 20ms"),
+      ),
     ).toBeTrue();
   });
 
@@ -201,7 +208,11 @@ describe("checkJellyfinServer probing", () => {
     const result = await checkJellyfinServer("192.168.1.10:8096");
 
     expect(result?.url).toBe("http://192.168.1.10:8096");
-    expect(errorLogs.some((m) => m.includes("HTTP 403"))).toBeTrue();
+    expect(
+      loggedMessages.some(
+        (m) => m.level === "WARN" && m.message.includes("HTTP 403"),
+      ),
+    ).toBeTrue();
   });
 
   test("returns undefined when nothing answers", async () => {
