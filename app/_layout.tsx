@@ -66,8 +66,10 @@ if (Platform.isTV) {
   LogBox.ignoreLogs(["HoverGestureHandler is not supported on tvOS"]);
 }
 
+import * as Sentry from "@sentry/react-native";
 import useRouter from "@/hooks/useAppRouter";
 import { userAtom } from "@/providers/JellyfinProvider";
+import { initializeSentryIfConsented } from "@/utils/sentry";
 import { store as jotaiStore, store } from "@/utils/store";
 import "react-native-reanimated";
 import {
@@ -81,6 +83,9 @@ configureReanimatedLogger({
   level: ReanimatedLogLevel.warn,
   strict: false,
 });
+
+// Crash reporting is on by default; this is a no-op if the user opted out.
+initializeSentryIfConsented();
 
 if (!Platform.isTV) {
   Notifications.setNotificationHandler({
@@ -209,7 +214,7 @@ const checkAndRequestPermissions = async () => {
   }
 };
 
-export default function RootLayout() {
+function RootLayout() {
   Appearance.setColorScheme("dark");
 
   return (
@@ -224,6 +229,9 @@ export default function RootLayout() {
     </GestureHandlerRootView>
   );
 }
+
+// Sentry.wrap is inert while the SDK is not initialized (crash reporting off).
+export default Sentry.wrap(RootLayout);
 
 // Set up online manager for network-aware query behavior
 onlineManager.setEventListener((setOnline) => {

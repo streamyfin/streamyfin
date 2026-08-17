@@ -127,7 +127,9 @@
       "centralised_settings_plugin_description": "Configure settings centrally on your Jellyfin server. Every user's client settings sync automatically.",
       "done_button": "Done",
       "go_to_settings_button": "Go to Settings",
-      "read_more": "Read more"
+      "read_more": "Read more",
+      "crash_reports_title": "Help improve Streamyfin",
+      "crash_reports_description": "Streamyfin sends anonymous crash and error reports to the developers. No account data or server addresses are included. You can turn this off here or anytime in settings."
     },
     "settings": {
       "settings_title": "Settings",
@@ -375,6 +377,8 @@
         "wikidata_awards_hint": "Show Oscar and award status on movie and series pages. This device asks Wikidata directly, not your Jellyfin server.",
         "opensubtitles_enabled": "Search OpenSubtitles",
         "opensubtitles_enabled_hint": "Let this device search OpenSubtitles directly when your Jellyfin server has no subtitle provider. Turning this off keeps subtitle searches on your server and leaves any saved API key alone.",
+        "crash_reports": "Crash reports",
+        "crash_reports_hint": "Send anonymous crash and error reports to the Streamyfin developers via Sentry. Reports contain no account data; server addresses and tokens are removed before anything is sent.",
         "jellyseerr": {
           "server_url": "Server URL",
           "server_url_hint": "Example: http(s)://your-host.url\n(add port if required)",

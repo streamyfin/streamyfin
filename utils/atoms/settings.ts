@@ -14,6 +14,7 @@ import { BITRATES, type Bitrate } from "@/components/BitrateSelector";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { writeInfoLog } from "@/utils/log";
+import { applySentryConsent } from "@/utils/sentry";
 import { storage } from "../mmkv";
 import {
   type AppliedPluginDefaults,
@@ -435,6 +436,8 @@ export type Settings = {
   openSubtitlesApiKey?: string;
   // TV-only: Inactivity timeout for auto-logout
   inactivityTimeout: InactivityTimeout;
+  /** Anonymous crash/error reporting via Sentry (on by default, opt-out). */
+  sentryEnabled: boolean;
 };
 
 export interface Lockable<T> {
@@ -556,6 +559,8 @@ export const defaultValues: Settings = {
   openSubtitlesEnabled: true,
   // TV-only: Inactivity timeout (disabled by default)
   inactivityTimeout: InactivityTimeout.Disabled,
+  // Crash reporting defaults on; the intro sheet and settings expose the opt-out
+  sentryEnabled: true,
 };
 
 const loadSettings = (): Partial<Settings> => {
@@ -722,6 +727,10 @@ export const useSettings = () => {
       } as Settings;
       setSettings(newSettings);
       saveSettings(newSettings);
+      // Consent changes take effect immediately, not just on next launch
+      if ("sentryEnabled" in sanitizedUpdate) {
+        applySentryConsent(sanitizedUpdate.sentryEnabled === true);
+      }
     }
   };
 

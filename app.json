@@ -73,6 +73,14 @@
       ],
       "expo-router",
       "expo-font",
+      [
+        "@sentry/react-native/expo",
+        {
+          "organization": "streamyfin",
+          "project": "react-native",
+          "url": "https://sentry.io/"
+        }
+      ],
       "./plugins/withExcludeMedia3Dash.ts",
       "./plugins/withTVUserManagement.ts",
       [
