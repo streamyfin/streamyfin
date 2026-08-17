@@ -29,6 +29,13 @@ const hasSentryConsent = (): boolean => {
   return readStoredSettings().sentryEnabled !== false;
 };
 
+// Media filenames are derived from titles ("Show S01E02.mp4", downloaded
+// sidecar subs, poster staging), so any path basename with a media extension
+// reveals what the user watches. Replace the basename, keep the extension —
+// the container is what makes a decode error debuggable, the title never is.
+const MEDIA_FILENAME_PATTERN =
+  /([/\\])([^/\\"'\n]+)\.(mp4|mkv|m4v|mov|avi|webm|mpg|mpeg|wmv|flv|m2ts|mts|m3u8|mpd|mp3|m4a|m4b|flac|aac|ogg|oga|opus|wav|wma|srt|ass|ssa|vtt|sub|idx|jpg|jpeg|png|webp|gif|bif|nfo)\b/gi;
+
 // Jellyfin/Jellyseerr URLs carry credentials in the query string (api_key=...,
 // the WebSocket's ApiKey=...) and the origin reveals the user's private server
 // address, so both are scrubbed from everything that leaves the app; the
@@ -36,13 +43,17 @@ const hasSentryConsent = (): boolean => {
 const scrubUrl = (value: string): string =>
   value
     .replace(/((?:https?|wss?):\/\/[^\s"'?]+)\?[^\s"']*/g, "$1")
-    .replace(/((?:https?|wss?):\/\/)[^/\s"']+/g, "$1[server]");
+    .replace(/((?:https?|wss?):\/\/)[^/\s"']+/g, "$1[server]")
+    .replace(MEDIA_FILENAME_PATTERN, "$1[media].$3");
 
 // URLs can hide anywhere in an event, not just the fields with a `url` name:
-// console breadcrumbs keep raw console arguments in data.arguments, and
-// extra/contexts carry arbitrary payloads. So every string in the outgoing
-// object is scrubbed, however deeply nested.
-const scrubDeep = (value: unknown, seen = new WeakSet<object>()): unknown => {
+// breadcrumbs and extra/contexts carry arbitrary payloads. So every string in
+// the outgoing object is scrubbed, however deeply nested. Exported for tests —
+// this is the privacy boundary for everything that leaves the app.
+export const scrubDeep = (
+  value: unknown,
+  seen = new WeakSet<object>(),
+): unknown => {
   if (typeof value === "string") {
     return scrubUrl(value);
   }
@@ -80,6 +91,11 @@ const initializeSentry = () => {
       sendDefaultPii: false,
       // Errors only — no performance tracing, session replay or screenshots.
       tracesSampleRate: 0,
+      // Console output is unvetted — it interpolates whatever the code logs,
+      // including media titles — so it must never become breadcrumbs. App
+      // logs still flow via writeToLog's curated messages, and XHR
+      // breadcrumbs stay on (their URLs go through the scrubbers).
+      integrations: [Sentry.breadcrumbsIntegration({ console: false })],
       initialScope: {
         tags: {
           tv: String(Platform.isTV),

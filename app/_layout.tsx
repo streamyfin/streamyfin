@@ -288,13 +288,14 @@ const reportDataError = (
 ) => {
   if (!shouldReportDataError(error)) return;
   Sentry.withScope((scope) => {
-    let serializedKey: string | undefined;
-    try {
-      serializedKey = JSON.stringify(key)?.slice(0, 300);
-    } catch {
-      // Query keys are usually JSON-safe; a circular one just goes unlabeled.
-    }
-    scope.setContext("data_layer", { source, key: serializedKey });
+    // Only the key's first element (the query's name) is sent — later
+    // elements can carry search text or item titles, and the name alone
+    // already says which data path failed.
+    scope.setContext("data_layer", {
+      source,
+      key: typeof key?.[0] === "string" ? key[0] : undefined,
+      keyLength: key?.length,
+    });
     Sentry.captureException(error);
   });
 };

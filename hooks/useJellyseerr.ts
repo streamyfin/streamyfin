@@ -449,7 +449,9 @@ export class JellyseerrApi {
           // Jellyseerr surface. The response body stays in the local log.
           logAndCaptureError("Jellyseerr response error", error, {
             status: error.response.status,
-            url: error.config?.url,
+            // Relative URLs escape the scheme-anchored scrubber, and search
+            // requests put the user's typed query in the query string.
+            url: error.config?.url?.split("?")[0],
           });
           writeToLog("DEBUG", "Jellyseerr response body", error.response.data);
         } else {
