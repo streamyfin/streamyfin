@@ -1201,6 +1201,11 @@ export default function SettingsTV() {
               updateSettings({ openSubtitlesEnabled: value })
             }
           />
+          <TVSettingsToggle
+            label={t("home.settings.plugins.crash_reports")}
+            value={settings.sentryEnabled}
+            onToggle={(value) => updateSettings({ sentryEnabled: value })}
+          />
 
           {/* Custom proxy auth headers for Jellyfin and each integration */}
           <TVCustomHeadersSection serverUrl={storage.getString("serverUrl")} />

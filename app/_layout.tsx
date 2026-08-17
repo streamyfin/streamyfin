@@ -67,8 +67,14 @@ if (Platform.isTV) {
   LogBox.ignoreLogs(["HoverGestureHandler is not supported on tvOS"]);
 }
 
+import * as Sentry from "@sentry/react-native";
 import useRouter from "@/hooks/useAppRouter";
 import { userAtom } from "@/providers/JellyfinProvider";
+import { effectiveSettingsAtom, settingsAtom } from "@/utils/atoms/settings";
+import {
+  applySentryConsent,
+  initializeSentryIfConsented,
+} from "@/utils/sentry";
 import { store as jotaiStore, store } from "@/utils/store";
 import "react-native-reanimated";
 import {
@@ -81,6 +87,20 @@ import { Toaster } from "sonner-native";
 configureReanimatedLogger({
   level: ReanimatedLogLevel.warn,
   strict: false,
+});
+
+// Crash reporting is on by default; this is a no-op if the user opted out
+// (or a server admin locked it off). After startup, consent tracks the
+// effective settings, so the switch, plugin-pushed defaults, and admin locks
+// all take effect immediately.
+initializeSentryIfConsented();
+jotaiStore.sub(effectiveSettingsAtom, () => {
+  // Ignore changes until the persisted settings hydrate; before that the
+  // effective value is just defaults and would override a stored opt-out.
+  if (jotaiStore.get(settingsAtom) === null) return;
+  applySentryConsent(
+    jotaiStore.get(effectiveSettingsAtom).sentryEnabled !== false,
+  );
 });
 
 if (!Platform.isTV) {
@@ -210,7 +230,7 @@ const checkAndRequestPermissions = async () => {
   }
 };
 
-export default function RootLayout() {
+function RootLayout() {
   Appearance.setColorScheme("dark");
 
   return (
@@ -225,6 +245,9 @@ export default function RootLayout() {
     </GestureHandlerRootView>
   );
 }
+
+// Sentry.wrap is inert while the SDK is not initialized (crash reporting off).
+export default Sentry.wrap(RootLayout);
 
 // Set up online manager for network-aware query behavior
 onlineManager.setEventListener((setOnline) => {

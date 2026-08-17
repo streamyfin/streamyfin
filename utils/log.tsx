@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/react-native";
 import { useQuery } from "@tanstack/react-query";
 import { atomWithStorage, createJSONStorage } from "jotai/utils";
 import type React from "react";
@@ -5,6 +6,13 @@ import { createContext, useContext } from "react";
 import { storage } from "./mmkv";
 
 export type LogLevel = "INFO" | "WARN" | "ERROR" | "DEBUG";
+
+const SENTRY_BREADCRUMB_LEVELS: Record<LogLevel, Sentry.SeverityLevel> = {
+  INFO: "info",
+  WARN: "warning",
+  ERROR: "error",
+  DEBUG: "debug",
+};
 
 interface LogEntry {
   timestamp: string;
@@ -40,6 +48,15 @@ function useLogProvider() {
 }
 
 export const writeToLog = (level: LogLevel, message: string, data?: any) => {
+  // Mirror app logs into Sentry as breadcrumbs (never events) so crash
+  // reports carry the log trail leading up to them. `data` stays local:
+  // it can hold raw URLs and payloads the URL scrubber wouldn't reach.
+  Sentry.addBreadcrumb({
+    category: "app.log",
+    level: SENTRY_BREADCRUMB_LEVELS[level],
+    message,
+  });
+
   const newEntry: LogEntry = {
     timestamp: new Date().toISOString(),
     level: level,

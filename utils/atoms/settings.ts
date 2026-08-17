@@ -14,6 +14,11 @@ import { BITRATES, type Bitrate } from "@/components/BitrateSelector";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { writeInfoLog } from "@/utils/log";
+import {
+  PLUGIN_SETTINGS_KEY,
+  readStoredSettings,
+  SETTINGS_KEY,
+} from "@/utils/storedSettings";
 import { storage } from "../mmkv";
 import {
   type AppliedPluginDefaults,
@@ -22,7 +27,7 @@ import {
 } from "./settingsOverrides";
 
 const _STREAMYFIN_PLUGIN_ID = "1e9e5d386e6746158719e98a5c34f004";
-const STREAMYFIN_PLUGIN_SETTINGS = "STREAMYFIN_PLUGIN_SETTINGS";
+const STREAMYFIN_PLUGIN_SETTINGS = PLUGIN_SETTINGS_KEY;
 
 export type DownloadQuality = "original" | "high" | "low";
 
@@ -444,6 +449,8 @@ export type Settings = {
   openSubtitlesApiKey?: string;
   // TV-only: Inactivity timeout for auto-logout
   inactivityTimeout: InactivityTimeout;
+  /** Anonymous crash/error reporting via Sentry (on by default, opt-out). */
+  sentryEnabled: boolean;
 };
 
 export interface Lockable<T> {
@@ -587,20 +594,12 @@ export const defaultValues: Settings = {
   openSubtitlesEnabled: true,
   // TV-only: Inactivity timeout (disabled by default)
   inactivityTimeout: InactivityTimeout.Disabled,
+  // Crash reporting defaults on; the intro sheet and settings expose the opt-out
+  sentryEnabled: true,
 };
 
-const loadSettings = (): Partial<Settings> => {
-  try {
-    const jsonValue = storage.getString("settings");
-    const loadedValues: Partial<Settings> =
-      jsonValue != null ? JSON.parse(jsonValue) : {};
-
-    return loadedValues;
-  } catch (error) {
-    console.error("Failed to load settings:", error);
-    return {};
-  }
-};
+const loadSettings = (): Partial<Settings> =>
+  readStoredSettings() as Partial<Settings>;
 
 const EXCLUDE_FROM_SAVE = ["home"];
 
@@ -612,7 +611,7 @@ const saveSettings = (settings: Settings) => {
       }
     }
     const jsonValue = JSON.stringify(settings);
-    storage.set("settings", jsonValue);
+    storage.set(SETTINGS_KEY, jsonValue);
   } catch (error) {
     console.error("Failed to save settings:", error);
   }
