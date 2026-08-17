@@ -5,17 +5,20 @@ import { storage } from "@/utils/mmkv";
  * One-off migrations for locally stored (MMKV) data.
  *
  * `storageSchemaVersion` records the highest migration this install has run.
- * On launch, every migration above that number runs once, in order, and the
- * version is bumped to the latest. Fresh installs are stamped at the latest
- * version without running anything — there is no legacy data to fix up.
+ * On launch, every migration above that number runs once, in order. Fresh
+ * installs are stamped at the latest version without running anything — there
+ * is no legacy data to fix up.
+ *
+ * A migration that throws stops the run and leaves the version at the last
+ * success, so the rest are retried on the next launch rather than skipped
+ * over data an earlier one never prepared. Launch is never blocked either way.
  *
  * Adding one:
  *  - append an entry with the next version number. Never renumber, reorder or
  *    edit a released migration: users are already stamped past it and will
  *    never see the change.
- *  - keep `run` synchronous and idempotent. It runs before the providers
- *    mount, and a failure moves the version on anyway (see below), so it must
- *    never depend on being retried.
+ *  - keep `run` synchronous and idempotent. It runs before anything else in
+ *    the app, and a later failure means it may run again on the next launch.
  */
 const SCHEMA_VERSION_KEY = "storageSchemaVersion";
 
@@ -51,13 +54,17 @@ export const LATEST_SCHEMA_VERSION = MIGRATIONS.reduce(
   0,
 );
 
-/** A first launch after install: nothing has ever been written to the store. */
+/**
+ * A first launch after install: nothing has ever been written to the store.
+ * Only trustworthy because `@/utils/bootstrap` runs this before any other app
+ * module evaluates, so no key can have been written yet.
+ */
 const isFreshInstall = (store: MigrationStorage) =>
   store.getAllKeys().length === 0;
 
 /**
- * Apply any pending storage migrations. Call once, as early as possible at
- * startup and before the providers read stored state.
+ * Apply any pending storage migrations. Called once from `@/utils/bootstrap`,
+ * which is the first module the app evaluates. Don't call it anywhere else.
  */
 export function runStorageMigrations(store: MigrationStorage = storage): void {
   try {
@@ -73,20 +80,24 @@ export function runStorageMigrations(store: MigrationStorage = storage): void {
       (a, b) => a.version - b.version,
     );
 
+    let reached = applied;
     for (const migration of pending) {
       try {
         migration.run(store);
-        writeInfoLog(
-          `Storage migration ${migration.version} applied: ${migration.description}`,
-        );
       } catch (error) {
-        // Best effort: a broken migration must never block launch, and the
-        // version still moves past it so it can't fail on every launch.
+        // Stop here rather than run the rest against data this one didn't
+        // prepare. The version stays put, so a transient failure is retried
+        // next launch, and the app starts normally either way.
         writeErrorLog(`Storage migration ${migration.version} failed`, error);
+        break;
       }
+      reached = migration.version;
+      writeInfoLog(
+        `Storage migration ${migration.version} applied: ${migration.description}`,
+      );
     }
 
-    store.set(SCHEMA_VERSION_KEY, LATEST_SCHEMA_VERSION);
+    if (reached > applied) store.set(SCHEMA_VERSION_KEY, reached);
   } catch (error) {
     writeErrorLog("Storage migrations could not run", error);
   }

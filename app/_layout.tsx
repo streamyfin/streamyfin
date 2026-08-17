@@ -1,3 +1,5 @@
+// Must stay above every other import: it runs the storage migrations.
+import "@/utils/bootstrap";
 import "@/augmentations";
 import { ActionSheetProvider } from "@expo/react-native-action-sheet";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
@@ -40,7 +42,6 @@ import {
   writeInfoLog,
   writeToLog,
 } from "@/utils/log";
-import { runStorageMigrations } from "@/utils/migrations";
 import { storage } from "@/utils/mmkv";
 
 const Notifications = !Platform.isTV ? require("expo-notifications") : null;
@@ -89,10 +90,6 @@ configureReanimatedLogger({
   level: ReanimatedLogLevel.warn,
   strict: false,
 });
-
-// Bring locally stored data up to date before anything reads it — this is the
-// first app module to evaluate, so the providers below all see migrated state.
-runStorageMigrations();
 
 // Crash reporting is on by default; this is a no-op if the user opted out
 // (or a server admin locked it off). After startup, consent tracks the

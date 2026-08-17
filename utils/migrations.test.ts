@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, mock, test } from "bun:test";
 
 // Only so importing the module (which pulls in @/utils/mmkv) doesn't reach for
 // the native store — the tests below drive an injected store, not this one.
+// mock.module re-links the specifier for every test file in the run, so stub
+// the exports the app uses, not just the one this file needs.
 mock.module("react-native-mmkv", () => ({
   createMMKV: () => ({
     getString: () => undefined,
@@ -9,6 +11,7 @@ mock.module("react-native-mmkv", () => ({
     delete: () => undefined,
     remove: () => undefined,
   }),
+  useMMKVString: () => [undefined, () => undefined],
 }));
 // Bun's mock.module retroactively re-links every module already importing the
 // specifier, so a log mock must cover the module's full function surface —
@@ -61,7 +64,7 @@ describe("runStorageMigrations", () => {
     expect(version()).toBe(LATEST_SCHEMA_VERSION);
   });
 
-  test("logs a migration that throws and still moves the version on", () => {
+  test("logs a migration that throws and leaves it pending", () => {
     data.set("token", "abc");
     const failing = {
       ...store,
@@ -73,6 +76,11 @@ describe("runStorageMigrations", () => {
     runStorageMigrations(failing);
 
     expect(errors[0]).toBe("Storage migration 1 failed");
+    expect(version()).toBeUndefined();
+
+    // It retries on the next launch, against a store that works again.
+    runStorageMigrations(store);
+
     expect(version()).toBe(LATEST_SCHEMA_VERSION);
   });
 
