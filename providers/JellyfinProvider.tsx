@@ -182,9 +182,46 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
   const [user, setUser] = useAtom(userAtom);
   const [isPolling, setIsPolling] = useState<boolean>(false);
   const [secret, setSecret] = useState<string | null>(null);
-  const { setPluginSettings, refreshStreamyfinPluginSettings } = useSettings();
-  const { clearAllJellyseerData, setJellyseerrUser } = useJellyseerr();
+  const { settings, setPluginSettings, refreshStreamyfinPluginSettings } =
+    useSettings();
+  const { clearAllJellyseerData, jellyseerrUser, setJellyseerrUser } =
+    useJellyseerr();
   const queryClient = useQueryClient();
+
+  // Passwordless Seerr sign-in. With an admin API key (typically distributed
+  // through the Streamyfin plugin) the Seerr account linked to the current
+  // Jellyfin user is resolved directly via /user/jellyfin/{id} — this also
+  // covers Quick Connect logins and restored sessions, where no password is
+  // ever available. One attempt per server+user per app run, so a failing key
+  // cannot turn into a retry loop.
+  const jellyseerrAutoConnectAttempt = useRef<string | null>(null);
+  useEffect(() => {
+    if (!user?.Id) {
+      // Logout invalidates the guard so the next login may connect again.
+      jellyseerrAutoConnectAttempt.current = null;
+      return;
+    }
+    const serverUrl = settings?.jellyseerrServerUrl;
+    const apiKey = settings?.jellyseerrApiKey;
+    if (!serverUrl || !apiKey || jellyseerrUser) return;
+    const attemptKey = `${serverUrl}:${user.Id}`;
+    if (jellyseerrAutoConnectAttempt.current === attemptKey) return;
+    jellyseerrAutoConnectAttempt.current = attemptKey;
+    new JellyseerrApi(serverUrl, getIntegrationHeaders("jellyseerr"), apiKey)
+      .loginWithApiKey(user.Id)
+      .then(setJellyseerrUser)
+      .catch((e) =>
+        writeErrorLog(
+          `Seerr API-key sign-in failed: ${e instanceof Error ? e.message : e}`,
+        ),
+      );
+  }, [
+    user?.Id,
+    settings?.jellyseerrServerUrl,
+    settings?.jellyseerrApiKey,
+    jellyseerrUser,
+    setJellyseerrUser,
+  ]);
 
   // --- Session-expiry handling ----------------------------------------------
   // When the server revokes the token (e.g. the device/session is deleted), a
@@ -520,7 +557,12 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
           }
 
           const recentPluginSettings = await refreshStreamyfinPluginSettings();
-          if (recentPluginSettings?.jellyseerrServerUrl?.value) {
+          // With a plugin-provided API key the auto-connect effect signs in
+          // without a password — don't also start a password session here.
+          if (
+            recentPluginSettings?.jellyseerrServerUrl?.value &&
+            !recentPluginSettings?.jellyseerrApiKey?.value
+          ) {
             const jellyseerrApi = new JellyseerrApi(
               recentPluginSettings.jellyseerrServerUrl.value,
               getIntegrationHeaders("jellyseerr"),

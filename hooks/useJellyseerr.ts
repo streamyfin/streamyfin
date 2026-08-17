@@ -99,6 +99,7 @@ export enum Endpoints {
   DISCOVER_TV_NETWORK = DISCOVER + TV + NETWORK,
   DISCOVER_MOVIES_STUDIO = `${DISCOVER}${MOVIE}s${STUDIO}`,
   AUTH_JELLYFIN = "/auth/jellyfin",
+  USER_JELLYFIN = `${USER}/jellyfin`,
 }
 
 export type DiscoverEndpoint =
@@ -120,8 +121,19 @@ export class JellyseerrApi {
   axios: AxiosInstance;
   /** Proxy auth headers for a Jellyseerr behind an access gateway. */
   private customHeaders: Record<string, string>;
+  /** Admin API key: authenticates every call without a session cookie. */
+  private apiKey?: string;
+  /**
+   * API-key calls act as the key's owner, so requests must carry the Seerr id
+   * of the signed-in user to be attributed to them.
+   */
+  actAsUserId?: number;
 
-  constructor(baseUrl: string, customHeaders?: Record<string, string>) {
+  constructor(
+    baseUrl: string,
+    customHeaders?: Record<string, string>,
+    apiKey?: string,
+  ) {
     this.axios = axios.create({
       baseURL: baseUrl,
       withCredentials: true,
@@ -129,6 +141,7 @@ export class JellyseerrApi {
       xsrfHeaderName: "XSRF-TOKEN",
     });
     this.customHeaders = customHeaders ?? {};
+    this.apiKey = apiKey;
 
     this.setInterceptors();
   }
@@ -205,6 +218,23 @@ export class JellyseerrApi {
       });
   }
 
+  /**
+   * Passwordless sign-in: resolve the Seerr account linked to a Jellyfin user
+   * through GET /user/jellyfin/{jellyfinUserId}. Needs the admin API key; the
+   * route 404s on Seerr servers that predate it.
+   */
+  async loginWithApiKey(jellyfinUserId: string): Promise<JellyseerrUser> {
+    return this.axios
+      .get<JellyseerrUser>(
+        `${Endpoints.API_V1}${Endpoints.USER_JELLYFIN}/${jellyfinUserId}`,
+      )
+      .then(({ data }) => {
+        if (!data) throw Error("Login failed");
+        storage.setAny(JELLYSEERR_USER, data);
+        return data;
+      });
+  }
+
   async discoverSettings(): Promise<DiscoverSlider[]> {
     return this.axios
       ?.get<DiscoverSlider[]>(
@@ -244,8 +274,12 @@ export class JellyseerrApi {
   }
 
   async request(request: MediaRequestBody): Promise<MediaRequest> {
+    const body =
+      this.apiKey && this.actAsUserId != null && request.userId == null
+        ? { ...request, userId: this.actAsUserId }
+        : request;
     return this.axios
-      ?.post<MediaRequest>(Endpoints.API_V1 + Endpoints.REQUEST, request)
+      ?.post<MediaRequest>(Endpoints.API_V1 + Endpoints.REQUEST, body)
       .then(({ data }) => data);
   }
 
@@ -429,6 +463,10 @@ export class JellyseerrApi {
           config.headers.set(key, value);
         }
 
+        if (this.apiKey) {
+          config.headers.set("X-Api-Key", this.apiKey);
+        }
+
         const cookies = storage.get<string[]>(JELLYSEERR_COOKIES);
         if (cookies) {
           const headerName = this.axios.defaults.xsrfHeaderName!;
@@ -458,20 +496,36 @@ export const useJellyseerr = () => {
 
   const jellyseerrApi = useMemo(() => {
     const cookies = storage.get<string[]>(JELLYSEERR_COOKIES);
-    if (settings?.jellyseerrServerUrl && cookies && jellyseerrUser) {
-      return new JellyseerrApi(
+    const apiKey = settings?.jellyseerrApiKey;
+    if (
+      settings?.jellyseerrServerUrl &&
+      jellyseerrUser &&
+      (cookies || apiKey)
+    ) {
+      const api = new JellyseerrApi(
         settings.jellyseerrServerUrl,
         getIntegrationHeaders("jellyseerr"),
+        apiKey,
       );
+      api.actAsUserId = jellyseerrUser.id;
+      return api;
     }
     return undefined;
     // customHeadersVersion: rebuild the client when the headers change.
-  }, [settings?.jellyseerrServerUrl, jellyseerrUser, customHeadersVersion]);
+  }, [
+    settings?.jellyseerrServerUrl,
+    settings?.jellyseerrApiKey,
+    jellyseerrUser,
+    customHeadersVersion,
+  ]);
 
   const clearAllJellyseerData = useCallback(async () => {
     clearJellyseerrStorageData();
     setJellyseerrUser(undefined);
-    updateSettings({ jellyseerrServerUrl: undefined });
+    updateSettings({
+      jellyseerrServerUrl: undefined,
+      jellyseerrApiKey: undefined,
+    });
   }, []);
 
   const requestMedia = useCallback(

@@ -364,6 +364,8 @@ export type Settings = {
   subtitleSize: number;
   safeAreaInControlsEnabled: boolean;
   jellyseerrServerUrl?: string;
+  /** Seerr admin API key: signs the user in via their Jellyfin ID, no password. */
+  jellyseerrApiKey?: string;
   /**
    * Sign in to Jellyseerr automatically on launch using the Jellyfin password.
    * Jellyseerr's /auth/jellyfin endpoint takes the password rather than the
@@ -495,6 +497,7 @@ export const defaultValues: Settings = {
   subtitleSize: 100, // Scale value * 100, so 100 = 1.0x
   safeAreaInControlsEnabled: true,
   jellyseerrServerUrl: undefined,
+  jellyseerrApiKey: undefined,
   autoLoginJellyseerr: true,
   useKefinTweaks: false,
   hiddenLibraries: [],
