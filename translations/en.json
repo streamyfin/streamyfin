@@ -701,6 +701,7 @@
     "an_error_occurred_while_playing_the_video": "An error occurred while playing the video. Check logs in settings.",
     "client_error": "Client error",
     "could_not_create_stream_for_chromecast": "Could not create a stream for Chromecast",
+    "chromecast_playback_failed": "Chromecast could not play this stream",
     "message_from_server": "Message from server: {{message}}",
     "next_episode": "Next episode",
     "continue_watching": "Continue watching",
