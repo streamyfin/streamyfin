@@ -2,8 +2,8 @@ import { beforeEach, describe, expect, mock, test } from "bun:test";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import type { TrackMenuRow } from "@/utils/subtitles/trackMenu";
 
-import { logMock } from "@/utils/testing/logMock";
-import { mmkvMock, mmkvStore } from "@/utils/testing/mmkvMock";
+import { logMock } from "./testing/logMock";
+import { mmkvMock, mmkvStore } from "./testing/mmkvMock";
 
 mock.module("react-native-mmkv", mmkvMock);
 mock.module("@/utils/log", logMock);
