@@ -29,8 +29,6 @@ export type { TVFilterButtonProps } from "./TVFilterButton";
 export { TVFilterButton } from "./TVFilterButton";
 export type { TVFocusablePosterProps } from "./TVFocusablePoster";
 export { TVFocusablePoster } from "./TVFocusablePoster";
-export type { TVItemCardTextProps } from "./TVItemCardText";
-export { TVItemCardText } from "./TVItemCardText";
 export type { TVLanguageCardProps } from "./TVLanguageCard";
 export { TVLanguageCard } from "./TVLanguageCard";
 export type { TVMetadataBadgesProps } from "./TVMetadataBadges";
