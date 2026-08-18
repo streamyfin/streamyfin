@@ -1,4 +1,4 @@
-// Hero Carousel - Native SwiftUI paged hero for the iOS home tab
+// Hero Carousel - Native paged hero for the home tab (SwiftUI + Compose)
 
 export * from "./src/HeroCarousel.types";
 export {

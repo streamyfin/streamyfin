@@ -8,7 +8,7 @@ import type { HeroCarouselViewProps } from "./HeroCarousel.types";
 // the image headers. Typed object/array props are applied natively with
 // `try? prop.set(...)`, so a conversion failure is swallowed and the view
 // silently renders empty; a string prop has no such failure mode, and the
-// same payload is what a future Android view would parse.
+// same payload is what both native views parse.
 type NativeProps = {
   payload: string;
   onItemPress?: HeroCarouselViewProps["onItemPress"];
@@ -17,14 +17,13 @@ type NativeProps = {
 };
 
 // The native side is a pure presentational view: JS passes prebuilt data
-// (image URLs, localized badge strings) and receives item ids back, so an
-// Android native view can be added under the same "HeroCarousel" name without
-// touching any JS. Phones/tablets only — the TV home has its own hero.
+// (image URLs, localized badge strings) and receives item ids back, which is
+// how SwiftUI and Jetpack Compose can both render it under the same
+// "HeroCarousel" name. Phones/tablets only — the TV home has its own hero.
 let NativeHeroCarouselView: React.ComponentType<NativeProps> | null = null;
 
 // requireOptionalNativeModule returns null instead of throwing when the
-// module isn't in this binary (old build, Expo Go, or a platform without a
-// native implementation yet — Android today).
+// module isn't in this binary (an old build, or Expo Go).
 if (!Platform.isTV && requireOptionalNativeModule("HeroCarousel")) {
   try {
     NativeHeroCarouselView = requireNativeView<NativeProps>("HeroCarousel");
@@ -38,6 +37,8 @@ if (!Platform.isTV && requireOptionalNativeModule("HeroCarousel")) {
  *
  * iOS 17+: SwiftUI paged ScrollView with interactive parallax and glass
  * info panels. iOS 15/16: paged TabView fallback with the same card design.
+ * Android: Jetpack Compose `HorizontalPager` with the same card design; the
+ * glass panels need Android 12+ and flatten to a solid tint below it.
  * Platforms without a native implementation render nothing.
  */
 const HeroCarouselView: React.FC<HeroCarouselViewProps> = ({
