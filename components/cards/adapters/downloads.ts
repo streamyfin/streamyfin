@@ -1,7 +1,6 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { getItemProgressPercentage } from "@/components/common/ProgressBar";
 import { storage } from "@/utils/mmkv";
-import { type CardData, cardSubtitle } from "../CardData";
+import { type CardData, cardSubtitle, itemProgressFraction } from "../CardData";
 
 /**
  * Downloaded artwork lives in MMKV as raw base64, keyed by item id — there is
@@ -31,7 +30,7 @@ export function buildDownloadedCards(items: BaseItemDto[]): CardData[] {
         title: item.Name ?? "",
         subtitle: cardSubtitle(item),
         imageUrl: localArtwork(item.Id),
-        progress: getItemProgressPercentage(item) / 100,
+        progress: itemProgressFraction(item),
       },
     ];
   });

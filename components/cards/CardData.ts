@@ -129,6 +129,27 @@ const isMovieOrEpisode = (item: BaseItemDto) =>
 const isAggregate = (item: BaseItemDto) =>
   item.Type === "Series" || item.Type === "BoxSet";
 
+/** Anything that holds other items rather than being watchable itself. */
+const isContainer = (item: BaseItemDto) =>
+  item.Type === "Series" ||
+  item.Type === "Season" ||
+  item.Type === "BoxSet" ||
+  item.Type === "Playlist" ||
+  item.Type === "Folder" ||
+  item.Type === "CollectionFolder" ||
+  item.Type === "UserView" ||
+  item.Type === "MusicAlbum" ||
+  item.Type === "MusicArtist";
+
+/**
+ * Watch progress in 0...1, or 0 for anything that isn't a single watchable
+ * thing. A container's PlayedPercentage describes some episode inside it, so a
+ * bar across a series card would be claiming something it can't know — how far
+ * through the series you are. The unplayed-episode badge says that instead.
+ */
+export const itemProgressFraction = (item: BaseItemDto): number =>
+  isContainer(item) ? 0 : getItemProgressPercentage(item) / 100;
+
 /**
  * Only these have a poster; an episode borrows its series', and a person has a
  * portrait headshot. Everything else a library can hold — albums, artists,
@@ -172,7 +193,7 @@ export function buildItemCards(
         ? getPortraitImageUrl({ api, item })
         : getWideImageUrl({ api, item, useEpisodePoster });
 
-    const progress = getItemProgressPercentage(item) / 100;
+    const progress = itemProgressFraction(item);
     // Strict === false: items without UserData (unknown state) get no dot.
     const unwatched = isMovieOrEpisode(item) && item.UserData?.Played === false;
     const unplayedCount =
