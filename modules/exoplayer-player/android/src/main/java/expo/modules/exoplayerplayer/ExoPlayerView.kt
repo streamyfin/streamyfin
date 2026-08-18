@@ -375,9 +375,12 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         // (2048 * 1024 * 1024 wraps negative). A negative byte target behaves
         // like the 0 case documented below — loading halts immediately — so
         // convert in Long and clamp to the largest representable value.
+        // Non-positive maxBytes (0 or -1) would likewise produce a 0 or
+        // negative target, so fall back to the positive default.
+        val mb = config.demuxerMaxBytes?.takeIf { it > 0 } ?: 150
         val targetBufferBytes =
             if (!cacheEnabled) C.LENGTH_UNSET
-            else ((config.demuxerMaxBytes ?: 150).toLong() * 1024 * 1024)
+            else (mb.toLong() * 1024 * 1024)
                 .coerceAtMost(Int.MAX_VALUE.toLong())
                 .toInt()
 
