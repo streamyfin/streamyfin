@@ -62,6 +62,12 @@ interface Props extends ViewProps {
   onPressItem?: (item: BaseItemDto) => void;
   /** Press handler for `cards` mode. */
   onPressId?: (id: string) => void;
+  /** Replaces the long-press action sheet (items mode). */
+  onLongPressItem?: (item: BaseItemDto) => void;
+  /** Long-press handler for `cards` mode. */
+  onLongPressId?: (id: string) => void;
+  /** Drawn at the end of the heading — a count pill, a small action. */
+  headerAccessory?: React.ReactNode;
   /**
    * Long press opens the played/favorite sheet (items mode). Off by default —
    * a row only gets it where the screen it replaced had it, so converting a
@@ -96,6 +102,9 @@ export const CardRow: React.FC<Props> = ({
   hideIfEmpty = false,
   onPressItem,
   onPressId,
+  onLongPressItem,
+  onLongPressId,
+  headerAccessory,
   enableActionSheet = false,
   ...props
 }) => {
@@ -108,6 +117,8 @@ export const CardRow: React.FC<Props> = ({
       selectedId,
       onPressItem,
       onPressId,
+      onLongPressItem,
+      onLongPressId,
       enableActionSheet,
     });
 
@@ -164,6 +175,7 @@ export const CardRow: React.FC<Props> = ({
           actionLabel={seeAllLabel}
           actionDisabled={loading}
           onPressAction={onPressSeeAll}
+          accessory={headerAccessory}
         />
       )}
 

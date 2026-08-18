@@ -35,6 +35,9 @@ export const CardArtwork: React.FC<Props> = ({
 }) => {
   const progress = Math.min(Math.max(card.progress ?? 0, 0), 1);
   const unplayed = card.unplayedCount ?? 0;
+  const badgeLabel =
+    card.badgeLabel ??
+    (unplayed > 0 ? (unplayed >= 1000 ? "1k+" : `${unplayed}`) : null);
 
   return (
     <View
@@ -82,7 +85,7 @@ export const CardArtwork: React.FC<Props> = ({
         </View>
       )}
 
-      {unplayed > 0 ? (
+      {badgeLabel ? (
         <View
           style={{
             position: "absolute",
@@ -97,9 +100,7 @@ export const CardArtwork: React.FC<Props> = ({
             backgroundColor: Colors.primary,
           }}
         >
-          <Text style={{ fontSize: 11, fontWeight: "700" }}>
-            {unplayed >= 1000 ? "1k+" : unplayed}
-          </Text>
+          <Text style={{ fontSize: 11, fontWeight: "700" }}>{badgeLabel}</Text>
         </View>
       ) : (
         card.unwatched && (

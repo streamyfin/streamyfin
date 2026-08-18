@@ -25,6 +25,8 @@ type Options = {
   onPressId?: (id: string) => void;
   /** Replaces the long-press action sheet (items mode). */
   onLongPressItem?: (item: BaseItemDto) => void;
+  /** Long-press handler for `cards` mode. */
+  onLongPressId?: (id: string) => void;
   /** Long press opens the played/favorite sheet (items mode). Default: off. */
   enableActionSheet?: boolean;
 };
@@ -43,6 +45,7 @@ export function useItemCardBehavior({
   onPressItem,
   onPressId,
   onLongPressItem,
+  onLongPressId,
   enableActionSheet = false,
 }: Options) {
   const api = useAtomValue(apiAtom);
@@ -95,6 +98,11 @@ export function useItemCardBehavior({
 
   const handleLongPress = useCallback(
     (id: string) => {
+      if (onLongPressId) {
+        onLongPressId(id);
+        return;
+      }
+
       const item = items?.find((i) => i.Id === id);
       if (!item) return;
 
@@ -105,7 +113,7 @@ export function useItemCardBehavior({
 
       setActionSheetItem(item);
     },
-    [items, onLongPressItem],
+    [items, onLongPressId, onLongPressItem],
   );
 
   const closeActionSheet = useCallback(() => setActionSheetItem(null), []);
@@ -113,7 +121,8 @@ export function useItemCardBehavior({
   // Only media items have a played/favorite state to act on — but a screen
   // that handles the long press itself always gets it.
   const allowLongPress =
-    Boolean(items) && (Boolean(onLongPressItem) || enableActionSheet);
+    Boolean(onLongPressId) ||
+    (Boolean(items) && (Boolean(onLongPressItem) || enableActionSheet));
 
   return {
     cards,

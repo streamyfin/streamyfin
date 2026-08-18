@@ -18,6 +18,11 @@ export type CardData = {
   /** Episodes left on a series/box set — draws the count badge when > 0. */
   unplayedCount?: number;
   /**
+   * Text for the corner pill when it isn't an unplayed count — the number of
+   * downloaded episodes, say. Takes precedence over `unplayedCount`.
+   */
+  badgeLabel?: string | null;
+  /**
    * A third line, after the subtitle — a runtime, a file size. Only a string
    * derivable from the item belongs here; anything that has to subscribe to
    * something is a slot the screen fills in.
@@ -107,6 +112,18 @@ export const cardRowHeight = (kind: CardKind) => {
   return cardWidth / aspectRatio + verticalPadding * 2;
 };
 
+/**
+ * The second line under a title: which episode this is, or when it came out.
+ * Exported so anything building cards outside `buildItemCards` — the offline
+ * downloads, say — labels an item the same way.
+ */
+export const cardSubtitle = (item: BaseItemDto): string | null => {
+  if (item.Type === "Episode") {
+    return `S${item.ParentIndexNumber}:E${item.IndexNumber} - ${item.SeriesName ?? ""}`;
+  }
+  return item.ProductionYear ? String(item.ProductionYear) : null;
+};
+
 const isMovieOrEpisode = (item: BaseItemDto) =>
   item.Type === "Movie" || item.Type === "Episode";
 const isAggregate = (item: BaseItemDto) =>
@@ -147,13 +164,7 @@ export function buildItemCards(
   return items.flatMap((item) => {
     if (!item.Id) return [];
 
-    // The two lines ItemCardText shows.
-    const subtitle =
-      item.Type === "Episode"
-        ? `S${item.ParentIndexNumber}:E${item.IndexNumber} - ${item.SeriesName ?? ""}`
-        : item.ProductionYear
-          ? String(item.ProductionYear)
-          : null;
+    const subtitle = cardSubtitle(item);
 
     const unplayed = item.UserData?.UnplayedItemCount ?? 0;
     const imageUrl =
