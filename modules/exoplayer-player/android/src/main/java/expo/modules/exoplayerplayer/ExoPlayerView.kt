@@ -371,12 +371,22 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         val minBufferMs = minOf(defaultMinBufferMs, targetBufferMs)
             .coerceAtLeast(defaultBufferForPlaybackAfterRebufferMs)
 
+        // demuxerMaxBytes is in MiB; multiplying in Int overflows at 2048 MiB
+        // (2048 * 1024 * 1024 wraps negative). A negative byte target behaves
+        // like the 0 case documented below — loading halts immediately — so
+        // convert in Long and clamp to the largest representable value.
+        val targetBufferBytes =
+            if (!cacheEnabled) C.LENGTH_UNSET
+            else ((config.demuxerMaxBytes ?: 150).toLong() * 1024 * 1024)
+                .coerceAtMost(Int.MAX_VALUE.toLong())
+                .toInt()
+
         val builder = DefaultLoadControl.Builder()
             // C.LENGTH_UNSET lets ExoPlayer auto-derive the byte target from the
             // selected tracks. A literal 0 makes targetBufferSizeReached true on
             // the first allocation (prioritizeTimeOverSizeThresholds is false),
             // so loading halts with <500ms buffered and playback starves.
-            .setTargetBufferBytes(if (!cacheEnabled) C.LENGTH_UNSET else ((config.demuxerMaxBytes ?: 150) * 1024 * 1024))
+            .setTargetBufferBytes(targetBufferBytes)
             .setBufferDurationsMs(
                 /* minBufferMs = */ minBufferMs,
                 /* maxBufferMs = */ targetBufferMs,
