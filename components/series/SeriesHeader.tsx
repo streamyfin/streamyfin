@@ -60,7 +60,7 @@ export const SeriesHeader = ({ item }: Props) => {
         // text's box, and whatever follows is laid out against the box.
         <Text
           className='opacity-50'
-          style={{ lineHeight: 20, marginBottom: 8 }}
+          style={{ lineHeight: 20, marginBottom: 16 }}
         >
           {yearString}
         </Text>
