@@ -53,12 +53,14 @@ export const SeriesHeader = ({ item }: Props) => {
   return (
     <View className='px-4 py-4'>
       <Text className='text-3xl font-bold'>{item?.Name}</Text>
-      <Text className=''>{yearString}</Text>
+      {Boolean(yearString) && (
+        <Text className='opacity-50 mb-1'>{yearString}</Text>
+      )}
       <View className='flex flex-row items-center justify-between'>
         <Ratings item={item} className='mb-2' />
         <ItemActions item={item} />
       </View>
-      <Text className=''>{item?.Overview}</Text>
+      <Text>{item?.Overview}</Text>
     </View>
   );
 };
