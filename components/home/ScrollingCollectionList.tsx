@@ -58,6 +58,7 @@ export const ScrollingCollectionList: React.FC<Props> = ({
   return (
     <View ref={ref} onLayout={onLayout} {...props}>
       <CardRow
+        enableActionSheet
         title={title}
         kind={orientation === "horizontal" ? "wide" : "portrait"}
         items={data ?? []}

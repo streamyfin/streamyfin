@@ -43,6 +43,7 @@ export const SimilarItems: React.FC<SimilarItemsProps> = ({
 
   return (
     <CardRow
+      enableActionSheet
       {...props}
       title={t("item_card.similar_items")}
       kind='portrait'

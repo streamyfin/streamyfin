@@ -112,7 +112,11 @@ export default function FavoritesSeeAllScreen() {
     return 6;
   }, [screenWidth]);
 
-  const grid = useCardGrid({ items: flatData, columns: nrOfCols });
+  const grid = useCardGrid({
+    items: flatData,
+    columns: nrOfCols,
+    enableActionSheet: true,
+  });
 
   const handleEndReached = useCallback(() => {
     if (hasNextPage) {

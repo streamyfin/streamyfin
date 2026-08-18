@@ -25,7 +25,7 @@ type Options = {
   onPressId?: (id: string) => void;
   /** Replaces the long-press action sheet (items mode). */
   onLongPressItem?: (item: BaseItemDto) => void;
-  /** Long press opens the played/favorite sheet (items mode). */
+  /** Long press opens the played/favorite sheet (items mode). Default: off. */
   enableActionSheet?: boolean;
 };
 
@@ -43,7 +43,7 @@ export function useItemCardBehavior({
   onPressItem,
   onPressId,
   onLongPressItem,
-  enableActionSheet = true,
+  enableActionSheet = false,
 }: Options) {
   const api = useAtomValue(apiAtom);
   const router = useRouter();

@@ -512,7 +512,11 @@ const Page = () => {
     }
   }, [isFetching, flatData]);
 
-  const grid = useCardGrid({ items: flatData, columns: nrOfCols });
+  const grid = useCardGrid({
+    items: flatData,
+    columns: nrOfCols,
+    enableActionSheet: true,
+  });
 
   const renderTVItem = useCallback(
     (item: BaseItemDto) => {

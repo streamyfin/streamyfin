@@ -30,6 +30,7 @@ export const NextUp: React.FC<{ seriesId: string }> = ({ seriesId }) => {
 
   return (
     <CardRow
+      enableActionSheet
       title={t("item_card.next_up")}
       kind='wide'
       items={items ?? []}

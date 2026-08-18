@@ -57,6 +57,21 @@ export function useCardGrid({
     return Math.floor(available / safeColumns);
   }, [width, insets.left, insets.right, columns, layout]);
 
+  // A library can mix poster art with square album art, and a grid row is as
+  // tall as its tallest cell — so without a common height the short cards
+  // leave ragged gaps. Reserve the tallest card's height for every cell and
+  // let the shorter ones sit at the top of it. A grid of one shape (the usual
+  // case) reserves exactly that shape and wastes nothing.
+  const cellHeight = useMemo(() => {
+    if (cards.length === 0) return cardWidth / layout.aspectRatio;
+    // A smaller ratio is a taller card.
+    const tallest = cards.reduce(
+      (min, card) => Math.min(min, card.aspectRatio ?? layout.aspectRatio),
+      Number.POSITIVE_INFINITY,
+    );
+    return cardWidth / tallest;
+  }, [cards, cardWidth, layout.aspectRatio]);
+
   // A column is wider than the card it holds, so each card is nudged within
   // its column to land on the row inset and keep even gutters. Doing it here
   // rather than padding the list keeps a header spanning the full width.
@@ -74,7 +89,13 @@ export function useCardGrid({
 
   const renderItem = useCallback(
     ({ item, index }: { item: CardData; index: number }) => (
-      <View style={{ width: "100%", paddingLeft: columnOffset(index) }}>
+      <View
+        style={{
+          width: "100%",
+          height: cellHeight,
+          paddingLeft: columnOffset(index),
+        }}
+      >
         <Card
           card={item}
           kind={kind}
@@ -86,7 +107,7 @@ export function useCardGrid({
         />
       </View>
     ),
-    [cardWidth, columnOffset, kind, handlePress, handleLongPress],
+    [cardWidth, cellHeight, columnOffset, kind, handlePress, handleLongPress],
   );
 
   const keyExtractor = useCallback((card: CardData) => card.id, []);

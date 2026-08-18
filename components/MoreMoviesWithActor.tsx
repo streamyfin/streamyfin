@@ -58,6 +58,7 @@ export const MoreMoviesWithActor: React.FC<Props> = ({
 
   return (
     <CardRow
+      enableActionSheet
       {...props}
       title={t("item_card.more_with", { name: actorName ?? "" })}
       kind='portrait'

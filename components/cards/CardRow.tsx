@@ -1,6 +1,6 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { FlashList, type FlashListRef } from "@shopify/flash-list";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, View, type ViewProps } from "react-native";
 import { SectionHeader } from "@/components/common/SectionHeader";
 import { Text } from "@/components/common/Text";
@@ -48,7 +48,11 @@ interface Props extends ViewProps {
   onPressItem?: (item: BaseItemDto) => void;
   /** Press handler for `cards` mode. */
   onPressId?: (id: string) => void;
-  /** Long press opens the played/favorite sheet (items mode). Default: true. */
+  /**
+   * Long press opens the played/favorite sheet (items mode). Off by default —
+   * a row only gets it where the screen it replaced had it, so converting a
+   * row never adds an affordance behind the user's back.
+   */
   enableActionSheet?: boolean;
 }
 
@@ -75,7 +79,7 @@ export const CardRow: React.FC<Props> = ({
   hideIfEmpty = false,
   onPressItem,
   onPressId,
-  enableActionSheet = true,
+  enableActionSheet = false,
   ...props
 }) => {
   const { cards, handlePress, handleLongPress, actionSheet } =
@@ -96,17 +100,25 @@ export const CardRow: React.FC<Props> = ({
   // — both for snapping and for bringing one into view.
   const stride = layout.cardWidth + layout.spacing;
 
+  // Scrolling before the list has measured is silently ignored, so the request
+  // waits for the first content-size report rather than for a timeout.
+  const [isMeasured, setIsMeasured] = useState(false);
+  const handleContentSizeChange = useCallback((width: number) => {
+    if (width > 0) setIsMeasured(true);
+  }, []);
+
   // Only act on a *change* of scrollToId, so bringing a card into view never
   // fights the user's own scrolling on an unrelated re-render.
   const scrolledToId = useRef<string | null>(null);
   useEffect(() => {
-    if (!scrollToId || scrollToId === scrolledToId.current) return;
+    if (!isMeasured || !scrollToId || scrollToId === scrolledToId.current)
+      return;
     const index = cards.findIndex((card) => card.id === scrollToId);
     // The cards may not have arrived yet; this runs again when they do.
     if (index < 0) return;
     scrolledToId.current = scrollToId;
     listRef.current?.scrollToOffset({ offset: index * stride, animated: true });
-  }, [scrollToId, cards, stride]);
+  }, [isMeasured, scrollToId, cards, stride]);
 
   const renderCard = useCallback(
     ({ item }: { item: CardData }) => (
@@ -159,6 +171,7 @@ export const CardRow: React.FC<Props> = ({
             decelerationRate='fast'
             onEndReached={onEndReached}
             onEndReachedThreshold={0.5}
+            onContentSizeChange={handleContentSizeChange}
             ItemSeparatorComponent={() => (
               <View style={{ width: layout.spacing }} />
             )}

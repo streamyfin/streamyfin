@@ -262,7 +262,11 @@ const page: React.FC = () => {
     );
   }, [data]);
 
-  const grid = useCardGrid({ items: flatData, columns: nrOfCols });
+  const grid = useCardGrid({
+    items: flatData,
+    columns: nrOfCols,
+    enableActionSheet: true,
+  });
 
   const keyExtractor = useCallback((item: BaseItemDto) => item.Id || "", []);
 

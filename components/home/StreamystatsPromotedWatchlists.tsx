@@ -88,6 +88,7 @@ const WatchlistSection: React.FC<WatchlistSectionProps> = ({
 
   return (
     <CardRow
+      enableActionSheet
       {...props}
       title={watchlist.name}
       seeAllLabel={t("common.seeAll", { defaultValue: "See all" })}

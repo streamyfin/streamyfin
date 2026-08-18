@@ -667,30 +667,35 @@ export default function SearchPage() {
         {searchType === "Library" ? (
           <View className={l1 || l2 ? "opacity-0" : "opacity-100"}>
             <CardRow
+              enableActionSheet
               title={t("search.movies")}
               items={movies ?? []}
               kind='portrait'
               hideIfEmpty
             />
             <CardRow
+              enableActionSheet
               title={t("search.series")}
               items={series ?? []}
               kind='portrait'
               hideIfEmpty
             />
             <CardRow
+              enableActionSheet
               title={t("search.episodes")}
               items={episodes ?? []}
               kind='wide'
               hideIfEmpty
             />
             <CardRow
+              enableActionSheet
               title={t("search.collections")}
               items={collections ?? []}
               kind='portrait'
               hideIfEmpty
             />
             <CardRow
+              enableActionSheet
               title={t("search.actors")}
               items={actors ?? []}
               kind='portrait'

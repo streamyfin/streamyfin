@@ -92,15 +92,17 @@ const isAggregate = (item: BaseItemDto) =>
   item.Type === "Series" || item.Type === "BoxSet";
 
 /**
- * Only these have a poster; an episode borrows its series'. Everything else a
- * library can hold — albums, artists, playlists, folders — has square artwork,
- * and stretching it to 10:15 would crop the cover.
+ * Only these have a poster; an episode borrows its series', and a person has a
+ * portrait headshot. Everything else a library can hold — albums, artists,
+ * playlists, folders — has square artwork, and stretching it to 10:15 would
+ * crop the cover.
  */
 const hasPortraitArtwork = (item: BaseItemDto) =>
   item.Type === "Movie" ||
   item.Type === "Series" ||
   item.Type === "BoxSet" ||
-  item.Type === "Episode";
+  item.Type === "Episode" ||
+  item.Type === "Person";
 
 type BuildOptions = {
   api?: Api | null;

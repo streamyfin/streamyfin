@@ -138,6 +138,7 @@ export const StreamystatsRecommendations: React.FC<Props> = ({
   if (isError) return null;
   return (
     <CardRow
+      enableActionSheet
       {...props}
       title={title}
       kind='portrait'

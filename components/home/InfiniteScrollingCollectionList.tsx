@@ -103,6 +103,7 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
 
   return (
     <CardRow
+      enableActionSheet
       {...props}
       title={title}
       kind={orientation === "horizontal" ? "wide" : "portrait"}
