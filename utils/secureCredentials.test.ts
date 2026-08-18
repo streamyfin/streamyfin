@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 
+import { logMock } from "./testing/logMock";
 import { mmkvMock, mmkvStore } from "./testing/mmkvMock";
 
+mock.module("@/utils/log", logMock);
 mock.module("react-native-mmkv", mmkvMock);
 
 import { secureStoreMock, secureStoreValues } from "./testing/secureStoreMock";

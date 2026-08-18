@@ -2,20 +2,11 @@ import { beforeEach, describe, expect, mock, test } from "bun:test";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import type { TrackMenuRow } from "@/utils/subtitles/trackMenu";
 
+import { logMock } from "@/utils/testing/logMock";
 import { mmkvMock, mmkvStore } from "@/utils/testing/mmkvMock";
 
 mock.module("react-native-mmkv", mmkvMock);
-// Bun's mock.module retroactively re-links every module already importing the
-// specifier, so a log mock must cover the module's full function surface —
-// a missing name breaks OTHER test files' modules that import it.
-mock.module("@/utils/log", () => ({
-  writeToLog: () => undefined,
-  writeInfoLog: () => undefined,
-  writeErrorLog: () => undefined,
-  writeDebugLog: () => undefined,
-  logAndCaptureError: () => undefined,
-  readFromLog: () => [],
-}));
+mock.module("@/utils/log", logMock);
 
 const { getSeriesTrackMemory, rememberSeriesTrackFromRow } = await import(
   "./seriesTrackMemory"
