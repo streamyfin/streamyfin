@@ -263,13 +263,31 @@ final class MPVLayerRenderer {
         checkError(mpv_set_option_string(handle, "target-colorspace-hint", "yes"))
         #endif
 
-        // Audio output: with Atmos "Continuous Audio Output" enabled, some HDMI
-        // routes report 32 output channels, which the audiounit AO cannot open -
-        // playback stays silent. Prefer the avfoundation AO
-        // (AVSampleBufferAudioRenderer), which handles these routes, with
-        // audiounit as fallback if it fails to initialize. iOS is unchanged.
+        // Audio output: pin tvOS to audiounit. Do NOT reach for the
+        // avfoundation AO here - it is a macOS-oriented driver, and the audio
+        // clock it hands mpv is what video timing is scheduled against:
+        //
+        //   ao_read_data(ao, data, n, end_time_av - cur_time_av + cur_time_mp + dt, ...)
+        //
+        // That anchor is polled off [AVSampleBufferRenderSynchronizer currentTime]
+        // and carries no device-latency term at all. On a real Apple TV the HDMI
+        // route adds tens of ms of unmodelled output latency and currentTime is
+        // coarse, so the anchor is both offset and noisy at the feed rate
+        // (samplerate/10, ~100ms chunks) - video stalls, stutters, then jumps on
+        // the correction. audiounit instead anchors off the hardware
+        // AudioTimeStamp per render callback plus AVAudioSession output latency,
+        // which is stable over HDMI. The simulator hides all of this: ~0 output
+        // latency and a fine-grained device clock, so avfoundation looks fine
+        // there and only fails on device.
+        //
+        // This leaves #1970 (silence on HDMI routes reporting 32 output channels
+        // with Atmos "Continuous Audio Output") unfixed. That one is a real bug
+        // in ao_audiounit.m, which adopts the hardware layout wholesale -
+        // `ao->channels.num = layout->mNumberChannelDescriptions` with speaker IDs
+        // that come back unknown - and it needs a clamp in the MPVKit fork, not
+        // a different AO. iOS is unchanged.
         #if os(tvOS)
-        checkError(mpv_set_option_string(handle, "ao", "avfoundation,audiounit"))
+        checkError(mpv_set_option_string(handle, "ao", "audiounit"))
         #endif
 
         // Subtitle and audio settings
