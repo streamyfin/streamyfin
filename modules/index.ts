@@ -12,6 +12,16 @@ export { ExoPlayerView } from "./exoplayer-player";
 // Glass Poster (tvOS 26+)
 export type { GlassPosterViewProps } from "./glass-poster";
 export { GlassPosterView, isGlassEffectAvailable } from "./glass-poster";
+// Hero Carousel (iOS home tab)
+export type {
+  HeroCarouselFilterOption,
+  HeroCarouselFilterSection,
+  HeroCarouselFilterToggleEvent,
+  HeroCarouselItem,
+  HeroCarouselItemPressEvent,
+  HeroCarouselViewProps,
+} from "./hero-carousel";
+export { HeroCarouselView, isHeroCarouselAvailable } from "./hero-carousel";
 // MPV Player (iOS + Android)
 // Presented native player (iOS + Android phone/tablet)
 export type {

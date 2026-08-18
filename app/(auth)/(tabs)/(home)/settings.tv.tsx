@@ -1164,10 +1164,10 @@ export default function SettingsTV() {
             onToggle={(value) => updateSettings({ showHomeBackdrop: value })}
           />
           <TVSettingsToggle
-            disabledByAdmin={pluginSettings?.showTVHeroCarousel?.locked}
+            disabledByAdmin={pluginSettings?.showHeroCarousel?.locked}
             label={t("home.settings.appearance.show_hero_carousel")}
-            value={settings.showTVHeroCarousel}
-            onToggle={(value) => updateSettings({ showTVHeroCarousel: value })}
+            value={settings.showHeroCarousel}
+            onToggle={(value) => updateSettings({ showHeroCarousel: value })}
           />
           <TVSettingsToggle
             disabledByAdmin={pluginSettings?.showSeriesPosterOnEpisode?.locked}

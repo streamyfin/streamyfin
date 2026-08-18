@@ -44,6 +44,21 @@ export const AppearanceSettings: React.FC = () => {
             }
           />
         </ListItem>
+        {Platform.OS === "ios" && (
+          <ListItem
+            title={t("home.settings.appearance.show_hero_carousel")}
+            subtitle={t("home.settings.appearance.show_hero_carousel_hint")}
+            disabled={pluginSettings?.showHeroCarousel?.locked}
+          >
+            <SettingSwitch
+              value={settings.showHeroCarousel}
+              disabled={pluginSettings?.showHeroCarousel?.locked}
+              onValueChange={(value) =>
+                updateSettings({ showHeroCarousel: value })
+              }
+            />
+          </ListItem>
+        )}
         <ListItem
           title={t("home.settings.appearance.merge_next_up_continue_watching")}
           subtitle={t(

@@ -334,6 +334,11 @@ export enum InactivityTimeout {
 export type MpvCacheMode = "auto" | "yes" | "no";
 export type MpvVoDriver = "gpu-next" | "gpu";
 
+/** Content groups that can appear in the home hero carousel. */
+export type HomeHeroSection = "continueWatching" | "nextUp" | "recentlyAdded";
+/** Media kinds that can appear in the home hero carousel. */
+export type HomeHeroMediaType = "movie" | "tv";
+
 export type Settings = {
   home?: Home | null;
   deviceProfile?: "Expo" | "Native" | "Old";
@@ -417,6 +422,14 @@ export type Settings = {
   hideBrightnessSlider: boolean;
   usePopularPlugin: boolean;
   mergeNextUpAndContinueWatching: boolean;
+  /**
+   * Home hero carousel filters. Both are "hidden" lists, so an empty list
+   * (the default) shows everything, and they combine: hiding the
+   * "recentlyAdded" group and the "movie" media type leaves only
+   * continue-watching and next-up episodes.
+   */
+  hiddenHomeHeroSections?: HomeHeroSection[];
+  hiddenHomeHeroMediaTypes?: HomeHeroMediaType[];
   // Use the episode's own image (instead of the series thumb) for the
   // "Next Up" and "Continue Watching" home rows.
   useEpisodeImagesForNextUp: boolean;
@@ -426,7 +439,12 @@ export type Settings = {
   /** Android TV only: use the fully-native Android TV player (opt-in; default off). */
   nativeVideoPlayerAndroidTV?: boolean;
   showHomeBackdrop: boolean;
-  showTVHeroCarousel: boolean;
+  /**
+   * The home hero carousel, on every platform — the TV one and the iOS one
+   * are the same feature and share this single switch. Stored values from
+   * the old TV-only `showTVHeroCarousel` key are migrated in `loadSettings`.
+   */
+  showHeroCarousel: boolean;
   tvTypographyScale: TVTypographyScale;
   showSeriesPosterOnEpisode: boolean;
   tvThemeMusicEnabled: boolean;
@@ -569,12 +587,14 @@ export const defaultValues: Settings = {
   hideBrightnessSlider: false,
   usePopularPlugin: true,
   mergeNextUpAndContinueWatching: false,
+  hiddenHomeHeroSections: [],
+  hiddenHomeHeroMediaTypes: [],
   useEpisodeImagesForNextUp: false,
   // TV-specific settings
   nativeVideoPlayerTV: true,
   nativeVideoPlayerAndroidTV: false,
   showHomeBackdrop: true,
-  showTVHeroCarousel: true,
+  showHeroCarousel: true,
   tvTypographyScale: TVTypographyScale.Default,
   showSeriesPosterOnEpisode: false,
   tvThemeMusicEnabled: true,
@@ -598,8 +618,21 @@ export const defaultValues: Settings = {
   sentryEnabled: true,
 };
 
-const loadSettings = (): Partial<Settings> =>
-  readStoredSettings() as Partial<Settings>;
+const loadSettings = (): Partial<Settings> => {
+  const stored = readStoredSettings() as Partial<Settings> & {
+    showTVHeroCarousel?: boolean;
+  };
+  // `showTVHeroCarousel` became `showHeroCarousel` once the hero shipped on
+  // phones too and the two were merged into one switch. Carry a stored TV
+  // preference across so a hero someone had turned off stays off.
+  if (
+    stored.showHeroCarousel === undefined &&
+    stored.showTVHeroCarousel !== undefined
+  ) {
+    return { ...stored, showHeroCarousel: stored.showTVHeroCarousel };
+  }
+  return stored;
+};
 
 const EXCLUDE_FROM_SAVE = ["home"];
 
@@ -619,9 +652,34 @@ const saveSettings = (settings: Settings) => {
 };
 
 export const settingsAtom = atom<Partial<Settings> | null>(null);
+
+/**
+ * Server-side counterpart to the `showTVHeroCarousel` migration in
+ * `loadSettings`: the Streamyfin plugin config still keys the hero switch
+ * under the old name, so alias it or an admin's existing lock and default
+ * would quietly stop being enforced after the rename.
+ */
+const migratePluginSettings = (
+  settings: PluginLockableSettings | undefined,
+): PluginLockableSettings | undefined => {
+  if (!settings) {
+    return settings;
+  }
+  const legacy = (settings as Record<string, unknown>).showTVHeroCarousel;
+  if (settings.showHeroCarousel !== undefined || legacy === undefined) {
+    return settings;
+  }
+  return {
+    ...settings,
+    showHeroCarousel: legacy as PluginLockableSettings["showHeroCarousel"],
+  };
+};
+
 const loadPluginSettings = () => {
   try {
-    return storage.get<PluginLockableSettings>(STREAMYFIN_PLUGIN_SETTINGS);
+    return migratePluginSettings(
+      storage.get<PluginLockableSettings>(STREAMYFIN_PLUGIN_SETTINGS),
+    );
   } catch (error) {
     // Without the plugin settings the server admin's policy is not applied.
     logAndCaptureError("Loading plugin settings failed", error);
@@ -674,8 +732,9 @@ export const useSettings = () => {
 
   const setPluginSettings = useCallback(
     (settings: PluginLockableSettings | undefined) => {
-      storage.setAny(STREAMYFIN_PLUGIN_SETTINGS, settings);
-      _setPluginSettings(settings);
+      const migrated = migratePluginSettings(settings);
+      storage.setAny(STREAMYFIN_PLUGIN_SETTINGS, migrated);
+      _setPluginSettings(migrated);
     },
     [_setPluginSettings],
   );

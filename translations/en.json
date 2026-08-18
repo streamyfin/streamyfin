@@ -111,9 +111,17 @@
     "continue": "Continue",
     "next_up": "Next up",
     "continue_and_next_up": "Continue & Next up",
+    "recently_added": "Recently added",
     "recently_added_in": "Recently added in {{libraryName}}",
     "suggested_movies": "Suggested movies",
     "suggested_episodes": "Suggested episodes",
+    "hero": {
+      "filter": "Filter",
+      "groups": "Groups",
+      "media": "Media",
+      "tv_shows": "TV shows",
+      "disable": "Disable hero"
+    },
     "intro": {
       "welcome_to_streamyfin": "Welcome to Streamyfin",
       "a_free_and_open_source_client_for_jellyfin": "A free and open-source client for Jellyfin.",
@@ -162,6 +170,7 @@
         "hide_remote_session_button_hint": "Hide the remote-sessions button from the home header.",
         "show_home_backdrop": "Dynamic home backdrop",
         "show_hero_carousel": "Hero carousel",
+        "show_hero_carousel_hint": "Show the large swipeable carousel at the top of the home screen.",
         "show_series_poster_on_episode": "Show series poster on episodes",
         "theme_music": "Theme music",
         "display_size": "Display size",

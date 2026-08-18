@@ -22,6 +22,7 @@ State/Data:
 - `mark-as-played-flow` | PlayedStatus→useMarkAsPlayed→playbackManager with optimistic updates
 
 Native Modules:
+- `expo-view-props-fail-silently` | `try? prop.set()` drops failed prop conversions with NO error; use a JSON string prop
 - `mpv-tvos-player-exit-freeze` | mpv_terminate_destroy deadlocks main thread; use DispatchQueue.global()
 - `mpv-avfoundation-composite-osd-ordering` | MUST follow vo=avfoundation, before hwdec options
 - `thread-safe-state-for-stop-flags` | Stop flags need synchronous setter (stateQueue.sync not async)
