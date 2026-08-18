@@ -13,6 +13,21 @@ const SENTRY_DSN =
   process.env.EXPO_PUBLIC_SENTRY_DSN ??
   "https://5c548edf47663532bb529ba72b2ddbb1@o4509610343596032.ingest.de.sentry.io/4509610370728016";
 
+// Dev builds stay out of Sentry entirely. Their frames carry local absolute
+// paths — the developer's username and worktree layout — Metro reloads throw
+// errors that no user will ever hit, and the same bug grouped under a handful
+// of different local paths fragments into separate issues that then compete
+// with real reports. Tagging the environment isn't enough: the event still
+// leaves the device and still lands in the project's issue stream.
+//
+// Set EXPO_PUBLIC_SENTRY_DEBUG=1 to smoke-test the pipeline from a dev build;
+// those events report under the "development" environment.
+export const sentryDebugInDev = process.env.EXPO_PUBLIC_SENTRY_DEBUG === "1";
+
+// Read at call time rather than module scope so the gate is observable in
+// tests, which drive __DEV__ per case.
+const reportsFromThisBuild = (): boolean => !__DEV__ || sentryDebugInDev;
+
 let initialized = false;
 
 /**
@@ -128,7 +143,7 @@ const NATIVE_SDK_OPTIONS = {
 } as Partial<Parameters<typeof Sentry.init>[0]>;
 
 const initializeSentry = () => {
-  if (initialized || !SENTRY_DSN) return;
+  if (initialized || !SENTRY_DSN || !reportsFromThisBuild()) return;
   initialized = true;
   try {
     // Build-identity tags so an event can be pinned to an exact source state.
