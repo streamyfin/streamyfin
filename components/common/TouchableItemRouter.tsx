@@ -1,18 +1,13 @@
-import { useActionSheet } from "@expo/react-native-action-sheet";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { useSegments } from "expo-router";
 import { type PropsWithChildren, useCallback } from "react";
-import { useTranslation } from "react-i18next";
 import {
   Platform,
   TouchableOpacity,
   type TouchableOpacityProps,
 } from "react-native";
 import useRouter from "@/hooks/useAppRouter";
-import { useFavorite } from "@/hooks/useFavorite";
-import { useMarkAsPlayed } from "@/hooks/useMarkAsPlayed";
-import { useDownload } from "@/providers/DownloadProvider";
-import { useOfflineMode } from "@/providers/OfflineModeProvider";
+import { useItemActionSheet } from "@/hooks/useItemActionSheet";
 
 interface Props extends TouchableOpacityProps {
   item: BaseItemDto;
@@ -150,14 +145,9 @@ export const TouchableItemRouter: React.FC<PropsWithChildren<Props>> = ({
   children,
   ...props
 }) => {
-  const { t } = useTranslation();
   const segments = useSegments();
-  const { showActionSheetWithOptions } = useActionSheet();
-  const markAsPlayedStatus = useMarkAsPlayed([item]);
-  const { isFavorite, toggleFavorite } = useFavorite(item);
   const router = useRouter();
-  const isOffline = useOfflineMode();
-  const { deleteFile } = useDownload();
+  const showActionSheet = useItemActionSheet(item);
 
   const from = (segments as string[])[2] || "(home)";
 
@@ -172,59 +162,6 @@ export const TouchableItemRouter: React.FC<PropsWithChildren<Props>> = ({
     const navigation = getItemNavigation(item, from);
     router.push(navigation as any);
   }, [from, item, router]);
-
-  const showActionSheet = useCallback(() => {
-    if (
-      !(
-        item.Type === "Movie" ||
-        item.Type === "Episode" ||
-        item.Type === "Series"
-      )
-    )
-      return;
-
-    const options: string[] = [
-      t("common.mark_as_played"),
-      t("common.mark_as_not_played"),
-      isFavorite
-        ? t("music.track_options.remove_from_favorites")
-        : t("music.track_options.add_to_favorites"),
-      ...(isOffline ? [t("home.downloads.delete_download")] : []),
-      t("common.cancel"),
-    ];
-    const cancelButtonIndex = options.length - 1;
-    const destructiveButtonIndex = isOffline
-      ? cancelButtonIndex - 1
-      : undefined;
-
-    showActionSheetWithOptions(
-      {
-        options,
-        cancelButtonIndex,
-        destructiveButtonIndex,
-      },
-      async (selectedIndex) => {
-        if (selectedIndex === 0) {
-          await markAsPlayedStatus(true);
-        } else if (selectedIndex === 1) {
-          await markAsPlayedStatus(false);
-        } else if (selectedIndex === 2) {
-          toggleFavorite();
-        } else if (isOffline && selectedIndex === 3 && item.Id) {
-          deleteFile(item.Id);
-        }
-      },
-    );
-  }, [
-    showActionSheetWithOptions,
-    isFavorite,
-    markAsPlayedStatus,
-    toggleFavorite,
-    isOffline,
-    deleteFile,
-    item.Id,
-    t,
-  ]);
 
   if (
     from === "(home)" ||

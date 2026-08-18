@@ -20,20 +20,17 @@ import {
 import { useTranslation } from "react-i18next";
 import { Platform, ScrollView, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import ContinueWatchingPoster from "@/components/ContinueWatchingPoster";
+import { CardRow } from "@/components/cards/CardRow";
 import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import {
   getItemNavigation,
   TouchableItemRouter,
 } from "@/components/common/TouchableItemRouter";
-import { ItemCardText } from "@/components/ItemCardText";
 import {
   JellyseerrSearchSort,
   JellyserrIndexPage,
 } from "@/components/jellyseerr/JellyseerrIndexPage";
-import MoviePoster from "@/components/posters/MoviePoster";
-import SeriesPoster from "@/components/posters/SeriesPoster";
 import { DiscoverFilters } from "@/components/search/DiscoverFilters";
 import { LoadingSkeleton } from "@/components/search/LoadingSkeleton";
 import { SearchItemWrapper } from "@/components/search/SearchItemWrapper";
@@ -669,87 +666,40 @@ export default function SearchPage() {
 
         {searchType === "Library" ? (
           <View className={l1 || l2 ? "opacity-0" : "opacity-100"}>
-            <SearchItemWrapper
-              header={t("search.movies")}
-              items={movies}
-              renderItem={(item: BaseItemDto) => (
-                <TouchableItemRouter
-                  key={item.Id}
-                  className='flex flex-col w-28 mr-2'
-                  item={item}
-                >
-                  <MoviePoster item={item} key={item.Id} />
-                  <Text numberOfLines={2} className='mt-2'>
-                    {item.Name}
-                  </Text>
-                  <Text className='opacity-50 text-xs'>
-                    {item.ProductionYear}
-                  </Text>
-                </TouchableItemRouter>
-              )}
+            <CardRow
+              enableActionSheet
+              title={t("search.movies")}
+              items={movies ?? []}
+              kind='portrait'
+              hideIfEmpty
             />
-            <SearchItemWrapper
-              items={series}
-              header={t("search.series")}
-              renderItem={(item: BaseItemDto) => (
-                <TouchableItemRouter
-                  key={item.Id}
-                  item={item}
-                  className='flex flex-col w-28 mr-2'
-                >
-                  <SeriesPoster item={item} key={item.Id} />
-                  <Text numberOfLines={2} className='mt-2'>
-                    {item.Name}
-                  </Text>
-                  <Text className='opacity-50 text-xs'>
-                    {item.ProductionYear}
-                  </Text>
-                </TouchableItemRouter>
-              )}
+            <CardRow
+              enableActionSheet
+              title={t("search.series")}
+              items={series ?? []}
+              kind='portrait'
+              hideIfEmpty
             />
-            <SearchItemWrapper
-              items={episodes}
-              header={t("search.episodes")}
-              renderItem={(item: BaseItemDto) => (
-                <TouchableItemRouter
-                  item={item}
-                  key={item.Id}
-                  className='flex flex-col w-44 mr-2'
-                >
-                  <ContinueWatchingPoster item={item} />
-                  <ItemCardText item={item} />
-                </TouchableItemRouter>
-              )}
+            <CardRow
+              enableActionSheet
+              title={t("search.episodes")}
+              items={episodes ?? []}
+              kind='wide'
+              hideIfEmpty
             />
-            <SearchItemWrapper
-              items={collections}
-              header={t("search.collections")}
-              renderItem={(item: BaseItemDto) => (
-                <TouchableItemRouter
-                  key={item.Id}
-                  item={item}
-                  className='flex flex-col w-28 mr-2'
-                >
-                  <MoviePoster item={item} key={item.Id} />
-                  <Text numberOfLines={2} className='mt-2'>
-                    {item.Name}
-                  </Text>
-                </TouchableItemRouter>
-              )}
+            <CardRow
+              enableActionSheet
+              title={t("search.collections")}
+              items={collections ?? []}
+              kind='portrait'
+              hideIfEmpty
             />
-            <SearchItemWrapper
-              items={actors}
-              header={t("search.actors")}
-              renderItem={(item: BaseItemDto) => (
-                <TouchableItemRouter
-                  item={item}
-                  key={item.Id}
-                  className='flex flex-col w-28 mr-2'
-                >
-                  <MoviePoster item={item} />
-                  <ItemCardText item={item} />
-                </TouchableItemRouter>
-              )}
+            <CardRow
+              enableActionSheet
+              title={t("search.actors")}
+              items={actors ?? []}
+              kind='portrait'
+              hideIfEmpty
             />
             {/* Music search results */}
             <SearchItemWrapper
