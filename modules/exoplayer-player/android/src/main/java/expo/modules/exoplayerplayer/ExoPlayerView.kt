@@ -637,11 +637,32 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
             // SIDELOAD_ID_PREFIX). The JS resolver matches a Jellyfin External
             // sub to a player track by that URL; without these fields every
             // external sub resolves notFound and never renders.
-            entry.format.id?.takeIf { it.startsWith(SIDELOAD_ID_PREFIX) }?.let { id ->
+            //
+            // Media3's MergingMediaPeriod prefixes every merged Format.id with
+            // its child source index (e.g. "1:sideload:<url>"), so strip that
+            // before matching the application prefix.
+            val formatId = stripMergingSourcePrefix(entry.format.id)
+            if (formatId?.startsWith(SIDELOAD_ID_PREFIX) == true) {
                 map["external"] = true
-                map["externalFilename"] = id.removePrefix(SIDELOAD_ID_PREFIX)
+                map["externalFilename"] = formatId.removePrefix(SIDELOAD_ID_PREFIX)
             }
             map
+        }
+    }
+
+    /**
+     * Media3's MergingMediaPeriod prefixes every merged Format.id with the
+     * child source index (e.g. "1:sideload:<url>"). Strip a leading numeric
+     * source index so the application's SIDELOAD_ID_PREFIX matches. Returns
+     * null for a null id and the id unchanged when there is no such prefix.
+     */
+    private fun stripMergingSourcePrefix(id: String?): String? {
+        if (id == null) return null
+        val colon = id.indexOf(':')
+        return if (colon > 0 && id.substring(0, colon).all { it.isDigit() }) {
+            id.substring(colon + 1)
+        } else {
+            id
         }
     }
 
