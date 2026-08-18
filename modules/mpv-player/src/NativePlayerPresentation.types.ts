@@ -154,6 +154,8 @@ export type NativePlayerSubtitleSearchState = {
 
 export type NativePlayerSubtitleStyle = {
   scale?: number;
+  /** Platform calibration applied natively before surface compensation. */
+  renderScaleMultiplier?: number;
   scaleLocked?: boolean;
   marginY?: number;
   alignX?: "left" | "center" | "right";
@@ -185,6 +187,7 @@ export type NativePlayerStrings = Partial<
     | "technicalInfo"
     | "playbackError"
     | "close"
+    | "reset"
     | "off"
     | "quality"
     | "subtitleSize"

@@ -398,33 +398,24 @@ fun PlayerTopBar(
 
                     HorizontalDivider()
 
-                    // Subtitle Size Scale
-                    Text(
-                        text = viewModel.strings.get("subtitleSize", "Subtitle Size"),
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp,
-                        color = Color.Gray,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                    )
-                    PlayerConstants.SUBTITLE_SCALE_PRESETS.forEach { scale ->
+                    if (!viewModel.subtitleScaleLocked) {
+                        Text(
+                            text = viewModel.strings.get("subtitleSize", "Subtitle Size"),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp,
+                            color = Color.Gray,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                        )
                         DropdownMenuItem(
-                            text = {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text("${scale}×")
-                                    if (kotlin.math.abs(viewModel.subtitleScale - scale) < 0.01) {
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
-                                    }
-                                }
-                            },
+                            text = { Text("${viewModel.subtitleScale}×") },
                             onClick = {
-                                viewModel.setSubtitleScale(scale)
                                 showSubtitleMenu = false
+                                viewModel.subtitleScaleOverlayActivity++
+                                viewModel.showSubtitleScaleOverlay = true
                             }
                         )
+                        HorizontalDivider()
                     }
-
-                    HorizontalDivider()
 
                     // Subtitle Sync
                     Text(

@@ -68,6 +68,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	@Published var isZoomedToFill = false
 	@Published var subtitleScale: Double = 1.0
 	@Published var subtitleScaleLocked = false
+	@Published var subtitlesAtTop = false
 	/// Session-scoped A/V sync offsets (seconds) and softvol gain (percent).
 	/// Reset to neutral when the played item changes; re-applied to the
 	/// engine on every stream swap because mpv properties persist on the
@@ -345,6 +346,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		subtitleSearchLanguages = config.ui.subtitleSearchLanguages
 		subtitleScale = config.subtitleStyle?.scale ?? 1.0
 		subtitleScaleLocked = config.subtitleStyle?.scaleLocked ?? false
+		subtitlesAtTop = config.subtitleStyle?.alignY == "top"
 		uiStrings = config.ui.strings
 		position = config.stream.startPositionSec ?? 0
 		displayPosition = position

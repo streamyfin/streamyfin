@@ -29,14 +29,14 @@ const TV_SUBTITLE_SCALE_MULTIPLIER = 1.25;
 
 // Native subtitle baselines differ by player and platform. Android MPV keeps
 // its renderer calibration, normal Android/iOS receive mobile readability
-// adjustments, and TV MPV is reduced slightly after viewing-distance testing.
+// adjustments, and TV MPV is tuned independently after viewing-distance testing.
 // ExoPlayer's tested Android TV size remains unchanged. Keep these render-time
 // only so the stored user scale remains consistent across player changes.
 const ANDROID_MPV_SUBTITLE_SCALE_MULTIPLIER = 1.25 * 1.15;
 const ANDROID_EXOPLAYER_SUBTITLE_SCALE_MULTIPLIER = 1.25 * 0.6;
 const ANDROID_MOBILE_MPV_SUBTITLE_SCALE_MULTIPLIER = 1.2;
 const IOS_MOBILE_MPV_SUBTITLE_SCALE_MULTIPLIER = 1.25 * 1.35;
-const ANDROID_TV_MPV_SUBTITLE_SCALE_MULTIPLIER = 0.875 * 0.95 * 0.95;
+const ANDROID_TV_MPV_SUBTITLE_SCALE_MULTIPLIER = 1;
 const IOS_TV_MPV_SUBTITLE_SCALE_MULTIPLIER = 0.875 * 1.05 * 1.05;
 
 const getPlatformScaleMultiplier = (playerType: "mpv" | "exoplayer") => {
@@ -79,6 +79,10 @@ const TV_SUBTITLE_MARGIN_Y_MULTIPLIER = 2;
 // factor before any portrait/letterbox compensation. (1.0 ≈ the old 0.6.)
 const SUBTITLE_BASE_FACTOR = 0.6;
 
+export const getSubtitleBaseScaleMultiplier = (
+  playerType: "mpv" | "exoplayer" = "mpv",
+): number => SUBTITLE_BASE_FACTOR * getPlatformScaleMultiplier(playerType);
+
 /**
  * Returns the effective subtitle scale to pass to `setSubtitleScale`.
  *
@@ -99,8 +103,7 @@ export const getEffectiveSubtitleScale = (
   fitMode: "contain" | "cover" = "contain",
   playerType: "mpv" | "exoplayer" = "mpv",
 ): number => {
-  const scaled =
-    baseScale * SUBTITLE_BASE_FACTOR * getPlatformScaleMultiplier(playerType);
+  const scaled = baseScale * getSubtitleBaseScaleMultiplier(playerType);
 
   // ExoPlayer sizes text as a fraction of SubtitleView's viewport, so it is
   // already independent of video resolution and letterboxing. Applying MPV's
@@ -134,6 +137,17 @@ export const getEffectiveSubtitleScale = (
         )
       : 1;
   return Math.round(scaled * boost * zoomCompensation * 100) / 100;
+};
+
+export const getDisplayVideoDimensions = (
+  width?: number | null,
+  height?: number | null,
+  rotation?: number | null,
+): { width?: number; height?: number } => {
+  const normalizedRotation = (((rotation ?? 0) % 360) + 360) % 360;
+  return normalizedRotation === 90 || normalizedRotation === 270
+    ? { width: height ?? undefined, height: width ?? undefined }
+    : { width: width ?? undefined, height: height ?? undefined };
 };
 
 export const getZoomSubtitleScaleRatio = (

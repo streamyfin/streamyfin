@@ -71,15 +71,16 @@ struct PlayerControlsRootView: View {
 			}
 
 			if viewModel.controlsVisible && viewModel.showSubtitleScaleControl {
-				VStack {
-					SubtitleScaleOverlay(
-						viewModel: viewModel,
-						onClose: closeSubtitleScaleControl
-					)
-					.frame(maxWidth: 360)
-					Spacer()
-				}
-				.padding(.top, 64)
+				SubtitleScaleOverlay(
+					viewModel: viewModel,
+					onClose: closeSubtitleScaleControl
+				)
+				.frame(maxWidth: 360)
+				.frame(
+					maxHeight: .infinity,
+					alignment: viewModel.subtitlesAtTop ? .bottom : .top
+				)
+				.padding(.vertical, 64)
 				.padding(.horizontal, 24)
 				.transition(.scale(scale: 0.95).combined(with: .opacity))
 				.zIndex(2)

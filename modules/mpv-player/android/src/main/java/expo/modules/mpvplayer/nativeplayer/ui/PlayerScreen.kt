@@ -278,5 +278,9 @@ fun PlayerScreen(
                 }
             )
         }
+
+        if (viewModel.showSubtitleScaleOverlay) {
+            SubtitleScaleOverlay(viewModel)
+        }
     }
 }
