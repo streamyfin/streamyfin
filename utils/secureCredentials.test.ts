@@ -95,8 +95,9 @@ describe("resolveDeviceIdForLogin", () => {
     expect(resolveDeviceIdForLogin(SERVER, "alice")).toBe("device-alice");
   });
 
-  test("matches when the login url is the one carrying the slash", () => {
-    expect(resolveDeviceIdForLogin(`${SERVER}/`, "alice")).toBe("uuid-1");
+  test("matches when the login url is the one carrying the slash", async () => {
+    await seed("alice", "u1", "device-alice");
+    expect(resolveDeviceIdForLogin(`${SERVER}/`, "alice")).toBe("device-alice");
   });
 
   test("does not share an id across servers for the same username", async () => {
