@@ -52,12 +52,23 @@ export const SeriesHeader = ({ item }: Props) => {
 
   return (
     <View className='px-4 py-4'>
-      <Text className='text-3xl font-bold'>{item?.Name}</Text>
+      <Text className='text-3xl font-bold' style={{ lineHeight: 38 }}>
+        {item?.Name}
+      </Text>
       {Boolean(yearString) && (
-        <Text className='opacity-50 mb-1'>{yearString}</Text>
+        // An explicit line height: without one the descenders spill past the
+        // text's box, and whatever follows is laid out against the box.
+        <Text
+          className='opacity-50'
+          style={{ lineHeight: 20, marginBottom: 8 }}
+        >
+          {yearString}
+        </Text>
       )}
-      <View className='flex flex-row items-center justify-between'>
-        <Ratings item={item} className='mb-2' />
+      {/* Top-aligned: the actions are taller than the badges, and centring
+          them pulled the badge row up towards the year. */}
+      <View className='flex flex-row items-start justify-between mb-2'>
+        <Ratings item={item} className='flex-1 mr-2' />
         <ItemActions item={item} />
       </View>
       <Text>{item?.Overview}</Text>
