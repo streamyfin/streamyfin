@@ -62,6 +62,14 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     companion object {
         private const val TAG = "ExoPlayerView"
         private const val PROGRESS_INTERVAL_MS = 1000L
+        // Prefix stamped into Format.id of side-loaded subtitle tracks so
+        // getSubtitleTracks() can tell them from in-container tracks and
+        // report the source URL the JS resolver matches against (mirrors
+        // mpv's external / external-filename track-list fields). A bare URL
+        // isn't a safe discriminator: some extractors set their own
+        // Format.id on embedded tracks. Format.id is the only field that
+        // survives from SubtitleConfiguration into the track list.
+        private const val SIDELOAD_ID_PREFIX = "sideload:"
     }
 
     // Event dispatchers — names must match the Events() declaration in the module.
@@ -352,6 +360,17 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
             (mb * 1000).coerceAtLeast(1000)
         }
 
+        // DefaultLoadControl's builder validates maxBufferMs >= minBufferMs
+        // (and minBufferMs >= both start thresholds) and throws
+        // IllegalArgumentException otherwise. The user's cacheSeconds can be
+        // as low as 5s — below the 15s default min — so derive the min from
+        // the same target. An unclamped pair (e.g. the 10s default) throws
+        // inside ensurePlayer(), which the Expo prop layer swallows into
+        // LogBox: the view is left with no player, no events ever fire, and
+        // the JS loader spins forever.
+        val minBufferMs = minOf(defaultMinBufferMs, targetBufferMs)
+            .coerceAtLeast(defaultBufferForPlaybackAfterRebufferMs)
+
         val builder = DefaultLoadControl.Builder()
             // C.LENGTH_UNSET lets ExoPlayer auto-derive the byte target from the
             // selected tracks. A literal 0 makes targetBufferSizeReached true on
@@ -359,7 +378,7 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
             // so loading halts with <500ms buffered and playback starves.
             .setTargetBufferBytes(if (!cacheEnabled) C.LENGTH_UNSET else ((config.demuxerMaxBytes ?: 150) * 1024 * 1024))
             .setBufferDurationsMs(
-                /* minBufferMs = */ defaultMinBufferMs,
+                /* minBufferMs = */ minBufferMs,
                 /* maxBufferMs = */ targetBufferMs,
                 /* bufferForPlaybackMs = */ defaultBufferForPlaybackMs,
                 /* bufferForPlaybackAfterRebufferMs = */ defaultBufferForPlaybackAfterRebufferMs
@@ -409,13 +428,17 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         val builder = MediaItem.Builder().setUri(config.url)
 
         // External subtitles: add as side-loaded SubtitleConfigurations.
-        // MIME-type sniffed from the file extension.
+        // MIME-type sniffed from the file extension. The URL is stamped into
+        // the config's id so it reaches Format.id in the track list — the
+        // JS resolver matches external subs by that URL (mpv's
+        // external-filename equivalent).
         val subs = config.externalSubtitles
         if (!subs.isNullOrEmpty()) {
             val subtitleConfigs = subs.mapNotNull { subUrl ->
                 val mime = mimeTypeForSubtitleUrl(subUrl) ?: return@mapNotNull null
                 MediaItem.SubtitleConfiguration.Builder(Uri.parse(subUrl))
                     .setMimeType(mime)
+                    .setId(SIDELOAD_ID_PREFIX + subUrl)
                     .setSelectionFlags(C.SELECTION_FLAG_DEFAULT)
                     .build()
             }
@@ -582,10 +605,18 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         if (cfg.initialAudioId != null && cfg.initialAudioId > 0) {
             setAudioTrack(cfg.initialAudioId)
         }
-        if (cfg.initialSubtitleId == null || cfg.initialSubtitleId <= 0) {
-            disableSubtitles()
-        } else {
-            setSubtitleTrack(cfg.initialSubtitleId)
+        // Only disable text when JS asked for no subtitle (id 0) or passed an
+        // explicit id. When initialSubtitleId is absent the JS layer defers
+        // selection to onTracksReady (it resolves by URL identity via
+        // getSubtitleTracks) — disabling here would kill Media3's auto-pick of
+        // the SELECTION_FLAG_DEFAULT sidecar before that resolves, and the
+        // notFound fallback would leave subtitles off entirely.
+        if (cfg.initialSubtitleId != null) {
+            if (cfg.initialSubtitleId <= 0) {
+                disableSubtitles()
+            } else {
+                setSubtitleTrack(cfg.initialSubtitleId)
+            }
         }
 
         // Only apply once per source load.
@@ -596,11 +627,21 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
 
     fun getSubtitleTracks(): List<Map<String, Any>> {
         return subtitleTrackList.map { entry ->
-            mapOf(
+            val map = mutableMapOf<String, Any>(
                 "id" to entry.id,
                 "title" to (entry.format.label ?: ""),
                 "lang" to (entry.format.language ?: "")
             )
+            // Mirror mpv's external / external-filename fields for side-loaded
+            // tracks (stamped into Format.id at build time — see
+            // SIDELOAD_ID_PREFIX). The JS resolver matches a Jellyfin External
+            // sub to a player track by that URL; without these fields every
+            // external sub resolves notFound and never renders.
+            entry.format.id?.takeIf { it.startsWith(SIDELOAD_ID_PREFIX) }?.let { id ->
+                map["external"] = true
+                map["externalFilename"] = id.removePrefix(SIDELOAD_ID_PREFIX)
+            }
+            map
         }
     }
 
@@ -640,6 +681,7 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         val currentMediaItem = p.currentMediaItem ?: return
         val newSubConfig = MediaItem.SubtitleConfiguration.Builder(Uri.parse(url))
             .setMimeType(mime)
+            .setId(SIDELOAD_ID_PREFIX + url)
             .setSelectionFlags(if (select) C.SELECTION_FLAG_DEFAULT else 0)
             .build()
 
