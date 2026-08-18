@@ -168,6 +168,7 @@ const page: React.FC = () => {
           item={item}
           allEpisodes={allEpisodes}
           isLoading={isLoading}
+          initialSeasonIndex={Number(seasonIndex)}
         />
       </OfflineModeProvider>
     );
