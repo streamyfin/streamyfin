@@ -7,6 +7,7 @@ import {
   secureCustomHeaderMetadata,
 } from "./customHeaders/secureValues";
 import type { CustomHeader } from "./customHeaders/types";
+import { normalizeHttpBaseUrl } from "./customHeaders/urlMatching";
 import { mintDeviceId } from "./device";
 import { logAndCaptureError } from "./log";
 import { storage } from "./mmkv";
@@ -220,7 +221,14 @@ export function resolveDeviceIdForLogin(
   serverUrl: string,
   username: string,
 ): string {
-  const server = getPreviousServers().find((s) => s.address === serverUrl);
+  // The saved address is whatever the user typed; the login passes the SDK's
+  // basePath, which may have dropped a trailing slash. An exact match would
+  // miss the account and mint a second id for it — the collision this exists
+  // to prevent.
+  const wanted = normalizeHttpBaseUrl(serverUrl);
+  const server = getPreviousServers().find(
+    (s) => normalizeHttpBaseUrl(s.address) === wanted,
+  );
   // Jellyfin accepts any casing at login, so match case-insensitively — a
   // case-only difference must not mint a second id for the same account.
   const existing = server?.accounts.find(
@@ -245,7 +253,9 @@ export async function migrateCurrentAccountDeviceId(
   // Stamping an id another account already owns would put both back on one
   // device, which is the collision this whole mechanism exists to avoid.
   const claimed = getPreviousServers().some((server) =>
-    server.accounts.some((a) => a.deviceId === legacyDeviceId),
+    server.accounts.some(
+      (a) => a.deviceId === legacyDeviceId && a.userId !== userId,
+    ),
   );
   if (claimed) return;
 

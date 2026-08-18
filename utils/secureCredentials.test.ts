@@ -88,6 +88,17 @@ describe("resolveDeviceIdForLogin", () => {
     expect(resolveDeviceIdForLogin(SERVER, "alice")).toBe("uuid-1");
   });
 
+  test("matches a saved address that carries a trailing slash", async () => {
+    // previousServers holds whatever the user typed; the login passes the
+    // SDK's basePath, which drops it. An exact match would mint a second id.
+    await seed("alice", "u1", "device-alice", `${SERVER}/`);
+    expect(resolveDeviceIdForLogin(SERVER, "alice")).toBe("device-alice");
+  });
+
+  test("matches when the login url is the one carrying the slash", () => {
+    expect(resolveDeviceIdForLogin(`${SERVER}/`, "alice")).toBe("uuid-1");
+  });
+
   test("does not share an id across servers for the same username", async () => {
     await seed("alice", "u1", "device-alice");
     expect(resolveDeviceIdForLogin("https://other.example.com", "alice")).toBe(
@@ -142,6 +153,21 @@ describe("migrateCurrentAccountDeviceId", () => {
     expect(
       (await getAccountCredential(SERVER, "u2"))?.deviceId,
     ).toBeUndefined();
+  });
+
+  test("still stamps when the mirror already shows this account's own id", async () => {
+    // The claimed scan must skip the account being migrated: if the summary
+    // and the credential ever disagree, it would refuse to stamp its owner.
+    await seed("alice", "u1", undefined);
+    const servers = getPreviousServers();
+    servers[0].accounts[0].deviceId = "legacy-device";
+    storage.set("previousServers", JSON.stringify(servers));
+
+    await migrateCurrentAccountDeviceId(SERVER, "u1", "legacy-device");
+
+    expect((await getAccountCredential(SERVER, "u1"))?.deviceId).toBe(
+      "legacy-device",
+    );
   });
 
   test("declines an id owned on a different server", async () => {
