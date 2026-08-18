@@ -17,6 +17,12 @@ export type CardData = {
   unwatched?: boolean;
   /** Episodes left on a series/box set — draws the count badge when > 0. */
   unplayedCount?: number;
+  /**
+   * A third line, after the subtitle — a runtime, a file size. Only a string
+   * derivable from the item belongs here; anything that has to subscribe to
+   * something is a slot the screen fills in.
+   */
+  detail?: string | null;
   /** Faded back because another card in the row is the current one. */
   dimmed?: boolean;
   /**
@@ -26,7 +32,21 @@ export type CardData = {
   aspectRatio?: number;
 };
 
-export type CardKind = "wide" | "portrait" | "episode";
+export type CardKind = "wide" | "portrait" | "rowWide";
+
+/**
+ * Per-item extras a screen hangs on a card. The card never knows what they
+ * mean — it only reserves the space. Memoize these at the call site: a new
+ * function identity re-renders every cell in the list.
+ */
+export type CardSlots = {
+  /** Layer over the artwork: a play glyph, a status icon. */
+  overlay?: (card: CardData) => React.ReactNode;
+  /** The right-hand end of a list row: a download button, a menu. */
+  trailing?: (card: CardData) => React.ReactNode;
+  /** Below the metadata: an overview, a file size. */
+  footer?: (card: CardData) => React.ReactNode;
+};
 
 /** Breathing room above/below the cards so their shadow isn't clipped. */
 export const CARD_VERTICAL_PADDING = 6;
@@ -68,15 +88,16 @@ export const CARD_LAYOUTS: Record<
     frostFraction: 0.33,
     verticalPadding: CARD_VERTICAL_PADDING,
   },
-  // The episode carousel's stills, a little narrower than the home rows.
-  episode: {
-    cardWidth: 200,
+  // The thumbnail on a list row, where the text sits beside the artwork
+  // rather than on it — so no frost band.
+  rowWide: {
+    cardWidth: 128,
     aspectRatio: 16 / 9,
-    cornerRadius: 14,
-    spacing: 10,
+    cornerRadius: 8,
+    spacing: 12,
     contentInset: 16,
-    frostFraction: 0.45,
-    verticalPadding: CARD_VERTICAL_PADDING,
+    frostFraction: 0,
+    verticalPadding: 0,
   },
 };
 

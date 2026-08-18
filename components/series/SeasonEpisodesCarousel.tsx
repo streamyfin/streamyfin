@@ -66,7 +66,7 @@ export const SeasonEpisodesCarousel: React.FC<Props> = ({
   return (
     <View style={[containerStyle, style]}>
       <CardRow
-        kind='episode'
+        kind='wide'
         items={episodes ?? []}
         useEpisodePoster
         loading={loading || isPending}

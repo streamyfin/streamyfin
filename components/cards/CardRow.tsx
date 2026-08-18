@@ -10,6 +10,7 @@ import {
   CARD_LAYOUTS,
   type CardData,
   type CardKind,
+  type CardSlots,
   cardRowHeight,
 } from "./CardData";
 import { CardRowSkeleton } from "./CardRowSkeleton";
@@ -34,6 +35,19 @@ interface Props extends ViewProps {
   selectedId?: string | null;
   /** Card to scroll into view when this value changes. */
   scrollToId?: string | null;
+
+  /**
+   * Where each card's title goes. "below" leaves the artwork clean, for rows
+   * that carry more than the two lines a frosted band can hold.
+   */
+  textPlacement?: "over" | "below";
+  /** Per-card extras — see `CardSlots`. Memoize at the call site. */
+  slots?: Pick<CardSlots, "overlay" | "footer">;
+  /**
+   * Extra height to reserve under each card, for text below the artwork and
+   * whatever `slots.footer` draws. The row can't measure it.
+   */
+  footerHeight?: number;
 
   loading?: boolean;
   /** Spinner after the last card while the next page loads. */
@@ -72,6 +86,9 @@ export const CardRow: React.FC<Props> = ({
   useEpisodePoster = false,
   selectedId,
   scrollToId,
+  textPlacement = "over",
+  slots,
+  footerHeight = 0,
   loading = false,
   loadingMore = false,
   onEndReached,
@@ -125,13 +142,15 @@ export const CardRow: React.FC<Props> = ({
       <Card
         card={item}
         kind={kind}
+        textPlacement={textPlacement}
+        slots={slots}
         onPress={() => handlePress(item.id)}
         onLongPress={
           handleLongPress ? () => handleLongPress(item.id) : undefined
         }
       />
     ),
-    [kind, handlePress, handleLongPress],
+    [kind, textPlacement, slots, handlePress, handleLongPress],
   );
 
   const isEmpty = cards.length === 0;
@@ -157,7 +176,7 @@ export const CardRow: React.FC<Props> = ({
           </View>
         ) : null
       ) : (
-        <View style={{ height: cardRowHeight(kind) }}>
+        <View style={{ height: cardRowHeight(kind) + footerHeight }}>
           <FlashList
             ref={listRef}
             data={cards}
