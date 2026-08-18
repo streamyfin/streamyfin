@@ -280,12 +280,13 @@ final class MPVLayerRenderer {
         // latency and a fine-grained device clock, so avfoundation looks fine
         // there and only fails on device.
         //
-        // This leaves #1970 (silence on HDMI routes reporting 32 output channels
-        // with Atmos "Continuous Audio Output") unfixed. That one is a real bug
-        // in ao_audiounit.m, which adopts the hardware layout wholesale -
-        // `ao->channels.num = layout->mNumberChannelDescriptions` with speaker IDs
-        // that come back unknown - and it needs a clamp in the MPVKit fork, not
-        // a different AO. iOS is unchanged.
+        // The silence #1970 was chasing (#1673) is fixed in the AO itself as of
+        // MPVKit 0.41.0-av3, not by swapping AOs: HDMI routes carrying Dolby MAT
+        // report a channel layout whose labels have no mp speaker ID, and
+        // ao_audiounit.m adopted it wholesale, so the chmap came out invalid and
+        // playback was silent. av3 clamps that to a layout mpv can use. iOS is
+        // unchanged either way - its autoprobe already picks audiounit ahead of
+        // avfoundation.
         #if os(tvOS)
         checkError(mpv_set_option_string(handle, "ao", "audiounit"))
         #endif
