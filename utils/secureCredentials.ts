@@ -7,6 +7,7 @@ import {
   secureCustomHeaderMetadata,
 } from "./customHeaders/secureValues";
 import type { CustomHeader } from "./customHeaders/types";
+import { logAndCaptureError } from "./log";
 import { storage } from "./mmkv";
 
 const CREDENTIAL_KEY_PREFIX = "credential_";
@@ -103,6 +104,50 @@ export function credentialKey(serverUrl: string, userId: string): string {
   return `${CREDENTIAL_KEY_PREFIX}${encoded}`;
 }
 
+const JELLYSEERR_PASSWORD_KEY_PREFIX = "jellyseerrpw_";
+
+function jellyseerrPasswordKey(serverUrl: string, userId: string): string {
+  const encoded = btoa(`${serverUrl}:${userId}`).replace(/[^a-zA-Z0-9]/g, "_");
+  return `${JELLYSEERR_PASSWORD_KEY_PREFIX}${encoded}`;
+}
+
+/**
+ * Remember the Jellyfin password so Jellyseerr can be signed in automatically
+ * on launch.
+ *
+ * Jellyseerr's /auth/jellyfin endpoint authenticates with the *password*, not
+ * the Jellyfin access token, so there is no token-shaped way to do this — the
+ * password itself has to be kept. It lives in the platform secure store
+ * (Keychain / Android Keystore, and the OS keystore via Electron safeStorage on
+ * desktop), never in MMKV. Only stored when the user opts in via the
+ * `autoLoginJellyseerr` setting, and removed on logout with the rest of the
+ * account's credentials.
+ */
+export async function saveJellyseerrPassword(
+  serverUrl: string,
+  userId: string,
+  password: string,
+): Promise<void> {
+  await SecureStore.setItemAsync(
+    jellyseerrPasswordKey(serverUrl, userId),
+    password,
+  );
+}
+
+export async function getJellyseerrPassword(
+  serverUrl: string,
+  userId: string,
+): Promise<string | null> {
+  return SecureStore.getItemAsync(jellyseerrPasswordKey(serverUrl, userId));
+}
+
+export async function deleteJellyseerrPassword(
+  serverUrl: string,
+  userId: string,
+): Promise<void> {
+  await SecureStore.deleteItemAsync(jellyseerrPasswordKey(serverUrl, userId));
+}
+
 /**
  * Hash a PIN using SHA256.
  */
@@ -175,6 +220,10 @@ export async function deleteAccountCredential(
 ): Promise<void> {
   const key = credentialKey(serverUrl, userId);
   await SecureStore.deleteItemAsync(key);
+
+  // Forgetting the account also forgets its Jellyseerr password — it must
+  // not outlive the credential it belongs to.
+  await deleteJellyseerrPassword(serverUrl, userId);
 
   // Remove account from previousServers
   removeAccountFromServer(serverUrl, userId);
@@ -509,8 +558,13 @@ export async function migrateToMultiAccount(): Promise<void> {
 
     storage.set("previousServers", JSON.stringify(migratedServers));
     storage.set(MULTI_ACCOUNT_MIGRATED_KEY, true);
-  } catch {
-    // If parsing fails, reset to empty array
+  } catch (error) {
+    // If parsing fails, reset to empty array. This destroys the user's saved
+    // server list, so it must never happen silently.
+    logAndCaptureError(
+      "Saved-servers migration failed; resetting previousServers",
+      error,
+    );
     storage.set("previousServers", "[]");
     storage.set(MULTI_ACCOUNT_MIGRATED_KEY, true);
   }

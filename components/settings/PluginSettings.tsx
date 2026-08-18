@@ -1,4 +1,6 @@
+import * as Sentry from "@sentry/react-native";
 import { useTranslation } from "react-i18next";
+import { toast } from "sonner-native";
 import { SettingSwitch } from "@/components/common/SettingSwitch";
 import useRouter from "@/hooks/useAppRouter";
 import { useSettings } from "@/utils/atoms/settings";
@@ -62,6 +64,28 @@ export const PluginSettings = () => {
           }
         />
       </ListItem>
+      <ListItem
+        title={t("home.settings.plugins.crash_reports")}
+        subtitle={t("home.settings.plugins.crash_reports_hint")}
+      >
+        <SettingSwitch
+          value={settings.sentryEnabled}
+          onValueChange={(value) => updateSettings({ sentryEnabled: value })}
+        />
+      </ListItem>
+      {/* Dev-only smoke test for the Sentry pipeline; never ships in release. */}
+      {__DEV__ && settings.sentryEnabled && (
+        <ListItem
+          title='Send test error to Sentry'
+          textColor='blue'
+          onPress={() => {
+            Sentry.captureException(
+              new Error("Sentry test error — safe to ignore"),
+            );
+            toast.success("Test error sent");
+          }}
+        />
+      )}
     </ListGroup>
   );
 };

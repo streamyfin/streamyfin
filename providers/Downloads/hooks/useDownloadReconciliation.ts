@@ -4,6 +4,7 @@ import { Platform } from "react-native";
 import type { ActiveDownload } from "@/modules";
 import { BackgroundDownloader } from "@/modules";
 import { getHeadersForUrl } from "@/utils/customHeaders";
+import { logAndCaptureError } from "@/utils/log";
 import {
   finalizePendingDownload,
   getPendingDownload,
@@ -70,10 +71,11 @@ async function reEnqueue(
     }
     return true;
   } catch (error) {
-    console.warn(
-      `[RECONCILE] Re-enqueue failed for ${record.item.Name}:`,
-      error,
-    );
+    // Dropping the record permanently loses the download without any user
+    // signal, so report it.
+    logAndCaptureError("Re-enqueueing interrupted download failed", error, {
+      itemType: record.item?.Type,
+    });
     removePendingDownload(record.itemId);
     return false;
   }
@@ -111,7 +113,9 @@ export function useDownloadReconciliation({
       try {
         active = await BackgroundDownloader.getActiveDownloads();
       } catch (error) {
-        console.warn("[RECONCILE] Failed to query native downloads:", error);
+        // An empty list here makes the loop below misclassify every
+        // in-flight download as lost or completed.
+        logAndCaptureError("Querying native downloads failed", error);
       }
       const nativeByItemId = new Map(
         active

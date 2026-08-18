@@ -25,21 +25,29 @@ import { toast } from "sonner-native";
 import useRouter from "@/hooks/useAppRouter";
 import { useInterval } from "@/hooks/useInterval";
 import { JellyseerrApi, useJellyseerr } from "@/hooks/useJellyseerr";
-import { useSettings } from "@/utils/atoms/settings";
+import { settingsAtom, useSettings } from "@/utils/atoms/settings";
 import { getIntegrationHeaders } from "@/utils/customHeaders";
 import { getOrSetDeviceId } from "@/utils/device";
+import { markExpectedError } from "@/utils/errors";
 import { createApiWithCustomHeaders } from "@/utils/jellyfin/createApi";
-import { writeErrorLog, writeInfoLog } from "@/utils/log";
+import {
+  logAndCaptureError,
+  writeErrorLog,
+  writeInfoLog,
+  writeToLog,
+} from "@/utils/log";
 import { storage } from "@/utils/mmkv";
 import {
   type AccountSecurityType,
   addAccountToServer,
   addServerToList,
   deleteAccountCredential,
+  deleteJellyseerrPassword,
   getAccountCredential,
   hashPIN,
   migrateToMultiAccount,
   saveAccountCredential,
+  saveJellyseerrPassword,
   updateAccountToken,
 } from "@/utils/secureCredentials";
 import { store } from "@/utils/store";
@@ -49,6 +57,24 @@ import { APP_VERSION } from "@/utils/version";
 interface Server {
   address: string;
 }
+
+// Compact wire-level description of a failed request for the in-app log —
+// the user-facing alert only shows a translated message, which hides whether
+// the failure was DNS, TLS, a timeout or an HTTP status.
+const describeRequestError = (error: unknown): string => {
+  if (axios.isAxiosError(error)) {
+    return [
+      error.code,
+      error.response ? `HTTP ${error.response.status}` : "no response",
+      error.message,
+    ]
+      .filter(Boolean)
+      .join(", ");
+  }
+  return error instanceof Error
+    ? `${error.name}: ${error.message}`
+    : String(error);
+};
 
 const initialApi = (() => {
   try {
@@ -176,9 +202,46 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
   const [user, setUser] = useAtom(userAtom);
   const [isPolling, setIsPolling] = useState<boolean>(false);
   const [secret, setSecret] = useState<string | null>(null);
-  const { setPluginSettings, refreshStreamyfinPluginSettings } = useSettings();
-  const { clearAllJellyseerData, setJellyseerrUser } = useJellyseerr();
+  const { settings, setPluginSettings, refreshStreamyfinPluginSettings } =
+    useSettings();
+  const { clearAllJellyseerData, jellyseerrUser, setJellyseerrUser } =
+    useJellyseerr();
   const queryClient = useQueryClient();
+
+  // Passwordless Seerr sign-in. With an admin API key (typically distributed
+  // through the Streamyfin plugin) the Seerr account linked to the current
+  // Jellyfin user is resolved directly via /user/jellyfin/{id} — this also
+  // covers Quick Connect logins and restored sessions, where no password is
+  // ever available. One attempt per server+user per app run, so a failing key
+  // cannot turn into a retry loop.
+  const jellyseerrAutoConnectAttempt = useRef<string | null>(null);
+  useEffect(() => {
+    if (!user?.Id) {
+      // Logout invalidates the guard so the next login may connect again.
+      jellyseerrAutoConnectAttempt.current = null;
+      return;
+    }
+    const serverUrl = settings?.jellyseerrServerUrl;
+    const apiKey = settings?.jellyseerrApiKey;
+    if (!serverUrl || !apiKey || jellyseerrUser) return;
+    const attemptKey = `${serverUrl}:${user.Id}`;
+    if (jellyseerrAutoConnectAttempt.current === attemptKey) return;
+    jellyseerrAutoConnectAttempt.current = attemptKey;
+    new JellyseerrApi(serverUrl, getIntegrationHeaders("jellyseerr"), apiKey)
+      .loginWithApiKey(user.Id)
+      .then(setJellyseerrUser)
+      .catch((e) =>
+        writeErrorLog(
+          `Seerr API-key sign-in failed: ${e instanceof Error ? e.message : e}`,
+        ),
+      );
+  }, [
+    user?.Id,
+    settings?.jellyseerrServerUrl,
+    settings?.jellyseerrApiKey,
+    jellyseerrUser,
+    setJellyseerrUser,
+  ]);
 
   // --- Session-expiry handling ----------------------------------------------
   // When the server revokes the token (e.g. the device/session is deleted), a
@@ -195,6 +258,11 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
   // device inherits the previous user's data).
   // Saved credentials are kept so the user can quick-login again.
   const clearSessionState = useCallback(async () => {
+    // Read before the wipe below: the Jellyseerr password is filed under the
+    // Jellyfin server URL + user id, and both are about to be cleared.
+    const jellyfinUrl = storage.getString("serverUrl");
+    const jellyfinUserId = store.get(userAtom)?.Id;
+
     // All synchronous teardown first: if the async Jellyseerr cleanup below
     // fails or resolves late (user may already be re-authenticating), the
     // session/cache state is already gone.
@@ -206,6 +274,12 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     setApi(null);
     setPluginSettings(undefined);
     queryClient.clear();
+
+    if (jellyfinUrl && jellyfinUserId) {
+      await deleteJellyseerrPassword(jellyfinUrl, jellyfinUserId).catch((e) =>
+        writeErrorLog(`Failed to clear Jellyseerr password: ${e}`),
+      );
+    }
 
     try {
       await clearAllJellyseerData();
@@ -365,6 +439,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
 
       if (!apiInstance?.basePath) throw new Error("Failed to connect");
 
+      writeInfoLog(`Server set: ${server.address}`);
       setApi(apiInstance);
       storage.set("serverUrl", server.address);
     },
@@ -437,6 +512,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       if (!api || !jellyfin) throw new Error("API not initialized");
 
       try {
+        writeInfoLog(`Login: authenticating against ${api.basePath}`);
         const auth = await api.authenticateUserByName(username, password);
 
         if (auth.data.AccessToken && auth.data.User) {
@@ -481,41 +557,107 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
           }
 
           const recentPluginSettings = await refreshStreamyfinPluginSettings();
-          if (recentPluginSettings?.jellyseerrServerUrl?.value) {
+          // With a plugin-provided API key the auto-connect effect signs in
+          // without a password — don't start a password session here, and
+          // don't store the password either.
+          if (
+            recentPluginSettings?.jellyseerrServerUrl?.value &&
+            !recentPluginSettings?.jellyseerrApiKey?.value
+          ) {
             const jellyseerrApi = new JellyseerrApi(
               recentPluginSettings.jellyseerrServerUrl.value,
               getIntegrationHeaders("jellyseerr"),
             );
+            const jellyfinServerUrl = api.basePath;
+            const jellyfinUserId = auth.data.User.Id;
             await jellyseerrApi.test().then((result) => {
               if (result.isValid && result.requiresPass) {
-                jellyseerrApi.login(username, password).then(setJellyseerrUser);
+                jellyseerrApi
+                  .login(username, password)
+                  .then((seerrUser) => {
+                    setJellyseerrUser(seerrUser);
+                    // Remember the password so Jellyseerr can be signed in
+                    // again on later launches — but only once it has proven
+                    // to work. Jellyseerr authenticates with the password
+                    // rather than the Jellyfin token, so there is no
+                    // token-shaped alternative. Goes to the platform secure
+                    // store, never MMKV; users who typed their own URL get
+                    // nothing stored, and the autoLoginJellyseerr toggle
+                    // opts out.
+                    const autoLogin =
+                      store.get(settingsAtom)?.autoLoginJellyseerr !== false;
+                    if (jellyfinServerUrl && jellyfinUserId && autoLogin) {
+                      saveJellyseerrPassword(
+                        jellyfinServerUrl,
+                        jellyfinUserId,
+                        password,
+                      ).catch((e) =>
+                        writeErrorLog(
+                          `Could not store Jellyseerr password: ${e}`,
+                        ),
+                      );
+                    }
+                  })
+                  .catch((e) =>
+                    writeErrorLog(
+                      `Jellyseerr sign-in at login failed: ${
+                        e instanceof Error ? e.message : e
+                      }`,
+                    ),
+                  );
               }
             });
           }
         }
       } catch (error) {
+        // Wrong credentials and unreachable servers are the user's input and
+        // environment, not app defects — log them as WARN locally. Nothing
+        // here reaches Sentry directly; unexpected errors rethrown below are
+        // reported once by the global mutation handler.
+        writeToLog(
+          axios.isAxiosError(error) &&
+            (!error.response || error.response.status === 401)
+            ? "WARN"
+            : "ERROR",
+          `Login failed against ${api.basePath}: ${describeRequestError(error)}`,
+        );
         if (axios.isAxiosError(error)) {
+          // What's thrown from here is only a translated message for the
+          // login form, so it's marked expected to keep it out of Sentry's
+          // global mutation handler.
           switch (error.response?.status) {
             case 401:
-              throw new Error(t("login.invalid_username_or_password"));
+              throw markExpectedError(
+                new Error(t("login.invalid_username_or_password")),
+              );
             case 403:
-              throw new Error(
-                t("login.user_does_not_have_permission_to_log_in"),
+              throw markExpectedError(
+                new Error(t("login.user_does_not_have_permission_to_log_in")),
               );
             case 408:
-              throw new Error(
-                t("login.server_is_taking_too_long_to_respond_try_again_later"),
+              throw markExpectedError(
+                new Error(
+                  t(
+                    "login.server_is_taking_too_long_to_respond_try_again_later",
+                  ),
+                ),
               );
             case 429:
-              throw new Error(
-                t("login.server_received_too_many_requests_try_again_later"),
+              throw markExpectedError(
+                new Error(
+                  t("login.server_received_too_many_requests_try_again_later"),
+                ),
               );
             case 500:
-              throw new Error(t("login.there_is_a_server_error"));
+              throw markExpectedError(
+                new Error(t("login.there_is_a_server_error")),
+              );
             default:
-              throw new Error(
-                t(
-                  "login.an_unexpected_error_occurred_did_you_enter_the_correct_url",
+              throw markExpectedError(
+                new Error(
+                  t(
+                    "login.an_unexpected_error_occurred_did_you_enter_the_correct_url",
+                  ),
                 ),
               );
           }
@@ -607,12 +749,12 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
             error.response?.status === 403
           ) {
             await deleteAccountCredential(serverUrl, userId);
-            throw new Error(t("server.session_expired"));
+            throw markExpectedError(new Error(t("server.session_expired")));
           }
 
           // Network error - server not reachable (no response means server didn't respond)
           if (!error.response) {
-            throw new Error(t("home.server_unreachable"));
+            throw markExpectedError(new Error(t("home.server_unreachable")));
           }
         }
 
@@ -623,7 +765,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
             error.message.toLowerCase().includes("econnrefused") ||
             error.message.toLowerCase().includes("timeout"))
         ) {
-          throw new Error(t("home.server_unreachable"));
+          throw markExpectedError(new Error(t("home.server_unreachable")));
         }
 
         throw error;
@@ -655,7 +797,19 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       }
 
       // Authenticate with password
-      const auth = await apiInstance.authenticateUserByName(username, password);
+      writeInfoLog(`Login (saved server): authenticating against ${serverUrl}`);
+      const auth = await apiInstance
+        .authenticateUserByName(username, password)
+        .catch((error) => {
+          writeToLog(
+            axios.isAxiosError(error) &&
+              (!error.response || error.response.status === 401)
+              ? "WARN"
+              : "ERROR",
+            `Login (saved server) failed against ${serverUrl}: ${describeRequestError(error)}`,
+          );
+          throw error;
+        });
 
       if (auth.data.AccessToken && auth.data.User) {
         // Clear React Query cache to prevent data from previous account lingering
@@ -815,7 +969,9 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
             });
         }
       } catch (e) {
-        console.error(e);
+        // A failure here silently drops the user into an unauthenticated
+        // state at launch, so it must be visible in crash reports.
+        logAndCaptureError("Jellyfin startup initialization failed", e);
       } finally {
         setInitialLoaded(true);
       }

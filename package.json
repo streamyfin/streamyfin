@@ -42,6 +42,7 @@
     "@react-native-community/netinfo": "12.0.1",
     "@react-navigation/material-top-tabs": "7.6.13",
     "@react-navigation/native": "7.3.14",
+    "@sentry/react-native": "^8.23.0",
     "@shopify/flash-list": "2.3.2",
     "@tanstack/query-sync-storage-persister": "5.101.4",
     "@tanstack/react-query": "5.101.4",
@@ -168,6 +169,7 @@
     ]
   },
   "trustedDependencies": [
+    "@sentry/cli",
     "unrs-resolver"
   ],
   "patchedDependencies": {

@@ -7,19 +7,30 @@ import { SettingSwitch } from "@/components/common/SettingSwitch";
 import { PlatformDropdown } from "@/components/PlatformDropdown";
 import { PLAYBACK_SPEEDS } from "@/components/PlaybackSpeedSelector";
 import DisabledSetting from "@/components/settings/DisabledSetting";
-import { useSettings } from "@/utils/atoms/settings";
+import {
+  getActiveVideoPlayer,
+  useSettings,
+  VideoPlayer,
+} from "@/utils/atoms/settings";
 import { Text } from "../common/Text";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
 
 interface Props extends ViewProps {}
 
-const isIOSMobile = Platform.OS === "ios" && !Platform.isTV;
-
 export const GestureControls: React.FC<Props> = ({ ...props }) => {
   const { t } = useTranslation();
 
   const { settings, updateSettings, pluginSettings } = useSettings();
+
+  // Pinch-to-zoom and double-tap-to-seek are implemented by the native player
+  // only (iOS by default, Android opt-in) — the JS player has neither, and the
+  // Siri remote has no equivalent, so the rows stay hidden everywhere else.
+  const isNativeTouchPlayer = useMemo(
+    () =>
+      !Platform.isTV && getActiveVideoPlayer(settings) === VideoPlayer.Native,
+    [settings],
+  );
 
   const disabled = useMemo(
     () =>
@@ -162,9 +173,7 @@ export const GestureControls: React.FC<Props> = ({ ...props }) => {
           </DisabledSetting>
         )}
 
-        {/* Pinch-to-zoom and double-tap-to-seek only exist in the iOS
-            native player. */}
-        {isIOSMobile && (
+        {isNativeTouchPlayer && (
           <ListItem
             title={t("home.settings.gesture_controls.pinch_to_zoom")}
             subtitle={t(
@@ -182,7 +191,7 @@ export const GestureControls: React.FC<Props> = ({ ...props }) => {
           </ListItem>
         )}
 
-        {isIOSMobile && (
+        {isNativeTouchPlayer && (
           <ListItem
             title={t("home.settings.gesture_controls.double_tap_to_seek")}
             subtitle={t(

@@ -84,6 +84,14 @@
           ]
         }
       ],
+      [
+        "@sentry/react-native/expo",
+        {
+          "organization": "streamyfin",
+          "project": "react-native",
+          "url": "https://sentry.io/"
+        }
+      ],
       "./plugins/withExcludeMedia3Dash.ts",
       "./plugins/withTVUserManagement.ts",
       [
@@ -92,7 +100,12 @@
           "ios": {
             "deploymentTarget": "16.4",
             "useFrameworks": "static",
-            "forceStaticLinking": ["ExpoUI", "GlassEffectView", "GlassPoster"]
+            "forceStaticLinking": [
+              "ExpoUI",
+              "GlassEffectView",
+              "GlassPoster",
+              "HeroCarousel"
+            ]
           },
           "android": {
             "buildArchs": ["arm64-v8a", "x86_64", "armeabi-v7a"],
@@ -161,7 +174,7 @@
         "./plugins/withGitPod.ts",
         {
           "podName": "MPVKit",
-          "podspecUrl": "https://raw.githubusercontent.com/mpv-ios/MPVKit/0.41.0-av/MPVKit.podspec"
+          "podspecUrl": "https://raw.githubusercontent.com/streamyfin/MPVKit/0.41.0-av2/MPVKit.podspec"
         }
       ]
     ],

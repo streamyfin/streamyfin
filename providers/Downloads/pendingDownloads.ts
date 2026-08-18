@@ -5,6 +5,7 @@ import type {
 import { File, Paths } from "expo-file-system";
 import type { Bitrate } from "@/components/BitrateSelector";
 import type { DownloadActivityMetadata } from "@/modules/background-downloader";
+import { logAndCaptureError } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
 import { addDownloadedItem } from "./database";
 import type { DownloadedItem, MediaTimeSegment, TrickPlayData } from "./types";
@@ -49,12 +50,22 @@ export interface PendingDownload {
 
 const PENDING_DOWNLOADS_KEY = "downloads.pending.v1.json";
 
+// readAll runs on every accessor call, so report corruption only once per
+// session instead of flooding the log and Sentry.
+let reportedCorruptStore = false;
+
 function readAll(): Record<string, PendingDownload> {
   const raw = storage.getString(PENDING_DOWNLOADS_KEY);
   if (!raw) return {};
   try {
     return JSON.parse(raw) as Record<string, PendingDownload>;
-  } catch {
+  } catch (error) {
+    // Falling back to {} forgets every in-flight download, so make the
+    // corruption visible instead of losing them silently.
+    if (!reportedCorruptStore) {
+      reportedCorruptStore = true;
+      logAndCaptureError("Pending-downloads store is corrupt", error);
+    }
     return {};
   }
 }

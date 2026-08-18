@@ -836,6 +836,25 @@ export default function SettingsTV() {
             </>
           )}
 
+          {/* Native Android TV player opt-in — Android TV, default off */}
+          {isAndroidTv && (
+            <>
+              <TVSettingsToggle
+                disabledByAdmin={
+                  pluginSettings?.nativeVideoPlayerAndroidTV?.locked
+                }
+                label={t("home.settings.video_player.native_tv")}
+                value={settings.nativeVideoPlayerAndroidTV === true}
+                onToggle={(value) =>
+                  updateSettings({ nativeVideoPlayerAndroidTV: value })
+                }
+              />
+              <Text style={playerNoteStyle}>
+                {t("home.settings.video_player.native_android_tv_note")}
+              </Text>
+            </>
+          )}
+
           <TVSettingsToggle
             disabledByAdmin={pluginSettings?.showResumeDialog?.locked}
             label={t("home.settings.other.resume_dialog")}
@@ -1267,9 +1286,10 @@ export default function SettingsTV() {
             onToggle={(value) => updateSettings({ showHomeBackdrop: value })}
           />
           <TVSettingsToggle
+            disabledByAdmin={pluginSettings?.showHeroCarousel?.locked}
             label={t("home.settings.appearance.show_hero_carousel")}
-            value={settings.showTVHeroCarousel}
-            onToggle={(value) => updateSettings({ showTVHeroCarousel: value })}
+            value={settings.showHeroCarousel}
+            onToggle={(value) => updateSettings({ showHeroCarousel: value })}
           />
           <TVSettingsToggle
             label={t("home.settings.appearance.show_series_poster_on_episode")}
@@ -1300,6 +1320,11 @@ export default function SettingsTV() {
             onToggle={(value) =>
               updateSettings({ openSubtitlesEnabled: value })
             }
+          />
+          <TVSettingsToggle
+            label={t("home.settings.plugins.crash_reports")}
+            value={settings.sentryEnabled}
+            onToggle={(value) => updateSettings({ sentryEnabled: value })}
           />
 
           {/* Custom proxy auth headers for Jellyfin and each integration */}

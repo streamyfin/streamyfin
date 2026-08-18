@@ -6,24 +6,30 @@ interface ProgressBarProps {
   item: BaseItemDto;
 }
 
-export const ProgressBar: React.FC<ProgressBarProps> = ({ item }) => {
-  const progress = useMemo(() => {
-    if (item.Type === "Program") {
-      if (!item.StartDate || !item.EndDate) {
-        return 0;
-      }
-      const startDate = new Date(item.StartDate);
-      const endDate = new Date(item.EndDate);
-      const now = new Date();
-      const total = endDate.getTime() - startDate.getTime();
-      if (total <= 0) {
-        return 0;
-      }
-      const elapsed = now.getTime() - startDate.getTime();
-      return (elapsed / total) * 100;
+/**
+ * How far through an item the user is, 0-100. A live TV program has no watch
+ * state, so it reports how much of its air time has elapsed instead.
+ */
+export const getItemProgressPercentage = (item: BaseItemDto): number => {
+  if (item.Type === "Program") {
+    if (!item.StartDate || !item.EndDate) {
+      return 0;
     }
-    return item.UserData?.PlayedPercentage || 0;
-  }, [item]);
+    const startDate = new Date(item.StartDate);
+    const endDate = new Date(item.EndDate);
+    const now = new Date();
+    const total = endDate.getTime() - startDate.getTime();
+    if (total <= 0) {
+      return 0;
+    }
+    const elapsed = now.getTime() - startDate.getTime();
+    return (elapsed / total) * 100;
+  }
+  return item.UserData?.PlayedPercentage || 0;
+};
+
+export const ProgressBar: React.FC<ProgressBarProps> = ({ item }) => {
+  const progress = useMemo(() => getItemProgressPercentage(item), [item]);
 
   if (progress <= 0) {
     return null;

@@ -8,6 +8,7 @@ import type {
   DownloadStartedEvent,
 } from "@/modules";
 import { BackgroundDownloader } from "@/modules";
+import { logAndCaptureError, writeToLog } from "@/utils/log";
 import {
   getNotificationContent,
   sendDownloadNotification,
@@ -230,7 +231,13 @@ export function useDownloadEventHandlers({
             removeProcess(itemId);
           }, 2000);
         } catch (error) {
-          console.error("Error handling download completion:", error);
+          // A download that finished on disk gets discarded here — one of
+          // the worst silent failures the app has, so always report it.
+          // (`record` from the top of the handler — the pending store may
+          // already have been cleared by finalizePendingDownload.)
+          logAndCaptureError("Handling download completion failed", error, {
+            itemType: record.item?.Type,
+          });
           removePendingDownload(itemId);
           updateProcess(itemId, { status: "error" });
           clearSpeedData(itemId);
@@ -252,7 +259,21 @@ export function useDownloadEventHandlers({
         const record = getPendingDownload(itemId);
         if (!record) return;
 
-        console.error(`Download error for ${itemId}:`, event.error);
+        // Native error payloads are plain strings, so connectivity failures
+        // (walking out of Wi-Fi range is the normal downloads scenario) are
+        // classified by keyword and kept out of Sentry; the scrubbers redact
+        // any scheme-less host/IP the native message embeds.
+        if (
+          /connect|network|internet|offline|time.?out|timed out|unreachable|resolve|dns|route/i.test(
+            event.error,
+          )
+        ) {
+          writeToLog("WARN", "Download failed (connectivity)", event.error);
+        } else {
+          logAndCaptureError("Download failed", event.error, {
+            itemType: record.item?.Type,
+          });
+        }
 
         removePendingDownload(itemId);
         updateProcess(itemId, { status: "error" });

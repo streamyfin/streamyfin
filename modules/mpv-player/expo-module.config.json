@@ -4,6 +4,9 @@
     "modules": ["MpvPlayerModule", "NativePlayerModule"]
   },
   "android": {
-    "modules": ["expo.modules.mpvplayer.MpvPlayerModule"]
+    "modules": [
+      "expo.modules.mpvplayer.MpvPlayerModule",
+      "expo.modules.mpvplayer.nativeplayer.NativePlayerModule"
+    ]
   }
 }

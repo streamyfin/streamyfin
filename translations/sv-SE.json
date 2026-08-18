@@ -228,11 +228,12 @@
         "mpv": "MPV",
         "native": "Inbyggd (rekommenderas)",
         "classic": "Klassisk",
-        "native_note": "Båda alternativen använder samma MPV-motor, det här ändrar bara spelarens kontroller. Den inbyggda spelaren använder iOS systemkontroller och öppnas direkt. Byt tillbaka om du får uppspelningsproblem.",
+        "native_note": "Båda alternativen använder samma MPV-motor, det här ändrar bara spelarens kontroller. Den inbyggda spelaren använder inbyggda systemkontroller och öppnas direkt. Byt tillbaka om du får uppspelningsproblem.",
         "exoplayer_note": "ExoPlayer stöder inte avancerad ASS/SSA-undertextstil eller horisontell undertextjustering. Byt till MPV om du behöver det.",
         "mpv_note": "MPV på TV skickar för närvarande inte HDR-metadata till skärmen, så HDR10-/HDR10+-innehåll konverteras till SDR. Byt till ExoPlayer för HDR-utdata.",
         "native_tv": "Inbyggd spelare (experimentell)",
-        "native_tv_note": "Använd den nya helt inbyggda Apple TV-spelaren. Stäng av för att använda den tidigare spelaren om du får uppspelningsproblem."
+        "native_tv_note": "Använd den nya helt inbyggda Apple TV-spelaren. Stäng av för att använda den tidigare spelaren om du får uppspelningsproblem.",
+        "native_android_tv_note": "Använd den nya helt inbyggda Android TV-spelaren. Stäng av för att använda den tidigare spelaren om du får uppspelningsproblem."
       },
       "buffer": {
         "title": "Bufferinställningar",
@@ -385,6 +386,8 @@
           "movie_quota_days": "Filmkvot Dagar",
           "tv_quota_limit": "Gräns för TV-kvot",
           "tv_quota_days": "Tv-kvot Dagar",
+          "auto_login_title": "Logga in automatiskt",
+          "auto_login_description": "Logga in på Seerr vid start med ditt Jellyfin-lösenord. Lösenordet sparas i enhetens säkra lagring och tas bort när du loggar ut.",
           "reset_jellyseerr_config_button": "Återställ Seerr Konfiguration",
           "unlimited": "Obegränsat",
           "plus_n_more": "+{{n}} mer",
@@ -741,6 +744,7 @@
     "stopPlayback": "Stoppa uppspelning",
     "stopPlayingTitle": "Sluta spela \"{{title}}\"?",
     "stopPlayingConfirm": "Är du säker på att du vill stoppa uppspelningen?",
+    "now_playing": "Spelas nu",
     "downloaded": "Nedladdad",
     "missing_parameters": "Uppspelningsparametrar saknas"
   },

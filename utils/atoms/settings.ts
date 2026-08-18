@@ -13,7 +13,12 @@ import { Platform } from "react-native";
 import { BITRATES, type Bitrate } from "@/components/BitrateSelector";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { apiAtom } from "@/providers/JellyfinProvider";
-import { writeInfoLog } from "@/utils/log";
+import { logAndCaptureError, writeInfoLog } from "@/utils/log";
+import {
+  PLUGIN_SETTINGS_KEY,
+  readStoredSettings,
+  SETTINGS_KEY,
+} from "@/utils/storedSettings";
 import { storage } from "../mmkv";
 import {
   type AppliedPluginDefaults,
@@ -22,7 +27,7 @@ import {
 } from "./settingsOverrides";
 
 const _STREAMYFIN_PLUGIN_ID = "1e9e5d386e6746158719e98a5c34f004";
-const STREAMYFIN_PLUGIN_SETTINGS = "STREAMYFIN_PLUGIN_SETTINGS";
+const STREAMYFIN_PLUGIN_SETTINGS = PLUGIN_SETTINGS_KEY;
 const PLUGIN_APPLIED_DEFAULTS = "STREAMYFIN_PLUGIN_APPLIED_DEFAULTS";
 
 export type DownloadQuality = "original" | "high" | "low";
@@ -186,7 +191,7 @@ export type HomeSectionLatestResolver = {
 
 // Video player enum. MPV is the universal default; ExoPlayer is an
 // opt-in alternative on Android TV, selectable via settings.videoPlayer.
-// Native is the fully-native iOS player (iPhone only).
+// Native is the fully-native player (iOS and Android phone/tablet).
 export enum VideoPlayer {
   MPV = 0,
   ExoPlayer = 1,
@@ -203,12 +208,13 @@ export const isExoPlayerSupported =
   Platform.OS === "android" && Platform.isTV === true;
 
 /**
- * Whether the fully-native iOS player is available on the current platform.
- * It only ships for iPhone/iPad (not TV); a persisted `videoPlayer: Native`
- * preference roaming to another platform must fall back to MPV.
+ * Whether the fully-native player is available on the current platform.
+ * It ships for iPhone/iPad and Android mobile/tablet (not TV); on iOS it is
+ * the default, on Android it is currently opt-in via settings.
  */
 export const isNativePlayerSupported =
-  Platform.OS === "ios" && Platform.isTV !== true;
+  (Platform.OS === "ios" || Platform.OS === "android") &&
+  Platform.isTV !== true;
 
 /**
  * Whether the fully-native player can run on the current platform as the
@@ -223,14 +229,23 @@ export const isNativePlayerSupportedTV =
   Number.parseInt(String(Platform.Version), 10) >= 26;
 
 /**
+ * Whether the fully-native player can run on the current platform as the
+ * Android TV variant. It is opt-in via `nativeVideoPlayerAndroidTV` (default false),
+ * and requires Android TV.
+ */
+export const isNativePlayerSupportedAndroidTV =
+  Platform.OS === "android" && Boolean(Platform.isTV);
+
+/**
  * Resolve the actually-active video player for the current settings.
  * MPV is the default on Android; users can opt into ExoPlayer on
- * Android TV via settings.videoPlayer. On iPhone/iPad the fully-native
- * player is the default: an unset `videoPlayer` (user never chose) or an
- * explicit `Native` selection resolves to Native, while an explicit MPV
- * choice is the opt-out and wins. On Apple TV (tvOS 26+) the native player
- * is likewise the default, with the separate `nativeVideoPlayerTV` toggle
- * as the opt-out. The platform capability gates are
+ * Android TV or the Native player on Android mobile via settings.videoPlayer.
+ * On Android TV, users can opt into the native player via `nativeVideoPlayerAndroidTV`.
+ * On iPhone/iPad the fully-native player is the default: an unset `videoPlayer`
+ * (user never chose) or an explicit `Native` selection resolves to Native,
+ * while an explicit MPV choice is the opt-out and wins. On Apple TV (tvOS 26+)
+ * the native player is likewise the default, with the separate
+ * `nativeVideoPlayerTV` toggle as the opt-out. The platform capability gates are
  * folded in here so callers (VideoPlayerView, direct-player's device
  * profile, PlaySettingsProvider) can never advertise a player on a
  * platform where another one is actually rendering — that mismatch would
@@ -238,7 +253,12 @@ export const isNativePlayerSupportedTV =
  */
 export const getActiveVideoPlayer = (
   settings:
-    | Partial<Pick<Settings, "videoPlayer" | "nativeVideoPlayerTV">>
+    | Partial<
+        Pick<
+          Settings,
+          "videoPlayer" | "nativeVideoPlayerTV" | "nativeVideoPlayerAndroidTV"
+        >
+      >
     | null
     | undefined,
 ): VideoPlayer => {
@@ -249,8 +269,14 @@ export const getActiveVideoPlayer = (
     return VideoPlayer.Native;
   }
   if (
+    isNativePlayerSupportedAndroidTV &&
+    settings?.nativeVideoPlayerAndroidTV === true
+  ) {
+    return VideoPlayer.Native;
+  }
+  if (
     isNativePlayerSupported &&
-    (settings?.videoPlayer === undefined ||
+    ((Platform.OS === "ios" && settings?.videoPlayer === undefined) ||
       settings?.videoPlayer === VideoPlayer.Native)
   ) {
     return VideoPlayer.Native;
@@ -264,7 +290,12 @@ export const getActiveVideoPlayer = (
  */
 export const getActivePlayerType = (
   settings:
-    | Partial<Pick<Settings, "videoPlayer" | "nativeVideoPlayerTV">>
+    | Partial<
+        Pick<
+          Settings,
+          "videoPlayer" | "nativeVideoPlayerTV" | "nativeVideoPlayerAndroidTV"
+        >
+      >
     | null
     | undefined,
 ): "mpv" | "exoplayer" => {
@@ -311,6 +342,11 @@ export enum InactivityTimeout {
 export type MpvCacheMode = "auto" | "yes" | "no";
 export type MpvVoDriver = "gpu-next" | "gpu";
 
+/** Content groups that can appear in the home hero carousel. */
+export type HomeHeroSection = "continueWatching" | "nextUp" | "recentlyAdded";
+/** Media kinds that can appear in the home hero carousel. */
+export type HomeHeroMediaType = "movie" | "tv";
+
 export type Settings = {
   home?: Home | null;
   deviceProfile?: "Expo" | "Native" | "Old";
@@ -354,6 +390,15 @@ export type Settings = {
   subtitleAlignY?: "top" | "center" | "bottom";
   safeAreaInControlsEnabled: boolean;
   jellyseerrServerUrl?: string;
+  /** Seerr admin API key: signs the user in via their Jellyfin ID, no password. */
+  jellyseerrApiKey?: string;
+  /**
+   * Sign in to Jellyseerr automatically on launch using the Jellyfin password.
+   * Jellyseerr's /auth/jellyfin endpoint takes the password rather than the
+   * Jellyfin token, so enabling this persists that password in the platform
+   * secure store. Nothing is stored unless a Jellyseerr server is configured.
+   */
+  autoLoginJellyseerr: boolean;
   useKefinTweaks: boolean;
   hiddenLibraries?: string[];
   enableH265ForChromecast: boolean;
@@ -385,14 +430,29 @@ export type Settings = {
   hideBrightnessSlider: boolean;
   usePopularPlugin: boolean;
   mergeNextUpAndContinueWatching: boolean;
+  /**
+   * Home hero carousel filters. Both are "hidden" lists, so an empty list
+   * (the default) shows everything, and they combine: hiding the
+   * "recentlyAdded" group and the "movie" media type leaves only
+   * continue-watching and next-up episodes.
+   */
+  hiddenHomeHeroSections?: HomeHeroSection[];
+  hiddenHomeHeroMediaTypes?: HomeHeroMediaType[];
   // Use the episode's own image (instead of the series thumb) for the
   // "Next Up" and "Continue Watching" home rows.
   useEpisodeImagesForNextUp: boolean;
   // TV-specific settings
   /** Apple TV only: use the fully-native tvOS player (default on; needs tvOS 26+). */
   nativeVideoPlayerTV: boolean;
+  /** Android TV only: use the fully-native Android TV player (opt-in; default off). */
+  nativeVideoPlayerAndroidTV?: boolean;
   showHomeBackdrop: boolean;
-  showTVHeroCarousel: boolean;
+  /**
+   * The home hero carousel, on every platform — the TV one and the iOS one
+   * are the same feature and share this single switch. Stored values from
+   * the old TV-only `showTVHeroCarousel` key are migrated in `loadSettings`.
+   */
+  showHeroCarousel: boolean;
   tvTypographyScale: TVTypographyScale;
   showSeriesPosterOnEpisode: boolean;
   tvThemeMusicEnabled: boolean;
@@ -415,6 +475,8 @@ export type Settings = {
   openSubtitlesApiKey?: string;
   // TV-only: Inactivity timeout for auto-logout
   inactivityTimeout: InactivityTimeout;
+  /** Anonymous crash/error reporting via Sentry (on by default, opt-out). */
+  sentryEnabled: boolean;
 };
 
 export interface Lockable<T> {
@@ -428,6 +490,26 @@ export type PluginLockableSettings = {
 export type StreamyfinPluginConfig = {
   settings: PluginLockableSettings;
 };
+
+// Settings whose values are secrets. They must never reach the app log,
+// which users read in-app and paste into bug reports.
+const SENSITIVE_SETTING_KEYS: ReadonlySet<keyof Settings> = new Set([
+  "jellyseerrApiKey",
+  "openSubtitlesApiKey",
+] as const);
+
+export const redactPluginSettings = (
+  settings: PluginLockableSettings | undefined,
+): PluginLockableSettings | undefined =>
+  settings &&
+  (Object.fromEntries(
+    Object.entries(settings).map(([key, lockable]) => [
+      key,
+      SENSITIVE_SETTING_KEYS.has(key as keyof Settings) && lockable?.value
+        ? { ...lockable, value: "[redacted]" }
+        : lockable,
+    ]),
+  ) as PluginLockableSettings);
 
 export const defaultValues: Settings = {
   home: null,
@@ -476,6 +558,8 @@ export const defaultValues: Settings = {
   subtitleAlignY: "bottom",
   safeAreaInControlsEnabled: true,
   jellyseerrServerUrl: undefined,
+  jellyseerrApiKey: undefined,
+  autoLoginJellyseerr: true,
   useKefinTweaks: false,
   hiddenLibraries: [],
   enableH265ForChromecast: false,
@@ -511,11 +595,14 @@ export const defaultValues: Settings = {
   hideBrightnessSlider: false,
   usePopularPlugin: true,
   mergeNextUpAndContinueWatching: false,
+  hiddenHomeHeroSections: [],
+  hiddenHomeHeroMediaTypes: [],
   useEpisodeImagesForNextUp: false,
   // TV-specific settings
   nativeVideoPlayerTV: true,
+  nativeVideoPlayerAndroidTV: false,
   showHomeBackdrop: true,
-  showTVHeroCarousel: true,
+  showHeroCarousel: true,
   tvTypographyScale: TVTypographyScale.Default,
   showSeriesPosterOnEpisode: false,
   tvThemeMusicEnabled: true,
@@ -535,6 +622,8 @@ export const defaultValues: Settings = {
   openSubtitlesEnabled: true,
   // TV-only: Inactivity timeout (disabled by default)
   inactivityTimeout: InactivityTimeout.Disabled,
+  // Crash reporting defaults on; the intro sheet and settings expose the opt-out
+  sentryEnabled: true,
 };
 
 type LegacySubtitleSettings = Partial<Settings> & {
@@ -616,20 +705,30 @@ const migrateSubtitleSettings = (settings: LegacySubtitleSettings) => {
 };
 
 const loadSettings = (): Partial<Settings> => {
-  try {
-    const jsonValue = storage.getString("settings");
-    const loadedValues: LegacySubtitleSettings =
-      jsonValue != null ? JSON.parse(jsonValue) : {};
+  const stored = readStoredSettings() as LegacySubtitleSettings & {
+    showTVHeroCarousel?: boolean;
+  };
+  let changed = migrateSubtitleSettings(stored);
 
-    if (migrateSubtitleSettings(loadedValues)) {
-      storage.set("settings", JSON.stringify(loadedValues));
-    }
-
-    return loadedValues;
-  } catch (error) {
-    console.error("Failed to load settings:", error);
-    return {};
+  // `showTVHeroCarousel` became `showHeroCarousel` once the hero shipped on
+  // phones too and the two were merged into one switch. Carry a stored TV
+  // preference across so a hero someone had turned off stays off.
+  if (
+    stored.showHeroCarousel === undefined &&
+    stored.showTVHeroCarousel !== undefined
+  ) {
+    stored.showHeroCarousel = stored.showTVHeroCarousel;
+    changed = true;
   }
+  if ("showTVHeroCarousel" in stored) {
+    delete stored.showTVHeroCarousel;
+    changed = true;
+  }
+
+  if (changed) {
+    storage.set(SETTINGS_KEY, JSON.stringify(stored));
+  }
+  return stored;
 };
 
 const EXCLUDE_FROM_SAVE = ["home"];
@@ -643,18 +742,45 @@ const saveSettings = (settings: Settings) => {
       }
     }
     const jsonValue = JSON.stringify(persistedSettings);
-    storage.set("settings", jsonValue);
+    storage.set(SETTINGS_KEY, jsonValue);
   } catch (error) {
-    console.error("Failed to save settings:", error);
+    // The user's change is silently lost when this fails.
+    logAndCaptureError("Saving settings failed", error);
   }
 };
 
 export const settingsAtom = atom<Partial<Settings> | null>(null);
+
+/**
+ * Server-side counterpart to the `showTVHeroCarousel` migration in
+ * `loadSettings`: the Streamyfin plugin config still keys the hero switch
+ * under the old name, so alias it or an admin's existing lock and default
+ * would quietly stop being enforced after the rename.
+ */
+const migratePluginSettings = (
+  settings: PluginLockableSettings | undefined,
+): PluginLockableSettings | undefined => {
+  if (!settings) {
+    return settings;
+  }
+  const legacy = (settings as Record<string, unknown>).showTVHeroCarousel;
+  if (settings.showHeroCarousel !== undefined || legacy === undefined) {
+    return settings;
+  }
+  return {
+    ...settings,
+    showHeroCarousel: legacy as PluginLockableSettings["showHeroCarousel"],
+  };
+};
+
 const loadPluginSettings = () => {
   try {
-    return storage.get<PluginLockableSettings>(STREAMYFIN_PLUGIN_SETTINGS);
+    return migratePluginSettings(
+      storage.get<PluginLockableSettings>(STREAMYFIN_PLUGIN_SETTINGS),
+    );
   } catch (error) {
-    console.error("Failed to load plugin settings:", error);
+    // Without the plugin settings the server admin's policy is not applied.
+    logAndCaptureError("Loading plugin settings failed", error);
     return undefined;
   }
 };
@@ -702,8 +828,9 @@ export const useSettings = () => {
 
   const setPluginSettings = useCallback(
     (settings: PluginLockableSettings | undefined) => {
-      storage.setAny(STREAMYFIN_PLUGIN_SETTINGS, settings);
-      _setPluginSettings(settings);
+      const migrated = migratePluginSettings(settings);
+      storage.setAny(STREAMYFIN_PLUGIN_SETTINGS, migrated);
+      _setPluginSettings(migrated);
     },
     [_setPluginSettings],
   );
@@ -714,7 +841,10 @@ export const useSettings = () => {
     }
     const newPluginSettings = await api.getStreamyfinPluginConfig().then(
       ({ data }) => {
-        writeInfoLog("Got plugin settings", data?.settings);
+        writeInfoLog(
+          "Got plugin settings",
+          redactPluginSettings(data?.settings),
+        );
         return data?.settings;
       },
       (_err) => undefined,

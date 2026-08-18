@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { Alert } from "react-native";
 import { usePlaybackManager } from "@/hooks/usePlaybackManager";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
+import { logAndCaptureError } from "@/utils/log";
 
 export const useTVItemActionModal = () => {
   const { t } = useTranslation();
@@ -54,8 +55,12 @@ export const useTVItemActionModal = () => {
               } else {
                 await markItemUnplayed(item.Id);
               }
-            } catch {
-              // Revert on failure
+            } catch (error) {
+              // Revert on failure — and report it, since the user gets no
+              // other signal that the action didn't stick.
+              logAndCaptureError("Marking item played/unplayed failed", error, {
+                played: !isPlayed,
+              });
               queryClient.invalidateQueries({
                 queryKey: ["item", item.Id],
               });

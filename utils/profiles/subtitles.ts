@@ -83,8 +83,12 @@ const EXOPLAYER_SUBTITLE_PROFILES: SubtitleProfile[] = [
   { Format: "pgssub", Method: "Encode" },
 ];
 
+// Text subs are delivered as sidecar VTT files the receiver fetches and
+// renders itself. Burning them in (Encode) forces a full video re-encode,
+// which some receivers refuse to play — image subs (no External profile)
+// still fall back to server-side burn-in.
 const CHROMECAST_SUBTITLE_PROFILES: SubtitleProfile[] = [
-  { Format: "vtt", Method: "Encode" },
+  { Format: "vtt", Method: "External" },
 ];
 
 // Note: Method "Encode" forces Jellyfin to burn subtitles into the downloaded stream.
