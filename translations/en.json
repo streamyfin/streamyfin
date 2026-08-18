@@ -827,8 +827,7 @@
     "resume_playback": "Resume playback",
     "resume_playback_description": "Do you want to continue where you left off or start from the beginning?",
     "play_from_start": "Play from start",
-    "continue_from": "Continue from {{time}}",
-    "no_data_available": "No data available"
+    "continue_from": "Continue from {{time}}"
   },
   "live_tv": {
     "title": "Live TV",
