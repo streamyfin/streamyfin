@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { type QueryClient, useQueryClient } from "@tanstack/react-query";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Animated, Easing } from "react-native";
+import { scaleSize } from "@/utils/scaleSize";
 import { TVButton } from "./TVButton";
 
 export interface TVRefreshButtonProps {
@@ -63,7 +64,7 @@ export const TVRefreshButton: React.FC<TVRefreshButtonProps> = ({
       disabled={isRefreshing}
     >
       <Animated.View style={{ transform: [{ rotate: spin }] }}>
-        <Ionicons name='refresh' size={28} color='#FFFFFF' />
+        <Ionicons name='refresh' size={scaleSize(28)} color='#FFFFFF' />
       </Animated.View>
     </TVButton>
   );
