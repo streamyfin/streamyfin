@@ -69,6 +69,7 @@ class NativePlayerSession(
     private var backCallback: OnBackPressedCallback? = null
 
     private var surfaceReady = false
+    private var rendererStarted = false
     private var isDismissing = false
     private var pendingConfig: PlayerPresentConfigRecord? = null
 
@@ -135,9 +136,6 @@ class NativePlayerSession(
                 viewModel.renderer = newRenderer
                 this.renderer = newRenderer
 
-                // Claim ownership and start renderer
-                newRenderer.start(voDriver = "gpu-next", owner = MpvOwnership.Owner.NATIVE_SESSION)
-
                 // Initialize controllers
                 if (!isTv) {
                     val volumeCtrl = SystemVolumeController(activity)
@@ -167,13 +165,20 @@ class NativePlayerSession(
                     mediaSessionController?.updateMetadata()
                 }
 
-                viewModel.apply(config)
-
                 // Setup Overlay Views on MainActivity
                 setupOverlay(activity, config, isTv)
 
-                // Kick stream load
-                startStream(config)
+                newRenderer.start(
+                    voDriver = "gpu-next",
+                    owner = MpvOwnership.Owner.NATIVE_SESSION,
+                ) {
+                    if (renderer !== newRenderer) return@start
+                    rendererStarted = true
+                    val configToLoad = pendingConfig ?: config
+                    pendingConfig = null
+                    viewModel.apply(configToLoad)
+                    startStream(configToLoad)
+                }
 
                 promise.resolve(null)
             } catch (e: Exception) {
@@ -439,9 +444,13 @@ class NativePlayerSession(
     fun load(config: PlayerPresentConfigRecord) {
         val activity = hostActivity
         val loadAction = {
-            viewModel.prepareForReload()
-            viewModel.apply(config)
-            startStream(config, force = true)
+            if (!rendererStarted) {
+                pendingConfig = config
+            } else {
+                viewModel.prepareForReload()
+                viewModel.apply(config)
+                startStream(config)
+            }
         }
         if (activity != null && Looper.myLooper() != Looper.getMainLooper()) {
             activity.runOnUiThread { loadAction() }
@@ -450,9 +459,9 @@ class NativePlayerSession(
         }
     }
 
-    private fun startStream(config: PlayerPresentConfigRecord, force: Boolean = false) {
+    private fun startStream(config: PlayerPresentConfigRecord) {
         val loadConfig = config.stream.toVideoLoadConfig() ?: return
-        if (!surfaceReady) {
+        if (!rendererStarted || !surfaceReady) {
             pendingConfig = config
             return
         }
@@ -535,9 +544,11 @@ class NativePlayerSession(
         renderer?.attachSurface(holder.surface)
         syncSurfaceSize()
 
-        pendingConfig?.let { config ->
-            pendingConfig = null
-            startStream(config)
+        if (rendererStarted) {
+            pendingConfig?.let { config ->
+                pendingConfig = null
+                startStream(config)
+            }
         }
     }
 
@@ -611,6 +622,8 @@ class NativePlayerSession(
             viewModel.volumeController?.unregister()
             mediaSessionController?.release()
 
+            pendingConfig = null
+            rendererStarted = false
             renderer?.stop()
             renderer = null
             hostActivity = null
@@ -644,6 +657,8 @@ class NativePlayerSession(
             viewModel.brightnessController?.restore()
             viewModel.volumeController?.unregister()
             mediaSessionController?.release()
+            pendingConfig = null
+            rendererStarted = false
             renderer?.stop()
             renderer = null
             hostActivity = null

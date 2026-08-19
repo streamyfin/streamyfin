@@ -28,6 +28,7 @@ class ExoPlayerModule : Module() {
                     autoplay = (source["autoplay"] as? Boolean) ?: true,
                     initialSubtitleId = (source["initialSubtitleId"] as? Number)?.toInt(),
                     initialAudioId = (source["initialAudioId"] as? Number)?.toInt(),
+                    loop = (source["loop"] as? Boolean) ?: false,
                     cacheEnabled = cacheConfig?.get("enabled") as? String,
                     cacheSeconds = (cacheConfig?.get("cacheSeconds") as? Number)?.toInt(),
                     demuxerMaxBytes = (cacheConfig?.get("maxBytes") as? Number)?.toInt(),

@@ -1,50 +1,63 @@
 package expo.modules.mpvplayer.nativeplayer
 
-import android.util.Log
+import java.util.ArrayDeque
 
 /**
- * Process-global ownership registry for the libmpv instance.
+ * Process-global ownership registry for libmpv renderers.
  *
- * libmpv 1.0 retains native memory on teardown (handles leak to GC by design
- * to avoid an internal use-after-free in libmpv 1.0 nativeDestroy). To prevent
- * multiple simultaneous active players from colliding or causing Out-Of-Memory
- * (OOM) issues, this registry tracks whether an active playback session is owned
- * by the embedded React Native view (MpvPlayerView) or the presented native player
- * session (NativePlayerSession).
+ * A renderer keeps its token until asynchronous decoder teardown completes.
+ * Replacement renderers wait for that release instead of overlapping native
+ * handles or failing during rapid navigation.
  */
 object MpvOwnership {
-    private const val TAG = "MpvOwnership"
-
     enum class Owner {
         NONE,
         EMBEDDED_VIEW,
         NATIVE_SESSION,
     }
 
-    @Volatile
-    private var currentOwner: Owner = Owner.NONE
+    private data class Claim(
+        val owner: Owner,
+        val token: Any,
+        val onAcquired: () -> Unit,
+    )
+
+    private var currentClaim: Claim? = null
+    private val pendingClaims = ArrayDeque<Claim>()
 
     val owner: Owner
-        get() = currentOwner
+        @Synchronized get() = currentClaim?.owner ?: Owner.NONE
 
-    @Synchronized
-    fun claim(newOwner: Owner): Boolean {
-        if (currentOwner != Owner.NONE && currentOwner != newOwner) {
-            Log.w(TAG, "Ownership claim rejected: currently owned by $currentOwner, requested by $newOwner")
-            return false
+    fun claim(owner: Owner, token: Any, onAcquired: () -> Unit) {
+        val acquired = synchronized(this) {
+            val claim = Claim(owner, token, onAcquired)
+            if (currentClaim == null) {
+                currentClaim = claim
+                true
+            } else {
+                pendingClaims.addLast(claim)
+                false
+            }
         }
-        currentOwner = newOwner
-        Log.i(TAG, "Ownership claimed by $newOwner")
-        return true
+
+        if (acquired) onAcquired()
     }
 
     @Synchronized
-    fun release(ownerToRelease: Owner) {
-        if (currentOwner == ownerToRelease) {
-            Log.i(TAG, "Ownership released by $ownerToRelease")
-            currentOwner = Owner.NONE
-        } else {
-            Log.w(TAG, "Attempted to release ownership for $ownerToRelease but current owner is $currentOwner")
+    fun cancel(token: Any) {
+        pendingClaims.removeAll { it.token === token }
+    }
+
+    fun release(token: Any) {
+        val nextClaim = synchronized(this) {
+            val current = currentClaim
+            if (current?.token !== token) return
+
+            val next = pendingClaims.pollFirst()
+            currentClaim = next
+            next
         }
+
+        nextClaim?.onAcquired?.invoke()
     }
 }

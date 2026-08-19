@@ -13,6 +13,15 @@ import java.io.File
 import java.io.FileOutputStream
 import java.util.Locale
 
+internal fun normalizeVideoDimensions(width: Int, height: Int, rotation: Int): Pair<Int, Int> {
+    val normalizedRotation = ((rotation % 360) + 360) % 360
+    return if (normalizedRotation == 90 || normalizedRotation == 270) {
+        height to width
+    } else {
+        width to height
+    }
+}
+
 /**
  * MPV renderer that wraps libmpv for video playback.
  * This mirrors the iOS MPVLayerRenderer implementation.
@@ -78,8 +87,9 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
     private val mainHandler = Handler(Looper.getMainLooper())
     
     private var surface: Surface? = null
-    private var isRunning = false
-    private var currentOwner: MpvOwnership.Owner = MpvOwnership.Owner.NONE
+    @Volatile private var isRunning = false
+    @Volatile private var pendingOwnershipToken: Any? = null
+    @Volatile private var activeOwnershipToken: Any? = null
 
     // This renderer's own mpv handle. Per-instance (not singleton) — each
     // player screen gets a fresh mpv handle and drops the reference on stop.
@@ -118,6 +128,7 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
     // Video dimensions
     private var _videoWidth: Int = 0
     private var _videoHeight: Int = 0
+    private var _videoRotation: Int = 0
     
     val videoWidth: Int
         get() = _videoWidth
@@ -164,17 +175,36 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
 
     fun start(
         voDriver: String = "gpu-next",
-        owner: MpvOwnership.Owner = MpvOwnership.Owner.EMBEDDED_VIEW
+        owner: MpvOwnership.Owner = MpvOwnership.Owner.EMBEDDED_VIEW,
+        onStarted: () -> Unit = {},
     ) {
-        if (isRunning) return
+        if (isRunning || pendingOwnershipToken != null) return
+        val ownershipToken = Any()
+        pendingOwnershipToken = ownershipToken
 
-        if (!MpvOwnership.claim(owner)) {
-            Log.w(TAG, "Cannot start renderer: mpv already owned by ${MpvOwnership.owner}")
-            delegate?.onError("MPV player is already in use by another session")
-            return
+        MpvOwnership.claim(owner, ownershipToken) {
+            val startAction = Runnable {
+                if (pendingOwnershipToken !== ownershipToken) {
+                    MpvOwnership.release(ownershipToken)
+                    return@Runnable
+                }
+                pendingOwnershipToken = null
+                activeOwnershipToken = ownershipToken
+                startOwned(voDriver, owner, onStarted)
+            }
+            if (Looper.myLooper() == Looper.getMainLooper()) {
+                startAction.run()
+            } else {
+                mainHandler.post(startAction)
+            }
         }
-        currentOwner = owner
+    }
 
+    private fun startOwned(
+        voDriver: String,
+        owner: MpvOwnership.Owner,
+        onStarted: () -> Unit,
+    ) {
         try {
             // Per-instance handle — see class-level comment. Each player gets
             // its own mpv; we drop the reference in stop().
@@ -278,14 +308,17 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
             
             isRunning = true
             Log.i(TAG, "MPV renderer started (owner=$owner)")
+            onStarted()
         } catch (e: Exception) {
-            val ownerToRelease = currentOwner
-            currentOwner = MpvOwnership.Owner.NONE
-            if (ownerToRelease != MpvOwnership.Owner.NONE) {
-                MpvOwnership.release(ownerToRelease)
-            }
             Log.e(TAG, "Failed to start MPV renderer: ${e.message}")
             delegate?.onError("Failed to start renderer: ${e.message}")
+            if (mpv != null) {
+                isRunning = true
+                stop()
+            } else {
+                activeOwnershipToken?.let(MpvOwnership::release)
+                activeOwnershipToken = null
+            }
         }
     }
     
@@ -330,17 +363,17 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
     }
 
     fun stop() {
-        if (!isRunning) return
-        isRunning = false
+        val pendingToken = pendingOwnershipToken
+        val activeToken = activeOwnershipToken
+        if (!isRunning && pendingToken == null && activeToken == null) return
 
-        val ownerToRelease = currentOwner
-        currentOwner = MpvOwnership.Owner.NONE
-        if (ownerToRelease != MpvOwnership.Owner.NONE) {
-            MpvOwnership.release(ownerToRelease)
-        }
+        pendingOwnershipToken = null
+        pendingToken?.let(MpvOwnership::cancel)
+        activeOwnershipToken = null
 
         val m = mpv
         mpv = null
+        isRunning = false
 
         // Clear cached media state on the main thread so the next player
         // screen doesn't observe stale position/duration values during the
@@ -355,7 +388,10 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
         cachedDuration = 0.0
         cachedCacheSeconds = 0.0
 
-        if (m == null) return
+        if (m == null) {
+            activeToken?.let(MpvOwnership::release)
+            return
+        }
 
         // Teardown runs on a background daemon thread. mpv's "stop" command
         // flushes the demuxer queue and releases the MediaCodec hardware
@@ -397,6 +433,8 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
                 m.detachSurface()
             } catch (e: Exception) {
                 Log.e(TAG, "Error detaching mpv surface: ${e.message}")
+            } finally {
+                activeToken?.let(MpvOwnership::release)
             }
         }.also { it.isDaemon = true }.start()
     }
@@ -540,6 +578,9 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
         this.initialSubtitleId = initialSubtitleId
         this.initialAudioId = initialAudioId
         this.currentLoop = loop
+        _videoWidth = 0
+        _videoHeight = 0
+        _videoRotation = 0
 
         _isLoading = true
         isReadyToSeek = false
@@ -625,6 +666,7 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
         // Video dimensions for PiP aspect ratio
         mpv?.observeProperty("video-params/w", MPV_FORMAT_INT64)
         mpv?.observeProperty("video-params/h", MPV_FORMAT_INT64)
+        mpv?.observeProperty("video-params/rotate", MPV_FORMAT_INT64)
     }
 
     // MARK: - Playback Controls
@@ -1045,14 +1087,21 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
                     notifyVideoDimensionsIfReady()
                 }
             }
+            "video-params/rotate" -> {
+                val rotation = value.toInt()
+                if (rotation != _videoRotation) {
+                    _videoRotation = rotation
+                    notifyVideoDimensionsIfReady()
+                }
+            }
         }
     }
     
     private fun notifyVideoDimensionsIfReady() {
-        if (_videoWidth > 0 && _videoHeight > 0) {
-            Log.i(TAG, "Video dimensions: ${_videoWidth}x${_videoHeight}")
-            mainHandler.post { delegate?.onVideoDimensionsChanged(_videoWidth, _videoHeight) }
-        }
+        if (_videoWidth <= 0 || _videoHeight <= 0) return
+        val (width, height) = normalizeVideoDimensions(_videoWidth, _videoHeight, _videoRotation)
+        Log.i(TAG, "Video dimensions: ${width}x${height} (rotation=$_videoRotation)")
+        mainHandler.post { delegate?.onVideoDimensionsChanged(width, height) }
     }
     
     override fun eventProperty(property: String, value: Boolean) {

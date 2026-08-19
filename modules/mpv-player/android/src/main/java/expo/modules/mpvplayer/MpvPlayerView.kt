@@ -181,25 +181,35 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
      * Called lazily on first loadVideo so user settings are available.
      */
     private fun ensureRendererStarted(voDriver: String?) {
-        if (rendererStarted) return
+        if (rendererStarted) {
+            loadPendingVideo()
+            return
+        }
 
         try {
-            renderer?.start(voDriver ?: "gpu-next")
-            rendererStarted = true
+            renderer?.start(voDriver ?: "gpu-next") {
+                rendererStarted = true
 
-            // If the surface is already alive (surfaceCreated fired before
-            // loadVideo), attach it now. With SurfaceView the surface is
-            // owned by the holder, so we read it from there directly rather
-            // than stashing it on the side.
-            surfaceView.holder.surface?.takeIf { it.isValid }?.let { surface ->
-                activeSurface = surface
-                renderer?.attachSurface(surface)
-                syncSurfaceSizeToView()
+                // If the surface is already alive (surfaceCreated fired before
+                // loadVideo), attach it now. With SurfaceView the surface is
+                // owned by the holder, so we read it from there directly.
+                surfaceView.holder.surface?.takeIf { it.isValid }?.let { surface ->
+                    activeSurface = surface
+                    renderer?.attachSurface(surface)
+                    syncSurfaceSizeToView()
+                }
+                loadPendingVideo()
             }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to start renderer: ${e.message}")
             onError(mapOf("error" to "Failed to start renderer: ${e.message}"))
         }
+    }
+
+    private fun loadPendingVideo() {
+        if (!rendererStarted || !surfaceReady) return
+        pendingConfig?.let(::loadVideoInternal)
+        pendingConfig = null
     }
 
     // MARK: - SurfaceHolder.Callback
@@ -218,12 +228,7 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
             syncSurfaceSizeToView()
         }
 
-        // If we have a pending load, execute it now
-        pendingConfig?.let { config ->
-            ensureRendererStarted(config.voDriver)
-            loadVideoInternal(config)
-            pendingConfig = null
-        }
+        pendingConfig?.let { ensureRendererStarted(it.voDriver) }
     }
 
     override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
@@ -275,16 +280,10 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
             return
         }
 
-        if (!surfaceReady) {
-            // Surface not ready, store config and load when ready
-            pendingConfig = config
-            return
+        pendingConfig = config
+        if (surfaceReady) {
+            ensureRendererStarted(config.voDriver)
         }
-
-        // Ensure renderer is started with the configured VO driver
-        ensureRendererStarted(config.voDriver)
-
-        loadVideoInternal(config)
     }
 
     private fun loadVideoInternal(config: VideoLoadConfig) {
@@ -344,11 +343,9 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
      * / native finalizer rather than torn down synchronously. See
      * [MPVLib] class doc for the full rationale.
      *
-     * Call this BEFORE navigating away from the player screen so the
-     * decoder is reclaimed before the next screen (or the next episode's
-     * player) mounts. Otherwise Expo Router renders the new screen first
-     * and you briefly have two mpv instances + two 4K decoders alive —
-     * instant OOM on a 2 GB device.
+     * Call this BEFORE navigating away from the player screen. A replacement
+     * renderer can mount immediately, but ownership keeps it queued until this
+     * decoder teardown finishes instead of briefly running two MPV instances.
      */
     fun destroy() {
         renderer?.stop()
@@ -371,6 +368,7 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         // across destroy()/loadVideo() on the same view instance. The next
         // ensureRendererStarted() reads it from surfaceView.holder.surface.
         rendererStarted = false
+        pendingConfig = null
         currentUrl = null
         activeSurface = null
     }
@@ -695,6 +693,7 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         // SurfaceView owns the Surface via its holder — do NOT release it.
         activeSurface = null
         surfaceReady = false
+        pendingConfig = null
         currentUrl = null
         rendererStarted = false
     }

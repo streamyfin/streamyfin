@@ -3,7 +3,7 @@ import CoreMedia
 import VideoToolbox
 
 public class MpvPlayerModule: Module {
-  private func parseNumericTrackId(_ value: Any?) -> Int? {
+  private func parseInteger(_ value: Any?) -> Int? {
     if let intValue = value as? Int {
       return intValue
     } else if let doubleValue = value as? Double {
@@ -69,13 +69,13 @@ public class MpvPlayerModule: Module {
           externalSubtitles: source["externalSubtitles"] as? [String],
           startPosition: source["startPosition"] as? Double,
           autoplay: (source["autoplay"] as? Bool) ?? true,
-          initialSubtitleId: self.parseNumericTrackId(source["initialSubtitleId"]),
-          initialAudioId: self.parseNumericTrackId(source["initialAudioId"]),
+          initialSubtitleId: self.parseInteger(source["initialSubtitleId"]),
+          initialAudioId: self.parseInteger(source["initialAudioId"]),
           loop: (source["loop"] as? Bool) ?? false,
           cacheEnabled: cacheConfig?["enabled"] as? String,
-          cacheSeconds: cacheConfig?["cacheSeconds"] as? Int,
-          demuxerMaxBytes: cacheConfig?["maxBytes"] as? Int,
-          demuxerMaxBackBytes: cacheConfig?["maxBackBytes"] as? Int
+          cacheSeconds: self.parseInteger(cacheConfig?["cacheSeconds"]),
+          demuxerMaxBytes: self.parseInteger(cacheConfig?["maxBytes"]),
+          demuxerMaxBackBytes: self.parseInteger(cacheConfig?["maxBackBytes"])
         )
 
         view.loadVideo(config: config)

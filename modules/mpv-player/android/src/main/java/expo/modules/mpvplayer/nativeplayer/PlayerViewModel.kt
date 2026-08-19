@@ -1051,6 +1051,9 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
 
     override fun onVideoDimensionsChanged(width: Int, height: Int) {
         Log.i(TAG, "Video dimensions changed: ${width}x${height}")
+        subtitleVideoWidth = width
+        subtitleVideoHeight = height
+        applySubtitleGeometry()
     }
 
     override fun onChaptersChanged(chapters: List<Map<String, Any>>) {

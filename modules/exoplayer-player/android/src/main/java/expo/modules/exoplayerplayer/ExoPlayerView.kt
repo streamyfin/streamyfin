@@ -49,6 +49,7 @@ data class VideoLoadConfig(
     val autoplay: Boolean = true,
     val initialSubtitleId: Int? = null,
     val initialAudioId: Int? = null,
+    val loop: Boolean = false,
     val cacheEnabled: String? = null,
     val cacheSeconds: Int? = null,
     val demuxerMaxBytes: Int? = null,
@@ -85,6 +86,7 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     private val subtitleView: SubtitleView?
 
     private var currentUrl: String? = null
+    private var currentLoop: Boolean = false
     private var pendingConfig: VideoLoadConfig? = null
     private var tracksReadyFired: Boolean = false
 
@@ -306,8 +308,9 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     // MARK: - Video Loading
 
     fun loadVideo(config: VideoLoadConfig) {
-        if (currentUrl == config.url) return
+        if (currentUrl == config.url && currentLoop == config.loop) return
         currentUrl = config.url
+        currentLoop = config.loop
         pendingConfig = config
         ensurePlayer(config)
         loadInternal(config)
@@ -402,6 +405,7 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
 
     private fun loadInternal(config: VideoLoadConfig) {
         val p = player ?: return
+        p.repeatMode = if (config.loop) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
 
         val httpFactory = androidx.media3.datasource.DefaultHttpDataSource.Factory()
             .setDefaultRequestProperties(config.headers ?: emptyMap())
@@ -491,6 +495,7 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         playerView.player = null
         tracksReadyFired = false
         currentUrl = null
+        currentLoop = false
         loadStartPositionMs = 0L
         sideLoadedSubs = emptyList()
         subtitleTrackList = emptyList()

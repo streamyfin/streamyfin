@@ -1,9 +1,17 @@
 package expo.modules.mpvplayer.nativeplayer
 
+import expo.modules.mpvplayer.normalizeVideoDimensions
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class SubtitleGeometryTest {
+    @Test
+    fun normalizesRotatedVideoDimensions() {
+        assertEquals(1920 to 1080, normalizeVideoDimensions(1920, 1080, 0))
+        assertEquals(1080 to 1920, normalizeVideoDimensions(1920, 1080, 90))
+        assertEquals(1080 to 1920, normalizeVideoDimensions(1920, 1080, -90))
+    }
+
     @Test
     fun keepsBaseCalibrationWithoutSurfaceGeometry() {
         assertEquals(1.035, calculateSubtitleScale(1.0, 1.035, 0, 0, 0, 0, false), 0.0001)
