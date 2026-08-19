@@ -15,8 +15,7 @@ export type TopShelfCacheContentPreset =
   | "continueWatching"
   | "nextUp"
   | "recentlyAdded"
-  | "favorites"
-  | "watchlists";
+  | "recommendations";
 
 export interface TopShelfCacheSection {
   title: string;

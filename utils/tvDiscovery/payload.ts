@@ -194,8 +194,11 @@ function getTVDiscoveryContextTitle(
 
 function getTVDiscoveryCarouselSummary(item: BaseItemDto): string | undefined {
   const overview = item.Overview?.trim();
-  const genre = item.Genres?.[0];
 
+  // Year, genre, and duration are set separately as native carousel item
+  // metadata (item.genre / item.creationDate / item.duration in
+  // TopShelfProvider.swift) — tvOS renders those as its own badges below
+  // the summary, so prefixing them into this text would show them twice.
   if (item.Type === "Episode") {
     const episodeNumber = formatEpisodeNumber(item);
     const parts = [episodeNumber, item.Name].filter((value): value is string =>
@@ -210,18 +213,7 @@ function getTVDiscoveryCarouselSummary(item: BaseItemDto): string | undefined {
     return heading || overview;
   }
 
-  const metadata = [
-    item.ProductionYear ? String(item.ProductionYear) : undefined,
-    genre,
-  ]
-    .filter((value): value is string => Boolean(value))
-    .join(" • ");
-
-  if (metadata && overview) {
-    return `${metadata}. ${overview}`;
-  }
-
-  return metadata || overview;
+  return overview;
 }
 
 function sectionFromItems(

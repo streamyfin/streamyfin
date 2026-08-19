@@ -341,8 +341,13 @@ export enum AppleTVTopShelfContent {
   ContinueWatching = "continueWatching",
   NextUp = "nextUp",
   RecentlyAdded = "recentlyAdded",
-  Favorites = "favorites",
-  Watchlists = "watchlists",
+  Recommendations = "recommendations",
+}
+
+export enum AppleTVTopShelfRecommendationsType {
+  Movies = "Movie",
+  Series = "Series",
+  All = "all",
 }
 
 // MPV cache mode - controls how caching is enabled
@@ -457,6 +462,8 @@ export type Settings = {
   appleTvTopShelfLayout: AppleTVTopShelfLayout;
   /** Apple TV only: which content preset to publish to Top Shelf. */
   appleTvTopShelfContent: AppleTVTopShelfContent;
+  /** Apple TV only: which media type(s) to include when Top Shelf content is Recommendations. */
+  appleTvTopShelfRecommendationsType: AppleTVTopShelfRecommendationsType;
   showHomeBackdrop: boolean;
   /**
    * The home hero carousel, on every platform — the TV one and the iOS one
@@ -614,6 +621,7 @@ export const defaultValues: Settings = {
   nativeVideoPlayerAndroidTV: false,
   appleTvTopShelfLayout: AppleTVTopShelfLayout.Sectioned,
   appleTvTopShelfContent: AppleTVTopShelfContent.ContinueAndNextUp,
+  appleTvTopShelfRecommendationsType: AppleTVTopShelfRecommendationsType.All,
   showHomeBackdrop: true,
   showHeroCarousel: true,
   tvTypographyScale: TVTypographyScale.Default,

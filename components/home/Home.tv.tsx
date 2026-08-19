@@ -47,6 +47,7 @@ import {
 import {
   AppleTVTopShelfContent,
   AppleTVTopShelfLayout,
+  AppleTVTopShelfRecommendationsType,
   useSettings,
 } from "@/utils/atoms/settings";
 import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
@@ -237,7 +238,7 @@ export const Home = () => {
           userId: user.Id,
           enableImageTypes: ["Primary", "Backdrop", "Thumb"],
           includeItemTypes: ["Movie", "Series", "Episode"],
-          fields: ["Overview", "Genres", "PremiereDate", "DateCreated"],
+          fields: ["Overview", "Genres", "DateCreated"],
           startIndex: 0,
           limit: 10,
         }),
@@ -245,7 +246,7 @@ export const Home = () => {
           userId: user.Id,
           startIndex: 0,
           limit: 10,
-          fields: ["Overview", "Genres", "PremiereDate", "DateCreated"],
+          fields: ["Overview", "Genres", "DateCreated"],
           enableImageTypes: ["Primary", "Backdrop", "Thumb"],
           enableResumable: false,
         }),
@@ -294,7 +295,7 @@ export const Home = () => {
         userId: user.Id,
         enableImageTypes: ["Primary", "Backdrop", "Thumb"],
         includeItemTypes: ["Movie", "Series", "Episode"],
-        fields: ["Overview", "Genres", "PremiereDate", "DateCreated"],
+        fields: ["Overview", "Genres", "DateCreated"],
         startIndex: 0,
         limit: 12,
       });
@@ -319,7 +320,7 @@ export const Home = () => {
           userId: user.Id,
           startIndex: 0,
           limit: 12,
-          fields: ["Overview", "Genres", "PremiereDate", "DateCreated"],
+          fields: ["Overview", "Genres", "DateCreated"],
           enableImageTypes: ["Primary", "Backdrop", "Thumb"],
           enableResumable: false,
         });
@@ -350,7 +351,6 @@ export const Home = () => {
             "Overview",
             "PrimaryImageAspectRatio",
             "Genres",
-            "PremiereDate",
             "DateCreated",
           ],
           imageTypeLimit: 1,
@@ -366,119 +366,88 @@ export const Home = () => {
     refetchInterval: 60 * 1000,
   });
 
-  const {
-    data: topShelfFavoriteItems,
-    isLoading: topShelfFavoriteItemsLoading,
-  } = useQuery({
-    queryKey: ["topShelf", "favorites", user?.Id],
-    queryFn: async () => {
-      if (!api || !user?.Id) return [];
-
-      const response = await getItemsApi(api).getItems({
-        userId: user.Id,
-        sortBy: ["DateCreated", "SortName"],
-        sortOrder: ["Descending"],
-        filters: ["IsFavorite"],
-        recursive: true,
-        fields: [
-          "Overview",
-          "PrimaryImageAspectRatio",
-          "DateCreated",
-          "Genres",
-          "PremiereDate",
-        ],
-        excludeLocationTypes: ["Virtual"],
-        enableImageTypes: ["Primary", "Backdrop", "Thumb"],
-        includeItemTypes: ["Movie", "Series", "Episode"],
-        startIndex: 0,
-        limit: 12,
-      });
-
-      return response.data.Items || [];
-    },
-    enabled:
-      !!api &&
-      !!user?.Id &&
-      topShelfContentPreset === AppleTVTopShelfContent.Favorites,
-    staleTime: 60 * 1000,
-    refetchInterval: 60 * 1000,
-  });
+  const topShelfRecommendationsType =
+    settings.appleTvTopShelfRecommendationsType ||
+    AppleTVTopShelfRecommendationsType.All;
 
   const {
-    data: topShelfWatchlistSection,
-    isLoading: topShelfWatchlistSectionLoading,
+    data: topShelfRecommendationsSection,
+    isLoading: topShelfRecommendationsLoading,
   } = useQuery({
     queryKey: [
       "topShelf",
-      "watchlists",
+      "recommendations",
       user?.Id,
       settings.streamyStatsServerUrl,
+      topShelfRecommendationsType,
     ],
     queryFn: async () => {
+      const title = t(
+        "home.settings.appearance.apple_tv_top_shelf_content_recommendations",
+      );
+
       if (
         !api ||
         !user?.Id ||
         !api.accessToken ||
         !settings.streamyStatsServerUrl
       ) {
-        return null;
+        return { title, items: [] };
       }
 
       const serverInfo = await getSystemApi(api).getPublicSystemInfo();
       const jellyfinServerId = serverInfo.data.Id;
       if (!jellyfinServerId) {
-        return null;
+        return { title, items: [] };
       }
 
       const streamystatsApi = createStreamystatsApi({
         serverUrl: settings.streamyStatsServerUrl,
         jellyfinToken: api.accessToken,
       });
-      const watchlistsResponse = await streamystatsApi.getWatchlists();
-      const watchlists = watchlistsResponse.data || [];
-      const selectedWatchlist =
-        watchlists.find((watchlist) => (watchlist.itemCount ?? 0) > 0) ||
-        watchlists[0];
 
-      if (!selectedWatchlist) {
-        return null;
+      const type =
+        topShelfRecommendationsType === AppleTVTopShelfRecommendationsType.All
+          ? undefined
+          : topShelfRecommendationsType;
+
+      const recommendationsResponse =
+        await streamystatsApi.getRecommendationIds(jellyfinServerId, type, 12);
+      const movies = recommendationsResponse.data?.movies || [];
+      const series = recommendationsResponse.data?.series || [];
+
+      // Interleave rather than concatenate so series don't get pushed to
+      // the tail of the carousel behind every movie.
+      const itemIds: string[] = [];
+      const maxLength = Math.max(movies.length, series.length);
+      for (let i = 0; i < maxLength; i++) {
+        if (movies[i]) itemIds.push(movies[i]);
+        if (series[i]) itemIds.push(series[i]);
       }
+      const dedupedIds = Array.from(new Set(itemIds)).slice(0, 12);
 
-      const watchlistIdsResponse = await streamystatsApi.getWatchlistItemIds({
-        watchlistId: selectedWatchlist.id,
-        jellyfinServerId,
-      });
-      const itemIds = watchlistIdsResponse.data?.items?.slice(0, 12) || [];
-      if (itemIds.length === 0) {
-        return {
-          title: selectedWatchlist.name,
-          items: [],
-        };
+      if (dedupedIds.length === 0) {
+        return { title, items: [] };
       }
 
       const itemsResponse = await getItemsApi(api).getItems({
         userId: user.Id,
-        ids: itemIds,
+        ids: dedupedIds,
         fields: [
           "PrimaryImageAspectRatio",
           "Genres",
           "Overview",
           "DateCreated",
-          "PremiereDate",
         ],
         enableImageTypes: ["Primary", "Backdrop", "Thumb"],
       });
 
-      return {
-        title: selectedWatchlist.name,
-        items: itemsResponse.data.Items || [],
-      };
+      return { title, items: itemsResponse.data.Items || [] };
     },
     enabled:
       !!api &&
       !!user?.Id &&
-      !!settings.streamyStatsServerUrl &&
-      topShelfContentPreset === AppleTVTopShelfContent.Watchlists,
+      topShelfContentPreset === AppleTVTopShelfContent.Recommendations,
     staleTime: 60 * 1000,
     refetchInterval: 60 * 1000,
   });
@@ -515,22 +484,19 @@ export const Home = () => {
             },
           ],
         };
-      case AppleTVTopShelfContent.Favorites:
+      case AppleTVTopShelfContent.Recommendations:
         return {
-          loading: topShelfFavoriteItemsLoading,
-          sections: [
-            {
-              title: t("tabs.favorites"),
-              items: topShelfFavoriteItems,
-            },
-          ],
-        };
-      case AppleTVTopShelfContent.Watchlists:
-        return {
-          loading: topShelfWatchlistSectionLoading,
-          sections: topShelfWatchlistSection
-            ? [topShelfWatchlistSection]
-            : [{ title: t("tabs.watchlists"), items: [] }],
+          loading: topShelfRecommendationsLoading,
+          sections: topShelfRecommendationsSection
+            ? [topShelfRecommendationsSection]
+            : [
+                {
+                  title: t(
+                    "home.settings.appearance.apple_tv_top_shelf_content_recommendations",
+                  ),
+                  items: [],
+                },
+              ],
         };
       default:
         return {
@@ -554,10 +520,8 @@ export const Home = () => {
     topShelfNextUpLoading,
     topShelfRecentlyAddedItems,
     topShelfRecentlyAddedLoading,
-    topShelfFavoriteItems,
-    topShelfFavoriteItemsLoading,
-    topShelfWatchlistSection,
-    topShelfWatchlistSectionLoading,
+    topShelfRecommendationsSection,
+    topShelfRecommendationsLoading,
   ]);
 
   useEffect(() => {

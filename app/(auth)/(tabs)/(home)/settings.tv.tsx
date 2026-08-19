@@ -37,6 +37,7 @@ import {
 import {
   AppleTVTopShelfContent,
   AppleTVTopShelfLayout,
+  AppleTVTopShelfRecommendationsType,
   AudioTranscodeMode,
   getActiveVideoPlayer,
   InactivityTimeout,
@@ -572,21 +573,52 @@ export default function SettingsTV() {
         },
         {
           label: t(
-            "home.settings.appearance.apple_tv_top_shelf_content_favorites",
+            "home.settings.appearance.apple_tv_top_shelf_content_recommendations",
           ),
-          value: AppleTVTopShelfContent.Favorites,
-          selected: currentTopShelfContent === AppleTVTopShelfContent.Favorites,
-        },
-        {
-          label: t(
-            "home.settings.appearance.apple_tv_top_shelf_content_watchlists",
-          ),
-          value: AppleTVTopShelfContent.Watchlists,
+          value: AppleTVTopShelfContent.Recommendations,
           selected:
-            currentTopShelfContent === AppleTVTopShelfContent.Watchlists,
+            currentTopShelfContent === AppleTVTopShelfContent.Recommendations,
         },
       ],
       [currentTopShelfContent, t],
+    );
+
+  const currentTopShelfRecommendationsType =
+    settings.appleTvTopShelfRecommendationsType ||
+    AppleTVTopShelfRecommendationsType.All;
+
+  const topShelfRecommendationsTypeOptions: TVOptionItem<AppleTVTopShelfRecommendationsType>[] =
+    useMemo(
+      () => [
+        {
+          label: t(
+            "home.settings.appearance.apple_tv_top_shelf_recommendations_type_movies",
+          ),
+          value: AppleTVTopShelfRecommendationsType.Movies,
+          selected:
+            currentTopShelfRecommendationsType ===
+            AppleTVTopShelfRecommendationsType.Movies,
+        },
+        {
+          label: t(
+            "home.settings.appearance.apple_tv_top_shelf_recommendations_type_series",
+          ),
+          value: AppleTVTopShelfRecommendationsType.Series,
+          selected:
+            currentTopShelfRecommendationsType ===
+            AppleTVTopShelfRecommendationsType.Series,
+        },
+        {
+          label: t(
+            "home.settings.appearance.apple_tv_top_shelf_recommendations_type_all",
+          ),
+          value: AppleTVTopShelfRecommendationsType.All,
+          selected:
+            currentTopShelfRecommendationsType ===
+            AppleTVTopShelfRecommendationsType.All,
+        },
+      ],
+      [currentTopShelfRecommendationsType, t],
     );
 
   // Language options
@@ -750,6 +782,16 @@ export default function SettingsTV() {
       )
     );
   }, [topShelfContentOptions, t]);
+
+  const topShelfRecommendationsTypeLabel = useMemo(() => {
+    const option = topShelfRecommendationsTypeOptions.find(
+      (item) => item.selected,
+    );
+    return (
+      option?.label ||
+      t("home.settings.appearance.apple_tv_top_shelf_recommendations_type_all")
+    );
+  }, [topShelfRecommendationsTypeOptions, t]);
 
   const cacheModeLabel = useMemo(() => {
     const option = cacheModeOptions.find((o) => o.selected);
@@ -1268,6 +1310,33 @@ export default function SettingsTV() {
               }
             />
           )}
+          {isAppleTv &&
+            currentTopShelfContent ===
+              AppleTVTopShelfContent.Recommendations && (
+              <TVSettingsOptionButton
+                disabledByAdmin={
+                  pluginSettings?.appleTvTopShelfRecommendationsType?.locked
+                }
+                label={t(
+                  "home.settings.appearance.apple_tv_top_shelf_recommendations_type",
+                )}
+                value={topShelfRecommendationsTypeLabel}
+                onPress={() =>
+                  showOptions({
+                    title: t(
+                      "home.settings.appearance.apple_tv_top_shelf_recommendations_type",
+                    ),
+                    options: topShelfRecommendationsTypeOptions,
+                    onSelect: (value) => {
+                      updateSettings({
+                        appleTvTopShelfRecommendationsType: value,
+                      });
+                      refreshTopShelfQueries();
+                    },
+                  })
+                }
+              />
+            )}
           <TVSettingsOptionButton
             disabledByAdmin={pluginSettings?.preferedLanguage?.locked}
             label={t("home.settings.languages.app_language")}
