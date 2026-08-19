@@ -4,8 +4,11 @@ import { describe, expect, mock, test } from "bun:test";
 // only the pure scrubbers are under test here. Bun's mock.module is
 // retroactive and process-wide, so each mock covers the full surface the
 // module under test touches.
+const initCalls: unknown[] = [];
 mock.module("@sentry/react-native", () => ({
-  init: () => undefined,
+  init: (options: unknown) => {
+    initCalls.push(options);
+  },
   close: () => Promise.resolve(),
   breadcrumbsIntegration: () => ({ name: "Breadcrumbs" }),
 }));
@@ -32,7 +35,8 @@ mock.module("react-native", () => ({
   Platform: { OS: "ios", isTV: false },
 }));
 
-const { scrubDeep, isUserInteractionBreadcrumb } = await import("./sentry");
+const { scrubDeep, isUserInteractionBreadcrumb, initializeSentryIfConsented } =
+  await import("./sentry");
 
 describe("isUserInteractionBreadcrumb — no behaviour tracking, no titles", () => {
   test("drops touch breadcrumbs, whose labels are media titles", () => {
@@ -180,5 +184,28 @@ describe("scrubDeep — the privacy boundary for outgoing Sentry data", () => {
     const scrubbed = scrubDeep(node) as Record<string, unknown>;
     expect(scrubbed.url).toBe("https://[server]");
     expect(scrubbed.self).toBe(scrubbed);
+  });
+});
+
+// The project's first 22 events were all local dev noise — test errors and
+// stack frames naming a developer's home directory — so a dev build must not
+// reach the SDK at all, not merely tag itself as "development".
+describe("dev builds do not report", () => {
+  const setDev = (value: boolean) => {
+    (globalThis as { __DEV__?: boolean }).__DEV__ = value;
+  };
+
+  test("a dev build never initializes the SDK", () => {
+    setDev(true);
+    initializeSentryIfConsented();
+    expect(initCalls).toHaveLength(0);
+  });
+
+  // Ordering matters: initializeSentry latches on success, so the release
+  // case runs last or it would mask the dev case above.
+  test("a release build initializes as normal", () => {
+    setDev(false);
+    initializeSentryIfConsented();
+    expect(initCalls).toHaveLength(1);
   });
 });
