@@ -35,6 +35,8 @@ import {
   userAtom,
 } from "@/providers/JellyfinProvider";
 import {
+  AppleTVTopShelfContent,
+  AppleTVTopShelfLayout,
   AudioTranscodeMode,
   getActiveVideoPlayer,
   InactivityTimeout,
@@ -297,9 +299,14 @@ export default function SettingsTV() {
   const currentAlignY = settings.mpvSubtitleAlignY ?? "bottom";
   const currentTypographyScale =
     settings.tvTypographyScale || TVTypographyScale.Default;
+  const currentTopShelfLayout =
+    settings.appleTvTopShelfLayout || AppleTVTopShelfLayout.Sectioned;
+  const currentTopShelfContent =
+    settings.appleTvTopShelfContent || AppleTVTopShelfContent.ContinueAndNextUp;
   const currentCacheMode = settings.mpvCacheEnabled ?? "auto";
   const currentVoDriver = settings.mpvVoDriver ?? "gpu-next";
   const currentLanguage = settings.preferedLanguage;
+  const isAppleTv = Platform.OS === "ios" && Platform.isTV;
 
   // Video player selection. MPV is the default; ExoPlayer is only offered
   // as an opt-in alternative on Android TV. The selector is hidden on
@@ -506,6 +513,82 @@ export default function SettingsTV() {
     [t, currentTypographyScale],
   );
 
+  const topShelfLayoutOptions: TVOptionItem<AppleTVTopShelfLayout>[] = useMemo(
+    () => [
+      {
+        label: t(
+          "home.settings.appearance.apple_tv_top_shelf_layout_sectioned",
+        ),
+        value: AppleTVTopShelfLayout.Sectioned,
+        selected: currentTopShelfLayout === AppleTVTopShelfLayout.Sectioned,
+      },
+      {
+        label: t("home.settings.appearance.apple_tv_top_shelf_layout_inset"),
+        value: AppleTVTopShelfLayout.Inset,
+        selected: currentTopShelfLayout === AppleTVTopShelfLayout.Inset,
+      },
+      {
+        label: t("home.settings.appearance.apple_tv_top_shelf_layout_carousel"),
+        value: AppleTVTopShelfLayout.Carousel,
+        selected: currentTopShelfLayout === AppleTVTopShelfLayout.Carousel,
+      },
+    ],
+    [currentTopShelfLayout, t],
+  );
+
+  const topShelfContentOptions: TVOptionItem<AppleTVTopShelfContent>[] =
+    useMemo(
+      () => [
+        {
+          label: t(
+            "home.settings.appearance.apple_tv_top_shelf_content_continue_and_next_up",
+          ),
+          value: AppleTVTopShelfContent.ContinueAndNextUp,
+          selected:
+            currentTopShelfContent === AppleTVTopShelfContent.ContinueAndNextUp,
+        },
+        {
+          label: t(
+            "home.settings.appearance.apple_tv_top_shelf_content_continue_watching",
+          ),
+          value: AppleTVTopShelfContent.ContinueWatching,
+          selected:
+            currentTopShelfContent === AppleTVTopShelfContent.ContinueWatching,
+        },
+        {
+          label: t(
+            "home.settings.appearance.apple_tv_top_shelf_content_next_up",
+          ),
+          value: AppleTVTopShelfContent.NextUp,
+          selected: currentTopShelfContent === AppleTVTopShelfContent.NextUp,
+        },
+        {
+          label: t(
+            "home.settings.appearance.apple_tv_top_shelf_content_recently_added",
+          ),
+          value: AppleTVTopShelfContent.RecentlyAdded,
+          selected:
+            currentTopShelfContent === AppleTVTopShelfContent.RecentlyAdded,
+        },
+        {
+          label: t(
+            "home.settings.appearance.apple_tv_top_shelf_content_favorites",
+          ),
+          value: AppleTVTopShelfContent.Favorites,
+          selected: currentTopShelfContent === AppleTVTopShelfContent.Favorites,
+        },
+        {
+          label: t(
+            "home.settings.appearance.apple_tv_top_shelf_content_watchlists",
+          ),
+          value: AppleTVTopShelfContent.Watchlists,
+          selected:
+            currentTopShelfContent === AppleTVTopShelfContent.Watchlists,
+        },
+      ],
+      [currentTopShelfContent, t],
+    );
+
   // Language options
   const languageOptions: TVOptionItem<string | undefined>[] = useMemo(
     () => [
@@ -650,6 +733,24 @@ export default function SettingsTV() {
     return option?.label || t("home.settings.appearance.display_size_default");
   }, [typographyScaleOptions, t]);
 
+  const topShelfLayoutLabel = useMemo(() => {
+    const option = topShelfLayoutOptions.find((item) => item.selected);
+    return (
+      option?.label ||
+      t("home.settings.appearance.apple_tv_top_shelf_layout_sectioned")
+    );
+  }, [topShelfLayoutOptions, t]);
+
+  const topShelfContentLabel = useMemo(() => {
+    const option = topShelfContentOptions.find((item) => item.selected);
+    return (
+      option?.label ||
+      t(
+        "home.settings.appearance.apple_tv_top_shelf_content_continue_and_next_up",
+      )
+    );
+  }, [topShelfContentOptions, t]);
+
   const cacheModeLabel = useMemo(() => {
     const option = cacheModeOptions.find((o) => o.selected);
     return option?.label || t("home.settings.buffer.cache_auto");
@@ -677,6 +778,11 @@ export default function SettingsTV() {
       option?.label || t("home.settings.security.inactivity_timeout.disabled")
     );
   }, [inactivityTimeoutOptions, t]);
+
+  const refreshTopShelfQueries = () => {
+    queryClient.invalidateQueries({ queryKey: ["topShelf"] });
+    queryClient.invalidateQueries({ queryKey: ["home", "heroItems"] });
+  };
 
   return (
     <View style={{ flex: 1, backgroundColor: "#000000" }}>
@@ -1124,6 +1230,44 @@ export default function SettingsTV() {
               })
             }
           />
+          {isAppleTv && (
+            <TVSettingsOptionButton
+              disabledByAdmin={pluginSettings?.appleTvTopShelfLayout?.locked}
+              label={t("home.settings.appearance.apple_tv_top_shelf_layout")}
+              value={topShelfLayoutLabel}
+              onPress={() =>
+                showOptions({
+                  title: t(
+                    "home.settings.appearance.apple_tv_top_shelf_layout",
+                  ),
+                  options: topShelfLayoutOptions,
+                  onSelect: (value) => {
+                    updateSettings({ appleTvTopShelfLayout: value });
+                    refreshTopShelfQueries();
+                  },
+                })
+              }
+            />
+          )}
+          {isAppleTv && (
+            <TVSettingsOptionButton
+              disabledByAdmin={pluginSettings?.appleTvTopShelfContent?.locked}
+              label={t("home.settings.appearance.apple_tv_top_shelf_content")}
+              value={topShelfContentLabel}
+              onPress={() =>
+                showOptions({
+                  title: t(
+                    "home.settings.appearance.apple_tv_top_shelf_content",
+                  ),
+                  options: topShelfContentOptions,
+                  onSelect: (value) => {
+                    updateSettings({ appleTvTopShelfContent: value });
+                    refreshTopShelfQueries();
+                  },
+                })
+              }
+            />
+          )}
           <TVSettingsOptionButton
             disabledByAdmin={pluginSettings?.preferedLanguage?.locked}
             label={t("home.settings.languages.app_language")}

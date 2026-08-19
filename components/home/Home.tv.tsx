@@ -7,6 +7,7 @@ import type {
 import {
   getItemsApi,
   getSuggestionsApi,
+  getSystemApi,
   getTvShowsApi,
   getUserLibraryApi,
   getUserViewsApi,
@@ -43,9 +44,14 @@ import {
   cacheVersionAtom,
   userAtom,
 } from "@/providers/JellyfinProvider";
-import { useSettings } from "@/utils/atoms/settings";
+import {
+  AppleTVTopShelfContent,
+  AppleTVTopShelfLayout,
+  useSettings,
+} from "@/utils/atoms/settings";
 import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
 import { scaleSize } from "@/utils/scaleSize";
+import { createStreamystatsApi } from "@/utils/streamystats/api";
 import { updateTVDiscovery } from "@/utils/tvDiscovery/sync";
 
 const HORIZONTAL_PADDING = scaleSize(60);
@@ -221,7 +227,7 @@ export const Home = () => {
   });
 
   // Fetch hero items (Continue Watching + Next Up combined)
-  const { data: heroItems } = useQuery({
+  const { data: heroItems, isLoading: heroItemsLoading } = useQuery({
     queryKey: ["home", "heroItems", user?.Id],
     queryFn: async () => {
       if (!api || !user?.Id) return [];
@@ -231,7 +237,7 @@ export const Home = () => {
           userId: user.Id,
           enableImageTypes: ["Primary", "Backdrop", "Thumb"],
           includeItemTypes: ["Movie", "Series", "Episode"],
-          fields: ["Overview"],
+          fields: ["Overview", "Genres", "PremiereDate", "DateCreated"],
           startIndex: 0,
           limit: 10,
         }),
@@ -239,7 +245,7 @@ export const Home = () => {
           userId: user.Id,
           startIndex: 0,
           limit: 10,
-          fields: ["Overview"],
+          fields: ["Overview", "Genres", "PremiereDate", "DateCreated"],
           enableImageTypes: ["Primary", "Backdrop", "Thumb"],
           enableResumable: false,
         }),
@@ -271,17 +277,301 @@ export const Home = () => {
     refetchInterval: 60 * 1000,
   });
 
+  const topShelfContentPreset =
+    settings.appleTvTopShelfContent || AppleTVTopShelfContent.ContinueAndNextUp;
+  const topShelfLayout =
+    settings.appleTvTopShelfLayout || AppleTVTopShelfLayout.Sectioned;
+
+  const {
+    data: topShelfContinueWatchingItems,
+    isLoading: topShelfContinueWatchingLoading,
+  } = useQuery({
+    queryKey: ["topShelf", "continueWatching", user?.Id],
+    queryFn: async () => {
+      if (!api || !user?.Id) return [];
+
+      const response = await getItemsApi(api).getResumeItems({
+        userId: user.Id,
+        enableImageTypes: ["Primary", "Backdrop", "Thumb"],
+        includeItemTypes: ["Movie", "Series", "Episode"],
+        fields: ["Overview", "Genres", "PremiereDate", "DateCreated"],
+        startIndex: 0,
+        limit: 12,
+      });
+
+      return response.data.Items || [];
+    },
+    enabled:
+      !!api &&
+      !!user?.Id &&
+      topShelfContentPreset === AppleTVTopShelfContent.ContinueWatching,
+    staleTime: 60 * 1000,
+    refetchInterval: 60 * 1000,
+  });
+
+  const { data: topShelfNextUpItems, isLoading: topShelfNextUpLoading } =
+    useQuery({
+      queryKey: ["topShelf", "nextUp", user?.Id],
+      queryFn: async () => {
+        if (!api || !user?.Id) return [];
+
+        const response = await getTvShowsApi(api).getNextUp({
+          userId: user.Id,
+          startIndex: 0,
+          limit: 12,
+          fields: ["Overview", "Genres", "PremiereDate", "DateCreated"],
+          enableImageTypes: ["Primary", "Backdrop", "Thumb"],
+          enableResumable: false,
+        });
+
+        return response.data.Items || [];
+      },
+      enabled:
+        !!api &&
+        !!user?.Id &&
+        topShelfContentPreset === AppleTVTopShelfContent.NextUp,
+      staleTime: 60 * 1000,
+      refetchInterval: 60 * 1000,
+    });
+
+  const {
+    data: topShelfRecentlyAddedItems,
+    isLoading: topShelfRecentlyAddedLoading,
+  } = useQuery({
+    queryKey: ["topShelf", "recentlyAdded", user?.Id],
+    queryFn: async () => {
+      if (!api || !user?.Id) return [];
+
+      return (
+        await getUserLibraryApi(api).getLatestMedia({
+          userId: user.Id,
+          limit: 12,
+          fields: [
+            "Overview",
+            "PrimaryImageAspectRatio",
+            "Genres",
+            "PremiereDate",
+            "DateCreated",
+          ],
+          imageTypeLimit: 1,
+          enableImageTypes: ["Primary", "Backdrop", "Thumb"],
+        })
+      ).data;
+    },
+    enabled:
+      !!api &&
+      !!user?.Id &&
+      topShelfContentPreset === AppleTVTopShelfContent.RecentlyAdded,
+    staleTime: 60 * 1000,
+    refetchInterval: 60 * 1000,
+  });
+
+  const {
+    data: topShelfFavoriteItems,
+    isLoading: topShelfFavoriteItemsLoading,
+  } = useQuery({
+    queryKey: ["topShelf", "favorites", user?.Id],
+    queryFn: async () => {
+      if (!api || !user?.Id) return [];
+
+      const response = await getItemsApi(api).getItems({
+        userId: user.Id,
+        sortBy: ["DateCreated", "SortName"],
+        sortOrder: ["Descending"],
+        filters: ["IsFavorite"],
+        recursive: true,
+        fields: [
+          "Overview",
+          "PrimaryImageAspectRatio",
+          "DateCreated",
+          "Genres",
+          "PremiereDate",
+        ],
+        excludeLocationTypes: ["Virtual"],
+        enableImageTypes: ["Primary", "Backdrop", "Thumb"],
+        includeItemTypes: ["Movie", "Series", "Episode"],
+        startIndex: 0,
+        limit: 12,
+      });
+
+      return response.data.Items || [];
+    },
+    enabled:
+      !!api &&
+      !!user?.Id &&
+      topShelfContentPreset === AppleTVTopShelfContent.Favorites,
+    staleTime: 60 * 1000,
+    refetchInterval: 60 * 1000,
+  });
+
+  const {
+    data: topShelfWatchlistSection,
+    isLoading: topShelfWatchlistSectionLoading,
+  } = useQuery({
+    queryKey: [
+      "topShelf",
+      "watchlists",
+      user?.Id,
+      settings.streamyStatsServerUrl,
+    ],
+    queryFn: async () => {
+      if (
+        !api ||
+        !user?.Id ||
+        !api.accessToken ||
+        !settings.streamyStatsServerUrl
+      ) {
+        return null;
+      }
+
+      const serverInfo = await getSystemApi(api).getPublicSystemInfo();
+      const jellyfinServerId = serverInfo.data.Id;
+      if (!jellyfinServerId) {
+        return null;
+      }
+
+      const streamystatsApi = createStreamystatsApi({
+        serverUrl: settings.streamyStatsServerUrl,
+        jellyfinToken: api.accessToken,
+      });
+      const watchlistsResponse = await streamystatsApi.getWatchlists();
+      const watchlists = watchlistsResponse.data || [];
+      const selectedWatchlist =
+        watchlists.find((watchlist) => (watchlist.itemCount ?? 0) > 0) ||
+        watchlists[0];
+
+      if (!selectedWatchlist) {
+        return null;
+      }
+
+      const watchlistIdsResponse = await streamystatsApi.getWatchlistItemIds({
+        watchlistId: selectedWatchlist.id,
+        jellyfinServerId,
+      });
+      const itemIds = watchlistIdsResponse.data?.items?.slice(0, 12) || [];
+      if (itemIds.length === 0) {
+        return {
+          title: selectedWatchlist.name,
+          items: [],
+        };
+      }
+
+      const itemsResponse = await getItemsApi(api).getItems({
+        userId: user.Id,
+        ids: itemIds,
+        fields: [
+          "PrimaryImageAspectRatio",
+          "Genres",
+          "Overview",
+          "DateCreated",
+          "PremiereDate",
+        ],
+        enableImageTypes: ["Primary", "Backdrop", "Thumb"],
+      });
+
+      return {
+        title: selectedWatchlist.name,
+        items: itemsResponse.data.Items || [],
+      };
+    },
+    enabled:
+      !!api &&
+      !!user?.Id &&
+      !!settings.streamyStatsServerUrl &&
+      topShelfContentPreset === AppleTVTopShelfContent.Watchlists,
+    staleTime: 60 * 1000,
+    refetchInterval: 60 * 1000,
+  });
+
+  const topShelfSyncState = useMemo(() => {
+    switch (topShelfContentPreset) {
+      case AppleTVTopShelfContent.ContinueWatching:
+        return {
+          loading: topShelfContinueWatchingLoading,
+          sections: [
+            {
+              title: t("home.continue_watching"),
+              items: topShelfContinueWatchingItems,
+            },
+          ],
+        };
+      case AppleTVTopShelfContent.NextUp:
+        return {
+          loading: topShelfNextUpLoading,
+          sections: [
+            {
+              title: t("home.next_up"),
+              items: topShelfNextUpItems,
+            },
+          ],
+        };
+      case AppleTVTopShelfContent.RecentlyAdded:
+        return {
+          loading: topShelfRecentlyAddedLoading,
+          sections: [
+            {
+              title: t("home.recently_added"),
+              items: topShelfRecentlyAddedItems,
+            },
+          ],
+        };
+      case AppleTVTopShelfContent.Favorites:
+        return {
+          loading: topShelfFavoriteItemsLoading,
+          sections: [
+            {
+              title: t("tabs.favorites"),
+              items: topShelfFavoriteItems,
+            },
+          ],
+        };
+      case AppleTVTopShelfContent.Watchlists:
+        return {
+          loading: topShelfWatchlistSectionLoading,
+          sections: topShelfWatchlistSection
+            ? [topShelfWatchlistSection]
+            : [{ title: t("tabs.watchlists"), items: [] }],
+        };
+      default:
+        return {
+          loading: heroItemsLoading,
+          sections: [
+            {
+              title: t("home.continue_and_next_up"),
+              items: heroItems,
+            },
+          ],
+        };
+    }
+  }, [
+    heroItemsLoading,
+    heroItems,
+    t,
+    topShelfContentPreset,
+    topShelfContinueWatchingItems,
+    topShelfContinueWatchingLoading,
+    topShelfNextUpItems,
+    topShelfNextUpLoading,
+    topShelfRecentlyAddedItems,
+    topShelfRecentlyAddedLoading,
+    topShelfFavoriteItems,
+    topShelfFavoriteItemsLoading,
+    topShelfWatchlistSection,
+    topShelfWatchlistSectionLoading,
+  ]);
+
   useEffect(() => {
+    if (topShelfSyncState.loading) {
+      return;
+    }
+
     updateTVDiscovery({
       api,
-      sections: [
-        {
-          title: t("home.continue_and_next_up"),
-          items: heroItems,
-        },
-      ],
+      sections: topShelfSyncState.sections,
+      layout: topShelfLayout,
+      contentPreset: topShelfContentPreset,
     });
-  }, [api, heroItems, t]);
+  }, [api, topShelfSyncState, topShelfLayout, topShelfContentPreset]);
 
   const userViews = useMemo(
     () => data?.filter((l) => !settings?.hiddenLibraries?.includes(l.Id!)),

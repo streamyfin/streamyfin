@@ -9,13 +9,24 @@ export interface TopShelfCacheItem {
   playRoute?: string;
 }
 
+export type TopShelfCacheLayout = "sectioned" | "inset" | "carousel";
+export type TopShelfCacheContentPreset =
+  | "continueAndNextUp"
+  | "continueWatching"
+  | "nextUp"
+  | "recentlyAdded"
+  | "favorites"
+  | "watchlists";
+
 export interface TopShelfCacheSection {
   title: string;
   items: TopShelfCacheItem[];
 }
 
 export interface TopShelfCachePayload {
-  version: 1;
+  version: 2;
+  layout: TopShelfCacheLayout;
+  contentPreset: TopShelfCacheContentPreset;
   updatedAt: string;
   sections: TopShelfCacheSection[];
 }
