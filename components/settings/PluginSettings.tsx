@@ -4,6 +4,7 @@ import { toast } from "sonner-native";
 import { SettingSwitch } from "@/components/common/SettingSwitch";
 import useRouter from "@/hooks/useAppRouter";
 import { useSettings } from "@/utils/atoms/settings";
+import { sentryDebugInDev } from "@/utils/sentry";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
 
@@ -73,8 +74,10 @@ export const PluginSettings = () => {
           onValueChange={(value) => updateSettings({ sentryEnabled: value })}
         />
       </ListItem>
-      {/* Dev-only smoke test for the Sentry pipeline; never ships in release. */}
-      {__DEV__ && settings.sentryEnabled && (
+      {/* Dev-only smoke test for the Sentry pipeline; never ships in release.
+          Dev builds don't report unless EXPO_PUBLIC_SENTRY_DEBUG=1, so the
+          button is hidden when the event would go nowhere. */}
+      {__DEV__ && sentryDebugInDev && settings.sentryEnabled && (
         <ListItem
           title='Send test error to Sentry'
           textColor='blue'
