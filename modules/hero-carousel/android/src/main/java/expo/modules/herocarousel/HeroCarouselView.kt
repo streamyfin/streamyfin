@@ -76,8 +76,72 @@ class HeroCarouselExpoView(context: Context, appContext: AppContext) :
   }
 
   // React Native does not re-layout a native view when it calls
-  // `requestLayout` itself, which Compose does whenever its content resizes.
-  override val shouldUseAndroidLayout = true
+  // `requestLayout` itself, which Compose does whenever its content resizes,
+  // so the relayout has to be posted by hand. `shouldUseAndroidLayout = true`
+  // is expo-modules-core's version of exactly that, but it posts the
+  // runnable unconditionally: Compose calls `requestLayout` on its way down
+  // too, so passes stay queued for a view React Native has already dropped,
+  // and a burst of them within one frame measures the whole Compose tree
+  // once per call. Owning the post keeps that to one pass per frame and
+  // drops it once the view is gone.
+  //
+  // Dropping a pass costs nothing: this view's bounds come from Yoga and
+  // cannot change while React Native is not laying it out, and Compose
+  // re-runs its own measure and layout from `dispatchDraw` when it is next
+  // drawn. What keeps a stray pass from being fatal is `onMeasure` below.
+  override val shouldUseAndroidLayout = false
+
+  private var disposed = false
+  private var relayoutPending = false
+
+  override fun requestLayout() {
+    super.requestLayout()
+    if (relayoutPending) {
+      return
+    }
+    relayoutPending = true
+    post {
+      // Cleared first, so a `requestLayout` that the pass itself provokes
+      // schedules the next one rather than being swallowed.
+      relayoutPending = false
+      if (!disposed && isAttachedToWindow) {
+        measureAndLayout()
+      }
+    }
+  }
+
+  /**
+   * Measures to the size React Native asked for without touching the Compose
+   * subtree while this view has no window.
+   *
+   * React Native measures every mounted view with the exact size Yoga gave
+   * it (`SurfaceMountingManager.updateLayout`), attached to a window or not.
+   * That is fatal for a ComposeView: `AbstractComposeView.onMeasure` creates
+   * the composition on first measure, and creating one has to find the
+   * window recomposer. Switching the hero back on from the appearance
+   * settings mounts it into the Home screen while react-native-screens has
+   * that screen detached behind the settings screen, so the measure lands
+   * with no window and throws `IllegalStateException: Cannot locate
+   * windowRecomposer`. The same throw ends a pass that arrives after the
+   * view has already been dropped.
+   *
+   * React Native's comment on that call allows exactly this: a view may stub
+   * `onMeasure` out to nothing more than `setMeasuredDimension`. Skipping it
+   * costs nothing, since `AbstractComposeView` also creates its composition
+   * from `onAttachedToWindow` and lays out once it has. ComposeView is final
+   * and so is its `onMeasure`, so the guard sits here and keeps the measure
+   * from reaching the child at all.
+   */
+  override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+    if (!isAttachedToWindow) {
+      setMeasuredDimension(
+        getDefaultSize(suggestedMinimumWidth, widthMeasureSpec),
+        getDefaultSize(suggestedMinimumHeight, heightMeasureSpec)
+      )
+      return
+    }
+    super.onMeasure(widthMeasureSpec, heightMeasureSpec)
+  }
 
   init {
     // Card shadows and the scaled neighbour cards draw outside our bounds.
@@ -103,6 +167,7 @@ class HeroCarouselExpoView(context: Context, appContext: AppContext) :
    * otherwise the Activity's lifecycle observer keeps this view alive.
    */
   fun dispose() {
+    disposed = true
     composeView.setViewCompositionStrategy(
       ViewCompositionStrategy.DisposeOnDetachedFromWindow
     )
