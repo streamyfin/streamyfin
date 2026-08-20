@@ -72,7 +72,19 @@
         }
       ],
       "expo-router",
-      "expo-font",
+      [
+        "expo-font",
+        {
+          "ios": {
+            "fonts": [
+              "./assets/fonts/subtitles/NotoSans-Regular.ttf",
+              "./assets/fonts/subtitles/NotoSansArabic-Regular.ttf",
+              "./assets/fonts/subtitles/NotoSansHebrew-Regular.ttf",
+              "./assets/fonts/subtitles/NotoSansCJKsc-Regular.otf"
+            ]
+          }
+        }
+      ],
       [
         "@sentry/react-native/expo",
         {
