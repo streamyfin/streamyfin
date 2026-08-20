@@ -4,6 +4,12 @@ export interface TopShelfCacheItem {
   id: string;
   title: string;
   subtitle?: string;
+  contextTitle?: string;
+  carouselSummary?: string;
+  overview?: string;
+  genre?: string;
+  durationSeconds?: number;
+  releaseDate?: string;
   imageUrl?: string;
   route: string;
   playRoute?: string;
