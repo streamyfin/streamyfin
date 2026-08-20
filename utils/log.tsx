@@ -5,6 +5,7 @@ import { atomWithStorage, createJSONStorage } from "jotai/utils";
 import type React from "react";
 import { createContext, useContext } from "react";
 import {
+  describeHttpError,
   isAbortLikeError,
   isConnectivityError,
   markErrorReported,
@@ -144,14 +145,20 @@ const describeErrorForLog = (error: unknown): unknown => {
   return error;
 };
 
+// One Sentry event per (call site, endpoint, status) per session. A failing
+// endpoint is hit again by every keystroke in search and by every screen that
+// mounts the same request, and the Nth repeat says nothing the first didn't.
+const reportedHttpErrors = new Set<string>();
+const MAX_REPORTED_HTTP_ERRORS = 200;
+
 /**
  * Records a failure both in the local log and as a Sentry exception — the
  * ONLY path that turns handled errors into Sentry events. Prefer it over
  * writeErrorLog when the caught error object is available.
  *
- * Connectivity failures (aborted requests, no HTTP response) stay in the
- * local log but are never sent: an unreachable server is the user's
- * environment, not an app bug.
+ * Connectivity failures (aborted requests, no HTTP response, gateway errors)
+ * stay in the local log but are never sent: an unreachable server is the
+ * user's environment, not an app bug.
  *
  * `context` is SENT to Sentry (after URL scrubbing), so pass only curated
  * values (codecs, status codes, item IDs) — never raw payloads or settings
@@ -169,9 +176,32 @@ export const logAndCaptureError = (
   // If this error is later rethrown into React Query, the global handler in
   // app/_layout.tsx must not report it again.
   markErrorReported(error);
+  const http = describeHttpError(error);
+  if (http) {
+    const key = [message, http.method, http.path, http.status].join("|");
+    if (reportedHttpErrors.has(key)) {
+      return;
+    }
+    if (reportedHttpErrors.size < MAX_REPORTED_HTTP_ERRORS) {
+      reportedHttpErrors.add(key);
+    }
+  }
   Sentry.withScope((scope) => {
     if (context) {
       scope.setContext("details", context);
+    }
+    if (http) {
+      // An AxiosError's stack has no app frames (it is built inside axios),
+      // so left to Sentry every HTTP failure in the app lands in ONE issue.
+      // Group by what actually separates them: which call failed, to which
+      // route, with which status.
+      scope.setContext("http", http);
+      scope.setFingerprint([
+        message,
+        http.method,
+        http.path,
+        String(http.status),
+      ]);
     }
     if (error instanceof Error) {
       scope.setExtra("log_message", message);

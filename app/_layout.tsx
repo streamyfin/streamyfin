@@ -43,6 +43,7 @@ import {
 } from "@/utils/background-tasks";
 import { getOrSetDeviceId } from "@/utils/device";
 import {
+  describeHttpError,
   isAbortLikeError,
   isConnectivityError,
   isErrorReported,
@@ -277,9 +278,9 @@ onlineManager.setEventListener((setOnline) => {
 
 // Every React Query failure funnels through here instead of needing per-call
 // handlers. Skipped: anything while offline, aborted requests, connectivity
-// failures with no HTTP response — axios or fetch — (an unreachable server
-// is the user's environment, not an app bug), and 401s (session expiry has
-// its own interceptor in JellyfinProvider).
+// failures — no HTTP response or a gateway error, axios or fetch — (an
+// unreachable server is the user's environment, not an app bug), and 401s
+// (session expiry has its own interceptor in JellyfinProvider).
 const shouldReportDataError = (error: unknown): boolean => {
   if (!onlineManager.isOnline()) return false;
   if (isExpectedError(error) || isErrorReported(error)) return false;
@@ -291,7 +292,7 @@ const shouldReportDataError = (error: unknown): boolean => {
 // A persistently failing query refetches on every mount (staleTime 0), and
 // Sentry's Dedupe integration only drops an event identical to the
 // immediately-previous one — two alternating failing queries defeat it. One
-// report per (source, key, status) per session is enough.
+// report per (source, key, route, status) per session is enough.
 const reportedDataErrors = new Set<string>();
 
 const reportDataError = (
@@ -300,23 +301,39 @@ const reportDataError = (
   error: unknown,
 ) => {
   if (!shouldReportDataError(error)) return;
+  // Only the key's first element (the query's name) is used — later
+  // elements can carry search text or item titles, and the name alone
+  // already says which data path failed.
+  const name = typeof key?.[0] === "string" ? key[0] : undefined;
+  const http = describeHttpError(error);
   const dedupeKey = [
     source,
-    typeof key?.[0] === "string" ? key[0] : "?",
-    isAxiosError(error) ? (error.response?.status ?? "no-status") : "no-http",
+    name ?? "?",
+    http ? `${http.method} ${http.path} ${http.status}` : "no-http",
     error instanceof Error ? error.name : typeof error,
   ].join("|");
   if (reportedDataErrors.has(dedupeKey)) return;
   if (reportedDataErrors.size < 200) reportedDataErrors.add(dedupeKey);
   Sentry.withScope((scope) => {
-    // Only the key's first element (the query's name) is sent — later
-    // elements can carry search text or item titles, and the name alone
-    // already says which data path failed.
     scope.setContext("data_layer", {
       source,
-      key: typeof key?.[0] === "string" ? key[0] : undefined,
+      key: name,
       keyLength: key?.length,
     });
+    if (http) {
+      // An AxiosError's stack has no app frames (it is built inside axios),
+      // so left to Sentry every HTTP failure in the app lands in ONE issue.
+      // Group by the query that failed, its route and the status instead.
+      scope.setContext("http", http);
+      scope.setFingerprint([
+        "data-layer",
+        source,
+        name ?? "?",
+        http.method,
+        http.path,
+        String(http.status),
+      ]);
+    }
     Sentry.captureException(error);
   });
 };
