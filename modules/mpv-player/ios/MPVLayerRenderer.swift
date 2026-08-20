@@ -51,6 +51,7 @@ final class MPVLayerRenderer {
     
     private var _isRunning = false
     private var _isStopping = false
+    private var routeChangeObserver: NSObjectProtocol?
 
     private var isRunning: Bool {
         get { stateQueue.sync { _isRunning } }
@@ -217,12 +218,23 @@ final class MPVLayerRenderer {
         }
         mpv = handle
 
-        // Logging - only warnings and errors in release, verbose in debug
-        #if DEBUG
-        checkError(mpv_request_log_messages(handle, "warn"))
-        #else
-        checkError(mpv_request_log_messages(handle, "no"))
-        #endif
+        // Logging. Release builds used to request nothing at all, so a
+        // TestFlight log could never show WHY playback failed - #1673 (silent
+        // tvOS audio) went through two wrong fixes because the only evidence,
+        // "unable to retrieve audio unit channel layout", never left mpv.
+        // "info" is cheap (a handful of lines per file) and includes the
+        // "AO: [audiounit] 48000Hz 5.1 6ch floatp" summary; what gets
+        // forwarded to the app log is filtered in the MPV_EVENT_LOG_MESSAGE
+        // handler.
+        checkError(mpv_request_log_messages(handle, "info"))
+
+        logAudioRoute("player start")
+        routeChangeObserver = NotificationCenter.default.addObserver(
+            forName: AVAudioSession.routeChangeNotification, object: nil, queue: nil
+        ) { [weak self] note in
+            let reason = note.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt ?? 0
+            self?.logAudioRoute("route change, reason=\(reason)")
+        }
 
         // Pass the AVSampleBufferDisplayLayer to mpv via --wid
         // The vo_avfoundation driver expects this
@@ -280,13 +292,16 @@ final class MPVLayerRenderer {
         // latency and a fine-grained device clock, so avfoundation looks fine
         // there and only fails on device.
         //
-        // The silence #1970 was chasing (#1673) is fixed in the AO itself as of
-        // MPVKit 0.41.0-av3, not by swapping AOs: HDMI routes carrying Dolby MAT
-        // report a channel layout whose labels have no mp speaker ID, and
-        // ao_audiounit.m adopted it wholesale, so the chmap came out invalid and
-        // playback was silent. av3 clamps that to a layout mpv can use. iOS is
-        // unchanged either way - its autoprobe already picks audiounit ahead of
-        // avfoundation.
+        // The silence #1970 was chasing (#1673) is fixed in the AO itself, not
+        // by swapping AOs. On HDMI routes carrying Dolby MAT ("Continuous Audio
+        // Connection" with an Atmos sink) the audio unit refuses the
+        // kAudioUnitProperty_AudioChannelLayout query outright, and stock
+        // ao_audiounit.m treated that as fatal ("unable to retrieve audio unit
+        // channel layout") - so with audiounit pinned there was no audio output
+        // at all. MPVKit 0.41.0-av4 falls back to stereo there instead, the way
+        // VLC's audiounit_ios does; av3's clamp for layouts that come back with
+        // labels mpv cannot map stays in as well. iOS is unchanged either way -
+        // its autoprobe already picks audiounit ahead of avfoundation.
         #if os(tvOS)
         checkError(mpv_set_option_string(handle, "ao", "audiounit"))
         #endif
@@ -325,6 +340,11 @@ final class MPVLayerRenderer {
         // Stop observing display layer status
         statusObservation?.invalidate()
         statusObservation = nil
+
+        if let routeChangeObserver {
+            NotificationCenter.default.removeObserver(routeChangeObserver)
+            self.routeChangeObserver = nil
+        }
 
         // Clear wakeup callback first to stop event processing
         if let handle = mpv {
@@ -700,11 +720,21 @@ final class MPVLayerRenderer {
             if let logMessagePointer = event.data?.assumingMemoryBound(to: mpv_event_log_message.self) {
                 let component = String(cString: logMessagePointer.pointee.prefix)
                 let text = String(cString: logMessagePointer.pointee.text)
-                let lower = text.lowercased()
-                if lower.contains("error") {
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                // Route on mpv's own level, not on the message text: CoreAudio
+                // failures read "unable to ... (what/-10879)" and contain
+                // neither "error" nor "warn", so the old substring match
+                // dropped exactly the lines that mattered.
+                let level = logMessagePointer.pointee.log_level.rawValue
+                if level <= MPV_LOG_LEVEL_ERROR.rawValue {
                     Logger.shared.log("mpv[\(component)] \(text)", type: "Error")
-                } else if lower.contains("warn") || lower.contains("warning") {
+                } else if level <= MPV_LOG_LEVEL_WARN.rawValue {
                     Logger.shared.log("mpv[\(component)] \(text)", type: "Warn")
+                } else if Self.isDiagnosticInfoLine(component: component, text: text) {
+                    // Info is requested for the audio/video output summaries
+                    // only; the rest (track listings, "Playing:", ...) would
+                    // crowd the app log's small ring buffer.
+                    Logger.shared.log("mpv[\(component)] \(text)", type: "Info")
                 }
             }
         default:
@@ -797,6 +827,40 @@ final class MPVLayerRenderer {
         }
     }
     
+    // MARK: - Audio diagnostics
+
+    /// mpv "info" lines worth keeping in the app log: the negotiated output
+    /// summaries ("AO: [audiounit] 48000Hz stereo 2ch floatp", "VO: ...") and
+    /// anything the audio output itself says. Everything else at info level
+    /// is per-track chatter.
+    private static func isDiagnosticInfoLine(component: String, text: String) -> Bool {
+        if component == "ao" || component.hasPrefix("ao/") { return true }
+        return text.hasPrefix("AO: ") || text.hasPrefix("VO: ")
+    }
+
+    /// One line describing the AVAudioSession output route, written to the app
+    /// log so it shows up in an export - or on the TV's log screen, which has
+    /// no export. Silent tvOS audio (#1673) was guessed at twice because nothing
+    /// recorded what the HDMI route actually reported; this is that record.
+    /// Channel labels are CoreAudio AudioChannelLabel values (1=L, 2=R, 3=C,
+    /// 4=LFE, 5=Ls, 6=Rs, ...; 0xFFFFFFFF=unknown; 0x1000N=discrete N).
+    private func logAudioRoute(_ reason: String) {
+        let session = AVAudioSession.sharedInstance()
+        let outputs = session.currentRoute.outputs.map { port -> String in
+            let channels = port.channels ?? []
+            let labels = channels.map { String($0.channelLabel) }.joined(separator: ",")
+            return "\(port.portType.rawValue)(\(channels.count)ch labels=[\(labels)])"
+        }
+        Logger.shared.log(
+            "Audio route (\(reason)): outputs=\(outputs.joined(separator: " + ")) "
+                + "outputChannels=\(session.outputNumberOfChannels) "
+                + "maxChannels=\(session.maximumOutputNumberOfChannels) "
+                + "sampleRate=\(Int(session.sampleRate)) "
+                + "outputLatency=\(Int(session.outputLatency * 1000))ms",
+            type: "Info"
+        )
+    }
+
     private func getStringProperty(handle: OpaquePointer, name: String) -> String? {
         var result: String?
         if let cString = mpv_get_property_string(handle, name) {

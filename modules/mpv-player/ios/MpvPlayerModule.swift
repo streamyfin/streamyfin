@@ -3,11 +3,36 @@ import CoreMedia
 import VideoToolbox
 
 public class MpvPlayerModule: Module {
+  private var nativeLogObserver: NSObjectProtocol?
+
   public func definition() -> ModuleDefinition {
     Name("MpvPlayer")
 
     // Defines event names that the module can send to JavaScript.
-    Events("onChange")
+    Events("onChange", "onNativeLog")
+
+    // Bridge the native player's Logger into the JS app log. Logger posts
+    // "LoggerNotification" for every entry but, until now, nothing listened:
+    // its file lives in NSTemporaryDirectory() while Settings → Logs exports
+    // the JS log from MMKV, so mpv errors and audio-route diagnostics never
+    // reached a QA log export. Observed only while JS has a listener.
+    OnStartObserving {
+      guard self.nativeLogObserver == nil else { return }
+      self.nativeLogObserver = NotificationCenter.default.addObserver(
+        forName: NSNotification.Name("LoggerNotification"), object: nil, queue: nil
+      ) { [weak self] note in
+        guard let message = note.userInfo?["message"] as? String else { return }
+        let type = note.userInfo?["type"] as? String ?? "General"
+        self?.sendEvent("onNativeLog", ["message": message, "type": type])
+      }
+    }
+
+    OnStopObserving {
+      if let observer = self.nativeLogObserver {
+        NotificationCenter.default.removeObserver(observer)
+        self.nativeLogObserver = nil
+      }
+    }
 
     // Defines a JavaScript synchronous function that runs the native code on the JavaScript thread.
     Function("hello") {
