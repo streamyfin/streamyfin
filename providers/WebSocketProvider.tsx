@@ -17,6 +17,7 @@ import { apiAtom } from "@/providers/JellyfinProvider";
 import { useNetworkStatus } from "@/providers/NetworkStatusProvider";
 import { getJellyfinHeaders, hasHeaders } from "@/utils/customHeaders";
 import { getOrSetDeviceId } from "@/utils/device";
+import { describeHttpResponse } from "@/utils/errors";
 import { logAndCaptureError } from "@/utils/log";
 
 // Query keys that depend on the set of library items and should be refreshed
@@ -392,9 +393,17 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
       } catch (error) {
         // Connectivity failures are filtered centrally; 401 is routine
         // session expiry (the auth interceptor handles it). What remains is
-        // a server rejection that silently breaks remote control.
+        // a server rejection that silently breaks remote control — and the
+        // response's content type, Server header and plain-text reason are
+        // what tell Jellyfin's own "Session not found" apart from a proxy
+        // that blocks the POST, or turns it into a GET via an http→https
+        // redirect (405).
         if (isAxiosError(error) && error.response?.status === 401) return;
-        logAndCaptureError("Posting session capabilities failed", error);
+        logAndCaptureError(
+          "Posting session capabilities failed",
+          error,
+          describeHttpResponse(error),
+        );
       }
     };
 
