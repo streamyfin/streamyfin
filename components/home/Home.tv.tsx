@@ -228,7 +228,11 @@ export const Home = () => {
   });
 
   // Fetch hero items (Continue Watching + Next Up combined)
-  const { data: heroItems, isLoading: heroItemsLoading } = useQuery({
+  const {
+    data: heroItems,
+    isLoading: heroItemsLoading,
+    isError: heroItemsError,
+  } = useQuery({
     queryKey: ["home", "heroItems", user?.Id],
     queryFn: async () => {
       if (!api || !user?.Id) return [];
@@ -286,6 +290,7 @@ export const Home = () => {
   const {
     data: topShelfContinueWatchingItems,
     isLoading: topShelfContinueWatchingLoading,
+    isError: topShelfContinueWatchingError,
   } = useQuery({
     queryKey: ["topShelf", "continueWatching", user?.Id],
     queryFn: async () => {
@@ -310,34 +315,38 @@ export const Home = () => {
     refetchInterval: 60 * 1000,
   });
 
-  const { data: topShelfNextUpItems, isLoading: topShelfNextUpLoading } =
-    useQuery({
-      queryKey: ["topShelf", "nextUp", user?.Id],
-      queryFn: async () => {
-        if (!api || !user?.Id) return [];
+  const {
+    data: topShelfNextUpItems,
+    isLoading: topShelfNextUpLoading,
+    isError: topShelfNextUpError,
+  } = useQuery({
+    queryKey: ["topShelf", "nextUp", user?.Id],
+    queryFn: async () => {
+      if (!api || !user?.Id) return [];
 
-        const response = await getTvShowsApi(api).getNextUp({
-          userId: user.Id,
-          startIndex: 0,
-          limit: 12,
-          fields: ["Overview", "Genres", "DateCreated"],
-          enableImageTypes: ["Primary", "Backdrop", "Thumb"],
-          enableResumable: false,
-        });
+      const response = await getTvShowsApi(api).getNextUp({
+        userId: user.Id,
+        startIndex: 0,
+        limit: 12,
+        fields: ["Overview", "Genres", "DateCreated"],
+        enableImageTypes: ["Primary", "Backdrop", "Thumb"],
+        enableResumable: false,
+      });
 
-        return response.data.Items || [];
-      },
-      enabled:
-        !!api &&
-        !!user?.Id &&
-        topShelfContentPreset === AppleTVTopShelfContent.NextUp,
-      staleTime: 60 * 1000,
-      refetchInterval: 60 * 1000,
-    });
+      return response.data.Items || [];
+    },
+    enabled:
+      !!api &&
+      !!user?.Id &&
+      topShelfContentPreset === AppleTVTopShelfContent.NextUp,
+    staleTime: 60 * 1000,
+    refetchInterval: 60 * 1000,
+  });
 
   const {
     data: topShelfRecentlyAddedItems,
     isLoading: topShelfRecentlyAddedLoading,
+    isError: topShelfRecentlyAddedError,
   } = useQuery({
     queryKey: ["topShelf", "recentlyAdded", user?.Id],
     queryFn: async () => {
@@ -373,6 +382,7 @@ export const Home = () => {
   const {
     data: topShelfRecommendationsSection,
     isLoading: topShelfRecommendationsLoading,
+    isError: topShelfRecommendationsError,
   } = useQuery({
     queryKey: [
       "topShelf",
@@ -457,6 +467,7 @@ export const Home = () => {
       case AppleTVTopShelfContent.ContinueWatching:
         return {
           loading: topShelfContinueWatchingLoading,
+          error: topShelfContinueWatchingError,
           sections: [
             {
               title: t("home.continue_watching"),
@@ -467,6 +478,7 @@ export const Home = () => {
       case AppleTVTopShelfContent.NextUp:
         return {
           loading: topShelfNextUpLoading,
+          error: topShelfNextUpError,
           sections: [
             {
               title: t("home.next_up"),
@@ -477,6 +489,7 @@ export const Home = () => {
       case AppleTVTopShelfContent.RecentlyAdded:
         return {
           loading: topShelfRecentlyAddedLoading,
+          error: topShelfRecentlyAddedError,
           sections: [
             {
               title: t("home.recently_added"),
@@ -487,6 +500,7 @@ export const Home = () => {
       case AppleTVTopShelfContent.Recommendations:
         return {
           loading: topShelfRecommendationsLoading,
+          error: topShelfRecommendationsError,
           sections: topShelfRecommendationsSection
             ? [topShelfRecommendationsSection]
             : [
@@ -501,6 +515,7 @@ export const Home = () => {
       default:
         return {
           loading: heroItemsLoading,
+          error: heroItemsError,
           sections: [
             {
               title: t("home.continue_and_next_up"),
@@ -511,21 +526,26 @@ export const Home = () => {
     }
   }, [
     heroItemsLoading,
+    heroItemsError,
     heroItems,
     t,
     topShelfContentPreset,
     topShelfContinueWatchingItems,
     topShelfContinueWatchingLoading,
+    topShelfContinueWatchingError,
     topShelfNextUpItems,
     topShelfNextUpLoading,
+    topShelfNextUpError,
     topShelfRecentlyAddedItems,
     topShelfRecentlyAddedLoading,
+    topShelfRecentlyAddedError,
     topShelfRecommendationsSection,
     topShelfRecommendationsLoading,
+    topShelfRecommendationsError,
   ]);
 
   useEffect(() => {
-    if (topShelfSyncState.loading) {
+    if (topShelfSyncState.loading || topShelfSyncState.error) {
       return;
     }
 
