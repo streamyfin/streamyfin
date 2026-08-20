@@ -452,7 +452,14 @@ export const Home = () => {
         enableImageTypes: ["Primary", "Backdrop", "Thumb"],
       });
 
-      return { title, items: itemsResponse.data.Items || [] };
+      const itemsById = new Map(
+        (itemsResponse.data.Items || []).map((item) => [item.Id, item]),
+      );
+      const orderedItems = dedupedIds
+        .map((id) => itemsById.get(id))
+        .filter((item): item is BaseItemDto => Boolean(item));
+
+      return { title, items: orderedItems };
     },
     enabled:
       !!api &&
