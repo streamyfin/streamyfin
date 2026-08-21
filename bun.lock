@@ -79,7 +79,7 @@
         "react-native-qrcode-svg": "^6.3.21",
         "react-native-reanimated": "4.5.3",
         "react-native-reanimated-carousel": "4.0.3",
-        "react-native-safe-area-context": "5.8.1",
+        "react-native-safe-area-context": "5.9.1",
         "react-native-screens": "4.26.2",
         "react-native-svg": "15.15.5",
         "react-native-tab-view": "4.3.2",
@@ -1594,7 +1594,7 @@
 
     "react-native-reanimated-carousel": ["react-native-reanimated-carousel@4.0.3", "", { "peerDependencies": { "react": ">=18.0.0", "react-native": ">=0.70.3", "react-native-gesture-handler": ">=2.9.0", "react-native-reanimated": ">=3.0.0" } }, "sha512-YZXlvZNghR5shFcI9hTA7h7bEhh97pfUSLZvLBAshpbkuYwJDKmQXejO/199T6hqGq0wCRwR0CWf2P4Vs6A4Fw=="],
 
-    "react-native-safe-area-context": ["react-native-safe-area-context@5.8.1", "", { "peerDependencies": { "react": "*", "react-native": "*" } }, "sha512-dDYVAJcW5LJlXAqTUFAaWvYJovqxrh6HdJlOkdTQ7dXCcKWhCq5vKoDXJc3n1q5rYcAUaIwmToKNPKibnogC4g=="],
+    "react-native-safe-area-context": ["react-native-safe-area-context@5.9.1", "", { "peerDependencies": { "react": "*", "react-native": "*" } }, "sha512-Zpx9Iwg6VhgNarWFpcIM61xK2lUbSfSXemQUmcvOVRpux49lJsUompY1S3E5jKUJbLq233qEpj28DgmXVsgZMQ=="],
 
     "react-native-screens": ["react-native-screens@4.26.2", "", { "dependencies": { "react-freeze": "^1.0.0", "warn-once": "^0.1.0" }, "peerDependencies": { "react": "*", "react-native": "*" } }, "sha512-2XnWsZToKj76trGtEZzx5ELD/qOICFEprEeUntImmitQFVUkea27fiWdUSITArI356Y1qynpXZINW+Unbhky/A=="],
 
@@ -1604,7 +1604,7 @@
 
     "react-native-text-ticker": ["react-native-text-ticker@1.16.0", "", {}, "sha512-UHZcIrXzNQ3CnGSA6d5foR9weqSCEk5w+eJGnUf5OQkKbuq/xtt1ZaNVnsgcG5+3f9EnRrNCt52/a46LXVKGGw=="],
 
-    "react-native-track-player": ["react-native-track-player@github:lovegaoshi/react-native-track-player#33a3ecd", { "peerDependencies": { "react": "*", "react-native": "*", "react-native-windows": "*", "shaka-player": "^4.7.9" }, "optionalPeers": ["react-native-windows", "shaka-player"] }, "lovegaoshi-react-native-track-player-33a3ecd"],
+    "react-native-track-player": ["react-native-track-player@github:lovegaoshi/react-native-track-player#33a3ecd", { "peerDependencies": { "react": "*", "react-native": "*", "react-native-windows": "*", "shaka-player": "^4.7.9" }, "optionalPeers": ["react-native-windows", "shaka-player"] }, "lovegaoshi-react-native-track-player-33a3ecd", "sha512-vfkld2jUj7EPkAjIc/Vbx4Q4MtOOLmYtCYCE2dWJsyLnPqgj1f0xVzBxbeVP7dfT+eSh4KIXfdxESXaHgrXIlw=="],
 
     "react-native-udp": ["react-native-udp@4.1.7", "", { "dependencies": { "buffer": "^5.6.0", "events": "^3.1.0" } }, "sha512-NUE3zewu61NCdSsLlj+l0ad6qojcVEZPT4hVG/x6DU9U4iCzwtfZSASh9vm7teAcVzLkdD+cO3411LHshAi/wA=="],
 
