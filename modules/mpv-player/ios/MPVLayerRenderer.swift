@@ -356,15 +356,22 @@ final class MPVLayerRenderer {
 
         let fm = FileManager.default
         let fontsDir = configDir.appendingPathComponent("fonts", isDirectory: true)
-        try? fm.createDirectory(at: fontsDir, withIntermediateDirectories: true)
-
-        // Copied rather than read straight from the bundle because libass loads
-        // *every* file in the fonts dir — pointing it at the bundle root would pull
-        // in every image and asset we ship.
-        for name in Self.subtitleFontResources {
-            Self.installFont(named: name, at: fontsDir.appendingPathComponent(name))
+        do {
+            try fm.createDirectory(at: fontsDir, withIntermediateDirectories: true)
+        } catch {
+            Logger.shared.log(
+                "Could not prepare subtitle font directory: \(error.localizedDescription)",
+                type: "Warn"
+            )
+            return
         }
-        Self.installFont(
+
+        // Keep libass' font DB isolated without copying 17 MB on the main thread.
+        // The links are refreshed when an app update changes the bundle path.
+        for name in Self.subtitleFontResources {
+            Self.linkFont(named: name, at: fontsDir.appendingPathComponent(name))
+        }
+        Self.linkFont(
             named: Self.subtitleFallbackFontResource,
             at: configDir.appendingPathComponent("subfont.ttf")
         )
@@ -381,35 +388,36 @@ final class MPVLayerRenderer {
         "NotoSansHebrew-Regular.ttf",
     ]
 
-    /// Face copied to `<config-dir>/subfont.ttf`, libass' unconditional last resort.
+    /// Face linked to `<config-dir>/subfont.ttf`, libass' unconditional last resort.
     private static let subtitleFallbackFontResource = "NotoSansCJKsc-Regular.otf"
 
     /// Family name of `NotoSans-Regular.ttf`, used as `--sub-font`.
     private static let subtitleFontFamily = "Noto Sans"
 
-    /// Writable directory handed to mpv as `--config-dir`.
-    ///
-    /// tvOS apps get no persistent app-support storage, so Caches is the only
-    /// option there; it can be purged, which is why `installFont` re-checks on
-    /// every player start rather than copying once.
+    /// Writable, backup-excluded directory handed to mpv as `--config-dir`.
     private static func mpvConfigDirectory() -> URL? {
-        #if os(tvOS)
-        let base = FileManager.SearchPathDirectory.cachesDirectory
-        #else
-        let base = FileManager.SearchPathDirectory.applicationSupportDirectory
-        #endif
-        guard let root = try? FileManager.default.url(
-            for: base, in: .userDomainMask, appropriateFor: nil, create: true
-        ) else { return nil }
-
-        let dir = root.appendingPathComponent("mpv", isDirectory: true)
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        return dir
+        let fm = FileManager.default
+        do {
+            let root = try fm.url(
+                for: .cachesDirectory,
+                in: .userDomainMask,
+                appropriateFor: nil,
+                create: true
+            )
+            let dir = root.appendingPathComponent("mpv", isDirectory: true)
+            try fm.createDirectory(at: dir, withIntermediateDirectories: true)
+            return dir
+        } catch {
+            Logger.shared.log(
+                "Could not prepare mpv cache directory: \(error.localizedDescription)",
+                type: "Warn"
+            )
+            return nil
+        }
     }
 
-    /// Copies a bundled font into place if it is missing or stale. Size is enough
-    /// of a fingerprint here — these files only ever change when we swap the font.
-    private static func installFont(named resource: String, at destination: URL) {
+    /// Links an immutable bundled font into mpv's isolated font directory.
+    private static func linkFont(named resource: String, at destination: URL) {
         let fm = FileManager.default
         let name = (resource as NSString).deletingPathExtension
         let ext = (resource as NSString).pathExtension
@@ -419,16 +427,22 @@ final class MPVLayerRenderer {
             return
         }
 
-        let sourceSize = (try? source.resourceValues(forKeys: [.fileSizeKey]))?.fileSize
-        let destSize = (try? destination.resourceValues(forKeys: [.fileSizeKey]))?.fileSize
-        if destSize != nil, destSize == sourceSize { return }
+        let currentTarget = try? fm.destinationOfSymbolicLink(atPath: destination.path)
+        if let currentTarget,
+            URL(fileURLWithPath: currentTarget).standardizedFileURL
+                == source.standardizedFileURL
+        {
+            return
+        }
 
-        try? fm.removeItem(at: destination)
         do {
-            try fm.copyItem(at: source, to: destination)
+            if currentTarget != nil || fm.fileExists(atPath: destination.path) {
+                try fm.removeItem(at: destination)
+            }
+            try fm.createSymbolicLink(at: destination, withDestinationURL: source)
         } catch {
             Logger.shared.log(
-                "Could not install subtitle font \(resource): \(error.localizedDescription)",
+                "Could not link subtitle font \(resource): \(error.localizedDescription)",
                 type: "Warn"
             )
         }
