@@ -1027,7 +1027,7 @@ final class MPVLayerRenderer {
                 && displayLayer.bounds.height > displayLayer.bounds.width
             ? .resizeAspectFill
             : .resizeAspect
-        #if targetEnvironment(simulator)
+        #if os(tvOS) || targetEnvironment(simulator)
         subtitleLayer.frame = displayLayer.bounds
         #endif
     }

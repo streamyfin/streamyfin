@@ -174,6 +174,10 @@ class NativePlayerSession(
                 ) {
                     if (renderer !== newRenderer) return@start
                     rendererStarted = true
+                    surfaceView?.holder?.surface?.takeIf { it.isValid }?.let { surface ->
+                        newRenderer.attachSurface(surface)
+                        syncSurfaceSize()
+                    }
                     val configToLoad = pendingConfig ?: config
                     pendingConfig = null
                     viewModel.apply(configToLoad)

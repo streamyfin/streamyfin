@@ -835,6 +835,15 @@ final class PlayerViewModel: NSObject, ObservableObject {
 			}
 		}
 		engine.setSubtitleScale((effectiveScale * 100).rounded() / 100)
+		#elseif os(tvOS)
+		var effectiveScale = subtitleScale
+		if isZoomedToFill, let videoWidth, let videoHeight, videoWidth > 0, videoHeight > 0 {
+			let surface = UIScreen.main.bounds.size
+			let widthScale = Double(surface.width) / Double(videoWidth)
+			let heightScale = Double(surface.height) / Double(videoHeight)
+			effectiveScale *= min(widthScale, heightScale) / max(widthScale, heightScale)
+		}
+		engine.setSubtitleScale((effectiveScale * 100).rounded() / 100)
 		#else
 		engine.setSubtitleScale(subtitleScale)
 		#endif
