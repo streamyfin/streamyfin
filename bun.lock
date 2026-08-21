@@ -117,7 +117,7 @@
     "react-native-udp@4.1.7": "patches/react-native-udp@4.1.7.patch",
   },
   "overrides": {
-    "uuid": "11.1.1",
+    "uuid": "14.0.2",
   },
   "packages": {
     "@adobe/css-tools": ["@adobe/css-tools@4.5.0", "", {}, "sha512-6OzddxPio9UiWTCemp4N8cYLV2ZN1ncRnV1cVGtve7dhPOtRkleRyx32GQCYSwDYgaHU3USMm84tNsvKzRCa1Q=="],
@@ -1604,7 +1604,7 @@
 
     "react-native-text-ticker": ["react-native-text-ticker@1.16.0", "", {}, "sha512-UHZcIrXzNQ3CnGSA6d5foR9weqSCEk5w+eJGnUf5OQkKbuq/xtt1ZaNVnsgcG5+3f9EnRrNCt52/a46LXVKGGw=="],
 
-    "react-native-track-player": ["react-native-track-player@github:lovegaoshi/react-native-track-player#33a3ecd", { "peerDependencies": { "react": "*", "react-native": "*", "react-native-windows": "*", "shaka-player": "^4.7.9" }, "optionalPeers": ["react-native-windows", "shaka-player"] }, "lovegaoshi-react-native-track-player-33a3ecd"],
+    "react-native-track-player": ["react-native-track-player@github:lovegaoshi/react-native-track-player#33a3ecd", { "peerDependencies": { "react": "*", "react-native": "*", "react-native-windows": "*", "shaka-player": "^4.7.9" }, "optionalPeers": ["react-native-windows", "shaka-player"] }, "lovegaoshi-react-native-track-player-33a3ecd", "sha512-vfkld2jUj7EPkAjIc/Vbx4Q4MtOOLmYtCYCE2dWJsyLnPqgj1f0xVzBxbeVP7dfT+eSh4KIXfdxESXaHgrXIlw=="],
 
     "react-native-udp": ["react-native-udp@4.1.7", "", { "dependencies": { "buffer": "^5.6.0", "events": "^3.1.0" } }, "sha512-NUE3zewu61NCdSsLlj+l0ad6qojcVEZPT4hVG/x6DU9U4iCzwtfZSASh9vm7teAcVzLkdD+cO3411LHshAi/wA=="],
 
@@ -1848,7 +1848,7 @@
 
     "utils-merge": ["utils-merge@1.0.1", "", {}, "sha512-pMZTvIkT1d+TFGvDOqodOclx0QWkkgi6Tdoa8gC8ffGAAqz9pzPTZWAybbsHHoED/ztMtkv/VoYTYyShUn81hA=="],
 
-    "uuid": ["uuid@11.1.1", "", { "bin": { "uuid": "dist/esm/bin/uuid" } }, "sha512-vIYxrBCC/N/K+Js3qSN88go7kIfNPssr/hHCesKCQNAjmgvYS2oqr69kIufEG+O4+PfezOH4EbIeHCfFov8ZgQ=="],
+    "uuid": ["uuid@14.0.2", "", { "bin": { "uuid": "dist-node/bin/uuid" } }, "sha512-xZe/16rV4aa+HGSOCiY2YeLT1OybRLrrkL/Rqaq7p7GMVXjFh+6wN4oMYgjFmnSnhY8t6Xpdl2l9qmnHYuMHwQ=="],
 
     "validate-npm-package-name": ["validate-npm-package-name@5.0.1", "", {}, "sha512-OljLrQ9SQdOUqTaQxqL5dEfZWrXExyyWsozYlAWFawPVNuD83igl7uJD2RTkNMbniIYgt8l81eCJGIdQF7avLQ=="],
 
