@@ -98,46 +98,12 @@ export const ItemContentSkeletonTV: React.FC = () => {
           />
         </View>
 
-        {/* Action buttons placeholder - mirrors the real layout, where the
-            buttons sit above the overview so Play is always visible */}
-        <View
-          style={{
-            flexDirection: "row",
-            gap: scaleSize(16),
-            marginBottom: scaleSize(20),
-          }}
-        >
-          <View
-            style={{
-              height: scaleSize(56),
-              width: scaleSize(180),
-              backgroundColor: "#1a1a1a",
-              borderRadius: scaleSize(12),
-            }}
-          />
-          <View
-            style={{
-              height: scaleSize(56),
-              width: scaleSize(56),
-              backgroundColor: "#1a1a1a",
-              borderRadius: scaleSize(12),
-            }}
-          />
-          <View
-            style={{
-              height: scaleSize(56),
-              width: scaleSize(56),
-              backgroundColor: "#1a1a1a",
-              borderRadius: scaleSize(12),
-            }}
-          />
-        </View>
-
-        {/* Overview placeholder */}
+        {/* Overview placeholder - the real layout renders the overview above
+            the action row, so keep the same order here to avoid a shift on load */}
         <View
           style={{
             maxWidth: SCREEN_WIDTH * 0.45,
-            marginBottom: scaleSize(32),
+            marginBottom: scaleSize(24),
           }}
         >
           <View
@@ -164,6 +130,32 @@ export const ItemContentSkeletonTV: React.FC = () => {
               width: "75%",
               backgroundColor: "#1a1a1a",
               borderRadius: scaleSize(4),
+            }}
+          />
+        </View>
+
+        {/* Action buttons placeholder - Play + favorite, matching the real
+            layout's action row that sits below the overview */}
+        <View
+          style={{
+            flexDirection: "row",
+            gap: scaleSize(16),
+          }}
+        >
+          <View
+            style={{
+              height: scaleSize(56),
+              width: scaleSize(180),
+              backgroundColor: "#1a1a1a",
+              borderRadius: scaleSize(12),
+            }}
+          />
+          <View
+            style={{
+              height: scaleSize(56),
+              width: scaleSize(56),
+              backgroundColor: "#1a1a1a",
+              borderRadius: scaleSize(12),
             }}
           />
         </View>

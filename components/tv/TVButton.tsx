@@ -108,7 +108,7 @@ export const TVButton: React.FC<TVButtonProps> = ({
             shadowColor: "#fff",
             shadowOffset: { width: 0, height: 0 },
             shadowOpacity: focused ? 0.5 : 0,
-            shadowRadius: focused ? 15 : 0,
+            shadowRadius: focused ? scaleSize(15) : 0,
           }}
         >
           {children}
