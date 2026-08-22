@@ -3,13 +3,10 @@ import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { getTvShowsApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { atom, useAtom } from "jotai";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo } from "react";
 import { TouchableOpacity, View } from "react-native";
-import ContinueWatchingPoster from "@/components/ContinueWatchingPoster";
-import {
-  HorizontalScroll,
-  type HorizontalScrollRef,
-} from "@/components/common/HorizontalScroll";
+import { buildItemCards, type CardData } from "@/components/cards/CardData";
+import { CardRow } from "@/components/cards/CardRow";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
 import {
@@ -36,14 +33,16 @@ type Props = {
 
 export const seasonIndexAtom = atom<SeasonIndexState>({});
 
+/**
+ * Room under each card for the title, the S:E line, the runtime and up to
+ * seven lines of overview. The row reserves it; it cannot measure a slot.
+ */
+const FOOTER_HEIGHT = 190;
+
 export const EpisodeList: React.FC<Props> = ({ item, close, goToItem }) => {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
   const [seasonIndexState, setSeasonIndexState] = useAtom(seasonIndexAtom);
-  const scrollViewRef = useRef<HorizontalScrollRef>(null); // Reference to the HorizontalScroll
-  const scrollToIndex = (index: number) => {
-    scrollViewRef.current?.scrollToIndex(index, 100);
-  };
   const isOffline = useOfflineMode();
   const insets = useControlsSafeAreaInsets();
 
@@ -135,16 +134,57 @@ export const EpisodeList: React.FC<Props> = ({ item, close, goToItem }) => {
     enabled: !!api && !!user?.Id && !!selectedSeasonId,
   });
 
-  useEffect(() => {
-    if (item?.Type === "Episode" && item.Id) {
-      const index = episodes?.findIndex((ep: BaseItemDto) => ep.Id === item.Id);
-      if (index !== undefined && index !== -1) {
-        setTimeout(() => {
-          scrollToIndex(index);
-        }, 400);
-      }
-    }
-  }, [episodes, item]);
+  const episodeById = useMemo(
+    () => new Map((episodes ?? []).map((e: BaseItemDto) => [e.Id, e])),
+    [episodes],
+  );
+
+  // The shared card plus the runtime line; the overview goes in the footer
+  // because it is far longer than anything a card carries.
+  const episodeCards = useMemo(() => {
+    const base = buildItemCards(episodes ?? [], {
+      api,
+      kind: "wide",
+      useEpisodePoster: true,
+      selectedId: item.Id,
+    });
+    return base.map((card) => ({
+      ...card,
+      detail: runtimeTicksToSeconds(episodeById.get(card.id)?.RunTimeTicks),
+    }));
+  }, [episodes, api, item.Id, episodeById]);
+
+  const slots = useMemo(
+    () => ({
+      overlay: (card: CardData) =>
+        card.id === item.Id ? null : (
+          <View
+            pointerEvents='none'
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Ionicons name='play-circle' size={40} color='white' />
+          </View>
+        ),
+      footer: (card: CardData) => {
+        const overview = episodeById.get(card.id)?.Overview;
+        if (!overview) return null;
+        return (
+          <Text numberOfLines={7} className='text-xs text-neutral-500 mt-1'>
+            {overview}
+          </Text>
+        );
+      },
+    }),
+    [episodeById, item.Id],
+  );
 
   const queryClient = useQueryClient();
   useEffect(() => {
@@ -167,16 +207,6 @@ export const EpisodeList: React.FC<Props> = ({ item, close, goToItem }) => {
       });
     }
   }, [episodes, isOffline]);
-
-  // Scroll to the current item when episodes are fetched
-  useEffect(() => {
-    if (episodes && scrollViewRef.current) {
-      const currentItemIndex = episodes.findIndex((e) => e.Id === item.Id);
-      if (currentItemIndex !== -1) {
-        scrollViewRef.current.scrollToIndex(currentItemIndex, 16); // Adjust the scroll position based on item width
-      }
-    }
-  }, [episodes, item.Id]);
 
   return (
     <View
@@ -224,58 +254,21 @@ export const EpisodeList: React.FC<Props> = ({ item, close, goToItem }) => {
           <Loader />
         </View>
       ) : (
-        <HorizontalScroll
-          ref={scrollViewRef}
-          data={episodes}
-          height={800}
-          extraData={item}
-          // Note otherItem is the item that is being rendered, not the item that is currently selected
-          renderItem={(otherItem, _idx) => (
-            <View
-              key={otherItem.Id}
-              style={{}}
-              className={`flex flex-col w-44 ${
-                item.Id !== otherItem.Id ? "opacity-50" : ""
-              }`}
-            >
-              <TouchableOpacity
-                onPress={() => {
-                  goToItem(otherItem);
-                }}
-              >
-                <ContinueWatchingPoster
-                  item={otherItem}
-                  useEpisodePoster
-                  showPlayButton={otherItem.Id !== item.Id}
-                />
-              </TouchableOpacity>
-              <View className='shrink'>
-                <Text
-                  numberOfLines={2}
-                  style={{
-                    lineHeight: 18, // Adjust this value based on your text size
-                    height: 36, // lineHeight * 2 for consistent two-line space
-                  }}
-                >
-                  {otherItem.Name}
-                </Text>
-                <Text numberOfLines={1} className='text-xs text-neutral-475'>
-                  {`S${otherItem.ParentIndexNumber?.toString()}:E${otherItem.IndexNumber?.toString()}`}
-                </Text>
-                <Text className='text-xs text-neutral-500'>
-                  {runtimeTicksToSeconds(otherItem.RunTimeTicks)}
-                </Text>
-              </View>
-              <Text
-                numberOfLines={7}
-                className='text-xs text-neutral-500 shrink'
-              >
-                {otherItem.Overview}
-              </Text>
-            </View>
-          )}
-          keyExtractor={(e: BaseItemDto) => e.Id ?? ""}
-          showsHorizontalScrollIndicator={false}
+        <CardRow
+          items={episodes}
+          kind='wide'
+          useEpisodePoster
+          cards={episodeCards}
+          // Everything but the episode playing is faded back, and the current
+          // one is brought into view once the row has measured.
+          selectedId={item.Id}
+          scrollToId={item.Id}
+          textPlacement='below'
+          slots={slots}
+          footerHeight={FOOTER_HEIGHT}
+          // Deliberately not the shared navigation: the player swaps items with
+          // router.setParams so the MPV surface is never remounted.
+          onPressItem={goToItem}
         />
       )}
     </View>

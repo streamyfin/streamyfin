@@ -203,25 +203,29 @@ public class BackgroundDownloaderModule: Module {
     }
 
     AsyncFunction("startDownload") {
-      (urlString: String, destinationPath: String?, metadata: DownloadMetadataRecord?) -> Int in
+      (urlString: String, destinationPath: String?, metadata: DownloadMetadataRecord?,
+        headers: [String: String]?) -> Int in
       try self.stateQueue.sync {
         try self.beginDownloadLocked(
           urlString: urlString,
           destinationPath: destinationPath,
-          metadata: metadata?.toMetadata()
+          metadata: metadata?.toMetadata(),
+          headers: headers
         )
       }
     }
 
     AsyncFunction("enqueueDownload") {
-      (urlString: String, destinationPath: String?, metadata: DownloadMetadataRecord?) -> Int in
+      (urlString: String, destinationPath: String?, metadata: DownloadMetadataRecord?,
+        headers: [String: String]?) -> Int in
       try self.stateQueue.sync { () throws -> Int in
         let wasEmpty = self.downloadQueue.isEmpty
         self.downloadQueue.append(
           QueuedDownloadInfo(
             url: urlString,
             destinationPath: destinationPath,
-            metadata: metadata?.toMetadata()
+            metadata: metadata?.toMetadata(),
+            headers: headers
           )
         )
         self.queueDidChangeLocked()
@@ -358,7 +362,8 @@ public class BackgroundDownloaderModule: Module {
   private func beginDownloadLocked(
     urlString: String,
     destinationPath: String?,
-    metadata: DownloadActivityMetadata?
+    metadata: DownloadActivityMetadata?,
+    headers: [String: String]? = nil
   ) throws -> Int {
     guard let url = URL(string: urlString) else {
       throw DownloadError.invalidURL
@@ -376,6 +381,9 @@ public class BackgroundDownloaderModule: Module {
     var request = URLRequest(url: url)
     request.httpMethod = "GET"
     request.timeoutInterval = 300
+    headers?.forEach { key, value in
+      request.setValue(value, forHTTPHeaderField: key)
+    }
 
     let task = session.downloadTask(with: request)
     let taskId = task.taskIdentifier
@@ -383,7 +391,8 @@ public class BackgroundDownloaderModule: Module {
     downloadTasks[taskId] = DownloadTaskInfo(
       url: urlString,
       destinationPath: destinationPath,
-      metadata: metadata
+      metadata: metadata,
+      headers: headers
     )
     persistTasksLocked()
 
@@ -493,6 +502,35 @@ public class BackgroundDownloaderModule: Module {
         "taskId": taskId,
         "error": "Download task info not found"
       ])
+      return
+    }
+
+    // A non-2xx response still "completes" the transfer, but the file on disk
+    // is the server's error body (auth page, JSON error), not the media.
+    // Recording it as a successful download only fails much later, at
+    // playback, so surface it as a download error here. (Android already
+    // rejects these in OkHttpDownloadManager.)
+    if let httpResponse = downloadTask.response as? HTTPURLResponse,
+       !(200...299).contains(httpResponse.statusCode) {
+      backgroundDownloaderLog.error(
+        "Task \(taskId) finished with HTTP \(httpResponse.statusCode); treating as failure"
+      )
+      finishLiveActivity(taskId: taskId, state: .failed)
+
+      var payload: [String: Any] = [
+        "taskId": taskId,
+        "error": "Server responded with HTTP \(httpResponse.statusCode)"
+      ]
+      if let itemId = taskInfo.metadata?.itemId {
+        payload["itemId"] = itemId
+      }
+      sendEvent("onDownloadError", payload)
+
+      downloadTasks.removeValue(forKey: taskId)
+      lastProgressTime.removeValue(forKey: taskId)
+      persistTasksLocked()
+
+      processNextInQueueSafelyLocked()
       return
     }
 
@@ -622,7 +660,8 @@ public class BackgroundDownloaderModule: Module {
     return try beginDownloadLocked(
       urlString: next.url,
       destinationPath: next.destinationPath,
-      metadata: next.metadata
+      metadata: next.metadata,
+      headers: next.headers
     )
   }
 

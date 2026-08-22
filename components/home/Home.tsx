@@ -28,6 +28,7 @@ import { Button } from "@/components/Button";
 import { HeaderButton } from "@/components/common/HeaderButton";
 import { HeaderIcon } from "@/components/common/HeaderIcon";
 import { Text } from "@/components/common/Text";
+import { HomeHeroCarousel } from "@/components/home/HomeHeroCarousel";
 import { InfiniteScrollingCollectionList } from "@/components/home/InfiniteScrollingCollectionList";
 import { StreamystatsPromotedWatchlists } from "@/components/home/StreamystatsPromotedWatchlists";
 import { StreamystatsRecommendations } from "@/components/home/StreamystatsRecommendations";
@@ -619,6 +620,7 @@ const HomeMobile = () => {
         className='flex flex-col space-y-4'
         style={{ paddingTop: Platform.OS === "android" ? 10 : 0 }}
       >
+        <HomeHeroCarousel />
         {sections.map((section, index) => {
           // Render Streamystats sections after Recently Added sections
           // For default sections: place after Recently Added, before Suggested Movies (if present)

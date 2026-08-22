@@ -1,6 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { Image } from "expo-image";
 import { useAtomValue } from "jotai";
 import React, { useMemo, useRef, useState } from "react";
 import {
@@ -11,6 +10,7 @@ import {
   type ViewStyle,
 } from "react-native";
 import { ProgressBar } from "@/components/common/ProgressBar";
+import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import {
   UnplayedCountBadge,

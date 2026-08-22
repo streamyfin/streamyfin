@@ -36,6 +36,8 @@ struct MetadataRecord: Record {
 	/// Second header line, e.g. "Series Name · S2E5".
 	@Field var subtitle: String?
 	@Field var artworkUri: String?
+	/// Custom proxy auth headers for `artworkUri`, when it needs them.
+	@Field var artworkHeaders: [String: String]?
 	@Field var isEpisode: Bool = false
 }
 
@@ -179,6 +181,9 @@ struct UIOptionsRecord: Record {
 struct PlayerPresentConfigRecord: Record {
 	@Field var stream: StreamConfigRecord = StreamConfigRecord()
 	@Field var metadata: MetadataRecord?
+	/// Custom proxy auth headers for the thumbnails the player loads itself
+	/// (episode list, next episode). Same server as the stream.
+	@Field var imageHeaders: [String: String]?
 	@Field var chapters: [ChapterRecord] = []
 	@Field var segments: [MediaSegmentRecord] = []
 	@Field var trickplay: TrickplayRecord?

@@ -263,12 +263,44 @@ final class MPVLayerRenderer {
         checkError(mpv_set_option_string(handle, "target-colorspace-hint", "yes"))
         #endif
 
+        // Audio output: pin tvOS to audiounit. Do NOT reach for the
+        // avfoundation AO here - it is a macOS-oriented driver, and the audio
+        // clock it hands mpv is what video timing is scheduled against:
+        //
+        //   ao_read_data(ao, data, n, end_time_av - cur_time_av + cur_time_mp + dt, ...)
+        //
+        // That anchor is polled off [AVSampleBufferRenderSynchronizer currentTime]
+        // and carries no device-latency term at all. On a real Apple TV the HDMI
+        // route adds tens of ms of unmodelled output latency and currentTime is
+        // coarse, so the anchor is both offset and noisy at the feed rate
+        // (samplerate/10, ~100ms chunks) - video stalls, stutters, then jumps on
+        // the correction. audiounit instead anchors off the hardware
+        // AudioTimeStamp per render callback plus AVAudioSession output latency,
+        // which is stable over HDMI. The simulator hides all of this: ~0 output
+        // latency and a fine-grained device clock, so avfoundation looks fine
+        // there and only fails on device.
+        //
+        // The silence #1970 was chasing (#1673) is fixed in the AO itself as of
+        // MPVKit 0.41.0-av3, not by swapping AOs: HDMI routes carrying Dolby MAT
+        // report a channel layout whose labels have no mp speaker ID, and
+        // ao_audiounit.m adopted it wholesale, so the chmap came out invalid and
+        // playback was silent. av3 clamps that to a layout mpv can use. iOS is
+        // unchanged either way - its autoprobe already picks audiounit ahead of
+        // avfoundation.
+        #if os(tvOS)
+        checkError(mpv_set_option_string(handle, "ao", "audiounit"))
+        #endif
+
         // Subtitle and audio settings
         checkError(mpv_set_option_string(mpv, "sub-scale-with-window", "no"))
         checkError(mpv_set_option_string(mpv, "sub-use-margins", "no"))
         checkError(mpv_set_option_string(mpv, "subs-match-os-language", "yes"))
         checkError(mpv_set_option_string(mpv, "subs-fallback", "yes"))
         checkError(mpv_set_option_string(mpv, "sub-vsfilter-bidi-compat", "yes"))
+
+        // Bundled fallback fonts. Must run before mpv_initialize() — libass is
+        // configured once, from the config dir mpv resolves at init time.
+        setupSubtitleFonts(handle)
 
         // Initialize mpv
         let initStatus = mpv_initialize(handle)
@@ -287,7 +319,120 @@ final class MPVLayerRenderer {
         }, Unmanaged.passUnretained(self).toOpaque())
         isRunning = true
     }
-    
+
+    // MARK: - Subtitle Fonts
+
+    /// Bundled Noto faces, and where each one plugs into libass.
+    ///
+    /// libass resolves every glyph through `ass_font_select`, in this order:
+    ///   1. the family the subtitle asks for (an ASS `Style:` FontName) — glyph-checked
+    ///   2. `--sub-font`                                                 — glyph-checked
+    ///   3. the system provider's fallback (CoreText here)               — glyph-checked
+    ///   4. `subfont.ttf` in mpv's config dir                            — taken BLINDLY
+    ///
+    /// Step 3 is the one that breaks on Apple platforms: CoreText answers with a
+    /// font *name*, which libass then has to open as a *file*. Since iOS 18 the
+    /// system CJK face lives in `/System/Library/PrivateFrameworks/…/PingFangUI.ttc`,
+    /// which the sandbox will not open — and it uses a nonstandard `hvgl` table
+    /// FreeType cannot parse regardless. With step 3 failing and nothing in step 4,
+    /// CJK subtitles render as tofu boxes (issue #1789). Apple's guidance for this
+    /// exact case is to ship your own font instead of reading system font files.
+    ///
+    /// So we fill the two slots that do not depend on CoreText:
+    ///   - `<config-dir>/fonts/`     enters libass' own font DB, glyph-checked, so a
+    ///                               face is only ever used for glyphs it really has
+    ///   - `<config-dir>/subfont.ttf` the blind last resort — the CJK face goes here
+    ///                               because it is the widest net, and libass opens
+    ///                               it by path rather than reading it into memory
+    ///
+    /// and point `--sub-font` at the bundled Latin face so step 2 resolves
+    /// deterministically instead of landing on whatever CoreText happens to pick.
+    ///
+    /// Android needs none of this: its libmpv builds libass with the fontconfig
+    /// provider pointed at `/system/fonts`, so the device's own fonts are reachable.
+    private func setupSubtitleFonts(_ handle: OpaquePointer) {
+        guard let configDir = Self.mpvConfigDirectory() else { return }
+
+        let fm = FileManager.default
+        let fontsDir = configDir.appendingPathComponent("fonts", isDirectory: true)
+        try? fm.createDirectory(at: fontsDir, withIntermediateDirectories: true)
+
+        // Copied rather than read straight from the bundle because libass loads
+        // *every* file in the fonts dir — pointing it at the bundle root would pull
+        // in every image and asset we ship.
+        for name in Self.subtitleFontResources {
+            Self.installFont(named: name, at: fontsDir.appendingPathComponent(name))
+        }
+        Self.installFont(
+            named: Self.subtitleFallbackFontResource,
+            at: configDir.appendingPathComponent("subfont.ttf")
+        )
+
+        checkError(mpv_set_option_string(handle, "config", "yes"))
+        checkError(mpv_set_option_string(handle, "config-dir", configDir.path))
+        checkError(mpv_set_option_string(handle, "sub-font", Self.subtitleFontFamily))
+    }
+
+    /// Faces that go into libass' font DB (`<config-dir>/fonts`).
+    private static let subtitleFontResources = [
+        "NotoSans-Regular.ttf",
+        "NotoSansArabic-Regular.ttf",
+        "NotoSansHebrew-Regular.ttf",
+    ]
+
+    /// Face copied to `<config-dir>/subfont.ttf`, libass' unconditional last resort.
+    private static let subtitleFallbackFontResource = "NotoSansCJKsc-Regular.otf"
+
+    /// Family name of `NotoSans-Regular.ttf`, used as `--sub-font`.
+    private static let subtitleFontFamily = "Noto Sans"
+
+    /// Writable directory handed to mpv as `--config-dir`.
+    ///
+    /// tvOS apps get no persistent app-support storage, so Caches is the only
+    /// option there; it can be purged, which is why `installFont` re-checks on
+    /// every player start rather than copying once.
+    private static func mpvConfigDirectory() -> URL? {
+        #if os(tvOS)
+        let base = FileManager.SearchPathDirectory.cachesDirectory
+        #else
+        let base = FileManager.SearchPathDirectory.applicationSupportDirectory
+        #endif
+        guard let root = try? FileManager.default.url(
+            for: base, in: .userDomainMask, appropriateFor: nil, create: true
+        ) else { return nil }
+
+        let dir = root.appendingPathComponent("mpv", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir
+    }
+
+    /// Copies a bundled font into place if it is missing or stale. Size is enough
+    /// of a fingerprint here — these files only ever change when we swap the font.
+    private static func installFont(named resource: String, at destination: URL) {
+        let fm = FileManager.default
+        let name = (resource as NSString).deletingPathExtension
+        let ext = (resource as NSString).pathExtension
+
+        guard let source = Bundle.main.url(forResource: name, withExtension: ext) else {
+            Logger.shared.log("Bundled subtitle font \(resource) is missing", type: "Warn")
+            return
+        }
+
+        let sourceSize = (try? source.resourceValues(forKeys: [.fileSizeKey]))?.fileSize
+        let destSize = (try? destination.resourceValues(forKeys: [.fileSizeKey]))?.fileSize
+        if destSize != nil, destSize == sourceSize { return }
+
+        try? fm.removeItem(at: destination)
+        do {
+            try fm.copyItem(at: source, to: destination)
+        } catch {
+            Logger.shared.log(
+                "Could not install subtitle font \(resource): \(error.localizedDescription)",
+                type: "Warn"
+            )
+        }
+    }
+
     func stop() {
         if isStopping { return }
         if !isRunning, mpv == nil { return }
@@ -473,14 +618,19 @@ final class MPVLayerRenderer {
     }
     
     private func updateHTTPHeaders(_ headers: [String: String]?) {
-        guard let headers, !headers.isEmpty else {
-            clearProperty(name: "http-header-fields")
-            return
-        }
-        
+        // Emptying the list is what clears it; MPV_FORMAT_NONE is rejected for a
+        // string list, which would leave the previous item's headers in place.
+        setProperty(name: "http-header-fields", value: "")
+        guard let headers, !headers.isEmpty else { return }
+
+        // http-header-fields is an mpv string *list*, and through the property
+        // interface only the plain comma-separated form is understood: the
+        // %<len>% escape arrives at the server as part of the field name, and
+        // the -append modifier is ignored outright. A header value containing a
+        // comma therefore cannot be expressed here (it would split into two).
         let headerString = headers
             .map { key, value in "\(key): \(value)" }
-            .joined(separator: "\r\n")
+            .joined(separator: ",")
         setProperty(name: "http-header-fields", value: headerString)
     }
     

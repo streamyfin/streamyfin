@@ -19,12 +19,15 @@ interface Props extends ViewProps {
   item?: BaseItemDto | null;
 }
 
-export const Ratings: React.FC<Props> = ({ item, ...props }) => {
+export const Ratings: React.FC<Props> = ({ item, className, ...props }) => {
   if (!item) return null;
   return (
+    // The caller's className is appended, not spread over the top: spreading
+    // props last replaces this one outright, which cost the row its layout and
+    // let the badges ride up over whatever sat above them.
     <View
-      className='flex flex-row flex-wrap items-center mt-2 gap-2'
       {...props}
+      className={`flex flex-row flex-wrap items-center mt-2 gap-2 ${className ?? ""}`}
     >
       {item.OfficialRating && (
         <Badge text={item.OfficialRating} variant='gray' />

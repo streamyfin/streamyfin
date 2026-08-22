@@ -53,6 +53,7 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { OfflineModeProvider } from "@/providers/OfflineModeProvider";
 import { getSubtitlesForItem } from "@/utils/atoms/downloadedSubtitles";
 import { getActivePlayerType, useSettings } from "@/utils/atoms/settings";
+import { getJellyfinHeadersForUrl } from "@/utils/customHeaders";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
@@ -67,7 +68,7 @@ import {
   getMpvAudioId,
   isImageBasedSubtitle,
 } from "@/utils/jellyfin/subtitleUtils";
-import { writeToLog } from "@/utils/log";
+import { logAndCaptureError, writeToLog } from "@/utils/log";
 import {
   isLocalSubtitleIndex,
   localSubtitleIndex,
@@ -355,7 +356,9 @@ export default function DirectPlayerPage() {
         setItem(fetchedItem);
         setItemStatus({ isLoading: false, isError: false });
       } catch (error) {
-        console.error("Failed to fetch item:", error);
+        logAndCaptureError("Failed to fetch item for player", error, {
+          offline,
+        });
         setItemStatus({ isLoading: false, isError: true });
       }
     };
@@ -508,14 +511,31 @@ export default function DirectPlayerPage() {
               audioMode: settings.audioTranscodeMode,
             }),
           });
-          if (!res) return null;
+          if (!res) {
+            // Without flipping isError this path used to leave the loading
+            // spinner up forever.
+            logAndCaptureError("getStreamUrl returned no stream", null, {
+              itemType: item.Type,
+              player: getActivePlayerType(settings),
+            });
+            setStreamStatus({ isLoading: false, isError: true });
+            return null;
+          }
           const { mediaSource, sessionId, url, requiredHttpHeaders } = res;
 
           if (!sessionId || !mediaSource || !url) {
+            logAndCaptureError("Stream response incomplete", null, {
+              itemType: item.Type,
+              player: getActivePlayerType(settings),
+              hasSessionId: !!sessionId,
+              hasMediaSource: !!mediaSource,
+              hasUrl: !!url,
+            });
             Alert.alert(
               t("player.error"),
               t("player.failed_to_get_stream_url"),
             );
+            setStreamStatus({ isLoading: false, isError: true });
             return null;
           }
           result = { mediaSource, sessionId, url, requiredHttpHeaders };
@@ -524,7 +544,11 @@ export default function DirectPlayerPage() {
         setStreamStatus({ isLoading: false, isError: false });
         return result;
       } catch (error) {
-        console.error("Failed to fetch stream:", error);
+        logAndCaptureError("Failed to fetch stream", error, {
+          itemType: item?.Type,
+          player: getActivePlayerType(settings),
+          offline,
+        });
         setStreamStatus({ isLoading: false, isError: true });
         return null;
       }
@@ -880,6 +904,7 @@ export default function DirectPlayerPage() {
           ? item.SeasonName
           : undefined,
       artworkUri: artworkUri || undefined,
+      artworkHeaders: getJellyfinHeadersForUrl(artworkUri, api.basePath),
     };
   }, [item, api]);
 
@@ -944,6 +969,14 @@ export default function DirectPlayerPage() {
       if (api?.accessToken && !isRemoteStream) {
         headers.Authorization = `MediaBrowser Token="${api.accessToken}"`;
       }
+
+      // Custom proxy auth headers, but only when the stream really comes from
+      // the Jellyfin server: MPV applies headers to every request it makes, so
+      // sending them with a remote/external stream would leak them.
+      Object.assign(
+        headers,
+        getJellyfinHeadersForUrl(stream.url, api?.basePath) ?? {},
+      );
 
       // Add any required headers from the media source (e.g., for external/remote streams)
       if (stream?.requiredHttpHeaders) {
@@ -1590,7 +1623,30 @@ export default function DirectPlayerPage() {
                     t("player.error"),
                     t("player.an_error_occurred_while_playing_the_video"),
                   );
-                  writeToLog("ERROR", "Video Error", e.nativeEvent);
+                  // Attach the negotiation and decode facts that make a
+                  // player error diagnosable; the native probe is
+                  // best-effort and must never block or swallow the error
+                  // path — a wedged player may never settle the promise, so
+                  // it races a timeout.
+                  void (async () => {
+                    const technical = await Promise.race([
+                      getTechnicalInfo().catch(() => ({})),
+                      new Promise<Record<string, never>>((resolve) =>
+                        setTimeout(() => resolve({}), 2000),
+                      ),
+                    ]);
+                    logAndCaptureError(
+                      "Video playback error",
+                      e.nativeEvent?.error ?? e.nativeEvent,
+                      {
+                        playMethod,
+                        transcodeReasons,
+                        container: stream?.mediaSource?.Container,
+                        offline,
+                        technical,
+                      },
+                    );
+                  })();
                 }}
                 onTracksReady={() => {
                   setTracksReady(true);

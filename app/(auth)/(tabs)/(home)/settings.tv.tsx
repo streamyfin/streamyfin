@@ -13,6 +13,7 @@ import { TVPasswordEntryModal } from "@/components/login/TVPasswordEntryModal";
 import { TVPINEntryModal } from "@/components/login/TVPINEntryModal";
 import type { TVOptionItem } from "@/components/tv";
 import {
+  TVCustomHeadersSection,
   TVLogoutButton,
   TVSectionHeader,
   TVSettingsOptionButton,
@@ -45,6 +46,7 @@ import {
   useSettings,
   VideoPlayer,
 } from "@/utils/atoms/settings";
+import { INTEGRATION_CONFIG_KEY_PREFIX } from "@/utils/customHeaders";
 import { ORIGINAL_LANGUAGE } from "@/utils/jellyfin/serverVersion";
 import { storage } from "@/utils/mmkv";
 import { scaleSize } from "@/utils/scaleSize";
@@ -279,7 +281,12 @@ export default function SettingsTV() {
               ];
               const allKeys = storage.getAllKeys();
               for (const key of allKeys) {
-                if (!keysToKeep.includes(key)) {
+                // The per-integration header configs are settings, not cache —
+                // clearing them would silently drop the user's proxy auth.
+                if (
+                  !keysToKeep.includes(key) &&
+                  !key.startsWith(INTEGRATION_CONFIG_KEY_PREFIX)
+                ) {
                   storage.remove(key);
                 }
               }
@@ -813,6 +820,25 @@ export default function SettingsTV() {
             </>
           )}
 
+          {/* Native Android TV player opt-in — Android TV, default off */}
+          {isAndroidTv && (
+            <>
+              <TVSettingsToggle
+                disabledByAdmin={
+                  pluginSettings?.nativeVideoPlayerAndroidTV?.locked
+                }
+                label={t("home.settings.video_player.native_tv")}
+                value={settings.nativeVideoPlayerAndroidTV === true}
+                onToggle={(value) =>
+                  updateSettings({ nativeVideoPlayerAndroidTV: value })
+                }
+              />
+              <Text style={playerNoteStyle}>
+                {t("home.settings.video_player.native_android_tv_note")}
+              </Text>
+            </>
+          )}
+
           <TVSettingsToggle
             disabledByAdmin={pluginSettings?.showResumeDialog?.locked}
             label={t("home.settings.other.resume_dialog")}
@@ -1205,10 +1231,10 @@ export default function SettingsTV() {
             onToggle={(value) => updateSettings({ showHomeBackdrop: value })}
           />
           <TVSettingsToggle
-            disabledByAdmin={pluginSettings?.showTVHeroCarousel?.locked}
+            disabledByAdmin={pluginSettings?.showHeroCarousel?.locked}
             label={t("home.settings.appearance.show_hero_carousel")}
-            value={settings.showTVHeroCarousel}
-            onToggle={(value) => updateSettings({ showTVHeroCarousel: value })}
+            value={settings.showHeroCarousel}
+            onToggle={(value) => updateSettings({ showHeroCarousel: value })}
           />
           <TVSettingsToggle
             disabledByAdmin={pluginSettings?.showSeriesPosterOnEpisode?.locked}
@@ -1242,6 +1268,14 @@ export default function SettingsTV() {
               updateSettings({ openSubtitlesEnabled: value })
             }
           />
+          <TVSettingsToggle
+            label={t("home.settings.plugins.crash_reports")}
+            value={settings.sentryEnabled}
+            onToggle={(value) => updateSettings({ sentryEnabled: value })}
+          />
+
+          {/* Custom proxy auth headers for Jellyfin and each integration */}
+          <TVCustomHeadersSection serverUrl={storage.getString("serverUrl")} />
 
           {/* Storage Section */}
           <TVSectionHeader title={t("home.settings.storage.storage_title")} />

@@ -10,8 +10,10 @@ import { toast } from "sonner-native";
 import type { Bitrate } from "@/components/BitrateSelector";
 import useImageStorage from "@/hooks/useImageStorage";
 import { BackgroundDownloader } from "@/modules";
+import { getJellyfinHeadersForUrl } from "@/utils/customHeaders";
 import { getOrSetDeviceId } from "@/utils/device";
 import useDownloadHelper, { estimateDownloadSize } from "@/utils/download";
+import { logAndCaptureError } from "@/utils/log";
 import { downloadAdditionalAssets } from "../additionalDownloads";
 import {
   clearAllDownloadedItems,
@@ -193,6 +195,7 @@ export function useDownloadOperations({
           downloadUrl,
           destinationPath,
           activityMetadata,
+          getJellyfinHeadersForUrl(downloadUrl, api?.basePath),
         );
 
         if (taskId !== -1) {
@@ -208,7 +211,9 @@ export function useDownloadOperations({
           }),
         );
       } catch (error) {
-        console.error("Failed to start download:", error);
+        logAndCaptureError("Failed to start download", error, {
+          itemType: item.Type,
+        });
         if (item.Id) {
           removePendingDownload(item.Id);
           removeProcess(item.Id);

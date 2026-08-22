@@ -11,15 +11,22 @@ import type {
 import BackgroundDownloaderModule from "./src/BackgroundDownloaderModule";
 
 export interface BackgroundDownloader {
+  /**
+   * @param headers Custom proxy auth headers for a server behind an access
+   * gateway. Not persisted natively, so a queued download that outlives the
+   * process has to be restarted from the app.
+   */
   startDownload(
     url: string,
     destinationPath?: string,
     metadata?: DownloadActivityMetadata,
+    headers?: Record<string, string>,
   ): Promise<number>;
   enqueueDownload(
     url: string,
     destinationPath?: string,
     metadata?: DownloadActivityMetadata,
+    headers?: Record<string, string>,
   ): Promise<number>;
   cancelDownload(taskId: number): void;
   cancelQueuedDownload(url: string): void;
@@ -58,11 +65,13 @@ const BackgroundDownloader: BackgroundDownloader = {
     url: string,
     destinationPath?: string,
     metadata?: DownloadActivityMetadata,
+    headers?: Record<string, string>,
   ): Promise<number> {
     return await BackgroundDownloaderModule.startDownload(
       url,
       destinationPath,
       metadata,
+      headers,
     );
   },
 
@@ -70,11 +79,13 @@ const BackgroundDownloader: BackgroundDownloader = {
     url: string,
     destinationPath?: string,
     metadata?: DownloadActivityMetadata,
+    headers?: Record<string, string>,
   ): Promise<number> {
     return await BackgroundDownloaderModule.enqueueDownload(
       url,
       destinationPath,
       metadata,
+      headers,
     );
   },
 

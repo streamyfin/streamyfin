@@ -22,6 +22,11 @@ import { OrientationLock } from "@/packages/expo-screen-orientation";
 import type { DownloadedItem } from "@/providers/Downloads/types";
 import type { Settings } from "@/utils/atoms/settings";
 import { getActivePlayerType } from "@/utils/atoms/settings";
+import {
+  getJellyfinHeaders,
+  getJellyfinHeadersForUrl,
+  hasHeaders,
+} from "@/utils/customHeaders";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import {
@@ -114,6 +119,7 @@ export const buildNativePlayerStrings = (
   searchSubtitles: t("player.search_subtitles"),
   searchFailed: t("player.search_failed"),
   noSubtitlesFound: t("player.no_subtitles_found"),
+  nowPlaying: t("player.now_playing"),
   unlock: t("player.unlock"),
   stillWatching: t("player.still_watching"),
   continueWatching: t("player.continue_watching"),
@@ -218,6 +224,9 @@ export const buildTrickplayDescriptor = (
     thumbWidth: Width,
     thumbHeight: Height,
     sheetUrls,
+    // Downloaded sheets are file:// URIs and match nothing, so this resolves
+    // to undefined offline.
+    headers: getJellyfinHeadersForUrl(sheetUrls[0], options.api?.basePath),
   };
 };
 
@@ -341,12 +350,16 @@ const buildMetadata = (item: BaseItemDto, api: Api | null) => {
   } else if (item.ProductionYear) {
     subtitle = String(item.ProductionYear);
   }
+
+  const artworkUri = getPrimaryImageUrl({ api, item, quality: 90, width: 500 });
+
   return {
     itemId: item.Id ?? undefined,
     title: item.Name ?? undefined,
     subtitle: subtitle || undefined,
-    artworkUri:
-      getPrimaryImageUrl({ api, item, quality: 90, width: 500 }) ?? undefined,
+    artworkUri: artworkUri ?? undefined,
+    // Fetched natively for the Control Center, so it needs the headers too.
+    artworkHeaders: getJellyfinHeadersForUrl(artworkUri, api?.basePath),
     isEpisode,
   };
 };
@@ -466,6 +479,13 @@ export async function buildNativePlayerConfig(params: {
     if (api?.accessToken && !isRemoteStream) {
       built.Authorization = `MediaBrowser Token="${api.accessToken}"`;
     }
+    // Custom proxy auth headers, but only when the stream really comes from
+    // the Jellyfin server: MPV applies headers to every request it makes, so
+    // sending them with a remote/external stream would leak them.
+    Object.assign(
+      built,
+      getJellyfinHeadersForUrl(stream.url, api?.basePath) ?? {},
+    );
     if (stream.requiredHttpHeaders) {
       Object.assign(built, stream.requiredHttpHeaders);
     }
@@ -493,6 +513,14 @@ export async function buildNativePlayerConfig(params: {
       videoHeight: videoStream?.Height ?? undefined,
     },
     metadata: buildMetadata(item, api),
+    // Episode-list and next-episode thumbnails are fetched natively, so they
+    // need the headers as well. Offline URLs are local and match nothing.
+    imageHeaders: offline
+      ? undefined
+      : (() => {
+          const headers = getJellyfinHeaders(api?.basePath);
+          return hasHeaders(headers) ? headers : undefined;
+        })(),
     chapters:
       item.Chapters?.map((c) => ({
         name: c.Name ?? undefined,

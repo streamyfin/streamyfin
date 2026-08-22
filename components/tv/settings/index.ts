@@ -1,3 +1,6 @@
+export type { TVCustomHeaderEditorProps } from "./TVCustomHeaderEditor";
+export { TVCustomHeaderEditor } from "./TVCustomHeaderEditor";
+export { TVCustomHeadersSection } from "./TVCustomHeadersSection";
 export type { TVLogoutButtonProps } from "./TVLogoutButton";
 export { TVLogoutButton } from "./TVLogoutButton";
 export type { TVSectionHeaderProps } from "./TVSectionHeader";

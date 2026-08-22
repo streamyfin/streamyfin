@@ -1,6 +1,7 @@
 import type { Api } from "@jellyfin/sdk";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import type { ImageSource } from "expo-image";
+import { getJellyfinHeadersForUrl } from "@/utils/customHeaders";
 
 interface Props {
   item: BaseItemDto;
@@ -83,5 +84,9 @@ export const getItemImage = ({
 
   if (!src?.uri) return null;
 
-  return src;
+  // The consumers pass this straight to expo-image or download it, so the
+  // proxy auth headers have to travel with the source rather than be added by
+  // the <Image> wrapper.
+  const headers = getJellyfinHeadersForUrl(src.uri, api.basePath);
+  return headers ? { ...src, headers } : src;
 };

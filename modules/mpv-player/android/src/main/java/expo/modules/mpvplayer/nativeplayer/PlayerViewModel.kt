@@ -43,6 +43,9 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
     var onRotateRequested: (() -> Unit)? = null
     var onHDRModeDetected: ((Boolean, Double) -> Unit)? = null
     var onHapticRequested: (() -> Unit)? = null
+    var onPlaybackStateSync: (() -> Unit)? = null
+    var onMetadataSync: (() -> Unit)? = null
+    var isTvChrome: Boolean = false
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -83,6 +86,9 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
     var showEpisodeList by mutableStateOf(false)
     var doubleTapSeekForward by mutableStateOf<Boolean?>(null)
     var showSubtitleSearch by mutableStateOf(false)
+    var seekFeedbackVisible by mutableStateOf(false)
+    var showExitConfirmation by mutableStateOf(false)
+    var tvMenuRoute by mutableStateOf<List<TvMenuScreen>>(emptyList())
 
     // MARK: - Content State
     var metadata by mutableStateOf<MetadataRecord?>(null)
@@ -116,6 +122,8 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
     var uiOptions by mutableStateOf(UIOptionsRecord())
     var strings by mutableStateOf(PlayerStrings(emptyMap()))
 
+    fun str(key: String, fallback: String? = null): String = strings.get(key, fallback)
+
     // Controllers
     var volumeController: SystemVolumeController? = null
     var brightnessController: BrightnessController? = null
@@ -138,6 +146,7 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
     private var unlockRevealJob: Job? = null
     private var doubleTapFeedbackJob: Job? = null
     private var sleepTimerJob: Job? = null
+    private var seekFeedbackJob: Job? = null
 
     private var lastTickNanos: Long = 0L
     private val frameCallback = object : Choreographer.FrameCallback {
@@ -195,6 +204,8 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
         authoritativePosition = startPos
         displayPosition = startPos
         hasAuthoritativePosition = false
+        onMetadataSync?.invoke()
+        onPlaybackStateSync?.invoke()
         showControls()
     }
 
@@ -216,6 +227,10 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
         showSubtitleSearch = false
         downloadingResultId = null
         errorMessage = null
+        seekFeedbackVisible = false
+        showExitConfirmation = false
+        tvMenuRoute = emptyList()
+        hideSeekFeedback()
     }
 
     private fun nilSpeed(): Double? = null
@@ -257,6 +272,7 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
 
     fun updateMetadata(newMetadata: MetadataRecord) {
         metadata = newMetadata
+        onMetadataSync?.invoke()
     }
 
     fun updateEpisodeList(episodes: List<EpisodeListItemRecord>) {
@@ -296,6 +312,20 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
         scheduleAutoHide()
     }
 
+    /**
+     * TV: when a focused composable unmounts (skip-segment button, technical
+     * info close), Compose focus dies with it and the remote goes dead —
+     * the ComposeView keeps view-level focus so keys land in a focus-less
+     * tree. Bump this tick to have TvControlsRow re-grab its default focus.
+     */
+    var tvControlsFocusRestoreTick by mutableStateOf(0)
+        private set
+
+    fun restoreTvControlsFocus() {
+        showControls()
+        tvControlsFocusRestoreTick++
+    }
+
     fun scheduleAutoHide(delayMs: Long = PlayerConstants.AUTO_HIDE_DELAY_MS) {
         autoHideJob?.cancel()
         autoHideJob = scope.launch {
@@ -313,7 +343,7 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
     }
 
     private fun canAutoHide(): Boolean {
-        return isPlaying && !isScrubbing && !isBuffering && !showEpisodeList && !showTechnicalInfo && !showSubtitleSearch && errorMessage == null
+        return isPlaying && !isScrubbing && !isBuffering && !showEpisodeList && !showTechnicalInfo && !showSubtitleSearch && tvMenuRoute.isEmpty() && !showExitConfirmation && errorMessage == null
     }
 
     private fun revealUnlockButton() {
@@ -364,12 +394,27 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
         displayPosition = clamped
         authoritativePosition = clamped
         renderer?.seekTo(clamped)
+        onPlaybackStateSync?.invoke()
         scheduleAutoHide()
     }
 
     fun seekBy(seconds: Double) {
         val target = max(0.0, displayPosition + seconds)
         seekTo(target)
+    }
+
+    fun flashSeekFeedback() {
+        seekFeedbackVisible = true
+        seekFeedbackJob?.cancel()
+        seekFeedbackJob = scope.launch {
+            delay(PlayerConstants.TV_SEEK_FEEDBACK_DURATION_MS)
+            seekFeedbackVisible = false
+        }
+    }
+
+    fun hideSeekFeedback() {
+        seekFeedbackJob?.cancel()
+        seekFeedbackVisible = false
     }
 
     fun doubleTapSeek(forward: Boolean) {
@@ -389,6 +434,7 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
         speed = newSpeed
         renderer?.setSpeed(newSpeed)
         emit?.invoke("onSpeedChange", mapOf("speed" to newSpeed))
+        onPlaybackStateSync?.invoke()
         scheduleAutoHide()
     }
 
@@ -408,7 +454,7 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
         renderer?.setSpeed(original)
     }
 
-    // MARK: - Scrubbing
+    // MARK: - Scrubbing (Phone Touch)
     fun startScrubbing() {
         wasPlayingBeforeScrub = isPlaying
         if (isPlaying) renderer?.pause()
@@ -432,6 +478,96 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
             renderer?.play()
         }
         scheduleAutoHide()
+    }
+
+    // MARK: - Scrubbing (TV Remote Armed Scrub)
+    fun beginScrub() {
+        if (isScrubbing) return
+        wasPlayingBeforeScrub = isPlaying
+        if (isPlaying) renderer?.pause()
+        isScrubbing = true
+        scrubPosition = displayPosition
+        autoHideJob?.cancel()
+    }
+
+    fun nudgeScrub(deltaSec: Double) {
+        val maxDuration = if (duration > 0) duration else Double.MAX_VALUE
+        val newPos = (scrubPosition + deltaSec).coerceIn(0.0, maxDuration)
+        scrubPosition = newPos
+    }
+
+    fun commitScrub() {
+        if (!isScrubbing) return
+        val target = scrubPosition
+        isScrubbing = false
+        seekTo(target)
+        if (wasPlayingBeforeScrub) {
+            renderer?.play()
+        }
+        scheduleAutoHide()
+    }
+
+    fun commitScrubAndPlay() {
+        if (!isScrubbing) return
+        val target = scrubPosition
+        isScrubbing = false
+        seekTo(target)
+        renderer?.play()
+        scheduleAutoHide()
+    }
+
+    fun cancelScrub() {
+        if (!isScrubbing) return
+        isScrubbing = false
+        if (wasPlayingBeforeScrub) {
+            renderer?.play()
+        }
+        scheduleAutoHide()
+    }
+
+    // MARK: - Chapters
+    fun currentChapterIndex(): Int {
+        if (chapters.isEmpty()) return -1
+        val pos = if (isScrubbing) scrubPosition else displayPosition
+        for (i in chapters.indices.reversed()) {
+            if (pos >= chapters[i].startSec) {
+                return i
+            }
+        }
+        return -1
+    }
+
+    fun chapterName(at: Double = displayPosition): String? {
+        if (chapters.isEmpty()) return null
+        for (i in chapters.indices.reversed()) {
+            if (at >= chapters[i].startSec) {
+                return chapters[i].name ?: "${i + 1}"
+            }
+        }
+        return null
+    }
+
+    fun goToNextChapter() {
+        val currentIndex = currentChapterIndex()
+        val nextIndex = currentIndex + 1
+        if (nextIndex in chapters.indices) {
+            seekTo(chapters[nextIndex].startSec)
+        }
+    }
+
+    fun goToPreviousChapter() {
+        val currentIndex = currentChapterIndex()
+        if (currentIndex < 0) return
+        val currentChapter = chapters[currentIndex]
+        val timeInChapter = displayPosition - currentChapter.startSec
+        if (timeInChapter > PlayerConstants.CHAPTER_RESTART_THRESHOLD_SEC || currentIndex == 0) {
+            seekTo(currentChapter.startSec)
+        } else {
+            val prevIndex = currentIndex - 1
+            if (prevIndex in chapters.indices) {
+                seekTo(chapters[prevIndex].startSec)
+            }
+        }
     }
 
     // MARK: - Video Zoom & Track Controls
@@ -613,13 +749,17 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
         countdownJob?.cancel()
         countdownJob = scope.launch {
             var rem = initialSecs
-            while (rem > 0 && isPlaying) {
+            // The countdown must survive a pause: only tick while playing,
+            // but keep the loop alive so it resumes when playback does.
+            while (rem > 0) {
                 delay(500L)
-                rem -= 0.5
-                countdownRemaining = max(0.0, rem)
-                if (rem <= 0.0) {
-                    fireNextEpisode(reason = "countdown")
-                    break
+                if (isPlaying) {
+                    rem -= 0.5
+                    countdownRemaining = max(0.0, rem)
+                    if (rem <= 0.0) {
+                        fireNextEpisode(reason = "countdown")
+                        break
+                    }
                 }
             }
         }
@@ -632,7 +772,9 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
     }
 
     private fun skip(segment: MediaSegmentRecord, automatic: Boolean) {
-        if (segment.type == "Outro") cancelCountdown()
+        // disarm (not just cancel) so an outro skip cannot re-arm the countdown
+        // while the next episode is still loading and fire a duplicate.
+        if (segment.type == "Outro") disarmCountdownForEpisodeChange()
 
         // The reported end of an outro sometimes overshoots the file. Land two
         // seconds short so the natural end-of-video flow still runs, and do
@@ -682,10 +824,36 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
         }
     }
 
+    /**
+     * Kill the countdown for good before an episode change: cancelCountdown()
+     * alone leaves countdownCanceled false, so checkSegmentsAndCountdown can
+     * re-arm it while the next episode is still loading and fire a second
+     * advance.
+     */
+    fun disarmCountdownForEpisodeChange() {
+        countdownCanceled = true
+        cancelCountdown()
+        countdownRemaining = null
+    }
+
+    fun playNextEpisode() {
+        haptic()
+        disarmCountdownForEpisodeChange()
+        fireNextEpisode(reason = "userTap")
+    }
+
     fun playNextEpisodeNow() {
         haptic()
-        cancelCountdown()
+        disarmCountdownForEpisodeChange()
         fireNextEpisode(reason = "userTap")
+    }
+
+    fun playPreviousEpisode() {
+        haptic()
+        disarmCountdownForEpisodeChange()
+        emit?.invoke("onPreviousEpisodeRequested", mapOf(
+            "positionSec" to displayPosition
+        ))
     }
 
     fun cancelNextEpisodeCountdown() {
@@ -714,9 +882,54 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
         fireNextEpisode(reason = "userTap")
     }
 
+    // MARK: - TV Menus
+    fun openTvMenu(screen: TvMenuScreen) {
+        tvMenuRoute = listOf(screen)
+        menuInteractionStarted()
+    }
+
+    fun pushTvMenu(screen: TvMenuScreen) {
+        tvMenuRoute = tvMenuRoute + screen
+        menuInteractionStarted()
+    }
+
+    fun popTvMenu(): Boolean {
+        if (tvMenuRoute.isNotEmpty()) {
+            tvMenuRoute = tvMenuRoute.dropLast(1)
+            if (tvMenuRoute.isNotEmpty()) {
+                menuInteractionStarted()
+            } else {
+                scheduleAutoHide()
+            }
+            return true
+        }
+        return false
+    }
+
+    fun closeTvMenu() {
+        tvMenuRoute = emptyList()
+        scheduleAutoHide()
+    }
+
+    // MARK: - Exit Confirmation
+    fun requestExitConfirmation() {
+        cancelCountdown()
+        showExitConfirmation = true
+    }
+
+    fun dismissExitConfirmation() {
+        showExitConfirmation = false
+    }
+
+    fun confirmExit() {
+        showExitConfirmation = false
+        onDismissRequested?.invoke("closeButton")
+    }
+
     // MARK: - Episode List & Subtitle Search
     fun selectEpisode(itemId: String) {
         haptic()
+        disarmCountdownForEpisodeChange()
         emit?.invoke("onEpisodeSelected", mapOf(
             "itemId" to itemId,
             "positionSec" to displayPosition
@@ -728,6 +941,11 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
         showSubtitleSearch = true
         emit?.invoke("onSubtitleSearchRequested", mapOf("language" to subtitleSearchLanguage))
         scheduleAutoHide(PlayerConstants.MENU_AUTO_HIDE_DELAY_MS)
+    }
+
+    fun closeSubtitleSearch() {
+        showSubtitleSearch = false
+        scheduleAutoHide()
     }
 
     fun searchSubtitles(language: String) {
@@ -760,6 +978,7 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
         unlockRevealJob?.cancel()
         doubleTapFeedbackJob?.cancel()
         sleepTimerJob?.cancel()
+        seekFeedbackJob?.cancel()
         scope.cancel()
     }
 
@@ -767,7 +986,10 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
 
     override fun onPositionChanged(position: Double, duration: Double, cacheSeconds: Double) {
         authoritativePosition = position
-        this.duration = duration
+        if (this.duration != duration) {
+            this.duration = duration
+            onMetadataSync?.invoke()
+        }
         this.cacheSeconds = cacheSeconds
         hasAuthoritativePosition = true
 
@@ -797,6 +1019,7 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
         } else {
             autoHideJob?.cancel()
         }
+        onPlaybackStateSync?.invoke()
         emit?.invoke("onPlaybackStateChange", mapOf(
             "isPaused" to isPaused,
             "isPlaying" to playing,
@@ -807,6 +1030,7 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
 
     override fun onLoadingChanged(isLoading: Boolean) {
         isBuffering = isLoading
+        onPlaybackStateSync?.invoke()
         emit?.invoke("onPlaybackStateChange", mapOf(
             "isPaused" to !isPlaying,
             "isPlaying" to isPlaying,
@@ -817,6 +1041,7 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
 
     override fun onReadyToSeek() {
         isReadyToSeek = true
+        onPlaybackStateSync?.invoke()
         emit?.invoke("onPlaybackStateChange", mapOf(
             "isPaused" to !isPlaying,
             "isPlaying" to isPlaying,

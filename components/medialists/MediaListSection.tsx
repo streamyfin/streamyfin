@@ -1,7 +1,4 @@
-import type {
-  BaseItemDto,
-  BaseItemDtoQueryResult,
-} from "@jellyfin/sdk/lib/generated-client/models";
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
 import {
   type QueryFunction,
@@ -9,15 +6,13 @@ import {
   useQuery,
 } from "@tanstack/react-query";
 import { useAtom } from "jotai";
-import { useCallback, useMemo } from "react";
+import { useCallback } from "react";
 import { View, type ViewProps } from "react-native";
+import { InfiniteScrollingCollectionList } from "@/components/home/InfiniteScrollingCollectionList";
 import { useInView } from "@/hooks/useInView";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import { InfiniteHorizontalScroll } from "../common/InfiniteHorizontalScroll";
-import { Text } from "../common/Text";
-import { TouchableItemRouter } from "../common/TouchableItemRouter";
-import { ItemCardText } from "../ItemCardText";
-import MoviePoster from "../posters/MoviePoster";
+
+const PAGE_SIZE = 8;
 
 interface Props extends ViewProps {
   queryKey: QueryKey;
@@ -26,6 +21,13 @@ interface Props extends ViewProps {
   enableLazyLoading?: boolean; // Enable/disable lazy loading
 }
 
+/**
+ * A home row for a server-defined media list: one query to resolve the
+ * collection, then its children paged into the standard card row.
+ *
+ * The lazy mount stays here rather than in the row — whether a section is on
+ * screen is the home feed's business, not the row's.
+ */
 export const MediaListSection: React.FC<Props> = ({
   queryFn,
   queryKey,
@@ -47,59 +49,33 @@ export const MediaListSection: React.FC<Props> = ({
     enabled: enableLazyLoading ? isInView : true,
   });
 
+  const collectionId = collection?.Id;
+
   const fetchItems = useCallback(
-    async ({
-      pageParam,
-    }: {
-      pageParam: number;
-    }): Promise<BaseItemDtoQueryResult | null> => {
-      if (!api || !user?.Id || !collection) return null;
+    async ({ pageParam }: { pageParam: number }): Promise<BaseItemDto[]> => {
+      if (!api || !user?.Id || !collectionId) return [];
 
       const response = await getItemsApi(api).getItems({
         userId: user.Id,
-        parentId: collection.Id,
+        parentId: collectionId,
         startIndex: pageParam,
-        limit: 8,
+        limit: PAGE_SIZE,
       });
 
-      return response.data;
+      return response.data.Items ?? [];
     },
-    [api, user?.Id, collection?.Id],
+    [api, user?.Id, collectionId],
   );
-
-  const snapOffsets = useMemo(() => {
-    const itemWidth = 120; // w-28 (112px) + mr-2 (8px)
-    // Generate offsets for a reasonable number of items
-    return Array.from({ length: 50 }, (_, index) => index * itemWidth);
-  }, []);
 
   if (!collection) return null;
 
   return (
     <View ref={ref} onLayout={onLayout} {...props}>
-      <Text className='px-4 text-lg font-bold mb-2 text-neutral-100'>
-        {collection.Name}
-      </Text>
-      <InfiniteHorizontalScroll
-        height={247}
-        renderItem={(item, index) => (
-          <TouchableItemRouter
-            key={index}
-            item={item}
-            className={`flex flex-col
-              ${"w-28"}
-            `}
-          >
-            <View>
-              <MoviePoster item={item} />
-              <ItemCardText item={item} />
-            </View>
-          </TouchableItemRouter>
-        )}
+      <InfiniteScrollingCollectionList
+        title={collection.Name}
+        queryKey={["media-list", collectionId ?? ""]}
         queryFn={fetchItems}
-        queryKey={["media-list", collection.Id!]}
-        snapToOffsets={snapOffsets}
-        decelerationRate='fast'
+        pageSize={PAGE_SIZE}
       />
     </View>
   );

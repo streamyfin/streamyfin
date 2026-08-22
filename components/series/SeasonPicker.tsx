@@ -19,9 +19,10 @@ import {
   getDownloadedEpisodesForSeason,
 } from "@/utils/downloads/offline-series";
 import { runtimeTicksToSeconds } from "@/utils/time";
-import ContinueWatchingPoster from "../ContinueWatchingPoster";
+import { buildItemCards, type CardData } from "../cards/CardData";
+import { CardListRow } from "../cards/CardListRow";
+import { useItemCardBehavior } from "../cards/useItemCardBehavior";
 import { Text } from "../common/Text";
-import { TouchableItemRouter } from "../common/TouchableItemRouter";
 import { DownloadItems, DownloadSingleItem } from "../DownloadItem";
 import { Loader } from "../Loader";
 import { PlayedStatus } from "../PlayedStatus";
@@ -147,6 +148,54 @@ export const SeasonPicker: React.FC<Props> = ({ item }) => {
     }
   }, [episodes]);
 
+  const episodeById = useMemo(
+    () => new Map((episodes ?? []).map((e) => [e.Id, e])),
+    [episodes],
+  );
+
+  // The shared card, plus the runtime line a season list wants. Episodes here
+  // keep their own still rather than the series poster.
+  const episodeCards = useMemo(() => {
+    const base = buildItemCards(episodes ?? [], {
+      api,
+      kind: "rowWide",
+      useEpisodePoster: true,
+    });
+    return base.map((card) => ({
+      ...card,
+      detail: runtimeTicksToSeconds(episodeById.get(card.id)?.RunTimeTicks),
+    }));
+  }, [episodes, api, episodeById]);
+
+  const { cards, handlePress, handleLongPress, actionSheet } =
+    useItemCardBehavior({
+      items: episodes ?? [],
+      cards: episodeCards,
+      kind: "rowWide",
+      // The rows this replaced were TouchableItemRouters, which carried it.
+      enableActionSheet: true,
+    });
+
+  const slots = useMemo(
+    () => ({
+      trailing: (card: CardData) => {
+        const episode = episodeById.get(card.id);
+        if (isOffline || !episode) return null;
+        return <DownloadSingleItem item={episode} />;
+      },
+      footer: (card: CardData) => {
+        const overview = episodeById.get(card.id)?.Overview;
+        if (!overview) return null;
+        return (
+          <Text numberOfLines={3} className='text-xs text-neutral-500 mt-2'>
+            {overview}
+          </Text>
+        );
+      },
+    }),
+    [episodeById, isOffline],
+  );
+
   return (
     <View
       style={{
@@ -198,45 +247,17 @@ export const SeasonPicker: React.FC<Props> = ({ item }) => {
             <Loader />
           </View>
         ) : (
-          episodes?.map((e: BaseItemDto) => (
-            <TouchableItemRouter
-              item={e}
-              key={e.Id}
-              className='flex flex-col mb-4'
-            >
-              <View className='flex flex-row items-start mb-2'>
-                <View className='mr-2'>
-                  <ContinueWatchingPoster
-                    size='small'
-                    item={e}
-                    useEpisodePoster
-                  />
-                </View>
-                <View className='shrink'>
-                  <Text numberOfLines={2} className=''>
-                    {e.Name}
-                  </Text>
-                  <Text numberOfLines={1} className='text-xs text-neutral-500'>
-                    {`S${e.ParentIndexNumber?.toString()}:E${e.IndexNumber?.toString()}`}
-                  </Text>
-                  <Text className='text-xs text-neutral-500'>
-                    {runtimeTicksToSeconds(e.RunTimeTicks)}
-                  </Text>
-                </View>
-                {!isOffline && (
-                  <View className='self-start ml-auto -mt-0.5'>
-                    <DownloadSingleItem item={e} />
-                  </View>
-                )}
-              </View>
-
-              <Text
-                numberOfLines={3}
-                className='text-xs text-neutral-500 shrink'
-              >
-                {e.Overview}
-              </Text>
-            </TouchableItemRouter>
+          cards.map((card) => (
+            <View key={card.id} className='mb-4'>
+              <CardListRow
+                card={card}
+                slots={slots}
+                onPress={() => handlePress(card.id)}
+                onLongPress={
+                  handleLongPress ? () => handleLongPress(card.id) : undefined
+                }
+              />
+            </View>
           ))
         )}
         {(episodes?.length || 0) === 0 ? (
@@ -247,6 +268,7 @@ export const SeasonPicker: React.FC<Props> = ({ item }) => {
           </View>
         ) : null}
       </View>
+      {actionSheet}
     </View>
   );
 };

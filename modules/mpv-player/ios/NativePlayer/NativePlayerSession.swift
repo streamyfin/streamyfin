@@ -191,7 +191,7 @@ final class NativePlayerSession {
 		if let subtitle = metadata.subtitle { dict["artist"] = subtitle }
 		if let artworkUri = metadata.artworkUri { dict["artworkUri"] = artworkUri }
 		if !dict.isEmpty {
-			engine.setNowPlayingMetadata(dict)
+			engine.setNowPlayingMetadata(dict, artworkHeaders: metadata.artworkHeaders)
 		}
 	}
 

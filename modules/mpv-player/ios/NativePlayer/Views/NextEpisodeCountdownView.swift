@@ -70,12 +70,8 @@ struct NextEpisodeCountdownView: View {
 	@ViewBuilder
 	private var thumbnail: some View {
 		if let imageUrl = next.imageUrl, let url = URL(string: imageUrl) {
-			AsyncImage(url: url) { phase in
-				if case .success(let image) = phase {
-					image.resizable().aspectRatio(contentMode: .fill)
-				} else {
-					Color.black.opacity(0.4)
-				}
+			RemoteImage(url: url, headers: viewModel.imageHeaders) {
+				Color.black.opacity(0.4)
 			}
 			.frame(width: 92, height: 52)
 			.clipShape(RoundedRectangle(cornerRadius: 8))

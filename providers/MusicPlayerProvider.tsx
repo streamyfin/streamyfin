@@ -26,7 +26,9 @@ import {
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useNetworkStatus } from "@/providers/NetworkStatusProvider";
 import { settingsAtom } from "@/utils/atoms/settings";
+import { getJellyfinHeadersForUrl } from "@/utils/customHeaders";
 import { getAudioStreamUrl } from "@/utils/jellyfin/audio/getAudioStreamUrl";
+import { logAndCaptureError } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
 
 // Conditionally import TrackPlayer only on non-TV platforms
@@ -360,6 +362,7 @@ const itemToTrack = (
   const artwork = artworkId
     ? `${api.basePath}/Items/${artworkId}/Images/Primary?maxHeight=512&maxWidth=512&quality=90`
     : undefined;
+  const artworkHeaders = getJellyfinHeadersForUrl(artwork, api.basePath);
 
   // Check if track is cached locally (permanent downloads take precedence)
   // getLocalPath returns full file:// URI if cached, null otherwise
@@ -372,15 +375,26 @@ const itemToTrack = (
     );
   }
 
-  return {
+  const track: Track = {
     id: item.Id || "",
     url: finalUrl,
     title: item.Name || "Unknown",
     artist: item.Artists?.join(", ") || item.AlbumArtist || "Unknown Artist",
     album: item.Album || undefined,
-    artwork,
+    artwork:
+      artwork && artworkHeaders
+        ? { uri: artwork, headers: artworkHeaders }
+        : artwork,
     duration: item.RunTimeTicks ? item.RunTimeTicks / 10000000 : undefined,
   };
+
+  // A local file needs no headers; a stream from a protected server does.
+  const streamHeaders = cachedUrl
+    ? undefined
+    : getJellyfinHeadersForUrl(finalUrl, api.basePath);
+  if (streamHeaders) track.headers = streamHeaders;
+
+  return track;
 };
 
 // Full implementation for non-TV platforms
@@ -903,7 +917,8 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
           loadRemainingTracksInBackground(finalQueue, finalIndex, preferLocal);
         }
       } catch (error) {
-        console.error("[MusicPlayer] Error loading queue:", error);
+        // Tapping a track just stops spinning when this fails.
+        logAndCaptureError("Loading music queue failed", error);
         setState((prev) => ({
           ...prev,
           isLoading: false,
@@ -1010,8 +1025,9 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         if (tracks.length > 0) {
           playQueue(tracks, startIndex);
         }
-      } catch {
-        // Silently fail
+      } catch (error) {
+        // Tapping play on an album does nothing at all when this fails.
+        logAndCaptureError("Fetching album tracks for playback failed", error);
       }
     },
     [api, user?.Id, playQueue],
@@ -1034,8 +1050,12 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         if (tracks.length > 0) {
           playQueue(tracks, startIndex);
         }
-      } catch {
-        // Silently fail
+      } catch (error) {
+        // Tapping play on a playlist does nothing at all when this fails.
+        logAndCaptureError(
+          "Fetching playlist tracks for playback failed",
+          error,
+        );
       }
     },
     [api, user?.Id, playQueue],
@@ -1714,6 +1734,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
           downloadTrack(itemId, result.url, {
             permanent: false,
             container: result.mediaSource?.Container || undefined,
+            headers: getJellyfinHeadersForUrl(result.url, api?.basePath),
           }).catch(() => {
             // Silent fail - caching is best-effort
           });

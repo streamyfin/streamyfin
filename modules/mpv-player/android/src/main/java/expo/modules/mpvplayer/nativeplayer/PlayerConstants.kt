@@ -15,4 +15,12 @@ object PlayerConstants {
     const val PINCH_ZOOM_OUT_THRESHOLD = 0.88f
     const val HOLD_SPEED_ENGAGE_DELAY_MS = 500L
     const val ECHO_SUPPRESSION_WINDOW_MS = 500L
+    const val TV_SEEK_FEEDBACK_DURATION_MS = 2500L
+    const val TV_SCRUB_ACCEL_REPEATS_PER_STEP = 4
+    const val TV_SCRUB_ACCEL_MAX_MULTIPLIER = 12.0
+
+    // Uniform scale for the whole TV chrome, applied as a LocalDensity
+    // override at the TvPlayerScreen root — the dp/sp values in the ui/tv
+    // composables were authored too large for a 10-foot layout.
+    const val TV_CHROME_SCALE = 0.7f
 }

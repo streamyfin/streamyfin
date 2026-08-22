@@ -27,15 +27,18 @@ class OkHttpDownloadManager {
     taskId: Int,
     url: String,
     destinationPath: String,
+    headers: Map<String, String>? = null,
     onProgress: (bytesWritten: Long, totalBytes: Long) -> Unit,
     onComplete: (filePath: String) -> Unit,
     onError: (error: String) -> Unit
   ) {
     Log.d(TAG, "Starting download: taskId=$taskId, url=$url")
-    
-    val request = Request.Builder()
-      .url(url)
-      .build()
+
+    val requestBuilder = Request.Builder().url(url)
+    headers?.forEach { (key, value) ->
+      requestBuilder.addHeader(key, value)
+    }
+    val request = requestBuilder.build()
     
     val call = client.newCall(request)
     activeDownloads[taskId] = call

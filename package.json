@@ -42,6 +42,7 @@
     "@react-native-community/netinfo": "12.0.1",
     "@react-navigation/material-top-tabs": "7.6.13",
     "@react-navigation/native": "7.3.14",
+    "@sentry/react-native": "^8.23.0",
     "@shopify/flash-list": "2.3.2",
     "@tanstack/query-sync-storage-persister": "5.101.4",
     "@tanstack/react-query": "5.101.4",
@@ -100,11 +101,11 @@
     "react-native-image-colors": "2.6.0",
     "react-native-mmkv": "4.3.2",
     "react-native-nitro-modules": "0.36.5",
-    "react-native-pager-view": "8.0.4",
+    "react-native-pager-view": "8.0.5",
     "react-native-qrcode-svg": "^6.3.21",
     "react-native-reanimated": "4.5.3",
     "react-native-reanimated-carousel": "4.0.3",
-    "react-native-safe-area-context": "5.8.0",
+    "react-native-safe-area-context": "5.8.1",
     "react-native-screens": "4.26.2",
     "react-native-svg": "15.15.5",
     "react-native-tab-view": "4.3.2",
@@ -113,14 +114,14 @@
     "react-native-udp": "^4.1.7",
     "react-native-url-polyfill": "^4.0.0",
     "react-native-volume-manager": "^2.0.8",
-    "react-native-worklets": "0.11.3",
+    "react-native-worklets": "0.11.4",
     "sonner-native": "0.26.4",
     "tailwindcss": "3.3.2",
     "zod": "4.4.3"
   },
   "devDependencies": {
     "@babel/core": "7.29.7",
-    "@biomejs/biome": "2.5.6",
+    "@biomejs/biome": "2.5.8",
     "@react-native-community/cli": "20.2.0",
     "@react-native-tvos/config-tv": "0.1.6",
     "@types/lodash": "4.17.25",
@@ -130,7 +131,7 @@
     "expo-doctor": "1.20.1",
     "husky": "9.1.7",
     "lint-staged": "17.3.0",
-    "tsx": "4.23.5",
+    "tsx": "4.23.12",
     "typescript": "6.0.3"
   },
   "expo": {
@@ -168,6 +169,7 @@
     ]
   },
   "trustedDependencies": [
+    "@sentry/cli",
     "unrs-resolver"
   ],
   "patchedDependencies": {

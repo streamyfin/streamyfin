@@ -1,4 +1,5 @@
 import { getSessionApi } from "@jellyfin/sdk/lib/utils/api";
+import { isAxiosError } from "axios";
 import { useAtomValue } from "jotai";
 import {
   createContext,
@@ -14,7 +15,10 @@ import { AppState, type AppStateStatus } from "react-native";
 import { useNetworkAwareQueryClient } from "@/hooks/useNetworkAwareQueryClient";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { useNetworkStatus } from "@/providers/NetworkStatusProvider";
+import { getJellyfinHeaders, hasHeaders } from "@/utils/customHeaders";
 import { getOrSetDeviceId } from "@/utils/device";
+import { describeHttpResponse } from "@/utils/errors";
+import { logAndCaptureError } from "@/utils/log";
 
 // Query keys that depend on the set of library items and should be refreshed
 // when the server reports that the library changed (items added/removed/updated).
@@ -82,9 +86,23 @@ interface WebSocketContextType {
 
 const WebSocketContext = createContext<WebSocketContextType | null>(null);
 
+/** React Native's WebSocket constructor, which also takes request headers. */
+type RNWebSocketConstructor = new (
+  url: string,
+  protocols: string[] | string | undefined,
+  options: { headers: Record<string, string> },
+) => WebSocket;
+
 export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
   const api = useAtomValue(apiAtom);
-  const { isConnected: isNetworkConnected } = useNetworkStatus();
+  const { isConnected: isNetworkConnected, serverConnected } =
+    useNetworkStatus();
+  // The give-up report fires at most once per session: after the first
+  // exhaustion the attempt counter stays maxed, so every later foreground/
+  // network flip would re-trigger it.
+  const reportedSocketGiveUpRef = useRef(false);
+  const serverConnectedRef = useRef(serverConnected);
+  serverConnectedRef.current = serverConnected;
   const [ws, setWs] = useState<WebSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [lastMessage, setLastMessage] = useState<WebSocketMessage | null>(null);
@@ -149,10 +167,9 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
       try {
         handler(message.Data, message);
       } catch (error) {
-        console.error(
-          `Error handling WebSocket message type "${message.MessageType}":`,
-          error,
-        );
+        logAndCaptureError("WebSocket message handler threw", error, {
+          messageType: message.MessageType,
+        });
       }
     }
   }, []);
@@ -177,7 +194,15 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
       api.accessToken
     }&deviceId=${deviceId}`;
 
-    const newWebSocket = new WebSocket(url);
+    // React Native's WebSocket takes request headers as a third argument (the
+    // DOM typings don't know about it), so a server behind an access gateway
+    // can complete the upgrade handshake.
+    const customHeaders = getJellyfinHeaders(api.basePath);
+    const newWebSocket = hasHeaders(customHeaders)
+      ? new (WebSocket as unknown as RNWebSocketConstructor)(url, undefined, {
+          headers: customHeaders,
+        })
+      : new WebSocket(url);
     let keepAliveInterval: ReturnType<typeof setInterval> | null = null;
 
     const maxReconnectAttempts = 5;
@@ -212,6 +237,19 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
           reconnectTimeoutRef.current = null;
           connectWebSocket();
         }, reconnectDelay);
+      } else if (
+        serverConnectedRef.current === true &&
+        !reportedSocketGiveUpRef.current
+      ) {
+        // All retries burned while the SERVER is reachable (a real probe,
+        // not just device connectivity): the server itself is rejecting the
+        // socket, which silently kills remote control and live updates
+        // until the next app foreground.
+        reportedSocketGiveUpRef.current = true;
+        logAndCaptureError(
+          "WebSocket gave up reconnecting while server is reachable",
+          null,
+        );
       }
     };
 
@@ -229,7 +267,7 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
         // Pub/sub: deliver to every subscriber without coalescing.
         dispatchMessage(message);
       } catch (error) {
-        console.error("Error parsing WebSocket message:", error);
+        logAndCaptureError("Error parsing WebSocket message", error);
       }
     };
     setWs(newWebSocket);
@@ -352,8 +390,20 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
             SupportsPersistentIdentifier: true,
           },
         });
-      } catch {
-        // Silently fail - expected when offline or server unreachable
+      } catch (error) {
+        // Connectivity failures are filtered centrally; 401 is routine
+        // session expiry (the auth interceptor handles it). What remains is
+        // a server rejection that silently breaks remote control — and the
+        // response's content type, Server header and plain-text reason are
+        // what tell Jellyfin's own "Session not found" apart from a proxy
+        // that blocks the POST, or turns it into a GET via an http→https
+        // redirect (405).
+        if (isAxiosError(error) && error.response?.status === 401) return;
+        logAndCaptureError(
+          "Posting session capabilities failed",
+          error,
+          describeHttpResponse(error),
+        );
       }
     };
 

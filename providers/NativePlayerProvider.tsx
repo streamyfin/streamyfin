@@ -23,7 +23,8 @@ import {
   useState,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { BackHandler } from "react-native";
+import { BackHandler, Platform } from "react-native";
+import { SystemBars } from "react-native-edge-to-edge";
 import {
   PlaybackSpeedScope,
   updatePlaybackSpeedSettings,
@@ -72,6 +73,7 @@ import { useWebSocketContext } from "@/providers/WebSocketProvider";
 import {
   getActiveVideoPlayer,
   isNativePlayerSupported,
+  isNativePlayerSupportedAndroidTV,
   isNativePlayerSupportedTV,
   type SegmentSkipMode,
   useSettings,
@@ -86,7 +88,7 @@ import {
   isImageBasedSubtitle,
   type SubtitleSelectablePlayer,
 } from "@/utils/jellyfin/subtitleUtils";
-import { writeToLog } from "@/utils/log";
+import { logAndCaptureError, writeToLog } from "@/utils/log";
 import {
   buildNativePlayerConfig,
   buildNativePlayerStrings,
@@ -244,7 +246,9 @@ export const NativePlayerProvider: React.FC<{
   // native is decided per-request by getActiveVideoPlayer (the TV opt-in
   // toggle); the inner WS "Play" handler already respects it.
   const enabled =
-    (isNativePlayerSupported || isNativePlayerSupportedTV) &&
+    (isNativePlayerSupported ||
+      isNativePlayerSupportedTV ||
+      isNativePlayerSupportedAndroidTV) &&
     isNativePlayerModuleAvailable();
 
   if (!enabled) {
@@ -626,11 +630,9 @@ const NativePlayerProviderInner: React.FC<{
         strings: buildNativePlayerStrings(t),
         item: options.item,
       }).catch((error) => {
-        writeToLog(
-          "ERROR",
-          "NativePlayer config build failed",
-          error instanceof Error ? error.message : String(error),
-        );
+        logAndCaptureError("NativePlayer config build failed", error, {
+          offline: req.offline,
+        });
         return null;
       });
       if (!built) return false;
@@ -693,11 +695,9 @@ const NativePlayerProviderInner: React.FC<{
           await presentNativePlayer(built.config);
         }
       } catch (error) {
-        writeToLog(
-          "ERROR",
-          "NativePlayer present/load failed",
-          error instanceof Error ? error.message : String(error),
-        );
+        logAndCaptureError("NativePlayer present/load failed", error, {
+          replace: !!options.replace,
+        });
         if (options.replace && previous) {
           // The in-place swap failed midway: the old server session is
           // already closed and the stream state is unknown — tear the whole
@@ -1516,7 +1516,13 @@ const NativePlayerProviderInner: React.FC<{
       }),
 
       addNativePlayerListener("onError", (payload) => {
-        writeToLog("ERROR", "NativePlayer playback error", payload.error);
+        const session = sessionRef.current;
+        logAndCaptureError("NativePlayer playback error", payload.error, {
+          container: session?.stream?.mediaSource?.Container,
+          transcoding: !!session?.stream?.mediaSource?.TranscodingUrl,
+          offline: session?.offline,
+          itemType: session?.item?.Type,
+        });
       }),
 
       addNativePlayerListener("onPlaybackEnded", (payload) => {
@@ -1704,6 +1710,12 @@ const NativePlayerProviderInner: React.FC<{
   return (
     <NativePlayerContext.Provider value={contextValue}>
       {children}
+      {/* The Android player overlays the current screen without navigating,
+          so the layouts' <SystemBars hidden={false} /> stays mounted and
+          react-native-edge-to-edge re-shows the bars on every bar-style
+          re-apply, undoing NativePlayerSession's native hide(). Winning the
+          SystemBars stack for the session's lifetime keeps them hidden. */}
+      {isActive && Platform.OS === "android" && <SystemBars hidden />}
     </NativePlayerContext.Provider>
   );
 };

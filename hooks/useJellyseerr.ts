@@ -1,5 +1,5 @@
 import axios, { type AxiosError, type AxiosInstance } from "axios";
-import { atom } from "jotai";
+import { atom, useAtomValue } from "jotai";
 import { useAtom } from "jotai/index";
 import { inRange } from "lodash";
 import type { User as JellyseerrUser } from "@/utils/jellyseerr/server/entity/User";
@@ -15,6 +15,10 @@ import { useCallback, useMemo } from "react";
 import { toast } from "sonner-native";
 import { useNetworkAwareQueryClient } from "@/hooks/useNetworkAwareQueryClient";
 import { useSettings } from "@/utils/atoms/settings";
+import {
+  customHeadersVersionAtom,
+  getIntegrationHeaders,
+} from "@/utils/customHeaders";
 import type { RTRating } from "@/utils/jellyseerr/server/api/rating/rottentomatoes";
 import {
   IssueStatus,
@@ -47,7 +51,7 @@ import type {
   SeasonWithEpisodes,
   TvDetails,
 } from "@/utils/jellyseerr/server/models/Tv";
-import { writeErrorLog } from "@/utils/log";
+import { logAndCaptureError, writeErrorLog, writeToLog } from "@/utils/log";
 import { isVersionBelow } from "@/utils/serverUrl/semver";
 
 interface SearchParams {
@@ -95,6 +99,7 @@ export enum Endpoints {
   DISCOVER_TV_NETWORK = DISCOVER + TV + NETWORK,
   DISCOVER_MOVIES_STUDIO = `${DISCOVER}${MOVIE}s${STUDIO}`,
   AUTH_JELLYFIN = "/auth/jellyfin",
+  USER_JELLYFIN = `${USER}/jellyfin`,
 }
 
 export type DiscoverEndpoint =
@@ -112,16 +117,63 @@ export type TestResult =
       isValid: false;
     };
 
+// The response interceptor fires once per axios attempt, and React Query
+// retries a failing request up to 3× — without a throttle one user-visible
+// failure emits several Sentry events. 401/403 are excluded entirely:
+// expired cookies are routine and self-heal via auto-login.
+const recentJellyseerrReports = new Map<string, number>();
+const JELLYSEERR_REPORT_THROTTLE_MS = 60_000;
+
+const shouldReportJellyseerrError = (
+  status: number | undefined,
+  path: string | undefined,
+): boolean => {
+  if (status === 401 || status === 403) return false;
+  const key = `${status}|${path}`;
+  const now = Date.now();
+  const last = recentJellyseerrReports.get(key);
+  if (last !== undefined && now - last < JELLYSEERR_REPORT_THROTTLE_MS) {
+    return false;
+  }
+  recentJellyseerrReports.set(key, now);
+  return true;
+};
+
+const truncateForLog = (value: unknown): string | undefined => {
+  if (value === null || value === undefined) return undefined;
+  try {
+    const text = typeof value === "string" ? value : JSON.stringify(value);
+    return text.slice(0, 500);
+  } catch {
+    return String(value).slice(0, 500);
+  }
+};
+
 export class JellyseerrApi {
   axios: AxiosInstance;
+  /** Proxy auth headers for a Jellyseerr behind an access gateway. */
+  private customHeaders: Record<string, string>;
+  /** Admin API key: authenticates every call without a session cookie. */
+  private apiKey?: string;
+  /**
+   * API-key calls act as the key's owner, so requests must carry the Seerr id
+   * of the signed-in user to be attributed to them.
+   */
+  actAsUserId?: number;
 
-  constructor(baseUrl: string) {
+  constructor(
+    baseUrl: string,
+    customHeaders?: Record<string, string>,
+    apiKey?: string,
+  ) {
     this.axios = axios.create({
       baseURL: baseUrl,
       withCredentials: true,
       withXSRFToken: true,
       xsrfHeaderName: "XSRF-TOKEN",
     });
+    this.customHeaders = customHeaders ?? {};
+    this.apiKey = apiKey;
 
     this.setInterceptors();
   }
@@ -143,14 +195,19 @@ export class JellyseerrApi {
         const { status, headers, data } = response;
         if (inRange(status, 200, 299)) {
           if (data.version && isVersionBelow(data.version, "2.0.0")) {
-            const error = t(
-              "jellyseerr.toasts.jellyseerr_does_not_meet_requirements",
-            );
             writeErrorLog(
               `Jellyseerr version ${data.version} is below the required 2.0.0`,
             );
-            toast.error(error);
-            throw Error(error);
+            toast.error(
+              t("jellyseerr.toasts.jellyseerr_does_not_meet_requirements"),
+            );
+            // Return rather than throw: the catch below exists for transport
+            // failures and would stack a second, misleading "could not test
+            // the server URL" toast on top of this precise one.
+            return {
+              isValid: false,
+              requiresPass: false,
+            };
           }
 
           storage.setAny(
@@ -198,6 +255,23 @@ export class JellyseerrApi {
       });
   }
 
+  /**
+   * Passwordless sign-in: resolve the Seerr account linked to a Jellyfin user
+   * through GET /user/jellyfin/{jellyfinUserId}. Needs the admin API key; the
+   * route 404s on Seerr servers that predate it.
+   */
+  async loginWithApiKey(jellyfinUserId: string): Promise<JellyseerrUser> {
+    return this.axios
+      .get<JellyseerrUser>(
+        `${Endpoints.API_V1}${Endpoints.USER_JELLYFIN}/${jellyfinUserId}`,
+      )
+      .then(({ data }) => {
+        if (!data) throw Error("Login failed");
+        storage.setAny(JELLYSEERR_USER, data);
+        return data;
+      });
+  }
+
   async discoverSettings(): Promise<DiscoverSlider[]> {
     return this.axios
       ?.get<DiscoverSlider[]>(
@@ -237,8 +311,12 @@ export class JellyseerrApi {
   }
 
   async request(request: MediaRequestBody): Promise<MediaRequest> {
+    const body =
+      this.apiKey && this.actAsUserId != null && request.userId == null
+        ? { ...request, userId: this.actAsUserId }
+        : request;
     return this.axios
-      ?.post<MediaRequest>(Endpoints.API_V1 + Endpoints.REQUEST, request)
+      ?.post<MediaRequest>(Endpoints.API_V1 + Endpoints.REQUEST, body)
       .then(({ data }) => data);
   }
 
@@ -403,10 +481,35 @@ export class JellyseerrApi {
         return response;
       },
       (error: AxiosError) => {
-        writeErrorLog(
-          `Jellyseerr response error\nerror: ${error.toString()}\nurl: ${error?.config?.url}`,
-          error.response?.data,
-        );
+        const status = error.response?.status;
+        const path = error.config?.url?.split("?")[0];
+        if (error.response && shouldReportJellyseerrError(status, path)) {
+          // A real server response — one capture covers the entire
+          // Jellyseerr surface. 401/403 are excluded (expired cookies are
+          // routine and self-heal via auto-login), and repeats of the same
+          // status+path are throttled: this fires once per axios attempt,
+          // so React Query retries would otherwise emit several events for
+          // one user-visible failure.
+          logAndCaptureError("Jellyseerr response error", error, {
+            status,
+            // Relative URLs escape the scheme-anchored scrubber, and search
+            // requests put the user's typed query in the query string.
+            url: path,
+          });
+        } else if (!error.response) {
+          // No response = connectivity; routine when away from the server,
+          // so keep it out of Sentry but in the local log trail.
+          writeToLog("WARN", `Jellyseerr unreachable: ${error.toString()}`);
+        }
+        if (error.response) {
+          // Body stays local-only and truncated — a proxy's HTML error page
+          // must not bloat the 100-entry log blob.
+          writeToLog(
+            "DEBUG",
+            "Jellyseerr response body",
+            truncateForLog(error.response.data),
+          );
+        }
         if (error.response?.status === 403) {
           clearJellyseerrStorageData();
         }
@@ -416,6 +519,16 @@ export class JellyseerrApi {
 
     this.axios.interceptors.request.use(
       async (config) => {
+        // set() rather than index assignment so axios normalizes the name and
+        // a differently-cased duplicate cannot be emitted twice.
+        for (const [key, value] of Object.entries(this.customHeaders)) {
+          config.headers.set(key, value);
+        }
+
+        if (this.apiKey) {
+          config.headers.set("X-Api-Key", this.apiKey);
+        }
+
         const cookies = storage.get<string[]>(JELLYSEERR_COOKIES);
         if (cookies) {
           const headerName = this.axios.defaults.xsrfHeaderName!;
@@ -429,7 +542,10 @@ export class JellyseerrApi {
         return config;
       },
       (error) => {
-        console.error("Jellyseerr request error", error);
+        logAndCaptureError("Jellyseerr request setup failed", error);
+        // Without re-rejecting, axios would proceed with an undefined config
+        // and fail somewhere unrelated.
+        return Promise.reject(error);
       },
     );
   }
@@ -440,20 +556,41 @@ const jellyseerrUserAtom = atom(storage.get<JellyseerrUser>(JELLYSEERR_USER));
 export const useJellyseerr = () => {
   const { settings, updateSettings } = useSettings();
   const [jellyseerrUser, setJellyseerrUser] = useAtom(jellyseerrUserAtom);
+  const customHeadersVersion = useAtomValue(customHeadersVersionAtom);
   const queryClient = useNetworkAwareQueryClient();
 
   const jellyseerrApi = useMemo(() => {
     const cookies = storage.get<string[]>(JELLYSEERR_COOKIES);
-    if (settings?.jellyseerrServerUrl && cookies && jellyseerrUser) {
-      return new JellyseerrApi(settings?.jellyseerrServerUrl);
+    const apiKey = settings?.jellyseerrApiKey;
+    if (
+      settings?.jellyseerrServerUrl &&
+      jellyseerrUser &&
+      (cookies || apiKey)
+    ) {
+      const api = new JellyseerrApi(
+        settings.jellyseerrServerUrl,
+        getIntegrationHeaders("jellyseerr"),
+        apiKey,
+      );
+      api.actAsUserId = jellyseerrUser.id;
+      return api;
     }
     return undefined;
-  }, [settings?.jellyseerrServerUrl, jellyseerrUser]);
+    // customHeadersVersion: rebuild the client when the headers change.
+  }, [
+    settings?.jellyseerrServerUrl,
+    settings?.jellyseerrApiKey,
+    jellyseerrUser,
+    customHeadersVersion,
+  ]);
 
   const clearAllJellyseerData = useCallback(async () => {
     clearJellyseerrStorageData();
     setJellyseerrUser(undefined);
-    updateSettings({ jellyseerrServerUrl: undefined });
+    updateSettings({
+      jellyseerrServerUrl: undefined,
+      jellyseerrApiKey: undefined,
+    });
   }, []);
 
   const requestMedia = useCallback(

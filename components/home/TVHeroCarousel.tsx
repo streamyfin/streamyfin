@@ -1,6 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAtomValue } from "jotai";
 import React, {
@@ -21,6 +20,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ProgressBar } from "@/components/common/ProgressBar";
+import { Image, prefetchServerImage } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { getItemNavigation } from "@/components/common/TouchableItemRouter";
 import { type ScaledTVSizes, useScaledTVSizes } from "@/constants/TVSizes";
@@ -273,7 +273,7 @@ export const TVHeroCarousel: React.FC<TVHeroCarouselProps> = ({
       // out of the memory cache avoids bloat when the user cycles through
       // hero items quickly.
       try {
-        await Image.prefetch(backdropUrl, "disk");
+        await prefetchServerImage(backdropUrl, api?.basePath, "disk");
       } catch {
         // Continue even if prefetch fails
       }
@@ -321,7 +321,7 @@ export const TVHeroCarousel: React.FC<TVHeroCarouselProps> = ({
     return () => {
       isCancelled = true;
     };
-  }, [backdropUrl]);
+  }, [backdropUrl, api?.basePath]);
 
   // Handle card focus with debounce
   const handleCardFocus = useCallback(

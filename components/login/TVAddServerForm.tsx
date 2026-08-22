@@ -3,13 +3,15 @@ import React, { useCallback, useState } from "react";
 import { Platform, ScrollView, View } from "react-native";
 import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
+import { TVCustomHeaderEditor } from "@/components/tv/settings";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import { useTVBackPress } from "@/hooks/useTVBackPress";
+import { type CustomHeader, usableCustomHeaders } from "@/utils/customHeaders";
 import { scaleSize } from "@/utils/scaleSize";
 import { TVInput } from "./TVInput";
 
 interface TVAddServerFormProps {
-  onConnect: (url: string) => Promise<void>;
+  onConnect: (url: string, headers?: CustomHeader[]) => Promise<void>;
   onStartPairing?: () => void;
   onBack: () => void;
   loading?: boolean;
@@ -25,10 +27,19 @@ export const TVAddServerForm: React.FC<TVAddServerFormProps> = ({
 }) => {
   const typography = useScaledTVTypography();
   const [serverURL, setServerURL] = useState("");
+  // An editor with nothing usable in it passes `undefined` so it keeps whatever
+  // is already saved for the server instead of clearing it (see
+  // checkJellyfinServer).
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [pendingHeaders, setPendingHeaders] = useState<CustomHeader[]>([]);
 
   const handleConnect = async () => {
     if (serverURL.trim()) {
-      await onConnect(serverURL.trim());
+      const usableHeaders = usableCustomHeaders(pendingHeaders);
+      await onConnect(
+        serverURL.trim(),
+        usableHeaders.length > 0 ? usableHeaders : undefined,
+      );
     }
   };
 
@@ -105,6 +116,27 @@ export const TVAddServerForm: React.FC<TVAddServerFormProps> = ({
             {t("server.connect_button")}
           </Button>
         </View>
+
+        {/* Custom proxy auth headers, needed before the first request when the
+            server sits behind an access gateway. */}
+        <View style={{ marginBottom: scaleSize(24) }}>
+          <Button
+            onPress={() => setShowAdvanced(!showAdvanced)}
+            disabled={isDisabled}
+            className='bg-neutral-800 border border-neutral-700'
+          >
+            {`${showAdvanced ? "▼" : "▶"} ${t("custom_headers.advanced_title")}`}
+          </Button>
+        </View>
+
+        {showAdvanced && (
+          <TVCustomHeaderEditor
+            serviceLabel={t("custom_headers.title")}
+            headers={pendingHeaders}
+            onHeadersChange={setPendingHeaders}
+            disabled={isDisabled}
+          />
+        )}
 
         {/* Pair with Phone */}
         {Platform.OS !== "ios" && onStartPairing && (

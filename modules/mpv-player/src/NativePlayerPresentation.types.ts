@@ -40,6 +40,8 @@ export type NativePlayerMetadata = {
   /** Second header line, e.g. "Series Name · S2E5". */
   subtitle?: string;
   artworkUri?: string;
+  /** Custom proxy auth headers for `artworkUri`, when it needs them. */
+  artworkHeaders?: Record<string, string>;
   isEpisode?: boolean;
 };
 
@@ -227,7 +229,8 @@ export type NativePlayerStrings = Partial<
     | "sleepTimerOff"
     | "searchSubtitles"
     | "searchFailed"
-    | "noSubtitlesFound",
+    | "noSubtitlesFound"
+    | "nowPlaying",
     string
   >
 >;
@@ -263,6 +266,11 @@ export type NativePlayerUIOptions = {
 export type NativePlayerConfig = {
   stream: NativePlayerStreamConfig;
   metadata?: NativePlayerMetadata;
+  /**
+   * Custom proxy auth headers for the thumbnails the player loads itself
+   * (episode list, next episode). Same server as the stream.
+   */
+  imageHeaders?: Record<string, string>;
   chapters?: NativePlayerChapter[];
   segments?: NativePlayerSegment[];
   trickplay?: NativePlayerTrickplay;

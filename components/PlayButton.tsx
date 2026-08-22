@@ -11,6 +11,7 @@ import CastContext, {
   MediaHlsSegmentFormat,
   MediaHlsVideoSegmentFormat,
   MediaStreamType,
+  type MediaTrack,
   PlayServicesState,
   useMediaStatus,
   useRemoteMediaClient,
@@ -38,6 +39,11 @@ import { useSettings } from "@/utils/atoms/settings";
 import { getParentBackdropImageUrl } from "@/utils/jellyfin/image/getParentBackdropImageUrl";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
+import {
+  getExternalSubtitleUrl,
+  isExternalSubtitle,
+} from "@/utils/jellyfin/subtitleUtils";
+import { logAndCaptureError } from "@/utils/log";
 import type { PlayRequest } from "@/utils/nativePlayer/playRequest";
 import { formatDuration, runtimeTicksToMinutes } from "@/utils/time";
 import { chromecast } from "../utils/profiles/chromecast";
@@ -178,6 +184,42 @@ export const PlayButton: React.FC<Props> = ({
                       return;
                     }
 
+                    // Text subtitles ride along as sidecar VTT tracks the
+                    // receiver renders itself (see the chromecast subtitle
+                    // profile). The receiver fetches them without auth
+                    // headers, so the api key must be in the URL.
+                    const subtitleTracks: MediaTrack[] = (
+                      data.mediaSource?.MediaStreams ?? []
+                    )
+                      .filter(
+                        (s) => s.Type === "Subtitle" && isExternalSubtitle(s),
+                      )
+                      .flatMap((s) => {
+                        const url = getExternalSubtitleUrl(s, {
+                          offline: false,
+                          basePath: api.basePath,
+                        });
+                        if (!url || s.Index == null) return [];
+                        // Only server-relative URLs get the token — an
+                        // IsExternalUrl sub lives on a third-party host that
+                        // must never see the Jellyfin access token.
+                        const needsApiKey =
+                          !s.IsExternalUrl && !/[?&]api_?key=/i.test(url);
+                        return [
+                          {
+                            id: s.Index,
+                            type: "text" as const,
+                            subtype: "subtitles" as const,
+                            contentId: needsApiKey
+                              ? `${url}${url.includes("?") ? "&" : "?"}api_key=${encodeURIComponent(api.accessToken)}`
+                              : url,
+                            contentType: "text/vtt",
+                            language: s.Language ?? "und",
+                            name: s.DisplayTitle ?? undefined,
+                          },
+                        ];
+                      });
+
                     // Calculate start time in seconds from playback position
                     const startTimeSeconds = positionTicks / 10000000;
 
@@ -209,6 +251,9 @@ export const PlayButton: React.FC<Props> = ({
                             hlsVideoSegmentFormat: isFmp4
                               ? MediaHlsVideoSegmentFormat.FMP4
                               : MediaHlsVideoSegmentFormat.MPEG2_TS,
+                          }),
+                          ...(subtitleTracks.length > 0 && {
+                            mediaTracks: subtitleTracks,
                           }),
                           streamType: MediaStreamType.BUFFERED,
                           streamDuration: streamDurationSeconds,
@@ -266,6 +311,21 @@ export const PlayButton: React.FC<Props> = ({
                         startTime: startTimeSeconds,
                       })
                       .then(() => {
+                        const activeSubtitle = subtitleTracks.find(
+                          (s) => s.id === selectedOptions.subtitleIndex,
+                        );
+                        if (activeSubtitle) {
+                          client
+                            .setActiveTrackIds([activeSubtitle.id])
+                            .catch((e) => {
+                              // Subtitles are silently missing on the cast
+                              // device when this fails.
+                              logAndCaptureError(
+                                "Chromecast setActiveTrackIds failed",
+                                e,
+                              );
+                            });
+                        }
                         // state is already set when reopening current media, so skip it here.
                         if (isOpeningCurrentlyPlayingMedia) {
                           return;
@@ -273,10 +333,18 @@ export const PlayButton: React.FC<Props> = ({
                         CastContext.showExpandedControls();
                       })
                       .catch((e) => {
-                        console.error("Chromecast loadMedia failed:", e);
+                        logAndCaptureError("Chromecast loadMedia failed", e);
+                        Alert.alert(
+                          t("player.client_error"),
+                          t("player.chromecast_playback_failed"),
+                        );
                       });
                   } catch (e) {
-                    console.log(e);
+                    logAndCaptureError("Chromecast stream setup failed", e);
+                    Alert.alert(
+                      t("player.client_error"),
+                      t("player.could_not_create_stream_for_chromecast"),
+                    );
                   }
                 }
               });

@@ -1,8 +1,6 @@
 package expo.modules.mpvplayer
 
-import android.app.UiModeManager
 import android.content.Context
-import android.content.res.Configuration
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
@@ -33,8 +31,7 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
     }
 
     private fun isTvDevice(): Boolean {
-        val uiModeManager = context.getSystemService(Context.UI_MODE_SERVICE) as UiModeManager
-        return uiModeManager.currentModeType == Configuration.UI_MODE_TYPE_TELEVISION
+        return DeviceKind.isTelevision(context)
     }
 
     /**
@@ -549,12 +546,18 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
     }
     
     private fun updateHttpHeaders(headers: Map<String, String>?) {
-        if (headers.isNullOrEmpty()) {
-            // Clear headers
-            return
-        }
-        
-        val headerString = headers.entries.joinToString("\r\n") { "${it.key}: ${it.value}" }
+        // mpv properties survive a loadfile, so headers set for a previous
+        // item would otherwise be sent to the next one (possibly a remote
+        // stream that must not see the proxy credentials).
+        mpv?.setPropertyString("http-header-fields", "")
+        if (headers.isNullOrEmpty()) return
+
+        // http-header-fields is an mpv string *list*, and through the property
+        // interface only the plain comma-separated form is understood: the
+        // %<len>% escape arrives at the server as part of the field name, and
+        // the -append modifier is ignored outright. A header value containing a
+        // comma therefore cannot be expressed here (it would split into two).
+        val headerString = headers.entries.joinToString(",") { "${it.key}: ${it.value}" }
         mpv?.setPropertyString("http-header-fields", headerString)
     }
     

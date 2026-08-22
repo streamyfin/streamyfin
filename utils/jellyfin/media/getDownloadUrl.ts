@@ -4,6 +4,7 @@ import type {
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { Bitrate } from "@/components/BitrateSelector";
+import { logAndCaptureError } from "@/utils/log";
 import {
   type AudioTranscodeModeType,
   generateDeviceProfile,
@@ -34,18 +35,31 @@ export const getDownloadUrl = async ({
   url: string | null;
   mediaSource: MediaSourceInfo | null;
 } | null> => {
-  const streamDetails = await getStreamUrl({
-    api,
-    item,
-    userId,
-    startTimeTicks: 0,
-    mediaSourceId: mediaSource.Id,
-    maxStreamingBitrate: maxBitrate.value,
-    audioStreamIndex,
-    subtitleStreamIndex,
-    deviceId,
-    deviceProfile: generateDeviceProfile({ audioMode }),
-  });
+  // getStreamUrl throws on failed negotiation (no media source). The
+  // download UI handles a null url per item (alert + continue with the
+  // rest of a season), so map the throw back to null here — an unhandled
+  // rejection out of DownloadItem's setTimeout would fail silently and
+  // abort the whole batch.
+  let streamDetails: Awaited<ReturnType<typeof getStreamUrl>>;
+  try {
+    streamDetails = await getStreamUrl({
+      api,
+      item,
+      userId,
+      startTimeTicks: 0,
+      mediaSourceId: mediaSource.Id,
+      maxStreamingBitrate: maxBitrate.value,
+      audioStreamIndex,
+      subtitleStreamIndex,
+      deviceId,
+      deviceProfile: generateDeviceProfile({ audioMode }),
+    });
+  } catch (error) {
+    logAndCaptureError("Getting download stream URL failed", error, {
+      itemType: item.Type,
+    });
+    return null;
+  }
 
   if (maxBitrate.key === "Max" && !streamDetails?.mediaSource?.TranscodingUrl) {
     console.log("Downloading item directly");

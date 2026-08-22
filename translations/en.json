@@ -62,7 +62,8 @@
     "select_your_server": "Select your server",
     "add_server_to_get_started": "Add a server to get started",
     "add_server": "Add server",
-    "change_server": "Change server"
+    "change_server": "Change server",
+    "swipe_for_options": "Swipe a server for options"
   },
   "save_account": {
     "title": "Save account",
@@ -110,9 +111,17 @@
     "continue": "Continue",
     "next_up": "Next up",
     "continue_and_next_up": "Continue & Next up",
+    "recently_added": "Recently added",
     "recently_added_in": "Recently added in {{libraryName}}",
     "suggested_movies": "Suggested movies",
     "suggested_episodes": "Suggested episodes",
+    "hero": {
+      "filter": "Filter",
+      "groups": "Groups",
+      "media": "Media",
+      "tv_shows": "TV shows",
+      "disable": "Disable hero"
+    },
     "intro": {
       "welcome_to_streamyfin": "Welcome to Streamyfin",
       "a_free_and_open_source_client_for_jellyfin": "A free and open-source client for Jellyfin.",
@@ -126,7 +135,9 @@
       "centralised_settings_plugin_description": "Configure settings centrally on your Jellyfin server. Every user's client settings sync automatically.",
       "done_button": "Done",
       "go_to_settings_button": "Go to Settings",
-      "read_more": "Read more"
+      "read_more": "Read more",
+      "crash_reports_title": "Help improve Streamyfin",
+      "crash_reports_description": "Streamyfin sends anonymous crash and error reports to the developers. No account data or server addresses are included. You can turn this off here or anytime in settings."
     },
     "settings": {
       "settings_title": "Settings",
@@ -159,6 +170,7 @@
         "hide_remote_session_button_hint": "Hide the remote-sessions button from the home header.",
         "show_home_backdrop": "Dynamic home backdrop",
         "show_hero_carousel": "Hero carousel",
+        "show_hero_carousel_hint": "Show the large swipeable carousel at the top of the home screen.",
         "show_series_poster_on_episode": "Show series poster on episodes",
         "theme_music": "Theme music",
         "display_size": "Display size",
@@ -232,7 +244,8 @@
         "exoplayer_note": "ExoPlayer does not support advanced ASS/SSA subtitle styling or horizontal subtitle alignment. Switch to MPV if you need those.",
         "mpv_note": "MPV on TV does not currently pass HDR metadata to the display, so HDR10/HDR10+ content is tone-mapped to SDR. Switch to ExoPlayer for HDR output.",
         "native_tv": "Native player (experimental)",
-        "native_tv_note": "Use the new fully-native Apple TV player. Turn it off to fall back to the previous player if you run into playback issues."
+        "native_tv_note": "Use the new fully-native Apple TV player. Turn it off to fall back to the previous player if you run into playback issues.",
+        "native_android_tv_note": "Use the new fully-native Android TV player. Turn it off to fall back to the previous player if you run into playback issues."
       },
       "buffer": {
         "title": "Buffer settings",
@@ -388,6 +401,8 @@
         "wikidata_awards_hint": "Show Oscar and award status on movie and series pages. This device asks Wikidata directly, not your Jellyfin server.",
         "opensubtitles_enabled": "Search OpenSubtitles",
         "opensubtitles_enabled_hint": "Let this device search OpenSubtitles directly when your Jellyfin server has no subtitle provider. Turning this off keeps subtitle searches on your server and leaves any saved API key alone.",
+        "crash_reports": "Crash reports",
+        "crash_reports_hint": "Send anonymous crash and error reports to the Streamyfin developers via Sentry. Reports contain no account data; server addresses and tokens are removed before anything is sent.",
         "jellyseerr": {
           "server_url": "Server URL",
           "server_url_hint": "Example: http(s)://your-host.url\n(add port if required)",
@@ -395,11 +410,18 @@
           "password": "Password",
           "password_placeholder": "Enter password for Jellyfin user {{username}}",
           "login_button": "Login",
+          "api_key": "API key",
+          "api_key_hint": "Alternative to the password: a Seerr admin API key connects you as your Jellyfin user directly. Requires a recent Seerr server.",
+          "api_key_placeholder": "Seerr API key",
+          "api_key_from_admin": "Your server admin provides the Seerr credentials — connect as {{username}} without a password.",
+          "connect_button": "Connect",
           "total_media_requests": "Total media requests",
           "movie_quota_limit": "Movie quota limit",
           "movie_quota_days": "Movie quota days",
           "tv_quota_limit": "TV quota limit",
           "tv_quota_days": "TV quota days",
+          "auto_login_title": "Sign in automatically",
+          "auto_login_description": "Sign in to Seerr on launch using your Jellyfin password. The password is kept in the device's secure storage and removed when you log out.",
           "reset_jellyseerr_config_button": "Reset Seerr config",
           "unlimited": "Unlimited",
           "plus_n_more": "+{{n}} more",
@@ -590,7 +612,8 @@
     "movies": "Movies",
     "loading": "Loading...",
     "seeAll": "See all",
-    "close": "Close"
+    "close": "Close",
+    "something_went_wrong": "Something went wrong"
   },
   "search": {
     "search": "Search...",
@@ -715,6 +738,7 @@
     "an_error_occurred_while_playing_the_video": "An error occurred while playing the video. Check logs in settings.",
     "client_error": "Client error",
     "could_not_create_stream_for_chromecast": "Could not create a stream for Chromecast",
+    "chromecast_playback_failed": "Chromecast could not play this stream",
     "message_from_server": "Message from server: {{message}}",
     "next_episode": "Next episode",
     "continue_watching": "Continue watching",
@@ -748,6 +772,7 @@
     "search_failed": "Search failed",
     "no_subtitle_provider": "No subtitle provider configured on server",
     "no_subtitles_found": "No subtitles found",
+    "now_playing": "Now Playing",
     "subtitle_apply_failed": "The subtitle was downloaded but couldn't be applied",
     "add_opensubtitles_key_hint": "Add OpenSubtitles API key in settings for client-side fallback",
     "settings": "Settings",
@@ -825,8 +850,7 @@
     "resume_playback": "Resume playback",
     "resume_playback_description": "Do you want to continue where you left off or start from the beginning?",
     "play_from_start": "Play from start",
-    "continue_from": "Continue from {{time}}",
-    "no_data_available": "No data available"
+    "continue_from": "Continue from {{time}}"
   },
   "live_tv": {
     "title": "Live TV",
@@ -1098,5 +1122,34 @@
     "scan_with_phone": "Scan with the Streamyfin app on your phone",
     "logging_in": "Logging in...",
     "logging_in_description": "Connecting to your server"
+  },
+  "custom_headers": {
+    "title": "Custom headers",
+    "description": "Extra HTTP headers sent with every request to this server. Needed when it sits behind an access gateway such as Cloudflare Zero Trust or Pangolin.",
+    "advanced_title": "Advanced: custom headers",
+    "integration_description": "Which headers to send to this service. Reuse the Jellyfin headers when it sits behind the same gateway.",
+    "no_headers": "No headers configured",
+    "header_key": "Header name",
+    "header_value": "Header value",
+    "header_name_placeholder": "X-Api-Key",
+    "header_value_placeholder": "Value",
+    "add_preset": "Add preset",
+    "add_custom": "Add header",
+    "clear_headers": "Clear headers",
+    "presets_title": "Choose a preset",
+    "source_jellyfin": "Jellyfin",
+    "source_custom": "Custom",
+    "source_none": "None",
+    "using_jellyfin_headers": "Using the Jellyfin headers",
+    "no_jellyfin_headers": "No headers configured for Jellyfin",
+    "integration_none": "No custom headers are sent to this service.",
+    "security_note": "Header values are stored in the device keychain, not in the app's own storage.",
+    "done": "Done",
+    "show_value": "Show value",
+    "hide_value": "Hide value",
+    "enabled": "Enabled",
+    "header_count_one": "{{count}} header",
+    "header_count_other": "{{count}} headers",
+    "header_count": "{{count}} headers"
   }
 }

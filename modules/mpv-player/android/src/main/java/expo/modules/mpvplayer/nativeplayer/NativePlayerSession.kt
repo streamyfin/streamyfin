@@ -21,7 +21,10 @@ import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.FrameLayout
 import androidx.annotation.RequiresApi
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import androidx.core.app.OnPictureInPictureModeChangedProvider
 import androidx.core.app.PictureInPictureModeChangedInfo
 import androidx.core.util.Consumer
@@ -35,9 +38,12 @@ import androidx.lifecycle.setViewTreeViewModelStoreOwner
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import expo.modules.kotlin.Promise
+import expo.modules.mpvplayer.DeviceKind
 import expo.modules.mpvplayer.MPVLayerRenderer
 import expo.modules.mpvplayer.nativeplayer.ui.PlayerScreen
 import expo.modules.mpvplayer.nativeplayer.ui.PlayerTheme
+import expo.modules.mpvplayer.nativeplayer.ui.tv.TvPlayerScreen
+import expo.modules.mpvplayer.nativeplayer.ui.tv.TvPlayerTheme
 
 class NativePlayerSession(
     private val emit: (String, Map<String, Any?>) -> Unit,
@@ -83,9 +89,25 @@ class NativePlayerSession(
     }
 
     init {
-        viewModel.emit = emit
+        viewModel.emit = { event, payload -> emit(event, payload) }
         viewModel.onDismissRequested = { reason ->
-            dismiss(reason = reason)
+            dismiss(reason)
+        }
+        viewModel.onRotateRequested = {
+            emit("onOrientationChangeRequested", mapOf("orientation" to "landscape"))
+        }
+        viewModel.onHDRModeDetected = { isHdr, fps ->
+            emit("onHDRModeDetected", mapOf("isHdr" to isHdr, "fps" to fps))
+        }
+        viewModel.onHapticRequested = {
+            hostActivity?.window?.decorView?.performHapticFeedback(
+                android.view.HapticFeedbackConstants.VIRTUAL_KEY
+            )
+        }
+        viewModel.onHapticRequested = {
+            hostActivity?.window?.decorView?.performHapticFeedback(
+                android.view.HapticFeedbackConstants.VIRTUAL_KEY
+            )
         }
     }
 
@@ -95,6 +117,9 @@ class NativePlayerSession(
             return
         }
         hostActivity = activity
+
+        val isTv = DeviceKind.isTelevision(activity)
+        viewModel.isTvChrome = isTv
 
         activity.runOnUiThread {
             try {
@@ -107,29 +132,38 @@ class NativePlayerSession(
                 newRenderer.start(voDriver = "gpu-next", owner = MpvOwnership.Owner.NATIVE_SESSION)
 
                 // Initialize controllers
-                val volumeCtrl = SystemVolumeController(activity)
-                val brightnessCtrl = BrightnessController(activity)
-                viewModel.volumeController = volumeCtrl
-                viewModel.brightnessController = brightnessCtrl
+                if (!isTv) {
+                    val volumeCtrl = SystemVolumeController(activity)
+                    val brightnessCtrl = BrightnessController(activity)
+                    viewModel.volumeController = volumeCtrl
+                    viewModel.brightnessController = brightnessCtrl
 
-                volumeCtrl.onExternalChange = {
-                    viewModel.revealVolumeSliderTransiently()
-                }
-                volumeCtrl.onMuteStateChanged = { muted ->
-                    emit("onMuteStateChanged", mapOf(
-                        "muted" to muted,
-                        "positionSec" to viewModel.displayPosition
-                    ))
+                    volumeCtrl.onExternalChange = {
+                        viewModel.revealVolumeSliderTransiently()
+                    }
+                    volumeCtrl.onMuteStateChanged = { muted ->
+                        emit("onMuteStateChanged", mapOf(
+                            "muted" to muted,
+                            "positionSec" to viewModel.displayPosition
+                        ))
+                    }
                 }
 
                 val mediaCtrl = MediaSessionController(activity, viewModel)
                 mediaSessionController = mediaCtrl
                 mediaCtrl.start()
 
+                viewModel.onPlaybackStateSync = {
+                    mediaSessionController?.updatePlaybackState()
+                }
+                viewModel.onMetadataSync = {
+                    mediaSessionController?.updateMetadata()
+                }
+
                 viewModel.apply(config)
 
                 // Setup Overlay Views on MainActivity
-                setupOverlay(activity, config)
+                setupOverlay(activity, config, isTv)
 
                 // Kick stream load
                 startStream(config)
@@ -143,20 +177,31 @@ class NativePlayerSession(
         }
     }
 
-    private fun setupOverlay(activity: Activity, config: PlayerPresentConfigRecord) {
-        val container = FrameLayout(activity).apply {
-            layoutParams = FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT
-            )
-            setBackgroundColor(Color.BLACK)
-            isFocusable = true
-            isFocusableInTouchMode = true
-            setOnKeyListener { _, keyCode, event ->
-                if (keyCode == KeyEvent.KEYCODE_BACK && event.action == KeyEvent.ACTION_UP) {
-                    dismiss("closeButton")
-                    true
-                } else false
+    private fun setupOverlay(activity: Activity, config: PlayerPresentConfigRecord, isTv: Boolean) {
+        val container = if (isTv) {
+            val keyHandler = TvRemoteKeyHandler(viewModel, onExitRequested = { dismiss("closeButton") })
+            TvOverlayContainer(activity, keyHandler).apply {
+                layoutParams = FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT
+                )
+                setBackgroundColor(Color.BLACK)
+            }
+        } else {
+            FrameLayout(activity).apply {
+                layoutParams = FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT
+                )
+                setBackgroundColor(Color.BLACK)
+                isFocusable = true
+                isFocusableInTouchMode = true
+                setOnKeyListener { _, keyCode, event ->
+                    if (keyCode == KeyEvent.KEYCODE_BACK && event.action == KeyEvent.ACTION_UP) {
+                        dismiss("closeButton")
+                        true
+                    } else false
+                }
             }
         }
         overlayContainer = container
@@ -190,14 +235,39 @@ class NativePlayerSession(
         (activity as? ViewModelStoreOwner)?.let { cView.setViewTreeViewModelStoreOwner(it) }
         (activity as? SavedStateRegistryOwner)?.let { cView.setViewTreeSavedStateRegistryOwner(it) }
 
-        cView.setContent {
-            PlayerTheme {
-                PlayerScreen(
-                    viewModel = viewModel,
-                    onPipClick = if (isPiPSupported()) {
-                        { enterPiP() }
-                    } else null
-                )
+        if (isTv) {
+            val tvContainer = container as? TvOverlayContainer
+            cView.setContent {
+                PlayerTheme {
+                    TvPlayerTheme {
+                        // The ui/tv composables are authored oversized for a
+                        // 10-foot layout; shrink every dp/sp in the chrome
+                        // through one density override.
+                        val base = LocalDensity.current
+                        CompositionLocalProvider(
+                            LocalDensity provides Density(
+                                density = base.density * PlayerConstants.TV_CHROME_SCALE,
+                                fontScale = base.fontScale
+                            )
+                        ) {
+                            TvPlayerScreen(
+                                viewModel = viewModel,
+                                onZoneChanged = { zone: TvFocusZone -> tvContainer?.onZoneChanged(zone) }
+                            )
+                        }
+                    }
+                }
+            }
+        } else {
+            cView.setContent {
+                PlayerTheme {
+                    PlayerScreen(
+                        viewModel = viewModel,
+                        onPipClick = if (isPiPSupported()) {
+                            { enterPiP() }
+                        } else null
+                    )
+                }
             }
         }
         composeView = cView
@@ -229,7 +299,9 @@ class NativePlayerSession(
             )
         )
 
-        setupPiP(activity, config.ui.allowPip)
+        if (!isTv) {
+            setupPiP(activity, config.ui.allowPip)
+        }
     }
 
     private fun setupPiP(activity: Activity, allowPip: Boolean) {
