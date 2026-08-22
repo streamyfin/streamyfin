@@ -42,13 +42,9 @@ final class MPVLayerRenderer {
     
     private var mpv: OpaquePointer?
     
-    private var currentPreset: PlayerPreset?
-    private var currentURL: URL?
-    private var currentHeaders: [String: String]?
     private var pendingExternalSubtitles: [String] = []
     private var initialSubtitleId: Int?
     private var initialAudioId: Int?
-    private var currentLoop: Bool = false
     
     private var _isRunning = false
     private var _isStopping = false
@@ -507,9 +503,6 @@ final class MPVLayerRenderer {
         demuxerMaxBytes: Int? = nil,
         demuxerMaxBackBytes: Int? = nil
     ) {
-        currentPreset = preset
-        currentURL = url
-        currentHeaders = headers
         queue.async { [weak self] in
             guard let self else { return }
             // Assigned on the queue, not the caller's thread: these values are
@@ -517,7 +510,6 @@ final class MPVLayerRenderer {
             self.pendingExternalSubtitles = externalSubtitles ?? []
             self.initialSubtitleId = initialSubtitleId
             self.initialAudioId = initialAudioId
-            self.currentLoop = loop
             self.isLoading = true
             self.isReadyToSeek = false
             // Fresh file, fresh recovery budget (see performDecoderReset)
@@ -576,25 +568,7 @@ final class MPVLayerRenderer {
         }
     }
     
-    func reloadCurrentItem() {
-        guard let url = currentURL, let preset = currentPreset else { return }
-        getCurrentSubtitleTrack { [weak self] activeSubtitleId in
-            self?.getCurrentAudioTrack { [weak self] activeAudioId in
-                guard let self else { return }
-                self.load(
-                    url: url,
-                    with: preset,
-                    headers: self.currentHeaders,
-                    initialSubtitleId: activeSubtitleId > 0 ? activeSubtitleId : nil,
-                    initialAudioId: activeAudioId > 0 ? activeAudioId : nil,
-                    loop: self.currentLoop
-                )
-            }
-        }
-    }
-    
     func applyPreset(_ preset: PlayerPreset) {
-        currentPreset = preset
         guard let handle = mpv else { return }
         queue.async { [weak self] in
             guard let self else { return }
