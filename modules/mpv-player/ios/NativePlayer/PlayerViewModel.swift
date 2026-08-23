@@ -1069,9 +1069,12 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	}
 
 	private func skip(_ segment: MediaSegmentRecord, automatic: Bool) {
-		if segment.type == "Outro" {
-			cancelCountdown()
-		}
+		// Do NOT cancel the countdown for an outro skip. Seeking lands short of
+		// the file end so the natural EOF flow can still autoplay the next
+		// episode; canceling sets countdownCanceled and makes engineDidReachEnd
+		// fall through to a dismiss instead. The EOF emit below is guarded by
+		// countdownFired, so the short countdown that arms over the final
+		// seconds cannot fire a duplicate.
 
 		// The reported end of an outro sometimes overshoots the file. Land two
 		// seconds short so the natural end-of-video flow still runs, and do
@@ -1488,12 +1491,19 @@ extension PlayerViewModel: MPVPlayerEngineDelegate {
 		// A canceled countdown is a deliberate "let me watch to the end" —
 		// EOF must not auto-advance past it.
 		if let next = nextEpisode, next.countdownSeconds > 0, !countdownCanceled {
-			cancelCountdownTask()
-			countdownRemaining = nil
-			emit?("onNextEpisodeRequested", [
-				"reason": "countdown",
-				"positionSec": displayPosition,
-			])
+			// Idempotent: an outro skip lets a short countdown arm over the
+			// final seconds, so its tick may already have fired this request.
+			// Emit once, but stay in this branch either way so a fired
+			// countdown never falls through to the dismiss below.
+			if !countdownFired {
+				countdownFired = true
+				cancelCountdownTask()
+				countdownRemaining = nil
+				emit?("onNextEpisodeRequested", [
+					"reason": "countdown",
+					"positionSec": displayPosition,
+				])
+			}
 		} else if nextEpisode?.stillWatchingRequired == true {
 			// Autoplay episode cap reached: ask instead of advancing. The
 			// video sits on its last frame under the card.

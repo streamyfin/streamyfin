@@ -772,9 +772,11 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
     }
 
     private fun skip(segment: MediaSegmentRecord, automatic: Boolean) {
-        // disarm (not just cancel) so an outro skip cannot re-arm the countdown
-        // while the next episode is still loading and fire a duplicate.
-        if (segment.type == "Outro") disarmCountdownForEpisodeChange()
+        // Do NOT disarm the countdown for an outro skip. Seeking lands short of
+        // the file end so the natural EOF flow can still autoplay the next
+        // episode; disarming would make onPlaybackEnded() fall through to a
+        // dismiss instead. fireNextEpisode() is idempotent, so the short
+        // countdown that arms over the final seconds cannot fire a duplicate.
 
         // The reported end of an outro sometimes overshoots the file. Land two
         // seconds short so the natural end-of-video flow still runs, and do
@@ -869,6 +871,9 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
     }
 
     private fun fireNextEpisode(reason: String) {
+        // Idempotent: the countdown tick and the EOF handler can both reach
+        // here for the same transition. Emit onNextEpisodeRequested only once.
+        if (countdownFired) return
         countdownFired = true
         countdownRemaining = null
         emit?.invoke("onNextEpisodeRequested", mapOf(

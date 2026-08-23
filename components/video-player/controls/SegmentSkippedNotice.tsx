@@ -42,7 +42,13 @@ export const SegmentSkippedNotice: FC<Props> = ({ segment }) => {
   const lastLabel = useRef("");
 
   const label = segment ? t(SEGMENT_SKIPPED_KEY[segment]) : lastLabel.current;
-  if (segment) lastLabel.current = label;
+
+  // Persist the label for the fade-out in an effect, never during render:
+  // React can discard or replay a render, and a stray write from a discarded
+  // one would corrupt the label shown as the notice disappears.
+  useEffect(() => {
+    if (segment) lastLabel.current = t(SEGMENT_SKIPPED_KEY[segment]);
+  }, [segment, t]);
 
   useEffect(() => {
     opacity.value = withTiming(segment ? 1 : 0, {
