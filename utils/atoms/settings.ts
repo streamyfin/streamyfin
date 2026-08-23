@@ -550,7 +550,7 @@ export const defaultValues: Settings = {
   maxAutoPlayEpisodeCount: { key: "3", value: 3 },
   autoPlayEpisodeCount: 0,
   autoPlayNextEpisode: true,
-  showResumeDialog: true,
+  showResumeDialog: false,
   // Playback speed defaults
   defaultPlaybackSpeed: 1.0,
   playbackSpeedPerMedia: {},
