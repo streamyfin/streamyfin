@@ -711,8 +711,10 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
 
         // Auto-skip, mirroring the JS and iOS drivers: one segment at a time,
         // once per segment, and only once playback has been stable for a moment
-        // so the seek lands on a timeline the source can actually serve.
-        if (isPlaying && !isBuffering && !isScrubbing) {
+        // AND the renderer reports it can seek, so the seek lands on a timeline
+        // the source can actually serve — a transcode can still be catching up
+        // when the fixed delay alone would already have elapsed.
+        if (isPlaying && isReadyToSeek && !isBuffering && !isScrubbing) {
             if (autoSkipStableSince == null) autoSkipStableSince = SystemClock.elapsedRealtime()
         } else {
             autoSkipStableSince = null

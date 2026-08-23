@@ -1280,9 +1280,11 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		}
 
 		// Auto-skip, mirroring the JS driver: one segment at a time, once per
-		// segment, and only once playback has been stable for a moment so the
-		// seek lands on a timeline the source can actually serve.
-		if isPlaying, !isBuffering, !isScrubbing {
+		// segment, and only once playback has been stable for a moment AND the
+		// renderer reports it can seek, so the seek lands on a timeline the
+		// source can actually serve — a transcode can still be catching up when
+		// the fixed delay alone would already have elapsed.
+		if isPlaying, isReadyToSeek, !isBuffering, !isScrubbing {
 			if autoSkipStableSince == nil { autoSkipStableSince = Date() }
 		} else {
 			autoSkipStableSince = nil
