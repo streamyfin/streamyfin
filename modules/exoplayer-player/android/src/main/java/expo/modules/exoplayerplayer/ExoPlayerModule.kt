@@ -41,7 +41,10 @@ class ExoPlayerModule : Module() {
             // Now Playing metadata is iOS-only on MPV; no-op here (TV has
             // no Control Center equivalent — Android handles media sessions
             // via MediaSessionCompat which we don't wire up for TV).
-            Prop("nowPlayingMetadata") { _: ExoPlayerView, _: Map<String, String>? ->
+            // Typed loosely on purpose: the metadata carries nested values
+            // (artworkHeaders), and a Map<String, String> signature makes Expo
+            // reject the whole prop rather than ignore what it can't convert.
+            Prop("nowPlayingMetadata") { _: ExoPlayerView, _: Map<String, Any?>? ->
                 // No-op
             }
 
