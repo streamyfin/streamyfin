@@ -142,43 +142,27 @@ class DownloadService : Service() {
     return builder.build()
   }
   
-  // Synchronized: JS thread starts downloads, OkHttp threads finish them.
-  @Synchronized
-  fun startDownload() {
-    activeDownloadCount++
-    Log.d(TAG, "Download started, active count: $activeDownloadCount")
-    if (activeDownloadCount == 1) {
-      acquireWakeLock()
-      startForegroundSafely()
-    }
-  }
-
-  @Synchronized
-  fun stopDownload() {
-    activeDownloadCount = maxOf(0, activeDownloadCount - 1)
-    Log.d(TAG, "Download stopped, active count: $activeDownloadCount")
-    if (activeDownloadCount == 0) {
-      releaseWakeLock()
-      if (isForegroundStarted) {
-        ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
-        isForegroundStarted = false
-      }
-      stopSelf()
-    }
-  }
-
-  /** Recovers the `startDownload()` calls dropped while the binder was null. */
+  /**
+   * The module owns the task list and is the only source of truth for how many
+   * downloads are running; the wake lock and the foreground notification follow
+   * it. Synchronized because downloads start on the JS thread and finish on
+   * OkHttp dispatcher threads.
+   */
   @Synchronized
   fun syncActiveDownloads(count: Int) {
-    if (count == activeDownloadCount) return
     activeDownloadCount = count
-    Log.d(TAG, "Active count synced from module: $activeDownloadCount")
+    Log.d(TAG, "Active downloads: $activeDownloadCount")
     if (activeDownloadCount > 0) {
       acquireWakeLock()
       startForegroundSafely()
-    } else {
-      releaseWakeLock()
+      return
     }
+    releaseWakeLock()
+    if (isForegroundStarted) {
+      ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
+      isForegroundStarted = false
+    }
+    stopSelf()
   }
 
   private fun acquireWakeLock() {
