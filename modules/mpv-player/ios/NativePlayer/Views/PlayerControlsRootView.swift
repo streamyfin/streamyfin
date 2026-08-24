@@ -127,7 +127,7 @@ struct PlayerControlsRootView: View {
 						Spacer()
 						if let countdown = viewModel.countdownRemaining, let next = viewModel.nextEpisode {
 							NextEpisodeCountdownView(viewModel: viewModel, next: next, remaining: countdown)
-						} else if let segment = viewModel.activeSegment {
+						} else if let segment = viewModel.activeSegment, segment.skipMode != "auto" {
 							SkipSegmentButton(viewModel: viewModel, segment: segment)
 						}
 					}
@@ -135,6 +135,28 @@ struct PlayerControlsRootView: View {
 				.padding(.trailing, 24)
 				// Clears the bottom bar, which grew a chapter label + ends-at line.
 				.padding(.bottom, viewModel.controlsVisible ? 124 : 32)
+			}
+
+			// Says what an automatic skip just did. Auto-skip is otherwise
+			// silent and reads as the video jumping on its own. Bottom left,
+			// opposite the skip pill, so the two can never collide.
+			if let notice = viewModel.skippedSegmentNotice {
+				VStack {
+					Spacer()
+					HStack {
+						Text(notice)
+							.font(.subheadline.weight(.medium))
+							.foregroundStyle(.white)
+							.padding(.horizontal, 16)
+							.padding(.vertical, 10)
+							.background(.ultraThinMaterial, in: Capsule())
+							.overlay(Capsule().stroke(.white.opacity(0.2), lineWidth: 1))
+						Spacer()
+					}
+				}
+				.padding(.leading, 24)
+				.padding(.bottom, viewModel.controlsVisible ? 124 : 32)
+				.transition(.opacity)
 			}
 
 			// Hold-to-speed feedback pill; lives outside controlsVisible so it
