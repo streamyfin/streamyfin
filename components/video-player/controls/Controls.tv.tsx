@@ -39,9 +39,9 @@ import {
 import { TVFocusableProgressBar } from "@/components/tv/TVFocusableProgressBar";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
-import { useCreditSkipper } from "@/hooks/useCreditSkipper";
-import { useIntroSkipper } from "@/hooks/useIntroSkipper";
+import { useMediaSegments } from "@/hooks/useMediaSegments";
 import { usePlaybackManager } from "@/hooks/usePlaybackManager";
+import type { SegmentType } from "@/hooks/useSegmentSkipper";
 import { useTrickplay } from "@/hooks/useTrickplay";
 import { useTVOptionModal } from "@/hooks/useTVOptionModal";
 import { useTVSubtitleModal } from "@/hooks/useTVSubtitleModal";
@@ -52,6 +52,7 @@ import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import type { TVOptionItem } from "@/utils/atoms/tvOptionModal";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
+import { useSegments } from "@/utils/segments";
 import { rememberSeriesTrackFromRow } from "@/utils/seriesTrackMemory";
 import { SUBTITLES_OFF } from "@/utils/subtitles/subtitleIndex";
 import {
@@ -65,6 +66,7 @@ import { useVideoContext } from "./contexts/VideoContext";
 import { useChapterNavigation } from "./hooks/useChapterNavigation";
 import { useRemoteControl } from "./hooks/useRemoteControl";
 import { useVideoTime } from "./hooks/useVideoTime";
+import { SegmentSkippedNotice } from "./SegmentSkippedNotice";
 import { TechnicalInfoOverlay } from "./TechnicalInfoOverlay";
 import { TrickplayBubble } from "./TrickplayBubble";
 import type { Track } from "./types";
@@ -211,6 +213,7 @@ export const Controls: FC<Props> = ({
   isSeeking,
   progress,
   cacheProgress,
+  isBuffering,
   showControls,
   setShowControls,
   mediaSource,
@@ -465,30 +468,43 @@ export const Controls: FC<Props> = ({
     seek,
   });
 
-  // Skip intro/credits hooks
-  // Note: hooks expect seek callback that takes ms, and seek prop already expects ms
+  // Segment skipping (intro + outro/credits) via the unified hook.
   const offline = useOfflineMode();
-  const { showSkipButton, skipIntro } = useIntroSkipper(
-    item.Id!,
-    currentTime,
-    seek,
-    _play,
+
+  const { data: segments } = useSegments(
+    item.Id ?? "",
     offline,
-    api,
     downloadedFiles,
+    api,
   );
 
-  const { showSkipCreditButton, skipCredit, hasContentAfterCredits } =
-    useCreditSkipper(
-      item.Id!,
-      currentTime,
-      seek,
-      _play,
-      offline,
-      api,
-      downloadedFiles,
-      max.value,
-    );
+  // Unified segment orchestration (identical mechanism on mobile and TV):
+  // overlap priority + a single auto-skip driver live in the shared hook.
+  const {
+    activeSegment,
+    skipActiveSegment,
+    showSkipButton,
+    isOutroActive,
+    skipOutro: skipCredit,
+    hasContentAfterCredits,
+    skippedNotice,
+  } = useMediaSegments({
+    segments,
+    currentTime,
+    maxMs,
+    seek,
+    play: _play,
+    isPlaying,
+    isBuffering,
+  });
+
+  // The outro keeps its dedicated card (it composes with the Next Episode
+  // countdown); the other four share the generic skip card.
+  const showSkipCreditButton = isOutroActive;
+  const activeSegmentType =
+    isOutroActive || !activeSegment
+      ? "intro"
+      : (activeSegment.type.toLowerCase() as Lowercase<SegmentType>);
 
   // Countdown logic
   const isCountdownActive = useMemo(() => {
@@ -1253,7 +1269,7 @@ export const Controls: FC<Props> = ({
         />
       )}
 
-      {/* Skip intro card */}
+      {/* Generic skip card (intro / recap / commercial / preview) */}
       <TVSkipSegmentCard
         show={showSkipButton && !isCountdownActive}
         onPress={() => {
@@ -1261,17 +1277,19 @@ export const Controls: FC<Props> = ({
           // unmounts. With controls visible the focus-stealing overlay is
           // disabled, so without an explicit handoff the focus engine is
           // stranded. Prime the play button to receive focus on the next
-          // render — when controls are hidden the focus overlay takes over
+          // render, when controls are hidden the focus overlay takes over
           // naturally and this is a harmless no-op.
           if (showControls) setFocusPlayButton(true);
-          skipIntro();
+          skipActiveSegment();
         }}
-        type='intro'
+        type={activeSegmentType}
         controlsVisible={showControls}
         refSetter={setSkipSegmentRef}
         hasTVPreferredFocus={!showControls}
         playButtonRef={showControls ? playButtonRef : null}
       />
+
+      <SegmentSkippedNotice segment={skippedNotice} />
 
       {/* Skip credits card - show when there's content after credits, OR no next episode */}
       <TVSkipSegmentCard

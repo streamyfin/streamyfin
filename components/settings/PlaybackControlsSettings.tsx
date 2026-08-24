@@ -9,6 +9,7 @@ import { SettingSwitch } from "@/components/common/SettingSwitch";
 import { PlatformDropdown } from "@/components/PlatformDropdown";
 import { PLAYBACK_SPEEDS } from "@/components/PlaybackSpeedSelector";
 import DisabledSetting from "@/components/settings/DisabledSetting";
+import useRouter from "@/hooks/useAppRouter";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { ScreenOrientationEnum, useSettings } from "@/utils/atoms/settings";
 import { Text } from "../common/Text";
@@ -16,6 +17,7 @@ import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
 
 export const PlaybackControlsSettings: React.FC = () => {
+  const router = useRouter();
   const { settings, updateSettings, pluginSettings } = useSettings();
   const { t } = useTranslation();
 
@@ -264,6 +266,15 @@ export const PlaybackControlsSettings: React.FC = () => {
             }
             title={t("home.settings.other.max_auto_play_episode_count")}
           />
+        </ListItem>
+
+        {/* Media Segment Skip Settings */}
+        <ListItem
+          title={t("home.settings.other.segment_skip_settings")}
+          subtitle={t("home.settings.other.segment_skip_settings_description")}
+          onPress={() => router.push("/settings/segment-skip/page")}
+        >
+          <Ionicons name='chevron-forward' size={20} color='#8E8D91' />
         </ListItem>
       </ListGroup>
     </DisabledSetting>

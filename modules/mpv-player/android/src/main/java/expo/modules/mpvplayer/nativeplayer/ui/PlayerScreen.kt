@@ -181,10 +181,29 @@ fun PlayerScreen(
                         remaining = countdown
                     )
                 } else {
-                    viewModel.activeSegment?.let { segment ->
-                        SkipSegmentButton(viewModel = viewModel, segment = segment)
-                    }
+                    // A type set to "auto" gets no pill: the user asked for it
+                    // to be handled for them, and the notice explains the jump.
+                    viewModel.activeSegment
+                        ?.takeIf { it.skipMode != "auto" }
+                        ?.let { segment ->
+                            SkipSegmentButton(viewModel = viewModel, segment = segment)
+                        }
                 }
+            }
+        }
+
+        // Layer 6b: "… skipped" notice, top centre
+        viewModel.skippedSegmentNotice?.let { notice ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .windowInsetsPadding(
+                        WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)
+                    )
+                    .padding(top = 16.dp),
+                contentAlignment = Alignment.TopCenter
+            ) {
+                SegmentSkippedNotice(text = notice)
             }
         }
 

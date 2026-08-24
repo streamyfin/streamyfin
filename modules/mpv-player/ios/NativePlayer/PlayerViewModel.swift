@@ -123,6 +123,19 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	@Published var chapters: [ChapterRecord] = []
 	@Published var segments: [MediaSegmentRecord] = []
 	@Published var activeSegment: MediaSegmentRecord?
+	/// Set for a few seconds after an automatic skip so the UI can say what it
+	/// did. Auto-skip is otherwise silent and looks like the video jumped.
+	@Published var skippedSegmentNotice: String?
+
+	/// Segments already auto-skipped, keyed by type and bounds, so a position
+	/// that bounces back inside the range cannot loop the seek. Cleared when a
+	/// new set of segments arrives.
+	private var autoSkippedSegmentIds: Set<String> = []
+	/// When playback last became genuinely stable. Auto-skip waits on this:
+	/// seeking a transcode the instant the first frame lands asks for a segment
+	/// it has not produced yet and stalls (JS parity: AUTO_SKIP_ARM_DELAY_MS).
+	private var autoSkipStableSince: Date?
+	private var noticeDismissTask: Task<Void, Never>?
 	@Published var nextEpisode: NextEpisodeRecord?
 	/// Non-nil while the next-episode countdown card is up.
 	@Published var countdownRemaining: Double?
@@ -383,6 +396,10 @@ final class PlayerViewModel: NSObject, ObservableObject {
 
 	func updateSegments(_ newSegments: [MediaSegmentRecord]) {
 		segments = newSegments
+		// A new set means a new item (or changed settings): let auto-skip run
+		// again, and make it re-earn its arming delay on the fresh timeline.
+		autoSkippedSegmentIds.removeAll()
+		autoSkipStableSince = nil
 	}
 
 	func updateNextEpisode(_ next: NextEpisodeRecord?) {
@@ -1061,10 +1078,66 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	func skipActiveSegment() {
 		guard let segment = activeSegment else { return }
 		haptic()
-		if segment.type == "Outro" {
-			cancelCountdown()
+		skip(segment, automatic: false)
+	}
+
+	/// Localized pill label for a segment type, e.g. "Skip intro".
+	func skipLabel(for type: String) -> String {
+		switch type {
+		case "Outro": return str("skipCredits", "Skip Outro")
+		case "Recap": return str("skipRecap", "Skip Recap")
+		case "Commercial": return str("skipCommercial", "Skip Commercial")
+		case "Preview": return str("skipPreview", "Skip Preview")
+		default: return str("skipIntro", "Skip Intro")
 		}
-		seek(to: segment.endSec)
+	}
+
+	/// "… skipped" notice for a segment type. Whole sentences rather than a
+	/// template: the agreement follows the noun, so only the translator can
+	/// write them.
+	private func skippedNotice(for type: String) -> String {
+		switch type {
+		case "Outro": return str("segmentSkippedOutro", "Credits skipped")
+		case "Recap": return str("segmentSkippedRecap", "Recap skipped")
+		case "Commercial": return str("segmentSkippedCommercial", "Commercial skipped")
+		case "Preview": return str("segmentSkippedPreview", "Preview skipped")
+		default: return str("segmentSkippedIntro", "Intro skipped")
+		}
+	}
+
+	private func skip(_ segment: MediaSegmentRecord, automatic: Bool) {
+		// Do NOT cancel the countdown for an outro skip. Seeking lands short of
+		// the file end so the natural EOF flow can still autoplay the next
+		// episode; canceling sets countdownCanceled and makes engineDidReachEnd
+		// fall through to a dismiss instead. The EOF emit below is guarded by
+		// countdownFired, so the short countdown that arms over the final
+		// seconds cannot fire a duplicate.
+
+		// The reported end of an outro sometimes overshoots the file. Land two
+		// seconds short so the natural end-of-video flow still runs, and do
+		// nothing at all when that target is already behind the playhead, which
+		// would otherwise rewind (JS parity: useSegmentSkipper).
+		var target = segment.endSec
+		if segment.type == "Outro", duration > 0, target >= duration {
+			target = max(0, duration - 2)
+			if target <= displayPosition { return }
+		}
+
+		seek(to: target)
+
+		if automatic {
+			showSkippedNotice(for: segment.type)
+		}
+	}
+
+	private func showSkippedNotice(for type: String) {
+		skippedSegmentNotice = skippedNotice(for: type)
+		noticeDismissTask?.cancel()
+		noticeDismissTask = Task { @MainActor [weak self] in
+			try? await Task.sleep(nanoseconds: 3_000_000_000)
+			guard !Task.isCancelled else { return }
+			self?.skippedSegmentNotice = nil
+		}
 	}
 
 	func playNextEpisode() {
@@ -1241,6 +1314,29 @@ final class PlayerViewModel: NSObject, ObservableObject {
 
 		if active?.type != activeSegment?.type || active?.startSec != activeSegment?.startSec {
 			activeSegment = active
+		}
+
+		// Auto-skip, mirroring the JS driver: one segment at a time, once per
+		// segment, and only once playback has been stable for a moment AND the
+		// renderer reports it can seek, so the seek lands on a timeline the
+		// source can actually serve — a transcode can still be catching up when
+		// the fixed delay alone would already have elapsed.
+		if isPlaying, isReadyToSeek, !isBuffering, !isScrubbing {
+			if autoSkipStableSince == nil { autoSkipStableSince = Date() }
+		} else {
+			autoSkipStableSince = nil
+		}
+		let autoSkipArmed = autoSkipStableSince.map {
+			Date().timeIntervalSince($0) >= 1.5
+		} ?? false
+
+		if autoSkipArmed, let active, active.skipMode == "auto" {
+			let id = "\(active.type):\(active.startSec)-\(active.endSec)"
+			if !autoSkippedSegmentIds.contains(id) {
+				autoSkippedSegmentIds.insert(id)
+				skip(active, automatic: true)
+				return
+			}
 		}
 
 		// Only credits that run to (within 5s of) the video end auto-arm the
@@ -1434,12 +1530,19 @@ extension PlayerViewModel: MPVPlayerEngineDelegate {
 		// A canceled countdown is a deliberate "let me watch to the end" —
 		// EOF must not auto-advance past it.
 		if let next = nextEpisode, next.countdownSeconds > 0, !countdownCanceled {
-			cancelCountdownTask()
-			countdownRemaining = nil
-			emit?("onNextEpisodeRequested", [
-				"reason": "countdown",
-				"positionSec": displayPosition,
-			])
+			// Idempotent: an outro skip lets a short countdown arm over the
+			// final seconds, so its tick may already have fired this request.
+			// Emit once, but stay in this branch either way so a fired
+			// countdown never falls through to the dismiss below.
+			if !countdownFired {
+				countdownFired = true
+				cancelCountdownTask()
+				countdownRemaining = nil
+				emit?("onNextEpisodeRequested", [
+					"reason": "countdown",
+					"positionSec": displayPosition,
+				])
+			}
 		} else if nextEpisode?.stillWatchingRequired == true {
 			// Autoplay episode cap reached: ask instead of advancing. The
 			// video sits on its last frame under the card.

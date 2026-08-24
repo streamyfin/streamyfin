@@ -169,7 +169,7 @@ import { apiAtom } from "@/providers/JellyfinProvider";
 - Platform checks: `Platform.isTV`, `Platform.OS === "android"` or `"ios"`
 - Some features disabled on TV (e.g., notifications, Chromecast)
 - **TV Design**: Don't use purple accent colors on TV. Use white for focused states and `expo-blur` (`BlurView`) for backgrounds/overlays.
-- **TV Typography**: Use `TVTypography` from `@/components/tv/TVTypography` for all text on TV. It provides consistent font sizes optimized for TV viewing distance.
+- **TV Typography**: Size TV text from `@/constants/TVTypography`, which provides font sizes optimized for TV viewing distance. It is not a component: use the `useScaledTVTypography()` hook and apply the returned sizes (`typography.callout`, etc.) to the shared `Text` component, the way `components/tv/TVPosterCard.tsx` does. Do not hardcode font sizes on TV.
 - **TV Button Sizing**: Ensure buttons placed next to each other have the same size for visual consistency.
 - **TV Focus Scale Padding**: Add sufficient padding around focusable items in tables/rows/columns/lists. The focus scale animation (typically 1.05x) will clip against parent containers without proper padding. Use `overflow: "visible"` on containers and add padding to prevent clipping.
 - **TV Modals**: Never use React Native's `Modal` component or overlay/absolute-positioned modals for full-screen modals on TV. Use the navigation-based modal pattern instead. **See [docs/tv-modal-guide.md](docs/tv-modal-guide.md) for detailed documentation.**

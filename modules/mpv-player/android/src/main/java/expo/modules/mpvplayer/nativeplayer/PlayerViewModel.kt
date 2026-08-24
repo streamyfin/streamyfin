@@ -2,6 +2,7 @@ package expo.modules.mpvplayer.nativeplayer
 
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.util.Log
 import android.view.Choreographer
 import androidx.compose.runtime.getValue
@@ -63,6 +64,16 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
 
     companion object {
         private const val TAG = "PlayerViewModel"
+
+        /**
+         * Delay the FIRST auto-skip until playback has been stable this long.
+         * Direct play is always seekable so the wait is invisible there; a
+         * transcode is not, and seeking into it too early stalls at 0:00.
+         */
+        private const val AUTO_SKIP_ARM_DELAY_MS = 1_500L
+
+        /** How long the "… skipped" notice stays up. */
+        private const val SKIPPED_NOTICE_MS = 3_000L
     }
 
     var renderer: MPVLayerRenderer? = null
@@ -129,6 +140,13 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
     var chapters by mutableStateOf<List<ChapterRecord>>(emptyList())
     var segments by mutableStateOf<List<MediaSegmentRecord>>(emptyList())
     var activeSegment by mutableStateOf<MediaSegmentRecord?>(null)
+    /** Text of the "… skipped" notice while it is up, null the rest of the time. */
+    var skippedSegmentNotice by mutableStateOf<String?>(null)
+    /** One automatic skip per segment: re-entering it must not seek again. */
+    private val autoSkippedSegmentIds = mutableSetOf<String>()
+    /** When playback last became stable, for the auto-skip arming delay. */
+    private var autoSkipStableSince: Long? = null
+    private var noticeJob: Job? = null
     var nextEpisode by mutableStateOf<NextEpisodeRecord?>(null)
     var countdownRemaining by mutableStateOf<Double?>(null)
     var showStillWatching by mutableStateOf(false)
@@ -258,6 +276,7 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
         duration = 0.0
         cacheSeconds = 0.0
         activeSegment = null
+        resetAutoSkipState()
         cancelCountdown()
         countdownRemaining = null
         showStillWatching = false
@@ -275,7 +294,18 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
 
     fun updateSegments(newSegments: List<MediaSegmentRecord>) {
         segments = newSegments
+        // The modes travel with the segments, so a settings change mid-playback
+        // arrives here: clear the per-segment guard or a type just switched to
+        // "auto" would never fire for the segment already under the playhead.
+        resetAutoSkipState()
         checkSegmentsAndCountdown(displayPosition)
+    }
+
+    private fun resetAutoSkipState() {
+        autoSkippedSegmentIds.clear()
+        autoSkipStableSince = null
+        noticeJob?.cancel()
+        skippedSegmentNotice = null
     }
 
     fun updateNextEpisode(next: NextEpisodeRecord?) {
@@ -765,9 +795,32 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
 
     // MARK: - Segments & Countdown
     private fun checkSegmentsAndCountdown(pos: Double) {
-        // Segments
+        // The list arrives in priority order (Commercial > Recap > Intro >
+        // Preview > Outro), so the first match is the one to act on.
         val matched = segments.firstOrNull { pos >= it.startSec && pos < it.endSec }
         activeSegment = matched
+
+        // Auto-skip, mirroring the JS and iOS drivers: one segment at a time,
+        // once per segment, and only once playback has been stable for a moment
+        // AND the renderer reports it can seek, so the seek lands on a timeline
+        // the source can actually serve — a transcode can still be catching up
+        // when the fixed delay alone would already have elapsed.
+        if (isPlaying && isReadyToSeek && !isBuffering && !isScrubbing) {
+            if (autoSkipStableSince == null) autoSkipStableSince = SystemClock.elapsedRealtime()
+        } else {
+            autoSkipStableSince = null
+        }
+        val armed = autoSkipStableSince?.let {
+            SystemClock.elapsedRealtime() - it >= AUTO_SKIP_ARM_DELAY_MS
+        } ?: false
+
+        if (armed && matched != null && matched.skipMode == "auto") {
+            val id = "${matched.type}:${matched.startSec}-${matched.endSec}"
+            if (autoSkippedSegmentIds.add(id)) {
+                skip(matched, automatic = true)
+                return
+            }
+        }
 
         // Next episode countdown
         val next = nextEpisode ?: return
@@ -808,10 +861,62 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
     fun skipActiveSegment() {
         val segment = activeSegment ?: return
         haptic()
-        if (segment.type == "Outro") {
-            disarmCountdownForEpisodeChange()
+        skip(segment, automatic = false)
+    }
+
+    private fun skip(segment: MediaSegmentRecord, automatic: Boolean) {
+        // Do NOT disarm the countdown for an outro skip. Seeking lands short of
+        // the file end so the natural EOF flow can still autoplay the next
+        // episode; disarming would make onPlaybackEnded() fall through to a
+        // dismiss instead. fireNextEpisode() is idempotent, so the short
+        // countdown that arms over the final seconds cannot fire a duplicate.
+
+        // The reported end of an outro sometimes overshoots the file. Land two
+        // seconds short so the natural end-of-video flow still runs, and do
+        // nothing at all when that target is already behind the playhead, which
+        // would otherwise rewind.
+        var target = segment.endSec
+        if (segment.type == "Outro" && duration > 0 && target >= duration) {
+            target = max(0.0, duration - 2.0)
+            if (target <= displayPosition) return
         }
-        seekTo(segment.endSec)
+
+        seekTo(target)
+
+        // An automatic skip is otherwise silent and reads as the video jumping
+        // on its own. A manual one needs no notice: the user just tapped for it.
+        if (automatic) showSkippedNotice(segment.type)
+    }
+
+    /** Pill label for a segment type. */
+    fun skipLabel(type: String): String = when (type) {
+        "Outro" -> strings.get("skipCredits", "Skip credits")
+        "Recap" -> strings.get("skipRecap", "Skip recap")
+        "Commercial" -> strings.get("skipCommercial", "Skip commercial")
+        "Preview" -> strings.get("skipPreview", "Skip preview")
+        else -> strings.get("skipIntro", "Skip intro")
+    }
+
+    /**
+     * "… skipped" notice for a segment type. Whole sentences rather than a
+     * template: the agreement follows the noun, so only the translator can
+     * write them.
+     */
+    private fun skippedNoticeText(type: String): String = when (type) {
+        "Outro" -> strings.get("segmentSkippedOutro", "Credits skipped")
+        "Recap" -> strings.get("segmentSkippedRecap", "Recap skipped")
+        "Commercial" -> strings.get("segmentSkippedCommercial", "Commercial skipped")
+        "Preview" -> strings.get("segmentSkippedPreview", "Preview skipped")
+        else -> strings.get("segmentSkippedIntro", "Intro skipped")
+    }
+
+    private fun showSkippedNotice(type: String) {
+        skippedSegmentNotice = skippedNoticeText(type)
+        noticeJob?.cancel()
+        noticeJob = scope.launch {
+            delay(SKIPPED_NOTICE_MS)
+            skippedSegmentNotice = null
+        }
     }
 
     /**
@@ -859,6 +964,9 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
     }
 
     private fun fireNextEpisode(reason: String) {
+        // Idempotent: the countdown tick and the EOF handler can both reach
+        // here for the same transition. Emit onNextEpisodeRequested only once.
+        if (countdownFired) return
         countdownFired = true
         countdownRemaining = null
         emit?.invoke("onNextEpisodeRequested", mapOf(
