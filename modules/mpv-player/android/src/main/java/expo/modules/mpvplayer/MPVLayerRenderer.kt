@@ -1,6 +1,7 @@
 package expo.modules.mpvplayer
 
 import android.content.Context
+import android.content.res.AssetManager
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
@@ -9,7 +10,17 @@ import android.util.Log
 import android.view.Surface
 import expo.modules.mpvplayer.nativeplayer.MpvOwnership
 import java.io.File
+import java.io.FileOutputStream
 import java.util.Locale
+
+internal fun normalizeVideoDimensions(width: Int, height: Int, rotation: Int): Pair<Int, Int> {
+    val normalizedRotation = ((rotation % 360) + 360) % 360
+    return if (normalizedRotation == 90 || normalizedRotation == 270) {
+        height to width
+    } else {
+        width to height
+    }
+}
 
 /**
  * MPV renderer that wraps libmpv for video playback.
@@ -76,8 +87,9 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
     private val mainHandler = Handler(Looper.getMainLooper())
     
     private var surface: Surface? = null
-    private var isRunning = false
-    private var currentOwner: MpvOwnership.Owner = MpvOwnership.Owner.NONE
+    @Volatile private var isRunning = false
+    @Volatile private var pendingOwnershipToken: Any? = null
+    @Volatile private var activeOwnershipToken: Any? = null
 
     // This renderer's own mpv handle. Per-instance (not singleton) — each
     // player screen gets a fresh mpv handle and drops the reference on stop.
@@ -116,6 +128,7 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
     // Video dimensions
     private var _videoWidth: Int = 0
     private var _videoHeight: Int = 0
+    private var _videoRotation: Int = 0
     
     val videoWidth: Int
         get() = _videoWidth
@@ -137,6 +150,7 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
     private var activeExternalSubtitles: List<String> = emptyList()
     private var initialSubtitleId: Int? = null
     private var initialAudioId: Int? = null
+    private var currentLoop: Boolean = false
     
     val isPausedState: Boolean
         get() = _isPaused
@@ -161,17 +175,36 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
 
     fun start(
         voDriver: String = "gpu-next",
-        owner: MpvOwnership.Owner = MpvOwnership.Owner.EMBEDDED_VIEW
+        owner: MpvOwnership.Owner = MpvOwnership.Owner.EMBEDDED_VIEW,
+        onStarted: () -> Unit = {},
     ) {
-        if (isRunning) return
+        if (isRunning || pendingOwnershipToken != null) return
+        val ownershipToken = Any()
+        pendingOwnershipToken = ownershipToken
 
-        if (!MpvOwnership.claim(owner)) {
-            Log.w(TAG, "Cannot start renderer: mpv already owned by ${MpvOwnership.owner}")
-            delegate?.onError("MPV player is already in use by another session")
-            return
+        MpvOwnership.claim(owner, ownershipToken) {
+            val startAction = Runnable {
+                if (pendingOwnershipToken !== ownershipToken) {
+                    MpvOwnership.release(ownershipToken)
+                    return@Runnable
+                }
+                pendingOwnershipToken = null
+                activeOwnershipToken = ownershipToken
+                startOwned(voDriver, owner, onStarted)
+            }
+            if (Looper.myLooper() == Looper.getMainLooper()) {
+                startAction.run()
+            } else {
+                mainHandler.post(startAction)
+            }
         }
-        currentOwner = owner
+    }
 
+    private fun startOwned(
+        voDriver: String,
+        owner: MpvOwnership.Owner,
+        onStarted: () -> Unit,
+    ) {
         try {
             // Per-instance handle — see class-level comment. Each player gets
             // its own mpv; we drop the reference in stop().
@@ -199,6 +232,8 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
             } catch (e: Exception) {
                 Log.w(TAG, "Could not set XDG/HOME env for fontconfig: ${e.message}")
             }
+
+            copyFontsToConfigDir(mpvDir)
 
             mpv?.setOptionString("config", "yes")
             mpv?.setOptionString("config-dir", mpvDir.path)
@@ -256,6 +291,7 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
             
             // Subtitle settings
             mpv?.setOptionString("sub-scale-with-window", "no")
+            // Portrait/PiP-safe default; MpvPlayerView enables margins in landscape.
             mpv?.setOptionString("sub-use-margins", "no")
             mpv?.setOptionString("subs-match-os-language", "yes")
             mpv?.setOptionString("subs-fallback", "yes")
@@ -272,29 +308,72 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
             
             isRunning = true
             Log.i(TAG, "MPV renderer started (owner=$owner)")
+            onStarted()
         } catch (e: Exception) {
-            val ownerToRelease = currentOwner
-            currentOwner = MpvOwnership.Owner.NONE
-            if (ownerToRelease != MpvOwnership.Owner.NONE) {
-                MpvOwnership.release(ownerToRelease)
-            }
             Log.e(TAG, "Failed to start MPV renderer: ${e.message}")
             delegate?.onError("Failed to start renderer: ${e.message}")
+            if (mpv != null) {
+                isRunning = true
+                stop()
+            } else {
+                activeOwnershipToken?.let(MpvOwnership::release)
+                activeOwnershipToken = null
+            }
         }
     }
     
-    fun stop() {
-        if (!isRunning) return
-        isRunning = false
+    /**
+     * Copies bundled custom fonts to the MPV config directory.
+     * libmpv/libass can access Android system fonts directly, but still cannot
+     * read bundled React Native assets without copying them to a filesystem path.
+     */
+    private fun copyFontsToConfigDir(mpvDir: File) {
+        val fontsDir = File(mpvDir, "fonts")
+        if (!fontsDir.exists()) fontsDir.mkdirs()
 
-        val ownerToRelease = currentOwner
-        currentOwner = MpvOwnership.Owner.NONE
-        if (ownerToRelease != MpvOwnership.Owner.NONE) {
-            MpvOwnership.release(ownerToRelease)
+        val customFonts = arrayOf(
+            "OpenDyslexic-Regular.otf",
+            "OpenDyslexic-Bold.otf",
+            "OpenDyslexic-Italic.otf",
+            "OpenDyslexic-BoldItalic.otf"
+        )
+        customFonts.forEach { fileName ->
+            val file = File(fontsDir, fileName)
+            if (file.exists() && file.length() > 0) return@forEach
+
+            val tempFile = File(fontsDir, "$fileName.tmp")
+            try {
+                if (file.exists()) file.delete()
+                if (tempFile.exists()) tempFile.delete()
+
+                context.assets.open("fonts/$fileName", AssetManager.ACCESS_STREAMING).use { input ->
+                    FileOutputStream(tempFile).use { output ->
+                        input.copyTo(output)
+                    }
+                }
+
+                if (!tempFile.renameTo(file)) {
+                    throw IllegalStateException("Failed to rename ${tempFile.name} to ${file.name}")
+                }
+            } catch (e: Exception) {
+                tempFile.delete()
+                Log.w(TAG, "Failed to copy custom font $fileName: ${e.message}")
+            }
         }
+    }
+
+    fun stop() {
+        val pendingToken = pendingOwnershipToken
+        val activeToken = activeOwnershipToken
+        if (!isRunning && pendingToken == null && activeToken == null) return
+
+        pendingOwnershipToken = null
+        pendingToken?.let(MpvOwnership::cancel)
+        activeOwnershipToken = null
 
         val m = mpv
         mpv = null
+        isRunning = false
 
         // Clear cached media state on the main thread so the next player
         // screen doesn't observe stale position/duration values during the
@@ -309,7 +388,10 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
         cachedDuration = 0.0
         cachedCacheSeconds = 0.0
 
-        if (m == null) return
+        if (m == null) {
+            activeToken?.let(MpvOwnership::release)
+            return
+        }
 
         // Teardown runs on a background daemon thread. mpv's "stop" command
         // flushes the demuxer queue and releases the MediaCodec hardware
@@ -351,6 +433,8 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
                 m.detachSurface()
             } catch (e: Exception) {
                 Log.e(TAG, "Error detaching mpv surface: ${e.message}")
+            } finally {
+                activeToken?.let(MpvOwnership::release)
             }
         }.also { it.isDaemon = true }.start()
     }
@@ -465,6 +549,7 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
             startPosition = cachedPosition,
             initialAudioId = savedAid,
             initialSubtitleId = savedSid,
+            loop = currentLoop,
             externalSubtitles = activeExternalSubtitles
         )
 
@@ -480,6 +565,7 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
         externalSubtitles: List<String>? = null,
         initialSubtitleId: Int? = null,
         initialAudioId: Int? = null,
+        loop: Boolean = false,
         cacheEnabled: String? = null,
         cacheSeconds: Int? = null,
         demuxerMaxBytes: Int? = null,
@@ -491,6 +577,10 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
         activeExternalSubtitles = pendingExternalSubtitles
         this.initialSubtitleId = initialSubtitleId
         this.initialAudioId = initialAudioId
+        this.currentLoop = loop
+        _videoWidth = 0
+        _videoHeight = 0
+        _videoRotation = 0
 
         _isLoading = true
         isReadyToSeek = false
@@ -501,6 +591,9 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
 
         // Set HTTP headers if provided
         updateHttpHeaders(headers)
+
+        // Set looping
+        mpv?.setPropertyString("loop-file", if (loop) "inf" else "no")
 
         // Apply cache/buffer settings from user preferences (mirrors iOS).
         // These override the conservative defaults applied in start() so the
@@ -541,7 +634,7 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
     
     fun reloadCurrentItem() {
         currentUrl?.let { url ->
-            load(url, currentHeaders)
+            load(url, currentHeaders, loop = currentLoop)
         }
     }
     
@@ -573,6 +666,7 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
         // Video dimensions for PiP aspect ratio
         mpv?.observeProperty("video-params/w", MPV_FORMAT_INT64)
         mpv?.observeProperty("video-params/h", MPV_FORMAT_INT64)
+        mpv?.observeProperty("video-params/rotate", MPV_FORMAT_INT64)
     }
 
     // MARK: - Playback Controls
@@ -722,6 +816,18 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
     fun setSubtitleMarginY(margin: Int) {
         mpv?.setPropertyInt("sub-margin-y", margin)
     }
+
+    fun setSubtitleUseMargins(useMargins: Boolean) {
+        if (isRunning) {
+            mpv?.setPropertyString("sub-use-margins", if (useMargins) "yes" else "no")
+        }
+    }
+
+    fun setSubtitleScaleWithWindow(enabled: Boolean) {
+        if (isRunning) {
+            mpv?.setPropertyString("sub-scale-with-window", if (enabled) "yes" else "no")
+        }
+    }
     
     fun setSubtitleAlignX(alignment: String) {
         mpv?.setPropertyString("sub-align-x", alignment)
@@ -730,7 +836,46 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
     fun setSubtitleAlignY(alignment: String) {
         mpv?.setPropertyString("sub-align-y", alignment)
     }
-    
+
+    fun setSubtitleStyle(config: Map<String, Any>) {
+        val isDyslexic = (config["font"] as? String) == "opendyslexic"
+
+        (config["fontSize"] as? Number)?.let {
+            val size = if (isDyslexic) it.toInt() + 20 else it.toInt()
+            mpv?.setPropertyInt("sub-font-size", size)
+        }
+
+        (config["color"] as? String)?.let {
+            mpv?.setPropertyString("sub-color", it)
+        }
+
+        (config["font"] as? String)?.let { font ->
+            when (font) {
+                "System" -> mpv?.setPropertyString("sub-font", "")
+                "sans-serif" -> mpv?.setPropertyString("sub-font", "Roboto")
+                "serif" -> mpv?.setPropertyString("sub-font", "Noto Serif")
+                "monospace" -> mpv?.setPropertyString("sub-font", "Droid Sans Mono")
+                "opendyslexic" -> mpv?.setPropertyString("sub-font", "OpenDyslexic")
+                else -> mpv?.setPropertyString("sub-font", font)
+            }
+        }
+
+        (config["background"] as? String)?.let { background ->
+            if (background.isEmpty()) {
+                mpv?.setPropertyString("sub-border-style", "outline-and-shadow")
+                mpv?.setPropertyString("sub-shadow-offset", "1")
+                mpv?.setPropertyString("sub-border-size", "3")
+            } else {
+                mpv?.setPropertyString("sub-back-color", background)
+                mpv?.setPropertyString("sub-border-style", "background-box")
+                val padding = (config["backgroundPadding"] as? Number)?.toInt() ?: 12
+                val finalPadding = if (isDyslexic) padding / 2 else padding
+                mpv?.setPropertyString("sub-shadow-offset", finalPadding.toString())
+                mpv?.setPropertyString("sub-border-size", "0")
+            }
+        }
+    }
+
     fun setSubtitleFontSize(size: Int) {
         mpv?.setPropertyInt("sub-font-size", size)
     }
@@ -942,14 +1087,21 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
                     notifyVideoDimensionsIfReady()
                 }
             }
+            "video-params/rotate" -> {
+                val rotation = value.toInt()
+                if (rotation != _videoRotation) {
+                    _videoRotation = rotation
+                    notifyVideoDimensionsIfReady()
+                }
+            }
         }
     }
     
     private fun notifyVideoDimensionsIfReady() {
-        if (_videoWidth > 0 && _videoHeight > 0) {
-            Log.i(TAG, "Video dimensions: ${_videoWidth}x${_videoHeight}")
-            mainHandler.post { delegate?.onVideoDimensionsChanged(_videoWidth, _videoHeight) }
-        }
+        if (_videoWidth <= 0 || _videoHeight <= 0) return
+        val (width, height) = normalizeVideoDimensions(_videoWidth, _videoHeight, _videoRotation)
+        Log.i(TAG, "Video dimensions: ${width}x${height} (rotation=$_videoRotation)")
+        mainHandler.post { delegate?.onVideoDimensionsChanged(width, height) }
     }
     
     override fun eventProperty(property: String, value: Boolean) {

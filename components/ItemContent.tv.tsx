@@ -59,6 +59,7 @@ import { useSettings } from "@/utils/atoms/settings";
 import type { TVOptionItem } from "@/utils/atoms/tvOptionModal";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
 import { getPrimaryImageUrlById } from "@/utils/jellyfin/image/getPrimaryImageUrlById";
+import { scaleSize } from "@/utils/scaleSize";
 import { rememberSeriesTrackFromRow } from "@/utils/seriesTrackMemory";
 import { SUBTITLES_OFF } from "@/utils/subtitles/subtitleIndex";
 import {
@@ -631,9 +632,9 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
         <ScrollView
           style={{ flex: 1 }}
           contentContainerStyle={{
-            paddingTop: insets.top + 140,
-            paddingBottom: insets.bottom + 60,
-            paddingHorizontal: insets.left + 80,
+            paddingTop: insets.top + scaleSize(140),
+            paddingBottom: insets.bottom + scaleSize(60),
+            paddingHorizontal: insets.left + scaleSize(80),
           }}
           showsVerticalScrollIndicator={false}
         >
@@ -651,9 +652,9 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                 <Image
                   source={{ uri: logoUrl }}
                   style={{
-                    height: 150,
+                    height: scaleSize(150),
                     width: "80%",
-                    marginBottom: 24,
+                    marginBottom: scaleSize(24),
                   }}
                   contentFit='contain'
                   contentPosition='left'
@@ -664,7 +665,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                     fontSize: typography.display,
                     fontWeight: "bold",
                     color: "#FFFFFF",
-                    marginBottom: 20,
+                    marginBottom: scaleSize(20),
                   }}
                   numberOfLines={2}
                 >
@@ -674,7 +675,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
 
               {/* Episode info for TV shows */}
               {item.Type === "Episode" && (
-                <View style={{ marginBottom: 16 }}>
+                <View style={{ marginBottom: scaleSize(16) }}>
                   <Text
                     style={{
                       fontSize: typography.title,
@@ -688,7 +689,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                     style={{
                       fontSize: typography.body,
                       color: "white",
-                      marginTop: 6,
+                      marginTop: scaleSize(6),
                     }}
                   >
                     S{item.ParentIndexNumber} E{item.IndexNumber} · {item.Name}
@@ -707,7 +708,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
 
               {/* Genres */}
               {item.Genres && item.Genres.length > 0 && (
-                <View style={{ marginBottom: 24 }}>
+                <View style={{ marginBottom: scaleSize(24) }}>
                   <GenreTags genres={item.Genres} />
                 </View>
               )}
@@ -718,15 +719,15 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                   intensity={10}
                   tint='light'
                   style={{
-                    borderRadius: 8,
+                    borderRadius: scaleSize(8),
                     overflow: "hidden",
                     maxWidth: SCREEN_WIDTH * 0.45,
-                    marginBottom: 32,
+                    marginBottom: scaleSize(24),
                   }}
                 >
                   <View
                     style={{
-                      padding: 16,
+                      padding: scaleSize(16),
                       backgroundColor: "rgba(0,0,0,0.3)",
                     }}
                   >
@@ -734,7 +735,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                       style={{
                         fontSize: typography.body,
                         color: "#E5E7EB",
-                        lineHeight: 32,
+                        lineHeight: scaleSize(32),
                       }}
                       numberOfLines={4}
                     >
@@ -748,8 +749,8 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
               <View
                 style={{
                   flexDirection: "row",
-                  gap: 16,
-                  marginBottom: 32,
+                  gap: scaleSize(16),
+                  marginBottom: scaleSize(20),
                 }}
               >
                 <TVButton
@@ -759,9 +760,9 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                 >
                   <Ionicons
                     name='play'
-                    size={28}
+                    size={scaleSize(28)}
                     color='#000000'
-                    style={{ marginRight: 10 }}
+                    style={{ marginRight: scaleSize(10) }}
                   />
                   <Text
                     style={{
@@ -785,15 +786,17 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                 style={{
                   flexDirection: "row",
                   alignItems: "center",
-                  gap: 12,
-                  marginBottom: 24,
+                  flexWrap: "wrap",
+                  rowGap: scaleSize(12),
+                  gap: scaleSize(12),
+                  marginBottom: scaleSize(20),
                 }}
               >
                 {/* Quality selector */}
                 <TVOptionButton
                   label={t("item_card.quality")}
                   value={selectedQualityLabel}
-                  maxWidth={200}
+                  maxWidth={scaleSize(200)}
                   onPress={() =>
                     showOptions({
                       title: t("item_card.quality"),
@@ -808,7 +811,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                   <TVOptionButton
                     label={t("item_card.video")}
                     value={selectedMediaSourceLabel}
-                    maxWidth={280}
+                    maxWidth={scaleSize(280)}
                     onPress={() =>
                       showOptions({
                         title: t("item_card.video"),
@@ -824,7 +827,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                   <TVOptionButton
                     label={t("item_card.audio")}
                     value={selectedAudioLabel}
-                    maxWidth={280}
+                    maxWidth={scaleSize(280)}
                     onPress={() =>
                       showOptions({
                         title: t("item_card.audio"),
@@ -841,7 +844,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                   <TVOptionButton
                     label={t("item_card.subtitles.label")}
                     value={selectedSubtitleLabel}
-                    maxWidth={280}
+                    maxWidth={scaleSize(280)}
                     onPress={() =>
                       showSubtitleModal({
                         item,
@@ -887,13 +890,13 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                   item.Type === "Episode"
                     ? SCREEN_WIDTH * 0.35
                     : SCREEN_WIDTH * 0.22,
-                marginLeft: 50,
+                marginLeft: scaleSize(50),
               }}
             >
               <View
                 style={{
                   aspectRatio: item.Type === "Episode" ? 16 / 9 : 2 / 3,
-                  borderRadius: 16,
+                  borderRadius: scaleSize(16),
                   overflow: "hidden",
                   shadowColor: "#000",
                   shadowOffset: { width: 0, height: 10 },
@@ -927,16 +930,16 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
           </View>
 
           {/* Additional info section */}
-          <View style={{ marginTop: 40 }}>
+          <View style={{ marginTop: scaleSize(40) }}>
             {/* Season Episodes - Episode only */}
             {item.Type === "Episode" && seasonEpisodes.length > 1 && (
-              <View style={{ marginBottom: 40 }}>
+              <View style={{ marginBottom: scaleSize(40) }}>
                 <Text
                   style={{
                     fontSize: typography.heading,
                     fontWeight: "600",
                     color: "#FFFFFF",
-                    marginBottom: 24,
+                    marginBottom: scaleSize(24),
                   }}
                 >
                   {t("item_card.more_from_this_season")}
@@ -948,7 +951,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                   onEpisodePress={handleEpisodePress}
                   onEpisodeLongPress={showItemActions}
                   firstEpisodeRefSetter={setFirstEpisodeRef}
-                  horizontalPadding={insets.left + 80}
+                  horizontalPadding={insets.left + scaleSize(80)}
                 />
               </View>
             )}
@@ -969,7 +972,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                 apiBasePath={api?.basePath}
                 onActorPress={handleActorPress}
                 firstActorRefSetter={setFirstActorCardRef}
-                horizontalPadding={insets.left + 80}
+                horizontalPadding={insets.left + scaleSize(80)}
               />
             )}
 
@@ -994,5 +997,6 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
   },
 );
 
-// Alias for platform-resolved imports (tvOS auto-resolves .tv.tsx files)
+// Alias for the explicit require() in ItemContent.tsx / items/page.tsx —
+// Metro does NOT auto-resolve .tv.tsx suffixes in this project.
 export const ItemContent = ItemContentTV;

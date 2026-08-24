@@ -13,6 +13,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { useTranslation } from "react-i18next";
 import { Platform, StyleSheet, useWindowDimensions, View } from "react-native";
 import Animated, {
   Easing,
@@ -24,9 +25,8 @@ import Animated, {
 } from "react-native-reanimated";
 import ContinueWatchingOverlay from "@/components/video-player/controls/ContinueWatchingOverlay";
 import useRouter from "@/hooks/useAppRouter";
-import { useCreditSkipper } from "@/hooks/useCreditSkipper";
 import { useHaptic } from "@/hooks/useHaptic";
-import { useIntroSkipper } from "@/hooks/useIntroSkipper";
+import { useMediaSegments } from "@/hooks/useMediaSegments";
 import { usePlaybackManager } from "@/hooks/usePlaybackManager";
 import { useTrickplay } from "@/hooks/useTrickplay";
 import type { TechnicalInfo } from "@/modules/mpv-player";
@@ -35,10 +35,12 @@ import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { hasChapterMarkers } from "@/utils/chapters";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
+import { SEGMENT_SKIP_KEY, useSegments } from "@/utils/segments";
 import { ticksToMs } from "@/utils/time";
 import { BottomControls } from "./BottomControls";
 import { CenterControls } from "./CenterControls";
 import { CONTROLS_CONSTANTS } from "./constants";
+import { AndroidSubtitleScaleOverlay } from "./dropdown/DropdownView";
 import { EpisodeList } from "./EpisodeList";
 import { GestureOverlay } from "./GestureOverlay";
 import { HeaderControls } from "./HeaderControls";
@@ -47,6 +49,7 @@ import { useRemoteControl } from "./hooks/useRemoteControl";
 import { useVideoNavigation } from "./hooks/useVideoNavigation";
 import { useVideoSlider } from "./hooks/useVideoSlider";
 import { useVideoTime } from "./hooks/useVideoTime";
+import { SegmentSkippedNotice } from "./SegmentSkippedNotice";
 import { SkipSegmentOverlay } from "./SkipSegmentOverlay";
 import { TechnicalInfoOverlay } from "./TechnicalInfoOverlay";
 import { useControlsTimeout } from "./useControlsTimeout";
@@ -77,6 +80,8 @@ interface Props {
   // Playback speed props
   playbackSpeed?: number;
   setPlaybackSpeed?: (speed: number, scope: PlaybackSpeedScope) => void;
+  subtitleDelay?: number;
+  onSubtitleDelayChange?: (seconds: number) => void;
   onHoldSpeedStart?: () => void;
   onHoldSpeedEnd?: () => void;
   // Technical info props
@@ -121,6 +126,8 @@ export const Controls: FC<Props> = ({
   downloadedFiles = undefined,
   playbackSpeed = 1.0,
   setPlaybackSpeed,
+  subtitleDelay = 0,
+  onSubtitleDelayChange,
   onHoldSpeedStart,
   onHoldSpeedEnd,
   showTechnicalInfo = false,
@@ -136,6 +143,7 @@ export const Controls: FC<Props> = ({
 
   const [episodeView, setEpisodeView] = useState(false);
   const [showAudioSlider, setShowAudioSlider] = useState(false);
+  const [showSubtitleScale, setShowSubtitleScale] = useState(false);
 
   const { height: screenHeight, width: screenWidth } = useWindowDimensions();
   const { previousItem, nextItem } = usePlaybackManager({
@@ -391,27 +399,39 @@ export const Controls: FC<Props> = ({
     subtitleIndex: string;
   }>();
 
-  const { showSkipButton, skipIntro } = useIntroSkipper(
-    item.Id!,
-    currentTime,
-    seek,
-    play,
+  // Fetch all segments for the current item
+  const { data: segments } = useSegments(
+    item.Id ?? "",
     offline,
-    api,
     downloadedFiles,
+    api,
   );
 
-  const { showSkipCreditButton, skipCredit, hasContentAfterCredits } =
-    useCreditSkipper(
-      item.Id!,
-      currentTime,
-      seek,
-      play,
-      offline,
-      api,
-      downloadedFiles,
-      maxMs,
-    );
+  // Unified segment orchestration (identical mechanism on mobile and TV):
+  // overlap priority + a single auto-skip driver live in the shared hook.
+  const {
+    activeSegment,
+    skipActiveSegment: onSkipSegment,
+    showSkipButton: showSkipSegmentButton,
+    isOutroActive: showSkipOutroButton,
+    skipOutro: onSkipOutro,
+    hasContentAfterCredits,
+    skippedNotice,
+  } = useMediaSegments({
+    segments,
+    currentTime,
+    maxMs,
+    seek,
+    play,
+    isPlaying,
+    isBuffering,
+  });
+
+  const { t } = useTranslation();
+  const skipSegmentButtonText = t(
+    SEGMENT_SKIP_KEY[activeSegment?.type ?? "Intro"],
+  );
+  const skipOutroButtonText = t(SEGMENT_SKIP_KEY.Outro);
 
   // Same gate as the bookmark icon in BottomControls, so the skip overlay
   // only shifts left when the icon is actually shown.
@@ -429,11 +449,24 @@ export const Controls: FC<Props> = ({
     (settings.maxAutoPlayEpisodeCount.value === -1 ||
       settings.autoPlayEpisodeCount < settings.maxAutoPlayEpisodeCount.value);
 
-  // Show during credits when nothing plays after them, or in the last seconds.
-  const showNextEpisode =
+  // Credits segment metadata (hasContentAfterCredits) can be wrong, so this
+  // path only swaps Skip Credits for a manually-tappable Next Episode button
+  // — it must never auto-advance on its own.
+  const showNextEpisodeFromCredits =
+    willShowNextEpisode && showSkipOutroButton && !hasContentAfterCredits;
+
+  // Driven by actual playback position vs. duration, independent of segment
+  // metadata, so it's safe to auto-advance from this trigger.
+  const showNextEpisodeFromRemainingTime =
     willShowNextEpisode &&
-    ((showSkipCreditButton && !hasContentAfterCredits) ||
-      remainingTime < 10000);
+    remainingTime < CONTROLS_CONSTANTS.NEXT_EPISODE_COUNTDOWN_MS;
+
+  const showNextEpisode =
+    showNextEpisodeFromCredits || showNextEpisodeFromRemainingTime;
+  // Whether reaching the end of the item may advance on its own. Pausing is
+  // not a reason to take that away: the countdown follows the remaining time,
+  // which stops moving while playback does.
+  const autoAdvanceNextEpisode = showNextEpisodeFromRemainingTime;
 
   // Autoplay would run at EOF but the episode cap stops it: ask "Still
   // watching?" there instead, with playback paused — mirroring the native
@@ -611,6 +644,8 @@ export const Controls: FC<Props> = ({
     setShowControls(false);
     setShowAudioSlider(false);
   }, [setShowControls]);
+  const openSubtitleScale = useCallback(() => setShowSubtitleScale(true), []);
+  const closeSubtitleScale = useCallback(() => setShowSubtitleScale(false), []);
 
   const { handleControlsInteraction } = useControlsTimeout({
     showControls,
@@ -650,6 +685,13 @@ export const Controls: FC<Props> = ({
             isPlaying={isPlaying}
             videoTopOffset={videoTopOffset}
           />
+          {Platform.OS === "android" && (
+            <AndroidSubtitleScaleOverlay
+              visible={showSubtitleScale}
+              onClose={closeSubtitleScale}
+              onBackgroundPress={hideControls}
+            />
+          )}
           {/* Technical Info Overlay - rendered outside animated views to stay visible */}
           {getTechnicalInfo && (
             <TechnicalInfoOverlay
@@ -682,8 +724,11 @@ export const Controls: FC<Props> = ({
               onZoomToggle={onZoomToggle}
               playbackSpeed={playbackSpeed}
               setPlaybackSpeed={setPlaybackSpeed}
+              subtitleDelay={subtitleDelay}
+              onSubtitleDelayChange={onSubtitleDelayChange}
               showTechnicalInfo={showTechnicalInfo}
               onToggleTechnicalInfo={onToggleTechnicalInfo}
+              onOpenSubtitleScale={openSubtitleScale}
             />
           </Animated.View>
           <Animated.View
@@ -738,18 +783,25 @@ export const Controls: FC<Props> = ({
           {/* Skip Intro / Skip Credits float independently of the controls so
               they're visible (and tappable) without summoning the controls. */}
           <SkipSegmentOverlay
-            showSkipButton={showSkipButton}
-            showSkipCreditButton={showSkipCreditButton}
+            showSkipButton={showSkipSegmentButton}
+            skipButtonText={skipSegmentButtonText}
+            showSkipCreditButton={showSkipOutroButton}
+            skipCreditButtonText={skipOutroButtonText}
             hasContentAfterCredits={hasContentAfterCredits}
             willShowNextEpisode={willShowNextEpisode}
             showNextEpisode={showNextEpisode}
-            skipIntro={skipIntro}
-            skipCredit={skipCredit}
+            autoAdvanceNextEpisode={autoAdvanceNextEpisode}
+            remainingTime={remainingTime}
+            isPlaying={isPlaying}
+            itemId={item.Id}
+            skipIntro={onSkipSegment}
+            skipCredit={onSkipOutro}
             onNextEpisodeFinish={handleNextEpisodeAutoPlay}
             onNextEpisodePress={handleNextEpisodeManual}
             controlsVisible={showControls}
             hasChapters={showsChapterIcon}
           />
+          <SegmentSkippedNotice segment={skippedNotice} />
         </>
       )}
       {stillWatchingVisible && (

@@ -14,10 +14,22 @@ import SkipButton from "./SkipButton";
 
 interface Props {
   showSkipButton: boolean;
+  /**
+   * Label for the generic skip button. It carries whichever segment type is
+   * active (Intro, Recap, Commercial, Preview), so it cannot be hardcoded.
+   */
+  skipButtonText?: string;
   showSkipCreditButton: boolean;
+  skipCreditButtonText?: string;
   hasContentAfterCredits: boolean;
   willShowNextEpisode: boolean;
   showNextEpisode: boolean;
+  autoAdvanceNextEpisode: boolean;
+  /** Media time left in the current item, in milliseconds. */
+  remainingTime: number;
+  isPlaying: boolean;
+  /** Id of the item being played, to scope the countdown to it. */
+  itemId?: string | null;
   skipIntro: () => void;
   skipCredit: () => void;
   onNextEpisodeFinish: () => void;
@@ -31,16 +43,18 @@ interface Props {
 //
 // Hidden: low, far-right — nothing else is drawn there, this is the familiar
 //         spot and was working fine.
-// Visible: shifted up (clear of the horizontal progress bar) and left (clear
-//          of the chapters icon), while staying below the vertical volume
-//          slider which sits at the vertical middle of the screen.
+// Visible: shifted up to clear the horizontal progress bar, while staying below
+//          the vertical volume slider which sits at the vertical middle of the
+//          screen. It only moves left when the chapters icon is actually
+//          rendered in that corner; with no icon there is nothing to clear and
+//          the button keeps the same right inset as when the controls are
+//          hidden, so it does not drift away from the edge.
 const HIDDEN_BOTTOM = 24;
-const HIDDEN_RIGHT = 24;
+const EDGE_RIGHT = 24;
 const VISIBLE_BOTTOM = 65;
-const VISIBLE_RIGHT = 42;
-// Extra left shift while the controls show the chapters icon in the bottom
+// Left shift used only while the controls show the chapters icon in the bottom
 // right corner, so the buttons never crowd it.
-const CHAPTERS_CLEARANCE = 10;
+const CHAPTERS_RIGHT = 52;
 const ANIM_DURATION = 250;
 
 // Keeps `value` true for `duration` ms after it turns false. SkipButton hides
@@ -67,10 +81,16 @@ const useDelayedHide = (value: boolean, duration: number): boolean => {
  */
 export const SkipSegmentOverlay: FC<Props> = ({
   showSkipButton,
+  skipButtonText,
   showSkipCreditButton,
+  skipCreditButtonText,
   hasContentAfterCredits,
   willShowNextEpisode,
   showNextEpisode,
+  autoAdvanceNextEpisode,
+  remainingTime,
+  isPlaying,
+  itemId,
   skipIntro,
   skipCredit,
   onNextEpisodeFinish,
@@ -110,9 +130,7 @@ export const SkipSegmentOverlay: FC<Props> = ({
     insets.bottom + (controlsVisible ? VISIBLE_BOTTOM : HIDDEN_BOTTOM);
   const right =
     insets.right +
-    (controlsVisible
-      ? VISIBLE_RIGHT + (hasChapters ? CHAPTERS_CLEARANCE : 0)
-      : HIDDEN_RIGHT);
+    (controlsVisible && hasChapters ? CHAPTERS_RIGHT : EDGE_RIGHT);
 
   return (
     <Animated.View
@@ -122,17 +140,21 @@ export const SkipSegmentOverlay: FC<Props> = ({
       <SkipButton
         showButton={renderSkip}
         onPress={skipIntro}
-        buttonText={t("player.skip_intro")}
+        buttonText={skipButtonText ?? t("player.skip_intro")}
       />
       <SkipButton
         showButton={renderCredit}
         onPress={skipCredit}
-        buttonText={t("player.skip_credits")}
+        buttonText={skipCreditButtonText ?? t("player.skip_credits")}
       />
       {/* Lives here (not in BottomControls) so it shares the skip buttons'
           exact position and can never overlap them. */}
       <NextEpisodeCountDownButton
         show={showNextEpisode}
+        autoAdvance={autoAdvanceNextEpisode}
+        remainingMs={remainingTime}
+        isPlaying={isPlaying}
+        itemId={itemId}
         onFinish={onNextEpisodeFinish}
         onPress={onNextEpisodePress}
       />

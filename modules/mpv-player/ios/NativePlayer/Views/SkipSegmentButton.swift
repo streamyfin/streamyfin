@@ -26,9 +26,7 @@ struct SkipSegmentButton: View {
 	}
 
 	private var label: String {
-		segment.type == "Outro"
-			? viewModel.str("skipCredits", "Skip Credits")
-			: viewModel.str("skipIntro", "Skip Intro")
+		viewModel.skipLabel(for: segment.type)
 	}
 }
 #endif

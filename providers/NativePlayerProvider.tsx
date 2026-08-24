@@ -46,6 +46,7 @@ import {
   type NativePlayerEpisodeListItem,
   type NativePlayerNextEpisode,
   type NativePlayerSegment,
+  type NativePlayerSegmentType,
   type NativePlayerSubtitleSearchResult,
   nativePlayerAddExternalSubtitle,
   nativePlayerDisableSubtitles,
@@ -66,6 +67,7 @@ import {
 // module is absent from TV binaries and a top-level import crashes on launch.
 import { OrientationLock } from "@/packages/expo-screen-orientation";
 import { useDownload } from "@/providers/DownloadProvider";
+import type { MediaTimeSegment } from "@/providers/Downloads/types";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useWebSocketContext } from "@/providers/WebSocketProvider";
 import {
@@ -73,6 +75,7 @@ import {
   isNativePlayerSupported,
   isNativePlayerSupportedAndroidTV,
   isNativePlayerSupportedTV,
+  type SegmentSkipMode,
   useSettings,
   VideoPlayer,
 } from "@/utils/atoms/settings";
@@ -96,7 +99,11 @@ import {
   type PlayRequest,
   toDirectPlayerQuery,
 } from "@/utils/nativePlayer/playRequest";
-import { fetchAndParseSegments, getSegmentsForItem } from "@/utils/segments";
+import {
+  fetchAndParseSegments,
+  getSegmentsForItem,
+  type SegmentBuckets,
+} from "@/utils/segments";
 import { rememberSeriesTrack } from "@/utils/seriesTrackMemory";
 import {
   isLocalSubtitleIndex,
@@ -297,7 +304,7 @@ const NativePlayerProviderInner: React.FC<{
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
   const { t } = useTranslation();
-  const { settings, updateSettings } = useSettings();
+  const { settings, updateSettings, pluginSettings } = useSettings();
   const { isConnected } = useNetworkStatus();
   const { lockOrientation, unlockOrientation } = useOrientation();
   const downloadUtils = useDownload();
@@ -332,11 +339,13 @@ const NativePlayerProviderInner: React.FC<{
 
   const apiRef = useRef(api);
   const settingsRef = useRef(settings);
+  const pluginSettingsRef = useRef(pluginSettings);
   const userRef = useRef(user);
   const isConnectedRef = useRef(isConnected);
   useEffect(() => {
     apiRef.current = api;
     settingsRef.current = settings;
+    pluginSettingsRef.current = pluginSettings;
     userRef.current = user;
     isConnectedRef.current = isConnected;
   });
@@ -451,10 +460,7 @@ const NativePlayerProviderInner: React.FC<{
   const pushSegments = useCallback(async (session: NativeSession) => {
     try {
       const currentApi = apiRef.current;
-      let segments: {
-        introSegments: { startTime: number; endTime: number }[];
-        creditSegments: { startTime: number; endTime: number }[];
-      };
+      let segments: SegmentBuckets;
       if (session.offline && session.downloadedItem) {
         segments = getSegmentsForItem(session.downloadedItem);
       } else if (currentApi && session.item.Id) {
@@ -463,18 +469,46 @@ const NativePlayerProviderInner: React.FC<{
         return;
       }
       if (sessionRef.current !== session) return;
-      const mapped: NativePlayerSegment[] = [
-        ...segments.introSegments.map((s) => ({
-          type: "Intro" as const,
-          startSec: s.startTime,
-          endSec: s.endTime,
-        })),
-        ...segments.creditSegments.map((s) => ({
-          type: "Outro" as const,
-          startSec: s.startTime,
-          endSec: s.endTime,
-        })),
+
+      // The skip mode is resolved here rather than natively, so the native
+      // player never reads settings and stays in step with the JS players.
+      const currentSettings = settingsRef.current;
+      // Emitted in the same overlap priority the JS players use
+      // (Commercial > Recap > Intro > Preview > Outro). The native side picks
+      // the first segment containing the playhead, so array order IS the
+      // priority: a flat by-bucket order would resolve overlaps differently
+      // from the JS players.
+      const bucketsByType: Array<
+        [NativePlayerSegmentType, MediaTimeSegment[], SegmentSkipMode]
+      > = [
+        [
+          "Commercial",
+          segments.commercialSegments,
+          currentSettings?.skipCommercial ?? "ask",
+        ],
+        ["Recap", segments.recapSegments, currentSettings?.skipRecap ?? "ask"],
+        ["Intro", segments.introSegments, currentSettings?.skipIntro ?? "ask"],
+        [
+          "Preview",
+          segments.previewSegments,
+          currentSettings?.skipPreview ?? "ask",
+        ],
+        ["Outro", segments.creditSegments, currentSettings?.skipOutro ?? "ask"],
       ];
+
+      const mapped: NativePlayerSegment[] = bucketsByType.flatMap(
+        ([type, bucket, skipMode]) =>
+          // "none" segments are dropped outright: nothing to show, nothing to
+          // skip, and it keeps the native payload small.
+          skipMode === "none"
+            ? []
+            : bucket.map((s) => ({
+                type,
+                startSec: s.startTime,
+                endSec: s.endTime,
+                skipMode,
+              })),
+      );
       await updateNativePlayerSegments(mapped);
     } catch {
       // Segments are progressive enhancement — never fail playback for them.
@@ -593,6 +627,8 @@ const NativePlayerProviderInner: React.FC<{
         api: apiRef.current,
         userId: userRef.current?.Id,
         settings: currentSettings,
+        subtitleSizeLocked:
+          pluginSettingsRef.current?.subtitleSize?.locked === true,
         req,
         getDownloadedItemById: downloadUtils.getDownloadedItemById,
         strings: buildNativePlayerStrings(t),
@@ -1446,9 +1482,9 @@ const NativePlayerProviderInner: React.FC<{
       addNativePlayerListener("onSubtitleScaleChange", (payload) => {
         const session = sessionRef.current;
         if (!session) return;
-        // Global setting, same as the JS player's in-menu Subtitle Scale rows.
+        // Global setting, same as the JS player's in-menu subtitle scale.
         // Native already applied it live on the engine.
-        updateSettings({ mpvSubtitleScale: payload.scale });
+        updateSettings({ subtitleSize: payload.scale });
       }),
 
       addNativePlayerListener("onOrientationChangeRequested", (payload) => {

@@ -85,8 +85,8 @@ export const TVSettingsStepper: React.FC<TVSettingsStepperProps> = ({
           onPress={onDecrease}
           onFocus={minusAnim.handleFocus}
           onBlur={minusAnim.handleBlur}
-          disabled={disabled}
-          focusable={!disabled}
+          disabled={isDisabled}
+          focusable={!isDisabled}
         >
           <Animated.View
             style={[
@@ -123,8 +123,8 @@ export const TVSettingsStepper: React.FC<TVSettingsStepperProps> = ({
           onPress={onIncrease}
           onFocus={plusAnim.handleFocus}
           onBlur={plusAnim.handleBlur}
-          disabled={disabled}
-          focusable={!disabled}
+          disabled={isDisabled}
+          focusable={!isDisabled}
         >
           <Animated.View
             style={[

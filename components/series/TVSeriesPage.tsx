@@ -39,24 +39,28 @@ import {
   buildOfflineSeasons,
   getDownloadedEpisodesForSeason,
 } from "@/utils/downloads/offline-series";
+import { scaleSize } from "@/utils/scaleSize";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
-const HORIZONTAL_PADDING = 80;
-const TOP_PADDING = 140;
+const HORIZONTAL_PADDING = scaleSize(80);
+const TOP_PADDING = scaleSize(140);
 const POSTER_WIDTH_PERCENT = 0.22;
-const SCALE_PADDING = 20;
+const SCALE_PADDING = scaleSize(20);
 
 interface TVSeriesPageProps {
   item: BaseItemDto;
   allEpisodes?: BaseItemDto[];
   isLoading?: boolean;
+  /** Season to open from the ?seasonIndex= deep-link param. */
+  initialSeasonIndex?: number;
 }
 
 export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
   item,
   allEpisodes = [],
   isLoading: _isLoading,
+  initialSeasonIndex,
 }) => {
   const typography = useScaledTVTypography();
   const { t } = useTranslation();
@@ -78,12 +82,8 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
   // Auto-play theme music (handles fade in/out and cleanup)
   useTVThemeMusic(item.Id);
 
-  // Season state
+  // Season state (the selected index is resolved below, once seasons load)
   const [seasonIndexState, setSeasonIndexState] = useAtom(seasonIndexAtom);
-  const selectedSeasonIndex = useMemo(
-    () => seasonIndexState[item.Id ?? ""] ?? 1,
-    [item.Id, seasonIndexState],
-  );
 
   // Focus guide refs (using useState to trigger re-renders when refs are set)
   const [playButtonRef, setPlayButtonRef] = useState<View | null>(null);
@@ -137,6 +137,28 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
     refetchInterval: !isOffline ? 60 * 1000 : undefined,
     enabled: isOffline || (!!api && !!user?.Id && !!item.Id),
   });
+
+  // Resolve which season is showing. A series may have no season 1 at all
+  // (specials-only, or seasons starting at 2+), so the default must come from
+  // the seasons the series actually has — otherwise the page shows "Season 1"
+  // and no episodes.
+  const selectedSeasonIndex = useMemo(() => {
+    const remembered = seasonIndexState[item.Id ?? ""];
+    if (remembered !== undefined && remembered !== null) return remembered;
+
+    if (
+      Number.isFinite(initialSeasonIndex) &&
+      seasons.some((s: BaseItemDto) => s.IndexNumber === initialSeasonIndex)
+    ) {
+      return initialSeasonIndex as number;
+    }
+
+    // Same fallback convention as SeasonDropdown: season 1, then season 0
+    // (specials), then whatever the first season is.
+    const season1 = seasons.find((s: BaseItemDto) => s.IndexNumber === 1);
+    const season0 = seasons.find((s: BaseItemDto) => s.IndexNumber === 0);
+    return (season1 ?? season0 ?? seasons[0])?.IndexNumber ?? 1;
+  }, [seasonIndexState, item.Id, initialSeasonIndex, seasons]);
 
   // Get selected season ID
   const selectedSeasonId = useMemo(() => {
@@ -398,7 +420,7 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
         contentContainerStyle={{
           paddingTop: insets.top + TOP_PADDING,
           paddingHorizontal: insets.left + HORIZONTAL_PADDING,
-          paddingBottom: insets.bottom + 60,
+          paddingBottom: insets.bottom + scaleSize(60),
         }}
         showsVerticalScrollIndicator={false}
       >
@@ -417,8 +439,8 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
             <View
               style={{
                 flexDirection: "row",
-                gap: 16,
-                marginTop: 32,
+                gap: scaleSize(16),
+                marginTop: scaleSize(32),
               }}
             >
               <TVButton
@@ -430,9 +452,9 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
               >
                 <Ionicons
                   name='play'
-                  size={28}
+                  size={scaleSize(28)}
                   color='#000000'
-                  style={{ marginRight: 10 }}
+                  style={{ marginRight: scaleSize(10) }}
                 />
                 <Text
                   style={{
@@ -456,12 +478,16 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
                       fontSize: typography.callout,
                       fontWeight: "bold",
                       color: "#FFFFFF",
-                      marginRight: 10,
+                      marginRight: scaleSize(10),
                     }}
                   >
                     {selectedSeasonName}
                   </Text>
-                  <Ionicons name='chevron-down' size={28} color='#FFFFFF' />
+                  <Ionicons
+                    name='chevron-down'
+                    size={scaleSize(28)}
+                    color='#FFFFFF'
+                  />
                 </TVButton>
               )}
 
@@ -473,9 +499,9 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
                 >
                   <Ionicons
                     name='shuffle'
-                    size={28}
+                    size={scaleSize(28)}
                     color='#000000'
-                    style={{ marginRight: 10 }}
+                    style={{ marginRight: scaleSize(10) }}
                   />
                   <Text
                     style={{
@@ -497,13 +523,13 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
           <View
             style={{
               width: SCREEN_WIDTH * POSTER_WIDTH_PERCENT,
-              marginLeft: 50,
+              marginLeft: scaleSize(50),
             }}
           >
             <View
               style={{
                 aspectRatio: 2 / 3,
-                borderRadius: 16,
+                borderRadius: scaleSize(16),
                 overflow: "hidden",
                 shadowColor: "#000",
                 shadowOffset: { width: 0, height: 10 },
@@ -521,13 +547,13 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
         </View>
 
         {/* Episodes section */}
-        <View style={{ marginTop: 40, overflow: "visible" }}>
+        <View style={{ marginTop: scaleSize(40), overflow: "visible" }}>
           <Text
             style={{
               fontSize: typography.heading,
               fontWeight: "600",
               color: "#FFFFFF",
-              marginBottom: 24,
+              marginBottom: scaleSize(24),
               marginLeft: SCALE_PADDING,
             }}
           >

@@ -42,6 +42,9 @@ export interface PendingDownload {
   trickPlayData?: TrickPlayData;
   introSegments?: MediaTimeSegment[];
   creditSegments?: MediaTimeSegment[];
+  recapSegments?: MediaTimeSegment[];
+  commercialSegments?: MediaTimeSegment[];
+  previewSegments?: MediaTimeSegment[];
   audioStreamIndex?: number;
   subtitleStreamIndex?: number;
   /** Metadata originally handed to native; reused when re-enqueueing after a relaunch. */
@@ -133,6 +136,9 @@ export function finalizePendingDownload(
     trickPlayData: record.trickPlayData,
     introSegments: record.introSegments,
     creditSegments: record.creditSegments,
+    recapSegments: record.recapSegments,
+    commercialSegments: record.commercialSegments,
+    previewSegments: record.previewSegments,
     userData: {
       audioStreamIndex: record.audioStreamIndex ?? 0,
       subtitleStreamIndex: record.subtitleStreamIndex ?? -1,

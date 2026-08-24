@@ -50,12 +50,26 @@ export type NativePlayerChapter = {
   startSec: number;
 };
 
-export type NativePlayerSegmentType = "Intro" | "Outro";
+export type NativePlayerSegmentType =
+  | "Intro"
+  | "Outro"
+  | "Recap"
+  | "Commercial"
+  | "Preview";
+
+/**
+ * What the player does with a segment. Resolved on the JS side from the
+ * per-type skip settings so the native player never has to read settings, and
+ * so both stay in step with the JS players.
+ */
+export type NativePlayerSegmentSkipMode = "none" | "ask" | "auto";
 
 export type NativePlayerSegment = {
   type: NativePlayerSegmentType;
   startSec: number;
   endSec: number;
+  /** Defaults to "ask" natively when absent, matching the app default. */
+  skipMode?: NativePlayerSegmentSkipMode;
 };
 
 export type NativePlayerTrickplay = {
@@ -153,13 +167,17 @@ export type NativePlayerSubtitleSearchState = {
 };
 
 export type NativePlayerSubtitleStyle = {
-  fontSize?: number;
   scale?: number;
+  /** Platform calibration applied natively before surface compensation. */
+  renderScaleMultiplier?: number;
+  scaleLocked?: boolean;
   marginY?: number;
   alignX?: "left" | "center" | "right";
   alignY?: "top" | "center" | "bottom";
-  backgroundColor?: string;
-  borderStyle?: "outline-and-shadow" | "background-box";
+  color?: string;
+  font?: string;
+  background?: string;
+  backgroundPadding?: number;
   assOverride?: "no" | "force";
 };
 
@@ -172,6 +190,14 @@ export type NativePlayerStrings = Partial<
   Record<
     | "skipIntro"
     | "skipCredits"
+    | "skipRecap"
+    | "skipCommercial"
+    | "skipPreview"
+    | "segmentSkippedIntro"
+    | "segmentSkippedOutro"
+    | "segmentSkippedRecap"
+    | "segmentSkippedCommercial"
+    | "segmentSkippedPreview"
     | "nextEpisode"
     | "playNow"
     | "cancel"
@@ -183,6 +209,7 @@ export type NativePlayerStrings = Partial<
     | "technicalInfo"
     | "playbackError"
     | "close"
+    | "reset"
     | "off"
     | "quality"
     | "subtitleSize"
@@ -320,7 +347,7 @@ export type NativePlayerEvents = {
     bitrateValue: number;
     positionSec: number;
   }) => void;
-  /** In-player subtitle size change; persist as settings.mpvSubtitleScale. */
+  /** In-player subtitle size change; persist as settings.subtitleSize. */
   onSubtitleScaleChange: (payload: { scale: number }) => void;
   /**
    * In-player rotate button. The native VC already flipped its own mask and

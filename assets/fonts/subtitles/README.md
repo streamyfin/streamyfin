@@ -26,7 +26,7 @@ See https://github.com/streamyfin/streamyfin/issues/1789.
 | `NotoSans-Regular.ttf` | Latin (incl. Latin Extended-A), Greek, Cyrillic | `--sub-font` — glyph-checked |
 | `NotoSansArabic-Regular.ttf` | Arabic | font DB, via CoreText fallback |
 | `NotoSansHebrew-Regular.ttf` | Hebrew | font DB, via CoreText fallback |
-| `NotoSansCJKsc-Regular.otf` | CJK, Kana, Hangul | copied to `subfont.ttf` — blind last resort |
+| `NotoSansCJKsc-Regular.otf` | CJK, Kana, Hangul | linked as `subfont.ttf` — blind last resort |
 
 ## Provenance
 
@@ -35,5 +35,9 @@ See https://github.com/streamyfin/streamyfin/issues/1789.
 - `NotoSansCJKsc-Regular.otf`
   — https://github.com/notofonts/noto-cjk (`Sans/OTF/SimplifiedChinese/`)
   sha256 `2c76254f6fc379fddfce0a7e84fb5385bb135d3e399294f6eeb6680d0365b74b`
+
+At runtime, the renderer creates lightweight links from its cache directory to these
+immutable bundle resources. This keeps the font cache out of backups and avoids
+copying 17 MB during player startup.
 
 All are licensed under the SIL Open Font License 1.1 — see `OFL.txt`.
