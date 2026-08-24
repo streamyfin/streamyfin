@@ -11,13 +11,21 @@ import { buildTVDiscoveryPayload } from "./payload";
 export function updateTVDiscovery({
   api,
   sections,
+  useEpisodeImages,
 }: {
   api: Api | null | undefined;
   sections: Array<{ title: string; items: BaseItemDto[] | undefined }>;
+  useEpisodeImages?: boolean;
 }): void {
   if (!Platform.isTV) return;
 
-  const payload = buildTVDiscoveryPayload({ api, sections });
+  const payload = buildTVDiscoveryPayload({
+    api,
+    sections,
+    // Google TV forces landscape home tiles; Apple TV renders 2:3 posters.
+    imageShape: Platform.OS === "android" ? "landscape" : "poster",
+    useEpisodeImages,
+  });
 
   if (!payload) {
     console.log("[TVDiscovery] No payload generated; clearing TV discovery");

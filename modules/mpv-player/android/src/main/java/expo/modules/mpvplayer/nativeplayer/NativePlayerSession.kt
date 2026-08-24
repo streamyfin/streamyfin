@@ -73,6 +73,12 @@ class NativePlayerSession(
     private var isDismissing = false
     private var pendingConfig: PlayerPresentConfigRecord? = null
 
+    /// Set once playback has begun (isPlaying has been true at least once), so
+    /// syncKeepScreenOn only clears FLAG_KEEP_SCREEN_ON on a genuine pause —
+    /// not during the initial load before the first frame, where the flag must
+    /// stay set to keep the screen awake while the stream buffers.
+    private var playbackStarted = false
+
     private var pipReceiverRegistered = false
     private val mainHandler = Handler(Looper.getMainLooper())
 
@@ -160,6 +166,7 @@ class NativePlayerSession(
 
                 viewModel.onPlaybackStateSync = {
                     mediaSessionController?.updatePlaybackState()
+                    syncKeepScreenOn()
                 }
                 viewModel.onMetadataSync = {
                     mediaSessionController?.updateMetadata()
@@ -334,6 +341,26 @@ class NativePlayerSession(
                 }.also { owner.onBackPressedDispatcher.addCallback(it) }
             }
             setupPiP(activity, config.ui.allowPip)
+        }
+    }
+
+    /**
+     * Keep the screen on while playback is running and clear it on pause so
+     * the system screensaver can kick in — JS parity with the expo-keep-awake
+     * tag in direct-player (activates on play, releases on pause). Called from
+     * onPlaybackStateSync, which fires on play/pause, loading and seek.
+     *
+     * The flag only clears once playback has actually begun — during the
+     * initial buffering before the first frame isPlaying is still false, and
+     * clearing there would let the screen sleep mid-load.
+     */
+    private fun syncKeepScreenOn() {
+        val window = hostActivity?.window ?: return
+        if (viewModel.isPlaying) {
+            playbackStarted = true
+            window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        } else if (playbackStarted) {
+            window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         }
     }
 

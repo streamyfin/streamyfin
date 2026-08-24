@@ -280,8 +280,9 @@ export const Home = () => {
           items: heroItems,
         },
       ],
+      useEpisodeImages: settings?.useEpisodeImagesForNextUp,
     });
-  }, [api, heroItems, t]);
+  }, [api, heroItems, t, settings?.useEpisodeImagesForNextUp]);
 
   const userViews = useMemo(
     () => data?.filter((l) => !settings?.hiddenLibraries?.includes(l.Id!)),
