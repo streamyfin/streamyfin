@@ -1,15 +1,13 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { useAtom } from "jotai";
 import type React from "react";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { TouchableOpacity, View, type ViewProps } from "react-native";
-import { POSTER_CAROUSEL_HEIGHT } from "@/constants/Values";
+import type { ViewProps } from "react-native";
+import { CardRow } from "@/components/cards/CardRow";
 import useRouter from "@/hooks/useAppRouter";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getPrimaryImageUrlById } from "@/utils/jellyfin/image/getPrimaryImageUrlById";
-import { HorizontalScroll } from "../common/HorizontalScroll";
-import { Text } from "../common/Text";
-import Poster from "../posters/Poster";
 
 interface Props extends ViewProps {
   item?: BaseItemDto | null;
@@ -20,30 +18,31 @@ export const CurrentSeries: React.FC<Props> = ({ item, ...props }) => {
   const { t } = useTranslation();
   const router = useRouter();
 
+  // The card shows the series this episode belongs to, so it is built by hand
+  // rather than from the episode item.
+  const cards = useMemo(
+    () =>
+      item
+        ? [
+            {
+              id: item.Id ?? "series",
+              title: item.SeriesName ?? "",
+              imageUrl: getPrimaryImageUrlById({ api, id: item.ParentId }),
+            },
+          ]
+        : [],
+    [api, item],
+  );
+
   return (
-    <View {...props}>
-      <Text className='text-lg font-bold mb-2 px-4'>
-        {t("item_card.series")}
-      </Text>
-      <HorizontalScroll
-        data={[item]}
-        height={POSTER_CAROUSEL_HEIGHT}
-        renderItem={(item, _index) => (
-          <TouchableOpacity
-            key={item?.Id}
-            onPress={() =>
-              item?.SeriesId && router.push(`/series/${item.SeriesId}`)
-            }
-            className='flex flex-col space-y-2 w-28'
-          >
-            <Poster
-              id={item?.Id}
-              url={getPrimaryImageUrlById({ api, id: item?.ParentId })}
-            />
-            <Text numberOfLines={1}>{item?.SeriesName}</Text>
-          </TouchableOpacity>
-        )}
-      />
-    </View>
+    <CardRow
+      {...props}
+      title={t("item_card.series")}
+      kind='portrait'
+      cards={cards}
+      onPressId={() =>
+        item?.SeriesId && router.push(`/series/${item.SeriesId}` as any)
+      }
+    />
   );
 };

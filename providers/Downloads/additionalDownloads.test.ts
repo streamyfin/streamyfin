@@ -5,6 +5,8 @@ import type {
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { atom } from "jotai";
+import { normalizeCustomHeaders } from "@/utils/customHeaders/normalize";
+import { optionsWithOptionalHeaders } from "@/utils/customHeaders/optionalHeaders";
 
 // --- Module-boundary stubs (React Native / Expo can't load under bun:test) ---
 mock.module("react-native", () => ({
@@ -14,7 +16,21 @@ mock.module("react-native", () => ({
     select: (spec: Record<string, unknown>) => spec.ios ?? spec.default,
   },
 }));
+mock.module("expo", () => ({
+  // codecSupport probes the native MPV module; under bun:test there is none.
+  requireOptionalNativeModule: () => null,
+}));
 mock.module("@/components/BitrateSelector", () => ({}));
+// The custom-header barrel re-exports modules with native dependencies (MMKV,
+// SecureStore). Replace it with the real pure helpers plus a resolver stub —
+// mock.module is global, so the shape has to stay compatible with the other
+// specs that stub this same barrel (utils/jellyfin/checkServer.test.ts).
+mock.module("@/utils/customHeaders", () => ({
+  normalizeCustomHeaders,
+  optionsWithOptionalHeaders,
+  // No proxy headers configured in these specs.
+  getJellyfinHeadersForUrl: () => undefined,
+}));
 mock.module("@/providers/JellyfinProvider", () => ({
   apiAtom: atom<Api | null>(null),
 }));
@@ -99,19 +115,14 @@ beforeEach(() => {
 });
 
 describe("downloadTrickplayImages", () => {
-  test("downloads every sheet with the Authorization header", async () => {
+  test("downloads every sheet from the authenticated sheet URL", async () => {
     await downloadTrickplayImages(trickplayItem, api);
 
     expect(downloads).toEqual(
       [0, 1, 2, 3].map((index) => ({
-        url: `https://jellyfin.example.com/Videos/item-1/Trickplay/320/${index}.jpg`,
+        url: `https://jellyfin.example.com/Videos/item-1/Trickplay/320/${index}.jpg?ApiKey=SECRET_TOKEN`,
         destination: `file:///documents/some_movie__trickplay/${index}.jpg`,
-        options: {
-          headers: {
-            Authorization:
-              'MediaBrowser DeviceId="device-1", Token="SECRET_TOKEN"',
-          },
-        },
+        options: {},
       })),
     );
   });
@@ -122,10 +133,10 @@ describe("downloadTrickplayImages", () => {
     await downloadTrickplayImages(trickplayItem, api);
 
     expect(downloads.map((download) => download.url)).toEqual([
-      "https://jellyfin.example.com/Videos/item-1/Trickplay/320/0.jpg",
-      "https://jellyfin.example.com/Videos/item-1/Trickplay/320/1.jpg",
-      "https://jellyfin.example.com/Videos/item-1/Trickplay/320/2.jpg",
-      "https://jellyfin.example.com/Videos/item-1/Trickplay/320/3.jpg",
+      "https://jellyfin.example.com/Videos/item-1/Trickplay/320/0.jpg?ApiKey=SECRET_TOKEN",
+      "https://jellyfin.example.com/Videos/item-1/Trickplay/320/1.jpg?ApiKey=SECRET_TOKEN",
+      "https://jellyfin.example.com/Videos/item-1/Trickplay/320/2.jpg?ApiKey=SECRET_TOKEN",
+      "https://jellyfin.example.com/Videos/item-1/Trickplay/320/3.jpg?ApiKey=SECRET_TOKEN",
     ]);
   });
 });
@@ -183,7 +194,7 @@ describe("downloadSubtitles", () => {
       {
         url: "https://subs.example.org/opensubtitles/9/Stream.srt",
         destination: "file:///documents/some_movie__subtitle_9.srt",
-        options: { headers: undefined },
+        options: {},
       },
     ]);
   });

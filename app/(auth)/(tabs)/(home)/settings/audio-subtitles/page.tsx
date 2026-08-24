@@ -1,11 +1,11 @@
 import { Platform, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { AudioToggles } from "@/components/settings/AudioToggles";
 import { MediaProvider } from "@/components/settings/MediaContext";
-import { MpvSubtitleSettings } from "@/components/settings/MpvSubtitleSettings";
 import { SubtitleToggles } from "@/components/settings/SubtitleToggles";
+import { useDismissKeyboardOnLeave } from "@/hooks/useDismissKeyboardOnLeave";
 
 export default function AudioSubtitlesPage() {
+  useDismissKeyboardOnLeave();
   const insets = useSafeAreaInsets();
 
   return (
@@ -21,9 +21,7 @@ export default function AudioSubtitlesPage() {
         style={{ paddingTop: Platform.OS === "android" ? 10 : 0 }}
       >
         <MediaProvider>
-          <AudioToggles className='mb-4' />
           <SubtitleToggles className='mb-4' />
-          <MpvSubtitleSettings className='mb-4' />
         </MediaProvider>
       </View>
     </ScrollView>

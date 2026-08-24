@@ -1,5 +1,5 @@
-import { Image } from "expo-image";
 import { View } from "react-native";
+import { Image } from "@/components/common/ServerImage";
 
 type PosterProps = {
   id?: string | null;

@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { Animated, Pressable, View } from "react-native";
 import { Text } from "@/components/common/Text";
 import { useScaledTVTypography } from "@/constants/TVTypography";
@@ -14,6 +15,8 @@ export interface TVSettingsStepperProps {
   formatValue?: (value: number) => string;
   isFirst?: boolean;
   disabled?: boolean;
+  /** Locked by the Streamyfin plugin; dims the row and says so. */
+  disabledByAdmin?: boolean;
 }
 
 export const TVSettingsStepper: React.FC<TVSettingsStepperProps> = ({
@@ -24,7 +27,10 @@ export const TVSettingsStepper: React.FC<TVSettingsStepperProps> = ({
   formatValue,
   isFirst,
   disabled,
+  disabledByAdmin,
 }) => {
+  const { t } = useTranslation();
+  const isDisabled = disabled || disabledByAdmin;
   const typography = useScaledTVTypography();
   const labelAnim = useTVFocusAnimation({ scaleAmount: 1.02 });
   const minusAnim = useTVFocusAnimation({ scaleAmount: 1.1 });
@@ -46,20 +52,32 @@ export const TVSettingsStepper: React.FC<TVSettingsStepperProps> = ({
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "space-between",
+        opacity: isDisabled ? 0.4 : 1,
       }}
     >
       <Pressable
         style={{ flex: 1 }}
         onFocus={labelAnim.handleFocus}
         onBlur={labelAnim.handleBlur}
-        hasTVPreferredFocus={isFirst && !disabled}
-        disabled={disabled}
-        focusable={!disabled}
+        hasTVPreferredFocus={isFirst && !isDisabled}
+        disabled={isDisabled}
+        focusable={!isDisabled}
       >
         <Animated.View style={labelAnim.animatedStyle}>
           <Text style={{ fontSize: typography.body, color: "#FFFFFF" }}>
             {label}
           </Text>
+          {disabledByAdmin && (
+            <Text
+              style={{
+                fontSize: typography.callout,
+                color: "#EF4444",
+                marginTop: scaleSize(2),
+              }}
+            >
+              {t("home.settings.disabled_by_admin")}
+            </Text>
+          )}
         </Animated.View>
       </Pressable>
       <View style={{ flexDirection: "row", alignItems: "center" }}>
@@ -67,8 +85,8 @@ export const TVSettingsStepper: React.FC<TVSettingsStepperProps> = ({
           onPress={onDecrease}
           onFocus={minusAnim.handleFocus}
           onBlur={minusAnim.handleBlur}
-          disabled={disabled}
-          focusable={!disabled}
+          disabled={isDisabled}
+          focusable={!isDisabled}
         >
           <Animated.View
             style={[
@@ -105,8 +123,8 @@ export const TVSettingsStepper: React.FC<TVSettingsStepperProps> = ({
           onPress={onIncrease}
           onFocus={plusAnim.handleFocus}
           onBlur={plusAnim.handleBlur}
-          disabled={disabled}
-          focusable={!disabled}
+          disabled={isDisabled}
+          focusable={!isDisabled}
         >
           <Animated.View
             style={[

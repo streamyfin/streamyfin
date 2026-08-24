@@ -117,7 +117,7 @@ class MPVNowPlayingManager {
     // MARK: - State Updates (call these whenever data changes)
     
     /// Set metadata (title, artist, artwork URL)
-    func setMetadata(title: String?, artist: String?, albumTitle: String?, artworkUrl: String?) {
+    func setMetadata(title: String?, artist: String?, albumTitle: String?, artworkUrl: String?, artworkHeaders: [String: String]? = nil) {
         self.title = title
         self.artist = artist
         self.albumTitle = albumTitle
@@ -127,7 +127,11 @@ class MPVNowPlayingManager {
         // Load artwork async
         artworkTask?.cancel()
         if let urlString = artworkUrl, let url = URL(string: urlString) {
-            artworkTask = URLSession.shared.dataTask(with: url) { [weak self] data, _, _ in
+            var request = URLRequest(url: url)
+            artworkHeaders?.forEach { key, value in
+                request.setValue(value, forHTTPHeaderField: key)
+            }
+            artworkTask = URLSession.shared.dataTask(with: request) { [weak self] data, _, _ in
                 if let data = data, let image = UIImage(data: data) {
                     self?.cachedArtwork = MPMediaItemArtwork(boundsSize: image.size) { _ in image }
                     print("[NowPlaying] Artwork loaded")

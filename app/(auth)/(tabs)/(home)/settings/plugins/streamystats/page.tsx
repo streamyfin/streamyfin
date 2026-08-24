@@ -10,17 +10,22 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { toast } from "sonner-native";
+import { HeaderButton } from "@/components/common/HeaderButton";
 import { ServerUrlStatusText } from "@/components/common/ServerUrlStatusText";
 import { SettingSwitch } from "@/components/common/SettingSwitch";
 import { Text } from "@/components/common/Text";
 import { ListGroup } from "@/components/list/ListGroup";
 import { ListItem } from "@/components/list/ListItem";
+import { CustomHeaderSelector } from "@/components/settings/CustomHeaderSelector";
+import { useDismissKeyboardOnLeave } from "@/hooks/useDismissKeyboardOnLeave";
+import { useIntegrationHeaders } from "@/hooks/useIntegrationHeaders";
 import { useNetworkAwareQueryClient } from "@/hooks/useNetworkAwareQueryClient";
 import { useServerUrlResolver } from "@/hooks/useServerUrlResolver";
 import { useSettings } from "@/utils/atoms/settings";
 import { reachabilityProbe } from "@/utils/serverUrl/probes/reachability";
 
 export default function StreamystatsPage() {
+  useDismissKeyboardOnLeave();
   const { t } = useTranslation();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
@@ -30,7 +35,8 @@ export default function StreamystatsPage() {
 
   // Local state for all editable fields
   const [url, setUrl] = useState<string>(settings?.streamyStatsServerUrl || "");
-  const urlResolver = useServerUrlResolver(reachabilityProbe);
+  const { resolveOptions } = useIntegrationHeaders("streamystats");
+  const urlResolver = useServerUrlResolver(reachabilityProbe, resolveOptions);
   const [useForSearch, setUseForSearch] = useState<boolean>(
     settings?.searchEngine === "Streamystats",
   );
@@ -105,11 +111,11 @@ export default function StreamystatsPage() {
   useEffect(() => {
     navigation.setOptions({
       headerRight: () => (
-        <TouchableOpacity onPress={onSave}>
+        <HeaderButton variant='text' onPress={onSave}>
           <Text className='text-blue-500 font-medium'>
             {t("home.settings.plugins.streamystats.save")}
           </Text>
-        </TouchableOpacity>
+        </HeaderButton>
       ),
     });
   }, [navigation, onSave, t]);
@@ -193,6 +199,12 @@ export default function StreamystatsPage() {
             )}
           </Text>
         </Text>
+
+        <CustomHeaderSelector
+          integrationKey='streamystats'
+          title={t("custom_headers.title")}
+          description={t("custom_headers.integration_description")}
+        />
 
         <ListGroup
           title={t("home.settings.plugins.streamystats.features_title")}

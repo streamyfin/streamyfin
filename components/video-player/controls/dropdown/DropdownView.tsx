@@ -1,9 +1,26 @@
 import { Ionicons } from "@expo/vector-icons";
+import {
+  BottomSheetBackdrop,
+  type BottomSheetBackdropProps,
+  BottomSheetModal,
+} from "@gorhom/bottom-sheet";
 import { useLocalSearchParams } from "expo-router";
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { Platform, View } from "react-native";
+import {
+  Modal,
+  Platform,
+  Pressable,
+  StyleSheet,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { Slider } from "react-native-awesome-slider";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { useSharedValue } from "react-native-reanimated";
 import { BITRATES } from "@/components/BitrateSelector";
+import { Text } from "@/components/common/Text";
+import { Stepper } from "@/components/inputs/Stepper";
 import {
   type OptionGroup,
   PlatformDropdown,
@@ -16,36 +33,202 @@ import { usePlayerContext } from "../contexts/PlayerContext";
 import { useVideoContext } from "../contexts/VideoContext";
 import { PlaybackSpeedScope } from "../utils/playback-speed-settings";
 
-// Subtitle scale presets (direct multiplier values)
-const SUBTITLE_SCALE_PRESETS = [
-  { label: "0.1x", value: 0.1 },
-  { label: "0.25x", value: 0.25 },
-  { label: "0.5x", value: 0.5 },
-  { label: "0.75x", value: 0.75 },
-  { label: "1.0x", value: 1.0 },
-  { label: "1.25x", value: 1.25 },
-  { label: "1.5x", value: 1.5 },
-  { label: "2.0x", value: 2.0 },
-  { label: "2.5x", value: 2.5 },
-  { label: "3.0x", value: 3.0 },
-] as const;
+const SUBTITLE_SYNC_OFFSETS = [-5, -2, -1, -0.5, -0.25, 0, 0.25, 0.5, 1, 2, 5];
+const SUBTITLE_SCALE_MIN = 0.1;
+const SUBTITLE_SCALE_MAX = 3;
+const SUBTITLE_SCALE_STEPS = 29;
+const SUBTITLE_SCALE_TIMEOUT_MS = 5000;
+
+const SubtitleScaleControl = ({
+  onClose,
+  onInteraction,
+}: {
+  onClose?: () => void;
+  onInteraction?: () => void;
+}) => {
+  const { t } = useTranslation();
+  const { settings, updateSettings, pluginSettings } = useSettings();
+  const progress = useSharedValue(settings.subtitleSize);
+  const minimumValue = useSharedValue(SUBTITLE_SCALE_MIN);
+  const maximumValue = useSharedValue(SUBTITLE_SCALE_MAX);
+  const disabled = pluginSettings?.subtitleSize?.locked === true;
+
+  useEffect(() => {
+    progress.value = settings.subtitleSize;
+  }, [progress, settings.subtitleSize]);
+
+  const updateSubtitleScale = useCallback(
+    (value: number) => {
+      const subtitleSize = Math.round(value * 10) / 10;
+      progress.value = subtitleSize;
+      updateSettings({ subtitleSize });
+      onInteraction?.();
+    },
+    [onInteraction, progress, updateSettings],
+  );
+
+  return (
+    <View className='px-6 pt-4 pb-6'>
+      <View className='flex-row items-center justify-between mb-6'>
+        <Text className='text-xl font-bold'>
+          {t("player.menu.subtitle_scale")}
+        </Text>
+        <View className='flex-row items-center gap-3'>
+          {Platform.OS === "android" && (
+            <Text className='text-base text-neutral-300'>
+              {settings.subtitleSize.toFixed(1)}×
+            </Text>
+          )}
+          {onClose && (
+            <TouchableOpacity
+              onPress={onClose}
+              className='h-8 w-8 items-center justify-center'
+              accessibilityLabel={t("common.close")}
+            >
+              <Ionicons name='close-circle' size={24} color='#d4d4d4' />
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+      {Platform.OS === "android" ? (
+        <View
+          className={`flex-row items-center${disabled ? " opacity-50" : ""}`}
+        >
+          <Text className='text-sm'>A</Text>
+          <View
+            className='flex-1 mx-4'
+            accessible
+            accessibilityRole='adjustable'
+            accessibilityLabel={t("player.menu.subtitle_scale")}
+            accessibilityState={{ disabled }}
+            accessibilityValue={{
+              min: SUBTITLE_SCALE_MIN,
+              max: SUBTITLE_SCALE_MAX,
+              now: settings.subtitleSize,
+              text: `${settings.subtitleSize.toFixed(1)}×`,
+            }}
+            accessibilityActions={[
+              { name: "decrement" },
+              { name: "increment" },
+            ]}
+            onAccessibilityAction={({ nativeEvent }) => {
+              if (disabled) return;
+              updateSubtitleScale(
+                nativeEvent.actionName === "increment"
+                  ? Math.min(SUBTITLE_SCALE_MAX, settings.subtitleSize + 0.1)
+                  : Math.max(SUBTITLE_SCALE_MIN, settings.subtitleSize - 0.1),
+              );
+            }}
+          >
+            <Slider
+              progress={progress}
+              minimumValue={minimumValue}
+              maximumValue={maximumValue}
+              steps={SUBTITLE_SCALE_STEPS}
+              forceSnapToStep
+              disable={disabled}
+              sliderHeight={6}
+              thumbWidth={24}
+              renderBubble={() => null}
+              renderMark={() => null}
+              onSlidingStart={onInteraction}
+              onValueChange={updateSubtitleScale}
+              containerStyle={{ borderRadius: 100 }}
+              theme={{
+                minimumTrackTintColor: "#fff",
+                maximumTrackTintColor: "rgba(255,255,255,0.2)",
+                disableMinTrackTintColor: "rgba(255,255,255,0.35)",
+              }}
+            />
+          </View>
+          <Text className='text-xl'>A</Text>
+        </View>
+      ) : (
+        <View className='items-center'>
+          <Stepper
+            value={settings.subtitleSize}
+            disabled={disabled}
+            step={0.1}
+            min={SUBTITLE_SCALE_MIN}
+            max={SUBTITLE_SCALE_MAX}
+            appendValue='×'
+            formatValue={(value) => value.toFixed(1)}
+            onUpdate={updateSubtitleScale}
+          />
+        </View>
+      )}
+    </View>
+  );
+};
+
+export const AndroidSubtitleScaleOverlay = ({
+  visible,
+  onClose,
+  onBackgroundPress,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  onBackgroundPress: () => void;
+}) => {
+  const timeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const resetTimeout = useCallback(() => {
+    clearTimeout(timeoutRef.current);
+    timeoutRef.current = setTimeout(onClose, SUBTITLE_SCALE_TIMEOUT_MS);
+  }, [onClose]);
+
+  useEffect(() => {
+    if (visible) resetTimeout();
+    return () => clearTimeout(timeoutRef.current);
+  }, [resetTimeout, visible]);
+
+  return (
+    <Modal
+      transparent
+      statusBarTranslucent
+      navigationBarTranslucent
+      visible={visible}
+      animationType='fade'
+      onRequestClose={onClose}
+    >
+      <GestureHandlerRootView style={styles.subtitleScaleModal}>
+        <Pressable
+          style={StyleSheet.absoluteFill}
+          onPress={onBackgroundPress}
+        />
+        <View style={styles.subtitleScaleOverlay}>
+          <SubtitleScaleControl
+            onClose={onClose}
+            onInteraction={resetTimeout}
+          />
+        </View>
+      </GestureHandlerRootView>
+    </Modal>
+  );
+};
 
 interface DropdownViewProps {
   playbackSpeed?: number;
   setPlaybackSpeed?: (speed: number, scope: PlaybackSpeedScope) => void;
+  subtitleDelay?: number;
+  onSubtitleDelayChange?: (seconds: number) => void;
   showTechnicalInfo?: boolean;
   onToggleTechnicalInfo?: () => void;
+  onOpenSubtitleScale?: () => void;
 }
 
 const DropdownView = ({
   playbackSpeed = 1.0,
   setPlaybackSpeed,
+  subtitleDelay = 0,
+  onSubtitleDelayChange,
   showTechnicalInfo = false,
   onToggleTechnicalInfo,
+  onOpenSubtitleScale,
 }: DropdownViewProps) => {
   const { subtitleTracks, audioTracks } = useVideoContext();
   const { item, mediaSource } = usePlayerContext();
-  const { settings, updateSettings } = useSettings();
+  const { settings, pluginSettings } = useSettings();
+  const subtitleScaleModalRef = useRef<BottomSheetModal>(null);
   const router = useRouter();
   const isOffline = useOfflineMode();
   const { t } = useTranslation();
@@ -96,6 +279,25 @@ const DropdownView = ({
     [audioTracks],
   );
 
+  const openSubtitleScale = useCallback(() => {
+    if (Platform.OS === "android") {
+      onOpenSubtitleScale?.();
+    } else {
+      subtitleScaleModalRef.current?.present();
+    }
+  }, [onOpenSubtitleScale]);
+
+  const renderSubtitleScaleBackdrop = useCallback(
+    (props: BottomSheetBackdropProps) => (
+      <BottomSheetBackdrop
+        {...props}
+        disappearsOnIndex={-1}
+        appearsOnIndex={0}
+      />
+    ),
+    [],
+  );
+
   // Transform sections into OptionGroup format
   const optionGroups = useMemo<OptionGroup[]>(() => {
     const groups: OptionGroup[] = [];
@@ -127,16 +329,33 @@ const DropdownView = ({
           onPress: () => sub.setTrack(),
         })),
       });
+    }
 
-      // Subtitle Scale Section
+    // Subtitle Scale Section
+    groups.push({
+      title: t("player.menu.subtitle_scale"),
+      options: [
+        {
+          type: "action" as const,
+          label:
+            Platform.OS === "android"
+              ? `${settings.subtitleSize.toFixed(1)}×`
+              : `${t("player.menu.subtitle_scale")}: ${settings.subtitleSize.toFixed(1)}×`,
+          disabled: pluginSettings?.subtitleSize?.locked,
+          onPress: openSubtitleScale,
+        },
+      ],
+    });
+
+    if (onSubtitleDelayChange) {
       groups.push({
-        title: t("player.menu.subtitle_scale"),
-        options: SUBTITLE_SCALE_PRESETS.map((preset) => ({
+        title: t("player.subtitle_sync"),
+        options: SUBTITLE_SYNC_OFFSETS.map((seconds) => ({
           type: "radio" as const,
-          label: preset.label,
-          value: preset.value.toString(),
-          selected: (settings.mpvSubtitleScale ?? 1.0) === preset.value,
-          onPress: () => updateSettings({ mpvSubtitleScale: preset.value }),
+          label: `${seconds > 0 ? "+" : ""}${seconds} s`,
+          value: seconds.toString(),
+          selected: subtitleDelay === seconds,
+          onPress: () => onSubtitleDelayChange(seconds),
         })),
       });
     }
@@ -195,10 +414,13 @@ const DropdownView = ({
     audioTracksKey,
     subtitleIndex,
     audioIndex,
-    settings.mpvSubtitleScale,
-    updateSettings,
+    settings.subtitleSize,
+    pluginSettings?.subtitleSize?.locked,
+    openSubtitleScale,
     playbackSpeed,
     setPlaybackSpeed,
+    subtitleDelay,
+    onSubtitleDelayChange,
     showTechnicalInfo,
     onToggleTechnicalInfo,
     // Note: subtitleTracks and audioTracks are intentionally excluded
@@ -219,16 +441,48 @@ const DropdownView = ({
   if (Platform.isTV) return null;
 
   return (
-    <PlatformDropdown
-      title={t("player.menu.playback_options")}
-      groups={optionGroups}
-      trigger={trigger}
-      expoUIConfig={{}}
-      bottomSheetConfig={{
-        enablePanDownToClose: true,
-      }}
-    />
+    <>
+      <PlatformDropdown
+        title={t("player.menu.playback_options")}
+        groups={optionGroups}
+        trigger={trigger}
+        expoUIConfig={{}}
+        bottomSheetConfig={{
+          enablePanDownToClose: true,
+        }}
+      />
+      {Platform.OS !== "android" && (
+        <BottomSheetModal
+          ref={subtitleScaleModalRef}
+          enableDynamicSizing
+          enablePanDownToClose
+          stackBehavior='push'
+          backdropComponent={renderSubtitleScaleBackdrop}
+          backgroundStyle={{ backgroundColor: "#171717" }}
+          handleIndicatorStyle={{ backgroundColor: "white" }}
+        >
+          <SubtitleScaleControl />
+        </BottomSheetModal>
+      )}
+    </>
   );
 };
+
+const styles = StyleSheet.create({
+  subtitleScaleModal: {
+    flex: 1,
+    alignItems: "center",
+    paddingTop: 64,
+    backgroundColor: "rgba(0,0,0,0.15)",
+  },
+  subtitleScaleOverlay: {
+    width: "50%",
+    maxWidth: 520,
+    minWidth: 360,
+    borderRadius: 16,
+    backgroundColor: "rgba(23,23,23,0.94)",
+    elevation: 12,
+  },
+});
 
 export default DropdownView;

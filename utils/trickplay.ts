@@ -63,5 +63,5 @@ export const generateTrickplayUrl = (
 ) => {
   const resolution = getTrickplayInfo(item)?.resolution;
   if (!resolution || !api) return null;
-  return `${api.basePath}/Videos/${item.Id}/Trickplay/${resolution}/${sheetIndex}.jpg`;
+  return `${api.basePath}/Videos/${item.Id}/Trickplay/${resolution}/${sheetIndex}.jpg?ApiKey=${api.accessToken}`;
 };

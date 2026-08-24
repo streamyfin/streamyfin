@@ -1,4 +1,4 @@
-import { Feather, Ionicons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import type {
   BaseItemDto,
   BaseItemDtoQueryResult,
@@ -23,10 +23,12 @@ import {
   ScrollView,
   View,
 } from "react-native";
-import { Pressable } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button } from "@/components/Button";
+import { HeaderButton } from "@/components/common/HeaderButton";
+import { HeaderIcon } from "@/components/common/HeaderIcon";
 import { Text } from "@/components/common/Text";
+import { HomeHeroCarousel } from "@/components/home/HomeHeroCarousel";
 import { InfiniteScrollingCollectionList } from "@/components/home/InfiniteScrollingCollectionList";
 import { StreamystatsPromotedWatchlists } from "@/components/home/StreamystatsPromotedWatchlists";
 import { StreamystatsRecommendations } from "@/components/home/StreamystatsRecommendations";
@@ -138,18 +140,17 @@ const HomeMobile = () => {
     }
     navigation.setOptions({
       headerLeft: () => (
-        <Pressable
+        <HeaderButton
+          placement='left'
           onPress={() => {
             router.push("/(auth)/downloads");
           }}
-          style={{ marginRight: Platform.OS === "android" ? 16 : 0 }}
         >
-          <Feather
-            name='download'
-            color={hasDownloads ? Colors.primary : "white"}
-            size={24}
+          <HeaderIcon
+            name='downloads'
+            tintColor={hasDownloads ? Colors.primary : "white"}
           />
-        </Pressable>
+        </HeaderButton>
       ),
     });
   }, [navigation, router, hasDownloads]);
@@ -619,6 +620,7 @@ const HomeMobile = () => {
         className='flex flex-col space-y-4'
         style={{ paddingTop: Platform.OS === "android" ? 10 : 0 }}
       >
+        <HomeHeroCarousel />
         {sections.map((section, index) => {
           // Render Streamystats sections after Recently Added sections
           // For default sections: place after Recently Added, before Suggested Movies (if present)

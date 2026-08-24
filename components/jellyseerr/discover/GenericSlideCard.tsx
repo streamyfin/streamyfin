@@ -1,7 +1,8 @@
-import { Image, type ImageContentFit } from "expo-image";
+import type { ImageContentFit } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import type React from "react";
 import { StyleSheet, View, type ViewProps } from "react-native";
+import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 
 export const textShadowStyle = StyleSheet.create({

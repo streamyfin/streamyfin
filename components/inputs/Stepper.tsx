@@ -1,3 +1,4 @@
+import React from "react";
 import { TouchableOpacity } from "react-native";
 import { Text } from "@/components/common/Text";
 import DisabledSetting from "@/components/settings/DisabledSetting";
@@ -10,6 +11,7 @@ interface StepperProps {
   max: number;
   onUpdate: (value: number) => void;
   appendValue?: string;
+  formatValue?: (value: number) => string;
 }
 
 export const Stepper: React.FC<StepperProps> = ({
@@ -20,15 +22,22 @@ export const Stepper: React.FC<StepperProps> = ({
   max,
   onUpdate,
   appendValue,
+  formatValue,
 }) => {
+  const isDisabled = disabled === true;
+
   return (
     <DisabledSetting
-      disabled={disabled === true}
+      disabled={isDisabled}
       showText={false}
       className='flex flex-row items-center'
     >
       <TouchableOpacity
-        onPress={() => onUpdate(Math.max(min, value - step))}
+        disabled={isDisabled}
+        accessibilityState={{ disabled: isDisabled }}
+        onPress={() => {
+          if (!isDisabled) onUpdate(Math.max(min, value - step));
+        }}
         className='w-8 h-8 bg-neutral-800 rounded-l-lg flex items-center justify-center'
       >
         <Text>-</Text>
@@ -36,12 +45,16 @@ export const Stepper: React.FC<StepperProps> = ({
       <Text
         className={`w-auto h-8 bg-neutral-800 py-2 px-1 flex items-center justify-center${appendValue ? "first-letter:px-2" : ""}`}
       >
-        {value}
+        {formatValue ? formatValue(value) : value}
         {appendValue}
       </Text>
       <TouchableOpacity
+        disabled={isDisabled}
+        accessibilityState={{ disabled: isDisabled }}
         className='w-8 h-8 bg-neutral-800 rounded-r-lg flex items-center justify-center'
-        onPress={() => onUpdate(Math.min(max, value + step))}
+        onPress={() => {
+          if (!isDisabled) onUpdate(Math.min(max, value + step));
+        }}
       >
         <Text>+</Text>
       </TouchableOpacity>

@@ -6,9 +6,7 @@
 </p>
 
 <p align="center">
-  <a href="https://discord.gg/aJvAYeycyY">
-    <img alt="Streamyfin Discord" src="https://img.shields.io/badge/Discord-Streamyfin-blue?style=flat-square&logo=discord">
-  </a>
+  <a href="https://discord.gg/aJvAYeycyY"><img alt="Streamyfin Discord" src="https://img.shields.io/badge/Discord-Streamyfin-blue?style=flat-square&logo=discord"></a><a href="https://www.reddit.com/r/streamyfin/"><img alt="Streamyfin Reddit" src="https://img.shields.io/badge/Reddit-r--streamyfin-FF4500?style=flat-square&logo=reddit"></a>
 </p>
 
 **Streamyfin is a user-friendly Jellyfin video streaming client built with Expo. Designed as an alternative to other Jellyfin clients, it aims to offer a smooth and reliable streaming experience. We hope you'll find it a valuable addition to your media streaming toolbox.**
@@ -35,6 +33,7 @@
 - 🤖 **Seerr (formerly Jellyseerr) integration**: Request media directly in the app
 - 👁️ **Sessions view:** View all active sessions currently streaming on your server
 - 📡 **Chromecast**: Cast your media to any Chromecast-enabled device
+- 🔐 **Custom auth headers**: Reach servers behind an access gateway such as Cloudflare Zero Trust or Pangolin ([docs](./docs/custom-headers.md))
 
 ## 🧪 Experimental Features
 
@@ -253,7 +252,7 @@ A special mention to the following people and projects for their contributions:
 
 ## ⭐ Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=streamyfin/streamyfin&type=Date)](https://star-history.com/#streamyfin/streamyfin&Date)
+[![Star History Chart](https://star-history.dera.page/svg?repos=streamyfin/streamyfin&type=Date)](https://star-history.dera.page/#streamyfin/streamyfin&Date)
 
 ## 📄 License
 

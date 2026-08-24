@@ -17,7 +17,13 @@ import { useLocalSearchParams, useNavigation } from "expo-router";
 import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Alert, Platform, useWindowDimensions, View } from "react-native";
+import {
+  Alert,
+  PixelRatio,
+  Platform,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { useAnimatedReaction, useSharedValue } from "react-native-reanimated";
 import { BITRATES } from "@/components/BitrateSelector";
 import { Text } from "@/components/common/Text";
@@ -26,10 +32,6 @@ import { Controls } from "@/components/video-player/controls/Controls";
 import { Controls as TVControls } from "@/components/video-player/controls/Controls.tv";
 import { PlayerProvider } from "@/components/video-player/controls/contexts/PlayerContext";
 import { VideoProvider } from "@/components/video-player/controls/contexts/VideoContext";
-import {
-  LOCAL_SUBTITLE_INDEX_START,
-  toServerSubtitleIndex,
-} from "@/components/video-player/controls/types";
 import {
   PlaybackSpeedScope,
   updatePlaybackSpeedSettings,
@@ -57,42 +59,37 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { OfflineModeProvider } from "@/providers/OfflineModeProvider";
 import { getSubtitlesForItem } from "@/utils/atoms/downloadedSubtitles";
 import { getActivePlayerType, useSettings } from "@/utils/atoms/settings";
+import { getJellyfinHeadersForUrl } from "@/utils/customHeaders";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
+import {
+  getPlayMethod,
+  type PlayMethod,
+  parseTranscodeReasons,
+} from "@/utils/jellyfin/playMethod";
 import {
   applyMpvSubtitleSelection,
   getExternalSubtitleUrl,
   getMpvAudioId,
   isImageBasedSubtitle,
 } from "@/utils/jellyfin/subtitleUtils";
-import { writeToLog } from "@/utils/log";
+import { logAndCaptureError, writeToLog } from "@/utils/log";
+import {
+  getEffectiveSubtitleMarginY,
+  getEffectiveSubtitleScale,
+} from "@/utils/subtitles";
+import {
+  isLocalSubtitleIndex,
+  localSubtitleIndex,
+  toServerSubtitleIndex,
+} from "@/utils/subtitles/subtitleIndex";
+import {
+  applySubtitleStyle,
+  buildSubtitleStyle,
+} from "@/utils/subtitles/subtitleStyle";
 import { msToTicks, ticksToSeconds } from "@/utils/time";
 import { generateDeviceProfile } from "../../../utils/profiles/native";
-
-type PlayMethod = "DirectPlay" | "DirectStream" | "Transcode";
-
-/**
- * How the session is actually being played. Shared by the reports sent to the
- * server and the technical info overlay, so the dashboard and the app never
- * disagree about the same playback.
- */
-function getPlayMethod(
-  source: { url?: string | null; mediaSource?: MediaSourceInfo | null },
-  offline: boolean,
-): PlayMethod {
-  // A downloaded item plays from a local file, with no server in the path.
-  if (offline) return "DirectPlay";
-  const url = source.url ?? "";
-  if (url.includes("m3u8") || source.mediaSource?.TranscodingUrl) {
-    return "Transcode";
-  }
-  // Served through the stream endpoint rather than as the original file.
-  if (url.includes("/Videos/") && url.includes("/stream")) {
-    return "DirectStream";
-  }
-  return "DirectPlay";
-}
 
 export default function DirectPlayerPage() {
   const videoRef = useRef<MpvPlayerViewRef>(null);
@@ -277,9 +274,16 @@ export default function DirectPlayerPage() {
     settings,
   );
 
+  // Speed held during a long press. Applied to the player only, so it is
+  // never written to the per media or per show settings
+  const speedBeforeHoldRef = useRef<number | null>(null);
+
   // Handler for changing playback speed
   const handleSetPlaybackSpeed = useCallback(
     async (speed: number, scope: PlaybackSpeedScope) => {
+      // A deliberate speed choice wins over a transient hold
+      speedBeforeHoldRef.current = null;
+
       // Update settings based on scope
       updatePlaybackSpeedSettings(
         speed,
@@ -295,6 +299,25 @@ export default function DirectPlayerPage() {
     },
     [item, settings, updateSettings],
   );
+
+  const handleHoldSpeedStart = useCallback(async () => {
+    if (speedBeforeHoldRef.current !== null) return;
+    speedBeforeHoldRef.current = currentPlaybackSpeed;
+    await videoRef.current?.setSpeed?.(settings?.holdToSpeedRate ?? 2.0);
+  }, [currentPlaybackSpeed, settings?.holdToSpeedRate]);
+
+  const handleHoldSpeedEnd = useCallback(async () => {
+    const previousSpeed = speedBeforeHoldRef.current;
+    if (previousSpeed === null) return;
+    speedBeforeHoldRef.current = null;
+    await videoRef.current?.setSpeed?.(previousSpeed);
+  }, []);
+
+  // A new item applies its own speed, so a release afterwards must not
+  // restore the previous item's
+  useEffect(() => {
+    speedBeforeHoldRef.current = null;
+  }, [item?.Id]);
 
   /** Gets the initial playback position from the URL. */
   // const getInitialPlaybackTicks = useCallback((): number => {
@@ -343,7 +366,9 @@ export default function DirectPlayerPage() {
         setItem(fetchedItem);
         setItemStatus({ isLoading: false, isError: false });
       } catch (error) {
-        console.error("Failed to fetch item:", error);
+        logAndCaptureError("Failed to fetch item for player", error, {
+          offline,
+        });
         setItemStatus({ isLoading: false, isError: true });
       }
     };
@@ -353,6 +378,7 @@ export default function DirectPlayerPage() {
       setDownloadedItem(null);
       // Clear the previous episode's stream so the loader gate stays closed
       // until the new item's stream resolves (avoids a stale MPV source frame).
+      setTracksReady(false);
       setStream(null);
       // Scope the started flag and the position to the item being played. The
       // component is reused across an in-place item switch, and both are read
@@ -496,23 +522,45 @@ export default function DirectPlayerPage() {
               audioMode: settings.audioTranscodeMode,
             }),
           });
-          if (!res) return null;
+          if (!res) {
+            // Without flipping isError this path used to leave the loading
+            // spinner up forever.
+            logAndCaptureError("getStreamUrl returned no stream", null, {
+              itemType: item.Type,
+              player: getActivePlayerType(settings),
+            });
+            setStreamStatus({ isLoading: false, isError: true });
+            return null;
+          }
           const { mediaSource, sessionId, url, requiredHttpHeaders } = res;
 
           if (!sessionId || !mediaSource || !url) {
+            logAndCaptureError("Stream response incomplete", null, {
+              itemType: item.Type,
+              player: getActivePlayerType(settings),
+              hasSessionId: !!sessionId,
+              hasMediaSource: !!mediaSource,
+              hasUrl: !!url,
+            });
             Alert.alert(
               t("player.error"),
               t("player.failed_to_get_stream_url"),
             );
+            setStreamStatus({ isLoading: false, isError: true });
             return null;
           }
           result = { mediaSource, sessionId, url, requiredHttpHeaders };
         }
+        setTracksReady(false);
         setStream(result);
         setStreamStatus({ isLoading: false, isError: false });
         return result;
       } catch (error) {
-        console.error("Failed to fetch stream:", error);
+        logAndCaptureError("Failed to fetch stream", error, {
+          itemType: item?.Type,
+          player: getActivePlayerType(settings),
+          offline,
+        });
         setStreamStatus({ isLoading: false, isError: true });
         return null;
       }
@@ -868,6 +916,7 @@ export default function DirectPlayerPage() {
           ? item.SeasonName
           : undefined,
       artworkUri: artworkUri || undefined,
+      artworkHeaders: getJellyfinHeadersForUrl(artworkUri, api.basePath),
     };
   }, [item, api]);
 
@@ -932,6 +981,14 @@ export default function DirectPlayerPage() {
       if (api?.accessToken && !isRemoteStream) {
         headers.Authorization = `MediaBrowser Token="${api.accessToken}"`;
       }
+
+      // Custom proxy auth headers, but only when the stream really comes from
+      // the Jellyfin server: MPV applies headers to every request it makes, so
+      // sending them with a remote/external stream would leak them.
+      Object.assign(
+        headers,
+        getJellyfinHeadersForUrl(stream.url, api?.basePath) ?? {},
+      );
 
       // Add any required headers from the media source (e.g., for external/remote streams)
       if (stream?.requiredHttpHeaders) {
@@ -1235,7 +1292,7 @@ export default function DirectPlayerPage() {
     async (index: number) => {
       // Local (client-downloaded) subs are loaded via addSubtitleFile, not
       // resolvable against server streams — just track the live index.
-      if (index <= LOCAL_SUBTITLE_INDEX_START) {
+      if (isLocalSubtitleIndex(index)) {
         setCurrentSubtitleIndex(index);
         return;
       }
@@ -1292,62 +1349,17 @@ export default function DirectPlayerPage() {
   }, [stream, offline]);
 
   // Extract transcode reasons from the TranscodingUrl
-  const transcodeReasons = useMemo<string[]>(() => {
-    const transcodingUrl = stream?.mediaSource?.TranscodingUrl;
-    if (!transcodingUrl) return [];
-
-    try {
-      // Parse the TranscodeReasons parameter from the URL
-      const url = new URL(transcodingUrl, "http://localhost");
-      const reasons = url.searchParams.get("TranscodeReasons");
-      if (reasons) {
-        return reasons.split(",").filter(Boolean);
-      }
-    } catch {
-      // If URL parsing fails, try regex fallback
-      const match = transcodingUrl.match(/TranscodeReasons=([^&]+)/);
-      if (match) {
-        return match[1].split(",").filter(Boolean);
-      }
-    }
-    return [];
-  }, [stream?.mediaSource?.TranscodingUrl]);
+  const transcodeReasons = useMemo<string[]>(
+    () => parseTranscodeReasons(stream?.mediaSource?.TranscodingUrl),
+    [stream?.mediaSource?.TranscodingUrl],
+  );
 
   const handleZoomToggle = useCallback(async () => {
     const newZoomState = !isZoomedToFill;
     await videoRef.current?.setZoomedToFill?.(newZoomState);
     setIsZoomedToFill(newZoomState);
-
-    // Adjust subtitle position to compensate for video cropping when zoomed
-    if (newZoomState) {
-      // Get video dimensions from mediaSource
-      const videoStream = stream?.mediaSource?.MediaStreams?.find(
-        (s) => s.Type === "Video",
-      );
-      const videoWidth = videoStream?.Width ?? 1920;
-      const videoHeight = videoStream?.Height ?? 1080;
-
-      const videoAR = videoWidth / videoHeight;
-      const screenAR = screenWidth / screenHeight;
-
-      if (screenAR > videoAR) {
-        // Screen is wider than video - video height extends beyond screen
-        // Calculate how much of the video is cropped at the bottom (as % of video height)
-        const bottomCropPercent = 50 * (1 - videoAR / screenAR);
-        // Only adjust by 70% of the crop to keep a comfortable margin from the edge
-        // (subtitles already have some built-in padding from the bottom)
-        const adjustmentFactor = 0.7;
-        const newSubPos = Math.round(
-          100 - bottomCropPercent * adjustmentFactor,
-        );
-        await videoRef.current?.setSubtitlePosition?.(newSubPos);
-      }
-      // If videoAR >= screenAR, sides are cropped but bottom is visible, no adjustment needed
-    } else {
-      // Restore to default position (bottom of video frame)
-      await videoRef.current?.setSubtitlePosition?.(100);
-    }
-  }, [isZoomedToFill, stream?.mediaSource, screenWidth, screenHeight]);
+    await videoRef.current?.setSubtitlePosition?.(100);
+  }, [isZoomedToFill]);
 
   // TV: Navigate to previous item
   const goToPreviousItem = useCallback(() => {
@@ -1394,18 +1406,15 @@ export default function DirectPlayerPage() {
   // TV: Add subtitle file to player (for client-side downloaded subtitles)
   const addSubtitleFile = useCallback(
     async (path: string) => {
-      // Set the live index to the new local sub's REAL index BEFORE the add.
-      // Local subs are keyed LOCAL_SUBTITLE_INDEX_START - position, so use the
-      // downloaded path's position (not a blanket sentinel, which would collide
-      // with the first local sub at -100 and mis-record the selection). Any
-      // local index resolves to notFound on the onTracksReady re-apply, so it
-      // still doesn't clobber the freshly selected track; carry-over now keeps
-      // the correct local sub.
+      // Set the live index to the new local sub's REAL index BEFORE the add:
+      // encode the downloaded path's position, not a blanket sentinel, which
+      // would collide with the first local sub and mis-record the selection.
+      // Any local index resolves to notFound on the onTracksReady re-apply, so
+      // it still doesn't clobber the freshly selected track; carry-over now
+      // keeps the correct local sub.
       const locals = itemId ? getSubtitlesForItem(itemId) : [];
       const pos = locals.findIndex((s) => s.filePath === path);
-      setCurrentSubtitleIndex(
-        LOCAL_SUBTITLE_INDEX_START - (pos >= 0 ? pos : 0),
-      );
+      setCurrentSubtitleIndex(localSubtitleIndex(pos >= 0 ? pos : 0));
       await videoRef.current?.addSubtitleFile?.(path, true);
     },
     [itemId],
@@ -1418,6 +1427,7 @@ export default function DirectPlayerPage() {
   > => {
     if (!refetchStreamRef.current) return [];
 
+    setTracksReady(false);
     const newStream = await refetchStreamRef.current();
 
     // Check if component is still mounted before updating state
@@ -1485,51 +1495,49 @@ export default function DirectPlayerPage() {
     videoRef,
   ]);
 
-  // Apply subtitle settings when video loads
+  // Apply subtitle settings after MPV has enumerated tracks; applying them on
+  // load is too early for ASS override/alignment on Android.
   useEffect(() => {
-    if (!isVideoLoaded || !videoRef.current) return;
-
-    const applySubtitleSettings = async () => {
-      if (settings.mpvSubtitleScale !== undefined) {
-        await videoRef.current?.setSubtitleScale?.(settings.mpvSubtitleScale);
-      }
-      if (settings.mpvSubtitleMarginY !== undefined) {
-        await videoRef.current?.setSubtitleMarginY?.(
-          settings.mpvSubtitleMarginY,
-        );
-      }
-      if (settings.mpvSubtitleAlignX !== undefined) {
-        await videoRef.current?.setSubtitleAlignX?.(settings.mpvSubtitleAlignX);
-      }
-      if (settings.mpvSubtitleAlignY !== undefined) {
-        await videoRef.current?.setSubtitleAlignY?.(settings.mpvSubtitleAlignY);
-      }
-      // Apply subtitle background (iOS only - doesn't work on tvOS due to composite OSD limitation)
-      // mpv uses #RRGGBBAA format (alpha last, same as CSS)
-      if (settings.mpvSubtitleBackgroundEnabled) {
-        const opacity = settings.mpvSubtitleBackgroundOpacity ?? 75;
-        const alphaHex = Math.round((opacity / 100) * 255)
-          .toString(16)
-          .padStart(2, "0")
-          .toUpperCase();
-        // Enable background-box mode (required for sub-back-color to work)
-        await videoRef.current?.setSubtitleBorderStyle?.("background-box");
-        await videoRef.current?.setSubtitleBackgroundColor?.(
-          `#000000${alphaHex}`,
-        );
-        // Force override ASS subtitle styles so background shows on styled subtitles
-        await videoRef.current?.setSubtitleAssOverride?.("force");
-      } else {
-        // Restore default outline-and-shadow style
-        await videoRef.current?.setSubtitleBorderStyle?.("outline-and-shadow");
-        await videoRef.current?.setSubtitleBackgroundColor?.("#00000000");
-        // Restore default ASS behavior (keep original styles)
-        await videoRef.current?.setSubtitleAssOverride?.("no");
-      }
-    };
-
-    applySubtitleSettings();
-  }, [isVideoLoaded, settings]);
+    if (!tracksReady || !videoRef.current) return;
+    const videoStream = stream?.mediaSource?.MediaStreams?.find(
+      (mediaStream) => mediaStream.Type === "Video",
+    );
+    const effectiveMarginY =
+      settings.subtitleMarginY === undefined
+        ? undefined
+        : getEffectiveSubtitleMarginY(settings.subtitleMarginY);
+    const effectiveScale = getEffectiveSubtitleScale(
+      settings.subtitleSize,
+      videoStream?.Width,
+      videoStream?.Height,
+      screenWidth * PixelRatio.get(),
+      screenHeight * PixelRatio.get(),
+      isZoomedToFill && screenHeight > screenWidth ? "cover" : "contain",
+      getActivePlayerType(settings),
+    );
+    void applySubtitleStyle(
+      videoRef.current,
+      buildSubtitleStyle(settings, {
+        scale: effectiveScale,
+        marginY:
+          effectiveMarginY !== undefined &&
+          Platform.OS === "android" &&
+          !Platform.isTV &&
+          screenHeight > screenWidth
+            ? Math.round(effectiveMarginY * 0.7)
+            : effectiveMarginY,
+      }),
+    ).catch((error: unknown) => {
+      console.error("Failed to apply subtitle settings:", error);
+    });
+  }, [
+    tracksReady,
+    settings,
+    stream?.mediaSource,
+    screenWidth,
+    screenHeight,
+    isZoomedToFill,
+  ]);
 
   // Apply initial playback speed when video loads
   useEffect(() => {
@@ -1637,7 +1645,30 @@ export default function DirectPlayerPage() {
                     t("player.error"),
                     t("player.an_error_occurred_while_playing_the_video"),
                   );
-                  writeToLog("ERROR", "Video Error", e.nativeEvent);
+                  // Attach the negotiation and decode facts that make a
+                  // player error diagnosable; the native probe is
+                  // best-effort and must never block or swallow the error
+                  // path — a wedged player may never settle the promise, so
+                  // it races a timeout.
+                  void (async () => {
+                    const technical = await Promise.race([
+                      getTechnicalInfo().catch(() => ({})),
+                      new Promise<Record<string, never>>((resolve) =>
+                        setTimeout(() => resolve({}), 2000),
+                      ),
+                    ]);
+                    logAndCaptureError(
+                      "Video playback error",
+                      e.nativeEvent?.error ?? e.nativeEvent,
+                      {
+                        playMethod,
+                        transcodeReasons,
+                        container: stream?.mediaSource?.Container,
+                        offline,
+                        technical,
+                      },
+                    );
+                  })();
                 }}
                 onTracksReady={() => {
                   setTracksReady(true);
@@ -1724,6 +1755,8 @@ export default function DirectPlayerPage() {
                   downloadedFiles={downloadedFiles}
                   playbackSpeed={currentPlaybackSpeed}
                   setPlaybackSpeed={handleSetPlaybackSpeed}
+                  onHoldSpeedStart={handleHoldSpeedStart}
+                  onHoldSpeedEnd={handleHoldSpeedEnd}
                   showTechnicalInfo={showTechnicalInfo}
                   onToggleTechnicalInfo={handleToggleTechnicalInfo}
                   getTechnicalInfo={getTechnicalInfo}

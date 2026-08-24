@@ -7,6 +7,10 @@ mock.module("react-native", () => ({
     select: (spec: Record<string, unknown>) => spec.ios ?? spec.default,
   },
 }));
+mock.module("expo", () => ({
+  // codecSupport probes the native MPV module; under bun:test there is none.
+  requireOptionalNativeModule: () => null,
+}));
 
 const { getStreamUrl, getDownloadStreamUrl } = await import("./getStreamUrl");
 const { makeApi, bodyContaining } = await import("@/test-utils/jellyfinApi");

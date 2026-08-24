@@ -20,11 +20,13 @@ const item: BaseItemDto = {
 };
 
 describe("generateTrickplayUrl", () => {
-  test("URL points at the trickplay sheet and embeds no credentials", () => {
+  test("URL points at the trickplay sheet, authenticated with ApiKey", () => {
+    // expo-image cannot attach an Authorization header to a source it
+    // prefetches through ServerImage, so the sheet URL carries the token.
     const url = generateTrickplayUrl(item, 2, makeApi());
 
     expect(url).toBe(
-      "https://jellyfin.example.com/Videos/item-1/Trickplay/320/2.jpg",
+      "https://jellyfin.example.com/Videos/item-1/Trickplay/320/2.jpg?ApiKey=SECRET_TOKEN",
     );
   });
 });

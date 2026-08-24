@@ -3,24 +3,9 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
-import type {
-  DeviceProfile,
-  SubtitleProfile,
-} from "@jellyfin/sdk/lib/generated-client/models";
+import type { DeviceProfile } from "@jellyfin/sdk/lib/generated-client/models";
 import { type AudioTranscodeModeType, generateDeviceProfile } from "./native";
-import { IMAGE_SUBTITLE_CODECS, TEXT_SUBTITLE_CODECS } from "./subtitles";
-
-/**
- * Download-specific subtitle profiles.
- */
-const downloadSubtitleProfiles: SubtitleProfile[] = [
-  ...TEXT_SUBTITLE_CODECS.map(
-    (Format): SubtitleProfile => ({ Format, Method: "External" }),
-  ),
-  ...IMAGE_SUBTITLE_CODECS.map(
-    (Format): SubtitleProfile => ({ Format, Method: "Encode" }),
-  ),
-];
+import { getSubtitleProfiles } from "./subtitles";
 
 /**
  * Generates a device profile optimized for downloads.
@@ -36,8 +21,11 @@ export const generateDownloadProfile = (
   return {
     ...baseProfile,
     Name: "1. MPV Download",
-    // Use download-specific subtitle profiles
-    SubtitleProfiles: downloadSubtitleProfiles,
+    // No bitrate cap of its own: "Max" in the quality picker has to mean the
+    // source bitrate, and any lower choice is already sent as
+    // maxStreamingBitrate on the PlaybackInfo request.
+    // Text subtitles come down as sidecar files, image ones are burned in.
+    SubtitleProfiles: getSubtitleProfiles({ target: "download" }),
     // Update transcoding profiles with download-specific settings
     TranscodingProfiles: baseProfile.TranscodingProfiles.map((profile) => {
       if (profile.Type === "Video") {

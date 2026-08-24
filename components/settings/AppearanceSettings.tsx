@@ -1,10 +1,11 @@
 import type React from "react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { Linking } from "react-native";
+import { Linking, Platform } from "react-native";
 import { SettingSwitch } from "@/components/common/SettingSwitch";
 import DisabledSetting from "@/components/settings/DisabledSetting";
 import useRouter from "@/hooks/useAppRouter";
+import { isHeroCarouselAvailable } from "@/modules";
 import { useSettings } from "@/utils/atoms/settings";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
@@ -44,6 +45,24 @@ export const AppearanceSettings: React.FC = () => {
             }
           />
         </ListItem>
+        {/* The switch tracks the native view rather than a platform: it is
+            the only way back once the carousel's own menu turns it off, so it
+            has to be offered wherever the carousel can render. */}
+        {isHeroCarouselAvailable() && (
+          <ListItem
+            title={t("home.settings.appearance.show_hero_carousel")}
+            subtitle={t("home.settings.appearance.show_hero_carousel_hint")}
+            disabled={pluginSettings?.showHeroCarousel?.locked}
+          >
+            <SettingSwitch
+              value={settings.showHeroCarousel}
+              disabled={pluginSettings?.showHeroCarousel?.locked}
+              onValueChange={(value) =>
+                updateSettings({ showHeroCarousel: value })
+              }
+            />
+          </ListItem>
+        )}
         <ListItem
           title={t("home.settings.appearance.merge_next_up_continue_watching")}
           subtitle={t(
@@ -83,6 +102,19 @@ export const AppearanceSettings: React.FC = () => {
             }
           />
         </ListItem>
+        {Platform.OS === "ios" && !Platform.isTV && (
+          <ListItem
+            title={t("home.settings.appearance.download_live_activity")}
+            subtitle={t("home.settings.appearance.download_live_activity_hint")}
+          >
+            <SettingSwitch
+              value={settings.showDownloadLiveActivity}
+              onValueChange={(value) =>
+                updateSettings({ showDownloadLiveActivity: value })
+              }
+            />
+          </ListItem>
+        )}
         <ListItem
           onPress={() =>
             router.push("/settings/appearance/hide-libraries/page")

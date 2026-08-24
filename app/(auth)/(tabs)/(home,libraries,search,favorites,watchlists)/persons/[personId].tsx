@@ -1,25 +1,23 @@
-import type { BaseItemDtoQueryResult } from "@jellyfin/sdk/lib/generated-client/models";
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
-import { Image } from "expo-image";
 import { useLocalSearchParams } from "expo-router";
 import { useAtom } from "jotai";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Platform, View } from "react-native";
-import { InfiniteHorizontalScroll } from "@/components/common/InfiniteHorizontalScroll";
-import { Text } from "@/components/common/Text";
-import { TouchableItemRouter } from "@/components/common/TouchableItemRouter";
-import { ItemCardText } from "@/components/ItemCardText";
+import { Image } from "@/components/common/ServerImage";
+import { InfiniteScrollingCollectionList } from "@/components/home/InfiniteScrollingCollectionList";
 import { Loader } from "@/components/Loader";
 import { MoviesTitleHeader } from "@/components/movies/MoviesTitleHeader";
 import { OverviewText } from "@/components/OverviewText";
 import { ParallaxScrollView } from "@/components/ParallaxPage";
 import { TVActorPage } from "@/components/persons/TVActorPage";
-import MoviePoster from "@/components/posters/MoviePoster";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
 import { getUserItemData } from "@/utils/jellyfin/user-library/getUserItemData";
+
+const PAGE_SIZE = 16;
 
 const page: React.FC = () => {
   const local = useLocalSearchParams();
@@ -52,18 +50,14 @@ const MobileActorPage: React.FC<{ personId: string }> = ({ personId }) => {
   });
 
   const fetchItems = useCallback(
-    async ({
-      pageParam,
-    }: {
-      pageParam: number;
-    }): Promise<BaseItemDtoQueryResult | null> => {
-      if (!api || !user?.Id) return null;
+    async ({ pageParam }: { pageParam: number }): Promise<BaseItemDto[]> => {
+      if (!api || !user?.Id) return [];
 
       const response = await getItemsApi(api).getItems({
         userId: user.Id,
         personIds: [personId],
         startIndex: pageParam,
-        limit: 16,
+        limit: PAGE_SIZE,
         sortOrder: ["Descending", "Descending", "Ascending"],
         includeItemTypes: ["Movie", "Series"],
         recursive: true,
@@ -77,7 +71,7 @@ const MobileActorPage: React.FC<{ personId: string }> = ({ personId }) => {
         collapseBoxSetItems: false,
       });
 
-      return response.data;
+      return response.data.Items ?? [];
     },
     [api, user?.Id, personId],
   );
@@ -122,29 +116,12 @@ const MobileActorPage: React.FC<{ personId: string }> = ({ personId }) => {
           <OverviewText text={item.Overview} />
         </View>
 
-        <Text className='px-4 text-2xl font-bold mb-2 text-neutral-100'>
-          {t("item_card.appeared_in")}
-        </Text>
-        <InfiniteHorizontalScroll
-          height={247}
-          renderItem={(i, idx) => (
-            <TouchableItemRouter
-              key={idx}
-              item={i}
-              className={`flex flex-col
-              ${"w-28"}
-            `}
-            >
-              <View>
-                <MoviePoster item={i} />
-                <ItemCardText item={i} />
-              </View>
-            </TouchableItemRouter>
-          )}
-          queryFn={fetchItems}
+        <InfiniteScrollingCollectionList
+          title={t("item_card.appeared_in")}
           queryKey={["actor", "movies", personId]}
+          queryFn={fetchItems}
+          pageSize={PAGE_SIZE}
         />
-        <View className='h-12' />
       </View>
     </ParallaxScrollView>
   );

@@ -8,8 +8,7 @@ import { getTvShowsApi, getUserLibraryApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { BlurView } from "expo-blur";
 import { File } from "expo-file-system";
-import { Image } from "expo-image";
-import { useAtom, useSetAtom } from "jotai";
+import { useAtom } from "jotai";
 import React, {
   useCallback,
   useEffect,
@@ -20,8 +19,10 @@ import React, {
 import { useTranslation } from "react-i18next";
 import { Alert, Dimensions, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { AwardsBadge } from "@/components/AwardsBadge";
 import { BITRATES, type Bitrate } from "@/components/BitrateSelector";
 import { ItemImage } from "@/components/common/ItemImage";
+import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { getItemNavigation } from "@/components/common/TouchableItemRouter";
 import { GenreTags } from "@/components/GenreTags";
@@ -40,27 +41,32 @@ import {
   TVSeriesNavigation,
   TVTechnicalDetails,
 } from "@/components/tv";
-import {
-  LOCAL_SUBTITLE_INDEX_START,
-  type Track,
-} from "@/components/video-player/controls/types";
+import type { Track } from "@/components/video-player/controls/types";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
 import { useImageColorsReturn } from "@/hooks/useImageColorsReturn";
+import { usePlayMedia } from "@/hooks/usePlayMedia";
 import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
 import { useTVOptionModal } from "@/hooks/useTVOptionModal";
 import { useTVSubtitleModal } from "@/hooks/useTVSubtitleModal";
 import { useTVThemeMusic } from "@/hooks/useTVThemeMusic";
+import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { getSubtitlesForItem } from "@/utils/atoms/downloadedSubtitles";
 import { useSettings } from "@/utils/atoms/settings";
-import { shuffleQueueAtom } from "@/utils/atoms/shuffleQueue";
 import type { TVOptionItem } from "@/utils/atoms/tvOptionModal";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
 import { getPrimaryImageUrlById } from "@/utils/jellyfin/image/getPrimaryImageUrlById";
-import { compareTracksForMenu } from "@/utils/jellyfin/subtitleUtils";
+import { scaleSize } from "@/utils/scaleSize";
+import { rememberSeriesTrackFromRow } from "@/utils/seriesTrackMemory";
+import { SUBTITLES_OFF } from "@/utils/subtitles/subtitleIndex";
+import {
+  buildAudioMenu,
+  buildSubtitleMenu,
+  type TrackMenuRow,
+} from "@/utils/subtitles/trackMenu";
 import { formatDuration, runtimeTicksToMinutes } from "@/utils/time";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
@@ -85,6 +91,14 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
     const [api] = useAtom(apiAtom);
     const [user] = useAtom(userAtom);
     const isOffline = useOfflineMode();
+    const { getDownloadedItemById } = useDownload();
+    // A download pins the tracks it was pulled with, and only the record knows
+    // them: resolving against the server media source hands back an index for a
+    // stream the local file may not contain.
+    const downloadedTracks =
+      isOffline && item?.Id
+        ? getDownloadedItemById(item.Id)?.userData
+        : undefined;
     const { settings } = useSettings();
     const insets = useSafeAreaInsets();
     const router = useRouter();
@@ -126,22 +140,12 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
       SelectedOptions | undefined
     >(undefined);
 
-    // Enable language preference application for TV
-    const playSettingsOptions = useMemo(
-      () => ({ applyLanguagePreferences: true }),
-      [],
-    );
-
     const {
       defaultAudioIndex,
       defaultBitrate,
       defaultMediaSource,
       defaultSubtitleIndex,
-    } = useDefaultPlaySettings(
-      itemWithSources ?? item,
-      settings,
-      playSettingsOptions,
-    );
+    } = useDefaultPlaySettings(itemWithSources ?? item, settings);
 
     const logoUrl = useMemo(
       () => (item ? getLogoImageUrlById({ api, item }) : null),
@@ -153,39 +157,44 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
       setSelectedOptions(() => ({
         bitrate: defaultBitrate,
         mediaSource: defaultMediaSource ?? undefined,
-        subtitleIndex: defaultSubtitleIndex ?? -1,
-        audioIndex: defaultAudioIndex,
+        subtitleIndex:
+          downloadedTracks?.subtitleStreamIndex ?? defaultSubtitleIndex ?? -1,
+        audioIndex: downloadedTracks?.audioStreamIndex ?? defaultAudioIndex,
       }));
     }, [
       defaultAudioIndex,
       defaultBitrate,
       defaultSubtitleIndex,
       defaultMediaSource,
+      downloadedTracks,
     ]);
 
-    const clearShuffleQueue = useSetAtom(shuffleQueueAtom);
+    const playMedia = usePlayMedia();
 
     const navigateToPlayer = useCallback(
       (playbackPosition: string) => {
         if (!item || !selectedOptions) return;
 
-        // Starting a normal play cancels any active shuffle queue so a stale
-        // queue can't hijack the next-episode order.
-        clearShuffleQueue(null);
-
-        const queryParams = new URLSearchParams({
-          itemId: item.Id!,
-          audioIndex: selectedOptions.audioIndex?.toString() ?? "",
-          subtitleIndex: selectedOptions.subtitleIndex?.toString() ?? "",
-          mediaSourceId: selectedOptions.mediaSource?.Id ?? "",
-          bitrateValue: selectedOptions.bitrate?.value?.toString() ?? "",
-          playbackPosition,
-          offline: isOffline ? "true" : "false",
-        });
-
-        router.push(`/player/direct-player?${queryParams.toString()}`);
+        // The chooser clears the shuffle queue, resets the auto-play chain
+        // and routes to the native player (default on tvOS 26+) or the JS
+        // route.
+        const positionTicks = Number(playbackPosition);
+        void playMedia(
+          {
+            itemId: item.Id!,
+            audioIndex: selectedOptions.audioIndex,
+            subtitleIndex: selectedOptions.subtitleIndex,
+            mediaSourceId: selectedOptions.mediaSource?.Id ?? undefined,
+            bitrateValue: selectedOptions.bitrate?.value ?? undefined,
+            offline: isOffline,
+            playbackPositionTicks: Number.isFinite(positionTicks)
+              ? positionTicks
+              : 0,
+          },
+          { item },
+        );
       },
-      [item, selectedOptions, isOffline, router, clearShuffleQueue],
+      [item, selectedOptions, isOffline, playMedia],
     );
 
     const handlePlay = () => {
@@ -193,6 +202,15 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
 
       const hasPlaybackProgress =
         (item.UserData?.PlaybackPositionTicks ?? 0) > 0;
+
+      // With the resume dialog turned off in settings, an in-progress item
+      // resumes right away instead of asking resume-or-restart.
+      if (hasPlaybackProgress && !settings.showResumeDialog) {
+        navigateToPlayer(
+          item.UserData?.PlaybackPositionTicks?.toString() ?? "0",
+        );
+        return;
+      }
 
       if (hasPlaybackProgress) {
         Alert.alert(
@@ -235,74 +253,80 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
       null,
     );
 
-    // Get available audio tracks
-    const audioTracks = useMemo(() => {
-      const streams = selectedOptions?.mediaSource?.MediaStreams?.filter(
-        (s) => s.Type === "Audio",
-      );
-      return streams ?? [];
-    }, [selectedOptions?.mediaSource]);
-
-    // Get available subtitle tracks (raw MediaStream[] for label lookup),
-    // ordered like jellyfin-web (embedded first, externals last, forced/default up).
-    const subtitleStreams = useMemo(() => {
-      const streams = selectedOptions?.mediaSource?.MediaStreams?.filter(
-        (s) => s.Type === "Subtitle",
-      );
-      return streams ? [...streams].sort(compareTracksForMenu) : [];
-    }, [selectedOptions?.mediaSource]);
-
-    // Store handleSubtitleChange in a ref for stable callback reference
-    const handleSubtitleChangeRef = useRef<((index: number) => void) | null>(
-      null,
+    /** Existing label format on this screen; kept so the menus read the same. */
+    const tvTrackLabel = useCallback(
+      (s: MediaStream) =>
+        s.DisplayTitle || `${s.Language || "Unknown"} (${s.Codec})`,
+      [],
     );
+
+    // Selection carries the whole row, not just an index: the refreshed list
+    // below is built from a *freshly fetched* item, so an index looked up
+    // against the stale list would resolve to the wrong stream — or to none at
+    // all, which is why a just-downloaded subtitle used to remember nothing.
+    const handleSubtitleChangeRef = useRef<
+      ((row: TrackMenuRow) => void) | null
+    >(null);
 
     // State to trigger refresh of local subtitles list
     const [localSubtitlesRefreshKey, setLocalSubtitlesRefreshKey] = useState(0);
 
-    // Convert MediaStream[] to Track[] for the modal (with setTrack callbacks)
-    // Also includes locally downloaded subtitles from OpenSubtitles
-    const subtitleTracksForModal = useMemo((): Track[] => {
-      const tracks: Track[] = subtitleStreams.map((stream) => ({
-        name:
-          stream.DisplayTitle ||
-          `${stream.Language || "Unknown"} (${stream.Codec})`,
-        index: stream.Index ?? -1,
-        setTrack: () => {
-          handleSubtitleChangeRef.current?.(stream.Index ?? -1);
-        },
-      }));
-
-      // Add locally downloaded subtitles (from OpenSubtitles)
-      if (item?.Id) {
-        const localSubs = getSubtitlesForItem(item.Id);
-        let localIdx = 0;
-        for (const localSub of localSubs) {
-          // Verify file still exists (cache may have been cleared)
-          const subtitleFile = new File(localSub.filePath);
-          if (!subtitleFile.exists) {
-            continue;
-          }
-
-          const localIndex = LOCAL_SUBTITLE_INDEX_START - localIdx;
-          tracks.push({
-            name: localSub.name,
-            index: localIndex,
-            isLocal: true,
-            localPath: localSub.filePath,
-            setTrack: () => {
-              // For ItemContent (outside player), just update the selected index
-              // The actual subtitle will be loaded when playback starts
-              handleSubtitleChangeRef.current?.(localIndex);
-            },
-          });
-          localIdx++;
-        }
-      }
-
-      return tracks;
+    /** Client-side downloads that still exist on disk (the cache may be cleared). */
+    const localSubFiles = useMemo(() => {
+      if (!item?.Id) return [];
+      return getSubtitlesForItem(item.Id)
+        .filter((s) => new File(s.filePath).exists)
+        .map((s) => ({ name: s.name, filePath: s.filePath }));
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [subtitleStreams, item?.Id, localSubtitlesRefreshKey]);
+    }, [item?.Id, localSubtitlesRefreshKey]);
+
+    const audioRows = useMemo(
+      () =>
+        buildAudioMenu(selectedOptions?.mediaSource?.MediaStreams, {
+          selectedIndex: selectedOptions?.audioIndex,
+          isTranscoding: Boolean(selectedOptions?.mediaSource?.TranscodingUrl),
+          formatLabel: tvTrackLabel,
+        }),
+      [selectedOptions?.mediaSource, selectedOptions?.audioIndex, tvTrackLabel],
+    );
+
+    const subtitleRows = useMemo(
+      () =>
+        buildSubtitleMenu(selectedOptions?.mediaSource?.MediaStreams, {
+          selectedIndex: selectedOptions?.subtitleIndex ?? SUBTITLES_OFF,
+          offLabel: t("item_card.subtitles.none"),
+          isTranscoding: Boolean(selectedOptions?.mediaSource?.TranscodingUrl),
+          localSubs: localSubFiles,
+          formatLabel: tvTrackLabel,
+        }),
+      [
+        selectedOptions?.mediaSource,
+        selectedOptions?.subtitleIndex,
+        localSubFiles,
+        tvTrackLabel,
+        t,
+      ],
+    );
+
+    /** The modal supplies its own "None", so the off row is dropped here. */
+    const rowsToTracks = useCallback(
+      (rows: TrackMenuRow[]): Track[] =>
+        rows
+          .filter((row) => row.kind !== "off")
+          .map((row) => ({
+            name: row.label,
+            index: row.index,
+            isLocal: row.kind === "sidecar",
+            localPath: row.localPath,
+            setTrack: () => handleSubtitleChangeRef.current?.(row),
+          })),
+      [],
+    );
+
+    const subtitleTracksForModal = useMemo(
+      () => rowsToTracks(subtitleRows),
+      [subtitleRows, rowsToTracks],
+    );
 
     // Get available media sources
     const mediaSources = useMemo(() => {
@@ -310,15 +334,15 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
     }, [item, itemWithSources]);
 
     // Audio options for selector
-    const audioOptions: TVOptionItem<number>[] = useMemo(() => {
-      return audioTracks.map((track) => ({
-        label:
-          track.DisplayTitle ||
-          `${track.Language || "Unknown"} (${track.Codec})`,
-        value: track.Index!,
-        selected: track.Index === selectedOptions?.audioIndex,
-      }));
-    }, [audioTracks, selectedOptions?.audioIndex]);
+    const audioOptions: TVOptionItem<TrackMenuRow>[] = useMemo(
+      () =>
+        audioRows.map((row) => ({
+          label: row.label,
+          value: row,
+          selected: row.selected,
+        })),
+      [audioRows],
+    );
 
     // Media source options for selector
     const mediaSourceOptions: TVOptionItem<MediaSourceInfo>[] = useMemo(() => {
@@ -345,18 +369,38 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
       }));
     }, [selectedOptions?.bitrate?.value]);
 
-    // Handlers for option changes
-    const handleAudioChange = useCallback((audioIndex: number) => {
-      setSelectedOptions((prev) =>
-        prev ? { ...prev, audioIndex } : undefined,
-      );
-    }, []);
+    // Handlers for option changes. A pick here is as deliberate as one made
+    // inside the player, so it feeds the per-series memory the same way —
+    // otherwise the next episode comes back on the server's default track.
+    const handleAudioChange = useCallback(
+      (row: TrackMenuRow) => {
+        setSelectedOptions((prev) =>
+          prev ? { ...prev, audioIndex: row.index } : undefined,
+        );
+        rememberSeriesTrackFromRow({
+          item: itemWithSources ?? item,
+          kind: "audio",
+          row,
+          settings,
+        });
+      },
+      [item, itemWithSources, settings],
+    );
 
-    const handleSubtitleChange = useCallback((subtitleIndex: number) => {
-      setSelectedOptions((prev) =>
-        prev ? { ...prev, subtitleIndex } : undefined,
-      );
-    }, []);
+    const handleSubtitleChange = useCallback(
+      (row: TrackMenuRow) => {
+        setSelectedOptions((prev) =>
+          prev ? { ...prev, subtitleIndex: row.index } : undefined,
+        );
+        rememberSeriesTrackFromRow({
+          item: itemWithSources ?? item,
+          kind: "subtitle",
+          row,
+          settings,
+        });
+      },
+      [item, itemWithSources, settings],
+    );
 
     // Keep the ref updated with the latest callback
     handleSubtitleChangeRef.current = handleSubtitleChange;
@@ -420,89 +464,47 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
             )
           : freshItem.MediaSources?.[0];
 
-        // Get subtitle streams from the fresh data, ordered like jellyfin-web
-        // (embedded first, externals last) — same as the initial list.
-        const streams = [
-          ...(mediaSource?.MediaStreams?.filter(
-            (s: MediaStream) => s.Type === "Subtitle",
-          ) ?? []),
-        ].sort(compareTracksForMenu);
-
-        // Convert to Track[] with setTrack callbacks
-        const tracks: Track[] = streams.map((stream) => ({
-          name:
-            stream.DisplayTitle ||
-            `${stream.Language || "Unknown"} (${stream.Codec})`,
-          index: stream.Index ?? -1,
-          setTrack: () => {
-            handleSubtitleChangeRef.current?.(stream.Index ?? -1);
-          },
-        }));
-
-        // Add locally downloaded subtitles
-        if (item?.Id) {
-          const localSubs = getSubtitlesForItem(item.Id);
-          let localIdx = 0;
-          for (const localSub of localSubs) {
-            const subtitleFile = new File(localSub.filePath);
-            if (!subtitleFile.exists) continue;
-
-            const localIndex = LOCAL_SUBTITLE_INDEX_START - localIdx;
-            tracks.push({
-              name: localSub.name,
-              index: localIndex,
-              isLocal: true,
-              localPath: localSub.filePath,
-              setTrack: () => {
-                handleSubtitleChangeRef.current?.(localIndex);
-              },
-            });
-            localIdx++;
-          }
-        }
-
-        return tracks;
+        // Same builder as the initial list — a second hand-rolled copy is how
+        // the two drifted, and each row carries the language its own selection
+        // will remember, so a track that exists only in this fresh fetch is
+        // still stored correctly.
+        return rowsToTracks(
+          buildSubtitleMenu(mediaSource?.MediaStreams, {
+            selectedIndex: selectedOptions?.subtitleIndex ?? SUBTITLES_OFF,
+            offLabel: t("item_card.subtitles.none"),
+            isTranscoding: Boolean(mediaSource?.TranscodingUrl),
+            localSubs: localSubFiles,
+            formatLabel: tvTrackLabel,
+          }),
+        );
       } catch (error) {
         console.error("Failed to refresh subtitle tracks:", error);
         return [];
       }
-    }, [api, item?.Id, selectedOptions?.mediaSource?.Id]);
-
-    // Get display values for buttons
-    const selectedAudioLabel = useMemo(() => {
-      const track = audioTracks.find(
-        (t) => t.Index === selectedOptions?.audioIndex,
-      );
-      return track?.DisplayTitle || track?.Language || t("item_card.audio");
-    }, [audioTracks, selectedOptions?.audioIndex, t]);
-
-    const selectedSubtitleLabel = useMemo(() => {
-      if (selectedOptions?.subtitleIndex === -1)
-        return t("item_card.subtitles.none");
-
-      // Check if it's a local subtitle (negative index starting at -100)
-      if (
-        selectedOptions?.subtitleIndex !== undefined &&
-        selectedOptions.subtitleIndex <= LOCAL_SUBTITLE_INDEX_START
-      ) {
-        const localTrack = subtitleTracksForModal.find(
-          (t) => t.index === selectedOptions.subtitleIndex,
-        );
-        return localTrack?.name || t("item_card.subtitles.label");
-      }
-
-      const track = subtitleStreams.find(
-        (t) => t.Index === selectedOptions?.subtitleIndex,
-      );
-      return (
-        track?.DisplayTitle || track?.Language || t("item_card.subtitles.label")
-      );
     }, [
-      subtitleStreams,
-      subtitleTracksForModal,
+      api,
+      item?.Id,
+      selectedOptions?.mediaSource?.Id,
       selectedOptions?.subtitleIndex,
+      localSubFiles,
+      rowsToTracks,
+      tvTrackLabel,
       t,
     ]);
+
+    // Get display values for buttons
+    const selectedAudioLabel = useMemo(
+      () =>
+        audioRows.find((row) => row.selected)?.label ?? t("item_card.audio"),
+      [audioRows, t],
+    );
+
+    const selectedSubtitleLabel = useMemo(
+      () =>
+        subtitleRows.find((row) => row.selected)?.label ??
+        t("item_card.subtitles.label"),
+      [subtitleRows, t],
+    );
 
     const selectedMediaSourceLabel = useMemo(() => {
       const source = selectedOptions?.mediaSource;
@@ -569,7 +571,18 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
 
     // Series thumb URL - used when showSeriesPosterOnEpisode setting is enabled
     const seriesThumbUrl = useMemo(() => {
-      if (item?.Type !== "Episode" || !item.SeriesId || !api) return null;
+      if (item?.Type !== "Episode" || !api) return null;
+      // No parent thumb means the series carries no Thumb image, and the tagless
+      // request below 404s. Use the series backdrop instead, like the cards do.
+      const parentBackdropTag = item.ParentBackdropImageTags?.[0];
+      if (
+        !(item.ParentThumbItemId && item.ParentThumbImageTag) &&
+        item.ParentBackdropItemId &&
+        parentBackdropTag
+      ) {
+        return `${api.basePath}/Items/${item.ParentBackdropItemId}/Images/Backdrop?fillHeight=700&quality=80&tag=${parentBackdropTag}`;
+      }
+      if (!item.SeriesId) return null;
       return `${api.basePath}/Items/${item.SeriesId}/Images/Thumb?fillHeight=700&quality=80`;
     }, [api, item]);
 
@@ -619,9 +632,9 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
         <ScrollView
           style={{ flex: 1 }}
           contentContainerStyle={{
-            paddingTop: insets.top + 140,
-            paddingBottom: insets.bottom + 60,
-            paddingHorizontal: insets.left + 80,
+            paddingTop: insets.top + scaleSize(140),
+            paddingBottom: insets.bottom + scaleSize(60),
+            paddingHorizontal: insets.left + scaleSize(80),
           }}
           showsVerticalScrollIndicator={false}
         >
@@ -639,9 +652,9 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                 <Image
                   source={{ uri: logoUrl }}
                   style={{
-                    height: 150,
+                    height: scaleSize(150),
                     width: "80%",
-                    marginBottom: 24,
+                    marginBottom: scaleSize(24),
                   }}
                   contentFit='contain'
                   contentPosition='left'
@@ -652,7 +665,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                     fontSize: typography.display,
                     fontWeight: "bold",
                     color: "#FFFFFF",
-                    marginBottom: 20,
+                    marginBottom: scaleSize(20),
                   }}
                   numberOfLines={2}
                 >
@@ -662,7 +675,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
 
               {/* Episode info for TV shows */}
               {item.Type === "Episode" && (
-                <View style={{ marginBottom: 16 }}>
+                <View style={{ marginBottom: scaleSize(16) }}>
                   <Text
                     style={{
                       fontSize: typography.title,
@@ -676,7 +689,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                     style={{
                       fontSize: typography.body,
                       color: "white",
-                      marginTop: 6,
+                      marginTop: scaleSize(6),
                     }}
                   >
                     S{item.ParentIndexNumber} E{item.IndexNumber} · {item.Name}
@@ -690,11 +703,12 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                 duration={duration}
                 officialRating={item.OfficialRating}
                 communityRating={item.CommunityRating}
+                trailing={<AwardsBadge item={item} />}
               />
 
               {/* Genres */}
               {item.Genres && item.Genres.length > 0 && (
-                <View style={{ marginBottom: 24 }}>
+                <View style={{ marginBottom: scaleSize(24) }}>
                   <GenreTags genres={item.Genres} />
                 </View>
               )}
@@ -705,15 +719,15 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                   intensity={10}
                   tint='light'
                   style={{
-                    borderRadius: 8,
+                    borderRadius: scaleSize(8),
                     overflow: "hidden",
                     maxWidth: SCREEN_WIDTH * 0.45,
-                    marginBottom: 32,
+                    marginBottom: scaleSize(24),
                   }}
                 >
                   <View
                     style={{
-                      padding: 16,
+                      padding: scaleSize(16),
                       backgroundColor: "rgba(0,0,0,0.3)",
                     }}
                   >
@@ -721,7 +735,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                       style={{
                         fontSize: typography.body,
                         color: "#E5E7EB",
-                        lineHeight: 32,
+                        lineHeight: scaleSize(32),
                       }}
                       numberOfLines={4}
                     >
@@ -735,8 +749,8 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
               <View
                 style={{
                   flexDirection: "row",
-                  gap: 16,
-                  marginBottom: 32,
+                  gap: scaleSize(16),
+                  marginBottom: scaleSize(20),
                 }}
               >
                 <TVButton
@@ -746,9 +760,9 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                 >
                   <Ionicons
                     name='play'
-                    size={28}
+                    size={scaleSize(28)}
                     color='#000000'
-                    style={{ marginRight: 10 }}
+                    style={{ marginRight: scaleSize(10) }}
                   />
                   <Text
                     style={{
@@ -772,15 +786,17 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                 style={{
                   flexDirection: "row",
                   alignItems: "center",
-                  gap: 12,
-                  marginBottom: 24,
+                  flexWrap: "wrap",
+                  rowGap: scaleSize(12),
+                  gap: scaleSize(12),
+                  marginBottom: scaleSize(20),
                 }}
               >
                 {/* Quality selector */}
                 <TVOptionButton
                   label={t("item_card.quality")}
                   value={selectedQualityLabel}
-                  maxWidth={200}
+                  maxWidth={scaleSize(200)}
                   onPress={() =>
                     showOptions({
                       title: t("item_card.quality"),
@@ -795,7 +811,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                   <TVOptionButton
                     label={t("item_card.video")}
                     value={selectedMediaSourceLabel}
-                    maxWidth={280}
+                    maxWidth={scaleSize(280)}
                     onPress={() =>
                       showOptions({
                         title: t("item_card.video"),
@@ -807,11 +823,11 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                 )}
 
                 {/* Audio selector */}
-                {audioTracks.length > 0 && (
+                {audioRows.length > 0 && (
                   <TVOptionButton
                     label={t("item_card.audio")}
                     value={selectedAudioLabel}
-                    maxWidth={280}
+                    maxWidth={scaleSize(280)}
                     onPress={() =>
                       showOptions({
                         title: t("item_card.audio"),
@@ -823,12 +839,12 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                 )}
 
                 {/* Subtitle selector */}
-                {(subtitleStreams.length > 0 ||
+                {(subtitleRows.some((row) => row.kind === "server") ||
                   selectedOptions?.subtitleIndex !== undefined) && (
                   <TVOptionButton
                     label={t("item_card.subtitles.label")}
                     value={selectedSubtitleLabel}
-                    maxWidth={280}
+                    maxWidth={scaleSize(280)}
                     onPress={() =>
                       showSubtitleModal({
                         item,
@@ -836,7 +852,14 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                         subtitleTracks: subtitleTracksForModal,
                         currentSubtitleIndex:
                           selectedOptions?.subtitleIndex ?? -1,
-                        onDisableSubtitles: () => handleSubtitleChange(-1),
+                        // The modal owns its own "None" row, so hand the
+                        // builder's off row back rather than a bare -1.
+                        onDisableSubtitles: () => {
+                          const offRow = subtitleRows.find(
+                            (row) => row.kind === "off",
+                          );
+                          if (offRow) handleSubtitleChange(offRow);
+                        },
                         onServerSubtitleDownloaded:
                           handleServerSubtitleDownloaded,
                         onLocalSubtitleDownloaded:
@@ -867,13 +890,13 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                   item.Type === "Episode"
                     ? SCREEN_WIDTH * 0.35
                     : SCREEN_WIDTH * 0.22,
-                marginLeft: 50,
+                marginLeft: scaleSize(50),
               }}
             >
               <View
                 style={{
                   aspectRatio: item.Type === "Episode" ? 16 / 9 : 2 / 3,
-                  borderRadius: 16,
+                  borderRadius: scaleSize(16),
                   overflow: "hidden",
                   shadowColor: "#000",
                   shadowOffset: { width: 0, height: 10 },
@@ -907,16 +930,16 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
           </View>
 
           {/* Additional info section */}
-          <View style={{ marginTop: 40 }}>
+          <View style={{ marginTop: scaleSize(40) }}>
             {/* Season Episodes - Episode only */}
             {item.Type === "Episode" && seasonEpisodes.length > 1 && (
-              <View style={{ marginBottom: 40 }}>
+              <View style={{ marginBottom: scaleSize(40) }}>
                 <Text
                   style={{
                     fontSize: typography.heading,
                     fontWeight: "600",
                     color: "#FFFFFF",
-                    marginBottom: 24,
+                    marginBottom: scaleSize(24),
                   }}
                 >
                   {t("item_card.more_from_this_season")}
@@ -928,7 +951,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                   onEpisodePress={handleEpisodePress}
                   onEpisodeLongPress={showItemActions}
                   firstEpisodeRefSetter={setFirstEpisodeRef}
-                  horizontalPadding={insets.left + 80}
+                  horizontalPadding={insets.left + scaleSize(80)}
                 />
               </View>
             )}
@@ -949,7 +972,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                 apiBasePath={api?.basePath}
                 onActorPress={handleActorPress}
                 firstActorRefSetter={setFirstActorCardRef}
-                horizontalPadding={insets.left + 80}
+                horizontalPadding={insets.left + scaleSize(80)}
               />
             )}
 
@@ -974,5 +997,6 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
   },
 );
 
-// Alias for platform-resolved imports (tvOS auto-resolves .tv.tsx files)
+// Alias for the explicit require() in ItemContent.tsx / items/page.tsx —
+// Metro does NOT auto-resolve .tv.tsx suffixes in this project.
 export const ItemContent = ItemContentTV;

@@ -4,6 +4,8 @@ import {
   BottomSheetModal,
 } from "@gorhom/bottom-sheet";
 import { useCallback, useEffect } from "react";
+import { useWindowDimensions } from "react-native";
+import { SHEET_MAX_HEIGHT_RATIO } from "@/constants/Values";
 import { useGlobalModal } from "@/providers/GlobalModalProvider";
 
 /**
@@ -17,6 +19,10 @@ import { useGlobalModal } from "@/providers/GlobalModalProvider";
  */
 export const GlobalModal = () => {
   const { hideModal, modalState, modalRef, isVisible } = useGlobalModal();
+  // Derived here rather than passed in by callers: this component re-renders on
+  // rotation, so a sheet that is already open follows the new window height.
+  const { height: windowHeight } = useWindowDimensions();
+  const maxDynamicContentSize = windowHeight * SHEET_MAX_HEIGHT_RATIO;
 
   useEffect(() => {
     if (isVisible && modalState.content) {
@@ -62,14 +68,26 @@ export const GlobalModal = () => {
     <BottomSheetModal
       ref={modalRef}
       {...(modalOptions.snapPoints
-        ? { snapPoints: modalOptions.snapPoints }
-        : { enableDynamicSizing: modalOptions.enableDynamicSizing })}
+        ? // Dynamic sizing is on by default and would add a content-height
+          // detent next to the requested snap points, so turn it off for
+          // callers that ask for fixed heights.
+          { snapPoints: modalOptions.snapPoints, enableDynamicSizing: false }
+        : {
+            enableDynamicSizing: modalOptions.enableDynamicSizing,
+            maxDynamicContentSize,
+          })}
       onChange={handleSheetChanges}
       backdropComponent={renderBackdrop}
       handleIndicatorStyle={modalOptions.handleIndicatorStyle}
       backgroundStyle={modalOptions.backgroundStyle}
       enablePanDownToClose={modalOptions.enablePanDownToClose}
       enableDismissOnClose
+      // Left at gorhom's defaults on purpose. `adjustResize` only means
+      // something when the window actually resizes for the keyboard, and this
+      // app draws edge to edge, so it never does — setting it drove the sheet
+      // down behind the keyboard instead. Sheets with inputs scroll their own
+      // content out of the way (see CustomHeaderSheet).
+      keyboardBlurBehavior='restore'
       stackBehavior='push'
       style={{ zIndex: 1000 }}
     >

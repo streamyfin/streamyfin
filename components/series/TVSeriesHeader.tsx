@@ -1,16 +1,18 @@
 import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { BlurView } from "expo-blur";
-import { Image } from "expo-image";
 import { useAtomValue } from "jotai";
 import React, { useMemo } from "react";
 import { Dimensions, View } from "react-native";
+import { AwardsBadge } from "@/components/AwardsBadge";
 import { Badge } from "@/components/Badge";
+import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { GenreTags } from "@/components/GenreTags";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
+import { scaleSize } from "@/utils/scaleSize";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -49,9 +51,9 @@ export const TVSeriesHeader: React.FC<TVSeriesHeaderProps> = ({ item }) => {
         <Image
           source={{ uri: logoUrl }}
           style={{
-            height: 100,
+            height: scaleSize(100),
             width: "80%",
-            marginBottom: 24,
+            marginBottom: scaleSize(24),
           }}
           contentFit='contain'
           contentPosition='left'
@@ -62,7 +64,7 @@ export const TVSeriesHeader: React.FC<TVSeriesHeaderProps> = ({ item }) => {
             fontSize: typography.display,
             fontWeight: "bold",
             color: "#FFFFFF",
-            marginBottom: 16,
+            marginBottom: scaleSize(16),
           }}
           numberOfLines={2}
         >
@@ -76,8 +78,8 @@ export const TVSeriesHeader: React.FC<TVSeriesHeaderProps> = ({ item }) => {
           flexDirection: "row",
           alignItems: "center",
           flexWrap: "wrap",
-          gap: 12,
-          marginBottom: 20,
+          gap: scaleSize(12),
+          marginBottom: scaleSize(20),
         }}
       >
         {yearString && (
@@ -95,11 +97,12 @@ export const TVSeriesHeader: React.FC<TVSeriesHeaderProps> = ({ item }) => {
             iconLeft={<Ionicons name='star' size={16} color='gold' />}
           />
         )}
+        <AwardsBadge item={item} />
       </View>
 
       {/* Genres */}
       {item.Genres && item.Genres.length > 0 && (
-        <View style={{ marginBottom: 24 }}>
+        <View style={{ marginBottom: scaleSize(24) }}>
           <GenreTags genres={item.Genres} />
         </View>
       )}
@@ -110,7 +113,7 @@ export const TVSeriesHeader: React.FC<TVSeriesHeaderProps> = ({ item }) => {
           intensity={10}
           tint='light'
           style={{
-            borderRadius: 8,
+            borderRadius: scaleSize(8),
             overflow: "hidden",
             maxWidth: SCREEN_WIDTH * 0.45,
             alignSelf: "flex-start",
@@ -118,7 +121,7 @@ export const TVSeriesHeader: React.FC<TVSeriesHeaderProps> = ({ item }) => {
         >
           <View
             style={{
-              padding: 16,
+              padding: scaleSize(16),
               backgroundColor: "rgba(0,0,0,0.3)",
             }}
           >
@@ -126,7 +129,7 @@ export const TVSeriesHeader: React.FC<TVSeriesHeaderProps> = ({ item }) => {
               style={{
                 fontSize: typography.body,
                 color: "#E5E7EB",
-                lineHeight: 32,
+                lineHeight: scaleSize(32),
               }}
               numberOfLines={4}
             >

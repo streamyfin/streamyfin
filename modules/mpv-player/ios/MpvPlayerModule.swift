@@ -1,6 +1,18 @@
 import ExpoModulesCore
+import CoreMedia
+import VideoToolbox
 
 public class MpvPlayerModule: Module {
+  private func parseInteger(_ value: Any?) -> Int? {
+    if let intValue = value as? Int {
+      return intValue
+    } else if let doubleValue = value as? Double {
+      guard doubleValue.isFinite else { return nil }
+      return Int(exactly: doubleValue)
+    }
+    return nil
+  }
+
   public func definition() -> ModuleDefinition {
     Name("MpvPlayer")
 
@@ -10,6 +22,24 @@ public class MpvPlayerModule: Module {
     // Defines a JavaScript synchronous function that runs the native code on the JavaScript thread.
     Function("hello") {
       return "Hello from MPV Player! 👋"
+    }
+
+    /// Whether this device has a hardware AV1 decoder.
+    ///
+    /// Apple silicon only gained AV1 decode with A17 Pro / M3, so no Apple TV
+    /// shipped to date can decode it in hardware (Apple TV 4K 3rd gen is A15).
+    /// When VideoToolbox refuses the codec, mpv falls back to dav1d software
+    /// decode, whose `yuv420p10le` output has to be converted and uploaded per
+    /// frame before `vo_avfoundation` can enqueue it into the
+    /// AVSampleBufferDisplayLayer — on tvOS that stalls, and the display-layer
+    /// recovery in MPVLayerRenderer then retries the same failing hardware path.
+    ///
+    /// The JS device profile calls this to decide whether to advertise AV1 as
+    /// direct-play to Jellyfin, so unsupported devices get a transcode instead
+    /// of a hang. Querying VideoToolbox rather than hardcoding `Platform.isTV`
+    /// means a future AV1-capable Apple TV keeps direct play automatically.
+    Function("supportsAv1HardwareDecode") { () -> Bool in
+      return VTIsHardwareDecodeSupported(kCMVideoCodecType_AV1)
     }
 
     // Defines a JavaScript function that always returns a Promise and whose native code
@@ -39,12 +69,13 @@ public class MpvPlayerModule: Module {
           externalSubtitles: source["externalSubtitles"] as? [String],
           startPosition: source["startPosition"] as? Double,
           autoplay: (source["autoplay"] as? Bool) ?? true,
-          initialSubtitleId: source["initialSubtitleId"] as? Int,
-          initialAudioId: source["initialAudioId"] as? Int,
+          initialSubtitleId: self.parseInteger(source["initialSubtitleId"]),
+          initialAudioId: self.parseInteger(source["initialAudioId"]),
+          loop: (source["loop"] as? Bool) ?? false,
           cacheEnabled: cacheConfig?["enabled"] as? String,
-          cacheSeconds: cacheConfig?["cacheSeconds"] as? Int,
-          demuxerMaxBytes: cacheConfig?["maxBytes"] as? Int,
-          demuxerMaxBackBytes: cacheConfig?["maxBackBytes"] as? Int
+          cacheSeconds: self.parseInteger(cacheConfig?["cacheSeconds"]),
+          demuxerMaxBytes: self.parseInteger(cacheConfig?["maxBytes"]),
+          demuxerMaxBackBytes: self.parseInteger(cacheConfig?["maxBackBytes"])
         )
 
         view.loadVideo(config: config)
@@ -61,7 +92,10 @@ public class MpvPlayerModule: Module {
           }
         }
         if !stringMetadata.isEmpty {
-          view.setNowPlayingMetadata(stringMetadata)
+          view.setNowPlayingMetadata(
+            stringMetadata,
+            artworkHeaders: metadata["artworkHeaders"] as? [String: String]
+          )
         }
       }
 
@@ -134,8 +168,11 @@ public class MpvPlayerModule: Module {
       }
       
       // Subtitle functions
-      AsyncFunction("getSubtitleTracks") { (view: MpvPlayerView) -> [[String: Any]] in
-        return view.getSubtitleTracks()
+      // Track/info getters resolve via completion so the blocking mpv reads
+      // never run on the main thread (vo_create deadlock → watchdog kill;
+      // see MPVLayerRenderer.onQueue).
+      AsyncFunction("getSubtitleTracks") { (view: MpvPlayerView, promise: Promise) in
+        view.getSubtitleTracks { promise.resolve($0) }
       }
       
       AsyncFunction("setSubtitleTrack") { (view: MpvPlayerView, trackId: Int) in
@@ -146,8 +183,8 @@ public class MpvPlayerModule: Module {
         view.disableSubtitles()
       }
       
-      AsyncFunction("getCurrentSubtitleTrack") { (view: MpvPlayerView) -> Int in
-        return view.getCurrentSubtitleTrack()
+      AsyncFunction("getCurrentSubtitleTrack") { (view: MpvPlayerView, promise: Promise) in
+        view.getCurrentSubtitleTrack { promise.resolve($0) }
       }
       
       AsyncFunction("addSubtitleFile") { (view: MpvPlayerView, url: String, select: Bool) in
@@ -162,6 +199,10 @@ public class MpvPlayerModule: Module {
       AsyncFunction("setSubtitleScale") { (view: MpvPlayerView, scale: Double) in
         view.setSubtitleScale(scale)
       }
+
+      AsyncFunction("setSubtitleDelay") { (view: MpvPlayerView, seconds: Double) in
+        view.setSubtitleDelay(seconds)
+      }
       
       AsyncFunction("setSubtitleMarginY") { (view: MpvPlayerView, margin: Int) in
         view.setSubtitleMarginY(margin)
@@ -174,9 +215,13 @@ public class MpvPlayerModule: Module {
       AsyncFunction("setSubtitleAlignY") { (view: MpvPlayerView, alignment: String) in
         view.setSubtitleAlignY(alignment)
       }
-      
+
       AsyncFunction("setSubtitleFontSize") { (view: MpvPlayerView, size: Int) in
         view.setSubtitleFontSize(size)
+      }
+
+      AsyncFunction("setSubtitleStyle") { (view: MpvPlayerView, config: [String: Any]) in
+        view.setSubtitleStyle(config: config)
       }
 
       AsyncFunction("setSubtitleBackgroundColor") { (view: MpvPlayerView, color: String) in
@@ -192,16 +237,16 @@ public class MpvPlayerModule: Module {
       }
 
       // Audio track functions
-      AsyncFunction("getAudioTracks") { (view: MpvPlayerView) -> [[String: Any]] in
-        return view.getAudioTracks()
+      AsyncFunction("getAudioTracks") { (view: MpvPlayerView, promise: Promise) in
+        view.getAudioTracks { promise.resolve($0) }
       }
       
       AsyncFunction("setAudioTrack") { (view: MpvPlayerView, trackId: Int) in
         view.setAudioTrack(trackId)
       }
       
-      AsyncFunction("getCurrentAudioTrack") { (view: MpvPlayerView) -> Int in
-        return view.getCurrentAudioTrack()
+      AsyncFunction("getCurrentAudioTrack") { (view: MpvPlayerView, promise: Promise) in
+        view.getCurrentAudioTrack { promise.resolve($0) }
       }
 
       // Video scaling functions
@@ -214,8 +259,8 @@ public class MpvPlayerModule: Module {
       }
 
       // Technical info function
-      AsyncFunction("getTechnicalInfo") { (view: MpvPlayerView) -> [String: Any] in
-        return view.getTechnicalInfo()
+      AsyncFunction("getTechnicalInfo") { (view: MpvPlayerView, promise: Promise) in
+        view.getTechnicalInfo { promise.resolve($0) }
       }
 
       // Defines events that the view can send to JavaScript

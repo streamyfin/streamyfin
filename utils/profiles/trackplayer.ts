@@ -11,6 +11,7 @@ import type {
 import { Platform } from "react-native";
 import MediaTypes from "../../constants/MediaTypes";
 import type { PlatformType } from "./native";
+import { getSubtitleProfiles } from "./subtitles";
 
 export interface TrackPlayerProfileOptions {
   /** Target platform */
@@ -86,7 +87,7 @@ export const generateTrackPlayerProfile = (
         MaxAudioChannels: "2",
       },
     ],
-    SubtitleProfiles: [],
+    SubtitleProfiles: getSubtitleProfiles({ target: "music" }),
   };
 };
 

@@ -1,11 +1,10 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
-import { Image } from "expo-image";
 import { useGlobalSearchParams } from "expo-router";
+import { useAtomValue } from "jotai";
 import { useCallback, useMemo, useRef, useState } from "react";
+import { prefetchServerImage } from "@/components/common/ServerImage";
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom } from "@/providers/JellyfinProvider";
-import { getAuthHeaders } from "@/utils/jellyfin/jellyfin";
-import { store } from "@/utils/store";
 import { ticksToMs } from "@/utils/time";
 import {
   generateTrickplayUrl,
@@ -21,6 +20,7 @@ interface TrickplayUrl {
 
 /** Hook to handle trickplay logic for a given item. */
 export const useTrickplay = (item: BaseItemDto) => {
+  const api = useAtomValue(apiAtom);
   const { getDownloadedItemById } = useDownload();
   const [trickPlayUrl, setTrickPlayUrl] = useState<TrickplayUrl | null>(null);
   const lastCalculationTime = useRef(0);
@@ -37,9 +37,9 @@ export const useTrickplay = (item: BaseItemDto) => {
       if (isOffline && downloadedItem?.trickPlayData?.path) {
         return `${downloadedItem.trickPlayData.path}${sheetIndex}.jpg`;
       }
-      return generateTrickplayUrl(item, sheetIndex, store.get(apiAtom));
+      return generateTrickplayUrl(item, sheetIndex, api);
     },
-    [trickplayInfo, isOffline, getDownloadedItemById],
+    [trickplayInfo, isOffline, getDownloadedItemById, api],
   );
 
   /** Calculates the trickplay URL for the current progress. */
@@ -73,19 +73,17 @@ export const useTrickplay = (item: BaseItemDto) => {
       const url = getTrickplayUrl(item, index);
       if (url) urls.push(url);
     }
-    const api = store.get(apiAtom);
-    const headers = !isOffline && api ? getAuthHeaders(api) : undefined;
     for (let i = 0; i < urls.length; i += maxConcurrent) {
       const batch = urls.slice(i, i + maxConcurrent);
       await Promise.all(
         batch.map(
-          (url) => Image.prefetch(url, { headers }).catch(() => {}), // Ignore errors
+          (url) => prefetchServerImage(url, api?.basePath).catch(() => {}), // Ignore errors
         ),
       );
       // Yield to the event loop between batches to avoid blocking
       await Promise.resolve();
     }
-  }, [trickplayInfo, item, getTrickplayUrl]);
+  }, [trickplayInfo, item, getTrickplayUrl, api?.basePath]);
 
   return {
     trickPlayUrl,

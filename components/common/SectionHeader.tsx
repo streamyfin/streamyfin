@@ -7,6 +7,8 @@ type Props = {
   actionLabel?: string;
   actionDisabled?: boolean;
   onPressAction?: () => void;
+  /** Drawn at the end of the row — a count pill, a small action. */
+  accessory?: React.ReactNode;
 };
 
 export const SectionHeader: React.FC<Props> = ({
@@ -14,12 +16,14 @@ export const SectionHeader: React.FC<Props> = ({
   actionLabel,
   actionDisabled = false,
   onPressAction,
+  accessory,
 }) => {
   const shouldShowAction = Boolean(actionLabel) && Boolean(onPressAction);
 
   return (
     <View className='px-4 flex flex-row items-center justify-between mb-2'>
       <Text className='text-lg font-bold text-neutral-100'>{title}</Text>
+      {accessory}
       {shouldShowAction && (
         <TouchableOpacity
           onPress={onPressAction}

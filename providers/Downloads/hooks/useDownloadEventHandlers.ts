@@ -1,6 +1,4 @@
-import type { Api } from "@jellyfin/sdk";
 import { File } from "expo-file-system";
-import type { MutableRefObject } from "react";
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import type {
@@ -10,13 +8,19 @@ import type {
   DownloadStartedEvent,
 } from "@/modules";
 import { BackgroundDownloader } from "@/modules";
-import { addDownloadedItem } from "../database";
+import { logAndCaptureError, writeToLog } from "@/utils/log";
 import {
   getNotificationContent,
   sendDownloadNotification,
 } from "../notifications";
-import type { DownloadedItem, JobStatus } from "../types";
-import { filePathToUri, generateFilename } from "../utils";
+import {
+  finalizePendingDownload,
+  getPendingDownload,
+  removePendingDownload,
+  updatePendingDownload,
+} from "../pendingDownloads";
+import type { JobStatus } from "../types";
+import { filePathToUri } from "../utils";
 import {
   addSpeedDataPoint,
   calculateWeightedSpeed,
@@ -24,7 +28,6 @@ import {
 } from "./useDownloadSpeedCalculator";
 
 interface UseDownloadEventHandlersProps {
-  taskMapRef: MutableRefObject<Map<number | string, string>>;
   processes: JobStatus[];
   updateProcess: (
     processId: string,
@@ -33,20 +36,23 @@ interface UseDownloadEventHandlersProps {
   removeProcess: (id: string) => void;
   onSuccess?: () => void;
   onDataChange?: () => void;
-  api?: Api;
 }
 
 /**
- * Hook to set up download event listeners (progress, complete, error, started)
+ * Hook to set up download event listeners (progress, complete, error, started).
+ *
+ * Events are correlated by the `itemId` native echoes back from the metadata passed at enqueue
+ * time — no taskId bookkeeping in JS. Events without an `itemId` are not ours (e.g. AudioStorage
+ * downloads, which keep their own taskId map) and are ignored. Completion is finalized from the
+ * persisted pending record rather than in-memory state, so it also works when the download was
+ * enqueued by a previous app session.
  */
 export function useDownloadEventHandlers({
-  taskMapRef,
   processes,
   updateProcess,
   removeProcess,
   onSuccess,
   onDataChange,
-  api,
 }: UseDownloadEventHandlersProps) {
   const { t } = useTranslation();
 
@@ -54,46 +60,19 @@ export function useDownloadEventHandlers({
   useEffect(() => {
     const startedSub = BackgroundDownloader.addStartedListener(
       (event: DownloadStartedEvent) => {
-        let processId = taskMapRef.current.get(event.taskId);
+        const itemId = event.itemId;
+        if (!itemId || !getPendingDownload(itemId)) return;
 
-        // If no mapping exists, find by URL (for queued downloads)
-        if (!processId && event.url) {
-          // Check if we have a URL mapping (queued download)
-          const urlKey = event.url;
-          processId = taskMapRef.current.get(urlKey);
-
-          if (!processId) {
-            // Fallback: search by matching URL in processes
-            const matchingProcess = processes.find(
-              (p) => p.inputUrl === event.url,
-            );
-            if (matchingProcess) {
-              processId = matchingProcess.id;
-            }
-          }
-
-          if (processId) {
-            // Create taskId mapping and remove URL mapping
-            taskMapRef.current.set(event.taskId, processId);
-            taskMapRef.current.delete(urlKey);
-            console.log(
-              `[DPL] Mapped queued download: taskId=${event.taskId} to processId=${processId.slice(0, 8)}...`,
-            );
-          }
-        }
-
-        if (processId) {
-          updateProcess(processId, { startTime: new Date() });
-        } else {
-          console.warn(
-            `[DPL] Started event for unknown download: taskId=${event.taskId}, url=${event.url}`,
-          );
-        }
+        updatePendingDownload(itemId, {
+          status: "downloading",
+          taskId: event.taskId,
+        });
+        updateProcess(itemId, { status: "downloading", startTime: new Date() });
       },
     );
 
     return () => startedSub.remove();
-  }, [taskMapRef, updateProcess, processes]);
+  }, [updateProcess]);
 
   // Track last logged progress per process to avoid spam
   const lastLoggedProgress = useRef<Map<string, number>>(new Map());
@@ -102,7 +81,7 @@ export function useDownloadEventHandlers({
   useEffect(() => {
     const progressSub = BackgroundDownloader.addProgressListener(
       (event: DownloadProgressEvent) => {
-        const processId = taskMapRef.current.get(event.taskId);
+        const processId = event.itemId;
         if (!processId) {
           return;
         }
@@ -197,65 +176,45 @@ export function useDownloadEventHandlers({
     );
 
     return () => progressSub.remove();
-  }, [taskMapRef, updateProcess, processes]);
+  }, [updateProcess, processes]);
 
   // Handle download completion events
   useEffect(() => {
     const completeSub = BackgroundDownloader.addCompleteListener(
       async (event: DownloadCompleteEvent) => {
-        const processId = taskMapRef.current.get(event.taskId);
-        if (!processId) return;
+        const itemId = event.itemId;
+        if (!itemId) return;
 
-        const process = processes.find((p) => p.id === processId);
-        if (!process) return;
+        const record = getPendingDownload(itemId);
+        if (!record) return;
 
         try {
-          const {
-            item,
-            mediaSource,
-            trickPlayData,
-            introSegments,
-            creditSegments,
-            audioStreamIndex,
-            subtitleStreamIndex,
-            isTranscoding,
-          } = process;
           const videoFile = new File(filePathToUri(event.filePath));
-          const fileInfo = videoFile.info();
-          const videoFileSize = fileInfo.size || 0;
-          const filename = generateFilename(item);
+          const videoFileSize = videoFile.info().size || 0;
 
           console.log(
-            `[COMPLETE] Video download complete (${videoFileSize} bytes) for ${item.Name}`,
-          );
-          console.log(
-            `[COMPLETE] Using pre-downloaded assets: trickplay=${!!trickPlayData}, intro=${!!introSegments}, credits=${!!creditSegments}`,
+            `[COMPLETE] Video download complete (${videoFileSize} bytes) for ${record.item.Name}`,
           );
 
-          const downloadedItem: DownloadedItem = {
-            item,
-            mediaSource,
-            videoFilePath: filePathToUri(event.filePath),
+          // In-memory process may carry a live isTranscoding signal derived from progress events;
+          // finalize falls back to the media source when it is gone (e.g. after a relaunch).
+          const process = processes.find((p) => p.id === itemId);
+          finalizePendingDownload(
+            record,
             videoFileSize,
-            videoFileName: `${filename}.mp4`,
-            trickPlayData,
-            introSegments,
-            creditSegments,
-            userData: {
-              audioStreamIndex: audioStreamIndex ?? 0,
-              subtitleStreamIndex: subtitleStreamIndex ?? -1,
-              isTranscoded: isTranscoding ?? false,
-            },
-          };
+            process?.isTranscoding,
+          );
 
-          addDownloadedItem(downloadedItem);
-
-          updateProcess(processId, {
+          updateProcess(itemId, {
             status: "completed",
             progress: 100,
           });
 
-          const notificationContent = getNotificationContent(item, true, t);
+          const notificationContent = getNotificationContent(
+            record.item,
+            true,
+            t,
+          );
           await sendDownloadNotification(
             notificationContent.title,
             notificationContent.body,
@@ -265,52 +224,65 @@ export function useDownloadEventHandlers({
           onDataChange?.();
 
           // Clean up speed data when download completes
-          clearSpeedData(processId);
+          clearSpeedData(itemId);
 
           // Remove process after short delay
           setTimeout(() => {
-            removeProcess(processId);
+            removeProcess(itemId);
           }, 2000);
         } catch (error) {
-          console.error("Error handling download completion:", error);
-          updateProcess(processId, { status: "error" });
-          clearSpeedData(processId);
-          removeProcess(processId);
+          // A download that finished on disk gets discarded here — one of
+          // the worst silent failures the app has, so always report it.
+          // (`record` from the top of the handler — the pending store may
+          // already have been cleared by finalizePendingDownload.)
+          logAndCaptureError("Handling download completion failed", error, {
+            itemType: record.item?.Type,
+          });
+          removePendingDownload(itemId);
+          updateProcess(itemId, { status: "error" });
+          clearSpeedData(itemId);
+          removeProcess(itemId);
         }
       },
     );
 
     return () => completeSub.remove();
-  }, [
-    taskMapRef,
-    processes,
-    updateProcess,
-    removeProcess,
-    onSuccess,
-    onDataChange,
-    api,
-    t,
-  ]);
+  }, [processes, updateProcess, removeProcess, onSuccess, onDataChange, t]);
 
   // Handle download error events
   useEffect(() => {
     const errorSub = BackgroundDownloader.addErrorListener(
       async (event: DownloadErrorEvent) => {
-        const processId = taskMapRef.current.get(event.taskId);
-        if (!processId) return;
+        const itemId = event.itemId;
+        if (!itemId) return;
 
-        const process = processes.find((p) => p.id === processId);
-        if (!process) return;
+        const record = getPendingDownload(itemId);
+        if (!record) return;
 
-        console.error(`Download error for ${processId}:`, event.error);
+        // Native error payloads are plain strings, so connectivity failures
+        // (walking out of Wi-Fi range is the normal downloads scenario) are
+        // classified by keyword and kept out of Sentry; the scrubbers redact
+        // any scheme-less host/IP the native message embeds.
+        if (
+          /connect|network|internet|offline|time.?out|timed out|unreachable|resolve|dns|route/i.test(
+            event.error,
+          )
+        ) {
+          writeToLog("WARN", "Download failed (connectivity)", event.error);
+        } else {
+          logAndCaptureError("Download failed", event.error, {
+            itemType: record.item?.Type,
+          });
+        }
 
-        updateProcess(processId, { status: "error" });
+        removePendingDownload(itemId);
+        updateProcess(itemId, { status: "error" });
 
         // Clean up speed data
-        clearSpeedData(processId);
+        clearSpeedData(itemId);
 
         const notificationContent = getNotificationContent(
-          process.item,
+          record.item,
           false,
           t,
         );
@@ -321,11 +293,11 @@ export function useDownloadEventHandlers({
 
         // Remove process after short delay
         setTimeout(() => {
-          removeProcess(processId);
+          removeProcess(itemId);
         }, 3000);
       },
     );
 
     return () => errorSub.remove();
-  }, [taskMapRef, processes, updateProcess, removeProcess, t]);
+  }, [updateProcess, removeProcess, t]);
 }

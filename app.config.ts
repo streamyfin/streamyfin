@@ -64,6 +64,18 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     ]);
   }
 
+  // Sentry source-map/dSYM upload needs SENTRY_AUTH_TOKEN; without it the
+  // injected build phases fail Release builds outright. Disable upload unless
+  // the token is present (EAS secret / CI env), so it self-enables with it.
+  for (const plugin of config.plugins ?? []) {
+    if (Array.isArray(plugin) && plugin[0] === "@sentry/react-native/expo") {
+      plugin[1] = {
+        ...plugin[1],
+        disableAutoUpload: !process.env.SENTRY_AUTH_TOKEN,
+      };
+    }
+  }
+
   // Only override googleServicesFile if env var is set
   const androidConfig: { googleServicesFile?: string } = {};
   if (process.env.GOOGLE_SERVICES_JSON) {

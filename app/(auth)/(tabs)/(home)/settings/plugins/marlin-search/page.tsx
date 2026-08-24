@@ -1,26 +1,25 @@
 import { useNavigation } from "expo-router";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  Linking,
-  ScrollView,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { Linking, ScrollView, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { toast } from "sonner-native";
+import { HeaderButton } from "@/components/common/HeaderButton";
 import { ServerUrlStatusText } from "@/components/common/ServerUrlStatusText";
 import { SettingSwitch } from "@/components/common/SettingSwitch";
 import { Text } from "@/components/common/Text";
 import { ListGroup } from "@/components/list/ListGroup";
 import { ListItem } from "@/components/list/ListItem";
+import { CustomHeaderSelector } from "@/components/settings/CustomHeaderSelector";
+import { useDismissKeyboardOnLeave } from "@/hooks/useDismissKeyboardOnLeave";
+import { useIntegrationHeaders } from "@/hooks/useIntegrationHeaders";
 import { useNetworkAwareQueryClient } from "@/hooks/useNetworkAwareQueryClient";
 import { useServerUrlResolver } from "@/hooks/useServerUrlResolver";
 import { useSettings } from "@/utils/atoms/settings";
 import { reachabilityProbe } from "@/utils/serverUrl/probes/reachability";
 
 export default function MarlinSearchPage() {
+  useDismissKeyboardOnLeave();
   const navigation = useNavigation();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
@@ -28,7 +27,8 @@ export default function MarlinSearchPage() {
   const queryClient = useNetworkAwareQueryClient();
 
   const [value, setValue] = useState<string>(settings?.marlinServerUrl || "");
-  const urlResolver = useServerUrlResolver(reachabilityProbe);
+  const { resolveOptions } = useIntegrationHeaders("marlin");
+  const urlResolver = useServerUrlResolver(reachabilityProbe, resolveOptions);
 
   const searchEngineLocked = pluginSettings?.searchEngine?.locked === true;
   const marlinUrlLocked = pluginSettings?.marlinServerUrl?.locked === true;
@@ -60,11 +60,11 @@ export default function MarlinSearchPage() {
     if (!marlinUrlLocked) {
       navigation.setOptions({
         headerRight: () => (
-          <TouchableOpacity onPress={() => onSave(value)} className='px-2'>
+          <HeaderButton variant='text' onPress={() => onSave(value)}>
             <Text className='text-blue-500'>
               {t("home.settings.plugins.marlin_search.save_button")}
             </Text>
-          </TouchableOpacity>
+          </HeaderButton>
         ),
       });
     }
@@ -148,6 +148,14 @@ export default function MarlinSearchPage() {
             {t("home.settings.plugins.marlin_search.read_more_about_marlin")}
           </Text>
         </Text>
+
+        <View className='px-4'>
+          <CustomHeaderSelector
+            integrationKey='marlin'
+            title={t("custom_headers.title")}
+            description={t("custom_headers.integration_description")}
+          />
+        </View>
       </View>
     </ScrollView>
   );

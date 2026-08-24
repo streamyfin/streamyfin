@@ -4,33 +4,48 @@ import {
   BottomSheetModal,
   BottomSheetView,
 } from "@gorhom/bottom-sheet";
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { useNavigation } from "expo-router";
 import { useAtom } from "jotai";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, Platform, ScrollView, View } from "react-native";
-import { Pressable } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { toast } from "sonner-native";
 import { Button } from "@/components/Button";
+import {
+  buildDownloadedCards,
+  buildSeriesGroupCards,
+} from "@/components/cards/adapters/downloads";
+import type { CardData } from "@/components/cards/CardData";
+import { CardRow } from "@/components/cards/CardRow";
+import { HeaderButton } from "@/components/common/HeaderButton";
 import { Text } from "@/components/common/Text";
-import { TouchableItemRouter } from "@/components/common/TouchableItemRouter";
 import ActiveDownloads from "@/components/downloads/ActiveDownloads";
 import { DownloadSize } from "@/components/downloads/DownloadSize";
-import { MovieCard } from "@/components/downloads/MovieCard";
-import { SeriesCard } from "@/components/downloads/SeriesCard";
 import useRouter from "@/hooks/useAppRouter";
+import { useConfirmDelete } from "@/hooks/useConfirmDelete";
 import { useDownload } from "@/providers/DownloadProvider";
 import { type DownloadedItem } from "@/providers/Downloads/types";
 import { OfflineModeProvider } from "@/providers/OfflineModeProvider";
 import { queueAtom } from "@/utils/atoms/queue";
 import { writeToLog } from "@/utils/log";
 
+/** Room under each card for its two text lines and the file size. */
+const CARD_FOOTER_HEIGHT = 78;
+
 export default function DownloadsPage() {
   const navigation = useNavigation();
   const { t } = useTranslation();
   const [_queue, _setQueue] = useAtom(queueAtom);
-  const { downloadedItems, deleteFileByType, deleteAllFiles } = useDownload();
+  const {
+    downloadedItems,
+    deleteFile,
+    deleteItems,
+    deleteFileByType,
+    deleteAllFiles,
+  } = useDownload();
+  const confirmDelete = useConfirmDelete();
   const router = useRouter();
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
 
@@ -45,6 +60,7 @@ export default function DownloadsPage() {
       [
         {
           text: t("home.downloads.back"),
+          style: "cancel",
           onPress: () => {
             setShowMigration(false);
             router.back();
@@ -103,15 +119,106 @@ export default function DownloadsPage() {
     }
   }, [downloadedFiles]);
 
+  const movieItems = useMemo(() => movies.map((m) => m.item), [movies]);
+  const otherItems = useMemo(() => otherMedia.map((m) => m.item), [otherMedia]);
+  const seriesGroups = useMemo(
+    () => groupedBySeries.map((group) => group.map((g) => g.item)),
+    [groupedBySeries],
+  );
+
+  const movieCards = useMemo(
+    () => buildDownloadedCards(movieItems),
+    [movieItems],
+  );
+  const otherCards = useMemo(
+    () => buildDownloadedCards(otherItems),
+    [otherItems],
+  );
+  const seriesCards = useMemo(
+    () => buildSeriesGroupCards(seriesGroups),
+    [seriesGroups],
+  );
+
+  const itemById = useMemo(
+    () => new Map([...movieItems, ...otherItems].map((i) => [i.Id, i])),
+    [movieItems, otherItems],
+  );
+  const episodesBySeriesId = useMemo(
+    () =>
+      new Map(
+        seriesGroups.flatMap((group) =>
+          group[0]?.SeriesId ? [[group[0].SeriesId, group] as const] : [],
+        ),
+      ),
+    [seriesGroups],
+  );
+
+  // How much disk an item takes has to be asked for, so it arrives as a slot
+  // rather than a field on the card.
+  const itemSizeSlot = useMemo(
+    () => ({
+      footer: (card: CardData) => {
+        const item = itemById.get(card.id);
+        return item ? <DownloadSize items={[item]} /> : null;
+      },
+    }),
+    [itemById],
+  );
+  const seriesSizeSlot = useMemo(
+    () => ({
+      footer: (card: CardData) => {
+        const episodes = episodesBySeriesId.get(card.id);
+        return episodes ? <DownloadSize items={episodes} /> : null;
+      },
+    }),
+    [episodesBySeriesId],
+  );
+
+  const confirmDeleteItem = useCallback(
+    (item: BaseItemDto) => {
+      if (!item.Id) return;
+      confirmDelete({
+        title: item.Name ?? undefined,
+        onConfirm: () => deleteFile(item.Id!),
+      });
+    },
+    [confirmDelete, deleteFile],
+  );
+
+  const confirmDeleteSeries = useCallback(
+    (seriesId: string) => {
+      const episodes = episodesBySeriesId.get(seriesId);
+      if (!episodes?.length) return;
+      confirmDelete({
+        title: episodes[0].SeriesName ?? undefined,
+        message: t("player.episode_count", { count: episodes.length }),
+        onConfirm: () =>
+          deleteItems(
+            episodes.map((e) => e.Id).filter((id) => id !== undefined),
+          ),
+      });
+    },
+    [confirmDelete, deleteItems, episodesBySeriesId, t],
+  );
+
+  const countPill = useCallback(
+    (count: number) => (
+      <View className='bg-purple-600 rounded-full h-6 w-6 flex items-center justify-center'>
+        <Text className='text-xs font-bold'>{count}</Text>
+      </View>
+    ),
+    [],
+  );
+
   useEffect(() => {
     navigation.setOptions({
       headerRight: () => (
-        <Pressable
+        <HeaderButton
+          variant='text'
           onPress={() => bottomSheetModalRef.current?.present()}
-          className='px-2'
         >
           <DownloadSize items={downloadedFiles?.map((f) => f.item) || []} />
-        </Pressable>
+        </HeaderButton>
       ),
     });
   }, [downloadedFiles]);
@@ -171,6 +278,10 @@ export default function DownloadsPage() {
   const deleteAllMedia = async () =>
     await Promise.all([deleteMovies(), deleteShows(), deleteOtherMedia()]);
 
+  // Bulk deletes wipe every matching download, so always ask first.
+  const confirmBulkDelete = (title: string, onConfirm: () => void) => () =>
+    confirmDelete({ title, onConfirm });
+
   return (
     <OfflineModeProvider isOffline={true}>
       <ScrollView
@@ -183,79 +294,57 @@ export default function DownloadsPage() {
           </View>
 
           {movies.length > 0 && (
-            <View className='mb-4'>
-              <View className='flex flex-row items-center justify-between mb-2 px-4'>
-                <Text className='text-lg font-bold'>
-                  {t("home.downloads.movies")}
-                </Text>
-                <View className='bg-purple-600 rounded-full h-6 w-6 flex items-center justify-center'>
-                  <Text className='text-xs font-bold'>{movies?.length}</Text>
-                </View>
-              </View>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                <View className='px-4 flex flex-row'>
-                  {movies?.map((item) => (
-                    <TouchableItemRouter item={item.item} key={item.item.Id}>
-                      <MovieCard item={item.item} />
-                    </TouchableItemRouter>
-                  ))}
-                </View>
-              </ScrollView>
-            </View>
+            <CardRow
+              className='mb-4'
+              title={t("home.downloads.movies")}
+              headerAccessory={countPill(movies.length)}
+              kind='portrait'
+              textPlacement='below'
+              items={movieItems}
+              cards={movieCards}
+              slots={itemSizeSlot}
+              footerHeight={CARD_FOOTER_HEIGHT}
+              onLongPressItem={confirmDeleteItem}
+            />
           )}
+
           {groupedBySeries.length > 0 && (
-            <View className='mb-4'>
-              <View className='flex flex-row items-center justify-between mb-2 px-4'>
-                <Text className='text-lg font-bold'>
-                  {t("home.downloads.series")}
-                </Text>
-                <View className='bg-purple-600 rounded-full h-6 w-6 flex items-center justify-center'>
-                  <Text className='text-xs font-bold'>
-                    {groupedBySeries?.length}
-                  </Text>
-                </View>
-              </View>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                <View className='px-4 flex flex-row'>
-                  {groupedBySeries?.map((items) => (
-                    <View
-                      className='mb-2 last:mb-0'
-                      key={items[0].item.SeriesId}
-                    >
-                      <SeriesCard
-                        items={items.map((i) => i.item)}
-                        key={items[0].item.SeriesId}
-                      />
-                    </View>
-                  ))}
-                </View>
-              </ScrollView>
-            </View>
+            <CardRow
+              className='mb-4'
+              title={t("home.downloads.series")}
+              headerAccessory={countPill(groupedBySeries.length)}
+              kind='portrait'
+              textPlacement='below'
+              cards={seriesCards}
+              slots={seriesSizeSlot}
+              footerHeight={CARD_FOOTER_HEIGHT}
+              // The series page has to be told it is offline; the shared
+              // navigation does not carry that param.
+              onPressId={(id) =>
+                router.push({
+                  pathname: "/series/[id]",
+                  params: { id, offline: "true" },
+                })
+              }
+              onLongPressId={confirmDeleteSeries}
+            />
           )}
 
           {otherMedia.length > 0 && (
-            <View className='mb-4'>
-              <View className='flex flex-row items-center justify-between mb-2 px-4'>
-                <Text className='text-lg font-bold'>
-                  {t("home.downloads.other_media")}
-                </Text>
-                <View className='bg-purple-600 rounded-full h-6 w-6 flex items-center justify-center'>
-                  <Text className='text-xs font-bold'>
-                    {otherMedia?.length}
-                  </Text>
-                </View>
-              </View>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                <View className='px-4 flex flex-row'>
-                  {otherMedia?.map((item) => (
-                    <TouchableItemRouter item={item.item} key={item.item.Id}>
-                      <MovieCard item={item.item} />
-                    </TouchableItemRouter>
-                  ))}
-                </View>
-              </ScrollView>
-            </View>
+            <CardRow
+              className='mb-4'
+              title={t("home.downloads.other_media")}
+              headerAccessory={countPill(otherMedia.length)}
+              kind='portrait'
+              textPlacement='below'
+              items={otherItems}
+              cards={otherCards}
+              slots={itemSizeSlot}
+              footerHeight={CARD_FOOTER_HEIGHT}
+              onLongPressItem={confirmDeleteItem}
+            />
           )}
+
           {downloadedFiles?.length === 0 && (
             <View className='flex px-4'>
               <Text className='opacity-50'>
@@ -284,18 +373,42 @@ export default function DownloadsPage() {
       >
         <BottomSheetView>
           <View className='p-4 space-y-4 mb-4'>
-            <Button color='purple' onPress={deleteMovies}>
+            <Button
+              color='purple'
+              onPress={confirmBulkDelete(
+                t("home.downloads.delete_all_movies_button"),
+                deleteMovies,
+              )}
+            >
               {t("home.downloads.delete_all_movies_button")}
             </Button>
-            <Button color='purple' onPress={deleteShows}>
+            <Button
+              color='purple'
+              onPress={confirmBulkDelete(
+                t("home.downloads.delete_all_series_button"),
+                deleteShows,
+              )}
+            >
               {t("home.downloads.delete_all_series_button")}
             </Button>
             {otherMedia.length > 0 && (
-              <Button color='purple' onPress={deleteOtherMedia}>
+              <Button
+                color='purple'
+                onPress={confirmBulkDelete(
+                  t("home.downloads.delete_all_other_media_button"),
+                  deleteOtherMedia,
+                )}
+              >
                 {t("home.downloads.delete_all_other_media_button")}
               </Button>
             )}
-            <Button color='red' onPress={deleteAllMedia}>
+            <Button
+              color='red'
+              onPress={confirmBulkDelete(
+                t("home.downloads.delete_all_button"),
+                deleteAllMedia,
+              )}
+            >
               {t("home.downloads.delete_all_button")}
             </Button>
           </View>

@@ -1,8 +1,10 @@
 // Learn more https://docs.expo.io/guides/customizing-metro
-const { getDefaultConfig } = require("expo/metro-config");
+// getSentryExpoConfig wraps expo/metro-config's getDefaultConfig and adds
+// debug-ID injection so uploaded source maps match released bundles.
+const { getSentryExpoConfig } = require("@sentry/react-native/metro");
 
 /** @type {import('expo/metro-config').MetroConfig} */
-const config = getDefaultConfig(__dirname);
+const config = getSentryExpoConfig(__dirname);
 
 // Add Hermes parser
 config.transformer.hermesParser = true;

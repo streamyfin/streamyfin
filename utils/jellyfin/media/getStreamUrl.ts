@@ -172,6 +172,11 @@ export const getStreamUrl = async ({
 
     sessionId = res.data.PlaySessionId || null;
     mediaSource = res.data.MediaSources?.[0];
+    if (!mediaSource) {
+      throw new Error(
+        `PlaybackInfo returned no media source for live channel (${res.data.ErrorCode ?? "no ErrorCode"})`,
+      );
+    }
     const url = getPlaybackUrl(api, item.ChannelId!, mediaSource, {
       subtitleStreamIndex,
       audioStreamIndex,
@@ -217,6 +222,16 @@ export const getStreamUrl = async ({
 
   sessionId = res.data.PlaySessionId || null;
   mediaSource = res.data.MediaSources?.[0];
+
+  // Jellyfin reports negotiation failures as HTTP 200 with an ErrorCode
+  // (NoCompatibleStream, RateLimitExceeded, …) and no MediaSources.
+  // Fabricating a stream URL anyway just moves the failure into an opaque
+  // decoder error minutes later, so fail here where the reason is known.
+  if (!mediaSource) {
+    throw new Error(
+      `PlaybackInfo returned no media source (${res.data.ErrorCode ?? "no ErrorCode"})`,
+    );
+  }
 
   const url = getPlaybackUrl(api, item.Id!, mediaSource, {
     subtitleStreamIndex,

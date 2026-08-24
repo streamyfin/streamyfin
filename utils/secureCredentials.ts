@@ -1,5 +1,13 @@
 import * as Crypto from "expo-crypto";
 import * as SecureStore from "expo-secure-store";
+import {
+  bumpCustomHeadersVersion,
+  deleteSecureCustomHeaderValues,
+  resolveCustomHeaderValues,
+  secureCustomHeaderMetadata,
+} from "./customHeaders/secureValues";
+import type { CustomHeader } from "./customHeaders/types";
+import { logAndCaptureError } from "./log";
 import { storage } from "./mmkv";
 
 const CREDENTIAL_KEY_PREFIX = "credential_";
@@ -53,6 +61,8 @@ export interface SavedServer {
   name?: string;
   accounts: SavedServerAccount[];
   localNetworkConfig?: LocalNetworkConfig;
+  /** Proxy auth headers for this server; values live in SecureStore. */
+  customHeaders?: CustomHeader[];
 }
 
 /**
@@ -92,6 +102,50 @@ export function credentialKey(serverUrl: string, userId: string): string {
   const combined = `${serverUrl}:${userId}`;
   const encoded = btoa(combined).replace(/[^a-zA-Z0-9]/g, "_");
   return `${CREDENTIAL_KEY_PREFIX}${encoded}`;
+}
+
+const JELLYSEERR_PASSWORD_KEY_PREFIX = "jellyseerrpw_";
+
+function jellyseerrPasswordKey(serverUrl: string, userId: string): string {
+  const encoded = btoa(`${serverUrl}:${userId}`).replace(/[^a-zA-Z0-9]/g, "_");
+  return `${JELLYSEERR_PASSWORD_KEY_PREFIX}${encoded}`;
+}
+
+/**
+ * Remember the Jellyfin password so Jellyseerr can be signed in automatically
+ * on launch.
+ *
+ * Jellyseerr's /auth/jellyfin endpoint authenticates with the *password*, not
+ * the Jellyfin access token, so there is no token-shaped way to do this — the
+ * password itself has to be kept. It lives in the platform secure store
+ * (Keychain / Android Keystore, and the OS keystore via Electron safeStorage on
+ * desktop), never in MMKV. Only stored when the user opts in via the
+ * `autoLoginJellyseerr` setting, and removed on logout with the rest of the
+ * account's credentials.
+ */
+export async function saveJellyseerrPassword(
+  serverUrl: string,
+  userId: string,
+  password: string,
+): Promise<void> {
+  await SecureStore.setItemAsync(
+    jellyseerrPasswordKey(serverUrl, userId),
+    password,
+  );
+}
+
+export async function getJellyseerrPassword(
+  serverUrl: string,
+  userId: string,
+): Promise<string | null> {
+  return SecureStore.getItemAsync(jellyseerrPasswordKey(serverUrl, userId));
+}
+
+export async function deleteJellyseerrPassword(
+  serverUrl: string,
+  userId: string,
+): Promise<void> {
+  await SecureStore.deleteItemAsync(jellyseerrPasswordKey(serverUrl, userId));
 }
 
 /**
@@ -166,6 +220,10 @@ export async function deleteAccountCredential(
 ): Promise<void> {
   const key = credentialKey(serverUrl, userId);
   await SecureStore.deleteItemAsync(key);
+
+  // Forgetting the account also forgets its Jellyseerr password — it must
+  // not outlive the credential it belongs to.
+  await deleteJellyseerrPassword(serverUrl, userId);
 
   // Remove account from previousServers
   removeAccountFromServer(serverUrl, userId);
@@ -300,11 +358,14 @@ export async function removeServerFromList(serverUrl: string): Promise<void> {
       const key = credentialKey(serverUrl, account.userId);
       await SecureStore.deleteItemAsync(key);
     }
+    deleteSecureCustomHeaderValues(server.customHeaders ?? []);
   }
 
   // Remove server from list
   const filtered = servers.filter((s) => s.address !== serverUrl);
   storage.set("previousServers", JSON.stringify(filtered));
+  // The header values are gone; anything caching them has to re-read.
+  bumpCustomHeadersVersion();
 }
 
 /**
@@ -366,6 +427,54 @@ export function getServerLocalConfig(
   const servers = getPreviousServers();
   const server = servers.find((s) => s.address === serverUrl);
   return server?.localNetworkConfig;
+}
+
+/**
+ * Replace the custom proxy headers for a server. Values are moved into
+ * SecureStore; only their names and SecureStore keys reach MMKV.
+ *
+ * The server entry is created if it doesn't exist yet — headers are configured
+ * during login, before the server has any accounts.
+ */
+export function updateServerCustomHeaders(
+  serverUrl: string,
+  headers: CustomHeader[],
+): void {
+  const servers = getPreviousServers();
+  const existingIndex = servers.findIndex((s) => s.address === serverUrl);
+  const previousHeaders =
+    existingIndex >= 0 ? (servers[existingIndex].customHeaders ?? []) : [];
+
+  // `headers` carries the values as typed; re-reading them from SecureStore
+  // here would hand back the previous secret and silently discard the edit.
+  const customHeaders = secureCustomHeaderMetadata(
+    `server:${serverUrl}`,
+    headers,
+    previousHeaders,
+  );
+
+  if (existingIndex >= 0) {
+    servers[existingIndex] = { ...servers[existingIndex], customHeaders };
+  } else {
+    // Same placement and cap as addServerToList — headers are configured before
+    // the connection succeeds, so this can be what creates the entry.
+    servers.unshift({ address: serverUrl, accounts: [], customHeaders });
+    servers.splice(10);
+  }
+
+  storage.set("previousServers", JSON.stringify(servers));
+  bumpCustomHeadersVersion();
+}
+
+/**
+ * Custom proxy headers for a server, with their SecureStore values filled in.
+ */
+export function getServerCustomHeaders(serverUrl: string): CustomHeader[] {
+  const servers = getPreviousServers();
+  const server = servers.find((s) => s.address === serverUrl);
+  // This is a read: it must not write, because it runs during render (every
+  // <Image> resolves its headers through it).
+  return resolveCustomHeaderValues(server?.customHeaders ?? []);
 }
 
 /**
@@ -449,8 +558,13 @@ export async function migrateToMultiAccount(): Promise<void> {
 
     storage.set("previousServers", JSON.stringify(migratedServers));
     storage.set(MULTI_ACCOUNT_MIGRATED_KEY, true);
-  } catch {
-    // If parsing fails, reset to empty array
+  } catch (error) {
+    // If parsing fails, reset to empty array. This destroys the user's saved
+    // server list, so it must never happen silently.
+    logAndCaptureError(
+      "Saved-servers migration failed; resetting previousServers",
+      error,
+    );
     storage.set("previousServers", "[]");
     storage.set(MULTI_ACCOUNT_MIGRATED_KEY, true);
   }

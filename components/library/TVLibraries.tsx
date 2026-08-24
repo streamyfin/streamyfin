@@ -6,13 +6,13 @@ import type {
 import { getItemsApi, getUserViewsApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import { BlurView } from "expo-blur";
-import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAtom } from "jotai";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Animated, Easing, FlatList, Pressable, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
 import { useScaledTVTypography } from "@/constants/TVTypography";
@@ -20,11 +20,12 @@ import useRouter from "@/hooks/useAppRouter";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
+import { scaleSize } from "@/utils/scaleSize";
 
-const HORIZONTAL_PADDING = 80;
-const CARD_HEIGHT = 220;
-const CARD_GAP = 24;
-const SCALE_PADDING = 20;
+const HORIZONTAL_PADDING = scaleSize(80);
+const CARD_HEIGHT = scaleSize(220);
+const CARD_GAP = scaleSize(24);
+const SCALE_PADDING = scaleSize(20);
 
 type IconName = React.ComponentProps<typeof Ionicons>["name"];
 
@@ -128,15 +129,15 @@ const TVLibraryRow: React.FC<{
           transform: [{ scale }],
           opacity,
           height: CARD_HEIGHT,
-          borderRadius: 20,
+          borderRadius: scaleSize(20),
           overflow: "hidden",
           backgroundColor: "#1a1a1a",
-          borderWidth: focused ? 4 : 0,
+          borderWidth: focused ? scaleSize(4) : 0,
           borderColor: "#FFFFFF",
           shadowColor: "#FFFFFF",
           shadowOffset: { width: 0, height: 0 },
           shadowOpacity: focused ? 0.3 : 0,
-          shadowRadius: focused ? 30 : 0,
+          shadowRadius: focused ? scaleSize(30) : 0,
         }}
       >
         {/* Background Image */}
@@ -169,7 +170,7 @@ const TVLibraryRow: React.FC<{
             flex: 1,
             flexDirection: "row",
             alignItems: "center",
-            paddingHorizontal: 40,
+            paddingHorizontal: scaleSize(40),
           }}
         >
           {/* Icon Container */}
@@ -177,20 +178,20 @@ const TVLibraryRow: React.FC<{
             intensity={60}
             tint='dark'
             style={{
-              width: 80,
-              height: 80,
-              borderRadius: 20,
+              width: scaleSize(80),
+              height: scaleSize(80),
+              borderRadius: scaleSize(20),
               justifyContent: "center",
               alignItems: "center",
               overflow: "hidden",
               backgroundColor: "rgba(255,255,255,0.1)",
             }}
           >
-            <Ionicons name={iconName} size={40} color='#FFFFFF' />
+            <Ionicons name={iconName} size={scaleSize(40)} color='#FFFFFF' />
           </BlurView>
 
           {/* Text Content */}
-          <View style={{ marginLeft: 24, flex: 1 }}>
+          <View style={{ marginLeft: scaleSize(24), flex: 1 }}>
             <Text
               numberOfLines={1}
               style={{
@@ -209,7 +210,7 @@ const TVLibraryRow: React.FC<{
                 style={{
                   fontSize: typography.body,
                   color: "rgba(255,255,255,0.7)",
-                  marginTop: 4,
+                  marginTop: scaleSize(4),
                   textShadowColor: "rgba(0,0,0,0.8)",
                   textShadowOffset: { width: 0, height: 1 },
                   textShadowRadius: 2,
@@ -226,7 +227,11 @@ const TVLibraryRow: React.FC<{
               opacity: focused ? 1 : 0.5,
             }}
           >
-            <Ionicons name='chevron-forward' size={32} color='#FFFFFF' />
+            <Ionicons
+              name='chevron-forward'
+              size={scaleSize(32)}
+              color='#FFFFFF'
+            />
           </Animated.View>
         </View>
       </Animated.View>
@@ -337,7 +342,7 @@ export const TVLibraries: React.FC = () => {
 
   const renderItem = useCallback(
     ({ item, index }: { item: LibraryWithPreview; index: number }) => (
-      <View style={{ marginBottom: CARD_GAP, paddingHorizontal: 8 }}>
+      <View style={{ marginBottom: CARD_GAP, paddingHorizontal: scaleSize(8) }}>
         <TVLibraryRow
           library={item}
           isFirst={index === 0}
@@ -385,8 +390,8 @@ export const TVLibraries: React.FC = () => {
     <View
       style={{
         flex: 1,
-        paddingTop: insets.top + 80,
-        paddingBottom: insets.bottom + 40,
+        paddingTop: insets.top + scaleSize(80),
+        paddingBottom: insets.bottom + scaleSize(40),
       }}
     >
       <FlatList
@@ -396,7 +401,7 @@ export const TVLibraries: React.FC = () => {
         showsVerticalScrollIndicator={false}
         removeClippedSubviews={false}
         contentContainerStyle={{
-          paddingBottom: 40,
+          paddingBottom: scaleSize(40),
           paddingHorizontal: insets.left + HORIZONTAL_PADDING,
           paddingVertical: SCALE_PADDING,
         }}
