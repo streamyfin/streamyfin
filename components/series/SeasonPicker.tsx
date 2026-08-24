@@ -34,7 +34,7 @@ type Props = {
 
 export const seasonIndexAtom = atom<SeasonIndexState>({});
 
-export const SeasonPicker: React.FC<Props> = ({ item }) => {
+export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
   const [seasonIndexState, setSeasonIndexState] = useAtom(seasonIndexAtom);
@@ -206,6 +206,7 @@ export const SeasonPicker: React.FC<Props> = ({ item }) => {
         <SeasonDropdown
           item={item}
           seasons={seasons}
+          initialSeasonIndex={initialSeasonIndex}
           state={seasonIndexState}
           onSelect={(season) => {
             if (!item.Id) return;
