@@ -84,6 +84,7 @@ if (Platform.isTV) {
 
 import * as Sentry from "@sentry/react-native";
 import useRouter from "@/hooks/useAppRouter";
+import { useNativePlayerLogBridge } from "@/hooks/useNativePlayerLogBridge";
 import { userAtom } from "@/providers/JellyfinProvider";
 import { effectiveSettingsAtom, settingsAtom } from "@/utils/atoms/settings";
 import {
@@ -392,6 +393,7 @@ function Layout() {
   }, [settings?.preferedLanguage, i18n]);
 
   useNotificationObserver();
+  useNativePlayerLogBridge();
 
   const [expoPushToken, setExpoPushToken] = useState<ExpoPushToken>();
   const notificationListener = useRef<EventSubscription>(null);
