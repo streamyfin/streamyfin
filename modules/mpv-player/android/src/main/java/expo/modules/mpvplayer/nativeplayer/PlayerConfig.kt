@@ -133,13 +133,16 @@ class SubtitleSearchStateRecord : Record {
 }
 
 class SubtitleStyleRecord : Record {
-    @Field var fontSize: Int? = null
     @Field var scale: Double? = null
+    @Field var renderScaleMultiplier: Double = 1.0
+    @Field var scaleLocked: Boolean = false
     @Field var marginY: Int? = null
     @Field var alignX: String? = null
     @Field var alignY: String? = null
-    @Field var backgroundColor: String? = null
-    @Field var borderStyle: String? = null
+    @Field var color: String? = null
+    @Field var font: String? = null
+    @Field var background: String? = null
+    @Field var backgroundPadding: Int? = null
     @Field var assOverride: String? = null
 }
 

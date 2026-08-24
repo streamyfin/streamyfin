@@ -326,11 +326,13 @@ private fun SubtitlesRootMenu(viewModel: PlayerViewModel) {
             )
         }
 
-        item {
-            TvSubmenuRow(
-                label = viewModel.str("subtitleSize", "Subtitle size"),
-                onClick = { viewModel.pushTvMenu(TvMenuScreen.SUBTITLE_SIZE) }
-            )
+        if (!viewModel.subtitleScaleLocked) {
+            item {
+                TvSubmenuRow(
+                    label = viewModel.str("subtitleSize", "Subtitle size"),
+                    onClick = { viewModel.pushTvMenu(TvMenuScreen.SUBTITLE_SIZE) }
+                )
+            }
         }
 
         item {

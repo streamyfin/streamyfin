@@ -28,6 +28,7 @@ class ExoPlayerModule : Module() {
                     autoplay = (source["autoplay"] as? Boolean) ?: true,
                     initialSubtitleId = (source["initialSubtitleId"] as? Number)?.toInt(),
                     initialAudioId = (source["initialAudioId"] as? Number)?.toInt(),
+                    loop = (source["loop"] as? Boolean) ?: false,
                     cacheEnabled = cacheConfig?.get("enabled") as? String,
                     cacheSeconds = (cacheConfig?.get("cacheSeconds") as? Number)?.toInt(),
                     demuxerMaxBytes = (cacheConfig?.get("maxBytes") as? Number)?.toInt(),
@@ -148,6 +149,14 @@ class ExoPlayerModule : Module() {
 
             AsyncFunction("setSubtitleFontSize") { view: ExoPlayerView, size: Int ->
                 view.setSubtitleFontSize(size)
+            }
+
+            AsyncFunction("setSubtitleColor") { view: ExoPlayerView, color: String ->
+                view.setSubtitleColor(color)
+            }
+
+            AsyncFunction("setSubtitleFont") { view: ExoPlayerView, font: String ->
+                view.setSubtitleFont(font)
             }
 
             AsyncFunction("setSubtitleBorderStyle") { view: ExoPlayerView, style: String ->

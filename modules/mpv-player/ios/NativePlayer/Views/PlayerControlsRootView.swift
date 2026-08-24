@@ -70,6 +70,22 @@ struct PlayerControlsRootView: View {
 					.transition(.opacity)
 			}
 
+			if viewModel.controlsVisible && viewModel.showSubtitleScaleControl {
+				SubtitleScaleOverlay(
+					viewModel: viewModel,
+					onClose: closeSubtitleScaleControl
+				)
+				.frame(maxWidth: 360)
+				.frame(
+					maxHeight: .infinity,
+					alignment: viewModel.subtitlesAtTop ? .bottom : .top
+				)
+				.padding(.vertical, 64)
+				.padding(.horizontal, 24)
+				.transition(.scale(scale: 0.95).combined(with: .opacity))
+				.zIndex(2)
+			}
+
 			if viewModel.isBuffering && !viewModel.isScrubbing && viewModel.errorMessage == nil {
 				ProgressView()
 					.controlSize(.large)
@@ -252,6 +268,7 @@ struct PlayerControlsRootView: View {
 		.animation(.easeInOut(duration: 0.2), value: viewModel.brightnessSliderRevealed)
 		.animation(.easeInOut(duration: 0.2), value: viewModel.unlockButtonRevealed)
 		.animation(.easeInOut(duration: 0.15), value: viewModel.isHoldSpeedActive)
+		.animation(.easeInOut(duration: 0.15), value: viewModel.showSubtitleScaleControl)
 		.animation(.easeInOut(duration: 0.15), value: viewModel.doubleTapSeekForward)
 		// SwiftUI never delivers onEnded when the SYSTEM cancels the touch
 		// (incoming call, Control Center edge swipe, backgrounding) — release
@@ -281,18 +298,27 @@ struct PlayerControlsRootView: View {
 	@ViewBuilder
 	private func tapSurface(size: CGSize) -> some View {
 		let surface = Color.clear.contentShape(Rectangle())
-		if viewModel.doubleTapToSeekEnabled && !viewModel.controlsLocked {
+		if viewModel.doubleTapToSeekEnabled && !viewModel.controlsLocked
+			&& !viewModel.showSubtitleScaleControl {
 			surface.gesture(
 				SpatialTapGesture(count: 2)
 					.onEnded { value in
 						viewModel.doubleTapSeek(forward: value.location.x >= size.width / 2)
 					}
 					.exclusively(
-						before: TapGesture().onEnded { viewModel.toggleControls() }
+						before: TapGesture().onEnded { handleSurfaceTap() }
 					)
 			)
 		} else {
-			surface.onTapGesture { viewModel.toggleControls() }
+			surface.onTapGesture { handleSurfaceTap() }
+		}
+	}
+
+	private func handleSurfaceTap() {
+		if viewModel.showSubtitleScaleControl {
+			closeSubtitleScaleControl()
+		} else {
+			viewModel.toggleControls()
 		}
 	}
 
@@ -421,6 +447,11 @@ struct PlayerControlsRootView: View {
 		.allowsHitTesting(false)
 	}
 
+	private func closeSubtitleScaleControl() {
+		viewModel.showSubtitleScaleControl = false
+		viewModel.scheduleAutoHide()
+	}
+
 	private func controls(compact: Bool) -> some View {
 		VStack(spacing: 0) {
 			PlayerTopBar(viewModel: viewModel, compact: compact)
@@ -458,6 +489,68 @@ struct PlayerControlsRootView: View {
 		.padding(32)
 		.frame(maxWidth: 420)
 		.background(.black.opacity(0.85), in: RoundedRectangle(cornerRadius: 20))
+	}
+}
+
+private struct SubtitleScaleOverlay: View {
+	@ObservedObject var viewModel: PlayerViewModel
+	let onClose: () -> Void
+
+	var body: some View {
+		Group {
+			#if os(iOS)
+			if #available(iOS 26.0, *) {
+				content.glassEffect(.regular, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+			} else {
+				materialContent
+			}
+			#else
+			materialContent
+			#endif
+		}
+		.shadow(color: .black.opacity(0.25), radius: 12, y: 4)
+	}
+
+	private var content: some View {
+		VStack(spacing: 12) {
+			HStack {
+				Text(viewModel.str("subtitleSize", "Subtitle size"))
+					.font(.headline)
+				Spacer()
+				Text(String(format: "%.1f×", viewModel.subtitleScale))
+					.font(.subheadline.monospacedDigit())
+					.foregroundStyle(.white.opacity(0.75))
+				Button(action: onClose) {
+					Image(systemName: "xmark.circle.fill")
+						.font(.title3)
+						.foregroundStyle(.white.opacity(0.75))
+						.frame(width: 32, height: 32)
+				}
+				.buttonStyle(.plain)
+				.accessibilityLabel(viewModel.str("close", "Close"))
+			}
+
+			Slider(
+				value: Binding(
+					get: { viewModel.subtitleScale },
+					set: { viewModel.setSubtitleScale($0) }
+				),
+				in: 0.1 ... 3,
+				step: 0.1,
+				label: { Text(viewModel.str("subtitleSize", "Subtitle size")) },
+				minimumValueLabel: { Text("A").font(.caption2) },
+				maximumValueLabel: { Text("A").font(.title3) }
+			)
+			.tint(.white)
+			.disabled(viewModel.subtitleScaleLocked)
+			.accessibilityValue(Text(String(format: "%.1f×", viewModel.subtitleScale)))
+		}
+		.foregroundStyle(.white)
+		.padding(16)
+	}
+
+	private var materialContent: some View {
+		content.background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
 	}
 }
 

@@ -7,6 +7,8 @@ export type TVSubtitleModalState = {
   mediaSourceId?: string | null;
   subtitleTracks: Track[];
   currentSubtitleIndex: number;
+  subtitleDelay?: number;
+  onSubtitleDelayChange?: (seconds: number) => void;
   onDisableSubtitles?: () => void;
   onServerSubtitleDownloaded?: () => void;
   onLocalSubtitleDownloaded?: (path: string) => void;

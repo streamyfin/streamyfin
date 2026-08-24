@@ -75,6 +75,12 @@
       [
         "expo-font",
         {
+          "fonts": [
+            "./assets/fonts/OpenDyslexic-Bold.otf",
+            "./assets/fonts/OpenDyslexic-BoldItalic.otf",
+            "./assets/fonts/OpenDyslexic-Italic.otf",
+            "./assets/fonts/OpenDyslexic-Regular.otf"
+          ],
           "ios": {
             "fonts": [
               "./assets/fonts/subtitles/NotoSans-Regular.ttf",

@@ -139,13 +139,15 @@ struct SubtitleSearchStateRecord: Record {
 }
 
 struct SubtitleStyleRecord: Record {
-	@Field var fontSize: Int?
 	@Field var scale: Double?
+	@Field var scaleLocked: Bool = false
 	@Field var marginY: Int?
 	@Field var alignX: String?
 	@Field var alignY: String?
-	@Field var backgroundColor: String?
-	@Field var borderStyle: String?
+	@Field var color: String?
+	@Field var font: String?
+	@Field var background: String?
+	@Field var backgroundPadding: Int?
 	@Field var assOverride: String?
 }
 
