@@ -40,6 +40,11 @@ import {
 } from "@/utils/jellyfin/subtitleUtils";
 import { COMMON_SUBTITLE_LANGUAGES } from "@/utils/opensubtitles/api";
 import { generateDeviceProfile } from "@/utils/profiles/native";
+import {
+  getDisplayVideoDimensions,
+  getEffectiveSubtitleMarginY,
+  getSubtitleBaseScaleMultiplier,
+} from "@/utils/subtitles";
 import { buildSubtitleStyle } from "@/utils/subtitles/subtitleStyle";
 import {
   buildAudioMenu,
@@ -92,6 +97,7 @@ export const buildNativePlayerStrings = (
   technicalInfo: t("player.menu.show_technical_info"),
   playbackError: t("player.error"),
   close: t("common.close"),
+  reset: t("library.filters.reset"),
   off: t("common.none"),
   quality: t("player.menu.quality"),
   subtitleSize: t("player.menu.subtitle_scale"),
@@ -363,6 +369,7 @@ export async function buildNativePlayerConfig(params: {
   api: Api | null;
   userId: string | undefined;
   settings: Settings;
+  subtitleSizeLocked?: boolean;
   req: PlayRequest;
   getDownloadedItemById: (id: string) => DownloadedItem | undefined;
   strings: NativePlayerStrings;
@@ -458,6 +465,11 @@ export async function buildNativePlayerConfig(params: {
 
   const initialAudioId = getMpvAudioId(mediaSource, audioIndex, isTranscoding);
   const videoStream = mediaSource.MediaStreams?.find((s) => s.Type === "Video");
+  const videoDimensions = getDisplayVideoDimensions(
+    videoStream?.Width,
+    videoStream?.Height,
+    videoStream?.Rotation,
+  );
 
   // 4. Headers — online only, auth skipped for remote/external streams
   let headers: Record<string, string> | undefined;
@@ -498,8 +510,8 @@ export async function buildNativePlayerConfig(params: {
         maxBytes: settings.mpvDemuxerMaxBytes,
         maxBackBytes: settings.mpvDemuxerMaxBackBytes,
       },
-      videoWidth: videoStream?.Width ?? undefined,
-      videoHeight: videoStream?.Height ?? undefined,
+      videoWidth: videoDimensions.width,
+      videoHeight: videoDimensions.height,
     },
     metadata: buildMetadata(item, api),
     // Episode-list and next-episode thumbnails are fetched natively, so they
@@ -529,7 +541,19 @@ export async function buildNativePlayerConfig(params: {
       offLabel: strings.off ?? "None",
       bitrateValue,
     }),
-    subtitleStyle: buildSubtitleStyle(settings),
+    subtitleStyle: {
+      ...buildSubtitleStyle(settings, {
+        scaleLocked: params.subtitleSizeLocked === true,
+        marginY:
+          settings.subtitleMarginY === undefined
+            ? undefined
+            : getEffectiveSubtitleMarginY(settings.subtitleMarginY),
+      }),
+      renderScaleMultiplier:
+        Platform.OS === "android"
+          ? getSubtitleBaseScaleMultiplier("mpv")
+          : undefined,
+    },
     ui: {
       // TV: no orientation, no PiP (v1), no haptics, and volume/brightness
       // belong to the remote/HDMI-CEC — the phone-only chrome stays off.

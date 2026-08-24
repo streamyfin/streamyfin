@@ -446,14 +446,14 @@ const TVStepperControl: React.FC<{
 
   const handleDecrease = () => {
     if (canDecrease) {
-      const newValue = Math.max(min, Math.round((value - step) * 10) / 10);
+      const newValue = Math.max(min, Math.round((value - step) * 100) / 100);
       onChange(newValue);
     }
   };
 
   const handleIncrease = () => {
     if (canIncrease) {
-      const newValue = Math.min(max, Math.round((value + step) * 10) / 10);
+      const newValue = Math.min(max, Math.round((value + step) * 100) / 100);
       onChange(newValue);
     }
   };
@@ -539,6 +539,9 @@ export default function TVSubtitleModal() {
   const typography = useScaledTVTypography();
 
   const [activeTab, setActiveTab] = useState<TabType>("tracks");
+  const [subtitleDelay, setSubtitleDelay] = useState(
+    modalState?.subtitleDelay ?? 0,
+  );
   const [selectedLanguage, setSelectedLanguage] = useState("eng");
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [hasSearchedThisSession, setHasSearchedThisSession] = useState(false);
@@ -994,14 +997,14 @@ export default function TVSubtitleModal() {
                   {/* Subtitle Scale */}
                   <View style={styles.settingRow}>
                     <TVStepperControl
-                      value={settings.mpvSubtitleScale ?? 1.0}
+                      value={settings.subtitleSize}
                       min={0.1}
                       max={3.0}
                       step={0.1}
                       formatValue={(v) => `${v.toFixed(1)}x`}
                       onChange={(newValue) => {
                         updateSettings({
-                          mpvSubtitleScale: Math.round(newValue * 10) / 10,
+                          subtitleSize: Math.round(newValue * 10) / 10,
                         });
                       }}
                       hasTVPreferredFocus={true}
@@ -1012,21 +1015,46 @@ export default function TVSubtitleModal() {
                         { fontSize: typography.callout },
                       ]}
                     >
-                      {t("home.settings.subtitles.mpv_subtitle_scale") ||
-                        "Subtitle Scale"}
+                      {t("home.settings.subtitles.subtitle_size")}
                     </Text>
                   </View>
+
+                  {modalState?.onSubtitleDelayChange && (
+                    <View style={styles.settingRow}>
+                      <TVStepperControl
+                        value={subtitleDelay}
+                        min={-5}
+                        max={5}
+                        step={0.25}
+                        formatValue={(value) =>
+                          `${value > 0 ? "+" : ""}${Number(value.toFixed(2))} s`
+                        }
+                        onChange={(value) => {
+                          setSubtitleDelay(value);
+                          modalState.onSubtitleDelayChange?.(value);
+                        }}
+                      />
+                      <Text
+                        style={[
+                          styles.settingLabel,
+                          { fontSize: typography.callout },
+                        ]}
+                      >
+                        {t("player.subtitle_sync")}
+                      </Text>
+                    </View>
+                  )}
 
                   {/* Vertical Margin */}
                   <View style={styles.settingRow}>
                     <TVStepperControl
-                      value={settings.mpvSubtitleMarginY ?? 0}
+                      value={settings.subtitleMarginY ?? 0}
                       min={-100}
                       max={100}
                       step={5}
                       formatValue={(v) => `${v}`}
                       onChange={(newValue) => {
-                        updateSettings({ mpvSubtitleMarginY: newValue });
+                        updateSettings({ subtitleMarginY: newValue });
                       }}
                     />
                     <Text
@@ -1035,8 +1063,7 @@ export default function TVSubtitleModal() {
                         { fontSize: typography.callout },
                       ]}
                     >
-                      {t("home.settings.subtitles.mpv_subtitle_margin_y") ||
-                        "Vertical Margin"}
+                      {t("home.settings.subtitles.subtitle_margin_y")}
                     </Text>
                   </View>
 
@@ -1050,10 +1077,10 @@ export default function TVSubtitleModal() {
                             t(`home.settings.subtitles.align.${align}`) || align
                           }
                           selected={
-                            (settings.mpvSubtitleAlignX ?? "center") === align
+                            (settings.subtitleAlignX ?? "center") === align
                           }
                           onPress={() =>
-                            updateSettings({ mpvSubtitleAlignX: align })
+                            updateSettings({ subtitleAlignX: align })
                           }
                         />
                       ))}
@@ -1064,8 +1091,7 @@ export default function TVSubtitleModal() {
                         { fontSize: typography.callout },
                       ]}
                     >
-                      {t("home.settings.subtitles.mpv_subtitle_align_x") ||
-                        "Horizontal Align"}
+                      {t("home.settings.subtitles.subtitle_align_x")}
                     </Text>
                   </View>
 
@@ -1079,10 +1105,10 @@ export default function TVSubtitleModal() {
                             t(`home.settings.subtitles.align.${align}`) || align
                           }
                           selected={
-                            (settings.mpvSubtitleAlignY ?? "bottom") === align
+                            (settings.subtitleAlignY ?? "bottom") === align
                           }
                           onPress={() =>
-                            updateSettings({ mpvSubtitleAlignY: align })
+                            updateSettings({ subtitleAlignY: align })
                           }
                         />
                       ))}
@@ -1093,8 +1119,7 @@ export default function TVSubtitleModal() {
                         { fontSize: typography.callout },
                       ]}
                     >
-                      {t("home.settings.subtitles.mpv_subtitle_align_y") ||
-                        "Vertical Align"}
+                      {t("home.settings.subtitles.subtitle_align_y")}
                     </Text>
                   </View>
                 </ScrollView>

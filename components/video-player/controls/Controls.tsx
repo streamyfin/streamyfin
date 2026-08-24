@@ -39,6 +39,7 @@ import { ticksToMs } from "@/utils/time";
 import { BottomControls } from "./BottomControls";
 import { CenterControls } from "./CenterControls";
 import { CONTROLS_CONSTANTS } from "./constants";
+import { AndroidSubtitleScaleOverlay } from "./dropdown/DropdownView";
 import { EpisodeList } from "./EpisodeList";
 import { GestureOverlay } from "./GestureOverlay";
 import { HeaderControls } from "./HeaderControls";
@@ -77,6 +78,8 @@ interface Props {
   // Playback speed props
   playbackSpeed?: number;
   setPlaybackSpeed?: (speed: number, scope: PlaybackSpeedScope) => void;
+  subtitleDelay?: number;
+  onSubtitleDelayChange?: (seconds: number) => void;
   onHoldSpeedStart?: () => void;
   onHoldSpeedEnd?: () => void;
   // Technical info props
@@ -121,6 +124,8 @@ export const Controls: FC<Props> = ({
   downloadedFiles = undefined,
   playbackSpeed = 1.0,
   setPlaybackSpeed,
+  subtitleDelay = 0,
+  onSubtitleDelayChange,
   onHoldSpeedStart,
   onHoldSpeedEnd,
   showTechnicalInfo = false,
@@ -136,6 +141,7 @@ export const Controls: FC<Props> = ({
 
   const [episodeView, setEpisodeView] = useState(false);
   const [showAudioSlider, setShowAudioSlider] = useState(false);
+  const [showSubtitleScale, setShowSubtitleScale] = useState(false);
 
   const { height: screenHeight, width: screenWidth } = useWindowDimensions();
   const { previousItem, nextItem } = usePlaybackManager({
@@ -611,6 +617,8 @@ export const Controls: FC<Props> = ({
     setShowControls(false);
     setShowAudioSlider(false);
   }, [setShowControls]);
+  const openSubtitleScale = useCallback(() => setShowSubtitleScale(true), []);
+  const closeSubtitleScale = useCallback(() => setShowSubtitleScale(false), []);
 
   const { handleControlsInteraction } = useControlsTimeout({
     showControls,
@@ -650,6 +658,13 @@ export const Controls: FC<Props> = ({
             isPlaying={isPlaying}
             videoTopOffset={videoTopOffset}
           />
+          {Platform.OS === "android" && (
+            <AndroidSubtitleScaleOverlay
+              visible={showSubtitleScale}
+              onClose={closeSubtitleScale}
+              onBackgroundPress={hideControls}
+            />
+          )}
           {/* Technical Info Overlay - rendered outside animated views to stay visible */}
           {getTechnicalInfo && (
             <TechnicalInfoOverlay
@@ -682,8 +697,11 @@ export const Controls: FC<Props> = ({
               onZoomToggle={onZoomToggle}
               playbackSpeed={playbackSpeed}
               setPlaybackSpeed={setPlaybackSpeed}
+              subtitleDelay={subtitleDelay}
+              onSubtitleDelayChange={onSubtitleDelayChange}
               showTechnicalInfo={showTechnicalInfo}
               onToggleTechnicalInfo={onToggleTechnicalInfo}
+              onOpenSubtitleScale={openSubtitleScale}
             />
           </Animated.View>
           <Animated.View

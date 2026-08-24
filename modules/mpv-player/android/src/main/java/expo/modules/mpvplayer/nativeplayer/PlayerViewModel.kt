@@ -19,6 +19,45 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.max
+import kotlin.math.min
+import kotlin.math.roundToInt
+
+internal fun calculateSubtitleScale(
+    baseScale: Double,
+    multiplier: Double,
+    videoWidth: Int,
+    videoHeight: Int,
+    surfaceWidth: Int,
+    surfaceHeight: Int,
+    zoomedToFill: Boolean
+): Double {
+    val scaled = baseScale * multiplier
+    if (videoWidth <= 0 || videoHeight <= 0 || surfaceWidth <= 0 || surfaceHeight <= 0) {
+        return scaled
+    }
+
+    val widthScale = surfaceWidth.toDouble() / videoWidth
+    val heightScale = surfaceHeight.toDouble() / videoHeight
+    val containScale = min(widthScale, heightScale)
+    val boost = if (containScale < 1) min(1 / containScale, 3.0) else 1.0
+    val zoomCompensation =
+        if (zoomedToFill) min(widthScale, heightScale) / max(widthScale, heightScale) else 1.0
+
+    return (scaled * boost * zoomCompensation * 100).roundToInt() / 100.0
+}
+
+internal fun calculateSubtitleMargin(
+    margin: Int,
+    isTv: Boolean,
+    isPipActive: Boolean,
+    surfaceWidth: Int,
+    surfaceHeight: Int
+): Int =
+    if (!isTv && !isPipActive && surfaceHeight > surfaceWidth) {
+        (margin * 0.7).roundToInt()
+    } else {
+        margin
+    }
 
 class PlayerViewModel : MPVLayerRenderer.Delegate {
 
@@ -54,6 +93,10 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
     var isZoomedToFill by mutableStateOf(false)
     var subtitleScale by mutableDoubleStateOf(1.0)
         private set
+    var subtitleScaleLocked by mutableStateOf(false)
+        private set
+    var subtitlesAtTop by mutableStateOf(false)
+        private set
     var subtitleDelay by mutableDoubleStateOf(0.0)
         private set
     var audioDelay by mutableDoubleStateOf(0.0)
@@ -75,6 +118,8 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
     var showEpisodeList by mutableStateOf(false)
     var doubleTapSeekForward by mutableStateOf<Boolean?>(null)
     var showSubtitleSearch by mutableStateOf(false)
+    var showSubtitleScaleOverlay by mutableStateOf(false)
+    var subtitleScaleOverlayActivity by mutableIntStateOf(0)
     var seekFeedbackVisible by mutableStateOf(false)
     var showExitConfirmation by mutableStateOf(false)
     var tvMenuRoute by mutableStateOf<List<TvMenuScreen>>(emptyList())
@@ -118,6 +163,12 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
     private var currentItemId: String? = null
     private var isTearingDown = false
     private var wasPlayingBeforeScrub = false
+    private var subtitleScaleMultiplier = 1.0
+    private var subtitleMarginY: Int? = null
+    private var subtitleVideoWidth = 0
+    private var subtitleVideoHeight = 0
+    private var subtitleSurfaceWidth = 0
+    private var subtitleSurfaceHeight = 0
     private var countdownCanceled = false
     private var countdownFired = false
 
@@ -181,6 +232,12 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
         uiOptions = config.ui
         strings = PlayerStrings(config.ui.strings)
         subtitleScale = config.subtitleStyle?.scale ?: 1.0
+        subtitleScaleMultiplier = config.subtitleStyle?.renderScaleMultiplier ?: 1.0
+        subtitleScaleLocked = config.subtitleStyle?.scaleLocked ?: false
+        subtitlesAtTop = config.subtitleStyle?.alignY == "top"
+        subtitleMarginY = config.subtitleStyle?.marginY
+        subtitleVideoWidth = config.stream.videoWidth ?: 0
+        subtitleVideoHeight = config.stream.videoHeight ?: 0
 
         val startPos = config.stream.startPositionSec ?: 0.0
         authoritativePosition = startPos
@@ -550,13 +607,49 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
 
     fun applyZoomState() {
         renderer?.setZoomedToFill(isZoomedToFill)
+        applySubtitleGeometry()
+    }
+
+    fun updateSubtitleGeometry(width: Int, height: Int) {
+        subtitleSurfaceWidth = width
+        subtitleSurfaceHeight = height
+        applySubtitleGeometry()
+    }
+
+    fun applySubtitleGeometry() {
+        val portraitPhone =
+            !isTvChrome && !isPipActive && subtitleSurfaceHeight > subtitleSurfaceWidth
+        subtitleMarginY?.let { margin ->
+            renderer?.setSubtitleMarginY(
+                calculateSubtitleMargin(
+                    margin,
+                    isTvChrome,
+                    isPipActive,
+                    subtitleSurfaceWidth,
+                    subtitleSurfaceHeight
+                )
+            )
+        }
+        renderer?.setSubtitleScale(
+            calculateSubtitleScale(
+                baseScale = subtitleScale,
+                multiplier = subtitleScaleMultiplier,
+                videoWidth = subtitleVideoWidth,
+                videoHeight = subtitleVideoHeight,
+                surfaceWidth = subtitleSurfaceWidth,
+                surfaceHeight = subtitleSurfaceHeight,
+                zoomedToFill = isZoomedToFill && portraitPhone
+            )
+        )
     }
 
     @JvmName("applySubtitleScale")
     fun setSubtitleScale(scale: Double) {
-        subtitleScale = scale
-        renderer?.setSubtitleScale(scale)
-        emit?.invoke("onSubtitleScaleChange", mapOf("scale" to scale))
+        if (subtitleScaleLocked) return
+        subtitleScaleOverlayActivity++
+        subtitleScale = scale.coerceIn(0.1, 3.0)
+        applySubtitleGeometry()
+        emit?.invoke("onSubtitleScaleChange", mapOf("scale" to subtitleScale))
         scheduleAutoHide()
     }
 
@@ -642,8 +735,6 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
     }
 
     fun requestRotate() {
-        val target = if (uiOptions.orientationLock == "landscape") "portrait" else "landscape"
-        emit?.invoke("onOrientationChangeRequested", mapOf("orientation" to target))
         onRotateRequested?.invoke()
         scheduleAutoHide()
     }
@@ -960,6 +1051,9 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
 
     override fun onVideoDimensionsChanged(width: Int, height: Int) {
         Log.i(TAG, "Video dimensions changed: ${width}x${height}")
+        subtitleVideoWidth = width
+        subtitleVideoHeight = height
+        applySubtitleGeometry()
     }
 
     override fun onChaptersChanged(chapters: List<Map<String, Any>>) {

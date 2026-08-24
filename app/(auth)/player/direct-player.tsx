@@ -17,7 +17,13 @@ import { useLocalSearchParams, useNavigation } from "expo-router";
 import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Alert, Platform, useWindowDimensions, View } from "react-native";
+import {
+  Alert,
+  PixelRatio,
+  Platform,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { useAnimatedReaction, useSharedValue } from "react-native-reanimated";
 import { BITRATES } from "@/components/BitrateSelector";
 import { Text } from "@/components/common/Text";
@@ -69,6 +75,10 @@ import {
   isImageBasedSubtitle,
 } from "@/utils/jellyfin/subtitleUtils";
 import { logAndCaptureError, writeToLog } from "@/utils/log";
+import {
+  getEffectiveSubtitleMarginY,
+  getEffectiveSubtitleScale,
+} from "@/utils/subtitles";
 import {
   isLocalSubtitleIndex,
   localSubtitleIndex,
@@ -368,6 +378,7 @@ export default function DirectPlayerPage() {
       setDownloadedItem(null);
       // Clear the previous episode's stream so the loader gate stays closed
       // until the new item's stream resolves (avoids a stale MPV source frame).
+      setTracksReady(false);
       setStream(null);
       // Scope the started flag and the position to the item being played. The
       // component is reused across an in-place item switch, and both are read
@@ -540,6 +551,7 @@ export default function DirectPlayerPage() {
           }
           result = { mediaSource, sessionId, url, requiredHttpHeaders };
         }
+        setTracksReady(false);
         setStream(result);
         setStreamStatus({ isLoading: false, isError: false });
         return result;
@@ -1346,37 +1358,8 @@ export default function DirectPlayerPage() {
     const newZoomState = !isZoomedToFill;
     await videoRef.current?.setZoomedToFill?.(newZoomState);
     setIsZoomedToFill(newZoomState);
-
-    // Adjust subtitle position to compensate for video cropping when zoomed
-    if (newZoomState) {
-      // Get video dimensions from mediaSource
-      const videoStream = stream?.mediaSource?.MediaStreams?.find(
-        (s) => s.Type === "Video",
-      );
-      const videoWidth = videoStream?.Width ?? 1920;
-      const videoHeight = videoStream?.Height ?? 1080;
-
-      const videoAR = videoWidth / videoHeight;
-      const screenAR = screenWidth / screenHeight;
-
-      if (screenAR > videoAR) {
-        // Screen is wider than video - video height extends beyond screen
-        // Calculate how much of the video is cropped at the bottom (as % of video height)
-        const bottomCropPercent = 50 * (1 - videoAR / screenAR);
-        // Only adjust by 70% of the crop to keep a comfortable margin from the edge
-        // (subtitles already have some built-in padding from the bottom)
-        const adjustmentFactor = 0.7;
-        const newSubPos = Math.round(
-          100 - bottomCropPercent * adjustmentFactor,
-        );
-        await videoRef.current?.setSubtitlePosition?.(newSubPos);
-      }
-      // If videoAR >= screenAR, sides are cropped but bottom is visible, no adjustment needed
-    } else {
-      // Restore to default position (bottom of video frame)
-      await videoRef.current?.setSubtitlePosition?.(100);
-    }
-  }, [isZoomedToFill, stream?.mediaSource, screenWidth, screenHeight]);
+    await videoRef.current?.setSubtitlePosition?.(100);
+  }, [isZoomedToFill]);
 
   // TV: Navigate to previous item
   const goToPreviousItem = useCallback(() => {
@@ -1444,6 +1427,7 @@ export default function DirectPlayerPage() {
   > => {
     if (!refetchStreamRef.current) return [];
 
+    setTracksReady(false);
     const newStream = await refetchStreamRef.current();
 
     // Check if component is still mounted before updating state
@@ -1511,11 +1495,49 @@ export default function DirectPlayerPage() {
     videoRef,
   ]);
 
-  // Apply subtitle settings when video loads
+  // Apply subtitle settings after MPV has enumerated tracks; applying them on
+  // load is too early for ASS override/alignment on Android.
   useEffect(() => {
-    if (!isVideoLoaded || !videoRef.current) return;
-    applySubtitleStyle(videoRef.current, buildSubtitleStyle(settings));
-  }, [isVideoLoaded, settings]);
+    if (!tracksReady || !videoRef.current) return;
+    const videoStream = stream?.mediaSource?.MediaStreams?.find(
+      (mediaStream) => mediaStream.Type === "Video",
+    );
+    const effectiveMarginY =
+      settings.subtitleMarginY === undefined
+        ? undefined
+        : getEffectiveSubtitleMarginY(settings.subtitleMarginY);
+    const effectiveScale = getEffectiveSubtitleScale(
+      settings.subtitleSize,
+      videoStream?.Width,
+      videoStream?.Height,
+      screenWidth * PixelRatio.get(),
+      screenHeight * PixelRatio.get(),
+      isZoomedToFill && screenHeight > screenWidth ? "cover" : "contain",
+      getActivePlayerType(settings),
+    );
+    void applySubtitleStyle(
+      videoRef.current,
+      buildSubtitleStyle(settings, {
+        scale: effectiveScale,
+        marginY:
+          effectiveMarginY !== undefined &&
+          Platform.OS === "android" &&
+          !Platform.isTV &&
+          screenHeight > screenWidth
+            ? Math.round(effectiveMarginY * 0.7)
+            : effectiveMarginY,
+      }),
+    ).catch((error: unknown) => {
+      console.error("Failed to apply subtitle settings:", error);
+    });
+  }, [
+    tracksReady,
+    settings,
+    stream?.mediaSource,
+    screenWidth,
+    screenHeight,
+    isZoomedToFill,
+  ]);
 
   // Apply initial playback speed when video loads
   useEffect(() => {

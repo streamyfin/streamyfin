@@ -3,6 +3,16 @@ import CoreMedia
 import VideoToolbox
 
 public class MpvPlayerModule: Module {
+  private func parseInteger(_ value: Any?) -> Int? {
+    if let intValue = value as? Int {
+      return intValue
+    } else if let doubleValue = value as? Double {
+      guard doubleValue.isFinite else { return nil }
+      return Int(exactly: doubleValue)
+    }
+    return nil
+  }
+
   public func definition() -> ModuleDefinition {
     Name("MpvPlayer")
 
@@ -59,12 +69,13 @@ public class MpvPlayerModule: Module {
           externalSubtitles: source["externalSubtitles"] as? [String],
           startPosition: source["startPosition"] as? Double,
           autoplay: (source["autoplay"] as? Bool) ?? true,
-          initialSubtitleId: source["initialSubtitleId"] as? Int,
-          initialAudioId: source["initialAudioId"] as? Int,
+          initialSubtitleId: self.parseInteger(source["initialSubtitleId"]),
+          initialAudioId: self.parseInteger(source["initialAudioId"]),
+          loop: (source["loop"] as? Bool) ?? false,
           cacheEnabled: cacheConfig?["enabled"] as? String,
-          cacheSeconds: cacheConfig?["cacheSeconds"] as? Int,
-          demuxerMaxBytes: cacheConfig?["maxBytes"] as? Int,
-          demuxerMaxBackBytes: cacheConfig?["maxBackBytes"] as? Int
+          cacheSeconds: self.parseInteger(cacheConfig?["cacheSeconds"]),
+          demuxerMaxBytes: self.parseInteger(cacheConfig?["maxBytes"]),
+          demuxerMaxBackBytes: self.parseInteger(cacheConfig?["maxBackBytes"])
         )
 
         view.loadVideo(config: config)
@@ -188,6 +199,10 @@ public class MpvPlayerModule: Module {
       AsyncFunction("setSubtitleScale") { (view: MpvPlayerView, scale: Double) in
         view.setSubtitleScale(scale)
       }
+
+      AsyncFunction("setSubtitleDelay") { (view: MpvPlayerView, seconds: Double) in
+        view.setSubtitleDelay(seconds)
+      }
       
       AsyncFunction("setSubtitleMarginY") { (view: MpvPlayerView, margin: Int) in
         view.setSubtitleMarginY(margin)
@@ -200,9 +215,13 @@ public class MpvPlayerModule: Module {
       AsyncFunction("setSubtitleAlignY") { (view: MpvPlayerView, alignment: String) in
         view.setSubtitleAlignY(alignment)
       }
-      
+
       AsyncFunction("setSubtitleFontSize") { (view: MpvPlayerView, size: Int) in
         view.setSubtitleFontSize(size)
+      }
+
+      AsyncFunction("setSubtitleStyle") { (view: MpvPlayerView, config: [String: Any]) in
+        view.setSubtitleStyle(config: config)
       }
 
       AsyncFunction("setSubtitleBackgroundColor") { (view: MpvPlayerView, color: String) in
