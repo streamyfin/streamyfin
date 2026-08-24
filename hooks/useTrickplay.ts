@@ -37,9 +37,9 @@ export const useTrickplay = (item: BaseItemDto) => {
       if (isOffline && downloadedItem?.trickPlayData?.path) {
         return `${downloadedItem.trickPlayData.path}${sheetIndex}.jpg`;
       }
-      return generateTrickplayUrl(item, sheetIndex);
+      return generateTrickplayUrl(item, sheetIndex, api);
     },
-    [trickplayInfo, isOffline, getDownloadedItemById],
+    [trickplayInfo, isOffline, getDownloadedItemById, api],
   );
 
   /** Calculates the trickplay URL for the current progress. */

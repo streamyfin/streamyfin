@@ -9,6 +9,9 @@ import type { CustomHeader } from "@/utils/customHeaders/types";
 mock.module("@/utils/customHeaders", () => ({
   normalizeCustomHeaders,
   optionsWithOptionalHeaders,
+  // Unused here, but the mock is global: another spec's module can be
+  // re-linked to this one and would otherwise lose the resolver.
+  getJellyfinHeadersForUrl: () => undefined,
 }));
 
 // Bun's mock.module retroactively re-links every module already importing the

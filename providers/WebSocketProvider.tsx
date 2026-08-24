@@ -18,6 +18,7 @@ import { useNetworkStatus } from "@/providers/NetworkStatusProvider";
 import { getJellyfinHeaders, hasHeaders } from "@/utils/customHeaders";
 import { getOrSetDeviceId } from "@/utils/device";
 import { describeHttpResponse } from "@/utils/errors";
+import { getWebSocketUrl } from "@/utils/jellyfin/getWebSocketUrl";
 import { logAndCaptureError } from "@/utils/log";
 
 // Query keys that depend on the set of library items and should be refreshed
@@ -187,12 +188,7 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
       return;
     }
 
-    const protocol = api.basePath.includes("https") ? "wss" : "ws";
-    const url = `${protocol}://${api.basePath
-      .replace("https://", "")
-      .replace("http://", "")}/socket?ApiKey=${
-      api.accessToken
-    }&deviceId=${deviceId}`;
+    const url = getWebSocketUrl(api.basePath, api.accessToken, deviceId);
 
     // React Native's WebSocket takes request headers as a third argument (the
     // DOM typings don't know about it), so a server behind an access gateway

@@ -711,8 +711,6 @@ export const Controls: FC<Props> = ({
             <HeaderControls
               item={item}
               showControls={showControls}
-              offline={offline}
-              mediaSource={mediaSource}
               startPictureInPicture={startPictureInPicture}
               switchOnEpisodeMode={switchOnEpisodeMode}
               goToPreviousItem={goToPreviousItem}
