@@ -8,14 +8,9 @@ import { JellyseerrSearchSort } from "@/components/jellyseerr/JellyseerrIndexPag
 const { Button, Host, Menu } = Platform.isTV
   ? ({} as typeof import("@expo/ui/swift-ui"))
   : require("@expo/ui/swift-ui");
-const { buttonStyle, menuOrder } = Platform.isTV
+const { buttonStyle } = Platform.isTV
   ? ({} as typeof import("@expo/ui/swift-ui/modifiers"))
   : require("@expo/ui/swift-ui/modifiers");
-
-// UIMenu reorders items by proximity to the anchor, so a menu that opens
-// upward shows them reversed. Keep the order they were provided in.
-// Built once, and never on TV where the modifiers module is not loaded.
-const fixedOrder = Platform.isTV ? [] : [menuOrder("fixed")];
 
 interface DiscoverFiltersProps {
   searchFilterId: string;
@@ -55,7 +50,6 @@ export const DiscoverFilters: React.FC<DiscoverFiltersProps> = ({
         }}
       >
         <Menu
-          modifiers={fixedOrder}
           label={
             <Button
               modifiers={[buttonStyle("glass")]}
@@ -64,7 +58,6 @@ export const DiscoverFilters: React.FC<DiscoverFiltersProps> = ({
           }
         >
           <Menu
-            modifiers={fixedOrder}
             label={`${t("library.filters.sort_by")}: ${t(
               `home.settings.plugins.jellyseerr.order_by.${jellyseerrOrderBy}`,
             )}`}
@@ -87,7 +80,6 @@ export const DiscoverFilters: React.FC<DiscoverFiltersProps> = ({
             })}
           </Menu>
           <Menu
-            modifiers={fixedOrder}
             label={`${t("library.filters.sort_order")}: ${t(
               `library.filters.${jellyseerrSortOrder}`,
             )}`}

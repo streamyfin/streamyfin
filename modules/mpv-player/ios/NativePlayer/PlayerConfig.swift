@@ -47,9 +47,14 @@ struct ChapterRecord: Record {
 }
 
 struct MediaSegmentRecord: Record {
-	@Field var type: String = ""       // "Intro" | "Outro"
+	/// "Intro" | "Outro" | "Recap" | "Commercial" | "Preview"
+	@Field var type: String = ""
 	@Field var startSec: Double = 0
 	@Field var endSec: Double = 0
+	/// "none" | "ask" | "auto". Resolved on the JS side from the per-type skip
+	/// settings so this player never reads settings and cannot drift from the
+	/// JS players. "none" segments are not sent at all; absent means "ask".
+	@Field var skipMode: String = "ask"
 }
 
 struct TrickplayRecord: Record {
@@ -134,13 +139,15 @@ struct SubtitleSearchStateRecord: Record {
 }
 
 struct SubtitleStyleRecord: Record {
-	@Field var fontSize: Int?
 	@Field var scale: Double?
+	@Field var scaleLocked: Bool = false
 	@Field var marginY: Int?
 	@Field var alignX: String?
 	@Field var alignY: String?
-	@Field var backgroundColor: String?
-	@Field var borderStyle: String?
+	@Field var color: String?
+	@Field var font: String?
+	@Field var background: String?
+	@Field var backgroundPadding: Int?
 	@Field var assOverride: String?
 }
 

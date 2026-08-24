@@ -127,6 +127,16 @@ export default function IndexLayout() {
         }}
       />
       <Stack.Screen
+        name='settings/segment-skip/page'
+        options={{
+          title: t("home.settings.other.segment_skip_settings"),
+          headerShown: !Platform.isTV,
+          headerBlurEffect: "none",
+          headerTransparent: Platform.OS === "ios",
+          headerShadowVisible: false,
+        }}
+      />
+      <Stack.Screen
         name='settings/appearance/page'
         options={{
           title: t("home.settings.appearance.title"),

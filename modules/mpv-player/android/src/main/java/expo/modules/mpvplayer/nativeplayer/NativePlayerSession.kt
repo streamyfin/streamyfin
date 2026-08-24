@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.graphics.Color
 import android.os.Build
 import android.os.Handler
@@ -20,6 +21,8 @@ import android.view.SurfaceView
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.FrameLayout
+import androidx.activity.ComponentActivity
+import androidx.activity.OnBackPressedCallback
 import androidx.annotation.RequiresApi
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.ComposeView
@@ -63,8 +66,10 @@ class NativePlayerSession(
     private var overlayContainer: FrameLayout? = null
     private var surfaceView: SurfaceView? = null
     private var composeView: ComposeView? = null
+    private var backCallback: OnBackPressedCallback? = null
 
     private var surfaceReady = false
+    private var rendererStarted = false
     private var isDismissing = false
     private var pendingConfig: PlayerPresentConfigRecord? = null
 
@@ -94,7 +99,10 @@ class NativePlayerSession(
             dismiss(reason)
         }
         viewModel.onRotateRequested = {
-            emit("onOrientationChangeRequested", mapOf("orientation" to "landscape"))
+            val orientation = hostActivity?.resources?.configuration?.orientation
+            val target =
+                if (orientation == Configuration.ORIENTATION_LANDSCAPE) "portrait" else "landscape"
+            emit("onOrientationChangeRequested", mapOf("orientation" to target))
         }
         viewModel.onHDRModeDetected = { isHdr, fps ->
             emit("onHDRModeDetected", mapOf("isHdr" to isHdr, "fps" to fps))
@@ -128,9 +136,6 @@ class NativePlayerSession(
                 viewModel.renderer = newRenderer
                 this.renderer = newRenderer
 
-                // Claim ownership and start renderer
-                newRenderer.start(voDriver = "gpu-next", owner = MpvOwnership.Owner.NATIVE_SESSION)
-
                 // Initialize controllers
                 if (!isTv) {
                     val volumeCtrl = SystemVolumeController(activity)
@@ -160,13 +165,24 @@ class NativePlayerSession(
                     mediaSessionController?.updateMetadata()
                 }
 
-                viewModel.apply(config)
-
                 // Setup Overlay Views on MainActivity
                 setupOverlay(activity, config, isTv)
 
-                // Kick stream load
-                startStream(config)
+                newRenderer.start(
+                    voDriver = "gpu-next",
+                    owner = MpvOwnership.Owner.NATIVE_SESSION,
+                ) {
+                    if (renderer !== newRenderer) return@start
+                    rendererStarted = true
+                    surfaceView?.holder?.surface?.takeIf { it.isValid }?.let { surface ->
+                        newRenderer.attachSurface(surface)
+                        syncSurfaceSize()
+                    }
+                    val configToLoad = pendingConfig ?: config
+                    pendingConfig = null
+                    viewModel.apply(configToLoad)
+                    startStream(configToLoad)
+                }
 
                 promise.resolve(null)
             } catch (e: Exception) {
@@ -198,7 +214,12 @@ class NativePlayerSession(
                 isFocusableInTouchMode = true
                 setOnKeyListener { _, keyCode, event ->
                     if (keyCode == KeyEvent.KEYCODE_BACK && event.action == KeyEvent.ACTION_UP) {
-                        dismiss("closeButton")
+                        if (viewModel.showSubtitleScaleOverlay) {
+                            viewModel.showSubtitleScaleOverlay = false
+                            viewModel.scheduleAutoHide()
+                        } else {
+                            dismiss("closeButton")
+                        }
                         true
                     } else false
                 }
@@ -217,7 +238,7 @@ class NativePlayerSession(
             val w = right - left
             val h = bottom - top
             if (w > 0 && h > 0 && (w != (oldRight - oldLeft) || h != (oldBottom - oldTop))) {
-                renderer?.updateSurfaceSize(w, h)
+                updateSurfaceGeometry(w, h)
             }
         }
         surfaceView = sView
@@ -298,8 +319,20 @@ class NativePlayerSession(
                 ViewGroup.LayoutParams.MATCH_PARENT
             )
         )
-
         if (!isTv) {
+            container.requestFocus()
+            (activity as? ComponentActivity)?.let { owner ->
+                backCallback = object : OnBackPressedCallback(true) {
+                    override fun handleOnBackPressed() {
+                        if (viewModel.showSubtitleScaleOverlay) {
+                            viewModel.showSubtitleScaleOverlay = false
+                            viewModel.scheduleAutoHide()
+                        } else {
+                            dismiss("closeButton")
+                        }
+                    }
+                }.also { owner.onBackPressedDispatcher.addCallback(it) }
+            }
             setupPiP(activity, config.ui.allowPip)
         }
     }
@@ -332,6 +365,9 @@ class NativePlayerSession(
     private fun onPiPModeChanged(isInPiP: Boolean) {
         viewModel.isPipActive = isInPiP
         if (isInPiP) {
+            renderer?.setSubtitleUseMargins(false)
+            renderer?.setSubtitleScaleWithWindow(false)
+            viewModel.applySubtitleGeometry()
             viewModel.controlsVisible = false
             mainHandler.postDelayed({ syncSurfaceSize() }, 100)
             mainHandler.postDelayed({ syncSurfaceSize() }, 500)
@@ -412,9 +448,13 @@ class NativePlayerSession(
     fun load(config: PlayerPresentConfigRecord) {
         val activity = hostActivity
         val loadAction = {
-            viewModel.prepareForReload()
-            viewModel.apply(config)
-            startStream(config, force = true)
+            if (!rendererStarted) {
+                pendingConfig = config
+            } else {
+                viewModel.prepareForReload()
+                viewModel.apply(config)
+                startStream(config)
+            }
         }
         if (activity != null && Looper.myLooper() != Looper.getMainLooper()) {
             activity.runOnUiThread { loadAction() }
@@ -423,9 +463,9 @@ class NativePlayerSession(
         }
     }
 
-    private fun startStream(config: PlayerPresentConfigRecord, force: Boolean = false) {
+    private fun startStream(config: PlayerPresentConfigRecord) {
         val loadConfig = config.stream.toVideoLoadConfig() ?: return
-        if (!surfaceReady) {
+        if (!rendererStarted || !surfaceReady) {
             pendingConfig = config
             return
         }
@@ -472,13 +512,16 @@ class NativePlayerSession(
     }
 
     private fun applySubtitleStyle(style: SubtitleStyleRecord) {
-        style.fontSize?.let { renderer?.setSubtitleFontSize(it) }
-        style.scale?.let { renderer?.setSubtitleScale(it) }
-        style.marginY?.let { renderer?.setSubtitleMarginY(it) }
+        val appearance = mutableMapOf<String, Any>()
+        style.color?.let { appearance["color"] = it }
+        style.font?.let { appearance["font"] = it }
+        style.background?.let { appearance["background"] = it }
+        style.backgroundPadding?.let { appearance["backgroundPadding"] = it }
+        renderer?.setSubtitleStyle(appearance)
+
+        viewModel.applySubtitleGeometry()
         style.alignX?.let { renderer?.setSubtitleAlignX(it) }
         style.alignY?.let { renderer?.setSubtitleAlignY(it) }
-        style.backgroundColor?.let { renderer?.setSubtitleBackgroundColor(it) }
-        style.borderStyle?.let { renderer?.setSubtitleBorderStyle(it) }
         style.assOverride?.let { renderer?.setSubtitleAssOverride(it) }
     }
 
@@ -487,8 +530,16 @@ class NativePlayerSession(
         val w = surfaceView?.width ?: 0
         val h = surfaceView?.height ?: 0
         if (w > 0 && h > 0) {
-            renderer?.updateSurfaceSize(w, h)
+            updateSurfaceGeometry(w, h)
         }
+    }
+
+    private fun updateSurfaceGeometry(width: Int, height: Int) {
+        renderer?.updateSurfaceSize(width, height)
+        val useLandscapeMargins = !viewModel.isPipActive && width > height
+        renderer?.setSubtitleUseMargins(useLandscapeMargins)
+        renderer?.setSubtitleScaleWithWindow(useLandscapeMargins && !viewModel.isTvChrome)
+        viewModel.updateSubtitleGeometry(width, height)
     }
 
     // MARK: - SurfaceHolder.Callback
@@ -497,15 +548,17 @@ class NativePlayerSession(
         renderer?.attachSurface(holder.surface)
         syncSurfaceSize()
 
-        pendingConfig?.let { config ->
-            pendingConfig = null
-            startStream(config)
+        if (rendererStarted) {
+            pendingConfig?.let { config ->
+                pendingConfig = null
+                startStream(config)
+            }
         }
     }
 
     override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
         if (width > 0 && height > 0) {
-            renderer?.updateSurfaceSize(width, height)
+            updateSurfaceGeometry(width, height)
         }
     }
 
@@ -548,6 +601,8 @@ class NativePlayerSession(
             ))
 
             // Remove overlay container on main thread
+            backCallback?.remove()
+            backCallback = null
             overlayContainer?.let { container ->
                 (container.parent as? ViewGroup)?.removeView(container)
             }
@@ -571,6 +626,8 @@ class NativePlayerSession(
             viewModel.volumeController?.unregister()
             mediaSessionController?.release()
 
+            pendingConfig = null
+            rendererStarted = false
             renderer?.stop()
             renderer = null
             hostActivity = null
@@ -592,6 +649,8 @@ class NativePlayerSession(
         val activity = hostActivity
         val teardownAction = {
             viewModel.willTeardown()
+            backCallback?.remove()
+            backCallback = null
             overlayContainer?.let { container ->
                 (container.parent as? ViewGroup)?.removeView(container)
             }
@@ -602,6 +661,8 @@ class NativePlayerSession(
             viewModel.brightnessController?.restore()
             viewModel.volumeController?.unregister()
             mediaSessionController?.release()
+            pendingConfig = null
+            rendererStarted = false
             renderer?.stop()
             renderer = null
             hostActivity = null

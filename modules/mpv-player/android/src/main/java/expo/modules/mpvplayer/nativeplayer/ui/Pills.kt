@@ -50,11 +50,7 @@ import expo.modules.mpvplayer.nativeplayer.PlayerViewModel
 
 @Composable
 fun SkipSegmentButton(viewModel: PlayerViewModel, segment: MediaSegmentRecord) {
-    val label = if (segment.type == "Intro") {
-        viewModel.strings.get("skipIntro", "Skip Intro")
-    } else {
-        viewModel.strings.get("skipCredits", "Skip Credits")
-    }
+    val label = viewModel.skipLabel(segment.type)
 
     Button(
         onClick = { viewModel.skipActiveSegment() },
@@ -75,6 +71,27 @@ fun SkipSegmentButton(viewModel: PlayerViewModel, segment: MediaSegmentRecord) {
             )
         }
     }
+}
+
+/**
+ * "Intro skipped" notice, shown briefly after an automatic skip. It sits at the
+ * top centre because the bottom is taken on both sides — title on the left,
+ * skip pill and countdown on the right.
+ */
+@Composable
+fun SegmentSkippedNotice(text: String) {
+    Text(
+        text = text,
+        color = Color.White,
+        fontWeight = FontWeight.Medium,
+        fontSize = 14.sp,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        modifier = Modifier
+            .clip(CircleShape)
+            .background(PlayerPillBackground)
+            .padding(horizontal = 16.dp, vertical = 10.dp)
+    )
 }
 
 /**

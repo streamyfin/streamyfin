@@ -17,12 +17,32 @@ import Animated, {
 } from "react-native-reanimated";
 import { Text } from "@/components/common/Text";
 import { scaleSize } from "@/utils/scaleSize";
+import { SEGMENT_SKIP_KEY, type SegmentTypeName } from "@/utils/segments";
 import { useTVFocusAnimation } from "./hooks/useTVFocusAnimation";
+
+export type TVSkipSegmentType =
+  | "intro"
+  | "credits"
+  | "outro"
+  | "recap"
+  | "commercial"
+  | "preview";
+
+// `credits` is the historical name for Jellyfin's `Outro` type; both resolve to
+// the same display name so the card never disagrees with the other players.
+const SEGMENT_NAME_BY_CARD_TYPE: Record<TVSkipSegmentType, SegmentTypeName> = {
+  intro: "Intro",
+  credits: "Outro",
+  outro: "Outro",
+  recap: "Recap",
+  commercial: "Commercial",
+  preview: "Preview",
+};
 
 export interface TVSkipSegmentCardProps {
   show: boolean;
   onPress: () => void;
-  type: "intro" | "credits";
+  type: TVSkipSegmentType;
   /** Whether controls are visible - affects card position */
   controlsVisible?: boolean;
   /** Callback ref setter for focus guide destination pattern */
@@ -78,8 +98,7 @@ export const TVSkipSegmentCard: FC<TVSkipSegmentCardProps> = ({
     bottom: bottomPosition.value,
   }));
 
-  const labelText =
-    type === "intro" ? t("player.skip_intro") : t("player.skip_credits");
+  const labelText = t(SEGMENT_SKIP_KEY[SEGMENT_NAME_BY_CARD_TYPE[type]]);
 
   if (!show) return null;
 

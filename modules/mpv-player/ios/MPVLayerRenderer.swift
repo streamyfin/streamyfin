@@ -42,9 +42,6 @@ final class MPVLayerRenderer {
     
     private var mpv: OpaquePointer?
     
-    private var currentPreset: PlayerPreset?
-    private var currentURL: URL?
-    private var currentHeaders: [String: String]?
     private var pendingExternalSubtitles: [String] = []
     private var initialSubtitleId: Int?
     private var initialAudioId: Int?
@@ -355,15 +352,22 @@ final class MPVLayerRenderer {
 
         let fm = FileManager.default
         let fontsDir = configDir.appendingPathComponent("fonts", isDirectory: true)
-        try? fm.createDirectory(at: fontsDir, withIntermediateDirectories: true)
-
-        // Copied rather than read straight from the bundle because libass loads
-        // *every* file in the fonts dir — pointing it at the bundle root would pull
-        // in every image and asset we ship.
-        for name in Self.subtitleFontResources {
-            Self.installFont(named: name, at: fontsDir.appendingPathComponent(name))
+        do {
+            try fm.createDirectory(at: fontsDir, withIntermediateDirectories: true)
+        } catch {
+            Logger.shared.log(
+                "Could not prepare subtitle font directory: \(error.localizedDescription)",
+                type: "Warn"
+            )
+            return
         }
-        Self.installFont(
+
+        // Keep libass' font DB isolated without copying 17 MB on the main thread.
+        // The links are refreshed when an app update changes the bundle path.
+        for name in Self.subtitleFontResources {
+            Self.linkFont(named: name, at: fontsDir.appendingPathComponent(name))
+        }
+        Self.linkFont(
             named: Self.subtitleFallbackFontResource,
             at: configDir.appendingPathComponent("subfont.ttf")
         )
@@ -380,35 +384,36 @@ final class MPVLayerRenderer {
         "NotoSansHebrew-Regular.ttf",
     ]
 
-    /// Face copied to `<config-dir>/subfont.ttf`, libass' unconditional last resort.
+    /// Face linked to `<config-dir>/subfont.ttf`, libass' unconditional last resort.
     private static let subtitleFallbackFontResource = "NotoSansCJKsc-Regular.otf"
 
     /// Family name of `NotoSans-Regular.ttf`, used as `--sub-font`.
     private static let subtitleFontFamily = "Noto Sans"
 
-    /// Writable directory handed to mpv as `--config-dir`.
-    ///
-    /// tvOS apps get no persistent app-support storage, so Caches is the only
-    /// option there; it can be purged, which is why `installFont` re-checks on
-    /// every player start rather than copying once.
+    /// Writable, backup-excluded directory handed to mpv as `--config-dir`.
     private static func mpvConfigDirectory() -> URL? {
-        #if os(tvOS)
-        let base = FileManager.SearchPathDirectory.cachesDirectory
-        #else
-        let base = FileManager.SearchPathDirectory.applicationSupportDirectory
-        #endif
-        guard let root = try? FileManager.default.url(
-            for: base, in: .userDomainMask, appropriateFor: nil, create: true
-        ) else { return nil }
-
-        let dir = root.appendingPathComponent("mpv", isDirectory: true)
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        return dir
+        let fm = FileManager.default
+        do {
+            let root = try fm.url(
+                for: .cachesDirectory,
+                in: .userDomainMask,
+                appropriateFor: nil,
+                create: true
+            )
+            let dir = root.appendingPathComponent("mpv", isDirectory: true)
+            try fm.createDirectory(at: dir, withIntermediateDirectories: true)
+            return dir
+        } catch {
+            Logger.shared.log(
+                "Could not prepare mpv cache directory: \(error.localizedDescription)",
+                type: "Warn"
+            )
+            return nil
+        }
     }
 
-    /// Copies a bundled font into place if it is missing or stale. Size is enough
-    /// of a fingerprint here — these files only ever change when we swap the font.
-    private static func installFont(named resource: String, at destination: URL) {
+    /// Links an immutable bundled font into mpv's isolated font directory.
+    private static func linkFont(named resource: String, at destination: URL) {
         let fm = FileManager.default
         let name = (resource as NSString).deletingPathExtension
         let ext = (resource as NSString).pathExtension
@@ -418,16 +423,22 @@ final class MPVLayerRenderer {
             return
         }
 
-        let sourceSize = (try? source.resourceValues(forKeys: [.fileSizeKey]))?.fileSize
-        let destSize = (try? destination.resourceValues(forKeys: [.fileSizeKey]))?.fileSize
-        if destSize != nil, destSize == sourceSize { return }
+        let currentTarget = try? fm.destinationOfSymbolicLink(atPath: destination.path)
+        if let currentTarget,
+            URL(fileURLWithPath: currentTarget).standardizedFileURL
+                == source.standardizedFileURL
+        {
+            return
+        }
 
-        try? fm.removeItem(at: destination)
         do {
-            try fm.copyItem(at: source, to: destination)
+            if currentTarget != nil || fm.fileExists(atPath: destination.path) {
+                try fm.removeItem(at: destination)
+            }
+            try fm.createSymbolicLink(at: destination, withDestinationURL: source)
         } catch {
             Logger.shared.log(
-                "Could not install subtitle font \(resource): \(error.localizedDescription)",
+                "Could not link subtitle font \(resource): \(error.localizedDescription)",
                 type: "Warn"
             )
         }
@@ -477,7 +488,7 @@ final class MPVLayerRenderer {
 
         isStopping = false
     }
-    
+
     func load(
         url: URL,
         with preset: PlayerPreset,
@@ -486,20 +497,16 @@ final class MPVLayerRenderer {
         externalSubtitles: [String]? = nil,
         initialSubtitleId: Int? = nil,
         initialAudioId: Int? = nil,
+        loop: Bool = false,
         cacheEnabled: String? = nil,
         cacheSeconds: Int? = nil,
         demuxerMaxBytes: Int? = nil,
         demuxerMaxBackBytes: Int? = nil
     ) {
-        currentPreset = preset
-        currentURL = url
-        currentHeaders = headers
         queue.async { [weak self] in
             guard let self else { return }
-            // Assigned on the queue, not the caller's thread: these three are
-            // read AND cleared by the FILE_LOADED handler, which also runs on
-            // this queue. A caller-thread write racing that handler is an
-            // unsynchronized Array/Optional swap (over-release ⇒ crash).
+            // Assigned on the queue, not the caller's thread: these values are
+            // read by event handlers and reloads that also run on this queue.
             self.pendingExternalSubtitles = externalSubtitles ?? []
             self.initialSubtitleId = initialSubtitleId
             self.initialAudioId = initialAudioId
@@ -518,6 +525,9 @@ final class MPVLayerRenderer {
             // Stop previous playback before loading new file
             self.command(handle, ["stop"])
             self.updateHTTPHeaders(headers)
+
+            // Set looping
+            self.setProperty(name: "loop-file", value: loop ? "inf" : "no")
 
             // Apply cache/buffer settings
             if let cacheMode = cacheEnabled {
@@ -558,13 +568,7 @@ final class MPVLayerRenderer {
         }
     }
     
-    func reloadCurrentItem() {
-        guard let url = currentURL, let preset = currentPreset else { return }
-        load(url: url, with: preset, headers: currentHeaders)
-    }
-    
     func applyPreset(_ preset: PlayerPreset) {
-        currentPreset = preset
         guard let handle = mpv else { return }
         queue.async { [weak self] in
             guard let self else { return }
@@ -986,6 +990,21 @@ final class MPVLayerRenderer {
             self.commandSync(handle, ["seek", String(seconds), "relative"])
         }
     }
+
+    /// Keep MPVKit's non-composited subtitle layer aligned with the display.
+    /// Portrait fill must crop it with the video; landscape stays aspect-fitted
+    /// so subtitles retain their normal bottom margin.
+    func syncSubtitleLayerFrame() {
+        guard let subtitleLayer = displayLayer.sublayers?.last else { return }
+        subtitleLayer.contentsGravity =
+            displayLayer.videoGravity == .resizeAspectFill
+                && displayLayer.bounds.height > displayLayer.bounds.width
+            ? .resizeAspectFill
+            : .resizeAspect
+        #if os(tvOS) || targetEnvironment(simulator)
+        subtitleLayer.frame = displayLayer.bounds
+        #endif
+    }
     
     /// Sync timebase - no-op for vo_avfoundation (mpv handles timing)
     func syncTimebase() {
@@ -1203,6 +1222,65 @@ final class MPVLayerRenderer {
         setProperty(name: "sub-align-y", value: alignment)
     }
     
+    func setSubtitleStyle(config: [String: Any]) {
+        let isDyslexic = (config["font"] as? String) == "opendyslexic"
+
+        if let fontSize = config["fontSize"] as? Int {
+            let size = isDyslexic ? fontSize + 20 : fontSize
+            setProperty(name: "sub-font-size", value: String(size))
+        } else if let fontSizeDouble = config["fontSize"] as? Double {
+            let size = isDyslexic ? Int(fontSizeDouble) + 20 : Int(fontSizeDouble)
+            setProperty(name: "sub-font-size", value: String(size))
+        }
+
+        if let color = config["color"] as? String {
+            setProperty(name: "sub-color", value: color)
+        }
+
+        if let font = config["font"] as? String {
+            if font == "System" {
+                setProperty(name: "sub-font", value: "")
+            } else {
+                let mappedFont: String
+                switch font {
+                case "sans-serif":
+                    mappedFont = "Helvetica"
+                case "serif":
+                    mappedFont = "Georgia"
+                case "monospace":
+                    mappedFont = "Menlo"
+                case "opendyslexic":
+                    mappedFont = "OpenDyslexic"
+                default:
+                    mappedFont = font
+                }
+                setProperty(name: "sub-font", value: mappedFont)
+            }
+        }
+
+        if let background = config["background"] as? String {
+            if background.isEmpty {
+                setProperty(name: "sub-border-style", value: "outline-and-shadow")
+                setProperty(name: "sub-shadow-offset", value: "1")
+                setProperty(name: "sub-border-size", value: "3")
+            } else {
+                setProperty(name: "sub-back-color", value: background)
+                setProperty(name: "sub-border-style", value: "background-box")
+                let padding: Int
+                if let pInt = config["backgroundPadding"] as? Int {
+                    padding = pInt
+                } else if let pDouble = config["backgroundPadding"] as? Double {
+                    padding = Int(pDouble)
+                } else {
+                    padding = 12
+                }
+                let finalPadding = isDyslexic ? padding / 2 : padding
+                setProperty(name: "sub-shadow-offset", value: String(finalPadding))
+                setProperty(name: "sub-border-size", value: "0")
+            }
+        }
+    }
+
     func setSubtitleFontSize(_ size: Int) {
         setProperty(name: "sub-font-size", value: String(size))
     }

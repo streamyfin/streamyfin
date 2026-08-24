@@ -36,6 +36,7 @@ final class MPVPlayerEngine: NSObject {
 	private let nowPlayingManager = MPVNowPlayingManager.shared
 
 	private var currentURL: URL?
+	private var currentLoop = false
 	private var cachedPosition: Double = 0
 	private var cachedDuration: Double = 0
 	private(set) var intendedPlayState: Bool = false
@@ -190,11 +191,12 @@ final class MPVPlayerEngine: NSObject {
 	///   The presented native player re-negotiates streams in place (burned-in
 	///   subtitles, bitrate changes) where the URL can legitimately repeat.
 	func loadVideo(config: VideoLoadConfig, force: Bool = false) {
-		// Skip reload if same URL is already playing
-		if !force && currentURL == config.url {
+		// Skip reload if the same URL and loop mode are already playing.
+		if !force && currentURL == config.url && currentLoop == config.loop {
 			return
 		}
 		currentURL = config.url
+		currentLoop = config.loop
 		// Paired with the disarm in destroy(), which the reused view would
 		// otherwise never undo.
 		pipController?.setAutoStartEnabled(true)
@@ -216,6 +218,7 @@ final class MPVPlayerEngine: NSObject {
 			externalSubtitles: config.externalSubtitles,
 			initialSubtitleId: config.initialSubtitleId,
 			initialAudioId: config.initialAudioId,
+			loop: config.loop,
 			cacheEnabled: config.cacheEnabled,
 			cacheSeconds: config.cacheSeconds,
 			demuxerMaxBytes: config.demuxerMaxBytes,
@@ -285,6 +288,7 @@ final class MPVPlayerEngine: NSObject {
 		// teardown is still in flight on a background queue (libmpv
 		// handles are independent).
 		currentURL = nil
+		currentLoop = false
 		intendedPlayState = false
 		do {
 			try renderer?.start()
@@ -325,6 +329,10 @@ final class MPVPlayerEngine: NSObject {
 		cachedPosition = newPosition
 		syncNowPlaying(isPlaying: !isPaused())
 		renderer?.seek(by: offset)
+	}
+
+	func syncSubtitleLayerFrame() {
+		renderer?.syncSubtitleLayerFrame()
 	}
 
 	func setSpeed(speed: Double) {
@@ -464,6 +472,10 @@ final class MPVPlayerEngine: NSObject {
 		renderer?.setSubtitleFontSize(size)
 	}
 
+	func setSubtitleStyle(config: [String: Any]) {
+		renderer?.setSubtitleStyle(config: config)
+	}
+
 	func setSubtitleBackgroundColor(_ color: String) {
 		renderer?.setSubtitleBackgroundColor(color)
 	}
@@ -481,6 +493,7 @@ final class MPVPlayerEngine: NSObject {
 	func setZoomedToFill(_ zoomed: Bool) {
 		_isZoomedToFill = zoomed
 		displayLayer.videoGravity = zoomed ? .resizeAspectFill : .resizeAspect
+		renderer?.syncSubtitleLayerFrame()
 	}
 
 	func isZoomedToFill() -> Bool {
@@ -583,6 +596,7 @@ extension MPVPlayerEngine: PiPControllerDelegate {
 		// Reset to fit for PiP (zoomed video doesn't display correctly in PiP)
 		if _isZoomedToFill {
 			displayLayer.videoGravity = .resizeAspect
+			renderer?.syncSubtitleLayerFrame()
 		}
 	}
 
@@ -610,6 +624,7 @@ extension MPVPlayerEngine: PiPControllerDelegate {
 		// Restore the user's zoom preference
 		if _isZoomedToFill {
 			displayLayer.videoGravity = .resizeAspectFill
+			renderer?.syncSubtitleLayerFrame()
 		}
 		// Notify the host that PiP has fully stopped so the controls overlay
 		// can be re-mounted when the user returns to full screen.
