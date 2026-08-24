@@ -28,11 +28,18 @@ describe("getSubtitleProfiles", () => {
     ]);
   });
 
-  it("returns 25 entries for target download (all Encode)", () => {
+  it("delivers text subtitles externally and burns image ones in for target download", () => {
     const profiles = getSubtitleProfiles({ target: "download" });
-    expect(profiles.length).toBe(25);
-    expect(profiles.every((p) => p.Method === "Encode")).toBe(true);
-    expect(profiles[0]).toEqual({ Format: "vtt", Method: "Encode" });
+    expect(profiles.length).toBe(26);
+
+    // Text formats come down as sidecar files the offline player can switch.
+    expect(profiles).toContainEqual({ Format: "srt", Method: "External" });
+    expect(profiles).toContainEqual({ Format: "ass", Method: "External" });
+    // Image formats have no external path, so the server burns them in.
+    expect(profiles).toContainEqual({ Format: "pgs", Method: "Encode" });
+    expect(profiles).toContainEqual({ Format: "vobsub", Method: "Encode" });
+    expect(profiles).toContainEqual({ Format: "xsub", Method: "Encode" });
+    expect(profiles.filter((p) => p.Method === "Encode").length).toBe(7);
   });
 
   it("returns 1 entry for target chromecast (external vtt)", () => {

@@ -21,18 +21,20 @@ export const generateDownloadProfile = (
   return {
     ...baseProfile,
     Name: "1. MPV Download",
-    // Limit bitrate for downloads (20 Mbps)
-    MaxStaticBitrate: 20_000_000,
-    MaxStreamingBitrate: 20_000_000,
-    // Use download-specific subtitle profiles (forces burn-in transcode for downloads)
+    // No bitrate cap of its own: "Max" in the quality picker has to mean the
+    // source bitrate, and any lower choice is already sent as
+    // maxStreamingBitrate on the PlaybackInfo request.
+    // Text subtitles come down as sidecar files, image ones are burned in.
     SubtitleProfiles: getSubtitleProfiles({ target: "download" }),
     // Update transcoding profiles with download-specific settings
     TranscodingProfiles: baseProfile.TranscodingProfiles.map((profile) => {
       if (profile.Type === "Video") {
         return {
           ...profile,
+          Protocol: "http" as const,
+          Container: "mp4",
+          AudioCodec: "aac,mp3,ac3,eac3",
           CopyTimestamps: false,
-          EnableSubtitlesInManifest: true,
         };
       }
       return profile;

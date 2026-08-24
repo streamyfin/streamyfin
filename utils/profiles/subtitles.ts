@@ -21,6 +21,7 @@ const IMAGE_BASED_FORMATS = [
   "pgssub",
   "teletext",
   "vobsub",
+  "xsub",
 ] as const;
 
 // Text-based formats - these can be loaded externally by MPV
@@ -44,36 +45,6 @@ const TEXT_BASED_FORMATS = [
   "subviewer",
   "text",
   "vplayer",
-  "xsub",
-] as const;
-
-// All known subtitle formats used for download profile transcode burn-in
-const DOWNLOAD_SUBTITLE_FORMATS = [
-  "vtt",
-  "webvtt",
-  "srt",
-  "subrip",
-  "ttml",
-  "dvdsub",
-  "ass",
-  "idx",
-  "pgs",
-  "pgssub",
-  "ssa",
-  "microdvd",
-  "mov_text",
-  "mpl2",
-  "pjs",
-  "realtext",
-  "scc",
-  "smi",
-  "stl",
-  "sub",
-  "subviewer",
-  "teletext",
-  "text",
-  "vplayer",
-  "xsub",
 ] as const;
 
 const EXOPLAYER_SUBTITLE_PROFILES: SubtitleProfile[] = [
@@ -91,12 +62,17 @@ const CHROMECAST_SUBTITLE_PROFILES: SubtitleProfile[] = [
   { Format: "vtt", Method: "External" },
 ];
 
-// Note: Method "Encode" forces Jellyfin to burn subtitles into the downloaded stream.
-const DOWNLOAD_SUBTITLE_PROFILES: SubtitleProfile[] =
-  DOWNLOAD_SUBTITLE_FORMATS.map((format) => ({
-    Format: format,
-    Method: "Encode",
-  }));
+// Downloads take text subtitles as sidecar files, which the offline player
+// sub-adds and can switch between; image formats have no external path and
+// still get burned in ("Encode") by the server.
+const DOWNLOAD_SUBTITLE_PROFILES: SubtitleProfile[] = [
+  ...TEXT_BASED_FORMATS.map(
+    (Format): SubtitleProfile => ({ Format, Method: "External" }),
+  ),
+  ...IMAGE_BASED_FORMATS.map(
+    (Format): SubtitleProfile => ({ Format, Method: "Encode" }),
+  ),
+];
 
 const buildMpvSubtitleProfiles = (): SubtitleProfile[] => {
   const profiles: SubtitleProfile[] = [];
@@ -131,3 +107,7 @@ export const getSubtitleProfiles = (options?: {
       return buildMpvSubtitleProfiles();
   }
 };
+
+// Export for use in player filtering
+export const IMAGE_SUBTITLE_CODECS: readonly string[] = IMAGE_BASED_FORMATS;
+export const TEXT_SUBTITLE_CODECS: readonly string[] = TEXT_BASED_FORMATS;
