@@ -81,6 +81,12 @@ final class MPVPlayerEngine: NSObject {
 			self, selector: #selector(handleAudioSessionInterruption),
 			name: AVAudioSession.interruptionNotification, object: nil)
 
+		#if os(iOS)
+		NotificationCenter.default.addObserver(
+			self, selector: #selector(handleDidBecomeActive),
+			name: UIApplication.didBecomeActiveNotification, object: nil)
+		#endif
+
 		// tvOS has no windowed/minimized state: leaving the app backgrounds it
 		// outright. The `audio` background mode keeps our `.playback` session
 		// alive across that, so mpv would go on decoding audio behind the Home
@@ -93,6 +99,13 @@ final class MPVPlayerEngine: NSObject {
 			name: UIApplication.didEnterBackgroundNotification, object: nil)
 		#endif
 	}
+
+	#if os(iOS)
+	@objc private func handleDidBecomeActive() {
+		guard !isShutDown, !isPictureInPictureActive() else { return }
+		renderer?.restoreSubtitlesAfterForeground()
+	}
+	#endif
 
 	#if os(tvOS)
 	/// PiP would be the one way playback is *meant* to outlive the foreground
@@ -663,6 +676,9 @@ extension MPVPlayerEngine: PiPControllerDelegate {
 		Logger.shared.log("PiP: did stop", type: "Info")
 		// Ensure timebase is synced after PiP ends
 		renderer?.syncTimebase()
+		#if os(iOS)
+		renderer?.restoreSubtitlesAfterForeground()
+		#endif
 		pipController?.updatePlaybackState()
 
 		// Restore the user's zoom preference

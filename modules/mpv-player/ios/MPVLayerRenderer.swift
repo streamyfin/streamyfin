@@ -240,6 +240,24 @@ final class MPVLayerRenderer {
             commandSync(handle, ["set", "hwdec", configuredHwdec])
         }
     }
+
+    #if os(iOS)
+    /// SpringBoard can leave mpv's OSD stale even when video resumes.
+    func restoreSubtitlesAfterForeground() {
+        guard isRunning, !isStopping else { return }
+        syncSubtitleLayerFrame()
+        queue.async { [weak self] in
+            guard let self, let handle = self.mpv else { return }
+            var sid: Int64 = 0
+            guard self.getProperty(
+                handle: handle, name: "sid", format: MPV_FORMAT_INT64, value: &sid) >= 0,
+                sid > 0
+            else { return }
+            self.commandSync(handle, ["set", "sub-visibility", "no"])
+            self.commandSync(handle, ["set", "sub-visibility", "yes"])
+        }
+    }
+    #endif
     
     deinit {
         stop()
