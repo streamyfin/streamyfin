@@ -50,12 +50,26 @@ export type NativePlayerChapter = {
   startSec: number;
 };
 
-export type NativePlayerSegmentType = "Intro" | "Outro";
+export type NativePlayerSegmentType =
+  | "Intro"
+  | "Outro"
+  | "Recap"
+  | "Commercial"
+  | "Preview";
+
+/**
+ * What the player does with a segment. Resolved on the JS side from the
+ * per-type skip settings so the native player never has to read settings, and
+ * so both stay in step with the JS players.
+ */
+export type NativePlayerSegmentSkipMode = "none" | "ask" | "auto";
 
 export type NativePlayerSegment = {
   type: NativePlayerSegmentType;
   startSec: number;
   endSec: number;
+  /** Defaults to "ask" natively when absent, matching the app default. */
+  skipMode?: NativePlayerSegmentSkipMode;
 };
 
 export type NativePlayerTrickplay = {
@@ -176,6 +190,14 @@ export type NativePlayerStrings = Partial<
   Record<
     | "skipIntro"
     | "skipCredits"
+    | "skipRecap"
+    | "skipCommercial"
+    | "skipPreview"
+    | "segmentSkippedIntro"
+    | "segmentSkippedOutro"
+    | "segmentSkippedRecap"
+    | "segmentSkippedCommercial"
+    | "segmentSkippedPreview"
     | "nextEpisode"
     | "playNow"
     | "cancel"

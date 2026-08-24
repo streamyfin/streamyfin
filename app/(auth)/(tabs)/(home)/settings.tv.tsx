@@ -44,6 +44,7 @@ import {
   isNativePlayerSupportedTV,
   type MpvCacheMode,
   type MpvVoDriver,
+  type SegmentSkipMode,
   TVTypographyScale,
   useSettings,
   VideoPlayer,
@@ -58,6 +59,22 @@ import {
   type SavedServerAccount,
 } from "@/utils/secureCredentials";
 import { clearTopShelfCacheSafely } from "@/utils/topshelf/cache";
+
+const SEGMENT_SKIP_ROWS: {
+  key:
+    | "skipIntro"
+    | "skipOutro"
+    | "skipRecap"
+    | "skipCommercial"
+    | "skipPreview";
+  labelKey: string;
+}[] = [
+  { key: "skipIntro", labelKey: "skip_intro" },
+  { key: "skipOutro", labelKey: "skip_outro" },
+  { key: "skipRecap", labelKey: "skip_recap" },
+  { key: "skipCommercial", labelKey: "skip_commercial" },
+  { key: "skipPreview", labelKey: "skip_preview" },
+];
 
 export default function SettingsTV() {
   const { t } = useTranslation();
@@ -739,6 +756,30 @@ export default function SettingsTV() {
     );
   }, [inactivityTimeoutOptions, t]);
 
+  // Segment skip: same auto/ask/none choice for every segment type.
+  const segmentSkipModeLabel = (mode: SegmentSkipMode) =>
+    t(`home.settings.other.segment_skip_${mode}`);
+
+  const buildSegmentSkipOptions = (
+    current: SegmentSkipMode,
+  ): TVOptionItem<SegmentSkipMode>[] => [
+    {
+      label: t("home.settings.other.segment_skip_auto"),
+      value: "auto",
+      selected: current === "auto",
+    },
+    {
+      label: t("home.settings.other.segment_skip_ask"),
+      value: "ask",
+      selected: current === "ask",
+    },
+    {
+      label: t("home.settings.other.segment_skip_none"),
+      value: "none",
+      selected: current === "none",
+    },
+  ];
+
   return (
     <View style={{ flex: 1, backgroundColor: "#000000" }}>
       <View style={{ flex: 1 }}>
@@ -1237,6 +1278,32 @@ export default function SettingsTV() {
             }}
             formatValue={(v) => `${v} MB`}
           />
+
+          {/* Segment Skip Section */}
+          <TVSectionHeader
+            title={t("home.settings.other.segment_skip_settings")}
+          />
+          {SEGMENT_SKIP_ROWS.map((row, _index) => {
+            const current = (settings[row.key] ?? "ask") as SegmentSkipMode;
+            const rowLabel = t(`home.settings.other.${row.labelKey}`);
+            const lockedByAdmin = pluginSettings?.[row.key]?.locked ?? false;
+            return (
+              <TVSettingsOptionButton
+                key={row.key}
+                label={rowLabel}
+                value={segmentSkipModeLabel(current)}
+                disabledByAdmin={lockedByAdmin}
+                onPress={() => {
+                  if (lockedByAdmin) return;
+                  showOptions({
+                    title: rowLabel,
+                    options: buildSegmentSkipOptions(current),
+                    onSelect: (value) => updateSettings({ [row.key]: value }),
+                  });
+                }}
+              />
+            );
+          })}
 
           {/* Appearance Section */}
           <TVSectionHeader title={t("home.settings.appearance.title")} />

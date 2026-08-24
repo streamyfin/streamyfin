@@ -43,6 +43,9 @@ function jobFromRecord(
     trickPlayData: record.trickPlayData,
     introSegments: record.introSegments,
     creditSegments: record.creditSegments,
+    recapSegments: record.recapSegments,
+    commercialSegments: record.commercialSegments,
+    previewSegments: record.previewSegments,
     audioStreamIndex: record.audioStreamIndex,
     subtitleStreamIndex: record.subtitleStreamIndex,
   };
