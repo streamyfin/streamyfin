@@ -581,7 +581,7 @@ export const defaultValues: Settings = {
   skipRecap: "ask",
   skipCommercial: "ask",
   skipPreview: "ask",
-  showResumeDialog: true,
+  showResumeDialog: false,
   // Playback speed defaults
   defaultPlaybackSpeed: 1.0,
   playbackSpeedPerMedia: {},
