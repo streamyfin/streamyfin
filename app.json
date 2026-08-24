@@ -181,7 +181,7 @@
         "./plugins/withGitPod.ts",
         {
           "podName": "MPVKit",
-          "podspecUrl": "https://raw.githubusercontent.com/streamyfin/MPVKit/0.41.0-av3/MPVKit.podspec"
+          "podspecUrl": "https://raw.githubusercontent.com/streamyfin/MPVKit/0.41.0-av4/MPVKit.podspec"
         }
       ]
     ],
