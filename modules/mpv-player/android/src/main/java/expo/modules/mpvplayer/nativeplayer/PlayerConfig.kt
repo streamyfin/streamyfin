@@ -57,9 +57,14 @@ class ChapterRecord : Record {
 }
 
 class MediaSegmentRecord : Record {
-    @Field var type: String = ""       // "Intro" | "Outro"
+    // Jellyfin's MediaSegmentType: Intro | Outro | Recap | Commercial | Preview
+    @Field var type: String = ""
     @Field var startSec: Double = 0.0
     @Field var endSec: Double = 0.0
+    // Resolved on the JS side so this player never reads settings and cannot
+    // drift from the others: "ask" shows the pill, "auto" skips on its own.
+    // "none" segments are dropped before they are sent.
+    @Field var skipMode: String = "ask"
 }
 
 class TrickplayRecord : Record {
@@ -128,13 +133,16 @@ class SubtitleSearchStateRecord : Record {
 }
 
 class SubtitleStyleRecord : Record {
-    @Field var fontSize: Int? = null
     @Field var scale: Double? = null
+    @Field var renderScaleMultiplier: Double = 1.0
+    @Field var scaleLocked: Boolean = false
     @Field var marginY: Int? = null
     @Field var alignX: String? = null
     @Field var alignY: String? = null
-    @Field var backgroundColor: String? = null
-    @Field var borderStyle: String? = null
+    @Field var color: String? = null
+    @Field var font: String? = null
+    @Field var background: String? = null
+    @Field var backgroundPadding: Int? = null
     @Field var assOverride: String? = null
 }
 

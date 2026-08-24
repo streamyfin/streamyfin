@@ -16,6 +16,7 @@ struct VideoLoadConfig {
 	var initialSubtitleId: Int?
 	/// MPV audio track ID to select on start (1-based, nil to use default)
 	var initialAudioId: Int?
+	var loop: Bool
 	/// Cache/buffer settings
 	var cacheEnabled: String?  // "auto", "yes", or "no"
 	var cacheSeconds: Int?     // Seconds of video to buffer
@@ -30,6 +31,7 @@ struct VideoLoadConfig {
 		autoplay: Bool = true,
 		initialSubtitleId: Int? = nil,
 		initialAudioId: Int? = nil,
+		loop: Bool = false,
 		cacheEnabled: String? = nil,
 		cacheSeconds: Int? = nil,
 		demuxerMaxBytes: Int? = nil,
@@ -42,6 +44,7 @@ struct VideoLoadConfig {
 		self.autoplay = autoplay
 		self.initialSubtitleId = initialSubtitleId
 		self.initialAudioId = initialAudioId
+		self.loop = loop
 		self.cacheEnabled = cacheEnabled
 		self.cacheSeconds = cacheSeconds
 		self.demuxerMaxBytes = demuxerMaxBytes
@@ -84,6 +87,7 @@ class MpvPlayerView: ExpoView {
 
 		engine.delegate = self
 		engine.displayLayer.frame = bounds
+		engine.displayLayer.contentsScale = contentScaleFactor
 		videoContainer.layer.addSublayer(engine.displayLayer)
 
 		NSLayoutConstraint.activate([
@@ -107,6 +111,7 @@ class MpvPlayerView: ExpoView {
 		CATransaction.begin()
 		CATransaction.setDisableActions(true)
 		engine.displayLayer.frame = videoContainer.bounds
+		engine.displayLayer.contentsScale = contentScaleFactor
 		engine.displayLayer.isHidden = false
 		engine.displayLayer.opacity = 1.0
 		CATransaction.commit()
@@ -237,6 +242,10 @@ class MpvPlayerView: ExpoView {
 		engine.setSubtitleScale(scale)
 	}
 
+	func setSubtitleDelay(_ seconds: Double) {
+		engine.setSubtitleDelay(seconds)
+	}
+
 	func setSubtitleMarginY(_ margin: Int) {
 		engine.setSubtitleMarginY(margin)
 	}
@@ -251,6 +260,10 @@ class MpvPlayerView: ExpoView {
 
 	func setSubtitleFontSize(_ size: Int) {
 		engine.setSubtitleFontSize(size)
+	}
+
+	func setSubtitleStyle(config: [String: Any]) {
+		engine.setSubtitleStyle(config: config)
 	}
 
 	func setSubtitleBackgroundColor(_ color: String) {

@@ -79,4 +79,6 @@ dependencies {
   implementation 'androidx.core:core-ktx:1.18.0'
   // Android TV Compose material
   implementation 'androidx.tv:tv-material:1.0.0'
+
+  testImplementation 'junit:junit:4.13.2'
 }

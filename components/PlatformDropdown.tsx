@@ -14,14 +14,9 @@ import { useGlobalModal } from "@/providers/GlobalModalProvider";
 const { Button, Host, Menu } = Platform.isTV
   ? ({} as typeof import("@expo/ui/swift-ui"))
   : require("@expo/ui/swift-ui");
-const { disabled, menuOrder } = Platform.isTV
+const { disabled } = Platform.isTV
   ? ({} as typeof import("@expo/ui/swift-ui/modifiers"))
   : require("@expo/ui/swift-ui/modifiers");
-
-// UIMenu reorders items by proximity to the anchor, so a menu that opens
-// upward shows them reversed. Keep the order they were provided in.
-// Built once, and never on TV where the modifiers module is not loaded.
-const fixedOrder = Platform.isTV ? [] : [menuOrder("fixed")];
 
 // Option types
 export type RadioOption<T = any> = {
@@ -60,6 +55,7 @@ interface PlatformDropdownProps {
   trigger?: React.ReactNode;
   title?: string;
   groups: OptionGroup[];
+  disabled?: boolean;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   onOptionSelect?: (value?: any) => void;
@@ -209,6 +205,7 @@ const PlatformDropdownComponent = ({
   trigger,
   title,
   groups,
+  disabled: isDisabled,
   open: controlledOpen,
   onOpenChange: controlledOnOpenChange,
   onOptionSelect,
@@ -220,7 +217,7 @@ const PlatformDropdownComponent = ({
 
   // Handle controlled open state for Android
   useEffect(() => {
-    if (Platform.OS === "android" && controlledOpen === true) {
+    if (Platform.OS === "android" && controlledOpen === true && !isDisabled) {
       showModal(
         <BottomSheetContent
           title={title}
@@ -238,7 +235,7 @@ const PlatformDropdownComponent = ({
         },
       );
     }
-  }, [controlledOpen]);
+  }, [controlledOpen, isDisabled]);
 
   // Watch for modal dismissal on Android (e.g., swipe down, backdrop tap)
   // and sync the controlled open state
@@ -252,12 +249,12 @@ const PlatformDropdownComponent = ({
     // @expo/ui's <Host> can't size to content, so an in-flow invisible copy of
     // the trigger sizes the wrapper while the Host overlays the real Menu.
     return (
-      <View>
+      <View pointerEvents={isDisabled ? "none" : "auto"}>
         <View pointerEvents='none' aria-hidden style={{ opacity: 0 }}>
           {trigger}
         </View>
         <Host style={[StyleSheet.absoluteFill, expoUIConfig?.hostStyle as any]}>
-          <Menu label={trigger} modifiers={fixedOrder}>
+          <Menu label={trigger}>
             {groups.flatMap((group, groupIndex) => {
               // Check if this group has radio options
               const radioOptions = group.options.filter(
@@ -288,11 +285,7 @@ const PlatformDropdownComponent = ({
                     ? `${group.title}: ${selectedOption.label}`
                     : group.title;
                   items.push(
-                    <Menu
-                      key={`submenu-${groupIndex}`}
-                      label={displayTitle}
-                      modifiers={fixedOrder}
-                    >
+                    <Menu key={`submenu-${groupIndex}`} label={displayTitle}>
                       {radioOptions.map((option, optionIndex) => (
                         <Button
                           key={`radio-${groupIndex}-${optionIndex}`}
@@ -392,7 +385,11 @@ const PlatformDropdownComponent = ({
   };
 
   return (
-    <TouchableOpacity onPress={handlePress} activeOpacity={0.7}>
+    <TouchableOpacity
+      onPress={handlePress}
+      activeOpacity={0.7}
+      disabled={isDisabled}
+    >
       {trigger || <Text className='text-white'>{t("common.open_menu")}</Text>}
     </TouchableOpacity>
   );
@@ -406,6 +403,7 @@ export const PlatformDropdown = React.memo(
     return (
       prevProps.title === nextProps.title &&
       prevProps.open === nextProps.open &&
+      prevProps.disabled === nextProps.disabled &&
       prevProps.groups === nextProps.groups && // Reference equality (works because we memoize groups in caller)
       prevProps.trigger === nextProps.trigger // Reference equality
     );

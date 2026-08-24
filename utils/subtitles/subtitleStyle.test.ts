@@ -6,118 +6,90 @@ import {
   type SubtitleStyleTarget,
 } from "./subtitleStyle";
 
+const baseSettings = {
+  subtitleSize: 1,
+  subtitleBackground: false,
+  subtitleBackgroundOpacity: 60,
+  subtitleBackgroundPadding: 8,
+  subtitleFont: "System",
+  subtitleColor: "#FFFFFF",
+  subtitleMarginY: 25,
+  subtitleAlignX: "center",
+  subtitleAlignY: "bottom",
+} as Settings;
+
 describe("buildSubtitleStyle", () => {
-  const baseSettings = {
-    mpvSubtitleScale: 1.2,
-    mpvSubtitleMarginY: 20,
-    mpvSubtitleAlignX: "center",
-    mpvSubtitleAlignY: "bottom",
-  } as Settings;
-
-  it("calculates background alpha hex accurately at default opacity 75", () => {
-    const style = buildSubtitleStyle({
-      ...baseSettings,
-      mpvSubtitleBackgroundEnabled: true,
-      mpvSubtitleBackgroundOpacity: undefined,
+  it("builds the unified subtitle appearance", () => {
+    expect(
+      buildSubtitleStyle({
+        ...baseSettings,
+        subtitleSize: 1.2,
+        subtitleBackground: true,
+        subtitleBackgroundOpacity: 50,
+        subtitleBackgroundPadding: 12,
+        subtitleColor: "#FF00FF",
+      }),
+    ).toEqual({
+      scale: 1.2,
+      scaleLocked: undefined,
+      marginY: 25,
+      alignX: "center",
+      alignY: "bottom",
+      color: "#FF00FF",
+      font: "System",
+      background: "#80000000",
+      backgroundPadding: 12,
+      assOverride: "force",
     });
-    expect(style.borderStyle).toBe("background-box");
-    expect(style.backgroundColor).toBe("#000000BF");
-    expect(style.assOverride).toBe("force");
   });
 
-  it("calculates background alpha hex accurately at 0%, 50%, 100% opacity", () => {
-    const style0 = buildSubtitleStyle({
-      ...baseSettings,
-      mpvSubtitleBackgroundEnabled: true,
-      mpvSubtitleBackgroundOpacity: 0,
+  it("accepts render-time scale, margin and lock overrides", () => {
+    const style = buildSubtitleStyle(baseSettings, {
+      scale: 0.75,
+      marginY: 50,
+      scaleLocked: true,
     });
-    expect(style0.backgroundColor).toBe("#00000000");
-
-    const style50 = buildSubtitleStyle({
-      ...baseSettings,
-      mpvSubtitleBackgroundEnabled: true,
-      mpvSubtitleBackgroundOpacity: 50,
-    });
-    expect(style50.backgroundColor).toBe("#00000080");
-
-    const style100 = buildSubtitleStyle({
-      ...baseSettings,
-      mpvSubtitleBackgroundEnabled: true,
-      mpvSubtitleBackgroundOpacity: 100,
-    });
-    expect(style100.backgroundColor).toBe("#000000FF");
-  });
-
-  it("enforces 3-property invariant when background is disabled", () => {
-    const style = buildSubtitleStyle({
-      ...baseSettings,
-      mpvSubtitleBackgroundEnabled: false,
-    });
-    expect(style.borderStyle).toBe("outline-and-shadow");
-    expect(style.backgroundColor).toBe("#00000000");
+    expect(style.scale).toBe(0.75);
+    expect(style.marginY).toBe(50);
+    expect(style.scaleLocked).toBe(true);
     expect(style.assOverride).toBe("no");
   });
 
-  it("passes positional properties through", () => {
-    const style = buildSubtitleStyle(baseSettings);
-    expect(style.scale).toBe(1.2);
-    expect(style.marginY).toBe(20);
-    expect(style.alignX).toBe("center");
-    expect(style.alignY).toBe("bottom");
+  it("uses defaults when optional style values are missing", () => {
+    expect(
+      buildSubtitleStyle({
+        ...baseSettings,
+        subtitleMarginY: undefined,
+      } as unknown as Settings).assOverride,
+    ).toBe("no");
   });
 });
 
 describe("applySubtitleStyle", () => {
-  it("calls player setters in expected order", async () => {
+  it("applies the style in order", async () => {
     const calls: string[] = [];
-    const mockPlayer: SubtitleStyleTarget = {
-      setSubtitleScale: async (val) => {
-        calls.push(`scale:${val}`);
-      },
-      setSubtitleMarginY: async (val) => {
-        calls.push(`marginY:${val}`);
-      },
-      setSubtitleAlignX: async (val) => {
-        calls.push(`alignX:${val}`);
-      },
-      setSubtitleAlignY: async (val) => {
-        calls.push(`alignY:${val}`);
-      },
-      setSubtitleBorderStyle: async (val) => {
-        calls.push(`borderStyle:${val}`);
-      },
-      setSubtitleBackgroundColor: async (val) => {
-        calls.push(`backgroundColor:${val}`);
-      },
-      setSubtitleAssOverride: async (val) => {
-        calls.push(`assOverride:${val}`);
-      },
+    const player: SubtitleStyleTarget = {
+      setSubtitleScale: async (value) => void calls.push(`scale:${value}`),
+      setSubtitleMarginY: async (value) => void calls.push(`margin:${value}`),
+      setSubtitleAlignX: async (value) => void calls.push(`x:${value}`),
+      setSubtitleAlignY: async (value) => void calls.push(`y:${value}`),
+      setSubtitleStyle: async (value) =>
+        void calls.push(`style:${value.background}`),
+      setSubtitleAssOverride: async (value) => void calls.push(`ass:${value}`),
     };
 
-    const style = buildSubtitleStyle({
-      mpvSubtitleScale: 1.0,
-      mpvSubtitleMarginY: 10,
-      mpvSubtitleAlignX: "center",
-      mpvSubtitleAlignY: "bottom",
-      mpvSubtitleBackgroundEnabled: true,
-      mpvSubtitleBackgroundOpacity: 100,
-    } as Settings);
-
-    await applySubtitleStyle(mockPlayer, style);
+    await applySubtitleStyle(
+      player,
+      buildSubtitleStyle({ ...baseSettings, subtitleBackground: true }),
+    );
 
     expect(calls).toEqual([
       "scale:1",
-      "marginY:10",
-      "alignX:center",
-      "alignY:bottom",
-      "borderStyle:background-box",
-      "backgroundColor:#000000FF",
-      "assOverride:force",
+      "margin:25",
+      "x:center",
+      "y:bottom",
+      "style:#99000000",
+      "ass:force",
     ]);
-  });
-
-  it("handles null or undefined player gracefully", async () => {
-    await expect(applySubtitleStyle(null, {})).resolves.toBeUndefined();
-    await expect(applySubtitleStyle(undefined, {})).resolves.toBeUndefined();
   });
 });

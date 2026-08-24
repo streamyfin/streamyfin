@@ -72,7 +72,25 @@
         }
       ],
       "expo-router",
-      "expo-font",
+      [
+        "expo-font",
+        {
+          "fonts": [
+            "./assets/fonts/OpenDyslexic-Bold.otf",
+            "./assets/fonts/OpenDyslexic-BoldItalic.otf",
+            "./assets/fonts/OpenDyslexic-Italic.otf",
+            "./assets/fonts/OpenDyslexic-Regular.otf"
+          ],
+          "ios": {
+            "fonts": [
+              "./assets/fonts/subtitles/NotoSans-Regular.ttf",
+              "./assets/fonts/subtitles/NotoSansArabic-Regular.ttf",
+              "./assets/fonts/subtitles/NotoSansHebrew-Regular.ttf",
+              "./assets/fonts/subtitles/NotoSansCJKsc-Regular.otf"
+            ]
+          }
+        }
+      ],
       [
         "@sentry/react-native/expo",
         {
