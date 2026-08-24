@@ -248,9 +248,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
                 subtitleIndex: selectedOptions?.subtitleIndex,
               };
 
-        // Negotiation can throw (server down, 5xx). These promises are awaited
-        // with Promise.all over a whole season, so a throw would abort the
-        // batch instead of skipping the one item the UI can alert about.
+        // Awaited with Promise.all over a season: a throw would abort the batch.
         let downloadDetails: Awaited<ReturnType<typeof getDownloadStreamUrl>> =
           null;
         try {

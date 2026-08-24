@@ -46,9 +46,8 @@ describe("generateDownloadProfile", () => {
         "subviewer",
         "text",
         "vplayer",
-        "xsub",
       ].map((Format) => ({ Format, Method: "External" as const })),
-      ...["dvdsub", "idx", "pgs", "pgssub", "teletext", "vobsub"].map(
+      ...["dvdsub", "idx", "pgs", "pgssub", "teletext", "vobsub", "xsub"].map(
         (Format) => ({ Format, Method: "Encode" as const }),
       ),
     ]);

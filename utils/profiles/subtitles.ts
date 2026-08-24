@@ -21,6 +21,7 @@ const IMAGE_BASED_FORMATS = [
   "pgssub",
   "teletext",
   "vobsub",
+  "xsub",
 ] as const;
 
 // Text-based formats - these can be loaded externally by MPV
@@ -44,7 +45,6 @@ const TEXT_BASED_FORMATS = [
   "subviewer",
   "text",
   "vplayer",
-  "xsub",
 ] as const;
 
 const EXOPLAYER_SUBTITLE_PROFILES: SubtitleProfile[] = [

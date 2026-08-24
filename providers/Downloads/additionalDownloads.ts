@@ -121,8 +121,7 @@ export async function downloadSubtitles(
       continue;
     }
 
-    // Jellyfin credentials only for URLs served by the server itself; the
-    // proxy headers (Cloudflare Access, ...) are resolved per URL on top.
+    // No Jellyfin credentials on a URL the server does not host.
     const proxyHeaders = getJellyfinHeadersForUrl(url, api.basePath);
     const headers = subtitle.IsExternalUrl
       ? proxyHeaders
@@ -245,8 +244,6 @@ export async function downloadAdditionalAssets(params: {
     // Cover images (fire and forget, errors are logged)
   ] = await Promise.all([
     downloadTrickplayImages(item, api),
-    // Transcoded downloads carry text subtitles as sidecar files too, so this
-    // is no longer limited to direct-play sources.
     downloadSubtitles(mediaSource, item, api),
     item.Id
       ? fetchSegments(item.Id, api)

@@ -57,8 +57,6 @@ function TVTabLayout() {
   const router = useRouter();
 
   const currentTab = segments.find(isTabRoute);
-  // The generated segment union varies with the route tree (TV vs mobile
-  // typegen), so the shared helper compares plain strings.
   const atTabRoot = isAtTabRoot(segments);
 
   const tabs: TVNavBarTab[] = useMemo(

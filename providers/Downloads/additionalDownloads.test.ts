@@ -88,6 +88,8 @@ const { downloadTrickplayImages, downloadSubtitles, downloadAdditionalAssets } =
   await import("./additionalDownloads");
 
 const api = makeApi();
+// makeApi() throws on unmatched requests; the segment fetch is not under test.
+api.mock.onGet(/\/MediaSegments\//).reply(200, { Items: [] });
 
 const trickplayItem: BaseItemDto = {
   Id: "item-1",

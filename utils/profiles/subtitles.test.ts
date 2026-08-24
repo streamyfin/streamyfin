@@ -38,7 +38,8 @@ describe("getSubtitleProfiles", () => {
     // Image formats have no external path, so the server burns them in.
     expect(profiles).toContainEqual({ Format: "pgs", Method: "Encode" });
     expect(profiles).toContainEqual({ Format: "vobsub", Method: "Encode" });
-    expect(profiles.filter((p) => p.Method === "Encode").length).toBe(6);
+    expect(profiles).toContainEqual({ Format: "xsub", Method: "Encode" });
+    expect(profiles.filter((p) => p.Method === "Encode").length).toBe(7);
   });
 
   it("returns 1 entry for target chromecast (external vtt)", () => {
