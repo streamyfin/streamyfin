@@ -76,9 +76,9 @@ export const ItemImage: FC<Props> = ({
         width: "100%",
         height: "100%",
       }}
-      // The whole source, not just its uri: getItemImage already resolved the
-      // custom proxy auth headers for it.
-      source={source}
+      // Pass the uri only: ServerImage resolves the server's proxy auth headers
+      // from it (and re-resolves them when the custom headers change).
+      source={source?.uri}
       {...props}
     />
   );
