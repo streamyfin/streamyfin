@@ -249,25 +249,22 @@ export const DownloadItems: React.FC<DownloadProps> = ({
               };
 
         // Awaited with Promise.all over a season: a throw would abort the batch.
-        let downloadDetails: Awaited<ReturnType<typeof getDownloadStreamUrl>> =
-          null;
-        try {
-          downloadDetails = await getDownloadStreamUrl({
-            api,
-            item: itemForDownload,
-            userId: user.Id!,
-            mediaSourceId: mediaSource?.Id,
-            audioStreamIndex: audioIndex ?? -1,
-            subtitleStreamIndex: subtitleIndex ?? -1,
-            maxStreamingBitrate: (selectedOptions?.bitrate || defaultBitrate)
-              .value,
-            audioMode: settings?.audioTranscodeMode,
-          });
-        } catch (error) {
+        const downloadDetails = await getDownloadStreamUrl({
+          api,
+          item: itemForDownload,
+          userId: user.Id!,
+          mediaSourceId: mediaSource?.Id,
+          audioStreamIndex: audioIndex ?? -1,
+          subtitleStreamIndex: subtitleIndex ?? -1,
+          maxStreamingBitrate: (selectedOptions?.bitrate || defaultBitrate)
+            .value,
+          audioMode: settings?.audioTranscodeMode,
+        }).catch((error) => {
           logAndCaptureError("Getting download stream URL failed", error, {
             itemType: itemForDownload.Type,
           });
-        }
+          return null;
+        });
 
         return {
           url: downloadDetails?.url,
