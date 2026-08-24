@@ -1,12 +1,7 @@
 import { describe, expect, mock, test } from "bun:test";
+import { stubReactNative } from "@/test-utils/reactNative";
 
-mock.module("react-native", () => ({
-  Platform: {
-    OS: "ios",
-    isTV: false,
-    select: (spec: Record<string, unknown>) => spec.ios ?? spec.default,
-  },
-}));
+stubReactNative();
 mock.module("expo", () => ({
   // codecSupport probes the native MPV module; under bun:test there is none.
   requireOptionalNativeModule: () => null,

@@ -1,11 +1,9 @@
 import { describe, expect, mock, test } from "bun:test";
+import { stubReactNative } from "@/test-utils/reactNative";
 
 // Stub native/router modules — bun:test cannot load React Native, and only
 // the pure route helpers are under test here.
-mock.module("react-native", () => ({
-  Platform: { OS: "ios", isTV: true },
-  BackHandler: { addEventListener: () => ({ remove() {} }) },
-}));
+stubReactNative({ isTV: true });
 mock.module("expo-router", () => ({
   useSegments: () => [],
 }));

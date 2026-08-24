@@ -5,17 +5,12 @@ import type {
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { atom } from "jotai";
+import { stubReactNative } from "@/test-utils/reactNative";
 import { normalizeCustomHeaders } from "@/utils/customHeaders/normalize";
 import { optionsWithOptionalHeaders } from "@/utils/customHeaders/optionalHeaders";
 
 // --- Module-boundary stubs (React Native / Expo can't load under bun:test) ---
-mock.module("react-native", () => ({
-  Platform: {
-    OS: "ios",
-    isTV: false,
-    select: (spec: Record<string, unknown>) => spec.ios ?? spec.default,
-  },
-}));
+stubReactNative();
 mock.module("expo", () => ({
   // codecSupport probes the native MPV module; under bun:test there is none.
   requireOptionalNativeModule: () => null,
