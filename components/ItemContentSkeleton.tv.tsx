@@ -1,6 +1,7 @@
 import React from "react";
 import { Dimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { scaleSize } from "@/utils/scaleSize";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -12,8 +13,8 @@ export const ItemContentSkeletonTV: React.FC = () => {
       style={{
         flex: 1,
         flexDirection: "row",
-        paddingTop: insets.top + 140,
-        paddingHorizontal: insets.left + 80,
+        paddingTop: insets.top + scaleSize(140),
+        paddingHorizontal: insets.left + scaleSize(80),
       }}
     >
       {/* Left side - Content placeholders */}
@@ -21,11 +22,11 @@ export const ItemContentSkeletonTV: React.FC = () => {
         {/* Logo placeholder */}
         <View
           style={{
-            height: 150,
+            height: scaleSize(150),
             width: "80%",
             backgroundColor: "#1a1a1a",
-            borderRadius: 8,
-            marginBottom: 24,
+            borderRadius: scaleSize(8),
+            marginBottom: scaleSize(24),
           }}
         />
 
@@ -33,32 +34,32 @@ export const ItemContentSkeletonTV: React.FC = () => {
         <View
           style={{
             flexDirection: "row",
-            gap: 12,
-            marginBottom: 20,
+            gap: scaleSize(12),
+            marginBottom: scaleSize(20),
           }}
         >
           <View
             style={{
-              height: 24,
-              width: 60,
+              height: scaleSize(24),
+              width: scaleSize(60),
               backgroundColor: "#1a1a1a",
-              borderRadius: 4,
+              borderRadius: scaleSize(4),
             }}
           />
           <View
             style={{
-              height: 24,
-              width: 80,
+              height: scaleSize(24),
+              width: scaleSize(80),
               backgroundColor: "#1a1a1a",
-              borderRadius: 4,
+              borderRadius: scaleSize(4),
             }}
           />
           <View
             style={{
-              height: 24,
-              width: 50,
+              height: scaleSize(24),
+              width: scaleSize(50),
               backgroundColor: "#1a1a1a",
-              borderRadius: 4,
+              borderRadius: scaleSize(4),
             }}
           />
         </View>
@@ -67,93 +68,110 @@ export const ItemContentSkeletonTV: React.FC = () => {
         <View
           style={{
             flexDirection: "row",
-            gap: 8,
-            marginBottom: 24,
+            gap: scaleSize(8),
+            marginBottom: scaleSize(24),
           }}
         >
           <View
             style={{
-              height: 28,
-              width: 80,
+              height: scaleSize(28),
+              width: scaleSize(80),
               backgroundColor: "#1a1a1a",
-              borderRadius: 14,
+              borderRadius: scaleSize(14),
             }}
           />
           <View
             style={{
-              height: 28,
-              width: 100,
+              height: scaleSize(28),
+              width: scaleSize(100),
               backgroundColor: "#1a1a1a",
-              borderRadius: 14,
+              borderRadius: scaleSize(14),
             }}
           />
           <View
             style={{
-              height: 28,
-              width: 70,
+              height: scaleSize(28),
+              width: scaleSize(70),
               backgroundColor: "#1a1a1a",
-              borderRadius: 14,
+              borderRadius: scaleSize(14),
             }}
           />
         </View>
 
-        {/* Overview placeholder */}
+        {/* Overview placeholder - the real layout renders the overview above
+            the action row, so keep the same order here to avoid a shift on load */}
         <View
           style={{
             maxWidth: SCREEN_WIDTH * 0.45,
-            marginBottom: 32,
+            marginBottom: scaleSize(24),
           }}
         >
           <View
             style={{
-              height: 18,
+              height: scaleSize(18),
               width: "100%",
               backgroundColor: "#1a1a1a",
-              borderRadius: 4,
-              marginBottom: 8,
+              borderRadius: scaleSize(4),
+              marginBottom: scaleSize(8),
             }}
           />
           <View
             style={{
-              height: 18,
+              height: scaleSize(18),
               width: "90%",
               backgroundColor: "#1a1a1a",
-              borderRadius: 4,
-              marginBottom: 8,
+              borderRadius: scaleSize(4),
+              marginBottom: scaleSize(8),
             }}
           />
           <View
             style={{
-              height: 18,
+              height: scaleSize(18),
               width: "75%",
               backgroundColor: "#1a1a1a",
-              borderRadius: 4,
+              borderRadius: scaleSize(4),
             }}
           />
         </View>
 
-        {/* Play button placeholder */}
+        {/* Action buttons placeholder - Play + favorite, matching the real
+            layout's action row that sits below the overview */}
         <View
           style={{
-            height: 56,
-            width: 180,
-            backgroundColor: "#1a1a1a",
-            borderRadius: 12,
+            flexDirection: "row",
+            gap: scaleSize(16),
           }}
-        />
+        >
+          <View
+            style={{
+              height: scaleSize(56),
+              width: scaleSize(180),
+              backgroundColor: "#1a1a1a",
+              borderRadius: scaleSize(12),
+            }}
+          />
+          <View
+            style={{
+              height: scaleSize(56),
+              width: scaleSize(56),
+              backgroundColor: "#1a1a1a",
+              borderRadius: scaleSize(12),
+            }}
+          />
+        </View>
       </View>
 
       {/* Right side - Poster placeholder */}
       <View
         style={{
           width: SCREEN_WIDTH * 0.22,
-          marginLeft: 50,
+          marginLeft: scaleSize(50),
         }}
       >
         <View
           style={{
             aspectRatio: 2 / 3,
-            borderRadius: 16,
+            borderRadius: scaleSize(16),
             backgroundColor: "#1a1a1a",
           }}
         />
