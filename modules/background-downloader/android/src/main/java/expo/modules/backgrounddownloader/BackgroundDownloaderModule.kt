@@ -52,8 +52,11 @@ class BackgroundDownloaderModule : Module() {
     override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
       Log.d(TAG, "Service connected")
       val binder = service as DownloadService.DownloadServiceBinder
-      downloadService = binder.getService()
+      val connected = binder.getService()
+      downloadService = connected
       serviceBound = true
+      // bindService is async: replay the count startDownload() could not set.
+      connected.syncActiveDownloads(synchronized(stateLock) { downloadTasks.size })
     }
 
     override fun onServiceDisconnected(name: ComponentName?) {
