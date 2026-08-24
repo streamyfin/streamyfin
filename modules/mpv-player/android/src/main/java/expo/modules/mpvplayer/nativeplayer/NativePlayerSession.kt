@@ -350,14 +350,18 @@ class NativePlayerSession(
      * tag in direct-player (activates on play, releases on pause). Called from
      * onPlaybackStateSync, which fires on play/pause, loading and seek.
      *
-     * The flag only clears once playback has actually begun — during the
-     * initial buffering before the first frame isPlaying is still false, and
-     * clearing there would let the screen sleep mid-load.
+     * The flag only clears once playback has actually begun AND buffering has
+     * finished — during the initial load (and replacement-stream swaps) before
+     * the first frame isPlaying is false and isBuffering is true, and clearing
+     * there would let the screen sleep mid-load. apply() fires
+     * onPlaybackStateSync before the new stream starts, so both guards are
+     * needed: load() resets playbackStarted, and this holds the flag whenever
+     * the view model is buffering.
      */
     private fun syncKeepScreenOn() {
         val window = hostActivity?.window ?: return
-        if (viewModel.isPlaying) {
-            playbackStarted = true
+        if (viewModel.isPlaying || viewModel.isBuffering) {
+            if (viewModel.isPlaying) playbackStarted = true
             window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         } else if (playbackStarted) {
             window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -478,6 +482,12 @@ class NativePlayerSession(
             if (!rendererStarted) {
                 pendingConfig = config
             } else {
+                // apply() fires onPlaybackStateSync; with playbackStarted still
+                // true from the previous stream and isPlaying false, that sync
+                // would clear FLAG_KEEP_SCREEN_ON while the replacement stream
+                // is still buffering. Reset the per-stream flag first so the
+                // swap is treated like an initial load.
+                playbackStarted = false
                 viewModel.prepareForReload()
                 viewModel.apply(config)
                 startStream(config)
