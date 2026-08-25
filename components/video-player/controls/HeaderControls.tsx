@@ -1,8 +1,5 @@
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
-import type {
-  BaseItemDto,
-  MediaSourceInfo,
-} from "@jellyfin/sdk/lib/generated-client";
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { type FC, useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Platform, TouchableOpacity, View } from "react-native";
@@ -14,14 +11,13 @@ import { OrientationLock } from "@/packages/expo-screen-orientation";
 import { HEADER_LAYOUT, ICON_SIZES } from "./constants";
 import DropdownView from "./dropdown/DropdownView";
 import { PlaybackSpeedScope } from "./utils/playback-speed-settings";
+import { shouldShowPlayerMenu } from "./utils/shouldShowPlayerMenu";
 import { type AspectRatio } from "./VideoScalingModeSelector";
 import { ZoomToggle } from "./ZoomToggle";
 
 interface HeaderControlsProps {
   item: BaseItemDto;
   showControls: boolean;
-  offline: boolean;
-  mediaSource?: MediaSourceInfo | null;
   startPictureInPicture?: () => Promise<void>;
   switchOnEpisodeMode: () => void;
   goToPreviousItem: () => void;
@@ -45,8 +41,6 @@ interface HeaderControlsProps {
 export const HeaderControls: FC<HeaderControlsProps> = ({
   item,
   showControls,
-  offline,
-  mediaSource,
   startPictureInPicture,
   switchOnEpisodeMode,
   goToPreviousItem,
@@ -115,7 +109,7 @@ export const HeaderControls: FC<HeaderControlsProps> = ({
       className='flex flex-row justify-between'
     >
       <View className='mr-auto' pointerEvents='box-none'>
-        {!Platform.isTV && (!offline || !mediaSource?.TranscodingUrl) && (
+        {shouldShowPlayerMenu({ isTV: Platform.isTV }) && (
           <View pointerEvents='auto'>
             <DropdownView
               playbackSpeed={playbackSpeed}

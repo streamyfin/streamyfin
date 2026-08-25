@@ -40,10 +40,18 @@ export type NowPlayingMetadata = {
 
 export type MpvPlayerModuleEvents = {
   onChange: (params: ChangeEventPayload) => void;
+  /** A line from the native player's Logger (iOS/tvOS only). */
+  onNativeLog: (params: NativeLogEventPayload) => void;
 };
 
 export type ChangeEventPayload = {
   value: string;
+};
+
+export type NativeLogEventPayload = {
+  message: string;
+  /** Native Logger type: "Error" | "Warn" | "Info" | "General" | ... */
+  type: string;
 };
 
 export type VideoSource = {

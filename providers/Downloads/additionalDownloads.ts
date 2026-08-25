@@ -9,6 +9,8 @@ import {
   optionsWithOptionalHeaders,
 } from "@/utils/customHeaders";
 import { getItemImage } from "@/utils/getItemImage";
+import { getAuthHeaders } from "@/utils/jellyfin/jellyfin";
+import { getExternalSubtitleUrl } from "@/utils/jellyfin/subtitleUtils";
 import { fetchAndParseSegments, type SegmentBuckets } from "@/utils/segments";
 import { generateTrickplayUrl, getTrickplayInfo } from "@/utils/trickplay";
 import type { TrickPlayData } from "./types";
@@ -20,7 +22,7 @@ import { generateFilename } from "./utils";
  */
 export async function downloadTrickplayImages(
   item: BaseItemDto,
-  apiBasePath: string,
+  api: Api,
 ): Promise<TrickPlayData | undefined> {
   const trickplayInfo = getTrickplayInfo(item);
   if (!trickplayInfo || !item.Id) {
@@ -39,7 +41,7 @@ export async function downloadTrickplayImages(
   const downloadPromises: Promise<void>[] = [];
 
   for (let index = 0; index < trickplayInfo.totalImageSheets; index++) {
-    const url = generateTrickplayUrl(item, index);
+    const url = generateTrickplayUrl(item, index, api);
     if (!url) continue;
 
     const destination = new File(trickplayDir, `${index}.jpg`);
@@ -56,7 +58,7 @@ export async function downloadTrickplayImages(
         destination,
         optionsWithOptionalHeaders(
           {},
-          getJellyfinHeadersForUrl(url, apiBasePath),
+          getJellyfinHeadersForUrl(url, api.basePath),
         ),
       )
         .then(() => {
@@ -86,7 +88,7 @@ export async function downloadTrickplayImages(
 export async function downloadSubtitles(
   mediaSource: MediaSourceInfo,
   item: BaseItemDto,
-  apiBasePath: string,
+  api: Api,
 ): Promise<MediaSourceInfo> {
   const externalSubtitles = mediaSource.MediaStreams?.filter(
     (stream) =>
@@ -98,10 +100,15 @@ export async function downloadSubtitles(
   }
 
   const filename = generateFilename(item);
-  const downloadPromises = externalSubtitles.map(async (subtitle) => {
-    if (!subtitle.DeliveryUrl) return;
+  // Sequential on purpose: concurrent subtitle requests make Jellyfin's
+  // first-time extraction race with itself and serve corrupted files
+  for (const subtitle of externalSubtitles) {
+    const url = getExternalSubtitleUrl(subtitle, {
+      offline: false,
+      basePath: api.basePath,
+    });
+    if (!url) continue;
 
-    const url = apiBasePath + subtitle.DeliveryUrl;
     const extension = subtitle.Codec || "srt";
     const destination = new File(
       Paths.document,
@@ -111,17 +118,20 @@ export async function downloadSubtitles(
     // Skip if already exists
     if (destination.exists) {
       subtitle.DeliveryUrl = destination.uri;
-      return;
+      continue;
     }
+
+    // No Jellyfin credentials on a URL the server does not host.
+    const proxyHeaders = getJellyfinHeadersForUrl(url, api.basePath);
+    const headers = subtitle.IsExternalUrl
+      ? proxyHeaders
+      : { ...proxyHeaders, ...getAuthHeaders(api) };
 
     try {
       await File.downloadFileAsync(
         url,
         destination,
-        optionsWithOptionalHeaders(
-          {},
-          getJellyfinHeadersForUrl(url, apiBasePath),
-        ),
+        optionsWithOptionalHeaders({}, headers),
       );
       subtitle.DeliveryUrl = destination.uri;
     } catch (error) {
@@ -130,9 +140,7 @@ export async function downloadSubtitles(
         error,
       );
     }
-  });
-
-  await Promise.all(downloadPromises);
+  }
 
   return mediaSource;
 }
@@ -235,11 +243,8 @@ export async function downloadAdditionalAssets(params: {
     segments,
     // Cover images (fire and forget, errors are logged)
   ] = await Promise.all([
-    downloadTrickplayImages(item, api.basePath || ""),
-    // Only download subtitles for non-transcoded streams
-    mediaSource.TranscodingUrl
-      ? Promise.resolve(mediaSource)
-      : downloadSubtitles(mediaSource, item, api.basePath || ""),
+    downloadTrickplayImages(item, api),
+    downloadSubtitles(mediaSource, item, api),
     item.Id
       ? fetchSegments(item.Id, api)
       : Promise.resolve({} as Partial<SegmentBuckets>),

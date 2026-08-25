@@ -1,4 +1,5 @@
 import { describe, expect, mock, test } from "bun:test";
+import { stubReactNative } from "@/test-utils/reactNative";
 
 // utils/sentry imports the SDK and app modules with native dependencies;
 // only the pure scrubbers are under test here. Bun's mock.module is
@@ -31,9 +32,7 @@ mock.module("@/utils/version", () => ({
     display: "test",
   }),
 }));
-mock.module("react-native", () => ({
-  Platform: { OS: "ios", isTV: false },
-}));
+stubReactNative();
 
 const { scrubDeep, isUserInteractionBreadcrumb, initializeSentryIfConsented } =
   await import("./sentry");

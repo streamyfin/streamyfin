@@ -70,6 +70,23 @@ class DownloadSessionDelegate: NSObject, URLSessionDownloadDelegate {
     backgroundDownloaderLog.notice(
       "didFinishDownloadingTo delivered for task \(downloadTask.taskIdentifier)"
     )
+    // A 401/404 still delivers a "finished" download - the body is the error
+    // page. Treat any non-2xx as a failure so it is not saved as media.
+    if let response = downloadTask.response as? HTTPURLResponse,
+      !(200...299).contains(response.statusCode)
+    {
+      module?.handleError(
+        taskId: downloadTask.taskIdentifier,
+        error: NSError(
+          domain: "BackgroundDownloader",
+          code: response.statusCode,
+          userInfo: [
+            NSLocalizedDescriptionKey: "HTTP error: \(response.statusCode)"
+          ]
+        )
+      )
+      return
+    }
     module?.handleDownloadComplete(
       taskId: downloadTask.taskIdentifier,
       location: location,
