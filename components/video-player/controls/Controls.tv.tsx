@@ -1165,6 +1165,11 @@ export const Controls: FC<Props> = ({
     controlsInteractionRef.current();
   }, [togglePlay]);
 
+  const handleToggleMuteButton = useCallback(() => {
+    onToggleMute?.();
+    controlsInteractionRef.current();
+  }, [onToggleMute]);
+
   const handlePreviousItem = useCallback(() => {
     if (goToPreviousItem) {
       goToPreviousItem();
@@ -1538,7 +1543,7 @@ export const Controls: FC<Props> = ({
             {onToggleMute && (
               <TVControlButton
                 icon={isMuted ? "volume-off" : "volume-medium"}
-                onPress={onToggleMute}
+                onPress={handleToggleMuteButton}
                 size={28}
                 focusable={showControls}
               />

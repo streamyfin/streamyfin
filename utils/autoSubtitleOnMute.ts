@@ -1,9 +1,9 @@
 import type {
   AutoSubtitlePick,
   AutoSubtitleTrackIdentity,
-} from "@/utils/jellyfin/subtitleUtils";
-import { sameSubtitleTrack } from "@/utils/jellyfin/subtitleUtils";
-import { SUBTITLES_OFF } from "@/utils/subtitles/subtitleIndex";
+} from "./jellyfin/subtitleUtils";
+import { sameSubtitleTrack } from "./jellyfin/subtitleUtils";
+import { SUBTITLES_OFF } from "./subtitles/subtitleIndex";
 
 export type AutoSubtitleState = {
   /** Index this feature switched on, null when it did not act. */

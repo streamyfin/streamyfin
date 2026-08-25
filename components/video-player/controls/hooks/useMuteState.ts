@@ -107,10 +107,25 @@ export const useMuteState = ({
     setPlayerMuted(!playerMuted);
   }, [playerMuted, setPlayerMuted]);
 
+  /**
+   * Push the current flag at a player that has just become available. A mute
+   * asked for while the view was still mounting reached no native handle: the
+   * flag is retained natively only across an mpv re-creation, not before the
+   * first one. Without this the player stays audible while the session report
+   * and the automatic subtitles both believe it is muted.
+   */
+  const reapplyPlayerMute = useCallback(() => {
+    if (!playerMuted) return;
+    playerRef.current?.setMute?.(true)?.catch((error) => {
+      console.warn("[useMuteState] setMute failed:", error);
+    });
+  }, [playerMuted, playerRef]);
+
   return {
     isMuted: systemMuted || playerMuted,
     playerMuted,
     toggleMute,
     setPlayerMuted,
+    reapplyPlayerMute,
   };
 };

@@ -1,16 +1,16 @@
 import { describe, expect, test } from "bun:test";
-import type {
-  AutoSubtitlePick,
-  AutoSubtitleTrackIdentity,
-} from "@/utils/jellyfin/subtitleUtils";
 import {
   type AutoSubtitleState,
   carryAutoSubtitleState,
   INITIAL_AUTO_SUBTITLE_STATE,
   resolveAutoSubtitleAction,
 } from "./autoSubtitleOnMute";
+import type {
+  AutoSubtitlePick,
+  AutoSubtitleTrackIdentity,
+} from "./jellyfin/subtitleUtils";
+import { SUBTITLES_OFF } from "./subtitles/subtitleIndex";
 
-const SUBTITLES_OFF = -1;
 /** Client-downloaded subtitles use indexes at or below this sentinel. */
 const LOCAL_SUBTITLE = -100;
 

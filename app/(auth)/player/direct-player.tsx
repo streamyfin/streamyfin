@@ -148,7 +148,9 @@ export default function DirectPlayerPage() {
 
   // Device output volume plus the player's own mute, combined. Reported to the
   // server and consumed by the automatic subtitle feature below.
-  const { isMuted, toggleMute } = useMuteState({ playerRef: videoRef });
+  const { isMuted, toggleMute, reapplyPlayerMute } = useMuteState({
+    playerRef: videoRef,
+  });
 
   const progress = useSharedValue(0);
   const isSeeking = useSharedValue(false);
@@ -1710,6 +1712,10 @@ export default function DirectPlayerPage() {
                 }}
                 onTracksReady={() => {
                   setTracksReady(true);
+                  // A mute asked for while the player was still mounting never
+                  // reached a native handle; this is the first moment one
+                  // exists.
+                  reapplyPlayerMute();
                   // Fired after embedded tracks enumerate and again after each
                   // external sub-add; re-resolve so the final fire (full track
                   // list) selects the right track by identity.
