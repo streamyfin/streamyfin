@@ -52,8 +52,12 @@ class BackgroundDownloaderModule : Module() {
     override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
       Log.d(TAG, "Service connected")
       val binder = service as DownloadService.DownloadServiceBinder
-      downloadService = binder.getService()
-      serviceBound = true
+      synchronized(stateLock) {
+        downloadService = binder.getService()
+        serviceBound = true
+        // bindService is async, so the first download could not reach the service.
+        syncServiceLocked()
+      }
     }
 
     override fun onServiceDisconnected(name: ComponentName?) {
@@ -138,12 +142,12 @@ class BackgroundDownloaderModule : Module() {
     Function("cancelDownload") { taskId: Int ->
       Log.d(TAG, "Cancelling download: taskId=$taskId")
       downloadManager.cancelDownload(taskId)
-      downloadService?.stopDownload()
 
       synchronized(stateLock) {
         downloadTasks.remove(taskId)
         // Process next item in queue after cancellation
         processNextInQueueLocked()
+        syncServiceLocked()
       }
     }
 
@@ -222,7 +226,7 @@ class BackgroundDownloaderModule : Module() {
 
     // Start foreground service if not running
     startDownloadService()
-    downloadService?.startDownload()
+    syncServiceLocked()
 
     Log.d(TAG, "Starting download: taskId=$taskId, url=$urlString")
 
@@ -325,12 +329,11 @@ class BackgroundDownloaderModule : Module() {
     taskInfo.itemId?.let { payload["itemId"] = it }
     sendEvent("onDownloadComplete", payload)
 
-    downloadService?.stopDownload()
-
     synchronized(stateLock) {
       downloadTasks.remove(taskId)
       // Process next item in queue
       processNextInQueueLocked()
+      syncServiceLocked()
     }
   }
 
@@ -346,13 +349,17 @@ class BackgroundDownloaderModule : Module() {
     taskInfo?.itemId?.let { payload["itemId"] = it }
     sendEvent("onDownloadError", payload)
 
-    downloadService?.stopDownload()
-
     synchronized(stateLock) {
       downloadTasks.remove(taskId)
       // Process next item in queue even on error
       processNextInQueueLocked()
+      syncServiceLocked()
     }
+  }
+
+  /** Assumes `stateLock` is held. */
+  private fun syncServiceLocked() {
+    downloadService?.syncActiveDownloads(downloadTasks.size)
   }
 
   private fun startDownloadService() {
