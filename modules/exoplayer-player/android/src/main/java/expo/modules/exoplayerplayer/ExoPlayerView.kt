@@ -329,12 +329,39 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
 
         val loadControl = buildLoadControl(config)
 
-        // PREFER extension renderers so the FFmpeg decoder (DTS / TrueHD /
-        // AC-4 / WMA / etc.) takes over when MediaCodec doesn't ship a
-        // hardware decoder for the format. MediaCodec remains the fallback.
+        // Bitstream (passthrough) capable sinks change the renderer ordering:
+        // when the HDMI sink (or on-device decoder) accepts E-AC-3 / E-AC-3 JOC
+        // (Dolby Atmos), MediaCodecAudioRenderer + DefaultAudioSink hand the
+        // untouched bitstream to AudioTrack and the audio hardware decodes it —
+        // the only path that preserves Atmos. FFmpeg cannot do this; it decodes
+        // to PCM, which silently strips Atmos metadata. So on passthrough-capable
+        // output, extensions go AFTER the platform renderers (ON, not PREFER) so
+        // AC3/EAC3 reach MediaCodec first. On PCM-only output we keep PREFER so
+        // the FFmpeg decoder (DTS / TrueHD / AC-4 / WMA / etc.) still takes over
+        // when MediaCodec doesn't ship a hardware decoder for the format.
+        // Either way, formats only the extension supports still fall through to
+        // FFmpeg via supportsFormat() — the ordering only decides the formats
+        // both claim.
+        val audioCaps =
+            androidx.media3.exoplayer.audio.AudioCapabilities.getCapabilities(context)
+        val bitstreamCapable =
+            audioCaps.supportsEncoding(C.ENCODING_E_AC3_JOC) ||
+                audioCaps.supportsEncoding(C.ENCODING_AC3) ||
+                audioCaps.supportsEncoding(C.ENCODING_E_AC3)
+        Log.i(
+            TAG,
+            "Audio output bitstream-capable=$bitstreamCapable " +
+                "(JOC=${audioCaps.supportsEncoding(C.ENCODING_E_AC3_JOC)}, " +
+                "EAC3=${audioCaps.supportsEncoding(C.ENCODING_E_AC3)}, " +
+                "AC3=${audioCaps.supportsEncoding(C.ENCODING_AC3)})"
+        )
         val renderersFactory = androidx.media3.exoplayer.DefaultRenderersFactory(context)
             .setExtensionRendererMode(
-                androidx.media3.exoplayer.DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER
+                if (bitstreamCapable) {
+                    androidx.media3.exoplayer.DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON
+                } else {
+                    androidx.media3.exoplayer.DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER
+                }
             )
             .setEnableDecoderFallback(true)
 
