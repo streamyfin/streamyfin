@@ -56,7 +56,14 @@ export const useMuteState = ({
     };
 
     const initial = getSystemVolume();
-    if (initial <= 0 && Platform.OS === "ios") {
+    if (initial <= 0 && Platform.isTV && Platform.OS === "ios") {
+      // Apple TV over HDMI: the volume belongs to the display or the receiver
+      // over CEC and the app is only shown a placeholder, which can read zero
+      // on a set that is not muted at all. Trust a zero here only once a real
+      // change has been observed, which is what an AirPlay, HomePod or AirPods
+      // output does deliver. The mute button is the path that always works.
+      apply(1);
+    } else if (initial <= 0 && Platform.OS === "ios") {
       recheckTimer.current = setTimeout(() => {
         apply(getSystemVolume());
       }, IOS_INITIAL_READ_RECHECK_MS);

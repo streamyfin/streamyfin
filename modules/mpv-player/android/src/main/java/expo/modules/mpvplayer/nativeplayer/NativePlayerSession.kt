@@ -171,11 +171,11 @@ class NativePlayerSession(
                         viewModel.revealVolumeSliderTransiently()
                     }
                     volumeCtrl.onMuteStateChanged = { muted ->
-                        emit("onMuteStateChanged", mapOf(
-                            "muted" to muted,
-                            "positionSec" to viewModel.displayPosition
-                        ))
+                        viewModel.onDeviceMuteChanged(muted)
                     }
+                    // A player opened while the device is already muted must
+                    // start in that state: the controller only reports changes.
+                    viewModel.onDeviceMuteChanged(volumeCtrl.volume <= 0.001f, seed = true)
                 }
 
                 val mediaCtrl = MediaSessionController(activity, viewModel)

@@ -56,6 +56,7 @@ import {
   nativePlayerSeekTo,
   nativePlayerSetAudioTrack,
   nativePlayerSetSubtitleTrack,
+  nativePlayerShowNotice,
   presentNativePlayer,
   updateNativePlayerEpisodeList,
   updateNativePlayerNextEpisode,
@@ -393,7 +394,7 @@ const NativePlayerProviderInner: React.FC<{
       IsPaused: !session.isPlaying,
       PlayMethod: session.playMethod,
       PlaySessionId: session.stream.sessionId,
-      IsMuted: false,
+      IsMuted: session.isMuted,
       CanSeek: true,
       RepeatMode: RepeatMode.RepeatNone,
       PlaybackOrder: PlaybackOrder.Default,
@@ -1124,13 +1125,18 @@ const NativePlayerProviderInner: React.FC<{
 
       if (action.kind === "apply") {
         void handleSubtitleSelection(session, action.index, positionSec);
+        void nativePlayerShowNotice(t("player.auto_subtitles_enabled"));
       } else if (action.kind === "revert") {
         void handleSubtitleSelection(session, SUBTITLES_OFF, positionSec);
+      } else if (action.kind === "notice") {
+        void nativePlayerShowNotice(
+          action.reason === "restart-required"
+            ? t("player.auto_subtitles_restart_required")
+            : t("player.auto_subtitles_none"),
+        );
       }
-      // The "notice" actions have no native surface yet; nothing is applied,
-      // which is the same outcome the JS player reaches minus the explanation.
     },
-    [handleSubtitleSelection],
+    [handleSubtitleSelection, t],
   );
 
   const handleMuteChanged = useCallback(

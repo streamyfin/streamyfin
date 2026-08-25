@@ -138,6 +138,12 @@ public class NativePlayerModule: Module {
 			self.session?.viewModel.updateSubtitleSearch(state)
 		}.runOnQueue(.main)
 
+		// Transient one-line notice on the player's own notice surface, for
+		// things the JS coordinator decides (automatic subtitles on mute).
+		AsyncFunction("showNotice") { (text: String) in
+			self.session?.viewModel.showNotice(text)
+		}.runOnQueue(.main)
+
 		// Adds a sidecar subtitle to the live mpv handle and selects it
 		// (client-side downloaded subtitle file, e.g. OpenSubtitles fallback).
 		AsyncFunction("addExternalSubtitle") { (url: String) in
