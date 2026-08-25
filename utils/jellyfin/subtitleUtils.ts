@@ -642,9 +642,50 @@ export const requiresStreamRestart = (
 ): boolean =>
   isBurnedInSubtitle(sub) || (opts.isTranscoding && isImageBasedSubtitle(sub));
 
+/**
+ * What a subtitle track is, independently of its position in the stream list.
+ *
+ * Jellyfin renumbers `MediaStream.Index` per item, and the next-episode
+ * carry-over (`rememberSubtitleSelections`) matches by language rather than by
+ * index, so a track carried from one episode to the next can arrive under a
+ * different number. Anything that has to recognise "the same track" across an
+ * item change compares this instead of the index.
+ */
+export type AutoSubtitleTrackIdentity = {
+  language: string | null;
+  isForced: boolean;
+};
+
+export const subtitleTrackIdentity = (
+  sub: MediaStream,
+): AutoSubtitleTrackIdentity => ({
+  language: sub.Language ?? null,
+  isForced: sub.IsForced === true,
+});
+
+/** Identity of the subtitle stream carrying `index`, null when there is none. */
+export const findSubtitleTrackIdentity = (
+  subtitleStreams: MediaStream[],
+  index: number,
+): AutoSubtitleTrackIdentity | null => {
+  const match = subtitleStreams.find((s) => s.Index === index);
+  return match ? subtitleTrackIdentity(match) : null;
+};
+
+export const sameSubtitleTrack = (
+  a: AutoSubtitleTrackIdentity | null,
+  b: AutoSubtitleTrackIdentity | null,
+): boolean => {
+  if (!a || !b) return false;
+  if (a.isForced !== b.isForced) return false;
+  // Two tracks with no language at all are not assumed to be the same one:
+  // that would let any unlabelled track pass for the carried-over pick.
+  return langEq(a.language, b.language);
+};
+
 export type AutoSubtitlePick =
-  | { index: number; reason: null }
-  | { index: null; reason: "restart-required" | "none" };
+  | { index: number; track: AutoSubtitleTrackIdentity; reason: null }
+  | { index: null; track: null; reason: "restart-required" | "none" };
 
 /**
  * Choose the subtitle to switch on automatically when audio is muted.
@@ -666,7 +707,8 @@ export const pickAutoSubtitleTrack = (params: {
   const candidates = params.subtitleStreams.filter(
     (s) => s.Type === "Subtitle" && typeof s.Index === "number",
   );
-  if (candidates.length === 0) return { index: null, reason: "none" };
+  if (candidates.length === 0)
+    return { index: null, track: null, reason: "none" };
 
   const pool = params.allowStreamRestart
     ? candidates
@@ -674,7 +716,8 @@ export const pickAutoSubtitleTrack = (params: {
         (s) =>
           !requiresStreamRestart(s, { isTranscoding: params.isTranscoding }),
       );
-  if (pool.length === 0) return { index: null, reason: "restart-required" };
+  if (pool.length === 0)
+    return { index: null, track: null, reason: "restart-required" };
 
   const ordered = [...pool].sort(compareTracksForMenu);
   const byLanguage = (lang: string | null | undefined) =>
@@ -686,5 +729,9 @@ export const pickAutoSubtitleTrack = (params: {
     ordered.find((s) => !s.IsForced) ??
     ordered[0];
 
-  return { index: picked.Index as number, reason: null };
+  return {
+    index: picked.Index as number,
+    track: subtitleTrackIdentity(picked),
+    reason: null,
+  };
 };

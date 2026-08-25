@@ -6,7 +6,11 @@ import {
   INITIAL_AUTO_SUBTITLE_STATE,
   resolveAutoSubtitleAction,
 } from "@/utils/autoSubtitleOnMute";
-import { pickAutoSubtitleTrack } from "@/utils/jellyfin/subtitleUtils";
+import {
+  findSubtitleTrackIdentity,
+  pickAutoSubtitleTrack,
+} from "@/utils/jellyfin/subtitleUtils";
+import { SUBTITLES_OFF } from "@/utils/subtitles/subtitleIndex";
 import type { AutoSubtitleNoticeKind } from "../AutoSubtitleNotice";
 
 /**
@@ -14,8 +18,6 @@ import type { AutoSubtitleNoticeKind } from "../AutoSubtitleNotice";
  * so let the value settle before acting on it.
  */
 const MUTE_DEBOUNCE_MS = 400;
-
-const SUBTITLES_OFF = -1;
 
 type UseAutoSubtitlesOnMuteParams = {
   enabled: boolean;
@@ -80,6 +82,10 @@ export const useAutoSubtitlesOnMute = (
         isMuted: current.isMuted,
         wasMuted: wasMutedRef.current,
         currentSubtitleIndex: current.currentSubtitleIndex,
+        currentTrack: findSubtitleTrackIdentity(
+          current.subtitleStreams,
+          current.currentSubtitleIndex,
+        ),
         pick: () =>
           pickAutoSubtitleTrack({
             subtitleStreams: current.subtitleStreams,

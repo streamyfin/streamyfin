@@ -79,13 +79,21 @@ import {
   useSettings,
   VideoPlayer,
 } from "@/utils/atoms/settings";
+import {
+  type AutoSubtitleState,
+  carryAutoSubtitleState,
+  INITIAL_AUTO_SUBTITLE_STATE,
+  resolveAutoSubtitleAction,
+} from "@/utils/autoSubtitleOnMute";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import {
   applyMpvSubtitleSelection,
+  findSubtitleTrackIdentity,
   getExternalSubtitleUrl,
   getMpvAudioId,
   isImageBasedSubtitle,
+  pickAutoSubtitleTrack,
   type SubtitleSelectablePlayer,
 } from "@/utils/jellyfin/subtitleUtils";
 import { logAndCaptureError, writeToLog } from "@/utils/log";
@@ -108,6 +116,7 @@ import { rememberSeriesTrack } from "@/utils/seriesTrackMemory";
 import {
   isLocalSubtitleIndex,
   localSubtitleIndex,
+  SUBTITLES_OFF,
 } from "@/utils/subtitles/subtitleIndex";
 import { msToTicks, ticksToSeconds } from "@/utils/time";
 
@@ -149,11 +158,19 @@ interface NativeSession extends NativePlayerSessionSeed {
   /** Consecutive sidecar-lookup misses on onTracksReady (see self-heal). */
   localSubtitleMisses: number;
   /**
-   * Subtitle index this provider auto-enabled because the volume hit zero
-   * (settings.subtitlesOnMute). Unmuting reverts to Off only while the
-   * selection is still ours; any manual pick clears it.
+   * Last mute state the native player reported: the device output volume
+   * hitting zero, or the player's own mute where the volume is invisible
+   * (Apple TV over HDMI, Android boxes on a receiver).
    */
-  muteSubtitleIndex: number | null;
+  isMuted: boolean;
+  /**
+   * Automatic-subtitles-on-mute policy state. The rules live in
+   * `utils/autoSubtitleOnMute`, shared verbatim with the JS player controls so
+   * both players pick the same track and undo the same way.
+   */
+  autoSubtitle: AutoSubtitleState;
+  /** Mute value the policy last acted on; mirror of the JS hook's wasMutedRef. */
+  autoSubtitleWasMuted: boolean;
 }
 
 interface NativePlayerContextValue {
@@ -655,7 +672,9 @@ const NativePlayerProviderInner: React.FC<{
         subtitleSearchToken: 0,
         localSubtitle: null,
         localSubtitleMisses: 0,
-        muteSubtitleIndex: null,
+        isMuted: false,
+        autoSubtitle: INITIAL_AUTO_SUBTITLE_STATE,
+        autoSubtitleWasMuted: false,
       };
 
       if (token !== playRequestTokenRef.current) {
@@ -676,6 +695,26 @@ const NativePlayerProviderInner: React.FC<{
         if (previous.localSubtitle?.active) {
           session.localSubtitle = previous.localSubtitle;
         }
+      }
+
+      if (previous) {
+        // Mute belongs to the device and the engine, not to the item: it does
+        // not reset when the next episode starts.
+        session.isMuted = previous.isMuted;
+        session.autoSubtitle =
+          previous.item.Id === session.item.Id
+            ? previous.autoSubtitle
+            : // A new item: the app hands the previous subtitle selection over
+              // (rememberSubtitleSelections), so a track this feature applied
+              // can arrive already active and would otherwise never be turned
+              // back off. onLoad adopts it while the sound is still off.
+              carryAutoSubtitleState(previous.autoSubtitle, {
+                isMuted: previous.isMuted,
+              });
+        session.autoSubtitleWasMuted =
+          previous.item.Id === session.item.Id
+            ? previous.autoSubtitleWasMuted
+            : false;
       }
 
       try {
@@ -1030,43 +1069,76 @@ const NativePlayerProviderInner: React.FC<{
   );
 
   /**
-   * Volume hit zero → auto-enable a text subtitle (settings.subtitlesOnMute);
-   * volume back → revert to Off while the selection is still ours. Text-only
-   * and never during a transcode, so the automation can't restart the stream.
+   * Run the shared automatic-subtitles-on-mute policy for this session.
+   *
+   * Same rules and same track picker as the JS player controls
+   * (`useAutoSubtitlesOnMute`): the only difference is where the mute signal
+   * comes from and how a selection is applied.
    */
-  const handleMuteChanged = useCallback(
-    (session: NativeSession, muted: boolean, positionSec: number) => {
-      if (!settingsRef.current?.subtitlesOnMute) return;
-      if (muted) {
-        if (session.muteSubtitleIndex !== null) return;
-        if (session.localSubtitle?.active) return;
-        if (session.currentSubtitleIndex !== -1) return;
-        if (session.stream.mediaSource.TranscodingUrl) return;
-        const streams = session.stream.mediaSource.MediaStreams ?? [];
-        const candidates = streams.filter(
-          (s) =>
-            s.Type === "Subtitle" && !isImageBasedSubtitle(s) && !s.IsForced,
-        );
-        const preferred =
-          settingsRef.current?.defaultSubtitleLanguage?.ThreeLetterISOLanguageName?.toLowerCase();
-        const pick =
-          (preferred &&
-            candidates.find((s) => s.Language?.toLowerCase() === preferred)) ||
-          candidates.find((s) => s.IsDefault) ||
-          candidates[0];
-        if (pick?.Index === undefined || pick.Index === null) return;
-        session.muteSubtitleIndex = pick.Index;
-        void handleSubtitleSelection(session, pick.Index, positionSec);
-        return;
+  const evaluateAutoSubtitle = useCallback(
+    (session: NativeSession, isMuted: boolean, positionSec: number) => {
+      const settings = settingsRef.current;
+      if (!settings?.subtitlesOnMute) return;
+
+      const streams = session.stream.mediaSource.MediaStreams ?? [];
+      const subtitleStreams = streams.filter((s) => s.Type === "Subtitle");
+      // A client-side sidecar shows without a server index. Report it in the
+      // sentinel block so the policy sees "a subtitle is already on" rather
+      // than "off", exactly like the JS player does.
+      const currentSubtitleIndex = session.localSubtitle?.active
+        ? localSubtitleIndex(0)
+        : session.currentSubtitleIndex;
+
+      const audioStreams = streams.filter((s) => s.Type === "Audio");
+      const audioLanguage = (
+        audioStreams.find((s) => s.Index === session.currentAudioIndex) ??
+        audioStreams.find(
+          (s) => s.Index === session.stream.mediaSource.DefaultAudioStreamIndex,
+        ) ??
+        audioStreams.find((s) => s.IsDefault) ??
+        audioStreams[0]
+      )?.Language;
+
+      const { action, state } = resolveAutoSubtitleAction({
+        state: session.autoSubtitle,
+        isMuted,
+        wasMuted: session.autoSubtitleWasMuted,
+        currentSubtitleIndex,
+        currentTrack: findSubtitleTrackIdentity(
+          subtitleStreams,
+          currentSubtitleIndex,
+        ),
+        pick: () =>
+          pickAutoSubtitleTrack({
+            subtitleStreams,
+            preferredLanguage:
+              settings.defaultSubtitleLanguage?.ThreeLetterISOLanguageName,
+            audioLanguage,
+            isTranscoding: Boolean(session.stream.mediaSource.TranscodingUrl),
+            allowStreamRestart: settings.subtitlesOnMuteAllowRestart,
+          }),
+      });
+
+      session.autoSubtitle = state;
+      session.autoSubtitleWasMuted = isMuted;
+
+      if (action.kind === "apply") {
+        void handleSubtitleSelection(session, action.index, positionSec);
+      } else if (action.kind === "revert") {
+        void handleSubtitleSelection(session, SUBTITLES_OFF, positionSec);
       }
-      const autoIndex = session.muteSubtitleIndex;
-      session.muteSubtitleIndex = null;
-      if (autoIndex === null) return;
-      if (session.currentSubtitleIndex !== autoIndex) return;
-      if (session.localSubtitle?.active) return;
-      void handleSubtitleSelection(session, -1, positionSec);
+      // The "notice" actions have no native surface yet; nothing is applied,
+      // which is the same outcome the JS player reaches minus the explanation.
     },
     [handleSubtitleSelection],
+  );
+
+  const handleMuteChanged = useCallback(
+    (session: NativeSession, muted: boolean, positionSec: number) => {
+      session.isMuted = muted;
+      evaluateAutoSubtitle(session, muted, positionSec);
+    },
+    [evaluateAutoSubtitle],
   );
 
   // MARK: - Remote subtitle search/download (native search sheet)
@@ -1300,6 +1372,16 @@ const NativePlayerProviderInner: React.FC<{
         // The engine has taken the new stream; events from here on belong to
         // this session.
         session.awaitingLoad = false;
+        // An episode change while the sound stays off fires no mute event, so
+        // this is the only chance to adopt a track carried over from the
+        // previous item and keep it ours to undo on unmute.
+        if (session.autoSubtitle.carriedTrack) {
+          evaluateAutoSubtitle(
+            session,
+            session.isMuted,
+            session.positionMs / 1000,
+          );
+        }
         if (session.localSubtitle?.active) {
           // The swap's loadfile dropped the sub-added sidecar — re-attach it
           // (selection re-applies on onTracksReady) and restore its menu
@@ -1385,8 +1467,18 @@ const NativePlayerProviderInner: React.FC<{
             payload.positionSec,
           );
         } else {
-          // A manual pick takes ownership back from the mute automation.
-          session.muteSubtitleIndex = null;
+          // A manual pick takes ownership back from the mute automation, but
+          // only when it had something to own: a pick made before the feature
+          // ever acted must not disable it for the rest of the item.
+          if (
+            session.autoSubtitle.appliedIndex !== null ||
+            session.autoSubtitle.carriedTrack !== null
+          ) {
+            session.autoSubtitle = {
+              ...INITIAL_AUTO_SUBTITLE_STATE,
+              released: true,
+            };
+          }
           rememberSeriesSelection(
             session,
             "subtitle",
@@ -1556,6 +1648,7 @@ const NativePlayerProviderInner: React.FC<{
     handleSubtitleSearch,
     handleSubtitleDownload,
     handleMuteChanged,
+    evaluateAutoSubtitle,
     playAdjacentItem,
     pushTrackMenus,
     replaceStream,

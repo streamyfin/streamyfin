@@ -1024,7 +1024,9 @@ export default function SettingsTV() {
           />
           {settings.subtitlesOnMute && (
             <TVSettingsToggle
-              label={t("home.settings.subtitles.subtitles_on_mute_allow_restart")}
+              label={t(
+                "home.settings.subtitles.subtitles_on_mute_allow_restart",
+              )}
               value={settings.subtitlesOnMuteAllowRestart}
               disabled={pluginSettings?.subtitlesOnMuteAllowRestart?.locked}
               onToggle={(value) =>

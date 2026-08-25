@@ -522,7 +522,7 @@ describe("pickAutoSubtitleTrack", () => {
         preferredLanguage: "fre",
         audioLanguage: "eng",
       }),
-    ).toEqual({ index: 1, reason: null });
+    ).toMatchObject({ index: 1, reason: null });
   });
 
   test("falls back to a track matching the audio language", () => {
@@ -536,7 +536,7 @@ describe("pickAutoSubtitleTrack", () => {
         preferredLanguage: "fra",
         audioLanguage: "eng",
       }),
-    ).toEqual({ index: 1, reason: null });
+    ).toMatchObject({ index: 1, reason: null });
   });
 
   test("falls back to the first non-forced track", () => {
@@ -550,7 +550,7 @@ describe("pickAutoSubtitleTrack", () => {
         preferredLanguage: "fra",
         audioLanguage: "jpn",
       }),
-    ).toEqual({ index: 1, reason: null });
+    ).toMatchObject({ index: 1, reason: null });
   });
 
   test("never picks a forced track for a language match", () => {
@@ -564,7 +564,7 @@ describe("pickAutoSubtitleTrack", () => {
         preferredLanguage: "fre",
         audioLanguage: "eng",
       }),
-    ).toEqual({ index: 1, reason: null });
+    ).toMatchObject({ index: 1, reason: null });
   });
 
   test("uses a forced track when nothing else exists", () => {
@@ -575,7 +575,7 @@ describe("pickAutoSubtitleTrack", () => {
         preferredLanguage: "fra",
         audioLanguage: "jpn",
       }),
-    ).toEqual({ index: 3, reason: null });
+    ).toMatchObject({ index: 3, reason: null });
   });
 
   test("reports none when the media has no subtitle stream", () => {
@@ -586,7 +586,7 @@ describe("pickAutoSubtitleTrack", () => {
         preferredLanguage: "fra",
         audioLanguage: "eng",
       }),
-    ).toEqual({ index: null, reason: "none" });
+    ).toMatchObject({ index: null, reason: "none" });
   });
 
   test("reports restart-required when every track needs a re-process", () => {
@@ -598,7 +598,7 @@ describe("pickAutoSubtitleTrack", () => {
         preferredLanguage: "eng",
         audioLanguage: "eng",
       }),
-    ).toEqual({ index: null, reason: "restart-required" });
+    ).toMatchObject({ index: null, reason: "restart-required" });
   });
 
   test("accepts a restart-requiring track when the caller allows it", () => {
@@ -611,7 +611,7 @@ describe("pickAutoSubtitleTrack", () => {
         preferredLanguage: "eng",
         audioLanguage: "eng",
       }),
-    ).toEqual({ index: 0, reason: null });
+    ).toMatchObject({ index: 0, reason: null });
   });
 
   test("keeps image-based tracks eligible during direct play", () => {
@@ -622,7 +622,7 @@ describe("pickAutoSubtitleTrack", () => {
         preferredLanguage: "eng",
         audioLanguage: "eng",
       }),
-    ).toEqual({ index: 2, reason: null });
+    ).toMatchObject({ index: 2, reason: null });
   });
 
   test("ignores non-subtitle streams handed in by mistake", () => {
@@ -635,6 +635,25 @@ describe("pickAutoSubtitleTrack", () => {
         preferredLanguage: "eng",
         audioLanguage: "eng",
       }),
-    ).toEqual({ index: null, reason: "none" });
+    ).toMatchObject({ index: null, reason: "none" });
+  });
+
+  test("returns the identity of the picked track, not just its index", () => {
+    expect(
+      pickAutoSubtitleTrack({
+        ...base,
+        subtitleStreams: [
+          emb(0, { Language: "eng" }),
+          emb(1, { Language: "fra", IsForced: true }),
+          emb(2, { Language: "fra" }),
+        ],
+        preferredLanguage: "fra",
+        audioLanguage: "eng",
+      }),
+    ).toEqual({
+      index: 2,
+      track: { language: "fra", isForced: false },
+      reason: null,
+    });
   });
 });
