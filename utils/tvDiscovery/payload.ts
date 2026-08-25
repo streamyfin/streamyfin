@@ -43,6 +43,16 @@ function getTVDiscoveryImage(
   const baseUrl = api.basePath;
 
   if (shape === "landscape") {
+    // getWideImageUrl falls back to an untagged Primary URL, which the server
+    // 404s on when the item has no image — a broken tile instead of no tile.
+    // Gate conservatively (without duplicating its selection logic) so we only
+    // hand the extension URLs the server can actually fulfill.
+    const hasArt =
+      Boolean(item.ImageTags?.Primary) ||
+      Boolean(item.ImageTags?.Thumb) ||
+      Boolean(item.ParentThumbItemId && item.ParentThumbImageTag);
+    if (!hasArt) return undefined;
+
     // Google TV home tiles are landscape. Mirror the continue-watching cards'
     // image selection (getWideImageUrl honors the useEpisodeImagesForNextUp
     // setting) so home recommendations match the in-app rows: series/season
