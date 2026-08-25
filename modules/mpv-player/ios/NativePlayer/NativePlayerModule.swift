@@ -144,6 +144,11 @@ public class NativePlayerModule: Module {
 			self.session?.viewModel.showNotice(text)
 		}.runOnQueue(.main)
 
+		// Jellyfin remote ToggleMute. Same entry point as the TV mute button.
+		AsyncFunction("toggleMute") {
+			self.session?.viewModel.toggleMute()
+		}.runOnQueue(.main)
+
 		// Adds a sidecar subtitle to the live mpv handle and selects it
 		// (client-side downloaded subtitle file, e.g. OpenSubtitles fallback).
 		AsyncFunction("addExternalSubtitle") { (url: String) in

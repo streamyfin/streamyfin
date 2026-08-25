@@ -141,6 +141,11 @@ class NativePlayerModule : Module() {
             this@NativePlayerModule.session?.viewModel?.showNotice(text)
         }
 
+        // Jellyfin remote ToggleMute. Same entry point as the TV mute button.
+        AsyncFunction("toggleMute") {
+            this@NativePlayerModule.session?.viewModel?.toggleMute()
+        }
+
         AsyncFunction("addExternalSubtitle") { url: String ->
             this@NativePlayerModule.session?.renderer?.addSubtitleFile(url, select = true)
         }

@@ -629,7 +629,10 @@ class NativePlayerSession(
         // next/previous episode, episode selection, quality, track changes)
         // stays dead until it fires. Mirror of PlayerEngine.swift's
         // `delegate?.engine(self, didLoad:)` at the end of load().
-        emit("onLoad", mapOf("url" to loadConfig.url))
+        // Mute rides along: it is a device/session state, not a stream one, so
+        // JS has no other way to learn it for a player opened while already
+        // muted — no transition happens, so no onMuteStateChanged fires.
+        emit("onLoad", mapOf("url" to loadConfig.url, "muted" to viewModel.isMuted))
     }
 
     private fun applySubtitleStyle(style: SubtitleStyleRecord) {

@@ -57,6 +57,7 @@ import {
   nativePlayerSetAudioTrack,
   nativePlayerSetSubtitleTrack,
   nativePlayerShowNotice,
+  nativePlayerToggleMute,
   presentNativePlayer,
   updateNativePlayerEpisodeList,
   updateNativePlayerNextEpisode,
@@ -1372,21 +1373,16 @@ const NativePlayerProviderInner: React.FC<{
 
   useEffect(() => {
     const subscriptions = [
-      addNativePlayerListener("onLoad", () => {
+      addNativePlayerListener("onLoad", (payload) => {
         const session = sessionRef.current;
         if (!session) return;
         // The engine has taken the new stream; events from here on belong to
         // this session.
         session.awaitingLoad = false;
-        // An episode change while the sound stays off fires no mute event, so
-        // this is the only chance to adopt a track carried over from the
-        // previous item and keep it ours to undo on unmute.
-        if (session.autoSubtitle.carriedTrack) {
-          evaluateAutoSubtitle(
-            session,
-            session.isMuted,
-            session.positionMs / 1000,
-          );
+        // Mute only reaches us as a transition, so a player opened while the
+        // device is already muted would otherwise read as unmuted here.
+        if (typeof payload?.muted === "boolean") {
+          session.isMuted = payload.muted;
         }
         if (session.localSubtitle?.active) {
           // The swap's loadfile dropped the sub-added sidecar — re-attach it
@@ -1439,6 +1435,16 @@ const NativePlayerProviderInner: React.FC<{
         } else {
           void applySubtitleSelection(session, session.currentSubtitleIndex);
         }
+        // Mirror of the JS player, which waits for tracksReady before letting
+        // the automation act: a track picked before mpv has enumerated them
+        // would resolve to notFound and pointlessly re-negotiate the stream.
+        // Covers both a player opened muted and a track carried over from the
+        // previous episode while the sound stayed off.
+        evaluateAutoSubtitle(
+          session,
+          session.isMuted,
+          session.positionMs / 1000,
+        );
       }),
 
       // NO awaitingLoad gate on these two: they originate from sheet taps,
@@ -1737,6 +1743,11 @@ const NativePlayerProviderInner: React.FC<{
         break;
       case "Stop":
         void dismissNativePlayer();
+        break;
+      case "ToggleMute":
+        // Mutes the player, not the device: leaving the player while muted
+        // must not strand the device at zero with nothing to restore it.
+        void nativePlayerToggleMute();
         break;
       case "Seek": {
         const ticks = Number(args?.SeekPositionTicks);
