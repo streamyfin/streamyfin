@@ -328,7 +328,7 @@ const NativePlayerProviderInner: React.FC<{
   const { lockOrientation, unlockOrientation } = useOrientation();
   const downloadUtils = useDownload();
   const revalidateProgressCache = useInvalidatePlaybackProgressCache();
-  const { lastMessage, subscribe, clearLastMessage } = useWebSocketContext();
+  const { subscribe, clearLastMessage } = useWebSocketContext();
 
   const sessionRef = useRef<NativeSession | null>(null);
   // Monotonic id per beginSession call: the config build awaits a PlaybackInfo
@@ -1716,82 +1716,98 @@ const NativePlayerProviderInner: React.FC<{
     [subscribe, presentFromRequest],
   );
 
-  // General commands while the native player is up. The JS player route and a
-  // native session are mutually exclusive, so consuming lastMessage here can't
+  // Remote control while the native player is up. The JS player route and a
+  // native session are mutually exclusive, so handling these here cannot
   // double-handle with hooks/useWebsockets.
+  //
+  // Subscribed rather than read off `lastMessage`: that slot keeps only the
+  // newest message, and the socket carries session broadcasts continuously, so
+  // a command could be overwritten before the effect ever ran. It made remote
+  // control look like it worked and then quietly stop.
   useEffect(() => {
-    if (!isActive || !lastMessage) return;
-    const session = sessionRef.current;
-    if (!session) return;
+    const handle = (
+      command: string | undefined,
+      args?: Record<string, any>,
+    ) => {
+      if (!command) return;
+      const session = sessionRef.current;
+      if (!session) return;
 
-    const command: string | undefined =
-      lastMessage?.Data?.Command || lastMessage?.Data?.Name;
-    const args = lastMessage?.Data?.Arguments as
-      | Record<string, string>
-      | undefined;
-    if (!command) return;
+      switch (command) {
+        case "PlayPause":
+          void (session.isPlaying ? nativePlayerPause() : nativePlayerPlay());
+          break;
+        case "Pause":
+          void nativePlayerPause();
+          break;
+        case "Unpause":
+          void nativePlayerPlay();
+          break;
+        case "Stop":
+          void dismissNativePlayer();
+          break;
+        case "ToggleMute":
+          // Mutes the player, not the device: leaving the player while muted
+          // must not strand the device at zero with nothing to restore it.
+          void nativePlayerToggleMute();
+          break;
+        case "Seek": {
+          const ticks = Number(args?.SeekPositionTicks);
+          if (Number.isFinite(ticks)) {
+            void nativePlayerSeekTo(ticksToSeconds(ticks));
+          }
+          break;
+        }
+        case "SetAudioStreamIndex": {
+          const index = Number(args?.Index);
+          if (Number.isFinite(index)) {
+            void handleAudioSelection(
+              session,
+              index,
+              session.positionMs / 1000,
+            );
+          }
+          break;
+        }
+        case "SetSubtitleStreamIndex": {
+          const index = Number(args?.Index);
+          if (Number.isFinite(index)) {
+            void handleSubtitleSelection(
+              session,
+              index,
+              session.positionMs / 1000,
+            );
+          }
+          break;
+        }
+        case "NextTrack": {
+          const next = nextItemRef.current;
+          if (next) void playAdjacentItem(session, next);
+          break;
+        }
+        case "PreviousTrack": {
+          const previous = previousItemRef.current;
+          if (previous) void playAdjacentItem(session, previous);
+          break;
+        }
+        default:
+          break;
+      }
+    };
 
-    switch (command) {
-      case "PlayPause":
-        void (session.isPlaying ? nativePlayerPause() : nativePlayerPlay());
-        break;
-      case "Pause":
-        void nativePlayerPause();
-        break;
-      case "Unpause":
-        void nativePlayerPlay();
-        break;
-      case "Stop":
-        void dismissNativePlayer();
-        break;
-      case "ToggleMute":
-        // Mutes the player, not the device: leaving the player while muted
-        // must not strand the device at zero with nothing to restore it.
-        void nativePlayerToggleMute();
-        break;
-      case "Seek": {
-        const ticks = Number(args?.SeekPositionTicks);
-        if (Number.isFinite(ticks)) {
-          void nativePlayerSeekTo(ticksToSeconds(ticks));
-        }
-        break;
-      }
-      case "SetAudioStreamIndex": {
-        const index = Number(args?.Index);
-        if (Number.isFinite(index)) {
-          void handleAudioSelection(session, index, session.positionMs / 1000);
-        }
-        break;
-      }
-      case "SetSubtitleStreamIndex": {
-        const index = Number(args?.Index);
-        if (Number.isFinite(index)) {
-          void handleSubtitleSelection(
-            session,
-            index,
-            session.positionMs / 1000,
-          );
-        }
-        break;
-      }
-      case "NextTrack": {
-        const next = nextItemRef.current;
-        if (next) void playAdjacentItem(session, next);
-        break;
-      }
-      case "PreviousTrack": {
-        const previous = previousItemRef.current;
-        if (previous) void playAdjacentItem(session, previous);
-        break;
-      }
-      default:
-        return;
-    }
-    clearLastMessage();
+    const unsubscribeGeneral = subscribe("GeneralCommand", (data: any) =>
+      handle(data?.Name, data?.Arguments),
+    );
+    // Playstate carries its own payload flat rather than under Arguments.
+    const unsubscribePlaystate = subscribe("Playstate", (data: any) =>
+      handle(data?.Command, data),
+    );
+    return () => {
+      unsubscribeGeneral();
+      unsubscribePlaystate();
+    };
   }, [
-    lastMessage,
-    isActive,
-    clearLastMessage,
+    subscribe,
     handleAudioSelection,
     handleSubtitleSelection,
     playAdjacentItem,
