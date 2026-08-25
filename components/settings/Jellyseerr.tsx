@@ -1,17 +1,26 @@
 import { useMutation } from "@tanstack/react-query";
 import { useAtom } from "jotai";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { View } from "react-native";
 import { toast } from "sonner-native";
+import { useIntegrationHeaders } from "@/hooks/useIntegrationHeaders";
 import { JellyseerrApi, useJellyseerr } from "@/hooks/useJellyseerr";
 import { userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
+import { writeErrorLog } from "@/utils/log";
+import { storage } from "@/utils/mmkv";
+import { deleteJellyseerrPassword } from "@/utils/secureCredentials";
+import { jellyseerrProbe } from "@/utils/serverUrl/probes/jellyseerr";
+import { resolveServerUrl } from "@/utils/serverUrl/resolve";
 import { Button } from "../Button";
 import { Input } from "../common/Input";
+import { ServerUrlField } from "../common/ServerUrlField";
+import { SettingSwitch } from "../common/SettingSwitch";
 import { Text } from "../common/Text";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
+import { CustomHeaderSelector } from "./CustomHeaderSelector";
 
 export const JellyseerrSettings = () => {
   const { jellyseerrUser, setJellyseerrUser, clearAllJellyseerData } =
@@ -24,34 +33,89 @@ export const JellyseerrSettings = () => {
   // Only the server URL is admin-lockable — the password stays editable so
   // the user can still sign in to the admin-pinned Jellyseerr server.
   const urlLocked = pluginSettings?.jellyseerrServerUrl?.locked === true;
+  const apiKeyLocked = pluginSettings?.jellyseerrApiKey?.locked === true;
 
   const [jellyseerrPassword, setJellyseerrPassword] = useState<
     string | undefined
   >(undefined);
+  const [jellyseerrApiKeyInput, setJellyseerrApiKeyInput] = useState<string>(
+    settings?.jellyseerrApiKey ?? "",
+  );
 
-  const [jellyseerrServerUrl, setjellyseerrServerUrl] = useState<
-    string | undefined
-  >(settings?.jellyseerrServerUrl || undefined);
+  // The stored key can change after mount (plugin settings load async, and a
+  // login rewrites it). Keep the field in sync so what's on screen is always
+  // the key that a password login would clear — otherwise a stored key could
+  // be wiped invisibly behind an empty-looking input.
+  useEffect(() => {
+    setJellyseerrApiKeyInput(settings?.jellyseerrApiKey ?? "");
+  }, [settings?.jellyseerrApiKey]);
 
-  // When the URL is admin-pinned, ignore any locally-typed value so the login
-  // targets the same server the (read-only) input displays.
-  const effectiveServerUrl = urlLocked
-    ? settings?.jellyseerrServerUrl
-    : jellyseerrServerUrl || settings?.jellyseerrServerUrl;
+  const [jellyseerrServerUrl, setjellyseerrServerUrl] = useState<string>(
+    settings?.jellyseerrServerUrl ?? "",
+  );
+  const [resolvedUrl, setResolvedUrl] = useState<string | undefined>(
+    settings?.jellyseerrServerUrl ?? undefined,
+  );
+
+  const { headers: customHeaders, resolveOptions } =
+    useIntegrationHeaders("jellyseerr");
 
   const loginToJellyseerrMutation = useMutation({
     mutationFn: async () => {
-      if (!effectiveServerUrl) throw new Error("Missing server url");
       if (!user?.Name)
         throw new Error("Missing required information for login");
-      const jellyseerrTempApi = new JellyseerrApi(effectiveServerUrl);
+
+      // When the URL is admin-pinned, target that server directly. Otherwise
+      // trust resolvedUrl only while it matches the field (the field adopts
+      // the canonical URL after a successful resolve); any other input is
+      // resolved fresh here, so tapping Login right after editing can never
+      // silently target the previous server.
+      let finalUrl = "";
+      if (urlLocked) {
+        finalUrl = settings?.jellyseerrServerUrl ?? "";
+      } else if (resolvedUrl && resolvedUrl === jellyseerrServerUrl) {
+        finalUrl = resolvedUrl;
+      } else if (jellyseerrServerUrl) {
+        const resolved = await resolveServerUrl(
+          jellyseerrServerUrl,
+          jellyseerrProbe,
+          { headers: customHeaders },
+        );
+        if (!resolved.ok) throw new Error("Invalid server url");
+        finalUrl = resolved.url;
+      }
+      if (!finalUrl) throw new Error("Missing server url");
+
+      // An API key signs in via the Seerr account linked to the Jellyfin user
+      // — no password involved. Falls back to the classic password login.
+      const apiKey = apiKeyLocked
+        ? settings?.jellyseerrApiKey
+        : jellyseerrApiKeyInput.trim() || undefined;
+
+      const jellyseerrTempApi = new JellyseerrApi(
+        finalUrl,
+        customHeaders,
+        apiKey,
+      );
       const testResult = await jellyseerrTempApi.test();
       if (!testResult.isValid) throw new Error("Invalid server url");
-      return jellyseerrTempApi.login(user.Name, jellyseerrPassword || "");
+
+      if (apiKey) {
+        if (!user.Id) throw new Error("Missing required information for login");
+        const loggedInUser = await jellyseerrTempApi.loginWithApiKey(user.Id);
+        return { user: loggedInUser, url: finalUrl, apiKey };
+      }
+
+      const loggedInUser = await jellyseerrTempApi.login(
+        user.Name,
+        jellyseerrPassword || "",
+      );
+      return { user: loggedInUser, url: finalUrl, apiKey: undefined };
     },
-    onSuccess: (user) => {
-      setJellyseerrUser(user);
-      updateSettings({ jellyseerrServerUrl: effectiveServerUrl });
+    onSuccess: ({ user: loggedInUser, url, apiKey }) => {
+      setJellyseerrUser(loggedInUser);
+      setResolvedUrl(url);
+      updateSettings({ jellyseerrServerUrl: url, jellyseerrApiKey: apiKey });
     },
     onError: () => {
       toast.error(t("jellyseerr.failed_to_login"));
@@ -65,7 +129,9 @@ export const JellyseerrSettings = () => {
     clearAllJellyseerData().finally(() => {
       setJellyseerrUser(undefined);
       setJellyseerrPassword(undefined);
-      setjellyseerrServerUrl(undefined);
+      setJellyseerrApiKeyInput("");
+      setjellyseerrServerUrl("");
+      setResolvedUrl(undefined);
     });
   };
 
@@ -111,6 +177,44 @@ export const JellyseerrSettings = () => {
               />
             </ListGroup>
 
+            {/* Only meaningful when the plugin supplies the URL — that is the
+                only case in which the password is stored at all. */}
+            {pluginSettings?.jellyseerrServerUrl?.value ? (
+              <ListGroup
+                className='mt-4'
+                title={t("home.settings.plugins.jellyseerr.auto_login_title")}
+                description={
+                  <Text className='text-xs text-neutral-500'>
+                    {t(
+                      "home.settings.plugins.jellyseerr.auto_login_description",
+                    )}
+                  </Text>
+                }
+              >
+                <ListItem
+                  title={t("home.settings.plugins.jellyseerr.auto_login_title")}
+                >
+                  <SettingSwitch
+                    value={settings?.autoLoginJellyseerr !== false}
+                    onValueChange={(value) => {
+                      updateSettings({ autoLoginJellyseerr: value });
+                      // Opting out also forgets the already-stored password —
+                      // the flag alone would leave the secret on the device.
+                      const jellyfinUrl = storage.getString("serverUrl");
+                      if (!value && jellyfinUrl && user?.Id) {
+                        deleteJellyseerrPassword(jellyfinUrl, user.Id).catch(
+                          (e) =>
+                            writeErrorLog(
+                              `Failed to delete Jellyseerr password: ${e}`,
+                            ),
+                        );
+                      }
+                    }}
+                  />
+                </ListItem>
+              </ListGroup>
+            ) : null}
+
             <View className='p-4'>
               <Button color='red' onPress={clearData}>
                 {t(
@@ -122,61 +226,92 @@ export const JellyseerrSettings = () => {
         ) : (
           <View className='flex flex-col rounded-xl overflow-hidden p-4 bg-neutral-900'>
             <View style={{ opacity: urlLocked ? 0.5 : 1 }}>
-              <Text className='font-bold mb-1'>
-                {t("home.settings.plugins.jellyseerr.server_url")}
-              </Text>
-              <View className='flex flex-col shrink mb-2'>
-                <Text className='text-xs text-gray-600'>
-                  {t("home.settings.plugins.jellyseerr.server_url_hint")}
-                </Text>
+              <View className='mb-2'>
+                <ServerUrlField
+                  value={
+                    urlLocked
+                      ? (settings?.jellyseerrServerUrl ?? "")
+                      : jellyseerrServerUrl
+                  }
+                  onChangeText={(url) => {
+                    setjellyseerrServerUrl(url);
+                    // Editing invalidates the previous resolution.
+                    setResolvedUrl(undefined);
+                  }}
+                  onResolved={(url) => setResolvedUrl(url)}
+                  probe={jellyseerrProbe}
+                  label={t("home.settings.plugins.jellyseerr.server_url")}
+                  hint={t("home.settings.plugins.jellyseerr.server_url_hint")}
+                  placeholder={t(
+                    "home.settings.plugins.jellyseerr.server_url_placeholder",
+                  )}
+                  editable={!urlLocked && !loginToJellyseerrMutation.isPending}
+                  resolveOptions={resolveOptions}
+                />
+                {urlLocked && (
+                  <Text className='text-xs text-red-600 mb-2'>
+                    {t("home.settings.disabled_by_admin")}
+                  </Text>
+                )}
               </View>
-              <Input
-                className='border border-neutral-800 mb-2'
-                placeholder={t(
-                  "home.settings.plugins.jellyseerr.server_url_placeholder",
-                )}
-                value={
-                  urlLocked
-                    ? settings?.jellyseerrServerUrl
-                    : (jellyseerrServerUrl ?? settings?.jellyseerrServerUrl)
-                }
-                defaultValue={
-                  settings?.jellyseerrServerUrl ?? jellyseerrServerUrl
-                }
-                keyboardType='url'
-                returnKeyType='done'
-                autoCapitalize='none'
-                textContentType='URL'
-                onChangeText={setjellyseerrServerUrl}
-                editable={!urlLocked && !loginToJellyseerrMutation.isPending}
-              />
-              {urlLocked && (
-                <Text className='text-xs text-red-600 mb-2'>
-                  {t("home.settings.disabled_by_admin")}
-                </Text>
-              )}
             </View>
+
+            <CustomHeaderSelector
+              integrationKey='jellyseerr'
+              title={t("custom_headers.title")}
+              description={t("custom_headers.integration_description")}
+            />
             <View>
-              <Text className='font-bold mb-2'>
-                {t("home.settings.plugins.jellyseerr.password")}
-              </Text>
-              <Input
-                className='border border-neutral-800'
-                autoFocus={true}
-                focusable={true}
-                placeholder={t(
-                  "home.settings.plugins.jellyseerr.password_placeholder",
-                  { username: user?.Name },
-                )}
-                value={jellyseerrPassword}
-                keyboardType='default'
-                secureTextEntry={true}
-                returnKeyType='done'
-                autoCapitalize='none'
-                textContentType='password'
-                onChangeText={setJellyseerrPassword}
-                editable={!loginToJellyseerrMutation.isPending}
-              />
+              {apiKeyLocked ? (
+                <Text className='text-xs opacity-50 mb-2'>
+                  {t("home.settings.plugins.jellyseerr.api_key_from_admin", {
+                    username: user?.Name,
+                  })}
+                </Text>
+              ) : (
+                <>
+                  <Text className='font-bold mb-2'>
+                    {t("home.settings.plugins.jellyseerr.password")}
+                  </Text>
+                  <Input
+                    className='border border-neutral-800'
+                    autoFocus={true}
+                    focusable={true}
+                    placeholder={t(
+                      "home.settings.plugins.jellyseerr.password_placeholder",
+                      { username: user?.Name },
+                    )}
+                    value={jellyseerrPassword}
+                    keyboardType='default'
+                    secureTextEntry={true}
+                    returnKeyType='done'
+                    autoCapitalize='none'
+                    textContentType='password'
+                    onChangeText={setJellyseerrPassword}
+                    editable={!loginToJellyseerrMutation.isPending}
+                  />
+                  <Text className='font-bold mb-2 mt-4'>
+                    {t("home.settings.plugins.jellyseerr.api_key")}
+                  </Text>
+                  <Text className='text-xs opacity-50 mb-2'>
+                    {t("home.settings.plugins.jellyseerr.api_key_hint")}
+                  </Text>
+                  <Input
+                    className='border border-neutral-800'
+                    placeholder={t(
+                      "home.settings.plugins.jellyseerr.api_key_placeholder",
+                    )}
+                    value={jellyseerrApiKeyInput}
+                    keyboardType='default'
+                    secureTextEntry={true}
+                    returnKeyType='done'
+                    autoCapitalize='none'
+                    autoCorrect={false}
+                    onChangeText={setJellyseerrApiKeyInput}
+                    editable={!loginToJellyseerrMutation.isPending}
+                  />
+                </>
+              )}
               <Button
                 loading={loginToJellyseerrMutation.isPending}
                 disabled={loginToJellyseerrMutation.isPending}
@@ -184,7 +319,9 @@ export const JellyseerrSettings = () => {
                 className='h-12 mt-2'
                 onPress={() => loginToJellyseerrMutation.mutate()}
               >
-                {t("home.settings.plugins.jellyseerr.login_button")}
+                {apiKeyLocked || jellyseerrApiKeyInput.trim()
+                  ? t("home.settings.plugins.jellyseerr.connect_button")
+                  : t("home.settings.plugins.jellyseerr.login_button")}
               </Button>
             </View>
           </View>

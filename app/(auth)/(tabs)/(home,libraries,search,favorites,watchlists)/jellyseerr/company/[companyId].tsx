@@ -1,8 +1,8 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { Image } from "expo-image";
 import { useLocalSearchParams } from "expo-router";
 import { uniqBy } from "lodash";
 import { useMemo } from "react";
+import { Image } from "@/components/common/ServerImage";
 import ParallaxSlideShow from "@/components/jellyseerr/ParallaxSlideShow";
 import JellyseerrPoster from "@/components/posters/JellyseerrPoster";
 import { Endpoints, useJellyseerr } from "@/hooks/useJellyseerr";

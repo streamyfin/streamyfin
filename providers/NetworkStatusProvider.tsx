@@ -11,6 +11,11 @@ import {
   useState,
 } from "react";
 import { apiAtom } from "@/providers/JellyfinProvider";
+import {
+  customHeadersVersionAtom,
+  getJellyfinHeaders,
+} from "@/utils/customHeaders";
+import { jellyfinProbe } from "@/utils/serverUrl/probes/jellyfin";
 
 interface NetworkStatusContextType {
   isConnected: boolean;
@@ -23,14 +28,23 @@ const NetworkStatusContext = createContext<NetworkStatusContextType | null>(
   null,
 );
 
+// Probe the canonical unauthenticated endpoint (/System/Info/Public) instead
+// of a HEAD on the server root: subpath reverse proxies, auth-gated web roots
+// and HEAD-blocking setups made the root check report the server offline
+// while the API worked fine, leaving the home screen empty (#1257).
 async function checkApiReachable(basePath?: string): Promise<boolean> {
   if (!basePath) return false;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 10_000);
   try {
-    const url = basePath.endsWith("/") ? basePath : `${basePath}/`;
-    const response = await fetch(url, { method: "HEAD" });
-    return response.ok;
-  } catch {
-    return false;
+    const outcome = await jellyfinProbe(
+      basePath,
+      controller.signal,
+      getJellyfinHeaders(basePath),
+    );
+    return outcome.status === "ok";
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -39,6 +53,7 @@ export function NetworkStatusProvider({ children }: { children: ReactNode }) {
   const [serverConnected, setServerConnected] = useState<boolean | null>(true);
   const [loading, setLoading] = useState(false);
   const [api] = useAtom(apiAtom);
+  const [customHeadersVersion] = useAtom(customHeadersVersionAtom);
   const queryClient = useQueryClient();
   const wasServerConnected = useRef<boolean | null>(null);
 
@@ -47,7 +62,8 @@ export function NetworkStatusProvider({ children }: { children: ReactNode }) {
     const reachable = await checkApiReachable(api.basePath);
     setServerConnected(reachable);
     return reachable;
-  }, [api?.basePath]);
+    // customHeadersVersion: re-probe with the headers the user just saved.
+  }, [api?.basePath, customHeadersVersion]);
 
   const retryCheck = useCallback(async () => {
     setLoading(true);

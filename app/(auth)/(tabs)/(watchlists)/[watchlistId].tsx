@@ -11,19 +11,18 @@ import {
   Platform,
   RefreshControl,
   ScrollView,
-  TouchableOpacity,
   useWindowDimensions,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { HeaderBackButton } from "@/components/common/HeaderBackButton";
-import { Text } from "@/components/common/Text";
+import { useCardGrid } from "@/components/cards/useCardGrid";
 import {
-  getItemNavigation,
-  TouchableItemRouter,
-} from "@/components/common/TouchableItemRouter";
-import { ItemCardText } from "@/components/ItemCardText";
-import { ItemPoster } from "@/components/posters/ItemPoster";
+  HeaderButton,
+  HeaderButtonGroup,
+} from "@/components/common/HeaderButton";
+import { HeaderIcon } from "@/components/common/HeaderIcon";
+import { Text } from "@/components/common/Text";
+import { getItemNavigation } from "@/components/common/TouchableItemRouter";
 import { TVPosterCard } from "@/components/tv/TVPosterCard";
 import { useScaledTVPosterSizes } from "@/constants/TVPosterSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
@@ -38,7 +37,6 @@ import {
   useWatchlistDetailQuery,
   useWatchlistItemsQuery,
 } from "@/hooks/useWatchlists";
-import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { userAtom } from "@/providers/JellyfinProvider";
 
 const TV_ITEM_GAP = 20;
@@ -97,22 +95,20 @@ export default function WatchlistDetailScreen() {
   useEffect(() => {
     navigation.setOptions({
       headerTitle: watchlist?.name || "",
-      headerLeft: () => <HeaderBackButton />,
       headerRight: isOwner
         ? () => (
-            <View className='flex-row gap-2'>
-              <TouchableOpacity
+            <HeaderButtonGroup>
+              <HeaderButton
                 onPress={() =>
                   router.push(`/(auth)/(tabs)/(watchlists)/edit/${watchlistId}`)
                 }
-                className='p-2'
               >
-                <Ionicons name='pencil' size={20} color='white' />
-              </TouchableOpacity>
-              <TouchableOpacity onPress={handleDelete} className='p-2'>
-                <Ionicons name='trash-outline' size={20} color='#ef4444' />
-              </TouchableOpacity>
-            </View>
+                <HeaderIcon name='edit' />
+              </HeaderButton>
+              <HeaderButton onPress={handleDelete}>
+                <HeaderIcon name='delete' tintColor='#ef4444' />
+              </HeaderButton>
+            </HeaderButtonGroup>
           )
         : undefined,
     });
@@ -192,37 +188,14 @@ export default function WatchlistDetailScreen() {
     [router, showItemActions, posterSizes.poster],
   );
 
-  const renderItem = useCallback(
-    ({ item, index }: { item: BaseItemDto; index: number }) => (
-      <TouchableItemRouter
-        key={item.Id}
-        style={{
-          width: "100%",
-          marginBottom: 4,
-        }}
-        item={item}
-        onLongPress={isOwner ? () => handleRemoveItem(item) : undefined}
-      >
-        <View
-          style={{
-            alignSelf:
-              orientation === ScreenOrientation.OrientationLock.PORTRAIT_UP
-                ? index % nrOfCols === 0
-                  ? "flex-end"
-                  : (index + 1) % nrOfCols === 0
-                    ? "flex-start"
-                    : "center"
-                : "center",
-            width: "89%",
-          }}
-        >
-          <ItemPoster item={item} />
-          <ItemCardText item={item} />
-        </View>
-      </TouchableItemRouter>
-    ),
-    [isOwner, handleRemoveItem, orientation, nrOfCols],
-  );
+  // The owner's long press removes the item from the watchlist rather than
+  // opening the played/favorite sheet.
+  const grid = useCardGrid({
+    items: items ?? [],
+    columns: nrOfCols,
+    onLongPressItem: isOwner ? handleRemoveItem : undefined,
+    enableActionSheet: !isOwner,
+  });
 
   const ListHeader = useMemo(
     () =>
@@ -284,8 +257,6 @@ export default function WatchlistDetailScreen() {
     ),
     [isOwner, t],
   );
-
-  const keyExtractor = useCallback((item: BaseItemDto) => item.Id || "", []);
 
   if (watchlistLoading || itemsLoading) {
     return (
@@ -420,32 +391,28 @@ export default function WatchlistDetailScreen() {
 
   // Mobile layout with FlashList
   return (
-    <FlashList
-      key={orientation}
-      data={items ?? []}
-      numColumns={nrOfCols}
-      contentInsetAdjustmentBehavior='automatic'
-      ListHeaderComponent={ListHeader}
-      ListEmptyComponent={EmptyComponent}
-      extraData={[orientation, nrOfCols]}
-      keyExtractor={keyExtractor}
-      contentContainerStyle={{
-        paddingBottom: 24,
-        paddingLeft: insets.left,
-        paddingRight: insets.right,
-      }}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
-      }
-      renderItem={renderItem}
-      ItemSeparatorComponent={() => (
-        <View
-          style={{
-            width: 10,
-            height: 10,
-          }}
-        />
-      )}
-    />
+    <>
+      <FlashList
+        key={orientation}
+        data={grid.data}
+        numColumns={nrOfCols}
+        contentInsetAdjustmentBehavior='automatic'
+        ListHeaderComponent={ListHeader}
+        ListEmptyComponent={EmptyComponent}
+        extraData={[orientation, nrOfCols]}
+        keyExtractor={grid.keyExtractor}
+        contentContainerStyle={{
+          paddingBottom: 24,
+          paddingLeft: insets.left,
+          paddingRight: insets.right,
+        }}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+        }
+        renderItem={grid.renderItem}
+        ItemSeparatorComponent={() => <View style={{ height: grid.rowGap }} />}
+      />
+      {grid.actionSheet}
+    </>
   );
 }

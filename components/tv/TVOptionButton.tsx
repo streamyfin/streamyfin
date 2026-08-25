@@ -28,28 +28,26 @@ export const TVOptionButton = React.forwardRef<View, TVOptionButtonProps>(
         onBlur={handleBlur}
         hasTVPreferredFocus={hasTVPreferredFocus}
       >
-        <Animated.View
-          style={[
-            animatedStyle,
-            {
-              shadowColor: "#fff",
-              shadowOffset: { width: 0, height: 0 },
-              shadowOpacity: focused ? 0.4 : 0,
-              shadowRadius: focused ? 12 : 0,
-            },
-          ]}
-        >
+        <Animated.View style={[animatedStyle]}>
           {focused ? (
             <View
               style={{
                 backgroundColor: "#fff",
                 borderRadius: scaleSize(8),
+                borderWidth: 0,
                 paddingVertical: scaleSize(10),
                 paddingHorizontal: scaleSize(16),
                 flexDirection: "row",
                 alignItems: "center",
                 gap: scaleSize(8),
                 maxWidth,
+                // tvOS-only centered glow — on Android, elevation draws an
+                // offset shadow outside the pill, so the focus signal there
+                // is the white fill itself plus the scale animation.
+                shadowColor: "#fff",
+                shadowOffset: { width: 0, height: 0 },
+                shadowOpacity: 0.5,
+                shadowRadius: scaleSize(12),
               }}
             >
               <Text
@@ -78,7 +76,7 @@ export const TVOptionButton = React.forwardRef<View, TVOptionButtonProps>(
               intensity={10}
               tint='light'
               style={{
-                borderRadius: 8,
+                borderRadius: scaleSize(8),
                 overflow: "hidden",
                 maxWidth,
               }}
@@ -86,11 +84,11 @@ export const TVOptionButton = React.forwardRef<View, TVOptionButtonProps>(
               <View
                 style={{
                   backgroundColor: "rgba(0,0,0,0.3)",
-                  paddingVertical: 10,
-                  paddingHorizontal: 16,
+                  paddingVertical: scaleSize(10),
+                  paddingHorizontal: scaleSize(16),
                   flexDirection: "row",
                   alignItems: "center",
-                  gap: 8,
+                  gap: scaleSize(8),
                 }}
               >
                 <Text

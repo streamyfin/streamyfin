@@ -16,6 +16,8 @@ protocol PiPControllerDelegate: AnyObject {
 }
 
 final class PiPController: NSObject {
+    private static weak var automaticStartOwner: PiPController?
+
     private var pipController: AVPictureInPictureController?
     private weak var sampleBufferDisplayLayer: AVSampleBufferDisplayLayer?
     
@@ -67,11 +69,17 @@ final class PiPController: NSObject {
     }
     
     private func setupPictureInPicture() {
-        guard isPictureInPictureSupported,
-              let displayLayer = sampleBufferDisplayLayer else {
+        guard isPictureInPictureSupported else {
+            Logger.shared.log(
+                "PiP: setup skipped — AVPictureInPictureController.isPictureInPictureSupported() == false",
+                type: "Warn")
             return
         }
-        
+        guard let displayLayer = sampleBufferDisplayLayer else {
+            Logger.shared.log("PiP: setup skipped — no sample buffer display layer", type: "Warn")
+            return
+        }
+
         let contentSource = AVPictureInPictureController.ContentSource(
             sampleBufferDisplayLayer: displayLayer,
             playbackDelegate: self
@@ -80,26 +88,50 @@ final class PiPController: NSObject {
         pipController = AVPictureInPictureController(contentSource: contentSource)
         pipController?.delegate = self
         pipController?.requiresLinearPlayback = false
+        Logger.shared.log(
+            "PiP: controller created (possible=\(pipController?.isPictureInPicturePossible ?? false))",
+            type: "Info")
     }
 
     /// Enable/disable auto-PiP ("swipe up while playing").
     ///
-    /// Armed per loaded video rather than once at init: leaving it enabled on an
-    /// outgoing player stopped the *next* video from entering PiP, and the view
-    /// is reused across videos so init doesn't run again. Set in `loadVideo()`,
-    /// cleared in `destroy()`.
+    /// Arming transfers eligibility from the outgoing controller and also
+    /// re-arms a reused controller. This keeps source changes independent of
+    /// which UI path initiated them.
     func setAutoStartEnabled(_ enabled: Bool) {
         #if !os(tvOS)
-        pipController?.canStartPictureInPictureAutomaticallyFromInline = enabled
+        guard let pipController else { return }
+        if enabled {
+            Self.automaticStartOwner?.pipController?.canStartPictureInPictureAutomaticallyFromInline = false
+            Self.automaticStartOwner = self
+        } else if Self.automaticStartOwner === self {
+            Self.automaticStartOwner = nil
+        }
+        pipController.canStartPictureInPictureAutomaticallyFromInline = enabled
         #endif
     }
 
     func startPictureInPicture() {
-        guard let pipController = pipController,
-              pipController.isPictureInPicturePossible else {
+        guard let pipController = pipController else {
+            Logger.shared.log("PiP: start refused — controller was never created", type: "Error")
             return
         }
-        
+        Logger.shared.log(
+            "PiP: start requested — supported=\(isPictureInPictureSupported) "
+                + "possible=\(pipController.isPictureInPicturePossible) "
+                + "active=\(pipController.isPictureInPictureActive) "
+                + "layerReady=\(sampleBufferDisplayLayer?.isReadyForMoreMediaData ?? false) "
+                + "hasTimebase=\(sampleBufferDisplayLayer?.controlTimebase != nil)",
+            type: "Info")
+        // The silent one: AVKit only lets PiP begin once it considers the
+        // source eligible, and there is no callback for "never became
+        // possible" — so log the refusal rather than returning into the void.
+        guard pipController.isPictureInPicturePossible else {
+            Logger.shared.log(
+                "PiP: start aborted — isPictureInPicturePossible == false", type: "Error")
+            return
+        }
+
         pipController.startPictureInPicture()
     }
     
@@ -183,7 +215,7 @@ extension PiPController: AVPictureInPictureControllerDelegate {
     }
     
     func pictureInPictureController(_ pictureInPictureController: AVPictureInPictureController, failedToStartPictureInPictureWithError error: Error) {
-        print("Failed to start PiP: \(error)")
+        Logger.shared.log("PiP: failed to start — \(error.localizedDescription)", type: "Error")
         delegate?.pipController(self, didStartPictureInPicture: false)
     }
     

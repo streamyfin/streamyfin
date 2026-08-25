@@ -1,6 +1,5 @@
 import type { BottomSheetModal } from "@gorhom/bottom-sheet";
-import type React from "react";
-import {
+import React, {
   createContext,
   type ReactNode,
   useCallback,

@@ -8,32 +8,37 @@ import okhttp3.Request
 import okhttp3.Response
 import java.io.File
 import java.io.IOException
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 
 class OkHttpDownloadManager {
   private val TAG = "OkHttpDownloadManager"
-  
+
   private val client = OkHttpClient.Builder()
     .connectTimeout(30, TimeUnit.SECONDS)
     .readTimeout(60, TimeUnit.SECONDS)
     .callTimeout(0, TimeUnit.SECONDS) // No timeout for long transcodes
     .build()
-  
-  private val activeDownloads = mutableMapOf<Int, Call>()
+
+  // Mutated from the JS thread (start/cancel) and OkHttp dispatcher threads (callbacks).
+  private val activeDownloads = ConcurrentHashMap<Int, Call>()
   
   fun startDownload(
     taskId: Int,
     url: String,
     destinationPath: String,
+    headers: Map<String, String>? = null,
     onProgress: (bytesWritten: Long, totalBytes: Long) -> Unit,
     onComplete: (filePath: String) -> Unit,
     onError: (error: String) -> Unit
   ) {
     Log.d(TAG, "Starting download: taskId=$taskId, url=$url")
-    
-    val request = Request.Builder()
-      .url(url)
-      .build()
+
+    val requestBuilder = Request.Builder().url(url)
+    headers?.forEach { (key, value) ->
+      requestBuilder.addHeader(key, value)
+    }
+    val request = requestBuilder.build()
     
     val call = client.newCall(request)
     activeDownloads[taskId] = call
@@ -57,28 +62,33 @@ class OkHttpDownloadManager {
           return
         }
         
+        // Stream into a .part staging file and rename on completion. The destination path must
+        // only ever hold a finished download: a process killed mid-transfer cannot run cleanup,
+        // and JS reconciliation treats an existing destination file as a completed download.
+        val destFile = File(destinationPath)
+        val partFile = File("$destinationPath.part")
+
         try {
           val totalBytes = response.body?.contentLength() ?: -1L
           val inputStream = response.body?.byteStream()
-          
+
           if (inputStream == null) {
             activeDownloads.remove(taskId)
             onError("Failed to get response body")
             return
           }
-          
+
           // Create destination directory if needed
-          val destFile = File(destinationPath)
           val destDir = destFile.parentFile
           if (destDir != null && !destDir.exists()) {
             destDir.mkdirs()
           }
-          
-          val outputStream = destFile.outputStream()
+
+          val outputStream = partFile.outputStream()
           val buffer = ByteArray(8192)
           var bytesWritten = 0L
           var lastProgressUpdate = System.currentTimeMillis()
-          
+
           inputStream.use { input ->
             outputStream.use { output ->
               var bytes = input.read(buffer)
@@ -86,44 +96,55 @@ class OkHttpDownloadManager {
                 // Check if download was cancelled
                 if (call.isCanceled()) {
                   Log.d(TAG, "Download cancelled: taskId=$taskId")
-                  destFile.delete()
+                  partFile.delete()
                   activeDownloads.remove(taskId)
                   return
                 }
-                
+
                 output.write(buffer, 0, bytes)
                 bytesWritten += bytes
-                
+
                 // Throttle progress updates to every 500ms
                 val now = System.currentTimeMillis()
                 if (now - lastProgressUpdate >= 500) {
                   onProgress(bytesWritten, totalBytes)
                   lastProgressUpdate = now
                 }
-                
+
                 bytes = input.read(buffer)
               }
             }
           }
-          
+
           // Send final progress update
           onProgress(bytesWritten, totalBytes)
-          
+
+          if (destFile.exists()) {
+            destFile.delete()
+          }
+          if (!partFile.renameTo(destFile)) {
+            Log.e(TAG, "Failed to move completed file into place: taskId=$taskId")
+            partFile.delete()
+            activeDownloads.remove(taskId)
+            onError("Failed to move completed file into place")
+            return
+          }
+
           Log.d(TAG, "Download completed: taskId=$taskId, bytes=$bytesWritten")
           activeDownloads.remove(taskId)
           onComplete(destinationPath)
-          
+
         } catch (e: Exception) {
           Log.e(TAG, "Error during download: taskId=$taskId, error=${e.message}", e)
           activeDownloads.remove(taskId)
-          
+
           // Clean up partial file
           try {
-            File(destinationPath).delete()
+            partFile.delete()
           } catch (deleteError: Exception) {
             Log.e(TAG, "Failed to delete partial file: ${deleteError.message}")
           }
-          
+
           if (!call.isCanceled()) {
             onError(e.message ?: "Download failed")
           }

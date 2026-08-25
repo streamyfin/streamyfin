@@ -103,7 +103,11 @@ export function useRemoteSubtitles({
 }: UseRemoteSubtitlesOptions) {
   const api = useAtomValue(apiAtom);
   const { settings } = useSettings();
-  const openSubtitlesApiKey = settings.openSubtitlesApiKey;
+  // Turning the lookup off keeps a stored key but stops direct client lookups.
+  const openSubtitlesApiKey =
+    settings.openSubtitlesEnabled === false
+      ? undefined
+      : settings.openSubtitlesApiKey?.trim();
 
   // Check if we can use OpenSubtitles fallback
   const hasOpenSubtitlesApiKey = Boolean(openSubtitlesApiKey);

@@ -4,10 +4,16 @@ import type {
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { Directory, File, Paths } from "expo-file-system";
+import {
+  getJellyfinHeadersForUrl,
+  optionsWithOptionalHeaders,
+} from "@/utils/customHeaders";
 import { getItemImage } from "@/utils/getItemImage";
-import { fetchAndParseSegments } from "@/utils/segments";
+import { getAuthHeaders } from "@/utils/jellyfin/jellyfin";
+import { getExternalSubtitleUrl } from "@/utils/jellyfin/subtitleUtils";
+import { fetchAndParseSegments, type SegmentBuckets } from "@/utils/segments";
 import { generateTrickplayUrl, getTrickplayInfo } from "@/utils/trickplay";
-import type { MediaTimeSegment, TrickPlayData } from "./types";
+import type { TrickPlayData } from "./types";
 import { generateFilename } from "./utils";
 
 /**
@@ -16,6 +22,7 @@ import { generateFilename } from "./utils";
  */
 export async function downloadTrickplayImages(
   item: BaseItemDto,
+  api: Api,
 ): Promise<TrickPlayData | undefined> {
   const trickplayInfo = getTrickplayInfo(item);
   if (!trickplayInfo || !item.Id) {
@@ -34,7 +41,7 @@ export async function downloadTrickplayImages(
   const downloadPromises: Promise<void>[] = [];
 
   for (let index = 0; index < trickplayInfo.totalImageSheets; index++) {
-    const url = generateTrickplayUrl(item, index);
+    const url = generateTrickplayUrl(item, index, api);
     if (!url) continue;
 
     const destination = new File(trickplayDir, `${index}.jpg`);
@@ -46,7 +53,14 @@ export async function downloadTrickplayImages(
     }
 
     downloadPromises.push(
-      File.downloadFileAsync(url, destination)
+      File.downloadFileAsync(
+        url,
+        destination,
+        optionsWithOptionalHeaders(
+          {},
+          getJellyfinHeadersForUrl(url, api.basePath),
+        ),
+      )
         .then(() => {
           totalSize += destination.size;
         })
@@ -74,7 +88,7 @@ export async function downloadTrickplayImages(
 export async function downloadSubtitles(
   mediaSource: MediaSourceInfo,
   item: BaseItemDto,
-  apiBasePath: string,
+  api: Api,
 ): Promise<MediaSourceInfo> {
   const externalSubtitles = mediaSource.MediaStreams?.filter(
     (stream) =>
@@ -86,10 +100,15 @@ export async function downloadSubtitles(
   }
 
   const filename = generateFilename(item);
-  const downloadPromises = externalSubtitles.map(async (subtitle) => {
-    if (!subtitle.DeliveryUrl) return;
+  // Sequential on purpose: concurrent subtitle requests make Jellyfin's
+  // first-time extraction race with itself and serve corrupted files
+  for (const subtitle of externalSubtitles) {
+    const url = getExternalSubtitleUrl(subtitle, {
+      offline: false,
+      basePath: api.basePath,
+    });
+    if (!url) continue;
 
-    const url = apiBasePath + subtitle.DeliveryUrl;
     const extension = subtitle.Codec || "srt";
     const destination = new File(
       Paths.document,
@@ -99,11 +118,21 @@ export async function downloadSubtitles(
     // Skip if already exists
     if (destination.exists) {
       subtitle.DeliveryUrl = destination.uri;
-      return;
+      continue;
     }
 
+    // No Jellyfin credentials on a URL the server does not host.
+    const proxyHeaders = getJellyfinHeadersForUrl(url, api.basePath);
+    const headers = subtitle.IsExternalUrl
+      ? proxyHeaders
+      : { ...proxyHeaders, ...getAuthHeaders(api) };
+
     try {
-      await File.downloadFileAsync(url, destination);
+      await File.downloadFileAsync(
+        url,
+        destination,
+        optionsWithOptionalHeaders({}, headers),
+      );
       subtitle.DeliveryUrl = destination.uri;
     } catch (error) {
       console.error(
@@ -111,9 +140,7 @@ export async function downloadSubtitles(
         error,
       );
     }
-  });
-
-  await Promise.all(downloadPromises);
+  }
 
   return mediaSource;
 }
@@ -179,22 +206,15 @@ export async function downloadSeriesImage(
 export async function fetchSegments(
   itemId: string,
   api: Api,
-): Promise<{
-  introSegments?: MediaTimeSegment[];
-  creditSegments?: MediaTimeSegment[];
-}> {
+): Promise<Partial<SegmentBuckets>> {
   try {
-    const segments = await fetchAndParseSegments(itemId, api);
-    return {
-      introSegments: segments.introSegments,
-      creditSegments: segments.creditSegments,
-    };
+    // Persist every bucket, not just intro and outro: the player offers a skip
+    // mode per segment type, so recap, commercial and preview have to survive
+    // into offline playback too.
+    return await fetchAndParseSegments(itemId, api);
   } catch (error) {
     console.error(`[SEGMENTS] Failed to fetch segments:`, error);
-    return {
-      introSegments: undefined,
-      creditSegments: undefined,
-    };
+    return {};
   }
 }
 
@@ -208,12 +228,12 @@ export async function downloadAdditionalAssets(params: {
   api: Api;
   saveImageFn: (itemId: string, url?: string) => Promise<void>;
   saveSeriesImageFn: (item: BaseItemDto) => Promise<void>;
-}): Promise<{
-  trickPlayData?: TrickPlayData;
-  updatedMediaSource: MediaSourceInfo;
-  introSegments?: MediaTimeSegment[];
-  creditSegments?: MediaTimeSegment[];
-}> {
+}): Promise<
+  {
+    trickPlayData?: TrickPlayData;
+    updatedMediaSource: MediaSourceInfo;
+  } & Partial<SegmentBuckets>
+> {
   const { item, mediaSource, api, saveImageFn, saveSeriesImageFn } = params;
 
   // Run all downloads in parallel for speed
@@ -223,17 +243,11 @@ export async function downloadAdditionalAssets(params: {
     segments,
     // Cover images (fire and forget, errors are logged)
   ] = await Promise.all([
-    downloadTrickplayImages(item),
-    // Only download subtitles for non-transcoded streams
-    mediaSource.TranscodingUrl
-      ? Promise.resolve(mediaSource)
-      : downloadSubtitles(mediaSource, item, api.basePath || ""),
+    downloadTrickplayImages(item, api),
+    downloadSubtitles(mediaSource, item, api),
     item.Id
       ? fetchSegments(item.Id, api)
-      : Promise.resolve({
-          introSegments: undefined,
-          creditSegments: undefined,
-        }),
+      : Promise.resolve({} as Partial<SegmentBuckets>),
     // Cover image downloads (run but don't wait for results)
     downloadCoverImage(item, api, saveImageFn).catch((err) => {
       console.error("[COVER] Error downloading cover:", err);
@@ -248,7 +262,6 @@ export async function downloadAdditionalAssets(params: {
   return {
     trickPlayData,
     updatedMediaSource,
-    introSegments: segments.introSegments,
-    creditSegments: segments.creditSegments,
+    ...segments,
   };
 }

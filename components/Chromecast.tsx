@@ -1,7 +1,5 @@
-import { Feather } from "@expo/vector-icons";
-import { useCallback, useEffect } from "react";
-import { Platform } from "react-native";
-import { Pressable } from "react-native-gesture-handler";
+import { useEffect } from "react";
+import { Platform, View } from "react-native";
 import GoogleCast, {
   CastButton,
   CastContext,
@@ -10,14 +8,17 @@ import GoogleCast, {
   useMediaStatus,
   useRemoteMediaClient,
 } from "react-native-google-cast";
-import { RoundButton } from "./RoundButton";
+import { logAndCaptureError } from "@/utils/log";
+import { HeaderButton, type HeaderButtonProps } from "./common/HeaderButton";
+import { HeaderIcon } from "./common/HeaderIcon";
 
-export function Chromecast({
-  width = 48,
-  height = 48,
-  background = "transparent",
-  ...props
-}) {
+type Props = Omit<HeaderButtonProps, "onPress" | "children">;
+
+/**
+ * Header cast button. Spacing is owned by the surrounding `HeaderButtonGroup` —
+ * this component must not carry margins of its own.
+ */
+export function Chromecast(props: Props) {
   const client = useRemoteMediaClient();
   const castDevice = useCastDevice();
   const devices = useDevices();
@@ -33,60 +34,29 @@ export function Chromecast({
       }
 
       await discoveryManager.startDiscovery();
-    })();
+    })().catch((error) => {
+      // Previously an unhandled rejection: cast devices just never appear.
+      logAndCaptureError("Chromecast discovery failed to start", error);
+    });
   }, [client, devices, castDevice, sessionManager, discoveryManager]);
 
-  // Android requires the cast button to be present for startDiscovery to work
-  const AndroidCastButton = useCallback(
-    () =>
-      Platform.OS === "android" ? <CastButton tintColor='transparent' /> : null,
-    [Platform.OS],
-  );
-
-  if (Platform.OS === "ios") {
-    return (
-      <Pressable
-        className='mr-4'
-        onPress={() => {
-          if (mediaStatus?.currentItemId) CastContext.showExpandedControls();
-          else CastContext.showCastDialog();
-        }}
-        {...props}
-      >
-        <AndroidCastButton />
-        <Feather name='cast' size={22} color={"white"} />
-      </Pressable>
-    );
-  }
-
-  if (background === "transparent")
-    return (
-      <RoundButton
-        size='large'
-        className='mr-2'
-        background={false}
-        onPress={() => {
-          if (mediaStatus?.currentItemId) CastContext.showExpandedControls();
-          else CastContext.showCastDialog();
-        }}
-        {...props}
-      >
-        <AndroidCastButton />
-        <Feather name='cast' size={22} color={"white"} />
-      </RoundButton>
-    );
-
   return (
-    <RoundButton
-      size='large'
+    <HeaderButton
       onPress={() => {
         if (mediaStatus?.currentItemId) CastContext.showExpandedControls();
         else CastContext.showCastDialog();
       }}
       {...props}
     >
-      <AndroidCastButton />
-      <Feather name='cast' size={22} color={"white"} />
-    </RoundButton>
+      {/* Android needs a mounted CastButton for startDiscovery to work, but it
+          must not take part in layout or it shifts the icon off the header
+          grid — hence absolute + transparent rather than a sibling. */}
+      {Platform.OS === "android" ? (
+        <View style={{ position: "absolute", opacity: 0 }} pointerEvents='none'>
+          <CastButton tintColor='transparent' />
+        </View>
+      ) : null}
+      <HeaderIcon name='cast' />
+    </HeaderButton>
   );
 }

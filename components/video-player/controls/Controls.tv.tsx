@@ -39,9 +39,9 @@ import {
 import { TVFocusableProgressBar } from "@/components/tv/TVFocusableProgressBar";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
-import { useCreditSkipper } from "@/hooks/useCreditSkipper";
-import { useIntroSkipper } from "@/hooks/useIntroSkipper";
+import { useMediaSegments } from "@/hooks/useMediaSegments";
 import { usePlaybackManager } from "@/hooks/usePlaybackManager";
+import type { SegmentType } from "@/hooks/useSegmentSkipper";
 import { useTrickplay } from "@/hooks/useTrickplay";
 import { useTVOptionModal } from "@/hooks/useTVOptionModal";
 import { useTVSubtitleModal } from "@/hooks/useTVSubtitleModal";
@@ -52,13 +52,21 @@ import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import type { TVOptionItem } from "@/utils/atoms/tvOptionModal";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
-import { compareTracksForMenu } from "@/utils/jellyfin/subtitleUtils";
+import { useSegments } from "@/utils/segments";
+import { rememberSeriesTrackFromRow } from "@/utils/seriesTrackMemory";
+import { SUBTITLES_OFF } from "@/utils/subtitles/subtitleIndex";
+import {
+  buildAudioMenu,
+  buildSubtitleMenu,
+  type TrackMenuRow,
+} from "@/utils/subtitles/trackMenu";
 import { formatTimeString, msToTicks, ticksToMs } from "@/utils/time";
 import { CONTROLS_CONSTANTS } from "./constants";
 import { useVideoContext } from "./contexts/VideoContext";
 import { useChapterNavigation } from "./hooks/useChapterNavigation";
 import { useRemoteControl } from "./hooks/useRemoteControl";
 import { useVideoTime } from "./hooks/useVideoTime";
+import { SegmentSkippedNotice } from "./SegmentSkippedNotice";
 import { TechnicalInfoOverlay } from "./TechnicalInfoOverlay";
 import { TrickplayBubble } from "./TrickplayBubble";
 import type { Track } from "./types";
@@ -95,6 +103,8 @@ interface Props {
     import("@jellyfin/sdk/lib/generated-client").MediaStream[]
   >;
   addSubtitleFile?: (path: string) => void;
+  subtitleDelay?: number;
+  onSubtitleDelayChange?: (seconds: number) => void;
   showTechnicalInfo?: boolean;
   onToggleTechnicalInfo?: () => void;
   getTechnicalInfo?: () => Promise<TechnicalInfo>;
@@ -207,6 +217,7 @@ export const Controls: FC<Props> = ({
   isSeeking,
   progress,
   cacheProgress,
+  isBuffering,
   showControls,
   setShowControls,
   mediaSource,
@@ -223,6 +234,8 @@ export const Controls: FC<Props> = ({
   goToNextItem: goToNextItemProp,
   onRefreshSubtitleTracks,
   addSubtitleFile,
+  subtitleDelay = 0,
+  onSubtitleDelayChange,
   showTechnicalInfo,
   onToggleTechnicalInfo,
   getTechnicalInfo,
@@ -288,30 +301,30 @@ export const Controls: FC<Props> = ({
   // Ref for the invisible focus-stealing overlay (prevents hidden buttons from receiving select events)
   const focusOverlayRef = useRef<View>(null);
 
-  const audioTracks = useMemo(() => {
-    return mediaSource?.MediaStreams?.filter((s) => s.Type === "Audio") ?? [];
-  }, [mediaSource]);
-
-  const _subtitleTracks = useMemo(() => {
-    return (
-      mediaSource?.MediaStreams?.filter((s) => s.Type === "Subtitle") ?? []
-    );
-  }, [mediaSource]);
-
-  const audioOptions: TVOptionItem<number>[] = useMemo(() => {
-    return audioTracks.map((track) => ({
-      label:
-        track.DisplayTitle || `${track.Language || "Unknown"} (${track.Codec})`,
-      value: track.Index!,
-      selected: track.Index === audioIndex,
-    }));
-  }, [audioTracks, audioIndex]);
+  // The row travels as the option value (same shape the TV item page uses) so
+  // the selection handler can persist the pick without re-deriving its language
+  // from a stream list that may have been refetched since the menu was built.
+  const audioOptions: TVOptionItem<TrackMenuRow>[] = useMemo(
+    () =>
+      buildAudioMenu(mediaSource?.MediaStreams, {
+        selectedIndex: audioIndex,
+        isTranscoding: Boolean(mediaSource?.TranscodingUrl),
+        formatLabel: (s) =>
+          s.DisplayTitle || `${s.Language || "Unknown"} (${s.Codec})`,
+      }).map((row) => ({
+        label: row.label,
+        value: row,
+        selected: row.selected,
+      })),
+    [mediaSource, audioIndex],
+  );
 
   const handleAudioChange = useCallback(
-    (index: number) => {
-      onAudioIndexChange?.(index);
+    (row: TrackMenuRow) => {
+      rememberSeriesTrackFromRow({ item, kind: "audio", row, settings });
+      onAudioIndexChange?.(row.index);
     },
-    [onAudioIndexChange],
+    [onAudioIndexChange, item, settings],
   );
 
   // Quality options mirror the mobile menu: value is the max bitrate as a
@@ -332,39 +345,42 @@ export const Controls: FC<Props> = ({
     [onBitrateChange],
   );
 
-  const _handleSubtitleChange = useCallback(
-    (index: number) => {
-      onSubtitleIndexChange?.(index);
-    },
-    [onSubtitleIndexChange],
-  );
-
   // Re-fetch subtitle streams from the server (e.g. after a server-side
   // download) and map them to the modal's Track shape. setTrack drives the
   // player through the same handler used for manual subtitle selection.
   const refreshSubtitleTracks = useCallback(async (): Promise<Track[]> => {
     try {
       const streams = (await onRefreshSubtitleTracks?.()) ?? [];
-      // Skip streams without a real index: `?? -1` would alias them to the
-      // "disable subtitles" sentinel and mis-route selection. Order like
-      // jellyfin-web (embedded first, externals last, forced/default up).
-      return [...streams]
-        .sort(compareTracksForMenu)
-        .filter((stream) => typeof stream.Index === "number")
-        .map((stream) => {
-          const index = stream.Index as number;
-          return {
-            name:
-              stream.DisplayTitle ||
-              `${stream.Language || "Unknown"} (${stream.Codec})`,
-            index,
-            setTrack: () => onSubtitleIndexChange?.(index),
-          };
-        });
+      // Streams with no Index are dropped by the builder rather than aliased
+      // onto the "disable subtitles" sentinel. The modal supplies its own
+      // "None", so the off row is left out here.
+      return buildSubtitleMenu(streams, {
+        selectedIndex: subtitleIndex ?? SUBTITLES_OFF,
+        offLabel: "",
+        isTranscoding: Boolean(mediaSource?.TranscodingUrl),
+        formatLabel: (s) =>
+          s.DisplayTitle || `${s.Language || "Unknown"} (${s.Codec})`,
+      })
+        .filter((row) => row.kind !== "off")
+        .map((row) => ({
+          name: row.label,
+          index: row.index,
+          setTrack: () => {
+            // These rows are built here rather than in VideoContext, so they do
+            // not pass through the write it performs — persist them directly.
+            rememberSeriesTrackFromRow({
+              item,
+              kind: "subtitle",
+              row,
+              settings,
+            });
+            onSubtitleIndexChange?.(row.index);
+          },
+        }));
     } catch {
       return [];
     }
-  }, [onRefreshSubtitleTracks, onSubtitleIndexChange]);
+  }, [onRefreshSubtitleTracks, onSubtitleIndexChange, item, settings]);
 
   const {
     trickPlayUrl,
@@ -458,30 +474,43 @@ export const Controls: FC<Props> = ({
     seek,
   });
 
-  // Skip intro/credits hooks
-  // Note: hooks expect seek callback that takes ms, and seek prop already expects ms
+  // Segment skipping (intro + outro/credits) via the unified hook.
   const offline = useOfflineMode();
-  const { showSkipButton, skipIntro } = useIntroSkipper(
-    item.Id!,
-    currentTime,
-    seek,
-    _play,
+
+  const { data: segments } = useSegments(
+    item.Id ?? "",
     offline,
-    api,
     downloadedFiles,
+    api,
   );
 
-  const { showSkipCreditButton, skipCredit, hasContentAfterCredits } =
-    useCreditSkipper(
-      item.Id!,
-      currentTime,
-      seek,
-      _play,
-      offline,
-      api,
-      downloadedFiles,
-      max.value,
-    );
+  // Unified segment orchestration (identical mechanism on mobile and TV):
+  // overlap priority + a single auto-skip driver live in the shared hook.
+  const {
+    activeSegment,
+    skipActiveSegment,
+    showSkipButton,
+    isOutroActive,
+    skipOutro: skipCredit,
+    hasContentAfterCredits,
+    skippedNotice,
+  } = useMediaSegments({
+    segments,
+    currentTime,
+    maxMs,
+    seek,
+    play: _play,
+    isPlaying,
+    isBuffering,
+  });
+
+  // The outro keeps its dedicated card (it composes with the Next Episode
+  // countdown); the other four share the generic skip card.
+  const showSkipCreditButton = isOutroActive;
+  const activeSegmentType =
+    isOutroActive || !activeSegment
+      ? "intro"
+      : (activeSegment.type.toLowerCase() as Lowercase<SegmentType>);
 
   // Countdown logic
   const isCountdownActive = useMemo(() => {
@@ -645,6 +674,8 @@ export const Controls: FC<Props> = ({
       mediaSourceId: mediaSource?.Id,
       subtitleTracks: tracksWithoutDisable,
       currentSubtitleIndex: subtitleIndex ?? -1,
+      subtitleDelay,
+      onSubtitleDelayChange,
       // In-player selection can navigate (replacePlayer for burn-in switches);
       // apply it after the modal route is dismissed so it isn't swallowed.
       deferApplyUntilDismissed: true,
@@ -668,6 +699,8 @@ export const Controls: FC<Props> = ({
     mediaSource?.Id,
     videoContextSubtitleTracks,
     subtitleIndex,
+    subtitleDelay,
+    onSubtitleDelayChange,
     onSubtitleIndexChange,
     handleLocalSubtitleDownloaded,
     onRefreshSubtitleTracks,
@@ -1242,7 +1275,7 @@ export const Controls: FC<Props> = ({
         />
       )}
 
-      {/* Skip intro card */}
+      {/* Generic skip card (intro / recap / commercial / preview) */}
       <TVSkipSegmentCard
         show={showSkipButton && !isCountdownActive}
         onPress={() => {
@@ -1250,17 +1283,19 @@ export const Controls: FC<Props> = ({
           // unmounts. With controls visible the focus-stealing overlay is
           // disabled, so without an explicit handoff the focus engine is
           // stranded. Prime the play button to receive focus on the next
-          // render — when controls are hidden the focus overlay takes over
+          // render, when controls are hidden the focus overlay takes over
           // naturally and this is a harmless no-op.
           if (showControls) setFocusPlayButton(true);
-          skipIntro();
+          skipActiveSegment();
         }}
-        type='intro'
+        type={activeSegmentType}
         controlsVisible={showControls}
         refSetter={setSkipSegmentRef}
         hasTVPreferredFocus={!showControls}
         playButtonRef={showControls ? playButtonRef : null}
       />
+
+      <SegmentSkippedNotice segment={skippedNotice} />
 
       {/* Skip credits card - show when there's content after credits, OR no next episode */}
       <TVSkipSegmentCard

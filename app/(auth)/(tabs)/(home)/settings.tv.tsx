@@ -1,4 +1,7 @@
-import { SubtitlePlaybackMode } from "@jellyfin/sdk/lib/generated-client";
+import {
+  type CultureDto,
+  SubtitlePlaybackMode,
+} from "@jellyfin/sdk/lib/generated-client";
 import { useQueryClient } from "@tanstack/react-query";
 import { Directory, Paths } from "expo-file-system";
 import { Image } from "expo-image";
@@ -12,6 +15,7 @@ import { TVPasswordEntryModal } from "@/components/login/TVPasswordEntryModal";
 import { TVPINEntryModal } from "@/components/login/TVPINEntryModal";
 import type { TVOptionItem } from "@/components/tv";
 import {
+  TVCustomHeadersSection,
   TVLogoutButton,
   TVSectionHeader,
   TVSettingsOptionButton,
@@ -21,6 +25,7 @@ import {
   TVSettingsToggle,
 } from "@/components/tv";
 import { useScaledTVTypography } from "@/constants/TVTypography";
+import { useMediaPreferences } from "@/hooks/useMediaPreferences";
 import { useTVOptionModal } from "@/hooks/useTVOptionModal";
 import { useTVUserSwitchModal } from "@/hooks/useTVUserSwitchModal";
 import { APP_LANGUAGES } from "@/i18n";
@@ -33,14 +38,19 @@ import {
 } from "@/providers/JellyfinProvider";
 import {
   AudioTranscodeMode,
+  defaultValues,
   getActiveVideoPlayer,
   InactivityTimeout,
+  isNativePlayerSupportedTV,
   type MpvCacheMode,
   type MpvVoDriver,
+  type SegmentSkipMode,
   TVTypographyScale,
   useSettings,
   VideoPlayer,
 } from "@/utils/atoms/settings";
+import { INTEGRATION_CONFIG_KEY_PREFIX } from "@/utils/customHeaders";
+import { ORIGINAL_LANGUAGE } from "@/utils/jellyfin/serverVersion";
 import { storage } from "@/utils/mmkv";
 import { scaleSize } from "@/utils/scaleSize";
 import {
@@ -49,6 +59,22 @@ import {
   type SavedServerAccount,
 } from "@/utils/secureCredentials";
 import { clearTopShelfCacheSafely } from "@/utils/topshelf/cache";
+
+const SEGMENT_SKIP_ROWS: {
+  key:
+    | "skipIntro"
+    | "skipOutro"
+    | "skipRecap"
+    | "skipCommercial"
+    | "skipPreview";
+  labelKey: string;
+}[] = [
+  { key: "skipIntro", labelKey: "skip_intro" },
+  { key: "skipOutro", labelKey: "skip_outro" },
+  { key: "skipRecap", labelKey: "skip_recap" },
+  { key: "skipCommercial", labelKey: "skip_commercial" },
+  { key: "skipPreview", labelKey: "skip_preview" },
+];
 
 export default function SettingsTV() {
   const { t } = useTranslation();
@@ -59,6 +85,12 @@ export default function SettingsTV() {
   const [api] = useAtom(apiAtom);
   const [, setCacheVersion] = useAtom(cacheVersionAtom);
   const { showOptions } = useTVOptionModal();
+  const {
+    updateMediaSettings,
+    cultures,
+    supportsOriginalAudioLanguage,
+    isReady,
+  } = useMediaPreferences();
   const { showUserSwitchModal } = useTVUserSwitchModal();
   const typography = useScaledTVTypography();
   const queryClient = useQueryClient();
@@ -233,7 +265,12 @@ export default function SettingsTV() {
               ];
               const allKeys = storage.getAllKeys();
               for (const key of allKeys) {
-                if (!keysToKeep.includes(key)) {
+                // The per-integration header configs are settings, not cache —
+                // clearing them would silently drop the user's proxy auth.
+                if (
+                  !keysToKeep.includes(key) &&
+                  !key.startsWith(INTEGRATION_CONFIG_KEY_PREFIX)
+                ) {
                   storage.remove(key);
                 }
               }
@@ -257,8 +294,8 @@ export default function SettingsTV() {
     settings.audioTranscodeMode || AudioTranscodeMode.Auto;
   const currentSubtitleMode =
     settings.subtitleMode || SubtitlePlaybackMode.Default;
-  const currentAlignX = settings.mpvSubtitleAlignX ?? "center";
-  const currentAlignY = settings.mpvSubtitleAlignY ?? "bottom";
+  const currentAlignX = settings.subtitleAlignX ?? "center";
+  const currentAlignY = settings.subtitleAlignY ?? "bottom";
   const currentTypographyScale =
     settings.tvTypographyScale || TVTypographyScale.Default;
   const currentCacheMode = settings.mpvCacheEnabled ?? "auto";
@@ -267,7 +304,8 @@ export default function SettingsTV() {
 
   // Video player selection. MPV is the default; ExoPlayer is only offered
   // as an opt-in alternative on Android TV. The selector is hidden on
-  // other platforms.
+  // other platforms. Apple TV instead gets an opt-in toggle for the
+  // experimental fully-native tvOS player (default off).
   const isAndroidTv = Platform.OS === "android" && Platform.isTV;
   const currentVideoPlayer = getActiveVideoPlayer(settings);
   const isMpv = currentVideoPlayer !== VideoPlayer.ExoPlayer;
@@ -311,6 +349,67 @@ export default function SettingsTV() {
     [t, currentAudioTranscode],
   );
 
+  const languageName = (culture: CultureDto | null | undefined) =>
+    culture?.DisplayName ||
+    culture?.ThreeLetterISOLanguageName ||
+    t("home.settings.subtitles.unknown_language");
+
+  const audioLanguageOptions: TVOptionItem<CultureDto | null>[] =
+    useMemo(() => {
+      const selectedLanguage =
+        settings.defaultAudioLanguage?.ThreeLetterISOLanguageName;
+      return [
+        {
+          label: t("home.settings.audio.none"),
+          value: null,
+          selected: !settings.defaultAudioLanguage,
+        },
+        ...(supportsOriginalAudioLanguage
+          ? [
+              {
+                label: t("home.settings.audio.original_language"),
+                value: {
+                  ThreeLetterISOLanguageName: ORIGINAL_LANGUAGE,
+                } as CultureDto,
+                selected: selectedLanguage === ORIGINAL_LANGUAGE,
+              },
+            ]
+          : []),
+        ...cultures.map((culture) => ({
+          label: languageName(culture),
+          value: culture,
+          selected:
+            selectedLanguage !== undefined &&
+            culture.ThreeLetterISOLanguageName === selectedLanguage,
+        })),
+      ];
+    }, [
+      cultures,
+      settings.defaultAudioLanguage,
+      supportsOriginalAudioLanguage,
+      t,
+    ]);
+
+  const subtitleLanguageOptions: TVOptionItem<CultureDto | null>[] =
+    useMemo(() => {
+      const selectedLanguage =
+        settings.defaultSubtitleLanguage?.ThreeLetterISOLanguageName;
+      return [
+        {
+          label: t("home.settings.subtitles.none"),
+          value: null,
+          selected: !settings.defaultSubtitleLanguage,
+        },
+        ...cultures.map((culture) => ({
+          label: languageName(culture),
+          value: culture,
+          selected:
+            selectedLanguage !== undefined &&
+            culture.ThreeLetterISOLanguageName === selectedLanguage,
+        })),
+      ];
+    }, [cultures, settings.defaultSubtitleLanguage, t]);
+
   // Subtitle mode options
   const subtitleModeOptions: TVOptionItem<SubtitlePlaybackMode>[] = useMemo(
     () => [
@@ -341,6 +440,52 @@ export default function SettingsTV() {
       },
     ],
     [t, currentSubtitleMode],
+  );
+
+  const fontOptions: TVOptionItem<string>[] = useMemo(
+    () =>
+      [
+        {
+          label: t("home.settings.subtitles.fonts.system"),
+          value: "System",
+        },
+        {
+          label: t("home.settings.subtitles.fonts.sans_serif"),
+          value: "sans-serif",
+        },
+        { label: t("home.settings.subtitles.fonts.serif"), value: "serif" },
+        {
+          label: t("home.settings.subtitles.fonts.monospace"),
+          value: "monospace",
+        },
+        {
+          label: t("home.settings.subtitles.fonts.dyslexic"),
+          value: "opendyslexic",
+        },
+      ].map((font) => ({
+        ...font,
+        selected: font.value === settings.subtitleFont,
+      })),
+    [settings.subtitleFont, t],
+  );
+
+  const subtitleColorOptions: TVOptionItem<string>[] = useMemo(
+    () =>
+      [
+        { label: t("home.settings.subtitles.colors.white"), value: "#FFFFFF" },
+        { label: t("home.settings.subtitles.colors.yellow"), value: "#FFFF00" },
+        { label: t("home.settings.subtitles.colors.cyan"), value: "#00FFFF" },
+        { label: t("home.settings.subtitles.colors.green"), value: "#00FF00" },
+        {
+          label: t("home.settings.subtitles.colors.magenta"),
+          value: "#FF00FF",
+        },
+        { label: t("home.settings.subtitles.colors.red"), value: "#FF0000" },
+      ].map((color) => ({
+        ...color,
+        selected: color.value === settings.subtitleColor,
+      })),
+    [settings.subtitleColor, t],
   );
 
   // MPV alignment options
@@ -543,10 +688,30 @@ export default function SettingsTV() {
     return option?.label || t("home.settings.audio.transcode_mode.auto");
   }, [audioTranscodeModeOptions, t]);
 
+  const audioLanguageLabel = useMemo(() => {
+    const option = audioLanguageOptions.find((o) => o.selected);
+    return option?.label || t("home.settings.audio.none");
+  }, [audioLanguageOptions, t]);
+
+  const subtitleLanguageLabel = useMemo(() => {
+    const option = subtitleLanguageOptions.find((o) => o.selected);
+    return option?.label || t("home.settings.subtitles.none");
+  }, [subtitleLanguageOptions, t]);
+
   const subtitleModeLabel = useMemo(() => {
     const option = subtitleModeOptions.find((o) => o.selected);
     return option?.label || t("home.settings.subtitles.modes.Default");
   }, [subtitleModeOptions, t]);
+
+  const subtitleFontLabel = useMemo(() => {
+    const option = fontOptions.find((o) => o.selected);
+    return option?.label || t("home.settings.subtitles.fonts.system");
+  }, [fontOptions, t]);
+
+  const subtitleColorLabel = useMemo(() => {
+    const option = subtitleColorOptions.find((o) => o.selected);
+    return option?.label || t("home.settings.subtitles.colors.white");
+  }, [subtitleColorOptions, t]);
 
   const alignXLabel = useMemo(() => {
     const option = alignXOptions.find((o) => o.selected);
@@ -590,6 +755,30 @@ export default function SettingsTV() {
       option?.label || t("home.settings.security.inactivity_timeout.disabled")
     );
   }, [inactivityTimeoutOptions, t]);
+
+  // Segment skip: same auto/ask/none choice for every segment type.
+  const segmentSkipModeLabel = (mode: SegmentSkipMode) =>
+    t(`home.settings.other.segment_skip_${mode}`);
+
+  const buildSegmentSkipOptions = (
+    current: SegmentSkipMode,
+  ): TVOptionItem<SegmentSkipMode>[] => [
+    {
+      label: t("home.settings.other.segment_skip_auto"),
+      value: "auto",
+      selected: current === "auto",
+    },
+    {
+      label: t("home.settings.other.segment_skip_ask"),
+      value: "ask",
+      selected: current === "ask",
+    },
+    {
+      label: t("home.settings.other.segment_skip_none"),
+      value: "none",
+      selected: current === "none",
+    },
+  ];
 
   return (
     <View style={{ flex: 1, backgroundColor: "#000000" }}>
@@ -640,13 +829,14 @@ export default function SettingsTV() {
             }
           />
 
-          {/* Audio Section */}
-          <TVSectionHeader title={t("home.settings.audio.audio_title")} />
+          {/* Video Player Section */}
+          <TVSectionHeader title={t("home.settings.video_player.title")} />
 
-          {/* Video Player selector — Android TV only */}
+          {/* Engine selector — Android TV only */}
           {isAndroidTv && (
             <>
               <TVSettingsOptionButton
+                disabledByAdmin={pluginSettings?.videoPlayer?.locked}
                 label={t("home.settings.video_player.title")}
                 value={videoPlayerLabel}
                 onPress={() =>
@@ -670,9 +860,85 @@ export default function SettingsTV() {
             </>
           )}
 
+          {/* Native tvOS player — Apple TV on tvOS 26+, default on */}
+          {isNativePlayerSupportedTV && (
+            <>
+              <TVSettingsToggle
+                disabledByAdmin={pluginSettings?.nativeVideoPlayerTV?.locked}
+                label={t("home.settings.video_player.native_tv")}
+                value={settings.nativeVideoPlayerTV}
+                onToggle={(value) =>
+                  updateSettings({ nativeVideoPlayerTV: value })
+                }
+              />
+              <Text style={playerNoteStyle}>
+                {t("home.settings.video_player.native_tv_note")}
+              </Text>
+            </>
+          )}
+
+          {/* Native Android TV player opt-in — Android TV, default off */}
+          {isAndroidTv && (
+            <>
+              <TVSettingsToggle
+                disabledByAdmin={
+                  pluginSettings?.nativeVideoPlayerAndroidTV?.locked
+                }
+                label={t("home.settings.video_player.native_tv")}
+                value={settings.nativeVideoPlayerAndroidTV === true}
+                onToggle={(value) =>
+                  updateSettings({ nativeVideoPlayerAndroidTV: value })
+                }
+              />
+              <Text style={playerNoteStyle}>
+                {t("home.settings.video_player.native_android_tv_note")}
+              </Text>
+            </>
+          )}
+
+          <TVSettingsToggle
+            disabledByAdmin={pluginSettings?.showResumeDialog?.locked}
+            label={t("home.settings.other.resume_dialog")}
+            value={settings.showResumeDialog}
+            onToggle={(value) => updateSettings({ showResumeDialog: value })}
+          />
+
+          {/* Audio Section */}
+          <TVSectionHeader title={t("home.settings.audio.audio_title")} />
+          <TVSettingsOptionButton
+            label={t("home.settings.audio.audio_language")}
+            value={audioLanguageLabel}
+            disabledByAdmin={pluginSettings?.defaultAudioLanguage?.locked}
+            disabled={!isReady}
+            onPress={() =>
+              showOptions({
+                title: t("home.settings.audio.language"),
+                options: audioLanguageOptions,
+                onSelect: (value) =>
+                  updateMediaSettings({ defaultAudioLanguage: value }),
+              })
+            }
+          />
+          <TVSettingsToggle
+            label={t("home.settings.audio.play_default_audio_track")}
+            value={settings.playDefaultAudioTrack}
+            disabledByAdmin={pluginSettings?.playDefaultAudioTrack?.locked}
+            onToggle={(value) =>
+              updateMediaSettings({ playDefaultAudioTrack: value })
+            }
+          />
+          <TVSettingsToggle
+            label={t("home.settings.audio.set_audio_track")}
+            value={settings.rememberAudioSelections}
+            disabledByAdmin={pluginSettings?.rememberAudioSelections?.locked}
+            onToggle={(value) =>
+              updateMediaSettings({ rememberAudioSelections: value })
+            }
+          />
           <TVSettingsOptionButton
             label={t("home.settings.audio.transcode_mode.title")}
             value={audioTranscodeLabel}
+            disabledByAdmin={pluginSettings?.audioTranscodeMode?.locked}
             onPress={() =>
               showOptions({
                 title: t("home.settings.audio.transcode_mode.title"),
@@ -688,111 +954,213 @@ export default function SettingsTV() {
             title={t("home.settings.subtitles.subtitle_title")}
           />
           <TVSettingsOptionButton
+            label={t("home.settings.subtitles.subtitle_language")}
+            value={subtitleLanguageLabel}
+            disabledByAdmin={pluginSettings?.defaultSubtitleLanguage?.locked}
+            onPress={() =>
+              showOptions({
+                title: t("home.settings.subtitles.language"),
+                options: subtitleLanguageOptions,
+                onSelect: (value) =>
+                  updateMediaSettings({ defaultSubtitleLanguage: value }),
+              })
+            }
+          />
+          <TVSettingsOptionButton
             label={t("home.settings.subtitles.subtitle_mode")}
             value={subtitleModeLabel}
+            disabledByAdmin={pluginSettings?.subtitleMode?.locked}
             onPress={() =>
               showOptions({
                 title: t("home.settings.subtitles.subtitle_mode"),
                 options: subtitleModeOptions,
-                onSelect: (value) => updateSettings({ subtitleMode: value }),
+                onSelect: (value) =>
+                  updateMediaSettings({ subtitleMode: value }),
               })
             }
           />
           <TVSettingsToggle
             label={t("home.settings.subtitles.set_subtitle_track")}
             value={settings.rememberSubtitleSelections}
+            disabledByAdmin={pluginSettings?.rememberSubtitleSelections?.locked}
             onToggle={(value) =>
-              updateSettings({ rememberSubtitleSelections: value })
+              updateMediaSettings({ rememberSubtitleSelections: value })
+            }
+          />
+
+          {/* Subtitle Appearance Section */}
+          <TVSectionHeader
+            title={t("home.settings.subtitles.subtitle_appearance_title")}
+          />
+          <TVSettingsOptionButton
+            label={t("home.settings.subtitles.subtitle_font")}
+            value={subtitleFontLabel}
+            disabledByAdmin={pluginSettings?.subtitleFont?.locked}
+            onPress={() =>
+              showOptions({
+                title: t("home.settings.subtitles.subtitle_font"),
+                options: fontOptions,
+                onSelect: (value) => updateSettings({ subtitleFont: value }),
+              })
+            }
+          />
+          <TVSettingsOptionButton
+            label={t("home.settings.subtitles.subtitle_color")}
+            value={subtitleColorLabel}
+            disabledByAdmin={pluginSettings?.subtitleColor?.locked}
+            onPress={() =>
+              showOptions({
+                title: t("home.settings.subtitles.subtitle_color"),
+                options: subtitleColorOptions,
+                onSelect: (value) => updateSettings({ subtitleColor: value }),
+              })
             }
           />
           <TVSettingsToggle
-            label={t("home.settings.subtitles.auto_on_mute")}
-            value={settings.autoSubtitlesOnMute}
-            disabled={pluginSettings?.autoSubtitlesOnMute?.locked}
-            onToggle={(value) => updateSettings({ autoSubtitlesOnMute: value })}
+            label={t("home.settings.subtitles.subtitles_on_mute")}
+            value={settings.subtitlesOnMute}
+            disabled={pluginSettings?.subtitlesOnMute?.locked}
+            onToggle={(value) => updateSettings({ subtitlesOnMute: value })}
           />
-          {settings.autoSubtitlesOnMute && (
+          {settings.subtitlesOnMute && (
             <TVSettingsToggle
-              label={t("home.settings.subtitles.auto_on_mute_allow_restart")}
-              value={settings.autoSubtitlesOnMuteAllowRestart}
-              disabled={pluginSettings?.autoSubtitlesOnMuteAllowRestart?.locked}
+              label={t("home.settings.subtitles.subtitles_on_mute_allow_restart")}
+              value={settings.subtitlesOnMuteAllowRestart}
+              disabled={pluginSettings?.subtitlesOnMuteAllowRestart?.locked}
               onToggle={(value) =>
-                updateSettings({ autoSubtitlesOnMuteAllowRestart: value })
+                updateSettings({ subtitlesOnMuteAllowRestart: value })
               }
             />
           )}
           <TVSettingsStepper
             label={t("home.settings.subtitles.subtitle_size")}
-            value={settings.mpvSubtitleScale ?? 1.0}
+            value={settings.subtitleSize}
+            disabledByAdmin={pluginSettings?.subtitleSize?.locked}
             onDecrease={() => {
-              const newValue = Math.max(
-                0.1,
-                (settings.mpvSubtitleScale ?? 1.0) - 0.1,
-              );
+              const newValue = Math.max(0.1, settings.subtitleSize - 0.1);
               updateSettings({
-                mpvSubtitleScale: Math.round(newValue * 10) / 10,
+                subtitleSize: Math.round(newValue * 10) / 10,
               });
             }}
             onIncrease={() => {
-              const newValue = Math.min(
-                3.0,
-                (settings.mpvSubtitleScale ?? 1.0) + 0.1,
-              );
+              const newValue = Math.min(3.0, settings.subtitleSize + 0.1);
               updateSettings({
-                mpvSubtitleScale: Math.round(newValue * 10) / 10,
+                subtitleSize: Math.round(newValue * 10) / 10,
               });
             }}
             formatValue={(v) => `${v.toFixed(1)}x`}
           />
           <TVSettingsStepper
-            label={t("home.settings.subtitles.mpv_subtitle_margin_y")}
-            value={settings.mpvSubtitleMarginY ?? 0}
+            label={t("home.settings.subtitles.subtitle_margin_y")}
+            value={
+              settings.subtitleMarginY ?? defaultValues.subtitleMarginY ?? 0
+            }
+            disabledByAdmin={pluginSettings?.subtitleMarginY?.locked}
             onDecrease={() => {
               const newValue = Math.max(
-                0,
-                (settings.mpvSubtitleMarginY ?? 0) - 5,
+                -100,
+                (settings.subtitleMarginY ??
+                  defaultValues.subtitleMarginY ??
+                  0) - 5,
               );
-              updateSettings({ mpvSubtitleMarginY: newValue });
+              updateSettings({ subtitleMarginY: newValue });
             }}
             onIncrease={() => {
               const newValue = Math.min(
                 100,
-                (settings.mpvSubtitleMarginY ?? 0) + 5,
+                (settings.subtitleMarginY ??
+                  defaultValues.subtitleMarginY ??
+                  0) + 5,
               );
-              updateSettings({ mpvSubtitleMarginY: newValue });
+              updateSettings({ subtitleMarginY: newValue });
             }}
           />
           {isMpv && (
             <TVSettingsOptionButton
-              label={t("home.settings.subtitles.mpv_subtitle_align_x")}
+              label={t("home.settings.subtitles.subtitle_align_x")}
               value={alignXLabel}
+              disabledByAdmin={pluginSettings?.subtitleAlignX?.locked}
               // ExoPlayer follows authored cue alignment; hide on ExoPlayer.
               onPress={() =>
                 showOptions({
-                  title: t("home.settings.subtitles.mpv_subtitle_align_x"),
+                  title: t("home.settings.subtitles.subtitle_align_x"),
                   options: alignXOptions,
                   onSelect: (value) =>
                     updateSettings({
-                      mpvSubtitleAlignX: value as "left" | "center" | "right",
+                      subtitleAlignX: value as "left" | "center" | "right",
                     }),
                 })
               }
             />
           )}
           <TVSettingsOptionButton
-            label={t("home.settings.subtitles.mpv_subtitle_align_y")}
+            label={t("home.settings.subtitles.subtitle_align_y")}
             value={alignYLabel}
+            disabledByAdmin={pluginSettings?.subtitleAlignY?.locked}
             onPress={() =>
               showOptions({
-                title: t("home.settings.subtitles.mpv_subtitle_align_y"),
+                title: t("home.settings.subtitles.subtitle_align_y"),
                 options: alignYOptions,
                 onSelect: (value) =>
                   updateSettings({
-                    mpvSubtitleAlignY: value as "top" | "center" | "bottom",
+                    subtitleAlignY: value as "top" | "center" | "bottom",
                   }),
               })
             }
           />
+          <TVSettingsToggle
+            label={t("home.settings.subtitles.subtitle_background")}
+            value={settings.subtitleBackground}
+            disabledByAdmin={pluginSettings?.subtitleBackground?.locked}
+            onToggle={(value) => updateSettings({ subtitleBackground: value })}
+          />
+          {settings.subtitleBackground && (
+            <TVSettingsStepper
+              label={t("home.settings.subtitles.subtitle_background_opacity")}
+              value={settings.subtitleBackgroundOpacity ?? 60}
+              disabledByAdmin={
+                pluginSettings?.subtitleBackgroundOpacity?.locked
+              }
+              onDecrease={() => {
+                const newValue = Math.max(
+                  0,
+                  (settings.subtitleBackgroundOpacity ?? 60) - 5,
+                );
+                updateSettings({ subtitleBackgroundOpacity: newValue });
+              }}
+              onIncrease={() => {
+                const newValue = Math.min(
+                  100,
+                  (settings.subtitleBackgroundOpacity ?? 60) + 5,
+                );
+                updateSettings({ subtitleBackgroundOpacity: newValue });
+              }}
+              formatValue={(v) => `${v}%`}
+            />
+          )}
+          {settings.subtitleBackground && isMpv && (
+            <TVSettingsStepper
+              label={t("home.settings.subtitles.subtitle_background_padding")}
+              value={settings.subtitleBackgroundPadding ?? 8}
+              disabledByAdmin={
+                pluginSettings?.subtitleBackgroundPadding?.locked
+              }
+              onDecrease={() => {
+                const newValue = Math.max(
+                  0,
+                  (settings.subtitleBackgroundPadding ?? 8) - 1,
+                );
+                updateSettings({ subtitleBackgroundPadding: newValue });
+              }}
+              onIncrease={() => {
+                const newValue = Math.min(
+                  30,
+                  (settings.subtitleBackgroundPadding ?? 8) + 1,
+                );
+                updateSettings({ subtitleBackgroundPadding: newValue });
+              }}
+            />
+          )}
 
           {/* OpenSubtitles Section */}
           <TVSectionHeader
@@ -927,6 +1295,32 @@ export default function SettingsTV() {
             formatValue={(v) => `${v} MB`}
           />
 
+          {/* Segment Skip Section */}
+          <TVSectionHeader
+            title={t("home.settings.other.segment_skip_settings")}
+          />
+          {SEGMENT_SKIP_ROWS.map((row, _index) => {
+            const current = (settings[row.key] ?? "ask") as SegmentSkipMode;
+            const rowLabel = t(`home.settings.other.${row.labelKey}`);
+            const lockedByAdmin = pluginSettings?.[row.key]?.locked ?? false;
+            return (
+              <TVSettingsOptionButton
+                key={row.key}
+                label={rowLabel}
+                value={segmentSkipModeLabel(current)}
+                disabledByAdmin={lockedByAdmin}
+                onPress={() => {
+                  if (lockedByAdmin) return;
+                  showOptions({
+                    title: rowLabel,
+                    options: buildSegmentSkipOptions(current),
+                    onSelect: (value) => updateSettings({ [row.key]: value }),
+                  });
+                }}
+              />
+            );
+          })}
+
           {/* Appearance Section */}
           <TVSectionHeader title={t("home.settings.appearance.title")} />
           <TVSettingsOptionButton
@@ -975,9 +1369,10 @@ export default function SettingsTV() {
             onToggle={(value) => updateSettings({ showHomeBackdrop: value })}
           />
           <TVSettingsToggle
+            disabledByAdmin={pluginSettings?.showHeroCarousel?.locked}
             label={t("home.settings.appearance.show_hero_carousel")}
-            value={settings.showTVHeroCarousel}
-            onToggle={(value) => updateSettings({ showTVHeroCarousel: value })}
+            value={settings.showHeroCarousel}
+            onToggle={(value) => updateSettings({ showHeroCarousel: value })}
           />
           <TVSettingsToggle
             label={t("home.settings.appearance.show_series_poster_on_episode")}
@@ -991,6 +1386,32 @@ export default function SettingsTV() {
             value={settings.tvThemeMusicEnabled}
             onToggle={(value) => updateSettings({ tvThemeMusicEnabled: value })}
           />
+
+          {/* Plugins Section — lookups the client makes directly, without
+              going through Jellyfin. */}
+          <TVSectionHeader title={t("home.settings.plugins.plugins_title")} />
+          <TVSettingsToggle
+            label={t("home.settings.plugins.wikidata_awards")}
+            value={settings.wikidataAwardsEnabled}
+            onToggle={(value) =>
+              updateSettings({ wikidataAwardsEnabled: value })
+            }
+          />
+          <TVSettingsToggle
+            label={t("home.settings.plugins.opensubtitles_enabled")}
+            value={settings.openSubtitlesEnabled}
+            onToggle={(value) =>
+              updateSettings({ openSubtitlesEnabled: value })
+            }
+          />
+          <TVSettingsToggle
+            label={t("home.settings.plugins.crash_reports")}
+            value={settings.sentryEnabled}
+            onToggle={(value) => updateSettings({ sentryEnabled: value })}
+          />
+
+          {/* Custom proxy auth headers for Jellyfin and each integration */}
+          <TVCustomHeadersSection serverUrl={storage.getString("serverUrl")} />
 
           {/* Storage Section */}
           <TVSectionHeader title={t("home.settings.storage.storage_title")} />

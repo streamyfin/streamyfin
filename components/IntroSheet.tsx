@@ -11,8 +11,10 @@ import { useTranslation } from "react-i18next";
 import { Linking, Platform, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button } from "@/components/Button";
+import { SettingSwitch } from "@/components/common/SettingSwitch";
 import { Text } from "@/components/common/Text";
 import useRouter from "@/hooks/useAppRouter";
+import { useSettings } from "@/utils/atoms/settings";
 import { storage } from "@/utils/mmkv";
 
 export interface IntroSheetRef {
@@ -25,6 +27,7 @@ export const IntroSheet = forwardRef<IntroSheetRef>((_, ref) => {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { settings, updateSettings } = useSettings();
 
   useImperativeHandle(ref, () => ({
     present: () => {
@@ -180,6 +183,42 @@ export const IntroSheet = forwardRef<IntroSheetRef>((_, ref) => {
                 </View>
               </View>
             </View>
+          </View>
+
+          <View>
+            <Text className='text-lg font-bold'>
+              {t("home.intro.crash_reports_title")}
+            </Text>
+            {/* The whole row toggles: the Switch itself isn't focusable on TV,
+                so the TouchableOpacity carries the remote-select press there. */}
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() =>
+                updateSettings({ sentryEnabled: !settings?.sentryEnabled })
+              }
+              className='flex flex-row items-center mt-2'
+            >
+              <View
+                style={{
+                  width: 50,
+                  height: 50,
+                }}
+                className='flex items-center justify-center'
+              >
+                <Ionicons name='bug-outline' size={28} color='white' />
+              </View>
+              <View className='shrink flex-1 ml-2 mr-3'>
+                <Text className='shrink text-xs'>
+                  {t("home.intro.crash_reports_description")}
+                </Text>
+              </View>
+              {/* Presentational only — the row press above is the single
+                  mutation path, so a tap on the switch can't double-toggle. */}
+              <SettingSwitch
+                value={settings?.sentryEnabled === true}
+                pointerEvents='none'
+              />
+            </TouchableOpacity>
           </View>
 
           <View>

@@ -12,16 +12,23 @@ import type {
   TvResult,
 } from "@/utils/jellyseerr/server/models/Search";
 import type { TvDetails } from "@/utils/jellyseerr/server/models/Tv";
+import { AwardsBadge } from "./AwardsBadge";
 import { Badge } from "./Badge";
 
 interface Props extends ViewProps {
   item?: BaseItemDto | null;
 }
 
-export const Ratings: React.FC<Props> = ({ item, ...props }) => {
+export const Ratings: React.FC<Props> = ({ item, className, ...props }) => {
   if (!item) return null;
   return (
-    <View className='flex flex-row items-center mt-2 space-x-2' {...props}>
+    // The caller's className is appended, not spread over the top: spreading
+    // props last replaces this one outright, which cost the row its layout and
+    // let the badges ride up over whatever sat above them.
+    <View
+      {...props}
+      className={`flex flex-row flex-wrap items-center mt-2 gap-2 ${className ?? ""}`}
+    >
       {item.OfficialRating && (
         <Badge text={item.OfficialRating} variant='gray' />
       )}
@@ -51,6 +58,7 @@ export const Ratings: React.FC<Props> = ({ item, ...props }) => {
           }
         />
       )}
+      <AwardsBadge item={item} />
     </View>
   );
 };

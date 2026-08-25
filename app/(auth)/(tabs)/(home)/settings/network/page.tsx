@@ -4,11 +4,14 @@ import { Platform, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ListGroup } from "@/components/list/ListGroup";
 import { ListItem } from "@/components/list/ListItem";
+import { CustomHeadersSettings } from "@/components/settings/CustomHeadersSettings";
 import { LocalNetworkSettings } from "@/components/settings/LocalNetworkSettings";
+import { useDismissKeyboardOnLeave } from "@/hooks/useDismissKeyboardOnLeave";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { storage } from "@/utils/mmkv";
 
 export default function NetworkSettingsPage() {
+  useDismissKeyboardOnLeave();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const api = useAtomValue(apiAtom);
@@ -41,6 +44,10 @@ export default function NetworkSettingsPage() {
 
         <View className='mt-4'>
           <LocalNetworkSettings />
+        </View>
+
+        <View className='mt-4'>
+          <CustomHeadersSettings />
         </View>
       </View>
     </ScrollView>

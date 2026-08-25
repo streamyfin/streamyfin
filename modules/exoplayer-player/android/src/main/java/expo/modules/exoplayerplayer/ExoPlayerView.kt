@@ -4,21 +4,27 @@ package expo.modules.exoplayerplayer
 
 import android.content.Context
 import android.graphics.Color
+import android.graphics.Matrix
 import android.graphics.Typeface
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import android.view.LayoutInflater
+import android.view.TextureView
 import android.view.ViewGroup
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.ColorInfo
 import androidx.media3.common.Format
 import androidx.media3.common.MediaItem
+import androidx.media3.common.text.Cue
+import androidx.media3.common.text.CueGroup
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.common.Tracks
+import androidx.media3.common.VideoSize
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.analytics.AnalyticsListener
@@ -43,6 +49,7 @@ data class VideoLoadConfig(
     val autoplay: Boolean = true,
     val initialSubtitleId: Int? = null,
     val initialAudioId: Int? = null,
+    val loop: Boolean = false,
     val cacheEnabled: String? = null,
     val cacheSeconds: Int? = null,
     val demuxerMaxBytes: Int? = null,
@@ -62,6 +69,14 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     companion object {
         private const val TAG = "ExoPlayerView"
         private const val PROGRESS_INTERVAL_MS = 1000L
+        // Prefix stamped into Format.id of side-loaded subtitle tracks so
+        // getSubtitleTracks() can tell them from in-container tracks and
+        // report the source URL the JS resolver matches against (mirrors
+        // mpv's external / external-filename track-list fields). A bare URL
+        // isn't a safe discriminator: some extractors set their own
+        // Format.id on embedded tracks. Format.id is the only field that
+        // survives from SubtitleConfiguration into the track list.
+        private const val SIDELOAD_ID_PREFIX = "sideload:"
     }
 
     // Event dispatchers — names must match the Events() declaration in the module.
@@ -82,6 +97,7 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     private val subtitleView: SubtitleView?
 
     private var currentUrl: String? = null
+    private var currentLoop: Boolean = false
     private var pendingConfig: VideoLoadConfig? = null
     private var tracksReadyFired: Boolean = false
 
@@ -117,9 +133,13 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     // Background color carries its own alpha (parsed from #RRGGBBAA in
     // setSubtitleBackgroundColor) so no separate enabled/opacity flags.
     private var subtitleBackgroundColor: Int = Color.argb(0, 0, 0, 0)
+    private var currentSubtitleCues: List<Cue> = emptyList()
+    private var subtitleForegroundColor: Int = Color.WHITE
+    private var subtitleTypeface: Typeface = Typeface.SANS_SERIF
     private var subtitleBorderStyle: String = "outline-and-shadow"
 
     private var isZoomedToFill: Boolean = false
+    private var currentVideoAspectRatio: Float? = null
 
     // Captured by analyticsListener; surfaced via getTechnicalInfo().
     // Reset on destroy() and (for decoder names) on track changes.
@@ -156,6 +176,21 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     }
 
     private val playerListener = object : Player.Listener {
+        override fun onCues(cueGroup: CueGroup) {
+            currentSubtitleCues = cueGroup.cues
+            // PlayerView also receives this callback. Post our styled cues so
+            // they are applied after PlayerView forwards the unmodified cues.
+            subtitleView?.post { applySubtitleCues() }
+        }
+
+        override fun onVideoSizeChanged(videoSize: VideoSize) {
+            if (videoSize.width <= 0 || videoSize.height <= 0) return
+
+            currentVideoAspectRatio =
+                videoSize.width * videoSize.pixelWidthHeightRatio / videoSize.height
+            playerView.post { updateVideoSurfaceLayout() }
+        }
+
         override fun onPlaybackStateChanged(playbackState: Int) {
             when (playbackState) {
                 Player.STATE_BUFFERING -> {
@@ -261,27 +296,32 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     init {
         setBackgroundColor(Color.BLACK)
 
-        playerView = PlayerView(context).apply {
-            layoutParams = ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT
-            )
-            // SurfaceView-backed for parity with MPV (direct surface to
-            // SurfaceFlinger). PlayerView defaults to a SurfaceView, so no
-            // explicit setSurfaceType() call is needed; the int constants
-            // backing it are @IntDef private in Media3.
-            setUseController(false)
-            setResizeMode(androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT)
-        }
+        // A SurfaceView can be forced to the React Native host bounds by the
+        // platform compositor, bypassing PlayerView's AspectRatioFrameLayout.
+        // TextureView stays in PlayerView's hierarchy, so FIT/ZOOM transforms
+        // preserve the video's actual aspect ratio.
+        playerView = LayoutInflater.from(context).inflate(
+            R.layout.exoplayer_player_view,
+            this,
+            false,
+        ) as PlayerView
+        playerView.layoutParams = ViewGroup.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.MATCH_PARENT,
+        )
         subtitleView = playerView.subtitleView
         addView(playerView)
+        playerView.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+            updateVideoSurfaceLayout()
+        }
     }
 
     // MARK: - Video Loading
 
     fun loadVideo(config: VideoLoadConfig) {
-        if (currentUrl == config.url) return
+        if (currentUrl == config.url && currentLoop == config.loop) return
         currentUrl = config.url
+        currentLoop = config.loop
         pendingConfig = config
         ensurePlayer(config)
         loadInternal(config)
@@ -315,6 +355,7 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         exo.addListener(playerListener)
         exo.addAnalyticsListener(analyticsListener)
         exo.repeatMode = Player.REPEAT_MODE_OFF
+        exo.videoScalingMode = C.VIDEO_SCALING_MODE_SCALE_TO_FIT
         // Re-apply the retained mute flag: a fresh ExoPlayer always starts at
         // full volume, which would contradict the state JS still holds.
         exo.volume = if (isMuted) 0f else 1f
@@ -349,7 +390,6 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
             val seconds = config.cacheSeconds?.coerceIn(5, 120) ?: 10
             seconds * 1000
         }
-
         val backBufferMs = if (!cacheEnabled) {
             0
         } else {
@@ -358,14 +398,38 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
             (mb * 1000).coerceAtLeast(1000)
         }
 
+        // DefaultLoadControl's builder validates maxBufferMs >= minBufferMs
+        // (and minBufferMs >= both start thresholds) and throws
+        // IllegalArgumentException otherwise. The user's cacheSeconds can be
+        // as low as 5s — below the 15s default min — so derive the min from
+        // the same target. An unclamped pair (e.g. the 10s default) throws
+        // inside ensurePlayer(), which the Expo prop layer swallows into
+        // LogBox: the view is left with no player, no events ever fire, and
+        // the JS loader spins forever.
+        val minBufferMs = minOf(defaultMinBufferMs, targetBufferMs)
+            .coerceAtLeast(defaultBufferForPlaybackAfterRebufferMs)
+
+        // demuxerMaxBytes is in MiB; multiplying in Int overflows at 2048 MiB
+        // (2048 * 1024 * 1024 wraps negative). A negative byte target behaves
+        // like the 0 case documented below — loading halts immediately — so
+        // convert in Long and clamp to the largest representable value.
+        // Non-positive maxBytes (0 or -1) would likewise produce a 0 or
+        // negative target, so fall back to the positive default.
+        val mb = config.demuxerMaxBytes?.takeIf { it > 0 } ?: 150
+        val targetBufferBytes =
+            if (!cacheEnabled) C.LENGTH_UNSET
+            else (mb.toLong() * 1024 * 1024)
+                .coerceAtMost(Int.MAX_VALUE.toLong())
+                .toInt()
+
         val builder = DefaultLoadControl.Builder()
             // C.LENGTH_UNSET lets ExoPlayer auto-derive the byte target from the
             // selected tracks. A literal 0 makes targetBufferSizeReached true on
             // the first allocation (prioritizeTimeOverSizeThresholds is false),
             // so loading halts with <500ms buffered and playback starves.
-            .setTargetBufferBytes(if (!cacheEnabled) C.LENGTH_UNSET else ((config.demuxerMaxBytes ?: 150) * 1024 * 1024))
+            .setTargetBufferBytes(targetBufferBytes)
             .setBufferDurationsMs(
-                /* minBufferMs = */ defaultMinBufferMs,
+                /* minBufferMs = */ minBufferMs,
                 /* maxBufferMs = */ targetBufferMs,
                 /* bufferForPlaybackMs = */ defaultBufferForPlaybackMs,
                 /* bufferForPlaybackAfterRebufferMs = */ defaultBufferForPlaybackAfterRebufferMs
@@ -378,6 +442,7 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
 
     private fun loadInternal(config: VideoLoadConfig) {
         val p = player ?: return
+        p.repeatMode = if (config.loop) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
 
         val httpFactory = androidx.media3.datasource.DefaultHttpDataSource.Factory()
             .setDefaultRequestProperties(config.headers ?: emptyMap())
@@ -415,13 +480,17 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         val builder = MediaItem.Builder().setUri(config.url)
 
         // External subtitles: add as side-loaded SubtitleConfigurations.
-        // MIME-type sniffed from the file extension.
+        // MIME-type sniffed from the file extension. The URL is stamped into
+        // the config's id so it reaches Format.id in the track list — the
+        // JS resolver matches external subs by that URL (mpv's
+        // external-filename equivalent).
         val subs = config.externalSubtitles
         if (!subs.isNullOrEmpty()) {
             val subtitleConfigs = subs.mapNotNull { subUrl ->
                 val mime = mimeTypeForSubtitleUrl(subUrl) ?: return@mapNotNull null
                 MediaItem.SubtitleConfiguration.Builder(Uri.parse(subUrl))
                     .setMimeType(mime)
+                    .setId(SIDELOAD_ID_PREFIX + subUrl)
                     .setSelectionFlags(C.SELECTION_FLAG_DEFAULT)
                     .build()
             }
@@ -466,6 +535,7 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         playerView.player = null
         tracksReadyFired = false
         currentUrl = null
+        currentLoop = false
         loadStartPositionMs = 0L
         sideLoadedSubs = emptyList()
         subtitleTrackList = emptyList()
@@ -542,6 +612,7 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         val trackGroupIndex: Int,
         val trackIndex: Int,
         val format: Format,
+        val externalFilename: String? = null,
     )
 
     private fun rebuildTrackMaps(tracks: Tracks?) {
@@ -563,7 +634,14 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
                     format = format
                 )
                 when (rendererType) {
-                    C.TRACK_TYPE_TEXT -> subtitles.add(entry)
+                    C.TRACK_TYPE_TEXT -> subtitles.add(
+                        entry.copy(
+                            externalFilename = sideLoadedSubs
+                                .firstOrNull { it.id == format.id }
+                                ?.uri
+                                ?.toString(),
+                        ),
+                    )
                     C.TRACK_TYPE_AUDIO -> audios.add(entry)
                     else -> { /* video / metadata ignored */ }
                 }
@@ -600,10 +678,18 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         if (cfg.initialAudioId != null && cfg.initialAudioId > 0) {
             setAudioTrack(cfg.initialAudioId)
         }
-        if (cfg.initialSubtitleId == null || cfg.initialSubtitleId <= 0) {
-            disableSubtitles()
-        } else {
-            setSubtitleTrack(cfg.initialSubtitleId)
+        // Only disable text when JS asked for no subtitle (id 0) or passed an
+        // explicit id. When initialSubtitleId is absent the JS layer defers
+        // selection to onTracksReady (it resolves by URL identity via
+        // getSubtitleTracks) — disabling here would kill Media3's auto-pick of
+        // the SELECTION_FLAG_DEFAULT sidecar before that resolves, and the
+        // notFound fallback would leave subtitles off entirely.
+        if (cfg.initialSubtitleId != null) {
+            if (cfg.initialSubtitleId <= 0) {
+                disableSubtitles()
+            } else {
+                setSubtitleTrack(cfg.initialSubtitleId)
+            }
         }
 
         // Only apply once per source load.
@@ -614,11 +700,42 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
 
     fun getSubtitleTracks(): List<Map<String, Any>> {
         return subtitleTrackList.map { entry ->
-            mapOf(
+            val map = mutableMapOf<String, Any>(
                 "id" to entry.id,
                 "title" to (entry.format.label ?: ""),
                 "lang" to (entry.format.language ?: "")
             )
+            // Mirror mpv's external / external-filename fields for side-loaded
+            // tracks (stamped into Format.id at build time — see
+            // SIDELOAD_ID_PREFIX). The JS resolver matches a Jellyfin External
+            // sub to a player track by that URL; without these fields every
+            // external sub resolves notFound and never renders.
+            //
+            // Media3's MergingMediaPeriod prefixes every merged Format.id with
+            // its child source index (e.g. "1:sideload:<url>"), so strip that
+            // before matching the application prefix.
+            val formatId = stripMergingSourcePrefix(entry.format.id)
+            if (formatId?.startsWith(SIDELOAD_ID_PREFIX) == true) {
+                map["external"] = true
+                map["externalFilename"] = formatId.removePrefix(SIDELOAD_ID_PREFIX)
+            }
+            map
+        }
+    }
+
+    /**
+     * Media3's MergingMediaPeriod prefixes every merged Format.id with the
+     * child source index (e.g. "1:sideload:<url>"). Strip a leading numeric
+     * source index so the application's SIDELOAD_ID_PREFIX matches. Returns
+     * null for a null id and the id unchanged when there is no such prefix.
+     */
+    private fun stripMergingSourcePrefix(id: String?): String? {
+        if (id == null) return null
+        val colon = id.indexOf(':')
+        return if (colon > 0 && id.substring(0, colon).all { it.isDigit() }) {
+            id.substring(colon + 1)
+        } else {
+            id
         }
     }
 
@@ -658,6 +775,7 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         val currentMediaItem = p.currentMediaItem ?: return
         val newSubConfig = MediaItem.SubtitleConfiguration.Builder(Uri.parse(url))
             .setMimeType(mime)
+            .setId(SIDELOAD_ID_PREFIX + url)
             .setSelectionFlags(if (select) C.SELECTION_FLAG_DEFAULT else 0)
             .build()
 
@@ -719,11 +837,29 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
 
     fun setSubtitleAlignY(alignment: String) {
         subtitleAlignY = alignment
+        if (alignment != "bottom") {
+            subtitleBottomFraction = null
+        }
         applySubtitleStyle()
     }
 
     fun setSubtitleFontSize(size: Int) {
         subtitleFontSizePct = size
+        applySubtitleStyle()
+    }
+
+    fun setSubtitleColor(colorHex: String) {
+        subtitleForegroundColor = parseColor(colorHex, subtitleForegroundColor)
+        applySubtitleStyle()
+    }
+
+    fun setSubtitleFont(font: String) {
+        subtitleTypeface = when (font) {
+            "serif" -> Typeface.SERIF
+            "monospace" -> Typeface.MONOSPACE
+            "opendyslexic" -> loadOpenDyslexicTypeface()
+            else -> Typeface.SANS_SERIF
+        }
         applySubtitleStyle()
     }
 
@@ -735,6 +871,15 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     fun setSubtitleBorderStyle(style: String) {
         subtitleBorderStyle = style
         applySubtitleStyle()
+    }
+
+    private fun loadOpenDyslexicTypeface(): Typeface {
+        return try {
+            Typeface.createFromAsset(context.assets, "fonts/OpenDyslexic-Regular.otf")
+        } catch (error: Exception) {
+            Log.w(TAG, "Failed to load OpenDyslexic font: ${error.message}")
+            Typeface.SANS_SERIF
+        }
     }
 
     private fun parseColor(hex: String, fallback: Int): Int {
@@ -751,7 +896,7 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
                 hex.startsWith("#") && hex.length == 7 -> Color.parseColor(hex)
                 else -> fallback
             }
-        } catch (_: Throwable) {
+        } catch (_: Exception) {
             fallback
         }
     }
@@ -778,16 +923,15 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         sv.setBottomPaddingFraction(bottomFraction.coerceIn(0.02f, 0.95f))
 
         // Edge / background style.
-        val foreground = Color.WHITE
+        val foreground = subtitleForegroundColor
         val edgeType: Int
         val backgroundColor: Int
         when (subtitleBorderStyle) {
             "background-box" -> {
                 edgeType = CaptionStyleCompat.EDGE_TYPE_NONE
-                // subtitleBackgroundColor already carries its own alpha
-                // (parsed from #RRGGBBAA by setSubtitleBackgroundColor).
-                // Alpha 0 → transparent, matching user intent.
-                backgroundColor = subtitleBackgroundColor
+                // The padded span draws the background. Leaving CaptionStyle's
+                // background transparent avoids a second box tight to glyphs.
+                backgroundColor = Color.TRANSPARENT
             }
             else -> {
                 // "outline-and-shadow"
@@ -805,11 +949,39 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
             Color.TRANSPARENT,
             edgeType,
             Color.BLACK,
-            Typeface.SANS_SERIF
+            subtitleTypeface
         )
-        sv.setApplyEmbeddedStyles(false)
+        // applySubtitleCues converts authored text spans to plain text before
+        // setting the app-controlled cue window color. Embedded styles must
+        // remain enabled or Media3 also strips that window color.
+        sv.setApplyEmbeddedStyles(true)
         sv.setApplyEmbeddedFontSizes(false)
         sv.setStyle(style)
+        applySubtitleCues()
+    }
+
+    private fun applySubtitleCues() {
+        val sv = subtitleView ?: return
+        val useBackground =
+            subtitleBorderStyle == "background-box" && Color.alpha(subtitleBackgroundColor) > 0
+
+        val windowColor = if (useBackground) {
+            subtitleBackgroundColor
+        } else {
+            Color.TRANSPARENT
+        }
+        val styledCues = currentSubtitleCues.map { cue ->
+            val cueText = cue.text ?: return@map cue
+            // Media3's cue window is one box around the complete multiline cue.
+            // Unlike per-line spans, translucent padding cannot overlap and
+            // compound its opacity between adjacent lines.
+            cue.buildUpon()
+                .setWindowColor(windowColor)
+                .setText(cueText.toString())
+                .build()
+        }
+
+        sv.setCues(styledCues)
     }
 
     // MARK: - Audio Track Controls
@@ -850,14 +1022,49 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
 
     // MARK: - Video Scaling
 
+    private fun updateVideoSurfaceLayout() {
+        val aspectRatio = currentVideoAspectRatio ?: return
+        val surface = playerView.videoSurfaceView as? TextureView ?: return
+        val viewWidth = playerView.width
+        val viewHeight = playerView.height
+        if (viewWidth <= 0 || viewHeight <= 0 || !aspectRatio.isFinite()) return
+
+        val viewAspectRatio = viewWidth.toFloat() / viewHeight
+        val scaleX: Float
+        val scaleY: Float
+
+        if (isZoomedToFill) {
+            if (aspectRatio > viewAspectRatio) {
+                scaleX = aspectRatio / viewAspectRatio
+                scaleY = 1f
+            } else {
+                scaleX = 1f
+                scaleY = viewAspectRatio / aspectRatio
+            }
+        } else if (aspectRatio > viewAspectRatio) {
+            scaleX = 1f
+            scaleY = viewAspectRatio / aspectRatio
+        } else {
+            scaleX = aspectRatio / viewAspectRatio
+            scaleY = 1f
+        }
+
+        surface.setTransform(
+            Matrix().apply {
+                setScale(
+                    scaleX,
+                    scaleY,
+                    viewWidth / 2f,
+                    viewHeight / 2f,
+                )
+            },
+        )
+        surface.invalidate()
+    }
+
     fun setZoomedToFill(zoomed: Boolean) {
         isZoomedToFill = zoomed
-        val resizeMode = if (zoomed) {
-            androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-        } else {
-            androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
-        }
-        playerView.resizeMode = resizeMode
+        updateVideoSurfaceLayout()
     }
 
     fun isZoomedToFill(): Boolean = isZoomedToFill

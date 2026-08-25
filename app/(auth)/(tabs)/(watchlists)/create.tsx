@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
 import useRouter from "@/hooks/useAppRouter";
+import { useDismissKeyboardOnLeave } from "@/hooks/useDismissKeyboardOnLeave";
 import { useCreateWatchlist } from "@/hooks/useWatchlistMutations";
 import type {
   StreamystatsWatchlistAllowedItemType,
@@ -42,6 +43,7 @@ const SORT_OPTIONS: Array<{
 ];
 
 export default function CreateWatchlistScreen() {
+  useDismissKeyboardOnLeave();
   const { t } = useTranslation();
   const router = useRouter();
   const insets = useSafeAreaInsets();

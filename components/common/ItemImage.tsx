@@ -1,9 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { Image, type ImageProps } from "expo-image";
+import type { ImageProps } from "expo-image";
 import { useAtom } from "jotai";
 import { type FC, useMemo } from "react";
 import { View, type ViewProps } from "react-native";
+import { Image } from "@/components/common/ServerImage";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getItemImage } from "@/utils/getItemImage";
 
@@ -75,9 +76,9 @@ export const ItemImage: FC<Props> = ({
         width: "100%",
         height: "100%",
       }}
-      source={{
-        uri: source?.uri,
-      }}
+      // Pass the uri only: ServerImage resolves the server's proxy auth headers
+      // from it (and re-resolves them when the custom headers change).
+      source={source?.uri}
       {...props}
     />
   );

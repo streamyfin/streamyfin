@@ -5,10 +5,16 @@ import { useImperativeHandle, useRef } from "react";
 import type {
   MpvPlayerViewProps,
   MpvPlayerViewRef,
+  SubtitleStyleConfig,
 } from "@/modules/mpv-player";
 
 const NativeView: React.ComponentType<MpvPlayerViewProps & { ref?: any }> =
   requireNativeView("ExoPlayer");
+
+const mpvColorToRgba = (color: string) =>
+  color.startsWith("#") && color.length === 9
+    ? `#${color.slice(3)}${color.slice(1, 3)}`
+    : color;
 
 /**
  * ExoPlayer view wrapper. Exposes the same `MpvPlayerViewRef` interface as
@@ -67,7 +73,7 @@ export default React.forwardRef<MpvPlayerViewRef, MpvPlayerViewProps>(
         return await nativeRef.current?.isPictureInPictureActive();
       },
       getSubtitleTracks: async () => {
-        return await nativeRef.current?.getSubtitleTracks();
+        return (await nativeRef.current?.getSubtitleTracks()) ?? [];
       },
       setSubtitleTrack: async (trackId: number) => {
         await nativeRef.current?.setSubtitleTrack(trackId);
@@ -95,6 +101,26 @@ export default React.forwardRef<MpvPlayerViewRef, MpvPlayerViewProps>(
       },
       setSubtitleAlignY: async (alignment: "top" | "center" | "bottom") => {
         await nativeRef.current?.setSubtitleAlignY(alignment);
+      },
+      setSubtitleStyle: async (style: SubtitleStyleConfig) => {
+        if (style.fontSize !== undefined) {
+          await nativeRef.current?.setSubtitleFontSize(style.fontSize);
+        }
+        if (style.color !== undefined) {
+          await nativeRef.current?.setSubtitleColor(style.color);
+        }
+        if (style.font !== undefined) {
+          await nativeRef.current?.setSubtitleFont(style.font);
+        }
+        if (style.background) {
+          await nativeRef.current?.setSubtitleBackgroundColor(
+            mpvColorToRgba(style.background),
+          );
+          await nativeRef.current?.setSubtitleBorderStyle("background-box");
+        } else if (style.background !== undefined) {
+          await nativeRef.current?.setSubtitleBorderStyle("outline-and-shadow");
+          await nativeRef.current?.setSubtitleBackgroundColor("#00000000");
+        }
       },
       setSubtitleFontSize: async (size: number) => {
         await nativeRef.current?.setSubtitleFontSize(size);

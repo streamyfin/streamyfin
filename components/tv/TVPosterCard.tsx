@@ -1,6 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { Image } from "expo-image";
 import { useAtomValue } from "jotai";
 import React, { useMemo, useRef, useState } from "react";
 import {
@@ -11,6 +10,7 @@ import {
   type ViewStyle,
 } from "react-native";
 import { ProgressBar } from "@/components/common/ProgressBar";
+import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import {
   UnplayedCountBadge,
@@ -37,6 +37,8 @@ export interface TVPosterCardProps {
   showProgress?: boolean;
   /** Show watched indicator - default: true */
   showWatchedIndicator?: boolean;
+  /** Show the show name - default: false */
+  displayShowName?: boolean;
 
   // Focus props
   hasTVPreferredFocus?: boolean;
@@ -96,6 +98,7 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
   showText = true,
   showProgress = true,
   showWatchedIndicator = true,
+  displayShowName = false,
   hasTVPreferredFocus = false,
   disabled = false,
   focusableWhenDisabled = false,
@@ -151,6 +154,10 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
         // Matched pair: ParentThumbItemId owns the Thumb tag, not ParentBackdropItemId.
         if (item.ParentThumbItemId && item.ParentThumbImageTag) {
           return `${api.basePath}/Items/${item.ParentThumbItemId}/Images/Thumb?fillHeight=700&quality=80&tag=${item.ParentThumbImageTag}`;
+        }
+        const parentBackdropTag = item.ParentBackdropImageTags?.[0];
+        if (item.ParentBackdropItemId && parentBackdropTag) {
+          return `${api.basePath}/Items/${item.ParentBackdropItemId}/Images/Backdrop?fillHeight=700&quality=80&tag=${parentBackdropTag}`;
         }
         // Fall back to episode's own primary image
         if (item.ImageTags?.Primary) {
@@ -236,6 +243,14 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
       const duration = item.RunTimeTicks
         ? runtimeTicksToMinutes(item.RunTimeTicks)
         : null;
+      const textColor = displayShowName ? "#9CA3AF" : "#FFFFFF";
+      // When the show name is the title, the episode name takes the slot the
+      // duration usually occupies. Gate on what is actually rendered, so an
+      // item without RunTimeTicks does not silently drop its episode name.
+      // Without a SeriesName the title already falls back to the episode name,
+      // so drop the trailing copy rather than printing the same name twice.
+      const episodeNameSlot = item.SeriesName ? item.Name : null;
+      const trailingText = displayShowName ? episodeNameSlot : duration;
 
       return (
         <View
@@ -249,20 +264,27 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
             <Text
               style={{
                 fontSize: typography.callout,
-                color: "#FFFFFF",
+                color: textColor,
                 fontWeight: "500",
               }}
             >
               {episodeLabel}
             </Text>
           )}
-          {duration && (
+          {trailingText && (
             <>
-              <Text style={{ color: "#FFFFFF", fontSize: typography.callout }}>
+              <Text style={{ fontSize: typography.callout, color: textColor }}>
                 •
               </Text>
-              <Text style={{ fontSize: typography.callout, color: "#FFFFFF" }}>
-                {duration}
+              <Text
+                numberOfLines={1}
+                style={{
+                  fontSize: typography.callout,
+                  color: textColor,
+                  flexShrink: 1,
+                }}
+              >
+                {trailingText}
               </Text>
             </>
           )}
@@ -489,9 +511,12 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
 
     // Episode: show episode name as title
     if (item.Type === "Episode") {
+      // SeriesName is absent, or empty, on some episode payloads; keep a title
+      // either way.
+      const title = displayShowName ? item.SeriesName || item.Name : item.Name;
       return (
         <Text
-          numberOfLines={2}
+          numberOfLines={displayShowName ? 1 : 2}
           style={{
             fontSize: typography.callout,
             color: "#FFFFFF",
@@ -499,7 +524,7 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
             fontWeight: "500",
           }}
         >
-          {item.Name}
+          {title}
         </Text>
       );
     }
@@ -593,7 +618,7 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
         <View
           style={{ marginTop: scaleSize(12), paddingHorizontal: scaleSize(4) }}
         >
-          {item.Type === "Episode" ? (
+          {item.Type === "Episode" && !displayShowName ? (
             <>
               {renderSubtitle()}
               {renderTitle()}

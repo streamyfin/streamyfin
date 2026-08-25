@@ -1,5 +1,4 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import type { PublicSystemInfo } from "@jellyfin/sdk/lib/generated-client";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useNavigation } from "expo-router";
 import { t } from "i18next";
@@ -17,18 +16,27 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { z } from "zod";
 import { Button } from "@/components/Button";
+import { HeaderButton } from "@/components/common/HeaderButton";
+import { HeaderIcon } from "@/components/common/HeaderIcon";
 import { Input } from "@/components/common/Input";
 import { Text } from "@/components/common/Text";
 import JellyfinServerDiscovery from "@/components/JellyfinServerDiscovery";
 import { QuickConnectCodeModal } from "@/components/login/QuickConnectCodeModal";
 import { PreviousServersList } from "@/components/PreviousServersList";
+import { CustomHeaderSheet } from "@/components/settings/CustomHeaderSheet";
 import { Colors } from "@/constants/Colors";
+import { useGlobalModal } from "@/providers/GlobalModalProvider";
 import {
   apiAtom,
   pendingAccountSaveAtom,
   useJellyfin,
   userAtom,
 } from "@/providers/JellyfinProvider";
+import { type CustomHeader, usableCustomHeaders } from "@/utils/customHeaders";
+import {
+  checkJellyfinServer,
+  ServerTooOldError,
+} from "@/utils/jellyfin/checkServer";
 import type { SavedServer } from "@/utils/secureCredentials";
 
 const CredentialsSchema = z.object({
@@ -68,6 +76,26 @@ export const Login: React.FC = () => {
     username: _username || "",
     password: _password || "",
   });
+
+  // Custom proxy auth headers entered before connecting. Passing `undefined`
+  // keeps whatever is already saved for the server (see checkJellyfinServer),
+  // so half-filled rows — a preset added but not typed into — can never
+  // overwrite a saved server's working headers. Clearing them is done from
+  // Settings → Network.
+  const [pendingHeaders, setPendingHeaders] = useState<CustomHeader[]>([]);
+  const usableHeaders = usableCustomHeaders(pendingHeaders);
+  const connectHeaders = usableHeaders.length > 0 ? usableHeaders : undefined;
+
+  const { showModal, hideModal } = useGlobalModal();
+  const openHeaderSheet = useCallback(() => {
+    showModal(
+      <CustomHeaderSheet
+        initialHeaders={pendingHeaders}
+        onChange={setPendingHeaders}
+        onClose={hideModal}
+      />,
+    );
+  }, [pendingHeaders, showModal, hideModal]);
 
   // Quick Connect code shown in the in-app sheet while polling for authorization
   const [quickConnectCode, setQuickConnectCode] = useState<string | null>(null);
@@ -138,17 +166,17 @@ export const Login: React.FC = () => {
       headerTitle: serverName,
       headerLeft: () =>
         api?.basePath ? (
-          <TouchableOpacity
+          <HeaderButton
+            placement='left'
+            variant='text'
             onPress={() => {
               removeServer();
             }}
-            className='flex flex-row items-center pr-2 pl-1'
+            style={{ flexDirection: "row", gap: 4 }}
           >
-            <Ionicons name='chevron-back' size={18} color={Colors.primary} />
-            <Text className=' ml-1 text-purple-600'>
-              {t("login.change_server")}
-            </Text>
-          </TouchableOpacity>
+            <HeaderIcon name='back' tintColor={Colors.primary} size={18} />
+            <Text className='text-purple-600'>{t("login.change_server")}</Text>
+          </HeaderButton>
         ) : null,
     });
   }, [serverName, navigation, api?.basePath]);
@@ -212,69 +240,36 @@ export const Login: React.FC = () => {
     }
   };
 
-  const checkUrl = useCallback(async (url: string) => {
-    setLoadingServerCheck(true);
-    const baseUrl = url.replace(/^https?:\/\//i, "");
-    const protocols = ["https", "http"];
-    try {
-      return checkHttp(baseUrl, protocols);
-    } catch (e) {
-      if (e instanceof Error && e.message === "Server too old") {
-        throw e;
-      }
-      return undefined;
-    } finally {
-      setLoadingServerCheck(false);
-    }
-  }, []);
-
-  async function checkHttp(baseUrl: string, protocols: string[]) {
-    for (const protocol of protocols) {
+  const handleConnect = useCallback(
+    async (url: string, headers?: CustomHeader[]) => {
+      setLoadingServerCheck(true);
       try {
-        const response = await fetch(
-          `${protocol}://${baseUrl}/System/Info/Public`,
-          {
-            mode: "cors",
-          },
+        const result = await checkJellyfinServer(
+          url.trim().replace(/\/$/, ""),
+          headers,
         );
-        if (response.ok) {
-          const data = (await response.json()) as PublicSystemInfo;
-          const serverVersion = data.Version?.split(".");
-          if (serverVersion && +serverVersion[0] <= 10) {
-            if (+serverVersion[1] < 10) {
-              Alert.alert(
-                t("login.too_old_server_text"),
-                t("login.too_old_server_description"),
-              );
-              throw new Error("Server too old");
-            }
-          }
-          setServerName(data.ServerName || "");
-          return `${protocol}://${baseUrl}`;
+        if (!result) {
+          Alert.alert(
+            t("login.connection_failed"),
+            t("login.could_not_connect_to_server"),
+          );
+          return;
         }
+        setServerName(result.name);
+        await setServer({ address: result.url });
       } catch (e) {
-        if (e instanceof Error && e.message === "Server too old") {
-          throw e;
+        if (e instanceof ServerTooOldError) {
+          Alert.alert(
+            t("login.too_old_server_text"),
+            t("login.too_old_server_description"),
+          );
         }
+      } finally {
+        setLoadingServerCheck(false);
       }
-    }
-    return undefined;
-  }
-
-  const handleConnect = useCallback(async (url: string) => {
-    url = url.trim().replace(/\/$/, "");
-    try {
-      const result = await checkUrl(url);
-      if (result === undefined) {
-        Alert.alert(
-          t("login.connection_failed"),
-          t("login.could_not_connect_to_server"),
-        );
-        return;
-      }
-      await setServer({ address: result });
-    } catch {}
-  }, []);
+    },
+    [setServer],
+  );
 
   const handleQuickConnect = async () => {
     try {
@@ -430,12 +425,42 @@ export const Login: React.FC = () => {
                 loading={loadingServerCheck}
                 disabled={loadingServerCheck}
                 onPress={async () => {
-                  await handleConnect(serverURL);
+                  await handleConnect(serverURL, connectHeaders);
                 }}
                 className='w-full grow'
               >
                 {t("server.connect_button")}
               </Button>
+
+              {/* Servers behind an access gateway need their headers before
+                  the very first request, so they are configured here. */}
+              <TouchableOpacity
+                onPress={openHeaderSheet}
+                className='flex flex-row items-center justify-between py-3'
+                activeOpacity={0.7}
+              >
+                <Text className='text-purple-600'>
+                  {t("custom_headers.advanced_title")}
+                </Text>
+                <View className='flex flex-row items-center'>
+                  <Text className='text-xs text-neutral-400 mr-1'>
+                    {usableHeaders.length > 0
+                      ? t("custom_headers.header_count", {
+                          count: usableHeaders.length,
+                        })
+                      : t("custom_headers.source_none")}
+                  </Text>
+                  <Ionicons
+                    name='chevron-forward'
+                    size={18}
+                    color={Colors.primary}
+                  />
+                </View>
+              </TouchableOpacity>
+
+              {/* The headers above belong to the URL that was typed with them.
+                  A server picked from a list connects with its own saved ones —
+                  passing these would overwrite them. */}
               <JellyfinServerDiscovery
                 onServerSelect={async (server) => {
                   setServerURL(server.address);

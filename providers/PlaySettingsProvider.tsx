@@ -9,6 +9,7 @@ import { Platform } from "react-native";
 import type { Bitrate } from "@/components/BitrateSelector";
 import { getActivePlayerType, settingsAtom } from "@/utils/atoms/settings";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
+import { logAndCaptureError } from "@/utils/log";
 import { generateDeviceProfile } from "../utils/profiles/native";
 import { apiAtom, userAtom } from "./JellyfinProvider";
 
@@ -107,7 +108,13 @@ export const PlaySettingsProvider: React.FC<{ children: React.ReactNode }> = ({
 
         return data;
       } catch (error) {
-        console.warn("Error getting stream URL:", error);
+        // Callers treat null as "playback can't start" — without a report
+        // this is a Play button that silently does nothing.
+        logAndCaptureError("Getting stream URL failed", error, {
+          itemType: newSettings?.item?.Type,
+          player: getActivePlayerType(settings),
+          bitrate: newSettings?.bitrate?.value,
+        });
         return null;
       }
     },

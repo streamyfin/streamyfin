@@ -11,10 +11,12 @@ export interface TVMetadataBadgesProps {
   duration?: string | null;
   officialRating?: string | null;
   communityRating?: number | null;
+  /** Extra badges to sit at the end of the row. */
+  trailing?: React.ReactNode;
 }
 
 export const TVMetadataBadges: React.FC<TVMetadataBadgesProps> = React.memo(
-  ({ year, duration, officialRating, communityRating }) => {
+  ({ year, duration, officialRating, communityRating, trailing }) => {
     const typography = useScaledTVTypography();
 
     return (
@@ -45,6 +47,7 @@ export const TVMetadataBadges: React.FC<TVMetadataBadgesProps> = React.memo(
             iconLeft={<Ionicons name='star' size={16} color='gold' />}
           />
         )}
+        {trailing}
       </View>
     );
   },

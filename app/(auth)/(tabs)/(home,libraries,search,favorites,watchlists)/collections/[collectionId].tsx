@@ -10,23 +10,23 @@ import {
 } from "@jellyfin/sdk/lib/utils/api";
 import { FlashList } from "@shopify/flash-list";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
-import { useLocalSearchParams, useNavigation } from "expo-router";
+import {
+  useFocusEffect,
+  useLocalSearchParams,
+  useNavigation,
+} from "expo-router";
 import { useAtom } from "jotai";
 import type React from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FlatList, Platform, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useCardGrid } from "@/components/cards/useCardGrid";
 import { Text } from "@/components/common/Text";
-import {
-  getItemNavigation,
-  TouchableItemRouter,
-} from "@/components/common/TouchableItemRouter";
+import { getItemNavigation } from "@/components/common/TouchableItemRouter";
 import { FilterButton } from "@/components/filters/FilterButton";
 import { ResetFiltersButton } from "@/components/filters/ResetFiltersButton";
-import { ItemCardText } from "@/components/ItemCardText";
 import { Loader } from "@/components/Loader";
-import { ItemPoster } from "@/components/posters/ItemPoster";
 import { TVFilterButton } from "@/components/tv";
 import { TVPosterCard } from "@/components/tv/TVPosterCard";
 import { useScaledTVPosterSizes } from "@/constants/TVPosterSizes";
@@ -131,21 +131,38 @@ const page: React.FC = () => {
     enabled: Platform.isTV && !!api && !!user?.Id && !!collectionId,
   });
 
-  useEffect(() => {
-    navigation.setOptions({ title: collection?.Name || "" });
-    setSortOrder([SortOrderOption.Ascending]);
+  // On focus rather than on mount: the filter atoms are global, so a library
+  // opened on top of this screen overwrites them while it stays mounted.
+  useFocusEffect(
+    useCallback(() => {
+      navigation.setOptions({ title: collection?.Name || "" });
+      setSortOrder([SortOrderOption.Ascending]);
+      // A collection opens on a clean slate: without this the last library's
+      // selection bleeds in (libraries keep their own per-library memory).
+      setSelectedGenres([]);
+      setSelectedYears([]);
+      setSelectedTags([]);
 
-    if (!collection) return;
+      if (!collection) return;
 
-    // Convert the DisplayOrder to SortByOption
-    const displayOrder = collection.DisplayOrder as ItemSortBy;
-    const sortByOption = displayOrder
-      ? SortByOption[displayOrder as keyof typeof SortByOption] ||
-        SortByOption.PremiereDate
-      : SortByOption.PremiereDate;
+      // Convert the DisplayOrder to SortByOption
+      const displayOrder = collection.DisplayOrder as ItemSortBy;
+      const sortByOption = displayOrder
+        ? SortByOption[displayOrder as keyof typeof SortByOption] ||
+          SortByOption.PremiereDate
+        : SortByOption.PremiereDate;
 
-    setSortBy([sortByOption]);
-  }, [navigation, collection]);
+      setSortBy([sortByOption]);
+    }, [
+      navigation,
+      collection,
+      setSortOrder,
+      setSortBy,
+      setSelectedGenres,
+      setSelectedYears,
+      setSelectedTags,
+    ]),
+  );
 
   // Calculate columns for TV grid
   const nrOfCols = useMemo(() => {
@@ -204,40 +221,39 @@ const page: React.FC = () => {
     ],
   );
 
-  const { data, isFetching, fetchNextPage, hasNextPage, isLoading } =
-    useInfiniteQuery({
-      queryKey: [
-        "collection-items",
-        collectionId,
-        selectedGenres,
-        selectedYears,
-        selectedTags,
-        sortBy,
-        sortOrder,
-      ],
-      queryFn: fetchItems,
-      getNextPageParam: (lastPage, pages) => {
-        if (
-          !lastPage?.Items ||
-          !lastPage?.TotalRecordCount ||
-          lastPage?.TotalRecordCount === 0
-        )
-          return undefined;
-
-        const totalItems = lastPage.TotalRecordCount;
-        const accumulatedItems = pages.reduce(
-          (acc, curr) => acc + (curr?.Items?.length || 0),
-          0,
-        );
-
-        if (accumulatedItems < totalItems) {
-          return lastPage?.Items?.length * pages.length;
-        }
+  const { data, fetchNextPage, hasNextPage, isLoading } = useInfiniteQuery({
+    queryKey: [
+      "collection-items",
+      collectionId,
+      selectedGenres,
+      selectedYears,
+      selectedTags,
+      sortBy,
+      sortOrder,
+    ],
+    queryFn: fetchItems,
+    getNextPageParam: (lastPage, pages) => {
+      if (
+        !lastPage?.Items ||
+        !lastPage?.TotalRecordCount ||
+        lastPage?.TotalRecordCount === 0
+      )
         return undefined;
-      },
-      initialPageParam: 0,
-      enabled: !!api && !!user?.Id && !!collection,
-    });
+
+      const totalItems = lastPage.TotalRecordCount;
+      const accumulatedItems = pages.reduce(
+        (acc, curr) => acc + (curr?.Items?.length || 0),
+        0,
+      );
+
+      if (accumulatedItems < totalItems) {
+        return lastPage?.Items?.length * pages.length;
+      }
+      return undefined;
+    },
+    initialPageParam: 0,
+    enabled: !!api && !!user?.Id && !!collection,
+  });
 
   const flatData = useMemo(() => {
     return (
@@ -246,35 +262,13 @@ const page: React.FC = () => {
     );
   }, [data]);
 
-  const renderItem = useCallback(
-    ({ item, index }: { item: BaseItemDto; index: number }) => (
-      <TouchableItemRouter
-        key={item.Id}
-        style={{
-          width: "100%",
-          marginBottom:
-            orientation === ScreenOrientation.Orientation.PORTRAIT_UP ? 4 : 16,
-        }}
-        item={item}
-      >
-        <View
-          style={{
-            alignSelf:
-              index % 3 === 0
-                ? "flex-end"
-                : (index + 1) % 3 === 0
-                  ? "flex-start"
-                  : "center",
-            width: "89%",
-          }}
-        >
-          <ItemPoster item={item} />
-          <ItemCardText item={item} />
-        </View>
-      </TouchableItemRouter>
-    ),
-    [orientation],
-  );
+  const grid = useCardGrid({
+    items: flatData,
+    columns: nrOfCols,
+    enableActionSheet: true,
+  });
+
+  const keyExtractor = useCallback((item: BaseItemDto) => item.Id || "", []);
 
   const renderTVItem = useCallback(
     ({ item }: { item: BaseItemDto }) => {
@@ -303,8 +297,6 @@ const page: React.FC = () => {
     [router, showItemActions, posterSizes.poster],
   );
 
-  const keyExtractor = useCallback((item: BaseItemDto) => item.Id || "", []);
-
   const ListHeaderComponent = useCallback(
     () => (
       <FlatList
@@ -326,7 +318,7 @@ const page: React.FC = () => {
         data={[
           {
             key: "reset",
-            component: <ResetFiltersButton />,
+            component: <ResetFiltersButton libraryId={collectionId} />,
           },
           {
             key: "genre",
@@ -453,7 +445,6 @@ const page: React.FC = () => {
       setSortBy,
       sortOrder,
       setSortOrder,
-      isFetching,
     ],
   );
 
@@ -620,43 +611,41 @@ const page: React.FC = () => {
   // Mobile return
   if (!Platform.isTV) {
     return (
-      <FlashList
-        ListEmptyComponent={
-          <View className='flex flex-col items-center justify-center h-full'>
-            <Text className='font-bold text-xl text-neutral-500'>
-              {t("search.no_results")}
-            </Text>
-          </View>
-        }
-        extraData={[
-          selectedGenres,
-          selectedYears,
-          selectedTags,
-          sortBy,
-          sortOrder,
-        ]}
-        contentInsetAdjustmentBehavior='automatic'
-        data={flatData}
-        renderItem={renderItem}
-        keyExtractor={keyExtractor}
-        numColumns={nrOfCols}
-        onEndReached={() => {
-          if (hasNextPage) {
-            fetchNextPage();
+      <>
+        <FlashList
+          ListEmptyComponent={
+            <View className='flex flex-col items-center justify-center h-full'>
+              <Text className='font-bold text-xl text-neutral-500'>
+                {t("search.no_results")}
+              </Text>
+            </View>
           }
-        }}
-        onEndReachedThreshold={0.5}
-        ListHeaderComponent={ListHeaderComponent}
-        contentContainerStyle={{ paddingBottom: 24 }}
-        ItemSeparatorComponent={() => (
-          <View
-            style={{
-              width: 10,
-              height: 10,
-            }}
-          />
-        )}
-      />
+          extraData={[
+            selectedGenres,
+            selectedYears,
+            selectedTags,
+            sortBy,
+            sortOrder,
+          ]}
+          contentInsetAdjustmentBehavior='automatic'
+          data={grid.data}
+          renderItem={grid.renderItem}
+          keyExtractor={grid.keyExtractor}
+          numColumns={nrOfCols}
+          onEndReached={() => {
+            if (hasNextPage) {
+              fetchNextPage();
+            }
+          }}
+          onEndReachedThreshold={0.5}
+          ListHeaderComponent={ListHeaderComponent}
+          contentContainerStyle={{ paddingBottom: 24 }}
+          ItemSeparatorComponent={() => (
+            <View style={{ height: grid.rowGap }} />
+          )}
+        />
+        {grid.actionSheet}
+      </>
     );
   }
 

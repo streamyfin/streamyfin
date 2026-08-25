@@ -6,12 +6,15 @@ import { ActivityIndicator, Alert, TouchableOpacity, View } from "react-native";
 import { Swipeable } from "react-native-gesture-handler";
 import { useMMKVString } from "react-native-mmkv";
 import { Colors } from "@/constants/Colors";
+import { useGlobalModal } from "@/providers/GlobalModalProvider";
 import {
   deleteAccountCredential,
   getPreviousServers,
+  getServerCustomHeaders,
   removeServerFromList,
   type SavedServer,
   type SavedServerAccount,
+  updateServerCustomHeaders,
 } from "@/utils/secureCredentials";
 import { AccountsSheet } from "./AccountsSheet";
 import { Text } from "./common/Text";
@@ -19,6 +22,7 @@ import { ListGroup } from "./list/ListGroup";
 import { ListItem } from "./list/ListItem";
 import { PasswordEntryModal } from "./PasswordEntryModal";
 import { PINEntryModal } from "./PINEntryModal";
+import { CustomHeaderSheet } from "./settings/CustomHeaderSheet";
 
 interface PreviousServersListProps {
   onServerSelect: (server: SavedServer) => void;
@@ -56,6 +60,7 @@ export const PreviousServersList: React.FC<PreviousServersListProps> = ({
   }, [_previousServers]);
 
   const { t } = useTranslation();
+  const { showModal, hideModal } = useGlobalModal();
 
   const refreshServers = () => {
     const servers = getPreviousServers();
@@ -214,19 +219,50 @@ export const PreviousServersList: React.FC<PreviousServersListProps> = ({
     [setPreviousServers],
   );
 
+  /**
+   * A saved server's proxy headers can only be reached from here: once its
+   * token rotates, connecting to it fails, and Settings → Network is behind
+   * that connection.
+   */
+  const handleEditHeaders = useCallback(
+    (serverUrl: string) => {
+      showModal(
+        <CustomHeaderSheet
+          initialHeaders={getServerCustomHeaders(serverUrl)}
+          onCommit={(headers) => updateServerCustomHeaders(serverUrl, headers)}
+          onClose={hideModal}
+        />,
+      );
+    },
+    [showModal, hideModal],
+  );
+
   const renderRightActions = useCallback(
     (serverUrl: string, swipeableRef: React.RefObject<Swipeable | null>) => (
-      <TouchableOpacity
-        onPress={() => {
-          swipeableRef.current?.close();
-          handleRemoveServer(serverUrl);
-        }}
-        className='bg-red-600 justify-center items-center px-5'
-      >
-        <Ionicons name='trash' size={20} color='white' />
-      </TouchableOpacity>
+      <View className='flex-row'>
+        <TouchableOpacity
+          onPress={() => {
+            swipeableRef.current?.close();
+            handleEditHeaders(serverUrl);
+          }}
+          className='bg-neutral-700 justify-center items-center px-5'
+          accessibilityLabel={t("custom_headers.title")}
+        >
+          <Ionicons name='key' size={20} color='white' />
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => {
+            swipeableRef.current?.close();
+            handleRemoveServer(serverUrl);
+          }}
+          className='bg-red-600 justify-center items-center px-5'
+          accessibilityLabel={t("server.remove_server")}
+        >
+          <Ionicons name='trash' size={20} color='white' />
+        </TouchableOpacity>
+      </View>
     ),
-    [handleRemoveServer],
+    [handleEditHeaders, handleRemoveServer, t],
   );
 
   const getServerSubtitle = (server: SavedServer): string | undefined => {
@@ -288,7 +324,7 @@ export const PreviousServersList: React.FC<PreviousServersListProps> = ({
         />
       </ListGroup>
       <Text className='text-xs text-neutral-500 mt-2 ml-4'>
-        {t("server.swipe_to_remove")}
+        {t("server.swipe_for_options")}
       </Text>
 
       {/* Account Selection Sheet */}

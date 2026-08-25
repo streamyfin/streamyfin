@@ -28,6 +28,7 @@ class ExoPlayerModule : Module() {
                     autoplay = (source["autoplay"] as? Boolean) ?: true,
                     initialSubtitleId = (source["initialSubtitleId"] as? Number)?.toInt(),
                     initialAudioId = (source["initialAudioId"] as? Number)?.toInt(),
+                    loop = (source["loop"] as? Boolean) ?: false,
                     cacheEnabled = cacheConfig?.get("enabled") as? String,
                     cacheSeconds = (cacheConfig?.get("cacheSeconds") as? Number)?.toInt(),
                     demuxerMaxBytes = (cacheConfig?.get("maxBytes") as? Number)?.toInt(),
@@ -40,7 +41,10 @@ class ExoPlayerModule : Module() {
             // Now Playing metadata is iOS-only on MPV; no-op here (TV has
             // no Control Center equivalent — Android handles media sessions
             // via MediaSessionCompat which we don't wire up for TV).
-            Prop("nowPlayingMetadata") { _: ExoPlayerView, _: Map<String, String>? ->
+            // Typed loosely on purpose: the metadata carries nested values
+            // (artworkHeaders), and a Map<String, String> signature makes Expo
+            // reject the whole prop rather than ignore what it can't convert.
+            Prop("nowPlayingMetadata") { _: ExoPlayerView, _: Map<String, Any?>? ->
                 // No-op
             }
 
@@ -149,6 +153,14 @@ class ExoPlayerModule : Module() {
 
             AsyncFunction("setSubtitleFontSize") { view: ExoPlayerView, size: Int ->
                 view.setSubtitleFontSize(size)
+            }
+
+            AsyncFunction("setSubtitleColor") { view: ExoPlayerView, color: String ->
+                view.setSubtitleColor(color)
+            }
+
+            AsyncFunction("setSubtitleFont") { view: ExoPlayerView, font: String ->
+                view.setSubtitleFont(font)
             }
 
             AsyncFunction("setSubtitleBorderStyle") { view: ExoPlayerView, style: String ->
