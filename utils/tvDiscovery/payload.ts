@@ -44,13 +44,18 @@ function getTVDiscoveryImage(
 
   if (shape === "landscape") {
     // getWideImageUrl falls back to an untagged Primary URL, which the server
-    // 404s on when the item has no image — a broken tile instead of no tile.
-    // Gate conservatively (without duplicating its selection logic) so we only
-    // hand the extension URLs the server can actually fulfill.
+    // 404s on when the item has no such image — a broken tile instead of no
+    // tile. Gate per item type on the source the helper will actually select,
+    // so we only hand the extension URLs the server can fulfill:
+    // - episode + useEpisodeImages → the episode's own Primary
+    // - episode (default)          → the parent (season/series) Thumb pair
+    // - everything else            → own Thumb, else own Primary
     const hasArt =
-      Boolean(item.ImageTags?.Primary) ||
-      Boolean(item.ImageTags?.Thumb) ||
-      Boolean(item.ParentThumbItemId && item.ParentThumbImageTag);
+      item.Type === "Episode"
+        ? useEpisodeImages
+          ? Boolean(item.ImageTags?.Primary)
+          : Boolean(item.ParentThumbItemId && item.ParentThumbImageTag)
+        : Boolean(item.ImageTags?.Thumb || item.ImageTags?.Primary);
     if (!hasArt) return undefined;
 
     // Google TV home tiles are landscape. Mirror the continue-watching cards'
