@@ -759,9 +759,9 @@ const NativePlayerProviderInner: React.FC<{
 
       setActiveItem(session.item);
       setIsActive(true);
-      // Drop any WS command that arrived before this session existed — a
-      // stale coalesced "Stop"/"Seek" must not execute the moment isActive
-      // flips (lastMessage has no other consumer while browsing).
+      // Empty the legacy single-slot state before playback starts: it is
+      // still read by hooks/useWebsockets, and a stale coalesced "Stop" or
+      // "Seek" left over from browsing must not fire at the player.
       clearLastMessage();
       reportPlaybackStart(session);
       void pushSegments(session);
