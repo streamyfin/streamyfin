@@ -861,13 +861,10 @@ export const useSettings = () => {
     if (!api) {
       return;
     }
-    const newPluginSettings = await api.getStreamyfinPluginConfig().then(
-      ({ data }) => {
-        writeInfoLog(
-          "Got plugin settings",
-          redactPluginSettings(data?.settings),
-        );
-        return data?.settings;
+    const newPluginSettings = await api.getStreamyfinPluginSettings().then(
+      (settings) => {
+        writeInfoLog("Got plugin settings", redactPluginSettings(settings));
+        return settings;
       },
       (_err) => undefined,
     );
