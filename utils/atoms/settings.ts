@@ -877,22 +877,19 @@ export const useSettings = () => {
         applied,
         normalizePluginValue,
       );
-      const enableStreamystats =
-        newPluginSettings.streamyStatsServerUrl?.value &&
-        _settings.searchEngine !== "Streamystats";
-
-      if (Object.keys(pending).length > 0 || enableStreamystats) {
+      // Only what the admin declared is applied here. An admin who wants to
+      // impose a search engine declares searchEngine, locked to impose it or
+      // unlocked to propose it, like any other setting. Inferring it from a
+      // Streamystats URL took the choice away without saying so.
+      if (Object.keys(pending).length > 0) {
         const newSettings = {
           ...defaultValues,
           ..._settings,
           ...pending,
-          ...(enableStreamystats ? { searchEngine: "Streamystats" } : {}),
         } as Settings;
         setSettings(newSettings);
         saveSettings(newSettings);
-        if (Object.keys(pending).length > 0) {
-          storage.setAny(PLUGIN_APPLIED_DEFAULTS, { ...applied, ...pending });
-        }
+        storage.setAny(PLUGIN_APPLIED_DEFAULTS, { ...applied, ...pending });
       }
     }
 
