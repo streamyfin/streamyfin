@@ -824,7 +824,17 @@ const NativePlayerProviderInner: React.FC<{
 
   const teardownSession = useCallback(
     async (session: NativeSession, finalPositionSec?: number) => {
-      if (finalPositionSec !== undefined) {
+      // The native final position is 0 until mpv delivers its first time-pos
+      // update, and teardown after pause can hand back 0 too — letting that
+      // through would wipe the session's tracked position (seeded from the
+      // resume point, kept fresh by onProgress) and report "Stopped at 0".
+      // Only accept a native value that actually advanced; a genuine stop at
+      // 0 is covered as well, because the didSeek onProgress already zeroed
+      // positionMs in that case.
+      if (
+        finalPositionSec !== undefined &&
+        (finalPositionSec > 0 || session.positionMs === 0)
+      ) {
         session.positionMs = finalPositionSec * 1000;
       }
       // Final progress write first: it also lands in the downloads DB for
