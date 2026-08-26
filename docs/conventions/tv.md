@@ -8,9 +8,12 @@ Related deep dives: [tv-modal-guide.md](../tv-modal-guide.md),
 
 ## Platform-specific files
 
-**The `.tv.tsx` file suffix does NOT work in this project**, neither for pages nor for
-components. Metro does not resolve platform-specific suffixes here. Use `Platform.isTV`
-conditional rendering instead:
+Metro is configured to resolve a `.tv.*` extension first, but only when `EXPO_TV=1`
+(`metro.config.js`). The codebase deliberately does not rely on that resolution, because
+it silently disappears in any build where the variable is not set. Pick the TV variant
+explicitly instead.
+
+For a page, branch at the top and return the TV component:
 
 ```typescript
 // app/login.tsx
@@ -28,9 +31,19 @@ const LoginPage: React.FC = () => {
 export default LoginPage;
 ```
 
-Create separate files for mobile and TV (`MyComponent.tsx` and `TVMyComponent.tsx`) and
-pick between them with `Platform.isTV`. TV components use the `TV`-prefixed building
-blocks (`TVInput`, `TVServerCard`, and friends) which carry the focus handling.
+For a component, keep the mobile and TV implementations in separate files and require the
+TV one behind the same check, the way `components/ItemContent.tsx` does:
+
+```typescript
+const ItemContentTV = Platform.isTV
+  ? require("./ItemContent.tv").ItemContentTV
+  : null;
+```
+
+Both naming styles exist in the tree, `MyComponent.tv.tsx` and `TVMyComponent.tsx`. The
+suffix is a label, not a resolution mechanism: whichever you pick, the import stays
+explicit. TV components use the `TV`-prefixed building blocks (`TVInput`, `TVServerCard`
+and friends) which carry the focus handling.
 
 ## Design
 
@@ -69,6 +82,7 @@ the TV focus engine flicker rapidly between elements. This is a known React Nati
 issue. Four rules keep it away:
 
 1. **Use `FlatList`, not `FlashList`.** FlashList has known focus problems on TV.
+
    ```typescript
    {Platform.isTV ? (
      <FlatList data={items} renderItem={renderTVItem} removeClippedSubviews={false} />
@@ -76,6 +90,7 @@ issue. Four rules keep it away:
      <FlashList data={items} renderItem={renderItem} />
    )}
    ```
+
 2. **Set `removeClippedSubviews={false}`.** Otherwise off screen items unmount and focus
    falls through to unrelated elements.
 3. **Exactly one element gets `hasTVPreferredFocus`.** Two elements competing for the

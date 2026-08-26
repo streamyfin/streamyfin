@@ -125,7 +125,8 @@ The project uses bun exclusively: `npm`, `yarn` and `npx` are not supported.
 For the TV version suffix the commands with `:tv`.
 
 `bun run prebuild:tv`  
-`bun run ios:tv or bun run android:tv`
+`bun run ios:tv`  
+`bun run android:tv`
 
 Before opening a pull request, read [CONTRIBUTING.md](./CONTRIBUTING.md) and run `bun run test`.
 

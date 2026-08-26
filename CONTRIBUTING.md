@@ -54,8 +54,8 @@ Two rules catch most review comments before they are written:
 
 - **Use `useAppRouter`**, not `useRouter` from `expo-router`, so offline mode survives
   navigation.
-- **`.tv.tsx` file suffixes do not work here.** Use `Platform.isTV` and separate
-  components.
+- **Never rely on the `.tv.tsx` suffix resolving on its own.** It only does under
+  `EXPO_TV=1`. Branch on `Platform.isTV` and require the TV file explicitly.
 
 ## Before you open a pull request
 
@@ -63,8 +63,11 @@ Two rules catch most review comments before they are written:
 bun run test
 ```
 
-That runs typecheck, unit tests, lint, format, the i18n key check and expo doctor, which
-is the same set CI runs. Read its output rather than trusting the exit code.
+That runs typecheck, unit tests, lint, format, the i18n key check and Expo Doctor. CI runs
+the same commands as separate jobs and adds `bun run check`, the read-only Biome pass, so
+run that one too if you are unsure. Expo Doctor is non-blocking in CI, which means a
+warning there will not fail your PR, but it is still worth reading. Read the output rather
+than trusting the exit code.
 
 Then make sure the change carries its own proof:
 
@@ -73,7 +76,7 @@ Then make sure the change carries its own proof:
 - A behaviour change that is not purely visual reaches phone and TV in the same PR.
 - New UI strings exist in `translations/en.json` and nowhere else.
 - [CLAUDE.md](CLAUDE.md) still matches the code. It is the map everyone reads first, human
-  or assistant, so a new tab group, native module, provider or top level directory goes in
+  or assistant, so a new tab group, native module, provider or top-level directory goes in
   it as part of the same PR.
 
 ## Pull requests
@@ -101,7 +104,7 @@ scenario, then read what the server recorded.
 ### If you used AI
 
 Declare it by uncommenting the badge line in the PR template. This is not a stigma, it is
-a review signal. What is not acceptable is AI generated code that the author has not
+a review signal. What is not acceptable is AI-generated code that the author has not
 personally tested on the target platforms: those PRs are closed on sight, because
 reviewing them costs more than writing the change would have.
 

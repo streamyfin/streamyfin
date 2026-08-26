@@ -18,8 +18,12 @@ covers setup and the human side; this file is the operational checklist.
 Run the full gate and read its output:
 
 ```bash
-bun run test   # typecheck + unit tests + lint + format + i18n keys + expo doctor
+bun run test    # typecheck + unit tests + lint + format + i18n keys + Expo Doctor
+bun run check   # the read-only Biome pass CI runs as its own job
 ```
+
+CI runs those commands as separate jobs rather than through `bun run test`, and its Expo
+Doctor step is `continue-on-error`, so a doctor warning will not fail your PR.
 
 Then check the change itself:
 
@@ -35,7 +39,7 @@ Then check the change itself:
 - Behaviour that is not purely visual reaches both phone and TV in the same PR. See
   [tv.md](tv.md).
 - [CLAUDE.md](../../CLAUDE.md) still describes the code after your change. A new tab
-  group, native module, provider or top level directory belongs in it, and so does an SDK
+  group, native module, provider or top-level directory belongs in it, and so does an SDK
   bump that dates the stack section. `CLAUDE.test.ts` catches three of those cases; the
   rest is on you.
 

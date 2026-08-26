@@ -12,7 +12,7 @@ This file is loaded into context on every session, so a stale line in it is not 
 answer, it is a confident wrong one. When a change makes something here inaccurate, or
 adds something worth knowing, update it in the same PR. The triggers:
 
-- a tab group, route group or top level directory added or removed
+- a tab group, route group or top-level directory added or removed
 - a native module added or removed
 - a provider added to the stack in `app/_layout.tsx`, or moved within it
 - an SDK, runtime or major dependency bump that dates the stack section
@@ -21,8 +21,8 @@ adds something worth knowing, update it in the same PR. The triggers:
 - a fact that cost you an afternoon to find: it goes to `.claude/learned-facts/` with a
   line in the index
 
-`CLAUDE.test.ts` pins the native module list, the tab groups and the convention links in
-both directions, so drift in those three fails the suite instead of surviving for months.
+`CLAUDE.test.ts` pins the native module list, the tab groups and the convention index in
+both directions, so drift in those fails the suite instead of surviving for months.
 Everything else depends on you noticing.
 
 ## Conventions
@@ -70,7 +70,7 @@ TV platform:
 - `tv-grid-layout-pattern` | ScrollView+flexWrap, not FlatList numColumns
 - `tv-horizontal-padding-standard` | TV_HORIZONTAL_PADDING=60, not old TV_SCALE_PADDING=20
 - `streamystats-components-location` | components/home/Streamystats*.tv.tsx, watchlists/[watchlistId].tsx
-- `platform-specific-file-suffix-does-not-work` | .tv.tsx doesn't work; use Platform.isTV conditional rendering
+- `platform-specific-file-suffix-does-not-work` | .tv.* only resolves under EXPO_TV=1; require the TV file explicitly behind Platform.isTV
 
 ## Project overview
 
@@ -162,6 +162,7 @@ bun run ios:install-metal-toolchain   # Fixes "missing Metal Toolchain" build er
 - **IMPORTANT**: use `useAppRouter` from `@/hooks/useAppRouter`, never `useRouter` or the
   static `router` from `expo-router`. The wrapper preserves offline mode across
   navigation.
+
   ```typescript
   // Correct
   import useRouter from "@/hooks/useAppRouter";
@@ -180,7 +181,7 @@ bun run ios:install-metal-toolchain   # Fixes "missing Metal Toolchain" build er
 **Provider stack** (`app/_layout.tsx`, outermost first). The order is load bearing: each
 provider below depends on the ones above it.
 
-```
+```text
 PersistQueryClientProvider
   JellyfinProvider          auth, api
     InactivityProvider
@@ -206,6 +207,7 @@ PersistQueryClientProvider
 `top-shelf-cache`, `tv-recommendations`, `tv-search`, `tv-user-profile`, `wifi-ssid`.
 
 **Path aliases**: `@/` maps to the repo root.
+
 ```typescript
 import { useSettings } from "@/utils/atoms/settings";
 import { apiAtom } from "@/providers/JellyfinProvider";
@@ -240,5 +242,5 @@ import { apiAtom } from "@/providers/JellyfinProvider";
 - Platform checks: `Platform.isTV`, `Platform.OS === "android" | "ios"`.
 - TV builds use the `:tv` script suffix.
 - Some features are off on TV, notifications and Chromecast among them.
-- Every other TV rule, focus, modals, typography, lists, lives in
+- The rest of the TV rules, covering focus, modals, typography and lists, live in
   [docs/conventions/tv.md](docs/conventions/tv.md). Read it before touching TV code.
