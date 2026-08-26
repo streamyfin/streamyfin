@@ -507,10 +507,21 @@ final class PlayerViewModel: NSObject, ObservableObject {
 
 	func seek(to target: Double) {
 		let clamped = max(0, duration > 0 ? min(target, duration) : target)
-		pendingSeekReport = true
+		pendingSeekReport = false
 		position = clamped
 		displayPosition = clamped
 		engine?.seekTo(position: clamped)
+		// Report the seek to JS immediately instead of waiting for the next
+		// time-pos tick: an onDismiss racing that tick must not carry the
+		// pre-seek position, or the JS coordinator's final report (which
+		// distrusts a native 0) reports the stale pre-seek position.
+		emit?("onProgress", [
+			"position": clamped,
+			"duration": duration,
+			"progress": duration > 0 ? clamped / duration : 0,
+			"cacheSeconds": cacheSeconds,
+			"didSeek": true,
+		])
 		scheduleAutoHide()
 	}
 
