@@ -446,7 +446,7 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
     }
 
     fun seekTo(positionSec: Double) {
-        val clamped = max(0.0, positionSec)
+        val clamped = max(0.0, if (duration > 0) min(positionSec, duration) else positionSec)
         pendingSeekReport = false
         displayPosition = clamped
         authoritativePosition = clamped
