@@ -115,15 +115,19 @@ You can contribute translations directly on our [Crowdin project page](https://c
 1. Use node `>20`
 2. Install dependencies `bun i && bun run submodule-reload`
 3. Make sure you have xcode and/or android studio installed. (follow the guides for expo: https://docs.expo.dev/workflow/android-studio-emulator/)
-   - If iOS builds fail with `missing Metal Toolchain` (KSPlayer shaders), run `npm run ios:install-metal-toolchain` once
+   - If iOS builds fail with `missing Metal Toolchain` (KSPlayer shaders), run `bun run ios:install-metal-toolchain` once
 4. Install BiomeJS extension in VSCode/Your IDE (https://biomejs.dev/)
-4. run `npm run prebuild`
-5. Create an expo dev build by running `npm run ios` or `npm run android`. This will open a simulator on your computer and run the app
+5. Run `bun run prebuild`
+6. Create an expo dev build by running `bun run ios` or `bun run android`. This will open a simulator on your computer and run the app
 
-For the TV version suffix the npm commands with `:tv`.
+The project uses bun exclusively: `npm`, `yarn` and `npx` are not supported.
 
-`npm run prebuild:tv`  
-`npm run ios:tv or npm run android:tv`
+For the TV version suffix the commands with `:tv`.
+
+`bun run prebuild:tv`  
+`bun run ios:tv or bun run android:tv`
+
+Before opening a pull request, read [CONTRIBUTING.md](./CONTRIBUTING.md) and run `bun run test`.
 
 TV platform integration notes:
 
