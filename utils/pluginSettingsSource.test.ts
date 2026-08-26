@@ -78,10 +78,23 @@ describe("fetchPluginSettings", () => {
     expect(asked).toEqual([RESOLVED_SETTINGS_PATH]);
   });
 
-  test("surfaces a server with no plugin at all rather than inventing an answer", async () => {
-    const { api } = server({});
+  test("a server with no plugin has answered: there is no policy to apply", async () => {
+    const { api, asked } = server({});
 
-    await expect(fetchPluginSettings(api)).rejects.toThrow("HTTP 404");
+    expect(await fetchPluginSettings(api)).toBeUndefined();
+    expect(asked).toEqual([RESOLVED_SETTINGS_PATH, LEGACY_CONFIG_PATH]);
+  });
+
+  test("a server that cannot be reached has not said it has no plugin", async () => {
+    // The two must not look the same to the caller. Refreshing runs on every
+    // foreground, so treating a flaky network as "no plugin here" would unlock
+    // every setting the admin pinned until the next successful refresh.
+    const { api } = server({
+      [RESOLVED_SETTINGS_PATH]: httpError(404),
+      [LEGACY_CONFIG_PATH]: httpError(503),
+    });
+
+    await expect(fetchPluginSettings(api)).rejects.toThrow("HTTP 503");
   });
 
   test("treats a configuration with no settings block as nothing to apply", async () => {

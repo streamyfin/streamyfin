@@ -60,8 +60,12 @@ const isMissingRoute = (error: unknown): boolean =>
  * unlocked still seeds a default once, and an absent key still leaves the user
  * alone.
  *
- * @throws whatever the request failed with, when it failed for any reason other
- * than the route being absent.
+ * Returns `undefined` for a server that serves neither route, which is a server
+ * without the plugin. That is an answer: there is no policy to apply.
+ *
+ * @throws whatever the request failed with, for anything else. A server that
+ * cannot be reached has not told the caller it has no plugin, and the two must
+ * not look the same to whoever decides what to keep.
  */
 export const fetchPluginSettings = async (
   api: PluginSettingsReader,
@@ -80,6 +84,13 @@ export const fetchPluginSettings = async (
     }
   }
 
-  const { data } = await api.get<StreamyfinPluginConfig>(LEGACY_CONFIG_PATH);
-  return data?.settings ?? undefined;
+  try {
+    const { data } = await api.get<StreamyfinPluginConfig>(LEGACY_CONFIG_PATH);
+    return data?.settings ?? undefined;
+  } catch (error) {
+    if (!isMissingRoute(error)) {
+      throw error;
+    }
+    return undefined;
+  }
 };

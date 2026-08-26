@@ -861,12 +861,21 @@ export const useSettings = () => {
     if (!api) {
       return;
     }
-    const newPluginSettings = await api.getStreamyfinPluginSettings().then(
-      (settings) => {
-        writeInfoLog("Got plugin settings", redactPluginSettings(settings));
-        return settings;
-      },
-      (_err) => undefined,
+    let newPluginSettings: PluginLockableSettings | undefined;
+    try {
+      newPluginSettings = await api.getStreamyfinPluginSettings();
+    } catch (error) {
+      // A server that cannot be reached has not said it has no plugin. This
+      // runs on every foreground, so overwriting the stored policy here would
+      // unlock every setting the admin pinned and drop the URLs they supplied
+      // on nothing worse than a flaky network. Keep what is stored and report
+      // the failure, which is what the plugins page turns into a toast.
+      logAndCaptureError("Refreshing plugin settings failed", error);
+      return undefined;
+    }
+    writeInfoLog(
+      "Got plugin settings",
+      redactPluginSettings(newPluginSettings),
     );
     setPluginSettings(newPluginSettings);
 
