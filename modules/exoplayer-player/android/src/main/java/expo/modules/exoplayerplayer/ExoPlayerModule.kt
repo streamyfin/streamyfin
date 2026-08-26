@@ -1,11 +1,34 @@
 package expo.modules.exoplayerplayer
 
+import android.media.MediaCodecList
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 
 class ExoPlayerModule : Module() {
     override fun definition() = ModuleDefinition {
         Name("ExoPlayer")
+
+        // Whether the device ships a hardware decoder that advertises the
+        // Dolby Vision MIME ("video/dolby-vision"). On certified Android TV
+        // boxes/TVs the SoC's HEVC decoder is DV-aware: handed a single-layer
+        // DV stream (Profile 5/8) with its codec identity intact, it renders
+        // real Dolby Vision and the vendor pipeline signals DV over HDMI.
+        // Used by the JS device profile to decide whether pure Profile 5 may
+        // direct play instead of being transcoded away. The literal string is
+        // used because the MIMETYPE_VIDEO_DOLBY_VISION constant is API 27+
+        // while our minSdk is 26.
+        Function("supportsDolbyVisionDecode") {
+            try {
+                val codecList = MediaCodecList(MediaCodecList.REGULAR_CODECS)
+                codecList.codecInfos.any { info ->
+                    !info.isEncoder && info.supportedTypes.any { type ->
+                        type.equals("video/dolby-vision", ignoreCase = true)
+                    }
+                }
+            } catch (e: Exception) {
+                false
+            }
+        }
 
         // Enables the module to be used as a native view.
         View(ExoPlayerView::class) {

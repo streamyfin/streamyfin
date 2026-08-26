@@ -66,3 +66,39 @@ export const supportsAv1HardwareDecode = (): boolean => {
   }
   return cachedAv1Support ?? assumedAv1Support();
 };
+
+/**
+ * Subset of the ExoPlayer native module used for capability probing.
+ * `supportsDolbyVisionDecode` is implemented on Android only.
+ */
+type ExoPlayerCapabilities = {
+  supportsDolbyVisionDecode?: () => boolean;
+};
+
+let cachedDolbyVisionSupport: boolean | undefined;
+
+/**
+ * Whether this Android device ships a decoder advertising the Dolby Vision
+ * MIME (`video/dolby-vision`). On DV-certified Android TV hardware the SoC's
+ * HEVC decoder is DV-aware: handed a single-layer DV stream (Profile 5/8) with
+ * its codec identity intact, it renders real Dolby Vision and the vendor
+ * pipeline signals DV over HDMI. Uncertified devices have no such decoder and
+ * would render pure Profile 5 purple/green, so the device profile keeps
+ * transcoding those (see `./native`).
+ */
+export const supportsDolbyVisionHardwareDecode = (): boolean => {
+  if (Platform.OS !== "android" || !Platform.isTV) return false;
+
+  if (cachedDolbyVisionSupport === undefined) {
+    const exo = requireOptionalNativeModule<ExoPlayerCapabilities>("ExoPlayer");
+    try {
+      // Fallback false = current behavior (transcode pure Profile 5), so an
+      // unreachable probe (JS-only OTA update on an older binary) can never
+      // regress an uncertified device into broken colors.
+      cachedDolbyVisionSupport = exo?.supportsDolbyVisionDecode?.() ?? false;
+    } catch {
+      cachedDolbyVisionSupport = false;
+    }
+  }
+  return cachedDolbyVisionSupport;
+};
