@@ -1,4 +1,3 @@
-import { describe, expect, it } from "bun:test";
 import type { Settings } from "../atoms/settings";
 import {
   applySubtitleStyle,

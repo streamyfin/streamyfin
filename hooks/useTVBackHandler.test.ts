@@ -1,14 +1,13 @@
-import { describe, expect, mock, test } from "bun:test";
 import { stubReactNative } from "@/test-utils/reactNative";
 
-// Stub native/router modules — bun:test cannot load React Native, and only
+// Stub the router module: only
 // the pure route helpers are under test here.
 stubReactNative({ isTV: true });
-mock.module("expo-router", () => ({
+jest.mock("expo-router", () => ({
   useSegments: () => [],
 }));
 
-const { isAtTabRoot, isTabRoute } = await import("./useTVBackHandler");
+import { isAtTabRoot, isTabRoute } from "./useTVBackHandler";
 
 describe("isAtTabRoot", () => {
   test("true at the root of a tab", () => {

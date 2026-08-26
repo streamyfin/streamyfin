@@ -1,4 +1,3 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
 import type {
   BaseItemDto,
   MediaSourceInfo,
@@ -8,24 +7,24 @@ import type { Settings } from "@/utils/atoms/settings";
 
 // react-native-mmkv needs a native module. Back it with a Map so the per-series
 // memory under test is exercised for real rather than stubbed out.
-const store = new Map<string, string>();
-mock.module("react-native-mmkv", () => ({
+const mockStore = new Map<string, string>();
+jest.mock("react-native-mmkv", () => ({
   createMMKV: () => ({
-    getString: (key: string) => store.get(key),
-    set: (key: string, value: string) => void store.set(key, value),
-    delete: (key: string) => void store.delete(key),
+    getString: (key: string) => mockStore.get(key),
+    set: (key: string, value: string) => void mockStore.set(key, value),
+    delete: (key: string) => void mockStore.delete(key),
   }),
 }));
 
 // BitrateSelector is a React component module; only the BITRATES table matters.
-mock.module("@/components/BitrateSelector", () => ({
+jest.mock("@/components/BitrateSelector", () => ({
   BITRATES: [{ key: "Max", value: undefined }],
 }));
 
+import { rememberSeriesTrack } from "@/utils/seriesTrackMemory";
 // Imported after the mocks are registered — static ESM imports would evaluate
 // the real modules first.
-const { getDefaultPlaySettings } = await import("./getDefaultPlaySettings");
-const { rememberSeriesTrack } = await import("@/utils/seriesTrackMemory");
+import { getDefaultPlaySettings } from "./getDefaultPlaySettings";
 
 const audio = (
   index: number,
@@ -75,7 +74,7 @@ const settingsWith = (patch: Partial<Settings>): Settings =>
 
 const lang = (code: string) => ({ ThreeLetterISOLanguageName: code }) as never;
 
-beforeEach(() => store.clear());
+beforeEach(() => mockStore.clear());
 
 describe("language preferences apply on every path", () => {
   // Regression: this block used to be gated behind an `applyLanguagePreferences`

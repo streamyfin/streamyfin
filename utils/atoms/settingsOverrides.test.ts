@@ -1,4 +1,3 @@
-import { describe, expect, test } from "bun:test";
 import type { PluginLockableSettings, Settings } from "./settings";
 import {
   pendingPluginDefaults,

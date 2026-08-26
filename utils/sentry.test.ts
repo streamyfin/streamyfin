@@ -1,25 +1,23 @@
-import { describe, expect, mock, test } from "bun:test";
 import { stubReactNative } from "@/test-utils/reactNative";
 
 // utils/sentry imports the SDK and app modules with native dependencies;
-// only the pure scrubbers are under test here. Bun's mock.module is
-// retroactive and process-wide, so each mock covers the full surface the
-// module under test touches.
+// only the pure scrubbers are under test here, so each mock covers the surface
+// the module under test touches.
 const initCalls: unknown[] = [];
-mock.module("@sentry/react-native", () => ({
+jest.mock("@sentry/react-native", () => ({
   init: (options: unknown) => {
     initCalls.push(options);
   },
   close: () => Promise.resolve(),
   breadcrumbsIntegration: () => ({ name: "Breadcrumbs" }),
 }));
-mock.module("@/utils/storedSettings", () => ({
+jest.mock("@/utils/storedSettings", () => ({
   readStoredSettings: () => ({}),
   readStoredPluginSettings: () => ({}),
   SETTINGS_KEY: "settings",
   PLUGIN_SETTINGS_KEY: "STREAMYFIN_PLUGIN_SETTINGS",
 }));
-mock.module("@/utils/version", () => ({
+jest.mock("@/utils/version", () => ({
   getVersionInfo: () => ({
     version: "0.0.0",
     build: "1",
@@ -34,8 +32,11 @@ mock.module("@/utils/version", () => ({
 }));
 stubReactNative();
 
-const { scrubDeep, isUserInteractionBreadcrumb, initializeSentryIfConsented } =
-  await import("./sentry");
+import {
+  initializeSentryIfConsented,
+  isUserInteractionBreadcrumb,
+  scrubDeep,
+} from "./sentry";
 
 describe("isUserInteractionBreadcrumb — no behaviour tracking, no titles", () => {
   test("drops touch breadcrumbs, whose labels are media titles", () => {

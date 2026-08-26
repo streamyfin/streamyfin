@@ -1,23 +1,22 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
 import type {
   BaseItemDto,
   MediaStream,
 } from "@jellyfin/sdk/lib/generated-client";
 import type { Settings } from "@/utils/atoms/settings";
 
-const store = new Map<string, string>();
-mock.module("react-native-mmkv", () => ({
+const mockStore = new Map<string, string>();
+jest.mock("react-native-mmkv", () => ({
   createMMKV: () => ({
-    getString: (k: string) => store.get(k),
-    set: (k: string, v: string) => void store.set(k, v),
-    delete: (k: string) => void store.delete(k),
+    getString: (k: string) => mockStore.get(k),
+    set: (k: string, v: string) => void mockStore.set(k, v),
+    delete: (k: string) => void mockStore.delete(k),
   }),
 }));
-mock.module("@/components/BitrateSelector", () => ({
+jest.mock("@/components/BitrateSelector", () => ({
   BITRATES: [{ key: "Max", value: undefined }],
 }));
 
-const { resolveTrackIndexes } = await import("./resolveTrackIndexes");
+import { resolveTrackIndexes } from "./resolveTrackIndexes";
 
 const stream = (
   type: "Audio" | "Subtitle",
@@ -47,7 +46,7 @@ const simple = item([
   },
 ]);
 
-beforeEach(() => store.clear());
+beforeEach(() => mockStore.clear());
 
 describe("offline", () => {
   test("uses the download record rather than the server media source", () => {

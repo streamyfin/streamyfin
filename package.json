@@ -24,7 +24,8 @@
     "doctor": "expo-doctor",
     "i18n:check": "bun scripts/check-i18n-keys.ts",
     "i18n:fix-unused": "bun scripts/check-i18n-keys.ts --fix-unused",
-    "test:unit": "bun test",
+    "test:unit": "jest",
+    "test:coverage": "jest --coverage",
     "test": "bun run typecheck && bun run test:unit && bun run lint && bun run format && bun run i18n:check && bun run doctor"
   },
   "overrides": {
@@ -124,7 +125,9 @@
     "@biomejs/biome": "2.5.8",
     "@react-native-community/cli": "20.2.0",
     "@react-native-tvos/config-tv": "0.1.6",
+    "@testing-library/react-native": "^14.0.1",
     "@types/bun": "1.3.14",
+    "@types/jest": "29.5.14",
     "@types/lodash": "4.17.25",
     "@types/node": "26.2.0",
     "@types/react": "19.2.17",
@@ -132,6 +135,8 @@
     "cross-env": "10.1.0",
     "expo-doctor": "1.20.1",
     "husky": "9.1.7",
+    "jest": "~29.7.0",
+    "jest-expo": "~57.0.4",
     "lint-staged": "17.3.0",
     "tsx": "4.23.12",
     "typescript": "6.0.3"
@@ -176,5 +181,19 @@
   ],
   "patchedDependencies": {
     "react-native-udp@4.1.7": "patches/react-native-udp@4.1.7.patch"
+  },
+  "jest": {
+    "preset": "jest-expo",
+    "transformIgnorePatterns": [
+      "node_modules/(?!(.bun|(jest-)?react-native|@react-native(-community)?|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@sentry/.*|@jellyfin/sdk|native-base|react-native-svg))"
+    ],
+    "collectCoverageFrom": [
+      "utils/**/*.{ts,tsx}",
+      "hooks/**/*.{ts,tsx}",
+      "providers/**/*.{ts,tsx}",
+      "components/**/*.{ts,tsx}",
+      "!**/*.test.{ts,tsx}",
+      "!utils/jellyseerr/**"
+    ]
   }
 }

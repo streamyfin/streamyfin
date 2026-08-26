@@ -1,4 +1,3 @@
-import { expect, test } from "bun:test";
 import { supportsOriginalAudioLanguage } from "./serverVersion";
 
 test("requires Jellyfin 12 or newer for original audio", () => {
