@@ -1,19 +1,17 @@
-import { describe, expect, test } from "bun:test";
-import { fileURLToPath } from "node:url";
+import { spawnSync } from "node:child_process";
+import { join } from "node:path";
 import { notificationRoute } from "./notificationRoute";
 
 describe("where a notification takes the app", () => {
   test("generated destinations resolve against the actual app routes", () => {
-    // Isolate native-entrypoint mocks from the other unit tests.
-    const result = Bun.spawnSync([
-      process.execPath,
+    // A bun script of its own: it swaps out expo-router's native entrypoint
+    // to parse the real app routes, which this test environment cannot load.
+    const result = spawnSync("bun", [
       "run",
-      fileURLToPath(
-        new URL("../test-utils/notificationRoutes.ts", import.meta.url),
-      ),
+      join(__dirname, "../test-utils/notificationRoutes.ts"),
     ]);
     expect(result.stderr.toString()).toBe("");
-    expect(result.exitCode).toBe(0);
+    expect(result.status).toBe(0);
   });
   test("a movie opens its page", () => {
     expect(notificationRoute({ type: "Movie", id: "abc" })).toBe(

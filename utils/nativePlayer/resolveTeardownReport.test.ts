@@ -1,4 +1,3 @@
-import { describe, expect, test } from "bun:test";
 import { resolveTeardownReport } from "./resolveTeardownReport";
 
 describe("resolveTeardownReport", () => {
