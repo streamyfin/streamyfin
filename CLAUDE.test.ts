@@ -67,10 +67,16 @@ describe("CLAUDE.md stays true", () => {
   test("every convention document is indexed", () => {
     // The reverse of the link check: a new docs/conventions/ file that nobody
     // added a row for would otherwise stay invisible to whoever reads CLAUDE.md.
+    // Scoped to the Conventions table on purpose: a passing mention elsewhere in
+    // the file is not an index entry.
+    const table = claudeMd.split("## Conventions")[1]?.split("\n## ")[0] ?? "";
+    const indexed = [
+      ...table.matchAll(/\]\((docs\/conventions\/[^)]+\.md)\)/g),
+    ].map((match) => match[1]);
     const documents = readdirSync(join(root, "docs/conventions"))
       .filter((name) => name.endsWith(".md"))
       .map((name) => `docs/conventions/${name}`);
-    expect(documents.filter((path) => !claudeMd.includes(path))).toEqual([]);
+    expect(documents.filter((path) => !indexed.includes(path))).toEqual([]);
   });
 
   test("every convention document referenced exists", () => {

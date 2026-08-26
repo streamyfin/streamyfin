@@ -40,8 +40,8 @@ Then check the change itself:
   [tv.md](tv.md).
 - [CLAUDE.md](../../CLAUDE.md) still describes the code after your change. A new tab
   group, native module, provider or top-level directory belongs in it, and so does an SDK
-  bump that dates the stack section. `CLAUDE.test.ts` catches three of those cases; the
-  rest is on you.
+  bump that dates the stack section. `CLAUDE.test.ts` only covers native modules, tab
+  groups and the convention index; providers, directories and SDK bumps are on you.
 
 ## Writing the description
 
