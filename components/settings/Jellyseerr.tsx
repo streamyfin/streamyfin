@@ -15,6 +15,7 @@ import { storage } from "@/utils/mmkv";
 import { deleteJellyseerrPassword } from "@/utils/secureCredentials";
 import { jellyseerrProbe } from "@/utils/serverUrl/probes/jellyseerr";
 import { resolveServerUrl } from "@/utils/serverUrl/resolve";
+import { store } from "@/utils/store";
 import { Button } from "../Button";
 import { Input } from "../common/Input";
 import { ServerUrlField } from "../common/ServerUrlField";
@@ -113,9 +114,11 @@ export const JellyseerrSettings = () => {
       // opens a session there is no reason for a key or a password to be on
       // this device at all.
       if (api) {
+        const startedFor = user.Id;
         const quickConnected = await signInWithQuickConnect(
           jellyseerrTempApi,
           api,
+          () => store.get(userAtom)?.Id === startedFor,
         );
         if (quickConnected)
           return {

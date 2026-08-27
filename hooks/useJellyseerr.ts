@@ -320,6 +320,11 @@ export class JellyseerrApi {
    * A session per device, which is the part an API key acting as its owner
    * could never give: two devices sharing one key share one identity, and the
    * only thing separating them is a header the client fills in itself.
+   *
+   * Nothing is stored here, unlike the other two sign-ins. Three round trips
+   * pass between the start of this flow and its end, which is long enough for
+   * the user to log out or switch account, so whether the result still belongs
+   * to anyone is the caller's to decide.
    */
   async authenticateQuickConnect(secret: string): Promise<JellyseerrUser> {
     const { data } = await this.axios.post<JellyseerrUser>(
@@ -327,8 +332,12 @@ export class JellyseerrApi {
       { secret },
     );
     if (!data) throw Error("Login failed");
-    storage.setAny(JELLYSEERR_USER, data);
     return data;
+  }
+
+  /** Persists a session this client just opened. */
+  remember(user: JellyseerrUser) {
+    storage.setAny(JELLYSEERR_USER, user);
   }
 
   async discoverSettings(): Promise<DiscoverSlider[]> {

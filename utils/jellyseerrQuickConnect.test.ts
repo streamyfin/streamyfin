@@ -50,6 +50,7 @@ const steps = (
         calls.authenticatedSecrets.push(secret);
         return SEERR_USER;
       },
+      stillCurrent: () => true,
       ...over,
     },
   };
@@ -112,6 +113,37 @@ describe("attemptQuickConnectSignIn", () => {
 
     expect(await attemptQuickConnectSignIn(s)).toEqual({
       declined: "not-approved",
+    });
+  });
+
+  test("does not sign in for an account that has since been left", async () => {
+    // Three round trips is long enough to log out or switch account in, and the
+    // Seerr session belongs to whoever approved the code, so applying it late
+    // would hand the previous user's Seerr account to the current one.
+    const { steps: s, calls } = steps({ stillCurrent: () => false });
+
+    expect(await attemptQuickConnectSignIn(s)).toEqual({
+      declined: "session-moved-on",
+    });
+    // Not even started: an abandoned session should not open a Seerr session
+    // nobody is going to use.
+    expect(calls.authenticatedSecrets).toEqual([]);
+  });
+
+  test("checks again after authenticating, which is the window that matters", async () => {
+    // The account can be left while the last call is in flight, and by then a
+    // Seerr session exists. It just must not become this device's.
+    let current = true;
+    const { steps: s } = steps({
+      stillCurrent: () => current,
+      authenticate: async () => {
+        current = false;
+        return SEERR_USER;
+      },
+    });
+
+    expect(await attemptQuickConnectSignIn(s)).toEqual({
+      declined: "session-moved-on",
     });
   });
 

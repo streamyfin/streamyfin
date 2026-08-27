@@ -11,6 +11,7 @@ import {
   deleteJellyseerrPassword,
   getJellyseerrPassword,
 } from "@/utils/secureCredentials";
+import { store } from "@/utils/store";
 
 /**
  * Signs in to Jellyseerr on launch using the stored Jellyfin password.
@@ -76,7 +77,11 @@ export const JellyseerrAutoLogin: React.FC = () => {
         // else would ever remove it, since a stored password that still works
         // never looks like a problem.
         if (api) {
-          const quickConnected = await signInWithQuickConnect(seerr, api);
+          const quickConnected = await signInWithQuickConnect(
+            seerr,
+            api,
+            () => store.get(userAtom)?.Id === userId,
+          );
           if (quickConnected) {
             setJellyseerrUser(quickConnected);
             await deleteJellyseerrPassword(jellyfinUrl, userId).catch((e) =>

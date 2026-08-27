@@ -250,7 +250,13 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
         apiKey,
       );
 
-      const quickConnected = await signInWithQuickConnect(seerr, api);
+      // Three round trips is long enough to log out or switch account in, and
+      // the Seerr session belongs to whoever approved the code.
+      const quickConnected = await signInWithQuickConnect(
+        seerr,
+        api,
+        () => store.get(userAtom)?.Id === userId,
+      );
       if (quickConnected) {
         setJellyseerrUser(quickConnected);
         return;
@@ -614,6 +620,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
             const quickConnected = await signInWithQuickConnect(
               jellyseerrApi,
               authedApi,
+              () => store.get(userAtom)?.Id === jellyfinUserId,
             );
             if (quickConnected) setJellyseerrUser(quickConnected);
 

@@ -28,7 +28,9 @@ export type QuickConnectDecline =
   /** Seerr is pointed at a different Jellyfin than the one we are signed in to. */
   | "different-jellyfin-server"
   /** The code exists but this account was not allowed to approve it. */
-  | "not-approved";
+  | "not-approved"
+  /** The account moved on while the three round trips were in flight. */
+  | "session-moved-on";
 
 export type QuickConnectOutcome =
   | { user: JellyseerrUser }
@@ -49,6 +51,14 @@ export interface QuickConnectSteps {
   approve: (code: string) => Promise<"approved" | "unknown-code" | "refused">;
   /** Seerr turns the approved secret into a session. */
   authenticate: (secret: string) => Promise<JellyseerrUser>;
+  /**
+   * Whether the account this started for is still the one signed in.
+   *
+   * Three round trips is long enough to log out or switch account in, and the
+   * session Seerr opens belongs to whoever approved the code. Applying it after
+   * that would hand the previous user's Seerr account to the current one.
+   */
+  stillCurrent: () => boolean;
 }
 
 /**
@@ -76,14 +86,26 @@ export const attemptQuickConnectSignIn = async (
     return { declined: "different-jellyfin-server" };
   if (approval === "refused") return { declined: "not-approved" };
 
-  return { user: await steps.authenticate(request.secret) };
+  // Checked on both sides of the call: before, so a session that has already
+  // moved on does not open a Seerr session nobody asked for, and after, because
+  // that is the window this guard exists for.
+  if (!steps.stillCurrent()) return { declined: "session-moved-on" };
+
+  const user = await steps.authenticate(request.secret);
+
+  if (!steps.stillCurrent()) return { declined: "session-moved-on" };
+
+  return { user };
 };
 
 /** The two clients wired into the four steps. */
 export const quickConnectSteps = (
   seerr: JellyseerrApi,
   api: Api,
+  stillCurrent: () => boolean,
 ): QuickConnectSteps => ({
+  stillCurrent,
+
   isEnabled: async () =>
     (await getQuickConnectApi(api).getQuickConnectEnabled()).data === true,
 
@@ -118,12 +140,18 @@ export const quickConnectSteps = (
 export const signInWithQuickConnect = async (
   seerr: JellyseerrApi,
   api: Api,
+  stillCurrent: () => boolean,
 ): Promise<JellyseerrUser | undefined> => {
   try {
     const outcome = await attemptQuickConnectSignIn(
-      quickConnectSteps(seerr, api),
+      quickConnectSteps(seerr, api, stillCurrent),
     );
-    if ("user" in outcome) return outcome.user;
+    if ("user" in outcome) {
+      // Stored only once the account it belongs to is confirmed to still be
+      // the one signed in, which is why authenticateQuickConnect does not.
+      seerr.remember(outcome.user);
+      return outcome.user;
+    }
 
     writeToLog(
       "INFO",
