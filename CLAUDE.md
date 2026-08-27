@@ -204,7 +204,8 @@ PersistQueryClientProvider
 
 **Native modules** in `modules/`: `mpv-player` (the native player, iOS and Android),
 `exoplayer-player`, `background-downloader`, `glass-poster`, `hero-carousel`,
-`top-shelf-cache`, `tv-recommendations`, `tv-search`, `tv-user-profile`, `wifi-ssid`.
+`system-volume`, `top-shelf-cache`, `tv-recommendations`, `tv-search`, `tv-user-profile`,
+`wifi-ssid`.
 
 **Path aliases**: `@/` maps to the repo root.
 
