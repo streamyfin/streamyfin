@@ -3,16 +3,10 @@ import type {
   BaseItemDto,
   MediaStream,
 } from "@jellyfin/sdk/lib/generated-client";
+import { clearMmkv, stubMmkv } from "@/test-utils/mmkv";
 import type { Settings } from "@/utils/atoms/settings";
 
-const store = new Map<string, string>();
-mock.module("react-native-mmkv", () => ({
-  createMMKV: () => ({
-    getString: (k: string) => store.get(k),
-    set: (k: string, v: string) => void store.set(k, v),
-    delete: (k: string) => void store.delete(k),
-  }),
-}));
+stubMmkv();
 mock.module("@/components/BitrateSelector", () => ({
   BITRATES: [{ key: "Max", value: undefined }],
 }));
@@ -47,7 +41,7 @@ const simple = item([
   },
 ]);
 
-beforeEach(() => store.clear());
+beforeEach(clearMmkv);
 
 describe("offline", () => {
   test("uses the download record rather than the server media source", () => {
