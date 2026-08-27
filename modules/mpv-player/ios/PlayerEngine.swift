@@ -339,6 +339,12 @@ final class MPVPlayerEngine: NSObject {
 		renderer?.setSpeed(speed)
 	}
 
+	/// Mute playback itself, leaving the device output volume alone. The
+	/// renderer retains the flag so it survives an mpv re-creation.
+	func setMute(_ muted: Bool) {
+		renderer?.setMute(muted)
+	}
+
 	func getSpeed() -> Double {
 		return renderer?.getSpeed() ?? 1.0
 	}

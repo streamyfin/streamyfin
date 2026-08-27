@@ -39,6 +39,9 @@ export default React.forwardRef<MpvPlayerViewRef, MpvPlayerViewProps>(
       getSpeed: async () => {
         return await nativeRef.current?.getSpeed();
       },
+      setMute: async (muted: boolean) => {
+        await nativeRef.current?.setMute(muted);
+      },
       isPaused: async () => {
         return await nativeRef.current?.isPaused();
       },

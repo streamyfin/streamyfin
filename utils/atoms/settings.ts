@@ -374,8 +374,14 @@ export type Settings = {
   defaultSubtitleLanguage: CultureDto | null;
   subtitleMode: SubtitlePlaybackMode;
   rememberSubtitleSelections: boolean;
-  /** Native player: auto-enable a text subtitle while the volume is at zero. */
+  /** Turn subtitles on automatically while audio is muted, and off again after. */
   subtitlesOnMute: boolean;
+  /**
+   * Let that automatic selection pick a subtitle the server must re-process the
+   * stream for (burned-in, or image-based while transcoding). Off by default:
+   * a volume key press should never interrupt playback.
+   */
+  subtitlesOnMuteAllowRestart: boolean;
   showHomeTitles: boolean;
   defaultVideoOrientation: (typeof ScreenOrientation.OrientationLock)[keyof typeof ScreenOrientation.OrientationLock];
   forwardSkipTime: number;
@@ -549,7 +555,8 @@ export const defaultValues: Settings = {
   defaultSubtitleLanguage: null,
   subtitleMode: SubtitlePlaybackMode.Default,
   rememberSubtitleSelections: true,
-  subtitlesOnMute: false,
+  subtitlesOnMute: true,
+  subtitlesOnMuteAllowRestart: false,
   showHomeTitles: true,
   defaultVideoOrientation: ScreenOrientation.OrientationLock.DEFAULT,
   forwardSkipTime: 30,

@@ -1016,6 +1016,24 @@ export default function SettingsTV() {
               })
             }
           />
+          <TVSettingsToggle
+            label={t("home.settings.subtitles.subtitles_on_mute")}
+            value={settings.subtitlesOnMute}
+            disabled={pluginSettings?.subtitlesOnMute?.locked}
+            onToggle={(value) => updateSettings({ subtitlesOnMute: value })}
+          />
+          {settings.subtitlesOnMute && (
+            <TVSettingsToggle
+              label={t(
+                "home.settings.subtitles.subtitles_on_mute_allow_restart",
+              )}
+              value={settings.subtitlesOnMuteAllowRestart}
+              disabled={pluginSettings?.subtitlesOnMuteAllowRestart?.locked}
+              onToggle={(value) =>
+                updateSettings({ subtitlesOnMuteAllowRestart: value })
+              }
+            />
+          )}
           <TVSettingsStepper
             label={t("home.settings.subtitles.subtitle_size")}
             value={settings.subtitleSize}

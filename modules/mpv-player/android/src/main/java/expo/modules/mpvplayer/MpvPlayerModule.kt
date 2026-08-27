@@ -96,6 +96,11 @@ class MpvPlayerModule : Module() {
                 view.setSpeed(speed)
             }
 
+            // Async function to mute the player without touching device volume
+            AsyncFunction("setMute") { view: MpvPlayerView, muted: Boolean ->
+                view.setMute(muted)
+            }
+
             // Function to get current speed
             AsyncFunction("getSpeed") { view: MpvPlayerView ->
                 view.getSpeed()
