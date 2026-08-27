@@ -9,6 +9,8 @@ import { useTVMenuKeyInterception } from "@/hooks/useTVBackPress";
 import { apiAtom, useJellyfin } from "@/providers/JellyfinProvider";
 import { selectedTVServerAtom } from "@/utils/atoms/selectedTVServer";
 import type { CustomHeader } from "@/utils/customHeaders";
+import { normalizeHttpBaseUrl } from "@/utils/customHeaders/urlMatching";
+import { getOrSetDeviceId } from "@/utils/device";
 import {
   checkJellyfinServer,
   ServerTooOldError,
@@ -29,6 +31,10 @@ import {
   type SavedServerAccount,
   saveAccountCredential,
 } from "@/utils/secureCredentials";
+import {
+  SessionExpiredError,
+  savedLoginAlertText,
+} from "@/utils/sessionExpired";
 import { TVAddServerForm } from "./TVAddServerForm";
 import { TVAddUserForm } from "./TVAddUserForm";
 import { TVPasswordEntryModal } from "./TVPasswordEntryModal";
@@ -110,6 +116,12 @@ export const TVLogin: React.FC = () => {
   // Track if any modal is open to disable background focus
   const isAnyModalOpen =
     showSaveModal || pinModalVisible || passwordModalVisible;
+
+  // Server address awaiting a Quick Connect start, set by the re-auth prompt
+  // and consumed once the api points at that server.
+  const [pendingQuickConnect, setPendingQuickConnect] = useState<string | null>(
+    null,
+  );
 
   // Pairing state (companion login via phone)
   const [showPairingQR, setShowPairingQR] = useState(false);
@@ -253,6 +265,53 @@ export const TVLogin: React.FC = () => {
     }
   };
 
+  // The account survives a rejected token, so offer a way back in. Quick
+  // Connect first: typing a password on a remote is miserable.
+  const handleSavedLoginError = (
+    error: unknown,
+    account: SavedServerAccount,
+  ) => {
+    const { title, message } = savedLoginAlertText(error, t);
+    if (!(error instanceof SessionExpiredError)) {
+      Alert.alert(title, message, [
+        {
+          text: t("common.ok"),
+          onPress: () => setCurrentScreen("user-selection"),
+        },
+      ]);
+      return;
+    }
+
+    setSelectedAccount(account);
+    Alert.alert(title, message, [
+      {
+        text: t("common.cancel"),
+        style: "cancel",
+        onPress: () => setCurrentScreen("user-selection"),
+      },
+      {
+        text: t("login.quick_connect"),
+        // Quick Connect posts through the api, which the user-selection screen
+        // has not created yet. Request it and let the effect below start once
+        // the api actually points at this server — calling it straight after
+        // setServer would use the api captured when this alert was built.
+        onPress: () => {
+          setCurrentScreen("user-selection");
+          if (!currentServer) return;
+          setServer({ address: currentServer.address });
+          setPendingQuickConnect(currentServer.address);
+        },
+      },
+      {
+        text: t("password.enter_password"),
+        onPress: () => {
+          setCurrentScreen("user-selection");
+          setPasswordModalVisible(true);
+        },
+      },
+    ]);
+  };
+
   // Handle user selection
   const handleUserSelect = async (account: SavedServerAccount) => {
     if (!currentServer) return;
@@ -264,25 +323,7 @@ export const TVLogin: React.FC = () => {
         try {
           await loginWithSavedCredential(currentServer.address, account.userId);
         } catch (error) {
-          const errorMessage =
-            error instanceof Error
-              ? error.message
-              : t("server.session_expired");
-          const isSessionExpired = errorMessage.includes(
-            t("server.session_expired"),
-          );
-          Alert.alert(
-            isSessionExpired
-              ? t("server.session_expired")
-              : t("login.connection_failed"),
-            isSessionExpired ? t("server.please_login_again") : errorMessage,
-            [
-              {
-                text: t("common.ok"),
-                onPress: () => setCurrentScreen("user-selection"),
-              },
-            ],
-          );
+          handleSavedLoginError(error, account);
         } finally {
           setLoading(false);
         }
@@ -312,23 +353,8 @@ export const TVLogin: React.FC = () => {
           selectedAccount.userId,
         );
       } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : t("server.session_expired");
-        const isSessionExpired = errorMessage.includes(
-          t("server.session_expired"),
-        );
-        Alert.alert(
-          isSessionExpired
-            ? t("server.session_expired")
-            : t("login.connection_failed"),
-          isSessionExpired ? t("server.please_login_again") : errorMessage,
-          [
-            {
-              text: t("common.ok"),
-              onPress: () => setCurrentScreen("user-selection"),
-            },
-          ],
-        );
+        handleSavedLoginError(error, selectedAccount);
+        return;
       } finally {
         setLoading(false);
       }
@@ -455,6 +481,9 @@ export const TVLogin: React.FC = () => {
               securityType,
               pinHash,
               primaryImageTag: user.PrimaryImageTag ?? undefined,
+              // The login above adopted this account's own id; leaving it off
+              // would put the account back on a borrowed one.
+              deviceId: getOrSetDeviceId(),
             });
           }
         } catch (saveError) {
@@ -503,9 +532,9 @@ export const TVLogin: React.FC = () => {
   };
 
   // Handle quick connect
-  const handleQuickConnect = async () => {
+  const handleQuickConnect = async (saveAccount = false) => {
     try {
-      const code = await initiateQuickConnect();
+      const code = await initiateQuickConnect({ saveAccount });
       if (code) {
         Alert.alert(
           t("login.quick_connect"),
@@ -520,6 +549,25 @@ export const TVLogin: React.FC = () => {
       );
     }
   };
+
+  // Start a requested Quick Connect only once the api actually points at the
+  // server it should post to. setServer resolves before the atom has
+  // propagated here, so the request cannot be fired inline.
+  useEffect(() => {
+    // A saved address may carry a trailing slash the SDK's basePath drops, and
+    // a mismatch here silently strands the request that offers the way back in.
+    if (
+      !pendingQuickConnect ||
+      !api?.basePath ||
+      normalizeHttpBaseUrl(api.basePath) !==
+        normalizeHttpBaseUrl(pendingQuickConnect)
+    )
+      return;
+    setPendingQuickConnect(null);
+    // Re-authenticating an account that is already saved: its token is
+    // refreshed either way, so there is nothing here to consent to.
+    handleQuickConnect(false);
+  }, [pendingQuickConnect, api?.basePath]);
 
   // Navigate to QR screen with a fresh code and active listener
   const goToQRScreen = useCallback(() => {

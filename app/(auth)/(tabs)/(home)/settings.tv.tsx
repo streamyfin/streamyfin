@@ -58,6 +58,10 @@ import {
   type SavedServer,
   type SavedServerAccount,
 } from "@/utils/secureCredentials";
+import {
+  SessionExpiredError,
+  savedLoginAlertText,
+} from "@/utils/sessionExpired";
 import { clearTopShelfCacheSafely } from "@/utils/topshelf/cache";
 
 const SEGMENT_SKIP_ROWS: {
@@ -128,6 +132,23 @@ export default function SettingsTV() {
 
   const hasOtherAccounts = otherAccounts.length > 0;
 
+  // The account survives a rejected token, so offer a password sign-in rather
+  // than leaving the user tapping a card that keeps failing.
+  const handleSavedLoginError = (error: unknown) => {
+    const { title, message } = savedLoginAlertText(error, t);
+    if (error instanceof SessionExpiredError) {
+      Alert.alert(title, message, [
+        { text: t("common.cancel"), style: "cancel" },
+        {
+          text: t("common.ok"),
+          onPress: () => setPasswordModalVisible(true),
+        },
+      ]);
+      return;
+    }
+    Alert.alert(title, message);
+  };
+
   // Handle account selection from modal
   const handleAccountSelect = async (account: SavedServerAccount) => {
     if (!currentServer) return;
@@ -137,17 +158,10 @@ export default function SettingsTV() {
       try {
         await loginWithSavedCredential(currentServer.address, account.userId);
       } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : t("server.session_expired");
-        const isSessionExpired = errorMessage.includes(
-          t("server.session_expired"),
-        );
-        Alert.alert(
-          isSessionExpired
-            ? t("server.session_expired")
-            : t("login.connection_failed"),
-          isSessionExpired ? t("server.please_login_again") : errorMessage,
-        );
+        // Kept set so the password retry knows which account it is for.
+        setSelectedServer(currentServer);
+        setSelectedAccount(account);
+        handleSavedLoginError(error);
       }
     } else if (account.securityType === "pin") {
       // Show PIN modal
@@ -172,17 +186,9 @@ export default function SettingsTV() {
           selectedAccount.userId,
         );
       } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : t("server.session_expired");
-        const isSessionExpired = errorMessage.includes(
-          t("server.session_expired"),
-        );
-        Alert.alert(
-          isSessionExpired
-            ? t("server.session_expired")
-            : t("login.connection_failed"),
-          isSessionExpired ? t("server.please_login_again") : errorMessage,
-        );
+        // The PIN was right but the token behind it is dead.
+        handleSavedLoginError(error);
+        return;
       }
     }
     setSelectedServer(null);

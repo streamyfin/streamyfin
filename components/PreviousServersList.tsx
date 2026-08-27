@@ -16,6 +16,7 @@ import {
   type SavedServerAccount,
   updateServerCustomHeaders,
 } from "@/utils/secureCredentials";
+import { savedLoginAlertText } from "@/utils/sessionExpired";
 import { AccountsSheet } from "./AccountsSheet";
 import { Text } from "./common/Text";
 import { ListGroup } from "./list/ListGroup";
@@ -71,6 +72,11 @@ export const PreviousServersList: React.FC<PreviousServersListProps> = ({
     server: SavedServer,
     account: SavedServerAccount,
   ) => {
+    // A successful login unmounts this screen, so the sheet used to close
+    // itself by accident. Now that a rejected token keeps the account, the
+    // failure path comes back here and an open sheet swallows every tap.
+    setAccountsSheetOpen(false);
+
     switch (account.securityType) {
       case "none":
         // Quick login without protection
@@ -79,20 +85,10 @@ export const PreviousServersList: React.FC<PreviousServersListProps> = ({
           try {
             await onQuickLogin(server.address, account.userId);
           } catch (error) {
-            const errorMessage =
-              error instanceof Error
-                ? error.message
-                : t("server.session_expired");
-            const isSessionExpired = errorMessage.includes(
-              t("server.session_expired"),
-            );
-            Alert.alert(
-              isSessionExpired
-                ? t("server.session_expired")
-                : t("login.connection_failed"),
-              isSessionExpired ? t("server.please_login_again") : errorMessage,
-              [{ text: t("common.ok"), onPress: () => onServerSelect(server) }],
-            );
+            const { title, message } = savedLoginAlertText(error, t);
+            Alert.alert(title, message, [
+              { text: t("common.ok"), onPress: () => onServerSelect(server) },
+            ]);
           } finally {
             setLoadingServer(null);
           }
@@ -137,23 +133,13 @@ export const PreviousServersList: React.FC<PreviousServersListProps> = ({
       try {
         await onQuickLogin(selectedServer.address, selectedAccount.userId);
       } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : t("server.session_expired");
-        const isSessionExpired = errorMessage.includes(
-          t("server.session_expired"),
-        );
-        Alert.alert(
-          isSessionExpired
-            ? t("server.session_expired")
-            : t("login.connection_failed"),
-          isSessionExpired ? t("server.please_login_again") : errorMessage,
-          [
-            {
-              text: t("common.ok"),
-              onPress: () => onServerSelect(selectedServer),
-            },
-          ],
-        );
+        const { title, message } = savedLoginAlertText(error, t);
+        Alert.alert(title, message, [
+          {
+            text: t("common.ok"),
+            onPress: () => onServerSelect(selectedServer),
+          },
+        ]);
       } finally {
         setLoadingServer(null);
         setSelectedAccount(null);

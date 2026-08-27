@@ -2,25 +2,11 @@ import { beforeEach, describe, expect, mock, test } from "bun:test";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import type { TrackMenuRow } from "@/utils/subtitles/trackMenu";
 
-const store = new Map<string, string>();
-mock.module("react-native-mmkv", () => ({
-  createMMKV: () => ({
-    getString: (key: string) => store.get(key),
-    set: (key: string, value: string) => void store.set(key, value),
-    delete: (key: string) => void store.delete(key),
-  }),
-}));
-// Bun's mock.module retroactively re-links every module already importing the
-// specifier, so a log mock must cover the module's full function surface —
-// a missing name breaks OTHER test files' modules that import it.
-mock.module("@/utils/log", () => ({
-  writeToLog: () => undefined,
-  writeInfoLog: () => undefined,
-  writeErrorLog: () => undefined,
-  writeDebugLog: () => undefined,
-  logAndCaptureError: () => undefined,
-  readFromLog: () => [],
-}));
+import { logMock } from "./testing/logMock";
+import { mmkvMock, mmkvStore } from "./testing/mmkvMock";
+
+mock.module("react-native-mmkv", mmkvMock);
+mock.module("@/utils/log", logMock);
 
 const { getSeriesTrackMemory, rememberSeriesTrackFromRow } = await import(
   "./seriesTrackMemory"
@@ -38,7 +24,7 @@ const row = (patch: Partial<TrackMenuRow>): TrackMenuRow => ({
   ...patch,
 });
 
-beforeEach(() => store.clear());
+beforeEach(() => mmkvStore.clear());
 
 describe("rememberSeriesTrackFromRow", () => {
   test("stores the language carried on the row", () => {

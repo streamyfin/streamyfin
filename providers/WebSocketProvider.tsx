@@ -7,11 +7,11 @@ import {
   useCallback,
   useContext,
   useEffect,
-  useMemo,
   useRef,
   useState,
 } from "react";
 import { AppState, type AppStateStatus } from "react-native";
+import { useMMKVString } from "react-native-mmkv";
 import { useNetworkAwareQueryClient } from "@/hooks/useNetworkAwareQueryClient";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { useNetworkStatus } from "@/providers/NetworkStatusProvider";
@@ -108,9 +108,11 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
   const [isConnected, setIsConnected] = useState(false);
   const [lastMessage, setLastMessage] = useState<WebSocketMessage | null>(null);
   const queryClient = useNetworkAwareQueryClient();
-  const deviceId = useMemo(() => {
-    return getOrSetDeviceId();
-  }, []);
+  // Read reactively: on an account switch the socket URL and
+  // postFullCapabilities must follow, or this session is reported against the
+  // previous account's device.
+  const [storedDeviceId] = useMMKVString("deviceId");
+  const deviceId = storedDeviceId ?? getOrSetDeviceId();
   const reconnectAttemptsRef = useRef(0);
   const libraryChangeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
