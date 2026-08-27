@@ -1,0 +1,130 @@
+import { describe, expect, mock, test } from "bun:test";
+import type { User as JellyseerrUser } from "@/utils/jellyseerr/server/entity/User";
+import type { QuickConnectSteps } from "./jellyseerrQuickConnect";
+
+// Bun's mock.module retroactively re-links every module already importing the
+// specifier, so a log mock must cover the module's full function surface —
+// a missing name breaks OTHER test files' modules that import it.
+mock.module("@/utils/log", () => ({
+  writeToLog: () => undefined,
+  writeInfoLog: () => undefined,
+  writeErrorLog: () => undefined,
+  writeDebugLog: () => undefined,
+  logAndCaptureError: () => undefined,
+  readFromLog: () => [],
+}));
+
+const { attemptQuickConnectSignIn } = await import("./jellyseerrQuickConnect");
+
+const SEERR_USER = { id: 7 } as JellyseerrUser;
+
+/** What each step did, so the order and the short-circuits can be asserted. */
+interface Calls {
+  initiated: number;
+  approvedCodes: string[];
+  authenticatedSecrets: string[];
+}
+
+const steps = (
+  over: Partial<QuickConnectSteps> = {},
+): { steps: QuickConnectSteps; calls: Calls } => {
+  const calls: Calls = {
+    initiated: 0,
+    approvedCodes: [],
+    authenticatedSecrets: [],
+  };
+
+  return {
+    calls,
+    steps: {
+      isEnabled: async () => true,
+      initiate: async () => {
+        calls.initiated += 1;
+        return { code: "123456", secret: "SECRET" };
+      },
+      approve: async (code) => {
+        calls.approvedCodes.push(code);
+        return "approved";
+      },
+      authenticate: async (secret) => {
+        calls.authenticatedSecrets.push(secret);
+        return SEERR_USER;
+      },
+      ...over,
+    },
+  };
+};
+
+describe("attemptQuickConnectSignIn", () => {
+  test("signs in with neither a password nor an API key", async () => {
+    const { steps: s, calls } = steps();
+
+    expect(await attemptQuickConnectSignIn(s)).toEqual({ user: SEERR_USER });
+    expect(calls.initiated).toBe(1);
+    expect(calls.approvedCodes).toEqual(["123456"]);
+  });
+
+  test("approves the code and claims the secret", async () => {
+    // Two values of the same shape arrive together, and sending the code where
+    // the secret belongs authenticates nobody while looking like it worked.
+    const { steps: s, calls } = steps();
+
+    await attemptQuickConnectSignIn(s);
+
+    expect(calls.authenticatedSecrets).toEqual(["SECRET"]);
+  });
+
+  test("stops when the Jellyfin server has Quick Connect switched off", async () => {
+    const { steps: s, calls } = steps({ isEnabled: async () => false });
+
+    expect(await attemptQuickConnectSignIn(s)).toEqual({
+      declined: "quick-connect-disabled",
+    });
+    // Nothing is asked of Seerr: a disabled server would fail the initiate from
+    // the far side, which reads as a broken Seerr rather than a server policy.
+    expect(calls.initiated).toBe(0);
+  });
+
+  test("stops when Seerr predates the route", async () => {
+    const { steps: s, calls } = steps({ initiate: async () => undefined });
+
+    expect(await attemptQuickConnectSignIn(s)).toEqual({
+      declined: "seerr-has-no-route",
+    });
+    expect(calls.approvedCodes).toEqual([]);
+  });
+
+  test("stops when Seerr points at a different Jellyfin server", async () => {
+    const { steps: s, calls } = steps({ approve: async () => "unknown-code" });
+
+    expect(await attemptQuickConnectSignIn(s)).toEqual({
+      declined: "different-jellyfin-server",
+    });
+    // Claiming a secret the Jellyfin server never approved would hand back
+    // whatever Seerr makes of it, so the attempt ends here.
+    expect(calls.authenticatedSecrets).toEqual([]);
+  });
+
+  test("tells a refused code apart from one the server never issued", async () => {
+    // Both end the attempt, but only the first means an administrator pointed
+    // Seerr at another server, and that is the one worth reading in a log.
+    const { steps: s } = steps({ approve: async () => "refused" });
+
+    expect(await attemptQuickConnectSignIn(s)).toEqual({
+      declined: "not-approved",
+    });
+  });
+
+  test("lets a transport failure through rather than calling it a refusal", async () => {
+    const { steps: s } = steps({
+      initiate: async () => {
+        throw new Error("socket hang up");
+      },
+    });
+
+    // A refusal is a decision the caller logs and moves past. An unreachable
+    // server is not one, and swallowing it here would hide it from the caller
+    // that decides whether it is worth a toast.
+    expect(attemptQuickConnectSignIn(s)).rejects.toThrow("socket hang up");
+  });
+});

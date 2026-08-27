@@ -99,6 +99,8 @@ export enum Endpoints {
   DISCOVER_TV_NETWORK = DISCOVER + TV + NETWORK,
   DISCOVER_MOVIES_STUDIO = `${DISCOVER}${MOVIE}s${STUDIO}`,
   AUTH_JELLYFIN = "/auth/jellyfin",
+  AUTH_JELLYFIN_QUICK_CONNECT_INITIATE = `${AUTH_JELLYFIN}/quickconnect/initiate`,
+  AUTH_JELLYFIN_QUICK_CONNECT_AUTHENTICATE = `${AUTH_JELLYFIN}/quickconnect/authenticate`,
   USER_JELLYFIN = `${USER}/jellyfin`,
 }
 
@@ -287,6 +289,46 @@ export class JellyseerrApi {
         storage.setAny(JELLYSEERR_USER, data);
         return data;
       });
+  }
+
+  /**
+   * Quick Connect sign-in, first half: Seerr asks its own Jellyfin server for a
+   * code, and this device approves it with the token it already holds.
+   *
+   * Undefined rather than a throw on a 404, which is how a Seerr older than
+   * 3.4.0 says it has no such route. Only a 404 counts: a server that is down
+   * must not be mistaken for one that is merely old.
+   */
+  async initiateQuickConnect(): Promise<
+    { code: string; secret: string } | undefined
+  > {
+    try {
+      const { data } = await this.axios.post<{ code: string; secret: string }>(
+        Endpoints.API_V1 + Endpoints.AUTH_JELLYFIN_QUICK_CONNECT_INITIATE,
+      );
+      return data?.code && data?.secret ? data : undefined;
+    } catch (e) {
+      if (axios.isAxiosError(e) && e.response?.status === 404) return undefined;
+      throw e;
+    }
+  }
+
+  /**
+   * Quick Connect sign-in, second half: the approved secret becomes an ordinary
+   * Seerr session for the Jellyfin user who approved it.
+   *
+   * A session per device, which is the part an API key acting as its owner
+   * could never give: two devices sharing one key share one identity, and the
+   * only thing separating them is a header the client fills in itself.
+   */
+  async authenticateQuickConnect(secret: string): Promise<JellyseerrUser> {
+    const { data } = await this.axios.post<JellyseerrUser>(
+      Endpoints.API_V1 + Endpoints.AUTH_JELLYFIN_QUICK_CONNECT_AUTHENTICATE,
+      { secret },
+    );
+    if (!data) throw Error("Login failed");
+    storage.setAny(JELLYSEERR_USER, data);
+    return data;
   }
 
   async discoverSettings(): Promise<DiscoverSlider[]> {

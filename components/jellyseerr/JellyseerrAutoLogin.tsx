@@ -1,12 +1,16 @@
 import { useAtomValue } from "jotai";
 import { useEffect, useRef } from "react";
 import { JellyseerrApi, useJellyseerr } from "@/hooks/useJellyseerr";
-import { userAtom } from "@/providers/JellyfinProvider";
+import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { getIntegrationHeaders } from "@/utils/customHeaders";
+import { signInWithQuickConnect } from "@/utils/jellyseerrQuickConnect";
 import { writeInfoLog, writeToLog } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
-import { getJellyseerrPassword } from "@/utils/secureCredentials";
+import {
+  deleteJellyseerrPassword,
+  getJellyseerrPassword,
+} from "@/utils/secureCredentials";
 
 /**
  * Signs in to Jellyseerr on launch using the stored Jellyfin password.
@@ -22,6 +26,7 @@ import { getJellyseerrPassword } from "@/utils/secureCredentials";
 export const JellyseerrAutoLogin: React.FC = () => {
   const { settings, pluginSettings } = useSettings();
   const user = useAtomValue(userAtom);
+  const api = useAtomValue(apiAtom);
   const { jellyseerrUser, setJellyseerrUser } = useJellyseerr();
 
   // One attempt per app run. A failed sign-in must not become a retry loop
@@ -60,11 +65,32 @@ export const JellyseerrAutoLogin: React.FC = () => {
         // No test() first: it toasts on every failure path, and this runs
         // unprompted at launch — login() failing into the catch below is
         // the silent behavior we want.
-        const api = new JellyseerrApi(
+        const seerr = new JellyseerrApi(
           serverUrl,
           getIntegrationHeaders("jellyseerr"),
         );
-        setJellyseerrUser(await api.login(username, password));
+
+        // Quick Connect before replaying the password, and the stored password
+        // goes when it works. This is where an install made before Seerr 3.4.0
+        // stops keeping the user's Jellyfin password on the device: nothing
+        // else would ever remove it, since a stored password that still works
+        // never looks like a problem.
+        if (api) {
+          const quickConnected = await signInWithQuickConnect(seerr, api);
+          if (quickConnected) {
+            setJellyseerrUser(quickConnected);
+            await deleteJellyseerrPassword(jellyfinUrl, userId).catch((e) =>
+              writeToLog(
+                "WARN",
+                `Could not drop the stored Jellyseerr password: ${e}`,
+              ),
+            );
+            writeInfoLog("Jellyseerr signed in with Quick Connect");
+            return;
+          }
+        }
+
+        setJellyseerrUser(await seerr.login(username, password));
         writeInfoLog("Jellyseerr auto-login succeeded");
       } catch (e) {
         // Silent on purpose: this runs unprompted at launch, so a failure
@@ -78,6 +104,7 @@ export const JellyseerrAutoLogin: React.FC = () => {
       }
     })();
   }, [
+    api,
     enabled,
     apiKey,
     pluginUrl,
