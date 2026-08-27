@@ -25,6 +25,9 @@ mock.module("@/utils/customHeaders", () => ({
   optionsWithOptionalHeaders,
   // No proxy headers configured in these specs.
   getJellyfinHeadersForUrl: () => undefined,
+  // Unused here, but the mock is global: another spec's module can be
+  // re-linked to this one and would otherwise lose the resolver.
+  getJellyfinHeaders: () => ({}),
 }));
 mock.module("@/providers/JellyfinProvider", () => ({
   apiAtom: atom<Api | null>(null),

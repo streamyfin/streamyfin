@@ -12,6 +12,7 @@ mock.module("@/utils/customHeaders", () => ({
   // Unused here, but the mock is global: another spec's module can be
   // re-linked to this one and would otherwise lose the resolver.
   getJellyfinHeadersForUrl: () => undefined,
+  getJellyfinHeaders: () => ({}),
 }));
 
 // Bun's mock.module retroactively re-links every module already importing the
