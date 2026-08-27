@@ -31,6 +31,8 @@ declare class NativePlayerModuleType extends NativeModule<NativePlayerEvents> {
   updateMetadata(metadata: NativePlayerMetadata): Promise<void>;
   updateEpisodeList(episodes: NativePlayerEpisodeListItem[]): Promise<void>;
   updateSubtitleSearch(state: NativePlayerSubtitleSearchState): Promise<void>;
+  showNotice(text: string): Promise<void>;
+  toggleMute(): Promise<void>;
   addExternalSubtitle(url: string): Promise<void>;
   play(): Promise<void>;
   pause(): Promise<void>;
@@ -140,6 +142,23 @@ export const updateNativePlayerSubtitleSearch = (
   state: NativePlayerSubtitleSearchState,
 ): Promise<void> =>
   NativePlayerNativeModule?.updateSubtitleSearch(state) ?? Promise.resolve();
+
+/**
+ * Transient one-line notice on the player's own notice surface, the same one
+ * the "… skipped" segment message uses. For anything the JS coordinator
+ * decides and the native UI cannot know, such as the automatic subtitles
+ * switching on while the sound is muted.
+ */
+export const nativePlayerShowNotice = (text: string): Promise<void> =>
+  NativePlayerNativeModule?.showNotice(text) ?? Promise.resolve();
+
+/**
+ * Flip the player's own mute. Same entry point the TV controls use, so the
+ * Jellyfin remote's ToggleMute reaches the native player the way it reaches the
+ * JS one.
+ */
+export const nativePlayerToggleMute = (): Promise<void> =>
+  NativePlayerNativeModule?.toggleMute() ?? Promise.resolve();
 
 /** Adds a client-side downloaded sidecar subtitle to the live stream and selects it. */
 export const nativePlayerAddExternalSubtitle = (url: string): Promise<void> =>

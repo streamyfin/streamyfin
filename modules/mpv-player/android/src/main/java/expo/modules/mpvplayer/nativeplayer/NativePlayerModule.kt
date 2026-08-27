@@ -135,6 +135,17 @@ class NativePlayerModule : Module() {
             this@NativePlayerModule.session?.viewModel?.updateSubtitleSearch(state)
         }
 
+        // Transient one-line notice on the player's own notice surface, for
+        // things the JS coordinator decides (automatic subtitles on mute).
+        AsyncFunction("showNotice") { text: String ->
+            this@NativePlayerModule.session?.viewModel?.showNotice(text)
+        }
+
+        // Jellyfin remote ToggleMute. Same entry point as the TV mute button.
+        AsyncFunction("toggleMute") {
+            this@NativePlayerModule.session?.viewModel?.toggleMute()
+        }
+
         AsyncFunction("addExternalSubtitle") { url: String ->
             this@NativePlayerModule.session?.renderer?.addSubtitleFile(url, select = true)
         }

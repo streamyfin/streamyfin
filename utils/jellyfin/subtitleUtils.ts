@@ -625,3 +625,113 @@ export const getMpvAudioId = (
   const position = allAudio.findIndex((a) => a.Index === jellyfinAudioIndex);
   return position >= 0 ? position + 1 : undefined;
 };
+
+/**
+ * True when switching to this subtitle forces the server to re-process the
+ * stream, which cuts playback and reseeks.
+ *
+ * Mirrors the two guards the player already applies, so callers that want to
+ * avoid an interruption can filter on the same rule: the burned-in check in
+ * {@link applyMpvSubtitleSelection}, and the transcode + image-based check in
+ * `direct-player`'s `handleSubtitleIndexChange`. Note that during direct play an
+ * image-based track is a real player track and needs no restart at all.
+ */
+export const requiresStreamRestart = (
+  sub: MediaStream,
+  opts: { isTranscoding: boolean },
+): boolean =>
+  isBurnedInSubtitle(sub) || (opts.isTranscoding && isImageBasedSubtitle(sub));
+
+/**
+ * What a subtitle track is, independently of its position in the stream list.
+ *
+ * Jellyfin renumbers `MediaStream.Index` per item, and the next-episode
+ * carry-over (`rememberSubtitleSelections`) matches by language rather than by
+ * index, so a track carried from one episode to the next can arrive under a
+ * different number. Anything that has to recognise "the same track" across an
+ * item change compares this instead of the index.
+ */
+export type AutoSubtitleTrackIdentity = {
+  language: string | null;
+  isForced: boolean;
+};
+
+export const subtitleTrackIdentity = (
+  sub: MediaStream,
+): AutoSubtitleTrackIdentity => ({
+  language: sub.Language ?? null,
+  isForced: sub.IsForced === true,
+});
+
+/** Identity of the subtitle stream carrying `index`, null when there is none. */
+export const findSubtitleTrackIdentity = (
+  subtitleStreams: MediaStream[],
+  index: number,
+): AutoSubtitleTrackIdentity | null => {
+  const match = subtitleStreams.find((s) => s.Index === index);
+  return match ? subtitleTrackIdentity(match) : null;
+};
+
+export const sameSubtitleTrack = (
+  a: AutoSubtitleTrackIdentity | null,
+  b: AutoSubtitleTrackIdentity | null,
+): boolean => {
+  if (!a || !b) return false;
+  if (a.isForced !== b.isForced) return false;
+  // Two tracks with no language at all are not assumed to be the same one:
+  // that would let any unlabelled track pass for the carried-over pick.
+  return langEq(a.language, b.language);
+};
+
+export type AutoSubtitlePick =
+  | { index: number; track: AutoSubtitleTrackIdentity; reason: null }
+  | { index: null; track: null; reason: "restart-required" | "none" };
+
+/**
+ * Choose the subtitle to switch on automatically when audio is muted.
+ *
+ * Preference order: the language the user asked for, then the language of the
+ * audio actually playing (so the text matches what would be heard), then any
+ * non-forced track, then a forced one. Forced tracks come last on purpose —
+ * they only cover foreign-language inserts, which is useless with no sound.
+ *
+ * Pure and player-agnostic so the Chromecast backend can reuse it unchanged.
+ */
+export const pickAutoSubtitleTrack = (params: {
+  subtitleStreams: MediaStream[];
+  preferredLanguage?: string | null;
+  audioLanguage?: string | null;
+  isTranscoding: boolean;
+  allowStreamRestart: boolean;
+}): AutoSubtitlePick => {
+  const candidates = params.subtitleStreams.filter(
+    (s) => s.Type === "Subtitle" && typeof s.Index === "number",
+  );
+  if (candidates.length === 0)
+    return { index: null, track: null, reason: "none" };
+
+  const pool = params.allowStreamRestart
+    ? candidates
+    : candidates.filter(
+        (s) =>
+          !requiresStreamRestart(s, { isTranscoding: params.isTranscoding }),
+      );
+  if (pool.length === 0)
+    return { index: null, track: null, reason: "restart-required" };
+
+  const ordered = [...pool].sort(compareTracksForMenu);
+  const byLanguage = (lang: string | null | undefined) =>
+    ordered.find((s) => !s.IsForced && langEq(s.Language, lang));
+
+  const picked =
+    byLanguage(params.preferredLanguage) ??
+    byLanguage(params.audioLanguage) ??
+    ordered.find((s) => !s.IsForced) ??
+    ordered[0];
+
+  return {
+    index: picked.Index as number,
+    track: subtitleTrackIdentity(picked),
+    reason: null,
+  };
+};

@@ -72,6 +72,10 @@ class ExoPlayerModule : Module() {
                 view.setSpeed(speed)
             }
 
+            AsyncFunction("setMute") { view: ExoPlayerView, muted: Boolean ->
+                view.setMute(muted)
+            }
+
             AsyncFunction("getSpeed") { view: ExoPlayerView ->
                 view.getSpeed()
             }

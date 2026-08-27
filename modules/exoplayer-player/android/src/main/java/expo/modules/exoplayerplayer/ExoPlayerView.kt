@@ -90,6 +90,9 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     private val mainHandler = Handler(Looper.getMainLooper())
 
     private var player: ExoPlayer? = null
+
+    /** Retained across player re-creation; see setMute. */
+    private var isMuted = false
     private val playerView: PlayerView
     private val subtitleView: SubtitleView?
 
@@ -353,6 +356,9 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         exo.addAnalyticsListener(analyticsListener)
         exo.repeatMode = Player.REPEAT_MODE_OFF
         exo.videoScalingMode = C.VIDEO_SCALING_MODE_SCALE_TO_FIT
+        // Re-apply the retained mute flag: a fresh ExoPlayer always starts at
+        // full volume, which would contradict the state JS still holds.
+        exo.volume = if (isMuted) 0f else 1f
         player = exo
         playerView.player = exo
 
@@ -563,6 +569,18 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
 
     fun setSpeed(speed: Double) {
         player?.playbackParameters = PlaybackParameters(speed.toFloat())
+    }
+
+    /**
+     * Mute the player itself; the device volume is left untouched.
+     *
+     * The flag is retained so it survives player re-creation (next episode,
+     * bitrate change, track re-negotiation). Without it the new ExoPlayer would
+     * come back at full volume while JS still believes playback is muted.
+     */
+    fun setMute(muted: Boolean) {
+        isMuted = muted
+        player?.volume = if (muted) 0f else 1f
     }
 
     fun getSpeed(): Float {

@@ -28,10 +28,15 @@ import { useAnimatedReaction, useSharedValue } from "react-native-reanimated";
 import { BITRATES } from "@/components/BitrateSelector";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
+import { AutoSubtitleNotice } from "@/components/video-player/controls/AutoSubtitleNotice";
 import { Controls } from "@/components/video-player/controls/Controls";
 import { Controls as TVControls } from "@/components/video-player/controls/Controls.tv";
 import { PlayerProvider } from "@/components/video-player/controls/contexts/PlayerContext";
 import { VideoProvider } from "@/components/video-player/controls/contexts/VideoContext";
+import {
+  useAutoSubtitlesOnMute,
+  useMuteState,
+} from "@/components/video-player/controls/hooks";
 import {
   PlaybackSpeedScope,
   updatePlaybackSpeedSettings,
@@ -128,7 +133,6 @@ export default function DirectPlayerPage() {
     isPlayingRef.current = playing;
     setIsPlaying(playing);
   }, []);
-  const [isMuted, setIsMuted] = useState(false);
   const [isBuffering, setIsBuffering] = useState(true);
   const [isVideoLoaded, setIsVideoLoaded] = useState(false);
   const [tracksReady, setTracksReady] = useState(false);
@@ -141,6 +145,12 @@ export default function DirectPlayerPage() {
     number | undefined
   >(undefined);
   const [currentSubtitleIndex, setCurrentSubtitleIndex] = useState<number>(-1);
+
+  // Device output volume plus the player's own mute, combined. Reported to the
+  // server and consumed by the automatic subtitle feature below.
+  const { isMuted, toggleMute, reapplyPlayerMute } = useMuteState({
+    playerRef: videoRef,
+  });
 
   const progress = useSharedValue(0);
   const isSeeking = useSharedValue(false);
@@ -1029,31 +1039,13 @@ export default function DirectPlayerPage() {
       console.error("Error adjusting volume:", error);
     }
   }, []);
-  const [previousVolume, setPreviousVolume] = useState<number | null>(null);
-
+  // Mutes the player, not the device. The previous implementation zeroed the
+  // system volume and kept the old value in component state, so leaving the
+  // player while muted stranded the device at zero with nothing to restore it.
+  // VolumeUp/VolumeDown/SetVolume below still drive the system volume.
   const toggleMuteCb = useCallback(async () => {
-    if (Platform.isTV) return;
-
-    try {
-      const { volume: currentVolume } = await VolumeManager.getVolume();
-      const currentVolumePercent = currentVolume * 100;
-
-      if (currentVolumePercent > 0) {
-        // Currently not muted, so mute
-        setPreviousVolume(currentVolumePercent);
-        await VolumeManager.setVolume(0);
-        setIsMuted(true);
-      } else {
-        // Currently muted, so restore previous volume
-        const volumeToRestore = previousVolume || 50; // Default to 50% if no previous volume
-        await VolumeManager.setVolume(volumeToRestore / 100);
-        setPreviousVolume(null);
-        setIsMuted(false);
-      }
-    } catch (error) {
-      console.error("Error toggling mute:", error);
-    }
-  }, [previousVolume]);
+    toggleMute();
+  }, [toggleMute]);
 
   const volumeDownCb = useCallback(async () => {
     if (Platform.isTV) return;
@@ -1331,6 +1323,54 @@ export default function DirectPlayerPage() {
       currentSubtitleIndex,
     ],
   );
+
+  const subtitleStreams = useMemo(
+    () =>
+      stream?.mediaSource?.MediaStreams?.filter((s) => s.Type === "Subtitle") ??
+      [],
+    [stream?.mediaSource],
+  );
+
+  // Language of the audio actually playing. `currentAudioIndex` is undefined
+  // until an explicit selection is made, so fall back to whatever the media
+  // source declares as its default — otherwise the automatic subtitle picker
+  // would never see the spoken language and could choose the wrong one.
+  const currentAudioLanguage = useMemo(() => {
+    const audioStreams =
+      stream?.mediaSource?.MediaStreams?.filter((s) => s.Type === "Audio") ??
+      [];
+    if (audioStreams.length === 0) return undefined;
+
+    const selected =
+      currentAudioIndex !== undefined
+        ? audioStreams.find((s) => s.Index === currentAudioIndex)
+        : undefined;
+    if (selected) return selected.Language;
+
+    const defaultIndex = stream?.mediaSource?.DefaultAudioStreamIndex;
+    return (
+      audioStreams.find((s) => s.Index === defaultIndex)?.Language ??
+      audioStreams.find((s) => s.IsDefault)?.Language ??
+      audioStreams[0]?.Language
+    );
+  }, [stream?.mediaSource, currentAudioIndex]);
+
+  const { notice: autoSubtitleNotice, clearNotice: clearAutoSubtitleNotice } =
+    useAutoSubtitlesOnMute({
+      enabled: settings.subtitlesOnMute,
+      allowStreamRestart: settings.subtitlesOnMuteAllowRestart,
+      isMuted,
+      tracksReady,
+      isPipMode,
+      itemId: item?.Id ?? undefined,
+      currentSubtitleIndex,
+      subtitleStreams,
+      isTranscoding: Boolean(stream?.mediaSource?.TranscodingUrl),
+      preferredLanguage:
+        settings.defaultSubtitleLanguage?.ThreeLetterISOLanguageName,
+      audioLanguage: currentAudioLanguage,
+      onSelect: handleSubtitleIndexChange,
+    });
 
   // Technical info toggle handler
   const handleToggleTechnicalInfo = useCallback(() => {
@@ -1672,11 +1712,19 @@ export default function DirectPlayerPage() {
                 }}
                 onTracksReady={() => {
                   setTracksReady(true);
+                  // A mute asked for while the player was still mounting never
+                  // reached a native handle; this is the first moment one
+                  // exists.
+                  reapplyPlayerMute();
                   // Fired after embedded tracks enumerate and again after each
                   // external sub-add; re-resolve so the final fire (full track
                   // list) selects the right track by identity.
                   void applySubtitleSelection(currentSubtitleIndex);
                 }}
+              />
+              <AutoSubtitleNotice
+                notice={autoSubtitleNotice}
+                onDismiss={clearAutoSubtitleNotice}
               />
               {!hasPlaybackStarted && (
                 <View
@@ -1718,6 +1766,8 @@ export default function DirectPlayerPage() {
                   onAudioIndexChange={handleAudioIndexChange}
                   onSubtitleIndexChange={handleSubtitleIndexChange}
                   onBitrateChange={handleBitrateChange}
+                  isMuted={isMuted}
+                  onToggleMute={toggleMute}
                   previousItem={previousItem}
                   nextItem={nextItem}
                   goToPreviousItem={goToPreviousItem}
