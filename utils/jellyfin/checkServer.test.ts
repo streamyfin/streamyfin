@@ -1,19 +1,11 @@
 import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test";
-import { normalizeCustomHeaders } from "@/utils/customHeaders/normalize";
-import { optionsWithOptionalHeaders } from "@/utils/customHeaders/optionalHeaders";
+import { stubCustomHeaders } from "@/test-utils/customHeaders";
 import type { CustomHeader } from "@/utils/customHeaders/types";
 
 // checkServer pulls the two helpers through the barrel file, which also
 // re-exports modules with native dependencies (MMKV, SecureStore) — so the
 // barrel is replaced with just the real implementations of what it needs.
-mock.module("@/utils/customHeaders", () => ({
-  normalizeCustomHeaders,
-  optionsWithOptionalHeaders,
-  // Unused here, but the mock is global: another spec's module can be
-  // re-linked to this one and would otherwise lose the resolver.
-  getJellyfinHeadersForUrl: () => undefined,
-  getJellyfinHeaders: () => ({}),
-}));
+stubCustomHeaders();
 
 // Bun's mock.module retroactively re-links every module already importing the
 // specifier, so a log mock must cover the module's full function surface —

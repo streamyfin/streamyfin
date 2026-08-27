@@ -1,20 +1,12 @@
-import { describe, expect, mock, test } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import type { Api, Jellyfin } from "@jellyfin/sdk";
 import axios, {
   type AxiosInstance,
   type InternalAxiosRequestConfig,
 } from "axios";
+import { stubCustomHeaders } from "@/test-utils/customHeaders";
 
-const headers: Record<string, string> = { "cf-access-client-id": "abc" };
-
-// The barrel re-exports modules with native dependencies (MMKV, SecureStore),
-// so it is replaced with the one resolver this module reads.
-mock.module("@/utils/customHeaders", () => ({
-  getJellyfinHeaders: () => headers,
-  // Unused here, but the mock is global: another spec's module can be
-  // re-linked to this one and would otherwise lose the resolver.
-  getJellyfinHeadersForUrl: () => undefined,
-}));
+stubCustomHeaders({ jellyfinHeaders: { "cf-access-client-id": "abc" } });
 
 const { createApiWithCustomHeaders } = await import("./createApi");
 
