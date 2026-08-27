@@ -1,11 +1,17 @@
 import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test";
-import { stubCustomHeaders } from "@/test-utils/customHeaders";
+import {
+  setJellyfinHeaders,
+  stubCustomHeaders,
+} from "@/test-utils/customHeaders";
 import type { CustomHeader } from "@/utils/customHeaders/types";
 
 // checkServer pulls the two helpers through the barrel file, which also
 // re-exports modules with native dependencies (MMKV, SecureStore) — so the
 // barrel is replaced with just the real implementations of what it needs.
 stubCustomHeaders();
+// No proxy headers in these specs, set per test so another file cannot
+// leave its own behind.
+beforeEach(() => setJellyfinHeaders());
 
 // Bun's mock.module retroactively re-links every module already importing the
 // specifier, so a log mock must cover the module's full function surface —

@@ -2,9 +2,16 @@ import { mock } from "bun:test";
 import { normalizeCustomHeaders } from "@/utils/customHeaders/normalize";
 import { optionsWithOptionalHeaders } from "@/utils/customHeaders/optionalHeaders";
 
-type Overrides = {
-  /** Proxy auth headers configured for the Jellyfin server, if any. */
-  jellyfinHeaders?: Record<string, string>;
+let jellyfinHeaders: Record<string, string> = {};
+
+/**
+ * Sets the proxy auth headers the stub reports. Call it from a spec's
+ * `beforeEach`, not once at load: `mock.module` re-links every importer, so the
+ * last registration to run decides what a value captured at registration would
+ * be, and file order is not ours to choose.
+ */
+export const setJellyfinHeaders = (headers: Record<string, string> = {}) => {
+  jellyfinHeaders = headers;
 };
 
 /**
@@ -18,13 +25,13 @@ type Overrides = {
  * file links after it, and CI orders the files differently than a local run
  * does, so the break shows up there and not here.
  */
-export const stubCustomHeaders = (overrides: Overrides = {}) =>
+export const stubCustomHeaders = () =>
   mock.module("@/utils/customHeaders", () => ({
     normalizeCustomHeaders,
     optionsWithOptionalHeaders,
-    getJellyfinHeaders: () => overrides.jellyfinHeaders ?? {},
+    // Read through the binding rather than captured: a spec sets what it needs
+    // in beforeEach, so a later registration cannot decide it retroactively.
+    getJellyfinHeaders: () => jellyfinHeaders,
     getJellyfinHeadersForUrl: () =>
-      overrides.jellyfinHeaders && Object.keys(overrides.jellyfinHeaders).length
-        ? overrides.jellyfinHeaders
-        : undefined,
+      Object.keys(jellyfinHeaders).length ? jellyfinHeaders : undefined,
   }));

@@ -1,12 +1,16 @@
-import { describe, expect, test } from "bun:test";
+import { beforeEach, describe, expect, test } from "bun:test";
 import type { Api, Jellyfin } from "@jellyfin/sdk";
 import axios, {
   type AxiosInstance,
   type InternalAxiosRequestConfig,
 } from "axios";
-import { stubCustomHeaders } from "@/test-utils/customHeaders";
+import {
+  setJellyfinHeaders,
+  stubCustomHeaders,
+} from "@/test-utils/customHeaders";
 
-stubCustomHeaders({ jellyfinHeaders: { "cf-access-client-id": "abc" } });
+stubCustomHeaders();
+beforeEach(() => setJellyfinHeaders({ "cf-access-client-id": "abc" }));
 
 const { createApiWithCustomHeaders } = await import("./createApi");
 

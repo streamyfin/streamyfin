@@ -5,7 +5,10 @@ import type {
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { atom } from "jotai";
-import { stubCustomHeaders } from "@/test-utils/customHeaders";
+import {
+  setJellyfinHeaders,
+  stubCustomHeaders,
+} from "@/test-utils/customHeaders";
 import { stubReactNative } from "@/test-utils/reactNative";
 
 // --- Module-boundary stubs (React Native / Expo can't load under bun:test) ---
@@ -16,6 +19,9 @@ mock.module("expo", () => ({
 }));
 mock.module("@/components/BitrateSelector", () => ({}));
 stubCustomHeaders();
+// No proxy headers in these specs, set per test so another file cannot
+// leave its own behind.
+beforeEach(() => setJellyfinHeaders());
 mock.module("@/providers/JellyfinProvider", () => ({
   apiAtom: atom<Api | null>(null),
 }));
