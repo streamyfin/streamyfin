@@ -1,10 +1,7 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
-
 // Only so importing the module (which pulls in @/utils/mmkv) doesn't reach for
 // the native store — the tests below drive an injected store, not this one.
-// mock.module re-links the specifier for every test file in the run, so stub
-// the exports the app uses, not just the one this file needs.
-mock.module("react-native-mmkv", () => ({
+// Stub the MMKV surface the migration code touches.
+jest.mock("react-native-mmkv", () => ({
   createMMKV: () => ({
     getString: () => undefined,
     set: () => undefined,
@@ -13,11 +10,10 @@ mock.module("react-native-mmkv", () => ({
   }),
   useMMKVString: () => [undefined, () => undefined],
 }));
-// Bun's mock.module retroactively re-links every module already importing the
-// specifier, so a log mock must cover the module's full function surface —
-// a missing name breaks OTHER test files' modules that import it.
+// The log module reaches Sentry and MMKV, so it is stubbed with the surface
+// this spec's module under test actually calls.
 const errors: string[] = [];
-mock.module("@/utils/log", () => ({
+jest.mock("@/utils/log", () => ({
   writeToLog: () => undefined,
   writeInfoLog: () => undefined,
   writeErrorLog: (message: string) => void errors.push(message),
@@ -25,9 +21,7 @@ mock.module("@/utils/log", () => ({
   readFromLog: () => [],
 }));
 
-const { LATEST_SCHEMA_VERSION, runStorageMigrations } = await import(
-  "./migrations"
-);
+import { LATEST_SCHEMA_VERSION, runStorageMigrations } from "./migrations";
 
 const data = new Map<string, boolean | number | string>();
 const store = {

@@ -1,16 +1,15 @@
-import { describe, expect, mock, test } from "bun:test";
 import { stubReactNative } from "@/test-utils/reactNative";
 
 // Stub react-native at the module boundary — pulled in transitively via the
-// track player device profile. bun:test cannot load React Native itself.
+// track player device profile.
 stubReactNative();
-mock.module("expo", () => ({
-  // codecSupport probes the native MPV module; under bun:test there is none.
+jest.mock("expo", () => ({
+  // codecSupport probes the native MPV module, which no test environment has.
   requireOptionalNativeModule: () => null,
 }));
 
-const { getAudioStreamUrl } = await import("./getAudioStreamUrl");
-const { makeApi } = await import("@/test-utils/jellyfinApi");
+import { makeApi } from "@/test-utils/jellyfinApi";
+import { getAudioStreamUrl } from "./getAudioStreamUrl";
 
 describe("getAudioStreamUrl", () => {
   test("direct stream URL authenticates with ApiKey", async () => {

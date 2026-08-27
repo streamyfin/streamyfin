@@ -1,4 +1,3 @@
-import { describe, expect, test } from "bun:test";
 import { AxiosError, type AxiosResponse } from "axios";
 import {
   describeHttpError,
@@ -143,7 +142,7 @@ describe("describeHttpResponse", () => {
         data: { title: "Not Found", detail: "x".repeat(400) },
       }),
     );
-    expect(described?.body).toStartWith('{"title":"Not Found"');
+    expect(described?.body).toMatch(/^\{"title":"Not Found"/);
     expect(described?.body).toHaveLength(200);
   });
 

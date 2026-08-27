@@ -1,4 +1,4 @@
-import { mock } from "bun:test";
+import { Platform } from "react-native";
 
 type PlatformOverrides = {
   OS?: "ios" | "android";
@@ -6,22 +6,16 @@ type PlatformOverrides = {
 };
 
 /**
- * `bun:test` cannot load react-native, so specs stub it. `mock.module` is
- * global and re-links every importer, so all of them must publish the same
- * export surface: a stub missing one name breaks whichever file links after it.
- * Only the Platform values differ per spec.
+ * jest-expo loads the real react-native, so a spec that needs a specific
+ * platform patches the Platform values in place rather than replacing the
+ * module. Jest gives each test file its own module registry, so the patch never
+ * leaks into another spec.
  */
 export const stubReactNative = (overrides: PlatformOverrides = {}) => {
   const OS = overrides.OS ?? "ios";
-
-  return mock.module("react-native", () => ({
-    Platform: {
-      OS,
-      isTV: overrides.isTV ?? false,
-      select: (spec: Record<string, unknown>) => spec[OS] ?? spec.default,
-    },
-    BackHandler: { addEventListener: () => ({ remove() {} }) },
-    NativeModules: {},
-    TurboModuleRegistry: { get: () => null, getEnforcing: () => ({}) },
-  }));
+  Object.defineProperty(Platform, "OS", { value: OS, configurable: true });
+  Object.defineProperty(Platform, "isTV", {
+    value: overrides.isTV ?? false,
+    configurable: true,
+  });
 };
