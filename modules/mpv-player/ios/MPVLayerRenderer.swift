@@ -48,6 +48,7 @@ final class MPVLayerRenderer {
     
     private var _isRunning = false
     private var _isStopping = false
+    private var _isMuted = false
     private var routeChangeObserver: NSObjectProtocol?
 
     private var isRunning: Bool {
@@ -58,6 +59,15 @@ final class MPVLayerRenderer {
     private var isStopping: Bool {
         get { stateQueue.sync { _isStopping } }
         set { stateQueue.sync(flags: .barrier) { _isStopping = newValue } }  // Must be sync for stop() to work
+    }
+
+    /// Retained across mpv re-creation; see setMute. Sync setter like
+    /// isStopping: start() reads it on the render queue right after setMute
+    /// writes it from the JS thread, so an async barrier could hand the fresh
+    /// handle a stale value and leave playback audible.
+    private var isMuted: Bool {
+        get { stateQueue.sync { _isMuted } }
+        set { stateQueue.sync(flags: .barrier) { _isMuted = newValue } }
     }
     
     // KVO observation for display layer status
@@ -318,6 +328,12 @@ final class MPVLayerRenderer {
         let initStatus = mpv_initialize(handle)
         guard initStatus >= 0 else {
             throw RendererError.mpvInitialization(initStatus)
+        }
+
+        // Re-apply the retained mute flag: a fresh instance always starts
+        // audible, which would contradict the state JS still holds.
+        if isMuted {
+            setProperty(name: "mute", value: "yes")
         }
 
         // Observe properties
@@ -629,6 +645,16 @@ final class MPVLayerRenderer {
                 Logger.shared.log("Failed to set property \(name)=\(value) (\(status))", type: "Warn")
             }
         }
+    }
+    
+    /// Mute the player itself; the device output volume is left untouched.
+    ///
+    /// The flag is retained so it survives mpv re-creation (next episode,
+    /// bitrate change, track re-negotiation). Without it the new instance would
+    /// come back audible while JS still believes playback is muted.
+    func setMute(_ muted: Bool) {
+        isMuted = muted
+        setProperty(name: "mute", value: muted ? "yes" : "no")
     }
 
     private func clearProperty(name: String) {

@@ -91,6 +91,10 @@ interface Props {
   onAudioIndexChange?: (index: number) => void;
   onSubtitleIndexChange?: (index: number) => void;
   onBitrateChange?: (bitrate: number | undefined) => void;
+  /** Combined device-volume and player mute state. */
+  isMuted?: boolean;
+  /** Toggles the player's own mute; omit to hide the control. */
+  onToggleMute?: () => void;
   previousItem?: BaseItemDto | null;
   nextItem?: BaseItemDto | null;
   goToPreviousItem?: () => void;
@@ -222,6 +226,8 @@ export const Controls: FC<Props> = ({
   onAudioIndexChange,
   onSubtitleIndexChange,
   onBitrateChange,
+  isMuted,
+  onToggleMute,
   previousItem,
   nextItem: nextItemProp,
   goToPreviousItem,
@@ -1159,6 +1165,11 @@ export const Controls: FC<Props> = ({
     controlsInteractionRef.current();
   }, [togglePlay]);
 
+  const handleToggleMuteButton = useCallback(() => {
+    onToggleMute?.();
+    controlsInteractionRef.current();
+  }, [onToggleMute]);
+
   const handlePreviousItem = useCallback(() => {
     if (goToPreviousItem) {
       goToPreviousItem();
@@ -1522,6 +1533,21 @@ export const Controls: FC<Props> = ({
               size={28}
               focusable={showControls}
             />
+
+            {/* Grouped with the transport controls rather than the track
+                selectors: it acts on playback, and the audio-track button on
+                the right already uses a speaker icon. On TV the device volume
+                belongs to the display or the AV receiver over CEC, so the app
+                cannot see it — this mutes the player itself, which is also
+                what drives the automatic subtitles. */}
+            {onToggleMute && (
+              <TVControlButton
+                icon={isMuted ? "volume-off" : "volume-medium"}
+                onPress={handleToggleMuteButton}
+                size={28}
+                focusable={showControls}
+              />
+            )}
 
             <View style={styles.controlButtonsSpacer} />
 

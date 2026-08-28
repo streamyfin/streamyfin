@@ -70,7 +70,13 @@ build/
 # but keep EAS custom build configs (the generic build/ rule above matches .eas/build/)
 !.eas/build/
 !.eas/build/**
-.claude/
+# Claude Code: the shared conventions are tracked so a new learned fact or agent
+# reaches the repo; everything else under .claude/ is per-machine state.
+.claude/*
+!.claude/agents/
+!.claude/commands/
+!.claude/learned-facts/
+!.claude/learned-facts.md
 .agents/skills/**
 skills-lock.json
 

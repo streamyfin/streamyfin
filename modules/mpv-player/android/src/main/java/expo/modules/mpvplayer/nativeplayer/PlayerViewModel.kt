@@ -98,6 +98,57 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
     var cacheSeconds by mutableDoubleStateOf(0.0)
     var speed by mutableDoubleStateOf(1.0)
         private set
+
+    // MARK: - Mute
+    //
+    // Two sources OR-ed because neither covers every device: the output
+    // volume, invisible on a box wired to a receiver that reports a fixed
+    // volume, and mpv's own mute, driven by the controls. Mirrors
+    // `useMuteState` in the JS player controls.
+
+    /** mpv's own mute. Survives a stream swap: it belongs to the session. */
+    var isPlayerMuted by mutableStateOf(false)
+        private set
+
+    /** Output volume at zero or mpv muted. What the mute button draws. */
+    var isMuted by mutableStateOf(false)
+        private set
+
+    private var deviceMuted = false
+    private var lastEmittedMute: Boolean? = null
+
+    /**
+     * Device output volume crossed zero. `seed` records the state a player
+     * opened on without firing an event for it.
+     */
+    fun onDeviceMuteChanged(muted: Boolean, seed: Boolean = false) {
+        deviceMuted = muted
+        refreshMuteState(emitting = !seed)
+    }
+
+    /**
+     * Mute mpv itself, leaving the output volume alone. The only mute path on
+     * a TV, where the volume belongs to the display or the receiver over
+     * HDMI-CEC.
+     */
+    fun toggleMute() {
+        isPlayerMuted = !isPlayerMuted
+        renderer?.setMute(isPlayerMuted)
+        haptic()
+        refreshMuteState()
+    }
+
+    private fun refreshMuteState(emitting: Boolean = true) {
+        val muted = deviceMuted || isPlayerMuted
+        isMuted = muted
+        val changed = muted != lastEmittedMute
+        lastEmittedMute = muted
+        if (!emitting || !changed) return
+        emit?.invoke("onMuteStateChanged", mapOf(
+            "muted" to muted,
+            "positionSec" to displayPosition
+        ))
+    }
     var isHoldSpeedActive by mutableStateOf(false)
     var isPipActive by mutableStateOf(false)
     var errorMessage by mutableStateOf<String?>(null)
@@ -911,7 +962,16 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
     }
 
     private fun showSkippedNotice(type: String) {
-        skippedSegmentNotice = skippedNoticeText(type)
+        showNotice(skippedNoticeText(type))
+    }
+
+    /**
+     * Transient one-line explanation, on the same surface as the "… skipped"
+     * notice. Pushed from JS for anything the coordinator decides, such as the
+     * automatic subtitles switching on while muted.
+     */
+    fun showNotice(text: String) {
+        skippedSegmentNotice = text
         noticeJob?.cancel()
         noticeJob = scope.launch {
             delay(SKIPPED_NOTICE_MS)
