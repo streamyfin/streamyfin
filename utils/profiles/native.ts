@@ -29,9 +29,10 @@ export interface ProfileOptions {
    */
   supportsAv1?: boolean;
   /**
-   * Whether the device ships a Dolby Vision-capable hardware decoder
-   * (`video/dolby-vision`). Defaults to probing the device (see
-   * `./codecSupport`); pass explicitly only for tests.
+   * Whether the device ships a DV hardware decoder whose `video/dolby-vision`
+   * capabilities accept a Profile 5 MediaFormat (not merely advertising the
+   * MIME). Defaults to probing the device (see `./codecSupport`); pass
+   * explicitly only for tests.
    */
   supportsDolbyVision?: boolean;
 }
@@ -149,8 +150,10 @@ const getVideoAudioCodecs = (
  * accepts AC3/EAC3 as bitstream and multichannel PCM up to 7.1 @ 192 kHz,
  * so software-decoded DTS/DTS-HD/TrueHD reach the sink as PCM).
  *
- * Dolby Vision: when the device has no `video/dolby-vision` decoder, a
- * CodecProfile uses `NotEquals VideoRangeType DOVI`, which in Jellyfin's
+ * Dolby Vision: when the device has no decoder that accepts a DV Profile 5
+ * MediaFormat (some decoders advertise `video/dolby-vision` only for Profiles
+ * 7/8 base-layer handling), a CodecProfile uses `NotEquals VideoRangeType
+ * DOVI`, which in Jellyfin's
  * semantics blocks ONLY pure Profile 5 (IPTPQc2 — the stream that renders
  * purple/green without a DV-aware decoder). DV Profiles 7/8 with HDR10 or
  * SDR base layers (Jellyfin reports these as `DOVIWithHDR10`,
@@ -255,8 +258,8 @@ export const generateDeviceProfile = (options: ProfileOptions = {}) => {
           Codec: "h263,h264,vp8,vp9,av1",
         },
         // DV gate is conditional on a device-side decoder probe. On
-        // uncertified devices (no `video/dolby-vision` decoder), pure DV
-        // Profile 5 renders purple/green, so the NotEquals blocks it and the
+        // uncertified devices (no decoder accepting a Profile 5 MediaFormat),
+        // pure DV Profile 5 renders purple/green, so the NotEquals blocks it and the
         // server transcodes. On DV-certified hardware the SoC's HEVC decoder
         // is DV-aware: direct-playing Profile 5 lets it render real Dolby
         // Vision (Profiles 7/8 already direct play everywhere via base-layer
