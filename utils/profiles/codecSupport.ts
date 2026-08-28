@@ -92,12 +92,14 @@ export const supportsDolbyVisionHardwareDecode = (): boolean => {
   if (Platform.OS !== "android" || !Platform.isTV) return false;
 
   if (cachedDolbyVisionSupport === undefined) {
-    const exo = requireOptionalNativeModule<ExoPlayerCapabilities>("ExoPlayer");
+    const exoPlayerModule =
+      requireOptionalNativeModule<ExoPlayerCapabilities>("ExoPlayer");
     try {
       // Fallback false = current behavior (transcode pure Profile 5), so an
       // unreachable probe (JS-only OTA update on an older binary) can never
       // regress an uncertified device into broken colors.
-      cachedDolbyVisionSupport = exo?.supportsDolbyVisionDecode?.() ?? false;
+      cachedDolbyVisionSupport =
+        exoPlayerModule?.supportsDolbyVisionDecode?.() ?? false;
     } catch {
       cachedDolbyVisionSupport = false;
     }
