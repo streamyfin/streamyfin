@@ -1,18 +1,11 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { stubMmkv } from "@/test-utils/mmkv";
 
 // Only so importing the module (which pulls in @/utils/mmkv) doesn't reach for
 // the native store — the tests below drive an injected store, not this one.
-// mock.module re-links the specifier for every test file in the run, so stub
-// the exports the app uses, not just the one this file needs.
-mock.module("react-native-mmkv", () => ({
-  createMMKV: () => ({
-    getString: () => undefined,
-    set: () => undefined,
-    delete: () => undefined,
-    remove: () => undefined,
-  }),
-  useMMKVString: () => [undefined, () => undefined],
-}));
+// The shared double rather than a local stub: whichever spec's stub wins backs
+// the whole run, and a store that drops writes breaks the specs that persist.
+stubMmkv();
 // Bun's mock.module retroactively re-links every module already importing the
 // specifier, so a log mock must cover the module's full function surface —
 // a missing name breaks OTHER test files' modules that import it.
