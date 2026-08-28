@@ -328,7 +328,8 @@ export type NativePlayerDismissPayload = {
 };
 
 export type NativePlayerEvents = {
-  onLoad: (payload: { url: string }) => void;
+  /** `muted` is the combined device-volume + player mute at load time. */
+  onLoad: (payload: { url: string; muted?: boolean }) => void;
   onProgress: (payload: NativePlayerProgressPayload) => void;
   onPlaybackStateChange: (payload: NativePlayerStateChangePayload) => void;
   onError: (payload: { error: string }) => void;

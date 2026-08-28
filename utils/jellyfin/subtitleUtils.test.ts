@@ -9,6 +9,8 @@ import {
   getExternalSubtitleUrl,
   isExternalSubtitle,
   type PlayerSubtitleTrack,
+  pickAutoSubtitleTrack,
+  requiresStreamRestart,
   resolveSubtitleTrack,
 } from "@/utils/jellyfin/subtitleUtils";
 
@@ -481,5 +483,177 @@ describe("compareTracksForMenu — stable order across play methods (8 Mile live
       [...streams].sort(compareTracksForMenu).map((s) => s.Index);
     expect(order(directPlay)).toEqual([1, 2, 3, 4, 0]);
     expect(order(transcoding)).toEqual(order(directPlay));
+  });
+});
+
+// --- automatic selection while muted ---------------------------------------
+
+describe("requiresStreamRestart", () => {
+  test("burned-in subtitles always require a restart", () => {
+    expect(
+      requiresStreamRestart(sub({ Index: 0, DeliveryMethod: Encode }), {
+        isTranscoding: false,
+      }),
+    ).toBe(true);
+  });
+
+  test("image-based subtitles require a restart only while transcoding", () => {
+    const pgs = emb(0, { IsTextSubtitleStream: false });
+    expect(requiresStreamRestart(pgs, { isTranscoding: true })).toBe(true);
+    expect(requiresStreamRestart(pgs, { isTranscoding: false })).toBe(false);
+  });
+
+  test("text subtitles never require a restart", () => {
+    expect(requiresStreamRestart(emb(0), { isTranscoding: true })).toBe(false);
+  });
+});
+
+describe("pickAutoSubtitleTrack", () => {
+  const base = { isTranscoding: false, allowStreamRestart: false };
+
+  test("prefers the user's subtitle language over everything else", () => {
+    expect(
+      pickAutoSubtitleTrack({
+        ...base,
+        subtitleStreams: [
+          emb(0, { Language: "eng" }),
+          emb(1, { Language: "fra" }),
+        ],
+        preferredLanguage: "fre",
+        audioLanguage: "eng",
+      }),
+    ).toMatchObject({ index: 1, reason: null });
+  });
+
+  test("falls back to a track matching the audio language", () => {
+    expect(
+      pickAutoSubtitleTrack({
+        ...base,
+        subtitleStreams: [
+          emb(0, { Language: "spa" }),
+          emb(1, { Language: "eng" }),
+        ],
+        preferredLanguage: "fra",
+        audioLanguage: "eng",
+      }),
+    ).toMatchObject({ index: 1, reason: null });
+  });
+
+  test("falls back to the first non-forced track", () => {
+    expect(
+      pickAutoSubtitleTrack({
+        ...base,
+        subtitleStreams: [
+          emb(0, { Language: "spa", IsForced: true }),
+          emb(1, { Language: "spa" }),
+        ],
+        preferredLanguage: "fra",
+        audioLanguage: "jpn",
+      }),
+    ).toMatchObject({ index: 1, reason: null });
+  });
+
+  test("never picks a forced track for a language match", () => {
+    expect(
+      pickAutoSubtitleTrack({
+        ...base,
+        subtitleStreams: [
+          emb(0, { Language: "fra", IsForced: true }),
+          emb(1, { Language: "eng" }),
+        ],
+        preferredLanguage: "fre",
+        audioLanguage: "eng",
+      }),
+    ).toMatchObject({ index: 1, reason: null });
+  });
+
+  test("uses a forced track when nothing else exists", () => {
+    expect(
+      pickAutoSubtitleTrack({
+        ...base,
+        subtitleStreams: [emb(3, { Language: "spa", IsForced: true })],
+        preferredLanguage: "fra",
+        audioLanguage: "jpn",
+      }),
+    ).toMatchObject({ index: 3, reason: null });
+  });
+
+  test("reports none when the media has no subtitle stream", () => {
+    expect(
+      pickAutoSubtitleTrack({
+        ...base,
+        subtitleStreams: [],
+        preferredLanguage: "fra",
+        audioLanguage: "eng",
+      }),
+    ).toMatchObject({ index: null, reason: "none" });
+  });
+
+  test("reports restart-required when every track needs a re-process", () => {
+    expect(
+      pickAutoSubtitleTrack({
+        ...base,
+        isTranscoding: true,
+        subtitleStreams: [emb(0, { IsTextSubtitleStream: false })],
+        preferredLanguage: "eng",
+        audioLanguage: "eng",
+      }),
+    ).toMatchObject({ index: null, reason: "restart-required" });
+  });
+
+  test("accepts a restart-requiring track when the caller allows it", () => {
+    expect(
+      pickAutoSubtitleTrack({
+        ...base,
+        isTranscoding: true,
+        allowStreamRestart: true,
+        subtitleStreams: [emb(0, { IsTextSubtitleStream: false })],
+        preferredLanguage: "eng",
+        audioLanguage: "eng",
+      }),
+    ).toMatchObject({ index: 0, reason: null });
+  });
+
+  test("keeps image-based tracks eligible during direct play", () => {
+    expect(
+      pickAutoSubtitleTrack({
+        ...base,
+        subtitleStreams: [emb(2, { IsTextSubtitleStream: false })],
+        preferredLanguage: "eng",
+        audioLanguage: "eng",
+      }),
+    ).toMatchObject({ index: 2, reason: null });
+  });
+
+  test("ignores non-subtitle streams handed in by mistake", () => {
+    expect(
+      pickAutoSubtitleTrack({
+        ...base,
+        subtitleStreams: [
+          { Index: 0, Type: "Audio", Language: "eng" } as MediaStream,
+        ],
+        preferredLanguage: "eng",
+        audioLanguage: "eng",
+      }),
+    ).toMatchObject({ index: null, reason: "none" });
+  });
+
+  test("returns the identity of the picked track, not just its index", () => {
+    expect(
+      pickAutoSubtitleTrack({
+        ...base,
+        subtitleStreams: [
+          emb(0, { Language: "eng" }),
+          emb(1, { Language: "fra", IsForced: true }),
+          emb(2, { Language: "fra" }),
+        ],
+        preferredLanguage: "fra",
+        audioLanguage: "eng",
+      }),
+    ).toEqual({
+      index: 2,
+      track: { language: "fra", isForced: false },
+      reason: null,
+    });
   });
 });

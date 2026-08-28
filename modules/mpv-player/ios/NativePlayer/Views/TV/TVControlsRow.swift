@@ -19,6 +19,7 @@ import SwiftUI
 enum TVControl: Hashable {
 	case previousEpisode, skipBack, previousChapter, playPause
 	case nextChapter, skipForward, nextEpisode, skipSegment
+	case mute
 	case quality, audio, subtitles, speed, episodes, more, chapters
 }
 
@@ -62,7 +63,7 @@ struct TVControlsRow: View {
 			return !viewModel.episodeList.isEmpty
 		case .skipSegment:
 			return viewModel.activeSegment != nil
-		case .skipBack, .skipForward, .playPause, .speed, .more:
+		case .mute, .skipBack, .skipForward, .playPause, .speed, .more:
 			return true
 		}
 	}
@@ -104,6 +105,17 @@ struct TVControlsRow: View {
 					.focused($focusedControl, equals: .nextEpisode)
 					.tvFocusGated(focusGate, TVControl.nextEpisode)
 			}
+			// Grouped with the transport controls rather than the track
+			// selectors: it acts on playback, and the audio-track button on
+			// the right already carries a speaker icon. On a TV the output
+			// volume belongs to the display or the receiver over CEC, so the
+			// app never sees it — this mutes mpv itself, which is also what
+			// drives the automatic subtitles.
+			iconButton(viewModel.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill") {
+				viewModel.toggleMute()
+			}
+			.focused($focusedControl, equals: .mute)
+			.tvFocusGated(focusGate, TVControl.mute)
 			// Focus-mode counterpart of TVSkipPill: while the row owns the
 			// remote the pill would just be a non-focusable impostor, so the
 			// skip action lives here instead (the pill shows only with the

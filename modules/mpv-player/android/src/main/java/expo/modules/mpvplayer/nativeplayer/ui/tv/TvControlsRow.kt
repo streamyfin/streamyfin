@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.VideoLibrary
+import androidx.compose.material.icons.filled.VolumeOff
 import androidx.compose.material.icons.filled.VolumeUp
 // tv-material3's Icon, not compose.material3's: the TV IconButton feeds its
 // content color through the TV library's LocalContentColor, which the mobile
@@ -66,6 +67,7 @@ enum class TvControl {
     NEXT_CHAPTER,
     SKIP_FORWARD,
     NEXT_EPISODE,
+    MUTE,
     SKIP_SEGMENT,
     EPISODES,
     CHAPTERS,
@@ -99,7 +101,8 @@ fun TvControlsRow(
         TvControl.AUDIO -> hasAudio
         TvControl.SUBTITLES -> hasSubtitles
         TvControl.SKIP_SEGMENT -> activeSegment != null
-        TvControl.SKIP_BACK, TvControl.SKIP_FORWARD, TvControl.PLAY_PAUSE, TvControl.SPEED, TvControl.MORE -> true
+        TvControl.MUTE, TvControl.SKIP_BACK, TvControl.SKIP_FORWARD, TvControl.PLAY_PAUSE,
+        TvControl.SPEED, TvControl.MORE -> true
     }
 
     val defaultFocusTarget = if (lastFocused != null && isAvailable(lastFocused)) {
@@ -216,6 +219,21 @@ fun TvControlsRow(
                 onClick = { viewModel.playNextEpisode() }
             )
         }
+
+        // Grouped with the transport controls rather than the track selectors:
+        // it acts on playback, and the audio-track button on the right already
+        // carries a speaker icon. On a TV the output volume belongs to the
+        // display or the receiver over HDMI-CEC, so the app never sees it —
+        // this mutes mpv itself, which is also what drives the automatic
+        // subtitles.
+        TvIconButton(
+            control = TvControl.MUTE,
+            icon = if (viewModel.isMuted) Icons.Filled.VolumeOff else Icons.Filled.VolumeUp,
+            contentDescription = if (viewModel.isMuted) "Unmute" else "Mute",
+            focusRequester = focusRequesters.getValue(TvControl.MUTE),
+            onFocused = onControlFocused,
+            onClick = { viewModel.toggleMute() }
+        )
 
         if (activeSegment != null) {
             val segmentLabel = if (activeSegment.type == "Intro") {

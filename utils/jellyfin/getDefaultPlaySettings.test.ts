@@ -4,18 +4,12 @@ import type {
   MediaSourceInfo,
   MediaStream,
 } from "@jellyfin/sdk/lib/generated-client";
+import { clearMmkv, stubMmkv } from "@/test-utils/mmkv";
 import type { Settings } from "@/utils/atoms/settings";
 
-// react-native-mmkv needs a native module. Back it with a Map so the per-series
-// memory under test is exercised for real rather than stubbed out.
-const store = new Map<string, string>();
-mock.module("react-native-mmkv", () => ({
-  createMMKV: () => ({
-    getString: (key: string) => store.get(key),
-    set: (key: string, value: string) => void store.set(key, value),
-    delete: (key: string) => void store.delete(key),
-  }),
-}));
+// The double stores for real, so the per-series memory under test is exercised
+// rather than stubbed out.
+stubMmkv();
 
 // BitrateSelector is a React component module; only the BITRATES table matters.
 mock.module("@/components/BitrateSelector", () => ({
@@ -75,7 +69,7 @@ const settingsWith = (patch: Partial<Settings>): Settings =>
 
 const lang = (code: string) => ({ ThreeLetterISOLanguageName: code }) as never;
 
-beforeEach(() => store.clear());
+beforeEach(clearMmkv);
 
 describe("language preferences apply on every path", () => {
   // Regression: this block used to be gated behind an `applyLanguagePreferences`
