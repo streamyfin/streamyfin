@@ -19,7 +19,7 @@ import {
   useState,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { AppState, Platform } from "react-native";
+import { Platform } from "react-native";
 import { getDeviceNameSync } from "react-native-device-info";
 import { toast } from "sonner-native";
 import useRouter from "@/hooks/useAppRouter";
@@ -37,6 +37,7 @@ import {
   writeToLog,
 } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
+import { onAppForeground } from "@/utils/onAppForeground";
 import {
   type AccountSecurityType,
   addAccountToServer,
@@ -414,16 +415,20 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
 
   useInterval(pollQuickConnect, isPolling ? 1000 : null);
 
-  // Refresh plugin settings when app comes to foreground
+  // Refresh plugin settings when the app comes to the foreground.
+  //
+  // Through a ref rather than a dependency: re-registering the listener every
+  // time the refresh callback changes is churn, and registering once with the
+  // callback captured is how the refresh kept running against the api of the
+  // first render. Switch account without restarting the process and it went to
+  // the previous server with the previous token, which comes back as a 401 on
+  // a server the user is no longer using.
+  const refreshPluginSettingsRef = useRef(refreshStreamyfinPluginSettings);
   useEffect(() => {
-    const subscription = AppState.addEventListener("change", (nextAppState) => {
-      if (nextAppState === "active") {
-        refreshStreamyfinPluginSettings();
-      }
-    });
+    refreshPluginSettingsRef.current = refreshStreamyfinPluginSettings;
+  }, [refreshStreamyfinPluginSettings]);
 
-    return () => subscription.remove();
-  }, []);
+  useEffect(() => onAppForeground(() => refreshPluginSettingsRef.current), []);
 
   const discoverServers = async (url: string): Promise<Server[]> => {
     const servers =
