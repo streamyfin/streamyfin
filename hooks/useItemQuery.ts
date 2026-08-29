@@ -41,8 +41,10 @@ export const useItemQuery = (
     queryFn: async () => {
       if (!itemId) throw new Error("Item ID is required");
 
+      // null, never undefined: React Query treats a queryFn that resolves
+      // undefined as an error ("<key> data is undefined" thrown at the user).
       if (isOffline) {
-        return getDownloadedItemById(itemId)?.item;
+        return getDownloadedItemById(itemId)?.item ?? null;
       }
 
       if (!api || !user) return null;
@@ -53,7 +55,8 @@ export const useItemQuery = (
         ...(finalFields && { fields: finalFields }),
       });
 
-      return response.data.Items?.[0];
+      // Zero items (deleted on the server, access revoked) is a valid answer.
+      return response.data.Items?.[0] ?? null;
     },
     enabled: !!itemId,
     staleTime: isOffline ? Infinity : 60 * 1000,
