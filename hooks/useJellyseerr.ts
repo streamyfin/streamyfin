@@ -531,7 +531,14 @@ export class JellyseerrApi {
           );
         }
         if (error.response?.status === 403) {
-          clearJellyseerrStorageData();
+          // A 403 on one request's detail is about THAT request (another
+          // user's, without MANAGE_REQUESTS) — the session itself is fine,
+          // and the recent-requests slide polls these every few seconds, so
+          // wiping here signed the user out of Jellyseerr in a loop.
+          const isRequestDetail = /\/request\/\d+$/.test(path ?? "");
+          if (!isRequestDetail) {
+            clearJellyseerrStorageData();
+          }
         }
         return Promise.reject(error);
       },
