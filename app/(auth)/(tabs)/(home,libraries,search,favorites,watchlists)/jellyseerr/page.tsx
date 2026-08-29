@@ -54,6 +54,7 @@ import type {
   TvResult,
 } from "@/utils/jellyseerr/server/models/Search";
 import type { TvDetails } from "@/utils/jellyseerr/server/models/Tv";
+import { writeErrorLog } from "@/utils/log";
 
 // Mobile page component
 const MobilePage: React.FC = () => {
@@ -165,6 +166,12 @@ const MobilePage: React.FC = () => {
           setIssueType(undefined);
           setIssueMessage(undefined);
           bottomSheetModalRef?.current?.close();
+        })
+        // The response interceptor already logs and reports the failure with
+        // its route; an uncaught rejection here would re-report it as a
+        // stackless unhandledrejection event.
+        .catch((error) => {
+          writeErrorLog("Jellyseerr submitIssue failed", String(error));
         });
     }
   }, [jellyseerrApi, details, result, issueType, issueMessage]);

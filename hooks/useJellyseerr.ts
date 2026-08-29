@@ -127,8 +127,25 @@ const JELLYSEERR_REPORT_THROTTLE_MS = 60_000;
 const shouldReportJellyseerrError = (
   status: number | undefined,
   path: string | undefined,
+  method?: string,
 ): boolean => {
   if (status === 401 || status === 403) return false;
+  // Answers Jellyseerr gives in the normal course of business, not defects:
+  // - /ratings 404/500: no Rotten Tomatoes entry for the title (404) or its
+  //   ratings upstream failed (500) — the badge simply doesn't render.
+  // - /user/jellyfin/:id 404: Seerr servers predating the route (seerr#2074);
+  //   the caller falls back to password login.
+  // - POST /request 400: request validation (already requested, no seasons
+  //   selected) — the request flow surfaces it to the user.
+  if (path?.endsWith(Endpoints.RATINGS) && (status === 404 || status === 500))
+    return false;
+  if (status === 404 && path?.includes(Endpoints.USER_JELLYFIN)) return false;
+  if (
+    status === 400 &&
+    method?.toUpperCase() === "POST" &&
+    path?.endsWith(Endpoints.REQUEST)
+  )
+    return false;
   const key = `${status}|${path}`;
   const now = Date.now();
   const last = recentJellyseerrReports.get(key);
@@ -483,7 +500,10 @@ export class JellyseerrApi {
       (error: AxiosError) => {
         const status = error.response?.status;
         const path = error.config?.url?.split("?")[0];
-        if (error.response && shouldReportJellyseerrError(status, path)) {
+        if (
+          error.response &&
+          shouldReportJellyseerrError(status, path, error.config?.method)
+        ) {
           // A real server response — one capture covers the entire
           // Jellyseerr surface. 401/403 are excluded (expired cookies are
           // routine and self-heal via auto-login), and repeats of the same

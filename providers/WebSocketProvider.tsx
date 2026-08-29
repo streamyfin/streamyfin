@@ -19,7 +19,7 @@ import { getJellyfinHeaders, hasHeaders } from "@/utils/customHeaders";
 import { getOrSetDeviceId } from "@/utils/device";
 import { describeHttpResponse } from "@/utils/errors";
 import { getWebSocketUrl } from "@/utils/jellyfin/getWebSocketUrl";
-import { logAndCaptureError } from "@/utils/log";
+import { logAndCaptureError, writeErrorLog } from "@/utils/log";
 
 // Query keys that depend on the set of library items and should be refreshed
 // when the server reports that the library changed (items added/removed/updated).
@@ -395,6 +395,18 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
         // that blocks the POST, or turns it into a GET via an http→https
         // redirect (405).
         if (isAxiosError(error) && error.response?.status === 401) return;
+        if (isAxiosError(error) && error.response?.status === 404) {
+          // Jellyfin's own ExceptionMiddleware answers 404 ("Error processing
+          // request.", text/plain) when this POST races session registration
+          // at start/resume; the session appears moments later and the effect
+          // re-posts on the next api/network change. Timing, not an app bug —
+          // local log only.
+          writeErrorLog(
+            "Posting session capabilities failed",
+            describeHttpResponse(error),
+          );
+          return;
+        }
         logAndCaptureError(
           "Posting session capabilities failed",
           error,

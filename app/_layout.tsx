@@ -306,6 +306,10 @@ const reportDataError = (
   // already says which data path failed.
   const name = typeof key?.[0] === "string" ? key[0] : undefined;
   const http = describeHttpError(error);
+  // A 404 from a Streamystats endpoint is a server that predates the route
+  // (recommendations, watchlists) — feature-unsupported, not an app bug, and
+  // the UI already renders nothing for it.
+  if (name === "streamystats" && http?.status === 404) return;
   const dedupeKey = [
     source,
     name ?? "?",

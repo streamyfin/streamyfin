@@ -65,6 +65,7 @@ import { OfflineModeProvider } from "@/providers/OfflineModeProvider";
 import { getSubtitlesForItem } from "@/utils/atoms/downloadedSubtitles";
 import { getActivePlayerType, useSettings } from "@/utils/atoms/settings";
 import { getJellyfinHeadersForUrl } from "@/utils/customHeaders";
+import { isExpectedError } from "@/utils/errors";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
@@ -571,6 +572,11 @@ export default function DirectPlayerPage() {
           player: getActivePlayerType(settings),
           offline,
         });
+        if (isExpectedError(error)) {
+          // The server itself declined to produce a stream (NoCompatibleStream
+          // and friends): say so instead of only flipping the error state.
+          Alert.alert(t("player.error"), t("player.failed_to_get_stream_url"));
+        }
         setStreamStatus({ isLoading: false, isError: true });
         return null;
       }

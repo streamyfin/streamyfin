@@ -1,6 +1,7 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { useQuery } from "@tanstack/react-query";
 import { useSettings } from "@/utils/atoms/settings";
+import { markExpectedError } from "@/utils/errors";
 
 const WIKIDATA_API = "https://www.wikidata.org/w/api.php";
 const WIKIDATA_SPARQL = "https://query.wikidata.org/sparql";
@@ -30,7 +31,11 @@ interface WikidataError extends Error {
 function wikidataError(message: string, retryAfterMs?: number): WikidataError {
   const error: WikidataError = new Error(message);
   error.retryAfterMs = retryAfterMs;
-  return error;
+  // The badge is decoration and Wikidata is a third party the user can't do
+  // anything about: 429s are Wikimedia throttling by design, 403s its UA
+  // policy. Failures still propagate for React Query's Retry-After retry —
+  // they just never become Sentry events.
+  return markExpectedError(error);
 }
 
 /** Parse a Retry-After header given in seconds. */
