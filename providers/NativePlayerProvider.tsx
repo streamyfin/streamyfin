@@ -100,6 +100,7 @@ import {
   type SubtitleSelectablePlayer,
 } from "@/utils/jellyfin/subtitleUtils";
 import { logAndCaptureError, writeToLog } from "@/utils/log";
+import { applyPlaybackEnded } from "@/utils/nativePlayer/applyPlaybackEnded";
 import { applyProgressTick } from "@/utils/nativePlayer/applyProgressTick";
 import {
   buildNativePlayerConfig,
@@ -1640,9 +1641,7 @@ const NativePlayerProviderInner: React.FC<{
       }),
 
       addNativePlayerListener("onPlaybackEnded", (payload) => {
-        const session = sessionRef.current;
-        if (!session) return;
-        session.positionMs = payload.positionSec * 1000;
+        applyPlaybackEnded(sessionRef.current, payload.positionSec);
       }),
 
       addNativePlayerListener("onDismiss", (payload) => {
