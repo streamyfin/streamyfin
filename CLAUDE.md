@@ -136,7 +136,7 @@ bun run ios:install-metal-toolchain   # Fixes "missing Metal Toolchain" build er
 | `plugins/` | Expo config plugins |
 | `patches/` | Patch package overrides |
 | `augmentations/` | Type augmentations |
-| `test-utils/` | Shared test doubles for the Jellyfin API and React Native |
+| `test-utils/` | Shared test doubles: Jellyfin API, MMKV, custom headers, React Native |
 | `translations/` | i18n catalogues, `en.json` is the only source |
 | `scripts/` | Repo tooling run through bun |
 | `docs/` | Conventions and deep dives |
