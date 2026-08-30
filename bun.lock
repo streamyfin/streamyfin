@@ -106,6 +106,7 @@
         "cross-env": "10.1.0",
         "expo-doctor": "1.20.1",
         "husky": "9.1.7",
+        "ignore": "^5.3.2",
         "lint-staged": "17.3.0",
         "tsx": "4.23.12",
         "typescript": "6.0.3",

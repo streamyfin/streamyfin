@@ -38,6 +38,9 @@ Streamyfin.app
 npm-debug.*
 *.orig.*
 *.mp4
+# Tracked on purpose (subtitle preview sample). EAS archives the project with
+# these rules applied even to tracked files, so it must be re-included here.
+!assets/sample_subtitled.mp4
 
 # OS-specific Files
 # macOS
