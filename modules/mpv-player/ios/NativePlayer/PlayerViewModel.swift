@@ -551,21 +551,26 @@ final class PlayerViewModel: NSObject, ObservableObject {
 
 	func seek(to target: Double) {
 		let clamped = max(0, duration > 0 ? min(target, duration) : target)
-		pendingSeekReport = false
+		pendingSeekReport = true
 		position = clamped
 		displayPosition = clamped
 		engine?.seekTo(position: clamped)
-		// Report the seek to JS immediately instead of waiting for the next
-		// time-pos tick: an onDismiss racing that tick must not carry the
-		// pre-seek position, or the JS coordinator's final report (which
-		// distrusts a native 0) reports the stale pre-seek position.
-		emit?("onProgress", [
-			"position": clamped,
-			"duration": duration,
-			"progress": duration > 0 ? clamped / duration : 0,
-			"cacheSeconds": cacheSeconds,
-			"didSeek": true,
-		])
+		// Move JS's tracked position with the seek right away rather than on
+		// the next time-pos tick: at teardown JS takes the later of its tracked
+		// position and `position` above, so a backward seek has to lower the
+		// tracked value first or an exit before that tick reports the pre-seek
+		// position. trackingOnly keeps this tick out of the progress reports:
+		// it carries the requested target and mpv may still snap to a nearby
+		// keyframe, so the report rides the next authoritative tick (didSeek).
+		if !isTearingDown {
+			emit?("onProgress", [
+				"position": clamped,
+				"duration": duration,
+				"progress": duration > 0 ? clamped / duration : 0,
+				"cacheSeconds": cacheSeconds,
+				"trackingOnly": true,
+			])
+		}
 		scheduleAutoHide()
 	}
 
@@ -1517,7 +1522,6 @@ extension PlayerViewModel: MPVPlayerEngineDelegate {
 			displayPosition = position
 			lastTickTimestamp = CACurrentMediaTime()
 		}
-		updateActiveSegment(for: position)
 
 		var payload: [String: Any] = [
 			"position": position,
@@ -1530,6 +1534,21 @@ extension PlayerViewModel: MPVPlayerEngineDelegate {
 			payload["didSeek"] = true
 		}
 		emit?("onProgress", payload)
+		// After the emit: an auto-skip fired from here seeks, and its tick has
+		// to follow this one, or this pre-skip position consumes the skip's
+		// seek report and the tick that lands at the segment end goes
+		// unreported until the next interval.
+		updateActiveSegment(for: position)
+	}
+
+	func engine(_ engine: MPVPlayerEngine, requestsSeekTo target: Double) {
+		guard !isTearingDown else { return }
+		seek(to: target)
+	}
+
+	func engine(_ engine: MPVPlayerEngine, requestsSeekBy offset: Double) {
+		guard !isTearingDown else { return }
+		seek(to: position + offset)
 	}
 
 	func engine(_ engine: MPVPlayerEngine, didChangePause isPaused: Bool) {

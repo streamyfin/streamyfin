@@ -293,8 +293,17 @@ export type NativePlayerProgressPayload = {
   duration: number;
   progress: number;
   cacheSeconds: number;
-  /** Present (true) on the first tick after a user/remote seek. */
+  /** Present (true) on the first authoritative tick after a user/remote seek. */
   didSeek?: boolean;
+  /**
+   * Present (true) on the synthetic tick a seek emits immediately. It carries
+   * the requested target rather than where mpv landed, so the progress
+   * listener moves the tracked position and skips its own report; the next
+   * authoritative tick (didSeek) reports the landed position. Reports that
+   * read the tracked position for other reasons, such as a pause transition,
+   * can still carry the target.
+   */
+  trackingOnly?: boolean;
 };
 
 export type NativePlayerStateChangePayload = {

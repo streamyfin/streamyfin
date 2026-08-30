@@ -716,7 +716,11 @@ class NativePlayerSession(
                 }
             }
 
-            val position = viewModel.displayPosition
+            // The authoritative position, not the UI clock: displayPosition is
+            // interpolated between ticks and, during a touch scrub, moved to
+            // the thumb before any seek is issued (updateScrub), so a dismiss
+            // landing mid-drag would report a position playback never reached.
+            val position = viewModel.authoritativePosition
             val dur = viewModel.duration
             emit("onDismiss", mapOf(
                 "positionSec" to position,
