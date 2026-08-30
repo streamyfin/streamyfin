@@ -99,7 +99,7 @@ import {
   pickAutoSubtitleTrack,
   type SubtitleSelectablePlayer,
 } from "@/utils/jellyfin/subtitleUtils";
-import { logAndCaptureError, writeToLog } from "@/utils/log";
+import { logAndCaptureError, writeErrorLog, writeToLog } from "@/utils/log";
 import { applyProgressTick } from "@/utils/nativePlayer/applyProgressTick";
 import {
   buildNativePlayerConfig,
@@ -742,9 +742,17 @@ const NativePlayerProviderInner: React.FC<{
           await presentNativePlayer(built.config);
         }
       } catch (error) {
-        logAndCaptureError("NativePlayer present/load failed", error, {
-          replace: !!options.replace,
-        });
+        if (String(error).includes("NoActivePlayerException")) {
+          // The user dismissed the player while the replace negotiation was
+          // still in flight — a routine race, fully recovered below.
+          writeErrorLog("NativePlayer load raced dismissal", {
+            replace: !!options.replace,
+          });
+        } else {
+          logAndCaptureError("NativePlayer present/load failed", error, {
+            replace: !!options.replace,
+          });
+        }
         if (options.replace && previous) {
           // The in-place swap failed midway: the old server session is
           // already closed and the stream state is unknown — tear the whole

@@ -39,6 +39,20 @@ final class MPVLayerRenderer {
 
     // Key to identify if we're on the mpv queue (to avoid deadlock in stop())
     private static let queueKey = DispatchSpecificKey<Bool>()
+
+    // Key to identify if we're already on stateQueue. deinit can run ON a
+    // stateQueue worker: when an async barrier block holding the last strong
+    // reference to self is released while the lane drains, deinit → stop() →
+    // isStopping would stateQueue.sync onto the queue this thread already
+    // owns, and libdispatch traps that as EXC_BREAKPOINT. The weak captures
+    // in the async setters prevent that ownership, and the accessors below
+    // read the backing field directly when already on the queue as a second
+    // line of defence.
+    private static let stateQueueKey = DispatchSpecificKey<Bool>()
+
+    private var isOnStateQueue: Bool {
+        DispatchQueue.getSpecific(key: Self.stateQueueKey) == true
+    }
     
     private var mpv: OpaquePointer?
     
@@ -52,13 +66,25 @@ final class MPVLayerRenderer {
     private var routeChangeObserver: NSObjectProtocol?
 
     private var isRunning: Bool {
-        get { stateQueue.sync { _isRunning } }
-        set { stateQueue.async(flags: .barrier) { self._isRunning = newValue } }
+        get {
+            if isOnStateQueue { return _isRunning }
+            return stateQueue.sync { _isRunning }
+        }
+        set { stateQueue.async(flags: .barrier) { [weak self] in self?._isRunning = newValue } }
     }
 
     private var isStopping: Bool {
-        get { stateQueue.sync { _isStopping } }
-        set { stateQueue.sync(flags: .barrier) { _isStopping = newValue } }  // Must be sync for stop() to work
+        get {
+            if isOnStateQueue { return _isStopping }
+            return stateQueue.sync { _isStopping }
+        }
+        set {  // Must be sync for stop() to work
+            if isOnStateQueue {
+                _isStopping = newValue
+                return
+            }
+            stateQueue.sync(flags: .barrier) { _isStopping = newValue }
+        }
     }
 
     /// Retained across mpv re-creation; see setMute. Sync setter like
@@ -117,35 +143,35 @@ final class MPVLayerRenderer {
     // Thread-safe accessors
     private var cachedDuration: Double {
         get { stateQueue.sync { _cachedDuration } }
-        set { stateQueue.async(flags: .barrier) { self._cachedDuration = newValue } }
+        set { stateQueue.async(flags: .barrier) { [weak self] in self?._cachedDuration = newValue } }
     }
     private var cachedPosition: Double {
         get { stateQueue.sync { _cachedPosition } }
-        set { stateQueue.async(flags: .barrier) { self._cachedPosition = newValue } }
+        set { stateQueue.async(flags: .barrier) { [weak self] in self?._cachedPosition = newValue } }
     }
     private var cachedCacheSeconds: Double {
         get { stateQueue.sync { _cachedCacheSeconds } }
-        set { stateQueue.async(flags: .barrier) { self._cachedCacheSeconds = newValue } }
+        set { stateQueue.async(flags: .barrier) { [weak self] in self?._cachedCacheSeconds = newValue } }
     }
     private var isPaused: Bool {
         get { stateQueue.sync { _isPaused } }
-        set { stateQueue.async(flags: .barrier) { self._isPaused = newValue } }
+        set { stateQueue.async(flags: .barrier) { [weak self] in self?._isPaused = newValue } }
     }
     private var playbackSpeed: Double {
         get { stateQueue.sync { _playbackSpeed } }
-        set { stateQueue.async(flags: .barrier) { self._playbackSpeed = newValue } }
+        set { stateQueue.async(flags: .barrier) { [weak self] in self?._playbackSpeed = newValue } }
     }
     private var isLoading: Bool {
         get { stateQueue.sync { _isLoading } }
-        set { stateQueue.async(flags: .barrier) { self._isLoading = newValue } }
+        set { stateQueue.async(flags: .barrier) { [weak self] in self?._isLoading = newValue } }
     }
     private var isReadyToSeek: Bool {
         get { stateQueue.sync { _isReadyToSeek } }
-        set { stateQueue.async(flags: .barrier) { self._isReadyToSeek = newValue } }
+        set { stateQueue.async(flags: .barrier) { [weak self] in self?._isReadyToSeek = newValue } }
     }
     private var isSeeking: Bool {
         get { stateQueue.sync { _isSeeking } }
-        set { stateQueue.async(flags: .barrier) { self._isSeeking = newValue } }
+        set { stateQueue.async(flags: .barrier) { [weak self] in self?._isSeeking = newValue } }
     }
     
     var isPausedState: Bool {
@@ -156,6 +182,7 @@ final class MPVLayerRenderer {
         self.displayLayer = displayLayer
         self.queue = DispatchQueue(label: "mpv.avfoundation", qos: .userInitiated)
         queue.setSpecific(key: Self.queueKey, value: true)
+        stateQueue.setSpecific(key: Self.stateQueueKey, value: true)
         observeDisplayLayerStatus()
     }
     

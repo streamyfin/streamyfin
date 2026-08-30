@@ -28,6 +28,9 @@ export default function HideLibrariesPage() {
 
       return response.data.Items || null;
     },
+    // On logout the cached query refetches with api null and crashes inside
+    // the SDK (`configuration` of null).
+    enabled: !!api && !!user?.Id,
   });
 
   if (!settings) return null;
