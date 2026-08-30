@@ -5,7 +5,7 @@ function withHttpProtocol(url: string): string {
 
 /** Canonical form of a configured base URL: protocol present, no trailing slash. */
 export function normalizeHttpBaseUrl(url: string): string {
-  return withHttpProtocol(url).replace(/\/$/, "");
+  return withHttpProtocol(url).replace(/\/+$/, "");
 }
 
 /**
