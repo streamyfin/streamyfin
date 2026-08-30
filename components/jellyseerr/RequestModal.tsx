@@ -20,6 +20,10 @@ import type {
 } from "@/utils/jellyseerr/server/api/servarr/base";
 import type { MediaType } from "@/utils/jellyseerr/server/constants/media";
 import type { MediaRequestBody } from "@/utils/jellyseerr/server/interfaces/api/requestInterfaces";
+import {
+  hasPermission,
+  Permission,
+} from "@/utils/jellyseerr/server/lib/permissions";
 import { writeDebugLog } from "@/utils/log";
 
 interface Props {
@@ -42,10 +46,17 @@ const RequestModal = forwardRef<
     ref,
   ) => {
     const { jellyseerrApi, jellyseerrUser, requestMedia } = useJellyseerr();
+
+    const canManageUsers = useMemo(
+      () =>
+        !!jellyseerrUser &&
+        hasPermission(Permission.MANAGE_REQUESTS, jellyseerrUser.permissions),
+      [jellyseerrUser],
+    );
+
     const [requestOverrides, setRequestOverrides] = useState<MediaRequestBody>({
       mediaId: Number(id),
       mediaType: type,
-      userId: jellyseerrUser?.id,
     });
 
     const [qualityProfileOpen, setQualityProfileOpen] = useState(false);
@@ -76,7 +87,7 @@ const RequestModal = forwardRef<
       queryKey: ["jellyseerr", "users"],
       queryFn: async () =>
         jellyseerrApi?.user({ take: 1000, sort: "displayname" }),
-      enabled: !!jellyseerrApi && !!jellyseerrUser,
+      enabled: !!jellyseerrApi && !!jellyseerrUser && canManageUsers,
       refetchOnMount: "always",
     });
 
@@ -259,7 +270,7 @@ const RequestModal = forwardRef<
     );
 
     const request = useCallback(() => {
-      const body = {
+      const body: MediaRequestBody = {
         is4k: defaultService?.is4k || defaultServiceDetails?.server.is4k,
         profileId: defaultProfile?.id,
         rootFolder: defaultFolder?.path,
@@ -267,6 +278,10 @@ const RequestModal = forwardRef<
         ...requestBody,
         ...requestOverrides,
       };
+
+      if (!canManageUsers) {
+        delete body.userId;
+      }
 
       writeDebugLog("Sending Jellyseerr advanced request", body);
 
@@ -281,6 +296,7 @@ const RequestModal = forwardRef<
       defaultProfile,
       defaultFolder,
       defaultTags,
+      canManageUsers,
     ]);
 
     return (
@@ -315,116 +331,121 @@ const RequestModal = forwardRef<
               )}
             </View>
             <View className='flex flex-col space-y-2'>
-              {defaultService && defaultServiceDetails && users && (
-                <>
-                  <View className='flex flex-col'>
-                    <Text className='opacity-50 mb-1 text-xs'>
-                      {t("jellyseerr.quality_profile")}
-                    </Text>
-                    <PlatformDropdown
-                      groups={qualityProfileOptions}
-                      trigger={
-                        <View className='bg-neutral-900 h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between'>
-                          <Text numberOfLines={1}>
-                            {defaultServiceDetails.profiles.find(
-                              (p) =>
-                                p.id ===
-                                (requestOverrides.profileId ||
-                                  defaultProfile?.id),
-                            )?.name || defaultProfile?.name}
-                          </Text>
-                        </View>
-                      }
-                      title={t("jellyseerr.quality_profile")}
-                      open={qualityProfileOpen}
-                      onOpenChange={setQualityProfileOpen}
-                    />
-                  </View>
+              {defaultService &&
+                defaultServiceDetails &&
+                (!canManageUsers || users) && (
+                  <>
+                    <View className='flex flex-col'>
+                      <Text className='opacity-50 mb-1 text-xs'>
+                        {t("jellyseerr.quality_profile")}
+                      </Text>
+                      <PlatformDropdown
+                        groups={qualityProfileOptions}
+                        trigger={
+                          <View className='bg-neutral-900 h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between'>
+                            <Text numberOfLines={1}>
+                              {defaultServiceDetails.profiles.find(
+                                (p) =>
+                                  p.id ===
+                                  (requestOverrides.profileId ||
+                                    defaultProfile?.id),
+                              )?.name || defaultProfile?.name}
+                            </Text>
+                          </View>
+                        }
+                        title={t("jellyseerr.quality_profile")}
+                        open={qualityProfileOpen}
+                        onOpenChange={setQualityProfileOpen}
+                      />
+                    </View>
 
-                  <View className='flex flex-col'>
-                    <Text className='opacity-50 mb-1 text-xs'>
-                      {t("jellyseerr.root_folder")}
-                    </Text>
-                    <PlatformDropdown
-                      groups={rootFolderOptions}
-                      trigger={
-                        <View className='bg-neutral-900 h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between'>
-                          <Text numberOfLines={1}>
-                            {defaultServiceDetails.rootFolders.find(
-                              (f) =>
-                                f.path ===
-                                (requestOverrides.rootFolder ||
-                                  defaultFolder?.path),
-                            )
-                              ? pathTitleExtractor(
-                                  defaultServiceDetails.rootFolders.find(
-                                    (f) =>
-                                      f.path ===
-                                      (requestOverrides.rootFolder ||
-                                        defaultFolder?.path),
-                                  )!,
-                                )
-                              : pathTitleExtractor(defaultFolder!)}
-                          </Text>
-                        </View>
-                      }
-                      title={t("jellyseerr.root_folder")}
-                      open={rootFolderOpen}
-                      onOpenChange={setRootFolderOpen}
-                    />
-                  </View>
-
-                  <View className='flex flex-col'>
-                    <Text className='opacity-50 mb-1 text-xs'>
-                      {t("jellyseerr.tags")}
-                    </Text>
-                    <PlatformDropdown
-                      groups={tagsOptions}
-                      trigger={
-                        <View className='bg-neutral-900 h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between'>
-                          <Text numberOfLines={1}>
-                            {requestOverrides.tags
-                              ? defaultServiceDetails.tags
-                                  .filter((t) =>
-                                    requestOverrides.tags!.includes(t.id),
+                    <View className='flex flex-col'>
+                      <Text className='opacity-50 mb-1 text-xs'>
+                        {t("jellyseerr.root_folder")}
+                      </Text>
+                      <PlatformDropdown
+                        groups={rootFolderOptions}
+                        trigger={
+                          <View className='bg-neutral-900 h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between'>
+                            <Text numberOfLines={1}>
+                              {defaultServiceDetails.rootFolders.find(
+                                (f) =>
+                                  f.path ===
+                                  (requestOverrides.rootFolder ||
+                                    defaultFolder?.path),
+                              )
+                                ? pathTitleExtractor(
+                                    defaultServiceDetails.rootFolders.find(
+                                      (f) =>
+                                        f.path ===
+                                        (requestOverrides.rootFolder ||
+                                          defaultFolder?.path),
+                                    )!,
                                   )
-                                  .map((t) => t.label)
-                                  .join(", ") ||
-                                defaultTags.map((t) => t.label).join(", ")
-                              : defaultTags.map((t) => t.label).join(", ")}
-                          </Text>
-                        </View>
-                      }
-                      title={t("jellyseerr.tags")}
-                      open={tagsOpen}
-                      onOpenChange={setTagsOpen}
-                    />
-                  </View>
+                                : pathTitleExtractor(defaultFolder!)}
+                            </Text>
+                          </View>
+                        }
+                        title={t("jellyseerr.root_folder")}
+                        open={rootFolderOpen}
+                        onOpenChange={setRootFolderOpen}
+                      />
+                    </View>
 
-                  <View className='flex flex-col'>
-                    <Text className='opacity-50 mb-1 text-xs'>
-                      {t("jellyseerr.request_as")}
-                    </Text>
-                    <PlatformDropdown
-                      groups={usersOptions}
-                      trigger={
-                        <View className='bg-neutral-900 h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between'>
-                          <Text numberOfLines={1}>
-                            {users.find(
-                              (u) =>
-                                u.id ===
-                                (requestOverrides.userId || jellyseerrUser?.id),
-                            )?.displayName || jellyseerrUser!.displayName}
-                          </Text>
-                        </View>
-                      }
-                      title={t("jellyseerr.request_as")}
-                      open={usersOpen}
-                      onOpenChange={setUsersOpen}
-                    />
-                  </View>
-                </>
-              )}
+                    <View className='flex flex-col'>
+                      <Text className='opacity-50 mb-1 text-xs'>
+                        {t("jellyseerr.tags")}
+                      </Text>
+                      <PlatformDropdown
+                        groups={tagsOptions}
+                        trigger={
+                          <View className='bg-neutral-900 h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between'>
+                            <Text numberOfLines={1}>
+                              {requestOverrides.tags
+                                ? defaultServiceDetails.tags
+                                    .filter((t) =>
+                                      requestOverrides.tags!.includes(t.id),
+                                    )
+                                    .map((t) => t.label)
+                                    .join(", ") ||
+                                  defaultTags.map((t) => t.label).join(", ")
+                                : defaultTags.map((t) => t.label).join(", ")}
+                            </Text>
+                          </View>
+                        }
+                        title={t("jellyseerr.tags")}
+                        open={tagsOpen}
+                        onOpenChange={setTagsOpen}
+                      />
+                    </View>
+
+                    {canManageUsers && users && (
+                      <View className='flex flex-col'>
+                        <Text className='opacity-50 mb-1 text-xs'>
+                          {t("jellyseerr.request_as")}
+                        </Text>
+                        <PlatformDropdown
+                          groups={usersOptions}
+                          trigger={
+                            <View className='bg-neutral-900 h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between'>
+                              <Text numberOfLines={1}>
+                                {users.find(
+                                  (u) =>
+                                    u.id ===
+                                    (requestOverrides.userId ||
+                                      jellyseerrUser?.id),
+                                )?.displayName || jellyseerrUser!.displayName}
+                              </Text>
+                            </View>
+                          }
+                          title={t("jellyseerr.request_as")}
+                          open={usersOpen}
+                          onOpenChange={setUsersOpen}
+                        />
+                      </View>
+                    )}
+                  </>
+                )}
             </View>
             <Button className='mt-auto' onPress={request} color='purple'>
               {t("jellyseerr.request_button")}
