@@ -26,7 +26,10 @@ import useRouter from "@/hooks/useAppRouter";
 import { useInterval } from "@/hooks/useInterval";
 import { JellyseerrApi, useJellyseerr } from "@/hooks/useJellyseerr";
 import { settingsAtom, useSettings } from "@/utils/atoms/settings";
-import { getIntegrationHeaders } from "@/utils/customHeaders";
+import {
+  getIntegrationHeaders,
+  normalizeHttpBaseUrl,
+} from "@/utils/customHeaders";
 import { getOrSetDeviceId } from "@/utils/device";
 import { markExpectedError } from "@/utils/errors";
 import { createApiWithCustomHeaders } from "@/utils/jellyfin/createApi";
@@ -987,7 +990,14 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
 
   const contextValue: JellyfinContextValue = {
     discoverServers,
-    setServer: (server) => setServerMutation.mutateAsync(server),
+    // A deep link hands the address over exactly as typed, trailing slash
+    // included, while the SDK strips one off `api.basePath`. Every later read
+    // keys on the spelling stored here, so store the canonical one.
+    setServer: (server) =>
+      setServerMutation.mutateAsync({
+        ...server,
+        address: normalizeHttpBaseUrl(server.address),
+      }),
     removeServer: () => removeServerMutation.mutateAsync(),
     login: (username, password, serverName, options) =>
       loginMutation.mutateAsync({ username, password, serverName, options }),

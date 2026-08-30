@@ -236,10 +236,17 @@ final class NativePlayerSession {
 			engine.stopPictureInPicture()
 		}
 
-		let position = engine.getCurrentPosition()
 		let duration = engine.getDuration()
+		// Read the position off the view model, not the engine: the engine's
+		// cache starts at 0 and only fills on mpv's first time-pos callback, so
+		// an exit before that reports 0 and loses the resume point — the
+		// reported bug. `position` is seeded with the stream's start position,
+		// written by every authoritative tick and synchronously by every seek,
+		// and never by the display link or a scrub, so it is exactly what the
+		// last onProgress carried, or the target of a seek made since. Android
+		// reads its authoritativePosition the same way.
 		emit("onDismiss", [
-			"positionSec": position,
+			"positionSec": viewModel.position,
 			"durationSec": duration,
 			"reason": reason.rawValue,
 		])

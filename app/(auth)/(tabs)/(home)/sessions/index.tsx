@@ -7,8 +7,6 @@ import {
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { getSessionApi } from "@jellyfin/sdk/lib/utils/api/session-api";
 import { FlashList } from "@shopify/flash-list";
-import { useQuery } from "@tanstack/react-query";
-import axios from "axios";
 import { useAtomValue } from "jotai";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -96,24 +94,6 @@ const SessionCard = ({ session }: SessionCardProps) => {
       setRemainingTicks(remainingTimeTicks);
     }
   }, [session]);
-
-  const { data: ipInfo } = useQuery<{
-    cityName?: string;
-    countryCode?: string;
-  }>({
-    queryKey: ["ipinfo", session.RemoteEndPoint],
-    staleTime: Number.POSITIVE_INFINITY,
-    queryFn: async () => {
-      // Plain axios, never `api.axiosInstance`: freeipapi is a third party, and
-      // the Jellyfin instance stamps the server's gateway credentials onto every
-      // request it carries and reads any 401 back as the session having expired.
-      const resp = await axios.get(
-        `https://freeipapi.com/api/json/${session.RemoteEndPoint}`,
-      );
-      return resp.data;
-    },
-    enabled: !!session.RemoteEndPoint,
-  });
 
   // Handle session controls
   const [isControlLoading, setIsControlLoading] = useState<
@@ -231,8 +211,6 @@ const SessionCard = ({ session }: SessionCardProps) => {
               {session.Client}
               {"\n"}
               {session.DeviceName}
-              {"\n"}
-              {ipInfo?.cityName} {ipInfo?.countryCode}
             </Text>
           </View>
           <View className='flex-1' />

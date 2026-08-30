@@ -13,6 +13,12 @@ describe("normalizeHttpBaseUrl", () => {
       "http://192.168.1.10:8096",
     );
   });
+
+  test("strips every trailing slash, so applying it again changes nothing", () => {
+    const once = normalizeHttpBaseUrl("https://jellyfin.example.com//");
+    expect(once).toBe("https://jellyfin.example.com");
+    expect(normalizeHttpBaseUrl(once)).toBe(once);
+  });
 });
 
 describe("isUrlForBaseUrl", () => {
