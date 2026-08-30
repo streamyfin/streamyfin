@@ -23,6 +23,20 @@ internal fun normalizeVideoDimensions(width: Int, height: Int, rotation: Int): P
 }
 
 /**
+ * mpv `sub-font` for a subtitle font setting. "System" names mpv's own default
+ * rather than writing an empty family: an empty `sub-font` drops the default
+ * and leaves libass to pick a face glyph by glyph.
+ */
+internal fun mpvSubtitleFont(font: String): String = when (font) {
+    "System" -> "sans-serif"
+    "sans-serif" -> "Roboto"
+    "serif" -> "Noto Serif"
+    "monospace" -> "Droid Sans Mono"
+    "opendyslexic" -> "OpenDyslexic"
+    else -> font
+}
+
+/**
  * MPV renderer that wraps libmpv for video playback.
  * This mirrors the iOS MPVLayerRenderer implementation.
  */
@@ -910,14 +924,7 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
         }
 
         (config["font"] as? String)?.let { font ->
-            when (font) {
-                "System" -> mpv?.setPropertyString("sub-font", "")
-                "sans-serif" -> mpv?.setPropertyString("sub-font", "Roboto")
-                "serif" -> mpv?.setPropertyString("sub-font", "Noto Serif")
-                "monospace" -> mpv?.setPropertyString("sub-font", "Droid Sans Mono")
-                "opendyslexic" -> mpv?.setPropertyString("sub-font", "OpenDyslexic")
-                else -> mpv?.setPropertyString("sub-font", font)
-            }
+            mpv?.setPropertyString("sub-font", mpvSubtitleFont(font))
         }
 
         (config["background"] as? String)?.let { background ->
