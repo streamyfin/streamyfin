@@ -676,9 +676,6 @@ extension MPVPlayerEngine: PiPControllerDelegate {
 		Logger.shared.log("PiP: did stop", type: "Info")
 		// Ensure timebase is synced after PiP ends
 		renderer?.syncTimebase()
-		#if os(iOS)
-		renderer?.restoreSubtitlesAfterForeground()
-		#endif
 		pipController?.updatePlaybackState()
 
 		// Restore the user's zoom preference
