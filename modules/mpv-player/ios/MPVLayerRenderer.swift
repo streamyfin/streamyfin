@@ -448,6 +448,27 @@ final class MPVLayerRenderer {
     /// Family name of `NotoSans-Regular.ttf`, used as `--sub-font`.
     private static let subtitleFontFamily = "Noto Sans"
 
+    /// mpv `sub-font` for a subtitle font setting. "System" names the bundled
+    /// default rather than writing an empty family: an empty `sub-font` drops
+    /// the Latin default installed by setupSubtitleFonts and sends libass back
+    /// through CoreText glyph by glyph, which is the #1789 tofu path.
+    static func mpvSubtitleFont(_ font: String) -> String {
+        switch font {
+        case "System":
+            return subtitleFontFamily
+        case "sans-serif":
+            return "Helvetica"
+        case "serif":
+            return "Georgia"
+        case "monospace":
+            return "Menlo"
+        case "opendyslexic":
+            return "OpenDyslexic"
+        default:
+            return font
+        }
+    }
+
     /// Writable, backup-excluded directory handed to mpv as `--config-dir`.
     private static func mpvConfigDirectory() -> URL? {
         let fm = FileManager.default
@@ -1355,24 +1376,7 @@ final class MPVLayerRenderer {
         }
 
         if let font = config["font"] as? String {
-            if font == "System" {
-                setProperty(name: "sub-font", value: "")
-            } else {
-                let mappedFont: String
-                switch font {
-                case "sans-serif":
-                    mappedFont = "Helvetica"
-                case "serif":
-                    mappedFont = "Georgia"
-                case "monospace":
-                    mappedFont = "Menlo"
-                case "opendyslexic":
-                    mappedFont = "OpenDyslexic"
-                default:
-                    mappedFont = font
-                }
-                setProperty(name: "sub-font", value: mappedFont)
-            }
+            setProperty(name: "sub-font", value: Self.mpvSubtitleFont(font))
         }
 
         if let background = config["background"] as? String {
