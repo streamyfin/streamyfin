@@ -29,6 +29,7 @@ import {
   PlaybackSpeedScope,
   updatePlaybackSpeedSettings,
 } from "@/components/video-player/controls/utils/playback-speed-settings";
+import { PROGRESS_REPORT_INTERVAL } from "@/constants/Playback";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { useOrientation } from "@/hooks/useOrientation";
 import { usePlaybackManager } from "@/hooks/usePlaybackManager";
@@ -99,6 +100,7 @@ import {
   type SubtitleSelectablePlayer,
 } from "@/utils/jellyfin/subtitleUtils";
 import { logAndCaptureError, writeToLog } from "@/utils/log";
+import { applyProgressTick } from "@/utils/nativePlayer/applyProgressTick";
 import {
   buildNativePlayerConfig,
   buildNativePlayerStrings,
@@ -109,6 +111,7 @@ import {
   type PlayRequest,
   toDirectPlayerQuery,
 } from "@/utils/nativePlayer/playRequest";
+import { resolveFinalPositionMs } from "@/utils/nativePlayer/resolveFinalPositionMs";
 import {
   fetchAndParseSegments,
   getSegmentsForItem,
@@ -122,7 +125,6 @@ import {
 } from "@/utils/subtitles/subtitleIndex";
 import { msToTicks, ticksToSeconds } from "@/utils/time";
 
-const PROGRESS_REPORT_INTERVAL = 10_000;
 const NEXT_EPISODE_COUNTDOWN_SECONDS = 10;
 
 /**
@@ -865,16 +867,20 @@ const NativePlayerProviderInner: React.FC<{
 
   const teardownSession = useCallback(
     async (session: NativeSession, finalPositionSec?: number) => {
-      if (finalPositionSec !== undefined) {
-        session.positionMs = finalPositionSec * 1000;
-      }
+      session.positionMs = resolveFinalPositionMs(
+        session.positionMs,
+        finalPositionSec,
+      );
+      const positionTicks = msToTicks(session.positionMs);
       // Final progress write first: it also lands in the downloads DB for
       // offline items (5%/90% thresholds), then close the server session.
       const info = buildProgressInfo(session);
       try {
         await reportProgressRef.current(info);
       } catch {}
-      await reportPlaybackStopped(session);
+      // Both reports carry the ticks resolved above; the stop report does not
+      // re-read session.positionMs after the await.
+      await reportPlaybackStopped(session, positionTicks);
       releaseLiveStream(session);
       revalidateProgressCache();
       unlockOrientation();
@@ -1396,13 +1402,13 @@ const NativePlayerProviderInner: React.FC<{
       addNativePlayerListener("onProgress", (payload) => {
         const session = sessionRef.current;
         if (!session || session.awaitingLoad) return;
-        session.positionMs = payload.position * 1000;
-        const now = Date.now();
-        const shouldReport =
-          payload.didSeek === true ||
-          now - session.lastProgressReportAt >= PROGRESS_REPORT_INTERVAL;
-        if (!shouldReport || !session.hasPlaybackStarted) return;
-        session.lastProgressReportAt = now;
+        const due = applyProgressTick(
+          session,
+          payload,
+          Date.now(),
+          PROGRESS_REPORT_INTERVAL,
+        );
+        if (!due) return;
         void reportProgressRef.current(buildProgressInfo(session));
       }),
 

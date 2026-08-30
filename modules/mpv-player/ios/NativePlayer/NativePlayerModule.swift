@@ -166,8 +166,12 @@ public class NativePlayerModule: Module {
 			self.session?.engine.pause()
 		}.runOnQueue(.main)
 
+		// Through the view model, not straight to the engine: a remote seek has
+		// to arm pendingSeekReport and move the tracked position like a native
+		// one, or the server keeps reporting the pre-seek position until the
+		// next 10s interval. Android routes this the same way.
 		AsyncFunction("seekTo") { (positionSec: Double) in
-			self.session?.engine.seekTo(position: positionSec)
+			self.session?.viewModel.seek(to: positionSec)
 		}.runOnQueue(.main)
 
 		AsyncFunction("setSpeed") { (speed: Double) in

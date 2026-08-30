@@ -4,6 +4,7 @@ import android.os.Handler
 import android.os.HandlerThread
 import expo.modules.kotlin.Promise
 import expo.modules.kotlin.exception.CodedException
+import expo.modules.kotlin.functions.Queues
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 
@@ -160,9 +161,14 @@ class NativePlayerModule : Module() {
             this@NativePlayerModule.session?.viewModel?.pause()
         }
 
+        // Main queue, as on iOS: viewModel.seekTo syncs the window's
+        // keep-screen-on flag, which only the main thread may touch. On the
+        // default background queue that threw mid-call, after the mpv seek but
+        // before the tick that moves JS's tracked position, so a backward
+        // remote seek followed by an exit reported the pre-seek position.
         AsyncFunction("seekTo") { positionSec: Double ->
             this@NativePlayerModule.session?.viewModel?.seekTo(positionSec)
-        }
+        }.runOnQueue(Queues.MAIN)
 
         AsyncFunction("setSpeed") { speed: Double ->
             this@NativePlayerModule.session?.viewModel?.setSpeed(speed)
