@@ -662,10 +662,19 @@ export const useJellyseerr = () => {
 
   const getMediaType = (
     item?: TvResult | TvDetails | MovieResult | MovieDetails | PersonCreditCast,
-  ): MediaType => {
-    return isJellyseerrMovieOrTvResult(item)
-      ? (item.mediaType as MediaType)
-      : item?.mediaInfo?.mediaType;
+  ): MediaType | undefined => {
+    if (!item) return undefined;
+    // Check direct mediaType (MovieResult/TvResult), then mediaInfo (Details), then infer from properties
+    if (isJellyseerrMovieOrTvResult(item)) {
+      return item.mediaType as MediaType;
+    }
+    if (item.mediaInfo?.mediaType) {
+      return item.mediaInfo.mediaType;
+    }
+    // Fallback: movies have 'title', TV shows have 'name'
+    if ("title" in item && item.title) return MediaType.MOVIE;
+    if ("name" in item && item.name) return MediaType.TV;
+    return undefined;
   };
 
   const jellyseerrRegion = useMemo(

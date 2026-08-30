@@ -18,7 +18,7 @@ interface Props extends TouchableOpacityProps {
   releaseYear: number;
   canRequest: boolean;
   posterSrc: string;
-  mediaType: MediaType;
+  mediaType?: MediaType;
 }
 
 export const TouchableJellyseerrRouter: React.FC<PropsWithChildren<Props>> = ({
