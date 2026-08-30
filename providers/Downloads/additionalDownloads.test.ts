@@ -5,9 +5,11 @@ import type {
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { atom } from "jotai";
+import {
+  setJellyfinHeaders,
+  stubCustomHeaders,
+} from "@/test-utils/customHeaders";
 import { stubReactNative } from "@/test-utils/reactNative";
-import { normalizeCustomHeaders } from "@/utils/customHeaders/normalize";
-import { optionsWithOptionalHeaders } from "@/utils/customHeaders/optionalHeaders";
 
 // --- Module-boundary stubs (React Native / Expo can't load under bun:test) ---
 stubReactNative();
@@ -16,16 +18,10 @@ mock.module("expo", () => ({
   requireOptionalNativeModule: () => null,
 }));
 mock.module("@/components/BitrateSelector", () => ({}));
-// The custom-header barrel re-exports modules with native dependencies (MMKV,
-// SecureStore). Replace it with the real pure helpers plus a resolver stub —
-// mock.module is global, so the shape has to stay compatible with the other
-// specs that stub this same barrel (utils/jellyfin/checkServer.test.ts).
-mock.module("@/utils/customHeaders", () => ({
-  normalizeCustomHeaders,
-  optionsWithOptionalHeaders,
-  // No proxy headers configured in these specs.
-  getJellyfinHeadersForUrl: () => undefined,
-}));
+stubCustomHeaders();
+// No proxy headers in these specs, set per test so another file cannot
+// leave its own behind.
+beforeEach(() => setJellyfinHeaders());
 mock.module("@/providers/JellyfinProvider", () => ({
   apiAtom: atom<Api | null>(null),
 }));

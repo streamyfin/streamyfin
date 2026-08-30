@@ -8,6 +8,7 @@ import {
 import { getSessionApi } from "@jellyfin/sdk/lib/utils/api/session-api";
 import { FlashList } from "@shopify/flash-list";
 import { useQuery } from "@tanstack/react-query";
+import axios from "axios";
 import { useAtomValue } from "jotai";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -103,12 +104,15 @@ const SessionCard = ({ session }: SessionCardProps) => {
     queryKey: ["ipinfo", session.RemoteEndPoint],
     staleTime: Number.POSITIVE_INFINITY,
     queryFn: async () => {
-      const resp = await api!.axiosInstance.get(
+      // Plain axios, never `api.axiosInstance`: freeipapi is a third party, and
+      // the Jellyfin instance stamps the server's gateway credentials onto every
+      // request it carries and reads any 401 back as the session having expired.
+      const resp = await axios.get(
         `https://freeipapi.com/api/json/${session.RemoteEndPoint}`,
       );
       return resp.data;
     },
-    enabled: !!api,
+    enabled: !!session.RemoteEndPoint,
   });
 
   // Handle session controls
