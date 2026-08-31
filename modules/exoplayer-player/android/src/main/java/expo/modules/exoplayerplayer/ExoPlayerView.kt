@@ -4,15 +4,16 @@ package expo.modules.exoplayerplayer
 
 import android.content.Context
 import android.graphics.Color
-import android.graphics.Matrix
 import android.graphics.Typeface
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import android.view.Gravity
 import android.view.LayoutInflater
-import android.view.TextureView
+import android.view.SurfaceView
 import android.view.ViewGroup
+import android.widget.FrameLayout
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.ColorInfo
@@ -296,10 +297,16 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     init {
         setBackgroundColor(Color.BLACK)
 
-        // A SurfaceView can be forced to the React Native host bounds by the
-        // platform compositor, bypassing PlayerView's AspectRatioFrameLayout.
-        // TextureView stays in PlayerView's hierarchy, so FIT/ZOOM transforms
-        // preserve the video's actual aspect ratio.
+        // SurfaceView (not TextureView): frames composite straight from the
+        // decoder via SurfaceFlinger, so the codec's native video scaler
+        // applies the crop rectangle — decoder block padding (the green bar
+        // some files showed) never reaches the display, and the HDR/DV path
+        // stays available (TextureView pulls frames through the app's GPU,
+        // which forces SDR). Aspect is handled by sizing the surface with
+        // explicit pixel dimensions in updateVideoSurfaceLayout() — never
+        // MATCH_PARENT — so neither Yoga nor the platform compositor (the
+        // failure that originally pushed this view onto TextureView) has
+        // anything to override.
         playerView = LayoutInflater.from(context).inflate(
             R.layout.exoplayer_player_view,
             this,
@@ -309,6 +316,10 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.MATCH_PARENT,
         )
+        // Zoom-to-fill sizes the surface beyond the parent's bounds; let the
+        // overflow render instead of clipping to the content frame.
+        (playerView as? ViewGroup)?.clipChildren = false
+        (playerView.videoSurfaceView?.parent as? ViewGroup)?.clipChildren = false
         subtitleView = playerView.subtitleView
         addView(playerView)
         playerView.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
@@ -332,12 +343,39 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
 
         val loadControl = buildLoadControl(config)
 
-        // PREFER extension renderers so the FFmpeg decoder (DTS / TrueHD /
-        // AC-4 / WMA / etc.) takes over when MediaCodec doesn't ship a
-        // hardware decoder for the format. MediaCodec remains the fallback.
+        // Bitstream (passthrough) capable sinks change the renderer ordering:
+        // when the HDMI sink (or on-device decoder) accepts E-AC-3 / E-AC-3 JOC
+        // (Dolby Atmos), MediaCodecAudioRenderer + DefaultAudioSink hand the
+        // untouched bitstream to AudioTrack and the audio hardware decodes it —
+        // the only path that preserves Atmos. FFmpeg cannot do this; it decodes
+        // to PCM, which silently strips Atmos metadata. So on passthrough-capable
+        // output, extensions go AFTER the platform renderers (ON, not PREFER) so
+        // AC3/EAC3 reach MediaCodec first. On PCM-only output we keep PREFER so
+        // the FFmpeg decoder (DTS / TrueHD / AC-4 / WMA / etc.) still takes over
+        // when MediaCodec doesn't ship a hardware decoder for the format.
+        // Either way, formats only the extension supports still fall through to
+        // FFmpeg via supportsFormat() — the ordering only decides the formats
+        // both claim.
+        val audioCaps =
+            androidx.media3.exoplayer.audio.AudioCapabilities.getCapabilities(context)
+        val bitstreamCapable =
+            audioCaps.supportsEncoding(C.ENCODING_E_AC3_JOC) ||
+                audioCaps.supportsEncoding(C.ENCODING_AC3) ||
+                audioCaps.supportsEncoding(C.ENCODING_E_AC3)
+        Log.i(
+            TAG,
+            "Audio output bitstream-capable=$bitstreamCapable " +
+                "(JOC=${audioCaps.supportsEncoding(C.ENCODING_E_AC3_JOC)}, " +
+                "EAC3=${audioCaps.supportsEncoding(C.ENCODING_E_AC3)}, " +
+                "AC3=${audioCaps.supportsEncoding(C.ENCODING_AC3)})"
+        )
         val renderersFactory = androidx.media3.exoplayer.DefaultRenderersFactory(context)
             .setExtensionRendererMode(
-                androidx.media3.exoplayer.DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER
+                if (bitstreamCapable) {
+                    androidx.media3.exoplayer.DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON
+                } else {
+                    androidx.media3.exoplayer.DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER
+                }
             )
             .setEnableDecoderFallback(true)
 
@@ -904,11 +942,19 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     private fun applySubtitleStyle() {
         val sv = subtitleView ?: return
 
-        // Text size: explicit % wins; otherwise scale the default.
+        // Text size: explicit % wins; otherwise scale the default. The base
+        // is calibrated to match MPV's look — MPV is the app's default
+        // player, so its size is the established baseline users compare
+        // against. MPV renders at sub-font-size 55 on libass's 720-normalized
+        // canvas (~7.6% of frame height); Media3's DEFAULT_TEXT_SIZE_FRACTION
+        // is 5.33% of view height. The 1.43 multiplier closes that gap
+        // geometrically; on-device eyeballing may want a small tweak since
+        // libass and Android font metrics differ slightly.
+        val mpvMatchedBaseFraction = SubtitleView.DEFAULT_TEXT_SIZE_FRACTION * 1.5f
         val textSizeFraction = if (subtitleFontSizePct != null) {
-            (subtitleFontSizePct!! / 100f) * SubtitleView.DEFAULT_TEXT_SIZE_FRACTION
+            (subtitleFontSizePct!! / 100f) * mpvMatchedBaseFraction
         } else {
-            SubtitleView.DEFAULT_TEXT_SIZE_FRACTION * subtitleScale
+            mpvMatchedBaseFraction * subtitleScale
         }
         sv.setFractionalTextSize(textSizeFraction)
 
@@ -1024,42 +1070,52 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
 
     private fun updateVideoSurfaceLayout() {
         val aspectRatio = currentVideoAspectRatio ?: return
-        val surface = playerView.videoSurfaceView as? TextureView ?: return
+        val surface = playerView.videoSurfaceView as? SurfaceView ?: return
         val viewWidth = playerView.width
         val viewHeight = playerView.height
         if (viewWidth <= 0 || viewHeight <= 0 || !aspectRatio.isFinite()) return
 
         val viewAspectRatio = viewWidth.toFloat() / viewHeight
-        val scaleX: Float
-        val scaleY: Float
+
+        // Explicit pixel dimensions (never MATCH_PARENT) so neither Yoga nor
+        // the platform compositor has anything to override — the failure that
+        // originally pushed this view onto TextureView. CENTER gravity keeps
+        // letterbox/pillarbox bands showing this view's black background.
+        val surfaceWidth: Int
+        val surfaceHeight: Int
 
         if (isZoomedToFill) {
+            // Zoom: fill the constraining dimension, crop the overflow.
             if (aspectRatio > viewAspectRatio) {
-                scaleX = aspectRatio / viewAspectRatio
-                scaleY = 1f
+                surfaceHeight = viewHeight
+                surfaceWidth = (viewHeight * aspectRatio).toInt()
             } else {
-                scaleX = 1f
-                scaleY = viewAspectRatio / aspectRatio
+                surfaceWidth = viewWidth
+                surfaceHeight = (viewWidth / aspectRatio).toInt()
             }
-        } else if (aspectRatio > viewAspectRatio) {
-            scaleX = 1f
-            scaleY = viewAspectRatio / aspectRatio
         } else {
-            scaleX = aspectRatio / viewAspectRatio
-            scaleY = 1f
+            // Fit: match the constraining dimension, letterbox the rest.
+            if (aspectRatio > viewAspectRatio) {
+                surfaceWidth = viewWidth
+                surfaceHeight = (viewWidth / aspectRatio).toInt()
+            } else {
+                surfaceHeight = viewHeight
+                surfaceWidth = (viewHeight * aspectRatio).toInt()
+            }
         }
 
-        surface.setTransform(
-            Matrix().apply {
-                setScale(
-                    scaleX,
-                    scaleY,
-                    viewWidth / 2f,
-                    viewHeight / 2f,
-                )
-            },
-        )
-        surface.invalidate()
+        val lp = surface.layoutParams
+        if (
+            lp is FrameLayout.LayoutParams &&
+            lp.width == surfaceWidth &&
+            lp.height == surfaceHeight &&
+            lp.gravity == Gravity.CENTER
+        ) {
+            return
+        }
+        surface.layoutParams = FrameLayout.LayoutParams(surfaceWidth, surfaceHeight).apply {
+            gravity = Gravity.CENTER
+        }
     }
 
     fun setZoomedToFill(zoomed: Boolean) {

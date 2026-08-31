@@ -6,7 +6,10 @@
 import type { DeviceProfile } from "@jellyfin/sdk/lib/generated-client/models";
 import { Platform } from "react-native";
 import MediaTypes from "../../constants/MediaTypes";
-import { supportsAv1HardwareDecode } from "./codecSupport";
+import {
+  supportsAv1HardwareDecode,
+  supportsDolbyVisionHardwareDecode,
+} from "./codecSupport";
 import { getSubtitleProfiles } from "./subtitles";
 
 export type PlatformType = "ios" | "android";
@@ -25,6 +28,13 @@ export interface ProfileOptions {
    * device (see `./codecSupport`); pass explicitly only for tests.
    */
   supportsAv1?: boolean;
+  /**
+   * Whether the device ships a DV hardware decoder whose `video/dolby-vision`
+   * capabilities accept a Profile 5 MediaFormat (not merely advertising the
+   * MIME). Defaults to probing the device (see `./codecSupport`); pass
+   * explicitly only for tests.
+   */
+  supportsDolbyVision?: boolean;
 }
 
 /**
@@ -140,13 +150,18 @@ const getVideoAudioCodecs = (
  * accepts AC3/EAC3 as bitstream and multichannel PCM up to 7.1 @ 192 kHz,
  * so software-decoded DTS/DTS-HD/TrueHD reach the sink as PCM).
  *
- * Dolby Vision: the CodecProfile below uses `NotEquals VideoRangeType
- * DOVI`, which in Jellyfin's semantics blocks ONLY pure Profile 5
- * (IPTPQc2 — the stream that renders purple/green without a DV-aware
- * decoder). DV Profiles 7/8 with HDR10 or SDR base layers (Jellyfin
- * reports these as `DOVIWithHDR10`, `DOVIWithHDR10Plus`, `DOVIWithEL`)
- * are NOT blocked — Media3 1.9.1+ correctly falls back to the AVC/HEVC
- * base layer.
+ * Dolby Vision: when the device has no decoder that accepts a DV Profile 5
+ * MediaFormat (some decoders advertise `video/dolby-vision` only for Profiles
+ * 7/8 base-layer handling), a CodecProfile uses `NotEquals VideoRangeType
+ * DOVI`, which in Jellyfin's
+ * semantics blocks ONLY pure Profile 5 (IPTPQc2 — the stream that renders
+ * purple/green without a DV-aware decoder). DV Profiles 7/8 with HDR10 or
+ * SDR base layers (Jellyfin reports these as `DOVIWithHDR10`,
+ * `DOVIWithHDR10Plus`, `DOVIWithEL`) are NOT blocked — Media3 1.9.1+
+ * correctly falls back to the AVC/HEVC base layer. When the device DOES
+ * ship a DV-capable decoder (probed via `./codecSupport`), the gate is
+ * dropped entirely so Profile 5 also direct plays and the DV-aware
+ * hardware renders real Dolby Vision.
  *
  * Containers limited to Media3's bundled extractors. FLV is intentionally
  * absent — Media3 has no FLV extractor (MPV claims it via FFmpeg).
@@ -226,6 +241,8 @@ export const generateDeviceProfile = (options: ProfileOptions = {}) => {
   const audioMode = options.audioMode || "auto";
   const player = options.player || "mpv";
   const supportsAv1 = options.supportsAv1 ?? supportsAv1HardwareDecode();
+  const supportsDolbyVision =
+    options.supportsDolbyVision ?? supportsDolbyVisionHardwareDecode();
 
   // ExoPlayer branch — Media3 capabilities on Android TV.
   if (player === "exoplayer" && platform === "android") {
@@ -240,21 +257,30 @@ export const generateDeviceProfile = (options: ProfileOptions = {}) => {
           Type: MediaTypes.Video,
           Codec: "h263,h264,vp8,vp9,av1",
         },
-        {
-          Type: MediaTypes.Video,
-          Codec: "hevc,h265",
-          Conditions: [
-            {
-              Condition: "NotEquals",
-              Property: "VideoRangeType",
-              // Blocks ONLY pure DV Profile 5 (IPTPQc2). Profiles 7/8 with
-              // HDR10/SDR base layers fall through to Media3's HEVC fallback
-              // (1.9.1+). See getExoPlayerDirectPlayProfile doc above.
-              Value: "DOVI",
-              IsRequired: true,
-            },
-          ],
-        },
+        // DV gate is conditional on a device-side decoder probe. On
+        // uncertified devices (no decoder accepting a Profile 5 MediaFormat),
+        // pure DV Profile 5 renders purple/green, so the NotEquals blocks it and the
+        // server transcodes. On DV-certified hardware the SoC's HEVC decoder
+        // is DV-aware: direct-playing Profile 5 lets it render real Dolby
+        // Vision (Profiles 7/8 already direct play everywhere via base-layer
+        // fallback). See getExoPlayerDirectPlayProfile doc above.
+        ...(supportsDolbyVision
+          ? []
+          : ([
+              {
+                Type: MediaTypes.Video,
+                Codec: "hevc,h265",
+                Conditions: [
+                  {
+                    Condition: "NotEquals",
+                    Property: "VideoRangeType",
+                    // Blocks ONLY pure DV Profile 5 (IPTPQc2).
+                    Value: "DOVI",
+                    IsRequired: true,
+                  },
+                ],
+              },
+            ] as NonNullable<DeviceProfile["CodecProfiles"]>)),
         {
           Type: MediaTypes.Audio,
           Codec: "vorbis,opus,flac,alac,pcm,mp3,aac,ac3,eac3,dts,dtshd,truehd",

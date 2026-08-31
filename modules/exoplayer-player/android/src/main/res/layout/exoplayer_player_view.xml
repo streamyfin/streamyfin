@@ -4,5 +4,5 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     app:resize_mode="fill"
-    app:surface_type="texture_view"
+    app:surface_type="surface_view"
     app:use_controller="false" />
