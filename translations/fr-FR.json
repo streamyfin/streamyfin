@@ -62,7 +62,8 @@
     "select_your_server": "Sélectionnez votre serveur",
     "add_server_to_get_started": "Ajouter un serveur pour commencer",
     "add_server": "Ajouter un serveur",
-    "change_server": "Changer de serveur"
+    "change_server": "Changer de serveur",
+    "swipe_for_options": "Swipe a server for options"
   },
   "save_account": {
     "title": "Enregistrer le compte",
@@ -110,9 +111,17 @@
     "continue": "Continuer",
     "next_up": "À suivre",
     "continue_and_next_up": "Continuer à regarder et à suivre",
+    "recently_added": "Recently added",
     "recently_added_in": "Ajoutés récemment dans {{libraryName}}",
     "suggested_movies": "Films suggérés",
     "suggested_episodes": "Épisodes suggérés",
+    "hero": {
+      "filter": "Filter",
+      "groups": "Groups",
+      "media": "Media",
+      "tv_shows": "TV shows",
+      "disable": "Disable hero"
+    },
     "intro": {
       "welcome_to_streamyfin": "Bienvenue sur Streamyfin",
       "a_free_and_open_source_client_for_jellyfin": "Un client gratuit et open-source pour Jellyfin.",
@@ -126,7 +135,9 @@
       "centralised_settings_plugin_description": "Configurez les paramètres de façon centralisée sur votre serveur Jellyfin. Les paramètres client de chaque utilisateur se synchronisent automatiquement.",
       "done_button": "Terminé",
       "go_to_settings_button": "Allez dans les paramètres",
-      "read_more": "En savoir plus"
+      "read_more": "En savoir plus",
+      "crash_reports_title": "Help improve Streamyfin",
+      "crash_reports_description": "Streamyfin sends anonymous crash and error reports to the developers. No account data or server addresses are included. You can turn this off here or anytime in settings."
     },
     "settings": {
       "settings_title": "Paramètres",
@@ -159,6 +170,7 @@
         "hide_remote_session_button_hint": "Masque le bouton des sessions distantes dans l'en-tête de l'accueil.",
         "show_home_backdrop": "Arrière-plan d'accueil dynamique",
         "show_hero_carousel": "Carrousel principal",
+        "show_hero_carousel_hint": "Show the large swipeable carousel at the top of the home screen.",
         "show_series_poster_on_episode": "Afficher l'affiche de la série sur les épisodes",
         "theme_music": "Musique de thème",
         "display_size": "Taille d'affichage",
@@ -232,7 +244,8 @@
         "exoplayer_note": "ExoPlayer ne gère pas le style avancé des sous-titres ASS/SSA ni leur alignement horizontal. Passez à MPV si vous en avez besoin.",
         "mpv_note": "Sur TV, MPV ne transmet pas encore les métadonnées HDR à l'écran : le contenu HDR10/HDR10+ est donc converti en SDR par tone mapping. Passez à ExoPlayer pour une sortie HDR.",
         "native_tv": "Lecteur natif (expérimental)",
-        "native_tv_note": "Utilise le nouveau lecteur Apple TV entièrement natif. Désactivez-le pour revenir au lecteur précédent si vous rencontrez des problèmes de lecture."
+        "native_tv_note": "Utilise le nouveau lecteur Apple TV entièrement natif. Désactivez-le pour revenir au lecteur précédent si vous rencontrez des problèmes de lecture.",
+        "native_android_tv_note": "Use the new fully-native Android TV player. Turn it off to fall back to the previous player if you run into playback issues."
       },
       "buffer": {
         "title": "Paramètres du tampon",
@@ -297,6 +310,9 @@
         "subtitle_mode": "Mode des sous-titres",
         "set_subtitle_track": "Piste de sous-titres de l'élément précédent",
         "subtitles_on_mute": "Activer les sous-titres en sourdine",
+        "subtitles_on_mute_hint": "Turn subtitles on automatically while the sound is off, and turn them back off when it returns.",
+        "subtitles_on_mute_allow_restart": "Allow restarting playback",
+        "subtitles_on_mute_allow_restart_hint": "Some subtitle formats cannot be turned on without the server re-processing the stream, which briefly interrupts playback. Turning this on lets it happen automatically when the sound is muted.",
         "subtitle_size": "Taille des sous-titres",
         "subtitle_margin_y": "Marge verticale",
         "subtitle_align_x": "Alignement horizontal",
@@ -327,7 +343,6 @@
         },
         "none": "Aucune",
         "language": "Langue",
-        "loading": "Chargement",
         "modes": {
           "Default": "Par défaut",
           "Smart": "Intelligent",
@@ -340,14 +355,6 @@
         "opensubtitles_api_key": "Clé API",
         "opensubtitles_api_key_placeholder": "Entrez la clé API...",
         "opensubtitles_get_key": "Obtenez votre clé API gratuite sur opensubtitles.com/fr/consumers",
-        "mpv_subtitle_scale": "Échelle des sous-titres",
-        "mpv_subtitle_margin_y": "Marge verticale",
-        "mpv_subtitle_align_x": "Alignement horizontal",
-        "mpv_subtitle_align_y": "Alignement vertical",
-        "mpv_settings_title": "Paramètres des sous-titres MPV",
-        "mpv_settings_description": "Personnalisation avancée des sous-titres pour le lecteur MPV",
-        "opaque_background": "Fond opaque",
-        "background_opacity": "Opacité du fond",
         "align": {
           "left": "Gauche",
           "center": "Centre",
@@ -384,6 +391,21 @@
         "default_playback_speed": "Vitesse de lecture par défaut",
         "auto_play_next_episode": "Lecture automatique de l'épisode suivant",
         "max_auto_play_episode_count": "Nombre max d'épisodes en lecture automatique",
+        "segment_skip_settings": "Segment skip settings",
+        "segment_skip_settings_description": "Configure skip behavior for intros, outros, and other segments",
+        "skip_intro": "Skip intro",
+        "skip_intro_description": "Action when intro segment is detected",
+        "skip_outro": "Skip outro",
+        "skip_outro_description": "Action when outro segment is detected",
+        "skip_recap": "Skip recap",
+        "skip_recap_description": "Action when recap segment is detected",
+        "skip_commercial": "Skip commercial",
+        "skip_commercial_description": "Action when commercial segment is detected",
+        "skip_preview": "Skip preview",
+        "skip_preview_description": "Action when preview segment is detected",
+        "segment_skip_none": "None",
+        "segment_skip_ask": "Ask to skip",
+        "segment_skip_auto": "Skip",
         "disabled": "Désactivé"
       },
       "music": {
@@ -403,6 +425,8 @@
         "wikidata_awards_hint": "Affiche les Oscars et les récompenses sur les pages des films et des séries. Cet appareil interroge Wikidata directement, pas votre serveur Jellyfin.",
         "opensubtitles_enabled": "Rechercher sur OpenSubtitles",
         "opensubtitles_enabled_hint": "Autorise cet appareil à interroger OpenSubtitles directement quand votre serveur Jellyfin n'a aucun fournisseur de sous-titres. En désactivant cette option, les recherches restent sur votre serveur et la clé API enregistrée n'est pas touchée.",
+        "crash_reports": "Crash reports",
+        "crash_reports_hint": "Send anonymous crash and error reports to the Streamyfin developers via Sentry. Reports contain no account data; server addresses and tokens are removed before anything is sent.",
         "jellyseerr": {
           "server_url": "URL du serveur",
           "server_url_hint": "Exemple : http(s)://votre-domaine.url\n(ajouter le port si nécessaire)",
@@ -410,11 +434,18 @@
           "password": "Mot de passe",
           "password_placeholder": "Entrez le mot de passe pour l'utilisateur Jellyfin {{username}}",
           "login_button": "Connexion",
+          "api_key": "API key",
+          "api_key_hint": "Alternative to the password: a Seerr admin API key connects you as your Jellyfin user directly. Requires a recent Seerr server.",
+          "api_key_placeholder": "Seerr API key",
+          "api_key_from_admin": "Your server admin provides the Seerr credentials — connect as {{username}} without a password.",
+          "connect_button": "Connect",
           "total_media_requests": "Total de demandes de médias",
           "movie_quota_limit": "Limite de quota de film",
           "movie_quota_days": "Jours de quota de film",
           "tv_quota_limit": "Limite de quota de séries",
           "tv_quota_days": "Jours de quota de séries",
+          "auto_login_title": "Sign in automatically",
+          "auto_login_description": "Sign in to Seerr on launch using your Jellyfin password. The password is kept in the device's secure storage and removed when you log out.",
           "reset_jellyseerr_config_button": "Réinitialiser la configuration Seerr",
           "unlimited": "Illimité",
           "plus_n_more": "+{{n}} de plus",
@@ -605,7 +636,8 @@
     "movies": "Films",
     "loading": "Chargement…",
     "seeAll": "Tout afficher",
-    "close": "Fermer"
+    "close": "Fermer",
+    "something_went_wrong": "Something went wrong"
   },
   "search": {
     "search": "Rechercher...",
@@ -696,6 +728,9 @@
   },
   "player": {
     "live": "EN DIRECT",
+    "auto_subtitles_enabled": "Subtitles on while muted",
+    "auto_subtitles_restart_required": "These subtitles need playback to restart. Enable it in Settings, Audio and subtitles.",
+    "auto_subtitles_none": "No subtitles available for this item",
     "shuffle": "Aléatoire",
     "entire_series": "Série entière",
     "episode_count": "{{count}} épisodes",
@@ -730,6 +765,7 @@
     "an_error_occurred_while_playing_the_video": "Une erreur s’est produite lors de la lecture de la vidéo. Vérifiez les journaux dans les paramètres.",
     "client_error": "Erreur du client",
     "could_not_create_stream_for_chromecast": "Impossible de créer un flux sur la Chromecast",
+    "chromecast_playback_failed": "Chromecast could not play this stream",
     "message_from_server": "Message du serveur : {{message}}",
     "next_episode": "Épisode suivant",
     "continue_watching": "Continuer à regarder",
@@ -763,16 +799,25 @@
     "search_failed": "Recherche échouée",
     "no_subtitle_provider": "Aucun fournisseur de sous-titres configuré sur le serveur",
     "no_subtitles_found": "Aucun sous-titre trouvé",
+    "now_playing": "Now Playing",
     "subtitle_apply_failed": "Le sous-titre a été téléchargé mais n'a pas pu être appliqué",
     "add_opensubtitles_key_hint": "Ajoutez une clé API OpenSubtitles dans les paramètres pour une solution de secours côté client",
     "settings": "Paramètres",
-    "skip_intro": "Passer l'intro",
-    "skip_credits": "Passer le générique",
     "stopPlayback": "Arrêter la lecture",
     "stopPlayingTitle": "Arrêter de lire « {{title}} » ?",
     "stopPlayingConfirm": "Êtes-vous sûr de vouloir arrêter la lecture ?",
     "downloaded": "Téléchargé",
-    "missing_parameters": "Paramètres de lecture manquants"
+    "missing_parameters": "Paramètres de lecture manquants",
+    "skip_intro": "Passer l'intro",
+    "skip_credits": "Passer le générique",
+    "skip_recap": "Skip recap",
+    "skip_commercial": "Skip commercial",
+    "skip_preview": "Skip preview",
+    "segment_skipped_intro": "Intro skipped",
+    "segment_skipped_outro": "Credits skipped",
+    "segment_skipped_recap": "Recap skipped",
+    "segment_skipped_commercial": "Commercial skipped",
+    "segment_skipped_preview": "Preview skipped"
   },
   "chapters": {
     "title": "Chapitres",
@@ -832,8 +877,7 @@
     "resume_playback": "Reprendre la lecture",
     "resume_playback_description": "Voulez-vous continuer où vous vous êtes arrêté ou commencer à partir du début ?",
     "play_from_start": "Lire depuis le début",
-    "continue_from": "Continuer depuis {{time}}",
-    "no_data_available": "Aucune donnée disponible"
+    "continue_from": "Continuer depuis {{time}}"
   },
   "live_tv": {
     "title": "TV en direct",
@@ -1105,5 +1149,34 @@
     "scan_with_phone": "Scanner avec l'application Streamyfin sur votre téléphone",
     "logging_in": "Connexion en cours...",
     "logging_in_description": "Connexion à votre serveur"
+  },
+  "custom_headers": {
+    "title": "Custom headers",
+    "description": "Extra HTTP headers sent with every request to this server. Needed when it sits behind an access gateway such as Cloudflare Zero Trust or Pangolin.",
+    "advanced_title": "Advanced: custom headers",
+    "integration_description": "Which headers to send to this service. Reuse the Jellyfin headers when it sits behind the same gateway.",
+    "no_headers": "No headers configured",
+    "header_key": "Header name",
+    "header_value": "Header value",
+    "header_name_placeholder": "X-Api-Key",
+    "header_value_placeholder": "Value",
+    "add_preset": "Add preset",
+    "add_custom": "Add header",
+    "clear_headers": "Clear headers",
+    "presets_title": "Choose a preset",
+    "source_jellyfin": "Jellyfin",
+    "source_custom": "Custom",
+    "source_none": "None",
+    "using_jellyfin_headers": "Using the Jellyfin headers",
+    "no_jellyfin_headers": "No headers configured for Jellyfin",
+    "integration_none": "No custom headers are sent to this service.",
+    "security_note": "Header values are stored in the device keychain, not in the app's own storage.",
+    "done": "Done",
+    "show_value": "Show value",
+    "hide_value": "Hide value",
+    "enabled": "Enabled",
+    "header_count_one": "{{count}} header",
+    "header_count_other": "{{count}} headers",
+    "header_count": "{{count}} headers"
   }
 }
