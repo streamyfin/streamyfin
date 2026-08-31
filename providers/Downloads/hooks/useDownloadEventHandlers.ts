@@ -259,16 +259,17 @@ export function useDownloadEventHandlers({
         const record = getPendingDownload(itemId);
         if (!record) return;
 
-        // Native error payloads are plain strings, so connectivity failures
-        // (walking out of Wi-Fi range is the normal downloads scenario) are
-        // classified by keyword and kept out of Sentry; the scrubbers redact
-        // any scheme-less host/IP the native message embeds.
+        // Native error payloads are plain strings, so user-environment
+        // failures — connectivity (walking out of Wi-Fi range is the normal
+        // downloads scenario) and a full disk — are classified by keyword and
+        // kept out of Sentry; the scrubbers redact any scheme-less host/IP
+        // the native message embeds.
         if (
-          /connect|network|internet|offline|time.?out|timed out|unreachable|resolve|dns|route/i.test(
+          /connect|network|internet|offline|time.?out|timed out|unreachable|resolve|dns|route|no space|enospc|disk full|not enough (?:free )?space|insufficient storage/i.test(
             event.error,
           )
         ) {
-          writeToLog("WARN", "Download failed (connectivity)", event.error);
+          writeToLog("WARN", "Download failed (user environment)", event.error);
         } else {
           logAndCaptureError("Download failed", event.error, {
             itemType: record.item?.Type,

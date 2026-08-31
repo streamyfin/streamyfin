@@ -8,6 +8,7 @@ import {
   describeHttpError,
   isAbortLikeError,
   isConnectivityError,
+  isExpectedError,
   markErrorReported,
 } from "./errors";
 import { storage } from "./mmkv";
@@ -170,7 +171,14 @@ export const logAndCaptureError = (
   context?: Record<string, unknown>,
 ) => {
   appendLogEntry("ERROR", message, describeErrorForLog(error));
-  if (isAbortLikeError(error) || isConnectivityError(error)) {
+  // Expected errors (markExpectedError) are user-facing outcomes — a wrong
+  // URL, a server that can't satisfy the device profile — logged locally
+  // like everything else, but never a Sentry event.
+  if (
+    isExpectedError(error) ||
+    isAbortLikeError(error) ||
+    isConnectivityError(error)
+  ) {
     return;
   }
   // If this error is later rethrown into React Query, the global handler in

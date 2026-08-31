@@ -35,17 +35,27 @@ export const isErrorReported = (error: unknown): boolean =>
   typeof error === "object" &&
   (error as Record<symbol, unknown>)[REPORTED_ERROR] === true;
 
+// expo/fetch rejects a cancelled request with a plain Error whose message
+// carries the native exception name, not with an AbortError — without this
+// match a timeout abort or an iOS backgrounding cancel reads as a failure.
+const FETCH_CANCEL_PATTERN =
+  /FetchRequestCanceledException|fetch request has been canceled/i;
+
 /** True for cancelled/aborted requests (navigation away, new keystroke) —
  * routine control flow that should never be reported as a failure. */
 export const isAbortLikeError = (error: unknown): boolean =>
   isCancel(error) ||
   (error instanceof Error &&
-    (error.name === "AbortError" || error.name === "CanceledError"));
+    (error.name === "AbortError" ||
+      error.name === "CanceledError" ||
+      FETCH_CANCEL_PATTERN.test(error.message)));
 
 // A gateway status means the reverse proxy in front of Jellyfin answered but
 // Jellyfin itself did not (container down, restarting, upstream timeout) —
-// from the app's side that is an unreachable server, not an app bug.
-const GATEWAY_STATUSES = new Set([502, 503, 504]);
+// from the app's side that is an unreachable server, not an app bug. 521-523
+// are Cloudflare's spellings of the same thing (origin down/unreachable); one
+// origin-down blip otherwise fans out into one issue per in-flight route.
+const GATEWAY_STATUSES = new Set([502, 503, 504, 521, 522, 523]);
 
 /**
  * True for requests that never got a usable HTTP response — the server is

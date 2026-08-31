@@ -42,6 +42,7 @@ import {
   updatePlaybackSpeedSettings,
 } from "@/components/video-player/controls/utils/playback-speed-settings";
 import { VideoPlayerView } from "@/components/video-player/VideoPlayerView";
+import { PROGRESS_REPORT_INTERVAL } from "@/constants/Playback";
 import useRouter from "@/hooks/useAppRouter";
 import { useHaptic } from "@/hooks/useHaptic";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
@@ -65,6 +66,7 @@ import { OfflineModeProvider } from "@/providers/OfflineModeProvider";
 import { getSubtitlesForItem } from "@/utils/atoms/downloadedSubtitles";
 import { getActivePlayerType, useSettings } from "@/utils/atoms/settings";
 import { getJellyfinHeadersForUrl } from "@/utils/customHeaders";
+import { isExpectedError } from "@/utils/errors";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
@@ -571,6 +573,11 @@ export default function DirectPlayerPage() {
           player: getActivePlayerType(settings),
           offline,
         });
+        if (isExpectedError(error)) {
+          // The server itself declined to produce a stream (NoCompatibleStream
+          // and friends): say so instead of only flipping the error state.
+          Alert.alert(t("player.error"), t("player.failed_to_get_stream_url"));
+        }
         setStreamStatus({ isLoading: false, isError: true });
         return null;
       }
@@ -812,11 +819,6 @@ export default function DirectPlayerPage() {
   const lastProgressReportTime = useSharedValue(0);
   const wasJustSeeking = useSharedValue(false);
   const URL_UPDATE_INTERVAL = 30000; // Update URL every 30 seconds instead of every second
-  // Heartbeat cadence for the periodic progress report. MPV ticks once a
-  // second, but the server only needs the position often enough for Now
-  // Playing and resume: state changes (pause, resume, track, mute) are
-  // reported on their own by the effect above, and a seek reports immediately.
-  const PROGRESS_REPORT_INTERVAL = 10000;
 
   // Track when seeking ends to update URL immediately
   useAnimatedReaction(

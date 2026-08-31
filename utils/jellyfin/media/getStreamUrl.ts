@@ -5,6 +5,7 @@ import type {
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { BaseItemKind } from "@jellyfin/sdk/lib/generated-client/models/base-item-kind";
 import { getMediaInfoApi } from "@jellyfin/sdk/lib/utils/api";
+import { markExpectedError } from "../../errors";
 import { generateDownloadProfile } from "../../profiles/download";
 import type { AudioTranscodeModeType } from "../../profiles/native";
 
@@ -173,8 +174,13 @@ export const getStreamUrl = async ({
     sessionId = res.data.PlaySessionId || null;
     mediaSource = res.data.MediaSources?.[0];
     if (!mediaSource) {
-      throw new Error(
-        `PlaybackInfo returned no media source for live channel (${res.data.ErrorCode ?? "no ErrorCode"})`,
+      // A server-side negotiation outcome (profile can't be satisfied,
+      // transcoding disabled), not an app defect: expected keeps it out of
+      // Sentry while the player surfaces it to the user.
+      throw markExpectedError(
+        new Error(
+          `PlaybackInfo returned no media source for live channel (${res.data.ErrorCode ?? "no ErrorCode"})`,
+        ),
       );
     }
     const url = getPlaybackUrl(api, item.ChannelId!, mediaSource, {
@@ -228,8 +234,12 @@ export const getStreamUrl = async ({
   // Fabricating a stream URL anyway just moves the failure into an opaque
   // decoder error minutes later, so fail here where the reason is known.
   if (!mediaSource) {
-    throw new Error(
-      `PlaybackInfo returned no media source (${res.data.ErrorCode ?? "no ErrorCode"})`,
+    // Same as the live-channel case: the server said no (NoCompatibleStream,
+    // RateLimitExceeded), which is its configuration, not an app bug.
+    throw markExpectedError(
+      new Error(
+        `PlaybackInfo returned no media source (${res.data.ErrorCode ?? "no ErrorCode"})`,
+      ),
     );
   }
 

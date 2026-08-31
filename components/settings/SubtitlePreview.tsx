@@ -22,6 +22,12 @@ import {
   SUBTITLE_PREVIEW_VIDEO_WIDTH,
 } from "@/utils/subtitles";
 
+// Required at module scope on purpose. Inside try/catch, Metro treats a
+// require() as an optional dependency: when the file is missing at bundle time
+// the build still passes and the failure only shows up on the device. Up here a
+// missing sample video fails the bundle instead.
+const SAMPLE_VIDEO = require("@/assets/sample_subtitled.mp4");
+
 export const SubtitlePreview = React.memo(() => {
   const { t } = useTranslation();
   const { settings } = useSettings();
@@ -37,7 +43,7 @@ export const SubtitlePreview = React.memo(() => {
     setIsLoading(true);
     setPlayerReady(false);
     try {
-      const asset = Asset.fromModule(require("@/assets/sample_subtitled.mp4"));
+      const asset = Asset.fromModule(SAMPLE_VIDEO);
       await asset.downloadAsync();
       setAssetUri(asset.localUri || asset.uri);
       setIsLoading(false);

@@ -225,8 +225,13 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
     var brightnessController: BrightnessController? = null
 
     // Internals
-    private var authoritativePosition: Double = 0.0
+    // Read by NativePlayerSession.dismiss(): what onDismiss reports. Never
+    // written by the Choreographer or a scrub, unlike displayPosition.
+    var authoritativePosition: Double = 0.0
+        private set
     private var hasAuthoritativePosition = false
+    // Set on every user/remote seek; the next progress tick reports
+    // didSeek=true so the JS coordinator sends an immediate progress report.
     private var pendingSeekReport = false
     private var speedBeforeHold: Double? = null
     private var currentItemId: String? = null
@@ -497,12 +502,29 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
     }
 
     fun seekTo(positionSec: Double) {
-        val clamped = max(0.0, positionSec)
+        val clamped = max(0.0, if (duration > 0) min(positionSec, duration) else positionSec)
         pendingSeekReport = true
         displayPosition = clamped
         authoritativePosition = clamped
         renderer?.seekTo(clamped)
         onPlaybackStateSync?.invoke()
+        // Move JS's tracked position with the seek right away rather than on
+        // the next time-pos tick: at teardown JS takes the later of its tracked
+        // position and authoritativePosition above, so a backward seek has to
+        // lower the tracked value first or an exit before that tick reports
+        // the pre-seek position. trackingOnly keeps this tick out of the
+        // progress reports: it carries the requested target and mpv may still
+        // snap to a nearby keyframe, so the report rides the next
+        // authoritative tick (didSeek).
+        if (!isTearingDown) {
+            emit?.invoke("onProgress", mapOf(
+                "position" to clamped,
+                "duration" to duration,
+                "progress" to if (duration > 0) clamped / duration else 0.0,
+                "cacheSeconds" to cacheSeconds,
+                "trackingOnly" to true
+            ))
+        }
         scheduleAutoHide()
     }
 
@@ -1143,6 +1165,12 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
     // MARK: - MPVLayerRenderer.Delegate Implementation
 
     override fun onPositionChanged(position: Double, duration: Double, cacheSeconds: Double) {
+        // renderer.stop() zeroes its cached position, and a tick posted to the
+        // main handler before that runs still delivers those zeroed fields
+        // afterwards — emitting it would hand JS position 0 while teardown is
+        // still awaiting its stop report, which is the bug this whole path
+        // exists to prevent.
+        if (isTearingDown) return
         authoritativePosition = position
         if (this.duration != duration) {
             this.duration = duration
@@ -1153,7 +1181,6 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
 
         if (!isScrubbing) {
             displayPosition = position
-            checkSegmentsAndCountdown(position)
         }
 
         val didSeek = pendingSeekReport
@@ -1166,9 +1193,18 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
             "cacheSeconds" to cacheSeconds,
             "didSeek" to didSeek
         ))
+
+        // After the emit: an auto-skip fired from here seeks, and its tick has
+        // to follow this one, or this pre-skip position consumes the skip's
+        // seek report and the tick that lands at the segment end goes
+        // unreported until the next interval.
+        if (!isScrubbing) {
+            checkSegmentsAndCountdown(position)
+        }
     }
 
     override fun onPauseChanged(isPaused: Boolean) {
+        if (isTearingDown) return
         val playing = !isPaused
         isPlaying = playing
         if (playing) {
@@ -1187,6 +1223,7 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
     }
 
     override fun onLoadingChanged(isLoading: Boolean) {
+        if (isTearingDown) return
         isBuffering = isLoading
         onPlaybackStateSync?.invoke()
         emit?.invoke("onPlaybackStateChange", mapOf(
@@ -1198,6 +1235,7 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
     }
 
     override fun onReadyToSeek() {
+        if (isTearingDown) return
         isReadyToSeek = true
         onPlaybackStateSync?.invoke()
         emit?.invoke("onPlaybackStateChange", mapOf(
@@ -1209,10 +1247,14 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
     }
 
     override fun onTracksReady() {
+        // A swap's FILE_LOADED can post this after willTeardown(); letting it
+        // through would run the auto-subtitle path against a closed player.
+        if (isTearingDown) return
         emit?.invoke("onTracksReady", emptyMap())
     }
 
     override fun onError(message: String) {
+        if (isTearingDown) return
         errorMessage = message
         emit?.invoke("onError", mapOf("error" to message))
     }

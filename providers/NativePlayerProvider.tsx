@@ -29,6 +29,7 @@ import {
   PlaybackSpeedScope,
   updatePlaybackSpeedSettings,
 } from "@/components/video-player/controls/utils/playback-speed-settings";
+import { PROGRESS_REPORT_INTERVAL } from "@/constants/Playback";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { useOrientation } from "@/hooks/useOrientation";
 import { usePlaybackManager } from "@/hooks/usePlaybackManager";
@@ -98,7 +99,8 @@ import {
   pickAutoSubtitleTrack,
   type SubtitleSelectablePlayer,
 } from "@/utils/jellyfin/subtitleUtils";
-import { logAndCaptureError, writeToLog } from "@/utils/log";
+import { logAndCaptureError, writeErrorLog, writeToLog } from "@/utils/log";
+import { applyProgressTick } from "@/utils/nativePlayer/applyProgressTick";
 import {
   buildNativePlayerConfig,
   buildNativePlayerStrings,
@@ -109,6 +111,8 @@ import {
   type PlayRequest,
   toDirectPlayerQuery,
 } from "@/utils/nativePlayer/playRequest";
+import { resolveFailedPresentation } from "@/utils/nativePlayer/resolveFailedPresentation";
+import { resolveTeardownReport } from "@/utils/nativePlayer/resolveTeardownReport";
 import {
   fetchAndParseSegments,
   getSegmentsForItem,
@@ -122,7 +126,6 @@ import {
 } from "@/utils/subtitles/subtitleIndex";
 import { msToTicks, ticksToSeconds } from "@/utils/time";
 
-const PROGRESS_REPORT_INTERVAL = 10_000;
 const NEXT_EPISODE_COUNTDOWN_SECONDS = 10;
 
 /**
@@ -141,11 +144,27 @@ interface NativeSession extends NativePlayerSessionSeed {
   /**
    * True from session creation until the new stream's onLoad arrives. The
    * engine is swapped in place, so events from the OUTGOING stream can still
-   * arrive after sessionRef points at the new session — every handler except
-   * onLoad/onDismiss drops events while this is set (the fix for the class
-   * of races direct-player guards with currentItemIdRef).
+   * arrive after sessionRef points at the new session — the handlers that
+   * write playback state drop events while this is set (the fix for the
+   * class of races direct-player guards with currentItemIdRef). onDismiss
+   * still tears the session down, but the position it carries belongs to
+   * the outgoing stream, so a committed session's teardown reports the
+   * tracked position instead and an uncommitted one reports nothing
+   * (resolveTeardownReport).
    */
   awaitingLoad: boolean;
+  /**
+   * Set on the edge where the present/load promise resolved with sessionRef
+   * still pointing here: the start report goes out on that edge, and only a
+   * committed session sends the final progress and stop reports at teardown.
+   * A session torn down before it committed never took the player, so a stop
+   * for it would describe a playback the server never saw start and
+   * overwrite the item's resume position with wherever the outgoing stream
+   * was. Not derived from awaitingLoad: on both platforms present() and
+   * load() resolve before onLoad, so every swap passes through a committed
+   * but still loading moment.
+   */
+  committed: boolean;
   lastProgressReportAt: number;
   /** Results of the last remote-subtitle search — download taps key into it. */
   subtitleSearchResults: SubtitleSearchResult[] | null;
@@ -179,7 +198,13 @@ interface NativePlayerContextValue {
   /**
    * Fetch the item, negotiate the stream and present the native player.
    * Resolves false when it declined (unsupported platform, config-build
-   * failure, native throw) so the caller can fall back to the JS route.
+   * failure, a native throw with the player still up) so the caller can fall
+   * back to the JS route. Resolves true when the request was taken,
+   * including when the player was closed while it was in flight: there is
+   * nothing to fall back to for an item the user just closed. A request
+   * superseded by a newer one before it took the player resolves false; one
+   * superseded after its load was issued resolves true, since the newer
+   * request owns the player.
    */
   presentFromRequest: (req: PlayRequest) => Promise<boolean>;
   isActive: boolean;
@@ -443,6 +468,9 @@ const NativePlayerProviderInner: React.FC<{
     async (session: NativeSession, positionTicks?: number) => {
       const currentApi = apiRef.current;
       if (!session.item.Id || !currentApi || !isConnectedRef.current) return;
+      // No start report went out for a session that never committed; a stop
+      // would still overwrite the item's resume position on the server.
+      if (!session.committed) return;
       // Dedupe per session: dismissal and stream replacement can both try to
       // close the same session (sessionId, or item id for downloads).
       const stopKey = session.stream.sessionId || session.item.Id;
@@ -669,6 +697,7 @@ const NativePlayerProviderInner: React.FC<{
         hasPlaybackStarted: false,
         reportedStopKey: null,
         awaitingLoad: true,
+        committed: false,
         lastProgressReportAt: 0,
         subtitleSearchResults: null,
         subtitleSearchToken: 0,
@@ -726,6 +755,19 @@ const NativePlayerProviderInner: React.FC<{
           // old session playing and reportable.
           await reportPlaybackStopped(previous);
           releaseLiveStream(previous);
+          // A newer request started during that round trip: yield to it, as
+          // the token check above does, so the newest request still wins.
+          if (token !== playRequestTokenRef.current) {
+            releaseLiveStream(session);
+            return false;
+          }
+          // A dismiss landed during the round trip (teardownSession clears
+          // sessionRef at once): there is no `previous` to swap out, and a
+          // load issued now would land on a dismissing session.
+          if (sessionRef.current !== previous) {
+            releaseLiveStream(session);
+            return true;
+          }
           sessionRef.current = session;
           await loadNativePlayerStream(built.config);
         } else {
@@ -740,23 +782,65 @@ const NativePlayerProviderInner: React.FC<{
           await presentNativePlayer(built.config);
         }
       } catch (error) {
-        logAndCaptureError("NativePlayer present/load failed", error, {
-          replace: !!options.replace,
+        if (String(error).includes("NoActivePlayerException")) {
+          // The user dismissed the player while the replace negotiation was
+          // still in flight — a routine race, recovered below.
+          writeErrorLog("NativePlayer load raced dismissal", {
+            replace: !!options.replace,
+          });
+        } else {
+          logAndCaptureError("NativePlayer present/load failed", error, {
+            replace: !!options.replace,
+          });
+        }
+        const outcome = resolveFailedPresentation({
+          sessionIsCurrent: sessionRef.current === session,
+          swapped: !!(options.replace && previous),
+          playerPresented: isNativePlayerPresented(),
         });
-        if (options.replace && previous) {
-          // The in-place swap failed midway: the old server session is
-          // already closed and the stream state is unknown — tear the whole
-          // player down (onDismiss handles the rest) instead of leaving a
-          // half-dead session behind.
+        if (outcome === "restore") {
+          // The swap failed with the player still up on the old stream: its
+          // server session is already closed and the stream state is unknown,
+          // so tear the whole player down (onDismiss handles the rest)
+          // instead of leaving a half-dead session behind.
+          releaseLiveStream(session);
           sessionRef.current = previous;
           void dismissNativePlayer();
-        } else {
+        } else if (outcome === "player-gone") {
+          // The player closed while the swap was in flight (a close tap, or
+          // the outgoing stream reaching its end) and no onDismiss can be
+          // relied on for this session: one may still be queued, but
+          // dismiss() with nothing presented resolves silently. Restoring
+          // `previous` here left a session nothing could clear once its own
+          // teardown had finished, so every later play took the replace path
+          // against no player and fell back to the JS player.
+          releaseLiveStream(session);
+          sessionRef.current = null;
+          setActiveItem(null);
+          setIsActive(false);
+          revalidateProgressCache();
+          unlockOrientation();
+        } else if (outcome === "unpresented") {
+          releaseLiveStream(session);
           sessionRef.current = previous;
           unlockOrientation();
         }
-        return false;
+        // "closed": onDismiss or a newer request already moved sessionRef and
+        // released this session's stream. Both it and "player-gone" resolve
+        // true: the player was closed under this request or a newer request
+        // took it, and a false return would send the caller to the JS player
+        // for an item the user just closed.
+        return outcome === "closed" || outcome === "player-gone";
       }
 
+      // The player can go away while the native call is in flight (a close
+      // tap, or the outgoing stream reaching its end; iOS load() still
+      // resolves during the dismiss fade). onDismiss has already torn this
+      // session down: a start report now would describe a player that no
+      // longer exists, and a false return would send the caller to the JS
+      // player for an item the user just closed.
+      if (sessionRef.current !== session) return true;
+      session.committed = true;
       setActiveItem(session.item);
       setIsActive(true);
       // Empty the legacy single-slot state before playback starts: it is
@@ -776,6 +860,7 @@ const NativePlayerProviderInner: React.FC<{
       reportPlaybackStart,
       reportPlaybackStopped,
       releaseLiveStream,
+      revalidateProgressCache,
       clearLastMessage,
       pushSegments,
       pushEpisodeList,
@@ -795,7 +880,8 @@ const NativePlayerProviderInner: React.FC<{
   /**
    * Same-item stream re-negotiation (tracks/bitrate), resuming in place.
    * Resolves false when the swap failed (beginSession swallows and reports
-   * its own errors) — callers that promise success must check.
+   * its own errors) — callers that promise success must check. A swap
+   * abandoned because the player closed under it resolves true.
    */
   const replaceStream = useCallback(
     async (
@@ -865,23 +951,35 @@ const NativePlayerProviderInner: React.FC<{
 
   const teardownSession = useCallback(
     async (session: NativeSession, finalPositionSec?: number) => {
-      if (finalPositionSec !== undefined) {
-        session.positionMs = finalPositionSec * 1000;
-      }
-      // Final progress write first: it also lands in the downloads DB for
-      // offline items (5%/90% thresholds), then close the server session.
-      const info = buildProgressInfo(session);
-      try {
-        await reportProgressRef.current(info);
-      } catch {}
-      await reportPlaybackStopped(session);
-      releaseLiveStream(session);
-      revalidateProgressCache();
-      unlockOrientation();
+      // Release the ref before the report round trips: a play request that
+      // lands during them must see no session, or it takes the replace path
+      // against a player that is already gone.
       if (sessionRef.current === session) {
         sessionRef.current = null;
         setActiveItem(null);
         setIsActive(false);
+      }
+      const positionMs = resolveTeardownReport(session, finalPositionSec);
+      if (positionMs !== null) {
+        session.positionMs = positionMs;
+        const positionTicks = msToTicks(positionMs);
+        // Final progress write first: it also lands in the downloads DB for
+        // offline items (5%/90% thresholds), then close the server session.
+        const info = buildProgressInfo(session);
+        try {
+          await reportProgressRef.current(info);
+        } catch {}
+        // Both reports carry the ticks resolved above; the stop report does
+        // not re-read session.positionMs after the await.
+        await reportPlaybackStopped(session, positionTicks);
+      }
+      // The stream was negotiated on the server whether or not it loaded.
+      releaseLiveStream(session);
+      revalidateProgressCache();
+      // A play request that landed during the report round trips owns the
+      // player now and holds its own orientation lock.
+      if (sessionRef.current === null) {
+        unlockOrientation();
       }
     },
     [
@@ -1396,13 +1494,13 @@ const NativePlayerProviderInner: React.FC<{
       addNativePlayerListener("onProgress", (payload) => {
         const session = sessionRef.current;
         if (!session || session.awaitingLoad) return;
-        session.positionMs = payload.position * 1000;
-        const now = Date.now();
-        const shouldReport =
-          payload.didSeek === true ||
-          now - session.lastProgressReportAt >= PROGRESS_REPORT_INTERVAL;
-        if (!shouldReport || !session.hasPlaybackStarted) return;
-        session.lastProgressReportAt = now;
+        const due = applyProgressTick(
+          session,
+          payload,
+          Date.now(),
+          PROGRESS_REPORT_INTERVAL,
+        );
+        if (!due) return;
         void reportProgressRef.current(buildProgressInfo(session));
       }),
 
@@ -1635,7 +1733,11 @@ const NativePlayerProviderInner: React.FC<{
 
       addNativePlayerListener("onPlaybackEnded", (payload) => {
         const session = sessionRef.current;
-        if (!session) return;
+        // The outgoing stream's end during an in-place swap arrives here
+        // first and its dismiss right behind it; the tracked position has to
+        // survive intact for the teardown of a session whose own onLoad has
+        // not arrived (resolveTeardownReport).
+        if (!session || session.awaitingLoad) return;
         session.positionMs = payload.positionSec * 1000;
       }),
 

@@ -8,6 +8,7 @@ import { useIntegrationHeaders } from "@/hooks/useIntegrationHeaders";
 import { JellyseerrApi, useJellyseerr } from "@/hooks/useJellyseerr";
 import { userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
+import { markExpectedError } from "@/utils/errors";
 import { writeErrorLog } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
 import { deleteJellyseerrPassword } from "@/utils/secureCredentials";
@@ -62,8 +63,12 @@ export const JellyseerrSettings = () => {
 
   const loginToJellyseerrMutation = useMutation({
     mutationFn: async () => {
+      // Everything thrown in this mutation is a user-facing outcome of what
+      // they typed (or didn't) — surfaced by onError's toast, never Sentry.
       if (!user?.Name)
-        throw new Error("Missing required information for login");
+        throw markExpectedError(
+          new Error("Missing required information for login"),
+        );
 
       // When the URL is admin-pinned, target that server directly. Otherwise
       // trust resolvedUrl only while it matches the field (the field adopts
@@ -81,10 +86,11 @@ export const JellyseerrSettings = () => {
           jellyseerrProbe,
           { headers: customHeaders },
         );
-        if (!resolved.ok) throw new Error("Invalid server url");
+        if (!resolved.ok)
+          throw markExpectedError(new Error("Invalid server url"));
         finalUrl = resolved.url;
       }
-      if (!finalUrl) throw new Error("Missing server url");
+      if (!finalUrl) throw markExpectedError(new Error("Missing server url"));
 
       // An API key signs in via the Seerr account linked to the Jellyfin user
       // — no password involved. Falls back to the classic password login.
@@ -98,10 +104,14 @@ export const JellyseerrSettings = () => {
         apiKey,
       );
       const testResult = await jellyseerrTempApi.test();
-      if (!testResult.isValid) throw new Error("Invalid server url");
+      if (!testResult.isValid)
+        throw markExpectedError(new Error("Invalid server url"));
 
       if (apiKey) {
-        if (!user.Id) throw new Error("Missing required information for login");
+        if (!user.Id)
+          throw markExpectedError(
+            new Error("Missing required information for login"),
+          );
         const loggedInUser = await jellyseerrTempApi.loginWithApiKey(user.Id);
         return { user: loggedInUser, url: finalUrl, apiKey };
       }
