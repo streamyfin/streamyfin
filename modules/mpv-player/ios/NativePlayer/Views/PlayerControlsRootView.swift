@@ -211,22 +211,18 @@ struct PlayerControlsRootView: View {
 			GeometryReader { geometry in
 				if viewModel.controlsVisible,
 					let chapterName = viewModel.currentChapterName,
-					let brightnessAnchor = anchors.brightness,
 					let scrubberAnchor = anchors.scrubber {
-					let brightnessFrame = geometry[brightnessAnchor]
 					let scrubberFrame = geometry[scrubberAnchor]
-					if brightnessFrame.maxY < scrubberFrame.midY {
-						Text(chapterName)
-							.font(.caption)
-							.foregroundStyle(.white.opacity(0.7))
-							.lineLimit(1)
-							.frame(width: scrubberFrame.width, alignment: .leading)
-							.position(
-								x: scrubberFrame.midX,
-								y: (brightnessFrame.maxY + scrubberFrame.midY) / 2
-							)
-							.allowsHitTesting(false)
-					}
+					let chapterY = anchors.brightness.map {
+						(geometry[$0].maxY + scrubberFrame.midY) / 2
+					} ?? scrubberFrame.minY
+					Text(chapterName)
+						.font(.caption)
+						.foregroundStyle(.white.opacity(0.7))
+						.lineLimit(1)
+						.frame(width: scrubberFrame.width, alignment: .leading)
+						.position(x: scrubberFrame.midX, y: chapterY)
+						.allowsHitTesting(false)
 				}
 			}
 		}
@@ -497,11 +493,7 @@ struct PlayerControlsRootView: View {
 	private var fullWidthBottomChrome: some View {
 		VStack {
 			Spacer()
-			PlayerBottomBar(
-				viewModel: viewModel,
-				time: viewModel.time,
-				showsChapterName: !viewModel.showBrightnessSlider
-			)
+			PlayerBottomBar(viewModel: viewModel, time: viewModel.time)
 				.background {
 					GeometryReader { geometry in
 						Color.clear.preference(
@@ -634,13 +626,13 @@ private struct SubtitleScaleOverlay: View {
 	}
 }
 
-/// Bottom bar: current chapter name, the custom scrubber, then time labels
-/// with the wall-clock finish time under the remaining time (JS TimeDisplay).
+/// Bottom bar: the custom scrubber, then time labels with the wall-clock
+/// finish time under the remaining time (JS TimeDisplay). The root overlay
+/// positions the current chapter relative to this scrubber's anchor.
 struct PlayerBottomBar: View {
 	@ObservedObject var viewModel: PlayerViewModel
 	/// The fast clock — time labels and the chapter caption tick off this.
 	@ObservedObject var time: PlaybackTimeModel
-	let showsChapterName: Bool
 
 	private static let endsAtFormatter: DateFormatter = {
 		let formatter = DateFormatter()
@@ -654,12 +646,6 @@ struct PlayerBottomBar: View {
 		let remaining = max(0, viewModel.duration - position)
 
 		VStack(alignment: .leading, spacing: 6) {
-			if showsChapterName, let chapterName = viewModel.currentChapterName {
-				Text(chapterName)
-					.font(.caption)
-					.foregroundStyle(.white.opacity(0.7))
-					.lineLimit(1)
-			}
 			ScrubberView(viewModel: viewModel, time: time)
 				.anchorPreference(
 					key: PlayerChromeAnchorPreferenceKey.self,
