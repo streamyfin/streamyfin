@@ -203,9 +203,7 @@ struct PlayerControlsRootView: View {
 		.animation(.easeInOut(duration: 0.15), value: viewModel.showSubtitleScaleControl)
 		.animation(.easeInOut(duration: 0.15), value: viewModel.doubleTapSeekForward)
 		.onPreferenceChange(BottomBarHeightPreferenceKey.self) { height in
-			if height > 0 {
-				bottomBarHeight = height
-			}
+			bottomBarHeight = height
 		}
 		.overlayPreferenceValue(PlayerChromeAnchorPreferenceKey.self) { anchors in
 			GeometryReader { geometry in
