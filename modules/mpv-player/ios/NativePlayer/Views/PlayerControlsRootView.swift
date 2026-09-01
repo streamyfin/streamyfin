@@ -19,6 +19,7 @@ struct PlayerControlsRootView: View {
 	@State private var dragOnLeftHalf = false
 	@State private var dragStartFraction: Double = 0
 	@State private var dragStartLevel: Double = 0
+	@State private var bottomBarHeight: CGFloat = 0
 	/// A pinch or an engaged 2× hold took over this touch sequence — the drag
 	/// must stay dead until the fingers lift, or its accumulated translation
 	/// (finger spread / hold drift) would scrub or yank the sliders against a
@@ -33,17 +34,21 @@ struct PlayerControlsRootView: View {
 			// Portrait phones can't fit the full top-bar button row — late
 			// data pushes (episode list) add buttons after load, so the bar
 			// must adapt by width, not by content.
-			content(size: geometry.size)
+			content(size: geometry.size, safeAreaInsets: geometry.safeAreaInsets)
 		}
 	}
 
-	private func content(size: CGSize) -> some View {
+	private func content(size: CGSize, safeAreaInsets: EdgeInsets) -> some View {
 		ZStack {
 			// Tap-to-toggle catcher behind everything interactive; also the
 			// gesture surface — controls layered above receive their own
 			// touches first, so drags here only start on empty video area.
 			tapSurface(size: size)
-				.gesture(surfaceDragGesture(size: size))
+				.gesture(
+					surfaceDragGesture(
+						size: size, bottomSafeAreaInset: safeAreaInsets.bottom
+					)
+				)
 				.gesture(holdSpeedGesture)
 
 			if viewModel.controlsVisible {
@@ -53,21 +58,9 @@ struct PlayerControlsRootView: View {
 				// and must cover the play/skip buttons in landscape, not duck
 				// under them. Hit-testing is unaffected — the layer's empty
 				// middle isn't tappable.
-				controls(compact: size.width < 500)
+				topChrome(compact: size.width < 500)
 					.transition(.opacity)
 					.zIndex(1)
-				// Centered in the ZStack (true screen center) rather than in
-				// the bar VStack — the bottom bar is taller than the top bar,
-				// so centering between them would sit visibly high. The
-				// horizontal padding reserves the edge-slider gutters (20pt
-				// inset + 34pt pill + 8pt gap) so the row's ViewThatFits
-				// tiers fit BETWEEN the sliders instead of underneath them.
-				PlayerCenterControls(viewModel: viewModel, time: viewModel.time)
-					.padding(
-						.horizontal,
-						viewModel.showVolumeSlider || viewModel.showBrightnessSlider ? 62 : 24
-					)
-					.transition(.opacity)
 			}
 
 			if viewModel.controlsVisible && viewModel.showSubtitleScaleControl {
@@ -92,71 +85,12 @@ struct PlayerControlsRootView: View {
 					.tint(.white)
 			}
 
-			// Edge sliders: brightness left, volume right. The volume pill
-			// additionally appears alone on hardware volume presses while the
-			// chrome is hidden (the system volume HUD is suppressed).
-			HStack {
-				if viewModel.showBrightnessSlider
-					&& (viewModel.controlsVisible || viewModel.brightnessSliderRevealed) {
-					BrightnessSliderView(
-						viewModel: viewModel,
-						controller: viewModel.brightnessController
-					)
-					.transition(.opacity)
-				}
-				Spacer()
-				if viewModel.showVolumeSlider
-					&& (viewModel.controlsVisible || viewModel.volumeSliderRevealed) {
-					VolumeSliderView(
-						viewModel: viewModel,
-						controller: viewModel.volumeController
-					)
-					.transition(.opacity)
-				}
-			}
-			.padding(.horizontal, 20)
+			adaptivePlaybackChrome
 
-			// Skip pill / countdown card live outside controlsVisible so they
-			// stay actionable while the chrome is hidden — but not while the
-			// controls are locked (nothing tappable in lock mode; an armed
-			// countdown still auto-advances, which suits hands-off viewing).
-			if !viewModel.controlsLocked {
-				VStack {
-					Spacer()
-					HStack {
-						Spacer()
-						if let countdown = viewModel.countdownRemaining, let next = viewModel.nextEpisode {
-							NextEpisodeCountdownView(viewModel: viewModel, next: next, remaining: countdown)
-						} else if let segment = viewModel.activeSegment, segment.skipMode != "auto" {
-							SkipSegmentButton(viewModel: viewModel, segment: segment)
-						}
-					}
-				}
-				.padding(.trailing, 24)
-				// Clears the bottom bar, which grew a chapter label + ends-at line.
-				.padding(.bottom, viewModel.controlsVisible ? 124 : 32)
-			}
-
-			// Says what an automatic skip just did. Auto-skip is otherwise
-			// silent and reads as the video jumping on its own. Bottom left,
-			// opposite the skip pill, so the two can never collide.
-			if let notice = viewModel.skippedSegmentNotice {
-				VStack {
-					Spacer()
-					HStack {
-						Text(notice)
-							.font(.subheadline.weight(.medium))
-							.foregroundStyle(.white)
-							.padding(.horizontal, 16)
-							.padding(.vertical, 10)
-							.background(.ultraThinMaterial, in: Capsule())
-							.overlay(Capsule().stroke(.white.opacity(0.2), lineWidth: 1))
-						Spacer()
-					}
-				}
-				.padding(.leading, 24)
-				.padding(.bottom, viewModel.controlsVisible ? 124 : 32)
-				.transition(.opacity)
+			if viewModel.controlsVisible {
+				fullWidthBottomChrome
+					.transition(.opacity)
+					.zIndex(1)
 			}
 
 			// Hold-to-speed feedback pill; lives outside controlsVisible so it
@@ -270,6 +204,34 @@ struct PlayerControlsRootView: View {
 		.animation(.easeInOut(duration: 0.15), value: viewModel.isHoldSpeedActive)
 		.animation(.easeInOut(duration: 0.15), value: viewModel.showSubtitleScaleControl)
 		.animation(.easeInOut(duration: 0.15), value: viewModel.doubleTapSeekForward)
+		.onPreferenceChange(BottomBarHeightPreferenceKey.self) { height in
+			if height > 0 {
+				bottomBarHeight = height
+			}
+		}
+		.overlayPreferenceValue(PlayerChromeAnchorPreferenceKey.self) { anchors in
+			GeometryReader { geometry in
+				if viewModel.controlsVisible,
+					let chapterName = viewModel.currentChapterName,
+					let brightnessAnchor = anchors.brightness,
+					let scrubberAnchor = anchors.scrubber {
+					let brightnessFrame = geometry[brightnessAnchor]
+					let scrubberFrame = geometry[scrubberAnchor]
+					if brightnessFrame.maxY < scrubberFrame.midY {
+						Text(chapterName)
+							.font(.caption)
+							.foregroundStyle(.white.opacity(0.7))
+							.lineLimit(1)
+							.frame(width: scrubberFrame.width, alignment: .leading)
+							.position(
+								x: scrubberFrame.midX,
+								y: (brightnessFrame.maxY + scrubberFrame.midY) / 2
+							)
+							.allowsHitTesting(false)
+					}
+				}
+			}
+		}
 		// SwiftUI never delivers onEnded when the SYSTEM cancels the touch
 		// (incoming call, Control Center edge swipe, backgrounding) — release
 		// an engaged hold here or playback stays stuck at 2×.
@@ -345,7 +307,7 @@ struct PlayerControlsRootView: View {
 	/// chapter haptics and pause-while-scrubbing come along). Vertical drag =
 	/// brightness on the left half, volume on the right (JS GestureOverlay
 	/// parity), with the edge pills transiently revealed as feedback.
-	private func surfaceDragGesture(size: CGSize) -> some Gesture {
+	private func surfaceDragGesture(size: CGSize, bottomSafeAreaInset: CGFloat) -> some Gesture {
 		DragGesture(minimumDistance: 12)
 			.onChanged { value in
 				guard !viewModel.controlsLocked,
@@ -353,11 +315,18 @@ struct PlayerControlsRootView: View {
 					viewModel.errorMessage == nil
 				else { return }
 
+				// The home-indicator swipe reaches SwiftUI briefly before iOS
+				// cancels the touch. Keep that full sequence inert so an upward
+				// app-exit gesture cannot change brightness or volume first.
+				if bottomSafeAreaInset > 0,
+					value.startLocation.y >= size.height - bottomSafeAreaInset {
+					dragSuppressed = true
+				}
+
 				// A two-finger pinch or an engaged 2× hold owns this touch
-				// sequence — abandon any in-flight drag and ignore the rest of
-				// the sequence. Resuming later would apply the accumulated
-				// translation (finger spread / hold drift) against a stale
-				// baseline and make volume/brightness or the scrubber jump.
+				// sequence. A system-edge swipe is suppressed for the same
+				// lifetime. Abandon any in-flight drag and ignore the rest;
+				// resuming would apply accumulated movement to a stale baseline.
 				if viewModel.isPinching || viewModel.isHoldSpeedActive || dragSuppressed {
 					if !dragSuppressed {
 						dragSuppressed = true
@@ -452,14 +421,101 @@ struct PlayerControlsRootView: View {
 		viewModel.scheduleAutoHide()
 	}
 
-	private func controls(compact: Bool) -> some View {
+	private func topChrome(compact: Bool) -> some View {
 		VStack(spacing: 0) {
 			PlayerTopBar(viewModel: viewModel, compact: compact)
 			Spacer()
-			PlayerBottomBar(viewModel: viewModel, time: viewModel.time)
 		}
 		.padding(.horizontal, 24)
 		.padding(.vertical, 8)
+	}
+
+	private var adaptivePlaybackChrome: some View {
+		HStack {
+			if viewModel.showBrightnessSlider
+				&& (viewModel.controlsVisible || viewModel.brightnessSliderRevealed) {
+				BrightnessSliderView(
+					viewModel: viewModel,
+					controller: viewModel.brightnessController
+				)
+				.anchorPreference(
+					key: PlayerChromeAnchorPreferenceKey.self,
+					value: .bounds
+				) { anchor in
+					PlayerChromeAnchors(brightness: anchor)
+				}
+				.transition(.opacity)
+			}
+
+			ZStack {
+				if viewModel.controlsVisible {
+					PlayerCenterControls(viewModel: viewModel, time: viewModel.time)
+						.transition(.opacity)
+				}
+				bottomChrome
+					.zIndex(1)
+			}
+			.frame(maxWidth: .infinity, maxHeight: .infinity)
+
+			if viewModel.showVolumeSlider
+				&& (viewModel.controlsVisible || viewModel.volumeSliderRevealed) {
+				VolumeSliderView(
+					viewModel: viewModel,
+					controller: viewModel.volumeController
+				)
+				.transition(.opacity)
+			}
+		}
+		.padding(.horizontal)
+	}
+
+	private var bottomChrome: some View {
+		VStack {
+			Spacer()
+			HStack(alignment: .bottom) {
+				if let notice = viewModel.skippedSegmentNotice {
+					Text(notice)
+						.font(.subheadline.weight(.medium))
+						.foregroundStyle(.white)
+						.padding(.horizontal, 16)
+						.padding(.vertical, 10)
+						.background(.ultraThinMaterial, in: Capsule())
+						.overlay(Capsule().stroke(.white.opacity(0.2), lineWidth: 1))
+						.transition(.opacity)
+				}
+				Spacer()
+				if !viewModel.controlsLocked {
+					if let countdown = viewModel.countdownRemaining, let next = viewModel.nextEpisode {
+						NextEpisodeCountdownView(
+							viewModel: viewModel, next: next, remaining: countdown
+						)
+					} else if let segment = viewModel.activeSegment, segment.skipMode != "auto" {
+						SkipSegmentButton(viewModel: viewModel, segment: segment)
+					}
+				}
+			}
+		}
+		.padding(.bottom, viewModel.controlsVisible ? bottomBarHeight : 0)
+	}
+
+	private var fullWidthBottomChrome: some View {
+		VStack {
+			Spacer()
+			PlayerBottomBar(
+				viewModel: viewModel,
+				time: viewModel.time,
+				showsChapterName: !viewModel.showBrightnessSlider
+			)
+				.background {
+					GeometryReader { geometry in
+						Color.clear.preference(
+							key: BottomBarHeightPreferenceKey.self,
+							value: geometry.size.height
+						)
+					}
+				}
+		}
+		.padding(.horizontal)
 	}
 
 	private func errorOverlay(message: String) -> some View {
@@ -489,6 +545,34 @@ struct PlayerControlsRootView: View {
 		.padding(32)
 		.frame(maxWidth: 420)
 		.background(.black.opacity(0.85), in: RoundedRectangle(cornerRadius: 20))
+	}
+}
+
+private struct BottomBarHeightPreferenceKey: PreferenceKey {
+	static var defaultValue: CGFloat = 0
+
+	static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+		value = max(value, nextValue())
+	}
+}
+
+private struct PlayerChromeAnchors {
+	var brightness: Anchor<CGRect>?
+	var scrubber: Anchor<CGRect>?
+
+	init(brightness: Anchor<CGRect>? = nil, scrubber: Anchor<CGRect>? = nil) {
+		self.brightness = brightness
+		self.scrubber = scrubber
+	}
+}
+
+private struct PlayerChromeAnchorPreferenceKey: PreferenceKey {
+	static var defaultValue = PlayerChromeAnchors()
+
+	static func reduce(value: inout PlayerChromeAnchors, nextValue: () -> PlayerChromeAnchors) {
+		let next = nextValue()
+		value.brightness = next.brightness ?? value.brightness
+		value.scrubber = next.scrubber ?? value.scrubber
 	}
 }
 
@@ -560,6 +644,7 @@ struct PlayerBottomBar: View {
 	@ObservedObject var viewModel: PlayerViewModel
 	/// The fast clock — time labels and the chapter caption tick off this.
 	@ObservedObject var time: PlaybackTimeModel
+	let showsChapterName: Bool
 
 	private static let endsAtFormatter: DateFormatter = {
 		let formatter = DateFormatter()
@@ -573,13 +658,19 @@ struct PlayerBottomBar: View {
 		let remaining = max(0, viewModel.duration - position)
 
 		VStack(alignment: .leading, spacing: 6) {
-			if let chapterName = viewModel.currentChapterName {
+			if showsChapterName, let chapterName = viewModel.currentChapterName {
 				Text(chapterName)
 					.font(.caption)
 					.foregroundStyle(.white.opacity(0.7))
 					.lineLimit(1)
 			}
 			ScrubberView(viewModel: viewModel, time: time)
+				.anchorPreference(
+					key: PlayerChromeAnchorPreferenceKey.self,
+					value: .bounds
+				) { anchor in
+					PlayerChromeAnchors(scrubber: anchor)
+				}
 			HStack(alignment: .top) {
 				Text(formatTime(position))
 				Spacer()
