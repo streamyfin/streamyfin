@@ -83,7 +83,7 @@ struct PlayerControlsRootView: View {
 					.tint(.white)
 			}
 
-			adaptivePlaybackChrome
+			adaptivePlaybackChrome(bottomSafeAreaInset: bottomSafeAreaInset)
 
 			if viewModel.controlsVisible {
 				fullWidthBottomChrome
@@ -193,7 +193,6 @@ struct PlayerControlsRootView: View {
 				.onChanged { _ in viewModel.touchInteractionOccurred() }
 		)
 		.animation(.easeInOut(duration: 0.2), value: viewModel.showStillWatching)
-		.animation(.easeInOut(duration: 0.2), value: viewModel.controlsVisible)
 		.animation(.easeInOut(duration: 0.2), value: viewModel.activeSegment?.startSec)
 		.animation(.easeInOut(duration: 0.2), value: viewModel.countdownRemaining != nil)
 		.animation(.easeInOut(duration: 0.2), value: viewModel.volumeSliderRevealed)
@@ -208,22 +207,33 @@ struct PlayerControlsRootView: View {
 		.overlayPreferenceValue(PlayerChromeAnchorPreferenceKey.self) { anchors in
 			GeometryReader { geometry in
 				if viewModel.controlsVisible,
-					let chapterName = viewModel.currentChapterName,
 					let scrubberAnchor = anchors.scrubber {
 					let scrubberFrame = geometry[scrubberAnchor]
-					let chapterY = anchors.brightness.map {
-						(geometry[$0].maxY + scrubberFrame.midY) / 2
-					} ?? scrubberFrame.minY
-					Text(chapterName)
-						.font(.caption)
-						.foregroundStyle(.white.opacity(0.7))
-						.lineLimit(1)
-						.frame(width: scrubberFrame.width, alignment: .leading)
-						.position(x: scrubberFrame.midX, y: chapterY)
-						.allowsHitTesting(false)
+					let chapterMinY = anchors.brightness.map { geometry[$0].maxY }
+						?? scrubberFrame.minY
+					let chapterHeight = max(scrubberFrame.midY - chapterMinY, 0)
+					let chapterMaxX = anchors.chapterObstructions
+						.map { geometry[$0].minX }
+						.min() ?? scrubberFrame.maxX
+					let chapterWidth = max(chapterMaxX - scrubberFrame.minX, 0)
+					if chapterWidth > 0, chapterHeight > 0 {
+						CurrentChapterLabel(viewModel: viewModel, time: viewModel.time)
+							.frame(
+								width: chapterWidth,
+								height: chapterHeight,
+								alignment: .leading
+							)
+							.clipped()
+							.position(
+								x: scrubberFrame.minX + chapterWidth / 2,
+								y: chapterMinY + chapterHeight / 2
+							)
+							.allowsHitTesting(false)
+					}
 				}
 			}
 		}
+		.animation(.easeInOut(duration: 0.2), value: viewModel.controlsVisible)
 		// SwiftUI never delivers onEnded when the SYSTEM cancels the touch
 		// (incoming call, Control Center edge swipe, backgrounding) — release
 		// an engaged hold here or playback stays stuck at 2×.
@@ -420,10 +430,19 @@ struct PlayerControlsRootView: View {
 		.padding(.vertical, 8)
 	}
 
-	private var adaptivePlaybackChrome: some View {
+	private var brightnessSliderVisible: Bool {
+		viewModel.showBrightnessSlider
+			&& (viewModel.controlsVisible || viewModel.brightnessSliderRevealed)
+	}
+
+	private var volumeSliderVisible: Bool {
+		viewModel.showVolumeSlider
+			&& (viewModel.controlsVisible || viewModel.volumeSliderRevealed)
+	}
+
+	private func adaptivePlaybackChrome(bottomSafeAreaInset: CGFloat) -> some View {
 		HStack {
-			if viewModel.showBrightnessSlider
-				&& (viewModel.controlsVisible || viewModel.brightnessSliderRevealed) {
+			if brightnessSliderVisible {
 				BrightnessSliderView(
 					viewModel: viewModel,
 					controller: viewModel.brightnessController
@@ -435,6 +454,14 @@ struct PlayerControlsRootView: View {
 					PlayerChromeAnchors(brightness: anchor)
 				}
 				.transition(.opacity)
+			} else if viewModel.controlsVisible && volumeSliderVisible {
+				VolumeSliderView(
+					viewModel: viewModel,
+					controller: viewModel.volumeController
+				)
+				.hidden()
+				.allowsHitTesting(false)
+				.accessibilityHidden(true)
 			}
 
 			ZStack {
@@ -442,25 +469,35 @@ struct PlayerControlsRootView: View {
 					PlayerCenterControls(viewModel: viewModel, time: viewModel.time)
 						.transition(.opacity)
 				}
-				bottomChrome
+				bottomChrome(bottomSafeAreaInset: bottomSafeAreaInset)
 					.zIndex(1)
 			}
 			.frame(maxWidth: .infinity, maxHeight: .infinity)
 
-			if viewModel.showVolumeSlider
-				&& (viewModel.controlsVisible || viewModel.volumeSliderRevealed) {
+			if volumeSliderVisible {
 				VolumeSliderView(
 					viewModel: viewModel,
 					controller: viewModel.volumeController
 				)
 				.transition(.opacity)
+			} else if viewModel.controlsVisible && brightnessSliderVisible {
+				BrightnessSliderView(
+					viewModel: viewModel,
+					controller: viewModel.brightnessController
+				)
+				.hidden()
+				.allowsHitTesting(false)
+				.accessibilityHidden(true)
 			}
 		}
 		.padding(.horizontal)
 	}
 
-	private var bottomChrome: some View {
-		VStack {
+	private func bottomChrome(bottomSafeAreaInset: CGFloat) -> some View {
+		let hiddenControlsBottomPadding: CGFloat? =
+			bottomSafeAreaInset > 0 ? bottomSafeAreaInset : nil
+
+		return VStack {
 			Spacer()
 			HStack(alignment: .bottom) {
 				if let notice = viewModel.skippedSegmentNotice {
@@ -471,6 +508,12 @@ struct PlayerControlsRootView: View {
 						.padding(.vertical, 10)
 						.background(.ultraThinMaterial, in: Capsule())
 						.overlay(Capsule().stroke(.white.opacity(0.2), lineWidth: 1))
+						.anchorPreference(
+							key: PlayerChromeAnchorPreferenceKey.self,
+							value: .bounds
+						) { anchor in
+							PlayerChromeAnchors(chapterObstructions: [anchor])
+						}
 						.transition(.opacity)
 				}
 				Spacer()
@@ -479,13 +522,28 @@ struct PlayerControlsRootView: View {
 						NextEpisodeCountdownView(
 							viewModel: viewModel, next: next, remaining: countdown
 						)
+						.anchorPreference(
+							key: PlayerChromeAnchorPreferenceKey.self,
+							value: .bounds
+						) { anchor in
+							PlayerChromeAnchors(chapterObstructions: [anchor])
+						}
 					} else if let segment = viewModel.activeSegment, segment.skipMode != "auto" {
 						SkipSegmentButton(viewModel: viewModel, segment: segment)
+							.anchorPreference(
+								key: PlayerChromeAnchorPreferenceKey.self,
+								value: .bounds
+							) { anchor in
+								PlayerChromeAnchors(chapterObstructions: [anchor])
+							}
 					}
 				}
 			}
 		}
-		.padding(.bottom, viewModel.controlsVisible ? bottomBarHeight : 0)
+		.padding(
+			.bottom,
+			viewModel.controlsVisible ? bottomBarHeight : hiddenControlsBottomPadding
+		)
 	}
 
 	private var fullWidthBottomChrome: some View {
@@ -545,10 +603,16 @@ private struct BottomBarHeightPreferenceKey: PreferenceKey {
 private struct PlayerChromeAnchors {
 	var brightness: Anchor<CGRect>?
 	var scrubber: Anchor<CGRect>?
+	var chapterObstructions: [Anchor<CGRect>]
 
-	init(brightness: Anchor<CGRect>? = nil, scrubber: Anchor<CGRect>? = nil) {
+	init(
+		brightness: Anchor<CGRect>? = nil,
+		scrubber: Anchor<CGRect>? = nil,
+		chapterObstructions: [Anchor<CGRect>] = []
+	) {
 		self.brightness = brightness
 		self.scrubber = scrubber
+		self.chapterObstructions = chapterObstructions
 	}
 }
 
@@ -559,6 +623,21 @@ private struct PlayerChromeAnchorPreferenceKey: PreferenceKey {
 		let next = nextValue()
 		value.brightness = next.brightness ?? value.brightness
 		value.scrubber = next.scrubber ?? value.scrubber
+		value.chapterObstructions.append(contentsOf: next.chapterObstructions)
+	}
+}
+
+private struct CurrentChapterLabel: View {
+	@ObservedObject var viewModel: PlayerViewModel
+	@ObservedObject var time: PlaybackTimeModel
+
+	var body: some View {
+		if let chapterName = viewModel.chapterName(at: time.displayPosition) {
+			Text(chapterName)
+				.font(.caption)
+				.foregroundStyle(.white.opacity(0.7))
+				.lineLimit(1)
+		}
 	}
 }
 
