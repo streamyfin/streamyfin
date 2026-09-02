@@ -33,17 +33,19 @@ struct PlayerControlsRootView: View {
 			// Portrait phones can't fit the full top-bar button row — late
 			// data pushes (episode list) add buttons after load, so the bar
 			// must adapt by width, not by content.
-			content(size: geometry.size)
+			content(size: geometry.size, bottomSafeAreaInset: geometry.safeAreaInsets.bottom)
 		}
 	}
 
-	private func content(size: CGSize) -> some View {
+	private func content(size: CGSize, bottomSafeAreaInset: CGFloat) -> some View {
 		ZStack {
 			// Tap-to-toggle catcher behind everything interactive; also the
 			// gesture surface — controls layered above receive their own
 			// touches first, so drags here only start on empty video area.
 			tapSurface(size: size)
-				.gesture(surfaceDragGesture(size: size))
+				.gesture(
+					surfaceDragGesture(size: size, bottomSafeAreaInset: bottomSafeAreaInset)
+				)
 				.gesture(holdSpeedGesture)
 
 			if viewModel.controlsVisible {
@@ -345,13 +347,20 @@ struct PlayerControlsRootView: View {
 	/// chapter haptics and pause-while-scrubbing come along). Vertical drag =
 	/// brightness on the left half, volume on the right (JS GestureOverlay
 	/// parity), with the edge pills transiently revealed as feedback.
-	private func surfaceDragGesture(size: CGSize) -> some Gesture {
+	private func surfaceDragGesture(size: CGSize, bottomSafeAreaInset: CGFloat) -> some Gesture {
 		DragGesture(minimumDistance: 12)
 			.onChanged { value in
 				guard !viewModel.controlsLocked,
 					!viewModel.showStillWatching,
 					viewModel.errorMessage == nil
 				else { return }
+
+				// iOS briefly delivers a home-indicator swipe before taking
+				// ownership. Ignore the sequence before it changes player state.
+				if bottomSafeAreaInset > 0,
+					value.startLocation.y >= size.height - bottomSafeAreaInset {
+					return
+				}
 
 				// A two-finger pinch or an engaged 2× hold owns this touch
 				// sequence — abandon any in-flight drag and ignore the rest of
