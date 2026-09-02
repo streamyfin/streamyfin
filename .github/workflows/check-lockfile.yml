@@ -3,6 +3,8 @@ name: 🔒 Lockfile Consistency Check
 on:
   pull_request:
     branches: [develop, master]
+  merge_group:
+    types: [checks_requested]
   push:
     branches: [develop, master]
 
