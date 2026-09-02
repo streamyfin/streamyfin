@@ -1,6 +1,7 @@
 import { Api, AUTHORIZATION_HEADER } from "@jellyfin/sdk";
 import type { AxiosRequestConfig, AxiosResponse } from "axios";
-import type { StreamyfinPluginConfig } from "@/utils/atoms/settings";
+import type { PluginLockableSettings } from "@/utils/atoms/settings";
+import { fetchPluginSettings } from "@/utils/pluginSettingsSource";
 
 declare module "@jellyfin/sdk" {
   interface Api {
@@ -17,7 +18,7 @@ declare module "@jellyfin/sdk" {
       url: string,
       config?: AxiosRequestConfig<D>,
     ): Promise<AxiosResponse<T>>;
-    getStreamyfinPluginConfig(): Promise<AxiosResponse<StreamyfinPluginConfig>>;
+    getStreamyfinPluginSettings(): Promise<PluginLockableSettings | undefined>;
   }
 }
 
@@ -52,8 +53,8 @@ Api.prototype.delete = function <T, D = any>(
   });
 };
 
-Api.prototype.getStreamyfinPluginConfig = function (): Promise<
-  AxiosResponse<StreamyfinPluginConfig>
+Api.prototype.getStreamyfinPluginSettings = function (): Promise<
+  PluginLockableSettings | undefined
 > {
-  return this.get<StreamyfinPluginConfig>("/Streamyfin/config");
+  return fetchPluginSettings(this);
 };
