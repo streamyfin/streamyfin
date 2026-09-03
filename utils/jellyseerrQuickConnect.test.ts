@@ -21,6 +21,7 @@ const SEERR_USER = { id: 7 } as JellyseerrUser;
 /** What each step did, so the order and the short-circuits can be asserted. */
 interface Calls {
   primed: number;
+  forgot: number;
   initiated: number;
   approvedCodes: string[];
   authenticatedSecrets: string[];
@@ -31,6 +32,7 @@ const steps = (
 ): { steps: QuickConnectSteps; calls: Calls } => {
   const calls: Calls = {
     primed: 0,
+    forgot: 0,
     initiated: 0,
     approvedCodes: [],
     authenticatedSecrets: [],
@@ -56,6 +58,9 @@ const steps = (
         return SEERR_USER;
       },
       stillCurrent: () => true,
+      forget: () => {
+        calls.forgot += 1;
+      },
       ...over,
     },
   };
@@ -154,13 +159,15 @@ describe("attemptQuickConnectSignIn", () => {
     // Not even started: an abandoned session should not open a Seerr session
     // nobody is going to use.
     expect(calls.authenticatedSecrets).toEqual([]);
+    // No authenticate ran, so no session cookie was stored, so nothing to drop.
+    expect(calls.forgot).toBe(0);
   });
 
   test("checks again after authenticating, which is the window that matters", async () => {
     // The account can be left while the last call is in flight, and by then a
     // Seerr session exists. It just must not become this device's.
     let current = true;
-    const { steps: s } = steps({
+    const { steps: s, calls } = steps({
       stillCurrent: () => current,
       authenticate: async () => {
         current = false;
@@ -171,6 +178,9 @@ describe("attemptQuickConnectSignIn", () => {
     expect(await attemptQuickConnectSignIn(s)).toEqual({
       declined: "session-moved-on",
     });
+    // authenticate opened a Seerr session whose cookie the interceptor stored;
+    // it must be dropped so a later account cannot reuse it.
+    expect(calls.forgot).toBe(1);
   });
 
   test("lets a transport failure through rather than calling it a refusal", async () => {
@@ -183,6 +193,8 @@ describe("attemptQuickConnectSignIn", () => {
     // A refusal is a decision the caller logs and moves past. An unreachable
     // server is not one, and swallowing it here would hide it from the caller
     // that decides whether it is worth a toast.
-    expect(attemptQuickConnectSignIn(s)).rejects.toThrow("socket hang up");
+    await expect(attemptQuickConnectSignIn(s)).rejects.toThrow(
+      "socket hang up",
+    );
   });
 });

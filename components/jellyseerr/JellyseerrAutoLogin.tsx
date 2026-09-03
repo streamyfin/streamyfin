@@ -57,9 +57,6 @@ export const JellyseerrAutoLogin: React.FC = () => {
     attempted.current = true;
 
     (async () => {
-      const password = await getJellyseerrPassword(jellyfinUrl, userId);
-      if (!password) return;
-
       try {
         // Same headers as every other Jellyseerr call — without them the
         // sign-in fails behind an auth gateway (custom-header setups).
@@ -73,11 +70,11 @@ export const JellyseerrAutoLogin: React.FC = () => {
 
         const stillCurrent = () => store.get(userAtom)?.Id === userId;
 
-        // Quick Connect before replaying the password, and the stored password
-        // goes when it works. This is where an install made before Seerr 3.4.0
-        // stops keeping the user's Jellyfin password on the device: nothing
-        // else would ever remove it, since a stored password that still works
-        // never looks like a problem.
+        // Quick Connect first, even with no stored password: an OIDC or Quick
+        // Connect login to Jellyfin never had one, and this is the launch path
+        // that signs those users in to Seerr. When there is a stored password,
+        // it goes once Quick Connect works — nothing else would remove it,
+        // since a password that still works never looks like a problem.
         if (api) {
           const quickConnected = await signInWithQuickConnect(
             seerr,
@@ -97,6 +94,9 @@ export const JellyseerrAutoLogin: React.FC = () => {
           }
         }
 
+        // Password replay only when Quick Connect did not sign in.
+        const password = await getJellyseerrPassword(jellyfinUrl, userId);
+        if (!password) return;
         // Nor the password for an account that has since been left: it is
         // the previous user's, and would sign the next one in as them.
         if (!stillCurrent()) return;

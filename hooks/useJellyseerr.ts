@@ -314,7 +314,9 @@ export class JellyseerrApi {
    *
    * Undefined rather than a throw on a 404, which is how a Seerr older than
    * 3.4.0 says it has no such route. Only a 404 counts: a server that is down
-   * must not be mistaken for one that is merely old.
+   * must not be mistaken for one that is merely old, and a 200 whose body has
+   * no code or secret is a broken 3.4.0, not a missing route, so it throws
+   * rather than reading as an absent one in the log.
    */
   async initiateQuickConnect(): Promise<
     { code: string; secret: string } | undefined
@@ -323,7 +325,8 @@ export class JellyseerrApi {
       const { data } = await this.axios.post<{ code: string; secret: string }>(
         Endpoints.API_V1 + Endpoints.AUTH_JELLYFIN_QUICK_CONNECT_INITIATE,
       );
-      return data?.code && data?.secret ? data : undefined;
+      if (data?.code && data?.secret) return data;
+      throw new Error("Quick Connect initiate returned no code or secret");
     } catch (e) {
       if (axios.isAxiosError(e) && e.response?.status === 404) return undefined;
       throw e;
@@ -355,6 +358,11 @@ export class JellyseerrApi {
   /** Persists a session this client just opened. */
   remember(user: JellyseerrUser) {
     storage.setAny(JELLYSEERR_USER, user);
+  }
+
+  /** Drops the stored Seerr session, cookies included. */
+  forget() {
+    clearJellyseerrStorageData();
   }
 
   async discoverSettings(): Promise<DiscoverSlider[]> {

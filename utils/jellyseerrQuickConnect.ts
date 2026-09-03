@@ -67,6 +67,15 @@ export interface QuickConnectSteps {
    * that would hand the previous user's Seerr account to the current one.
    */
   stillCurrent: () => boolean;
+  /**
+   * Drops any Seerr session this attempt stored, cookies included.
+   *
+   * Only the last step opens a session, and its response cookies land in shared
+   * storage through the client's interceptor before the caller can look. If the
+   * account has moved on by then, those cookies must go, or the next account
+   * inherits the previous one's Seerr session.
+   */
+  forget: () => void;
 }
 
 /**
@@ -103,7 +112,12 @@ export const attemptQuickConnectSignIn = async (
 
   const user = await steps.authenticate(request.secret);
 
-  if (!steps.stillCurrent()) return { declined: "session-moved-on" };
+  if (!steps.stillCurrent()) {
+    // authenticate already opened a session, and its cookies are in shared
+    // storage by now; drop them so the account that took over cannot reuse it.
+    steps.forget();
+    return { declined: "session-moved-on" };
+  }
 
   return { user };
 };
@@ -120,6 +134,8 @@ export const quickConnectSteps = (
     (await getQuickConnectApi(api).getQuickConnectEnabled()).data === true,
 
   prime: () => seerr.prime(),
+
+  forget: () => seerr.forget(),
 
   initiate: () => seerr.initiateQuickConnect(),
 

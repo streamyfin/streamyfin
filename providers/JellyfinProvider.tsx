@@ -237,7 +237,10 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     }
     const serverUrl = settings?.jellyseerrServerUrl;
     const apiKey = settings?.jellyseerrApiKey;
-    if (!serverUrl || !api || jellyseerrUser) return;
+    // The API-key path. Without a key, the passwordless launch sign-in is
+    // JellyseerrAutoLogin's; gating this on the key keeps the two from both
+    // running Quick Connect for the same user and racing to open a session.
+    if (!serverUrl || !apiKey || jellyseerrUser) return;
     const attemptKey = `${serverUrl}:${user.Id}`;
     if (jellyseerrAutoConnectAttempt.current === attemptKey) return;
     jellyseerrAutoConnectAttempt.current = attemptKey;
@@ -253,20 +256,23 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
         apiKey,
       );
 
-      const quickConnected = await signInWithQuickConnect(
-        seerr,
-        api,
-        stillCurrent,
-      );
-      if (quickConnected) {
-        setJellyseerrUser(quickConnected);
-        return;
+      // Quick Connect first when a session api is there — it needs no key. The
+      // key stays as the fallback for when it declines or the api is not ready.
+      if (api) {
+        const quickConnected = await signInWithQuickConnect(
+          seerr,
+          api,
+          stillCurrent,
+        );
+        if (quickConnected) {
+          setJellyseerrUser(quickConnected);
+          return;
+        }
       }
 
-      // The key is not replayed for an account that has since been left
-      // either: resolved for the previous user, it would sign the next one in
-      // as them.
-      if (!apiKey || !stillCurrent()) return;
+      // The key is not replayed for an account that has since been left:
+      // resolved for the previous user, it would sign the next one in as them.
+      if (!stillCurrent()) return;
       try {
         setJellyseerrUser(await seerr.loginWithApiKey(userId));
       } catch (e) {
