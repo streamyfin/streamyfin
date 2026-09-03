@@ -2,9 +2,9 @@ import { describe, expect, it } from "bun:test";
 import { getSubtitleProfiles } from "./subtitles";
 
 describe("getSubtitleProfiles", () => {
-  it("returns 52 entries for target mpv (default)", () => {
+  it("returns 51 entries for target mpv (default)", () => {
     const profiles = getSubtitleProfiles({ target: "mpv" });
-    expect(profiles.length).toBe(52);
+    expect(profiles.length).toBe(51);
 
     // Verify default call without args matches mpv
     expect(getSubtitleProfiles()).toEqual(profiles);
@@ -16,6 +16,34 @@ describe("getSubtitleProfiles", () => {
     // Check text sub sample
     expect(profiles).toContainEqual({ Format: "srt", Method: "Embed" });
     expect(profiles).toContainEqual({ Format: "srt", Method: "External" });
+  });
+
+  // A .vtt sidecar probes as codec "webvtt"; offering that name for External
+  // delivery makes the server rewrite the file and drop every cue (#1892).
+  it.each(["mpv", "download"] as const)(
+    "never offers webvtt as an External format for target %s",
+    (target) => {
+      const profiles = getSubtitleProfiles({ target });
+
+      expect(profiles).not.toContainEqual({
+        Format: "webvtt",
+        Method: "External",
+      });
+      // With no exact codec match the server takes the first External profile,
+      // so "vtt" must lead or the sidecar gets converted instead of passed on.
+      expect(profiles.find((p) => p.Method === "External")).toEqual({
+        Format: "vtt",
+        Method: "External",
+      });
+    },
+  );
+
+  // Embed matches a container codec and converts nothing, so the alias is safe.
+  it("still matches an embedded webvtt track in the container", () => {
+    expect(getSubtitleProfiles({ target: "mpv" })).toContainEqual({
+      Format: "webvtt",
+      Method: "Embed",
+    });
   });
 
   it("returns 4 entries for target exoplayer", () => {
@@ -30,7 +58,7 @@ describe("getSubtitleProfiles", () => {
 
   it("delivers text subtitles externally and burns image ones in for target download", () => {
     const profiles = getSubtitleProfiles({ target: "download" });
-    expect(profiles.length).toBe(26);
+    expect(profiles.length).toBe(25);
 
     // Text formats come down as sidecar files the offline player can switch.
     expect(profiles).toContainEqual({ Format: "srt", Method: "External" });

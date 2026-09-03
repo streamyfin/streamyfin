@@ -47,6 +47,17 @@ const TEXT_BASED_FORMATS = [
   "vplayer",
 ] as const;
 
+// External delivery leaves out the "webvtt" alias. Jellyfin matches the profile
+// against the stream's codec, and a .vtt sidecar probes as codec "webvtt", so
+// offering that name wins the exact match and the server re-writes the file
+// through its VttWriter rather than sending it — and that writer's non-spec
+// "Region:" header costs every cue (#1892). Without the alias it falls through
+// to "vtt", where requested and input format agree and the file is sent as is.
+// Embed keeps the alias: it matches a container codec and converts nothing.
+const TEXT_EXTERNAL_FORMATS: readonly string[] = TEXT_BASED_FORMATS.filter(
+  (format) => format !== "webvtt",
+);
+
 const EXOPLAYER_SUBTITLE_PROFILES: SubtitleProfile[] = [
   { Format: "srt", Method: "External" },
   { Format: "vtt", Method: "External" },
@@ -66,7 +77,7 @@ const CHROMECAST_SUBTITLE_PROFILES: SubtitleProfile[] = [
 // sub-adds and can switch between; image formats have no external path and
 // still get burned in ("Encode") by the server.
 const DOWNLOAD_SUBTITLE_PROFILES: SubtitleProfile[] = [
-  ...TEXT_BASED_FORMATS.map(
+  ...TEXT_EXTERNAL_FORMATS.map(
     (Format): SubtitleProfile => ({ Format, Method: "External" }),
   ),
   ...IMAGE_BASED_FORMATS.map(
@@ -81,10 +92,13 @@ const buildMpvSubtitleProfiles = (): SubtitleProfile[] => {
     profiles.push({ Format: format, Method: "Embed" });
     profiles.push({ Format: format, Method: "Encode" });
   }
-  // Text-based formats: Embed or External
+  // Text-based formats: Embed for every codec MPV can render in-container,
+  // External only for the names the server can hand over untouched.
   for (const format of TEXT_BASED_FORMATS) {
     profiles.push({ Format: format, Method: "Embed" });
-    profiles.push({ Format: format, Method: "External" });
+    if (TEXT_EXTERNAL_FORMATS.includes(format)) {
+      profiles.push({ Format: format, Method: "External" });
+    }
   }
   return profiles;
 };
