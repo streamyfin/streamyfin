@@ -28,7 +28,11 @@ jobs:
           fetch-depth: 0
 
       - name: 🌐 Sync Translations with Crowdin
-        uses: crowdin/github-action@71fdb8814261dd703be4ca7c6450d21b1868da4b # v3.0.1
+        # Held on v2 (Crowdin CLI 4): v3 ships CLI 5, which drops the explicit `false`
+        # export options from crowdin.yml, so the project export settings take over and
+        # the download comes back empty. Do not merge the v3 bump until this is fixed:
+        # https://github.com/crowdin/crowdin-cli/issues/1107
+        uses: crowdin/github-action@c7af9bc98b01694653031fef2a0dc6c7888ce9bc # v2.17.0
         with:
           upload_sources: true
           upload_translations: true
