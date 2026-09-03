@@ -68,6 +68,14 @@ export {
   updateNativePlayerSegments,
   updateNativePlayerTrackMenus,
 } from "./mpv-player";
+// System volume (iOS, tvOS, Android, Android TV)
+export type { SystemVolumeChangeEvent } from "./system-volume";
+export {
+  addSystemVolumeListener,
+  getSystemVolume,
+  isSystemVolumeAvailable,
+  isSystemVolumeFixed,
+} from "./system-volume";
 // Top Shelf cache (tvOS)
 export type {
   TopShelfCacheContentPreset,

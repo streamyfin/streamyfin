@@ -19,14 +19,17 @@ import {
   useState,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { AppState, Platform } from "react-native";
+import { Platform } from "react-native";
 import { getDeviceNameSync } from "react-native-device-info";
 import { toast } from "sonner-native";
 import useRouter from "@/hooks/useAppRouter";
 import { useInterval } from "@/hooks/useInterval";
 import { JellyseerrApi, useJellyseerr } from "@/hooks/useJellyseerr";
 import { settingsAtom, useSettings } from "@/utils/atoms/settings";
-import { getIntegrationHeaders } from "@/utils/customHeaders";
+import {
+  getIntegrationHeaders,
+  normalizeHttpBaseUrl,
+} from "@/utils/customHeaders";
 import { getOrSetDeviceId } from "@/utils/device";
 import { markExpectedError } from "@/utils/errors";
 import { createApiWithCustomHeaders } from "@/utils/jellyfin/createApi";
@@ -37,6 +40,7 @@ import {
   writeToLog,
 } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
+import { onAppForeground } from "@/utils/onAppForeground";
 import {
   type AccountSecurityType,
   addAccountToServer,
@@ -414,16 +418,20 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
 
   useInterval(pollQuickConnect, isPolling ? 1000 : null);
 
-  // Refresh plugin settings when app comes to foreground
+  // Refresh plugin settings when the app comes to the foreground.
+  //
+  // Through a ref rather than a dependency: re-registering the listener every
+  // time the refresh callback changes is churn, and registering once with the
+  // callback captured is how the refresh kept running against the api of the
+  // first render. Switch account without restarting the process and it went to
+  // the previous server with the previous token, which comes back as a 401 on
+  // a server the user is no longer using.
+  const refreshPluginSettingsRef = useRef(refreshStreamyfinPluginSettings);
   useEffect(() => {
-    const subscription = AppState.addEventListener("change", (nextAppState) => {
-      if (nextAppState === "active") {
-        refreshStreamyfinPluginSettings();
-      }
-    });
+    refreshPluginSettingsRef.current = refreshStreamyfinPluginSettings;
+  }, [refreshStreamyfinPluginSettings]);
 
-    return () => subscription.remove();
-  }, []);
+  useEffect(() => onAppForeground(() => refreshPluginSettingsRef.current), []);
 
   const discoverServers = async (url: string): Promise<Server[]> => {
     const servers =
@@ -982,7 +990,14 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
 
   const contextValue: JellyfinContextValue = {
     discoverServers,
-    setServer: (server) => setServerMutation.mutateAsync(server),
+    // A deep link hands the address over exactly as typed, trailing slash
+    // included, while the SDK strips one off `api.basePath`. Every later read
+    // keys on the spelling stored here, so store the canonical one.
+    setServer: (server) =>
+      setServerMutation.mutateAsync({
+        ...server,
+        address: normalizeHttpBaseUrl(server.address),
+      }),
     removeServer: () => removeServerMutation.mutateAsync(),
     login: (username, password, serverName, options) =>
       loginMutation.mutateAsync({ username, password, serverName, options }),

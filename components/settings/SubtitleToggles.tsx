@@ -436,12 +436,33 @@ export const SubtitleToggles: React.FC<Props> = React.memo(({ ...props }) => {
           />
         </ListItem>
 
-        {Platform.OS === "ios" && !Platform.isTV && (
-          <ListItem title={t("home.settings.subtitles.subtitles_on_mute")}>
+        <ListItem
+          title={t("home.settings.subtitles.subtitles_on_mute")}
+          subtitle={t("home.settings.subtitles.subtitles_on_mute_hint")}
+          disabled={pluginSettings?.subtitlesOnMute?.locked}
+        >
+          <SettingSwitch
+            value={settings.subtitlesOnMute}
+            disabled={pluginSettings?.subtitlesOnMute?.locked}
+            onValueChange={(value) =>
+              updateSettings({ subtitlesOnMute: value })
+            }
+          />
+        </ListItem>
+
+        {settings.subtitlesOnMute && (
+          <ListItem
+            title={t("home.settings.subtitles.subtitles_on_mute_allow_restart")}
+            subtitle={t(
+              "home.settings.subtitles.subtitles_on_mute_allow_restart_hint",
+            )}
+            disabled={pluginSettings?.subtitlesOnMuteAllowRestart?.locked}
+          >
             <SettingSwitch
-              value={settings.subtitlesOnMute}
+              value={settings.subtitlesOnMuteAllowRestart}
+              disabled={pluginSettings?.subtitlesOnMuteAllowRestart?.locked}
               onValueChange={(value) =>
-                updateSettings({ subtitlesOnMute: value })
+                updateSettings({ subtitlesOnMuteAllowRestart: value })
               }
             />
           </ListItem>

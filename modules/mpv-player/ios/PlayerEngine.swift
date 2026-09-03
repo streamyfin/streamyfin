@@ -20,6 +20,23 @@ protocol MPVPlayerEngineDelegate: AnyObject {
 	func engine(_ engine: MPVPlayerEngine, didFailWithError message: String)
 	func engine(_ engine: MPVPlayerEngine, didDetectHDRMode mode: HDRMode, fps: Double)
 	func engineDidReachEnd(_ engine: MPVPlayerEngine)
+	/// Seeks the engine receives from the system — lock screen, Control
+	/// Center, PiP. A host that keeps its own position bookkeeping performs
+	/// the seek itself so it is treated like every other seek; the engine only
+	/// forwards the request.
+	func engine(_ engine: MPVPlayerEngine, requestsSeekTo position: Double)
+	func engine(_ engine: MPVPlayerEngine, requestsSeekBy offset: Double)
+}
+
+/// Hosts without position bookkeeping of their own let the engine seek.
+extension MPVPlayerEngineDelegate {
+	func engine(_ engine: MPVPlayerEngine, requestsSeekTo position: Double) {
+		engine.seekTo(position: position)
+	}
+
+	func engine(_ engine: MPVPlayerEngine, requestsSeekBy offset: Double) {
+		engine.seekBy(offset: offset)
+	}
 }
 
 /// Non-UI playback engine: owns the display layer, the libmpv renderer, PiP,
@@ -154,9 +171,9 @@ final class MPVPlayerEngine: NSObject {
 				guard let self else { return }
 				if self.intendedPlayState { self.pause() } else { self.play() }
 			},
-			seekHandler: { [weak self] time in self?.seekTo(position: time) },
-			skipForward: { [weak self] interval in self?.seekBy(offset: interval) },
-			skipBackward: { [weak self] interval in self?.seekBy(offset: -interval) }
+			seekHandler: { [weak self] time in self?.requestSeek(to: time) },
+			skipForward: { [weak self] interval in self?.requestSeek(by: interval) },
+			skipBackward: { [weak self] interval in self?.requestSeek(by: -interval) }
 		)
 	}
 
@@ -331,12 +348,39 @@ final class MPVPlayerEngine: NSObject {
 		renderer?.seek(by: offset)
 	}
 
+	/// Seeks from the lock screen, Control Center and PiP go through the
+	/// delegate: the native player's view model owns the tracked position, the
+	/// seek report and the synthetic tick, and a seek that bypasses it leaves
+	/// onDismiss on the pre-seek position until the next time-pos tick and the
+	/// server until the next heartbeat.
+	func requestSeek(to position: Double) {
+		if let delegate {
+			delegate.engine(self, requestsSeekTo: position)
+		} else {
+			seekTo(position: position)
+		}
+	}
+
+	func requestSeek(by offset: Double) {
+		if let delegate {
+			delegate.engine(self, requestsSeekBy: offset)
+		} else {
+			seekBy(offset: offset)
+		}
+	}
+
 	func syncSubtitleLayerFrame() {
 		renderer?.syncSubtitleLayerFrame()
 	}
 
 	func setSpeed(speed: Double) {
 		renderer?.setSpeed(speed)
+	}
+
+	/// Mute playback itself, leaving the device output volume alone. The
+	/// renderer retains the flag so it survives an mpv re-creation.
+	func setMute(_ muted: Bool) {
+		renderer?.setMute(muted)
 	}
 
 	func getSpeed() -> Double {
@@ -653,8 +697,7 @@ extension MPVPlayerEngine: PiPControllerDelegate {
 	func pipController(_ controller: PiPController, skipByInterval interval: CMTime) {
 		let seconds = CMTimeGetSeconds(interval)
 		print("PiP skip by interval: \(seconds)")
-		let target = max(0, cachedPosition + seconds)
-		seekTo(position: target)
+		requestSeek(by: seconds)
 	}
 
 	func pipControllerIsPlaying(_ controller: PiPController) -> Bool {

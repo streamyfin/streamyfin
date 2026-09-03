@@ -161,6 +161,16 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	/// menu-bearing bar while a menu is open.
 	@Published private(set) var sleepTimerMinutes: Int?
 
+	/// mpv's own mute, toggled from the controls. Survives a stream swap the
+	/// same way the device volume does: it belongs to the session, not to the
+	/// item. The renderer re-applies it when mpv is re-created.
+	@Published private(set) var isPlayerMuted = false
+
+	/// Output volume at zero or mpv muted. What the mute button draws and what
+	/// JS is told. Two sources OR-ed because neither covers every platform,
+	/// mirroring `useMuteState` in the JS player controls.
+	@Published private(set) var isMuted = false
+
 	#if os(iOS)
 	/// System volume/brightness for the side sliders. The controllers exist
 	/// unconditionally (cheap); the show* flags gate the UI. iOS-only: tvOS
@@ -280,19 +290,53 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	private var lastVolumeForMuteDetection: Double?
 
 	private func detectMuteTransition(volume: Double) {
-		defer { lastVolumeForMuteDetection = volume }
+		let isSeed = lastVolumeForMuteDetection == nil
+		lastVolumeForMuteDetection = volume
 		// The first sink delivery is the current volume at init — seed only,
 		// so a player opened while already muted doesn't fire an event.
-		guard let previous = lastVolumeForMuteDetection else { return }
-		let muted = volume <= 0.0001
-		let wasMuted = previous <= 0.0001
-		guard muted != wasMuted else { return }
+		refreshMuteState(emitting: !isSeed)
+	}
+	#endif
+
+	// MARK: - Mute
+
+	/// Output volume at zero, where the app can see it at all. Always false on
+	/// tvOS: the volume lives in the TV or the receiver over HDMI-CEC.
+	private var deviceMuted: Bool {
+		#if os(iOS)
+		guard let volume = lastVolumeForMuteDetection else { return false }
+		return volume <= 0.0001
+		#else
+		return false
+		#endif
+	}
+
+	private var lastEmittedMute: Bool?
+
+	/// Recompute the combined state and tell JS when it flipped. `emitting` is
+	/// false for the seed delivery at init, so a player opened while already
+	/// muted records the state without firing an event for it.
+	private func refreshMuteState(emitting: Bool = true) {
+		let muted = deviceMuted || isPlayerMuted
+		isMuted = muted
+		let changed = muted != lastEmittedMute
+		lastEmittedMute = muted
+		guard emitting, changed else { return }
 		emit?("onMuteStateChanged", [
 			"muted": muted,
 			"positionSec": displayPosition,
 		])
 	}
-	#endif
+
+	/// Mute mpv itself, leaving the output volume alone. This is the only mute
+	/// path on tvOS, and the fallback on Android boxes wired to a receiver that
+	/// reports a fixed volume.
+	func toggleMute() {
+		isPlayerMuted.toggle()
+		engine?.setMute(isPlayerMuted)
+		haptic()
+		refreshMuteState()
+	}
 
 	/// Light impact on control interactions; disabled via settings
 	/// (disableHapticFeedback → ui.hapticsEnabled=false).
@@ -511,6 +555,22 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		position = clamped
 		displayPosition = clamped
 		engine?.seekTo(position: clamped)
+		// Move JS's tracked position with the seek right away rather than on
+		// the next time-pos tick: at teardown JS takes the later of its tracked
+		// position and `position` above, so a backward seek has to lower the
+		// tracked value first or an exit before that tick reports the pre-seek
+		// position. trackingOnly keeps this tick out of the progress reports:
+		// it carries the requested target and mpv may still snap to a nearby
+		// keyframe, so the report rides the next authoritative tick (didSeek).
+		if !isTearingDown {
+			emit?("onProgress", [
+				"position": clamped,
+				"duration": duration,
+				"progress": duration > 0 ? clamped / duration : 0,
+				"cacheSeconds": cacheSeconds,
+				"trackingOnly": true,
+			])
+		}
 		scheduleAutoHide()
 	}
 
@@ -1131,7 +1191,14 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	}
 
 	private func showSkippedNotice(for type: String) {
-		skippedSegmentNotice = skippedNotice(for: type)
+		showNotice(skippedNotice(for: type))
+	}
+
+	/// Transient one-line explanation, on the same surface as the "… skipped"
+	/// notice. Pushed from JS for anything the coordinator decides, such as the
+	/// automatic subtitles switching on while muted.
+	func showNotice(_ text: String) {
+		skippedSegmentNotice = text
 		noticeDismissTask?.cancel()
 		noticeDismissTask = Task { @MainActor [weak self] in
 			try? await Task.sleep(nanoseconds: 3_000_000_000)
@@ -1433,7 +1500,10 @@ final class PlayerViewModel: NSObject, ObservableObject {
 
 extension PlayerViewModel: MPVPlayerEngineDelegate {
 	func engine(_ engine: MPVPlayerEngine, didLoad url: URL) {
-		emit?("onLoad", ["url": url.absoluteString])
+		// Mute rides along: it is a device/session state, not a stream one, so
+		// JS has no other way to learn it for a player opened while already
+		// muted — no transition happens, so no onMuteStateChanged fires.
+		emit?("onLoad", ["url": url.absoluteString, "muted": isMuted])
 	}
 
 	func engine(_ engine: MPVPlayerEngine, didUpdateProgress position: Double, duration: Double, cacheSeconds: Double) {
@@ -1452,7 +1522,6 @@ extension PlayerViewModel: MPVPlayerEngineDelegate {
 			displayPosition = position
 			lastTickTimestamp = CACurrentMediaTime()
 		}
-		updateActiveSegment(for: position)
 
 		var payload: [String: Any] = [
 			"position": position,
@@ -1465,6 +1534,21 @@ extension PlayerViewModel: MPVPlayerEngineDelegate {
 			payload["didSeek"] = true
 		}
 		emit?("onProgress", payload)
+		// After the emit: an auto-skip fired from here seeks, and its tick has
+		// to follow this one, or this pre-skip position consumes the skip's
+		// seek report and the tick that lands at the segment end goes
+		// unreported until the next interval.
+		updateActiveSegment(for: position)
+	}
+
+	func engine(_ engine: MPVPlayerEngine, requestsSeekTo target: Double) {
+		guard !isTearingDown else { return }
+		seek(to: target)
+	}
+
+	func engine(_ engine: MPVPlayerEngine, requestsSeekBy offset: Double) {
+		guard !isTearingDown else { return }
+		seek(to: position + offset)
 	}
 
 	func engine(_ engine: MPVPlayerEngine, didChangePause isPaused: Bool) {

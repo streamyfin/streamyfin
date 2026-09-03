@@ -98,6 +98,57 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
     var cacheSeconds by mutableDoubleStateOf(0.0)
     var speed by mutableDoubleStateOf(1.0)
         private set
+
+    // MARK: - Mute
+    //
+    // Two sources OR-ed because neither covers every device: the output
+    // volume, invisible on a box wired to a receiver that reports a fixed
+    // volume, and mpv's own mute, driven by the controls. Mirrors
+    // `useMuteState` in the JS player controls.
+
+    /** mpv's own mute. Survives a stream swap: it belongs to the session. */
+    var isPlayerMuted by mutableStateOf(false)
+        private set
+
+    /** Output volume at zero or mpv muted. What the mute button draws. */
+    var isMuted by mutableStateOf(false)
+        private set
+
+    private var deviceMuted = false
+    private var lastEmittedMute: Boolean? = null
+
+    /**
+     * Device output volume crossed zero. `seed` records the state a player
+     * opened on without firing an event for it.
+     */
+    fun onDeviceMuteChanged(muted: Boolean, seed: Boolean = false) {
+        deviceMuted = muted
+        refreshMuteState(emitting = !seed)
+    }
+
+    /**
+     * Mute mpv itself, leaving the output volume alone. The only mute path on
+     * a TV, where the volume belongs to the display or the receiver over
+     * HDMI-CEC.
+     */
+    fun toggleMute() {
+        isPlayerMuted = !isPlayerMuted
+        renderer?.setMute(isPlayerMuted)
+        haptic()
+        refreshMuteState()
+    }
+
+    private fun refreshMuteState(emitting: Boolean = true) {
+        val muted = deviceMuted || isPlayerMuted
+        isMuted = muted
+        val changed = muted != lastEmittedMute
+        lastEmittedMute = muted
+        if (!emitting || !changed) return
+        emit?.invoke("onMuteStateChanged", mapOf(
+            "muted" to muted,
+            "positionSec" to displayPosition
+        ))
+    }
     var isHoldSpeedActive by mutableStateOf(false)
     var isPipActive by mutableStateOf(false)
     var errorMessage by mutableStateOf<String?>(null)
@@ -174,8 +225,13 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
     var brightnessController: BrightnessController? = null
 
     // Internals
-    private var authoritativePosition: Double = 0.0
+    // Read by NativePlayerSession.dismiss(): what onDismiss reports. Never
+    // written by the Choreographer or a scrub, unlike displayPosition.
+    var authoritativePosition: Double = 0.0
+        private set
     private var hasAuthoritativePosition = false
+    // Set on every user/remote seek; the next progress tick reports
+    // didSeek=true so the JS coordinator sends an immediate progress report.
     private var pendingSeekReport = false
     private var speedBeforeHold: Double? = null
     private var currentItemId: String? = null
@@ -446,12 +502,29 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
     }
 
     fun seekTo(positionSec: Double) {
-        val clamped = max(0.0, positionSec)
+        val clamped = max(0.0, if (duration > 0) min(positionSec, duration) else positionSec)
         pendingSeekReport = true
         displayPosition = clamped
         authoritativePosition = clamped
         renderer?.seekTo(clamped)
         onPlaybackStateSync?.invoke()
+        // Move JS's tracked position with the seek right away rather than on
+        // the next time-pos tick: at teardown JS takes the later of its tracked
+        // position and authoritativePosition above, so a backward seek has to
+        // lower the tracked value first or an exit before that tick reports
+        // the pre-seek position. trackingOnly keeps this tick out of the
+        // progress reports: it carries the requested target and mpv may still
+        // snap to a nearby keyframe, so the report rides the next
+        // authoritative tick (didSeek).
+        if (!isTearingDown) {
+            emit?.invoke("onProgress", mapOf(
+                "position" to clamped,
+                "duration" to duration,
+                "progress" to if (duration > 0) clamped / duration else 0.0,
+                "cacheSeconds" to cacheSeconds,
+                "trackingOnly" to true
+            ))
+        }
         scheduleAutoHide()
     }
 
@@ -911,7 +984,16 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
     }
 
     private fun showSkippedNotice(type: String) {
-        skippedSegmentNotice = skippedNoticeText(type)
+        showNotice(skippedNoticeText(type))
+    }
+
+    /**
+     * Transient one-line explanation, on the same surface as the "… skipped"
+     * notice. Pushed from JS for anything the coordinator decides, such as the
+     * automatic subtitles switching on while muted.
+     */
+    fun showNotice(text: String) {
+        skippedSegmentNotice = text
         noticeJob?.cancel()
         noticeJob = scope.launch {
             delay(SKIPPED_NOTICE_MS)
@@ -1083,6 +1165,12 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
     // MARK: - MPVLayerRenderer.Delegate Implementation
 
     override fun onPositionChanged(position: Double, duration: Double, cacheSeconds: Double) {
+        // renderer.stop() zeroes its cached position, and a tick posted to the
+        // main handler before that runs still delivers those zeroed fields
+        // afterwards — emitting it would hand JS position 0 while teardown is
+        // still awaiting its stop report, which is the bug this whole path
+        // exists to prevent.
+        if (isTearingDown) return
         authoritativePosition = position
         if (this.duration != duration) {
             this.duration = duration
@@ -1093,7 +1181,6 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
 
         if (!isScrubbing) {
             displayPosition = position
-            checkSegmentsAndCountdown(position)
         }
 
         val didSeek = pendingSeekReport
@@ -1106,9 +1193,18 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
             "cacheSeconds" to cacheSeconds,
             "didSeek" to didSeek
         ))
+
+        // After the emit: an auto-skip fired from here seeks, and its tick has
+        // to follow this one, or this pre-skip position consumes the skip's
+        // seek report and the tick that lands at the segment end goes
+        // unreported until the next interval.
+        if (!isScrubbing) {
+            checkSegmentsAndCountdown(position)
+        }
     }
 
     override fun onPauseChanged(isPaused: Boolean) {
+        if (isTearingDown) return
         val playing = !isPaused
         isPlaying = playing
         if (playing) {
@@ -1127,6 +1223,7 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
     }
 
     override fun onLoadingChanged(isLoading: Boolean) {
+        if (isTearingDown) return
         isBuffering = isLoading
         onPlaybackStateSync?.invoke()
         emit?.invoke("onPlaybackStateChange", mapOf(
@@ -1138,6 +1235,7 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
     }
 
     override fun onReadyToSeek() {
+        if (isTearingDown) return
         isReadyToSeek = true
         onPlaybackStateSync?.invoke()
         emit?.invoke("onPlaybackStateChange", mapOf(
@@ -1149,10 +1247,14 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
     }
 
     override fun onTracksReady() {
+        // A swap's FILE_LOADED can post this after willTeardown(); letting it
+        // through would run the auto-subtitle path against a closed player.
+        if (isTearingDown) return
         emit?.invoke("onTracksReady", emptyMap())
     }
 
     override fun onError(message: String) {
+        if (isTearingDown) return
         errorMessage = message
         emit?.invoke("onError", mapOf("error" to message))
     }

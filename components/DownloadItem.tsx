@@ -26,7 +26,8 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { queueAtom } from "@/utils/atoms/queue";
 import { useSettings } from "@/utils/atoms/settings";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
-import { getDownloadUrl } from "@/utils/jellyfin/media/getDownloadUrl";
+import { getDownloadStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
+import { logAndCaptureError } from "@/utils/log";
 import { AudioTrackSelector } from "./AudioTrackSelector";
 import { type Bitrate, BitrateSelector } from "./BitrateSelector";
 import { Button } from "./Button";
@@ -247,16 +248,22 @@ export const DownloadItems: React.FC<DownloadProps> = ({
                 subtitleIndex: selectedOptions?.subtitleIndex,
               };
 
-        const downloadDetails = await getDownloadUrl({
+        // Awaited with Promise.all over a season: a throw would abort the batch.
+        const downloadDetails = await getDownloadStreamUrl({
           api,
           item: itemForDownload,
           userId: user.Id!,
-          mediaSource: mediaSource!,
+          mediaSourceId: mediaSource?.Id,
           audioStreamIndex: audioIndex ?? -1,
           subtitleStreamIndex: subtitleIndex ?? -1,
-          maxBitrate: selectedOptions?.bitrate || defaultBitrate,
-          deviceId: api.deviceInfo.id,
+          maxStreamingBitrate: (selectedOptions?.bitrate || defaultBitrate)
+            .value,
           audioMode: settings?.audioTranscodeMode,
+        }).catch((error) => {
+          logAndCaptureError("Getting download stream URL failed", error, {
+            itemType: itemForDownload.Type,
+          });
+          return null;
         });
 
         return {

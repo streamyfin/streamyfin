@@ -33,6 +33,9 @@ export const Libraries: React.FC = () => {
       return response.data.Items || null;
     },
     staleTime: 60,
+    // On logout the cached query refetches with api null and crashes inside
+    // the SDK (`configuration` of null).
+    enabled: !!api && !!user?.Id,
   });
 
   const libraries = useMemo(

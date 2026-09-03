@@ -17,11 +17,13 @@ export function updateTVDiscovery({
   sections,
   layout,
   contentPreset,
+  useEpisodeImages,
 }: {
   api: Api | null | undefined;
   sections: Array<{ title: string; items: BaseItemDto[] | undefined }>;
   layout?: AppleTVTopShelfLayout;
   contentPreset?: AppleTVTopShelfContent;
+  useEpisodeImages?: boolean;
 }): void {
   if (!Platform.isTV) return;
 
@@ -30,6 +32,9 @@ export function updateTVDiscovery({
     sections,
     layout,
     contentPreset,
+    // Google TV forces landscape home tiles; Apple TV renders 2:3 posters.
+    imageShape: Platform.OS === "android" ? "landscape" : "poster",
+    useEpisodeImages,
   });
 
   if (!payload) {

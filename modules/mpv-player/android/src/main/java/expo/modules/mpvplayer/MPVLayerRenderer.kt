@@ -23,6 +23,20 @@ internal fun normalizeVideoDimensions(width: Int, height: Int, rotation: Int): P
 }
 
 /**
+ * mpv `sub-font` for a subtitle font setting. "System" names mpv's own default
+ * rather than writing an empty family: an empty `sub-font` drops the default
+ * and leaves libass to pick a face glyph by glyph.
+ */
+internal fun mpvSubtitleFont(font: String): String = when (font) {
+    "System" -> "sans-serif"
+    "sans-serif" -> "Roboto"
+    "serif" -> "Noto Serif"
+    "monospace" -> "Droid Sans Mono"
+    "opendyslexic" -> "OpenDyslexic"
+    else -> font
+}
+
+/**
  * MPV renderer that wraps libmpv for video playback.
  * This mirrors the iOS MPVLayerRenderer implementation.
  */
@@ -99,12 +113,19 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
     // reclaim resources. Only one player is alive at a time in this app.
     private var mpv: MPVLib? = null
 
+    /** Retained across mpv re-creation; see setMute. */
+    private var isMuted = false
+
     // Cached state
     private var cachedPosition: Double = 0.0
     private var cachedDuration: Double = 0.0
     private var cachedCacheSeconds: Double = 0.0
     private var _isPaused: Boolean = true
     private var _isLoading: Boolean = false
+    // Whether playback was intended to be running when recovery kicked in.
+    // Set by recoverVideoOutput's caller so the post-reload state follows the
+    // user's intent (resume) instead of assuming paused.
+    internal var playbackResumeIntent: Boolean = false
     private var _playbackSpeed: Double = 1.0
     private var isReadyToSeek: Boolean = false
 
@@ -303,9 +324,13 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
 
             mpv.initialize()
 
+            // Re-apply the retained mute flag: a fresh instance always starts
+            // audible, which would contradict the state JS still holds.
+            if (isMuted) mpv.setPropertyBoolean("mute", true)
+
             // Observe properties
             observeProperties()
-            
+
             isRunning = true
             Log.i(TAG, "MPV renderer started (owner=$owner)")
             onStarted()
@@ -521,16 +546,16 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
             return
         }
 
-        Log.i(
-            TAG,
-            "[Recover] reload recovery — pos=$cachedPosition, aid=${getCurrentAudioTrack()}, sid=${getCurrentSubtitleTrack()}"
-        )
-
         // Re-attach the surface first (covers the case where the surface
         // survived and surfaceCreated never fired). The reload below fully
         // rebuilds the pipeline anyway, but this keeps the VO target current
         // while the load is in flight.
         surface?.takeIf { it.isValid }?.let { mpv?.attachSurface(it) }
+
+        Log.i(
+            TAG,
+            "[Recover] reload recovery — pos=$cachedPosition, aid=${getCurrentAudioTrack()}, sid=${getCurrentSubtitleTrack()}"
+        )
 
         // Preserve the user's current audio/subtitle selection across the
         // reload — pass them INTO load() (not via the field: load() overwrites
@@ -540,9 +565,9 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
         val savedAid = getCurrentAudioTrack()
         val savedSid = getCurrentSubtitleTrack()
 
-        // Full reload at the paused position. With keep-open=always +
+        // Full reload at the cached position. With keep-open=always +
         // cache-pause-initial=yes, mpv seeks to the position and holds on the
-        // first decoded frame, so the paused frame reappears.
+        // first decoded frame, so a paused frame reappears.
         load(
             url = url,
             headers = currentHeaders,
@@ -553,9 +578,46 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
             externalSubtitles = activeExternalSubtitles
         )
 
-        // Hold the paused state explicitly — we only get here while paused,
-        // and load() doesn't touch the pause property.
-        pause()
+        // Hold the intended state explicitly — load() doesn't touch the pause
+        // property. Recovery can now run while playing (screensaver during
+        // playback with FLAG_KEEP_SCREEN_ON released, or a decoder that died
+        // mid-play), in which case playback resumes rather than staying paused.
+        if (playbackResumeIntent) play() else pause()
+    }
+
+    /**
+     * Whether the video output is actually rendering. mpv auto-disables the
+     * video track (vid=no) when the decoder dies against a lost surface (TV
+     * zero-copy mediacodec) or when the VO never re-initialized after a
+     * surface transition — audio keeps playing either way. Used to decide
+     * whether resume-recovery needs to rebuild the pipeline.
+     */
+    fun isVideoOutputBroken(): Boolean {
+        if (!isRunning) return false
+        return try {
+            // Audio-only media legitimately has vid=no — only declare broken
+            // when the file actually has a video track that isn't rendering.
+            val hasVideoTrack = run {
+                val trackCount = mpv?.getPropertyInt("track-list/count") ?: 0
+                (0 until trackCount).any {
+                    mpv?.getPropertyString("track-list/$it/type") == "video"
+                }
+            }
+            if (!hasVideoTrack) {
+                Log.i(TAG, "[Recover] isVideoOutputBroken — no video track (audio-only), healthy")
+                return false
+            }
+            val vid = mpv?.getPropertyString("vid")
+            val voConfigured = mpv?.getPropertyBoolean("vo-configured") ?: false
+            val broken = vid == "no" || !voConfigured
+            Log.i(TAG, "[Recover] isVideoOutputBroken — vid=$vid, vo-configured=$voConfigured, broken=$broken")
+            broken
+        } catch (e: Exception) {
+            // Property read failed — assume healthy rather than forcing a
+            // reload on every resume.
+            Log.w(TAG, "[Recover] isVideoOutputBroken — property read failed", e)
+            false
+        }
     }
     
     fun load(
@@ -698,6 +760,18 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
     fun setSpeed(speed: Double) {
         _playbackSpeed = speed
         mpv?.setPropertyDouble("speed", speed)
+    }
+
+    /**
+     * Mute the player itself; the device output volume is left untouched.
+     *
+     * The flag is retained so it survives mpv re-creation (next episode,
+     * bitrate change, track re-negotiation). Without it the new instance would
+     * come back audible while JS still believes playback is muted.
+     */
+    fun setMute(muted: Boolean) {
+        isMuted = muted
+        mpv?.setPropertyBoolean("mute", muted)
     }
     
     fun getSpeed(): Double {
@@ -850,14 +924,7 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
         }
 
         (config["font"] as? String)?.let { font ->
-            when (font) {
-                "System" -> mpv?.setPropertyString("sub-font", "")
-                "sans-serif" -> mpv?.setPropertyString("sub-font", "Roboto")
-                "serif" -> mpv?.setPropertyString("sub-font", "Noto Serif")
-                "monospace" -> mpv?.setPropertyString("sub-font", "Droid Sans Mono")
-                "opendyslexic" -> mpv?.setPropertyString("sub-font", "OpenDyslexic")
-                else -> mpv?.setPropertyString("sub-font", font)
-            }
+            mpv?.setPropertyString("sub-font", mpvSubtitleFont(font))
         }
 
         (config["background"] as? String)?.let { background ->

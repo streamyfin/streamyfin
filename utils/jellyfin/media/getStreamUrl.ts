@@ -5,6 +5,7 @@ import type {
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { BaseItemKind } from "@jellyfin/sdk/lib/generated-client/models/base-item-kind";
 import { getMediaInfoApi } from "@jellyfin/sdk/lib/utils/api";
+import { markExpectedError } from "../../errors";
 import { generateDownloadProfile } from "../../profiles/download";
 import type { AudioTranscodeModeType } from "../../profiles/native";
 
@@ -31,8 +32,6 @@ const getPlaybackUrl = (
     maxStreamingBitrate?: number;
     userId: string;
     playSessionId?: string | null;
-    container?: string;
-    static?: string;
   },
 ): string => {
   let transcodeUrl = mediaSource?.TranscodingUrl;
@@ -65,9 +64,9 @@ const getPlaybackUrl = (
   // Fall back to direct play
   // Use the mediaSource's actual container when available (important for live TV
   // where the container may be ts/hls, not mp4)
-  const container = params.container || mediaSource?.Container || "mp4";
+  const container = mediaSource?.Container || "mp4";
   const streamParams = new URLSearchParams({
-    static: params.static || "true",
+    static: "true",
     container,
     mediaSourceId: mediaSource?.Id || "",
     subtitleStreamIndex: params.subtitleStreamIndex?.toString() || "",
@@ -90,60 +89,21 @@ const getPlaybackUrl = (
   return directPlayUrl;
 };
 
-/** Wrapper around {@link getPlaybackUrl} that applies download-specific transformations */
 const getDownloadUrl = (
   api: Api,
-  itemId: string,
-  mediaSource: MediaSourceInfo | undefined,
+  mediaSource: MediaSourceInfo,
   sessionId: string | null | undefined,
-  params: {
-    subtitleStreamIndex?: number;
-    audioStreamIndex?: number;
-    deviceId?: string | null;
-    startTimeTicks?: number;
-    maxStreamingBitrate?: number;
-    userId: string;
-    playSessionId?: string | null;
-  },
 ): StreamResult => {
-  // First, handle download-specific transcoding modifications
-  let downloadMediaSource = mediaSource;
-  if (mediaSource?.TranscodingUrl) {
-    downloadMediaSource = {
-      ...mediaSource,
-      TranscodingUrl: mediaSource.TranscodingUrl.replace(
-        "master.m3u8",
-        "stream",
-      ),
+  if (!mediaSource.TranscodingUrl) {
+    return {
+      url: `${api.basePath}/Items/${mediaSource.Id}/Download?ApiKey=${api.accessToken}`,
+      sessionId: sessionId || null,
+      mediaSource,
     };
-  }
-
-  // Get the base URL with download-specific parameters
-  let url = getPlaybackUrl(api, itemId, downloadMediaSource, {
-    ...params,
-    container: "ts",
-    static: "false",
-  });
-
-  // If it's a direct play URL, add download-specific parameters
-  if (!mediaSource?.TranscodingUrl) {
-    const urlObj = new URL(url);
-    const downloadParams = {
-      subtitleMethod: "Embed",
-      enableSubtitlesInManifest: "true",
-      allowVideoStreamCopy: "true",
-      allowAudioStreamCopy: "true",
-    };
-
-    Object.entries(downloadParams).forEach(([key, value]) => {
-      urlObj.searchParams.append(key, value);
-    });
-
-    url = urlObj.toString();
   }
 
   return {
-    url,
+    url: `${api.basePath}${mediaSource.TranscodingUrl}`,
     sessionId: sessionId || null,
     mediaSource,
   };
@@ -214,8 +174,13 @@ export const getStreamUrl = async ({
     sessionId = res.data.PlaySessionId || null;
     mediaSource = res.data.MediaSources?.[0];
     if (!mediaSource) {
-      throw new Error(
-        `PlaybackInfo returned no media source for live channel (${res.data.ErrorCode ?? "no ErrorCode"})`,
+      // A server-side negotiation outcome (profile can't be satisfied,
+      // transcoding disabled), not an app defect: expected keeps it out of
+      // Sentry while the player surfaces it to the user.
+      throw markExpectedError(
+        new Error(
+          `PlaybackInfo returned no media source for live channel (${res.data.ErrorCode ?? "no ErrorCode"})`,
+        ),
       );
     }
     const url = getPlaybackUrl(api, item.ChannelId!, mediaSource, {
@@ -269,8 +234,12 @@ export const getStreamUrl = async ({
   // Fabricating a stream URL anyway just moves the failure into an opaque
   // decoder error minutes later, so fail here where the reason is known.
   if (!mediaSource) {
-    throw new Error(
-      `PlaybackInfo returned no media source (${res.data.ErrorCode ?? "no ErrorCode"})`,
+    // Same as the live-channel case: the server said no (NoCompatibleStream,
+    // RateLimitExceeded), which is its configuration, not an app bug.
+    throw markExpectedError(
+      new Error(
+        `PlaybackInfo returned no media source (${res.data.ErrorCode ?? "no ErrorCode"})`,
+      ),
     );
   }
 
@@ -302,7 +271,6 @@ export const getDownloadStreamUrl = async ({
   audioStreamIndex = 0,
   subtitleStreamIndex = undefined,
   mediaSourceId,
-  deviceId,
   audioMode = "auto",
 }: {
   api: Api | null | undefined;
@@ -312,7 +280,6 @@ export const getDownloadStreamUrl = async ({
   audioStreamIndex?: number;
   subtitleStreamIndex?: number;
   mediaSourceId?: string | null;
-  deviceId?: string | null;
   audioMode?: AudioTranscodeModeType;
 }): Promise<{
   url: string | null;
@@ -350,14 +317,10 @@ export const getDownloadStreamUrl = async ({
 
   const sessionId = res.data.PlaySessionId || null;
   const mediaSource = res.data.MediaSources?.[0];
+  if (!mediaSource) {
+    console.warn("No media source offered for download");
+    return null;
+  }
 
-  return getDownloadUrl(api, item.Id!, mediaSource, sessionId, {
-    subtitleStreamIndex,
-    audioStreamIndex,
-    deviceId,
-    startTimeTicks: 0,
-    maxStreamingBitrate,
-    userId,
-    playSessionId: sessionId || undefined,
-  });
+  return getDownloadUrl(api, mediaSource, sessionId);
 };

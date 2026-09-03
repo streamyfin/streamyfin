@@ -561,8 +561,15 @@ export const Home = () => {
       sections: topShelfSyncState.sections,
       layout: topShelfLayout,
       contentPreset: topShelfContentPreset,
+      useEpisodeImages: settings?.useEpisodeImagesForNextUp,
     });
-  }, [api, topShelfSyncState, topShelfLayout, topShelfContentPreset]);
+  }, [
+    api,
+    topShelfSyncState,
+    topShelfLayout,
+    topShelfContentPreset,
+    settings?.useEpisodeImagesForNextUp,
+  ]);
 
   const userViews = useMemo(
     () => data?.filter((l) => !settings?.hiddenLibraries?.includes(l.Id!)),

@@ -1,5 +1,12 @@
 import * as Sentry from "@sentry/react-native";
+import { isAxiosError } from "axios";
 import { Platform } from "react-native";
+import {
+  describeHttpError,
+  isAbortLikeError,
+  isConnectivityError,
+  isExpectedError,
+} from "@/utils/errors";
 import {
   readStoredPluginSettings,
   readStoredSettings,
@@ -140,7 +147,48 @@ export const isUserInteractionBreadcrumb = (
 const NATIVE_SDK_OPTIONS = {
   enableSwizzling: false,
   enableNetworkBreadcrumbs: false,
+  // "Non fully blocked" hangs are main-thread stalls where some run loop
+  // still turns: every event so far was a 2-3s startup stall on a slow
+  // device whose stack held only UIApplicationMain/CFRunLoop frames —
+  // nothing to act on. Fully blocked hangs keep reporting.
+  enableReportNonFullyBlockedAppHangs: false,
 } as Partial<Parameters<typeof Sentry.init>[0]>;
+
+/**
+ * The last line of defence for axios failures that reach Sentry OUTSIDE the
+ * explicit capture paths (a floating promise → onunhandledrejection): those
+ * events carry no app frames and none of the route identity the data-layer
+ * and logAndCaptureError paths attach, so every such failure — any endpoint,
+ * any status — regroups into one stackless issue. Apply the same rules here:
+ * connectivity/aborted/expected failures never leave the app, and the rest
+ * are fingerprinted by route and status. Exported for tests.
+ */
+export const classifyOutgoingEvent = (
+  event: Sentry.ErrorEvent,
+  // Structural type: the RN SDK doesn't re-export @sentry/core's EventHint.
+  hint: { originalException?: unknown } | undefined,
+): Sentry.ErrorEvent | null => {
+  const cause = hint?.originalException;
+  if (!isAxiosError(cause)) return event;
+  if (
+    isAbortLikeError(cause) ||
+    isConnectivityError(cause) ||
+    isExpectedError(cause)
+  ) {
+    return null;
+  }
+  const http = describeHttpError(cause);
+  if (http && !event.fingerprint) {
+    event.contexts = { ...event.contexts, http };
+    event.fingerprint = [
+      "unhandled-http",
+      http.method,
+      http.path,
+      String(http.status),
+    ];
+  }
+  return event;
+};
 
 const initializeSentry = () => {
   if (initialized || !SENTRY_DSN || !reportsFromThisBuild()) return;
@@ -172,7 +220,10 @@ const initializeSentry = () => {
           "build.run": build.runNumber ?? "none",
         },
       },
-      beforeSend: (event) => scrubDeep(event) as typeof event,
+      beforeSend: (event, hint) => {
+        const classified = classifyOutgoingEvent(event, hint);
+        return classified ? (scrubDeep(classified) as typeof classified) : null;
+      },
       beforeBreadcrumb: (breadcrumb) =>
         isUserInteractionBreadcrumb(breadcrumb)
           ? null

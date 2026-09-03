@@ -3,6 +3,7 @@ import { AxiosError, type AxiosResponse } from "axios";
 import {
   describeHttpError,
   describeHttpResponse,
+  isAbortLikeError,
   isConnectivityError,
   templateRequestPath,
 } from "./errors";
@@ -113,6 +114,31 @@ describe("isConnectivityError", () => {
     expect(isConnectivityError(httpError(500))).toBe(false);
     expect(isConnectivityError(httpError(404))).toBe(false);
     expect(isConnectivityError(httpError(401))).toBe(false);
+  });
+
+  test("Cloudflare origin-down statuses are connectivity", () => {
+    expect(isConnectivityError(httpError(521))).toBe(true);
+    expect(isConnectivityError(httpError(522))).toBe(true);
+    expect(isConnectivityError(httpError(523))).toBe(true);
+  });
+});
+
+describe("isAbortLikeError", () => {
+  test("expo/fetch cancellations are aborts despite the plain Error shape", () => {
+    expect(
+      isAbortLikeError(
+        new Error(
+          "fetch failed: FetchRequestCanceledException: Fetch request has been canceled",
+        ),
+      ),
+    ).toBe(true);
+  });
+
+  test("other plain errors are not aborts", () => {
+    expect(isAbortLikeError(new Error("fetch failed: connection lost"))).toBe(
+      false,
+    );
+    expect(isAbortLikeError(httpError(404))).toBe(false);
   });
 });
 

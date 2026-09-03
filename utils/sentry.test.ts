@@ -1,4 +1,5 @@
 import { describe, expect, mock, test } from "bun:test";
+import { stubReactNative } from "@/test-utils/reactNative";
 
 // utils/sentry imports the SDK and app modules with native dependencies;
 // only the pure scrubbers are under test here. Bun's mock.module is
@@ -31,12 +32,16 @@ mock.module("@/utils/version", () => ({
     display: "test",
   }),
 }));
-mock.module("react-native", () => ({
-  Platform: { OS: "ios", isTV: false },
-}));
+stubReactNative();
 
-const { scrubDeep, isUserInteractionBreadcrumb, initializeSentryIfConsented } =
-  await import("./sentry");
+const {
+  scrubDeep,
+  isUserInteractionBreadcrumb,
+  initializeSentryIfConsented,
+  classifyOutgoingEvent,
+} = await import("./sentry");
+const { AxiosError } = await import("axios");
+const { markExpectedError } = await import("./errors");
 
 describe("isUserInteractionBreadcrumb — no behaviour tracking, no titles", () => {
   test("drops touch breadcrumbs, whose labels are media titles", () => {
@@ -207,5 +212,73 @@ describe("dev builds do not report", () => {
     setDev(false);
     initializeSentryIfConsented();
     expect(initCalls).toHaveLength(1);
+  });
+});
+
+describe("classifyOutgoingEvent — axios errors on the unhandledrejection path", () => {
+  const axiosError = (status?: number) =>
+    new AxiosError(
+      status ? `Request failed with status code ${status}` : "Network Error",
+      status ? AxiosError.ERR_BAD_RESPONSE : AxiosError.ERR_NETWORK,
+      { method: "get", url: "https://server/Items/abc", headers: {} as never },
+      {},
+      status ? ({ status, headers: {}, config: {} } as never) : undefined,
+    );
+
+  test("connectivity failures are dropped", () => {
+    expect(
+      classifyOutgoingEvent({} as never, { originalException: axiosError() }),
+    ).toBeNull();
+    expect(
+      classifyOutgoingEvent({} as never, {
+        originalException: axiosError(502),
+      }),
+    ).toBeNull();
+  });
+
+  test("expected errors are dropped", () => {
+    expect(
+      classifyOutgoingEvent({} as never, {
+        originalException: markExpectedError(axiosError(400)),
+      }),
+    ).toBeNull();
+  });
+
+  test("a real HTTP failure gets the route+status fingerprint", () => {
+    const event = { contexts: {} } as never as Parameters<
+      typeof classifyOutgoingEvent
+    >[0];
+    const out = classifyOutgoingEvent(event, {
+      originalException: axiosError(400),
+    });
+    expect(out?.fingerprint).toEqual([
+      "unhandled-http",
+      "GET",
+      "/Items/abc",
+      "400",
+    ]);
+    expect(out?.contexts?.http).toEqual({
+      method: "GET",
+      path: "/Items/abc",
+      status: 400,
+    });
+  });
+
+  test("a fingerprint set by an explicit capture path is not overwritten", () => {
+    const event = { fingerprint: ["data-layer"] } as never as Parameters<
+      typeof classifyOutgoingEvent
+    >[0];
+    const out = classifyOutgoingEvent(event, {
+      originalException: axiosError(400),
+    });
+    expect(out?.fingerprint).toEqual(["data-layer"]);
+  });
+
+  test("non-axios exceptions pass through untouched", () => {
+    const event = {} as never as Parameters<typeof classifyOutgoingEvent>[0];
+    expect(
+      classifyOutgoingEvent(event, { originalException: new Error("x") }),
+    ).toBe(event);
+    expect(classifyOutgoingEvent(event, undefined)).toBe(event);
   });
 });

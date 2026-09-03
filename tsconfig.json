@@ -8,7 +8,7 @@
       "@/*": ["./*"]
     },
     // TS 6.0: "types" now defaults to [] (no auto-inclusion of node_modules/@types)
-    "types": ["node"],
+    "types": ["node", "bun"],
     "incremental": true,
     "tsBuildInfoFile": ".tsbuildinfo",
     "skipLibCheck": true,
@@ -31,6 +31,8 @@
     "plugins/**/*",
     "providers/**/*",
     "scripts/**/*",
+    "test-utils/**/*",
+    "utils/**/*",
     "translations/**/*",
     "*.ts",
     "*.tsx",

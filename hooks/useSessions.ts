@@ -28,7 +28,10 @@ export const useSessions = ({
         activeWithinSeconds: activeWithinSeconds,
       });
 
-      const result = response.data
+      // A reverse proxy can answer this route with a non-array body (an HTML
+      // error page, an error object) that axios passes through as-is.
+      const sessions = Array.isArray(response.data) ? response.data : [];
+      const result = sessions
         .filter((s) => s.NowPlayingItem)
         .sort((a, b) =>
           (b.NowPlayingItem?.Name ?? "").localeCompare(
@@ -61,7 +64,8 @@ export const useAllSessions = ({
       const response = await getSessionApi(api).getSessions({
         activeWithinSeconds: activeWithinSeconds,
       });
-      return response.data;
+      // Same proxy caveat as useSessions above.
+      return Array.isArray(response.data) ? response.data : [];
     },
     refetchInterval: refetchInterval,
   });

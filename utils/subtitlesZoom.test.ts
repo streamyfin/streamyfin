@@ -1,8 +1,7 @@
-import { describe, expect, mock, test } from "bun:test";
+import { describe, expect, test } from "bun:test";
+import { stubReactNative } from "@/test-utils/reactNative";
 
-mock.module("react-native", () => ({
-  Platform: { OS: "android", isTV: false },
-}));
+stubReactNative({ OS: "android" });
 
 const {
   getDisplayVideoDimensions,

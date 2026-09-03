@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import type { PluginLockableSettings, Settings } from "./settings";
 import {
   pendingPluginDefaults,
+  pluginRefreshOverlay,
   resolveEffectiveSettings,
 } from "./settingsOverrides";
 
@@ -176,5 +177,73 @@ describe("pendingPluginDefaults", () => {
       identity,
     );
     expect(pending).toEqual({});
+  });
+
+  test("never seeds consent keys, even on the first sync", () => {
+    // The crash-report opt-out lives on the intro sheet, which is available
+    // before the first plugin sync runs at login. Seeding the admin default
+    // after the fact silently re-enabled reporting over that opt-out — the
+    // user's toggle turned itself back on. Consent only moves by explicit
+    // user action; an admin enforces it with a lock instead.
+    const pending = pendingPluginDefaults(
+      plugin({ sentryEnabled: { locked: false, value: true } }),
+      {},
+      identity,
+    );
+    expect(pending).toEqual({});
+  });
+});
+
+describe("pluginRefreshOverlay", () => {
+  test("computes the overlay against the settings passed in", () => {
+    // The caller must pass the atom's value at write time. The refresh runs
+    // while the user can be toggling (the intro sheet is up during login),
+    // and the old merge from a render-time snapshot resurrected the value
+    // the user had just overwritten.
+    const result = pluginRefreshOverlay(
+      { sentryEnabled: false } as Partial<Settings>,
+      plugin({
+        sentryEnabled: { locked: false, value: true },
+        forwardSkipTime: { locked: false, value: 45 },
+      }),
+      {},
+      identity,
+    );
+    // sentryEnabled is never seeded, so only the skip time moves.
+    expect(result).toEqual({
+      overlay: { forwardSkipTime: 45 },
+      applied: { forwardSkipTime: 45 },
+    });
+  });
+
+  test("returns null when there is nothing to write", () => {
+    const result = pluginRefreshOverlay(
+      {} as Partial<Settings>,
+      undefined,
+      {},
+      identity,
+    );
+    expect(result).toBeNull();
+  });
+
+  test("a streamystats-only refresh leaves the applied record untouched", () => {
+    // Recording applied defaults for a write that seeded nothing would mark
+    // pending defaults as done without ever writing them. The URL here is
+    // already applied, so the only outstanding write is the search engine.
+    const result = pluginRefreshOverlay(
+      { searchEngine: "Jellyfin" } as Partial<Settings>,
+      plugin({
+        streamyStatsServerUrl: {
+          locked: false,
+          value: "https://stats.example",
+        },
+      }),
+      { streamyStatsServerUrl: "https://stats.example" },
+      identity,
+    );
+    expect(result).toEqual({
+      overlay: { searchEngine: "Streamystats" },
+      applied: null,
+    });
   });
 });

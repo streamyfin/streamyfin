@@ -22,6 +22,7 @@ class DownloadService : Service() {
 
   // Time threshold to detect if we're in boot context (10 minutes after boot)
   private val BOOT_THRESHOLD_MS = 10 * 60 * 1000L
+  private val WAKE_LOCK_TAG = "Streamyfin::DownloadWakeLock"
 
   private val binder = DownloadServiceBinder()
   private var activeDownloadCount = 0
@@ -39,11 +40,11 @@ class DownloadService : Service() {
     Log.d(TAG, "DownloadService created")
     createNotificationChannel()
 
-    val pm = getSystemService(PowerManager::class.java)
-    wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "Streamyfin::DownloadWakeLock")
-    wakeLock?.acquire()
-
-    Log.d(TAG, "Wake lock acquired")
+    // Held only while a download runs: the service outlives its downloads
+    // (started + bound), so onDestroy would release far too late.
+    wakeLock = getSystemService(PowerManager::class.java)
+      ?.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, WAKE_LOCK_TAG)
+      ?.apply { setReferenceCounted(false) }
   }
 
   override fun onBind(intent: Intent?): IBinder {
@@ -101,8 +102,7 @@ class DownloadService : Service() {
   }
   
   override fun onDestroy() {
-    wakeLock?.let { if (it.isHeld) it.release() }
-    Log.d(TAG, "Wake lock released")
+    releaseWakeLock()
     Log.d(TAG, "DownloadService destroyed")
     super.onDestroy()
   }
@@ -142,23 +142,43 @@ class DownloadService : Service() {
     return builder.build()
   }
   
-  fun startDownload() {
-    activeDownloadCount++
-    Log.d(TAG, "Download started, active count: $activeDownloadCount")
-    if (activeDownloadCount == 1) {
+  /**
+   * The module owns the task list and is the only source of truth for how many
+   * downloads are running; the wake lock and the foreground notification follow
+   * it. Synchronized because downloads start on the JS thread and finish on
+   * OkHttp dispatcher threads.
+   */
+  @Synchronized
+  fun syncActiveDownloads(count: Int) {
+    activeDownloadCount = count
+    Log.d(TAG, "Active downloads: $activeDownloadCount")
+    if (activeDownloadCount > 0) {
+      acquireWakeLock()
       startForegroundSafely()
+      return
+    }
+    releaseWakeLock()
+    if (isForegroundStarted) {
+      ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
+      isForegroundStarted = false
+    }
+    stopSelf()
+  }
+
+  private fun acquireWakeLock() {
+    val lock = wakeLock ?: return
+    if (!lock.isHeld) {
+      // No timeout: downloads can run for hours, the count bounds this instead.
+      lock.acquire()
+      Log.d(TAG, "Wake lock acquired")
     }
   }
-  
-  fun stopDownload() {
-    activeDownloadCount = maxOf(0, activeDownloadCount - 1)
-    Log.d(TAG, "Download stopped, active count: $activeDownloadCount")
-    if (activeDownloadCount == 0) {
-      if (isForegroundStarted) {
-        ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
-        isForegroundStarted = false
-      }
-      stopSelf()
+
+  private fun releaseWakeLock() {
+    val lock = wakeLock ?: return
+    if (lock.isHeld) {
+      lock.release()
+      Log.d(TAG, "Wake lock released")
     }
   }
   

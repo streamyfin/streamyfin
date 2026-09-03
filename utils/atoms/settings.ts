@@ -22,7 +22,7 @@ import {
 import { storage } from "../mmkv";
 import {
   type AppliedPluginDefaults,
-  pendingPluginDefaults,
+  pluginRefreshOverlay,
   resolveEffectiveSettings,
 } from "./settingsOverrides";
 
@@ -394,8 +394,14 @@ export type Settings = {
   defaultSubtitleLanguage: CultureDto | null;
   subtitleMode: SubtitlePlaybackMode;
   rememberSubtitleSelections: boolean;
-  /** Native player: auto-enable a text subtitle while the volume is at zero. */
+  /** Turn subtitles on automatically while audio is muted, and off again after. */
   subtitlesOnMute: boolean;
+  /**
+   * Let that automatic selection pick a subtitle the server must re-process the
+   * stream for (burned-in, or image-based while transcoding). Off by default:
+   * a volume key press should never interrupt playback.
+   */
+  subtitlesOnMuteAllowRestart: boolean;
   showHomeTitles: boolean;
   defaultVideoOrientation: (typeof ScreenOrientation.OrientationLock)[keyof typeof ScreenOrientation.OrientationLock];
   forwardSkipTime: number;
@@ -575,7 +581,8 @@ export const defaultValues: Settings = {
   defaultSubtitleLanguage: null,
   subtitleMode: SubtitlePlaybackMode.Default,
   rememberSubtitleSelections: true,
-  subtitlesOnMute: false,
+  subtitlesOnMute: true,
+  subtitlesOnMuteAllowRestart: false,
   showHomeTitles: true,
   defaultVideoOrientation: ScreenOrientation.OrientationLock.DEFAULT,
   forwardSkipTime: 30,
@@ -607,7 +614,7 @@ export const defaultValues: Settings = {
   skipRecap: "ask",
   skipCommercial: "ask",
   skipPreview: "ask",
-  showResumeDialog: true,
+  showResumeDialog: false,
   // Playback speed defaults
   defaultPlaybackSpeed: 1.0,
   playbackSpeedPerMedia: {},
@@ -895,34 +902,38 @@ export const useSettings = () => {
     );
     setPluginSettings(newPluginSettings);
 
-    if (newPluginSettings && _settings) {
-      const applied = loadAppliedPluginDefaults();
-      const pending = pendingPluginDefaults(
-        newPluginSettings,
-        applied,
-        normalizePluginValue,
-      );
-      const enableStreamystats =
-        newPluginSettings.streamyStatsServerUrl?.value &&
-        _settings.searchEngine !== "Streamystats";
+    // Write against the atom's value at apply time, not the hook's render
+    // snapshot: this runs while the user can be changing settings (the intro
+    // sheet is up during first-run login), and a merge built from the
+    // snapshot resurrected whatever the user had just overwritten.
+    if (newPluginSettings) {
+      setSettings((currentSettings) => {
+        if (!currentSettings) return currentSettings;
 
-      if (Object.keys(pending).length > 0 || enableStreamystats) {
+        const applied = loadAppliedPluginDefaults();
+        const result = pluginRefreshOverlay(
+          currentSettings,
+          newPluginSettings,
+          applied,
+          normalizePluginValue,
+        );
+        if (!result) return currentSettings;
+
         const newSettings = {
           ...defaultValues,
-          ..._settings,
-          ...pending,
-          ...(enableStreamystats ? { searchEngine: "Streamystats" } : {}),
+          ...currentSettings,
+          ...result.overlay,
         } as Settings;
-        setSettings(newSettings);
         saveSettings(newSettings);
-        if (Object.keys(pending).length > 0) {
-          storage.setAny(PLUGIN_APPLIED_DEFAULTS, { ...applied, ...pending });
+        if (result.applied) {
+          storage.setAny(PLUGIN_APPLIED_DEFAULTS, result.applied);
         }
-      }
+        return newSettings;
+      });
     }
 
     return newPluginSettings;
-  }, [api, _settings]);
+  }, [api, setPluginSettings, setSettings]);
 
   const updateSettings = (update: Partial<Settings>) => {
     // Admin-locked settings are enforced at write time too: a control that

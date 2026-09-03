@@ -138,6 +138,17 @@ public class NativePlayerModule: Module {
 			self.session?.viewModel.updateSubtitleSearch(state)
 		}.runOnQueue(.main)
 
+		// Transient one-line notice on the player's own notice surface, for
+		// things the JS coordinator decides (automatic subtitles on mute).
+		AsyncFunction("showNotice") { (text: String) in
+			self.session?.viewModel.showNotice(text)
+		}.runOnQueue(.main)
+
+		// Jellyfin remote ToggleMute. Same entry point as the TV mute button.
+		AsyncFunction("toggleMute") {
+			self.session?.viewModel.toggleMute()
+		}.runOnQueue(.main)
+
 		// Adds a sidecar subtitle to the live mpv handle and selects it
 		// (client-side downloaded subtitle file, e.g. OpenSubtitles fallback).
 		AsyncFunction("addExternalSubtitle") { (url: String) in
@@ -155,8 +166,12 @@ public class NativePlayerModule: Module {
 			self.session?.engine.pause()
 		}.runOnQueue(.main)
 
+		// Through the view model, not straight to the engine: a remote seek has
+		// to arm pendingSeekReport and move the tracked position like a native
+		// one, or the server keeps reporting the pre-seek position until the
+		// next 10s interval. Android routes this the same way.
 		AsyncFunction("seekTo") { (positionSec: Double) in
-			self.session?.engine.seekTo(position: positionSec)
+			self.session?.viewModel.seek(to: positionSec)
 		}.runOnQueue(.main)
 
 		AsyncFunction("setSpeed") { (speed: Double) in

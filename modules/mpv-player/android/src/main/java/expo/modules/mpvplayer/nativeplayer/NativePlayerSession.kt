@@ -10,6 +10,7 @@ import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.graphics.Color
 import android.os.Build
+import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -56,6 +57,10 @@ class NativePlayerSession(
 
     companion object {
         private const val TAG = "NativePlayerSession"
+        // Grace window after onActivityResumed before running resume recovery,
+        // so surfaceCreated has fired and the holder has a valid surface. Same
+        // value as MpvPlayerView's TV recovery delay.
+        private const val RESUME_RECOVERY_DELAY_MS = 500L
     }
 
     val viewModel = PlayerViewModel()
@@ -73,8 +78,25 @@ class NativePlayerSession(
     private var isDismissing = false
     private var pendingConfig: PlayerPresentConfigRecord? = null
 
+    /// Set once playback has begun (isPlaying has been true at least once), so
+    /// syncKeepScreenOn only clears FLAG_KEEP_SCREEN_ON on a genuine pause —
+    /// not during the initial load before the first frame, where the flag must
+    /// stay set to keep the screen awake while the stream buffers.
+    private var playbackStarted = false
+
     private var pipReceiverRegistered = false
     private val mainHandler = Handler(Looper.getMainLooper())
+
+    // Resume-recovery: recreate the decoder when returning from the
+    // screensaver / app background. The system can destroy the SurfaceView's
+    // surface while the player is alive; re-attaching (surfaceCreated) is not
+    // enough on TV's zero-copy hwdec=mediacodec — the decoder stays bound to
+    // dead buffers and mpv leaves the video track dead while audio keeps
+    // playing (black screen). Only a reload rebuilds it: see
+    // MPVLayerRenderer.recoverVideoOutput.
+    private var lifecycleCallbacks: android.app.Application.ActivityLifecycleCallbacks? = null
+    private var lifecycleRegistered = false
+    private val recoverResumeRunnable = Runnable { runResumeRecovery() }
 
     private val pipBroadcastReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -126,6 +148,8 @@ class NativePlayerSession(
         }
         hostActivity = activity
 
+        registerLifecycleCallbacks()
+
         val isTv = DeviceKind.isTelevision(activity)
         viewModel.isTvChrome = isTv
 
@@ -147,11 +171,11 @@ class NativePlayerSession(
                         viewModel.revealVolumeSliderTransiently()
                     }
                     volumeCtrl.onMuteStateChanged = { muted ->
-                        emit("onMuteStateChanged", mapOf(
-                            "muted" to muted,
-                            "positionSec" to viewModel.displayPosition
-                        ))
+                        viewModel.onDeviceMuteChanged(muted)
                     }
+                    // A player opened while the device is already muted must
+                    // start in that state: the controller only reports changes.
+                    viewModel.onDeviceMuteChanged(volumeCtrl.volume <= 0.001f, seed = true)
                 }
 
                 val mediaCtrl = MediaSessionController(activity, viewModel)
@@ -160,6 +184,7 @@ class NativePlayerSession(
 
                 viewModel.onPlaybackStateSync = {
                     mediaSessionController?.updatePlaybackState()
+                    syncKeepScreenOn()
                 }
                 viewModel.onMetadataSync = {
                     mediaSessionController?.updateMetadata()
@@ -337,6 +362,96 @@ class NativePlayerSession(
         }
     }
 
+    /**
+     * Keep the screen on while playback is running and clear it on pause so
+     * the system screensaver can kick in — JS parity with the expo-keep-awake
+     * tag in direct-player (activates on play, releases on pause). Called from
+     * onPlaybackStateSync, which fires on play/pause, loading and seek.
+     *
+     * The flag only clears once playback has actually begun AND buffering has
+     * finished — during the initial load (and replacement-stream swaps) before
+     * the first frame isPlaying is false and isBuffering is true, and clearing
+     * there would let the screen sleep mid-load. apply() fires
+     * onPlaybackStateSync before the new stream starts, so both guards are
+     * needed: load() resets playbackStarted, and this holds the flag whenever
+     * the view model is buffering.
+     */
+    private fun syncKeepScreenOn() {
+        val window = hostActivity?.window ?: return
+        if (viewModel.isPlaying || viewModel.isBuffering) {
+            if (viewModel.isPlaying) playbackStarted = true
+            window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        } else if (playbackStarted) {
+            window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+    }
+
+    // MARK: - Resume Recovery
+
+    /**
+     * Recreate the decoder when returning from the Android TV screensaver (or
+     * app background / lock screen). surfaceCreated re-attaches the new
+     * surface, but that alone doesn't rebuild a decoder left bound to a dead
+     * surface — audio keeps playing against a black screen. Check the actual
+     * pipeline health; only reload when the video output is genuinely broken.
+     * Healthy playing playback resumes untouched.
+     */
+    private fun runResumeRecovery() {
+        if (!rendererStarted) return
+        if (viewModel.isPipActive) return
+        val surface = surfaceView?.holder?.surface?.takeIf { it.isValid }
+        val videoBroken = renderer?.isVideoOutputBroken() ?: false
+        val playing = viewModel.isPlaying
+        if (playing && !videoBroken) {
+            Log.i(TAG, "[Recover] onResume recovery — playing and pipeline healthy, skipping")
+            return
+        }
+        Log.i(
+            TAG,
+            "[Recover] onResume recovery — paused=${!playing}, videoBroken=$videoBroken, surfaceValid=${surface != null}"
+        )
+        // Preserve position/tracks/loop/external subs across the reload and
+        // follow the user's play intent afterwards.
+        renderer?.playbackResumeIntent = playing
+        renderer?.recoverVideoOutput(surface)
+    }
+
+    private fun registerLifecycleCallbacks() {
+        if (lifecycleRegistered) return
+        Log.i(TAG, "[Recover] registering lifecycle recovery")
+        val app = hostActivity?.applicationContext as? android.app.Application ?: run {
+            Log.w(TAG, "Cannot register lifecycle callbacks: no Application")
+            return
+        }
+        lifecycleCallbacks = object : android.app.Application.ActivityLifecycleCallbacks {
+            override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {}
+            override fun onActivityStarted(activity: Activity) {}
+            override fun onActivityResumed(activity: Activity) {
+                if (activity !== hostActivity) return
+                if (!rendererStarted) return
+                // Post past the resume/surfaceCreated race so the holder has a
+                // valid surface, then check pipeline health.
+                mainHandler.removeCallbacks(recoverResumeRunnable)
+                mainHandler.postDelayed(recoverResumeRunnable, RESUME_RECOVERY_DELAY_MS)
+            }
+            override fun onActivityPaused(activity: Activity) {}
+            override fun onActivityStopped(activity: Activity) {}
+            override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) {}
+            override fun onActivityDestroyed(activity: Activity) {}
+        }
+        app.registerActivityLifecycleCallbacks(lifecycleCallbacks)
+        lifecycleRegistered = true
+    }
+
+    private fun unregisterLifecycleCallbacks() {
+        mainHandler.removeCallbacks(recoverResumeRunnable)
+        if (!lifecycleRegistered) return
+        val app = hostActivity?.applicationContext as? android.app.Application
+        lifecycleCallbacks?.let { app?.unregisterActivityLifecycleCallbacks(it) }
+        lifecycleCallbacks = null
+        lifecycleRegistered = false
+    }
+
     private fun setupPiP(activity: Activity, allowPip: Boolean) {
         if (!isPiPSupported()) return
 
@@ -451,6 +566,12 @@ class NativePlayerSession(
             if (!rendererStarted) {
                 pendingConfig = config
             } else {
+                // apply() fires onPlaybackStateSync; with playbackStarted still
+                // true from the previous stream and isPlaying false, that sync
+                // would clear FLAG_KEEP_SCREEN_ON while the replacement stream
+                // is still buffering. Reset the per-stream flag first so the
+                // swap is treated like an initial load.
+                playbackStarted = false
                 viewModel.prepareForReload()
                 viewModel.apply(config)
                 startStream(config)
@@ -508,7 +629,10 @@ class NativePlayerSession(
         // next/previous episode, episode selection, quality, track changes)
         // stays dead until it fires. Mirror of PlayerEngine.swift's
         // `delegate?.engine(self, didLoad:)` at the end of load().
-        emit("onLoad", mapOf("url" to loadConfig.url))
+        // Mute rides along: it is a device/session state, not a stream one, so
+        // JS has no other way to learn it for a player opened while already
+        // muted — no transition happens, so no onMuteStateChanged fires.
+        emit("onLoad", mapOf("url" to loadConfig.url, "muted" to viewModel.isMuted))
     }
 
     private fun applySubtitleStyle(style: SubtitleStyleRecord) {
@@ -592,7 +716,11 @@ class NativePlayerSession(
                 }
             }
 
-            val position = viewModel.displayPosition
+            // The authoritative position, not the UI clock: displayPosition is
+            // interpolated between ticks and, during a touch scrub, moved to
+            // the thumb before any seek is issued (updateScrub), so a dismiss
+            // landing mid-drag would report a position playback never reached.
+            val position = viewModel.authoritativePosition
             val dur = viewModel.duration
             emit("onDismiss", mapOf(
                 "positionSec" to position,
@@ -628,6 +756,7 @@ class NativePlayerSession(
 
             pendingConfig = null
             rendererStarted = false
+            unregisterLifecycleCallbacks()
             renderer?.stop()
             renderer = null
             hostActivity = null
@@ -663,6 +792,7 @@ class NativePlayerSession(
             mediaSessionController?.release()
             pendingConfig = null
             rendererStarted = false
+            unregisterLifecycleCallbacks()
             renderer?.stop()
             renderer = null
             hostActivity = null

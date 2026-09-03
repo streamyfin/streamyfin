@@ -4,6 +4,7 @@ import android.os.Handler
 import android.os.HandlerThread
 import expo.modules.kotlin.Promise
 import expo.modules.kotlin.exception.CodedException
+import expo.modules.kotlin.functions.Queues
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 
@@ -135,6 +136,17 @@ class NativePlayerModule : Module() {
             this@NativePlayerModule.session?.viewModel?.updateSubtitleSearch(state)
         }
 
+        // Transient one-line notice on the player's own notice surface, for
+        // things the JS coordinator decides (automatic subtitles on mute).
+        AsyncFunction("showNotice") { text: String ->
+            this@NativePlayerModule.session?.viewModel?.showNotice(text)
+        }
+
+        // Jellyfin remote ToggleMute. Same entry point as the TV mute button.
+        AsyncFunction("toggleMute") {
+            this@NativePlayerModule.session?.viewModel?.toggleMute()
+        }
+
         AsyncFunction("addExternalSubtitle") { url: String ->
             this@NativePlayerModule.session?.renderer?.addSubtitleFile(url, select = true)
         }
@@ -149,9 +161,14 @@ class NativePlayerModule : Module() {
             this@NativePlayerModule.session?.viewModel?.pause()
         }
 
+        // Main queue, as on iOS: viewModel.seekTo syncs the window's
+        // keep-screen-on flag, which only the main thread may touch. On the
+        // default background queue that threw mid-call, after the mpv seek but
+        // before the tick that moves JS's tracked position, so a backward
+        // remote seek followed by an exit reported the pre-seek position.
         AsyncFunction("seekTo") { positionSec: Double ->
             this@NativePlayerModule.session?.viewModel?.seekTo(positionSec)
-        }
+        }.runOnQueue(Queues.MAIN)
 
         AsyncFunction("setSpeed") { speed: Double ->
             this@NativePlayerModule.session?.viewModel?.setSpeed(speed)

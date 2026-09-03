@@ -385,6 +385,11 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         renderer?.setSpeed(speed)
     }
 
+    /** Mute the player itself; the device volume is left untouched. */
+    fun setMute(muted: Boolean) {
+        renderer?.setMute(muted)
+    }
+
     fun getSpeed(): Double {
         return renderer?.getSpeed() ?: 1.0
     }
@@ -585,25 +590,34 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     private fun runResumeRecovery() {
         if (!rendererStarted) return
         if (pipController?.isPictureInPictureActive() == true) return
-        if (intendedPlayState) return  // playing self-heals
+        // Playing no longer self-heals: after the async-start/ownership rework
+        // the VO doesn't reliably re-prime on surface re-attach, and with
+        // FLAG_KEEP_SCREEN_ON now released on pause the screensaver can kill
+        // the surface mid-playback too. Check the actual pipeline state —
+        // audio can keep playing while the video track is dead (vid=no).
         val surface = surfaceView.holder.surface?.takeIf { it.isValid }
-        Log.i(TAG, "[Recover] onResume recovery — paused, surfaceValid=${surface != null}")
+        val videoBroken = renderer?.isVideoOutputBroken() ?: false
+        if (intendedPlayState && !videoBroken) {
+            Log.i(TAG, "[Recover] onResume recovery — playing and pipeline healthy, skipping")
+            return
+        }
+        Log.i(
+            TAG,
+            "[Recover] onResume recovery — paused=${!intendedPlayState}, videoBroken=$videoBroken, surfaceValid=${surface != null}"
+        )
+        renderer?.playbackResumeIntent = intendedPlayState
         renderer?.recoverVideoOutput(surface)
     }
 
     private fun registerLifecycleCallbacks() {
         if (lifecycleRegistered) return
-        // Resume-recovery is TV-only. Only TV's zero-copy hwdec=mediacodec
-        // binds MediaCodec directly to the display surface, so only TV needs
-        // decoder recreation after a system-initiated surface loss (screensaver
-        // / app background while paused). Phones (mediacodec-copy) and the
-        // emulator self-heal via the surfaceCreated → attachSurface path, so we
-        // don't even register there — no callback overhead, no spurious resets.
-        if (renderer?.isTv != true) {
-            Log.i(TAG, "[Recover] skipping lifecycle registration (isTv=${renderer?.isTv})")
-            return
-        }
-        Log.i(TAG, "[Recover] registering lifecycle recovery (TV)")
+        // Resume-recovery used to be TV-only (phones were assumed to self-heal
+        // via surfaceCreated → attachSurface). That no longer holds: with
+        // FLAG_KEEP_SCREEN_ON released on pause the screensaver can kill the
+        // surface mid-playback on phones too, and the VO doesn't reliably
+        // re-prime after the async-start/ownership rework — audio keeps
+        // playing against a dead video track. Register everywhere.
+        Log.i(TAG, "[Recover] registering lifecycle recovery (isTv=${renderer?.isTv})")
         val app = context.applicationContext as? Application ?: run {
             Log.w(TAG, "Cannot register lifecycle callbacks: no Application")
             return
@@ -623,12 +637,12 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
                     TAG,
                     "[Recover] onActivityResumed — host resumed, hasMedia=${currentUrl != null}, pip=${pipController?.isPictureInPictureActive()}, paused=${!intendedPlayState}"
                 )
-                // Only recover when there's loaded media, we're paused, and not
-                // in PiP. Playing self-heals; nothing loaded yet = nothing to
-                // recover.
+                // Only recover when there's loaded media and we're not in PiP.
+                // Playing-but-broken is filtered inside runResumeRecovery via
+                // the actual pipeline state, so healthy playback resumes with
+                // no reload.
                 if (currentUrl == null) return
                 if (pipController?.isPictureInPictureActive() == true) return
-                if (intendedPlayState) return
                 // Post past the resume/surfaceCreated race so the holder has a
                 // valid surface, then recreate the decoder against it.
                 pipHandler.removeCallbacks(recoverResumeRunnable)
