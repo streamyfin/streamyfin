@@ -243,6 +243,9 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     jellyseerrAutoConnectAttempt.current = attemptKey;
 
     const userId = user.Id;
+    // Three round trips is long enough to log out or switch account in, and
+    // the Seerr session belongs to whoever approved the code.
+    const stillCurrent = () => store.get(userAtom)?.Id === userId;
     (async () => {
       const seerr = new JellyseerrApi(
         serverUrl,
@@ -250,19 +253,20 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
         apiKey,
       );
 
-      // Three round trips is long enough to log out or switch account in, and
-      // the Seerr session belongs to whoever approved the code.
       const quickConnected = await signInWithQuickConnect(
         seerr,
         api,
-        () => store.get(userAtom)?.Id === userId,
+        stillCurrent,
       );
       if (quickConnected) {
         setJellyseerrUser(quickConnected);
         return;
       }
 
-      if (!apiKey) return;
+      // The key is not replayed for an account that has since been left
+      // either: resolved for the previous user, it would sign the next one in
+      // as them.
+      if (!apiKey || !stillCurrent()) return;
       try {
         setJellyseerrUser(await seerr.loginWithApiKey(userId));
       } catch (e) {
@@ -613,6 +617,8 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
             );
             const jellyfinServerUrl = api.basePath;
             const jellyfinUserId = auth.data.User.Id;
+            const stillCurrent = () =>
+              store.get(userAtom)?.Id === jellyfinUserId;
             // Quick Connect before the password, and this is the branch where
             // it matters most: the password is stored here, and a Seerr that
             // can open a session from the Jellyfin token means there is no
@@ -620,13 +626,15 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
             const quickConnected = await signInWithQuickConnect(
               jellyseerrApi,
               authedApi,
-              () => store.get(userAtom)?.Id === jellyfinUserId,
+              stillCurrent,
             );
             if (quickConnected) setJellyseerrUser(quickConnected);
 
             // The password path runs only when Quick Connect could not open a
             // session, so on a server that supports it nothing is ever stored.
-            if (!quickConnected)
+            // Nor for an account that has since been left: the password is
+            // the previous user's, and would be stored under their id.
+            if (!quickConnected && stillCurrent())
               await jellyseerrApi.test().then((result) => {
                 if (result.isValid && result.requiresPass) {
                   jellyseerrApi

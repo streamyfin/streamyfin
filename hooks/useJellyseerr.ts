@@ -137,11 +137,18 @@ const shouldReportJellyseerrError = (
   //   ratings upstream failed (500) — the badge simply doesn't render.
   // - /user/jellyfin/:id 404: Seerr servers predating the route (seerr#2074);
   //   the caller falls back to password login.
+  // - /auth/jellyfin/quickconnect/initiate 404: Seerr predating 3.4.0; the
+  //   caller falls back to the key or the password.
   // - POST /request 400: request validation (already requested, no seasons
   //   selected) — the request flow surfaces it to the user.
   if (path?.endsWith(Endpoints.RATINGS) && (status === 404 || status === 500))
     return false;
   if (status === 404 && path?.includes(Endpoints.USER_JELLYFIN)) return false;
+  if (
+    status === 404 &&
+    path?.endsWith(Endpoints.AUTH_JELLYFIN_QUICK_CONNECT_INITIATE)
+  )
+    return false;
   if (
     status === 400 &&
     method?.toUpperCase() === "POST" &&
@@ -289,6 +296,16 @@ export class JellyseerrApi {
         storage.setAny(JELLYSEERR_USER, data);
         return data;
       });
+  }
+
+  /**
+   * One GET, for the cookies. Seerr with CSRF protection on hands out its token
+   * on every response and expects it back on every POST, so a client that has
+   * only ever POSTed never gets one. The response interceptor stores whatever
+   * arrives, which is why nothing is read here.
+   */
+  async prime(): Promise<void> {
+    await this.axios.get(Endpoints.API_V1 + Endpoints.STATUS);
   }
 
   /**

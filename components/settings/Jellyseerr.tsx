@@ -110,15 +110,17 @@ export const JellyseerrSettings = () => {
       if (!testResult.isValid)
         throw markExpectedError(new Error("Invalid server url"));
 
+      const startedFor = user.Id;
+      const stillCurrent = () => store.get(userAtom)?.Id === startedFor;
+
       // Quick Connect before either credential: it needs neither, and when it
       // opens a session there is no reason for a key or a password to be on
       // this device at all.
       if (api) {
-        const startedFor = user.Id;
         const quickConnected = await signInWithQuickConnect(
           jellyseerrTempApi,
           api,
-          () => store.get(userAtom)?.Id === startedFor,
+          stillCurrent,
         );
         if (quickConnected)
           return {
@@ -129,6 +131,11 @@ export const JellyseerrSettings = () => {
             apiKey: apiKeyLocked ? apiKey : undefined,
           };
       }
+
+      // Neither credential for an account that has since been left: replayed
+      // now, it would sign the next user in as the previous one.
+      if (!stillCurrent())
+        throw markExpectedError(new Error("Signed-in account changed"));
 
       if (apiKey) {
         if (!user.Id)

@@ -71,6 +71,8 @@ export const JellyseerrAutoLogin: React.FC = () => {
           getIntegrationHeaders("jellyseerr"),
         );
 
+        const stillCurrent = () => store.get(userAtom)?.Id === userId;
+
         // Quick Connect before replaying the password, and the stored password
         // goes when it works. This is where an install made before Seerr 3.4.0
         // stops keeping the user's Jellyfin password on the device: nothing
@@ -80,7 +82,7 @@ export const JellyseerrAutoLogin: React.FC = () => {
           const quickConnected = await signInWithQuickConnect(
             seerr,
             api,
-            () => store.get(userAtom)?.Id === userId,
+            stillCurrent,
           );
           if (quickConnected) {
             setJellyseerrUser(quickConnected);
@@ -94,6 +96,10 @@ export const JellyseerrAutoLogin: React.FC = () => {
             return;
           }
         }
+
+        // Nor the password for an account that has since been left: it is
+        // the previous user's, and would sign the next one in as them.
+        if (!stillCurrent()) return;
 
         setJellyseerrUser(await seerr.login(username, password));
         writeInfoLog("Jellyseerr auto-login succeeded");

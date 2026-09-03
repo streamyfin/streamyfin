@@ -39,6 +39,14 @@ export type QuickConnectOutcome =
 export interface QuickConnectSteps {
   /** Whether the Jellyfin server allows Quick Connect at all. */
   isEnabled: () => Promise<boolean>;
+  /**
+   * A GET to Seerr before the first POST.
+   *
+   * With CSRF protection switched on, Seerr refuses a POST from a client it has
+   * not handed its cookies to yet, and on a fresh install none of the three
+   * entry points has made a request before this one.
+   */
+  prime: () => Promise<void>;
   /** Seerr asks its own Jellyfin for a code. Undefined when it has no such route. */
   initiate: () => Promise<{ code: string; secret: string } | undefined>;
   /**
@@ -75,6 +83,8 @@ export const attemptQuickConnectSignIn = async (
   // instead of a deliberate Jellyfin policy.
   if (!(await steps.isEnabled())) return { declined: "quick-connect-disabled" };
 
+  await steps.prime();
+
   const request = await steps.initiate();
   if (!request) return { declined: "seerr-has-no-route" };
 
@@ -108,6 +118,8 @@ export const quickConnectSteps = (
 
   isEnabled: async () =>
     (await getQuickConnectApi(api).getQuickConnectEnabled()).data === true,
+
+  prime: () => seerr.prime(),
 
   initiate: () => seerr.initiateQuickConnect(),
 

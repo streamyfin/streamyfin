@@ -20,6 +20,7 @@ const SEERR_USER = { id: 7 } as JellyseerrUser;
 
 /** What each step did, so the order and the short-circuits can be asserted. */
 interface Calls {
+  primed: number;
   initiated: number;
   approvedCodes: string[];
   authenticatedSecrets: string[];
@@ -29,6 +30,7 @@ const steps = (
   over: Partial<QuickConnectSteps> = {},
 ): { steps: QuickConnectSteps; calls: Calls } => {
   const calls: Calls = {
+    primed: 0,
     initiated: 0,
     approvedCodes: [],
     authenticatedSecrets: [],
@@ -38,6 +40,9 @@ const steps = (
     calls,
     steps: {
       isEnabled: async () => true,
+      prime: async () => {
+        calls.primed += 1;
+      },
       initiate: async () => {
         calls.initiated += 1;
         return { code: "123456", secret: "SECRET" };
@@ -75,6 +80,26 @@ describe("attemptQuickConnectSignIn", () => {
     expect(calls.authenticatedSecrets).toEqual(["SECRET"]);
   });
 
+  test("asks Seerr for its cookies before the first POST", async () => {
+    // With CSRF protection on, Seerr refuses a POST from a client it has not
+    // handed cookies to yet, and a fresh install holds none. A GET first is
+    // what lets the initiate below land.
+    const order: string[] = [];
+    const { steps: s } = steps({
+      prime: async () => {
+        order.push("prime");
+      },
+      initiate: async () => {
+        order.push("initiate");
+        return { code: "123456", secret: "SECRET" };
+      },
+    });
+
+    await attemptQuickConnectSignIn(s);
+
+    expect(order).toEqual(["prime", "initiate"]);
+  });
+
   test("stops when the Jellyfin server has Quick Connect switched off", async () => {
     const { steps: s, calls } = steps({ isEnabled: async () => false });
 
@@ -83,6 +108,7 @@ describe("attemptQuickConnectSignIn", () => {
     });
     // Nothing is asked of Seerr: a disabled server would fail the initiate from
     // the far side, which reads as a broken Seerr rather than a server policy.
+    expect(calls.primed).toBe(0);
     expect(calls.initiated).toBe(0);
   });
 
