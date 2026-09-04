@@ -242,7 +242,16 @@ export const Home = () => {
           userId: user.Id,
           enableImageTypes: ["Primary", "Backdrop", "Thumb"],
           includeItemTypes: ["Movie", "Series", "Episode"],
-          fields: ["Overview", "Genres", "DateCreated"],
+          // MediaSources carries the MediaStreams used to derive Top Shelf
+          // quality badges (4K / HDR / Atmos / CC); People carries the cast
+          // used for the Top Shelf "Starring" attribute.
+          fields: [
+            "Overview",
+            "Genres",
+            "DateCreated",
+            "MediaSources",
+            "People",
+          ],
           startIndex: 0,
           limit: 10,
         }),
@@ -250,7 +259,16 @@ export const Home = () => {
           userId: user.Id,
           startIndex: 0,
           limit: 10,
-          fields: ["Overview", "Genres", "DateCreated"],
+          // MediaSources carries the MediaStreams used to derive Top Shelf
+          // quality badges (4K / HDR / Atmos / CC); People carries the cast
+          // used for the Top Shelf "Starring" attribute.
+          fields: [
+            "Overview",
+            "Genres",
+            "DateCreated",
+            "MediaSources",
+            "People",
+          ],
           enableImageTypes: ["Primary", "Backdrop", "Thumb"],
           enableResumable: false,
         }),
@@ -300,7 +318,10 @@ export const Home = () => {
         userId: user.Id,
         enableImageTypes: ["Primary", "Backdrop", "Thumb"],
         includeItemTypes: ["Movie", "Series", "Episode"],
-        fields: ["Overview", "Genres", "DateCreated"],
+        // MediaSources carries the MediaStreams used to derive Top Shelf
+        // quality badges (4K / HDR / Atmos / CC); People carries the cast
+        // used for the Top Shelf "Starring" attribute.
+        fields: ["Overview", "Genres", "DateCreated", "MediaSources", "People"],
         startIndex: 0,
         limit: 12,
       });
@@ -328,7 +349,10 @@ export const Home = () => {
         userId: user.Id,
         startIndex: 0,
         limit: 12,
-        fields: ["Overview", "Genres", "DateCreated"],
+        // MediaSources carries the MediaStreams used to derive Top Shelf
+        // quality badges (4K / HDR / Atmos / CC); People carries the cast
+        // used for the Top Shelf "Starring" attribute.
+        fields: ["Overview", "Genres", "DateCreated", "MediaSources", "People"],
         enableImageTypes: ["Primary", "Backdrop", "Thumb"],
         enableResumable: false,
       });
@@ -361,6 +385,10 @@ export const Home = () => {
             "PrimaryImageAspectRatio",
             "Genres",
             "DateCreated",
+            // Needed to derive Top Shelf quality badges (4K / HDR / Atmos / CC).
+            "MediaSources",
+            // Needed for the Top Shelf "Starring" attribute.
+            "People",
           ],
           imageTypeLimit: 1,
           enableImageTypes: ["Primary", "Backdrop", "Thumb"],
@@ -448,6 +476,10 @@ export const Home = () => {
           "Genres",
           "Overview",
           "DateCreated",
+          // Needed to derive Top Shelf quality badges (4K / HDR / Atmos / CC).
+          "MediaSources",
+          // Needed for the Top Shelf "Starring" attribute.
+          "People",
         ],
         enableImageTypes: ["Primary", "Backdrop", "Thumb"],
       });

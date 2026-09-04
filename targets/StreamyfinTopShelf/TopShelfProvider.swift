@@ -36,6 +36,9 @@ private struct TopShelfCacheItem: Decodable {
   let genre: String?
   let durationSeconds: Double?
   let releaseDate: String?
+  let badges: [String]?
+  let cast: [String]?
+  let director: [String]?
   let imageUrl: String?
   let route: String
   let playRoute: String?
@@ -175,6 +178,38 @@ final class TopShelfProvider: TVTopShelfContentProvider {
     item.summary = cacheItem.carouselSummary ?? cacheItem.overview ?? cacheItem.subtitle
     item.genre = cacheItem.genre
 
+    // tvOS renders the standard 4K / HDR / Dolby Vision / Atmos / CC glyphs for
+    // these itself — carousel items are the only shelf item type with the slot.
+    item.mediaOptions = mediaOptions(from: cacheItem.badges)
+
+    // namedAttributes is the only slot Top Shelf offers for cast/director —
+    // there is no dedicated property for either on TVTopShelfCarouselItem.
+    // Labels are looked up from this extension's own Localizable.strings
+    // (Bundle.main resolves to the extension's bundle here, not the host
+    // app's). Duration is not duplicated here: tvOS already renders
+    // item.duration below inline with genre and year (e.g. "Action  2002  2h 1min").
+    var namedAttributes: [TVTopShelfNamedAttribute] = []
+
+    if let cast = cacheItem.cast, !cast.isEmpty {
+      let label = NSLocalizedString(
+        "topshelf.starring",
+        comment: "Top Shelf carousel cast attribute label"
+      )
+      namedAttributes.append(TVTopShelfNamedAttribute(name: label, values: cast))
+    }
+
+    if let director = cacheItem.director, !director.isEmpty {
+      let label = NSLocalizedString(
+        "topshelf.director",
+        comment: "Top Shelf carousel director attribute label"
+      )
+      namedAttributes.append(TVTopShelfNamedAttribute(name: label, values: director))
+    }
+
+    if !namedAttributes.isEmpty {
+      item.namedAttributes = namedAttributes
+    }
+
     if let durationSeconds = cacheItem.durationSeconds {
       item.duration = durationSeconds
     }
@@ -196,6 +231,39 @@ final class TopShelfProvider: TVTopShelfContentProvider {
     }
 
     return item
+  }
+
+  /// Maps the payload's quality tokens onto the native carousel media badges.
+  /// Token strings come from constants/MediaQuality.ts; unknown ones are
+  /// ignored. tvOS has no HDR10/HDR10+/HLG distinction, so they all fold into
+  /// `.videoColorSpaceHDR`.
+  private func mediaOptions(
+    from badges: [String]?
+  ) -> TVTopShelfCarouselItem.MediaOptions {
+    guard let badges else { return [] }
+
+    var options: TVTopShelfCarouselItem.MediaOptions = []
+    for badge in badges {
+      switch badge {
+      case "4K":
+        options.insert(.videoResolution4K)
+      case "Dolby Vision":
+        options.insert(.videoColorSpaceDolbyVision)
+      case "HDR", "HDR10", "HDR10+", "HLG":
+        options.insert(.videoColorSpaceHDR)
+      case "Atmos":
+        options.insert(.audioDolbyAtmos)
+      case "CC":
+        options.insert(.audioTranscriptionClosedCaptioning)
+      case "SDH":
+        options.insert(.audioTranscriptionSDH)
+      case "AD":
+        options.insert(.audioDescription)
+      default:
+        break
+      }
+    }
+    return options
   }
 
   private func parseDate(_ value: String) -> Date? {

@@ -1,13 +1,24 @@
 import type { Api } from "@jellyfin/sdk";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import {
+import type {
   AppleTVTopShelfContent,
   AppleTVTopShelfLayout,
 } from "@/utils/atoms/settings";
+import { getMediaQualityBadges } from "@/utils/jellyfin/getMediaQualityBadges";
 import { getWideImageUrl } from "@/utils/jellyfin/image/getWideImageUrl";
 
 const TV_DISCOVERY_ITEM_LIMIT = 12;
 const TV_DISCOVERY_SECTION_LIMIT = 3;
+const TV_DISCOVERY_CAST_LIMIT = 3;
+const TV_DISCOVERY_DIRECTOR_LIMIT = 2;
+
+// The enums are imported as types only: pulling their runtime module
+// (utils/atoms/settings -> JellyfinProvider -> react-native-device-info) into
+// this pure payload builder would drag that whole chain into every consumer
+// and its tests. These two defaults are the only values we need; they are the
+// string-enum members' literal values.
+const DEFAULT_LAYOUT = "sectioned" as AppleTVTopShelfLayout;
+const DEFAULT_CONTENT_PRESET = "continueAndNextUp" as AppleTVTopShelfContent;
 
 export interface TVDiscoveryItem {
   id: string;
@@ -20,6 +31,28 @@ export interface TVDiscoveryItem {
   genre?: string;
   durationSeconds?: number;
   releaseDate?: string;
+  /**
+   * Quality tokens ("4K", "Dolby Vision", "Atmos", "CC"…), values from
+   * constants/MediaQuality.ts. On tvOS the carousel layout maps these onto the
+   * native `TVTopShelfCarouselItem.mediaOptions` glyphs; Android puts them in
+   * the preview program description. Absent when empty.
+   */
+  badges?: string[];
+  /**
+   * Up to three main cast member names. On tvOS the carousel layout maps
+   * these onto a `TVTopShelfNamedAttribute` ("Starring") on
+   * `TVTopShelfCarouselItem.namedAttributes`; Android has no equivalent
+   * native field, so it folds them into the preview program description.
+   * Absent when the item has no billed actors.
+   */
+  cast?: string[];
+  /**
+   * Up to two director names. On tvOS the carousel layout maps these onto a
+   * `TVTopShelfNamedAttribute` ("Director") alongside the cast attribute;
+   * Android folds them into the preview program description. Absent when the
+   * item has no credited director.
+   */
+  director?: string[];
   imageUrl?: string;
   route: string;
   playRoute?: string;
@@ -207,6 +240,26 @@ function getTVDiscoveryGenre(item: BaseItemDto): string | undefined {
   return item.Genres?.[0] || undefined;
 }
 
+function getTVDiscoveryCast(item: BaseItemDto): string[] | undefined {
+  const cast = (item.People || [])
+    .filter((person) => person.Type === "Actor")
+    .slice(0, TV_DISCOVERY_CAST_LIMIT)
+    .map((person) => person.Name)
+    .filter((name): name is string => Boolean(name));
+
+  return cast.length > 0 ? cast : undefined;
+}
+
+function getTVDiscoveryDirector(item: BaseItemDto): string[] | undefined {
+  const director = (item.People || [])
+    .filter((person) => person.Type === "Director")
+    .slice(0, TV_DISCOVERY_DIRECTOR_LIMIT)
+    .map((person) => person.Name)
+    .filter((name): name is string => Boolean(name));
+
+  return director.length > 0 ? director : undefined;
+}
+
 function getTVDiscoveryDurationSeconds(item: BaseItemDto): number | undefined {
   if (!item.RunTimeTicks || item.RunTimeTicks <= 0) {
     return undefined;
@@ -240,7 +293,9 @@ function getTVDiscoveryCarouselSummary(item: BaseItemDto): string | undefined {
   // Year, genre, and duration are set separately as native carousel item
   // metadata (item.genre / item.creationDate / item.duration in
   // TopShelfProvider.swift) — tvOS renders those as its own badges below
-  // the summary, so prefixing them into this text would show them twice.
+  // the summary, so prefixing them into this text would show them twice. The
+  // quality badges are likewise native (item.mediaOptions), so they must not
+  // be spliced in here either.
   if (item.Type === "Episode") {
     const episodeNumber = formatEpisodeNumber(item);
     const parts = [episodeNumber, item.Name].filter((value): value is string =>
@@ -277,6 +332,7 @@ function sectionFromItems(
         layout,
         useEpisodeImages,
       );
+      const badges = getMediaQualityBadges(item);
       return {
         id: item.Id!,
         itemType: item.Type || undefined,
@@ -286,8 +342,11 @@ function sectionFromItems(
         carouselSummary: getTVDiscoveryCarouselSummary(item),
         overview: getTVDiscoveryOverview(item),
         genre: getTVDiscoveryGenre(item),
+        cast: getTVDiscoveryCast(item),
+        director: getTVDiscoveryDirector(item),
         durationSeconds: getTVDiscoveryDurationSeconds(item),
         releaseDate: getTVDiscoveryReleaseDate(item),
+        badges: badges.length > 0 ? badges : undefined,
         imageUrl: image?.url,
         route: `streamyfin://topshelf/item?id=${encodeURIComponent(item.Id!)}&type=${encodeURIComponent(item.Type || "")}`,
         playRoute: `streamyfin://topshelf/play?id=${encodeURIComponent(item.Id!)}`,
@@ -305,8 +364,8 @@ function sectionFromItems(
 export function buildTVDiscoveryPayload({
   api,
   sections,
-  layout = AppleTVTopShelfLayout.Sectioned,
-  contentPreset = AppleTVTopShelfContent.ContinueAndNextUp,
+  layout = DEFAULT_LAYOUT,
+  contentPreset = DEFAULT_CONTENT_PRESET,
   imageShape,
   useEpisodeImages,
 }: {
