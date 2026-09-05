@@ -124,7 +124,7 @@
     "@biomejs/biome": "2.5.8",
     "@react-native-community/cli": "20.2.0",
     "@react-native-tvos/config-tv": "0.1.6",
-    "@types/bun": "1.4.0",
+    "@types/bun": "1.4.1",
     "@types/lodash": "4.17.25",
     "@types/node": "26.2.0",
     "@types/react": "19.2.17",
