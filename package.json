@@ -86,7 +86,7 @@
     "lodash": "4.18.1",
     "nativewind": "^2.0.11",
     "react": "19.2.3",
-    "react-i18next": "17.0.11",
+    "react-i18next": "17.0.13",
     "react-native": "npm:react-native-tvos@0.86.0-2",
     "react-native-awesome-slider": "^2.9.0",
     "react-native-bottom-tabs": "1.4.0",
