@@ -121,7 +121,7 @@
   },
   "devDependencies": {
     "@babel/core": "7.29.7",
-    "@biomejs/biome": "2.5.8",
+    "@biomejs/biome": "2.5.11",
     "@react-native-community/cli": "20.2.0",
     "@react-native-tvos/config-tv": "0.1.6",
     "@types/bun": "1.4.0",
