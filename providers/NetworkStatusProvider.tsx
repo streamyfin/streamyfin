@@ -57,10 +57,17 @@ export function NetworkStatusProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   const wasServerConnected = useRef<boolean | null>(null);
 
+  // Guards against a stale or overlapping check (e.g. two checks in flight for the
+  // same basePath) overwriting a newer result with an outdated one.
+  const validationVersionRef = useRef(0);
+
   const validateConnection = useCallback(async () => {
+    const validationVersion = ++validationVersionRef.current;
     if (!api?.basePath) return false;
     const reachable = await checkApiReachable(api.basePath);
-    setServerConnected(reachable);
+    if (validationVersion === validationVersionRef.current) {
+      setServerConnected(reachable);
+    }
     return reachable;
     // customHeadersVersion: re-probe with the headers the user just saved.
   }, [api?.basePath, customHeadersVersion]);
@@ -77,6 +84,7 @@ export function NetworkStatusProvider({ children }: { children: ReactNode }) {
       if (state.isConnected) {
         await validateConnection();
       } else {
+        validationVersionRef.current += 1;
         setServerConnected(false);
       }
     });
@@ -86,6 +94,7 @@ export function NetworkStatusProvider({ children }: { children: ReactNode }) {
       if (state.isConnected) {
         validateConnection();
       } else {
+        validationVersionRef.current += 1;
         setServerConnected(false);
       }
     });
