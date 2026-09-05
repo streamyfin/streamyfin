@@ -58,8 +58,16 @@ export function NetworkStatusProvider({ children }: { children: ReactNode }) {
   const wasServerConnected = useRef<boolean | null>(null);
 
   // Guards against a stale or overlapping check (e.g. two checks in flight for the
-  // same basePath) overwriting a newer result with an outdated one.
+  // same basePath, or the active API URL changing mid-check) overwriting a newer
+  // result with an outdated one.
   const validationVersionRef = useRef(0);
+
+  // Invalidate in-flight checks as soon as the active API changes, rather than
+  // waiting for the next validateConnection() call to start — a check for the
+  // previous URL can otherwise resolve and win the race before that happens.
+  useEffect(() => {
+    validationVersionRef.current += 1;
+  }, [api]);
 
   const validateConnection = useCallback(async () => {
     const validationVersion = ++validationVersionRef.current;
