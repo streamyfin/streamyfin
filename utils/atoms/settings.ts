@@ -341,6 +341,26 @@ export enum InactivityTimeout {
   TwentyFourHours = 86400000,
 }
 
+export enum AppleTVTopShelfLayout {
+  Sectioned = "sectioned",
+  Inset = "inset",
+  Carousel = "carousel",
+}
+
+export enum AppleTVTopShelfContent {
+  ContinueAndNextUp = "continueAndNextUp",
+  ContinueWatching = "continueWatching",
+  NextUp = "nextUp",
+  RecentlyAdded = "recentlyAdded",
+  Recommendations = "recommendations",
+}
+
+export enum AppleTVTopShelfRecommendationsType {
+  Movies = "Movie",
+  Series = "Series",
+  All = "all",
+}
+
 // MPV cache mode - controls how caching is enabled
 export type MpvCacheMode = "auto" | "yes" | "no";
 export type MpvVoDriver = "gpu-next" | "gpu";
@@ -461,6 +481,12 @@ export type Settings = {
   nativeVideoPlayerTV: boolean;
   /** Android TV only: use the fully-native Android TV player (opt-in; default off). */
   nativeVideoPlayerAndroidTV?: boolean;
+  /** Apple TV only: which native tvOS Top Shelf layout to publish. */
+  appleTvTopShelfLayout: AppleTVTopShelfLayout;
+  /** Apple TV only: which content preset to publish to Top Shelf. */
+  appleTvTopShelfContent: AppleTVTopShelfContent;
+  /** Apple TV only: which media type(s) to include when Top Shelf content is Recommendations. */
+  appleTvTopShelfRecommendationsType: AppleTVTopShelfRecommendationsType;
   showHomeBackdrop: boolean;
   /**
    * The home hero carousel, on every platform — the TV one and the iOS one
@@ -623,6 +649,9 @@ export const defaultValues: Settings = {
   // TV-specific settings
   nativeVideoPlayerTV: true,
   nativeVideoPlayerAndroidTV: false,
+  appleTvTopShelfLayout: AppleTVTopShelfLayout.Sectioned,
+  appleTvTopShelfContent: AppleTVTopShelfContent.ContinueAndNextUp,
+  appleTvTopShelfRecommendationsType: AppleTVTopShelfRecommendationsType.All,
   showHomeBackdrop: true,
   showHeroCarousel: true,
   tvTypographyScale: TVTypographyScale.Default,

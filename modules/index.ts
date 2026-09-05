@@ -78,7 +78,9 @@ export {
 } from "./system-volume";
 // Top Shelf cache (tvOS)
 export type {
+  TopShelfCacheContentPreset,
   TopShelfCacheItem,
+  TopShelfCacheLayout,
   TopShelfCachePayload,
   TopShelfCacheSection,
 } from "./top-shelf-cache";

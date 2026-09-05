@@ -2,6 +2,10 @@ import type { Api } from "@jellyfin/sdk";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { Platform } from "react-native";
 import { clearTvRecommendations, syncTvRecommendations } from "@/modules";
+import type {
+  AppleTVTopShelfContent,
+  AppleTVTopShelfLayout,
+} from "@/utils/atoms/settings";
 import {
   clearTopShelfCacheSafely,
   writeTopShelfPayload,
@@ -11,10 +15,14 @@ import { buildTVDiscoveryPayload } from "./payload";
 export function updateTVDiscovery({
   api,
   sections,
+  layout,
+  contentPreset,
   useEpisodeImages,
 }: {
   api: Api | null | undefined;
   sections: Array<{ title: string; items: BaseItemDto[] | undefined }>;
+  layout?: AppleTVTopShelfLayout;
+  contentPreset?: AppleTVTopShelfContent;
   useEpisodeImages?: boolean;
 }): void {
   if (!Platform.isTV) return;
@@ -22,6 +30,8 @@ export function updateTVDiscovery({
   const payload = buildTVDiscoveryPayload({
     api,
     sections,
+    layout,
+    contentPreset,
     // Google TV forces landscape home tiles; Apple TV renders 2:3 posters.
     imageShape: Platform.OS === "android" ? "landscape" : "poster",
     useEpisodeImages,

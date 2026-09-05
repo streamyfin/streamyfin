@@ -7,6 +7,7 @@ import type {
 import {
   getItemsApi,
   getSuggestionsApi,
+  getSystemApi,
   getTvShowsApi,
   getUserLibraryApi,
   getUserViewsApi,
@@ -43,9 +44,15 @@ import {
   cacheVersionAtom,
   userAtom,
 } from "@/providers/JellyfinProvider";
-import { useSettings } from "@/utils/atoms/settings";
+import {
+  AppleTVTopShelfContent,
+  AppleTVTopShelfLayout,
+  AppleTVTopShelfRecommendationsType,
+  useSettings,
+} from "@/utils/atoms/settings";
 import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
 import { scaleSize } from "@/utils/scaleSize";
+import { createStreamystatsApi } from "@/utils/streamystats/api";
 import { updateTVDiscovery } from "@/utils/tvDiscovery/sync";
 
 const HORIZONTAL_PADDING = scaleSize(60);
@@ -221,7 +228,11 @@ export const Home = () => {
   });
 
   // Fetch hero items (Continue Watching + Next Up combined)
-  const { data: heroItems } = useQuery({
+  const {
+    data: heroItems,
+    isLoading: heroItemsLoading,
+    isError: heroItemsError,
+  } = useQuery({
     queryKey: ["home", "heroItems", user?.Id],
     queryFn: async () => {
       if (!api || !user?.Id) return [];
@@ -231,7 +242,16 @@ export const Home = () => {
           userId: user.Id,
           enableImageTypes: ["Primary", "Backdrop", "Thumb"],
           includeItemTypes: ["Movie", "Series", "Episode"],
-          fields: ["Overview"],
+          // MediaSources carries the MediaStreams used to derive Top Shelf
+          // quality badges (4K / HDR / Atmos / CC); People carries the cast
+          // used for the Top Shelf "Starring" attribute.
+          fields: [
+            "Overview",
+            "Genres",
+            "DateCreated",
+            "MediaSources",
+            "People",
+          ],
           startIndex: 0,
           limit: 10,
         }),
@@ -239,7 +259,16 @@ export const Home = () => {
           userId: user.Id,
           startIndex: 0,
           limit: 10,
-          fields: ["Overview"],
+          // MediaSources carries the MediaStreams used to derive Top Shelf
+          // quality badges (4K / HDR / Atmos / CC); People carries the cast
+          // used for the Top Shelf "Starring" attribute.
+          fields: [
+            "Overview",
+            "Genres",
+            "DateCreated",
+            "MediaSources",
+            "People",
+          ],
           enableImageTypes: ["Primary", "Backdrop", "Thumb"],
           enableResumable: false,
         }),
@@ -271,18 +300,308 @@ export const Home = () => {
     refetchInterval: 60 * 1000,
   });
 
+  const topShelfContentPreset =
+    settings.appleTvTopShelfContent || AppleTVTopShelfContent.ContinueAndNextUp;
+  const topShelfLayout =
+    settings.appleTvTopShelfLayout || AppleTVTopShelfLayout.Sectioned;
+
+  const {
+    data: topShelfContinueWatchingItems,
+    isLoading: topShelfContinueWatchingLoading,
+    isError: topShelfContinueWatchingError,
+  } = useQuery({
+    queryKey: ["topShelf", "continueWatching", user?.Id],
+    queryFn: async () => {
+      if (!api || !user?.Id) return [];
+
+      const response = await getItemsApi(api).getResumeItems({
+        userId: user.Id,
+        enableImageTypes: ["Primary", "Backdrop", "Thumb"],
+        includeItemTypes: ["Movie", "Series", "Episode"],
+        // MediaSources carries the MediaStreams used to derive Top Shelf
+        // quality badges (4K / HDR / Atmos / CC); People carries the cast
+        // used for the Top Shelf "Starring" attribute.
+        fields: ["Overview", "Genres", "DateCreated", "MediaSources", "People"],
+        startIndex: 0,
+        limit: 12,
+      });
+
+      return response.data.Items || [];
+    },
+    enabled:
+      !!api &&
+      !!user?.Id &&
+      topShelfContentPreset === AppleTVTopShelfContent.ContinueWatching,
+    staleTime: 60 * 1000,
+    refetchInterval: 60 * 1000,
+  });
+
+  const {
+    data: topShelfNextUpItems,
+    isLoading: topShelfNextUpLoading,
+    isError: topShelfNextUpError,
+  } = useQuery({
+    queryKey: ["topShelf", "nextUp", user?.Id],
+    queryFn: async () => {
+      if (!api || !user?.Id) return [];
+
+      const response = await getTvShowsApi(api).getNextUp({
+        userId: user.Id,
+        startIndex: 0,
+        limit: 12,
+        // MediaSources carries the MediaStreams used to derive Top Shelf
+        // quality badges (4K / HDR / Atmos / CC); People carries the cast
+        // used for the Top Shelf "Starring" attribute.
+        fields: ["Overview", "Genres", "DateCreated", "MediaSources", "People"],
+        enableImageTypes: ["Primary", "Backdrop", "Thumb"],
+        enableResumable: false,
+      });
+
+      return response.data.Items || [];
+    },
+    enabled:
+      !!api &&
+      !!user?.Id &&
+      topShelfContentPreset === AppleTVTopShelfContent.NextUp,
+    staleTime: 60 * 1000,
+    refetchInterval: 60 * 1000,
+  });
+
+  const {
+    data: topShelfRecentlyAddedItems,
+    isLoading: topShelfRecentlyAddedLoading,
+    isError: topShelfRecentlyAddedError,
+  } = useQuery({
+    queryKey: ["topShelf", "recentlyAdded", user?.Id],
+    queryFn: async () => {
+      if (!api || !user?.Id) return [];
+
+      return (
+        await getUserLibraryApi(api).getLatestMedia({
+          userId: user.Id,
+          limit: 12,
+          fields: [
+            "Overview",
+            "PrimaryImageAspectRatio",
+            "Genres",
+            "DateCreated",
+            // Needed to derive Top Shelf quality badges (4K / HDR / Atmos / CC).
+            "MediaSources",
+            // Needed for the Top Shelf "Starring" attribute.
+            "People",
+          ],
+          imageTypeLimit: 1,
+          enableImageTypes: ["Primary", "Backdrop", "Thumb"],
+        })
+      ).data;
+    },
+    enabled:
+      !!api &&
+      !!user?.Id &&
+      topShelfContentPreset === AppleTVTopShelfContent.RecentlyAdded,
+    staleTime: 60 * 1000,
+    refetchInterval: 60 * 1000,
+  });
+
+  const topShelfRecommendationsType =
+    settings.appleTvTopShelfRecommendationsType ||
+    AppleTVTopShelfRecommendationsType.All;
+
+  const {
+    data: topShelfRecommendationsSection,
+    isLoading: topShelfRecommendationsLoading,
+    isError: topShelfRecommendationsError,
+  } = useQuery({
+    queryKey: [
+      "topShelf",
+      "recommendations",
+      user?.Id,
+      settings.streamyStatsServerUrl,
+      topShelfRecommendationsType,
+    ],
+    queryFn: async () => {
+      const title = t(
+        "home.settings.appearance.apple_tv_top_shelf_content_recommendations",
+      );
+
+      if (
+        !api ||
+        !user?.Id ||
+        !api.accessToken ||
+        !settings.streamyStatsServerUrl
+      ) {
+        return { title, items: [] };
+      }
+
+      const serverInfo = await getSystemApi(api).getPublicSystemInfo();
+      const jellyfinServerId = serverInfo.data.Id;
+      if (!jellyfinServerId) {
+        return { title, items: [] };
+      }
+
+      const streamystatsApi = createStreamystatsApi({
+        serverUrl: settings.streamyStatsServerUrl,
+        jellyfinToken: api.accessToken,
+      });
+
+      const type =
+        topShelfRecommendationsType === AppleTVTopShelfRecommendationsType.All
+          ? undefined
+          : topShelfRecommendationsType;
+
+      const recommendationsResponse =
+        await streamystatsApi.getRecommendationIds(jellyfinServerId, type, 12);
+      const movies = recommendationsResponse.data?.movies || [];
+      const series = recommendationsResponse.data?.series || [];
+
+      // Interleave rather than concatenate so series don't get pushed to
+      // the tail of the carousel behind every movie.
+      const itemIds: string[] = [];
+      const maxLength = Math.max(movies.length, series.length);
+      for (let i = 0; i < maxLength; i++) {
+        if (movies[i]) itemIds.push(movies[i]);
+        if (series[i]) itemIds.push(series[i]);
+      }
+      const dedupedIds = Array.from(new Set(itemIds)).slice(0, 12);
+
+      if (dedupedIds.length === 0) {
+        return { title, items: [] };
+      }
+
+      const itemsResponse = await getItemsApi(api).getItems({
+        userId: user.Id,
+        ids: dedupedIds,
+        fields: [
+          "PrimaryImageAspectRatio",
+          "Genres",
+          "Overview",
+          "DateCreated",
+          // Needed to derive Top Shelf quality badges (4K / HDR / Atmos / CC).
+          "MediaSources",
+          // Needed for the Top Shelf "Starring" attribute.
+          "People",
+        ],
+        enableImageTypes: ["Primary", "Backdrop", "Thumb"],
+      });
+
+      const itemsById = new Map(
+        (itemsResponse.data.Items || []).map((item) => [item.Id, item]),
+      );
+      const orderedItems = dedupedIds
+        .map((id) => itemsById.get(id))
+        .filter((item): item is BaseItemDto => Boolean(item));
+
+      return { title, items: orderedItems };
+    },
+    enabled:
+      !!api &&
+      !!user?.Id &&
+      topShelfContentPreset === AppleTVTopShelfContent.Recommendations,
+    staleTime: 60 * 1000,
+    refetchInterval: 60 * 1000,
+  });
+
+  const topShelfSyncState = useMemo(() => {
+    switch (topShelfContentPreset) {
+      case AppleTVTopShelfContent.ContinueWatching:
+        return {
+          loading: topShelfContinueWatchingLoading,
+          error: topShelfContinueWatchingError,
+          sections: [
+            {
+              title: t("home.continue_watching"),
+              items: topShelfContinueWatchingItems,
+            },
+          ],
+        };
+      case AppleTVTopShelfContent.NextUp:
+        return {
+          loading: topShelfNextUpLoading,
+          error: topShelfNextUpError,
+          sections: [
+            {
+              title: t("home.next_up"),
+              items: topShelfNextUpItems,
+            },
+          ],
+        };
+      case AppleTVTopShelfContent.RecentlyAdded:
+        return {
+          loading: topShelfRecentlyAddedLoading,
+          error: topShelfRecentlyAddedError,
+          sections: [
+            {
+              title: t("home.recently_added"),
+              items: topShelfRecentlyAddedItems,
+            },
+          ],
+        };
+      case AppleTVTopShelfContent.Recommendations:
+        return {
+          loading: topShelfRecommendationsLoading,
+          error: topShelfRecommendationsError,
+          sections: topShelfRecommendationsSection
+            ? [topShelfRecommendationsSection]
+            : [
+                {
+                  title: t(
+                    "home.settings.appearance.apple_tv_top_shelf_content_recommendations",
+                  ),
+                  items: [],
+                },
+              ],
+        };
+      default:
+        return {
+          loading: heroItemsLoading,
+          error: heroItemsError,
+          sections: [
+            {
+              title: t("home.continue_and_next_up"),
+              items: heroItems,
+            },
+          ],
+        };
+    }
+  }, [
+    heroItemsLoading,
+    heroItemsError,
+    heroItems,
+    t,
+    topShelfContentPreset,
+    topShelfContinueWatchingItems,
+    topShelfContinueWatchingLoading,
+    topShelfContinueWatchingError,
+    topShelfNextUpItems,
+    topShelfNextUpLoading,
+    topShelfNextUpError,
+    topShelfRecentlyAddedItems,
+    topShelfRecentlyAddedLoading,
+    topShelfRecentlyAddedError,
+    topShelfRecommendationsSection,
+    topShelfRecommendationsLoading,
+    topShelfRecommendationsError,
+  ]);
+
   useEffect(() => {
+    if (topShelfSyncState.loading || topShelfSyncState.error) {
+      return;
+    }
+
     updateTVDiscovery({
       api,
-      sections: [
-        {
-          title: t("home.continue_and_next_up"),
-          items: heroItems,
-        },
-      ],
+      sections: topShelfSyncState.sections,
+      layout: topShelfLayout,
+      contentPreset: topShelfContentPreset,
       useEpisodeImages: settings?.useEpisodeImagesForNextUp,
     });
-  }, [api, heroItems, t, settings?.useEpisodeImagesForNextUp]);
+  }, [
+    api,
+    topShelfSyncState,
+    topShelfLayout,
+    topShelfContentPreset,
+    settings?.useEpisodeImagesForNextUp,
+  ]);
 
   const userViews = useMemo(
     () => data?.filter((l) => !settings?.hiddenLibraries?.includes(l.Id!)),
