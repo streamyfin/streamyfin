@@ -62,12 +62,12 @@ export function NetworkStatusProvider({ children }: { children: ReactNode }) {
   // result with an outdated one.
   const validationVersionRef = useRef(0);
 
-  // Invalidate in-flight checks as soon as the active API changes, rather than
-  // waiting for the next validateConnection() call to start — a check for the
-  // previous URL can otherwise resolve and win the race before that happens.
+  // Invalidate in-flight checks as soon as the active API or custom headers change,
+  // rather than waiting for the next validateConnection() call to start — a check
+  // using the previous URL/headers can otherwise resolve and win the race first.
   useEffect(() => {
     validationVersionRef.current += 1;
-  }, [api]);
+  }, [api, customHeadersVersion]);
 
   const validateConnection = useCallback(async () => {
     const validationVersion = ++validationVersionRef.current;
