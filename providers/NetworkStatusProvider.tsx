@@ -87,7 +87,14 @@ export function NetworkStatusProvider({ children }: { children: ReactNode }) {
   }, [validateConnection]);
 
   useEffect(() => {
+    // Guards against a NetInfo.fetch() promise from this effect run resolving
+    // after api/customHeadersVersion changed and this effect was cleaned up: its
+    // captured validateConnection() closure would otherwise still probe the stale
+    // URL/headers, bump the version counter for itself, and win the race.
+    let isActive = true;
+
     const unsubscribe = NetInfo.addEventListener(async (state) => {
+      if (!isActive) return;
       setIsConnected(!!state.isConnected);
       if (state.isConnected) {
         await validateConnection();
@@ -99,6 +106,7 @@ export function NetworkStatusProvider({ children }: { children: ReactNode }) {
 
     // Initial check
     NetInfo.fetch().then((state) => {
+      if (!isActive) return;
       if (state.isConnected) {
         validateConnection();
       } else {
@@ -107,7 +115,10 @@ export function NetworkStatusProvider({ children }: { children: ReactNode }) {
       }
     });
 
-    return () => unsubscribe();
+    return () => {
+      isActive = false;
+      unsubscribe();
+    };
   }, [validateConnection]);
 
   // Refetch active queries when server becomes reachable
