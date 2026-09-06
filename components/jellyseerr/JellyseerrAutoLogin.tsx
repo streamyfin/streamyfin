@@ -48,6 +48,11 @@ export const JellyseerrAutoLogin: React.FC = () => {
     // Plugin-provided URL only — see the note above.
     if (!enabled || apiKey || !pluginUrl || !serverUrl || !username || !userId)
       return;
+    // Waiting for the session api rather than spending the one attempt without
+    // it: Quick Connect needs it, and a user who signed in to Jellyfin with
+    // Quick Connect or OIDC has no stored password to fall back to, so a run
+    // started too early would give up for good on the launch that needed it.
+    if (!api) return;
     // Already signed in (session restored from storage) — nothing to do.
     if (jellyseerrUser) return;
 
@@ -75,23 +80,21 @@ export const JellyseerrAutoLogin: React.FC = () => {
         // that signs those users in to Seerr. When there is a stored password,
         // it goes once Quick Connect works — nothing else would remove it,
         // since a password that still works never looks like a problem.
-        if (api) {
-          const quickConnected = await signInWithQuickConnect(
-            seerr,
-            api,
-            stillCurrent,
+        const quickConnected = await signInWithQuickConnect(
+          seerr,
+          api,
+          stillCurrent,
+        );
+        if (quickConnected) {
+          setJellyseerrUser(quickConnected);
+          await deleteJellyseerrPassword(jellyfinUrl, userId).catch((e) =>
+            writeToLog(
+              "WARN",
+              `Could not drop the stored Jellyseerr password: ${e}`,
+            ),
           );
-          if (quickConnected) {
-            setJellyseerrUser(quickConnected);
-            await deleteJellyseerrPassword(jellyfinUrl, userId).catch((e) =>
-              writeToLog(
-                "WARN",
-                `Could not drop the stored Jellyseerr password: ${e}`,
-              ),
-            );
-            writeInfoLog("Jellyseerr signed in with Quick Connect");
-            return;
-          }
+          writeInfoLog("Jellyseerr signed in with Quick Connect");
+          return;
         }
 
         // Password replay only when Quick Connect did not sign in.
