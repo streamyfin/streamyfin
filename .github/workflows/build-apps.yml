@@ -57,7 +57,7 @@ jobs:
             uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
             with:
               # renovate: datasource=npm depName=bun
-              bun-version: "1.4.0"
+              bun-version: "1.4.2"
 
           - name: ☕ Set up JDK 17
             # ubuntu-26.04 defaults to JDK 25, which breaks the RN/AGP native build
@@ -159,7 +159,7 @@ jobs:
             uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
             with:
               # renovate: datasource=npm depName=bun
-              bun-version: "1.4.0"
+              bun-version: "1.4.2"
 
           - name: ☕ Set up JDK 17
             # ubuntu-26.04 defaults to JDK 25, which breaks the RN/AGP native build
@@ -248,7 +248,7 @@ jobs:
             uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
             with:
               # renovate: datasource=npm depName=bun
-              bun-version: "1.4.0"
+              bun-version: "1.4.2"
 
           - name: 🔧 Setup Xcode
             uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
@@ -321,7 +321,7 @@ jobs:
             uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
             with:
               # renovate: datasource=npm depName=bun
-              bun-version: "1.4.0"
+              bun-version: "1.4.2"
 
           - name: 🔧 Setup Xcode
             uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
@@ -389,7 +389,7 @@ jobs:
             uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
             with:
               # renovate: datasource=npm depName=bun
-              bun-version: "1.4.0"
+              bun-version: "1.4.2"
 
           - name: 🔧 Setup Xcode
             uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
@@ -460,7 +460,7 @@ jobs:
             uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
             with:
               # renovate: datasource=npm depName=bun
-              bun-version: "1.4.0"
+              bun-version: "1.4.2"
 
           - name: 🔧 Setup Xcode
             uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1

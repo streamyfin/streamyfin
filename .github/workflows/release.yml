@@ -80,7 +80,7 @@ jobs:
             uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
             with:
               # renovate: datasource=npm depName=bun
-              bun-version: "1.4.0"
+              bun-version: "1.4.2"
 
           - name: 🏗️ Setup EAS
             uses: expo/expo-github-action@eab7a230208c952974db8c3245cfd78402c7b385 # main
