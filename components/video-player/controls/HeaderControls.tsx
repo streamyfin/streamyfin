@@ -10,6 +10,7 @@ import { useOrientation } from "@/hooks/useOrientation";
 import { OrientationLock } from "@/packages/expo-screen-orientation";
 import { HEADER_LAYOUT, ICON_SIZES } from "./constants";
 import DropdownView from "./dropdown/DropdownView";
+import { SleepTimerButton } from "./SleepTimerButton";
 import { PlaybackSpeedScope } from "./utils/playback-speed-settings";
 import { shouldShowPlayerMenu } from "./utils/shouldShowPlayerMenu";
 import { type AspectRatio } from "./VideoScalingModeSelector";
@@ -187,6 +188,7 @@ export const HeaderControls: FC<HeaderControlsProps> = ({
             />
           </TouchableOpacity>
         )}
+        <SleepTimerButton />
         {/* MPV Zoom Toggle */}
         <ZoomToggle
           isZoomedToFill={isZoomedToFill}

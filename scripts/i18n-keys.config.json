@@ -43,6 +43,12 @@
     "home.settings.logs.delete_all_logs",
     "home.suggested_episodes",
     "custom_headers.header_count_one",
-    "custom_headers.header_count_other"
+    "custom_headers.header_count_other",
+    "jellysleep.minute_one",
+    "jellysleep.minute_other",
+    "jellysleep.hour_one",
+    "jellysleep.hour_other",
+    "jellysleep.after_episode_one",
+    "jellysleep.after_episode_other"
   ]
 }
