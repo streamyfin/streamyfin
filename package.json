@@ -126,7 +126,7 @@
     "@react-native-tvos/config-tv": "0.1.6",
     "@types/bun": "1.4.0",
     "@types/lodash": "4.17.25",
-    "@types/node": "26.2.0",
+    "@types/node": "26.4.1",
     "@types/react": "19.2.17",
     "axios-mock-adapter": "2.1.0",
     "cross-env": "10.1.0",
