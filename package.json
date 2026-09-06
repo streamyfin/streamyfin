@@ -81,7 +81,7 @@
     "expo-symbols": "~57.0.1",
     "expo-task-manager": "~57.0.5",
     "expo-web-browser": "~57.0.1",
-    "i18next": "26.3.6",
+    "i18next": "26.4.1",
     "jotai": "2.20.2",
     "lodash": "4.18.1",
     "nativewind": "^2.0.11",
