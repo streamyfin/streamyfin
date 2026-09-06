@@ -81,7 +81,7 @@
     "expo-symbols": "~57.0.1",
     "expo-task-manager": "~57.0.5",
     "expo-web-browser": "~57.0.1",
-    "i18next": "26.4.1",
+    "i18next": "26.4.2",
     "jotai": "2.20.2",
     "lodash": "4.18.1",
     "nativewind": "^2.0.11",
@@ -121,7 +121,7 @@
   },
   "devDependencies": {
     "@babel/core": "7.29.7",
-    "@biomejs/biome": "2.5.11",
+    "@biomejs/biome": "2.5.12",
     "@react-native-community/cli": "20.2.0",
     "@react-native-tvos/config-tv": "0.1.6",
     "@types/bun": "1.4.0",
@@ -133,7 +133,7 @@
     "expo-doctor": "1.20.1",
     "husky": "9.1.7",
     "ignore": "^7.0.0",
-    "lint-staged": "17.4.1",
+    "lint-staged": "17.5.0",
     "tsx": "4.23.12",
     "typescript": "6.0.3"
   },
