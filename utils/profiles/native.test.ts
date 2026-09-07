@@ -11,7 +11,10 @@ const { generateDeviceProfile } = await import("./native");
 
 describe("generateDeviceProfile", () => {
   test("video transcoding profile offers hevc alongside h264", () => {
-    const profile = generateDeviceProfile({ audioMode: "auto" });
+    const profile = generateDeviceProfile({
+      audioMode: "auto",
+      supportsAv1: false,
+    });
 
     const video = profile.TranscodingProfiles?.find((p) => p.Type === "Video");
 
@@ -28,4 +31,15 @@ describe("generateDeviceProfile", () => {
       MaxAudioChannels: "6",
     });
   });
+  test.each(["ios", "android"] as const)(
+    "%s MPV offers AV1 with MP4 segments when supported",
+    (platform) => {
+      const video = generateDeviceProfile({
+        platform,
+        supportsAv1: true,
+      }).TranscodingProfiles.find((p) => p.Type === "Video");
+      expect(video?.VideoCodec).toBe("av1,h264,hevc");
+      expect(video?.Container).toBe("mp4");
+    },
+  );
 });
