@@ -22,7 +22,7 @@ import {
 import { storage } from "../mmkv";
 import {
   type AppliedPluginDefaults,
-  pendingPluginDefaults,
+  pluginRefreshOverlay,
   resolveEffectiveSettings,
 } from "./settingsOverrides";
 
@@ -873,34 +873,38 @@ export const useSettings = () => {
     );
     setPluginSettings(newPluginSettings);
 
-    if (newPluginSettings && _settings) {
-      const applied = loadAppliedPluginDefaults();
-      const pending = pendingPluginDefaults(
-        newPluginSettings,
-        applied,
-        normalizePluginValue,
-      );
-      const enableStreamystats =
-        newPluginSettings.streamyStatsServerUrl?.value &&
-        _settings.searchEngine !== "Streamystats";
+    // Write against the atom's value at apply time, not the hook's render
+    // snapshot: this runs while the user can be changing settings (the intro
+    // sheet is up during first-run login), and a merge built from the
+    // snapshot resurrected whatever the user had just overwritten.
+    if (newPluginSettings) {
+      setSettings((currentSettings) => {
+        if (!currentSettings) return currentSettings;
 
-      if (Object.keys(pending).length > 0 || enableStreamystats) {
+        const applied = loadAppliedPluginDefaults();
+        const result = pluginRefreshOverlay(
+          currentSettings,
+          newPluginSettings,
+          applied,
+          normalizePluginValue,
+        );
+        if (!result) return currentSettings;
+
         const newSettings = {
           ...defaultValues,
-          ..._settings,
-          ...pending,
-          ...(enableStreamystats ? { searchEngine: "Streamystats" } : {}),
+          ...currentSettings,
+          ...result.overlay,
         } as Settings;
-        setSettings(newSettings);
         saveSettings(newSettings);
-        if (Object.keys(pending).length > 0) {
-          storage.setAny(PLUGIN_APPLIED_DEFAULTS, { ...applied, ...pending });
+        if (result.applied) {
+          storage.setAny(PLUGIN_APPLIED_DEFAULTS, result.applied);
         }
-      }
+        return newSettings;
+      });
     }
 
     return newPluginSettings;
-  }, [api, _settings]);
+  }, [api, setPluginSettings, setSettings]);
 
   const updateSettings = (update: Partial<Settings>) => {
     // Admin-locked settings are enforced at write time too: a control that

@@ -27,7 +27,10 @@ export const IntroSheet = forwardRef<IntroSheetRef>((_, ref) => {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { settings, updateSettings } = useSettings();
+  const { settings, updateSettings, pluginSettings } = useSettings();
+  // An admin-locked toggle cannot take the write: updateSettings drops it and
+  // the read stays pinned, so the row would look broken rather than locked.
+  const sentryLocked = pluginSettings?.sentryEnabled?.locked === true;
 
   useImperativeHandle(ref, () => ({
     present: () => {
@@ -193,6 +196,7 @@ export const IntroSheet = forwardRef<IntroSheetRef>((_, ref) => {
                 so the TouchableOpacity carries the remote-select press there. */}
             <TouchableOpacity
               activeOpacity={0.7}
+              disabled={sentryLocked}
               onPress={() =>
                 updateSettings({ sentryEnabled: !settings?.sentryEnabled })
               }
@@ -213,12 +217,23 @@ export const IntroSheet = forwardRef<IntroSheetRef>((_, ref) => {
                 </Text>
               </View>
               {/* Presentational only — the row press above is the single
-                  mutation path, so a tap on the switch can't double-toggle. */}
-              <SettingSwitch
-                value={settings?.sentryEnabled === true}
-                pointerEvents='none'
-              />
+                  mutation path. The inertness has to come from a wrapping
+                  View: a Switch ignores its own pointerEvents on Android, so
+                  its native touch handler flipped it and the controlled value
+                  snapped it straight back — a toggle that couldn't be
+                  disabled by tapping the one control that looks tappable. */}
+              <View pointerEvents='none'>
+                <SettingSwitch
+                  value={settings?.sentryEnabled === true}
+                  disabled={sentryLocked}
+                />
+              </View>
             </TouchableOpacity>
+            {sentryLocked && (
+              <Text className='text-xs text-red-500 mt-1'>
+                {t("home.settings.disabled_by_admin")}
+              </Text>
+            )}
           </View>
 
           <View>

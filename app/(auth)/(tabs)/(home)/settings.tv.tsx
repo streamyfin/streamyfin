@@ -1409,6 +1409,7 @@ export default function SettingsTV() {
           <TVSettingsToggle
             label={t("home.settings.plugins.crash_reports")}
             value={settings.sentryEnabled}
+            disabledByAdmin={pluginSettings?.sentryEnabled?.locked === true}
             onToggle={(value) => updateSettings({ sentryEnabled: value })}
           />
 
