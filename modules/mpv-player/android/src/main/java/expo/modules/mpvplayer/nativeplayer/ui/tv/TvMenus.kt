@@ -218,34 +218,38 @@ private fun AudioRootMenu(viewModel: PlayerViewModel) {
             )
         }
 
-        item {
-            TvSubmenuRow(
-                label = viewModel.str("audioSync", "Audio sync"),
-                onClick = { viewModel.pushTvMenu(TvMenuScreen.AUDIO_SYNC) }
-            )
-        }
+        // The rows below drive mpv-only engine calls (no-ops on the Media3
+        // engine), so they only render for an mpv session.
+        if (viewModel.isMpvEngine) {
+            item {
+                TvSubmenuRow(
+                    label = viewModel.str("audioSync", "Audio sync"),
+                    onClick = { viewModel.pushTvMenu(TvMenuScreen.AUDIO_SYNC) }
+                )
+            }
 
-        item {
-            TvSubmenuRow(
-                label = viewModel.str("volumeBoost", "Volume boost"),
-                onClick = { viewModel.pushTvMenu(TvMenuScreen.VOLUME_BOOST) }
-            )
-        }
+            item {
+                TvSubmenuRow(
+                    label = viewModel.str("volumeBoost", "Volume boost"),
+                    onClick = { viewModel.pushTvMenu(TvMenuScreen.VOLUME_BOOST) }
+                )
+            }
 
-        item {
-            TvMenuRow(
-                label = viewModel.str("dialogueBoost", "Dialogue boost"),
-                selected = viewModel.dialogueBoostEnabled,
-                onClick = { viewModel.toggleDialogueBoost() }
-            )
-        }
+            item {
+                TvMenuRow(
+                    label = viewModel.str("dialogueBoost", "Dialogue boost"),
+                    selected = viewModel.dialogueBoostEnabled,
+                    onClick = { viewModel.toggleDialogueBoost() }
+                )
+            }
 
-        item {
-            TvMenuRow(
-                label = viewModel.str("monoAudio", "Mono audio"),
-                selected = viewModel.monoAudioEnabled,
-                onClick = { viewModel.toggleMonoAudio() }
-            )
+            item {
+                TvMenuRow(
+                    label = viewModel.str("monoAudio", "Mono audio"),
+                    selected = viewModel.monoAudioEnabled,
+                    onClick = { viewModel.toggleMonoAudio() }
+                )
+            }
         }
     }
 }
@@ -335,11 +339,15 @@ private fun SubtitlesRootMenu(viewModel: PlayerViewModel) {
             }
         }
 
-        item {
-            TvSubmenuRow(
-                label = viewModel.str("subtitleSync", "Subtitle sync"),
-                onClick = { viewModel.pushTvMenu(TvMenuScreen.SUBTITLE_SYNC) }
-            )
+        // Subtitle delay is an mpv-only engine call — hidden on the Media3
+        // engine, where there is no equivalent.
+        if (viewModel.isMpvEngine) {
+            item {
+                TvSubmenuRow(
+                    label = viewModel.str("subtitleSync", "Subtitle sync"),
+                    onClick = { viewModel.pushTvMenu(TvMenuScreen.SUBTITLE_SYNC) }
+                )
+            }
         }
 
         if (viewModel.uiOptions.subtitleSearchEnabled) {
