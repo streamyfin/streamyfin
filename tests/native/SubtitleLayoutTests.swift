@@ -7,7 +7,7 @@ enum SubtitleLayoutTests {
         precondition(abs(actual - expected) < 0.000001, "\(actual) != \(expected)")
     }
 
-    static func main() {
+    static func main() throws {
         let style = SubtitleLayout(scale: 1.3, position: 100, marginX: 25, marginY: 30)
         let cases: [(CGSize, CGSize)] = [
             (CGSize(width: 1920, height: 800), CGSize(width: 852, height: 393)),
@@ -54,12 +54,12 @@ enum SubtitleLayoutTests {
         let unknown = style.fitting(canvas: .zero, viewport: .zero, reference: .zero)
         near(unknown.scale, style.scale)
         near(unknown.position, style.position)
-        testASSMargins()
+        try testASSMargins()
         print("PASS: subtitle font size, visible margins, wrapping bounds and fit restoration for both canvas types")
     }
 
-    static func testASSMargins() {
-        let header = try! String(contentsOfFile: "tests/native/Fixtures/viewport.ass", encoding: .utf8)
+    static func testASSMargins() throws {
+        let header = try String(contentsOfFile: "tests/native/Fixtures/viewport.ass", encoding: .utf8)
         let ass = ASSSubtitleLayout(extradata: header)!
         precondition(ass.resolution == CGSize(width: 1920, height: 1080))
         precondition(ass.styles.count == 2)
