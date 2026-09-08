@@ -480,8 +480,6 @@ class NativePlayerSession(
     private fun onPiPModeChanged(isInPiP: Boolean) {
         viewModel.isPipActive = isInPiP
         if (isInPiP) {
-            renderer?.setSubtitleUseMargins(false)
-            renderer?.setSubtitleScaleWithWindow(false)
             viewModel.applySubtitleGeometry()
             viewModel.controlsVisible = false
             mainHandler.postDelayed({ syncSurfaceSize() }, 100)
@@ -660,9 +658,6 @@ class NativePlayerSession(
 
     private fun updateSurfaceGeometry(width: Int, height: Int) {
         renderer?.updateSurfaceSize(width, height)
-        val useLandscapeMargins = !viewModel.isPipActive && width > height
-        renderer?.setSubtitleUseMargins(useLandscapeMargins)
-        renderer?.setSubtitleScaleWithWindow(useLandscapeMargins && !viewModel.isTvChrome)
         viewModel.updateSubtitleGeometry(width, height)
     }
 
