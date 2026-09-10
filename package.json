@@ -82,7 +82,7 @@
     "expo-task-manager": "~57.0.5",
     "expo-web-browser": "~57.0.1",
     "i18next": "26.4.2",
-    "jotai": "2.20.2",
+    "jotai": "2.20.3",
     "lodash": "4.18.1",
     "nativewind": "^2.0.11",
     "react": "19.2.3",
