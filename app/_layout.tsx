@@ -56,7 +56,7 @@ import {
   writeToLog,
 } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
-import { pushRegistrationKey } from "@/utils/pushRegistration";
+import { pushRegistrationStep } from "@/utils/pushRegistration";
 
 const Notifications = !Platform.isTV ? require("expo-notifications") : null;
 
@@ -406,15 +406,21 @@ function Layout() {
 
   // Posted once per server, user and token. The api and the user object change
   // identity on sign in, so without this the token went out twice within a second.
+  // Sign out clears the session, and the key with it, so the next sign in posts again.
   const registeredPush = useRef<string | null>(null);
 
   useEffect(() => {
-    if (Platform.isTV || !expoPushToken || !api || !user) return;
+    if (Platform.isTV) return;
 
-    const key = pushRegistrationKey(api.basePath, user.Id, expoPushToken.data);
-    if (!key || registeredPush.current === key) return;
+    const step = pushRegistrationStep(
+      registeredPush.current,
+      api?.basePath,
+      user?.Id,
+      expoPushToken?.data,
+    );
+    registeredPush.current = step.key;
+    if (!step.post || !api || !user || !expoPushToken) return;
 
-    registeredPush.current = key;
     api
       .post("/Streamyfin/device", {
         token: expoPushToken.data,
@@ -422,8 +428,9 @@ function Layout() {
         userId: user.Id,
       })
       .catch((_) => {
-        // A failed post is worth another try the next time the effect runs.
-        registeredPush.current = null;
+        // Forgotten only if nothing newer was posted meanwhile, so the next change
+        // of session or token posts again. No retry on its own, as before.
+        if (registeredPush.current === step.key) registeredPush.current = null;
         writeErrorLog("Failed to push expo push token to plugin");
       });
   }, [api, expoPushToken, user]);
