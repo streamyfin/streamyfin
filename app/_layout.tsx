@@ -56,6 +56,7 @@ import {
   writeToLog,
 } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
+import { pushRegistrationKey } from "@/utils/pushRegistration";
 
 const Notifications = !Platform.isTV ? require("expo-notifications") : null;
 
@@ -403,18 +404,28 @@ function Layout() {
   const notificationListener = useRef<EventSubscription>(null);
   const responseListener = useRef<EventSubscription>(null);
 
+  // Posted once per server, user and token. The api and the user object change
+  // identity on sign in, so without this the token went out twice within a second.
+  const registeredPush = useRef<string | null>(null);
+
   useEffect(() => {
-    if (!Platform.isTV && expoPushToken && api && user) {
-      api
-        ?.post("/Streamyfin/device", {
-          token: expoPushToken.data,
-          deviceId: getOrSetDeviceId(),
-          userId: user.Id,
-        })
-        .catch((_) =>
-          writeErrorLog("Failed to push expo push token to plugin"),
-        );
-    }
+    if (Platform.isTV || !expoPushToken || !api || !user) return;
+
+    const key = pushRegistrationKey(api.basePath, user.Id, expoPushToken.data);
+    if (!key || registeredPush.current === key) return;
+
+    registeredPush.current = key;
+    api
+      .post("/Streamyfin/device", {
+        token: expoPushToken.data,
+        deviceId: getOrSetDeviceId(),
+        userId: user.Id,
+      })
+      .catch((_) => {
+        // A failed post is worth another try the next time the effect runs.
+        registeredPush.current = null;
+        writeErrorLog("Failed to push expo push token to plugin");
+      });
   }, [api, expoPushToken, user]);
 
   const registerNotifications = useCallback(async () => {
