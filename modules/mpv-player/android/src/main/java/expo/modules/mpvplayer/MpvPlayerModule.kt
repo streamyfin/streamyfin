@@ -2,6 +2,7 @@ package expo.modules.mpvplayer
 
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
+import expo.modules.mpvplayer.nativeplayer.engine.VideoLoadConfig
 
 class MpvPlayerModule : Module() {
     override fun definition() = ModuleDefinition {
