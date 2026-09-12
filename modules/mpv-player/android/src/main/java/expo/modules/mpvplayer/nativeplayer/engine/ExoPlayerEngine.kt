@@ -125,8 +125,11 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
     // off-main reads.
     private var subtitleTrackList: List<TrackEntry> = emptyList()
     private var audioTrackList: List<TrackEntry> = emptyList()
-    private var currentSubtitleId: Int = 0
-    private var currentAudioId: Int = 0
+
+    // Written on main (setters + Player.Listener); read off-main by the
+    // module layer's getCurrent*Track from the props HandlerThread.
+    @Volatile private var currentSubtitleId: Int = 0
+    @Volatile private var currentAudioId: Int = 0
 
     @Volatile private var cachedSubtitleTracks: List<Map<String, Any>> = emptyList()
     @Volatile private var cachedAudioTracks: List<Map<String, Any>> = emptyList()
@@ -149,6 +152,11 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
     private var videoDecoderName: String? = null
     private var audioDecoderName: String? = null
     private var cumulativeDroppedFrames: Int = 0
+
+    // Selected video/audio codec at the last onTracksChanged; see the
+    // decoder-name clearing in playerListener.onTracksChanged.
+    private var lastVideoDecoderKey: String? = null
+    private var lastAudioDecoderKey: String? = null
 
     // Main-thread snapshots for the engine getters (the module layer reads
     // them from the props HandlerThread).
@@ -236,11 +244,18 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
 
     // MARK: - Loading
 
-    override fun load(config: VideoLoadConfig) {
+    override fun load(config: VideoLoadConfig) = load(config, force = false)
+
+    private fun load(config: VideoLoadConfig, force: Boolean) {
         // Same-URL guard, mirroring the JS-route view: a redundant load of the
         // running stream (e.g. a replayed startStream) is skipped. Quality and
-        // track re-negotiations always change the URL.
-        if (currentUrl == config.url && currentLoop == config.loop && player != null) return
+        // track re-negotiations always change the URL. Recovery callers must
+        // pass force=true — they reload the SAME url/loop on purpose, and the
+        // guard would silently no-op them (the player is still non-null after
+        // an error; STATE_IDLE just means the pipeline needs prepare() again).
+        if (!force && currentUrl == config.url && currentLoop == config.loop && player != null) {
+            return
+        }
 
         currentUrl = config.url
         currentHeaders = config.headers
@@ -520,6 +535,7 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
                 loop = currentLoop,
                 externalSubtitles = currentExternalSubtitles,
             ),
+            force = true,
         )
     }
 
@@ -545,6 +561,7 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
                 loop = currentLoop,
                 externalSubtitles = currentExternalSubtitles,
             ),
+            force = true,
         )
         if (playbackResumeIntent) play() else pause()
     }
@@ -1093,6 +1110,10 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
         return null
     }
 
+    /** Identity of what a decoder would be initialized for (mime + codec). */
+    private fun decoderKey(format: Format?): String? =
+        format?.let { "${it.sampleMimeType}/${it.codecs}" }
+
     /** HDR10 vs HDR10+ isn't distinguishable from Format alone; both report HDR10. */
     private fun deriveHdrFormat(ci: ColorInfo): String? {
         return when (ci.colorTransfer) {
@@ -1210,10 +1231,23 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
             // explicit initial selection still wins.
             syncCurrentSubtitleIdFromSelection(tracks)
             applyInitialTrackSelections()
-            // A track change can re-initialize the codec under a different
-            // name; clear stale decoder names.
-            videoDecoderName = null
-            audioDecoderName = null
+            // A codec change re-initializes the decoder under a different
+            // name; clear the stale one. But onTracksChanged also fires for
+            // selection changes that keep the codecs (a text-track override,
+            // say), and the decoder init callbacks only fire again on a real
+            // re-init — clearing unconditionally would blank the technical
+            // overlay until the next codec init. Only clear per codec, keyed
+            // on what actually picks the decoder.
+            val videoKey = decoderKey(pickFormat(tracks, C.TRACK_TYPE_VIDEO))
+            if (videoKey != lastVideoDecoderKey) {
+                lastVideoDecoderKey = videoKey
+                videoDecoderName = null
+            }
+            val audioKey = decoderKey(pickFormat(tracks, C.TRACK_TYPE_AUDIO))
+            if (audioKey != lastAudioDecoderKey) {
+                lastAudioDecoderKey = audioKey
+                audioDecoderName = null
+            }
         }
     }
 

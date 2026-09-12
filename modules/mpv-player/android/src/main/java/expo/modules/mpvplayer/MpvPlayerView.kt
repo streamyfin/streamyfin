@@ -176,9 +176,13 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
             if (renderer == null || rendererVoDriver != wantedVoDriver) {
                 renderer?.stop()
                 renderer = MPVLayerRenderer(context, voDriver = wantedVoDriver)
-                renderer?.delegate = this
                 rendererVoDriver = wantedVoDriver
             }
+            // Re-assert on every start: cleanup() nulls the delegate while
+            // keeping the renderer instance, so a reused view that re-enters
+            // with the same voDriver would skip the branch above and never
+            // hear onProgress/onError again.
+            renderer?.delegate = this
             renderer?.start(PlayerEngine.Owner.EMBEDDED_VIEW) {
                 rendererStarted = true
 
