@@ -114,6 +114,7 @@ class MpvPlayerView: ExpoView {
 		engine.displayLayer.contentsScale = contentScaleFactor
 		engine.displayLayer.isHidden = false
 		engine.displayLayer.opacity = 1.0
+		engine.syncSubtitleLayerFrame()
 		CATransaction.commit()
 	}
 

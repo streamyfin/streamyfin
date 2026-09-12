@@ -55,6 +55,23 @@ final class MPVLayerRenderer {
     }
     
     private var mpv: OpaquePointer?
+
+    // The style remains unmodified by zoom. These values belong to the mpv
+    // queue; only screen geometry is captured from Core Animation on main.
+    private var subtitleStyle = SubtitleLayout()
+    private var subtitleViewport = CGSize.zero
+    private var subtitleCanvas = CGSize.zero
+    private var subtitleFill = false
+    private var subtitleASSMetadata: String?
+    private var subtitleASSLayout: ASSSubtitleLayout?
+    private var subtitleASSOverrides: [String] = []
+    private static let compositesSubtitles: Bool = {
+        #if os(tvOS) || targetEnvironment(simulator)
+        return false
+        #else
+        return true
+        #endif
+    }()
     
     private var pendingExternalSubtitles: [String] = []
     private var initialSubtitleId: Int?
@@ -251,6 +268,9 @@ final class MPVLayerRenderer {
             throw RendererError.mpvCreationFailed
         }
         mpv = handle
+        subtitleASSMetadata = nil
+        subtitleASSLayout = nil
+        subtitleASSOverrides = []
 
         // Logging. Release builds used to request nothing at all, so a
         // TestFlight log could never show WHY playback failed - #1673 (silent
@@ -285,11 +305,7 @@ final class MPVLayerRenderer {
         // tvOS: "no" (breaks subtitle rendering; note: subtitle styling won't work).
         // Simulator: "no" (no VideoToolbox support).
         // iOS device: "yes" for PiP subtitle support.
-        #if os(tvOS) || targetEnvironment(simulator)
-        checkError(mpv_set_option_string(handle, "avfoundation-composite-osd", "no"))
-        #else
-        checkError(mpv_set_option_string(handle, "avfoundation-composite-osd", "yes"))
-        #endif
+        checkError(mpv_set_option_string(handle, "avfoundation-composite-osd", Self.compositesSubtitles ? "yes" : "no"))
 
         // Hardware decoding with VideoToolbox
         // On simulator, use software decoding since VideoToolbox is not available
@@ -739,6 +755,8 @@ final class MPVLayerRenderer {
             ("time-pos", MPV_FORMAT_DOUBLE),
             ("pause", MPV_FORMAT_FLAG),
             ("track-list/count", MPV_FORMAT_INT64),
+            ("sub-ass-extradata", MPV_FORMAT_STRING),
+            ("sid", MPV_FORMAT_STRING),
             ("paused-for-cache", MPV_FORMAT_FLAG),
             ("demuxer-cache-duration", MPV_FORMAT_DOUBLE),
             ("current-ao", MPV_FORMAT_STRING)
@@ -815,7 +833,10 @@ final class MPVLayerRenderer {
     
     private func handleEvent(_ event: mpv_event) {
         switch event.event_id {
+        case MPV_EVENT_VIDEO_RECONFIG:
+            applySubtitleLayout()
         case MPV_EVENT_FILE_LOADED:
+            applySubtitleLayout()
             // Add external subtitles now that the file is loaded
             if !pendingExternalSubtitles.isEmpty, let handle = mpv {
                 for (index, subUrl) in pendingExternalSubtitles.enumerated() {
@@ -998,6 +1019,8 @@ final class MPVLayerRenderer {
                     }
                 }
             }
+        case "sub-ass-extradata", "sid":
+            applySubtitleLayout()
         case "track-list/count":
             var trackCount: Int64 = 0
             let status = getProperty(handle: handle, name: name, format: MPV_FORMAT_INT64, value: &trackCount)
@@ -1129,19 +1152,84 @@ final class MPVLayerRenderer {
         }
     }
 
-    /// Keep MPVKit's non-composited subtitle layer aligned with the display.
-    /// Portrait fill must crop it with the video; landscape stays aspect-fitted
-    /// so subtitles retain their normal bottom margin.
+    /// Capture the actual clipping viewport, which can be smaller than the
+    /// expanded video layer. MPVKit restores the overlay's frame on redraw, so
+    /// leave that frame alone and map subtitle layout into its visible portion.
     func syncSubtitleLayerFrame() {
-        guard let subtitleLayer = displayLayer.sublayers?.last else { return }
-        subtitleLayer.contentsGravity =
-            displayLayer.videoGravity == .resizeAspectFill
-                && displayLayer.bounds.height > displayLayer.bounds.width
-            ? .resizeAspectFill
-            : .resizeAspect
-        #if os(tvOS) || targetEnvironment(simulator)
-        subtitleLayer.frame = displayLayer.bounds
-        #endif
+        let canvas = displayLayer.bounds.size
+        let viewport = displayLayer.superlayer?.bounds.size ?? canvas
+        let fill = displayLayer.videoGravity == .resizeAspectFill
+        onQueue { [weak self] in
+            guard let self else { return }
+            self.subtitleCanvas = canvas
+            self.subtitleViewport = viewport
+            self.subtitleFill = fill
+            self.applySubtitleLayout()
+        }
+    }
+
+    private func applySubtitleLayout() {
+        guard let handle = mpv else { return }
+        var canvas = subtitleCanvas
+        var reference = subtitleViewport
+        if Self.compositesSubtitles {
+            // A composited OSD follows the video's fit/fill transform. An
+            // overlay is already rendered at display-layer size by MPVKit.
+            var width: Int64 = 0
+            var height: Int64 = 0
+            _ = getProperty(handle: handle, name: "video-out-params/w", format: MPV_FORMAT_INT64, value: &width)
+            _ = getProperty(handle: handle, name: "video-out-params/h", format: MPV_FORMAT_INT64, value: &height)
+            guard width > 0, height > 0 else { return }
+            let w = CGFloat(width), h = CGFloat(height)
+            let fit = min(subtitleCanvas.width / w, subtitleCanvas.height / h)
+            let fill = max(subtitleCanvas.width / w, subtitleCanvas.height / h)
+            reference = CGSize(width: w * fit, height: h * fit)
+            let zoom = subtitleFill ? fill : fit
+            canvas = CGSize(width: w * zoom, height: h * zoom)
+        }
+        let layout = subtitleStyle.fitting(canvas: canvas, viewport: subtitleViewport, reference: reference)
+        setProperty(name: "sub-scale", value: String(layout.scale))
+        setProperty(name: "sub-pos", value: String(layout.position))
+        setProperty(name: "sub-margin-x", value: String(Int(layout.marginX.rounded())))
+        setProperty(name: "sub-margin-y", value: String(Int(layout.marginY.rounded())))
+        // ASS ignores sub-margin-x/y. Override only its authored style margins,
+        // in the script's own PlayRes coordinates; keep font/color/tag styling.
+        let metadata = getStringProperty(handle: handle, name: "sub-ass-extradata")
+        if metadata != subtitleASSMetadata {
+            subtitleASSMetadata = metadata
+            subtitleASSLayout = metadata.flatMap { ASSSubtitleLayout(extradata: $0) }
+        }
+        let marginOverrides = subtitleASSLayout?.overrides(
+            canvas: canvas, viewport: subtitleViewport, reference: reference,
+            position: subtitleStyle.position
+        ) ?? []
+        var sid: Int64 = -1
+        _ = getProperty(handle: handle, name: "sid", format: MPV_FORMAT_INT64, value: &sid)
+        let codec = sid >= 0 ? subtitleCodec(handle: handle, trackId: sid) : nil
+        let isASS = codec == "ass" || codec == "ssa"
+        let overrides = (isASS ? ["Encoding=-1"] : []) + marginOverrides
+        guard overrides != subtitleASSOverrides else { return }
+        // Updating this option reloads the subtitle decoder. Deduplicate so
+        // layout callbacks and the resulting metadata event cannot reload it
+        // repeatedly. A node array preserves commas in ASS style names.
+        let strings = overrides.map { strdup($0)! }
+        defer { strings.forEach { free($0) } }
+        var nodes = strings.map { string -> mpv_node in
+            var node = mpv_node()
+            node.format = MPV_FORMAT_STRING
+            node.u.string = string
+            return node
+        }
+        let status = nodes.withUnsafeMutableBufferPointer { buffer -> Int32 in
+            var list = mpv_node_list(num: Int32(buffer.count), values: buffer.baseAddress, keys: nil)
+            return withUnsafeMutablePointer(to: &list) { listPointer in
+                var node = mpv_node()
+                node.format = MPV_FORMAT_NODE_ARRAY
+                node.u.list = listPointer
+                return mpv_set_property(handle, "sub-ass-style-overrides", MPV_FORMAT_NODE, &node)
+            }
+        }
+        if status >= 0 { subtitleASSOverrides = overrides }
     }
     
     /// Sync timebase - no-op for vo_avfoundation (mpv handles timing)
@@ -1245,20 +1333,11 @@ final class MPVLayerRenderer {
         } else {
             setProperty(name: "sid", value: String(trackId))
         }
-        applyBidiMode(forTrack: trackId)
+        refreshSubtitleLayout()
     }
 
-    private func applyBidiMode(forTrack trackId: Int) {
-        onQueue { [weak self] in
-            guard let self, let handle = self.mpv else { return }
-            let codec = trackId >= 0
-                ? self.subtitleCodec(handle: handle, trackId: Int64(trackId))
-                : nil
-            let isAss = codec == "ass" || codec == "ssa"
-            mpv_set_property_string(
-                handle, "sub-ass-style-overrides", isAss ? "Encoding=-1" : ""
-            )
-        }
+    private func refreshSubtitleLayout() {
+        onQueue { [weak self] in self?.applySubtitleLayout() }
     }
 
     private func subtitleCodec(handle: OpaquePointer, trackId: Int64) -> String? {
@@ -1276,7 +1355,7 @@ final class MPVLayerRenderer {
 
     func disableSubtitles() {
         setProperty(name: "sid", value: "no")
-        applyBidiMode(forTrack: -1)
+        refreshSubtitleLayout()
     }
     
     func getCurrentSubtitleTrack(completion: @escaping (Int) -> Void) {
@@ -1294,20 +1373,24 @@ final class MPVLayerRenderer {
             guard let self, let handle = self.mpv else { return }
             self.commandSync(handle, ["sub-add", url, flag])
             guard select else { return }
-            var sid: Int64 = -1
-            _ = self.getProperty(handle: handle, name: "sid", format: MPV_FORMAT_INT64, value: &sid)
-            self.applyBidiMode(forTrack: Int(sid))
+            self.applySubtitleLayout()
         }
     }
     
     // MARK: - Subtitle Positioning
     
     func setSubtitlePosition(_ position: Int) {
-        setProperty(name: "sub-pos", value: String(position))
+        onQueue { [weak self] in
+            self?.subtitleStyle.position = Double(position)
+            self?.applySubtitleLayout()
+        }
     }
     
     func setSubtitleScale(_ scale: Double) {
-        setProperty(name: "sub-scale", value: String(scale))
+        onQueue { [weak self] in
+            self?.subtitleStyle.scale = scale
+            self?.applySubtitleLayout()
+        }
     }
 
     func setSubtitleDelay(_ seconds: Double) {
@@ -1349,7 +1432,10 @@ final class MPVLayerRenderer {
     }
     
     func setSubtitleMarginY(_ margin: Int) {
-        setProperty(name: "sub-margin-y", value: String(margin))
+        onQueue { [weak self] in
+            self?.subtitleStyle.marginY = Double(margin)
+            self?.applySubtitleLayout()
+        }
     }
     
     func setSubtitleAlignX(_ alignment: String) {
@@ -1357,7 +1443,11 @@ final class MPVLayerRenderer {
     }
     
     func setSubtitleAlignY(_ alignment: String) {
-        setProperty(name: "sub-align-y", value: alignment)
+        onQueue { [weak self] in
+            self?.subtitleStyle.alignmentY = alignment
+            self?.setProperty(name: "sub-align-y", value: alignment)
+            self?.applySubtitleLayout()
+        }
     }
     
     func setSubtitleStyle(config: [String: Any]) {

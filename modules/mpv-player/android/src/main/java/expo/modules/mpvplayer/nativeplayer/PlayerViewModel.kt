@@ -29,8 +29,7 @@ internal fun calculateSubtitleScale(
     videoWidth: Int,
     videoHeight: Int,
     surfaceWidth: Int,
-    surfaceHeight: Int,
-    zoomedToFill: Boolean
+    surfaceHeight: Int
 ): Double {
     val scaled = baseScale * multiplier
     if (videoWidth <= 0 || videoHeight <= 0 || surfaceWidth <= 0 || surfaceHeight <= 0) {
@@ -41,24 +40,8 @@ internal fun calculateSubtitleScale(
     val heightScale = surfaceHeight.toDouble() / videoHeight
     val containScale = min(widthScale, heightScale)
     val boost = if (containScale < 1) min(1 / containScale, 3.0) else 1.0
-    val zoomCompensation =
-        if (zoomedToFill) min(widthScale, heightScale) / max(widthScale, heightScale) else 1.0
-
-    return (scaled * boost * zoomCompensation * 100).roundToInt() / 100.0
+    return (scaled * boost * 100).roundToInt() / 100.0
 }
-
-internal fun calculateSubtitleMargin(
-    margin: Int,
-    isTv: Boolean,
-    isPipActive: Boolean,
-    surfaceWidth: Int,
-    surfaceHeight: Int
-): Int =
-    if (!isTv && !isPipActive && surfaceHeight > surfaceWidth) {
-        (margin * 0.7).roundToInt()
-    } else {
-        margin
-    }
 
 class PlayerViewModel : MPVLayerRenderer.Delegate {
 
@@ -710,7 +693,6 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
 
     fun applyZoomState() {
         renderer?.setZoomedToFill(isZoomedToFill)
-        applySubtitleGeometry()
     }
 
     fun updateSubtitleGeometry(width: Int, height: Int) {
@@ -720,18 +702,8 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
     }
 
     fun applySubtitleGeometry() {
-        val portraitPhone =
-            !isTvChrome && !isPipActive && subtitleSurfaceHeight > subtitleSurfaceWidth
         subtitleMarginY?.let { margin ->
-            renderer?.setSubtitleMarginY(
-                calculateSubtitleMargin(
-                    margin,
-                    isTvChrome,
-                    isPipActive,
-                    subtitleSurfaceWidth,
-                    subtitleSurfaceHeight
-                )
-            )
+            renderer?.setSubtitleMarginY(margin)
         }
         renderer?.setSubtitleScale(
             calculateSubtitleScale(
@@ -740,8 +712,7 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
                 videoWidth = subtitleVideoWidth,
                 videoHeight = subtitleVideoHeight,
                 surfaceWidth = subtitleSurfaceWidth,
-                surfaceHeight = subtitleSurfaceHeight,
-                zoomedToFill = isZoomedToFill && portraitPhone
+                surfaceHeight = subtitleSurfaceHeight
             )
         )
     }
