@@ -178,6 +178,22 @@ const withTVOSTopShelf: ConfigPlugin = (config) => {
       "Frameworks",
       target.uuid,
     );
+    // Flat file references (no PBXVariantGroup) — Xcode's build system still
+    // localizes correctly off the `<lang>.lproj/` path segment alone, and
+    // this matches the groupless style already used for the other phases
+    // above. Add more `<lang>.lproj/Localizable.strings` paths here (and a
+    // matching file under targets/StreamyfinTopShelf/) to support more
+    // locales; no other code changes are needed.
+    project.addBuildPhase(
+      [
+        `${TARGET_SOURCE_DIR}/en.lproj/Localizable.strings`,
+        `${TARGET_SOURCE_DIR}/fr.lproj/Localizable.strings`,
+      ],
+      "PBXResourcesBuildPhase",
+      "Resources",
+      target.uuid,
+    );
+    project.addKnownRegion("fr");
 
     const buildConfigurations = getBuildConfigurations(
       project,
