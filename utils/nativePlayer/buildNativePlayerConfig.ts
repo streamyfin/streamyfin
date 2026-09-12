@@ -524,6 +524,9 @@ export async function buildNativePlayerConfig(params: {
       videoWidth: videoDimensions.width,
       videoHeight: videoDimensions.height,
     },
+    // Same source of truth as the device profile above: the engine the
+    // chrome must decode with. Ignored by iOS's mpv-only chrome.
+    engine: getActivePlayerType(settings),
     metadata: buildMetadata(item, api),
     // Episode-list and next-episode thumbnails are fetched natively, so they
     // need the headers as well. Offline URLs are local and match nothing.
@@ -562,7 +565,12 @@ export async function buildNativePlayerConfig(params: {
       }),
       renderScaleMultiplier:
         Platform.OS === "android"
-          ? getSubtitleBaseScaleMultiplier("mpv")
+          ? // Per-ENGINE calibration — the same value getEffectiveSubtitleScale
+            // applies on the JS route for the same engine: mpv keeps its
+            // renderer calibration, ExoPlayer its tested 0.6x Android TV
+            // compensation (its SubtitleView renders larger). Calibrating the
+            // exo chrome as mpv made its subtitles oversized.
+            getSubtitleBaseScaleMultiplier(getActivePlayerType(settings))
           : undefined,
     },
     ui: {

@@ -10,7 +10,7 @@ import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import expo.modules.mpvplayer.MPVLayerRenderer
+import expo.modules.mpvplayer.nativeplayer.engine.PlayerEngine
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -60,7 +60,7 @@ internal fun calculateSubtitleMargin(
         margin
     }
 
-class PlayerViewModel : MPVLayerRenderer.Delegate {
+class PlayerViewModel : PlayerEngine.Delegate {
 
     companion object {
         private const val TAG = "PlayerViewModel"
@@ -76,7 +76,7 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
         private const val SKIPPED_NOTICE_MS = 3_000L
     }
 
-    var renderer: MPVLayerRenderer? = null
+    var engine: PlayerEngine? = null
     var emit: ((String, Map<String, Any?>) -> Unit)? = null
     var onDismissRequested: ((String) -> Unit)? = null
     var onRotateRequested: (() -> Unit)? = null
@@ -85,6 +85,13 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
     var onPlaybackStateSync: (() -> Unit)? = null
     var onMetadataSync: (() -> Unit)? = null
     var isTvChrome: Boolean = false
+
+    /**
+     * False when the chrome decodes through the Media3 engine: the UI hides
+     * the rows whose engine calls are mpv-only no-ops there (volume boost,
+     * dialogue boost, mono downmix, audio/subtitle sync).
+     */
+    var isMpvEngine by mutableStateOf(true)
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -133,7 +140,7 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
      */
     fun toggleMute() {
         isPlayerMuted = !isPlayerMuted
-        renderer?.setMute(isPlayerMuted)
+        engine?.setMute(isPlayerMuted)
         haptic()
         refreshMuteState()
     }
@@ -278,6 +285,7 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
     }
 
     fun apply(config: PlayerPresentConfigRecord) {
+        isMpvEngine = config.engine?.lowercase() != "exoplayer"
         val newItemId = config.metadata?.itemId
         if (newItemId == null || newItemId != currentItemId) {
             countdownCanceled = false
@@ -488,11 +496,11 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
 
     // MARK: - Playback Transport
     fun play() {
-        renderer?.play()
+        engine?.play()
     }
 
     fun pause() {
-        renderer?.pause()
+        engine?.pause()
     }
 
     fun togglePlayPause() {
@@ -506,7 +514,7 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
         pendingSeekReport = true
         displayPosition = clamped
         authoritativePosition = clamped
-        renderer?.seekTo(clamped)
+        engine?.seekTo(clamped)
         onPlaybackStateSync?.invoke()
         // Move JS's tracked position with the seek right away rather than on
         // the next time-pos tick: at teardown JS takes the later of its tracked
@@ -562,7 +570,7 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
     @JvmName("applySpeed")
     fun setSpeed(newSpeed: Double) {
         speed = newSpeed
-        renderer?.setSpeed(newSpeed)
+        engine?.setSpeed(newSpeed)
         emit?.invoke("onSpeedChange", mapOf("speed" to newSpeed))
         onPlaybackStateSync?.invoke()
         scheduleAutoHide()
@@ -573,7 +581,7 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
         haptic()
         speedBeforeHold = speed
         isHoldSpeedActive = true
-        renderer?.setSpeed(uiOptions.holdToSpeedRate)
+        engine?.setSpeed(uiOptions.holdToSpeedRate)
     }
 
     fun stopHoldSpeed() {
@@ -581,13 +589,13 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
         isHoldSpeedActive = false
         val original = speedBeforeHold ?: 1.0
         speedBeforeHold = null
-        renderer?.setSpeed(original)
+        engine?.setSpeed(original)
     }
 
     // MARK: - Scrubbing (Phone Touch)
     fun startScrubbing() {
         wasPlayingBeforeScrub = isPlaying
-        if (isPlaying) renderer?.pause()
+        if (isPlaying) engine?.pause()
         isScrubbing = true
         scrubPosition = displayPosition
         scheduleAutoHide(PlayerConstants.MENU_AUTO_HIDE_DELAY_MS)
@@ -605,7 +613,7 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
         isScrubbing = false
         seekTo(clamped)
         if (wasPlayingBeforeScrub) {
-            renderer?.play()
+            engine?.play()
         }
         scheduleAutoHide()
     }
@@ -614,7 +622,7 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
     fun beginScrub() {
         if (isScrubbing) return
         wasPlayingBeforeScrub = isPlaying
-        if (isPlaying) renderer?.pause()
+        if (isPlaying) engine?.pause()
         isScrubbing = true
         scrubPosition = displayPosition
         autoHideJob?.cancel()
@@ -632,7 +640,7 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
         isScrubbing = false
         seekTo(target)
         if (wasPlayingBeforeScrub) {
-            renderer?.play()
+            engine?.play()
         }
         scheduleAutoHide()
     }
@@ -642,7 +650,7 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
         val target = scrubPosition
         isScrubbing = false
         seekTo(target)
-        renderer?.play()
+        engine?.play()
         scheduleAutoHide()
     }
 
@@ -650,7 +658,7 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
         if (!isScrubbing) return
         isScrubbing = false
         if (wasPlayingBeforeScrub) {
-            renderer?.play()
+            engine?.play()
         }
         scheduleAutoHide()
     }
@@ -709,7 +717,7 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
     }
 
     fun applyZoomState() {
-        renderer?.setZoomedToFill(isZoomedToFill)
+        engine?.setZoomedToFill(isZoomedToFill)
         applySubtitleGeometry()
     }
 
@@ -723,7 +731,7 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
         val portraitPhone =
             !isTvChrome && !isPipActive && subtitleSurfaceHeight > subtitleSurfaceWidth
         subtitleMarginY?.let { margin ->
-            renderer?.setSubtitleMarginY(
+            engine?.setSubtitleMarginY(
                 calculateSubtitleMargin(
                     margin,
                     isTvChrome,
@@ -733,16 +741,25 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
                 )
             )
         }
-        renderer?.setSubtitleScale(
-            calculateSubtitleScale(
-                baseScale = subtitleScale,
-                multiplier = subtitleScaleMultiplier,
-                videoWidth = subtitleVideoWidth,
-                videoHeight = subtitleVideoHeight,
-                surfaceWidth = subtitleSurfaceWidth,
-                surfaceHeight = subtitleSurfaceHeight,
-                zoomedToFill = isZoomedToFill && portraitPhone
-            )
+        engine?.setSubtitleScale(
+            if (isMpvEngine) {
+                calculateSubtitleScale(
+                    baseScale = subtitleScale,
+                    multiplier = subtitleScaleMultiplier,
+                    videoWidth = subtitleVideoWidth,
+                    videoHeight = subtitleVideoHeight,
+                    surfaceWidth = subtitleSurfaceWidth,
+                    surfaceHeight = subtitleSurfaceHeight,
+                    zoomedToFill = isZoomedToFill && portraitPhone
+                )
+            } else {
+                // Media3 sizes text as a viewport fraction, already
+                // independent of video resolution and letterboxing — the
+                // video-to-screen boost is mpv-only. Applying it here inflates
+                // the text (the JS route's getEffectiveSubtitleScale skips it
+                // for exoplayer for the same reason).
+                subtitleScale * subtitleScaleMultiplier
+            }
         )
     }
 
@@ -759,33 +776,33 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
     @JvmName("applySubtitleDelay")
     fun setSubtitleDelay(seconds: Double) {
         subtitleDelay = seconds
-        renderer?.setSubtitleDelay(seconds)
+        engine?.setSubtitleDelay(seconds)
         scheduleAutoHide()
     }
 
     @JvmName("applyAudioDelay")
     fun setAudioDelay(seconds: Double) {
         audioDelay = seconds
-        renderer?.setAudioDelay(seconds)
+        engine?.setAudioDelay(seconds)
         scheduleAutoHide()
     }
 
     @JvmName("applyVolumeBoost")
     fun setVolumeBoost(percent: Int) {
         volumeBoostPercent = percent
-        renderer?.setVolumeBoost(percent)
+        engine?.setVolumeBoost(percent)
         scheduleAutoHide()
     }
 
     fun toggleDialogueBoost() {
         dialogueBoostEnabled = !dialogueBoostEnabled
-        renderer?.setDialogueBoost(dialogueBoostEnabled)
+        engine?.setDialogueBoost(dialogueBoostEnabled)
         scheduleAutoHide()
     }
 
     fun toggleMonoAudio() {
         monoAudioEnabled = !monoAudioEnabled
-        renderer?.setMonoDownmix(monoAudioEnabled)
+        engine?.setMonoDownmix(monoAudioEnabled)
         scheduleAutoHide()
     }
 

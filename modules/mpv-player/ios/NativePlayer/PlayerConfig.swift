@@ -194,6 +194,10 @@ struct PlayerPresentConfigRecord: Record {
 	@Field var tracks: TrackMenusRecord?
 	@Field var subtitleStyle: SubtitleStyleRecord?
 	@Field var ui: UIOptionsRecord = UIOptionsRecord()
+	/// Which engine decodes the stream ("mpv" | "exoplayer"). Mirrored for
+	/// record-shape parity with Android; iOS's chrome always runs mpv and
+	/// ignores this field.
+	@Field var engine: String?
 }
 
 extension StreamConfigRecord {

@@ -44,6 +44,8 @@ import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import expo.modules.kotlin.Promise
 import expo.modules.mpvplayer.DeviceKind
 import expo.modules.mpvplayer.MPVLayerRenderer
+import expo.modules.mpvplayer.nativeplayer.engine.ExoPlayerEngine
+import expo.modules.mpvplayer.nativeplayer.engine.PlayerEngine
 import expo.modules.mpvplayer.nativeplayer.ui.PlayerScreen
 import expo.modules.mpvplayer.nativeplayer.ui.PlayerTheme
 import expo.modules.mpvplayer.nativeplayer.ui.tv.TvPlayerScreen
@@ -64,7 +66,7 @@ class NativePlayerSession(
     }
 
     val viewModel = PlayerViewModel()
-    var renderer: MPVLayerRenderer? = null
+    var engine: PlayerEngine? = null
     private var mediaSessionController: MediaSessionController? = null
 
     private var hostActivity: Activity? = null
@@ -155,10 +157,10 @@ class NativePlayerSession(
 
         activity.runOnUiThread {
             try {
-                val newRenderer = MPVLayerRenderer(activity)
-                newRenderer.delegate = viewModel
-                viewModel.renderer = newRenderer
-                this.renderer = newRenderer
+                val newEngine = createEngine(activity, config)
+                newEngine.delegate = viewModel
+                viewModel.engine = newEngine
+                this.engine = newEngine
 
                 // Initialize controllers
                 if (!isTv) {
@@ -193,14 +195,11 @@ class NativePlayerSession(
                 // Setup Overlay Views on MainActivity
                 setupOverlay(activity, config, isTv)
 
-                newRenderer.start(
-                    voDriver = "gpu-next",
-                    owner = MpvOwnership.Owner.NATIVE_SESSION,
-                ) {
-                    if (renderer !== newRenderer) return@start
+                newEngine.start(PlayerEngine.Owner.NATIVE_SESSION) {
+                    if (engine !== newEngine) return@start
                     rendererStarted = true
-                    surfaceView?.holder?.surface?.takeIf { it.isValid }?.let { surface ->
-                        newRenderer.attachSurface(surface)
+                    surfaceView?.takeIf { it.holder.surface?.isValid == true }?.let { sv ->
+                        newEngine.attachSurfaceView(sv)
                         syncSurfaceSize()
                     }
                     val configToLoad = pendingConfig ?: config
@@ -215,6 +214,18 @@ class NativePlayerSession(
                 teardownImmediately()
                 promise.reject("PRESENT_FAILED", e.message, e)
             }
+        }
+    }
+
+    /**
+     * Build the engine the chrome drives, from the config's `engine` field.
+     * An absent/unknown engine falls back to mpv (older JS configs, mobile,
+     * iOS — where ExoPlayer doesn't ship).
+     */
+    private fun createEngine(activity: Activity, config: PlayerPresentConfigRecord): PlayerEngine {
+        return when (config.engine?.lowercase()) {
+            "exoplayer" -> ExoPlayerEngine(activity)
+            else -> MPVLayerRenderer(activity, voDriver = "gpu-next")
         }
     }
 
@@ -251,6 +262,11 @@ class NativePlayerSession(
             }
         }
         overlayContainer = container
+        // Zoom-to-fill on the Exo engine sizes the SurfaceView beyond the
+        // container's bounds; let the overflow render. Harmless for mpv
+        // (whose panscan stays inside the surface).
+        container.clipChildren = false
+        container.clipToPadding = false
 
         val sView = SurfaceView(activity).apply {
             layoutParams = FrameLayout.LayoutParams(
@@ -259,15 +275,31 @@ class NativePlayerSession(
             )
         }
         sView.holder.addCallback(this)
-        sView.addOnLayoutChangeListener { _, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom ->
+        surfaceView = sView
+        container.addView(sView)
+
+        // Engine-provided layer (e.g. the Exo SubtitleView) sits between the
+        // video surface and the chrome so cues render over video but under
+        // the controls. mpv provides none (subtitles render in-surface).
+        engine?.subtitleOverlay?.let { overlay ->
+            overlay.layoutParams = FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+            )
+            container.addView(overlay)
+        }
+
+        // Size updates come from the CONTAINER (viewport), not the
+        // SurfaceView: the Exo engine resizes the surface for zoom-to-fill,
+        // so surface-view dims would feed back into the zoom math. For mpv
+        // the container and surface are always the same size.
+        container.addOnLayoutChangeListener { _, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom ->
             val w = right - left
             val h = bottom - top
             if (w > 0 && h > 0 && (w != (oldRight - oldLeft) || h != (oldBottom - oldTop))) {
                 updateSurfaceGeometry(w, h)
             }
         }
-        surfaceView = sView
-        container.addView(sView)
 
         val cView = ComposeView(activity).apply {
             layoutParams = FrameLayout.LayoutParams(
@@ -400,7 +432,7 @@ class NativePlayerSession(
         if (!rendererStarted) return
         if (viewModel.isPipActive) return
         val surface = surfaceView?.holder?.surface?.takeIf { it.isValid }
-        val videoBroken = renderer?.isVideoOutputBroken() ?: false
+        val videoBroken = engine?.isVideoOutputBroken() ?: false
         val playing = viewModel.isPlaying
         if (playing && !videoBroken) {
             Log.i(TAG, "[Recover] onResume recovery — playing and pipeline healthy, skipping")
@@ -412,8 +444,8 @@ class NativePlayerSession(
         )
         // Preserve position/tracks/loop/external subs across the reload and
         // follow the user's play intent afterwards.
-        renderer?.playbackResumeIntent = playing
-        renderer?.recoverVideoOutput(surface)
+        engine?.playbackResumeIntent = playing
+        engine?.recoverVideoOutput(surface)
     }
 
     private fun registerLifecycleCallbacks() {
@@ -480,8 +512,8 @@ class NativePlayerSession(
     private fun onPiPModeChanged(isInPiP: Boolean) {
         viewModel.isPipActive = isInPiP
         if (isInPiP) {
-            renderer?.setSubtitleUseMargins(false)
-            renderer?.setSubtitleScaleWithWindow(false)
+            engine?.setSubtitleUseMargins(false)
+            engine?.setSubtitleScaleWithWindow(false)
             viewModel.applySubtitleGeometry()
             viewModel.controlsVisible = false
             mainHandler.postDelayed({ syncSurfaceSize() }, 100)
@@ -591,18 +623,7 @@ class NativePlayerSession(
             return
         }
 
-        renderer?.load(
-            url = loadConfig.url,
-            headers = loadConfig.headers,
-            startPosition = loadConfig.startPosition,
-            externalSubtitles = loadConfig.externalSubtitles,
-            initialSubtitleId = loadConfig.initialSubtitleId,
-            initialAudioId = loadConfig.initialAudioId,
-            cacheEnabled = loadConfig.cacheEnabled,
-            cacheSeconds = loadConfig.cacheSeconds,
-            demuxerMaxBytes = loadConfig.demuxerMaxBytes,
-            demuxerMaxBackBytes = loadConfig.demuxerMaxBackBytes
-        )
+        engine?.load(loadConfig)
 
         // mpv's pause property is global and survives loadfile, and keep-open=
         // always leaves it paused at EOF — so a swap into the next episode
@@ -610,15 +631,15 @@ class NativePlayerSession(
         // unpaused, which is why only the swap looked broken. Mirror of
         // PlayerEngine.swift / MpvPlayerView.loadVideo: honor stream.autoplay.
         if (loadConfig.autoplay) {
-            renderer?.play()
+            engine?.play()
         }
 
         viewModel.setSpeed(config.ui.initialPlaybackSpeed)
-        renderer?.setSubtitleDelay(viewModel.subtitleDelay)
-        renderer?.setAudioDelay(viewModel.audioDelay)
-        renderer?.setVolumeBoost(viewModel.volumeBoostPercent)
-        renderer?.setDialogueBoost(viewModel.dialogueBoostEnabled)
-        renderer?.setMonoDownmix(viewModel.monoAudioEnabled)
+        engine?.setSubtitleDelay(viewModel.subtitleDelay)
+        engine?.setAudioDelay(viewModel.audioDelay)
+        engine?.setVolumeBoost(viewModel.volumeBoostPercent)
+        engine?.setDialogueBoost(viewModel.dialogueBoostEnabled)
+        engine?.setMonoDownmix(viewModel.monoAudioEnabled)
 
         config.subtitleStyle?.let { applySubtitleStyle(it) }
         viewModel.applyZoomState()
@@ -641,35 +662,36 @@ class NativePlayerSession(
         style.font?.let { appearance["font"] = it }
         style.background?.let { appearance["background"] = it }
         style.backgroundPadding?.let { appearance["backgroundPadding"] = it }
-        renderer?.setSubtitleStyle(appearance)
+        engine?.setSubtitleStyle(appearance)
 
         viewModel.applySubtitleGeometry()
-        style.alignX?.let { renderer?.setSubtitleAlignX(it) }
-        style.alignY?.let { renderer?.setSubtitleAlignY(it) }
-        style.assOverride?.let { renderer?.setSubtitleAssOverride(it) }
+        style.alignX?.let { engine?.setSubtitleAlignX(it) }
+        style.alignY?.let { engine?.setSubtitleAlignY(it) }
+        style.assOverride?.let { engine?.setSubtitleAssOverride(it) }
     }
 
     private fun syncSurfaceSize() {
         if (!surfaceReady) return
-        val w = surfaceView?.width ?: 0
-        val h = surfaceView?.height ?: 0
+        // Viewport dims (the container), matching the layout listener above.
+        val w = overlayContainer?.width ?: 0
+        val h = overlayContainer?.height ?: 0
         if (w > 0 && h > 0) {
             updateSurfaceGeometry(w, h)
         }
     }
 
     private fun updateSurfaceGeometry(width: Int, height: Int) {
-        renderer?.updateSurfaceSize(width, height)
+        engine?.updateSurfaceSize(width, height)
         val useLandscapeMargins = !viewModel.isPipActive && width > height
-        renderer?.setSubtitleUseMargins(useLandscapeMargins)
-        renderer?.setSubtitleScaleWithWindow(useLandscapeMargins && !viewModel.isTvChrome)
+        engine?.setSubtitleUseMargins(useLandscapeMargins)
+        engine?.setSubtitleScaleWithWindow(useLandscapeMargins && !viewModel.isTvChrome)
         viewModel.updateSubtitleGeometry(width, height)
     }
 
     // MARK: - SurfaceHolder.Callback
     override fun surfaceCreated(holder: SurfaceHolder) {
         surfaceReady = true
-        renderer?.attachSurface(holder.surface)
+        surfaceView?.let { engine?.attachSurfaceView(it) }
         syncSurfaceSize()
 
         if (rendererStarted) {
@@ -681,14 +703,16 @@ class NativePlayerSession(
     }
 
     override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
-        if (width > 0 && height > 0) {
-            updateSurfaceGeometry(width, height)
-        }
+        // Sync from the CONTAINER, not the holder dims: under the Exo engine's
+        // zoom the surface buffer is intentionally larger/smaller than the
+        // viewport, and feeding those dims back would fight the zoom math.
+        // For mpv the container and surface are always the same size.
+        syncSurfaceSize()
     }
 
     override fun surfaceDestroyed(holder: SurfaceHolder) {
         surfaceReady = false
-        renderer?.detachSurface()
+        engine?.detachSurface()
     }
 
     // MARK: - Teardown
@@ -757,8 +781,8 @@ class NativePlayerSession(
             pendingConfig = null
             rendererStarted = false
             unregisterLifecycleCallbacks()
-            renderer?.stop()
-            renderer = null
+            engine?.stop()
+            engine = null
             hostActivity = null
 
             onTornDown()
@@ -793,8 +817,8 @@ class NativePlayerSession(
             pendingConfig = null
             rendererStarted = false
             unregisterLifecycleCallbacks()
-            renderer?.stop()
-            renderer = null
+            engine?.stop()
+            engine = null
             hostActivity = null
             onTornDown()
         }
