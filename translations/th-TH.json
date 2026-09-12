@@ -63,7 +63,7 @@
     "add_server_to_get_started": "เพิ่มเซิร์ฟเวอร์เพื่อเริ่มต้น",
     "add_server": "เพิ่มเซิร์ฟเวอร์",
     "change_server": "เปลี่ยนเซิร์ฟเวอร์",
-    "swipe_for_options": "Swipe a server for options"
+    "swipe_for_options": "ปัดที่เซิร์ฟเวอร์เพื่อดูตัวเลือก "
   },
   "save_account": {
     "title": "บันทึกบัญชี",
@@ -111,16 +111,16 @@
     "continue": "ดำเนินการต่อ",
     "next_up": "ตอนถัดไป",
     "continue_and_next_up": "ดูต่อและตอนถัดไป",
-    "recently_added": "Recently added",
+    "recently_added": "เพิ่มล่าสุด",
     "recently_added_in": "เพิ่มล่าสุดใน {{libraryName}}",
     "suggested_movies": "ภาพยนตร์แนะนำ",
     "suggested_episodes": "ตอนแนะนำ",
     "hero": {
-      "filter": "Filter",
-      "groups": "Groups",
-      "media": "Media",
-      "tv_shows": "TV shows",
-      "disable": "Disable hero"
+      "filter": "ตัวกรอง",
+      "groups": "กลุ่ม",
+      "media": "สื่อ",
+      "tv_shows": "รายการทีวี",
+      "disable": "ปิดใช้งานส่วนไฮไลต์"
     },
     "intro": {
       "welcome_to_streamyfin": "ยินดีต้อนรับสู่ Streamyfin",
@@ -136,8 +136,8 @@
       "done_button": "เสร็จสิ้น",
       "go_to_settings_button": "ไปที่การตั้งค่า",
       "read_more": "อ่านเพิ่มเติม",
-      "crash_reports_title": "Help improve Streamyfin",
-      "crash_reports_description": "Streamyfin sends anonymous crash and error reports to the developers. No account data or server addresses are included. You can turn this off here or anytime in settings."
+      "crash_reports_title": "ช่วยปรับปรุง Streamyfin",
+      "crash_reports_description": "Streamyfin ส่งรายงานข้อผิดพลาดและการแคลชแบบไม่ระบุตัวตนไปยังผู้พัฒนา ข้อมูลบัญชีหรือที่อยู่เซิร์ฟเวอร์จะไม่ถูกส่งไปด้วย คุณสามารถปิดคุณสมบัตินี้ได้ที่นี่หรือในหน้าตั้งค่าได้ตลอดเวลา"
     },
     "settings": {
       "settings_title": "การตั้งค่า",
@@ -170,7 +170,7 @@
         "hide_remote_session_button_hint": "ซ่อนปุ่มเซสชันระยะไกลจากส่วนหัวของหน้าหลัก",
         "show_home_backdrop": "พื้นหลังหน้าหลักแบบไดนามิก",
         "show_hero_carousel": "แบนเนอร์เด่น",
-        "show_hero_carousel_hint": "Show the large swipeable carousel at the top of the home screen.",
+        "show_hero_carousel_hint": "แสดงสไลด์ไฮไลต์ขนาดใหญ่ที่ปัดได้ด้านบนสุดของหน้าหลัก",
         "show_series_poster_on_episode": "แสดงโปสเตอร์ซีรีส์ในหน้าตอน",
         "theme_music": "เพลงประกอบ",
         "display_size": "ขนาดการแสดงผล",
@@ -285,7 +285,7 @@
       },
       "audio": {
         "audio_title": "เสียง",
-        "play_default_audio_track": "Play default audio track",
+        "play_default_audio_track": "เล่นแทร็กเสียงเริ่มต้น",
         "set_audio_track": "ใช้แทร็กเสียงจากรายการก่อนหน้า",
         "audio_language": "ภาษาเสียง",
         "none": "ไม่มี",
@@ -302,7 +302,7 @@
       },
       "subtitles": {
         "subtitle_title": "คำบรรยาย",
-        "language_behavior_title": "Language and behavior",
+        "language_behavior_title": "ภาษาและการทำงาน",
         "language_behavior_hint": "Choose preferred audio and subtitle tracks and how selections are remembered.",
         "subtitle_appearance_title": "Subtitle appearance",
         "subtitle_appearance_hint": "Customize subtitle font, color, size, position, and background.",
@@ -334,12 +334,12 @@
           "dyslexic": "Dyslexic"
         },
         "colors": {
-          "white": "White",
-          "yellow": "Yellow",
+          "white": "สีขาว",
+          "yellow": "สีเหลือง",
           "cyan": "Cyan",
-          "green": "Green",
-          "magenta": "Magenta",
-          "red": "Red"
+          "green": "สีเขียว",
+          "magenta": "สีม่วง",
+          "red": "สีแดง"
         },
         "none": "ไม่มี",
         "language": "ภาษา",
@@ -404,8 +404,8 @@
         "skip_preview": "Skip preview",
         "skip_preview_description": "Action when preview segment is detected",
         "segment_skip_none": "None",
-        "segment_skip_ask": "Ask to skip",
-        "segment_skip_auto": "Skip",
+        "segment_skip_ask": "ถามก่อนข้าม",
+        "segment_skip_auto": "ข้าม",
         "disabled": "ปิดใช้งาน"
       },
       "music": {
@@ -438,7 +438,7 @@
           "api_key_hint": "Alternative to the password: a Seerr admin API key connects you as your Jellyfin user directly. Requires a recent Seerr server.",
           "api_key_placeholder": "Seerr API key",
           "api_key_from_admin": "Your server admin provides the Seerr credentials — connect as {{username}} without a password.",
-          "connect_button": "Connect",
+          "connect_button": "เชื่อมต่อ",
           "total_media_requests": "คำขอสื่อทั้งหมด",
           "movie_quota_limit": "ขีดจำกัดโควตาภาพยนตร์",
           "movie_quota_days": "จำนวนวันโควตาภาพยนตร์",
@@ -1159,13 +1159,13 @@
     "header_key": "Header name",
     "header_value": "Header value",
     "header_name_placeholder": "X-Api-Key",
-    "header_value_placeholder": "Value",
+    "header_value_placeholder": "ค่า",
     "add_preset": "Add preset",
     "add_custom": "Add header",
     "clear_headers": "Clear headers",
     "presets_title": "Choose a preset",
     "source_jellyfin": "Jellyfin",
-    "source_custom": "Custom",
+    "source_custom": "กำหนดเอง",
     "source_none": "None",
     "using_jellyfin_headers": "Using the Jellyfin headers",
     "no_jellyfin_headers": "No headers configured for Jellyfin",
@@ -1174,7 +1174,7 @@
     "done": "Done",
     "show_value": "Show value",
     "hide_value": "Hide value",
-    "enabled": "Enabled",
+    "enabled": "เปิดใช้งาน",
     "header_count_one": "{{count}} header",
     "header_count_other": "{{count}} headers",
     "header_count": "{{count}} headers"
