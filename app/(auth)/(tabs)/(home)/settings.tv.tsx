@@ -39,7 +39,7 @@ import {
 import {
   AudioTranscodeMode,
   defaultValues,
-  getActiveVideoPlayer,
+  getActiveVideoPlayerEngine,
   InactivityTimeout,
   isNativePlayerSupportedTV,
   type MpvCacheMode,
@@ -306,8 +306,14 @@ export default function SettingsTV() {
   // as an opt-in alternative on Android TV. The selector is hidden on
   // other platforms. Apple TV instead gets an opt-in toggle for the
   // experimental fully-native tvOS player (default off).
+  //
+  // Both read the ENGINE (getActiveVideoPlayerEngine), not the effective
+  // renderer: the native toggle picks the controls layer only, and the
+  // chrome decodes with the selected engine — so with the toggle on, the
+  // ExoPlayer row and the engine-specific sections below must still
+  // reflect the ExoPlayer pick.
   const isAndroidTv = Platform.OS === "android" && Platform.isTV;
-  const currentVideoPlayer = getActiveVideoPlayer(settings);
+  const currentVideoPlayer = getActiveVideoPlayerEngine(settings);
   const isMpv = currentVideoPlayer !== VideoPlayer.ExoPlayer;
 
   // Shared style for the ExoPlayer / MPV limitation notes shown under the

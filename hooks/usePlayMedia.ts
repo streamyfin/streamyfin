@@ -4,11 +4,7 @@ import { useCallback } from "react";
 import useRouter from "@/hooks/useAppRouter";
 import { isNativePlayerPresented } from "@/modules/mpv-player";
 import { useNativePlayer } from "@/providers/NativePlayerProvider";
-import {
-  getActiveVideoPlayer,
-  useSettings,
-  VideoPlayer,
-} from "@/utils/atoms/settings";
+import { isNativeChromeActive, useSettings } from "@/utils/atoms/settings";
 import { shuffleQueueAtom } from "@/utils/atoms/shuffleQueue";
 import { writeErrorLog } from "@/utils/log";
 import {
@@ -28,12 +24,11 @@ interface PlayMediaOptions {
 
 /**
  * Single entry point for starting video playback on mobile and TV. Routes to
- * the presented native player (default on iPhone and tvOS 26+ Apple TVs, with
- * nativeVideoPlayerTV as the TV opt-out — both resolved by
- * getActiveVideoPlayer) or the
- * JS player route; any native decline (unsupported platform, Live TV,
- * config/present failure) falls through to the route, so a broken native
- * path can never block playback.
+ * the presented native player (isNativeChromeActive) or the JS player route;
+ * any native decline (unsupported platform, Live TV, config/present failure)
+ * falls through to the route, so a broken native path can never block
+ * playback. The engine — selected via settings.videoPlayer — travels inside
+ * the presented config and renders in the JS route's VideoPlayerView.
  */
 export const usePlayMedia = () => {
   const router = useRouter();
@@ -56,7 +51,7 @@ export const usePlayMedia = () => {
         options?.item?.Type === "Program" ||
         options?.item?.Type === "TvChannel";
       if (
-        getActiveVideoPlayer(settings) === VideoPlayer.Native &&
+        isNativeChromeActive(settings) &&
         !isLiveTv &&
         (await presentFromRequest(req))
       ) {

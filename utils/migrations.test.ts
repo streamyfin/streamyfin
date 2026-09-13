@@ -12,6 +12,7 @@ stubMmkv();
 const errors: string[] = [];
 mock.module("@/utils/log", () => ({
   writeToLog: () => undefined,
+  logAndCaptureError: () => undefined,
   writeInfoLog: () => undefined,
   writeErrorLog: (message: string) => void errors.push(message),
   writeDebugLog: () => undefined,

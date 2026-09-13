@@ -148,7 +148,7 @@ class NativePlayerModule : Module() {
         }
 
         AsyncFunction("addExternalSubtitle") { url: String ->
-            this@NativePlayerModule.session?.renderer?.addSubtitleFile(url, select = true)
+            this@NativePlayerModule.session?.engine?.addSubtitleFile(url, select = true)
         }
 
         // MARK: - Transport
@@ -185,7 +185,7 @@ class NativePlayerModule : Module() {
         // MARK: - Track plumbing & technical info (executed off-main)
 
         AsyncFunction("getSubtitleTracks") { promise: Promise ->
-            val r = this@NativePlayerModule.session?.renderer
+            val r = this@NativePlayerModule.session?.engine
             if (r == null) {
                 promise.resolve(emptyList<Map<String, Any>>())
                 return@AsyncFunction
@@ -197,15 +197,15 @@ class NativePlayerModule : Module() {
         }
 
         AsyncFunction("setSubtitleTrack") { mpvId: Int ->
-            this@NativePlayerModule.session?.renderer?.setSubtitleTrack(mpvId)
+            this@NativePlayerModule.session?.engine?.setSubtitleTrack(mpvId)
         }
 
         AsyncFunction("disableSubtitles") {
-            this@NativePlayerModule.session?.renderer?.disableSubtitles()
+            this@NativePlayerModule.session?.engine?.disableSubtitles()
         }
 
         AsyncFunction("getAudioTracks") { promise: Promise ->
-            val r = this@NativePlayerModule.session?.renderer
+            val r = this@NativePlayerModule.session?.engine
             if (r == null) {
                 promise.resolve(emptyList<Map<String, Any>>())
                 return@AsyncFunction
@@ -217,11 +217,11 @@ class NativePlayerModule : Module() {
         }
 
         AsyncFunction("setAudioTrack") { mpvId: Int ->
-            this@NativePlayerModule.session?.renderer?.setAudioTrack(mpvId)
+            this@NativePlayerModule.session?.engine?.setAudioTrack(mpvId)
         }
 
         AsyncFunction("getTechnicalInfo") { promise: Promise ->
-            val r = this@NativePlayerModule.session?.renderer
+            val r = this@NativePlayerModule.session?.engine
             if (r == null) {
                 promise.resolve(emptyMap<String, Any>())
                 return@AsyncFunction

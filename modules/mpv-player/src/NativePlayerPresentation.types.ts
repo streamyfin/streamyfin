@@ -268,6 +268,13 @@ export type NativePlayerUIOptions = {
   strings?: NativePlayerStrings;
 };
 
+/**
+ * Which engine decodes the stream inside the native chrome. Android-only:
+ * iOS's chrome always runs mpv and ignores the field. Defaults to "mpv"
+ * when absent (older configs, mobile).
+ */
+export type NativePlayerEngine = "mpv" | "exoplayer";
+
 export type NativePlayerConfig = {
   stream: NativePlayerStreamConfig;
   metadata?: NativePlayerMetadata;
@@ -284,6 +291,7 @@ export type NativePlayerConfig = {
   tracks?: NativePlayerTrackMenus;
   subtitleStyle?: NativePlayerSubtitleStyle;
   ui?: NativePlayerUIOptions;
+  engine?: NativePlayerEngine;
 };
 
 // MARK: - Events
