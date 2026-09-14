@@ -74,13 +74,12 @@ import type { MediaTimeSegment } from "@/providers/Downloads/types";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useWebSocketContext } from "@/providers/WebSocketProvider";
 import {
-  getActiveVideoPlayer,
+  isNativeChromeActive,
   isNativePlayerSupported,
   isNativePlayerSupportedAndroidTV,
   isNativePlayerSupportedTV,
   type SegmentSkipMode,
   useSettings,
-  VideoPlayer,
 } from "@/utils/atoms/settings";
 import {
   type AutoSubtitleState,
@@ -287,7 +286,7 @@ export const NativePlayerProvider: React.FC<{
   children: React.ReactNode;
 }> = ({ children }) => {
   // Apple TV mounts the coordinator too — whether a play actually goes
-  // native is decided per-request by getActiveVideoPlayer (the TV opt-in
+  // native is decided per-request by isNativeChromeActive (the TV opt-in
   // toggle); the inner WS "Play" handler already respects it.
   const enabled =
     (isNativePlayerSupported ||
@@ -1800,10 +1799,8 @@ const NativePlayerProviderInner: React.FC<{
               : undefined,
         };
         void (async () => {
-          // Respect the user's explicit MPV opt-out — the WS Play path must
-          // pick the same player the play button would.
-          const useNative =
-            getActiveVideoPlayer(settingsRef.current) === VideoPlayer.Native;
+          // The WS Play path must pick the same player the play button would.
+          const useNative = isNativeChromeActive(settingsRef.current);
           const presented = useNative && (await presentFromRequest(req));
           if (!presented) {
             // Never stack the JS route under a still-presented native player
