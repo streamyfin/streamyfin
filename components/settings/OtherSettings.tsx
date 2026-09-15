@@ -34,6 +34,7 @@ export const OtherSettings: React.FC = () => {
   const orientations = [
     ScreenOrientation.OrientationLock.DEFAULT,
     ScreenOrientation.OrientationLock.PORTRAIT_UP,
+    ScreenOrientation.OrientationLock.LANDSCAPE,
     ScreenOrientation.OrientationLock.LANDSCAPE_LEFT,
     ScreenOrientation.OrientationLock.LANDSCAPE_RIGHT,
   ];
@@ -44,6 +45,8 @@ export const OtherSettings: React.FC = () => {
         "home.settings.other.orientations.DEFAULT",
       [ScreenOrientation.OrientationLock.PORTRAIT_UP]:
         "home.settings.other.orientations.PORTRAIT_UP",
+      [ScreenOrientation.OrientationLock.LANDSCAPE]:
+        "home.settings.other.orientations.LANDSCAPE",
       [ScreenOrientation.OrientationLock.LANDSCAPE_LEFT]:
         "home.settings.other.orientations.LANDSCAPE_LEFT",
       [ScreenOrientation.OrientationLock.LANDSCAPE_RIGHT]:
