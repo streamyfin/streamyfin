@@ -122,6 +122,12 @@
       "enabled": false
     },
     {
+      "description": "Xcode 27 links the app against the iOS 27 SDK, and iOS 27 refuses to launch an app that has not adopted the UIKit scene life cycle. Expo adopts it in SDK 58, which needs React Native 0.88, and react-native-tvos has no 0.88 release. The hosted runner does not carry Xcode 27 either, it lives on the preview xcode-27 image label. Re-enable once the app launches when built against the iOS 27 SDK",
+      "matchDatasources": ["custom.xcode"],
+      "matchUpdateTypes": ["major"],
+      "enabled": false
+    },
+    {
       "description": "Low-risk dev tooling and type packages: automerge non-major updates once all status checks are green",
       "matchDepTypes": ["devDependencies"],
       "matchUpdateTypes": ["minor", "patch"],
