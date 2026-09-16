@@ -7,10 +7,15 @@ import { useNativePlayer } from "@/providers/NativePlayerProvider";
 import { isNativeChromeActive, useSettings } from "@/utils/atoms/settings";
 import { shuffleQueueAtom } from "@/utils/atoms/shuffleQueue";
 import { writeErrorLog } from "@/utils/log";
+import { createPlaybackStartGuard } from "@/utils/nativePlayer/playbackStartGuard";
 import {
   type PlayRequest,
   toDirectPlayerQuery,
 } from "@/utils/nativePlayer/playRequest";
+
+// Shared across buttons/hook instances: only one user launch may negotiate
+// and choose a player at a time.
+const startPlayback = createPlaybackStartGuard();
 
 interface PlayMediaOptions {
   /** Shuffle sets the queue right before playing — don't clear it. */
@@ -38,37 +43,39 @@ export const usePlayMedia = () => {
 
   return useCallback(
     async (req: PlayRequest, options?: PlayMediaOptions): Promise<void> => {
-      // Moved from PlayButton.goToPlayer: a fresh play resets the auto-play
-      // chain counter and cancels any active shuffle queue.
-      if (settings.maxAutoPlayEpisodeCount.value !== -1) {
-        updateSettings({ autoPlayEpisodeCount: 0 });
-      }
-      if (!options?.preserveShuffleQueue) {
-        setShuffleQueue(null);
-      }
+      await startPlayback(async () => {
+        // Moved from PlayButton.goToPlayer: a fresh play resets the auto-play
+        // chain counter and cancels any active shuffle queue.
+        if (settings.maxAutoPlayEpisodeCount.value !== -1) {
+          updateSettings({ autoPlayEpisodeCount: 0 });
+        }
+        if (!options?.preserveShuffleQueue) {
+          setShuffleQueue(null);
+        }
 
-      const isLiveTv =
-        options?.item?.Type === "Program" ||
-        options?.item?.Type === "TvChannel";
-      if (
-        isNativeChromeActive(settings) &&
-        !isLiveTv &&
-        (await presentFromRequest(req))
-      ) {
-        return;
-      }
+        const isLiveTv =
+          options?.item?.Type === "Program" ||
+          options?.item?.Type === "TvChannel";
+        if (
+          isNativeChromeActive(settings) &&
+          !isLiveTv &&
+          (await presentFromRequest(req))
+        ) {
+          return;
+        }
 
-      // Never stack the JS route under a still-presented native player (a
-      // failed in-place swap keeps the old native session on screen). From
-      // the user's side this is a Play tap that did nothing, so record it.
-      if (isNativePlayerPresented()) {
-        writeErrorLog(
-          "Play request dropped: native player still presented after failed present",
-        );
-        return;
-      }
+        // Never stack the JS route under a still-presented native player (a
+        // failed in-place swap keeps the old native session on screen). From
+        // the user's side this is a Play tap that did nothing, so record it.
+        if (isNativePlayerPresented()) {
+          writeErrorLog(
+            "Play request dropped: native player still presented after failed present",
+          );
+          return;
+        }
 
-      router.push(`/player/direct-player?${toDirectPlayerQuery(req)}`);
+        router.push(`/player/direct-player?${toDirectPlayerQuery(req)}`);
+      });
     },
     [router, settings, updateSettings, setShuffleQueue, presentFromRequest],
   );
