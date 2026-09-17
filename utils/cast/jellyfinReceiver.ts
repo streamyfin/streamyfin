@@ -107,15 +107,9 @@ const closeChannel = async (): Promise<void> => {
   await previous?.channel.remove().catch(() => {});
 };
 
-const getChannel = async (): Promise<CastChannel> => {
-  const session = await GoogleCast.getSessionManager().getCurrentCastSession();
-
-  // `connected` is not maintained on Android: the native module answers `true`
-  // when the channel is created and never sends an update. So the channel is
-  // keyed on the session whose receiver callbacks it registered, and a new
-  // session gets a new channel rather than a stale one that hears nothing.
-  if (open && open.sessionId === session?.id) return open.channel;
-
+const openChannel = async (
+  sessionId: string | undefined,
+): Promise<CastChannel> => {
   await closeChannel();
   const channel = await CastChannel.add(JELLYFIN_CAST_NAMESPACE, (message) => {
     const parsed = parseReceiverMessage(message);
@@ -129,9 +123,30 @@ const getChannel = async (): Promise<CastChannel> => {
     );
   }
 
-  open = { sessionId: session?.id, channel };
+  open = { sessionId, channel };
 
   return channel;
+};
+
+let opening: Promise<CastChannel> | null = null;
+
+const getChannel = async (): Promise<CastChannel> => {
+  const session = await GoogleCast.getSessionManager().getCurrentCastSession();
+
+  // `connected` is not maintained on Android: the native module answers `true`
+  // when the channel is created and never sends an update. So the channel is
+  // keyed on the session whose receiver callbacks it registered, and a new
+  // session gets a new channel rather than a stale one that hears nothing.
+  if (open && open.sessionId === session?.id) return open.channel;
+
+  // Two commands sent at once (a cast started from two screens) would both
+  // open a channel, and only the last one would be tracked, leaving the other
+  // registered on the session with nothing able to remove it.
+  opening ??= openChannel(session?.id).finally(() => {
+    opening = null;
+  });
+
+  return opening;
 };
 
 /**

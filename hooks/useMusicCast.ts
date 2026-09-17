@@ -99,9 +99,13 @@ export const useMusicCast = ({ api, userId }: UseMusicCastOptions) => {
         return true;
       } catch (error) {
         stopWatchingErrors();
-        // Returning false gives the caller no user feedback either, so this
-        // is the only trace that casting failed.
         logAndCaptureError("Casting music queue failed", error);
+        // The caller starts a cast and moves on, so nothing else would tell
+        // the user the queue never reached the TV.
+        Alert.alert(
+          t("player.client_error"),
+          t("player.chromecast_playback_failed"),
+        );
         return false;
       }
     },
