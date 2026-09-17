@@ -3,18 +3,34 @@ import { beforeEach, describe, expect, mock, test } from "bun:test";
 type FakeChannel = {
   connected: boolean;
   sendMessage: ReturnType<typeof mock>;
+  remove: ReturnType<typeof mock>;
   receive: (message: unknown) => void;
 };
 
 let channels: FakeChannel[] = [];
 let connectOnAdd = true;
+let sessionId: string | undefined = "session-1";
+let friendlyName: string | undefined = "Living Room TV";
 
 mock.module("react-native-google-cast", () => ({
+  default: {
+    getSessionManager: () => ({
+      getCurrentCastSession: async () =>
+        sessionId === undefined
+          ? null
+          : {
+              id: sessionId,
+              getCastDevice: async () =>
+                friendlyName === undefined ? null : { friendlyName },
+            },
+    }),
+  },
   CastChannel: {
     add: mock(async (_namespace: string, onMessage: (m: unknown) => void) => {
       const channel: FakeChannel = {
         connected: connectOnAdd,
         sendMessage: mock(async () => {}),
+        remove: mock(async () => {}),
         receive: onMessage,
       };
       channels.push(channel);
@@ -24,6 +40,7 @@ mock.module("react-native-google-cast", () => ({
 }));
 
 const {
+  currentReceiverName,
   JELLYFIN_CAST_NAMESPACE,
   playOnJellyfinReceiver,
   queueWindow,
@@ -35,10 +52,14 @@ const { makeApi } = await import("@/test-utils/jellyfinApi");
 
 const lastChannel = () => channels[channels.length - 1];
 
+let nextSession = 0;
+
 beforeEach(() => {
-  // The module caches its channel; a disconnected one is what a new Cast
-  // session leaves behind, so each test starts from that.
-  for (const channel of channels) channel.connected = false;
+  // The module caches its channel per Cast session, so each test starts on a
+  // session of its own rather than on whatever the last one left open.
+  nextSession += 1;
+  sessionId = `session-${nextSession}`;
+  friendlyName = "Living Room TV";
   channels = [];
   connectOnAdd = true;
 });
@@ -112,14 +133,18 @@ describe("receiver channel", () => {
     expect(JELLYFIN_CAST_NAMESPACE).toBe("urn:x-cast:com.connectsdk");
   });
 
-  test("is opened again once the previous session's channel is gone", async () => {
+  test("is opened again for a new Cast session, and the old one removed", async () => {
+    // Android never marks a channel disconnected, so a session change is the
+    // only sign that the receiver callbacks have to be registered again.
     const session = { api: makeApi(), userId: "user-1" };
 
     await sendJellyfinCastCommand("Pause", session);
-    lastChannel().connected = false;
+    const previous = lastChannel();
+    sessionId = "session-next";
     await sendJellyfinCastCommand("Unpause", session);
 
     expect(channels).toHaveLength(2);
+    expect(previous.remove).toHaveBeenCalled();
   });
 
   test("refuses to send when the channel does not connect", async () => {
@@ -128,6 +153,25 @@ describe("receiver channel", () => {
     await expect(
       sendJellyfinCastCommand("Pause", { api: makeApi(), userId: "user-1" }),
     ).rejects.toThrow("not connected");
+  });
+
+  test("parses the raw JSON the native modules hand over", async () => {
+    // Both native modules pass the receiver's payload as a string; read as an
+    // object it has no `type` and every receiver error goes unnoticed.
+    const received: unknown[] = [];
+    subscribeToJellyfinReceiverMessages((message) => received.push(message));
+    await sendJellyfinCastCommand("Pause", {
+      api: makeApi(),
+      userId: "user-1",
+    });
+
+    lastChannel().receive('{"type":"connectionerror","message":""}');
+    lastChannel().receive("not json");
+
+    expect(received).toEqual([
+      { type: "connectionerror", message: "" },
+      "not json",
+    ]);
   });
 
   test("passes receiver messages to subscribers until they unsubscribe", async () => {
@@ -186,12 +230,9 @@ describe("watchReceiverLoadErrors", () => {
     const errors: string[] = [];
     watchReceiverLoadErrors((error) => errors.push(error), 1_000);
 
-    lastChannel().receive({ type: "playbackprogress" });
-    lastChannel().receive({ type: "connectionerror", message: "" });
-    lastChannel().receive({
-      type: "playbackerror",
-      message: "NoCompatibleStream",
-    });
+    lastChannel().receive('{"type":"playbackprogress"}');
+    lastChannel().receive('{"type":"connectionerror","message":""}');
+    lastChannel().receive('{"type":"playbackerror","message":"NoStream"}');
 
     expect(errors).toEqual(["server_unreachable"]);
   });
@@ -229,5 +270,20 @@ describe("watchReceiverLoadErrors", () => {
     lastChannel().receive({ type: "connectionerror", message: "" });
 
     expect(errors).toEqual([]);
+  });
+});
+
+describe("currentReceiverName", () => {
+  test("reads the device name off the live Cast session", async () => {
+    expect(await currentReceiverName()).toBe("Living Room TV");
+  });
+
+  test("is undefined with no session or no device name", async () => {
+    sessionId = undefined;
+    expect(await currentReceiverName()).toBeUndefined();
+
+    sessionId = "session-x";
+    friendlyName = undefined;
+    expect(await currentReceiverName()).toBeUndefined();
   });
 });

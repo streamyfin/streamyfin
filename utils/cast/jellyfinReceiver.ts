@@ -1,6 +1,6 @@
 import type { Api } from "@jellyfin/sdk";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { CastChannel } from "react-native-google-cast";
+import GoogleCast, { CastChannel } from "react-native-google-cast";
 
 /**
  * The official Jellyfin receiver (F007D354) speaks its own protocol over this
@@ -58,10 +58,31 @@ export interface JellyfinCastPlayRequest {
   subtitleStreamIndex?: number;
 }
 
-type ReceiverMessage = Record<string, any> | string;
+export type ReceiverMessage = Record<string, any> | string;
 
-let channel: CastChannel | null = null;
+interface OpenChannel {
+  /** The Cast session the receiver callbacks were registered on. */
+  sessionId: string | undefined;
+  channel: CastChannel;
+}
+
+let open: OpenChannel | null = null;
 const listeners = new Set<(message: ReceiverMessage) => void>();
+
+/**
+ * The receiver sends JSON, but both native modules hand the payload to JS as
+ * the raw string, so it arrives unparsed. An unparseable one is passed on as
+ * it came.
+ */
+const parseReceiverMessage = (message: ReceiverMessage): ReceiverMessage => {
+  if (typeof message !== "string") return message;
+
+  try {
+    return JSON.parse(message) as Record<string, unknown>;
+  } catch {
+    return message;
+  }
+};
 
 /**
  * The receiver answers on the same channel it listens on, and that is the only
@@ -78,22 +99,52 @@ export const subscribeToJellyfinReceiverMessages = (
   };
 };
 
+const closeChannel = async (): Promise<void> => {
+  const previous = open;
+  open = null;
+  // Its session may be gone already, which makes the native removal fail; the
+  // listeners it holds are dropped by `remove()` either way.
+  await previous?.channel.remove().catch(() => {});
+};
+
 const getChannel = async (): Promise<CastChannel> => {
-  // A channel outlives a single command but dies with its session, so a cached
-  // one has to be revalidated rather than trusted.
-  if (!channel?.connected) {
-    channel = await CastChannel.add(JELLYFIN_CAST_NAMESPACE, (message) => {
-      for (const listener of listeners) listener(message);
-    });
-  }
+  const session = await GoogleCast.getSessionManager().getCurrentCastSession();
+
+  // `connected` is not maintained on Android: the native module answers `true`
+  // when the channel is created and never sends an update. So the channel is
+  // keyed on the session whose receiver callbacks it registered, and a new
+  // session gets a new channel rather than a stale one that hears nothing.
+  if (open && open.sessionId === session?.id) return open.channel;
+
+  await closeChannel();
+  const channel = await CastChannel.add(JELLYFIN_CAST_NAMESPACE, (message) => {
+    const parsed = parseReceiverMessage(message);
+    for (const listener of listeners) listener(parsed);
+  });
 
   if (!channel.connected) {
+    await channel.remove().catch(() => {});
     throw new Error(
       `Jellyfin cast channel ${JELLYFIN_CAST_NAMESPACE} is not connected`,
     );
   }
 
+  open = { sessionId: session?.id, channel };
+
   return channel;
+};
+
+/**
+ * The name the receiver takes as its Jellyfin device name, read at send time.
+ * `useCastDevice()` resolves it a render late, and a cast fired on the render
+ * the session connects would otherwise send nothing: the receiver would then
+ * name itself "Google Cast" and the stop reporter could not find its session.
+ */
+export const currentReceiverName = async (): Promise<string | undefined> => {
+  const session = await GoogleCast.getSessionManager().getCurrentCastSession();
+  const device = await session?.getCastDevice();
+
+  return device?.friendlyName ?? undefined;
 };
 
 export const sendJellyfinCastCommand = async (

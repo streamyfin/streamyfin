@@ -15,6 +15,7 @@ import {
   RECEIVER_MAX_QUEUE_ITEMS,
 } from "@/constants/Cast";
 import {
+  currentReceiverName,
   playOnJellyfinReceiver,
   queueWindow,
   watchReceiverLoadErrors,
@@ -39,7 +40,7 @@ export const useMusicCast = ({ api, userId }: UseMusicCastOptions) => {
   const { t } = useTranslation();
   const client = useRemoteMediaClient();
   const castState = useCastState();
-  const receiverName = useCastDevice()?.friendlyName;
+  const castDeviceName = useCastDevice()?.friendlyName;
 
   const isConnected = castState === CastState.CONNECTED;
 
@@ -83,6 +84,10 @@ export const useMusicCast = ({ api, userId }: UseMusicCastOptions) => {
           );
         }, RECEIVER_ERROR_WINDOW_MS);
 
+        // Auto-cast fires on the render the session connects, before the
+        // device hook has resolved, so the name is read from the session.
+        const receiverName = (await currentReceiverName()) ?? castDeviceName;
+
         await playOnJellyfinReceiver(
           { api, userId, receiverName },
           queueToSend,
@@ -100,7 +105,7 @@ export const useMusicCast = ({ api, userId }: UseMusicCastOptions) => {
         return false;
       }
     },
-    [client, api, userId, receiverName, t],
+    [client, api, userId, castDeviceName, t],
   );
 
   /**

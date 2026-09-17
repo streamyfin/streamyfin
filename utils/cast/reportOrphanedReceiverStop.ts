@@ -103,6 +103,13 @@ const findOrphanedReceiverSession = async (
   const before = await findPlayingReceiverSession(ended);
   if (!before) return undefined;
 
+  // A paused receiver stops reporting progress whether it is alive or not, so
+  // there is nothing left to tell the two apart: leave it to the server's own
+  // idle check rather than risk cutting a live playback.
+  if (before.PlayState?.IsPaused || !before.LastPlaybackCheckIn) {
+    return undefined;
+  }
+
   await sleep(RECEIVER_LIVENESS_WINDOW_MS, ended.signal);
   if (ended.signal?.aborted) return undefined;
   const after = await findPlayingReceiverSession(ended);
