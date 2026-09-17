@@ -766,6 +766,7 @@
     "client_error": "Client error",
     "could_not_create_stream_for_chromecast": "Could not create a stream for Chromecast",
     "chromecast_playback_failed": "Chromecast could not play this stream",
+    "chromecast_server_unreachable": "Chromecast could not reach your Jellyfin server",
     "message_from_server": "Message from server: {{message}}",
     "next_episode": "Next episode",
     "continue_watching": "Continue watching",

@@ -451,7 +451,6 @@ export type Settings = {
   autoLoginJellyseerr: boolean;
   useKefinTweaks: boolean;
   hiddenLibraries?: string[];
-  enableH265ForChromecast: boolean;
   maxAutoPlayEpisodeCount: MaxAutoPlayEpisodeCount;
   autoPlayEpisodeCount: number;
   autoPlayNextEpisode: boolean;
@@ -619,7 +618,6 @@ export const defaultValues: Settings = {
   autoLoginJellyseerr: true,
   useKefinTweaks: false,
   hiddenLibraries: [],
-  enableH265ForChromecast: false,
   maxAutoPlayEpisodeCount: { key: "3", value: 3 },
   autoPlayEpisodeCount: 0,
   autoPlayNextEpisode: true,
