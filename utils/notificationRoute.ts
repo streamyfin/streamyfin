@@ -15,11 +15,17 @@ export const notificationRoute = (
   // taken as it is.
   if (typeof data.url === "string" && data.url.length > 0) return data.url;
 
-  const type = (data.type ?? "").toString().toLowerCase();
+  // Read rather than coerced. A payload is whatever arrives from the push service, and
+  // String({ toString: null }) throws here, where nothing catches it: the notification
+  // would then open nothing at all rather than opening the app where it was.
+  const type = typeof data.type === "string" ? data.type.toLowerCase() : "";
   const itemId = typeof data.id === "string" ? data.id : undefined;
   const seriesId =
     typeof data.seriesId === "string" ? data.seriesId : undefined;
-  const seasonIndex = data.seasonIndex;
+  const seasonIndex =
+    typeof data.seasonIndex === "string" || typeof data.seasonIndex === "number"
+      ? data.seasonIndex
+      : undefined;
 
   if (type === "movie" && itemId)
     return `/(auth)/(tabs)/home/items/page?id=${itemId}`;
@@ -32,7 +38,7 @@ export const notificationRoute = (
   // A season's worth of them, so the series, at that season when it is named.
   if (!seriesId) return null;
 
-  return seasonIndex === undefined || seasonIndex === null || seasonIndex === ""
+  return seasonIndex === undefined || seasonIndex === ""
     ? `/(auth)/(tabs)/home/series/${seriesId}`
     : `/(auth)/(tabs)/home/series/${seriesId}?seasonIndex=${seasonIndex}`;
 };

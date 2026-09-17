@@ -39,4 +39,42 @@ describe("where a notification takes the app", () => {
     expect(notificationRoute({ type: "Episode" })).toBeNull();
     expect(notificationRoute({ type: "Movie" })).toBeNull();
   });
+
+  test("ignores fields that are not the strings or numbers they should be", () => {
+    // A payload is whatever arrives from the push service, so coercing one of these with
+    // String() throws where nothing catches it and the notification opens nothing at all.
+    const hostile = { toString: null } as unknown as string;
+
+    expect(notificationRoute({ type: hostile, id: "abc" })).toBeNull();
+
+    expect(
+      notificationRoute({
+        type: "episode",
+        seriesId: "series-1",
+        seasonIndex: hostile,
+      }),
+    ).toBe("/(auth)/(tabs)/home/series/series-1");
+
+    expect(
+      notificationRoute({ type: "movie", id: 42 as unknown as string }),
+    ).toBeNull();
+  });
+
+  test("takes a season number whether it arrives as a number or as text", () => {
+    expect(
+      notificationRoute({
+        type: "episode",
+        seriesId: "series-1",
+        seasonIndex: 2,
+      }),
+    ).toBe("/(auth)/(tabs)/home/series/series-1?seasonIndex=2");
+
+    expect(
+      notificationRoute({
+        type: "episode",
+        seriesId: "series-1",
+        seasonIndex: "2",
+      }),
+    ).toBe("/(auth)/(tabs)/home/series/series-1?seasonIndex=2");
+  });
 });
