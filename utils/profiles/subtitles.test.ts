@@ -42,11 +42,6 @@ describe("getSubtitleProfiles", () => {
     expect(profiles.filter((p) => p.Method === "Encode").length).toBe(7);
   });
 
-  it("returns 1 entry for target chromecast (external vtt)", () => {
-    const profiles = getSubtitleProfiles({ target: "chromecast" });
-    expect(profiles).toEqual([{ Format: "vtt", Method: "External" }]);
-  });
-
   it("returns empty array for target music", () => {
     const profiles = getSubtitleProfiles({ target: "music" });
     expect(profiles).toEqual([]);

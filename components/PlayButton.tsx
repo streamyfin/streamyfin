@@ -8,11 +8,8 @@ import { useTranslation } from "react-i18next";
 import { Alert, Platform, TouchableOpacity, View } from "react-native";
 import CastContext, {
   CastButton,
-  MediaHlsSegmentFormat,
-  MediaHlsVideoSegmentFormat,
-  MediaStreamType,
-  type MediaTrack,
   PlayServicesState,
+  useCastDevice,
   useMediaStatus,
   useRemoteMediaClient,
 } from "react-native-google-cast";
@@ -26,6 +23,7 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
+import { RECEIVER_ERROR_WINDOW_MS } from "@/constants/Cast";
 import useRouter from "@/hooks/useAppRouter";
 import { useHaptic } from "@/hooks/useHaptic";
 import type { ThemeColors } from "@/hooks/useImageColorsReturn";
@@ -36,18 +34,13 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { itemThemeColorAtom } from "@/utils/atoms/primaryColor";
 import { useSettings } from "@/utils/atoms/settings";
-import { getParentBackdropImageUrl } from "@/utils/jellyfin/image/getParentBackdropImageUrl";
-import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
-import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import {
-  getExternalSubtitleUrl,
-  isExternalSubtitle,
-} from "@/utils/jellyfin/subtitleUtils";
-import { logAndCaptureError } from "@/utils/log";
+  playOnJellyfinReceiver,
+  subscribeToJellyfinReceiverMessages,
+} from "@/utils/cast/jellyfinReceiver";
+import { logAndCaptureError, writeErrorLog } from "@/utils/log";
 import type { PlayRequest } from "@/utils/nativePlayer/playRequest";
 import { formatDuration, runtimeTicksToMinutes } from "@/utils/time";
-import { chromecast } from "../utils/profiles/chromecast";
-import { chromecasth265 } from "../utils/profiles/chromecasth265";
 import { Button } from "./Button";
 import { Text } from "./common/Text";
 import type { SelectedOptions } from "./ItemContent";
@@ -69,6 +62,7 @@ export const PlayButton: React.FC<Props> = ({
   const isOffline = useOfflineMode();
   const { showActionSheetWithOptions } = useActionSheet();
   const client = useRemoteMediaClient();
+  const castDevice = useCastDevice();
   const mediaStatus = useMediaStatus();
   const { t } = useTranslation();
   const { showModal, hideModal } = useGlobalModal();
@@ -130,10 +124,7 @@ export const PlayButton: React.FC<Props> = ({
                 if (state && state !== PlayServicesState.SUCCESS) {
                   CastContext.showPlayServicesErrorDialog(state);
                 } else {
-                  // Check if user wants H265 for Chromecast
-                  const enableH265 = settings.enableH265ForChromecast;
-
-                  // Validate required parameters before calling getStreamUrl
+                  // Validate required parameters before casting
                   if (!api) {
                     console.warn("API not available for Chromecast streaming");
                     Alert.alert(
@@ -161,189 +152,68 @@ export const PlayButton: React.FC<Props> = ({
                     return;
                   }
 
-                  // Get a new URL with the Chromecast device profile
-                  try {
-                    const data = await getStreamUrl({
-                      api,
-                      item,
-                      deviceProfile: enableH265 ? chromecasth265 : chromecast,
-                      startTimeTicks: positionTicks,
-                      userId: user.Id,
-                      audioStreamIndex: selectedOptions.audioIndex,
-                      maxStreamingBitrate: selectedOptions.bitrate?.value,
-                      mediaSourceId: selectedOptions.mediaSource?.Id,
-                      subtitleStreamIndex: selectedOptions.subtitleIndex,
-                    });
-
-                    if (!data?.url) {
-                      console.warn("No URL returned from getStreamUrl", data);
+                  // The official Jellyfin receiver negotiates playback on its
+                  // own: it is handed the item plus the chosen streams and runs
+                  // PlaybackInfo itself, which is what opens a real Jellyfin
+                  // session and makes the cast visible in the dashboard. No
+                  // stream URL, device profile or sidecar subtitle track is
+                  // built here any more -- the receiver handles all of it.
+                  // The receiver reports a failed load only on its message
+                  // channel; without a listener the TV just sits on its idle
+                  // screen and the phone shows nothing.
+                  const unsubscribe = subscribeToJellyfinReceiverMessages(
+                    (message) => {
+                      const type =
+                        typeof message === "object" ? message?.type : undefined;
+                      if (
+                        type !== "error" &&
+                        type !== "connectionerror" &&
+                        type !== "playbackerror"
+                      )
+                        return;
+                      unsubscribe();
+                      writeErrorLog("Chromecast receiver error", message);
                       Alert.alert(
                         t("player.client_error"),
-                        t("player.could_not_create_stream_for_chromecast"),
+                        type === "connectionerror"
+                          ? t("player.chromecast_server_unreachable")
+                          : type === "playbackerror"
+                            ? t("player.chromecast_playback_failed")
+                            : t(
+                                "player.could_not_create_stream_for_chromecast",
+                              ),
                       );
-                      return;
+                    },
+                  );
+                  setTimeout(unsubscribe, RECEIVER_ERROR_WINDOW_MS);
+
+                  try {
+                    await playOnJellyfinReceiver(
+                      {
+                        api,
+                        userId: user.Id,
+                        receiverName: castDevice?.friendlyName,
+                        maxBitrate: selectedOptions.bitrate?.value,
+                      },
+                      {
+                        items: [item],
+                        startPositionTicks: positionTicks,
+                        mediaSourceId:
+                          selectedOptions.mediaSource?.Id ?? undefined,
+                        audioStreamIndex: selectedOptions.audioIndex,
+                        subtitleStreamIndex: selectedOptions.subtitleIndex,
+                      },
+                    );
+
+                    // state is already set when reopening current media, so skip it here.
+                    if (!isOpeningCurrentlyPlayingMedia) {
+                      CastContext.showExpandedControls();
                     }
-
-                    // Text subtitles ride along as sidecar VTT tracks the
-                    // receiver renders itself (see the chromecast subtitle
-                    // profile). The receiver fetches them without auth
-                    // headers, so the api key must be in the URL.
-                    const subtitleTracks: MediaTrack[] = (
-                      data.mediaSource?.MediaStreams ?? []
-                    )
-                      .filter(
-                        (s) => s.Type === "Subtitle" && isExternalSubtitle(s),
-                      )
-                      .flatMap((s) => {
-                        const url = getExternalSubtitleUrl(s, {
-                          offline: false,
-                          basePath: api.basePath,
-                        });
-                        if (!url || s.Index == null) return [];
-                        // Only server-relative URLs get the token — an
-                        // IsExternalUrl sub lives on a third-party host that
-                        // must never see the Jellyfin access token.
-                        const needsApiKey =
-                          !s.IsExternalUrl && !/[?&]api_?key=/i.test(url);
-                        return [
-                          {
-                            id: s.Index,
-                            type: "text" as const,
-                            subtype: "subtitles" as const,
-                            contentId: needsApiKey
-                              ? `${url}${url.includes("?") ? "&" : "?"}api_key=${encodeURIComponent(api.accessToken)}`
-                              : url,
-                            contentType: "text/vtt",
-                            language: s.Language ?? "und",
-                            name: s.DisplayTitle ?? undefined,
-                          },
-                        ];
-                      });
-
-                    // Calculate start time in seconds from playback position
-                    const startTimeSeconds = positionTicks / 10000000;
-
-                    // Calculate stream duration in seconds from runtime
-                    const streamDurationSeconds = item.RunTimeTicks
-                      ? item.RunTimeTicks / 10000000
-                      : undefined;
-
-                    // HLS transcodes must be declared as HLS, otherwise the
-                    // receiver tries to parse the m3u8 playlist as an MP4 file
-                    // and the cast session dies immediately.
-                    const isHls = data.url.includes(".m3u8");
-                    // Jellyfin puts the HLS segment container in the URL; the
-                    // receiver needs the matching hint (HEVC only works in fMP4).
-                    const isFmp4 = data.url.includes("SegmentContainer=mp4");
-
-                    client
-                      .loadMedia({
-                        mediaInfo: {
-                          contentId: item.Id,
-                          contentUrl: data?.url,
-                          contentType: isHls
-                            ? "application/x-mpegURL"
-                            : "video/mp4",
-                          ...(isHls && {
-                            hlsSegmentFormat: isFmp4
-                              ? MediaHlsSegmentFormat.FMP4
-                              : MediaHlsSegmentFormat.TS,
-                            hlsVideoSegmentFormat: isFmp4
-                              ? MediaHlsVideoSegmentFormat.FMP4
-                              : MediaHlsVideoSegmentFormat.MPEG2_TS,
-                          }),
-                          ...(subtitleTracks.length > 0 && {
-                            mediaTracks: subtitleTracks,
-                          }),
-                          streamType: MediaStreamType.BUFFERED,
-                          streamDuration: streamDurationSeconds,
-                          metadata:
-                            item.Type === "Episode"
-                              ? {
-                                  type: "tvShow",
-                                  title: item.Name || "",
-                                  episodeNumber: item.IndexNumber || 0,
-                                  seasonNumber: item.ParentIndexNumber || 0,
-                                  seriesTitle: item.SeriesName || "",
-                                  images: [
-                                    {
-                                      url: getParentBackdropImageUrl({
-                                        api,
-                                        item,
-                                        quality: 90,
-                                        width: 2000,
-                                      })!,
-                                    },
-                                  ],
-                                }
-                              : item.Type === "Movie"
-                                ? {
-                                    type: "movie",
-                                    title: item.Name || "",
-                                    subtitle: item.Overview || "",
-                                    images: [
-                                      {
-                                        url: getPrimaryImageUrl({
-                                          api,
-                                          item,
-                                          quality: 90,
-                                          width: 2000,
-                                        })!,
-                                      },
-                                    ],
-                                  }
-                                : {
-                                    type: "generic",
-                                    title: item.Name || "",
-                                    subtitle: item.Overview || "",
-                                    images: [
-                                      {
-                                        url: getPrimaryImageUrl({
-                                          api,
-                                          item,
-                                          quality: 90,
-                                          width: 2000,
-                                        })!,
-                                      },
-                                    ],
-                                  },
-                        },
-                        startTime: startTimeSeconds,
-                      })
-                      .then(() => {
-                        const activeSubtitle = subtitleTracks.find(
-                          (s) => s.id === selectedOptions.subtitleIndex,
-                        );
-                        if (activeSubtitle) {
-                          client
-                            .setActiveTrackIds([activeSubtitle.id])
-                            .catch((e) => {
-                              // Subtitles are silently missing on the cast
-                              // device when this fails.
-                              logAndCaptureError(
-                                "Chromecast setActiveTrackIds failed",
-                                e,
-                              );
-                            });
-                        }
-                        // state is already set when reopening current media, so skip it here.
-                        if (isOpeningCurrentlyPlayingMedia) {
-                          return;
-                        }
-                        CastContext.showExpandedControls();
-                      })
-                      .catch((e) => {
-                        logAndCaptureError("Chromecast loadMedia failed", e);
-                        Alert.alert(
-                          t("player.client_error"),
-                          t("player.chromecast_playback_failed"),
-                        );
-                      });
                   } catch (e) {
-                    logAndCaptureError("Chromecast stream setup failed", e);
+                    logAndCaptureError("Chromecast playback failed", e);
                     Alert.alert(
                       t("player.client_error"),
-                      t("player.could_not_create_stream_for_chromecast"),
+                      `${t("player.chromecast_playback_failed")}\n\n${String(e)}`,
                     );
                   }
                 }
@@ -361,6 +231,7 @@ export const PlayButton: React.FC<Props> = ({
     [
       item,
       client,
+      castDevice,
       settings,
       api,
       user,

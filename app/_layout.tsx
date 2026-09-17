@@ -59,6 +59,9 @@ import { storage } from "@/utils/mmkv";
 import { pushRegistrationStep } from "@/utils/pushRegistration";
 
 const Notifications = !Platform.isTV ? require("expo-notifications") : null;
+const JellyfinCastStopReporter = Platform.isTV
+  ? null
+  : require("@/components/JellyfinCastStopReporter").JellyfinCastStopReporter;
 
 import { getSessionApi } from "@jellyfin/sdk/lib/utils/api/session-api";
 import { getLocales } from "expo-localization";
@@ -575,6 +578,9 @@ function Layout() {
                                 <IntroSheetProvider>
                                   <ThemeProvider value={DarkTheme}>
                                     <SystemBars style='light' hidden={false} />
+                                    {JellyfinCastStopReporter && (
+                                      <JellyfinCastStopReporter />
+                                    )}
                                     <Stack initialRouteName='(auth)/(tabs)'>
                                       <Stack.Screen
                                         name='(auth)/(tabs)'
