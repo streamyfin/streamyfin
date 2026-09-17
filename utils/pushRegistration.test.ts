@@ -24,6 +24,34 @@ describe("pushRegistrationKey", () => {
   });
 });
 
+describe("the language in the key", () => {
+  test("changing the app's language posts again", () => {
+    const { key } = pushRegistrationStep(null, "https://jf", "u", "t", "en");
+
+    expect(pushRegistrationStep(key, "https://jf", "u", "t", "fr").post).toBe(
+      true,
+    );
+    expect(pushRegistrationStep(key, "https://jf", "u", "t", "en").post).toBe(
+      false,
+    );
+  });
+
+  test("no language is a key of its own, and still posts", () => {
+    const { key, post } = pushRegistrationStep(
+      null,
+      "https://jf",
+      "u",
+      "t",
+      undefined,
+    );
+
+    expect(post).toBe(true);
+    expect(pushRegistrationStep(key, "https://jf", "u", "t", "fr").post).toBe(
+      true,
+    );
+  });
+});
+
 describe("pushRegistrationStep", () => {
   test("posts the first time, and not again for the same server, user and token", () => {
     const first = pushRegistrationStep(null, "https://jf", "u", "t");

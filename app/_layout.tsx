@@ -417,6 +417,7 @@ function Layout() {
       api?.basePath,
       user?.Id,
       expoPushToken?.data,
+      i18n.language,
     );
     registeredPush.current = step.key;
     if (!step.post || !api || !user || !expoPushToken) return;
@@ -426,6 +427,11 @@ function Layout() {
         token: expoPushToken.data,
         deviceId: getOrSetDeviceId(),
         userId: user.Id,
+        // What the plugin writes this device's notifications in, and where it fetches
+        // the poster in them from: the server is reached at a different address by a
+        // phone at home and by the same phone away.
+        language: i18n.language,
+        serverUrl: api.basePath,
       })
       .catch((_) => {
         // Forgotten only if nothing newer was posted meanwhile, so the next change
