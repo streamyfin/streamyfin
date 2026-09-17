@@ -47,6 +47,7 @@ cadence meant knowing both existed, and nothing would have failed if only one ha
 | `constants/TVDiscovery.ts` | TV home screen tiles: Top Shelf and Android TV recommendations (play link lookup timeout) |
 | `constants/Recommendations.ts` | Similar item rows: how many items a detail page asks the server for, and for which kinds of item |
 | `constants/QuickConnect.ts` | Quick Connect: how long a code the TV shows stays valid |
+| `constants/Cast.ts` | Official Jellyfin Cast receiver: its session client name and the waits used to tell a stopped receiver from a live one |
 
 Add a new domain file when a group grows its own identity (playback, downloads,
 networking). Do not let `Values.ts` become the place where everything lands.

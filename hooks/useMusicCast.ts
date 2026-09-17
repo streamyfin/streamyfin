@@ -3,13 +3,12 @@ import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { useCallback } from "react";
 import CastContext, {
   CastState,
-  MediaStreamType,
   PlayServicesState,
+  useCastDevice,
   useCastState,
   useRemoteMediaClient,
 } from "react-native-google-cast";
-import { getAudioContentType } from "@/utils/jellyfin/audio/getAudioContentType";
-import { getAudioStreamUrl } from "@/utils/jellyfin/audio/getAudioStreamUrl";
+import { playOnJellyfinReceiver } from "@/utils/cast/jellyfinReceiver";
 import { logAndCaptureError } from "@/utils/log";
 
 interface UseMusicCastOptions {
@@ -28,23 +27,9 @@ interface CastQueueOptions {
 export const useMusicCast = ({ api, userId }: UseMusicCastOptions) => {
   const client = useRemoteMediaClient();
   const castState = useCastState();
+  const receiverName = useCastDevice()?.friendlyName;
 
   const isConnected = castState === CastState.CONNECTED;
-
-  /**
-   * Get album art URL for a track
-   */
-  const getAlbumArtUrl = useCallback(
-    (track: BaseItemDto): string | undefined => {
-      if (!api) return undefined;
-      const albumId = track.AlbumId || track.ParentId;
-      if (albumId) {
-        return `${api.basePath}/Items/${albumId}/Images/Primary?maxHeight=600&maxWidth=600`;
-      }
-      return `${api.basePath}/Items/${track.Id}/Images/Primary?maxHeight=600&maxWidth=600`;
-    },
-    [api],
-  );
 
   /**
    * Cast a queue of tracks to Chromecast
@@ -65,60 +50,18 @@ export const useMusicCast = ({ api, userId }: UseMusicCastOptions) => {
           return false;
         }
 
-        // Build queue items - limit to 100 tracks due to Cast SDK message size limit
+        // The receiver reloads each track from the server itself, so the
+        // queue is sent as bare item ids; the 100-track cap still guards the
+        // 64 KB Cast message limit.
         const queueToSend = queue.slice(0, 100);
-        const queueItems = await Promise.all(
-          queueToSend.map(async (track) => {
-            const streamResult = await getAudioStreamUrl(
-              api,
-              userId,
-              track.Id!,
-            );
-            if (!streamResult) {
-              throw new Error(
-                `Failed to get stream URL for track: ${track.Name}`,
-              );
-            }
 
-            const contentType = getAudioContentType(
-              streamResult.mediaSource?.Container,
-            );
-
-            // Calculate stream duration in seconds from runtime ticks
-            const streamDurationSeconds = track.RunTimeTicks
-              ? track.RunTimeTicks / 10000000
-              : undefined;
-
-            return {
-              mediaInfo: {
-                contentId: track.Id,
-                contentUrl: streamResult.url,
-                contentType,
-                streamType: MediaStreamType.BUFFERED,
-                streamDuration: streamDurationSeconds,
-                metadata: {
-                  type: "musicTrack" as const,
-                  title: track.Name || "Unknown Track",
-                  artist: track.AlbumArtist || track.Artists?.join(", ") || "",
-                  albumName: track.Album || "",
-                  images: getAlbumArtUrl(track)
-                    ? [{ url: getAlbumArtUrl(track)! }]
-                    : [],
-                },
-              },
-              autoplay: true,
-              preloadTime: 10, // Preload 10 seconds before track ends
-            };
-          }),
-        );
-
-        // Load media with queue
-        await client.loadMedia({
-          queueData: {
-            items: queueItems,
-            startIndex: Math.min(startIndex, queueItems.length - 1),
+        await playOnJellyfinReceiver(
+          { api, userId, receiverName },
+          {
+            items: queueToSend,
+            startIndex: Math.min(startIndex, queueToSend.length - 1),
           },
-        });
+        );
 
         // Show expanded controls
         CastContext.showExpandedControls();
@@ -131,7 +74,7 @@ export const useMusicCast = ({ api, userId }: UseMusicCastOptions) => {
         return false;
       }
     },
-    [client, api, userId, getAlbumArtUrl],
+    [client, api, userId, receiverName],
   );
 
   /**
