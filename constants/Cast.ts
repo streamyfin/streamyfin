@@ -6,6 +6,13 @@
 export const JELLYFIN_RECEIVER_CLIENT = "Chromecast";
 
 /**
+ * Most items handed to the receiver in one PlayNow message. Each one is only a
+ * few ids, but a Cast message is capped at 64 KB, so a long music queue is sent
+ * as a window of this size around the selected track.
+ */
+export const RECEIVER_MAX_QUEUE_ITEMS = 100;
+
+/**
  * How long after a cast starts the phone keeps listening for the receiver's own
  * error messages. The receiver only reports load problems (server unreachable,
  * no playable stream) this way, and they come within seconds of the command.

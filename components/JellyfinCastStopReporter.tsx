@@ -1,5 +1,5 @@
 import { useAtomValue } from "jotai";
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import GoogleCast, {
   useCastDevice,
   useMediaStatus,
@@ -49,42 +49,78 @@ export function JellyfinCastStopReporter() {
     }
   }, [mediaStatus]);
 
+  // At most one report runs at a time; the connection-loss path waits long
+  // enough for the cast or the account to change underneath it.
+  const pendingReport = useRef<AbortController | null>(null);
+
+  const cancelPendingReport = useCallback(() => {
+    pendingReport.current?.abort();
+    pendingReport.current = null;
+  }, []);
+
+  // A pending report belongs to the server and account it started with.
+  useEffect(
+    () => cancelPendingReport,
+    [api?.basePath, api?.accessToken, user?.Id, cancelPendingReport],
+  );
+
   useEffect(() => {
-    const subscription = GoogleCast.getSessionManager().onSessionEnded(
-      (_session, error) => {
-        const ended = lastCast.current;
-        lastCast.current = {};
+    const sessionManager = GoogleCast.getSessionManager();
 
-        if (!api?.accessToken || !user?.Id || !ended.deviceName) return;
-
-        reportOrphanedReceiverStop({
-          api,
-          userId: user.Id,
-          deviceName: ended.deviceName,
-          // The SDK leaves `error` out only when casting was stopped, which
-          // closes the receiver app; anything else may leave the TV playing.
-          receiverClosed: !error,
-          itemId: ended.itemId,
-          playSessionId: ended.playSessionId,
-        })
-          .then((reported) => {
-            if (reported) {
-              writeInfoLog(
-                `Cast: reported the stop the receiver "${ended.deviceName}" could not`,
-              );
-            }
-          })
-          .catch((reportError) =>
-            logAndCaptureError(
-              "Cast: reporting the receiver stop failed",
-              reportError,
-            ),
-          );
-      },
+    // A new cast on the same TV must not be stopped by a check left over from
+    // the previous session.
+    const starting = sessionManager.onSessionStarting(() =>
+      cancelPendingReport(),
     );
 
-    return () => subscription.remove();
-  }, [api, user]);
+    const ending = sessionManager.onSessionEnded((_session, error) => {
+      const last = lastCast.current;
+      lastCast.current = {};
+      cancelPendingReport();
+
+      if (!api?.accessToken || !user?.Id || !last.deviceName || !last.itemId) {
+        return;
+      }
+
+      const controller = new AbortController();
+      pendingReport.current = controller;
+
+      reportOrphanedReceiverStop({
+        api,
+        userId: user.Id,
+        deviceName: last.deviceName,
+        // The SDK leaves `error` out only when casting was stopped, which
+        // closes the receiver app; anything else may leave the TV playing.
+        receiverClosed: !error,
+        itemId: last.itemId,
+        playSessionId: last.playSessionId,
+        signal: controller.signal,
+      })
+        .then((reported) => {
+          if (reported) {
+            writeInfoLog(
+              `Cast: reported the stop the receiver "${last.deviceName}" could not`,
+            );
+          }
+        })
+        .catch((reportError) => {
+          logAndCaptureError(
+            "Cast: reporting the receiver stop failed",
+            reportError,
+          );
+        })
+        .finally(() => {
+          if (pendingReport.current === controller) {
+            pendingReport.current = null;
+          }
+        });
+    });
+
+    return () => {
+      starting.remove();
+      ending.remove();
+    };
+  }, [api, user, cancelPendingReport]);
 
   return null;
 }

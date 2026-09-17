@@ -20,6 +20,7 @@ stubCustomHeaders();
 mock.module("@/constants/Cast", () => ({
   JELLYFIN_RECEIVER_CLIENT: "Chromecast",
   RECEIVER_ERROR_WINDOW_MS: 5,
+  RECEIVER_MAX_QUEUE_ITEMS: 100,
   RECEIVER_STOP_GRACE_MS: 5,
   RECEIVER_LIVENESS_WINDOW_MS: 5,
 }));
@@ -144,13 +145,15 @@ describe("reportOrphanedReceiverStop", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  test("leaves out a play session id that belongs to another item", async () => {
+  test("leaves the receiver alone once it plays another item", async () => {
+    // Someone cast something else to the TV since: that playback is live.
     const api = makeApi();
-    api.mock.onGet(/\/Sessions/).reply(200, [receiverSession()]);
+    api.mock
+      .onGet(/\/Sessions/)
+      .reply(200, [receiverSession({ NowPlayingItem: { Id: "item-other" } })]);
 
-    await reportOrphanedReceiverStop(ended(api, { itemId: "item-other" }));
-
-    expect(sentRequest().body.PlaySessionId).toBeUndefined();
+    expect(await reportOrphanedReceiverStop(ended(api))).toBe(false);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   test("forwards gateway headers but never their Authorization", async () => {
@@ -195,6 +198,24 @@ describe("reportOrphanedReceiverStop", () => {
       await reportOrphanedReceiverStop(ended(api, { receiverClosed: false })),
     ).toBe(true);
     expect(api.mock.history.get).toHaveLength(2);
+  });
+
+  test("gives up after a connection loss once it is cancelled", async () => {
+    const controller = new AbortController();
+    const api = makeApi();
+    api.mock.onGet(/\/Sessions/).reply(() => {
+      // A new cast starts while the check waits for the receiver.
+      controller.abort();
+      return [200, [receiverSession()]];
+    });
+
+    expect(
+      await reportOrphanedReceiverStop(
+        ended(api, { receiverClosed: false, signal: controller.signal }),
+      ),
+    ).toBe(false);
+    expect(api.mock.history.get).toHaveLength(1);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   test("rejects when the server refuses the report", async () => {

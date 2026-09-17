@@ -1,6 +1,8 @@
 import type { Api } from "@jellyfin/sdk";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
+import { Alert } from "react-native";
 import CastContext, {
   CastState,
   PlayServicesState,
@@ -8,8 +10,17 @@ import CastContext, {
   useCastState,
   useRemoteMediaClient,
 } from "react-native-google-cast";
-import { playOnJellyfinReceiver } from "@/utils/cast/jellyfinReceiver";
-import { logAndCaptureError } from "@/utils/log";
+import {
+  RECEIVER_ERROR_WINDOW_MS,
+  RECEIVER_MAX_QUEUE_ITEMS,
+} from "@/constants/Cast";
+import {
+  playOnJellyfinReceiver,
+  queueWindow,
+  watchReceiverLoadErrors,
+} from "@/utils/cast/jellyfinReceiver";
+import { receiverLoadErrorMessage } from "@/utils/cast/receiverLoadErrorMessage";
+import { logAndCaptureError, writeErrorLog } from "@/utils/log";
 
 interface UseMusicCastOptions {
   api: Api | null;
@@ -25,6 +36,7 @@ interface CastQueueOptions {
  * Hook for casting music to Chromecast with full queue support
  */
 export const useMusicCast = ({ api, userId }: UseMusicCastOptions) => {
+  const { t } = useTranslation();
   const client = useRemoteMediaClient();
   const castState = useCastState();
   const receiverName = useCastDevice()?.friendlyName;
@@ -42,6 +54,8 @@ export const useMusicCast = ({ api, userId }: UseMusicCastOptions) => {
         return false;
       }
 
+      let stopWatchingErrors = () => {};
+
       try {
         // Check Play Services state (Android)
         const state = await CastContext.getPlayServicesState();
@@ -51,16 +65,27 @@ export const useMusicCast = ({ api, userId }: UseMusicCastOptions) => {
         }
 
         // The receiver reloads each track from the server itself, so the
-        // queue is sent as bare item ids; the 100-track cap still guards the
-        // 64 KB Cast message limit.
-        const queueToSend = queue.slice(0, 100);
+        // queue is sent as bare item ids; the item cap still guards the 64 KB
+        // Cast message limit.
+        const queueToSend = queueWindow(
+          queue,
+          startIndex,
+          RECEIVER_MAX_QUEUE_ITEMS,
+        );
+
+        // The command resolves once sent; whether the receiver could load the
+        // tracks only comes back later, on its message channel.
+        stopWatchingErrors = watchReceiverLoadErrors((error, message) => {
+          writeErrorLog("Chromecast receiver error", message);
+          Alert.alert(
+            t("player.client_error"),
+            receiverLoadErrorMessage(t, error),
+          );
+        }, RECEIVER_ERROR_WINDOW_MS);
 
         await playOnJellyfinReceiver(
           { api, userId, receiverName },
-          {
-            items: queueToSend,
-            startIndex: Math.min(startIndex, queueToSend.length - 1),
-          },
+          queueToSend,
         );
 
         // Show expanded controls
@@ -68,13 +93,14 @@ export const useMusicCast = ({ api, userId }: UseMusicCastOptions) => {
 
         return true;
       } catch (error) {
+        stopWatchingErrors();
         // Returning false gives the caller no user feedback either, so this
         // is the only trace that casting failed.
         logAndCaptureError("Casting music queue failed", error);
         return false;
       }
     },
-    [client, api, userId, receiverName],
+    [client, api, userId, receiverName, t],
   );
 
   /**
