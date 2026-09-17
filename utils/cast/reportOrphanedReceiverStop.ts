@@ -38,22 +38,41 @@ export interface EndedReceiverSession {
    * to wait for. False on a connection loss, where the TV may still be playing.
    */
   receiverClosed: boolean;
-  /** From the receiver's media customData, when the phone saw it. */
-  itemId?: string;
+  /**
+   * The item the phone last saw the receiver play, from its media customData.
+   * Only that playback gets stopped: anything else on the receiver was started
+   * after this session.
+   */
+  itemId: string;
   playSessionId?: string;
+  /** Aborted when a new Cast session starts or the user or server changes. */
+  signal?: AbortSignal;
 }
 
-const sleep = (ms: number) =>
-  new Promise<void>((resolve) => setTimeout(resolve, ms));
+const sleep = (ms: number, signal?: AbortSignal) =>
+  new Promise<void>((resolve) => {
+    const timer = setTimeout(resolve, ms);
+    signal?.addEventListener(
+      "abort",
+      () => {
+        clearTimeout(timer);
+        resolve();
+      },
+      { once: true },
+    );
+  });
 
 const findPlayingReceiverSession = async ({
   api,
   userId,
   deviceName,
+  itemId,
+  signal,
 }: EndedReceiverSession): Promise<SessionInfoDto | undefined> => {
-  const { data } = await getSessionApi(api).getSessions({
-    activeWithinSeconds: 960,
-  });
+  const { data } = await getSessionApi(api).getSessions(
+    { activeWithinSeconds: 960 },
+    { signal },
+  );
 
   // Admins get every user's sessions back, and two TVs can share a name, so
   // the user has to match as well as the device.
@@ -62,7 +81,7 @@ const findPlayingReceiverSession = async ({
       session.Client === JELLYFIN_RECEIVER_CLIENT &&
       session.UserId === userId &&
       session.DeviceName === deviceName &&
-      !!session.NowPlayingItem?.Id,
+      session.NowPlayingItem?.Id === itemId,
   );
 };
 
@@ -79,16 +98,17 @@ const findOrphanedReceiverSession = async (
   // the app was reopened, and the dashboard with it.
   if (ended.receiverClosed) return findPlayingReceiverSession(ended);
 
-  await sleep(RECEIVER_STOP_GRACE_MS);
+  await sleep(RECEIVER_STOP_GRACE_MS, ended.signal);
+  if (ended.signal?.aborted) return undefined;
   const before = await findPlayingReceiverSession(ended);
   if (!before) return undefined;
 
-  await sleep(RECEIVER_LIVENESS_WINDOW_MS);
+  await sleep(RECEIVER_LIVENESS_WINDOW_MS, ended.signal);
+  if (ended.signal?.aborted) return undefined;
   const after = await findPlayingReceiverSession(ended);
   const stillCheckingIn =
     !after ||
     after.Id !== before.Id ||
-    after.NowPlayingItem?.Id !== before.NowPlayingItem?.Id ||
     after.LastPlaybackCheckIn !== before.LastPlaybackCheckIn;
 
   return stillCheckingIn ? undefined : after;
@@ -111,16 +131,27 @@ const receiverAuthorization = (session: SessionInfoDto, token: string) =>
 
 /**
  * Returns true when a stop was reported, false when there was nothing to do
- * (the receiver reported it, moved on, or is still alive).
+ * (the receiver reported it, moved on, is still alive, or the check was
+ * cancelled).
  */
 export const reportOrphanedReceiverStop = async (
   ended: EndedReceiverSession,
 ): Promise<boolean> => {
-  const { api, itemId, playSessionId } = ended;
+  try {
+    return await reportStop(ended);
+  } catch (error) {
+    // A cancelled request rejects on its own; cancelling is not a failure.
+    if (ended.signal?.aborted) return false;
+    throw error;
+  }
+};
+
+const reportStop = async (ended: EndedReceiverSession): Promise<boolean> => {
+  const { api, playSessionId, signal } = ended;
   if (!api.accessToken) return false;
 
   const session = await findOrphanedReceiverSession(ended);
-  if (!session) return false;
+  if (!session || signal?.aborted) return false;
 
   // Plain fetch rather than api.axiosInstance: a 401 there would sign the user
   // out, and this request speaks for the receiver, not for the app.
@@ -132,6 +163,7 @@ export const reportOrphanedReceiverStop = async (
 
   const response = await fetch(`${api.basePath}/Sessions/Playing/Stopped`, {
     method: "POST",
+    signal,
     headers: {
       ...gatewayHeaders,
       "Content-Type": "application/json",
@@ -142,8 +174,7 @@ export const reportOrphanedReceiverStop = async (
       MediaSourceId: session.PlayState?.MediaSourceId ?? undefined,
       PositionTicks: session.PlayState?.PositionTicks ?? undefined,
       // Lets the server kill the receiver's transcode right away.
-      PlaySessionId:
-        itemId === session.NowPlayingItem?.Id ? playSessionId : undefined,
+      PlaySessionId: playSessionId,
     }),
   });
 

@@ -36,8 +36,9 @@ import { itemThemeColorAtom } from "@/utils/atoms/primaryColor";
 import { useSettings } from "@/utils/atoms/settings";
 import {
   playOnJellyfinReceiver,
-  subscribeToJellyfinReceiverMessages,
+  watchReceiverLoadErrors,
 } from "@/utils/cast/jellyfinReceiver";
+import { receiverLoadErrorMessage } from "@/utils/cast/receiverLoadErrorMessage";
 import { logAndCaptureError, writeErrorLog } from "@/utils/log";
 import type { PlayRequest } from "@/utils/nativePlayer/playRequest";
 import { formatDuration, runtimeTicksToMinutes } from "@/utils/time";
@@ -161,31 +162,16 @@ export const PlayButton: React.FC<Props> = ({
                   // The receiver reports a failed load only on its message
                   // channel; without a listener the TV just sits on its idle
                   // screen and the phone shows nothing.
-                  const unsubscribe = subscribeToJellyfinReceiverMessages(
-                    (message) => {
-                      const type =
-                        typeof message === "object" ? message?.type : undefined;
-                      if (
-                        type !== "error" &&
-                        type !== "connectionerror" &&
-                        type !== "playbackerror"
-                      )
-                        return;
-                      unsubscribe();
+                  const stopWatchingErrors = watchReceiverLoadErrors(
+                    (error, message) => {
                       writeErrorLog("Chromecast receiver error", message);
                       Alert.alert(
                         t("player.client_error"),
-                        type === "connectionerror"
-                          ? t("player.chromecast_server_unreachable")
-                          : type === "playbackerror"
-                            ? t("player.chromecast_playback_failed")
-                            : t(
-                                "player.could_not_create_stream_for_chromecast",
-                              ),
+                        receiverLoadErrorMessage(t, error),
                       );
                     },
+                    RECEIVER_ERROR_WINDOW_MS,
                   );
-                  setTimeout(unsubscribe, RECEIVER_ERROR_WINDOW_MS);
 
                   try {
                     await playOnJellyfinReceiver(
@@ -210,6 +196,7 @@ export const PlayButton: React.FC<Props> = ({
                       CastContext.showExpandedControls();
                     }
                   } catch (e) {
+                    stopWatchingErrors();
                     logAndCaptureError("Chromecast playback failed", e);
                     Alert.alert(
                       t("player.client_error"),

@@ -127,3 +127,73 @@ export const playOnJellyfinReceiver = async (
     items: items.map(slimItem),
   });
 };
+
+/**
+ * Picks the part of a queue that fits in one PlayNow message while keeping the
+ * selected item in it, and gives that item's index within the part. Cutting
+ * the queue from the start instead dropped the selected track as soon as it
+ * sat past the limit.
+ */
+export const queueWindow = <T>(
+  queue: T[],
+  selectedIndex: number,
+  maxItems: number,
+): { items: T[]; startIndex: number } => {
+  const selected = Math.max(0, Math.min(selectedIndex, queue.length - 1));
+  const start = Math.max(0, Math.min(selected, queue.length - maxItems));
+
+  return {
+    items: queue.slice(start, start + maxItems),
+    startIndex: selected - start,
+  };
+};
+
+export type ReceiverLoadError =
+  | "server_unreachable"
+  | "playback_failed"
+  | "rejected";
+
+const loadErrorOf = (message: ReceiverMessage): ReceiverLoadError | null => {
+  const type = typeof message === "object" ? message?.type : undefined;
+  if (type === "connectionerror") return "server_unreachable";
+  if (type === "playbackerror") return "playback_failed";
+  if (type === "error") return "rejected";
+  return null;
+};
+
+let stopWatchingCurrentLoad: (() => void) | null = null;
+
+/**
+ * Calls `onError` with the first load error the receiver sends back within
+ * `windowMs`, then stops listening. Only the latest cast command is watched:
+ * starting a new watch ends the previous one, so a receiver error never shows
+ * one alert per earlier attempt.
+ *
+ * Returns a function that stops watching, for a command that failed to send.
+ */
+export const watchReceiverLoadErrors = (
+  onError: (error: ReceiverLoadError, message: ReceiverMessage) => void,
+  windowMs: number,
+): (() => void) => {
+  stopWatchingCurrentLoad?.();
+
+  let unsubscribe = () => {};
+  let timer: ReturnType<typeof setTimeout> | undefined;
+
+  const stop = () => {
+    clearTimeout(timer);
+    unsubscribe();
+    if (stopWatchingCurrentLoad === stop) stopWatchingCurrentLoad = null;
+  };
+
+  unsubscribe = subscribeToJellyfinReceiverMessages((message) => {
+    const error = loadErrorOf(message);
+    if (!error) return;
+    stop();
+    onError(error, message);
+  });
+  timer = setTimeout(stop, windowMs);
+  stopWatchingCurrentLoad = stop;
+
+  return stop;
+};
