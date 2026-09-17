@@ -170,6 +170,29 @@ describe("receiver channel", () => {
     expect(lastChannel().sendMessage).toHaveBeenCalledTimes(2);
   });
 
+  test("opens a channel for the session the command is sent on", async () => {
+    // The session can change while the open is pending; the old session's
+    // channel would reach the receiver that is no longer there.
+    let release = () => {};
+    holdAdd = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const command = sendJellyfinCastCommand("Pause", {
+      api: makeApi(),
+      userId: "user-1",
+    });
+
+    sessionId = "session-after";
+    holdAdd = null;
+    release();
+    await command;
+
+    expect(channels).toHaveLength(2);
+    expect(channels[0].sendMessage).not.toHaveBeenCalled();
+    expect(channels[0].remove).toHaveBeenCalled();
+    expect(channels[1].sendMessage).toHaveBeenCalledTimes(1);
+  });
+
   test("refuses to send when the channel does not connect", async () => {
     connectOnAdd = false;
 

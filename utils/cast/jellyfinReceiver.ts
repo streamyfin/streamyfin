@@ -130,23 +130,39 @@ const openChannel = async (
 
 let opening: Promise<CastChannel> | null = null;
 
+/**
+ * A session that changes again on every try is a device the sender cannot hold
+ * on to; giving up beats looping on it.
+ */
+const MAX_CHANNEL_OPEN_ATTEMPTS = 3;
+
 const getChannel = async (): Promise<CastChannel> => {
-  const session = await GoogleCast.getSessionManager().getCurrentCastSession();
+  for (let attempt = 0; attempt < MAX_CHANNEL_OPEN_ATTEMPTS; attempt++) {
+    const session =
+      await GoogleCast.getSessionManager().getCurrentCastSession();
 
-  // `connected` is not maintained on Android: the native module answers `true`
-  // when the channel is created and never sends an update. So the channel is
-  // keyed on the session whose receiver callbacks it registered, and a new
-  // session gets a new channel rather than a stale one that hears nothing.
-  if (open && open.sessionId === session?.id) return open.channel;
+    // `connected` is not maintained on Android: the native module answers
+    // `true` when the channel is created and never sends an update. So the
+    // channel is keyed on the session whose receiver callbacks it registered,
+    // and a new session gets a new channel rather than a stale one that hears
+    // nothing.
+    if (open && open.sessionId === session?.id) return open.channel;
 
-  // Two commands sent at once (a cast started from two screens) would both
-  // open a channel, and only the last one would be tracked, leaving the other
-  // registered on the session with nothing able to remove it.
-  opening ??= openChannel(session?.id).finally(() => {
-    opening = null;
-  });
+    // Two commands sent at once (a cast started from two screens) would both
+    // open a channel, and only the last one would be tracked, leaving the
+    // other registered on the session with nothing able to remove it.
+    opening ??= openChannel(session?.id).finally(() => {
+      opening = null;
+    });
 
-  return opening;
+    // The open may have been started for the session before this one, so the
+    // loop reads the session again rather than trusting what the wait returns.
+    await opening;
+  }
+
+  throw new Error(
+    `Jellyfin cast channel ${JELLYFIN_CAST_NAMESPACE} could not be opened: the Cast session keeps changing`,
+  );
 };
 
 /**
