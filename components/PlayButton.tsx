@@ -35,6 +35,7 @@ import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { itemThemeColorAtom } from "@/utils/atoms/primaryColor";
 import { useSettings } from "@/utils/atoms/settings";
 import {
+  currentReceiverName,
   playOnJellyfinReceiver,
   watchReceiverLoadErrors,
 } from "@/utils/cast/jellyfinReceiver";
@@ -178,7 +179,9 @@ export const PlayButton: React.FC<Props> = ({
                       {
                         api,
                         userId: user.Id,
-                        receiverName: castDevice?.friendlyName,
+                        receiverName:
+                          (await currentReceiverName()) ??
+                          castDevice?.friendlyName,
                         maxBitrate: selectedOptions.bitrate?.value,
                       },
                       {

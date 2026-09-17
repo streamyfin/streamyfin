@@ -200,6 +200,38 @@ describe("reportOrphanedReceiverStop", () => {
     expect(api.mock.history.get).toHaveLength(2);
   });
 
+  test("after a connection loss, leaves a paused receiver alone", async () => {
+    // Paused, it stops reporting progress whether it is alive or not.
+    const api = makeApi();
+    api.mock.onGet(/\/Sessions/).reply(200, [
+      receiverSession({
+        PlayState: {
+          PositionTicks: 1,
+          MediaSourceId: "source-1",
+          IsPaused: true,
+        },
+      }),
+    ]);
+
+    expect(
+      await reportOrphanedReceiverStop(ended(api, { receiverClosed: false })),
+    ).toBe(false);
+    expect(api.mock.history.get).toHaveLength(1);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  test("after a connection loss, leaves a session without a check-in time alone", async () => {
+    const api = makeApi();
+    api.mock
+      .onGet(/\/Sessions/)
+      .reply(200, [receiverSession({ LastPlaybackCheckIn: undefined })]);
+
+    expect(
+      await reportOrphanedReceiverStop(ended(api, { receiverClosed: false })),
+    ).toBe(false);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   test("gives up after a connection loss once it is cancelled", async () => {
     const controller = new AbortController();
     const api = makeApi();
