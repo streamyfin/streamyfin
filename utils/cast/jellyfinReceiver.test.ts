@@ -10,6 +10,7 @@ type FakeChannel = {
 let channels: FakeChannel[] = [];
 let connectOnAdd = true;
 let sessionId: string | undefined = "session-1";
+let holdAdd: Promise<void> | null = null;
 let friendlyName: string | undefined = "Living Room TV";
 
 mock.module("react-native-google-cast", () => ({
@@ -27,6 +28,7 @@ mock.module("react-native-google-cast", () => ({
   },
   CastChannel: {
     add: mock(async (_namespace: string, onMessage: (m: unknown) => void) => {
+      if (holdAdd) await holdAdd;
       const channel: FakeChannel = {
         connected: connectOnAdd,
         sendMessage: mock(async () => {}),
@@ -62,6 +64,7 @@ beforeEach(() => {
   friendlyName = "Living Room TV";
   channels = [];
   connectOnAdd = true;
+  holdAdd = null;
 });
 
 describe("playOnJellyfinReceiver", () => {
@@ -145,6 +148,26 @@ describe("receiver channel", () => {
 
     expect(channels).toHaveLength(2);
     expect(previous.remove).toHaveBeenCalled();
+  });
+
+  test("opens one channel for two commands sent at once", async () => {
+    // Both would otherwise register on the session, with only the last one
+    // tracked and the other left behind for good.
+    let release = () => {};
+    holdAdd = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const session = { api: makeApi(), userId: "user-1" };
+
+    const commands = Promise.all([
+      sendJellyfinCastCommand("Pause", session),
+      sendJellyfinCastCommand("Unpause", session),
+    ]);
+    release();
+    await commands;
+
+    expect(channels).toHaveLength(1);
+    expect(lastChannel().sendMessage).toHaveBeenCalledTimes(2);
   });
 
   test("refuses to send when the channel does not connect", async () => {
