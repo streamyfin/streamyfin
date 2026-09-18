@@ -25,7 +25,8 @@
     "i18n:check": "bun scripts/check-i18n-keys.ts",
     "i18n:fix-unused": "bun scripts/check-i18n-keys.ts --fix-unused",
     "test:unit": "bun test",
-    "test": "bun run typecheck && bun run test:unit && bun run lint && bun run format && bun run i18n:check && bun run doctor"
+    "test": "bun run typecheck && bun run test:unit && bun run lint && bun run format && bun run i18n:check && bun run doctor",
+    "seerr:types": "bun run scripts/seerr/generate-types.ts"
   },
   "overrides": {
     "uuid": "11.1.1"
@@ -134,6 +135,7 @@
     "husky": "9.1.7",
     "ignore": "7.0.9",
     "lint-staged": "17.5.0",
+    "openapi-typescript": "7.13.0",
     "tsx": "4.23.12",
     "typescript": "6.0.3"
   },
