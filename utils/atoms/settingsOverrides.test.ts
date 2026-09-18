@@ -3,6 +3,7 @@ import type { PluginLockableSettings, Settings } from "./settings";
 import {
   pendingPluginDefaults,
   pluginRefreshOverlay,
+  readIntegrationBlocks,
   resolveEffectiveSettings,
 } from "./settingsOverrides";
 
@@ -245,5 +246,81 @@ describe("pluginRefreshOverlay", () => {
       overlay: { searchEngine: "Streamystats" },
       applied: null,
     });
+  });
+});
+
+describe("readIntegrationBlocks", () => {
+  test("a Seerr block becomes the three keys the app already reads", () => {
+    const read = readIntegrationBlocks(
+      plugin({
+        seerr: {
+          locked: false,
+          value: {
+            serverUrl: { locked: true, value: "http://seerr.example" },
+            apiKey: { locked: false, value: "a-key" },
+            autoLogin: { locked: false, value: false },
+          },
+        },
+      }),
+    );
+
+    expect(read!.jellyseerrServerUrl).toEqual({
+      locked: true,
+      value: "http://seerr.example",
+    });
+    expect(read!.jellyseerrApiKey).toEqual({ locked: false, value: "a-key" });
+    expect(read!.autoLoginJellyseerr).toEqual({ locked: false, value: false });
+    expect("seerr" in read!).toBe(false);
+  });
+
+  test("the flat keys win, since a server that sends both means them to agree", () => {
+    const read = readIntegrationBlocks(
+      plugin({
+        jellyseerrServerUrl: { locked: false, value: "http://flat.example" },
+        seerr: {
+          locked: false,
+          value: {
+            serverUrl: { locked: false, value: "http://block.example" },
+          },
+        },
+      }),
+    );
+
+    expect(read!.jellyseerrServerUrl).toEqual({
+      locked: false,
+      value: "http://flat.example",
+    });
+  });
+
+  test("a block naming one setting leaves the others alone", () => {
+    const read = readIntegrationBlocks(
+      plugin({
+        seerr: {
+          locked: false,
+          value: { autoLogin: { locked: true, value: true } },
+        },
+      }),
+    );
+
+    expect(read!.autoLoginJellyseerr).toEqual({ locked: true, value: true });
+    expect("jellyseerrServerUrl" in read!).toBe(false);
+  });
+
+  test("a server that sends no block is handed back untouched", () => {
+    const settings = plugin({
+      jellyseerrServerUrl: { locked: false, value: "http://seerr.example" },
+    });
+
+    expect(readIntegrationBlocks(settings)).toBe(settings);
+    expect(readIntegrationBlocks(undefined)).toBeUndefined();
+  });
+
+  test("a block that is not the shape it should be is ignored rather than thrown on", () => {
+    const read = readIntegrationBlocks(
+      plugin({ seerr: { locked: false, value: "not a block" } }),
+    );
+
+    expect("seerr" in read!).toBe(false);
+    expect("jellyseerrServerUrl" in read!).toBe(false);
   });
 });
