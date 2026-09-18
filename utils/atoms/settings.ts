@@ -23,6 +23,7 @@ import { storage } from "../mmkv";
 import {
   type AppliedPluginDefaults,
   pluginRefreshOverlay,
+  readIntegrationBlocks,
   resolveEffectiveSettings,
 } from "./settingsOverrides";
 
@@ -908,7 +909,10 @@ export const useSettings = () => {
           "Got plugin settings",
           redactPluginSettings(data?.settings),
         );
-        return data?.settings;
+        // The plugin serves Seerr twice while the wire moves: as the three flat keys
+        // this app reads by name, and as a block. Read here so everything below keeps
+        // its own names, and so the plugin can stop sending the flat keys one day.
+        return readIntegrationBlocks(data?.settings);
       },
       (_err) => undefined,
     );
