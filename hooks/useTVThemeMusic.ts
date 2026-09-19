@@ -7,7 +7,7 @@ import {
 } from "expo-audio";
 import { useSegments } from "expo-router";
 import { useAtom } from "jotai";
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import { Platform } from "react-native";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useNativePlayer } from "@/providers/NativePlayerProvider";
@@ -120,7 +120,9 @@ export function useTVThemeMusic(itemId: string | undefined) {
   const { isActive: nativePlayerActive } = useNativePlayer();
   const playbackActive = isPlaybackActive(useSegments(), nativePlayerActive);
   const playbackActiveRef = useRef(playbackActive);
-  playbackActiveRef.current = playbackActive;
+  useLayoutEffect(() => {
+    playbackActiveRef.current = playbackActive;
+  }, [playbackActive]);
 
   const enabled =
     Platform.isTV &&
