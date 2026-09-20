@@ -5,11 +5,14 @@ import {
   createAudioPlayer,
   setAudioModeAsync,
 } from "expo-audio";
+import { useSegments } from "expo-router";
 import { useAtom } from "jotai";
-import { useEffect } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import { Platform } from "react-native";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { useNativePlayer } from "@/providers/NativePlayerProvider";
 import { useSettings } from "@/utils/atoms/settings";
+import { isPlaybackActive } from "@/utils/playbackRoute";
 
 const TARGET_VOLUME = 0.3;
 const FADE_IN_DURATION = 2000;
@@ -69,8 +72,11 @@ let ownerCount = 0;
 let activeFade: { cancel: () => void } | null = null;
 let cleanupPromise: Promise<void> | null = null;
 
-/** Fade out, stop, and release the shared player. */
-async function teardownSharedPlayer(): Promise<void> {
+/**
+ * Stop and release the shared player. Fades out unless `immediate`, which is
+ * for playback taking over: a one second tail would overlap the video audio.
+ */
+async function teardownSharedPlayer(immediate: boolean): Promise<void> {
   const player = sharedPlayer;
   if (!player) return;
 
@@ -78,14 +84,15 @@ async function teardownSharedPlayer(): Promise<void> {
   activeFade = null;
 
   try {
-    if (player.isLoaded) {
+    if (player.isLoaded && !immediate) {
       const currentVolume = player.volume ?? TARGET_VOLUME;
       const fade = fadeVolume(player, currentVolume, 0, FADE_OUT_DURATION);
       activeFade = fade;
       await fade.promise;
       activeFade = null;
-      player.pause();
     }
+    player.pause();
+    player.remove();
   } catch {
     // ignore
   }
@@ -97,9 +104,9 @@ async function teardownSharedPlayer(): Promise<void> {
 }
 
 /** Begin cleanup idempotently; returns the shared promise. */
-function beginCleanup(): Promise<void> {
+function beginCleanup(immediate = false): Promise<void> {
   if (!cleanupPromise) {
-    cleanupPromise = teardownSharedPlayer().finally(() => {
+    cleanupPromise = teardownSharedPlayer(immediate).finally(() => {
       cleanupPromise = null;
     });
   }
@@ -110,9 +117,16 @@ export function useTVThemeMusic(itemId: string | undefined) {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
   const { settings } = useSettings();
+  const { isActive: nativePlayerActive } = useNativePlayer();
+  const playbackActive = isPlaybackActive(useSegments(), nativePlayerActive);
+  const playbackActiveRef = useRef(playbackActive);
+  useLayoutEffect(() => {
+    playbackActiveRef.current = playbackActive;
+  }, [playbackActive]);
 
   const enabled =
     Platform.isTV &&
+    !playbackActive &&
     !!api &&
     !!user?.Id &&
     !!itemId &&
@@ -217,7 +231,7 @@ export function useTVThemeMusic(itemId: string | undefined) {
       // will be back to >0 and we skip teardown entirely.
       setTimeout(() => {
         if (ownerCount === 0) {
-          beginCleanup();
+          beginCleanup(playbackActiveRef.current);
         }
       }, 0);
     };
