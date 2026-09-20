@@ -21,8 +21,8 @@ describe("generateDownloadProfile", () => {
     const profile = generateDownloadProfile("auto");
 
     expect(profile.SubtitleProfiles).toEqual([
+      // "webvtt" is absent on purpose — see TEXT_EXTERNAL_FORMATS (#1892).
       ...[
-        "webvtt",
         "vtt",
         "srt",
         "subrip",
