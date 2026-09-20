@@ -107,8 +107,6 @@ interface PlayerEngine {
     fun setSubtitleScale(scale: Double)
     fun setSubtitleDelay(seconds: Double)             // mpv-only; no-op elsewhere
     fun setSubtitleMarginY(margin: Int)
-    fun setSubtitleUseMargins(enabled: Boolean)       // mpv-only; no-op elsewhere
-    fun setSubtitleScaleWithWindow(enabled: Boolean)  // mpv-only; no-op elsewhere
     fun setSubtitleAlignX(alignment: String)          // mpv-only; no-op elsewhere
     fun setSubtitleAlignY(alignment: String)
     fun setSubtitleStyle(config: Map<String, Any>)

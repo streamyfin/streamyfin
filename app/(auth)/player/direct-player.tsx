@@ -1400,7 +1400,6 @@ export default function DirectPlayerPage() {
     const newZoomState = !isZoomedToFill;
     await videoRef.current?.setZoomedToFill?.(newZoomState);
     setIsZoomedToFill(newZoomState);
-    await videoRef.current?.setSubtitlePosition?.(100);
   }, [isZoomedToFill]);
 
   // TV: Navigate to previous item
@@ -1554,32 +1553,18 @@ export default function DirectPlayerPage() {
       videoStream?.Height,
       screenWidth * PixelRatio.get(),
       screenHeight * PixelRatio.get(),
-      isZoomedToFill && screenHeight > screenWidth ? "cover" : "contain",
       getActivePlayerType(settings),
     );
     void applySubtitleStyle(
       videoRef.current,
       buildSubtitleStyle(settings, {
         scale: effectiveScale,
-        marginY:
-          effectiveMarginY !== undefined &&
-          Platform.OS === "android" &&
-          !Platform.isTV &&
-          screenHeight > screenWidth
-            ? Math.round(effectiveMarginY * 0.7)
-            : effectiveMarginY,
+        marginY: effectiveMarginY,
       }),
     ).catch((error: unknown) => {
       console.error("Failed to apply subtitle settings:", error);
     });
-  }, [
-    tracksReady,
-    settings,
-    stream?.mediaSource,
-    screenWidth,
-    screenHeight,
-    isZoomedToFill,
-  ]);
+  }, [tracksReady, settings, stream?.mediaSource, screenWidth, screenHeight]);
 
   // Apply initial playback speed when video loads
   useEffect(() => {
