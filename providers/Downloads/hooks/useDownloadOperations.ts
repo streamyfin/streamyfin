@@ -12,7 +12,8 @@ import useImageStorage from "@/hooks/useImageStorage";
 import { BackgroundDownloader } from "@/modules";
 import { getJellyfinHeadersForUrl } from "@/utils/customHeaders";
 import { getOrSetDeviceId } from "@/utils/device";
-import useDownloadHelper, { estimateDownloadSize } from "@/utils/download";
+import useDownloadHelper from "@/utils/download";
+import { estimateTranscodeSize } from "@/utils/downloadSize";
 import { logAndCaptureError } from "@/utils/log";
 import { downloadAdditionalAssets } from "../additionalDownloads";
 import {
@@ -153,9 +154,11 @@ export function useDownloadOperations({
             item,
             api,
             t,
-            estimatedTotalBytes: maxBitrate.value
-              ? estimateDownloadSize(maxBitrate.value, item.RunTimeTicks)
-              : undefined,
+            estimatedTotalBytes: estimateTranscodeSize(
+              maxBitrate.value,
+              mediaSource.Bitrate,
+              item.RunTimeTicks,
+            ),
           });
         } catch (error) {
           console.warn("[DOWNLOAD] Live Activity metadata failed:", error);
