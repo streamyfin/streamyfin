@@ -37,6 +37,17 @@ export type DownloadOption = {
   value: DownloadQuality;
 };
 
+export enum SleepTimerType {
+  DURATION = "duration",
+  EPISODE = "episode",
+}
+
+export type SleepTimerOption = {
+  type: SleepTimerType;
+  duration?: number; // in minutes
+  episodeCount?: number;
+};
+
 export const ScreenOrientationEnum: Record<
   (typeof ScreenOrientation.OrientationLock)[keyof typeof ScreenOrientation.OrientationLock],
   string
@@ -450,6 +461,8 @@ export type Settings = {
    */
   autoLoginJellyseerr: boolean;
   useKefinTweaks: boolean;
+  jellysleepEnabled: boolean;
+  jellysleepTimerOptions: SleepTimerOption[];
   hiddenLibraries?: string[];
   enableH265ForChromecast: boolean;
   maxAutoPlayEpisodeCount: MaxAutoPlayEpisodeCount;
@@ -567,6 +580,14 @@ export const redactPluginSettings = (
     ]),
   ) as PluginLockableSettings);
 
+const defaultSleepTimerOptions: SleepTimerOption[] = [
+  ...[15, 30, 60, 120].map((duration) => ({
+    type: SleepTimerType.DURATION,
+    duration,
+  })),
+  { type: SleepTimerType.EPISODE, episodeCount: 1 },
+];
+
 export const defaultValues: Settings = {
   home: null,
   deviceProfile: "Expo",
@@ -618,6 +639,8 @@ export const defaultValues: Settings = {
   jellyseerrApiKey: undefined,
   autoLoginJellyseerr: true,
   useKefinTweaks: false,
+  jellysleepEnabled: false,
+  jellysleepTimerOptions: defaultSleepTimerOptions,
   hiddenLibraries: [],
   enableH265ForChromecast: false,
   maxAutoPlayEpisodeCount: { key: "3", value: 3 },

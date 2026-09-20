@@ -46,6 +46,11 @@ export const PluginSettings = () => {
         title='KefinTweaks'
         showArrow
       />
+      <ListItem
+        onPress={() => router.push("/settings/plugins/jellysleep/page")}
+        title={"Jellysleep"}
+        showArrow
+      />
       {/* Lookups the client makes directly, without going through Jellyfin. */}
       <ListItem
         title={t("home.settings.plugins.wikidata_awards")}
