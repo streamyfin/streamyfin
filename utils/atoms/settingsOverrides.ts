@@ -147,3 +147,43 @@ export const pluginRefreshOverlay = (
       Object.keys(pending).length > 0 ? { ...applied, ...pending } : null,
   };
 };
+
+/**
+ * The integration blocks the plugin serves, read as the flat keys this app already uses.
+ *
+ * Seerr was renamed from Jellyseerr and the plugin's keys were not, because every copy of
+ * this app in the field reads `jellyseerrServerUrl` by name. The plugin now serves the
+ * same three settings twice: as those keys, and as a `seerr` block, which is the shape it
+ * is moving to. Reading the block here means the app keeps its own names while the wire
+ * moves, and it is what lets the plugin stop sending the flat keys one day.
+ *
+ * The flat keys win where a server sends both, since a server that sends both means them
+ * to agree, and the plugin refuses a configuration where they do not.
+ */
+export const readIntegrationBlocks = (
+  plugin: PluginLockableSettings | undefined,
+): PluginLockableSettings | undefined => {
+  if (!plugin || !("seerr" in plugin)) return plugin;
+
+  const { seerr, ...rest } = plugin as Record<string, unknown>;
+  const block = (seerr as { value?: unknown } | undefined)?.value;
+
+  if (!block || typeof block !== "object") {
+    return rest as PluginLockableSettings;
+  }
+
+  const inBlock = block as Record<string, unknown>;
+  const read = { ...rest } as Record<string, unknown>;
+
+  for (const [from, to] of [
+    ["serverUrl", "jellyseerrServerUrl"],
+    ["apiKey", "jellyseerrApiKey"],
+    ["autoLogin", "autoLoginJellyseerr"],
+  ] as const) {
+    if (inBlock[from] !== undefined && read[to] === undefined) {
+      read[to] = inBlock[from];
+    }
+  }
+
+  return read as PluginLockableSettings;
+};
