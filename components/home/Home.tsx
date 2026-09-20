@@ -319,7 +319,7 @@ const HomeMobile = () => {
                 getItemsApi(api).getResumeItems({
                   userId: user.Id,
                   enableImageTypes: ["Primary", "Backdrop", "Thumb"],
-                  includeItemTypes: ["Movie", "Series", "Episode"],
+                  includeItemTypes: ["Movie", "Episode"],
                   startIndex: 0,
                   limit: 20,
                 }),
