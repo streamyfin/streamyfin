@@ -230,7 +230,7 @@ export const Home = () => {
         getItemsApi(api).getResumeItems({
           userId: user.Id,
           enableImageTypes: ["Primary", "Backdrop", "Thumb"],
-          includeItemTypes: ["Movie", "Series", "Episode"],
+          includeItemTypes: ["Movie", "Episode"],
           fields: ["Overview"],
           startIndex: 0,
           limit: 10,
@@ -383,7 +383,7 @@ export const Home = () => {
                 getItemsApi(api).getResumeItems({
                   userId: user.Id,
                   enableImageTypes: ["Primary", "Backdrop", "Thumb"],
-                  includeItemTypes: ["Movie", "Series", "Episode"],
+                  includeItemTypes: ["Movie", "Episode"],
                   startIndex: 0,
                   limit: 20,
                 }),
@@ -419,7 +419,7 @@ export const Home = () => {
                 await getItemsApi(api).getResumeItems({
                   userId: user.Id,
                   enableImageTypes: ["Primary", "Backdrop", "Thumb"],
-                  includeItemTypes: ["Movie", "Series", "Episode"],
+                  includeItemTypes: ["Movie", "Episode"],
                   startIndex: pageParam,
                   limit: 10,
                 })
