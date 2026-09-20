@@ -5,12 +5,7 @@
  */
 import type { SubtitleProfile } from "@jellyfin/sdk/lib/generated-client/models";
 
-export type SubtitleProfileTarget =
-  | "mpv"
-  | "exoplayer"
-  | "download"
-  | "chromecast"
-  | "music";
+export type SubtitleProfileTarget = "mpv" | "exoplayer" | "download" | "music";
 
 // Image-based formats - these need to be burned in by Jellyfin (Encode method)
 // because MPV cannot load them externally over HTTP
@@ -54,14 +49,6 @@ const EXOPLAYER_SUBTITLE_PROFILES: SubtitleProfile[] = [
   { Format: "pgssub", Method: "Encode" },
 ];
 
-// Text subs are delivered as sidecar VTT files the receiver fetches and
-// renders itself. Burning them in (Encode) forces a full video re-encode,
-// which some receivers refuse to play — image subs (no External profile)
-// still fall back to server-side burn-in.
-const CHROMECAST_SUBTITLE_PROFILES: SubtitleProfile[] = [
-  { Format: "vtt", Method: "External" },
-];
-
 // Downloads take text subtitles as sidecar files, which the offline player
 // sub-adds and can switch between; image formats have no external path and
 // still get burned in ("Encode") by the server.
@@ -99,8 +86,6 @@ export const getSubtitleProfiles = (options?: {
       return [...EXOPLAYER_SUBTITLE_PROFILES];
     case "download":
       return [...DOWNLOAD_SUBTITLE_PROFILES];
-    case "chromecast":
-      return [...CHROMECAST_SUBTITLE_PROFILES];
     case "music":
       return [];
     default:
