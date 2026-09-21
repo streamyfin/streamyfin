@@ -1,0 +1,11 @@
+{
+  "route": "GET /status",
+  "status": 200,
+  "shape": {
+    "commitsBehind": "number",
+    "commitTag": "string",
+    "restartRequired": "boolean",
+    "updateAvailable": "boolean",
+    "version": "string"
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "route": "GET /discover/tv/network/{networkId}",
+  "status": 200,
+  "shape": {
+    "network": {
+      "headquarters": "string",
+      "homepage": "string",
+      "id": "number",
+      "logoPath": "string",
+      "name": "string",
+      "originCountry": "string"
+    },
+    "page": "number",
+    "results": {
+      "[]": {
+        "backdropPath": "string",
+        "firstAirDate": "string",
+        "genreIds": "array",
+        "id": "number",
+        "mediaType": "string",
+        "name": "string",
+        "originalLanguage": "string",
+        "originalName": "string",
+        "originCountry": "array",
+        "overview": "string",
+        "popularity": "number",
+        "posterPath": "string",
+        "voteAverage": "number",
+        "voteCount": "number"
+      }
+    },
+    "totalPages": "number",
+    "totalResults": "number"
+  }
+}

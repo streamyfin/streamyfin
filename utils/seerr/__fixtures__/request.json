@@ -1,0 +1,38 @@
+{
+  "route": "GET /request",
+  "status": 200,
+  "shape": {
+    "pageInfo": {
+      "page": "number",
+      "pages": "number",
+      "pageSize": "number",
+      "results": "number"
+    },
+    "results": {
+      "[]": {
+        "createdAt": "string",
+        "id": "number",
+        "ignoreQuota": "boolean",
+        "is4k": "boolean",
+        "isAutoRequest": "boolean",
+        "languageProfileId": "null",
+        "media": "object",
+        "modifiedBy": "object",
+        "profileId": "null",
+        "requestedBy": "object",
+        "rootFolder": "null",
+        "seasonCount": "number",
+        "seasons": "array<empty>",
+        "serverId": "null",
+        "status": "number",
+        "tags": "null",
+        "type": "string",
+        "updatedAt": "string"
+      }
+    },
+    "serviceErrors": {
+      "radarr": "array<empty>",
+      "sonarr": "array<empty>"
+    }
+  }
+}

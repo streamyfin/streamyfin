@@ -1,0 +1,28 @@
+{
+  "route": "GET /discover/tv",
+  "status": 200,
+  "shape": {
+    "keywords": "array<empty>",
+    "page": "number",
+    "results": {
+      "[]": {
+        "backdropPath": "string",
+        "firstAirDate": "string",
+        "genreIds": "array",
+        "id": "number",
+        "mediaType": "string",
+        "name": "string",
+        "originalLanguage": "string",
+        "originalName": "string",
+        "originCountry": "array",
+        "overview": "string",
+        "popularity": "number",
+        "posterPath": "string",
+        "voteAverage": "number",
+        "voteCount": "number"
+      }
+    },
+    "totalPages": "number",
+    "totalResults": "number"
+  }
+}

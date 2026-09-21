@@ -1,0 +1,38 @@
+{
+  "route": "GET /discover/movies/studio/{studioId}",
+  "status": 200,
+  "shape": {
+    "page": "number",
+    "results": {
+      "[]": {
+        "adult": "boolean",
+        "backdropPath": "string",
+        "genreIds": "array",
+        "id": "number",
+        "mediaInfo": "object",
+        "mediaType": "string",
+        "originalLanguage": "string",
+        "originalTitle": "string",
+        "overview": "string",
+        "popularity": "number",
+        "posterPath": "string",
+        "releaseDate": "string",
+        "title": "string",
+        "video": "boolean",
+        "voteAverage": "number",
+        "voteCount": "number"
+      }
+    },
+    "studio": {
+      "description": "string",
+      "headquarters": "string",
+      "homepage": "string",
+      "id": "number",
+      "logoPath": "string",
+      "name": "string",
+      "originCountry": "string"
+    },
+    "totalPages": "number",
+    "totalResults": "number"
+  }
+}

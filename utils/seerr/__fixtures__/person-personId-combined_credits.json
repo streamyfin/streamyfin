@@ -1,0 +1,51 @@
+{
+  "route": "GET /person/{personId}/combined_credits",
+  "status": 200,
+  "shape": {
+    "cast": {
+      "[]": {
+        "adult": "boolean",
+        "backdropPath": "string",
+        "character": "string",
+        "creditId": "string",
+        "genreIds": "array",
+        "id": "number",
+        "mediaInfo": "object",
+        "mediaType": "string",
+        "originalLanguage": "string",
+        "originalTitle": "string",
+        "overview": "string",
+        "popularity": "number",
+        "posterPath": "string",
+        "releaseDate": "string",
+        "title": "string",
+        "video": "boolean",
+        "voteAverage": "number",
+        "voteCount": "number"
+      }
+    },
+    "crew": {
+      "[]": {
+        "adult": "boolean",
+        "backdropPath": "string",
+        "creditId": "string",
+        "department": "string",
+        "genreIds": "array",
+        "id": "number",
+        "job": "string",
+        "mediaType": "string",
+        "originalLanguage": "string",
+        "originalTitle": "string",
+        "overview": "string",
+        "popularity": "number",
+        "posterPath": "string",
+        "releaseDate": "string",
+        "title": "string",
+        "video": "boolean",
+        "voteAverage": "number",
+        "voteCount": "number"
+      }
+    },
+    "id": "number"
+  }
+}

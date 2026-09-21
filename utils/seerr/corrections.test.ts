@@ -63,14 +63,15 @@ describe("the corrections", () => {
     for (const [route, correction] of Object.entries(CORRECTIONS)) {
       const known = new Set(declared[route as keyof typeof declared] ?? []);
 
-      for (const [before, after] of correction.renamed) {
+      // Only the declared side is asserted. The served side can be declared
+      // too and mean something else: watchProviders is declared as an array of
+      // arrays, so the path the server sends is the one the spec uses for the
+      // outer level.
+      for (const [before] of correction.renamed) {
         expect(
           known.has(before),
-          `${route}: ${before} is no longer declared`,
+          `${route}: ${before} is no longer declared, drop the rename`,
         ).toBe(true);
-        expect(known.has(after), `${route}: ${after} is declared already`).toBe(
-          false,
-        );
       }
     }
   });

@@ -1,0 +1,30 @@
+{
+  "route": "GET /discover/movies",
+  "status": 200,
+  "shape": {
+    "keywords": "array<empty>",
+    "page": "number",
+    "results": {
+      "[]": {
+        "adult": "boolean",
+        "backdropPath": "string",
+        "genreIds": "array",
+        "id": "number",
+        "mediaInfo": "object",
+        "mediaType": "string",
+        "originalLanguage": "string",
+        "originalTitle": "string",
+        "overview": "string",
+        "popularity": "number",
+        "posterPath": "string",
+        "releaseDate": "string",
+        "title": "string",
+        "video": "boolean",
+        "voteAverage": "number",
+        "voteCount": "number"
+      }
+    },
+    "totalPages": "number",
+    "totalResults": "number"
+  }
+}

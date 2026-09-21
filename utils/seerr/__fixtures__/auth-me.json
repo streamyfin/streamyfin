@@ -1,0 +1,31 @@
+{
+  "route": "GET /auth/me",
+  "status": 200,
+  "shape": {
+    "avatar": "string",
+    "avatarETag": "null",
+    "avatarVersion": "null",
+    "createdAt": "string",
+    "displayName": "string",
+    "email": "string",
+    "id": "number",
+    "jellyfinUserId": "string",
+    "jellyfinUsername": "string",
+    "movieQuotaDays": "null",
+    "movieQuotaLimit": "null",
+    "permissions": "number",
+    "plexId": "null",
+    "plexUsername": "null",
+    "recoveryLinkExpirationDate": "null",
+    "requestCount": "number",
+    "settings": "null",
+    "tvQuotaDays": "null",
+    "tvQuotaLimit": "null",
+    "updatedAt": "string",
+    "username": "null",
+    "userType": "number",
+    "warnings": {
+      "[]": "string"
+    }
+  }
+}

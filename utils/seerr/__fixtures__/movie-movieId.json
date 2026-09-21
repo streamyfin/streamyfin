@@ -1,0 +1,103 @@
+{
+  "route": "GET /movie/{movieId}",
+  "status": 200,
+  "shape": {
+    "adult": "boolean",
+    "backdropPath": "string",
+    "budget": "number",
+    "collection": {
+      "backdropPath": "string",
+      "id": "number",
+      "name": "string",
+      "posterPath": "string"
+    },
+    "credits": {
+      "cast": {
+        "[]": "object"
+      },
+      "crew": {
+        "[]": "object"
+      }
+    },
+    "externalIds": {
+      "facebookId": "string",
+      "imdbId": "string",
+      "instagramId": "string",
+      "twitterId": "string"
+    },
+    "genres": {
+      "[]": {
+        "id": "number",
+        "name": "string"
+      }
+    },
+    "homepage": "string",
+    "id": "number",
+    "imdbId": "string",
+    "keywords": {
+      "[]": {
+        "id": "number",
+        "name": "string"
+      }
+    },
+    "onUserWatchlist": "boolean",
+    "originalLanguage": "string",
+    "originalTitle": "string",
+    "overview": "string",
+    "popularity": "number",
+    "posterPath": "string",
+    "productionCompanies": {
+      "[]": {
+        "id": "number",
+        "logoPath": "string",
+        "name": "string",
+        "originCountry": "string"
+      }
+    },
+    "productionCountries": {
+      "[]": {
+        "iso_3166_1": "string",
+        "name": "string"
+      }
+    },
+    "relatedVideos": {
+      "[]": {
+        "key": "string",
+        "name": "string",
+        "site": "string",
+        "size": "number",
+        "type": "string",
+        "url": "string"
+      }
+    },
+    "releaseDate": "string",
+    "releases": {
+      "results": {
+        "[]": "object"
+      }
+    },
+    "revenue": "number",
+    "runtime": "number",
+    "spokenLanguages": {
+      "[]": {
+        "english_name": "string",
+        "iso_639_1": "string",
+        "name": "string"
+      }
+    },
+    "status": "string",
+    "tagline": "string",
+    "title": "string",
+    "video": "boolean",
+    "voteAverage": "number",
+    "voteCount": "number",
+    "watchProviders": {
+      "[]": {
+        "buy": "array<empty>",
+        "flatrate": "array",
+        "iso_3166_1": "string",
+        "link": "string"
+      }
+    }
+  }
+}

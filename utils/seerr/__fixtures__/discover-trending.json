@@ -1,0 +1,28 @@
+{
+  "route": "GET /discover/trending",
+  "status": 200,
+  "shape": {
+    "page": "number",
+    "results": {
+      "[]": {
+        "adult": "boolean",
+        "backdropPath": "string",
+        "genreIds": "array",
+        "id": "number",
+        "mediaType": "string",
+        "originalLanguage": "string",
+        "originalTitle": "string",
+        "overview": "string",
+        "popularity": "number",
+        "posterPath": "string",
+        "releaseDate": "string",
+        "title": "string",
+        "video": "boolean",
+        "voteAverage": "number",
+        "voteCount": "number"
+      }
+    },
+    "totalPages": "number",
+    "totalResults": "number"
+  }
+}

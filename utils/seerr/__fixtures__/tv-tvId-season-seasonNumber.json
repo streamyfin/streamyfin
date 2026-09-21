@@ -1,0 +1,28 @@
+{
+  "route": "GET /tv/{tvId}/season/{seasonNumber}",
+  "status": 200,
+  "shape": {
+    "episodes": {
+      "[]": {
+        "airDate": "string",
+        "episodeNumber": "number",
+        "id": "number",
+        "name": "string",
+        "overview": "string",
+        "productionCode": "string",
+        "seasonNumber": "number",
+        "showId": "number",
+        "stillPath": "string",
+        "voteAverage": "number",
+        "voteCount": "number"
+      }
+    },
+    "externalIds": {
+      "tvdbId": "number"
+    },
+    "id": "number",
+    "name": "string",
+    "overview": "string",
+    "seasonNumber": "number"
+  }
+}
