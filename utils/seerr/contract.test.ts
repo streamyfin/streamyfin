@@ -27,6 +27,24 @@ const fixtures = await Array.fromAsync(
   Promise.all(files.map((file) => Bun.file(file).json() as Promise<Fixture>)),
 );
 
+/** The leaf a path names in a shape, when the shape reaches that far. */
+const at = (shape: unknown, path: string): unknown =>
+  path
+    .split(".")
+    .flatMap((part) =>
+      part
+        .split("[]")
+        .filter(Boolean)
+        .concat(part.endsWith("[]") ? ["[]"] : []),
+    )
+    .reduce<unknown>(
+      (node, key) =>
+        node && typeof node === "object"
+          ? (node as Record<string, unknown>)[key]
+          : undefined,
+      shape,
+    );
+
 const declaredFor = (route: string): string[] =>
   declared[route as keyof typeof declared] ?? [];
 
@@ -65,6 +83,19 @@ const isCorrected = (path: string, corrected: string[]): boolean =>
       path.startsWith(`${entry}[`),
   );
 
+/**
+ * Whether a path sits under a schema the spec declares but does not describe.
+ *
+ * MediaInfo declares 6 of its 25 properties and arrives nested in a film, a
+ * series, a search result and a credit alike. Naming the schema once per route
+ * says that; naming every property under it at every depth would say the same
+ * thing fifty times and rot fifty times over.
+ */
+const isUnderDeclared = (path: string, shallow: string[]): boolean =>
+  shallow.some((entry) =>
+    [".", "["].some((sep) => path.includes(`${entry}${sep}`)),
+  );
+
 test("a fixture exists for every route the app reads", () => {
   const captured = new Set(fixtures.map((fixture) => fixture.route));
   const missing = APP_ROUTES.map((route) => route.template).filter(
@@ -85,15 +116,29 @@ test("no fixture carries a value", () => {
     "array<empty>",
   ]);
 
+  // Walked rather than matched with a pattern: a leaf that is a number or a
+  // boolean carries no quotes, so a regular expression over the text would
+  // pass a fixture holding a real value.
+  const leaves = (shape: unknown, at: string): string[] => {
+    if (typeof shape === "string") {
+      // A leaf can carry more than one reading, `null|string` for a field
+      // some elements send and others do not.
+      const unknown = shape.split("|").filter((part) => !types.has(part));
+      return unknown.length ? [`${at}: ${shape}`] : [];
+    }
+    if (shape && typeof shape === "object") {
+      return Object.entries(shape).flatMap(([key, inner]) =>
+        leaves(inner, at ? `${at}.${key}` : key),
+      );
+    }
+    return [`${at}: ${typeof shape}`];
+  };
+
   const leaked = fixtures.flatMap((fixture) =>
-    JSON.stringify(fixture.shape ?? {})
-      .match(/:"([^"]*)"/g)
-      ?.map((match) => match.slice(2, -1))
-      .filter((value) => !types.has(value))
-      .map((value) => `${fixture.route}: ${value}`),
+    leaves(fixture.shape ?? {}, fixture.route),
   );
 
-  expect(leaked.filter(Boolean)).toEqual([]);
+  expect(leaked).toEqual([]);
 });
 
 describe("what a real server sends", () => {
@@ -108,8 +153,12 @@ describe("what a real server sends", () => {
     ];
 
     test(`${fixture.route} sends nothing we do not know about`, () => {
+      const shallow = CORRECTIONS[fixture.route]?.underDeclared ?? [];
       const unknown = pathsOf(fixture.shape as never).filter(
-        (path) => !isDeclared(path, spec) && !isCorrected(path, corrected),
+        (path) =>
+          !isDeclared(path, spec) &&
+          !isCorrected(path, corrected) &&
+          !isUnderDeclared(path, shallow),
       );
 
       expect(
@@ -138,6 +187,32 @@ describe("the corrections", () => {
     // no mediaInfo at all, and judging a correction on a branch the response
     // never had would fail on whichever server happened to be measured rather
     // than on anything about the correction.
+    test(`${fixture.route} still sees what its other entries describe`, () => {
+      const served = new Set(pathsOf(fixture.shape as never));
+      const shape = fixture.shape as Record<string, unknown>;
+
+      // A null that became a value, a required field that reappeared, or a
+      // served name that moved: each means the entry has outlived its reason
+      // and the type built on it is now describing something else.
+      const wrong = [
+        ...correction.nullable
+          .filter((path) => served.has(path))
+          .filter(
+            (path) => !String(at(shape, path)).split("|").includes("null"),
+          )
+          .map((path) => `${path} is no longer null`),
+        ...correction.absent
+          .filter((path) => served.has(path))
+          .map((path) => `${path} is sent after all`),
+        ...correction.renamed
+          .map(([, after]) => after)
+          .filter((path) => !served.has(path))
+          .map((path) => `${path} is not sent under that name`),
+      ];
+
+      expect(wrong).toEqual([]);
+    });
+
     test(`${fixture.route} corrects what the server actually sends`, () => {
       const served = new Set(pathsOf(fixture.shape as never));
       const reached = (path: string) => {

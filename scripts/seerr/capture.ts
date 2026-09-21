@@ -110,16 +110,21 @@ const capture = async (): Promise<void> => {
       headers: { Cookie: session },
     });
 
+    const expected = route.expect ?? 200;
+    if (answer.status !== expected) {
+      throw new Error(
+        `${route.template} answered ${answer.status}, expected ${expected}. Nothing was written: a fixture with no shape is a check that silently stops happening.`,
+      );
+    }
+
     const fixture: Fixture = {
       route: route.template,
       status: answer.status,
     };
 
-    if (answer.ok) {
-      const body = await answer.text();
-      if (body) {
-        fixture.shape = shapeOf(JSON.parse(body));
-      }
+    const body = answer.ok ? await answer.text() : "";
+    if (body) {
+      fixture.shape = shapeOf(JSON.parse(body));
     }
 
     await Bun.write(

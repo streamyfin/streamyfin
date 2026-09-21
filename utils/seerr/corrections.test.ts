@@ -16,7 +16,8 @@ describe("the corrections", () => {
         correction.added.length +
         correction.nullable.length +
         correction.absent.length +
-        correction.renamed.length;
+        correction.renamed.length +
+        correction.underDeclared.length;
       expect(total, `${route} corrects nothing`).toBeGreaterThan(0);
     }
   });

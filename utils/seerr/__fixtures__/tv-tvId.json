@@ -5,7 +5,11 @@
     "backdropPath": "string",
     "contentRatings": {
       "results": {
-        "[]": "object"
+        "[]": {
+          "descriptors": "array<empty>",
+          "iso_3166_1": "string",
+          "rating": "string"
+        }
       }
     },
     "createdBy": {
@@ -20,10 +24,26 @@
     },
     "credits": {
       "cast": {
-        "[]": "object"
+        "[]": {
+          "character": "string",
+          "creditId": "string",
+          "gender": "number",
+          "id": "number",
+          "name": "string",
+          "order": "number",
+          "profilePath": "null|string"
+        }
       },
       "crew": {
-        "[]": "object"
+        "[]": {
+          "creditId": "string",
+          "department": "string",
+          "gender": "number",
+          "id": "number",
+          "job": "string",
+          "name": "string",
+          "profilePath": "null|string"
+        }
       }
     },
     "episodeRunTime": "array<empty>",
@@ -89,10 +109,115 @@
       "ratingKey": "null",
       "ratingKey4k": "null",
       "requests": {
-        "[]": "object"
+        "[]": {
+          "createdAt": "string",
+          "id": "number",
+          "ignoreQuota": "boolean",
+          "is4k": "boolean",
+          "isAutoRequest": "boolean",
+          "languageProfileId": "null",
+          "media": {
+            "createdAt": "string",
+            "downloadStatus": "array<empty>",
+            "downloadStatus4k": "array<empty>",
+            "externalServiceId": "number",
+            "externalServiceId4k": "null",
+            "externalServiceSlug": "string",
+            "externalServiceSlug4k": "null",
+            "id": "number",
+            "imdbId": "null",
+            "jellyfinMediaId": "null",
+            "jellyfinMediaId4k": "null",
+            "lastSeasonChange": "string",
+            "mediaAddedAt": "string",
+            "mediaType": "string",
+            "ratingKey": "null",
+            "ratingKey4k": "null",
+            "serviceId": "number",
+            "serviceId4k": "null",
+            "serviceUrl": "string",
+            "status": "number",
+            "status4k": "number",
+            "tmdbId": "number",
+            "tvdbId": "number",
+            "updatedAt": "string"
+          },
+          "modifiedBy": {
+            "avatar": "string",
+            "avatarETag": "null",
+            "avatarVersion": "null",
+            "createdAt": "string",
+            "displayName": "string",
+            "email": "string",
+            "id": "number",
+            "jellyfinUserId": "string",
+            "jellyfinUsername": "string",
+            "movieQuotaDays": "null",
+            "movieQuotaLimit": "null",
+            "permissions": "number",
+            "plexId": "null",
+            "plexUsername": "null",
+            "recoveryLinkExpirationDate": "null",
+            "requestCount": "number",
+            "tvQuotaDays": "null",
+            "tvQuotaLimit": "null",
+            "updatedAt": "string",
+            "username": "null",
+            "userType": "number",
+            "warnings": "array<empty>"
+          },
+          "profileId": "null",
+          "requestedBy": {
+            "avatar": "string",
+            "avatarETag": "null",
+            "avatarVersion": "null",
+            "createdAt": "string",
+            "displayName": "string",
+            "email": "string",
+            "id": "number",
+            "jellyfinUserId": "string",
+            "jellyfinUsername": "string",
+            "movieQuotaDays": "null",
+            "movieQuotaLimit": "null",
+            "permissions": "number",
+            "plexId": "null",
+            "plexUsername": "null",
+            "recoveryLinkExpirationDate": "null",
+            "requestCount": "number",
+            "tvQuotaDays": "null",
+            "tvQuotaLimit": "null",
+            "updatedAt": "string",
+            "username": "null",
+            "userType": "number",
+            "warnings": "array<empty>"
+          },
+          "rootFolder": "null",
+          "seasonCount": "number",
+          "seasons": {
+            "[]": {
+              "createdAt": "string",
+              "id": "number",
+              "seasonNumber": "number",
+              "status": "number",
+              "updatedAt": "string"
+            }
+          },
+          "serverId": "null",
+          "status": "number",
+          "tags": "null",
+          "type": "string",
+          "updatedAt": "string"
+        }
       },
       "seasons": {
-        "[]": "object"
+        "[]": {
+          "createdAt": "string",
+          "id": "number",
+          "seasonNumber": "number",
+          "status": "number",
+          "status4k": "number",
+          "updatedAt": "string"
+        }
       },
       "serviceId": "number",
       "serviceId4k": "null",
@@ -126,7 +251,7 @@
     "productionCompanies": {
       "[]": {
         "id": "number",
-        "logoPath": "string",
+        "logoPath": "null|string",
         "name": "string",
         "originCountry": "string"
       }
@@ -173,7 +298,7 @@
     "watchProviders": {
       "[]": {
         "buy": "array<empty>",
-        "flatrate": "array",
+        "flatrate": "array<empty>",
         "iso_3166_1": "string",
         "link": "string"
       }

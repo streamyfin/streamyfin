@@ -13,10 +13,27 @@
     },
     "credits": {
       "cast": {
-        "[]": "object"
+        "[]": {
+          "castId": "number",
+          "character": "string",
+          "creditId": "string",
+          "gender": "number",
+          "id": "number",
+          "name": "string",
+          "order": "number",
+          "profilePath": "null|string"
+        }
       },
       "crew": {
-        "[]": "object"
+        "[]": {
+          "creditId": "string",
+          "department": "string",
+          "gender": "number",
+          "id": "number",
+          "job": "string",
+          "name": "string",
+          "profilePath": "null|string"
+        }
       }
     },
     "externalIds": {
@@ -73,7 +90,19 @@
     "releaseDate": "string",
     "releases": {
       "results": {
-        "[]": "object"
+        "[]": {
+          "iso_3166_1": "string",
+          "release_dates": {
+            "[]": {
+              "certification": "string",
+              "descriptors": "array<empty>",
+              "iso_639_1": "string",
+              "note": "string",
+              "release_date": "string",
+              "type": "number"
+            }
+          }
+        }
       }
     },
     "revenue": "number",
@@ -94,7 +123,7 @@
     "watchProviders": {
       "[]": {
         "buy": "array<empty>",
-        "flatrate": "array",
+        "flatrate": "array<empty>",
         "iso_3166_1": "string",
         "link": "string"
       }

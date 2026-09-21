@@ -17,6 +17,13 @@ export interface AppRoute {
   params?: Record<string, string | number>;
   /** What the route needs in its query string to answer at all. */
   query?: Record<string, string | number>;
+  /**
+   * The status this route is expected to answer. Anything else stops the
+   * capture: a 401 or a 500 would otherwise write a fixture with no shape,
+   * the contract test would skip it, and a real check would have been
+   * replaced by none without anyone noticing.
+   */
+  expect?: number;
   /** Why this one is here, when the name does not say it. */
   note?: string;
 }
@@ -59,7 +66,8 @@ export const APP_ROUTES: AppRoute[] = [
   {
     template: "GET /movie/{movieId}/ratings",
     params: { movieId: DUNE },
-    note: "Answers 404 when Rotten Tomatoes has no entry, which the app treats as normal.",
+    expect: 404,
+    note: "Rotten Tomatoes has no entry for this one, and the app treats that as normal rather than as a failure.",
   },
 
   { template: "GET /tv/{tvId}", params: { tvId: GAME_OF_THRONES } },

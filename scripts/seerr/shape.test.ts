@@ -25,9 +25,30 @@ describe("shapeOf", () => {
     expect(shapeOf({ plexUsername: null })).toEqual({ plexUsername: "null" });
   });
 
-  test("stops descending so a deep response cannot blow the fixture up", () => {
-    expect(shapeOf({ a: { b: { c: { d: { e: 1 } } } } })).toEqual({
-      a: { b: { c: "object" } },
+  // Deep enough for the paths the spec declares, and no deeper: a response
+  // that nests further than the contract compares would only make the fixture
+  // bigger to read.
+  test("stops descending eventually", () => {
+    const deep = { a: { b: { c: { d: { e: { f: { g: { h: 1 } } } } } } } };
+
+    expect(shapeOf(deep)).toEqual({
+      a: { b: { c: { d: { e: { f: { g: "object" } } } } } },
+    });
+  });
+
+  // A property the server omits on one element and sends on the next.
+  test("describes an array by every element, not the first", () => {
+    expect(shapeOf([{ id: 1 }, { id: 2, title: "Dune" }])).toEqual({
+      "[]": { id: "number", title: "string" },
+    });
+  });
+
+  // Nullability is one of the three kinds of gap the contract test measures,
+  // so an element that carries null and another that carries a value has to
+  // leave both in the fixture.
+  test("keeps both readings when elements disagree", () => {
+    expect(shapeOf([{ airDate: null }, { airDate: "2026-01-01" }])).toEqual({
+      "[]": { airDate: "null|string" },
     });
   });
 
