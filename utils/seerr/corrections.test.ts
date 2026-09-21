@@ -46,6 +46,19 @@ describe("the corrections", () => {
     }
   });
 
+  // A nullable or absent entry is about a property the spec does declare: one
+  // it promises non-null, or one it marks required. A path missing from the
+  // declared list means the entry names something that no longer exists.
+  test("only nullable and absent what the spec declares", () => {
+    for (const [route, correction] of Object.entries(CORRECTIONS)) {
+      const known = new Set(declared[route as keyof typeof declared] ?? []);
+
+      for (const path of [...correction.nullable, ...correction.absent]) {
+        expect(known.has(path), `${route}: ${path} is not declared`).toBe(true);
+      }
+    }
+  });
+
   test("rename only what the spec actually declares under the old name", () => {
     for (const [route, correction] of Object.entries(CORRECTIONS)) {
       const known = new Set(declared[route as keyof typeof declared] ?? []);

@@ -12,9 +12,14 @@
  *   src/components/Discover/constants.ts
  *   server/api/themoviedb/constants.ts
  *
- * The values are byte for byte what the app already read through the
- * submodule, which is the point: this replaces where they come from, not
- * what they are.
+ * The shape is the submodule's, not upstream's: an `id` and a bare image path
+ * rather than a `url` and a full one, because that is what the app's own
+ * components read and `COMPANY_LOGO_IMAGE_FILTER` is applied by the caller.
+ *
+ * The content is upstream's. Copying the submodule's rows verbatim carried its
+ * staleness with them: it was missing A24, which upstream has had since before
+ * v3.4.1. Checked row by row against the pinned version, and that is the one
+ * difference there was.
  */
 
 /** TMDB's keyword id for anime, which the app filters series on. */
@@ -196,6 +201,11 @@ export const studios: Studio[] = [
     name: "DC",
     image: "/2Tc1P3Ac8M479naPp1kYT3izLS5.png",
     id: 9993,
+  },
+  {
+    name: "A24",
+    image: "/1ZXsGaFPgrgS6ZZGS37AqD5uU12.png",
+    id: 41077,
   },
 ];
 

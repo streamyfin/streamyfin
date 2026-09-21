@@ -61,8 +61,6 @@ export const hasPermission = (
   value: number,
   options: PermissionCheckOptions = { type: "and" },
 ): boolean => {
-  let total = 0;
-
   // If we are not checking any permissions, bail out and return true
   if (permissions === 0) {
     return true;
@@ -78,9 +76,11 @@ export const hasPermission = (
       case "or":
         return permissions.some((permission) => !!(value & permission));
     }
-  } else {
-    total = permissions;
   }
 
-  return !!(value & Permission.ADMIN) || !!(value & total);
+  // Upstream carries the single permission here through a mutable `total`,
+  // which this repository asks not to use. Reading `permissions` directly is
+  // the same thing: the array branch above returns in every case the type
+  // allows, so what reaches this line is one permission.
+  return !!(value & Permission.ADMIN) || !!(value & permissions);
 };

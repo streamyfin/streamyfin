@@ -11,10 +11,11 @@ import {
 describe("the discover tables", () => {
   // Copied from the web interface rather than served by the API, so nothing
   // upstream would tell us if a row went missing in the copy. The counts are
-  // what was there when it was made.
+  // what the pinned version carries; the first copy of this took its rows from
+  // the submodule and lost A24 that way.
   test("carry every row the web interface offers", () => {
     expect(networks).toHaveLength(22);
-    expect(studios).toHaveLength(10);
+    expect(studios).toHaveLength(11);
     expect(Object.keys(genreColorMap)).toHaveLength(28);
   });
 
