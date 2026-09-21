@@ -51,10 +51,14 @@ champs déclarés non nullables et servis à `null`.
 | `/settings/discover` | 3 | `DiscoverSlider` sans `order`, `createdAt`, `updatedAt` |
 | `/discover/movies`, `/discover/tv`, `/issue`, `/regions` | 1 chacun | champ manquant |
 
-Deux erreurs franches en plus, trouvées hors de ce comptage : `/tv/{id}` déclare
-`numberOfSeason` alors que le serveur renvoie `numberOfSeasons`, et
-`/tv/{id}/season/{n}` déclare le résumé `Season` alors qu'il sert la saison avec ses
-épisodes.
+Une erreur franche en plus, trouvée hors de ce comptage : `/tv/{id}` déclare
+`numberOfSeason` alors que le serveur renvoie `numberOfSeasons`.
+
+**Corrigé le 21 septembre** : ce paragraphe affirmait aussi que
+`/tv/{id}/season/{n}` déclarait un résumé et servait les épisodes. C'est faux, `Season`
+déclare bien `episodes`. Le seul écart de cette route est `externalIds`, servi et non
+déclaré. L'erreur venait d'un résumé trop rapide de la mesure du 18, et c'est le test des
+corrections qui l'a attrapée, en refusant une correction que la spec couvre déjà.
 
 ### Les enums ne sont pas typés
 
