@@ -1,0 +1,19 @@
+{
+  "route": "GET /service/sonarr",
+  "status": 200,
+  "shape": {
+    "[]": {
+      "activeAnimeDirectory": "string",
+      "activeAnimeLanguageProfileId": "number",
+      "activeAnimeProfileId": "number",
+      "activeDirectory": "string",
+      "activeLanguageProfileId": "number",
+      "activeProfileId": "number",
+      "activeTags": "array<empty>",
+      "id": "number",
+      "is4k": "boolean",
+      "isDefault": "boolean",
+      "name": "string"
+    }
+  }
+}

@@ -26,7 +26,8 @@
     "i18n:fix-unused": "bun scripts/check-i18n-keys.ts --fix-unused",
     "test:unit": "bun test",
     "test": "bun run typecheck && bun run test:unit && bun run lint && bun run format && bun run i18n:check && bun run doctor",
-    "seerr:types": "bun run scripts/seerr/generate-types.ts"
+    "seerr:types": "bun run scripts/seerr/generate-types.ts",
+    "seerr:capture": "bun run scripts/seerr/capture.ts"
   },
   "overrides": {
     "uuid": "11.1.1"

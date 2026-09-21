@@ -1,0 +1,4 @@
+{
+  "route": "GET /movie/{movieId}/ratings",
+  "status": 404
+}

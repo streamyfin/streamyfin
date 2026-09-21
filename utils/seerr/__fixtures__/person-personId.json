@@ -1,0 +1,22 @@
+{
+  "route": "GET /person/{personId}",
+  "status": 200,
+  "shape": {
+    "adult": "boolean",
+    "alsoKnownAs": {
+      "[]": "string"
+    },
+    "biography": "string",
+    "birthday": "string",
+    "deathday": "null",
+    "gender": "number",
+    "homepage": "null",
+    "id": "number",
+    "imdbId": "string",
+    "knownForDepartment": "string",
+    "name": "string",
+    "placeOfBirth": "string",
+    "popularity": "number",
+    "profilePath": "string"
+  }
+}
