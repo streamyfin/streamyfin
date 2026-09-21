@@ -19,6 +19,13 @@ import { APP_ROUTES } from "./routes";
  * correction knows about, which is upstream moving. And a correction the spec
  * has caught up with, which is upstream fixing something and our layer being
  * one entry too big.
+ *
+ * One limit worth knowing. Paths are compared, not variants, so on a route
+ * whose results are a union the declared set is the union of all three shapes.
+ * A person's `name` passes because a series declares one, even though
+ * `PersonResult` does not. Telling them apart would mean reading the
+ * discriminant of every element, and a fixture carries types rather than the
+ * values a discriminant is made of.
  */
 
 const fixtures = await Array.fromAsync(

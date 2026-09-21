@@ -57,7 +57,11 @@ export const APP_ROUTES: AppRoute[] = [
     note: "Netflix, one of the networks the discover row offers.",
   },
 
-  { template: "GET /search", query: { query: "dune" } },
+  {
+    template: "GET /search",
+    query: { query: "pitt" },
+    note: "Answers with all three result shapes, so the fixture covers the union rather than only films.",
+  },
 
   { template: "GET /request", query: { take: 3 } },
   { template: "GET /request/count" },
