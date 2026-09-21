@@ -1,0 +1,145 @@
+name: 🔄 Refresh Seerr API Types
+
+on:
+  schedule:
+    - cron: "0 6 * * 1" # Mondays 06:00 UTC
+  workflow_dispatch:
+
+# Fixed group so the cron and a manual run cannot race on the same branch.
+concurrency:
+  group: seerr-spec
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  refresh:
+    name: 📐 Regenerate from the latest release
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - parallel:
+          - name: 📥 Checkout repository
+            uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+            with:
+              ref: develop
+              # This job installs dependencies with contents: write, and a
+              # checkout leaves the token in .git/config by default, where an
+              # install script could read it. create-pull-request takes its
+              # own token, and the gh steps read GH_TOKEN.
+              persist-credentials: false
+
+          - name: 🍞 Setup Bun
+            uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+            with:
+              # renovate: datasource=npm depName=bun
+              bun-version: "1.4.2"
+
+      - name: 🏷️ Read the latest Seerr release
+        id: latest
+        shell: bash
+        run: |
+          tag=$(gh release view --repo seerr-team/seerr --json tagName --jq .tagName)
+          # The tag names a repository we do not control and ends up in a
+          # commit message and a pull request title, so it has to be a version
+          # and nothing else. Anchored, because a glob's `*` would also accept
+          # a space, a slash or a newline.
+          if ! [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Unexpected tag from seerr-team/seerr: $tag" >&2
+            exit 1
+          fi
+          pinned=$(bun -e 'console.log((await Bun.file("utils/seerr/generated/pin.json").json()).ref)')
+          {
+            echo "tag=$tag"
+            echo "pinned=$pinned"
+          } >> "$GITHUB_OUTPUT"
+          [ "$tag" = "$pinned" ] && echo "Already on $tag." || echo "$pinned -> $tag"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: 📌 Move the pin
+        if: steps.latest.outputs.tag != steps.latest.outputs.pinned
+        run: |
+          bun -e '
+            const path = "utils/seerr/generated/pin.json";
+            const pin = await Bun.file(path).json();
+            pin.ref = process.env.TAG;
+            // Cleared so the generator records the new one instead of
+            // refusing the spec for not matching the old.
+            pin.sha256 = "";
+            await Bun.write(path, JSON.stringify(pin, null, 2) + "\n");
+          '
+        env:
+          TAG: ${{ steps.latest.outputs.tag }}
+
+      - name: 📦 Install dependencies
+        if: steps.latest.outputs.tag != steps.latest.outputs.pinned
+        run: bun install --frozen-lockfile
+
+      - name: 🧬 Regenerate the types
+        if: steps.latest.outputs.tag != steps.latest.outputs.pinned
+        run: bun run seerr:types
+
+      - name: 📬 Create pull request
+        if: steps.latest.outputs.tag != steps.latest.outputs.pinned
+        id: cpr
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
+        with:
+          add-paths: utils/seerr/generated
+          # Fixed, so a second release landing before the first pull request
+          # merges force-pushes over it instead of opening a rival one. Two
+          # open branches would both rewrite the same 10 000 line file, and
+          # merging either would leave the other in conflict.
+          branch: chore/seerr-spec
+          base: develop
+          delete-branch: true
+          labels: ⚙️ ci, 🤖 github-actions
+          commit-message: "chore(seerr): regenerate the API types from ${{ steps.latest.outputs.tag }}"
+          title: "chore(seerr): API types from Seerr ${{ steps.latest.outputs.tag }}"
+          # Follows .github/pull_request_template.md so the bot PR isn't flagged by PR validation.
+          body: |
+            # 📦 Pull Request
+
+            ## 📝 Description
+
+            Seerr published **${{ steps.latest.outputs.tag }}**, so `utils/seerr/generated` was regenerated from its `seerr-api.yml`. Previous pin: `${{ steps.latest.outputs.pinned }}`.
+
+            Read `utils/seerr/generated/api-shapes.json` in the diff rather than `api.d.ts`: a route that appears or a property that moves shows up there in one line, where the generated types would take a hundred. A property that leaves a response is the one to look at, since something in the app may be reading it.
+
+            Triggered by `${{ github.event_name }}` · [run ${{ github.run_id }}](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}).
+
+            ## 🏷️ Ticket / Issue
+
+            N/A — automated maintenance.
+
+            ### 🖼️ Screenshots / GIFs (if UI)
+
+            N/A — type definitions only, no app UI.
+
+            ## ✅ Checklist
+
+            - [x] I've read the [contribution guidelines](CONTRIBUTING.md)
+            - [x] Verified that changes behave as expected for all platforms
+            - [x] Code passes lint/formatting and type checks (`tsc`/`biome`)
+            - [x] No secrets, hardcoded credentials, or private config files are included
+            - [x] I've declared if AI was used to assist with this PR (by uncommenting the line at the bottom, or not)
+
+            ## 🔍 Testing Instructions
+
+            Regenerated by CI from the published spec. Review the `api-shapes.json` diff, then run `bun run seerr:types` locally and check the tree stays clean.
+
+      - name: 🔀 Enable auto-merge
+        if: steps.cpr.outputs.pull-request-operation == 'created'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        # Known limitation: PRs created with GITHUB_TOKEN don't trigger CI workflows
+        # (GitHub anti-recursion), so the required checks stay "Expected" until a
+        # maintainer kicks them (close/reopen the PR, or push an empty commit).
+        # Auto-merge is still worth enabling: once checks run and reviews land,
+        # the PR merges itself.
+        run: |
+          gh pr merge --squash --auto "${{ steps.cpr.outputs.pull-request-number }}" \
+            || echo "::warning::Could not enable auto-merge — enable 'Allow auto-merge' in repo settings (and branch protection); merge the PR manually for now."
