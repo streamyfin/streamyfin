@@ -1,268 +1,257 @@
-# Migration jellyseerr vers seerr
+# jellyseerr to seerr migration
 
-Conception validée le 18 septembre 2026. Remplace la conception du 17 juin 2026, qui
-prévoyait un SDK généré publié sur npm et qui est abandonnée.
+Design settled on 18 September 2026. It replaces the June design, which proposed a
+generated SDK published to npm.
 
-## Le problème
+## The problem
 
-L'app dépend de `utils/jellyseerr`, un sous-module git qui pointe sur
-`herrrta/jellyseerr@models`, un fork du serveur Seerr. Elle y prend 44 symboles répartis
-sur 26 modules : des types de réponse, des enums, une fonction de permissions et trois
-tables de données de l'interface web.
+The app depends on `utils/jellyseerr`, a git submodule pointing at
+`herrrta/jellyseerr@models`, a fork of the Seerr server. It takes 44 symbols from it across
+26 modules: response types, enums, a permission function and three data tables from the web
+interface.
 
-Ce que ça coûte aujourd'hui :
+What that costs today:
 
-- le fork a divergé : 69 commits devant, **518 derrière** le `develop` de l'amont au
-  18 septembre 2026, donc les types décrivent un serveur que plus personne ne fait
-  tourner ;
-- un clone sans `git submodule update --init` ne compile pas, ce qui a déjà coûté un
-  diagnostic entier sur un worktree neuf ;
-- on dépend d'une personne qui maintient un fork d'un serveur pour typer un client mobile ;
-- et le nom `jellyseerr` est mort en amont, le projet s'appelle Seerr.
+- the fork has diverged: 69 commits ahead and **518 behind** upstream's `develop` on
+  18 September 2026, so the types describe a server nobody runs any more;
+- a clone without `git submodule update --init` does not compile, which has already cost a
+  whole diagnosis on a fresh worktree;
+- we depend on one person maintaining a fork of a server in order to type a mobile client;
+- and the name is dead upstream. The project is called Seerr.
 
-## Ce qui a été mesuré
+## What was measured
 
-Tout ce qui suit a été mesuré le 18 septembre 2026, contre `seerr-api.yml` v3.4.1 et contre
-un vrai serveur Seerr en `develop`, session authentifiée.
+Everything below was measured on 18 September 2026, against `seerr-api.yml` v3.4.1 and
+against a real Seerr server running `develop`, with an authenticated session.
 
-### La spec est complète en surface
+### The spec covers the surface
 
-216 opérations, 181 avec un corps JSON typé, 35 sans corps, zéro schéma libre. Les 31
-appels que l'app fait à Seerr sont tous déclarés. `openapi-typescript` produit 10 468
-lignes dans un seul fichier, en 69 ms, sans dépendance à l'exécution.
+216 operations, 181 with a typed JSON body, 35 with no body, **no free-form schemas**. All
+**31 calls the app makes are declared**. `openapi-typescript` turns the file into 10,227
+lines in a single `.d.ts`, in 69 ms.
 
-### Mais elle n'est pas contractuelle au retour
+### But it is not a contract on the way back
 
-`server/index.ts` monte `express-openapi-validator` avec `validateRequests: true` et rien
-sur les réponses. La moitié retour n'est donc vérifiée par personne.
+`server/index.ts` mounts `express-openapi-validator` with `validateRequests: true` and
+nothing on responses, so nobody checks the response half.
 
-Empreintes de forme relevées sur 29 routes qui répondent 200 : **106 écarts sur 12
-routes**. 87 champs servis mais non déclarés, 13 champs déclarés requis et absents, 6
-champs déclarés non nullables et servis à `null`.
+Shapes were captured from 29 routes answering 200: **106 differences across 12 routes**.
+87 properties served and not declared, 13 declared required and absent, 6 declared
+non-nullable and served as `null`.
 
-| Route | Écarts | Nature |
+| Route | Differences | What is going on |
 |---|---|---|
-| `/settings/public` | 26 | sert `fullPublicSettings` (28 champs), la spec déclare `PublicSettings` (2) |
-| `/media` | 19 | `MediaInfo` déclare 6 champs sur 25 |
-| `/auth/me` | 15 | sert l'utilisateur non filtré, la spec décrit une troisième forme |
-| `/user` | 14 | sert l'utilisateur filtré, `email` déclaré requis et retiré par `User.filteredFields` |
-| `/request` | 11 | `MediaRequest` sans `type`, `tags`, `seasons`, `isAutoRequest` |
-| `/service/radarr` et `/service/sonarr` | 7 chacun | déclarent `RadarrSettings` et `SonarrSettings`, servent `ServiceCommonServer` |
-| `/settings/discover` | 3 | `DiscoverSlider` sans `order`, `createdAt`, `updatedAt` |
-| `/discover/movies`, `/discover/tv`, `/issue`, `/regions` | 1 chacun | champ manquant |
+| `/settings/public` | 26 | serves `fullPublicSettings` (28 properties), the spec declares `PublicSettings` (2) |
+| `/media` | 19 | `MediaInfo` declares 6 of 25 |
+| `/auth/me` | 15 | serves the whole user, the spec describes a third shape |
+| `/user` | 14 | serves the filtered user; `email` is declared required and stripped by `User.filteredFields` |
+| `/request` | 11 | `MediaRequest` without `type`, `tags`, `seasons`, `isAutoRequest` |
+| `/service/radarr` and `/service/sonarr` | 7 each | declare `RadarrSettings` and `SonarrSettings`, serve `ServiceCommonServer` |
+| `/settings/discover` | 3 | `DiscoverSlider` without `order`, `createdAt`, `updatedAt` |
+| `/discover/movies`, `/discover/tv`, `/issue`, `/regions` | 1 each | one missing property |
 
-Une erreur franche en plus, trouvée hors de ce comptage : `/tv/{id}` déclare
-`numberOfSeason` alors que le serveur renvoie `numberOfSeasons`.
+One outright error beyond that count: `/tv/{id}` declares `numberOfSeason` while the server
+sends `numberOfSeasons`.
 
-**Corrigé le 21 septembre** : ce paragraphe affirmait aussi que
-`/tv/{id}/season/{n}` déclarait un résumé et servait les épisodes. C'est faux, `Season`
-déclare bien `episodes`. Le seul écart de cette route est `externalIds`, servi et non
-déclaré. L'erreur venait d'un résumé trop rapide de la mesure du 18, et c'est le test des
-corrections qui l'a attrapée, en refusant une correction que la spec couvre déjà.
+**Corrected on 21 September:** this section also claimed that `/tv/{id}/season/{n}`
+declared a summary and served the episodes. That is wrong: `Season` does declare
+`episodes`. The only gap on that route is `externalIds`, served and not declared. The error
+came from summarising the measurement too quickly, and the corrections test caught it by
+refusing a correction the spec already covers.
 
-### Les enums ne sont pas typés
+### The enums are not typed
 
-`MediaStatus`, `MediaRequestStatus`, `IssueType`, `IssueStatus`, `Permission` et
-`DiscoverSliderType` sortent en `number`, leurs valeurs vivant seulement dans une
-description en prose. `mediaType` sort en `string` et non en union `"movie" | "tv"`.
+`MediaStatus`, `MediaRequestStatus`, `IssueType`, `IssueStatus`, `Permission` and
+`DiscoverSliderType` come out as `number`, their values living only in a prose description.
+`mediaType` comes out as `string` rather than a union.
 
-Conséquence directe : **générer les types depuis la spec seule ferait perdre en qualité par
-rapport au sous-module actuel**. C'est ce qui a disqualifié l'option de la seule génération.
+The direct consequence: **generating from the spec alone would lose type quality** against
+the submodule we have. That is what disqualified generation on its own.
 
-### En face, les unions sont exactes
+### The unions, on the other hand, are exact
 
-`/discover/*` et `/search` déclarent leurs résultats en `anyOf` de `MovieResult`,
-`TvResult` et `PersonResult`. Chaque élément réel colle exactement à une variante, zéro
-champ inconnu. Seul `mediaInfo` manque quand le média n'existe pas côté Seerr, ce qui est
-correct.
+`/discover/*` and `/search` declare their results as an `anyOf` of `MovieResult`,
+`TvResult` and `PersonResult`. Every real element matches one variant exactly, with no
+unknown field. Only `mediaInfo` is missing when the title has no media entry in Seerr,
+which is correct.
 
-## La cause, dans leur architecture
+## The cause, in their architecture
 
-Trois choses se cumulent en amont.
+Three things add up upstream.
 
-**Pas de couche de sortie.** `server/entity/User.ts` est à la fois la ligne typeorm et ce
-que `/auth/me` sert. La forme servie n'a donc pas de nom. Pire, le même schéma `User` sert
-deux sérialisations différentes : `/auth/me` renvoie l'utilisateur complet, `/user` renvoie
-l'utilisateur passé par `User.filteredFields`, qui retire `email`, `plexId`, `password`,
-`resetPasswordGuid`, `jellyfinDeviceId`, `jellyfinAuthToken`, `plexToken` et `settings`. La
-spec décrit une troisième forme qui n'est ni l'une ni l'autre, et déclare notamment
-`plexToken` et `jellyfinAuthToken`, que l'API ne sert jamais.
+**There is no output layer.** `server/entity/User.ts` is both the typeorm row and what
+`/auth/me` serves, so the served shape has no name. Worse, one `User` schema covers two
+different serialisations: `/auth/me` returns the whole user, `/user` returns it through
+`User.filteredFields`, which strips `email`, `plexId`, `password`, `resetPasswordGuid`,
+`jellyfinDeviceId`, `jellyfinAuthToken`, `plexToken` and `settings`. The schema describes a
+third shape that is neither, and it declares `plexToken` and `jellyfinAuthToken`, which the
+API never sends.
 
-**La spec est écrite à la main** à côté du code, et rien ne la confronte au comportement.
+**The spec is written by hand** beside the code, with nothing holding it to the behaviour.
 
-**Leur seul client vit dans le même dépôt.** L'interface Next.js importe `server/**`
-directement, donc l'absence de contrat ne leur coûte rien. Le sous-module de l'app, c'est
-donner au client mobile le même privilège que l'interface web : ça marche pour cette
-raison, et ça ne peut pas être propre pour la même raison.
+**Their only consumer lives in the same repository.** The Next.js interface imports
+`server/**` directly, so the missing contract costs them nothing. The app's submodule is
+giving the mobile client the same privilege the web interface has: that is why it works,
+and why it cannot be clean.
 
-## Options écartées
+## Options rejected
 
-**Vendoriser les sources amont.** Impossible : la fermeture des sources traverse 54
-fichiers et 37 paquets à l'exécution, typeorm, axios, zod, undici, web-push.
+**Vendoring the upstream sources.** Impossible: the closure runs through 54 files and 37
+runtime packages, typeorm, axios, zod, undici, web-push.
 
-**Un SDK maison publié sur npm.** Abandonné : ce n'est pas à nous de maintenir un projet
-pareil, et un SDK généré depuis la spec hérite de tous les écarts ci-dessus. Il en existe
-d'ailleurs déjà un, `@billos/seerr-sdk`, et c'est précisément son auteur qui a ouvert
-l'issue amont #3298 parce que les types générés faisaient échouer ses requêtes.
+**An SDK of our own on npm.** Dropped: maintaining a project like that is not ours to do,
+and an SDK generated from the spec inherits every gap above. One already exists,
+`@billos/seerr-sdk`, and it is its author who opened upstream issue #3298 because the
+generated types made his requests fail.
 
-**Générer nos types depuis le code amont.** Techniquement faisable, et c'était la surprise
-de l'étude : la fermeture des **types** des 44 symboles ne touche que 39 fichiers et ne
-référence que deux paquets externes, `EntityManager` de typeorm et trois types zod, tous
-dans des méthodes qu'une extraction de forme jette. Écarté quand même pour deux raisons.
-D'abord ça nous rend propriétaires d'un générateur branché sur les internes de quelqu'un
-d'autre, c'est à dire le piège du sous-module, juste automatisé. Ensuite ça encoderait des
-champs que l'API retire avant de répondre, comme `plexToken`, donc des types faux au
-niveau de la frontière qui compte.
+**Generating our types from the upstream code.** Technically feasible, and it was the
+surprise of the study: the **type** closure of the 44 symbols touches only 39 files and
+references only two external packages, `EntityManager` from typeorm and three zod types,
+all inside methods a shape extraction throws away. Rejected anyway, for two reasons. It
+makes us the owner of a generator wired to someone else's internals, which is the submodule
+trap with extra steps. And it would encode fields the API strips before answering, such as
+`plexToken`, so the types would be wrong exactly at the boundary that matters.
 
-**La seule génération depuis la spec.** Insuffisante, mesuré ci-dessus.
+**Generating from the spec alone.** Not enough, measured above.
 
-## La solution retenue
+## The design
 
-Trois couches dans `utils/seerr/`, plus la machinerie qui les tient à jour.
+Three layers under `utils/seerr/`, plus the machinery that keeps them current.
 
 ### 1. `generated/api.d.ts`
 
-Sorti de `seerr-api.yml` épinglé, par `openapi-typescript`. Types seuls, effacés à la
-compilation, jamais édités à la main. L'épingle vit dans `generated/pin.json` : le dépôt,
-le tag, et l'empreinte sha256 du fichier source. Le fichier généré porte la même empreinte
-en tête, donc une modification manuelle se voit.
+Produced from the pinned `seerr-api.yml` by `openapi-typescript`. Types only, erased at
+compile time, never edited by hand. The pin lives in `generated/pin.json`: repository, tag
+and the sha256 of the source. The generated file carries the same fingerprint in its
+header, so an edit by hand shows up.
 
 ### 2. `types.ts`
 
-La couche qu'on tient nous même, et qui doit rester petite. Elle contient exactement ce que
-la spec ne peut pas donner :
+The layer we own, and it has to stay small. It holds exactly what the spec cannot give:
 
-- les enums numériques, le bitmask `Permission` et `hasPermission` ;
-- les unions discriminées sur `mediaType` ;
-- les corrections des routes mesurées fausses, chacune avec un commentaire disant ce qui a
-  été mesuré et quand, pour qu'on sache quoi retirer le jour où l'amont corrige.
+- the numeric enums, the `Permission` bitmask and `hasPermission`;
+- the unions discriminated on `mediaType`;
+- the corrections for the routes measured wrong, each with a comment saying what was
+  measured and when, so we know what to drop the day upstream fixes it.
 
-Estimation à partir de ce que l'app importe : 250 à 350 lignes. C'est ce que le sous-module
-apportait réellement.
+Estimated from what the app imports: 250 to 350 lines. That is what the submodule was
+really providing.
 
 ### 3. `data.ts`
 
 `networks`, `studios`, `genreColorMap`, `COMPANY_LOGO_IMAGE_FILTER`, `ANIME_KEYWORD_ID`.
-Des constantes, pas du code. Copiées une fois, avec leur provenance et la licence MIT de
-Seerr.
+Constants, not code. Copied once, with their provenance and Seerr's MIT licence.
 
-Le client HTTP, la classe `JellyseerrApi` de `hooks/useJellyseerr.ts`, ne change pas de
-place dans ce chantier. Il change de types.
+The HTTP client itself, the `JellyseerrApi` class in `hooks/useJellyseerr.ts`, does not
+move in this work. It changes types.
 
-## La machinerie
+## The machinery
 
-**`scripts/seerr/generate-types.ts`** télécharge la spec à la référence épinglée, la passe
-dans `openapi-typescript`, écrit le fichier généré et l'empreinte.
+**`scripts/seerr/generate-types.ts`** fetches the spec at the pinned ref, runs
+`openapi-typescript` over the very text it hashed, and writes the generated file and the
+fingerprint.
 
-**`.github/workflows/seerr-spec.yml`**, hebdomadaire et à la demande. Il compare la
-dernière release de Seerr à l'épingle. Si le fichier généré change, il ouvre une PR dont le
-corps liste les routes ajoutées et les schémas modifiés. Rien ne se merge tout seul.
+**`.github/workflows/seerr-spec.yml`**, weekly and on demand. It compares Seerr's latest
+release with the pin. When the generated file changes, it opens a pull request whose body
+says where to look. Nothing merges on its own.
 
-**`bun run seerr:capture`** rejoue les routes que l'app utilise contre un Seerr et écrit
-dans `utils/seerr/__fixtures__/` des empreintes **de forme uniquement** : les clés et le
-type de chaque valeur, jamais les valeurs. Aucune URL, aucun jeton, aucun titre.
+**`bun run seerr:capture`** replays the routes the app uses against a Seerr and writes
+**shape-only** fixtures under `utils/seerr/__fixtures__/`: keys and the type of each value,
+never the values. No URL, no token, no title, nothing personal.
 
-**`utils/seerr/contract.test.ts`** tourne sur chaque PR, sans réseau et sans secret. Pour
-chaque empreinte il vérifie que le type utilisé par l'app accepte la réponse réelle et
-qu'aucune clé servie n'est absente du type. Un champ ajouté ou renommé en amont rend le
-test rouge en nommant la route et le champ.
+**`utils/seerr/contract.test.ts`** runs on every pull request, without network and without
+secrets. For each fixture it checks that the type the app uses accepts the real response
+and that no served key is missing from the type. A field added or renamed upstream turns it
+red and names the route and the field.
 
-### Deux régimes
+### Two regimes
 
-Sur chaque PR, le test sur empreintes seul : quelques millisecondes, rien à installer.
+On every pull request, the fixture test alone: milliseconds, nothing to install.
 
-Quand l'épingle bouge, et seulement là, le workflow monte un Jellyfin et un Seerr en
-conteneurs, les câble par l'API, lance la capture et committe les empreintes rafraîchies
-dans la même PR que la spec. Deux faits rendent ça possible sans secret : Seerr embarque sa
-propre clé TMDB en dur dans `server/api/themoviedb/index.ts`, et le premier compte
-administrateur se crée par `POST /auth/jellyfin` en passant `hostname`.
+When the pin moves, and only then, the workflow brings up a Jellyfin and a Seerr in
+containers, wires them through the API, runs the capture and commits the refreshed fixtures
+into the same pull request as the spec. Two facts make that possible without a secret:
+Seerr carries its own TMDB key in `server/api/themoviedb/index.ts`, and the first
+administrator is created by `POST /auth/jellyfin` with `hostname`.
 
-Le choix de ne pas faire tourner un vrai serveur sur chaque PR est délibéré. Ce que le test
-de contrat attrape ne change qu'avec une version de Seerr, c'est à dire toutes les quatre à
-huit semaines. Payer un serveur à chaque PR reviendrait à importer une dépendance réseau à
-TMDB dans une CI qui n'en a pas besoin.
+Not running a real server on every pull request is deliberate. What the contract test
+catches only changes with a Seerr release, every four to eight weeks. Paying for a server
+on every pull request would import a network dependency on TMDB into a CI that does not
+need one.
 
-### Limite assumée
+### A limit we accept
 
-Le test ne voit que ce que les empreintes ont capturé. C'est pour ça que la capture est une
-seule commande et qu'elle est rejouée automatiquement quand l'épingle bouge.
+The test only sees what the fixtures captured. That is why the capture is a single command,
+and why it is replayed automatically when the pin moves.
 
-## Livraison
+## Delivery
 
-Branche `seerr-migration` sortie de `develop` dans l'app. Elle reste ouverte le temps du
-chantier, chaque partie arrive dessus par sa propre PR, et une seule PR part vers `develop`
-à la fin. Même schéma que la refonte du plugin.
+A `seerr-migration` branch off `develop`. It stays open for the length of the work, each
+part arrives on it through its own pull request, and a single pull request goes to
+`develop` at the end. The same shape as the plugin rewrite.
 
-1. **Le générateur et son workflow.** Ajoute `scripts/seerr/`, `utils/seerr/generated/` et
-   `.github/workflows/seerr-spec.yml`. Ne touche à rien d'existant.
-2. **La couche tenue à la main.** `types.ts` et `data.ts` avec leurs tests. Personne ne les
-   consomme encore.
-3. **La capture et le test de contrat.** Prouve les couches 1 et 2 contre des formes
-   réellement mesurées.
-4. **La bascule.** Le client et les hooks passent sur les nouveaux types, le sous-module
-   `utils/jellyseerr` et le dossier `utils/_jellyseerr` disparaissent. Le typecheck est le
-   juge, plus une passe appareil sur les écrans Seerr.
-5. **Le renommage complet.**
+1. **The generator and its workflow.** Adds `scripts/seerr/`, `utils/seerr/generated/` and
+   `.github/workflows/seerr-spec.yml`. Touches nothing that exists.
+2. **The hand-owned layer.** `types.ts` and `data.ts` with their tests. Nothing consumes
+   them yet.
+3. **The capture and the contract test.** Holds layers 1 and 2 against measured shapes.
+4. **The switch.** The client and the hooks move onto the new types, the `utils/jellyseerr`
+   submodule and the `utils/_jellyseerr` folder go. The typecheck is the judge, plus a pass
+   on a device across the Seerr screens.
+5. **The rename.**
 
-Ne jamais passer `--delete-branch` en mergeant une PR sur laquelle une autre est empilée,
-ça ferme la PR enfant.
+Never pass `--delete-branch` while merging a pull request another one is stacked on: it
+closes the child.
 
-## Le renommage et les migrations
+## The rename and the migrations
 
-Surface mesurée dans l'app : 100 fichiers, 1526 occurrences, 7 clés i18n, 14 usages des
-clés MMKV, 4 routes de deep link.
+Measured in the app: 100 files, 1526 occurrences, 7 i18n keys, 14 uses of the MMKV keys,
+4 deep link routes.
 
-Trois choses ne peuvent pas être renommées d'un coup sec :
+Three things cannot be renamed in one cut:
 
-- **les clés MMKV** `JELLYSEERR_USER` et `JELLYSEERR_COOKIES` se lisent sous l'ancien nom,
-  se réécrivent sous le nouveau, et l'ancienne est supprimée après la réécriture ;
-- **les routes de deep link** `/jellyseerr/...` restent servies en redirection vers les
-  nouvelles, parce qu'elles peuvent être dans des liens déjà partagés ;
-- **les clés i18n** partent par Crowdin, `en.json` étant la source.
+- **the MMKV keys** `JELLYSEERR_USER` and `JELLYSEERR_COOKIES` are read under the old name,
+  written under the new one, and the old one is removed after the rewrite;
+- **the deep link routes** `/jellyseerr/...` stay served as redirects, because they may be
+  in links that have already been shared;
+- **the i18n keys** go through Crowdin, with `en.json` as the source.
 
-Côté plugin, 27 fichiers et 166 occurrences, et seulement deux clés exposées,
-`jellyseerrServerUrl` et `jellyseerrApiKey`. Le plugin sert déjà le bloc `seerr` **et** les
-clés plates depuis la #198, précisément pour ça. Les clés plates restent servies tant que
-des versions publiées de l'app les lisent. Le renommage interne part en PR normale sur le
-`develop` du plugin.
+On the plugin side, 27 files and 166 occurrences, and only two exposed keys,
+`jellyseerrServerUrl` and `jellyseerrApiKey`. The plugin has served the `seerr` block
+**and** the flat keys since its #198, exactly for this. The flat keys stay served as long
+as published versions of the app read them, and the internal rename goes as an ordinary
+pull request onto the plugin's `develop`.
 
-## La stratégie amont
+## Upstream
 
-Le sujet est connu chez eux. L'issue #3298 est ouverte depuis le 27 juillet 2026, un
-mainteneur y a confirmé que des parties sont périmées.
+The subject is known there. Issue #3298 has been open since 27 July 2026, and a maintainer
+has confirmed that parts of the spec are outdated.
 
-Deux PRs ont déjà tenté la correction en masse et sont mortes de la même façon : la #2700,
-qui corrigeait exactement les mêmes schémas que ceux mesurés ici, a pris trois remarques de
-review sans réponse de son auteur, puis des conflits, puis le label stale, puis la
-fermeture. La #2158, 49 commits sur le yaml, est en conflit depuis février 2026. Pendant ce
-temps une PR courte et mono sujet, la #3425 sur le schéma de requête de `/watchlist`, est
-vivante.
+Two pull requests have already attempted the bulk correction and died the same way. #2700,
+which fixed exactly the schemas measured here, took three review comments with no answer
+from its author, then conflicts, then the stale label, then closure. #2158, 49 commits on
+the yaml, has been conflicting since February 2026. Meanwhile a short, single-subject pull
+request, #3425 on the watchlist request schema, is alive.
 
-Donc pas de troisième grosse PR de schémas. Ce qu'on apporte, et que personne n'a tenté,
-c'est le correctif structurel : activer la validation des réponses dans leur environnement
-de test, pour que leur propre suite Cypress refuse une réponse qui ne colle pas à la spec.
-Une seule PR, un seul sujet, et les corrections de champs deviennent mécaniques pour tout
-le monde ensuite.
+So no third bulk schema pull request. What we bring, and what nobody has tried, is the
+structural fix: turning response validation back on in their test environment, so their own
+Cypress suite refuses a response that does not match the spec. One pull request, one
+subject, and the field corrections become mechanical for everyone afterwards.
 
-Leur guide impose par ailleurs : divulgation de toute assistance IA, texte des issues et
-des PRs écrit par le contributeur et pas par un outil, titre en Conventional Commits,
-branche partant de `develop`, rebase obligatoire, Prettier, `pnpm build` et `pnpm test`
-passés avant soumission.
+**Our migration depends on them for nothing.** Our layer covers the gaps today and shrinks
+if and when they fix them.
 
-**Notre migration ne dépend d'eux pour rien.** Notre couche couvre les écarts aujourd'hui
-et rétrécit si et quand ils corrigent.
+## Risks
 
-## Risques
+**The generated file is large.** 10,227 lines, 316 KB. It is pure type, so none of it
+reaches the bundle, but it weighs on diffs and on the language server. Mitigated by never
+reading it by hand: the refresh pull request carries the summary of what changed, not the
+raw diff.
 
-**Le fichier généré est gros.** 10 468 lignes, 316 Ko. C'est du type pur, donc rien n'en
-arrive dans le bundle, mais ça pèse sur les diffs et sur le serveur de langage. Atténué par
-le fait qu'il n'est jamais relu à la main : la PR de rafraîchissement porte le résumé des
-changements, pas le diff brut.
+**The rename is massive.** 1526 occurrences. Mitigated by keeping it out of the switch and
+keeping it mechanical.
 
-**Le renommage est massif.** 1526 occurrences. Atténué en le sortant du lot de la bascule,
-et en le gardant mécanique.
-
-**Les empreintes proviennent d'un seul serveur.** Une installation Plex, ou sans Radarr,
-servira des formes différentes. Atténué par le fait que les écarts intéressants sont des
-champs absents, pas des champs en trop, et que la capture est rejouable par n'importe quel
-mainteneur sur sa propre installation.
+**The fixtures come from one server.** A Plex installation, or one without Radarr, will
+serve different shapes. Mitigated by the fact that the interesting gaps are missing fields
+rather than extra ones, and that the capture can be replayed by any maintainer against
+their own installation.
