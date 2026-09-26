@@ -1,5 +1,5 @@
 import { atom } from "jotai";
-import type { MediaStatus } from "@/utils/jellyseerr/server/constants/media";
+import type { MediaStatus } from "@/utils/seerr/types";
 
 export type TVSeasonSelectModalState = {
   seasons: Array<{

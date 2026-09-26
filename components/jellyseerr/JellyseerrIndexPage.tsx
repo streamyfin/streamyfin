@@ -10,12 +10,8 @@ import {
 } from "react-native-reanimated";
 import Discover from "@/components/jellyseerr/discover/Discover";
 import { useJellyseerr } from "@/hooks/useJellyseerr";
-import { MediaType } from "@/utils/jellyseerr/server/constants/media";
-import type {
-  MovieResult,
-  PersonResult,
-  TvResult,
-} from "@/utils/jellyseerr/server/models/Search";
+import type { MovieResult, PersonResult, TvResult } from "@/utils/seerr/types";
+import { MediaType } from "@/utils/seerr/types";
 import { useReactNavigationQuery } from "@/utils/useReactNavigationQuery";
 import { Text } from "../common/Text";
 import JellyseerrPoster from "../posters/JellyseerrPoster";

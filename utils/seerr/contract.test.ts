@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { Glob } from "bun";
 import type { Fixture } from "../../scripts/seerr/capture";
 import { pathsOf } from "../../scripts/seerr/shape";
-import { CORRECTIONS } from "./corrections";
+import { ALWAYS_SENT, CORRECTIONS } from "./corrections";
 import declared from "./generated/api-shapes.json";
 import { APP_ROUTES } from "./routes";
 
@@ -234,6 +234,37 @@ describe("the corrections", () => {
       expect(
         imagined,
         "these were corrected but the server does not send them",
+      ).toEqual([]);
+    });
+  }
+});
+
+describe("the fields the types treat as always sent", () => {
+  // The spec marks almost every property optional, and `types.ts` makes one
+  // required only where a capture carried it. A capture that left it out, or
+  // sent it as null, fails here. Inside an array the elements are merged, so
+  // this proves some element carried the field, not every one.
+  for (const [type, { route, at: where, keys }] of Object.entries(
+    ALWAYS_SENT,
+  )) {
+    test(`${type} carries ${keys.join(", ")} on ${route}`, () => {
+      const fixture = fixtures.find((candidate) => candidate.route === route);
+      expect(fixture?.shape, `no fixture for ${route}`).toBeDefined();
+
+      const object = (where ? at(fixture?.shape, where) : fixture?.shape) as
+        | Record<string, unknown>
+        | undefined;
+      const missing = keys.filter((key) => {
+        const leaf = object?.[key];
+        return (
+          leaf === undefined ||
+          (typeof leaf === "string" && leaf.split("|").includes("null"))
+        );
+      });
+
+      expect(
+        missing,
+        "not carried, or carried as null: keep them optional",
       ).toEqual([]);
     });
   }

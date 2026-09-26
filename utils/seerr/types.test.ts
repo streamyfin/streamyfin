@@ -9,13 +9,13 @@ import {
   MediaRequestStatus,
   MediaStatus,
   MediaType,
-  type RequestResults,
-  type SearchResult,
+  type RequestResultsResponse,
+  type Results,
   type SearchResults,
   type ServiceCommonServer,
   type TvDetails,
   type User,
-  type UserResults,
+  type UserResultsResponse,
   UserType,
 } from "./types";
 
@@ -71,8 +71,8 @@ describe("the types derived from the spec", () => {
   });
 
   test("describe a paged list of requests and of users", () => {
-    const requests: RequestResults = { pageInfo: {}, results: [] };
-    const users: UserResults = { pageInfo: {}, results: [] };
+    const requests: RequestResultsResponse = { pageInfo: {}, results: [] };
+    const users: UserResultsResponse = { pageInfo: {}, results: [] };
 
     expect(requests.results).toHaveLength(0);
     expect(users.results).toHaveLength(0);
@@ -89,19 +89,32 @@ describe("the types derived from the spec", () => {
 
 describe("the types a measured server disagreed with", () => {
   test("carry the season count under the name the server sends", () => {
-    const show: TvDetails = { id: 1, numberOfSeasons: 3 };
+    const show: TvDetails = {
+      id: 1,
+      name: "Severance",
+      seasons: [],
+      contentRatings: {},
+      keywords: [],
+      spokenLanguages: [],
+      numberOfSeasons: 3,
+    };
 
     expect(show.numberOfSeasons).toBe(3);
   });
 
   test("let a user arrive without the email /user strips", () => {
-    const stamps = { createdAt: "2026-09-18", updatedAt: "2026-09-18" };
-    const filtered: User = { id: 1, displayName: "Someone", ...stamps };
-    const whole: User = {
+    const common = {
       id: 1,
+      permissions: 0,
+      displayName: "Someone",
+      createdAt: "2026-09-18",
+      updatedAt: "2026-09-18",
+    };
+    const filtered: User = common;
+    const whole: User = {
+      ...common,
       email: "someone@example.com",
       settings: {},
-      ...stamps,
     };
 
     expect(filtered.email).toBeUndefined();
@@ -121,7 +134,7 @@ describe("the types a measured server disagreed with", () => {
   });
 
   test("narrow a result on its media type", () => {
-    const results: SearchResult[] = [
+    const results: Results[] = [
       { id: 1, mediaType: MediaType.MOVIE, title: "Dune" },
       { id: 2, mediaType: MediaType.TV, name: "Severance" },
     ];

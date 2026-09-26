@@ -1,7 +1,7 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
 import { TouchableOpacity, View, type ViewProps } from "react-native";
-import { MediaStatus } from "@/utils/jellyseerr/server/constants/media";
+import { MediaStatus } from "@/utils/seerr/types";
 
 interface Props {
   mediaStatus?: MediaStatus;
@@ -41,7 +41,7 @@ const JellyseerrStatusIcon: React.FC<Props & ViewProps> = ({
         );
         setBadgeIcon("bell");
         break;
-      case MediaStatus.BLACKLISTED:
+      case MediaStatus.BLOCKLISTED:
         setBadgeStyle("bg-red-500 border-white-400 ring-white-400 text-white");
         setBadgeIcon("eye-off");
         break;

@@ -45,13 +45,9 @@ import { getIntegrationHeaders } from "@/utils/customHeaders";
 import { isAbortLikeError } from "@/utils/errors";
 import { eventBus } from "@/utils/eventBus";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
-import { MediaType } from "@/utils/jellyseerr/server/constants/media";
-import type {
-  MovieResult,
-  PersonResult,
-  TvResult,
-} from "@/utils/jellyseerr/server/models/Search";
 import { logAndCaptureError } from "@/utils/log";
+import type { MovieResult, PersonResult, TvResult } from "@/utils/seerr/types";
+import { MediaType } from "@/utils/seerr/types";
 import { createStreamystatsApi } from "@/utils/streamystats";
 
 type SearchType = "Library" | "Discover";

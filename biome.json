@@ -7,7 +7,6 @@
       "!ios",
       "!android",
       "!Streamyfin.app",
-      "!utils/jellyseerr",
       "!utils/seerr/generated",
       "!expo-env.d.ts",
       "!modules/**/android/build",

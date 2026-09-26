@@ -10,7 +10,7 @@ import {
   Endpoints,
   useJellyseerr,
 } from "@/hooks/useJellyseerr";
-import { DiscoverSliderType } from "@/utils/jellyseerr/server/constants/discover";
+import { DiscoverSliderType } from "@/utils/seerr/types";
 
 const MovieTvSlide: React.FC<SlideProps & ViewProps> = ({
   slide,

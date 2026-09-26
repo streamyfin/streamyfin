@@ -90,7 +90,7 @@ Jellyseerr integration.
 
 ```bash
 # Setup
-bun i && bun run submodule-reload
+bun i
 
 # Mobile
 bun run prebuild

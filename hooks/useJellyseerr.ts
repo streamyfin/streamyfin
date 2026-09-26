@@ -2,13 +2,8 @@ import axios, { type AxiosError, type AxiosInstance } from "axios";
 import { atom, useAtomValue } from "jotai";
 import { useAtom } from "jotai/index";
 import { inRange } from "lodash";
-import type { User as JellyseerrUser } from "@/utils/jellyseerr/server/entity/User";
-import type {
-  MovieResult,
-  Results,
-  TvResult,
-} from "@/utils/jellyseerr/server/models/Search";
 import { storage } from "@/utils/mmkv";
+import type { User as JellyseerrUser, Results } from "@/utils/seerr/types";
 import "@/augmentations";
 import { t } from "i18next";
 import { useCallback, useMemo } from "react";
@@ -19,39 +14,35 @@ import {
   customHeadersVersionAtom,
   getIntegrationHeaders,
 } from "@/utils/customHeaders";
-import type { RTRating } from "@/utils/jellyseerr/server/api/rating/rottentomatoes";
+import { logAndCaptureError, writeErrorLog, writeToLog } from "@/utils/log";
+import {
+  isMovieOrTvResult,
+  mediaTypeOf,
+  titleOf,
+  yearOf,
+} from "@/utils/seerr/media";
+import type {
+  CombinedCredit,
+  DiscoverSlider,
+  GenreSliderItem,
+  Issue,
+  MediaRequest,
+  MediaRequestBody,
+  MovieDetails,
+  PersonDetails,
+  RequestResultsResponse,
+  RTRating,
+  SeasonWithEpisodes,
+  ServiceCommonServer,
+  ServiceCommonServerWithDetails,
+  TvDetails,
+  UserResultsResponse,
+} from "@/utils/seerr/types";
 import {
   IssueStatus,
   type IssueType,
-} from "@/utils/jellyseerr/server/constants/issue";
-import {
   MediaRequestStatus,
-  MediaType,
-} from "@/utils/jellyseerr/server/constants/media";
-import type DiscoverSlider from "@/utils/jellyseerr/server/entity/DiscoverSlider";
-import type Issue from "@/utils/jellyseerr/server/entity/Issue";
-import type MediaRequest from "@/utils/jellyseerr/server/entity/MediaRequest";
-import type { GenreSliderItem } from "@/utils/jellyseerr/server/interfaces/api/discoverInterfaces";
-import type {
-  MediaRequestBody,
-  RequestResultsResponse,
-} from "@/utils/jellyseerr/server/interfaces/api/requestInterfaces";
-import type {
-  ServiceCommonServer,
-  ServiceCommonServerWithDetails,
-} from "@/utils/jellyseerr/server/interfaces/api/serviceInterfaces";
-import type { UserResultsResponse } from "@/utils/jellyseerr/server/interfaces/api/userInterfaces";
-import type { MovieDetails } from "@/utils/jellyseerr/server/models/Movie";
-import type {
-  CombinedCredit,
-  PersonCreditCast,
-  PersonDetails,
-} from "@/utils/jellyseerr/server/models/Person";
-import type {
-  SeasonWithEpisodes,
-  TvDetails,
-} from "@/utils/jellyseerr/server/models/Tv";
-import { logAndCaptureError, writeErrorLog, writeToLog } from "@/utils/log";
+} from "@/utils/seerr/types";
 import { isVersionBelow } from "@/utils/serverUrl/semver";
 
 interface SearchParams {
@@ -520,7 +511,12 @@ export class JellyseerrApi {
       .then(({ data }) => data.results);
   }
 
-  imageProxy(path?: string, filter = "original", width = 1920, quality = 75) {
+  imageProxy(
+    path?: string | null,
+    filter = "original",
+    width = 1920,
+    quality = 75,
+  ) {
     return path
       ? `${this.axios.defaults.baseURL}/_next/image?${new URLSearchParams(
           `url=https://image.tmdb.org/t/p/${filter}/${path}&w=${width}&q=${quality}`,
@@ -727,50 +723,6 @@ export const useJellyseerr = () => {
     [jellyseerrApi],
   );
 
-  const isJellyseerrMovieOrTvResult = (
-    items: any | null | undefined,
-  ): items is MovieResult | TvResult => {
-    return (
-      items &&
-      Object.hasOwn(items, "mediaType") &&
-      (items.mediaType === MediaType.MOVIE || items.mediaType === MediaType.TV)
-    );
-  };
-
-  const getTitle = (
-    item?: TvResult | TvDetails | MovieResult | MovieDetails | PersonCreditCast,
-  ) => {
-    return isJellyseerrMovieOrTvResult(item)
-      ? item.mediaType === MediaType.MOVIE
-        ? item?.title
-        : item?.name
-      : item?.mediaInfo?.mediaType === MediaType.MOVIE
-        ? (item as MovieDetails)?.title
-        : (item as TvDetails)?.name;
-  };
-
-  const getYear = (
-    item?: TvResult | TvDetails | MovieResult | MovieDetails | PersonCreditCast,
-  ) => {
-    return new Date(
-      (isJellyseerrMovieOrTvResult(item)
-        ? item.mediaType === MediaType.MOVIE
-          ? item?.releaseDate
-          : item?.firstAirDate
-        : item?.mediaInfo?.mediaType === MediaType.MOVIE
-          ? (item as MovieDetails)?.releaseDate
-          : (item as TvDetails)?.firstAirDate) || "",
-    )?.getFullYear?.();
-  };
-
-  const getMediaType = (
-    item?: TvResult | TvDetails | MovieResult | MovieDetails | PersonCreditCast,
-  ): MediaType => {
-    return isJellyseerrMovieOrTvResult(item)
-      ? (item.mediaType as MediaType)
-      : item?.mediaInfo?.mediaType;
-  };
-
   const jellyseerrRegion = useMemo(
     // streamingRegion and discoverRegion exists. region doesn't
     () => jellyseerrUser?.settings?.discoverRegion || "US",
@@ -786,10 +738,10 @@ export const useJellyseerr = () => {
     jellyseerrUser,
     setJellyseerrUser,
     clearAllJellyseerData,
-    isJellyseerrMovieOrTvResult,
-    getTitle,
-    getYear,
-    getMediaType,
+    isJellyseerrMovieOrTvResult: isMovieOrTvResult,
+    getTitle: titleOf,
+    getYear: yearOf,
+    getMediaType: mediaTypeOf,
     jellyseerrRegion,
     jellyseerrLocale,
     requestMedia,

@@ -13,12 +13,12 @@ import {
   Endpoints,
   useJellyseerr,
 } from "@/hooks/useJellyseerr";
-import { DiscoverSliderType } from "@/utils/jellyseerr/server/constants/discover";
-import type DiscoverSlider from "@/utils/jellyseerr/server/entity/DiscoverSlider";
 import type {
+  DiscoverSlider,
   MovieResult,
   TvResult,
-} from "@/utils/jellyseerr/server/models/Search";
+} from "@/utils/seerr/types";
+import { DiscoverSliderType } from "@/utils/seerr/types";
 
 const SCALE_PADDING = 20;
 

@@ -1,8 +1,8 @@
 import { sortBy } from "lodash";
 import React, { useMemo } from "react";
 import { View } from "react-native";
-import { DiscoverSliderType } from "@/utils/jellyseerr/server/constants/discover";
-import type DiscoverSlider from "@/utils/jellyseerr/server/entity/DiscoverSlider";
+import type { DiscoverSlider } from "@/utils/seerr/types";
+import { DiscoverSliderType } from "@/utils/seerr/types";
 import { TVDiscoverSlide } from "./TVDiscoverSlide";
 
 interface TVDiscoverProps {

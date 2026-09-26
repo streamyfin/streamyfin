@@ -32,29 +32,24 @@ import { ItemActions } from "@/components/series/SeriesActions";
 import useRouter from "@/hooks/useAppRouter";
 import { useDismissKeyboardOnLeave } from "@/hooks/useDismissKeyboardOnLeave";
 import { useJellyseerr } from "@/hooks/useJellyseerr";
-import { useJellyseerrCanRequest } from "@/utils/_jellyseerr/useJellyseerrCanRequest";
-import { ANIME_KEYWORD_ID } from "@/utils/jellyseerr/server/api/themoviedb/constants";
+import { useJellyseerrCanRequest } from "@/hooks/useJellyseerrCanRequest";
+import { writeErrorLog } from "@/utils/log";
+import { ANIME_KEYWORD_ID } from "@/utils/seerr/data";
+import { hasPermission, Permission } from "@/utils/seerr/permissions";
+import type {
+  MediaRequest,
+  MediaRequestBody,
+  MovieDetails,
+  MovieResult,
+  TvDetails,
+  TvResult,
+} from "@/utils/seerr/types";
 import {
   type IssueType,
   IssueTypeName,
-} from "@/utils/jellyseerr/server/constants/issue";
-import {
   MediaRequestStatus,
   MediaType,
-} from "@/utils/jellyseerr/server/constants/media";
-import type MediaRequest from "@/utils/jellyseerr/server/entity/MediaRequest";
-import type { MediaRequestBody } from "@/utils/jellyseerr/server/interfaces/api/requestInterfaces";
-import {
-  hasPermission,
-  Permission,
-} from "@/utils/jellyseerr/server/lib/permissions";
-import type { MovieDetails } from "@/utils/jellyseerr/server/models/Movie";
-import type {
-  MovieResult,
-  TvResult,
-} from "@/utils/jellyseerr/server/models/Search";
-import type { TvDetails } from "@/utils/jellyseerr/server/models/Tv";
-import { writeErrorLog } from "@/utils/log";
+} from "@/utils/seerr/types";
 
 // Mobile page component
 const MobilePage: React.FC = () => {
@@ -159,9 +154,12 @@ const MobilePage: React.FC = () => {
   );
 
   const submitIssue = useCallback(() => {
-    if (result.id && issueType && issueMessage && details) {
+    // A title Seerr has never seen carries no mediaInfo, so there is nothing
+    // to file an issue against.
+    const mediaId = details?.mediaInfo?.id;
+    if (result.id && issueType && issueMessage && mediaId !== undefined) {
       jellyseerrApi
-        ?.submitIssue(details.mediaInfo.id, Number(issueType), issueMessage)
+        ?.submitIssue(mediaId, Number(issueType), issueMessage)
         .then(() => {
           setIssueType(undefined);
           setIssueMessage(undefined);
@@ -192,7 +190,9 @@ const MobilePage: React.FC = () => {
     const body: MediaRequestBody = {
       mediaId: Number(result.id!),
       mediaType: mediaType!,
-      tvdbId: details?.externalIds?.tvdbId,
+      // TMDB sends null for a show it has no TVDB id for, and the request
+      // schema takes a number or nothing.
+      tvdbId: details?.externalIds?.tvdbId ?? undefined,
       ...(mediaType === MediaType.TV && {
         seasons: (details as TvDetails)?.seasons
           ?.filter?.((s) => s.seasonNumber !== 0)
@@ -248,6 +248,10 @@ const MobilePage: React.FC = () => {
       });
     }
   }, [details]);
+
+  // Set once the library has the title. Read here rather than in the press
+  // handler below, which would lose the check the button was drawn behind.
+  const jellyfinMediaId = details?.mediaInfo?.jellyfinMediaId;
 
   return (
     <View
@@ -325,7 +329,9 @@ const MobilePage: React.FC = () => {
                 />
               </View>
               <View>
-                <GenreTags genres={details?.genres?.map((g) => g.name) || []} />
+                <GenreTags
+                  genres={details?.genres?.flatMap((g) => g.name ?? []) ?? []}
+                />
               </View>
               {isLoading || isFetching ? (
                 <Button
@@ -339,7 +345,7 @@ const MobilePage: React.FC = () => {
                   {t("jellyseerr.request_button")}
                 </Button>
               ) : (
-                details?.mediaInfo?.jellyfinMediaId && (
+                jellyfinMediaId && (
                   <View className='flex flex-row space-x-2 mt-4'>
                     {!Platform.isTV && (
                       <Button
@@ -371,10 +377,7 @@ const MobilePage: React.FC = () => {
                             mediaType === MediaType.MOVIE
                               ? "/(auth)/(tabs)/(search)/items/page"
                               : "/(auth)/(tabs)/(search)/series/[id]",
-                          params:
-                            mediaType === MediaType.MOVIE
-                              ? { id: details?.mediaInfo.jellyfinMediaId }
-                              : { id: details?.mediaInfo.jellyfinMediaId },
+                          params: { id: jellyfinMediaId },
                         });
                       }}
                       iconLeft={

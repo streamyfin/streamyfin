@@ -4,8 +4,8 @@ import type React from "react";
 import type { PropsWithChildren } from "react";
 import { View, type ViewProps, type ViewStyle } from "react-native";
 import { Text } from "@/components/common/Text";
-import { DiscoverSliderType } from "@/utils/jellyseerr/server/constants/discover";
-import type DiscoverSlider from "@/utils/jellyseerr/server/entity/DiscoverSlider";
+import type { DiscoverSlider } from "@/utils/seerr/types";
+import { DiscoverSliderType } from "@/utils/seerr/types";
 
 export interface SlideProps {
   slide: DiscoverSlider;

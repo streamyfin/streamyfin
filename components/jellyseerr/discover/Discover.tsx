@@ -6,10 +6,9 @@ import CompanySlide from "@/components/jellyseerr/discover/CompanySlide";
 import GenreSlide from "@/components/jellyseerr/discover/GenreSlide";
 import MovieTvSlide from "@/components/jellyseerr/discover/MovieTvSlide";
 import RecentRequestsSlide from "@/components/jellyseerr/discover/RecentRequestsSlide";
-import { DiscoverSliderType } from "@/utils/jellyseerr/server/constants/discover";
-import type DiscoverSlider from "@/utils/jellyseerr/server/entity/DiscoverSlider";
-import { networks } from "@/utils/jellyseerr/src/components/Discover/NetworkSlider";
-import { studios } from "@/utils/jellyseerr/src/components/Discover/StudioSlider";
+import { networks, studios } from "@/utils/seerr/data";
+import type { DiscoverSlider } from "@/utils/seerr/types";
+import { DiscoverSliderType } from "@/utils/seerr/types";
 
 interface Props {
   sliders?: DiscoverSlider[];

@@ -1,10 +1,10 @@
 import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useMemo } from "react";
 import { View, type ViewProps } from "react-native";
-import { MediaType } from "@/utils/jellyseerr/server/constants/media";
+import { MediaType } from "@/utils/seerr/types";
 
 const JellyseerrMediaIcon: React.FC<
-  { mediaType: "tv" | "movie" } & ViewProps
+  { mediaType?: "tv" | "movie" } & ViewProps
 > = ({ mediaType, className, ...props }) => {
   const style = useMemo(
     () =>

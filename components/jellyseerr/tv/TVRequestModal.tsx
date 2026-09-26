@@ -23,12 +23,12 @@ import type { TVOptionItem } from "@/components/tv/TVOptionSelector";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import { useJellyseerr } from "@/hooks/useJellyseerr";
 import type {
+  MediaRequestBody,
+  MediaType,
   QualityProfile,
   RootFolder,
-  Tag,
-} from "@/utils/jellyseerr/server/api/servarr/base";
-import type { MediaType } from "@/utils/jellyseerr/server/constants/media";
-import type { MediaRequestBody } from "@/utils/jellyseerr/server/interfaces/api/requestInterfaces";
+  ServarrTag as Tag,
+} from "@/utils/seerr/types";
 import { TVRequestOptionRow } from "./TVRequestOptionRow";
 import { TVToggleOptionRow } from "./TVToggleOptionRow";
 

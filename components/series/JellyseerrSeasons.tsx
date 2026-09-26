@@ -19,15 +19,13 @@ import { textShadowStyle } from "@/components/jellyseerr/discover/GenericSlideCa
 import JellyseerrStatusIcon from "@/components/jellyseerr/JellyseerrStatusIcon";
 import { RoundButton } from "@/components/RoundButton";
 import { useJellyseerr } from "@/hooks/useJellyseerr";
-import {
-  MediaStatus,
-  MediaType,
-} from "@/utils/jellyseerr/server/constants/media";
-import type MediaRequest from "@/utils/jellyseerr/server/entity/MediaRequest";
-import type Season from "@/utils/jellyseerr/server/entity/Season";
-import type { MediaRequestBody } from "@/utils/jellyseerr/server/interfaces/api/requestInterfaces";
-import type { MovieDetails } from "@/utils/jellyseerr/server/models/Movie";
-import type { TvDetails } from "@/utils/jellyseerr/server/models/Tv";
+import { seasonsWithStatus } from "@/utils/seerr/seasons";
+import type {
+  MediaRequestBody,
+  MovieDetails,
+  TvDetails,
+} from "@/utils/seerr/types";
+import { MediaStatus, MediaType } from "@/utils/seerr/types";
 import { Loader } from "../Loader";
 
 const JellyseerrSeasonEpisodes: React.FC<{
@@ -152,29 +150,10 @@ const JellyseerrSeasons: React.FC<{
   const [seasonStates, setSeasonStates] = useState<{ [key: number]: boolean }>(
     {},
   );
-  const seasons = useMemo(() => {
-    if (!details) return [];
-    const mediaInfoSeasons = details.mediaInfo?.seasons?.filter(
-      (s: Season) => s.seasonNumber !== 0,
-    );
-    const requestedSeasons =
-      details.mediaInfo?.requests?.flatMap((r: MediaRequest) => r.seasons) ??
-      [];
-    return (
-      details.seasons?.map((season) => ({
-        ...season,
-        status:
-          mediaInfoSeasons?.find(
-            (mediaSeason: Season) =>
-              mediaSeason.seasonNumber === season.seasonNumber,
-          )?.status ??
-          requestedSeasons?.find(
-            (s: Season) => s.seasonNumber === season.seasonNumber,
-          )?.status ??
-          MediaStatus.UNKNOWN,
-      })) ?? []
-    );
-  }, [details]);
+  const seasons = useMemo(
+    () => (details ? seasonsWithStatus(details) : []),
+    [details],
+  );
   const allSeasonsAvailable = useMemo(
     () => seasons.every((season) => season.status === MediaStatus.AVAILABLE),
     [seasons],
@@ -185,7 +164,7 @@ const JellyseerrSeasons: React.FC<{
       const body: MediaRequestBody = {
         mediaId: details.id,
         mediaType: MediaType.TV,
-        tvdbId: details.externalIds?.tvdbId,
+        tvdbId: details.externalIds?.tvdbId ?? undefined,
         seasons: seasons
           .filter(
             (s) => s.status === MediaStatus.UNKNOWN && s.seasonNumber !== 0,
@@ -232,7 +211,7 @@ const JellyseerrSeasons: React.FC<{
         const body: MediaRequestBody = {
           mediaId: details.id,
           mediaType: MediaType.TV,
-          tvdbId: details.externalIds?.tvdbId,
+          tvdbId: details.externalIds?.tvdbId ?? undefined,
           seasons: [seasonNumber],
         };
         if (hasAdvancedRequest) {

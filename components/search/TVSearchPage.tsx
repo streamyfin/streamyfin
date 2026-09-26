@@ -11,13 +11,13 @@ import { useScaledTVTypography } from "@/constants/TVTypography";
 import { TvSearchView } from "@/modules/tv-search";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
-import type DiscoverSlider from "@/utils/jellyseerr/server/entity/DiscoverSlider";
+import { scaleSize } from "@/utils/scaleSize";
 import type {
+  DiscoverSlider,
   MovieResult,
   PersonResult,
   TvResult,
-} from "@/utils/jellyseerr/server/models/Search";
-import { scaleSize } from "@/utils/scaleSize";
+} from "@/utils/seerr/types";
 import { TVJellyseerrSearchResults } from "./TVJellyseerrSearchResults";
 import { TVSearchSection } from "./TVSearchSection";
 import { TVSearchTabBadges } from "./TVSearchTabBadges";

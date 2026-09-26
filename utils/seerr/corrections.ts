@@ -265,3 +265,96 @@ export const CORRECTIONS: Record<string, Correction> = {
     note: "Same as radarr: declares SonarrSettings, serves the common service shape.",
   },
 };
+
+/**
+ * Fields the spec marks optional that a server always sends.
+ *
+ * Seerr's spec marks almost every property optional, which is a documentation
+ * habit rather than a statement about the API: `id` is not sometimes missing.
+ * The submodule's types said the opposite, required everywhere, and the app
+ * was written against that. Neither is measured, so a type in `types.ts`
+ * makes a field required only when it is listed here, beside the fixture that
+ * carried it, and `contract.test.ts` holds every entry against that fixture.
+ *
+ * `at` is where the object sits in the response, written the way the
+ * corrections write paths.
+ */
+export const ALWAYS_SENT = {
+  TvResult: {
+    route: "GET /discover/tv",
+    at: "results[]",
+    keys: ["id", "mediaType", "name"],
+  },
+  // Search is the only route that answers people, and its results merge the
+  // three kinds, so this reads the union. Every kind carries an id.
+  PersonResult: { route: "GET /search", at: "results[]", keys: ["id"] },
+  PersonDetails: {
+    route: "GET /person/{personId}",
+    at: "",
+    keys: ["id", "name"],
+  },
+  MovieDetails: {
+    route: "GET /movie/{movieId}",
+    at: "",
+    keys: ["id", "title", "spokenLanguages", "releases", "keywords"],
+  },
+  TvDetails: {
+    route: "GET /tv/{tvId}",
+    at: "",
+    keys: [
+      "id",
+      "name",
+      "seasons",
+      "contentRatings",
+      "keywords",
+      "spokenLanguages",
+    ],
+  },
+  MediaInfo: {
+    route: "GET /request",
+    at: "results[].media",
+    keys: ["id", "tmdbId", "status", "mediaType"],
+  },
+  MediaRequest: {
+    route: "GET /request",
+    at: "results[]",
+    keys: ["media", "requestedBy"],
+  },
+  RequestResultsResponse: {
+    route: "GET /request",
+    at: "",
+    keys: ["pageInfo", "results"],
+  },
+  Season: {
+    route: "GET /tv/{tvId}",
+    at: "seasons[]",
+    keys: ["id", "seasonNumber", "episodeCount"],
+  },
+  GenreSliderItem: {
+    route: "GET /discover/genreslider/movie",
+    at: "[]",
+    keys: ["id", "name"],
+  },
+  PersonCreditCast: {
+    route: "GET /person/{personId}/combined_credits",
+    at: "cast[]",
+    keys: ["id", "mediaType"],
+  },
+  Cast: {
+    route: "GET /movie/{movieId}",
+    at: "credits.cast[]",
+    keys: ["id", "name"],
+  },
+  Episode: {
+    route: "GET /tv/{tvId}/season/{seasonNumber}",
+    at: "episodes[]",
+    keys: ["id"],
+  },
+  // Measured on the shape /user strips for other accounts: what survives the
+  // stripping is in the whole user /auth/me sends as well.
+  User: {
+    route: "GET /user",
+    at: "results[]",
+    keys: ["permissions", "displayName"],
+  },
+} as const;

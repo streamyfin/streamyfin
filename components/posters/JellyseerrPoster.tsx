@@ -15,17 +15,16 @@ import JellyseerrMediaIcon from "@/components/jellyseerr/JellyseerrMediaIcon";
 import JellyseerrStatusIcon from "@/components/jellyseerr/JellyseerrStatusIcon";
 import { Colors } from "@/constants/Colors";
 import { useJellyseerr } from "@/hooks/useJellyseerr";
-import { useJellyseerrCanRequest } from "@/utils/_jellyseerr/useJellyseerrCanRequest";
-import { MediaStatus } from "@/utils/jellyseerr/server/constants/media";
-import type MediaRequest from "@/utils/jellyseerr/server/entity/MediaRequest";
-import type { DownloadingItem } from "@/utils/jellyseerr/server/lib/downloadtracker";
-import type { MovieDetails } from "@/utils/jellyseerr/server/models/Movie";
-import { PersonCreditCast } from "@/utils/jellyseerr/server/models/Person";
+import { useJellyseerrCanRequest } from "@/hooks/useJellyseerrCanRequest";
 import type {
+  DownloadingItem,
+  MediaRequest,
+  MovieDetails,
   MovieResult,
+  TvDetails,
   TvResult,
-} from "@/utils/jellyseerr/server/models/Search";
-import type { TvDetails } from "@/utils/jellyseerr/server/models/Tv";
+} from "@/utils/seerr/types";
+import { MediaStatus, type PersonCreditCast } from "@/utils/seerr/types";
 
 interface Props extends ViewProps {
   item?: MovieResult | TvResult | MovieDetails | TvDetails | PersonCreditCast;

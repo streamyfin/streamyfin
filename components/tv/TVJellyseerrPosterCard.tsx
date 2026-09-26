@@ -2,11 +2,8 @@ import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import React, { useMemo } from "react";
 import { TVPosterCard } from "@/components/tv/TVPosterCard";
 import { useJellyseerr } from "@/hooks/useJellyseerr";
-import { MediaStatus } from "@/utils/jellyseerr/server/constants/media";
-import type {
-  MovieResult,
-  TvResult,
-} from "@/utils/jellyseerr/server/models/Search";
+import type { MovieResult, TvResult } from "@/utils/seerr/types";
+import { MediaStatus } from "@/utils/seerr/types";
 
 export interface TVJellyseerrPosterCardProps {
   item: MovieResult | TvResult;

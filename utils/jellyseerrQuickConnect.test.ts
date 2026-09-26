@@ -1,5 +1,5 @@
 import { describe, expect, mock, test } from "bun:test";
-import type { User as JellyseerrUser } from "@/utils/jellyseerr/server/entity/User";
+import type { User as JellyseerrUser } from "@/utils/seerr/types";
 import type { QuickConnectSteps } from "./jellyseerrQuickConnect";
 
 // Bun's mock.module retroactively re-links every module already importing the

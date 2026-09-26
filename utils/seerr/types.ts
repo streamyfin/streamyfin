@@ -1,3 +1,4 @@
+import type { ALWAYS_SENT } from "./corrections";
 import type { components, paths } from "./generated/api";
 
 /**
@@ -25,6 +26,16 @@ type Body<T> = T extends {
   : never;
 
 type Schemas = components["schemas"];
+
+/**
+ * The keys `ALWAYS_SENT` in `corrections.ts` lists for a type: fields the
+ * spec marks optional that a capture proved present.
+ */
+type SentKeys<N extends keyof typeof ALWAYS_SENT> =
+  (typeof ALWAYS_SENT)[N]["keys"][number];
+
+/** `T` with the keys `ALWAYS_SENT` lists for it made required. */
+type Always<T, K extends keyof T> = Omit<T, K> & Required<Pick<T, K>>;
 
 // --- The values the spec serves as plain numbers ------------------------
 //
@@ -111,52 +122,195 @@ export enum UserType {
   EMBY = 4,
 }
 
-// --- What the spec describes correctly ----------------------------------
+// --- Results, and the library's view of a title ------------------------
 
-export type MovieResult = Schemas["MovieResult"];
-export type TvResult = Schemas["TvResult"];
-export type PersonResult = Schemas["PersonResult"];
-export type MediaInfo = Schemas["MediaInfo"];
-export type Episode = Schemas["Episode"];
+// The spec types `mediaType` as a plain string, which makes the results of a
+// search impossible to tell apart. Each shape is narrowed to the value that
+// names it.
+export type MovieResult = Omit<
+  Schemas["MovieResult"],
+  "mediaType" | "mediaInfo"
+> & {
+  mediaType: MediaType.MOVIE;
+  mediaInfo?: MediaInfo;
+};
+export type TvResult = Always<
+  Omit<Schemas["TvResult"], "mediaType" | "mediaInfo"> & {
+    mediaType?: MediaType.TV;
+    mediaInfo?: MediaInfo;
+  },
+  SentKeys<"TvResult">
+>;
+/**
+ * The spec declares a person without the `name` and `popularity` upstream's
+ * own model (`server/models/Search.ts`) gives one, and every search answer
+ * carries. The contract test cannot see the gap: on /search a series declares
+ * both, and paths are compared rather than variants.
+ */
+export type PersonResult = Always<
+  Omit<Schemas["PersonResult"], "mediaType">,
+  SentKeys<"PersonResult">
+> & {
+  mediaType: "person";
+  name: string;
+  popularity?: number;
+};
+/**
+ * What the library knows about a title.
+ *
+ * See CORRECTIONS["GET /movie/{movieId}"]: the schema declares 6 of the 25
+ * properties a server sends, and the app reads several of the other 19. This
+ * is the corrected shape, and every other type here reaches for it rather than
+ * the declared one, because it arrives nested inside a film, a series and a
+ * request alike.
+ */
+export type MediaInfo = Always<
+  Omit<Schemas["MediaInfo"], "requests" | "status"> & {
+    status?: MediaStatus;
+    requests?: MediaRequest[];
+    mediaType?: MediaType;
+    imdbId?: string | null;
+    status4k?: MediaStatus;
+    seasons?: MediaSeason[];
+    jellyfinMediaId?: string | null;
+    jellyfinMediaId4k?: string | null;
+    mediaAddedAt?: string | null;
+    serviceId?: number | null;
+    serviceId4k?: number | null;
+    serviceUrl?: string;
+    externalServiceId?: number | null;
+    externalServiceId4k?: number | null;
+    externalServiceSlug?: string | null;
+    externalServiceSlug4k?: string | null;
+    ratingKey?: string | null;
+    ratingKey4k?: string | null;
+    downloadStatus?: DownloadingItem[];
+    downloadStatus4k?: DownloadingItem[];
+    lastSeasonChange?: string;
+    issues?: Issue[];
+  },
+  SentKeys<"MediaInfo">
+>;
+export type Episode = Always<Schemas["Episode"], SentKeys<"Episode">>;
+export type Cast = Always<Schemas["Cast"], SentKeys<"Cast">>;
+/** The credits a film or a series carries, with the cast as measured. */
+type Credits = { cast?: Cast[]; crew?: Schemas["Crew"][] };
+/**
+ * One region's streaming offer. See the `watchProviders` rename in
+ * CORRECTIONS["GET /movie/{movieId}"]: the spec nests these one array deeper
+ * than they are sent, and leaves `flatrate` untyped where upstream's model
+ * gives it the same shape as `buy`.
+ */
+export type WatchProviderRegion = Omit<
+  Schemas["WatchProviders"][number],
+  "flatrate"
+> & {
+  flatrate?: Schemas["WatchProviderDetails"][];
+};
+/** A season as TMDB describes it, inside a series. */
+export type Season = Always<Schemas["Season"], SentKeys<"Season">>;
 export type Genre = Schemas["Genre"];
 export type Keyword = Schemas["Keyword"];
 export type ProductionCompany = Schemas["ProductionCompany"];
 export type RelatedVideo = Schemas["RelatedVideo"];
-export type Network = Schemas["Network"];
-export type Issue = Schemas["Issue"];
+/**
+ * `status` is on upstream's entity (`server/entity/Issue.ts`) and in the issue
+ * `POST /issue` answers with, and missing from the schema. Not captured:
+ * capturing it would file an issue.
+ */
+export type Issue = Schemas["Issue"] & { status?: IssueStatus };
 export type IssueComment = Schemas["IssueComment"];
-export type MediaRequest = Schemas["MediaRequest"];
+/**
+ * See CORRECTIONS["GET /request"]. `media` and the users are the corrected
+ * shapes too, and a request no service has picked up yet carries nulls where
+ * the schema promises values.
+ */
+export type MediaRequest = Always<
+  Omit<
+    Schemas["MediaRequest"],
+    | "media"
+    | "requestedBy"
+    | "modifiedBy"
+    | "profileId"
+    | "rootFolder"
+    | "serverId"
+  > & {
+    media?: MediaInfo;
+    requestedBy?: User;
+    modifiedBy?: User | string | null;
+    profileId?: number | null;
+    rootFolder?: string | null;
+    serverId?: number | null;
+    profileName?: string;
+    type?: MediaType;
+    tags?: number[];
+    seasons?: SeasonRequest[];
+    seasonCount?: number;
+    isAutoRequest?: boolean;
+    languageProfileId?: number | null;
+  },
+  SentKeys<"MediaRequest">
+>;
 export type PageInfo = Schemas["PageInfo"];
-export type PersonDetails = Schemas["PersonDetails"];
+/** See CORRECTIONS["GET /person/{personId}"]. */
+export type PersonDetails = Always<
+  Schemas["PersonDetails"],
+  SentKeys<"PersonDetails">
+> & {
+  birthday?: string | null;
+};
 export type CreditCast = Schemas["CreditCast"];
 export type CreditCrew = Schemas["CreditCrew"];
 
 /**
  * A search or discover result, which the spec models as three shapes a caller
- * may receive. `mediaType` is what tells them apart, so it is narrowed here:
- * the spec types it as a plain string, which makes the union impossible to
- * discriminate.
+ * may receive, told apart by `mediaType`.
  */
-export type SearchResult =
-  | (MovieResult & { mediaType: MediaType.MOVIE })
-  | (TvResult & { mediaType: MediaType.TV })
-  | (PersonResult & { mediaType: "person" });
+export type Results = MovieResult | TvResult | PersonResult;
 
 export type SearchResults = Body<paths["/search"]["get"]>;
-export type CombinedCredit = Body<
+type CombinedCreditBody = Body<
   paths["/person/{personId}/combined_credits"]["get"]
 >;
-export type GenreSliderItem = Body<
-  paths["/discover/genreslider/movie"]["get"]
->[number];
-export type RequestResults = Body<paths["/request"]["get"]>;
-export type UserResults = Body<paths["/user"]["get"]>;
+/** A person's credits, with the cast as measured. */
+export type CombinedCredit = Omit<CombinedCreditBody, "cast"> & {
+  cast?: PersonCreditCast[];
+};
+export type GenreSliderItem = Always<
+  Body<paths["/discover/genreslider/movie"]["get"]>[number],
+  SentKeys<"GenreSliderItem">
+>;
+/** See CORRECTIONS["GET /request"]: a page of the corrected requests. */
+export type RequestResultsResponse = Always<
+  Omit<Body<paths["/request"]["get"]>, "results"> & {
+    results?: MediaRequest[];
+  },
+  SentKeys<"RequestResultsResponse">
+>;
+/** See CORRECTIONS["GET /user"]: a page of the corrected users. */
+export type UserResultsResponse = Omit<
+  Body<paths["/user"]["get"]>,
+  "results"
+> & {
+  results?: User[];
+};
 
 // --- Where a measured server disagrees with the spec --------------------
 
 /** See CORRECTIONS["GET /movie/{movieId}"]. */
-export type MovieDetails = Schemas["MovieDetails"] & {
-  keywords?: Keyword[];
+export type MovieDetails = Always<
+  Omit<
+    Schemas["MovieDetails"],
+    "mediaInfo" | "credits" | "watchProviders" | "releases"
+  > & {
+    keywords?: Keyword[];
+    credits?: Credits;
+    watchProviders?: WatchProviderRegion[];
+    releases?: { results?: TmdbRelease[] };
+  },
+  SentKeys<"MovieDetails">
+> & {
+  mediaInfo?: MediaInfo;
   onUserWatchlist?: boolean;
 };
 
@@ -164,14 +318,26 @@ export type MovieDetails = Schemas["MovieDetails"] & {
  * See CORRECTIONS["GET /tv/{tvId}"]. `numberOfSeason` is a typo in the spec;
  * the server has always sent `numberOfSeasons`.
  */
-export type TvDetails = Omit<Schemas["TvDetails"], "numberOfSeason"> & {
+export type TvDetails = Always<
+  Omit<
+    Schemas["TvDetails"],
+    "numberOfSeason" | "mediaInfo" | "seasons" | "credits" | "watchProviders"
+  > & {
+    seasons?: Season[];
+    credits?: Credits;
+    watchProviders?: WatchProviderRegion[];
+  },
+  SentKeys<"TvDetails">
+> & {
+  mediaInfo?: MediaInfo;
   numberOfSeasons?: number;
   onUserWatchlist?: boolean;
   relatedVideos?: RelatedVideo[];
 };
 
 /** See CORRECTIONS["GET /tv/{tvId}/season/{seasonNumber}"]. */
-export type SeasonWithEpisodes = Schemas["Season"] & {
+export type SeasonWithEpisodes = Omit<Schemas["Season"], "episodes"> & {
+  episodes?: Episode[];
   externalIds?: { tvdbId?: number; tvrageId?: number };
 };
 
@@ -181,11 +347,6 @@ export type RTRating = Body<paths["/movie/{movieId}/ratings"]["get"]> & {
   audienceScore?: number;
 };
 
-/** See CORRECTIONS["GET /person/{personId}"]. */
-export type PersonDetailsWithBirthday = PersonDetails & {
-  birthday?: string | null;
-};
-
 /**
  * See CORRECTIONS["GET /auth/me"] and CORRECTIONS["GET /user"]. One schema
  * covers two serialisations upstream: the whole user for the account signing
@@ -193,26 +354,30 @@ export type PersonDetailsWithBirthday = PersonDetails & {
  * else. Both are typed here as the union of what each sends, with everything
  * the two do not share optional.
  */
-export type User = Omit<
-  Schemas["User"],
-  "email" | "plexUsername" | "plexToken" | "jellyfinAuthToken"
-> & {
-  email?: string;
-  plexUsername?: string | null;
-  displayName?: string;
-  jellyfinUserId?: string;
-  jellyfinUsername?: string;
-  plexId?: number | null;
-  avatarETag?: string | null;
-  avatarVersion?: string | null;
-  movieQuotaDays?: number | null;
-  movieQuotaLimit?: number | null;
-  tvQuotaDays?: number | null;
-  tvQuotaLimit?: number | null;
-  recoveryLinkExpirationDate?: string | null;
-  warnings?: string[];
-  settings?: Schemas["UserSettings"];
-};
+export type User = Always<
+  Omit<
+    Schemas["User"],
+    "email" | "username" | "plexUsername" | "plexToken" | "jellyfinAuthToken"
+  > & {
+    email?: string;
+    username?: string | null;
+    plexUsername?: string | null;
+    displayName?: string;
+    jellyfinUserId?: string;
+    jellyfinUsername?: string;
+    plexId?: number | null;
+    avatarETag?: string | null;
+    avatarVersion?: string | null;
+    movieQuotaDays?: number | null;
+    movieQuotaLimit?: number | null;
+    tvQuotaDays?: number | null;
+    tvQuotaLimit?: number | null;
+    recoveryLinkExpirationDate?: string | null;
+    warnings?: string[];
+    settings?: Schemas["UserSettings"] | null;
+  },
+  SentKeys<"User">
+>;
 
 /** See CORRECTIONS["GET /settings/discover"]. */
 export type DiscoverSlider = Schemas["DiscoverSlider"] & {
@@ -238,12 +403,139 @@ export interface ServiceCommonServer {
   activeAnimeProfileId?: number;
   activeAnimeLanguageProfileId?: number;
   activeLanguageProfileId?: number;
+  activeAnimeTags?: number[];
 }
 
+/**
+ * What `/service/radarr/{id}` and `/service/sonarr/{id}` send, read off the
+ * handler in upstream's `server/routes/service.ts`, which builds the object
+ * field by field. The spec declares a single profile and no folders or tags.
+ * No fixture: listing a server's profiles needs a Radarr or Sonarr behind it.
+ */
 export interface ServiceCommonServerWithDetails {
   server: ServiceCommonServer;
-  profiles: Schemas["ServiceProfile"][];
-  rootFolders: { id?: number; path?: string; freeSpace?: number }[];
-  languageProfiles?: { id: number; name: string }[];
-  tags?: { id: number; label: string }[];
+  profiles: QualityProfile[];
+  rootFolders: RootFolder[];
+  /** Sonarr 3 only. Sonarr 4 dropped language profiles and this is null. */
+  languageProfiles?: { id: number; name: string }[] | null;
+  tags: ServarrTag[];
+}
+
+// --- What the app reads and the spec never described ---------------------
+//
+// Ported from seerr-team/seerr@v3.4.1, MIT. These describe request bodies,
+// values the server never serialises, or TMDB shapes Seerr passes through
+// without declaring, so no response schema covers them.
+
+/** The body `POST /request` takes. Requests are the one thing the app writes. */
+export interface MediaRequestBody {
+  mediaType: MediaType;
+  mediaId: number;
+  tvdbId?: number;
+  seasons?: number[] | "all";
+  is4k?: boolean;
+  serverId?: number;
+  profileId?: number;
+  profileName?: string;
+  rootFolder?: string;
+  languageProfileId?: number;
+  userId?: number;
+  tags?: number[];
+}
+
+/** A quality profile offered by Radarr or Sonarr. */
+export interface QualityProfile {
+  id: number;
+  name: string;
+}
+
+/**
+ * A root folder offered by Radarr or Sonarr, as Seerr passes it on: the
+ * handler keeps these four fields and drops the rest of what Servarr sends.
+ */
+export interface RootFolder {
+  id: number;
+  path: string;
+  freeSpace: number;
+  totalSpace: number;
+}
+
+/** A tag offered by Radarr or Sonarr. */
+export interface ServarrTag {
+  id: number;
+  label: string;
+}
+
+/**
+ * A season as the library knows it, which is not the season TMDB describes.
+ * This one carries availability; `SeasonWithEpisodes` carries the episodes.
+ */
+export interface MediaSeason {
+  id: number;
+  seasonNumber: number;
+  status: MediaStatus;
+  status4k: MediaStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * A season as a request names it. Its status is the request's, numbered as
+ * `MediaRequestStatus`, not the library's.
+ */
+export interface SeasonRequest {
+  id: number;
+  seasonNumber: number;
+  status: MediaRequestStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** What a film or an episode being fetched looks like while it is in flight. */
+export interface DownloadingItem {
+  mediaType: MediaType;
+  externalId: number;
+  size: number;
+  sizeLeft: number;
+  status: string;
+  timeLeft: string;
+  estimatedCompletionTime: string;
+  title: string;
+  downloadId: string;
+  episode?: {
+    seasonNumber: number;
+    episodeNumber: number;
+    absoluteEpisodeNumber: number;
+    id: number;
+  };
+}
+
+/**
+ * One of a person's credits, with the part they played. A credit is a film or
+ * a series and says which, like a search result.
+ */
+export type PersonCreditCast = Always<
+  Omit<
+    NonNullable<CombinedCreditBody["cast"]>[number],
+    "mediaType" | "mediaInfo"
+  > & {
+    mediaType?: MediaType;
+    mediaInfo?: MediaInfo;
+  },
+  SentKeys<"PersonCreditCast">
+>;
+
+/**
+ * A film's release dates and certifications in one country, as TMDB sends
+ * them through. Upstream's type inherits a `rating` TMDB does not send here.
+ */
+export interface TmdbRelease {
+  iso_3166_1: string;
+  release_dates: {
+    certification: string;
+    iso_639_1?: string;
+    note?: string;
+    release_date: string;
+    type: number;
+  }[];
 }
