@@ -13,7 +13,7 @@ import { BackgroundDownloader } from "@/modules";
 import { getJellyfinHeadersForUrl } from "@/utils/customHeaders";
 import { getOrSetDeviceId } from "@/utils/device";
 import useDownloadHelper from "@/utils/download";
-import { estimateTranscodeSize } from "@/utils/downloadSize";
+import { estimateDownloadActivitySize } from "@/utils/downloadSize";
 import { logAndCaptureError } from "@/utils/log";
 import { downloadAdditionalAssets } from "../additionalDownloads";
 import {
@@ -154,9 +154,9 @@ export function useDownloadOperations({
             item,
             api,
             t,
-            estimatedTotalBytes: estimateTranscodeSize(
+            estimatedTotalBytes: estimateDownloadActivitySize(
+              mediaSource,
               maxBitrate.value,
-              mediaSource.Bitrate,
               item.RunTimeTicks,
             ),
           });

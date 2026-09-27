@@ -1,3 +1,10 @@
+import type { MediaSourceInfo } from "@jellyfin/sdk/lib/generated-client/models";
+import {
+  DOWNLOAD_BITS_PER_BYTE,
+  DOWNLOAD_SIZE_OVERHEAD,
+  DOWNLOAD_TICKS_PER_SECOND,
+} from "@/constants/Downloads";
+
 /**
  * Estimates the download file size based on bitrate and video duration.
  * Used when transcoding at lower bitrates where final size is unknown.
@@ -14,11 +21,13 @@ export function estimateDownloadSize(
   if (!runTimeTicks || runTimeTicks <= 0) return undefined;
 
   // Convert ticks to seconds (1 tick = 100 nanoseconds)
-  const durationSeconds = runTimeTicks / 10000000;
+  const durationSeconds = runTimeTicks / DOWNLOAD_TICKS_PER_SECOND;
 
   // Calculate size in bytes: (bitrate * duration) / 8
   // Add 10% overhead for container and metadata
-  const estimatedBytes = ((bitrateValue * durationSeconds) / 8) * 1.1;
+  const estimatedBytes =
+    ((bitrateValue * durationSeconds) / DOWNLOAD_BITS_PER_BYTE) *
+    DOWNLOAD_SIZE_OVERHEAD;
 
   return Math.floor(estimatedBytes);
 }
@@ -38,4 +47,14 @@ export function estimateTranscodeSize(
   );
   if (bitrates.length === 0) return undefined;
   return estimateDownloadSize(Math.min(...bitrates), runTimeTicks);
+}
+
+/** Direct downloads report their real length; do not seed an estimated total. */
+export function estimateDownloadActivitySize(
+  mediaSource: Pick<MediaSourceInfo, "TranscodingUrl" | "Bitrate">,
+  maxBitrate: number | undefined,
+  runTimeTicks?: number | null,
+): number | undefined {
+  if (!mediaSource.TranscodingUrl) return undefined;
+  return estimateTranscodeSize(maxBitrate, mediaSource.Bitrate, runTimeTicks);
 }
