@@ -29,6 +29,16 @@ const engineInitializer =
       "\n\t#if os(iOS)\n\t@objc private func handleDidBecomeActive",
       1,
     )[0] ?? "";
+const methodSection = (start: string, end: string) =>
+  engineSource.split(start, 2)[1]?.split(end, 1)[0] ?? "";
+const playbackRestartMethod = methodSection(
+  "func rendererPlaybackDidRestart(",
+  "\n\tfunc rendererDidReachEnd(",
+);
+const manualStartMethod = methodSection(
+  "func startPictureInPicture()",
+  "\n\tfunc stopPictureInPicture()",
+);
 
 describe("iOS automatic PiP lifecycle", () => {
   test("keeps automatic PiP enabled while AVKit prepares the source", () => {
@@ -73,11 +83,17 @@ describe("iOS automatic PiP lifecycle", () => {
   });
 
   test("rejects readiness from older loads without disabling manual PiP", () => {
-    expect(engineSource).toMatch(
-      /func rendererPlaybackDidRestart\([\s\S]*loadGeneration: UInt[\s\S]*guard loadGeneration == self\.loadGeneration/,
+    expect(rendererSource).toMatch(
+      /case MPV_EVENT_START_FILE:[\s\S]*activeLoadGeneration = pendingLoadGenerations\.removeFirst\(\)/,
     );
-    expect(engineSource).toMatch(
-      /func startPictureInPicture\(\)[\s\S]*reconcilePictureInPictureState\(allowManualStart: true\)/,
+    expect(playbackRestartMethod).toMatch(
+      /loadGeneration: UInt[\s\S]*guard loadGeneration == self\.loadGeneration/,
+    );
+    expect(manualStartMethod).toMatch(
+      /guard isPictureInPictureHostVisible, hasRenderedFirstFrame/,
+    );
+    expect(manualStartMethod).toContain(
+      "reconcilePictureInPictureState(allowManualStart: true)",
     );
     expect(engineSource).toMatch(
       /pictureInPictureAutoStartEnabled \|\| allowManualStart/,

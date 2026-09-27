@@ -443,6 +443,12 @@ final class MPVPlayerEngine: NSObject {
 
 	func startPictureInPicture() {
 		#if os(iOS)
+		guard isPictureInPictureHostVisible, hasRenderedFirstFrame else {
+			Logger.shared.log(
+				"PiP: start refused — hosted playback is not eligible",
+				type: "Warn")
+			return
+		}
 		reconcilePictureInPictureState(allowManualStart: true)
 		#endif
 		Logger.shared.log(
