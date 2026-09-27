@@ -93,8 +93,10 @@ final class PiPController: NSObject {
         #if !os(tvOS)
         guard let pipController else { return }
         if enabled {
-            Self.automaticStartOwner?.pipController?.canStartPictureInPictureAutomaticallyFromInline = false
-            Self.automaticStartOwner = self
+            if Self.automaticStartOwner !== self {
+                Self.automaticStartOwner?.pipController?.canStartPictureInPictureAutomaticallyFromInline = false
+                Self.automaticStartOwner = self
+            }
         } else if Self.automaticStartOwner === self {
             Self.automaticStartOwner = nil
         }

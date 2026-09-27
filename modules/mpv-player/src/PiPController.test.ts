@@ -41,10 +41,10 @@ describe("iOS automatic PiP lifecycle", () => {
       /case MPV_EVENT_PLAYBACK_RESTART:[\s\S]*rendererPlaybackDidRestart/,
     );
     expect(engineSource).toMatch(
-      /func rendererPlaybackDidRestart[\s\S]*hasRenderedFirstFrame = true[\s\S]*preparePictureInPictureIfNeeded\(\)/,
+      /func rendererPlaybackDidRestart[\s\S]*hasRenderedFirstFrame = true[\s\S]*reconcilePictureInPictureState\(\)/,
     );
     expect(engineSource).toMatch(
-      /private func preparePictureInPictureIfNeeded[\s\S]*isPictureInPictureHostVisible[\s\S]*pictureInPictureAutoStartEnabled[\s\S]*hasRenderedFirstFrame[\s\S]*PiPController\(/,
+      /private func reconcilePictureInPictureState[\s\S]*isPictureInPictureHostVisible[\s\S]*pictureInPictureAutoStartEnabled[\s\S]*hasRenderedFirstFrame[\s\S]*PiPController\(/,
     );
     expect(source).toMatch(
       /init\([\s\S]*delegate: PiPControllerDelegate[\s\S]*self\.delegate = delegate[\s\S]*setupPictureInPicture\(\)/,

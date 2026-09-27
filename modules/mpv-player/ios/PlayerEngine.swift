@@ -425,29 +425,20 @@ final class MPVPlayerEngine: NSObject {
 	func setPictureInPictureAutoStartEnabled(_ enabled: Bool) {
 		#if os(iOS)
 		pictureInPictureAutoStartEnabled = enabled
-		if enabled, hasRenderedFirstFrame {
-			preparePictureInPictureIfNeeded()
-		}
-		pipController?.setAutoStartEnabled(enabled && hasRenderedFirstFrame)
+		reconcilePictureInPictureState()
 		#endif
 	}
 
 	func setPictureInPictureHostVisible(_ visible: Bool) {
 		#if os(iOS)
 		isPictureInPictureHostVisible = visible
-		if visible {
-			preparePictureInPictureIfNeeded()
-			pipController?.setAutoStartEnabled(
-				pictureInPictureAutoStartEnabled && hasRenderedFirstFrame)
-		} else {
-			pipController?.setAutoStartEnabled(false)
-		}
+		reconcilePictureInPictureState()
 		#endif
 	}
 
 	func startPictureInPicture() {
 		#if os(iOS)
-		preparePictureInPictureIfNeeded()
+		reconcilePictureInPictureState()
 		#endif
 		Logger.shared.log(
 			"PiP: engine asked to start (duration=\(getDuration()) playing=\(!isPaused()))",
@@ -474,27 +465,29 @@ final class MPVPlayerEngine: NSObject {
 	}
 
 	#if os(iOS)
-	private func preparePictureInPictureIfNeeded() {
+	private func reconcilePictureInPictureState() {
 		guard !isShutDown,
-			  pipController == nil,
 			  isPictureInPictureHostVisible,
 			  pictureInPictureAutoStartEnabled,
 			  hasRenderedFirstFrame else {
+			pipController?.setAutoStartEnabled(false)
 			return
 		}
 
-		let controller = PiPController(
-			sampleBufferDisplayLayer: displayLayer,
-			delegate: self
-		)
-		pipController = controller
-		controller.setAutoStartEnabled(pictureInPictureAutoStartEnabled)
-		controller.setPlaybackRate(intendedPlayState ? 1.0 : 0.0)
-		controller.setCurrentTimeFromSeconds(cachedPosition)
-		Logger.shared.log(
-			"PiP: controller prepared after hosted playback became ready "
-				+ "(position=\(cachedPosition) duration=\(cachedDuration))",
-			type: "Info")
+		if pipController == nil {
+			let controller = PiPController(
+				sampleBufferDisplayLayer: displayLayer,
+				delegate: self
+			)
+			pipController = controller
+			controller.setPlaybackRate(intendedPlayState ? 1.0 : 0.0)
+			controller.setCurrentTimeFromSeconds(cachedPosition)
+			Logger.shared.log(
+				"PiP: controller prepared after hosted playback became ready "
+					+ "(position=\(cachedPosition) duration=\(cachedDuration))",
+				type: "Info")
+		}
+		pipController?.setAutoStartEnabled(true)
 	}
 	#endif
 
@@ -696,8 +689,7 @@ extension MPVPlayerEngine: MPVLayerRendererDelegate {
 	func rendererPlaybackDidRestart(_: MPVLayerRenderer) {
 		#if os(iOS)
 		hasRenderedFirstFrame = true
-		preparePictureInPictureIfNeeded()
-		pipController?.setAutoStartEnabled(pictureInPictureAutoStartEnabled)
+		reconcilePictureInPictureState()
 		#endif
 	}
 
