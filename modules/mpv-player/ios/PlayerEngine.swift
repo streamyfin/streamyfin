@@ -57,6 +57,7 @@ final class MPVPlayerEngine: NSObject {
 	private var currentLoop = false
 	private var cachedPosition: Double = 0
 	private var cachedDuration: Double = 0
+	private var loadGeneration: UInt = 0
 	private(set) var intendedPlayState: Bool = false
 	private var _isZoomedToFill: Bool = false
 	private var isShutDown = false
@@ -230,6 +231,8 @@ final class MPVPlayerEngine: NSObject {
 		}
 		currentURL = config.url
 		currentLoop = config.loop
+		loadGeneration &+= 1
+		let currentLoadGeneration = loadGeneration
 		#if os(iOS)
 		hasRenderedFirstFrame = false
 		#endif
@@ -256,7 +259,8 @@ final class MPVPlayerEngine: NSObject {
 			cacheEnabled: config.cacheEnabled,
 			cacheSeconds: config.cacheSeconds,
 			demuxerMaxBytes: config.demuxerMaxBytes,
-			demuxerMaxBackBytes: config.demuxerMaxBackBytes
+			demuxerMaxBackBytes: config.demuxerMaxBackBytes,
+			loadGeneration: currentLoadGeneration
 		)
 
 		if config.autoplay {
@@ -292,6 +296,7 @@ final class MPVPlayerEngine: NSObject {
 	 * Cross-platform counterpart of MpvPlayerView.destroy() on Android.
 	 */
 	func destroy() {
+		loadGeneration &+= 1
 		// Release the system's single inline auto-PiP slot now; deinit is deferred
 		// and would otherwise keep it claimed, blocking PiP for the next video.
 		setPictureInPictureAutoStartEnabled(false)
@@ -438,7 +443,7 @@ final class MPVPlayerEngine: NSObject {
 
 	func startPictureInPicture() {
 		#if os(iOS)
-		reconcilePictureInPictureState()
+		reconcilePictureInPictureState(allowManualStart: true)
 		#endif
 		Logger.shared.log(
 			"PiP: engine asked to start (duration=\(getDuration()) playing=\(!isPaused()))",
@@ -465,10 +470,12 @@ final class MPVPlayerEngine: NSObject {
 	}
 
 	#if os(iOS)
-	private func reconcilePictureInPictureState() {
+	private func reconcilePictureInPictureState(
+		allowManualStart: Bool = false
+	) {
 		guard !isShutDown,
 			  isPictureInPictureHostVisible,
-			  pictureInPictureAutoStartEnabled,
+			  pictureInPictureAutoStartEnabled || allowManualStart,
 			  hasRenderedFirstFrame else {
 			pipController?.setAutoStartEnabled(false)
 			return
@@ -487,7 +494,7 @@ final class MPVPlayerEngine: NSObject {
 					+ "(position=\(cachedPosition) duration=\(cachedDuration))",
 				type: "Info")
 		}
-		pipController?.setAutoStartEnabled(true)
+		pipController?.setAutoStartEnabled(pictureInPictureAutoStartEnabled)
 	}
 	#endif
 
@@ -686,7 +693,11 @@ extension MPVPlayerEngine: MPVLayerRendererDelegate {
 		syncNowPlaying(isPlaying: intendedPlayState)
 	}
 
-	func rendererPlaybackDidRestart(_: MPVLayerRenderer) {
+	func rendererPlaybackDidRestart(
+		_: MPVLayerRenderer,
+		loadGeneration: UInt
+	) {
+		guard loadGeneration == self.loadGeneration else { return }
 		#if os(iOS)
 		hasRenderedFirstFrame = true
 		reconcilePictureInPictureState()

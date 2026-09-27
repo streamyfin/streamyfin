@@ -22,6 +22,13 @@ const nativeHostSource = readFileSync(
   join(__dirname, "../ios/NativePlayer/NativePlayerViewController.swift"),
   "utf8",
 );
+const engineInitializer =
+  engineSource
+    .split("override init() {", 2)[1]
+    ?.split(
+      "\n\t#if os(iOS)\n\t@objc private func handleDidBecomeActive",
+      1,
+    )[0] ?? "";
 
 describe("iOS automatic PiP lifecycle", () => {
   test("keeps automatic PiP enabled while AVKit prepares the source", () => {
@@ -31,11 +38,12 @@ describe("iOS automatic PiP lifecycle", () => {
   });
 
   test("creates the controller only after the first rendered frame", () => {
-    expect(engineSource).not.toMatch(
-      /override init\(\)[\s\S]*PiPController\(sampleBufferDisplayLayer:/,
+    expect(engineInitializer).toContain("renderer = MPVLayerRenderer");
+    expect(engineInitializer).not.toMatch(
+      /PiPController\(\s*sampleBufferDisplayLayer:/,
     );
     expect(rendererSource).toContain(
-      "func rendererPlaybackDidRestart(_ renderer: MPVLayerRenderer)",
+      "func rendererPlaybackDidRestart(_ renderer: MPVLayerRenderer, loadGeneration: UInt)",
     );
     expect(rendererSource).toMatch(
       /case MPV_EVENT_PLAYBACK_RESTART:[\s\S]*rendererPlaybackDidRestart/,
@@ -62,5 +70,17 @@ describe("iOS automatic PiP lifecycle", () => {
     expect(source).not.toContain("refreshAutoStartEligibility");
     expect(engineSource).not.toContain("isPlaybackReadyForPictureInPicture");
     expect(rendererSource).not.toContain("hasReportedFirstFrame");
+  });
+
+  test("rejects readiness from older loads without disabling manual PiP", () => {
+    expect(engineSource).toMatch(
+      /func rendererPlaybackDidRestart\([\s\S]*loadGeneration: UInt[\s\S]*guard loadGeneration == self\.loadGeneration/,
+    );
+    expect(engineSource).toMatch(
+      /func startPictureInPicture\(\)[\s\S]*reconcilePictureInPictureState\(allowManualStart: true\)/,
+    );
+    expect(engineSource).toMatch(
+      /pictureInPictureAutoStartEnabled \|\| allowManualStart/,
+    );
   });
 });

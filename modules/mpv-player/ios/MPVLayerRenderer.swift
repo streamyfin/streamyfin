@@ -20,7 +20,7 @@ protocol MPVLayerRendererDelegate: AnyObject {
     func renderer(_ renderer: MPVLayerRenderer, didBecomeTracksReady: Bool)
     func renderer(_ renderer: MPVLayerRenderer, didDetectHDRMode mode: HDRMode, fps: Double)
     func renderer(_ renderer: MPVLayerRenderer, didSelectAudioOutput audioOutput: String)
-    func rendererPlaybackDidRestart(_ renderer: MPVLayerRenderer)
+    func rendererPlaybackDidRestart(_ renderer: MPVLayerRenderer, loadGeneration: UInt)
     /// Fired only for a genuine end-of-file (MPV_END_FILE_REASON_EOF) — never
     /// for stop/quit during teardown, which would emit spurious end events.
     func rendererDidReachEnd(_ renderer: MPVLayerRenderer)
@@ -124,6 +124,8 @@ final class MPVLayerRenderer {
     private var _isLoading: Bool = false
     private var _isReadyToSeek: Bool = false
     private var _isSeeking: Bool = false
+    /// Queue-confined identity supplied by the engine for the active load.
+    private var loadGeneration: UInt = 0
 
     // Progress update throttling - CRITICAL for performance!
     // DO NOT REMOVE THIS THROTTLE - it is essential for battery life and CPU efficiency.
@@ -604,7 +606,8 @@ final class MPVLayerRenderer {
         cacheEnabled: String? = nil,
         cacheSeconds: Int? = nil,
         demuxerMaxBytes: Int? = nil,
-        demuxerMaxBackBytes: Int? = nil
+        demuxerMaxBackBytes: Int? = nil,
+        loadGeneration: UInt
     ) {
         queue.async { [weak self] in
             guard let self else { return }
@@ -613,6 +616,7 @@ final class MPVLayerRenderer {
             self.pendingExternalSubtitles = externalSubtitles ?? []
             self.initialSubtitleId = initialSubtitleId
             self.initialAudioId = initialAudioId
+            self.loadGeneration = loadGeneration
             self.isLoading = true
             self.isReadyToSeek = false
             // Fresh file, fresh recovery budget (see performDecoderReset)
@@ -901,9 +905,13 @@ final class MPVLayerRenderer {
         case MPV_EVENT_PLAYBACK_RESTART:
             // Video playback has started/restarted (including after seek)
             isSeeking = false
+            let generation = loadGeneration
             DispatchQueue.main.async { [weak self] in
                 guard let self else { return }
-                self.delegate?.rendererPlaybackDidRestart(self)
+                self.delegate?.rendererPlaybackDidRestart(
+                    self,
+                    loadGeneration: generation
+                )
             }
             if isLoading {
                 isLoading = false
