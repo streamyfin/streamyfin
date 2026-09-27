@@ -1,5 +1,6 @@
 import AVFAudio
 import AVFoundation
+import AVKit
 import CoreMedia
 import MediaPlayer
 import UIKit
@@ -56,9 +57,15 @@ final class MPVPlayerEngine: NSObject {
 	private var currentLoop = false
 	private var cachedPosition: Double = 0
 	private var cachedDuration: Double = 0
+	private var loadGeneration: UInt = 0
 	private(set) var intendedPlayState: Bool = false
 	private var _isZoomedToFill: Bool = false
 	private var isShutDown = false
+	#if os(iOS)
+	private var isPictureInPictureHostVisible = false
+	private var hasRenderedFirstFrame = false
+	private var pictureInPictureAutoStartEnabled = false
+	#endif
 
 	override init() {
 		super.init()
@@ -73,9 +80,6 @@ final class MPVPlayerEngine: NSObject {
 
 		renderer = MPVLayerRenderer(displayLayer: displayLayer)
 		renderer?.delegate = self
-
-		pipController = PiPController(sampleBufferDisplayLayer: displayLayer)
-		pipController?.delegate = self
 
 		NotificationCenter.default.addObserver(
 			self, selector: #selector(handleAudioSessionInterruption),
@@ -227,9 +231,12 @@ final class MPVPlayerEngine: NSObject {
 		}
 		currentURL = config.url
 		currentLoop = config.loop
-		// Paired with the disarm in destroy(), which the reused view would
-		// otherwise never undo.
-		pipController?.setAutoStartEnabled(true)
+		loadGeneration &+= 1
+		let currentLoadGeneration = loadGeneration
+		#if os(iOS)
+		hasRenderedFirstFrame = false
+		#endif
+		setPictureInPictureAutoStartEnabled(true)
 
 		let preset = PlayerPreset(
 			id: .sdrRec709,
@@ -252,7 +259,8 @@ final class MPVPlayerEngine: NSObject {
 			cacheEnabled: config.cacheEnabled,
 			cacheSeconds: config.cacheSeconds,
 			demuxerMaxBytes: config.demuxerMaxBytes,
-			demuxerMaxBackBytes: config.demuxerMaxBackBytes
+			demuxerMaxBackBytes: config.demuxerMaxBackBytes,
+			loadGeneration: currentLoadGeneration
 		)
 
 		if config.autoplay {
@@ -288,9 +296,12 @@ final class MPVPlayerEngine: NSObject {
 	 * Cross-platform counterpart of MpvPlayerView.destroy() on Android.
 	 */
 	func destroy() {
+		loadGeneration &+= 1
 		// Release the system's single inline auto-PiP slot now; deinit is deferred
 		// and would otherwise keep it claimed, blocking PiP for the next video.
-		pipController?.setAutoStartEnabled(false)
+		setPictureInPictureAutoStartEnabled(false)
+		pipController?.stopPictureInPicture()
+		pipController = nil
 		renderer?.stop()
 
 		// Reset state and re-create the mpv handle so a subsequent
@@ -334,7 +345,9 @@ final class MPVPlayerEngine: NSObject {
 	func shutdown() {
 		guard !isShutDown else { return }
 		isShutDown = true
+		setPictureInPictureAutoStartEnabled(false)
 		pipController?.stopPictureInPicture()
+		pipController = nil
 		renderer?.stop()
 		displayLayer.removeFromSuperlayer()
 		clearNowPlayingInfo()
@@ -415,14 +428,39 @@ final class MPVPlayerEngine: NSObject {
 	// MARK: - Picture in Picture
 
 	func setPictureInPictureAutoStartEnabled(_ enabled: Bool) {
-		pipController?.setAutoStartEnabled(enabled)
+		#if os(iOS)
+		pictureInPictureAutoStartEnabled = enabled
+		reconcilePictureInPictureState()
+		#endif
+	}
+
+	func setPictureInPictureHostVisible(_ visible: Bool) {
+		#if os(iOS)
+		isPictureInPictureHostVisible = visible
+		reconcilePictureInPictureState()
+		#endif
 	}
 
 	func startPictureInPicture() {
+		#if os(iOS)
+		guard isPictureInPictureHostVisible, hasRenderedFirstFrame else {
+			Logger.shared.log(
+				"PiP: start refused — hosted playback is not eligible",
+				type: "Warn")
+			return
+		}
+		reconcilePictureInPictureState(allowManualStart: true)
+		#endif
 		Logger.shared.log(
 			"PiP: engine asked to start (duration=\(getDuration()) playing=\(!isPaused()))",
 			type: "Info")
-		pipController?.startPictureInPicture()
+		guard let pipController else {
+			Logger.shared.log(
+				"PiP: start refused — hosted playback has not rendered its first frame",
+				type: "Warn")
+			return
+		}
+		pipController.startPictureInPicture()
 	}
 
 	func stopPictureInPicture() {
@@ -430,12 +468,41 @@ final class MPVPlayerEngine: NSObject {
 	}
 
 	func isPictureInPictureSupported() -> Bool {
-		return pipController?.isPictureInPictureSupported ?? false
+		return AVPictureInPictureController.isPictureInPictureSupported()
 	}
 
 	func isPictureInPictureActive() -> Bool {
 		return pipController?.isPictureInPictureActive ?? false
 	}
+
+	#if os(iOS)
+	private func reconcilePictureInPictureState(
+		allowManualStart: Bool = false
+	) {
+		guard !isShutDown,
+			  isPictureInPictureHostVisible,
+			  pictureInPictureAutoStartEnabled || allowManualStart,
+			  hasRenderedFirstFrame else {
+			pipController?.setAutoStartEnabled(false)
+			return
+		}
+
+		if pipController == nil {
+			let controller = PiPController(
+				sampleBufferDisplayLayer: displayLayer,
+				delegate: self
+			)
+			pipController = controller
+			controller.setPlaybackRate(intendedPlayState ? 1.0 : 0.0)
+			controller.setCurrentTimeFromSeconds(cachedPosition)
+			Logger.shared.log(
+				"PiP: controller prepared after hosted playback became ready "
+					+ "(position=\(cachedPosition) duration=\(cachedDuration))",
+				type: "Info")
+		}
+		pipController?.setAutoStartEnabled(pictureInPictureAutoStartEnabled)
+	}
+	#endif
 
 	// MARK: - Subtitle Controls
 
@@ -577,7 +644,7 @@ extension MPVPlayerEngine: MPVLayerRendererDelegate {
 			guard let self else { return }
 
 			if self.pipController?.isPictureInPictureActive == true {
-				self.pipController?.setCurrentTimeFromSeconds(position, duration: duration)
+				self.pipController?.setCurrentTimeFromSeconds(position)
 			}
 
 			self.delegate?.engine(self, didUpdateProgress: position, duration: duration, cacheSeconds: cacheSeconds)
@@ -632,6 +699,17 @@ extension MPVPlayerEngine: MPVLayerRendererDelegate {
 		syncNowPlaying(isPlaying: intendedPlayState)
 	}
 
+	func rendererPlaybackDidRestart(
+		_: MPVLayerRenderer,
+		loadGeneration: UInt
+	) {
+		guard loadGeneration == self.loadGeneration else { return }
+		#if os(iOS)
+		hasRenderedFirstFrame = true
+		reconcilePictureInPictureState()
+		#endif
+	}
+
 	func rendererDidReachEnd(_: MPVLayerRenderer) {
 		DispatchQueue.main.async { [weak self] in
 			guard let self else { return }
@@ -648,7 +726,7 @@ extension MPVPlayerEngine: PiPControllerDelegate {
 		// Sync timebase before PiP starts for smooth transition
 		renderer?.syncTimebase()
 		// Set current time for PiP progress bar
-		pipController?.setCurrentTimeFromSeconds(cachedPosition, duration: cachedDuration)
+		pipController?.setCurrentTimeFromSeconds(cachedPosition)
 
 		// Reset to fit for PiP (zoomed video doesn't display correctly in PiP)
 		if _isZoomedToFill {
@@ -660,7 +738,7 @@ extension MPVPlayerEngine: PiPControllerDelegate {
 	func pipController(_ controller: PiPController, didStartPictureInPicture: Bool) {
 		Logger.shared.log("PiP: did start = \(didStartPictureInPicture)", type: "Info")
 		// Ensure current time is synced when PiP starts
-		pipController?.setCurrentTimeFromSeconds(cachedPosition, duration: cachedDuration)
+		pipController?.setCurrentTimeFromSeconds(cachedPosition)
 		// Notify the host of the actual PiP active state. `didStartPictureInPicture`
 		// is `false` when AVKit reports a failure to start, so reflect that.
 		delegate?.engine(self, didChangePictureInPicture: didStartPictureInPicture)
