@@ -876,14 +876,11 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		pinchActionTaken = false
 	}
 
-	/// Applies the zoom mode + burned-in-subtitle position compensation to the
-	/// engine (mirror of direct-player.tsx handleZoomToggle). Also called after
-	/// an in-place stream swap so a persisted zoom compensates for the NEW
-	/// video's aspect ratio.
+	/// Zoom changes video framing; the renderer keeps subtitle layout inside
+	/// the visible viewport without overwriting the selected style.
 	func applyZoomState() {
 		guard let engine else { return }
 		engine.setZoomedToFill(isZoomedToFill)
-		engine.setSubtitlePosition(100)
 		applySubtitleScale()
 	}
 
@@ -905,20 +902,6 @@ final class PlayerViewModel: NSObject, ObservableObject {
 			if containScale > 0, containScale < 1 {
 				effectiveScale *= min(1 / containScale, 3)
 			}
-			// In portrait the subtitle CALayer follows aspect-fill, so undo
-			// the same extra zoom. Landscape keeps that layer aspect-fitted.
-			if isZoomedToFill, surface.height > surface.width {
-				effectiveScale *= containScale / max(widthScale, heightScale)
-			}
-		}
-		engine.setSubtitleScale((effectiveScale * 100).rounded() / 100)
-		#elseif os(tvOS)
-		var effectiveScale = subtitleScale
-		if isZoomedToFill, let videoWidth, let videoHeight, videoWidth > 0, videoHeight > 0 {
-			let surface = UIScreen.main.bounds.size
-			let widthScale = Double(surface.width) / Double(videoWidth)
-			let heightScale = Double(surface.height) / Double(videoHeight)
-			effectiveScale *= min(widthScale, heightScale) / max(widthScale, heightScale)
 		}
 		engine.setSubtitleScale((effectiveScale * 100).rounded() / 100)
 		#else

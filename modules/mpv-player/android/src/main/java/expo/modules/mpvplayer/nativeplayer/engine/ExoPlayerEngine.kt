@@ -777,14 +777,6 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
         applySubtitleStyle()
     }
 
-    override fun setSubtitleUseMargins(enabled: Boolean) {
-        // mpv-only concept; vertical position is already a plain fraction here.
-    }
-
-    override fun setSubtitleScaleWithWindow(enabled: Boolean) {
-        // mpv-only concept; scale is viewport-fraction based already.
-    }
-
     override fun setSubtitleAlignX(alignment: String) {
         // Media3 cues follow their authored alignment; no override exists.
     }

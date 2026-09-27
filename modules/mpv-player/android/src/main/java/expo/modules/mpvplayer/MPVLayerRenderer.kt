@@ -301,10 +301,16 @@ class MPVLayerRenderer(
             // Drop frames during seeking for faster response
             mpv?.setOptionString("hr-seek-framedrop", "yes")
             
-            // Subtitle settings
+            // Subtitle settings. Keep libass anchored to the viewport's fit
+            // rectangle regardless of orientation, PiP, or panscan. Plain
+            // text and ASS with override=force use sub-use-margins; regular
+            // ASS has a separate force-margins option.
             mpv?.setOptionString("sub-scale-with-window", "no")
-            // Portrait/PiP-safe default; MpvPlayerView enables margins in landscape.
-            mpv?.setOptionString("sub-use-margins", "no")
+            mpv?.setOptionString("sub-use-margins", "yes")
+            mpv?.setOptionString("sub-ass-force-margins", "yes")
+            // The app applies its configured scale and fit boost explicitly;
+            // avoid a second window-relative transform for ASS styles.
+            mpv?.setOptionString("sub-ass-scale-with-window", "no")
             mpv?.setOptionString("subs-match-os-language", "yes")
             mpv?.setOptionString("subs-fallback", "yes")
             mpv?.setOptionString("sub-vsfilter-bidi-compat", "yes")
@@ -886,18 +892,6 @@ class MPVLayerRenderer(
         mpv?.setPropertyInt("sub-margin-y", margin)
     }
 
-    override fun setSubtitleUseMargins(useMargins: Boolean) {
-        if (isRunning) {
-            mpv?.setPropertyString("sub-use-margins", if (useMargins) "yes" else "no")
-        }
-    }
-
-    override fun setSubtitleScaleWithWindow(enabled: Boolean) {
-        if (isRunning) {
-            mpv?.setPropertyString("sub-scale-with-window", if (enabled) "yes" else "no")
-        }
-    }
-    
     override fun setSubtitleAlignX(alignment: String) {
         mpv?.setPropertyString("sub-align-x", alignment)
     }
@@ -1283,4 +1277,3 @@ class MPVLayerRenderer(
         }
     }
 }
-

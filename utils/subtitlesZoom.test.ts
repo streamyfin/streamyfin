@@ -7,7 +7,6 @@ const {
   getDisplayVideoDimensions,
   getEffectiveSubtitleScale,
   getSubtitleBaseScaleMultiplier,
-  getZoomSubtitleScaleRatio,
 } = await import("@/utils/subtitles");
 
 describe("subtitle zoom compensation", () => {
@@ -31,8 +30,18 @@ describe("subtitle zoom compensation", () => {
     });
   });
 
-  test("undoes only the extra contain-to-cover zoom", () => {
-    expect(getZoomSubtitleScaleRatio(1920, 960, 1080, 2400)).toBeCloseTo(0.225);
-    expect(getZoomSubtitleScaleRatio(1920, 960, 2400, 1080)).toBeCloseTo(0.9);
+  test("keeps the calibrated portrait size without applying video zoom", () => {
+    expect(getEffectiveSubtitleScale(1, 1920, 960, 1080, 2400)).toBe(1.84);
+    expect(getEffectiveSubtitleScale(1, 1920, 960, 960, 480)).toBe(2.07);
+  });
+
+  test("ExoPlayer gets viewport-sized text without video-resolution compensation", () => {
+    const expected = getSubtitleBaseScaleMultiplier("exoplayer");
+    expect(
+      getEffectiveSubtitleScale(1, 1920, 960, 1080, 2400, "exoplayer"),
+    ).toBe(expected);
+    expect(
+      getEffectiveSubtitleScale(1, 1920, 960, 2400, 1080, "exoplayer"),
+    ).toBe(expected);
   });
 });

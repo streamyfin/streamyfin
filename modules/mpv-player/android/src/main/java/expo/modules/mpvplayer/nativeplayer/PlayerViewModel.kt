@@ -29,8 +29,7 @@ internal fun calculateSubtitleScale(
     videoWidth: Int,
     videoHeight: Int,
     surfaceWidth: Int,
-    surfaceHeight: Int,
-    zoomedToFill: Boolean
+    surfaceHeight: Int
 ): Double {
     val scaled = baseScale * multiplier
     if (videoWidth <= 0 || videoHeight <= 0 || surfaceWidth <= 0 || surfaceHeight <= 0) {
@@ -41,24 +40,8 @@ internal fun calculateSubtitleScale(
     val heightScale = surfaceHeight.toDouble() / videoHeight
     val containScale = min(widthScale, heightScale)
     val boost = if (containScale < 1) min(1 / containScale, 3.0) else 1.0
-    val zoomCompensation =
-        if (zoomedToFill) min(widthScale, heightScale) / max(widthScale, heightScale) else 1.0
-
-    return (scaled * boost * zoomCompensation * 100).roundToInt() / 100.0
+    return (scaled * boost * 100).roundToInt() / 100.0
 }
-
-internal fun calculateSubtitleMargin(
-    margin: Int,
-    isTv: Boolean,
-    isPipActive: Boolean,
-    surfaceWidth: Int,
-    surfaceHeight: Int
-): Int =
-    if (!isTv && !isPipActive && surfaceHeight > surfaceWidth) {
-        (margin * 0.7).roundToInt()
-    } else {
-        margin
-    }
 
 class PlayerViewModel : PlayerEngine.Delegate {
 
@@ -718,7 +701,6 @@ class PlayerViewModel : PlayerEngine.Delegate {
 
     fun applyZoomState() {
         engine?.setZoomedToFill(isZoomedToFill)
-        applySubtitleGeometry()
     }
 
     fun updateSubtitleGeometry(width: Int, height: Int) {
@@ -728,18 +710,8 @@ class PlayerViewModel : PlayerEngine.Delegate {
     }
 
     fun applySubtitleGeometry() {
-        val portraitPhone =
-            !isTvChrome && !isPipActive && subtitleSurfaceHeight > subtitleSurfaceWidth
         subtitleMarginY?.let { margin ->
-            engine?.setSubtitleMarginY(
-                calculateSubtitleMargin(
-                    margin,
-                    isTvChrome,
-                    isPipActive,
-                    subtitleSurfaceWidth,
-                    subtitleSurfaceHeight
-                )
-            )
+            engine?.setSubtitleMarginY(margin)
         }
         engine?.setSubtitleScale(
             if (isMpvEngine) {
@@ -749,15 +721,10 @@ class PlayerViewModel : PlayerEngine.Delegate {
                     videoWidth = subtitleVideoWidth,
                     videoHeight = subtitleVideoHeight,
                     surfaceWidth = subtitleSurfaceWidth,
-                    surfaceHeight = subtitleSurfaceHeight,
-                    zoomedToFill = isZoomedToFill && portraitPhone
+                    surfaceHeight = subtitleSurfaceHeight
                 )
             } else {
-                // Media3 sizes text as a viewport fraction, already
-                // independent of video resolution and letterboxing — the
-                // video-to-screen boost is mpv-only. Applying it here inflates
-                // the text (the JS route's getEffectiveSubtitleScale skips it
-                // for exoplayer for the same reason).
+                // Media3 text is already relative to the viewport.
                 subtitleScale * subtitleScaleMultiplier
             }
         )
