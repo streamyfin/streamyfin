@@ -34,6 +34,8 @@ cadence meant knowing both existed, and nothing would have failed if only one ha
 | `constants/TVTypography.ts` | TV type scale and the `useScaledTVTypography` hook |
 | `constants/TVPosterSizes.ts` | TV poster size keys |
 | `constants/Playback.ts` | Playback reporting policy shared by the JS and native players (progress report cadence) |
+| `constants/Logs.ts` | App log storage key and how many entries it keeps |
+| `constants/Privacy.ts` | What stands in for a secret in anything the app writes out (log, Sentry) |
 
 Add a new domain file when a group grows its own identity (playback, downloads,
 networking). Do not let `Values.ts` become the place where everything lands.

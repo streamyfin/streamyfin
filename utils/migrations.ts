@@ -1,4 +1,6 @@
+import { LOGS_STORAGE_KEY } from "@/constants/Logs";
 import { writeErrorLog, writeInfoLog } from "@/utils/log";
+import { redactStoredLog } from "@/utils/logStorage";
 import { storage } from "@/utils/mmkv";
 
 /**
@@ -25,6 +27,7 @@ const SCHEMA_VERSION_KEY = "storageSchemaVersion";
 /** The slice of the MMKV surface migrations are allowed to touch. */
 export interface MigrationStorage {
   getNumber: (key: string) => number | undefined;
+  getString: (key: string) => string | undefined;
   getAllKeys: () => string[];
   set: (key: string, value: boolean | number | string) => void;
   remove: (key: string) => void;
@@ -45,6 +48,21 @@ const MIGRATIONS: Migration[] = [
       "clear hasShownIntro so existing users see the intro again, now that it carries the crash-reporting opt-out",
     run: (store) => {
       store.remove("hasShownIntro");
+    },
+  },
+  {
+    version: 2,
+    description:
+      "redact credentials from the app log, where the iOS player wrote access tokens inside subtitle URLs",
+    run: (store) => {
+      const stored = store.getString(LOGS_STORAGE_KEY);
+      if (stored === undefined) return;
+      const redacted = redactStoredLog(stored);
+      if (redacted === undefined) {
+        store.remove(LOGS_STORAGE_KEY);
+      } else {
+        store.set(LOGS_STORAGE_KEY, redacted);
+      }
     },
   },
 ];

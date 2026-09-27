@@ -21,6 +21,7 @@ import { LATEST_SCHEMA_VERSION, runStorageMigrations } from "./migrations";
 const data = new Map<string, boolean | number | string>();
 const store = {
   getNumber: (key: string) => data.get(key) as number | undefined,
+  getString: (key: string) => data.get(key) as string | undefined,
   getAllKeys: () => [...data.keys()],
   set: (key: string, value: boolean | number | string) =>
     void data.set(key, value),
@@ -70,6 +71,40 @@ describe("runStorageMigrations", () => {
     // It retries on the next launch, against a store that works again.
     runStorageMigrations(store);
 
+    expect(version()).toBe(LATEST_SCHEMA_VERSION);
+  });
+
+  test("redacts credentials the app log stored before redaction existed", () => {
+    const token = "0123456789abcdef0123456789abcdef";
+    data.set("storageSchemaVersion", 1);
+    data.set(
+      "logs",
+      JSON.stringify([
+        {
+          timestamp: "2026-09-27T15:04:07.000Z",
+          level: "INFO",
+          message: `[native player] getSubtitleTracks: found sub track id=2, title=Stream.subrip?ApiKey=${token}, lang=none, external=true`,
+        },
+      ]),
+    );
+
+    runStorageMigrations(store);
+
+    const stored = data.get("logs") as string;
+    expect(stored).not.toContain(token);
+    expect(JSON.parse(stored)[0].message).toContain(
+      "title=Stream.subrip?ApiKey=[redacted]",
+    );
+    expect(version()).toBe(LATEST_SCHEMA_VERSION);
+  });
+
+  test("drops an app log it cannot read", () => {
+    data.set("storageSchemaVersion", 1);
+    data.set("logs", '[{"message":"?api_key=0123456789abcdef');
+
+    runStorageMigrations(store);
+
+    expect(data.has("logs")).toBe(false);
     expect(version()).toBe(LATEST_SCHEMA_VERSION);
   });
 
