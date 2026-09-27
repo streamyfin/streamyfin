@@ -56,6 +56,8 @@ import {
   writeToLog,
 } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
+import { notificationRoute } from "@/utils/notificationRoute";
+import { pushRegistrationStep } from "@/utils/pushRegistration";
 
 const Notifications = !Platform.isTV ? require("expo-notifications") : null;
 
@@ -163,14 +165,21 @@ function useNotificationObserver() {
 
     let isMounted = true;
 
+    // The notification the app was opened by, which is the one case the listener below
+    // never sees: it is registered once the app is running, and by then the tap that
+    // started it has been and gone. It read only a route sent ready made, which the
+    // plugin does not send, so opening a notification from a closed app landed on the
+    // home screen.
     Notifications.getLastNotificationResponseAsync().then(
       (response: { notification: any }) => {
         if (!isMounted || !response?.notification) {
           return;
         }
-        const url = response?.notification.request.content.data?.url;
-        if (url) {
-          router.push(url);
+        const route = notificationRoute(
+          response.notification.request.content.data,
+        );
+        if (route) {
+          router.push(route as never);
         }
       },
     );
@@ -403,18 +412,35 @@ function Layout() {
   const notificationListener = useRef<EventSubscription>(null);
   const responseListener = useRef<EventSubscription>(null);
 
+  // Posted once per server, user and token. The api and the user object change
+  // identity on sign in, so without this the token went out twice within a second.
+  // Sign out clears the session, and the key with it, so the next sign in posts again.
+  const registeredPush = useRef<string | null>(null);
+
   useEffect(() => {
-    if (!Platform.isTV && expoPushToken && api && user) {
-      api
-        ?.post("/Streamyfin/device", {
-          token: expoPushToken.data,
-          deviceId: getOrSetDeviceId(),
-          userId: user.Id,
-        })
-        .catch((_) =>
-          writeErrorLog("Failed to push expo push token to plugin"),
-        );
-    }
+    if (Platform.isTV) return;
+
+    const step = pushRegistrationStep(
+      registeredPush.current,
+      api?.basePath,
+      user?.Id,
+      expoPushToken?.data,
+    );
+    registeredPush.current = step.key;
+    if (!step.post || !api || !user || !expoPushToken) return;
+
+    api
+      .post("/Streamyfin/device", {
+        token: expoPushToken.data,
+        deviceId: getOrSetDeviceId(),
+        userId: user.Id,
+      })
+      .catch((_) => {
+        // Forgotten only if nothing newer was posted meanwhile, so the next change
+        // of session or token posts again. No retry on its own, as before.
+        if (registeredPush.current === step.key) registeredPush.current = null;
+        writeErrorLog("Failed to push expo push token to plugin");
+      });
   }, [api, expoPushToken, user]);
 
   const registerNotifications = useCallback(async () => {
@@ -486,35 +512,11 @@ function Layout() {
             const { title, data } = response.notification.request.content;
             writeInfoLog(`Notification ${title} opened`, data);
 
-            let url: any;
-            const type = (data?.type ?? "").toString().toLowerCase();
-            const itemId = data?.id;
-
-            switch (type) {
-              case "movie":
-                url = `/(auth)/(tabs)/home/items/page?id=${itemId}`;
-                break;
-              case "episode":
-                // `/(auth)/(tabs)/${from}/items/page?id=${item.Id}`;
-                // We just clicked a notification for an individual episode.
-                if (itemId) {
-                  url = `/(auth)/(tabs)/home/items/page?id=${itemId}`;
-                  // summarized season notification for multiple episodes. Bring them to series season
-                } else {
-                  const seriesId = data?.seriesId;
-                  const seasonIndex = data?.seasonIndex;
-                  if (seasonIndex) {
-                    url = `/(auth)/(tabs)/home/series/${seriesId}?seasonIndex=${seasonIndex}`;
-                  } else {
-                    url = `/(auth)/(tabs)/home/series/${seriesId}`;
-                  }
-                }
-                break;
-            }
+            const url = notificationRoute(data);
 
             writeInfoLog(`Notification attempting to redirect to ${url}`);
             if (url) {
-              router.push(url);
+              router.push(url as never);
             }
           },
         );

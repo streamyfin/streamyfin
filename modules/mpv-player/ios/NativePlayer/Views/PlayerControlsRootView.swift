@@ -61,7 +61,7 @@ struct PlayerControlsRootView: View {
 					.zIndex(1)
 			}
 
-			if viewModel.controlsVisible && viewModel.showSubtitleScaleControl {
+			if viewModel.showSubtitleScaleControl {
 				SubtitleScaleOverlay(
 					viewModel: viewModel,
 					onClose: closeSubtitleScaleControl
@@ -279,11 +279,7 @@ struct PlayerControlsRootView: View {
 	}
 
 	private func handleSurfaceTap() {
-		if viewModel.showSubtitleScaleControl {
-			closeSubtitleScaleControl()
-		} else {
-			viewModel.toggleControls()
-		}
+		viewModel.toggleControls()
 	}
 
 	/// Press-and-hold anywhere on empty video = 2× until release. The long

@@ -6,14 +6,16 @@ import { View } from "react-native";
 import { toast } from "sonner-native";
 import { useIntegrationHeaders } from "@/hooks/useIntegrationHeaders";
 import { JellyseerrApi, useJellyseerr } from "@/hooks/useJellyseerr";
-import { userAtom } from "@/providers/JellyfinProvider";
+import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { markExpectedError } from "@/utils/errors";
+import { signInWithQuickConnect } from "@/utils/jellyseerrQuickConnect";
 import { writeErrorLog } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
 import { deleteJellyseerrPassword } from "@/utils/secureCredentials";
 import { jellyseerrProbe } from "@/utils/serverUrl/probes/jellyseerr";
 import { resolveServerUrl } from "@/utils/serverUrl/resolve";
+import { store } from "@/utils/store";
 import { Button } from "../Button";
 import { Input } from "../common/Input";
 import { ServerUrlField } from "../common/ServerUrlField";
@@ -30,6 +32,7 @@ export const JellyseerrSettings = () => {
   const { t } = useTranslation();
 
   const [user] = useAtom(userAtom);
+  const [api] = useAtom(apiAtom);
   const { settings, updateSettings, pluginSettings } = useSettings();
   // Only the server URL is admin-lockable — the password stays editable so
   // the user can still sign in to the admin-pinned Jellyseerr server.
@@ -106,6 +109,33 @@ export const JellyseerrSettings = () => {
       const testResult = await jellyseerrTempApi.test();
       if (!testResult.isValid)
         throw markExpectedError(new Error("Invalid server url"));
+
+      const startedFor = user.Id;
+      const stillCurrent = () => store.get(userAtom)?.Id === startedFor;
+
+      // Quick Connect before either credential: it needs neither, and when it
+      // opens a session there is no reason for a key or a password to be on
+      // this device at all.
+      if (api) {
+        const quickConnected = await signInWithQuickConnect(
+          jellyseerrTempApi,
+          api,
+          stillCurrent,
+        );
+        if (quickConnected)
+          return {
+            user: quickConnected,
+            url: finalUrl,
+            // A key the plugin locked stays the plugin's to manage. One typed
+            // here is dropped, because nothing reads it any more.
+            apiKey: apiKeyLocked ? apiKey : undefined,
+          };
+      }
+
+      // Neither credential for an account that has since been left: replayed
+      // now, it would sign the next user in as the previous one.
+      if (!stillCurrent())
+        throw markExpectedError(new Error("Signed-in account changed"));
 
       if (apiKey) {
         if (!user.Id)

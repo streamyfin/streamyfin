@@ -2,7 +2,7 @@ package expo.modules.mpvplayer.nativeplayer
 
 import expo.modules.kotlin.records.Field
 import expo.modules.kotlin.records.Record
-import expo.modules.mpvplayer.VideoLoadConfig
+import expo.modules.mpvplayer.nativeplayer.engine.VideoLoadConfig
 
 class CacheConfigRecord : Record {
     @Field var enabled: String? = null        // "auto", "yes", or "no"
@@ -176,4 +176,7 @@ class PlayerPresentConfigRecord : Record {
     @Field var tracks: TrackMenusRecord? = null
     @Field var subtitleStyle: SubtitleStyleRecord? = null
     @Field var ui: UIOptionsRecord = UIOptionsRecord()
+    // Which engine decodes the stream: "mpv" (default) or "exoplayer".
+    // Ignored on iOS — its chrome always runs mpv.
+    @Field var engine: String? = null
 }

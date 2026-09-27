@@ -16,25 +16,8 @@ import android.view.ViewGroup
 import expo.modules.kotlin.AppContext
 import expo.modules.kotlin.viewevent.EventDispatcher
 import expo.modules.kotlin.views.ExpoView
-
-/**
- * Configuration for loading a video
- */
-data class VideoLoadConfig(
-    val url: String,
-    val headers: Map<String, String>? = null,
-    val externalSubtitles: List<String>? = null,
-    val startPosition: Double? = null,
-    val autoplay: Boolean = true,
-    val initialSubtitleId: Int? = null,
-    val initialAudioId: Int? = null,
-    val loop: Boolean = false,
-    val voDriver: String? = null,
-    val cacheEnabled: String? = null,
-    val cacheSeconds: Int? = null,
-    val demuxerMaxBytes: Int? = null,
-    val demuxerMaxBackBytes: Int? = null,
-)
+import expo.modules.mpvplayer.nativeplayer.engine.PlayerEngine
+import expo.modules.mpvplayer.nativeplayer.engine.VideoLoadConfig
 
 /**
  * MpvPlayerView - ExpoView that hosts the MPV player.
@@ -52,7 +35,7 @@ data class VideoLoadConfig(
  * passes on the view itself) reaches mpv promptly.
  */
 class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context, appContext),
-    MPVLayerRenderer.Delegate, SurfaceHolder.Callback {
+    PlayerEngine.Delegate, SurfaceHolder.Callback {
 
     companion object {
         private const val TAG = "MpvPlayerView"
@@ -74,6 +57,7 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
 
     private var surfaceView: SurfaceView
     private var renderer: MPVLayerRenderer? = null
+    private var rendererVoDriver: String? = null
     private var pipController: PiPController? = null
 
     private var currentUrl: String? = null
@@ -167,10 +151,6 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
             }
         }
 
-        // Renderer is created lazily in loadVideo once we have the voDriver setting
-        renderer = MPVLayerRenderer(context)
-        renderer?.delegate = this
-
         // Watch the host activity's lifecycle to recover the video pipeline
         // when returning from the screensaver while paused.
         registerLifecycleCallbacks()
@@ -187,7 +167,23 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         }
 
         try {
-            renderer?.start(voDriver ?: "gpu-next") {
+            // The renderer owns the libmpv handle and its vo driver is fixed at
+            // construction, so it is created lazily here once the source's
+            // voDriver (the mpvVoDriver user setting) is known — and recreated
+            // if a later source carries a different one (preserves the old
+            // behavior where start() received the driver each cycle).
+            val wantedVoDriver = voDriver ?: "gpu-next"
+            if (renderer == null || rendererVoDriver != wantedVoDriver) {
+                renderer?.stop()
+                renderer = MPVLayerRenderer(context, voDriver = wantedVoDriver)
+                rendererVoDriver = wantedVoDriver
+            }
+            // Re-assert on every start: cleanup() nulls the delegate while
+            // keeping the renderer instance, so a reused view that re-enters
+            // with the same voDriver would skip the branch above and never
+            // hear onProgress/onError again.
+            renderer?.delegate = this
+            renderer?.start(PlayerEngine.Owner.EMBEDDED_VIEW) {
                 rendererStarted = true
 
                 // If the surface is already alive (surfaceCreated fired before
@@ -290,19 +286,7 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         currentUrl = config.url
         currentLoop = config.loop
 
-        renderer?.load(
-            url = config.url,
-            headers = config.headers,
-            startPosition = config.startPosition,
-            externalSubtitles = config.externalSubtitles,
-            initialSubtitleId = config.initialSubtitleId,
-            initialAudioId = config.initialAudioId,
-            loop = config.loop,
-            cacheEnabled = config.cacheEnabled,
-            cacheSeconds = config.cacheSeconds,
-            demuxerMaxBytes = config.demuxerMaxBytes,
-            demuxerMaxBackBytes = config.demuxerMaxBackBytes
-        )
+        renderer?.load(config)
 
         if (config.autoplay) {
             play()
