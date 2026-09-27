@@ -26,24 +26,16 @@ final class PiPController: NSObject {
     // Timebase for PiP progress tracking
     private var timebase: CMTimebase?
     
-    // Track current time for PiP progress
-    private var currentTime: CMTime = .zero
-    private var currentDuration: Double = 0
-    
-    var isPictureInPictureSupported: Bool {
-        return AVPictureInPictureController.isPictureInPictureSupported()
-    }
-    
     var isPictureInPictureActive: Bool {
         return pipController?.isPictureInPictureActive ?? false
     }
     
-    var isPictureInPicturePossible: Bool {
-        return pipController?.isPictureInPicturePossible ?? false
-    }
-    
-    init(sampleBufferDisplayLayer: AVSampleBufferDisplayLayer) {
+    init(
+        sampleBufferDisplayLayer: AVSampleBufferDisplayLayer,
+        delegate: PiPControllerDelegate
+    ) {
         self.sampleBufferDisplayLayer = sampleBufferDisplayLayer
+        self.delegate = delegate
         super.init()
         setupTimebase()
         setupPictureInPicture()
@@ -69,7 +61,7 @@ final class PiPController: NSObject {
     }
     
     private func setupPictureInPicture() {
-        guard isPictureInPictureSupported else {
+        guard AVPictureInPictureController.isPictureInPictureSupported() else {
             Logger.shared.log(
                 "PiP: setup skipped — AVPictureInPictureController.isPictureInPictureSupported() == false",
                 type: "Warn")
@@ -95,9 +87,8 @@ final class PiPController: NSObject {
 
     /// Enable/disable auto-PiP ("swipe up while playing").
     ///
-    /// Arming transfers eligibility from the outgoing controller and also
-    /// re-arms a reused controller. This keeps source changes independent of
-    /// which UI path initiated them.
+    /// AVKit permits one inline auto-start owner. Transfer that eligibility
+    /// explicitly so an outgoing player cannot block the visible one.
     func setAutoStartEnabled(_ enabled: Bool) {
         #if !os(tvOS)
         guard let pipController else { return }
@@ -117,7 +108,7 @@ final class PiPController: NSObject {
             return
         }
         Logger.shared.log(
-            "PiP: start requested — supported=\(isPictureInPictureSupported) "
+            "PiP: start requested — supported=\(AVPictureInPictureController.isPictureInPictureSupported()) "
                 + "possible=\(pipController.isPictureInPicturePossible) "
                 + "active=\(pipController.isPictureInPictureActive) "
                 + "layerReady=\(sampleBufferDisplayLayer?.isReadyForMoreMediaData ?? false) "
@@ -139,16 +130,6 @@ final class PiPController: NSObject {
         pipController?.stopPictureInPicture()
     }
     
-    func invalidate() {
-        if Thread.isMainThread {
-            pipController?.invalidatePlaybackState()
-        } else {
-            DispatchQueue.main.async { [weak self] in
-                self?.pipController?.invalidatePlaybackState()
-            }
-        }
-    }
-    
     func updatePlaybackState() {
         // Only invalidate when PiP is active to avoid "no context menu visible" warnings
         guard isPictureInPictureActive else { return }
@@ -162,27 +143,17 @@ final class PiPController: NSObject {
         }
     }
     
-    /// Updates the current playback time for PiP progress display
-    func setCurrentTime(_ time: CMTime) {
-        currentTime = time
-        
-        // Update the timebase to reflect current position
+    func setCurrentTimeFromSeconds(_ seconds: Double) {
+        guard seconds >= 0 else { return }
         if let tb = timebase {
-            CMTimebaseSetTime(tb, time: time)
+            CMTimebaseSetTime(
+                tb,
+                time: CMTime(seconds: seconds, preferredTimescale: 1000)
+            )
         }
-        
-        // Only invalidate when PiP is active to avoid unnecessary updates
         if isPictureInPictureActive {
             updatePlaybackState()
         }
-    }
-    
-    /// Updates the current playback time from seconds
-    func setCurrentTimeFromSeconds(_ seconds: Double, duration: Double) {
-        guard seconds >= 0 else { return }
-        currentDuration = duration
-        let time = CMTime(seconds: seconds, preferredTimescale: 1000)
-        setCurrentTime(time)
     }
     
     /// Updates the playback rate on the timebase (1.0 = playing, 0.0 = paused)

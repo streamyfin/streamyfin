@@ -20,6 +20,7 @@ protocol MPVLayerRendererDelegate: AnyObject {
     func renderer(_ renderer: MPVLayerRenderer, didBecomeTracksReady: Bool)
     func renderer(_ renderer: MPVLayerRenderer, didDetectHDRMode mode: HDRMode, fps: Double)
     func renderer(_ renderer: MPVLayerRenderer, didSelectAudioOutput audioOutput: String)
+    func rendererPlaybackDidRestart(_ renderer: MPVLayerRenderer)
     /// Fired only for a genuine end-of-file (MPV_END_FILE_REASON_EOF) — never
     /// for stop/quit during teardown, which would emit spurious end events.
     func rendererDidReachEnd(_ renderer: MPVLayerRenderer)
@@ -900,6 +901,10 @@ final class MPVLayerRenderer {
         case MPV_EVENT_PLAYBACK_RESTART:
             // Video playback has started/restarted (including after seek)
             isSeeking = false
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                self.delegate?.rendererPlaybackDidRestart(self)
+            }
             if isLoading {
                 isLoading = false
                 DispatchQueue.main.async { [weak self] in
