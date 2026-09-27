@@ -28,17 +28,17 @@ export const notificationRoute = (
       : undefined;
 
   if (type === "movie" && itemId)
-    return `/(auth)/(tabs)/home/items/page?id=${itemId}`;
+    return `/(auth)/(tabs)/(home)/items/page?id=${itemId}`;
 
   if (type !== "episode") return null;
 
   // One episode, so its own page.
-  if (itemId) return `/(auth)/(tabs)/home/items/page?id=${itemId}`;
+  if (itemId) return `/(auth)/(tabs)/(home)/items/page?id=${itemId}`;
 
   // A season's worth of them, so the series, at that season when it is named.
   if (!seriesId) return null;
 
   return seasonIndex === undefined || seasonIndex === ""
-    ? `/(auth)/(tabs)/home/series/${seriesId}`
-    : `/(auth)/(tabs)/home/series/${seriesId}?seasonIndex=${seasonIndex}`;
+    ? `/(auth)/(tabs)/(home)/series/${seriesId}`
+    : `/(auth)/(tabs)/(home)/series/${seriesId}?seasonIndex=${seasonIndex}`;
 };

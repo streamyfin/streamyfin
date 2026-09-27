@@ -1,34 +1,47 @@
 import { describe, expect, test } from "bun:test";
+import { fileURLToPath } from "node:url";
 import { notificationRoute } from "./notificationRoute";
 
 describe("where a notification takes the app", () => {
+  test("generated destinations resolve against the actual app routes", () => {
+    // Isolate native-entrypoint mocks from the other unit tests.
+    const result = Bun.spawnSync([
+      process.execPath,
+      "run",
+      fileURLToPath(
+        new URL("../test-utils/notificationRoutes.ts", import.meta.url),
+      ),
+    ]);
+    expect(result.stderr.toString()).toBe("");
+    expect(result.exitCode).toBe(0);
+  });
   test("a movie opens its page", () => {
     expect(notificationRoute({ type: "Movie", id: "abc" })).toBe(
-      "/(auth)/(tabs)/home/items/page?id=abc",
+      "/(auth)/(tabs)/(home)/items/page?id=abc",
     );
   });
 
   test("one episode opens its page", () => {
     expect(
       notificationRoute({ type: "Episode", id: "ep1", seriesId: "s1" }),
-    ).toBe("/(auth)/(tabs)/home/items/page?id=ep1");
+    ).toBe("/(auth)/(tabs)/(home)/items/page?id=ep1");
   });
 
   test("a season's worth of episodes opens the series at that season", () => {
     expect(
       notificationRoute({ type: "Episode", seriesId: "s1", seasonIndex: 2 }),
-    ).toBe("/(auth)/(tabs)/home/series/s1?seasonIndex=2");
+    ).toBe("/(auth)/(tabs)/(home)/series/s1?seasonIndex=2");
   });
 
   test("without a season index it opens the series", () => {
     expect(notificationRoute({ type: "Episode", seriesId: "s1" })).toBe(
-      "/(auth)/(tabs)/home/series/s1",
+      "/(auth)/(tabs)/(home)/series/s1",
     );
   });
 
   test("a route sent as it is, is used as it is", () => {
-    expect(notificationRoute({ url: "/(auth)/(tabs)/home" })).toBe(
-      "/(auth)/(tabs)/home",
+    expect(notificationRoute({ url: "/(auth)/(tabs)/(home)" })).toBe(
+      "/(auth)/(tabs)/(home)",
     );
   });
 
@@ -53,7 +66,7 @@ describe("where a notification takes the app", () => {
         seriesId: "series-1",
         seasonIndex: hostile,
       }),
-    ).toBe("/(auth)/(tabs)/home/series/series-1");
+    ).toBe("/(auth)/(tabs)/(home)/series/series-1");
 
     expect(
       notificationRoute({ type: "movie", id: 42 as unknown as string }),
@@ -67,7 +80,7 @@ describe("where a notification takes the app", () => {
         seriesId: "series-1",
         seasonIndex: 2,
       }),
-    ).toBe("/(auth)/(tabs)/home/series/series-1?seasonIndex=2");
+    ).toBe("/(auth)/(tabs)/(home)/series/series-1?seasonIndex=2");
 
     expect(
       notificationRoute({
@@ -75,6 +88,6 @@ describe("where a notification takes the app", () => {
         seriesId: "series-1",
         seasonIndex: "2",
       }),
-    ).toBe("/(auth)/(tabs)/home/series/series-1?seasonIndex=2");
+    ).toBe("/(auth)/(tabs)/(home)/series/series-1?seasonIndex=2");
   });
 });
