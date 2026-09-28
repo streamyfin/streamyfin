@@ -11,7 +11,7 @@ import { useSettings } from "@/utils/atoms/settings";
 import { markExpectedError } from "@/utils/errors";
 import { writeErrorLog } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
-import { deleteSeerrPassword } from "@/utils/secureCredentials";
+import { deleteSeerrPassword } from "@/utils/seerrPassword";
 import { signInWithQuickConnect } from "@/utils/seerrQuickConnect";
 import { seerrProbe } from "@/utils/serverUrl/probes/seerr";
 import { resolveServerUrl } from "@/utils/serverUrl/resolve";

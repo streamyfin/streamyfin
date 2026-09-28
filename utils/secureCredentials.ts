@@ -9,6 +9,7 @@ import {
 import type { CustomHeader } from "./customHeaders/types";
 import { logAndCaptureError } from "./log";
 import { storage } from "./mmkv";
+import { deleteSeerrPassword } from "./seerrPassword";
 
 const CREDENTIAL_KEY_PREFIX = "credential_";
 const MULTI_ACCOUNT_MIGRATED_KEY = "multiAccountMigrated";
@@ -102,47 +103,6 @@ export function credentialKey(serverUrl: string, userId: string): string {
   const combined = `${serverUrl}:${userId}`;
   const encoded = btoa(combined).replace(/[^a-zA-Z0-9]/g, "_");
   return `${CREDENTIAL_KEY_PREFIX}${encoded}`;
-}
-
-const SEERR_PASSWORD_KEY_PREFIX = "seerrpw_";
-
-function seerrPasswordKey(serverUrl: string, userId: string): string {
-  const encoded = btoa(`${serverUrl}:${userId}`).replace(/[^a-zA-Z0-9]/g, "_");
-  return `${SEERR_PASSWORD_KEY_PREFIX}${encoded}`;
-}
-
-/**
- * Remember the Jellyfin password so Seerr can be signed in automatically
- * on launch.
- *
- * Seerr's /auth/jellyfin endpoint authenticates with the *password*, not
- * the Jellyfin access token, so there is no token-shaped way to do this — the
- * password itself has to be kept. It lives in the platform secure store
- * (Keychain / Android Keystore, and the OS keystore via Electron safeStorage on
- * desktop), never in MMKV. Only stored when the user opts in via the
- * `autoLoginSeerr` setting, and removed on logout with the rest of the
- * account's credentials.
- */
-export async function saveSeerrPassword(
-  serverUrl: string,
-  userId: string,
-  password: string,
-): Promise<void> {
-  await SecureStore.setItemAsync(seerrPasswordKey(serverUrl, userId), password);
-}
-
-export async function getSeerrPassword(
-  serverUrl: string,
-  userId: string,
-): Promise<string | null> {
-  return SecureStore.getItemAsync(seerrPasswordKey(serverUrl, userId));
-}
-
-export async function deleteSeerrPassword(
-  serverUrl: string,
-  userId: string,
-): Promise<void> {
-  await SecureStore.deleteItemAsync(seerrPasswordKey(serverUrl, userId));
 }
 
 /**

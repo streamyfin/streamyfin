@@ -46,14 +46,13 @@ import {
   addAccountToServer,
   addServerToList,
   deleteAccountCredential,
-  deleteSeerrPassword,
   getAccountCredential,
   hashPIN,
   migrateToMultiAccount,
   saveAccountCredential,
-  saveSeerrPassword,
   updateAccountToken,
 } from "@/utils/secureCredentials";
+import { deleteSeerrPassword, saveSeerrPassword } from "@/utils/seerrPassword";
 import { signInWithQuickConnect } from "@/utils/seerrQuickConnect";
 import { store } from "@/utils/store";
 import { clearTVDiscoverySafely } from "@/utils/tvDiscovery/sync";

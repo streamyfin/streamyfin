@@ -6,10 +6,7 @@ import { useSettings } from "@/utils/atoms/settings";
 import { getIntegrationHeaders } from "@/utils/customHeaders";
 import { writeInfoLog, writeToLog } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
-import {
-  deleteSeerrPassword,
-  getSeerrPassword,
-} from "@/utils/secureCredentials";
+import { deleteSeerrPassword, getSeerrPassword } from "@/utils/seerrPassword";
 import { signInWithQuickConnect } from "@/utils/seerrQuickConnect";
 import { store } from "@/utils/store";
 
