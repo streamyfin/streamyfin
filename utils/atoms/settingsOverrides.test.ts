@@ -375,6 +375,14 @@ describe("readIntegrationBlocks", () => {
     expect(readIntegrationBlocks(undefined)).toBeUndefined();
   });
 
+  // The response is typed, not checked: a broken or foreign server can send
+  // anything under `settings`, and `in` throws on a string or a number.
+  test("settings that are not an object read as none instead of throwing", () => {
+    for (const sent of [null, "settings", 1, true, []]) {
+      expect(readIntegrationBlocks(sent as never)).toBeUndefined();
+    }
+  });
+
   test("a block that is not the shape it should be is ignored rather than thrown on", () => {
     const read = readIntegrationBlocks(
       plugin({ seerr: { locked: false, value: "not a block" } }),

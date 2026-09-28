@@ -193,7 +193,10 @@ export const renameLegacySeerrSettings = (
 export const readIntegrationBlocks = (
   plugin: PluginLockableSettings | undefined,
 ): PluginLockableSettings | undefined => {
-  if (!plugin) return plugin;
+  // Typed, not checked: whatever a server sends under `settings` gets here.
+  if (!plugin || typeof plugin !== "object" || Array.isArray(plugin)) {
+    return undefined;
+  }
 
   const sent = plugin as Record<string, unknown>;
   if (
