@@ -205,16 +205,25 @@ closes the child.
 
 ## The rename and the migrations
 
-Measured in the app: 100 files, 1526 occurrences, 7 i18n keys, 14 uses of the MMKV keys,
-4 deep link routes.
+Measured again once the switch had landed: 63 files and 900 lines, 40 files to move. More is
+stored under the old name than the first measurement knew: the Seerr session, the password
+auto-login keeps, the gateway headers set for Seerr, the three Seerr settings, and the
+record of plugin defaults already applied, which is keyed by setting name. 84 translation
+keys carry the old name, not 7.
 
-Three things cannot be renamed in one cut:
+Everything is renamed, stored names and translation keys included, and what an earlier build
+stored is read under the old name once and moved: the session by a storage migration at
+launch, the settings and the record of applied defaults when they load, the password and the
+headers on first use. An older build installed after that finds nothing under the old names,
+which is accepted.
 
-- **the MMKV keys** `JELLYSEERR_USER` and `JELLYSEERR_COOKIES` are read under the old name,
-  written under the new one, and the old one is removed after the rewrite;
-- **the deep link routes** `/jellyseerr/...` stay served as redirects, because they may be
-  in links that have already been shared;
-- **the i18n keys** go through Crowdin, with `en.json` as the source.
+The translation keys are renamed in `en.json` only. After the final merge, their
+translations are restored on Crowdin under the new keys before the sync pull request merges
+and before a release.
+
+The old routes get no redirect: nothing outside the app builds a link to them. If something
+ever does, one `app/+native-intent.tsx` rewriting `/jellyseerr/` to `/seerr/` covers every
+route.
 
 On the plugin side, 27 files and 166 occurrences, and only two exposed keys,
 `jellyseerrServerUrl` and `jellyseerrApiKey`. The plugin has served the `seerr` block
