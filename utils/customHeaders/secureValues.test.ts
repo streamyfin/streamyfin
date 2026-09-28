@@ -1,16 +1,7 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { beforeEach, describe, expect, test } from "bun:test";
+import { secureStoreValues, stubSecureStore } from "@/test-utils/secureStore";
 
-const secureStoreValues = new Map<string, string>();
-
-mock.module("expo-secure-store", () => ({
-  getItem: (key: string) => secureStoreValues.get(key) ?? null,
-  setItem: (key: string, value: string) => {
-    secureStoreValues.set(key, value);
-  },
-  deleteItemAsync: async (key: string) => {
-    secureStoreValues.delete(key);
-  },
-}));
+stubSecureStore();
 
 const { resolveCustomHeaderValues, secureCustomHeaderMetadata } = await import(
   "./secureValues"
