@@ -5,30 +5,30 @@ import { Animated, FlatList, Pressable, View } from "react-native";
 import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { useTVFocusAnimation } from "@/components/tv/hooks/useTVFocusAnimation";
-import { TVJellyseerrPosterCard } from "@/components/tv/TVSeerrPosterCard";
+import { TVSeerrPosterCard } from "@/components/tv/TVSeerrPosterCard";
 import { useScaledTVSizes } from "@/constants/TVSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
-import { useJellyseerr } from "@/hooks/useSeerr";
+import { useSeerr } from "@/hooks/useSeerr";
 import type { MovieResult, PersonResult, TvResult } from "@/utils/seerr/types";
 
 const SCALE_PADDING = 20;
 
-interface TVJellyseerrPersonPosterProps {
+interface TVSeerrPersonPosterProps {
   item: PersonResult;
   onPress: () => void;
 }
 
-const TVJellyseerrPersonPoster: React.FC<TVJellyseerrPersonPosterProps> = ({
+const TVSeerrPersonPoster: React.FC<TVSeerrPersonPosterProps> = ({
   item,
   onPress,
 }) => {
   const typography = useScaledTVTypography();
-  const { jellyseerrApi } = useJellyseerr();
+  const { seerrApi } = useSeerr();
   const { focused, handleFocus, handleBlur, animatedStyle } =
     useTVFocusAnimation();
 
   const posterUrl = item.profilePath
-    ? jellyseerrApi?.imageProxy(item.profilePath, "w185")
+    ? seerrApi?.imageProxy(item.profilePath, "w185")
     : null;
 
   return (
@@ -93,14 +93,14 @@ const TVJellyseerrPersonPoster: React.FC<TVJellyseerrPersonPosterProps> = ({
   );
 };
 
-interface TVJellyseerrMovieSectionProps {
+interface TVSeerrMovieSectionProps {
   title: string;
   items: MovieResult[];
   isFirstSection?: boolean;
   onItemPress: (item: MovieResult) => void;
 }
 
-const TVJellyseerrMovieSection: React.FC<TVJellyseerrMovieSectionProps> = ({
+const TVSeerrMovieSection: React.FC<TVSeerrMovieSectionProps> = ({
   title,
   items,
   isFirstSection = false,
@@ -135,7 +135,7 @@ const TVJellyseerrMovieSection: React.FC<TVJellyseerrMovieSectionProps> = ({
         }}
         style={{ overflow: "visible" }}
         renderItem={({ item, index }) => (
-          <TVJellyseerrPosterCard
+          <TVSeerrPosterCard
             item={item}
             onPress={() => onItemPress(item)}
             hasTVPreferredFocus={isFirstSection && index === 0}
@@ -146,14 +146,14 @@ const TVJellyseerrMovieSection: React.FC<TVJellyseerrMovieSectionProps> = ({
   );
 };
 
-interface TVJellyseerrTvSectionProps {
+interface TVSeerrTvSectionProps {
   title: string;
   items: TvResult[];
   isFirstSection?: boolean;
   onItemPress: (item: TvResult) => void;
 }
 
-const TVJellyseerrTvSection: React.FC<TVJellyseerrTvSectionProps> = ({
+const TVSeerrTvSection: React.FC<TVSeerrTvSectionProps> = ({
   title,
   items,
   isFirstSection = false,
@@ -188,7 +188,7 @@ const TVJellyseerrTvSection: React.FC<TVJellyseerrTvSectionProps> = ({
         }}
         style={{ overflow: "visible" }}
         renderItem={({ item, index }) => (
-          <TVJellyseerrPosterCard
+          <TVSeerrPosterCard
             item={item}
             onPress={() => onItemPress(item)}
             hasTVPreferredFocus={isFirstSection && index === 0}
@@ -199,14 +199,14 @@ const TVJellyseerrTvSection: React.FC<TVJellyseerrTvSectionProps> = ({
   );
 };
 
-interface TVJellyseerrPersonSectionProps {
+interface TVSeerrPersonSectionProps {
   title: string;
   items: PersonResult[];
   isFirstSection?: boolean;
   onItemPress: (item: PersonResult) => void;
 }
 
-const TVJellyseerrPersonSection: React.FC<TVJellyseerrPersonSectionProps> = ({
+const TVSeerrPersonSection: React.FC<TVSeerrPersonSectionProps> = ({
   title,
   items,
   isFirstSection: _isFirstSection = false,
@@ -241,17 +241,14 @@ const TVJellyseerrPersonSection: React.FC<TVJellyseerrPersonSectionProps> = ({
         }}
         style={{ overflow: "visible" }}
         renderItem={({ item }) => (
-          <TVJellyseerrPersonPoster
-            item={item}
-            onPress={() => onItemPress(item)}
-          />
+          <TVSeerrPersonPoster item={item} onPress={() => onItemPress(item)} />
         )}
       />
     </View>
   );
 };
 
-export interface TVJellyseerrSearchResultsProps {
+export interface TVSeerrSearchResultsProps {
   movieResults: MovieResult[];
   tvResults: TvResult[];
   personResults: PersonResult[];
@@ -263,9 +260,7 @@ export interface TVJellyseerrSearchResultsProps {
   onPersonPress: (item: PersonResult) => void;
 }
 
-export const TVJellyseerrSearchResults: React.FC<
-  TVJellyseerrSearchResultsProps
-> = ({
+export const TVSeerrSearchResults: React.FC<TVSeerrSearchResultsProps> = ({
   movieResults,
   tvResults,
   personResults,
@@ -308,19 +303,19 @@ export const TVJellyseerrSearchResults: React.FC<
           keeps focus while typing, otherwise the first result would re-grab
           focus on every keystroke as results re-render. The user navigates
           down to the grid manually. */}
-      <TVJellyseerrMovieSection
+      <TVSeerrMovieSection
         title={t("search.request_movies")}
         items={movieResults}
         isFirstSection={false}
         onItemPress={onMoviePress}
       />
-      <TVJellyseerrTvSection
+      <TVSeerrTvSection
         title={t("search.request_series")}
         items={tvResults}
         isFirstSection={false}
         onItemPress={onTvPress}
       />
-      <TVJellyseerrPersonSection
+      <TVSeerrPersonSection
         title={t("search.actors")}
         items={personResults}
         isFirstSection={false}

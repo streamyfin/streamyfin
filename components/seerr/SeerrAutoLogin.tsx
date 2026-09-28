@@ -1,45 +1,45 @@
 import { useAtomValue } from "jotai";
 import { useEffect, useRef } from "react";
-import { JellyseerrApi, useJellyseerr } from "@/hooks/useSeerr";
+import { SeerrApi, useSeerr } from "@/hooks/useSeerr";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { getIntegrationHeaders } from "@/utils/customHeaders";
 import { writeInfoLog, writeToLog } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
 import {
-  deleteJellyseerrPassword,
-  getJellyseerrPassword,
+  deleteSeerrPassword,
+  getSeerrPassword,
 } from "@/utils/secureCredentials";
 import { signInWithQuickConnect } from "@/utils/seerrQuickConnect";
 import { store } from "@/utils/store";
 
 /**
- * Signs in to Jellyseerr on launch using the stored Jellyfin password.
+ * Signs in to Seerr on launch using the stored Jellyfin password.
  *
- * Only runs when the Streamyfin Jellyfin plugin supplies the Jellyseerr server
+ * Only runs when the Streamyfin Jellyfin plugin supplies the Seerr server
  * URL. In that setup the server is chosen by the admin and every user signs in
- * to Jellyseerr with their Jellyfin account anyway, so re-entering the password
+ * to Seerr with their Jellyfin account anyway, so re-entering the password
  * whenever the cookie session lapses is pure friction. Users who typed their own
  * URL are left alone: nothing is stored and nothing is attempted for them.
  *
  * Renders nothing; it exists purely for the effect.
  */
-export const JellyseerrAutoLogin: React.FC = () => {
+export const SeerrAutoLogin: React.FC = () => {
   const { settings, pluginSettings } = useSettings();
   const user = useAtomValue(userAtom);
   const api = useAtomValue(apiAtom);
-  const { jellyseerrUser, setJellyseerrUser } = useJellyseerr();
+  const { seerrUser, setSeerrUser } = useSeerr();
 
   // One attempt per app run. A failed sign-in must not become a retry loop
   // against the user's server.
   const attempted = useRef(false);
 
-  const pluginUrl = pluginSettings?.jellyseerrServerUrl?.value;
-  const serverUrl = settings?.jellyseerrServerUrl;
-  const enabled = settings?.autoLoginJellyseerr !== false;
+  const pluginUrl = pluginSettings?.seerrServerUrl?.value;
+  const serverUrl = settings?.seerrServerUrl;
+  const enabled = settings?.autoLoginSeerr !== false;
   // With an API key configured, the passwordless sign-in in JellyfinProvider
   // owns this setup — no password is stored and none should be replayed.
-  const apiKey = settings?.jellyseerrApiKey;
+  const apiKey = settings?.seerrApiKey;
   const username = user?.Name;
   const userId = user?.Id;
 
@@ -54,7 +54,7 @@ export const JellyseerrAutoLogin: React.FC = () => {
     // started too early would give up for good on the launch that needed it.
     if (!api) return;
     // Already signed in (session restored from storage) — nothing to do.
-    if (jellyseerrUser) return;
+    if (seerrUser) return;
 
     const jellyfinUrl = storage.getString("serverUrl");
     if (!jellyfinUrl) return;
@@ -63,15 +63,12 @@ export const JellyseerrAutoLogin: React.FC = () => {
 
     (async () => {
       try {
-        // Same headers as every other Jellyseerr call — without them the
+        // Same headers as every other Seerr call — without them the
         // sign-in fails behind an auth gateway (custom-header setups).
         // No test() first: it toasts on every failure path, and this runs
         // unprompted at launch — login() failing into the catch below is
         // the silent behavior we want.
-        const seerr = new JellyseerrApi(
-          serverUrl,
-          getIntegrationHeaders("jellyseerr"),
-        );
+        const seerr = new SeerrApi(serverUrl, getIntegrationHeaders("seerr"));
 
         const stillCurrent = () => store.get(userAtom)?.Id === userId;
 
@@ -86,34 +83,34 @@ export const JellyseerrAutoLogin: React.FC = () => {
           stillCurrent,
         );
         if (quickConnected) {
-          setJellyseerrUser(quickConnected);
-          await deleteJellyseerrPassword(jellyfinUrl, userId).catch((e) =>
+          setSeerrUser(quickConnected);
+          await deleteSeerrPassword(jellyfinUrl, userId).catch((e) =>
             writeToLog(
               "WARN",
-              `Could not drop the stored Jellyseerr password: ${e}`,
+              `Could not drop the stored Seerr password: ${e}`,
             ),
           );
-          writeInfoLog("Jellyseerr signed in with Quick Connect");
+          writeInfoLog("Seerr signed in with Quick Connect");
           return;
         }
 
         // Password replay only when Quick Connect did not sign in.
-        const password = await getJellyseerrPassword(jellyfinUrl, userId);
+        const password = await getSeerrPassword(jellyfinUrl, userId);
         if (!password) return;
         // Nor the password for an account that has since been left: it is
         // the previous user's, and would sign the next one in as them.
         if (!stillCurrent()) return;
 
-        setJellyseerrUser(await seerr.login(username, password));
-        writeInfoLog("Jellyseerr auto-login succeeded");
+        setSeerrUser(await seerr.login(username, password));
+        writeInfoLog("Seerr auto-login succeeded");
       } catch (e) {
         // Silent on purpose: this runs unprompted at launch, so a failure
         // belongs in the log rather than as a toast over the home screen.
         // WARN keeps it out of Sentry too — server-side failures are already
-        // captured once by the JellyseerrApi response interceptor.
+        // captured once by the SeerrApi response interceptor.
         writeToLog(
           "WARN",
-          `Jellyseerr auto-login failed: ${e instanceof Error ? e.message : e}`,
+          `Seerr auto-login failed: ${e instanceof Error ? e.message : e}`,
         );
       }
     })();
@@ -125,11 +122,11 @@ export const JellyseerrAutoLogin: React.FC = () => {
     serverUrl,
     username,
     userId,
-    jellyseerrUser,
-    setJellyseerrUser,
+    seerrUser,
+    setSeerrUser,
   ]);
 
   return null;
 };
 
-export default JellyseerrAutoLogin;
+export default SeerrAutoLogin;

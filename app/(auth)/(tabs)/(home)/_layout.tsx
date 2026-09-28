@@ -189,7 +189,7 @@ export default function IndexLayout() {
       <Stack.Screen
         name='settings/plugins/seerr/page'
         options={{
-          title: "Jellyseerr",
+          title: "Seerr",
           headerShown: !Platform.isTV,
           headerBlurEffect: "none",
           headerTransparent: Platform.OS === "ios",

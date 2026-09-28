@@ -440,16 +440,16 @@ export type Settings = {
   subtitleAlignX?: "left" | "center" | "right";
   subtitleAlignY?: "top" | "center" | "bottom";
   safeAreaInControlsEnabled: boolean;
-  jellyseerrServerUrl?: string;
+  seerrServerUrl?: string;
   /** Seerr admin API key: signs the user in via their Jellyfin ID, no password. */
-  jellyseerrApiKey?: string;
+  seerrApiKey?: string;
   /**
-   * Sign in to Jellyseerr automatically on launch using the Jellyfin password.
-   * Jellyseerr's /auth/jellyfin endpoint takes the password rather than the
+   * Sign in to Seerr automatically on launch using the Jellyfin password.
+   * Seerr's /auth/jellyfin endpoint takes the password rather than the
    * Jellyfin token, so enabling this persists that password in the platform
-   * secure store. Nothing is stored unless a Jellyseerr server is configured.
+   * secure store. Nothing is stored unless a Seerr server is configured.
    */
-  autoLoginJellyseerr: boolean;
+  autoLoginSeerr: boolean;
   useKefinTweaks: boolean;
   hiddenLibraries?: string[];
   enableH265ForChromecast: boolean;
@@ -551,7 +551,7 @@ export type StreamyfinPluginConfig = {
 // Settings whose values are secrets. They must never reach the app log,
 // which users read in-app and paste into bug reports.
 const SENSITIVE_SETTING_KEYS: ReadonlySet<keyof Settings> = new Set([
-  "jellyseerrApiKey",
+  "seerrApiKey",
   "openSubtitlesApiKey",
 ] as const);
 
@@ -615,9 +615,9 @@ export const defaultValues: Settings = {
   subtitleAlignX: "center",
   subtitleAlignY: "bottom",
   safeAreaInControlsEnabled: true,
-  jellyseerrServerUrl: undefined,
-  jellyseerrApiKey: undefined,
-  autoLoginJellyseerr: true,
+  seerrServerUrl: undefined,
+  seerrApiKey: undefined,
+  autoLoginSeerr: true,
   useKefinTweaks: false,
   hiddenLibraries: [],
   enableH265ForChromecast: false,

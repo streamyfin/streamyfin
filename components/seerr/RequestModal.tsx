@@ -12,7 +12,7 @@ import { View, type ViewProps } from "react-native";
 import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
 import { PlatformDropdown } from "@/components/PlatformDropdown";
-import { useJellyseerr } from "@/hooks/useSeerr";
+import { useSeerr } from "@/hooks/useSeerr";
 import { writeDebugLog } from "@/utils/log";
 import type {
   MediaRequestBody,
@@ -41,11 +41,11 @@ const RequestModal = forwardRef<
     { id, title, requestBody, type, isAnime = false, onRequested, onDismiss },
     ref,
   ) => {
-    const { jellyseerrApi, jellyseerrUser, requestMedia } = useJellyseerr();
+    const { seerrApi, seerrUser, requestMedia } = useSeerr();
     const [requestOverrides, setRequestOverrides] = useState<MediaRequestBody>({
       mediaId: Number(id),
       mediaType: type,
-      userId: jellyseerrUser?.id,
+      userId: seerrUser?.id,
     });
 
     const [qualityProfileOpen, setQualityProfileOpen] = useState(false);
@@ -65,18 +65,17 @@ const RequestModal = forwardRef<
     }, [onDismiss]);
 
     const { data: serviceSettings } = useQuery({
-      queryKey: ["jellyseerr", "request", type, "service"],
+      queryKey: ["seerr", "request", type, "service"],
       queryFn: async () =>
-        jellyseerrApi?.service(type === "movie" ? "radarr" : "sonarr"),
-      enabled: !!jellyseerrApi && !!jellyseerrUser,
+        seerrApi?.service(type === "movie" ? "radarr" : "sonarr"),
+      enabled: !!seerrApi && !!seerrUser,
       refetchOnMount: "always",
     });
 
     const { data: users } = useQuery({
-      queryKey: ["jellyseerr", "users"],
-      queryFn: async () =>
-        jellyseerrApi?.user({ take: 1000, sort: "displayname" }),
-      enabled: !!jellyseerrApi && !!jellyseerrUser,
+      queryKey: ["seerr", "users"],
+      queryFn: async () => seerrApi?.user({ take: 1000, sort: "displayname" }),
+      enabled: !!seerrApi && !!seerrUser,
       refetchOnMount: "always",
     });
 
@@ -87,7 +86,7 @@ const RequestModal = forwardRef<
 
     const { data: defaultServiceDetails } = useQuery({
       queryKey: [
-        "jellyseerr",
+        "seerr",
         "request",
         type,
         "service",
@@ -99,12 +98,12 @@ const RequestModal = forwardRef<
           ...prev,
           serverId: defaultService?.id,
         }));
-        return jellyseerrApi?.serviceDetails(
+        return seerrApi?.serviceDetails(
           type === "movie" ? "radarr" : "sonarr",
           defaultService!.id,
         );
       },
-      enabled: !!jellyseerrApi && !!jellyseerrUser && !!defaultService,
+      enabled: !!seerrApi && !!seerrUser && !!defaultService,
       refetchOnMount: "always",
     });
 
@@ -148,9 +147,9 @@ const RequestModal = forwardRef<
         return undefined;
       }
       if (requestBody.seasons.length > 1) {
-        return t("jellyseerr.season_all");
+        return t("seerr.season_all");
       }
-      return t("jellyseerr.season_number", {
+      return t("seerr.season_number", {
         season_number: requestBody.seasons[0],
       });
     }, [requestBody?.seasons]);
@@ -258,8 +257,7 @@ const RequestModal = forwardRef<
               type: "radio" as const,
               label: user.displayName,
               value: user.id.toString(),
-              selected:
-                (requestOverrides.userId || jellyseerrUser?.id) === user.id,
+              selected: (requestOverrides.userId || seerrUser?.id) === user.id,
               onPress: () =>
                 setRequestOverrides((prev) => ({
                   ...prev,
@@ -268,7 +266,7 @@ const RequestModal = forwardRef<
             })) || [],
         },
       ],
-      [users, jellyseerrUser, requestOverrides.userId],
+      [users, seerrUser, requestOverrides.userId],
     );
 
     const request = useCallback(() => {
@@ -281,7 +279,7 @@ const RequestModal = forwardRef<
         ...requestOverrides,
       };
 
-      writeDebugLog("Sending Jellyseerr advanced request", body);
+      writeDebugLog("Sending Seerr advanced request", body);
 
       requestMedia(
         seasonTitle ? `${title}, ${seasonTitle}` : title,
@@ -321,7 +319,7 @@ const RequestModal = forwardRef<
           <View className='flex flex-col space-y-4 px-4 pb-8 pt-2'>
             <View>
               <Text className='font-bold text-2xl text-neutral-100'>
-                {t("jellyseerr.advanced")}
+                {t("seerr.advanced")}
               </Text>
               {seasonTitle && (
                 <Text className='text-neutral-300'>{seasonTitle}</Text>
@@ -332,7 +330,7 @@ const RequestModal = forwardRef<
                 <>
                   <View className='flex flex-col'>
                     <Text className='opacity-50 mb-1 text-xs'>
-                      {t("jellyseerr.quality_profile")}
+                      {t("seerr.quality_profile")}
                     </Text>
                     <PlatformDropdown
                       groups={qualityProfileOptions}
@@ -348,7 +346,7 @@ const RequestModal = forwardRef<
                           </Text>
                         </View>
                       }
-                      title={t("jellyseerr.quality_profile")}
+                      title={t("seerr.quality_profile")}
                       open={qualityProfileOpen}
                       onOpenChange={setQualityProfileOpen}
                     />
@@ -356,7 +354,7 @@ const RequestModal = forwardRef<
 
                   <View className='flex flex-col'>
                     <Text className='opacity-50 mb-1 text-xs'>
-                      {t("jellyseerr.root_folder")}
+                      {t("seerr.root_folder")}
                     </Text>
                     <PlatformDropdown
                       groups={rootFolderOptions}
@@ -369,7 +367,7 @@ const RequestModal = forwardRef<
                           </Text>
                         </View>
                       }
-                      title={t("jellyseerr.root_folder")}
+                      title={t("seerr.root_folder")}
                       open={rootFolderOpen}
                       onOpenChange={setRootFolderOpen}
                     />
@@ -377,7 +375,7 @@ const RequestModal = forwardRef<
 
                   <View className='flex flex-col'>
                     <Text className='opacity-50 mb-1 text-xs'>
-                      {t("jellyseerr.tags")}
+                      {t("seerr.tags")}
                     </Text>
                     <PlatformDropdown
                       groups={tagsOptions}
@@ -396,7 +394,7 @@ const RequestModal = forwardRef<
                           </Text>
                         </View>
                       }
-                      title={t("jellyseerr.tags")}
+                      title={t("seerr.tags")}
                       open={tagsOpen}
                       onOpenChange={setTagsOpen}
                     />
@@ -404,7 +402,7 @@ const RequestModal = forwardRef<
 
                   <View className='flex flex-col'>
                     <Text className='opacity-50 mb-1 text-xs'>
-                      {t("jellyseerr.request_as")}
+                      {t("seerr.request_as")}
                     </Text>
                     <PlatformDropdown
                       groups={usersOptions}
@@ -414,12 +412,12 @@ const RequestModal = forwardRef<
                             {users.find(
                               (u) =>
                                 u.id ===
-                                (requestOverrides.userId || jellyseerrUser?.id),
-                            )?.displayName || jellyseerrUser!.displayName}
+                                (requestOverrides.userId || seerrUser?.id),
+                            )?.displayName || seerrUser!.displayName}
                           </Text>
                         </View>
                       }
-                      title={t("jellyseerr.request_as")}
+                      title={t("seerr.request_as")}
                       open={usersOpen}
                       onOpenChange={setUsersOpen}
                     />
@@ -428,7 +426,7 @@ const RequestModal = forwardRef<
               )}
             </View>
             <Button className='mt-auto' onPress={request} color='purple'>
-              {t("jellyseerr.request_button")}
+              {t("seerr.request_button")}
             </Button>
           </View>
         </BottomSheetView>

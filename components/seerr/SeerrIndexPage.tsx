@@ -9,23 +9,23 @@ import {
   withTiming,
 } from "react-native-reanimated";
 import Discover from "@/components/seerr/discover/Discover";
-import { useJellyseerr } from "@/hooks/useSeerr";
+import { useSeerr } from "@/hooks/useSeerr";
 import type { MovieResult, PersonResult, TvResult } from "@/utils/seerr/types";
 import { MediaType } from "@/utils/seerr/types";
 import { useReactNavigationQuery } from "@/utils/useReactNavigationQuery";
 import { Text } from "../common/Text";
-import JellyseerrPoster from "../posters/SeerrPoster";
+import SeerrPoster from "../posters/SeerrPoster";
 import { LoadingSkeleton } from "../search/LoadingSkeleton";
 import { SearchItemWrapper } from "../search/SearchItemWrapper";
 import PersonPoster from "./PersonPoster";
 
 interface Props extends ViewProps {
   searchQuery: string;
-  sortType?: JellyseerrSearchSort;
+  sortType?: SeerrSearchSort;
   order?: "asc" | "desc";
 }
 
-export enum JellyseerrSearchSort {
+export enum SeerrSearchSort {
   DEFAULT = 0,
   VOTE_COUNT_AND_AVERAGE = 1,
   POPULARITY = 2,
@@ -36,35 +36,35 @@ export const JellyserrIndexPage: React.FC<Props> = ({
   sortType,
   order,
 }) => {
-  const { jellyseerrApi } = useJellyseerr();
+  const { seerrApi } = useSeerr();
   const opacity = useSharedValue(1);
   const { t } = useTranslation();
 
   const {
-    data: jellyseerrDiscoverSettings,
+    data: seerrDiscoverSettings,
     isFetching: f1,
     isLoading: l1,
   } = useReactNavigationQuery({
-    queryKey: ["search", "jellyseerr", "discoverSettings", searchQuery],
-    queryFn: async () => jellyseerrApi?.discoverSettings(),
-    enabled: !!jellyseerrApi && searchQuery.length === 0,
+    queryKey: ["search", "seerr", "discoverSettings", searchQuery],
+    queryFn: async () => seerrApi?.discoverSettings(),
+    enabled: !!seerrApi && searchQuery.length === 0,
   });
 
   const {
-    data: jellyseerrResults,
+    data: seerrResults,
     isFetching: f2,
     isLoading: l2,
   } = useReactNavigationQuery({
-    queryKey: ["search", "jellyseerr", "results", searchQuery],
+    queryKey: ["search", "seerr", "results", searchQuery],
     queryFn: async () => {
       const params = {
         query: new URLSearchParams(searchQuery || "").toString(),
       };
       return await Promise.all([
-        jellyseerrApi?.search({ ...params, page: 1 }),
-        jellyseerrApi?.search({ ...params, page: 2 }),
-        jellyseerrApi?.search({ ...params, page: 3 }),
-        jellyseerrApi?.search({ ...params, page: 4 }),
+        seerrApi?.search({ ...params, page: 1 }),
+        seerrApi?.search({ ...params, page: 2 }),
+        seerrApi?.search({ ...params, page: 3 }),
+        seerrApi?.search({ ...params, page: 4 }),
       ]).then((all) =>
         uniqBy(
           all.flatMap((v) => v?.results || []),
@@ -72,7 +72,7 @@ export const JellyserrIndexPage: React.FC<Props> = ({
         ),
       );
     },
-    enabled: !!jellyseerrApi && searchQuery.length > 0,
+    enabled: !!seerrApi && searchQuery.length > 0,
   });
 
   useAnimatedReaction(
@@ -88,20 +88,20 @@ export const JellyserrIndexPage: React.FC<Props> = ({
 
   const sortingType = useMemo(() => {
     if (!sortType) return;
-    switch (Number(JellyseerrSearchSort[sortType])) {
-      case JellyseerrSearchSort.VOTE_COUNT_AND_AVERAGE:
+    switch (Number(SeerrSearchSort[sortType])) {
+      case SeerrSearchSort.VOTE_COUNT_AND_AVERAGE:
         return ["voteCount", "voteAverage"];
-      case JellyseerrSearchSort.POPULARITY:
+      case SeerrSearchSort.POPULARITY:
         return ["voteCount", "popularity"];
       default:
         return undefined;
     }
   }, [sortType, order]);
 
-  const jellyseerrMovieResults = useMemo(
+  const seerrMovieResults = useMemo(
     () =>
       orderBy(
-        jellyseerrResults?.filter(
+        seerrResults?.filter(
           (r) => r.mediaType === MediaType.MOVIE,
         ) as MovieResult[],
         sortingType || [
@@ -109,41 +109,37 @@ export const JellyserrIndexPage: React.FC<Props> = ({
         ],
         order || "desc",
       ),
-    [jellyseerrResults, sortingType, order],
+    [seerrResults, sortingType, order],
   );
 
-  const jellyseerrTvResults = useMemo(
+  const seerrTvResults = useMemo(
     () =>
       orderBy(
-        jellyseerrResults?.filter(
-          (r) => r.mediaType === MediaType.TV,
-        ) as TvResult[],
+        seerrResults?.filter((r) => r.mediaType === MediaType.TV) as TvResult[],
         sortingType || [
           (t) => t.name.toLowerCase() === searchQuery.toLowerCase(),
         ],
         order || "desc",
       ),
-    [jellyseerrResults, sortingType, order],
+    [seerrResults, sortingType, order],
   );
 
-  const jellyseerrPersonResults = useMemo(
+  const seerrPersonResults = useMemo(
     () =>
       orderBy(
-        jellyseerrResults?.filter(
-          (r) => r.mediaType === "person",
-        ) as PersonResult[],
+        seerrResults?.filter((r) => r.mediaType === "person") as PersonResult[],
         sortingType || [
           (p) => p.name.toLowerCase() === searchQuery.toLowerCase(),
         ],
         order || "desc",
       ),
-    [jellyseerrResults, sortingType, order],
+    [seerrResults, sortingType, order],
   );
 
   if (!searchQuery.length)
     return (
       <View className='flex flex-col'>
-        <Discover sliders={jellyseerrDiscoverSettings} />
+        <Discover sliders={seerrDiscoverSettings} />
       </View>
     );
 
@@ -151,9 +147,9 @@ export const JellyserrIndexPage: React.FC<Props> = ({
     <View>
       <LoadingSkeleton isLoading={f1 || f2 || l1 || l2} />
 
-      {!jellyseerrMovieResults?.length &&
-        !jellyseerrTvResults?.length &&
-        !jellyseerrPersonResults?.length &&
+      {!seerrMovieResults?.length &&
+        !seerrTvResults?.length &&
+        !seerrPersonResults?.length &&
         !f1 &&
         !f2 &&
         !l1 &&
@@ -171,21 +167,21 @@ export const JellyserrIndexPage: React.FC<Props> = ({
       <View className={f1 || f2 || l1 || l2 ? "opacity-0" : "opacity-100"}>
         <SearchItemWrapper
           header={t("search.request_movies")}
-          items={jellyseerrMovieResults}
+          items={seerrMovieResults}
           renderItem={(item: MovieResult) => (
-            <JellyseerrPoster item={item} key={item.id} />
+            <SeerrPoster item={item} key={item.id} />
           )}
         />
         <SearchItemWrapper
           header={t("search.request_series")}
-          items={jellyseerrTvResults}
+          items={seerrTvResults}
           renderItem={(item: TvResult) => (
-            <JellyseerrPoster item={item} key={item.id} />
+            <SeerrPoster item={item} key={item.id} />
           )}
         />
         <SearchItemWrapper
           header={t("search.actors")}
-          items={jellyseerrPersonResults}
+          items={seerrPersonResults}
           renderItem={(item: PersonResult) => (
             <PersonPoster
               className='mr-2'

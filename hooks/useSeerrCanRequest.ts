@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useJellyseerr } from "@/hooks/useSeerr";
+import { useSeerr } from "@/hooks/useSeerr";
 import { hasPermission, Permission } from "@/utils/seerr/permissions";
 import { canRequest } from "@/utils/seerr/requests";
 import type {
@@ -10,25 +10,25 @@ import type {
   TvResult,
 } from "@/utils/seerr/types";
 
-export const useJellyseerrCanRequest = (
+export const useSeerrCanRequest = (
   item?: MovieResult | TvResult | MovieDetails | TvDetails | PersonCreditCast,
 ) => {
-  const { jellyseerrUser } = useJellyseerr();
+  const { seerrUser } = useSeerr();
 
   const canRequestItem = useMemo(
-    () => !!jellyseerrUser && canRequest(item, jellyseerrUser.permissions),
-    [item, jellyseerrUser],
+    () => !!seerrUser && canRequest(item, seerrUser.permissions),
+    [item, seerrUser],
   );
 
   const hasAdvancedRequestPermission = useMemo(() => {
-    if (!jellyseerrUser) return false;
+    if (!seerrUser) return false;
 
     return hasPermission(
       [Permission.REQUEST_ADVANCED, Permission.MANAGE_REQUESTS],
-      jellyseerrUser.permissions,
+      seerrUser.permissions,
       { type: "or" },
     );
-  }, [jellyseerrUser]);
+  }, [seerrUser]);
 
   return [canRequestItem, hasAdvancedRequestPermission];
 };

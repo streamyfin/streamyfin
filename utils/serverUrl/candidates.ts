@@ -5,7 +5,7 @@
  * `host:8096`, `http://10.0.0.5:3000/path`) into an ordered list of full URLs
  * to probe — https first, http as fallback — while preserving any explicit
  * port and path. Service-agnostic: unlike the Jellyfin SDK's `getAddressCandidates`
- * it adds no Jellyfin-specific ports, so it suits Jellyseerr/Streamystats/etc.
+ * it adds no Jellyfin-specific ports, so it suits Seerr/Streamystats/etc.
  */
 
 // scheme? host (port)? path? -- query/fragment are matched but discarded:

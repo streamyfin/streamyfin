@@ -104,7 +104,7 @@ export const IntroSheet = forwardRef<IntroSheetRef>((_, ref) => {
               <View className='shrink ml-2'>
                 <Text className='font-bold mb-1'>Seerr</Text>
                 <Text className='shrink text-xs'>
-                  {t("home.intro.jellyseerr_feature_description")}
+                  {t("home.intro.seerr_feature_description")}
                 </Text>
               </View>
             </View>

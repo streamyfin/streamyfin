@@ -264,19 +264,19 @@ describe("readIntegrationBlocks", () => {
       }),
     );
 
-    expect(read!.jellyseerrServerUrl).toEqual({
+    expect(read!.seerrServerUrl).toEqual({
       locked: true,
       value: "http://seerr.example",
     });
-    expect(read!.jellyseerrApiKey).toEqual({ locked: false, value: "a-key" });
-    expect(read!.autoLoginJellyseerr).toEqual({ locked: false, value: false });
+    expect(read!.seerrApiKey).toEqual({ locked: false, value: "a-key" });
+    expect(read!.autoLoginSeerr).toEqual({ locked: false, value: false });
     expect("seerr" in read!).toBe(false);
   });
 
   test("the flat keys win, since a server that sends both means them to agree", () => {
     const read = readIntegrationBlocks(
       plugin({
-        jellyseerrServerUrl: { locked: false, value: "http://flat.example" },
+        seerrServerUrl: { locked: false, value: "http://flat.example" },
         seerr: {
           locked: false,
           value: {
@@ -286,7 +286,7 @@ describe("readIntegrationBlocks", () => {
       }),
     );
 
-    expect(read!.jellyseerrServerUrl).toEqual({
+    expect(read!.seerrServerUrl).toEqual({
       locked: false,
       value: "http://flat.example",
     });
@@ -302,13 +302,13 @@ describe("readIntegrationBlocks", () => {
       }),
     );
 
-    expect(read!.autoLoginJellyseerr).toEqual({ locked: true, value: true });
-    expect("jellyseerrServerUrl" in read!).toBe(false);
+    expect(read!.autoLoginSeerr).toEqual({ locked: true, value: true });
+    expect("seerrServerUrl" in read!).toBe(false);
   });
 
   test("a server that sends no block is handed back untouched", () => {
     const settings = plugin({
-      jellyseerrServerUrl: { locked: false, value: "http://seerr.example" },
+      seerrServerUrl: { locked: false, value: "http://seerr.example" },
     });
 
     expect(readIntegrationBlocks(settings)).toBe(settings);
@@ -321,6 +321,6 @@ describe("readIntegrationBlocks", () => {
     );
 
     expect("seerr" in read!).toBe(false);
-    expect("jellyseerrServerUrl" in read!).toBe(false);
+    expect("seerrServerUrl" in read!).toBe(false);
   });
 });

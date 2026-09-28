@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import { useMemo } from "react";
 import { View, type ViewProps } from "react-native";
-import { useJellyseerr } from "@/hooks/useSeerr";
+import { useSeerr } from "@/hooks/useSeerr";
 import type {
   MovieDetails,
   MovieResult,
@@ -66,20 +66,20 @@ export const Ratings: React.FC<Props> = ({ item, className, ...props }) => {
 export const JellyserrRatings: React.FC<{
   result: MovieResult | TvResult | TvDetails | MovieDetails;
 }> = ({ result }) => {
-  const { jellyseerrApi, getMediaType } = useJellyseerr();
+  const { seerrApi, getMediaType } = useSeerr();
 
   const mediaType = useMemo(() => getMediaType(result), [result]);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["jellyseerr", result.id, mediaType, "ratings"],
+    queryKey: ["seerr", result.id, mediaType, "ratings"],
     queryFn: async () => {
       return mediaType === MediaType.MOVIE
-        ? jellyseerrApi?.movieRatings(result.id)
-        : jellyseerrApi?.tvRatings(result.id);
+        ? seerrApi?.movieRatings(result.id)
+        : seerrApi?.tvRatings(result.id);
     },
     staleTime: (5).minutesToMilliseconds(),
     retry: false,
-    enabled: !!jellyseerrApi,
+    enabled: !!seerrApi,
   });
 
   return (

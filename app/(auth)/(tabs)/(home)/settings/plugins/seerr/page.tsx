@@ -1,9 +1,9 @@
 import { ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { JellyseerrSettings } from "@/components/settings/Seerr";
+import { SeerrSettings } from "@/components/settings/Seerr";
 import { useDismissKeyboardOnLeave } from "@/hooks/useDismissKeyboardOnLeave";
 
-export default function JellyseerrPluginPage() {
+export default function SeerrPluginPage() {
   useDismissKeyboardOnLeave();
   const insets = useSafeAreaInsets();
 
@@ -16,7 +16,7 @@ export default function JellyseerrPluginPage() {
       }}
     >
       <View className='p-4'>
-        <JellyseerrSettings />
+        <SeerrSettings />
       </View>
     </ScrollView>
   );

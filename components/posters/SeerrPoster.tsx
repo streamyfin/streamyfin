@@ -6,16 +6,16 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
-import { TouchableJellyseerrRouter } from "@/components/common/SeerrItemRouter";
+import { TouchableSeerrRouter } from "@/components/common/SeerrItemRouter";
 import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { Tag, Tags } from "@/components/GenreTags";
 import { textShadowStyle } from "@/components/seerr/discover/GenericSlideCard";
-import JellyseerrMediaIcon from "@/components/seerr/SeerrMediaIcon";
-import JellyseerrStatusIcon from "@/components/seerr/SeerrStatusIcon";
+import SeerrMediaIcon from "@/components/seerr/SeerrMediaIcon";
+import SeerrStatusIcon from "@/components/seerr/SeerrStatusIcon";
 import { Colors } from "@/constants/Colors";
-import { useJellyseerr } from "@/hooks/useSeerr";
-import { useJellyseerrCanRequest } from "@/hooks/useSeerrCanRequest";
+import { useSeerr } from "@/hooks/useSeerr";
+import { useSeerrCanRequest } from "@/hooks/useSeerrCanRequest";
 import type {
   DownloadingItem,
   MediaRequest,
@@ -33,13 +33,13 @@ interface Props extends ViewProps {
   mediaRequest?: MediaRequest;
 }
 
-const JellyseerrPoster: React.FC<Props> = ({
+const SeerrPoster: React.FC<Props> = ({
   item,
   horizontal,
   showDownloadInfo,
   mediaRequest,
 }) => {
-  const { jellyseerrApi, getTitle, getYear, getMediaType } = useJellyseerr();
+  const { seerrApi, getTitle, getYear, getMediaType } = useSeerr();
   const loadingOpacity = useSharedValue(1);
   const imageOpacity = useSharedValue(0);
   const { t } = useTranslation();
@@ -55,16 +55,13 @@ const JellyseerrPoster: React.FC<Props> = ({
 
   const backdropSrc = useMemo(
     () =>
-      jellyseerrApi?.imageProxy(
-        item?.backdropPath,
-        "w1920_and_h800_multi_faces",
-      ),
-    [item, jellyseerrApi, horizontal],
+      seerrApi?.imageProxy(item?.backdropPath, "w1920_and_h800_multi_faces"),
+    [item, seerrApi, horizontal],
   );
 
   const posterSrc = useMemo(
-    () => jellyseerrApi?.imageProxy(item?.posterPath, "w300_and_h450_face"),
-    [item, jellyseerrApi, horizontal],
+    () => seerrApi?.imageProxy(item?.posterPath, "w300_and_h450_face"),
+    [item, seerrApi, horizontal],
   );
 
   const title = useMemo(() => getTitle(item), [item]);
@@ -74,7 +71,7 @@ const JellyseerrPoster: React.FC<Props> = ({
   const size = useMemo(() => (horizontal ? "h-28" : "w-28"), [horizontal]);
   const ratio = useMemo(() => (horizontal ? "15/10" : "10/15"), [horizontal]);
 
-  const [canRequest] = useJellyseerrCanRequest(item);
+  const [canRequest] = useSeerrCanRequest(item);
 
   const is4k = useMemo(() => mediaRequest?.is4k === true, [mediaRequest]);
 
@@ -108,7 +105,7 @@ const JellyseerrPoster: React.FC<Props> = ({
         second,
         third,
         fourth,
-        t("home.settings.plugins.jellyseerr.plus_n_more", { n: rest.length }),
+        t("home.settings.plugins.seerr.plus_n_more", { n: rest.length }),
       ];
     }
     return seasons;
@@ -120,7 +117,7 @@ const JellyseerrPoster: React.FC<Props> = ({
   }, [mediaRequest, is4k]);
 
   return (
-    <TouchableJellyseerrRouter
+    <TouchableSeerrRouter
       result={item}
       mediaTitle={title}
       releaseYear={releaseYear}
@@ -183,12 +180,12 @@ const JellyseerrPoster: React.FC<Props> = ({
               )}
             </>
           )}
-          <JellyseerrStatusIcon
+          <SeerrStatusIcon
             className='absolute bottom-1 right-1'
             showRequestIcon={canRequest}
             mediaStatus={mediaRequest?.media?.status || item?.mediaInfo?.status}
           />
-          <JellyseerrMediaIcon
+          <SeerrMediaIcon
             className='absolute top-1 left-1'
             mediaType={mediaType}
           />
@@ -200,8 +197,8 @@ const JellyseerrPoster: React.FC<Props> = ({
           {releaseYear || ""}
         </Text>
       </View>
-    </TouchableJellyseerrRouter>
+    </TouchableSeerrRouter>
   );
 };
 
-export default JellyseerrPoster;
+export default SeerrPoster;

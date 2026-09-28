@@ -1,43 +1,43 @@
 import { useQuery } from "@tanstack/react-query";
 import type React from "react";
 import type { ViewProps } from "react-native";
-import JellyseerrPoster from "@/components/posters/SeerrPoster";
+import SeerrPoster from "@/components/posters/SeerrPoster";
 import Slide, { type SlideProps } from "@/components/seerr/discover/Slide";
-import { useJellyseerr } from "@/hooks/useSeerr";
+import { useSeerr } from "@/hooks/useSeerr";
 import type { MediaRequest } from "@/utils/seerr/types";
 import { MediaType } from "@/utils/seerr/types";
 
 const RequestCard: React.FC<{ request: MediaRequest }> = ({ request }) => {
-  const { jellyseerrApi } = useJellyseerr();
+  const { seerrApi } = useSeerr();
 
   const { data: details } = useQuery({
     queryKey: [
-      "jellyseerr",
+      "seerr",
       "detail",
       request.media.mediaType,
       request.media.tmdbId,
     ],
     queryFn: async () => {
       return request.media.mediaType === MediaType.MOVIE
-        ? jellyseerrApi?.movieDetails(request.media.tmdbId)
-        : jellyseerrApi?.tvDetails(request.media.tmdbId);
+        ? seerrApi?.movieDetails(request.media.tmdbId)
+        : seerrApi?.tvDetails(request.media.tmdbId);
     },
-    enabled: !!jellyseerrApi,
+    enabled: !!seerrApi,
     refetchOnMount: true,
     staleTime: 0,
   });
 
   const { data: refreshedRequest } = useQuery({
-    queryKey: ["jellyseerr", "requests", request.media.mediaType, request.id],
-    queryFn: async () => jellyseerrApi?.getRequest(request.id),
-    enabled: !!jellyseerrApi,
+    queryKey: ["seerr", "requests", request.media.mediaType, request.id],
+    queryFn: async () => seerrApi?.getRequest(request.id),
+    enabled: !!seerrApi,
     refetchOnMount: true,
     refetchInterval: 5000,
     staleTime: 0,
   });
 
   return (
-    <JellyseerrPoster
+    <SeerrPoster
       horizontal
       showDownloadInfo
       item={details}
@@ -50,12 +50,12 @@ const RecentRequestsSlide: React.FC<SlideProps & ViewProps> = ({
   slide,
   ...props
 }) => {
-  const { jellyseerrApi } = useJellyseerr();
+  const { seerrApi } = useSeerr();
 
   const { data: requests } = useQuery({
-    queryKey: ["jellyseerr", "recent_requests"],
-    queryFn: async () => jellyseerrApi?.requests(),
-    enabled: !!jellyseerrApi,
+    queryKey: ["seerr", "recent_requests"],
+    queryFn: async () => seerrApi?.requests(),
+    enabled: !!seerrApi,
     refetchOnMount: true,
     staleTime: 0,
   });

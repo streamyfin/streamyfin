@@ -20,7 +20,7 @@ import { DarkTheme, ThemeProvider } from "expo-router/react-navigation";
 import { Platform } from "react-native";
 import { GlobalModal } from "@/components/GlobalModal";
 import { PendingAccountSaveModal } from "@/components/PendingAccountSaveModal";
-import { JellyseerrAutoLogin } from "@/components/seerr/SeerrAutoLogin";
+import { SeerrAutoLogin } from "@/components/seerr/SeerrAutoLogin";
 import { enableTVMenuKeyInterception } from "@/hooks/useTVBackHandler";
 import i18n from "@/i18n";
 import { DownloadProvider } from "@/providers/DownloadProvider";
@@ -693,7 +693,7 @@ function Layout() {
                                     {!Platform.isTV && (
                                       <PendingAccountSaveModal />
                                     )}
-                                    <JellyseerrAutoLogin />
+                                    <SeerrAutoLogin />
                                   </ThemeProvider>
                                 </IntroSheetProvider>
                               </BottomSheetModalProvider>

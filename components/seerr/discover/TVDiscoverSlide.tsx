@@ -4,15 +4,11 @@ import React, { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { FlatList, View } from "react-native";
 import { Text } from "@/components/common/Text";
-import { TVJellyseerrPosterCard } from "@/components/tv/TVSeerrPosterCard";
+import { TVSeerrPosterCard } from "@/components/tv/TVSeerrPosterCard";
 import { useScaledTVSizes } from "@/constants/TVSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
-import {
-  type DiscoverEndpoint,
-  Endpoints,
-  useJellyseerr,
-} from "@/hooks/useSeerr";
+import { type DiscoverEndpoint, Endpoints, useSeerr } from "@/hooks/useSeerr";
 import type {
   DiscoverSlider,
   MovieResult,
@@ -35,7 +31,7 @@ export const TVDiscoverSlide: React.FC<TVDiscoverSlideProps> = ({
   const sizes = useScaledTVSizes();
   const { t } = useTranslation();
   const router = useRouter();
-  const { jellyseerrApi, isJellyseerrMovieOrTvResult } = useJellyseerr();
+  const { seerrApi, isSeerrMovieOrTvResult } = useSeerr();
 
   const handleItemPress = useCallback(
     (item: MovieResult | TvResult) => {
@@ -51,7 +47,7 @@ export const TVDiscoverSlide: React.FC<TVDiscoverSlideProps> = ({
   );
 
   const { data, fetchNextPage, hasNextPage } = useInfiniteQuery({
-    queryKey: ["jellyseerr", "discover", "tv", slide.id],
+    queryKey: ["seerr", "discover", "tv", slide.id],
     queryFn: async ({ pageParam }) => {
       let endpoint: DiscoverEndpoint | undefined;
       let params: Record<string, unknown> = {
@@ -82,13 +78,13 @@ export const TVDiscoverSlide: React.FC<TVDiscoverSlideProps> = ({
           break;
       }
 
-      return endpoint ? jellyseerrApi?.discover(endpoint, params) : null;
+      return endpoint ? seerrApi?.discover(endpoint, params) : null;
     },
     initialPageParam: 1,
     getNextPageParam: (lastPage, pages) =>
       (lastPage?.page || pages?.findLast((p) => p?.results.length)?.page || 1) +
       1,
-    enabled: !!jellyseerrApi,
+    enabled: !!seerrApi,
     staleTime: 0,
   });
 
@@ -97,12 +93,10 @@ export const TVDiscoverSlide: React.FC<TVDiscoverSlideProps> = ({
       uniqBy(
         data?.pages
           ?.filter((p) => p?.results.length)
-          .flatMap((p) =>
-            p?.results.filter((r) => isJellyseerrMovieOrTvResult(r)),
-          ),
+          .flatMap((p) => p?.results.filter((r) => isSeerrMovieOrTvResult(r))),
         "id",
       ) as (MovieResult | TvResult)[],
-    [data, isJellyseerrMovieOrTvResult],
+    [data, isSeerrMovieOrTvResult],
   );
 
   const slideTitle = t(
@@ -140,7 +134,7 @@ export const TVDiscoverSlide: React.FC<TVDiscoverSlideProps> = ({
         }}
         onEndReachedThreshold={0.5}
         renderItem={({ item, index }) => (
-          <TVJellyseerrPosterCard
+          <TVSeerrPosterCard
             item={item}
             onPress={() => handleItemPress(item)}
             hasTVPreferredFocus={isFirstSlide && index === 0}

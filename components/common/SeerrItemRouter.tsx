@@ -20,7 +20,7 @@ interface Props extends TouchableOpacityProps {
   mediaType?: MediaType;
 }
 
-export const TouchableJellyseerrRouter: React.FC<PropsWithChildren<Props>> = ({
+export const TouchableSeerrRouter: React.FC<PropsWithChildren<Props>> = ({
   result,
   mediaTitle,
   releaseYear,

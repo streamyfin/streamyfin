@@ -151,8 +151,8 @@ export const pluginRefreshOverlay = (
 /**
  * The integration blocks the plugin serves, read as the flat keys this app already uses.
  *
- * Seerr was renamed from Jellyseerr and the plugin's keys were not, because every copy of
- * this app in the field reads `jellyseerrServerUrl` by name. The plugin now serves the
+ * Seerr was renamed from Seerr and the plugin's keys were not, because every copy of
+ * this app in the field reads `seerrServerUrl` by name. The plugin now serves the
  * same three settings twice: as those keys, and as a `seerr` block, which is the shape it
  * is moving to. Reading the block here means the app keeps its own names while the wire
  * moves, and it is what lets the plugin stop sending the flat keys one day.
@@ -176,9 +176,9 @@ export const readIntegrationBlocks = (
   const read = { ...rest } as Record<string, unknown>;
 
   for (const [from, to] of [
-    ["serverUrl", "jellyseerrServerUrl"],
-    ["apiKey", "jellyseerrApiKey"],
-    ["autoLogin", "autoLoginJellyseerr"],
+    ["serverUrl", "seerrServerUrl"],
+    ["apiKey", "seerrApiKey"],
+    ["autoLogin", "autoLoginSeerr"],
   ] as const) {
     if (inBlock[from] !== undefined && read[to] === undefined) {
       read[to] = inBlock[from];

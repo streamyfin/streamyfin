@@ -24,8 +24,8 @@ import { TVButton } from "@/components/tv";
 import { useTVFocusAnimation } from "@/components/tv/hooks/useTVFocusAnimation";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
-import { useJellyseerr } from "@/hooks/useSeerr";
-import { useJellyseerrCanRequest } from "@/hooks/useSeerrCanRequest";
+import { useSeerr } from "@/hooks/useSeerr";
+import { useSeerrCanRequest } from "@/hooks/useSeerrCanRequest";
 import { useTVRequestModal } from "@/hooks/useTVRequestModal";
 import { useTVSeasonSelectModal } from "@/hooks/useTVSeasonSelectModal";
 import { hasPermission, Permission } from "@/utils/seerr/permissions";
@@ -155,7 +155,7 @@ const TVCastCard: React.FC<TVCastCardProps> = ({
   );
 };
 
-export const TVJellyseerrPage: React.FC = () => {
+export const TVSeerrPage: React.FC = () => {
   const typography = useScaledTVTypography();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
@@ -171,7 +171,7 @@ export const TVJellyseerrPage: React.FC = () => {
       mediaType: MediaType;
     } & Partial<MovieResult | TvResult | MovieDetails | TvDetails>;
 
-  const { jellyseerrApi, jellyseerrUser, requestMedia } = useJellyseerr();
+  const { seerrApi, seerrUser, requestMedia } = useSeerr();
   const { showRequestModal } = useTVRequestModal();
   const { showSeasonSelectModal } = useTVSeasonSelectModal();
 
@@ -185,27 +185,24 @@ export const TVJellyseerrPage: React.FC = () => {
     isLoading,
     refetch,
   } = useQuery({
-    enabled: !!jellyseerrApi && !!result && !!result.id,
-    queryKey: ["jellyseerr", "detail", mediaType, result.id],
+    enabled: !!seerrApi && !!result && !!result.id,
+    queryKey: ["seerr", "detail", mediaType, result.id],
     staleTime: 0,
     refetchOnMount: true,
     queryFn: async () => {
       return mediaType === MediaType.MOVIE
-        ? jellyseerrApi?.movieDetails(result.id!)
-        : jellyseerrApi?.tvDetails(result.id!);
+        ? seerrApi?.movieDetails(result.id!)
+        : seerrApi?.tvDetails(result.id!);
     },
   });
 
   const [canRequest, hasAdvancedRequestPermission] =
-    useJellyseerrCanRequest(details);
+    useSeerrCanRequest(details);
 
   const canManageRequests = useMemo(() => {
-    if (!jellyseerrUser) return false;
-    return hasPermission(
-      Permission.MANAGE_REQUESTS,
-      jellyseerrUser.permissions,
-    );
-  }, [jellyseerrUser]);
+    if (!seerrUser) return false;
+    return hasPermission(Permission.MANAGE_REQUESTS, seerrUser.permissions);
+  }, [seerrUser]);
 
   const pendingRequest = useMemo(() => {
     return details?.mediaInfo?.requests?.find(
@@ -246,39 +243,39 @@ export const TVJellyseerrPage: React.FC = () => {
   const backdropUrl = useMemo(() => {
     const path = details?.backdropPath || result.backdropPath;
     return path
-      ? jellyseerrApi?.imageProxy(path, "w1920_and_h800_multi_faces")
+      ? seerrApi?.imageProxy(path, "w1920_and_h800_multi_faces")
       : null;
-  }, [details, result.backdropPath, jellyseerrApi]);
+  }, [details, result.backdropPath, seerrApi]);
 
   // Poster URL
   const posterUrl = useMemo(() => {
     if (posterSrc) return posterSrc;
     const path = details?.posterPath;
-    return path ? jellyseerrApi?.imageProxy(path, "w342") : null;
-  }, [posterSrc, details, jellyseerrApi]);
+    return path ? seerrApi?.imageProxy(path, "w342") : null;
+  }, [posterSrc, details, seerrApi]);
 
   // Handlers
   const handleApproveRequest = useCallback(async () => {
     if (!pendingRequest?.id) return;
     try {
-      await jellyseerrApi?.approveRequest(pendingRequest.id);
-      toast.success(t("jellyseerr.toasts.request_approved"));
+      await seerrApi?.approveRequest(pendingRequest.id);
+      toast.success(t("seerr.toasts.request_approved"));
       refetch();
     } catch (_error) {
-      toast.error(t("jellyseerr.toasts.failed_to_approve_request"));
+      toast.error(t("seerr.toasts.failed_to_approve_request"));
     }
-  }, [jellyseerrApi, pendingRequest, refetch, t]);
+  }, [seerrApi, pendingRequest, refetch, t]);
 
   const handleDeclineRequest = useCallback(async () => {
     if (!pendingRequest?.id) return;
     try {
-      await jellyseerrApi?.declineRequest(pendingRequest.id);
-      toast.success(t("jellyseerr.toasts.request_declined"));
+      await seerrApi?.declineRequest(pendingRequest.id);
+      toast.success(t("seerr.toasts.request_declined"));
       refetch();
     } catch (_error) {
-      toast.error(t("jellyseerr.toasts.failed_to_decline_request"));
+      toast.error(t("seerr.toasts.failed_to_decline_request"));
     }
-  }, [jellyseerrApi, pendingRequest, refetch, t]);
+  }, [seerrApi, pendingRequest, refetch, t]);
 
   const handleRequest = useCallback(async () => {
     const body: MediaRequestBody = {
@@ -336,7 +333,7 @@ export const TVJellyseerrPage: React.FC = () => {
       return;
     }
 
-    requestMedia(`${mediaTitle}, ${t("jellyseerr.season_all")}`, body, refetch);
+    requestMedia(`${mediaTitle}, ${t("seerr.season_all")}`, body, refetch);
   }, [
     details,
     result,
@@ -392,7 +389,7 @@ export const TVJellyseerrPage: React.FC = () => {
     pendingRequest?.requestedBy?.displayName ||
     pendingRequest?.requestedBy?.username ||
     pendingRequest?.requestedBy?.jellyfinUsername ||
-    t("jellyseerr.unknown_user");
+    t("seerr.unknown_user");
 
   if (isLoading || isFetching) {
     return (
@@ -652,7 +649,7 @@ export const TVJellyseerrPage: React.FC = () => {
                       color: "#FFFFFF",
                     }}
                   >
-                    {t("jellyseerr.request_button")}
+                    {t("seerr.request_button")}
                   </Text>
                 </TVButton>
               )}
@@ -687,7 +684,7 @@ export const TVJellyseerrPage: React.FC = () => {
                           color: "#FFFFFF",
                         }}
                       >
-                        {t("jellyseerr.request_all")}
+                        {t("seerr.request_all")}
                       </Text>
                     </View>
                   </TVButton>
@@ -721,7 +718,7 @@ export const TVJellyseerrPage: React.FC = () => {
                           color: "#FFFFFF",
                         }}
                       >
-                        {t("jellyseerr.request_seasons")}
+                        {t("seerr.request_seasons")}
                       </Text>
                     </View>
                   </TVButton>
@@ -746,7 +743,7 @@ export const TVJellyseerrPage: React.FC = () => {
                       marginLeft: 8,
                     }}
                   >
-                    {t("jellyseerr.requested_by", { user: requestedByName })}
+                    {t("seerr.requested_by", { user: requestedByName })}
                   </Text>
                 </View>
 
@@ -765,7 +762,7 @@ export const TVJellyseerrPage: React.FC = () => {
                         color: "#FFFFFF",
                       }}
                     >
-                      {t("jellyseerr.approve")}
+                      {t("seerr.approve")}
                     </Text>
                   </TVButton>
 
@@ -783,7 +780,7 @@ export const TVJellyseerrPage: React.FC = () => {
                         color: "#FFFFFF",
                       }}
                     >
-                      {t("jellyseerr.decline")}
+                      {t("seerr.decline")}
                     </Text>
                   </TVButton>
                 </View>
@@ -793,7 +790,7 @@ export const TVJellyseerrPage: React.FC = () => {
         </View>
 
         {/* Cast section */}
-        {cast.length > 0 && jellyseerrApi && (
+        {cast.length > 0 && seerrApi && (
           <View style={{ marginTop: 24 }}>
             <Text
               style={{
@@ -803,7 +800,7 @@ export const TVJellyseerrPage: React.FC = () => {
                 marginBottom: 16,
               }}
             >
-              {t("jellyseerr.cast")}
+              {t("seerr.cast")}
             </Text>
 
             {/* Focus guides for bidirectional navigation - stacked together */}
@@ -844,7 +841,7 @@ export const TVJellyseerrPage: React.FC = () => {
                   key={person.id}
                   person={person}
                   imageProxy={(path, size) =>
-                    jellyseerrApi.imageProxy(path, size || "w185")
+                    seerrApi.imageProxy(path, size || "w185")
                   }
                   onPress={() => handleCastPress(person.id)}
                   refSetter={index === 0 ? setFirstCastCardRef : undefined}

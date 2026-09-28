@@ -1,5 +1,5 @@
 import { describe, expect, mock, test } from "bun:test";
-import type { User as JellyseerrUser } from "@/utils/seerr/types";
+import type { User as SeerrUser } from "@/utils/seerr/types";
 import type { QuickConnectSteps } from "./seerrQuickConnect";
 
 // Bun's mock.module retroactively re-links every module already importing the
@@ -16,7 +16,7 @@ mock.module("@/utils/log", () => ({
 
 const { attemptQuickConnectSignIn } = await import("./seerrQuickConnect");
 
-const SEERR_USER = { id: 7 } as JellyseerrUser;
+const SEERR_USER = { id: 7 } as SeerrUser;
 
 /** What each step did, so the order and the short-circuits can be asserted. */
 interface Calls {

@@ -15,7 +15,7 @@ attached to every request the app makes to that service, and to nothing else.
 | Login → *Advanced: custom headers* (mobile and TV) | Jellyfin, before the first connection |
 | Settings → Network → *Custom headers* (mobile) | Jellyfin, for the connected server |
 | Settings → *Custom headers* (TV) | Jellyfin plus every integration |
-| Settings → Plugins → Jellyseerr / Streamystats / Marlin (mobile) | That integration |
+| Settings → Plugins → Seerr / Streamystats / Marlin (mobile) | That integration |
 
 Each integration picks one of three sources:
 
@@ -38,7 +38,7 @@ back (masked) so a header can be corrected without retyping all of them.
 - Removing a server, or a header row, deletes the SecureStore values behind it.
 
 `customHeadersVersionAtom` is bumped on every write. Anything that builds a
-long-lived client from the headers (the Jellyseerr client, image sources)
+long-lived client from the headers (the Seerr client, image sources)
 depends on it, so an edit applies without a restart — and it also invalidates
 the resolution cache in `resolve.ts`, which keeps every image from re-parsing
 the server list and re-reading the Keychain.
@@ -63,7 +63,7 @@ them.
 | Video downloads | `BackgroundDownloader.enqueueDownload(..., headers)` |
 | Trickplay, subtitles, posters | `File.downloadFileAsync(..., optionsWithOptionalHeaders(...))` |
 | Music streams and artwork | `itemToTrack` (TrackPlayer) |
-| Jellyseerr / Streamystats / Marlin | `getIntegrationHeaders(key)` |
+| Seerr / Streamystats / Marlin | `getIntegrationHeaders(key)` |
 
 ## Rules worth knowing
 

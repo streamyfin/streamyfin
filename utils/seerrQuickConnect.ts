@@ -1,9 +1,9 @@
 import type { Api } from "@jellyfin/sdk";
 import { getQuickConnectApi } from "@jellyfin/sdk/lib/utils/api";
 import axios from "axios";
-import type { JellyseerrApi } from "@/hooks/useSeerr";
+import type { SeerrApi } from "@/hooks/useSeerr";
 import { writeToLog } from "@/utils/log";
-import type { User as JellyseerrUser } from "@/utils/seerr/types";
+import type { User as SeerrUser } from "@/utils/seerr/types";
 
 /**
  * Signing in to Seerr without a password and without an admin API key.
@@ -33,7 +33,7 @@ export type QuickConnectDecline =
   | "session-moved-on";
 
 export type QuickConnectOutcome =
-  | { user: JellyseerrUser }
+  | { user: SeerrUser }
   | { declined: QuickConnectDecline };
 
 export interface QuickConnectSteps {
@@ -58,7 +58,7 @@ export interface QuickConnectSteps {
    */
   approve: (code: string) => Promise<"approved" | "unknown-code" | "refused">;
   /** Seerr turns the approved secret into a session. */
-  authenticate: (secret: string) => Promise<JellyseerrUser>;
+  authenticate: (secret: string) => Promise<SeerrUser>;
   /**
    * Whether the account this started for is still the one signed in.
    *
@@ -124,7 +124,7 @@ export const attemptQuickConnectSignIn = async (
 
 /** The two clients wired into the four steps. */
 export const quickConnectSteps = (
-  seerr: JellyseerrApi,
+  seerr: SeerrApi,
   api: Api,
   stillCurrent: () => boolean,
 ): QuickConnectSteps => ({
@@ -166,10 +166,10 @@ export const quickConnectSteps = (
  * toast: none of the three entry points is something the user asked for by name.
  */
 export const signInWithQuickConnect = async (
-  seerr: JellyseerrApi,
+  seerr: SeerrApi,
   api: Api,
   stillCurrent: () => boolean,
-): Promise<JellyseerrUser | undefined> => {
+): Promise<SeerrUser | undefined> => {
   try {
     const outcome = await attemptQuickConnectSignIn(
       quickConnectSteps(seerr, api, stillCurrent),

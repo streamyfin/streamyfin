@@ -5,7 +5,7 @@ export {
 } from "./candidates";
 export { jellyfinProbe } from "./probes/jellyfin";
 export { reachabilityProbe } from "./probes/reachability";
-export { jellyseerrProbe } from "./probes/seerr";
+export { seerrProbe } from "./probes/seerr";
 export {
   type ResolveFailureReason,
   type ResolveOptions,

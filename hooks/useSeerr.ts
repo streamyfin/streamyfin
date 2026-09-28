@@ -3,7 +3,7 @@ import { atom, useAtomValue } from "jotai";
 import { useAtom } from "jotai/index";
 import { inRange } from "lodash";
 import { storage } from "@/utils/mmkv";
-import type { User as JellyseerrUser, Results } from "@/utils/seerr/types";
+import type { Results, User as SeerrUser } from "@/utils/seerr/types";
 import "@/augmentations";
 import { t } from "i18next";
 import { useCallback, useMemo } from "react";
@@ -58,12 +58,12 @@ interface SearchResults {
   results: Results[];
 }
 
-const JELLYSEERR_USER = "JELLYSEERR_USER";
-const JELLYSEERR_COOKIES = "JELLYSEERR_COOKIES";
+const SEERR_USER = "SEERR_USER";
+const SEERR_COOKIES = "SEERR_COOKIES";
 
-export const clearJellyseerrStorageData = () => {
-  storage.remove(JELLYSEERR_USER);
-  storage.remove(JELLYSEERR_COOKIES);
+export const clearSeerrStorageData = () => {
+  storage.remove(SEERR_USER);
+  storage.remove(SEERR_COOKIES);
 };
 
 export enum Endpoints {
@@ -114,16 +114,16 @@ export type TestResult =
 // retries a failing request up to 3× — without a throttle one user-visible
 // failure emits several Sentry events. 401/403 are excluded entirely:
 // expired cookies are routine and self-heal via auto-login.
-const recentJellyseerrReports = new Map<string, number>();
-const JELLYSEERR_REPORT_THROTTLE_MS = 60_000;
+const recentSeerrReports = new Map<string, number>();
+const SEERR_REPORT_THROTTLE_MS = 60_000;
 
-const shouldReportJellyseerrError = (
+const shouldReportSeerrError = (
   status: number | undefined,
   path: string | undefined,
   method?: string,
 ): boolean => {
   if (status === 401 || status === 403) return false;
-  // Answers Jellyseerr gives in the normal course of business, not defects:
+  // Answers Seerr gives in the normal course of business, not defects:
   // - /ratings 404/500: no Rotten Tomatoes entry for the title (404) or its
   //   ratings upstream failed (500) — the badge simply doesn't render.
   // - /user/jellyfin/:id 404: Seerr servers predating the route (seerr#2074);
@@ -148,11 +148,11 @@ const shouldReportJellyseerrError = (
     return false;
   const key = `${status}|${path}`;
   const now = Date.now();
-  const last = recentJellyseerrReports.get(key);
-  if (last !== undefined && now - last < JELLYSEERR_REPORT_THROTTLE_MS) {
+  const last = recentSeerrReports.get(key);
+  if (last !== undefined && now - last < SEERR_REPORT_THROTTLE_MS) {
     return false;
   }
-  recentJellyseerrReports.set(key, now);
+  recentSeerrReports.set(key, now);
   return true;
 };
 
@@ -166,9 +166,9 @@ const truncateForLog = (value: unknown): string | undefined => {
   }
 };
 
-export class JellyseerrApi {
+export class SeerrApi {
   axios: AxiosInstance;
-  /** Proxy auth headers for a Jellyseerr behind an access gateway. */
+  /** Proxy auth headers for a Seerr behind an access gateway. */
   private customHeaders: Record<string, string>;
   /** Admin API key: authenticates every call without a session cookie. */
   private apiKey?: string;
@@ -196,8 +196,8 @@ export class JellyseerrApi {
   }
 
   async test(): Promise<TestResult> {
-    const user = storage.get<JellyseerrUser>(JELLYSEERR_USER);
-    const cookies = storage.get<string[]>(JELLYSEERR_COOKIES);
+    const user = storage.get<SeerrUser>(SEERR_USER);
+    const cookies = storage.get<string[]>(SEERR_COOKIES);
 
     if (user && cookies) {
       return Promise.resolve({
@@ -213,11 +213,9 @@ export class JellyseerrApi {
         if (inRange(status, 200, 299)) {
           if (data.version && isVersionBelow(data.version, "2.0.0")) {
             writeErrorLog(
-              `Jellyseerr version ${data.version} is below the required 2.0.0`,
+              `Seerr version ${data.version} is below the required 2.0.0`,
             );
-            toast.error(
-              t("jellyseerr.toasts.jellyseerr_does_not_meet_requirements"),
-            );
+            toast.error(t("seerr.toasts.seerr_does_not_meet_requirements"));
             // Return rather than throw: the catch below exists for transport
             // failures and would stack a second, misleading "could not test
             // the server URL" toast on top of this precise one.
@@ -228,7 +226,7 @@ export class JellyseerrApi {
           }
 
           storage.setAny(
-            JELLYSEERR_COOKIES,
+            SEERR_COOKIES,
             headers["set-cookie"]?.flatMap((c) => c.split("; ")) ?? [],
           );
           return {
@@ -236,9 +234,9 @@ export class JellyseerrApi {
             requiresPass: true,
           };
         }
-        toast.error(t("jellyseerr.toasts.jellyseerr_test_failed"));
+        toast.error(t("seerr.toasts.seerr_test_failed"));
         writeErrorLog(
-          `Jellyseerr returned a ${status} for url:\n${response.config.url}`,
+          `Seerr returned a ${status} for url:\n${response.config.url}`,
           response.data,
         );
         return {
@@ -247,7 +245,7 @@ export class JellyseerrApi {
         };
       })
       .catch((e) => {
-        const msg = t("jellyseerr.toasts.failed_to_test_jellyseerr_server_url");
+        const msg = t("seerr.toasts.failed_to_test_seerr_server_url");
         toast.error(msg);
         console.error(msg, e);
         return {
@@ -257,9 +255,9 @@ export class JellyseerrApi {
       });
   }
 
-  async login(username: string, password: string): Promise<JellyseerrUser> {
+  async login(username: string, password: string): Promise<SeerrUser> {
     return this.axios
-      ?.post<JellyseerrUser>(Endpoints.API_V1 + Endpoints.AUTH_JELLYFIN, {
+      ?.post<SeerrUser>(Endpoints.API_V1 + Endpoints.AUTH_JELLYFIN, {
         username,
         password,
         email: username,
@@ -267,7 +265,7 @@ export class JellyseerrApi {
       .then((response) => {
         const user = response?.data;
         if (!user) throw Error("Login failed");
-        storage.setAny(JELLYSEERR_USER, user);
+        storage.setAny(SEERR_USER, user);
         return user;
       });
   }
@@ -277,14 +275,14 @@ export class JellyseerrApi {
    * through GET /user/jellyfin/{jellyfinUserId}. Needs the admin API key; the
    * route 404s on Seerr servers that predate it.
    */
-  async loginWithApiKey(jellyfinUserId: string): Promise<JellyseerrUser> {
+  async loginWithApiKey(jellyfinUserId: string): Promise<SeerrUser> {
     return this.axios
-      .get<JellyseerrUser>(
+      .get<SeerrUser>(
         `${Endpoints.API_V1}${Endpoints.USER_JELLYFIN}/${jellyfinUserId}`,
       )
       .then(({ data }) => {
         if (!data) throw Error("Login failed");
-        storage.setAny(JELLYSEERR_USER, data);
+        storage.setAny(SEERR_USER, data);
         return data;
       });
   }
@@ -337,8 +335,8 @@ export class JellyseerrApi {
    * the user to log out or switch account, so whether the result still belongs
    * to anyone is the caller's to decide.
    */
-  async authenticateQuickConnect(secret: string): Promise<JellyseerrUser> {
-    const { data } = await this.axios.post<JellyseerrUser>(
+  async authenticateQuickConnect(secret: string): Promise<SeerrUser> {
+    const { data } = await this.axios.post<SeerrUser>(
       Endpoints.API_V1 + Endpoints.AUTH_JELLYFIN_QUICK_CONNECT_AUTHENTICATE,
       { secret },
     );
@@ -347,13 +345,13 @@ export class JellyseerrApi {
   }
 
   /** Persists a session this client just opened. */
-  remember(user: JellyseerrUser) {
-    storage.setAny(JELLYSEERR_USER, user);
+  remember(user: SeerrUser) {
+    storage.setAny(SEERR_USER, user);
   }
 
   /** Drops the stored Seerr session, cookies included. */
   forget() {
-    clearJellyseerrStorageData();
+    clearSeerrStorageData();
   }
 
   async discoverSettings(): Promise<DiscoverSlider[]> {
@@ -535,7 +533,7 @@ export class JellyseerrApi {
         const issue = response.data;
 
         if (issue.status === IssueStatus.OPEN) {
-          toast.success(t("jellyseerr.toasts.issue_submitted"));
+          toast.success(t("seerr.toasts.issue_submitted"));
         }
         return issue;
       });
@@ -563,7 +561,7 @@ export class JellyseerrApi {
         const cookies = response.headers["set-cookie"];
         if (cookies) {
           storage.setAny(
-            JELLYSEERR_COOKIES,
+            SEERR_COOKIES,
             response.headers["set-cookie"]?.flatMap((c) => c.split("; ")),
           );
         }
@@ -574,15 +572,15 @@ export class JellyseerrApi {
         const path = error.config?.url?.split("?")[0];
         if (
           error.response &&
-          shouldReportJellyseerrError(status, path, error.config?.method)
+          shouldReportSeerrError(status, path, error.config?.method)
         ) {
           // A real server response — one capture covers the entire
-          // Jellyseerr surface. 401/403 are excluded (expired cookies are
+          // Seerr surface. 401/403 are excluded (expired cookies are
           // routine and self-heal via auto-login), and repeats of the same
           // status+path are throttled: this fires once per axios attempt,
           // so React Query retries would otherwise emit several events for
           // one user-visible failure.
-          logAndCaptureError("Jellyseerr response error", error, {
+          logAndCaptureError("Seerr response error", error, {
             status,
             // Relative URLs escape the scheme-anchored scrubber, and search
             // requests put the user's typed query in the query string.
@@ -591,14 +589,14 @@ export class JellyseerrApi {
         } else if (!error.response) {
           // No response = connectivity; routine when away from the server,
           // so keep it out of Sentry but in the local log trail.
-          writeToLog("WARN", `Jellyseerr unreachable: ${error.toString()}`);
+          writeToLog("WARN", `Seerr unreachable: ${error.toString()}`);
         }
         if (error.response) {
           // Body stays local-only and truncated — a proxy's HTML error page
           // must not bloat the 100-entry log blob.
           writeToLog(
             "DEBUG",
-            "Jellyseerr response body",
+            "Seerr response body",
             truncateForLog(error.response.data),
           );
         }
@@ -606,10 +604,10 @@ export class JellyseerrApi {
           // A 403 on one request's detail is about THAT request (another
           // user's, without MANAGE_REQUESTS) — the session itself is fine,
           // and the recent-requests slide polls these every few seconds, so
-          // wiping here signed the user out of Jellyseerr in a loop.
+          // wiping here signed the user out of Seerr in a loop.
           const isRequestDetail = /\/request\/\d+$/.test(path ?? "");
           if (!isRequestDetail) {
-            clearJellyseerrStorageData();
+            clearSeerrStorageData();
           }
         }
         return Promise.reject(error);
@@ -628,7 +626,7 @@ export class JellyseerrApi {
           config.headers.set("X-Api-Key", this.apiKey);
         }
 
-        const cookies = storage.get<string[]>(JELLYSEERR_COOKIES);
+        const cookies = storage.get<string[]>(SEERR_COOKIES);
         if (cookies) {
           const headerName = this.axios.defaults.xsrfHeaderName!;
           const xsrfToken = cookies
@@ -641,7 +639,7 @@ export class JellyseerrApi {
         return config;
       },
       (error) => {
-        logAndCaptureError("Jellyseerr request setup failed", error);
+        logAndCaptureError("Seerr request setup failed", error);
         // Without re-rejecting, axios would proceed with an undefined config
         // and fail somewhere unrelated.
         return Promise.reject(error);
@@ -650,100 +648,92 @@ export class JellyseerrApi {
   }
 }
 
-const jellyseerrUserAtom = atom(storage.get<JellyseerrUser>(JELLYSEERR_USER));
+const seerrUserAtom = atom(storage.get<SeerrUser>(SEERR_USER));
 
-export const useJellyseerr = () => {
+export const useSeerr = () => {
   const { settings, updateSettings } = useSettings();
-  const [jellyseerrUser, setJellyseerrUser] = useAtom(jellyseerrUserAtom);
+  const [seerrUser, setSeerrUser] = useAtom(seerrUserAtom);
   const customHeadersVersion = useAtomValue(customHeadersVersionAtom);
   const queryClient = useNetworkAwareQueryClient();
 
-  const jellyseerrApi = useMemo(() => {
-    const cookies = storage.get<string[]>(JELLYSEERR_COOKIES);
-    const apiKey = settings?.jellyseerrApiKey;
-    if (
-      settings?.jellyseerrServerUrl &&
-      jellyseerrUser &&
-      (cookies || apiKey)
-    ) {
-      const api = new JellyseerrApi(
-        settings.jellyseerrServerUrl,
-        getIntegrationHeaders("jellyseerr"),
+  const seerrApi = useMemo(() => {
+    const cookies = storage.get<string[]>(SEERR_COOKIES);
+    const apiKey = settings?.seerrApiKey;
+    if (settings?.seerrServerUrl && seerrUser && (cookies || apiKey)) {
+      const api = new SeerrApi(
+        settings.seerrServerUrl,
+        getIntegrationHeaders("seerr"),
         apiKey,
       );
-      api.actAsUserId = jellyseerrUser.id;
+      api.actAsUserId = seerrUser.id;
       return api;
     }
     return undefined;
     // customHeadersVersion: rebuild the client when the headers change.
   }, [
-    settings?.jellyseerrServerUrl,
-    settings?.jellyseerrApiKey,
-    jellyseerrUser,
+    settings?.seerrServerUrl,
+    settings?.seerrApiKey,
+    seerrUser,
     customHeadersVersion,
   ]);
 
-  const clearAllJellyseerData = useCallback(async () => {
-    clearJellyseerrStorageData();
-    setJellyseerrUser(undefined);
+  const clearAllSeerrData = useCallback(async () => {
+    clearSeerrStorageData();
+    setSeerrUser(undefined);
     updateSettings({
-      jellyseerrServerUrl: undefined,
-      jellyseerrApiKey: undefined,
+      seerrServerUrl: undefined,
+      seerrApiKey: undefined,
     });
   }, []);
 
   const requestMedia = useCallback(
     (title: string, request: MediaRequestBody, onSuccess?: () => void) => {
-      jellyseerrApi?.request?.(request)?.then(async (mediaRequest) => {
+      seerrApi?.request?.(request)?.then(async (mediaRequest) => {
         await queryClient.invalidateQueries({
-          queryKey: ["search", "jellyseerr"],
+          queryKey: ["search", "seerr"],
         });
 
         switch (mediaRequest.status) {
           case MediaRequestStatus.PENDING:
           case MediaRequestStatus.APPROVED:
-            toast.success(
-              t("jellyseerr.toasts.requested_item", { item: title }),
-            );
+            toast.success(t("seerr.toasts.requested_item", { item: title }));
             onSuccess?.();
             break;
           case MediaRequestStatus.DECLINED:
-            toast.error(
-              t("jellyseerr.toasts.you_dont_have_permission_to_request"),
-            );
+            toast.error(t("seerr.toasts.you_dont_have_permission_to_request"));
             break;
           case MediaRequestStatus.FAILED:
             toast.error(
-              t("jellyseerr.toasts.something_went_wrong_requesting_media"),
+              t("seerr.toasts.something_went_wrong_requesting_media"),
             );
             break;
         }
       });
     },
-    [jellyseerrApi],
+    [seerrApi],
   );
 
-  const jellyseerrRegion = useMemo(
+  const seerrRegion = useMemo(
     // streamingRegion and discoverRegion exists. region doesn't
-    () => jellyseerrUser?.settings?.discoverRegion || "US",
-    [jellyseerrUser],
+    () => seerrUser?.settings?.discoverRegion || "US",
+    [seerrUser],
   );
 
-  const jellyseerrLocale = useMemo(() => {
-    return jellyseerrUser?.settings?.locale || "en";
-  }, [jellyseerrUser]);
+  const seerrLocale = useMemo(() => {
+    return seerrUser?.settings?.locale || "en";
+  }, [seerrUser]);
 
   return {
-    jellyseerrApi,
-    jellyseerrUser,
-    setJellyseerrUser,
-    clearAllJellyseerData,
-    isJellyseerrMovieOrTvResult: isMovieOrTvResult,
+    seerrApi,
+    seerrUser,
+    setSeerrUser,
+    clearAllSeerrData,
+    isSeerrMovieOrTvResult: isMovieOrTvResult,
     getTitle: titleOf,
     getYear: yearOf,
     getMediaType: mediaTypeOf,
-    jellyseerrRegion,
-    jellyseerrLocale,
+    seerrRegion,
+    seerrLocale,
     requestMedia,
   };
 };

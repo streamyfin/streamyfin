@@ -6,14 +6,14 @@ import { TouchableOpacity, type ViewProps } from "react-native";
 import GenericSlideCard from "@/components/seerr/discover/GenericSlideCard";
 import Slide, { type SlideProps } from "@/components/seerr/discover/Slide";
 import useRouter from "@/hooks/useAppRouter";
-import { Endpoints, useJellyseerr } from "@/hooks/useSeerr";
+import { Endpoints, useSeerr } from "@/hooks/useSeerr";
 import { genreColorMap } from "@/utils/seerr/data";
 import type { GenreSliderItem } from "@/utils/seerr/types";
 import { DiscoverSliderType } from "@/utils/seerr/types";
 
 const GenreSlide: React.FC<SlideProps & ViewProps> = ({ slide, ...props }) => {
   const segments = useSegments();
-  const { jellyseerrApi } = useJellyseerr();
+  const { seerrApi } = useSeerr();
   const router = useRouter();
   const from = (segments as string[])[2] || "(home)";
 
@@ -27,15 +27,15 @@ const GenreSlide: React.FC<SlideProps & ViewProps> = ({ slide, ...props }) => {
   );
 
   const { data } = useQuery({
-    queryKey: ["jellyseerr", "discover", slide.type, slide.id],
+    queryKey: ["seerr", "discover", slide.type, slide.id],
     queryFn: async () => {
-      return jellyseerrApi?.getGenreSliders(
+      return seerrApi?.getGenreSliders(
         slide.type === DiscoverSliderType.MOVIE_GENRES
           ? Endpoints.MOVIE
           : Endpoints.TV,
       );
     },
-    enabled: !!jellyseerrApi,
+    enabled: !!seerrApi,
   });
 
   return (
@@ -53,7 +53,7 @@ const GenreSlide: React.FC<SlideProps & ViewProps> = ({ slide, ...props }) => {
               title={item.name}
               colors={["transparent", "transparent"]}
               contentFit={"cover"}
-              url={jellyseerrApi?.imageProxy(
+              url={seerrApi?.imageProxy(
                 item.backdrops?.[0],
                 `w780_filter(duotone,${
                   genreColorMap[item.id] ?? genreColorMap[0]

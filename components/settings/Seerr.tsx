@@ -5,15 +5,15 @@ import { useTranslation } from "react-i18next";
 import { View } from "react-native";
 import { toast } from "sonner-native";
 import { useIntegrationHeaders } from "@/hooks/useIntegrationHeaders";
-import { JellyseerrApi, useJellyseerr } from "@/hooks/useSeerr";
+import { SeerrApi, useSeerr } from "@/hooks/useSeerr";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { markExpectedError } from "@/utils/errors";
 import { writeErrorLog } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
-import { deleteJellyseerrPassword } from "@/utils/secureCredentials";
+import { deleteSeerrPassword } from "@/utils/secureCredentials";
 import { signInWithQuickConnect } from "@/utils/seerrQuickConnect";
-import { jellyseerrProbe } from "@/utils/serverUrl/probes/seerr";
+import { seerrProbe } from "@/utils/serverUrl/probes/seerr";
 import { resolveServerUrl } from "@/utils/serverUrl/resolve";
 import { store } from "@/utils/store";
 import { Button } from "../Button";
@@ -25,9 +25,8 @@ import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
 import { CustomHeaderSelector } from "./CustomHeaderSelector";
 
-export const JellyseerrSettings = () => {
-  const { jellyseerrUser, setJellyseerrUser, clearAllJellyseerData } =
-    useJellyseerr();
+export const SeerrSettings = () => {
+  const { seerrUser, setSeerrUser, clearAllSeerrData } = useSeerr();
 
   const { t } = useTranslation();
 
@@ -35,15 +34,15 @@ export const JellyseerrSettings = () => {
   const [api] = useAtom(apiAtom);
   const { settings, updateSettings, pluginSettings } = useSettings();
   // Only the server URL is admin-lockable — the password stays editable so
-  // the user can still sign in to the admin-pinned Jellyseerr server.
-  const urlLocked = pluginSettings?.jellyseerrServerUrl?.locked === true;
-  const apiKeyLocked = pluginSettings?.jellyseerrApiKey?.locked === true;
+  // the user can still sign in to the admin-pinned Seerr server.
+  const urlLocked = pluginSettings?.seerrServerUrl?.locked === true;
+  const apiKeyLocked = pluginSettings?.seerrApiKey?.locked === true;
 
-  const [jellyseerrPassword, setJellyseerrPassword] = useState<
-    string | undefined
-  >(undefined);
-  const [jellyseerrApiKeyInput, setJellyseerrApiKeyInput] = useState<string>(
-    settings?.jellyseerrApiKey ?? "",
+  const [seerrPassword, setSeerrPassword] = useState<string | undefined>(
+    undefined,
+  );
+  const [seerrApiKeyInput, setSeerrApiKeyInput] = useState<string>(
+    settings?.seerrApiKey ?? "",
   );
 
   // The stored key can change after mount (plugin settings load async, and a
@@ -51,20 +50,20 @@ export const JellyseerrSettings = () => {
   // the key that a password login would clear — otherwise a stored key could
   // be wiped invisibly behind an empty-looking input.
   useEffect(() => {
-    setJellyseerrApiKeyInput(settings?.jellyseerrApiKey ?? "");
-  }, [settings?.jellyseerrApiKey]);
+    setSeerrApiKeyInput(settings?.seerrApiKey ?? "");
+  }, [settings?.seerrApiKey]);
 
-  const [jellyseerrServerUrl, setjellyseerrServerUrl] = useState<string>(
-    settings?.jellyseerrServerUrl ?? "",
+  const [seerrServerUrl, setSeerrServerUrl] = useState<string>(
+    settings?.seerrServerUrl ?? "",
   );
   const [resolvedUrl, setResolvedUrl] = useState<string | undefined>(
-    settings?.jellyseerrServerUrl ?? undefined,
+    settings?.seerrServerUrl ?? undefined,
   );
 
   const { headers: customHeaders, resolveOptions } =
-    useIntegrationHeaders("jellyseerr");
+    useIntegrationHeaders("seerr");
 
-  const loginToJellyseerrMutation = useMutation({
+  const loginToSeerrMutation = useMutation({
     mutationFn: async () => {
       // Everything thrown in this mutation is a user-facing outcome of what
       // they typed (or didn't) — surfaced by onError's toast, never Sentry.
@@ -80,15 +79,13 @@ export const JellyseerrSettings = () => {
       // silently target the previous server.
       let finalUrl = "";
       if (urlLocked) {
-        finalUrl = settings?.jellyseerrServerUrl ?? "";
-      } else if (resolvedUrl && resolvedUrl === jellyseerrServerUrl) {
+        finalUrl = settings?.seerrServerUrl ?? "";
+      } else if (resolvedUrl && resolvedUrl === seerrServerUrl) {
         finalUrl = resolvedUrl;
-      } else if (jellyseerrServerUrl) {
-        const resolved = await resolveServerUrl(
-          jellyseerrServerUrl,
-          jellyseerrProbe,
-          { headers: customHeaders },
-        );
+      } else if (seerrServerUrl) {
+        const resolved = await resolveServerUrl(seerrServerUrl, seerrProbe, {
+          headers: customHeaders,
+        });
         if (!resolved.ok)
           throw markExpectedError(new Error("Invalid server url"));
         finalUrl = resolved.url;
@@ -98,15 +95,11 @@ export const JellyseerrSettings = () => {
       // An API key signs in via the Seerr account linked to the Jellyfin user
       // — no password involved. Falls back to the classic password login.
       const apiKey = apiKeyLocked
-        ? settings?.jellyseerrApiKey
-        : jellyseerrApiKeyInput.trim() || undefined;
+        ? settings?.seerrApiKey
+        : seerrApiKeyInput.trim() || undefined;
 
-      const jellyseerrTempApi = new JellyseerrApi(
-        finalUrl,
-        customHeaders,
-        apiKey,
-      );
-      const testResult = await jellyseerrTempApi.test();
+      const seerrTempApi = new SeerrApi(finalUrl, customHeaders, apiKey);
+      const testResult = await seerrTempApi.test();
       if (!testResult.isValid)
         throw markExpectedError(new Error("Invalid server url"));
 
@@ -118,7 +111,7 @@ export const JellyseerrSettings = () => {
       // this device at all.
       if (api) {
         const quickConnected = await signInWithQuickConnect(
-          jellyseerrTempApi,
+          seerrTempApi,
           api,
           stillCurrent,
         );
@@ -142,35 +135,35 @@ export const JellyseerrSettings = () => {
           throw markExpectedError(
             new Error("Missing required information for login"),
           );
-        const loggedInUser = await jellyseerrTempApi.loginWithApiKey(user.Id);
+        const loggedInUser = await seerrTempApi.loginWithApiKey(user.Id);
         return { user: loggedInUser, url: finalUrl, apiKey };
       }
 
-      const loggedInUser = await jellyseerrTempApi.login(
+      const loggedInUser = await seerrTempApi.login(
         user.Name,
-        jellyseerrPassword || "",
+        seerrPassword || "",
       );
       return { user: loggedInUser, url: finalUrl, apiKey: undefined };
     },
     onSuccess: ({ user: loggedInUser, url, apiKey }) => {
-      setJellyseerrUser(loggedInUser);
+      setSeerrUser(loggedInUser);
       setResolvedUrl(url);
-      updateSettings({ jellyseerrServerUrl: url, jellyseerrApiKey: apiKey });
+      updateSettings({ seerrServerUrl: url, seerrApiKey: apiKey });
     },
     onError: () => {
-      toast.error(t("jellyseerr.failed_to_login"));
+      toast.error(t("seerr.failed_to_login"));
     },
     onSettled: () => {
-      setJellyseerrPassword(undefined);
+      setSeerrPassword(undefined);
     },
   });
 
   const clearData = () => {
-    clearAllJellyseerData().finally(() => {
-      setJellyseerrUser(undefined);
-      setJellyseerrPassword(undefined);
-      setJellyseerrApiKeyInput("");
-      setjellyseerrServerUrl("");
+    clearAllSeerrData().finally(() => {
+      setSeerrUser(undefined);
+      setSeerrPassword(undefined);
+      setSeerrApiKeyInput("");
+      setSeerrServerUrl("");
       setResolvedUrl(undefined);
     });
   };
@@ -178,75 +171,70 @@ export const JellyseerrSettings = () => {
   return (
     <View className=''>
       <View>
-        {jellyseerrUser ? (
+        {seerrUser ? (
           <>
-            <ListGroup title={"Jellyseerr"}>
+            <ListGroup title={"Seerr"}>
               <ListItem
-                title={t(
-                  "home.settings.plugins.jellyseerr.total_media_requests",
-                )}
-                value={jellyseerrUser?.requestCount?.toString()}
+                title={t("home.settings.plugins.seerr.total_media_requests")}
+                value={seerrUser?.requestCount?.toString()}
               />
               <ListItem
-                title={t("home.settings.plugins.jellyseerr.movie_quota_limit")}
+                title={t("home.settings.plugins.seerr.movie_quota_limit")}
                 value={
-                  jellyseerrUser?.movieQuotaLimit?.toString() ??
-                  t("home.settings.plugins.jellyseerr.unlimited")
+                  seerrUser?.movieQuotaLimit?.toString() ??
+                  t("home.settings.plugins.seerr.unlimited")
                 }
               />
               <ListItem
-                title={t("home.settings.plugins.jellyseerr.movie_quota_days")}
+                title={t("home.settings.plugins.seerr.movie_quota_days")}
                 value={
-                  jellyseerrUser?.movieQuotaDays?.toString() ??
-                  t("home.settings.plugins.jellyseerr.unlimited")
+                  seerrUser?.movieQuotaDays?.toString() ??
+                  t("home.settings.plugins.seerr.unlimited")
                 }
               />
               <ListItem
-                title={t("home.settings.plugins.jellyseerr.tv_quota_limit")}
+                title={t("home.settings.plugins.seerr.tv_quota_limit")}
                 value={
-                  jellyseerrUser?.tvQuotaLimit?.toString() ??
-                  t("home.settings.plugins.jellyseerr.unlimited")
+                  seerrUser?.tvQuotaLimit?.toString() ??
+                  t("home.settings.plugins.seerr.unlimited")
                 }
               />
               <ListItem
-                title={t("home.settings.plugins.jellyseerr.tv_quota_days")}
+                title={t("home.settings.plugins.seerr.tv_quota_days")}
                 value={
-                  jellyseerrUser?.tvQuotaDays?.toString() ??
-                  t("home.settings.plugins.jellyseerr.unlimited")
+                  seerrUser?.tvQuotaDays?.toString() ??
+                  t("home.settings.plugins.seerr.unlimited")
                 }
               />
             </ListGroup>
 
             {/* Only meaningful when the plugin supplies the URL — that is the
                 only case in which the password is stored at all. */}
-            {pluginSettings?.jellyseerrServerUrl?.value ? (
+            {pluginSettings?.seerrServerUrl?.value ? (
               <ListGroup
                 className='mt-4'
-                title={t("home.settings.plugins.jellyseerr.auto_login_title")}
+                title={t("home.settings.plugins.seerr.auto_login_title")}
                 description={
                   <Text className='text-xs text-neutral-500'>
-                    {t(
-                      "home.settings.plugins.jellyseerr.auto_login_description",
-                    )}
+                    {t("home.settings.plugins.seerr.auto_login_description")}
                   </Text>
                 }
               >
                 <ListItem
-                  title={t("home.settings.plugins.jellyseerr.auto_login_title")}
+                  title={t("home.settings.plugins.seerr.auto_login_title")}
                 >
                   <SettingSwitch
-                    value={settings?.autoLoginJellyseerr !== false}
+                    value={settings?.autoLoginSeerr !== false}
                     onValueChange={(value) => {
-                      updateSettings({ autoLoginJellyseerr: value });
+                      updateSettings({ autoLoginSeerr: value });
                       // Opting out also forgets the already-stored password —
                       // the flag alone would leave the secret on the device.
                       const jellyfinUrl = storage.getString("serverUrl");
                       if (!value && jellyfinUrl && user?.Id) {
-                        deleteJellyseerrPassword(jellyfinUrl, user.Id).catch(
-                          (e) =>
-                            writeErrorLog(
-                              `Failed to delete Jellyseerr password: ${e}`,
-                            ),
+                        deleteSeerrPassword(jellyfinUrl, user.Id).catch((e) =>
+                          writeErrorLog(
+                            `Failed to delete Seerr password: ${e}`,
+                          ),
                         );
                       }
                     }}
@@ -257,9 +245,7 @@ export const JellyseerrSettings = () => {
 
             <View className='p-4'>
               <Button color='red' onPress={clearData}>
-                {t(
-                  "home.settings.plugins.jellyseerr.reset_jellyseerr_config_button",
-                )}
+                {t("home.settings.plugins.seerr.reset_seerr_config_button")}
               </Button>
             </View>
           </>
@@ -270,22 +256,22 @@ export const JellyseerrSettings = () => {
                 <ServerUrlField
                   value={
                     urlLocked
-                      ? (settings?.jellyseerrServerUrl ?? "")
-                      : jellyseerrServerUrl
+                      ? (settings?.seerrServerUrl ?? "")
+                      : seerrServerUrl
                   }
                   onChangeText={(url) => {
-                    setjellyseerrServerUrl(url);
+                    setSeerrServerUrl(url);
                     // Editing invalidates the previous resolution.
                     setResolvedUrl(undefined);
                   }}
                   onResolved={(url) => setResolvedUrl(url)}
-                  probe={jellyseerrProbe}
-                  label={t("home.settings.plugins.jellyseerr.server_url")}
-                  hint={t("home.settings.plugins.jellyseerr.server_url_hint")}
+                  probe={seerrProbe}
+                  label={t("home.settings.plugins.seerr.server_url")}
+                  hint={t("home.settings.plugins.seerr.server_url_hint")}
                   placeholder={t(
-                    "home.settings.plugins.jellyseerr.server_url_placeholder",
+                    "home.settings.plugins.seerr.server_url_placeholder",
                   )}
-                  editable={!urlLocked && !loginToJellyseerrMutation.isPending}
+                  editable={!urlLocked && !loginToSeerrMutation.isPending}
                   resolveOptions={resolveOptions}
                 />
                 {urlLocked && (
@@ -297,71 +283,71 @@ export const JellyseerrSettings = () => {
             </View>
 
             <CustomHeaderSelector
-              integrationKey='jellyseerr'
+              integrationKey='seerr'
               title={t("custom_headers.title")}
               description={t("custom_headers.integration_description")}
             />
             <View>
               {apiKeyLocked ? (
                 <Text className='text-xs opacity-50 mb-2'>
-                  {t("home.settings.plugins.jellyseerr.api_key_from_admin", {
+                  {t("home.settings.plugins.seerr.api_key_from_admin", {
                     username: user?.Name,
                   })}
                 </Text>
               ) : (
                 <>
                   <Text className='font-bold mb-2'>
-                    {t("home.settings.plugins.jellyseerr.password")}
+                    {t("home.settings.plugins.seerr.password")}
                   </Text>
                   <Input
                     className='border border-neutral-800'
                     autoFocus={true}
                     focusable={true}
                     placeholder={t(
-                      "home.settings.plugins.jellyseerr.password_placeholder",
+                      "home.settings.plugins.seerr.password_placeholder",
                       { username: user?.Name },
                     )}
-                    value={jellyseerrPassword}
+                    value={seerrPassword}
                     keyboardType='default'
                     secureTextEntry={true}
                     returnKeyType='done'
                     autoCapitalize='none'
                     textContentType='password'
-                    onChangeText={setJellyseerrPassword}
-                    editable={!loginToJellyseerrMutation.isPending}
+                    onChangeText={setSeerrPassword}
+                    editable={!loginToSeerrMutation.isPending}
                   />
                   <Text className='font-bold mb-2 mt-4'>
-                    {t("home.settings.plugins.jellyseerr.api_key")}
+                    {t("home.settings.plugins.seerr.api_key")}
                   </Text>
                   <Text className='text-xs opacity-50 mb-2'>
-                    {t("home.settings.plugins.jellyseerr.api_key_hint")}
+                    {t("home.settings.plugins.seerr.api_key_hint")}
                   </Text>
                   <Input
                     className='border border-neutral-800'
                     placeholder={t(
-                      "home.settings.plugins.jellyseerr.api_key_placeholder",
+                      "home.settings.plugins.seerr.api_key_placeholder",
                     )}
-                    value={jellyseerrApiKeyInput}
+                    value={seerrApiKeyInput}
                     keyboardType='default'
                     secureTextEntry={true}
                     returnKeyType='done'
                     autoCapitalize='none'
                     autoCorrect={false}
-                    onChangeText={setJellyseerrApiKeyInput}
-                    editable={!loginToJellyseerrMutation.isPending}
+                    onChangeText={setSeerrApiKeyInput}
+                    editable={!loginToSeerrMutation.isPending}
                   />
                 </>
               )}
               <Button
-                loading={loginToJellyseerrMutation.isPending}
-                disabled={loginToJellyseerrMutation.isPending}
+                loading={loginToSeerrMutation.isPending}
+                disabled={loginToSeerrMutation.isPending}
                 color='purple'
                 className='h-12 mt-2'
-                onPress={() => loginToJellyseerrMutation.mutate()}
+                onPress={() => loginToSeerrMutation.mutate()}
               >
-                {apiKeyLocked || jellyseerrApiKeyInput.trim()
-                  ? t("home.settings.plugins.jellyseerr.connect_button")
-                  : t("home.settings.plugins.jellyseerr.login_button")}
+                {apiKeyLocked || seerrApiKeyInput.trim()
+                  ? t("home.settings.plugins.seerr.connect_button")
+                  : t("home.settings.plugins.seerr.login_button")}
               </Button>
             </View>
           </View>

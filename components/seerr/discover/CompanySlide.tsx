@@ -5,7 +5,7 @@ import { TouchableOpacity, type ViewProps } from "react-native";
 import GenericSlideCard from "@/components/seerr/discover/GenericSlideCard";
 import Slide, { type SlideProps } from "@/components/seerr/discover/Slide";
 import useRouter from "@/hooks/useAppRouter";
-import { useJellyseerr } from "@/hooks/useSeerr";
+import { useSeerr } from "@/hooks/useSeerr";
 import type { Studio } from "@/utils/seerr/data";
 import { COMPANY_LOGO_IMAGE_FILTER, type Network } from "@/utils/seerr/data";
 
@@ -13,7 +13,7 @@ const CompanySlide: React.FC<
   { data: Network[] | Studio[] } & SlideProps & ViewProps
 > = ({ slide, data, ...props }) => {
   const segments = useSegments();
-  const { jellyseerrApi } = useJellyseerr();
+  const { seerrApi } = useSeerr();
   const router = useRouter();
   const from = (segments as string[])[2] || "(home)";
 
@@ -37,10 +37,7 @@ const CompanySlide: React.FC<
           <GenericSlideCard
             className='w-28 rounded-lg overflow-hidden border border-neutral-900 p-4'
             id={item.id.toString()}
-            url={jellyseerrApi?.imageProxy(
-              item.image,
-              COMPANY_LOGO_IMAGE_FILTER,
-            )}
+            url={seerrApi?.imageProxy(item.image, COMPANY_LOGO_IMAGE_FILTER)}
           />
         </TouchableOpacity>
       )}

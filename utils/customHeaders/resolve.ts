@@ -121,12 +121,12 @@ function getSavedServerHeadersForUrl(
 
 interface HeadersForUrlOptions {
   jellyfinBaseUrl?: string | null;
-  jellyseerrBaseUrl?: string | null;
+  seerrBaseUrl?: string | null;
 }
 
 /**
  * Picks the headers for an arbitrary URL by matching it against the configured
- * services. Used for images, which can point at Jellyfin, at Jellyseerr, or at
+ * services. Used for images, which can point at Jellyfin, at Seerr, or at
  * a public host such as TMDB (no headers).
  *
  * Only the most specific match answers: an integration set to "none" sends
@@ -134,7 +134,7 @@ interface HeadersForUrlOptions {
  */
 export function getHeadersForUrl(
   url: string | null | undefined,
-  { jellyfinBaseUrl, jellyseerrBaseUrl }: HeadersForUrlOptions,
+  { jellyfinBaseUrl, seerrBaseUrl }: HeadersForUrlOptions,
 ): Record<string, string> | undefined {
   if (!url) return undefined;
 
@@ -145,10 +145,10 @@ export function getHeadersForUrl(
           getHeaders: () => getJellyfinHeaders(jellyfinBaseUrl),
         }
       : null,
-    jellyseerrBaseUrl
+    seerrBaseUrl
       ? {
-          baseUrl: jellyseerrBaseUrl,
-          getHeaders: () => getIntegrationHeaders("jellyseerr"),
+          baseUrl: seerrBaseUrl,
+          getHeaders: () => getIntegrationHeaders("seerr"),
         }
       : null,
   ]
