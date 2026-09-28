@@ -184,9 +184,19 @@ describe("the corrections", () => {
     // we were correcting, the entry has outlived its reason.
     test(`${fixture.route} still needs the ones it carries`, () => {
       const spec = new Set(declaredFor(fixture.route));
-      const stale = correction.added.filter((path) => spec.has(path));
+      const stale = [
+        ...correction.added
+          .filter((path) => spec.has(path))
+          .map((path) => `${path} is declared now`),
+        // A rename is judged on the name the spec got wrong, not on the served
+        // one: `watchProviders[]` is declared already, as the middle of the
+        // array of arrays the spec describes.
+        ...correction.renamed
+          .filter(([declared]) => !spec.has(declared))
+          .map(([declared]) => `${declared} is no longer declared`),
+      ];
 
-      expect(stale, "upstream declares these now, drop them").toEqual([]);
+      expect(stale, "upstream fixed these, drop them").toEqual([]);
     });
 
     // Only where the capture went. A film that is not in the library carries
