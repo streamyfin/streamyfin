@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { Glob } from "bun";
 import type { Fixture } from "../../scripts/seerr/capture";
-import { pathsOf } from "../../scripts/seerr/shape";
+import { allowsNull, pathsOf, propertyAt } from "../../scripts/seerr/shape";
 import { ALWAYS_SENT, CORRECTIONS } from "./corrections";
 import declared from "./generated/api-shapes.json";
 import { APP_ROUTES } from "./routes";
@@ -33,24 +33,6 @@ const fixtures = await Array.fromAsync(
 ).then((files) =>
   Promise.all(files.map((file) => Bun.file(file).json() as Promise<Fixture>)),
 );
-
-/** The leaf a path names in a shape, when the shape reaches that far. */
-const at = (shape: unknown, path: string): unknown =>
-  path
-    .split(".")
-    .flatMap((part) =>
-      part
-        .split("[]")
-        .filter(Boolean)
-        .concat(part.endsWith("[]") ? ["[]"] : []),
-    )
-    .reduce<unknown>(
-      (node, key) =>
-        node && typeof node === "object"
-          ? (node as Record<string, unknown>)[key]
-          : undefined,
-      shape,
-    );
 
 const declaredFor = (route: string): string[] =>
   declared[route as keyof typeof declared] ?? [];
@@ -129,7 +111,7 @@ test("no fixture carries a value", () => {
   const leaves = (shape: unknown, at: string): string[] => {
     if (typeof shape === "string") {
       // A leaf can carry more than one reading, `null|string` for a field
-      // some elements send and others do not.
+      // some elements send as null, and so can what sits beside an object.
       const unknown = shape.split("|").filter((part) => !types.has(part));
       return unknown.length ? [`${at}: ${shape}`] : [];
     }
@@ -196,17 +178,16 @@ describe("the corrections", () => {
     // than on anything about the correction.
     test(`${fixture.route} still sees what its other entries describe`, () => {
       const served = new Set(pathsOf(fixture.shape as never));
-      const shape = fixture.shape as Record<string, unknown>;
 
       // A null that became a value, a required field that reappeared, or a
       // served name that moved: each means the entry has outlived its reason
       // and the type built on it is now describing something else.
       const wrong = [
         ...correction.nullable
-          .filter((path) => served.has(path))
-          .filter(
-            (path) => !String(at(shape, path)).split("|").includes("null"),
-          )
+          .filter((path) => {
+            const found = propertyAt(fixture.shape, path);
+            return found !== undefined && !allowsNull(found.shape);
+          })
           .map((path) => `${path} is no longer null`),
         ...correction.absent
           .filter((path) => served.has(path))
@@ -241,9 +222,10 @@ describe("the corrections", () => {
 
 describe("the fields the types treat as always sent", () => {
   // The spec marks almost every property optional, and `types.ts` makes one
-  // required only where a capture carried it. A capture that left it out, or
-  // sent it as null, fails here. Inside an array the elements are merged, so
-  // this proves some element carried the field, not every one.
+  // required only where a capture carried it. Inside an array that means on
+  // every element, which the fixture can tell: it marks a key some element
+  // went without, and notes a null beside an object as beside a leaf. A field
+  // never sent, sent by some elements only, or sent as null fails here.
   for (const [type, { route, at: where, keys }] of Object.entries(
     ALWAYS_SENT,
   )) {
@@ -251,20 +233,21 @@ describe("the fields the types treat as always sent", () => {
       const fixture = fixtures.find((candidate) => candidate.route === route);
       expect(fixture?.shape, `no fixture for ${route}`).toBeDefined();
 
-      const object = (where ? at(fixture?.shape, where) : fixture?.shape) as
-        | Record<string, unknown>
-        | undefined;
-      const missing = keys.filter((key) => {
-        const leaf = object?.[key];
-        return (
-          leaf === undefined ||
-          (typeof leaf === "string" && leaf.split("|").includes("null"))
+      const wrong = keys.flatMap((key) => {
+        const found = propertyAt(
+          fixture?.shape,
+          where ? `${where}.${key}` : key,
         );
+
+        if (!found) return [`${key} is not sent`];
+        if (found.optional) return [`${key} is missing from some elements`];
+        if (allowsNull(found.shape)) return [`${key} is sent as null`];
+        return [];
       });
 
       expect(
-        missing,
-        "not carried, or carried as null: keep them optional",
+        wrong,
+        "take these out of ALWAYS_SENT, the types cannot require them",
       ).toEqual([]);
     });
   }

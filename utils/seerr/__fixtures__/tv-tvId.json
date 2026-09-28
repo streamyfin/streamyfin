@@ -297,8 +297,22 @@
     "voteCount": "number",
     "watchProviders": {
       "[]": {
-        "buy": "array<empty>",
-        "flatrate": "array<empty>",
+        "buy": {
+          "[]": {
+            "displayPriority": "number",
+            "id": "number",
+            "logoPath": "string",
+            "name": "string"
+          }
+        },
+        "flatrate": {
+          "[]": {
+            "displayPriority": "number",
+            "id": "number",
+            "logoPath": "string",
+            "name": "string"
+          }
+        },
         "iso_3166_1": "string",
         "link": "string"
       }
