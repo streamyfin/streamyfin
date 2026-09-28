@@ -94,6 +94,23 @@ test("a fixture exists for every route the app reads", () => {
   expect(missing, "run `bun run seerr:capture`").toEqual([]);
 });
 
+test("every fixture holds the status its route expects", () => {
+  // The capture refuses any other status before writing, but a fixture edited
+  // by hand or left from an older route list never went through it, and one
+  // holding a 401 has no shape for the tests below to compare.
+  const wrong = APP_ROUTES.flatMap((route) => {
+    const fixture = fixtures.find(
+      (candidate) => candidate.route === route.template,
+    );
+    const expected = route.expect ?? 200;
+    return fixture && fixture.status !== expected
+      ? [`${route.template} holds ${fixture.status}, expected ${expected}`]
+      : [];
+  });
+
+  expect(wrong, "run `bun run seerr:capture`").toEqual([]);
+});
+
 test("no fixture carries a value", () => {
   const types = new Set([
     "string",
