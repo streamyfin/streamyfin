@@ -2,6 +2,10 @@ import axios, { type AxiosError, type AxiosInstance } from "axios";
 import { atom, useAtomValue } from "jotai";
 import { useAtom } from "jotai/index";
 import { inRange } from "lodash";
+import {
+  SEERR_COOKIES_STORAGE_KEY,
+  SEERR_USER_STORAGE_KEY,
+} from "@/constants/Seerr";
 import { storage } from "@/utils/mmkv";
 import type { Results, User as SeerrUser } from "@/utils/seerr/types";
 import "@/augmentations";
@@ -58,12 +62,9 @@ interface SearchResults {
   results: Results[];
 }
 
-const SEERR_USER = "SEERR_USER";
-const SEERR_COOKIES = "SEERR_COOKIES";
-
 export const clearSeerrStorageData = () => {
-  storage.remove(SEERR_USER);
-  storage.remove(SEERR_COOKIES);
+  storage.remove(SEERR_USER_STORAGE_KEY);
+  storage.remove(SEERR_COOKIES_STORAGE_KEY);
 };
 
 export enum Endpoints {
@@ -196,8 +197,8 @@ export class SeerrApi {
   }
 
   async test(): Promise<TestResult> {
-    const user = storage.get<SeerrUser>(SEERR_USER);
-    const cookies = storage.get<string[]>(SEERR_COOKIES);
+    const user = storage.get<SeerrUser>(SEERR_USER_STORAGE_KEY);
+    const cookies = storage.get<string[]>(SEERR_COOKIES_STORAGE_KEY);
 
     if (user && cookies) {
       return Promise.resolve({
@@ -226,7 +227,7 @@ export class SeerrApi {
           }
 
           storage.setAny(
-            SEERR_COOKIES,
+            SEERR_COOKIES_STORAGE_KEY,
             headers["set-cookie"]?.flatMap((c) => c.split("; ")) ?? [],
           );
           return {
@@ -265,7 +266,7 @@ export class SeerrApi {
       .then((response) => {
         const user = response?.data;
         if (!user) throw Error("Login failed");
-        storage.setAny(SEERR_USER, user);
+        storage.setAny(SEERR_USER_STORAGE_KEY, user);
         return user;
       });
   }
@@ -282,7 +283,7 @@ export class SeerrApi {
       )
       .then(({ data }) => {
         if (!data) throw Error("Login failed");
-        storage.setAny(SEERR_USER, data);
+        storage.setAny(SEERR_USER_STORAGE_KEY, data);
         return data;
       });
   }
@@ -346,7 +347,7 @@ export class SeerrApi {
 
   /** Persists a session this client just opened. */
   remember(user: SeerrUser) {
-    storage.setAny(SEERR_USER, user);
+    storage.setAny(SEERR_USER_STORAGE_KEY, user);
   }
 
   /** Drops the stored Seerr session, cookies included. */
@@ -561,7 +562,7 @@ export class SeerrApi {
         const cookies = response.headers["set-cookie"];
         if (cookies) {
           storage.setAny(
-            SEERR_COOKIES,
+            SEERR_COOKIES_STORAGE_KEY,
             response.headers["set-cookie"]?.flatMap((c) => c.split("; ")),
           );
         }
@@ -626,7 +627,7 @@ export class SeerrApi {
           config.headers.set("X-Api-Key", this.apiKey);
         }
 
-        const cookies = storage.get<string[]>(SEERR_COOKIES);
+        const cookies = storage.get<string[]>(SEERR_COOKIES_STORAGE_KEY);
         if (cookies) {
           const headerName = this.axios.defaults.xsrfHeaderName!;
           const xsrfToken = cookies
@@ -648,7 +649,7 @@ export class SeerrApi {
   }
 }
 
-const seerrUserAtom = atom(storage.get<SeerrUser>(SEERR_USER));
+const seerrUserAtom = atom(storage.get<SeerrUser>(SEERR_USER_STORAGE_KEY));
 
 export const useSeerr = () => {
   const { settings, updateSettings } = useSettings();
@@ -657,7 +658,7 @@ export const useSeerr = () => {
   const queryClient = useNetworkAwareQueryClient();
 
   const seerrApi = useMemo(() => {
-    const cookies = storage.get<string[]>(SEERR_COOKIES);
+    const cookies = storage.get<string[]>(SEERR_COOKIES_STORAGE_KEY);
     const apiKey = settings?.seerrApiKey;
     if (settings?.seerrServerUrl && seerrUser && (cookies || apiKey)) {
       const api = new SeerrApi(

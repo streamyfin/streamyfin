@@ -26,6 +26,7 @@ const { LATEST_SCHEMA_VERSION, runStorageMigrations } = await import(
 const data = new Map<string, boolean | number | string>();
 const store = {
   getNumber: (key: string) => data.get(key) as number | undefined,
+  getString: (key: string) => data.get(key) as string | undefined,
   getAllKeys: () => [...data.keys()],
   set: (key: string, value: boolean | number | string) =>
     void data.set(key, value),
@@ -86,5 +87,36 @@ describe("runStorageMigrations", () => {
 
     // The intro was dismissed after migrating, so it must stay dismissed.
     expect(data.get("hasShownIntro")).toBe(true);
+  });
+});
+
+describe("the Seerr session", () => {
+  // An install from before the rename, already past migration 1.
+  beforeEach(() => {
+    data.set("storageSchemaVersion", 1);
+  });
+
+  test("moves to the names it has now", () => {
+    data.set("JELLYSEERR_USER", '{"id":7}');
+    data.set("JELLYSEERR_COOKIES", '["connect.sid=s%3A1"]');
+
+    runStorageMigrations(store);
+
+    expect(data.get("SEERR_USER")).toBe('{"id":7}');
+    expect(data.get("SEERR_COOKIES")).toBe('["connect.sid=s%3A1"]');
+    expect(data.has("JELLYSEERR_USER")).toBe(false);
+    expect(data.has("JELLYSEERR_COOKIES")).toBe(false);
+  });
+
+  // A device that already signed in under the new names keeps that session:
+  // the old one is older by construction.
+  test("keeps a session already under the new names", () => {
+    data.set("SEERR_USER", '{"id":9}');
+    data.set("JELLYSEERR_USER", '{"id":7}');
+
+    runStorageMigrations(store);
+
+    expect(data.get("SEERR_USER")).toBe('{"id":9}');
+    expect(data.has("JELLYSEERR_USER")).toBe(false);
   });
 });
