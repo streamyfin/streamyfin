@@ -5,7 +5,7 @@ import type { ServerProbe } from "../types";
  * Probe for a Seerr server. `/api/v1/status` is seerr/overseerr
  * specific and unauthenticated, so it both proves reachability and confirms we
  * hit the right service. The minimum-version requirement is enforced at login
- * time (see SeerrApi.test) — not surfaced here, to keep the field UI clean.
+ * time (see SeerrApi.test). It is not surfaced here, to keep the field UI clean.
  */
 export const seerrProbe: ServerProbe = async (url, signal, headers) => {
   try {

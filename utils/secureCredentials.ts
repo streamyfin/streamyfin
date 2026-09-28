@@ -178,7 +178,7 @@ export async function deleteAccountCredential(
   const key = credentialKey(serverUrl, userId);
   await SecureStore.deleteItemAsync(key);
 
-  // Forgetting the account also forgets its Seerr password — it must
+  // Forgetting the account also forgets its Seerr password: it must
   // not outlive the credential it belongs to.
   await deleteSeerrPassword(serverUrl, userId);
 

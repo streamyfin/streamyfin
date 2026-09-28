@@ -60,7 +60,7 @@ export const SeerrAutoLogin: React.FC = () => {
 
     (async () => {
       try {
-        // Same headers as every other Seerr call — without them the
+        // Same headers as every other Seerr call: without them the
         // sign-in fails behind an auth gateway (custom-header setups).
         // No test() first: it toasts on every failure path, and this runs
         // unprompted at launch — login() failing into the catch below is
