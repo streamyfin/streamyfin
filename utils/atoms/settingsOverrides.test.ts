@@ -4,6 +4,7 @@ import {
   pendingPluginDefaults,
   pluginRefreshOverlay,
   readIntegrationBlocks,
+  renameLegacySeerrSettings,
   resolveEffectiveSettings,
 } from "./settingsOverrides";
 
@@ -217,6 +218,45 @@ describe("pluginRefreshOverlay", () => {
     });
   });
 
+  // A build from before the rename recorded Seerr's defaults under their old
+  // names. Read under the new ones, a default applied back then is not
+  // applied again over what the user chose since, and the record comes back
+  // under the new names.
+  test("a default an earlier build applied is not applied again", () => {
+    const applied = {
+      jellyseerrServerUrl: "http://seerr.example",
+      autoLoginJellyseerr: true,
+    } as never;
+
+    expect(
+      pluginRefreshOverlay(
+        { seerrServerUrl: "http://mine.example", autoLoginSeerr: false },
+        plugin({
+          seerrServerUrl: { locked: false, value: "http://seerr.example" },
+          autoLoginSeerr: { locked: false, value: true },
+        }),
+        applied,
+        identity,
+      ),
+    ).toBeNull();
+
+    expect(
+      pluginRefreshOverlay(
+        {} as Partial<Settings>,
+        plugin({
+          seerrServerUrl: { locked: false, value: "http://seerr.example" },
+          forwardSkipTime: { locked: false, value: 45 },
+        }),
+        applied,
+        identity,
+      )?.applied,
+    ).toEqual({
+      seerrServerUrl: "http://seerr.example",
+      autoLoginSeerr: true,
+      forwardSkipTime: 45,
+    });
+  });
+
   test("returns null when there is nothing to write", () => {
     const result = pluginRefreshOverlay(
       {} as Partial<Settings>,
@@ -250,7 +290,7 @@ describe("pluginRefreshOverlay", () => {
 });
 
 describe("readIntegrationBlocks", () => {
-  test("a Seerr block becomes the three keys the app already reads", () => {
+  test("a Seerr block becomes the app's three Seerr settings", () => {
     const read = readIntegrationBlocks(
       plugin({
         seerr: {
@@ -273,10 +313,29 @@ describe("readIntegrationBlocks", () => {
     expect("seerr" in read!).toBe(false);
   });
 
-  test("the flat keys win, since a server that sends both means them to agree", () => {
+  // Every plugin release before the block sends only these, and a stored
+  // copy of the plugin's settings from an earlier build holds them too.
+  test("a plugin that sends only the flat keys is read under the new names", () => {
     const read = readIntegrationBlocks(
       plugin({
-        seerrServerUrl: { locked: false, value: "http://flat.example" },
+        jellyseerrServerUrl: { locked: true, value: "http://seerr.example" },
+        autoLoginJellyseerr: { locked: false, value: true },
+      }),
+    );
+
+    expect(read!.seerrServerUrl).toEqual({
+      locked: true,
+      value: "http://seerr.example",
+    });
+    expect(read!.autoLoginSeerr).toEqual({ locked: false, value: true });
+    expect("jellyseerrServerUrl" in read!).toBe(false);
+    expect("autoLoginJellyseerr" in read!).toBe(false);
+  });
+
+  test("the block wins over the flat keys, which the plugin keeps in step", () => {
+    const read = readIntegrationBlocks(
+      plugin({
+        jellyseerrServerUrl: { locked: false, value: "http://flat.example" },
         seerr: {
           locked: false,
           value: {
@@ -288,8 +347,9 @@ describe("readIntegrationBlocks", () => {
 
     expect(read!.seerrServerUrl).toEqual({
       locked: false,
-      value: "http://flat.example",
+      value: "http://block.example",
     });
+    expect("jellyseerrServerUrl" in read!).toBe(false);
   });
 
   test("a block naming one setting leaves the others alone", () => {
@@ -322,5 +382,37 @@ describe("readIntegrationBlocks", () => {
 
     expect("seerr" in read!).toBe(false);
     expect("seerrServerUrl" in read!).toBe(false);
+  });
+});
+
+describe("renameLegacySeerrSettings", () => {
+  test("carries the settings an earlier build stored to their new names", () => {
+    const stored: Record<string, unknown> = {
+      jellyseerrServerUrl: "http://seerr.example",
+      jellyseerrApiKey: "a-key",
+      autoLoginJellyseerr: false,
+    };
+
+    expect(renameLegacySeerrSettings(stored)).toBe(true);
+    expect(stored).toEqual({
+      seerrServerUrl: "http://seerr.example",
+      seerrApiKey: "a-key",
+      autoLoginSeerr: false,
+    });
+  });
+
+  test("keeps a value already set under the new name", () => {
+    const stored: Record<string, unknown> = {
+      seerrServerUrl: "http://new.example",
+      jellyseerrServerUrl: "http://old.example",
+    };
+
+    renameLegacySeerrSettings(stored);
+
+    expect(stored).toEqual({ seerrServerUrl: "http://new.example" });
+  });
+
+  test("says when there was nothing to carry", () => {
+    expect(renameLegacySeerrSettings({ seerrApiKey: "a-key" })).toBe(false);
   });
 });
