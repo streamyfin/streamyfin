@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import { useMemo } from "react";
 import { View, type ViewProps } from "react-native";
-import { useJellyseerr } from "@/hooks/useJellyseerr";
+import { useJellyseerr } from "@/hooks/useSeerr";
 import type {
   MovieDetails,
   MovieResult,

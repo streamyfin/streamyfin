@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { Platform, ScrollView, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
-import { TVDiscover } from "@/components/jellyseerr/discover/TVDiscover";
+import { TVDiscover } from "@/components/seerr/discover/TVDiscover";
 import { useScaledTVSizes } from "@/constants/TVSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import { TvSearchView } from "@/modules/tv-search";
@@ -18,9 +18,9 @@ import type {
   PersonResult,
   TvResult,
 } from "@/utils/seerr/types";
-import { TVJellyseerrSearchResults } from "./TVJellyseerrSearchResults";
 import { TVSearchSection } from "./TVSearchSection";
 import { TVSearchTabBadges } from "./TVSearchTabBadges";
+import { TVJellyseerrSearchResults } from "./TVSeerrSearchResults";
 
 const TOP_PADDING = 100;
 // Height of the native search bar itself. The tvOS grid keyboard presents as

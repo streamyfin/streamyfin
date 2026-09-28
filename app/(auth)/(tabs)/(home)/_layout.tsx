@@ -187,7 +187,7 @@ export default function IndexLayout() {
         }}
       />
       <Stack.Screen
-        name='settings/plugins/jellyseerr/page'
+        name='settings/plugins/seerr/page'
         options={{
           title: "Jellyseerr",
           headerShown: !Platform.isTV,

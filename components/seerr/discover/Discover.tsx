@@ -1,0 +1,73 @@
+import { sortBy } from "lodash";
+import type React from "react";
+import { useMemo } from "react";
+import { View } from "react-native";
+import CompanySlide from "@/components/seerr/discover/CompanySlide";
+import GenreSlide from "@/components/seerr/discover/GenreSlide";
+import MovieTvSlide from "@/components/seerr/discover/MovieTvSlide";
+import RecentRequestsSlide from "@/components/seerr/discover/RecentRequestsSlide";
+import { networks, studios } from "@/utils/seerr/data";
+import type { DiscoverSlider } from "@/utils/seerr/types";
+import { DiscoverSliderType } from "@/utils/seerr/types";
+
+interface Props {
+  sliders?: DiscoverSlider[];
+}
+
+const Discover: React.FC<Props> = ({ sliders }) => {
+  const hasSliders = !!sliders;
+
+  const sortedSliders = useMemo(
+    () =>
+      sortBy(
+        (sliders ?? []).filter((s) => s.enabled),
+        "order",
+        "asc",
+      ),
+    [sliders],
+  );
+
+  if (!hasSliders) return null;
+
+  return (
+    <View className='flex flex-col space-y-4 mb-8'>
+      {sortedSliders.map((slide) => {
+        switch (slide.type) {
+          case DiscoverSliderType.RECENT_REQUESTS:
+            return (
+              <RecentRequestsSlide
+                key={slide.id}
+                slide={slide}
+                contentContainerStyle={{ paddingBottom: 16 }}
+              />
+            );
+          case DiscoverSliderType.NETWORKS:
+            return (
+              <CompanySlide key={slide.id} slide={slide} data={networks} />
+            );
+          case DiscoverSliderType.STUDIOS:
+            return <CompanySlide key={slide.id} slide={slide} data={studios} />;
+          case DiscoverSliderType.MOVIE_GENRES:
+          case DiscoverSliderType.TV_GENRES:
+            return <GenreSlide key={slide.id} slide={slide} />;
+          case DiscoverSliderType.TRENDING:
+          case DiscoverSliderType.POPULAR_MOVIES:
+          case DiscoverSliderType.UPCOMING_MOVIES:
+          case DiscoverSliderType.POPULAR_TV:
+          case DiscoverSliderType.UPCOMING_TV:
+            return (
+              <MovieTvSlide
+                key={slide.id}
+                slide={slide}
+                contentContainerStyle={{ paddingBottom: 16 }}
+              />
+            );
+          default:
+            return null;
+        }
+      })}
+    </View>
+  );
+};
+
+export default Discover;

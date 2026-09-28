@@ -1,6 +1,6 @@
 import { Platform, View } from "react-native";
 import { FilterButton } from "@/components/filters/FilterButton";
-import { JellyseerrSearchSort } from "@/components/jellyseerr/JellyseerrIndexPage";
+import { JellyseerrSearchSort } from "@/components/seerr/SeerrIndexPage";
 
 // @expo/ui's SwiftUI native module (ExpoUI) does not exist in tvOS builds.
 // A static top-level import crashes the route tree on tvOS at module load.

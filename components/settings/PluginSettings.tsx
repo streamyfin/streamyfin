@@ -27,7 +27,7 @@ export const PluginSettings = () => {
       className='mb-4'
     >
       <ListItem
-        onPress={() => router.push("/settings/plugins/jellyseerr/page")}
+        onPress={() => router.push("/settings/plugins/seerr/page")}
         title='Jellyseerr'
         showArrow
       />

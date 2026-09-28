@@ -18,7 +18,7 @@ import { TVButton } from "@/components/tv";
 import { useTVFocusAnimation } from "@/components/tv/hooks/useTVFocusAnimation";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
-import { useJellyseerr } from "@/hooks/useJellyseerr";
+import { useJellyseerr } from "@/hooks/useSeerr";
 import { useTVRequestModal } from "@/hooks/useTVRequestModal";
 import { tvSeasonSelectModalAtom } from "@/utils/atoms/tvSeasonSelectModal";
 import type { MediaRequestBody } from "@/utils/seerr/types";

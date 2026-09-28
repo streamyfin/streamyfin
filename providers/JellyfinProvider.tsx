@@ -24,7 +24,7 @@ import { getDeviceNameSync } from "react-native-device-info";
 import { toast } from "sonner-native";
 import useRouter from "@/hooks/useAppRouter";
 import { useInterval } from "@/hooks/useInterval";
-import { JellyseerrApi, useJellyseerr } from "@/hooks/useJellyseerr";
+import { JellyseerrApi, useJellyseerr } from "@/hooks/useSeerr";
 import { settingsAtom, useSettings } from "@/utils/atoms/settings";
 import {
   getIntegrationHeaders,
@@ -33,7 +33,6 @@ import {
 import { getOrSetDeviceId } from "@/utils/device";
 import { markExpectedError } from "@/utils/errors";
 import { createApiWithCustomHeaders } from "@/utils/jellyfin/createApi";
-import { signInWithQuickConnect } from "@/utils/jellyseerrQuickConnect";
 import {
   logAndCaptureError,
   writeErrorLog,
@@ -55,6 +54,7 @@ import {
   saveJellyseerrPassword,
   updateAccountToken,
 } from "@/utils/secureCredentials";
+import { signInWithQuickConnect } from "@/utils/seerrQuickConnect";
 import { store } from "@/utils/store";
 import { clearTVDiscoverySafely } from "@/utils/tvDiscovery/sync";
 import { APP_VERSION } from "@/utils/version";

@@ -27,17 +27,17 @@ import {
   getItemNavigation,
   TouchableItemRouter,
 } from "@/components/common/TouchableItemRouter";
-import {
-  JellyseerrSearchSort,
-  JellyserrIndexPage,
-} from "@/components/jellyseerr/JellyseerrIndexPage";
 import { DiscoverFilters } from "@/components/search/DiscoverFilters";
 import { LoadingSkeleton } from "@/components/search/LoadingSkeleton";
 import { SearchItemWrapper } from "@/components/search/SearchItemWrapper";
 import { SearchTabButtons } from "@/components/search/SearchTabButtons";
 import { TVSearchPage } from "@/components/search/TVSearchPage";
+import {
+  JellyseerrSearchSort,
+  JellyserrIndexPage,
+} from "@/components/seerr/SeerrIndexPage";
 import useRouter from "@/hooks/useAppRouter";
-import { useJellyseerr } from "@/hooks/useJellyseerr";
+import { useJellyseerr } from "@/hooks/useSeerr";
 import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
@@ -540,7 +540,7 @@ export default function SearchPage() {
   const handleJellyseerrMoviePress = useCallback(
     (item: MovieResult) => {
       router.push({
-        pathname: "/(auth)/(tabs)/(search)/jellyseerr/page",
+        pathname: "/(auth)/(tabs)/(search)/seerr/page",
         params: {
           mediaTitle: item.title,
           releaseYear: String(new Date(item.releaseDate || "").getFullYear()),
@@ -559,7 +559,7 @@ export default function SearchPage() {
   const handleJellyseerrTvPress = useCallback(
     (item: TvResult) => {
       router.push({
-        pathname: "/(auth)/(tabs)/(search)/jellyseerr/page",
+        pathname: "/(auth)/(tabs)/(search)/seerr/page",
         params: {
           mediaTitle: item.name,
           releaseYear: String(new Date(item.firstAirDate || "").getFullYear()),
@@ -577,7 +577,7 @@ export default function SearchPage() {
 
   const handleJellyseerrPersonPress = useCallback(
     (item: PersonResult) => {
-      router.push(`/(auth)/jellyseerr/person/${item.id}` as any);
+      router.push(`/(auth)/seerr/person/${item.id}` as any);
     },
     [router],
   );

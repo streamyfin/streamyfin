@@ -4,8 +4,8 @@ export {
   parseServerInput,
 } from "./candidates";
 export { jellyfinProbe } from "./probes/jellyfin";
-export { jellyseerrProbe } from "./probes/jellyseerr";
 export { reachabilityProbe } from "./probes/reachability";
+export { jellyseerrProbe } from "./probes/seerr";
 export {
   type ResolveFailureReason,
   type ResolveOptions,
