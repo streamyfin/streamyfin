@@ -31,6 +31,10 @@ export async function saveSeerrPassword(
   password: string,
 ): Promise<void> {
   await SecureStore.setItemAsync(seerrPasswordKey(serverUrl, userId), password);
+  // A copy an earlier build kept under the old name is stale from here on.
+  await SecureStore.deleteItemAsync(
+    seerrPasswordKey(serverUrl, userId, LEGACY_SEERR_PASSWORD_KEY_PREFIX),
+  );
 }
 
 export async function getSeerrPassword(

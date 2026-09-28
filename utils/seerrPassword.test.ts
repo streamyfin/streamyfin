@@ -7,9 +7,8 @@ import {
 
 stubSecureStore();
 
-const { deleteSeerrPassword, getSeerrPassword } = await import(
-  "./seerrPassword"
-);
+const { deleteSeerrPassword, getSeerrPassword, saveSeerrPassword } =
+  await import("./seerrPassword");
 
 const account = btoa("https://media.example:user-1").replace(
   /[^a-zA-Z0-9]/g,
@@ -38,6 +37,18 @@ test("reads the new name first", async () => {
   expect(await getSeerrPassword("https://media.example", "user-1")).toBe(
     "battery staple",
   );
+});
+
+// Signing in again after the update writes the new name before anything has
+// read the old one. The copy left under the old name, possibly an older
+// password, would otherwise stay on the device until the user signs out.
+test("saving forgets the copy an earlier build kept", async () => {
+  secureStoreValues.set(`jellyseerrpw_${account}`, "correct horse");
+
+  await saveSeerrPassword("https://media.example", "user-1", "battery staple");
+
+  expect(secureStoreValues.get(`seerrpw_${account}`)).toBe("battery staple");
+  expect(secureStoreValues.has(`jellyseerrpw_${account}`)).toBe(false);
 });
 
 // Signing out has to forget the password under either name.
