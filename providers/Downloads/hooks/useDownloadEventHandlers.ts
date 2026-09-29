@@ -121,10 +121,11 @@ export function useDownloadEventHandlers({
         } else {
           // Transcoding - estimate from bitrate
           const process = processes.find((p) => p.id === processId);
-          if (process?.maxBitrate.value && process.item.RunTimeTicks) {
-            const { estimateDownloadSize } = require("@/utils/download");
-            estimatedTotalBytes = estimateDownloadSize(
+          if (process) {
+            const { estimateTranscodeSize } = require("@/utils/downloadSize");
+            estimatedTotalBytes = estimateTranscodeSize(
               process.maxBitrate.value,
+              process.mediaSource?.Bitrate,
               process.item.RunTimeTicks,
             );
           }
