@@ -99,6 +99,8 @@ interface SyncPlayProviderProps {
 export function SyncPlayProvider({ children }: SyncPlayProviderProps) {
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
+  const userRef = useRef(user);
+  userRef.current = user;
   const router = useAppRouter();
   const { isConnected: isWsConnected } = useWebSocketContext();
 
@@ -290,7 +292,7 @@ export function SyncPlayProvider({ children }: SyncPlayProviderProps) {
   useEffect(() => {
     if (!api) return;
 
-    const mgr = new SyncPlayManager(api);
+    const mgr = new SyncPlayManager(api, () => userRef.current);
     mgr.init();
     setManager(mgr);
 
@@ -314,7 +316,7 @@ export function SyncPlayProvider({ children }: SyncPlayProviderProps) {
       const target = queueCore
         .getPlaylist()
         .find((i) => i.PlaylistItemId === playlistItemId);
-      const itemId = target?.Id;
+      const itemId = target?.ItemId;
       if (!itemId) {
         console.warn(
           "SyncPlay: localSetCurrentPlaylistItem — item not in playlist",
@@ -475,7 +477,7 @@ export function SyncPlayProvider({ children }: SyncPlayProviderProps) {
     const queueCore = manager.getQueueCore();
     const index = queueCore.getCurrentPlaylistIndex();
     const itemId =
-      index >= 0 ? (queueCore.getPlaylist()[index]?.Id ?? null) : null;
+      index >= 0 ? (queueCore.getPlaylist()[index]?.ItemId ?? null) : null;
     if (!itemId) {
       console.warn("SyncPlay: resumeGroupPlayback — no current group item");
       return;
