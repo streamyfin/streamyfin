@@ -33,7 +33,7 @@ import { SearchItemWrapper } from "@/components/search/SearchItemWrapper";
 import { SearchTabButtons } from "@/components/search/SearchTabButtons";
 import { TVSearchPage } from "@/components/search/TVSearchPage";
 import {
-  JellyserrIndexPage,
+  SeerrIndexPage,
   SeerrSearchSort,
 } from "@/components/seerr/SeerrIndexPage";
 import useRouter from "@/hooks/useAppRouter";
@@ -859,7 +859,7 @@ export default function SearchPage() {
             />
           </View>
         ) : (
-          <JellyserrIndexPage
+          <SeerrIndexPage
             searchQuery={debouncedSearch}
             sortType={seerrOrderBy}
             order={seerrSortOrder}

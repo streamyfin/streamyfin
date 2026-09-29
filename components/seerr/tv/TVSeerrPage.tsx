@@ -19,7 +19,7 @@ import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { GenreTags } from "@/components/GenreTags";
 import { Loader } from "@/components/Loader";
-import { JellyserrRatings } from "@/components/Ratings";
+import { SeerrRatings } from "@/components/Ratings";
 import { TVButton } from "@/components/tv";
 import { useTVFocusAnimation } from "@/components/tv/hooks/useTVFocusAnimation";
 import { useScaledTVTypography } from "@/constants/TVTypography";
@@ -521,7 +521,7 @@ export const TVSeerrPage: React.FC = () => {
           <View style={{ flex: 1, justifyContent: "center" }}>
             {/* Ratings */}
             {details && (
-              <JellyserrRatings
+              <SeerrRatings
                 result={
                   details as MovieDetails | TvDetails | MovieResult | TvResult
                 }

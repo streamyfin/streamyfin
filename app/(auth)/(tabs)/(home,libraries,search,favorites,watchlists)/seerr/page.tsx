@@ -22,7 +22,7 @@ import { GenreTags } from "@/components/GenreTags";
 import { OverviewText } from "@/components/OverviewText";
 import { ParallaxScrollView } from "@/components/ParallaxPage";
 import { PlatformDropdown } from "@/components/PlatformDropdown";
-import { JellyserrRatings } from "@/components/Ratings";
+import { SeerrRatings } from "@/components/Ratings";
 import Cast from "@/components/seerr/Cast";
 import DetailFacts from "@/components/seerr/DetailFacts";
 import RequestModal from "@/components/seerr/RequestModal";
@@ -302,7 +302,7 @@ const MobilePage: React.FC = () => {
             <View className='px-4'>
               <View className='flex flex-row justify-between w-full'>
                 <View className='flex flex-col w-56'>
-                  <JellyserrRatings
+                  <SeerrRatings
                     result={
                       result as
                         | MovieResult

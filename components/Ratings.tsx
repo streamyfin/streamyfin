@@ -63,7 +63,7 @@ export const Ratings: React.FC<Props> = ({ item, className, ...props }) => {
   );
 };
 
-export const JellyserrRatings: React.FC<{
+export const SeerrRatings: React.FC<{
   result: MovieResult | TvResult | TvDetails | MovieDetails;
 }> = ({ result }) => {
   const { seerrApi, getMediaType } = useSeerr();

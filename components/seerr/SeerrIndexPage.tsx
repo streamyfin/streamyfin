@@ -31,7 +31,7 @@ export enum SeerrSearchSort {
   POPULARITY = 2,
 }
 
-export const JellyserrIndexPage: React.FC<Props> = ({
+export const SeerrIndexPage: React.FC<Props> = ({
   searchQuery,
   sortType,
   order,
