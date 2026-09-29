@@ -2,8 +2,10 @@ import axios, { type AxiosError, type AxiosInstance } from "axios";
 import { atom, useAtomValue } from "jotai";
 import { useAtom } from "jotai/index";
 import { inRange } from "lodash";
+import { Image } from "react-native";
 import {
   SEERR_COOKIES_STORAGE_KEY,
+  SEERR_IMAGE_QUALITY,
   SEERR_USER_STORAGE_KEY,
 } from "@/constants/Seerr";
 import { storage } from "@/utils/mmkv";
@@ -19,6 +21,7 @@ import {
   getIntegrationHeaders,
 } from "@/utils/customHeaders";
 import { logAndCaptureError, writeErrorLog, writeToLog } from "@/utils/log";
+import { tmdbImageUrl } from "@/utils/seerr/images";
 import {
   isMovieOrTvResult,
   mediaTypeOf,
@@ -65,6 +68,14 @@ interface SearchResults {
   totalResults: number;
   results: Results[];
 }
+
+// The app's own placeholder for an image Seerr has none of. The server's
+// changed name twice (overseerr_ up to Jellyseerr 2.3, jellyseerr_ up to 2.7,
+// seerr_ since Seerr 3), and a name it does not know answers with its HTML
+// page, a broken image.
+const POSTER_PLACEHOLDER = Image.resolveAssetSource(
+  require("@/assets/images/seerr-poster-placeholder.png"),
+).uri;
 
 export const clearSeerrStorageData = () => {
   storage.remove(SEERR_USER_STORAGE_KEY);
@@ -541,13 +552,15 @@ export class SeerrApi {
     path?: string | null,
     filter = "original",
     width = 1920,
-    quality = 75,
+    quality = SEERR_IMAGE_QUALITY,
   ) {
-    return path
-      ? `${this.axios.defaults.baseURL}/_next/image?${new URLSearchParams(
-          `url=https://image.tmdb.org/t/p/${filter}/${path}&w=${width}&q=${quality}`,
-        ).toString()}`
-      : `${this.axios?.defaults.baseURL}/images/overseerr_poster_not_found_logo_top.png`;
+    return (
+      tmdbImageUrl(this.axios.defaults.baseURL ?? "", path, {
+        filter,
+        width,
+        quality,
+      }) ?? POSTER_PLACEHOLDER
+    );
   }
 
   async submitIssue(mediaId: number, issueType: IssueType, message: string) {
