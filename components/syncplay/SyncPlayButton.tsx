@@ -17,10 +17,11 @@
 import {
   type BottomSheetMethods,
   BottomSheetModal,
-  BottomSheetView,
+  BottomSheetScrollView,
 } from "@expo/ui/community/bottom-sheet";
 import { Ionicons } from "@expo/vector-icons";
 import { useCallback, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { Platform, View } from "react-native";
 import { useCastDevice } from "react-native-google-cast";
 import { toast } from "sonner-native";
@@ -39,6 +40,7 @@ interface SyncPlayButtonProps {
 export function SyncPlayButton({
   size = HEADER_ICON_SIZE,
 }: SyncPlayButtonProps) {
+  const { t } = useTranslation();
   const { isEnabled, canJoinGroups, registerPlaybackPresentationGuard } =
     useSyncPlay();
   const { isConnected } = useNetworkStatus();
@@ -118,7 +120,11 @@ export function SyncPlayButton({
 
   return (
     <>
-      <HeaderButton onPress={handlePress}>
+      <HeaderButton
+        onPress={handlePress}
+        accessibilityRole='button'
+        accessibilityLabel={t("syncplay.title")}
+      >
         <View className='relative'>
           <Ionicons
             name={isEnabled ? "people" : "people-outline"}
@@ -142,9 +148,9 @@ export function SyncPlayButton({
         snapPoints={Platform.OS === "android" ? ["100%"] : ["60%"]}
         enablePanDownToClose
       >
-        <BottomSheetView>
+        <BottomSheetScrollView style={{ flex: 1 }}>
           <GroupSelectionMenu onClose={handleDismiss} />
-        </BottomSheetView>
+        </BottomSheetScrollView>
       </BottomSheetModal>
     </>
   );

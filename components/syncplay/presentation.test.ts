@@ -12,7 +12,9 @@ const provider = readFileSync(
 test("SyncPlay uses the shared header button without adding its own gap", () => {
   expect(button).toContain('from "@/components/common/HeaderButton"');
   expect(button).toContain("size = HEADER_ICON_SIZE");
-  expect(button).toContain("<HeaderButton onPress={handlePress}>");
+  expect(button).toMatch(/<HeaderButton\s+onPress=\{handlePress\}/);
+  expect(button).toContain('accessibilityLabel={t("syncplay.title")}');
+  expect(button).toContain("<BottomSheetScrollView");
   expect(button).not.toContain("mr-4");
   expect(button).not.toContain("<Pressable");
 });

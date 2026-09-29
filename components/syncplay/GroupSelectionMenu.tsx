@@ -11,6 +11,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ActivityIndicator, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { toast } from "sonner-native";
 import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
 import { useSyncPlay } from "@/providers/SyncPlay";
@@ -40,12 +41,15 @@ export function GroupSelectionMenu({ onClose }: GroupSelectionMenuProps) {
   >([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [fetchFailed, setFetchFailed] = useState(false);
+  const [retry, setRetry] = useState(0);
   const actionPending = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       setIsLoading(true);
+      setFetchFailed(false);
       try {
         const fetchedGroups = await getGroups();
         if (!cancelled) {
@@ -61,6 +65,7 @@ export function GroupSelectionMenu({ onClose }: GroupSelectionMenuProps) {
         }
       } catch (error) {
         console.error("Failed to fetch groups", error);
+        if (!cancelled) setFetchFailed(true);
       } finally {
         if (!cancelled) {
           setIsLoading(false);
@@ -70,7 +75,7 @@ export function GroupSelectionMenu({ onClose }: GroupSelectionMenuProps) {
     return () => {
       cancelled = true;
     };
-  }, [getGroups]);
+  }, [getGroups, retry]);
 
   const handleJoinGroup = useCallback(
     async (groupId: string) => {
@@ -81,11 +86,12 @@ export function GroupSelectionMenu({ onClose }: GroupSelectionMenuProps) {
         await joinGroup(groupId);
       } catch (error) {
         console.error("Failed to join group", error);
+        toast.error(t("syncplay.action_failed"));
       } finally {
         actionPending.current = false;
       }
     },
-    [joinGroup, onClose],
+    [joinGroup, onClose, t],
   );
 
   const handleCreateGroup = useCallback(async () => {
@@ -97,11 +103,12 @@ export function GroupSelectionMenu({ onClose }: GroupSelectionMenuProps) {
       await createGroup();
     } catch (error) {
       console.error("Failed to create group", error);
+      toast.error(t("syncplay.action_failed"));
     } finally {
       actionPending.current = false;
       setIsCreating(false);
     }
-  }, [createGroup, onClose]);
+  }, [createGroup, onClose, t]);
 
   const handleLeaveGroup = useCallback(async () => {
     if (actionPending.current) return;
@@ -111,10 +118,11 @@ export function GroupSelectionMenu({ onClose }: GroupSelectionMenuProps) {
       await onClose();
     } catch (error) {
       console.error("Failed to leave group", error);
+      toast.error(t("syncplay.action_failed"));
     } finally {
       actionPending.current = false;
     }
-  }, [leaveGroup, onClose]);
+  }, [leaveGroup, onClose, t]);
 
   // Jump (back) into the group's current item. Mirrors jellyfin-web's
   // "Resume playback" menu entry — close the sheet and navigate to
@@ -127,10 +135,11 @@ export function GroupSelectionMenu({ onClose }: GroupSelectionMenuProps) {
       await resumeGroupPlayback();
     } catch (error) {
       console.error("Failed to resume group playback", error);
+      toast.error(t("syncplay.failed_to_start"));
     } finally {
       actionPending.current = false;
     }
-  }, [resumeGroupPlayback, onClose]);
+  }, [resumeGroupPlayback, onClose, t]);
 
   const containerStyle = {
     paddingLeft: Math.max(16, insets.left),
@@ -215,7 +224,18 @@ export function GroupSelectionMenu({ onClose }: GroupSelectionMenuProps) {
         </View>
       )}
 
-      {!isLoading && groups.length > 0 && (
+      {!isLoading && fetchFailed && (
+        <View className='mb-4'>
+          <Text className='text-neutral-400 mb-3'>
+            {t("syncplay.fetch_failed")}
+          </Text>
+          <Button onPress={() => setRetry((value) => value + 1)}>
+            {t("common.retry")}
+          </Button>
+        </View>
+      )}
+
+      {!isLoading && !fetchFailed && groups.length > 0 && (
         <View className='mb-4'>
           <Text className='text-neutral-400 text-sm mb-2 ml-1'>
             {t("syncplay.available_groups")}
@@ -250,7 +270,7 @@ export function GroupSelectionMenu({ onClose }: GroupSelectionMenuProps) {
         </View>
       )}
 
-      {!isLoading && groups.length === 0 && (
+      {!isLoading && !fetchFailed && groups.length === 0 && (
         <View className='bg-neutral-800/50 rounded-xl p-6 mb-4 items-center'>
           <Ionicons name='people-outline' size={40} color='#6b7280' />
           <Text className='text-neutral-400 text-center mt-3'>

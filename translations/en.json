@@ -1121,6 +1121,8 @@
     }
   },
   "syncplay": {
+    "action_failed": "The SyncPlay action failed. Please try again.",
+    "fetch_failed": "Could not load SyncPlay groups.",
     "title": "SyncPlay",
     "my_group": "My Group",
     "join_group": "Join Group",
