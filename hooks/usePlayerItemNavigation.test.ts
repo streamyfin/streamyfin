@@ -47,6 +47,7 @@ function fixture({
   };
   const updateSettings = mock(() => {});
   const present = mock(async () => true);
+  const registerLocalPlaybackRequest = mock(() => () => {});
   const imports = {
     react: { useCallback: (callback: unknown) => callback },
     jotai: { useSetAtom: () => mock(() => {}) },
@@ -62,7 +63,11 @@ function fixture({
       useNativePlayer: () => ({ presentFromRequest: present }),
     },
     "@/providers/SyncPlay": {
-      useSyncPlay: () => ({ isEnabled: grouped, controller }),
+      useSyncPlay: () => ({
+        isEnabled: grouped,
+        controller,
+        registerLocalPlaybackRequest,
+      }),
     },
     "@/providers/Downloads": { getDownloadedItemById: () => ({}) },
     "@/providers/OfflineModeProvider": { useOfflineMode: () => offline },
@@ -104,6 +109,7 @@ function fixture({
     router,
     present,
     updateSettings,
+    registerLocalPlaybackRequest,
   };
 }
 
@@ -148,6 +154,13 @@ describe("shared SyncPlay playback eligibility", () => {
       expect.objectContaining({
         ids: ["c", "a", "b"],
         items: queue,
+        exactQueue: true,
+      }),
+    );
+    expect(f.registerLocalPlaybackRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        itemId: "c",
+        offline: false,
       }),
     );
     await f.playMedia(

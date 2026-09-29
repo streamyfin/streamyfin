@@ -40,7 +40,11 @@ export const usePlayMedia = () => {
   const { settings, updateSettings } = useSettings();
   const setShuffleQueue = useSetAtom(shuffleQueueAtom);
   const { presentFromRequest } = useNativePlayer();
-  const { isEnabled: isSyncPlayEnabled, controller } = useSyncPlay();
+  const {
+    isEnabled: isSyncPlayEnabled,
+    controller,
+    registerLocalPlaybackRequest,
+  } = useSyncPlay();
   const { t } = useTranslation();
 
   return useCallback(
@@ -64,6 +68,7 @@ export const usePlayMedia = () => {
         isSyncPlayEnabled &&
         controller
       ) {
+        const clearLocalRequest = registerLocalPlaybackRequest(req);
         try {
           const queueItems = options?.queueItems?.filter((item) => !!item.Id);
           const startIndex = queueItems?.findIndex(
@@ -80,9 +85,11 @@ export const usePlayMedia = () => {
             ],
             items: queueItems ?? (options?.item ? [options.item] : undefined),
             startIndex,
+            exactQueue: !!queueItems,
             startPositionTicks: req.playbackPositionTicks,
           });
         } catch (error) {
+          clearLocalRequest();
           logAndCaptureError("SyncPlay play request failed", error);
           Alert.alert(t("player.client_error"), t("syncplay.failed_to_start"));
         }
@@ -116,6 +123,7 @@ export const usePlayMedia = () => {
       presentFromRequest,
       isSyncPlayEnabled,
       controller,
+      registerLocalPlaybackRequest,
       t,
     ],
   );
