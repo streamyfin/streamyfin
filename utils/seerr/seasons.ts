@@ -1,3 +1,4 @@
+import { SEERR_SEASON_BADGES } from "@/constants/Seerr";
 import {
   type MediaRequest,
   MediaRequestStatus,
@@ -55,4 +56,18 @@ export const seasonsWithStatus = (details: TvDetails) => {
       requestedStatus(requests, season.seasonNumber) ??
       MediaStatus.UNKNOWN,
   }));
+};
+
+/**
+ * The season badges of a request card: the first few, then how many more.
+ */
+export const seasonBadges = (
+  seasonNumbers: number[],
+  more: (count: number) => string,
+): string[] => {
+  const shown = seasonNumbers
+    .slice(0, SEERR_SEASON_BADGES)
+    .map((number) => number.toString());
+  const rest = seasonNumbers.length - shown.length;
+  return rest > 0 ? [...shown, more(rest)] : shown;
 };

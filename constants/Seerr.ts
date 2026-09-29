@@ -10,6 +10,9 @@ export const SEERR_PASSWORD_KEY_PREFIX = "seerrpw_";
 /** Pages of search results asked for at once, 20 results a page. */
 export const SEERR_SEARCH_PAGES = 4;
 
+/** Season badges a request card shows before counting the rest. */
+export const SEERR_SEASON_BADGES = 2;
+
 /*
  * Where builds from before the rename stored the same things, when Seerr was
  * called Jellyseerr. Each is read once, moved to the name above, and deleted.

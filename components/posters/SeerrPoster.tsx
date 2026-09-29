@@ -16,6 +16,7 @@ import SeerrStatusIcon from "@/components/seerr/SeerrStatusIcon";
 import { Colors } from "@/constants/Colors";
 import { useSeerr } from "@/hooks/useSeerr";
 import { useSeerrCanRequest } from "@/hooks/useSeerrCanRequest";
+import { seasonBadges } from "@/utils/seerr/seasons";
 import type {
   DownloadingItem,
   MediaRequest,
@@ -95,21 +96,14 @@ const SeerrPoster: React.FC<Props> = ({
     return ((totalSize - sizeLeft) / totalSize) * 100;
   }, [downloadItems]);
 
-  const requestedSeasons: string[] | undefined = useMemo(() => {
-    const seasons =
-      mediaRequest?.seasons?.flatMap((s) => s.seasonNumber.toString()) || [];
-    if (seasons.length > 4) {
-      const [first, second, third, fourth, ...rest] = seasons;
-      return [
-        first,
-        second,
-        third,
-        fourth,
-        t("home.settings.plugins.seerr.plus_n_more", { n: rest.length }),
-      ];
-    }
-    return seasons;
-  }, [mediaRequest]);
+  const requestedSeasons: string[] = useMemo(
+    () =>
+      seasonBadges(
+        mediaRequest?.seasons?.map((s) => s.seasonNumber) ?? [],
+        (n) => t("home.settings.plugins.seerr.plus_n_more", { n }),
+      ),
+    [mediaRequest],
+  );
 
   const available = useMemo(() => {
     const status = mediaRequest?.media?.[is4k ? "status4k" : "status"];
