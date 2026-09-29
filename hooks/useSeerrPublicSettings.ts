@@ -11,7 +11,8 @@ export const useSeerrPublicSettings = (): PublicSettings | undefined => {
   const { seerrApi } = useSeerr();
 
   const { data } = useQuery({
-    queryKey: ["seerr", "settings", "public"],
+    // Per server: after signing in to another one, its own settings apply.
+    queryKey: ["seerr", "settings", "public", seerrApi?.axios.defaults.baseURL],
     queryFn: async () => (await seerrApi?.publicSettings()) ?? null,
     enabled: !!seerrApi,
     staleTime: 10 * 60 * 1000,

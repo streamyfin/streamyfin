@@ -25,6 +25,7 @@ import {
   titleOf,
   yearOf,
 } from "@/utils/seerr/media";
+import { isSeerrQuery } from "@/utils/seerr/queries";
 import { seerrQueryString } from "@/utils/seerr/search";
 import type {
   CombinedCredit,
@@ -706,12 +707,17 @@ export const useSeerr = () => {
 
   const clearAllSeerrData = useCallback(async () => {
     clearSeerrStorageData();
+    // The cache outlives the session, on the device for a day: the next
+    // Seerr would show this one's quota, seasons and settings.
+    queryClient.removeQueries({
+      predicate: (query) => isSeerrQuery(query.queryKey),
+    });
     setSeerrUser(undefined);
     updateSettings({
       seerrServerUrl: undefined,
       seerrApiKey: undefined,
     });
-  }, []);
+  }, [queryClient]);
 
   const requestMedia = useCallback(
     (title: string, request: MediaRequestBody, onSuccess?: () => void) => {
