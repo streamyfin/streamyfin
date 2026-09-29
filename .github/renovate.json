@@ -61,7 +61,7 @@
   },
   "packageRules": [
     {
-      "description": "Moved by hand, never one pull request at a time: the Expo SDK sets these versions (jest-expo and the Jest it is built on included) and they move with `expo install --fix` when the SDK moves, and reanimated/worklets and mmkv/nitro-modules only build in step. Native modules listed in `expo.install.exclude` are left out on purpose: the SDK no longer moves them, so Renovate is what keeps them current",
+      "description": "Moved by hand, never one pull request at a time: the Expo SDK sets these versions (jest-expo and the Jest it is built on included) and they move with `expo install --fix` when the SDK moves, and reanimated/worklets and mmkv/nitro-modules only build in step. react-native is the react-native-tvos fork under an alias, which `expo install` cannot match, so it is also moved by hand, to the fork's release for the SDK. Native modules listed in `expo.install.exclude` are left out on purpose: the SDK no longer moves them, so Renovate is what keeps them current",
       "matchPackageNames": [
         "expo",
         "expo-*",
