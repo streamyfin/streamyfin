@@ -21,8 +21,8 @@ describe("generateDownloadProfile", () => {
     const profile = generateDownloadProfile("auto");
 
     expect(profile.SubtitleProfiles).toEqual([
+      // "webvtt" is absent on purpose — see TEXT_EXTERNAL_FORMATS (#1892).
       ...[
-        "webvtt",
         "vtt",
         "srt",
         "subrip",
@@ -58,7 +58,7 @@ describe("generateDownloadProfile", () => {
       Context: "Streaming",
       Protocol: "http",
       Container: "mp4",
-      VideoCodec: "h264,hevc",
+      VideoCodec: "av1,h264,hevc",
       AudioCodec: "aac,mp3,ac3,eac3",
       MaxAudioChannels: "6",
       CopyTimestamps: false,

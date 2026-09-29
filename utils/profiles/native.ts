@@ -8,6 +8,7 @@ import { Platform } from "react-native";
 import MediaTypes from "../../constants/MediaTypes";
 import {
   supportsAv1HardwareDecode,
+  supportsAv1Transcode,
   supportsDolbyVisionHardwareDecode,
 } from "./codecSupport";
 import { getSubtitleProfiles } from "./subtitles";
@@ -28,6 +29,12 @@ export interface ProfileOptions {
    * device (see `./codecSupport`); pass explicitly only for tests.
    */
   supportsAv1?: boolean;
+  /**
+   * Whether Jellyfin may transcode to AV1, over MP4 segments. Defaults to the
+   * hardware decoder probe (see `./codecSupport`); pass explicitly only for
+   * tests.
+   */
+  supportsAv1Transcode?: boolean;
   /**
    * Whether the device ships a DV hardware decoder whose `video/dolby-vision`
    * capabilities accept a Profile 5 MediaFormat (not merely advertising the
@@ -241,6 +248,7 @@ export const generateDeviceProfile = (options: ProfileOptions = {}) => {
   const audioMode = options.audioMode || "auto";
   const player = options.player || "mpv";
   const supportsAv1 = options.supportsAv1 ?? supportsAv1HardwareDecode();
+  const av1Transcode = options.supportsAv1Transcode ?? supportsAv1Transcode();
   const supportsDolbyVision =
     options.supportsDolbyVision ?? supportsDolbyVisionHardwareDecode();
 
@@ -369,8 +377,9 @@ export const generateDeviceProfile = (options: ProfileOptions = {}) => {
         Type: MediaTypes.Video,
         Context: "Streaming",
         Protocol: "hls",
-        Container: "ts",
-        VideoCodec: "h264,hevc",
+        // AV1 in HLS has to travel in fragmented MP4 segments.
+        Container: av1Transcode ? "mp4" : "ts",
+        VideoCodec: av1Transcode ? "av1,h264,hevc" : "h264,hevc",
         AudioCodec: "aac,mp3,ac3,dts",
         MaxAudioChannels: maxAudioChannels,
       },
