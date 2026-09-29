@@ -115,6 +115,18 @@ export const unrequestedSeasons = (
     .map((season) => season.seasonNumber);
 };
 
+/** Whether the quota leaves room to switch on one more season. */
+export const roomForOneMore = (
+  selected: number[],
+  quota?: SeasonQuota,
+): boolean => !quota?.limit || (quota.remaining ?? 0) - selected.length > 0;
+
+/** Whether the quota covers every season that can still be requested. */
+export const roomForAll = (
+  unrequested: number[],
+  quota?: SeasonQuota,
+): boolean => !quota?.limit || (quota.remaining ?? 0) >= unrequested.length;
+
 /** Adds or takes out a season, within what can be requested and the quota. */
 export const toggleSeason = (
   selected: number[],
@@ -126,9 +138,7 @@ export const toggleSeason = (
   if (selected.includes(seasonNumber)) {
     return selected.filter((number) => number !== seasonNumber);
   }
-  if (quota?.limit && (quota.remaining ?? 0) - selected.length <= 0) {
-    return selected;
-  }
+  if (!roomForOneMore(selected, quota)) return selected;
   return [...selected, seasonNumber];
 };
 
@@ -138,9 +148,7 @@ export const toggleAllSeasons = (
   unrequested: number[],
   quota?: SeasonQuota,
 ): number[] => {
-  if (quota?.limit && (quota.remaining ?? 0) < unrequested.length) {
-    return selected;
-  }
+  if (!roomForAll(unrequested, quota)) return selected;
   return selected.length < unrequested.length ? unrequested : [];
 };
 

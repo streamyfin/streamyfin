@@ -17,6 +17,12 @@ interface Props {
   rows: SeasonRow[];
   selected: number[];
   allSelected: boolean;
+  /** Seerr hides the switches when the server only takes whole series. */
+  choosable?: boolean;
+  /** Whether the quota lets one more season be switched on. */
+  roomForOneMore?: boolean;
+  /** Whether the quota covers every season left, for the switch for all. */
+  roomForAll?: boolean;
   onToggle: (seasonNumber: number) => void;
   onToggleAll: () => void;
 }
@@ -29,6 +35,9 @@ export const SeasonRequestTable: React.FC<Props> = ({
   rows,
   selected,
   allSelected,
+  choosable = true,
+  roomForOneMore = true,
+  roomForAll = true,
   onToggle,
   onToggleAll,
 }) => {
@@ -46,9 +55,15 @@ export const SeasonRequestTable: React.FC<Props> = ({
   return (
     <View className='rounded-xl border border-neutral-800 overflow-hidden'>
       <View className='flex flex-row items-center bg-neutral-800 px-3 py-2'>
-        <View className='w-20'>
-          <SettingSwitch value={allSelected} onValueChange={onToggleAll} />
-        </View>
+        {choosable && (
+          <View className='w-20'>
+            <SettingSwitch
+              value={allSelected}
+              disabled={!roomForAll}
+              onValueChange={onToggleAll}
+            />
+          </View>
+        )}
         <Text className='flex-1 text-xs text-neutral-400'>
           {t("seerr.season_column")}
         </Text>
@@ -64,13 +79,20 @@ export const SeasonRequestTable: React.FC<Props> = ({
           key={row.seasonNumber}
           className='flex flex-row items-center border-t border-neutral-800 px-3 py-2'
         >
-          <View className='w-20'>
-            <SettingSwitch
-              value={row.locked || selected.includes(row.seasonNumber)}
-              disabled={row.locked}
-              onValueChange={() => onToggle(row.seasonNumber)}
-            />
-          </View>
+          {choosable && (
+            <View className='w-20'>
+              <SettingSwitch
+                value={row.locked || selected.includes(row.seasonNumber)}
+                // Greyed like on Seerr once the quota is spent, except to
+                // switch off a season already chosen.
+                disabled={
+                  row.locked ||
+                  (!roomForOneMore && !selected.includes(row.seasonNumber))
+                }
+                onValueChange={() => onToggle(row.seasonNumber)}
+              />
+            </View>
+          )}
           <Text className='flex-1' numberOfLines={1}>
             {row.seasonNumber === 0
               ? t("seerr.specials")

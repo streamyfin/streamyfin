@@ -19,6 +19,7 @@ import { dateOpts } from "@/components/seerr/DetailFacts";
 import { textShadowStyle } from "@/components/seerr/discover/GenericSlideCard";
 import SeerrStatusIcon from "@/components/seerr/SeerrStatusIcon";
 import { useSeerr } from "@/hooks/useSeerr";
+import { useSeerrPublicSettings } from "@/hooks/useSeerrPublicSettings";
 import { seasonsWithStatus, unrequestedSeasons } from "@/utils/seerr/seasons";
 import type {
   MediaRequestBody,
@@ -154,10 +155,16 @@ const SeerrSeasons: React.FC<{
     () => seasons.every((season) => season.status === MediaStatus.AVAILABLE),
     [seasons],
   );
+  // What Seerr's own modal reads from the server: the specials, and whether
+  // a series can be requested a season at a time.
+  const publicSettings = useSeerrPublicSettings();
+  const specials = publicSettings?.enableSpecialEpisodes === true;
+  const partial = publicSettings?.partialRequestsEnabled !== false;
+
   // Which seasons can still be asked for, by Seerr's own rules.
   const unrequested = useMemo(
-    () => (details ? unrequestedSeasons(details) : []),
-    [details],
+    () => (details ? unrequestedSeasons(details, { specials }) : []),
+    [details, specials],
   );
 
   const requestAll = useCallback(() => {
@@ -242,7 +249,10 @@ const SeerrSeasons: React.FC<{
   return (
     <FlashList
       data={orderBy(
-        seasons.filter((s) => s.seasonNumber !== 0),
+        // The specials only when the server shows them, and only with episodes.
+        seasons.filter(
+          (s) => s.seasonNumber !== 0 || (specials && s.episodeCount !== 0),
+        ),
         "seasonNumber",
         "desc",
       )}
@@ -277,16 +287,20 @@ const SeerrSeasons: React.FC<{
               <Tags
                 textClass=''
                 tags={[
-                  t("seerr.season_number", {
-                    season_number: season.seasonNumber,
-                  }),
+                  season.seasonNumber === 0
+                    ? t("seerr.specials")
+                    : t("seerr.season_number", {
+                        season_number: season.seasonNumber,
+                      }),
                   t("seerr.number_episodes", {
                     episode_number: season.episodeCount,
                   }),
                 ]}
               />
               {[0].map(() => {
-                const canRequest = unrequested.includes(season.seasonNumber);
+                // One season at a time only where the server takes it.
+                const canRequest =
+                  partial && unrequested.includes(season.seasonNumber);
                 return (
                   <SeerrStatusIcon
                     key={0}

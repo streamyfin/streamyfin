@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
+  roomForAll,
+  roomForOneMore,
   seasonBadges,
   seasonRows,
   seasonsWithStatus,
@@ -297,6 +299,32 @@ describe("toggleAllSeasons", () => {
     expect(toggleAllSeasons([], [1, 2], { limit: 5, remaining: 1 })).toEqual(
       [],
     );
+  });
+});
+
+// Seerr greys a switch its quota will not let on: a season's once the
+// seasons switched on spend the quota, the one for all of them when the
+// quota cannot cover every season left.
+describe("roomForOneMore", () => {
+  test("has room without a quota", () => {
+    expect(roomForOneMore([1, 2, 3])).toBe(true);
+    expect(roomForOneMore([1, 2, 3], { limit: 0 })).toBe(true);
+  });
+
+  test("has room until the seasons switched on spend the quota", () => {
+    expect(roomForOneMore([], { limit: 2, remaining: 1 })).toBe(true);
+    expect(roomForOneMore([1], { limit: 2, remaining: 1 })).toBe(false);
+  });
+});
+
+describe("roomForAll", () => {
+  test("has room without a quota", () => {
+    expect(roomForAll([1, 2, 3])).toBe(true);
+  });
+
+  test("has room only when the quota covers every season left", () => {
+    expect(roomForAll([1, 2], { limit: 5, remaining: 2 })).toBe(true);
+    expect(roomForAll([1, 2], { limit: 5, remaining: 1 })).toBe(false);
   });
 });
 

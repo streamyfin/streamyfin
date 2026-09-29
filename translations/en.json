@@ -980,6 +980,16 @@
       "requested": "Requested",
       "partially_available": "Partially available",
       "available": "Available"
+    },
+    "quota": {
+      "season_requests_remaining_one": "{{count}} season request remaining",
+      "season_requests_remaining_other": "{{count}} season requests remaining",
+      "season_requests_remaining": "{{count}} season requests remaining",
+      "no_season_requests_remaining": "No season requests remaining",
+      "not_enough_season_requests": "Not enough season requests remaining",
+      "required_season_requests_one": "You need to have at least {{count}} season request remaining in order to submit a request for this series.",
+      "required_season_requests_other": "You need to have at least {{count}} season requests remaining in order to submit a request for this series.",
+      "required_season_requests": "You need to have at least {{count}} season requests remaining in order to submit a request for this series."
     }
   },
   "awards": {
