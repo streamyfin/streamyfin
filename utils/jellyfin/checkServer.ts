@@ -91,8 +91,6 @@ export async function checkJellyfinServer(
           {
             signal: abort.signal,
             timeout: probeTimeoutMs,
-            responseType: "json",
-            transitional: { silentJSONParsing: false },
             validateStatus: () => true,
           } satisfies AxiosRequestConfig,
           headers,
@@ -110,6 +108,13 @@ export async function checkJellyfinServer(
       }
 
       const data = response.data;
+      if (typeof data !== "object" || data === null || Array.isArray(data)) {
+        writeToLog(
+          "WARN",
+          `Server check: ${url} answered HTTP ${response.status} without Jellyfin JSON`,
+        );
+        continue;
+      }
       if (!isSupportedVersion(data.Version)) throw new ServerTooOldError();
 
       // Only persist the headers once they are known to reach the server.
