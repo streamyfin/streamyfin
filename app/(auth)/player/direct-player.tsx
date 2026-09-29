@@ -45,10 +45,12 @@ import { VideoPlayerView } from "@/components/video-player/VideoPlayerView";
 import { PROGRESS_REPORT_INTERVAL } from "@/constants/Playback";
 import useRouter from "@/hooks/useAppRouter";
 import { useHaptic } from "@/hooks/useHaptic";
+import { useKeepWebSocketAlive } from "@/hooks/useKeepWebSocketAlive";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { useOrientation } from "@/hooks/useOrientation";
 import { usePlaybackManager } from "@/hooks/usePlaybackManager";
 import usePlaybackSpeed from "@/hooks/usePlaybackSpeed";
+import { usePlayerItemNavigation } from "@/hooks/usePlayerItemNavigation";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
 import { useWebSocket } from "@/hooks/useWebsockets";
 import {
@@ -63,11 +65,12 @@ import { DownloadedItem } from "@/providers/Downloads/types";
 import { useInactivity } from "@/providers/InactivityProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { OfflineModeProvider } from "@/providers/OfflineModeProvider";
+import { useSyncPlay } from "@/providers/SyncPlay";
+import type { PlayerControls } from "@/providers/SyncPlay/types";
 import { getSubtitlesForItem } from "@/utils/atoms/downloadedSubtitles";
 import { getActivePlayerType, useSettings } from "@/utils/atoms/settings";
 import { getJellyfinHeadersForUrl } from "@/utils/customHeaders";
 import { isExpectedError } from "@/utils/errors";
-import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import {
@@ -121,6 +124,11 @@ export default function DirectPlayerPage() {
   }, []);
   const [showControls, _setShowControls] = useState(true);
   const [isPipMode, setIsPipMode] = useState(false);
+
+  // Keep the global WebSocket open while in PiP so SyncPlay commands
+  // (and any other server pushes) keep flowing while iOS treats the
+  // app as backgrounded. See `WebSocketProvider.acquireKeepAlive`.
+  useKeepWebSocketAlive(isPipMode);
   const [aspectRatio] = useState<"default" | "16:9" | "4:3" | "1:1" | "21:9">(
     "default",
   );
@@ -186,6 +194,7 @@ export default function DirectPlayerPage() {
     bitrateValue: bitrateValueStr,
     offline: offlineStr,
     playbackPosition: playbackPositionFromUrl,
+    syncPlay: syncPlayStr,
   } = useLocalSearchParams<{
     itemId: string;
     audioIndex: string;
@@ -195,8 +204,22 @@ export default function DirectPlayerPage() {
     offline: string;
     /** Playback position in ticks. */
     playbackPosition?: string;
+    /** Whether playback was initiated by SyncPlay */
+    syncPlay?: string;
   }>();
+
+  // When opened via SyncPlay, don't auto-play - let SyncPlay commands control playback
+  const openedViaSyncPlay = syncPlayStr === "true";
   const { lockOrientation, unlockOrientation } = useOrientation();
+
+  // SyncPlay integration
+  const syncPlay = useSyncPlay();
+  const {
+    isEnabled: isSyncPlayEnabled,
+    controller: syncPlayController,
+    setPlayerControls,
+    notifyBuffering,
+  } = syncPlay;
 
   const offline = offlineStr === "true";
 
@@ -634,8 +657,72 @@ export default function DirectPlayerPage() {
     // start each time.
   }, [stream, api]);
 
+  // SyncPlay: Connect player controls when video is ready
+  useEffect(() => {
+    if (!isVideoLoaded || !videoRef.current || offline) {
+      setPlayerControls(null);
+      return;
+    }
+
+    const controls: PlayerControls = {
+      play: () => videoRef.current?.play(),
+      pause: () => videoRef.current?.pause(),
+      seekTo: (positionMs: number) => {
+        const positionSec = positionMs / 1000;
+        console.log(
+          `PlayerControls.seekTo: ${positionMs}ms = ${positionSec}s, videoRef exists: ${!!videoRef.current}`,
+        );
+        videoRef.current?.seekTo(positionSec);
+      },
+      setSpeed: (speed: number) => videoRef.current?.setSpeed?.(speed),
+      getSpeed: () => currentPlaybackSpeed,
+      getCurrentPosition: () => progress.get(),
+      isPlaying: () => isPlaying,
+      isBuffering: () => isBuffering,
+    };
+
+    setPlayerControls(controls);
+
+    return () => {
+      setPlayerControls(null);
+    };
+  }, [
+    isVideoLoaded,
+    offline,
+    isPlaying,
+    isBuffering,
+    currentPlaybackSpeed,
+    progress,
+    setPlayerControls,
+  ]);
+
+  // SyncPlay: Report buffering/ready state to server.
+  //
+  // CRITICAL: We must report `buffering` to the server *during* initial
+  // load (before `isVideoLoaded`), otherwise the server treats us as ready
+  // and proceeds without waiting for us. jellyfin-web reports this for
+  // free via the HTML5 video element's `waiting` event; for us, the
+  // initial load itself is the buffering window.
+  useEffect(() => {
+    if (!isSyncPlayEnabled) {
+      return;
+    }
+
+    const isLocallyReady = isVideoLoaded && !isBuffering;
+    // notifyBuffering routes through the debouncer in PlaybackCore so
+    // re-renders during a stall don't spam the server.
+    notifyBuffering(!isLocallyReady);
+  }, [isSyncPlayEnabled, isVideoLoaded, isBuffering, notifyBuffering]);
+
   const togglePlay = async () => {
     lightHapticFeedback();
+
+    // Route through SyncPlay when active
+    if (isSyncPlayEnabled && syncPlayController) {
+      syncPlayController.playPause();
+      return;
+    }
+
     // Read the ref so two taps inside one render cycle don't both see the same
     // stale state and cancel each other out.
     const wasPlaying = isPlayingRef.current;
@@ -962,10 +1049,12 @@ export default function DirectPlayerPage() {
     const startPos = ticksToSeconds(startTicks);
 
     // Build source config - headers only needed for online streaming
+    // When opened via SyncPlay, don't auto-play - SyncPlay commands control playback
+    const shouldAutoplay = !openedViaSyncPlay;
     const source: MpvVideoSource = {
       url: stream.url,
       startPosition: startPos,
-      autoplay: true,
+      autoplay: shouldAutoplay,
       initialAudioId,
       // Pass cache/buffer settings from user preferences
       cacheConfig: {
@@ -1131,6 +1220,41 @@ export default function DirectPlayerPage() {
     [],
   );
 
+  // PiP playback controls. When SyncPlay is active, the native side
+  // is told to *delegate* these via `syncPlayDelegated`, so the OS
+  // play/pause/skip buttons emit these events instead of poking MPV
+  // directly. We route them through the SyncPlay controller so the
+  // server broadcasts a command to every group member (including us).
+  const _onPipPlayRequest = useCallback(() => {
+    if (isSyncPlayEnabled && syncPlayController) {
+      console.log("SyncPlay: PiP play → controller.playPause()");
+      syncPlayController.playPause();
+    }
+  }, [isSyncPlayEnabled, syncPlayController]);
+
+  const _onPipPauseRequest = useCallback(() => {
+    if (isSyncPlayEnabled && syncPlayController) {
+      console.log("SyncPlay: PiP pause → controller.playPause()");
+      syncPlayController.playPause();
+    }
+  }, [isSyncPlayEnabled, syncPlayController]);
+
+  const _onPipSkipRequest = useCallback(
+    (e: {
+      nativeEvent: { targetSeconds: number; intervalSeconds: number };
+    }) => {
+      if (!isSyncPlayEnabled || !syncPlayController) return;
+      const { targetSeconds } = e.nativeEvent;
+      // SyncPlay seek takes ticks (1 s = 10_000_000 ticks).
+      const ticks = Math.max(0, Math.round(targetSeconds * 10_000_000));
+      console.log(
+        `SyncPlay: PiP skip → controller.seek(${targetSeconds}s = ${ticks} ticks)`,
+      );
+      syncPlayController.seek(ticks);
+    },
+    [isSyncPlayEnabled, syncPlayController],
+  );
+
   const [isMounted, setIsMounted] = useState(false);
 
   // Add useEffect to handle mounting
@@ -1155,10 +1279,21 @@ export default function DirectPlayerPage() {
     videoRef.current?.pause?.();
   }, []);
 
-  const seek = useCallback((position: number) => {
-    // MPV expects seconds, convert from ms
-    videoRef.current?.seekTo?.(position / 1000);
-  }, []);
+  const seek = useCallback(
+    (position: number) => {
+      // Route through SyncPlay when active. `position` is in ms; the
+      // controller takes ticks (1 ms = 10000 ticks).
+      if (isSyncPlayEnabled && syncPlayController) {
+        console.log("SyncPlay: seek requested via SyncPlay", position);
+        syncPlayController.seek(Math.round(position * 10000));
+        return;
+      }
+
+      // MPV expects seconds, convert from ms
+      videoRef.current?.seekTo?.(position / 1000);
+    },
+    [isSyncPlayEnabled, syncPlayController],
+  );
 
   // TV audio track change handler
   const handleAudioIndexChange = useCallback(
@@ -1403,48 +1538,6 @@ export default function DirectPlayerPage() {
     await videoRef.current?.setSubtitlePosition?.(100);
   }, [isZoomedToFill]);
 
-  // TV: Navigate to previous item
-  const goToPreviousItem = useCallback(() => {
-    if (!previousItem || !settings) return;
-
-    const {
-      mediaSource: newMediaSource,
-      audioIndex: defaultAudioIndex,
-      subtitleIndex: defaultSubtitleIndex,
-    } = getDefaultPlaySettings(previousItem, settings, {
-      indexes: {
-        // Use the live selection, not the stale URL params (see goToNextItem).
-        subtitleIndex: currentSubtitleIndex,
-        audioIndex: currentAudioIndex,
-      },
-      source: stream?.mediaSource ?? undefined,
-    });
-
-    const queryParams = new URLSearchParams({
-      itemId: previousItem.Id ?? "",
-      audioIndex: defaultAudioIndex?.toString() ?? "",
-      subtitleIndex: defaultSubtitleIndex?.toString() ?? "",
-      mediaSourceId: newMediaSource?.Id ?? "",
-      bitrateValue: bitrateValue?.toString() ?? "",
-      playbackPosition:
-        previousItem.UserData?.PlaybackPositionTicks?.toString() ?? "",
-    }).toString();
-
-    // Free the current mpv instance before navigating, matching goToNextItem —
-    // otherwise two decoders/surfaces overlap during the transition and can
-    // OOM-kill low-RAM devices.
-    videoRef.current?.destroy().catch(() => {});
-    router.replace(`player/direct-player?${queryParams}` as any);
-  }, [
-    previousItem,
-    settings,
-    currentSubtitleIndex,
-    currentAudioIndex,
-    stream?.mediaSource,
-    bitrateValue,
-    router,
-  ]);
-
   // TV: Add subtitle file to player (for client-side downloaded subtitles)
   const addSubtitleFile = useCallback(
     async (path: string) => {
@@ -1487,55 +1580,25 @@ export default function DirectPlayerPage() {
     return [];
   }, [isMounted]);
 
-  // TV: Navigate to next item
-  const goToNextItem = useCallback(() => {
-    if (!nextItem || !settings || isPlaybackStopped) return;
-
-    const {
-      mediaSource: newMediaSource,
-      audioIndex: defaultAudioIndex,
-      subtitleIndex: defaultSubtitleIndex,
-    } = getDefaultPlaySettings(nextItem, settings, {
-      indexes: {
-        // Use the live selection (updated when the user changes tracks
-        // mid-playback), not the stale URL params the episode started with.
-        subtitleIndex: currentSubtitleIndex,
-        audioIndex: currentAudioIndex,
-      },
-      source: stream?.mediaSource ?? undefined,
-    });
-
-    const queryParams = new URLSearchParams({
-      itemId: nextItem.Id ?? "",
-      audioIndex: defaultAudioIndex?.toString() ?? "",
-      subtitleIndex: defaultSubtitleIndex?.toString() ?? "",
-      mediaSourceId: newMediaSource?.Id ?? "",
-      bitrateValue: bitrateValue?.toString() ?? "",
-      playbackPosition:
-        nextItem.UserData?.PlaybackPositionTicks?.toString() ?? "",
-    }).toString();
-
-    // Destroy the current mpv instance BEFORE navigating so the old 4K
-    // decoder + surface buffers are freed before the new player screen
-    // mounts. Without this, Expo Router briefly holds two simultaneous
-    // mpv instances during the transition (~768 MB of surface buffers
-    // for two 4K HDR10+ decoders) and OOM-kills the app on low-RAM
-    // devices. Native stop() is idempotent so the subsequent React
-    // unmount cleanup is still safe.
-    videoRef.current?.destroy().catch(() => {});
-
-    router.replace(`player/direct-player?${queryParams}` as any);
-  }, [
+  /*
+   * Item-level navigation (next / previous). Wraps SyncPlay dispatch,
+   * platform-appropriate local navigation (replace on TV), and offline
+   * param injection in a single hook so the in-player buttons and any
+   * future entry points (autoplay overlay, episode picker, etc.) share
+   * one implementation.
+   */
+  const {
+    goToNextItem: dispatchNextItem,
+    goToPreviousItem: dispatchPreviousItem,
+  } = usePlayerItemNavigation({
     nextItem,
-    settings,
-    currentSubtitleIndex,
+    previousItem,
+    mediaSource: stream?.mediaSource,
     currentAudioIndex,
-    stream?.mediaSource,
+    currentSubtitleIndex,
     bitrateValue,
-    router,
-    isPlaybackStopped,
-    videoRef,
-  ]);
+    isDisabled: isPlaybackStopped,
+  });
 
   // Apply subtitle settings after MPV has enumerated tracks; applying them on
   // load is too early for ASS override/alignment on Android.
@@ -1680,6 +1743,10 @@ export default function DirectPlayerPage() {
                 onProgress={onProgress}
                 onPlaybackStateChange={onPlaybackStateChanged}
                 onPictureInPictureChange={_onPictureInPictureChange}
+                syncPlayDelegated={isSyncPlayEnabled}
+                onPipPlayRequest={_onPipPlayRequest}
+                onPipPauseRequest={_onPipPauseRequest}
+                onPipSkipRequest={_onPipSkipRequest}
                 onLoad={() => setIsVideoLoaded(true)}
                 onError={(e: { nativeEvent: MpvOnErrorEventPayload }) => {
                   console.error("Video Error:", e.nativeEvent);
@@ -1772,8 +1839,8 @@ export default function DirectPlayerPage() {
                   onToggleMute={toggleMute}
                   previousItem={previousItem}
                   nextItem={nextItem}
-                  goToPreviousItem={goToPreviousItem}
-                  goToNextItem={goToNextItem}
+                  goToPreviousItem={dispatchPreviousItem}
+                  goToNextItem={dispatchNextItem}
                   onRefreshSubtitleTracks={handleRefreshSubtitleTracks}
                   addSubtitleFile={addSubtitleFile}
                   showTechnicalInfo={showTechnicalInfo}

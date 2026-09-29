@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert } from "react-native";
 import useRouter from "@/hooks/useAppRouter";
+import { useSyncPlay } from "@/providers/SyncPlay/SyncPlayProvider";
 import { useWebSocketContext } from "@/providers/WebSocketProvider";
 
 interface UseWebSocketProps {
@@ -80,9 +81,9 @@ export const useWebSocket = ({
   playTrailers,
 }: UseWebSocketProps) => {
   const router = useRouter();
-  const { lastMessage } = useWebSocketContext();
+  const { lastMessage, clearLastMessage } = useWebSocketContext();
   const { t } = useTranslation();
-  const { clearLastMessage } = useWebSocketContext();
+  const { isEnabled: isSyncPlayEnabled } = useSyncPlay();
 
   useEffect(() => {
     if (!lastMessage) return;
@@ -95,6 +96,25 @@ export const useWebSocket = ({
     const args = lastMessage?.Data?.Arguments as
       | Record<string, string>
       | undefined; // Arguments are Dictionary<string, string>
+
+    // Skip playback commands when SyncPlay is enabled - SyncPlay handles these
+    const isSyncPlayCommand =
+      lastMessage.MessageType === "SyncPlayCommand" ||
+      lastMessage.MessageType === "SyncPlayGroupUpdate";
+    const isPlaybackCommand = [
+      "PlayPause",
+      "Pause",
+      "Unpause",
+      "Stop",
+      "Seek",
+      "NextTrack",
+      "PreviousTrack",
+    ].includes(command ?? "");
+
+    if (isSyncPlayEnabled && (isSyncPlayCommand || isPlaybackCommand)) {
+      console.log(`Command ~ ${command} - skipping, SyncPlay handles playback`);
+      return;
+    }
 
     if (command === "PlayPause") {
       console.log("Command ~ PlayPause");
