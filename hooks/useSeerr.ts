@@ -30,6 +30,7 @@ import {
 } from "@/utils/seerr/media";
 import { isSeerrQuery } from "@/utils/seerr/queries";
 import { seerrQueryString } from "@/utils/seerr/search";
+import { rememberSeerrSession } from "@/utils/seerr/session";
 import type {
   CombinedCredit,
   DiscoverSlider,
@@ -283,7 +284,7 @@ export class SeerrApi {
       .then((response) => {
         const user = response?.data;
         if (!user) throw Error("Login failed");
-        storage.setAny(SEERR_USER_STORAGE_KEY, user);
+        this.remember(user);
         return user;
       });
   }
@@ -364,7 +365,7 @@ export class SeerrApi {
 
   /** Persists a session this client just opened. */
   remember(user: SeerrUser) {
-    storage.setAny(SEERR_USER_STORAGE_KEY, user);
+    rememberSeerrSession(storage, user);
   }
 
   /** Drops the stored Seerr session, cookies included. */
