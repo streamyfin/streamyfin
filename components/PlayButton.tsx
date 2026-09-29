@@ -2,7 +2,7 @@ import { useActionSheet } from "@expo/react-native-action-sheet";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { BottomSheetView } from "@gorhom/bottom-sheet";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
-import { useAtom, useAtomValue } from "jotai";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, Platform, TouchableOpacity, View } from "react-native";
@@ -26,16 +26,15 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
-import useRouter from "@/hooks/useAppRouter";
-import { useHaptic } from "@/hooks/useHaptic";
 import type { ThemeColors } from "@/hooks/useImageColorsReturn";
-import { usePlayMedia } from "@/hooks/usePlayMedia";
+import { usePlayerItemNavigation } from "@/hooks/usePlayerItemNavigation";
 import { getDownloadedItemById } from "@/providers/Downloads/database";
 import { useGlobalModal } from "@/providers/GlobalModalProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { itemThemeColorAtom } from "@/utils/atoms/primaryColor";
 import { useSettings } from "@/utils/atoms/settings";
+import { shuffleQueueAtom } from "@/utils/atoms/shuffleQueue";
 import { getParentBackdropImageUrl } from "@/utils/jellyfin/image/getParentBackdropImageUrl";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
@@ -44,7 +43,6 @@ import {
   isExternalSubtitle,
 } from "@/utils/jellyfin/subtitleUtils";
 import { logAndCaptureError } from "@/utils/log";
-import type { PlayRequest } from "@/utils/nativePlayer/playRequest";
 import { formatDuration, runtimeTicksToMinutes } from "@/utils/time";
 import { chromecast } from "../utils/profiles/chromecast";
 import { chromecasth265 } from "../utils/profiles/chromecasth265";
@@ -77,10 +75,13 @@ export const PlayButton: React.FC<Props> = ({
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
 
+  // Single source of truth for all player navigation — SyncPlay,
+  // offline-vs-stream resolution, and the autoplay counter reset all
+  // live inside `playItem`.
+  const { playItem } = usePlayerItemNavigation();
+
   // Use colors prop if provided, otherwise fallback to global atom
   const effectiveColors = colors || globalColorAtom;
-
-  const router = useRouter();
 
   const startWidth = useSharedValue(0);
   const targetWidth = useSharedValue(0);
@@ -89,25 +90,31 @@ export const PlayButton: React.FC<Props> = ({
   const widthProgress = useSharedValue(0);
   const colorChangeProgress = useSharedValue(0);
   const { settings } = useSettings();
-  const lightHapticFeedback = useHaptic("light");
-  const playMedia = usePlayMedia();
+  const clearShuffleQueue = useSetAtom(shuffleQueueAtom);
+
+  const goToPlayer = useCallback(
+    (opts: Parameters<typeof playItem>[1]) => {
+      // Starting a normal play cancels any active shuffle queue.
+      clearShuffleQueue(null);
+      void playItem(item, opts);
+    },
+    [item, playItem, clearShuffleQueue],
+  );
 
   const handleNormalPlayFlow = useCallback(
     async (positionTicks: number) => {
       if (!item) return;
 
-      const playRequest: PlayRequest = {
-        itemId: item.Id!,
+      const playOptions = {
         audioIndex: selectedOptions.audioIndex,
         subtitleIndex: selectedOptions.subtitleIndex,
         mediaSourceId: selectedOptions.mediaSource?.Id ?? undefined,
         bitrateValue: selectedOptions.bitrate?.value,
-        offline: isOffline,
-        playbackPositionTicks: positionTicks,
+        playbackPosition: positionTicks,
       };
 
       if (!client) {
-        await playMedia(playRequest, { item });
+        goToPlayer(playOptions);
         return;
       }
 
@@ -350,7 +357,7 @@ export const PlayButton: React.FC<Props> = ({
               });
               break;
             case 1:
-              await playMedia(playRequest, { item });
+              goToPlayer(playOptions);
               break;
             case cancelButtonIndex:
               break;
@@ -364,12 +371,10 @@ export const PlayButton: React.FC<Props> = ({
       settings,
       api,
       user,
-      router,
       showActionSheetWithOptions,
       mediaStatus,
       selectedOptions,
-      playMedia,
-      isOffline,
+      goToPlayer,
       t,
     ],
   );
@@ -385,14 +390,10 @@ export const PlayButton: React.FC<Props> = ({
 
       // If already in offline mode, play downloaded file directly
       if (isOffline && downloadedItem) {
-        await playMedia(
-          {
-            itemId: item.Id!,
-            offline: true,
-            playbackPositionTicks: positionTicks,
-          },
-          { item },
-        );
+        goToPlayer({
+          forceOffline: true,
+          playbackPosition: positionTicks,
+        });
         return;
       }
 
@@ -415,14 +416,10 @@ export const PlayButton: React.FC<Props> = ({
                   <Button
                     onPress={() => {
                       hideModal();
-                      void playMedia(
-                        {
-                          itemId: item.Id!,
-                          offline: true,
-                          playbackPositionTicks: positionTicks,
-                        },
-                        { item },
-                      );
+                      goToPlayer({
+                        forceOffline: true,
+                        playbackPosition: positionTicks,
+                      });
                     }}
                     color='purple'
                   >
@@ -459,14 +456,10 @@ export const PlayButton: React.FC<Props> = ({
               {
                 text: t("player.downloaded_file_yes"),
                 onPress: () => {
-                  void playMedia(
-                    {
-                      itemId: item.Id!,
-                      offline: true,
-                      playbackPositionTicks: positionTicks,
-                    },
-                    { item },
-                  );
+                  goToPlayer({
+                    forceOffline: true,
+                    playbackPosition: positionTicks,
+                  });
                 },
                 isPreferred: true,
               },
@@ -489,13 +482,19 @@ export const PlayButton: React.FC<Props> = ({
       // If not downloaded, proceed with normal flow
       handleNormalPlayFlow(positionTicks);
     },
-    [item, isOffline, handleNormalPlayFlow, playMedia, t, showModal, hideModal],
+    [
+      item,
+      isOffline,
+      handleNormalPlayFlow,
+      goToPlayer,
+      t,
+      showModal,
+      hideModal,
+    ],
   );
 
   const onPress = useCallback(() => {
     if (!item) return;
-
-    lightHapticFeedback();
 
     // Same prompt the TV item page shows: an in-progress item asks whether
     // to resume or restart instead of silently resuming. Users can turn the
@@ -529,9 +528,8 @@ export const PlayButton: React.FC<Props> = ({
       );
       return;
     }
-
     void startPlayback(0);
-  }, [item, lightHapticFeedback, startPlayback, t, settings.showResumeDialog]);
+  }, [item, startPlayback, t, settings.showResumeDialog]);
 
   const derivedTargetWidth = useDerivedValue(() => {
     if (!item?.RunTimeTicks) return 0;
