@@ -8,7 +8,7 @@ import { SeerrSearchSort } from "@/components/seerr/SeerrIndexPage";
 const { Button, Host, Menu } = Platform.isTV
   ? ({} as typeof import("@expo/ui/swift-ui"))
   : require("@expo/ui/swift-ui");
-const { buttonStyle } = Platform.isTV
+const { buttonStyle, labelStyle } = Platform.isTV
   ? ({} as typeof import("@expo/ui/swift-ui/modifiers"))
   : require("@expo/ui/swift-ui/modifiers");
 
@@ -51,8 +51,11 @@ export const DiscoverFilters: React.FC<DiscoverFiltersProps> = ({
       >
         <Menu
           label={
+            // A label, then only its icon shown: @expo/ui draws systemImage
+            // only when there is a label, and the button was an empty pill.
             <Button
-              modifiers={[buttonStyle("glass")]}
+              label={t("library.filters.sort_by")}
+              modifiers={[buttonStyle("glass"), labelStyle("iconOnly")]}
               systemImage='line.3.horizontal.decrease.circle'
             />
           }
