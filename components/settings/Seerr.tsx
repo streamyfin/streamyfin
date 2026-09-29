@@ -275,7 +275,7 @@ export const SeerrSettings = () => {
                   resolveOptions={resolveOptions}
                 />
                 {urlLocked && (
-                  <Text className='text-xs text-red-600 mb-2'>
+                  <Text className='text-xs text-red-600 mt-1'>
                     {t("home.settings.disabled_by_admin")}
                   </Text>
                 )}
