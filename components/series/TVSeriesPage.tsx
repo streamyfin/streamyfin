@@ -40,6 +40,7 @@ import {
   getDownloadedEpisodesForSeason,
 } from "@/utils/downloads/offline-series";
 import { scaleSize } from "@/utils/scaleSize";
+import { getSeriesPlaybackTarget } from "@/utils/seriesPlaybackTarget";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -217,20 +218,10 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
   });
 
   // Find next unwatched episode
-  const nextUnwatchedEpisode = useMemo(() => {
-    // First check all episodes for a "next up" candidate
-    for (const ep of allEpisodes) {
-      if (!ep.UserData?.Played) {
-        // Check if it has progress (continue watching)
-        if ((ep.UserData?.PlaybackPositionTicks ?? 0) > 0) {
-          return ep;
-        }
-      }
-    }
-
-    // Find first unwatched
-    return allEpisodes.find((ep) => !ep.UserData?.Played) || allEpisodes[0];
-  }, [allEpisodes]);
+  const nextUnwatchedEpisode = useMemo(
+    () => getSeriesPlaybackTarget(allEpisodes),
+    [allEpisodes],
+  );
 
   // Get season name for button
   const selectedSeasonName = useMemo(() => {
