@@ -28,12 +28,20 @@ const Facts: React.FC<
 > = ({ title, facts, ...props }) =>
   facts &&
   facts?.length > 0 && (
-    <View className='flex flex-col justify-between py-2' {...props}>
-      <Text className='font-bold text-start'>{title}</Text>
+    // On one line, as on Seerr's site: the name on the left, what it says on
+    // the right, several values stacked there.
+    <View className='flex flex-row justify-between py-2' {...props}>
+      <Text className='font-bold mr-4'>{title}</Text>
 
-      <View className='flex flex-col items-end'>
+      <View className='flex-1 flex-col items-end'>
         {facts.map((f, idx) =>
-          typeof f === "string" ? <Text key={idx}>{f}</Text> : f,
+          typeof f === "string" ? (
+            <Text key={idx} className='text-right'>
+              {f}
+            </Text>
+          ) : (
+            f
+          ),
         )}
       </View>
     </View>
