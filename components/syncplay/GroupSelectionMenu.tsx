@@ -2,8 +2,8 @@
  * GroupSelectionMenu
  *
  * Content rendered inside the SyncPlay bottom sheet (the sheet itself is
- * owned by SyncPlayButton). Calls `onClose` after successful actions to
- * dismiss the parent sheet.
+ * owned by SyncPlayButton). Playback-producing actions wait for the native
+ * sheet dismissal before requesting playback/presentation.
  */
 
 import { Ionicons } from "@expo/vector-icons";
@@ -17,7 +17,7 @@ import { useSyncPlay } from "@/providers/SyncPlay";
 import type { GroupInfoDto } from "@/providers/SyncPlay/types";
 
 interface GroupSelectionMenuProps {
-  onClose: () => void;
+  onClose: () => Promise<void>;
 }
 
 export function GroupSelectionMenu({ onClose }: GroupSelectionMenuProps) {
@@ -64,8 +64,8 @@ export function GroupSelectionMenu({ onClose }: GroupSelectionMenuProps) {
   const handleJoinGroup = useCallback(
     async (groupId: string) => {
       try {
+        await onClose();
         await joinGroup(groupId);
-        onClose();
       } catch (error) {
         console.error("Failed to join group", error);
       }
@@ -76,8 +76,8 @@ export function GroupSelectionMenu({ onClose }: GroupSelectionMenuProps) {
   const handleCreateGroup = useCallback(async () => {
     setIsCreating(true);
     try {
+      await onClose();
       await createGroup();
-      onClose();
     } catch (error) {
       console.error("Failed to create group", error);
     } finally {
@@ -88,7 +88,7 @@ export function GroupSelectionMenu({ onClose }: GroupSelectionMenuProps) {
   const handleLeaveGroup = useCallback(async () => {
     try {
       await leaveGroup();
-      onClose();
+      await onClose();
     } catch (error) {
       console.error("Failed to leave group", error);
     }
@@ -99,8 +99,8 @@ export function GroupSelectionMenu({ onClose }: GroupSelectionMenuProps) {
   // the player; SyncPlayProvider handles the re-follow + URL build.
   const handleResumePlayback = useCallback(async () => {
     try {
+      await onClose();
       await resumeGroupPlayback();
-      onClose();
     } catch (error) {
       console.error("Failed to resume group playback", error);
     }

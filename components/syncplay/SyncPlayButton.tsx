@@ -20,7 +20,7 @@ import {
   BottomSheetView,
 } from "@expo/ui/community/bottom-sheet";
 import { Ionicons } from "@expo/vector-icons";
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { Platform, View } from "react-native";
 import { Pressable } from "react-native-gesture-handler";
 import { useCastDevice } from "react-native-google-cast";
@@ -34,10 +34,17 @@ interface SyncPlayButtonProps {
 }
 
 export function SyncPlayButton({ size = 22 }: SyncPlayButtonProps) {
-  const { isEnabled, canJoinGroups } = useSyncPlay();
+  const { isEnabled, canJoinGroups, registerPlaybackPresentationGuard } =
+    useSyncPlay();
   const { isConnected } = useNetworkStatus();
   const castDevice = useCastDevice();
   const sheetRef = useRef<BottomSheetMethods>(null);
+  const sheetOpenRef = useRef(false);
+  const dismissalRef = useRef<{
+    promise: Promise<void>;
+    resolve: () => void;
+    reject: (error: Error) => void;
+  } | null>(null);
 
   const isCasting = !!castDevice;
 
@@ -46,12 +53,49 @@ export function SyncPlayButton({ size = 22 }: SyncPlayButtonProps) {
       toast("SyncPlay not available while casting");
       return;
     }
+    sheetOpenRef.current = true;
     sheetRef.current?.present();
   }, [isCasting]);
 
-  const handleDismiss = useCallback(() => {
+  const handleDismiss = useCallback((): Promise<void> => {
+    if (dismissalRef.current) return dismissalRef.current.promise;
+    if (!sheetOpenRef.current) return Promise.resolve();
+    if (!sheetRef.current) {
+      return Promise.reject(
+        new Error("SyncPlay group sheet is no longer mounted"),
+      );
+    }
+    let resolve = () => {};
+    let reject = (_error: Error) => {};
+    const promise = new Promise<void>((onResolve, onReject) => {
+      resolve = onResolve;
+      reject = onReject;
+    });
+    dismissalRef.current = { promise, resolve, reject };
     sheetRef.current?.dismiss();
+    return promise;
   }, []);
+
+  const handleDidDismiss = useCallback(() => {
+    sheetOpenRef.current = false;
+    dismissalRef.current?.resolve();
+    dismissalRef.current = null;
+  }, []);
+
+  useEffect(
+    () => registerPlaybackPresentationGuard(handleDismiss),
+    [registerPlaybackPresentationGuard, handleDismiss],
+  );
+
+  useEffect(
+    () => () => {
+      dismissalRef.current?.reject(
+        new Error("SyncPlay group sheet unmounted during dismissal"),
+      );
+      dismissalRef.current = null;
+    },
+    [],
+  );
 
   if (Platform.isTV) return null;
   if (!canJoinGroups) return null;
@@ -85,6 +129,7 @@ export function SyncPlayButton({ size = 22 }: SyncPlayButtonProps) {
       </Pressable>
       <BottomSheetModal
         ref={sheetRef}
+        onDismiss={handleDidDismiss}
         snapPoints={Platform.OS === "android" ? ["100%"] : ["60%"]}
         enablePanDownToClose
       >
