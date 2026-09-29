@@ -120,6 +120,8 @@ import {
   canDispatchNativeSyncPlayAction,
   createNativeSyncPlayControls,
   dispatchNativeSyncPlayAction,
+  dispatchNativeSyncPlayQueueCommand,
+  selectNativeSyncPlayEpisode,
   shouldSyncNativePlayback,
 } from "@/utils/nativePlayer/syncPlay";
 import {
@@ -1880,7 +1882,34 @@ const NativePlayerProviderInner: React.FC<{
           shouldSyncNativePlayback(session, syncPlayRef.current.isEnabled) &&
           syncPlayRef.current.controller
         ) {
-          syncPlayRef.current.controller.goToItem({ Id: payload.itemId });
+          const controller = syncPlayRef.current.controller;
+          const groupId = syncPlayRef.current.groupInfo?.GroupId;
+          const currentApi = apiRef.current;
+          const userId = userRef.current?.Id;
+          if (!currentApi) {
+            writeErrorLog(
+              "SyncPlay episode selection requires an authenticated API",
+            );
+            return;
+          }
+          void selectNativeSyncPlayEpisode(
+            payload.itemId,
+            async (itemId) =>
+              (await getUserLibraryApi(currentApi).getItem({ itemId, userId }))
+                .data,
+            controller,
+            () =>
+              sessionRef.current === session &&
+              apiRef.current === currentApi &&
+              syncPlayRef.current.isEnabled &&
+              syncPlayRef.current.controller === controller &&
+              syncPlayRef.current.groupInfo?.GroupId === groupId,
+          ).catch((error) =>
+            logAndCaptureError(
+              "Native SyncPlay episode selection failed",
+              error,
+            ),
+          );
           return;
         }
         void (async () => {
@@ -2080,6 +2109,8 @@ const NativePlayerProviderInner: React.FC<{
           "PreviousTrack",
         ].includes(command)
       ) {
+        const controller = syncPlayRef.current.controller;
+        if (controller) dispatchNativeSyncPlayQueueCommand(command, controller);
         return;
       }
 

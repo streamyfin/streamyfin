@@ -3,7 +3,9 @@ import {
   canDispatchNativeSyncPlayAction,
   createNativeSyncPlayControls,
   dispatchNativeSyncPlayAction,
+  dispatchNativeSyncPlayQueueCommand,
   type NativeSyncPlayPlaybackState,
+  selectNativeSyncPlayEpisode,
   shouldSyncNativePlayback,
 } from "./syncPlay";
 
@@ -125,6 +127,44 @@ describe("native SyncPlay transport adapter", () => {
 });
 
 describe("delegated native actions", () => {
+  test("episode picks carry resume data and discard stale lookup completions", async () => {
+    const item = {
+      Id: "episode",
+      UserData: { PlaybackPositionTicks: 123_000_000 },
+    };
+    const controller = { goToItem: mock(() => {}) };
+    await selectNativeSyncPlayEpisode(
+      "episode",
+      async () => item,
+      controller,
+      () => true,
+    );
+    expect(controller.goToItem).toHaveBeenCalledWith(item);
+    await selectNativeSyncPlayEpisode(
+      "episode",
+      async () => item,
+      controller,
+      () => false,
+    );
+    expect(controller.goToItem).toHaveBeenCalledTimes(1);
+  });
+
+  test("remote next/previous dispatch once to the group rather than silently disappearing", () => {
+    const controller = {
+      nextItem: mock(() => {}),
+      previousItem: mock(() => {}),
+    };
+    expect(dispatchNativeSyncPlayQueueCommand("NextTrack", controller)).toBe(
+      true,
+    );
+    expect(
+      dispatchNativeSyncPlayQueueCommand("PreviousTrack", controller),
+    ).toBe(true);
+    expect(dispatchNativeSyncPlayQueueCommand("Pause", controller)).toBe(false);
+    expect(controller.nextItem).toHaveBeenCalledTimes(1);
+    expect(controller.previousItem).toHaveBeenCalledTimes(1);
+  });
+
   const controller = () => ({
     unpause: mock(() => {}),
     pause: mock(() => {}),

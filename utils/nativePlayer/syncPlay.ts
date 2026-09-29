@@ -1,3 +1,4 @@
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import type { NativePlayerPlaybackActionRequest } from "@/modules/mpv-player/src/NativePlayerPresentation.types";
 import type { Controller } from "@/providers/SyncPlay/Controller";
 import type { PlayerControls } from "@/providers/SyncPlay/types";
@@ -93,4 +94,26 @@ export function dispatchNativeSyncPlayAction(
       controller.seek(secondsToTicks(Math.max(0, request.positionSec)));
       break;
   }
+}
+
+export async function selectNativeSyncPlayEpisode(
+  itemId: string,
+  getItem: (itemId: string) => Promise<BaseItemDto>,
+  controller: Pick<Controller, "goToItem">,
+  isCurrent: () => boolean,
+): Promise<void> {
+  const item = await getItem(itemId);
+  if (!isCurrent()) return;
+  if (!item.Id) throw new Error("SyncPlay episode lookup returned no item ID");
+  controller.goToItem(item);
+}
+
+export function dispatchNativeSyncPlayQueueCommand(
+  command: string,
+  controller: Pick<Controller, "nextItem" | "previousItem">,
+): boolean {
+  if (command === "NextTrack") controller.nextItem();
+  else if (command === "PreviousTrack") controller.previousItem();
+  else return false;
+  return true;
 }
