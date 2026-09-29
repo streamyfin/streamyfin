@@ -64,6 +64,13 @@ Chromecast support is currently under development. Video casting is already avai
 Streamyfin uses [MPV](https://mpv.io/) as its primary video player on all platforms, powered by [MPVKit](https://github.com/mpvkit/MPVKit). MPV is a powerful, open-source media player known for its wide format support and high-quality playback.
 Thanks to [@Alexk2309](https://github.com/Alexk2309) for the hard work building the native MPV module in Streamyfin.
 
+The synchronization protocol follows [jellyfin-web's event-driven scheduler](https://github.com/jellyfin/jellyfin-web/tree/140e8f995b03ebd6c2a1c0e71698b3b44cd0556b/src/plugins/syncPlay):
+native loading events are adapted separately from pause/unpause acknowledgements.
+Commands are clock- and playlist-checked, and newer commands cancel older timers
+and event waits. Native seek landing uses a deterministic tolerance rather than
+random target offsets; continuous drift correction remains off, as upstream
+defaults.
+
 ### 🔍 Jellysearch
 
 [Jellysearch](https://gitlab.com/DomiStyle/jellysearch) works with Streamyfin

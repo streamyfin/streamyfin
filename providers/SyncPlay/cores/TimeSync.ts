@@ -20,12 +20,8 @@
 
 import type { Api } from "@jellyfin/sdk";
 import { getTimeSyncApi } from "@jellyfin/sdk/lib/utils/api";
+import { SYNC_PLAY_CLOCK } from "@/constants/SyncPlay";
 import { EventEmitter } from "../EventEmitter";
-
-const NumberOfTrackedMeasurements = 8;
-const PollingIntervalGreedy = 1000; // ms
-const PollingIntervalLowProfile = 60000; // ms
-const GreedyPingCount = 3;
 
 class Measurement {
   requestSent: number;
@@ -66,7 +62,7 @@ class Measurement {
 
   /** One-way ping (ms). */
   getPing(): number {
-    return this.getDelay() / 2;
+    return Math.max(0, Math.round(this.getDelay() / 2));
   }
 }
 
@@ -82,11 +78,12 @@ class Measurement {
 export class TimeSync extends EventEmitter {
   private api: Api;
   private pingStop = true;
-  private pollingInterval = PollingIntervalGreedy;
+  private pollingInterval: number = SYNC_PLAY_CLOCK.greedyIntervalMs;
   private poller: ReturnType<typeof setTimeout> | null = null;
   private pings = 0;
   private measurement: Measurement | null = null;
   private measurements: Measurement[] = [];
+  private generation = 0;
 
   constructor(api: Api) {
     super();
@@ -131,6 +128,7 @@ export class TimeSync extends EventEmitter {
 
   /** Stop polling. Idempotent. */
   stopPing(): void {
+    this.generation++;
     this.pingStop = true;
     if (this.poller) {
       clearTimeout(this.poller);
@@ -141,7 +139,7 @@ export class TimeSync extends EventEmitter {
   /** Reset to greedy polling and force a fresh measurement immediately. */
   forceUpdate(): void {
     this.stopPing();
-    this.pollingInterval = PollingIntervalGreedy;
+    this.pollingInterval = SYNC_PLAY_CLOCK.greedyIntervalMs;
     this.pings = 0;
     this.startPing();
   }
@@ -162,13 +160,19 @@ export class TimeSync extends EventEmitter {
   private scheduleNextPing(): void {
     if (this.poller || this.pingStop) return;
     this.poller = setTimeout(() => {
+      const generation = this.generation;
       this.poller = null;
       this.requestPing()
-        .then((result) => this.onPingResponse(result))
+        .then((result) => {
+          if (this.pingStop || generation !== this.generation) return;
+          this.onPingResponse(result);
+        })
         .catch((error) => {
           console.error("SyncPlay TimeSync: ping failed", error);
         })
-        .finally(() => this.scheduleNextPing());
+        .finally(() => {
+          if (generation === this.generation) this.scheduleNextPing();
+        });
     }, this.pollingInterval);
   }
 
@@ -179,6 +183,12 @@ export class TimeSync extends EventEmitter {
     const data = response.data;
     const requestReceived = new Date(data.RequestReceptionTime as string);
     const responseSent = new Date(data.ResponseTransmissionTime as string);
+    if (
+      !Number.isFinite(requestReceived.getTime()) ||
+      !Number.isFinite(responseSent.getTime())
+    ) {
+      throw new Error("SyncPlay time sync returned invalid server timestamps");
+    }
     return { requestSent, requestReceived, responseSent, responseReceived };
   }
 
@@ -196,7 +206,7 @@ export class TimeSync extends EventEmitter {
     );
 
     this.measurements.push(measurement);
-    if (this.measurements.length > NumberOfTrackedMeasurements) {
+    if (this.measurements.length > SYNC_PLAY_CLOCK.measurements) {
       this.measurements.shift();
     }
 
@@ -207,8 +217,8 @@ export class TimeSync extends EventEmitter {
     this.measurement = sorted[0];
 
     // Throttle once we've warmed up.
-    if (this.pings >= GreedyPingCount) {
-      this.pollingInterval = PollingIntervalLowProfile;
+    if (this.pings >= SYNC_PLAY_CLOCK.greedyPingCount) {
+      this.pollingInterval = SYNC_PLAY_CLOCK.steadyIntervalMs;
     } else {
       this.pings++;
     }

@@ -42,6 +42,18 @@ export class EventEmitter {
   }
 }
 
+export class EventWaitTimeoutError extends Error {
+  constructor(event: string) {
+    super(`Timed out waiting for SyncPlay player event: ${event}`);
+    this.name = "EventWaitTimeoutError";
+  }
+}
+
+// React Native's AbortSignal polyfill has no reason/throwIfAborted API.
+export function throwIfAborted(signal: AbortSignal): void {
+  if (signal.aborted) throw new Error("SyncPlay operation cancelled");
+}
+
 /**
  * Resolve on the next emission of `event`, or reject after `timeoutMs`
  * (or any event in `rejectEventTypes`). Cleans up every listener.
@@ -51,12 +63,18 @@ export function waitForEventOnce(
   event: string,
   timeoutMs: number = WaitForEventDefaultTimeout,
   rejectEventTypes?: string[],
+  signal?: AbortSignal,
 ): Promise<unknown[]> {
   return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(new Error("SyncPlay operation cancelled"));
+      return;
+    }
     let timer: ReturnType<typeof setTimeout> | null = null;
 
     const clearAll = () => {
       emitter.off(event, handler);
+      signal?.removeEventListener("abort", onAbort);
       if (timer) clearTimeout(timer);
       if (Array.isArray(rejectEventTypes)) {
         for (const eventName of rejectEventTypes) {
@@ -75,14 +93,20 @@ export function waitForEventOnce(
       reject(args[0] ?? new Error("rejected"));
     };
 
+    const onAbort = () => {
+      clearAll();
+      reject(new Error("SyncPlay operation cancelled"));
+    };
+
     if (timeoutMs) {
       timer = setTimeout(() => {
         clearAll();
-        reject(new Error("Timed out."));
+        reject(new EventWaitTimeoutError(event));
       }, timeoutMs);
     }
 
     emitter.on(event, handler);
+    signal?.addEventListener("abort", onAbort, { once: true });
 
     if (Array.isArray(rejectEventTypes)) {
       for (const eventName of rejectEventTypes) {

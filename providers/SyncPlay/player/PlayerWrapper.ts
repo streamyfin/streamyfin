@@ -7,6 +7,7 @@
 
 import { TicksPerMillisecond } from "../constants";
 import type { PlayerControls } from "../types";
+import { createBufferingDebouncer } from "./bufferingDebouncer";
 
 /** Options passed to `playerWrapper.localPlay` — provider navigates to the player screen. */
 export interface LocalPlayOptions {
@@ -18,18 +19,45 @@ export interface LocalPlayOptions {
 
 export class PlayerWrapper {
   private controls: PlayerControls | null = null;
-  private localPlayHandler: ((options: LocalPlayOptions) => void) | null = null;
+  private localPlayHandler:
+    | ((options: LocalPlayOptions) => void | Promise<void>)
+    | null = null;
   private setCurrentItemHandler:
     | ((playlistItemId: string | null) => void)
     | null = null;
+  private bufferingEvents: ReturnType<typeof createBufferingDebouncer> | null =
+    null;
+
+  constructor(
+    private readonly onBuffering: (buffering: boolean) => void = () => {},
+  ) {}
 
   /** Attach / detach the underlying player. */
   bindToControls(controls: PlayerControls | null): void {
+    if (this.controls === controls) return;
+    this.bufferingEvents?.dispose();
+    this.bufferingEvents = controls
+      ? createBufferingDebouncer(this.onBuffering)
+      : null;
     this.controls = controls;
   }
 
+  notifyBuffering(buffering: boolean): void {
+    this.bufferingEvents?.notify(buffering);
+  }
+
+  currentItemId(): string | null {
+    return this.controls?.itemId ?? null;
+  }
+
+  isBuffering(): boolean {
+    return this.controls?.isBuffering() ?? true;
+  }
+
   /** Provider wires this to navigate to the player screen. */
-  setLocalPlayHandler(handler: ((options: LocalPlayOptions) => void) | null) {
+  setLocalPlayHandler(
+    handler: ((options: LocalPlayOptions) => void | Promise<void>) | null,
+  ) {
     this.localPlayHandler = handler;
   }
 
@@ -53,9 +81,8 @@ export class PlayerWrapper {
     this.controls?.seekTo(positionTicks / TicksPerMillisecond);
   }
 
-  /** RN: pause instead of teardown — leaving the player screen is the navigator's job. */
   localStop(): void {
-    this.controls?.pause();
+    this.controls?.stop();
   }
 
   /** Position in ms. */
@@ -77,8 +104,12 @@ export class PlayerWrapper {
   }
 
   localPlay(options: LocalPlayOptions): Promise<void> {
-    this.localPlayHandler?.(options);
-    return Promise.resolve();
+    if (!this.localPlayHandler) {
+      return Promise.reject(
+        new Error("SyncPlay playback navigator is not registered"),
+      );
+    }
+    return Promise.resolve().then(() => this.localPlayHandler?.(options));
   }
 
   localSetCurrentPlaylistItem(playlistItemId: string | null): void {

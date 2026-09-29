@@ -1,379 +1,290 @@
-/**
- * SyncPlay PlaybackCore — schedules unpauses/pauses/seeks/stops to fire
- * at the precise group-wide moment and keeps the player drift-corrected.
- *
- * Design choices that diverge from jellyfin-web:
- *  - **No SpeedToSync**. Our RN players' `setPlaybackSpeed` is unreliable
- *    across platforms (mpv/VLC/expo-video each behave differently for
- *    fractional speeds). We always seek to catch up.
- *  - **No `MessageSyncPlayDuplicateMedia` detection**. Web's detection
- *    used HTML element identity; on RN we don't have a stable handle
- *    and the false-positive rate would be much higher than the value.
- *  - **No syncMethod / showSyncIcon**. We don't surface the sync
- *    technique to the UI.
- */
-
-import type { Api } from "@jellyfin/sdk";
 import { getSyncPlayApi } from "@jellyfin/sdk/lib/utils/api";
+import { SYNC_PLAY_TUNING } from "@/constants/SyncPlay";
+import { msToTicks, ticksToMs } from "../constants";
 import {
-  TicksPerMillisecond,
-  ticksToMs,
-  WaitForPlayerEventTimeout,
-} from "../constants";
-import { EventEmitter, waitForEventOnce } from "../EventEmitter";
+  EventEmitter,
+  EventWaitTimeoutError,
+  throwIfAborted,
+  waitForEventOnce,
+} from "../EventEmitter";
 import type { SyncPlayManager } from "../Manager";
-import { type SendCommand, SYNC_PLAY_TUNING } from "../types";
+import type { PlaybackCommand } from "../types";
 
+/**
+ * Implements jellyfin-web's command/event contract, not browser workarounds:
+ * Pause waits for pause, Seek waits for ready then pauses, and Unpause uses
+ * server time. Every continuation belongs to a cancellable command.
+ * Continuous drift correction stays off, matching upstream's default.
+ */
 export class PlaybackCore extends EventEmitter {
   private manager!: SyncPlayManager;
-  private lastCommand: SendCommand | null = null;
-  private scheduledCommand: ReturnType<typeof setTimeout> | null = null;
+  private lastCommand: PlaybackCommand | null = null;
+  private operation: AbortController | null = null;
+  private seeking = false;
+  private requestedPlaying: boolean | null = null;
 
   init(manager: SyncPlayManager): void {
     this.manager = manager;
   }
 
-  /** Local "playback started" hook — fires the initial Ready request. */
-  onPlaybackStart(apiClient: Api): void {
-    try {
-      const playerWrapper = this.manager.getPlayerWrapper();
-      const positionMs = playerWrapper.currentTime();
-      const positionTicks = Math.round(positionMs * TicksPerMillisecond);
-      const isPlaying = playerWrapper.isPlaying();
-      const playlistItemId =
-        this.manager.getQueueCore().getCurrentPlaylistItemId() ?? undefined;
-      const now = this.manager.getTimeSync().localDateToRemote(new Date());
+  onPlaybackStart(): void {
+    this.manager.emit("playbackstart");
+  }
 
-      getSyncPlayApi(apiClient).syncPlayReady({
-        readyRequestDto: {
-          When: now.toISOString(),
-          PositionTicks: positionTicks,
-          IsPlaying: isPlaying,
-          PlaylistItemId: playlistItemId,
-        },
-      });
-    } catch (error) {
-      console.error("SyncPlay onPlaybackStart:", error);
+  onPause(): void {
+    this.manager.emit("pause");
+  }
+
+  onUnpause(): void {
+    this.manager.emit("unpause");
+  }
+
+  onReady(): void {
+    this.manager.emit("ready");
+    // The Seek handshake reports readiness after its final pause, not
+    // while the decoder is briefly running to finish the seek.
+    if (!this.seeking && !this.manager.isPreparingPlayback()) {
+      this.sendReport(false);
     }
   }
 
-  /** Local pause → tell the server. */
-  onPause(apiClient: Api): void {
-    try {
-      getSyncPlayApi(apiClient).syncPlayPause();
-    } catch (error) {
-      console.error("SyncPlay onPause:", error);
+  onBuffering(): void {
+    this.manager.emit("buffering");
+    this.sendReport(true);
+  }
+
+  private sendReport(buffering: boolean): void {
+    void this.reportBuffering(buffering).catch((error) => {
+      console.error("SyncPlay readiness report failed", error);
+    });
+  }
+
+  async reportBuffering(isBuffering: boolean): Promise<void> {
+    if (!this.manager.canControlCurrentItem()) return;
+    const player = this.manager.getPlayerWrapper();
+    const request = {
+      When: this.manager
+        .getTimeSync()
+        .localDateToRemote(new Date())
+        .toISOString(),
+      PositionTicks: msToTicks(player.currentTime()),
+      IsPlaying: player.isPlaying(),
+      PlaylistItemId:
+        this.manager.getQueueCore().getCurrentPlaylistItemId() ?? undefined,
+    };
+    const api = getSyncPlayApi(this.manager.getApiClient());
+    if (isBuffering) {
+      await api.syncPlayBuffering({ bufferRequestDto: request });
+    } else {
+      await api.syncPlayReady({ readyRequestDto: request });
     }
   }
 
-  /** Local unpause → tell the server. */
-  onUnpause(apiClient: Api): void {
-    try {
-      getSyncPlayApi(apiClient).syncPlayUnpause();
-    } catch (error) {
-      console.error("SyncPlay onUnpause:", error);
-    }
+  /** Queue startup owns its own pause/Ready handshake, once per media load. */
+  async preparePlayback(signal: AbortSignal): Promise<void> {
+    await this.changePlaying(false, signal);
+    throwIfAborted(signal);
+    await this.reportBuffering(false);
   }
 
-  /** Local "ready" hook — server uses this to know we've finished buffering. */
-  onReady(apiClient: Api): void {
-    this.sendBufferingRequest(apiClient, false);
-  }
-
-  /** Local "buffering" hook — server uses this to (optionally) pause the group. */
-  onBuffering(apiClient: Api): void {
-    this.sendBufferingRequest(apiClient, true);
-  }
-
-  /** Send a Ready or Buffering request. */
-  sendBufferingRequest(apiClient: Api, isBuffering: boolean): void {
-    const playerWrapper = this.manager.getPlayerWrapper();
-    const positionMs = playerWrapper.currentTime();
-    const positionTicks = Math.round(positionMs * TicksPerMillisecond);
-    const isPlaying = playerWrapper.isPlaying();
-    const playlistItemId =
-      this.manager.getQueueCore().getCurrentPlaylistItemId() ?? undefined;
-    const now = this.manager.getTimeSync().localDateToRemote(new Date());
-
-    try {
-      if (isBuffering) {
-        getSyncPlayApi(apiClient).syncPlayBuffering({
-          bufferRequestDto: {
-            When: now.toISOString(),
-            PositionTicks: positionTicks,
-            IsPlaying: isPlaying,
-            PlaylistItemId: playlistItemId,
-          },
-        });
-      } else {
-        getSyncPlayApi(apiClient).syncPlayReady({
-          readyRequestDto: {
-            When: now.toISOString(),
-            PositionTicks: positionTicks,
-            IsPlaying: isPlaying,
-            PlaylistItemId: playlistItemId,
-          },
-        });
-      }
-    } catch (error) {
-      console.error("SyncPlay sendBufferingRequest:", error);
-    }
-  }
-
-  /**
-   * Apply a group command (Unpause, Pause, Stop, Seek). Times the
-   * execution to fire at the group-wide instant the server selected.
-   */
-  applyCommand(command: SendCommand): void {
-    (command as unknown as { EmittedAt: Date }).EmittedAt = new Date(
-      command.EmittedAt as unknown as string,
-    );
-    (command as unknown as { When: Date }).When = new Date(
-      command.When as unknown as string,
-    );
-
-    // Duplicate-detection — mirrors jellyfin-web's PlaybackCore.applyCommand.
-    // The server can redeliver the same command (WebSocket reconnect, multiple
-    // group-state transitions referencing the same instant, etc). If every
-    // identifying field matches the previously applied command, we don't
-    // re-schedule — we just verify player state still matches and bail.
-    //
-    // IMPORTANT: this is NOT a monotonic-clock check. `When` is the scheduled
-    // execution time and can legitimately move backward between commands
-    // (e.g. a Pause emitted now with `When = now` arriving after an earlier
-    // Unpause whose `When` was scheduled 10s in the future). An earlier
-    // version of this code rejected anything whose `When` or `EmittedAt`
-    // wasn't strictly greater than `lastCommand`'s — that silently locked
-    // out every subsequent pause/unpause whenever group playback first
-    // started with a future-scheduled Unpause.
-    if (
-      this.lastCommand &&
-      (this.lastCommand as unknown as { When: Date }).When.getTime() ===
-        (command as unknown as { When: Date }).When.getTime() &&
+  applyCommand(command: PlaybackCommand): void {
+    const duplicate =
+      this.lastCommand?.Command === command.Command &&
+      this.lastCommand.When.getTime() === command.When.getTime() &&
       this.lastCommand.PositionTicks === command.PositionTicks &&
-      this.lastCommand.Command === command.Command &&
-      this.lastCommand.PlaylistItemId === command.PlaylistItemId
-    ) {
-      console.debug("SyncPlay applyCommand: duplicate command", command);
-      return;
+      this.lastCommand.PlaylistItemId === command.PlaylistItemId;
+    const player = this.manager.getPlayerWrapper();
+
+    if (duplicate) {
+      if (this.operation) return;
+      const atTarget =
+        Math.abs(player.currentTime() - ticksToMs(command.PositionTicks)) <=
+        SYNC_PLAY_TUNING.commandPositionToleranceMs;
+      if (command.Command === "Unpause" && player.isPlaying()) return;
+      if (command.Command === "Pause" && !player.isPlaying() && atTarget)
+        return;
+      if (
+        command.Command === "Seek" &&
+        !player.isPlaying() &&
+        atTarget &&
+        !player.isBuffering()
+      ) {
+        // A duplicate Seek may be the server retrying an unacknowledged Ready.
+        this.sendReport(false);
+        return;
+      }
     }
 
     this.lastCommand = command;
-    if (!this.manager.isFollowingGroupPlayback()) {
-      console.debug(
-        "SyncPlay applyCommand: dropping command (not following playback)",
-        command,
-      );
-      return;
+    this.clearScheduledCommand();
+    const operation = new AbortController();
+    this.operation = operation;
+    void this.execute(command, operation.signal)
+      .catch((error) => {
+        if (operation.signal.aborted) return;
+        console.error(`SyncPlay ${command.Command} failed`, error);
+        this.manager.emit("toast", "MessageSyncPlayErrorMedia");
+      })
+      .finally(() => {
+        if (this.operation !== operation) return;
+        this.operation = null;
+        this.seeking = false;
+      });
+  }
+
+  private async execute(
+    command: PlaybackCommand,
+    signal: AbortSignal,
+  ): Promise<void> {
+    const localWhen = this.manager
+      .getTimeSync()
+      .remoteDateToLocal(command.When);
+    const player = this.manager.getPlayerWrapper();
+    const future = localWhen.getTime() > Date.now();
+
+    if (command.Command === "Unpause" && future) {
+      // Do not seek on every scheduled resume: MPV reports loading for seeks.
+      if (
+        Math.abs(player.currentTime() - ticksToMs(command.PositionTicks)) >
+        SYNC_PLAY_TUNING.minDelaySkipToSync
+      ) {
+        player.localSeek(command.PositionTicks);
+      }
+      this.emit("osd", "schedule-play");
+    } else if (command.Command === "Pause" && future) {
+      this.emit("osd", "wait-pause");
     }
 
-    const playerWrapper = this.manager.getPlayerWrapper();
-    if (!playerWrapper.isPlaybackActive()) {
-      console.debug(
-        "SyncPlay applyCommand: dropping command (playback not active)",
-        command,
-      );
-      return;
-    }
-
-    const enqueuedAt = new Date();
-    const remoteEnqueuedAt = this.manager
-      .getTimeSync()
-      .localDateToRemote(enqueuedAt);
-    const localCommandWhen = this.manager
-      .getTimeSync()
-      .remoteDateToLocal(command.When as unknown as Date);
-
+    await this.waitUntil(localWhen, signal);
+    throwIfAborted(signal);
     switch (command.Command) {
       case "Unpause":
-        this.scheduleUnpause(localCommandWhen, command.PositionTicks ?? 0);
+        await this.changePlaying(true, signal);
+        if (!future) {
+          const target = this.estimateCurrentTicks(
+            command.PositionTicks,
+            command.When,
+          );
+          if (
+            Math.abs(player.currentTime() - ticksToMs(target)) >
+            SYNC_PLAY_TUNING.minDelaySkipToSync
+          ) {
+            player.localSeek(target);
+          }
+        }
         this.emit("osd", "unpause");
         break;
       case "Pause":
-        this.schedulePause(localCommandWhen, command.PositionTicks ?? 0);
+        await this.changePlaying(false, signal);
+        throwIfAborted(signal);
+        player.localSeek(command.PositionTicks);
         this.emit("osd", "pause");
         break;
-      case "Stop":
-        this.scheduleStop(localCommandWhen);
-        break;
-      case "Seek":
-        this.scheduleSeek(localCommandWhen, command.PositionTicks ?? 0);
+      case "Seek": {
+        this.seeking = true;
         this.emit("osd", "seek");
-        break;
-      default:
-        console.warn("SyncPlay applyCommand: unknown command", command);
-        break;
-    }
-
-    if (
-      (command as unknown as { When: Date }).When.getTime() <
-      remoteEnqueuedAt.getTime()
-    ) {
-      console.debug(
-        "SyncPlay applyCommand: command was scheduled for the past",
-        command,
-      );
-    }
-  }
-
-  /** Pre-Unpause hook: emit a wait OSD while we wait for the moment. */
-  scheduleUnpause(when: Date, positionTicks: number): void {
-    this.clearScheduledCommand();
-    const now = Date.now();
-    const playAtTime = when.getTime();
-    const currentPositionMs = this.manager.getPlayerWrapper().currentTime();
-    const currentPositionTicks = Math.round(
-      currentPositionMs * TicksPerMillisecond,
-    );
-
-    if (playAtTime > now) {
-      // Future: seek now, then play at the right moment.
-      this.localSeek(positionTicks);
-      this.scheduledCommand = setTimeout(() => {
-        this.localUnpause();
-        // After playback resumes, the player position will need a
-        // small bump to land on the group target. waitForPlayerEvent
-        // is best-effort.
-        waitForEventOnce(
+        await this.changePlaying(true, signal);
+        throwIfAborted(signal);
+        const ready = waitForEventOnce(
           this.manager,
-          "unpause",
-          WaitForPlayerEventTimeout,
-        ).catch(() => undefined);
-      }, playAtTime - now);
-      this.emit("osd", "wait-unpause");
-    } else {
-      // Past: catch up now.
-      const targetMs = ticksToMs(positionTicks);
-      const delayMs = now - playAtTime;
-      this.localSeek(Math.round((targetMs + delayMs) * TicksPerMillisecond));
-      this.localUnpause();
-      void currentPositionTicks;
+          "ready",
+          SYNC_PLAY_TUNING.seekReadyTimeoutMs,
+          ["playbackerror"],
+          signal,
+        );
+        player.localSeek(command.PositionTicks);
+        await ready;
+        throwIfAborted(signal);
+        await this.changePlaying(false, signal);
+        throwIfAborted(signal);
+        await this.reportBuffering(false);
+        this.emit("osd", "pause");
+        break;
+      }
+      case "Stop":
+        player.localStop();
+        break;
     }
   }
 
-  schedulePause(when: Date, positionTicks: number): void {
-    this.clearScheduledCommand();
-    const now = Date.now();
-    const pauseAtTime = when.getTime();
-
-    const callback = () => {
-      this.localUnpause();
-      this.localSeek(positionTicks);
-      this.localPause();
-    };
-
-    if (pauseAtTime > now) {
-      this.scheduledCommand = setTimeout(callback, pauseAtTime - now);
-      this.emit("osd", "wait-pause");
-    } else {
-      callback();
+  private async changePlaying(
+    playing: boolean,
+    signal: AbortSignal,
+  ): Promise<void> {
+    throwIfAborted(signal);
+    const player = this.manager.getPlayerWrapper();
+    // A superseded native command may still be queued on the main thread.
+    // Send the new intent even when the last event snapshot already matches.
+    if (player.isPlaying() === playing && this.requestedPlaying === null)
+      return;
+    const event = playing ? "unpause" : "pause";
+    const changed = waitForEventOnce(
+      this.manager,
+      event,
+      SYNC_PLAY_TUNING.playerEventTimeoutMs,
+      ["playbackerror"],
+      signal,
+    );
+    this.requestedPlaying = playing;
+    if (playing) player.localUnpause();
+    else player.localPause();
+    try {
+      await changed;
+    } catch (error) {
+      // Native can already be in the requested state without another edge.
+      if (
+        !(error instanceof EventWaitTimeoutError) ||
+        player.isPlaying() !== playing
+      ) {
+        throw error;
+      }
     }
+    throwIfAborted(signal);
+    if (this.requestedPlaying === playing) this.requestedPlaying = null;
   }
 
-  scheduleStop(when: Date): void {
-    this.clearScheduledCommand();
-    const now = Date.now();
-    const stopAtTime = when.getTime();
-    if (stopAtTime > now) {
-      this.scheduledCommand = setTimeout(() => {
-        this.localStop();
-      }, stopAtTime - now);
-    } else {
-      this.localStop();
-    }
-  }
-
-  scheduleSeek(when: Date, positionTicks: number): void {
-    this.applyCommand({
-      ...this.lastCommand!,
-      Command: "Pause",
-      PositionTicks: positionTicks,
-      When: when as unknown as string,
-      EmittedAt: new Date().toISOString(),
+  private waitUntil(when: Date, signal: AbortSignal): Promise<void> {
+    const delay = when.getTime() - Date.now();
+    if (delay <= 0) return Promise.resolve();
+    return new Promise((resolve, reject) => {
+      const onAbort = () => {
+        clearTimeout(timer);
+        reject(new Error("SyncPlay operation cancelled"));
+      };
+      const timer = setTimeout(() => {
+        signal.removeEventListener("abort", onAbort);
+        resolve();
+      }, delay);
+      signal.addEventListener("abort", onAbort, { once: true });
     });
   }
 
   clearScheduledCommand(): void {
-    if (this.scheduledCommand) {
-      clearTimeout(this.scheduledCommand);
-      this.scheduledCommand = null;
-    }
+    this.operation?.abort();
+    this.operation = null;
+    this.seeking = false;
   }
 
-  // -- local player ops ------------------------------------------------------
-
-  localUnpause(): void {
-    this.manager.getPlayerWrapper().localUnpause();
+  reset(): void {
+    this.clearScheduledCommand();
+    this.lastCommand = null;
+    this.requestedPlaying = null;
   }
 
-  localPause(): void {
-    this.manager.getPlayerWrapper().localPause();
-  }
-
-  localSeek(positionTicks: number): void {
-    this.manager.getPlayerWrapper().localSeek(positionTicks);
-  }
-
-  localStop(): void {
-    this.manager.getPlayerWrapper().localStop();
-  }
-
-  // -- queries ---------------------------------------------------------------
-
-  getLastCommand(): SendCommand | null {
+  getLastCommand(): PlaybackCommand | null {
     return this.lastCommand;
   }
 
-  /**
-   * Estimate where the group should be in ticks, given a known
-   * starting position and the time the position was valid at.
-   */
   estimateCurrentTicks(positionTicks: number, when: Date): number {
-    const lastCommand = this.lastCommand;
-    if (!lastCommand) return positionTicks;
     const remoteNow = this.manager.getTimeSync().localDateToRemote(new Date());
-    const elapsedMs = remoteNow.getTime() - when.getTime();
-    if (lastCommand.Command === "Unpause") {
-      return positionTicks + elapsedMs * TicksPerMillisecond;
-    }
-    return positionTicks;
-  }
-
-  /**
-   * Drift correction tick — called on every player time update. Skips
-   * to the group's expected position if drift exceeds the threshold.
-   * SpeedToSync is intentionally not implemented (see file header).
-   */
-  syncPlaybackTime(): void {
-    const lastCommand = this.lastCommand;
-    if (lastCommand?.Command !== "Unpause") return;
-
-    const playerWrapper = this.manager.getPlayerWrapper();
-    if (!playerWrapper.isPlaying()) return;
-
-    const currentMs = playerWrapper.currentTime();
-    const expectedTicks = this.estimateCurrentTicks(
-      lastCommand.PositionTicks ?? 0,
-      lastCommand.When as unknown as Date,
+    return Math.max(
+      0,
+      positionTicks + msToTicks(remoteNow.getTime() - when.getTime()),
     );
-    const expectedMs = ticksToMs(expectedTicks);
-    const driftMs = Math.abs(currentMs - expectedMs);
-
-    if (driftMs > SYNC_PLAY_TUNING.minDelaySkipToSync) {
-      console.log(
-        `SyncPlay syncPlaybackTime: drift ${driftMs.toFixed(
-          0,
-        )}ms exceeds threshold, seeking to ${expectedMs.toFixed(0)}ms`,
-      );
-      this.localSeek(expectedTicks);
-    }
   }
-
-  // -- teardown --------------------------------------------------------------
 
   destroy(): void {
-    this.clearScheduledCommand();
-    this.lastCommand = null;
+    this.reset();
     this.removeAllListeners();
   }
 }

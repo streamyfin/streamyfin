@@ -7,6 +7,7 @@
  */
 
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
+import type { SendCommandType } from "@jellyfin/sdk/lib/generated-client/models";
 
 // SDK type re-exports — kept narrow on purpose, only what callers
 // actually reach for.
@@ -24,6 +25,7 @@ export type {
   SyncPlayQueueItem,
   SyncPlayUserAccessType,
 } from "@jellyfin/sdk/lib/generated-client/models";
+export { SYNC_PLAY_TUNING } from "@/constants/SyncPlay";
 
 /** Jellyfin's tick unit. 1ms = 10000 ticks. */
 export const TicksPerMillisecond = 10000;
@@ -33,8 +35,10 @@ export const TicksPerMillisecond = 10000;
  * the active RN player (mpv / VLC / expo-video).
  */
 export interface PlayerControls {
+  itemId: string;
   play: () => void;
   pause: () => void;
+  stop: () => void;
   /** Seek to absolute position in milliseconds. */
   seekTo: (positionMs: number) => void;
   setSpeed: (speed: number) => void;
@@ -43,6 +47,15 @@ export interface PlayerControls {
   getCurrentPosition: () => number;
   isPlaying: () => boolean;
   isBuffering: () => boolean;
+}
+
+/** Validated wire command; wire objects are never mutated into mixed Date/string DTOs. */
+export interface PlaybackCommand {
+  Command: SendCommandType;
+  When: Date;
+  EmittedAt: Date;
+  PositionTicks: number;
+  PlaylistItemId: string | null;
 }
 
 /** OSD action types — drive optional player-overlay feedback. */
@@ -61,23 +74,6 @@ export type SyncPlayOsdAction =
   | "wait-pause"
   /** persistent — group transitioning to unpause; sibling of schedule-play */
   | "wait-unpause";
-
-/**
- * Tuning constants. These mirror jellyfin-web's defaults; tweak with
- * care — they affect perceived sync quality across all clients.
- */
-export const SYNC_PLAY_TUNING = {
-  /** Drift threshold (ms) above which we hard-seek to catch up. */
-  minDelaySkipToSync: 400,
-  /** Drift beyond this (ms) is always corrected by seeking. */
-  maxDelaySync: 3000,
-  /** Don't escalate buffering to the group for blips shorter than this (ms). */
-  minBufferingThresholdMs: 3000,
-  /** Player-attach drift (ms) above which we reconcile to group position. */
-  positionReconcileThresholdMs: 500,
-  /** Safety timeout (ms) for in-flight Pause/Unpause optimistic UI. */
-  pendingPlaybackTimeoutMs: 1500,
-} as const;
 
 /** Options accepted by `Controller.play`. */
 export interface PlayOptions {

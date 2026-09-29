@@ -23,6 +23,7 @@
  */
 
 import type { Api } from "@jellyfin/sdk";
+import { getSyncPlayApi } from "@jellyfin/sdk/lib/utils/api";
 import { Controller } from "./Controller";
 import { PlaybackCore } from "./cores/PlaybackCore";
 import { QueueCore } from "./cores/QueueCore";
@@ -30,10 +31,10 @@ import { TimeSync } from "./cores/TimeSync";
 import { EventEmitter } from "./EventEmitter";
 import { PendingPlaybackTracker } from "./player/PendingPlaybackTracker";
 import { PlayerWrapper } from "./player/PlayerWrapper";
-import { reconcileToGroupOnAttach } from "./player/reconcileToGroupOnAttach";
 import type {
   GroupInfoDto,
   GroupUpdate,
+  PlaybackCommand,
   PlayerControls,
   PlayQueueUpdate,
   SendCommand,
@@ -56,11 +57,22 @@ export class SyncPlayManager extends EventEmitter {
   private syncPlayEnabledAtPlayer = false;
   /** Are we mirroring the group's commands locally? */
   private followingGroupPlayback = true;
+  private clockReady = false;
+  private joinedAt = 0;
+  private queuedCommand: PlaybackCommand | null = null;
+  private lastPlaybackCommand: PlaybackCommand | null = null;
+  private playbackStarted = false;
+  private preparingPlayback = false;
+  private boundControls: PlayerControls | null = null;
 
   constructor(api: Api) {
     super();
     this.apiClient = api;
-    this.playerWrapper = new PlayerWrapper();
+    this.playerWrapper = new PlayerWrapper((buffering) => {
+      if (!this.canControlCurrentItem()) return;
+      if (buffering) this.playbackCore.onBuffering();
+      else this.playbackCore.onReady();
+    });
     this.timeSync = new TimeSync(api);
     this.playbackCore = new PlaybackCore();
     this.queueCore = new QueueCore();
@@ -82,6 +94,19 @@ export class SyncPlayManager extends EventEmitter {
     // Bridge optimistic pending Pause/Unpause → React state.
     this.pendingPlaybackTracker.setChangeHandler((cmd) => {
       this.emit("pending-playback-change", cmd);
+    });
+
+    this.timeSync.on("update", (_offset, ping) => {
+      if (!this.isSyncPlayEnabled()) return;
+      if (typeof ping !== "number" || !Number.isFinite(ping)) return;
+      this.clockReady = true;
+      void getSyncPlayApi(this.apiClient)
+        .syncPlayPing({
+          // Jellyfin's DTO is Int64, although the TS SDK only says number.
+          pingRequestDto: { Ping: Math.max(0, Math.round(ping)) },
+        })
+        .catch((error) => console.error("SyncPlay ping report failed", error));
+      this.applyQueuedCommand();
     });
 
     this.timeSync.startPing();
@@ -160,8 +185,7 @@ export class SyncPlayManager extends EventEmitter {
         break;
 
       case "GroupJoined": {
-        this.groupInfo = update.Data as GroupInfoDto;
-        this.enableSyncPlay(this.groupInfo);
+        this.enableSyncPlay(update.Data as GroupInfoDto);
         this.emit("group-update", this.groupInfo);
         this.emit("toast", "MessageSyncPlayGroupJoined");
         break;
@@ -195,6 +219,7 @@ export class SyncPlayManager extends EventEmitter {
       }
 
       case "StateUpdate": {
+        if (!this.isSyncPlayEnabled()) return;
         const stateData = update.Data as {
           State?: string;
           PreviousState?: string;
@@ -204,15 +229,13 @@ export class SyncPlayManager extends EventEmitter {
         const previousState = stateData.PreviousState ?? "Idle";
         const reason = stateData.Reason;
         if (this.groupInfo) {
-          this.groupInfo.State = newState as GroupInfoDto["State"];
+          this.groupInfo = {
+            ...this.groupInfo,
+            State: newState as GroupInfoDto["State"],
+          };
           this.emit("group-update", this.groupInfo);
         }
         this.emit("group-state-change", newState, previousState, reason);
-        // Server signals "Playing" or "Paused" → clear any in-flight
-        // optimistic tap state.
-        if (newState === "Playing" || newState === "Paused") {
-          this.pendingPlaybackTracker.clear();
-        }
         break;
       }
 
@@ -237,23 +260,123 @@ export class SyncPlayManager extends EventEmitter {
 
   /** Handle a `SyncPlayCommand` WebSocket message. */
   processCommand(command: SendCommand): void {
-    if (!command) {
-      console.warn("SyncPlay processCommand: empty command");
+    if (!this.isSyncPlayEnabled()) return;
+    if (command.GroupId && command.GroupId !== this.groupInfo?.GroupId) {
+      console.debug("SyncPlay: ignoring command for another group");
       return;
     }
-    this.playbackCore.applyCommand(command);
-    // Server told us the new playing state — clear optimistic UI.
-    if (command.Command === "Unpause" || command.Command === "Pause") {
+    const when = new Date(command.When ?? "");
+    const emittedAt = new Date(command.EmittedAt ?? "");
+    if (
+      !command.Command ||
+      !["Unpause", "Pause", "Seek", "Stop"].includes(command.Command) ||
+      !Number.isFinite(when.getTime()) ||
+      !Number.isFinite(emittedAt.getTime()) ||
+      (command.Command !== "Stop" &&
+        (!command.PlaylistItemId ||
+          !Number.isFinite(command.PositionTicks) ||
+          (command.PositionTicks ?? -1) < 0))
+    ) {
+      console.error("SyncPlay: invalid playback command", command);
+      return;
+    }
+    if (
+      emittedAt.getTime() < this.joinedAt ||
+      (this.lastPlaybackCommand &&
+        emittedAt < this.lastPlaybackCommand.EmittedAt)
+    ) {
+      console.debug("SyncPlay: ignoring stale playback command");
+      return;
+    }
+    const normalized: PlaybackCommand = {
+      Command: command.Command,
+      When: when,
+      EmittedAt: emittedAt,
+      PositionTicks: command.PositionTicks ?? 0,
+      PlaylistItemId: command.PlaylistItemId ?? null,
+    };
+    this.lastPlaybackCommand = normalized;
+    this.queuedCommand = normalized;
+    if (normalized.Command === "Unpause" || normalized.Command === "Pause") {
       this.pendingPlaybackTracker.clear();
     }
+    this.applyQueuedCommand();
+  }
+
+  applyQueuedCommand(): void {
+    const command = this.queuedCommand;
+    if (
+      !command ||
+      !this.clockReady ||
+      !this.isSyncPlayEnabled() ||
+      !this.followingGroupPlayback ||
+      !this.playerWrapper.isPlaybackActive()
+    )
+      return;
+    if (command.Command === "Stop") {
+      this.queueCore.cancelPlaybackPreparation();
+      this.preparingPlayback = false;
+    } else if (
+      !this.playbackStarted ||
+      this.preparingPlayback ||
+      !this.canControlCurrentItem()
+    ) {
+      return;
+    }
+    if (
+      command.Command !== "Stop" &&
+      command.PlaylistItemId !== this.queueCore.getCurrentPlaylistItemId()
+    ) {
+      console.debug("SyncPlay: waiting for the command's playlist item");
+      return;
+    }
+    this.queuedCommand = null;
+    this.playbackCore.applyCommand(command);
+  }
+
+  canControlCurrentItem(): boolean {
+    return (
+      this.isSyncPlayEnabled() &&
+      this.followingGroupPlayback &&
+      this.playerWrapper.isPlaybackActive() &&
+      this.playerWrapper.currentItemId() === this.queueCore.getCurrentItemId()
+    );
+  }
+
+  beginPlaybackPreparation(): void {
+    this.playbackCore.reset();
+    this.preparingPlayback = true;
+    this.playbackStarted = false;
+  }
+
+  completePlaybackPreparation(): void {
+    this.preparingPlayback = false;
+    this.applyQueuedCommand();
+  }
+
+  isPreparingPlayback(): boolean {
+    return this.preparingPlayback;
   }
 
   // ===========================================================================
   // Enable / disable SyncPlay
   // ===========================================================================
 
-  private enableSyncPlay(_group: GroupInfoDto): void {
-    if (this.syncPlayEnabledAtPlayer) return;
+  private enableSyncPlay(group: GroupInfoDto): void {
+    if (
+      this.syncPlayEnabledAtPlayer &&
+      group.GroupId === this.groupInfo?.GroupId
+    )
+      return;
+    if (this.syncPlayEnabledAtPlayer) this.disableSyncPlay();
+    const joinedAt = Date.parse(group.LastUpdatedAt ?? "");
+    if (!group.GroupId || !Number.isFinite(joinedAt)) {
+      console.error("SyncPlay: invalid GroupJoined payload", group);
+      return;
+    }
+    this.groupInfo = group;
+    this.joinedAt = joinedAt;
+    this.clockReady = false;
     this.syncPlayEnabledAtPlayer = true;
     this.followingGroupPlayback = true;
     this.timeSync.forceUpdate();
@@ -265,7 +388,14 @@ export class SyncPlayManager extends EventEmitter {
     if (!this.syncPlayEnabledAtPlayer) return;
     this.syncPlayEnabledAtPlayer = false;
     this.followingGroupPlayback = false;
-    this.playbackCore.clearScheduledCommand();
+    this.playbackCore.reset();
+    this.queuedCommand = null;
+    this.lastPlaybackCommand = null;
+    this.clockReady = false;
+    this.playbackStarted = false;
+    this.preparingPlayback = false;
+    this.playerWrapper.bindToControls(null);
+    this.boundControls = null;
     this.queueCore.clear();
     this.pendingPlaybackTracker.clear();
     this.emit("enabled", false);
@@ -276,14 +406,26 @@ export class SyncPlayManager extends EventEmitter {
    * Resume following group playback after the user temporarily took
    * local control (e.g. scrubbed the seek bar).
    */
-  async followGroupPlayback(_api: Api): Promise<void> {
+  async followGroupPlayback(api: Api): Promise<void> {
+    await getSyncPlayApi(api).syncPlaySetIgnoreWait({
+      ignoreWaitRequestDto: { IgnoreWait: false },
+    });
     this.followingGroupPlayback = true;
     this.emit("play-state-change", true);
   }
 
   /** Stop following group playback (e.g., user takes local control). */
-  haltGroupPlayback(_api: Api): void {
+  haltGroupPlayback(api: Api): void {
     this.followingGroupPlayback = false;
+    this.playbackCore.reset();
+    this.queueCore.cancelPlaybackPreparation();
+    this.preparingPlayback = false;
+    this.playerWrapper.localStop();
+    void getSyncPlayApi(api)
+      .syncPlaySetIgnoreWait({
+        ignoreWaitRequestDto: { IgnoreWait: true },
+      })
+      .catch((error) => console.error("SyncPlay ignore-wait failed", error));
     this.emit("play-state-change", false);
   }
 
@@ -301,43 +443,54 @@ export class SyncPlayManager extends EventEmitter {
 
   /**
    * Bind the RN player controls.
-   * Called from the player screen's `useEffect`. Triggers a reconcile
-   * if a group is active and the player is late-arriving.
+   * Bind once per media session, not on every pause/loading React render.
    */
   setPlayerControls(controls: PlayerControls | null): void {
+    if (this.boundControls === controls) return;
+    this.boundControls = controls;
+    this.playbackCore.reset();
+    this.playbackStarted = false;
     this.playerWrapper.bindToControls(controls);
-    if (controls && this.syncPlayEnabledAtPlayer) {
-      const lastCommand = this.playbackCore.getLastCommand();
-      reconcileToGroupOnAttach(controls, lastCommand, (local) =>
-        this.timeSync.localDateToRemote(local),
-      );
-    }
+    this.queueCore.cancelActivePreparation();
   }
 
   /** Player-side notify hook: media is ready to play. */
   notifyReady(): void {
-    this.emit("playbackstart");
-    if (this.syncPlayEnabledAtPlayer) {
-      this.playbackCore.onReady(this.apiClient);
-    }
+    this.notifyBuffering(false);
   }
 
   /** Player-side notify hook: buffering state changed. */
   notifyBuffering(isBuffering: boolean): void {
-    if (!this.syncPlayEnabledAtPlayer) return;
-    if (isBuffering) {
-      this.playbackCore.onBuffering(this.apiClient);
-    } else {
-      this.playbackCore.onReady(this.apiClient);
-    }
+    if (!this.canControlCurrentItem()) return;
+    this.playerWrapper.notifyBuffering(isBuffering);
   }
 
   /** Player-side notify hook: local playback started. */
   notifyPlaybackStart(): void {
-    this.emit("playbackstart");
-    if (this.syncPlayEnabledAtPlayer) {
-      this.playbackCore.onPlaybackStart(this.apiClient);
+    if (!this.canControlCurrentItem()) {
+      console.debug("SyncPlay: ignoring player start", {
+        enabled: this.isSyncPlayEnabled(),
+        following: this.followingGroupPlayback,
+        playerItemId: this.playerWrapper.currentItemId(),
+        queueItemId: this.queueCore.getCurrentItemId(),
+      });
+      return;
     }
+    if (this.playbackStarted) return;
+    this.playbackStarted = true;
+    this.playbackCore.onPlaybackStart();
+    this.applyQueuedCommand();
+  }
+
+  notifyPlaybackState(playing: boolean): void {
+    if (!this.canControlCurrentItem()) return;
+    if (playing) this.playbackCore.onUnpause();
+    else this.playbackCore.onPause();
+  }
+
+  notifyPlaybackError(error: unknown): void {
+    this.emit("playbackerror", error);
+    this.playbackCore.clearScheduledCommand();
   }
 
   // ===========================================================================
@@ -354,7 +507,7 @@ export class SyncPlayManager extends EventEmitter {
     const pending = this.pendingPlaybackTracker.get();
     if (pending === "Unpause") return true;
     if (pending === "Pause") return false;
-    return this.groupInfo?.State === "Playing";
+    return this.lastPlaybackCommand?.Command === "Unpause";
   }
 
   /** Group info for consumers. */
@@ -363,8 +516,8 @@ export class SyncPlayManager extends EventEmitter {
   }
 
   /** Last playback command (for QueueCore.startPlayback resumption). */
-  getLastPlaybackCommand(): SendCommand | null {
-    return this.playbackCore.getLastCommand();
+  getLastPlaybackCommand(): PlaybackCommand | null {
+    return this.lastPlaybackCommand;
   }
 
   // ===========================================================================
@@ -372,6 +525,8 @@ export class SyncPlayManager extends EventEmitter {
   // ===========================================================================
 
   destroy(): void {
+    this.queueCore.cancelPlaybackPreparation();
+    this.pendingPlaybackTracker.clear();
     this.timeSync.destroy();
     this.playbackCore.destroy();
     this.queueCore.destroy();

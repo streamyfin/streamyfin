@@ -3,7 +3,7 @@
  *
  * Methods are fire-and-forget by design: SyncPlay HTTP responses don't
  * carry useful info (the real state arrives via WebSocket broadcast).
- * Wrap calls in try/catch so transient network errors don't reach the UI.
+ * Request failures are reported; native playback events never call this API.
  */
 
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
@@ -29,6 +29,15 @@ export class Controller {
     this.manager = manager;
   }
 
+  private send(action: string, request: () => Promise<unknown>): void {
+    void Promise.resolve()
+      .then(request)
+      .catch((error) => {
+        console.error(`SyncPlay Controller.${action} failed`, error);
+        this.manager.emit("toast", "MessageSyncPlayErrorMedia");
+      });
+  }
+
   /** Toggle play/pause for the whole group. */
   playPause(): void {
     if (this.manager.isPlaying()) {
@@ -41,34 +50,28 @@ export class Controller {
   /** Resume the group's playback. */
   unpause(): void {
     this.manager.markPendingPlaybackCommand("Unpause");
-    try {
-      getSyncPlayApi(this.manager.getApiClient()).syncPlayUnpause();
-    } catch (error) {
-      console.error("SyncPlay Controller.unpause failed", error);
-    }
+    this.send("unpause", () =>
+      getSyncPlayApi(this.manager.getApiClient()).syncPlayUnpause(),
+    );
   }
 
   /** Pause the group's playback. */
   pause(): void {
     this.manager.markPendingPlaybackCommand("Pause");
-    try {
-      getSyncPlayApi(this.manager.getApiClient()).syncPlayPause();
-    } catch (error) {
-      console.error("SyncPlay Controller.pause failed", error);
-    }
+    this.send("pause", () =>
+      getSyncPlayApi(this.manager.getApiClient()).syncPlayPause(),
+    );
     // Pause locally too so the user sees instant feedback.
     this.manager.getPlayerWrapper().localPause();
   }
 
   /** Seek the group's playback. `positionTicks` is in ticks (1ms = 10000 ticks). */
   seek(positionTicks: number): void {
-    try {
+    this.send("seek", () =>
       getSyncPlayApi(this.manager.getApiClient()).syncPlaySeek({
         seekRequestDto: { PositionTicks: positionTicks },
-      });
-    } catch (error) {
-      console.error("SyncPlay Controller.seek failed", error);
-    }
+      }),
+    );
   }
 
   /**
@@ -109,56 +112,42 @@ export class Controller {
 
   /** Stop the group's playback. */
   stop(): void {
-    try {
-      getSyncPlayApi(this.manager.getApiClient()).syncPlayStop();
-    } catch (error) {
-      console.error("SyncPlay Controller.stop failed", error);
-    }
+    this.send("stop", () =>
+      getSyncPlayApi(this.manager.getApiClient()).syncPlayStop(),
+    );
   }
 
   /** Jump to the next item in the group's queue. */
   nextItem(): void {
-    try {
+    this.send("nextItem", () =>
       getSyncPlayApi(this.manager.getApiClient()).syncPlayNextItem({
         nextItemRequestDto: {
-          PlaylistItemId: this.manager
-            .getQueueCore()
-            .getCurrentPlaylistItemId(),
-        } as unknown as Parameters<
-          ReturnType<typeof getSyncPlayApi>["syncPlayNextItem"]
-        >[0]["nextItemRequestDto"],
-      });
-    } catch (error) {
-      console.error("SyncPlay Controller.nextItem failed", error);
-    }
+          PlaylistItemId:
+            this.manager.getQueueCore().getCurrentPlaylistItemId() ?? undefined,
+        },
+      }),
+    );
   }
 
   /** Jump to the previous item in the group's queue. */
   previousItem(): void {
-    try {
+    this.send("previousItem", () =>
       getSyncPlayApi(this.manager.getApiClient()).syncPlayPreviousItem({
         previousItemRequestDto: {
-          PlaylistItemId: this.manager
-            .getQueueCore()
-            .getCurrentPlaylistItemId(),
-        } as unknown as Parameters<
-          ReturnType<typeof getSyncPlayApi>["syncPlayPreviousItem"]
-        >[0]["previousItemRequestDto"],
-      });
-    } catch (error) {
-      console.error("SyncPlay Controller.previousItem failed", error);
-    }
+          PlaylistItemId:
+            this.manager.getQueueCore().getCurrentPlaylistItemId() ?? undefined,
+        },
+      }),
+    );
   }
 
   /** Jump to a specific item in the queue by playlist item id. */
   setCurrentPlaylistItem(playlistItemId: string): void {
-    try {
+    this.send("setCurrentPlaylistItem", () =>
       getSyncPlayApi(this.manager.getApiClient()).syncPlaySetPlaylistItem({
         setPlaylistItemRequestDto: { PlaylistItemId: playlistItemId },
-      });
-    } catch (error) {
-      console.error("SyncPlay Controller.setCurrentPlaylistItem failed", error);
-    }
+      }),
+    );
   }
 
   /**
@@ -169,7 +158,8 @@ export class Controller {
    * when picking an episode from a different series/season).
    */
   goToItem(item: BaseItemDto): void {
-    if (!item.Id) {
+    const itemId = item.Id;
+    if (!itemId) {
       console.warn("SyncPlay Controller.goToItem called without item.Id");
       return;
     }
@@ -181,10 +171,12 @@ export class Controller {
       this.setCurrentPlaylistItem(queueEntry.PlaylistItemId);
       return;
     }
-    void this.play({
-      ids: [item.Id],
-      startPositionTicks: item.UserData?.PlaybackPositionTicks ?? 0,
-    });
+    this.send("goToItem", () =>
+      this.play({
+        ids: [itemId],
+        startPositionTicks: item.UserData?.PlaybackPositionTicks ?? 0,
+      }),
+    );
   }
 }
 
