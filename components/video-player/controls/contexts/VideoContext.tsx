@@ -117,15 +117,22 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
   rememberRef.current = (kind, row) =>
     rememberSeriesTrackFromRow({ item, kind, row, settings });
 
-  const { itemId, audioIndex, bitrateValue, subtitleIndex, playbackPosition } =
-    useLocalSearchParams<{
-      itemId: string;
-      audioIndex: string;
-      subtitleIndex: string;
-      mediaSourceId: string;
-      bitrateValue: string;
-      playbackPosition: string;
-    }>();
+  const {
+    itemId,
+    audioIndex,
+    bitrateValue,
+    subtitleIndex,
+    playbackPosition,
+    syncPlay,
+  } = useLocalSearchParams<{
+    itemId: string;
+    audioIndex: string;
+    subtitleIndex: string;
+    mediaSourceId: string;
+    bitrateValue: string;
+    playbackPosition: string;
+    syncPlay?: string;
+  }>();
 
   const allSubs =
     mediaSource?.MediaStreams?.filter((s) => s.Type === "Subtitle") || [];
@@ -186,6 +193,7 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
       mediaSourceId: mediaSource?.Id ?? "",
       bitrateValue: bitrateValue,
       playbackPosition: playbackPosition,
+      ...(syncPlay === "true" && { syncPlay: "true" }),
     }).toString();
     router.replace(`player/direct-player?${queryParams}` as any);
   };

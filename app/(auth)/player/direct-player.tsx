@@ -144,7 +144,7 @@ export default function DirectPlayerPage() {
     setIsPlaying(playing);
   }, []);
   const [isBuffering, setIsBuffering] = useState(true);
-  const [isVideoLoaded, setIsVideoLoaded] = useState(false);
+  const [loadedSourceKey, setLoadedSourceKey] = useState<string | null>(null);
   const [tracksReady, setTracksReady] = useState(false);
   const [hasPlaybackStarted, setHasPlaybackStarted] = useState(false);
   const [currentPlaybackSpeed, setCurrentPlaybackSpeed] = useState(1.0);
@@ -419,6 +419,8 @@ export default function DirectPlayerPage() {
       // Clear the previous episode's stream so the loader gate stays closed
       // until the new item's stream resolves (avoids a stale MPV source frame).
       setTracksReady(false);
+      setLoadedSourceKey(null);
+      setIsBuffering(true);
       setStream(null);
       // Scope the started flag and the position to the item being played. The
       // component is reused across an in-place item switch, and both are read
@@ -449,6 +451,13 @@ export default function DirectPlayerPage() {
   }
 
   const [stream, setStream] = useState<Stream | null>(null);
+  const sourceKey =
+    stream && item?.Id === itemId ? `${itemId}:${stream.url}` : null;
+  const isVideoLoaded = sourceKey !== null && loadedSourceKey === sourceKey;
+  useEffect(() => {
+    setIsBuffering(true);
+    syncPlaybackSnapshot.current.isBuffering = true;
+  }, [sourceKey]);
   const [streamStatus, setStreamStatus] = useState({
     isLoading: true,
     isError: false,
@@ -1330,6 +1339,7 @@ export default function DirectPlayerPage() {
           mediaSourceId: stream?.mediaSource?.Id ?? "",
           bitrateValue: bitrateValue?.toString() ?? "",
           playbackPosition: msToTicks(progress.get()).toString(),
+          ...(openedViaSyncPlay && { syncPlay: "true" }),
         }).toString();
         // Destroy the current mpv instance BEFORE navigating, same rationale as
         // goToNextItem/goToPreviousItem: Expo Router briefly holds two players
@@ -1358,6 +1368,7 @@ export default function DirectPlayerPage() {
       bitrateValue,
       router,
       progress,
+      openedViaSyncPlay,
     ],
   );
 
@@ -1402,6 +1413,7 @@ export default function DirectPlayerPage() {
         mediaSourceId: stream?.mediaSource?.Id ?? "",
         bitrateValue: params.bitrateValue ?? bitrateValue?.toString() ?? "",
         playbackPosition: msToTicks(progress.get()).toString(),
+        ...(openedViaSyncPlay && { syncPlay: "true" }),
       }).toString();
       // Destroy the current mpv instance before re-navigating, same rationale as
       // goToNextItem: Expo Router briefly holds two players during the
@@ -1417,6 +1429,7 @@ export default function DirectPlayerPage() {
       bitrateValue,
       router,
       progress,
+      openedViaSyncPlay,
     ],
   );
 
@@ -1761,7 +1774,10 @@ export default function DirectPlayerPage() {
                 onPipPlayRequest={_onPipPlayRequest}
                 onPipPauseRequest={_onPipPauseRequest}
                 onPipSkipRequest={_onPipSkipRequest}
-                onLoad={() => setIsVideoLoaded(true)}
+                onLoad={(event) => {
+                  if (event.nativeEvent.url !== stream?.url) return;
+                  setLoadedSourceKey(sourceKey);
+                }}
                 onError={(e: { nativeEvent: MpvOnErrorEventPayload }) => {
                   console.error("Video Error:", e.nativeEvent);
                   Alert.alert(
