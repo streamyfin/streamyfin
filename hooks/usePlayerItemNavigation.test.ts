@@ -150,6 +150,16 @@ describe("shared SyncPlay playback eligibility", () => {
         items: queue,
       }),
     );
+    await f.playMedia(
+      { itemId: "b", offline: false },
+      { queueItems: [{}, ...queue] },
+    );
+    expect(f.controller.play).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        ids: ["c", "a", "b"],
+        startIndex: 2,
+      }),
+    );
   });
 
   test("autoplay takes the final allowed transition but not an exhausted budget", () => {

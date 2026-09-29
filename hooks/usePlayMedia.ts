@@ -65,13 +65,21 @@ export const usePlayMedia = () => {
         controller
       ) {
         try {
+          const queueItems = options?.queueItems?.filter((item) => !!item.Id);
+          const startIndex = queueItems?.findIndex(
+            (item) => item.Id === req.itemId,
+          );
+          if (queueItems && (startIndex === undefined || startIndex < 0)) {
+            throw new Error(
+              "SyncPlay requested item is absent from the supplied queue",
+            );
+          }
           await controller.play({
-            ids: options?.queueItems?.flatMap((item) =>
-              item.Id ? [item.Id] : [],
-            ) ?? [req.itemId],
-            items:
-              options?.queueItems ??
-              (options?.item ? [options.item] : undefined),
+            ids: queueItems?.flatMap((item) => (item.Id ? [item.Id] : [])) ?? [
+              req.itemId,
+            ],
+            items: queueItems ?? (options?.item ? [options.item] : undefined),
+            startIndex,
             startPositionTicks: req.playbackPositionTicks,
           });
         } catch (error) {
