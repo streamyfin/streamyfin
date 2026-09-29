@@ -23,49 +23,6 @@ import { getTimeSyncApi } from "@jellyfin/sdk/lib/utils/api";
 import { SYNC_PLAY_CLOCK } from "@/constants/SyncPlay";
 import { EventEmitter } from "../EventEmitter";
 
-class Measurement {
-  requestSent: number;
-  requestReceived: number;
-  responseSent: number;
-  responseReceived: number;
-
-  constructor(
-    requestSent: Date,
-    requestReceived: Date,
-    responseSent: Date,
-    responseReceived: Date,
-  ) {
-    this.requestSent = requestSent.getTime();
-    this.requestReceived = requestReceived.getTime();
-    this.responseSent = responseSent.getTime();
-    this.responseReceived = responseReceived.getTime();
-  }
-
-  /** Time offset (ms): positive means server clock is ahead of ours. */
-  getOffset(): number {
-    return (
-      (this.requestReceived -
-        this.requestSent +
-        (this.responseSent - this.responseReceived)) /
-      2
-    );
-  }
-
-  /** Round-trip delay (ms), excluding server processing. */
-  getDelay(): number {
-    return (
-      this.responseReceived -
-      this.requestSent -
-      (this.responseSent - this.requestReceived)
-    );
-  }
-
-  /** One-way ping (ms). */
-  getPing(): number {
-    return Math.max(0, Math.round(this.getDelay() / 2));
-  }
-}
-
 /**
  * Tracks the offset between this client's clock and the Jellyfin server's
  * clock, and exposes conversions between local and remote Dates.
@@ -76,38 +33,34 @@ class Measurement {
  *     should treat absence of updates as transient.
  */
 export class TimeSync extends EventEmitter {
-  private api: Api;
   private pingStop = true;
   private pollingInterval: number = SYNC_PLAY_CLOCK.greedyIntervalMs;
   private poller: ReturnType<typeof setTimeout> | null = null;
   private pings = 0;
-  private measurement: Measurement | null = null;
-  private measurements: Measurement[] = [];
+  private measurements: Array<{ offset: number; delay: number }> = [];
   private generation = 0;
 
-  constructor(api: Api) {
+  constructor(private readonly api: Api) {
     super();
-    this.api = api;
   }
 
-  /** Called when the user switches Jellyfin servers. */
-  updateApiClient(api: Api): void {
-    this.api = api;
-  }
-
-  /** Whether we've completed at least one successful measurement. */
-  isReady(): boolean {
-    return !!this.measurement;
+  private get measurement() {
+    return this.measurements.reduce<
+      (typeof this.measurements)[number] | undefined
+    >(
+      (best, entry) => (!best || entry.delay < best.delay ? entry : best),
+      undefined,
+    );
   }
 
   /** Current best-estimate time offset (ms). */
   getTimeOffset(): number {
-    return this.measurement ? this.measurement.getOffset() : 0;
+    return this.measurement?.offset ?? 0;
   }
 
   /** Current best-estimate one-way ping (ms). */
   getPing(): number {
-    return this.measurement ? this.measurement.getPing() : 0;
+    return Math.max(0, Math.round((this.measurement?.delay ?? 0) / 2));
   }
 
   /** Convert a server-time Date to local time. */
@@ -144,16 +97,10 @@ export class TimeSync extends EventEmitter {
     this.startPing();
   }
 
-  /** Drop all measurements. Used on group leave. */
-  resetMeasurements(): void {
-    this.measurement = null;
-    this.measurements = [];
-  }
-
   /** Full teardown on provider unmount. */
   destroy(): void {
     this.stopPing();
-    this.resetMeasurements();
+    this.measurements = [];
     this.removeAllListeners();
   }
 
@@ -177,44 +124,27 @@ export class TimeSync extends EventEmitter {
   }
 
   private async requestPing() {
-    const requestSent = new Date();
+    const requestSent = Date.now();
     const response = await getTimeSyncApi(this.api).getUtcTime();
-    const responseReceived = new Date();
+    const responseReceived = Date.now();
     const data = response.data;
-    const requestReceived = new Date(data.RequestReceptionTime as string);
-    const responseSent = new Date(data.ResponseTransmissionTime as string);
-    if (
-      !Number.isFinite(requestReceived.getTime()) ||
-      !Number.isFinite(responseSent.getTime())
-    ) {
+    const requestReceived = Date.parse(data.RequestReceptionTime ?? "");
+    const responseSent = Date.parse(data.ResponseTransmissionTime ?? "");
+    if (!Number.isFinite(requestReceived) || !Number.isFinite(responseSent)) {
       throw new Error("SyncPlay time sync returned invalid server timestamps");
     }
-    return { requestSent, requestReceived, responseSent, responseReceived };
+    return {
+      offset:
+        (requestReceived - requestSent + responseSent - responseReceived) / 2,
+      delay: responseReceived - requestSent - (responseSent - requestReceived),
+    };
   }
 
-  private onPingResponse(result: {
-    requestSent: Date;
-    requestReceived: Date;
-    responseSent: Date;
-    responseReceived: Date;
-  }): void {
-    const measurement = new Measurement(
-      result.requestSent,
-      result.requestReceived,
-      result.responseSent,
-      result.responseReceived,
-    );
-
+  private onPingResponse(measurement: { offset: number; delay: number }): void {
     this.measurements.push(measurement);
     if (this.measurements.length > SYNC_PLAY_CLOCK.measurements) {
       this.measurements.shift();
     }
-
-    // Outlier rejection: pick the measurement with the shortest delay.
-    const sorted = [...this.measurements].sort(
-      (a, b) => a.getDelay() - b.getDelay(),
-    );
-    this.measurement = sorted[0];
 
     // Throttle once we've warmed up.
     if (this.pings >= SYNC_PLAY_CLOCK.greedyPingCount) {

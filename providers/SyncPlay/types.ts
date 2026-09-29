@@ -1,16 +1,5 @@
-/**
- * SyncPlay — public types and tuning constants.
- *
- * Re-exports the SDK types we use, defines the small RN-specific
- * extensions (PlayerControls, OSD actions), and centralises the magic
- * numbers that govern sync behaviour.
- */
+import type { SendCommand } from "@jellyfin/sdk/lib/generated-client/models";
 
-import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
-import type { SendCommandType } from "@jellyfin/sdk/lib/generated-client/models";
-
-// SDK type re-exports — kept narrow on purpose, only what callers
-// actually reach for.
 export type {
   GroupInfoDto,
   GroupQueueMode,
@@ -49,14 +38,9 @@ export interface PlayerControls {
   isBuffering: () => boolean;
 }
 
-/** Validated wire command; wire objects are never mutated into mixed Date/string DTOs. */
-export interface PlaybackCommand {
-  Command: SendCommandType;
-  When: Date;
-  EmittedAt: Date;
-  PositionTicks: number;
-  PlaylistItemId: string | null;
-}
+/** SDK wire shape after required command fields pass runtime validation. */
+export type PlaybackCommand = SendCommand &
+  Required<Pick<SendCommand, "Command" | "When" | "EmittedAt">>;
 
 /** OSD action types — drive optional player-overlay feedback. */
 export type SyncPlayOsdAction =
@@ -74,11 +58,3 @@ export type SyncPlayOsdAction =
   | "wait-pause"
   /** persistent — group transitioning to unpause; sibling of schedule-play */
   | "wait-unpause";
-
-/** Options accepted by `Controller.play`. */
-export interface PlayOptions {
-  ids?: string[];
-  items?: BaseItemDto[];
-  startIndex?: number;
-  startPositionTicks?: number;
-}

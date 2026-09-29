@@ -98,11 +98,6 @@ export class PlayerWrapper {
     return this.controls !== null;
   }
 
-  /** RN never runs as a remote-managed player. */
-  isRemote(): boolean {
-    return false;
-  }
-
   localPlay(options: LocalPlayOptions): Promise<void> {
     if (!this.localPlayHandler) {
       return Promise.reject(

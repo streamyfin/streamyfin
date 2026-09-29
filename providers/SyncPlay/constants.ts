@@ -11,9 +11,6 @@ export { TicksPerMillisecond };
 /** Default timeout for `waitForEventOnce` (matches jellyfin-web). */
 export const WaitForEventDefaultTimeout = 30000;
 
-/** Short-lived timeout for player events (matches jellyfin-web). */
-export const WaitForPlayerEventTimeout = 500;
-
 export function ticksToMs(ticks: number): number {
   return ticks / TicksPerMillisecond;
 }

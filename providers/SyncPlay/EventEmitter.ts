@@ -1,27 +1,21 @@
-/**
- * Per-instance event emitter — replaces jellyfin-web's global `Events.trigger`
- * bus. Listeners that throw are caught and logged so one bad listener can't
- * break the rest.
- */
-
+import Emitter from "eventemitter3";
 import { WaitForEventDefaultTimeout } from "./constants";
 
+/** Keep listener failures isolated while reusing the app's event library. */
 export class EventEmitter {
-  private listeners: Map<string, Set<(...args: unknown[]) => void>> = new Map();
+  private readonly events = new Emitter<Record<string, unknown[]>>();
 
   on(event: string, callback: (...args: unknown[]) => void): void {
-    if (!this.listeners.has(event)) {
-      this.listeners.set(event, new Set());
-    }
-    this.listeners.get(event)!.add(callback);
+    if (!this.events.listeners(event).includes(callback))
+      this.events.on(event, callback);
   }
 
   off(event: string, callback: (...args: unknown[]) => void): void {
-    this.listeners.get(event)?.delete(callback);
+    this.events.off(event, callback);
   }
 
   emit(event: string, ...args: unknown[]): void {
-    this.listeners.get(event)?.forEach((callback) => {
+    this.events.listeners(event).forEach((callback) => {
       try {
         callback(...args);
       } catch (error) {
@@ -34,11 +28,7 @@ export class EventEmitter {
   }
 
   removeAllListeners(event?: string): void {
-    if (event) {
-      this.listeners.delete(event);
-    } else {
-      this.listeners.clear();
-    }
+    this.events.removeAllListeners(event);
   }
 }
 

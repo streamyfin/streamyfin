@@ -81,7 +81,7 @@ describe("server queue to native presentation", () => {
       ItemId: "same-episode",
       PlaylistItemId: `slot-${index}`,
     }));
-    queue.onPlayQueueUpdate(api, {
+    queue.onPlayQueueUpdate({
       LastUpdate: new Date().toISOString(),
       Playlist: playlist,
       PlayingItemIndex: 340,
@@ -93,14 +93,26 @@ describe("server queue to native presentation", () => {
   });
 
   test("invalid selected indexes fail before waiting for a player that cannot open", () => {
-    const { api, queue } = fixture();
+    const { queue } = fixture();
     expect(() =>
-      queue.onPlayQueueUpdate(api, {
+      queue.onPlayQueueUpdate({
         LastUpdate: new Date().toISOString(),
         Playlist: [{ ItemId: "episode", PlaylistItemId: "slot" }],
         PlayingItemIndex: 9,
       }),
     ).toThrow("out of bounds");
+  });
+
+  test("stores the SDK queue shape without mapping ItemId into another DTO", () => {
+    const { queue } = fixture();
+    const entry = { ItemId: "episode", PlaylistItemId: "slot" };
+    queue.onPlayQueueUpdate({
+      LastUpdate: new Date().toISOString(),
+      Playlist: [entry],
+      PlayingItemIndex: 0,
+    });
+    expect(queue.getPlaylist()).toEqual([entry]);
+    expect(queue.getPlaylist()[0]).not.toHaveProperty("Id");
   });
 
   test("missing player navigator rejects rather than pretending presentation succeeded", async () => {

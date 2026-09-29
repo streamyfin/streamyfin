@@ -1,3 +1,6 @@
+/** Preserve the existing sender-side limit when expanding media containers. */
+export const SYNC_PLAY_QUEUE_LIMIT = 300;
+
 /** Protocol timings match jellyfin-web's SyncPlay player adapter and scheduler. */
 export const SYNC_PLAY_TUNING = {
   minDelaySkipToSync: 400,

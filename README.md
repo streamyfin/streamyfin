@@ -70,6 +70,8 @@ Commands are clock- and playlist-checked, and newer commands cancel older timers
 and event waits. Native seek landing uses a deterministic tolerance rather than
 random target offsets; continuous drift correction remains off, as upstream
 defaults.
+The core keeps the Jellyfin SDK's wire DTOs intact and uses the app's existing
+event library and authenticated user data rather than duplicating those services.
 
 ### 🔍 Jellysearch
 

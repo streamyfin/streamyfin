@@ -1,28 +1,5 @@
-/**
- * SyncPlayManager — central orchestrator for a SyncPlay session.
- *
- * Owns the three "cores" (TimeSync, PlaybackCore, QueueCore) and the
- * PlayerWrapper, and routes WebSocket events between them.
- *
- * Lifecycle:
- *   constructor → init() → (joinGroup → group-state-change "Idle"+) →
- *   group-state-change "Playing" → group-state-change "Paused" → ...
- *   → (leaveGroup) → destroy()
- *
- * Events emitted (provider listens):
- *   - `group-info-update`     `(GroupInfoDto | null)`
- *   - `group-state-change`    `(state: string, oldState: string)`
- *   - `enabled`               `(isEnabled: boolean)`
- *   - `play-state-change`     `(isFollowing: boolean)`
- *   - `playbackstart` / `playbackerror` — from PlayerWrapper hooks
- *   - `osd`                   `(action: SyncPlayOsdAction)`
- *   - `toast`                 `(messageKey: string)`
- *
- * The manager exposes a per-instance `EventEmitter` rather than upstream
- * `Events.on(manager, ...)` — replaces the global Events bus pattern.
- */
-
 import type { Api } from "@jellyfin/sdk";
+import type { UserDto } from "@jellyfin/sdk/lib/generated-client";
 import { getSyncPlayApi } from "@jellyfin/sdk/lib/utils/api";
 import { Controller } from "./Controller";
 import { PlaybackCore } from "./cores/PlaybackCore";
@@ -36,11 +13,17 @@ import type {
   GroupUpdate,
   PlaybackCommand,
   PlayerControls,
-  PlayQueueUpdate,
   SendCommand,
 } from "./types";
 
-/** Raw WebSocket message data shapes (already unwrapped by the hook). */
+// Older servers also send these variants omitted from the SDK's union.
+type IncomingGroupUpdate =
+  | GroupUpdate
+  | { Type: "GroupUpdate"; Data?: GroupInfoDto }
+  | {
+      Type: "SyncPlayIsDisabled" | "CreateGroupDenied" | "JoinGroupDenied";
+      Data?: unknown;
+    };
 
 export class SyncPlayManager extends EventEmitter {
   private apiClient: Api;
@@ -65,7 +48,10 @@ export class SyncPlayManager extends EventEmitter {
   private preparingPlayback = false;
   private boundControls: PlayerControls | null = null;
 
-  constructor(api: Api) {
+  constructor(
+    api: Api,
+    readonly getUser: () => UserDto | null = () => null,
+  ) {
     super();
     this.apiClient = api;
     this.playerWrapper = new PlayerWrapper((buffering) => {
@@ -117,12 +103,6 @@ export class SyncPlayManager extends EventEmitter {
     return this.controller;
   }
 
-  /** Called by SyncPlayProvider when the user switches Jellyfin servers. */
-  updateApiClient(api: Api): void {
-    this.apiClient = api;
-    this.timeSync.updateApiClient(api);
-  }
-
   getApiClient(): Api {
     return this.apiClient;
   }
@@ -143,49 +123,29 @@ export class SyncPlayManager extends EventEmitter {
     return this.queueCore;
   }
 
-  getPendingPlaybackTracker(): PendingPlaybackTracker {
-    return this.pendingPlaybackTracker;
-  }
-
-  // ===========================================================================
-  // WebSocket message handlers (called by useSyncPlayWebSocket)
-  // ===========================================================================
-
-  /**
-   * Handle a `SyncPlayGroupUpdate` WebSocket message.
-   *
-   * Cast: the SDK's `GroupUpdate.Type` union is narrower than what the
-   * server actually emits (it omits `SyncPlayIsDisabled`, `GroupUpdate`,
-   * `CreateGroupDenied`, `JoinGroupDenied`). Wire format is the source
-   * of truth here.
-   */
-  processGroupUpdate(rawUpdate: GroupUpdate): void {
-    if (!rawUpdate) {
+  processGroupUpdate(update: IncomingGroupUpdate): void {
+    if (!update) {
       console.warn("SyncPlay processGroupUpdate: empty update");
       return;
     }
-    const update = rawUpdate as unknown as {
-      Type: string;
-      Data: unknown;
-    };
-
     switch (update.Type) {
       case "PlayQueue":
-        this.queueCore.updatePlayQueue(
-          this.apiClient,
-          update.Data as unknown as PlayQueueUpdate,
-        );
+        if (update.Data)
+          this.queueCore.updatePlayQueue(this.apiClient, update.Data);
+        else console.error("SyncPlay: PlayQueue has no data");
         break;
 
       case "UserJoined":
       case "UserLeft":
-        // Group membership notifications — current group will follow
-        // via GroupUpdate, but emit a toast for friendliness.
         this.emit("toast", `MessageSyncPlay${update.Type}`, update.Data);
         break;
 
       case "GroupJoined": {
-        this.enableSyncPlay(update.Data as GroupInfoDto);
+        if (!update.Data) {
+          console.error("SyncPlay: GroupJoined has no data");
+          return;
+        }
+        this.enableSyncPlay(update.Data);
         this.emit("group-update", this.groupInfo);
         this.emit("toast", "MessageSyncPlayGroupJoined");
         break;
@@ -208,8 +168,12 @@ export class SyncPlayManager extends EventEmitter {
       }
 
       case "GroupUpdate": {
+        if (!update.Data) {
+          console.error("SyncPlay: GroupUpdate has no data");
+          return;
+        }
         const previousState = this.groupInfo?.State;
-        this.groupInfo = update.Data as GroupInfoDto;
+        this.groupInfo = update.Data;
         this.emit("group-update", this.groupInfo);
         const newState = this.groupInfo.State;
         if (newState && newState !== previousState) {
@@ -220,18 +184,16 @@ export class SyncPlayManager extends EventEmitter {
 
       case "StateUpdate": {
         if (!this.isSyncPlayEnabled()) return;
-        const stateData = update.Data as {
-          State?: string;
-          PreviousState?: string;
-          Reason?: string;
-        };
-        const newState = stateData.State ?? "Idle";
-        const previousState = stateData.PreviousState ?? "Idle";
-        const reason = stateData.Reason;
+        if (!update.Data?.State) {
+          console.error("SyncPlay: StateUpdate has no state");
+          return;
+        }
+        const { State: newState, Reason: reason } = update.Data;
+        const previousState = this.groupInfo?.State ?? "Idle";
         if (this.groupInfo) {
           this.groupInfo = {
             ...this.groupInfo,
-            State: newState as GroupInfoDto["State"],
+            State: newState,
           };
           this.emit("group-update", this.groupInfo);
         }
@@ -253,7 +215,7 @@ export class SyncPlayManager extends EventEmitter {
         break;
 
       default:
-        console.warn("SyncPlay processGroupUpdate: unknown type", update.Type);
+        console.warn("SyncPlay processGroupUpdate: unknown update", update);
         break;
     }
   }
@@ -265,14 +227,17 @@ export class SyncPlayManager extends EventEmitter {
       console.debug("SyncPlay: ignoring command for another group");
       return;
     }
-    const when = new Date(command.When ?? "");
-    const emittedAt = new Date(command.EmittedAt ?? "");
+    const { When, EmittedAt, Command } = command;
+    const when = Date.parse(When ?? "");
+    const emittedAt = Date.parse(EmittedAt ?? "");
     if (
-      !command.Command ||
-      !["Unpause", "Pause", "Seek", "Stop"].includes(command.Command) ||
-      !Number.isFinite(when.getTime()) ||
-      !Number.isFinite(emittedAt.getTime()) ||
-      (command.Command !== "Stop" &&
+      !When ||
+      !EmittedAt ||
+      !Command ||
+      !["Unpause", "Pause", "Seek", "Stop"].includes(Command) ||
+      !Number.isFinite(when) ||
+      !Number.isFinite(emittedAt) ||
+      (Command !== "Stop" &&
         (!command.PlaylistItemId ||
           !Number.isFinite(command.PositionTicks) ||
           (command.PositionTicks ?? -1) < 0))
@@ -281,19 +246,18 @@ export class SyncPlayManager extends EventEmitter {
       return;
     }
     if (
-      emittedAt.getTime() < this.joinedAt ||
+      emittedAt < this.joinedAt ||
       (this.lastPlaybackCommand &&
-        emittedAt < this.lastPlaybackCommand.EmittedAt)
+        emittedAt < Date.parse(this.lastPlaybackCommand.EmittedAt))
     ) {
       console.debug("SyncPlay: ignoring stale playback command");
       return;
     }
     const normalized: PlaybackCommand = {
-      Command: command.Command,
-      When: when,
-      EmittedAt: emittedAt,
-      PositionTicks: command.PositionTicks ?? 0,
-      PlaylistItemId: command.PlaylistItemId ?? null,
+      ...command,
+      Command,
+      When,
+      EmittedAt,
     };
     this.lastPlaybackCommand = normalized;
     this.queuedCommand = normalized;
@@ -357,10 +321,6 @@ export class SyncPlayManager extends EventEmitter {
   isPreparingPlayback(): boolean {
     return this.preparingPlayback;
   }
-
-  // ===========================================================================
-  // Enable / disable SyncPlay
-  // ===========================================================================
 
   private enableSyncPlay(group: GroupInfoDto): void {
     if (
@@ -437,10 +397,6 @@ export class SyncPlayManager extends EventEmitter {
     return this.syncPlayEnabledAtPlayer;
   }
 
-  // ===========================================================================
-  // Player attach + provider bridges
-  // ===========================================================================
-
   /**
    * Bind the RN player controls.
    * Bind once per media session, not on every pause/loading React render.
@@ -493,10 +449,6 @@ export class SyncPlayManager extends EventEmitter {
     this.playbackCore.clearScheduledCommand();
   }
 
-  // ===========================================================================
-  // Pending playback (optimistic UI for play/pause taps)
-  // ===========================================================================
-
   /** Called by Controller before sending an Unpause/Pause request. */
   markPendingPlaybackCommand(command: "Unpause" | "Pause"): void {
     this.pendingPlaybackTracker.mark(command);
@@ -519,10 +471,6 @@ export class SyncPlayManager extends EventEmitter {
   getLastPlaybackCommand(): PlaybackCommand | null {
     return this.lastPlaybackCommand;
   }
-
-  // ===========================================================================
-  // Teardown
-  // ===========================================================================
 
   destroy(): void {
     this.queueCore.cancelPlaybackPreparation();

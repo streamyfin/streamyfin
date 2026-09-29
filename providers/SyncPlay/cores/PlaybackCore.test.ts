@@ -33,7 +33,7 @@ async function fixture({ clockReady = true, attach = true } = {}) {
     },
   });
   manager.getTimeSync().stopPing();
-  await manager.getQueueCore().onPlayQueueUpdate(api, {
+  manager.getQueueCore().onPlayQueueUpdate({
     Playlist: [{ ItemId: "movie-1", PlaylistItemId: "slot-1" }],
     PlayingItemIndex: 0,
     LastUpdate: new Date(Date.now() - 1000).toISOString(),
@@ -112,6 +112,17 @@ async function fixture({ clockReady = true, attach = true } = {}) {
 }
 
 describe("SyncPlay upstream event ordering", () => {
+  test("commands retain SDK date strings without mutating the WebSocket DTO", async () => {
+    const f = await fixture();
+    const command = f.command("Pause");
+    const before = { ...command };
+    f.manager.processCommand(command);
+    await settle();
+    expect(command).toEqual(before);
+    expect(typeof f.manager.getLastPlaybackCommand()?.When).toBe("string");
+    expect(typeof f.manager.getLastPlaybackCommand()?.EmittedAt).toBe("string");
+  });
+
   test("Pause waits for native confirmation, then seeks without an unpause", async () => {
     const f = await fixture();
     f.native.playing = true;

@@ -6,7 +6,10 @@
  * Request failures are reported; native playback events never call this API.
  */
 
-import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
+import type {
+  BaseItemDto,
+  PlayRequestDto,
+} from "@jellyfin/sdk/lib/generated-client/models";
 import { getSyncPlayApi } from "@jellyfin/sdk/lib/utils/api";
 import type { SyncPlayManager } from "./Manager";
 import {
@@ -15,12 +18,11 @@ import {
   translateItemsForPlayback,
 } from "./transport/queueTranslation";
 
-export interface PlayOptions extends TranslateOptions {
+type PlayOptions = TranslateOptions & {
   items?: BaseItemDto[];
-  ids?: string[];
   startIndex?: number;
   startPositionTicks?: number;
-}
+};
 
 export class Controller {
   private manager!: SyncPlayManager;
@@ -84,26 +86,27 @@ export class Controller {
    */
   async play(options: PlayOptions): Promise<void> {
     const api = this.manager.getApiClient();
-
-    const sendPlayRequest = async (items: BaseItemDto[]) => {
-      const queue = items
-        .map((item) => item.Id)
-        .filter((id): id is string => typeof id === "string");
-      await getSyncPlayApi(api).syncPlaySetNewQueue({
-        playRequestDto: {
-          PlayingQueue: queue,
-          PlayingItemPosition: options.startIndex ?? 0,
-          StartPositionTicks: options.startPositionTicks ?? 0,
-        },
-      });
-    };
-
     try {
+      const user = this.manager.getUser();
+      if (!user?.Id)
+        throw new Error("SyncPlay: no authenticated user for playback");
       const sourceItems = options.items
         ? options.items
-        : await getItemsForPlayback(api, options.ids ?? []);
-      const items = await translateItemsForPlayback(api, sourceItems, options);
-      await sendPlayRequest(items);
+        : await getItemsForPlayback(api, user, options.ids ?? []);
+      const items = await translateItemsForPlayback(
+        api,
+        user,
+        sourceItems,
+        options,
+      );
+      const request: PlayRequestDto = {
+        PlayingQueue: items.flatMap((item) => (item.Id ? [item.Id] : [])),
+        PlayingItemPosition: options.startIndex ?? 0,
+        StartPositionTicks: options.startPositionTicks ?? 0,
+      };
+      await getSyncPlayApi(api).syncPlaySetNewQueue({
+        playRequestDto: request,
+      });
     } catch (error) {
       console.error("SyncPlay Controller.play failed", error);
       throw error;
@@ -166,7 +169,7 @@ export class Controller {
     const queueEntry = this.manager
       .getQueueCore()
       .getPlaylist()
-      .find((q) => q.Id === item.Id);
+      .find((q) => q.ItemId === itemId);
     if (queueEntry?.PlaylistItemId) {
       this.setCurrentPlaylistItem(queueEntry.PlaylistItemId);
       return;

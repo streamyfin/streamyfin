@@ -1,3 +1,4 @@
+import type { ReadyRequestDto } from "@jellyfin/sdk/lib/generated-client";
 import { getSyncPlayApi } from "@jellyfin/sdk/lib/utils/api";
 import { SYNC_PLAY_TUNING } from "@/constants/SyncPlay";
 import { msToTicks, ticksToMs } from "../constants";
@@ -62,7 +63,7 @@ export class PlaybackCore extends EventEmitter {
   async reportBuffering(isBuffering: boolean): Promise<void> {
     if (!this.manager.canControlCurrentItem()) return;
     const player = this.manager.getPlayerWrapper();
-    const request = {
+    const request: ReadyRequestDto = {
       When: this.manager
         .getTimeSync()
         .localDateToRemote(new Date())
@@ -88,9 +89,10 @@ export class PlaybackCore extends EventEmitter {
   }
 
   applyCommand(command: PlaybackCommand): void {
+    const positionTicks = command.PositionTicks ?? 0;
     const duplicate =
       this.lastCommand?.Command === command.Command &&
-      this.lastCommand.When.getTime() === command.When.getTime() &&
+      Date.parse(this.lastCommand.When) === Date.parse(command.When) &&
       this.lastCommand.PositionTicks === command.PositionTicks &&
       this.lastCommand.PlaylistItemId === command.PlaylistItemId;
     const player = this.manager.getPlayerWrapper();
@@ -98,7 +100,7 @@ export class PlaybackCore extends EventEmitter {
     if (duplicate) {
       if (this.operation) return;
       const atTarget =
-        Math.abs(player.currentTime() - ticksToMs(command.PositionTicks)) <=
+        Math.abs(player.currentTime() - ticksToMs(positionTicks)) <=
         SYNC_PLAY_TUNING.commandPositionToleranceMs;
       if (command.Command === "Unpause" && player.isPlaying()) return;
       if (command.Command === "Pause" && !player.isPlaying() && atTarget)
@@ -136,19 +138,19 @@ export class PlaybackCore extends EventEmitter {
     command: PlaybackCommand,
     signal: AbortSignal,
   ): Promise<void> {
-    const localWhen = this.manager
-      .getTimeSync()
-      .remoteDateToLocal(command.When);
+    const when = new Date(command.When);
+    const positionTicks = command.PositionTicks ?? 0;
+    const localWhen = this.manager.getTimeSync().remoteDateToLocal(when);
     const player = this.manager.getPlayerWrapper();
     const future = localWhen.getTime() > Date.now();
 
     if (command.Command === "Unpause" && future) {
       // Do not seek on every scheduled resume: MPV reports loading for seeks.
       if (
-        Math.abs(player.currentTime() - ticksToMs(command.PositionTicks)) >
+        Math.abs(player.currentTime() - ticksToMs(positionTicks)) >
         SYNC_PLAY_TUNING.minDelaySkipToSync
       ) {
-        player.localSeek(command.PositionTicks);
+        player.localSeek(positionTicks);
       }
       this.emit("osd", "schedule-play");
     } else if (command.Command === "Pause" && future) {
@@ -161,10 +163,7 @@ export class PlaybackCore extends EventEmitter {
       case "Unpause":
         await this.changePlaying(true, signal);
         if (!future) {
-          const target = this.estimateCurrentTicks(
-            command.PositionTicks,
-            command.When,
-          );
+          const target = this.estimateCurrentTicks(positionTicks, when);
           if (
             Math.abs(player.currentTime() - ticksToMs(target)) >
             SYNC_PLAY_TUNING.minDelaySkipToSync
@@ -177,7 +176,7 @@ export class PlaybackCore extends EventEmitter {
       case "Pause":
         await this.changePlaying(false, signal);
         throwIfAborted(signal);
-        player.localSeek(command.PositionTicks);
+        player.localSeek(positionTicks);
         this.emit("osd", "pause");
         break;
       case "Seek": {
@@ -192,7 +191,7 @@ export class PlaybackCore extends EventEmitter {
           ["playbackerror"],
           signal,
         );
-        player.localSeek(command.PositionTicks);
+        player.localSeek(positionTicks);
         await ready;
         throwIfAborted(signal);
         await this.changePlaying(false, signal);
@@ -269,10 +268,6 @@ export class PlaybackCore extends EventEmitter {
     this.clearScheduledCommand();
     this.lastCommand = null;
     this.requestedPlaying = null;
-  }
-
-  getLastCommand(): PlaybackCommand | null {
-    return this.lastCommand;
   }
 
   estimateCurrentTicks(positionTicks: number, when: Date): number {

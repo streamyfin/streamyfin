@@ -1,4 +1,4 @@
-import { describe, expect, spyOn, test } from "bun:test";
+import { describe, expect, mock, spyOn, test } from "bun:test";
 import {
   EventEmitter,
   EventWaitTimeoutError,
@@ -7,6 +7,33 @@ import {
 } from "./EventEmitter";
 
 describe("cancellable native player event waits", () => {
+  test("reused emitter isolates listener errors and keeps subscriptions independent", () => {
+    const events = new EventEmitter();
+    const failure = new Error("listener failed");
+    const broken = () => {
+      throw failure;
+    };
+    const healthy = mock(() => {});
+    const logged = spyOn(console, "error").mockImplementation(() => {});
+    try {
+      events.on("ready", broken);
+      events.on("ready", healthy);
+      events.on("ready", healthy);
+      events.emit("ready");
+      expect(healthy).toHaveBeenCalledTimes(1);
+      expect(logged).toHaveBeenCalledWith(
+        'SyncPlay EventEmitter: handler for "ready" threw',
+        failure,
+      );
+      events.off("ready", broken);
+      events.off("ready", healthy);
+      events.emit("ready");
+      expect(healthy).toHaveBeenCalledTimes(1);
+    } finally {
+      logged.mockRestore();
+    }
+  });
+
   test("subscribes before synchronous player callbacks and cleans up afterward", async () => {
     const events = new EventEmitter();
     const off = spyOn(events, "off");
