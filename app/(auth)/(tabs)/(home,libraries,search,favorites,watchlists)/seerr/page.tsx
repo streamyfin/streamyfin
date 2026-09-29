@@ -190,14 +190,11 @@ const MobilePage: React.FC = () => {
       // TMDB sends null for a show it has no TVDB id for, and the request
       // schema takes a number or nothing.
       tvdbId: details?.externalIds?.tvdbId ?? undefined,
-      ...(mediaType === MediaType.TV && {
-        seasons: (details as TvDetails)?.seasons
-          ?.filter?.((s) => s.seasonNumber !== 0)
-          ?.map?.((s) => s.seasonNumber),
-      }),
+      // A series opens Seerr's season table with nothing chosen yet.
+      ...(mediaType === MediaType.TV && { seasons: [] }),
     };
 
-    if (hasAdvancedRequestPermission) {
+    if (hasAdvancedRequestPermission || mediaType === MediaType.TV) {
       setRequestBody(body);
       return;
     }
@@ -471,6 +468,10 @@ const MobilePage: React.FC = () => {
         id={result.id!}
         type={mediaType}
         isAnime={isAnime}
+        details={
+          mediaType === MediaType.TV ? (details as TvDetails) : undefined
+        }
+        advanced={hasAdvancedRequestPermission}
         onRequested={() => {
           _setRequestBody(undefined);
           advancedReqModalRef?.current?.close();

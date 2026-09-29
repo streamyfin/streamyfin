@@ -963,6 +963,22 @@
       "request_declined": "Request declined!",
       "failed_to_approve_request": "Failed to approve request",
       "failed_to_decline_request": "Failed to decline request"
+    },
+    "request_series": "Request series",
+    "request_approved_automatically": "This request will be approved automatically.",
+    "request_n_seasons_one": "Request {{count}} season",
+    "request_n_seasons_other": "Request {{count}} seasons",
+    "request_n_seasons": "Request {{count}} seasons",
+    "already_requested": "Already requested",
+    "season_column": "Season",
+    "episodes_column": "Episodes",
+    "specials": "Specials",
+    "season_badge": {
+      "not_requested": "Not requested",
+      "pending": "Pending",
+      "requested": "Requested",
+      "partially_available": "Partially available",
+      "available": "Available"
     }
   },
   "awards": {

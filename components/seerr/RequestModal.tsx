@@ -2,24 +2,34 @@ import {
   BottomSheetBackdrop,
   type BottomSheetBackdropProps,
   BottomSheetModal,
-  BottomSheetView,
+  BottomSheetScrollView,
 } from "@gorhom/bottom-sheet";
 import type { BottomSheetModalMethods } from "@gorhom/bottom-sheet/lib/typescript/types";
 import { useQuery } from "@tanstack/react-query";
-import { forwardRef, useCallback, useMemo, useState } from "react";
+import { forwardRef, useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { View, type ViewProps } from "react-native";
+import { useWindowDimensions, View, type ViewProps } from "react-native";
 import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
 import { PlatformDropdown } from "@/components/PlatformDropdown";
+import { SeasonRequestTable } from "@/components/seerr/SeasonRequestTable";
+import { SHEET_MAX_HEIGHT_RATIO } from "@/constants/Values";
 import { useSeerr } from "@/hooks/useSeerr";
 import { writeDebugLog } from "@/utils/log";
+import { hasPermission, Permission } from "@/utils/seerr/permissions";
+import {
+  seasonRows,
+  toggleAllSeasons,
+  toggleSeason,
+  unrequestedSeasons,
+} from "@/utils/seerr/seasons";
 import type {
   MediaRequestBody,
   MediaType,
   QualityProfile,
   RootFolder,
   ServarrTag as Tag,
+  TvDetails,
 } from "@/utils/seerr/types";
 
 interface Props {
@@ -29,6 +39,10 @@ interface Props {
   type: MediaType;
   isAnime?: boolean;
   is4k?: boolean;
+  /** A series' details: its seasons are chosen here, as on Seerr. */
+  details?: TvDetails;
+  /** Whether the user may pick the server, profile, folder, tags and user. */
+  advanced?: boolean;
   onRequested?: () => void;
   onDismiss?: () => void;
 }
@@ -38,10 +52,22 @@ const RequestModal = forwardRef<
   Props & Omit<ViewProps, "id">
 >(
   (
-    { id, title, requestBody, type, isAnime = false, onRequested, onDismiss },
+    {
+      id,
+      title,
+      requestBody,
+      type,
+      isAnime = false,
+      details,
+      advanced = true,
+      onRequested,
+      onDismiss,
+    },
     ref,
   ) => {
     const { seerrApi, seerrUser, requestMedia } = useSeerr();
+    const { height: windowHeight } = useWindowDimensions();
+    const isSeries = type === "tv" && !!details;
     const [requestOverrides, setRequestOverrides] = useState<MediaRequestBody>({
       mediaId: Number(id),
       mediaType: type,
@@ -54,6 +80,45 @@ const RequestModal = forwardRef<
     const [usersOpen, setUsersOpen] = useState(false);
 
     const { t } = useTranslation();
+
+    const rows = useMemo(
+      () => (isSeries && details ? seasonRows(details) : []),
+      [isSeries, details],
+    );
+    const unrequested = useMemo(
+      () => (isSeries && details ? unrequestedSeasons(details) : []),
+      [isSeries, details],
+    );
+    const [selectedSeasons, setSelectedSeasons] = useState<number[]>([]);
+
+    // The switches start from what the modal was opened with: none from the
+    // request button, as on Seerr, and one from a season's own button.
+    useEffect(() => {
+      const opened = requestBody?.seasons ?? [];
+      setSelectedSeasons(
+        opened === "all"
+          ? unrequested
+          : opened.filter((season) => unrequested.includes(season)),
+      );
+    }, [requestBody, unrequested]);
+
+    // Seerr's isAllSeasons, which leaves the specials out of the count.
+    const allSelected =
+      selectedSeasons.filter((season) => season !== 0).length ===
+      unrequested.filter((season) => season !== 0).length;
+
+    const approvedAutomatically =
+      isSeries &&
+      unrequested.length > 0 &&
+      hasPermission(
+        [
+          Permission.MANAGE_REQUESTS,
+          Permission.AUTO_APPROVE,
+          Permission.AUTO_APPROVE_TV,
+        ],
+        seerrUser?.permissions ?? 0,
+        { type: "or" },
+      );
 
     // Reset all dropdown states when modal closes
     const handleDismiss = useCallback(() => {
@@ -68,14 +133,14 @@ const RequestModal = forwardRef<
       queryKey: ["seerr", "request", type, "service"],
       queryFn: async () =>
         seerrApi?.service(type === "movie" ? "radarr" : "sonarr"),
-      enabled: !!seerrApi && !!seerrUser,
+      enabled: advanced && !!seerrApi && !!seerrUser,
       refetchOnMount: "always",
     });
 
     const { data: users } = useQuery({
       queryKey: ["seerr", "users"],
       queryFn: async () => seerrApi?.user({ take: 1000, sort: "displayname" }),
-      enabled: !!seerrApi && !!seerrUser,
+      enabled: advanced && !!seerrApi && !!seerrUser,
       refetchOnMount: "always",
     });
 
@@ -103,7 +168,7 @@ const RequestModal = forwardRef<
           defaultService!.id,
         );
       },
-      enabled: !!seerrApi && !!seerrUser && !!defaultService,
+      enabled: advanced && !!seerrApi && !!seerrUser && !!defaultService,
       refetchOnMount: "always",
     });
 
@@ -271,28 +336,47 @@ const RequestModal = forwardRef<
 
     const request = useCallback(() => {
       const body = {
-        is4k: defaultService?.is4k || defaultServiceDetails?.server.is4k,
-        profileId: defaultProfile?.id,
-        rootFolder: defaultFolder?.path,
-        tags: defaultTags.map((t) => t.id),
+        // Only a user who may choose them sends a server, profile, folder,
+        // tags or another user: Seerr picks its defaults for everyone else.
+        ...(advanced && {
+          is4k: defaultService?.is4k || defaultServiceDetails?.server.is4k,
+          profileId: defaultProfile?.id,
+          rootFolder: defaultFolder?.path,
+          tags: defaultTags.map((t) => t.id),
+        }),
         ...requestBody,
-        ...requestOverrides,
-      };
+        ...(advanced && requestOverrides),
+        ...(isSeries && {
+          seasons: [...selectedSeasons].sort((a, b) => a - b),
+        }),
+      } as MediaRequestBody;
 
-      writeDebugLog("Sending Seerr advanced request", body);
+      writeDebugLog("Sending Seerr request", body);
 
       requestMedia(
-        seasonTitle ? `${title}, ${seasonTitle}` : title,
+        !isSeries && seasonTitle ? `${title}, ${seasonTitle}` : title,
         body,
         onRequested,
       );
     }, [
+      advanced,
+      isSeries,
+      selectedSeasons,
       requestBody,
       requestOverrides,
       defaultProfile,
       defaultFolder,
       defaultTags,
     ]);
+
+    // Seerr's button: nothing left to ask for, nothing chosen yet, or how many.
+    const requestLabel = !isSeries
+      ? t("seerr.request_button")
+      : unrequested.length === 0
+        ? t("seerr.already_requested")
+        : selectedSeasons.length === 0
+          ? t("seerr.select_seasons")
+          : t("seerr.request_n_seasons", { count: selectedSeasons.length });
 
     return (
       <BottomSheetModal
@@ -314,19 +398,48 @@ const RequestModal = forwardRef<
           />
         )}
         stackBehavior='push'
+        maxDynamicContentSize={windowHeight * SHEET_MAX_HEIGHT_RATIO}
       >
-        <BottomSheetView>
+        <BottomSheetScrollView>
           <View className='flex flex-col space-y-4 px-4 pb-8 pt-2'>
             <View>
               <Text className='font-bold text-2xl text-neutral-100'>
-                {t("seerr.advanced")}
+                {isSeries ? t("seerr.request_series") : t("seerr.advanced")}
               </Text>
-              {seasonTitle && (
-                <Text className='text-neutral-300'>{seasonTitle}</Text>
+              {isSeries ? (
+                <Text className='text-neutral-300'>{title}</Text>
+              ) : (
+                seasonTitle && (
+                  <Text className='text-neutral-300'>{seasonTitle}</Text>
+                )
               )}
             </View>
+            {approvedAutomatically && (
+              <View className='rounded-xl border border-indigo-500/40 bg-indigo-500/20 px-3 py-2'>
+                <Text className='text-sm text-neutral-100'>
+                  {t("seerr.request_approved_automatically")}
+                </Text>
+              </View>
+            )}
+            {isSeries && (
+              <SeasonRequestTable
+                rows={rows}
+                selected={selectedSeasons}
+                allSelected={allSelected}
+                onToggle={(season) =>
+                  setSelectedSeasons((selected) =>
+                    toggleSeason(selected, season, unrequested),
+                  )
+                }
+                onToggleAll={() =>
+                  setSelectedSeasons((selected) =>
+                    toggleAllSeasons(selected, unrequested),
+                  )
+                }
+              />
+            )}
             <View className='flex flex-col space-y-2'>
-              {defaultService && defaultServiceDetails && users && (
+              {advanced && defaultService && defaultServiceDetails && users && (
                 <>
                   <View className='flex flex-col'>
                     <Text className='opacity-50 mb-1 text-xs'>
@@ -425,11 +538,16 @@ const RequestModal = forwardRef<
                 </>
               )}
             </View>
-            <Button className='mt-auto' onPress={request} color='purple'>
-              {t("seerr.request_button")}
+            <Button
+              className='mt-auto'
+              onPress={request}
+              color='purple'
+              disabled={isSeries && selectedSeasons.length === 0}
+            >
+              {requestLabel}
             </Button>
           </View>
-        </BottomSheetView>
+        </BottomSheetScrollView>
       </BottomSheetModal>
     );
   },

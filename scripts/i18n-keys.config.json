@@ -43,6 +43,8 @@
     "home.settings.logs.delete_all_logs",
     "home.suggested_episodes",
     "custom_headers.header_count_one",
-    "custom_headers.header_count_other"
+    "custom_headers.header_count_other",
+    "seerr.request_n_seasons_one",
+    "seerr.request_n_seasons_other"
   ]
 }
