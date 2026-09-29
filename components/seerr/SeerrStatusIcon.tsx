@@ -20,7 +20,7 @@ const SeerrStatusIcon: React.FC<Props & ViewProps> = ({
   const [badgeStyle, setBadgeStyle] = useState<string>();
 
   // Match similar to what Seerr is currently using
-  // https://github.com/Fallenbagel/jellyseerr/blob/8a097d5195749c8d1dca9b473b8afa96a50e2fe2/src/components/Common/StatusBadgeMini/index.tsx#L33C1-L62C4
+  // https://github.com/seerr-team/seerr/blob/8a097d5195749c8d1dca9b473b8afa96a50e2fe2/src/components/Common/StatusBadgeMini/index.tsx#L33C1-L62C4
   useEffect(() => {
     switch (mediaStatus) {
       case MediaStatus.PROCESSING:

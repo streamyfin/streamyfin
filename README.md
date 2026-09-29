@@ -20,7 +20,7 @@
   &nbsp;
   <img src="./assets/images/screenshots/screenshot2.png" width="20%">
   &nbsp;
-  <img src="./assets/images/jellyseerr.PNG" width="21%">
+  <img src="./assets/images/seerr.png" width="21%">
 </p>
 
 
