@@ -29,6 +29,46 @@ function fixture() {
 }
 
 describe("server queue to native presentation", () => {
+  test("clearing the selected item releases manager preparation as well as its waiter", () => {
+    const { api, manager, queue } = fixture();
+    queue.scheduleReadyRequestOnPlaybackStart(api, "test");
+    expect(manager.isPreparingPlayback()).toBe(true);
+    queue.setCurrentPlaylistItem(api, null);
+    expect(manager.isPreparingPlayback()).toBe(false);
+  });
+
+  test("playback uses the handler that accepted the request, even if registration changes", async () => {
+    const { manager } = fixture();
+    const handler = mock(() => {});
+    const player = manager.getPlayerWrapper();
+    player.setLocalPlayHandler(handler);
+    const options = { ids: ["episode"], startIndex: 0, startPositionTicks: 0 };
+    const started = player.localPlay(options);
+    player.setLocalPlayHandler(null);
+    await started;
+    expect(handler).toHaveBeenCalledWith(options);
+  });
+
+  test("a failed navigation reports one startup error rather than duplicate toasts", async () => {
+    const { api, manager, queue } = fixture();
+    queue.onPlayQueueUpdate({
+      LastUpdate: new Date().toISOString(),
+      PlayingItemIndex: 0,
+      Playlist: [{ ItemId: "episode", PlaylistItemId: "slot" }],
+    });
+    const toast = mock(() => {});
+    manager.on("toast", toast);
+    manager
+      .getPlayerWrapper()
+      .setLocalPlayHandler(() =>
+        Promise.reject(new Error("presentation failed")),
+      );
+    queue.startPlayback(api);
+    await settle();
+    expect(toast).toHaveBeenCalledTimes(1);
+    expect(toast).toHaveBeenCalledWith("MessageSyncPlayErrorMedia");
+  });
+
   test("NewPlaylist immediately opens its selected item without fetching the whole queue", async () => {
     const { api, manager } = fixture();
     const presented = mock((itemId: string) => {

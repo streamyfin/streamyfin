@@ -1,19 +1,24 @@
-import { afterEach, describe, expect, mock, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { SYNC_PLAY_TUNING } from "@/constants/SyncPlay";
+import { controlledTimers } from "@/test-utils/controlledTimers";
 import { createBufferingDebouncer } from "./bufferingDebouncer";
 
 const adapters: ReturnType<typeof createBufferingDebouncer>[] = [];
+let clock: ReturnType<typeof controlledTimers>;
+beforeEach(() => {
+  clock = controlledTimers();
+});
 const makeAdapter = () => {
   const emit = mock((_buffering: boolean) => {});
   const adapter = createBufferingDebouncer(emit);
   adapters.push(adapter);
   return { ...adapter, emit };
 };
-const sleep = (ms: number) =>
-  new Promise<void>((resolve) => setTimeout(resolve, ms));
+const sleep = (ms: number) => clock.advance(ms);
 
 afterEach(() => {
   for (const adapter of adapters.splice(0)) adapter.dispose();
+  clock.restore();
 });
 
 describe("native waiting/playing event adaptation", () => {

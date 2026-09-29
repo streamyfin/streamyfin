@@ -128,6 +128,15 @@ export class SyncPlayManager extends EventEmitter {
       console.warn("SyncPlay processGroupUpdate: empty update");
       return;
     }
+    if (
+      update.Type !== "GroupJoined" &&
+      "GroupId" in update &&
+      update.GroupId &&
+      update.GroupId !== this.groupInfo?.GroupId
+    ) {
+      console.debug("SyncPlay: ignoring update for another group");
+      return;
+    }
     switch (update.Type) {
       case "PlayQueue":
         if (update.Data)
@@ -170,6 +179,12 @@ export class SyncPlayManager extends EventEmitter {
       case "GroupUpdate": {
         if (!update.Data) {
           console.error("SyncPlay: GroupUpdate has no data");
+          return;
+        }
+        if (update.Data.GroupId !== this.groupInfo?.GroupId) {
+          console.warn(
+            "SyncPlay: group identity may only change through GroupJoined",
+          );
           return;
         }
         const previousState = this.groupInfo?.State;
@@ -261,7 +276,7 @@ export class SyncPlayManager extends EventEmitter {
     };
     this.lastPlaybackCommand = normalized;
     this.queuedCommand = normalized;
-    if (normalized.Command === "Unpause" || normalized.Command === "Pause") {
+    if (normalized.Command === this.pendingPlaybackTracker.get()) {
       this.pendingPlaybackTracker.clear();
     }
     this.applyQueuedCommand();

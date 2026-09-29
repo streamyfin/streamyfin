@@ -241,7 +241,6 @@ export class QueueCore {
       .catch((error: unknown) => {
         console.error("SyncPlay startPlayback: localPlay failed", error);
         this.manager.notifyPlaybackError(error);
-        this.manager.emit("toast", "MessageSyncPlayErrorMedia");
       });
   }
 
@@ -255,6 +254,7 @@ export class QueueCore {
     }
     if (!playlistItemId) {
       this.cancelPlaybackPreparation();
+      this.manager.completePlaybackPreparation();
       this.manager.getPlayerWrapper().localStop();
       return;
     }

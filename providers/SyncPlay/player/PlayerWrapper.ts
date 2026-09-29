@@ -99,12 +99,13 @@ export class PlayerWrapper {
   }
 
   localPlay(options: LocalPlayOptions): Promise<void> {
-    if (!this.localPlayHandler) {
+    const handler = this.localPlayHandler;
+    if (!handler) {
       return Promise.reject(
         new Error("SyncPlay playback navigator is not registered"),
       );
     }
-    return Promise.resolve().then(() => this.localPlayHandler?.(options));
+    return Promise.resolve().then(() => handler(options));
   }
 
   localSetCurrentPlaylistItem(playlistItemId: string | null): void {

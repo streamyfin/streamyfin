@@ -7,6 +7,7 @@ import {
   getUserLibraryApi,
 } from "@jellyfin/sdk/lib/utils/api";
 import { SYNC_PLAY_QUEUE_LIMIT } from "@/constants/SyncPlay";
+import { shuffle } from "@/utils/shuffle";
 
 export type TranslateOptions = {
   ids?: string[];
@@ -19,16 +20,33 @@ async function queryItems(
   user: UserDto,
   params: ItemsApiGetItemsRequest,
 ) {
-  const response = await getItemsApi(api).getItems({
-    limit: SYNC_PLAY_QUEUE_LIMIT,
-    fields: ["Chapters", "Trickplay"],
-    excludeLocationTypes: ["Virtual"],
-    enableTotalRecordCount: false,
-    collapseBoxSetItems: false,
-    ...params,
-    userId: user.Id,
-  });
-  return response.data.Items ?? [];
+  const random = params.sortBy?.includes("Random") ?? false;
+  const items: BaseItemDto[] = [];
+  let startIndex = params.startIndex ?? 0;
+  const requestedLimit = params.limit ?? Number.POSITIVE_INFINITY;
+  while (items.length < requestedLimit) {
+    const limit = Math.min(
+      SYNC_PLAY_QUEUE_LIMIT,
+      requestedLimit - items.length,
+    );
+    const response = await getItemsApi(api).getItems({
+      fields: ["Chapters", "Trickplay"],
+      excludeLocationTypes: ["Virtual"],
+      enableTotalRecordCount: false,
+      collapseBoxSetItems: false,
+      ...params,
+      // Randomizing each server page can repeat/omit items across pages.
+      sortBy: random ? ["SortName"] : params.sortBy,
+      startIndex,
+      limit,
+      userId: user.Id,
+    });
+    const page = response.data.Items ?? [];
+    items.push(...page);
+    if (page.length < limit) break;
+    startIndex += page.length;
+  }
+  return random ? shuffle(items) : items;
 }
 
 export async function getItemsForPlayback(

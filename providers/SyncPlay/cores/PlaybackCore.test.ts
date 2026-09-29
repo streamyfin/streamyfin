@@ -1,17 +1,30 @@
-import { afterEach, describe, expect, mock, spyOn, test } from "bun:test";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  mock,
+  spyOn,
+  test,
+} from "bun:test";
 import type { SendCommand } from "@jellyfin/sdk/lib/generated-client";
 import { SYNC_PLAY_TUNING } from "@/constants/SyncPlay";
+import { controlledTimers } from "@/test-utils/controlledTimers";
 import { makeApi } from "@/test-utils/jellyfinApi";
 import { SyncPlayManager } from "../Manager";
 import type { PlayerControls } from "../types";
 
 const managers: SyncPlayManager[] = [];
+let clock: ReturnType<typeof controlledTimers>;
+beforeEach(() => {
+  clock = controlledTimers();
+});
 afterEach(() => {
   for (const manager of managers.splice(0)) manager.destroy();
+  clock.restore();
 });
-const settle = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
-const sleep = (ms: number) =>
-  new Promise<void>((resolve) => setTimeout(resolve, ms));
+const settle = () => clock.flush();
+const sleep = (ms: number) => clock.advance(ms);
 
 async function fixture({ clockReady = true, attach = true } = {}) {
   const api = makeApi();
@@ -284,6 +297,41 @@ describe("SyncPlay upstream event ordering", () => {
 });
 
 describe("SyncPlay command ownership", () => {
+  test("an unrelated or duplicate command cannot acknowledge a newer pending pause", async () => {
+    const f = await fixture();
+    const unpause = f.command("Unpause");
+    f.manager.processCommand(unpause);
+    await settle();
+    f.manager.markPendingPlaybackCommand("Pause");
+    f.manager.processCommand(unpause);
+    expect(f.manager.isPlaying()).toBe(false);
+    f.manager.processCommand(f.command("Unpause"));
+    expect(f.manager.isPlaying()).toBe(false);
+    f.manager.processCommand(f.command("Pause"));
+    await settle();
+    expect(f.manager.isPlaying()).toBe(false);
+  });
+
+  test("group updates cannot change group identity without a joined transition", async () => {
+    const f = await fixture();
+    const warn = spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      f.manager.processGroupUpdate({
+        Type: "GroupUpdate",
+        Data: { GroupId: "other-group", State: "Playing" },
+      });
+      expect(f.manager.getGroupInfo()?.GroupId).toBe("group-1");
+      expect(f.manager.getQueueCore().getCurrentItemId()).toBe("movie-1");
+      f.manager.processGroupUpdate({
+        Type: "GroupLeft",
+        GroupId: "other-group",
+      });
+      expect(f.manager.isSyncPlayEnabled()).toBe(true);
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
   test("ping reports use whole milliseconds accepted by the server's Int64 DTO", async () => {
     const f = await fixture({ clockReady: false });
     f.api.mock.resetHandlers();

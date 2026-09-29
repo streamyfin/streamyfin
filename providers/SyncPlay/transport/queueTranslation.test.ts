@@ -13,6 +13,71 @@ const user: UserDto = {
 };
 
 describe("SDK queue requests reuse authenticated user data", () => {
+  test("container expansion includes entries after the first page", async () => {
+    const api = makeApi();
+    const items = Array.from({ length: 650 }, (_, index) => ({
+      Id: `item-${index}`,
+    }));
+    api.mock.onGet(/\/Items\?/).reply((config) => {
+      const query = new URL(config.url!).searchParams;
+      const start = Number(query.get("startIndex") ?? 0);
+      const limit = Number(query.get("limit") ?? items.length);
+      return [200, { Items: items.slice(start, start + limit) }];
+    });
+    expect(
+      await translateItemsForPlayback(api, user, [
+        { Id: "series", IsFolder: true },
+      ]),
+    ).toEqual(items);
+    expect(api.mock.history.get).toHaveLength(3);
+  });
+
+  test("multi-ID playback resolves every requested item without a 300-item cap", async () => {
+    const api = makeApi();
+    const items = Array.from({ length: 350 }, (_, index) => ({
+      Id: `item-${index}`,
+    }));
+    api.mock.onGet(/\/Items\?/).reply((config) => {
+      const query = new URL(config.url!).searchParams;
+      const start = Number(query.get("startIndex") ?? 0);
+      const limit = Number(query.get("limit") ?? items.length);
+      return [200, { Items: items.slice(start, start + limit) }];
+    });
+    expect(
+      await getItemsForPlayback(
+        api,
+        user,
+        items.map((item) => item.Id),
+      ),
+    ).toEqual(items);
+  });
+
+  test("shuffled pagination fetches a stable complete set before shuffling", async () => {
+    const api = makeApi();
+    const items = Array.from({ length: 350 }, (_, index) => ({
+      Id: `item-${index}`,
+    }));
+    api.mock.onGet(/\/Items\?/).reply((config) => {
+      const query = new URL(config.url!).searchParams;
+      expect(query.get("sortBy")).toBe("SortName");
+      const start = Number(query.get("startIndex") ?? 0);
+      return [
+        200,
+        { Items: items.slice(start, start + Number(query.get("limit"))) },
+      ];
+    });
+    const result = await translateItemsForPlayback(
+      api,
+      user,
+      [{ Id: "playlist", Type: "Playlist" }],
+      { shuffle: true },
+    );
+    expect(new Set(result.map((item) => item.Id))).toEqual(
+      new Set(items.map((item) => item.Id)),
+    );
+    expect(result).toHaveLength(350);
+  });
+
   test("starting an item uses SDK requests without fetching the current user again", async () => {
     const api = makeApi();
     api.mock
@@ -120,6 +185,6 @@ describe("SDK queue requests reuse authenticated user data", () => {
     ).toEqual([{ Id: "playlist-item" }]);
     const query = new URL(api.mock.history.get[1].url!).searchParams;
     expect(query.get("parentId")).toBe("playlist");
-    expect(query.get("sortBy")).toBe("Random");
+    expect(query.get("sortBy")).toBe("SortName");
   });
 });
