@@ -9,6 +9,14 @@ const provider = readFileSync(
   "utf8",
 );
 
+test("SyncPlay uses the shared header button without adding its own gap", () => {
+  expect(button).toContain('from "@/components/common/HeaderButton"');
+  expect(button).toContain("size = HEADER_ICON_SIZE");
+  expect(button).toContain("<HeaderButton onPress={handlePress}>");
+  expect(button).not.toContain("mr-4");
+  expect(button).not.toContain("<Pressable");
+});
+
 describe("native SyncPlay sheet presentation ordering", () => {
   test("join, create and resume wait for sheet dismissal before triggering playback", () => {
     expect(menu).toMatch(/await onClose\(\);\s*await joinGroup\(groupId\)/);

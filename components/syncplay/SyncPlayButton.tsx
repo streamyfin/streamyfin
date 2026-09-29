@@ -22,9 +22,12 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useCallback, useEffect, useRef } from "react";
 import { Platform, View } from "react-native";
-import { Pressable } from "react-native-gesture-handler";
 import { useCastDevice } from "react-native-google-cast";
 import { toast } from "sonner-native";
+import {
+  HEADER_ICON_SIZE,
+  HeaderButton,
+} from "@/components/common/HeaderButton";
 import { useNetworkStatus } from "@/providers/NetworkStatusProvider";
 import { useSyncPlay } from "@/providers/SyncPlay";
 import { GroupSelectionMenu } from "./GroupSelectionMenu";
@@ -33,7 +36,9 @@ interface SyncPlayButtonProps {
   size?: number;
 }
 
-export function SyncPlayButton({ size = 22 }: SyncPlayButtonProps) {
+export function SyncPlayButton({
+  size = HEADER_ICON_SIZE,
+}: SyncPlayButtonProps) {
   const { isEnabled, canJoinGroups, registerPlaybackPresentationGuard } =
     useSyncPlay();
   const { isConnected } = useNetworkStatus();
@@ -105,11 +110,7 @@ export function SyncPlayButton({ size = 22 }: SyncPlayButtonProps) {
 
   return (
     <>
-      <Pressable
-        className='mr-4'
-        onPress={handlePress}
-        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-      >
+      <HeaderButton onPress={handlePress}>
         <View className='relative'>
           <Ionicons
             name={isEnabled ? "people" : "people-outline"}
@@ -126,7 +127,7 @@ export function SyncPlayButton({ size = 22 }: SyncPlayButtonProps) {
             />
           )}
         </View>
-      </Pressable>
+      </HeaderButton>
       <BottomSheetModal
         ref={sheetRef}
         onDismiss={handleDidDismiss}
