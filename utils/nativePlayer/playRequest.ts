@@ -1,5 +1,5 @@
 /**
- * A normalized "play this item" request for the upcoming native iOS player.
+ * A normalized "play this item" request shared by native and React players.
  * Mirrors the query parameters the direct player screen already accepts so
  * both players can be driven from the same call sites.
  */
@@ -11,6 +11,8 @@ export interface PlayRequest {
   bitrateValue?: number;
   offline: boolean;
   playbackPositionTicks?: number;
+  /** Server-driven group playback: load paused until SyncPlay releases it. */
+  syncPlay?: boolean;
 }
 
 /**
@@ -29,5 +31,6 @@ export const toDirectPlayerQuery = (req: PlayRequest): string => {
     playbackPosition: req.playbackPositionTicks?.toString() ?? "0",
     offline: req.offline ? "true" : "false",
   });
+  if (req.syncPlay) queryParams.set("syncPlay", "true");
   return queryParams.toString();
 };

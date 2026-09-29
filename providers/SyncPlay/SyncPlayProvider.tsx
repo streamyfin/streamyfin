@@ -37,6 +37,11 @@ import i18n from "@/i18n";
 import { getDownloadedItemById } from "@/providers/Downloads";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useWebSocketContext } from "@/providers/WebSocketProvider";
+import { logAndCaptureError } from "@/utils/log";
+import {
+  type PlayRequest,
+  toDirectPlayerQuery,
+} from "@/utils/nativePlayer/playRequest";
 import type { Controller as SyncPlayController } from "./Controller";
 import { SyncPlayManager } from "./Manager";
 import { useSyncPlayWebSocket } from "./transport/useSyncPlayWebSocket";
@@ -63,6 +68,10 @@ interface SyncPlayContextValue {
    * mid-group with `syncPlay=true` and the right offset.
    */
   resumeGroupPlayback: () => Promise<void>;
+  registerPlaybackNavigator: (
+    navigator: (request: PlayRequest) => Promise<boolean>,
+  ) => () => void;
+  registerPlaybackPresentationGuard: (guard: () => Promise<void>) => () => void;
 
   controller: SyncPlayController | null;
 
@@ -70,6 +79,8 @@ interface SyncPlayContextValue {
   notifyReady: () => void;
   notifyBuffering: (isBuffering: boolean) => void;
   notifyPlaybackStart: () => void;
+  notifyPlaybackState: (playing: boolean) => void;
+  notifyPlaybackError: (error: unknown) => void;
 
   pendingPlaybackCommand: "Unpause" | "Pause" | null;
   /**
@@ -92,7 +103,32 @@ export function SyncPlayProvider({ children }: SyncPlayProviderProps) {
   const { isConnected: isWsConnected } = useWebSocketContext();
 
   const [manager, setManager] = useState<SyncPlayManager | null>(null);
-  const isNavigatingToPlayerRef = useRef(false);
+  const navigationRequestRef = useRef(0);
+  const playbackNavigatorRef = useRef<
+    ((request: PlayRequest) => Promise<boolean>) | null
+  >(null);
+  const presentationGuardRef = useRef<(() => Promise<void>) | null>(null);
+  const registerPlaybackPresentationGuard = useCallback(
+    (guard: () => Promise<void>) => {
+      presentationGuardRef.current = guard;
+      return () => {
+        if (presentationGuardRef.current === guard)
+          presentationGuardRef.current = null;
+      };
+    },
+    [],
+  );
+  const registerPlaybackNavigator = useCallback(
+    (navigator: (request: PlayRequest) => Promise<boolean>) => {
+      playbackNavigatorRef.current = navigator;
+      return () => {
+        if (playbackNavigatorRef.current === navigator) {
+          playbackNavigatorRef.current = null;
+        }
+      };
+    },
+    [],
+  );
 
   // Keep a live ref of the current route pathname so the
   // navigateToPlayer helper (wired up once inside the manager-lifecycle
@@ -177,15 +213,12 @@ export function SyncPlayProvider({ children }: SyncPlayProviderProps) {
     [user?.Policy?.SyncPlayAccess],
   );
 
-  // Latch: `true` once we've fired the per-attach `playbackstart` event.
-  const playbackStartFiredRef = useRef(false);
-
   // ---------------------------------------------------------------------------
   // Navigation to the player screen
   // ---------------------------------------------------------------------------
 
   /*
-   * Single navigate-to-direct-player helper, used by every code path
+   * Shared native/React player navigation, used by every code path
    * that needs to (re-)open the player while in a SyncPlay group:
    *  - localPlay (group's leader started a new queue / we just joined)
    *  - localSetCurrentPlaylistItem (group advanced to next episode)
@@ -193,19 +226,15 @@ export function SyncPlayProvider({ children }: SyncPlayProviderProps) {
    *
    * Both jellyfin-web's playbackManager.play and its setCurrentPlaylistItem
    * collapse to "point the player at this item / position" — RN is the
-   * same shape, just a router navigation instead of an in-page DOM swap.
+   * same shape, using native presentation or a React route.
    *
    * Note: no "joining playback" toast here — the `GroupJoined`
    * WebSocket event already triggers a "Joined group" toast via
    * `Manager.ts`, and showing both on a fresh join was redundant.
    */
   const navigateToPlayer = useCallback(
-    (itemId: string, startPositionTicks: number) => {
-      if (isNavigatingToPlayerRef.current) {
-        console.debug("SyncPlay: already navigating to player");
-        return;
-      }
-      isNavigatingToPlayerRef.current = true;
+    async (itemId: string, startPositionTicks: number) => {
+      const requestId = ++navigationRequestRef.current;
 
       // Opportunistic local playback: if we have a downloaded copy of
       // the target item, use it instead of streaming. Matters most when
@@ -214,26 +243,42 @@ export function SyncPlayProvider({ children }: SyncPlayProviderProps) {
       // position/pause/seek commands keep flowing normally; only the
       // source changes.
       const isDownloaded = !!getDownloadedItemById(itemId);
-      const queryParams = new URLSearchParams({
+      const request: PlayRequest = {
         itemId,
-        playbackPosition: String(startPositionTicks),
-        syncPlay: "true",
-        ...(isDownloaded && { offline: "true" }),
-      }).toString();
-      // Use `replace` when we're already on the player screen so queue
-      // advances don't stack a second player on the nav stack; `push`
-      // otherwise so the user can back out to where they came from.
-      const onPlayerScreen =
-        pathnameRef.current?.startsWith("/player/direct-player") ?? false;
-      if (onPlayerScreen) {
-        router.replace(`/player/direct-player?${queryParams}`);
-      } else {
-        router.push(`/player/direct-player?${queryParams}`);
+        playbackPositionTicks: startPositionTicks,
+        syncPlay: true,
+        offline: isDownloaded,
+      };
+      try {
+        await presentationGuardRef.current?.();
+        if (requestId !== navigationRequestRef.current) return;
+        console.debug("SyncPlay: presenting player", {
+          itemId,
+          nativeNavigator: !!playbackNavigatorRef.current,
+        });
+        const onPlayerScreen =
+          pathnameRef.current?.startsWith("/player/direct-player") ?? false;
+        const handled =
+          !onPlayerScreen && (await playbackNavigatorRef.current?.(request));
+        console.debug("SyncPlay: presentation result", { itemId, handled });
+        if (handled || requestId !== navigationRequestRef.current) return;
+        const queryParams = toDirectPlayerQuery(request);
+        if (onPlayerScreen) {
+          router.replace(`/player/direct-player?${queryParams}`);
+        } else {
+          router.push(`/player/direct-player?${queryParams}`);
+        }
+      } catch (error) {
+        if (requestId !== navigationRequestRef.current) {
+          console.debug(
+            "SyncPlay: superseded presentation failed; keeping the newer request",
+          );
+          return;
+        }
+        logAndCaptureError("SyncPlay player navigation failed", error);
+        toast.error(i18n.t("syncplay.failed_to_start"));
+        throw error;
       }
-
-      setTimeout(() => {
-        isNavigatingToPlayerRef.current = false;
-      }, 2000);
     },
     [router],
   );
@@ -251,14 +296,15 @@ export function SyncPlayProvider({ children }: SyncPlayProviderProps) {
 
     const playerWrapper = mgr.getPlayerWrapper();
 
-    // localPlay → navigate to direct-player with syncPlay=true
+    // Server playback chooses native presentation or a syncPlay=true route.
     playerWrapper.setLocalPlayHandler((options) => {
-      const itemId = options.ids[0];
+      const itemId = options.ids[options.startIndex];
       if (!itemId) {
-        console.warn("SyncPlay: localPlay called with no ids");
-        return;
+        throw new Error(
+          `SyncPlay selected index ${options.startIndex} has no item`,
+        );
       }
-      navigateToPlayer(itemId, options.startPositionTicks ?? 0);
+      return navigateToPlayer(itemId, options.startPositionTicks ?? 0);
     });
 
     // localSetCurrentPlaylistItem → navigate to the new playlist item
@@ -276,13 +322,21 @@ export function SyncPlayProvider({ children }: SyncPlayProviderProps) {
         );
         return;
       }
-      navigateToPlayer(itemId, queueCore.getStartPositionTicks());
+      void navigateToPlayer(itemId, queueCore.getStartPositionTicks()).catch(
+        (error) => {
+          mgr.notifyPlaybackError(error);
+        },
+      );
     });
 
     mgr.on("enabled", (...args: unknown[]) => {
       const enabled = args[0] as boolean;
       setIsEnabled(enabled);
-      if (!enabled) setGroupInfo(null);
+      if (!enabled) {
+        navigationRequestRef.current++;
+        setGroupInfo(null);
+        showOsd(null);
+      }
     });
 
     mgr.on("group-update", (...args: unknown[]) => {
@@ -293,25 +347,13 @@ export function SyncPlayProvider({ children }: SyncPlayProviderProps) {
       setPendingPlaybackCommand(args[0] as "Unpause" | "Pause" | null);
     });
 
-    // group-state-change → on "Waiting", pause locally so we don't drift
-    // ahead of the group while the server is reconciling buffering/seek
-    // state. Position resync is *only* done from the explicit Pause /
-    // Unpause / Seek SendCommands that follow (`PlaybackCore.applyCommand`
-    // → `scheduleUnpause` etc.) — those commands carry the canonical
-    // `PositionTicks` for the action's `When`. The old code here also
-    // called `wrapper.localSeek(lastCommand.PositionTicks)`, but
-    // `lastCommand` is the *previous* Pause/Unpause and can be many
-    // seconds stale, so it rewound the user every time someone else
-    // buffered. Don't put a seek back here.
+    // StateUpdate drives presentation only. Transport follows SendCommand,
+    // otherwise Waiting/Seek pauses the decoder before its ready handshake.
     mgr.on("group-state-change", (...args: unknown[]) => {
       const state = args[0] as string | undefined;
       const reason = args[2] as string | undefined;
       const wrapper = mgr.getPlayerWrapper();
       if (!wrapper.isPlaybackActive()) return;
-      if (state === "Waiting") {
-        wrapper.localPause();
-      }
-
       // Drive the persistent OSD overlay from (state, reason).
       // Mirrors jellyfin-web's `group-state-update` → `showIcon` mapping.
       if (state === "Waiting") {
@@ -319,20 +361,15 @@ export function SyncPlayProvider({ children }: SyncPlayProviderProps) {
         else if (reason === "Unpause") showOsd("wait-unpause");
         else if (reason === "Pause") showOsd("wait-pause");
         else if (reason === "Seek") showOsd("seek");
-      } else if (state === "Playing" || state === "Paused") {
-        // Stable state — clear any persistent overlay; transient flashes
-        // come from the `osd` event below and self-expire.
-        setOsdAction((cur) => {
-          if (
-            cur === "schedule-play" ||
-            cur === "buffering" ||
-            cur === "wait-pause" ||
-            cur === "wait-unpause"
-          ) {
-            return null;
-          }
-          return cur;
-        });
+      } else if (
+        state === "Playing" &&
+        (reason === "Unpause" || reason === "Ready")
+      ) {
+        showOsd("schedule-play");
+      } else if (state === "Paused" && reason === "Pause") {
+        showOsd("pause", true);
+      } else if (state === "Paused" && reason === "Ready") {
+        showOsd(null);
       }
     });
 
@@ -354,10 +391,11 @@ export function SyncPlayProvider({ children }: SyncPlayProviderProps) {
     });
 
     return () => {
+      navigationRequestRef.current++;
       mgr.destroy();
       setManager(null);
     };
-  }, [api, navigateToPlayer]);
+  }, [api, navigateToPlayer, showOsd]);
 
   // Initial join race: once `enabled` flips true, snapshot the current group.
   useEffect(() => {
@@ -442,7 +480,7 @@ export function SyncPlayProvider({ children }: SyncPlayProviderProps) {
       console.warn("SyncPlay: resumeGroupPlayback — no current group item");
       return;
     }
-    navigateToPlayer(itemId, queueCore.getStartPositionTicks());
+    await navigateToPlayer(itemId, queueCore.getStartPositionTicks());
   }, [api, manager, navigateToPlayer]);
 
   // ---------------------------------------------------------------------------
@@ -515,8 +553,6 @@ export function SyncPlayProvider({ children }: SyncPlayProviderProps) {
 
   const setPlayerControls = useCallback(
     (controls: PlayerControls | null) => {
-      // Reset the playbackstart latch on each new attach.
-      playbackStartFiredRef.current = false;
       manager?.setPlayerControls(controls);
     },
     [manager],
@@ -529,10 +565,6 @@ export function SyncPlayProvider({ children }: SyncPlayProviderProps) {
   const notifyBuffering = useCallback(
     (isBuffering: boolean) => {
       manager?.notifyBuffering(isBuffering);
-      if (!isBuffering && !playbackStartFiredRef.current) {
-        playbackStartFiredRef.current = true;
-        manager?.notifyPlaybackStart();
-      }
     },
     [manager],
   );
@@ -540,6 +572,20 @@ export function SyncPlayProvider({ children }: SyncPlayProviderProps) {
   const notifyPlaybackStart = useCallback(() => {
     manager?.notifyPlaybackStart();
   }, [manager]);
+
+  const notifyPlaybackState = useCallback(
+    (playing: boolean) => {
+      manager?.notifyPlaybackState(playing);
+    },
+    [manager],
+  );
+
+  const notifyPlaybackError = useCallback(
+    (error: unknown) => {
+      manager?.notifyPlaybackError(error);
+    },
+    [manager],
+  );
 
   // ---------------------------------------------------------------------------
   // Context value
@@ -556,11 +602,15 @@ export function SyncPlayProvider({ children }: SyncPlayProviderProps) {
       leaveGroup,
       getGroups,
       resumeGroupPlayback,
+      registerPlaybackNavigator,
+      registerPlaybackPresentationGuard,
       controller: manager?.getController() ?? null,
       setPlayerControls,
       notifyReady,
       notifyBuffering,
       notifyPlaybackStart,
+      notifyPlaybackState,
+      notifyPlaybackError,
       pendingPlaybackCommand,
       osdAction,
     }),
@@ -574,11 +624,15 @@ export function SyncPlayProvider({ children }: SyncPlayProviderProps) {
       leaveGroup,
       getGroups,
       resumeGroupPlayback,
+      registerPlaybackNavigator,
+      registerPlaybackPresentationGuard,
       manager,
       setPlayerControls,
       notifyReady,
       notifyBuffering,
       notifyPlaybackStart,
+      notifyPlaybackState,
+      notifyPlaybackError,
       pendingPlaybackCommand,
       osdAction,
     ],
