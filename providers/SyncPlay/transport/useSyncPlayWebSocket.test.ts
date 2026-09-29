@@ -71,6 +71,9 @@ describe("SyncPlay reuses app services", () => {
 
   test("passes the latest authenticated SDK user without rebuilding the manager", () => {
     expect(provider).toContain("userRef.current = user");
+    expect(provider).toMatch(
+      /useLayoutEffect\(\(\) => \{\s*userRef.current = user/,
+    );
     expect(provider).toContain(
       "new SyncPlayManager(api, () => userRef.current)",
     );

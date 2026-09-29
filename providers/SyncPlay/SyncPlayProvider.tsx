@@ -25,6 +25,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -102,7 +103,7 @@ export function SyncPlayProvider({ children }: SyncPlayProviderProps) {
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
   const userRef = useRef(user);
-  useEffect(() => {
+  useLayoutEffect(() => {
     userRef.current = user;
   }, [user]);
   const router = useAppRouter();
