@@ -348,6 +348,7 @@ final class NativePlayerViewController: UIViewController {
 	override func viewDidAppear(_ animated: Bool) {
 		super.viewDidAppear(animated)
 		isViewVisible = true
+		engine.setPictureInPictureHostVisible(true)
 		UIApplication.shared.isIdleTimerDisabled = viewModel.isPlaying
 		#if os(iOS)
 		UIApplication.shared.setStatusBarHidden(!viewModel.controlsVisible, with: .none)
@@ -363,6 +364,7 @@ final class NativePlayerViewController: UIViewController {
 	override func viewWillDisappear(_ animated: Bool) {
 		super.viewWillDisappear(animated)
 		isViewVisible = false
+		engine.setPictureInPictureHostVisible(false)
 		UIApplication.shared.isIdleTimerDisabled = false
 		#if os(iOS)
 		// Hand the bar back visible — the app-level state persists past this
