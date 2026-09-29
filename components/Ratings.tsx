@@ -136,6 +136,8 @@ export const SeerrRatings: React.FC<{
               <Image
                 className='mr-1'
                 source={require("@/assets/images/tmdb_logo.svg")}
+                // The logo is wider than tall: cover, the default, cut it.
+                contentFit='contain'
                 style={{
                   width: 14,
                   height: 14,

@@ -29,6 +29,7 @@ import RequestModal from "@/components/seerr/RequestModal";
 import { TVSeerrPage } from "@/components/seerr/tv";
 import SeerrSeasons from "@/components/series/SeerrSeasons";
 import { ItemActions } from "@/components/series/SeriesActions";
+import { POSTER_ASPECT_RATIO } from "@/constants/Values";
 import useRouter from "@/hooks/useAppRouter";
 import { useDismissKeyboardOnLeave } from "@/hooks/useDismissKeyboardOnLeave";
 import { useSeerr } from "@/hooks/useSeerr";
@@ -314,7 +315,10 @@ const MobilePage: React.FC = () => {
                   <Text className='opacity-50'>{releaseYear}</Text>
                 </View>
                 <Image
-                  className='absolute bottom-1 right-1 rounded-lg w-28 aspect-[10/15] border-2 border-neutral-800/50 drop-shadow-2xl'
+                  className='absolute bottom-1 right-1 rounded-lg w-28 border-2 border-neutral-800/50 drop-shadow-2xl'
+                  // As a style: a release build drops the aspect-[10/15] class
+                  // from an image, and the poster came out as a thin bar.
+                  style={{ aspectRatio: POSTER_ASPECT_RATIO }}
                   cachePolicy={"memory-disk"}
                   transition={300}
                   source={{
