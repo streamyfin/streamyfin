@@ -106,6 +106,7 @@
         {
           "ios": {
             "deploymentTarget": "16.4",
+            "enableSceneSupport": true,
             "useFrameworks": "static",
             "forceStaticLinking": [
               "ExpoUI",
