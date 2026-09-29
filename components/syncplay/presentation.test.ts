@@ -18,6 +18,23 @@ test("SyncPlay uses the shared header button without adding its own gap", () => 
 });
 
 describe("native SyncPlay sheet presentation ordering", () => {
+  test("hiding the sheet rejects its waiter and unregisters the presentation guard", () => {
+    expect(button).toMatch(
+      /if \(sheetHidden\) return;\s*return registerPlaybackPresentationGuard/,
+    );
+    expect(button).toMatch(
+      /if \(!sheetHidden\) return;[\s\S]*?dismissalRef.current\?\.reject/,
+    );
+    expect(button).not.toContain("setTimeout");
+  });
+
+  test("group actions are serialized and rows have a usable stable ID", () => {
+    expect(menu.match(/if \(actionPending.current\) return;/g)).toHaveLength(4);
+    expect(menu).toContain("key={group.GroupId}");
+    expect(menu).not.toContain("key={group.GroupId ?? index}");
+    expect(menu).toContain("ignoring a group without GroupId");
+  });
+
   test("join, create and resume wait for sheet dismissal before triggering playback", () => {
     expect(menu).toMatch(/await onClose\(\);\s*await joinGroup\(groupId\)/);
     expect(menu).toMatch(/await onClose\(\);\s*await createGroup\(\)/);

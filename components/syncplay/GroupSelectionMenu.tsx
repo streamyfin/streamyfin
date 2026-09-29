@@ -7,7 +7,7 @@
  */
 
 import { Ionicons } from "@expo/vector-icons";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ActivityIndicator, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -35,9 +35,12 @@ export function GroupSelectionMenu({ onClose }: GroupSelectionMenuProps) {
     resumeGroupPlayback,
   } = useSyncPlay();
 
-  const [groups, setGroups] = useState<GroupInfoDto[]>([]);
+  const [groups, setGroups] = useState<
+    Array<GroupInfoDto & { GroupId: string }>
+  >([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const actionPending = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -46,7 +49,15 @@ export function GroupSelectionMenu({ onClose }: GroupSelectionMenuProps) {
       try {
         const fetchedGroups = await getGroups();
         if (!cancelled) {
-          setGroups(fetchedGroups);
+          setGroups(
+            fetchedGroups.filter(
+              (group): group is GroupInfoDto & { GroupId: string } => {
+                if (group.GroupId) return true;
+                console.warn("SyncPlay: ignoring a group without GroupId");
+                return false;
+              },
+            ),
+          );
         }
       } catch (error) {
         console.error("Failed to fetch groups", error);
@@ -63,17 +74,23 @@ export function GroupSelectionMenu({ onClose }: GroupSelectionMenuProps) {
 
   const handleJoinGroup = useCallback(
     async (groupId: string) => {
+      if (actionPending.current) return;
+      actionPending.current = true;
       try {
         await onClose();
         await joinGroup(groupId);
       } catch (error) {
         console.error("Failed to join group", error);
+      } finally {
+        actionPending.current = false;
       }
     },
     [joinGroup, onClose],
   );
 
   const handleCreateGroup = useCallback(async () => {
+    if (actionPending.current) return;
+    actionPending.current = true;
     setIsCreating(true);
     try {
       await onClose();
@@ -81,16 +98,21 @@ export function GroupSelectionMenu({ onClose }: GroupSelectionMenuProps) {
     } catch (error) {
       console.error("Failed to create group", error);
     } finally {
+      actionPending.current = false;
       setIsCreating(false);
     }
   }, [createGroup, onClose]);
 
   const handleLeaveGroup = useCallback(async () => {
+    if (actionPending.current) return;
+    actionPending.current = true;
     try {
       await leaveGroup();
       await onClose();
     } catch (error) {
       console.error("Failed to leave group", error);
+    } finally {
+      actionPending.current = false;
     }
   }, [leaveGroup, onClose]);
 
@@ -98,11 +120,15 @@ export function GroupSelectionMenu({ onClose }: GroupSelectionMenuProps) {
   // "Resume playback" menu entry — close the sheet and navigate to
   // the player; SyncPlayProvider handles the re-follow + URL build.
   const handleResumePlayback = useCallback(async () => {
+    if (actionPending.current) return;
+    actionPending.current = true;
     try {
       await onClose();
       await resumeGroupPlayback();
     } catch (error) {
       console.error("Failed to resume group playback", error);
+    } finally {
+      actionPending.current = false;
     }
   }, [resumeGroupPlayback, onClose]);
 
@@ -197,8 +223,8 @@ export function GroupSelectionMenu({ onClose }: GroupSelectionMenuProps) {
           <View className='bg-neutral-800 rounded-xl overflow-hidden'>
             {groups.map((group, index) => (
               <TouchableOpacity
-                key={group.GroupId ?? index}
-                onPress={() => group.GroupId && handleJoinGroup(group.GroupId)}
+                key={group.GroupId}
+                onPress={() => handleJoinGroup(group.GroupId)}
                 className={`flex-row items-center p-4 ${
                   index < groups.length - 1 ? "border-b border-neutral-700" : ""
                 }`}

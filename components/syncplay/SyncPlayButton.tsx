@@ -52,6 +52,7 @@ export function SyncPlayButton({
   } | null>(null);
 
   const isCasting = !!castDevice;
+  const sheetHidden = Platform.isTV || !canJoinGroups || !isConnected;
 
   const handlePress = useCallback(() => {
     if (isCasting) {
@@ -87,10 +88,19 @@ export function SyncPlayButton({
     dismissalRef.current = null;
   }, []);
 
-  useEffect(
-    () => registerPlaybackPresentationGuard(handleDismiss),
-    [registerPlaybackPresentationGuard, handleDismiss],
-  );
+  useEffect(() => {
+    if (sheetHidden) return;
+    return registerPlaybackPresentationGuard(handleDismiss);
+  }, [registerPlaybackPresentationGuard, handleDismiss, sheetHidden]);
+
+  useEffect(() => {
+    if (!sheetHidden) return;
+    sheetOpenRef.current = false;
+    dismissalRef.current?.reject(
+      new Error("SyncPlay group sheet became unavailable during dismissal"),
+    );
+    dismissalRef.current = null;
+  }, [sheetHidden]);
 
   useEffect(
     () => () => {
@@ -102,9 +112,7 @@ export function SyncPlayButton({
     [],
   );
 
-  if (Platform.isTV) return null;
-  if (!canJoinGroups) return null;
-  if (!isConnected) return null;
+  if (sheetHidden) return null;
 
   const iconColor = isCasting ? "#6b7280" : isEnabled ? "#00a4dc" : "white";
 
