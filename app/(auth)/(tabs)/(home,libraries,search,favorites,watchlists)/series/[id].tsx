@@ -99,7 +99,11 @@ const page: React.FC = () => {
     });
   }, [isOffline, api, item]);
 
-  const { data: allEpisodes, isLoading } = useQuery({
+  const {
+    data: allEpisodes,
+    isLoading,
+    isSuccess: hasLoadedEpisodes,
+  } = useQuery({
     queryKey: ["AllEpisodes", seriesId, isOffline, downloadedItems.length],
     queryFn: async () => {
       if (isOffline) {
@@ -230,7 +234,7 @@ const page: React.FC = () => {
               <NextUp seriesId={seriesId} />
             </View>
           )}
-          {!isLoading && (
+          {hasLoadedEpisodes && (
             <SeasonPicker item={item} initialSeasonIndex={initialSeasonIndex} />
           )}
         </View>
