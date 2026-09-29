@@ -60,6 +60,36 @@ internal fun calculateSubtitleMargin(
         margin
     }
 
+internal data class EpisodeBrowserState(
+    val episodes: List<EpisodeListItemRecord> = emptyList(),
+    val selectedSeasonKey: String? = null,
+    val playingItemId: String? = null
+) {
+    val seasons: List<EpisodeSeason> = episodes
+        .distinctBy { it.seasonKey }
+        .map { EpisodeSeason(it.seasonKey, it.seasonName) }
+    val visibleEpisodes: List<EpisodeListItemRecord> =
+        episodes.filter { it.seasonKey == selectedSeasonKey }
+
+    fun update(
+        episodes: List<EpisodeListItemRecord>,
+        playingItemId: String?,
+        resetSelection: Boolean = false
+    ): EpisodeBrowserState {
+        val currentEpisode = episodes.firstOrNull { it.itemId == playingItemId }
+            ?: episodes.firstOrNull { it.isCurrent }
+        val nextPlayingItemId = playingItemId ?: currentEpisode?.itemId
+        val selectedKey = selectedSeasonKey?.takeIf { key ->
+            !resetSelection && this.playingItemId == nextPlayingItemId &&
+                episodes.any { it.seasonKey == key }
+        } ?: currentEpisode?.seasonKey ?: episodes.firstOrNull()?.seasonKey
+        return EpisodeBrowserState(episodes, selectedKey, nextPlayingItemId)
+    }
+
+    fun selectSeason(key: String): EpisodeBrowserState =
+        if (seasons.any { it.key == key }) copy(selectedSeasonKey = key) else this
+}
+
 class PlayerViewModel : PlayerEngine.Delegate {
 
     companion object {
@@ -217,7 +247,15 @@ class PlayerViewModel : PlayerEngine.Delegate {
     var subtitleSearchError by mutableStateOf<String?>(null)
     var subtitleSearchLanguage by mutableStateOf("eng")
     var downloadingResultId by mutableStateOf<String?>(null)
-    var episodeList by mutableStateOf<List<EpisodeListItemRecord>>(emptyList())
+    private var episodeBrowser by mutableStateOf(EpisodeBrowserState())
+    val episodeList: List<EpisodeListItemRecord>
+        get() = episodeBrowser.episodes
+    val episodeSeasons: List<EpisodeSeason>
+        get() = episodeBrowser.seasons
+    val selectedEpisodeSeasonKey: String?
+        get() = episodeBrowser.selectedSeasonKey
+    val visibleEpisodes: List<EpisodeListItemRecord>
+        get() = episodeBrowser.visibleEpisodes
     var trickplay by mutableStateOf<TrickplayProvider?>(null)
     var sleepTimerMinutes by mutableStateOf<Int?>(null)
     var sleepTimerEndDate by mutableStateOf<Long?>(null)
@@ -306,7 +344,7 @@ class PlayerViewModel : PlayerEngine.Delegate {
         chapters = config.chapters.sortedBy { it.startSec }
         segments = config.segments
         nextEpisode = config.nextEpisode
-        episodeList = config.episodeList
+        episodeBrowser = episodeBrowser.update(config.episodeList, newItemId, resetSelection = true)
         subtitleMenu = config.tracks?.subtitles ?: emptyList()
         audioMenu = config.tracks?.audio ?: emptyList()
         qualityMenu = config.tracks?.quality ?: emptyList()
@@ -393,11 +431,20 @@ class PlayerViewModel : PlayerEngine.Delegate {
 
     fun updateMetadata(newMetadata: MetadataRecord) {
         metadata = newMetadata
+        episodeBrowser = episodeBrowser.update(episodeList, newMetadata.itemId)
         onMetadataSync?.invoke()
     }
 
     fun updateEpisodeList(episodes: List<EpisodeListItemRecord>) {
-        episodeList = episodes
+        episodeBrowser = episodeBrowser.update(episodes, metadata?.itemId)
+    }
+
+    fun selectEpisodeSeason(key: String) {
+        if (episodeSeasons.none { it.key == key }) {
+            Log.w(TAG, "Ignoring unavailable episode season key: $key")
+            return
+        }
+        episodeBrowser = episodeBrowser.selectSeason(key)
     }
 
     fun updateSubtitleSearch(state: SubtitleSearchStateRecord) {

@@ -605,16 +605,10 @@ const NativePlayerProviderInner: React.FC<{
         if (session.offline) {
           episodes = (downloadUtils.getDownloadedItems() ?? [])
             .filter((d) => d.item.SeriesId === item.SeriesId)
-            .map((d) => d.item as BaseItemDto)
-            .sort(
-              (a, b) =>
-                (a.ParentIndexNumber ?? 0) - (b.ParentIndexNumber ?? 0) ||
-                (a.IndexNumber ?? 0) - (b.IndexNumber ?? 0),
-            );
+            .map((d) => d.item as BaseItemDto);
         } else if (apiRef.current) {
           const res = await getTvShowsApi(apiRef.current).getEpisodes({
             seriesId: item.SeriesId,
-            seasonId: item.SeasonId ?? undefined,
             userId: userRef.current?.Id,
             fields: ["Overview"],
             enableUserData: true,

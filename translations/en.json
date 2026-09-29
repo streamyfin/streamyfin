@@ -734,6 +734,7 @@
     "shuffle": "Shuffle",
     "entire_series": "Entire series",
     "episode_count": "{{count}} episodes",
+    "other_episodes": "Other episodes",
     "episode_details": {
       "season_episode": "S{{season}} E{{episode}}",
       "season": "Season {{season}}",

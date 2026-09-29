@@ -102,6 +102,8 @@ class TrackMenusRecord : Record {
 class EpisodeListItemRecord : Record {
     @Field var itemId: String = ""
     @Field var title: String = ""
+    @Field var seasonKey: String = ""
+    @Field var seasonName: String = ""
     @Field var indexNumber: Int? = null
     @Field var overview: String? = null
     @Field var details: String? = null
@@ -109,6 +111,8 @@ class EpisodeListItemRecord : Record {
     @Field var progressPercent: Double = 0.0
     @Field var isCurrent: Boolean = false
 }
+
+data class EpisodeSeason(val key: String, val name: String)
 
 class SubtitleSearchLanguageRecord : Record {
     @Field var code: String = ""   // ISO 639-2 three-letter code, e.g. "eng"

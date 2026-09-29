@@ -157,23 +157,33 @@ struct TVStillWatchingCard: View {
 /// on where you are instead of at episode 1.
 @available(tvOS 26.0, *)
 struct TVEpisodeShelf: View {
+	private enum FocusTarget: Hashable {
+		case episode(String)
+		case season(String)
+	}
+
 	@ObservedObject var viewModel: PlayerViewModel
 	let focusCoordinator: TVFocusCoordinator
-	@FocusState private var focusedEpisode: Int?
+	@FocusState private var focusedItem: FocusTarget?
 	/// See TVControlsRow.focusGate. It matters more here: the shelf's
 	/// target is almost never the left-most card, so the engine's repair
 	/// had no chance of guessing it.
-	@State private var focusGate: Int?
+	@State private var focusGate: FocusTarget?
 
-	/// Index of the episode that should take focus when the shelf opens.
-	private var defaultFocusIndex: Int {
-		viewModel.episodeList.firstIndex { $0.isCurrent } ?? 0
+	private var defaultEpisode: EpisodeListItemRecord? {
+		viewModel.visibleEpisodes.first(where: { $0.isCurrent }) ?? viewModel.visibleEpisodes.first
+	}
+
+	private var defaultFocusTarget: FocusTarget {
+		.episode(defaultEpisode?.itemId ?? "")
 	}
 
 	private var selectedEpisode: EpisodeListItemRecord? {
-		let index = focusedEpisode ?? defaultFocusIndex
-		guard viewModel.episodeList.indices.contains(index) else { return nil }
-		return viewModel.episodeList[index]
+		if case .episode(let itemId)? = focusedItem,
+			let episode = viewModel.visibleEpisodes.first(where: { $0.itemId == itemId }) {
+			return episode
+		}
+		return defaultEpisode
 	}
 
 	var body: some View {
@@ -182,19 +192,55 @@ struct TVEpisodeShelf: View {
 				.font(.title3.weight(.semibold))
 				.foregroundStyle(.white)
 				.padding(.horizontal, TVChromeMetrics.insetH)
+			if viewModel.episodeSeasons.count > 1 {
+				ScrollViewReader { proxy in
+					ScrollView(.horizontal, showsIndicators: false) {
+						HStack(spacing: 20) {
+							ForEach(viewModel.episodeSeasons) { season in
+								Button {
+									viewModel.selectedEpisodeSeasonKey = season.id
+								} label: {
+									HStack {
+										Text(season.name).lineLimit(1)
+										Image(systemName: "checkmark")
+											.opacity(viewModel.selectedEpisodeSeasonKey == season.id ? 1 : 0)
+									}
+									.font(.callout)
+									.frame(width: TVPoster.width)
+								}
+								.buttonStyle(.glass)
+								.focused($focusedItem, equals: .season(season.id))
+								.tvFocusGated(focusGate, FocusTarget.season(season.id))
+								.accessibilityAddTraits(
+									viewModel.selectedEpisodeSeasonKey == season.id ? .isSelected : [])
+								.id(season.id)
+							}
+						}
+						.padding(.horizontal, TVChromeMetrics.insetH)
+						.padding(.vertical, 16)
+					}
+					.onAppear {
+						if let seasonKey = viewModel.selectedEpisodeSeasonKey {
+							proxy.scrollTo(seasonKey, anchor: .center)
+						}
+					}
+					.focusSection()
+				}
+			}
 			ScrollView(.horizontal, showsIndicators: false) {
 				HStack(spacing: 28) {
-					ForEach(Array(viewModel.episodeList.enumerated()), id: \.offset) {
-						index, episode in
+					ForEach(viewModel.visibleEpisodes, id: \.itemId) { episode in
 						// Focus modifiers live on the artwork Button inside, not
 						// out here: the lockup's VStack is not the focusable
 						// element any more, only the card is.
-						episodeCard(episode, index: index)
+						episodeCard(episode)
 					}
 				}
 				.padding(.horizontal, TVChromeMetrics.insetH)
 				.padding(.vertical, 30)
 			}
+			.id(viewModel.selectedEpisodeSeasonKey)
+			.focusSection()
 			if let episode = selectedEpisode {
 				VStack(alignment: .leading, spacing: 8) {
 					Text(episode.title)
@@ -215,7 +261,7 @@ struct TVEpisodeShelf: View {
 			}
 		}
 		// Grouping AFTER defaultFocus — see the note in TVControlsRow.
-		.defaultFocus($focusedEpisode, defaultFocusIndex, priority: .userInitiated)
+		.defaultFocus($focusedItem, defaultFocusTarget, priority: .userInitiated)
 		.focusSection()
 		.padding(.vertical, 30)
 		.frame(maxWidth: .infinity, alignment: .leading)
@@ -239,21 +285,21 @@ struct TVEpisodeShelf: View {
 		// inert here twice over: it is documented as evaluated when the window
 		// first appears (the shelf mounts per opening), and inside a ScrollView
 		// it is ignored outright (Apple FB706321 - focus goes to the first card
-		// visible on the left). Naming the index through @FocusState is what
+		// visible on the left). Naming the item through @FocusState is what
 		// actually scrolls the playing episode into view and focuses it.
-		.onChange(of: focusedEpisode) { newValue in
+		.onChange(of: focusedItem) { newValue in
 			// Focus landed - let the other cards back in so the shelf scrolls.
 			if newValue != nil { focusGate = nil }
 		}
 		.tvFocusZone(
-			.shelf, coordinator: focusCoordinator, focus: $focusedEpisode,
-			gate: $focusGate, target: { defaultFocusIndex })
+			.shelf, coordinator: focusCoordinator, focus: $focusedItem,
+			gate: $focusGate, target: { defaultFocusTarget })
 	}
 
 	/// Title and progress overlay the artwork so `.card` carries the tvOS
 	/// focus float. The longer details stay outside the button and do not
 	/// gain a focus platter.
-	private func episodeCard(_ episode: EpisodeListItemRecord, index: Int) -> some View {
+	private func episodeCard(_ episode: EpisodeListItemRecord) -> some View {
 		Button {
 			viewModel.selectEpisode(episode)
 		} label: {
@@ -312,8 +358,8 @@ struct TVEpisodeShelf: View {
 			.clipShape(RoundedRectangle(cornerRadius: TVPoster.cornerRadius))
 		}
 		.buttonStyle(.card)
-		.focused($focusedEpisode, equals: index)
-		.tvFocusGated(focusGate, index)
+		.focused($focusedItem, equals: .episode(episode.itemId))
+		.tvFocusGated(focusGate, FocusTarget.episode(episode.itemId))
 	}
 }
 #endif
