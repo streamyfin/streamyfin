@@ -28,6 +28,7 @@ import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
 import { getUserItemData } from "@/utils/jellyfin/user-library/getUserItemData";
 import { storage } from "@/utils/mmkv";
+import { getSeriesPlaybackTarget } from "@/utils/seriesPlaybackTarget";
 
 const page: React.FC = () => {
   const navigation = useNavigation();
@@ -125,6 +126,14 @@ const page: React.FC = () => {
     enabled: isOffline || (!!api && !!user?.Id),
   });
 
+  const initialSeasonIndex = useMemo(() => {
+    const requested = Number(seasonIndex);
+    if (Number.isFinite(requested)) return requested;
+    return (
+      getSeriesPlaybackTarget(allEpisodes ?? [])?.ParentIndexNumber ?? undefined
+    );
+  }, [allEpisodes, seasonIndex]);
+
   useEffect(() => {
     // Don't show header buttons in offline mode
     if (isOffline) {
@@ -168,7 +177,7 @@ const page: React.FC = () => {
           item={item}
           allEpisodes={allEpisodes}
           isLoading={isLoading}
-          initialSeasonIndex={Number(seasonIndex)}
+          initialSeasonIndex={initialSeasonIndex}
         />
       </OfflineModeProvider>
     );
@@ -221,7 +230,9 @@ const page: React.FC = () => {
               <NextUp seriesId={seriesId} />
             </View>
           )}
-          <SeasonPicker item={item} initialSeasonIndex={Number(seasonIndex)} />
+          {!isLoading && (
+            <SeasonPicker item={item} initialSeasonIndex={initialSeasonIndex} />
+          )}
         </View>
       </ParallaxScrollView>
     </OfflineModeProvider>
