@@ -58,7 +58,7 @@ export const useShuffleQueue = () => {
           offline: options.isOffline ?? false,
           playbackPositionTicks: first.UserData?.PlaybackPositionTicks ?? 0,
         },
-        { preserveShuffleQueue: true, item: first },
+        { preserveShuffleQueue: true, item: first, queueItems: items },
       );
     },
     [playMedia, settings, setShuffleQueue],

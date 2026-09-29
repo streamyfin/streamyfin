@@ -24,8 +24,7 @@ import type {
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client";
 import { useCallback } from "react";
-import { useTranslation } from "react-i18next";
-import { Alert, Platform } from "react-native";
+import { Platform } from "react-native";
 import useAppRouter from "@/hooks/useAppRouter";
 import { useHaptic } from "@/hooks/useHaptic";
 import { usePlayMedia } from "@/hooks/usePlayMedia";
@@ -117,7 +116,6 @@ export function usePlayerItemNavigation(
   } = params;
 
   const router = useAppRouter();
-  const { t } = useTranslation();
   const { settings, updateSettings } = useSettings();
   const { isEnabled: isSyncPlayEnabled, controller: syncPlayController } =
     useSyncPlay();
@@ -223,35 +221,51 @@ export function usePlayerItemNavigation(
   );
 
   const goToPreviousItem = useCallback(() => {
+    if (isDisabled) return;
     if (isSyncPlayEnabled && syncPlayController) {
       syncPlayController.previousItem();
       return;
     }
     if (!previousItem) return;
     localNavigate(previousItem);
-  }, [isSyncPlayEnabled, syncPlayController, previousItem, localNavigate]);
+  }, [
+    isDisabled,
+    isSyncPlayEnabled,
+    syncPlayController,
+    previousItem,
+    localNavigate,
+  ]);
 
   const goToNextItem = useCallback(() => {
+    if (isDisabled) return;
     if (isSyncPlayEnabled && syncPlayController) {
       syncPlayController.nextItem();
       return;
     }
     if (!nextItem) return;
     localNavigate(nextItem);
-  }, [isSyncPlayEnabled, syncPlayController, nextItem, localNavigate]);
+  }, [
+    isDisabled,
+    isSyncPlayEnabled,
+    syncPlayController,
+    nextItem,
+    localNavigate,
+  ]);
 
   const goToItem = useCallback(
     (target: BaseItemDto) => {
+      if (isDisabled) return;
       if (isSyncPlayEnabled && syncPlayController && target.Id) {
         syncPlayController.goToItem(target);
         return;
       }
       localNavigate(target);
     },
-    [isSyncPlayEnabled, syncPlayController, localNavigate],
+    [isDisabled, isSyncPlayEnabled, syncPlayController, localNavigate],
   );
 
   const handleAutoPlayNext = useCallback(() => {
+    if (isDisabled) return;
     // SyncPlay always advances unconditionally — the server is the source
     // of truth for queue progression and per-client gating would desync us.
     if (isSyncPlayEnabled && syncPlayController) {
@@ -269,7 +283,7 @@ export function usePlayerItemNavigation(
       return;
     }
 
-    if (currentCount + 1 < maxCount) {
+    if (currentCount < maxCount) {
       localNavigate(nextItem);
     }
 
@@ -277,6 +291,7 @@ export function usePlayerItemNavigation(
       updateSettings({ autoPlayEpisodeCount: currentCount + 1 });
     }
   }, [
+    isDisabled,
     isSyncPlayEnabled,
     syncPlayController,
     nextItem,
@@ -286,6 +301,7 @@ export function usePlayerItemNavigation(
   ]);
 
   const handleContinueWatching = useCallback(() => {
+    if (isDisabled) return;
     if (isSyncPlayEnabled && syncPlayController) {
       syncPlayController.nextItem();
       return;
@@ -294,6 +310,7 @@ export function usePlayerItemNavigation(
     updateSettings({ autoPlayEpisodeCount: 0 });
     localNavigate(nextItem);
   }, [
+    isDisabled,
     isSyncPlayEnabled,
     syncPlayController,
     nextItem,
@@ -328,28 +345,6 @@ export function usePlayerItemNavigation(
         updateSettings({ autoPlayEpisodeCount: 0 });
       }
 
-      // SyncPlay: broadcast to the group instead of navigating locally.
-      // Skipped when the user explicitly picked the downloaded copy — a
-      // local file can't be part of a synced session.
-      if (!opts.forceOffline && isSyncPlayEnabled && syncPlayController) {
-        try {
-          await syncPlayController.play({
-            items: [item],
-            ids: [item.Id],
-            startPositionTicks,
-          });
-        } catch (error) {
-          console.error("SyncPlay: failed to start group playback", error);
-          Alert.alert(
-            t("player.client_error"),
-            t("syncplay.failed_to_start", {
-              defaultValue: "Failed to start SyncPlay group playback",
-            }),
-          );
-        }
-        return;
-      }
-
       await playMedia(
         {
           itemId: item.Id,
@@ -369,11 +364,8 @@ export function usePlayerItemNavigation(
       lightHapticFeedback,
       settings,
       updateSettings,
-      isSyncPlayEnabled,
-      syncPlayController,
       inOfflineContext,
       playMedia,
-      t,
     ],
   );
 

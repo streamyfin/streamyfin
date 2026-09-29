@@ -23,6 +23,8 @@ interface PlayMediaOptions {
    * straight to the JS route, which owns live-stream lifecycle handling.
    */
   item?: BaseItemDto | null;
+  /** Explicit ordered queue, e.g. the complete series shuffle. */
+  queueItems?: BaseItemDto[];
 }
 
 /**
@@ -64,8 +66,12 @@ export const usePlayMedia = () => {
       ) {
         try {
           await controller.play({
-            ids: [req.itemId],
-            items: options?.item ? [options.item] : undefined,
+            ids: options?.queueItems?.flatMap((item) =>
+              item.Id ? [item.Id] : [],
+            ) ?? [req.itemId],
+            items:
+              options?.queueItems ??
+              (options?.item ? [options.item] : undefined),
             startPositionTicks: req.playbackPositionTicks,
           });
         } catch (error) {
