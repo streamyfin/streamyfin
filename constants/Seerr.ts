@@ -7,6 +7,9 @@ export const SEERR_COOKIES_STORAGE_KEY = "SEERR_COOKIES";
 /** SecureStore: prefix of the password auto-login keeps, per server and user. */
 export const SEERR_PASSWORD_KEY_PREFIX = "seerrpw_";
 
+/** Pages of search results asked for at once, 20 results a page. */
+export const SEERR_SEARCH_PAGES = 4;
+
 /*
  * Where builds from before the rename stored the same things, when Seerr was
  * called Jellyseerr. Each is read once, moved to the name above, and deleted.

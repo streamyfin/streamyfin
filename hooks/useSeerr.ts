@@ -25,6 +25,7 @@ import {
   titleOf,
   yearOf,
 } from "@/utils/seerr/media";
+import { seerrQueryString } from "@/utils/seerr/search";
 import type {
   CombinedCredit,
   DiscoverSlider,
@@ -388,8 +389,11 @@ export class SeerrApi {
   }
 
   async search(params: SearchParams): Promise<SearchResults> {
+    // Written by hand: axios would send a space as "+", which Seerr refuses.
     return this.axios
-      ?.get<SearchResults>(Endpoints.API_V1 + Endpoints.SEARCH, { params })
+      ?.get<SearchResults>(
+        `${Endpoints.API_V1}${Endpoints.SEARCH}?${seerrQueryString({ ...params })}`,
+      )
       .then(({ data }) => data);
   }
 

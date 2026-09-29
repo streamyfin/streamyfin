@@ -7,7 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import { useLocalSearchParams, useNavigation, useSegments } from "expo-router";
 import { useAtom } from "jotai";
-import { orderBy, uniqBy } from "lodash";
+import { orderBy } from "lodash";
 import {
   useCallback,
   useEffect,
@@ -46,6 +46,7 @@ import { isAbortLikeError } from "@/utils/errors";
 import { eventBus } from "@/utils/eventBus";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { logAndCaptureError } from "@/utils/log";
+import { searchSeerr } from "@/utils/seerr/search";
 import type { MovieResult, PersonResult, TvResult } from "@/utils/seerr/types";
 import { MediaType } from "@/utils/seerr/types";
 import { createStreamystatsApi } from "@/utils/streamystats";
@@ -452,20 +453,7 @@ export default function SearchPage() {
   const { data: seerrTVResults, isFetching: seerrTVLoading } = useQuery({
     queryKey: ["search", "seerr", "tv", debouncedSearch],
     queryFn: async () => {
-      const params = {
-        query: new URLSearchParams(debouncedSearch || "").toString(),
-      };
-      return await Promise.all([
-        seerrApi?.search({ ...params, page: 1 }),
-        seerrApi?.search({ ...params, page: 2 }),
-        seerrApi?.search({ ...params, page: 3 }),
-        seerrApi?.search({ ...params, page: 4 }),
-      ]).then((all) =>
-        uniqBy(
-          all.flatMap((v) => v?.results || []),
-          "id",
-        ),
-      );
+      return await searchSeerr(seerrApi, debouncedSearch);
     },
     enabled:
       Platform.isTV &&
