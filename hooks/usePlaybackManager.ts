@@ -2,7 +2,11 @@ import type {
   BaseItemDto,
   PlaybackProgressInfo,
 } from "@jellyfin/sdk/lib/generated-client";
-import { getShowApi } from "@jellyfin/sdk/lib/utils/api";
+import {
+  getSessionApi,
+  getShowApi,
+  getUserDataApi,
+} from "@jellyfin/sdk/lib/utils/api";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
 import { useMemo } from "react";
@@ -10,11 +14,6 @@ import { useDownload } from "@/providers/DownloadProvider";
 import { DownloadedItem } from "@/providers/Downloads/types";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { shuffleQueueAtom } from "@/utils/atoms/shuffleQueue";
-import {
-  reportItemPlaybackProgress,
-  setItemPlayed,
-  updateExistingUserData,
-} from "@/utils/jellyfin/userPlaybackState";
 import { useNetworkStatus } from "./useNetworkStatus";
 
 interface PlaybackManagerProps {
@@ -230,7 +229,11 @@ export const usePlaybackManager = ({
         ...localItem,
         item: {
           ...localItem.item,
-          UserData: updateExistingUserData(localItem.item.UserData, {
+          UserData: {
+            // SDK 1.0 requires Key; local-only state has none yet. Preserve
+            // a real key when present, and never send this default to Jellyfin.
+            Key: "",
+            ...localItem.item.UserData,
             PlaybackPositionTicks:
               isItemConsideredPlayed || !shouldSaveProgress
                 ? 0
@@ -241,7 +244,7 @@ export const usePlaybackManager = ({
               isItemConsideredPlayed || !shouldSaveProgress
                 ? 0
                 : playedPercentage,
-          }),
+          },
         },
       });
       // Force invalidate queries so they refetch from updated local database
@@ -252,7 +255,9 @@ export const usePlaybackManager = ({
     // Handle remote state update if online
     if (isOnline && api) {
       try {
-        await reportItemPlaybackProgress(api, playbackProgressInfo);
+        await getSessionApi(api).reportPlaybackProgress({
+          playbackProgressInfo,
+        });
       } catch (error) {
         console.error("Failed to report playback progress", error);
       }
@@ -276,12 +281,14 @@ export const usePlaybackManager = ({
         ...localItem,
         item: {
           ...localItem.item,
-          UserData: updateExistingUserData(localItem.item.UserData, {
+          UserData: {
+            Key: "",
+            ...localItem.item.UserData,
             Played: true,
             PlaybackPositionTicks: 0,
             PlayedPercentage: 0,
             LastPlayedDate: new Date().toISOString(),
-          }),
+          },
         },
       });
       // Force invalidate queries so they refetch from updated local database
@@ -292,7 +299,10 @@ export const usePlaybackManager = ({
     // Handle remote state update if online
     if (isOnline && api && user) {
       try {
-        await setItemPlayed(api, itemId, user.Id, true);
+        await getUserDataApi(api).markPlayedItem({
+          itemId,
+          userId: user.Id,
+        });
       } catch (error) {
         console.error("Failed to mark item as played on server", error);
         throw error;
@@ -317,12 +327,14 @@ export const usePlaybackManager = ({
         ...localItem,
         item: {
           ...localItem.item,
-          UserData: updateExistingUserData(localItem.item.UserData, {
+          UserData: {
+            Key: "",
+            ...localItem.item.UserData,
             Played: false,
             PlaybackPositionTicks: 0,
             PlayedPercentage: 0,
             LastPlayedDate: new Date().toISOString(), // Keep track of when it was marked unplayed
-          }),
+          },
         },
       });
       // Force invalidate queries so they refetch from updated local database
@@ -333,7 +345,10 @@ export const usePlaybackManager = ({
     // Handle remote state update if online
     if (isOnline && api && user) {
       try {
-        await setItemPlayed(api, itemId, user.Id, false);
+        await getUserDataApi(api).markUnplayedItem({
+          itemId,
+          userId: user.Id,
+        });
       } catch (error) {
         console.error("Failed to mark item as unplayed on server", error);
         throw error;

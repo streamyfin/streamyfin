@@ -1,12 +1,9 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
+import { getUserDataApi } from "@jellyfin/sdk/lib/utils/api";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { atom, useAtom } from "jotai";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import {
-  setItemFavorite,
-  updateExistingUserData,
-} from "@/utils/jellyfin/userPlaybackState";
 
 // Shared atom to store favorite status across all components
 // Maps itemId -> isFavorite
@@ -80,9 +77,11 @@ export const useFavorite = (item: BaseItemDto) => {
           if (!old) return old;
           return {
             ...old,
-            UserData: updateExistingUserData(old.UserData, {
+            UserData: {
+              Key: "",
+              ...old.UserData,
               IsFavorite: nextIsFavorite,
-            }),
+            },
           };
         },
       );
@@ -100,12 +99,12 @@ export const useFavorite = (item: BaseItemDto) => {
         return;
       }
 
-      return setItemFavorite(
-        currentApi,
-        currentItem.Id,
-        currentUser.Id,
-        nextIsFavorite,
-      );
+      const userDataApi = getUserDataApi(currentApi);
+      const request = { itemId: currentItem.Id, userId: currentUser.Id };
+      const response = nextIsFavorite
+        ? await userDataApi.markFavoriteItem(request)
+        : await userDataApi.unmarkFavoriteItem(request);
+      return response.data;
     },
     onMutate: async (nextIsFavorite: boolean) => {
       await queryClient.cancelQueries({ queryKey: itemQueryKeyPrefix });

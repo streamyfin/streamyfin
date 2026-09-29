@@ -1,7 +1,6 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
-import { updateExistingUserData } from "@/utils/jellyfin/userPlaybackState";
 import { logAndCaptureError } from "@/utils/log";
 import { useHaptic } from "./useHaptic";
 import { usePlaybackManager } from "./usePlaybackManager";
@@ -33,11 +32,13 @@ export const useMarkAsPlayed = (items: BaseItemDto[]) => {
             if (!old) return old;
             return {
               ...old,
-              UserData: updateExistingUserData(old.UserData, {
+              UserData: {
+                Key: "",
+                ...old.UserData,
                 Played: played,
                 PlaybackPositionTicks: 0,
                 PlayedPercentage: 0,
-              }),
+              },
             };
           },
         );

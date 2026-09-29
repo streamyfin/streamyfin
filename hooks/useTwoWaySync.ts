@@ -2,10 +2,6 @@ import { getLibraryApi, getUserDataApi } from "@jellyfin/sdk/lib/utils/api";
 import { AxiosError } from "axios";
 import { useAtomValue } from "jotai";
 import { useDownload } from "@/providers/DownloadProvider";
-import {
-  restoreUserDataKey,
-  updateExistingUserData,
-} from "@/utils/jellyfin/userPlaybackState";
 import { logAndCaptureError } from "@/utils/log";
 import { apiAtom, userAtom } from "../providers/JellyfinProvider";
 import { useNetworkStatus } from "./useNetworkStatus";
@@ -56,18 +52,6 @@ export const useTwoWaySync = () => {
     const remoteItem = await fetchRemoteItem();
     if (!remoteItem) return false;
 
-    const localUserData = restoreUserDataKey(
-      localItem.item.UserData,
-      remoteItem.UserData,
-    );
-    // Repair legacy downloads even when the playback timestamps are equal.
-    if (localUserData !== localItem.item.UserData) {
-      updateDownloadedItem(itemId, {
-        ...localItem,
-        item: { ...localItem.item, UserData: localUserData },
-      });
-    }
-
     const localLastPlayed = localItem.item.UserData?.LastPlayedDate
       ? new Date(localItem.item.UserData.LastPlayedDate)
       : new Date(0);
@@ -81,12 +65,14 @@ export const useTwoWaySync = () => {
         ...localItem,
         item: {
           ...localItem.item,
-          UserData: updateExistingUserData(localUserData, {
+          UserData: {
+            Key: remoteItem.UserData?.Key ?? "",
+            ...localItem.item.UserData,
             LastPlayedDate: remoteItem.UserData?.LastPlayedDate,
             PlaybackPositionTicks: remoteItem.UserData?.PlaybackPositionTicks,
             Played: remoteItem.UserData?.Played,
             PlayedPercentage: remoteItem.UserData?.PlayedPercentage,
-          }),
+          },
         },
       });
       return false;
