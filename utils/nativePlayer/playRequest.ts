@@ -15,6 +15,21 @@ export interface PlayRequest {
   syncPlay?: boolean;
 }
 
+/** Local track/source choices never become part of the group-wide queue DTO. */
+export function mergeLocalPlaybackRequest(
+  request: PlayRequest,
+  local: PlayRequest | null,
+): PlayRequest {
+  if (local?.itemId !== request.itemId) return request;
+  return {
+    ...request,
+    audioIndex: local.audioIndex,
+    subtitleIndex: local.subtitleIndex,
+    mediaSourceId: local.mediaSourceId,
+    bitrateValue: local.bitrateValue,
+  };
+}
+
 /**
  * Serialize a PlayRequest into the exact query string PlayButton's
  * handleNormalPlayFlow builds for /player/direct-player today: missing

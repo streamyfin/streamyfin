@@ -38,6 +38,7 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useWebSocketContext } from "@/providers/WebSocketProvider";
 import { logAndCaptureError } from "@/utils/log";
 import {
+  mergeLocalPlaybackRequest,
   type PlayRequest,
   toDirectPlayerQuery,
 } from "@/utils/nativePlayer/playRequest";
@@ -72,6 +73,7 @@ interface SyncPlayContextValue {
     navigator: (request: PlayRequest) => Promise<boolean>,
   ) => () => void;
   registerPlaybackPresentationGuard: (guard: () => Promise<void>) => () => void;
+  registerLocalPlaybackRequest: (request: PlayRequest) => () => void;
 
   controller: SyncPlayController | null;
 
@@ -109,6 +111,14 @@ export function SyncPlayProvider({ children }: SyncPlayProviderProps) {
 
   const [manager, setManager] = useState<SyncPlayManager | null>(null);
   const navigationRequestRef = useRef(0);
+  const localPlaybackRequestRef = useRef<PlayRequest | null>(null);
+  const registerLocalPlaybackRequest = useCallback((request: PlayRequest) => {
+    localPlaybackRequestRef.current = request;
+    return () => {
+      if (localPlaybackRequestRef.current === request)
+        localPlaybackRequestRef.current = null;
+    };
+  }, []);
   const playbackNavigatorRef = useRef<
     ((request: PlayRequest) => Promise<boolean>) | null
   >(null);
@@ -248,12 +258,16 @@ export function SyncPlayProvider({ children }: SyncPlayProviderProps) {
       // position/pause/seek commands keep flowing normally; only the
       // source changes.
       const isDownloaded = !!getDownloadedItemById(itemId);
-      const request: PlayRequest = {
-        itemId,
-        playbackPositionTicks: startPositionTicks,
-        syncPlay: true,
-        offline: isDownloaded,
-      };
+      const localRequest = localPlaybackRequestRef.current;
+      const request = mergeLocalPlaybackRequest(
+        {
+          itemId,
+          playbackPositionTicks: startPositionTicks,
+          syncPlay: true,
+          offline: isDownloaded,
+        },
+        localRequest,
+      );
       try {
         await presentationGuardRef.current?.();
         if (requestId !== navigationRequestRef.current) return;
@@ -266,7 +280,10 @@ export function SyncPlayProvider({ children }: SyncPlayProviderProps) {
         const handled =
           !onPlayerScreen && (await playbackNavigatorRef.current?.(request));
         console.debug("SyncPlay: presentation result", { itemId, handled });
-        if (handled || requestId !== navigationRequestRef.current) return;
+        if (requestId !== navigationRequestRef.current) return;
+        if (localPlaybackRequestRef.current === localRequest)
+          localPlaybackRequestRef.current = null;
+        if (handled) return;
         const queryParams = toDirectPlayerQuery(request);
         if (onPlayerScreen) {
           router.replace(`/player/direct-player?${queryParams}`);
@@ -337,6 +354,7 @@ export function SyncPlayProvider({ children }: SyncPlayProviderProps) {
       const enabled = args[0] as boolean;
       setIsEnabled(enabled);
       if (!enabled) {
+        localPlaybackRequestRef.current = null;
         navigationRequestRef.current++;
         setGroupInfo(null);
         showOsd(null);
@@ -397,6 +415,7 @@ export function SyncPlayProvider({ children }: SyncPlayProviderProps) {
     return () => {
       navigationRequestRef.current++;
       mgr.destroy();
+      localPlaybackRequestRef.current = null;
       rejoinRef.current?.dispose();
       setIsEnabled(false);
       setGroupInfo(null);
@@ -574,6 +593,7 @@ export function SyncPlayProvider({ children }: SyncPlayProviderProps) {
       resumeGroupPlayback,
       registerPlaybackNavigator,
       registerPlaybackPresentationGuard,
+      registerLocalPlaybackRequest,
       controller: manager?.getController() ?? null,
       setPlayerControls,
       notifyReady,
@@ -596,6 +616,7 @@ export function SyncPlayProvider({ children }: SyncPlayProviderProps) {
       resumeGroupPlayback,
       registerPlaybackNavigator,
       registerPlaybackPresentationGuard,
+      registerLocalPlaybackRequest,
       manager,
       setPlayerControls,
       notifyReady,

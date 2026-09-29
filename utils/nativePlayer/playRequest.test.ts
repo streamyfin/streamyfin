@@ -1,7 +1,34 @@
 import { describe, expect, test } from "bun:test";
-import { toDirectPlayerQuery } from "./playRequest";
+import { mergeLocalPlaybackRequest, toDirectPlayerQuery } from "./playRequest";
 
 describe("native-to-React playback fallback", () => {
+  test("only matching local stream choices merge into server-controlled playback", () => {
+    const request = {
+      itemId: "selected",
+      offline: false,
+      syncPlay: true,
+      playbackPositionTicks: 100,
+    };
+    const choices = {
+      itemId: "selected",
+      offline: false,
+      audioIndex: 0,
+      subtitleIndex: -1,
+      mediaSourceId: "version-2",
+      bitrateValue: 10_000,
+    };
+    expect(mergeLocalPlaybackRequest(request, choices)).toEqual({
+      ...request,
+      audioIndex: 0,
+      subtitleIndex: -1,
+      mediaSourceId: "version-2",
+      bitrateValue: 10_000,
+    });
+    expect(
+      mergeLocalPlaybackRequest(request, { ...choices, itemId: "other" }),
+    ).toBe(request);
+  });
+
   test("preserves the server-driven SyncPlay flag and downloaded source", () => {
     const query = new URLSearchParams(
       toDirectPlayerQuery({
