@@ -26,7 +26,7 @@ import type {
   MovieDetails,
   TvDetails,
 } from "@/utils/seerr/types";
-import { MediaStatus, MediaType } from "@/utils/seerr/types";
+import { MediaType } from "@/utils/seerr/types";
 import { Loader } from "../Loader";
 
 const SeerrSeasonEpisodes: React.FC<{
@@ -151,10 +151,6 @@ const SeerrSeasons: React.FC<{
     () => (details ? seasonsWithStatus(details) : []),
     [details],
   );
-  const allSeasonsAvailable = useMemo(
-    () => seasons.every((season) => season.status === MediaStatus.AVAILABLE),
-    [seasons],
-  );
   // What Seerr's own modal reads from the server: the specials, and whether
   // a series can be requested a season at a time.
   const publicSettings = useSeerrPublicSettings();
@@ -236,7 +232,7 @@ const SeerrSeasons: React.FC<{
           <Text className='text-lg font-bold mb-2'>
             {t("item_card.seasons")}
           </Text>
-          {!allSeasonsAvailable && (
+          {unrequested.length > 0 && (
             <RoundButton className='mb-2 pa-2' onPress={promptRequestAll}>
               <Ionicons name='bag-add' color='white' size={26} />
             </RoundButton>
@@ -261,7 +257,7 @@ const SeerrSeasons: React.FC<{
           <Text className='text-lg font-bold mb-2'>
             {t("item_card.seasons")}
           </Text>
-          {!allSeasonsAvailable && (
+          {unrequested.length > 0 && (
             <RoundButton className='mb-2 pa-2' onPress={promptRequestAll}>
               <Ionicons name='bag-add' color='white' size={26} />
             </RoundButton>
