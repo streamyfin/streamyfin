@@ -1,6 +1,7 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, mock, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import ts from "typescript";
 
 const source = readFileSync(join(__dirname, "useSyncPlayWebSocket.ts"), "utf8");
 const provider = readFileSync(
@@ -9,6 +10,53 @@ const provider = readFileSync(
 );
 
 describe("SyncPlay reuses app services", () => {
+  test("burst frames reach the manager once and cleanup removes both subscriptions", () => {
+    const handlers = new Map<string, (value: unknown) => void>();
+    let cleanup: (() => void) | undefined;
+    const subscribe = (name: string, handler: (value: unknown) => void) => {
+      handlers.set(name, handler);
+      return () => {
+        handlers.delete(name);
+      };
+    };
+    const exports: Record<string, (manager: unknown) => void> = {};
+    const imports: Record<string, unknown> = {
+      react: {
+        useEffect: (effect: () => () => void) => {
+          cleanup = effect();
+        },
+      },
+      "@/providers/WebSocketProvider": {
+        useWebSocketContext: () => ({ subscribe }),
+      },
+    };
+    const compiled = ts.transpileModule(source, {
+      compilerOptions: {
+        module: ts.ModuleKind.CommonJS,
+        target: ts.ScriptTarget.ES2022,
+      },
+    }).outputText;
+    new Function("require", "exports", compiled)(
+      (id: string) => imports[id],
+      exports,
+    );
+    const manager = {
+      processCommand: mock((_command: unknown) => {}),
+      processGroupUpdate: mock((_update: unknown) => {}),
+    };
+    exports.useSyncPlayWebSocket(manager);
+    const commands = [{ Command: "Pause" }, { Command: "Unpause" }];
+    for (const command of commands) handlers.get("SyncPlayCommand")?.(command);
+    const update = { Type: "GroupJoined" };
+    handlers.get("SyncPlayGroupUpdate")?.(update);
+    expect(manager.processCommand.mock.calls).toEqual(
+      commands.map((command) => [command]),
+    );
+    expect(manager.processGroupUpdate).toHaveBeenCalledWith(update);
+    cleanup?.();
+    expect(handlers.size).toBe(0);
+  });
+
   test("uses both lossless WebSocket subscriptions and removes them on cleanup", () => {
     expect(source).toContain('subscribe("SyncPlayCommand"');
     expect(source).toContain('subscribe("SyncPlayGroupUpdate"');

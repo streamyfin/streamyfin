@@ -100,7 +100,9 @@ export function SyncPlayProvider({ children }: SyncPlayProviderProps) {
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
   const userRef = useRef(user);
-  userRef.current = user;
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
   const router = useAppRouter();
   const { ws, isConnected: isWsConnected } = useWebSocketContext();
   const rejoinRef = useRef<ReturnType<typeof createGroupRejoin> | null>(null);
@@ -425,7 +427,7 @@ export function SyncPlayProvider({ children }: SyncPlayProviderProps) {
       return (response.data as unknown as GroupInfoDto[]) ?? [];
     } catch (error) {
       console.error("SyncPlay: failed to get groups", error);
-      return [];
+      throw error;
     }
   }, [api]);
 
@@ -489,12 +491,7 @@ export function SyncPlayProvider({ children }: SyncPlayProviderProps) {
       console.warn("SyncPlay: resumeGroupPlayback — no current group item");
       return;
     }
-    try {
-      await navigateToPlayer(itemId, queueCore.getStartPositionTicks());
-    } catch (error) {
-      toast.error(i18n.t("syncplay.failed_to_start"));
-      throw error;
-    }
+    await navigateToPlayer(itemId, queueCore.getStartPositionTicks());
   }, [api, manager, navigateToPlayer]);
 
   useEffect(() => {

@@ -20,8 +20,10 @@ export function createGroupRejoin(
       request = controller;
       joinedSocket = socket;
       void join(groupId, controller.signal).catch((error) => {
-        if (!controller.signal.aborted)
+        if (!controller.signal.aborted) {
+          joinedSocket = null;
           console.error("SyncPlay: failed to rejoin group", error);
+        }
       });
     },
     dispose() {

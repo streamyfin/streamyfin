@@ -1,7 +1,25 @@
-import { describe, expect, mock, test } from "bun:test";
+import { describe, expect, mock, spyOn, test } from "bun:test";
 import { createGroupRejoin } from "./groupRejoin";
 
 describe("SyncPlay membership reconnect ownership", () => {
+  test("a failed rejoin does not mark the new socket as successfully joined", async () => {
+    const join = mock(async (_group: string, _signal: AbortSignal) => {});
+    join.mockRejectedValueOnce(new Error("temporary failure"));
+    const logged = spyOn(console, "error").mockImplementation(() => {});
+    const tracker = createGroupRejoin(join);
+    try {
+      const replacement = {};
+      tracker.update("group", {}, true);
+      tracker.update("group", replacement, true);
+      await Promise.resolve();
+      tracker.update("group", replacement, true);
+      expect(join).toHaveBeenCalledTimes(2);
+    } finally {
+      tracker.dispose();
+      logged.mockRestore();
+    }
+  });
+
   test("rejoins after a replaced socket opens, even if the old close arrived after foreground", () => {
     const join = mock(async (_group: string, _signal: AbortSignal) => {});
     const tracker = createGroupRejoin(join);
