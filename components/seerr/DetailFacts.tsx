@@ -142,8 +142,8 @@ const DetailFacts: React.FC<
 
   return (
     details && (
-      <View className='p-4'>
-        <Text className='text-lg font-bold'>{t("seerr.details")}</Text>
+      <View className='px-4'>
+        <Text className='text-lg font-bold mb-2'>{t("seerr.details")}</Text>
         <View
           className={`${className} flex flex-col justify-center divide-y-2 divide-neutral-800`}
           {...props}

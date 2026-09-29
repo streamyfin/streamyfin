@@ -296,7 +296,8 @@ const MobilePage: React.FC = () => {
         }
       >
         <View className='flex flex-col'>
-          <View className='space-y-4'>
+          {/* As a style: a release build drops the space-y classes. */}
+          <View style={{ gap: 16 }}>
             <View className='px-4'>
               <View className='flex flex-row justify-between w-full'>
                 <View className='flex flex-col w-56'>
@@ -458,7 +459,8 @@ const MobilePage: React.FC = () => {
               />
             )}
             <DetailFacts
-              className='p-2 border border-neutral-800 bg-neutral-900 rounded-xl'
+              // The rows give the vertical rhythm, the box only the sides.
+              className='px-3 border border-neutral-800 bg-neutral-900 rounded-xl'
               details={details}
             />
             <Cast details={details} />
