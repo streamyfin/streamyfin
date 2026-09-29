@@ -13,6 +13,19 @@ export const SEERR_SEARCH_PAGES = 4;
 /** Season badges a request card shows before counting the rest. */
 export const SEERR_SEASON_BADGES = 2;
 
+/** The quality Seerr's image resizer is asked for, Next.js's own default. */
+export const SEERR_IMAGE_QUALITY = 75;
+
+/**
+ * An episode still, drawn 128 points wide: TMDB's size asked for, and the
+ * width Seerr's resizer brings it to.
+ */
+export const SEERR_STILL_SIZE = "w300";
+export const SEERR_STILL_WIDTH = 640;
+
+/** The height of a season's header, which stays in view while its episodes pass. */
+export const SEERR_SEASON_HEADER_HEIGHT = 48;
+
 /*
  * Where builds from before the rename stored the same things, when Seerr was
  * called Jellyseerr. Each is read once, moved to the name above, and deleted.

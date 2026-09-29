@@ -940,6 +940,8 @@
     "season_all": "Season (All)",
     "season_number": "Season {{season_number}}",
     "number_episodes": "{{episode_number}} episodes",
+    "number_episodes_one": "{{count}} episode",
+    "number_episodes_other": "{{count}} episodes",
     "born": "Born",
     "appearances": "Appearances",
     "approve": "Approve",

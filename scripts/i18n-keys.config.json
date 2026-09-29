@@ -49,6 +49,8 @@
     "seerr.quota.season_requests_remaining_one",
     "seerr.quota.season_requests_remaining_other",
     "seerr.quota.required_season_requests_one",
-    "seerr.quota.required_season_requests_other"
+    "seerr.quota.required_season_requests_other",
+    "seerr.number_episodes_one",
+    "seerr.number_episodes_other"
   ]
 }

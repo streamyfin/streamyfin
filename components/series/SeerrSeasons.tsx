@@ -5,124 +5,248 @@ import {
   type RefetchOptions,
   useQuery,
 } from "@tanstack/react-query";
+import { useHeaderHeight } from "expo-router/react-navigation";
 import { t } from "i18next";
 import { orderBy } from "lodash";
 import type React from "react";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useContext, useMemo, useState } from "react";
 import { Alert, TouchableOpacity, View } from "react-native";
-import { HorizontalScroll } from "@/components/common/HorizontalScroll";
+import Animated, {
+  measure,
+  scrollTo,
+  useAnimatedRef,
+  useAnimatedStyle,
+} from "react-native-reanimated";
+import { scheduleOnUI } from "react-native-worklets";
 import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
-import { Tags } from "@/components/GenreTags";
+import { ParallaxScrollContext } from "@/components/ParallaxPage";
 import { RoundButton } from "@/components/RoundButton";
 import { dateOpts } from "@/components/seerr/DetailFacts";
-import { textShadowStyle } from "@/components/seerr/discover/GenericSlideCard";
 import SeerrStatusIcon from "@/components/seerr/SeerrStatusIcon";
+import { SheetColors } from "@/constants/Colors";
+import { SEERR_SEASON_HEADER_HEIGHT } from "@/constants/Seerr";
 import { useSeerr } from "@/hooks/useSeerr";
 import { useSeerrPublicSettings } from "@/hooks/useSeerrPublicSettings";
+import { episodeStillUrl } from "@/utils/seerr/images";
 import { seasonsWithStatus, unrequestedSeasons } from "@/utils/seerr/seasons";
 import type {
   MediaRequestBody,
   MovieDetails,
+  SeasonWithEpisodes,
   TvDetails,
 } from "@/utils/seerr/types";
 import { MediaType } from "@/utils/seerr/types";
+import { stickyHeaderOffset } from "@/utils/stickyHeader";
 import { Loader } from "../Loader";
 
-const SeerrSeasonEpisodes: React.FC<{
+type Episode = NonNullable<SeasonWithEpisodes["episodes"]>[number];
+
+// The header of an open season while it is not pinned: one object, so the
+// style is not sent again on every frame of the scroll.
+const AT_REST = { transform: [{ translateY: 0 }] };
+
+/**
+ * A season's episodes, one under the other as on Seerr's site: the still, the
+ * number and title, the air date, and the whole overview.
+ */
+const SeasonEpisodes: React.FC<{
   details: TvDetails;
   seasonNumber: number;
 }> = ({ details, seasonNumber }) => {
-  const { seerrApi } = useSeerr();
+  const { seerrApi, seerrRegion: region, seerrLocale: locale } = useSeerr();
 
   const { data: seasonWithEpisodes, isLoading } = useQuery({
     queryKey: ["seerr", details.id, "season", seasonNumber],
     queryFn: async () => seerrApi?.tvSeason(details.id, seasonNumber),
-    enabled: details.seasons.filter((s) => s.seasonNumber !== 0).length > 0,
+    // Not before the Seerr client exists, or the query answers undefined.
+    enabled:
+      !!seerrApi &&
+      details.seasons.filter((s) => s.seasonNumber !== 0).length > 0,
   });
 
+  if (isLoading) return <Loader />;
+
+  const baseUrl = seerrApi?.axios.defaults.baseURL ?? "";
+
   return (
-    <HorizontalScroll
-      horizontal
-      loading={isLoading}
-      showsHorizontalScrollIndicator={false}
-      data={seasonWithEpisodes?.episodes}
-      keyExtractor={(item) => item.id.toString()}
-      renderItem={(item, index) => (
-        <RenderItem key={index} item={item} index={index} />
-      )}
-    />
+    <View style={{ paddingHorizontal: 16 }}>
+      {(seasonWithEpisodes?.episodes ?? []).map((episode, index) => (
+        <View key={episode.id}>
+          {index > 0 && (
+            <View
+              style={{ height: 1, backgroundColor: SheetColors.separator }}
+            />
+          )}
+          <EpisodeRow
+            episode={episode}
+            still={episodeStillUrl(baseUrl, episode.stillPath)}
+            airDate={
+              episode.airDate
+                ? new Date(episode.airDate).toLocaleDateString(
+                    `${locale}-${region}`,
+                    dateOpts,
+                  )
+                : undefined
+            }
+          />
+        </View>
+      ))}
+    </View>
   );
 };
 
-const RenderItem = ({ item }: any) => {
-  const { seerrApi, seerrRegion: region, seerrLocale: locale } = useSeerr();
+const EpisodeRow: React.FC<{
+  episode: Episode;
+  still?: string;
+  airDate?: string;
+}> = ({ episode, still, airDate }) => {
   const [imageError, setImageError] = useState(false);
 
-  const upcomingAirDate = useMemo(() => {
-    const airDate = item.airDate;
-    if (airDate) {
-      const airDateObj = new Date(airDate);
-      if (new Date() < airDateObj) {
-        return airDateObj.toLocaleDateString(`${locale}-${region}`, dateOpts);
-      }
-    }
-  }, [item, locale, region]);
-
   return (
-    <View className='flex flex-col w-44 mt-2'>
-      <View className='relative aspect-video rounded-lg overflow-hidden border border-neutral-800'>
-        {!imageError ? (
-          <>
+    <View style={{ paddingVertical: 12, gap: 8 }}>
+      <View style={{ flexDirection: "row", gap: 12, alignItems: "center" }}>
+        <View
+          style={{
+            width: 128,
+            aspectRatio: 16 / 9,
+            borderRadius: 8,
+            overflow: "hidden",
+            backgroundColor: SheetColors.group,
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          {still && !imageError ? (
             <Image
-              key={item.id}
-              id={item.id}
-              source={{
-                uri: seerrApi?.imageProxy(item.stillPath),
-              }}
-              cachePolicy={"memory-disk"}
+              source={{ uri: still }}
+              cachePolicy='memory-disk'
               contentFit='cover'
-              className='w-full h-full'
-              onError={(_e) => {
-                setImageError(true);
-              }}
+              style={{ width: "100%", height: "100%" }}
+              onError={() => setImageError(true)}
             />
-            {upcomingAirDate && (
-              <View className='absolute justify-center bottom-0 right-0.5 items-center'>
-                <View className='rounded-full bg-purple-600/30 p-1'>
-                  <Text
-                    className='text-center text-xs'
-                    style={textShadowStyle.shadow}
-                  >
-                    {upcomingAirDate}
-                  </Text>
-                </View>
-              </View>
-            )}
-          </>
-        ) : (
-          <View className='flex flex-col w-full h-full items-center justify-center border border-neutral-800 bg-neutral-900'>
+          ) : (
             <Ionicons
               name='image-outline'
-              size={24}
+              size={22}
               color='white'
               style={{ opacity: 0.4 }}
             />
-          </View>
-        )}
+          )}
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontSize: 15, fontWeight: "600" }} numberOfLines={2}>
+            {`${episode.episodeNumber}. ${episode.name}`}
+          </Text>
+          {airDate && (
+            <Text
+              style={{
+                fontSize: 13,
+                marginTop: 2,
+                color: SheetColors.secondaryText,
+              }}
+            >
+              {airDate}
+            </Text>
+          )}
+        </View>
       </View>
-      <View className='shrink mt-1'>
-        <Text numberOfLines={2} className=''>
-          {item.name}
+      {!!episode.overview && (
+        <Text
+          style={{
+            fontSize: 13,
+            lineHeight: 18,
+            color: SheetColors.secondaryText,
+          }}
+        >
+          {episode.overview}
         </Text>
-        <Text numberOfLines={1} className='text-xs text-neutral-500'>
-          {`S${item.seasonNumber}:E${item.episodeNumber}`}
-        </Text>
-      </View>
-      <Text numberOfLines={3} className='text-xs text-neutral-500 shrink'>
-        {item.overview}
-      </Text>
+      )}
     </View>
+  );
+};
+
+/** The row that opens or closes a season. */
+const SeasonToggle: React.FC<{
+  open: boolean;
+  onPress: () => void;
+  children: React.ReactNode;
+}> = ({ open, onPress, children }) => (
+  <TouchableOpacity
+    onPress={onPress}
+    accessibilityState={{ expanded: open }}
+    style={{ paddingHorizontal: 16 }}
+  >
+    {children}
+  </TouchableOpacity>
+);
+
+/**
+ * An open season: its header, then its episodes. While they scroll past, the
+ * header slides down with them and stays under the navigation bar, so the
+ * season can be closed without scrolling back up; it stops at the season's
+ * last episode. Closing it from there brings the season's top back under the
+ * bar, where the header was, rather than leaving the page far below it.
+ */
+const OpenSeason: React.FC<{
+  header: React.ReactNode;
+  onClose: () => void;
+  children: React.ReactNode;
+}> = ({ header, onClose, children }) => {
+  const page = useContext(ParallaxScrollContext);
+  const scroll = page?.offset;
+  const scrollView = page?.view;
+  const origin = page?.origin;
+  const top = useHeaderHeight();
+  const blockRef = useAnimatedRef<Animated.View>();
+
+  // How far the header is pushed down, read from the layout: the season and
+  // the top of the content are measured together, so the scroll position the
+  // layout holds, which trails the one the page is drawn at, cancels out, and
+  // the live position comes from the scroll alone.
+  const pushed = (scrolled: number) => {
+    "worklet";
+    if (!scrollView || !origin) return 0;
+    const view = measure(scrollView);
+    const content = measure(origin);
+    const block = measure(blockRef);
+    if (!view || !content || !block) return 0;
+    return stickyHeaderOffset({
+      viewTop: view.pageY,
+      sectionOffset: block.pageY - content.pageY,
+      sectionHeight: block.height,
+      headerHeight: SEERR_SEASON_HEADER_HEIGHT,
+      scroll: scrolled,
+      top,
+    });
+  };
+
+  const headerStyle = useAnimatedStyle(() => {
+    if (!scroll) return AT_REST;
+    const offset = pushed(scroll.value);
+    return offset === 0 ? AT_REST : { transform: [{ translateY: offset }] };
+  });
+
+  const close = () => {
+    if (scroll && scrollView) {
+      scheduleOnUI(() => {
+        "worklet";
+        const offset = pushed(scroll.value);
+        if (offset > 0) scrollTo(scrollView, 0, scroll.value - offset, false);
+      });
+    }
+    onClose();
+  };
+
+  return (
+    <Animated.View ref={blockRef}>
+      <Animated.View style={[{ zIndex: 10 }, headerStyle]}>
+        <SeasonToggle open onPress={close}>
+          {header}
+        </SeasonToggle>
+      </Animated.View>
+      {children}
+    </Animated.View>
   );
 };
 
@@ -265,61 +389,87 @@ const SeerrSeasons: React.FC<{
         </View>
       )}
       ItemSeparatorComponent={() => <View className='h-2' />}
-      renderItem={({ item: season }) => (
-        <>
-          <TouchableOpacity
-            onPress={() =>
-              setSeasonStates((prevState) => ({
-                ...prevState,
-                [season.seasonNumber]: !prevState?.[season.seasonNumber],
-              }))
-            }
-            className='px-4'
+      renderItem={({ item: season }) => {
+        const open = !!seasonStates?.[season.seasonNumber];
+        // One season at a time only where the server takes it.
+        const canRequest = partial && unrequested.includes(season.seasonNumber);
+        const toggle = () =>
+          setSeasonStates((prevState) => ({
+            ...prevState,
+            [season.seasonNumber]: !prevState?.[season.seasonNumber],
+          }));
+        const header = (
+          <View
+            style={{
+              height: SEERR_SEASON_HEADER_HEIGHT,
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              paddingHorizontal: 16,
+              borderRadius: 12,
+              // Opaque, so the episodes it passes over do not show through.
+              backgroundColor: SheetColors.group,
+            }}
           >
             <View
-              className='flex flex-row justify-between items-center bg-gray-100/10 rounded-xl z-20 h-12 w-full px-4'
-              key={season.id}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 8,
+                flex: 1,
+              }}
             >
-              <Tags
-                textClass=''
-                tags={[
-                  season.seasonNumber === 0
-                    ? t("seerr.specials")
-                    : t("seerr.season_number", {
-                        season_number: season.seasonNumber,
-                      }),
-                  t("seerr.number_episodes", {
-                    episode_number: season.episodeCount,
-                  }),
-                ]}
+              <Ionicons
+                name={open ? "chevron-down" : "chevron-forward"}
+                size={16}
+                color={SheetColors.secondaryText}
               />
-              {[0].map(() => {
-                // One season at a time only where the server takes it.
-                const canRequest =
-                  partial && unrequested.includes(season.seasonNumber);
-                return (
-                  <SeerrStatusIcon
-                    key={0}
-                    onPress={() =>
-                      requestSeason(canRequest, season.seasonNumber)
-                    }
-                    className={canRequest ? "bg-gray-700/40" : undefined}
-                    mediaStatus={season.status}
-                    showRequestIcon={canRequest}
-                  />
-                );
-              })}
+              {/* Text rather than tags: the iOS glass behind a tag
+                  vanished once the list reloaded after a request. */}
+              <Text
+                style={{ fontSize: 16, fontWeight: "600" }}
+                numberOfLines={1}
+              >
+                {season.seasonNumber === 0
+                  ? t("seerr.specials")
+                  : t("seerr.season_number", {
+                      season_number: season.seasonNumber,
+                    })}
+              </Text>
+              <Text
+                style={{
+                  fontSize: 13,
+                  color: SheetColors.secondaryText,
+                }}
+              >
+                {t("seerr.number_episodes", {
+                  count: season.episodeCount,
+                  episode_number: season.episodeCount,
+                })}
+              </Text>
             </View>
-          </TouchableOpacity>
-          {seasonStates?.[season.seasonNumber] && (
-            <SeerrSeasonEpisodes
-              key={season.seasonNumber}
+            <SeerrStatusIcon
+              onPress={() => requestSeason(canRequest, season.seasonNumber)}
+              className={canRequest ? "bg-gray-700/40" : undefined}
+              mediaStatus={season.status}
+              showRequestIcon={canRequest}
+            />
+          </View>
+        );
+        // Only an open season follows the scroll.
+        return open ? (
+          <OpenSeason header={header} onClose={toggle}>
+            <SeasonEpisodes
               details={details}
               seasonNumber={season.seasonNumber}
             />
-          )}
-        </>
-      )}
+          </OpenSeason>
+        ) : (
+          <SeasonToggle open={false} onPress={toggle}>
+            {header}
+          </SeasonToggle>
+        );
+      }}
     />
   );
 };

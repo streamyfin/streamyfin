@@ -9,3 +9,12 @@ export const Colors = {
   tabIconDefault: "#9BA1A6",
   tabIconSelected: "#9333ea",
 };
+
+/** The surfaces of a sheet: its background, a group of rows, their lines. */
+export const SheetColors = {
+  background: "#171717",
+  group: "#212121",
+  separator: "#303030",
+  secondaryText: "#9ba1a6",
+  idle: "#5a5a5a",
+} as const;

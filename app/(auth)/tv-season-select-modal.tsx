@@ -134,6 +134,7 @@ const TVSeasonToggleCard: React.FC<TVSeasonToggleCardProps> = ({
               ]}
             >
               {t("seerr.number_episodes", {
+                count: season.episodeCount,
                 episode_number: season.episodeCount,
               })}
             </Text>
