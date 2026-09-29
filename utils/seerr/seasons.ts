@@ -32,15 +32,22 @@ export const seasonsWithStatus = (details: TvDetails) => {
     const row = rows.get(season.seasonNumber);
     return {
       ...season,
-      status: row?.badge
-        ? BADGE_STATUS[row.badge]
-        : // No badge, as for a failed request: it stands, so not to ask again.
-          row?.locked
-          ? MediaStatus.PENDING
-          : MediaStatus.UNKNOWN,
+      status: row ? seasonRowStatus(row) : MediaStatus.UNKNOWN,
     };
   });
 };
+
+/**
+ * The status a season row stands for, as its status icon draws it, in the
+ * season list and in the request sheet alike.
+ */
+export const seasonRowStatus = (row: SeasonRow): MediaStatus =>
+  row.badge
+    ? BADGE_STATUS[row.badge]
+    : // No badge, as for a failed request: it stands, so not to ask again.
+      row.locked
+      ? MediaStatus.PENDING
+      : MediaStatus.UNKNOWN;
 
 /**
  * The season badges of a request card: the first few, then how many more.
@@ -142,14 +149,28 @@ export const toggleSeason = (
   return [...selected, seasonNumber];
 };
 
-/** Selects every season that can be requested, or none once they all are. */
+/**
+ * Whether the button for all seasons selects them, rather than clearing them
+ * once they all are. The specials count: Seerr's own switch leaves them out of
+ * the state it shows (isAllSeasons) but not out of what it does
+ * (toggleAllSeasons), and the button's label says what it does.
+ */
+export const selectsAll = (
+  selected: number[],
+  unrequested: number[],
+): boolean => unrequested.some((season) => !selected.includes(season));
+
+/**
+ * Selects every season that can be requested, when the quota covers them all,
+ * or clears them once they all are.
+ */
 export const toggleAllSeasons = (
   selected: number[],
   unrequested: number[],
   quota?: SeasonQuota,
 ): number[] => {
-  if (!roomForAll(unrequested, quota)) return selected;
-  return selected.length < unrequested.length ? unrequested : [];
+  if (!selectsAll(selected, unrequested)) return [];
+  return roomForAll(unrequested, quota) ? unrequested : selected;
 };
 
 /** The badge Seerr puts on a season in its request table. */

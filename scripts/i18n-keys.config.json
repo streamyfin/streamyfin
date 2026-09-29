@@ -51,6 +51,12 @@
     "seerr.quota.required_season_requests_one",
     "seerr.quota.required_season_requests_other",
     "seerr.number_episodes_one",
-    "seerr.number_episodes_other"
+    "seerr.number_episodes_other",
+    "seerr.quota.season_limit_one",
+    "seerr.quota.season_limit_other",
+    "seerr.quota.season_limit_daily_one",
+    "seerr.quota.season_limit_daily_other",
+    "seerr.quota.season_limit_total_one",
+    "seerr.quota.season_limit_total_other"
   ]
 }

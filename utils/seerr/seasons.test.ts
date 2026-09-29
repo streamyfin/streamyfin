@@ -2,9 +2,12 @@ import { describe, expect, test } from "bun:test";
 import {
   roomForAll,
   roomForOneMore,
+  type SeasonRow,
   seasonBadges,
+  seasonRowStatus,
   seasonRows,
   seasonsWithStatus,
+  selectsAll,
   toggleAllSeasons,
   toggleSeason,
   unrequestedSeasons,
@@ -300,6 +303,33 @@ describe("toggleAllSeasons", () => {
       [],
     );
   });
+
+  test("selects the specials with the other seasons", () => {
+    expect(toggleAllSeasons([1, 2], [0, 1, 2])).toEqual([0, 1, 2]);
+  });
+
+  test("clears the seasons whatever the quota", () => {
+    expect(
+      toggleAllSeasons([1, 2], [1, 2], { limit: 5, remaining: 1 }),
+    ).toEqual([]);
+  });
+});
+
+// What the button for all seasons does, and so what it says. Seerr's own
+// switch shows itself on without the specials (isAllSeasons) but acts with
+// them (toggleAllSeasons): with seasons 1 and 2 chosen and the specials left,
+// the app said "Clear" and selected the specials.
+describe("selectsAll", () => {
+  test("selects while a season that can be requested is left out", () => {
+    expect(selectsAll([], [1, 2])).toBe(true);
+    expect(selectsAll([1], [1, 2])).toBe(true);
+    expect(selectsAll([1, 2], [1, 2])).toBe(false);
+  });
+
+  test("counts the specials, as the action does", () => {
+    expect(selectsAll([1, 2], [0, 1, 2])).toBe(true);
+    expect(selectsAll([0, 1, 2], [0, 1, 2])).toBe(false);
+  });
 });
 
 // Seerr greys a switch its quota will not let on: a season's once the
@@ -418,5 +448,34 @@ describe("seasonRows", () => {
       badge: "not_requested",
       locked: false,
     });
+  });
+});
+
+// The picker draws a season's status with the season list's own icon, so a
+// season reads the same in both.
+describe("seasonRowStatus", () => {
+  const row = (badge?: SeasonRow["badge"], locked = true): SeasonRow => ({
+    seasonNumber: 1,
+    episodeCount: 10,
+    badge,
+    locked,
+  });
+
+  test("reads each badge as the season list does", () => {
+    expect(seasonRowStatus(row("not_requested", false))).toBe(
+      MediaStatus.UNKNOWN,
+    );
+    expect(seasonRowStatus(row("pending"))).toBe(MediaStatus.PENDING);
+    expect(seasonRowStatus(row("requested"))).toBe(MediaStatus.PROCESSING);
+    expect(seasonRowStatus(row("partially_available"))).toBe(
+      MediaStatus.PARTIALLY_AVAILABLE,
+    );
+    expect(seasonRowStatus(row("available"))).toBe(MediaStatus.AVAILABLE);
+  });
+
+  // A failed request has no badge in Seerr's table and stands all the same:
+  // it waits, it is not in the library.
+  test("reads a season taken without a badge as waiting", () => {
+    expect(seasonRowStatus(row(undefined))).toBe(MediaStatus.PENDING);
   });
 });

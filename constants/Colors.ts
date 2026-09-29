@@ -10,6 +10,16 @@ export const Colors = {
   tabIconSelected: "#9333ea",
 };
 
+/**
+ * What a Seerr status reads as wherever it is spelled out: available in
+ * green, pending in amber, requested (approved and on its way) in indigo.
+ */
+export const SeerrStatusColors = {
+  available: "#22c55e",
+  pending: "#f59e0b",
+  requested: "#818cf8",
+} as const;
+
 /** The surfaces of a sheet: its background, a group of rows, their lines. */
 export const SheetColors = {
   background: "#171717",

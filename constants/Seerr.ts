@@ -26,6 +26,12 @@ export const SEERR_STILL_WIDTH = 640;
 /** The height of a season's header, which stays in view while its episodes pass. */
 export const SEERR_SEASON_HEADER_HEIGHT = 48;
 
+/** A season row the quota leaves no room for, greyed as on Seerr's site. */
+export const SEERR_BLOCKED_OPACITY = 0.45;
+
+/** The alpha a season's status colour takes behind its icon, about 18%. */
+export const SEERR_STATUS_TINT_ALPHA = "2e";
+
 /*
  * Where builds from before the rename stored the same things, when Seerr was
  * called Jellyseerr. Each is read once, moved to the name above, and deleted.

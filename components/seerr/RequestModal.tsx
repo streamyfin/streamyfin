@@ -8,12 +8,18 @@ import type { BottomSheetModalMethods } from "@gorhom/bottom-sheet/lib/typescrip
 import { useQuery } from "@tanstack/react-query";
 import { forwardRef, useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useWindowDimensions, View, type ViewProps } from "react-native";
+import {
+  Pressable,
+  useWindowDimensions,
+  View,
+  type ViewProps,
+} from "react-native";
 import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
 import { PlatformDropdown } from "@/components/PlatformDropdown";
+import { SeasonPicker } from "@/components/seerr/SeasonPicker";
 import { SeasonQuota } from "@/components/seerr/SeasonQuota";
-import { SeasonRequestTable } from "@/components/seerr/SeasonRequestTable";
+import { Colors, SheetColors } from "@/constants/Colors";
 import { SHEET_MAX_HEIGHT_RATIO } from "@/constants/Values";
 import { useSeerr } from "@/hooks/useSeerr";
 import { useSeerrPublicSettings } from "@/hooks/useSeerrPublicSettings";
@@ -24,6 +30,7 @@ import {
   roomForAll,
   roomForOneMore,
   seasonRows,
+  selectsAll,
   toggleAllSeasons,
   toggleSeason,
   unrequestedSeasons,
@@ -136,10 +143,8 @@ const RequestModal = forwardRef<
       ? 0
       : (tvQuota?.remaining ?? 0) - selectedSeasons.length;
 
-    // Seerr's isAllSeasons, which leaves the specials out of the count.
-    const allSelected =
-      selectedSeasons.filter((season) => season !== 0).length ===
-      unrequested.filter((season) => season !== 0).length;
+    // What the button for all seasons does, and so what it says.
+    const selecting = selectsAll(selectedSeasons, unrequested);
 
     const approvedAutomatically =
       isSeries &&
@@ -420,11 +425,15 @@ const RequestModal = forwardRef<
           : selectedSeasons.length === 0
             ? t("seerr.select_seasons")
             : t("seerr.request_n_seasons", { count: selectedSeasons.length });
+    // A whole series that the quota left cannot cover would be refused by
+    // Seerr, so the button stays off (Seerr's own compares with the limit).
     const requestDisabled =
       isSeries &&
-      ((!partial && limited && unrequested.length > (tvQuota?.limit ?? 0)) ||
+      (overLimit ||
         unrequested.length === 0 ||
         (partial && selectedSeasons.length === 0));
+    // Clearing is always possible, selecting them all only within the quota.
+    const canToggleAll = !selecting || roomForAll(unrequested, tvQuota);
 
     return (
       <BottomSheetModal
@@ -436,7 +445,7 @@ const RequestModal = forwardRef<
           backgroundColor: "white",
         }}
         backgroundStyle={{
-          backgroundColor: "#171717",
+          backgroundColor: SheetColors.background,
         }}
         backdropComponent={(sheetProps: BottomSheetBackdropProps) => (
           <BottomSheetBackdrop
@@ -449,17 +458,60 @@ const RequestModal = forwardRef<
         maxDynamicContentSize={windowHeight * SHEET_MAX_HEIGHT_RATIO}
       >
         <BottomSheetScrollView>
-          <View className='flex flex-col space-y-4 px-4 pb-8 pt-2'>
-            <View>
-              <Text className='font-bold text-2xl text-neutral-100'>
-                {isSeries ? t("seerr.request_series") : t("seerr.advanced")}
-              </Text>
-              {isSeries ? (
-                <Text className='text-neutral-300'>{title}</Text>
-              ) : (
-                seasonTitle && (
-                  <Text className='text-neutral-300'>{seasonTitle}</Text>
-                )
+          {/* Spaced with styles: a release build drops the space-y classes. */}
+          <View
+            style={{
+              paddingHorizontal: 18,
+              paddingTop: 8,
+              paddingBottom: 32,
+              gap: 18,
+            }}
+          >
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "flex-start",
+                justifyContent: "space-between",
+                gap: 12,
+              }}
+            >
+              <View style={{ flex: 1 }}>
+                <Text className='font-bold text-2xl text-neutral-100'>
+                  {isSeries ? t("seerr.request_series") : t("seerr.advanced")}
+                </Text>
+                {isSeries ? (
+                  <Text className='text-neutral-300' style={{ marginTop: 2 }}>
+                    {title}
+                  </Text>
+                ) : (
+                  seasonTitle && (
+                    <Text className='text-neutral-300'>{seasonTitle}</Text>
+                  )
+                )}
+              </View>
+              {isSeries && partial && unrequested.length > 0 && (
+                <Pressable
+                  accessibilityRole='button'
+                  disabled={!canToggleAll}
+                  hitSlop={8}
+                  onPress={() =>
+                    setSelectedSeasons((selected) =>
+                      toggleAllSeasons(selected, unrequested, tvQuota),
+                    )
+                  }
+                  style={{ paddingVertical: 4 }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 15,
+                      color: canToggleAll ? Colors.primary : SheetColors.idle,
+                    }}
+                  >
+                    {selecting
+                      ? t("seerr.select_all")
+                      : t("seerr.clear_selection")}
+                  </Text>
+                </Pressable>
               )}
             </View>
             {approvedAutomatically && (
@@ -472,31 +524,34 @@ const RequestModal = forwardRef<
             {isSeries && limited && (
               <SeasonQuota
                 remaining={remaining}
+                limit={tvQuota?.limit}
+                days={tvQuota?.days}
                 overLimit={overLimit ? unrequested.length : undefined}
                 restricted={tvQuota?.restricted}
               />
             )}
             {isSeries && (
-              <SeasonRequestTable
-                rows={rows}
-                selected={selectedSeasons}
-                allSelected={allSelected}
-                choosable={partial}
-                roomForOneMore={roomForOneMore(selectedSeasons, tvQuota)}
-                roomForAll={roomForAll(unrequested, tvQuota)}
-                onToggle={(season) =>
-                  setSelectedSeasons((selected) =>
-                    toggleSeason(selected, season, unrequested, tvQuota),
-                  )
-                }
-                onToggleAll={() =>
-                  setSelectedSeasons((selected) =>
-                    toggleAllSeasons(selected, unrequested, tvQuota),
-                  )
-                }
-              />
+              <>
+                {!partial && (
+                  <Text className='text-sm text-neutral-400'>
+                    {t("seerr.whole_series_only")}
+                  </Text>
+                )}
+                <SeasonPicker
+                  rows={rows}
+                  // A whole-series server requests every season left.
+                  selected={partial ? selectedSeasons : unrequested}
+                  choosable={partial}
+                  roomForOneMore={roomForOneMore(selectedSeasons, tvQuota)}
+                  onToggle={(season) =>
+                    setSelectedSeasons((selected) =>
+                      toggleSeason(selected, season, unrequested, tvQuota),
+                    )
+                  }
+                />
+              </>
             )}
-            <View className='flex flex-col space-y-2'>
+            <View style={{ gap: 8 }}>
               {advanced && defaultService && defaultServiceDetails && (
                 <>
                   <View className='flex flex-col'>

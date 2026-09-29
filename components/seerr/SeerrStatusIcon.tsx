@@ -3,6 +3,20 @@ import { useEffect, useState } from "react";
 import { TouchableOpacity, View, type ViewProps } from "react-native";
 import { MediaStatus } from "@/utils/seerr/types";
 
+/**
+ * Seerr's icon for each status (StatusBadgeMini), which the request sheet
+ * also draws for a season, so that a season reads the same everywhere.
+ */
+export const SEERR_STATUS_ICONS: Partial<
+  Record<MediaStatus, keyof typeof MaterialCommunityIcons.glyphMap>
+> = {
+  [MediaStatus.PROCESSING]: "clock",
+  [MediaStatus.AVAILABLE]: "check",
+  [MediaStatus.PENDING]: "bell",
+  [MediaStatus.BLOCKLISTED]: "eye-off",
+  [MediaStatus.PARTIALLY_AVAILABLE]: "minus",
+};
+
 interface Props {
   mediaStatus?: MediaStatus;
   showRequestIcon: boolean;
@@ -27,29 +41,29 @@ const SeerrStatusIcon: React.FC<Props & ViewProps> = ({
         setBadgeStyle(
           "bg-indigo-500 border-indigo-400 ring-indigo-400 text-indigo-100",
         );
-        setBadgeIcon("clock");
+        setBadgeIcon(SEERR_STATUS_ICONS[MediaStatus.PROCESSING]);
         break;
       case MediaStatus.AVAILABLE:
         setBadgeStyle(
           "bg-purple-500 border-green-400 ring-green-400 text-green-100",
         );
-        setBadgeIcon("check");
+        setBadgeIcon(SEERR_STATUS_ICONS[MediaStatus.AVAILABLE]);
         break;
       case MediaStatus.PENDING:
         setBadgeStyle(
           "bg-yellow-500 border-yellow-400 ring-yellow-400 text-yellow-100",
         );
-        setBadgeIcon("bell");
+        setBadgeIcon(SEERR_STATUS_ICONS[MediaStatus.PENDING]);
         break;
       case MediaStatus.BLOCKLISTED:
         setBadgeStyle("bg-red-500 border-white-400 ring-white-400 text-white");
-        setBadgeIcon("eye-off");
+        setBadgeIcon(SEERR_STATUS_ICONS[MediaStatus.BLOCKLISTED]);
         break;
       case MediaStatus.PARTIALLY_AVAILABLE:
         setBadgeStyle(
           "bg-green-500 border-green-400 ring-green-400 text-green-100",
         );
-        setBadgeIcon("minus");
+        setBadgeIcon(SEERR_STATUS_ICONS[MediaStatus.PARTIALLY_AVAILABLE]);
         break;
       default:
         if (showRequestIcon) {
