@@ -24,17 +24,15 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import ContinueWatchingOverlay from "@/components/video-player/controls/ContinueWatchingOverlay";
-import useRouter from "@/hooks/useAppRouter";
-import { useHaptic } from "@/hooks/useHaptic";
 import { useMediaSegments } from "@/hooks/useMediaSegments";
 import { usePlaybackManager } from "@/hooks/usePlaybackManager";
+import { usePlayerItemNavigation } from "@/hooks/usePlayerItemNavigation";
 import { useTrickplay } from "@/hooks/useTrickplay";
 import type { TechnicalInfo } from "@/modules/mpv-player";
 import { DownloadedItem } from "@/providers/Downloads/types";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { hasChapterMarkers } from "@/utils/chapters";
-import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { SEGMENT_SKIP_KEY, useSegments } from "@/utils/segments";
 import { ticksToMs } from "@/utils/time";
 import { BottomControls } from "./BottomControls";
@@ -137,9 +135,7 @@ export const Controls: FC<Props> = ({
   transcodeReasons,
 }) => {
   const offline = useOfflineMode();
-  const { settings, updateSettings } = useSettings();
-  const router = useRouter();
-  const lightHapticFeedback = useHaptic("light");
+  const { settings } = useSettings();
 
   const [episodeView, setEpisodeView] = useState(false);
   const [showAudioSlider, setShowAudioSlider] = useState(false);
@@ -427,6 +423,28 @@ export const Controls: FC<Props> = ({
     isBuffering,
   });
 
+  /*
+   * Single source of truth for next / previous / picker / autoplay
+   * navigation. Handles SyncPlay dispatch, autoplay count gating,
+   * platform-appropriate local navigation, and offline param injection.
+   */
+  const {
+    goToNextItem: handleNextEpisodeManual,
+    goToPreviousItem: handlePreviousItem,
+    goToItem: handleGoToItem,
+    handleAutoPlayNext: handleNextEpisodeAutoPlay,
+    handleContinueWatching,
+  } = usePlayerItemNavigation({
+    nextItem,
+    previousItem,
+    mediaSource,
+    currentAudioIndex: audioIndex ? Number.parseInt(audioIndex, 10) : undefined,
+    currentSubtitleIndex: subtitleIndex
+      ? Number.parseInt(subtitleIndex, 10)
+      : undefined,
+    bitrateValue: bitrateValue ? Number.parseInt(bitrateValue, 10) : undefined,
+  });
+
   const { t } = useTranslation();
   const skipSegmentButtonText = t(
     SEGMENT_SKIP_KEY[activeSegment?.type ?? "Intro"],
@@ -519,127 +537,6 @@ export const Controls: FC<Props> = ({
     pause,
   ]);
 
-  const goToItemCommon = useCallback(
-    (item: BaseItemDto) => {
-      if (!item || !settings) {
-        return;
-      }
-      lightHapticFeedback();
-      const previousIndexes = {
-        subtitleIndex: subtitleIndex
-          ? Number.parseInt(subtitleIndex, 10)
-          : undefined,
-        audioIndex: audioIndex ? Number.parseInt(audioIndex, 10) : undefined,
-      };
-
-      const {
-        mediaSource: newMediaSource,
-        audioIndex: defaultAudioIndex,
-        subtitleIndex: defaultSubtitleIndex,
-      } = getDefaultPlaySettings(item, settings, {
-        indexes: previousIndexes,
-        source: mediaSource ?? undefined,
-      });
-
-      // Use setParams instead of replace to avoid unmounting/remounting the player,
-      // which would create a new MPV native view and crash with "mp_initialize already initialized".
-      router.setParams({
-        ...(offline && { offline: "true" }),
-        itemId: item.Id ?? "",
-        audioIndex: defaultAudioIndex?.toString() ?? "",
-        subtitleIndex: defaultSubtitleIndex?.toString() ?? "",
-        mediaSourceId: newMediaSource?.Id ?? "",
-        bitrateValue: bitrateValue?.toString(),
-        playbackPosition:
-          item.UserData?.PlaybackPositionTicks?.toString() ?? "",
-      });
-    },
-    [
-      settings,
-      subtitleIndex,
-      audioIndex,
-      mediaSource,
-      bitrateValue,
-      router,
-      offline,
-    ],
-  );
-
-  const goToPreviousItem = useCallback(() => {
-    if (!previousItem) {
-      return;
-    }
-    goToItemCommon(previousItem);
-  }, [previousItem, goToItemCommon]);
-
-  const goToNextItem = useCallback(
-    ({
-      isAutoPlay,
-      resetWatchCount,
-    }: {
-      isAutoPlay?: boolean;
-      resetWatchCount?: boolean;
-    }) => {
-      if (!nextItem) {
-        return;
-      }
-
-      if (!isAutoPlay) {
-        // if we are not autoplaying, we won't update anything, we just go to the next item
-        goToItemCommon(nextItem);
-        if (resetWatchCount) {
-          updateSettings({
-            autoPlayEpisodeCount: 0,
-          });
-        }
-        return;
-      }
-
-      // Skip autoplay logic if maxAutoPlayEpisodeCount is -1
-      if (settings.maxAutoPlayEpisodeCount.value === -1) {
-        goToItemCommon(nextItem);
-        return;
-      }
-
-      // Same boundary as the countdown's willShowNextEpisode gate — the
-      // countdown must never complete without actually navigating.
-      if (
-        settings.autoPlayEpisodeCount < settings.maxAutoPlayEpisodeCount.value
-      ) {
-        goToItemCommon(nextItem);
-      }
-
-      // Check if the autoPlayEpisodeCount is less than maxAutoPlayEpisodeCount for the autoPlay
-      if (
-        settings.autoPlayEpisodeCount < settings.maxAutoPlayEpisodeCount.value
-      ) {
-        // update the autoPlayEpisodeCount in settings
-        updateSettings({
-          autoPlayEpisodeCount: settings.autoPlayEpisodeCount + 1,
-        });
-      }
-    },
-    [nextItem, goToItemCommon],
-  );
-
-  // Add a memoized handler for autoplay next episode
-  const handleNextEpisodeAutoPlay = useCallback(() => {
-    goToNextItem({ isAutoPlay: true });
-  }, [goToNextItem]);
-
-  // Add a memoized handler for manual next episode
-  const handleNextEpisodeManual = useCallback(() => {
-    goToNextItem({ isAutoPlay: false });
-  }, [goToNextItem]);
-
-  // Add a memoized handler for ContinueWatchingOverlay
-  const handleContinueWatching = useCallback(
-    (options: { isAutoPlay?: boolean; resetWatchCount?: boolean }) => {
-      goToNextItem(options);
-    },
-    [goToNextItem],
-  );
-
   const hideControls = useCallback(() => {
     setShowControls(false);
     setShowAudioSlider(false);
@@ -669,7 +566,7 @@ export const Controls: FC<Props> = ({
         <EpisodeList
           item={item}
           close={() => setEpisodeView(false)}
-          goToItem={goToItemCommon}
+          goToItem={handleGoToItem}
         />
       ) : (
         <>
@@ -713,8 +610,8 @@ export const Controls: FC<Props> = ({
               showControls={showControls}
               startPictureInPicture={startPictureInPicture}
               switchOnEpisodeMode={switchOnEpisodeMode}
-              goToPreviousItem={goToPreviousItem}
-              goToNextItem={goToNextItem}
+              goToPreviousItem={handlePreviousItem}
+              goToNextItem={handleNextEpisodeManual}
               previousItem={previousItem}
               nextItem={nextItem}
               aspectRatio={aspectRatio}
@@ -803,7 +700,7 @@ export const Controls: FC<Props> = ({
         </>
       )}
       {stillWatchingVisible && (
-        <ContinueWatchingOverlay goToNextItem={handleContinueWatching} />
+        <ContinueWatchingOverlay onContinue={handleContinueWatching} />
       )}
     </View>
   );
