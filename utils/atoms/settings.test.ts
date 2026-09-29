@@ -85,10 +85,7 @@ describe("redactPluginSettings", () => {
     const logged = JSON.stringify(
       redactPluginSettings({
         jellyseerrApiKey: { locked: false, value: "flat-key" },
-        seerr: {
-          locked: false,
-          value: { apiKey: { locked: false, value: "block-key" } },
-        },
+        seerr: { apiKey: { locked: false, value: "block-key" } },
       } as never),
     );
 
@@ -110,10 +107,7 @@ describe("fetchPluginSettings", () => {
               locked: true,
               value: "http://seerr.example",
             },
-            seerr: {
-              locked: false,
-              value: { apiKey: { locked: false, value: "a-key" } },
-            },
+            seerr: { apiKey: { locked: false, value: "a-key" } },
           },
         },
       }),

@@ -290,17 +290,17 @@ describe("pluginRefreshOverlay", () => {
 });
 
 describe("readIntegrationBlocks", () => {
+  // The block is not a setting, so it comes bare, with no lock of its own:
+  // each of its three entries is locked on its own, as the plugin's
+  // SeerrSettings holds them.
   test("a Seerr block becomes the app's three Seerr settings", () => {
     const read = readIntegrationBlocks(
       plugin({
         seerr: {
-          locked: false,
-          value: {
-            serverUrl: { locked: true, value: "http://seerr.example" },
-            apiKey: { locked: false, value: "a-key" },
-            autoLogin: { locked: false, value: false },
-          },
-        },
+          serverUrl: { locked: true, value: "http://seerr.example" },
+          apiKey: { locked: false, value: "a-key" },
+          autoLogin: { locked: false, value: false },
+        } as never,
       }),
     );
 
@@ -337,11 +337,8 @@ describe("readIntegrationBlocks", () => {
       plugin({
         jellyseerrServerUrl: { locked: false, value: "http://flat.example" },
         seerr: {
-          locked: false,
-          value: {
-            serverUrl: { locked: false, value: "http://block.example" },
-          },
-        },
+          serverUrl: { locked: false, value: "http://block.example" },
+        } as never,
       }),
     );
 
@@ -355,10 +352,7 @@ describe("readIntegrationBlocks", () => {
   test("a block naming one setting leaves the others alone", () => {
     const read = readIntegrationBlocks(
       plugin({
-        seerr: {
-          locked: false,
-          value: { autoLogin: { locked: true, value: true } },
-        },
+        seerr: { autoLogin: { locked: true, value: true } } as never,
       }),
     );
 
@@ -385,7 +379,7 @@ describe("readIntegrationBlocks", () => {
 
   test("a block that is not the shape it should be is ignored rather than thrown on", () => {
     const read = readIntegrationBlocks(
-      plugin({ seerr: { locked: false, value: "not a block" } }),
+      plugin({ seerr: "not a block" as never }),
     );
 
     expect("seerr" in read!).toBe(false);

@@ -206,8 +206,9 @@ export const readIntegrationBlocks = (
     return plugin;
   }
 
-  const { seerr, ...read } = sent;
-  const block = (seerr as { value?: unknown } | undefined)?.value;
+  // Bare, not wrapped like a setting: the block has no lock of its own, each
+  // of its entries carries one (SeerrSettings in the plugin).
+  const { seerr: block, ...read } = sent;
   const inBlock =
     block && typeof block === "object"
       ? (block as Record<string, unknown>)
