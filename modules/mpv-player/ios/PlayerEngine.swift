@@ -43,7 +43,7 @@ extension MPVPlayerEngineDelegate {
 	}
 
 	func engineRequestsTogglePlayPause(_ engine: MPVPlayerEngine) {
-		if engine.isPaused() {
+		if !engine.intendedPlayState {
 			engineRequestsPlay(engine)
 		} else {
 			engineRequestsPause(engine)
