@@ -69,6 +69,16 @@ class MpvPlayerView: ExpoView {
 	let onError = EventDispatcher()
 	let onTracksReady = EventDispatcher()
 	let onPictureInPictureChange = EventDispatcher()
+	// SyncPlay: when `syncPlayDelegated == true`, PiP playback controls
+	// (play / pause / skip) emit these events instead of driving MPV
+	// directly, so JS can route the action through the SyncPlay
+	// controller (server → group broadcast → all clients). Default
+	// behavior (non-SyncPlay) is unchanged.
+	let onPipPlayRequest = EventDispatcher()
+	let onPipPauseRequest = EventDispatcher()
+	let onPipSkipRequest = EventDispatcher()
+
+	var syncPlayDelegated: Bool = false
 
 	required init(appContext: AppContext? = nil) {
 		super.init(appContext: appContext)
@@ -458,3 +468,109 @@ extension MpvPlayerView {
 	}
 }
 #endif
+
+// MARK: - PiPControllerDelegate
+
+extension MpvPlayerView: PiPControllerDelegate {
+	func pipController(_ controller: PiPController, willStartPictureInPicture: Bool) {
+		print("PiP will start")
+		// Sync timebase before PiP starts for smooth transition
+		renderer?.syncTimebase()
+		// Set current time for PiP progress bar
+		pipController?.setCurrentTimeFromSeconds(cachedPosition, duration: cachedDuration)
+		
+		// Reset to fit for PiP (zoomed video doesn't display correctly in PiP)
+		if _isZoomedToFill {
+			displayLayer.videoGravity = .resizeAspect
+		}
+	}
+	
+	func pipController(_ controller: PiPController, didStartPictureInPicture: Bool) {
+		print("PiP did start: \(didStartPictureInPicture)")
+		// Ensure current time is synced when PiP starts
+		pipController?.setCurrentTimeFromSeconds(cachedPosition, duration: cachedDuration)
+		// Notify JS of the actual PiP active state. `didStartPictureInPicture`
+		// is `false` when AVKit reports a failure to start, so reflect that.
+		onPictureInPictureChange(["isActive": didStartPictureInPicture])
+	}
+	
+	func pipController(_ controller: PiPController, willStopPictureInPicture: Bool) {
+		print("PiP will stop")
+		// Sync timebase before returning from PiP
+		renderer?.syncTimebase()
+	}
+	
+	func pipController(_ controller: PiPController, didStopPictureInPicture: Bool) {
+		print("PiP did stop")
+		// Ensure timebase is synced after PiP ends
+		renderer?.syncTimebase()
+		pipController?.updatePlaybackState()
+		
+		// Restore the user's zoom preference
+		if _isZoomedToFill {
+			displayLayer.videoGravity = .resizeAspectFill
+		}
+		// Notify JS that PiP has fully stopped so the controls overlay can
+		// be re-mounted when the user returns to full screen.
+		onPictureInPictureChange(["isActive": false])
+	}
+	
+	func pipController(_ controller: PiPController, restoreUserInterfaceForPictureInPictureStop completionHandler: @escaping (Bool) -> Void) {
+		print("PiP restore user interface")
+		completionHandler(true)
+	}
+	
+	func pipControllerPlay(_ controller: PiPController) {
+		print("PiP play requested")
+		if syncPlayDelegated {
+			// Let JS route through SyncPlay. We deliberately do NOT touch
+			// MPV here; the WS command coming back will drive playback.
+			onPipPlayRequest([:])
+			return
+		}
+		intendedPlayState = true
+		renderer?.play()
+		pipController?.setPlaybackRate(1.0)
+	}
+	
+	func pipControllerPause(_ controller: PiPController) {
+		print("PiP pause requested")
+		if syncPlayDelegated {
+			onPipPauseRequest([:])
+			return
+		}
+		intendedPlayState = false
+		renderer?.pausePlayback()
+		pipController?.setPlaybackRate(0.0)
+	}
+	
+	func pipController(_ controller: PiPController, skipByInterval interval: CMTime) {
+		let seconds = CMTimeGetSeconds(interval)
+		print("PiP skip by interval: \(seconds)")
+		let target = max(0, cachedPosition + seconds)
+		if syncPlayDelegated {
+			// `targetSeconds` lets JS convert to ticks and call
+			// syncPlayController.seek(). `intervalSeconds` is also sent
+			// for telemetry / debug.
+			onPipSkipRequest([
+				"targetSeconds": target,
+				"intervalSeconds": seconds
+			])
+			return
+		}
+		seekTo(position: target)
+	}
+	
+	func pipControllerIsPlaying(_ controller: PiPController) -> Bool {
+		// Use intended state to ignore transient pauses during seeking
+		return intendedPlayState
+	}
+	
+	func pipControllerDuration(_ controller: PiPController) -> Double {
+		return getDuration()
+	}
+	
+	func pipControllerCurrentPosition(_ controller: PiPController) -> Double {
+		return getCurrentPosition()
+	}
+}
