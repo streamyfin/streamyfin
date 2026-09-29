@@ -22,6 +22,8 @@ type PlayOptions = TranslateOptions & {
   items?: BaseItemDto[];
   startIndex?: number;
   startPositionTicks?: number;
+  /** Caller supplied the exact queue; do not auto-expand a single episode. */
+  exactQueue?: boolean;
 };
 
 export class Controller {
@@ -93,12 +95,9 @@ export class Controller {
       const sourceItems = options.items
         ? options.items
         : await getItemsForPlayback(api, user, options.ids ?? []);
-      const items = await translateItemsForPlayback(
-        api,
-        user,
-        sourceItems,
-        options,
-      );
+      const items = options.exactQueue
+        ? sourceItems
+        : await translateItemsForPlayback(api, user, sourceItems, options);
       const request: PlayRequestDto = {
         PlayingQueue: items.flatMap((item) => (item.Id ? [item.Id] : [])),
         PlayingItemPosition: options.startIndex ?? 0,

@@ -13,6 +13,26 @@ const user: UserDto = {
 };
 
 describe("SDK queue requests reuse authenticated user data", () => {
+  test("an explicit single-episode queue does not expand through autoplay", async () => {
+    const api = makeApi();
+    api.mock.onPost(/\/SyncPlay\/SetNewQueue$/).reply(204);
+    const manager = new SyncPlayManager(api, () => user);
+    manager.init();
+    manager.getTimeSync().stopPing();
+    try {
+      await manager.getController().play({
+        items: [{ Id: "only", Type: "Episode", SeriesId: "series" }],
+        exactQueue: true,
+      });
+      expect(api.mock.history.get).toHaveLength(0);
+      expect(JSON.parse(api.mock.history.post[0].data).PlayingQueue).toEqual([
+        "only",
+      ]);
+    } finally {
+      manager.destroy();
+    }
+  });
+
   test("container expansion includes entries after the first page", async () => {
     const api = makeApi();
     const items = Array.from({ length: 650 }, (_, index) => ({
