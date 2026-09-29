@@ -433,6 +433,7 @@
           "server_url_placeholder": "Seerr URL",
           "password": "Password",
           "password_placeholder": "Enter password for Jellyfin user {{username}}",
+          "credentials_not_needed": "No password or API key needed: this Jellyfin server has Quick Connect, and the app signs you in to Seerr with it.",
           "login_button": "Login",
           "api_key": "API key",
           "api_key_hint": "Alternative to the password: a Seerr admin API key connects you as your Jellyfin user directly. Requires a recent Seerr server.",
