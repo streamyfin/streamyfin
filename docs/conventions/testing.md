@@ -27,8 +27,9 @@ than it protects: it fails on every refactor without ever catching a bug.
 
 ## Where tests live
 
-Next to the code, as `<name>.test.ts`. `utils/chapters.ts` is covered by
-`utils/chapters.test.ts`. Shared fixtures and doubles go in `test-utils/`.
+Next to the code, as `<name>.test.ts`, or `<name>.test.tsx` when the test
+contains JSX. `utils/chapters.ts` is covered by `utils/chapters.test.ts`.
+Shared fixtures and doubles go in `test-utils/`.
 
 ## Writing a test
 
