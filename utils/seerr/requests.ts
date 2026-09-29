@@ -59,3 +59,17 @@ export const canRequest = (
     { type: "or" },
   );
 };
+
+/**
+ * Whether someone holding `permissions` may request for another user.
+ *
+ * Seerr refuses a request that names its user, even the caller's own id,
+ * from anyone without Manage Users and Manage Requests together, and reads
+ * another user's quota under the same two. Its own request modal only lists
+ * the users for them (AdvancedRequester).
+ */
+export const canRequestForOthers = (permissions: number): boolean =>
+  hasPermission(
+    [Permission.MANAGE_USERS, Permission.MANAGE_REQUESTS],
+    permissions,
+  );

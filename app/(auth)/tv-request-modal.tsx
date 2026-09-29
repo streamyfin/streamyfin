@@ -21,6 +21,7 @@ import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import { useSeerr } from "@/hooks/useSeerr";
 import { tvRequestModalAtom } from "@/utils/atoms/tvRequestModal";
+import { canRequestForOthers } from "@/utils/seerr/requests";
 import type {
   MediaRequestBody,
   QualityProfile,
@@ -38,10 +39,13 @@ export default function TVRequestModalPage() {
 
   const [isReady, setIsReady] = useState(false);
   // Only what the user changes: the media itself comes from the request body
-  // the modal was opened with.
+  // the modal was opened with. No user named until one is picked: Seerr
+  // refuses a request naming one, even the caller's own, from anyone who may
+  // not request for others.
   const [requestOverrides, setRequestOverrides] = useState<
     Partial<MediaRequestBody>
-  >({ userId: seerrUser?.id });
+  >({});
+  const forOthers = canRequestForOthers(seerrUser?.permissions ?? 0);
 
   const [activeSelector, setActiveSelector] = useState<
     "profile" | "folder" | "user" | null
@@ -89,7 +93,7 @@ export default function TVRequestModalPage() {
   const { data: users } = useQuery({
     queryKey: ["seerr", "users"],
     queryFn: async () => seerrApi?.user({ take: 1000, sort: "displayname" }),
-    enabled: !!seerrApi && !!seerrUser && !!modalState,
+    enabled: forOthers && !!seerrApi && !!seerrUser && !!modalState,
   });
 
   const defaultService = useMemo(
@@ -314,7 +318,8 @@ export default function TVRequestModalPage() {
     return null;
   }
 
-  const isDataLoaded = defaultService && defaultServiceDetails && users;
+  const isDataLoaded =
+    defaultService && defaultServiceDetails && (!forOthers || users);
 
   return (
     <Animated.View style={[styles.overlay, { opacity: overlayOpacity }]}>
@@ -357,11 +362,13 @@ export default function TVRequestModalPage() {
                     value={selectedFolderName}
                     onPress={() => setActiveSelector("folder")}
                   />
-                  <TVRequestOptionRow
-                    label={t("seerr.request_as")}
-                    value={selectedUserName}
-                    onPress={() => setActiveSelector("user")}
-                  />
+                  {forOthers && (
+                    <TVRequestOptionRow
+                      label={t("seerr.request_as")}
+                      value={selectedUserName}
+                      onPress={() => setActiveSelector("user")}
+                    />
+                  )}
 
                   {tagItems.length > 0 && (
                     <TVToggleOptionRow

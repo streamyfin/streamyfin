@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { Permission } from "./permissions";
-import { canRequest } from "./requests";
+import { canRequest, canRequestForOthers } from "./requests";
 import {
   type MediaInfo,
   type MediaRequest,
@@ -126,5 +126,31 @@ describe("canRequest", () => {
 
   test("refuses when there is nothing to request", () => {
     expect(canRequest(undefined, Permission.REQUEST)).toBe(false);
+  });
+});
+
+// Seerr refuses a request that names its user, even the caller's own id,
+// from anyone without both permissions, and lists its users for the same
+// people only (MediaRequest.request, AdvancedRequester).
+describe("canRequestForOthers", () => {
+  test("takes Manage Users and Manage Requests together", () => {
+    expect(
+      canRequestForOthers(Permission.MANAGE_USERS | Permission.MANAGE_REQUESTS),
+    ).toBe(true);
+  });
+
+  test("not with only one of them", () => {
+    expect(canRequestForOthers(Permission.MANAGE_USERS)).toBe(false);
+    expect(canRequestForOthers(Permission.MANAGE_REQUESTS)).toBe(false);
+  });
+
+  test("not with advanced requests", () => {
+    expect(
+      canRequestForOthers(Permission.REQUEST | Permission.REQUEST_ADVANCED),
+    ).toBe(false);
+  });
+
+  test("an administrator can", () => {
+    expect(canRequestForOthers(Permission.ADMIN)).toBe(true);
   });
 });

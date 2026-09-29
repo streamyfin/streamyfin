@@ -19,6 +19,7 @@ import { useSeerr } from "@/hooks/useSeerr";
 import { useSeerrPublicSettings } from "@/hooks/useSeerrPublicSettings";
 import { writeDebugLog } from "@/utils/log";
 import { hasPermission, Permission } from "@/utils/seerr/permissions";
+import { canRequestForOthers } from "@/utils/seerr/requests";
 import {
   roomForAll,
   roomForOneMore,
@@ -72,11 +73,13 @@ const RequestModal = forwardRef<
     const { seerrApi, seerrUser, requestMedia } = useSeerr();
     const { height: windowHeight } = useWindowDimensions();
     const isSeries = type === "tv" && !!details;
+    // No user named until one is picked: Seerr refuses a request naming one,
+    // even the caller's own, from anyone who may not request for others.
     const [requestOverrides, setRequestOverrides] = useState<MediaRequestBody>({
       mediaId: Number(id),
       mediaType: type,
-      userId: seerrUser?.id,
     });
+    const forOthers = canRequestForOthers(seerrUser?.permissions ?? 0);
 
     const [qualityProfileOpen, setQualityProfileOpen] = useState(false);
     const [rootFolderOpen, setRootFolderOpen] = useState(false);
@@ -113,19 +116,16 @@ const RequestModal = forwardRef<
       );
     }, [requestBody, unrequested]);
 
-    // The quota of whoever the request is for. Seerr only reads another
-    // user's with MANAGE_USERS, which it asks for; without it that would be a
-    // 403 each time the modal opens.
+    // The quota of whoever the request is for. Someone else's is read under
+    // the same two permissions as requesting for them, so only a user who may
+    // pick someone else reads it; for anyone else it would be a 403.
     const quotaUserId =
-      (advanced ? requestOverrides.userId : undefined) ?? seerrUser?.id;
-    const mayReadQuota =
-      quotaUserId === seerrUser?.id ||
-      hasPermission(Permission.MANAGE_USERS, seerrUser?.permissions ?? 0);
+      (advanced && forOthers ? requestOverrides.userId : undefined) ??
+      seerrUser?.id;
     const { data: quota } = useQuery({
       queryKey: ["seerr", "quota", quotaUserId],
       queryFn: async () => seerrApi?.userQuota(quotaUserId!),
-      enabled:
-        isSeries && !!seerrApi && quotaUserId !== undefined && mayReadQuota,
+      enabled: isSeries && !!seerrApi && quotaUserId !== undefined,
     });
     const tvQuota = quota?.tv;
     const limited = !!tvQuota?.limit;
@@ -175,7 +175,7 @@ const RequestModal = forwardRef<
     const { data: users } = useQuery({
       queryKey: ["seerr", "users"],
       queryFn: async () => seerrApi?.user({ take: 1000, sort: "displayname" }),
-      enabled: advanced && !!seerrApi && !!seerrUser,
+      enabled: advanced && forOthers && !!seerrApi && !!seerrUser,
       refetchOnMount: "always",
     });
 
@@ -497,7 +497,7 @@ const RequestModal = forwardRef<
               />
             )}
             <View className='flex flex-col space-y-2'>
-              {advanced && defaultService && defaultServiceDetails && users && (
+              {advanced && defaultService && defaultServiceDetails && (
                 <>
                   <View className='flex flex-col'>
                     <Text className='opacity-50 mb-1 text-xs'>
@@ -571,28 +571,30 @@ const RequestModal = forwardRef<
                     />
                   </View>
 
-                  <View className='flex flex-col'>
-                    <Text className='opacity-50 mb-1 text-xs'>
-                      {t("seerr.request_as")}
-                    </Text>
-                    <PlatformDropdown
-                      groups={usersOptions}
-                      trigger={
-                        <View className='bg-neutral-900 h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between'>
-                          <Text numberOfLines={1}>
-                            {users.find(
-                              (u) =>
-                                u.id ===
-                                (requestOverrides.userId || seerrUser?.id),
-                            )?.displayName || seerrUser!.displayName}
-                          </Text>
-                        </View>
-                      }
-                      title={t("seerr.request_as")}
-                      open={usersOpen}
-                      onOpenChange={setUsersOpen}
-                    />
-                  </View>
+                  {forOthers && users && (
+                    <View className='flex flex-col'>
+                      <Text className='opacity-50 mb-1 text-xs'>
+                        {t("seerr.request_as")}
+                      </Text>
+                      <PlatformDropdown
+                        groups={usersOptions}
+                        trigger={
+                          <View className='bg-neutral-900 h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between'>
+                            <Text numberOfLines={1}>
+                              {users.find(
+                                (u) =>
+                                  u.id ===
+                                  (requestOverrides.userId || seerrUser?.id),
+                              )?.displayName || seerrUser!.displayName}
+                            </Text>
+                          </View>
+                        }
+                        title={t("seerr.request_as")}
+                        open={usersOpen}
+                        onOpenChange={setUsersOpen}
+                      />
+                    </View>
+                  )}
                 </>
               )}
             </View>
