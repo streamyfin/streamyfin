@@ -119,4 +119,16 @@ describe("the Seerr session", () => {
     expect(data.get("SEERR_USER")).toBe('{"id":9}');
     expect(data.has("JELLYSEERR_USER")).toBe(false);
   });
+
+  // Migration 2 is the log redaction's (#2103), which reaches develop first.
+  // A device it stamped at 2 has not moved its Seerr session yet.
+  test("still moves on a device another migration stamped at 2", () => {
+    data.set("storageSchemaVersion", 2);
+    data.set("JELLYSEERR_USER", '{"id":7}');
+
+    runStorageMigrations(store);
+
+    expect(data.get("SEERR_USER")).toBe('{"id":7}');
+    expect(data.has("JELLYSEERR_USER")).toBe(false);
+  });
 });

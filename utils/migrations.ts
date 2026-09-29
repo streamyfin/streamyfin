@@ -54,8 +54,9 @@ const MIGRATIONS: Migration[] = [
       store.remove("hasShownIntro");
     },
   },
+  // 2 is the log redaction's (#2103), which reaches develop first.
   {
-    version: 2,
+    version: 3,
     description:
       "move the Seerr session from the keys it had when Seerr was called Jellyseerr",
     run: (store) => {
