@@ -75,6 +75,7 @@ class MpvPlayerView: ExpoView {
 	// controller (server → group broadcast → all clients). Default
 	// behavior (non-SyncPlay) is unchanged.
 	let onPipPlayRequest = EventDispatcher()
+	let onPipToggleRequest = EventDispatcher()
 	let onPipPauseRequest = EventDispatcher()
 	let onPipSkipRequest = EventDispatcher()
 
@@ -325,6 +326,16 @@ class MpvPlayerView: ExpoView {
 // MARK: - MPVPlayerEngineDelegate
 
 extension MpvPlayerView: MPVPlayerEngineDelegate {
+	func engineRequestsTogglePlayPause(_ engine: MPVPlayerEngine) {
+		if syncPlayDelegated {
+			onPipToggleRequest([:])
+		} else if engine.intendedPlayState {
+			engine.pause()
+		} else {
+			engine.play()
+		}
+	}
+
 	func engineRequestsPlay(_ engine: MPVPlayerEngine) {
 		if syncPlayDelegated {
 			onPipPlayRequest([:])

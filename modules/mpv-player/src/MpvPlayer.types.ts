@@ -119,6 +119,10 @@ export type MpvPlayerViewProps = {
    */
   syncPlayDelegated?: boolean;
   onPipPlayRequest?: (event: { nativeEvent: OnPipPlayRequestPayload }) => void;
+  /** A system toggle stays a toggle so SyncPlay can use its pending group intent. */
+  onPipToggleRequest?: (event: {
+    nativeEvent: OnPipPlayRequestPayload;
+  }) => void;
   onPipPauseRequest?: (event: {
     nativeEvent: OnPipPauseRequestPayload;
   }) => void;

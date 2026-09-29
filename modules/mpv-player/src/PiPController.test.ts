@@ -50,6 +50,9 @@ describe("iOS automatic PiP lifecycle", () => {
       ?.split("\n\tfunc engine(", 1)[0];
     expect(toggle).toContain("if !engine.intendedPlayState");
     expect(toggle).not.toContain("engine.isPaused()");
+    expect(embeddedHostSource).toMatch(
+      /func engineRequestsTogglePlayPause[\s\S]*?if syncPlayDelegated \{\s*onPipToggleRequest\(\[:\]\)/,
+    );
     expect(engineSource).toMatch(/func play\(\) \{\s*intendedPlayState = true/);
     expect(engineSource).toMatch(
       /func pause\(\) \{\s*intendedPlayState = false/,
