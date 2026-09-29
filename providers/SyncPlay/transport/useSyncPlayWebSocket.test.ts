@@ -29,4 +29,15 @@ describe("SyncPlay reuses app services", () => {
     expect(provider).toContain("target?.ItemId");
     expect(provider).not.toContain("target?.Id");
   });
+
+  test("manager cleanup clears membership UI and no uncancelled delayed rejoin remains", () => {
+    const cleanup = provider
+      .split("mgr.destroy();", 2)[1]
+      ?.split("}, [api", 1)[0];
+    expect(cleanup).toContain("setIsEnabled(false)");
+    expect(cleanup).toContain("setGroupInfo(null)");
+    expect(cleanup).toContain("setPendingPlaybackCommand(null)");
+    expect(provider).not.toContain("wsClosedWhileBackgroundedRef");
+    expect(provider).toContain("tracker.dispose()");
+  });
 });

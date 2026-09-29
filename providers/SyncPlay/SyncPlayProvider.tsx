@@ -29,7 +29,6 @@ import {
   useRef,
   useState,
 } from "react";
-import { AppState, type AppStateStatus } from "react-native";
 import { toast } from "sonner-native";
 import { useAppRouter } from "@/hooks/useAppRouter";
 import { useKeepWebSocketAlive } from "@/hooks/useKeepWebSocketAlive";
@@ -44,6 +43,7 @@ import {
 } from "@/utils/nativePlayer/playRequest";
 import type { Controller as SyncPlayController } from "./Controller";
 import { SyncPlayManager } from "./Manager";
+import { createGroupRejoin } from "./transport/groupRejoin";
 import { useSyncPlayWebSocket } from "./transport/useSyncPlayWebSocket";
 import type { GroupInfoDto, PlayerControls, SyncPlayOsdAction } from "./types";
 
@@ -102,7 +102,8 @@ export function SyncPlayProvider({ children }: SyncPlayProviderProps) {
   const userRef = useRef(user);
   userRef.current = user;
   const router = useAppRouter();
-  const { isConnected: isWsConnected } = useWebSocketContext();
+  const { ws, isConnected: isWsConnected } = useWebSocketContext();
+  const rejoinRef = useRef<ReturnType<typeof createGroupRejoin> | null>(null);
 
   const [manager, setManager] = useState<SyncPlayManager | null>(null);
   const navigationRequestRef = useRef(0);
@@ -278,7 +279,6 @@ export function SyncPlayProvider({ children }: SyncPlayProviderProps) {
           return;
         }
         logAndCaptureError("SyncPlay player navigation failed", error);
-        toast.error(i18n.t("syncplay.failed_to_start"));
         throw error;
       }
     },
@@ -395,6 +395,11 @@ export function SyncPlayProvider({ children }: SyncPlayProviderProps) {
     return () => {
       navigationRequestRef.current++;
       mgr.destroy();
+      rejoinRef.current?.dispose();
+      setIsEnabled(false);
+      setGroupInfo(null);
+      setPendingPlaybackCommand(null);
+      showOsd(null);
       setManager(null);
     };
   }, [api, navigateToPlayer, showOsd]);
@@ -427,6 +432,7 @@ export function SyncPlayProvider({ children }: SyncPlayProviderProps) {
   const joinGroup = useCallback(
     async (groupId: string): Promise<void> => {
       if (!api) return;
+      rejoinRef.current?.dispose();
       try {
         await getSyncPlayApi(api).syncPlayJoinGroup({
           joinGroupRequestDto: { GroupId: groupId },
@@ -457,6 +463,7 @@ export function SyncPlayProvider({ children }: SyncPlayProviderProps) {
 
   const leaveGroup = useCallback(async (): Promise<void> => {
     if (!api) return;
+    rejoinRef.current?.dispose();
     try {
       await getSyncPlayApi(api).syncPlayLeaveGroup();
     } catch (error) {
@@ -482,72 +489,36 @@ export function SyncPlayProvider({ children }: SyncPlayProviderProps) {
       console.warn("SyncPlay: resumeGroupPlayback — no current group item");
       return;
     }
-    await navigateToPlayer(itemId, queueCore.getStartPositionTicks());
-  }, [api, manager, navigateToPlayer]);
-
-  // ---------------------------------------------------------------------------
-  // App foreground re-join (idempotent; gets us a fresh GroupJoined snapshot)
-  // ---------------------------------------------------------------------------
-
-  const lastGroupIdRef = useRef<string | null>(null);
-  useEffect(() => {
-    lastGroupIdRef.current = groupInfo?.GroupId ?? null;
-  }, [groupInfo?.GroupId]);
-
-  // Track whether the WebSocket got torn down while the app was
-  // backgrounded. If it survived (keep-alive worked), the server
-  // still has us in the group and we must NOT call JoinGroup again —
-  // doing so would trigger a redundant "X joined the group" broadcast
-  // to every other member every time we briefly leave the app.
-  const wsClosedWhileBackgroundedRef = useRef(false);
-  const appStateRef = useRef<AppStateStatus>(AppState.currentState);
-  useEffect(() => {
-    if (!isWsConnected && appStateRef.current !== "active") {
-      wsClosedWhileBackgroundedRef.current = true;
+    try {
+      await navigateToPlayer(itemId, queueCore.getStartPositionTicks());
+    } catch (error) {
+      toast.error(i18n.t("syncplay.failed_to_start"));
+      throw error;
     }
-  }, [isWsConnected]);
+  }, [api, manager, navigateToPlayer]);
 
   useEffect(() => {
     if (!api) return;
-
-    const subscription = AppState.addEventListener("change", (nextAppState) => {
-      const previousAppState = appStateRef.current;
-      appStateRef.current = nextAppState;
-
-      const becameActive =
-        (previousAppState === "background" ||
-          previousAppState === "inactive") &&
-        nextAppState === "active";
-      if (!becameActive) return;
-
-      const groupId = lastGroupIdRef.current;
-      if (!groupId) return;
-
-      // Happy path: keep-alive held the socket open across the
-      // suspend. Server still considers us a member — nothing to do.
-      if (!wsClosedWhileBackgroundedRef.current) {
-        console.log(
-          "SyncPlay: app foregrounded with WS still alive, skipping rejoin",
-        );
-        return;
-      }
-      wsClosedWhileBackgroundedRef.current = false;
-
-      // Small delay so the WebSocket has a moment to reconnect.
-      setTimeout(() => {
-        console.log(
-          `SyncPlay: app foregrounded after WS drop, rejoining group ${groupId}`,
-        );
-        getSyncPlayApi(api)
-          .syncPlayJoinGroup({ joinGroupRequestDto: { GroupId: groupId } })
-          .catch((error) => {
-            console.error("SyncPlay: failed to rejoin group", error);
-          });
-      }, 1000);
+    const tracker = createGroupRejoin((groupId, signal) => {
+      return getSyncPlayApi(api).syncPlayJoinGroup(
+        { joinGroupRequestDto: { GroupId: groupId } },
+        { signal },
+      );
     });
-
-    return () => subscription.remove();
+    rejoinRef.current = tracker;
+    return () => {
+      tracker.dispose();
+      if (rejoinRef.current === tracker) rejoinRef.current = null;
+    };
   }, [api]);
+
+  useEffect(() => {
+    rejoinRef.current?.update(
+      isEnabled ? (groupInfo?.GroupId ?? null) : null,
+      ws,
+      isWsConnected && ws?.readyState === WebSocket.OPEN,
+    );
+  }, [api, isEnabled, groupInfo?.GroupId, ws, isWsConnected]);
 
   // ---------------------------------------------------------------------------
   // Player attach bridges
