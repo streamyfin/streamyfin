@@ -1,4 +1,8 @@
-import { APP_ROUTES, type AppRoute } from "../../utils/seerr/routes";
+import {
+  APP_ROUTES,
+  type AppRoute,
+  SIGNED_IN_USER,
+} from "../../utils/seerr/routes";
 import { type Shape, shapeOf } from "./shape";
 
 /**
@@ -42,12 +46,25 @@ export const fileNameFor = (template: string): string =>
     .replace(/^\//, "")
     .replace(/\//g, "-")}.json`;
 
-/** The path to call, with the parameters and the query filled in. */
-export const urlFor = (route: AppRoute, base: string): string => {
+/**
+ * The path to call, with the parameters and the query filled in, the account
+ * signed in standing where a route asks for it.
+ */
+export const urlFor = (
+  route: AppRoute,
+  base: string,
+  signedIn?: number,
+): string => {
   const path = route.template
     .replace(/^GET /, "")
     .replace(/\{(\w+)\}/g, (_, name: string) => {
       const value = route.params?.[name];
+      if (value === SIGNED_IN_USER) {
+        if (signedIn === undefined) {
+          throw new Error(`${route.template} needs the account signed in`);
+        }
+        return String(signedIn);
+      }
       if (value === undefined) {
         throw new Error(`${route.template} has no value for {${name}}`);
       }
@@ -72,7 +89,7 @@ const signIn = async (
   base: string,
   username: string,
   password: string,
-): Promise<string> => {
+): Promise<{ session: string; userId: number }> => {
   const answer = await fetch(`${base}/api/v1/auth/jellyfin`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -88,7 +105,9 @@ const signIn = async (
     throw new Error("Signing in answered no session cookie");
   }
 
-  return cookie.split(";")[0];
+  // The answer is the account itself, whose id some routes ask for.
+  const { id } = (await answer.json()) as { id: number };
+  return { session: cookie.split(";")[0], userId: id };
 };
 
 const capture = async (): Promise<void> => {
@@ -102,11 +121,11 @@ const capture = async (): Promise<void> => {
     );
   }
 
-  const session = await signIn(base, username, password);
+  const { session, userId } = await signIn(base, username, password);
   let written = 0;
 
   for (const route of APP_ROUTES) {
-    const answer = await fetch(urlFor(route, base), {
+    const answer = await fetch(urlFor(route, base, userId), {
       headers: { Cookie: session },
     });
 

@@ -35,6 +35,8 @@ import type {
   MediaRequestBody,
   MovieDetails,
   PersonDetails,
+  PublicSettings,
+  QuotaResponse,
   RequestResultsResponse,
   RTRating,
   SeasonWithEpisodes,
@@ -82,6 +84,8 @@ export enum Endpoints {
   SERVICE = "/service",
   TV = "/tv",
   SETTINGS = "/settings",
+  PUBLIC = "/public",
+  QUOTA = "/quota",
   NETWORK = "/network",
   STUDIO = "/studio",
   GENRE_SLIDER = "/genreslider",
@@ -384,6 +388,24 @@ export class SeerrApi {
           Endpoints.GENRE_SLIDER +
           endpoint,
         { params },
+      )
+      .then(({ data }) => data);
+  }
+
+  /** What the server makes public: whether it shows specials, takes partial requests. */
+  async publicSettings(): Promise<PublicSettings | undefined> {
+    return this.axios
+      ?.get<PublicSettings>(
+        `${Endpoints.API_V1}${Endpoints.SETTINGS}${Endpoints.PUBLIC}`,
+      )
+      .then(({ data }) => data);
+  }
+
+  /** A user's quotas. Another user's takes Manage Users and Manage Requests. */
+  async userQuota(userId: number): Promise<QuotaResponse | undefined> {
+    return this.axios
+      ?.get<QuotaResponse>(
+        `${Endpoints.API_V1}${Endpoints.USER}/${userId}${Endpoints.QUOTA}`,
       )
       .then(({ data }) => data);
   }
