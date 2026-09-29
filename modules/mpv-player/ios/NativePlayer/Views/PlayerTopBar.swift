@@ -90,6 +90,7 @@ struct PlayerTopBar: View {
 		.menuOrder(.fixed)
 		.simultaneousGesture(TapGesture().onEnded { viewModel.menuInteractionStarted() })
 		.accessibilityLabel(viewModel.str("speed", "Speed"))
+		.disabled(viewModel.syncPlayEnabled)
 	}
 
 	private var speedMenuEntries: some View {
@@ -103,6 +104,7 @@ struct PlayerTopBar: View {
 					Text(speedLabel(option))
 				}
 			}
+			.disabled(viewModel.syncPlayEnabled)
 		}
 	}
 

@@ -64,6 +64,12 @@ Chromecast support is currently under development. Video casting is already avai
 Streamyfin uses [MPV](https://mpv.io/) as its primary video player on all platforms, powered by [MPVKit](https://github.com/mpvkit/MPVKit). MPV is a powerful, open-source media player known for its wide format support and high-quality playback.
 Thanks to [@Alexk2309](https://github.com/Alexk2309) for the hard work building the native MPV module in Streamyfin.
 
+SyncPlay also works with the optional native player controls on iOS, Apple TV,
+and Android TV. Play, pause, seek, and episode selection control the group;
+speed selection is disabled while synchronized. This requires a new native
+build: older binaries fall back to the React player for SyncPlay.
+The native play/pause button shows the same SyncPlay action states as the React
+controls and remains usable while the group is loading or waiting.
 The synchronization protocol follows [jellyfin-web's event-driven scheduler](https://github.com/jellyfin/jellyfin-web/tree/140e8f995b03ebd6c2a1c0e71698b3b44cd0556b/src/plugins/syncPlay):
 native loading events are adapted separately from pause/unpause acknowledgements.
 Commands are clock- and playlist-checked, and newer commands cancel older timers

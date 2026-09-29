@@ -2,7 +2,6 @@ package expo.modules.mpvplayer.nativeplayer.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -10,26 +9,23 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Forward10
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Replay10
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import expo.modules.mpvplayer.nativeplayer.PlayerViewModel
 
 @Composable
 fun CenterControls(viewModel: PlayerViewModel, modifier: Modifier = Modifier) {
-    val interactionSource = remember { MutableInteractionSource() }
-
     Row(
         modifier = modifier,
         verticalAlignment = Alignment.CenterVertically,
@@ -85,25 +81,18 @@ fun CenterControls(viewModel: PlayerViewModel, modifier: Modifier = Modifier) {
                 .size(68.dp)
                 .clip(CircleShape)
                 .background(Color.Black.copy(alpha = 0.6f))
-                .clickable {
+                .semantics { contentDescription = viewModel.str("playPause", "Play / Pause") }
+                .clickable(role = Role.Button) {
                     viewModel.togglePlayPause()
                 },
             contentAlignment = Alignment.Center
         ) {
-            if (viewModel.isBuffering && !viewModel.isScrubbing && viewModel.errorMessage == null) {
-                CircularProgressIndicator(
-                    color = Color.White,
-                    modifier = Modifier.size(36.dp),
-                    strokeWidth = 3.dp
-                )
-            } else {
-                Icon(
-                    imageVector = if (viewModel.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                    contentDescription = if (viewModel.isPlaying) "Pause" else "Play",
-                    tint = Color.White,
-                    modifier = Modifier.size(42.dp)
-                )
-            }
+            PlayerPlaybackIcon(
+                syncPlayAction = viewModel.syncPlayAction.takeIf { viewModel.syncPlayEnabled },
+                isBuffering = viewModel.isBuffering,
+                isPlaying = viewModel.isPlaying,
+                size = 42.dp
+            )
         }
 
         // Seek Forward (+10s)

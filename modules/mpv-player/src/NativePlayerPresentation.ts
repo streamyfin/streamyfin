@@ -14,6 +14,7 @@ import type {
   NativePlayerNextEpisode,
   NativePlayerSegment,
   NativePlayerSubtitleSearchState,
+  NativePlayerSyncPlayState,
   NativePlayerTrackMenus,
   NativePlayerTrickplay,
 } from "./NativePlayerPresentation.types";
@@ -31,6 +32,7 @@ declare class NativePlayerModuleType extends NativeModule<NativePlayerEvents> {
   updateMetadata(metadata: NativePlayerMetadata): Promise<void>;
   updateEpisodeList(episodes: NativePlayerEpisodeListItem[]): Promise<void>;
   updateSubtitleSearch(state: NativePlayerSubtitleSearchState): Promise<void>;
+  updateSyncPlay(state: NativePlayerSyncPlayState): Promise<void>;
   showNotice(text: string): Promise<void>;
   toggleMute(): Promise<void>;
   addExternalSubtitle(url: string): Promise<void>;
@@ -48,9 +50,7 @@ declare class NativePlayerModuleType extends NativeModule<NativePlayerEvents> {
   getTechnicalInfo(): Promise<TechnicalInfo>;
 }
 
-// The NativePlayer module only ships on iOS (iPhone/iPad). Resolve it
-// optionally so Android/TV bundles that import this file don't crash —
-// same pattern as modules/top-shelf-cache.
+// Resolve optionally for unsupported platforms and older native binaries.
 let NativePlayerNativeModule: NativePlayerModuleType | null = null;
 try {
   NativePlayerNativeModule =
@@ -61,6 +61,20 @@ try {
 
 export const isNativePlayerModuleAvailable = (): boolean =>
   NativePlayerNativeModule !== null;
+
+export const isNativeSyncPlaySupported = (): boolean =>
+  typeof NativePlayerNativeModule?.updateSyncPlay === "function";
+
+export const updateNativePlayerSyncPlay = (
+  state: NativePlayerSyncPlayState,
+): Promise<void> => {
+  if (!isNativeSyncPlaySupported() || !NativePlayerNativeModule) {
+    return Promise.reject(
+      new Error("NativePlayer SyncPlay requires an updated native build"),
+    );
+  }
+  return NativePlayerNativeModule.updateSyncPlay(state);
+};
 
 /**
  * Attach a NativePlayer event listener. IMPORTANT: attach every listener

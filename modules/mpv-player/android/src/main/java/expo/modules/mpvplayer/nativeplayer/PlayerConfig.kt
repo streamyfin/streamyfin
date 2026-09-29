@@ -165,7 +165,13 @@ class UIOptionsRecord : Record {
     @Field var strings: Map<String, String> = emptyMap()
 }
 
+class SyncPlayStateRecord : Record {
+    @Field var enabled: Boolean = false
+    @Field var osdAction: String? = null
+}
+
 class PlayerPresentConfigRecord : Record {
+    @Field var syncPlay: SyncPlayStateRecord? = null
     @Field var stream: StreamConfigRecord = StreamConfigRecord()
     @Field var metadata: MetadataRecord? = null
     @Field var chapters: List<ChapterRecord> = emptyList()

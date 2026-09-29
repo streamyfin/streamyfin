@@ -37,7 +37,7 @@ class NativePlayerModule : Module() {
             "onNextEpisodeRequested", "onPreviousEpisodeRequested",
             "onEpisodeSelected", "onPlaybackEnded", "onDismiss",
             "onSubtitleSearchRequested", "onSubtitleDownloadRequested",
-            "onMuteStateChanged"
+            "onMuteStateChanged", "onPlaybackActionRequested"
         )
 
         // MARK: - Lifecycle
@@ -104,6 +104,10 @@ class NativePlayerModule : Module() {
 
         // MARK: - Late-Arriving Data Pushes
 
+        AsyncFunction("updateSyncPlay") { state: SyncPlayStateRecord ->
+            this@NativePlayerModule.session?.viewModel?.updateSyncPlay(state)
+        }.runOnQueue(Queues.MAIN)
+
         AsyncFunction("updateSegments") { segments: List<MediaSegmentRecord> ->
             this@NativePlayerModule.session?.viewModel?.updateSegments(segments)
         }
@@ -154,12 +158,12 @@ class NativePlayerModule : Module() {
         // MARK: - Transport
 
         AsyncFunction("play") {
-            this@NativePlayerModule.session?.viewModel?.play()
-        }
+            this@NativePlayerModule.session?.viewModel?.play(fromSyncPlay = true)
+        }.runOnQueue(Queues.MAIN)
 
         AsyncFunction("pause") {
-            this@NativePlayerModule.session?.viewModel?.pause()
-        }
+            this@NativePlayerModule.session?.viewModel?.pause(fromSyncPlay = true)
+        }.runOnQueue(Queues.MAIN)
 
         // Main queue, as on iOS: viewModel.seekTo syncs the window's
         // keep-screen-on flag, which only the main thread may touch. On the
@@ -167,12 +171,12 @@ class NativePlayerModule : Module() {
         // before the tick that moves JS's tracked position, so a backward
         // remote seek followed by an exit reported the pre-seek position.
         AsyncFunction("seekTo") { positionSec: Double ->
-            this@NativePlayerModule.session?.viewModel?.seekTo(positionSec)
+            this@NativePlayerModule.session?.viewModel?.seekTo(positionSec, fromSyncPlay = true)
         }.runOnQueue(Queues.MAIN)
 
         AsyncFunction("setSpeed") { speed: Double ->
-            this@NativePlayerModule.session?.viewModel?.setSpeed(speed)
-        }
+            this@NativePlayerModule.session?.viewModel?.setSpeed(speed, fromSyncPlay = true)
+        }.runOnQueue(Queues.MAIN)
 
         AsyncFunction("getCurrentPosition") {
             this@NativePlayerModule.session?.viewModel?.displayPosition ?: 0.0

@@ -41,7 +41,7 @@ public class NativePlayerModule: Module {
 			"onNextEpisodeRequested", "onPreviousEpisodeRequested",
 			"onEpisodeSelected", "onPlaybackEnded", "onDismiss",
 			"onSubtitleSearchRequested", "onSubtitleDownloadRequested",
-			"onMuteStateChanged"
+			"onMuteStateChanged", "onPlaybackActionRequested"
 		)
 
 		// MARK: - Lifecycle
@@ -104,6 +104,10 @@ public class NativePlayerModule: Module {
 		}
 
 		// MARK: - Late-arriving data pushes
+
+		AsyncFunction("updateSyncPlay") { (state: SyncPlayStateRecord) in
+			self.session?.viewModel.updateSyncPlay(state)
+		}.runOnQueue(.main)
 
 		AsyncFunction("updateSegments") { (segments: [MediaSegmentRecord]) in
 			self.session?.viewModel.updateSegments(segments)
@@ -171,11 +175,11 @@ public class NativePlayerModule: Module {
 		// one, or the server keeps reporting the pre-seek position until the
 		// next 10s interval. Android routes this the same way.
 		AsyncFunction("seekTo") { (positionSec: Double) in
-			self.session?.viewModel.seek(to: positionSec)
+			self.session?.viewModel.seek(to: positionSec, fromSyncPlay: true)
 		}.runOnQueue(.main)
 
 		AsyncFunction("setSpeed") { (speed: Double) in
-			self.session?.viewModel.setSpeed(speed)
+			self.session?.viewModel.setSpeed(speed, fromSyncPlay: true)
 		}.runOnQueue(.main)
 
 		AsyncFunction("getCurrentPosition") { () -> Double in

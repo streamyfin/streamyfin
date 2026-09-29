@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -33,6 +32,7 @@ import expo.modules.mpvplayer.nativeplayer.MediaSegmentRecord
 import expo.modules.mpvplayer.nativeplayer.NextEpisodeRecord
 import expo.modules.mpvplayer.nativeplayer.PlayerViewModel
 import expo.modules.mpvplayer.nativeplayer.ui.RemoteImage
+import expo.modules.mpvplayer.nativeplayer.ui.PlayerPlaybackIcon
 import expo.modules.mpvplayer.nativeplayer.ui.TechnicalInfoOverlay
 
 @Composable
@@ -41,15 +41,17 @@ fun TvStatusOverlays(
     modifier: Modifier = Modifier
 ) {
     Box(modifier = modifier.fillMaxSize()) {
-        // 1. Buffering Spinner
-        if (viewModel.isBuffering && viewModel.errorMessage == null) {
-            CircularProgressIndicator(
-                color = TvPalette.OnSurface,
-                strokeWidth = 4.dp,
-                modifier = Modifier
-                    .size(56.dp)
-                    .align(Alignment.Center)
-            )
+        // With visible chrome the status lives inside the focusable button.
+        if (!viewModel.controlsVisible && viewModel.hasPlaybackStatus && viewModel.errorMessage == null) {
+            Box(modifier = Modifier.align(Alignment.Center)) {
+                PlayerPlaybackIcon(
+                    syncPlayAction = viewModel.syncPlayAction.takeIf { viewModel.syncPlayEnabled },
+                    isBuffering = viewModel.isBuffering,
+                    isPlaying = viewModel.isPlaying,
+                    size = 56.dp,
+                    syncPlayColor = TvPalette.OnSurface
+                )
+            }
         }
 
         // 2. Technical Info Overlay (top-left, scaled 1.5x)

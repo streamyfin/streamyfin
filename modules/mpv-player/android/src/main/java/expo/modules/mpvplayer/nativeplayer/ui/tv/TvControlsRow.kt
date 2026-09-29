@@ -32,6 +32,7 @@ import androidx.compose.material.icons.filled.VolumeUp
 // content color through the TV library's LocalContentColor, which the mobile
 // Icon never reads (it defaults to black).
 import androidx.tv.material3.Icon
+import androidx.tv.material3.LocalContentColor
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -45,6 +46,8 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -56,6 +59,7 @@ import androidx.tv.material3.IconButton
 import androidx.tv.material3.IconButtonDefaults
 import androidx.tv.material3.Text
 import expo.modules.mpvplayer.nativeplayer.PlayerViewModel
+import expo.modules.mpvplayer.nativeplayer.ui.PlayerPlaybackIcon
 import expo.modules.mpvplayer.nativeplayer.TvMenuScreen
 import kotlinx.coroutines.delay
 
@@ -94,6 +98,7 @@ fun TvControlsRow(
     val activeSegment = viewModel.activeSegment
 
     fun isAvailable(control: TvControl): Boolean = when (control) {
+        TvControl.SPEED -> !viewModel.syncPlayEnabled
         TvControl.PREV_EPISODE, TvControl.NEXT_EPISODE -> isEpisode
         TvControl.PREV_CHAPTER, TvControl.NEXT_CHAPTER, TvControl.CHAPTERS -> hasChapters
         TvControl.EPISODES -> hasEpisodes
@@ -102,7 +107,7 @@ fun TvControlsRow(
         TvControl.SUBTITLES -> hasSubtitles
         TvControl.SKIP_SEGMENT -> activeSegment != null
         TvControl.MUTE, TvControl.SKIP_BACK, TvControl.SKIP_FORWARD, TvControl.PLAY_PAUSE,
-        TvControl.SPEED, TvControl.MORE -> true
+        TvControl.MORE -> true
     }
 
     val defaultFocusTarget = if (lastFocused != null && isAvailable(lastFocused)) {
@@ -129,6 +134,12 @@ fun TvControlsRow(
     // expired under the user) — put focus back on a control that exists.
     LaunchedEffect(activeSegment) {
         if (activeSegment == null && lastFocused == TvControl.SKIP_SEGMENT) {
+            viewModel.restoreTvControlsFocus()
+        }
+    }
+
+    LaunchedEffect(viewModel.syncPlayEnabled) {
+        if (viewModel.syncPlayEnabled && lastFocused == TvControl.SPEED) {
             viewModel.restoreTvControlsFocus()
         }
     }
@@ -178,10 +189,20 @@ fun TvControlsRow(
         TvIconButton(
             control = TvControl.PLAY_PAUSE,
             icon = if (viewModel.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-            contentDescription = if (viewModel.isPlaying) "Pause" else "Play",
+            contentDescription = viewModel.str("playPause", "Play / Pause"),
             focusRequester = focusRequesters.getValue(TvControl.PLAY_PAUSE),
             onFocused = onControlFocused,
-            onClick = { viewModel.togglePlayPause() }
+            onClick = { viewModel.togglePlayPause() },
+            content = {
+                PlayerPlaybackIcon(
+                    syncPlayAction = viewModel.syncPlayAction.takeIf { viewModel.syncPlayEnabled },
+                    isBuffering = viewModel.isBuffering,
+                    isPlaying = viewModel.isPlaying,
+                    size = TvMetrics.ICON_SIZE,
+                    color = LocalContentColor.current,
+                    syncPlayColor = LocalContentColor.current
+                )
+            }
         )
 
         if (hasChapters) {
@@ -329,14 +350,16 @@ fun TvControlsRow(
             )
         }
 
-        TvIconButton(
-            control = TvControl.SPEED,
-            icon = Icons.Filled.Timer,
-            contentDescription = "Speed",
-            focusRequester = focusRequesters.getValue(TvControl.SPEED),
-            onFocused = onControlFocused,
-            onClick = { viewModel.openTvMenu(TvMenuScreen.SPEED) }
-        )
+        if (!viewModel.syncPlayEnabled) {
+            TvIconButton(
+                control = TvControl.SPEED,
+                icon = Icons.Filled.Timer,
+                contentDescription = "Speed",
+                focusRequester = focusRequesters.getValue(TvControl.SPEED),
+                onFocused = onControlFocused,
+                onClick = { viewModel.openTvMenu(TvMenuScreen.SPEED) }
+            )
+        }
 
         TvIconButton(
             control = TvControl.MORE,
@@ -357,13 +380,15 @@ private fun TvIconButton(
     focusRequester: FocusRequester,
     onFocused: (TvControl) -> Unit,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    content: (@Composable () -> Unit)? = null
 ) {
     var isFocused by remember { mutableStateOf(false) }
     IconButton(
         onClick = onClick,
         modifier = modifier
             .size(TvMetrics.CONTROL_SIZE)
+            .semantics { this.contentDescription = contentDescription }
             .focusRequester(focusRequester)
             .onFocusChanged {
                 isFocused = it.isFocused
@@ -383,10 +408,14 @@ private fun TvIconButton(
             focusedContentColor = TvPalette.OnFocus
         )
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = contentDescription,
-            modifier = Modifier.size(TvMetrics.ICON_SIZE)
-        )
+        if (content != null) {
+            content()
+        } else {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(TvMetrics.ICON_SIZE)
+            )
+        }
     }
 }

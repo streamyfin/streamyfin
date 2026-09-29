@@ -77,10 +77,22 @@ struct PlayerControlsRootView: View {
 				.zIndex(2)
 			}
 
-			if viewModel.isBuffering && !viewModel.isScrubbing && viewModel.errorMessage == nil {
-				ProgressView()
-					.controlSize(.large)
-					.tint(.white)
+			if !viewModel.controlsVisible && viewModel.hasPlaybackStatus &&
+				!viewModel.isScrubbing && viewModel.errorMessage == nil {
+				Button {
+					viewModel.togglePlayPause()
+				} label: {
+					PlayerPlaybackIcon(
+						syncPlayAction: viewModel.syncPlayEnabled ? viewModel.syncPlayAction : nil,
+						isBuffering: viewModel.isBuffering,
+						isPlaying: viewModel.isPlaying,
+						size: 44
+					)
+					.frame(width: 80, height: 80)
+					.contentShape(Rectangle())
+				}
+				.accessibilityLabel(viewModel.playbackToggleLabel)
+				.disabled(viewModel.controlsLocked)
 			}
 
 			adaptivePlaybackChrome(bottomSafeAreaInset: bottomSafeAreaInset)

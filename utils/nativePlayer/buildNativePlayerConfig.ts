@@ -99,6 +99,7 @@ export const buildNativePlayerStrings = (
   segmentSkippedPreview: t(SEGMENT_SKIPPED_KEY.Preview),
   nextEpisode: t("player.next_episode"),
   playNow: t("common.play"),
+  playPause: t("player.play_pause"),
   cancel: t("common.cancel"),
   episodes: t("common.episodes"),
   speed: t("player.menu.speed"),
@@ -511,7 +512,7 @@ export async function buildNativePlayerConfig(params: {
       externalSubtitles:
         externalSubs && externalSubs.length > 0 ? externalSubs : undefined,
       startPositionSec: ticksToSeconds(startTicks),
-      autoplay: true,
+      autoplay: !req.syncPlay,
       initialAudioMpvId: initialAudioId,
       playMethod,
       transcodeReasons: parseTranscodeReasons(mediaSource.TranscodingUrl),

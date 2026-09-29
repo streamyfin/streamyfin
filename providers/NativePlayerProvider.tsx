@@ -43,6 +43,7 @@ import {
   dismissNativePlayer,
   isNativePlayerModuleAvailable,
   isNativePlayerPresented,
+  isNativeSyncPlaySupported,
   loadNativePlayerStream,
   type NativePlayerEpisodeListItem,
   type NativePlayerNextEpisode,
@@ -56,6 +57,7 @@ import {
   nativePlayerPlay,
   nativePlayerSeekTo,
   nativePlayerSetAudioTrack,
+  nativePlayerSetSpeed,
   nativePlayerSetSubtitleTrack,
   nativePlayerShowNotice,
   nativePlayerToggleMute,
@@ -64,6 +66,7 @@ import {
   updateNativePlayerNextEpisode,
   updateNativePlayerSegments,
   updateNativePlayerSubtitleSearch,
+  updateNativePlayerSyncPlay,
   updateNativePlayerTrackMenus,
 } from "@/modules/mpv-player";
 // The TV-safe wrapper, NOT expo-screen-orientation directly: the native
@@ -72,6 +75,7 @@ import { OrientationLock } from "@/packages/expo-screen-orientation";
 import { useDownload } from "@/providers/DownloadProvider";
 import type { MediaTimeSegment } from "@/providers/Downloads/types";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { useSyncPlay } from "@/providers/SyncPlay";
 import { useWebSocketContext } from "@/providers/WebSocketProvider";
 import {
   isNativeChromeActive,
@@ -113,6 +117,12 @@ import {
 import { resolveFailedPresentation } from "@/utils/nativePlayer/resolveFailedPresentation";
 import { resolveTeardownReport } from "@/utils/nativePlayer/resolveTeardownReport";
 import {
+  canDispatchNativeSyncPlayAction,
+  createNativeSyncPlayControls,
+  dispatchNativeSyncPlayAction,
+  shouldSyncNativePlayback,
+} from "@/utils/nativePlayer/syncPlay";
+import {
   fetchAndParseSegments,
   getSegmentsForItem,
   type SegmentBuckets,
@@ -133,6 +143,9 @@ const NEXT_EPISODE_COUNTDOWN_SECONDS = 10;
  * in React state, so a tick already in flight can't observe a stale value.
  */
 interface NativeSession extends NativePlayerSessionSeed {
+  syncPlay: boolean;
+  isBuffering: boolean;
+  playbackSpeed: number;
   currentAudioIndex: number | undefined;
   currentSubtitleIndex: number;
   positionMs: number;
@@ -309,11 +322,12 @@ const PlayCommandRouteFallback: React.FC<{
   children: React.ReactNode;
 }> = ({ children }) => {
   const { subscribe } = useWebSocketContext();
+  const { isEnabled: isSyncPlayEnabled } = useSyncPlay();
 
   useEffect(
     () =>
       subscribe("Play", (data: any) => {
-        if (!data?.ItemIds?.length) return;
+        if (isSyncPlayEnabled || !data?.ItemIds?.length) return;
         const req: PlayRequest = {
           itemId: data.ItemIds[0],
           audioIndex:
@@ -335,7 +349,7 @@ const PlayCommandRouteFallback: React.FC<{
           `/(auth)/player/direct-player?${toDirectPlayerQuery(req)}` as any,
         );
       }),
-    [subscribe],
+    [subscribe, isSyncPlayEnabled],
   );
 
   return <>{children}</>;
@@ -353,14 +367,86 @@ const NativePlayerProviderInner: React.FC<{
   const downloadUtils = useDownload();
   const revalidateProgressCache = useInvalidatePlaybackProgressCache();
   const { subscribe, clearLastMessage } = useWebSocketContext();
+  const syncPlay = useSyncPlay();
+  const syncPlayRef = useRef(syncPlay);
+  syncPlayRef.current = syncPlay;
 
   const sessionRef = useRef<NativeSession | null>(null);
+  const attachedSyncPlaySessionRef = useRef<NativeSession | null>(null);
   // Monotonic id per beginSession call: the config build awaits a PlaybackInfo
   // round trip, so overlapping play requests (double-fired next-episode, WS
   // Play mid-swap, fast taps) can interleave — only the newest may commit.
   const playRequestTokenRef = useRef(0);
   const [activeItem, setActiveItem] = useState<BaseItemDto | null>(null);
   const [isActive, setIsActive] = useState(false);
+  const attachSyncPlayControls = useCallback(
+    (session: NativeSession) => {
+      if (
+        !isNativeSyncPlaySupported() ||
+        !shouldSyncNativePlayback(session, syncPlayRef.current.isEnabled) ||
+        !session.committed ||
+        session.awaitingLoad
+      ) {
+        return;
+      }
+      if (attachedSyncPlaySessionRef.current === session) return;
+      attachedSyncPlaySessionRef.current = session;
+      syncPlay.setPlayerControls(
+        createNativeSyncPlayControls(
+          session,
+          {
+            play: nativePlayerPlay,
+            pause: nativePlayerPause,
+            stop: dismissNativePlayer,
+            seekTo: nativePlayerSeekTo,
+            setSpeed: nativePlayerSetSpeed,
+          },
+          () => sessionRef.current === session,
+          (action, error) => {
+            logAndCaptureError(`NativePlayer SyncPlay ${action} failed`, error);
+            syncPlayRef.current.notifyPlaybackError(error);
+          },
+          session.item.Id!,
+        ),
+      );
+      syncPlayRef.current.notifyPlaybackStart();
+      syncPlayRef.current.notifyBuffering(session.isBuffering);
+    },
+    [syncPlay.setPlayerControls],
+  );
+
+  useEffect(() => {
+    const session = sessionRef.current;
+    if (isActive && session) attachSyncPlayControls(session);
+  }, [isActive, syncPlay.isEnabled, attachSyncPlayControls]);
+
+  useEffect(() => {
+    return () => {
+      if (attachedSyncPlaySessionRef.current) {
+        attachedSyncPlaySessionRef.current = null;
+        syncPlay.setPlayerControls(null);
+      }
+    };
+  }, [syncPlay.setPlayerControls]);
+
+  useEffect(() => {
+    if (!syncPlay.isEnabled && attachedSyncPlaySessionRef.current) {
+      attachedSyncPlaySessionRef.current = null;
+      syncPlay.setPlayerControls(null);
+    }
+  }, [syncPlay.isEnabled, syncPlay.setPlayerControls]);
+
+  useEffect(() => {
+    const session = sessionRef.current;
+    if (!isActive || !session || !isNativeSyncPlaySupported()) return;
+    const enabled = shouldSyncNativePlayback(session, syncPlay.isEnabled);
+    void updateNativePlayerSyncPlay({
+      enabled,
+      osdAction: enabled ? syncPlay.osdAction : null,
+    }).catch((error) =>
+      logAndCaptureError("NativePlayer SyncPlay state update failed", error),
+    );
+  }, [isActive, syncPlay.isEnabled, syncPlay.osdAction]);
 
   const playbackManager = usePlaybackManager({
     item: activeItem,
@@ -562,13 +648,17 @@ const NativePlayerProviderInner: React.FC<{
   }, []);
 
   const buildNextEpisodePayload = useCallback(
-    (_session: NativeSession, next: BaseItemDto): NativePlayerNextEpisode => {
+    (session: NativeSession, next: BaseItemDto): NativePlayerNextEpisode => {
       const currentSettings = settingsRef.current;
       const max = currentSettings?.maxAutoPlayEpisodeCount?.value ?? -1;
       const autoplayWanted = currentSettings?.autoPlayNextEpisode ?? false;
       const capReached =
         max !== -1 && (currentSettings?.autoPlayEpisodeCount ?? 0) >= max;
-      const autoplayAllowed = autoplayWanted && !capReached;
+      const groupPlayback = shouldSyncNativePlayback(
+        session,
+        syncPlayRef.current.isEnabled,
+      );
+      const autoplayAllowed = !groupPlayback && autoplayWanted && !capReached;
       const epNumber =
         next.ParentIndexNumber !== undefined && next.IndexNumber !== undefined
           ? `S${next.ParentIndexNumber}E${next.IndexNumber}`
@@ -587,7 +677,7 @@ const NativePlayerProviderInner: React.FC<{
         countdownSeconds: autoplayAllowed ? NEXT_EPISODE_COUNTDOWN_SECONDS : 0,
         // Autoplay would have run but the episode cap stops it: EOF shows
         // the "Still watching?" card instead (JS ContinueWatchingOverlay).
-        stillWatchingRequired: autoplayWanted && capReached,
+        stillWatchingRequired: !groupPlayback && autoplayWanted && capReached,
       };
     },
     [],
@@ -656,7 +746,12 @@ const NativePlayerProviderInner: React.FC<{
     } else {
       void updateNativePlayerNextEpisode(null);
     }
-  }, [playbackManager.nextItem, isActive, buildNextEpisodePayload]);
+  }, [
+    playbackManager.nextItem,
+    isActive,
+    buildNextEpisodePayload,
+    syncPlay.isEnabled,
+  ]);
 
   // MARK: - Present / load
 
@@ -667,8 +762,12 @@ const NativePlayerProviderInner: React.FC<{
     ): Promise<boolean> => {
       const currentSettings = settingsRef.current;
       if (!currentSettings) return false;
+      if (req.syncPlay)
+        console.debug("SyncPlay: building native session", {
+          itemId: req.itemId,
+          replace: options.replace,
+        });
       const token = ++playRequestTokenRef.current;
-
       const built = await buildNativePlayerConfig({
         api: apiRef.current,
         userId: userRef.current?.Id,
@@ -685,10 +784,31 @@ const NativePlayerProviderInner: React.FC<{
         });
         return null;
       });
-      if (!built) return false;
+      if (!built) {
+        if (req.syncPlay)
+          console.warn("SyncPlay: native config declined playback", {
+            itemId: req.itemId,
+          });
+        return false;
+      }
+      const groupPlayback = shouldSyncNativePlayback(
+        req,
+        syncPlayRef.current.isEnabled,
+      );
+      built.config.syncPlay = {
+        enabled: groupPlayback,
+        osdAction: groupPlayback ? syncPlayRef.current.osdAction : null,
+      };
+      if (groupPlayback) {
+        built.config.stream.autoplay = false;
+        if (built.config.ui) built.config.ui.initialPlaybackSpeed = 1;
+      }
 
       const session: NativeSession = {
         ...built.seed,
+        syncPlay: req.syncPlay === true,
+        isBuffering: true,
+        playbackSpeed: built.config.ui?.initialPlaybackSpeed ?? 1,
         currentAudioIndex: built.seed.audioIndex,
         currentSubtitleIndex: built.seed.subtitleIndex,
         positionMs: ticksToSeconds(built.seed.startTicks) * 1000,
@@ -768,6 +888,14 @@ const NativePlayerProviderInner: React.FC<{
             return true;
           }
           sessionRef.current = session;
+          if (req.syncPlay)
+            console.debug("SyncPlay: loading native item", {
+              itemId: req.itemId,
+            });
+          if (attachedSyncPlaySessionRef.current) {
+            attachedSyncPlaySessionRef.current = null;
+            syncPlayRef.current.setPlayerControls(null);
+          }
           await loadNativePlayerStream(built.config);
         } else {
           // Lock orientation BEFORE presenting: expo-screen-orientation owns
@@ -778,6 +906,10 @@ const NativePlayerProviderInner: React.FC<{
             lockOrientation(currentSettings.defaultVideoOrientation);
           }
           sessionRef.current = session;
+          if (req.syncPlay)
+            console.debug("SyncPlay: presenting native item", {
+              itemId: req.itemId,
+            });
           await presentNativePlayer(built.config);
         }
       } catch (error) {
@@ -840,6 +972,12 @@ const NativePlayerProviderInner: React.FC<{
       // player for an item the user just closed.
       if (sessionRef.current !== session) return true;
       session.committed = true;
+      if (req.syncPlay)
+        console.debug("SyncPlay: native presentation committed", {
+          itemId: req.itemId,
+          awaitingLoad: session.awaitingLoad,
+        });
+      attachSyncPlayControls(session);
       setActiveItem(session.item);
       setIsActive(true);
       // Empty the legacy single-slot state before playback starts: it is
@@ -863,17 +1001,40 @@ const NativePlayerProviderInner: React.FC<{
       clearLastMessage,
       pushSegments,
       pushEpisodeList,
+      attachSyncPlayControls,
     ],
   );
 
   const presentFromRequest = useCallback(
     async (req: PlayRequest): Promise<boolean> => {
+      if (req.syncPlay && !isNativeSyncPlaySupported()) {
+        writeToLog(
+          "WARN",
+          "Native SyncPlay unavailable; using the React player",
+        );
+        return false;
+      }
       // Present while a session is active (e.g. WS Play command) swaps in
       // place; beginSession closes the old server session once the new
       // stream is negotiated.
       return beginSession(req, { replace: sessionRef.current !== null });
     },
     [beginSession],
+  );
+
+  useEffect(
+    () =>
+      syncPlay.registerPlaybackNavigator(async (request) => {
+        if (!isNativeChromeActive(settingsRef.current)) return false;
+        const handled = await presentFromRequest(request);
+        if (!handled && isNativePlayerPresented()) {
+          throw new Error(
+            "Native SyncPlay could not replace the active session",
+          );
+        }
+        return handled;
+      }),
+    [syncPlay.registerPlaybackNavigator, presentFromRequest],
   );
 
   /**
@@ -903,6 +1064,10 @@ const NativePlayerProviderInner: React.FC<{
             ? session.bitrateValue
             : (overrides.bitrateValue ?? undefined),
         offline: session.offline,
+        syncPlay: shouldSyncNativePlayback(
+          session,
+          syncPlayRef.current.isEnabled,
+        ),
         playbackPositionTicks:
           overrides.positionTicks ?? msToTicks(session.positionMs),
       };
@@ -954,6 +1119,10 @@ const NativePlayerProviderInner: React.FC<{
       // lands during them must see no session, or it takes the replace path
       // against a player that is already gone.
       if (sessionRef.current === session) {
+        if (attachedSyncPlaySessionRef.current === session) {
+          attachedSyncPlaySessionRef.current = null;
+          syncPlayRef.current.setPlayerControls(null);
+        }
         sessionRef.current = null;
         setActiveItem(null);
         setIsActive(false);
@@ -1476,6 +1645,12 @@ const NativePlayerProviderInner: React.FC<{
         // The engine has taken the new stream; events from here on belong to
         // this session.
         session.awaitingLoad = false;
+        if (session.syncPlay)
+          console.debug("SyncPlay: native item loaded", {
+            itemId: session.item.Id,
+            committed: session.committed,
+          });
+        attachSyncPlayControls(session);
         // Mute only reaches us as a transition, so a player opened while the
         // device is already muted would otherwise read as unmuted here.
         if (typeof payload?.muted === "boolean") {
@@ -1506,13 +1681,27 @@ const NativePlayerProviderInner: React.FC<{
       addNativePlayerListener("onPlaybackStateChange", (payload) => {
         const session = sessionRef.current;
         if (!session || session.awaitingLoad) return;
-        if (payload.isPlaying === undefined && payload.isPaused === undefined) {
-          return;
-        }
-        const nowPlaying = payload.isPlaying ?? !payload.isPaused;
+        const nowPlaying =
+          payload.isPlaying ??
+          (payload.isPaused === undefined
+            ? session.isPlaying
+            : !payload.isPaused);
         const changed = session.isPlaying !== nowPlaying;
         session.isPlaying = nowPlaying;
         if (nowPlaying) session.hasPlaybackStarted = true;
+        if (changed && attachedSyncPlaySessionRef.current === session) {
+          syncPlayRef.current.notifyPlaybackState(nowPlaying);
+        }
+        if (payload.isLoading !== undefined) {
+          const loadingChanged = session.isBuffering !== payload.isLoading;
+          session.isBuffering = payload.isLoading;
+          if (
+            loadingChanged &&
+            attachedSyncPlaySessionRef.current === session
+          ) {
+            syncPlayRef.current.notifyBuffering(session.isBuffering);
+          }
+        }
         // Pause/resume transitions report immediately (mirror of the
         // state-transition effect in direct-player).
         if (changed && session.hasPlaybackStarted && !session.reportedStopKey) {
@@ -1608,12 +1797,40 @@ const NativePlayerProviderInner: React.FC<{
         handleMuteChanged(session, payload.muted, payload.positionSec);
       }),
 
+      addNativePlayerListener("onPlaybackActionRequested", (payload) => {
+        const session = sessionRef.current;
+        const currentSyncPlay = syncPlayRef.current;
+        if (
+          !session ||
+          !currentSyncPlay.controller ||
+          !canDispatchNativeSyncPlayAction(
+            payload,
+            session,
+            currentSyncPlay.isEnabled,
+          )
+        ) {
+          return;
+        }
+        try {
+          dispatchNativeSyncPlayAction(payload, currentSyncPlay.controller);
+        } catch (error) {
+          logAndCaptureError("NativePlayer SyncPlay action failed", error);
+        }
+      }),
+
       addNativePlayerListener("onNextEpisodeRequested", (payload) => {
         const session = sessionRef.current;
         // awaitingLoad guard: the outgoing stream can reach EOF during an
         // in-place swap and re-request the next episode — advancing twice.
         if (!session || session.awaitingLoad) return;
         session.positionMs = payload.positionSec * 1000;
+        if (
+          shouldSyncNativePlayback(session, syncPlayRef.current.isEnabled) &&
+          syncPlayRef.current.controller
+        ) {
+          syncPlayRef.current.controller.nextItem();
+          return;
+        }
         const next = nextItemRef.current;
         if (!next) {
           void dismissNativePlayer();
@@ -1644,6 +1861,13 @@ const NativePlayerProviderInner: React.FC<{
         const session = sessionRef.current;
         if (!session || session.awaitingLoad) return;
         session.positionMs = payload.positionSec * 1000;
+        if (
+          shouldSyncNativePlayback(session, syncPlayRef.current.isEnabled) &&
+          syncPlayRef.current.controller
+        ) {
+          syncPlayRef.current.controller.previousItem();
+          return;
+        }
         const previous = previousItemRef.current;
         if (previous) void playAdjacentItem(session, previous);
       }),
@@ -1652,6 +1876,13 @@ const NativePlayerProviderInner: React.FC<{
         const session = sessionRef.current;
         if (!session || session.awaitingLoad || !payload.itemId) return;
         session.positionMs = payload.positionSec * 1000;
+        if (
+          shouldSyncNativePlayback(session, syncPlayRef.current.isEnabled) &&
+          syncPlayRef.current.controller
+        ) {
+          syncPlayRef.current.controller.goToItem({ Id: payload.itemId });
+          return;
+        }
         void (async () => {
           let target: BaseItemDto | undefined;
           if (session.offline) {
@@ -1707,6 +1938,8 @@ const NativePlayerProviderInner: React.FC<{
         const session = sessionRef.current;
         const currentSettings = settingsRef.current;
         if (!session || session.awaitingLoad || !currentSettings) return;
+        session.playbackSpeed = payload.speed;
+        if (attachedSyncPlaySessionRef.current === session) return;
         updatePlaybackSpeedSettings(
           payload.speed,
           PlaybackSpeedScope.All,
@@ -1722,6 +1955,9 @@ const NativePlayerProviderInner: React.FC<{
 
       addNativePlayerListener("onError", (payload) => {
         const session = sessionRef.current;
+        if (session && attachedSyncPlaySessionRef.current === session) {
+          syncPlayRef.current.notifyPlaybackError(new Error(payload.error));
+        }
         logAndCaptureError("NativePlayer playback error", payload.error, {
           container: session?.stream?.mediaSource?.Container,
           transcoding: !!session?.stream?.mediaSource?.TranscodingUrl,
@@ -1753,6 +1989,7 @@ const NativePlayerProviderInner: React.FC<{
       }
     };
   }, [
+    attachSyncPlayControls,
     buildProgressInfo,
     applySubtitleSelection,
     applyLocalSubtitleSelection,
@@ -1779,7 +2016,7 @@ const NativePlayerProviderInner: React.FC<{
   useEffect(
     () =>
       subscribe("Play", (data: any) => {
-        if (!data?.ItemIds?.length) return;
+        if (syncPlayRef.current.isEnabled || !data?.ItemIds?.length) return;
         const req: PlayRequest = {
           itemId: data.ItemIds[0],
           audioIndex:
@@ -1831,6 +2068,20 @@ const NativePlayerProviderInner: React.FC<{
       if (!command) return;
       const session = sessionRef.current;
       if (!session) return;
+      if (
+        shouldSyncNativePlayback(session, syncPlayRef.current.isEnabled) &&
+        [
+          "PlayPause",
+          "Pause",
+          "Unpause",
+          "Stop",
+          "Seek",
+          "NextTrack",
+          "PreviousTrack",
+        ].includes(command)
+      ) {
+        return;
+      }
 
       switch (command) {
         case "PlayPause":

@@ -19,11 +19,15 @@ struct TVStatusLayerView: View {
 
 	var body: some View {
 		ZStack {
-			if viewModel.isBuffering && viewModel.errorMessage == nil {
-				ProgressView()
-					.progressViewStyle(.circular)
-					.tint(.white)
-					.scaleEffect(1.6)
+			if !viewModel.controlsVisible && viewModel.hasPlaybackStatus &&
+				viewModel.errorMessage == nil {
+				PlayerPlaybackIcon(
+					syncPlayAction: viewModel.syncPlayEnabled ? viewModel.syncPlayAction : nil,
+					isBuffering: viewModel.isBuffering,
+					isPlaying: viewModel.isPlaying,
+					size: 56,
+					syncPlayColor: .white
+				)
 			}
 
 			// Stats for nerds — independent of the chrome, like on iOS. The
