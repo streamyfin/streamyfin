@@ -71,3 +71,169 @@ export const seasonBadges = (
   const rest = seasonNumbers.length - shown.length;
   return rest > 0 ? [...shown, more(rest)] : shown;
 };
+
+/*
+ * Which seasons of a series can still be requested, and how a selection of
+ * them changes, as Seerr's own request modal has it (TvRequestModal:
+ * getAllSeasons, getAllRequestedSeasons, toggleSeason, toggleAllSeasons), so
+ * that asking for seasons works the same in the app as on Seerr's site.
+ */
+
+/** A user's series quota, as `GET /user/{id}/quota` gives it. */
+export interface SeasonQuota {
+  limit?: number;
+  remaining?: number;
+}
+
+// What stands in the library: a season the library has lost can be asked for again.
+const IN_LIBRARY = new Set([
+  MediaStatus.AVAILABLE,
+  MediaStatus.PARTIALLY_AVAILABLE,
+  MediaStatus.PROCESSING,
+]);
+
+/** Seasons already asked for and still standing, or already in the library. */
+const requestedSeasons = (details: TvDetails): Set<number> => {
+  const asked = (details.mediaInfo?.requests ?? [])
+    .filter(
+      (request) =>
+        !request.is4k &&
+        request.status !== MediaRequestStatus.DECLINED &&
+        request.status !== MediaRequestStatus.COMPLETED,
+    )
+    .flatMap((request) =>
+      (request.seasons ?? []).map((season) => season.seasonNumber),
+    );
+  const inLibrary = (details.mediaInfo?.seasons ?? [])
+    .filter((season) => IN_LIBRARY.has(season.status))
+    .map((season) => season.seasonNumber);
+
+  return new Set([...asked, ...inLibrary]);
+};
+
+/**
+ * The seasons that can be requested: those with episodes, the specials only
+ * when the server shows them, and none that is requested or in the library.
+ */
+export const unrequestedSeasons = (
+  details: TvDetails,
+  { specials = false }: { specials?: boolean } = {},
+): number[] => {
+  const requested = requestedSeasons(details);
+
+  return details.seasons
+    .filter(
+      (season) =>
+        season.episodeCount !== 0 &&
+        (specials || season.seasonNumber > 0) &&
+        !requested.has(season.seasonNumber),
+    )
+    .map((season) => season.seasonNumber);
+};
+
+/** Adds or takes out a season, within what can be requested and the quota. */
+export const toggleSeason = (
+  selected: number[],
+  seasonNumber: number,
+  unrequested: number[],
+  quota?: SeasonQuota,
+): number[] => {
+  if (!unrequested.includes(seasonNumber)) return selected;
+  if (selected.includes(seasonNumber)) {
+    return selected.filter((number) => number !== seasonNumber);
+  }
+  if (quota?.limit && (quota.remaining ?? 0) - selected.length <= 0) {
+    return selected;
+  }
+  return [...selected, seasonNumber];
+};
+
+/** Selects every season that can be requested, or none once they all are. */
+export const toggleAllSeasons = (
+  selected: number[],
+  unrequested: number[],
+  quota?: SeasonQuota,
+): number[] => {
+  if (quota?.limit && (quota.remaining ?? 0) < unrequested.length) {
+    return selected;
+  }
+  return selected.length < unrequested.length ? unrequested : [];
+};
+
+/** The badge Seerr puts on a season in its request table. */
+export type SeasonBadge =
+  | "not_requested"
+  | "pending"
+  | "requested"
+  | "partially_available"
+  | "available";
+
+export interface SeasonRow {
+  seasonNumber: number;
+  episodeCount: number;
+  /** None in the odd cases Seerr draws none, such as a failed request. */
+  badge?: SeasonBadge;
+  /** Already requested or in the library: the switch is on and stays on. */
+  locked: boolean;
+}
+
+/**
+ * The rows of Seerr's season table (TvRequestModal): the seasons with
+ * episodes, the specials only when the server shows them, each with the
+ * badge Seerr gives it and whether it can still be chosen.
+ */
+export const seasonRows = (
+  details: TvDetails,
+  { specials = false }: { specials?: boolean } = {},
+): SeasonRow[] => {
+  const standing = (details.mediaInfo?.requests ?? []).filter(
+    (request) =>
+      !request.is4k &&
+      request.status !== MediaRequestStatus.DECLINED &&
+      request.status !== MediaRequestStatus.COMPLETED,
+  );
+
+  return details.seasons
+    .filter(
+      (season) =>
+        season.episodeCount !== 0 && (specials || season.seasonNumber !== 0),
+    )
+    .map((season) => {
+      const seasonRequest = standing
+        .flatMap((request) => request.seasons ?? [])
+        .find(
+          (asked) =>
+            asked.seasonNumber === season.seasonNumber &&
+            asked.status !== MediaRequestStatus.COMPLETED,
+        );
+      const mediaSeason = details.mediaInfo?.seasons?.find(
+        (known) =>
+          known.seasonNumber === season.seasonNumber &&
+          known.status !== MediaStatus.UNKNOWN &&
+          known.status !== MediaStatus.DELETED,
+      );
+
+      let badge: SeasonBadge | undefined;
+      if (mediaSeason?.status === MediaStatus.AVAILABLE) badge = "available";
+      else if (mediaSeason?.status === MediaStatus.PARTIALLY_AVAILABLE)
+        badge = "partially_available";
+      else if (
+        mediaSeason?.status === MediaStatus.PROCESSING ||
+        (!mediaSeason && seasonRequest?.status === MediaRequestStatus.APPROVED)
+      )
+        badge = "requested";
+      else if (
+        !mediaSeason &&
+        seasonRequest?.status === MediaRequestStatus.PENDING
+      )
+        badge = "pending";
+      else if (!mediaSeason && !seasonRequest) badge = "not_requested";
+
+      return {
+        seasonNumber: season.seasonNumber,
+        episodeCount: season.episodeCount,
+        badge,
+        locked: !!mediaSeason || !!seasonRequest,
+      };
+    });
+};

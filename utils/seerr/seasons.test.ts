@@ -1,5 +1,12 @@
 import { describe, expect, test } from "bun:test";
-import { seasonBadges, seasonsWithStatus } from "./seasons";
+import {
+  seasonBadges,
+  seasonRows,
+  seasonsWithStatus,
+  toggleAllSeasons,
+  toggleSeason,
+  unrequestedSeasons,
+} from "./seasons";
 import {
   type MediaInfo,
   type MediaRequest,
@@ -167,5 +174,197 @@ describe("seasonBadges", () => {
     expect(seasonBadges([1, 2], more)).toEqual(["1", "2"]);
     expect(seasonBadges([3], more)).toEqual(["3"]);
     expect(seasonBadges([], more)).toEqual([]);
+  });
+});
+
+// As Seerr's own request modal decides (TvRequestModal's getAllSeasons,
+// getAllRequestedSeasons, toggleSeason and toggleAllSeasons).
+describe("unrequestedSeasons", () => {
+  const librarySeason = (seasonNumber: number, status: MediaStatus) => ({
+    id: seasonNumber,
+    seasonNumber,
+    status,
+    status4k: MediaStatus.UNKNOWN,
+    ...stamps,
+  });
+
+  test("offers every season with episodes of a series Seerr has never seen", () => {
+    expect(unrequestedSeasons(show())).toEqual([1, 2]);
+  });
+
+  test("offers the specials only when the server shows them", () => {
+    expect(unrequestedSeasons(show(), { specials: true })).toEqual([0, 1, 2]);
+  });
+
+  test("leaves out a season without episodes", () => {
+    const details = show();
+    details.seasons[2] = { ...details.seasons[2], episodeCount: 0 };
+    expect(unrequestedSeasons(details)).toEqual([1]);
+  });
+
+  test("leaves out what is requested, available, partly available or being fetched", () => {
+    const details = show(
+      media({
+        seasons: [librarySeason(1, MediaStatus.PARTIALLY_AVAILABLE)],
+        requests: [request([[2, MediaRequestStatus.PENDING]])],
+      }),
+    );
+    expect(unrequestedSeasons(details)).toEqual([]);
+  });
+
+  test("offers again a season whose request was declined", () => {
+    const details = show(
+      media({
+        requests: [
+          {
+            ...request([[2, MediaRequestStatus.DECLINED]]),
+            status: MediaRequestStatus.DECLINED,
+          },
+        ],
+      }),
+    );
+    expect(unrequestedSeasons(details)).toEqual([1, 2]);
+  });
+
+  test("offers again a season the library lost", () => {
+    const details = show(
+      media({ seasons: [librarySeason(1, MediaStatus.DELETED)] }),
+    );
+    expect(unrequestedSeasons(details)).toEqual([1, 2]);
+  });
+
+  test("ignores 4K requests", () => {
+    const details = show(
+      media({
+        requests: [
+          { ...request([[1, MediaRequestStatus.PENDING]]), is4k: true },
+        ],
+      }),
+    );
+    expect(unrequestedSeasons(details)).toEqual([1, 2]);
+  });
+});
+
+describe("toggleSeason", () => {
+  test("adds a season, then takes it out", () => {
+    expect(toggleSeason([], 2, [1, 2])).toEqual([2]);
+    expect(toggleSeason([2], 2, [1, 2])).toEqual([]);
+  });
+
+  test("leaves a season that cannot be requested as it is", () => {
+    expect(toggleSeason([], 3, [1, 2])).toEqual([]);
+  });
+
+  test("adds nothing once the quota is used up, but still takes out", () => {
+    const quota = { limit: 2, remaining: 1 };
+    expect(toggleSeason([1], 2, [1, 2], quota)).toEqual([1]);
+    expect(toggleSeason([1], 1, [1, 2], quota)).toEqual([]);
+  });
+});
+
+describe("toggleAllSeasons", () => {
+  test("selects every season that can be requested, then none", () => {
+    expect(toggleAllSeasons([], [1, 2])).toEqual([1, 2]);
+    expect(toggleAllSeasons([1], [1, 2])).toEqual([1, 2]);
+    expect(toggleAllSeasons([1, 2], [1, 2])).toEqual([]);
+  });
+
+  test("does nothing when the quota cannot cover them all", () => {
+    expect(toggleAllSeasons([], [1, 2], { limit: 5, remaining: 1 })).toEqual(
+      [],
+    );
+  });
+});
+
+// The rows of Seerr's season table: its badge, and whether its switch is
+// already on and cannot be moved.
+describe("seasonRows", () => {
+  const librarySeason = (seasonNumber: number, status: MediaStatus) => ({
+    id: seasonNumber,
+    seasonNumber,
+    status,
+    status4k: MediaStatus.UNKNOWN,
+    ...stamps,
+  });
+  const rowOf = (details: TvDetails, seasonNumber: number) =>
+    seasonRows(details).find((row) => row.seasonNumber === seasonNumber);
+
+  test("lists the seasons with episodes, without the specials", () => {
+    expect(seasonRows(show()).map((row) => row.seasonNumber)).toEqual([1, 2]);
+    expect(
+      seasonRows(show(), { specials: true }).map((row) => row.seasonNumber),
+    ).toEqual([0, 1, 2]);
+  });
+
+  test("marks a season nobody asked for as not requested, free to choose", () => {
+    expect(rowOf(show(), 1)).toEqual({
+      seasonNumber: 1,
+      episodeCount: 10,
+      badge: "not_requested",
+      locked: false,
+    });
+  });
+
+  test("reads a request's status for a season the library does not have", () => {
+    const pending = show(
+      media({ requests: [request([[1, MediaRequestStatus.PENDING]])] }),
+    );
+    expect(rowOf(pending, 1)).toMatchObject({ badge: "pending", locked: true });
+
+    const approved = show(
+      media({
+        requests: [
+          {
+            ...request([[1, MediaRequestStatus.APPROVED]]),
+            status: MediaRequestStatus.APPROVED,
+          },
+        ],
+      }),
+    );
+    expect(rowOf(approved, 1)).toMatchObject({
+      badge: "requested",
+      locked: true,
+    });
+  });
+
+  test("reads the library's status once the library has the season", () => {
+    const details = show(
+      media({
+        seasons: [
+          librarySeason(1, MediaStatus.AVAILABLE),
+          librarySeason(2, MediaStatus.PARTIALLY_AVAILABLE),
+        ],
+      }),
+    );
+    expect(rowOf(details, 1)).toMatchObject({
+      badge: "available",
+      locked: true,
+    });
+    expect(rowOf(details, 2)).toMatchObject({
+      badge: "partially_available",
+      locked: true,
+    });
+  });
+
+  test("frees a season whose request was declined or that the library lost", () => {
+    const details = show(
+      media({
+        seasons: [librarySeason(2, MediaStatus.DELETED)],
+        requests: [
+          {
+            ...request([[1, MediaRequestStatus.DECLINED]]),
+            status: MediaRequestStatus.DECLINED,
+          },
+        ],
+      }),
+    );
+    expect(rowOf(details, 1)).toMatchObject({
+      badge: "not_requested",
+      locked: false,
+    });
+    expect(rowOf(details, 2)).toMatchObject({
+      badge: "not_requested",
+      locked: false,
+    });
   });
 });
