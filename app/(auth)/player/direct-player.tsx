@@ -220,6 +220,11 @@ export default function DirectPlayerPage() {
     setPlayerControls,
     notifyBuffering,
   } = syncPlay;
+  const syncPlayRef = useRef(syncPlay);
+  syncPlayRef.current = syncPlay;
+  const syncPlaybackSnapshot = useRef({ isBuffering, currentPlaybackSpeed });
+  syncPlaybackSnapshot.current = { isBuffering, currentPlaybackSpeed };
+  const syncStopRef = useRef<(() => void) | null>(null);
 
   const offline = offlineStr === "true";
 
@@ -659,14 +664,22 @@ export default function DirectPlayerPage() {
 
   // SyncPlay: Connect player controls when video is ready
   useEffect(() => {
-    if (!isVideoLoaded || !videoRef.current || offline) {
+    if (
+      !isVideoLoaded ||
+      !videoRef.current ||
+      (offline && !openedViaSyncPlay) ||
+      !item?.Id ||
+      item.Id !== itemId
+    ) {
       setPlayerControls(null);
       return;
     }
 
     const controls: PlayerControls = {
+      itemId: item.Id,
       play: () => videoRef.current?.play(),
       pause: () => videoRef.current?.pause(),
+      stop: () => syncStopRef.current?.(),
       seekTo: (positionMs: number) => {
         const positionSec = positionMs / 1000;
         console.log(
@@ -675,13 +688,17 @@ export default function DirectPlayerPage() {
         videoRef.current?.seekTo(positionSec);
       },
       setSpeed: (speed: number) => videoRef.current?.setSpeed?.(speed),
-      getSpeed: () => currentPlaybackSpeed,
+      getSpeed: () => syncPlaybackSnapshot.current.currentPlaybackSpeed,
       getCurrentPosition: () => progress.get(),
-      isPlaying: () => isPlaying,
-      isBuffering: () => isBuffering,
+      isPlaying: () => isPlayingRef.current,
+      isBuffering: () => syncPlaybackSnapshot.current.isBuffering,
     };
 
     setPlayerControls(controls);
+    syncPlayRef.current.notifyPlaybackStart();
+    syncPlayRef.current.notifyBuffering(
+      syncPlaybackSnapshot.current.isBuffering,
+    );
 
     return () => {
       setPlayerControls(null);
@@ -689,28 +706,22 @@ export default function DirectPlayerPage() {
   }, [
     isVideoLoaded,
     offline,
-    isPlaying,
-    isBuffering,
-    currentPlaybackSpeed,
+    openedViaSyncPlay,
+    item?.Id,
+    itemId,
+    stream?.url,
     progress,
     setPlayerControls,
   ]);
 
-  // SyncPlay: Report buffering/ready state to server.
-  //
-  // CRITICAL: We must report `buffering` to the server *during* initial
-  // load (before `isVideoLoaded`), otherwise the server treats us as ready
-  // and proceeds without waiting for us. jellyfin-web reports this for
-  // free via the HTML5 video element's `waiting` event; for us, the
-  // initial load itself is the buffering window.
+  // Initial state after attach; subsequent transitions also arrive directly
+  // from native events so the scheduler need not wait for a React render.
   useEffect(() => {
     if (!isSyncPlayEnabled) {
       return;
     }
 
     const isLocallyReady = isVideoLoaded && !isBuffering;
-    // notifyBuffering routes through the debouncer in PlaybackCore so
-    // re-renders during a stall don't spam the server.
     notifyBuffering(!isLocallyReady);
   }, [isSyncPlayEnabled, isVideoLoaded, isBuffering, notifyBuffering]);
 
@@ -818,6 +829,10 @@ export default function DirectPlayerPage() {
   // the 30s router.setParams position write mutates navigation state) caused a
   // spurious PlaybackStopped every URL_UPDATE_INTERVAL.
   const stopRef = useRef(stop);
+  syncStopRef.current = () => {
+    stopRef.current();
+    router.back();
+  };
   const reportPlaybackStoppedRef = useRef(reportPlaybackStopped);
 
   useEffect(() => {
@@ -936,10 +951,6 @@ export default function DirectPlayerPage() {
       const { position, cacheSeconds } = data.nativeEvent;
       // MPV reports position in seconds, convert to ms
       const currentTime = position * 1000;
-
-      if (isBuffering) {
-        setIsBuffering(false);
-      }
 
       progress.set(currentTime);
 
@@ -1184,9 +1195,19 @@ export default function DirectPlayerPage() {
     async (e: { nativeEvent: MpvOnPlaybackStateChangePayload }) => {
       const { isPaused, isPlaying: playing, isLoading } = e.nativeEvent;
 
+      const wasPlaying = isPlayingRef.current;
+      if (playing !== undefined || isPaused !== undefined) {
+        const nextPlaying = playing ?? !isPaused;
+        setPlaying(nextPlaying);
+        if (wasPlaying !== nextPlaying)
+          syncPlayRef.current.notifyPlaybackState(nextPlaying);
+      }
+      if (isLoading !== undefined) {
+        syncPlaybackSnapshot.current.isBuffering = isLoading;
+        setIsBuffering(isLoading);
+        syncPlayRef.current.notifyBuffering(isLoading);
+      }
       if (playing) {
-        setPlaying(true);
-        setIsBuffering(false);
         setHasPlaybackStarted(true);
         // Pause inactivity timer during playback (TV only)
         pauseInactivityTimer();
@@ -1195,15 +1216,10 @@ export default function DirectPlayerPage() {
       }
 
       if (isPaused) {
-        setPlaying(false);
         // Resume inactivity timer when paused (TV only)
         resumeInactivityTimer();
         await deactivateKeepAwake();
         return;
-      }
-
-      if (isLoading !== undefined) {
-        setIsBuffering(isLoading);
       }
     },
     [setPlaying, pauseInactivityTimer, resumeInactivityTimer],
@@ -1227,15 +1243,13 @@ export default function DirectPlayerPage() {
   // server broadcasts a command to every group member (including us).
   const _onPipPlayRequest = useCallback(() => {
     if (isSyncPlayEnabled && syncPlayController) {
-      console.log("SyncPlay: PiP play → controller.playPause()");
-      syncPlayController.playPause();
+      syncPlayController.unpause();
     }
   }, [isSyncPlayEnabled, syncPlayController]);
 
   const _onPipPauseRequest = useCallback(() => {
     if (isSyncPlayEnabled && syncPlayController) {
-      console.log("SyncPlay: PiP pause → controller.playPause()");
-      syncPlayController.playPause();
+      syncPlayController.pause();
     }
   }, [isSyncPlayEnabled, syncPlayController]);
 
