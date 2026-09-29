@@ -201,9 +201,8 @@ interface NativePlayerContextValue {
    * back to the JS route. Resolves true when the request was taken,
    * including when the player was closed while it was in flight: there is
    * nothing to fall back to for an item the user just closed. A request
-   * superseded by a newer one before it took the player resolves false; one
-   * superseded after its load was issued resolves true, since the newer
-   * request owns the player.
+   * superseded by a newer one also resolves true: the newer request owns
+   * playback, so the old request must never launch a fallback player.
    */
   presentFromRequest: (req: PlayRequest) => Promise<boolean>;
   isActive: boolean;
@@ -685,7 +684,9 @@ const NativePlayerProviderInner: React.FC<{
         });
         return null;
       });
-      if (!built) return false;
+      // A failed stale build is still handled by the newer request; only
+      // the current request may ask its caller to open the fallback player.
+      if (!built) return token !== playRequestTokenRef.current;
 
       const session: NativeSession = {
         ...built.seed,
@@ -712,7 +713,7 @@ const NativePlayerProviderInner: React.FC<{
         // abandon before touching sessionRef or the native player, and close
         // the live stream this build just opened on the server.
         releaseLiveStream(session);
-        return false;
+        return true;
       }
 
       const previous = sessionRef.current;
@@ -758,7 +759,7 @@ const NativePlayerProviderInner: React.FC<{
           // the token check above does, so the newest request still wins.
           if (token !== playRequestTokenRef.current) {
             releaseLiveStream(session);
-            return false;
+            return true;
           }
           // A dismiss landed during the round trip (teardownSession clears
           // sessionRef at once): there is no `previous` to swap out, and a
@@ -829,7 +830,11 @@ const NativePlayerProviderInner: React.FC<{
         // true: the player was closed under this request or a newer request
         // took it, and a false return would send the caller to the JS player
         // for an item the user just closed.
-        return outcome === "closed" || outcome === "player-gone";
+        return (
+          token !== playRequestTokenRef.current ||
+          outcome === "closed" ||
+          outcome === "player-gone"
+        );
       }
 
       // The player can go away while the native call is in flight (a close
