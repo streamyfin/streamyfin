@@ -1,12 +1,15 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { useSetAtom } from "jotai";
 import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
+import { Alert } from "react-native";
 import useRouter from "@/hooks/useAppRouter";
 import { isNativePlayerPresented } from "@/modules/mpv-player";
 import { useNativePlayer } from "@/providers/NativePlayerProvider";
+import { useSyncPlay } from "@/providers/SyncPlay";
 import { isNativeChromeActive, useSettings } from "@/utils/atoms/settings";
 import { shuffleQueueAtom } from "@/utils/atoms/shuffleQueue";
-import { writeErrorLog } from "@/utils/log";
+import { logAndCaptureError, writeErrorLog } from "@/utils/log";
 import {
   type PlayRequest,
   toDirectPlayerQuery,
@@ -35,6 +38,8 @@ export const usePlayMedia = () => {
   const { settings, updateSettings } = useSettings();
   const setShuffleQueue = useSetAtom(shuffleQueueAtom);
   const { presentFromRequest } = useNativePlayer();
+  const { isEnabled: isSyncPlayEnabled, controller } = useSyncPlay();
+  const { t } = useTranslation();
 
   return useCallback(
     async (req: PlayRequest, options?: PlayMediaOptions): Promise<void> => {
@@ -50,6 +55,25 @@ export const usePlayMedia = () => {
       const isLiveTv =
         options?.item?.Type === "Program" ||
         options?.item?.Type === "TvChannel";
+      if (
+        !req.offline &&
+        !req.syncPlay &&
+        !isLiveTv &&
+        isSyncPlayEnabled &&
+        controller
+      ) {
+        try {
+          await controller.play({
+            ids: [req.itemId],
+            items: options?.item ? [options.item] : undefined,
+            startPositionTicks: req.playbackPositionTicks,
+          });
+        } catch (error) {
+          logAndCaptureError("SyncPlay play request failed", error);
+          Alert.alert(t("player.client_error"), t("syncplay.failed_to_start"));
+        }
+        return;
+      }
       if (
         isNativeChromeActive(settings) &&
         !isLiveTv &&
@@ -70,6 +94,15 @@ export const usePlayMedia = () => {
 
       router.push(`/player/direct-player?${toDirectPlayerQuery(req)}`);
     },
-    [router, settings, updateSettings, setShuffleQueue, presentFromRequest],
+    [
+      router,
+      settings,
+      updateSettings,
+      setShuffleQueue,
+      presentFromRequest,
+      isSyncPlayEnabled,
+      controller,
+      t,
+    ],
   );
 };

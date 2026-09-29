@@ -28,6 +28,7 @@ import { useTranslation } from "react-i18next";
 import { Alert, Platform } from "react-native";
 import useAppRouter from "@/hooks/useAppRouter";
 import { useHaptic } from "@/hooks/useHaptic";
+import { usePlayMedia } from "@/hooks/usePlayMedia";
 import { getDownloadedItemById } from "@/providers/Downloads";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { useSyncPlay } from "@/providers/SyncPlay";
@@ -121,6 +122,7 @@ export function usePlayerItemNavigation(
   const { isEnabled: isSyncPlayEnabled, controller: syncPlayController } =
     useSyncPlay();
   const lightHapticFeedback = useHaptic("light");
+  const playMedia = usePlayMedia();
   // Note: "offline mode" is a *UI context* flag (set by pages entered from
   // the downloads tab), not a network-connectivity status. A user may be
   // in offline mode with perfect internet, watching a downloaded copy.
@@ -303,9 +305,8 @@ export function usePlayerItemNavigation(
    * Entry-point: start playback of an item from outside the player.
    *
    * Used by PlayButton, Continue Watching cards, episode pickers on the
-   * item page, etc. Unlike the in-session methods, this always uses
-   * `router.push` (we're entering the player, not navigating within it)
-   * and runs on both mobile and TV with the same shape.
+   * item page, etc. Local starts use the shared native/React player chooser;
+   * group starts wait for the server's playback request.
    *
    * SyncPlay: when in a group and the user *didn't* explicitly request
    * local playback, we route through `controller.play()` so every group
@@ -349,31 +350,20 @@ export function usePlayerItemNavigation(
         return;
       }
 
-      // Build a string-record so we can run it through `withOfflineParam`
-      // and `URLSearchParams` uniformly.
-      const baseParams: Record<string, string> = {
-        itemId: item.Id,
-        playbackPosition: String(startPositionTicks),
-      };
-      if (opts.audioIndex !== undefined) {
-        baseParams.audioIndex = String(opts.audioIndex);
-      }
-      if (opts.subtitleIndex !== undefined) {
-        baseParams.subtitleIndex = String(opts.subtitleIndex);
-      }
-      if (opts.mediaSourceId) {
-        baseParams.mediaSourceId = opts.mediaSourceId;
-      }
-      if (opts.bitrateValue !== undefined) {
-        baseParams.bitrateValue = String(opts.bitrateValue);
-      }
-
-      const finalParams = opts.forceOffline
-        ? { ...baseParams, offline: "true" }
-        : withOfflineParam(baseParams, item);
-
-      const queryString = new URLSearchParams(finalParams).toString();
-      router.push(`/player/direct-player?${queryString}`);
+      await playMedia(
+        {
+          itemId: item.Id,
+          audioIndex: opts.audioIndex,
+          subtitleIndex: opts.subtitleIndex,
+          mediaSourceId: opts.mediaSourceId,
+          bitrateValue: opts.bitrateValue,
+          playbackPositionTicks: startPositionTicks,
+          offline:
+            opts.forceOffline === true ||
+            (inOfflineContext && !!getDownloadedItemById(item.Id)),
+        },
+        { item },
+      );
     },
     [
       lightHapticFeedback,
@@ -381,8 +371,8 @@ export function usePlayerItemNavigation(
       updateSettings,
       isSyncPlayEnabled,
       syncPlayController,
-      withOfflineParam,
-      router,
+      inOfflineContext,
+      playMedia,
       t,
     ],
   );
