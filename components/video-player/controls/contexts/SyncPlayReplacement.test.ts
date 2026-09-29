@@ -28,5 +28,8 @@ describe("SyncPlay source replacement", () => {
     expect(direct).toContain("event.nativeEvent.url !== stream?.url");
     expect(direct).not.toContain("setIsVideoLoaded(true)");
     expect(direct).toContain("setLoadedSourceKey(null)");
+    expect(direct).toMatch(
+      /onPipToggleRequest=\{\(\) => \{[\s\S]*?syncPlayController\?\.playPause\(\)/,
+    );
   });
 });

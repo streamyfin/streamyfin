@@ -1773,6 +1773,9 @@ export default function DirectPlayerPage() {
                 syncPlayDelegated={isSyncPlayEnabled}
                 onPipPlayRequest={_onPipPlayRequest}
                 onPipPauseRequest={_onPipPauseRequest}
+                onPipToggleRequest={() => {
+                  if (isSyncPlayEnabled) syncPlayController?.playPause();
+                }}
                 onPipSkipRequest={_onPipSkipRequest}
                 onLoad={(event) => {
                   if (event.nativeEvent.url !== stream?.url) return;
