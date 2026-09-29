@@ -68,20 +68,31 @@ const statusOf = (details: TvDetails, seasonNumber: number) =>
   seasonsWithStatus(details).find((s) => s.seasonNumber === seasonNumber)
     ?.status;
 
+/** A request whose own status matches the status of the seasons it names. */
+const standing = (
+  status: MediaRequestStatus,
+  seasonNumbers: number[],
+): MediaRequest => ({
+  ...request(seasonNumbers.map((seasonNumber) => [seasonNumber, status])),
+  status,
+});
+
+const inLibrary = (seasonNumber: number, status: MediaStatus) => ({
+  id: seasonNumber,
+  seasonNumber,
+  status,
+  status4k: MediaStatus.UNKNOWN,
+  ...stamps,
+});
+
+// The status icon of each season, read the way Seerr reads its table: the
+// library first, unless it lost the season, then a request still standing.
 describe("seasonsWithStatus", () => {
   test("keeps the library's status for a season the library has", () => {
     const details = show(
       media({
-        seasons: [
-          {
-            id: 1,
-            seasonNumber: 1,
-            status: MediaStatus.AVAILABLE,
-            status4k: MediaStatus.UNKNOWN,
-            ...stamps,
-          },
-        ],
-        requests: [request([[1, MediaRequestStatus.PENDING]])],
+        seasons: [inLibrary(1, MediaStatus.AVAILABLE)],
+        requests: [standing(MediaRequestStatus.PENDING, [1])],
       }),
     );
 
@@ -93,15 +104,23 @@ describe("seasonsWithStatus", () => {
   // "unknown", and the season offered itself to be requested again.
   test("shows a season that is only requested as pending", () => {
     const details = show(
-      media({ requests: [request([[2, MediaRequestStatus.PENDING]])] }),
+      media({ requests: [standing(MediaRequestStatus.PENDING, [2])] }),
     );
 
     expect(statusOf(details, 2)).toBe(MediaStatus.PENDING);
   });
 
+  test("shows an approved request as being fetched, Seerr's Requested", () => {
+    const details = show(
+      media({ requests: [standing(MediaRequestStatus.APPROVED, [2])] }),
+    );
+
+    expect(statusOf(details, 2)).toBe(MediaStatus.PROCESSING);
+  });
+
   test("lets a declined season be requested again", () => {
     const details = show(
-      media({ requests: [request([[2, MediaRequestStatus.DECLINED]])] }),
+      media({ requests: [standing(MediaRequestStatus.DECLINED, [2])] }),
     );
 
     expect(statusOf(details, 2)).toBe(MediaStatus.UNKNOWN);
@@ -111,8 +130,8 @@ describe("seasonsWithStatus", () => {
     const details = show(
       media({
         requests: [
-          request([[2, MediaRequestStatus.DECLINED]]),
-          request([[2, MediaRequestStatus.APPROVED]]),
+          standing(MediaRequestStatus.DECLINED, [2]),
+          standing(MediaRequestStatus.PENDING, [2]),
         ],
       }),
     );
@@ -120,12 +139,35 @@ describe("seasonsWithStatus", () => {
     expect(statusOf(details, 2)).toBe(MediaStatus.PENDING);
   });
 
-  test("shows a completed request as available", () => {
+  // Seen on the beta: seasons once available, then deleted from the library,
+  // with an old request long completed. Seerr offers them again.
+  test("offers again a season the library lost, whatever an old request says", () => {
     const details = show(
-      media({ requests: [request([[1, MediaRequestStatus.COMPLETED]])] }),
+      media({
+        seasons: [
+          inLibrary(1, MediaStatus.DELETED),
+          inLibrary(2, MediaStatus.DELETED),
+        ],
+        requests: [standing(MediaRequestStatus.COMPLETED, [1, 2])],
+      }),
     );
 
-    expect(statusOf(details, 1)).toBe(MediaStatus.AVAILABLE);
+    expect(statusOf(details, 1)).toBe(MediaStatus.UNKNOWN);
+    expect(statusOf(details, 2)).toBe(MediaStatus.UNKNOWN);
+  });
+
+  test("reads a new request for a season the library lost", () => {
+    const details = show(
+      media({
+        seasons: [inLibrary(2, MediaStatus.DELETED)],
+        requests: [
+          standing(MediaRequestStatus.COMPLETED, [2]),
+          standing(MediaRequestStatus.PENDING, [2]),
+        ],
+      }),
+    );
+
+    expect(statusOf(details, 2)).toBe(MediaStatus.PENDING);
   });
 
   test("offers every season of a series Seerr has never seen", () => {
@@ -142,24 +184,6 @@ describe("seasonsWithStatus", () => {
     const details = show(media({ requests: [request()] }));
 
     expect(statusOf(details, 1)).toBe(MediaStatus.UNKNOWN);
-  });
-
-  test("does not read the specials from the library", () => {
-    const details = show(
-      media({
-        seasons: [
-          {
-            id: 1,
-            seasonNumber: 0,
-            status: MediaStatus.AVAILABLE,
-            status4k: MediaStatus.UNKNOWN,
-            ...stamps,
-          },
-        ],
-      }),
-    );
-
-    expect(statusOf(details, 0)).toBe(MediaStatus.UNKNOWN);
   });
 });
 

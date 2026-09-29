@@ -1,61 +1,45 @@
 import { SEERR_SEASON_BADGES } from "@/constants/Seerr";
-import {
-  type MediaRequest,
-  MediaRequestStatus,
-  MediaStatus,
-  type TvDetails,
-} from "./types";
+import { MediaRequestStatus, MediaStatus, type TvDetails } from "./types";
 
-/**
- * What a season's request says, in the library's terms.
- *
- * A request speaks in `MediaRequestStatus`, numbered differently from the
- * library's `MediaStatus`. Read as a library status, a pending request (1)
- * meant "unknown", and the season offered itself to be requested again.
- */
-const REQUESTED_AS: Record<MediaRequestStatus, MediaStatus> = {
-  [MediaRequestStatus.PENDING]: MediaStatus.PENDING,
-  [MediaRequestStatus.APPROVED]: MediaStatus.PENDING,
-  // Nothing stands in the way of asking again.
-  [MediaRequestStatus.DECLINED]: MediaStatus.UNKNOWN,
-  // Waiting on an administrator to retry, not on the user to ask twice.
-  [MediaRequestStatus.FAILED]: MediaStatus.PENDING,
-  [MediaRequestStatus.COMPLETED]: MediaStatus.AVAILABLE,
-};
-
-const requestedStatus = (
-  requests: MediaRequest[],
-  seasonNumber: number,
-): MediaStatus | undefined => {
-  const named = requests.flatMap((request) =>
-    (request.seasons ?? []).filter((s) => s.seasonNumber === seasonNumber),
-  );
-  const season =
-    named.find((s) => s.status !== MediaRequestStatus.DECLINED) ?? named[0];
-
-  return season && REQUESTED_AS[season.status];
+/** The status icon standing for each of Seerr's season badges. */
+const BADGE_STATUS: Record<SeasonBadge, MediaStatus> = {
+  not_requested: MediaStatus.UNKNOWN,
+  pending: MediaStatus.PENDING,
+  // Approved and on its way, which Seerr calls "Requested".
+  requested: MediaStatus.PROCESSING,
+  partially_available: MediaStatus.PARTIALLY_AVAILABLE,
+  available: MediaStatus.AVAILABLE,
 };
 
 /**
  * Every season of a series with where it stands, as a status icon reads it.
  *
- * The library's own view comes first: a season Seerr has seen in Jellyfin or
- * Sonarr carries its availability. A season that is only requested has no
- * library entry until a scan finds it, so its requests speak for it.
+ * Read the way Seerr reads its request table (see seasonRows): the library
+ * first, unless it lost the season, then a request that still stands. A
+ * request speaks in `MediaRequestStatus`, numbered differently from the
+ * library's `MediaStatus`: read as a library status, a pending request (1)
+ * meant "unknown", and the season offered itself to be requested again.
  */
 export const seasonsWithStatus = (details: TvDetails) => {
-  // The specials were never read from the library here, and still are not.
-  const inLibrary =
-    details.mediaInfo?.seasons?.filter((s) => s.seasonNumber !== 0) ?? [];
-  const requests = details.mediaInfo?.requests ?? [];
+  const rows = new Map(
+    seasonRows(details, { specials: true }).map((row) => [
+      row.seasonNumber,
+      row,
+    ]),
+  );
 
-  return details.seasons.map((season) => ({
-    ...season,
-    status:
-      inLibrary.find((s) => s.seasonNumber === season.seasonNumber)?.status ??
-      requestedStatus(requests, season.seasonNumber) ??
-      MediaStatus.UNKNOWN,
-  }));
+  return details.seasons.map((season) => {
+    const row = rows.get(season.seasonNumber);
+    return {
+      ...season,
+      status: row?.badge
+        ? BADGE_STATUS[row.badge]
+        : // No badge, as for a failed request: it stands, so not to ask again.
+          row?.locked
+          ? MediaStatus.PENDING
+          : MediaStatus.UNKNOWN,
+    };
+  });
 };
 
 /**

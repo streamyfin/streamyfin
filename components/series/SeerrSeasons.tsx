@@ -19,7 +19,7 @@ import { dateOpts } from "@/components/seerr/DetailFacts";
 import { textShadowStyle } from "@/components/seerr/discover/GenericSlideCard";
 import SeerrStatusIcon from "@/components/seerr/SeerrStatusIcon";
 import { useSeerr } from "@/hooks/useSeerr";
-import { seasonsWithStatus } from "@/utils/seerr/seasons";
+import { seasonsWithStatus, unrequestedSeasons } from "@/utils/seerr/seasons";
 import type {
   MediaRequestBody,
   MovieDetails,
@@ -154,6 +154,11 @@ const SeerrSeasons: React.FC<{
     () => seasons.every((season) => season.status === MediaStatus.AVAILABLE),
     [seasons],
   );
+  // Which seasons can still be asked for, by Seerr's own rules.
+  const unrequested = useMemo(
+    () => (details ? unrequestedSeasons(details) : []),
+    [details],
+  );
 
   const requestAll = useCallback(() => {
     if (details && seerrApi) {
@@ -161,11 +166,7 @@ const SeerrSeasons: React.FC<{
         mediaId: details.id,
         mediaType: MediaType.TV,
         tvdbId: details.externalIds?.tvdbId ?? undefined,
-        seasons: seasons
-          .filter(
-            (s) => s.status === MediaStatus.UNKNOWN && s.seasonNumber !== 0,
-          )
-          .map((s) => s.seasonNumber),
+        seasons: unrequested,
       };
       if (hasAdvancedRequest) {
         return onAdvancedRequest?.(body);
@@ -174,7 +175,7 @@ const SeerrSeasons: React.FC<{
     }
   }, [
     seerrApi,
-    seasons,
+    unrequested,
     details,
     hasAdvancedRequest,
     onAdvancedRequest,
@@ -285,7 +286,7 @@ const SeerrSeasons: React.FC<{
                 ]}
               />
               {[0].map(() => {
-                const canRequest = season.status === MediaStatus.UNKNOWN;
+                const canRequest = unrequested.includes(season.seasonNumber);
                 return (
                   <SeerrStatusIcon
                     key={0}
