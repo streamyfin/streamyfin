@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { Alert } from "react-native";
 import { usePlaybackManager } from "@/hooks/usePlaybackManager";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
+import { updateExistingUserData } from "@/utils/jellyfin/userPlaybackState";
 import { logAndCaptureError } from "@/utils/log";
 
 export const useTVItemActionModal = () => {
@@ -36,15 +37,14 @@ export const useTVItemActionModal = () => {
             queryClient.setQueriesData<BaseItemDto | null | undefined>(
               { queryKey: ["item", item.Id] },
               (old) => {
-                if (!old) return old;
+                if (!old?.UserData) return old;
                 return {
                   ...old,
-                  UserData: {
-                    ...old.UserData,
+                  UserData: updateExistingUserData(old.UserData, {
                     Played: !isPlayed,
                     PlaybackPositionTicks: 0,
                     PlayedPercentage: 0,
-                  },
+                  }),
                 };
               },
             );

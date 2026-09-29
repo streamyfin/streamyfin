@@ -123,7 +123,7 @@ bun run ios:install-metal-toolchain   # Fixes "missing Metal Toolchain" build er
 - **Framework**: Expo SDK 57, React 19, `react-native-tvos`
 - **Language**: TypeScript, strict mode
 - **State**: Jotai for global state, React Query for server state
-- **API**: Jellyfin SDK (`@jellyfin/sdk`)
+- **API**: Jellyfin SDK 1.0 (`@jellyfin/sdk`)
 - **Navigation**: Expo Router, file based
 - **Lint and format**: Biome
 - **Tests**: Jest with the `jest-expo` preset, React Native Testing Library
@@ -162,7 +162,19 @@ bun run ios:install-metal-toolchain   # Fixes "missing Metal Toolchain" build er
 
 **Jellyfin API**
 - Authenticated calls use `apiAtom`, the current user comes from `userAtom`.
-- Prefer the SDK helpers from `@jellyfin/sdk/lib/utils/api` over hand rolled requests.
+- Use SDK operations from `@jellyfin/sdk/lib/utils/api` for core Jellyfin requests:
+  `getLibraryApi` for items/latest/resume, `getShowApi` for seasons/episodes,
+  `getUserDataApi` for watched/favorite state, `getSessionApi` for playback reports,
+  and `getAuthenticationApi` for sign-in and Quick Connect.
+- Direct HTTP is reserved for endpoints outside the SDK: Streamyfin and
+  intro-skipper plugins, Web's static configuration, configurable custom sections,
+  and external services (Seerr, StreamyStats, Marlin, OpenSubtitles, Wikidata).
+  The SDK itself uses Axios; keep its custom-header transport and error handling.
+  Plugin requests use the explicitly named `pluginGet` / `pluginPost` /
+  `pluginDelete` extensions, not generic `Api.get` / `post` / `delete`.
+- Native images, players and downloads need URLs rather than response bodies.
+  Use SDK URL helpers where available, retaining server-supplied streaming URLs
+  and protocol-specific playback parameters.
 
 **Navigation**
 - File based routing under `app/`.

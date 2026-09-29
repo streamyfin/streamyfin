@@ -3,7 +3,7 @@ import type {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client";
-import { getUserLibraryApi } from "@jellyfin/sdk/lib/utils/api";
+import { getLibraryApi } from "@jellyfin/sdk/lib/utils/api";
 import type { OrientationLock as OrientationLockType } from "expo-screen-orientation";
 import type { TFunction } from "i18next";
 import { Platform } from "react-native";
@@ -402,7 +402,7 @@ export async function buildNativePlayerConfig(params: {
     if (!downloadedItem) return null;
   } else if (!item) {
     if (!api) return null;
-    const res = await getUserLibraryApi(api).getItem({
+    const res = await getLibraryApi(api).getItem({
       itemId: req.itemId,
       userId,
     });

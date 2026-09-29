@@ -3,6 +3,10 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { atom, useAtom } from "jotai";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import {
+  setItemFavorite,
+  updateExistingUserData,
+} from "@/utils/jellyfin/userPlaybackState";
 
 // Shared atom to store favorite status across all components
 // Maps itemId -> isFavorite
@@ -34,9 +38,13 @@ export const useFavorite = (item: BaseItemDto) => {
   // Helper to update favorite status in shared state
   const setIsFavorite = useCallback(
     (value: boolean | undefined) => {
-      if (itemId && value !== undefined) {
-        setFavorites((prev) => ({ ...prev, [itemId]: value }));
-      }
+      if (!itemId) return;
+      setFavorites((prev) => {
+        if (value !== undefined) return { ...prev, [itemId]: value };
+        const next = { ...prev };
+        delete next[itemId];
+        return next;
+      });
     },
     [itemId, setFavorites],
   );
@@ -65,15 +73,16 @@ export const useFavorite = (item: BaseItemDto) => {
   );
 
   const updateItemInQueries = useCallback(
-    (newData: Partial<BaseItemDto>) => {
+    (nextIsFavorite: boolean) => {
       queryClient.setQueriesData<BaseItemDto | null | undefined>(
         { queryKey: itemQueryKeyPrefix },
         (old) => {
           if (!old) return old;
           return {
             ...old,
-            ...newData,
-            UserData: { ...old.UserData, ...newData.UserData },
+            UserData: updateExistingUserData(old.UserData, {
+              IsFavorite: nextIsFavorite,
+            }),
           };
         },
       );
@@ -91,15 +100,12 @@ export const useFavorite = (item: BaseItemDto) => {
         return;
       }
 
-      // Use the same endpoint format as the web client:
-      // POST /Users/{userId}/FavoriteItems/{itemId} - add favorite
-      // DELETE /Users/{userId}/FavoriteItems/{itemId} - remove favorite
-      const path = `/Users/${currentUser.Id}/FavoriteItems/${currentItem.Id}`;
-
-      const response = nextIsFavorite
-        ? await currentApi.post(path, {}, {})
-        : await currentApi.delete(path, {});
-      return response.data;
+      return setItemFavorite(
+        currentApi,
+        currentItem.Id,
+        currentUser.Id,
+        nextIsFavorite,
+      );
     },
     onMutate: async (nextIsFavorite: boolean) => {
       await queryClient.cancelQueries({ queryKey: itemQueryKeyPrefix });
@@ -110,7 +116,7 @@ export const useFavorite = (item: BaseItemDto) => {
       });
 
       setIsFavorite(nextIsFavorite);
-      updateItemInQueries({ UserData: { IsFavorite: nextIsFavorite } });
+      updateItemInQueries(nextIsFavorite);
 
       return { previousIsFavorite, previousQueries };
     },

@@ -1,5 +1,6 @@
 import type { Api } from "@jellyfin/sdk";
 import { type BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
+import { getImageApi } from "@jellyfin/sdk/lib/utils/api";
 
 /**
  * Retrieves the primary image URL for a given item.
@@ -26,13 +27,10 @@ export const getParentBackdropImageUrl = ({
   const parentId = item.ParentBackdropItemId;
   const tag = item.ParentBackdropImageTags?.[0] || "";
 
-  const params = new URLSearchParams({
-    fillWidth: width ? String(width) : "500",
-    quality: quality ? String(quality) : "80",
-    tag: tag,
+  return getImageApi(api).getItemImageUrlById(parentId!, "Backdrop", {
+    fillWidth: width || 500,
+    quality: quality || 80,
+    tag,
+    imageIndex: 0,
   });
-
-  return `${
-    api?.basePath
-  }/Items/${parentId}/Images/Backdrop/0?${params.toString()}`;
 };

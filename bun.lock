@@ -1,6 +1,5 @@
 {
   "lockfileVersion": 1,
-  "configVersion": 1,
   "workspaces": {
     "": {
       "name": "streamyfin",
@@ -12,7 +11,7 @@
         "@expo/ui": "57.0.20",
         "@expo/vector-icons": "^15.1.1",
         "@gorhom/bottom-sheet": "5.2.14",
-        "@jellyfin/sdk": "^0.13.0",
+        "@jellyfin/sdk": "1.0.0",
         "@react-native-community/netinfo": "12.0.1",
         "@react-navigation/native": "7.3.17",
         "@sentry/react-native": "^8.23.0",
@@ -465,7 +464,7 @@
 
     "@istanbuljs/schema": ["@istanbuljs/schema@0.1.6", "", {}, "sha512-+Sg6GCR/wy1oSmQDFq4LQDAhm3ETKnorxN+y5nbLULOR3P0c14f2Wurzj3/xqPXtasLFfHd5iRFQ7AJt4KH2cw=="],
 
-    "@jellyfin/sdk": ["@jellyfin/sdk@0.13.0", "", { "peerDependencies": { "axios": "^1.12.0" } }, "sha512-oiBAOXH6s+dKdReSsYgNktBDzbxtg4JVWhEzIxZSxKcWMdSKmBtK41MhXRO7IWAC40DguKUm3nU/Z493qPAlWA=="],
+    "@jellyfin/sdk": ["@jellyfin/sdk@1.0.0", "", { "peerDependencies": { "axios": "^1.12.0" } }, "sha512-bu7EbMxEz+mH2N/v8Oj/dDCQQvTmEVTZBzKhYgwpKrL9l63LMZvjY2gvnU4imMi9389kzh0LQD75MzMtcoDJtA=="],
 
     "@jest/console": ["@jest/console@29.7.0", "", { "dependencies": { "@jest/types": "^29.6.3", "@types/node": "*", "chalk": "^4.0.0", "jest-message-util": "^29.7.0", "jest-util": "^29.7.0", "slash": "^3.0.0" } }, "sha512-5Ni4CU7XHQi32IJ398EEP4RrB8eV09sXP2ROqD4bksHrnTree52PsxvX8tpL8LvTZ3pFzXyPbNQReSN41CAhOg=="],
 
@@ -1853,7 +1852,7 @@
 
     "react-native-text-ticker": ["react-native-text-ticker@1.16.0", "", {}, "sha512-UHZcIrXzNQ3CnGSA6d5foR9weqSCEk5w+eJGnUf5OQkKbuq/xtt1ZaNVnsgcG5+3f9EnRrNCt52/a46LXVKGGw=="],
 
-    "react-native-track-player": ["react-native-track-player@github:lovegaoshi/react-native-track-player#33a3ecd", { "peerDependencies": { "react": "*", "react-native": "*", "react-native-windows": "*", "shaka-player": "^4.7.9" }, "optionalPeers": ["react-native-windows", "shaka-player"] }, "lovegaoshi-react-native-track-player-33a3ecd", "sha512-vfkld2jUj7EPkAjIc/Vbx4Q4MtOOLmYtCYCE2dWJsyLnPqgj1f0xVzBxbeVP7dfT+eSh4KIXfdxESXaHgrXIlw=="],
+    "react-native-track-player": ["react-native-track-player@github:lovegaoshi/react-native-track-player#33a3ecd", { "peerDependencies": { "react": "*", "react-native": "*", "react-native-windows": "*", "shaka-player": "^4.7.9" }, "optionalPeers": ["react-native-windows", "shaka-player"] }, "lovegaoshi-react-native-track-player-33a3ecd"],
 
     "react-native-udp": ["react-native-udp@4.1.7", "", { "dependencies": { "buffer": "^5.6.0", "events": "^3.1.0" } }, "sha512-NUE3zewu61NCdSsLlj+l0ad6qojcVEZPT4hVG/x6DU9U4iCzwtfZSASh9vm7teAcVzLkdD+cO3411LHshAi/wA=="],
 

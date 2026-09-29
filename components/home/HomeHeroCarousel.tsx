@@ -3,11 +3,7 @@ import type {
   BaseItemDto,
   BaseItemKind,
 } from "@jellyfin/sdk/lib/generated-client/models";
-import {
-  getItemsApi,
-  getTvShowsApi,
-  getUserLibraryApi,
-} from "@jellyfin/sdk/lib/utils/api";
+import { getLibraryApi, getShowApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import { useSegments } from "expo-router";
 import { useAtomValue } from "jotai";
@@ -381,7 +377,7 @@ export const HomeHeroCarousel = () => {
       // slides instead of blanking the whole carousel.
       const [resume, nextUp, latestMovies, latestTv] = await Promise.all([
         filters.showContinueWatching
-          ? getItemsApi(api)
+          ? getLibraryApi(api)
               .getResumeItems({
                 userId: user.Id,
                 limit: overFetch(filters.continueWatchingQuota),
@@ -393,7 +389,7 @@ export const HomeHeroCarousel = () => {
               .catch(() => null)
           : null,
         filters.showNextUp
-          ? getTvShowsApi(api)
+          ? getShowApi(api)
               .getNextUp({
                 userId: user.Id,
                 limit: overFetch(filters.nextUpQuota),
@@ -405,7 +401,7 @@ export const HomeHeroCarousel = () => {
               .catch(() => null)
           : null,
         filters.showRecentlyAddedMovies
-          ? getUserLibraryApi(api)
+          ? getLibraryApi(api)
               .getLatestMedia({
                 userId: user.Id,
                 includeItemTypes: ["Movie"],
@@ -418,7 +414,7 @@ export const HomeHeroCarousel = () => {
               .catch(() => null)
           : null,
         filters.showRecentlyAddedTv
-          ? getUserLibraryApi(api)
+          ? getLibraryApi(api)
               .getLatestMedia({
                 userId: user.Id,
                 // Do we want to show seasons, episodes, and shows, or just one of them? I'd assume just Series maybe?

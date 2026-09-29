@@ -1,5 +1,6 @@
 import type { Api } from "@jellyfin/sdk";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
+import { getImageApi } from "@jellyfin/sdk/lib/utils/api";
 import { useCallback } from "react";
 import CastContext, {
   CastState,
@@ -38,10 +39,14 @@ export const useMusicCast = ({ api, userId }: UseMusicCastOptions) => {
     (track: BaseItemDto): string | undefined => {
       if (!api) return undefined;
       const albumId = track.AlbumId || track.ParentId;
-      if (albumId) {
-        return `${api.basePath}/Items/${albumId}/Images/Primary?maxHeight=600&maxWidth=600`;
-      }
-      return `${api.basePath}/Items/${track.Id}/Images/Primary?maxHeight=600&maxWidth=600`;
+      return getImageApi(api).getItemImageUrlById(
+        albumId || track.Id!,
+        "Primary",
+        {
+          maxHeight: 600,
+          maxWidth: 600,
+        },
+      );
     },
     [api],
   );

@@ -39,7 +39,7 @@
     "@expo/ui": "57.0.20",
     "@expo/vector-icons": "^15.1.1",
     "@gorhom/bottom-sheet": "5.2.14",
-    "@jellyfin/sdk": "^0.13.0",
+    "@jellyfin/sdk": "1.0.0",
     "@react-native-community/netinfo": "12.0.1",
     "@react-navigation/native": "7.3.17",
     "@sentry/react-native": "^8.23.0",

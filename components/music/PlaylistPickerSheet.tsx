@@ -6,7 +6,7 @@ import {
   BottomSheetScrollView,
 } from "@gorhom/bottom-sheet";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
+import { getLibraryApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import { useAtom } from "jotai";
 import React, {
@@ -59,7 +59,7 @@ export const PlaylistPickerSheet: React.FC<Props> = ({
     queryFn: async () => {
       if (!api || !user?.Id) return [];
 
-      const response = await getItemsApi(api).getItems({
+      const response = await getLibraryApi(api).getItems({
         userId: user.Id,
         includeItemTypes: ["Playlist"],
         sortBy: ["SortName"],

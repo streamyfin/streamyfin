@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { getTvShowsApi } from "@jellyfin/sdk/lib/utils/api";
+import { getShowApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSegments } from "expo-router";
@@ -119,19 +119,11 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
       }
       if (!api || !user?.Id || !item.Id) return [];
 
-      const response = await api.axiosInstance.get(
-        `${api.basePath}/Shows/${item.Id}/Seasons`,
-        {
-          params: {
-            userId: user.Id,
-            itemId: item.Id,
-            Fields: "ItemCounts,PrimaryImageAspectRatio",
-          },
-          headers: {
-            Authorization: `MediaBrowser DeviceId="${api.deviceInfo.id}", Token="${api.accessToken}"`,
-          },
-        },
-      );
+      const response = await getShowApi(api).getSeasons({
+        seriesId: item.Id,
+        userId: user.Id,
+        fields: ["ItemCounts", "PrimaryImageAspectRatio"],
+      });
       return response.data.Items || [];
     },
     staleTime: isOffline ? Infinity : 60 * 1000,
@@ -201,7 +193,7 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
       }
       if (!api || !user?.Id || !item.Id || !selectedSeasonId) return [];
 
-      const res = await getTvShowsApi(api).getEpisodes({
+      const res = await getShowApi(api).getEpisodes({
         seriesId: item.Id,
         userId: user.Id,
         seasonId: selectedSeasonId,

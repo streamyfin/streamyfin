@@ -1,7 +1,11 @@
-import { getItemsApi, getUserLibraryApi } from "@jellyfin/sdk/lib/utils/api";
+import { getLibraryApi, getUserDataApi } from "@jellyfin/sdk/lib/utils/api";
 import { AxiosError } from "axios";
 import { useAtomValue } from "jotai";
 import { useDownload } from "@/providers/DownloadProvider";
+import {
+  restoreUserDataKey,
+  updateExistingUserData,
+} from "@/utils/jellyfin/userPlaybackState";
 import { logAndCaptureError } from "@/utils/log";
 import { apiAtom, userAtom } from "../providers/JellyfinProvider";
 import { useNetworkStatus } from "./useNetworkStatus";
@@ -35,9 +39,8 @@ export const useTwoWaySync = () => {
       (typeof localItem)["item"] | undefined
     > => {
       try {
-        return (
-          await getUserLibraryApi(api).getItem({ itemId, userId: user.Id })
-        ).data;
+        return (await getLibraryApi(api).getItem({ itemId, userId: user.Id }))
+          .data;
       } catch (error) {
         // A 404 means the item was deleted server-side while still downloaded
         // locally, there is nothing to sync and no error worth surfacing.
@@ -53,6 +56,18 @@ export const useTwoWaySync = () => {
     const remoteItem = await fetchRemoteItem();
     if (!remoteItem) return false;
 
+    const localUserData = restoreUserDataKey(
+      localItem.item.UserData,
+      remoteItem.UserData,
+    );
+    // Repair legacy downloads even when the playback timestamps are equal.
+    if (localUserData !== localItem.item.UserData) {
+      updateDownloadedItem(itemId, {
+        ...localItem,
+        item: { ...localItem.item, UserData: localUserData },
+      });
+    }
+
     const localLastPlayed = localItem.item.UserData?.LastPlayedDate
       ? new Date(localItem.item.UserData.LastPlayedDate)
       : new Date(0);
@@ -66,20 +81,19 @@ export const useTwoWaySync = () => {
         ...localItem,
         item: {
           ...localItem.item,
-          UserData: {
-            ...localItem.item.UserData,
+          UserData: updateExistingUserData(localUserData, {
             LastPlayedDate: remoteItem.UserData?.LastPlayedDate,
             PlaybackPositionTicks: remoteItem.UserData?.PlaybackPositionTicks,
             Played: remoteItem.UserData?.Played,
             PlayedPercentage: remoteItem.UserData?.PlayedPercentage,
-          },
+          }),
         },
       });
       return false;
     } else if (remoteLastPlayed < localLastPlayed) {
       // Since we're this is the source of truth, essentially need to make sure the played status matches the local item.
       try {
-        await getItemsApi(api).updateItemUserData({
+        await getUserDataApi(api).updateItemUserData({
           itemId: localItem.item.Id!,
           userId: user.Id,
           updateUserItemDataDto: {

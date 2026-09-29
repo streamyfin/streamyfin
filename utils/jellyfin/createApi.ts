@@ -1,4 +1,5 @@
 import type { Api, Jellyfin } from "@jellyfin/sdk";
+import type { AuthenticationResult } from "@jellyfin/sdk/lib/generated-client/models";
 import axios, { type InternalAxiosRequestConfig } from "axios";
 import { getJellyfinHeaders, isUrlForBaseUrl } from "@/utils/customHeaders";
 
@@ -82,4 +83,27 @@ export function createApiWithCustomHeaders(
   });
 
   return api;
+}
+
+/**
+ * SDK authentication mutates the client that made the request. Publish a new
+ * instance only after validating the response: Jotai and the session-expiry
+ * effect depend on a new reference, not an in-place token change.
+ */
+export function createAuthenticatedApi(
+  jellyfin: Jellyfin,
+  serverUrl: string,
+  authentication: AuthenticationResult,
+) {
+  const { AccessToken, User } = authentication;
+  if (!AccessToken || !User?.Id) {
+    throw new Error("Jellyfin returned an incomplete authentication response");
+  }
+
+  return {
+    api: createApiWithCustomHeaders(jellyfin, serverUrl, AccessToken),
+    user: User,
+    userId: User.Id,
+    accessToken: AccessToken,
+  };
 }

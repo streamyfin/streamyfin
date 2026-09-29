@@ -1,3 +1,5 @@
+import axios, { type AxiosRequestConfig } from "axios";
+import MockAdapter from "axios-mock-adapter";
 import { setJellyfinHeaders } from "@/test-utils/customHeaders";
 import type { CustomHeader } from "@/utils/customHeaders/types";
 
@@ -41,63 +43,51 @@ jest.mock("@/utils/secureCredentials", () => ({
 
 import { checkJellyfinServer, ServerTooOldError } from "./checkServer";
 
-// --- fetch stub ------------------------------------------------------------
+type ProbeReply = [number, unknown];
+let transport: MockAdapter;
+let requestImpl: (config: AxiosRequestConfig) => Promise<ProbeReply>;
 
-interface FetchCall {
-  url: string;
-  init?: RequestInit;
-}
+afterEach(() => transport.restore());
 
-let fetchCalls: FetchCall[] = [];
-let fetchImpl: (url: string, init?: RequestInit) => Promise<Response>;
+const okResponse = (body: Record<string, unknown> = {}): ProbeReply => [
+  200,
+  { Version: "10.10.7", ServerName: "Homelab", ...body },
+];
 
-const realFetch = globalThis.fetch;
-globalThis.fetch = ((url: string, init?: RequestInit) => {
-  fetchCalls.push({ url, init });
-  return fetchImpl(url, init);
-}) as typeof fetch;
-
-afterAll(() => {
-  globalThis.fetch = realFetch;
-});
-
-const okResponse = (body: Record<string, unknown> = {}): Response =>
-  ({
-    ok: true,
-    status: 200,
-    json: async () => ({ Version: "10.10.7", ServerName: "Homelab", ...body }),
-  }) as Response;
-
-const statusResponse = (status: number): Response =>
-  ({ ok: false, status, json: async () => ({}) }) as Response;
+const statusResponse = (status: number): ProbeReply => [status, {}];
 
 const networkError = () =>
   Promise.reject(new TypeError("Network request failed"));
 
 /** Simulates a socket that accepts but never answers — only the caller's
  * abort signal ends it, like a plain-HTTP port receiving a TLS handshake. */
-const hangUntilAborted = (init?: RequestInit) =>
-  new Promise<Response>((_, reject) => {
-    init?.signal?.addEventListener("abort", () => reject(new Error("Aborted")));
+const hangUntilAborted = (config: AxiosRequestConfig) =>
+  new Promise<ProbeReply>((_, reject) => {
+    config.signal?.addEventListener?.("abort", () =>
+      reject(new Error("Aborted")),
+    );
   });
 
 /** Routes by protocol so tests can script https and http independently. */
 const routes = (impl: {
-  https?: (init?: RequestInit) => Promise<Response>;
-  http?: (init?: RequestInit) => Promise<Response>;
+  https?: (config: AxiosRequestConfig) => Promise<ProbeReply>;
+  http?: (config: AxiosRequestConfig) => Promise<ProbeReply>;
 }) => {
-  fetchImpl = (url, init) =>
-    url.startsWith("https://")
-      ? (impl.https ?? networkError)(init)
-      : (impl.http ?? networkError)(init);
+  requestImpl = (config) =>
+    config.url?.startsWith("https://")
+      ? (impl.https ?? networkError)(config)
+      : (impl.http ?? networkError)(config);
 };
 
 beforeEach(() => {
-  fetchCalls = [];
+  // New axios instances inherit this adapter. The SDK still builds the real
+  // URL, applies headers and transforms the response before the check runs.
+  transport = new MockAdapter(axios, { onNoMatch: "throwException" });
+  transport.onAny().reply((config) => requestImpl(config));
   loggedMessages.length = 0;
   mockSavedHeaders.clear();
   persistedHeaders.length = 0;
-  fetchImpl = networkError;
+  requestImpl = networkError;
 });
 
 const header = (key: string, value: string): CustomHeader => ({
@@ -121,7 +111,7 @@ describe("checkJellyfinServer scheme handling", () => {
       url: "http://192.168.1.10:8096",
       name: "Homelab",
     });
-    expect(fetchCalls.map((c) => c.url)).toEqual([
+    expect(transport.history.get.map((c) => c.url)).toEqual([
       "http://192.168.1.10:8096/System/Info/Public",
     ]);
   });
@@ -132,7 +122,7 @@ describe("checkJellyfinServer scheme handling", () => {
     const result = await checkJellyfinServer("https://media.example.com");
 
     expect(result).toBeUndefined();
-    expect(fetchCalls.map((c) => c.url)).toEqual([
+    expect(transport.history.get.map((c) => c.url)).toEqual([
       "https://media.example.com/System/Info/Public",
     ]);
   });
@@ -146,7 +136,7 @@ describe("checkJellyfinServer scheme handling", () => {
       url: "http://192.168.1.10:8096",
       name: "Homelab",
     });
-    expect(fetchCalls.map((c) => c.url)).toEqual([
+    expect(transport.history.get.map((c) => c.url)).toEqual([
       "https://192.168.1.10:8096/System/Info/Public",
       "http://192.168.1.10:8096/System/Info/Public",
     ]);
@@ -158,7 +148,7 @@ describe("checkJellyfinServer scheme handling", () => {
     const result = await checkJellyfinServer("  HTTP://192.168.1.10:8096  ");
 
     expect(result?.url).toBe("http://192.168.1.10:8096");
-    expect(fetchCalls).toHaveLength(1);
+    expect(transport.history.get).toHaveLength(1);
   });
 
   test("port and path are preserved verbatim", async () => {
@@ -167,7 +157,7 @@ describe("checkJellyfinServer scheme handling", () => {
     const result = await checkJellyfinServer("http://10.0.0.5:3000/jellyfin");
 
     expect(result?.url).toBe("http://10.0.0.5:3000/jellyfin");
-    expect(fetchCalls[0]?.url).toBe(
+    expect(transport.history.get[0]?.url).toBe(
       "http://10.0.0.5:3000/jellyfin/System/Info/Public",
     );
   });
@@ -217,7 +207,7 @@ describe("checkJellyfinServer probing", () => {
     const result = await checkJellyfinServer("192.168.1.10:8096");
 
     expect(result).toBeUndefined();
-    expect(fetchCalls).toHaveLength(2);
+    expect(transport.history.get).toHaveLength(2);
   });
 
   test("a server older than 10.10 throws ServerTooOldError", async () => {
@@ -246,10 +236,10 @@ describe("checkJellyfinServer custom headers", () => {
 
     await checkJellyfinServer("192.168.1.10:8096", typed);
 
-    const httpCall = fetchCalls.find((c) => c.url.startsWith("http://"));
-    expect(
-      (httpCall?.init as { headers?: Record<string, string> })?.headers,
-    ).toEqual({ "CF-Access-Client-Id": "abc" });
+    const httpCall = transport.history.get.find((c) =>
+      c.url?.startsWith("http://"),
+    );
+    expect(httpCall?.headers?.["CF-Access-Client-Id"]).toBe("abc");
     expect(persistedHeaders).toEqual([
       { url: "http://192.168.1.10:8096", headers: typed },
     ]);
@@ -263,9 +253,9 @@ describe("checkJellyfinServer custom headers", () => {
 
     await checkJellyfinServer("http://192.168.1.10:8096");
 
-    expect(
-      (fetchCalls[0]?.init as { headers?: Record<string, string> })?.headers,
-    ).toEqual({ "CF-Access-Client-Id": "saved" });
+    expect(transport.history.get[0]?.headers?.["CF-Access-Client-Id"]).toBe(
+      "saved",
+    );
     expect(persistedHeaders).toHaveLength(0);
   });
 
@@ -277,5 +267,67 @@ describe("checkJellyfinServer custom headers", () => {
     ]);
 
     expect(persistedHeaders).toHaveLength(0);
+  });
+
+  test("an explicit empty list clears saved headers only after a successful probe", async () => {
+    mockSavedHeaders.set("https://media.example.com", [
+      header("CF-Access-Client-Id", "saved"),
+    ]);
+    routes({ https: async () => okResponse() });
+
+    await checkJellyfinServer("https://media.example.com", []);
+
+    expect(
+      transport.history.get[0]?.headers?.["CF-Access-Client-Id"],
+    ).toBeUndefined();
+    expect(transport.history.get[0]?.headers?.Authorization).toBeUndefined();
+    expect(persistedHeaders).toEqual([
+      { url: "https://media.example.com", headers: [] },
+    ]);
+  });
+});
+
+describe("checkJellyfinServer SDK transport", () => {
+  test("forwards abort and timeout without disabling TLS validation", async () => {
+    routes({ https: async () => okResponse() });
+
+    await checkJellyfinServer(
+      "https://media.example.com/jellyfin/",
+      undefined,
+      25,
+    );
+
+    const request = transport.history.get[0];
+    expect(request.url).toBe(
+      "https://media.example.com/jellyfin/System/Info/Public",
+    );
+    expect(request.timeout).toBe(25);
+    expect(request.signal).toBeInstanceOf(AbortSignal);
+    expect(request.httpsAgent).toBeUndefined();
+    expect(request.headers?.Authorization).toBeUndefined();
+  });
+
+  test("does not accept a gateway's HTML response as a server", async () => {
+    routes({ https: async () => [200, "<html>Sign in</html>"] });
+
+    expect(
+      await checkJellyfinServer("https://media.example.com"),
+    ).toBeUndefined();
+    expect(persistedHeaders).toHaveLength(0);
+  });
+
+  test("does not persist typed headers for an unsupported server", async () => {
+    routes({ https: async () => okResponse({ Version: "10.9.11" }) });
+
+    await expect(
+      checkJellyfinServer("https://media.example.com", [
+        header("CF-Access-Client-Id", "private-value"),
+      ]),
+    ).rejects.toThrow(ServerTooOldError);
+
+    expect(persistedHeaders).toHaveLength(0);
+    expect(
+      loggedMessages.some(({ message }) => message.includes("private-value")),
+    ).toBe(false);
   });
 });

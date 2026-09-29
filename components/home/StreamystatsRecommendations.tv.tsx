@@ -2,7 +2,7 @@ import type {
   BaseItemDto,
   PublicSystemInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
-import { getItemsApi, getSystemApi } from "@jellyfin/sdk/lib/utils/api";
+import { getLibraryApi, getSystemApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import { useSegments } from "expo-router";
 import { useAtomValue } from "jotai";
@@ -132,7 +132,7 @@ export const StreamystatsRecommendations: React.FC<Props> = ({
         return [];
       }
 
-      const response = await getItemsApi(api).getItems({
+      const response = await getLibraryApi(api).getItems({
         userId: user.Id,
         ids: recommendationIds,
         fields: ["PrimaryImageAspectRatio", "Genres"],

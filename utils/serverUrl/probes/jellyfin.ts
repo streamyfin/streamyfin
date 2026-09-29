@@ -1,3 +1,4 @@
+import { SystemApi } from "@jellyfin/sdk/lib/generated-client/api/system-api";
 import axios from "axios";
 import type { ServerProbe } from "../types";
 
@@ -6,7 +7,12 @@ const PRODUCT_NAME = "Jellyfin Server";
 
 export const jellyfinProbe: ServerProbe = async (url, signal, headers) => {
   try {
-    const { status, data } = await axios.get(`${url}/System/Info/Public`, {
+    const systemApi = new SystemApi(
+      undefined,
+      url.replace(/\/+$/, ""),
+      axios.create(),
+    );
+    const { status, data } = await systemApi.getPublicSystemInfo({
       signal,
       timeout: 8000, // backstop; the resolver aborts via signal first
       headers,

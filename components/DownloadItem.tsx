@@ -8,7 +8,7 @@ import type {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
-import { getUserLibraryApi } from "@jellyfin/sdk/lib/utils/api";
+import { getLibraryApi } from "@jellyfin/sdk/lib/utils/api";
 import { type Href } from "expo-router";
 import { t } from "i18next";
 import { useAtom } from "jotai";
@@ -224,7 +224,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
         let itemForDownload = item;
         if (!itemForDownload.Chapters && itemForDownload.Id) {
           try {
-            const enriched = await getUserLibraryApi(api).getItem({
+            const enriched = await getLibraryApi(api).getItem({
               itemId: itemForDownload.Id,
               userId: user.Id!,
             });

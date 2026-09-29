@@ -1,19 +1,23 @@
-import { Api, AUTHORIZATION_HEADER } from "@jellyfin/sdk";
-import type { AxiosRequestConfig, AxiosResponse } from "axios";
+import { Api } from "@jellyfin/sdk";
+import { AUTHORIZATION_HEADER } from "@jellyfin/sdk/lib/constants";
+import axios, { type AxiosRequestConfig, type AxiosResponse } from "axios";
 import type { StreamyfinPluginConfig } from "@/utils/atoms/settings";
 
 declare module "@jellyfin/sdk" {
   interface Api {
-    get<T, D = any>(
+    /** For plugin routes not represented by the Jellyfin SDK. */
+    pluginGet<T, D = unknown>(
       url: string,
       config?: AxiosRequestConfig<D>,
     ): Promise<AxiosResponse<T>>;
-    post<T, D = any>(
+    /** For plugin routes not represented by the Jellyfin SDK. */
+    pluginPost<T, D = unknown>(
       url: string,
       data: D,
       config?: AxiosRequestConfig<D>,
     ): Promise<AxiosResponse<T>>;
-    delete<T, D = any>(
+    /** For plugin routes not represented by the Jellyfin SDK. */
+    pluginDelete<T, D = unknown>(
       url: string,
       config?: AxiosRequestConfig<D>,
     ): Promise<AxiosResponse<T>>;
@@ -21,39 +25,45 @@ declare module "@jellyfin/sdk" {
   }
 }
 
-Api.prototype.get = function <T, D = any>(
+const pluginOptions = <D>(api: Api, config: AxiosRequestConfig<D>) =>
+  axios.mergeConfig(config, {
+    headers: { [AUTHORIZATION_HEADER]: api.authorizationHeader },
+  });
+
+Api.prototype.pluginGet = function <T, D = unknown>(
   url: string,
   config: AxiosRequestConfig<D> = {},
 ): Promise<AxiosResponse<T>> {
-  return this.axiosInstance.get<T>(`${this.basePath}${url}`, {
-    ...(config ?? {}),
-    headers: { [AUTHORIZATION_HEADER]: this.authorizationHeader },
-  });
+  return this.axiosInstance.get<T>(
+    `${this.basePath}${url}`,
+    pluginOptions(this, config),
+  );
 };
 
-Api.prototype.post = function <T, D = any>(
+Api.prototype.pluginPost = function <T, D = unknown>(
   url: string,
   data: D,
-  config: AxiosRequestConfig<D>,
+  config: AxiosRequestConfig<D> = {},
 ): Promise<AxiosResponse<T>> {
-  return this.axiosInstance.post<T>(`${this.basePath}${url}`, data, {
-    ...(config || {}),
-    headers: { [AUTHORIZATION_HEADER]: this.authorizationHeader },
-  });
+  return this.axiosInstance.post<T>(
+    `${this.basePath}${url}`,
+    data,
+    pluginOptions(this, config),
+  );
 };
 
-Api.prototype.delete = function <T, D = any>(
+Api.prototype.pluginDelete = function <T, D = unknown>(
   url: string,
-  config: AxiosRequestConfig<D>,
+  config: AxiosRequestConfig<D> = {},
 ): Promise<AxiosResponse<T>> {
-  return this.axiosInstance.delete<T>(`${this.basePath}${url}`, {
-    ...(config || {}),
-    headers: { [AUTHORIZATION_HEADER]: this.authorizationHeader },
-  });
+  return this.axiosInstance.delete<T>(
+    `${this.basePath}${url}`,
+    pluginOptions(this, config),
+  );
 };
 
 Api.prototype.getStreamyfinPluginConfig = function (): Promise<
   AxiosResponse<StreamyfinPluginConfig>
 > {
-  return this.get<StreamyfinPluginConfig>("/Streamyfin/config");
+  return this.pluginGet<StreamyfinPluginConfig>("/Streamyfin/config");
 };

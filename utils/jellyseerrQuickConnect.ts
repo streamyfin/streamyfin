@@ -1,5 +1,5 @@
 import type { Api } from "@jellyfin/sdk";
-import { getQuickConnectApi } from "@jellyfin/sdk/lib/utils/api";
+import { getAuthenticationApi } from "@jellyfin/sdk/lib/utils/api";
 import axios from "axios";
 import type { JellyseerrApi } from "@/hooks/useJellyseerr";
 import type { User as JellyseerrUser } from "@/utils/jellyseerr/server/entity/User";
@@ -131,7 +131,7 @@ export const quickConnectSteps = (
   stillCurrent,
 
   isEnabled: async () =>
-    (await getQuickConnectApi(api).getQuickConnectEnabled()).data === true,
+    (await getAuthenticationApi(api).getQuickConnectEnabled()).data === true,
 
   prime: () => seerr.prime(),
 
@@ -144,7 +144,7 @@ export const quickConnectSteps = (
   // ordinary account and why it cannot be turned against another user.
   approve: async (code) => {
     try {
-      const { data } = await getQuickConnectApi(api).authorizeQuickConnect({
+      const { data } = await getAuthenticationApi(api).authorizeQuickConnect({
         code,
       });
       return data ? "approved" : "refused";

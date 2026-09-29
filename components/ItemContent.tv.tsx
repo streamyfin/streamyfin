@@ -4,7 +4,7 @@ import type {
   MediaSourceInfo,
   MediaStream,
 } from "@jellyfin/sdk/lib/generated-client/models";
-import { getTvShowsApi, getUserLibraryApi } from "@jellyfin/sdk/lib/utils/api";
+import { getLibraryApi, getShowApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { BlurView } from "expo-blur";
 import { File } from "expo-file-system";
@@ -119,7 +119,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
       queryKey: ["episodes", item?.SeasonId],
       queryFn: async () => {
         if (!api || !user?.Id || !item?.SeriesId || !item?.SeasonId) return [];
-        const res = await getTvShowsApi(api).getEpisodes({
+        const res = await getShowApi(api).getEpisodes({
           seriesId: item.SeriesId,
           userId: user.Id,
           seasonId: item.SeasonId,
@@ -450,7 +450,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
 
       try {
         // Fetch fresh item data with media sources
-        const response = await getUserLibraryApi(api).getItem({
+        const response = await getLibraryApi(api).getItem({
           itemId: item.Id,
         });
 

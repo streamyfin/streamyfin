@@ -3,6 +3,7 @@ import type {
   BaseItemDto,
   BaseItemPerson,
 } from "@jellyfin/sdk/lib/generated-client/models";
+import { getImageApi } from "@jellyfin/sdk/lib/utils/api";
 import { isBaseItemDto } from "../jellyfin";
 
 /**
@@ -28,27 +29,16 @@ export const getPrimaryImageUrl = ({
   }
 
   if (!isBaseItemDto(item)) {
-    return `${api?.basePath}/Items/${item?.Id}/Images/Primary`;
+    return getImageApi(api).getItemImageUrlById(item.Id!, "Primary");
   }
 
   const primaryTag = item.ImageTags?.Primary;
   const backdropTag = item.BackdropImageTags?.[0];
   const parentBackdropTag = item.ParentBackdropImageTags?.[0];
 
-  const params = new URLSearchParams({
-    fillWidth: width ? String(width) : "500",
-    quality: quality ? String(quality) : "80",
+  return getImageApi(api).getItemImageUrlById(item.Id!, "Primary", {
+    fillWidth: width || 500,
+    quality: quality || 80,
+    tag: primaryTag || backdropTag || parentBackdropTag || undefined,
   });
-
-  if (primaryTag) {
-    params.set("tag", primaryTag);
-  } else if (backdropTag) {
-    params.set("tag", backdropTag);
-  } else if (parentBackdropTag) {
-    params.set("tag", parentBackdropTag);
-  }
-
-  return `${api?.basePath}/Items/${
-    item.Id
-  }/Images/Primary?${params.toString()}`;
 };

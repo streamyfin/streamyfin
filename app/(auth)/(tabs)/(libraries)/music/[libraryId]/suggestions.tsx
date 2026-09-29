@@ -1,5 +1,5 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
+import { getLibraryApi } from "@jellyfin/sdk/lib/utils/api";
 import { FlashList } from "@shopify/flash-list";
 import { useQuery } from "@tanstack/react-query";
 import { useLocalSearchParams } from "expo-router";
@@ -18,6 +18,7 @@ import { MusicTrackItem } from "@/components/music/MusicTrackItem";
 import { PlaylistPickerSheet } from "@/components/music/PlaylistPickerSheet";
 import { TrackOptionsSheet } from "@/components/music/TrackOptionsSheet";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { getLatestMusicAlbums } from "@/utils/jellyfin/musicSuggestions";
 import { writeDebugLog } from "@/utils/log";
 
 export default function SuggestionsScreen() {
@@ -59,8 +60,7 @@ export default function SuggestionsScreen() {
     isReady,
   });
 
-  // Latest audio - uses the same endpoint as web: /Users/{userId}/Items/Latest
-  // This returns the most recently added albums
+  // Latest audio is grouped into the most recently added albums by Jellyfin.
   const {
     data: latestAlbums,
     isLoading: loadingLatest,
@@ -69,45 +69,7 @@ export default function SuggestionsScreen() {
     refetch: refetchLatest,
   } = useQuery({
     queryKey: ["music-latest", libraryId, user?.Id],
-    queryFn: async () => {
-      // Prefer the exact endpoint the Web client calls (HAR):
-      // /Users/{userId}/Items/Latest?IncludeItemTypes=Audio&ParentId=...
-      // IMPORTANT: must use api.get(...) (not axiosInstance.get(fullUrl)) so the auth header is attached.
-      const res = await api!.get<BaseItemDto[]>(
-        `/Users/${user!.Id}/Items/Latest`,
-        {
-          params: {
-            IncludeItemTypes: "Audio",
-            Limit: 20,
-            Fields: "PrimaryImageAspectRatio",
-            ParentId: libraryId,
-            ImageTypeLimit: 1,
-            EnableImageTypes: "Primary,Backdrop,Banner,Thumb",
-            EnableTotalRecordCount: false,
-          },
-        },
-      );
-
-      if (Array.isArray(res.data) && res.data.length > 0) {
-        return res.data;
-      }
-
-      // Fallback: ask for albums directly via /Items (more reliable across server variants)
-      const fallback = await getItemsApi(api!).getItems({
-        userId: user!.Id,
-        parentId: libraryId,
-        includeItemTypes: ["MusicAlbum"],
-        sortBy: ["DateCreated"],
-        sortOrder: ["Descending"],
-        limit: 20,
-        recursive: true,
-        fields: ["PrimaryImageAspectRatio", "SortName"],
-        imageTypeLimit: 1,
-        enableImageTypes: ["Primary", "Backdrop", "Banner", "Thumb"],
-        enableTotalRecordCount: false,
-      });
-      return fallback.data.Items || [];
-    },
+    queryFn: () => getLatestMusicAlbums(api!, user!.Id!, libraryId),
     enabled: isReady,
   });
 
@@ -121,7 +83,7 @@ export default function SuggestionsScreen() {
   } = useQuery({
     queryKey: ["music-recently-played", libraryId, user?.Id],
     queryFn: async () => {
-      const response = await getItemsApi(api!).getItems({
+      const response = await getLibraryApi(api!).getItems({
         userId: user?.Id,
         parentId: libraryId,
         includeItemTypes: ["Audio"],
@@ -150,7 +112,7 @@ export default function SuggestionsScreen() {
   } = useQuery({
     queryKey: ["music-frequently-played", libraryId, user?.Id],
     queryFn: async () => {
-      const response = await getItemsApi(api!).getItems({
+      const response = await getLibraryApi(api!).getItems({
         userId: user?.Id,
         parentId: libraryId,
         includeItemTypes: ["Audio"],
