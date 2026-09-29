@@ -164,8 +164,9 @@ const SeerrPoster: React.FC<Props> = ({
                 text={mediaRequest?.requestedBy.displayName}
               />
               {requestedSeasons.length > 0 && (
+                // Up to the status icon: w-32 was wider than a standing card.
                 <Tags
-                  className='absolute bottom-1 left-0.5 w-32'
+                  className='absolute bottom-1 left-0.5 right-8'
                   tagProps={{
                     className: "bg-black rounded-full px-1",
                   }}
@@ -174,11 +175,17 @@ const SeerrPoster: React.FC<Props> = ({
               )}
             </>
           )}
-          <SeerrStatusIcon
-            className='absolute bottom-1 right-1'
-            showRequestIcon={canRequest}
-            mediaStatus={mediaRequest?.media?.status || item?.mediaInfo?.status}
-          />
+          {/* Placed by a wrapper: the icon hands its className to the view
+              inside its button, which left the button below the image, where
+              the card cut the icon off. */}
+          <View className='absolute bottom-1 right-1'>
+            <SeerrStatusIcon
+              showRequestIcon={canRequest}
+              mediaStatus={
+                mediaRequest?.media?.status || item?.mediaInfo?.status
+              }
+            />
+          </View>
           <SeerrMediaIcon
             className='absolute top-1 left-1'
             mediaType={mediaType}

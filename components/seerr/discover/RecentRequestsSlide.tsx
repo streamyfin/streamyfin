@@ -37,8 +37,9 @@ const RequestCard: React.FC<{ request: MediaRequest }> = ({ request }) => {
   });
 
   return (
+    // Standing, like the other rows of Discover: lying down, the card was too
+    // short for its status and season badges, which were cut off.
     <SeerrPoster
-      horizontal
       showDownloadInfo
       item={details}
       mediaRequest={refreshedRequest}
