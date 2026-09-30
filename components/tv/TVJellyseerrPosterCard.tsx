@@ -18,7 +18,8 @@ export interface TVJellyseerrPosterCardProps {
  * Jellyseerr movie/TV poster rendered through the standard TVPosterCard so
  * search and discover share the interface-wide focus style instead of a
  * bespoke glow. The TMDB result is adapted to a minimal BaseItemDto;
- * the standard watched checkmark badge doubles as the in-library indicator.
+ * "already in library" maps to the played state so the standard watched
+ * checkmark badge doubles as the in-library indicator.
  */
 export const TVJellyseerrPosterCard: React.FC<TVJellyseerrPosterCardProps> = ({
   item,
@@ -42,6 +43,7 @@ export const TVJellyseerrPosterCard: React.FC<TVJellyseerrPosterCardProps> = ({
       Name: getTitle(item),
       Type: item.mediaType === "movie" ? "Movie" : "Series",
       ProductionYear: Number.isNaN(year) ? undefined : year,
+      UserData: { Key: "", Played: isInLibrary },
     };
     // getTitle/getYear are pure helpers recreated by useJellyseerr each
     // render; keying on them would defeat the memo.
@@ -54,7 +56,6 @@ export const TVJellyseerrPosterCard: React.FC<TVJellyseerrPosterCardProps> = ({
       hasTVPreferredFocus={hasTVPreferredFocus}
       imageUrlGetter={() => posterUrl}
       showProgress={false}
-      isWatched={isInLibrary}
     />
   );
 };
