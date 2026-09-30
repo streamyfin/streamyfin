@@ -15,6 +15,7 @@ import Animated, {
   useScrollViewOffset,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { ParallaxPageColors } from "@/constants/Colors";
 
 /**
  * The page's scroll, for content that follows it, such as a header that stays
@@ -121,7 +122,7 @@ export const ParallaxScrollView: React.FC<PropsWithChildren<Props>> = ({
           style={[
             {
               height: headerHeight,
-              backgroundColor: "black",
+              backgroundColor: ParallaxPageColors.background,
             },
             headerAnimatedStyle,
           ]}
@@ -156,7 +157,7 @@ export const ParallaxScrollView: React.FC<PropsWithChildren<Props>> = ({
               right: 0,
               top: 50,
               height: "100%",
-              backgroundColor: "black",
+              backgroundColor: ParallaxPageColors.background,
             }}
           />
           <ParallaxScrollContext.Provider value={scroll}>

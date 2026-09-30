@@ -16,14 +16,18 @@ import Animated, {
   scrollTo,
   useAnimatedRef,
   useAnimatedStyle,
+  useDerivedValue,
 } from "react-native-reanimated";
 import { scheduleOnUI } from "react-native-worklets";
 import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { ParallaxScrollContext } from "@/components/ParallaxPage";
 import SeerrStatusIcon from "@/components/seerr/SeerrStatusIcon";
-import { SheetColors } from "@/constants/Colors";
-import { SEERR_SEASON_HEADER_HEIGHT } from "@/constants/Seerr";
+import { ParallaxPageColors, SheetColors } from "@/constants/Colors";
+import {
+  SEERR_SEASON_BAND_FADE,
+  SEERR_SEASON_HEADER_HEIGHT,
+} from "@/constants/Seerr";
 import { useSeerr } from "@/hooks/useSeerr";
 import { useSeerrPublicSettings } from "@/hooks/useSeerrPublicSettings";
 import { formatSeerrDate, seerrLocaleTag } from "@/utils/seerr/dates";
@@ -44,6 +48,7 @@ type Episode = NonNullable<SeasonWithEpisodes["episodes"]>[number];
 // The header of an open season while it is not pinned: one object, so the
 // style is not sent again on every frame of the scroll.
 const AT_REST = { transform: [{ translateY: 0 }] };
+const BAND_HIDDEN = { opacity: 0 };
 
 /**
  * A season's episodes, one under the other as on Seerr's site: the still, the
@@ -214,11 +219,24 @@ const OpenSeason: React.FC<{
     });
   };
 
-  const headerStyle = useAnimatedStyle(() => {
-    if (!scroll) return AT_REST;
-    const offset = pushed(scroll.value);
-    return offset === 0 ? AT_REST : { transform: [{ translateY: offset }] };
-  });
+  // Read once a frame, for the header and for the band above it.
+  const offset = useDerivedValue(() => (scroll ? pushed(scroll.value) : 0));
+
+  const headerStyle = useAnimatedStyle(() =>
+    offset.value === 0
+      ? AT_REST
+      : { transform: [{ translateY: offset.value }] },
+  );
+
+  // Pinned, the header sits under the navigation bar, and the episodes kept
+  // passing clear behind the bar above it: that band takes the page's black,
+  // fading in as the header starts to follow the scroll, so the header reads
+  // as held at the top of the screen.
+  const bandStyle = useAnimatedStyle(() =>
+    offset.value === 0
+      ? BAND_HIDDEN
+      : { opacity: Math.min(offset.value / SEERR_SEASON_BAND_FADE, 1) },
+  );
 
   const close = () => {
     if (scroll && scrollView) {
@@ -234,6 +252,22 @@ const OpenSeason: React.FC<{
   return (
     <Animated.View ref={blockRef}>
       <Animated.View style={[{ zIndex: 10 }, headerStyle]}>
+        <Animated.View
+          pointerEvents='none'
+          style={[
+            {
+              position: "absolute",
+              left: 0,
+              right: 0,
+              // Down to the header's own bottom, behind it: its rounded
+              // corners let the episodes passing under it show through.
+              top: -top,
+              bottom: 0,
+              backgroundColor: ParallaxPageColors.background,
+            },
+            bandStyle,
+          ]}
+        />
         <SeasonToggle open onPress={close}>
           {header}
         </SeasonToggle>

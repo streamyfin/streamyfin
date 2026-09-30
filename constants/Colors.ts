@@ -34,3 +34,8 @@ export const SheetColors = {
   secondaryText: "#9ba1a6",
   idle: "#5a5a5a",
 } as const;
+
+/** The background of a page drawn under a parallax header (ParallaxPage). */
+export const ParallaxPageColors = {
+  background: "black",
+} as const;
