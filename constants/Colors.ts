@@ -49,6 +49,7 @@ export const SeerrCardColors = {
   surface: "#374151",
   fadeFrom: "rgba(31, 41, 55, 0.47)",
   fadeTo: "rgba(31, 41, 55, 1)",
+  clear: "rgba(31, 41, 55, 0)",
   requester: "#d1d5db",
   label: "#9ca3af",
 } as const;

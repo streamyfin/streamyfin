@@ -2,13 +2,22 @@ import { useQuery } from "@tanstack/react-query";
 import { LinearGradient } from "expo-linear-gradient";
 import type React from "react";
 import { useTranslation } from "react-i18next";
-import { ScrollView, View } from "react-native";
+import { View } from "react-native";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import Animated, {
+  cancelAnimation,
+  useAnimatedStyle,
+  useSharedValue,
+  withDecay,
+} from "react-native-reanimated";
 import { TouchableSeerrRouter } from "@/components/common/SeerrItemRouter";
 import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { SeerrBadgeColors, SeerrCardColors } from "@/constants/Colors";
 import {
   SEERR_DOWNLOAD_REFRESH_MS,
+  SEERR_PILL_FADE_WIDTH,
+  SEERR_PILL_PAN_SLOP,
   SEERR_REQUEST_CARD_POSTER,
   SEERR_REQUEST_CARD_WIDTH,
 } from "@/constants/Seerr";
@@ -16,13 +25,22 @@ import { useSeerr } from "@/hooks/useSeerr";
 import { useSeerrCanRequest } from "@/hooks/useSeerrCanRequest";
 import { hasPermission, Permission } from "@/utils/seerr/permissions";
 import {
+  overflowEdges,
   type RequestBadge,
   type RequestBadgeLabel,
   requestBadge,
   requestDownloads,
   seerrAvatarUrl,
+  slideLimit,
 } from "@/utils/seerr/requestCard";
 import { type MediaRequest, MediaType } from "@/utils/seerr/types";
+
+/** The "Seasons" and "Status" labels, one style so they read alike. */
+const LABEL_STYLE = {
+  fontSize: 14,
+  fontWeight: "bold",
+  color: SeerrCardColors.label,
+} as const;
 
 /** One of Seerr's pill badges, with a download's progress behind its text. */
 const Pill: React.FC<{
@@ -67,6 +85,109 @@ const Pill: React.FC<{
         {progress === undefined ? text : `${text} ${progress}%`}
       </Text>
     </View>
+  );
+};
+
+/** The seasons asked for, sliding sideways, a fade where more is hidden. */
+const SeasonPills: React.FC<{ labels: string[] }> = ({ labels }) => {
+  const width = useSharedValue(0);
+  const contentWidth = useSharedValue(0);
+  const x = useSharedValue(0);
+  const origin = useSharedValue(0);
+
+  // A pan of its own rather than a scroll view: inside a row of cards that
+  // scrolls the same way, a nested scroll view lost the swipe to the row, and
+  // on Android nothing scrolled at all and the card opened its title. The
+  // pan takes over after a few points sideways, before the row would.
+  const pan = Gesture.Pan()
+    .activeOffsetX([-SEERR_PILL_PAN_SLOP, SEERR_PILL_PAN_SLOP])
+    .failOffsetY([-2 * SEERR_PILL_PAN_SLOP, 2 * SEERR_PILL_PAN_SLOP])
+    .onBegin(() => {
+      cancelAnimation(x);
+      origin.value = x.value;
+    })
+    .onUpdate((event) => {
+      const limit = slideLimit({
+        width: width.value,
+        contentWidth: contentWidth.value,
+      });
+      x.value = Math.min(0, Math.max(limit, origin.value + event.translationX));
+    })
+    .onEnd((event) => {
+      const limit = slideLimit({
+        width: width.value,
+        contentWidth: contentWidth.value,
+      });
+      x.value = withDecay({ velocity: event.velocityX, clamp: [limit, 0] });
+    });
+
+  const rowStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: x.value }],
+  }));
+  const edges = () => {
+    "worklet";
+    return overflowEdges({
+      offset: -x.value,
+      width: width.value,
+      contentWidth: contentWidth.value,
+    });
+  };
+  const startFadeStyle = useAnimatedStyle(() => ({
+    opacity: edges().start ? 1 : 0,
+  }));
+  const endFadeStyle = useAnimatedStyle(() => ({
+    opacity: edges().end ? 1 : 0,
+  }));
+
+  const fade = (side: "start" | "end") => (
+    <Animated.View
+      pointerEvents='none'
+      style={[
+        {
+          position: "absolute",
+          top: 0,
+          bottom: 0,
+          width: SEERR_PILL_FADE_WIDTH,
+          [side === "start" ? "left" : "right"]: 0,
+        },
+        side === "start" ? startFadeStyle : endFadeStyle,
+      ]}
+    >
+      <LinearGradient
+        colors={
+          side === "start"
+            ? [SeerrCardColors.fadeTo, SeerrCardColors.clear]
+            : [SeerrCardColors.clear, SeerrCardColors.fadeTo]
+        }
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={{ flex: 1 }}
+      />
+    </Animated.View>
+  );
+
+  return (
+    <GestureDetector gesture={pan}>
+      <View
+        style={{ flex: 1, flexDirection: "row", overflow: "hidden" }}
+        onLayout={(e) => {
+          width.value = e.nativeEvent.layout.width;
+        }}
+      >
+        <Animated.View
+          style={[{ flexDirection: "row", gap: 8, flexShrink: 0 }, rowStyle]}
+          onLayout={(e) => {
+            contentWidth.value = e.nativeEvent.layout.width;
+          }}
+        >
+          {labels.map((label) => (
+            <Pill key={label} tone='primary' text={label} />
+          ))}
+        </Animated.View>
+        {fade("start")}
+        {fade("end")}
+      </View>
+    </GestureDetector>
   );
 };
 
@@ -230,36 +351,29 @@ export const RequestCard: React.FC<{ request: MediaRequest }> = ({
               <View
                 style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
               >
-                <Text
-                  style={{
-                    fontSize: 14,
-                    fontWeight: "bold",
-                    color: SeerrCardColors.label,
-                  }}
-                >
+                <Text style={LABEL_STYLE}>
                   {t("seerr.request_card_seasons", { count: seasons.length })}
                 </Text>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={{ gap: 8 }}
-                >
-                  {seasons.map((season) => (
-                    <Pill
-                      key={season.id}
-                      tone='primary'
-                      text={
-                        season.seasonNumber === 0
-                          ? t("seerr.specials")
-                          : `${season.seasonNumber}`
-                      }
-                    />
-                  ))}
-                </ScrollView>
+                <SeasonPills
+                  labels={seasons.map((season) =>
+                    season.seasonNumber === 0
+                      ? t("seerr.specials")
+                      : `${season.seasonNumber}`,
+                  )}
+                />
               </View>
             )}
             {badge && (
-              <View style={{ marginTop: 4 }}>
+              // Seerr's mt-2 on phones: a little further from the row above.
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 8,
+                  marginTop: 4,
+                }}
+              >
+                <Text style={LABEL_STYLE}>{t("seerr.status")}</Text>
                 <Pill
                   tone={badge.tone}
                   text={badgeText[badge.label]}

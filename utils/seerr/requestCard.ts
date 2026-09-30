@@ -114,3 +114,39 @@ export const seerrAvatarUrl = (
   if (!avatar) return undefined;
   return /^https?:\/\//i.test(avatar) ? avatar : `${baseUrl}${avatar}`;
 };
+
+/**
+ * Which sides of a scrolling row hide more, so a fade can say so: Seerr's own
+ * row scrolls with its scrollbar hidden and nothing to tell it does. A
+ * worklet, for the fades to follow the row on the UI thread.
+ */
+export const overflowEdges = ({
+  offset,
+  width,
+  contentWidth,
+}: {
+  offset: number;
+  width: number;
+  contentWidth: number;
+}): { start: boolean; end: boolean } => {
+  "worklet";
+  return {
+    start: offset > 1,
+    end: offset + width < contentWidth - 1,
+  };
+};
+
+/**
+ * How far left a row slides to show its end, none when it fits or before
+ * either width is known. A worklet, for the pan that slides it.
+ */
+export const slideLimit = ({
+  width,
+  contentWidth,
+}: {
+  width: number;
+  contentWidth: number;
+}): number => {
+  "worklet";
+  return Math.min(0, width - contentWidth);
+};

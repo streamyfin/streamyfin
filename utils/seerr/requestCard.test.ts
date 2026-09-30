@@ -1,8 +1,10 @@
 import {
   downloadProgress,
+  overflowEdges,
   requestBadge,
   requestDownloads,
   seerrAvatarUrl,
+  slideLimit,
 } from "./requestCard";
 import {
   type DownloadingItem,
@@ -180,5 +182,47 @@ describe("seerrAvatarUrl", () => {
   test("has none without an avatar", () => {
     expect(seerrAvatarUrl(base, undefined)).toBeUndefined();
     expect(seerrAvatarUrl(base, "")).toBeUndefined();
+  });
+});
+
+// A row that scrolls says so: a fade on each side where more is hidden.
+describe("overflowEdges", () => {
+  test("shows nothing when everything fits", () => {
+    expect(overflowEdges({ offset: 0, width: 120, contentWidth: 100 })).toEqual(
+      { start: false, end: false },
+    );
+  });
+
+  test("fades the end while more is hidden there", () => {
+    expect(overflowEdges({ offset: 0, width: 120, contentWidth: 200 })).toEqual(
+      { start: false, end: true },
+    );
+  });
+
+  test("fades both sides in the middle, the start alone at the end", () => {
+    expect(
+      overflowEdges({ offset: 40, width: 120, contentWidth: 200 }),
+    ).toEqual({ start: true, end: true });
+    expect(
+      overflowEdges({ offset: 80, width: 120, contentWidth: 200 }),
+    ).toEqual({ start: true, end: false });
+  });
+});
+
+// How far a row of seasons slides: back to its start, and no further left
+// than showing its end.
+describe("slideLimit", () => {
+  test("does not slide a row that fits", () => {
+    expect(slideLimit({ width: 120, contentWidth: 100 })).toBe(0);
+    expect(slideLimit({ width: 120, contentWidth: 120 })).toBe(0);
+  });
+
+  test("slides a wider row until its end shows", () => {
+    expect(slideLimit({ width: 120, contentWidth: 200 })).toBe(-80);
+  });
+
+  test("does not slide before either width is known", () => {
+    expect(slideLimit({ width: 0, contentWidth: 0 })).toBe(0);
+    expect(slideLimit({ width: 120, contentWidth: 0 })).toBe(0);
   });
 });

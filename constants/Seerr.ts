@@ -36,6 +36,16 @@ export const SEERR_REQUEST_CARD_POSTER = { width: 80, height: 120 } as const;
  */
 export const SEERR_DOWNLOAD_REFRESH_MS = 15_000;
 
+/** The fade at the edge of a request card's season row where more is hidden. */
+export const SEERR_PILL_FADE_WIDTH = 20;
+
+/**
+ * How far a finger moves sideways before a request card's seasons slide:
+ * under the few points a scroll view waits, so the row of cards around them
+ * does not take the swipe first.
+ */
+export const SEERR_PILL_PAN_SLOP = 4;
+
 /** A season row the quota leaves no room for, greyed as on Seerr's site. */
 export const SEERR_BLOCKED_OPACITY = 0.45;
 
