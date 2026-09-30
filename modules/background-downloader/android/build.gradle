@@ -12,6 +12,19 @@ android {
   defaultConfig {
     versionCode 1
     versionName "1.0.0"
+    consumerProguardFiles "consumer-rules.pro"
+    externalNativeBuild {
+      cmake {
+        cppFlags "-std=c++17"
+      }
+    }
+  }
+  externalNativeBuild {
+    cmake {
+      path "../remux/CMakeLists.txt"
+      version "3.22.1"
+      buildStagingDirectory file("../../../.expo/native-remux/android-cmake")
+    }
   }
 }
 

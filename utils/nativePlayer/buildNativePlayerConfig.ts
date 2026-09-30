@@ -312,6 +312,12 @@ export const buildTrackMenus = (options: {
       selectedIndex: options.subtitleIndex,
       offLabel: options.offLabel,
       isTranscoding,
+      ...(offlineTranscoded && {
+        offlineTranscoded: {
+          burnedInIndex:
+            options.downloadedItem?.userData.subtitleStreamIndex ?? -1,
+        },
+      }),
       formatLabel: nativeLabel,
       localSubs: options.localSubtitle
         ? // The native session carries at most one sidecar, so it always occupies
@@ -326,7 +332,8 @@ export const buildTrackMenus = (options: {
   const audioItems: NativePlayerTrackMenuItem[] = buildAudioMenu(streams, {
     selectedIndex: options.audioIndex,
     isTranscoding,
-    offlineTranscoded,
+    offlineTranscoded:
+      offlineTranscoded && !options.downloadedItem?.userData.isMultiTrack,
     formatLabel: nativeLabel,
   }).map(toMenuItem);
 

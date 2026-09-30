@@ -36,7 +36,7 @@ interface DownloadCardProps extends TouchableOpacityProps {
 
 export const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
   const { t } = useTranslation();
-  const { cancelDownload } = useDownload();
+  const { cancelDownload, retryDownload } = useDownload();
   const router = useRouter();
   const queryClient = useNetworkAwareQueryClient();
 
@@ -48,6 +48,16 @@ export const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
     } catch (error) {
       console.error("Error deleting download:", error);
       toast.error(t("home.downloads.toasts.could_not_delete_download"));
+    }
+  };
+
+  const handleRetry = async () => {
+    try {
+      await retryDownload(process.id);
+    } catch (error) {
+      toast.error(t("home.downloads.retry_failed"), {
+        description: error instanceof Error ? error.message : String(error),
+      });
     }
   };
 
@@ -124,7 +134,7 @@ export const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
       className='relative bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden'
       {...props}
     >
-      {process.status === "downloading" && (
+      {(process.status === "downloading" || process.status === "preparing") && (
         <View
           className={`bg-purple-600 h-1 absolute bottom-0 left-0 ${isTranscoding ? "animate-pulse" : ""}`}
           style={{
@@ -138,9 +148,19 @@ export const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
 
       {/* Action buttons in bottom right corner */}
       <View className='absolute bottom-2 right-2 flex flex-row items-center z-10'>
+        {process.isMultiTrack && process.status === "error" && (
+          <TouchableOpacity
+            onPress={handleRetry}
+            accessibilityLabel={t("home.retry")}
+            className='p-2 bg-neutral-800 rounded-full mr-2'
+          >
+            <Ionicons name='refresh' size={20} color='white' />
+          </TouchableOpacity>
+        )}
         <TouchableOpacity
           onPress={() => handleDelete(process.id)}
           className='p-2 bg-neutral-800 rounded-full'
+          accessibilityLabel={t("home.downloads.delete_download")}
         >
           <Ionicons name='close' size={20} color='red' />
         </TouchableOpacity>
@@ -176,10 +196,23 @@ export const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
                 </Text>
               </View>
             )}
+            {process.status === "preparing" && (
+              <View className='mt-1'>
+                <Text className='text-xs'>{t("home.downloads.preparing")}</Text>
+                <Text className='text-xs opacity-50'>
+                  {t("home.downloads.preparing_hint")}
+                </Text>
+              </View>
+            )}
+            {process.status === "error" && (
+              <Text className='text-xs text-red-400 mt-1'>
+                {process.error || t("home.downloads.toasts.download_failed")}
+              </Text>
+            )}
 
             {/* Row 1: Progress + Downloaded/Total */}
             <View className='flex flex-row items-center gap-x-2 mt-1.5'>
-              {sanitizedProgress === 0 ? (
+              {sanitizedProgress === 0 && process.status !== "error" ? (
                 <ActivityIndicator size={"small"} color={"white"} />
               ) : (
                 <Text className='text-xs font-semibold'>
@@ -203,7 +236,7 @@ export const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
                   {bytesToMB(process.speed).toFixed(2)} MB/s
                 </Text>
               )}
-              {eta && (
+              {eta && process.status === "downloading" && (
                 <Text className='text-xs text-green-400'>
                   {t("home.downloads.eta", { eta: eta })}
                 </Text>

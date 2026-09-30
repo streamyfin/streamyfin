@@ -18,15 +18,19 @@ import { Alert, Platform, Switch, View, type ViewProps } from "react-native";
 import { toast } from "sonner-native";
 import { HEADER_ICON_SIZE } from "@/components/common/HeaderButton";
 import { HeaderIcon } from "@/components/common/HeaderIcon";
+import { AdditionalAudioTracksSelector } from "@/components/downloads/AdditionalAudioTracksSelector";
 import { Colors } from "@/constants/Colors";
 import useRouter from "@/hooks/useAppRouter";
 import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
+import { BackgroundDownloader } from "@/modules";
 import { useDownload } from "@/providers/DownloadProvider";
+import type { PendingDownload } from "@/providers/Downloads/pendingDownloads";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { queueAtom } from "@/utils/atoms/queue";
 import { useSettings } from "@/utils/atoms/settings";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { getDownloadStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
+import { getMultiTrackDownloadDetails } from "@/utils/jellyfin/media/multiTrackDownload";
 import { logAndCaptureError } from "@/utils/log";
 import { AudioTrackSelector } from "./AudioTrackSelector";
 import { type Bitrate, BitrateSelector } from "./BitrateSelector";
@@ -88,6 +92,9 @@ export const DownloadItems: React.FC<DownloadProps> = ({
   const { settings } = useSettings();
   const router = useRouter();
   const [downloadUnwatchedOnly, setDownloadUnwatchedOnly] = useState(false);
+  const [additionalAudioIndices, setAdditionalAudioIndices] = useState<
+    number[]
+  >([]);
 
   const { processes, startBackgroundDownload, downloadedItems } = useDownload();
   const downloadedFiles = downloadedItems;
@@ -95,6 +102,9 @@ export const DownloadItems: React.FC<DownloadProps> = ({
   const [selectedOptions, setSelectedOptions] = useState<
     SelectedOptions | undefined
   >(undefined);
+  useEffect(() => {
+    setAdditionalAudioIndices([]);
+  }, [selectedOptions?.mediaSource?.Id]);
 
   const {
     defaultAudioIndex,
@@ -249,32 +259,70 @@ export const DownloadItems: React.FC<DownloadProps> = ({
               };
 
         // Awaited with Promise.all over a season: a throw would abort the batch.
-        const downloadDetails = await getDownloadStreamUrl({
-          api,
-          item: itemForDownload,
-          userId: user.Id!,
-          mediaSourceId: mediaSource?.Id,
-          audioStreamIndex: audioIndex ?? -1,
-          subtitleStreamIndex: subtitleIndex ?? -1,
-          maxStreamingBitrate: (selectedOptions?.bitrate || defaultBitrate)
-            .value,
-          audioMode: settings?.audioTranscodeMode,
-        }).catch((error) => {
+        const wantsMultiTrack =
+          itemsNotDownloaded.length === 1 && additionalAudioIndices.length > 0;
+        let request:
+          | ReturnType<typeof getDownloadStreamUrl>
+          | ReturnType<typeof getMultiTrackDownloadDetails>;
+        if (wantsMultiTrack && mediaSource) {
+          request = getMultiTrackDownloadDetails({
+            api,
+            item: itemForDownload,
+            userId: user.Id!,
+            mediaSource,
+            audioStreamIndices: [audioIndex ?? -1, ...additionalAudioIndices],
+            subtitleStreamIndex: subtitleIndex ?? -1,
+            maxStreamingBitrate: (selectedOptions?.bitrate || defaultBitrate)
+              .value,
+          });
+        } else {
+          request = getDownloadStreamUrl({
+            api,
+            item: itemForDownload,
+            userId: user.Id!,
+            mediaSourceId: mediaSource?.Id,
+            audioStreamIndex: audioIndex ?? -1,
+            subtitleStreamIndex: subtitleIndex ?? -1,
+            maxStreamingBitrate: (selectedOptions?.bitrate || defaultBitrate)
+              .value,
+            audioMode: settings?.audioTranscodeMode,
+          });
+        }
+        const downloadDetails = await request.catch((error) => {
           logAndCaptureError("Getting download stream URL failed", error, {
             itemType: itemForDownload.Type,
           });
           return null;
         });
 
+        let multiTrack: PendingDownload["multiTrack"];
+        if (downloadDetails && "additionalAudioUrls" in downloadDetails) {
+          multiTrack = {
+            audioUrls: downloadDetails.additionalAudioUrls,
+            audioTitles: downloadDetails.audioTitles,
+            audioLanguages: downloadDetails.audioLanguages,
+          };
+        }
         return {
           url: downloadDetails?.url,
           item: itemForDownload,
           mediaSource: downloadDetails?.mediaSource,
+          multiTrack,
+          requiredHttpHeaders:
+            downloadDetails && "requiredHttpHeaders" in downloadDetails
+              ? downloadDetails.requiredHttpHeaders
+              : undefined,
         };
       });
 
       const downloadDetails = await Promise.all(downloadDetailsPromises);
-      for (const { url, item, mediaSource } of downloadDetails) {
+      for (const {
+        url,
+        item,
+        mediaSource,
+        multiTrack,
+        requiredHttpHeaders,
+      } of downloadDetails) {
         if (!url) {
           Alert.alert(
             t("home.downloads.something_went_wrong"),
@@ -308,6 +356,8 @@ export const DownloadItems: React.FC<DownloadProps> = ({
           selectedOptions?.bitrate || defaultBitrate,
           downloadAudioIndex,
           downloadSubtitleIndex,
+          multiTrack,
+          requiredHttpHeaders,
         );
       }
     },
@@ -319,6 +369,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
       settings,
       defaultBitrate,
       startBackgroundDownload,
+      additionalAudioIndices,
     ],
   );
 
@@ -477,6 +528,9 @@ export const DownloadItems: React.FC<DownloadProps> = ({
                       <AudioTrackSelector
                         source={selectedOptions.mediaSource}
                         onChange={(val) => {
+                          setAdditionalAudioIndices((indices) =>
+                            indices.filter((index) => index !== val),
+                          );
                           setSelectedOptions(
                             (prev) =>
                               prev && {
@@ -487,6 +541,14 @@ export const DownloadItems: React.FC<DownloadProps> = ({
                         }}
                         selected={selectedOptions.audioIndex}
                       />
+                      {BackgroundDownloader.supportsMultiTrackDownloads() && (
+                        <AdditionalAudioTracksSelector
+                          source={selectedOptions.mediaSource}
+                          primaryIndex={selectedOptions.audioIndex}
+                          selected={additionalAudioIndices}
+                          onChange={setAdditionalAudioIndices}
+                        />
+                      )}
                       <SubtitleTrackSelector
                         source={selectedOptions.mediaSource}
                         onChange={(val) => {

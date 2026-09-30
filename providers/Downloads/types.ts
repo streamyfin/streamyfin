@@ -21,8 +21,10 @@ interface UserData {
   subtitleStreamIndex: number;
   /** The last known audio stream index. */
   audioStreamIndex: number;
-  /** Whether the downloaded file was transcoded (has only one audio track). */
+  /** Whether the video was transcoded (legacy downloads carry one audio track). */
   isTranscoded: boolean;
+  /** Whether selected AAC tracks were remuxed into a local MKV. */
+  isMultiTrack?: boolean;
 }
 
 /** Represents a segment of time in a media item, used for intro/credit skipping. */
@@ -115,6 +117,7 @@ export type JobStatus = {
   /** Current status of the download job */
   status:
     | "downloading" // The job is actively downloading
+    | "preparing" // Native is assembling the final file
     | "error" // The job encountered an error
     | "pending" // The job is waiting to start
     | "completed" // The job has finished downloading
@@ -154,4 +157,8 @@ export type JobStatus = {
   audioStreamIndex?: number;
   /** The subtitle stream index selected for this download */
   subtitleStreamIndex?: number;
+  /** Whether this job supports retrying its retained native inputs. */
+  isMultiTrack?: boolean;
+  /** Failure detail retained until the user retries or cancels. */
+  error?: string;
 };

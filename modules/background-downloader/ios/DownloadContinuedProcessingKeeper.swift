@@ -32,6 +32,17 @@
     private var isRegistered = false
     /// Submitted but the launch handler has not run yet — guards double submission.
     private var isPending = false
+    private var permissionHandler: ((Bool) -> Void)?
+
+    var onExecutionPermissionChanged: ((Bool) -> Void)? {
+      get { queue.sync { permissionHandler } }
+      set {
+        queue.async {
+          self.permissionHandler = newValue
+          newValue?(self.task != nil)
+        }
+      }
+    }
 
     /// Submits the keeper task if none is live. Safe to call on every download start; queue
     /// advances reuse the already-running task and retitle its system UI to the episode that is
@@ -52,6 +63,7 @@
           title: title,
           subtitle: subtitle
         )
+        request.strategy = .fail
         do {
           try BGTaskScheduler.shared.submit(request)
           self.isPending = true
@@ -75,12 +87,16 @@
     }
 
     /// Ends the task once the whole queue session is done (or cancelled).
-    func finish() {
+    func finish(success: Bool = true) {
       queue.async {
+        if self.isPending {
+          BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: Self.taskIdentifier)
+        }
         self.isPending = false
+        self.permissionHandler?(false)
         guard let task = self.task else { return }
-        task.progress.completedUnitCount = task.progress.totalUnitCount
-        task.setTaskCompleted(success: true)
+        if success { task.progress.completedUnitCount = task.progress.totalUnitCount }
+        task.setTaskCompleted(success: success)
         self.task = nil
         backgroundDownloaderLog.notice("Continued processing task completed")
       }
@@ -93,9 +109,13 @@
       BGTaskScheduler.shared.register(
         forTaskWithIdentifier: Self.taskIdentifier,
         using: queue
-      ) { task in
+      ) { [self] task in
         guard let continued = task as? BGContinuedProcessingTask else {
           task.setTaskCompleted(success: false)
+          return
+        }
+        guard self.isPending else {
+          continued.setTaskCompleted(success: false)
           return
         }
 
@@ -105,30 +125,34 @@
         continued.progress.totalUnitCount = 100
         continued.progress.completedUnitCount = 0
 
-        // Instrumentation for the stop-button experiment: a user tap on the system UI's stop
-        // control may surface as Progress cancellation, as task expiration, or both — the
-        // distinction decides whether stop can safely cancel the download itself (a system
-        // expiration must NOT).
-        continued.progress.cancellationHandler = { [weak self] in
-          guard let self else { return }
+        // Either signal revokes local CPU execution, not URLSession's independently owned transfer.
+        continued.progress.cancellationHandler = { [weak self, weak continued] in
+          guard let self, let continued else { return }
           self.queue.async {
+            guard self.task === continued else { return }
             backgroundDownloaderLog.notice("Continued processing progress CANCELLED (user tapped stop?)")
+            self.permissionHandler?(false)
+            self.task?.setTaskCompleted(success: false)
+            self.task = nil
           }
         }
-        continued.expirationHandler = { [weak self] in
-          guard let self else { return }
+        continued.expirationHandler = { [weak self, weak continued] in
+          guard let self, let continued else { return }
           self.queue.async {
+            guard self.task === continued else { return }
             let userCancelled = self.task?.progress.isCancelled ?? false
             backgroundDownloaderLog.notice(
               "Continued processing task expired (progress.isCancelled: \(userCancelled))"
             )
             self.task?.setTaskCompleted(success: false)
             self.task = nil
+            self.permissionHandler?(false)
           }
         }
 
         self.task = continued
         self.isPending = false
+        self.permissionHandler?(true)
         backgroundDownloaderLog.notice(
           "Continued processing task running; downloads keep reporting while backgrounded"
         )

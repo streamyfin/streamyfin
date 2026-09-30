@@ -2,10 +2,11 @@ import { File, Paths } from "expo-file-system";
 import { useEffect } from "react";
 import { Platform } from "react-native";
 import type { ActiveDownload } from "@/modules";
-import { BackgroundDownloader } from "@/modules";
+import BackgroundDownloader from "@/modules/background-downloader";
 import { getHeadersForUrl } from "@/utils/customHeaders";
 import { logAndCaptureError } from "@/utils/log";
 import {
+  enqueuePendingDownload,
   finalizePendingDownload,
   getPendingDownload,
   getPendingDownloads,
@@ -14,7 +15,6 @@ import {
   updatePendingDownload,
 } from "../pendingDownloads";
 import type { JobStatus } from "../types";
-import { uriToFilePath } from "../utils";
 
 interface UseDownloadReconciliationProps {
   setProcesses: (updater: (prev: JobStatus[]) => JobStatus[]) => void;
@@ -26,7 +26,8 @@ let hasReconciled = false;
 
 function jobFromRecord(
   record: PendingDownload,
-  status: "queued" | "downloading",
+  status: JobStatus["status"],
+  native?: ActiveDownload,
 ): JobStatus {
   return {
     id: record.itemId,
@@ -34,12 +35,16 @@ function jobFromRecord(
     item: record.item,
     itemId: record.itemId,
     deviceId: record.deviceId,
-    progress: 0,
+    progress: Math.min(
+      Math.max(Math.floor((native?.progress ?? 0) * 100), 0),
+      99,
+    ),
     status,
     timestamp: new Date(),
     mediaSource: record.mediaSource,
     maxBitrate: record.maxBitrate,
-    bytesDownloaded: 0,
+    bytesDownloaded: native?.bytesWritten ?? 0,
+    estimatedTotalSizeBytes: record.activityMetadata?.estimatedTotalBytes,
     trickPlayData: record.trickPlayData,
     introSegments: record.introSegments,
     creditSegments: record.creditSegments,
@@ -48,6 +53,8 @@ function jobFromRecord(
     previewSegments: record.previewSegments,
     audioStreamIndex: record.audioStreamIndex,
     subtitleStreamIndex: record.subtitleStreamIndex,
+    isMultiTrack: Boolean(record.multiTrack),
+    error: record.error,
   };
 }
 
@@ -60,18 +67,7 @@ async function reEnqueue(
   headers?: Record<string, string>,
 ): Promise<boolean> {
   try {
-    const destinationPath = uriToFilePath(
-      new File(Paths.document, record.videoFileName).uri,
-    );
-    const taskId = await BackgroundDownloader.enqueueDownload(
-      record.inputUrl,
-      destinationPath,
-      record.activityMetadata,
-      headers,
-    );
-    if (taskId !== -1) {
-      updatePendingDownload(record.itemId, { status: "downloading", taskId });
-    }
+    await enqueuePendingDownload(record, headers);
     return true;
   } catch (error) {
     // Dropping the record permanently loses the download without any user
@@ -79,9 +75,76 @@ async function reEnqueue(
     logAndCaptureError("Re-enqueueing interrupted download failed", error, {
       itemType: record.item?.Type,
     });
-    removePendingDownload(record.itemId);
+    if (record.multiTrack) {
+      updatePendingDownload(record.itemId, {
+        status: "error",
+        error: error instanceof Error ? error.message : String(error),
+      });
+    } else {
+      removePendingDownload(record.itemId);
+    }
     return false;
   }
+}
+
+/** Restores a bundle without confusing finished inputs with a published MKV. */
+export async function reconcileMultiTrackRecord(
+  record: PendingDownload,
+  native?: ActiveDownload,
+): Promise<JobStatus | undefined> {
+  if (!record.multiTrack) {
+    throw new Error("Expected a multi-track pending download");
+  }
+  if (native?.stage === "remuxing" && !native.error) {
+    updatePendingDownload(record.itemId, {
+      status: "preparing",
+      taskId: native.taskId,
+    });
+    return jobFromRecord(record, "preparing", native);
+  }
+  if (native?.requiresHeaders) {
+    const enqueued = await reEnqueue(
+      record,
+      getHeadersForUrl(record.inputUrl, {}),
+    );
+    const status = native.stage === "remuxing" ? "preparing" : "downloading";
+    return jobFromRecord(
+      getPendingDownload(record.itemId) ?? record,
+      enqueued ? status : "error",
+      native,
+    );
+  }
+  if (native?.error) {
+    updatePendingDownload(record.itemId, {
+      status: "error",
+      error: native.error,
+    });
+    return jobFromRecord({ ...record, error: native.error }, "error", native);
+  }
+  if (native?.state === "running") {
+    updatePendingDownload(record.itemId, {
+      status: "downloading",
+      taskId: native.taskId,
+    });
+    return jobFromRecord(record, "downloading", native);
+  }
+
+  // Native only publishes this path after validating and closing the MKV.
+  const file = new File(Paths.document, record.videoFileName);
+  if (file.exists && file.size > 0) {
+    finalizePendingDownload(record, file.size, true);
+    return undefined;
+  }
+  if (record.status === "error") return jobFromRecord(record, "error", native);
+  const enqueued = await reEnqueue(
+    record,
+    getHeadersForUrl(record.inputUrl, {}),
+  );
+  return jobFromRecord(
+    getPendingDownload(record.itemId) ?? record,
+    enqueued ? "queued" : "error",
+    native,
+  );
 }
 
 /**
@@ -119,6 +182,7 @@ export function useDownloadReconciliation({
         // An empty list here makes the loop below misclassify every
         // in-flight download as lost or completed.
         logAndCaptureError("Querying native downloads failed", error);
+        return;
       }
       const nativeByItemId = new Map(
         active
@@ -130,6 +194,16 @@ export function useDownloadReconciliation({
 
       for (const record of pending) {
         const nativeTask = nativeByItemId.get(record.itemId);
+
+        if (record.multiTrack) {
+          const process = await reconcileMultiTrackRecord(record, nativeTask);
+          if (process) {
+            restored.push(process);
+          } else {
+            onDataChange?.();
+          }
+          continue;
+        }
 
         if (nativeTask?.state === "queued") {
           // A queued task hasn't sent its request yet, and the headers it was

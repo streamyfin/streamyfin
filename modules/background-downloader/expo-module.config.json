@@ -3,6 +3,8 @@
   "version": "1.0.0",
   "platforms": ["ios", "android"],
   "ios": {
+    "podspecPath": "ios/BackgroundDownloader.podspec",
+    "swiftModuleName": "BackgroundDownloader",
     "modules": ["BackgroundDownloaderModule"],
     "appDelegateSubscribers": ["BackgroundDownloaderAppDelegate"]
   },

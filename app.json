@@ -177,6 +177,7 @@
       ["./plugins/withTVOSAppIcon.ts"],
       ["./plugins/withTVOSTopShelf.ts"],
       ["./plugins/withDownloadLiveActivity.ts"],
+      ["./plugins/withDownloadRemuxer.ts"],
       ["./plugins/withTVXcodeEnv.ts"],
       [
         "./plugins/withGitPod.ts",

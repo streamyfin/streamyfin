@@ -1,6 +1,8 @@
 import type { MediaSourceInfo } from "@jellyfin/sdk/lib/generated-client/models";
 import {
   DOWNLOAD_BITS_PER_BYTE,
+  DOWNLOAD_MULTI_TRACK_AUDIO_BITRATE,
+  DOWNLOAD_MULTI_TRACK_EXTRA_VIDEO_BITRATE,
   DOWNLOAD_SIZE_OVERHEAD,
   DOWNLOAD_TICKS_PER_SECOND,
 } from "@/constants/Downloads";
@@ -57,4 +59,22 @@ export function estimateDownloadActivitySize(
 ): number | undefined {
   if (!mediaSource.TranscodingUrl) return undefined;
   return estimateTranscodeSize(maxBitrate, mediaSource.Bitrate, runTimeTicks);
+}
+
+/** Estimates all bundle transfers, including the temporary extra video carriers. */
+export function estimateMultiTrackDownloadSize(
+  mediaSource: MediaSourceInfo,
+  additionalAudioCount: number,
+  runTimeTicks?: number | null,
+): number | undefined {
+  const videoBitrate = mediaSource.MediaStreams?.find(
+    (stream) => stream.Type === "Video",
+  )?.BitRate;
+  if (!videoBitrate || videoBitrate <= 0) return undefined;
+  return estimateDownloadSize(
+    videoBitrate +
+      (additionalAudioCount + 1) * DOWNLOAD_MULTI_TRACK_AUDIO_BITRATE +
+      additionalAudioCount * DOWNLOAD_MULTI_TRACK_EXTRA_VIDEO_BITRATE,
+    runTimeTicks ?? mediaSource.RunTimeTicks,
+  );
 }

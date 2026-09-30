@@ -7,10 +7,21 @@ import type {
   DownloadErrorEvent,
   DownloadProgressEvent,
   DownloadStartedEvent,
+  MultiTrackDownloadPlan,
 } from "./src/BackgroundDownloader.types";
 import BackgroundDownloaderModule from "./src/BackgroundDownloaderModule";
 
 export interface BackgroundDownloader {
+  /** Whether the installed native binary supports multi-track downloads. */
+  supportsMultiTrackDownloads(): boolean;
+  /** Enqueues a native multi-file transfer and MKV remux. */
+  enqueueMultiTrackDownload(
+    plan: MultiTrackDownloadPlan,
+    metadata: DownloadActivityMetadata,
+    headers?: Record<string, string>,
+  ): Promise<number>;
+  /** Cancels a multi-track job by its stable Jellyfin item id. */
+  cancelMultiTrackDownload(itemId: string): Promise<void>;
   /**
    * @param headers Custom proxy auth headers for a server behind an access
    * gateway. Not persisted natively, so a queued download that outlives the
@@ -61,6 +72,28 @@ export interface BackgroundDownloader {
 }
 
 const BackgroundDownloader: BackgroundDownloader = {
+  supportsMultiTrackDownloads(): boolean {
+    return (
+      !Platform.isTV &&
+      typeof BackgroundDownloaderModule.enqueueMultiTrackDownload === "function"
+    );
+  },
+
+  async enqueueMultiTrackDownload(plan, metadata, headers): Promise<number> {
+    if (!this.supportsMultiTrackDownloads()) {
+      throw new Error("This app build does not support multi-track downloads");
+    }
+    return BackgroundDownloaderModule.enqueueMultiTrackDownload(
+      JSON.stringify(plan),
+      metadata,
+      headers,
+    );
+  },
+
+  async cancelMultiTrackDownload(itemId): Promise<void> {
+    await BackgroundDownloaderModule.cancelMultiTrackDownload(itemId);
+  },
+
   async startDownload(
     url: string,
     destinationPath?: string,
@@ -158,4 +191,5 @@ export type {
   DownloadErrorEvent,
   DownloadProgressEvent,
   DownloadStartedEvent,
+  MultiTrackDownloadPlan,
 };

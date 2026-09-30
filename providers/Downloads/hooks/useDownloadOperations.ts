@@ -1,3 +1,4 @@
+import type { Api } from "@jellyfin/sdk";
 import type {
   BaseItemDto,
   MediaSourceInfo,
@@ -13,7 +14,10 @@ import { BackgroundDownloader } from "@/modules";
 import { getJellyfinHeadersForUrl } from "@/utils/customHeaders";
 import { getOrSetDeviceId } from "@/utils/device";
 import useDownloadHelper from "@/utils/download";
-import { estimateDownloadActivitySize } from "@/utils/downloadSize";
+import {
+  estimateDownloadActivitySize,
+  estimateMultiTrackDownloadSize,
+} from "@/utils/downloadSize";
 import { logAndCaptureError } from "@/utils/log";
 import { downloadAdditionalAssets } from "../additionalDownloads";
 import {
@@ -27,19 +31,21 @@ import {
 } from "../fileOperations";
 import { buildDownloadActivityMetadata } from "../liveActivity";
 import {
+  enqueuePendingDownload,
   getPendingDownload,
+  type PendingDownload,
   removePendingDownload,
   savePendingDownload,
   updatePendingDownload,
 } from "../pendingDownloads";
 import type { JobStatus } from "../types";
-import { generateFilename, uriToFilePath } from "../utils";
+import { generateFilename } from "../utils";
 
 interface UseDownloadOperationsProps {
   processes: JobStatus[];
   setProcesses: (updater: (prev: JobStatus[]) => JobStatus[]) => void;
   removeProcess: (id: string) => void;
-  api: any;
+  api: Api | null;
   authHeader?: string;
   onDataChange?: () => void;
 }
@@ -67,6 +73,8 @@ export function useDownloadOperations({
       maxBitrate: Bitrate,
       audioStreamIndex?: number,
       subtitleStreamIndex?: number,
+      multiTrack?: PendingDownload["multiTrack"],
+      requiredHttpHeaders?: Record<string, string>,
     ) => {
       if (!api || !item.Id || !authHeader) {
         console.warn("startBackgroundDownload ~ Missing required params");
@@ -107,6 +115,18 @@ export function useDownloadOperations({
           );
         }
 
+        const estimatedTotalSizeBytes = multiTrack
+          ? estimateMultiTrackDownloadSize(
+              mediaSource,
+              multiTrack.audioUrls.length,
+              item.RunTimeTicks,
+            )
+          : estimateDownloadActivitySize(
+              mediaSource,
+              maxBitrate.value,
+              item.RunTimeTicks,
+            );
+
         // Create job status with pre-downloaded assets
         const jobStatus: JobStatus = {
           id: processId,
@@ -128,6 +148,8 @@ export function useDownloadOperations({
           previewSegments: additionalAssets.previewSegments,
           audioStreamIndex,
           subtitleStreamIndex,
+          isMultiTrack: Boolean(multiTrack),
+          estimatedTotalSizeBytes,
         };
 
         // Add to processes
@@ -135,9 +157,10 @@ export function useDownloadOperations({
 
         // Generate destination path
         const filename = generateFilename(item);
-        const videoFileName = `${filename}.mp4`;
-        const videoFile = new File(Paths.document, videoFileName);
-        const destinationPath = uriToFilePath(videoFile.uri);
+        // Bundle intermediates must not collide when different items share a title.
+        const videoFileName = multiTrack
+          ? `${filename}_${item.Id.replace(/[^a-z0-9-]/gi, "_")}.mkv`
+          : `${filename}.mp4`;
 
         console.log(`[DOWNLOAD] Starting video: ${item.Name}`);
         console.log(`[DOWNLOAD] Download URL: ${downloadUrl}`);
@@ -154,11 +177,7 @@ export function useDownloadOperations({
             item,
             api,
             t,
-            estimatedTotalBytes: estimateDownloadActivitySize(
-              mediaSource,
-              maxBitrate.value,
-              item.RunTimeTicks,
-            ),
+            estimatedTotalBytes: estimatedTotalSizeBytes,
           });
         } catch (error) {
           console.warn("[DOWNLOAD] Live Activity metadata failed:", error);
@@ -168,11 +187,15 @@ export function useDownloadOperations({
           title: item.Name ?? "",
           subtitle: "",
           labels: {},
+          estimatedTotalBytes: estimatedTotalSizeBytes,
         };
+        if (multiTrack) {
+          activityMetadata.labels.remuxing = t("home.downloads.preparing");
+        }
 
         // Persist the pending record BEFORE handing the download to native, so there is no window
         // where a transfer exists that a later app session cannot account for.
-        savePendingDownload({
+        const pending: PendingDownload = {
           itemId: processId,
           status: "queued",
           enqueuedAt: new Date().toISOString(),
@@ -191,22 +214,15 @@ export function useDownloadOperations({
           audioStreamIndex,
           subtitleStreamIndex,
           activityMetadata,
-        });
+          multiTrack,
+        };
+        const storedPending = savePendingDownload(pending, requiredHttpHeaders);
 
         // Start the download using enqueueDownload for sequential processing
-        const taskId = await BackgroundDownloader.enqueueDownload(
-          downloadUrl,
-          destinationPath,
-          activityMetadata,
+        await enqueuePendingDownload(
+          storedPending,
           getJellyfinHeadersForUrl(downloadUrl, api?.basePath),
         );
-
-        if (taskId !== -1) {
-          updatePendingDownload(processId, {
-            status: "downloading",
-            taskId,
-          });
-        }
 
         toast.success(
           t("home.downloads.toasts.download_started_for_item", {
@@ -218,8 +234,19 @@ export function useDownloadOperations({
           itemType: item.Type,
         });
         if (item.Id) {
-          removePendingDownload(item.Id);
-          removeProcess(item.Id);
+          if (multiTrack && getPendingDownload(item.Id)) {
+            updatePendingDownload(item.Id, { status: "error" });
+            setProcesses((prev) =>
+              prev.map((process) =>
+                process.id === item.Id
+                  ? { ...process, status: "error" }
+                  : process,
+              ),
+            );
+          } else {
+            removePendingDownload(item.Id);
+            removeProcess(item.Id);
+          }
         }
         toast.error(t("home.downloads.toasts.failed_to_start_download"), {
           description: error instanceof Error ? error.message : "Unknown error",
@@ -227,14 +254,56 @@ export function useDownloadOperations({
         throw error;
       }
     },
-    [api, authHeader, processes, setProcesses, removeProcess, t],
+    [
+      api,
+      authHeader,
+      processes,
+      setProcesses,
+      removeProcess,
+      saveImage,
+      saveSeriesPrimaryImage,
+      t,
+    ],
+  );
+
+  /** Retries a failed bundle without discarding its complete native inputs. */
+  const retryDownload = useCallback(
+    async (id: string) => {
+      const record = getPendingDownload(id);
+      if (!record?.multiTrack) {
+        throw new Error("No retryable multi-track download was found");
+      }
+      try {
+        await enqueuePendingDownload(
+          record,
+          getJellyfinHeadersForUrl(record.inputUrl, api?.basePath),
+        );
+        setProcesses((prev) =>
+          prev.map((process) =>
+            process.id === id
+              ? { ...process, status: "downloading", error: undefined }
+              : process,
+          ),
+        );
+      } catch (error) {
+        logAndCaptureError("Retrying multi-track download failed", error);
+        updatePendingDownload(id, { status: "error" });
+        throw error;
+      }
+    },
+    [api, setProcesses],
   );
 
   const cancelDownload = useCallback(
     async (id: string) => {
       const record = getPendingDownload(id);
 
-      if (record?.status === "downloading" && record.taskId !== undefined) {
+      if (record?.multiTrack) {
+        await BackgroundDownloader.cancelMultiTrackDownload(id);
+      } else if (
+        record?.status === "downloading" &&
+        record.taskId !== undefined
+      ) {
         // Cancel active download by taskId
         BackgroundDownloader.cancelDownload(record.taskId);
       } else if (record) {
@@ -345,15 +414,37 @@ export function useDownloadOperations({
 
   const appSizeUsage = useCallback(async () => {
     let totalSize = calculateTotalDownloadedSize();
+    const completedIds = new Set(
+      getAllDownloadedItems().map((download) => download.item.Id),
+    );
+
+    if (BackgroundDownloader.supportsMultiTrackDownloads()) {
+      try {
+        const native = await BackgroundDownloader.getActiveDownloads();
+        for (const job of native) {
+          if (job.stage && !completedIds.has(job.itemId)) {
+            totalSize += job.bytesOnDisk ?? 0;
+          }
+        }
+      } catch (error) {
+        logAndCaptureError(
+          "Reading multi-track download disk usage failed",
+          error,
+        );
+        throw error;
+      }
+    }
 
     // Also count in-progress downloads (they write straight to their final
     // path) so the growing file shows up as app usage instead of drifting
     // into the generic device share until completion.
     for (const process of processes) {
+      if (completedIds.has(process.itemId)) continue;
       try {
         const file = new File(
           Paths.document,
-          `${generateFilename(process.item)}.mp4`,
+          getPendingDownload(process.id)?.videoFileName ??
+            `${generateFilename(process.item)}.mp4`,
         );
         if (file.exists) {
           totalSize += file.size ?? 0;
@@ -387,6 +478,7 @@ export function useDownloadOperations({
   return {
     startBackgroundDownload,
     cancelDownload,
+    retryDownload,
     deleteFile,
     deleteItems,
     deleteAllFiles,

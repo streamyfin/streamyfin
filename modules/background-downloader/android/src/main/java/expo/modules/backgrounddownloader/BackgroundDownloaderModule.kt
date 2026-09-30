@@ -34,6 +34,7 @@ class BackgroundDownloaderModule : Module() {
     get() = requireNotNull(appContext.reactContext)
 
   private val downloadManager = OkHttpDownloadManager()
+  private val bundles get() = DownloadBundleManager.get(context)
 
   /// Guards all mutable download state below. The module is entered from the JS thread (function
   /// bodies) and from OkHttp dispatcher threads (download callbacks); the collections must never
@@ -79,11 +80,26 @@ class BackgroundDownloaderModule : Module() {
 
     OnCreate {
       Log.d(TAG, "Module created")
+      bundles.setListener(
+        { name, payload -> sendEvent(name, payload) },
+        {
+          synchronized(stateLock) {
+            processNextInQueueLocked()
+          }
+        }
+      )
+      bundles.resume()
+    }
+
+    OnActivityEntersForeground {
+      bundles.resume()
     }
 
     OnDestroy {
       Log.d(TAG, "Module destroyed")
       downloadManager.cancelAllDownloads()
+      bundles.setListener(null)
+      bundles.setNormalDownloadCount(0)
       if (serviceBound) {
         try {
           context.unbindService(serviceConnection)
@@ -139,6 +155,19 @@ class BackgroundDownloaderModule : Module() {
       }
     }
 
+    AsyncFunction("enqueueMultiTrackDownload") { planJson: String, metadata: Map<String, Any?>, headers: Map<String, String>?, promise: Promise ->
+      try {
+        promise.resolve(bundles.enqueue(planJson, metadata, headers))
+      } catch (e: Exception) {
+        promise.reject("DOWNLOAD_ERROR", "Failed to enqueue multi-track download: ${e.message}", e)
+      }
+    }
+
+    AsyncFunction("cancelMultiTrackDownload") { itemId: String ->
+      bundles.cancel(itemId)
+      synchronized(stateLock) { processNextInQueueLocked() }
+    }
+
     Function("cancelDownload") { taskId: Int ->
       Log.d(TAG, "Cancelling download: taskId=$taskId")
       downloadManager.cancelDownload(taskId)
@@ -164,9 +193,11 @@ class BackgroundDownloaderModule : Module() {
     Function("cancelAllDownloads") {
       Log.d(TAG, "Cancelling all downloads")
       downloadManager.cancelAllDownloads()
+      bundles.cancelAll()
       synchronized(stateLock) {
         downloadTasks.clear()
         downloadQueue.clear()
+        syncServiceLocked()
       }
       stopDownloadService()
     }
@@ -198,7 +229,7 @@ class BackgroundDownloaderModule : Module() {
           }
           running + queued
         }
-        promise.resolve(downloads)
+        promise.resolve(downloads + bundles.snapshots())
       } catch (e: Exception) {
         promise.reject("ERROR", "Failed to get active downloads: ${e.message}", e)
       }
@@ -266,7 +297,7 @@ class BackgroundDownloaderModule : Module() {
     }
 
     // Check if there are active downloads (one at a time)
-    if (downloadTasks.isNotEmpty()) {
+    if (downloadTasks.isNotEmpty() || bundles.isBusy()) {
       Log.d(TAG, "Active downloads in progress (${downloadTasks.size}), waiting...")
       return -1
     }
@@ -359,7 +390,7 @@ class BackgroundDownloaderModule : Module() {
 
   /** Assumes `stateLock` is held. */
   private fun syncServiceLocked() {
-    downloadService?.syncActiveDownloads(downloadTasks.size)
+    bundles.setNormalDownloadCount(downloadTasks.size)
   }
 
   private fun startDownloadService() {
@@ -371,7 +402,7 @@ class BackgroundDownloaderModule : Module() {
   }
 
   private fun stopDownloadService() {
-    val idle = synchronized(stateLock) { downloadTasks.isEmpty() }
+    val idle = synchronized(stateLock) { downloadTasks.isEmpty() && !bundles.isBusy() }
     if (serviceBound && idle) {
       try {
         context.unbindService(serviceConnection)
