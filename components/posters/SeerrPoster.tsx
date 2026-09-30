@@ -106,7 +106,9 @@ const SeerrPoster: React.FC<Props> = ({ item, horizontal }) => {
         </View>
       </View>
       <View className={`mt-2 flex flex-col ${horizontal ? "w-44" : "w-28"}`}>
-        <Text numberOfLines={2}>{title || ""}</Text>
+        {/* One line: a row takes the height of its tallest poster, so a
+            single long title left an empty line under every other one. */}
+        <Text numberOfLines={1}>{title || ""}</Text>
         <Text className='text-xs opacity-50 align-bottom'>
           {releaseYear || ""}
         </Text>

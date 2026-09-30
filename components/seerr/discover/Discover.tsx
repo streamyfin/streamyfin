@@ -7,6 +7,7 @@ import GenreSlide from "@/components/seerr/discover/GenreSlide";
 import MovieTvSlide from "@/components/seerr/discover/MovieTvSlide";
 import RecentlyAddedSlide from "@/components/seerr/discover/RecentlyAddedSlide";
 import RecentRequestsSlide from "@/components/seerr/discover/RecentRequestsSlide";
+import { SEERR_DISCOVER_ROW_GAP } from "@/constants/Seerr";
 import { networks, studios } from "@/utils/seerr/data";
 import type { DiscoverSlider } from "@/utils/seerr/types";
 import { DiscoverSliderType } from "@/utils/seerr/types";
@@ -31,25 +32,15 @@ const Discover: React.FC<Props> = ({ sliders }) => {
   if (!hasSliders) return null;
 
   return (
-    <View className='flex flex-col space-y-4 mb-8'>
+    // One gap between rows, as the home screen spaces its own, set as a style:
+    // a release build drops the space-y classes.
+    <View style={{ gap: SEERR_DISCOVER_ROW_GAP, marginBottom: 32 }}>
       {sortedSliders.map((slide) => {
         switch (slide.type) {
           case DiscoverSliderType.RECENTLY_ADDED:
-            return (
-              <RecentlyAddedSlide
-                key={slide.id}
-                slide={slide}
-                contentContainerStyle={{ paddingBottom: 16 }}
-              />
-            );
+            return <RecentlyAddedSlide key={slide.id} slide={slide} />;
           case DiscoverSliderType.RECENT_REQUESTS:
-            return (
-              <RecentRequestsSlide
-                key={slide.id}
-                slide={slide}
-                contentContainerStyle={{ paddingBottom: 16 }}
-              />
-            );
+            return <RecentRequestsSlide key={slide.id} slide={slide} />;
           case DiscoverSliderType.NETWORKS:
             return (
               <CompanySlide key={slide.id} slide={slide} data={networks} />
@@ -64,13 +55,7 @@ const Discover: React.FC<Props> = ({ sliders }) => {
           case DiscoverSliderType.UPCOMING_MOVIES:
           case DiscoverSliderType.POPULAR_TV:
           case DiscoverSliderType.UPCOMING_TV:
-            return (
-              <MovieTvSlide
-                key={slide.id}
-                slide={slide}
-                contentContainerStyle={{ paddingBottom: 16 }}
-              />
-            );
+            return <MovieTvSlide key={slide.id} slide={slide} />;
           default:
             return null;
         }

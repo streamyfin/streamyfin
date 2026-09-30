@@ -10,6 +10,12 @@ export const SEERR_PASSWORD_KEY_PREFIX = "seerrpw_";
 /** Pages of search results asked for at once, 20 results a page. */
 export const SEERR_SEARCH_PAGES = 4;
 
+/**
+ * The space between two rows of Discover, the home screen's own (space-y-4):
+ * Seerr's 24 left too much room under posters that carry their title.
+ */
+export const SEERR_DISCOVER_ROW_GAP = 16;
+
 /** The quality Seerr's image resizer is asked for, Next.js's own default. */
 export const SEERR_IMAGE_QUALITY = 75;
 
