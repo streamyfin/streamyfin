@@ -59,10 +59,10 @@ const SeasonEpisodes: React.FC<{
   const { data: seasonWithEpisodes, isLoading } = useQuery({
     queryKey: ["seerr", details.id, "season", seasonNumber],
     queryFn: async () => seerrApi?.tvSeason(details.id, seasonNumber),
-    // Not before the Seerr client exists, or the query answers undefined.
-    enabled:
-      !!seerrApi &&
-      details.seasons.filter((s) => s.seasonNumber !== 0).length > 0,
+    // Not before the Seerr client exists, or the query answers undefined. A
+    // season is open, so it exists: the specials of a series that has only
+    // them load as well.
+    enabled: !!seerrApi,
   });
 
   if (isLoading) return <Loader />;
