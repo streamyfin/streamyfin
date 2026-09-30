@@ -18,7 +18,6 @@ import { MusicTrackItem } from "@/components/music/MusicTrackItem";
 import { PlaylistPickerSheet } from "@/components/music/PlaylistPickerSheet";
 import { TrackOptionsSheet } from "@/components/music/TrackOptionsSheet";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import { getLatestMusicAlbums } from "@/utils/jellyfin/musicSuggestions";
 import { writeDebugLog } from "@/utils/log";
 
 export default function SuggestionsScreen() {
@@ -69,7 +68,38 @@ export default function SuggestionsScreen() {
     refetch: refetchLatest,
   } = useQuery({
     queryKey: ["music-latest", libraryId, user?.Id],
-    queryFn: () => getLatestMusicAlbums(api!, user!.Id!, libraryId),
+    queryFn: async () => {
+      const libraryApi = getLibraryApi(api!);
+      const response = await libraryApi.getLatestMedia({
+        userId: user!.Id!,
+        parentId: libraryId,
+        includeItemTypes: ["Audio"],
+        limit: 20,
+        fields: ["PrimaryImageAspectRatio"],
+        imageTypeLimit: 1,
+        enableImageTypes: ["Primary", "Backdrop", "Banner", "Thumb"],
+      });
+
+      if (Array.isArray(response.data) && response.data.length > 0) {
+        return response.data;
+      }
+
+      // Some servers do not group latest audio into albums.
+      const fallback = await libraryApi.getItems({
+        userId: user!.Id!,
+        parentId: libraryId,
+        includeItemTypes: ["MusicAlbum"],
+        sortBy: ["DateCreated"],
+        sortOrder: ["Descending"],
+        limit: 20,
+        recursive: true,
+        fields: ["PrimaryImageAspectRatio", "SortName"],
+        imageTypeLimit: 1,
+        enableImageTypes: ["Primary", "Backdrop", "Banner", "Thumb"],
+        enableTotalRecordCount: false,
+      });
+      return fallback.data.Items || [];
+    },
     enabled: isReady,
   });
 
