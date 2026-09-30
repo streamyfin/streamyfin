@@ -89,14 +89,17 @@ const SeerrPoster: React.FC<Props> = ({ item, horizontal }) => {
           </Animated.View>
           {/* Placed by a wrapper: the icon hands its className to the view
               inside its button, which left the button below the image, where
-              the card cut the icon off. */}
-          <View className='absolute bottom-1 right-1'>
+              the card cut the icon off. Both badges sit on top, as on Seerr's
+              title cards. */}
+          <View className='absolute top-1 right-1'>
             <SeerrStatusIcon
+              small
               showRequestIcon={canRequest}
               mediaStatus={item?.mediaInfo?.status}
             />
           </View>
           <SeerrMediaIcon
+            small
             className='absolute top-1 left-1'
             mediaType={mediaType}
           />

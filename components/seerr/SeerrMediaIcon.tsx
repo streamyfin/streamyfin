@@ -3,11 +3,13 @@ import { useMemo } from "react";
 import { View, type ViewProps } from "react-native";
 import { MediaType } from "@/utils/seerr/types";
 
-const SeerrMediaIcon: React.FC<{ mediaType?: "tv" | "movie" } & ViewProps> = ({
-  mediaType,
-  className,
-  ...props
-}) => {
+const SeerrMediaIcon: React.FC<
+  {
+    mediaType?: "tv" | "movie";
+    /** Drawn smaller, over a poster, so the poster shows. */
+    small?: boolean;
+  } & ViewProps
+> = ({ mediaType, small = false, className, ...props }) => {
   const style = useMemo(
     () =>
       mediaType === MediaType.MOVIE
@@ -22,9 +24,13 @@ const SeerrMediaIcon: React.FC<{ mediaType?: "tv" | "movie" } & ViewProps> = ({
         {...props}
       >
         {mediaType === MediaType.MOVIE ? (
-          <MaterialCommunityIcons name='movie-open' size={16} color='white' />
+          <MaterialCommunityIcons
+            name='movie-open'
+            size={small ? 12 : 16}
+            color='white'
+          />
         ) : (
-          <Feather size={16} name='tv' color='white' />
+          <Feather size={small ? 12 : 16} name='tv' color='white' />
         )}
       </View>
     )

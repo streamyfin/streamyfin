@@ -21,12 +21,15 @@ interface Props {
   mediaStatus?: MediaStatus;
   showRequestIcon: boolean;
   onPress?: () => void;
+  /** Drawn smaller, over a poster, so the poster shows. */
+  small?: boolean;
 }
 
 const SeerrStatusIcon: React.FC<Props & ViewProps> = ({
   mediaStatus,
   showRequestIcon,
   onPress,
+  small = false,
   ...props
 }) => {
   const [badgeIcon, setBadgeIcon] =
@@ -78,10 +81,14 @@ const SeerrStatusIcon: React.FC<Props & ViewProps> = ({
     badgeIcon && (
       <TouchableOpacity onPress={onPress} disabled={onPress === undefined}>
         <View
-          className={`${badgeStyle ?? "bg-purple-600"} rounded-full h-6 w-6 flex items-center justify-center ${props.className}`}
+          className={`${badgeStyle ?? "bg-purple-600"} rounded-full ${small ? "h-5 w-5" : "h-6 w-6"} flex items-center justify-center ${props.className}`}
           {...props}
         >
-          <MaterialCommunityIcons name={badgeIcon} size={18} color='white' />
+          <MaterialCommunityIcons
+            name={badgeIcon}
+            size={small ? 14 : 18}
+            color='white'
+          />
         </View>
       </TouchableOpacity>
     )
