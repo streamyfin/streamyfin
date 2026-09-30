@@ -111,19 +111,16 @@ export const pendingPluginDefaults = (
 };
 
 /**
- * The overlay a plugin refresh should write, computed against the user's
- * CURRENT settings, plus the applied-defaults record to persist (null when no
- * seed happened, so a streamystats-only refresh leaves the record alone and
- * the seed decision is retried on the next one).
+ * The overlay a plugin refresh should write, and the applied-defaults record
+ * to persist with it, or null when there is nothing to seed.
  *
- * The refresh runs while the user can be changing settings — the intro sheet
- * is up during first-run login — so the caller must evaluate this inside the
- * settings write rather than merging against a render-time snapshot. Building
+ * The refresh runs while the user can be changing settings (the intro sheet
+ * is up during first-run login), so the caller merges this into the settings
+ * inside the settings write rather than into a render-time snapshot. Building
  * the merge from the snapshot instead resurrected whatever the user had just
  * overwritten when the refresh's fetch resolved after their toggle.
  */
 export const pluginRefreshOverlay = (
-  current: Partial<Settings>,
   plugin: PluginLockableSettings | undefined,
   applied: AppliedPluginDefaults,
   normalize: NormalizePluginValue,
@@ -131,19 +128,16 @@ export const pluginRefreshOverlay = (
   overlay: Partial<Settings>;
   applied: AppliedPluginDefaults | null;
 } | null => {
+  // Only what the admin declared is applied. An admin who wants to impose a
+  // search engine declares searchEngine, locked to impose it or unlocked to
+  // propose it, like any other setting: inferring it from a Streamystats
+  // address took the choice away without saying so.
   const pending = pendingPluginDefaults(plugin, applied, normalize);
-  const enableStreamystats =
-    !!plugin?.streamyStatsServerUrl?.value &&
-    current.searchEngine !== "Streamystats";
-  if (Object.keys(pending).length === 0 && !enableStreamystats) {
+  if (Object.keys(pending).length === 0) {
     return null;
   }
   return {
-    overlay: {
-      ...pending,
-      ...(enableStreamystats ? { searchEngine: "Streamystats" } : {}),
-    },
-    applied:
-      Object.keys(pending).length > 0 ? { ...applied, ...pending } : null,
+    overlay: pending,
+    applied: { ...applied, ...pending },
   };
 };

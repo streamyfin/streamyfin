@@ -930,7 +930,6 @@ export const useSettings = () => {
 
         const applied = loadAppliedPluginDefaults();
         const result = pluginRefreshOverlay(
-          currentSettings,
           newPluginSettings,
           applied,
           normalizePluginValue,
