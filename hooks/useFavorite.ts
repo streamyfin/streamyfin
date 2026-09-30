@@ -74,11 +74,10 @@ export const useFavorite = (item: BaseItemDto) => {
       queryClient.setQueriesData<BaseItemDto | null | undefined>(
         { queryKey: itemQueryKeyPrefix },
         (old) => {
-          if (!old) return old;
+          if (!old?.UserData) return old;
           return {
             ...old,
             UserData: {
-              Key: "",
               ...old.UserData,
               IsFavorite: nextIsFavorite,
             },
