@@ -11,8 +11,9 @@ interface Props {
   limit?: number;
   days?: number;
   /**
-   * The seasons a request needs, when the server only takes whole series and
-   * the quota falls short of them.
+   * The seasons a request needs when the quota left falls short of them: a
+   * whole series on a server that takes nothing less, or the seasons chosen
+   * once the quota changed under them.
    */
   overLimit?: number;
   restricted?: boolean;
@@ -21,7 +22,7 @@ interface Props {
 /**
  * Seerr's quota line for a series (its QuotaDisplay): how many season
  * requests are left, over what period, and a bar of what is spent. When the
- * server only takes whole series and they do not fit, it says so.
+ * seasons a request needs do not fit, it says so.
  */
 export const SeasonQuota: React.FC<Props> = ({
   remaining,

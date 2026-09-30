@@ -34,6 +34,7 @@ import {
   toggleAllSeasons,
   toggleSeason,
   unrequestedSeasons,
+  withinQuota,
 } from "@/utils/seerr/seasons";
 import type {
   MediaRequestBody,
@@ -129,7 +130,7 @@ const RequestModal = forwardRef<
     const quotaUserId =
       (advanced && forOthers ? requestOverrides.userId : undefined) ??
       seerrUser?.id;
-    const { data: quota } = useQuery({
+    const { data: quota, isLoading: quotaLoading } = useQuery({
       queryKey: ["seerr", "quota", quotaUserId],
       queryFn: async () => seerrApi?.userQuota(quotaUserId!),
       enabled: isSeries && !!seerrApi && quotaUserId !== undefined,
@@ -139,9 +140,14 @@ const RequestModal = forwardRef<
     // A server that only takes whole series needs a quota for all of them.
     const overLimit =
       limited && !partial && unrequested.length > (tvQuota?.remaining ?? 0);
-    const remaining = overLimit
-      ? 0
-      : (tvQuota?.remaining ?? 0) - selectedSeasons.length;
+    // Seasons chosen before another user was picked in Request as can go past
+    // that user's quota, which Seerr refuses.
+    const overQuota =
+      isSeries && partial && !withinQuota(selectedSeasons, tvQuota);
+    const remaining =
+      overLimit || overQuota
+        ? 0
+        : (tvQuota?.remaining ?? 0) - selectedSeasons.length;
 
     // What the button for all seasons does, and so what it says.
     const selecting = selectsAll(selectedSeasons, unrequested);
@@ -427,9 +433,12 @@ const RequestModal = forwardRef<
             : t("seerr.request_n_seasons", { count: selectedSeasons.length });
     // A whole series that the quota left cannot cover would be refused by
     // Seerr, so the button stays off (Seerr's own compares with the limit).
+    // Also while the quota of the user picked is on its way.
     const requestDisabled =
       isSeries &&
-      (overLimit ||
+      (quotaLoading ||
+        overLimit ||
+        overQuota ||
         unrequested.length === 0 ||
         (partial && selectedSeasons.length === 0));
     // Clearing is always possible, selecting them all only within the quota.
@@ -526,7 +535,13 @@ const RequestModal = forwardRef<
                 remaining={remaining}
                 limit={tvQuota?.limit}
                 days={tvQuota?.days}
-                overLimit={overLimit ? unrequested.length : undefined}
+                overLimit={
+                  overLimit
+                    ? unrequested.length
+                    : overQuota
+                      ? selectedSeasons.length
+                      : undefined
+                }
                 restricted={tvQuota?.restricted}
               />
             )}

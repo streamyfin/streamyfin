@@ -128,6 +128,14 @@ export const roomForOneMore = (
   quota?: SeasonQuota,
 ): boolean => !quota?.limit || (quota.remaining ?? 0) - selected.length > 0;
 
+/**
+ * Whether the seasons switched on fit the quota. They can stop fitting once
+ * the quota changes under them, when another user is picked in Request as or
+ * a request made elsewhere spends it; Seerr then refuses the whole request.
+ */
+export const withinQuota = (selected: number[], quota?: SeasonQuota): boolean =>
+  !quota?.limit || selected.length <= (quota.remaining ?? 0);
+
 /** Whether the quota covers every season that can still be requested. */
 export const roomForAll = (
   unrequested: number[],
