@@ -1,5 +1,6 @@
 import { mediaTypeOf } from "./media";
 import { hasPermission, Permission } from "./permissions";
+import { unrequestedSeasons } from "./seasons";
 import {
   MediaRequestStatus,
   MediaStatus,
@@ -73,3 +74,34 @@ export const canRequestForOthers = (permissions: number): boolean =>
     [Permission.MANAGE_USERS, Permission.MANAGE_REQUESTS],
     permissions,
   );
+
+/**
+ * Whether a series offers Seerr's "Request more" (RequestButton): Seerr knows
+ * it and has not blocklisted it, the user may request series, and a season it
+ * could still request is left (TvDetails, isSeasonSetComplete). While Seerr
+ * does not know the series, or only knows it as deleted with nothing pending,
+ * its plain Request is the one offered, as canRequest has it.
+ */
+export const canRequestMore = (
+  series: TvDetails | undefined,
+  permissions: number,
+  { specials = false }: { specials?: boolean } = {},
+): boolean => {
+  const media = series?.mediaInfo;
+  if (!series || !media || media.status === MediaStatus.UNKNOWN) return false;
+  if (media.status === MediaStatus.BLOCKLISTED) return false;
+  if (
+    media.status === MediaStatus.DELETED &&
+    !media.requests?.some((r) => r.status === MediaRequestStatus.PENDING)
+  ) {
+    return false;
+  }
+  if (
+    !hasPermission([Permission.REQUEST, Permission.REQUEST_TV], permissions, {
+      type: "or",
+    })
+  ) {
+    return false;
+  }
+  return unrequestedSeasons(series, { specials }).length > 0;
+};

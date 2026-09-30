@@ -10,7 +10,7 @@ import { t } from "i18next";
 import { orderBy } from "lodash";
 import type React from "react";
 import { useCallback, useContext, useMemo, useState } from "react";
-import { Alert, TouchableOpacity, View } from "react-native";
+import { TouchableOpacity, View } from "react-native";
 import Animated, {
   measure,
   scrollTo,
@@ -21,7 +21,6 @@ import { scheduleOnUI } from "react-native-worklets";
 import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { ParallaxScrollContext } from "@/components/ParallaxPage";
-import { RoundButton } from "@/components/RoundButton";
 import SeerrStatusIcon from "@/components/seerr/SeerrStatusIcon";
 import { SheetColors } from "@/constants/Colors";
 import { SEERR_SEASON_HEADER_HEIGHT } from "@/constants/Seerr";
@@ -261,7 +260,7 @@ const SeerrSeasons: React.FC<{
   hasAdvancedRequest,
   onAdvancedRequest,
 }) => {
-  const { seerrApi, requestMedia } = useSeerr();
+  const { requestMedia } = useSeerr();
   const [seasonStates, setSeasonStates] = useState<{ [key: number]: boolean }>(
     {},
   );
@@ -279,48 +278,6 @@ const SeerrSeasons: React.FC<{
   const unrequested = useMemo(
     () => (details ? unrequestedSeasons(details, { specials }) : []),
     [details, specials],
-  );
-
-  const requestAll = useCallback(() => {
-    if (details && seerrApi) {
-      const body: MediaRequestBody = {
-        mediaId: details.id,
-        mediaType: MediaType.TV,
-        tvdbId: details.externalIds?.tvdbId ?? undefined,
-        seasons: unrequested,
-      };
-      if (hasAdvancedRequest) {
-        return onAdvancedRequest?.(body);
-      }
-      requestMedia(details.name, body, refetch);
-    }
-  }, [
-    seerrApi,
-    unrequested,
-    details,
-    hasAdvancedRequest,
-    onAdvancedRequest,
-    requestMedia,
-    refetch,
-  ]);
-
-  const promptRequestAll = useCallback(
-    () =>
-      Alert.alert(
-        t("seerr.confirm"),
-        t("seerr.are_you_sure_you_want_to_request_all_seasons"),
-        [
-          {
-            text: t("seerr.cancel"),
-            style: "cancel",
-          },
-          {
-            text: t("seerr.yes"),
-            onPress: requestAll,
-          },
-        ],
-      ),
-    [requestAll],
   );
 
   const requestSeason = useCallback(
@@ -343,19 +300,17 @@ const SeerrSeasons: React.FC<{
 
   if (!details) return null;
 
+  // Asking for more seasons is the page's own button, as on Seerr's site.
+  const title = (
+    <View className='px-4'>
+      <Text className='text-lg font-bold mb-2'>{t("item_card.seasons")}</Text>
+    </View>
+  );
+
   if (isLoading)
     return (
       <View>
-        <View className='flex flex-row justify-between items-end px-4'>
-          <Text className='text-lg font-bold mb-2'>
-            {t("item_card.seasons")}
-          </Text>
-          {unrequested.length > 0 && (
-            <RoundButton className='mb-2 pa-2' onPress={promptRequestAll}>
-              <Ionicons name='bag-add' color='white' size={26} />
-            </RoundButton>
-          )}
-        </View>
+        {title}
         <Loader />
       </View>
     );
@@ -370,18 +325,7 @@ const SeerrSeasons: React.FC<{
         "seasonNumber",
         "desc",
       )}
-      ListHeaderComponent={() => (
-        <View className='flex flex-row justify-between items-end px-4'>
-          <Text className='text-lg font-bold mb-2'>
-            {t("item_card.seasons")}
-          </Text>
-          {unrequested.length > 0 && (
-            <RoundButton className='mb-2 pa-2' onPress={promptRequestAll}>
-              <Ionicons name='bag-add' color='white' size={26} />
-            </RoundButton>
-          )}
-        </View>
-      )}
+      ListHeaderComponent={() => title}
       ItemSeparatorComponent={() => <View className='h-2' />}
       renderItem={({ item: season }) => {
         const open = !!seasonStates?.[season.seasonNumber];

@@ -20,6 +20,12 @@ export const SeerrStatusColors = {
   requested: "#818cf8",
 } as const;
 
+/** The report issue button of a Seerr page, Seerr's warning yellow. */
+export const SeerrIssueColors = {
+  background: "rgba(234, 179, 8, 0.5)",
+  border: "#facc15",
+} as const;
+
 /** The surfaces of a sheet: its background, a group of rows, their lines. */
 export const SheetColors = {
   background: "#171717",

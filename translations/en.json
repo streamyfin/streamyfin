@@ -904,9 +904,7 @@
     }
   },
   "seerr": {
-    "confirm": "Confirm",
     "cancel": "Cancel",
-    "yes": "Yes",
     "whats_wrong": "What's wrong?",
     "issue_type": "Issue type",
     "select_an_issue": "Select an issue",
@@ -915,7 +913,7 @@
     "submit_button": "Submit",
     "report_issue_button": "Report issue",
     "request_button": "Request",
-    "are_you_sure_you_want_to_request_all_seasons": "Are you sure you want to request all seasons?",
+    "request_more": "Request more",
     "failed_to_login": "Failed to log in",
     "cast": "Cast",
     "details": "Details",

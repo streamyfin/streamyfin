@@ -12,7 +12,7 @@ import { useLocalSearchParams, useNavigation } from "expo-router";
 import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Platform, View } from "react-native";
+import { Platform, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { toast } from "sonner-native";
 import { Button } from "@/components/Button";
@@ -29,15 +29,17 @@ import RequestModal from "@/components/seerr/RequestModal";
 import { TVSeerrPage } from "@/components/seerr/tv";
 import SeerrSeasons from "@/components/series/SeerrSeasons";
 import { ItemActions } from "@/components/series/SeriesActions";
-import { SheetColors } from "@/constants/Colors";
+import { SeerrIssueColors, SheetColors } from "@/constants/Colors";
 import { POSTER_ASPECT_RATIO } from "@/constants/Values";
 import useRouter from "@/hooks/useAppRouter";
 import { useDismissKeyboardOnLeave } from "@/hooks/useDismissKeyboardOnLeave";
 import { useSeerr } from "@/hooks/useSeerr";
 import { useSeerrCanRequest } from "@/hooks/useSeerrCanRequest";
+import { useSeerrPublicSettings } from "@/hooks/useSeerrPublicSettings";
 import { writeErrorLog } from "@/utils/log";
 import { ANIME_KEYWORD_ID } from "@/utils/seerr/data";
 import { hasPermission, Permission } from "@/utils/seerr/permissions";
+import { canRequestMore } from "@/utils/seerr/requests";
 import type {
   MediaRequest,
   MediaRequestBody,
@@ -103,6 +105,14 @@ const MobilePage: React.FC = () => {
 
   const [canRequest, hasAdvancedRequestPermission] =
     useSeerrCanRequest(details);
+  // Seerr's "Request more": a series it knows with seasons still to ask for.
+  const publicSettings = useSeerrPublicSettings();
+  const requestMore =
+    mediaType === MediaType.TV &&
+    canRequestMore(details as TvDetails, seerrUser?.permissions ?? 0, {
+      specials: publicSettings?.enableSpecialEpisodes === true,
+    });
+  const offersRequest = canRequest || requestMore;
 
   const canManageRequests = useMemo(() => {
     if (!seerrUser) return false;
@@ -341,21 +351,26 @@ const MobilePage: React.FC = () => {
                   color='purple'
                   className='mt-4'
                 />
-              ) : canRequest ? (
-                <Button color='purple' onPress={request} className='mt-4'>
-                  {t("seerr.request_button")}
-                </Button>
               ) : (
-                jellyfinMediaId && (
+                (jellyfinMediaId || offersRequest) && (
+                  // As on Seerr's page: play, then request, then the issue
+                  // report as a button of its own icon.
                   <View className='flex flex-row mt-4' style={{ gap: 8 }}>
-                    {!Platform.isTV && (
+                    {jellyfinMediaId && (
                       <Button
-                        className='flex-1 bg-yellow-500/50 border-yellow-400 ring-yellow-400 text-yellow-100'
-                        color='transparent'
-                        onPress={() => bottomSheetModalRef?.current?.present()}
+                        className='flex-1 bg-purple-600/50 border-purple-400 ring-purple-400 text-purple-100'
+                        onPress={() => {
+                          router.push({
+                            pathname:
+                              mediaType === MediaType.MOVIE
+                                ? "/(auth)/(tabs)/(search)/items/page"
+                                : "/(auth)/(tabs)/(search)/series/[id]",
+                            params: { id: jellyfinMediaId },
+                          });
+                        }}
                         iconLeft={
                           <Ionicons
-                            name='warning-outline'
+                            name='play-outline'
                             size={20}
                             color='white'
                           />
@@ -365,32 +380,43 @@ const MobilePage: React.FC = () => {
                           borderStyle: "solid",
                         }}
                       >
-                        <Text className='text-sm'>
-                          {t("seerr.report_issue_button")}
-                        </Text>
+                        <Text className='text-sm'>{t("common.play")}</Text>
                       </Button>
                     )}
-                    <Button
-                      className='flex-1 bg-purple-600/50 border-purple-400 ring-purple-400 text-purple-100'
-                      onPress={() => {
-                        router.push({
-                          pathname:
-                            mediaType === MediaType.MOVIE
-                              ? "/(auth)/(tabs)/(search)/items/page"
-                              : "/(auth)/(tabs)/(search)/series/[id]",
-                          params: { id: jellyfinMediaId },
-                        });
-                      }}
-                      iconLeft={
-                        <Ionicons name='play-outline' size={20} color='white' />
-                      }
-                      style={{
-                        borderWidth: 1,
-                        borderStyle: "solid",
-                      }}
-                    >
-                      <Text className='text-sm'>{t("common.play")}</Text>
-                    </Button>
+                    {offersRequest && (
+                      <Button
+                        color='purple'
+                        className='flex-1'
+                        onPress={request}
+                      >
+                        {requestMore
+                          ? t("seerr.request_more")
+                          : t("seerr.request_button")}
+                      </Button>
+                    )}
+                    {jellyfinMediaId && !Platform.isTV && (
+                      <TouchableOpacity
+                        accessibilityRole='button'
+                        accessibilityLabel={t("seerr.report_issue_button")}
+                        onPress={() => bottomSheetModalRef?.current?.present()}
+                        style={{
+                          aspectRatio: 1,
+                          alignSelf: "stretch",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          borderRadius: 12,
+                          borderWidth: 1,
+                          borderColor: SeerrIssueColors.border,
+                          backgroundColor: SeerrIssueColors.background,
+                        }}
+                      >
+                        <Ionicons
+                          name='warning-outline'
+                          size={20}
+                          color='white'
+                        />
+                      </TouchableOpacity>
+                    )}
                   </View>
                 )
               )}

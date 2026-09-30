@@ -1,5 +1,5 @@
 import { Permission } from "./permissions";
-import { canRequest, canRequestForOthers } from "./requests";
+import { canRequest, canRequestForOthers, canRequestMore } from "./requests";
 import {
   type MediaInfo,
   type MediaRequest,
@@ -8,6 +8,7 @@ import {
   MediaType,
   type MovieDetails,
   type MovieResult,
+  type TvDetails,
   type TvResult,
   type User,
 } from "./types";
@@ -151,5 +152,93 @@ describe("canRequestForOthers", () => {
 
   test("an administrator can", () => {
     expect(canRequestForOthers(Permission.ADMIN)).toBe(true);
+  });
+});
+
+// Seerr's "Request more" (RequestButton): a series Seerr knows, with a season
+// it could still request, that the user may request series for. It opens the
+// same season list as the first request.
+describe("canRequestMore", () => {
+  const seriesRequest: MediaRequest = {
+    ...request(MediaRequestStatus.PENDING),
+    seasons: [{ id: 1, seasonNumber: 1, status: MediaRequestStatus.PENDING }],
+  } as MediaRequest;
+  const series = (
+    mediaInfo: MediaInfo | undefined,
+    seasons = [0, 1, 2],
+  ): TvDetails =>
+    ({
+      id: 1399,
+      name: "Game of Thrones",
+      seasons: seasons.map((seasonNumber) => ({
+        id: seasonNumber,
+        seasonNumber,
+        episodeCount: 10,
+      })),
+      mediaInfo,
+    }) as unknown as TvDetails;
+  const partly = (status = MediaStatus.PENDING): MediaInfo => ({
+    ...known(status, [seriesRequest]),
+    mediaType: MediaType.TV,
+  });
+
+  test("offers it while a season is left to request", () => {
+    expect(canRequestMore(series(partly()), Permission.REQUEST)).toBe(true);
+    expect(canRequestMore(series(partly()), Permission.REQUEST_TV)).toBe(true);
+  });
+
+  // Seerr offers "Request more", not "Request", once it knows the series,
+  // even when nothing is pending: a series partly in the library.
+  test("offers it on a series partly in the library", () => {
+    expect(
+      canRequestMore(
+        series({
+          ...known(MediaStatus.PARTIALLY_AVAILABLE),
+          mediaType: MediaType.TV,
+        }),
+        Permission.REQUEST,
+      ),
+    ).toBe(true);
+  });
+
+  test("not once every season is requested or in the library", () => {
+    expect(canRequestMore(series(partly(), [1]), Permission.REQUEST)).toBe(
+      false,
+    );
+  });
+
+  test("counts the specials only when the server shows them", () => {
+    const onlySpecialsLeft = series(partly(), [0, 1]);
+    expect(canRequestMore(onlySpecialsLeft, Permission.REQUEST)).toBe(false);
+    expect(
+      canRequestMore(onlySpecialsLeft, Permission.REQUEST, { specials: true }),
+    ).toBe(true);
+  });
+
+  // Seerr's plain Request covers a series it has never seen.
+  test("not on a series Seerr does not know yet", () => {
+    expect(canRequestMore(series(undefined), Permission.REQUEST)).toBe(false);
+    expect(
+      canRequestMore(
+        series({ ...known(MediaStatus.UNKNOWN), mediaType: MediaType.TV }),
+        Permission.REQUEST,
+      ),
+    ).toBe(false);
+  });
+
+  test("not on a blocklisted series", () => {
+    expect(
+      canRequestMore(
+        series(partly(MediaStatus.BLOCKLISTED)),
+        Permission.REQUEST,
+      ),
+    ).toBe(false);
+  });
+
+  test("not without a permission to request series", () => {
+    expect(canRequestMore(series(partly()), Permission.REQUEST_MOVIE)).toBe(
+      false,
+    );
+    expect(canRequestMore(series(partly()), 0)).toBe(false);
   });
 });
