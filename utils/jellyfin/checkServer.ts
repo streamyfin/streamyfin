@@ -10,6 +10,7 @@ import {
   getServerCustomHeaders,
   updateServerCustomHeaders,
 } from "@/utils/secureCredentials";
+import { isJellyfinServerInfo } from "@/utils/serverUrl/probes/jellyfin";
 
 /** Thrown when the server answered but is older than Streamyfin supports. */
 export class ServerTooOldError extends Error {
@@ -108,10 +109,10 @@ export async function checkJellyfinServer(
       }
 
       const data = response.data;
-      if (typeof data !== "object" || data === null || Array.isArray(data)) {
+      if (!isJellyfinServerInfo(data)) {
         writeToLog(
           "WARN",
-          `Server check: ${url} answered HTTP ${response.status} without Jellyfin JSON`,
+          `Server check: ${url} answered HTTP ${response.status} without Jellyfin identity`,
         );
         continue;
       }

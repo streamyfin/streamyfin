@@ -1,11 +1,7 @@
 import "@/augmentations";
 import { type Api, Jellyfin } from "@jellyfin/sdk";
 import type { UserDto } from "@jellyfin/sdk/lib/generated-client/models";
-import {
-  getAuthenticationApi,
-  getSessionApi,
-  getUserApi,
-} from "@jellyfin/sdk/lib/utils/api";
+import { getAuthenticationApi, getUserApi } from "@jellyfin/sdk/lib/utils/api";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import axios, { AxiosError } from "axios";
 import { useSegments } from "expo-router";
@@ -750,13 +746,6 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
         .catch((_e) =>
           writeErrorLog("Failed to delete expo push token for device"),
         );
-      if (api) {
-        void getSessionApi(api)
-          .reportSessionEnded()
-          .then(() => writeInfoLog("Ended Jellyfin session"))
-          .catch(() => writeErrorLog("Failed to end Jellyfin session"));
-      }
-
       await clearSessionState();
     },
     onError: (error) => {

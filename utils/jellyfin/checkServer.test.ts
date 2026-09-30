@@ -51,7 +51,12 @@ afterEach(() => transport.restore());
 
 const okResponse = (body: Record<string, unknown> = {}): ProbeReply => [
   200,
-  { Version: "10.10.7", ServerName: "Homelab", ...body },
+  {
+    ProductName: "Jellyfin Server",
+    Version: "10.10.7",
+    ServerName: "Homelab",
+    ...body,
+  },
 ];
 
 const statusResponse = (status: number): ProbeReply => [status, {}];
@@ -316,24 +321,19 @@ describe("checkJellyfinServer SDK transport", () => {
     ).toBe(false);
   });
 
-  for (const { name, body } of [
-    { name: "null", body: null },
-    { name: "array", body: [] },
-  ]) {
-    test(`rejects ${name} success data without persisting headers`, async () => {
-      routes({ https: async () => [200, body] });
+  test("rejects a non-Jellyfin object without persisting headers", async () => {
+    routes({ https: async () => [200, { error: "login required" }] });
 
-      const result = await checkJellyfinServer("https://media.example.com", [
-        header("CF-Access-Client-Id", "typed-header"),
-      ]);
+    const result = await checkJellyfinServer("https://media.example.com", [
+      header("CF-Access-Client-Id", "typed-header"),
+    ]);
 
-      expect(result).toBeUndefined();
-      expect(persistedHeaders).toHaveLength(0);
-      expect(loggedMessages).toContainEqual({
-        level: "WARN",
-        message:
-          "Server check: https://media.example.com answered HTTP 200 without Jellyfin JSON",
-      });
+    expect(result).toBeUndefined();
+    expect(persistedHeaders).toHaveLength(0);
+    expect(loggedMessages).toContainEqual({
+      level: "WARN",
+      message:
+        "Server check: https://media.example.com answered HTTP 200 without Jellyfin identity",
     });
-  }
+  });
 });
