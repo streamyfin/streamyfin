@@ -1,10 +1,4 @@
-import { describe, expect, test } from "bun:test";
-import {
-  checkPin,
-  declaredShapes,
-  fingerprint,
-  pinUrl,
-} from "./generate-types";
+import { checkPin, declaredShapes, fingerprint, pinUrl } from "./api-spec";
 
 describe("the pinned spec", () => {
   test("is fetched from the ref the pin names", () => {
