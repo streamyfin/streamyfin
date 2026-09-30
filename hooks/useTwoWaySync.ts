@@ -66,6 +66,7 @@ export const useTwoWaySync = () => {
         item: {
           ...localItem.item,
           UserData: {
+            Key: "",
             ...localItem.item.UserData,
             ...(remoteItem.UserData?.Key !== undefined && {
               Key: remoteItem.UserData.Key,
@@ -74,7 +75,7 @@ export const useTwoWaySync = () => {
             PlaybackPositionTicks: remoteItem.UserData?.PlaybackPositionTicks,
             Played: remoteItem.UserData?.Played,
             PlayedPercentage: remoteItem.UserData?.PlayedPercentage,
-          } as NonNullable<(typeof localItem.item)["UserData"]>,
+          },
         },
       });
       return false;

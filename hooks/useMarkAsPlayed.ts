@@ -29,10 +29,11 @@ export const useMarkAsPlayed = (items: BaseItemDto[]) => {
         queryClient.setQueriesData<BaseItemDto | null | undefined>(
           { queryKey: ["item", itemId] },
           (old) => {
-            if (!old?.UserData) return old;
+            if (!old) return old;
             return {
               ...old,
               UserData: {
+                Key: "",
                 ...old.UserData,
                 Played: played,
                 PlaybackPositionTicks: 0,

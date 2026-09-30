@@ -229,8 +229,10 @@ export const usePlaybackManager = ({
         ...localItem,
         item: {
           ...localItem.item,
-          // Offline-created state has no server key; keep it absent locally.
           UserData: {
+            // SDK 1.0 requires Key; local-only state has none yet. Preserve
+            // a real key when present, and never send this default to Jellyfin.
+            Key: "",
             ...localItem.item.UserData,
             PlaybackPositionTicks:
               isItemConsideredPlayed || !shouldSaveProgress
@@ -242,7 +244,7 @@ export const usePlaybackManager = ({
               isItemConsideredPlayed || !shouldSaveProgress
                 ? 0
                 : playedPercentage,
-          } as NonNullable<BaseItemDto["UserData"]>,
+          },
         },
       });
       // Force invalidate queries so they refetch from updated local database
@@ -280,12 +282,13 @@ export const usePlaybackManager = ({
         item: {
           ...localItem.item,
           UserData: {
+            Key: "",
             ...localItem.item.UserData,
             Played: true,
             PlaybackPositionTicks: 0,
             PlayedPercentage: 0,
             LastPlayedDate: new Date().toISOString(),
-          } as NonNullable<BaseItemDto["UserData"]>,
+          },
         },
       });
       // Force invalidate queries so they refetch from updated local database
@@ -325,12 +328,13 @@ export const usePlaybackManager = ({
         item: {
           ...localItem.item,
           UserData: {
+            Key: "",
             ...localItem.item.UserData,
             Played: false,
             PlaybackPositionTicks: 0,
             PlayedPercentage: 0,
             LastPlayedDate: new Date().toISOString(), // Keep track of when it was marked unplayed
-          } as NonNullable<BaseItemDto["UserData"]>,
+          },
         },
       });
       // Force invalidate queries so they refetch from updated local database

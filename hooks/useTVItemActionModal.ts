@@ -36,10 +36,11 @@ export const useTVItemActionModal = () => {
             queryClient.setQueriesData<BaseItemDto | null | undefined>(
               { queryKey: ["item", item.Id] },
               (old) => {
-                if (!old?.UserData) return old;
+                if (!old) return old;
                 return {
                   ...old,
                   UserData: {
+                    Key: "",
                     ...old.UserData,
                     Played: !isPlayed,
                     PlaybackPositionTicks: 0,
