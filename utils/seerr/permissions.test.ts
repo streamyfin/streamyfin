@@ -1,4 +1,4 @@
-import { hasPermission, Permission } from "./permissions";
+import { canSeeRecentlyAdded, hasPermission, Permission } from "./permissions";
 
 describe("hasPermission", () => {
   test("lets an administrator through whatever is asked", () => {
@@ -53,5 +53,20 @@ describe("hasPermission", () => {
     expect(Permission.REQUEST_ADVANCED).toBe(8192);
     expect(Permission.REQUEST_MOVIE).toBe(262144);
     expect(Permission.REQUEST_TV).toBe(524288);
+  });
+});
+
+// Seerr's recently added row shows to those who manage requests or may see
+// what was added (RecentlyAddedSlider), and to nobody else.
+describe("canSeeRecentlyAdded", () => {
+  test("shows it to a request manager or to Recent View", () => {
+    expect(canSeeRecentlyAdded(Permission.MANAGE_REQUESTS)).toBe(true);
+    expect(canSeeRecentlyAdded(Permission.RECENT_VIEW)).toBe(true);
+    expect(canSeeRecentlyAdded(Permission.ADMIN)).toBe(true);
+  });
+
+  test("hides it from someone who may only request", () => {
+    expect(canSeeRecentlyAdded(Permission.REQUEST)).toBe(false);
+    expect(canSeeRecentlyAdded(0)).toBe(false);
   });
 });

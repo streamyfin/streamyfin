@@ -38,6 +38,7 @@ import type {
   Issue,
   MediaRequest,
   MediaRequestBody,
+  MediaResultsResponse,
   MovieDetails,
   PersonDetails,
   PublicSettings,
@@ -88,6 +89,7 @@ export enum Endpoints {
   API_V1 = "/api/v1",
   SEARCH = "/search",
   REQUEST = "/request",
+  MEDIA = "/media",
   PERSON = "/person",
   COMBINED_CREDITS = "/combined_credits",
   MOVIE = "/movie",
@@ -439,6 +441,18 @@ export class SeerrApi {
         : request;
     return this.axios
       ?.post<MediaRequest>(Endpoints.API_V1 + Endpoints.REQUEST, body)
+      .then(({ data }) => data);
+  }
+
+  /**
+   * What the library gained last, the way Seerr's recently added row asks
+   * for it (RecentlyAddedSlider).
+   */
+  async recentlyAdded(): Promise<MediaResultsResponse> {
+    return this.axios
+      ?.get<MediaResultsResponse>(Endpoints.API_V1 + Endpoints.MEDIA, {
+        params: { filter: "allavailable", take: 20, sort: "mediaAdded" },
+      })
       .then(({ data }) => data);
   }
 

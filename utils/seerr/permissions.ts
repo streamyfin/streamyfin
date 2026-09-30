@@ -84,3 +84,14 @@ export const hasPermission = (
   // allows, so what reaches this line is one permission.
   return !!(value & Permission.ADMIN) || !!(value & permissions);
 };
+
+/**
+ * Whether Discover shows the recently added row: to those who manage requests
+ * or may see what was added, as Seerr's RecentlyAddedSlider has it.
+ */
+export const canSeeRecentlyAdded = (permissions: number): boolean =>
+  hasPermission(
+    [Permission.MANAGE_REQUESTS, Permission.RECENT_VIEW],
+    permissions,
+    { type: "or" },
+  );

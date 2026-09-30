@@ -5,6 +5,7 @@ import { View } from "react-native";
 import CompanySlide from "@/components/seerr/discover/CompanySlide";
 import GenreSlide from "@/components/seerr/discover/GenreSlide";
 import MovieTvSlide from "@/components/seerr/discover/MovieTvSlide";
+import RecentlyAddedSlide from "@/components/seerr/discover/RecentlyAddedSlide";
 import RecentRequestsSlide from "@/components/seerr/discover/RecentRequestsSlide";
 import { networks, studios } from "@/utils/seerr/data";
 import type { DiscoverSlider } from "@/utils/seerr/types";
@@ -33,6 +34,14 @@ const Discover: React.FC<Props> = ({ sliders }) => {
     <View className='flex flex-col space-y-4 mb-8'>
       {sortedSliders.map((slide) => {
         switch (slide.type) {
+          case DiscoverSliderType.RECENTLY_ADDED:
+            return (
+              <RecentlyAddedSlide
+                key={slide.id}
+                slide={slide}
+                contentContainerStyle={{ paddingBottom: 16 }}
+              />
+            );
           case DiscoverSliderType.RECENT_REQUESTS:
             return (
               <RecentRequestsSlide

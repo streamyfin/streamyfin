@@ -287,6 +287,13 @@ export type RequestResultsResponse = Always<
   },
   SentKeys<"RequestResultsResponse">
 >;
+/** See CORRECTIONS["GET /media"]: a page of the library's media, corrected. */
+export type MediaResultsResponse = Omit<
+  Body<paths["/media"]["get"]>,
+  "results"
+> & {
+  results?: MediaInfo[];
+};
 /** See CORRECTIONS["GET /user"]: a page of the corrected users. */
 export type UserResultsResponse = Omit<
   Body<paths["/user"]["get"]>,

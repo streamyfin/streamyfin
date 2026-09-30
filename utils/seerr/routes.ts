@@ -72,6 +72,11 @@ export const APP_ROUTES: AppRoute[] = [
 
   { template: "GET /request", query: { take: 3 } },
   { template: "GET /request/count" },
+  {
+    template: "GET /media",
+    query: { filter: "allavailable", take: 3, sort: "mediaAdded" },
+    note: "Discover's recently added row, as Seerr's RecentlyAddedSlider asks for it.",
+  },
 
   { template: "GET /movie/{movieId}", params: { movieId: DUNE } },
   {
