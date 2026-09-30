@@ -1,13 +1,12 @@
-import { describe, expect, mock, test } from "bun:test";
 import { stubReactNative } from "@/test-utils/reactNative";
 
 stubReactNative();
-mock.module("expo", () => ({
-  // codecSupport probes the native MPV module; under bun:test there is none.
+jest.mock("expo", () => ({
+  // codecSupport probes the native MPV module, which no test environment has.
   requireOptionalNativeModule: () => null,
 }));
 
-const { generateDownloadProfile } = await import("./download");
+import { generateDownloadProfile } from "./download";
 
 describe("generateDownloadProfile", () => {
   test("leaves the bitrate uncapped so Max means Max", () => {

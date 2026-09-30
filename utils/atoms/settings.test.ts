@@ -1,26 +1,22 @@
-import { describe, expect, mock, test } from "bun:test";
-import { atom } from "jotai";
-import { stubMmkv } from "@/test-utils/mmkv";
 import { stubReactNative } from "@/test-utils/reactNative";
 
-// Android TV: the only platform where ExoPlayer ships alongside a
-// native-player toggle, so the only place the engine/controls split is
-// observable end to end.
-stubReactNative({ OS: "android", isTV: true });
-stubMmkv();
+jest.mock(
+  "react-native-mmkv",
+  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
+);
 // BitrateSelector is a React component module; only the BITRATES table matters.
-mock.module("@/components/BitrateSelector", () => ({
+jest.mock("@/components/BitrateSelector", () => ({
   BITRATES: [{ key: "Max", value: undefined }],
 }));
 // JellyfinProvider drags in react-native-device-info (native at test time);
 // settings.ts only reads its atoms.
-mock.module("@/providers/JellyfinProvider", () => ({
-  apiAtom: atom(null),
-  userAtom: atom(null),
+jest.mock("@/providers/JellyfinProvider", () => ({
+  apiAtom: jest.requireActual("jotai").atom(null),
+  userAtom: jest.requireActual("jotai").atom(null),
 }));
-// Full surface: mock.module re-links every importer, and a missing export
-// breaks whichever OTHER spec's module links after this file.
-mock.module("@/utils/log", () => ({
+// The log module reaches Sentry and MMKV, so it is stubbed with the surface
+// settings.ts and what it imports actually call.
+jest.mock("@/utils/log", () => ({
   writeToLog: () => undefined,
   logAndCaptureError: () => undefined,
   writeInfoLog: () => undefined,
@@ -29,9 +25,16 @@ mock.module("@/utils/log", () => ({
   readFromLog: () => [],
   useLog: () => ({ logs: [], clearLogs: () => undefined }),
   LogProvider: ({ children }: { children: unknown }) => children,
-  default: atom([]),
+  default: jest.requireActual("jotai").atom([]),
 }));
 
+// Android TV: the only platform where ExoPlayer ships alongside a
+// native-player toggle, so the only place the engine/controls split is
+// observable end to end.
+stubReactNative({ OS: "android", isTV: true });
+
+// Required after the platform is set, not imported: settings.ts reads
+// Platform once, when the module is evaluated.
 const {
   getActivePlayerType,
   getActiveVideoPlayer,
@@ -40,7 +43,7 @@ const {
   isNativeChromeActive,
   redactPluginSettings,
   VideoPlayer,
-} = await import("./settings");
+} = require("./settings") as typeof import("./settings");
 
 describe("engine vs chrome resolution on Android TV", () => {
   test("the engine is honored while the native chrome is on", () => {

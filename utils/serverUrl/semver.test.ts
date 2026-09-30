@@ -1,4 +1,3 @@
-import { describe, expect, test } from "bun:test";
 import { isVersionBelow } from "./semver";
 
 describe("isVersionBelow", () => {

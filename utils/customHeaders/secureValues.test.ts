@@ -1,13 +1,14 @@
-import { beforeEach, describe, expect, test } from "bun:test";
-import { secureStoreValues, stubSecureStore } from "@/test-utils/secureStore";
-
-stubSecureStore();
-
-const { resolveCustomHeaderValues, secureCustomHeaderMetadata } = await import(
-  "./secureValues"
-);
-
+import { secureStoreValues } from "@/test-utils/secureStore";
+import {
+  resolveCustomHeaderValues,
+  secureCustomHeaderMetadata,
+} from "./secureValues";
 import type { CustomHeader } from "./types";
+
+jest.mock(
+  "expo-secure-store",
+  () => jest.requireActual("@/test-utils/secureStore").secureStoreModule,
+);
 
 const header = (
   key: string,

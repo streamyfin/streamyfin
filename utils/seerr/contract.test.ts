@@ -1,5 +1,5 @@
-import { describe, expect, test } from "bun:test";
-import { Glob } from "bun";
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import type { Fixture } from "../../scripts/seerr/capture";
 import { allowsNull, pathsOf, propertyAt } from "../../scripts/seerr/shape";
 import { ALWAYS_SENT, CORRECTIONS } from "./corrections";
@@ -28,11 +28,13 @@ import { APP_ROUTES } from "./routes";
  * values a discriminant is made of.
  */
 
-const fixtures = await Array.fromAsync(
-  new Glob("*.json").scan({ cwd: "utils/seerr/__fixtures__", absolute: true }),
-).then((files) =>
-  Promise.all(files.map((file) => Bun.file(file).json() as Promise<Fixture>)),
-);
+// Read before the tests are declared: Jest collects them synchronously.
+const FIXTURES = join(__dirname, "__fixtures__");
+const fixtures = readdirSync(FIXTURES)
+  .filter((file) => file.endsWith(".json"))
+  .map(
+    (file) => JSON.parse(readFileSync(join(FIXTURES, file), "utf8")) as Fixture,
+  );
 
 const declaredFor = (route: string): string[] =>
   declared[route as keyof typeof declared] ?? [];
@@ -91,7 +93,8 @@ test("a fixture exists for every route the app reads", () => {
     (template) => !captured.has(template),
   );
 
-  expect(missing, "run `bun run seerr:capture`").toEqual([]);
+  // Run `bun run seerr:capture`.
+  expect(missing).toEqual([]);
 });
 
 test("every fixture holds the status its route expects", () => {
@@ -108,7 +111,8 @@ test("every fixture holds the status its route expects", () => {
       : [];
   });
 
-  expect(wrong, "run `bun run seerr:capture`").toEqual([]);
+  // Run `bun run seerr:capture`.
+  expect(wrong).toEqual([]);
 });
 
 test("no fixture carries a value", () => {
@@ -167,10 +171,8 @@ describe("what a real server sends", () => {
           !isUnderDeclared(path, shallow),
       );
 
-      expect(
-        unknown,
-        "the spec moved: add these to corrections.ts with the date",
-      ).toEqual([]);
+      // The spec moved: add these to corrections.ts with the date.
+      expect(unknown).toEqual([]);
     });
   }
 });
@@ -196,7 +198,8 @@ describe("the corrections", () => {
           .map(([declared]) => `${declared} is no longer declared`),
       ];
 
-      expect(stale, "upstream fixed these, drop them").toEqual([]);
+      // Upstream fixed these, drop them.
+      expect(stale).toEqual([]);
     });
 
     // Only where the capture went. A film that is not in the library carries
@@ -239,10 +242,8 @@ describe("the corrections", () => {
         (path) => reached(path) && !served.has(path),
       );
 
-      expect(
-        imagined,
-        "these were corrected but the server does not send them",
-      ).toEqual([]);
+      // These were corrected but the server does not send them.
+      expect(imagined).toEqual([]);
     });
   }
 });
@@ -258,7 +259,8 @@ describe("the fields the types treat as always sent", () => {
   )) {
     test(`${type} carries ${keys.join(", ")} on ${route}`, () => {
       const fixture = fixtures.find((candidate) => candidate.route === route);
-      expect(fixture?.shape, `no fixture for ${route}`).toBeDefined();
+      // The route has no fixture: run `bun run seerr:capture`.
+      expect(fixture?.shape).toBeDefined();
 
       const wrong = keys.flatMap((key) => {
         const found = propertyAt(
@@ -272,10 +274,8 @@ describe("the fields the types treat as always sent", () => {
         return [];
       });
 
-      expect(
-        wrong,
-        "take these out of ALWAYS_SENT, the types cannot require them",
-      ).toEqual([]);
+      // Take these out of ALWAYS_SENT, the types cannot require them.
+      expect(wrong).toEqual([]);
     });
   }
 });

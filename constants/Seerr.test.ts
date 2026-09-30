@@ -1,4 +1,3 @@
-import { expect, test } from "bun:test";
 import * as stored from "./Seerr";
 
 // The legacy names are what earlier builds wrote to devices: the migrations

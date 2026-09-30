@@ -1,24 +1,3 @@
-import { afterEach, expect, mock, test } from "bun:test";
-import { stubReactNative } from "@/test-utils/reactNative";
-
-stubReactNative();
-const { Platform } = await import("react-native");
-const originalOS = Platform.OS;
-const originalTV = Platform.isTV;
-
-const clearProfiles = () => {
-  for (const path of ["./download", "./native", "./codecSupport"]) {
-    delete require.cache[require.resolve(path)];
-  }
-};
-
-afterEach(() => {
-  Platform.OS = originalOS;
-  Platform.isTV = originalTV;
-  mock.module("expo", () => ({ requireOptionalNativeModule: () => null }));
-  clearProfiles();
-});
-
 // `probe` is what the native hardware check answers (undefined when the module
 // is missing). `directPlay` and `transcode` are what the profiles should then
 // advertise: AV1 direct play, and AV1 over MP4 segments for transcodes.
@@ -108,36 +87,51 @@ for (const scenario of [
   },
 ] as const) {
   test(`${scenario.name}: streaming and downloads use the native capability result`, () => {
-    clearProfiles();
-    Platform.OS = scenario.os;
-    Platform.isTV = scenario.isTV;
-    const probe = mock(() => scenario.probe);
-    mock.module("expo", () => ({
-      requireOptionalNativeModule: () =>
-        scenario.probe === undefined
-          ? null
-          : { supportsAv1HardwareDecode: probe },
-    }));
-    const { generateDeviceProfile } =
-      require("./native") as typeof import("./native");
-    const { generateDownloadProfile } =
-      require("./download") as typeof import("./download");
-    const streaming = generateDeviceProfile({ platform: scenario.os });
-    const download = generateDownloadProfile();
-    const codecs = scenario.transcode ? "av1,h264,hevc" : "h264,hevc";
-    const video = streaming.TranscodingProfiles.find((p) => p.Type === "Video");
-    expect(video?.VideoCodec).toBe(codecs);
-    expect(video?.Container).toBe(scenario.transcode ? "mp4" : "ts");
-    const direct = streaming.DirectPlayProfiles.find((p) => p.Type === "Video");
-    expect(direct?.VideoCodec?.split(",").includes("av1")).toBe(
-      scenario.directPlay,
-    );
-    const downloaded = download.TranscodingProfiles?.find(
-      (p) => p.Type === "Video",
-    );
-    expect(downloaded?.VideoCodec).toBe(codecs);
-    expect(downloaded?.Container).toBe("mp4");
-    expect(downloaded?.Protocol).toBe("http");
+    const probe = jest.fn(() => scenario.probe);
+    // codecSupport caches the probe and the profiles read Platform when they
+    // load, so each scenario gets a module registry of its own.
+    jest.isolateModules(() => {
+      jest.doMock("expo", () => ({
+        requireOptionalNativeModule: () =>
+          scenario.probe === undefined
+            ? null
+            : { supportsAv1HardwareDecode: probe },
+      }));
+      const { Platform } =
+        require("react-native") as typeof import("react-native");
+      Object.defineProperty(Platform, "OS", {
+        value: scenario.os,
+        configurable: true,
+      });
+      Object.defineProperty(Platform, "isTV", {
+        value: scenario.isTV,
+        configurable: true,
+      });
+      const { generateDeviceProfile } =
+        require("./native") as typeof import("./native");
+      const { generateDownloadProfile } =
+        require("./download") as typeof import("./download");
+      const streaming = generateDeviceProfile({ platform: scenario.os });
+      const download = generateDownloadProfile();
+      const codecs = scenario.transcode ? "av1,h264,hevc" : "h264,hevc";
+      const video = streaming.TranscodingProfiles.find(
+        (p) => p.Type === "Video",
+      );
+      expect(video?.VideoCodec).toBe(codecs);
+      expect(video?.Container).toBe(scenario.transcode ? "mp4" : "ts");
+      const direct = streaming.DirectPlayProfiles.find(
+        (p) => p.Type === "Video",
+      );
+      expect(direct?.VideoCodec?.split(",").includes("av1")).toBe(
+        scenario.directPlay,
+      );
+      const downloaded = download.TranscodingProfiles?.find(
+        (p) => p.Type === "Video",
+      );
+      expect(downloaded?.VideoCodec).toBe(codecs);
+      expect(downloaded?.Container).toBe("mp4");
+      expect(downloaded?.Protocol).toBe("http");
+    });
     if (scenario.probe !== undefined) expect(probe).toHaveBeenCalled();
   });
 }

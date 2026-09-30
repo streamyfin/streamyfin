@@ -1,18 +1,17 @@
-import { describe, expect, test } from "bun:test";
 import { Jellyfin } from "@jellyfin/sdk";
 import { getSystemApi } from "@jellyfin/sdk/lib/utils/api/system-api";
 import axios, {
   type AxiosInstance,
   type InternalAxiosRequestConfig,
 } from "axios";
-import {
-  setJellyfinHeaders,
-  stubCustomHeaders,
-} from "@/test-utils/customHeaders";
+import { setJellyfinHeaders } from "@/test-utils/customHeaders";
+import { createApiWithCustomHeaders } from "./createApi";
 
-stubCustomHeaders();
-
-const { createApiWithCustomHeaders } = await import("./createApi");
+jest.mock("@/utils/customHeaders", () =>
+  jest.requireActual("@/test-utils/customHeaders").customHeadersModule(),
+);
+// Each test sets the proxy headers it needs; none carry over to the next.
+afterEach(() => setJellyfinHeaders());
 
 const SERVER = "https://jellyfin.example";
 

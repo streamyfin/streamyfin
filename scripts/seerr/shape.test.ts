@@ -1,4 +1,3 @@
-import { describe, expect, test } from "bun:test";
 import { allowsNull, pathsOf, propertyAt, shapeOf } from "./shape";
 
 describe("shapeOf", () => {
