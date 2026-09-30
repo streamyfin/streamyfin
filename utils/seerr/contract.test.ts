@@ -1,5 +1,5 @@
-import { describe, expect, test } from "bun:test";
-import { Glob } from "bun";
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import type { Fixture } from "../../scripts/seerr/capture";
 import { pathsOf } from "../../scripts/seerr/shape";
 import { CORRECTIONS } from "./corrections";
@@ -28,11 +28,13 @@ import { APP_ROUTES } from "./routes";
  * values a discriminant is made of.
  */
 
-const fixtures = await Array.fromAsync(
-  new Glob("*.json").scan({ cwd: "utils/seerr/__fixtures__", absolute: true }),
-).then((files) =>
-  Promise.all(files.map((file) => Bun.file(file).json() as Promise<Fixture>)),
-);
+// Read before the tests are declared: Jest collects them synchronously.
+const FIXTURES = join(__dirname, "__fixtures__");
+const fixtures = readdirSync(FIXTURES)
+  .filter((file) => file.endsWith(".json"))
+  .map(
+    (file) => JSON.parse(readFileSync(join(FIXTURES, file), "utf8")) as Fixture,
+  );
 
 /** The leaf a path names in a shape, when the shape reaches that far. */
 const at = (shape: unknown, path: string): unknown =>
@@ -109,7 +111,8 @@ test("a fixture exists for every route the app reads", () => {
     (template) => !captured.has(template),
   );
 
-  expect(missing, "run `bun run seerr:capture`").toEqual([]);
+  // Missing ones come from `bun run seerr:capture`.
+  expect(missing).toEqual([]);
 });
 
 test("no fixture carries a value", () => {
@@ -168,10 +171,8 @@ describe("what a real server sends", () => {
           !isUnderDeclared(path, shallow),
       );
 
-      expect(
-        unknown,
-        "the spec moved: add these to corrections.ts with the date",
-      ).toEqual([]);
+      // The spec moved: add these to corrections.ts, with the date.
+      expect(unknown).toEqual([]);
     });
   }
 });
@@ -187,7 +188,8 @@ describe("the corrections", () => {
       const spec = new Set(declaredFor(fixture.route));
       const stale = correction.added.filter((path) => spec.has(path));
 
-      expect(stale, "upstream declares these now, drop them").toEqual([]);
+      // Upstream declares these now: drop them.
+      expect(stale).toEqual([]);
     });
 
     // Only where the capture went. A film that is not in the library carries
@@ -231,10 +233,8 @@ describe("the corrections", () => {
         (path) => reached(path) && !served.has(path),
       );
 
-      expect(
-        imagined,
-        "these were corrected but the server does not send them",
-      ).toEqual([]);
+      // Corrected, yet the server does not send them.
+      expect(imagined).toEqual([]);
     });
   }
 });
