@@ -1,14 +1,14 @@
-import { beforeEach, expect, test } from "bun:test";
+import { clearSecureStore, secureStoreValues } from "@/test-utils/secureStore";
 import {
-  clearSecureStore,
-  secureStoreValues,
-  stubSecureStore,
-} from "@/test-utils/secureStore";
+  deleteSeerrPassword,
+  getSeerrPassword,
+  saveSeerrPassword,
+} from "./seerrPassword";
 
-stubSecureStore();
-
-const { deleteSeerrPassword, getSeerrPassword, saveSeerrPassword } =
-  await import("./seerrPassword");
+jest.mock(
+  "expo-secure-store",
+  () => jest.requireActual("@/test-utils/secureStore").secureStoreModule,
+);
 
 const account = btoa("https://media.example:user-1").replace(
   /[^a-zA-Z0-9]/g,

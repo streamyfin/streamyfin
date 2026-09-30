@@ -1,20 +1,30 @@
-import { beforeEach, describe, expect, test } from "bun:test";
-import { stubLog } from "@/test-utils/log";
-import { clearMmkv, stubMmkv } from "@/test-utils/mmkv";
+import { clearMmkv } from "@/test-utils/mmkv";
+import { clearSecureStore, secureStoreValues } from "@/test-utils/secureStore";
+import { storage } from "@/utils/mmkv";
 import {
-  clearSecureStore,
-  secureStoreValues,
-  stubSecureStore,
-} from "@/test-utils/secureStore";
+  getIntegrationHeaderConfig,
+  updateIntegrationHeaderConfig,
+} from "./integrations";
+import { secureCustomHeaderMetadata } from "./secureValues";
 
-stubLog();
-stubMmkv();
-stubSecureStore();
-
-const { storage } = await import("@/utils/mmkv");
-const { secureCustomHeaderMetadata } = await import("./secureValues");
-const { getIntegrationHeaderConfig, updateIntegrationHeaderConfig } =
-  await import("./integrations");
+jest.mock(
+  "react-native-mmkv",
+  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
+);
+jest.mock(
+  "expo-secure-store",
+  () => jest.requireActual("@/test-utils/secureStore").secureStoreModule,
+);
+// The log module reaches Sentry and MMKV, so it is stubbed with the surface
+// the modules under test call.
+jest.mock("@/utils/log", () => ({
+  writeToLog: () => undefined,
+  logAndCaptureError: () => undefined,
+  writeInfoLog: () => undefined,
+  writeErrorLog: () => undefined,
+  writeDebugLog: () => undefined,
+  readFromLog: () => [],
+}));
 
 const header = (key: string, value: string) => ({ key, value, enabled: true });
 
