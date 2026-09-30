@@ -451,7 +451,9 @@ const MobilePage: React.FC = () => {
 
             {mediaType === MediaType.TV && (
               <SeerrSeasons
-                isLoading={isLoading || isFetching}
+                // Only before the first answer: a refetch keeps the list, and
+                // with it the open seasons and the scroll position.
+                isLoading={isLoading}
                 details={details as TvDetails}
                 refetch={refetch}
                 hasAdvancedRequest={hasAdvancedRequestPermission}
