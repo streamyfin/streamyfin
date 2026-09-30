@@ -1,15 +1,13 @@
-import { beforeEach, describe, expect, test } from "bun:test";
 import { LOGS_STORAGE_KEY } from "@/constants/Logs";
-import { clearMmkv, stubMmkv } from "@/test-utils/mmkv";
+import { clearMmkv } from "@/test-utils/mmkv";
+import { readFromLog, redactStoredLog, storeLogEntry } from "./logStorage";
+import { storage } from "./mmkv";
 
-// utils/log is mocked process-wide by several specs, so the storage half of
-// the app log lives here, where the real module can be exercised.
-stubMmkv();
-
-const { readFromLog, redactStoredLog, storeLogEntry } = await import(
-  "./logStorage"
+// The storage half of the app log, on the real module with an in-memory MMKV.
+jest.mock(
+  "react-native-mmkv",
+  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
 );
-const { storage } = await import("./mmkv");
 
 const TOKEN = "0123456789abcdef0123456789abcdef";
 

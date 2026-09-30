@@ -1,4 +1,3 @@
-import { describe, expect, test } from "bun:test";
 import { redactCredentials } from "./redactCredentials";
 
 describe("redactCredentials", () => {
