@@ -1,4 +1,3 @@
-import { describe, expect, test } from "bun:test";
 import { isMovieOrTvResult, mediaTypeOf, titleOf, yearOf } from "./media";
 import {
   MediaStatus,
