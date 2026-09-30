@@ -171,7 +171,7 @@ export const TVSeerrPage: React.FC = () => {
       mediaType: MediaType;
     } & Partial<MovieResult | TvResult | MovieDetails | TvDetails>;
 
-  const { seerrApi, seerrUser, requestMedia } = useSeerr();
+  const { seerrApi, seerrUser, requestMedia, refreshAfterRequest } = useSeerr();
   const { showRequestModal } = useTVRequestModal();
   const { showSeasonSelectModal } = useTVSeasonSelectModal();
 
@@ -261,10 +261,11 @@ export const TVSeerrPage: React.FC = () => {
       await seerrApi?.approveRequest(pendingRequest.id);
       toast.success(t("seerr.toasts.request_approved"));
       refetch();
+      refreshAfterRequest();
     } catch (_error) {
       toast.error(t("seerr.toasts.failed_to_approve_request"));
     }
-  }, [seerrApi, pendingRequest, refetch, t]);
+  }, [seerrApi, pendingRequest, refetch, refreshAfterRequest, t]);
 
   const handleDeclineRequest = useCallback(async () => {
     if (!pendingRequest?.id) return;
@@ -272,10 +273,11 @@ export const TVSeerrPage: React.FC = () => {
       await seerrApi?.declineRequest(pendingRequest.id);
       toast.success(t("seerr.toasts.request_declined"));
       refetch();
+      refreshAfterRequest();
     } catch (_error) {
       toast.error(t("seerr.toasts.failed_to_decline_request"));
     }
-  }, [seerrApi, pendingRequest, refetch, t]);
+  }, [seerrApi, pendingRequest, refetch, refreshAfterRequest, t]);
 
   const handleRequest = useCallback(async () => {
     const body: MediaRequestBody = {

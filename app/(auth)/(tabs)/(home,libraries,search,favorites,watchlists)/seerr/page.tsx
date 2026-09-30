@@ -73,7 +73,7 @@ const MobilePage: React.FC = () => {
     } & Partial<MovieResult | TvResult | MovieDetails | TvDetails>;
 
   const navigation = useNavigation();
-  const { seerrApi, seerrUser, requestMedia } = useSeerr();
+  const { seerrApi, seerrUser, requestMedia, refreshAfterRequest } = useSeerr();
 
   const [issueType, setIssueType] = useState<IssueType>();
   const [issueMessage, setIssueMessage] = useState<string>();
@@ -132,11 +132,12 @@ const MobilePage: React.FC = () => {
       await seerrApi?.approveRequest(pendingRequest.id);
       toast.success(t("seerr.toasts.request_approved"));
       refetch();
+      refreshAfterRequest();
     } catch (error) {
       toast.error(t("seerr.toasts.failed_to_approve_request"));
       console.error("Failed to approve request:", error);
     }
-  }, [seerrApi, pendingRequest, refetch, t]);
+  }, [seerrApi, pendingRequest, refetch, refreshAfterRequest, t]);
 
   const handleDeclineRequest = useCallback(async () => {
     if (!pendingRequest?.id) return;
@@ -145,11 +146,12 @@ const MobilePage: React.FC = () => {
       await seerrApi?.declineRequest(pendingRequest.id);
       toast.success(t("seerr.toasts.request_declined"));
       refetch();
+      refreshAfterRequest();
     } catch (error) {
       toast.error(t("seerr.toasts.failed_to_decline_request"));
       console.error("Failed to decline request:", error);
     }
-  }, [seerrApi, pendingRequest, refetch, t]);
+  }, [seerrApi, pendingRequest, refetch, refreshAfterRequest, t]);
 
   const renderBackdrop = useCallback(
     (props: BottomSheetBackdropProps) => (

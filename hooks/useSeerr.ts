@@ -28,7 +28,7 @@ import {
   titleOf,
   yearOf,
 } from "@/utils/seerr/media";
-import { isSeerrQuery } from "@/utils/seerr/queries";
+import { isSeerrQuery, touchedByRequest } from "@/utils/seerr/queries";
 import { seerrQueryString } from "@/utils/seerr/search";
 import { rememberSeerrSession } from "@/utils/seerr/session";
 import type {
@@ -748,11 +748,22 @@ export const useSeerr = () => {
     });
   }, [queryClient]);
 
+  // Marks what a request, an approval or a decline changed as stale, so the
+  // Discover rows and the title's page show it once the user is back there.
+  const refreshAfterRequest = useCallback(
+    (title?: { mediaType: string; mediaId: number }) =>
+      queryClient.invalidateQueries({
+        predicate: (query) => touchedByRequest(title)(query.queryKey),
+      }),
+    [queryClient],
+  );
+
   const requestMedia = useCallback(
     (title: string, request: MediaRequestBody, onSuccess?: () => void) => {
       seerrApi?.request?.(request)?.then(async (mediaRequest) => {
-        await queryClient.invalidateQueries({
-          queryKey: ["search", "seerr"],
+        await refreshAfterRequest({
+          mediaType: request.mediaType,
+          mediaId: request.mediaId,
         });
 
         switch (mediaRequest.status) {
@@ -772,7 +783,7 @@ export const useSeerr = () => {
         }
       });
     },
-    [seerrApi],
+    [seerrApi, refreshAfterRequest],
   );
 
   const seerrRegion = useMemo(
@@ -797,5 +808,6 @@ export const useSeerr = () => {
     seerrRegion,
     seerrLocale,
     requestMedia,
+    refreshAfterRequest,
   };
 };
