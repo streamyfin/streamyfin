@@ -80,5 +80,19 @@ dependencies {
   // Android TV Compose material
   implementation 'androidx.tv:tv-material:1.0.0'
 
+  // Media3/ExoPlayer engine for the native chrome (ExoPlayerEngine). Same
+  // coordinates and versions as modules/exoplayer-player so Gradle resolves
+  // ONE copy app-wide (react-native-track-player pins media3Version to 1.10.1;
+  // keep that comment's rationale in sync if it bumps). The Jellyfin FFmpeg
+  // decoder is a native extension built against 1.9.0 — upgrade only together
+  // with exoplayer-player. No DASH/SmoothStreaming/RTSP: Jellyfin never serves
+  // them here, and plugins/withExcludeMedia3Dash.ts excludes them globally.
+  def media3Version = safeExtGet('media3Version', '1.10.1')
+  implementation "androidx.media3:media3-exoplayer:${media3Version}"
+  implementation "androidx.media3:media3-exoplayer-hls:${media3Version}"
+  implementation "androidx.media3:media3-ui:${media3Version}"
+  implementation "androidx.media3:media3-common:${media3Version}"
+  implementation "org.jellyfin.media3:media3-ffmpeg-decoder:1.9.0+1"
+
   testImplementation 'junit:junit:4.13.2'
 }

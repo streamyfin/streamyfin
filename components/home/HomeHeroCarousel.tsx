@@ -374,7 +374,7 @@ export const HomeHeroCarousel = () => {
 
       const resumeTypes: BaseItemKind[] = [
         ...(filters.showMovies ? (["Movie"] as const) : []),
-        ...(filters.showTv ? (["Series", "Episode"] as const) : []),
+        ...(filters.showTv ? (["Episode"] as const) : []),
       ];
 
       // Each source degrades independently: a failing endpoint drops its
@@ -421,6 +421,7 @@ export const HomeHeroCarousel = () => {
           ? getUserLibraryApi(api)
               .getLatestMedia({
                 userId: user.Id,
+                // Do we want to show seasons, episodes, and shows, or just one of them? I'd assume just Series maybe?
                 includeItemTypes: ["Series", "Season", "Episode"],
                 limit: overFetch(filters.recentlyAddedTvQuota),
                 fields: ["Overview"],

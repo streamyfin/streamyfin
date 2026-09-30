@@ -8,7 +8,8 @@ import { Platform } from "react-native";
 
 /**
  * Subset of the MpvPlayer native module used for capability probing.
- * `supportsAv1HardwareDecode` is implemented on iOS/tvOS only.
+ * `supportsAv1HardwareDecode` asks VideoToolbox on iOS/tvOS and MediaCodec on
+ * Android.
  */
 type MpvPlayerCapabilities = {
   supportsAv1HardwareDecode?: () => boolean;
@@ -58,13 +59,42 @@ const probeAv1HardwareDecode = (): boolean | undefined => {
  *
  * Backed by `VTIsHardwareDecodeSupported` rather than a hardcoded
  * `Platform.isTV`, so a future AV1-capable Apple TV regains direct play with no
- * code change.
+ * code change. On Android this answers for direct play only and is always true;
+ * transcodes go through `supportsAv1Transcode`.
  */
 export const supportsAv1HardwareDecode = (): boolean => {
   if (cachedAv1Support === undefined) {
     cachedAv1Support = probeAv1HardwareDecode();
   }
   return cachedAv1Support ?? assumedAv1Support();
+};
+
+/** Android probe result, cached once the native module has answered. */
+let cachedAv1Transcode: boolean | undefined;
+
+/**
+ * Whether Jellyfin may transcode to AV1 for this device.
+ *
+ * Stricter than direct play on Android. A direct play keeps the file's own
+ * codec, but a transcode is the server's pick, so it should only land on AV1
+ * where MediaCodec decodes it in hardware; otherwise mpv would decode every
+ * transcoded frame on the CPU through dav1d where H.264 or HEVC would have used
+ * the hardware decoder. A binary without the Android probe keeps H.264/HEVC.
+ * On iOS the answer is the VideoToolbox one direct play already uses.
+ */
+export const supportsAv1Transcode = (): boolean => {
+  if (Platform.OS === "ios") return supportsAv1HardwareDecode();
+
+  if (cachedAv1Transcode === undefined) {
+    const mpv = requireOptionalNativeModule<MpvPlayerCapabilities>("MpvPlayer");
+    if (typeof mpv?.supportsAv1HardwareDecode !== "function") return false;
+    try {
+      cachedAv1Transcode = mpv.supportsAv1HardwareDecode();
+    } catch {
+      return false;
+    }
+  }
+  return cachedAv1Transcode;
 };
 
 /**

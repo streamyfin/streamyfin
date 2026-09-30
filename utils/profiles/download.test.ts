@@ -1,13 +1,12 @@
-import { describe, expect, mock, test } from "bun:test";
 import { stubReactNative } from "@/test-utils/reactNative";
 
 stubReactNative();
-mock.module("expo", () => ({
-  // codecSupport probes the native MPV module; under bun:test there is none.
+jest.mock("expo", () => ({
+  // codecSupport probes the native MPV module, which no test environment has.
   requireOptionalNativeModule: () => null,
 }));
 
-const { generateDownloadProfile } = await import("./download");
+import { generateDownloadProfile } from "./download";
 
 describe("generateDownloadProfile", () => {
   test("leaves the bitrate uncapped so Max means Max", () => {
@@ -21,8 +20,8 @@ describe("generateDownloadProfile", () => {
     const profile = generateDownloadProfile("auto");
 
     expect(profile.SubtitleProfiles).toEqual([
+      // "webvtt" is absent on purpose — see TEXT_EXTERNAL_FORMATS (#1892).
       ...[
-        "webvtt",
         "vtt",
         "srt",
         "subrip",
@@ -58,7 +57,7 @@ describe("generateDownloadProfile", () => {
       Context: "Streaming",
       Protocol: "http",
       Container: "mp4",
-      VideoCodec: "h264,hevc",
+      VideoCodec: "av1,h264,hevc",
       AudioCodec: "aac,mp3,ac3,eac3",
       MaxAudioChannels: "6",
       CopyTimestamps: false,

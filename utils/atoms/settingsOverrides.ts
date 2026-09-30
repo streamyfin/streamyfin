@@ -22,6 +22,15 @@ export const hasMeaningfulSettingValue = (value: unknown): boolean =>
   value !== undefined && value !== null && value !== "";
 
 /**
+ * Settings an unlocked plugin default must never seed. Crash-report consent
+ * can only change by explicit user action (or an admin lock): the intro sheet
+ * is the opt-out surface and it is available before the first plugin sync
+ * happens at login, so a deferred seed would silently re-enable reporting
+ * over the user's explicit opt-out.
+ */
+const NEVER_SEED_KEYS: ReadonlySet<keyof Settings> = new Set(["sentryEnabled"]);
+
+/**
  * Effective settings, in precedence order:
  *
  *   app defaults → unlocked plugin values (fallback only) → the user's stored
@@ -88,6 +97,7 @@ export const pendingPluginDefaults = (
   for (const [key, setting] of Object.entries(plugin ?? {})) {
     if (!setting || setting.locked) continue;
     const settingsKey = key as keyof Settings;
+    if (NEVER_SEED_KEYS.has(settingsKey)) continue;
     const value = normalize(settingsKey, setting.value);
     if (!hasMeaningfulSettingValue(value)) continue;
     // Structural compare: object-typed settings ({ key, value }) are rebuilt by
@@ -98,4 +108,42 @@ export const pendingPluginDefaults = (
     pending[key] = value;
   }
   return pending as Partial<Settings>;
+};
+
+/**
+ * The overlay a plugin refresh should write, computed against the user's
+ * CURRENT settings, plus the applied-defaults record to persist (null when no
+ * seed happened, so a streamystats-only refresh leaves the record alone and
+ * the seed decision is retried on the next one).
+ *
+ * The refresh runs while the user can be changing settings — the intro sheet
+ * is up during first-run login — so the caller must evaluate this inside the
+ * settings write rather than merging against a render-time snapshot. Building
+ * the merge from the snapshot instead resurrected whatever the user had just
+ * overwritten when the refresh's fetch resolved after their toggle.
+ */
+export const pluginRefreshOverlay = (
+  current: Partial<Settings>,
+  plugin: PluginLockableSettings | undefined,
+  applied: AppliedPluginDefaults,
+  normalize: NormalizePluginValue,
+): {
+  overlay: Partial<Settings>;
+  applied: AppliedPluginDefaults | null;
+} | null => {
+  const pending = pendingPluginDefaults(plugin, applied, normalize);
+  const enableStreamystats =
+    !!plugin?.streamyStatsServerUrl?.value &&
+    current.searchEngine !== "Streamystats";
+  if (Object.keys(pending).length === 0 && !enableStreamystats) {
+    return null;
+  }
+  return {
+    overlay: {
+      ...pending,
+      ...(enableStreamystats ? { searchEngine: "Streamystats" } : {}),
+    },
+    applied:
+      Object.keys(pending).length > 0 ? { ...applied, ...pending } : null,
+  };
 };

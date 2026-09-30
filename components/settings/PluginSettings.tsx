@@ -9,7 +9,11 @@ import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
 
 export const PluginSettings = () => {
-  const { settings, updateSettings } = useSettings();
+  const { settings, updateSettings, pluginSettings } = useSettings();
+
+  // The lock must be visible: updateSettings drops the write for locked keys,
+  // so an unlocked-looking switch would read as broken rather than pinned.
+  const sentryLocked = pluginSettings?.sentryEnabled?.locked === true;
 
   const router = useRouter();
 
@@ -68,9 +72,11 @@ export const PluginSettings = () => {
       <ListItem
         title={t("home.settings.plugins.crash_reports")}
         subtitle={t("home.settings.plugins.crash_reports_hint")}
+        disabledByAdmin={sentryLocked}
       >
         <SettingSwitch
           value={settings.sentryEnabled}
+          disabled={sentryLocked}
           onValueChange={(value) => updateSettings({ sentryEnabled: value })}
         />
       </ListItem>

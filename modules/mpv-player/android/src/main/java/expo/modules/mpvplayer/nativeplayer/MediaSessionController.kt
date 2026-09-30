@@ -58,13 +58,13 @@ class MediaSessionController(
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
                 Log.i(TAG, "Audio focus duck — lowering volume to 30%")
                 isDucked = true
-                viewModel.renderer?.setVolumeBoost(30)
+                viewModel.engine?.setVolumeBoost(30)
             }
             AudioManager.AUDIOFOCUS_GAIN -> {
                 if (isDucked) {
                     Log.i(TAG, "Audio focus gained — restoring volume")
                     isDucked = false
-                    viewModel.renderer?.setVolumeBoost(viewModel.volumeBoostPercent)
+                    viewModel.engine?.setVolumeBoost(viewModel.volumeBoostPercent)
                 }
             }
         }

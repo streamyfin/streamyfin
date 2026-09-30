@@ -22,7 +22,7 @@ import {
 import { storage } from "../mmkv";
 import {
   type AppliedPluginDefaults,
-  pendingPluginDefaults,
+  pluginRefreshOverlay,
   resolveEffectiveSettings,
 } from "./settingsOverrides";
 
@@ -191,7 +191,9 @@ export type HomeSectionLatestResolver = {
 
 // Video player enum. MPV is the universal default; ExoPlayer is an
 // opt-in alternative on Android TV, selectable via settings.videoPlayer.
-// Native is the fully-native player (iOS and Android phone/tablet).
+// Native is the fully-native chrome (iOS/Android mobile, plus the TV
+// toggles) — it decodes with the selected engine, see
+// getActiveVideoPlayerEngine.
 export enum VideoPlayer {
   MPV = 0,
   ExoPlayer = 1,
@@ -237,21 +239,13 @@ export const isNativePlayerSupportedAndroidTV =
   Platform.OS === "android" && Boolean(Platform.isTV);
 
 /**
- * Resolve the actually-active video player for the current settings.
- * MPV is the default on Android; users can opt into ExoPlayer on
- * Android TV or the Native player on Android mobile via settings.videoPlayer.
- * On Android TV, users can opt into the native player via `nativeVideoPlayerAndroidTV`.
- * On iPhone/iPad the fully-native player is the default: an unset `videoPlayer`
- * (user never chose) or an explicit `Native` selection resolves to Native,
- * while an explicit MPV choice is the opt-out and wins. On Apple TV (tvOS 26+)
- * the native player is likewise the default, with the separate
- * `nativeVideoPlayerTV` toggle as the opt-out. The platform capability gates are
- * folded in here so callers (VideoPlayerView, direct-player's device
- * profile, PlaySettingsProvider) can never advertise a player on a
- * platform where another one is actually rendering — that mismatch would
- * let Jellyfin pick a stream for the wrong renderer.
+ * The DECODING ENGINE for the current settings — never `Native`. MPV is the
+ * universal default; ExoPlayer is an opt-in alternative on Android TV. The
+ * engine axis is independent of the controls axis: the fully-native chrome
+ * decodes with this same engine (see NativePlayerConfig.engine), so the
+ * device profile and the chrome's engine must both resolve from here.
  */
-export const getActiveVideoPlayer = (
+export const getActiveVideoPlayerEngine = (
   settings:
     | Partial<
         Pick<
@@ -265,6 +259,36 @@ export const getActiveVideoPlayer = (
   if (isExoPlayerSupported && settings?.videoPlayer === VideoPlayer.ExoPlayer) {
     return VideoPlayer.ExoPlayer;
   }
+  return VideoPlayer.MPV;
+};
+
+/**
+ * Resolve what actually RENDERS for the current settings: the fully-native
+ * chrome when it is active, otherwise the JS-route engine view. The native
+ * toggles pick the CONTROLS layer only — the chrome decodes with
+ * getActiveVideoPlayerEngine, so this function says nothing about the
+ * engine (use getActivePlayerType for that).
+ *
+ * On iPhone/iPad the chrome is the default: an unset `videoPlayer` (user
+ * never chose) or an explicit `Native` selection resolves to Native, while
+ * an explicit MPV choice is the opt-out and wins. On Apple TV (tvOS 26+) the
+ * chrome is likewise the default with `nativeVideoPlayerTV` as the opt-out;
+ * on Android TV it is opt-in via `nativeVideoPlayerAndroidTV`. The platform
+ * capability gates are folded in here so a caller is never told one thing
+ * renders while another actually does — that mismatch would let Jellyfin
+ * pick a stream for the wrong renderer.
+ */
+export const getActiveVideoPlayer = (
+  settings:
+    | Partial<
+        Pick<
+          Settings,
+          "videoPlayer" | "nativeVideoPlayerTV" | "nativeVideoPlayerAndroidTV"
+        >
+      >
+    | null
+    | undefined,
+): VideoPlayer => {
   if (isNativePlayerSupportedTV && settings?.nativeVideoPlayerTV !== false) {
     return VideoPlayer.Native;
   }
@@ -281,12 +305,31 @@ export const getActiveVideoPlayer = (
   ) {
     return VideoPlayer.Native;
   }
-  return VideoPlayer.MPV;
+  return getActiveVideoPlayerEngine(settings);
 };
 
 /**
- * Same selection as getActiveVideoPlayer but returns the lowercase
- * player-type identifier that `generateDeviceProfile` expects.
+ * Should a play request be handed to the fully-native chrome? The routing
+ * predicate for usePlayMedia and the WS "Play" handler — the engine choice
+ * travels along inside the presented config.
+ */
+export const isNativeChromeActive = (
+  settings:
+    | Partial<
+        Pick<
+          Settings,
+          "videoPlayer" | "nativeVideoPlayerTV" | "nativeVideoPlayerAndroidTV"
+        >
+      >
+    | null
+    | undefined,
+): boolean => getActiveVideoPlayer(settings) === VideoPlayer.Native;
+
+/**
+ * The lowercase player-type identifier that `generateDeviceProfile` expects.
+ * This is the ENGINE, always — even while the chrome presents. A chrome-on-
+ * ExoPlayer session must negotiate the ExoPlayer profile, and
+ * buildNativePlayerConfig passes the same value as the config's engine.
  */
 export const getActivePlayerType = (
   settings:
@@ -299,9 +342,7 @@ export const getActivePlayerType = (
     | null
     | undefined,
 ): "mpv" | "exoplayer" => {
-  // The Native player intentionally advertises the mpv device profile
-  // (it uses the MPV engine).
-  return getActiveVideoPlayer(settings) === VideoPlayer.ExoPlayer
+  return getActiveVideoPlayerEngine(settings) === VideoPlayer.ExoPlayer
     ? "exoplayer"
     : "mpv";
 };
@@ -879,31 +920,38 @@ export const useSettings = () => {
     );
     setPluginSettings(newPluginSettings);
 
-    if (newPluginSettings && _settings) {
-      const applied = loadAppliedPluginDefaults();
-      const pending = pendingPluginDefaults(
-        newPluginSettings,
-        applied,
-        normalizePluginValue,
-      );
-      // Only what the admin declared is applied here. An admin who wants to
-      // impose a search engine declares searchEngine, locked to impose it or
-      // unlocked to propose it, like any other setting. Inferring it from a
-      // Streamystats URL took the choice away without saying so.
-      if (Object.keys(pending).length > 0) {
+    // Write against the atom's value at apply time, not the hook's render
+    // snapshot: this runs while the user can be changing settings (the intro
+    // sheet is up during first-run login), and a merge built from the
+    // snapshot resurrected whatever the user had just overwritten.
+    if (newPluginSettings) {
+      setSettings((currentSettings) => {
+        if (!currentSettings) return currentSettings;
+
+        const applied = loadAppliedPluginDefaults();
+        const result = pluginRefreshOverlay(
+          currentSettings,
+          newPluginSettings,
+          applied,
+          normalizePluginValue,
+        );
+        if (!result) return currentSettings;
+
         const newSettings = {
           ...defaultValues,
-          ..._settings,
-          ...pending,
+          ...currentSettings,
+          ...result.overlay,
         } as Settings;
-        setSettings(newSettings);
         saveSettings(newSettings);
-        storage.setAny(PLUGIN_APPLIED_DEFAULTS, { ...applied, ...pending });
-      }
+        if (result.applied) {
+          storage.setAny(PLUGIN_APPLIED_DEFAULTS, result.applied);
+        }
+        return newSettings;
+      });
     }
 
     return newPluginSettings;
-  }, [api, _settings]);
+  }, [api, setPluginSettings, setSettings]);
 
   const updateSettings = (update: Partial<Settings>) => {
     // Admin-locked settings are enforced at write time too: a control that
