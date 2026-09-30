@@ -29,6 +29,7 @@ import RequestModal from "@/components/seerr/RequestModal";
 import { TVSeerrPage } from "@/components/seerr/tv";
 import SeerrSeasons from "@/components/series/SeerrSeasons";
 import { ItemActions } from "@/components/series/SeriesActions";
+import { SheetColors } from "@/constants/Colors";
 import { POSTER_ASPECT_RATIO } from "@/constants/Values";
 import useRouter from "@/hooks/useAppRouter";
 import { useDismissKeyboardOnLeave } from "@/hooks/useDismissKeyboardOnLeave";
@@ -296,7 +297,8 @@ const MobilePage: React.FC = () => {
         }
       >
         <View className='flex flex-col'>
-          {/* As a style: a release build drops the space-y classes. */}
+          {/* Gaps as styles here: a release build drops the space-x and
+              space-y classes. */}
           <View style={{ gap: 16 }}>
             <View className='px-4'>
               <View className='flex flex-row justify-between w-full'>
@@ -345,7 +347,7 @@ const MobilePage: React.FC = () => {
                 </Button>
               ) : (
                 jellyfinMediaId && (
-                  <View className='flex flex-row space-x-2 mt-4'>
+                  <View className='flex flex-row mt-4' style={{ gap: 8 }}>
                     {!Platform.isTV && (
                       <Button
                         className='flex-1 bg-yellow-500/50 border-yellow-400 ring-yellow-400 text-yellow-100'
@@ -393,8 +395,11 @@ const MobilePage: React.FC = () => {
                 )
               )}
               {canManageRequests && pendingRequest && (
-                <View className='flex flex-col space-y-2 mt-4'>
-                  <View className='flex flex-row items-center space-x-2'>
+                <View className='flex flex-col mt-4' style={{ gap: 8 }}>
+                  <View
+                    className='flex flex-row items-center'
+                    style={{ gap: 8 }}
+                  >
                     <Ionicons name='person-outline' size={16} color='#9CA3AF' />
                     <Text className='text-sm text-neutral-400'>
                       {t("seerr.requested_by", {
@@ -406,7 +411,7 @@ const MobilePage: React.FC = () => {
                       })}
                     </Text>
                   </View>
-                  <View className='flex flex-row space-x-2'>
+                  <View className='flex flex-row' style={{ gap: 8 }}>
                     <Button
                       className='flex-1 bg-green-600/50 border-green-400 ring-green-400 text-green-100'
                       color='transparent'
@@ -496,20 +501,20 @@ const MobilePage: React.FC = () => {
             backgroundColor: "white",
           }}
           backgroundStyle={{
-            backgroundColor: "#171717",
+            backgroundColor: SheetColors.background,
           }}
           backdropComponent={renderBackdrop}
           stackBehavior='push'
           onDismiss={handleIssueModalDismiss}
         >
           <BottomSheetView>
-            <View className='flex flex-col space-y-4 px-4 pb-8 pt-2'>
+            <View className='flex flex-col px-4 pb-8 pt-2' style={{ gap: 16 }}>
               <View>
                 <Text className='font-bold text-2xl text-neutral-100'>
                   {t("seerr.whats_wrong")}
                 </Text>
               </View>
-              <View className='flex flex-col space-y-2 items-start'>
+              <View className='flex flex-col items-start' style={{ gap: 8 }}>
                 <View className='flex flex-col w-full'>
                   <Text className='opacity-50 mb-1 text-xs'>
                     {t("seerr.issue_type")}
