@@ -1,4 +1,3 @@
-import { describe, expect, test } from "bun:test";
 import {
   ANIME_KEYWORD_ID,
   COMPANY_LOGO_IMAGE_FILTER,
@@ -24,27 +23,23 @@ describe("the discover tables", () => {
     expect(new Set(studios.map((s) => s.id)).size).toBe(studios.length);
   });
 
+  // Jest's expect takes no message: each check lists the rows that fail it.
   test("give each network and studio something to draw", () => {
-    for (const network of networks) {
-      expect(network.image, `network ${network.id} has no image`).toBeTruthy();
-      expect(network.name, `network ${network.id} has no name`).toBeTruthy();
-    }
-
-    for (const studio of studios) {
-      expect(studio.image, `studio ${studio.id} has no image`).toBeTruthy();
-    }
+    expect(
+      networks.filter((n) => !n.image || !n.name).map((n) => n.id),
+    ).toEqual([]);
+    expect(studios.filter((s) => !s.image).map((s) => s.id)).toEqual([]);
   });
 
   // Each genre is drawn as a gradient between two colours, so a row with one
   // colour, or three, breaks the slider rather than looking odd.
   test("colour every genre with a pair", () => {
-    for (const [genre, pair] of Object.entries(genreColorMap)) {
-      expect(pair, `genre ${genre}`).toHaveLength(2);
-    }
-
-    for (const [tone, pair] of Object.entries(colorTones)) {
-      expect(pair, `tone ${tone}`).toHaveLength(2);
-    }
+    const notPairs = (table: Record<string, unknown[]>) =>
+      Object.entries(table)
+        .filter(([, pair]) => pair.length !== 2)
+        .map(([name]) => name);
+    expect(notPairs(genreColorMap)).toEqual([]);
+    expect(notPairs(colorTones)).toEqual([]);
   });
 
   test("keep the two constants the app reads beside them", () => {

@@ -1,25 +1,33 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
 import type {
   BaseItemDto,
   MediaSourceInfo,
   MediaStream,
 } from "@jellyfin/sdk/lib/generated-client";
-import { clearMmkv, stubMmkv } from "@/test-utils/mmkv";
 import type { Settings } from "@/utils/atoms/settings";
 
-// The double stores for real, so the per-series memory under test is exercised
-// rather than stubbed out.
-stubMmkv();
+jest.mock(
+  "react-native-mmkv",
+  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
+);
 
 // BitrateSelector is a React component module; only the BITRATES table matters.
-mock.module("@/components/BitrateSelector", () => ({
+jest.mock("@/components/BitrateSelector", () => ({
   BITRATES: [{ key: "Max", value: undefined }],
 }));
+// The log module reaches Sentry, whose client keeps a timer running past the
+// last test, so it is stubbed with the surface the modules under test call.
+jest.mock("@/utils/log", () => ({
+  writeToLog: () => undefined,
+  writeInfoLog: () => undefined,
+  writeErrorLog: () => undefined,
+  writeDebugLog: () => undefined,
+  logAndCaptureError: () => undefined,
+  readFromLog: () => [],
+}));
 
-// Imported after the mocks are registered — static ESM imports would evaluate
-// the real modules first.
-const { getDefaultPlaySettings } = await import("./getDefaultPlaySettings");
-const { rememberSeriesTrack } = await import("@/utils/seriesTrackMemory");
+import { clearMmkv } from "@/test-utils/mmkv";
+import { rememberSeriesTrack } from "@/utils/seriesTrackMemory";
+import { getDefaultPlaySettings } from "./getDefaultPlaySettings";
 
 const audio = (
   index: number,

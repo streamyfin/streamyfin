@@ -1,11 +1,9 @@
-import { describe, expect, mock, test } from "bun:test";
 import type { User as JellyseerrUser } from "@/utils/jellyseerr/server/entity/User";
 import type { QuickConnectSteps } from "./jellyseerrQuickConnect";
 
-// Bun's mock.module retroactively re-links every module already importing the
-// specifier, so a log mock must cover the module's full function surface —
-// a missing name breaks OTHER test files' modules that import it.
-mock.module("@/utils/log", () => ({
+// The log module reaches Sentry and MMKV, so it is stubbed with the surface
+// this spec's module under test actually calls.
+jest.mock("@/utils/log", () => ({
   writeToLog: () => undefined,
   writeInfoLog: () => undefined,
   writeErrorLog: () => undefined,
@@ -14,7 +12,7 @@ mock.module("@/utils/log", () => ({
   readFromLog: () => [],
 }));
 
-const { attemptQuickConnectSignIn } = await import("./jellyseerrQuickConnect");
+import { attemptQuickConnectSignIn } from "./jellyseerrQuickConnect";
 
 const SEERR_USER = { id: 7 } as JellyseerrUser;
 

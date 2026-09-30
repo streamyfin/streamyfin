@@ -1,13 +1,14 @@
-import { describe, expect, test } from "bun:test";
 import {
   appStateRemovalCount,
   emitAppState,
   stubReactNative,
 } from "@/test-utils/reactNative";
 
-stubReactNative();
+import { onAppForeground } from "./onAppForeground";
 
-const { onAppForeground } = await import("./onAppForeground");
+// AppState is read when a listener is added, so patching it here, after the
+// imports, still reaches the module under test.
+stubReactNative();
 
 describe("onAppForeground", () => {
   test("runs the callback the caller holds now, not the one it held then", () => {
