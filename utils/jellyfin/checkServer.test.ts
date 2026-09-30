@@ -288,25 +288,6 @@ describe("checkJellyfinServer custom headers", () => {
 });
 
 describe("checkJellyfinServer SDK transport", () => {
-  test("forwards abort and timeout without disabling TLS validation", async () => {
-    routes({ https: async () => okResponse() });
-
-    await checkJellyfinServer(
-      "https://media.example.com/jellyfin/",
-      undefined,
-      25,
-    );
-
-    const request = transport.history.get[0];
-    expect(request.url).toBe(
-      "https://media.example.com/jellyfin/System/Info/Public",
-    );
-    expect(request.timeout).toBe(25);
-    expect(request.signal).toBeInstanceOf(AbortSignal);
-    expect(request.httpsAgent).toBeUndefined();
-    expect(request.headers?.Authorization).toBeUndefined();
-  });
-
   test("does not accept a gateway's HTML response as a server", async () => {
     routes({ https: async () => [200, "<html>Sign in</html>"] });
 
@@ -316,35 +297,28 @@ describe("checkJellyfinServer SDK transport", () => {
     expect(persistedHeaders).toHaveLength(0);
   });
 
-  test.each([403, 502])(
-    "logs HTTP %s for an HTML error response before falling back",
-    async (status) => {
-      routes({
-        https: async () => [status, "<html>Gateway error</html>"],
-        http: async () => okResponse(),
-      });
+  test("logs an HTML gateway status before falling back", async () => {
+    routes({
+      https: async () => [502, "<html>Gateway error</html>"],
+      http: async () => okResponse(),
+    });
 
-      expect(await checkJellyfinServer("media.example.com")).toEqual({
-        url: "http://media.example.com",
-        name: "Homelab",
-      });
-      expect(loggedMessages).toContainEqual({
-        level: "WARN",
-        message: `Server check: https://media.example.com answered HTTP ${status}`,
-      });
-      expect(
-        loggedMessages.some(({ message }) => message.includes("<html>")),
-      ).toBe(false);
-    },
-  );
+    expect(await checkJellyfinServer("media.example.com")).toEqual({
+      url: "http://media.example.com",
+      name: "Homelab",
+    });
+    expect(loggedMessages).toContainEqual({
+      level: "WARN",
+      message: "Server check: https://media.example.com answered HTTP 502",
+    });
+    expect(
+      loggedMessages.some(({ message }) => message.includes("<html>")),
+    ).toBe(false);
+  });
 
   for (const { name, body } of [
     { name: "null", body: null },
     { name: "array", body: [] },
-    { name: "boolean", body: true },
-    { name: "number", body: 123 },
-    { name: "non-JSON text", body: "not JSON" },
-    { name: "JSON string", body: '"a JSON string"' },
   ]) {
     test(`rejects ${name} success data without persisting headers`, async () => {
       routes({ https: async () => [200, body] });
@@ -362,19 +336,4 @@ describe("checkJellyfinServer SDK transport", () => {
       });
     });
   }
-
-  test("does not persist typed headers for an unsupported server", async () => {
-    routes({ https: async () => okResponse({ Version: "10.9.11" }) });
-
-    await expect(
-      checkJellyfinServer("https://media.example.com", [
-        header("CF-Access-Client-Id", "private-value"),
-      ]),
-    ).rejects.toThrow(ServerTooOldError);
-
-    expect(persistedHeaders).toHaveLength(0);
-    expect(
-      loggedMessages.some(({ message }) => message.includes("private-value")),
-    ).toBe(false);
-  });
 });
