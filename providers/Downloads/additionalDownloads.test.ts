@@ -1,29 +1,24 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
-import type { Api } from "@jellyfin/sdk";
 import type {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
-import { atom } from "jotai";
-import {
-  setJellyfinHeaders,
-  stubCustomHeaders,
-} from "@/test-utils/customHeaders";
+import { setJellyfinHeaders } from "@/test-utils/customHeaders";
 import { stubReactNative } from "@/test-utils/reactNative";
 
-// --- Module-boundary stubs (React Native / Expo can't load under bun:test) ---
+// --- Module-boundary stubs: keep the native surface out of this spec ---
 stubReactNative();
-mock.module("expo", () => ({
-  // codecSupport probes the native MPV module; under bun:test there is none.
+jest.mock("expo", () => ({
+  // codecSupport probes the native MPV module, which no test environment has.
   requireOptionalNativeModule: () => null,
 }));
-mock.module("@/components/BitrateSelector", () => ({}));
-stubCustomHeaders();
-// No proxy headers in these specs, set per test so another file cannot
-// leave its own behind.
+jest.mock("@/components/BitrateSelector", () => ({}));
+jest.mock("@/utils/customHeaders", () =>
+  jest.requireActual("@/test-utils/customHeaders").customHeadersModule(),
+);
+// No proxy headers in these specs.
 beforeEach(() => setJellyfinHeaders());
-mock.module("@/providers/JellyfinProvider", () => ({
-  apiAtom: atom<Api | null>(null),
+jest.mock("@/providers/JellyfinProvider", () => ({
+  apiAtom: jest.requireActual("jotai").atom(null),
 }));
 
 // Fake expo-file-system that records download calls instead of hitting disk.
@@ -36,26 +31,26 @@ const downloads: RecordedDownload[] = [];
 let inFlight = 0;
 let maxInFlight = 0;
 
-class FakeDirectory {
+class mockFakeDirectory {
   uri: string;
   exists = true;
-  constructor(...parts: (string | FakeDirectory)[]) {
+  constructor(...parts: (string | mockFakeDirectory)[]) {
     this.uri = `${parts.map((p) => (typeof p === "string" ? p : p.uri)).join("/")}/`;
   }
   create() {}
 }
-class FakeFile {
+class mockFakeFile {
   uri: string;
   exists = false;
   size = 0;
-  constructor(...parts: (string | FakeDirectory | FakeFile)[]) {
+  constructor(...parts: (string | mockFakeDirectory | mockFakeFile)[]) {
     this.uri = parts
       .map((p) => (typeof p === "string" ? p : p.uri.replace(/\/$/, "")))
       .join("/");
   }
   static downloadFileAsync = async (
     url: string,
-    destination: FakeFile,
+    destination: mockFakeFile,
     options?: { headers?: Record<string, string> },
   ) => {
     inFlight++;
@@ -66,17 +61,27 @@ class FakeFile {
     return destination;
   };
 }
-mock.module("expo-file-system", () => ({
-  Directory: FakeDirectory,
-  File: FakeFile,
+// jest.mock is hoisted above the class declarations, so the classes are read
+// through getters: by the time the module under test touches them, their
+// temporal dead zone is over.
+jest.mock("expo-file-system", () => ({
+  get Directory() {
+    return mockFakeDirectory;
+  },
+  get File() {
+    return mockFakeFile;
+  },
   Paths: { document: "file:///documents" },
 }));
 
-const { apiAtom } = await import("@/providers/JellyfinProvider");
-const { store } = await import("@/utils/store");
-const { makeApi } = await import("@/test-utils/jellyfinApi");
-const { downloadTrickplayImages, downloadSubtitles, downloadAdditionalAssets } =
-  await import("./additionalDownloads");
+import { apiAtom } from "@/providers/JellyfinProvider";
+import { makeApi } from "@/test-utils/jellyfinApi";
+import { store } from "@/utils/store";
+import {
+  downloadAdditionalAssets,
+  downloadSubtitles,
+  downloadTrickplayImages,
+} from "./additionalDownloads";
 
 const api = makeApi();
 // makeApi() throws on unmatched requests; the segment fetch is not under test.

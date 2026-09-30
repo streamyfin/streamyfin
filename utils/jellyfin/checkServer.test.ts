@@ -1,23 +1,19 @@
-import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test";
-import {
-  setJellyfinHeaders,
-  stubCustomHeaders,
-} from "@/test-utils/customHeaders";
+import { setJellyfinHeaders } from "@/test-utils/customHeaders";
 import type { CustomHeader } from "@/utils/customHeaders/types";
 
 // checkServer pulls the two helpers through the barrel file, which also
 // re-exports modules with native dependencies (MMKV, SecureStore) — so the
-// barrel is replaced with just the real implementations of what it needs.
-stubCustomHeaders();
-// No proxy headers in these specs, set per test so another file cannot
-// leave its own behind.
+// barrel is replaced with the real pure helpers plus stubbed resolvers.
+jest.mock("@/utils/customHeaders", () =>
+  jest.requireActual("@/test-utils/customHeaders").customHeadersModule(),
+);
+// No proxy headers in these specs.
 beforeEach(() => setJellyfinHeaders());
 
-// Bun's mock.module retroactively re-links every module already importing the
-// specifier, so a log mock must cover the module's full function surface —
-// a missing name breaks OTHER test files' modules that import it.
+// The log module reaches Sentry and MMKV, so it is stubbed with the surface
+// this spec's module under test actually calls.
 const loggedMessages: Array<{ level: string; message: string }> = [];
-mock.module("@/utils/log", () => ({
+jest.mock("@/utils/log", () => ({
   writeToLog: (level: string, message: string) => {
     loggedMessages.push({ level, message });
   },
@@ -34,18 +30,16 @@ mock.module("@/utils/log", () => ({
   readFromLog: () => [],
 }));
 
-const savedHeaders = new Map<string, CustomHeader[]>();
+const mockSavedHeaders = new Map<string, CustomHeader[]>();
 const persistedHeaders: Array<{ url: string; headers: CustomHeader[] }> = [];
-mock.module("@/utils/secureCredentials", () => ({
-  getServerCustomHeaders: (url: string) => savedHeaders.get(url) ?? [],
+jest.mock("@/utils/secureCredentials", () => ({
+  getServerCustomHeaders: (url: string) => mockSavedHeaders.get(url) ?? [],
   updateServerCustomHeaders: (url: string, headers: CustomHeader[]) => {
     persistedHeaders.push({ url, headers });
   },
 }));
 
-const { checkJellyfinServer, ServerTooOldError } = await import(
-  "./checkServer"
-);
+import { checkJellyfinServer, ServerTooOldError } from "./checkServer";
 
 // --- fetch stub ------------------------------------------------------------
 
@@ -101,7 +95,7 @@ const routes = (impl: {
 beforeEach(() => {
   fetchCalls = [];
   loggedMessages.length = 0;
-  savedHeaders.clear();
+  mockSavedHeaders.clear();
   persistedHeaders.length = 0;
   fetchImpl = networkError;
 });
@@ -198,7 +192,7 @@ describe("checkJellyfinServer probing", () => {
       loggedMessages.some(
         (m) => m.level === "WARN" && m.message.includes("timed out after 20ms"),
       ),
-    ).toBeTrue();
+    ).toBe(true);
   });
 
   test("a non-OK https answer (e.g. a gateway 403) still falls through to http", async () => {
@@ -214,7 +208,7 @@ describe("checkJellyfinServer probing", () => {
       loggedMessages.some(
         (m) => m.level === "WARN" && m.message.includes("HTTP 403"),
       ),
-    ).toBeTrue();
+    ).toBe(true);
   });
 
   test("returns undefined when nothing answers", async () => {
@@ -262,7 +256,7 @@ describe("checkJellyfinServer custom headers", () => {
   });
 
   test("saved headers are reused when none are passed, and nothing is re-persisted", async () => {
-    savedHeaders.set("http://192.168.1.10:8096", [
+    mockSavedHeaders.set("http://192.168.1.10:8096", [
       header("CF-Access-Client-Id", "saved"),
     ]);
     routes({ http: async () => okResponse() });
