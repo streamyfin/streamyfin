@@ -1,4 +1,3 @@
-import { describe, expect, test } from "bun:test";
 import { episodeStillUrl, resizedImageUrl, tmdbImageUrl } from "./images";
 
 const base = "https://seerr.example";

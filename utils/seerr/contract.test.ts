@@ -1,6 +1,6 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import type { Fixture } from "../../scripts/seerr/capture";
+import type { Fixture } from "../../scripts/seerr/fixtures";
 import { allowsNull, pathsOf, propertyAt } from "../../scripts/seerr/shape";
 import { ALWAYS_SENT, CORRECTIONS } from "./corrections";
 import declared from "./generated/api-shapes.json";

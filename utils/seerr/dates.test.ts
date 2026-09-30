@@ -1,4 +1,3 @@
-import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { formatSeerrDate, seerrLocaleTag } from "./dates";
 
 // The app formats Seerr's dates in the Seerr user's language and region,

@@ -1,4 +1,3 @@
-import { describe, expect, test } from "bun:test";
 import { isSeerrQuery } from "./queries";
 
 // What a reset of Seerr takes out of the query cache, which is kept on the

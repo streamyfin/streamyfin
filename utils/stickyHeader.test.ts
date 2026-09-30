@@ -1,4 +1,3 @@
-import { describe, expect, test } from "bun:test";
 import { stickyHeaderOffset } from "./stickyHeader";
 
 // A section 600 points tall, 1000 points down the content, with a 48 point

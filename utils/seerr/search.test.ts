@@ -1,4 +1,3 @@
-import { describe, expect, test } from "bun:test";
 import { searchSeerr, seerrQueryString } from "./search";
 
 const fakeApi = (pages: { id: number }[][] = [[]]) => {

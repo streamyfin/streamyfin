@@ -1,6 +1,5 @@
-import { describe, expect, test } from "bun:test";
 import { SIGNED_IN_USER } from "../../utils/seerr/routes";
-import { urlFor } from "./capture";
+import { urlFor } from "./fixtures";
 
 describe("urlFor", () => {
   const base = "http://seerr.example";

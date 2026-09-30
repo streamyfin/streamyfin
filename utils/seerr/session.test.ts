@@ -1,4 +1,3 @@
-import { describe, expect, test } from "bun:test";
 import {
   SEERR_COOKIES_STORAGE_KEY,
   SEERR_USER_STORAGE_KEY,
