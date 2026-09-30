@@ -210,18 +210,26 @@ describe("the corrections", () => {
       const served = new Set(pathsOf(fixture.shape as never));
 
       // A null that became a value, a required field that reappeared, or a
-      // served name that moved: each means the entry has outlived its reason
-      // and the type built on it is now describing something else.
+      // served name that moved: each can mean the entry has outlived its
+      // reason. One capture cannot prove a null or a gap is gone for good,
+      // only that this sample had none, so those two say what to recapture
+      // before the entry goes.
       const wrong = [
         ...correction.nullable
           .filter((path) => {
             const found = propertyAt(fixture.shape, path);
             return found !== undefined && !allowsNull(found.shape);
           })
-          .map((path) => `${path} is no longer null`),
+          .map(
+            (path) =>
+              `${path} was never null here: recapture with a response where it is before dropping it`,
+          ),
         ...correction.absent
           .filter((path) => served.has(path))
-          .map((path) => `${path} is sent after all`),
+          .map(
+            (path) =>
+              `${path} was always sent here: recapture with a response that leaves it out before dropping it`,
+          ),
         ...correction.renamed
           .map(([, after]) => after)
           .filter((path) => !served.has(path))
