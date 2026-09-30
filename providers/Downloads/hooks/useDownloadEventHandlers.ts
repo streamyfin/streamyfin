@@ -1,6 +1,7 @@
 import { File } from "expo-file-system";
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
+import { toast } from "sonner-native";
 import type {
   DownloadCompleteEvent,
   DownloadErrorEvent,
@@ -101,6 +102,27 @@ export function useDownloadEventHandlers({
           event.progress > 1 ||
           !Number.isFinite(event.progress)
         ) {
+          return;
+        }
+
+        if (event.stage) {
+          const status =
+            event.stage === "remuxing" ? "preparing" : "downloading";
+          if (
+            processes.find((process) => process.id === processId)?.status !==
+            status
+          ) {
+            updatePendingDownload(processId, { status });
+          }
+          updateProcess(processId, {
+            status,
+            progress: Math.min(Math.floor(event.progress * 100), 99),
+            bytesDownloaded: event.bytesWritten,
+            estimatedTotalSizeBytes:
+              event.totalBytes > 0 ? event.totalBytes : undefined,
+            isTranscoding: event.stage === "downloading",
+            speed: undefined,
+          });
           return;
         }
 
@@ -239,10 +261,14 @@ export function useDownloadEventHandlers({
           logAndCaptureError("Handling download completion failed", error, {
             itemType: record.item?.Type,
           });
-          removePendingDownload(itemId);
+          if (record.multiTrack) {
+            updatePendingDownload(itemId, { status: "error" });
+          } else {
+            removePendingDownload(itemId);
+          }
           updateProcess(itemId, { status: "error" });
           clearSpeedData(itemId);
-          removeProcess(itemId);
+          if (!record.multiTrack) removeProcess(itemId);
         }
       },
     );
@@ -277,8 +303,26 @@ export function useDownloadEventHandlers({
           });
         }
 
-        removePendingDownload(itemId);
-        updateProcess(itemId, { status: "error" });
+        if (record.multiTrack) {
+          updatePendingDownload(itemId, {
+            status: "error",
+            error: event.error,
+          });
+          toast.error(
+            t("home.downloads.toasts.download_failed_for_item", {
+              item: record.item.Name,
+              error: event.error,
+            }),
+          );
+        } else {
+          removePendingDownload(itemId);
+        }
+        updateProcess(itemId, {
+          status: "error",
+          error: event.error,
+          isTranscoding: false,
+          speed: undefined,
+        });
 
         // Clean up speed data
         clearSpeedData(itemId);
@@ -294,9 +338,11 @@ export function useDownloadEventHandlers({
         );
 
         // Remove process after short delay
-        setTimeout(() => {
-          removeProcess(itemId);
-        }, 3000);
+        if (!record.multiTrack) {
+          setTimeout(() => {
+            removeProcess(itemId);
+          }, 3000);
+        }
       },
     );
 

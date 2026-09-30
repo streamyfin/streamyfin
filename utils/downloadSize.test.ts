@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   estimateDownloadActivitySize,
+  estimateMultiTrackDownloadSize,
   estimateTranscodeSize,
 } from "./downloadSize";
 
@@ -14,6 +15,32 @@ describe("estimateTranscodeSize", () => {
     expect(estimateTranscodeSize(undefined, 15_000_000, HOUR)).toBe(
       sizeAt(15_000_000),
     );
+  });
+
+  describe("multi-track transfer totals", () => {
+    test("counts one real video, every AAC track, and the discarded video carriers", () => {
+      expect(
+        estimateMultiTrackDownloadSize(
+          {
+            MediaStreams: [{ Type: "Video", BitRate: 3_872_000 }],
+          },
+          2,
+          HOUR,
+        ),
+      ).toBe(sizeAt(4_320_000));
+    });
+
+    test("uses source duration even though offline metadata has no TranscodingUrl", () => {
+      expect(
+        estimateMultiTrackDownloadSize(
+          {
+            RunTimeTicks: HOUR,
+            MediaStreams: [{ Type: "Video", BitRate: 3_872_000 }],
+          },
+          1,
+        ),
+      ).toBe(sizeAt(4_160_000));
+    });
   });
 
   test("uses the chosen bitrate when it is below the source", () => {

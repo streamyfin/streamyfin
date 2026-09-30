@@ -1,0 +1,42 @@
+diff --git a/mkvmuxer/mkvmuxer.h b/mkvmuxer/mkvmuxer.h
+--- a/mkvmuxer/mkvmuxer.h
++++ b/mkvmuxer/mkvmuxer.h
+@@ -703,6 +703,9 @@
+   uint64_t seek_pre_roll() const { return seek_pre_roll_; }
++  void set_default_track(bool value) { default_track_ = value; }
++  bool default_track() const { return default_track_; }
++
+   void set_default_duration(uint64_t default_duration) {
+     default_duration_ = default_duration;
+   }
+@@ -731,6 +734,7 @@
+   uint64_t default_duration_;
++  bool default_track_ = true;
+ 
+   // Size of the CodecPrivate data in bytes.
+   uint64_t codec_private_length_;
+diff --git a/mkvmuxer/mkvmuxer.cc b/mkvmuxer/mkvmuxer.cc
+--- a/mkvmuxer/mkvmuxer.cc
++++ b/mkvmuxer/mkvmuxer.cc
+@@ -726,6 +726,8 @@
+   size += EbmlElementSize(libwebm::kMkvTrackUID, static_cast<uint64>(uid_));
+   size += EbmlElementSize(libwebm::kMkvTrackType, static_cast<uint64>(type_));
++  size += EbmlElementSize(libwebm::kMkvFlagDefault,
++                          static_cast<uint64>(default_track_));
+   if (codec_id_)
+     size += EbmlElementSize(libwebm::kMkvCodecID, codec_id_);
+@@ -801,6 +803,8 @@
+   size += EbmlElementSize(libwebm::kMkvTrackUID, static_cast<uint64>(uid_));
+   size += EbmlElementSize(libwebm::kMkvTrackType, static_cast<uint64>(type_));
++  size += EbmlElementSize(libwebm::kMkvFlagDefault,
++                          static_cast<uint64>(default_track_));
+   if (codec_id_)
+     size += EbmlElementSize(libwebm::kMkvCodecID, codec_id_);
+@@ -837,6 +841,9 @@
+                         static_cast<uint64>(type_)))
+     return false;
++  if (!WriteEbmlElement(writer, libwebm::kMkvFlagDefault,
++                        static_cast<uint64>(default_track_)))
++    return false;
+   if (max_block_additional_id_) {
+     if (!WriteEbmlElement(writer, libwebm::kMkvMaxBlockAdditionID,

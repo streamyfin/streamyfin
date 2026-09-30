@@ -562,6 +562,9 @@
     "downloads": {
       "downloads_title": "Downloads",
       "transcoding": "Transcoding",
+      "preparing": "Preparing download",
+      "preparing_hint": "Combining audio tracks. If preparation pauses in the background, reopen the app to finish.",
+      "retry_failed": "Could not retry download",
       "series": "Series",
       "movies": "Movies",
       "other_media": "Other media",
@@ -870,7 +873,10 @@
       "download_movie": "Download movie",
       "download_x_item": "Download {{item_count}} items",
       "download_unwatched_only": "Unwatched only",
-      "download_button": "Download"
+      "download_button": "Download",
+      "additional_audio": "Additional audio tracks",
+      "additional_audio_count": "Additional audio tracks: {{count}}",
+      "multitrack_hint": "Saves an H.264 MKV with 128 kbps AAC audio, up to stereo. Extra tracks temporarily include a tiny video stream, which is discarded. This requires additional server encoding; subtitles remain separate files."
     },
     "mark_played": "Mark as watched",
     "mark_unplayed": "Mark as unwatched",

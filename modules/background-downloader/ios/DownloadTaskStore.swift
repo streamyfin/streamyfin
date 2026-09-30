@@ -58,6 +58,7 @@ struct QueuedDownloadInfo: Codable {
 final class DownloadTaskStore {
   private static let storageKey = "com.fredrikburmester.streamyfin.backgrounddownloader.tasks"
   private static let queueStorageKey = "com.fredrikburmester.streamyfin.backgrounddownloader.queue"
+  private static let activityUIStorageKey = "com.fredrikburmester.streamyfin.backgrounddownloader.activityUI"
 
   private let defaults: UserDefaults
 
@@ -116,5 +117,13 @@ final class DownloadTaskStore {
   func saveQueue(_ queue: [QueuedDownloadInfo]) {
     guard let data = try? JSONEncoder().encode(queue) else { return }
     defaults.set(data, forKey: Self.queueStorageKey)
+  }
+
+  func loadActivityUIEnabled() -> Bool {
+    defaults.object(forKey: Self.activityUIStorageKey) as? Bool ?? true
+  }
+
+  func saveActivityUIEnabled(_ enabled: Bool) {
+    defaults.set(enabled, forKey: Self.activityUIStorageKey)
   }
 }

@@ -148,6 +148,15 @@ public class BackgroundDownloaderModule: Module {
   /// delivered while backgrounded without flooding the log.
   private var lastProgressLogTime = Date.distantPast
   private let taskStore = DownloadTaskStore()
+  private lazy var bundles = DownloadBundleCoordinator(
+    queue: stateQueue,
+    emit: { [weak self] name, payload in self?.handleBundleEventLocked(name, payload) },
+    keepAlive: { [weak self] metadata in self?.startContinuedProcessingLocked(metadata: metadata) },
+    changed: { [weak self] in
+      self?.stateQueue.async { self?.processNextInQueueSafelyLocked() }
+    },
+    canTransfer: { [weak self] in self?.downloadTasks.isEmpty ?? false }
+  )
 
   /// Mirrors `downloadTasks` into the App Group so a transfer that finishes after the app is
   /// terminated can still be resolved when iOS relaunches us.
@@ -165,16 +174,25 @@ public class BackgroundDownloaderModule: Module {
       "onDownloadStarted"
     )
 
-    OnCreate {
+    OnCreate { [self] in
       self.stateQueue.sync {
         // Restore tasks left behind by a previous process before reconnecting to the session, so a
         // download that completed while we were dead can still be moved into place.
         self.downloadTasks = self.taskStore.load()
         self.downloadQueue = self.taskStore.loadQueue()
+        self.downloadActivityUIEnabled = self.taskStore.loadActivityUIEnabled()
         backgroundDownloaderLog.notice(
           "Module created: restored \(self.downloadTasks.count) task(s), \(self.downloadQueue.count) queued"
         )
         self.initializeSessionLocked()
+        if let session = self.session { self.bundles.connect(session) }
+        #if os(iOS) && compiler(>=6.2)
+          if #available(iOS 26.0, *) {
+            DownloadContinuedProcessingKeeper.shared.onExecutionPermissionChanged = { [weak self] allowed in
+              self?.bundles.setBackgroundPermission(allowed)
+            }
+          }
+        #endif
         self.reconcileLiveActivitiesLocked()
         self.queueDidChangeLocked()
         // Re-arm a queue that outlived its process. No-op while a restored task is still
@@ -188,6 +206,7 @@ public class BackgroundDownloaderModule: Module {
     Function("setLiveActivityEnabled") { (enabled: Bool) in
       self.stateQueue.sync {
         self.downloadActivityUIEnabled = enabled
+        self.taskStore.saveActivityUIEnabled(enabled)
       }
       #if os(iOS)
         if #available(iOS 16.2, *) {
@@ -199,7 +218,7 @@ public class BackgroundDownloaderModule: Module {
         // keeper task that is already running. The transfer itself continues in the background
         // session; the process just suspends and the completion wake handles the rest.
         if #available(iOS 26.0, *), !enabled {
-          DownloadContinuedProcessingKeeper.shared.finish()
+          DownloadContinuedProcessingKeeper.shared.finish(success: false)
         }
       #endif
     }
@@ -257,6 +276,22 @@ public class BackgroundDownloaderModule: Module {
       }
     }
 
+    AsyncFunction("enqueueMultiTrackDownload") {
+      (planJson: String, metadata: DownloadMetadataRecord, headers: [String: String]?) -> Int in
+      try self.stateQueue.sync {
+        try self.bundles.enqueue(
+          planJson: planJson, metadata: metadata.toMetadata(), requestHeaders: headers
+        )
+      }
+    }
+
+    AsyncFunction("cancelMultiTrackDownload") { (itemId: String) in
+      self.stateQueue.sync {
+        self.bundles.cancel(itemId: itemId)
+        self.processNextInQueueSafelyLocked()
+      }
+    }
+
     Function("cancelDownload") { (taskId: Int) in
       self.cancelLiveActivity(taskId: taskId)
       let session = self.stateQueue.sync { self.session }
@@ -287,6 +322,7 @@ public class BackgroundDownloaderModule: Module {
       // would immediately start the next queued item, resurrecting what was just cancelled.
       let session = self.stateQueue.sync { () -> URLSession? in
         self.downloadQueue.removeAll()
+        self.bundles.cancelAll()
         self.queueDidChangeLocked()
         return self.session
       }
@@ -306,8 +342,8 @@ public class BackgroundDownloaderModule: Module {
       return try await withCheckedThrowingContinuation { continuation in
         // Running and queued are snapshotted in one stateQueue block, so an item mid-transition
         // (dequeued and started) can never be missing from both lists.
-        let (session, tasksSnapshot, queueSnapshot) = self.stateQueue.sync {
-          (self.session, self.downloadTasks, self.downloadQueue)
+        let (session, tasksSnapshot, queueSnapshot, bundleSnapshots) = self.stateQueue.sync {
+          (self.session, self.downloadTasks, self.downloadQueue, self.bundles.snapshots())
         }
 
         let queuedDownloads = queueSnapshot.map { queued -> [String: Any] in
@@ -326,7 +362,7 @@ public class BackgroundDownloaderModule: Module {
         }
 
         guard let session else {
-          continuation.resume(returning: queuedDownloads)
+          continuation.resume(returning: queuedDownloads + bundleSnapshots)
           return
         }
 
@@ -350,7 +386,7 @@ public class BackgroundDownloaderModule: Module {
             }
             return entry
           }
-          continuation.resume(returning: activeDownloads + queuedDownloads)
+          continuation.resume(returning: activeDownloads + queuedDownloads + bundleSnapshots)
         }
       }
     }
@@ -465,6 +501,7 @@ public class BackgroundDownloaderModule: Module {
   // MARK: - Handlers (stateQueue-confined)
 
   private func handleProgressLocked(taskId: Int, bytesWritten: Int64, totalBytes: Int64) {
+    if bundles.handleProgress(taskId: taskId, bytes: bytesWritten, total: totalBytes) { return }
     let progress = totalBytes > 0
       ? Double(bytesWritten) / Double(totalBytes)
       : 0.0
@@ -512,6 +549,9 @@ public class BackgroundDownloaderModule: Module {
     location: URL,
     downloadTask: URLSessionDownloadTask
   ) {
+    if bundles.handleComplete(
+      taskId: taskId, location: location, taskDescription: downloadTask.taskDescription
+    ) { return }
     guard let taskInfo = downloadTasks[taskId] else {
       backgroundDownloaderLog.error("Completion for task \(taskId) but no task info was found")
       finishLiveActivity(taskId: taskId, state: .failed)
@@ -624,6 +664,7 @@ public class BackgroundDownloaderModule: Module {
   }
 
   private func handleErrorLocked(taskId: Int, error: Error) {
+    if bundles.handleError(taskId: taskId, error: error) { return }
     let isCancelled = (error as NSError).code == NSURLErrorCancelled
     let itemId = downloadTasks[taskId]?.metadata?.itemId
 
@@ -662,7 +703,7 @@ public class BackgroundDownloaderModule: Module {
     }
 
     // One download at a time
-    guard downloadTasks.isEmpty else {
+    guard downloadTasks.isEmpty, !bundles.isBusy else {
       return -1
     }
 
@@ -683,6 +724,7 @@ public class BackgroundDownloaderModule: Module {
   }
 
   private func processNextInQueueSafelyLocked() {
+    bundles.advance()
     do {
       _ = try processNextInQueueLocked()
     } catch {
@@ -800,9 +842,20 @@ public class BackgroundDownloaderModule: Module {
   private func finishContinuedProcessingIfIdleLocked() {
     #if os(iOS) && compiler(>=6.2)
       guard #available(iOS 26.0, *) else { return }
-      guard downloadTasks.isEmpty, downloadQueue.isEmpty else { return }
-      DownloadContinuedProcessingKeeper.shared.finish()
+      guard downloadTasks.isEmpty, downloadQueue.isEmpty, !bundles.hasPendingWork else { return }
+      DownloadContinuedProcessingKeeper.shared.finish(success: !bundles.hasFailures)
     #endif
+  }
+
+  private func handleBundleEventLocked(_ name: String, _ payload: [String: Any]) {
+    #if os(iOS) && compiler(>=6.2)
+      if #available(iOS 26.0, *), let progress = payload["progress"] as? Double {
+        DownloadContinuedProcessingKeeper.shared.updateProgress(
+          completedBytes: Int64(progress * 1_000_000), totalBytes: 1_000_000
+        )
+      }
+    #endif
+    sendEvent(name, payload)
   }
 
   /// Reconnects Live Activities left by a previous process to their restored tasks and clears the

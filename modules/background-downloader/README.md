@@ -12,6 +12,46 @@ A native iOS and Android module for downloading large files in the background us
 - **Error Handling**: Comprehensive error reporting
 - **Cross-Platform**: Works on both iOS and Android
 
+## Multi-track transcoded downloads
+
+For an individual movie or episode, the download sheet can retain additional audio
+tracks. Selecting extras opts into an H.264/AAC download assembled as one seekable
+MKV. All selected audio is converted to **128 kbps AAC, up to stereo**, including the
+primary track; this is a size-saving mode, not preservation of surround/Atmos or
+the original audio bitstreams. Mono tracks remain mono. Ordinary single-track and season downloads retain
+their existing behavior.
+
+Stock Jellyfin's audio-only endpoint currently ignores the requested audio index
+([jellyfin/jellyfin#17436](https://github.com/jellyfin/jellyfin/issues/17436)).
+The temporary workaround negotiates each additional track through the video
+endpoint with a tiny, low-frame-rate H.264 carrier. The server must decode and
+encode that carrier, and its bytes are transferred, but **none of those extra video
+tracks enter the final MKV**. The full-quality video is downloaded only once.
+The TODO in `utils/jellyfin/media/multiTrackDownload.ts` tracks replacing this
+workaround with audio-only requests once supported servers honor the index.
+Do not remove it for affected server versions merely because an upstream patch
+has merged.
+
+The native job owns the sequential transfers and packet-copy remux, not the JS
+runtime. A download is not available offline until the final MKV has been closed
+and atomically published. Completed input files survive an interrupted job;
+**Retry** reuses them and **Cancel** removes the job's temporary files. Extra disk
+space is needed while the inputs and final output coexist.
+
+On Android, a foreground-service notification covers downloading and preparation.
+On iOS 26+, user-started continued processing can cover both stages. iOS may
+interrupt that work; older iOS versions and sessions without continued-processing
+permission finish preparation when the app is foregrounded. “Preparing download”
+is not a completion notification.
+
+Text subtitles retain the existing sidecar download behavior. A selected
+image-based subtitle is burned into the main video and cannot be switched off.
+This first version does not embed subtitle files or fonts into the MKV.
+Downloads remain unavailable on TV.
+
+The feature requires a rebuilt native app; the extra-track picker is hidden when
+running a binary without the multi-track native API.
+
 ## Usage
 
 ### Basic Example

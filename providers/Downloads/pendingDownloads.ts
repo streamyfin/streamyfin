@@ -4,11 +4,22 @@ import type {
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { File, Paths } from "expo-file-system";
 import type { Bitrate } from "@/components/BitrateSelector";
-import type { DownloadActivityMetadata } from "@/modules/background-downloader";
+import type {
+  DownloadActivityMetadata,
+  MultiTrackDownloadPlan,
+} from "@/modules/background-downloader";
+import BackgroundDownloader from "@/modules/background-downloader";
+import {
+  deleteSecureCustomHeaderValues,
+  resolveCustomHeaderValues,
+  secureCustomHeaderMetadata,
+} from "@/utils/customHeaders/secureValues";
+import type { CustomHeader } from "@/utils/customHeaders/types";
 import { logAndCaptureError } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
 import { addDownloadedItem } from "./database";
 import type { DownloadedItem, MediaTimeSegment, TrickPlayData } from "./types";
+import { uriToFilePath } from "./utils";
 
 /**
  * Persisted record of an in-flight download, written at enqueue time and removed on completion.
@@ -24,8 +35,8 @@ import type { DownloadedItem, MediaTimeSegment, TrickPlayData } from "./types";
 export interface PendingDownload {
   /** Jellyfin item id; the record key, and how native events are correlated back. */
   itemId: string;
-  /** `queued` until the native started event fires, then `downloading`. */
-  status: "queued" | "downloading";
+  /** Persisted stage; multi-track failures retain their completed inputs. */
+  status: "queued" | "downloading" | "preparing" | "error";
   enqueuedAt: string;
   /** Native task id, known once the download actually starts. */
   taskId?: number;
@@ -49,6 +60,12 @@ export interface PendingDownload {
   subtitleStreamIndex?: number;
   /** Metadata originally handed to native; reused when re-enqueueing after a relaunch. */
   activityMetadata?: DownloadActivityMetadata;
+  /** Extra inputs; paths are derived from videoFileName after a relaunch. */
+  multiTrack?: Omit<MultiTrackDownloadPlan, "videoUrl" | "destinationPath">;
+  /** Last failure, shown until retry or cancellation. */
+  error?: string;
+  /** Header names and SecureStore references; never plaintext credentials. */
+  requiredHttpHeaders?: CustomHeader[];
 }
 
 const PENDING_DOWNLOADS_KEY = "downloads.pending.v1.json";
@@ -87,10 +104,26 @@ export function getPendingDownload(
   return readAll()[itemId];
 }
 
-export function savePendingDownload(record: PendingDownload): void {
+export function savePendingDownload(
+  record: PendingDownload,
+  requiredHttpHeaders?: Record<string, string>,
+): PendingDownload {
   const records = readAll();
-  records[record.itemId] = record;
+  const stored = { ...record };
+  if (requiredHttpHeaders && Object.keys(requiredHttpHeaders).length > 0) {
+    stored.requiredHttpHeaders = secureCustomHeaderMetadata(
+      `download:${record.itemId}`,
+      Object.entries(requiredHttpHeaders).map(([key, value]) => ({
+        key,
+        value,
+        enabled: true,
+      })),
+      records[record.itemId]?.requiredHttpHeaders,
+    );
+  }
+  records[record.itemId] = stored;
   writeAll(records);
+  return stored;
 }
 
 export function updatePendingDownload(
@@ -107,6 +140,7 @@ export function updatePendingDownload(
 export function removePendingDownload(itemId: string): void {
   const records = readAll();
   if (!(itemId in records)) return;
+  deleteSecureCustomHeaderValues(records[itemId].requiredHttpHeaders ?? []);
   delete records[itemId];
   writeAll(records);
 }
@@ -114,6 +148,73 @@ export function removePendingDownload(itemId: string): void {
 /** URI of the video file a pending download writes to (derived, never stored). */
 export function pendingDownloadFileUri(record: PendingDownload): string {
   return new File(Paths.document, record.videoFileName).uri;
+}
+
+/** Reuses native completed inputs when enqueueing or retrying a bundle. */
+export async function enqueuePendingDownload(
+  record: PendingDownload,
+  headers?: Record<string, string>,
+): Promise<number> {
+  const destinationPath = uriToFilePath(pendingDownloadFileUri(record));
+  const required = resolveCustomHeaderValues(record.requiredHttpHeaders ?? []);
+  if (
+    required.length !== (record.requiredHttpHeaders?.length ?? 0) ||
+    required.some((header) => !header.value)
+  ) {
+    throw new Error(
+      "Required download credentials are unavailable; unlock the device and retry",
+    );
+  }
+  const mergedHeaders = new Map(
+    Object.entries(headers ?? {}).map(([name, value]) => [
+      name.toLowerCase(),
+      { name, value },
+    ]),
+  );
+  for (const { key: name, value } of required) {
+    const key = name.toLowerCase();
+    const existing = mergedHeaders.get(key);
+    if (existing && existing.value !== value) {
+      throw new Error(
+        "Required download headers conflict with the server proxy headers",
+      );
+    }
+    mergedHeaders.set(key, { name, value });
+  }
+  const nativeHeaders =
+    mergedHeaders.size > 0
+      ? Object.fromEntries(
+          [...mergedHeaders.values()].map(({ name, value }) => [name, value]),
+        )
+      : undefined;
+  let taskId: number;
+  if (record.multiTrack) {
+    if (!record.activityMetadata) {
+      throw new Error("Multi-track download is missing its native metadata");
+    }
+    taskId = await BackgroundDownloader.enqueueMultiTrackDownload(
+      {
+        ...record.multiTrack,
+        videoUrl: record.inputUrl,
+        destinationPath,
+      },
+      record.activityMetadata,
+      nativeHeaders,
+    );
+  } else {
+    taskId = await BackgroundDownloader.enqueueDownload(
+      record.inputUrl,
+      destinationPath,
+      record.activityMetadata,
+      nativeHeaders,
+    );
+  }
+  updatePendingDownload(record.itemId, {
+    status: taskId === -1 ? "queued" : "downloading",
+    taskId,
+    error: undefined,
+  });
+  return taskId;
 }
 
 /**
@@ -127,6 +228,12 @@ export function finalizePendingDownload(
   videoFileSize: number,
   isTranscoded?: boolean,
 ): DownloadedItem {
+  if (
+    record.multiTrack &&
+    (!Number.isFinite(videoFileSize) || videoFileSize <= 0)
+  ) {
+    throw new Error("Multi-track download did not produce a non-empty MKV");
+  }
   const downloadedItem: DownloadedItem = {
     item: record.item,
     mediaSource: record.mediaSource,
@@ -143,6 +250,7 @@ export function finalizePendingDownload(
       audioStreamIndex: record.audioStreamIndex ?? 0,
       subtitleStreamIndex: record.subtitleStreamIndex ?? -1,
       isTranscoded: isTranscoded ?? !!record.mediaSource.TranscodingUrl,
+      ...(record.multiTrack && { isTranscoded: true, isMultiTrack: true }),
     },
   };
 

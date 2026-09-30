@@ -10,7 +10,6 @@ import android.os.Binder
 import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
-import android.os.SystemClock
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
@@ -20,12 +19,13 @@ class DownloadService : Service() {
   private val NOTIFICATION_ID = 1001
   private val CHANNEL_ID = "download_channel"
 
-  // Time threshold to detect if we're in boot context (10 minutes after boot)
-  private val BOOT_THRESHOLD_MS = 10 * 60 * 1000L
   private val WAKE_LOCK_TAG = "Streamyfin::DownloadWakeLock"
 
   private val binder = DownloadServiceBinder()
   private var activeDownloadCount = 0
+  private var bundleActive = false
+  private var bundleRemuxing = false
+  private var foregroundType = 0
   private var currentDownloadTitle = "Preparing download..."
   private var currentProgress = 0
   private var isForegroundStarted = false
@@ -55,53 +55,50 @@ class DownloadService : Service() {
   override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
     Log.d(TAG, "DownloadService started")
 
-    // On Android 15+, dataSync foreground services cannot be started from BOOT_COMPLETED context
-    // Check if we're likely in a boot context and skip foreground start if so
-    if (Build.VERSION.SDK_INT >= 35 && isLikelyBootContext()) {
-      Log.w(TAG, "Skipping foreground start - likely boot context on Android 15+")
-      stopSelf()
-      return START_NOT_STICKY
-    }
-
-    startForegroundSafely()
+    // There is no boot receiver. Uptime cannot distinguish a user starting a download shortly
+    // after boot from BOOT_COMPLETED; let the platform enforce actual foreground restrictions.
+    bundleRemuxing = DownloadBundleManager.get(this).needsMediaProcessing()
+    if (!startForegroundSafely()) return START_NOT_STICKY
+    DownloadBundleManager.get(this).onServiceReady(this)
     return START_STICKY
-  }
-
-  /**
-   * Check if we're likely in a boot context by checking system uptime.
-   * If the system has been up for less than the threshold, we might be in boot context.
-   */
-  private fun isLikelyBootContext(): Boolean {
-    val uptimeMs = SystemClock.elapsedRealtime()
-    return uptimeMs < BOOT_THRESHOLD_MS
   }
 
   /**
    * Start foreground service safely with proper service type for Android 14+
    */
-  private fun startForegroundSafely() {
-    if (isForegroundStarted) return
+  private fun startForegroundSafely(): Boolean {
+    val type = if (Build.VERSION.SDK_INT >= 35 && bundleRemuxing) {
+      ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROCESSING or
+        if (activeDownloadCount > 0) ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC else 0
+    } else {
+      ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+    }
+    if (isForegroundStarted && foregroundType == type) return true
 
-    try {
+    return try {
       if (Build.VERSION.SDK_INT >= 34) {
         ServiceCompat.startForeground(
           this,
           NOTIFICATION_ID,
           createNotification(),
-          ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+          type
         )
       } else {
         startForeground(NOTIFICATION_ID, createNotification())
       }
       isForegroundStarted = true
+      foregroundType = type
+      true
     } catch (e: Exception) {
       Log.e(TAG, "Failed to start foreground service", e)
       // If we can't start foreground, stop the service
       stopSelf()
+      false
     }
   }
   
   override fun onDestroy() {
+    DownloadBundleManager.get(this).onServiceStopped(this, "Download service stopped; reopen the app to resume")
     releaseWakeLock()
     Log.d(TAG, "DownloadService destroyed")
     super.onDestroy()
@@ -142,19 +139,23 @@ class DownloadService : Service() {
     return builder.build()
   }
   
-  /**
-   * The module owns the task list and is the only source of truth for how many
-   * downloads are running; the wake lock and the foreground notification follow
-   * it. Synchronized because downloads start on the JS thread and finish on
-   * OkHttp dispatcher threads.
-   */
+  /** The native manager combines bridge-owned single transfers and bridge-independent bundles. */
   @Synchronized
-  fun syncActiveDownloads(count: Int) {
-    activeDownloadCount = count
+  internal fun syncBundleActivity(active: Boolean, remuxing: Boolean, normalCount: Int) {
+    bundleActive = active
+    bundleRemuxing = remuxing
+    activeDownloadCount = normalCount
+    syncWork()
+  }
+
+  private fun syncWork() {
     Log.d(TAG, "Active downloads: $activeDownloadCount")
-    if (activeDownloadCount > 0) {
+    if (activeDownloadCount > 0 || bundleActive) {
       acquireWakeLock()
-      startForegroundSafely()
+      if (!startForegroundSafely()) {
+        // Do not run a mux without a granted foreground-service type.
+        DownloadBundleManager.get(this).onServiceStopped(this, "Background execution unavailable; reopen the app to resume")
+      }
       return
     }
     releaseWakeLock()
@@ -163,6 +164,16 @@ class DownloadService : Service() {
       isForegroundStarted = false
     }
     stopSelf()
+  }
+
+  override fun onTimeout(startId: Int, fgsType: Int) {
+    // Android 15 gives only a few seconds to stop after the dataSync/mediaProcessing quota.
+    // Cancellation is cooperative; persist inputs and stop the service immediately, not after mux.
+    releaseWakeLock()
+    ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
+    isForegroundStarted = false
+    stopSelf()
+    DownloadBundleManager.get(this).onServiceStopped(this, "Background execution expired; reopen the app to resume")
   }
 
   private fun acquireWakeLock() {
@@ -190,5 +201,3 @@ class DownloadService : Service() {
     notificationManager.notify(NOTIFICATION_ID, createNotification())
   }
 }
-
-

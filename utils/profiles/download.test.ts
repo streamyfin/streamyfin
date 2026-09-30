@@ -7,7 +7,8 @@ mock.module("expo", () => ({
   requireOptionalNativeModule: () => null,
 }));
 
-const { generateDownloadProfile } = await import("./download");
+const { generateDownloadProfile, generateMultiTrackDownloadProfile } =
+  await import("./download");
 
 describe("generateDownloadProfile", () => {
   test("leaves the bitrate uncapped so Max means Max", () => {
@@ -75,5 +76,73 @@ describe("generateDownloadProfile", () => {
     expect(channels("5.1")).toBe("6");
     expect(channels("passthrough")).toBe("8");
     expect(channels("auto")).toBe("6");
+  });
+});
+
+describe("generateMultiTrackDownloadProfile", () => {
+  test("only negotiates progressive H.264 baseline and AAC-LC up to stereo", () => {
+    const profile = generateMultiTrackDownloadProfile();
+
+    expect(profile.DirectPlayProfiles).toEqual([]);
+    expect(profile.MaxStreamingBitrate).toBeUndefined();
+    expect(profile.TranscodingProfiles).toEqual([
+      {
+        Type: "Video",
+        Context: "Streaming",
+        Protocol: "http",
+        Container: "mp4",
+        VideoCodec: "h264",
+        AudioCodec: "aac",
+        MaxAudioChannels: "2",
+        CopyTimestamps: false,
+        EnableAudioVbrEncoding: false,
+      },
+    ]);
+    expect(profile.CodecProfiles).toContainEqual(
+      expect.objectContaining({
+        Type: "Video",
+        Codec: "h264",
+        Conditions: expect.arrayContaining([
+          { Condition: "Equals", Property: "VideoProfile", Value: "baseline" },
+        ]),
+      }),
+    );
+    expect(profile.CodecProfiles).toContainEqual({
+      Type: "VideoAudio",
+      Codec: "aac",
+      Conditions: [
+        { Condition: "Equals", Property: "AudioProfile", Value: "LC" },
+        { Condition: "LessThanEqual", Property: "AudioChannels", Value: "2" },
+        {
+          Condition: "LessThanEqual",
+          Property: "AudioBitrate",
+          Value: "128000",
+        },
+      ],
+    });
+    expect(profile.SubtitleProfiles).toEqual(
+      generateDownloadProfile().SubtitleProfiles,
+    );
+  });
+
+  test("extra audio negotiation caps its disposable video, not the main video", () => {
+    const mainVideo = generateMultiTrackDownloadProfile().CodecProfiles?.find(
+      (profile) => profile.Type === "Video",
+    );
+    const extraVideo = generateMultiTrackDownloadProfile(
+      true,
+    ).CodecProfiles?.find((profile) => profile.Type === "Video");
+    const tinyVideoConditions = [
+      { Condition: "LessThanEqual", Property: "Width", Value: "160" },
+      { Condition: "LessThanEqual", Property: "Height", Value: "90" },
+      { Condition: "LessThanEqual", Property: "VideoFramerate", Value: "1" },
+      { Condition: "LessThanEqual", Property: "VideoBitrate", Value: "32000" },
+    ];
+    expect(extraVideo?.Conditions).toEqual(
+      expect.arrayContaining(tinyVideoConditions),
+    );
+    for (const condition of tinyVideoConditions) {
+      expect(mainVideo?.Conditions).not.toContainEqual(condition);
+    }
   });
 });

@@ -208,12 +208,11 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
     };
 
     const fetchTracks = async () => {
-      // Check if this is offline transcoded content
-      // For transcoded offline content, only ONE audio track exists in the file
+      // Legacy transcoded downloads contain only the originally selected audio.
       const isOfflineTranscoded =
         offline && downloadedItem?.userData?.isTranscoded === true;
 
-      if (isOfflineTranscoded) {
+      if (isOfflineTranscoded && !downloadedItem.userData.isMultiTrack) {
         // Build single audio track entry - only the downloaded track exists
         const downloadedAudioIndex = downloadedItem.userData.audioStreamIndex;
         const downloadedTrack = allAudio.find(
@@ -291,6 +290,11 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
         selectedIndex: currentSubtitleIndex,
         offLabel: "Disable",
         isTranscoding,
+        ...(isOfflineTranscoded && {
+          offlineTranscoded: {
+            burnedInIndex: downloadedItem.userData.subtitleStreamIndex,
+          },
+        }),
         // TV is the only surface that can download a sidecar mid-playback.
         localSubs: Platform.isTV ? localSubFiles : undefined,
         formatLabel: (s) => s.DisplayTitle || "Unknown",
@@ -301,6 +305,7 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
         isLocal: row.kind === "sidecar",
         localPath: row.localPath,
         setTrack: () => {
+          if (row.kind === "burnedIn") return;
           rememberRef.current("subtitle", row);
           if (row.kind === "sidecar" && row.localPath) {
             playerControls.addSubtitleFile(row.localPath, true);

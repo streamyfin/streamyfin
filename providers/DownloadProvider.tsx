@@ -125,6 +125,7 @@ function useDownloadProvider() {
   const {
     startBackgroundDownload,
     cancelDownload,
+    retryDownload,
     deleteFile,
     deleteItems,
     deleteAllFiles,
@@ -151,6 +152,7 @@ function useDownloadProvider() {
     deleteFileByType,
     removeProcess,
     cancelDownload,
+    retryDownload,
     getDownloadedItemSize,
     getDownloadedItemById,
     updateDownloadedItem,
@@ -180,6 +182,7 @@ export function useDownload() {
       deleteFileByType: async () => {},
       removeProcess: () => {},
       cancelDownload: async () => {},
+      retryDownload: async () => {},
       triggerRefresh: () => {},
       startDownload: async () => {},
       getDownloadedItemSize: () => 0,
