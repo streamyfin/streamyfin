@@ -7,6 +7,7 @@ import CountryFlag from "react-native-country-flag";
 import { Text } from "@/components/common/Text";
 import { useSeerr } from "@/hooks/useSeerr";
 import { ANIME_KEYWORD_ID } from "@/utils/seerr/data";
+import { formatSeerrDate, seerrLocaleTag } from "@/utils/seerr/dates";
 import type { MovieDetails, TvDetails } from "@/utils/seerr/types";
 
 interface Release {
@@ -16,12 +17,6 @@ interface Release {
   release_date: string;
   type: number;
 }
-
-export const dateOpts: Intl.DateTimeFormatOptions = {
-  year: "numeric",
-  month: "long",
-  day: "numeric",
-};
 
 const Facts: React.FC<
   { title: string; facts?: string[] | React.ReactNode[] } & ViewProps
@@ -58,6 +53,7 @@ const DetailFacts: React.FC<
 > = ({ details, className, ...props }) => {
   const { seerrRegion: region, seerrLocale: locale } = useSeerr();
   const { t } = useTranslation();
+  const tag = seerrLocaleTag(locale, region);
 
   const releases = useMemo(
     () =>
@@ -83,43 +79,35 @@ const DetailFacts: React.FC<
     [releases],
   );
 
-  const firstAirDate = useMemo(() => {
-    const firstAirDate = (details as TvDetails)?.firstAirDate;
-    if (firstAirDate) {
-      return new Date(firstAirDate).toLocaleDateString(
-        `${locale}-${region}`,
-        dateOpts,
-      );
-    }
-  }, [details]);
+  const firstAirDate = useMemo(
+    () => formatSeerrDate((details as TvDetails)?.firstAirDate, tag),
+    [details, tag],
+  );
 
   const nextAirDate = useMemo(() => {
     const firstAirDate = (details as TvDetails)?.firstAirDate;
     const nextAirDate = (details as TvDetails)?.nextEpisodeToAir?.airDate;
     if (nextAirDate && firstAirDate !== nextAirDate) {
-      return new Date(nextAirDate).toLocaleDateString(
-        `${locale}-${region}`,
-        dateOpts,
-      );
+      return formatSeerrDate(nextAirDate, tag);
     }
-  }, [details]);
+  }, [details, tag]);
 
   const revenue = useMemo(
     () =>
-      (details as MovieDetails)?.revenue?.toLocaleString?.(
-        `${locale}-${region}`,
-        { style: "currency", currency: "USD" },
-      ),
-    [details],
+      (details as MovieDetails)?.revenue?.toLocaleString?.(tag, {
+        style: "currency",
+        currency: "USD",
+      }),
+    [details, tag],
   );
 
   const budget = useMemo(
     () =>
-      (details as MovieDetails)?.budget?.toLocaleString?.(
-        `${locale}-${region}`,
-        { style: "currency", currency: "USD" },
-      ),
-    [details],
+      (details as MovieDetails)?.budget?.toLocaleString?.(tag, {
+        style: "currency",
+        currency: "USD",
+      }),
+    [details, tag],
   );
 
   const streamingProviders = useMemo(
@@ -174,12 +162,7 @@ const DetailFacts: React.FC<
                     color='white'
                   />
                 )}
-                <Text>
-                  {new Date(r.release_date).toLocaleDateString(
-                    `${locale}-${region}`,
-                    dateOpts,
-                  )}
-                </Text>
+                <Text>{formatSeerrDate(r.release_date, tag)}</Text>
               </View>
             ))}
           />

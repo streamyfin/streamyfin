@@ -22,12 +22,12 @@ import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { ParallaxScrollContext } from "@/components/ParallaxPage";
 import { RoundButton } from "@/components/RoundButton";
-import { dateOpts } from "@/components/seerr/DetailFacts";
 import SeerrStatusIcon from "@/components/seerr/SeerrStatusIcon";
 import { SheetColors } from "@/constants/Colors";
 import { SEERR_SEASON_HEADER_HEIGHT } from "@/constants/Seerr";
 import { useSeerr } from "@/hooks/useSeerr";
 import { useSeerrPublicSettings } from "@/hooks/useSeerrPublicSettings";
+import { formatSeerrDate, seerrLocaleTag } from "@/utils/seerr/dates";
 import { episodeStillUrl } from "@/utils/seerr/images";
 import { seasonsWithStatus, unrequestedSeasons } from "@/utils/seerr/seasons";
 import type {
@@ -68,6 +68,7 @@ const SeasonEpisodes: React.FC<{
   if (isLoading) return <Loader />;
 
   const baseUrl = seerrApi?.axios.defaults.baseURL ?? "";
+  const tag = seerrLocaleTag(locale, region);
 
   return (
     <View style={{ paddingHorizontal: 16 }}>
@@ -81,14 +82,7 @@ const SeasonEpisodes: React.FC<{
           <EpisodeRow
             episode={episode}
             still={episodeStillUrl(baseUrl, episode.stillPath)}
-            airDate={
-              episode.airDate
-                ? new Date(episode.airDate).toLocaleDateString(
-                    `${locale}-${region}`,
-                    dateOpts,
-                  )
-                : undefined
-            }
+            airDate={formatSeerrDate(episode.airDate, tag)}
           />
         </View>
       ))}

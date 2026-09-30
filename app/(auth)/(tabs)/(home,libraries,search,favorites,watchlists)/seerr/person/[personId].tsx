@@ -9,6 +9,7 @@ import { OverviewText } from "@/components/OverviewText";
 import SeerrPoster from "@/components/posters/SeerrPoster";
 import ParallaxSlideShow from "@/components/seerr/ParallaxSlideShow";
 import { useSeerr } from "@/hooks/useSeerr";
+import { formatSeerrDate, seerrLocaleTag } from "@/utils/seerr/dates";
 import type { PersonCreditCast } from "@/utils/seerr/types";
 
 export default function SeerrPersonPage() {
@@ -80,15 +81,10 @@ export default function SeerrPersonPage() {
           <Text className='font-bold text-2xl mb-1'>{data?.details?.name}</Text>
           <Text className='opacity-50'>
             {t("seerr.born")}{" "}
-            {data?.details?.birthday &&
-              new Date(data.details.birthday).toLocaleDateString(
-                `${locale}-${region}`,
-                {
-                  year: "numeric",
-                  month: "long",
-                  day: "numeric",
-                },
-              )}{" "}
+            {formatSeerrDate(
+              data?.details?.birthday,
+              seerrLocaleTag(locale, region),
+            )}{" "}
             | {data?.details?.placeOfBirth}
           </Text>
         </>
