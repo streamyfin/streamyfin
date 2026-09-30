@@ -37,6 +37,8 @@ export interface TVPosterCardProps {
   showProgress?: boolean;
   /** Show watched indicator - default: true */
   showWatchedIndicator?: boolean;
+  /** Override the item's watched state for display-only cards. */
+  isWatched?: boolean;
   /** Show the show name - default: false */
   displayShowName?: boolean;
 
@@ -98,6 +100,7 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
   showText = true,
   showProgress = true,
   showWatchedIndicator = true,
+  isWatched: isWatchedOverride,
   displayShowName = false,
   hasTVPreferredFocus = false,
   disabled = false,
@@ -208,7 +211,9 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
     return item.UserData?.PlayedPercentage || 0;
   }, [item, showProgress]);
 
-  const isWatched = showWatchedIndicator && item.UserData?.Played === true;
+  const isWatched =
+    showWatchedIndicator &&
+    (isWatchedOverride ?? item.UserData?.Played ?? false);
 
   // Blurhash for placeholder
   const blurhash = useMemo(() => {
