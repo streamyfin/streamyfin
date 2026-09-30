@@ -26,6 +26,7 @@ import { SeerrRatings } from "@/components/Ratings";
 import Cast from "@/components/seerr/Cast";
 import DetailFacts from "@/components/seerr/DetailFacts";
 import RequestModal from "@/components/seerr/RequestModal";
+import { SeerrRequestIcon } from "@/components/seerr/SeerrRequestIcon";
 import { TVSeerrPage } from "@/components/seerr/tv";
 import SeerrSeasons from "@/components/series/SeerrSeasons";
 import { ItemActions } from "@/components/series/SeriesActions";
@@ -390,10 +391,14 @@ const MobilePage: React.FC = () => {
                         color='purple'
                         className='flex-1'
                         onPress={request}
+                        iconLeft={<SeerrRequestIcon />}
                       >
-                        {requestMore
-                          ? t("seerr.request_more")
-                          : t("seerr.request_button")}
+                        {/* Play's size, beside it. */}
+                        <Text className='text-sm'>
+                          {requestMore
+                            ? t("seerr.request_more")
+                            : t("seerr.request_button")}
+                        </Text>
                       </Button>
                     )}
                     {jellyfinMediaId && !Platform.isTV && (
