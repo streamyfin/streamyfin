@@ -449,7 +449,6 @@
           "auto_login_description": "Sign in to Seerr on launch. On a server with Quick Connect this needs no password; otherwise your Jellyfin password is kept in the device's secure storage and removed when you log out.",
           "reset_seerr_config_button": "Reset Seerr config",
           "unlimited": "Unlimited",
-          "plus_n_more": "+{{n}} more",
           "order_by": {
             "DEFAULT": "Default",
             "VOTE_COUNT_AND_AVERAGE": "Vote count and average",
@@ -914,6 +913,20 @@
     "report_issue_button": "Report issue",
     "request_button": "Request",
     "request_more": "Request more",
+    "request_status": {
+      "available": "Available",
+      "partially_available": "Partially available",
+      "requested": "Requested",
+      "processing": "Processing",
+      "pending": "Pending",
+      "declined": "Declined",
+      "failed": "Failed",
+      "blocklisted": "Blocklisted",
+      "deleted": "Deleted"
+    },
+    "request_card_seasons_one": "Season",
+    "request_card_seasons_other": "Seasons",
+    "request_card_seasons": "Seasons",
     "failed_to_login": "Failed to log in",
     "cast": "Cast",
     "details": "Details",

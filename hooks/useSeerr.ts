@@ -465,10 +465,11 @@ export class SeerrApi {
   }
 
   async requests(
+    // Seerr's recent requests row: the ones added last.
     params = {
       filter: "all",
       take: 10,
-      sort: "modified",
+      sort: "added",
       skip: 0,
     },
   ): Promise<RequestResultsResponse> {

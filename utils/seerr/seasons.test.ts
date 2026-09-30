@@ -2,7 +2,6 @@ import {
   roomForAll,
   roomForOneMore,
   type SeasonRow,
-  seasonBadges,
   seasonRowStatus,
   seasonRows,
   seasonsWithStatus,
@@ -189,20 +188,6 @@ describe("seasonsWithStatus", () => {
     const details = show(media({ requests: [request()] }));
 
     expect(statusOf(details, 1)).toBe(MediaStatus.UNKNOWN);
-  });
-});
-
-describe("seasonBadges", () => {
-  const more = (count: number) => `+${count} more`;
-
-  test("shows two seasons, then how many more", () => {
-    expect(seasonBadges([1, 2, 3, 4, 5], more)).toEqual(["1", "2", "+3 more"]);
-  });
-
-  test("shows every season when there are no more than two", () => {
-    expect(seasonBadges([1, 2], more)).toEqual(["1", "2"]);
-    expect(seasonBadges([3], more)).toEqual(["3"]);
-    expect(seasonBadges([], more)).toEqual([]);
   });
 });
 

@@ -1,52 +1,15 @@
 import { useQuery } from "@tanstack/react-query";
 import type React from "react";
 import type { ViewProps } from "react-native";
-import SeerrPoster from "@/components/posters/SeerrPoster";
+import { RequestCard } from "@/components/seerr/discover/RequestCard";
 import Slide, { type SlideProps } from "@/components/seerr/discover/Slide";
 import { useSeerr } from "@/hooks/useSeerr";
 import type { MediaRequest } from "@/utils/seerr/types";
-import { MediaType } from "@/utils/seerr/types";
 
-const RequestCard: React.FC<{ request: MediaRequest }> = ({ request }) => {
-  const { seerrApi } = useSeerr();
-
-  const { data: details } = useQuery({
-    queryKey: [
-      "seerr",
-      "detail",
-      request.media.mediaType,
-      request.media.tmdbId,
-    ],
-    queryFn: async () => {
-      return request.media.mediaType === MediaType.MOVIE
-        ? seerrApi?.movieDetails(request.media.tmdbId)
-        : seerrApi?.tvDetails(request.media.tmdbId);
-    },
-    enabled: !!seerrApi,
-    refetchOnMount: true,
-    staleTime: 0,
-  });
-
-  const { data: refreshedRequest } = useQuery({
-    queryKey: ["seerr", "requests", request.media.mediaType, request.id],
-    queryFn: async () => seerrApi?.getRequest(request.id),
-    enabled: !!seerrApi,
-    refetchOnMount: true,
-    refetchInterval: 5000,
-    staleTime: 0,
-  });
-
-  return (
-    // Standing, like the other rows of Discover: lying down, the card was too
-    // short for its status and season badges, which were cut off.
-    <SeerrPoster
-      showDownloadInfo
-      item={details}
-      mediaRequest={refreshedRequest}
-    />
-  );
-};
-
+/**
+ * Seerr's recent requests row (RecentRequestsSlider): the ten requests added
+ * last, each as Seerr's request card.
+ */
 const RecentRequestsSlide: React.FC<SlideProps & ViewProps> = ({
   slide,
   ...props

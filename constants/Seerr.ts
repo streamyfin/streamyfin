@@ -10,9 +10,6 @@ export const SEERR_PASSWORD_KEY_PREFIX = "seerrpw_";
 /** Pages of search results asked for at once, 20 results a page. */
 export const SEERR_SEARCH_PAGES = 4;
 
-/** Season badges a request card shows before counting the rest. */
-export const SEERR_SEASON_BADGES = 2;
-
 /** The quality Seerr's image resizer is asked for, Next.js's own default. */
 export const SEERR_IMAGE_QUALITY = 75;
 
@@ -28,6 +25,16 @@ export const SEERR_SEASON_HEADER_HEIGHT = 48;
 
 /** How far a pinned season header follows the scroll before the band above it is opaque. */
 export const SEERR_SEASON_BAND_FADE = 24;
+
+/** Seerr's request card in a Discover row: its width, and its poster. */
+export const SEERR_REQUEST_CARD_WIDTH = 320;
+export const SEERR_REQUEST_CARD_POSTER = { width: 80, height: 120 } as const;
+
+/**
+ * How often a request card asks for its request again while one of its
+ * downloads is under way, and only then, as Seerr does (refreshIntervalHelper).
+ */
+export const SEERR_DOWNLOAD_REFRESH_MS = 15_000;
 
 /** A season row the quota leaves no room for, greyed as on Seerr's site. */
 export const SEERR_BLOCKED_OPACITY = 0.45;

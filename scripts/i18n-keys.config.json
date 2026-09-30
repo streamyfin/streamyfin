@@ -57,6 +57,8 @@
     "seerr.quota.season_limit_daily_one",
     "seerr.quota.season_limit_daily_other",
     "seerr.quota.season_limit_total_one",
-    "seerr.quota.season_limit_total_other"
+    "seerr.quota.season_limit_total_other",
+    "seerr.request_card_seasons_one",
+    "seerr.request_card_seasons_other"
   ]
 }

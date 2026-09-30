@@ -20,6 +20,39 @@ export const SeerrStatusColors = {
   requested: "#818cf8",
 } as const;
 
+/** Seerr's badges (its Badge): each tone's fill, edge and text. */
+export const SeerrBadgeColors = {
+  primary: {
+    background: "rgba(99, 102, 241, 0.8)",
+    border: "#6366f1",
+    text: "#e0e7ff",
+  },
+  success: {
+    background: "rgba(34, 197, 94, 0.8)",
+    border: "#22c55e",
+    text: "#dcfce7",
+  },
+  warning: {
+    background: "rgba(234, 179, 8, 0.8)",
+    border: "#eab308",
+    text: "#fef9c3",
+  },
+  danger: {
+    background: "rgba(220, 38, 38, 0.8)",
+    border: "#ef4444",
+    text: "#fee2e2",
+  },
+} as const;
+
+/** Seerr's request card: its surface, the fade over its backdrop, its text. */
+export const SeerrCardColors = {
+  surface: "#374151",
+  fadeFrom: "rgba(31, 41, 55, 0.47)",
+  fadeTo: "rgba(31, 41, 55, 1)",
+  requester: "#d1d5db",
+  label: "#9ca3af",
+} as const;
+
 /** The report issue button of a Seerr page, Seerr's warning yellow. */
 export const SeerrIssueColors = {
   background: "rgba(234, 179, 8, 0.5)",
