@@ -27,18 +27,22 @@ export const useSeerrRequestCard = (request: MediaRequest) => {
 
   const { data: details } = useSeerrTitleDetails(mediaType, tmdbId);
 
-  // Asked again while one of its downloads runs, to move the badge along.
+  // Asked again only while one of its downloads runs, to move the badge
+  // along: the list, asked again on each visit, brings the rest.
+  const downloading = requestDownloads(request).length > 0;
   const { data: refreshed } = useQuery({
     queryKey: ["seerr", "requests", mediaType, request.id],
     queryFn: async () => seerrApi?.getRequest(request.id),
-    enabled: !!seerrApi,
+    enabled: !!seerrApi && downloading,
     refetchInterval: (query) =>
       requestDownloads(query.state.data ?? request).length > 0
         ? SEERR_DOWNLOAD_REFRESH_MS
         : false,
   });
 
-  const current = refreshed ?? request;
+  // A query switched off still answers from the cache, kept for a day: the
+  // list's request is the newer one then.
+  const current = (downloading && refreshed) || request;
   const [canRequest] = useSeerrCanRequest(details);
   const baseUrl = seerrApi?.axios.defaults.baseURL ?? "";
   const seasons = mediaType === MediaType.TV ? (current.seasons ?? []) : [];
