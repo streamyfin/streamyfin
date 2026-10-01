@@ -84,6 +84,21 @@ export const SEERR_TV_REQUEST_CARD_SEASONS = 5;
 /** A genre's or a company's card in a TV Discover row, in points at 1080p. */
 export const SEERR_TV_SLIDE_CARD_WIDTH = 300;
 
+/** A season's card in a TV series page's row of seasons, in points at 1080p. */
+export const SEERR_TV_SEASON_CARD_WIDTH = 240;
+
+/**
+ * A TV grid of titles (a person's, a genre's, a company's): how close to its
+ * end, in points at 1080p, the next titles are asked for, and how many of a
+ * person's roles it adds at a time, every poster being mounted at once.
+ */
+export const SEERR_TV_LOAD_MORE_DISTANCE = 600;
+export const SEERR_TV_PERSON_ROLES_STEP = 40;
+
+/** A person's page on the TV: the photo, in points at 1080p, and the lines of biography before it is cut. */
+export const SEERR_TV_PERSON_PHOTO = 200;
+export const SEERR_TV_BIOGRAPHY_LINES = 4;
+
 /** A Seerr badge over a TV poster, in points at 1080p: its size and inset. */
 export const SEERR_TV_BADGE_SIZE = 36;
 export const SEERR_TV_BADGE_INSET = 10;

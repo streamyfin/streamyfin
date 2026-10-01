@@ -1,10 +1,18 @@
 import type React from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { TVSeerrPosterCard } from "@/components/tv/TVSeerrPosterCard";
+import {
+  SEERR_TV_BIOGRAPHY_LINES,
+  SEERR_TV_LOAD_MORE_DISTANCE,
+  SEERR_TV_PERSON_PHOTO,
+  SEERR_TV_PERSON_ROLES_STEP,
+  SEERR_TV_ROW_CARD_GAP,
+} from "@/constants/Seerr";
 import { useScaledTVSizes } from "@/constants/TVSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
@@ -12,10 +20,7 @@ import { useSeerr } from "@/hooks/useSeerr";
 import { useSeerrPerson } from "@/hooks/useSeerrPerson";
 import { scaleSize } from "@/utils/scaleSize";
 import { formatSeerrDate, seerrLocaleTag } from "@/utils/seerr/dates";
-
-const ITEM_GAP = 20;
-// The biography's lines before it is cut, a remote having no "Show more".
-const BIOGRAPHY_LINES = 4;
+import { roleKey } from "@/utils/seerr/person";
 
 /**
  * A person on the TV, as the phone's page has them: their photo, name, birth
@@ -32,7 +37,10 @@ export const TVSeerrPersonPage: React.FC<{ personId: string }> = ({
   const router = useRouter();
   const { seerrApi, seerrRegion: region, seerrLocale: locale } = useSeerr();
   const { details, roles } = useSeerrPerson(personId);
-  const photo = scaleSize(200);
+  const photo = scaleSize(SEERR_TV_PERSON_PHOTO);
+  // Every poster of a TV grid is mounted: a prolific actor's few hundred
+  // roles come a step at a time as the grid scrolls down.
+  const [shown, setShown] = useState(SEERR_TV_PERSON_ROLES_STEP);
 
   return (
     <ScrollView
@@ -40,6 +48,17 @@ export const TVSeerrPersonPage: React.FC<{ personId: string }> = ({
         paddingTop: insets.top + 100,
         paddingBottom: insets.bottom + 60,
         paddingHorizontal: sizes.padding.horizontal,
+      }}
+      scrollEventThrottle={64}
+      onScroll={({
+        nativeEvent: { layoutMeasurement, contentOffset, contentSize },
+      }) => {
+        if (
+          shown < roles.length &&
+          layoutMeasurement.height + contentOffset.y >=
+            contentSize.height - scaleSize(SEERR_TV_LOAD_MORE_DISTANCE)
+        )
+          setShown((count) => count + SEERR_TV_PERSON_ROLES_STEP);
       }}
     >
       <View
@@ -87,7 +106,7 @@ export const TVSeerrPersonPage: React.FC<{ personId: string }> = ({
           )}
           {!!details?.biography && (
             <Text
-              numberOfLines={BIOGRAPHY_LINES}
+              numberOfLines={SEERR_TV_BIOGRAPHY_LINES}
               style={{
                 fontSize: typography.callout,
                 color: "rgba(255,255,255,0.8)",
@@ -115,12 +134,12 @@ export const TVSeerrPersonPage: React.FC<{ personId: string }> = ({
           flexDirection: "row",
           flexWrap: "wrap",
           justifyContent: "center",
-          gap: ITEM_GAP,
+          gap: scaleSize(SEERR_TV_ROW_CARD_GAP),
         }}
       >
-        {roles.map((role, index) => (
+        {roles.slice(0, shown).map((role, index) => (
           <TVSeerrPosterCard
-            key={role.id}
+            key={roleKey(role)}
             item={role}
             hasTVPreferredFocus={index === 0}
             onPress={() =>

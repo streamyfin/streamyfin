@@ -1,8 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
-import { orderBy, uniqBy } from "lodash";
 import { useMemo } from "react";
 import { useSeerr } from "@/hooks/useSeerr";
-import type { PersonCreditCast } from "@/utils/seerr/types";
+import { personRoles } from "@/utils/seerr/person";
 
 /**
  * A person on Seerr, for the phone's page and the TV's alike: who they are,
@@ -20,16 +19,8 @@ export const useSeerrPerson = (personId: string | undefined) => {
     enabled: !!seerrApi && !!personId,
   });
 
-  const roles: PersonCreditCast[] = useMemo(
-    () =>
-      uniqBy(
-        orderBy(
-          data?.combinedCredits?.cast,
-          ["voteCount", "voteAverage"],
-          "desc",
-        ),
-        "id",
-      ),
+  const roles = useMemo(
+    () => personRoles(data?.combinedCredits?.cast),
     [data?.combinedCredits],
   );
 

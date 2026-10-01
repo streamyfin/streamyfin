@@ -3,7 +3,7 @@ import React, { useMemo } from "react";
 import { TVPosterCard } from "@/components/tv/TVPosterCard";
 import { TVSeerrBadges } from "@/components/tv/TVSeerrBadges";
 import { useSeerr } from "@/hooks/useSeerr";
-import { useSeerrCanRequest } from "@/hooks/useSeerrCanRequest";
+import { canRequest } from "@/utils/seerr/requests";
 import type {
   MovieDetails,
   MovieResult,
@@ -35,8 +35,10 @@ export const TVSeerrPosterCard: React.FC<TVSeerrPosterCardProps> = ({
   onPress,
   hasTVPreferredFocus = false,
 }) => {
-  const { seerrApi, getTitle, getYear } = useSeerr();
-  const [canRequest] = useSeerrCanRequest(item);
+  // One useSeerr for the card, each building its own client: a TV grid
+  // mounts every poster at once.
+  const { seerrApi, seerrUser, getTitle, getYear } = useSeerr();
+  const requestable = !!seerrUser && canRequest(item, seerrUser.permissions);
 
   const posterUrl = item.posterPath
     ? seerrApi?.imageProxy(item.posterPath, "w342")
@@ -69,7 +71,7 @@ export const TVSeerrPosterCard: React.FC<TVSeerrPosterCardProps> = ({
         <TVSeerrBadges
           mediaType={item.mediaType}
           status={item.mediaInfo?.status}
-          canRequest={canRequest}
+          canRequest={requestable}
         />
       }
     />

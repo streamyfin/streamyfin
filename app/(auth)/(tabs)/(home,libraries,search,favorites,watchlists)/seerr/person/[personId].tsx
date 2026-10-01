@@ -11,6 +11,7 @@ import { TVSeerrPersonPage } from "@/components/seerr/tv/TVSeerrPersonPage";
 import { useSeerr } from "@/hooks/useSeerr";
 import { useSeerrPerson } from "@/hooks/useSeerrPerson";
 import { formatSeerrDate, seerrLocaleTag } from "@/utils/seerr/dates";
+import { roleKey } from "@/utils/seerr/person";
 
 export default function SeerrPersonPage() {
   const { personId } = useLocalSearchParams() as { personId: string };
@@ -39,7 +40,7 @@ function MobilePersonPage({ personId }: { personId: string }) {
       data={castedRoles}
       images={backdrops}
       listHeader={t("seerr.appearances")}
-      keyExtractor={(item) => item.id.toString()}
+      keyExtractor={roleKey}
       logo={
         <Image
           key={details?.id}
