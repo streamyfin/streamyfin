@@ -53,6 +53,7 @@ import {
   MediaRequestStatus,
   MediaType,
 } from "@/utils/seerr/types";
+import { createSubmission } from "@/utils/submission";
 
 // Mobile page component
 const MobilePage: React.FC = () => {
@@ -156,26 +157,36 @@ const MobilePage: React.FC = () => {
     [],
   );
 
+  const issueSubmission = useRef(createSubmission()).current;
   const submitIssue = useCallback(() => {
     // A title Seerr has never seen carries no mediaInfo, so there is nothing
     // to file an issue against.
     const mediaId = details?.mediaInfo?.id;
-    if (result.id && issueType && issueMessage && mediaId !== undefined) {
-      seerrApi
-        ?.submitIssue(mediaId, Number(issueType), issueMessage)
-        .then(() => {
-          setIssueType(undefined);
-          setIssueMessage(undefined);
-          bottomSheetModalRef?.current?.close();
-        })
-        // The response interceptor already logs and reports the failure with
-        // its route; an uncaught rejection here would re-report it as a
-        // stackless unhandledrejection event.
-        .catch((error) => {
-          writeErrorLog("Seerr submitIssue failed", String(error));
-        });
-    }
-  }, [seerrApi, details, result, issueType, issueMessage]);
+    if (
+      !seerrApi ||
+      !result.id ||
+      !issueType ||
+      !issueMessage ||
+      mediaId === undefined
+    )
+      return;
+    // A second tap while the first is on its way would file the issue twice.
+    if (!issueSubmission.start()) return;
+    seerrApi
+      .submitIssue(mediaId, Number(issueType), issueMessage)
+      .then(() => {
+        setIssueType(undefined);
+        setIssueMessage(undefined);
+        bottomSheetModalRef?.current?.close();
+      })
+      // The response interceptor already logs and reports the failure with
+      // its route; an uncaught rejection here would re-report it as a
+      // stackless unhandledrejection event.
+      .catch((error) => {
+        writeErrorLog("Seerr submitIssue failed", String(error));
+      })
+      .finally(() => issueSubmission.finish());
+  }, [seerrApi, details, result, issueType, issueMessage, issueSubmission]);
 
   const handleIssueModalDismiss = useCallback(() => {
     setIssueTypeDropdownOpen(false);
