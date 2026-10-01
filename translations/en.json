@@ -964,8 +964,6 @@
     "select_all": "Select all",
     "clear_selection": "Clear",
     "whole_series_only": "This server takes whole series only, so every season not yet in the library is requested together.",
-    "request_selected": "Request selected",
-    "n_selected": "{{count}} selected",
     "toasts": {
       "seerr_does_not_meet_requirements": "Seerr server does not meet minimum version requirements! Please update to at least 2.0.0",
       "seerr_test_failed": "Seerr test failed. Please try again.",

@@ -6,7 +6,7 @@ import {
 } from "@gorhom/bottom-sheet";
 import type { BottomSheetModalMethods } from "@gorhom/bottom-sheet/lib/typescript/types";
 import { useQuery } from "@tanstack/react-query";
-import { forwardRef, useCallback, useEffect, useMemo, useState } from "react";
+import { forwardRef, useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Pressable,
@@ -22,20 +22,9 @@ import { SeasonQuota } from "@/components/seerr/SeasonQuota";
 import { Colors, SheetColors } from "@/constants/Colors";
 import { SHEET_MAX_HEIGHT_RATIO } from "@/constants/Values";
 import { useSeerr } from "@/hooks/useSeerr";
-import { useSeerrPublicSettings } from "@/hooks/useSeerrPublicSettings";
+import { useSeerrSeasonRequest } from "@/hooks/useSeerrSeasonRequest";
 import { writeDebugLog } from "@/utils/log";
-import { hasPermission, Permission } from "@/utils/seerr/permissions";
 import { canRequestForOthers } from "@/utils/seerr/requests";
-import {
-  roomForAll,
-  roomForOneMore,
-  seasonRows,
-  selectsAll,
-  toggleAllSeasons,
-  toggleSeason,
-  unrequestedSeasons,
-  withinQuota,
-} from "@/utils/seerr/seasons";
 import type {
   MediaRequestBody,
   MediaType,
@@ -96,75 +85,38 @@ const RequestModal = forwardRef<
 
     const { t } = useTranslation();
 
-    // What Seerr's own modal reads from the server: whether it shows the
-    // specials, and whether it takes a series a season at a time.
-    const publicSettings = useSeerrPublicSettings();
-    const specials = publicSettings?.enableSpecialEpisodes === true;
-    const partial = publicSettings?.partialRequestsEnabled !== false;
-
-    const rows = useMemo(
-      () => (isSeries && details ? seasonRows(details, { specials }) : []),
-      [isSeries, details, specials],
-    );
-    const unrequested = useMemo(
-      () =>
-        isSeries && details ? unrequestedSeasons(details, { specials }) : [],
-      [isSeries, details, specials],
-    );
-    const [selectedSeasons, setSelectedSeasons] = useState<number[]>([]);
-
-    // The switches start from what the modal was opened with: none from the
-    // request button, as on Seerr, and one from a season's own button.
-    useEffect(() => {
-      const opened = requestBody?.seasons ?? [];
-      setSelectedSeasons(
-        opened === "all"
-          ? unrequested
-          : opened.filter((season) => unrequested.includes(season)),
-      );
-    }, [requestBody, unrequested]);
-
-    // The quota of whoever the request is for. Someone else's is read under
-    // the same two permissions as requesting for them, so only a user who may
-    // pick someone else reads it; for anyone else it would be a 403.
-    const quotaUserId =
-      (advanced && forOthers ? requestOverrides.userId : undefined) ??
-      seerrUser?.id;
-    const { data: quota, isLoading: quotaLoading } = useQuery({
-      queryKey: ["seerr", "quota", quotaUserId],
-      queryFn: async () => seerrApi?.userQuota(quotaUserId!),
-      enabled: isSeries && !!seerrApi && quotaUserId !== undefined,
+    // The seasons, the quota and the button's state, shared with the TV's
+    // season sheet.
+    const {
+      partial,
+      rows,
+      unrequested,
+      selected: selectedSeasons,
+      toggle: toggleSelectedSeason,
+      toggleAll: toggleAllSelectedSeasons,
+      selecting,
+      canToggleAll,
+      roomForOneMore: roomForOneMoreSeason,
+      tvQuota,
+      limited,
+      overLimit,
+      overQuota,
+      remaining,
+      approvedAutomatically,
+      seasons: seasonsToRequest,
+      label: seriesLabel,
+      blocked: seriesBlocked,
+    } = useSeerrSeasonRequest({
+      details,
+      enabled: isSeries,
+      opened: requestBody,
+      // The quota of whoever the request is for. Someone else's is read under
+      // the same two permissions as requesting for them, so only a user who
+      // may pick someone else reads it; for anyone else it would be a 403.
+      quotaUserId:
+        (advanced && forOthers ? requestOverrides.userId : undefined) ??
+        seerrUser?.id,
     });
-    const tvQuota = quota?.tv;
-    const limited = !!tvQuota?.limit;
-    // A server that only takes whole series needs a quota for all of them.
-    const overLimit =
-      limited && !partial && unrequested.length > (tvQuota?.remaining ?? 0);
-    // Seasons chosen before another user was picked in Request as can go past
-    // that user's quota, which Seerr refuses.
-    const overQuota =
-      isSeries && partial && !withinQuota(selectedSeasons, tvQuota);
-    const remaining =
-      overLimit || overQuota
-        ? 0
-        : (tvQuota?.remaining ?? 0) - selectedSeasons.length;
-
-    // What the button for all seasons does, and so what it says.
-    const selecting = selectsAll(selectedSeasons, unrequested);
-
-    const approvedAutomatically =
-      isSeries &&
-      unrequested.length > 0 &&
-      !overLimit &&
-      hasPermission(
-        [
-          Permission.MANAGE_REQUESTS,
-          Permission.AUTO_APPROVE,
-          Permission.AUTO_APPROVE_TV,
-        ],
-        seerrUser?.permissions ?? 0,
-        { type: "or" },
-      );
 
     // Reset all dropdown states when modal closes
     const handleDismiss = useCallback(() => {
@@ -393,11 +345,7 @@ const RequestModal = forwardRef<
         ...requestBody,
         ...(advanced && requestOverrides),
         // A server that only takes whole series gets every season left.
-        ...(isSeries && {
-          seasons: [...(partial ? selectedSeasons : unrequested)].sort(
-            (a, b) => a - b,
-          ),
-        }),
+        ...(isSeries && { seasons: seasonsToRequest }),
       } as MediaRequestBody;
 
       writeDebugLog("Sending Seerr request", body);
@@ -410,9 +358,7 @@ const RequestModal = forwardRef<
     }, [
       advanced,
       isSeries,
-      partial,
-      unrequested,
-      selectedSeasons,
+      seasonsToRequest,
       requestBody,
       requestOverrides,
       defaultProfile,
@@ -420,29 +366,8 @@ const RequestModal = forwardRef<
       defaultTags,
     ]);
 
-    // Seerr's button: nothing left to ask for, the whole series, nothing
-    // chosen yet, or how many seasons.
-    const requestLabel = !isSeries
-      ? t("seerr.request_button")
-      : unrequested.length === 0
-        ? t("seerr.already_requested")
-        : !partial
-          ? t("seerr.request_button")
-          : selectedSeasons.length === 0
-            ? t("seerr.select_seasons")
-            : t("seerr.request_n_seasons", { count: selectedSeasons.length });
-    // A whole series that the quota left cannot cover would be refused by
-    // Seerr, so the button stays off (Seerr's own compares with the limit).
-    // Also while the quota of the user picked is on its way.
-    const requestDisabled =
-      isSeries &&
-      (quotaLoading ||
-        overLimit ||
-        overQuota ||
-        unrequested.length === 0 ||
-        (partial && selectedSeasons.length === 0));
-    // Clearing is always possible, selecting them all only within the quota.
-    const canToggleAll = !selecting || roomForAll(unrequested, tvQuota);
+    const requestLabel = isSeries ? seriesLabel : t("seerr.request_button");
+    const requestDisabled = isSeries && seriesBlocked;
 
     return (
       <BottomSheetModal
@@ -503,11 +428,7 @@ const RequestModal = forwardRef<
                   accessibilityRole='button'
                   disabled={!canToggleAll}
                   hitSlop={8}
-                  onPress={() =>
-                    setSelectedSeasons((selected) =>
-                      toggleAllSeasons(selected, unrequested, tvQuota),
-                    )
-                  }
+                  onPress={toggleAllSelectedSeasons}
                   style={{ paddingVertical: 4 }}
                 >
                   <Text
@@ -557,12 +478,8 @@ const RequestModal = forwardRef<
                   // A whole-series server requests every season left.
                   selected={partial ? selectedSeasons : unrequested}
                   choosable={partial}
-                  roomForOneMore={roomForOneMore(selectedSeasons, tvQuota)}
-                  onToggle={(season) =>
-                    setSelectedSeasons((selected) =>
-                      toggleSeason(selected, season, unrequested, tvQuota),
-                    )
-                  }
+                  roomForOneMore={roomForOneMoreSeason}
+                  onToggle={toggleSelectedSeason}
                 />
               </>
             )}

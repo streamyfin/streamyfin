@@ -338,9 +338,9 @@ export const TVSeerrPage: React.FC = () => {
   ]);
 
   const handleOpenSeasonSelectModal = useCallback(() => {
+    if (!details) return;
     showSeasonSelectModal({
-      // Specials only where the server shows them, as on the phone.
-      seasons: seasons.filter((s) => specials || s.seasonNumber !== 0),
+      series: details as TvDetails,
       title: mediaTitle,
       mediaId: Number(result.id!),
       tvdbId: details?.externalIds?.tvdbId ?? undefined,
@@ -348,8 +348,6 @@ export const TVSeerrPage: React.FC = () => {
       onRequested: refetch,
     });
   }, [
-    seasons,
-    specials,
     mediaTitle,
     result,
     details,
