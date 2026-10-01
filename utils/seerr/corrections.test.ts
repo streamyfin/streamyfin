@@ -26,7 +26,8 @@ describe("the corrections", () => {
           c.added.length +
             c.nullable.length +
             c.absent.length +
-            c.renamed.length >
+            c.renamed.length +
+            c.underDeclared.length >
           0,
       ),
     ).toEqual([]);
@@ -65,20 +66,16 @@ describe("the corrections", () => {
   });
 
   test("rename only what the spec actually declares under the old name", () => {
-    const entries = Object.entries(CORRECTIONS);
-    const gone = entries.flatMap(([route, correction]) =>
+    // Only the declared side is asserted. The served side can be declared
+    // too and mean something else: watchProviders is declared as an array of
+    // arrays, so the path the server sends is the one the spec uses for the
+    // outer level.
+    const gone = Object.entries(CORRECTIONS).flatMap(([route, correction]) =>
       correction.renamed
         .filter(([before]) => !declaredFor(route).has(before))
         .map(([before]) => `${route}: ${before}`),
     );
-    const taken = entries.flatMap(([route, correction]) =>
-      correction.renamed
-        .filter(([, after]) => declaredFor(route).has(after))
-        .map(([, after]) => `${route}: ${after}`),
-    );
-    // No longer declared under the old name.
+    // No longer declared under the old name: drop the rename.
     expect(gone).toEqual([]);
-    // Declared under the new name already.
-    expect(taken).toEqual([]);
   });
 });

@@ -1,0 +1,307 @@
+{
+  "route": "GET /tv/{tvId}",
+  "status": 200,
+  "shape": {
+    "backdropPath": "string",
+    "contentRatings": {
+      "results": {
+        "[]": {
+          "descriptors": "array<empty>",
+          "iso_3166_1": "string",
+          "rating": "string"
+        }
+      }
+    },
+    "createdBy": {
+      "[]": {
+        "credit_id": "string",
+        "gender": "number",
+        "id": "number",
+        "name": "string",
+        "original_name": "string",
+        "profile_path": "string"
+      }
+    },
+    "credits": {
+      "cast": {
+        "[]": {
+          "character": "string",
+          "creditId": "string",
+          "gender": "number",
+          "id": "number",
+          "name": "string",
+          "order": "number",
+          "profilePath": "null|string"
+        }
+      },
+      "crew": {
+        "[]": {
+          "creditId": "string",
+          "department": "string",
+          "gender": "number",
+          "id": "number",
+          "job": "string",
+          "name": "string",
+          "profilePath": "null|string"
+        }
+      }
+    },
+    "episodeRunTime": "array<empty>",
+    "externalIds": {
+      "facebookId": "string",
+      "freebaseId": "string",
+      "freebaseMid": "string",
+      "imdbId": "string",
+      "instagramId": "string",
+      "tvdbId": "number",
+      "tvrageId": "number",
+      "twitterId": "string"
+    },
+    "firstAirDate": "string",
+    "genres": {
+      "[]": {
+        "id": "number",
+        "name": "string"
+      }
+    },
+    "homepage": "string",
+    "id": "number",
+    "inProduction": "boolean",
+    "keywords": {
+      "[]": {
+        "id": "number",
+        "name": "string"
+      }
+    },
+    "languages": {
+      "[]": "string"
+    },
+    "lastAirDate": "string",
+    "lastEpisodeToAir": {
+      "airDate": "string",
+      "episodeNumber": "number",
+      "id": "number",
+      "name": "string",
+      "overview": "string",
+      "productionCode": "string",
+      "seasonNumber": "number",
+      "showId": "number",
+      "stillPath": "string",
+      "voteAverage": "number",
+      "voteCount": "number"
+    },
+    "mediaInfo": {
+      "createdAt": "string",
+      "downloadStatus": "array<empty>",
+      "downloadStatus4k": "array<empty>",
+      "externalServiceId": "number",
+      "externalServiceId4k": "null",
+      "externalServiceSlug": "string",
+      "externalServiceSlug4k": "null",
+      "id": "number",
+      "imdbId": "null",
+      "issues": "array<empty>",
+      "jellyfinMediaId": "null",
+      "jellyfinMediaId4k": "null",
+      "lastSeasonChange": "string",
+      "mediaAddedAt": "string",
+      "mediaType": "string",
+      "ratingKey": "null",
+      "ratingKey4k": "null",
+      "requests": {
+        "[]": {
+          "createdAt": "string",
+          "id": "number",
+          "ignoreQuota": "boolean",
+          "is4k": "boolean",
+          "isAutoRequest": "boolean",
+          "languageProfileId": "null",
+          "media": {
+            "createdAt": "string",
+            "downloadStatus": "array<empty>",
+            "downloadStatus4k": "array<empty>",
+            "externalServiceId": "number",
+            "externalServiceId4k": "null",
+            "externalServiceSlug": "string",
+            "externalServiceSlug4k": "null",
+            "id": "number",
+            "imdbId": "null",
+            "jellyfinMediaId": "null",
+            "jellyfinMediaId4k": "null",
+            "lastSeasonChange": "string",
+            "mediaAddedAt": "string",
+            "mediaType": "string",
+            "ratingKey": "null",
+            "ratingKey4k": "null",
+            "serviceId": "number",
+            "serviceId4k": "null",
+            "serviceUrl": "string",
+            "status": "number",
+            "status4k": "number",
+            "tmdbId": "number",
+            "tvdbId": "number",
+            "updatedAt": "string"
+          },
+          "modifiedBy": {
+            "avatar": "string",
+            "avatarETag": "null",
+            "avatarVersion": "null",
+            "createdAt": "string",
+            "displayName": "string",
+            "email": "string",
+            "id": "number",
+            "jellyfinUserId": "string",
+            "jellyfinUsername": "string",
+            "movieQuotaDays": "null",
+            "movieQuotaLimit": "null",
+            "permissions": "number",
+            "plexId": "null",
+            "plexUsername": "null",
+            "recoveryLinkExpirationDate": "null",
+            "requestCount": "number",
+            "tvQuotaDays": "null",
+            "tvQuotaLimit": "null",
+            "updatedAt": "string",
+            "username": "null",
+            "userType": "number",
+            "warnings": "array<empty>"
+          },
+          "profileId": "null",
+          "requestedBy": {
+            "avatar": "string",
+            "avatarETag": "null",
+            "avatarVersion": "null",
+            "createdAt": "string",
+            "displayName": "string",
+            "email": "string",
+            "id": "number",
+            "jellyfinUserId": "string",
+            "jellyfinUsername": "string",
+            "movieQuotaDays": "null",
+            "movieQuotaLimit": "null",
+            "permissions": "number",
+            "plexId": "null",
+            "plexUsername": "null",
+            "recoveryLinkExpirationDate": "null",
+            "requestCount": "number",
+            "tvQuotaDays": "null",
+            "tvQuotaLimit": "null",
+            "updatedAt": "string",
+            "username": "null",
+            "userType": "number",
+            "warnings": "array<empty>"
+          },
+          "rootFolder": "null",
+          "seasonCount": "number",
+          "seasons": {
+            "[]": {
+              "createdAt": "string",
+              "id": "number",
+              "seasonNumber": "number",
+              "status": "number",
+              "updatedAt": "string"
+            }
+          },
+          "serverId": "null",
+          "status": "number",
+          "tags": "null",
+          "type": "string",
+          "updatedAt": "string"
+        }
+      },
+      "seasons": {
+        "[]": {
+          "createdAt": "string",
+          "id": "number",
+          "seasonNumber": "number",
+          "status": "number",
+          "status4k": "number",
+          "updatedAt": "string"
+        }
+      },
+      "serviceId": "number",
+      "serviceId4k": "null",
+      "serviceUrl": "string",
+      "status": "number",
+      "status4k": "number",
+      "tmdbId": "number",
+      "tvdbId": "number",
+      "updatedAt": "string"
+    },
+    "name": "string",
+    "networks": {
+      "[]": {
+        "id": "number",
+        "logoPath": "string",
+        "name": "string",
+        "originCountry": "string"
+      }
+    },
+    "numberOfEpisodes": "number",
+    "numberOfSeasons": "number",
+    "onUserWatchlist": "boolean",
+    "originalLanguage": "string",
+    "originalName": "string",
+    "originCountry": {
+      "[]": "string"
+    },
+    "overview": "string",
+    "popularity": "number",
+    "posterPath": "string",
+    "productionCompanies": {
+      "[]": {
+        "id": "number",
+        "logoPath": "null|string",
+        "name": "string",
+        "originCountry": "string"
+      }
+    },
+    "productionCountries": {
+      "[]": {
+        "iso_3166_1": "string",
+        "name": "string"
+      }
+    },
+    "relatedVideos": {
+      "[]": {
+        "key": "string",
+        "name": "string",
+        "site": "string",
+        "size": "number",
+        "type": "string",
+        "url": "string"
+      }
+    },
+    "seasons": {
+      "[]": {
+        "airDate": "string",
+        "episodeCount": "number",
+        "id": "number",
+        "name": "string",
+        "overview": "string",
+        "posterPath": "string",
+        "seasonNumber": "number"
+      }
+    },
+    "spokenLanguages": {
+      "[]": {
+        "englishName": "string",
+        "iso_639_1": "string",
+        "name": "string"
+      }
+    },
+    "status": "string",
+    "tagline": "string",
+    "type": "string",
+    "voteAverage": "number",
+    "voteCount": "number",
+    "watchProviders": {
+      "[]": {
+        "buy": "array<empty>",
+        "flatrate": "array<empty>",
+        "iso_3166_1": "string",
+        "link": "string"
+      }
+    }
+  }
+}

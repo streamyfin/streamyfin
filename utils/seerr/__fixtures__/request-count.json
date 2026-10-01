@@ -1,0 +1,15 @@
+{
+  "route": "GET /request/count",
+  "status": 200,
+  "shape": {
+    "approved": "number",
+    "available": "number",
+    "completed": "number",
+    "declined": "number",
+    "movie": "number",
+    "pending": "number",
+    "processing": "number",
+    "total": "number",
+    "tv": "number"
+  }
+}

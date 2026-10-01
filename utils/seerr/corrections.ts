@@ -25,11 +25,24 @@ export interface Correction {
   absent: string[];
   /** Paths the spec names differently, spec name then served name. */
   renamed: [string, string][];
+  /**
+   * Paths the spec declares without describing their contents. Everything
+   * under one of these is ours rather than upstream's, which keeps a schema
+   * that is incomplete everywhere it appears from being listed everywhere it
+   * appears.
+   */
+  underDeclared: string[];
   /** Why, in one line. */
   note: string;
 }
 
-const none = { added: [], nullable: [], absent: [], renamed: [] };
+const none = {
+  added: [],
+  nullable: [],
+  absent: [],
+  renamed: [],
+  underDeclared: [],
+};
 
 /**
  * Keyed the way `generated/api-shapes.json` is keyed, so the contract test can
@@ -82,10 +95,16 @@ export const CORRECTIONS: Record<string, Correction> = {
 
   "GET /request": {
     ...none,
-    measured: "2026-09-18",
+    measured: "2026-09-21",
+    underDeclared: [
+      "results[].media",
+      "results[].requestedBy",
+      "results[].modifiedBy",
+    ],
     added: [
       "pageInfo.pageSize",
       "serviceErrors",
+      "results[].profileName",
       "results[].isAutoRequest",
       "results[].languageProfileId",
       "results[].seasonCount",
@@ -110,15 +129,17 @@ export const CORRECTIONS: Record<string, Correction> = {
 
   "GET /discover/movies": {
     ...none,
-    measured: "2026-09-18",
+    measured: "2026-09-21",
     added: ["keywords"],
+    underDeclared: ["results[].mediaInfo"],
     note: "Echoes the keywords it filtered on, at the root beside the results.",
   },
 
   "GET /discover/tv": {
     ...none,
-    measured: "2026-09-18",
+    measured: "2026-09-21",
     added: ["keywords"],
+    underDeclared: ["results[].mediaInfo"],
     note: "Echoes the keywords it filtered on, at the root beside the results.",
   },
 
@@ -129,19 +150,68 @@ export const CORRECTIONS: Record<string, Correction> = {
     note: "PageInfo declares page, pages and results, and every paged route also sends pageSize.",
   },
 
+  "GET /discover/movies/studio/{studioId}": {
+    ...none,
+    measured: "2026-09-21",
+    added: ["studio.description", "studio.headquarters", "studio.homepage"],
+    underDeclared: ["results[].mediaInfo"],
+    note: "ProductionCompany is declared with four of its seven properties.",
+  },
+
+  "GET /discover/tv/network/{networkId}": {
+    ...none,
+    measured: "2026-09-21",
+    added: ["network.headquarters", "network.homepage"],
+    underDeclared: ["results[].mediaInfo"],
+    note: "Network is declared without the two fields TMDB fills in for a company page.",
+  },
+
+  "GET /discover/trending": {
+    ...none,
+    measured: "2026-09-21",
+    underDeclared: ["results[].mediaInfo"],
+    note: "Every result carries the library's view of the title, and MediaInfo describes a quarter of itself.",
+  },
+
+  "GET /search": {
+    ...none,
+    measured: "2026-09-21",
+    underDeclared: ["results[].mediaInfo"],
+    note: "Same under-declared MediaInfo as the discover rows, on every result.",
+  },
+
+  "GET /person/{personId}/combined_credits": {
+    ...none,
+    measured: "2026-09-21",
+    underDeclared: ["cast[].mediaInfo", "crew[].mediaInfo"],
+    note: "A credit carries the library's view of the title, with the same under-declared MediaInfo.",
+  },
+
   "GET /movie/{movieId}": {
     ...none,
-    measured: "2026-09-18",
-    added: ["keywords", "onUserWatchlist"],
-    note: "onUserWatchlist is per caller, which is why it is not in the shared schema.",
+    measured: "2026-09-21",
+    added: ["keywords", "onUserWatchlist", "spokenLanguages[].english_name"],
+    underDeclared: ["mediaInfo", "releases.results[].release_dates[]"],
+    renamed: [["watchProviders[][]", "watchProviders[]"]],
+    note: "MediaInfo declares 6 of the 25 properties it carries, and watchProviders is declared as an array of arrays where the server sends one array.",
   },
 
   "GET /tv/{tvId}": {
     ...none,
-    measured: "2026-09-18",
-    added: ["onUserWatchlist", "relatedVideos"],
-    renamed: [["numberOfSeason", "numberOfSeasons"]],
-    note: "The declared name is a typo: the server has always sent numberOfSeasons.",
+    measured: "2026-09-21",
+    added: [
+      "onUserWatchlist",
+      "relatedVideos",
+      "createdBy[].credit_id",
+      "createdBy[].original_name",
+      "createdBy[].profile_path",
+    ],
+    underDeclared: ["mediaInfo", "contentRatings.results[]"],
+    renamed: [
+      ["numberOfSeason", "numberOfSeasons"],
+      ["watchProviders[][]", "watchProviders[]"],
+    ],
+    note: "numberOfSeason is a typo, MediaInfo is as under-declared here as on a film, and watchProviders is declared one array deeper than it is sent.",
   },
 
   "GET /tv/{tvId}/season/{seasonNumber}": {

@@ -1,0 +1,66 @@
+{
+  "route": "GET /discover/tv/network/{networkId}",
+  "status": 200,
+  "shape": {
+    "network": {
+      "headquarters": "string",
+      "homepage": "string",
+      "id": "number",
+      "logoPath": "string",
+      "name": "string",
+      "originCountry": "string"
+    },
+    "page": "number",
+    "results": {
+      "[]": {
+        "backdropPath": "string",
+        "firstAirDate": "string",
+        "genreIds": {
+          "[]": "number"
+        },
+        "id": "number",
+        "mediaInfo": {
+          "createdAt": "string",
+          "downloadStatus": "array<empty>",
+          "downloadStatus4k": "array<empty>",
+          "externalServiceId": "null",
+          "externalServiceId4k": "null",
+          "externalServiceSlug": "null",
+          "externalServiceSlug4k": "null",
+          "id": "number",
+          "imdbId": "null",
+          "jellyfinMediaId": "null|string",
+          "jellyfinMediaId4k": "null",
+          "lastSeasonChange": "string",
+          "mediaAddedAt": "string",
+          "mediaType": "string",
+          "mediaUrl": "string",
+          "ratingKey": "null",
+          "ratingKey4k": "null",
+          "serviceId": "null",
+          "serviceId4k": "null",
+          "status": "number",
+          "status4k": "number",
+          "tmdbId": "number",
+          "tvdbId": "number",
+          "updatedAt": "string",
+          "watchlists": "array<empty>"
+        },
+        "mediaType": "string",
+        "name": "string",
+        "originalLanguage": "string",
+        "originalName": "string",
+        "originCountry": {
+          "[]": "string"
+        },
+        "overview": "string",
+        "popularity": "number",
+        "posterPath": "string",
+        "voteAverage": "number",
+        "voteCount": "number"
+      }
+    },
+    "totalPages": "number",
+    "totalResults": "number"
+  }
+}
