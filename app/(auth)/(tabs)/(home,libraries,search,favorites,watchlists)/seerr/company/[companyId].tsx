@@ -1,11 +1,13 @@
-import { useInfiniteQuery } from "@tanstack/react-query";
 import { useLocalSearchParams } from "expo-router";
-import { uniqBy } from "lodash";
 import { useMemo } from "react";
+import { Platform } from "react-native";
 import { Image } from "@/components/common/ServerImage";
 import SeerrPoster from "@/components/posters/SeerrPoster";
 import ParallaxSlideShow from "@/components/seerr/ParallaxSlideShow";
-import { Endpoints, useSeerr } from "@/hooks/useSeerr";
+import { TVSeerrTitlesHeading } from "@/components/seerr/tv/TVSeerrTitlesHeading";
+import { TVSeerrTitlesPage } from "@/components/seerr/tv/TVSeerrTitlesPage";
+import { useSeerr } from "@/hooks/useSeerr";
+import { useSeerrDiscoverTitles } from "@/hooks/useSeerrDiscoverTitles";
 import { COMPANY_LOGO_IMAGE_FILTER } from "@/utils/seerr/data";
 import {
   DiscoverSliderType,
@@ -15,7 +17,26 @@ import {
 
 export default function SeerrCompanyPage() {
   const local = useLocalSearchParams();
-  const { seerrApi, isSeerrMovieOrTvResult } = useSeerr();
+  const { companyId, name, image, type } = local as unknown as {
+    companyId: string;
+    name: string;
+    image: string;
+    type: DiscoverSliderType;
+  };
+  // The phone's page scrolls posters no remote can reach.
+  if (Platform.isTV)
+    return (
+      <TVSeerrTitlesPage
+        source={{ kind: "company", type, id: companyId }}
+        heading={<TVSeerrTitlesHeading text={name} logo={image} />}
+      />
+    );
+  return <MobileCompanyPage />;
+}
+
+function MobileCompanyPage() {
+  const local = useLocalSearchParams();
+  const { seerrApi } = useSeerr();
 
   const { companyId, image, type } = local as unknown as {
     companyId: string;
@@ -24,41 +45,11 @@ export default function SeerrCompanyPage() {
     type: DiscoverSliderType; //This gets converted to a string because it's a url param
   };
 
-  const { data, fetchNextPage, hasNextPage, isLoading } = useInfiniteQuery({
-    queryKey: ["seerr", "company", type, companyId],
-    queryFn: async ({ pageParam }) => {
-      const params: any = {
-        page: Number(pageParam),
-      };
-      return seerrApi?.discover(
-        `${
-          Number(type) === DiscoverSliderType.NETWORKS
-            ? Endpoints.DISCOVER_TV_NETWORK
-            : Endpoints.DISCOVER_MOVIES_STUDIO
-        }/${companyId}`,
-        params,
-      );
-    },
-    enabled: !!seerrApi && !!companyId,
-    initialPageParam: 1,
-    getNextPageParam: (lastPage, pages) =>
-      (lastPage?.page || pages?.findLast((p) => p?.results.length)?.page || 1) +
-      1,
-    staleTime: 0,
-  });
-
-  const flatData = useMemo(
-    () =>
-      uniqBy(
-        data?.pages
-          ?.filter((p) => p?.results.length)
-          .flatMap(
-            (p) => p?.results.filter((r) => isSeerrMovieOrTvResult(r)) ?? [],
-          ),
-        "id",
-      ) ?? [],
-    [data],
-  );
+  const {
+    titles: flatData,
+    loadMore,
+    isLoading,
+  } = useSeerrDiscoverTitles({ kind: "company", type, id: companyId });
 
   const backdrops = useMemo(
     () =>
@@ -79,11 +70,7 @@ export default function SeerrCompanyPage() {
       images={backdrops}
       listHeader=''
       keyExtractor={(item) => item.id.toString()}
-      onEndReached={() => {
-        if (hasNextPage) {
-          fetchNextPage();
-        }
-      }}
+      onEndReached={loadMore}
       isLoading={isLoading}
       logo={
         <Image

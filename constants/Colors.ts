@@ -1,3 +1,5 @@
+import type { SeerrStatusTone } from "@/utils/seerr/statusBadge";
+
 export const Colors = {
   primary: "#9334E9",
   primaryRGB: "rgb(147 51 234)",
@@ -72,4 +74,30 @@ export const SheetColors = {
 /** The background of a page drawn under a parallax header (ParallaxPage). */
 export const ParallaxPageColors = {
   background: "black",
+} as const;
+
+/**
+ * Seerr's status badge colours per tone (StatusBadgeMini), for the TV, which
+ * draws with styles: the phone's badge (SeerrStatusIcon) has the same ones as
+ * classes.
+ */
+export const SeerrStatusBadgeColors: Record<SeerrStatusTone, string> = {
+  pending: "#eab308",
+  processing: "#6366f1",
+  partial: "#22c55e",
+  available: "#a855f7",
+  blocklisted: "#ef4444",
+  request: "#16a34a",
+};
+
+/** Seerr's type badge over a poster: a film in blue, a series in purple. */
+export const SeerrMediaBadgeColors = {
+  movie: {
+    background: "rgba(37, 99, 235, 0.9)",
+    border: "rgba(96, 165, 250, 0.4)",
+  },
+  tv: {
+    background: "rgba(147, 51, 234, 0.9)",
+    border: "rgba(192, 132, 252, 0.4)",
+  },
 } as const;

@@ -77,6 +77,9 @@ export interface TVPosterCardProps {
 
   /** For horizontal episodes, prefer the episode's own image over the series thumb */
   preferEpisodeImage?: boolean;
+
+  /** Drawn over the poster, such as Seerr's badges. */
+  overlay?: React.ReactNode;
 }
 
 /**
@@ -115,6 +118,7 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
   scaleAmount = 1.05,
   imageUrlGetter,
   preferEpisodeImage = false,
+  overlay,
 }) => {
   const api = useAtomValue(apiAtom);
   const posterSizes = useScaledTVPosterSizes();
@@ -441,7 +445,9 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
             borderWidth: scaleSize(2),
             borderColor: focused ? "#FFFFFF" : "transparent",
           }}
-        />
+        >
+          {overlay}
+        </View>
       );
     }
 
@@ -461,6 +467,7 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
           />
           {PlayButtonOverlay}
           {NowPlayingBadge}
+          {overlay}
           {/*
             The glass view draws the watched checkmark natively but cannot show
             an unplayed-episode count, so render it as an RN overlay on top.
@@ -499,6 +506,7 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
         />
         {PlayButtonOverlay}
         {NowPlayingBadge}
+        {overlay}
         {showWatchedIndicator && <WatchedIndicator item={item} />}
         <ProgressBar item={item} />
       </View>

@@ -1,4 +1,3 @@
-import { useQuery } from "@tanstack/react-query";
 import { LinearGradient } from "expo-linear-gradient";
 import type React from "react";
 import { useTranslation } from "react-i18next";
@@ -15,25 +14,14 @@ import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { SeerrBadgeColors, SeerrCardColors } from "@/constants/Colors";
 import {
-  SEERR_DOWNLOAD_REFRESH_MS,
   SEERR_PILL_FADE_WIDTH,
   SEERR_PILL_PAN_SLOP,
   SEERR_REQUEST_CARD_POSTER,
   SEERR_REQUEST_CARD_WIDTH,
 } from "@/constants/Seerr";
-import { useSeerr } from "@/hooks/useSeerr";
-import { useSeerrCanRequest } from "@/hooks/useSeerrCanRequest";
-import { hasPermission, Permission } from "@/utils/seerr/permissions";
-import {
-  overflowEdges,
-  type RequestBadge,
-  type RequestBadgeLabel,
-  requestBadge,
-  requestDownloads,
-  seerrAvatarUrl,
-  slideLimit,
-} from "@/utils/seerr/requestCard";
-import { type MediaRequest, MediaType } from "@/utils/seerr/types";
+import { useSeerrRequestCard } from "@/hooks/useSeerrRequestCard";
+import { overflowEdges, slideLimit } from "@/utils/seerr/requestCard";
+import { type MediaRequest } from "@/utils/seerr/types";
 
 /** The "Seasons" and "Status" labels, one style so they read alike. */
 const LABEL_STYLE = {
@@ -200,57 +188,21 @@ export const RequestCard: React.FC<{ request: MediaRequest }> = ({
   request,
 }) => {
   const { t } = useTranslation();
-  const { seerrApi, seerrUser, getTitle, getYear } = useSeerr();
-  const mediaType = request.media?.mediaType ?? request.type;
-  const tmdbId = request.media?.tmdbId;
-
-  const { data: details } = useQuery({
-    queryKey: ["seerr", "detail", mediaType, tmdbId],
-    queryFn: async () =>
-      mediaType === MediaType.MOVIE
-        ? seerrApi?.movieDetails(tmdbId!)
-        : seerrApi?.tvDetails(tmdbId!),
-    enabled: !!seerrApi && tmdbId !== undefined,
-  });
-
-  const { data: refreshed } = useQuery({
-    queryKey: ["seerr", "requests", mediaType, request.id],
-    queryFn: async () => seerrApi?.getRequest(request.id),
-    enabled: !!seerrApi,
-    refetchInterval: (query) =>
-      requestDownloads(query.state.data ?? request).length > 0
-        ? SEERR_DOWNLOAD_REFRESH_MS
-        : false,
-  });
-
-  const current = refreshed ?? request;
-  const [canRequest] = useSeerrCanRequest(details);
-  const badge: RequestBadge | undefined = requestBadge(current);
-  const baseUrl = seerrApi?.axios.defaults.baseURL ?? "";
-  const avatar = seerrAvatarUrl(baseUrl, current.requestedBy?.avatar);
-  // Seerr names the requester to those who may see others' requests.
-  const showRequester = hasPermission(
-    [Permission.MANAGE_REQUESTS, Permission.REQUEST_VIEW],
-    seerrUser?.permissions ?? 0,
-    { type: "or" },
-  );
-  const seasons = mediaType === MediaType.TV ? (current.seasons ?? []) : [];
-  const title = getTitle(details);
-  const posterSrc =
-    seerrApi?.imageProxy(details?.posterPath, "w300_and_h450_face") ?? "";
-
-  // Written out rather than built, so each key reads as used.
-  const badgeText: Record<RequestBadgeLabel, string> = {
-    available: t("seerr.request_status.available"),
-    partially_available: t("seerr.request_status.partially_available"),
-    requested: t("seerr.request_status.requested"),
-    processing: t("seerr.request_status.processing"),
-    pending: t("seerr.request_status.pending"),
-    declined: t("seerr.request_status.declined"),
-    failed: t("seerr.request_status.failed"),
-    blocklisted: t("seerr.request_status.blocklisted"),
-    deleted: t("seerr.request_status.deleted"),
-  };
+  const {
+    details,
+    current,
+    mediaType,
+    canRequest,
+    badge,
+    badgeText,
+    avatar,
+    showRequester,
+    seasonLabels,
+    title,
+    year,
+    posterSrc,
+    backdropSrc,
+  } = useSeerrRequestCard(request);
 
   const card = {
     width: SEERR_REQUEST_CARD_WIDTH,
@@ -274,13 +226,13 @@ export const RequestCard: React.FC<{ request: MediaRequest }> = ({
     <TouchableSeerrRouter
       result={details}
       mediaTitle={title}
-      releaseYear={getYear(details)}
+      releaseYear={year}
       canRequest={canRequest}
       posterSrc={posterSrc}
       mediaType={mediaType}
     >
       <View style={card}>
-        {!!details.backdropPath && (
+        {!!backdropSrc && (
           <View
             style={{
               position: "absolute",
@@ -291,13 +243,7 @@ export const RequestCard: React.FC<{ request: MediaRequest }> = ({
             }}
           >
             <Image
-              source={{
-                uri: seerrApi?.imageProxy(
-                  details.backdropPath,
-                  "w1920_and_h800_multi_faces",
-                  640,
-                ),
-              }}
+              source={{ uri: backdropSrc }}
               cachePolicy='memory-disk'
               contentFit='cover'
               style={{ width: "100%", height: "100%" }}
@@ -347,20 +293,16 @@ export const RequestCard: React.FC<{ request: MediaRequest }> = ({
                 </Text>
               </View>
             )}
-            {seasons.length > 0 && (
+            {seasonLabels.length > 0 && (
               <View
                 style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
               >
                 <Text style={LABEL_STYLE}>
-                  {t("seerr.request_card_seasons", { count: seasons.length })}
+                  {t("seerr.request_card_seasons", {
+                    count: seasonLabels.length,
+                  })}
                 </Text>
-                <SeasonPills
-                  labels={seasons.map((season) =>
-                    season.seasonNumber === 0
-                      ? t("seerr.specials")
-                      : `${season.seasonNumber}`,
-                  )}
-                />
+                <SeasonPills labels={seasonLabels} />
               </View>
             )}
             {badge && (

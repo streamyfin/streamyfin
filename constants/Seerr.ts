@@ -52,6 +52,24 @@ export const SEERR_PILL_FADE_WIDTH = 20;
  */
 export const SEERR_PILL_PAN_SLOP = 4;
 
+/**
+ * Seerr's request card on the TV, in points at 1080p: its width, the poster
+ * on its right, and how many seasons it lists before a "+N".
+ */
+export const SEERR_TV_REQUEST_CARD_WIDTH = 640;
+export const SEERR_TV_REQUEST_CARD_POSTER = {
+  width: 120,
+  height: 180,
+} as const;
+export const SEERR_TV_REQUEST_CARD_SEASONS = 5;
+
+/** A genre's or a company's card in a TV Discover row, in points at 1080p. */
+export const SEERR_TV_SLIDE_CARD_WIDTH = 300;
+
+/** A Seerr badge over a TV poster, in points at 1080p: its size and inset. */
+export const SEERR_TV_BADGE_SIZE = 36;
+export const SEERR_TV_BADGE_INSET = 10;
+
 /** A season row the quota leaves no room for, greyed as on Seerr's site. */
 export const SEERR_BLOCKED_OPACITY = 0.45;
 

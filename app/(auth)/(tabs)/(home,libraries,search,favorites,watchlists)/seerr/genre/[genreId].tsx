@@ -1,17 +1,37 @@
-import { useInfiniteQuery } from "@tanstack/react-query";
 import { useLocalSearchParams } from "expo-router";
-import { uniqBy } from "lodash";
 import { useMemo } from "react";
+import { Platform } from "react-native";
 import { Text } from "@/components/common/Text";
 import SeerrPoster from "@/components/posters/SeerrPoster";
 import { textShadowStyle } from "@/components/seerr/discover/GenericSlideCard";
 import ParallaxSlideShow from "@/components/seerr/ParallaxSlideShow";
-import { Endpoints, useSeerr } from "@/hooks/useSeerr";
+import { TVSeerrTitlesHeading } from "@/components/seerr/tv/TVSeerrTitlesHeading";
+import { TVSeerrTitlesPage } from "@/components/seerr/tv/TVSeerrTitlesPage";
+import { useSeerr } from "@/hooks/useSeerr";
+import { useSeerrDiscoverTitles } from "@/hooks/useSeerrDiscoverTitles";
 import { DiscoverSliderType } from "@/utils/seerr/types";
 
 export default function SeerrGenrePage() {
   const local = useLocalSearchParams();
-  const { seerrApi, isSeerrMovieOrTvResult } = useSeerr();
+  const { genreId, name, type } = local as unknown as {
+    genreId: string;
+    name: string;
+    type: DiscoverSliderType;
+  };
+  // The phone's page scrolls posters no remote can reach.
+  if (Platform.isTV)
+    return (
+      <TVSeerrTitlesPage
+        source={{ kind: "genre", type, id: genreId }}
+        heading={<TVSeerrTitlesHeading text={name} />}
+      />
+    );
+  return <MobileGenrePage />;
+}
+
+function MobileGenrePage() {
+  const local = useLocalSearchParams();
+  const { seerrApi } = useSeerr();
 
   const { genreId, name, type } = local as unknown as {
     genreId: string;
@@ -19,41 +39,11 @@ export default function SeerrGenrePage() {
     type: DiscoverSliderType;
   };
 
-  const { data, fetchNextPage, hasNextPage } = useInfiniteQuery({
-    queryKey: ["seerr", "company", type, genreId],
-    queryFn: async ({ pageParam }) => {
-      const params: any = {
-        page: Number(pageParam),
-        genre: genreId,
-      };
-
-      return seerrApi?.discover(
-        type === DiscoverSliderType.MOVIE_GENRES
-          ? Endpoints.DISCOVER_MOVIES
-          : Endpoints.DISCOVER_TV,
-        params,
-      );
-    },
-    enabled: !!seerrApi && !!genreId,
-    initialPageParam: 1,
-    getNextPageParam: (lastPage, pages) =>
-      (lastPage?.page || pages?.findLast((p) => p?.results.length)?.page || 1) +
-      1,
-    staleTime: 0,
+  const { titles: flatData, loadMore } = useSeerrDiscoverTitles({
+    kind: "genre",
+    type,
+    id: genreId,
   });
-
-  const flatData = useMemo(
-    () =>
-      uniqBy(
-        data?.pages
-          ?.filter((p) => p?.results.length)
-          .flatMap(
-            (p) => p?.results.filter((r) => isSeerrMovieOrTvResult(r)) ?? [],
-          ),
-        "id",
-      ) ?? [],
-    [data],
-  );
 
   const backdrops = useMemo(
     () =>
@@ -71,11 +61,7 @@ export default function SeerrGenrePage() {
       images={backdrops}
       listHeader=''
       keyExtractor={(item) => item.id.toString()}
-      onEndReached={() => {
-        if (hasNextPage) {
-          fetchNextPage();
-        }
-      }}
+      onEndReached={loadMore}
       logo={
         <Text
           className='text-4xl font-bold text-center bottom-1'
