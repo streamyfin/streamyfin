@@ -960,8 +960,6 @@
     "requested_by": "Requested by {{user}}",
     "unknown_user": "Unknown user",
     "select": "Select",
-    "request_all": "Request all",
-    "request_seasons": "Request seasons",
     "select_seasons": "Select seasons",
     "select_all": "Select all",
     "clear_selection": "Clear",

@@ -20,15 +20,20 @@ import { Text } from "@/components/common/Text";
 import { GenreTags } from "@/components/GenreTags";
 import { Loader } from "@/components/Loader";
 import { SeerrRatings } from "@/components/Ratings";
+import { SeerrRequestIcon } from "@/components/seerr/SeerrRequestIcon";
 import { TVButton } from "@/components/tv";
 import { useTVFocusAnimation } from "@/components/tv/hooks/useTVFocusAnimation";
+import { SeerrIssueColors } from "@/constants/Colors";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import { useSeerr } from "@/hooks/useSeerr";
 import { useSeerrCanRequest } from "@/hooks/useSeerrCanRequest";
+import { useSeerrPublicSettings } from "@/hooks/useSeerrPublicSettings";
+import { useTVIssueModal } from "@/hooks/useTVIssueModal";
 import { useTVRequestModal } from "@/hooks/useTVRequestModal";
 import { useTVSeasonSelectModal } from "@/hooks/useTVSeasonSelectModal";
 import { hasPermission, Permission } from "@/utils/seerr/permissions";
+import { canRequestMore } from "@/utils/seerr/requests";
 import { seasonsWithStatus } from "@/utils/seerr/seasons";
 import type {
   MediaRequest,
@@ -162,18 +167,31 @@ export const TVSeerrPage: React.FC = () => {
   const { t } = useTranslation();
   const router = useRouter();
 
-  const { mediaTitle, releaseYear, posterSrc, mediaType, ...result } =
-    params as unknown as {
-      mediaTitle: string;
-      releaseYear: number;
-      canRequest: string;
-      posterSrc: string;
-      mediaType: MediaType;
-    } & Partial<MovieResult | TvResult | MovieDetails | TvDetails>;
+  const {
+    mediaTitle: titleParam,
+    releaseYear: yearParam,
+    posterSrc,
+    mediaType,
+    ...result
+  } = params as unknown as {
+    mediaTitle: string;
+    releaseYear: number;
+    canRequest: string;
+    posterSrc: string;
+    mediaType: MediaType;
+  } & Partial<MovieResult | TvResult | MovieDetails | TvDetails>;
 
-  const { seerrApi, seerrUser, requestMedia, refreshAfterRequest } = useSeerr();
+  const {
+    seerrApi,
+    seerrUser,
+    requestMedia,
+    refreshAfterRequest,
+    getTitle,
+    getYear,
+  } = useSeerr();
   const { showRequestModal } = useTVRequestModal();
   const { showSeasonSelectModal } = useTVSeasonSelectModal();
+  const { showIssueModal } = useTVIssueModal();
 
   // Refs for TVFocusGuideView destinations (useState triggers re-render when set)
   const [playButtonRef, setPlayButtonRef] = useState<View | null>(null);
@@ -196,8 +214,23 @@ export const TVSeerrPage: React.FC = () => {
     },
   });
 
+  // The title and year come with the route from search, not from Discover's
+  // rows: Seerr's details give them either way.
+  const mediaTitle = getTitle(details) || titleParam;
+  const releaseYear = getYear(details) || yearParam;
+
   const [canRequest, hasAdvancedRequestPermission] =
     useSeerrCanRequest(details);
+  // Seerr's "Request more", as the phone offers it: a series it knows with
+  // seasons still to ask for.
+  const publicSettings = useSeerrPublicSettings();
+  const specials = publicSettings?.enableSpecialEpisodes === true;
+  const requestMore =
+    mediaType === MediaType.TV &&
+    canRequestMore(details as TvDetails, seerrUser?.permissions ?? 0, {
+      specials,
+    });
+  const offersRequest = canRequest || requestMore;
 
   const canManageRequests = useMemo(() => {
     if (!seerrUser) return false;
@@ -221,16 +254,6 @@ export const TVSeerrPage: React.FC = () => {
 
   const _allSeasonsAvailable = useMemo(
     () => seasons.every((season) => season.status === MediaStatus.AVAILABLE),
-    [seasons],
-  );
-
-  // Check if there are any requestable seasons (status === UNKNOWN)
-  const hasRequestableSeasons = useMemo(
-    () =>
-      seasons.some(
-        (season) =>
-          season.seasonNumber !== 0 && season.status === MediaStatus.UNKNOWN,
-      ),
     [seasons],
   );
 
@@ -314,43 +337,10 @@ export const TVSeerrPage: React.FC = () => {
     showRequestModal,
   ]);
 
-  const handleRequestAll = useCallback(() => {
-    const body: MediaRequestBody = {
-      mediaId: Number(result.id!),
-      mediaType: MediaType.TV,
-      tvdbId: details?.externalIds?.tvdbId ?? undefined,
-      seasons: seasons
-        .filter((s) => s.status === MediaStatus.UNKNOWN && s.seasonNumber !== 0)
-        .map((s) => s.seasonNumber),
-    };
-
-    if (hasAdvancedRequestPermission) {
-      showRequestModal({
-        requestBody: body,
-        title: mediaTitle,
-        id: result.id!,
-        mediaType: MediaType.TV,
-        onRequested: refetch,
-      });
-      return;
-    }
-
-    requestMedia(`${mediaTitle}, ${t("seerr.season_all")}`, body, refetch);
-  }, [
-    details,
-    result,
-    seasons,
-    hasAdvancedRequestPermission,
-    requestMedia,
-    mediaTitle,
-    refetch,
-    t,
-    showRequestModal,
-  ]);
-
   const handleOpenSeasonSelectModal = useCallback(() => {
     showSeasonSelectModal({
-      seasons: seasons.filter((s) => s.seasonNumber !== 0),
+      // Specials only where the server shows them, as on the phone.
+      seasons: seasons.filter((s) => specials || s.seasonNumber !== 0),
       title: mediaTitle,
       mediaId: Number(result.id!),
       tvdbId: details?.externalIds?.tvdbId ?? undefined,
@@ -359,6 +349,7 @@ export const TVSeerrPage: React.FC = () => {
     });
   }, [
     seasons,
+    specials,
     mediaTitle,
     result,
     details,
@@ -629,21 +620,23 @@ export const TVSeerrPage: React.FC = () => {
                 </TVButton>
               )}
 
-              {/* Request button - only show for movies, TV series use Request All + season cards */}
-              {canRequest && mediaType === MediaType.MOVIE && (
+              {/* Seerr's one request button (RequestButton), as on the phone:
+                  a series picks its seasons in the season sheet. */}
+              {offersRequest && (
                 <TVButton
-                  onPress={handleRequest}
+                  onPress={
+                    mediaType === MediaType.TV
+                      ? handleOpenSeasonSelectModal
+                      : handleRequest
+                  }
                   variant='secondary'
                   hasTVPreferredFocus={!hasJellyfinMedia}
                   refSetter={!hasJellyfinMedia ? setPlayButtonRef : undefined}
                   scaleAmount={1.01}
                 >
-                  <Ionicons
-                    name='add'
-                    size={24}
-                    color='#FFFFFF'
-                    style={{ marginRight: 8 }}
-                  />
+                  <View style={{ marginRight: 8 }}>
+                    <SeerrRequestIcon size={24} color='#FFFFFF' />
+                  </View>
                   <Text
                     style={{
                       fontSize: typography.callout,
@@ -651,80 +644,33 @@ export const TVSeerrPage: React.FC = () => {
                       color: "#FFFFFF",
                     }}
                   >
-                    {t("seerr.request_button")}
+                    {requestMore
+                      ? t("seerr.request_more")
+                      : t("seerr.request_button")}
                   </Text>
                 </TVButton>
               )}
 
-              {/* Request All button for TV series */}
-              {mediaType === MediaType.TV &&
-                seasons.filter((s) => s.seasonNumber !== 0).length > 0 &&
-                hasRequestableSeasons && (
-                  <TVButton
-                    onPress={handleRequestAll}
-                    variant='secondary'
-                    hasTVPreferredFocus={!hasJellyfinMedia}
-                    refSetter={!hasJellyfinMedia ? setPlayButtonRef : undefined}
-                  >
-                    <View
-                      style={{
-                        height: 40,
-                        flexDirection: "row",
-                        alignItems: "center",
-                      }}
-                    >
-                      <Ionicons
-                        name='bag-add'
-                        size={20}
-                        color='#FFFFFF'
-                        style={{ marginRight: 8 }}
-                      />
-                      <Text
-                        style={{
-                          fontSize: typography.callout,
-                          fontWeight: "600",
-                          color: "#FFFFFF",
-                        }}
-                      >
-                        {t("seerr.request_all")}
-                      </Text>
-                    </View>
-                  </TVButton>
-                )}
-
-              {/* Request Seasons button for TV series */}
-              {mediaType === MediaType.TV &&
-                seasons.filter((s) => s.seasonNumber !== 0).length > 0 &&
-                hasRequestableSeasons && (
-                  <TVButton
-                    onPress={handleOpenSeasonSelectModal}
-                    variant='secondary'
-                  >
-                    <View
-                      style={{
-                        height: 40,
-                        flexDirection: "row",
-                        alignItems: "center",
-                      }}
-                    >
-                      <Ionicons
-                        name='list'
-                        size={20}
-                        color='#FFFFFF'
-                        style={{ marginRight: 8 }}
-                      />
-                      <Text
-                        style={{
-                          fontSize: typography.callout,
-                          fontWeight: "600",
-                          color: "#FFFFFF",
-                        }}
-                      >
-                        {t("seerr.request_seasons")}
-                      </Text>
-                    </View>
-                  </TVButton>
-                )}
+              {/* Report an issue, as the phone's icon beside the buttons. */}
+              {hasJellyfinMedia && details?.mediaInfo?.id !== undefined && (
+                <TVButton
+                  square
+                  variant='secondary'
+                  onPress={() =>
+                    showIssueModal({
+                      title: mediaTitle,
+                      mediaId: details.mediaInfo!.id,
+                    })
+                  }
+                  style={{
+                    backgroundColor: SeerrIssueColors.background,
+                    borderWidth: 1,
+                    borderColor: SeerrIssueColors.border,
+                  }}
+                >
+                  <Ionicons name='warning-outline' size={24} color='#FFFFFF' />
+                </TVButton>
+              )}
             </View>
 
             {/* Approve/Decline for managers */}
