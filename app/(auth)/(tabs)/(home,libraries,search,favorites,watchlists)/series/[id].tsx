@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useLocalSearchParams, useNavigation } from "expo-router";
 import { useAtom } from "jotai";
 import type React from "react";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Platform, View } from "react-native";
 import { AddToFavorites } from "@/components/AddToFavorites";
@@ -13,7 +13,10 @@ import { Image } from "@/components/common/ServerImage";
 import { DownloadItems } from "@/components/DownloadItem";
 import { ParallaxScrollView } from "@/components/ParallaxPage";
 import { NextUp } from "@/components/series/NextUp";
-import { SeasonPicker } from "@/components/series/SeasonPicker";
+import {
+  SeasonPicker,
+  seasonIndexAtom,
+} from "@/components/series/SeasonPicker";
 import { SeriesHeader } from "@/components/series/SeriesHeader";
 import { TVSeriesPage } from "@/components/series/TVSeriesPage";
 import { Colors } from "@/constants/Colors";
@@ -40,11 +43,18 @@ const page: React.FC = () => {
     offline: offlineParam,
   } = params as {
     id: string;
-    seasonIndex: string;
+    seasonIndex?: string;
     offline?: string;
   };
 
   const isOffline = offlineParam === "true";
+  const [, setSeasonIndexState] = useAtom(seasonIndexAtom);
+  const processedSeasonRequest = useRef<string | null>(null);
+  const requestedSeasonIndex = useMemo(() => {
+    if (seasonIndex === undefined) return undefined;
+    const requested = Number(seasonIndex);
+    return Number.isFinite(requested) ? requested : undefined;
+  }, [seasonIndex]);
 
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
@@ -126,13 +136,34 @@ const page: React.FC = () => {
     enabled: isOffline || (!!api && !!user?.Id),
   });
 
+  useEffect(() => {
+    if (requestedSeasonIndex === undefined) {
+      processedSeasonRequest.current = null;
+      return;
+    }
+    if (allEpisodes === undefined) return;
+
+    const requestKey = `${seriesId}:${requestedSeasonIndex}`;
+    if (processedSeasonRequest.current === requestKey) return;
+    processedSeasonRequest.current = requestKey;
+
+    const seasonExists = allEpisodes.some(
+      (episode) => episode.ParentIndexNumber === requestedSeasonIndex,
+    );
+    if (!seasonExists) return;
+
+    setSeasonIndexState((state) => {
+      if (state[seriesId] === requestedSeasonIndex) return state;
+      return { ...state, [seriesId]: requestedSeasonIndex };
+    });
+  }, [allEpisodes, requestedSeasonIndex, seriesId, setSeasonIndexState]);
+
   const initialSeasonIndex = useMemo(() => {
-    const requested = Number(seasonIndex);
-    if (Number.isFinite(requested)) return requested;
+    if (requestedSeasonIndex !== undefined) return requestedSeasonIndex;
     return (
       getSeriesPlaybackTarget(allEpisodes ?? [])?.ParentIndexNumber ?? undefined
     );
-  }, [allEpisodes, seasonIndex]);
+  }, [allEpisodes, requestedSeasonIndex]);
 
   useEffect(() => {
     // Don't show header buttons in offline mode

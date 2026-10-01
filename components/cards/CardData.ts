@@ -116,10 +116,24 @@ export const cardRowHeight = (kind: CardKind) => {
  * The second line under a title: which episode this is, or when it came out.
  * Exported so anything building cards outside `buildItemCards` — the offline
  * downloads, say — labels an item the same way.
+ *
+ * @param episodeLabel Text shown after an episode number. Defaults to its series.
  */
-export const cardSubtitle = (item: BaseItemDto): string | null => {
+export const cardSubtitle = (
+  item: BaseItemDto,
+  episodeLabel?: string,
+): string | null => {
   if (item.Type === "Episode") {
-    return `S${item.ParentIndexNumber}:E${item.IndexNumber} - ${item.SeriesName ?? ""}`;
+    const episodeNumber = `S${item.ParentIndexNumber}:E${item.IndexNumber}`;
+    if (episodeLabel === undefined) {
+      return `${episodeNumber} - ${item.SeriesName ?? ""}`;
+    }
+
+    const hasEpisodeNumber =
+      item.ParentIndexNumber != null && item.IndexNumber != null;
+    return [hasEpisodeNumber ? episodeNumber : null, episodeLabel]
+      .filter(Boolean)
+      .join(" - ");
   }
   return item.ProductionYear ? String(item.ProductionYear) : null;
 };
@@ -159,15 +173,32 @@ export const itemProgressFraction = (item: BaseItemDto): number =>
 const hasPortraitArtwork = (item: BaseItemDto) =>
   item.Type === "Movie" ||
   item.Type === "Series" ||
+  item.Type === "Season" ||
   item.Type === "BoxSet" ||
   item.Type === "Episode" ||
   item.Type === "Person";
+
+/** Returns parent-first labels for latest season and episode cards. */
+const latestCardText = (item: BaseItemDto) => {
+  if (!item.SeriesName) return null;
+  if (item.Type === "Season") {
+    return { title: item.SeriesName, subtitle: item.Name };
+  }
+  if (item.Type !== "Episode") return null;
+
+  return {
+    title: item.SeriesName,
+    subtitle: cardSubtitle(item, item.Name ?? ""),
+  };
+};
 
 type BuildOptions = {
   api?: Api | null;
   kind: CardKind;
   /** Prefer the episode's own still over the series thumbnail. */
   useEpisodePoster?: boolean;
+  /** Show a TV child's series name before its own name, as Jellyfin Web does. */
+  showParentTitle?: boolean;
   /** Item to keep at full opacity; every other card is faded back. */
   selectedId?: string | null;
 };
@@ -178,14 +209,24 @@ type BuildOptions = {
  */
 export function buildItemCards(
   items: BaseItemDto[],
-  { api, kind, useEpisodePoster = false, selectedId }: BuildOptions,
+  {
+    api,
+    kind,
+    useEpisodePoster = false,
+    showParentTitle = false,
+    selectedId,
+  }: BuildOptions,
 ): CardData[] {
   if (!api) return [];
 
   return items.flatMap((item) => {
     if (!item.Id) return [];
 
-    const subtitle = cardSubtitle(item);
+    const parentFirstText = showParentTitle ? latestCardText(item) : null;
+    const title = parentFirstText?.title ?? item.Name ?? "";
+    const subtitle = parentFirstText
+      ? parentFirstText.subtitle
+      : cardSubtitle(item);
 
     const unplayed = item.UserData?.UnplayedItemCount ?? 0;
     const imageUrl =
@@ -206,7 +247,7 @@ export function buildItemCards(
     return [
       {
         id: item.Id,
-        title: item.Name ?? "",
+        title,
         subtitle,
         imageUrl,
         progress,
