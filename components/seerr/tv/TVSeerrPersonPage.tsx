@@ -19,8 +19,8 @@ import useRouter from "@/hooks/useAppRouter";
 import { useSeerr } from "@/hooks/useSeerr";
 import { useSeerrPerson } from "@/hooks/useSeerrPerson";
 import { scaleSize } from "@/utils/scaleSize";
-import { formatSeerrDate, seerrLocaleTag } from "@/utils/seerr/dates";
-import { roleKey } from "@/utils/seerr/person";
+import { seerrLocaleTag } from "@/utils/seerr/dates";
+import { birthLine, roleKey } from "@/utils/seerr/person";
 
 /**
  * A person on the TV, as the phone's page has them: their photo, name, birth
@@ -37,6 +37,7 @@ export const TVSeerrPersonPage: React.FC<{ personId: string }> = ({
   const router = useRouter();
   const { seerrApi, seerrRegion: region, seerrLocale: locale } = useSeerr();
   const { details, roles } = useSeerrPerson(personId);
+  const born = birthLine(t, details, seerrLocaleTag(locale, region));
   const photo = scaleSize(SEERR_TV_PERSON_PHOTO);
   // Every poster of a TV grid is mounted: a prolific actor's few hundred
   // roles come a step at a time as the grid scrolls down.
@@ -90,18 +91,9 @@ export const TVSeerrPersonPage: React.FC<{ personId: string }> = ({
           >
             {details?.name}
           </Text>
-          {!!(details?.birthday || details?.placeOfBirth) && (
+          {!!born && (
             <Text style={{ fontSize: typography.callout, color: "#9CA3AF" }}>
-              {[
-                details?.birthday &&
-                  `${t("seerr.born")} ${formatSeerrDate(
-                    details.birthday,
-                    seerrLocaleTag(locale, region),
-                  )}`,
-                details?.placeOfBirth,
-              ]
-                .filter(Boolean)
-                .join(" | ")}
+              {born}
             </Text>
           )}
           {!!details?.biography && (

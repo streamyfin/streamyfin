@@ -1,4 +1,4 @@
-import { personRoles } from "./person";
+import { birthLine, personRoles } from "./person";
 import { MediaType, type PersonCreditCast } from "./types";
 
 const role = (
@@ -40,5 +40,40 @@ describe("personRoles", () => {
 
   test("has nothing to list without credits", () => {
     expect(personRoles(undefined)).toEqual([]);
+  });
+});
+
+// The line under a person's name, as Seerr writes it (PersonDetails): "Born"
+// and the date, then the place, joined by a bar, each only when Seerr has it.
+describe("birthLine", () => {
+  const t = (key: string) => (key === "seerr.born" ? "Born" : key);
+
+  test("writes the birthday and the place", () => {
+    expect(
+      birthLine(
+        t,
+        {
+          birthday: "1974-11-11",
+          placeOfBirth: "Los Angeles, California, USA",
+        },
+        "en-US",
+      ),
+    ).toBe("Born November 11, 1974 | Los Angeles, California, USA");
+  });
+
+  // The phone wrote "Born  | Paris" without a birthday, and "Born  | "
+  // with neither.
+  test("leaves out what Seerr does not have", () => {
+    expect(birthLine(t, { placeOfBirth: "Paris, France" }, "en-US")).toBe(
+      "Paris, France",
+    );
+    expect(birthLine(t, { birthday: "1974-11-11" }, "en-US")).toBe(
+      "Born November 11, 1974",
+    );
+  });
+
+  test("has no line for a person with neither", () => {
+    expect(birthLine(t, { birthday: null }, "en-US")).toBeUndefined();
+    expect(birthLine(t, undefined, "en-US")).toBeUndefined();
   });
 });

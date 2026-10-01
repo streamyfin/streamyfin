@@ -10,8 +10,8 @@ import ParallaxSlideShow from "@/components/seerr/ParallaxSlideShow";
 import { TVSeerrPersonPage } from "@/components/seerr/tv/TVSeerrPersonPage";
 import { useSeerr } from "@/hooks/useSeerr";
 import { useSeerrPerson } from "@/hooks/useSeerrPerson";
-import { formatSeerrDate, seerrLocaleTag } from "@/utils/seerr/dates";
-import { roleKey } from "@/utils/seerr/person";
+import { seerrLocaleTag } from "@/utils/seerr/dates";
+import { birthLine, roleKey } from "@/utils/seerr/person";
 
 export default function SeerrPersonPage() {
   const { personId } = useLocalSearchParams() as { personId: string };
@@ -24,6 +24,7 @@ function MobilePersonPage({ personId }: { personId: string }) {
   const { t } = useTranslation();
   const { seerrApi, seerrRegion: region, seerrLocale: locale } = useSeerr();
   const { details, roles: castedRoles } = useSeerrPerson(personId);
+  const born = birthLine(t, details, seerrLocaleTag(locale, region));
 
   const backdrops = useMemo(
     () =>
@@ -63,11 +64,7 @@ function MobilePersonPage({ personId }: { personId: string }) {
       HeaderContent={() => (
         <>
           <Text className='font-bold text-2xl mb-1'>{details?.name}</Text>
-          <Text className='opacity-50'>
-            {t("seerr.born")}{" "}
-            {formatSeerrDate(details?.birthday, seerrLocaleTag(locale, region))}{" "}
-            | {details?.placeOfBirth}
-          </Text>
+          {!!born && <Text className='opacity-50'>{born}</Text>}
         </>
       )}
       MainContent={() => (
