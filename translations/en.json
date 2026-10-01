@@ -637,7 +637,9 @@
     "loading": "Loading...",
     "seeAll": "See all",
     "close": "Close",
-    "something_went_wrong": "Something went wrong"
+    "something_went_wrong": "Something went wrong",
+    "save": "Save",
+    "error": "Error"
   },
   "search": {
     "search": "Search...",
@@ -985,6 +987,36 @@
   "not_found": {
     "title": "This screen doesn't exist.",
     "go_home": "Go to home screen!"
+  },
+  "jellysleep": {
+    "manage_timer": "Manage Sleep Timer",
+    "active_timer": "Sleep Timer Active",
+    "remaining": "remaining",
+    "error_title": "Sleep Timer Error",
+    "error_generic": "Failed to set sleep timer. Please try again.",
+    "after_episode_one": "After this episode",
+    "after_episode_other": "After {{count}} episodes",
+    "minute_one": "minute",
+    "minute_other": "minutes",
+    "hour_one": "hour",
+    "hour_other": "hours",
+    "timer_options": "Sleep Timer Options",
+    "add_timer_option": "Add Timer Option",
+    "select_timer_type": "Select the type of timer you want to add",
+    "duration_timer": "Duration Timer",
+    "episode_timer": "Episode Timer",
+    "enter_minutes": "Enter the number of minutes",
+    "enter_episode_count": "Enter the number of episodes",
+    "delete_timer_option": "Delete Timer Option",
+    "delete_timer_option_confirm": "Are you sure you want to delete this timer option?",
+    "plugin_requirement": "This feature requires the Jellysleep plugin to be installed and enabled on your Jellyfin server.",
+    "invalid_timer_value": "Invalid timer value",
+    "after_episode": "After {{count}} episodes",
+    "minute": "minutes",
+    "hour": "hours",
+    "title": "Sleep Timer",
+    "enable": "Enable Sleep Timer",
+    "duplicate_timer": "That timer already exists"
   },
   "tabs": {
     "home": "Home",

@@ -217,6 +217,16 @@ export default function IndexLayout() {
         }}
       />
       <Stack.Screen
+        name='settings/plugins/jellysleep/page'
+        options={{
+          title: "Jellysleep",
+          headerShown: !Platform.isTV,
+          headerBlurEffect: "none",
+          headerTransparent: Platform.OS === "ios",
+          headerShadowVisible: false,
+        }}
+      />
+      <Stack.Screen
         name='settings/intro/page'
         options={{
           title: t("home.settings.intro.title"),
