@@ -190,7 +190,10 @@ export const TVSeerrSeasons: React.FC<{
                       color: "rgba(255,255,255,0.6)",
                     }}
                   >
-                    {t("seerr.number_episodes", { count: season.episodeCount })}
+                    {t("seerr.number_episodes", {
+                      count: season.episodeCount,
+                      episode_number: season.episodeCount,
+                    })}
                   </Text>
                 </View>
                 {badge && (

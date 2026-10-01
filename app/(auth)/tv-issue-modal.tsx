@@ -10,7 +10,6 @@ import {
   TVFocusGuideView,
   View,
 } from "react-native";
-import { toast } from "sonner-native";
 import { Text } from "@/components/common/Text";
 import { TVButton, TVOptionCard } from "@/components/tv";
 import { TVSettingsTextInput } from "@/components/tv/settings/TVSettingsTextInput";
@@ -83,8 +82,8 @@ export default function TVIssueModal() {
     if (!modalState || issueType === undefined || !message.trim()) return;
     setSending(true);
     try {
+      // submitIssue says "Issue submitted!" itself.
       await seerrApi?.submitIssue(modalState.mediaId, issueType, message);
-      toast.success(t("seerr.toasts.issue_submitted"));
       close();
     } catch (error) {
       // The response interceptor already reports the failure with its route.

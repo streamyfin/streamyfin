@@ -44,15 +44,17 @@ const STATUS_COLORS: Partial<Record<MediaStatus, string>> = {
 const TVSeasonToggleCard: React.FC<{
   row: SeasonRow;
   selected: boolean;
+  /** False on a server that only takes whole series: nothing to choose. */
+  choosable: boolean;
   /** Greyed once the quota is spent, except to switch a chosen one off. */
   blocked: boolean;
   onToggle: () => void;
   hasTVPreferredFocus?: boolean;
-}> = ({ row, selected, blocked, onToggle, hasTVPreferredFocus }) => {
+}> = ({ row, selected, choosable, blocked, onToggle, hasTVPreferredFocus }) => {
   const { t } = useTranslation();
   const { focused, handleFocus, handleBlur, animatedStyle } =
     useTVFocusAnimation({ scaleAmount: 1.08 });
-  const interactive = !row.locked && !blocked;
+  const interactive = choosable && !row.locked && !blocked;
   const status = seasonRowStatus(row);
   const badge = row.locked ? seerrStatusBadge(status, false) : undefined;
 
@@ -79,7 +81,7 @@ const TVSeasonToggleCard: React.FC<{
             borderColor: selected
               ? "rgba(255,255,255,0.4)"
               : "rgba(255,255,255,0.1)",
-            opacity: row.locked || blocked ? SEERR_BLOCKED_OPACITY : 1,
+            opacity: blocked ? SEERR_BLOCKED_OPACITY : 1,
           },
         ]}
       >
@@ -123,7 +125,10 @@ const TVSeasonToggleCard: React.FC<{
             { color: focused ? "rgba(0,0,0,0.6)" : "rgba(255,255,255,0.6)" },
           ]}
         >
-          {t("seerr.number_episodes", { count: row.episodeCount })}
+          {t("seerr.number_episodes", {
+            count: row.episodeCount,
+            episode_number: row.episodeCount,
+          })}
         </Text>
       </Animated.View>
     </Pressable>
@@ -323,7 +328,10 @@ export default function TVSeasonSelectModalPage() {
                     key={row.seasonNumber}
                     row={row}
                     selected={chosen}
-                    blocked={!partial || (!chosen && !roomForOneMore)}
+                    choosable={partial}
+                    blocked={
+                      partial && !row.locked && !chosen && !roomForOneMore
+                    }
                     onToggle={() => toggle(row.seasonNumber)}
                     hasTVPreferredFocus={index === firstChoosable}
                   />
