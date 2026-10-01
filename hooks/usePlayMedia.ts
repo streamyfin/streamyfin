@@ -1,12 +1,15 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { useSetAtom } from "jotai";
 import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
+import { Alert } from "react-native";
 import useRouter from "@/hooks/useAppRouter";
 import { isNativePlayerPresented } from "@/modules/mpv-player";
 import { useNativePlayer } from "@/providers/NativePlayerProvider";
+import { useSyncPlay } from "@/providers/SyncPlay";
 import { isNativeChromeActive, useSettings } from "@/utils/atoms/settings";
 import { shuffleQueueAtom } from "@/utils/atoms/shuffleQueue";
-import { writeErrorLog } from "@/utils/log";
+import { logAndCaptureError, writeErrorLog } from "@/utils/log";
 import {
   type PlayRequest,
   toDirectPlayerQuery,
@@ -20,6 +23,8 @@ interface PlayMediaOptions {
    * straight to the JS route, which owns live-stream lifecycle handling.
    */
   item?: BaseItemDto | null;
+  /** Explicit ordered queue, e.g. the complete series shuffle. */
+  queueItems?: BaseItemDto[];
 }
 
 /**
@@ -35,6 +40,12 @@ export const usePlayMedia = () => {
   const { settings, updateSettings } = useSettings();
   const setShuffleQueue = useSetAtom(shuffleQueueAtom);
   const { presentFromRequest } = useNativePlayer();
+  const {
+    isEnabled: isSyncPlayEnabled,
+    controller,
+    registerLocalPlaybackRequest,
+  } = useSyncPlay();
+  const { t } = useTranslation();
 
   return useCallback(
     async (req: PlayRequest, options?: PlayMediaOptions): Promise<void> => {
@@ -50,6 +61,40 @@ export const usePlayMedia = () => {
       const isLiveTv =
         options?.item?.Type === "Program" ||
         options?.item?.Type === "TvChannel";
+      if (
+        !req.offline &&
+        !req.syncPlay &&
+        !isLiveTv &&
+        isSyncPlayEnabled &&
+        controller
+      ) {
+        const clearLocalRequest = registerLocalPlaybackRequest(req);
+        try {
+          const queueItems = options?.queueItems?.filter((item) => !!item.Id);
+          const startIndex = queueItems?.findIndex(
+            (item) => item.Id === req.itemId,
+          );
+          if (queueItems && (startIndex === undefined || startIndex < 0)) {
+            throw new Error(
+              "SyncPlay requested item is absent from the supplied queue",
+            );
+          }
+          await controller.play({
+            ids: queueItems?.flatMap((item) => (item.Id ? [item.Id] : [])) ?? [
+              req.itemId,
+            ],
+            items: queueItems ?? (options?.item ? [options.item] : undefined),
+            startIndex,
+            exactQueue: !!queueItems,
+            startPositionTicks: req.playbackPositionTicks,
+          });
+        } catch (error) {
+          clearLocalRequest();
+          logAndCaptureError("SyncPlay play request failed", error);
+          Alert.alert(t("player.client_error"), t("syncplay.failed_to_start"));
+        }
+        return;
+      }
       if (
         isNativeChromeActive(settings) &&
         !isLiveTv &&
@@ -70,6 +115,16 @@ export const usePlayMedia = () => {
 
       router.push(`/player/direct-player?${toDirectPlayerQuery(req)}`);
     },
-    [router, settings, updateSettings, setShuffleQueue, presentFromRequest],
+    [
+      router,
+      settings,
+      updateSettings,
+      setShuffleQueue,
+      presentFromRequest,
+      isSyncPlayEnabled,
+      controller,
+      registerLocalPlaybackRequest,
+      t,
+    ],
   );
 };
