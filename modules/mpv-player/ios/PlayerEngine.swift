@@ -27,10 +27,29 @@ protocol MPVPlayerEngineDelegate: AnyObject {
 	/// forwards the request.
 	func engine(_ engine: MPVPlayerEngine, requestsSeekTo position: Double)
 	func engine(_ engine: MPVPlayerEngine, requestsSeekBy offset: Double)
+	func engineRequestsPlay(_ engine: MPVPlayerEngine)
+	func engineRequestsPause(_ engine: MPVPlayerEngine)
+	func engineRequestsTogglePlayPause(_ engine: MPVPlayerEngine)
 }
 
 /// Hosts without position bookkeeping of their own let the engine seek.
 extension MPVPlayerEngineDelegate {
+	func engineRequestsPlay(_ engine: MPVPlayerEngine) {
+		engine.play()
+	}
+
+	func engineRequestsPause(_ engine: MPVPlayerEngine) {
+		engine.pause()
+	}
+
+	func engineRequestsTogglePlayPause(_ engine: MPVPlayerEngine) {
+		if !engine.intendedPlayState {
+			engineRequestsPlay(engine)
+		} else {
+			engineRequestsPause(engine)
+		}
+	}
+
 	func engine(_ engine: MPVPlayerEngine, requestsSeekTo position: Double) {
 		engine.seekTo(position: position)
 	}
@@ -182,11 +201,17 @@ final class MPVPlayerEngine: NSObject {
 
 	private func setupRemoteCommands() {
 		nowPlayingManager.setupRemoteCommands(
-			playHandler: { [weak self] in self?.play() },
-			pauseHandler: { [weak self] in self?.pause() },
+			playHandler: { [weak self] in self?.requestPlay() },
+			pauseHandler: { [weak self] in self?.requestPause() },
 			toggleHandler: { [weak self] in
 				guard let self else { return }
-				if self.intendedPlayState { self.pause() } else { self.play() }
+				if let delegate = self.delegate {
+					delegate.engineRequestsTogglePlayPause(self)
+				} else if self.intendedPlayState {
+					self.pause()
+				} else {
+					self.play()
+				}
 			},
 			seekHandler: { [weak self] time in self?.requestSeek(to: time) },
 			skipForward: { [weak self] interval in self?.requestSeek(by: interval) },
@@ -384,6 +409,22 @@ final class MPVPlayerEngine: NSObject {
 			delegate.engine(self, requestsSeekTo: position)
 		} else {
 			seekTo(position: position)
+		}
+	}
+
+	func requestPlay() {
+		if let delegate {
+			delegate.engineRequestsPlay(self)
+		} else {
+			play()
+		}
+	}
+
+	func requestPause() {
+		if let delegate {
+			delegate.engineRequestsPause(self)
+		} else {
+			pause()
 		}
 	}
 
@@ -773,16 +814,12 @@ extension MPVPlayerEngine: PiPControllerDelegate {
 
 	func pipControllerPlay(_ controller: PiPController) {
 		print("PiP play requested")
-		intendedPlayState = true
-		renderer?.play()
-		pipController?.setPlaybackRate(1.0)
+		requestPlay()
 	}
 
 	func pipControllerPause(_ controller: PiPController) {
 		print("PiP pause requested")
-		intendedPlayState = false
-		renderer?.pausePlayback()
-		pipController?.setPlaybackRate(0.0)
+		requestPause()
 	}
 
 	func pipController(_ controller: PiPController, skipByInterval interval: CMTime) {

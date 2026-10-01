@@ -69,6 +69,17 @@ class MpvPlayerView: ExpoView {
 	let onError = EventDispatcher()
 	let onTracksReady = EventDispatcher()
 	let onPictureInPictureChange = EventDispatcher()
+	// SyncPlay: when `syncPlayDelegated == true`, PiP playback controls
+	// (play / pause / skip) emit these events instead of driving MPV
+	// directly, so JS can route the action through the SyncPlay
+	// controller (server → group broadcast → all clients). Default
+	// behavior (non-SyncPlay) is unchanged.
+	let onPipPlayRequest = EventDispatcher()
+	let onPipToggleRequest = EventDispatcher()
+	let onPipPauseRequest = EventDispatcher()
+	let onPipSkipRequest = EventDispatcher()
+
+	var syncPlayDelegated: Bool = false
 
 	required init(appContext: AppContext? = nil) {
 		super.init(appContext: appContext)
@@ -315,6 +326,54 @@ class MpvPlayerView: ExpoView {
 // MARK: - MPVPlayerEngineDelegate
 
 extension MpvPlayerView: MPVPlayerEngineDelegate {
+	func engineRequestsTogglePlayPause(_ engine: MPVPlayerEngine) {
+		if syncPlayDelegated {
+			onPipToggleRequest([:])
+		} else if engine.intendedPlayState {
+			engine.pause()
+		} else {
+			engine.play()
+		}
+	}
+
+	func engineRequestsPlay(_ engine: MPVPlayerEngine) {
+		if syncPlayDelegated {
+			onPipPlayRequest([:])
+		} else {
+			engine.play()
+		}
+	}
+
+	func engineRequestsPause(_ engine: MPVPlayerEngine) {
+		if syncPlayDelegated {
+			onPipPauseRequest([:])
+		} else {
+			engine.pause()
+		}
+	}
+
+	func engine(_ engine: MPVPlayerEngine, requestsSeekTo position: Double) {
+		if syncPlayDelegated {
+			onPipSkipRequest([
+				"targetSeconds": max(0, position),
+				"intervalSeconds": position - engine.getCurrentPosition(),
+			])
+		} else {
+			engine.seekTo(position: position)
+		}
+	}
+
+	func engine(_ engine: MPVPlayerEngine, requestsSeekBy offset: Double) {
+		if syncPlayDelegated {
+			onPipSkipRequest([
+				"targetSeconds": max(0, engine.getCurrentPosition() + offset),
+				"intervalSeconds": offset,
+			])
+		} else {
+			engine.seekBy(offset: offset)
+		}
+	}
+
 	func engine(_ engine: MPVPlayerEngine, didLoad url: URL) {
 		onLoad(["url": url.absoluteString])
 	}

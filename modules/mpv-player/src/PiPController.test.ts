@@ -40,6 +40,24 @@ const manualStartMethod = methodSection(
 );
 
 describe("iOS automatic PiP lifecycle", () => {
+  test("system toggles reverse synchronous playback intent before renderer events catch up", () => {
+    const toggle = engineSource
+      .split(
+        "func engineRequestsTogglePlayPause(_ engine: MPVPlayerEngine) {",
+        2,
+      )[1]
+      ?.split("\n\tfunc engine(", 1)[0];
+    expect(toggle).toContain("if !engine.intendedPlayState");
+    expect(toggle).not.toContain("engine.isPaused()");
+    expect(embeddedHostSource).toMatch(
+      /func engineRequestsTogglePlayPause[\s\S]*?if syncPlayDelegated \{\s*onPipToggleRequest\(\[:\]\)/,
+    );
+    expect(engineSource).toMatch(/func play\(\) \{\s*intendedPlayState = true/);
+    expect(engineSource).toMatch(
+      /func pause\(\) \{\s*intendedPlayState = false/,
+    );
+  });
+
   test("keeps automatic PiP enabled while AVKit prepares the source", () => {
     expect(source).toMatch(
       /func setAutoStartEnabled\(_ enabled: Bool\)[\s\S]*canStartPictureInPictureAutomaticallyFromInline = enabled/,
