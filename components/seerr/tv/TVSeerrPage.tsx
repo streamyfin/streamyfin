@@ -777,6 +777,31 @@ export const TVSeerrPage: React.FC = () => {
           </View>
         </View>
 
+        {/* Between the buttons and the seasons, stacked like the cast's: down
+            from the buttons to the first season, up from the seasons to the
+            buttons. The seasons start under the poster, left of the buttons,
+            where tvOS looks for nothing going down. */}
+        {mediaType === MediaType.TV && firstSeasonCardRef && (
+          <TVFocusGuideView
+            destinations={[firstSeasonCardRef]}
+            style={{
+              height: 1,
+              width: SCREEN_WIDTH,
+              marginLeft: -(insets.left + 80),
+            }}
+          />
+        )}
+        {mediaType === MediaType.TV && firstSeasonCardRef && playButtonRef && (
+          <TVFocusGuideView
+            destinations={[playButtonRef]}
+            style={{
+              height: 1,
+              width: SCREEN_WIDTH,
+              marginLeft: -(insets.left + 80),
+            }}
+          />
+        )}
+
         {/* Seasons, as the phone lists them */}
         {mediaType === MediaType.TV && details && (
           <TVSeerrSeasons
