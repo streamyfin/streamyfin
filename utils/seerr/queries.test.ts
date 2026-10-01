@@ -39,6 +39,20 @@ describe("touchedByRequest", () => {
     expect(touched(["seerr", "discover", 3])).toBe(true);
   });
 
+  // The posters of a genre, a studio or a network, and of a person's roles,
+  // show a title's status as Discover's do.
+  test("takes the other pages of posters", () => {
+    expect(touched(["seerr", "genre", "movie", 28])).toBe(true);
+    expect(touched(["seerr", "company", "tv", 213])).toBe(true);
+    expect(touched(["seerr", "person", "17419"])).toBe(true);
+  });
+
+  // A request spends the quota and a decline gives it back. A refusal can
+  // mean the sheet's quota was out of date: it stays open, to be read again.
+  test("takes the quota", () => {
+    expect(touched(["seerr", "quota", 7])).toBe(true);
+  });
+
   test("takes the title asked for, and no other", () => {
     expect(touched(["seerr", "detail", "tv", 1399])).toBe(true);
     expect(touched(["seerr", "detail", "tv", 1400])).toBe(false);
@@ -48,6 +62,8 @@ describe("touchedByRequest", () => {
   test("leaves the rest alone", () => {
     expect(touched(["seerr", "recently_added"])).toBe(false);
     expect(touched(["seerr", "settings", "public", "https://a"])).toBe(false);
+    expect(touched(["seerr", "users"])).toBe(false);
+    expect(touched(["seerr", "request", "tv", "service"])).toBe(false);
     expect(touched(["search", "movies", "dune"])).toBe(false);
   });
 

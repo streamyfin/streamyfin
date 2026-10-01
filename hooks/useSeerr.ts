@@ -740,8 +740,9 @@ export const useSeerr = () => {
     });
   }, [queryClient]);
 
-  // Marks what a request, an approval or a decline changed as stale, so the
-  // Discover rows and the title's page show it once the user is back there.
+  // Marks what a request, an approval or a decline changed as stale, so each
+  // page shows it once the user is back there, and an open sheet's quota at
+  // once.
   const refreshAfterRequest = useCallback(
     (title?: { mediaType: string; mediaId: number }) =>
       queryClient.invalidateQueries({
