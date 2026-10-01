@@ -127,7 +127,7 @@
       "a_free_and_open_source_client_for_jellyfin": "A free and open-source client for Jellyfin.",
       "features_title": "Features",
       "features_description": "Streamyfin has a bunch of features and works with other software. You'll find them in the settings menu:",
-      "jellyseerr_feature_description": "Connect to your Seerr instance and request movies directly in the app.",
+      "seerr_feature_description": "Connect to your Seerr instance and request movies directly in the app.",
       "downloads_feature_title": "Downloads",
       "downloads_feature_description": "Download movies and series to watch offline.",
       "chromecast_feature_description": "Cast movies and series to your Chromecast devices.",
@@ -427,7 +427,7 @@
         "opensubtitles_enabled_hint": "Let this device search OpenSubtitles directly when your Jellyfin server has no subtitle provider. Turning this off keeps subtitle searches on your server and leaves any saved API key alone.",
         "crash_reports": "Crash reports",
         "crash_reports_hint": "Send anonymous crash and error reports to the Streamyfin developers via Sentry. Reports contain no account data; server addresses and tokens are removed before anything is sent.",
-        "jellyseerr": {
+        "seerr": {
           "server_url": "Server URL",
           "server_url_hint": "Example: http(s)://your-host.url\n(add port if required)",
           "server_url_placeholder": "Seerr URL",
@@ -446,7 +446,7 @@
           "tv_quota_days": "TV quota days",
           "auto_login_title": "Sign in automatically",
           "auto_login_description": "Sign in to Seerr on launch. On a server with Quick Connect this needs no password; otherwise your Jellyfin password is kept in the device's secure storage and removed when you log out.",
-          "reset_jellyseerr_config_button": "Reset Seerr config",
+          "reset_seerr_config_button": "Reset Seerr config",
           "unlimited": "Unlimited",
           "plus_n_more": "+{{n}} more",
           "order_by": {
@@ -902,7 +902,7 @@
       "series": "Series"
     }
   },
-  "jellyseerr": {
+  "seerr": {
     "confirm": "Confirm",
     "cancel": "Cancel",
     "yes": "Yes",
@@ -952,9 +952,9 @@
     "request_selected": "Request selected",
     "n_selected": "{{count}} selected",
     "toasts": {
-      "jellyseerr_does_not_meet_requirements": "Seerr server does not meet minimum version requirements! Please update to at least 2.0.0",
-      "jellyseerr_test_failed": "Seerr test failed. Please try again.",
-      "failed_to_test_jellyseerr_server_url": "Failed to test Seerr server url",
+      "seerr_does_not_meet_requirements": "Seerr server does not meet minimum version requirements! Please update to at least 2.0.0",
+      "seerr_test_failed": "Seerr test failed. Please try again.",
+      "failed_to_test_seerr_server_url": "Failed to test Seerr server url",
       "issue_submitted": "Issue submitted!",
       "requested_item": "Requested {{item}}!",
       "you_dont_have_permission_to_request": "You don't have permission to request!",

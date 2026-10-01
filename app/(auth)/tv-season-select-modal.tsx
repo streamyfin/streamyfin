@@ -18,7 +18,7 @@ import { TVButton } from "@/components/tv";
 import { useTVFocusAnimation } from "@/components/tv/hooks/useTVFocusAnimation";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
-import { useJellyseerr } from "@/hooks/useJellyseerr";
+import { useSeerr } from "@/hooks/useSeerr";
 import { useTVRequestModal } from "@/hooks/useTVRequestModal";
 import { tvSeasonSelectModalAtom } from "@/utils/atoms/tvSeasonSelectModal";
 import type { MediaRequestBody } from "@/utils/seerr/types";
@@ -120,7 +120,7 @@ const TVSeasonToggleCard: React.FC<TVSeasonToggleCardProps> = ({
             ]}
             numberOfLines={1}
           >
-            {t("jellyseerr.season_number", {
+            {t("seerr.season_number", {
               season_number: season.seasonNumber,
             })}
           </Text>
@@ -133,7 +133,7 @@ const TVSeasonToggleCard: React.FC<TVSeasonToggleCardProps> = ({
                 },
               ]}
             >
-              {t("jellyseerr.number_episodes", {
+              {t("seerr.number_episodes", {
                 episode_number: season.episodeCount,
               })}
             </Text>
@@ -163,7 +163,7 @@ export default function TVSeasonSelectModalPage() {
   const router = useRouter();
   const modalState = useAtomValue(tvSeasonSelectModalAtom);
   const { t } = useTranslation();
-  const { requestMedia } = useJellyseerr();
+  const { requestMedia } = useSeerr();
   const { showRequestModal } = useTVRequestModal();
 
   // Selected seasons - initially select all requestable (UNKNOWN status) seasons
@@ -263,10 +263,10 @@ export default function TVSeasonSelectModalPage() {
     // Build the title based on selected seasons
     const seasonTitle =
       seasonsArray.length === 1
-        ? t("jellyseerr.season_number", { season_number: seasonsArray[0] })
+        ? t("seerr.season_number", { season_number: seasonsArray[0] })
         : seasonsArray.length === sortedSeasons.length
-          ? t("jellyseerr.season_all")
-          : t("jellyseerr.n_selected", { count: seasonsArray.length });
+          ? t("seerr.season_all")
+          : t("seerr.n_selected", { count: seasonsArray.length });
 
     requestMedia(`${modalState.title}, ${seasonTitle}`, body, () => {
       modalState.onRequested();
@@ -304,7 +304,7 @@ export default function TVSeasonSelectModalPage() {
             style={styles.content}
           >
             <Text style={[styles.heading, { fontSize: typography.heading }]}>
-              {t("jellyseerr.select_seasons")}
+              {t("seerr.select_seasons")}
             </Text>
             <Text style={[styles.subtitle, { fontSize: typography.callout }]}>
               {modalState.title}
@@ -348,7 +348,7 @@ export default function TVSeasonSelectModalPage() {
                 <Text
                   style={[styles.buttonText, { fontSize: typography.callout }]}
                 >
-                  {t("jellyseerr.request_selected")}
+                  {t("seerr.request_selected")}
                   {selectedSeasons.size > 0 && ` (${selectedSeasons.size})`}
                 </Text>
               </TVButton>

@@ -14,13 +14,13 @@
 ---
 
 <p align="center">
-  <img src="./assets/images/screenshots/screenshot1.png" width="20%">
+  <img src="./assets/images/screenshots/screenshot1.png" width="20%" alt="Movie page for The Lord of the Rings: The Fellowship of the Ring, with its play button and media details">
   &nbsp;
-  <img src="./assets/images/screenshots/screenshot3.png" width="20%">
+  <img src="./assets/images/screenshots/screenshot3.png" width="20%" alt="Movie page for Wonka with the bitrate menu open">
   &nbsp;
-  <img src="./assets/images/screenshots/screenshot2.png" width="20%">
+  <img src="./assets/images/screenshots/screenshot2.png" width="20%" alt="Downloads screen with a movie downloading">
   &nbsp;
-  <img src="./assets/images/jellyseerr.PNG" width="21%">
+  <img src="./assets/images/seerr.png" width="21%" alt="Seerr page for Family Guy, with the request button and a request button on each season">
 </p>
 
 
