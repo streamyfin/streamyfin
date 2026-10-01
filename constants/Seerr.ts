@@ -59,6 +59,14 @@ export const SEERR_PILL_FADE_WIDTH = 20;
 export const SEERR_PILL_PAN_SLOP = 4;
 
 /**
+ * A TV Discover row, in points at 1080p: the room around its cards for a
+ * focused one to grow into, the space under its title, and between rows.
+ */
+export const SEERR_TV_ROW_PADDING = 16;
+export const SEERR_TV_ROW_TITLE_GAP = 4;
+export const SEERR_TV_ROW_GAP = 4;
+
+/**
  * Seerr's request card on the TV, in points at 1080p: its width, the poster
  * on its right, and how many seasons it lists before a "+N".
  */

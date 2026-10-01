@@ -62,6 +62,9 @@ export const TVSeerrPosterCard: React.FC<TVSeerrPosterCardProps> = ({
       imageUrlGetter={() => posterUrl}
       showProgress={false}
       showWatchedIndicator={false}
+      // One line, as on the phone: a row takes the height of its tallest
+      // card, so one long name spread the rows apart.
+      titleLines={1}
       overlay={
         <TVSeerrBadges
           mediaType={item.mediaType}

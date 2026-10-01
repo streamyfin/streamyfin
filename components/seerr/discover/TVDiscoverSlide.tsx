@@ -2,11 +2,8 @@ import { useInfiniteQuery } from "@tanstack/react-query";
 import { uniqBy } from "lodash";
 import React, { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { FlatList, View } from "react-native";
-import { Text } from "@/components/common/Text";
+import { TVSeerrRow } from "@/components/seerr/discover/TVSeerrRow";
 import { TVSeerrPosterCard } from "@/components/tv/TVSeerrPosterCard";
-import { useScaledTVSizes } from "@/constants/TVSizes";
-import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import { type DiscoverEndpoint, Endpoints, useSeerr } from "@/hooks/useSeerr";
 import type {
@@ -15,8 +12,6 @@ import type {
   TvResult,
 } from "@/utils/seerr/types";
 import { DiscoverSliderType } from "@/utils/seerr/types";
-
-const SCALE_PADDING = 20;
 
 interface TVDiscoverSlideProps {
   slide: DiscoverSlider;
@@ -27,8 +22,6 @@ export const TVDiscoverSlide: React.FC<TVDiscoverSlideProps> = ({
   slide,
   isFirstSlide = false,
 }) => {
-  const typography = useScaledTVTypography();
-  const sizes = useScaledTVSizes();
   const { t } = useTranslation();
   const router = useRouter();
   const { seerrApi, isSeerrMovieOrTvResult } = useSeerr();
@@ -106,41 +99,20 @@ export const TVDiscoverSlide: React.FC<TVDiscoverSlideProps> = ({
   if (!flatData || flatData.length === 0) return null;
 
   return (
-    <View style={{ marginBottom: 24 }}>
-      <Text
-        style={{
-          fontSize: typography.heading,
-          fontWeight: "bold",
-          color: "#FFFFFF",
-          marginBottom: 16,
-          marginLeft: sizes.padding.horizontal,
-        }}
-      >
-        {slideTitle}
-      </Text>
-      <FlatList
-        horizontal
-        data={flatData}
-        keyExtractor={(item) => item.id.toString()}
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{
-          paddingHorizontal: sizes.padding.horizontal,
-          paddingVertical: SCALE_PADDING,
-          gap: 20,
-        }}
-        style={{ overflow: "visible" }}
-        onEndReached={() => {
-          if (hasNextPage) fetchNextPage();
-        }}
-        onEndReachedThreshold={0.5}
-        renderItem={({ item, index }) => (
-          <TVSeerrPosterCard
-            item={item}
-            onPress={() => handleItemPress(item)}
-            hasTVPreferredFocus={isFirstSlide && index === 0}
-          />
-        )}
-      />
-    </View>
+    <TVSeerrRow
+      title={slideTitle}
+      data={flatData}
+      keyExtractor={(item) => item.id.toString()}
+      onEndReached={() => {
+        if (hasNextPage) fetchNextPage();
+      }}
+      renderItem={(item, index) => (
+        <TVSeerrPosterCard
+          item={item}
+          onPress={() => handleItemPress(item)}
+          hasTVPreferredFocus={isFirstSlide && index === 0}
+        />
+      )}
+    />
   );
 };

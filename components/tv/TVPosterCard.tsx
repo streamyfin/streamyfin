@@ -80,6 +80,9 @@ export interface TVPosterCardProps {
 
   /** Drawn over the poster, such as Seerr's badges. */
   overlay?: React.ReactNode;
+
+  /** Lines a film's or a series' name may take under the poster (default 3). */
+  titleLines?: number;
 }
 
 /**
@@ -119,6 +122,7 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
   imageUrlGetter,
   preferEpisodeImage = false,
   overlay,
+  titleLines = 3,
 }) => {
   const api = useAtomValue(apiAtom);
   const posterSizes = useScaledTVPosterSizes();
@@ -556,7 +560,7 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
     // Default: show name
     return (
       <Text
-        numberOfLines={3}
+        numberOfLines={titleLines}
         style={{
           fontSize: typography.callout,
           color: "#FFFFFF",

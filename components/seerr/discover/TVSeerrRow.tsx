@@ -1,11 +1,13 @@
 import type React from "react";
 import { FlatList, View } from "react-native";
 import { Text } from "@/components/common/Text";
+import {
+  SEERR_TV_ROW_GAP,
+  SEERR_TV_ROW_PADDING,
+  SEERR_TV_ROW_TITLE_GAP,
+} from "@/constants/Seerr";
 import { useScaledTVSizes } from "@/constants/TVSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
-
-// Room for a focused card to grow without being cut by the row.
-const SCALE_PADDING = 20;
 
 /** A row of TV Discover: its title and its cards, scrolling sideways. */
 export const TVSeerrRow = <T,>({
@@ -25,13 +27,13 @@ export const TVSeerrRow = <T,>({
   const sizes = useScaledTVSizes();
 
   return (
-    <View style={{ marginBottom: 24 }}>
+    <View style={{ marginBottom: SEERR_TV_ROW_GAP }}>
       <Text
         style={{
           fontSize: typography.heading,
           fontWeight: "bold",
           color: "#FFFFFF",
-          marginBottom: 16,
+          marginBottom: SEERR_TV_ROW_TITLE_GAP,
           marginLeft: sizes.padding.horizontal,
         }}
       >
@@ -44,7 +46,8 @@ export const TVSeerrRow = <T,>({
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{
           paddingHorizontal: sizes.padding.horizontal,
-          paddingVertical: SCALE_PADDING,
+          // Room for a focused card to grow without being cut by the row.
+          paddingVertical: SEERR_TV_ROW_PADDING,
           gap: 20,
         }}
         style={{ overflow: "visible" }}
