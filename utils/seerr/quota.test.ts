@@ -1,4 +1,4 @@
-import { quotaFill, quotaPeriod } from "./quota";
+import { quotaFill, quotaPeriod, seasonQuotaText } from "./quota";
 
 // How much of a series quota the bar shows as spent, the seasons switched on
 // included (they are already taken off `remaining`).
@@ -36,5 +36,44 @@ describe("quotaPeriod", () => {
 
   test("has no period to tell without its days", () => {
     expect(quotaPeriod(undefined)).toBeUndefined();
+  });
+});
+
+// The words of a series quota, the phone's sheet and the TV's alike.
+describe("seasonQuotaText", () => {
+  const t = (key: string, options?: Record<string, unknown>) =>
+    options ? `${key} ${JSON.stringify(options)}` : key;
+
+  test("says how many season requests are left, and over what", () => {
+    expect(seasonQuotaText(t, { remaining: 2, limit: 8, days: 7 })).toEqual({
+      status: 'seerr.quota.season_requests_remaining {"count":2}',
+      period: 'seerr.quota.season_limit {"count":8,"days":7}',
+      required: undefined,
+    });
+  });
+
+  test("words a day's quota and one that never resets", () => {
+    expect(seasonQuotaText(t, { remaining: 1, limit: 3, days: 1 }).period).toBe(
+      'seerr.quota.season_limit_daily {"count":3}',
+    );
+    expect(seasonQuotaText(t, { remaining: 1, limit: 3, days: 0 }).period).toBe(
+      'seerr.quota.season_limit_total {"count":3}',
+    );
+  });
+
+  test("says none are left once it is spent", () => {
+    expect(seasonQuotaText(t, { remaining: 0, limit: 3, days: 7 }).status).toBe(
+      "seerr.quota.no_season_requests_remaining",
+    );
+  });
+
+  test("says when the seasons a request needs do not fit", () => {
+    expect(
+      seasonQuotaText(t, { remaining: 0, limit: 3, days: 7, overLimit: 5 }),
+    ).toEqual({
+      status: "seerr.quota.not_enough_season_requests",
+      period: 'seerr.quota.season_limit {"count":3,"days":7}',
+      required: 'seerr.quota.required_season_requests {"count":5}',
+    });
   });
 });

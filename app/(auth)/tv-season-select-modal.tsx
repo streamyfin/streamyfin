@@ -24,7 +24,7 @@ import { useSeerrSeasonRequest } from "@/hooks/useSeerrSeasonRequest";
 import { useTVBackPress } from "@/hooks/useTVBackPress";
 import { useTVRequestModal } from "@/hooks/useTVRequestModal";
 import { tvSeasonSelectModalAtom } from "@/utils/atoms/tvSeasonSelectModal";
-import { quotaPeriod } from "@/utils/seerr/quota";
+import { seasonQuotaText } from "@/utils/seerr/quota";
 import { type SeasonRow, seasonRowStatus } from "@/utils/seerr/seasons";
 import { seerrStatusBadge } from "@/utils/seerr/statusBadge";
 import type { MediaRequestBody } from "@/utils/seerr/types";
@@ -239,8 +239,18 @@ export default function TVSeasonSelectModalPage() {
   if (!modalState) return null;
 
   const firstChoosable = rows.findIndex((row) => !row.locked);
-  const period = quotaPeriod(tvQuota?.days);
   const spent = remaining <= 0 || tvQuota?.restricted || overLimit || overQuota;
+  // The phone's words for it (SeasonQuota), one line each.
+  const quota = seasonQuotaText(t, {
+    remaining,
+    limit: tvQuota?.limit,
+    days: tvQuota?.days,
+    overLimit: overLimit
+      ? unrequested.length
+      : overQuota
+        ? selected.length
+        : undefined,
+  });
 
   return (
     <Animated.View style={[styles.overlay, { opacity: overlayOpacity }]}>
@@ -272,39 +282,29 @@ export default function TVSeasonSelectModalPage() {
               </Text>
             )}
             {limited && (
-              <Text
-                style={[
-                  styles.note,
-                  {
-                    fontSize: typography.callout,
-                    color: spent ? SeerrStatusColors.pending : "#FFFFFF",
-                  },
-                ]}
-              >
-                {overLimit || overQuota
-                  ? t("seerr.quota.not_enough_season_requests")
-                  : remaining <= 0
-                    ? t("seerr.quota.no_season_requests_remaining")
-                    : t("seerr.quota.season_requests_remaining", {
-                        count: remaining,
-                      })}
-                {tvQuota?.limit !== undefined &&
-                  period &&
-                  `  ·  ${
-                    period === "total"
-                      ? t("seerr.quota.season_limit_total", {
-                          count: tvQuota.limit,
-                        })
-                      : period === "daily"
-                        ? t("seerr.quota.season_limit_daily", {
-                            count: tvQuota.limit,
-                          })
-                        : t("seerr.quota.season_limit", {
-                            count: tvQuota.limit,
-                            days: tvQuota.days,
-                          })
-                  }`}
-              </Text>
+              <View style={styles.quota}>
+                <Text
+                  style={[
+                    styles.note,
+                    {
+                      fontSize: typography.callout,
+                      color: spent ? SeerrStatusColors.pending : "#FFFFFF",
+                    },
+                  ]}
+                >
+                  {quota.status}
+                </Text>
+                {[quota.period, quota.required]
+                  .filter((line): line is string => !!line)
+                  .map((line) => (
+                    <Text
+                      key={line}
+                      style={[styles.note, { fontSize: typography.callout }]}
+                    >
+                      {line}
+                    </Text>
+                  ))}
+              </View>
             )}
             {!partial && (
               <Text style={[styles.note, { fontSize: typography.callout }]}>
@@ -408,6 +408,9 @@ const styles = StyleSheet.create({
   },
   note: {
     color: "rgba(255,255,255,0.8)",
+    marginBottom: 8,
+  },
+  quota: {
     marginBottom: 8,
   },
   scrollView: {

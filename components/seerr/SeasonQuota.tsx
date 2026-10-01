@@ -2,7 +2,7 @@ import { useTranslation } from "react-i18next";
 import { View } from "react-native";
 import { Text } from "@/components/common/Text";
 import { Colors, SeerrStatusColors, SheetColors } from "@/constants/Colors";
-import { quotaFill, quotaPeriod } from "@/utils/seerr/quota";
+import { quotaFill, seasonQuotaText } from "@/utils/seerr/quota";
 
 interface Props {
   /** Season requests left once the seasons switched on are counted. */
@@ -34,7 +34,7 @@ export const SeasonQuota: React.FC<Props> = ({
   const { t } = useTranslation();
   const spent = remaining <= 0 || restricted || overLimit !== undefined;
   const tint = spent ? SeerrStatusColors.pending : Colors.primary;
-  const period = quotaPeriod(days);
+  const words = seasonQuotaText(t, { remaining, limit, days, overLimit });
 
   return (
     <View>
@@ -52,21 +52,11 @@ export const SeasonQuota: React.FC<Props> = ({
             color: spent ? SeerrStatusColors.pending : undefined,
           }}
         >
-          {overLimit !== undefined
-            ? t("seerr.quota.not_enough_season_requests")
-            : remaining <= 0
-              ? t("seerr.quota.no_season_requests_remaining")
-              : t("seerr.quota.season_requests_remaining", {
-                  count: remaining,
-                })}
+          {words.status}
         </Text>
-        {limit !== undefined && period && (
+        {words.period && (
           <Text style={{ fontSize: 13, color: SheetColors.secondaryText }}>
-            {period === "total"
-              ? t("seerr.quota.season_limit_total", { count: limit })
-              : period === "daily"
-                ? t("seerr.quota.season_limit_daily", { count: limit })
-                : t("seerr.quota.season_limit", { count: limit, days })}
+            {words.period}
           </Text>
         )}
       </View>
@@ -88,7 +78,7 @@ export const SeasonQuota: React.FC<Props> = ({
           }}
         />
       </View>
-      {overLimit !== undefined && (
+      {words.required && (
         <Text
           style={{
             marginTop: 6,
@@ -96,7 +86,7 @@ export const SeasonQuota: React.FC<Props> = ({
             color: SheetColors.secondaryText,
           }}
         >
-          {t("seerr.quota.required_season_requests", { count: overLimit })}
+          {words.required}
         </Text>
       )}
     </View>
