@@ -29,6 +29,7 @@ import {
   yearOf,
 } from "@/utils/seerr/media";
 import { isSeerrQuery, touchedByRequest } from "@/utils/seerr/queries";
+import { endsSeerrSession, sendSeerrRequest } from "@/utils/seerr/requestFlow";
 import { seerrQueryString } from "@/utils/seerr/search";
 import { rememberSeerrSession } from "@/utils/seerr/session";
 import type {
@@ -51,11 +52,7 @@ import type {
   TvDetails,
   UserResultsResponse,
 } from "@/utils/seerr/types";
-import {
-  IssueStatus,
-  type IssueType,
-  MediaRequestStatus,
-} from "@/utils/seerr/types";
+import { IssueStatus, type IssueType } from "@/utils/seerr/types";
 import { isVersionBelow } from "@/utils/serverUrl/semver";
 
 interface SearchParams {
@@ -657,15 +654,10 @@ export class SeerrApi {
             truncateForLog(error.response.data),
           );
         }
-        if (error.response?.status === 403) {
-          // A 403 on one request's detail is about THAT request (another
-          // user's, without MANAGE_REQUESTS) — the session itself is fine,
-          // and the recent-requests slide polls these every few seconds, so
-          // wiping here signed the user out of Seerr in a loop.
-          const isRequestDetail = /\/request\/\d+$/.test(path ?? "");
-          if (!isRequestDetail) {
-            clearSeerrStorageData();
-          }
+        // Only a read refused means the session is gone: a request past the
+        // quota is refused with a 403 too, and signed the user out of Seerr.
+        if (endsSeerrSession(status, error.config?.method, path)) {
+          clearSeerrStorageData();
         }
         return Promise.reject(error);
       },
@@ -760,27 +752,40 @@ export const useSeerr = () => {
 
   const requestMedia = useCallback(
     (title: string, request: MediaRequestBody, onSuccess?: () => void) => {
-      seerrApi?.request?.(request)?.then(async (mediaRequest) => {
-        await refreshAfterRequest({
-          mediaType: request.mediaType,
-          mediaId: request.mediaId,
-        });
-
-        switch (mediaRequest.status) {
-          case MediaRequestStatus.PENDING:
-          case MediaRequestStatus.APPROVED:
-            toast.success(t("seerr.toasts.requested_item", { item: title }));
-            onSuccess?.();
-            break;
-          case MediaRequestStatus.DECLINED:
-            toast.error(t("seerr.toasts.you_dont_have_permission_to_request"));
-            break;
-          case MediaRequestStatus.FAILED:
-            toast.error(
-              t("seerr.toasts.something_went_wrong_requesting_media"),
-            );
-            break;
-        }
+      if (!seerrApi) return;
+      void sendSeerrRequest({
+        send: () => seerrApi.request(request),
+        refresh: () =>
+          refreshAfterRequest({
+            mediaType: request.mediaType,
+            mediaId: request.mediaId,
+          }),
+        onOutcome: (outcome) => {
+          switch (outcome.kind) {
+            case "requested":
+              toast.success(t("seerr.toasts.requested_item", { item: title }));
+              onSuccess?.();
+              break;
+            case "declined":
+              toast.error(
+                t("seerr.toasts.you_dont_have_permission_to_request"),
+              );
+              break;
+            case "failed":
+              toast.error(
+                t("seerr.toasts.something_went_wrong_requesting_media"),
+              );
+              break;
+            // Seerr's own reason under the app's words, such as "Series
+            // Quota exceeded.".
+            case "refused":
+              toast.error(
+                t("seerr.toasts.something_went_wrong_requesting_media"),
+                { description: outcome.message },
+              );
+              break;
+          }
+        },
       });
     },
     [seerrApi, refreshAfterRequest],
