@@ -1,6 +1,111 @@
-#if os(iOS)
 import SwiftUI
 
+enum NativeSyncPlayAction: String, CaseIterable {
+	case schedulePlay = "schedule-play"
+	case unpause, pause, seek, buffering
+	case waitPause = "wait-pause"
+	case waitUnpause = "wait-unpause"
+
+	var symbol: String {
+		switch self {
+		case .schedulePlay: return "arrow.triangle.2.circlepath"
+		case .unpause: return "play.circle"
+		case .pause: return "pause.circle"
+		case .seek: return "arrow.clockwise"
+		case .buffering, .waitPause, .waitUnpause: return "clock"
+		}
+	}
+
+	var secondarySymbol: String? {
+		switch self {
+		case .schedulePlay, .waitUnpause: return "play.fill"
+		case .waitPause: return "pause.fill"
+		default: return nil
+		}
+	}
+
+	var repeatsPulse: Bool { self != .unpause && self != .pause }
+}
+
+/// Only the label changes: loading and SyncPlay transitions never replace
+/// the transport button or its TV focus identity.
+struct PlayerPlaybackIcon: View {
+	let syncPlayAction: String?
+	let isBuffering: Bool
+	let isPlaying: Bool
+	let size: CGFloat
+	var color: Color? = .white
+	var syncPlayColor: Color? = Color(red: 0, green: 164.0 / 255, blue: 220.0 / 255)
+
+	var body: some View {
+		Group {
+			if let action = syncPlayAction.flatMap(NativeSyncPlayAction.init(rawValue:)) {
+				NativeSyncPlayActionIcon(action: action, size: size)
+					.id(action)
+					.foregroundColor(syncPlayColor)
+			} else if isBuffering {
+				ProgressView()
+					.controlSize(.regular)
+					.tint(color)
+			} else {
+				Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+					.font(.system(size: size, weight: .bold))
+					.foregroundColor(color)
+			}
+		}
+		.frame(width: size, height: size)
+		.accessibilityHidden(true)
+	}
+}
+
+private struct NativeSyncPlayActionIcon: View {
+	let action: NativeSyncPlayAction
+	let size: CGFloat
+	@Environment(\.accessibilityReduceMotion) private var reduceMotion
+	@State private var scale: CGFloat = 1
+	@State private var rotation: Double = 0
+
+	var body: some View {
+		ZStack(alignment: action == .schedulePlay ? .center : .bottomTrailing) {
+			Image(systemName: action.symbol)
+				.font(.system(size: size, weight: .regular))
+				.frame(width: size, height: size)
+				.rotationEffect(.degrees(rotation))
+			if let secondary = action.secondarySymbol {
+				Image(systemName: secondary)
+					.font(.system(size: size * 0.42, weight: .semibold))
+					.frame(width: size * 0.42, height: size * 0.42)
+			}
+		}
+		.frame(width: size, height: size)
+		.scaleEffect(scale)
+		.task(id: reduceMotion) {
+			guard !reduceMotion else {
+				scale = 1
+				rotation = 0
+				return
+			}
+			if action == .schedulePlay {
+				withAnimation(.linear(duration: 1.2).repeatForever(autoreverses: false)) {
+					rotation = 360
+				}
+			}
+			if action.repeatsPulse {
+				withAnimation(.easeInOut(duration: 0.7).repeatForever(autoreverses: true)) {
+					scale = 1.1
+				}
+			} else {
+				withAnimation(.easeOut(duration: 0.22)) { scale = 1.2 }
+				do {
+					try await Task.sleep(nanoseconds: 220_000_000)
+				} catch { return }
+				withAnimation(.easeInOut(duration: 0.22)) { scale = 1 }
+			}
+		}
+	}
+}
+
+#if os(iOS)
 /// Center transport row: previous episode (episodes only), seek back,
 /// previous/next chapter (chaptered items only), play/pause, seek forward,
 /// next episode (episodes only).
@@ -102,13 +207,16 @@ struct PlayerCenterControls: View {
 			Button {
 				viewModel.togglePlayPause()
 			} label: {
-				Image(systemName: viewModel.isPlaying ? "pause.fill" : "play.fill")
-					.font(.system(size: m.playIconSize, weight: .bold))
-					.foregroundStyle(.white)
+				PlayerPlaybackIcon(
+					syncPlayAction: viewModel.syncPlayEnabled ? viewModel.syncPlayAction : nil,
+					isBuffering: viewModel.isBuffering,
+					isPlaying: viewModel.isPlaying,
+					size: m.playIconSize
+				)
 					.frame(width: m.playButton, height: m.playButton)
 					.contentShape(Rectangle())
 			}
-			.opacity(viewModel.isBuffering ? 0 : 1)
+			.accessibilityLabel(viewModel.playbackToggleLabel)
 
 			if hasChapters {
 				controlButton(systemName: "forward.fill", iconSize: m.jumpIconSize, frame: m.sideButton) {

@@ -85,9 +85,22 @@ struct TVControlsRow: View {
 					.focused($focusedControl, equals: .previousChapter)
 					.tvFocusGated(focusGate, TVControl.previousChapter)
 			}
-			iconButton(viewModel.isPlaying ? "pause.fill" : "play.fill") {
+			Button {
 				viewModel.togglePlayPause()
+			} label: {
+				PlayerPlaybackIcon(
+					syncPlayAction: viewModel.syncPlayEnabled ? viewModel.syncPlayAction : nil,
+					isBuffering: viewModel.isBuffering,
+					isPlaying: viewModel.isPlaying,
+					size: 22,
+					color: nil,
+					syncPlayColor: nil
+				)
+				.frame(width: 34, height: 34)
 			}
+			.buttonStyle(.glass)
+			.buttonBorderShape(.circle)
+			.accessibilityLabel(viewModel.playbackToggleLabel)
 			.focused($focusedControl, equals: .playPause)
 			.tvFocusGated(focusGate, TVControl.playPause)
 			if !viewModel.chapters.isEmpty {
@@ -352,6 +365,7 @@ struct TVControlsRow: View {
 		.buttonBorderShape(.circle)
 		.simultaneousGesture(TapGesture().onEnded { viewModel.menuInteractionStarted() })
 		.accessibilityLabel(viewModel.str("speed", "Speed"))
+		.disabled(viewModel.syncPlayEnabled)
 	}
 
 	/// Direct chapter jumps — iOS keeps this in the More menu; on TV the

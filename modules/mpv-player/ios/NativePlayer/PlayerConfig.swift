@@ -180,7 +180,13 @@ struct UIOptionsRecord: Record {
 	@Field var strings: [String: String] = [:]
 }
 
+struct SyncPlayStateRecord: Record {
+	@Field var enabled: Bool = false
+	@Field var osdAction: String?
+}
+
 struct PlayerPresentConfigRecord: Record {
+	@Field var syncPlay: SyncPlayStateRecord?
 	@Field var stream: StreamConfigRecord = StreamConfigRecord()
 	@Field var metadata: MetadataRecord?
 	/// Custom proxy auth headers for the thumbnails the player loads itself

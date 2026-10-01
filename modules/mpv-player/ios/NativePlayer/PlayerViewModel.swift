@@ -39,6 +39,14 @@ final class PlayerViewModel: NSObject, ObservableObject {
 
 	@Published var isPlaying = false
 	@Published var isBuffering = true
+	@Published private(set) var syncPlayEnabled = false
+	@Published private(set) var syncPlayAction: String?
+	var hasPlaybackStatus: Bool {
+		isBuffering || (syncPlayEnabled && syncPlayAction != nil)
+	}
+	var playbackToggleLabel: String {
+		str("playPause", "Play / Pause")
+	}
 	@Published var isReadyToSeek = false
 	/// Authoritative position from the renderer (~1Hz), seconds. Not
 	/// published on purpose — no view renders it, and publishing would fire
@@ -350,6 +358,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	// MARK: - Config application
 
 	func apply(config: PlayerPresentConfigRecord) {
+		updateSyncPlay(config.syncPlay ?? SyncPlayStateRecord())
 		// The sticky countdown cancel survives same-item swaps (track/bitrate
 		// re-negotiation goes through load() too) and resets only when the
 		// played item actually changes.
@@ -437,6 +446,27 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	}
 
 	// MARK: - Late-arriving data pushes (from JS)
+
+	func updateSyncPlay(_ state: SyncPlayStateRecord) {
+		let wasEnabled = syncPlayEnabled
+		syncPlayEnabled = state.enabled
+		syncPlayAction = state.osdAction
+		if syncPlayEnabled && !wasEnabled {
+			setSpeed(1, fromSyncPlay: true)
+			cancelCountdownTask()
+			countdownRemaining = nil
+			showStillWatching = false
+		}
+	}
+
+	private func delegatePlaybackAction(_ action: String, positionSec: Double? = nil) -> Bool {
+		guard syncPlayEnabled else { return false }
+		var payload: [String: Any] = ["action": action]
+		if let currentItemId { payload["itemId"] = currentItemId }
+		if let positionSec { payload["positionSec"] = positionSec }
+		emit?("onPlaybackActionRequested", payload)
+		return true
+	}
 
 	func updateSegments(_ newSegments: [MediaSegmentRecord]) {
 		segments = newSegments
@@ -541,16 +571,26 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	func togglePlayPause() {
 		guard let engine else { return }
 		haptic()
+		if delegatePlaybackAction("toggle") { return }
 		if engine.isPaused() {
-			engine.play()
+			play()
 		} else {
-			engine.pause()
+			pause()
 		}
 		scheduleAutoHide()
 	}
 
-	func seek(to target: Double) {
+	func play() {
+		if !delegatePlaybackAction("play") { engine?.play() }
+	}
+
+	func pause() {
+		if !delegatePlaybackAction("pause") { engine?.pause() }
+	}
+
+	func seek(to target: Double, fromSyncPlay: Bool = false) {
 		let clamped = max(0, duration > 0 ? min(target, duration) : target)
+		if !fromSyncPlay && delegatePlaybackAction("seek", positionSec: clamped) { return }
 		pendingSeekReport = true
 		position = clamped
 		displayPosition = clamped
@@ -616,7 +656,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		// Pause while scrubbing; endScrub resumes only if it was playing
 		// (mirror of the JS player's useVideoSlider).
 		wasPlayingBeforeScrub = isPlaying
-		if wasPlayingBeforeScrub {
+		if wasPlayingBeforeScrub && !syncPlayEnabled {
 			engine?.pause()
 		}
 		autoHideTask?.cancel()
@@ -645,7 +685,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		seek(to: target)
 		if wasPlayingBeforeScrub {
 			wasPlayingBeforeScrub = false
-			engine?.play()
+			if !syncPlayEnabled { engine?.play() }
 		}
 	}
 
@@ -681,7 +721,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		isScrubbing = false
 		if wasPlayingBeforeScrub {
 			wasPlayingBeforeScrub = false
-			engine?.play()
+			if !syncPlayEnabled { engine?.play() }
 		}
 		scheduleAutoHide()
 	}
@@ -1068,13 +1108,14 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		}
 	}
 
-	func setSpeed(_ newSpeed: Double) {
+	func setSpeed(_ newSpeed: Double, fromSyncPlay: Bool = false) {
+		guard !syncPlayEnabled || fromSyncPlay else { return }
 		// A deliberate speed choice (menu / remote) wins over a transient hold.
 		isHoldSpeedActive = false
 		speedBeforeHold = nil
 		speed = newSpeed
 		engine?.setSpeed(speed: newSpeed)
-		emit?("onSpeedChange", ["speed": newSpeed])
+		if !fromSyncPlay { emit?("onSpeedChange", ["speed": newSpeed]) }
 		scheduleAutoHide()
 	}
 
@@ -1094,7 +1135,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	/// onSpeedChange — the transient rate must never be persisted as the
 	/// user's speed preference.
 	func beginHoldSpeed() {
-		guard holdToSpeedEnabled, holdToSpeedRate > 0, !isHoldSpeedActive,
+		guard !syncPlayEnabled, holdToSpeedEnabled, holdToSpeedRate > 0, !isHoldSpeedActive,
 			isPlaying, !controlsLocked, !showStillWatching, errorMessage == nil
 		else { return }
 		speedBeforeHold = speed
@@ -1504,6 +1545,11 @@ extension PlayerViewModel: MPVPlayerEngineDelegate {
 		// JS has no other way to learn it for a player opened while already
 		// muted — no transition happens, so no onMuteStateChanged fires.
 		emit?("onLoad", ["url": url.absoluteString, "muted": isMuted])
+		emit?("onPlaybackStateChange", [
+			"isLoading": isBuffering,
+			"isPlaying": isPlaying,
+			"isPaused": !isPlaying,
+		])
 	}
 
 	func engine(_ engine: MPVPlayerEngine, didUpdateProgress position: Double, duration: Double, cacheSeconds: Double) {
@@ -1544,6 +1590,21 @@ extension PlayerViewModel: MPVPlayerEngineDelegate {
 	func engine(_ engine: MPVPlayerEngine, requestsSeekTo target: Double) {
 		guard !isTearingDown else { return }
 		seek(to: target)
+	}
+
+	func engineRequestsPlay(_ engine: MPVPlayerEngine) {
+		guard !isTearingDown else { return }
+		play()
+	}
+
+	func engineRequestsPause(_ engine: MPVPlayerEngine) {
+		guard !isTearingDown else { return }
+		pause()
+	}
+
+	func engineRequestsTogglePlayPause(_ engine: MPVPlayerEngine) {
+		guard !isTearingDown else { return }
+		togglePlayPause()
 	}
 
 	func engine(_ engine: MPVPlayerEngine, requestsSeekBy offset: Double) {
@@ -1611,6 +1672,18 @@ extension PlayerViewModel: MPVPlayerEngineDelegate {
 
 	func engineDidReachEnd(_ engine: MPVPlayerEngine) {
 		guard !isTearingDown else { return }
+		if syncPlayEnabled {
+			isPlaying = false
+			updateDisplayLinkState()
+			if !countdownFired {
+				countdownFired = true
+				emit?("onNextEpisodeRequested", [
+					"reason": "countdown",
+					"positionSec": displayPosition,
+				])
+			}
+			return
+		}
 		// A canceled countdown is a deliberate "let me watch to the end" —
 		// EOF must not auto-advance past it.
 		if let next = nextEpisode, next.countdownSeconds > 0, !countdownCanceled {

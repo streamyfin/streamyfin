@@ -634,7 +634,7 @@ class NativePlayerSession(
             engine?.play()
         }
 
-        viewModel.setSpeed(config.ui.initialPlaybackSpeed)
+        viewModel.setSpeed(config.ui.initialPlaybackSpeed, fromSyncPlay = true)
         engine?.setSubtitleDelay(viewModel.subtitleDelay)
         engine?.setAudioDelay(viewModel.audioDelay)
         engine?.setVolumeBoost(viewModel.volumeBoostPercent)
@@ -654,6 +654,11 @@ class NativePlayerSession(
         // JS has no other way to learn it for a player opened while already
         // muted — no transition happens, so no onMuteStateChanged fires.
         emit("onLoad", mapOf("url" to loadConfig.url, "muted" to viewModel.isMuted))
+        emit("onPlaybackStateChange", mapOf(
+            "isLoading" to viewModel.isBuffering,
+            "isPlaying" to viewModel.isPlaying,
+            "isPaused" to !viewModel.isPlaying
+        ))
     }
 
     private fun applySubtitleStyle(style: SubtitleStyleRecord) {

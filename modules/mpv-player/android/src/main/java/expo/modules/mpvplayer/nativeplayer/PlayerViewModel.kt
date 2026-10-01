@@ -99,6 +99,12 @@ class PlayerViewModel : PlayerEngine.Delegate {
     // MARK: - Playback State (Compose State for fast UI bindings)
     var isPlaying by mutableStateOf(false)
     var isBuffering by mutableStateOf(true)
+    var syncPlayEnabled by mutableStateOf(false)
+        private set
+    var syncPlayAction by mutableStateOf<String?>(null)
+        private set
+    val hasPlaybackStatus: Boolean
+        get() = isBuffering || (syncPlayEnabled && syncPlayAction != null)
     var isReadyToSeek by mutableStateOf(false)
     var duration by mutableDoubleStateOf(0.0)
     var displayPosition by mutableDoubleStateOf(0.0)
@@ -285,6 +291,7 @@ class PlayerViewModel : PlayerEngine.Delegate {
     }
 
     fun apply(config: PlayerPresentConfigRecord) {
+        updateSyncPlay(config.syncPlay ?: SyncPlayStateRecord())
         isMpvEngine = config.engine?.lowercase() != "exoplayer"
         val newItemId = config.metadata?.itemId
         if (newItemId == null || newItemId != currentItemId) {
@@ -355,6 +362,29 @@ class PlayerViewModel : PlayerEngine.Delegate {
     }
 
     private fun nilSpeed(): Double? = null
+
+    fun updateSyncPlay(state: SyncPlayStateRecord) {
+        val wasEnabled = syncPlayEnabled
+        syncPlayEnabled = state.enabled
+        syncPlayAction = state.osdAction
+        if (syncPlayEnabled && !wasEnabled) {
+            setSpeed(1.0, fromSyncPlay = true)
+            cancelCountdown()
+            countdownRemaining = null
+            showStillWatching = false
+            if (tvMenuRoute.lastOrNull() == TvMenuScreen.SPEED) {
+                tvMenuRoute = emptyList()
+            }
+        }
+    }
+
+    private fun delegatePlaybackAction(action: String, positionSec: Double? = null): Boolean {
+        if (!syncPlayEnabled) return false
+        val payload = mutableMapOf<String, Any?>("action" to action, "itemId" to currentItemId)
+        if (positionSec != null) payload["positionSec"] = positionSec
+        emit?.invoke("onPlaybackActionRequested", payload)
+        return true
+    }
 
     fun updateSegments(newSegments: List<MediaSegmentRecord>) {
         segments = newSegments
@@ -495,22 +525,26 @@ class PlayerViewModel : PlayerEngine.Delegate {
     }
 
     // MARK: - Playback Transport
-    fun play() {
+    fun play(fromSyncPlay: Boolean = false) {
+        if (!fromSyncPlay && delegatePlaybackAction("play")) return
         engine?.play()
     }
 
-    fun pause() {
+    fun pause(fromSyncPlay: Boolean = false) {
+        if (!fromSyncPlay && delegatePlaybackAction("pause")) return
         engine?.pause()
     }
 
     fun togglePlayPause() {
         haptic()
+        if (delegatePlaybackAction("toggle")) return
         if (isPlaying) pause() else play()
         scheduleAutoHide()
     }
 
-    fun seekTo(positionSec: Double) {
+    fun seekTo(positionSec: Double, fromSyncPlay: Boolean = false) {
         val clamped = max(0.0, if (duration > 0) min(positionSec, duration) else positionSec)
+        if (!fromSyncPlay && delegatePlaybackAction("seek", clamped)) return
         pendingSeekReport = true
         displayPosition = clamped
         authoritativePosition = clamped
@@ -568,16 +602,19 @@ class PlayerViewModel : PlayerEngine.Delegate {
     }
 
     @JvmName("applySpeed")
-    fun setSpeed(newSpeed: Double) {
+    fun setSpeed(newSpeed: Double, fromSyncPlay: Boolean = false) {
+        if (syncPlayEnabled && !fromSyncPlay) return
+        isHoldSpeedActive = false
+        speedBeforeHold = null
         speed = newSpeed
         engine?.setSpeed(newSpeed)
-        emit?.invoke("onSpeedChange", mapOf("speed" to newSpeed))
+        if (!fromSyncPlay) emit?.invoke("onSpeedChange", mapOf("speed" to newSpeed))
         onPlaybackStateSync?.invoke()
         scheduleAutoHide()
     }
 
     fun startHoldSpeed() {
-        if (!uiOptions.holdToSpeedEnabled || isHoldSpeedActive || isScrubbing) return
+        if (syncPlayEnabled || !uiOptions.holdToSpeedEnabled || isHoldSpeedActive || isScrubbing) return
         haptic()
         speedBeforeHold = speed
         isHoldSpeedActive = true
@@ -595,7 +632,7 @@ class PlayerViewModel : PlayerEngine.Delegate {
     // MARK: - Scrubbing (Phone Touch)
     fun startScrubbing() {
         wasPlayingBeforeScrub = isPlaying
-        if (isPlaying) engine?.pause()
+        if (isPlaying && !syncPlayEnabled) engine?.pause()
         isScrubbing = true
         scrubPosition = displayPosition
         scheduleAutoHide(PlayerConstants.MENU_AUTO_HIDE_DELAY_MS)
@@ -612,7 +649,7 @@ class PlayerViewModel : PlayerEngine.Delegate {
         val clamped = max(0.0, targetPosition)
         isScrubbing = false
         seekTo(clamped)
-        if (wasPlayingBeforeScrub) {
+        if (wasPlayingBeforeScrub && !syncPlayEnabled) {
             engine?.play()
         }
         scheduleAutoHide()
@@ -622,7 +659,7 @@ class PlayerViewModel : PlayerEngine.Delegate {
     fun beginScrub() {
         if (isScrubbing) return
         wasPlayingBeforeScrub = isPlaying
-        if (isPlaying) engine?.pause()
+        if (isPlaying && !syncPlayEnabled) engine?.pause()
         isScrubbing = true
         scrubPosition = displayPosition
         autoHideJob?.cancel()
@@ -639,7 +676,7 @@ class PlayerViewModel : PlayerEngine.Delegate {
         val target = scrubPosition
         isScrubbing = false
         seekTo(target)
-        if (wasPlayingBeforeScrub) {
+        if (wasPlayingBeforeScrub && !syncPlayEnabled) {
             engine?.play()
         }
         scheduleAutoHide()
@@ -650,14 +687,14 @@ class PlayerViewModel : PlayerEngine.Delegate {
         val target = scrubPosition
         isScrubbing = false
         seekTo(target)
-        engine?.play()
+        play()
         scheduleAutoHide()
     }
 
     fun cancelScrub() {
         if (!isScrubbing) return
         isScrubbing = false
-        if (wasPlayingBeforeScrub) {
+        if (wasPlayingBeforeScrub && !syncPlayEnabled) {
             engine?.play()
         }
         scheduleAutoHide()
@@ -1298,6 +1335,13 @@ class PlayerViewModel : PlayerEngine.Delegate {
 
     override fun onPlaybackEnded() {
         if (isTearingDown) return
+        if (syncPlayEnabled) {
+            isPlaying = false
+            onPlaybackStateSync?.invoke()
+            cancelCountdown()
+            fireNextEpisode(reason = "countdown")
+            return
+        }
         val next = nextEpisode
         if (next != null && next.countdownSeconds > 0 && !countdownCanceled) {
             cancelCountdown()

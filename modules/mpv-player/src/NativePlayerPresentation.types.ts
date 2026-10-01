@@ -200,6 +200,7 @@ export type NativePlayerStrings = Partial<
     | "segmentSkippedPreview"
     | "nextEpisode"
     | "playNow"
+    | "playPause"
     | "cancel"
     | "episodes"
     | "speed"
@@ -275,6 +276,23 @@ export type NativePlayerUIOptions = {
  */
 export type NativePlayerEngine = "mpv" | "exoplayer";
 
+export type NativePlayerSyncPlayState = {
+  enabled: boolean;
+  osdAction?:
+    | "unpause"
+    | "pause"
+    | "seek"
+    | "schedule-play"
+    | "buffering"
+    | "wait-pause"
+    | "wait-unpause"
+    | null;
+};
+
+export type NativePlayerPlaybackActionRequest =
+  | { action: "play" | "pause" | "toggle"; itemId?: string }
+  | { action: "seek"; positionSec: number; itemId?: string };
+
 export type NativePlayerConfig = {
   stream: NativePlayerStreamConfig;
   metadata?: NativePlayerMetadata;
@@ -292,6 +310,7 @@ export type NativePlayerConfig = {
   subtitleStyle?: NativePlayerSubtitleStyle;
   ui?: NativePlayerUIOptions;
   engine?: NativePlayerEngine;
+  syncPlay?: NativePlayerSyncPlayState;
 };
 
 // MARK: - Events
@@ -345,6 +364,9 @@ export type NativePlayerDismissPayload = {
 };
 
 export type NativePlayerEvents = {
+  onPlaybackActionRequested: (
+    payload: NativePlayerPlaybackActionRequest,
+  ) => void;
   /** `muted` is the combined device-volume + player mute at load time. */
   onLoad: (payload: { url: string; muted?: boolean }) => void;
   onProgress: (payload: NativePlayerProgressPayload) => void;

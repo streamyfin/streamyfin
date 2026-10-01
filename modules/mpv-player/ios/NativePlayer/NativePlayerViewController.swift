@@ -486,7 +486,7 @@ final class NativePlayerViewController: UIViewController {
 			// when playback was paused before the scrub began.
 			viewModel.endScrub()
 			if engine.isPaused() {
-				engine.play()
+				viewModel.play()
 			}
 		} else {
 			// Never skips a segment or fires the next-episode card:

@@ -126,7 +126,7 @@ fun PlayerTopBar(
         }
 
         // Zoom to fill button (if not compact)
-        if (!compact) {
+        if (!compact && !viewModel.syncPlayEnabled) {
             IconButton(
                 onClick = { viewModel.toggleZoomToFill() },
                 modifier = Modifier.size(40.dp)
