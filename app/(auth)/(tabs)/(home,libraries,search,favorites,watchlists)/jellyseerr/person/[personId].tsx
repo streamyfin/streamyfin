@@ -9,7 +9,7 @@ import ParallaxSlideShow from "@/components/jellyseerr/ParallaxSlideShow";
 import { OverviewText } from "@/components/OverviewText";
 import JellyseerrPoster from "@/components/posters/JellyseerrPoster";
 import { useJellyseerr } from "@/hooks/useJellyseerr";
-import type { PersonCreditCast } from "@/utils/jellyseerr/server/models/Person";
+import type { PersonCreditCast } from "@/utils/seerr/types";
 
 export default function JellyseerrPersonPage() {
   const local = useLocalSearchParams();

@@ -22,11 +22,11 @@ import useRouter from "@/hooks/useAppRouter";
 import { useJellyseerr } from "@/hooks/useJellyseerr";
 import { tvRequestModalAtom } from "@/utils/atoms/tvRequestModal";
 import type {
+  MediaRequestBody,
   QualityProfile,
   RootFolder,
-  Tag,
-} from "@/utils/jellyseerr/server/api/servarr/base";
-import type { MediaRequestBody } from "@/utils/jellyseerr/server/interfaces/api/requestInterfaces";
+  ServarrTag as Tag,
+} from "@/utils/seerr/types";
 import { store } from "@/utils/store";
 
 export default function TVRequestModalPage() {
@@ -37,11 +37,11 @@ export default function TVRequestModalPage() {
   const { jellyseerrApi, jellyseerrUser, requestMedia } = useJellyseerr();
 
   const [isReady, setIsReady] = useState(false);
-  const [requestOverrides, setRequestOverrides] = useState<MediaRequestBody>({
-    mediaId: modalState?.id ? Number(modalState.id) : 0,
-    mediaType: modalState?.mediaType,
-    userId: jellyseerrUser?.id,
-  });
+  // Only what the user changes: the media itself comes from the request body
+  // the modal was opened with.
+  const [requestOverrides, setRequestOverrides] = useState<
+    Partial<MediaRequestBody>
+  >({ userId: jellyseerrUser?.id });
 
   const [activeSelector, setActiveSelector] = useState<
     "profile" | "folder" | "user" | null

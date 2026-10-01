@@ -1,4 +1,4 @@
-import type { User as JellyseerrUser } from "@/utils/jellyseerr/server/entity/User";
+import type { User as JellyseerrUser } from "@/utils/seerr/types";
 import type { QuickConnectSteps } from "./jellyseerrQuickConnect";
 
 // The log module reaches Sentry and MMKV, so it is stubbed with the surface

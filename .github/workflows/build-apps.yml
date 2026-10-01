@@ -50,7 +50,6 @@ jobs:
             with:
               ref: ${{ github.event.pull_request.head.sha || github.sha }}
               fetch-depth: 0
-              submodules: recursive
               show-progress: false
 
           - name: 🍞 Setup Bun
@@ -87,10 +86,9 @@ jobs:
               restore-keys: |
                 ${{ runner.os }}-${{ runner.arch }}-gradle-
 
-      - name: 📦 Install dependencies and reload submodules
+      - name: 📦 Install dependencies
         run: |
           bun install --frozen-lockfile
-          bun run submodule-reload
 
       - name: 🛠️ Generate project files
         run: bun run prebuild
@@ -152,7 +150,6 @@ jobs:
             with:
               ref: ${{ github.event.pull_request.head.sha || github.sha }}
               fetch-depth: 0
-              submodules: recursive
               show-progress: false
 
           - name: 🍞 Setup Bun
@@ -189,10 +186,9 @@ jobs:
               restore-keys: |
                 ${{ runner.os }}-${{ runner.arch }}-gradle-
 
-      - name: 📦 Install dependencies and reload submodules
+      - name: 📦 Install dependencies
         run: |
           bun install --frozen-lockfile
-          bun run submodule-reload
 
       - name: 🛠️ Generate project files
         run: bun run prebuild:tv
@@ -241,7 +237,6 @@ jobs:
             with:
               ref: ${{ github.event.pull_request.head.sha || github.sha }}
               fetch-depth: 0
-              submodules: recursive
               show-progress: false
 
           - name: 🍞 Setup Bun
@@ -271,10 +266,9 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-${{ runner.arch }}-bun-
 
-      - name: 📦 Install dependencies and reload submodules
+      - name: 📦 Install dependencies
         run: |
           bun install --frozen-lockfile
-          bun run submodule-reload
 
       - name: 🛠️ Generate project files
         run: bun run prebuild
@@ -314,7 +308,6 @@ jobs:
             with:
               ref: ${{ github.event.pull_request.head.sha || github.sha }}
               fetch-depth: 0
-              submodules: recursive
               show-progress: false
 
           - name: 🍞 Setup Bun
@@ -337,10 +330,9 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-${{ runner.arch }}-bun-
 
-      - name: 📦 Install dependencies and reload submodules
+      - name: 📦 Install dependencies
         run: |
           bun install --frozen-lockfile
-          bun run submodule-reload
 
       - name: 🛠️ Generate project files
         run: bun run prebuild
@@ -382,7 +374,6 @@ jobs:
             with:
               ref: ${{ github.event.pull_request.head.sha || github.sha }}
               fetch-depth: 0
-              submodules: recursive
               show-progress: false
 
           - name: 🍞 Setup Bun
@@ -412,10 +403,9 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-${{ runner.arch }}-bun-
 
-      - name: 📦 Install dependencies and reload submodules
+      - name: 📦 Install dependencies
         run: |
           bun install --frozen-lockfile
-          bun run submodule-reload
 
       - name: 🛠️ Generate project files
         run: bun run prebuild:tv
@@ -453,7 +443,6 @@ jobs:
             with:
               ref: ${{ github.event.pull_request.head.sha || github.sha }}
               fetch-depth: 0
-              submodules: recursive
               show-progress: false
 
           - name: 🍞 Setup Bun
@@ -476,10 +465,9 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-${{ runner.arch }}-bun-
 
-      - name: 📦 Install dependencies and reload submodules
+      - name: 📦 Install dependencies
         run: |
           bun install --frozen-lockfile
-          bun run submodule-reload
 
       - name: 🛠️ Generate project files
         run: bun run prebuild:tv

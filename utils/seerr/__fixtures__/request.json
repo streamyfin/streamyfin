@@ -31,7 +31,7 @@
           "lastSeasonChange": "string",
           "mediaAddedAt": "string",
           "mediaType": "string",
-          "mediaUrl": "string",
+          "mediaUrl?": "string",
           "ratingKey": "null",
           "ratingKey4k": "null",
           "serviceId": "number",
@@ -68,7 +68,7 @@
           "warnings": "array<empty>"
         },
         "profileId": "null|number",
-        "profileName": "string",
+        "profileName?": "string",
         "requestedBy": {
           "avatar": "string",
           "avatarETag": "null|string",

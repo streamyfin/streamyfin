@@ -21,11 +21,8 @@ import useRouter from "@/hooks/useAppRouter";
 import { useJellyseerr } from "@/hooks/useJellyseerr";
 import { useTVRequestModal } from "@/hooks/useTVRequestModal";
 import { tvSeasonSelectModalAtom } from "@/utils/atoms/tvSeasonSelectModal";
-import {
-  MediaStatus,
-  MediaType,
-} from "@/utils/jellyseerr/server/constants/media";
-import type { MediaRequestBody } from "@/utils/jellyseerr/server/interfaces/api/requestInterfaces";
+import type { MediaRequestBody } from "@/utils/seerr/types";
+import { MediaStatus, MediaType } from "@/utils/seerr/types";
 import { store } from "@/utils/store";
 
 interface TVSeasonToggleCardProps {
@@ -66,7 +63,7 @@ const TVSeasonToggleCard: React.FC<TVSeasonToggleCardProps> = ({
         return { icon: "bell", color: "#eab308" };
       case MediaStatus.PARTIALLY_AVAILABLE:
         return { icon: "minus", color: "#22c55e" };
-      case MediaStatus.BLACKLISTED:
+      case MediaStatus.BLOCKLISTED:
         return { icon: "eye-off", color: "#ef4444" };
       default:
         return canRequest ? { icon: "plus", color: "#22c55e" } : null;

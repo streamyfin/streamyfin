@@ -7,7 +7,7 @@ import { textShadowStyle } from "@/components/jellyseerr/discover/GenericSlideCa
 import ParallaxSlideShow from "@/components/jellyseerr/ParallaxSlideShow";
 import JellyseerrPoster from "@/components/posters/JellyseerrPoster";
 import { Endpoints, useJellyseerr } from "@/hooks/useJellyseerr";
-import { DiscoverSliderType } from "@/utils/jellyseerr/server/constants/discover";
+import { DiscoverSliderType } from "@/utils/seerr/types";
 
 export default function JellyseerrGenrePage() {
   const local = useLocalSearchParams();

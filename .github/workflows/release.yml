@@ -73,7 +73,6 @@ jobs:
             uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
             with:
               fetch-depth: 0
-              submodules: recursive
               show-progress: false
 
           - name: 🍞 Setup Bun
@@ -97,10 +96,9 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-${{ runner.arch }}-bun-
 
-      - name: 📦 Install dependencies and reload submodules
+      - name: 📦 Install dependencies
         run: |
           bun install --frozen-lockfile
-          bun run submodule-reload
 
       # tvOS uses credentialsSource: local — restore the gitignored
       # credentials.json + cert + provisioning profiles from secrets.

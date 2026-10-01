@@ -5,57 +5,57 @@
     "page": "number",
     "results": {
       "[]": {
-        "adult": "boolean",
-        "backdropPath": "null|string",
-        "firstAirDate": "string",
-        "genreIds": {
+        "adult?": "boolean",
+        "backdropPath?": "null|string",
+        "firstAirDate?": "string",
+        "genreIds?": {
           "[]": "number"
         },
         "id": "number",
-        "knownFor": {
+        "knownFor?": {
           "[]": {
-            "adult": "boolean",
+            "adult?": "boolean",
             "backdropPath": "null|string",
-            "firstAirDate": "string",
+            "firstAirDate?": "string",
             "genreIds": {
               "[]": "number"
             },
             "id": "number",
             "mediaType": "string",
-            "name": "string",
+            "name?": "string",
             "originalLanguage": "string",
-            "originalName": "string",
-            "originalTitle": "string",
-            "originCountry": {
+            "originalName?": "string",
+            "originalTitle?": "string",
+            "originCountry?": {
               "[]": "string"
             },
             "overview": "string",
             "popularity": "number",
             "posterPath": "string",
-            "releaseDate": "string",
-            "title": "string",
-            "video": "boolean",
+            "releaseDate?": "string",
+            "title?": "string",
+            "video?": "boolean",
             "voteAverage": "number",
             "voteCount": "number"
           }
         },
         "mediaType": "string",
-        "name": "string",
-        "originalLanguage": "string",
-        "originalName": "string",
-        "originalTitle": "string",
-        "originCountry": {
+        "name?": "string",
+        "originalLanguage?": "string",
+        "originalName?": "string",
+        "originalTitle?": "string",
+        "originCountry?": {
           "[]": "string"
         },
-        "overview": "string",
+        "overview?": "string",
         "popularity": "number",
-        "posterPath": "null|string",
-        "profilePath": "null|string",
-        "releaseDate": "string",
-        "title": "string",
-        "video": "boolean",
-        "voteAverage": "number",
-        "voteCount": "number"
+        "posterPath?": "null|string",
+        "profilePath?": "null|string",
+        "releaseDate?": "string",
+        "title?": "string",
+        "video?": "boolean",
+        "voteAverage?": "number",
+        "voteCount?": "number"
       }
     },
     "totalPages": "number",

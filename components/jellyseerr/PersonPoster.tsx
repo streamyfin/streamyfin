@@ -8,7 +8,7 @@ import { useJellyseerr } from "@/hooks/useJellyseerr";
 
 interface Props {
   id: string;
-  posterPath?: string;
+  posterPath?: string | null;
   name: string;
   subName?: string;
 }

@@ -6,10 +6,8 @@ import { View, type ViewProps } from "react-native";
 import CountryFlag from "react-native-country-flag";
 import { Text } from "@/components/common/Text";
 import { useJellyseerr } from "@/hooks/useJellyseerr";
-import { ANIME_KEYWORD_ID } from "@/utils/jellyseerr/server/api/themoviedb/constants";
-import type { TmdbRelease } from "@/utils/jellyseerr/server/api/themoviedb/interfaces";
-import type { MovieDetails } from "@/utils/jellyseerr/server/models/Movie";
-import type { TvDetails } from "@/utils/jellyseerr/server/models/Tv";
+import { ANIME_KEYWORD_ID } from "@/utils/seerr/data";
+import type { MovieDetails, TvDetails } from "@/utils/seerr/types";
 
 interface Release {
   certification: string;
@@ -56,9 +54,9 @@ const DetailFacts: React.FC<
 
   const releases = useMemo(
     () =>
-      (details as MovieDetails)?.releases?.results.find(
-        (r: TmdbRelease) => r.iso_3166_1 === region,
-      )?.release_dates as TmdbRelease["release_dates"],
+      (details as MovieDetails)?.releases?.results?.find(
+        (r) => r.iso_3166_1 === region,
+      )?.release_dates,
     [details],
   );
 
@@ -190,7 +188,9 @@ const DetailFacts: React.FC<
             title={t("jellyseerr.production_country")}
             facts={details?.productionCountries?.map((n, idx) => (
               <View key={idx} className='flex flex-row items-center space-x-2'>
-                <CountryFlag isoCode={n.iso_3166_1} size={10} />
+                {n.iso_3166_1 ? (
+                  <CountryFlag isoCode={n.iso_3166_1} size={10} />
+                ) : null}
                 <Text>{n.name}</Text>
               </View>
             ))}

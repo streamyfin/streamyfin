@@ -7,9 +7,9 @@ import GenericSlideCard from "@/components/jellyseerr/discover/GenericSlideCard"
 import Slide, { type SlideProps } from "@/components/jellyseerr/discover/Slide";
 import useRouter from "@/hooks/useAppRouter";
 import { Endpoints, useJellyseerr } from "@/hooks/useJellyseerr";
-import { DiscoverSliderType } from "@/utils/jellyseerr/server/constants/discover";
-import type { GenreSliderItem } from "@/utils/jellyseerr/server/interfaces/api/discoverInterfaces";
-import { genreColorMap } from "@/utils/jellyseerr/src/components/Discover/constants";
+import { genreColorMap } from "@/utils/seerr/data";
+import type { GenreSliderItem } from "@/utils/seerr/types";
+import { DiscoverSliderType } from "@/utils/seerr/types";
 
 const GenreSlide: React.FC<SlideProps & ViewProps> = ({ slide, ...props }) => {
   const segments = useSegments();

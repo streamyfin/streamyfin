@@ -9,11 +9,7 @@ import { TVJellyseerrPosterCard } from "@/components/tv/TVJellyseerrPosterCard";
 import { useScaledTVSizes } from "@/constants/TVSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import { useJellyseerr } from "@/hooks/useJellyseerr";
-import type {
-  MovieResult,
-  PersonResult,
-  TvResult,
-} from "@/utils/jellyseerr/server/models/Search";
+import type { MovieResult, PersonResult, TvResult } from "@/utils/seerr/types";
 
 const SCALE_PADDING = 20;
 

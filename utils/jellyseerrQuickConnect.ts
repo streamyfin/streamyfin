@@ -2,8 +2,8 @@ import type { Api } from "@jellyfin/sdk";
 import { getQuickConnectApi } from "@jellyfin/sdk/lib/utils/api";
 import axios from "axios";
 import type { JellyseerrApi } from "@/hooks/useJellyseerr";
-import type { User as JellyseerrUser } from "@/utils/jellyseerr/server/entity/User";
 import { writeToLog } from "@/utils/log";
+import type { User as JellyseerrUser } from "@/utils/seerr/types";
 
 /**
  * Signing in to Seerr without a password and without an admin API key.

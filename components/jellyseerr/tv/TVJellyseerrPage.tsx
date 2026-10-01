@@ -25,27 +25,24 @@ import { useTVFocusAnimation } from "@/components/tv/hooks/useTVFocusAnimation";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import { useJellyseerr } from "@/hooks/useJellyseerr";
+import { useJellyseerrCanRequest } from "@/hooks/useJellyseerrCanRequest";
 import { useTVRequestModal } from "@/hooks/useTVRequestModal";
 import { useTVSeasonSelectModal } from "@/hooks/useTVSeasonSelectModal";
-import { useJellyseerrCanRequest } from "@/utils/_jellyseerr/useJellyseerrCanRequest";
+import { hasPermission, Permission } from "@/utils/seerr/permissions";
+import { seasonsWithStatus } from "@/utils/seerr/seasons";
+import type {
+  MediaRequest,
+  MediaRequestBody,
+  MovieDetails,
+  MovieResult,
+  TvDetails,
+  TvResult,
+} from "@/utils/seerr/types";
 import {
   MediaRequestStatus,
   MediaStatus,
   MediaType,
-} from "@/utils/jellyseerr/server/constants/media";
-import type MediaRequest from "@/utils/jellyseerr/server/entity/MediaRequest";
-import type Season from "@/utils/jellyseerr/server/entity/Season";
-import type { MediaRequestBody } from "@/utils/jellyseerr/server/interfaces/api/requestInterfaces";
-import {
-  hasPermission,
-  Permission,
-} from "@/utils/jellyseerr/server/lib/permissions";
-import type { MovieDetails } from "@/utils/jellyseerr/server/models/Movie";
-import type {
-  MovieResult,
-  TvResult,
-} from "@/utils/jellyseerr/server/models/Search";
-import type { TvDetails } from "@/utils/jellyseerr/server/models/Tv";
+} from "@/utils/seerr/types";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -55,7 +52,7 @@ interface TVCastCardProps {
     id: number;
     name: string;
     character?: string;
-    profilePath?: string;
+    profilePath?: string | null;
   };
   imageProxy: (path: string, size?: string) => string;
   onPress: () => void;
@@ -217,30 +214,13 @@ export const TVJellyseerrPage: React.FC = () => {
   }, [details]);
 
   // Get seasons with status for TV shows
-  const seasons = useMemo(() => {
-    if (!details || mediaType !== MediaType.TV) return [];
-    const tvDetails = details as TvDetails;
-    const mediaInfoSeasons = tvDetails.mediaInfo?.seasons?.filter(
-      (s: Season) => s.seasonNumber !== 0,
-    );
-    const requestedSeasons =
-      tvDetails.mediaInfo?.requests?.flatMap((r: MediaRequest) => r.seasons) ??
-      [];
-    return (
-      tvDetails.seasons?.map((season) => ({
-        ...season,
-        status:
-          mediaInfoSeasons?.find(
-            (mediaSeason: Season) =>
-              mediaSeason.seasonNumber === season.seasonNumber,
-          )?.status ??
-          requestedSeasons?.find(
-            (s: Season) => s.seasonNumber === season.seasonNumber,
-          )?.status ??
-          MediaStatus.UNKNOWN,
-      })) ?? []
-    );
-  }, [details, mediaType]);
+  const seasons = useMemo(
+    () =>
+      details && mediaType === MediaType.TV
+        ? seasonsWithStatus(details as TvDetails)
+        : [],
+    [details, mediaType],
+  );
 
   const _allSeasonsAvailable = useMemo(
     () => seasons.every((season) => season.status === MediaStatus.AVAILABLE),
@@ -304,7 +284,7 @@ export const TVJellyseerrPage: React.FC = () => {
     const body: MediaRequestBody = {
       mediaId: Number(result.id!),
       mediaType: mediaType!,
-      tvdbId: details?.externalIds?.tvdbId,
+      tvdbId: details?.externalIds?.tvdbId ?? undefined,
       ...(mediaType === MediaType.TV && {
         seasons: (details as TvDetails)?.seasons
           ?.filter?.((s) => s.seasonNumber !== 0)
@@ -339,7 +319,7 @@ export const TVJellyseerrPage: React.FC = () => {
     const body: MediaRequestBody = {
       mediaId: Number(result.id!),
       mediaType: MediaType.TV,
-      tvdbId: details?.externalIds?.tvdbId,
+      tvdbId: details?.externalIds?.tvdbId ?? undefined,
       seasons: seasons
         .filter((s) => s.status === MediaStatus.UNKNOWN && s.seasonNumber !== 0)
         .map((s) => s.seasonNumber),
@@ -374,7 +354,7 @@ export const TVJellyseerrPage: React.FC = () => {
       seasons: seasons.filter((s) => s.seasonNumber !== 0),
       title: mediaTitle,
       mediaId: Number(result.id!),
-      tvdbId: details?.externalIds?.tvdbId,
+      tvdbId: details?.externalIds?.tvdbId ?? undefined,
       hasAdvancedRequestPermission,
       onRequested: refetch,
     });
@@ -579,7 +559,9 @@ export const TVJellyseerrPage: React.FC = () => {
             {/* Genres */}
             {details?.genres && details.genres.length > 0 && (
               <View style={{ marginBottom: 24 }}>
-                <GenreTags genres={details.genres.map((g) => g.name)} />
+                <GenreTags
+                  genres={details.genres.flatMap((g) => g.name ?? [])}
+                />
               </View>
             )}
 

@@ -1,4 +1,0 @@
-[submodule "utils/jellyseerr"]
-	path = utils/jellyseerr
-	url = https://github.com/herrrta/jellyseerr
-	branch = models

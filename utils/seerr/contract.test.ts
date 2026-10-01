@@ -1,8 +1,8 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Fixture } from "../../scripts/seerr/capture";
-import { pathsOf } from "../../scripts/seerr/shape";
-import { CORRECTIONS } from "./corrections";
+import { allowsNull, pathsOf, propertyAt } from "../../scripts/seerr/shape";
+import { ALWAYS_SENT, CORRECTIONS } from "./corrections";
 import declared from "./generated/api-shapes.json";
 import { APP_ROUTES } from "./routes";
 
@@ -35,24 +35,6 @@ const fixtures = readdirSync(FIXTURES)
   .map(
     (file) => JSON.parse(readFileSync(join(FIXTURES, file), "utf8")) as Fixture,
   );
-
-/** The leaf a path names in a shape, when the shape reaches that far. */
-const at = (shape: unknown, path: string): unknown =>
-  path
-    .split(".")
-    .flatMap((part) =>
-      part
-        .split("[]")
-        .filter(Boolean)
-        .concat(part.endsWith("[]") ? ["[]"] : []),
-    )
-    .reduce<unknown>(
-      (node, key) =>
-        node && typeof node === "object"
-          ? (node as Record<string, unknown>)[key]
-          : undefined,
-      shape,
-    );
 
 const declaredFor = (route: string): string[] =>
   declared[route as keyof typeof declared] ?? [];
@@ -111,8 +93,26 @@ test("a fixture exists for every route the app reads", () => {
     (template) => !captured.has(template),
   );
 
-  // Missing ones come from `bun run seerr:capture`.
+  // Run `bun run seerr:capture`.
   expect(missing).toEqual([]);
+});
+
+test("every fixture holds the status its route expects", () => {
+  // The capture refuses any other status before writing, but a fixture edited
+  // by hand or left from an older route list never went through it, and one
+  // holding a 401 has no shape for the tests below to compare.
+  const wrong = APP_ROUTES.flatMap((route) => {
+    const fixture = fixtures.find(
+      (candidate) => candidate.route === route.template,
+    );
+    const expected = route.expect ?? 200;
+    return fixture && fixture.status !== expected
+      ? [`${route.template} holds ${fixture.status}, expected ${expected}`]
+      : [];
+  });
+
+  // Run `bun run seerr:capture`.
+  expect(wrong).toEqual([]);
 });
 
 test("no fixture carries a value", () => {
@@ -132,7 +132,7 @@ test("no fixture carries a value", () => {
   const leaves = (shape: unknown, at: string): string[] => {
     if (typeof shape === "string") {
       // A leaf can carry more than one reading, `null|string` for a field
-      // some elements send and others do not.
+      // some elements send as null, and so can what sits beside an object.
       const unknown = shape.split("|").filter((part) => !types.has(part));
       return unknown.length ? [`${at}: ${shape}`] : [];
     }
@@ -171,7 +171,7 @@ describe("what a real server sends", () => {
           !isUnderDeclared(path, shallow),
       );
 
-      // The spec moved: add these to corrections.ts, with the date.
+      // The spec moved: add these to corrections.ts with the date.
       expect(unknown).toEqual([]);
     });
   }
@@ -186,9 +186,19 @@ describe("the corrections", () => {
     // we were correcting, the entry has outlived its reason.
     test(`${fixture.route} still needs the ones it carries`, () => {
       const spec = new Set(declaredFor(fixture.route));
-      const stale = correction.added.filter((path) => spec.has(path));
+      const stale = [
+        ...correction.added
+          .filter((path) => spec.has(path))
+          .map((path) => `${path} is declared now`),
+        // A rename is judged on the name the spec got wrong, not on the served
+        // one: `watchProviders[]` is declared already, as the middle of the
+        // array of arrays the spec describes.
+        ...correction.renamed
+          .filter(([declared]) => !spec.has(declared))
+          .map(([declared]) => `${declared} is no longer declared`),
+      ];
 
-      // Upstream declares these now: drop them.
+      // Upstream fixed these, drop them.
       expect(stale).toEqual([]);
     });
 
@@ -198,7 +208,6 @@ describe("the corrections", () => {
     // than on anything about the correction.
     test(`${fixture.route} still sees what its other entries describe`, () => {
       const served = new Set(pathsOf(fixture.shape as never));
-      const shape = fixture.shape as Record<string, unknown>;
 
       // A null that became a value, a required field that reappeared, or a
       // served name that moved: each can mean the entry has outlived its
@@ -207,10 +216,10 @@ describe("the corrections", () => {
       // before the entry goes.
       const wrong = [
         ...correction.nullable
-          .filter((path) => served.has(path))
-          .filter(
-            (path) => !String(at(shape, path)).split("|").includes("null"),
-          )
+          .filter((path) => {
+            const found = propertyAt(fixture.shape, path);
+            return found !== undefined && !allowsNull(found.shape);
+          })
           .map(
             (path) =>
               `${path} was never null here: recapture with a response where it is before dropping it`,
@@ -241,8 +250,40 @@ describe("the corrections", () => {
         (path) => reached(path) && !served.has(path),
       );
 
-      // Corrected, yet the server does not send them.
+      // These were corrected but the server does not send them.
       expect(imagined).toEqual([]);
+    });
+  }
+});
+
+describe("the fields the types treat as always sent", () => {
+  // The spec marks almost every property optional, and `types.ts` makes one
+  // required only where a capture carried it. Inside an array that means on
+  // every element, which the fixture can tell: it marks a key some element
+  // went without, and notes a null beside an object as beside a leaf. A field
+  // never sent, sent by some elements only, or sent as null fails here.
+  for (const [type, { route, at: where, keys }] of Object.entries(
+    ALWAYS_SENT,
+  )) {
+    test(`${type} carries ${keys.join(", ")} on ${route}`, () => {
+      const fixture = fixtures.find((candidate) => candidate.route === route);
+      // The route has no fixture: run `bun run seerr:capture`.
+      expect(fixture?.shape).toBeDefined();
+
+      const wrong = keys.flatMap((key) => {
+        const found = propertyAt(
+          fixture?.shape,
+          where ? `${where}.${key}` : key,
+        );
+
+        if (!found) return [`${key} is not sent`];
+        if (found.optional) return [`${key} is missing from some elements`];
+        if (allowsNull(found.shape)) return [`${key} is sent as null`];
+        return [];
+      });
+
+      // Take these out of ALWAYS_SENT, the types cannot require them.
+      expect(wrong).toEqual([]);
     });
   }
 });

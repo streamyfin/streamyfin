@@ -13,14 +13,14 @@ import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
 import { PlatformDropdown } from "@/components/PlatformDropdown";
 import { useJellyseerr } from "@/hooks/useJellyseerr";
+import { writeDebugLog } from "@/utils/log";
 import type {
+  MediaRequestBody,
+  MediaType,
   QualityProfile,
   RootFolder,
-  Tag,
-} from "@/utils/jellyseerr/server/api/servarr/base";
-import type { MediaType } from "@/utils/jellyseerr/server/constants/media";
-import type { MediaRequestBody } from "@/utils/jellyseerr/server/interfaces/api/requestInterfaces";
-import { writeDebugLog } from "@/utils/log";
+  ServarrTag as Tag,
+} from "@/utils/seerr/types";
 
 interface Props {
   id: number;
@@ -108,7 +108,7 @@ const RequestModal = forwardRef<
       refetchOnMount: "always",
     });
 
-    const defaultProfile: QualityProfile = useMemo(
+    const defaultProfile: QualityProfile | undefined = useMemo(
       () =>
         defaultServiceDetails?.profiles.find(
           (p) =>
@@ -120,7 +120,7 @@ const RequestModal = forwardRef<
       [defaultServiceDetails],
     );
 
-    const defaultFolder: RootFolder = useMemo(
+    const defaultFolder: RootFolder | undefined = useMemo(
       () =>
         defaultServiceDetails?.rootFolders.find(
           (f) =>

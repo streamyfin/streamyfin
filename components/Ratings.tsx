@@ -5,13 +5,13 @@ import { Image } from "expo-image";
 import { useMemo } from "react";
 import { View, type ViewProps } from "react-native";
 import { useJellyseerr } from "@/hooks/useJellyseerr";
-import { MediaType } from "@/utils/jellyseerr/server/constants/media";
-import type { MovieDetails } from "@/utils/jellyseerr/server/models/Movie";
 import type {
+  MovieDetails,
   MovieResult,
+  TvDetails,
   TvResult,
-} from "@/utils/jellyseerr/server/models/Search";
-import type { TvDetails } from "@/utils/jellyseerr/server/models/Tv";
+} from "@/utils/seerr/types";
+import { MediaType } from "@/utils/seerr/types";
 import { AwardsBadge } from "./AwardsBadge";
 import { Badge } from "./Badge";
 
@@ -128,7 +128,7 @@ export const JellyserrRatings: React.FC<{
             }
           />
         )}
-        {!!result.voteCount && (
+        {!!result.voteCount && result.voteAverage !== undefined && (
           <Badge
             text={`${Math.round(result.voteAverage * 10)}%`}
             variant='gray'

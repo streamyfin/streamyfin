@@ -6,11 +6,8 @@ import GenericSlideCard from "@/components/jellyseerr/discover/GenericSlideCard"
 import Slide, { type SlideProps } from "@/components/jellyseerr/discover/Slide";
 import useRouter from "@/hooks/useAppRouter";
 import { useJellyseerr } from "@/hooks/useJellyseerr";
-import {
-  COMPANY_LOGO_IMAGE_FILTER,
-  type Network,
-} from "@/utils/jellyseerr/src/components/Discover/NetworkSlider";
-import type { Studio } from "@/utils/jellyseerr/src/components/Discover/StudioSlider";
+import type { Studio } from "@/utils/seerr/data";
+import { COMPANY_LOGO_IMAGE_FILTER, type Network } from "@/utils/seerr/data";
 
 const CompanySlide: React.FC<
   { data: Network[] | Studio[] } & SlideProps & ViewProps

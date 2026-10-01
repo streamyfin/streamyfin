@@ -6,12 +6,12 @@ import { Image } from "@/components/common/ServerImage";
 import ParallaxSlideShow from "@/components/jellyseerr/ParallaxSlideShow";
 import JellyseerrPoster from "@/components/posters/JellyseerrPoster";
 import { Endpoints, useJellyseerr } from "@/hooks/useJellyseerr";
-import { DiscoverSliderType } from "@/utils/jellyseerr/server/constants/discover";
+import { COMPANY_LOGO_IMAGE_FILTER } from "@/utils/seerr/data";
 import {
+  DiscoverSliderType,
   type MovieResult,
   type TvResult,
-} from "@/utils/jellyseerr/server/models/Search";
-import { COMPANY_LOGO_IMAGE_FILTER } from "@/utils/jellyseerr/src/components/Discover/NetworkSlider";
+} from "@/utils/seerr/types";
 
 export default function JellyseerrCompanyPage() {
   const local = useLocalSearchParams();

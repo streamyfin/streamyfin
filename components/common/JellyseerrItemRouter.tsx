@@ -3,22 +3,21 @@ import type React from "react";
 import { type PropsWithChildren } from "react";
 import { TouchableOpacity, type TouchableOpacityProps } from "react-native";
 import useRouter from "@/hooks/useAppRouter";
-import { MediaType } from "@/utils/jellyseerr/server/constants/media";
-import type { MovieDetails } from "@/utils/jellyseerr/server/models/Movie";
-import { PersonCreditCast } from "@/utils/jellyseerr/server/models/Person";
 import type {
+  MovieDetails,
   MovieResult,
+  TvDetails,
   TvResult,
-} from "@/utils/jellyseerr/server/models/Search";
-import type { TvDetails } from "@/utils/jellyseerr/server/models/Tv";
+} from "@/utils/seerr/types";
+import { MediaType, type PersonCreditCast } from "@/utils/seerr/types";
 
 interface Props extends TouchableOpacityProps {
   result?: MovieResult | TvResult | MovieDetails | TvDetails | PersonCreditCast;
-  mediaTitle: string;
-  releaseYear: number;
+  mediaTitle?: string;
+  releaseYear?: number;
   canRequest: boolean;
   posterSrc: string;
-  mediaType: MediaType;
+  mediaType?: MediaType;
 }
 
 export const TouchableJellyseerrRouter: React.FC<PropsWithChildren<Props>> = ({
