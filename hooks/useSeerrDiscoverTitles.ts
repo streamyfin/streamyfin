@@ -2,6 +2,7 @@ import { useInfiniteQuery } from "@tanstack/react-query";
 import { uniqBy } from "lodash";
 import { useMemo } from "react";
 import { Endpoints, useSeerr } from "@/hooks/useSeerr";
+import { nextResultsPage } from "@/utils/seerr/search";
 import {
   DiscoverSliderType,
   type MovieResult,
@@ -44,20 +45,20 @@ export const useSeerrDiscoverTitles = (source: SeerrTitlesSource) => {
   const { seerrApi, isSeerrMovieOrTvResult } = useSeerr();
   const { endpoint, params } = endpointOf(source);
 
-  const { data, fetchNextPage, hasNextPage, isLoading } = useInfiniteQuery({
-    queryKey: ["seerr", source.kind, source.type, source.id],
-    queryFn: async ({ pageParam }) =>
-      seerrApi?.discover(endpoint, {
-        ...params,
-        page: Number(pageParam),
-      }),
-    enabled: !!seerrApi && !!source.id,
-    initialPageParam: 1,
-    getNextPageParam: (lastPage, pages) =>
-      (lastPage?.page || pages?.findLast((p) => p?.results.length)?.page || 1) +
-      1,
-    staleTime: 0,
-  });
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
+    useInfiniteQuery({
+      queryKey: ["seerr", source.kind, source.type, source.id],
+      queryFn: async ({ pageParam }) =>
+        seerrApi?.discover(endpoint, {
+          ...params,
+          page: Number(pageParam),
+        }),
+      enabled: !!seerrApi && !!source.id,
+      initialPageParam: 1,
+      // None past the last page: an endless list asked for empty ones.
+      getNextPageParam: (lastPage) => nextResultsPage(lastPage),
+      staleTime: 0,
+    });
 
   const titles = useMemo(
     () =>
@@ -74,8 +75,10 @@ export const useSeerrDiscoverTitles = (source: SeerrTitlesSource) => {
 
   return {
     titles,
+    // Not while a page is on its way: a TV grid asks at every scroll event,
+    // and each call cancelled the fetch in flight to start it again.
     loadMore: () => {
-      if (hasNextPage) fetchNextPage();
+      if (hasNextPage && !isFetchingNextPage) fetchNextPage();
     },
     isLoading,
   };

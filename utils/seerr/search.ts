@@ -62,3 +62,12 @@ export const searchSeerr = async (
     "id",
   );
 };
+
+/**
+ * The page to ask for after `last` in a list Seerr gives a page at a time,
+ * none past its last page.
+ */
+export const nextResultsPage = (
+  last: { page: number; totalPages: number } | undefined,
+): number | undefined =>
+  last && last.page < last.totalPages ? last.page + 1 : undefined;

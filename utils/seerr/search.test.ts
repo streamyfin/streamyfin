@@ -1,4 +1,4 @@
-import { searchSeerr, seerrQueryString } from "./search";
+import { nextResultsPage, searchSeerr, seerrQueryString } from "./search";
 
 const fakeApi = (pages: { id: number }[][] = [[]]) => {
   const calls: { query: string; page: number }[] = [];
@@ -70,5 +70,22 @@ describe("seerrQueryString", () => {
     );
     expect(seerrQueryString({ query: "M*A*S*H" })).toBe("query=M%2AA%2AS%2AH");
     expect(seerrQueryString({ query: "l'été" })).toBe("query=l'%C3%A9t%C3%A9");
+  });
+});
+
+// The next page of a list Seerr gives a page at a time, none past its last:
+// asking on and on for empty pages cost a request at every scroll.
+describe("nextResultsPage", () => {
+  test("asks for the page after the one that came", () => {
+    expect(nextResultsPage({ page: 1, totalPages: 3 })).toBe(2);
+  });
+
+  test("stops at the last page", () => {
+    expect(nextResultsPage({ page: 3, totalPages: 3 })).toBeUndefined();
+    expect(nextResultsPage({ page: 1, totalPages: 0 })).toBeUndefined();
+  });
+
+  test("stops without an answer", () => {
+    expect(nextResultsPage(undefined)).toBeUndefined();
   });
 });

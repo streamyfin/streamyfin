@@ -3,16 +3,17 @@ import { ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Loader } from "@/components/Loader";
 import { TVSeerrPosterCard } from "@/components/tv/TVSeerrPosterCard";
+import {
+  SEERR_TV_LOAD_MORE_DISTANCE,
+  SEERR_TV_ROW_CARD_GAP,
+} from "@/constants/Seerr";
 import { useScaledTVSizes } from "@/constants/TVSizes";
 import useRouter from "@/hooks/useAppRouter";
 import {
   type SeerrTitlesSource,
   useSeerrDiscoverTitles,
 } from "@/hooks/useSeerrDiscoverTitles";
-
-// How close to the end of the grid the next page is asked for.
-const LOAD_MORE_DISTANCE = 600;
-const ITEM_GAP = 20;
+import { scaleSize } from "@/utils/scaleSize";
 
 /**
  * A genre's, a network's or a studio's titles on the TV, the phone's page
@@ -41,7 +42,7 @@ export const TVSeerrTitlesPage: React.FC<{
       }) => {
         if (
           layoutMeasurement.height + contentOffset.y >=
-          contentSize.height - LOAD_MORE_DISTANCE
+          contentSize.height - scaleSize(SEERR_TV_LOAD_MORE_DISTANCE)
         )
           loadMore();
       }}
@@ -55,7 +56,7 @@ export const TVSeerrTitlesPage: React.FC<{
             flexDirection: "row",
             flexWrap: "wrap",
             justifyContent: "center",
-            gap: ITEM_GAP,
+            gap: scaleSize(SEERR_TV_ROW_CARD_GAP),
           }}
         >
           {titles.map((item, index) => (
