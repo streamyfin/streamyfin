@@ -59,12 +59,16 @@ export const SEERR_PILL_FADE_WIDTH = 20;
 export const SEERR_PILL_PAN_SLOP = 4;
 
 /**
- * A TV Discover row, in points at 1080p: the room around its cards for a
- * focused one to grow into, the space under its title, and between rows.
+ * A TV Discover row, in points on a 1920 by 1080 screen, scaled to the TV's
+ * own (scaleSize): the room around its cards for a focused one to grow into,
+ * the space between two cards, under its title, and between rows. Unscaled,
+ * the same numbers came out twice as large on Android TV, laid out on 960 by
+ * 540, as on Apple TV, laid out on 1920 by 1080.
  */
-export const SEERR_TV_ROW_PADDING = 16;
-export const SEERR_TV_ROW_TITLE_GAP = 4;
-export const SEERR_TV_ROW_GAP = 4;
+export const SEERR_TV_ROW_PADDING = 32;
+export const SEERR_TV_ROW_CARD_GAP = 40;
+export const SEERR_TV_ROW_TITLE_GAP = 8;
+export const SEERR_TV_ROW_GAP = 8;
 
 /**
  * Seerr's request card on the TV, in points at 1080p: its width, the poster
