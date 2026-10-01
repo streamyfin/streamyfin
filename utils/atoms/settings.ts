@@ -24,6 +24,8 @@ import { storage } from "../mmkv";
 import {
   type AppliedPluginDefaults,
   pluginRefreshOverlay,
+  readIntegrationBlocks,
+  renameLegacySeerrSettings,
   resolveEffectiveSettings,
 } from "./settingsOverrides";
 
@@ -440,16 +442,16 @@ export type Settings = {
   subtitleAlignX?: "left" | "center" | "right";
   subtitleAlignY?: "top" | "center" | "bottom";
   safeAreaInControlsEnabled: boolean;
-  jellyseerrServerUrl?: string;
+  seerrServerUrl?: string;
   /** Seerr admin API key: signs the user in via their Jellyfin ID, no password. */
-  jellyseerrApiKey?: string;
+  seerrApiKey?: string;
   /**
-   * Sign in to Jellyseerr automatically on launch using the Jellyfin password.
-   * Jellyseerr's /auth/jellyfin endpoint takes the password rather than the
+   * Sign in to Seerr automatically on launch using the Jellyfin password.
+   * Seerr's /auth/jellyfin endpoint takes the password rather than the
    * Jellyfin token, so enabling this persists that password in the platform
-   * secure store. Nothing is stored unless a Jellyseerr server is configured.
+   * secure store. Nothing is stored unless a Seerr server is configured.
    */
-  autoLoginJellyseerr: boolean;
+  autoLoginSeerr: boolean;
   useKefinTweaks: boolean;
   hiddenLibraries?: string[];
   enableH265ForChromecast: boolean;
@@ -551,22 +553,28 @@ export type StreamyfinPluginConfig = {
 // Settings whose values are secrets. They must never reach the app log,
 // which users read in-app and paste into bug reports.
 const SENSITIVE_SETTING_KEYS: ReadonlySet<keyof Settings> = new Set([
-  "jellyseerrApiKey",
+  "seerrApiKey",
   "openSubtitlesApiKey",
 ] as const);
 
+// Read first: the plugin sends the Seerr key under its old flat name and
+// inside the seerr block, and only the app's own name is on the list above.
 export const redactPluginSettings = (
-  settings: PluginLockableSettings | undefined,
-): PluginLockableSettings | undefined =>
-  settings &&
-  (Object.fromEntries(
-    Object.entries(settings).map(([key, lockable]) => [
-      key,
-      SENSITIVE_SETTING_KEYS.has(key as keyof Settings) && lockable?.value
-        ? { ...lockable, value: REDACTED_PLACEHOLDER }
-        : lockable,
-    ]),
-  ) as PluginLockableSettings);
+  sent: PluginLockableSettings | undefined,
+): PluginLockableSettings | undefined => {
+  const settings = readIntegrationBlocks(sent);
+  return (
+    settings &&
+    (Object.fromEntries(
+      Object.entries(settings).map(([key, lockable]) => [
+        key,
+        SENSITIVE_SETTING_KEYS.has(key as keyof Settings) && lockable?.value
+          ? { ...lockable, value: REDACTED_PLACEHOLDER }
+          : lockable,
+      ]),
+    ) as PluginLockableSettings)
+  );
+};
 
 export const defaultValues: Settings = {
   home: null,
@@ -615,9 +623,9 @@ export const defaultValues: Settings = {
   subtitleAlignX: "center",
   subtitleAlignY: "bottom",
   safeAreaInControlsEnabled: true,
-  jellyseerrServerUrl: undefined,
-  jellyseerrApiKey: undefined,
-  autoLoginJellyseerr: true,
+  seerrServerUrl: undefined,
+  seerrApiKey: undefined,
+  autoLoginSeerr: true,
   useKefinTweaks: false,
   hiddenLibraries: [],
   enableH265ForChromecast: false,
@@ -789,6 +797,11 @@ const loadSettings = (): Partial<Settings> => {
     changed = true;
   }
 
+  // Seerr's settings were stored under the names they had as Jellyseerr.
+  if (renameLegacySeerrSettings(stored as Record<string, unknown>)) {
+    changed = true;
+  }
+
   if (changed) {
     storage.set(SETTINGS_KEY, JSON.stringify(stored));
   }
@@ -819,11 +832,14 @@ export const settingsAtom = atom<Partial<Settings> | null>(null);
  * Server-side counterpart to the `showTVHeroCarousel` migration in
  * `loadSettings`: the Streamyfin plugin config still keys the hero switch
  * under the old name, so alias it or an admin's existing lock and default
- * would quietly stop being enforced after the rename.
+ * would quietly stop being enforced after the rename. Seerr's settings are
+ * read the same way, from the block or the old flat keys, which covers the
+ * copy an earlier build stored as well as a fresh answer.
  */
 const migratePluginSettings = (
-  settings: PluginLockableSettings | undefined,
+  sent: PluginLockableSettings | undefined,
 ): PluginLockableSettings | undefined => {
+  const settings = readIntegrationBlocks(sent);
   if (!settings) {
     return settings;
   }
@@ -870,6 +886,21 @@ export const effectiveSettingsAtom = atom<Settings>((get) =>
   ),
 );
 
+/**
+ * The plugin's settings under the app's names, logged with their secrets
+ * redacted. Undefined when the server has no plugin or cannot answer.
+ */
+export const fetchPluginSettings = (api: {
+  getStreamyfinPluginConfig: () => Promise<{ data: StreamyfinPluginConfig }>;
+}): Promise<PluginLockableSettings | undefined> =>
+  api.getStreamyfinPluginConfig().then(
+    ({ data }) => {
+      writeInfoLog("Got plugin settings", redactPluginSettings(data?.settings));
+      return migratePluginSettings(data?.settings);
+    },
+    () => undefined,
+  );
+
 const loadAppliedPluginDefaults = (): AppliedPluginDefaults => {
   try {
     return storage.get<AppliedPluginDefaults>(PLUGIN_APPLIED_DEFAULTS) ?? {};
@@ -903,16 +934,7 @@ export const useSettings = () => {
     if (!api) {
       return;
     }
-    const newPluginSettings = await api.getStreamyfinPluginConfig().then(
-      ({ data }) => {
-        writeInfoLog(
-          "Got plugin settings",
-          redactPluginSettings(data?.settings),
-        );
-        return data?.settings;
-      },
-      (_err) => undefined,
-    );
+    const newPluginSettings = await fetchPluginSettings(api);
     setPluginSettings(newPluginSettings);
 
     // Write against the atom's value at apply time, not the hook's render

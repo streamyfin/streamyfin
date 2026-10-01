@@ -68,7 +68,7 @@ const SCHEMELESS_HOST_PATTERN =
   /((?:failed to connect to|unable to resolve host)[: ]+)[^\s"']+/gi;
 const IPV4_PATTERN = /\b\d{1,3}(?:\.\d{1,3}){3}(?::\d+)?\b/g;
 
-// Jellyfin/Jellyseerr URLs carry credentials in the query string (api_key=...,
+// Jellyfin/Seerr URLs carry credentials in the query string (api_key=...,
 // the WebSocket's ApiKey=...) and the origin reveals the user's private server
 // address, so both are scrubbed from everything that leaves the app; the
 // request path survives because it's what makes an error debuggable.

@@ -1,0 +1,42 @@
+{
+  "route": "GET /media",
+  "status": 200,
+  "shape": {
+    "pageInfo": {
+      "page": "number",
+      "pages": "number",
+      "pageSize": "number",
+      "results": "number"
+    },
+    "results": {
+      "[]": {
+        "createdAt": "string",
+        "downloadStatus": "array<empty>",
+        "downloadStatus4k": "array<empty>",
+        "externalServiceId": "number",
+        "externalServiceId4k": "null",
+        "externalServiceSlug": "string",
+        "externalServiceSlug4k": "null",
+        "id": "number",
+        "imdbId": "string",
+        "jellyfinMediaId": "string",
+        "jellyfinMediaId4k": "null",
+        "lastSeasonChange": "string",
+        "mediaAddedAt": "string",
+        "mediaType": "string",
+        "mediaUrl": "string",
+        "ratingKey": "null",
+        "ratingKey4k": "null",
+        "seasons": "array<empty>",
+        "serviceId": "number",
+        "serviceId4k": "null",
+        "serviceUrl": "string",
+        "status": "number",
+        "status4k": "number",
+        "tmdbId": "number",
+        "tvdbId": "null",
+        "updatedAt": "string"
+      }
+    }
+  }
+}

@@ -14,13 +14,13 @@
 ---
 
 <p align="center">
-  <img src="./assets/images/screenshots/screenshot1.png" width="20%">
+  <img src="./assets/images/screenshots/screenshot1.png" width="20%" alt="Movie page for The Lord of the Rings: The Fellowship of the Ring, with its play button and media details">
   &nbsp;
-  <img src="./assets/images/screenshots/screenshot3.png" width="20%">
+  <img src="./assets/images/screenshots/screenshot3.png" width="20%" alt="Movie page for Wonka with the bitrate menu open">
   &nbsp;
-  <img src="./assets/images/screenshots/screenshot2.png" width="20%">
+  <img src="./assets/images/screenshots/screenshot2.png" width="20%" alt="Downloads screen with a movie downloading">
   &nbsp;
-  <img src="./assets/images/jellyseerr.PNG" width="21%">
+  <img src="./assets/images/seerr.png" width="21%" alt="Seerr page for Family Guy, with the request button and a request button on each season">
 </p>
 
 
@@ -113,7 +113,7 @@ You can contribute translations directly on our [Crowdin project page](https://c
 ### 👨‍💻 Development Info
 
 1. Use node `>20`
-2. Install dependencies `bun i && bun run submodule-reload`
+2. Install dependencies `bun i`
 3. Make sure you have xcode and/or android studio installed. (follow the guides for expo: https://docs.expo.dev/workflow/android-studio-emulator/)
    - If iOS builds fail with `missing Metal Toolchain` (KSPlayer shaders), run `bun run ios:install-metal-toolchain` once
 4. Install BiomeJS extension in VSCode/Your IDE (https://biomejs.dev/)

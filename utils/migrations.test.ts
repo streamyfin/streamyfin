@@ -108,6 +108,28 @@ describe("runStorageMigrations", () => {
     expect(version()).toBe(LATEST_SCHEMA_VERSION);
   });
 
+  // The redaction reached develop after the Seerr move took 3: an install
+  // already stamped at 3 must still run it, which it would not as a 2.
+  test("redacts the app log on an install already stamped at 3", () => {
+    const token = "0123456789abcdef0123456789abcdef";
+    data.set("storageSchemaVersion", 3);
+    data.set(
+      "logs",
+      JSON.stringify([
+        {
+          timestamp: "2026-09-27T15:04:07.000Z",
+          level: "INFO",
+          message: `[native player] getSubtitleTracks: found sub track id=2, title=Stream.subrip?ApiKey=${token}, lang=none, external=true`,
+        },
+      ]),
+    );
+
+    runStorageMigrations(store);
+
+    expect(data.get("logs")).not.toContain(token);
+    expect(version()).toBe(LATEST_SCHEMA_VERSION);
+  });
+
   test("does not re-run once the store is up to date", () => {
     data.set("storageSchemaVersion", LATEST_SCHEMA_VERSION);
     data.set("hasShownIntro", true);
@@ -116,5 +138,36 @@ describe("runStorageMigrations", () => {
 
     // The intro was dismissed after migrating, so it must stay dismissed.
     expect(data.get("hasShownIntro")).toBe(true);
+  });
+});
+
+describe("the Seerr session", () => {
+  // An install from before the rename, already past migration 1.
+  beforeEach(() => {
+    data.set("storageSchemaVersion", 1);
+  });
+
+  test("moves to the names it has now", () => {
+    data.set("JELLYSEERR_USER", '{"id":7}');
+    data.set("JELLYSEERR_COOKIES", '["connect.sid=s%3A1"]');
+
+    runStorageMigrations(store);
+
+    expect(data.get("SEERR_USER")).toBe('{"id":7}');
+    expect(data.get("SEERR_COOKIES")).toBe('["connect.sid=s%3A1"]');
+    expect(data.has("JELLYSEERR_USER")).toBe(false);
+    expect(data.has("JELLYSEERR_COOKIES")).toBe(false);
+  });
+
+  // A device that already signed in under the new names keeps that session:
+  // the old one is older by construction.
+  test("keeps a session already under the new names", () => {
+    data.set("SEERR_USER", '{"id":9}');
+    data.set("JELLYSEERR_USER", '{"id":7}');
+
+    runStorageMigrations(store);
+
+    expect(data.get("SEERR_USER")).toBe('{"id":9}');
+    expect(data.has("JELLYSEERR_USER")).toBe(false);
   });
 });

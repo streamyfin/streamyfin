@@ -125,12 +125,17 @@ export const pendingPluginDefaults = (
 export const pluginRefreshOverlay = (
   current: Partial<Settings>,
   plugin: PluginLockableSettings | undefined,
-  applied: AppliedPluginDefaults,
+  recorded: AppliedPluginDefaults,
   normalize: NormalizePluginValue,
 ): {
   overlay: Partial<Settings>;
   applied: AppliedPluginDefaults | null;
 } | null => {
+  // A record an earlier build wrote names Seerr's settings as Jellyseerr's:
+  // read under the old names, a default applied then would be applied again.
+  const applied = { ...recorded } as Record<string, unknown>;
+  renameLegacySeerrSettings(applied);
+
   const pending = pendingPluginDefaults(plugin, applied, normalize);
   const enableStreamystats =
     !!plugin?.streamyStatsServerUrl?.value &&
@@ -146,4 +151,82 @@ export const pluginRefreshOverlay = (
     applied:
       Object.keys(pending).length > 0 ? { ...applied, ...pending } : null,
   };
+};
+
+/**
+ * The three Seerr settings under the names they had when Seerr was called
+ * Jellyseerr, and their names now. Earlier builds stored them under the old
+ * names, and the plugin still sends them so for the apps already in the field.
+ */
+export const LEGACY_SEERR_SETTINGS = [
+  ["jellyseerrServerUrl", "seerrServerUrl"],
+  ["jellyseerrApiKey", "seerrApiKey"],
+  ["autoLoginJellyseerr", "autoLoginSeerr"],
+] as const;
+
+/** Moves the user's Seerr settings to their new names. True if it moved one. */
+export const renameLegacySeerrSettings = (
+  stored: Record<string, unknown>,
+): boolean => {
+  let changed = false;
+  for (const [legacy, current] of LEGACY_SEERR_SETTINGS) {
+    if (!(legacy in stored)) continue;
+    if (stored[current] === undefined) stored[current] = stored[legacy];
+    delete stored[legacy];
+    changed = true;
+  }
+  return changed;
+};
+
+/**
+ * Seerr as the plugin serves it, under the app's own names.
+ *
+ * The plugin serves the same three settings twice while its wire moves: as a
+ * `seerr` block, the shape it is moving to, and as flat keys still spelt
+ * jellyseerr, which every earlier app reads by name and every plugin from
+ * before the block sends alone. The block is read first and the flat keys fill
+ * what it leaves out; where the plugin sends both it keeps them in step.
+ * Neither old shape is handed on. The flat keys leave the plugin in its
+ * breaking release, once the apps in the field read the block, and this
+ * fallback goes with them.
+ */
+export const readIntegrationBlocks = (
+  plugin: PluginLockableSettings | undefined,
+): PluginLockableSettings | undefined => {
+  // Typed, not checked: whatever a server sends under `settings` gets here.
+  if (!plugin || typeof plugin !== "object" || Array.isArray(plugin)) {
+    return undefined;
+  }
+
+  const sent = plugin as Record<string, unknown>;
+  if (
+    !("seerr" in sent) &&
+    !LEGACY_SEERR_SETTINGS.some(([legacy]) => legacy in sent)
+  ) {
+    return plugin;
+  }
+
+  // Bare, not wrapped like a setting: the block has no lock of its own, each
+  // of its entries carries one (SeerrSettings in the plugin).
+  const { seerr: block, ...read } = sent;
+  const inBlock =
+    block && typeof block === "object"
+      ? (block as Record<string, unknown>)
+      : {};
+
+  for (const [from, to] of [
+    ["serverUrl", "seerrServerUrl"],
+    ["apiKey", "seerrApiKey"],
+    ["autoLogin", "autoLoginSeerr"],
+  ] as const) {
+    if (inBlock[from] !== undefined) read[to] = inBlock[from];
+  }
+  for (const [legacy, current] of LEGACY_SEERR_SETTINGS) {
+    if (read[current] === undefined && read[legacy] !== undefined) {
+      read[current] = read[legacy];
+    }
+    delete read[legacy];
+  }
+
+  return read as PluginLockableSettings;
 };

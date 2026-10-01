@@ -73,6 +73,8 @@ Three rules keep mocks from becoming the thing that breaks:
   keeps the platform it saw first.
 - `mmkvModule` stands for `react-native-mmkv`, backed by one map per spec file;
   `clearMmkv()` empties it between tests.
+- `secureStoreModule` stands for `expo-secure-store`, the same way; `clearSecureStore()`
+  empties it, and `secureStoreValues` seeds or reads it back.
 - `customHeadersModule()` stands for the `@/utils/customHeaders` barrel, with the pure
   helpers for real and the native side stubbed; `setJellyfinHeaders()` sets what it reports.
 

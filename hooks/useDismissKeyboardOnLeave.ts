@@ -6,7 +6,7 @@ import { Keyboard } from "react-native";
  * Dismisses the keyboard when the screen is popped off the stack.
  *
  * Without this the keyboard lingers over the previous screen after navigating
- * back from a form (e.g. leaving the Jellyseerr login while typing). Use this
+ * back from a form (e.g. leaving the Seerr login while typing). Use this
  * on any pushed screen that contains a text input.
  *
  * `beforeRemove` fires for every way out of the screen — the native back

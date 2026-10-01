@@ -29,7 +29,7 @@ never through a public issue.
 4. The [Biome](https://biomejs.dev) extension in your editor.
 
 ```bash
-bun i && bun run submodule-reload
+bun i
 bun run prebuild          # bun run prebuild:tv for the TV variant
 bun run ios               # or: bun run android, bun run ios:tv, bun run android:tv
 ```

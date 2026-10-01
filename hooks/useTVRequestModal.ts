@@ -1,8 +1,7 @@
 import { useCallback } from "react";
 import useRouter from "@/hooks/useAppRouter";
 import { tvRequestModalAtom } from "@/utils/atoms/tvRequestModal";
-import type { MediaType } from "@/utils/jellyseerr/server/constants/media";
-import type { MediaRequestBody } from "@/utils/jellyseerr/server/interfaces/api/requestInterfaces";
+import type { MediaRequestBody, MediaType } from "@/utils/seerr/types";
 import { store } from "@/utils/store";
 
 interface ShowRequestModalParams {

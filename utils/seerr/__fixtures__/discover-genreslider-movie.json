@@ -1,0 +1,13 @@
+{
+  "route": "GET /discover/genreslider/movie",
+  "status": 200,
+  "shape": {
+    "[]": {
+      "backdrops": {
+        "[]": "string"
+      },
+      "id": "number",
+      "name": "string"
+    }
+  }
+}

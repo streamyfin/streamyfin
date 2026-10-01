@@ -1,0 +1,13 @@
+{
+  "route": "GET /tv/{tvId}/ratings",
+  "status": 200,
+  "shape": {
+    "audienceRating": "string",
+    "audienceScore": "number",
+    "criticsRating": "string",
+    "criticsScore": "number",
+    "title": "string",
+    "url": "string",
+    "year": "number"
+  }
+}

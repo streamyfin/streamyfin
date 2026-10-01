@@ -1,4 +1,10 @@
 import { LOGS_STORAGE_KEY } from "@/constants/Logs";
+import {
+  LEGACY_SEERR_COOKIES_STORAGE_KEY,
+  LEGACY_SEERR_USER_STORAGE_KEY,
+  SEERR_COOKIES_STORAGE_KEY,
+  SEERR_USER_STORAGE_KEY,
+} from "@/constants/Seerr";
 import { writeErrorLog, writeInfoLog } from "@/utils/log";
 import { redactStoredLog } from "@/utils/logStorage";
 import { storage } from "@/utils/mmkv";
@@ -50,8 +56,27 @@ const MIGRATIONS: Migration[] = [
       store.remove("hasShownIntro");
     },
   },
+  // No 2: the log redaction was planned as 2 but reached develop after 3, so
+  // it is 4. An install already stamped at 3 would never run a 2.
   {
-    version: 2,
+    version: 3,
+    description:
+      "move the Seerr session from the keys it had when Seerr was called Jellyseerr",
+    run: (store) => {
+      for (const [legacy, current] of [
+        [LEGACY_SEERR_USER_STORAGE_KEY, SEERR_USER_STORAGE_KEY],
+        [LEGACY_SEERR_COOKIES_STORAGE_KEY, SEERR_COOKIES_STORAGE_KEY],
+      ] as const) {
+        const stored = store.getString(legacy);
+        if (stored !== undefined && store.getString(current) === undefined) {
+          store.set(current, stored);
+        }
+        store.remove(legacy);
+      }
+    },
+  },
+  {
+    version: 4,
     description:
       "redact credentials from the app log, where the iOS player wrote access tokens inside subtitle URLs",
     run: (store) => {

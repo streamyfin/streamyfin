@@ -18,6 +18,8 @@ type Options = {
   cards?: CardData[];
   kind: CardKind;
   useEpisodePoster?: boolean;
+  /** Show a TV child's series name before its own name. */
+  showParentTitle?: boolean;
   selectedId?: string | null;
   /** Replaces the default navigation (items mode). */
   onPressItem?: (item: BaseItemDto) => void;
@@ -41,6 +43,7 @@ export function useItemCardBehavior({
   cards: providedCards,
   kind,
   useEpisodePoster = false,
+  showParentTitle = false,
   selectedId,
   onPressItem,
   onPressId,
@@ -64,9 +67,18 @@ export function useItemCardBehavior({
         api,
         kind,
         useEpisodePoster,
+        showParentTitle,
         selectedId,
       }),
-    [providedCards, items, api, kind, useEpisodePoster, selectedId],
+    [
+      providedCards,
+      items,
+      api,
+      kind,
+      useEpisodePoster,
+      showParentTitle,
+      selectedId,
+    ],
   );
 
   const handlePress = useCallback(

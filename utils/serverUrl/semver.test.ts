@@ -27,8 +27,8 @@ describe("isVersionBelow", () => {
     expect(isVersionBelow("v1.9.0", "2.0.0")).toBe(true);
   });
 
-  test("non-release Jellyseerr builds are unknown, not old", () => {
-    // Jellyseerr's getAppVersion() returns `develop-<commitTag>` for every
+  test("non-release Seerr builds are unknown, not old", () => {
+    // Seerr's getAppVersion() returns `develop-<commitTag>` for every
     // build made off a non-release package.json — treating that as version 0
     // locked every develop/nightly/self-built server out of the integration.
     expect(isVersionBelow("develop-a1b2c3d", "2.0.0")).toBe(false);
