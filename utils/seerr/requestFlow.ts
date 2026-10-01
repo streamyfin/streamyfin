@@ -26,26 +26,40 @@ const outcomeOf = (request: MediaRequest): RequestOutcome => {
   }
 };
 
+/** The requests on their way, by key: see sendSeerrRequest. */
+const sending = new Set<string>();
+
 /**
  * Sends a request and tells what came of it on Seerr's answer. The rows and
  * pages it changes reload in the background: waiting for them kept the sheet
  * open, its button live, for as long as every Discover row took to reload.
  * They reload after a refusal too, which can mean the view was out of date.
+ *
+ * The same request goes once at a time, from any screen: Android TV can
+ * deliver one press twice, and Seerr, asked for the same title twice at
+ * once, can file both, as it looks for a request before saving its own.
  */
 export const sendSeerrRequest = async ({
+  key,
   send,
   refresh,
   onOutcome,
 }: {
+  /** What tells this request from another, such as its body. */
+  key: string;
   send: () => Promise<MediaRequest>;
   refresh: () => Promise<unknown>;
   onOutcome: (outcome: RequestOutcome) => void;
 }): Promise<void> => {
+  if (sending.has(key)) return;
+  sending.add(key);
   let outcome: RequestOutcome;
   try {
     outcome = outcomeOf(await send());
   } catch (error) {
     outcome = { kind: "refused", message: refusalMessage(error) };
+  } finally {
+    sending.delete(key);
   }
   refresh().catch(() => {});
   onOutcome(outcome);

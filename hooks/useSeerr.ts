@@ -751,7 +751,8 @@ export const useSeerr = () => {
     [queryClient],
   );
 
-  // Resolves once Seerr has answered, for a sheet to know the request ended.
+  // Resolves once Seerr has answered, for a sheet to know the request ended,
+  // or at once when the same request is already on its way.
   const requestMedia = useCallback(
     (
       title: string,
@@ -760,6 +761,7 @@ export const useSeerr = () => {
     ): Promise<void> => {
       if (!seerrApi) return Promise.resolve();
       return sendSeerrRequest({
+        key: JSON.stringify(request),
         send: () => seerrApi.request(request),
         refresh: () =>
           refreshAfterRequest({
