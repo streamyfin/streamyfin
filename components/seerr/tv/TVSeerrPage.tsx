@@ -21,6 +21,7 @@ import { GenreTags } from "@/components/GenreTags";
 import { Loader } from "@/components/Loader";
 import { SeerrRatings } from "@/components/Ratings";
 import { SeerrRequestIcon } from "@/components/seerr/SeerrRequestIcon";
+import { TVSeerrSeasons } from "@/components/seerr/tv/TVSeerrSeasons";
 import { TVButton } from "@/components/tv";
 import { useTVFocusAnimation } from "@/components/tv/hooks/useTVFocusAnimation";
 import { SeerrIssueColors } from "@/constants/Colors";
@@ -196,6 +197,9 @@ export const TVSeerrPage: React.FC = () => {
   // Refs for TVFocusGuideView destinations (useState triggers re-render when set)
   const [playButtonRef, setPlayButtonRef] = useState<View | null>(null);
   const [firstCastCardRef, setFirstCastCardRef] = useState<View | null>(null);
+  const [firstSeasonCardRef, setFirstSeasonCardRef] = useState<View | null>(
+    null,
+  );
 
   const {
     data: details,
@@ -355,6 +359,47 @@ export const TVSeerrPage: React.FC = () => {
     refetch,
     showSeasonSelectModal,
   ]);
+
+  // A season's own request, as the phone's "+" beside it (SeerrSeasons).
+  const handleRequestSeason = useCallback(
+    (seasonNumber: number) => {
+      const body: MediaRequestBody = {
+        mediaId: Number(result.id!),
+        mediaType: MediaType.TV,
+        tvdbId: details?.externalIds?.tvdbId ?? undefined,
+        seasons: [seasonNumber],
+      };
+      if (hasAdvancedRequestPermission) {
+        showRequestModal({
+          requestBody: body,
+          title: mediaTitle,
+          id: result.id!,
+          mediaType: MediaType.TV,
+          onRequested: refetch,
+        });
+        return;
+      }
+      requestMedia(
+        `${mediaTitle}, ${
+          seasonNumber === 0
+            ? t("seerr.specials")
+            : t("seerr.season_number", { season_number: seasonNumber })
+        }`,
+        body,
+        refetch,
+      );
+    },
+    [
+      result,
+      details,
+      hasAdvancedRequestPermission,
+      showRequestModal,
+      mediaTitle,
+      refetch,
+      requestMedia,
+      t,
+    ],
+  );
 
   const handlePlay = useCallback(() => {
     const jellyfinMediaId = details?.mediaInfo?.jellyfinMediaId;
@@ -735,6 +780,15 @@ export const TVSeerrPage: React.FC = () => {
           </View>
         </View>
 
+        {/* Seasons, as the phone lists them */}
+        {mediaType === MediaType.TV && details && (
+          <TVSeerrSeasons
+            details={details as TvDetails}
+            onRequestSeason={handleRequestSeason}
+            firstCardRef={setFirstSeasonCardRef}
+          />
+        )}
+
         {/* Cast section */}
         {cast.length > 0 && seerrApi && (
           <View style={{ marginTop: 24 }}>
@@ -750,8 +804,10 @@ export const TVSeerrPage: React.FC = () => {
             </Text>
 
             {/* Focus guides for bidirectional navigation - stacked together */}
-            {/* Downward: action buttons → first cast card */}
-            {firstCastCardRef && (
+            {/* Downward: action buttons → first cast card. A series' seasons
+                sit in between, and the focus walks through them on its own:
+                a guide here would hold it on the cast going back up. */}
+            {!firstSeasonCardRef && firstCastCardRef && (
               <TVFocusGuideView
                 destinations={[firstCastCardRef]}
                 style={{
@@ -761,8 +817,9 @@ export const TVSeerrPage: React.FC = () => {
                 }}
               />
             )}
-            {/* Upward: cast → action buttons */}
-            {playButtonRef && (
+            {/* Upward: cast → action buttons. A series' seasons sit in
+                between, so there the focus goes up to them on its own. */}
+            {!firstSeasonCardRef && playButtonRef && (
               <TVFocusGuideView
                 destinations={[playButtonRef]}
                 style={{
