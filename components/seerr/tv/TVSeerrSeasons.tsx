@@ -13,6 +13,13 @@ import { TVButton } from "@/components/tv";
 import { TVFocusablePoster } from "@/components/tv/TVFocusablePoster";
 import { TVPosterCard } from "@/components/tv/TVPosterCard";
 import { SeerrStatusBadgeColors } from "@/constants/Colors";
+import {
+  SEERR_TV_ROW_CARD_GAP,
+  SEERR_TV_ROW_PADDING,
+  SEERR_TV_ROW_TITLE_GAP,
+  SEERR_TV_SEASON_CARD_WIDTH,
+  SEERR_TV_SECTION_GAP,
+} from "@/constants/Seerr";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import { useSeerr } from "@/hooks/useSeerr";
 import { useSeerrPublicSettings } from "@/hooks/useSeerrPublicSettings";
@@ -21,8 +28,6 @@ import { episodeStillUrl } from "@/utils/seerr/images";
 import { seasonsWithStatus, unrequestedSeasons } from "@/utils/seerr/seasons";
 import { seerrStatusBadge } from "@/utils/seerr/statusBadge";
 import type { TvDetails } from "@/utils/seerr/types";
-
-const CARD_WIDTH = 240;
 
 /** A season's episodes, as landscape cards the remote can browse. */
 const TVSeasonEpisodes: React.FC<{
@@ -46,7 +51,10 @@ const TVSeasonEpisodes: React.FC<{
       keyExtractor={(episode) => String(episode.id)}
       showsHorizontalScrollIndicator={false}
       style={{ overflow: "visible" }}
-      contentContainerStyle={{ paddingVertical: 16, gap: 20 }}
+      contentContainerStyle={{
+        paddingVertical: scaleSize(SEERR_TV_ROW_PADDING),
+        gap: scaleSize(SEERR_TV_ROW_CARD_GAP),
+      }}
       renderItem={({ item: episode }) => {
         const still = episodeStillUrl(baseUrl, episode.stillPath);
         const card: BaseItemDto = {
@@ -126,13 +134,13 @@ export const TVSeerrSeasons: React.FC<{
     offersRequest && partial && unrequested.includes(seasonNumber);
 
   return (
-    <View style={{ marginTop: 24 }}>
+    <View style={{ marginTop: scaleSize(SEERR_TV_SECTION_GAP) }}>
       <Text
         style={{
           fontSize: typography.heading,
           fontWeight: "bold",
           color: "#FFFFFF",
-          marginBottom: 8,
+          marginBottom: scaleSize(SEERR_TV_ROW_TITLE_GAP),
         }}
       >
         {t("item_card.seasons")}
@@ -141,7 +149,10 @@ export const TVSeerrSeasons: React.FC<{
         horizontal
         showsHorizontalScrollIndicator={false}
         style={{ overflow: "visible" }}
-        contentContainerStyle={{ paddingVertical: 16, gap: 20 }}
+        contentContainerStyle={{
+          paddingVertical: scaleSize(SEERR_TV_ROW_PADDING),
+          gap: scaleSize(SEERR_TV_ROW_CARD_GAP),
+        }}
       >
         {seasons.map((season, index) => {
           const badge = seerrStatusBadge(
@@ -157,7 +168,7 @@ export const TVSeerrSeasons: React.FC<{
             >
               <View
                 style={{
-                  width: scaleSize(CARD_WIDTH),
+                  width: scaleSize(SEERR_TV_SEASON_CARD_WIDTH),
                   padding: scaleSize(18),
                   borderRadius: scaleSize(16),
                   backgroundColor: selected
@@ -226,7 +237,7 @@ export const TVSeerrSeasons: React.FC<{
               flexDirection: "row",
               alignItems: "center",
               gap: scaleSize(20),
-              marginTop: 8,
+              marginTop: scaleSize(SEERR_TV_ROW_TITLE_GAP),
             }}
           >
             <Text

@@ -84,7 +84,11 @@ export const SEERR_TV_REQUEST_CARD_SEASONS = 5;
 /** A genre's or a company's card in a TV Discover row, in points at 1080p. */
 export const SEERR_TV_SLIDE_CARD_WIDTH = 300;
 
-/** A season's card in a TV series page's row of seasons, in points at 1080p. */
+/**
+ * A TV series page's seasons, in points at 1080p: the room above the section
+ * and the width of a season's card.
+ */
+export const SEERR_TV_SECTION_GAP = 48;
 export const SEERR_TV_SEASON_CARD_WIDTH = 240;
 
 /**
