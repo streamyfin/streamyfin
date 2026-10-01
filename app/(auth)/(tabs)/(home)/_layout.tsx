@@ -14,6 +14,9 @@ import { Colors } from "@/constants/Colors";
 import useRouter from "@/hooks/useAppRouter";
 
 const Chromecast = Platform.isTV ? null : require("@/components/Chromecast");
+const SyncPlayButtonComponent = Platform.isTV
+  ? null
+  : require("@/components/syncplay/SyncPlayButton").SyncPlayButton;
 
 import { useAtom } from "jotai";
 import { useSessions, type useSessionsProps } from "@/hooks/useSessions";
@@ -61,6 +64,7 @@ export default function IndexLayout() {
             Platform.isTV ? null : (
               <HeaderButtonGroup>
                 <Chromecast.Chromecast />
+                {SyncPlayButtonComponent && <SyncPlayButtonComponent />}
                 {user?.Policy?.IsAdministrator && <SessionsButton />}
                 <SettingsButton />
               </HeaderButtonGroup>
