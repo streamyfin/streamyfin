@@ -43,7 +43,7 @@ export const TVJellyseerrPosterCard: React.FC<TVJellyseerrPosterCardProps> = ({
       Name: getTitle(item),
       Type: item.mediaType === "movie" ? "Movie" : "Series",
       ProductionYear: Number.isNaN(year) ? undefined : year,
-      UserData: { Played: isInLibrary },
+      UserData: { Key: "", Played: isInLibrary },
     };
     // getTitle/getYear are pure helpers recreated by useJellyseerr each
     // render; keying on them would defeat the memo.

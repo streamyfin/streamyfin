@@ -1,6 +1,6 @@
 import type { Api } from "@jellyfin/sdk";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { getUserLibraryApi } from "@jellyfin/sdk/lib/utils/api";
+import { getLibraryApi } from "@jellyfin/sdk/lib/utils/api";
 
 /**
  *  Fetches the media info for a given item.
@@ -23,5 +23,5 @@ export const getUserItemData = async ({
   if (!api || !itemId || !userId) {
     return null;
   }
-  return (await getUserLibraryApi(api).getItem({ itemId, userId })).data;
+  return (await getLibraryApi(api).getItem({ itemId, userId })).data;
 };

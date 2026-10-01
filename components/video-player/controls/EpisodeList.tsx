@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { getTvShowsApi } from "@jellyfin/sdk/lib/utils/api";
+import { getShowApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { atom, useAtom } from "jotai";
 import { useEffect, useMemo } from "react";
@@ -84,7 +84,7 @@ export const EpisodeList: React.FC<Props> = ({ item, close, goToItem }) => {
       }
 
       if (!api || !user?.Id || !item.SeriesId) return [];
-      const response = await getTvShowsApi(api).getSeasons({
+      const response = await getShowApi(api).getSeasons({
         seriesId: item.SeriesId,
         userId: user.Id,
         fields: [
@@ -121,7 +121,7 @@ export const EpisodeList: React.FC<Props> = ({ item, close, goToItem }) => {
         );
       }
       if (!api || !user?.Id || !item.Id || !selectedSeasonId) return [];
-      const res = await getTvShowsApi(api).getEpisodes({
+      const res = await getShowApi(api).getEpisodes({
         seriesId: item.SeriesId || "",
         userId: user.Id,
         seasonId: selectedSeasonId || undefined,

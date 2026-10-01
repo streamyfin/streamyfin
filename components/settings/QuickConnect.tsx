@@ -5,7 +5,7 @@ import {
   BottomSheetModal,
   BottomSheetView,
 } from "@gorhom/bottom-sheet";
-import { getQuickConnectApi } from "@jellyfin/sdk/lib/utils/api";
+import { getAuthenticationApi } from "@jellyfin/sdk/lib/utils/api";
 import { requireOptionalNativeModule } from "expo-modules-core";
 import { useAtom } from "jotai";
 import type React from "react";
@@ -53,7 +53,7 @@ export const QuickConnect: React.FC<Props> = ({ ...props }) => {
   const authorizeQuickConnect = useCallback(async () => {
     if (quickConnectCode) {
       try {
-        const res = await getQuickConnectApi(api!).authorizeQuickConnect({
+        const res = await getAuthenticationApi(api!).authorizeQuickConnect({
           code: quickConnectCode,
           userId: user?.Id,
         });

@@ -1,5 +1,6 @@
 import type { Api } from "@jellyfin/sdk";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
+import { getImageApi } from "@jellyfin/sdk/lib/utils/api";
 
 /**
  * Retrieves the primary image URL for a given item.
@@ -21,11 +22,6 @@ export const getLogoImageUrlById = ({
     return null;
   }
 
-  const params = new URLSearchParams();
-
-  params.append("quality", "90");
-  params.append("fillHeight", height.toString());
-
   if (item.Type === "Episode") {
     const imageTag = item.ParentLogoImageTag;
     const parentId = item.ParentLogoItemId;
@@ -34,16 +30,20 @@ export const getLogoImageUrlById = ({
       return null;
     }
 
-    params.append("tag", imageTag);
-
-    return `${api.basePath}/Items/${parentId}/Images/Logo?${params.toString()}`;
+    return getImageApi(api).getItemImageUrlById(parentId, "Logo", {
+      quality: 90,
+      fillHeight: height,
+      tag: imageTag,
+    });
   }
 
   const imageTag = item.ImageTags?.Logo;
 
   if (!imageTag) return null;
 
-  params.append("tag", imageTag);
-
-  return `${api.basePath}/Items/${item.Id}/Images/Logo?${params.toString()}`;
+  return getImageApi(api).getItemImageUrlById(item.Id!, "Logo", {
+    quality: 90,
+    fillHeight: height,
+    tag: imageTag,
+  });
 };

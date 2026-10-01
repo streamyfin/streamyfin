@@ -1,4 +1,5 @@
-import type { PublicSystemInfo } from "@jellyfin/sdk/lib/generated-client";
+import { SystemApi } from "@jellyfin/sdk/lib/generated-client/api/system-api";
+import axios, { type AxiosRequestConfig } from "axios";
 import {
   type CustomHeader,
   normalizeCustomHeaders,
@@ -9,6 +10,7 @@ import {
   getServerCustomHeaders,
   updateServerCustomHeaders,
 } from "@/utils/secureCredentials";
+import { isJellyfinServerInfo } from "@/utils/serverUrl/probes/jellyfin";
 
 /** Thrown when the server answered but is older than Streamyfin supports. */
 export class ServerTooOldError extends Error {
@@ -78,14 +80,24 @@ export async function checkJellyfinServer(
       const headers = normalizeCustomHeaders(
         customHeaders ?? getServerCustomHeaders(url),
       );
-      const response = await fetch(
-        `${url}/System/Info/Public`,
+      // Public probes have no device/session yet. Use the generated SDK API
+      // directly rather than inventing authentication metadata for a candidate.
+      const systemApi = new SystemApi(
+        undefined,
+        url.replace(/\/+$/, ""),
+        axios.create(),
+      );
+      const response = await systemApi.getPublicSystemInfo(
         optionsWithOptionalHeaders(
-          { mode: "cors" as const, signal: abort.signal },
+          {
+            signal: abort.signal,
+            timeout: probeTimeoutMs,
+            validateStatus: () => true,
+          } satisfies AxiosRequestConfig,
           headers,
         ),
       );
-      if (!response.ok) {
+      if (response.status < 200 || response.status >= 300) {
         // WARN, not ERROR: probe failures are routine (http probe against an
         // https-only server, typos, offline) and must not become Sentry
         // events — they stay in the local log and breadcrumb trail.
@@ -96,7 +108,14 @@ export async function checkJellyfinServer(
         continue;
       }
 
-      const data = (await response.json()) as PublicSystemInfo;
+      const data = response.data;
+      if (!isJellyfinServerInfo(data)) {
+        writeToLog(
+          "WARN",
+          `Server check: ${url} answered HTTP ${response.status} without Jellyfin identity`,
+        );
+        continue;
+      }
       if (!isSupportedVersion(data.Version)) throw new ServerTooOldError();
 
       // Only persist the headers once they are known to reach the server.

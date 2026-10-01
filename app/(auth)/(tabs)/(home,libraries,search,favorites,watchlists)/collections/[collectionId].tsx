@@ -3,11 +3,7 @@ import type {
   BaseItemDtoQueryResult,
   ItemSortBy,
 } from "@jellyfin/sdk/lib/generated-client/models";
-import {
-  getFilterApi,
-  getItemsApi,
-  getUserLibraryApi,
-} from "@jellyfin/sdk/lib/utils/api";
+import { getFilterApi, getLibraryApi } from "@jellyfin/sdk/lib/utils/api";
 import { FlashList } from "@shopify/flash-list";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import {
@@ -80,7 +76,7 @@ const page: React.FC = () => {
     queryKey: ["collection", collectionId],
     queryFn: async () => {
       if (!api) return null;
-      const response = await getUserLibraryApi(api).getItem({
+      const response = await getLibraryApi(api).getItem({
         itemId: collectionId,
         userId: user?.Id,
       });
@@ -184,7 +180,7 @@ const page: React.FC = () => {
     }): Promise<BaseItemDtoQueryResult | null> => {
       if (!api || !collection) return null;
 
-      const response = await getItemsApi(api).getItems({
+      const response = await getLibraryApi(api).getItems({
         userId: user?.Id,
         parentId: collectionId,
         limit: Platform.isTV ? 36 : 18,

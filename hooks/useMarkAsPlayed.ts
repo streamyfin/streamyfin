@@ -33,6 +33,7 @@ export const useMarkAsPlayed = (items: BaseItemDto[]) => {
             return {
               ...old,
               UserData: {
+                Key: "",
                 ...old.UserData,
                 Played: played,
                 PlaybackPositionTicks: 0,

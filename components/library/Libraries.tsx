@@ -1,7 +1,4 @@
-import {
-  getUserLibraryApi,
-  getUserViewsApi,
-} from "@jellyfin/sdk/lib/utils/api";
+import { getLibraryApi, getUserViewApi } from "@jellyfin/sdk/lib/utils/api";
 import { FlashList } from "@shopify/flash-list";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAtom } from "jotai";
@@ -26,7 +23,7 @@ export const Libraries: React.FC = () => {
   const { data, isLoading } = useQuery({
     queryKey: ["user-views", user?.Id],
     queryFn: async () => {
-      const response = await getUserViewsApi(api!).getUserViews({
+      const response = await getUserViewApi(api!).getUserViews({
         userId: user?.Id,
       });
 
@@ -52,7 +49,7 @@ export const Libraries: React.FC = () => {
         queryKey: ["library", item.Id],
         queryFn: async () => {
           if (!item.Id || !user?.Id || !api) return null;
-          const response = await getUserLibraryApi(api).getItem({
+          const response = await getLibraryApi(api).getItem({
             itemId: item.Id,
             userId: user?.Id,
           });

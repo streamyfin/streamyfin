@@ -3,7 +3,7 @@ import type {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
-import { getPlaystateApi } from "@jellyfin/sdk/lib/utils/api";
+import { getSessionApi } from "@jellyfin/sdk/lib/utils/api";
 import { useAtomValue } from "jotai";
 import React, {
   createContext,
@@ -601,7 +601,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       if (!api || !user?.Id || !track.Id) return;
 
       try {
-        await getPlaystateApi(api).reportPlaybackStart({
+        await getSessionApi(api).reportPlaybackStart({
           playbackStartInfo: {
             ItemId: track.Id,
             PlaySessionId: sessionId || undefined,
@@ -627,7 +627,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     lastReportRef.current = now;
 
     try {
-      await getPlaystateApi(api).reportPlaybackProgress({
+      await getSessionApi(api).reportPlaybackProgress({
         playbackProgressInfo: {
           ItemId: state.currentTrack.Id,
           PlaySessionId: state.playSessionId || undefined,
@@ -660,7 +660,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       if (!api || !user?.Id || !track.Id) return;
 
       try {
-        await getPlaystateApi(api).reportPlaybackStopped({
+        await getSessionApi(api).reportPlaybackStopped({
           playbackStopInfo: {
             ItemId: track.Id,
             PlaySessionId: sessionId || undefined,
@@ -1013,8 +1013,8 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       if (!api || !user?.Id) return;
 
       try {
-        const { getItemsApi } = await import("@jellyfin/sdk/lib/utils/api");
-        const response = await getItemsApi(api).getItems({
+        const { getLibraryApi } = await import("@jellyfin/sdk/lib/utils/api");
+        const response = await getLibraryApi(api).getItems({
           userId: user.Id,
           parentId: albumId,
           sortBy: ["IndexNumber"],
@@ -1038,8 +1038,8 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       if (!api || !user?.Id) return;
 
       try {
-        const { getItemsApi } = await import("@jellyfin/sdk/lib/utils/api");
-        const response = await getItemsApi(api).getItems({
+        const { getLibraryApi } = await import("@jellyfin/sdk/lib/utils/api");
+        const response = await getLibraryApi(api).getItems({
           userId: user.Id,
           parentId: playlistId,
           sortBy: ["SortName"],

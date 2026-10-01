@@ -1,5 +1,5 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { getTvShowsApi } from "@jellyfin/sdk/lib/utils/api";
+import { getShowApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import { useAtom } from "jotai";
 import { useMemo } from "react";
@@ -45,7 +45,7 @@ export const SeasonEpisodesCarousel: React.FC<Props> = ({
         return getDownloadedEpisodesBySeasonId(getDownloadedItems(), seasonId!);
       }
       if (!api || !user?.Id || !item?.SeriesId) return [];
-      const response = await getTvShowsApi(api).getEpisodes({
+      const response = await getShowApi(api).getEpisodes({
         userId: user.Id,
         seasonId: seasonId || undefined,
         seriesId: item.SeriesId,

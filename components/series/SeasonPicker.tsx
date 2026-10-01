@@ -1,5 +1,5 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { getTvShowsApi } from "@jellyfin/sdk/lib/utils/api";
+import { getShowApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import { atom, useAtom } from "jotai";
 import { useEffect, useMemo, useState } from "react";
@@ -47,7 +47,7 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
     [item, seasonIndexState],
   );
 
-  const { data: seasons } = useQuery({
+  const { data: seasons = [] } = useQuery({
     queryKey: ["seasons", item.Id, isOffline, downloadedItems.length],
     queryFn: async () => {
       if (isOffline) {
@@ -55,29 +55,25 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
       }
 
       if (!api || !user?.Id || !item.Id) return [];
-      const response = await api.axiosInstance.get(
-        `${api.basePath}/Shows/${item.Id}/Seasons`,
-        {
-          params: {
-            userId: user?.Id,
-            itemId: item.Id,
-            Fields:
-              "ItemCounts,PrimaryImageAspectRatio,CanDelete,MediaSourceCount",
-          },
-          headers: {
-            Authorization: `MediaBrowser DeviceId="${api.deviceInfo.id}", Token="${api.accessToken}"`,
-          },
-        },
-      );
+      const response = await getShowApi(api).getSeasons({
+        seriesId: item.Id,
+        userId: user.Id,
+        fields: [
+          "ItemCounts",
+          "PrimaryImageAspectRatio",
+          "CanDelete",
+          "MediaSourceCount",
+        ],
+      });
 
-      return response.data.Items;
+      return response.data.Items || [];
     },
     staleTime: isOffline ? Infinity : 60,
     enabled: isOffline || (!!api && !!user?.Id && !!item.Id),
   });
 
   const selectedSeasonId: string | null = useMemo(() => {
-    const season: BaseItemDto = seasons?.find(
+    const season = seasons?.find(
       (s: BaseItemDto) =>
         s.IndexNumber === seasonIndex || s.Name === seasonIndex,
     );
@@ -118,7 +114,7 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
         return [];
       }
 
-      const res = await getTvShowsApi(api).getEpisodes({
+      const res = await getShowApi(api).getEpisodes({
         seriesId: item.Id,
         userId: user.Id,
         seasonId: selectedSeasonId,

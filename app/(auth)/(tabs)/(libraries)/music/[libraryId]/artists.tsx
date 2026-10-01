@@ -1,4 +1,4 @@
-import { getArtistsApi } from "@jellyfin/sdk/lib/utils/api";
+import { getArtistApi } from "@jellyfin/sdk/lib/utils/api";
 import { FlashList } from "@shopify/flash-list";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useLocalSearchParams } from "expo-router";
@@ -42,7 +42,7 @@ export default function ArtistsScreen() {
   } = useInfiniteQuery({
     queryKey: ["music-artists", libraryId, user?.Id],
     queryFn: async ({ pageParam = 0 }) => {
-      const response = await getArtistsApi(api!).getArtists({
+      const response = await getArtistApi(api!).getArtists({
         userId: user?.Id,
         parentId: libraryId,
         sortBy: ["SortName"],

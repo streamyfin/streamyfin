@@ -4,11 +4,7 @@ import type {
   BaseItemKind,
   ItemFilter,
 } from "@jellyfin/sdk/lib/generated-client/models";
-import {
-  getFilterApi,
-  getItemsApi,
-  getUserLibraryApi,
-} from "@jellyfin/sdk/lib/utils/api";
+import { getFilterApi, getLibraryApi } from "@jellyfin/sdk/lib/utils/api";
 import { FlashList, type FlashListRef } from "@shopify/flash-list";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import {
@@ -340,7 +336,7 @@ const Page = () => {
     queryKey: ["library", libraryId],
     queryFn: async () => {
       if (!api) return null;
-      const response = await getUserLibraryApi(api).getItem({
+      const response = await getLibraryApi(api).getItem({
         itemId: libraryId,
         userId: user?.Id,
       });
@@ -400,7 +396,7 @@ const Page = () => {
         itemType = "Playlist";
       }
 
-      const response = await getItemsApi(api).getItems({
+      const response = await getLibraryApi(api).getItems({
         userId: user?.Id,
         parentId: libraryId,
         limit: 36,

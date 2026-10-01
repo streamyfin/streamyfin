@@ -58,7 +58,7 @@ describe("getDownloadStreamUrl", () => {
     api.mock
       .onPost(
         "https://jellyfin.example.com/Items/item-1/PlaybackInfo",
-        bodyContaining({ deviceProfile: { Name: "1. MPV Download" } }),
+        bodyContaining({ DeviceProfile: { Name: "1. MPV Download" } }),
       )
       .reply(200, { PlaySessionId: "session-1", MediaSources: [] });
 
@@ -84,7 +84,7 @@ describe("getDownloadStreamUrl", () => {
       api.mock
         .onPost(
           "https://jellyfin.example.com/Items/item-1/PlaybackInfo",
-          bodyContaining({ deviceProfile: { Name: "1. MPV Download" } }),
+          bodyContaining({ DeviceProfile: { Name: "1. MPV Download" } }),
         )
         .reply(200, playerCanPlayTheOriginal);
 
@@ -99,8 +99,8 @@ describe("getDownloadStreamUrl", () => {
         .onPost(
           "https://jellyfin.example.com/Items/item-1/PlaybackInfo",
           bodyContaining({
-            deviceProfile: { Name: "1. MPV Download" },
-            maxStreamingBitrate: 4_000_000,
+            DeviceProfile: { Name: "1. MPV Download" },
+            MaxStreamingBitrate: 4_000_000,
           }),
         )
         .reply(200, playerCanPlayTheOriginal);
@@ -115,14 +115,14 @@ describe("getDownloadStreamUrl", () => {
       api.mock
         .onPost(
           "https://jellyfin.example.com/Items/item-1/PlaybackInfo",
-          bodyContaining({ deviceProfile: { Name: "1. MPV Download" } }),
+          bodyContaining({ DeviceProfile: { Name: "1. MPV Download" } }),
         )
         .reply(200, playerCanPlayTheOriginal);
 
       await download(api, MAX);
 
       const negotiatedCaps = api.mock.history.post.map((request) => {
-        const profile = JSON.parse(request.data).deviceProfile;
+        const profile = JSON.parse(request.data).DeviceProfile;
         return {
           MaxStreamingBitrate: profile.MaxStreamingBitrate,
           MaxStaticBitrate: profile.MaxStaticBitrate,
@@ -138,7 +138,7 @@ describe("getDownloadStreamUrl", () => {
       api.mock
         .onPost(
           "https://jellyfin.example.com/Items/item-1/PlaybackInfo",
-          bodyContaining({ deviceProfile: { Name: "1. MPV Download" } }),
+          bodyContaining({ DeviceProfile: { Name: "1. MPV Download" } }),
         )
         .reply(200, playerCanPlayTheOriginal);
 
@@ -166,8 +166,8 @@ describe("getDownloadStreamUrl", () => {
         .onPost(
           "https://jellyfin.example.com/Items/item-1/PlaybackInfo",
           bodyContaining({
-            deviceProfile: { Name: "1. MPV Download" },
-            maxStreamingBitrate: 4_000_000,
+            DeviceProfile: { Name: "1. MPV Download" },
+            MaxStreamingBitrate: 4_000_000,
           }),
         )
         .reply(200, downloadGetsAProgressiveMp4);
@@ -184,7 +184,7 @@ describe("getDownloadStreamUrl", () => {
       api.mock
         .onPost(
           "https://jellyfin.example.com/Items/item-1/PlaybackInfo",
-          bodyContaining({ deviceProfile: { Name: "1. MPV Download" } }),
+          bodyContaining({ DeviceProfile: { Name: "1. MPV Download" } }),
         )
         .reply(200, {
           PlaySessionId: "session-1",
@@ -216,7 +216,7 @@ describe("getDownloadStreamUrl", () => {
       api.mock
         .onPost(
           "https://jellyfin.example.com/Items/item-1/PlaybackInfo",
-          bodyContaining({ deviceProfile: { Name: "1. MPV Download" } }),
+          bodyContaining({ DeviceProfile: { Name: "1. MPV Download" } }),
         )
         .reply(200, downloadGetsAProgressiveMp4);
 

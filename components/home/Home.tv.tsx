@@ -5,11 +5,10 @@ import type {
   BaseItemKind,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import {
-  getItemsApi,
-  getSuggestionsApi,
-  getTvShowsApi,
-  getUserLibraryApi,
-  getUserViewsApi,
+  getLibraryApi,
+  getShowApi,
+  getSuggestionApi,
+  getUserViewApi,
 } from "@jellyfin/sdk/lib/utils/api";
 import { type QueryFunction, useQuery } from "@tanstack/react-query";
 import { LinearGradient } from "expo-linear-gradient";
@@ -209,7 +208,7 @@ export const Home = () => {
         return null;
       }
 
-      const response = await getUserViewsApi(api).getUserViews({
+      const response = await getUserViewApi(api).getUserViews({
         userId: user.Id,
       });
 
@@ -227,7 +226,7 @@ export const Home = () => {
       if (!api || !user?.Id) return [];
 
       const [resumeResponse, nextUpResponse] = await Promise.all([
-        getItemsApi(api).getResumeItems({
+        getLibraryApi(api).getResumeItems({
           userId: user.Id,
           enableImageTypes: ["Primary", "Backdrop", "Thumb"],
           includeItemTypes: ["Movie", "Episode"],
@@ -235,7 +234,7 @@ export const Home = () => {
           startIndex: 0,
           limit: 10,
         }),
-        getTvShowsApi(api).getNextUp({
+        getShowApi(api).getNextUp({
           userId: user.Id,
           startIndex: 0,
           limit: 10,
@@ -312,7 +311,7 @@ export const Home = () => {
         if (!api) return [];
         const allData =
           (
-            await getUserLibraryApi(api).getLatestMedia({
+            await getLibraryApi(api).getLatestMedia({
               userId: user?.Id,
               limit: 10,
               fields: ["PrimaryImageAspectRatio"],
@@ -380,14 +379,14 @@ export const Home = () => {
             queryKey: ["home", "continueAndNextUp"],
             queryFn: async ({ pageParam = 0 }) => {
               const [resumeResponse, nextUpResponse] = await Promise.all([
-                getItemsApi(api).getResumeItems({
+                getLibraryApi(api).getResumeItems({
                   userId: user.Id,
                   enableImageTypes: ["Primary", "Backdrop", "Thumb"],
                   includeItemTypes: ["Movie", "Episode"],
                   startIndex: 0,
                   limit: 20,
                 }),
-                getTvShowsApi(api).getNextUp({
+                getShowApi(api).getNextUp({
                   userId: user?.Id,
                   startIndex: 0,
                   limit: 20,
@@ -416,7 +415,7 @@ export const Home = () => {
             queryKey: ["home", "resumeItems"],
             queryFn: async ({ pageParam = 0 }) =>
               (
-                await getItemsApi(api).getResumeItems({
+                await getLibraryApi(api).getResumeItems({
                   userId: user.Id,
                   enableImageTypes: ["Primary", "Backdrop", "Thumb"],
                   includeItemTypes: ["Movie", "Episode"],
@@ -433,7 +432,7 @@ export const Home = () => {
             queryKey: ["home", "nextUp-all"],
             queryFn: async ({ pageParam = 0 }) =>
               (
-                await getTvShowsApi(api).getNextUp({
+                await getShowApi(api).getNextUp({
                   userId: user?.Id,
                   startIndex: pageParam,
                   limit: 10,
@@ -457,7 +456,7 @@ export const Home = () => {
               queryKey: ["home", "suggestedMovies", user?.Id],
               queryFn: async ({ pageParam = 0 }: { pageParam?: number }) =>
                 (
-                  await getSuggestionsApi(api).getSuggestions({
+                  await getSuggestionApi(api).getSuggestions({
                     userId: user?.Id,
                     startIndex: pageParam,
                     limit: 10,
@@ -494,7 +493,7 @@ export const Home = () => {
         queryKey: ["home", "custom", String(index), section.title ?? null],
         queryFn: async ({ pageParam = 0 }) => {
           if (section.items) {
-            const response = await getItemsApi(api).getItems({
+            const response = await getLibraryApi(api).getItems({
               userId: user?.Id,
               startIndex: pageParam,
               limit: section.items?.limit || pageSize,
@@ -508,7 +507,7 @@ export const Home = () => {
             return response.data.Items || [];
           }
           if (section.nextUp) {
-            const response = await getTvShowsApi(api).getNextUp({
+            const response = await getShowApi(api).getNextUp({
               userId: user?.Id,
               startIndex: pageParam,
               limit: section.nextUp?.limit || pageSize,
@@ -521,7 +520,7 @@ export const Home = () => {
           if (section.latest) {
             const allData =
               (
-                await getUserLibraryApi(api).getLatestMedia({
+                await getLibraryApi(api).getLatestMedia({
                   userId: user?.Id,
                   includeItemTypes: section.latest?.includeItemTypes,
                   limit: section.latest?.limit || 10,
@@ -533,7 +532,7 @@ export const Home = () => {
             return allData.slice(pageParam, pageParam + pageSize);
           }
           if (section.custom) {
-            const response = await api.get<BaseItemDtoQueryResult>(
+            const response = await api.pluginGet<BaseItemDtoQueryResult>(
               section.custom.endpoint,
               {
                 params: {

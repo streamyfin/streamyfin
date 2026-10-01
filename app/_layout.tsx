@@ -430,7 +430,7 @@ function Layout() {
     if (!step.post || !api || !user || !expoPushToken) return;
 
     api
-      .post("/Streamyfin/device", {
+      .pluginPost("/Streamyfin/device", {
         token: expoPushToken.data,
         deviceId: getOrSetDeviceId(),
         userId: user.Id,

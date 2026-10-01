@@ -1,5 +1,5 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
+import { getLibraryApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import { useLocalSearchParams } from "expo-router";
 import { useAtom } from "jotai";
@@ -53,7 +53,7 @@ const MobileActorPage: React.FC<{ personId: string }> = ({ personId }) => {
     async ({ pageParam }: { pageParam: number }): Promise<BaseItemDto[]> => {
       if (!api || !user?.Id) return [];
 
-      const response = await getItemsApi(api).getItems({
+      const response = await getLibraryApi(api).getItems({
         userId: user.Id,
         personIds: [personId],
         startIndex: pageParam,

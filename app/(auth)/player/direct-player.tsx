@@ -7,9 +7,9 @@ import {
   RepeatMode,
 } from "@jellyfin/sdk/lib/generated-client";
 import {
+  getLibraryApi,
   getMediaInfoApi,
-  getPlaystateApi,
-  getUserLibraryApi,
+  getSessionApi,
 } from "@jellyfin/sdk/lib/utils/api";
 import { File } from "expo-file-system";
 import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
@@ -369,7 +369,7 @@ export default function DirectPlayerPage() {
             setItemStatus({ isLoading: false, isError: false });
             return;
           }
-          const res = await getUserLibraryApi(api).getItem({
+          const res = await getLibraryApi(api).getItem({
             itemId,
             userId: user?.Id,
           });
@@ -606,7 +606,7 @@ export default function DirectPlayerPage() {
     const reportPlaybackStart = async () => {
       const progressInfo = currentPlayStateInfo();
       if (progressInfo) {
-        await getPlaystateApi(api).reportPlaybackStart({
+        await getSessionApi(api).reportPlaybackStart({
           playbackStartInfo: {
             ...progressInfo,
             // This runs once the stream resolves, before MPV has produced a
@@ -663,7 +663,7 @@ export default function DirectPlayerPage() {
     reportedStopKeyRef.current = stopKey;
     const currentTimeInTicks = msToTicks(progress.get());
     try {
-      await getPlaystateApi(api).reportPlaybackStopped({
+      await getSessionApi(api).reportPlaybackStopped({
         playbackStopInfo: {
           ItemId: item.Id,
           MediaSourceId: mediaSourceId,

@@ -1,5 +1,6 @@
 import type { Api } from "@jellyfin/sdk";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
+import { getImageApi } from "@jellyfin/sdk/lib/utils/api";
 import { getPrimaryImageUrl } from "./getPrimaryImageUrl";
 
 /**
@@ -20,7 +21,11 @@ export const getPortraitImageUrl = ({
   if (!api || !item) return undefined;
 
   if (item.Type === "Episode" && item.SeriesId) {
-    return `${api.basePath}/Items/${item.SeriesId}/Images/Primary?fillHeight=389&quality=80&tag=${item.SeriesPrimaryImageTag}`;
+    return getImageApi(api).getItemImageUrlById(item.SeriesId, "Primary", {
+      fillHeight: 389,
+      quality: 80,
+      tag: String(item.SeriesPrimaryImageTag),
+    });
   }
 
   return getPrimaryImageUrl({ api, item, width }) ?? undefined;
