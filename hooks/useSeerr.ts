@@ -750,10 +750,15 @@ export const useSeerr = () => {
     [queryClient],
   );
 
+  // Resolves once Seerr has answered, for a sheet to know the request ended.
   const requestMedia = useCallback(
-    (title: string, request: MediaRequestBody, onSuccess?: () => void) => {
-      if (!seerrApi) return;
-      void sendSeerrRequest({
+    (
+      title: string,
+      request: MediaRequestBody,
+      onSuccess?: () => void,
+    ): Promise<void> => {
+      if (!seerrApi) return Promise.resolve();
+      return sendSeerrRequest({
         send: () => seerrApi.request(request),
         refresh: () =>
           refreshAfterRequest({

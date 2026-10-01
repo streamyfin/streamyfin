@@ -29,6 +29,7 @@ import type {
   ServarrTag as Tag,
 } from "@/utils/seerr/types";
 import { store } from "@/utils/store";
+import { createSubmission } from "@/utils/submission";
 
 export default function TVRequestModalPage() {
   const typography = useScaledTVTypography();
@@ -53,9 +54,11 @@ export default function TVRequestModalPage() {
 
   const overlayOpacity = useRef(new Animated.Value(0)).current;
   const sheetTranslateY = useRef(new Animated.Value(200)).current;
+  const submission = useRef(createSubmission()).current;
 
   // Animate in on mount
   useEffect(() => {
+    submission.show();
     overlayOpacity.setValue(0);
     sheetTranslateY.setValue(200);
 
@@ -77,9 +80,10 @@ export default function TVRequestModalPage() {
     const timer = setTimeout(() => setIsReady(true), 100);
     return () => {
       clearTimeout(timer);
+      submission.dismiss();
       store.set(tvRequestModalAtom, null);
     };
-  }, [overlayOpacity, sheetTranslateY]);
+  }, [overlayOpacity, sheetTranslateY, submission]);
 
   const { data: serviceSettings } = useQuery({
     queryKey: ["seerr", "request", modalState?.mediaType, "service"],
@@ -271,7 +275,8 @@ export default function TVRequestModalPage() {
     [defaultTags],
   );
 
-  const handleRequest = useCallback(() => {
+  // One request at a time, and none closing a screen once this sheet is gone.
+  const handleRequest = useCallback(async () => {
     if (!modalState) return;
 
     const body = {
@@ -293,15 +298,19 @@ export default function TVRequestModalPage() {
           ? t("seerr.season_all")
           : undefined;
 
-    requestMedia(
+    if (!submission.start()) return;
+    await requestMedia(
       seasonTitle ? `${modalState.title}, ${seasonTitle}` : modalState.title,
       body,
       () => {
         modalState.onRequested();
-        router.back();
+        if (submission.dismiss()) router.back();
       },
     );
+    // A refusal leaves the sheet open, to try again.
+    submission.finish();
   }, [
+    submission,
     modalState,
     requestOverrides,
     defaultProfile,

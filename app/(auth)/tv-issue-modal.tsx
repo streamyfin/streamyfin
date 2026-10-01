@@ -22,6 +22,7 @@ import { writeErrorLog } from "@/utils/log";
 import { scaleSize } from "@/utils/scaleSize";
 import { IssueType, IssueTypeName } from "@/utils/seerr/types";
 import { store } from "@/utils/store";
+import { createSubmission } from "@/utils/submission";
 
 const ISSUE_TYPES = [
   IssueType.VIDEO,
@@ -45,11 +46,13 @@ export default function TVIssueModal() {
   const [issueType, setIssueType] = useState<IssueType>();
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
+  const submission = useRef(createSubmission()).current;
 
   const overlayOpacity = useRef(new Animated.Value(0)).current;
   const sheetTranslateY = useRef(new Animated.Value(200)).current;
 
   useEffect(() => {
+    submission.show();
     Animated.parallel([
       Animated.timing(overlayOpacity, {
         toValue: 1,
@@ -64,14 +67,20 @@ export default function TVIssueModal() {
         useNativeDriver: true,
       }),
     ]).start();
-    // Leaves no title behind for the next sheet.
-    return () => store.set(tvIssueModalAtom, null);
-  }, [overlayOpacity, sheetTranslateY]);
+    // Leaves no title behind for the next sheet, and no answer to come.
+    return () => {
+      submission.dismiss();
+      store.set(tvIssueModalAtom, null);
+    };
+  }, [overlayOpacity, sheetTranslateY, submission]);
 
+  // Once: an answer that comes after the user closed the sheet would close
+  // the screen under it.
   const close = useCallback(() => {
+    if (!submission.dismiss()) return;
     store.set(tvIssueModalAtom, null);
     router.back();
-  }, [router]);
+  }, [router, submission]);
 
   useTVBackPress(() => {
     close();
@@ -80,17 +89,20 @@ export default function TVIssueModal() {
 
   const submit = useCallback(async () => {
     if (!modalState || issueType === undefined || !message.trim()) return;
+    // A second press in the same batch, before `sending` disables the
+    // button, would file the issue twice.
+    if (!submission.start()) return;
     setSending(true);
     try {
       // submitIssue says "Issue submitted!" itself.
       await seerrApi?.submitIssue(modalState.mediaId, issueType, message);
-      close();
+      if (submission.finish()) close();
     } catch (error) {
       // The response interceptor already reports the failure with its route.
       writeErrorLog("Seerr submitIssue failed", String(error));
-      setSending(false);
+      if (submission.finish()) setSending(false);
     }
-  }, [modalState, issueType, message, seerrApi, t, close]);
+  }, [modalState, issueType, message, seerrApi, close, submission]);
 
   if (!modalState) return null;
 

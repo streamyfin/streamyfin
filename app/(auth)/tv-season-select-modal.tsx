@@ -30,6 +30,7 @@ import { seerrStatusBadge } from "@/utils/seerr/statusBadge";
 import type { MediaRequestBody } from "@/utils/seerr/types";
 import { MediaStatus, MediaType } from "@/utils/seerr/types";
 import { store } from "@/utils/store";
+import { createSubmission } from "@/utils/submission";
 
 // A season already asked for or in the library shows where it stands, in the
 // colours of the phone's season list (SeasonPicker).
@@ -175,8 +176,10 @@ export default function TVSeasonSelectModalPage() {
 
   const overlayOpacity = useRef(new Animated.Value(0)).current;
   const sheetTranslateY = useRef(new Animated.Value(200)).current;
+  const submission = useRef(createSubmission()).current;
 
   useEffect(() => {
+    submission.show();
     overlayOpacity.setValue(0);
     sheetTranslateY.setValue(200);
     Animated.parallel([
@@ -194,22 +197,28 @@ export default function TVSeasonSelectModalPage() {
       }),
     ]).start();
     return () => {
+      submission.dismiss();
       store.set(tvSeasonSelectModalAtom, null);
     };
-  }, [overlayOpacity, sheetTranslateY]);
+  }, [overlayOpacity, sheetTranslateY, submission]);
 
+  // Once: an answer that comes after the user closed the sheet would close
+  // the screen under it.
   const close = useCallback(() => {
+    if (!submission.dismiss()) return;
     store.set(tvSeasonSelectModalAtom, null);
     router.back();
-  }, [router]);
+  }, [router, submission]);
 
   useTVBackPress(() => {
     close();
     return true;
   }, [close]);
 
-  const request = useCallback(() => {
+  const request = useCallback(async () => {
     if (!modalState || blocked) return;
+    // One request at a time: Android TV can deliver one press twice.
+    if (!submission.start()) return;
     const body: MediaRequestBody = {
       mediaId: modalState.mediaId,
       mediaType: MediaType.TV,
@@ -219,6 +228,7 @@ export default function TVSeasonSelectModalPage() {
 
     if (modalState.hasAdvancedRequestPermission) {
       // The advanced sheet takes this one's place rather than stacking on it.
+      submission.dismiss();
       router.back();
       showRequestModal({
         requestBody: body,
@@ -230,11 +240,21 @@ export default function TVSeasonSelectModalPage() {
       return;
     }
 
-    requestMedia(modalState.title, body, () => {
+    await requestMedia(modalState.title, body, () => {
       modalState.onRequested();
-      router.back();
+      if (submission.dismiss()) router.back();
     });
-  }, [modalState, blocked, seasons, requestMedia, router, showRequestModal]);
+    // A refusal leaves the sheet open, to try again.
+    submission.finish();
+  }, [
+    modalState,
+    blocked,
+    seasons,
+    requestMedia,
+    router,
+    showRequestModal,
+    submission,
+  ]);
 
   if (!modalState) return null;
 
