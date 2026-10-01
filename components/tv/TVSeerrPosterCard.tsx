@@ -7,15 +7,17 @@ import { useSeerrCanRequest } from "@/hooks/useSeerrCanRequest";
 import type {
   MovieDetails,
   MovieResult,
+  PersonCreditCast,
   TvDetails,
   TvResult,
 } from "@/utils/seerr/types";
 
 export interface TVSeerrPosterCardProps {
-  /** A search or Discover result, or a title's details with its type. */
+  /** A search or Discover result, a person's role, or details with a type. */
   item:
     | MovieResult
     | TvResult
+    | PersonCreditCast
     | ((MovieDetails | TvDetails) & { mediaType: "movie" | "tv" });
   onPress: () => void;
   hasTVPreferredFocus?: boolean;
