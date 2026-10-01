@@ -3,7 +3,6 @@ import type React from "react";
 import { useTranslation } from "react-i18next";
 import { Pressable, View } from "react-native";
 import { Text } from "@/components/common/Text";
-import { SEERR_STATUS_ICONS } from "@/components/seerr/SeerrStatusIcon";
 import { Colors, SeerrStatusColors, SheetColors } from "@/constants/Colors";
 import {
   SEERR_BLOCKED_OPACITY,
@@ -14,6 +13,7 @@ import {
   type SeasonRow,
   seasonRowStatus,
 } from "@/utils/seerr/seasons";
+import { seerrStatusBadge } from "@/utils/seerr/statusBadge";
 import { MediaStatus } from "@/utils/seerr/types";
 
 // A season already asked for or in the library shows where it stands in its
@@ -80,7 +80,7 @@ export const SeasonPicker: React.FC<Props> = ({
         const status = seasonRowStatus(row);
         const locked = row.locked
           ? {
-              icon: SEERR_STATUS_ICONS[status],
+              icon: seerrStatusBadge(status, false)?.icon,
               color: STATUS_COLORS[status] ?? SheetColors.secondaryText,
             }
           : undefined;
