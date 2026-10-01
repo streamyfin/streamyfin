@@ -5,6 +5,7 @@ import {
   type RefetchOptions,
   useQuery,
 } from "@tanstack/react-query";
+import { LinearGradient } from "expo-linear-gradient";
 import { useHeaderHeight } from "expo-router/react-navigation";
 import { t } from "i18next";
 import { orderBy } from "lodash";
@@ -26,6 +27,7 @@ import SeerrStatusIcon from "@/components/seerr/SeerrStatusIcon";
 import { ParallaxPageColors, SheetColors } from "@/constants/Colors";
 import {
   SEERR_SEASON_BAND_FADE,
+  SEERR_SEASON_FADE_HEIGHT,
   SEERR_SEASON_HEADER_HEIGHT,
 } from "@/constants/Seerr";
 import { useSeerr } from "@/hooks/useSeerr";
@@ -271,6 +273,24 @@ const OpenSeason: React.FC<{
         <SeasonToggle open onPress={close}>
           {header}
         </SeasonToggle>
+        <Animated.View
+          pointerEvents='none'
+          style={[
+            {
+              position: "absolute",
+              left: 0,
+              right: 0,
+              top: "100%",
+              height: SEERR_SEASON_FADE_HEIGHT,
+            },
+            bandStyle,
+          ]}
+        >
+          <LinearGradient
+            colors={[ParallaxPageColors.background, ParallaxPageColors.clear]}
+            style={{ flex: 1 }}
+          />
+        </Animated.View>
       </Animated.View>
       {children}
     </Animated.View>

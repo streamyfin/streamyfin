@@ -29,6 +29,12 @@ export const SEERR_STILL_WIDTH = 640;
 /** The height of a season's header, which stays in view while its episodes pass. */
 export const SEERR_SEASON_HEADER_HEIGHT = 48;
 
+/**
+ * The fade under a pinned season header, in points: an episode passing under
+ * it fades out there rather than leaving a strip of its picture below it.
+ */
+export const SEERR_SEASON_FADE_HEIGHT = 32;
+
 /** How far a pinned season header follows the scroll before the band above it is opaque. */
 export const SEERR_SEASON_BAND_FADE = 24;
 

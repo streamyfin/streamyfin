@@ -74,6 +74,8 @@ export const SheetColors = {
 /** The background of a page drawn under a parallax header (ParallaxPage). */
 export const ParallaxPageColors = {
   background: "black",
+  /** The background, see-through, for a fade into it. */
+  clear: "rgba(0, 0, 0, 0)",
 } as const;
 
 /**
