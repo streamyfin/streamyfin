@@ -908,7 +908,7 @@
     "issue_type": "Issue type",
     "select_an_issue": "Select an issue",
     "types": "Types",
-    "describe_the_issue": "(Optional) Describe the issue...",
+    "issue_details": "Please provide a detailed explanation of the issue you encountered.",
     "submit_button": "Submit",
     "report_issue_button": "Report issue",
     "request_button": "Request",

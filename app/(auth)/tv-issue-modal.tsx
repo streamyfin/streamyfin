@@ -150,7 +150,7 @@ export default function TVIssueModal() {
             <View style={{ marginTop: scaleSize(16) }}>
               <TVSettingsTextInput
                 label={t("seerr.whats_wrong")}
-                placeholder={t("seerr.describe_the_issue")}
+                placeholder={t("seerr.issue_details")}
                 value={message}
                 onChangeText={setMessage}
               />

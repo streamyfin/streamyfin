@@ -575,7 +575,7 @@ const MobilePage: React.FC = () => {
                     maxLength={254}
                     style={{ color: "white" }}
                     clearButtonMode='always'
-                    placeholder={t("seerr.describe_the_issue")}
+                    placeholder={t("seerr.issue_details")}
                     placeholderTextColor='#9CA3AF'
                     // Issue with multiline + Textinput inside a portal
                     // https://github.com/callstack/react-native-paper/issues/1668
