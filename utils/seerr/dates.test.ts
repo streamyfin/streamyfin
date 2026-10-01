@@ -24,13 +24,10 @@ describe("seerrLocaleTag", () => {
 // which the device's own time zone moved to April 30 anywhere west of UTC.
 // Seerr pins its own to UTC (AirDateBadge, MovieDetails, TvDetails).
 describe("formatSeerrDate", () => {
-  // West of UTC, whatever zone the machine running the tests is in.
-  const zone = process.env.TZ;
-  beforeAll(() => {
-    process.env.TZ = "America/New_York";
-  });
-  afterAll(() => {
-    process.env.TZ = zone;
+  // The suite runs west of UTC (test-utils/timeZone.ts), where the bug shows:
+  // without that, removing the fix would leave these tests passing.
+  test("runs where midnight UTC is still the day before", () => {
+    expect(new Date("2024-05-01").getDate()).toBe(30);
   });
 
   test("shows the day Seerr gives, whatever the time zone", () => {
