@@ -1,7 +1,8 @@
-import { sortBy } from "lodash";
 import React, { useMemo } from "react";
 import { View } from "react-native";
+import { useSeerr } from "@/hooks/useSeerr";
 import { networks, studios } from "@/utils/seerr/data";
+import { discoverRows } from "@/utils/seerr/sliders";
 import type { DiscoverSlider } from "@/utils/seerr/types";
 import { DiscoverSliderType } from "@/utils/seerr/types";
 import { TVCompanySlide } from "./TVCompanySlide";
@@ -19,17 +20,15 @@ interface TVDiscoverProps {
  * the phone draws them (Discover).
  */
 export const TVDiscover: React.FC<TVDiscoverProps> = ({ sliders }) => {
+  const { seerrUser } = useSeerr();
+  // Only rows that show: the first one takes the focus, and a row that drew
+  // nothing, such as recently added for a plain user, left it on no card.
   const sortedSliders = useMemo(
-    () =>
-      sortBy(
-        (sliders ?? []).filter((s) => s.enabled),
-        "order",
-        "asc",
-      ),
-    [sliders],
+    () => discoverRows(sliders, seerrUser?.permissions ?? 0),
+    [sliders, seerrUser],
   );
 
-  if (!sliders || sortedSliders.length === 0) return null;
+  if (sortedSliders.length === 0) return null;
 
   return (
     <View>

@@ -1,9 +1,8 @@
-import { useQuery } from "@tanstack/react-query";
 import type React from "react";
 import { useTranslation } from "react-i18next";
 import { TVSeerrRow } from "@/components/seerr/discover/TVSeerrRow";
 import { TVRequestCard } from "@/components/seerr/tv/TVRequestCard";
-import { useSeerr } from "@/hooks/useSeerr";
+import { useSeerrRecentRequests } from "@/hooks/useSeerrDiscoverData";
 import { type DiscoverSlider, DiscoverSliderType } from "@/utils/seerr/types";
 
 /**
@@ -15,15 +14,8 @@ export const TVRecentRequestsSlide: React.FC<{
   isFirstSlide?: boolean;
 }> = ({ slide, isFirstSlide = false }) => {
   const { t } = useTranslation();
-  const { seerrApi } = useSeerr();
 
-  const { data: requests } = useQuery({
-    queryKey: ["seerr", "recent_requests"],
-    queryFn: async () => seerrApi?.requests(),
-    enabled: !!seerrApi,
-    refetchOnMount: true,
-    staleTime: 0,
-  });
+  const { data: requests } = useSeerrRecentRequests();
 
   if (!requests?.results.length) return null;
 

@@ -1,4 +1,3 @@
-import { useQuery } from "@tanstack/react-query";
 import type React from "react";
 import { useTranslation } from "react-i18next";
 import { View } from "react-native";
@@ -6,13 +5,14 @@ import { TVSeerrRow } from "@/components/seerr/discover/TVSeerrRow";
 import { TVSeerrPosterCard } from "@/components/tv/TVSeerrPosterCard";
 import { useScaledTVSizes } from "@/constants/TVSizes";
 import useRouter from "@/hooks/useAppRouter";
-import { useSeerr } from "@/hooks/useSeerr";
-import { canSeeRecentlyAdded } from "@/utils/seerr/permissions";
+import {
+  useSeerrRecentlyAdded,
+  useSeerrTitleDetails,
+} from "@/hooks/useSeerrDiscoverData";
 import {
   type DiscoverSlider,
   DiscoverSliderType,
   type MediaInfo,
-  MediaType,
 } from "@/utils/seerr/types";
 
 /** A title the library gained, as a poster like the other rows draw. */
@@ -20,18 +20,10 @@ const TVRecentlyAddedCard: React.FC<{
   media: MediaInfo;
   hasTVPreferredFocus: boolean;
 }> = ({ media, hasTVPreferredFocus }) => {
-  const { seerrApi } = useSeerr();
   const router = useRouter();
   const sizes = useScaledTVSizes();
 
-  const { data: details } = useQuery({
-    queryKey: ["seerr", "detail", media.mediaType, media.tmdbId],
-    queryFn: async () =>
-      media.mediaType === MediaType.MOVIE
-        ? seerrApi?.movieDetails(media.tmdbId)
-        : seerrApi?.tvDetails(media.tmdbId),
-    enabled: !!seerrApi,
-  });
+  const { data: details } = useSeerrTitleDetails(media.mediaType, media.tmdbId);
 
   // The poster's own width while its title loads, so the row does not jump.
   if (!details) return <View style={{ width: sizes.posters.poster }} />;
@@ -59,16 +51,7 @@ export const TVRecentlyAddedSlide: React.FC<{
   isFirstSlide?: boolean;
 }> = ({ slide, isFirstSlide = false }) => {
   const { t } = useTranslation();
-  const { seerrApi, seerrUser } = useSeerr();
-  const visible = canSeeRecentlyAdded(seerrUser?.permissions ?? 0);
-
-  const { data: media } = useQuery({
-    queryKey: ["seerr", "recently_added"],
-    queryFn: async () => seerrApi?.recentlyAdded(),
-    enabled: !!seerrApi && visible,
-    refetchOnMount: true,
-    staleTime: 0,
-  });
+  const { visible, media } = useSeerrRecentlyAdded();
 
   if (!visible || !media?.results?.length) return null;
 

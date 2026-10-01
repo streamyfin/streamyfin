@@ -1,4 +1,3 @@
-import { sortBy } from "lodash";
 import type React from "react";
 import { useMemo } from "react";
 import { View } from "react-native";
@@ -8,7 +7,9 @@ import MovieTvSlide from "@/components/seerr/discover/MovieTvSlide";
 import RecentlyAddedSlide from "@/components/seerr/discover/RecentlyAddedSlide";
 import RecentRequestsSlide from "@/components/seerr/discover/RecentRequestsSlide";
 import { SEERR_DISCOVER_ROW_GAP } from "@/constants/Seerr";
+import { useSeerr } from "@/hooks/useSeerr";
 import { networks, studios } from "@/utils/seerr/data";
+import { discoverRows } from "@/utils/seerr/sliders";
 import type { DiscoverSlider } from "@/utils/seerr/types";
 import { DiscoverSliderType } from "@/utils/seerr/types";
 
@@ -17,19 +18,14 @@ interface Props {
 }
 
 const Discover: React.FC<Props> = ({ sliders }) => {
-  const hasSliders = !!sliders;
-
+  const { seerrUser } = useSeerr();
+  // The rows the TV shows too (discoverRows).
   const sortedSliders = useMemo(
-    () =>
-      sortBy(
-        (sliders ?? []).filter((s) => s.enabled),
-        "order",
-        "asc",
-      ),
-    [sliders],
+    () => discoverRows(sliders, seerrUser?.permissions ?? 0),
+    [sliders, seerrUser],
   );
 
-  if (!hasSliders) return null;
+  if (!sliders) return null;
 
   return (
     // One gap between rows, as the home screen spaces its own, set as a style:

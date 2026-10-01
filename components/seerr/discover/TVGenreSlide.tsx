@@ -1,10 +1,10 @@
-import { useQuery } from "@tanstack/react-query";
 import type React from "react";
 import { useTranslation } from "react-i18next";
 import { TVSeerrRow } from "@/components/seerr/discover/TVSeerrRow";
 import { TVSeerrSlideCard } from "@/components/seerr/tv/TVSeerrSlideCard";
 import useRouter from "@/hooks/useAppRouter";
-import { Endpoints, useSeerr } from "@/hooks/useSeerr";
+import { useSeerr } from "@/hooks/useSeerr";
+import { useSeerrGenreSliders } from "@/hooks/useSeerrDiscoverData";
 import { genreColorMap } from "@/utils/seerr/data";
 import { type DiscoverSlider, DiscoverSliderType } from "@/utils/seerr/types";
 
@@ -20,16 +20,7 @@ export const TVGenreSlide: React.FC<{
   const router = useRouter();
   const { seerrApi } = useSeerr();
 
-  const { data } = useQuery({
-    queryKey: ["seerr", "discover", slide.type, slide.id],
-    queryFn: async () =>
-      seerrApi?.getGenreSliders(
-        slide.type === DiscoverSliderType.MOVIE_GENRES
-          ? Endpoints.MOVIE
-          : Endpoints.TV,
-      ),
-    enabled: !!seerrApi,
-  });
+  const { data } = useSeerrGenreSliders(slide);
 
   if (!data?.length) return null;
 

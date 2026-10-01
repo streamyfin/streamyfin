@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { SEERR_DOWNLOAD_REFRESH_MS } from "@/constants/Seerr";
 import { useSeerr } from "@/hooks/useSeerr";
 import { useSeerrCanRequest } from "@/hooks/useSeerrCanRequest";
+import { useSeerrTitleDetails } from "@/hooks/useSeerrDiscoverData";
 import { hasPermission, Permission } from "@/utils/seerr/permissions";
 import {
   type RequestBadgeLabel,
@@ -24,14 +25,7 @@ export const useSeerrRequestCard = (request: MediaRequest) => {
   const mediaType = request.media?.mediaType ?? request.type;
   const tmdbId = request.media?.tmdbId;
 
-  const { data: details } = useQuery({
-    queryKey: ["seerr", "detail", mediaType, tmdbId],
-    queryFn: async () =>
-      mediaType === MediaType.MOVIE
-        ? seerrApi?.movieDetails(tmdbId!)
-        : seerrApi?.tvDetails(tmdbId!),
-    enabled: !!seerrApi && tmdbId !== undefined,
-  });
+  const { data: details } = useSeerrTitleDetails(mediaType, tmdbId);
 
   // Asked again while one of its downloads runs, to move the badge along.
   const { data: refreshed } = useQuery({
