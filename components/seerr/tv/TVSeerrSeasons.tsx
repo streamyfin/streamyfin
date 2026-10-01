@@ -82,10 +82,12 @@ const TVSeasonEpisodes: React.FC<{
  */
 export const TVSeerrSeasons: React.FC<{
   details: TvDetails;
+  /** Whether the page offers a request at all: a season's own follows it. */
+  offersRequest: boolean;
   onRequestSeason: (seasonNumber: number) => void;
   /** The first season's card, for the focus coming back up from the cast. */
   firstCardRef?: (ref: View | null) => void;
-}> = ({ details, onRequestSeason, firstCardRef }) => {
+}> = ({ details, offersRequest, onRequestSeason, firstCardRef }) => {
   const { t } = useTranslation();
   const typography = useScaledTVTypography();
   const publicSettings = useSeerrPublicSettings();
@@ -121,7 +123,7 @@ export const TVSeerrSeasons: React.FC<{
       ? t("seerr.specials")
       : t("seerr.season_number", { season_number: seasonNumber });
   const requestable = (seasonNumber: number) =>
-    partial && unrequested.includes(seasonNumber);
+    offersRequest && partial && unrequested.includes(seasonNumber);
 
   return (
     <View style={{ marginTop: 24 }}>

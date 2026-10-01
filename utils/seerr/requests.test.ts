@@ -1,5 +1,10 @@
 import { Permission } from "./permissions";
-import { canRequest, canRequestForOthers, canRequestMore } from "./requests";
+import {
+  canRequest,
+  canRequestForOthers,
+  canRequestMore,
+  requestOffer,
+} from "./requests";
 import {
   type MediaInfo,
   type MediaRequest,
@@ -240,5 +245,52 @@ describe("canRequestMore", () => {
       false,
     );
     expect(canRequestMore(series(partly()), 0)).toBe(false);
+  });
+});
+
+// What a title's page offers, the phone's and the TV's alike, and what its
+// seasons' own request buttons follow: Seerr's Request on a title it does
+// not know, its Request more on a series it knows with seasons left.
+describe("requestOffer", () => {
+  const knownSeries = {
+    id: 1399,
+    name: "Game of Thrones",
+    seasons: [1, 2].map((seasonNumber) => ({
+      id: seasonNumber,
+      seasonNumber,
+      episodeCount: 10,
+    })),
+    mediaInfo: {
+      ...known(MediaStatus.PARTIALLY_AVAILABLE),
+      mediaType: MediaType.TV,
+    },
+  } as unknown as TvDetails;
+
+  test("offers Request on a title Seerr does not know", () => {
+    expect(requestOffer(newSeries, MediaType.TV, Permission.REQUEST)).toEqual({
+      canRequest: true,
+      requestMore: false,
+      offersRequest: true,
+    });
+  });
+
+  test("offers Request more on a series it knows with seasons left", () => {
+    const offer = requestOffer(knownSeries, MediaType.TV, Permission.REQUEST);
+    expect(offer.requestMore).toBe(true);
+    expect(offer.offersRequest).toBe(true);
+  });
+
+  test("offers nothing to someone who may not request", () => {
+    expect(requestOffer(knownSeries, MediaType.TV, 0).offersRequest).toBe(
+      false,
+    );
+    expect(requestOffer(newSeries, MediaType.TV, 0).offersRequest).toBe(false);
+  });
+
+  test("never offers Request more on a film", () => {
+    expect(
+      requestOffer(filmDetails, MediaType.MOVIE, Permission.REQUEST)
+        .requestMore,
+    ).toBe(false);
   });
 });

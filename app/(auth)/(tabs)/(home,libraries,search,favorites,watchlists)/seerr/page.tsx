@@ -35,12 +35,10 @@ import { POSTER_ASPECT_RATIO } from "@/constants/Values";
 import useRouter from "@/hooks/useAppRouter";
 import { useDismissKeyboardOnLeave } from "@/hooks/useDismissKeyboardOnLeave";
 import { useSeerr } from "@/hooks/useSeerr";
-import { useSeerrCanRequest } from "@/hooks/useSeerrCanRequest";
-import { useSeerrPublicSettings } from "@/hooks/useSeerrPublicSettings";
+import { useSeerrRequestOffer } from "@/hooks/useSeerrRequestOffer";
 import { writeErrorLog } from "@/utils/log";
 import { ANIME_KEYWORD_ID } from "@/utils/seerr/data";
 import { hasPermission, Permission } from "@/utils/seerr/permissions";
-import { canRequestMore } from "@/utils/seerr/requests";
 import type {
   MediaRequest,
   MediaRequestBody,
@@ -104,16 +102,9 @@ const MobilePage: React.FC = () => {
     },
   });
 
-  const [canRequest, hasAdvancedRequestPermission] =
-    useSeerrCanRequest(details);
-  // Seerr's "Request more": a series it knows with seasons still to ask for.
-  const publicSettings = useSeerrPublicSettings();
-  const requestMore =
-    mediaType === MediaType.TV &&
-    canRequestMore(details as TvDetails, seerrUser?.permissions ?? 0, {
-      specials: publicSettings?.enableSpecialEpisodes === true,
-    });
-  const offersRequest = canRequest || requestMore;
+  // Request, or Seerr's Request more on a series it knows with seasons left.
+  const { hasAdvancedRequestPermission, requestMore, offersRequest } =
+    useSeerrRequestOffer(details, mediaType);
 
   const canManageRequests = useMemo(() => {
     if (!seerrUser) return false;
@@ -495,6 +486,7 @@ const MobilePage: React.FC = () => {
                 details={details as TvDetails}
                 refetch={refetch}
                 hasAdvancedRequest={hasAdvancedRequestPermission}
+                offersRequest={offersRequest}
                 onAdvancedRequest={(data) => setRequestBody(data)}
               />
             )}

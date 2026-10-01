@@ -105,3 +105,27 @@ export const canRequestMore = (
   }
   return unrequestedSeasons(series, { specials }).length > 0;
 };
+
+/**
+ * What a title's page offers, on the phone and the TV alike (RequestButton):
+ * Request on a title Seerr does not know, Request more on a series it knows
+ * with seasons left to ask for. A season's own request button follows it too.
+ */
+export const requestOffer = (
+  title:
+    | MovieResult
+    | TvResult
+    | MovieDetails
+    | TvDetails
+    | PersonCreditCast
+    | undefined,
+  mediaType: MediaType | undefined,
+  permissions: number,
+  { specials = false }: { specials?: boolean } = {},
+): { canRequest: boolean; requestMore: boolean; offersRequest: boolean } => {
+  const asNew = canRequest(title, permissions);
+  const more =
+    mediaType === MediaType.TV &&
+    canRequestMore(title as TvDetails, permissions, { specials });
+  return { canRequest: asNew, requestMore: more, offersRequest: asNew || more };
+};

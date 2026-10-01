@@ -301,6 +301,8 @@ const SeerrSeasons: React.FC<{
   isLoading: boolean;
   details?: TvDetails;
   hasAdvancedRequest?: boolean;
+  /** Whether the page offers a request at all: a season's own follows it. */
+  offersRequest?: boolean;
   onAdvancedRequest?: (data: MediaRequestBody) => void;
   refetch: (
     options?: RefetchOptions | undefined,
@@ -312,6 +314,7 @@ const SeerrSeasons: React.FC<{
   details,
   refetch,
   hasAdvancedRequest,
+  offersRequest = false,
   onAdvancedRequest,
 }) => {
   const { requestMedia } = useSeerr();
@@ -384,7 +387,10 @@ const SeerrSeasons: React.FC<{
       renderItem={({ item: season }) => {
         const open = !!seasonStates?.[season.seasonNumber];
         // One season at a time only where the server takes it.
-        const canRequest = partial && unrequested.includes(season.seasonNumber);
+        // As the page's own button: not to someone who may not request, nor
+        // on a blocklisted series.
+        const canRequest =
+          offersRequest && partial && unrequested.includes(season.seasonNumber);
         const toggle = () =>
           setSeasonStates((prevState) => ({
             ...prevState,

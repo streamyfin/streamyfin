@@ -27,13 +27,11 @@ import { useTVFocusAnimation } from "@/components/tv/hooks/useTVFocusAnimation";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import { useSeerr } from "@/hooks/useSeerr";
-import { useSeerrCanRequest } from "@/hooks/useSeerrCanRequest";
-import { useSeerrPublicSettings } from "@/hooks/useSeerrPublicSettings";
+import { useSeerrRequestOffer } from "@/hooks/useSeerrRequestOffer";
 import { useTVIssueModal } from "@/hooks/useTVIssueModal";
 import { useTVRequestModal } from "@/hooks/useTVRequestModal";
 import { useTVSeasonSelectModal } from "@/hooks/useTVSeasonSelectModal";
 import { hasPermission, Permission } from "@/utils/seerr/permissions";
-import { canRequestMore } from "@/utils/seerr/requests";
 import { seasonsWithStatus } from "@/utils/seerr/seasons";
 import type {
   MediaRequest,
@@ -222,18 +220,9 @@ export const TVSeerrPage: React.FC = () => {
   const mediaTitle = getTitle(details) || titleParam;
   const releaseYear = getYear(details) || yearParam;
 
-  const [canRequest, hasAdvancedRequestPermission] =
-    useSeerrCanRequest(details);
-  // Seerr's "Request more", as the phone offers it: a series it knows with
-  // seasons still to ask for.
-  const publicSettings = useSeerrPublicSettings();
-  const specials = publicSettings?.enableSpecialEpisodes === true;
-  const requestMore =
-    mediaType === MediaType.TV &&
-    canRequestMore(details as TvDetails, seerrUser?.permissions ?? 0, {
-      specials,
-    });
-  const offersRequest = canRequest || requestMore;
+  // Request, or Seerr's Request more, by the phone's own rule.
+  const { hasAdvancedRequestPermission, requestMore, offersRequest } =
+    useSeerrRequestOffer(details, mediaType);
 
   const canManageRequests = useMemo(() => {
     if (!seerrUser) return false;
@@ -792,6 +781,7 @@ export const TVSeerrPage: React.FC = () => {
         {mediaType === MediaType.TV && details && (
           <TVSeerrSeasons
             details={details as TvDetails}
+            offersRequest={offersRequest}
             onRequestSeason={handleRequestSeason}
             firstCardRef={setFirstSeasonCardRef}
           />
