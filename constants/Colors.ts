@@ -60,6 +60,8 @@ export const SeerrCardColors = {
 export const SeerrIssueColors = {
   background: "rgba(234, 179, 8, 0.5)",
   border: "#facc15",
+  /** The TV button with the focus on it. */
+  focused: "rgba(234, 179, 8, 0.8)",
 } as const;
 
 /** The surfaces of a sheet: its background, a group of rows, their lines. */

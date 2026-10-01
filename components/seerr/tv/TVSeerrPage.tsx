@@ -24,7 +24,6 @@ import { SeerrRequestIcon } from "@/components/seerr/SeerrRequestIcon";
 import { TVSeerrSeasons } from "@/components/seerr/tv/TVSeerrSeasons";
 import { TVButton } from "@/components/tv";
 import { useTVFocusAnimation } from "@/components/tv/hooks/useTVFocusAnimation";
-import { SeerrIssueColors } from "@/constants/Colors";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import { useSeerr } from "@/hooks/useSeerr";
@@ -694,24 +693,33 @@ export const TVSeerrPage: React.FC = () => {
                 </TVButton>
               )}
 
-              {/* Report an issue, as the phone's icon beside the buttons. */}
+              {/* Report an issue in Seerr's yellow, as on the phone, shaped
+                  like the buttons beside it. */}
               {hasJellyfinMedia && details?.mediaInfo?.id !== undefined && (
                 <TVButton
-                  square
-                  variant='secondary'
+                  variant='warning'
                   onPress={() =>
                     showIssueModal({
                       title: mediaTitle,
                       mediaId: details.mediaInfo!.id,
                     })
                   }
-                  style={{
-                    backgroundColor: SeerrIssueColors.background,
-                    borderWidth: 1,
-                    borderColor: SeerrIssueColors.border,
-                  }}
                 >
-                  <Ionicons name='warning-outline' size={24} color='#FFFFFF' />
+                  <Ionicons
+                    name='warning-outline'
+                    size={24}
+                    color='#FFFFFF'
+                    style={{ marginRight: 8 }}
+                  />
+                  <Text
+                    style={{
+                      fontSize: typography.callout,
+                      fontWeight: "bold",
+                      color: "#FFFFFF",
+                    }}
+                  >
+                    {t("seerr.report_issue_button")}
+                  </Text>
                 </TVButton>
               )}
             </View>
