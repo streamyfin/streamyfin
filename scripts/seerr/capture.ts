@@ -1,5 +1,6 @@
-import { APP_ROUTES, type AppRoute } from "../../utils/seerr/routes";
-import { type Shape, shapeOf } from "./shape";
+import { APP_ROUTES } from "../../utils/seerr/routes";
+import { type Fixture, fileNameFor, urlFor } from "./fixtures";
+import { shapeOf } from "./shape";
 
 /**
  * Measures what a real Seerr sends, as shapes.
@@ -21,46 +22,6 @@ import { type Shape, shapeOf } from "./shape";
 
 const FIXTURES = "utils/seerr/__fixtures__";
 
-export interface Fixture {
-  /**
-   * The route this came from, as the spec templates it. Kept in the file so a
-   * fixture says what it describes, in review and to the contract test, rather
-   * than having its name read backwards.
-   */
-  route: string;
-  /** What the server answered. */
-  status: number;
-  /** Its body, reduced to keys and types. Absent when there was no body. */
-  shape?: Shape;
-}
-
-/** The file a route's fixture is written to. */
-export const fileNameFor = (template: string): string =>
-  `${template
-    .replace(/^GET /, "")
-    .replace(/[{}]/g, "")
-    .replace(/^\//, "")
-    .replace(/\//g, "-")}.json`;
-
-/** The path to call, with the parameters and the query filled in. */
-export const urlFor = (route: AppRoute, base: string): string => {
-  const path = route.template
-    .replace(/^GET /, "")
-    .replace(/\{(\w+)\}/g, (_, name: string) => {
-      const value = route.params?.[name];
-      if (value === undefined) {
-        throw new Error(`${route.template} has no value for {${name}}`);
-      }
-      return String(value);
-    });
-
-  const query = new URLSearchParams(
-    Object.entries(route.query ?? {}).map(([k, v]) => [k, String(v)]),
-  ).toString();
-
-  return `${base}/api/v1${path}${query ? `?${query}` : ""}`;
-};
-
 /**
  * Signs in the way the app does.
  *
@@ -72,7 +33,7 @@ const signIn = async (
   base: string,
   username: string,
   password: string,
-): Promise<string> => {
+): Promise<{ session: string; userId: number }> => {
   const answer = await fetch(`${base}/api/v1/auth/jellyfin`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -88,7 +49,9 @@ const signIn = async (
     throw new Error("Signing in answered no session cookie");
   }
 
-  return cookie.split(";")[0];
+  // The answer is the account itself, whose id some routes ask for.
+  const { id } = (await answer.json()) as { id: number };
+  return { session: cookie.split(";")[0], userId: id };
 };
 
 const capture = async (): Promise<void> => {
@@ -102,11 +65,11 @@ const capture = async (): Promise<void> => {
     );
   }
 
-  const session = await signIn(base, username, password);
+  const { session, userId } = await signIn(base, username, password);
   let written = 0;
 
   for (const route of APP_ROUTES) {
-    const answer = await fetch(urlFor(route, base), {
+    const answer = await fetch(urlFor(route, base, userId), {
       headers: { Cookie: session },
     });
 

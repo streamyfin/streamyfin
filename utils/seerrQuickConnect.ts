@@ -122,6 +122,24 @@ export const attemptQuickConnectSignIn = async (
   return { user };
 };
 
+/** Whether the Jellyfin server has Quick Connect turned on. */
+export const isQuickConnectEnabled = async (api: Api): Promise<boolean> =>
+  (await getQuickConnectApi(api).getQuickConnectEnabled()).data === true;
+
+/**
+ * Whether the Seerr form should ask for the password, or the admin key that
+ * stands in for it.
+ *
+ * Signing in tries Quick Connect first, and on a server that has it neither
+ * is ever read. They are asked for while nobody knows yet, when Quick Connect
+ * is off, and again once signing in has failed, so that a Quick Connect that
+ * fails for another reason leaves a way in.
+ */
+export const seerrPasswordNeeded = (
+  quickConnectEnabled: boolean | undefined,
+  signInFailed: boolean,
+): boolean => quickConnectEnabled !== true || signInFailed;
+
 /** The two clients wired into the four steps. */
 export const quickConnectSteps = (
   seerr: SeerrApi,
@@ -130,8 +148,7 @@ export const quickConnectSteps = (
 ): QuickConnectSteps => ({
   stillCurrent,
 
-  isEnabled: async () =>
-    (await getQuickConnectApi(api).getQuickConnectEnabled()).data === true,
+  isEnabled: () => isQuickConnectEnabled(api),
 
   prime: () => seerr.prime(),
 

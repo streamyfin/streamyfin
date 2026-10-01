@@ -1,5 +1,4 @@
 import { useMemo } from "react";
-import { useTranslation } from "react-i18next";
 import { View, type ViewProps } from "react-native";
 import Animated, {
   useAnimatedStyle,
@@ -9,40 +8,27 @@ import Animated, {
 import { TouchableSeerrRouter } from "@/components/common/SeerrItemRouter";
 import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
-import { Tag, Tags } from "@/components/GenreTags";
-import { textShadowStyle } from "@/components/seerr/discover/GenericSlideCard";
 import SeerrMediaIcon from "@/components/seerr/SeerrMediaIcon";
 import SeerrStatusIcon from "@/components/seerr/SeerrStatusIcon";
-import { Colors } from "@/constants/Colors";
 import { useSeerr } from "@/hooks/useSeerr";
 import { useSeerrCanRequest } from "@/hooks/useSeerrCanRequest";
 import type {
-  DownloadingItem,
-  MediaRequest,
   MovieDetails,
   MovieResult,
+  PersonCreditCast,
   TvDetails,
   TvResult,
 } from "@/utils/seerr/types";
-import { MediaStatus, type PersonCreditCast } from "@/utils/seerr/types";
 
 interface Props extends ViewProps {
   item?: MovieResult | TvResult | MovieDetails | TvDetails | PersonCreditCast;
   horizontal?: boolean;
-  showDownloadInfo?: boolean;
-  mediaRequest?: MediaRequest;
 }
 
-const SeerrPoster: React.FC<Props> = ({
-  item,
-  horizontal,
-  showDownloadInfo,
-  mediaRequest,
-}) => {
+const SeerrPoster: React.FC<Props> = ({ item, horizontal }) => {
   const { seerrApi, getTitle, getYear, getMediaType } = useSeerr();
   const loadingOpacity = useSharedValue(1);
   const imageOpacity = useSharedValue(0);
-  const { t } = useTranslation();
 
   const imageAnimatedStyle = useAnimatedStyle(() => ({
     opacity: imageOpacity.value,
@@ -73,49 +59,6 @@ const SeerrPoster: React.FC<Props> = ({
 
   const [canRequest] = useSeerrCanRequest(item);
 
-  const is4k = useMemo(() => mediaRequest?.is4k === true, [mediaRequest]);
-
-  const downloadItems = useMemo(
-    () =>
-      (is4k
-        ? mediaRequest?.media.downloadStatus4k
-        : mediaRequest?.media.downloadStatus) || [],
-    [mediaRequest, is4k],
-  );
-
-  const progress = useMemo(() => {
-    const [totalSize, sizeLeft] = downloadItems.reduce(
-      (sum: number[], next: DownloadingItem) => [
-        sum[0] + next.size,
-        sum[1] + next.sizeLeft,
-      ],
-      [0, 0],
-    );
-
-    return ((totalSize - sizeLeft) / totalSize) * 100;
-  }, [downloadItems]);
-
-  const requestedSeasons: string[] | undefined = useMemo(() => {
-    const seasons =
-      mediaRequest?.seasons?.flatMap((s) => s.seasonNumber.toString()) || [];
-    if (seasons.length > 4) {
-      const [first, second, third, fourth, ...rest] = seasons;
-      return [
-        first,
-        second,
-        third,
-        fourth,
-        t("home.settings.plugins.seerr.plus_n_more", { n: rest.length }),
-      ];
-    }
-    return seasons;
-  }, [mediaRequest]);
-
-  const available = useMemo(() => {
-    const status = mediaRequest?.media?.[is4k ? "status4k" : "status"];
-    return status === MediaStatus.AVAILABLE;
-  }, [mediaRequest, is4k]);
-
   return (
     <TouchableSeerrRouter
       result={item}
@@ -144,55 +87,28 @@ const SeerrPoster: React.FC<Props> = ({
               onLoad={handleImageLoad}
             />
           </Animated.View>
-          {mediaRequest && showDownloadInfo && (
-            <>
-              <View
-                className={`absolute w-full h-full bg-black ${!available ? "opacity-70" : "opacity-0"}`}
-              />
-              {!available && !Number.isNaN(progress) && (
-                <>
-                  <View
-                    className='absolute left-0 h-full opacity-40'
-                    style={{
-                      width: `${progress || 0}%`,
-                      backgroundColor: Colors.primaryRGB,
-                    }}
-                  />
-                  <View className='absolute w-full h-full justify-center items-center'>
-                    <Text className='font-bold' style={textShadowStyle.shadow}>
-                      {progress?.toFixed(0)}%
-                    </Text>
-                  </View>
-                </>
-              )}
-              <Tag
-                className='absolute right-1 top-1 text-right bg-black border border-neutral-800/50'
-                text={mediaRequest?.requestedBy.displayName}
-              />
-              {requestedSeasons.length > 0 && (
-                <Tags
-                  className='absolute bottom-1 left-0.5 w-32'
-                  tagProps={{
-                    className: "bg-black rounded-full px-1",
-                  }}
-                  tags={requestedSeasons}
-                />
-              )}
-            </>
-          )}
-          <SeerrStatusIcon
-            className='absolute bottom-1 right-1'
-            showRequestIcon={canRequest}
-            mediaStatus={mediaRequest?.media?.status || item?.mediaInfo?.status}
-          />
+          {/* Placed by a wrapper: the icon hands its className to the view
+              inside its button, which left the button below the image, where
+              the card cut the icon off. Both badges sit on top, as on Seerr's
+              title cards. */}
+          <View className='absolute top-1 right-1'>
+            <SeerrStatusIcon
+              small
+              showRequestIcon={canRequest}
+              mediaStatus={item?.mediaInfo?.status}
+            />
+          </View>
           <SeerrMediaIcon
+            small
             className='absolute top-1 left-1'
             mediaType={mediaType}
           />
         </View>
       </View>
       <View className={`mt-2 flex flex-col ${horizontal ? "w-44" : "w-28"}`}>
-        <Text numberOfLines={2}>{title || ""}</Text>
+        {/* One line: a row takes the height of its tallest poster, so a
+            single long title left an empty line under every other one. */}
+        <Text numberOfLines={1}>{title || ""}</Text>
         <Text className='text-xs opacity-50 align-bottom'>
           {releaseYear || ""}
         </Text>

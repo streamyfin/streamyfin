@@ -7,6 +7,7 @@ import CountryFlag from "react-native-country-flag";
 import { Text } from "@/components/common/Text";
 import { useSeerr } from "@/hooks/useSeerr";
 import { ANIME_KEYWORD_ID } from "@/utils/seerr/data";
+import { formatSeerrDate, seerrLocaleTag } from "@/utils/seerr/dates";
 import type { MovieDetails, TvDetails } from "@/utils/seerr/types";
 
 interface Release {
@@ -17,23 +18,25 @@ interface Release {
   type: number;
 }
 
-export const dateOpts: Intl.DateTimeFormatOptions = {
-  year: "numeric",
-  month: "long",
-  day: "numeric",
-};
-
 const Facts: React.FC<
   { title: string; facts?: string[] | React.ReactNode[] } & ViewProps
 > = ({ title, facts, ...props }) =>
   facts &&
   facts?.length > 0 && (
-    <View className='flex flex-col justify-between py-2' {...props}>
-      <Text className='font-bold text-start'>{title}</Text>
+    // On one line, as on Seerr's site: the name on the left, what it says on
+    // the right, several values stacked there.
+    <View className='flex flex-row justify-between py-2' {...props}>
+      <Text className='font-bold mr-4'>{title}</Text>
 
-      <View className='flex flex-col items-end'>
+      <View className='flex-1 flex-col items-end'>
         {facts.map((f, idx) =>
-          typeof f === "string" ? <Text key={idx}>{f}</Text> : f,
+          typeof f === "string" ? (
+            <Text key={idx} className='text-right'>
+              {f}
+            </Text>
+          ) : (
+            f
+          ),
         )}
       </View>
     </View>
@@ -50,6 +53,7 @@ const DetailFacts: React.FC<
 > = ({ details, className, ...props }) => {
   const { seerrRegion: region, seerrLocale: locale } = useSeerr();
   const { t } = useTranslation();
+  const tag = seerrLocaleTag(locale, region);
 
   const releases = useMemo(
     () =>
@@ -75,43 +79,35 @@ const DetailFacts: React.FC<
     [releases],
   );
 
-  const firstAirDate = useMemo(() => {
-    const firstAirDate = (details as TvDetails)?.firstAirDate;
-    if (firstAirDate) {
-      return new Date(firstAirDate).toLocaleDateString(
-        `${locale}-${region}`,
-        dateOpts,
-      );
-    }
-  }, [details]);
+  const firstAirDate = useMemo(
+    () => formatSeerrDate((details as TvDetails)?.firstAirDate, tag),
+    [details, tag],
+  );
 
   const nextAirDate = useMemo(() => {
     const firstAirDate = (details as TvDetails)?.firstAirDate;
     const nextAirDate = (details as TvDetails)?.nextEpisodeToAir?.airDate;
     if (nextAirDate && firstAirDate !== nextAirDate) {
-      return new Date(nextAirDate).toLocaleDateString(
-        `${locale}-${region}`,
-        dateOpts,
-      );
+      return formatSeerrDate(nextAirDate, tag);
     }
-  }, [details]);
+  }, [details, tag]);
 
   const revenue = useMemo(
     () =>
-      (details as MovieDetails)?.revenue?.toLocaleString?.(
-        `${locale}-${region}`,
-        { style: "currency", currency: "USD" },
-      ),
-    [details],
+      (details as MovieDetails)?.revenue?.toLocaleString?.(tag, {
+        style: "currency",
+        currency: "USD",
+      }),
+    [details, tag],
   );
 
   const budget = useMemo(
     () =>
-      (details as MovieDetails)?.budget?.toLocaleString?.(
-        `${locale}-${region}`,
-        { style: "currency", currency: "USD" },
-      ),
-    [details],
+      (details as MovieDetails)?.budget?.toLocaleString?.(tag, {
+        style: "currency",
+        currency: "USD",
+      }),
+    [details, tag],
   );
 
   const streamingProviders = useMemo(
@@ -134,8 +130,8 @@ const DetailFacts: React.FC<
 
   return (
     details && (
-      <View className='p-4'>
-        <Text className='text-lg font-bold'>{t("seerr.details")}</Text>
+      <View className='px-4'>
+        <Text className='text-lg font-bold mb-2'>{t("seerr.details")}</Text>
         <View
           className={`${className} flex flex-col justify-center divide-y-2 divide-neutral-800`}
           {...props}
@@ -151,7 +147,11 @@ const DetailFacts: React.FC<
           <Facts
             title={t("seerr.release_dates")}
             facts={filteredReleases?.map?.((r: Release, idx) => (
-              <View key={idx} className='flex flex-row space-x-2 items-center'>
+              <View
+                key={idx}
+                className='flex flex-row items-center'
+                style={{ gap: 8 }}
+              >
                 {r.type === 3 ? (
                   // Theatrical
                   <Ionicons name='ticket' size={16} color='white' />
@@ -166,12 +166,7 @@ const DetailFacts: React.FC<
                     color='white'
                   />
                 )}
-                <Text>
-                  {new Date(r.release_date).toLocaleDateString(
-                    `${locale}-${region}`,
-                    dateOpts,
-                  )}
-                </Text>
+                <Text>{formatSeerrDate(r.release_date, tag)}</Text>
               </View>
             ))}
           />
@@ -183,7 +178,11 @@ const DetailFacts: React.FC<
           <Facts
             title={t("seerr.production_country")}
             facts={details?.productionCountries?.map((n, idx) => (
-              <View key={idx} className='flex flex-row items-center space-x-2'>
+              <View
+                key={idx}
+                className='flex flex-row items-center'
+                style={{ gap: 8 }}
+              >
                 {n.iso_3166_1 ? (
                   <CountryFlag isoCode={n.iso_3166_1} size={10} />
                 ) : null}

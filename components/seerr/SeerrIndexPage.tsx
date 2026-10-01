@@ -1,4 +1,4 @@
-import { orderBy, uniqBy } from "lodash";
+import { orderBy } from "lodash";
 import type React from "react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -10,6 +10,7 @@ import {
 } from "react-native-reanimated";
 import Discover from "@/components/seerr/discover/Discover";
 import { useSeerr } from "@/hooks/useSeerr";
+import { searchSeerr } from "@/utils/seerr/search";
 import type { MovieResult, PersonResult, TvResult } from "@/utils/seerr/types";
 import { MediaType } from "@/utils/seerr/types";
 import { useReactNavigationQuery } from "@/utils/useReactNavigationQuery";
@@ -57,20 +58,7 @@ export const SeerrIndexPage: React.FC<Props> = ({
   } = useReactNavigationQuery({
     queryKey: ["search", "seerr", "results", searchQuery],
     queryFn: async () => {
-      const params = {
-        query: new URLSearchParams(searchQuery || "").toString(),
-      };
-      return await Promise.all([
-        seerrApi?.search({ ...params, page: 1 }),
-        seerrApi?.search({ ...params, page: 2 }),
-        seerrApi?.search({ ...params, page: 3 }),
-        seerrApi?.search({ ...params, page: 4 }),
-      ]).then((all) =>
-        uniqBy(
-          all.flatMap((v) => v?.results || []),
-          "id",
-        ),
-      );
+      return await searchSeerr(seerrApi, searchQuery);
     },
     enabled: !!seerrApi && searchQuery.length > 0,
   });

@@ -1,4 +1,4 @@
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useAtom } from "jotai";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -12,7 +12,11 @@ import { markExpectedError } from "@/utils/errors";
 import { writeErrorLog } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
 import { deleteSeerrPassword } from "@/utils/seerrPassword";
-import { signInWithQuickConnect } from "@/utils/seerrQuickConnect";
+import {
+  isQuickConnectEnabled,
+  seerrPasswordNeeded,
+  signInWithQuickConnect,
+} from "@/utils/seerrQuickConnect";
 import { seerrProbe } from "@/utils/serverUrl/probes/seerr";
 import { resolveServerUrl } from "@/utils/serverUrl/resolve";
 import { store } from "@/utils/store";
@@ -59,6 +63,9 @@ export const SeerrSettings = () => {
   const [resolvedUrl, setResolvedUrl] = useState<string | undefined>(
     settings?.seerrServerUrl ?? undefined,
   );
+  // Kept through the next attempt, unlike the mutation's own error, so the
+  // password field does not vanish while that attempt runs.
+  const [signInFailed, setSignInFailed] = useState(false);
 
   const { headers: customHeaders, resolveOptions } =
     useIntegrationHeaders("seerr");
@@ -146,17 +153,30 @@ export const SeerrSettings = () => {
       return { user: loggedInUser, url: finalUrl, apiKey: undefined };
     },
     onSuccess: ({ user: loggedInUser, url, apiKey }) => {
+      setSignInFailed(false);
       setSeerrUser(loggedInUser);
       setResolvedUrl(url);
       updateSettings({ seerrServerUrl: url, seerrApiKey: apiKey });
     },
     onError: () => {
+      setSignInFailed(true);
       toast.error(t("seerr.failed_to_login"));
     },
     onSettled: () => {
       setSeerrPassword(undefined);
     },
   });
+
+  // Signing in tries Quick Connect first: on a server that has it, neither
+  // the password nor the key that stands in for it is read, so the form does
+  // not ask for them.
+  const { data: quickConnectEnabled } = useQuery({
+    queryKey: ["jellyfin", "quickConnectEnabled", api?.basePath],
+    queryFn: async () => (api ? isQuickConnectEnabled(api) : false),
+    enabled: !!api && !seerrUser,
+    staleTime: 5 * 60 * 1000,
+  });
+  const askPassword = seerrPasswordNeeded(quickConnectEnabled, signInFailed);
 
   const clearData = () => {
     clearAllSeerrData().finally(() => {
@@ -275,7 +295,7 @@ export const SeerrSettings = () => {
                   resolveOptions={resolveOptions}
                 />
                 {urlLocked && (
-                  <Text className='text-xs text-red-600 mb-2'>
+                  <Text className='text-xs text-red-600 mt-1'>
                     {t("home.settings.disabled_by_admin")}
                   </Text>
                 )}
@@ -296,46 +316,58 @@ export const SeerrSettings = () => {
                 </Text>
               ) : (
                 <>
-                  <Text className='font-bold mb-2'>
-                    {t("home.settings.plugins.seerr.password")}
-                  </Text>
-                  <Input
-                    className='border border-neutral-800'
-                    autoFocus={true}
-                    focusable={true}
-                    placeholder={t(
-                      "home.settings.plugins.seerr.password_placeholder",
-                      { username: user?.Name },
-                    )}
-                    value={seerrPassword}
-                    keyboardType='default'
-                    secureTextEntry={true}
-                    returnKeyType='done'
-                    autoCapitalize='none'
-                    textContentType='password'
-                    onChangeText={setSeerrPassword}
-                    editable={!loginToSeerrMutation.isPending}
-                  />
-                  <Text className='font-bold mb-2 mt-4'>
-                    {t("home.settings.plugins.seerr.api_key")}
-                  </Text>
-                  <Text className='text-xs opacity-50 mb-2'>
-                    {t("home.settings.plugins.seerr.api_key_hint")}
-                  </Text>
-                  <Input
-                    className='border border-neutral-800'
-                    placeholder={t(
-                      "home.settings.plugins.seerr.api_key_placeholder",
-                    )}
-                    value={seerrApiKeyInput}
-                    keyboardType='default'
-                    secureTextEntry={true}
-                    returnKeyType='done'
-                    autoCapitalize='none'
-                    autoCorrect={false}
-                    onChangeText={setSeerrApiKeyInput}
-                    editable={!loginToSeerrMutation.isPending}
-                  />
+                  {askPassword ? (
+                    <>
+                      <Text className='font-bold mb-2'>
+                        {t("home.settings.plugins.seerr.password")}
+                      </Text>
+                      <Input
+                        className='border border-neutral-800'
+                        autoFocus={true}
+                        focusable={true}
+                        placeholder={t(
+                          "home.settings.plugins.seerr.password_placeholder",
+                          { username: user?.Name },
+                        )}
+                        value={seerrPassword}
+                        keyboardType='default'
+                        secureTextEntry={true}
+                        returnKeyType='done'
+                        autoCapitalize='none'
+                        textContentType='password'
+                        onChangeText={setSeerrPassword}
+                        editable={!loginToSeerrMutation.isPending}
+                      />
+                    </>
+                  ) : (
+                    <Text className='text-xs opacity-50 mb-2'>
+                      {t("home.settings.plugins.seerr.credentials_not_needed")}
+                    </Text>
+                  )}
+                  {askPassword && (
+                    <>
+                      <Text className='font-bold mb-2 mt-4'>
+                        {t("home.settings.plugins.seerr.api_key")}
+                      </Text>
+                      <Text className='text-xs opacity-50 mb-2'>
+                        {t("home.settings.plugins.seerr.api_key_hint")}
+                      </Text>
+                      <Input
+                        className='border border-neutral-800'
+                        placeholder={t(
+                          "home.settings.plugins.seerr.api_key_placeholder",
+                        )}
+                        value={seerrApiKeyInput}
+                        keyboardType='default'
+                        secureTextEntry={true}
+                        returnKeyType='done'
+                        autoCapitalize='none'
+                        autoCorrect={false}
+                        onChangeText={setSeerrApiKeyInput}
+                        editable={!loginToSeerrMutation.isPending}
+                      />
+                    </>
+                  )}
                 </>
               )}
               <Button

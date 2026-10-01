@@ -2,8 +2,10 @@ import axios, { type AxiosError, type AxiosInstance } from "axios";
 import { atom, useAtomValue } from "jotai";
 import { useAtom } from "jotai/index";
 import { inRange } from "lodash";
+import { Image } from "react-native";
 import {
   SEERR_COOKIES_STORAGE_KEY,
+  SEERR_IMAGE_QUALITY,
   SEERR_USER_STORAGE_KEY,
 } from "@/constants/Seerr";
 import { storage } from "@/utils/mmkv";
@@ -19,12 +21,17 @@ import {
   getIntegrationHeaders,
 } from "@/utils/customHeaders";
 import { logAndCaptureError, writeErrorLog, writeToLog } from "@/utils/log";
+import { tmdbImageUrl } from "@/utils/seerr/images";
 import {
   isMovieOrTvResult,
   mediaTypeOf,
   titleOf,
   yearOf,
 } from "@/utils/seerr/media";
+import { isSeerrQuery, touchedByRequest } from "@/utils/seerr/queries";
+import { endsSeerrSession, sendSeerrRequest } from "@/utils/seerr/requestFlow";
+import { seerrQueryString } from "@/utils/seerr/search";
+import { rememberSeerrSession } from "@/utils/seerr/session";
 import type {
   CombinedCredit,
   DiscoverSlider,
@@ -32,8 +39,11 @@ import type {
   Issue,
   MediaRequest,
   MediaRequestBody,
+  MediaResultsResponse,
   MovieDetails,
   PersonDetails,
+  PublicSettings,
+  QuotaResponse,
   RequestResultsResponse,
   RTRating,
   SeasonWithEpisodes,
@@ -42,11 +52,7 @@ import type {
   TvDetails,
   UserResultsResponse,
 } from "@/utils/seerr/types";
-import {
-  IssueStatus,
-  type IssueType,
-  MediaRequestStatus,
-} from "@/utils/seerr/types";
+import { IssueStatus, type IssueType } from "@/utils/seerr/types";
 import { isVersionBelow } from "@/utils/serverUrl/semver";
 
 interface SearchParams {
@@ -62,6 +68,14 @@ interface SearchResults {
   results: Results[];
 }
 
+// The app's own placeholder for an image Seerr has none of. The server's
+// changed name twice (overseerr_ up to Jellyseerr 2.3, jellyseerr_ up to 2.7,
+// seerr_ since Seerr 3), and a name it does not know answers with its HTML
+// page, a broken image.
+const POSTER_PLACEHOLDER = Image.resolveAssetSource(
+  require("@/assets/images/seerr-poster-placeholder.png"),
+).uri;
+
 export const clearSeerrStorageData = () => {
   storage.remove(SEERR_USER_STORAGE_KEY);
   storage.remove(SEERR_COOKIES_STORAGE_KEY);
@@ -72,6 +86,7 @@ export enum Endpoints {
   API_V1 = "/api/v1",
   SEARCH = "/search",
   REQUEST = "/request",
+  MEDIA = "/media",
   PERSON = "/person",
   COMBINED_CREDITS = "/combined_credits",
   MOVIE = "/movie",
@@ -81,6 +96,8 @@ export enum Endpoints {
   SERVICE = "/service",
   TV = "/tv",
   SETTINGS = "/settings",
+  PUBLIC = "/public",
+  QUOTA = "/quota",
   NETWORK = "/network",
   STUDIO = "/studio",
   GENRE_SLIDER = "/genreslider",
@@ -266,7 +283,7 @@ export class SeerrApi {
       .then((response) => {
         const user = response?.data;
         if (!user) throw Error("Login failed");
-        storage.setAny(SEERR_USER_STORAGE_KEY, user);
+        this.remember(user);
         return user;
       });
   }
@@ -347,7 +364,7 @@ export class SeerrApi {
 
   /** Persists a session this client just opened. */
   remember(user: SeerrUser) {
-    storage.setAny(SEERR_USER_STORAGE_KEY, user);
+    rememberSeerrSession(storage, user);
   }
 
   /** Drops the stored Seerr session, cookies included. */
@@ -387,9 +404,30 @@ export class SeerrApi {
       .then(({ data }) => data);
   }
 
-  async search(params: SearchParams): Promise<SearchResults> {
+  /** What the server makes public: whether it shows specials, takes partial requests. */
+  async publicSettings(): Promise<PublicSettings | undefined> {
     return this.axios
-      ?.get<SearchResults>(Endpoints.API_V1 + Endpoints.SEARCH, { params })
+      ?.get<PublicSettings>(
+        `${Endpoints.API_V1}${Endpoints.SETTINGS}${Endpoints.PUBLIC}`,
+      )
+      .then(({ data }) => data);
+  }
+
+  /** A user's quotas. Another user's takes Manage Users and Manage Requests. */
+  async userQuota(userId: number): Promise<QuotaResponse | undefined> {
+    return this.axios
+      ?.get<QuotaResponse>(
+        `${Endpoints.API_V1}${Endpoints.USER}/${userId}${Endpoints.QUOTA}`,
+      )
+      .then(({ data }) => data);
+  }
+
+  async search(params: SearchParams): Promise<SearchResults> {
+    // Written by hand: axios would send a space as "+", which Seerr refuses.
+    return this.axios
+      ?.get<SearchResults>(
+        `${Endpoints.API_V1}${Endpoints.SEARCH}?${seerrQueryString({ ...params })}`,
+      )
       .then(({ data }) => data);
   }
 
@@ -400,6 +438,18 @@ export class SeerrApi {
         : request;
     return this.axios
       ?.post<MediaRequest>(Endpoints.API_V1 + Endpoints.REQUEST, body)
+      .then(({ data }) => data);
+  }
+
+  /**
+   * What the library gained last, the way Seerr's recently added row asks
+   * for it (RecentlyAddedSlider).
+   */
+  async recentlyAdded(): Promise<MediaResultsResponse> {
+    return this.axios
+      ?.get<MediaResultsResponse>(Endpoints.API_V1 + Endpoints.MEDIA, {
+        params: { filter: "allavailable", take: 20, sort: "mediaAdded" },
+      })
       .then(({ data }) => data);
   }
 
@@ -426,10 +476,11 @@ export class SeerrApi {
   }
 
   async requests(
+    // Seerr's recent requests row: the ones added last.
     params = {
       filter: "all",
       take: 10,
-      sort: "modified",
+      sort: "added",
       skip: 0,
     },
   ): Promise<RequestResultsResponse> {
@@ -514,13 +565,15 @@ export class SeerrApi {
     path?: string | null,
     filter = "original",
     width = 1920,
-    quality = 75,
+    quality = SEERR_IMAGE_QUALITY,
   ) {
-    return path
-      ? `${this.axios.defaults.baseURL}/_next/image?${new URLSearchParams(
-          `url=https://image.tmdb.org/t/p/${filter}/${path}&w=${width}&q=${quality}`,
-        ).toString()}`
-      : `${this.axios?.defaults.baseURL}/images/overseerr_poster_not_found_logo_top.png`;
+    return (
+      tmdbImageUrl(this.axios.defaults.baseURL ?? "", path, {
+        filter,
+        width,
+        quality,
+      }) ?? POSTER_PLACEHOLDER
+    );
   }
 
   async submitIssue(mediaId: number, issueType: IssueType, message: string) {
@@ -601,15 +654,10 @@ export class SeerrApi {
             truncateForLog(error.response.data),
           );
         }
-        if (error.response?.status === 403) {
-          // A 403 on one request's detail is about THAT request (another
-          // user's, without MANAGE_REQUESTS) — the session itself is fine,
-          // and the recent-requests slide polls these every few seconds, so
-          // wiping here signed the user out of Seerr in a loop.
-          const isRequestDetail = /\/request\/\d+$/.test(path ?? "");
-          if (!isRequestDetail) {
-            clearSeerrStorageData();
-          }
+        // Only a read refused means the session is gone: a request past the
+        // quota is refused with a 403 too, and signed the user out of Seerr.
+        if (endsSeerrSession(status, error.config?.method, path)) {
+          clearSeerrStorageData();
         }
         return Promise.reject(error);
       },
@@ -680,38 +728,75 @@ export const useSeerr = () => {
 
   const clearAllSeerrData = useCallback(async () => {
     clearSeerrStorageData();
+    // The cache outlives the session, on the device for a day: the next
+    // Seerr would show this one's quota, seasons and settings.
+    queryClient.removeQueries({
+      predicate: (query) => isSeerrQuery(query.queryKey),
+    });
     setSeerrUser(undefined);
     updateSettings({
       seerrServerUrl: undefined,
       seerrApiKey: undefined,
     });
-  }, []);
+  }, [queryClient]);
 
+  // Marks what a request, an approval or a decline changed as stale, so each
+  // page shows it once the user is back there, and an open sheet's quota at
+  // once.
+  const refreshAfterRequest = useCallback(
+    (title?: { mediaType: string; mediaId: number }) =>
+      queryClient.invalidateQueries({
+        predicate: (query) => touchedByRequest(title)(query.queryKey),
+      }),
+    [queryClient],
+  );
+
+  // Resolves once Seerr has answered, for a sheet to know the request ended,
+  // or at once when the same request is already on its way.
   const requestMedia = useCallback(
-    (title: string, request: MediaRequestBody, onSuccess?: () => void) => {
-      seerrApi?.request?.(request)?.then(async (mediaRequest) => {
-        await queryClient.invalidateQueries({
-          queryKey: ["search", "seerr"],
-        });
-
-        switch (mediaRequest.status) {
-          case MediaRequestStatus.PENDING:
-          case MediaRequestStatus.APPROVED:
-            toast.success(t("seerr.toasts.requested_item", { item: title }));
-            onSuccess?.();
-            break;
-          case MediaRequestStatus.DECLINED:
-            toast.error(t("seerr.toasts.you_dont_have_permission_to_request"));
-            break;
-          case MediaRequestStatus.FAILED:
-            toast.error(
-              t("seerr.toasts.something_went_wrong_requesting_media"),
-            );
-            break;
-        }
+    (
+      title: string,
+      request: MediaRequestBody,
+      onSuccess?: () => void,
+    ): Promise<void> => {
+      if (!seerrApi) return Promise.resolve();
+      return sendSeerrRequest({
+        key: JSON.stringify(request),
+        send: () => seerrApi.request(request),
+        refresh: () =>
+          refreshAfterRequest({
+            mediaType: request.mediaType,
+            mediaId: request.mediaId,
+          }),
+        onOutcome: (outcome) => {
+          switch (outcome.kind) {
+            case "requested":
+              toast.success(t("seerr.toasts.requested_item", { item: title }));
+              onSuccess?.();
+              break;
+            case "declined":
+              toast.error(
+                t("seerr.toasts.you_dont_have_permission_to_request"),
+              );
+              break;
+            case "failed":
+              toast.error(
+                t("seerr.toasts.something_went_wrong_requesting_media"),
+              );
+              break;
+            // Seerr's own reason under the app's words, such as "Series
+            // Quota exceeded.".
+            case "refused":
+              toast.error(
+                t("seerr.toasts.something_went_wrong_requesting_media"),
+                { description: outcome.message },
+              );
+              break;
+          }
+        },
       });
     },
-    [seerrApi],
+    [seerrApi, refreshAfterRequest],
   );
 
   const seerrRegion = useMemo(
@@ -736,5 +821,6 @@ export const useSeerr = () => {
     seerrRegion,
     seerrLocale,
     requestMedia,
+    refreshAfterRequest,
   };
 };

@@ -12,7 +12,10 @@ jest.mock("@/utils/log", () => ({
   readFromLog: () => [],
 }));
 
-import { attemptQuickConnectSignIn } from "./seerrQuickConnect";
+import {
+  attemptQuickConnectSignIn,
+  seerrPasswordNeeded,
+} from "./seerrQuickConnect";
 
 const SEERR_USER = { id: 7 } as SeerrUser;
 
@@ -194,5 +197,24 @@ describe("attemptQuickConnectSignIn", () => {
     await expect(attemptQuickConnectSignIn(s)).rejects.toThrow(
       "socket hang up",
     );
+  });
+});
+
+// The password only matters when Quick Connect cannot open the session.
+describe("seerrPasswordNeeded", () => {
+  test("asks for it while nobody knows whether Quick Connect is on", () => {
+    expect(seerrPasswordNeeded(undefined, false)).toBe(true);
+  });
+
+  test("asks for it when Quick Connect is off", () => {
+    expect(seerrPasswordNeeded(false, false)).toBe(true);
+  });
+
+  test("does without it when Quick Connect is on", () => {
+    expect(seerrPasswordNeeded(true, false)).toBe(false);
+  });
+
+  test("asks for it again once signing in has failed", () => {
+    expect(seerrPasswordNeeded(true, true)).toBe(true);
   });
 });

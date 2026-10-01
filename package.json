@@ -186,6 +186,7 @@
   },
   "jest": {
     "preset": "jest-expo",
+    "globalSetup": "<rootDir>/test-utils/timeZone.ts",
     "transformIgnorePatterns": [
       "node_modules/(?!(.bun|(jest-)?react-native|@react-native(-community)?|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@sentry/.*|@jellyfin/sdk|native-base|react-native-svg))"
     ],

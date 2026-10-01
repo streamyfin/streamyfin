@@ -3,11 +3,11 @@ import type {
   BaseItemKind,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import { useLocalSearchParams, useNavigation, useSegments } from "expo-router";
 import { useAtom } from "jotai";
-import { orderBy, uniqBy } from "lodash";
+import { orderBy } from "lodash";
 import {
   useCallback,
   useEffect,
@@ -18,7 +18,13 @@ import {
   useState,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { Platform, ScrollView, TouchableOpacity, View } from "react-native";
+import {
+  Platform,
+  RefreshControl,
+  ScrollView,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CardRow } from "@/components/cards/CardRow";
 import { Image } from "@/components/common/ServerImage";
@@ -46,6 +52,8 @@ import { isAbortLikeError } from "@/utils/errors";
 import { eventBus } from "@/utils/eventBus";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { logAndCaptureError } from "@/utils/log";
+import { isSeerrQuery } from "@/utils/seerr/queries";
+import { searchSeerr } from "@/utils/seerr/search";
 import type { MovieResult, PersonResult, TvResult } from "@/utils/seerr/types";
 import { MediaType } from "@/utils/seerr/types";
 import { createStreamystatsApi } from "@/utils/streamystats";
@@ -79,6 +87,22 @@ export default function SearchPage() {
   const { q } = params as { q: string };
 
   const [searchType, setSearchType] = useState<SearchType>("Library");
+
+  // Pulling down asks again for what the screen shows: Discover's rows and
+  // the results of either search.
+  const queryClient = useQueryClient();
+  const [refreshing, setRefreshing] = useState(false);
+  const refresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await queryClient.invalidateQueries({
+        predicate: (query) =>
+          query.queryKey[0] === "search" || isSeerrQuery(query.queryKey),
+      });
+    } finally {
+      setRefreshing(false);
+    }
+  }, [queryClient]);
   const [search, setSearch] = useState<string>("");
 
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -452,20 +476,7 @@ export default function SearchPage() {
   const { data: seerrTVResults, isFetching: seerrTVLoading } = useQuery({
     queryKey: ["search", "seerr", "tv", debouncedSearch],
     queryFn: async () => {
-      const params = {
-        query: new URLSearchParams(debouncedSearch || "").toString(),
-      };
-      return await Promise.all([
-        seerrApi?.search({ ...params, page: 1 }),
-        seerrApi?.search({ ...params, page: 2 }),
-        seerrApi?.search({ ...params, page: 3 }),
-        seerrApi?.search({ ...params, page: 4 }),
-      ]).then((all) =>
-        uniqBy(
-          all.flatMap((v) => v?.results || []),
-          "id",
-        ),
-      );
+      return await searchSeerr(seerrApi, debouncedSearch);
     },
     enabled:
       Platform.isTV &&
@@ -616,6 +627,9 @@ export default function SearchPage() {
     <ScrollView
       keyboardDismissMode='on-drag'
       contentInsetAdjustmentBehavior='automatic'
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={refresh} />
+      }
       contentContainerStyle={{
         paddingLeft: insets.left,
         paddingRight: insets.right,

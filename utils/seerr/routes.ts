@@ -36,6 +36,13 @@ const DUNE = 693134;
 const GAME_OF_THRONES = 1399;
 const BRAD_PITT = 287;
 
+/**
+ * Stands for the id of the account the capture signs in with, for a route
+ * that answers for that account and for no other without an administrator's
+ * rights.
+ */
+export const SIGNED_IN_USER = "{signed-in user}";
+
 export const APP_ROUTES: AppRoute[] = [
   { template: "GET /status" },
   { template: "GET /auth/me" },
@@ -65,6 +72,11 @@ export const APP_ROUTES: AppRoute[] = [
 
   { template: "GET /request", query: { take: 3 } },
   { template: "GET /request/count" },
+  {
+    template: "GET /media",
+    query: { filter: "allavailable", take: 3, sort: "mediaAdded" },
+    note: "Discover's recently added row, as Seerr's RecentlyAddedSlider asks for it.",
+  },
 
   { template: "GET /movie/{movieId}", params: { movieId: DUNE } },
   {
@@ -94,4 +106,14 @@ export const APP_ROUTES: AppRoute[] = [
     note: "Answers an empty list when nothing is configured, which is still a shape.",
   },
   { template: "GET /service/sonarr" },
+
+  {
+    template: "GET /settings/public",
+    note: "Whether the server shows the specials and takes partial series requests.",
+  },
+  {
+    template: "GET /user/{userId}/quota",
+    params: { userId: SIGNED_IN_USER },
+    note: "Another user's quota takes Manage Users and Manage Requests, so it is the capture's own.",
+  },
 ];

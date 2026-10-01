@@ -12,7 +12,7 @@ import { useLocalSearchParams, useNavigation } from "expo-router";
 import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Platform, View } from "react-native";
+import { Platform, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { toast } from "sonner-native";
 import { Button } from "@/components/Button";
@@ -26,13 +26,16 @@ import { SeerrRatings } from "@/components/Ratings";
 import Cast from "@/components/seerr/Cast";
 import DetailFacts from "@/components/seerr/DetailFacts";
 import RequestModal from "@/components/seerr/RequestModal";
+import { SeerrRequestIcon } from "@/components/seerr/SeerrRequestIcon";
 import { TVSeerrPage } from "@/components/seerr/tv";
 import SeerrSeasons from "@/components/series/SeerrSeasons";
 import { ItemActions } from "@/components/series/SeriesActions";
+import { SeerrIssueColors, SheetColors } from "@/constants/Colors";
+import { POSTER_ASPECT_RATIO } from "@/constants/Values";
 import useRouter from "@/hooks/useAppRouter";
 import { useDismissKeyboardOnLeave } from "@/hooks/useDismissKeyboardOnLeave";
 import { useSeerr } from "@/hooks/useSeerr";
-import { useSeerrCanRequest } from "@/hooks/useSeerrCanRequest";
+import { useSeerrRequestOffer } from "@/hooks/useSeerrRequestOffer";
 import { writeErrorLog } from "@/utils/log";
 import { ANIME_KEYWORD_ID } from "@/utils/seerr/data";
 import { hasPermission, Permission } from "@/utils/seerr/permissions";
@@ -50,6 +53,7 @@ import {
   MediaRequestStatus,
   MediaType,
 } from "@/utils/seerr/types";
+import { createSubmission } from "@/utils/submission";
 
 // Mobile page component
 const MobilePage: React.FC = () => {
@@ -69,7 +73,7 @@ const MobilePage: React.FC = () => {
     } & Partial<MovieResult | TvResult | MovieDetails | TvDetails>;
 
   const navigation = useNavigation();
-  const { seerrApi, seerrUser, requestMedia } = useSeerr();
+  const { seerrApi, seerrUser, requestMedia, refreshAfterRequest } = useSeerr();
 
   const [issueType, setIssueType] = useState<IssueType>();
   const [issueMessage, setIssueMessage] = useState<string>();
@@ -99,8 +103,9 @@ const MobilePage: React.FC = () => {
     },
   });
 
-  const [canRequest, hasAdvancedRequestPermission] =
-    useSeerrCanRequest(details);
+  // Request, or Seerr's Request more on a series it knows with seasons left.
+  const { hasAdvancedRequestPermission, requestMore, offersRequest } =
+    useSeerrRequestOffer(details, mediaType);
 
   const canManageRequests = useMemo(() => {
     if (!seerrUser) return false;
@@ -120,11 +125,12 @@ const MobilePage: React.FC = () => {
       await seerrApi?.approveRequest(pendingRequest.id);
       toast.success(t("seerr.toasts.request_approved"));
       refetch();
+      refreshAfterRequest();
     } catch (error) {
       toast.error(t("seerr.toasts.failed_to_approve_request"));
       console.error("Failed to approve request:", error);
     }
-  }, [seerrApi, pendingRequest, refetch, t]);
+  }, [seerrApi, pendingRequest, refetch, refreshAfterRequest, t]);
 
   const handleDeclineRequest = useCallback(async () => {
     if (!pendingRequest?.id) return;
@@ -133,11 +139,12 @@ const MobilePage: React.FC = () => {
       await seerrApi?.declineRequest(pendingRequest.id);
       toast.success(t("seerr.toasts.request_declined"));
       refetch();
+      refreshAfterRequest();
     } catch (error) {
       toast.error(t("seerr.toasts.failed_to_decline_request"));
       console.error("Failed to decline request:", error);
     }
-  }, [seerrApi, pendingRequest, refetch, t]);
+  }, [seerrApi, pendingRequest, refetch, refreshAfterRequest, t]);
 
   const renderBackdrop = useCallback(
     (props: BottomSheetBackdropProps) => (
@@ -150,26 +157,36 @@ const MobilePage: React.FC = () => {
     [],
   );
 
+  const issueSubmission = useRef(createSubmission()).current;
   const submitIssue = useCallback(() => {
     // A title Seerr has never seen carries no mediaInfo, so there is nothing
     // to file an issue against.
     const mediaId = details?.mediaInfo?.id;
-    if (result.id && issueType && issueMessage && mediaId !== undefined) {
-      seerrApi
-        ?.submitIssue(mediaId, Number(issueType), issueMessage)
-        .then(() => {
-          setIssueType(undefined);
-          setIssueMessage(undefined);
-          bottomSheetModalRef?.current?.close();
-        })
-        // The response interceptor already logs and reports the failure with
-        // its route; an uncaught rejection here would re-report it as a
-        // stackless unhandledrejection event.
-        .catch((error) => {
-          writeErrorLog("Seerr submitIssue failed", String(error));
-        });
-    }
-  }, [seerrApi, details, result, issueType, issueMessage]);
+    if (
+      !seerrApi ||
+      !result.id ||
+      !issueType ||
+      !issueMessage ||
+      mediaId === undefined
+    )
+      return;
+    // A second tap while the first is on its way would file the issue twice.
+    if (!issueSubmission.start()) return;
+    seerrApi
+      .submitIssue(mediaId, Number(issueType), issueMessage)
+      .then(() => {
+        setIssueType(undefined);
+        setIssueMessage(undefined);
+        bottomSheetModalRef?.current?.close();
+      })
+      // The response interceptor already logs and reports the failure with
+      // its route; an uncaught rejection here would re-report it as a
+      // stackless unhandledrejection event.
+      .catch((error) => {
+        writeErrorLog("Seerr submitIssue failed", String(error));
+      })
+      .finally(() => issueSubmission.finish());
+  }, [seerrApi, details, result, issueType, issueMessage, issueSubmission]);
 
   const handleIssueModalDismiss = useCallback(() => {
     setIssueTypeDropdownOpen(false);
@@ -190,14 +207,11 @@ const MobilePage: React.FC = () => {
       // TMDB sends null for a show it has no TVDB id for, and the request
       // schema takes a number or nothing.
       tvdbId: details?.externalIds?.tvdbId ?? undefined,
-      ...(mediaType === MediaType.TV && {
-        seasons: (details as TvDetails)?.seasons
-          ?.filter?.((s) => s.seasonNumber !== 0)
-          ?.map?.((s) => s.seasonNumber),
-      }),
+      // A series opens Seerr's season table with nothing chosen yet.
+      ...(mediaType === MediaType.TV && { seasons: [] }),
     };
 
-    if (hasAdvancedRequestPermission) {
+    if (hasAdvancedRequestPermission || mediaType === MediaType.TV) {
       setRequestBody(body);
       return;
     }
@@ -298,7 +312,9 @@ const MobilePage: React.FC = () => {
         }
       >
         <View className='flex flex-col'>
-          <View className='space-y-4'>
+          {/* Gaps as styles here: a release build drops the space-x and
+              space-y classes. */}
+          <View style={{ gap: 16 }}>
             <View className='px-4'>
               <View className='flex flex-row justify-between w-full'>
                 <View className='flex flex-col w-56'>
@@ -317,7 +333,10 @@ const MobilePage: React.FC = () => {
                   <Text className='opacity-50'>{releaseYear}</Text>
                 </View>
                 <Image
-                  className='absolute bottom-1 right-1 rounded-lg w-28 aspect-[10/15] border-2 border-neutral-800/50 drop-shadow-2xl'
+                  className='absolute bottom-1 right-1 rounded-lg w-28 border-2 border-neutral-800/50 drop-shadow-2xl'
+                  // As a style: a release build drops the aspect-[10/15] class
+                  // from an image, and the poster came out as a thin bar.
+                  style={{ aspectRatio: POSTER_ASPECT_RATIO }}
                   cachePolicy={"memory-disk"}
                   transition={300}
                   source={{
@@ -337,21 +356,26 @@ const MobilePage: React.FC = () => {
                   color='purple'
                   className='mt-4'
                 />
-              ) : canRequest ? (
-                <Button color='purple' onPress={request} className='mt-4'>
-                  {t("seerr.request_button")}
-                </Button>
               ) : (
-                jellyfinMediaId && (
-                  <View className='flex flex-row space-x-2 mt-4'>
-                    {!Platform.isTV && (
+                (jellyfinMediaId || offersRequest) && (
+                  // As on Seerr's page: play, then request, then the issue
+                  // report as a button of its own icon.
+                  <View className='flex flex-row mt-4' style={{ gap: 8 }}>
+                    {jellyfinMediaId && (
                       <Button
-                        className='flex-1 bg-yellow-500/50 border-yellow-400 ring-yellow-400 text-yellow-100'
-                        color='transparent'
-                        onPress={() => bottomSheetModalRef?.current?.present()}
+                        className='flex-1 bg-purple-600/50 border-purple-400 ring-purple-400 text-purple-100'
+                        onPress={() => {
+                          router.push({
+                            pathname:
+                              mediaType === MediaType.MOVIE
+                                ? "/(auth)/(tabs)/(search)/items/page"
+                                : "/(auth)/(tabs)/(search)/series/[id]",
+                            params: { id: jellyfinMediaId },
+                          });
+                        }}
                         iconLeft={
                           <Ionicons
-                            name='warning-outline'
+                            name='play-outline'
                             size={20}
                             color='white'
                           />
@@ -361,38 +385,56 @@ const MobilePage: React.FC = () => {
                           borderStyle: "solid",
                         }}
                       >
+                        <Text className='text-sm'>{t("common.play")}</Text>
+                      </Button>
+                    )}
+                    {offersRequest && (
+                      <Button
+                        color='purple'
+                        className='flex-1'
+                        onPress={request}
+                        iconLeft={<SeerrRequestIcon />}
+                      >
+                        {/* Play's size, beside it. */}
                         <Text className='text-sm'>
-                          {t("seerr.report_issue_button")}
+                          {requestMore
+                            ? t("seerr.request_more")
+                            : t("seerr.request_button")}
                         </Text>
                       </Button>
                     )}
-                    <Button
-                      className='flex-1 bg-purple-600/50 border-purple-400 ring-purple-400 text-purple-100'
-                      onPress={() => {
-                        router.push({
-                          pathname:
-                            mediaType === MediaType.MOVIE
-                              ? "/(auth)/(tabs)/(search)/items/page"
-                              : "/(auth)/(tabs)/(search)/series/[id]",
-                          params: { id: jellyfinMediaId },
-                        });
-                      }}
-                      iconLeft={
-                        <Ionicons name='play-outline' size={20} color='white' />
-                      }
-                      style={{
-                        borderWidth: 1,
-                        borderStyle: "solid",
-                      }}
-                    >
-                      <Text className='text-sm'>{t("common.play")}</Text>
-                    </Button>
+                    {jellyfinMediaId && !Platform.isTV && (
+                      <TouchableOpacity
+                        accessibilityRole='button'
+                        accessibilityLabel={t("seerr.report_issue_button")}
+                        onPress={() => bottomSheetModalRef?.current?.present()}
+                        style={{
+                          aspectRatio: 1,
+                          alignSelf: "stretch",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          borderRadius: 12,
+                          borderWidth: 1,
+                          borderColor: SeerrIssueColors.border,
+                          backgroundColor: SeerrIssueColors.background,
+                        }}
+                      >
+                        <Ionicons
+                          name='warning-outline'
+                          size={20}
+                          color='white'
+                        />
+                      </TouchableOpacity>
+                    )}
                   </View>
                 )
               )}
               {canManageRequests && pendingRequest && (
-                <View className='flex flex-col space-y-2 mt-4'>
-                  <View className='flex flex-row items-center space-x-2'>
+                <View className='flex flex-col mt-4' style={{ gap: 8 }}>
+                  <View
+                    className='flex flex-row items-center'
+                    style={{ gap: 8 }}
+                  >
                     <Ionicons name='person-outline' size={16} color='#9CA3AF' />
                     <Text className='text-sm text-neutral-400'>
                       {t("seerr.requested_by", {
@@ -404,7 +446,7 @@ const MobilePage: React.FC = () => {
                       })}
                     </Text>
                   </View>
-                  <View className='flex flex-row space-x-2'>
+                  <View className='flex flex-row' style={{ gap: 8 }}>
                     <Button
                       className='flex-1 bg-green-600/50 border-green-400 ring-green-400 text-green-100'
                       color='transparent'
@@ -449,15 +491,19 @@ const MobilePage: React.FC = () => {
 
             {mediaType === MediaType.TV && (
               <SeerrSeasons
-                isLoading={isLoading || isFetching}
+                // Only before the first answer: a refetch keeps the list, and
+                // with it the open seasons and the scroll position.
+                isLoading={isLoading}
                 details={details as TvDetails}
                 refetch={refetch}
                 hasAdvancedRequest={hasAdvancedRequestPermission}
+                offersRequest={offersRequest}
                 onAdvancedRequest={(data) => setRequestBody(data)}
               />
             )}
             <DetailFacts
-              className='p-2 border border-neutral-800 bg-neutral-900 rounded-xl'
+              // The rows give the vertical rhythm, the box only the sides.
+              className='px-3 border border-neutral-800 bg-neutral-900 rounded-xl'
               details={details}
             />
             <Cast details={details} />
@@ -471,6 +517,10 @@ const MobilePage: React.FC = () => {
         id={result.id!}
         type={mediaType}
         isAnime={isAnime}
+        details={
+          mediaType === MediaType.TV ? (details as TvDetails) : undefined
+        }
+        advanced={hasAdvancedRequestPermission}
         onRequested={() => {
           _setRequestBody(undefined);
           advancedReqModalRef?.current?.close();
@@ -487,20 +537,20 @@ const MobilePage: React.FC = () => {
             backgroundColor: "white",
           }}
           backgroundStyle={{
-            backgroundColor: "#171717",
+            backgroundColor: SheetColors.background,
           }}
           backdropComponent={renderBackdrop}
           stackBehavior='push'
           onDismiss={handleIssueModalDismiss}
         >
           <BottomSheetView>
-            <View className='flex flex-col space-y-4 px-4 pb-8 pt-2'>
+            <View className='flex flex-col px-4 pb-8 pt-2' style={{ gap: 16 }}>
               <View>
                 <Text className='font-bold text-2xl text-neutral-100'>
                   {t("seerr.whats_wrong")}
                 </Text>
               </View>
-              <View className='flex flex-col space-y-2 items-start'>
+              <View className='flex flex-col items-start' style={{ gap: 8 }}>
                 <View className='flex flex-col w-full'>
                   <Text className='opacity-50 mb-1 text-xs'>
                     {t("seerr.issue_type")}
@@ -528,7 +578,7 @@ const MobilePage: React.FC = () => {
                     maxLength={254}
                     style={{ color: "white" }}
                     clearButtonMode='always'
-                    placeholder={t("seerr.describe_the_issue")}
+                    placeholder={t("seerr.issue_details")}
                     placeholderTextColor='#9CA3AF'
                     // Issue with multiline + Textinput inside a portal
                     // https://github.com/callstack/react-native-paper/issues/1668

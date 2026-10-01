@@ -1,4 +1,3 @@
-import { useQuery } from "@tanstack/react-query";
 import { useSegments } from "expo-router";
 import type React from "react";
 import { useCallback } from "react";
@@ -6,10 +5,10 @@ import { TouchableOpacity, type ViewProps } from "react-native";
 import GenericSlideCard from "@/components/seerr/discover/GenericSlideCard";
 import Slide, { type SlideProps } from "@/components/seerr/discover/Slide";
 import useRouter from "@/hooks/useAppRouter";
-import { Endpoints, useSeerr } from "@/hooks/useSeerr";
+import { useSeerr } from "@/hooks/useSeerr";
+import { useSeerrGenreSliders } from "@/hooks/useSeerrDiscoverData";
 import { genreColorMap } from "@/utils/seerr/data";
 import type { GenreSliderItem } from "@/utils/seerr/types";
-import { DiscoverSliderType } from "@/utils/seerr/types";
 
 const GenreSlide: React.FC<SlideProps & ViewProps> = ({ slide, ...props }) => {
   const segments = useSegments();
@@ -26,17 +25,7 @@ const GenreSlide: React.FC<SlideProps & ViewProps> = ({ slide, ...props }) => {
     [slide],
   );
 
-  const { data } = useQuery({
-    queryKey: ["seerr", "discover", slide.type, slide.id],
-    queryFn: async () => {
-      return seerrApi?.getGenreSliders(
-        slide.type === DiscoverSliderType.MOVIE_GENRES
-          ? Endpoints.MOVIE
-          : Endpoints.TV,
-      );
-    },
-    enabled: !!seerrApi,
-  });
+  const { data } = useSeerrGenreSliders(slide);
 
   return (
     data && (

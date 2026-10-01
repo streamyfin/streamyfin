@@ -9,3 +9,6 @@ export const POSTER_CAROUSEL_HEIGHT = 220;
 // the window height. The ceiling keeps the page visible behind a long list,
 // which is what tells the user the sheet is a layer and not a new screen.
 export const SHEET_MAX_HEIGHT_RATIO = 0.85;
+
+/** A poster's width over its height, as TMDB's artwork is cut. */
+export const POSTER_ASPECT_RATIO = 10 / 15;

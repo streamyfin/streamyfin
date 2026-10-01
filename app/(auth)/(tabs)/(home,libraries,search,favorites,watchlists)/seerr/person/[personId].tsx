@@ -1,45 +1,31 @@
-import { useQuery } from "@tanstack/react-query";
 import { useLocalSearchParams } from "expo-router";
-import { orderBy, uniqBy } from "lodash";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { Platform } from "react-native";
 import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { OverviewText } from "@/components/OverviewText";
 import SeerrPoster from "@/components/posters/SeerrPoster";
 import ParallaxSlideShow from "@/components/seerr/ParallaxSlideShow";
+import { TVSeerrPersonPage } from "@/components/seerr/tv/TVSeerrPersonPage";
 import { useSeerr } from "@/hooks/useSeerr";
-import type { PersonCreditCast } from "@/utils/seerr/types";
+import { useSeerrPerson } from "@/hooks/useSeerrPerson";
+import { seerrLocaleTag } from "@/utils/seerr/dates";
+import { birthLine, roleKey } from "@/utils/seerr/person";
 
 export default function SeerrPersonPage() {
-  const local = useLocalSearchParams();
+  const { personId } = useLocalSearchParams() as { personId: string };
+  // The phone's page scrolls posters no remote can reach.
+  if (Platform.isTV) return <TVSeerrPersonPage personId={personId} />;
+  return <MobilePersonPage personId={personId} />;
+}
+
+function MobilePersonPage({ personId }: { personId: string }) {
   const { t } = useTranslation();
-
   const { seerrApi, seerrRegion: region, seerrLocale: locale } = useSeerr();
+  const { details, roles: castedRoles } = useSeerrPerson(personId);
+  const born = birthLine(t, details, seerrLocaleTag(locale, region));
 
-  const { personId } = local as { personId: string };
-
-  const { data } = useQuery({
-    queryKey: ["seerr", "person", personId],
-    queryFn: async () => ({
-      details: await seerrApi?.personDetails(personId),
-      combinedCredits: await seerrApi?.personCombinedCredits(personId),
-    }),
-    enabled: !!seerrApi && !!personId,
-  });
-
-  const castedRoles: PersonCreditCast[] = useMemo(
-    () =>
-      uniqBy(
-        orderBy(
-          data?.combinedCredits?.cast,
-          ["voteCount", "voteAverage"],
-          "desc",
-        ),
-        "id",
-      ),
-    [data?.combinedCredits],
-  );
   const backdrops = useMemo(
     () =>
       seerrApi
@@ -47,7 +33,7 @@ export default function SeerrPersonPage() {
             seerrApi.imageProxy(c.backdropPath, "w1920_and_h800_multi_faces"),
           )
         : [],
-    [seerrApi, data?.combinedCredits],
+    [seerrApi, castedRoles],
   );
 
   return (
@@ -55,15 +41,15 @@ export default function SeerrPersonPage() {
       data={castedRoles}
       images={backdrops}
       listHeader={t("seerr.appearances")}
-      keyExtractor={(item) => item.id.toString()}
+      keyExtractor={roleKey}
       logo={
         <Image
-          key={data?.details?.id}
-          id={data?.details?.id.toString()}
+          key={details?.id}
+          id={details?.id.toString()}
           className='rounded-full bottom-1'
           source={{
             uri: seerrApi?.imageProxy(
-              data?.details?.profilePath,
+              details?.profilePath,
               "w600_and_h600_bestv2",
             ),
           }}
@@ -77,24 +63,12 @@ export default function SeerrPersonPage() {
       }
       HeaderContent={() => (
         <>
-          <Text className='font-bold text-2xl mb-1'>{data?.details?.name}</Text>
-          <Text className='opacity-50'>
-            {t("seerr.born")}{" "}
-            {data?.details?.birthday &&
-              new Date(data.details.birthday).toLocaleDateString(
-                `${locale}-${region}`,
-                {
-                  year: "numeric",
-                  month: "long",
-                  day: "numeric",
-                },
-              )}{" "}
-            | {data?.details?.placeOfBirth}
-          </Text>
+          <Text className='font-bold text-2xl mb-1'>{details?.name}</Text>
+          {!!born && <Text className='opacity-50'>{born}</Text>}
         </>
       )}
       MainContent={() => (
-        <OverviewText text={data?.details?.biography} className='mt-4' />
+        <OverviewText text={details?.biography} className='mt-4' />
       )}
       renderItem={(item, _index) => <SeerrPoster item={item} />}
     />

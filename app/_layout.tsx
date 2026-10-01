@@ -627,6 +627,14 @@ function Layout() {
                                         }}
                                       />
                                       <Stack.Screen
+                                        name='(auth)/tv-issue-modal'
+                                        options={{
+                                          headerShown: false,
+                                          presentation: "transparentModal",
+                                          animation: "fade",
+                                        }}
+                                      />
+                                      <Stack.Screen
                                         name='(auth)/tv-series-season-modal'
                                         options={{
                                           headerShown: false,
