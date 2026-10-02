@@ -136,3 +136,11 @@ Bidirectional navigation and the rest of the API live in
 A fix that is not purely visual applies to both phone and TV. When you change playback,
 reporting, settings resolution or any other shared behaviour, carry it to the TV surface
 in the same PR, and say so in the description.
+
+The native player's episode shelf keeps artwork cards as its only focus targets.
+The details below follow the focused episode (the playing episode on opening):
+title, localized numbering, runtime, air date, ratings, watched status and up to
+three lines of synopsis. The mobile native picker shows the full synopsis in its
+scrolling rows. Both use the same optional display fields from `buildEpisodeList`;
+missing server or downloaded metadata is omitted. Native text uses SwiftUI text
+styles or the Compose TV Material typography rather than React Native typography.
