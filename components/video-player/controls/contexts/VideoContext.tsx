@@ -58,6 +58,7 @@ import {
 } from "react";
 import { Platform } from "react-native";
 import useRouter from "@/hooks/useAppRouter";
+import { useTrackSelectionMemory } from "@/hooks/useTrackSelectionMemory";
 import type { MpvAudioTrack } from "@/modules";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
@@ -68,7 +69,6 @@ import {
   getExternalSubtitleUrl,
   isImageBasedSubtitle,
 } from "@/utils/jellyfin/subtitleUtils";
-import { rememberSeriesTrackFromRow } from "@/utils/seriesTrackMemory";
 import {
   isLocalSubtitleIndex,
   SUBTITLES_OFF,
@@ -100,9 +100,10 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
   const api = useAtomValue(apiAtom);
   const router = useRouter();
   const { settings } = useSettings();
+  const { rememberTrack } = useTrackSelectionMemory();
 
   /**
-   * Persist a deliberate pick as the series preference, exactly as the native
+   * Persist a deliberate pick for replay and series matching, as the native
    * player and the item pages do — a menu that changes the track but remembers
    * nothing is why the next episode used to come back on the server's default.
    *
@@ -115,7 +116,13 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
     (kind: "audio" | "subtitle", row: TrackMenuRow) => void
   >(() => {});
   rememberRef.current = (kind, row) =>
-    rememberSeriesTrackFromRow({ item, kind, row, settings });
+    rememberTrack({
+      item,
+      kind,
+      row,
+      settings,
+      mediaSourceId: mediaSource?.Id ?? undefined,
+    });
 
   const { itemId, audioIndex, bitrateValue, subtitleIndex, playbackPosition } =
     useLocalSearchParams<{
@@ -140,8 +147,12 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
     const parsed = Number.parseInt(raw ?? "", 10);
     return Number.isFinite(parsed) ? parsed : undefined;
   };
-  const currentSubtitleIndex = asIndex(subtitleIndex) ?? SUBTITLES_OFF;
-  const currentAudioIndex = asIndex(audioIndex);
+  const currentSubtitleIndex =
+    asIndex(subtitleIndex) ??
+    mediaSource?.DefaultSubtitleStreamIndex ??
+    SUBTITLES_OFF;
+  const currentAudioIndex =
+    asIndex(audioIndex) ?? mediaSource?.DefaultAudioStreamIndex ?? undefined;
 
   /** Client-side downloads that still exist on disk (the cache may be cleared). */
   const localSubFiles = useMemo(() => {

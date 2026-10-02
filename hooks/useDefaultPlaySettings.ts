@@ -1,7 +1,11 @@
 import { type BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { useMemo } from "react";
+import { useTrackSelectionMemory } from "@/hooks/useTrackSelectionMemory";
 import type { Settings } from "@/utils/atoms/settings";
-import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
+import {
+  getDefaultPlaySettings,
+  type PlaySettingsOptions,
+} from "@/utils/jellyfin/getDefaultPlaySettings";
 
 /**
  * React hook wrapper for getDefaultPlaySettings.
@@ -13,10 +17,12 @@ import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings"
 const useDefaultPlaySettings = (
   item: BaseItemDto | null | undefined,
   settings: Settings | null,
-) =>
-  useMemo(() => {
+  options?: PlaySettingsOptions,
+) => {
+  const { memoryScope } = useTrackSelectionMemory();
+  return useMemo(() => {
     const { mediaSource, audioIndex, subtitleIndex, bitrate } =
-      getDefaultPlaySettings(item, settings);
+      getDefaultPlaySettings(item, settings, { ...options, memoryScope });
 
     return {
       defaultMediaSource: mediaSource,
@@ -24,6 +30,7 @@ const useDefaultPlaySettings = (
       defaultSubtitleIndex: subtitleIndex,
       defaultBitrate: bitrate,
     };
-  }, [item, settings]);
+  }, [item, settings, options, memoryScope]);
+};
 
 export default useDefaultPlaySettings;

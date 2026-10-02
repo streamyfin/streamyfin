@@ -28,6 +28,7 @@ import { useSettings } from "@/utils/atoms/settings";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { getDownloadStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import { logAndCaptureError } from "@/utils/log";
+import { getTrackMemoryScope } from "@/utils/seriesTrackMemory";
 import { AudioTrackSelector } from "./AudioTrackSelector";
 import { type Bitrate, BitrateSelector } from "./BitrateSelector";
 import { Button } from "./Button";
@@ -84,6 +85,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
 }) => {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
+  const memoryScope = getTrackMemoryScope(user);
   const [queue, _setQueue] = useAtom(queueAtom);
   const { settings } = useSettings();
   const router = useRouter();
@@ -241,7 +243,9 @@ export const DownloadItems: React.FC<DownloadProps> = ({
 
         const { mediaSource, audioIndex, subtitleIndex } =
           itemsNotDownloaded.length > 1
-            ? getDefaultPlaySettings(itemForDownload, settings!)
+            ? getDefaultPlaySettings(itemForDownload, settings!, {
+                memoryScope,
+              })
             : {
                 mediaSource: selectedOptions?.mediaSource,
                 audioIndex: selectedOptions?.audioIndex,
@@ -294,11 +298,13 @@ export const DownloadItems: React.FC<DownloadProps> = ({
         // Get the audio/subtitle indices that were used for this download
         const downloadAudioIndex =
           itemsNotDownloaded.length > 1
-            ? getDefaultPlaySettings(item, settings!).audioIndex
+            ? getDefaultPlaySettings(item, settings!, { memoryScope })
+                .audioIndex
             : selectedOptions?.audioIndex;
         const downloadSubtitleIndex =
           itemsNotDownloaded.length > 1
-            ? getDefaultPlaySettings(item, settings!).subtitleIndex
+            ? getDefaultPlaySettings(item, settings!, { memoryScope })
+                .subtitleIndex
             : selectedOptions?.subtitleIndex;
 
         await startBackgroundDownload(

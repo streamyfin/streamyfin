@@ -117,7 +117,7 @@ export const getStreamUrl = async ({
   maxStreamingBitrate,
   playSessionId,
   deviceProfile,
-  audioStreamIndex = 0,
+  audioStreamIndex,
   subtitleStreamIndex = undefined,
   mediaSourceId,
   deviceId,
@@ -139,6 +139,10 @@ export const getStreamUrl = async ({
   sessionId: string | null;
   mediaSource: MediaSourceInfo | undefined;
   requiredHttpHeaders?: Record<string, string>;
+  /** Soundtrack chosen by PlaybackInfo, used for player initialization and reporting. */
+  audioIndex: number | undefined;
+  /** Subtitle chosen by PlaybackInfo; -1 means off. */
+  subtitleIndex: number;
 } | null> => {
   if (!api || !userId || !item?.Id) {
     console.warn("Missing required parameters for getStreamUrl");
@@ -147,6 +151,15 @@ export const getStreamUrl = async ({
 
   let mediaSource: MediaSourceInfo | undefined;
   let sessionId: string | null | undefined;
+  // Jellyfin only applies explicit indexes to a named source. Bare play links
+  // may omit that ID, but their indexes belong to the item's first version.
+  let selectedMediaSourceId = mediaSourceId;
+  if (
+    !selectedMediaSourceId &&
+    (audioStreamIndex !== undefined || subtitleStreamIndex !== undefined)
+  ) {
+    selectedMediaSourceId = item.MediaSources?.[0]?.Id;
+  }
 
   // Please do not remove this we need this for live TV to be working correctly.
   if (item.Type === BaseItemKind.Program) {
@@ -183,9 +196,12 @@ export const getStreamUrl = async ({
         ),
       );
     }
+    const audioIndex = mediaSource.DefaultAudioStreamIndex ?? audioStreamIndex;
+    const subtitleIndex =
+      mediaSource.DefaultSubtitleStreamIndex ?? subtitleStreamIndex ?? -1;
     const url = getPlaybackUrl(api, item.ChannelId!, mediaSource, {
-      subtitleStreamIndex,
-      audioStreamIndex,
+      subtitleStreamIndex: subtitleIndex,
+      audioStreamIndex: audioIndex,
       deviceId,
       startTimeTicks: 0,
       maxStreamingBitrate,
@@ -196,6 +212,8 @@ export const getStreamUrl = async ({
       url,
       sessionId: sessionId || null,
       mediaSource,
+      audioIndex,
+      subtitleIndex,
       requiredHttpHeaders: mediaSource?.RequiredHttpHeaders as
         | Record<string, string>
         | undefined,
@@ -217,7 +235,7 @@ export const getStreamUrl = async ({
         autoOpenLiveStream: true,
         maxStreamingBitrate,
         audioStreamIndex,
-        mediaSourceId,
+        mediaSourceId: selectedMediaSourceId,
       },
     },
   );
@@ -243,9 +261,12 @@ export const getStreamUrl = async ({
     );
   }
 
+  const audioIndex = mediaSource.DefaultAudioStreamIndex ?? audioStreamIndex;
+  const subtitleIndex =
+    mediaSource.DefaultSubtitleStreamIndex ?? subtitleStreamIndex ?? -1;
   const url = getPlaybackUrl(api, item.Id!, mediaSource, {
-    subtitleStreamIndex,
-    audioStreamIndex,
+    subtitleStreamIndex: subtitleIndex,
+    audioStreamIndex: audioIndex,
     deviceId,
     startTimeTicks,
     maxStreamingBitrate,
@@ -257,6 +278,8 @@ export const getStreamUrl = async ({
     url,
     sessionId: sessionId || null,
     mediaSource,
+    audioIndex,
+    subtitleIndex,
     requiredHttpHeaders: mediaSource?.RequiredHttpHeaders as
       | Record<string, string>
       | undefined,

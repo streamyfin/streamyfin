@@ -10,6 +10,94 @@ import { bodyContaining, makeApi } from "@/test-utils/jellyfinApi";
 import { getDownloadStreamUrl, getStreamUrl } from "./getStreamUrl";
 
 describe("getStreamUrl", () => {
+  test("sends an explicit zero/off selection with its media source", async () => {
+    const api = makeApi();
+    api.mock
+      .onPost("https://jellyfin.example.com/Items/item-1/PlaybackInfo")
+      .reply(200, {
+        PlaySessionId: "session-1",
+        MediaSources: [
+          {
+            Id: "media-1",
+            DefaultAudioStreamIndex: 0,
+            DefaultSubtitleStreamIndex: -1,
+          },
+        ],
+      });
+    const result = await getStreamUrl({
+      api,
+      item: { Id: "item-1", Type: "Movie", MediaSources: [{ Id: "media-1" }] },
+      userId: "user-1",
+      startTimeTicks: 0,
+      deviceProfile: {},
+      audioStreamIndex: 0,
+      subtitleStreamIndex: -1,
+    });
+    expect(JSON.parse(api.mock.history.post[0].data)).toMatchObject({
+      mediaSourceId: "media-1",
+      audioStreamIndex: 0,
+      subtitleStreamIndex: -1,
+    });
+    expect(result).toMatchObject({ audioIndex: 0, subtitleIndex: -1 });
+  });
+
+  test("lets Jellyfin choose missing tracks and uses the negotiated indexes in the URL and result", async () => {
+    const api = makeApi();
+    api.mock
+      .onPost("https://jellyfin.example.com/Items/item-1/PlaybackInfo")
+      .reply(200, {
+        PlaySessionId: "session-1",
+        MediaSources: [
+          {
+            Id: "media-1",
+            DefaultAudioStreamIndex: 4,
+            DefaultSubtitleStreamIndex: 7,
+          },
+        ],
+      });
+    const result = await getStreamUrl({
+      api,
+      item: { Id: "item-1", Type: "Movie" },
+      userId: "user-1",
+      startTimeTicks: 0,
+      deviceProfile: {},
+    });
+    const request = JSON.parse(api.mock.history.post[0].data);
+    expect(request).not.toHaveProperty("audioStreamIndex");
+    expect(request).not.toHaveProperty("subtitleStreamIndex");
+    expect(result).toMatchObject({ audioIndex: 4, subtitleIndex: 7 });
+    const url = new URL(result!.url!);
+    expect(url.searchParams.get("audioStreamIndex")).toBe("4");
+    expect(url.searchParams.get("subtitleStreamIndex")).toBe("7");
+  });
+
+  test.each([0, -1])(
+    "preserves the server subtitle index %s",
+    async (subtitleIndex) => {
+      const api = makeApi();
+      api.mock
+        .onPost("https://jellyfin.example.com/Items/item-1/PlaybackInfo")
+        .reply(200, {
+          PlaySessionId: "session-1",
+          MediaSources: [
+            {
+              Id: "media-1",
+              DefaultAudioStreamIndex: 0,
+              DefaultSubtitleStreamIndex: subtitleIndex,
+            },
+          ],
+        });
+      const result = await getStreamUrl({
+        api,
+        item: { Id: "item-1", Type: "Movie" },
+        userId: "user-1",
+        startTimeTicks: 0,
+        deviceProfile: {},
+      });
+      expect(result).toMatchObject({ audioIndex: 0, subtitleIndex });
+    },
+  );
+
   test("direct play URL carries the source container and the ApiKey", async () => {
     const api = makeApi();
     api.mock

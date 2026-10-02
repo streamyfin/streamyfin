@@ -1,123 +1,175 @@
-import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
-import { writeInfoLog } from "@/utils/log";
+import type {
+  BaseItemDto,
+  MediaStream,
+  UserDto,
+} from "@jellyfin/sdk/lib/generated-client";
+import {
+  TRACK_MEMORY_MAX_ENTRIES,
+  TRACK_MEMORY_STORAGE_KEY,
+} from "@/constants/Playback";
+import { writeErrorLog } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
 import type { TrackMenuRow } from "@/utils/subtitles/trackMenu";
 
-/**
- * Per-series audio/subtitle preference, written when a track is deliberately
- * picked inside the player and read by getDefaultPlaySettings when a fresh
- * session of the same series starts. Stored by language (not stream index)
- * because indexes differ between episode files.
- */
-export interface SeriesTrackMemory {
-  /** ISO 639-2 code of the last audio track picked. */
-  audioLang?: string;
-  /** ISO 639-2 code of the last subtitle picked, or "off" for subtitles off. */
-  subtitleLang?: string;
+/** Identity of a selected audio or subtitle stream, without server paths or URLs. */
+export interface RememberedTrack {
+  /** Version whose stream indexes the snapshot uses. */
+  mediaSourceId?: string;
+  /** Metadata used to distinguish same-language tracks across files. */
+  stream: MediaStream;
+}
+
+/** Local identities for offline replay and equivalent tracks in new episodes. */
+export interface TrackSelectionMemory {
+  /** Selected soundtrack, including title and channel metadata. */
+  audio?: RememberedTrack;
+  /** Selected subtitle, or an explicit disabled selection. */
+  subtitle?: RememberedTrack | "off";
+  /** Last deliberate change, used for bounded-cache eviction. */
   updatedAt: number;
 }
 
-const STORAGE_KEY = "seriesTrackMemory.v1";
-const MAX_SERIES = 100;
+/** Per-kind switches mirrored from the Jellyfin user profile. */
+export interface RememberTrackSettings {
+  /** Remember soundtrack selections. */
+  rememberAudioSelections?: boolean;
+  /** Remember subtitle selections, including off. */
+  rememberSubtitleSelections?: boolean;
+}
 
-type MemoryMap = Record<string, SeriesTrackMemory>;
+/** Cached selections keyed by the item or series ID. */
+type MemoryMap = Record<string, TrackSelectionMemory>;
 
-function readAll(): MemoryMap {
-  const raw = storage.getString(STORAGE_KEY);
+/** Scope selections by Jellyfin's stable server and user identifiers. */
+export function getTrackMemoryScope(
+  user: UserDto | null | undefined,
+): string | undefined {
+  if (!user?.ServerId || !user.Id) return undefined;
+  return `${user.ServerId}:${user.Id}`;
+}
+
+/** Read a scoped cache; old unscoped entries cannot safely be assigned to an account. */
+function readAll(scope: string, collection: "item" | "series"): MemoryMap {
+  const raw = storage.getString(
+    `${TRACK_MEMORY_STORAGE_KEY}:${scope}:${collection}`,
+  );
   if (!raw) return {};
   try {
-    return JSON.parse(raw) as MemoryMap;
-  } catch {
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      throw new Error("Invalid track memory cache");
+    }
+    return parsed as MemoryMap;
+  } catch (error) {
+    writeErrorLog("Unable to read track selection memory", {
+      error: error instanceof Error ? error.message : String(error),
+    });
     return {};
   }
 }
 
+/** Read equivalent-track preferences for new episodes in this account. */
 export function getSeriesTrackMemory(
   seriesId: string,
-): SeriesTrackMemory | undefined {
-  return readAll()[seriesId];
+  scope?: string,
+): TrackSelectionMemory | undefined {
+  return scope ? readAll(scope, "series")[seriesId] : undefined;
 }
 
-/** The two toggles that gate writing — a subset of Settings, so callers can
- * pass the settings object straight through. */
-export interface RememberTrackSettings {
-  rememberAudioSelections?: boolean;
-  rememberSubtitleSelections?: boolean;
+/** Read a video's local identity cache for offline playback, not online defaults. */
+export function getItemTrackMemory(
+  itemId: string,
+  scope?: string,
+): TrackSelectionMemory | undefined {
+  return scope ? readAll(scope, "item")[itemId] : undefined;
 }
 
 /**
- * Persist a deliberate track pick as the series preference.
- *
- * Takes the menu row the user actually pressed rather than an index plus a
- * stream list. That difference matters: the row carries its own language, so
- * the write cannot consult a list that was refetched since the menu was built —
- * which is how a just-downloaded subtitle used to store nothing at all. It also
- * makes the inert rows unrepresentable rather than something each call site has
- * to remember to skip.
- *
- * Shared by every surface that lets the user choose a track. Memory only some
- * of them write is memory the user can't trust: picking English on the details
- * page and having the next episode come back Turkish is indistinguishable from
- * the feature being broken.
+ * Capture the actual pressed row for either track kind. Jellyfin owns online
+ * replay defaults; these snapshots are used offline and across new episodes.
  */
-export function rememberSeriesTrackFromRow(options: {
+export function rememberTrackSelectionFromRow(options: {
+  /** Video whose menu the user opened. */
   item: BaseItemDto | null | undefined;
+  /** Kind of selection being remembered. */
   kind: "audio" | "subtitle";
-  row: Pick<TrackMenuRow, "kind" | "language">;
+  /** Pressed row carrying its original stream metadata. */
+  row: Pick<TrackMenuRow, "kind" | "index" | "stream">;
+  /** Selected version; defaults to the item's first media source. */
+  mediaSourceId?: string;
+  /** Stable authenticated account scope. */
+  memoryScope?: string;
+  /** Per-kind opt-in settings. */
   settings: RememberTrackSettings | null | undefined;
 }): void {
-  const { item, kind, row, settings } = options;
-  if (item?.Type !== "Episode" || !item.SeriesId) return;
-
+  const { item, kind, row, settings, memoryScope } = options;
+  if (!item || row.kind === "sidecar" || row.kind === "burnedIn") return;
   const enabled =
     kind === "audio"
       ? settings?.rememberAudioSelections
       : settings?.rememberSubtitleSelections;
   if (!enabled) return;
+  if (!memoryScope) {
+    writeErrorLog("Cannot remember a track without an authenticated account");
+    return;
+  }
 
-  // A sidecar has no server-side identity and a burned-in row is inert — there
-  // is nothing about either that the next episode could act on.
-  if (row.kind === "sidecar" || row.kind === "burnedIn") return;
-
+  let selection: RememberedTrack | "off";
   if (kind === "subtitle" && row.kind === "off") {
-    rememberSeriesTrack(item.SeriesId, { subtitleLang: "off" });
-    return;
+    selection = "off";
+  } else {
+    if (row.kind !== "server" || !row.stream) {
+      writeErrorLog("Cannot remember a track without its stream metadata", {
+        itemId: item.Id,
+        kind,
+      });
+      return;
+    }
+    const stream = row.stream;
+    selection = {
+      mediaSourceId:
+        options.mediaSourceId ?? item.MediaSources?.[0]?.Id ?? undefined,
+      stream: {
+        Index: row.index,
+        Type: kind === "audio" ? "Audio" : "Subtitle",
+        Language: stream.Language,
+        Title: stream.Title,
+        DisplayTitle: stream.DisplayTitle,
+        Codec: stream.Codec,
+        Profile: stream.Profile,
+        Channels: stream.Channels,
+        ChannelLayout: stream.ChannelLayout,
+        IsForced: stream.IsForced === true,
+        IsHearingImpaired: stream.IsHearingImpaired === true,
+        IsExternal: stream.IsExternal === true,
+      },
+    };
   }
-  if (row.kind !== "server") return;
-
-  if (!row.language) {
-    // A stream with no Language tag can't be matched in the next episode
-    // (indexes don't carry over), so there is nothing worth storing. Logged
-    // because from the outside this is indistinguishable from "not saved".
-    writeInfoLog("Series track memory: stream has no language, not stored", {
-      seriesId: item.SeriesId,
-      kind,
-    });
-    return;
+  const patch = { [kind]: selection };
+  if (item.Id) writeMemory(memoryScope, "item", item.Id, patch);
+  if (item.Type === "Episode" && item.SeriesId) {
+    writeMemory(memoryScope, "series", item.SeriesId, patch);
   }
-
-  rememberSeriesTrack(
-    item.SeriesId,
-    kind === "audio"
-      ? { audioLang: row.language }
-      : { subtitleLang: row.language },
-  );
 }
 
-export function rememberSeriesTrack(
-  seriesId: string,
-  patch: { audioLang?: string; subtitleLang?: string },
+/** Merge the changed kind into a bounded cache without clearing the other selection. */
+function writeMemory(
+  scope: string,
+  collection: "item" | "series",
+  id: string,
+  patch: Partial<Omit<TrackSelectionMemory, "updatedAt">>,
 ): void {
-  const all = readAll();
-  all[seriesId] = { ...all[seriesId], ...patch, updatedAt: Date.now() };
+  const all = readAll(scope, collection);
+  all[id] = { ...all[id], ...patch, updatedAt: Date.now() };
   const ids = Object.keys(all);
-  if (ids.length > MAX_SERIES) {
+  if (ids.length > TRACK_MEMORY_MAX_ENTRIES) {
     const oldest = ids
-      .sort((a, b) => (all[a].updatedAt ?? 0) - (all[b].updatedAt ?? 0))
-      .slice(0, ids.length - MAX_SERIES);
-    for (const id of oldest) {
-      delete all[id];
-    }
+      .sort((a, b) => all[a].updatedAt - all[b].updatedAt)
+      .slice(0, ids.length - TRACK_MEMORY_MAX_ENTRIES);
+    for (const old of oldest) delete all[old];
   }
-  storage.set(STORAGE_KEY, JSON.stringify(all));
+  storage.set(
+    `${TRACK_MEMORY_STORAGE_KEY}:${scope}:${collection}`,
+    JSON.stringify(all),
+  );
 }

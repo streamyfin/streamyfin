@@ -44,15 +44,12 @@ export const useShuffleQueue = () => {
       setShuffleQueue({ seriesId, items });
 
       const first = items[0];
-      const { mediaSource, audioIndex, subtitleIndex, bitrate } =
-        getDefaultPlaySettings(first, settings);
+      const { mediaSource, bitrate } = getDefaultPlaySettings(first, settings);
 
       // The queue was just set — the chooser must not clear it.
       void playMedia(
         {
           itemId: first.Id ?? "",
-          audioIndex,
-          subtitleIndex,
           mediaSourceId: mediaSource?.Id ?? undefined,
           bitrateValue: bitrate?.value,
           offline: options.isOffline ?? false,

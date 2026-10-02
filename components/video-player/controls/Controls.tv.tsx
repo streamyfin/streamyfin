@@ -42,6 +42,7 @@ import useRouter from "@/hooks/useAppRouter";
 import { useMediaSegments } from "@/hooks/useMediaSegments";
 import { usePlaybackManager } from "@/hooks/usePlaybackManager";
 import type { SegmentType } from "@/hooks/useSegmentSkipper";
+import { useTrackSelectionMemory } from "@/hooks/useTrackSelectionMemory";
 import { useTrickplay } from "@/hooks/useTrickplay";
 import { useTVOptionModal } from "@/hooks/useTVOptionModal";
 import { useTVSubtitleModal } from "@/hooks/useTVSubtitleModal";
@@ -53,7 +54,6 @@ import { useSettings } from "@/utils/atoms/settings";
 import type { TVOptionItem } from "@/utils/atoms/tvOptionModal";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { useSegments } from "@/utils/segments";
-import { rememberSeriesTrackFromRow } from "@/utils/seriesTrackMemory";
 import { SUBTITLES_OFF } from "@/utils/subtitles/subtitleIndex";
 import {
   buildAudioMenu,
@@ -256,6 +256,7 @@ export const Controls: FC<Props> = ({
   }, [screenWidth, insets.left, insets.right]);
   const api = useAtomValue(apiAtom);
   const { settings } = useSettings();
+  const { memoryScope, rememberTrack } = useTrackSelectionMemory();
   const router = useRouter();
   const { bitrateValue } = useLocalSearchParams<{
     bitrateValue: string;
@@ -321,10 +322,16 @@ export const Controls: FC<Props> = ({
 
   const handleAudioChange = useCallback(
     (row: TrackMenuRow) => {
-      rememberSeriesTrackFromRow({ item, kind: "audio", row, settings });
+      rememberTrack({
+        item,
+        kind: "audio",
+        row,
+        settings,
+        mediaSourceId: mediaSource?.Id ?? undefined,
+      });
       onAudioIndexChange?.(row.index);
     },
-    [onAudioIndexChange, item, settings],
+    [onAudioIndexChange, item, settings, rememberTrack, mediaSource?.Id],
   );
 
   // Quality options mirror the mobile menu: value is the max bitrate as a
@@ -368,11 +375,12 @@ export const Controls: FC<Props> = ({
           setTrack: () => {
             // These rows are built here rather than in VideoContext, so they do
             // not pass through the write it performs — persist them directly.
-            rememberSeriesTrackFromRow({
+            rememberTrack({
               item,
               kind: "subtitle",
               row,
               settings,
+              mediaSourceId: mediaSource?.Id ?? undefined,
             });
             onSubtitleIndexChange?.(row.index);
           },
@@ -380,7 +388,14 @@ export const Controls: FC<Props> = ({
     } catch {
       return [];
     }
-  }, [onRefreshSubtitleTracks, onSubtitleIndexChange, item, settings]);
+  }, [
+    onRefreshSubtitleTracks,
+    onSubtitleIndexChange,
+    item,
+    settings,
+    mediaSource?.Id,
+    rememberTrack,
+  ]);
 
   const {
     trickPlayUrl,
@@ -1205,6 +1220,7 @@ export const Controls: FC<Props> = ({
         audioIndex: defaultAudioIndex,
         subtitleIndex: defaultSubtitleIndex,
       } = getDefaultPlaySettings(nextItem, settings, {
+        memoryScope,
         indexes: previousIndexes,
         source: mediaSource ?? undefined,
       });

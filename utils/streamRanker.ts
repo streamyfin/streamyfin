@@ -2,6 +2,11 @@ import type {
   MediaSourceInfo,
   MediaStream,
 } from "@jellyfin/sdk/lib/generated-client";
+import {
+  STREAM_MATCH_MIN_SCORE,
+  STREAM_MATCH_SCORES,
+} from "@/constants/Playback";
+import { langEq } from "@/utils/jellyfin/subtitleUtils";
 
 abstract class StreamRankerStrategy {
   abstract streamType: string;
@@ -15,37 +20,59 @@ abstract class StreamRankerStrategy {
 
   /**
    * Score how well a candidate stream matches the previously selected stream.
-   * Overridable so subtitle ranking can add mode (forced / hearing-impaired)
-   * awareness without changing audio behavior.
+   * Soundtrack titles outrank format changes so commentary cannot replace the
+   * main track merely because its codec matches. Subtitle mode scoring overrides
+   * this strategy below.
    */
   protected computeScore(
     prevStream: MediaStream,
     stream: MediaStream,
-    prevRelIndex: number,
+    prevRelIndex: number | undefined,
     newRelIndex: number,
   ): number {
     let score = 0;
 
-    if (prevStream.Codec === stream.Codec) {
-      score += 1;
+    const hasLanguage = !!prevStream.Language && prevStream.Language !== "und";
+    if (hasLanguage && !langEq(prevStream.Language, stream.Language)) {
+      return 0;
+    }
+    if (hasLanguage) score += STREAM_MATCH_SCORES.audioLanguage;
+    if (
+      prevStream.IsHearingImpaired !== undefined &&
+      !!prevStream.IsHearingImpaired !== !!stream.IsHearingImpaired
+    ) {
+      return score;
+    }
+    if (prevStream.Title && prevStream.Title === stream.Title) {
+      score += STREAM_MATCH_SCORES.audioTitle;
+    }
+    if (
+      prevStream.Channels != null &&
+      prevStream.Channels === stream.Channels
+    ) {
+      score += STREAM_MATCH_SCORES.audioChannels;
+    }
+    if (
+      prevStream.ChannelLayout &&
+      prevStream.ChannelLayout === stream.ChannelLayout
+    ) {
+      score += STREAM_MATCH_SCORES.audioChannelLayout;
+    }
+    if (prevStream.Profile && prevStream.Profile === stream.Profile) {
+      score += STREAM_MATCH_SCORES.audioProfile;
+    }
+    if (prevStream.Codec && prevStream.Codec === stream.Codec) {
+      score += STREAM_MATCH_SCORES.codec;
     }
     if (prevRelIndex === newRelIndex) {
-      score += 1;
+      score += STREAM_MATCH_SCORES.position;
     }
     if (
       prevStream.DisplayTitle &&
       prevStream.DisplayTitle === stream.DisplayTitle
     ) {
-      score += 2;
+      score += STREAM_MATCH_SCORES.displayTitle;
     }
-    if (
-      prevStream.Language &&
-      prevStream.Language !== "und" &&
-      prevStream.Language === stream.Language
-    ) {
-      score += 2;
-    }
-
     return score;
   }
 
@@ -69,10 +96,9 @@ abstract class StreamRankerStrategy {
       return;
     }
 
-    let bestStreamIndex = null;
-    let bestStreamScore = 0;
-
-    const prevStream = prevSource.MediaStreams[prevIndex];
+    const prevStream = prevSource.MediaStreams.find(
+      (stream) => stream.Index === prevIndex,
+    );
 
     if (!prevStream) {
       console.debug(`AutoSet ${this.streamType} - No prevStream`);
@@ -96,9 +122,34 @@ abstract class StreamRankerStrategy {
       prevRelIndex += 1;
     }
 
+    const bestStream = this.findMatchingStream(
+      prevStream,
+      mediaStreams,
+      prevRelIndex,
+    );
+    if (bestStream?.Index != null) {
+      console.debug(`AutoSet ${this.streamType} - Using ${bestStream.Index}.`);
+      trackOptions[`Default${this.streamType}StreamIndex`] = bestStream.Index;
+      trackOptions.matched = true;
+    } else {
+      console.debug(
+        `AutoSet ${this.streamType} - Threshold not met. Using default.`,
+      );
+    }
+  }
+
+  /** Match stored identity without assuming it carries a full previous stream list. */
+  findMatchingStream(
+    prevStream: MediaStream,
+    mediaStreams: MediaStream[],
+    prevRelIndex?: number,
+    preferSameIndex = false,
+  ): MediaStream | undefined {
+    let bestStream: MediaStream | undefined;
+    let bestStreamScore = 0;
     let newRelIndex = 0;
     for (const stream of mediaStreams) {
-      if (stream.Type !== this.streamType) {
+      if (stream.Type !== this.streamType || typeof stream.Index !== "number") {
         continue;
       }
 
@@ -112,25 +163,22 @@ abstract class StreamRankerStrategy {
       console.debug(
         `AutoSet ${this.streamType} - Score ${score} for ${stream.Index} - ${stream.DisplayTitle}`,
       );
-      if (score > bestStreamScore && score >= 3) {
+      const retainsExactIndex =
+        preferSameIndex &&
+        score === bestStreamScore &&
+        stream.Index === prevStream.Index;
+      if (
+        score >= STREAM_MATCH_MIN_SCORE &&
+        (score > bestStreamScore || retainsExactIndex)
+      ) {
         bestStreamScore = score;
-        bestStreamIndex = stream.Index;
+        bestStream = stream;
       }
 
       newRelIndex += 1;
     }
 
-    if (bestStreamIndex != null) {
-      console.debug(
-        `AutoSet ${this.streamType} - Using ${bestStreamIndex} score ${bestStreamScore}.`,
-      );
-      trackOptions[`Default${this.streamType}StreamIndex`] = bestStreamIndex;
-      trackOptions.matched = true;
-    } else {
-      console.debug(
-        `AutoSet ${this.streamType} - Threshold not met. Using default.`,
-      );
-    }
+    return bestStream;
   }
 }
 
@@ -138,61 +186,66 @@ class SubtitleStreamRanker extends StreamRankerStrategy {
   streamType = "Subtitle";
 
   /**
-   * Subtitle scoring that retains both language and mode across episodes.
-   *
-   * - When the previous track has a language: a language match is weighted high
-   *   (+3) so it clears the threshold even when codec / title / position differ,
-   *   and mode (forced / hearing-impaired) acts as a tiebreaker among
-   *   same-language tracks. Different-language candidates get no language or mode
-   *   points, so they can never be selected on mode alone (no cross-language
-   *   hijack).
-   * - When the previous track has NO usable language (common for SRT/SUBRIP):
-   *   language can't help, so mode (forced / hearing-impaired) + codec + relative
-   *   position become the identity signal. Without this, unlabeled subtitles
-   *   score only codec+relIndex (≤2) and the selection is silently lost.
+   * Retain subtitle language, forced/SDH mode and identity across files.
+   * Equivalent modes beat coincidentally matching titles; titles then outrank
+   * codec/position. A different language is never matched on metadata alone.
    */
   protected computeScore(
     prevStream: MediaStream,
     stream: MediaStream,
-    prevRelIndex: number,
+    prevRelIndex: number | undefined,
     newRelIndex: number,
   ): number {
     let score = 0;
 
-    if (prevStream.Codec === stream.Codec) {
-      score += 1;
+    const prevHasLanguage =
+      !!prevStream.Language && prevStream.Language !== "und";
+    const languageMatches =
+      prevHasLanguage && langEq(prevStream.Language, stream.Language);
+
+    if (languageMatches) {
+      score += STREAM_MATCH_SCORES.subtitleLanguage;
+    } else if (prevHasLanguage) {
+      return 0;
+    }
+
+    if (
+      !!prevStream.IsForced !== !!stream.IsForced ||
+      !!prevStream.IsHearingImpaired !== !!stream.IsHearingImpaired
+    ) {
+      return score;
+    }
+
+    if (prevStream.Codec && prevStream.Codec === stream.Codec) {
+      score += STREAM_MATCH_SCORES.codec;
     }
     if (prevRelIndex === newRelIndex) {
-      score += 1;
+      score += STREAM_MATCH_SCORES.position;
+    }
+    if (prevStream.Title && prevStream.Title === stream.Title) {
+      score += STREAM_MATCH_SCORES.subtitleTitle;
     }
     if (
       prevStream.DisplayTitle &&
       prevStream.DisplayTitle === stream.DisplayTitle
     ) {
-      score += 2;
+      score += STREAM_MATCH_SCORES.displayTitle;
     }
-
-    const prevHasLanguage =
-      !!prevStream.Language && prevStream.Language !== "und";
-    const languageMatches =
-      prevHasLanguage && prevStream.Language === stream.Language;
-
-    if (languageMatches) {
-      score += 3;
-    } else if (prevHasLanguage) {
-      // Previous track had a language but this candidate's differs — do not award
-      // mode points, so a different language is never matched on mode alone.
-      return score;
+    if (
+      prevStream.IsExternal !== undefined &&
+      !!prevStream.IsExternal === !!stream.IsExternal
+    ) {
+      score += STREAM_MATCH_SCORES.external;
     }
 
     // Either the language matched, or the previous track had no language (so mode
     // is the primary identity). Normalize the flags to booleans since
     // IsForced / IsHearingImpaired may be undefined.
     if (!!prevStream.IsForced === !!stream.IsForced) {
-      score += 2;
+      score += STREAM_MATCH_SCORES.forced;
     }
     if (!!prevStream.IsHearingImpaired === !!stream.IsHearingImpaired) {
-      score += 1;
+      score += STREAM_MATCH_SCORES.hearingImpaired;
     }
 
     return score;
@@ -239,6 +292,20 @@ class StreamRanker {
     trackOptions: any,
   ) {
     this.strategy.rankStream(prevIndex, prevSource, mediaStreams, trackOptions);
+  }
+
+  /** Match remembered metadata, retaining an identical video's index only on a tie. */
+  findMatchingStream(
+    previous: MediaStream,
+    streams: MediaStream[],
+    preferSameIndex = false,
+  ): MediaStream | undefined {
+    return this.strategy.findMatchingStream(
+      previous,
+      streams,
+      undefined,
+      preferSameIndex,
+    );
   }
 }
 

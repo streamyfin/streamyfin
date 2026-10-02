@@ -8,8 +8,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ActivityIndicator, TouchableOpacity, View } from "react-native";
 import type { ThemeColors } from "@/hooks/useImageColorsReturn";
+import { useTrackSelectionMemory } from "@/hooks/useTrackSelectionMemory";
 import { useSettings } from "@/utils/atoms/settings";
-import { rememberSeriesTrackFromRow } from "@/utils/seriesTrackMemory";
 import { SUBTITLES_OFF } from "@/utils/subtitles/subtitleIndex";
 import { buildAudioMenu, buildSubtitleMenu } from "@/utils/subtitles/trackMenu";
 import { BITRATES } from "./BitrateSelector";
@@ -31,6 +31,7 @@ export const MediaSourceButton: React.FC<Props> = ({
   setSelectedOptions,
   colors,
 }: Props) => {
+  const { rememberTrack } = useTrackSelectionMemory();
   const { t } = useTranslation();
   const { settings } = useSettings();
   const [open, setOpen] = useState(false);
@@ -112,14 +113,23 @@ export const MediaSourceButton: React.FC<Props> = ({
           selected: source.Id === selectedOptions.mediaSource?.Id,
           onPress: () =>
             setSelectedOptions(
-              (prev) => prev && { ...prev, mediaSource: source },
+              (prev) =>
+                prev && {
+                  ...prev,
+                  mediaSource: source,
+                  audioIndex: source.DefaultAudioStreamIndex ?? undefined,
+                  subtitleIndex:
+                    source.DefaultSubtitleStreamIndex ?? SUBTITLES_OFF,
+                  audioSelectionExplicit: false,
+                  subtitleSelectionExplicit: false,
+                },
             ),
         })),
       });
     }
 
     // A pick here is as deliberate as one made inside the player, so it feeds
-    // the per-series memory the same way — otherwise the next episode comes
+    // replay and series memory the same way — otherwise the next episode comes
     // back on the server's default track.
     if (audioRows.length > 0) {
       groups.push({
@@ -131,13 +141,19 @@ export const MediaSourceButton: React.FC<Props> = ({
           selected: row.selected,
           onPress: () => {
             setSelectedOptions(
-              (prev) => prev && { ...prev, audioIndex: row.index },
+              (prev) =>
+                prev && {
+                  ...prev,
+                  audioIndex: row.index,
+                  audioSelectionExplicit: true,
+                },
             );
-            rememberSeriesTrackFromRow({
+            rememberTrack({
               item,
               kind: "audio",
               row,
               settings,
+              mediaSourceId: selectedOptions.mediaSource?.Id ?? undefined,
             });
           },
         })),
@@ -152,13 +168,19 @@ export const MediaSourceButton: React.FC<Props> = ({
         selected: row.selected,
         onPress: () => {
           setSelectedOptions(
-            (prev) => prev && { ...prev, subtitleIndex: row.index },
+            (prev) =>
+              prev && {
+                ...prev,
+                subtitleIndex: row.index,
+                subtitleSelectionExplicit: true,
+              },
           );
-          rememberSeriesTrackFromRow({
+          rememberTrack({
             item,
             kind: "subtitle",
             row,
             settings,
+            mediaSourceId: selectedOptions.mediaSource?.Id ?? undefined,
           });
         },
       }));
@@ -172,6 +194,7 @@ export const MediaSourceButton: React.FC<Props> = ({
     return groups;
   }, [
     item,
+    rememberTrack,
     selectedOptions,
     audioRows,
     subtitleRows,

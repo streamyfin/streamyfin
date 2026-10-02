@@ -13,6 +13,29 @@ export interface PlayRequest {
   playbackPositionTicks?: number;
 }
 
+/** Menu values distinguish a deliberate pick from a possibly stale automatic default. */
+export interface TrackMenuSelection {
+  /** Displayed soundtrack index. */
+  audioIndex?: number;
+  /** Displayed subtitle index, including off. */
+  subtitleIndex?: number;
+  /** The user explicitly selected this soundtrack for this play request. */
+  audioSelectionExplicit?: boolean;
+  /** The user explicitly selected this subtitle for this play request. */
+  subtitleSelectionExplicit?: boolean;
+}
+
+/** Only deliberate menu picks may override fresh server or download defaults. */
+export function getExplicitTrackIndexes(selection: TrackMenuSelection) {
+  return {
+    audioIndex: selection.audioSelectionExplicit
+      ? selection.audioIndex
+      : undefined,
+    subtitleIndex: selection.subtitleSelectionExplicit
+      ? selection.subtitleIndex
+      : undefined,
+  };
+}
 /**
  * Serialize a PlayRequest into the exact query string PlayButton's
  * handleNormalPlayFlow builds for /player/direct-player today: missing

@@ -118,16 +118,17 @@ describe("online", () => {
     expect(result).toEqual({ audioIndex: 1, subtitleIndex: 2 });
   });
 
-  test("resolves for a caller that supplied nothing", () => {
-    // Top shelf, WebSocket Play commands and bare playMedia({ itemId }) used to
-    // fall through to the server defaults, bypassing series memory entirely.
+  test("leaves ordinary online defaults to fresh PlaybackInfo negotiation", () => {
     const result = resolveTrackIndexes({
       item: simple,
       settings,
       offline: false,
       requested: {},
     });
-    expect(result.subtitleIndex).toBe(2);
+    expect(result).toEqual({
+      audioIndex: undefined,
+      subtitleIndex: undefined,
+    });
   });
 
   test("resolves against the named media source, not always the first", () => {
@@ -143,10 +144,10 @@ describe("online", () => {
       offline: false,
       requested: { mediaSourceId: "src-2" },
     });
-    expect(result.subtitleIndex).toBe(7);
+    expect(result.subtitleIndex).toBeUndefined();
   });
 
-  test("falls back to subtitles off when nothing resolves", () => {
+  test("does not force subtitles off before the server answers", () => {
     const bare = item([{ id: "src-1", streams: [] }]);
     const result = resolveTrackIndexes({
       item: bare,
@@ -154,6 +155,6 @@ describe("online", () => {
       offline: false,
       requested: {},
     });
-    expect(result.subtitleIndex).toBe(-1);
+    expect(result.subtitleIndex).toBeUndefined();
   });
 });
