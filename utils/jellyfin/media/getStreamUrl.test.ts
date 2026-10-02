@@ -31,6 +31,7 @@ describe("getStreamUrl", () => {
           },
         ];
       });
+
     const live = { audioIndex: 8, subtitleIndex: 11 };
     const requested = getStreamRequestIndexes(
       { audioIndex: 1, subtitleIndex: 4 },
@@ -51,6 +52,52 @@ describe("getStreamUrl", () => {
       subtitleStreamIndex: 11,
     });
     expect(refreshed).toMatchObject(live);
+  });
+
+  test("refresh keeps the negotiated version when item metadata lists another version first", async () => {
+    const api = makeApi();
+    api.mock
+      .onPost("https://jellyfin.example.com/Items/item-1/PlaybackInfo")
+      .reply((request) => {
+        const selected = JSON.parse(request.data);
+        return [
+          200,
+          {
+            PlaySessionId: "refreshed-session",
+            MediaSources: [
+              {
+                Id: selected.mediaSourceId,
+                DefaultAudioStreamIndex: selected.audioStreamIndex,
+                DefaultSubtitleStreamIndex: selected.subtitleStreamIndex,
+              },
+            ],
+          },
+        ];
+      });
+    const requested = getStreamRequestIndexes(
+      { mediaSourceId: "" },
+      { mediaSourceId: "version-b", audioIndex: 8, subtitleIndex: 11 },
+    );
+    const refreshed = await getStreamUrl({
+      api,
+      item: {
+        Id: "item-1",
+        Type: "Movie",
+        MediaSources: [{ Id: "version-a" }, { Id: "version-b" }],
+      },
+      userId: "user-1",
+      startTimeTicks: 0,
+      deviceProfile: {},
+      mediaSourceId: requested.mediaSourceId,
+      audioStreamIndex: requested.audioIndex,
+      subtitleStreamIndex: requested.subtitleIndex,
+    });
+    expect(JSON.parse(api.mock.history.post[0].data)).toMatchObject({
+      mediaSourceId: "version-b",
+      audioStreamIndex: 8,
+      subtitleStreamIndex: 11,
+    });
+    expect(refreshed?.mediaSource?.Id).toBe("version-b");
   });
 
   test("sends an explicit zero/off selection with its media source", async () => {

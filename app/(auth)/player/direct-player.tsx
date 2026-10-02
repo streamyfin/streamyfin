@@ -67,10 +67,7 @@ import { getSubtitlesForItem } from "@/utils/atoms/downloadedSubtitles";
 import { getActivePlayerType, useSettings } from "@/utils/atoms/settings";
 import { getJellyfinHeadersForUrl } from "@/utils/customHeaders";
 import { isExpectedError } from "@/utils/errors";
-import {
-  getDefaultPlaySettings,
-  type PreviousIndexes,
-} from "@/utils/jellyfin/getDefaultPlaySettings";
+import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import {
@@ -85,7 +82,10 @@ import {
   isImageBasedSubtitle,
 } from "@/utils/jellyfin/subtitleUtils";
 import { logAndCaptureError, writeToLog } from "@/utils/log";
-import { getStreamRequestIndexes } from "@/utils/nativePlayer/playRequest";
+import {
+  getStreamRequestIndexes,
+  type StreamTrackRequest,
+} from "@/utils/nativePlayer/playRequest";
 import { resolveTrackIndexes } from "@/utils/nativePlayer/resolveTrackIndexes";
 import { getTrackMemoryScope } from "@/utils/seriesTrackMemory";
 import {
@@ -434,6 +434,10 @@ export default function DirectPlayerPage() {
   }
 
   const [stream, setStream] = useState<Stream | null>(null);
+  const streamRef = useRef<Stream | null>(null);
+  useEffect(() => {
+    streamRef.current = stream;
+  }, [stream]);
   useEffect(() => {
     setCurrentAudioIndex(stream?.audioIndex);
     setCurrentSubtitleIndex(stream?.subtitleIndex ?? -1);
@@ -445,7 +449,7 @@ export default function DirectPlayerPage() {
 
   // Ref to store the stream fetch function for refreshing subtitle tracks
   const refetchStreamRef = useRef<
-    ((live?: PreviousIndexes) => Promise<Stream | null>) | null
+    ((live?: StreamTrackRequest) => Promise<Stream | null>) | null
   >(null);
 
   // Live TV opens a server-side live stream via autoOpenLiveStream. If it is
@@ -498,7 +502,7 @@ export default function DirectPlayerPage() {
 
   useEffect(() => {
     const fetchStreamData = async (
-      live?: PreviousIndexes,
+      live?: StreamTrackRequest,
     ): Promise<Stream | null> => {
       setStreamStatus({ isLoading: true, isError: false });
       try {
@@ -517,7 +521,7 @@ export default function DirectPlayerPage() {
 
         let result: Stream | null = null;
         const requested = getStreamRequestIndexes(
-          { audioIndex, subtitleIndex },
+          { audioIndex, subtitleIndex, mediaSourceId },
           live,
         );
         const liveSubtitleIndex = live?.subtitleIndex;
@@ -530,7 +534,6 @@ export default function DirectPlayerPage() {
           memoryScope: getTrackMemoryScope(user),
           requested: {
             ...requested,
-            mediaSourceId,
           },
         });
         if (offline && downloadedItem?.mediaSource) {
@@ -566,7 +569,7 @@ export default function DirectPlayerPage() {
             userId: user.Id,
             audioStreamIndex: selectedTracks.audioIndex,
             maxStreamingBitrate: bitrateValue,
-            mediaSourceId: mediaSourceId,
+            mediaSourceId: requested.mediaSourceId,
             subtitleStreamIndex: selectedTracks.subtitleIndex,
             // Match the device profile to the player that will render the
             // stream so the server picks a codec/container the player can
@@ -1551,6 +1554,7 @@ export default function DirectPlayerPage() {
     const newStream = await refetchStreamRef.current({
       audioIndex: currentAudioIndexRef.current,
       subtitleIndex: currentSubtitleIndexRef.current,
+      mediaSourceId: streamRef.current?.mediaSource.Id ?? undefined,
     });
 
     // Check if component is still mounted before updating state

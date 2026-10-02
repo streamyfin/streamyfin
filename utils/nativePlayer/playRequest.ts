@@ -1,4 +1,3 @@
-import type { PreviousIndexes } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { toServerSubtitleIndex } from "@/utils/subtitles/subtitleIndex";
 
 /**
@@ -15,6 +14,12 @@ export interface PlayRequest {
   offline: boolean;
   playbackPositionTicks?: number;
 }
+
+/** Track picks and the media version whose index space they belong to. */
+export type StreamTrackRequest = Pick<
+  PlayRequest,
+  "audioIndex" | "subtitleIndex" | "mediaSourceId"
+>;
 
 /** Menu values distinguish a deliberate pick from a possibly stale automatic default. */
 export interface TrackMenuSelection {
@@ -42,11 +47,13 @@ export function getExplicitTrackIndexes(selection: TrackMenuSelection) {
 
 /** Metadata refetches use live picks, not stale route defaults; local subtitles stay server-off. */
 export function getStreamRequestIndexes(
-  route: PreviousIndexes,
-  live?: PreviousIndexes,
-): PreviousIndexes {
+  route: StreamTrackRequest,
+  live?: StreamTrackRequest,
+): StreamTrackRequest {
   const selection = live ?? route;
+  const mediaSourceId = live?.mediaSourceId || route.mediaSourceId;
   return {
+    ...(mediaSourceId && { mediaSourceId }),
     audioIndex: selection.audioIndex,
     subtitleIndex:
       selection.subtitleIndex === undefined

@@ -86,3 +86,20 @@ test("client-only subtitles are never sent to the server as stream indexes", () 
     ),
   ).toEqual({ audioIndex: 8, subtitleIndex: -1 });
 });
+
+test("refresh keeps the negotiated source even when the route source is blank", () => {
+  expect(
+    getStreamRequestIndexes(
+      { mediaSourceId: "", audioIndex: 1 },
+      { mediaSourceId: "negotiated-version", audioIndex: 8, subtitleIndex: 11 },
+    ),
+  ).toEqual({
+    mediaSourceId: "negotiated-version",
+    audioIndex: 8,
+    subtitleIndex: 11,
+  });
+});
+
+test("initial requests never inherit a previous item's negotiated version", () => {
+  expect(getStreamRequestIndexes({})).not.toHaveProperty("mediaSourceId");
+});
