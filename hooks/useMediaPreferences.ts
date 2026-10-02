@@ -13,7 +13,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useRef } from "react";
 import { useNetworkAwareQueryClient } from "@/hooks/useNetworkAwareQueryClient";
-import { apiAtom } from "@/providers/JellyfinProvider";
+import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { type Settings, useSettings } from "@/utils/atoms/settings";
 import {
   ORIGINAL_LANGUAGE,
@@ -67,14 +67,17 @@ export interface MediaPreferences {
  * profile: seeds the local copy from the server on mount, and mirrors local
  * edits back.
  *
- * Shared by the mobile settings screens (via MediaProvider) and the TV settings
- * screen, which has no provider of its own — without a single owner the two
- * platforms drift, which is exactly how an Apple TV ends up resolving tracks
- * from a preference the phone had already set on the server.
+ * Mounted read-only at the app root so playback sees server-owned preferences
+ * without a settings-screen visit. Settings controls also enable write-through
+ * edits and the original-audio compatibility correction.
+ *
+ * @param syncOnly Seed the local cache without issuing compatibility writes.
  */
-export function useMediaPreferences(): MediaPreferences {
+export function useMediaPreferences(syncOnly = false): MediaPreferences {
   const { settings, updateSettings, pluginSettings } = useSettings();
   const api = useAtomValue(apiAtom);
+  const authenticatedUser = useAtomValue(userAtom);
+  const shouldFetch = !!api && (!syncOnly || !!authenticatedUser?.Id);
   const queryClient = useNetworkAwareQueryClient();
 
   const { data: user } = useQuery({
@@ -84,7 +87,7 @@ export function useMediaPreferences(): MediaPreferences {
       const res = await getUserApi(api).getCurrentUser();
       return res.data;
     },
-    enabled: !!api,
+    enabled: shouldFetch,
     staleTime: 0,
   });
 
@@ -96,7 +99,7 @@ export function useMediaPreferences(): MediaPreferences {
       if (!api) return null;
       return (await getSystemApi(api).getPublicSystemInfo()).data;
     },
-    enabled: !!api,
+    enabled: shouldFetch,
     staleTime: 43200000, // 12 hours
   });
   const supportsOriginalLanguage =
@@ -110,14 +113,23 @@ export function useMediaPreferences(): MediaPreferences {
         const res = await getLocalizationApi(api).getCultures();
         return res.data;
       },
-      enabled: !!api,
+      enabled: shouldFetch,
       staleTime: 43200000, // 12 hours
     });
 
   // Keyed on the queries having answered, not on the payload being non-empty:
   // a server legitimately returning no culture would otherwise pin the audio
   // settings in their loading state forever.
-  const isReady = !!user && isServerInfoAvailable && areCulturesAvailable;
+  const ownsProfile =
+    !syncOnly ||
+    (user?.Id === authenticatedUser?.Id &&
+      user?.ServerId === authenticatedUser?.ServerId);
+  const isReady =
+    shouldFetch &&
+    ownsProfile &&
+    !!user &&
+    isServerInfoAvailable &&
+    areCulturesAvailable;
 
   /**
    * Our running belief about what the server's configuration holds.
@@ -268,6 +280,7 @@ export function useMediaPreferences(): MediaPreferences {
     // Correct it server-side, but never at the cost of the other preferences:
     // the write below only carries that single field.
     const correctsPlayDefaultAudioTrack =
+      !syncOnly &&
       supportsOriginalLanguage &&
       userAudioPreference === ORIGINAL_LANGUAGE &&
       config?.PlayDefaultAudioTrack === true &&
@@ -344,6 +357,7 @@ export function useMediaPreferences(): MediaPreferences {
     supportsOriginalLanguage,
     playDefaultAudioTrackLocked,
     updateUserConfiguration,
+    syncOnly,
   ]);
 
   return {

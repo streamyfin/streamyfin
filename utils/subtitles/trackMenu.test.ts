@@ -50,6 +50,15 @@ describe("buildSubtitleMenu", () => {
     expect(rows[1].kind).toBe("server");
   });
 
+  test("carries the selected stream's identity, not just its language", () => {
+    const stream = sub(3, {
+      Language: "eng",
+      Title: "Full dialogue",
+      IsHearingImpaired: true,
+    });
+    expect(buildSubtitleMenu([stream], base)[1]).toMatchObject({ stream });
+  });
+
   test("orders like jellyfin-web: in-container first, externals last", () => {
     const rows = buildSubtitleMenu(
       [sub(0, { IsExternal: true }), sub(1), sub(2, { IsExternal: true })],

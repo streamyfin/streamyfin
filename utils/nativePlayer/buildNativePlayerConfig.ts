@@ -379,6 +379,8 @@ const buildMetadata = (item: BaseItemDto, api: Api | null) => {
 export async function buildNativePlayerConfig(params: {
   api: Api | null;
   userId: string | undefined;
+  /** Authenticated account namespace for local identity matching. */
+  memoryScope?: string;
   settings: Settings;
   subtitleSizeLocked?: boolean;
   req: PlayRequest;
@@ -411,16 +413,15 @@ export async function buildNativePlayerConfig(params: {
   if (!item?.Id) return null;
 
   const startTicks = resolveStartTicks(req.playbackPositionTicks, item);
-  // Callers that already resolved tracks (the item pages) pass them in; the
-  // ones that can't — top shelf, WebSocket Play commands, any bare
-  // playMedia({ itemId }) — would otherwise fall through to the server's
-  // defaults, silently bypassing the per-series memory and the language
-  // preferences. Offline, the download record outranks any such resolution.
-  const { audioIndex, subtitleIndex } = resolveTrackIndexes({
+  // Resolve deliberate picks and eligible local identities first. Ordinary
+  // online defaults remain unset until PlaybackInfo provides the fresh choice.
+  let selectedTracks = resolveTrackIndexes({
     item,
     settings,
     offline,
     downloaded: downloadedItem?.userData,
+    downloadedMediaSource: downloadedItem?.mediaSource,
+    memoryScope: params.memoryScope,
     requested: {
       audioIndex: req.audioIndex,
       subtitleIndex: req.subtitleIndex,
@@ -445,16 +446,20 @@ export async function buildNativePlayerConfig(params: {
       item,
       startTimeTicks: startTicks,
       userId,
-      audioStreamIndex: audioIndex,
+      audioStreamIndex: selectedTracks.audioIndex,
       maxStreamingBitrate: bitrateValue,
       mediaSourceId: req.mediaSourceId,
-      subtitleStreamIndex: subtitleIndex,
+      subtitleStreamIndex: selectedTracks.subtitleIndex,
       deviceProfile: generateDeviceProfile({
         player: getActivePlayerType(settings),
         audioMode: settings.audioTranscodeMode,
       }),
     });
     if (!res?.url || !res.mediaSource || !res.sessionId) return null;
+    selectedTracks = {
+      audioIndex: res.audioIndex,
+      subtitleIndex: res.subtitleIndex,
+    };
     stream = {
       url: res.url,
       sessionId: res.sessionId,
@@ -464,6 +469,8 @@ export async function buildNativePlayerConfig(params: {
   }
 
   const mediaSource = stream.mediaSource;
+  const audioIndex = selectedTracks.audioIndex;
+  const subtitleIndex = selectedTracks.subtitleIndex ?? -1;
   const isTranscoding = Boolean(mediaSource.TranscodingUrl);
   const playMethod = getPlayMethod(stream, offline);
 

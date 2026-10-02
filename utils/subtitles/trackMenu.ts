@@ -38,6 +38,8 @@ export interface TrackMenuRow {
    * been refetched since the menu was built.
    */
   language?: string;
+  /** Original stream metadata for remembering the specific subtitle, not just its language. */
+  stream?: MediaStream;
   /**
    * Selecting this row needs the server to re-process the stream rather than a
    * cheap in-player track switch.
@@ -154,6 +156,7 @@ export const buildSubtitleMenu = (
       selected: stream.Index === selectedIndex,
       kind: "server",
       language: stream.Language ?? undefined,
+      stream,
       requiresReload:
         isTranscoding &&
         (needsReprocessing(stream) || needsReprocessing(current)),
@@ -205,6 +208,7 @@ export const buildAudioMenu = (
       selected: stream.Index === selectedIndex,
       kind: "server" as const,
       language: stream.Language ?? undefined,
+      stream,
       // A transcoded stream carries only the encoded track; any other choice
       // has to be re-negotiated with the server.
       requiresReload: isTranscoding,

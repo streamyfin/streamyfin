@@ -28,6 +28,7 @@ import useRouter from "@/hooks/useAppRouter";
 import { useHaptic } from "@/hooks/useHaptic";
 import { useMediaSegments } from "@/hooks/useMediaSegments";
 import { usePlaybackManager } from "@/hooks/usePlaybackManager";
+import { useTrackSelectionMemory } from "@/hooks/useTrackSelectionMemory";
 import { useTrickplay } from "@/hooks/useTrickplay";
 import type { TechnicalInfo } from "@/modules/mpv-player";
 import { DownloadedItem } from "@/providers/Downloads/types";
@@ -138,6 +139,7 @@ export const Controls: FC<Props> = ({
 }) => {
   const offline = useOfflineMode();
   const { settings, updateSettings } = useSettings();
+  const { memoryScope } = useTrackSelectionMemory();
   const router = useRouter();
   const lightHapticFeedback = useHaptic("light");
 
@@ -537,6 +539,7 @@ export const Controls: FC<Props> = ({
         audioIndex: defaultAudioIndex,
         subtitleIndex: defaultSubtitleIndex,
       } = getDefaultPlaySettings(item, settings, {
+        memoryScope,
         indexes: previousIndexes,
         source: mediaSource ?? undefined,
       });
@@ -556,6 +559,7 @@ export const Controls: FC<Props> = ({
     },
     [
       settings,
+      memoryScope,
       subtitleIndex,
       audioIndex,
       mediaSource,

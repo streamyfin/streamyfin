@@ -4,7 +4,7 @@
  * Determines default audio/subtitle tracks and bitrate for playback.
  *
  * Two use cases:
- * 1. INITIAL PLAY: No previous state, uses media defaults + user language preferences
+ * 1. INITIAL PLAY: Server defaults, with scoped identities for new episodes/offline files
  * 2. SEQUENTIAL PLAY: Has previous state (e.g., next episode), uses StreamRanker
  *    to find matching tracks in the new media
  */
@@ -16,8 +16,14 @@ import type {
 } from "@jellyfin/sdk/lib/generated-client";
 import { SubtitlePlaybackMode } from "@jellyfin/sdk/lib/generated-client";
 import { BITRATES } from "@/components/BitrateSelector";
+import type { DownloadedItem } from "@/providers/Downloads/types";
 import { langEq } from "@/utils/jellyfin/subtitleUtils";
-import { getSeriesTrackMemory } from "@/utils/seriesTrackMemory";
+import {
+  getItemTrackMemory,
+  getSeriesTrackMemory,
+  type RememberedTrack,
+} from "@/utils/seriesTrackMemory";
+import { buildAudioMenu, buildSubtitleMenu } from "@/utils/subtitles/trackMenu";
 import { type Settings } from "../atoms/settings";
 import {
   AudioStreamRanker,
@@ -35,8 +41,29 @@ export interface PlaySettings {
 }
 
 export interface PreviousIndexes {
+  /** Explicit soundtrack selection to carry to another file. */
   audioIndex?: number;
+  /** Explicit subtitle selection, including -1 for off. */
   subtitleIndex?: number;
+}
+
+/** Pinned choices and file shape recorded when a download was created. */
+export type DownloadedTrackIndexes = Partial<DownloadedItem["userData"]>;
+
+/** Context needed for carry-over or local-file resolution, without player-specific state. */
+export interface PlaySettingsOptions {
+  /** Previous episode's deliberate selections. */
+  indexes?: PreviousIndexes;
+  /** Previous source used to identify those selections. */
+  source?: MediaSourceInfo;
+  /** Authenticated server/user cache namespace. */
+  memoryScope?: string;
+  /** Resolve against a downloaded file rather than server metadata. */
+  offline?: boolean;
+  /** Track indexes and transcoding status pinned in the download record. */
+  downloaded?: DownloadedTrackIndexes | null;
+  /** Actual downloaded source; the server item's sources are not valid offline. */
+  downloadedMediaSource?: MediaSourceInfo;
 }
 
 /**
@@ -68,6 +95,101 @@ function findTrackByLanguage(
   // Prefer default track if multiple match
   const defaultTrack = candidates.find((s) => s.IsDefault);
   return defaultTrack?.Index ?? candidates[0]?.Index;
+}
+
+/** Match either track kind using its identity; indexes only break ties in the same file. */
+function matchRememberedTrack(
+  selection: RememberedTrack,
+  kind: "audio" | "subtitle",
+  streams: MediaStream[],
+  preferSameIndex = false,
+): number | undefined {
+  const strategy =
+    kind === "audio" ? new AudioStreamRanker() : new SubtitleStreamRanker();
+  return (
+    new StreamRanker(strategy).findMatchingStream(
+      selection.stream,
+      streams,
+      preferSameIndex,
+    )?.Index ?? undefined
+  );
+}
+
+/**
+ * Local identities apply to offline files and new episodes. Online replay is
+ * owned by Jellyfin, so a stale local cache never replaces its remembered choice.
+ */
+export function getRememberedTrackIndexes(
+  item: BaseItemDto,
+  settings: Settings | null,
+  options: PlaySettingsOptions = {},
+): PreviousIndexes {
+  const hasPlaybackHistory =
+    (item.UserData?.PlayCount ?? 0) > 0 ||
+    (item.UserData?.PlaybackPositionTicks ?? 0) > 0 ||
+    !!item.UserData?.LastPlayedDate;
+  if (
+    !options.offline &&
+    (item.Type !== "Episode" || !item.SeriesId || hasPlaybackHistory)
+  )
+    return {};
+
+  const memory = options.offline
+    ? getItemTrackMemory(item.Id ?? "", options.memoryScope)
+    : getSeriesTrackMemory(item.SeriesId ?? "", options.memoryScope);
+  if (!memory) return {};
+  const source = options.offline
+    ? options.downloadedMediaSource
+    : item.MediaSources?.[0];
+  const streams = source?.MediaStreams ?? [];
+  let audioStreams = streams;
+  let subtitleStreams = streams;
+  let canDisableSubtitles = true;
+  if (options.offline) {
+    const isTranscoded =
+      options.downloaded?.isTranscoded ?? !!source?.TranscodingUrl;
+    audioStreams = buildAudioMenu(streams, {
+      selectedIndex: options.downloaded?.audioStreamIndex,
+      isTranscoding: isTranscoded,
+      offlineTranscoded: isTranscoded,
+    }).flatMap((row) => (row.stream ? [row.stream] : []));
+    const rows = buildSubtitleMenu(streams, {
+      selectedIndex: options.downloaded?.subtitleStreamIndex ?? -1,
+      offLabel: "",
+      isTranscoding: isTranscoded,
+      ...(isTranscoded && {
+        offlineTranscoded: {
+          burnedInIndex: options.downloaded?.subtitleStreamIndex,
+        },
+      }),
+    });
+    subtitleStreams = rows
+      .filter((row) => row.kind === "server")
+      .flatMap((row) => (row.stream ? [row.stream] : []));
+    canDisableSubtitles = rows.some((row) => row.kind === "off");
+  }
+  const result: PreviousIndexes = {};
+  if (settings?.rememberAudioSelections && memory.audio) {
+    result.audioIndex = matchRememberedTrack(
+      memory.audio,
+      "audio",
+      audioStreams,
+      !!options.offline && memory.audio.mediaSourceId === source?.Id,
+    );
+  }
+  if (settings?.rememberSubtitleSelections && memory.subtitle) {
+    if (memory.subtitle === "off") {
+      if (canDisableSubtitles) result.subtitleIndex = -1;
+    } else {
+      result.subtitleIndex = matchRememberedTrack(
+        memory.subtitle,
+        "subtitle",
+        subtitleStreams,
+        !!options.offline && memory.subtitle.mediaSourceId === source?.Id,
+      );
+    }
+  }
+  return result;
 }
 
 /**
@@ -161,7 +283,7 @@ function applySubtitleMode(
 export function getDefaultPlaySettings(
   item: BaseItemDto | null | undefined,
   settings: Settings | null,
-  previous?: { indexes?: PreviousIndexes; source?: MediaSourceInfo },
+  previous: PlaySettingsOptions = {},
 ): PlaySettings {
   const bitrate = settings?.defaultBitrate ?? BITRATES[0];
 
@@ -175,12 +297,18 @@ export function getDefaultPlaySettings(
     return { item, bitrate };
   }
 
-  const mediaSource = item.MediaSources?.[0];
+  const mediaSource = previous.offline
+    ? previous.downloadedMediaSource
+    : item.MediaSources?.[0];
   const streams = mediaSource?.MediaStreams ?? [];
 
   // Start with media source defaults
   let audioIndex = mediaSource?.DefaultAudioStreamIndex;
   let subtitleIndex = mediaSource?.DefaultSubtitleStreamIndex ?? -1;
+  if (previous.offline) {
+    audioIndex = previous.downloaded?.audioStreamIndex ?? audioIndex;
+    subtitleIndex = previous.downloaded?.subtitleStreamIndex ?? subtitleIndex;
+  }
 
   // Track whether we matched previous selections (for language preference fallback)
   let matchedPreviousAudio = false;
@@ -231,56 +359,19 @@ export function getDefaultPlaySettings(
     }
   }
 
-  // Per-series memory: a track deliberately picked in the player is stored
-  // by language per series and beats server defaults on a fresh session.
-  // The sequential-play carry-over above is fresher and wins when it matched.
-  if (item.Type === "Episode" && item.SeriesId && settings) {
-    const memory = getSeriesTrackMemory(item.SeriesId);
-    if (memory) {
-      if (
-        settings.rememberAudioSelections &&
-        !matchedPreviousAudio &&
-        memory.audioLang
-      ) {
-        const match = findTrackByLanguage(streams, memory.audioLang, "Audio");
-        if (match !== undefined) {
-          audioIndex = match;
-          matchedPreviousAudio = true;
-        }
-      }
-      if (settings.rememberSubtitleSelections && !matchedPreviousSubtitle) {
-        if (memory.subtitleLang === "off") {
-          subtitleIndex = -1;
-          matchedPreviousSubtitle = true;
-        } else if (memory.subtitleLang) {
-          const match = findTrackByLanguage(
-            streams,
-            memory.subtitleLang,
-            "Subtitle",
-          );
-          if (match !== undefined) {
-            subtitleIndex = match;
-            matchedPreviousSubtitle = true;
-          }
-        }
-      }
-    }
+  const remembered = getRememberedTrackIndexes(item, settings, previous);
+  if (!matchedPreviousAudio && remembered.audioIndex !== undefined) {
+    audioIndex = remembered.audioIndex;
+    matchedPreviousAudio = true;
+  }
+  if (!matchedPreviousSubtitle && remembered.subtitleIndex !== undefined) {
+    subtitleIndex = remembered.subtitleIndex;
+    matchedPreviousSubtitle = true;
   }
 
-  // Language preferences + subtitle mode, applied on every path.
-  //
-  // This used to be opt-in per caller, and the callers disagreed: the item pages
-  // and the mobile next-episode handler passed the flag while every TV and
-  // native-player next-episode handler did not. The result was that advancing an
-  // episode on Apple TV kept the *server's* DefaultSubtitleStreamIndex — which
-  // comes from the server-side user profile, a different setting the user likely
-  // never touched — and could land on a track in an unrelated language while the
-  // same show on the phone resolved correctly.
-  //
-  // Unconditional is safe: with no preference set and subtitleMode Default, both
-  // blocks below are no-ops, so only users who configured a preference see any
-  // change. The carry-over still wins where it matched (the matched* guards).
-  if (settings) {
+  // Preferences are a display/download fallback only when the server did not
+  // provide a choice. Never override Jellyfin's remembered online defaults.
+  if (settings && !previous.offline) {
     const preferredAudioLanguage =
       settings.defaultAudioLanguage?.ThreeLetterISOLanguageName ?? undefined;
     // The original-language preference is not an ISO code: the server already
@@ -294,7 +385,11 @@ export function getDefaultPlaySettings(
       settings.defaultSubtitleLanguage?.ThreeLetterISOLanguageName ?? undefined;
 
     // Apply audio language preference if no previous selection matched
-    if (!matchedPreviousAudio && audioLanguageCode) {
+    if (
+      !matchedPreviousAudio &&
+      mediaSource?.DefaultAudioStreamIndex == null &&
+      audioLanguageCode
+    ) {
       const langMatch = findTrackByLanguage(
         streams,
         audioLanguageCode,
@@ -315,7 +410,10 @@ export function getDefaultPlaySettings(
       undefined;
 
     // Apply subtitle mode logic if no previous selection matched
-    if (!matchedPreviousSubtitle) {
+    if (
+      !matchedPreviousSubtitle &&
+      mediaSource?.DefaultSubtitleStreamIndex == null
+    ) {
       subtitleIndex = applySubtitleMode(
         streams,
         settings,
