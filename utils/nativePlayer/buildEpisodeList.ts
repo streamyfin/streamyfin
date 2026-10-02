@@ -31,6 +31,13 @@ export const buildEpisodeList = (
 
   return episodes
     .filter((episode) => episode.LocationType !== "Virtual")
+    .sort(
+      (a, b) =>
+        (a.ParentIndexNumber ?? Number.MAX_SAFE_INTEGER) -
+          (b.ParentIndexNumber ?? Number.MAX_SAFE_INTEGER) ||
+        (a.IndexNumber ?? Number.MAX_SAFE_INTEGER) -
+          (b.IndexNumber ?? Number.MAX_SAFE_INTEGER),
+    )
     .map((episode) => {
       const season = episode.ParentIndexNumber;
       const index = episode.IndexNumber;
@@ -77,6 +84,17 @@ export const buildEpisodeList = (
         itemId: episode.Id ?? "",
         title: episode.Name ?? "",
         indexNumber: index ?? undefined,
+        seasonKey:
+          season != null
+            ? `number:${season}`
+            : episode.SeasonId
+              ? `id:${episode.SeasonId}`
+              : "unknown",
+        seasonName:
+          episode.SeasonName?.trim() ||
+          (season != null
+            ? t("player.episode_details.season", { season })
+            : t("player.other_episodes")),
         overview: episode.Overview?.trim() || undefined,
         details: details || undefined,
         imageUrl:
