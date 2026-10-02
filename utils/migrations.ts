@@ -1,3 +1,4 @@
+import { LOGS_STORAGE_KEY } from "@/constants/Logs";
 import {
   LEGACY_SEERR_COOKIES_STORAGE_KEY,
   LEGACY_SEERR_USER_STORAGE_KEY,
@@ -5,6 +6,7 @@ import {
   SEERR_USER_STORAGE_KEY,
 } from "@/constants/Seerr";
 import { writeErrorLog, writeInfoLog } from "@/utils/log";
+import { redactStoredLog } from "@/utils/logStorage";
 import { storage } from "@/utils/mmkv";
 
 /**
@@ -54,7 +56,8 @@ const MIGRATIONS: Migration[] = [
       store.remove("hasShownIntro");
     },
   },
-  // 2 is the log redaction's (#2103), which reaches develop first.
+  // No 2: the log redaction was planned as 2 but reached develop after 3, so
+  // it is 4. An install already stamped at 3 would never run a 2.
   {
     version: 3,
     description:
@@ -69,6 +72,21 @@ const MIGRATIONS: Migration[] = [
           store.set(current, stored);
         }
         store.remove(legacy);
+      }
+    },
+  },
+  {
+    version: 4,
+    description:
+      "redact credentials from the app log, where the iOS player wrote access tokens inside subtitle URLs",
+    run: (store) => {
+      const stored = store.getString(LOGS_STORAGE_KEY);
+      if (stored === undefined) return;
+      const redacted = redactStoredLog(stored);
+      if (redacted === undefined) {
+        store.remove(LOGS_STORAGE_KEY);
+      } else {
+        store.set(LOGS_STORAGE_KEY, redacted);
       }
     },
   },

@@ -714,12 +714,18 @@ final class MPVLayerRenderer {
         checkError(mpv_set_option_string(handle, name, value))
     }
 
+    /// Same marker as REDACTED_PLACEHOLDER in constants/Privacy.ts.
+    private static let redactedPlaceholder = "[redacted]"
+
     private func setProperty(name: String, value: String) {
         onQueue { [weak self] in
             guard let self, let handle = self.mpv else { return }
             let status = mpv_set_property_string(handle, name, value)
             if status < 0 {
-                Logger.shared.log("Failed to set property \(name)=\(value) (\(status))", type: "Warn")
+                // The header list holds the Jellyfin token and the proxy auth
+                // headers, and this log reaches the exportable app log.
+                let shown = name == "http-header-fields" ? MPVLayerRenderer.redactedPlaceholder : value
+                Logger.shared.log("Failed to set property \(name)=\(shown) (\(status))", type: "Warn")
             }
         }
     }
