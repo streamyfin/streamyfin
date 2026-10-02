@@ -1,3 +1,6 @@
+import type { PreviousIndexes } from "@/utils/jellyfin/getDefaultPlaySettings";
+import { toServerSubtitleIndex } from "@/utils/subtitles/subtitleIndex";
+
 /**
  * A normalized "play this item" request for the upcoming native iOS player.
  * Mirrors the query parameters the direct player screen already accepts so
@@ -36,6 +39,22 @@ export function getExplicitTrackIndexes(selection: TrackMenuSelection) {
       : undefined,
   };
 }
+
+/** Metadata refetches use live picks, not stale route defaults; local subtitles stay server-off. */
+export function getStreamRequestIndexes(
+  route: PreviousIndexes,
+  live?: PreviousIndexes,
+): PreviousIndexes {
+  const selection = live ?? route;
+  return {
+    audioIndex: selection.audioIndex,
+    subtitleIndex:
+      selection.subtitleIndex === undefined
+        ? undefined
+        : toServerSubtitleIndex(selection.subtitleIndex),
+  };
+}
+
 /**
  * Serialize a PlayRequest into the exact query string PlayButton's
  * handleNormalPlayFlow builds for /player/direct-player today: missing

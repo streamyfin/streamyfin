@@ -559,6 +559,7 @@ export const Controls: FC<Props> = ({
     },
     [
       settings,
+      memoryScope,
       subtitleIndex,
       audioIndex,
       mediaSource,

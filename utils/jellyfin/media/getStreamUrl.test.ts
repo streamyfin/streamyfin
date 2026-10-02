@@ -7,9 +7,52 @@ jest.mock("expo", () => ({
 }));
 
 import { bodyContaining, makeApi } from "@/test-utils/jellyfinApi";
+import { getStreamRequestIndexes } from "@/utils/nativePlayer/playRequest";
 import { getDownloadStreamUrl, getStreamUrl } from "./getStreamUrl";
 
 describe("getStreamUrl", () => {
+  test("subtitle metadata refresh negotiates and returns the live picks rather than stale route defaults", async () => {
+    const api = makeApi();
+    api.mock
+      .onPost("https://jellyfin.example.com/Items/item-1/PlaybackInfo")
+      .reply((request) => {
+        const tracks = JSON.parse(request.data);
+        return [
+          200,
+          {
+            PlaySessionId: "refreshed-session",
+            MediaSources: [
+              {
+                Id: "media-1",
+                DefaultAudioStreamIndex: tracks.audioStreamIndex,
+                DefaultSubtitleStreamIndex: tracks.subtitleStreamIndex,
+              },
+            ],
+          },
+        ];
+      });
+    const live = { audioIndex: 8, subtitleIndex: 11 };
+    const requested = getStreamRequestIndexes(
+      { audioIndex: 1, subtitleIndex: 4 },
+      live,
+    );
+    const refreshed = await getStreamUrl({
+      api,
+      item: { Id: "item-1", Type: "Movie" },
+      userId: "user-1",
+      mediaSourceId: "media-1",
+      startTimeTicks: 0,
+      deviceProfile: {},
+      audioStreamIndex: requested.audioIndex,
+      subtitleStreamIndex: requested.subtitleIndex,
+    });
+    expect(JSON.parse(api.mock.history.post[0].data)).toMatchObject({
+      audioStreamIndex: 8,
+      subtitleStreamIndex: 11,
+    });
+    expect(refreshed).toMatchObject(live);
+  });
+
   test("sends an explicit zero/off selection with its media source", async () => {
     const api = makeApi();
     api.mock

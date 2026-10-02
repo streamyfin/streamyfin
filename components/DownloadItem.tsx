@@ -320,6 +320,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
     [
       api,
       user?.Id,
+      memoryScope,
       itemsNotDownloaded,
       selectedOptions,
       settings,

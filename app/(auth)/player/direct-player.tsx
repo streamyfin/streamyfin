@@ -67,7 +67,10 @@ import { getSubtitlesForItem } from "@/utils/atoms/downloadedSubtitles";
 import { getActivePlayerType, useSettings } from "@/utils/atoms/settings";
 import { getJellyfinHeadersForUrl } from "@/utils/customHeaders";
 import { isExpectedError } from "@/utils/errors";
-import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
+import {
+  getDefaultPlaySettings,
+  type PreviousIndexes,
+} from "@/utils/jellyfin/getDefaultPlaySettings";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import {
@@ -82,6 +85,7 @@ import {
   isImageBasedSubtitle,
 } from "@/utils/jellyfin/subtitleUtils";
 import { logAndCaptureError, writeToLog } from "@/utils/log";
+import { getStreamRequestIndexes } from "@/utils/nativePlayer/playRequest";
 import { resolveTrackIndexes } from "@/utils/nativePlayer/resolveTrackIndexes";
 import { getTrackMemoryScope } from "@/utils/seriesTrackMemory";
 import {
@@ -440,7 +444,9 @@ export default function DirectPlayerPage() {
   });
 
   // Ref to store the stream fetch function for refreshing subtitle tracks
-  const refetchStreamRef = useRef<(() => Promise<Stream | null>) | null>(null);
+  const refetchStreamRef = useRef<
+    ((live?: PreviousIndexes) => Promise<Stream | null>) | null
+  >(null);
 
   // Live TV opens a server-side live stream via autoOpenLiveStream. If it is
   // never closed, Jellyfin's M3U tuner limit fills up and every channel then
@@ -491,7 +497,9 @@ export default function DirectPlayerPage() {
   }, [stream?.mediaSource?.LiveStreamId, releaseLiveStream]);
 
   useEffect(() => {
-    const fetchStreamData = async (): Promise<Stream | null> => {
+    const fetchStreamData = async (
+      live?: PreviousIndexes,
+    ): Promise<Stream | null> => {
       setStreamStatus({ isLoading: true, isError: false });
       try {
         // Don't attempt to fetch stream data if item is not available
@@ -508,6 +516,11 @@ export default function DirectPlayerPage() {
         }
 
         let result: Stream | null = null;
+        const requested = getStreamRequestIndexes(
+          { audioIndex, subtitleIndex },
+          live,
+        );
+        const liveSubtitleIndex = live?.subtitleIndex;
         const selectedTracks = resolveTrackIndexes({
           item,
           settings,
@@ -516,8 +529,7 @@ export default function DirectPlayerPage() {
           downloadedMediaSource: downloadedItem?.mediaSource,
           memoryScope: getTrackMemoryScope(user),
           requested: {
-            audioIndex,
-            subtitleIndex,
+            ...requested,
             mediaSourceId,
           },
         });
@@ -527,7 +539,9 @@ export default function DirectPlayerPage() {
             result = {
               mediaSource: downloadedItem.mediaSource,
               audioIndex: selectedTracks.audioIndex,
-              subtitleIndex: selectedTracks.subtitleIndex ?? -1,
+              subtitleIndex: isLocalSubtitleIndex(liveSubtitleIndex)
+                ? liveSubtitleIndex
+                : (selectedTracks.subtitleIndex ?? -1),
               sessionId: "",
               url: url,
             };
@@ -595,7 +609,9 @@ export default function DirectPlayerPage() {
             url,
             requiredHttpHeaders,
             audioIndex: res.audioIndex,
-            subtitleIndex: res.subtitleIndex,
+            subtitleIndex: isLocalSubtitleIndex(liveSubtitleIndex)
+              ? liveSubtitleIndex
+              : res.subtitleIndex,
           };
         }
         setTracksReady(false);
@@ -1499,6 +1515,7 @@ export default function DirectPlayerPage() {
   }, [
     previousItem,
     settings,
+    user,
     currentSubtitleIndex,
     currentAudioIndex,
     stream?.mediaSource,
@@ -1531,7 +1548,10 @@ export default function DirectPlayerPage() {
     if (!refetchStreamRef.current) return [];
 
     setTracksReady(false);
-    const newStream = await refetchStreamRef.current();
+    const newStream = await refetchStreamRef.current({
+      audioIndex: currentAudioIndexRef.current,
+      subtitleIndex: currentSubtitleIndexRef.current,
+    });
 
     // Check if component is still mounted before updating state
     // This callback may be invoked from a modal after the player unmounts
@@ -1590,6 +1610,7 @@ export default function DirectPlayerPage() {
   }, [
     nextItem,
     settings,
+    user,
     currentSubtitleIndex,
     currentAudioIndex,
     stream?.mediaSource,

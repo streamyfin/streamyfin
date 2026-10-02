@@ -1240,6 +1240,7 @@ export const Controls: FC<Props> = ({
     [
       nextItem,
       settings,
+      memoryScope,
       subtitleIndex,
       audioIndex,
       mediaSource,
