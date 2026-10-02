@@ -74,7 +74,7 @@ import * as SplashScreen from "expo-splash-screen";
 import * as TaskManager from "expo-task-manager";
 import { Provider as JotaiProvider, useAtom } from "jotai";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { I18nextProvider } from "react-i18next";
+import { I18nextProvider, useTranslation } from "react-i18next";
 import { Appearance, LogBox } from "react-native";
 import { SystemBars } from "react-native-edge-to-edge";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -416,6 +416,10 @@ function Layout() {
   // identity on sign in, so without this the token went out twice within a second.
   // Sign out clears the session, and the key with it, so the next sign in posts again.
   const registeredPush = useRef<string | null>(null);
+  // Read through the hook so a change of language renders again and the effect
+  // below posts it: the module-level i18n changes without anyone noticing.
+  const { i18n: translation } = useTranslation();
+  const language = translation.language;
 
   useEffect(() => {
     if (Platform.isTV) return;
@@ -425,6 +429,7 @@ function Layout() {
       api?.basePath,
       user?.Id,
       expoPushToken?.data,
+      language,
     );
     registeredPush.current = step.key;
     if (!step.post || !api || !user || !expoPushToken) return;
@@ -434,6 +439,11 @@ function Layout() {
         token: expoPushToken.data,
         deviceId: getOrSetDeviceId(),
         userId: user.Id,
+        // What the plugin writes this device's notifications in, and where it fetches
+        // the poster in them from: the server is reached at a different address by a
+        // phone at home and by the same phone away.
+        language,
+        serverUrl: api.basePath,
       })
       .catch((_) => {
         // Forgotten only if nothing newer was posted meanwhile, so the next change
@@ -441,7 +451,7 @@ function Layout() {
         if (registeredPush.current === step.key) registeredPush.current = null;
         writeErrorLog("Failed to push expo push token to plugin");
       });
-  }, [api, expoPushToken, user]);
+  }, [api, expoPushToken, user, language]);
 
   const registerNotifications = useCallback(async () => {
     if (Platform.OS === "android") {
