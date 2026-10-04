@@ -226,6 +226,30 @@ describe("LocalNetworkSettings", () => {
     expect(mockToastError).not.toHaveBeenCalled();
   });
 
+  // Return submits and then dismisses the keyboard. The field shows the
+  // stored form by then, which is not what was submitted, and the blur must
+  // not take that for a new address.
+  test("says it once when Return is followed by the keyboard's blur", async () => {
+    storedLocalUrl("");
+    mockProbe.mockResolvedValue({ status: "unreachable" });
+    await render(<LocalNetworkSettings />);
+    const field = screen.getByPlaceholderText(PLACEHOLDER);
+
+    await fireEvent.changeText(field, "HTTP://192.168.1.10:8096/");
+    await fireEvent(field, "submitEditing");
+    await waitFor(() => expect(mockToastInfo).toHaveBeenCalledTimes(1));
+    const probesForOneAttempt = mockProbe.mock.calls.length;
+    const savesForOneAttempt = mockRefreshUrlState.mock.calls.length;
+    await fireEvent(
+      screen.getByDisplayValue("http://192.168.1.10:8096"),
+      "blur",
+    );
+
+    expect(mockProbe).toHaveBeenCalledTimes(probesForOneAttempt);
+    expect(mockRefreshUrlState).toHaveBeenCalledTimes(savesForOneAttempt);
+    expect(mockToastInfo).toHaveBeenCalledTimes(1);
+  });
+
   test("does not repeat that when the same address is committed again", async () => {
     storedLocalUrl("http://192.168.1.10:8096");
     mockProbe.mockResolvedValue({ status: "unreachable" });
