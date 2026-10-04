@@ -60,6 +60,14 @@ export function trickplayDirName(item: BaseItemDto): string {
 }
 
 /**
+ * Name, in the Live Activity directory, of the poster staged for an item's download. Unlike the
+ * names above it is built from the item id for every item type.
+ */
+export function liveActivityPosterFileName(item: BaseItemDto): string {
+  return `${safeNamePart(item.Id)}.jpg`;
+}
+
+/**
  * Strip file:// prefix from URI to get plain file path
  * Required for native modules that expect plain paths
  */

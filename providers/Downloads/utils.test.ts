@@ -2,7 +2,12 @@ import type {
   BaseItemDto,
   MediaStream,
 } from "@jellyfin/sdk/lib/generated-client/models";
-import { generateFilename, subtitleFileName, trickplayDirName } from "./utils";
+import {
+  generateFilename,
+  liveActivityPosterFileName,
+  subtitleFileName,
+  trickplayDirName,
+} from "./utils";
 
 const episode: BaseItemDto = {
   Id: "item-1",
@@ -53,6 +58,15 @@ describe("names of downloads that already exist", () => {
       "the_show__s01e02_subtitle_2.srt",
     );
     expect(trickplayDirName(episode)).toBe("the_show__s01e02_trickplay");
+  });
+
+  test("keeps the Live Activity poster name", () => {
+    expect(liveActivityPosterFileName(episode)).toBe("item-1.jpg");
+    expect(
+      liveActivityPosterFileName({
+        Id: "0a1b2c3d-4e5f-6071-8293-a4b5c6d7e8f9",
+      }),
+    ).toBe("0a1b2c3d-4e5f-6071-8293-a4b5c6d7e8f9.jpg");
   });
 });
 
@@ -117,6 +131,7 @@ describe("names built from values the server chooses", () => {
       `${generateFilename(item)}.mp4`,
       subtitleFileName(item, stream),
       trickplayDirName(item),
+      liveActivityPosterFileName(item),
     ];
 
     // Safe characters only, and no dot but the one the app puts before the extension: nothing
