@@ -162,6 +162,76 @@ describe("findTrackByLanguage — ISO 639 variants", () => {
   });
 });
 
+describe("findTrackByLanguage — region and script variants", () => {
+  // Regression: tags were compared by primary subtag only, so "pt-BR" and
+  // "pt-PT" (or "zh-Hans" and "zh-Hant") were one language and the first track
+  // of it won, whichever variant had been picked.
+  test("a remembered subtitle variant carries over to the same variant", () => {
+    rememberSeriesTrack("series-1", { subtitleLang: "pt-BR" });
+    const item = episode(source([sub(0, "pt-PT"), sub(1, "pt-BR")]));
+    const result = getDefaultPlaySettings(item, settingsWith({}));
+    expect(result.subtitleIndex).toBe(1);
+  });
+
+  test("a remembered script variant carries over to the same script", () => {
+    rememberSeriesTrack("series-1", { subtitleLang: "zh-Hant" });
+    const item = episode(source([sub(0, "zh-Hans"), sub(1, "zh-Hant")]));
+    const result = getDefaultPlaySettings(item, settingsWith({}));
+    expect(result.subtitleIndex).toBe(1);
+  });
+
+  test("a remembered audio variant carries over to the same variant", () => {
+    rememberSeriesTrack("series-1", { audioLang: "es-419" });
+    const item = episode(
+      source([audio(0, "es-ES"), audio(1, "es-419")], { audio: 0 }),
+    );
+    const result = getDefaultPlaySettings(item, settingsWith({}));
+    expect(result.audioIndex).toBe(1);
+  });
+
+  test("a remembered variant is not carried over to a different one", () => {
+    rememberSeriesTrack("series-1", { subtitleLang: "pt-BR" });
+    const item = episode(
+      source([sub(0, "eng"), sub(1, "pt-PT")], { subtitle: 0 }),
+    );
+    const result = getDefaultPlaySettings(item, settingsWith({}));
+    expect(result.subtitleIndex).toBe(0);
+  });
+
+  test("the track tagged exactly as remembered beats one that only shares the language", () => {
+    // Both directions: a bare "por" track is not the Brazilian one that was
+    // picked, and a Brazilian one is not the bare track that was picked.
+    rememberSeriesTrack("series-1", { subtitleLang: "pt-BR" });
+    expect(
+      getDefaultPlaySettings(
+        episode(source([sub(0, "por"), sub(1, "pt-BR")])),
+        settingsWith({}),
+      ).subtitleIndex,
+    ).toBe(1);
+
+    rememberSeriesTrack("series-1", { subtitleLang: "por" });
+    expect(
+      getDefaultPlaySettings(
+        episode(source([sub(0, "pt-BR", { IsDefault: true }), sub(1, "por")])),
+        settingsWith({}),
+      ).subtitleIndex,
+    ).toBe(1);
+  });
+
+  test("a bare preference matches every variant and keeps the default-track rule", () => {
+    // CultureDto codes carry no region, so the preference cannot choose between
+    // variants: both match and the file's own default decides.
+    const item = episode(
+      source([sub(0, "pt-PT"), sub(1, "pt-BR", { IsDefault: true })]),
+    );
+    const result = getDefaultPlaySettings(
+      item,
+      settingsWith({ defaultSubtitleLanguage: lang("por") }),
+    );
+    expect(result.subtitleIndex).toBe(1);
+  });
+});
+
 describe("subtitle mode", () => {
   const streams = [
     sub(0, "eng"),
