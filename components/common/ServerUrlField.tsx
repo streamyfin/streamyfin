@@ -134,7 +134,11 @@ export function ServerUrlField({
     // Consumed by the first blur after the submit, whichever input it finds:
     // the blur after that one is the user leaving the field again.
     submittedInput.current = null;
-    if (input === submitted) return;
+    // Skipped whatever the field holds now. Typing clears the mark, so a
+    // different value here was put there by the owner or by the resolver in
+    // answer to that same submit (LocalNetworkSettings shows the stored form
+    // of what it saved), and resolving it again is the second commit.
+    if (submitted !== null) return;
     if (!input || input !== lastResolvedInput.current) runResolve();
   }, [value, runResolve]);
 
