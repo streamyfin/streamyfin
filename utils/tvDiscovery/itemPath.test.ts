@@ -144,3 +144,39 @@ describe("getTopShelfItemPath: where a home screen tile lands in the app", () =>
     );
   });
 });
+
+// The link arrives from outside the app, and the router decodes its values
+// before they get here. Put back into a path as they are, a value can carry a
+// second parameter or a path of its own into the screen it opens.
+describe("getTopShelfItemPath: a link that was not written by the payload builder", () => {
+  test("a season index that is not a number is dropped, not passed on", () => {
+    expect(
+      getTopShelfItemPath({
+        id: "season-2",
+        type: "Season",
+        seriesId: "series-1",
+        seasonIndex: "2&offline=true",
+      }),
+    ).toBe(`${HOME}/series/series-1`);
+  });
+
+  test("a series id cannot name another route or add a parameter", () => {
+    expect(
+      getTopShelfItemPath({
+        id: "season-2",
+        type: "Season",
+        seriesId: "../settings?offline=true",
+        seasonIndex: "2",
+      }),
+    ).toBe(`${HOME}/series/..%2Fsettings%3Foffline%3Dtrue?seasonIndex=2`);
+  });
+
+  test("an id cannot name another route or add a parameter", () => {
+    expect(getTopShelfItemPath({ id: "a/b?c=d", type: "Series" })).toBe(
+      `${HOME}/series/a%2Fb%3Fc%3Dd`,
+    );
+    expect(getTopShelfItemPath({ id: "x&offline=true" })).toBe(
+      `${HOME}/items/page?id=x%26offline%3Dtrue`,
+    );
+  });
+});
