@@ -11,6 +11,7 @@ import { Favorites } from "@/components/home/Favorites";
 import { Favorites as TVFavorites } from "@/components/home/Favorites.tv";
 import { TVSegmentedControl } from "@/components/tv";
 import { StreamystatsWatchlists } from "@/components/watchlists/StreamystatsWatchlists";
+import { TVStreamystatsWatchlists } from "@/components/watchlists/TVStreamystatsWatchlists";
 import useRouter from "@/hooks/useAppRouter";
 import { useSettings } from "@/utils/atoms/settings";
 import { scaleSize } from "@/utils/scaleSize";
@@ -163,7 +164,7 @@ function TVWatchlists({ streamystatsShown, kefinShown }: WatchlistsViewProps) {
 
   if (!showToggle) {
     return activeSource === "streamystats" ? (
-      <StreamystatsWatchlists />
+      <TVStreamystatsWatchlists />
     ) : (
       <TVFavorites
         filter='Likes'
@@ -191,7 +192,10 @@ function TVWatchlists({ streamystatsShown, kefinShown }: WatchlistsViewProps) {
       </View>
       <View style={{ flex: 1 }}>
         {activeSource === "streamystats" ? (
-          <StreamystatsWatchlists />
+          <TVStreamystatsWatchlists
+            isFirstSection={false}
+            contentTopPadding={0}
+          />
         ) : (
           <TVFavorites
             filter='Likes'
