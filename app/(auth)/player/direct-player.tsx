@@ -160,12 +160,14 @@ export default function DirectPlayerPage() {
   });
 
   const progress = useSharedValue(0);
-  // URL of the stream MPV has reported a position from. While it is not the
-  // current stream's, `progress` is not a playback position (it is reset when
-  // an item loads, and the controls seed it for the scrubber) and the session
-  // is where it was told to start. Keyed on the URL because that is what makes
-  // the MPV view load: a refreshed stream with the same URL keeps playing.
-  const livePositionUrlRef = useRef<string | null>(null);
+  // The stream MPV has reported a position from. While it is not the current
+  // one, `progress` is not a playback position (it is reset when an item
+  // loads, and the controls seed it for the scrubber) and the session is where
+  // it was told to start. Compared by identity, not by URL: every fetch sets a
+  // new stream object and takes the MPV view off screen while it runs, so the
+  // view that comes back loads from the start position again even when the
+  // URL is the same (a downloaded file, a remote path).
+  const livePositionStreamRef = useRef<Stream | null>(null);
   const isSeeking = useSharedValue(false);
   const cacheProgress = useSharedValue(0);
   const VolumeManager = Platform.isTV
@@ -417,7 +419,7 @@ export default function DirectPlayerPage() {
       // the previous one's position before its own playback has even started.
       setHasPlaybackStarted(false);
       progress.set(0);
-      livePositionUrlRef.current = null;
+      livePositionStreamRef.current = null;
       fetchItemData();
     }
   }, [itemId, offline, api, user?.Id, progress]);
@@ -477,17 +479,23 @@ export default function DirectPlayerPage() {
     currentItemIdRef.current = itemId;
   }, [itemId]);
 
+  /** Whether MPV has reported a position for the current stream. */
+  const hasLivePosition = useCallback(
+    () => !!stream && livePositionStreamRef.current === stream,
+    [stream],
+  );
+
   /** Position (ticks) a report carries: where MPV is once it has reported a
    * position for this stream, where the session starts until then. A stop or
    * progress report at 0 makes the server clear the item's resume point. */
   const getSessionPositionTicks = useCallback(
     () =>
       resolveSessionPositionTicks({
-        hasLivePosition: !!stream && livePositionUrlRef.current === stream.url,
+        hasLivePosition: hasLivePosition(),
         positionMs: progress.get(),
         startTicks: startTicksRef.current,
       }),
-    [stream, progress],
+    [hasLivePosition, progress],
   );
 
   const releaseLiveStream = useCallback(
@@ -892,11 +900,12 @@ export default function DirectPlayerPage() {
       // and that tick says 0:00. Taking it would move a resumed session to the
       // start: reported as progress, written to the URL below and carried by
       // the stop report if the user leaves before playback begins.
-      const hasLivePosition = livePositionUrlRef.current === stream.url;
-      if (isPlaceholderTick(position, startTicksRef.current, hasLivePosition)) {
+      if (
+        isPlaceholderTick(position, startTicksRef.current, hasLivePosition())
+      ) {
         return;
       }
-      livePositionUrlRef.current = stream.url;
+      livePositionStreamRef.current = stream;
 
       // MPV reports position in seconds, convert to ms
       const currentTime = position * 1000;
@@ -952,6 +961,7 @@ export default function DirectPlayerPage() {
       currentSubtitleIndex,
       mediaSourceId,
       stream,
+      hasLivePosition,
       isSeeking,
       isBuffering,
     ],

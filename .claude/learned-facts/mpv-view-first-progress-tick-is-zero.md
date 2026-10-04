@@ -10,6 +10,8 @@ On both platforms the inline `MpvPlayerView` emits `onProgress` from the `durati
 
 In the JS player that tick used to be taken at face value. It zeroed the tracked position, was reported to the server as progress (the first tick always passes the interval check) and was written to the route as `playbackPosition`. Leaving the player before the first real tick then sent the stop report at 0, and Jellyfin clears the resume point of an item stopped below its minimum resume percentage.
 
-`isPlaceholderTick` drops it, and every report reads its position through `resolveSessionPositionTicks`: the start position until MPV has reported one for the current stream URL, the tracked position afterwards. Do not read `progress.get()` directly for a report. Before the first real tick it holds the reset value or whatever the controls seeded for the scrubber.
+`isPlaceholderTick` drops it, and every report reads its position through `resolveSessionPositionTicks`: the start position until MPV has reported one for the current stream, the tracked position afterwards. "Current stream" is the stream object, not its URL: a refetch takes the view off screen and the one that comes back loads from the start position again, even when the URL is unchanged (a downloaded file, a remote path). Do not read `progress.get()` directly for a report. Before the first real tick it holds the reset value or whatever the controls seeded for the scrubber.
+
+The route must also be opened without a position when the caller has none (`toDirectPlayerQuery`). A `playbackPosition` of 0 means "start at the beginning", so defaulting to it made a top shelf play link or a remote Play command skip the resume point, which no amount of care in the reports can put back.
 
 The native player (`NativePlayerProvider`) is not affected: its session position is seeded from `startTicks` and the view model's position is seeded from the stream's start position.

@@ -59,6 +59,16 @@ describe("usePlayMedia", () => {
     expect(alert).not.toHaveBeenCalled();
   });
 
+  // A top shelf play link asks for an item and nothing else. Opening the
+  // route at position 0 started a half watched episode from the beginning,
+  // and leaving it cleared the resume point on the server.
+  test("opens the player without a position for a request that has none", async () => {
+    await play({ Id: "episode-1", Type: "Episode" });
+
+    const query = mockPush.mock.calls[0][0].split("?")[1];
+    expect(new URLSearchParams(query).get("playbackPosition")).toBe("");
+  });
+
   // REACT-NATIVE-54 / REACT-NATIVE-5H: a Book reached the player from its
   // item page and left the user on a broken player screen.
   test("tells the user a book can't be played instead of opening the player", async () => {

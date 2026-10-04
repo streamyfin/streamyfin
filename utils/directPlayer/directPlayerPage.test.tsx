@@ -35,6 +35,8 @@ const mockPlayer = {
   setSpeed: jest.fn(async () => {}),
 };
 let mockPlayerProps: MpvPlayerViewProps | null = null;
+/** How many MPV views have mounted: each one loads its source from scratch. */
+let mockPlayerMounts = 0;
 const mockSettings = {};
 const mockNoop = () => {};
 
@@ -189,6 +191,9 @@ jest.mock("@/components/video-player/VideoPlayerView", () => {
     VideoPlayerView: React.forwardRef(
       (props: MpvPlayerViewProps, ref: React.Ref<unknown>) => {
         React.useImperativeHandle(ref, () => mockPlayer);
+        React.useEffect(() => {
+          mockPlayerMounts += 1;
+        }, []);
         mockPlayerProps = props;
         return <View testID='mpv-view' />;
       },
@@ -244,6 +249,7 @@ describe("direct player stop report", () => {
     // The page logs each stream fetch it skips while the item is loading.
     jest.spyOn(console, "log").mockImplementation(() => {});
     mockPlayerProps = null;
+    mockPlayerMounts = 0;
     mockRouter.setParams.mockClear();
     mockReportProgress.mockClear();
     api.mock.reset();
@@ -312,6 +318,44 @@ describe("direct player stop report", () => {
     await leavePlayer();
 
     expect(stopReports()[0].PositionTicks).toBe(0);
+  });
+
+  // A stream refetch takes the MPV view off screen and puts a new one back,
+  // which loads from the route's position and ticks at 0 again. A downloaded
+  // file and a remote path keep the same URL across that refetch.
+  test("keeps the position when the stream is refetched and comes back with the same URL", async () => {
+    await openPlayer();
+    await tick(1200);
+
+    mockParams.bitrateValue = "8000000";
+    try {
+      await screen.rerender(<DirectPlayerPage />);
+      await waitFor(() => expect(mockPlayerMounts).toBe(2));
+      await tick(0);
+      await leavePlayer();
+
+      // The route still says where this spec opened the player, and that is
+      // where the new view starts.
+      expect(stopReports()[0].PositionTicks).toBe(RESUME_TICKS);
+    } finally {
+      mockParams.bitrateValue = "";
+    }
+  });
+
+  // What a top shelf play link or a remote Play command opens the route with.
+  test("resumes at the item's stored position when the route carries none", async () => {
+    mockParams.playbackPosition = "";
+    try {
+      await openPlayer();
+      expect(mockPlayerProps?.source?.startPosition).toBe(1158);
+
+      await tick(0);
+      await leavePlayer();
+
+      expect(stopReports()[0].PositionTicks).toBe(RESUME_TICKS);
+    } finally {
+      mockParams.playbackPosition = String(RESUME_TICKS);
+    }
   });
 
   test("reports 0 for an item that starts at the beginning", async () => {
