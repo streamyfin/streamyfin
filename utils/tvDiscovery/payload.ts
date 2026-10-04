@@ -1,6 +1,7 @@
 import type { Api } from "@jellyfin/sdk";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { getWideImageUrl } from "@/utils/jellyfin/image/getWideImageUrl";
+import { isPlayableItem } from "@/utils/jellyfin/media/isPlayableItem";
 
 const TV_DISCOVERY_ITEM_LIMIT = 12;
 const TV_DISCOVERY_SECTION_LIMIT = 3;
@@ -11,7 +12,13 @@ export interface TVDiscoveryItem {
   title: string;
   subtitle?: string;
   imageUrl?: string;
+  /** Opens the item's page: the Select action on a Top Shelf tile. */
   route: string;
+  /**
+   * What Play does: the Play button on a Top Shelf tile, and the tile itself
+   * on Android TV, where a preview program has a single intent. The player for
+   * an item that has a stream, the same page as `route` for a container.
+   */
   playRoute?: string;
 }
 
@@ -146,6 +153,35 @@ function getTVDiscoverySubtitle(item: BaseItemDto): string | undefined {
   return item.ProductionYear ? String(item.ProductionYear) : item.Type;
 }
 
+function getTVDiscoveryRoute(item: BaseItemDto): string {
+  const params = [
+    `id=${encodeURIComponent(item.Id!)}`,
+    `type=${encodeURIComponent(item.Type || "")}`,
+  ];
+
+  // A season has no page of its own: the app shows it as the series page with
+  // that season selected, so the link has to say which series and which one.
+  if (item.Type === "Season" && item.SeriesId) {
+    params.push(`seriesId=${encodeURIComponent(item.SeriesId)}`);
+    if (item.IndexNumber != null) {
+      params.push(`seasonIndex=${item.IndexNumber}`);
+    }
+  }
+
+  return `streamyfin://topshelf/item?${params.join("&")}`;
+}
+
+function getTVDiscoveryPlayRoute(item: BaseItemDto, route: string): string {
+  // The play link carries nothing but an id, and the player asks the server
+  // for a stream of exactly that id. A series or a season has none, so Play
+  // opens its page instead, where the app picks the episode to continue with.
+  // Pointing at the page rather than leaving the action out keeps the Play
+  // button on the remote from being a dead key on those tiles.
+  if (!isPlayableItem(item)) return route;
+
+  return `streamyfin://topshelf/play?id=${encodeURIComponent(item.Id!)}`;
+}
+
 function sectionFromItems(
   title: string,
   items: BaseItemDto[] | undefined,
@@ -158,14 +194,15 @@ function sectionFromItems(
     .slice(0, TV_DISCOVERY_ITEM_LIMIT)
     .map((item) => {
       const image = getTVDiscoveryImage(item, api, shape, useEpisodeImages);
+      const route = getTVDiscoveryRoute(item);
       return {
         id: item.Id!,
         itemType: item.Type || undefined,
         title: getTVDiscoveryTitle(item),
         subtitle: getTVDiscoverySubtitle(item),
         imageUrl: image?.url,
-        route: `streamyfin://topshelf/item?id=${encodeURIComponent(item.Id!)}&type=${encodeURIComponent(item.Type || "")}`,
-        playRoute: `streamyfin://topshelf/play?id=${encodeURIComponent(item.Id!)}`,
+        route,
+        playRoute: getTVDiscoveryPlayRoute(item, route),
       };
     });
 

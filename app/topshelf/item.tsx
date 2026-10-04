@@ -2,13 +2,16 @@ import { useLocalSearchParams, useRootNavigationState } from "expo-router";
 import { useEffect } from "react";
 import { View } from "react-native";
 import useRouter from "@/hooks/useAppRouter";
+import { getTopShelfItemPath } from "@/utils/tvDiscovery/itemPath";
 
 export default function TopShelfItemRedirect() {
   const router = useRouter();
   const rootNavigationState = useRootNavigationState();
-  const { id, type } = useLocalSearchParams<{
+  const { id, type, seriesId, seasonIndex } = useLocalSearchParams<{
     id?: string;
     type?: string;
+    seriesId?: string;
+    seasonIndex?: string;
   }>();
 
   useEffect(() => {
@@ -21,13 +24,8 @@ export default function TopShelfItemRedirect() {
       return;
     }
 
-    if (type === "Series") {
-      router.replace(`/(auth)/(tabs)/(home)/series/${id}`);
-      return;
-    }
-
-    router.replace(`/(auth)/(tabs)/(home)/items/page?id=${id}`);
-  }, [id, rootNavigationState?.key, router, type]);
+    router.replace(getTopShelfItemPath({ id, type, seriesId, seasonIndex }));
+  }, [id, rootNavigationState?.key, router, seasonIndex, seriesId, type]);
 
   return <View style={{ flex: 1, backgroundColor: "#000" }} />;
 }
