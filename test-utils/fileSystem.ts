@@ -39,6 +39,11 @@ class FakeFile extends FakeEntry {
     existing.add(destination.uri);
     return destination;
   }
+
+  /** Sizes are not modelled: every file reports 0 bytes. */
+  info() {
+    return { exists: this.exists, size: 0 };
+  }
 }
 
 class FakeDirectory extends FakeEntry {
@@ -85,8 +90,8 @@ export const CACHE = "file:///cache";
  *   );
  *
  * Only what the app's delete and download paths call is implemented: the `File` and `Directory`
- * constructors, `uri`, `exists`, `delete()`, `File.downloadFileAsync()`, and `create()` and
- * `list()` on a directory.
+ * constructors, `uri`, `exists`, `delete()`, `File.downloadFileAsync()`, `File.info()` for the
+ * completion handler, and `create()` and `list()` on a directory.
  */
 export const fileSystemModule = {
   File: FakeFile,

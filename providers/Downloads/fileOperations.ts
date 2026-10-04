@@ -179,6 +179,27 @@ export function deletePendingDownloadFiles(download: AbandonedDownload): void {
 }
 
 /**
+ * Delete a video that native reported complete and that no download accounts for.
+ *
+ * That is a download cancelled while its last bytes came in: the native cancel is asynchronous,
+ * so the transfer can still finish and land in Documents after the cancel dropped the record
+ * and cleaned up.
+ *
+ * A name in use is left alone, and that is what tells a cancelled download from a finished one:
+ * a download finalized before its completion event arrived owns the file, and so does a new
+ * download of the same item. Never throws, it runs in an event handler.
+ */
+export function deleteUnclaimedVideo(filePath: string): void {
+  try {
+    const name = filePath.split("/").pop();
+    if (!isPlainFileName(name) || namesUsedByOthers({}).has(name)) return;
+    removeFromDocuments(File, name, "Unclaimed video file");
+  } catch (error) {
+    console.error("[DELETE] Failed to remove an unclaimed video:", error);
+  }
+}
+
+/**
  * Get the size of a downloaded item by ID
  * Includes video file size and trickplay data size
  */
