@@ -171,7 +171,9 @@ export function ServerUrlField({
         clearButtonMode='never'
       />
 
-      <ServerUrlStatusText state={resolver} className='mt-2' />
+      {/* px-4 is the input's own padding, so the status lines up with the
+          text typed above it instead of with the edge of the box. */}
+      <ServerUrlStatusText state={resolver} className='mt-2 px-4' />
     </View>
   );
 }
