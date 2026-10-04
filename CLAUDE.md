@@ -79,6 +79,7 @@ TV platform:
 Build and tooling:
 - `eas-archive-drops-gitignored-tracked-files` | EAS uploads skip anything matching .gitignore even if tracked; re-include required assets, keep asset require() at module scope
 - `bun-test-discovery-leaks-fds` | bare `bun test` leaves ~14k fds open; child processes spawned from tests get dead stdio, so do the work in-process
+- `require-hooks-leak-across-jest-specs` | a require hook (tsx/cjs) registered from a spec stays on the Jest worker's Node loader and breaks later specs; map it to a stub
 
 ## Project overview
 
