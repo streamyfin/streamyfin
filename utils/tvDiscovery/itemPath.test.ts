@@ -1,6 +1,83 @@
+import type { Api } from "@jellyfin/sdk";
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { getTopShelfItemPath } from "./itemPath";
+import { buildTVDiscoveryPayload } from "./payload";
 
 const HOME = "/(auth)/(tabs)/(home)";
+
+const api = { basePath: "https://jellyfin.example" } as Api;
+
+/**
+ * Follows a tile's link the way the app does: the query string the payload
+ * builder wrote is what `app/topshelf/item.tsx` gets back as search params.
+ */
+const landingFor = (item: BaseItemDto): string => {
+  const payload = buildTVDiscoveryPayload({
+    api,
+    sections: [{ title: "Continue and Next Up", items: [item] }],
+  });
+  const route = payload?.sections[0]?.items[0]?.route;
+  if (!route) throw new Error("the item did not make it into the payload");
+
+  const query = route.slice(route.indexOf("?") + 1);
+  const params = Object.fromEntries(
+    query.split("&").map((pair) => {
+      const [key, value = ""] = pair.split("=");
+      return [key, decodeURIComponent(value)];
+    }),
+  );
+  if (!params.id) throw new Error("the link carries no id");
+
+  return getTopShelfItemPath({ ...params, id: params.id });
+};
+
+// The link is built in payload.ts and read in itemPath.ts, and each side has
+// its own tests against hand-written strings. These go through both, so a
+// parameter renamed on one side only fails here instead of silently sending
+// every season tile to the item page.
+describe("a tile's link lands where the item it was built from belongs", () => {
+  test("a season lands on its series with that season selected", () => {
+    expect(
+      landingFor({
+        Id: "season-2",
+        Name: "Season 2",
+        Type: "Season",
+        SeriesId: "series-1",
+        IndexNumber: 2,
+      }),
+    ).toBe(`${HOME}/series/series-1?seasonIndex=2`);
+  });
+
+  test("specials land on season 0", () => {
+    expect(
+      landingFor({
+        Id: "season-0",
+        Name: "Specials",
+        Type: "Season",
+        SeriesId: "series-1",
+        IndexNumber: 0,
+      }),
+    ).toBe(`${HOME}/series/series-1?seasonIndex=0`);
+  });
+
+  test("a series lands on the series page", () => {
+    expect(
+      landingFor({ Id: "series-1", Name: "Severance", Type: "Series" }),
+    ).toBe(`${HOME}/series/series-1`);
+  });
+
+  test("an episode lands on its own page", () => {
+    expect(landingFor({ Id: "ep-1", Name: "Pilot", Type: "Episode" })).toBe(
+      `${HOME}/items/page?id=ep-1`,
+    );
+  });
+
+  test("a season the server sent without its series lands on the item page", () => {
+    expect(
+      landingFor({ Id: "season-2", Name: "Season 2", Type: "Season" }),
+    ).toBe(`${HOME}/items/page?id=season-2`);
+  });
+});
 
 describe("getTopShelfItemPath: where a home screen tile lands in the app", () => {
   test("an episode or a movie opens its own page", () => {
