@@ -77,3 +77,35 @@ export function getServerUrlCandidates(input: string): string[] {
   );
   return Array.from(new Set(candidates));
 }
+
+/**
+ * Whether `url` can serve as a server base as it stands: it parses, and as
+ * http(s).
+ *
+ * The scheme is checked rather than trusted to `new URL` throwing, because a
+ * bare `localhost:8096` does parse — with `localhost:` as its scheme.
+ */
+export function isHttpUrl(url: string): boolean {
+  try {
+    const { protocol } = new URL(url);
+    return protocol === "http:" || protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The one URL an address stands for when no server answered to settle it: the
+ * canonical form of an address typed with its scheme, the same one resolution
+ * would have adopted.
+ *
+ * @returns null when the scheme was left out (https or http, only a probe can
+ * tell, and a guess would be stored as if it were known) or when the input is
+ * not an address.
+ */
+export function getExplicitServerUrl(input: string): string | null {
+  if (!parseServerInput(input)?.scheme) return null;
+
+  const [url] = getServerUrlCandidates(input);
+  return isHttpUrl(url) ? url : null;
+}

@@ -189,6 +189,13 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
     }
 
     const url = getWebSocketUrl(api.basePath, api.accessToken, deviceId);
+    // Not an http(s) base path: go without live updates rather than throw out
+    // of this effect, which would unmount every provider below the root. The
+    // address stays out of the message, which becomes a Sentry breadcrumb.
+    if (!url) {
+      writeErrorLog("WebSocket: server address is not an http(s) URL");
+      return;
+    }
 
     // React Native's WebSocket takes request headers as a third argument (the
     // DOM typings don't know about it), so a server behind an access gateway

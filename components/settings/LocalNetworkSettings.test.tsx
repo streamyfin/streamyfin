@@ -1,0 +1,177 @@
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react-native";
+import { clearMmkv } from "@/test-utils/mmkv";
+import { storage } from "@/utils/mmkv";
+import { getServerLocalConfig } from "@/utils/secureCredentials";
+import type { ServerProbeOutcome } from "@/utils/serverUrl/types";
+import { LocalNetworkSettings } from "./LocalNetworkSettings";
+
+const mockProbe = jest.fn<Promise<ServerProbeOutcome>, [string]>();
+const mockToastError = jest.fn();
+const mockRefreshUrlState = jest.fn();
+
+jest.mock(
+  "react-native-mmkv",
+  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
+);
+// The saved-server store imports the log module, which loads Sentry and its
+// timers. Nothing on the path under test logs.
+jest.mock("@/utils/log", () => ({ logAndCaptureError: () => undefined }));
+jest.mock("react-i18next", () => ({
+  useTranslation: () => ({ t: (key: string) => key }),
+}));
+jest.mock("sonner-native", () => ({
+  toast: {
+    error: (message: string) => mockToastError(message),
+    info: () => {},
+    success: () => {},
+  },
+}));
+jest.mock("@/hooks/useHaptic", () => ({ useHaptic: () => () => {} }));
+// Input reads the TV font scale through the settings atom, whose module graph
+// reaches native modules a spec cannot load. Nothing here renders on TV.
+jest.mock("@/constants/TVTypography", () => ({
+  useScaledTVTypography: () => ({}),
+}));
+jest.mock("@/hooks/useWifiSSID", () => ({
+  useWifiSSID: () => ({
+    permissionStatus: "granted",
+    requestPermission: async () => true,
+  }),
+}));
+jest.mock("@/modules/wifi-ssid", () => ({ openLocationSettings: () => {} }));
+jest.mock("@/providers/ServerUrlProvider", () => ({
+  useServerUrl: () => ({
+    isUsingLocalUrl: false,
+    currentSSID: "Home",
+    connectedToWifi: true,
+    refreshUrlState: mockRefreshUrlState,
+  }),
+}));
+jest.mock("@/utils/serverUrl/probes/jellyfin", () => ({
+  jellyfinProbe: (url: string) => mockProbe(url),
+}));
+
+const REMOTE_URL = "https://jellyfin.example.com";
+const PLACEHOLDER = "home.settings.network.local_url_placeholder";
+const NOT_SAVED = "home.settings.network.local_url_not_saved";
+const UNUSABLE = "home.settings.network.local_url_unusable";
+
+/** A signed-in install with auto-switching on and this local URL stored. */
+const storedLocalUrl = (localUrl: string) => {
+  storage.set("serverUrl", REMOTE_URL);
+  storage.set(
+    "previousServers",
+    JSON.stringify([
+      {
+        address: REMOTE_URL,
+        accounts: [],
+        localNetworkConfig: { enabled: true, localUrl, homeWifiSSIDs: [] },
+      },
+    ]),
+  );
+};
+
+const savedLocalUrl = () => getServerLocalConfig(REMOTE_URL)?.localUrl;
+
+/** Types an address into the local URL field and leaves the field. */
+const enter = async (address: string) => {
+  const field = screen.getByPlaceholderText(PLACEHOLDER);
+  await fireEvent.changeText(field, address);
+  await fireEvent(screen.getByPlaceholderText(PLACEHOLDER), "blur");
+};
+
+describe("LocalNetworkSettings", () => {
+  beforeEach(() => {
+    clearMmkv();
+    mockProbe.mockReset();
+    mockToastError.mockClear();
+    mockRefreshUrlState.mockClear();
+  });
+
+  // REACT-NATIVE-6C: a bare address nobody answers at (typed away from home,
+  // or without the port the server listens on) was stored as typed. On home
+  // Wi-Fi it became the API base path and the app crashed at every launch.
+  test.each(["192.168.1.10", "192.168.1.10:8096", "localhost:8096"])(
+    "does not save %p when the server does not answer, and says so",
+    async (address) => {
+      storedLocalUrl("http://10.0.0.2:8096");
+      mockProbe.mockResolvedValue({ status: "unreachable" });
+      await render(<LocalNetworkSettings />);
+
+      await enter(address);
+
+      await waitFor(() =>
+        expect(mockToastError).toHaveBeenCalledWith(NOT_SAVED),
+      );
+      expect(savedLocalUrl()).toBe("http://10.0.0.2:8096");
+      expect(mockRefreshUrlState).not.toHaveBeenCalled();
+    },
+  );
+
+  // A local URL is routinely set up from somewhere the server cannot be
+  // reached, so an address that says which scheme it means is still kept.
+  test("saves an unanswered address that names its scheme, in canonical form", async () => {
+    storedLocalUrl("");
+    mockProbe.mockResolvedValue({ status: "unreachable" });
+    await render(<LocalNetworkSettings />);
+
+    await enter("HTTP://192.168.1.10:8096/");
+
+    await waitFor(() =>
+      expect(savedLocalUrl()).toBe("http://192.168.1.10:8096"),
+    );
+    expect(mockToastError).not.toHaveBeenCalled();
+  });
+
+  test("saves a bare address with the scheme the server answered on", async () => {
+    storedLocalUrl("");
+    mockProbe.mockImplementation(async (url) =>
+      url.startsWith("http://") ? { status: "ok" } : { status: "unreachable" },
+    );
+    await render(<LocalNetworkSettings />);
+
+    await enter("192.168.1.10:8096");
+
+    await waitFor(() =>
+      expect(savedLocalUrl()).toBe("http://192.168.1.10:8096"),
+    );
+    expect(mockToastError).not.toHaveBeenCalled();
+  });
+
+  test("clears the local URL when the field is emptied", async () => {
+    storedLocalUrl("http://10.0.0.2:8096");
+    await render(<LocalNetworkSettings />);
+
+    await enter("");
+
+    await waitFor(() => expect(savedLocalUrl()).toBe(""));
+    expect(mockToastError).not.toHaveBeenCalled();
+  });
+
+  // An install that already holds one is switched back to the remote URL by
+  // ServerUrlProvider; this is where its owner finds out why.
+  test("flags a stored local URL the app cannot use", async () => {
+    storedLocalUrl("192.168.1.10:8096");
+    await render(<LocalNetworkSettings />);
+
+    expect(await screen.findByText(UNUSABLE)).toBeTruthy();
+  });
+
+  test("does not flag a usable or an empty local URL", async () => {
+    storedLocalUrl("http://192.168.1.10:8096");
+    const view = await render(<LocalNetworkSettings />);
+    await screen.findByDisplayValue("http://192.168.1.10:8096");
+    expect(screen.queryByText(UNUSABLE)).toBeNull();
+
+    await view.unmount();
+    storedLocalUrl("");
+    await render(<LocalNetworkSettings />);
+    await screen.findByPlaceholderText(PLACEHOLDER);
+    expect(screen.queryByText(UNUSABLE)).toBeNull();
+  });
+});

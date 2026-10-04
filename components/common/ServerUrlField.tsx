@@ -21,6 +21,9 @@ interface ServerUrlFieldProps {
    * the server merely didn't answer (so a URL can still be saved while its
    * server is unreachable, e.g. a LAN address configured from elsewhere).
    * Not called for unparseable input nor superseded (cancelled) attempts.
+   *
+   * Unresolved input is as the user typed it, possibly without a scheme, and
+   * is not a URL until `getExplicitServerUrl` says so: check before storing.
    */
   onCommit?: (url: string, resolved: boolean) => void;
   label?: string;
