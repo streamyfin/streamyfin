@@ -24,6 +24,7 @@ const SECTION_GAP = 10;
 
 type FavoriteTypes =
   | "Series"
+  | "Season"
   | "Movie"
   | "Episode"
   | "Video"
@@ -65,6 +66,7 @@ export const Favorites = ({
 
   const [emptyState, setEmptyState] = useState<EmptyState>({
     Series: null,
+    Season: null,
     Movie: null,
     Episode: null,
     Video: null,
@@ -120,6 +122,11 @@ export const Favorites = ({
   const fetchFavoriteSeries = useCallback(
     ({ pageParam }: { pageParam: number }) =>
       fetchFavoritesByType("Series", pageParam, pageSize),
+    [fetchFavoritesByType, pageSize],
+  );
+  const fetchFavoriteSeasons = useCallback(
+    ({ pageParam }: { pageParam: number }) =>
+      fetchFavoritesByType("Season", pageParam, pageSize),
     [fetchFavoritesByType, pageSize],
   );
   const fetchFavoriteMovies = useCallback(
@@ -211,6 +218,16 @@ export const Favorites = ({
           pageSize={pageSize}
           isFirstSection={isFirstSection}
           onEmptyStateChange={(isEmpty) => setTypeEmpty("Series", isEmpty)}
+        />
+        <InfiniteScrollingCollectionList
+          queryFn={fetchFavoriteSeasons}
+          queryKey={["home", queryKeyBase, "seasons"]}
+          title={t("favorites.seasons")}
+          hideIfEmpty
+          orientation='vertical'
+          displayShowName
+          pageSize={pageSize}
+          onEmptyStateChange={(isEmpty) => setTypeEmpty("Season", isEmpty)}
         />
         <InfiniteScrollingCollectionList
           queryFn={fetchFavoriteMovies}

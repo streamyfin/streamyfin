@@ -20,6 +20,7 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 
 type FavoriteTypes =
   | "Series"
+  | "Season"
   | "Movie"
   | "Episode"
   | "Video"
@@ -28,6 +29,7 @@ type FavoriteTypes =
 
 const favoriteTypes: readonly FavoriteTypes[] = [
   "Series",
+  "Season",
   "Movie",
   "Episode",
   "Video",
@@ -126,6 +128,8 @@ export default function FavoritesSeeAll() {
     items: flatData,
     columns: nrOfCols,
     enableActionSheet: true,
+    // "Season 2" alone says nothing in a grid of seasons from many shows.
+    showParentTitle: itemType === "Season",
   });
 
   const handleEndReached = useCallback(() => {

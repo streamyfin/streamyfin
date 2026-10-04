@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
-import React from "react";
+import type React from "react";
+import type { View } from "react-native";
 import { useWatchlist } from "@/hooks/useWatchlist";
 import { scaleSize } from "@/utils/scaleSize";
 import { TVButton } from "./TVButton";
@@ -8,6 +9,8 @@ import { TVButton } from "./TVButton";
 export interface TVWatchlistButtonProps {
   item: BaseItemDto;
   disabled?: boolean;
+  /** Lets a page aim a TVFocusGuideView at this button. */
+  refSetter?: (ref: View | null) => void;
 }
 
 /**
@@ -17,6 +20,7 @@ export interface TVWatchlistButtonProps {
 export const TVWatchlistButton: React.FC<TVWatchlistButtonProps> = ({
   item,
   disabled,
+  refSetter,
 }) => {
   const { isWatchlisted, toggleWatchlist, isPending } = useWatchlist(item);
 
@@ -26,6 +30,7 @@ export const TVWatchlistButton: React.FC<TVWatchlistButtonProps> = ({
       variant='glass'
       square
       disabled={disabled || isPending}
+      refSetter={refSetter}
     >
       <Ionicons
         name={isWatchlisted ? "bookmark" : "bookmark-outline"}

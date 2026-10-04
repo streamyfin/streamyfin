@@ -369,6 +369,22 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
       );
     }
 
+    // Season under its show's name: the season name moves down here
+    if (item.Type === "Season" && displayShowName && item.SeriesName) {
+      return (
+        <Text
+          numberOfLines={1}
+          style={{
+            fontSize: typography.callout,
+            color: "#9CA3AF",
+            marginTop: scaleSize(4),
+          }}
+        >
+          {item.Name}
+        </Text>
+      );
+    }
+
     // Default: production year
     if (item.ProductionYear) {
       return (
@@ -557,7 +573,12 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
       );
     }
 
-    // Default: show name
+    // Default: show name. A season on its own reads "Season 2", so rows that
+    // mix shows put the show's name first.
+    const defaultTitle =
+      item.Type === "Season" && displayShowName && item.SeriesName
+        ? item.SeriesName
+        : item.Name;
     return (
       <Text
         numberOfLines={titleLines}
@@ -568,7 +589,7 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
           fontWeight: "500",
         }}
       >
-        {item.Name}
+        {defaultTitle}
       </Text>
     );
   };

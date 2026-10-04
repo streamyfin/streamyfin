@@ -718,12 +718,14 @@
   },
   "favorites": {
     "series": "Series",
+    "seasons": "Seasons",
     "movies": "Movies",
     "episodes": "Episodes",
     "videos": "Videos",
     "boxsets": "Box sets",
     "playlists": "Playlists",
     "seeAllSeries": "Favorited Series",
+    "seeAllSeasons": "Favorited Seasons",
     "seeAllMovies": "Favorited Movies",
     "seeAllEpisodes": "Favorited Episodes",
     "seeAllVideos": "Favorited Videos",
@@ -734,6 +736,7 @@
   },
   "kefintweaksWatchlist": {
     "seeAllSeries": "Watchlisted Series",
+    "seeAllSeasons": "Watchlisted Seasons",
     "seeAllMovies": "Watchlisted Movies",
     "seeAllEpisodes": "Watchlisted Episodes",
     "seeAllVideos": "Watchlisted Videos",
