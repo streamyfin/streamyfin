@@ -35,11 +35,19 @@ place that decides what they point at:
   which hands the id to the player.
 
 A container (a series, a season, a collection, anything `isPlayableItem` refuses) has no
-stream: the server answers `PlaybackInfo` for it with a 400. Its `playRoute` is therefore
-the same link as its `route`, so Play opens the series page, where the app picks the
-episode to continue with, the same way Play on a series does inside the app. A season
-link also carries `seriesId` and `seasonIndex`, because the app shows a season as its
-series with that season selected.
+stream: the server answers `PlaybackInfo` for it with a 400 or a 500. Its `playRoute` is
+therefore the same link as its `route`, so Play opens the same page Select does. Which
+page that is depends on the kind:
+
+- a series opens the series page, where the app picks the episode to continue with, the
+  same way Play on a series does inside the app
+- a season opens its series page with that season selected, which is why a season link
+  also carries `seriesId` and `seasonIndex`
+- anything else (a collection, a playlist, a season the server sent without its series)
+  opens the item page, which has no Play button for it
+
+Home only publishes movies and episodes today, so the last case is a guard. Publishing
+another container kind means giving it a landing in `itemPath.ts` first.
 
 How the platforms use the two links:
 
