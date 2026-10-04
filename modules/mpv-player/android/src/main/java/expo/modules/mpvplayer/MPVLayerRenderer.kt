@@ -16,6 +16,8 @@ import expo.modules.mpvplayer.nativeplayer.engine.VideoLoadConfig
 import java.io.File
 import java.io.FileOutputStream
 import java.util.Locale
+import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicReference
 
 internal fun normalizeVideoDimensions(width: Int, height: Int, rotation: Int): Pair<Int, Int> {
     val normalizedRotation = ((rotation % 360) + 360) % 360
@@ -60,6 +62,12 @@ class MPVLayerRenderer(
         const val MPV_FORMAT_INT64 = 4
         const val MPV_FORMAT_DOUBLE = 5
         const val MPV_FORMAT_NODE = 6
+
+        // One worker for every renderer: only one player is alive at a time,
+        // and a daemon thread never keeps the process from exiting.
+        private val surfaceSizeExecutor = Executors.newSingleThreadExecutor { task ->
+            Thread(task, "mpv-surface-size").apply { isDaemon = true }
+        }
     }
 
     private fun isTvDevice(): Boolean {
@@ -93,6 +101,9 @@ class MPVLayerRenderer(
     override var delegate: PlayerEngine.Delegate? = null
     
     private val mainHandler = Handler(Looper.getMainLooper())
+
+    // The latest surface size not yet handed to mpv; see updateSurfaceSize.
+    private val pendingSurfaceSize = AtomicReference<String?>(null)
     
     private var surface: Surface? = null
     @Volatile private var isRunning = false
@@ -105,7 +116,7 @@ class MPVLayerRenderer(
     // nativeDestroy has an internal use-after-free we can't fix from Kotlin,
     // so we mirror Findroid and let the JVM GC + native finalization path
     // reclaim resources. Only one player is alive at a time in this app.
-    private var mpv: MPVLib? = null
+    @Volatile private var mpv: MPVLib? = null
 
     /** Retained across mpv re-creation; see setMute. */
     private var isMuted = false
@@ -505,11 +516,24 @@ class MPVLayerRenderer(
      * Based on Findroid's implementation.
      */
     override fun updateSurfaceSize(width: Int, height: Int) {
-        if (isRunning) {
-            mpv?.setPropertyString("android-surface-size", "${width}x$height")
-            Log.i(TAG, "[PiP] updateSurfaceSize — ${width}x${height}")
-        } else {
+        if (!isRunning) {
             Log.w(TAG, "[PiP] updateSurfaceSize — called but renderer not running")
+            return
+        }
+        // Setting an mpv property waits for the player core, and the core can
+        // be busy for seconds (opening a stream, bringing up a decoder). This
+        // is called from layout on the UI thread, where that wait is an ANR
+        // (seen under onSurfaceTextureSizeChanged). The size is a hint for
+        // the VO and only the latest one matters, so it is handed to a worker.
+        pendingSurfaceSize.set("${width}x$height")
+        surfaceSizeExecutor.execute {
+            val size = pendingSurfaceSize.getAndSet(null) ?: return@execute
+            try {
+                mpv?.setPropertyString("android-surface-size", size)
+                Log.i(TAG, "[PiP] updateSurfaceSize — $size")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error updating surface size: ${e.message}")
+            }
         }
     }
 
