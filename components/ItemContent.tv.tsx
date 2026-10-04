@@ -59,6 +59,7 @@ import { useSettings } from "@/utils/atoms/settings";
 import type { TVOptionItem } from "@/utils/atoms/tvOptionModal";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
 import { getPrimaryImageUrlById } from "@/utils/jellyfin/image/getPrimaryImageUrlById";
+import { isPlayableItem } from "@/utils/jellyfin/media/isPlayableItem";
 import { scaleSize } from "@/utils/scaleSize";
 import { rememberSeriesTrackFromRow } from "@/utils/seriesTrackMemory";
 import { SUBTITLES_OFF } from "@/utils/subtitles/subtitleIndex";
@@ -618,6 +619,8 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
 
     if (!item || !selectedOptions) return null;
 
+    const playable = isPlayableItem(item);
+
     return (
       <View
         style={{
@@ -745,6 +748,21 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                 </BlurView>
               )}
 
+              {/* A Season, a Book or a folder can land on this page but has
+                  no stream: say so rather than offer a Play button and
+                  playback options that cannot work. */}
+              {!playable && (
+                <Text
+                  style={{
+                    fontSize: typography.callout,
+                    color: "#E5E7EB",
+                    marginBottom: scaleSize(20),
+                  }}
+                >
+                  {t("player.unsupported_item_type")}
+                </Text>
+              )}
+
               {/* Action buttons */}
               <View
                 style={{
@@ -753,123 +771,129 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                   marginBottom: scaleSize(20),
                 }}
               >
-                <TVButton
-                  onPress={handlePlay}
-                  hasTVPreferredFocus
-                  variant='primary'
-                >
-                  <Ionicons
-                    name='play'
-                    size={scaleSize(28)}
-                    color='#000000'
-                    style={{ marginRight: scaleSize(10) }}
-                  />
-                  <Text
-                    style={{
-                      fontSize: typography.callout,
-                      fontWeight: "bold",
-                      color: "#000000",
-                    }}
+                {playable && (
+                  <TVButton
+                    onPress={handlePlay}
+                    hasTVPreferredFocus
+                    variant='primary'
                   >
-                    {hasProgress
-                      ? `${remainingTime} ${t("item_card.left")}`
-                      : t("common.play")}
-                  </Text>
-                </TVButton>
-                <TVFavoriteButton item={item} />
+                    <Ionicons
+                      name='play'
+                      size={scaleSize(28)}
+                      color='#000000'
+                      style={{ marginRight: scaleSize(10) }}
+                    />
+                    <Text
+                      style={{
+                        fontSize: typography.callout,
+                        fontWeight: "bold",
+                        color: "#000000",
+                      }}
+                    >
+                      {hasProgress
+                        ? `${remainingTime} ${t("item_card.left")}`
+                        : t("common.play")}
+                    </Text>
+                  </TVButton>
+                )}
+                {/* Exactly one element asks for the initial focus: Play when
+                    it is there, otherwise the first button left in the row. */}
+                <TVFavoriteButton item={item} hasTVPreferredFocus={!playable} />
                 <TVPlayedButton item={item} />
                 <TVRefreshButton itemId={item.Id} />
               </View>
 
               {/* Playback options */}
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  flexWrap: "wrap",
-                  rowGap: scaleSize(12),
-                  gap: scaleSize(12),
-                  marginBottom: scaleSize(20),
-                }}
-              >
-                {/* Quality selector */}
-                <TVOptionButton
-                  label={t("item_card.quality")}
-                  value={selectedQualityLabel}
-                  maxWidth={scaleSize(200)}
-                  onPress={() =>
-                    showOptions({
-                      title: t("item_card.quality"),
-                      options: qualityOptions,
-                      onSelect: handleQualityChange,
-                    })
-                  }
-                />
-
-                {/* Media source selector (only if multiple sources) */}
-                {mediaSources.length > 1 && (
+              {playable && (
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    flexWrap: "wrap",
+                    rowGap: scaleSize(12),
+                    gap: scaleSize(12),
+                    marginBottom: scaleSize(20),
+                  }}
+                >
+                  {/* Quality selector */}
                   <TVOptionButton
-                    label={t("item_card.video")}
-                    value={selectedMediaSourceLabel}
-                    maxWidth={scaleSize(280)}
+                    label={t("item_card.quality")}
+                    value={selectedQualityLabel}
+                    maxWidth={scaleSize(200)}
                     onPress={() =>
                       showOptions({
-                        title: t("item_card.video"),
-                        options: mediaSourceOptions,
-                        onSelect: handleMediaSourceChange,
+                        title: t("item_card.quality"),
+                        options: qualityOptions,
+                        onSelect: handleQualityChange,
                       })
                     }
                   />
-                )}
 
-                {/* Audio selector */}
-                {audioRows.length > 0 && (
-                  <TVOptionButton
-                    label={t("item_card.audio")}
-                    value={selectedAudioLabel}
-                    maxWidth={scaleSize(280)}
-                    onPress={() =>
-                      showOptions({
-                        title: t("item_card.audio"),
-                        options: audioOptions,
-                        onSelect: handleAudioChange,
-                      })
-                    }
-                  />
-                )}
+                  {/* Media source selector (only if multiple sources) */}
+                  {mediaSources.length > 1 && (
+                    <TVOptionButton
+                      label={t("item_card.video")}
+                      value={selectedMediaSourceLabel}
+                      maxWidth={scaleSize(280)}
+                      onPress={() =>
+                        showOptions({
+                          title: t("item_card.video"),
+                          options: mediaSourceOptions,
+                          onSelect: handleMediaSourceChange,
+                        })
+                      }
+                    />
+                  )}
 
-                {/* Subtitle selector */}
-                {(subtitleRows.some((row) => row.kind === "server") ||
-                  selectedOptions?.subtitleIndex !== undefined) && (
-                  <TVOptionButton
-                    label={t("item_card.subtitles.label")}
-                    value={selectedSubtitleLabel}
-                    maxWidth={scaleSize(280)}
-                    onPress={() =>
-                      showSubtitleModal({
-                        item,
-                        mediaSourceId: selectedOptions?.mediaSource?.Id,
-                        subtitleTracks: subtitleTracksForModal,
-                        currentSubtitleIndex:
-                          selectedOptions?.subtitleIndex ?? -1,
-                        // The modal owns its own "None" row, so hand the
-                        // builder's off row back rather than a bare -1.
-                        onDisableSubtitles: () => {
-                          const offRow = subtitleRows.find(
-                            (row) => row.kind === "off",
-                          );
-                          if (offRow) handleSubtitleChange(offRow);
-                        },
-                        onServerSubtitleDownloaded:
-                          handleServerSubtitleDownloaded,
-                        onLocalSubtitleDownloaded:
-                          handleLocalSubtitleDownloaded,
-                        refreshSubtitleTracks,
-                      })
-                    }
-                  />
-                )}
-              </View>
+                  {/* Audio selector */}
+                  {audioRows.length > 0 && (
+                    <TVOptionButton
+                      label={t("item_card.audio")}
+                      value={selectedAudioLabel}
+                      maxWidth={scaleSize(280)}
+                      onPress={() =>
+                        showOptions({
+                          title: t("item_card.audio"),
+                          options: audioOptions,
+                          onSelect: handleAudioChange,
+                        })
+                      }
+                    />
+                  )}
+
+                  {/* Subtitle selector */}
+                  {(subtitleRows.some((row) => row.kind === "server") ||
+                    selectedOptions?.subtitleIndex !== undefined) && (
+                    <TVOptionButton
+                      label={t("item_card.subtitles.label")}
+                      value={selectedSubtitleLabel}
+                      maxWidth={scaleSize(280)}
+                      onPress={() =>
+                        showSubtitleModal({
+                          item,
+                          mediaSourceId: selectedOptions?.mediaSource?.Id,
+                          subtitleTracks: subtitleTracksForModal,
+                          currentSubtitleIndex:
+                            selectedOptions?.subtitleIndex ?? -1,
+                          // The modal owns its own "None" row, so hand the
+                          // builder's off row back rather than a bare -1.
+                          onDisableSubtitles: () => {
+                            const offRow = subtitleRows.find(
+                              (row) => row.kind === "off",
+                            );
+                            if (offRow) handleSubtitleChange(offRow);
+                          },
+                          onServerSubtitleDownloaded:
+                            handleServerSubtitleDownloaded,
+                          onLocalSubtitleDownloaded:
+                            handleLocalSubtitleDownloaded,
+                          refreshSubtitleTracks,
+                        })
+                      }
+                    />
+                  )}
+                </View>
+              )}
 
               {/* Progress bar (if partially watched) */}
               {hasProgress && item.RunTimeTicks != null && (

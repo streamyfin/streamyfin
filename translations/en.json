@@ -764,6 +764,7 @@
     "still_watching": "Are you still watching?",
     "error": "Error",
     "failed_to_get_stream_url": "Failed to get the stream URL",
+    "unsupported_item_type": "Streamyfin can't play this type of item",
     "an_error_occurred_while_playing_the_video": "An error occurred while playing the video. Check logs in settings.",
     "client_error": "Client error",
     "could_not_create_stream_for_chromecast": "Could not create a stream for Chromecast",
