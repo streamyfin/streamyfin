@@ -20,7 +20,7 @@ const httpError = (
   }: {
     method?: string;
     url?: string;
-    headers?: Record<string, string>;
+    headers?: Record<string, unknown>;
     data?: unknown;
   } = {},
 ) =>
@@ -328,8 +328,8 @@ describe("describeHttpResponse", () => {
   const HOST = "my-private-host.duckdns.org";
   const described = (
     data: unknown,
-    contentType?: string,
-    { status = 500, server }: { status?: number; server?: string } = {},
+    contentType?: unknown,
+    { status = 500, server }: { status?: number; server?: unknown } = {},
   ) =>
     describeHttpResponse(
       httpError(status, {
@@ -560,6 +560,194 @@ describe("describeHttpResponse", () => {
     test("is told when it opens with its html tag", () => {
       expect(
         described(`<html><body>${HOST}</body></html>`, "text/plain")?.bodyKind,
+      ).toBe("html");
+    });
+  });
+
+  // The Server header is what the machine that answered calls itself, and an
+  // admin can make that anything, the host name included. It went out as it
+  // came, and a host with no scheme in front of it passes the scrubber.
+  describe("the Server header is cut down to the product it names", () => {
+    const serverOf = (server: unknown) =>
+      described("", undefined, { server })?.server;
+
+    // The signal that tells Jellyfin from a proxy has to survive the cut.
+    test.each([
+      ["Kestrel", "Kestrel"],
+      ["cloudflare", "cloudflare"],
+      ["nginx/1.25.3", "nginx/1.25.3"],
+      ["Microsoft-IIS/10.0", "Microsoft-IIS/10.0"],
+      ["Apache/2.4.57 (Debian)", "Apache/2.4.57"],
+      ["Werkzeug/2.0.1 Python/3.9.2", "Werkzeug/2.0.1"],
+      ["Jetty(9.4.z-SNAPSHOT)", "Jetty"],
+      ["  nginx  ", "nginx"],
+      ["nginx/1.25.3-alpine", "nginx/1.25.3"],
+    ])("%s", (server, product) => {
+      expect(serverOf(server)).toBe(product);
+    });
+
+    test.each([
+      HOST,
+      `${HOST}:8096`,
+      `${HOST}/1.0`,
+      `https://${HOST}`,
+      "jellyfin.lan",
+      "nas:8096",
+      "192.168.1.5",
+      "[2001:db8::5]:8096",
+      "fredrik@nas",
+      // No product name runs this long, and a cut of it is still a cut of
+      // something nobody vouched for.
+      `media-${"x".repeat(40)}`,
+    ])("a value that reads as a host is withheld: %s", (server) => {
+      const result = described("", undefined, { server });
+      expect(result?.server).toBe("[withheld]");
+      expect(JSON.stringify(result)).not.toMatch(/duckdns|lan|nas|168|2001/);
+    });
+
+    // A version is up to three numbers. Four are an IPv4 address as much as
+    // they are a version, and anything else after the slash is free text.
+    test.each([
+      ["proxy/192.168.1.5", "proxy"],
+      ["openresty/1.21.4.1", "openresty"],
+      [`proxy/1.${HOST}`, "proxy"],
+      [`proxy/${HOST}`, "proxy"],
+      ["proxy/1234567", "proxy"],
+      // A colon or a slash after the numbers means they were the start of an
+      // address, a port or a path, and a cut of one is not a version.
+      ["proxy/2001:db8::5", "proxy"],
+      ["proxy/192.168.1/24", "proxy"],
+      ["proxy/1.2.3:8096", "proxy"],
+    ])("a version that is not one is left off: %s", (server, product) => {
+      expect(serverOf(server)).toBe(product);
+    });
+
+    test("only the first product is named", () => {
+      expect(serverOf(`nginx ${HOST}`)).toBe("nginx");
+      expect(serverOf("nginx, Kestrel")).toBe("nginx");
+    });
+
+    // Kestrel always names itself, so a Server header that is there and is
+    // not repeated still says a proxy answered, where none at all says the
+    // proxy strips it. The two used to read the same on an event.
+    test("a header that was sent is marked, one that was not is absent", () => {
+      expect(serverOf("Node.js")).toBe("[withheld]");
+      expect(serverOf("3proxy/0.9")).toBe("[withheld]");
+      expect(described("")).toEqual({ status: 500, bodyKind: "empty" });
+      expect(described("")).not.toHaveProperty("server", "[withheld]");
+      expect(serverOf("   ")).toBeUndefined();
+    });
+
+    // axios types a header as a string or a list of them, and a header sent
+    // twice can arrive as either. A list reads as its entries in order, so a
+    // host in front is withheld and one behind a product is never reached.
+    test.each<[unknown, string | undefined]>([
+      [["nginx", "Kestrel"], "nginx"],
+      [["nginx", HOST], "nginx"],
+      [[HOST, "nginx"], "[withheld]"],
+      [[HOST], "[withheld]"],
+      [[], undefined],
+      [[""], undefined],
+      [8096, "[withheld]"],
+      [{ host: HOST }, "[withheld]"],
+    ])("a value that is not a string: %j", (server, expected) => {
+      const result = described("", undefined, { server });
+      expect(result?.server).toBe(expected);
+      expect(JSON.stringify(result)).not.toContain("duckdns");
+    });
+  });
+
+  describe("the content type is cut down to the media type and its charset", () => {
+    const contentTypeOf = (contentType: unknown) =>
+      described("", contentType)?.contentType;
+
+    test.each([
+      ["text/plain", "text/plain"],
+      ["text/plain; charset=utf-8", "text/plain; charset=utf-8"],
+      ['text/html;charset="UTF-8"', "text/html; charset=utf-8"],
+      [
+        "Application/Problem+JSON; Charset=UTF-8",
+        "application/problem+json; charset=utf-8",
+      ],
+      ["application/octet-stream", "application/octet-stream"],
+      ["text/html; charset=ISO-8859-1", "text/html; charset=iso-8859-1"],
+    ])("%s", (contentType, expected) => {
+      expect(contentTypeOf(contentType)).toBe(expected);
+    });
+
+    test.each([
+      [`multipart/form-data; boundary=${HOST}`, "multipart/form-data"],
+      [
+        `application/json; profile="https://${HOST}/schema"; charset=utf-8`,
+        "application/json; charset=utf-8",
+      ],
+      [`text/plain; charset=${HOST}`, "text/plain"],
+      [
+        `text/plain; charset=utf-8; server=${HOST}`,
+        "text/plain; charset=utf-8",
+      ],
+    ])("no other parameter is repeated: %s", (contentType, expected) => {
+      expect(contentTypeOf(contentType)).toBe(expected);
+    });
+
+    // A charset is one of a few known words. Any other plain word is as free
+    // as a boundary, and "charset=" can also turn up inside another
+    // parameter's quoted value or behind a second media type.
+    test.each([
+      ["text/plain; charset=fredriks-nas", "text/plain"],
+      ['text/plain; profile="x; charset=fredriks-nas"', "text/plain"],
+      ["text/plain, text/html; charset=fredriks-nas", "text/plain"],
+    ])(
+      "a charset that is not a known one is left off: %s",
+      (contentType, expected) => {
+        expect(contentTypeOf(contentType)).toBe(expected);
+      },
+    );
+
+    // A dotted subtype is how a vendor type is written and also how a host
+    // is, so neither goes out.
+    test.each([
+      HOST,
+      `text/${HOST}`,
+      `${HOST}/json`,
+      "application/vnd.api+json",
+      "not a content type",
+    ])(
+      "a value that is not a plain media type is withheld: %s",
+      (contentType) => {
+        const result = described("", contentType);
+        expect(result?.contentType).toBe("[withheld]");
+        expect(JSON.stringify(result)).not.toContain("duckdns");
+      },
+    );
+
+    // The body is still read against what the server sent, not the cut.
+    test("an HTML page is told under a content type that is withheld", () => {
+      expect(described("<center>x</center>", `text/html/${HOST}`)).toEqual({
+        status: 500,
+        contentType: "[withheld]",
+        bodyKind: "html",
+        bodyLength: 18,
+      });
+    });
+
+    // The same list a Server header can arrive as, and the body is read
+    // against it too.
+    test.each<[unknown, string | undefined]>([
+      [["text/html", "application/json"], "text/html"],
+      [["text/plain; charset=utf-8"], "text/plain; charset=utf-8"],
+      [[HOST, "text/html"], "[withheld]"],
+      [[], undefined],
+      [404, "[withheld]"],
+    ])("a value that is not a string: %j", (contentType, expected) => {
+      const result = described("", contentType);
+      expect(result?.contentType).toBe(expected);
+      expect(JSON.stringify(result)).not.toContain("duckdns");
+    });
+
+    test("an HTML page is told by a content type that came as a list", () => {
+      expect(
+        described("<center>x</center>", ["text/html; charset=utf-8"])?.bodyKind,
       ).toBe("html");
     });
   });

@@ -409,7 +409,8 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
         // came with are what tell Jellyfin's own refusal apart from a proxy
         // that blocks the POST, or turns it into a GET via an http→https
         // redirect (405). The body itself is not sent: describeHttpResponse
-        // only quotes a reason it knows to be fixed words.
+        // only quotes a reason it knows to be fixed words, and cuts the two
+        // headers down to the product and the media type they name.
         if (isAxiosError(error) && error.response?.status === 401) return;
         if (isAxiosError(error) && error.response?.status === 404) {
           // Jellyfin's own ExceptionMiddleware answers 404 ("Error processing
