@@ -424,11 +424,8 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
           );
           return;
         }
-        logAndCaptureError(
-          "Posting session capabilities failed",
-          error,
-          describeHttpResponse(error),
-        );
+        // logAndCaptureError describes the response on the event itself.
+        logAndCaptureError("Posting session capabilities failed", error);
       }
     };
 

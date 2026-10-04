@@ -193,6 +193,32 @@ describe("reportDataError", () => {
     expect(mockCaptured).toHaveLength(3);
   });
 
+  // REACT-NATIVE-3C, 6B, 87: a 400 on /Items and /Items/Latest came with the
+  // route and the status and nothing to say whether Jellyfin rejected a
+  // parameter or a proxy answered in its place.
+  test("the server's answer is described next to the route", () => {
+    reportDataError(
+      "query",
+      ["library-items"],
+      httpError(
+        newServer(),
+        "/Items",
+        400,
+        { "content-type": "application/problem+json", server: "Kestrel" },
+        { status: 400, errors: { sortBy: ["The value 'Foo' is not valid."] } },
+      ),
+    );
+    expect(mockCaptured).toHaveLength(1);
+    expect(mockCaptured[0].contexts.http_response).toEqual({
+      status: 400,
+      contentType: "application/problem+json",
+      server: "Kestrel",
+      bodyKind: "json",
+      bodyKeys: ["status", "errors"],
+      errorFields: ["sortBy"],
+    });
+  });
+
   test("a failure with no HTTP response is reported once per query", () => {
     reportDataError("mutation", ["play"], new TypeError("x is undefined"));
     reportDataError("mutation", ["play"], new TypeError("x is undefined"));

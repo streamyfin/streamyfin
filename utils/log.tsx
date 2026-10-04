@@ -7,6 +7,7 @@ import { createContext, useContext } from "react";
 import { MAX_SESSION_REPORT_KEYS } from "@/constants/Sentry";
 import {
   describeHttpError,
+  describeHttpResponse,
   isAbortLikeError,
   isEnvironmentError,
   isErrorReported,
@@ -198,6 +199,12 @@ export const logAndCaptureError = (
   ) {
     return;
   }
+  // A 401 is the session ending, on whichever request happened to be in
+  // flight: JellyfinProvider's interceptor signs the user out and the login
+  // screen says the rest. utils/reportDataError leaves it out the same way.
+  if (isAxiosError(error) && error.response?.status === 401) {
+    return;
+  }
   // The same error object caught by a second layer, or one whose twin the
   // Seerr interceptor already sent: under another message it would be a
   // second issue for the same failure.
@@ -233,6 +240,7 @@ export const logAndCaptureError = (
       // Group by what actually separates them: which call failed, to which
       // route, with which status.
       scope.setContext("http", http);
+      scope.setContext("http_response", describeHttpResponse(error) ?? null);
       scope.setFingerprint([
         message,
         http.method,
