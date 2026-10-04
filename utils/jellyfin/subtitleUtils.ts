@@ -73,6 +73,30 @@ export const getExternalSubtitleUrl = (
 };
 
 /**
+ * The URL a cast receiver fetches a sidecar subtitle from. The receiver sends
+ * no auth headers, so the token rides in the URL — as `ApiKey`, the query
+ * parameter Jellyfin still accepts: `api_key` is legacy authorization, which
+ * Jellyfin 12 turns off by default.
+ *
+ * Only a server-relative URL gets the token. An `IsExternalUrl` sub lives on
+ * a third-party host that must never see the Jellyfin access token, and a URL
+ * the server already signed is left as it came.
+ */
+export const getCastSubtitleUrl = (
+  sub: MediaStream,
+  opts: { basePath?: string | null; accessToken?: string | null },
+): string | undefined => {
+  const url = getExternalSubtitleUrl(sub, {
+    offline: false,
+    basePath: opts.basePath,
+  });
+  if (!url) return undefined;
+  if (sub.IsExternalUrl || !opts.accessToken) return url;
+  if (/[?&]api_?key=/i.test(url)) return url;
+  return `${url}${url.includes("?") ? "&" : "?"}ApiKey=${encodeURIComponent(opts.accessToken)}`;
+};
+
+/**
  * Order subtitle MediaStreams for the selection menu exactly like jellyfin-web's
  * `itemHelper.sortTracks`: in-container tracks first then external, and within
  * each group forced first, then default, then `Index` ascending. Callers prepend
