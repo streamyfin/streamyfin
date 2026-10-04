@@ -14,6 +14,7 @@ import {
   type LocalNetworkConfig,
   updateServerLocalConfig,
 } from "@/utils/secureCredentials";
+import { getExplicitServerUrl, isHttpUrl } from "@/utils/serverUrl/candidates";
 import { jellyfinProbe } from "@/utils/serverUrl/probes/jellyfin";
 import { Button } from "../Button";
 import { ServerUrlField } from "../common/ServerUrlField";
@@ -153,10 +154,21 @@ export function LocalNetworkSettings(): React.ReactElement | null {
   );
 
   const handleLocalUrlCommit = useCallback(
-    (localUrl: string) => {
+    (input: string, resolved: boolean) => {
+      // A resolved URL is the one that answered, and "" clears the setting.
+      // Anything else is what was typed, with no server to say what it meant:
+      // it is kept only when it names its scheme. Stored as typed, a bare
+      // `192.168.1.10` became the API base path on home Wi-Fi and crashed the
+      // app at every launch there.
+      const localUrl =
+        resolved || input === "" ? input : getExplicitServerUrl(input);
+      if (localUrl === null) {
+        toast.error(t("home.settings.network.local_url_not_saved"));
+        return;
+      }
       saveConfig({ ...config, localUrl });
     },
-    [config, saveConfig],
+    [config, saveConfig, t],
   );
 
   const handleAddCurrentNetwork = useCallback(() => {
@@ -186,6 +198,11 @@ export function LocalNetworkSettings(): React.ReactElement | null {
   );
 
   if (!remoteUrl) return null;
+
+  // A local URL saved before the commit above checked it. ServerUrlProvider
+  // does not switch to one, so say why the remote URL stays in use.
+  const localUrlUnusable =
+    config.localUrl !== "" && !isHttpUrl(config.localUrl);
 
   const addNetworkButtonText = currentSSID
     ? t("home.settings.network.add_current_network", { ssid: currentSSID })
@@ -223,6 +240,11 @@ export function LocalNetworkSettings(): React.ReactElement | null {
                 probe={jellyfinProbe}
                 placeholder={t("home.settings.network.local_url_placeholder")}
               />
+              {localUrlUnusable && (
+                <Text className='text-xs text-amber-400 mt-2'>
+                  {t("home.settings.network.local_url_unusable")}
+                </Text>
+              )}
             </View>
           </ListGroup>
 
