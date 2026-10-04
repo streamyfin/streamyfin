@@ -10,7 +10,10 @@ import type {
 import { BackgroundDownloader } from "@/modules";
 import { logAndCaptureError, writeToLog } from "@/utils/log";
 import { classifyDownloadError } from "../downloadErrors";
-import { deletePendingDownloadFiles } from "../fileOperations";
+import {
+  deletePendingDownloadFiles,
+  deleteUnclaimedVideo,
+} from "../fileOperations";
 import {
   getNotificationContent,
   sendDownloadNotification,
@@ -189,7 +192,12 @@ export function useDownloadEventHandlers({
         if (!itemId) return;
 
         const record = getPendingDownload(itemId);
-        if (!record) return;
+        if (!record) {
+          // Either the download was finalized before this event arrived (reconciliation does
+          // that), or it was cancelled while it finished and its video is now a leftover.
+          deleteUnclaimedVideo(event.filePath);
+          return;
+        }
 
         try {
           const videoFile = new File(filePathToUri(event.filePath));

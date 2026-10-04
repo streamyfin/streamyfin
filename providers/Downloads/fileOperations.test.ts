@@ -24,6 +24,7 @@ jest.mock("./pendingDownloads", () => ({
 import {
   deleteAllAssociatedFiles,
   deletePendingDownloadFiles,
+  deleteUnclaimedVideo,
 } from "./fileOperations";
 
 const VIDEO = `${DOCUMENTS}/show_s01e01.mp4`;
@@ -343,6 +344,54 @@ describe("deletePendingDownloadFiles", () => {
 
       expect(fakeFiles.remaining()).toEqual([]);
     });
+  });
+});
+
+describe("deleteUnclaimedVideo", () => {
+  // What native hands back with the completion event: a plain path, not a file:// uri.
+  const reported = "/documents/show_s01e01.mp4";
+
+  it("removes a video no download accounts for", () => {
+    fakeFiles.add(VIDEO, ...SIDECARS);
+
+    deleteUnclaimedVideo(reported);
+
+    expect(fakeFiles.deleted()).toEqual([VIDEO]);
+  });
+
+  // The completion event of a download can arrive after reconciliation has finalized it.
+  it("keeps the video of a finished download", () => {
+    fakeFiles.add(VIDEO);
+    mockDownloaded = [makeDownloaded()];
+
+    deleteUnclaimedVideo(reported);
+
+    expect(fakeFiles.deleted()).toEqual([]);
+  });
+
+  // The item was cancelled and downloaded again before the first transfer reported back.
+  it("keeps a video a pending download is about to replace", () => {
+    fakeFiles.add(VIDEO);
+    mockPending = [makeRecord()];
+
+    deleteUnclaimedVideo(reported);
+
+    expect(fakeFiles.deleted()).toEqual([]);
+  });
+
+  it("deletes nothing when the downloads database cannot be read", () => {
+    fakeFiles.add(VIDEO);
+    mockDatabaseError = new Error("corrupt");
+
+    expect(() => deleteUnclaimedVideo(reported)).not.toThrow();
+
+    expect(fakeFiles.deleted()).toEqual([]);
+  });
+
+  it("does nothing when the video is already gone", () => {
+    deleteUnclaimedVideo(reported);
+
+    expect(fakeFiles.deleted()).toEqual([]);
   });
 });
 

@@ -36,6 +36,16 @@ import {
 import type { JobStatus } from "../types";
 import { generateFilename, uriToFilePath } from "../utils";
 
+/**
+ * Starts whose card is on screen but which have not handed their download to native yet, by
+ * item id.
+ *
+ * The card, with its cancel button, is there before the pending record that cancelDownload works
+ * from, and the record has no task id until native answers. A cancel in that stretch has
+ * nothing to cancel yet, so it leaves a mark here and the start stops itself at its next step.
+ */
+const startsInFlight = new Map<string, { cancelled: boolean }>();
+
 interface UseDownloadOperationsProps {
   processes: JobStatus[];
   setProcesses: (updater: (prev: JobStatus[]) => JobStatus[]) => void;
@@ -74,9 +84,11 @@ export function useDownloadOperations({
         throw new Error("startBackgroundDownload ~ Missing required params");
       }
 
+      const processId = item.Id;
+      const start = { cancelled: false };
+
       try {
         const deviceId = getOrSetDeviceId();
-        const processId = item.Id;
 
         // Check if already downloading — in-memory process or persisted pending record
         const existingProcess = processes.find((p) => p.id === processId);
@@ -131,7 +143,8 @@ export function useDownloadOperations({
           subtitleStreamIndex,
         };
 
-        // Add to processes
+        // Add to processes. From here on the download can be cancelled.
+        startsInFlight.set(processId, start);
         setProcesses((prev) => [...prev, jobStatus]);
 
         // Generate destination path
@@ -171,6 +184,13 @@ export function useDownloadOperations({
           labels: {},
         };
 
+        // cancelDownload has already taken the card down and told the user. What it could not
+        // do, with no record to go by, is remove what this start wrote.
+        if (start.cancelled) {
+          deletePendingDownloadFiles({ itemId: processId, item, mediaSource });
+          return;
+        }
+
         // Persist the pending record BEFORE handing the download to native, so there is no window
         // where a transfer exists that a later app session cannot account for.
         savePendingDownload({
@@ -202,6 +222,18 @@ export function useDownloadOperations({
           getJellyfinHeadersForUrl(downloadUrl, api?.basePath),
         );
 
+        // A cancel while native was taking the download found the record, so the files are
+        // gone, but not the task id: it could only try the queue, where the download was not
+        // yet, or no longer.
+        if (start.cancelled) {
+          if (taskId !== -1) {
+            BackgroundDownloader.cancelDownload(taskId);
+          } else {
+            BackgroundDownloader.cancelQueuedDownload(downloadUrl);
+          }
+          return;
+        }
+
         if (taskId !== -1) {
           updatePendingDownload(processId, {
             status: "downloading",
@@ -232,6 +264,10 @@ export function useDownloadOperations({
           description: error instanceof Error ? error.message : "Unknown error",
         });
         throw error;
+      } finally {
+        if (startsInFlight.get(processId) === start) {
+          startsInFlight.delete(processId);
+        }
       }
     },
     [api, authHeader, processes, setProcesses, removeProcess, t],
@@ -239,6 +275,9 @@ export function useDownloadOperations({
 
   const cancelDownload = useCallback(
     async (id: string) => {
+      const start = startsInFlight.get(id);
+      if (start) start.cancelled = true;
+
       const record = getPendingDownload(id);
 
       if (record?.status === "downloading" && record.taskId !== undefined) {
