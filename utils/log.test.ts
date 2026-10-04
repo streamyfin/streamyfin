@@ -46,13 +46,14 @@ const httpError = (
   path: string,
   status: number,
   headers: Record<string, string> = {},
+  data?: unknown,
 ) =>
   new AxiosError(
     `Request failed with status code ${status}`,
     AxiosError.ERR_BAD_RESPONSE,
     { method: "get", url: `${server}${path}`, headers: {} as never },
     {},
-    { status, headers, config: {} } as unknown as AxiosResponse,
+    { status, headers, data, config: {} } as unknown as AxiosResponse,
   );
 
 beforeEach(() => {
@@ -80,6 +81,43 @@ describe("logAndCaptureError — what is kept local", () => {
       httpError(newServer(), "/Sessions", 403, { "content-type": "text/html" }),
     );
     expect(mockCaptured).toHaveLength(0);
+  });
+
+  test("a gateway's 403 page is not sent when no content type announces it", () => {
+    logAndCaptureError(
+      "Sessions",
+      httpError(
+        newServer(),
+        "/Sessions",
+        403,
+        {},
+        "<!DOCTYPE html><html><title>Access denied</title>",
+      ),
+    );
+    expect(mockCaptured).toHaveLength(0);
+  });
+
+  // The body is read to tell whose refusal it is, and for nothing else: an
+  // error page can name the user's server.
+  test("the body of a 403 that is sent does not go with it", () => {
+    logAndCaptureError(
+      "Sessions",
+      httpError(
+        newServer(),
+        "/Sessions",
+        403,
+        { "content-type": "text/plain" },
+        "Forbidden for my-private-host.example.org",
+      ),
+    );
+    expect(mockCaptured).toHaveLength(1);
+    const { contexts, fingerprint } = mockCaptured[0];
+    expect(JSON.stringify({ contexts, fingerprint })).not.toContain(
+      "my-private-host",
+    );
+    expect(contexts).toEqual({
+      http: { method: "GET", path: "/Sessions", status: 403 },
+    });
   });
 
   test("a 403 from the server itself is sent", () => {

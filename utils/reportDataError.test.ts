@@ -48,13 +48,14 @@ const httpError = (
   path: string,
   status: number,
   headers: Record<string, string> = {},
+  data?: unknown,
 ) =>
   new AxiosError(
     `Request failed with status code ${status}`,
     AxiosError.ERR_BAD_RESPONSE,
     { method: "get", url: `${server}${path}`, headers: {} as never },
     {},
-    { status, headers, config: {} } as unknown as AxiosResponse,
+    { status, headers, data, config: {} } as unknown as AxiosResponse,
   );
 
 beforeEach(() => {
@@ -99,6 +100,45 @@ describe("shouldReportDataError", () => {
         httpError(newServer(), "/Items", 403, { "content-type": "text/html" }),
       ),
     ).toBe(false);
+  });
+
+  // Going by the header alone, this one was reported here, and could be
+  // captured by a call site as well.
+  test("a gateway's page is skipped whatever content type it came under", () => {
+    const page = "<!DOCTYPE html><html><title>Access denied</title>";
+    expect(
+      shouldReportDataError(httpError(newServer(), "/Items", 403, {}, page)),
+    ).toBe(false);
+    expect(
+      shouldReportDataError(
+        httpError(
+          newServer(),
+          "/Items",
+          403,
+          { "content-type": "text/plain" },
+          page,
+        ),
+      ),
+    ).toBe(false);
+  });
+
+  test("a 403 the server sent itself is reported", () => {
+    expect(
+      shouldReportDataError(
+        httpError(newServer(), "/Items", 403, {}, "Forbidden"),
+      ),
+    ).toBe(true);
+    expect(
+      shouldReportDataError(
+        httpError(
+          newServer(),
+          "/Items",
+          403,
+          { "content-type": "application/json" },
+          { message: "Forbidden" },
+        ),
+      ),
+    ).toBe(true);
   });
 });
 

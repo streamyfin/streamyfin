@@ -196,6 +196,91 @@ describe("isGatewayBlockError", () => {
   });
 });
 
+// A gateway does not always say what it sends. Going by the header alone, a
+// page sent without one, or under the wrong one, was reported as the
+// server's refusal.
+describe("isGatewayBlockError — a page the content type does not announce", () => {
+  const PAGE = "<!DOCTYPE html><html><head><title>Access denied</title></head>";
+  const blocked = (data: unknown, contentType?: string, status = 403) =>
+    isGatewayBlockError(
+      httpError(status, {
+        headers: contentType ? { "content-type": contentType } : {},
+        data,
+      }),
+    );
+
+  test("an HTML page with no content type is the gateway's refusal", () => {
+    expect(blocked(PAGE)).toBe(true);
+  });
+
+  test("an HTML page under a wrong content type is the gateway's refusal", () => {
+    expect(blocked(PAGE, "text/plain")).toBe(true);
+    expect(blocked(PAGE, "application/octet-stream")).toBe(true);
+  });
+
+  test("whitespace or a byte order mark before the page does not hide it", () => {
+    expect(blocked(`\n\n  \t${PAGE}`)).toBe(true);
+    expect(blocked(`﻿${PAGE}`)).toBe(true);
+    expect(blocked(`﻿\r\n${PAGE}`)).toBe(true);
+  });
+
+  test("a page that opens with its html tag, in any case", () => {
+    expect(blocked("<html><body>403 Forbidden</body></html>")).toBe(true);
+    expect(blocked('<HTML lang="en"><BODY>Forbidden')).toBe(true);
+    expect(blocked("<!doctype html>\n<html>")).toBe(true);
+    expect(
+      blocked('<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN"><html>'),
+    ).toBe(true);
+  });
+
+  // What Jellyfin and Seerr refuse with.
+  test("a JSON body is the server's refusal", () => {
+    expect(blocked('{"message":"Forbidden"}')).toBe(false);
+    expect(blocked('{"message":"Forbidden"}', "application/json")).toBe(false);
+    expect(blocked('"Forbidden"', "application/json")).toBe(false);
+  });
+
+  test("a plain-text body is the server's refusal", () => {
+    expect(blocked("Forbidden")).toBe(false);
+    expect(blocked("Forbidden", "text/plain")).toBe(false);
+  });
+
+  test("an empty body is the server's refusal", () => {
+    expect(blocked("")).toBe(false);
+    expect(blocked(undefined)).toBe(false);
+    expect(blocked(null)).toBe(false);
+  });
+
+  test("a body axios parsed into an object is the server's refusal", () => {
+    expect(blocked({ message: "Forbidden" })).toBe(false);
+    expect(blocked({ html: PAGE })).toBe(false);
+    expect(blocked([PAGE])).toBe(false);
+  });
+
+  test("an HTML page under another status is still reported", () => {
+    expect(blocked(PAGE, undefined, 404)).toBe(false);
+    expect(blocked(PAGE, undefined, 500)).toBe(false);
+    expect(blocked(PAGE, "text/plain", 400)).toBe(false);
+  });
+
+  // The body is a document, not a text that mentions one.
+  test("markup that is not the start of an HTML document does not count", () => {
+    expect(blocked("Forbidden <html>")).toBe(false);
+    expect(blocked("<?xml version='1.0'?><error>Forbidden</error>")).toBe(
+      false,
+    );
+    expect(blocked("<htmlish>Forbidden</htmlish>")).toBe(false);
+    expect(blocked("<!doctype htmlx>")).toBe(false);
+  });
+
+  // Only the start of the body is read, however large the page.
+  test("a page that starts beyond the first characters is not searched for", () => {
+    expect(blocked(`${" ".repeat(100)}${PAGE}`)).toBe(true);
+    expect(blocked(`${" ".repeat(5_000)}${PAGE}`)).toBe(false);
+    expect(blocked(`${PAGE}${"x".repeat(2_000_000)}`)).toBe(true);
+  });
+});
+
 describe("isEnvironmentError", () => {
   test("covers an unreachable server and a gateway's refusal", () => {
     expect(isEnvironmentError(httpError(undefined))).toBe(true);
@@ -203,6 +288,11 @@ describe("isEnvironmentError", () => {
     expect(
       isEnvironmentError(
         httpError(403, { headers: { "content-type": "text/html" } }),
+      ),
+    ).toBe(true);
+    expect(
+      isEnvironmentError(
+        httpError(403, { data: "<!DOCTYPE html><html><body>Blocked" }),
       ),
     ).toBe(true);
   });

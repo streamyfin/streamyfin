@@ -89,6 +89,20 @@ export const isConnectivityError = (error: unknown): boolean => {
   );
 };
 
+// How far into a body the HTML check reads: room for a byte order mark, some
+// leading whitespace and the opening tag, and no more. An error page can be
+// large and this runs for every 403.
+const HTML_SNIFF_CHARS = 256;
+
+// The start of an HTML document: "<!doctype html" or "<html", in any case,
+// after optional whitespace (which in a JS regex includes the byte order
+// mark). The lookahead keeps "<htmlfoo" out.
+const HTML_DOCUMENT_START = /^\s*<(?:!doctype\s+html|html)(?=[\s>])/i;
+
+const isHtmlDocument = (body: unknown): boolean =>
+  typeof body === "string" &&
+  HTML_DOCUMENT_START.test(body.slice(0, HTML_SNIFF_CHARS));
+
 /**
  * True for a 403 that a gateway in front of the server sent in the server's
  * place: a WAF rule, Cloudflare Access, a geo block. Told apart by the body,
@@ -97,13 +111,21 @@ export const isConnectivityError = (error: unknown): boolean => {
  * a block is up every route answers the same way, and none of it is
  * something the app can act on.
  *
+ * The page is recognised by its content type, or, since a gateway does not
+ * always label its page and sometimes labels it wrong, by the body starting
+ * as an HTML document. The body is only looked at here: it never goes onto
+ * an event, as an error page can name the user's server.
+ *
  * Only 403: a 404 or a 500 with an HTML body can still be the app asking for
  * the wrong path, which is worth a report.
  */
 export const isGatewayBlockError = (error: unknown): boolean => {
   if (!isAxiosError(error) || error.response?.status !== 403) return false;
   const contentType = error.response.headers?.["content-type"];
-  return /^text\/html\b/i.test(String(contentType ?? ""));
+  return (
+    /^text\/html\b/i.test(String(contentType ?? "")) ||
+    isHtmlDocument(error.response.data)
+  );
 };
 
 /**

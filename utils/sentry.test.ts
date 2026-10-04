@@ -427,6 +427,29 @@ describe("classifyOutgoingEvent — axios errors on the unhandledrejection path"
       }),
     ).not.toBeNull();
   });
+
+  test("a gateway's 403 page is dropped when no content type announces it", () => {
+    const withBody = (data: unknown) =>
+      new AxiosError(
+        "Request failed with status code 403",
+        AxiosError.ERR_BAD_RESPONSE,
+        { method: "get", url: "https://server/Items", headers: {} as never },
+        {},
+        { status: 403, headers: {}, data, config: {} } as never,
+      );
+    expect(
+      classifyOutgoingEvent({} as never, {
+        originalException: withBody("<html><body>Access denied</body></html>"),
+      }),
+    ).toBeNull();
+    const kept = classifyOutgoingEvent({ contexts: {} } as never, {
+      originalException: withBody("Forbidden"),
+    });
+    // What is kept is the route and the status, not the body it was read from.
+    expect(kept?.contexts).toEqual({
+      http: { method: "GET", path: "/Items", status: 403 },
+    });
+  });
 });
 
 // REACT-NATIVE-3S: 10 users, a few seconds after launch on Android. The cast
