@@ -10,7 +10,10 @@ import type {
 import { BackgroundDownloader } from "@/modules";
 import { logAndCaptureError, writeToLog } from "@/utils/log";
 import { classifyDownloadError } from "../downloadErrors";
-import { deletePendingDownloadFiles } from "../fileOperations";
+import {
+  deletePendingDownloadFiles,
+  deleteUnclaimedVideo,
+} from "../fileOperations";
 import {
   getNotificationContent,
   sendDownloadNotification,
@@ -63,7 +66,15 @@ export function useDownloadEventHandlers({
     const startedSub = BackgroundDownloader.addStartedListener(
       (event: DownloadStartedEvent) => {
         const itemId = event.itemId;
-        if (!itemId || !getPendingDownload(itemId)) return;
+        if (!itemId) return;
+
+        if (!getPendingDownload(itemId)) {
+          // The record is saved before the download is handed to native, so a video download
+          // that starts without one was cancelled while native was starting it. That cancel
+          // only had the queue to try, and the download was no longer in it.
+          BackgroundDownloader.cancelDownload(event.taskId);
+          return;
+        }
 
         updatePendingDownload(itemId, {
           status: "downloading",
@@ -189,7 +200,17 @@ export function useDownloadEventHandlers({
         if (!itemId) return;
 
         const record = getPendingDownload(itemId);
-        if (!record) return;
+        // The record belongs to another transfer when it is waiting on a different task: the
+        // item was cancelled and started again before the first transfer reported back.
+        const isStale =
+          record?.taskId !== undefined && record.taskId !== event.taskId;
+        if (!record || isStale) {
+          // Either the download was finalized before this event arrived (reconciliation does
+          // that), or it was cancelled while it finished and its video is now a leftover.
+          // deleteUnclaimedVideo keeps a file that a download still accounts for.
+          deleteUnclaimedVideo(event.filePath);
+          return;
+        }
 
         try {
           const videoFile = new File(filePathToUri(event.filePath));

@@ -31,7 +31,12 @@ class FakeEntry {
   }
 }
 
-class FakeFile extends FakeEntry {}
+class FakeFile extends FakeEntry {
+  /** Sizes are not modelled: every file reports 0 bytes. */
+  info() {
+    return { exists: this.exists, size: 0 };
+  }
+}
 
 class FakeDirectory extends FakeEntry {
   // Like the real one, a directory's uri ends in a slash.
@@ -60,7 +65,7 @@ export const DOCUMENTS = "file:///documents";
  *   );
  *
  * Only what the app's delete paths call is implemented: the `File` and `Directory`
- * constructors, `uri`, `exists` and `delete()`.
+ * constructors, `uri`, `exists` and `delete()`, plus `File.info()` for the completion handler.
  */
 export const fileSystemModule = {
   File: FakeFile,
