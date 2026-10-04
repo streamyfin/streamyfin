@@ -32,7 +32,10 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
-import { isPlayableItem } from "@/utils/jellyfin/media/isPlayableItem";
+import {
+  canPlayInRemoteSession,
+  isPlayableItem,
+} from "@/utils/jellyfin/media/isPlayableItem";
 import { AddToFavorites } from "./AddToFavorites";
 import { AddToWatchlist } from "./AddToWatchlist";
 import { ItemHeader } from "./ItemHeader";
@@ -139,9 +142,10 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
                     <DownloadSingleItem item={itemWithSources} size='large' />
                   )}
                   {/* Sends the item's id to another session as a Play
-                      command; for an item with no stream that session can
-                      only fail the way this one would. */}
-                  {isPlayableItem(item) &&
+                      command. The server expands a container into its
+                      items on the way, so only an unplayable leaf (a Book,
+                      a Photo) has nothing to offer the other session. */}
+                  {canPlayInRemoteSession(item) &&
                     user?.Policy?.IsAdministrator &&
                     !settings.hideRemoteSessionButton && (
                       <PlayInRemoteSessionButton item={item} size='large' />
