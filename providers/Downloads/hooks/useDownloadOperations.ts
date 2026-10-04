@@ -24,6 +24,7 @@ import {
 import {
   calculateTotalDownloadedSize,
   deleteAllAssociatedFiles,
+  deletePendingDownloadFiles,
 } from "../fileOperations";
 import { buildDownloadActivityMetadata } from "../liveActivity";
 import {
@@ -218,8 +219,10 @@ export function useDownloadOperations({
           itemType: item.Type,
         });
         if (item.Id) {
+          const record = getPendingDownload(item.Id);
           removePendingDownload(item.Id);
           removeProcess(item.Id);
+          if (record) deletePendingDownloadFiles(record);
         }
         toast.error(t("home.downloads.toasts.failed_to_start_download"), {
           description: error instanceof Error ? error.message : "Unknown error",
@@ -244,6 +247,9 @@ export function useDownloadOperations({
 
       removePendingDownload(id);
       removeProcess(id);
+
+      // The record is the only thing that knows which files the enqueue step wrote.
+      if (record) deletePendingDownloadFiles(record);
       toast.info(t("home.downloads.toasts.download_cancelled"));
     },
     [removeProcess, t],

@@ -5,6 +5,7 @@ import type { ActiveDownload } from "@/modules";
 import { BackgroundDownloader } from "@/modules";
 import { getHeadersForUrl } from "@/utils/customHeaders";
 import { logAndCaptureError } from "@/utils/log";
+import { deletePendingDownloadFiles } from "../fileOperations";
 import {
   finalizePendingDownload,
   getPendingDownload,
@@ -80,6 +81,7 @@ async function reEnqueue(
       itemType: record.item?.Type,
     });
     removePendingDownload(record.itemId);
+    deletePendingDownloadFiles(record);
     return false;
   }
 }
@@ -187,6 +189,7 @@ export function useDownloadReconciliation({
 
         console.log(`[RECONCILE] Lost download dropped: ${record.item.Name}`);
         removePendingDownload(record.itemId);
+        deletePendingDownloadFiles(record);
       }
 
       if (restored.length > 0) {

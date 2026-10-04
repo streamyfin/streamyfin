@@ -10,6 +10,7 @@ import type {
 import { BackgroundDownloader } from "@/modules";
 import { logAndCaptureError, writeToLog } from "@/utils/log";
 import { classifyDownloadError } from "../downloadErrors";
+import { deletePendingDownloadFiles } from "../fileOperations";
 import {
   getNotificationContent,
   sendDownloadNotification,
@@ -275,6 +276,7 @@ export function useDownloadEventHandlers({
         }
 
         removePendingDownload(itemId);
+        deletePendingDownloadFiles(record);
         updateProcess(itemId, { status: "error" });
 
         // Clean up speed data
