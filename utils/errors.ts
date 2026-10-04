@@ -99,6 +99,8 @@ const HTML_SNIFF_CHARS = 256;
 // mark). The lookahead keeps "<htmlfoo" out.
 const HTML_DOCUMENT_START = /^\s*<(?:!doctype\s+html|html)(?=[\s>])/i;
 
+const HTML_CONTENT_TYPE = /^text\/html\b/i;
+
 const isHtmlDocument = (body: unknown): boolean =>
   typeof body === "string" &&
   HTML_DOCUMENT_START.test(body.slice(0, HTML_SNIFF_CHARS));
@@ -123,7 +125,7 @@ export const isGatewayBlockError = (error: unknown): boolean => {
   if (!isAxiosError(error) || error.response?.status !== 403) return false;
   const contentType = error.response.headers?.["content-type"];
   return (
-    /^text\/html\b/i.test(String(contentType ?? "")) ||
+    HTML_CONTENT_TYPE.test(String(contentType ?? "")) ||
     isHtmlDocument(error.response.data)
   );
 };
@@ -197,44 +199,97 @@ export const describeHttpError = (
   };
 };
 
-const MAX_RESPONSE_BODY_CHARS = 200;
+// The reasons a server gives in fixed words: the same sentence for every
+// user, so it says who answered and nothing about whom it answered. Only
+// these are quoted. A reason goes on the list once it is known to be fixed,
+// by the server's source and not by having seen it twice.
+const FIXED_RESPONSE_REASONS: ReadonlySet<string> = new Set([
+  // Jellyfin's ExceptionMiddleware, for any exception outside development
+  // mode. In development mode it sends the exception message instead, which
+  // can hold a library path.
+  "Error processing request.",
+]);
+
+// A top-level key that reads as a field name ("title", "traceId", "ray_id").
+// An object keyed by something the server chose (a host, a path, a name) is
+// data, and its keys do not pass.
+const FIELD_NAME = /^[A-Za-z_][A-Za-z0-9_]{0,31}$/;
+const MAX_RESPONSE_BODY_KEYS = 12;
+
+type ResponseBodyDescription = {
+  bodyKind: "empty" | "html" | "text" | "json" | "other";
+  /** Characters in a text or HTML body. */
+  bodyLength?: number;
+  /** The field names of a JSON object, in the order they came. */
+  bodyKeys?: string[];
+  /** The body itself, only when it is one of FIXED_RESPONSE_REASONS. */
+  body?: string;
+};
+
+export type HttpResponseDescription = ResponseBodyDescription & {
+  status: number;
+  contentType?: string;
+  server?: string;
+};
+
+const describeResponseBody = (
+  data: unknown,
+  contentType: string,
+): ResponseBodyDescription => {
+  if (data === undefined || data === null || data === "") {
+    return { bodyKind: "empty" };
+  }
+  if (typeof data === "string") {
+    if (HTML_CONTENT_TYPE.test(contentType) || isHtmlDocument(data)) {
+      return { bodyKind: "html", bodyLength: data.length };
+    }
+    const reason = data.trim();
+    return {
+      bodyKind: "text",
+      bodyLength: data.length,
+      ...(FIXED_RESPONSE_REASONS.has(reason) ? { body: reason } : {}),
+    };
+  }
+  // What axios makes of a JSON body.
+  if (Array.isArray(data)) return { bodyKind: "json" };
+  if (Object.getPrototypeOf(data) === Object.prototype) {
+    return {
+      bodyKind: "json",
+      bodyKeys: Object.keys(data as object)
+        .filter((key) => FIELD_NAME.test(key))
+        .slice(0, MAX_RESPONSE_BODY_KEYS),
+    };
+  }
+  return { bodyKind: "other" };
+};
 
 /**
- * What the server said about a rejected request — enough to tell a Jellyfin
- * rejection apart from a proxy one: Jellyfin answers with a text/plain
- * reason ("Session not found.") and `Server: Kestrel`; proxies answer with
- * their own Server header and an HTML page. The body is only kept when it is
- * plain text or JSON, and truncated: an HTML error page can embed the proxy's
- * hostname, which is the user's private server address. A page is a page
- * whatever it was sent as, so one that starts as an HTML document is dropped
- * under any content type.
+ * What the server said about a rejected request, enough to tell who answered:
+ * Jellyfin answers with `Server: Kestrel` and a text/plain reason or ASP.NET
+ * problem details, Seerr with a JSON message, a proxy with its own Server
+ * header and an HTML page.
+ *
+ * This goes to Sentry as context, so the body is described and not quoted.
+ * A body is text written by a machine the app knows nothing about: a proxy
+ * names the host it could not reach, a gateway its zone, a server the path or
+ * the name it did not find. utils/sentry's scrubDeep only knows a host by its
+ * scheme or as an IPv4 address, and nothing knows a title or a user name, so
+ * no cut of that text is safe to send. What is sent instead is the kind of
+ * body, its length, the field names of a JSON object, and the text itself
+ * only when it is one of FIXED_RESPONSE_REASONS. An HTML page counts as one
+ * under any content type, since a proxy does not always label its page.
  */
 export const describeHttpResponse = (
   error: unknown,
-): Record<string, unknown> | undefined => {
+): HttpResponseDescription | undefined => {
   if (!isAxiosError(error) || !error.response) return undefined;
   const headers = error.response.headers ?? {};
   const contentType = headers["content-type"];
   const server = headers.server;
-  const data = error.response.data;
-  let body: string | undefined;
-  if (
-    /^(?:text\/plain|application\/(?:problem\+)?json)/i.test(
-      String(contentType ?? ""),
-    ) &&
-    !isHtmlDocument(data)
-  ) {
-    try {
-      body = typeof data === "string" ? data : JSON.stringify(data);
-    } catch {
-      body = undefined;
-    }
-    body = body?.slice(0, MAX_RESPONSE_BODY_CHARS);
-  }
   return {
     status: error.response.status,
     contentType: contentType ? String(contentType) : undefined,
     server: server ? String(server) : undefined,
-    body,
+    ...describeResponseBody(error.response.data, String(contentType ?? "")),
   };
 };

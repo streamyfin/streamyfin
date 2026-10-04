@@ -585,6 +585,7 @@ describe("scrubDeep — what it makes of a piece of a response body", () => {
     expect(scrubDeep(text)).toBe(text);
   });
 
+  const HOST = "my-private-host.duckdns.org";
   const reaches = (contentType: string, data: unknown) =>
     JSON.stringify(
       scrubDeep({
@@ -606,11 +607,30 @@ describe("scrubDeep — what it makes of a piece of a response body", () => {
 
   // So the page has to be gone before it gets here, whatever it was sent as.
   test("a proxy's page sent as text/plain leaves no host on the event", () => {
-    expect(
-      reaches(
-        "text/plain",
-        "<!DOCTYPE html><html><head><title>my-private-host.duckdns.org | 500</title>",
-      ),
-    ).toBe('{"details":{"status":500,"contentType":"text/plain"}}');
+    const page = `<!DOCTYPE html><html><head><title>${HOST} | 500</title>`;
+    expect(reaches("text/plain", page)).toBe(
+      `{"details":{"status":500,"contentType":"text/plain","bodyKind":"html","bodyLength":${page.length}}}`,
+    );
+  });
+
+  // And so has anything else that was not written to be reported: the same
+  // texts the scrubber let through above, as a server would send them.
+  test.each([
+    ["text/plain", `Error occurred while trying to proxy: ${HOST}/Sessions`],
+    ["text/plain", `<title>${HOST} | 502: Bad gateway</title>`],
+    ["text/plain", "no healthy upstream for jellyfin.lan:8096"],
+    ["text/plain", "connect to [2001:db8::5]:8096 failed"],
+    ["application/json", { zone: HOST, detail: `no route to ${HOST}` }],
+    ["application/json", { [HOST]: "unreachable" }],
+  ])("a %s body leaves no host on the event: %j", (contentType, data) => {
+    expect(reaches(contentType, data)).not.toMatch(
+      /duckdns|jellyfin\.lan|2001:db8/,
+    );
+  });
+
+  test("the reason Jellyfin gives in fixed words still arrives", () => {
+    expect(reaches("text/plain", "Error processing request.")).toBe(
+      '{"details":{"status":500,"contentType":"text/plain","bodyKind":"text","bodyLength":25,"body":"Error processing request."}}',
+    );
   });
 });
