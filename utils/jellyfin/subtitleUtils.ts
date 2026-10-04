@@ -396,40 +396,64 @@ const CHINESE_REGION_SCRIPT: Record<string, string> = {
   mo: "hant",
 };
 
-type LangTag = { language: string; script?: string; region?: string };
+type LangTag = {
+  language: string;
+  script?: string;
+  region?: string;
+  variants: string[];
+};
 
 /**
  * Split a language tag into the parts that tell two tracks apart: the language
- * as 639-2/B, plus the script and region when the tag names them ("pt-BR",
- * "zh-Hant", "sr-Latn-RS"). Extended-language subtags, variants and extensions
- * are dropped.
+ * as 639-2/B, plus the script, region and variants when the tag names them
+ * ("pt-BR", "zh-Hant", "sr-Latn-RS", "ca-valencia", "de-CH-1901").
+ * Extended-language subtags and extensions are dropped.
  */
 const parseLangTag = (raw: string): LangTag => {
   const [primary, ...rest] = raw.trim().toLowerCase().split(/[-_]/);
   const language = LANG_CANONICAL[primary] ?? primary;
   let script: string | undefined;
   let region: string | undefined;
+  const variants: string[] = [];
   for (const subtag of rest) {
     // A single character opens an extension or private-use section, where a
-    // two-letter subtag is no longer a region ("en-x-us").
+    // two-letter subtag is no longer a region ("en-x-us") and a longer one is
+    // no longer a variant ("en-x-forced").
     if (subtag.length === 1) break;
-    if (!script && !region && /^[a-z]{4}$/.test(subtag)) script = subtag;
-    else if (!region && /^([a-z]{2}|\d{3})$/.test(subtag)) region = subtag;
+    if (!script && !region && /^[a-z]{4}$/.test(subtag)) {
+      script = subtag;
+    } else if (!region && /^([a-z]{2}|\d{3})$/.test(subtag)) {
+      region = subtag;
+    } else if (
+      // Five to eight characters, or four when the first is a digit ("1901"),
+      // which is what keeps a variant apart from a script.
+      /^([a-z0-9]{5,8}|\d[a-z0-9]{3})$/.test(subtag) &&
+      !variants.includes(subtag)
+    ) {
+      variants.push(subtag);
+    }
   }
   if (!script && region && language === "chi") {
     script = CHINESE_REGION_SCRIPT[region];
   }
-  return { language, script, region };
+  return { language, script, region, variants };
 };
 
 /** A subtag one side leaves out is open, so it agrees with anything. */
 const subtagAgrees = (a?: string, b?: string): boolean => !a || !b || a === b;
 
 /**
+ * Variants agree when one side names nothing the other lacks. Naming none is
+ * the open case again, and "sl-rozaj" covers the narrower "sl-rozaj-biske".
+ */
+const variantsAgree = (a: string[], b: string[]): boolean =>
+  a.every((v) => b.includes(v)) || b.every((v) => a.includes(v));
+
+/**
  * How closely two language tags agree: 0 when they are different languages or
- * name different variants of one, otherwise higher the more of script and region
- * they have in common. Leaving a subtag out on both sides counts as common, so a
- * bare "por" is closer to another "por" than to "pt-BR".
+ * name different variants of one, otherwise higher the more of script, region
+ * and variants they have in common. Leaving a subtag out on both sides counts
+ * as common, so a bare "por" is closer to another "por" than to "pt-BR".
  */
 const langAffinity = (a?: string | null, b?: string | null): number => {
   if (!a || !b) return 0;
@@ -438,7 +462,14 @@ const langAffinity = (a?: string | null, b?: string | null): number => {
   if (x.language !== y.language) return 0;
   if (!subtagAgrees(x.script, y.script)) return 0;
   if (!subtagAgrees(x.region, y.region)) return 0;
-  return 1 + Number(x.script === y.script) + Number(x.region === y.region);
+  if (!variantsAgree(x.variants, y.variants)) return 0;
+  return (
+    1 +
+    Number(x.script === y.script) +
+    Number(x.region === y.region) +
+    // One list is inside the other by now, so equal length is the same list.
+    Number(x.variants.length === y.variants.length)
+  );
 };
 
 /**
@@ -450,8 +481,9 @@ const langAffinity = (a?: string | null, b?: string | null): number => {
  * tagged 639-2/B ("ger", "fre"). Anything comparing those two by string
  * equality — or by truncating to two letters — silently never matches.
  *
- * Script and region count: "pt-BR" is not "pt-PT" and "zh-Hans" is not
- * "zh-Hant". A tag that leaves them out matches every variant of its language,
+ * Script, region and variant subtags count: "pt-BR" is not "pt-PT", "zh-Hans"
+ * is not "zh-Hant" and "de-1901" is not "de-1996". A tag that leaves them out
+ * matches every variant of its language,
  * which it has to: the server reports the legacy 639-2 tag ("por") for a track
  * mpv reads as "pt-BR" from the same file. That makes this a compatibility
  * check rather than an equivalence, so anything choosing between several

@@ -218,6 +218,26 @@ describe("findTrackByLanguage — region and script variants", () => {
     ).toBe(1);
   });
 
+  test("a remembered variant subtag carries over to the same one", () => {
+    // Regression: variant subtags were dropped, so "ca-valencia" was plain
+    // Catalan and "de-1901" was "de-1996".
+    rememberSeriesTrack("series-1", { subtitleLang: "ca-valencia" });
+    expect(
+      getDefaultPlaySettings(
+        episode(source([sub(0, "cat"), sub(1, "ca-valencia")])),
+        settingsWith({}),
+      ).subtitleIndex,
+    ).toBe(1);
+
+    rememberSeriesTrack("series-1", { subtitleLang: "de-1996" });
+    expect(
+      getDefaultPlaySettings(
+        episode(source([sub(0, "de-1901"), sub(1, "de-1996")])),
+        settingsWith({}),
+      ).subtitleIndex,
+    ).toBe(1);
+  });
+
   test("a bare preference matches every variant and keeps the default-track rule", () => {
     // CultureDto codes carry no region, so the preference cannot choose between
     // variants: both match and the file's own default decides.
