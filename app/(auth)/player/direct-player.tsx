@@ -66,6 +66,10 @@ import { OfflineModeProvider } from "@/providers/OfflineModeProvider";
 import { getSubtitlesForItem } from "@/utils/atoms/downloadedSubtitles";
 import { getActivePlayerType, useSettings } from "@/utils/atoms/settings";
 import { getJellyfinHeadersForUrl } from "@/utils/customHeaders";
+import {
+  isPlaceholderTick,
+  resolveSessionPositionTicks,
+} from "@/utils/directPlayer/sessionPosition";
 import { isExpectedError } from "@/utils/errors";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
@@ -156,6 +160,12 @@ export default function DirectPlayerPage() {
   });
 
   const progress = useSharedValue(0);
+  // URL of the stream MPV has reported a position from. While it is not the
+  // current stream's, `progress` is not a playback position (it is reset when
+  // an item loads, and the controls seed it for the scrubber) and the session
+  // is where it was told to start. Keyed on the URL because that is what makes
+  // the MPV view load: a refreshed stream with the same URL keeps playing.
+  const livePositionUrlRef = useRef<string | null>(null);
   const isSeeking = useSharedValue(false);
   const cacheProgress = useSharedValue(0);
   const VolumeManager = Platform.isTV
@@ -235,6 +245,14 @@ export default function DirectPlayerPage() {
   // resume still happens through the stream offset and MPV's startPosition,
   // which read startTicks after the item has loaded.
   const initialPlaybackTicksRef = useRef<number>(startTicks);
+
+  // Read by the reports without making it a dependency of them: the position
+  // is rewritten into the URL during playback, and a report builder that
+  // changed identity each time would fire the progress effect below with it.
+  const startTicksRef = useRef(startTicks);
+  useEffect(() => {
+    startTicksRef.current = startTicks;
+  }, [startTicks]);
 
   const [downloadedItem, setDownloadedItem] = useState<DownloadedItem | null>(
     null,
@@ -399,6 +417,7 @@ export default function DirectPlayerPage() {
       // the previous one's position before its own playback has even started.
       setHasPlaybackStarted(false);
       progress.set(0);
+      livePositionUrlRef.current = null;
       fetchItemData();
     }
   }, [itemId, offline, api, user?.Id, progress]);
@@ -457,6 +476,19 @@ export default function DirectPlayerPage() {
   useEffect(() => {
     currentItemIdRef.current = itemId;
   }, [itemId]);
+
+  /** Position (ticks) a report carries: where MPV is once it has reported a
+   * position for this stream, where the session starts until then. A stop or
+   * progress report at 0 makes the server clear the item's resume point. */
+  const getSessionPositionTicks = useCallback(
+    () =>
+      resolveSessionPositionTicks({
+        hasLivePosition: !!stream && livePositionUrlRef.current === stream.url,
+        positionMs: progress.get(),
+        startTicks: startTicksRef.current,
+      }),
+    [stream, progress],
+  );
 
   const releaseLiveStream = useCallback(
     (liveStreamId: string | null) => {
@@ -669,7 +701,7 @@ export default function DirectPlayerPage() {
     const stopKey = stream.sessionId || item.Id;
     if (reportedStopKeyRef.current === stopKey) return;
     reportedStopKeyRef.current = stopKey;
-    const currentTimeInTicks = msToTicks(progress.get());
+    const currentTimeInTicks = getSessionPositionTicks();
     try {
       await getPlaystateApi(api).reportPlaybackStopped({
         playbackStopInfo: {
@@ -699,12 +731,12 @@ export default function DirectPlayerPage() {
         error instanceof Error ? error.message : String(error),
       );
     }
-  }, [api, item, mediaSourceId, stream, progress, isConnected]);
+  }, [api, item, mediaSourceId, stream, getSessionPositionTicks, isConnected]);
 
   const stop = useCallback(() => {
     // Update URL with final playback position before stopping
     router.setParams({
-      playbackPosition: msToTicks(progress.get()).toString(),
+      playbackPosition: getSessionPositionTicks().toString(),
     });
     reportPlaybackStopped();
     markPlaybackStopped();
@@ -729,7 +761,7 @@ export default function DirectPlayerPage() {
     videoRef,
     reportPlaybackStopped,
     markPlaybackStopped,
-    progress,
+    getSessionPositionTicks,
     resumeInactivityTimer,
   ]);
 
@@ -781,7 +813,7 @@ export default function DirectPlayerPage() {
       AudioStreamIndex: currentAudioIndex,
       SubtitleStreamIndex: currentSubtitleIndex,
       MediaSourceId: mediaSourceId,
-      PositionTicks: msToTicks(progress.get()),
+      PositionTicks: getSessionPositionTicks(),
       // Read through the ref, not the isPlaying state: this is called from
       // handlers that may have been created before the last transition, and a
       // report must describe the state at the moment it is built.
@@ -799,7 +831,7 @@ export default function DirectPlayerPage() {
     currentAudioIndex,
     currentSubtitleIndex,
     mediaSourceId,
-    progress,
+    getSessionPositionTicks,
     isMuted,
     offline,
   ]);
@@ -855,6 +887,17 @@ export default function DirectPlayerPage() {
       if (item.Id !== currentItemIdRef.current) return;
 
       const { position, cacheSeconds } = data.nativeEvent;
+
+      // The view ticks once the duration is known, before MPV has a position,
+      // and that tick says 0:00. Taking it would move a resumed session to the
+      // start: reported as progress, written to the URL below and carried by
+      // the stop report if the user leaves before playback begins.
+      const hasLivePosition = livePositionUrlRef.current === stream.url;
+      if (isPlaceholderTick(position, startTicksRef.current, hasLivePosition)) {
+        return;
+      }
+      livePositionUrlRef.current = stream.url;
+
       // MPV reports position in seconds, convert to ms
       const currentTime = position * 1000;
 
