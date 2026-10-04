@@ -263,6 +263,84 @@ const describeResponseBody = (
   return { bodyKind: "other" };
 };
 
+// The product a Server header opens with: "Kestrel", "nginx/1.25.3",
+// "Microsoft-IIS/10.0", the "Apache/2.4.57" of "Apache/2.4.57 (Debian)".
+// The header is free text and an admin can put the host name in it, so the
+// name has to end where a product token does: at the end of the value, a
+// space, a slash, a comment or a list separator. A dot or a colon after it
+// makes it a host ("my-host.duckdns.org", "nas:8096") and nothing matches;
+// neither does a name longer than any product's, as a cut of one would still
+// be a cut of something unknown.
+//
+// The version is kept when it is one to three numbers and left off, with the
+// name still given, when it is anything else: four numbers are an IPv4
+// address as much as a version, and whatever else follows a slash is as free
+// as the rest. Numbers that run into a colon or another slash were the start
+// of an address, a port or a path ("proxy/2001:db8::5", "proxy/192.168.1/24")
+// and are left off as well, where a suffix is not ("nginx/1.25.3-alpine").
+const SERVER_PRODUCT =
+  /^([A-Za-z][A-Za-z0-9_-]{0,31})(?=$|[\s/(,;])(?:\/(\d{1,5}(?:\.\d{1,5}){0,2})(?![.\d:/]))?/;
+
+// What stands in for a header that was sent and is not repeated, in the
+// brackets utils/sentry's scrubber marks its own cuts with. That a header was
+// there is half of what it had to say: Kestrel always names itself, so a
+// Server header that is anything else is a proxy's, and one that is missing
+// is a proxy that strips it. Leaving both out made the two read the same.
+const WITHHELD_HEADER = "[withheld]";
+
+// A header as text. axios hands over a string, or a list of them when the
+// header came more than once, which reads as its entries with commas between.
+const headerText = (header: unknown): string =>
+  header ? String(header).trim() : "";
+
+const describeServer = (header: unknown): string | undefined => {
+  const value = headerText(header);
+  if (!value) return undefined;
+  const match = SERVER_PRODUCT.exec(value);
+  if (!match) return WITHHELD_HEADER;
+  const [, name, version] = match;
+  return version ? `${name}/${version}` : name;
+};
+
+// A media type whose two halves are plain words: "text/plain",
+// "application/problem+json". No dots, which leaves the vendor types out
+// ("application/vnd.api+json") along with any host written where a subtype
+// goes; no server the app talks to answers with one.
+const MEDIA_TYPE =
+  /^([a-z0-9][a-z0-9_+-]{0,31})\/([a-z0-9][a-z0-9_+-]{0,63})(?=$|[\s;,])/i;
+
+// The charset parameter, quoted or not. This finds the text "charset="
+// wherever it stands, inside another parameter's quoted value included, so
+// what it finds is only repeated when it is one of KNOWN_CHARSETS.
+const CHARSET_PARAMETER =
+  /;\s*charset\s*=\s*"?([a-z0-9][a-z0-9_-]{0,23})"?\s*(?=$|;)/i;
+
+// The charsets a server or a proxy labels an error with. A charset is a
+// closed set of names, unlike a product, so any other word in its place is
+// free text and is left off.
+const KNOWN_CHARSETS: ReadonlySet<string> = new Set([
+  "utf-8",
+  "utf8",
+  "utf-16",
+  "us-ascii",
+  "iso-8859-1",
+  "windows-1252",
+]);
+
+// Every other parameter is dropped: a boundary or a profile is free text.
+const describeContentType = (header: unknown): string | undefined => {
+  const value = headerText(header);
+  if (!value) return undefined;
+  const mediaType = MEDIA_TYPE.exec(value);
+  if (!mediaType) return WITHHELD_HEADER;
+  const charset = CHARSET_PARAMETER.exec(
+    value.slice(mediaType[0].length),
+  )?.[1].toLowerCase();
+  return `${mediaType[1]}/${mediaType[2]}${
+    charset && KNOWN_CHARSETS.has(charset) ? `; charset=${charset}` : ""
+  }`.toLowerCase();
+};
+
 /**
  * What the server said about a rejected request, enough to tell who answered:
  * Jellyfin answers with `Server: Kestrel` and a text/plain reason or ASP.NET
@@ -278,6 +356,11 @@ const describeResponseBody = (
  * body, its length, the field names of a JSON object, and the text itself
  * only when it is one of FIXED_RESPONSE_REASONS. An HTML page counts as one
  * under any content type, since a proxy does not always label its page.
+ *
+ * The two headers are text from the same machine and are cut down the same
+ * way: the Server header to the product it names, the content type to the
+ * media type and its charset. One that was sent and names neither is given
+ * as WITHHELD_HEADER, so that it still tells from one that was not sent.
  */
 export const describeHttpResponse = (
   error: unknown,
@@ -285,11 +368,11 @@ export const describeHttpResponse = (
   if (!isAxiosError(error) || !error.response) return undefined;
   const headers = error.response.headers ?? {};
   const contentType = headers["content-type"];
-  const server = headers.server;
   return {
     status: error.response.status,
-    contentType: contentType ? String(contentType) : undefined,
-    server: server ? String(server) : undefined,
+    contentType: describeContentType(contentType),
+    server: describeServer(headers.server),
+    // Read against the content type as it came, not the cut of it.
     ...describeResponseBody(error.response.data, String(contentType ?? "")),
   };
 };
