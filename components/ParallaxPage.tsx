@@ -37,6 +37,9 @@ export interface ParallaxScroll {
 
 export const ParallaxScrollContext = createContext<ParallaxScroll | null>(null);
 
+/** Height of the header when a page does not set its own, in layout points. */
+export const PARALLAX_HEADER_HEIGHT = 400;
+
 interface Props extends ViewProps {
   headerImage: ReactElement;
   logo?: ReactElement;
@@ -49,7 +52,7 @@ export const ParallaxScrollView: React.FC<PropsWithChildren<Props>> = ({
   children,
   headerImage,
   episodePoster,
-  headerHeight = 400,
+  headerHeight = PARALLAX_HEADER_HEIGHT,
   logo,
   onEndReached,
   ...props
