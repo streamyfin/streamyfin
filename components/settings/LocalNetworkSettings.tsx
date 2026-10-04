@@ -167,6 +167,15 @@ export function LocalNetworkSettings(): React.ReactElement | null {
         return;
       }
       saveConfig({ ...config, localUrl });
+      // Kept although nobody answered. The field only says "Server
+      // unreachable", in red and next to the address as it was typed, which
+      // reads as a refusal: show what was stored and say that it was. Only
+      // when the stored value changes, as leaving the field again retries the
+      // probe and commits the same address once more.
+      if (!resolved && localUrl !== "" && localUrl !== config.localUrl) {
+        setLocalUrlDraft(localUrl);
+        toast.info(t("home.settings.network.local_url_saved_unanswered"));
+      }
     },
     [config, saveConfig, t],
   );

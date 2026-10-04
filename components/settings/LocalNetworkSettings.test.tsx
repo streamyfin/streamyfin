@@ -12,6 +12,7 @@ import { LocalNetworkSettings } from "./LocalNetworkSettings";
 
 const mockProbe = jest.fn<Promise<ServerProbeOutcome>, [string]>();
 const mockToastError = jest.fn();
+const mockToastInfo = jest.fn();
 const mockRefreshUrlState = jest.fn();
 
 jest.mock(
@@ -27,7 +28,7 @@ jest.mock("react-i18next", () => ({
 jest.mock("sonner-native", () => ({
   toast: {
     error: (message: string) => mockToastError(message),
-    info: () => {},
+    info: (message: string) => mockToastInfo(message),
     success: () => {},
   },
 }));
@@ -60,6 +61,7 @@ const REMOTE_URL = "https://jellyfin.example.com";
 const PLACEHOLDER = "home.settings.network.local_url_placeholder";
 const NOT_SAVED = "home.settings.network.local_url_not_saved";
 const UNUSABLE = "home.settings.network.local_url_unusable";
+const SAVED_UNANSWERED = "home.settings.network.local_url_saved_unanswered";
 
 /** A signed-in install with auto-switching on and this local URL stored. */
 const storedLocalUrl = (localUrl: string) => {
@@ -90,6 +92,7 @@ describe("LocalNetworkSettings", () => {
     clearMmkv();
     mockProbe.mockReset();
     mockToastError.mockClear();
+    mockToastInfo.mockClear();
     mockRefreshUrlState.mockClear();
   });
 
@@ -126,6 +129,51 @@ describe("LocalNetworkSettings", () => {
       expect(savedLocalUrl()).toBe("http://192.168.1.10:8096"),
     );
     expect(mockToastError).not.toHaveBeenCalled();
+  });
+
+  // The field keeps saying "Server unreachable" under the address as typed,
+  // which read as "not saved" although it was.
+  test("says an unanswered address was saved, and shows it as it was stored", async () => {
+    storedLocalUrl("");
+    mockProbe.mockResolvedValue({ status: "unreachable" });
+    await render(<LocalNetworkSettings />);
+
+    await enter("HTTP://192.168.1.10:8096/");
+
+    await waitFor(() =>
+      expect(mockToastInfo).toHaveBeenCalledWith(SAVED_UNANSWERED),
+    );
+    expect(
+      await screen.findByDisplayValue("http://192.168.1.10:8096"),
+    ).toBeTruthy();
+    expect(mockToastError).not.toHaveBeenCalled();
+  });
+
+  test("does not repeat that when the same address is committed again", async () => {
+    storedLocalUrl("http://192.168.1.10:8096");
+    mockProbe.mockResolvedValue({ status: "unreachable" });
+    await render(<LocalNetworkSettings />);
+
+    await enter("http://192.168.1.10:8096");
+
+    await waitFor(() => expect(mockProbe).toHaveBeenCalled());
+    await waitFor(() => expect(mockRefreshUrlState).toHaveBeenCalled());
+    expect(mockToastInfo).not.toHaveBeenCalled();
+  });
+
+  test("says nothing extra when the server answered", async () => {
+    storedLocalUrl("");
+    mockProbe.mockImplementation(async (url) =>
+      url.startsWith("http://") ? { status: "ok" } : { status: "unreachable" },
+    );
+    await render(<LocalNetworkSettings />);
+
+    await enter("192.168.1.10:8096");
+
+    await waitFor(() =>
+      expect(savedLocalUrl()).toBe("http://192.168.1.10:8096"),
+    );
+    expect(mockToastInfo).not.toHaveBeenCalled();
   });
 
   test("saves a bare address with the scheme the server answered on", async () => {
