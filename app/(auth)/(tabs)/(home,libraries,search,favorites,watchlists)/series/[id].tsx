@@ -7,6 +7,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Platform, View } from "react-native";
 import { AddToFavorites } from "@/components/AddToFavorites";
+import { AddToKefinWatchlist } from "@/components/AddToKefinWatchlist";
 import { HeaderButtonGroup } from "@/components/common/HeaderButton";
 import { HeaderIcon } from "@/components/common/HeaderIcon";
 import { Image } from "@/components/common/ServerImage";
@@ -23,6 +24,7 @@ import { Colors } from "@/constants/Colors";
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { OfflineModeProvider } from "@/providers/OfflineModeProvider";
+import { useSettings } from "@/utils/atoms/settings";
 import {
   buildOfflineSeriesFromEpisodes,
   getDownloadedEpisodesForSeries,
@@ -58,6 +60,7 @@ const page: React.FC = () => {
 
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
+  const { settings } = useSettings();
   const { getDownloadedItems, downloadedItems } = useDownload();
 
   // For offline mode, construct series data from downloaded episodes
@@ -179,6 +182,7 @@ const page: React.FC = () => {
         !isLoading && item && allEpisodes && allEpisodes.length > 0 ? (
           <HeaderButtonGroup>
             <AddToFavorites item={item} />
+            {settings?.useKefinTweaks && <AddToKefinWatchlist item={item} />}
             {!Platform.isTV && (
               <DownloadItems
                 size='large'
@@ -195,7 +199,7 @@ const page: React.FC = () => {
           </HeaderButtonGroup>
         ) : null,
     });
-  }, [allEpisodes, isLoading, item, isOffline]);
+  }, [allEpisodes, isLoading, item, isOffline, settings?.useKefinTweaks]);
 
   // For offline mode, we can show the page even without backdropUrl
   if (!item || (!isOffline && !backdropUrl)) return null;

@@ -9,6 +9,7 @@ interface Props extends ViewProps {
   background?: boolean;
   size?: "default" | "large";
   hapticFeedback?: boolean;
+  disabled?: boolean;
 }
 
 /** Keeps the touch target at 44pt now that the large box is glyph-sized. */
@@ -31,6 +32,7 @@ export const RoundButton: React.FC<PropsWithChildren<Props>> = ({
   children,
   size = "default",
   hapticFeedback = true,
+  disabled = false,
   ...viewProps
 }) => {
   const isLarge = size === "large";
@@ -40,6 +42,7 @@ export const RoundButton: React.FC<PropsWithChildren<Props>> = ({
   const lightHapticFeedback = useHaptic("light");
 
   const handlePress = () => {
+    if (disabled) return;
     if (hapticFeedback) {
       lightHapticFeedback();
     }
@@ -60,7 +63,8 @@ export const RoundButton: React.FC<PropsWithChildren<Props>> = ({
         onPress={handlePress}
         onStartShouldSetResponder={claimResponder}
         hitSlop={isLarge ? LARGE_HIT_SLOP : undefined}
-        className={`rounded-full ${buttonSize} flex items-center justify-center`}
+        disabled={disabled}
+        className={`rounded-full ${buttonSize} flex items-center justify-center ${disabled ? "opacity-50" : ""}`}
         {...(viewProps as any)}
       >
         {children}
@@ -73,11 +77,12 @@ export const RoundButton: React.FC<PropsWithChildren<Props>> = ({
       onPress={handlePress}
       onStartShouldSetResponder={claimResponder}
       hitSlop={isLarge ? LARGE_HIT_SLOP : undefined}
+      disabled={disabled}
       {...(viewProps as any)}
     >
       <BlurView
         intensity={90}
-        className={`rounded-full overflow-hidden ${buttonSize} flex items-center justify-center`}
+        className={`rounded-full overflow-hidden ${buttonSize} flex items-center justify-center ${disabled ? "opacity-50" : ""}`}
       >
         {children}
       </BlurView>
