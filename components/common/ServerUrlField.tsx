@@ -57,6 +57,12 @@ export function ServerUrlField({
   // failure, so the effect below can tell an external value replacement apart
   // from a same-input retry (whose error status must keep showing).
   const lastAttemptInput = useRef<string | null>(null);
+  // Input a press of Return has already resolved, until the blur that press
+  // causes has passed. Return submits and then dismisses the keyboard, and a
+  // failure clears lastResolvedInput so that a later blur can retry: when the
+  // failure came back before the dismissal's blur, that blur was the retry and
+  // one press committed twice.
+  const submittedInput = useRef<string | null>(null);
   const latestValue = useRef(value);
   // Synced after commit instead of during render: a discarded concurrent
   // render must not leak its value into the stale-resolution guard.
@@ -117,8 +123,18 @@ export function ServerUrlField({
     if (result.reason !== "invalid") onCommit?.(input, false);
   }, [value, resolver, onChangeText, onResolved, onCommit]);
 
+  const handleSubmit = useCallback(() => {
+    submittedInput.current = value.trim();
+    runResolve();
+  }, [value, runResolve]);
+
   const handleBlur = useCallback(() => {
     const input = value.trim();
+    const submitted = submittedInput.current;
+    // Consumed by the first blur after the submit, whichever input it finds:
+    // the blur after that one is the user leaving the field again.
+    submittedInput.current = null;
+    if (input === submitted) return;
     if (!input || input !== lastResolvedInput.current) runResolve();
   }, [value, runResolve]);
 
@@ -129,6 +145,7 @@ export function ServerUrlField({
       if (resolver.status !== "idle") resolver.reset();
       lastResolvedInput.current = null;
       lastAttemptInput.current = null;
+      submittedInput.current = null;
     },
     [onChangeText, resolver],
   );
@@ -142,7 +159,7 @@ export function ServerUrlField({
         value={value}
         onChangeText={handleChange}
         onBlur={handleBlur}
-        onSubmitEditing={runResolve}
+        onSubmitEditing={handleSubmit}
         placeholder={placeholder}
         editable={editable}
         extraClassName='border border-neutral-800'
@@ -154,7 +171,9 @@ export function ServerUrlField({
         clearButtonMode='never'
       />
 
-      <ServerUrlStatusText state={resolver} className='mt-2' />
+      {/* px-4 is the input's own padding, so the status lines up with the
+          text typed above it instead of with the edge of the box. */}
+      <ServerUrlStatusText state={resolver} className='mt-2 px-4' />
     </View>
   );
 }

@@ -1,4 +1,35 @@
-import { getExplicitServerUrl, isHttpUrl } from "./candidates";
+import {
+  getExplicitServerUrl,
+  getServerUrlCandidates,
+  isHttpUrl,
+} from "./candidates";
+
+describe("getServerUrlCandidates", () => {
+  test("tries https before http when the scheme was left out", () => {
+    expect(getServerUrlCandidates("Jellyfin.Local:8096/")).toEqual([
+      "https://jellyfin.local:8096",
+      "http://jellyfin.local:8096",
+    ]);
+  });
+
+  test("keeps to the scheme that was typed", () => {
+    expect(getServerUrlCandidates("http://192.168.1.10:8096")).toEqual([
+      "http://192.168.1.10:8096",
+    ]);
+  });
+
+  // These fit the loose pattern but no URL can be built from them, so there is
+  // nothing to probe. Offered as candidates they came back "unreachable", and
+  // the local URL setting then asked for a scheme that was already there.
+  test.each([
+    "http://192.168.1.105:80969",
+    "192.168.1.105:80969",
+    "https://192.168.1.300",
+    "http://exa<mple",
+  ])("offers nothing to probe for %p", (address) => {
+    expect(getServerUrlCandidates(address)).toEqual([]);
+  });
+});
 
 describe("isHttpUrl", () => {
   test("accepts what the app can use as a server base", () => {

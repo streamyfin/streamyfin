@@ -61,7 +61,8 @@ function buildUrl(
  *   silently downgrade a typed `https://` to plain http.
  * - Otherwise https is tried before http (prefer secure), keeping any port/path.
  *
- * @returns [] when the input can't be parsed.
+ * @returns [] when the input can't be parsed, or parses into something that is
+ * not a URL.
  */
 export function getServerUrlCandidates(input: string): string[] {
   const parsed = parseServerInput(input);
@@ -70,12 +71,13 @@ export function getServerUrlCandidates(input: string): string[] {
   const { scheme, host, port, path } = parsed;
 
   // The user chose a scheme: don't second-guess it.
-  if (scheme) return [buildUrl(scheme, host, port, path)];
+  const schemes = scheme ? [scheme] : (["https", "http"] as const);
 
-  const candidates = (["https", "http"] as const).map((s) =>
-    buildUrl(s, host, port, path),
-  );
-  return Array.from(new Set(candidates));
+  // The pattern above is loose on purpose and lets through what no URL can
+  // hold: a port past 65535, an octet past 255, a character a host cannot
+  // carry. Probing those only ever reported "unreachable", for an address
+  // that needs correcting rather than a server that needs starting.
+  return schemes.map((s) => buildUrl(s, host, port, path)).filter(isHttpUrl);
 }
 
 /**
@@ -106,6 +108,5 @@ export function isHttpUrl(url: string): boolean {
 export function getExplicitServerUrl(input: string): string | null {
   if (!parseServerInput(input)?.scheme) return null;
 
-  const [url] = getServerUrlCandidates(input);
-  return isHttpUrl(url) ? url : null;
+  return getServerUrlCandidates(input).at(0) ?? null;
 }
