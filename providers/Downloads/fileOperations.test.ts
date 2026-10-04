@@ -237,37 +237,64 @@ describe("deletePendingDownloadFiles", () => {
     });
 
     // For item types other than Movie and Episode the file name is the Jellyfin item id, and
-    // the subtitle extension is the stream's codec: both are the server's to choose.
+    // the subtitle extension is the stream's codec: both are the server's to choose. The writer
+    // strips what is not safe in a file name, and the cleanup has to land on the name it wrote.
     it.each([
-      ["an item id with a parent-directory prefix", "../../Library/x", "srt"],
-      ["an item id with a nested path", "sub/dir", "srt"],
-      ["a codec with a path in it", "item-9", "srt/../../../Library/x"],
-    ])("builds no sidecar name from %s", (_label, id, codec) => {
-      fakeFiles.add(
-        `${DOCUMENTS}/../../Library/x_trickplay`,
-        `${DOCUMENTS}/sub/dir_trickplay`,
-        `${DOCUMENTS}/item-9_subtitle_2.srt/../../../Library/x`,
-      );
+      [
+        "an item id with a parent-directory prefix",
+        "../../Library/x",
+        "srt",
+        "______Library_x_subtitle_2.srt",
+        "______Library_x_trickplay",
+      ],
+      [
+        "an item id with a nested path",
+        "sub/dir",
+        "srt",
+        "sub_dir_subtitle_2.srt",
+        "sub_dir_trickplay",
+      ],
+      [
+        "a codec with a path in it",
+        "item-9",
+        "srt/../../../Library/x",
+        "item-9_subtitle_2.srt__________Library_x",
+        "item-9_trickplay",
+      ],
+    ])(
+      "removes the sidecars written for %s, and nothing the raw value points at",
+      (_label, id, codec, subtitle, trickplay) => {
+        const written = [
+          `${DOCUMENTS}/${subtitle}`,
+          `${DOCUMENTS}/${trickplay}`,
+        ];
+        fakeFiles.add(
+          ...written,
+          `${DOCUMENTS}/../../Library/x_trickplay`,
+          `${DOCUMENTS}/sub/dir_trickplay`,
+          `${DOCUMENTS}/item-9_subtitle_2.srt/../../../Library/x`,
+        );
 
-      deletePendingDownloadFiles(
-        makeRecord({
-          videoFileName: "plain.mp4",
-          item: { Id: id, Type: "Video" },
-          mediaSource: {
-            MediaStreams: [
-              {
-                Type: "Subtitle",
-                DeliveryMethod: "External",
-                Index: 2,
-                Codec: codec,
-              },
-            ],
-          },
-        }),
-      );
+        deletePendingDownloadFiles(
+          makeRecord({
+            videoFileName: "plain.mp4",
+            item: { Id: id, Type: "Video" },
+            mediaSource: {
+              MediaStreams: [
+                {
+                  Type: "Subtitle",
+                  DeliveryMethod: "External",
+                  Index: 2,
+                  Codec: codec,
+                },
+              ],
+            },
+          }),
+        );
 
-      expect(fakeFiles.deleted()).toEqual([]);
-    });
+        expect(fakeFiles.deleted()).toEqual(written);
+      },
+    );
 
     it.each([
       ["a parent-directory prefix", "../../Library/secret.mp4"],
