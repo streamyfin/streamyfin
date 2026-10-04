@@ -660,6 +660,12 @@ class MPVLayerRenderer(
         } else {
             mpv?.setPropertyString("start", "0")
         }
+        // Until the first time-pos arrives the file is where it was told to
+        // start. The duration event below emits this cache as the position,
+        // and left at 0 (or at the previous file's position) it told the
+        // delegate a resumed file was at 0:00, which was then reported to the
+        // server and cleared the item's resume point.
+        cachedPosition = if (startPosition != null && startPosition > 0) startPosition else 0.0
 
         // Set initial audio track if specified
         val initialAudioId = config.initialAudioId

@@ -689,6 +689,12 @@ final class MPVLayerRenderer {
             } else {
                 self.setProperty(name: "start", value: "0")
             }
+            // Until the first time-pos arrives the file is where it was told
+            // to start. The duration event emits this cache as the position,
+            // and left at 0 (or at the previous file's position) it told the
+            // delegate a resumed file was at 0:00, which was then reported to
+            // the server and cleared the item's resume point.
+            self.cachedPosition = max(0, startPosition ?? 0)
             // Set initial audio track if specified
             if let audioId = self.initialAudioId, audioId > 0 {
                 self.setAudioTrack(audioId)
