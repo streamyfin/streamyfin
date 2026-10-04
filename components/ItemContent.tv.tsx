@@ -796,7 +796,9 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                     </Text>
                   </TVButton>
                 )}
-                <TVFavoriteButton item={item} />
+                {/* Exactly one element asks for the initial focus: Play when
+                    it is there, otherwise the first button left in the row. */}
+                <TVFavoriteButton item={item} hasTVPreferredFocus={!playable} />
                 <TVPlayedButton item={item} />
                 <TVRefreshButton itemId={item.Id} />
               </View>

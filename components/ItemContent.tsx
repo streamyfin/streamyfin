@@ -138,7 +138,11 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
                   {!Platform.isTV && (
                     <DownloadSingleItem item={itemWithSources} size='large' />
                   )}
-                  {user?.Policy?.IsAdministrator &&
+                  {/* Sends the item's id to another session as a Play
+                      command; for an item with no stream that session can
+                      only fail the way this one would. */}
+                  {isPlayableItem(item) &&
+                    user?.Policy?.IsAdministrator &&
                     !settings.hideRemoteSessionButton && (
                       <PlayInRemoteSessionButton item={item} size='large' />
                     )}
