@@ -161,6 +161,24 @@ describe("LocalNetworkSettings", () => {
     expect(mockToastInfo).not.toHaveBeenCalled();
   });
 
+  // The config is written onto the server's entry in the saved list. With no
+  // entry nothing is written, so there is nothing to call saved.
+  test("does not say saved when the active server has no entry to store it on", async () => {
+    storage.set("serverUrl", REMOTE_URL);
+    storage.set("previousServers", JSON.stringify([]));
+    mockProbe.mockResolvedValue({ status: "unreachable" });
+    await render(<LocalNetworkSettings />);
+    // No stored config means auto-switching is off and the field is hidden.
+    await fireEvent(screen.getByRole("switch"), "valueChange", true);
+
+    await enter("http://192.168.1.10:8096");
+
+    await waitFor(() => expect(mockProbe).toHaveBeenCalled());
+    await waitFor(() => expect(mockRefreshUrlState).toHaveBeenCalledTimes(2));
+    expect(savedLocalUrl()).toBeUndefined();
+    expect(mockToastInfo).not.toHaveBeenCalled();
+  });
+
   test("says nothing extra when the server answered", async () => {
     storedLocalUrl("");
     mockProbe.mockImplementation(async (url) =>

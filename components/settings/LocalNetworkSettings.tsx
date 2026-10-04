@@ -172,12 +172,22 @@ export function LocalNetworkSettings(): React.ReactElement | null {
       // reads as a refusal: show what was stored and say that it was. Only
       // when the stored value changes, as leaving the field again retries the
       // probe and commits the same address once more.
-      if (!resolved && localUrl !== "" && localUrl !== config.localUrl) {
+      //
+      // And only once the store holds it: updateServerLocalConfig writes
+      // nothing for a server that is not in the saved list, and "saved" must
+      // not be said about an address that is gone on the next launch.
+      if (
+        !resolved &&
+        localUrl !== "" &&
+        localUrl !== config.localUrl &&
+        remoteUrl &&
+        getServerLocalConfig(remoteUrl)?.localUrl === localUrl
+      ) {
         setLocalUrlDraft(localUrl);
         toast.info(t("home.settings.network.local_url_saved_unanswered"));
       }
     },
-    [config, saveConfig, t],
+    [config, remoteUrl, saveConfig, t],
   );
 
   const handleAddCurrentNetwork = useCallback(() => {
