@@ -89,6 +89,7 @@ import {
 } from "@/utils/autoSubtitleOnMute";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
+import { subtitleSearchErrorMessage } from "@/utils/jellyfin/subtitleSearchAccess";
 import {
   applyMpvSubtitleSelection,
   findSubtitleTrackIdentity,
@@ -1259,13 +1260,11 @@ const NativePlayerProviderInner: React.FC<{
         ) {
           return;
         }
-        // Mirror the TV modal: a failed server search without a client-side
-        // key most likely means no provider plugin on the server.
-        const message = remoteSubtitlesRef.current.hasOpenSubtitlesApiKey
-          ? error instanceof Error
-            ? error.message
-            : String(error)
-          : t("player.no_subtitle_provider");
+        const message = subtitleSearchErrorMessage(
+          error,
+          remoteSubtitlesRef.current.hasOpenSubtitlesApiKey,
+          t,
+        );
         void updateNativePlayerSubtitleSearch({
           status: "error",
           results: [],

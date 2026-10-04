@@ -802,6 +802,7 @@
     "results": "Results",
     "search_failed": "Search failed",
     "no_subtitle_provider": "No subtitle provider configured on server",
+    "subtitle_search_not_allowed": "Your account is not allowed to search for subtitles on this server",
     "no_subtitles_found": "No subtitles found",
     "now_playing": "Now Playing",
     "subtitle_apply_failed": "The subtitle was downloaded but couldn't be applied",
