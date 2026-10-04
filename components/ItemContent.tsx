@@ -5,12 +5,14 @@ import type {
 import { useNavigation } from "expo-router";
 import { useAtom } from "jotai";
 import React, { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Platform, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { type Bitrate } from "@/components/BitrateSelector";
 import { HeaderButtonGroup } from "@/components/common/HeaderButton";
 import { ItemImage } from "@/components/common/ItemImage";
 import { Image } from "@/components/common/ServerImage";
+import { Text } from "@/components/common/Text";
 import { DownloadSingleItem } from "@/components/DownloadItem";
 import { ItemPeopleSections } from "@/components/item/ItemPeopleSections";
 import { MediaSourceButton } from "@/components/MediaSourceButton";
@@ -30,6 +32,7 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
+import { isPlayableItem } from "@/utils/jellyfin/media/isPlayableItem";
 import { AddToFavorites } from "./AddToFavorites";
 import { AddToWatchlist } from "./AddToWatchlist";
 import { ItemHeader } from "./ItemHeader";
@@ -60,6 +63,7 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
   itemWithSources,
 }) => {
   const [api] = useAtom(apiAtom);
+  const { t } = useTranslation();
   const isOffline = useOfflineMode();
   const { getDownloadedItemById } = useDownload();
   // A download pins the tracks it was pulled with, and only the record knows
@@ -220,22 +224,31 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
           <View className='flex flex-col px-4 w-full pt-2 mb-2 shrink'>
             <ItemHeader item={item} className='mb-2' />
 
-            <View className='flex flex-row px-0 mb-2 justify-between space-x-2'>
-              <PlayButton
-                selectedOptions={selectedOptions}
-                item={item}
-                colors={itemColors}
-              />
-              <View className='w-1' />
-              {!isOffline && (
-                <MediaSourceButton
+            {/* A Book, a Season or a folder can land on this page (home
+                rows, the libraries tab, a deep link) but has no stream:
+                say so rather than offer a Play button that cannot work. */}
+            {isPlayableItem(item) ? (
+              <View className='flex flex-row px-0 mb-2 justify-between space-x-2'>
+                <PlayButton
                   selectedOptions={selectedOptions}
-                  setSelectedOptions={setSelectedOptions}
-                  item={itemWithSources}
+                  item={item}
                   colors={itemColors}
                 />
-              )}
-            </View>
+                <View className='w-1' />
+                {!isOffline && (
+                  <MediaSourceButton
+                    selectedOptions={selectedOptions}
+                    setSelectedOptions={setSelectedOptions}
+                    item={itemWithSources}
+                    colors={itemColors}
+                  />
+                )}
+              </View>
+            ) : (
+              <Text className='mb-2 text-neutral-400'>
+                {t("player.unsupported_item_type")}
+              </Text>
+            )}
           </View>
           {item.Type === "Episode" && (
             <SeasonEpisodesCarousel item={item} loading={loading} />

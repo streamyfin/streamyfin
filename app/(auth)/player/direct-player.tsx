@@ -70,6 +70,7 @@ import { isExpectedError } from "@/utils/errors";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
+import { isPlayableItem } from "@/utils/jellyfin/media/isPlayableItem";
 import {
   getPlayMethod,
   type PlayMethod,
@@ -575,8 +576,15 @@ export default function DirectPlayerPage() {
         });
         if (isExpectedError(error)) {
           // The server itself declined to produce a stream (NoCompatibleStream
-          // and friends): say so instead of only flipping the error state.
-          Alert.alert(t("player.error"), t("player.failed_to_get_stream_url"));
+          // and friends), or the item has none to give (a Book or a Season
+          // that got here through a deep link or a remote Play command): say
+          // so instead of only flipping the error state.
+          Alert.alert(
+            t("player.error"),
+            item && !isPlayableItem(item)
+              ? t("player.unsupported_item_type")
+              : t("player.failed_to_get_stream_url"),
+          );
         }
         setStreamStatus({ isLoading: false, isError: true });
         return null;
