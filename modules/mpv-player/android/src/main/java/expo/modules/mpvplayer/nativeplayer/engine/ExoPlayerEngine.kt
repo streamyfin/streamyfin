@@ -19,6 +19,7 @@ import androidx.media3.common.C
 import androidx.media3.common.ColorInfo
 import androidx.media3.common.Format
 import androidx.media3.common.MediaItem
+import androidx.media3.common.MimeTypes
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
@@ -28,6 +29,7 @@ import androidx.media3.common.text.Cue
 import androidx.media3.common.text.CueGroup
 import androidx.media3.common.VideoSize
 import androidx.media3.exoplayer.DefaultLoadControl
+import androidx.media3.exoplayer.ExoPlaybackException
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.exoplayer.audio.AudioCapabilities
@@ -105,6 +107,8 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
     @Volatile override var playbackResumeIntent: Boolean = false
 
     private var currentUrl: String? = null
+    // The item an audio renderer failure was already retried for.
+    private var audioRecoveryAttemptedForUrl: String? = null
     private var currentHeaders: Map<String, String>? = null
     private var currentLoop: Boolean = false
     private var currentExternalSubtitles: List<String> = emptyList()
@@ -522,6 +526,44 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
         if (isMuted) 0f else (volumeBoostPercent / 100f).coerceIn(0f, 1f)
 
     override fun getChapters(): List<Map<String, Any>> = emptyList()
+
+    /**
+     * Prepares the item again, once, after an audio renderer failed.
+     *
+     * A bitstream track (AC3, E-AC3) is mapped to the passthrough renderer
+     * while the HDMI sink accepts it, and nothing maps it anew when the sink
+     * stops doing so (the TV or receiver is switched off or to another
+     * input, a Bluetooth headset connects): the renderer then fails on a
+     * format it reports as unsupported. Preparing again maps the track with
+     * the capabilities as they are now, which puts it on the software decoder.
+     *
+     * Once per item, so a track nothing can decode still ends in the error
+     * it is. Inferred from REACT-NATIVE-8A; not reproduced on a device.
+     */
+    private fun recoverFromAudioRendererError(error: PlaybackException): Boolean {
+        val p = player ?: return false
+        val rendererError = error as? ExoPlaybackException ?: return false
+        if (rendererError.type != ExoPlaybackException.TYPE_RENDERER) return false
+        val mimeType = rendererError.rendererFormat?.sampleMimeType ?: return false
+        if (!MimeTypes.isAudio(mimeType)) return false
+        val url = currentUrl ?: return false
+        if (audioRecoveryAttemptedForUrl == url) return false
+        audioRecoveryAttemptedForUrl = url
+        Log.w(TAG, "Audio renderer failed (${error.errorCodeName}), preparing again", error)
+        p.prepare()
+        return true
+    }
+
+    /**
+     * The error as it is reported: Media3's message, the name of its error
+     * code and the class of what caused it. The message alone reads the same
+     * for a sink that went away and for a decoder that was never there.
+     */
+    private fun describePlaybackError(error: PlaybackException): String {
+        val message = error.message ?: "Unknown playback error"
+        val cause = error.cause?.javaClass?.simpleName
+        return listOfNotNull(message, error.errorCodeName, cause).joinToString(" | ")
+    }
 
     override fun reloadCurrentItem() {
         val url = currentUrl ?: return
@@ -1219,7 +1261,8 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
         override fun onPlayerErrorChanged(error: PlaybackException?) {
             // Null = a previous error was cleared (recovering), not a failure.
             if (error == null) return
-            val message = error.message ?: "Unknown playback error"
+            if (recoverFromAudioRendererError(error)) return
+            val message = describePlaybackError(error)
             Log.e(TAG, "Player error: $message", error)
             delegate?.onError(message)
         }
