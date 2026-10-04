@@ -47,6 +47,7 @@ import {
   addServerToList,
   deleteAccountCredential,
   getAccountCredential,
+  getCredentialOrForgetAccount,
   hashPIN,
   migrateToMultiAccount,
   saveAccountCredential,
@@ -763,9 +764,11 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     }) => {
       if (!jellyfin) throw new Error("Jellyfin not initialized");
 
-      const credential = await getAccountCredential(serverUrl, userId);
+      const credential = await getCredentialOrForgetAccount(serverUrl, userId);
       if (!credential) {
-        throw new Error("No saved credential found");
+        // Nothing to sign in with, and nothing the app got wrong on this
+        // attempt: the user is told to sign in again, as for a rejected token.
+        throw markExpectedError(new Error(t("server.session_expired")));
       }
 
       // Create API instance with saved token
