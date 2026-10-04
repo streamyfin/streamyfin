@@ -23,6 +23,7 @@ import { TVEpisodeList } from "@/components/series/TVEpisodeList";
 import { TVSeriesHeader } from "@/components/series/TVSeriesHeader";
 import { TVButton } from "@/components/tv/TVButton";
 import { TVFavoriteButton } from "@/components/tv/TVFavoriteButton";
+import { TVWatchlistButton } from "@/components/tv/TVWatchlistButton";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import { useShuffleQueue } from "@/hooks/useShuffleQueue";
@@ -33,6 +34,7 @@ import { useTVThemeMusic } from "@/hooks/useTVThemeMusic";
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
+import { useSettings } from "@/utils/atoms/settings";
 import type { TVOptionItem } from "@/utils/atoms/tvOptionModal";
 import { tvSeriesSeasonModalAtom } from "@/utils/atoms/tvSeriesSeasonModal";
 import {
@@ -90,6 +92,10 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
   // Focus guide refs (using useState to trigger re-renders when refs are set)
   const [playButtonRef, setPlayButtonRef] = useState<View | null>(null);
   const [firstEpisodeRef, setFirstEpisodeRef] = useState<View | null>(null);
+  const [seasonWatchlistRef, setSeasonWatchlistRef] = useState<View | null>(
+    null,
+  );
+  const { settings } = useSettings();
 
   // ScrollView ref for page scrolling
   const mainScrollRef = useRef<ScrollView>(null);
@@ -166,15 +172,27 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
     return (season1 ?? season0 ?? seasons[0])?.IndexNumber ?? 1;
   }, [seasonIndexState, item.Id, initialSeasonIndex, seasons]);
 
+  const selectedSeason = useMemo<BaseItemDto | undefined>(
+    () =>
+      seasons.find(
+        (s: BaseItemDto) =>
+          s.IndexNumber === selectedSeasonIndex ||
+          s.Name === String(selectedSeasonIndex),
+      ),
+    [seasons, selectedSeasonIndex],
+  );
+
   // Get selected season ID
-  const selectedSeasonId = useMemo(() => {
-    const season = seasons.find(
-      (s: BaseItemDto) =>
-        s.IndexNumber === selectedSeasonIndex ||
-        s.Name === String(selectedSeasonIndex),
-    );
-    return season?.Id ?? null;
-  }, [seasons, selectedSeasonIndex]);
+  const selectedSeasonId = selectedSeason?.Id ?? null;
+
+  // A season has no page of its own on TV (opening one lands here with it
+  // selected), so its watchlist toggle lives beside the season heading. Offline
+  // seasons are rebuilt from downloads and have no server item to rate.
+  const showSeasonWatchlist =
+    settings.useKefinTweaks && !isOffline && !!selectedSeason?.Id;
+  const upwardFocusTarget = showSeasonWatchlist
+    ? seasonWatchlistRef
+    : playButtonRef;
 
   // Get selected season number for offline mode
   const selectedSeasonNumber = useMemo(() => {
@@ -512,6 +530,12 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
               )}
 
               <TVFavoriteButton item={item} disabled={isSeasonModalVisible} />
+              {settings.useKefinTweaks && (
+                <TVWatchlistButton
+                  item={item}
+                  disabled={isSeasonModalVisible}
+                />
+              )}
             </View>
           </View>
 
@@ -544,17 +568,35 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
 
         {/* Episodes section */}
         <View style={{ marginTop: scaleSize(40), overflow: "visible" }}>
-          <Text
+          <View
             style={{
-              fontSize: typography.heading,
-              fontWeight: "600",
-              color: "#FFFFFF",
+              flexDirection: "row",
+              alignItems: "center",
+              gap: scaleSize(16),
               marginBottom: scaleSize(24),
               marginLeft: SCALE_PADDING,
+              overflow: "visible",
             }}
           >
-            {selectedSeasonName}
-          </Text>
+            <Text
+              style={{
+                fontSize: typography.heading,
+                fontWeight: "600",
+                color: "#FFFFFF",
+              }}
+            >
+              {selectedSeasonName}
+            </Text>
+            {showSeasonWatchlist && selectedSeason && (
+              <TVWatchlistButton
+                // A new season is a new item: remount so no state carries over.
+                key={selectedSeason.Id}
+                item={selectedSeason}
+                disabled={isSeasonModalVisible}
+                refSetter={setSeasonWatchlistRef}
+              />
+            )}
+          </View>
 
           {/* Bidirectional focus guides - stacked together above the list */}
           {/* Downward: Play button → first episode */}
@@ -564,8 +606,10 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
               style={{ height: 1, width: "100%" }}
             />
           )}
-          {/* Upward: episodes → Play button */}
-          {playButtonRef && (
+          {/* Upward: episodes → the season's watchlist button when shown,
+              else the Play button. From the season button, Up reaches the
+              action row geometrically. */}
+          {upwardFocusTarget && (
             <TVFocusGuideView
               destinations={[playButtonRef]}
               style={{ height: 1, width: "100%" }}

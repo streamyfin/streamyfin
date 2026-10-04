@@ -1,8 +1,6 @@
 import { Stack } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { Platform } from "react-native";
-import { HeaderButton } from "@/components/common/HeaderButton";
-import { HeaderIcon } from "@/components/common/HeaderIcon";
 import {
   nestedTabPageScreenOptions,
   stackScreenOptions,
@@ -18,8 +16,8 @@ export const unstable_settings = Platform.isTV ? {} : { anchor: "index" };
 
 export default function WatchlistsLayout() {
   const { t } = useTranslation();
-  const router = useRouter();
-  const streamystatsEnabled = useStreamystatsEnabled();
+  const _router = useRouter();
+  const _streamystatsEnabled = useStreamystatsEnabled();
 
   return (
     <Stack screenOptions={stackScreenOptions}>
@@ -31,17 +29,6 @@ export default function WatchlistsLayout() {
           headerBlurEffect: "none",
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
-          headerRight: streamystatsEnabled
-            ? () => (
-                <HeaderButton
-                  onPress={() =>
-                    router.push("/(auth)/(tabs)/(watchlists)/create")
-                  }
-                >
-                  <HeaderIcon name='add' />
-                </HeaderButton>
-              )
-            : undefined,
         }}
       />
       <Stack.Screen

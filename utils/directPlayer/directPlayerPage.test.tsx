@@ -123,6 +123,9 @@ jest.mock("@/hooks/useRevalidatePlaybackProgressCache", () => ({
   useInvalidatePlaybackProgressCache: () => mockNoop,
 }));
 jest.mock("@/hooks/useWebsockets", () => ({ useWebSocket: () => {} }));
+jest.mock("@/hooks/useWatchlist", () => ({
+  usePruneWatchedFromWatchlist: () => mockNoop,
+}));
 jest.mock("@/utils/atoms/settings", () => ({
   getActivePlayerType: () => "mpv",
   useSettings: () => ({ settings: mockSettings, updateSettings: mockNoop }),

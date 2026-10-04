@@ -1396,7 +1396,7 @@ export default function SettingsTV() {
           />
 
           {/* Plugins Section — lookups the client makes directly, without
-              going through Jellyfin. */}
+              going through Jellyfin. As well as the kefintweaks integration */}
           <TVSectionHeader title={t("home.settings.plugins.plugins_title")} />
           <TVSettingsToggle
             label={t("home.settings.plugins.wikidata_awards")}
@@ -1417,6 +1417,13 @@ export default function SettingsTV() {
             value={settings.sentryEnabled}
             disabledByAdmin={pluginSettings?.sentryEnabled?.locked === true}
             onToggle={(value) => updateSettings({ sentryEnabled: value })}
+          />
+          {/* KefinTweaks keeps its watchlist in Jellyfin's Likes rating. */}
+          <TVSettingsToggle
+            label={t("home.settings.plugins.kefinTweaks.watchlist_enabler")}
+            value={settings.useKefinTweaks}
+            disabledByAdmin={pluginSettings?.useKefinTweaks?.locked === true}
+            onToggle={(value) => updateSettings({ useKefinTweaks: value })}
           />
 
           {/* Custom proxy auth headers for Jellyfin and each integration */}

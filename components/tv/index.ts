@@ -49,6 +49,11 @@ export type { TVProgressBarProps } from "./TVProgressBar";
 export { TVProgressBar } from "./TVProgressBar";
 export type { TVRefreshButtonProps } from "./TVRefreshButton";
 export { TVRefreshButton } from "./TVRefreshButton";
+export type {
+  TVSegmentedControlOption,
+  TVSegmentedControlProps,
+} from "./TVSegmentedControl";
+export { TVSegmentedControl } from "./TVSegmentedControl";
 export type { TVSeriesNavigationProps } from "./TVSeriesNavigation";
 export { TVSeriesNavigation } from "./TVSeriesNavigation";
 export type { TVSeriesSeasonCardProps } from "./TVSeriesSeasonCard";
@@ -68,3 +73,5 @@ export { TVTrackCard } from "./TVTrackCard";
 // User switching
 export type { TVUserCardProps } from "./TVUserCard";
 export { TVUserCard } from "./TVUserCard";
+export type { TVWatchlistButtonProps } from "./TVWatchlistButton";
+export { TVWatchlistButton } from "./TVWatchlistButton";

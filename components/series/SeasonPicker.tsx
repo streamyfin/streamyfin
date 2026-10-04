@@ -14,12 +14,14 @@ import { Colors } from "@/constants/Colors";
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
+import { useSettings } from "@/utils/atoms/settings";
 import {
   buildOfflineSeasons,
   getDownloadedEpisodesForSeason,
 } from "@/utils/downloads/offline-series";
 import { replacementSeason } from "@/utils/seasonSelection";
 import { runtimeTicksToSeconds } from "@/utils/time";
+import { AddToKefinWatchlist } from "../AddToKefinWatchlist";
 import { buildItemCards, type CardData } from "../cards/CardData";
 import { CardListRow } from "../cards/CardListRow";
 import { useItemCardBehavior } from "../cards/useItemCardBehavior";
@@ -39,6 +41,7 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
   const [seasonIndexState, setSeasonIndexState] = useAtom(seasonIndexAtom);
+  const { settings } = useSettings();
   const { t } = useTranslation();
   const isOffline = useOfflineMode();
   const { getDownloadedItems, downloadedItems } = useDownload();
@@ -88,16 +91,15 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
     setSeasonIndexState((prev) => ({ ...prev, [item.Id!]: replacement }));
   }, [item.Id, seasons, seasonIndex, setSeasonIndexState]);
 
-  const selectedSeasonId: string | null = useMemo(() => {
-    const season: BaseItemDto = seasons?.find(
-      (s: BaseItemDto) =>
-        s.IndexNumber === seasonIndex || s.Name === seasonIndex,
-    );
-
-    if (!season?.Id) return null;
-
-    return season.Id!;
-  }, [seasons, seasonIndex]);
+  const selectedSeason: BaseItemDto | undefined = useMemo(
+    () =>
+      seasons?.find(
+        (s: BaseItemDto) =>
+          s.IndexNumber === seasonIndex || s.Name === seasonIndex,
+      ),
+    [seasons, seasonIndex],
+  );
+  const selectedSeasonId: string | null = selectedSeason?.Id ?? null;
 
   // For offline mode, we use season index number instead of ID
   const selectedSeasonNumber = useMemo(() => {
@@ -246,6 +248,14 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
               )}
             />
             <PlayedStatus items={episodes || []} />
+            {settings?.useKefinTweaks && selectedSeason?.Id && (
+              <AddToKefinWatchlist
+                // A new season is a new item: remount so no state carries over.
+                key={selectedSeason.Id}
+                item={selectedSeason}
+                size='default'
+              />
+            )}
           </View>
         ) : null}
       </View>

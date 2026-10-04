@@ -38,6 +38,7 @@ import {
   useRemoteSubtitles,
 } from "@/hooks/useRemoteSubtitles";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
+import { usePruneWatchedFromWatchlist } from "@/hooks/useWatchlist";
 import {
   addNativePlayerListener,
   dismissNativePlayer,
@@ -371,12 +372,15 @@ const NativePlayerProviderInner: React.FC<{
   const pluginSettingsRef = useRef(pluginSettings);
   const userRef = useRef(user);
   const isConnectedRef = useRef(isConnected);
+  const pruneWatchedFromWatchlist = usePruneWatchedFromWatchlist();
+  const pruneWatchedRef = useRef(pruneWatchedFromWatchlist);
   useEffect(() => {
     apiRef.current = api;
     settingsRef.current = settings;
     pluginSettingsRef.current = pluginSettings;
     userRef.current = user;
     isConnectedRef.current = isConnected;
+    pruneWatchedRef.current = pruneWatchedFromWatchlist;
   });
 
   // Remote subtitle search/download for the native search sheet (Jellyfin
@@ -472,6 +476,9 @@ const NativePlayerProviderInner: React.FC<{
             LiveStreamId: session.stream.mediaSource?.LiveStreamId ?? undefined,
           },
         });
+        // The server has now decided whether the item counts as played; a
+        // finished one leaves the KefinTweaks watchlist.
+        void pruneWatchedRef.current([session.item.Id]);
       } catch (error) {
         // Un-mark so a later teardown path can retry.
         if (session.reportedStopKey === stopKey) {
