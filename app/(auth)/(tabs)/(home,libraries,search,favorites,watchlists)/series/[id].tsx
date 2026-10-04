@@ -20,6 +20,7 @@ import {
 import { SeriesHeader } from "@/components/series/SeriesHeader";
 import { TVSeriesPage } from "@/components/series/TVSeriesPage";
 import { Colors } from "@/constants/Colors";
+import { useLeaveWhenGone } from "@/hooks/useLeaveWhenGone";
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { OfflineModeProvider } from "@/providers/OfflineModeProvider";
@@ -78,6 +79,11 @@ const page: React.FC = () => {
     refetchInterval: !isOffline && Platform.isTV ? 60 * 1000 : undefined,
     enabled: isOffline || (!!api && !!user?.Id),
   });
+
+  // Offline, the series is nothing but its downloaded episodes, so the query
+  // above answers null once the last one is deleted. There is nothing left to
+  // show here: go back to the downloads instead of leaving an empty screen.
+  useLeaveWhenGone(isOffline && item === null);
 
   // For offline mode, use stored base64 image
   const base64Image = useMemo(() => {
