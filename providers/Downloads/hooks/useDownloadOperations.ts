@@ -222,7 +222,11 @@ export function useDownloadOperations({
           const record = getPendingDownload(item.Id);
           removePendingDownload(item.Id);
           removeProcess(item.Id);
-          if (record) deletePendingDownloadFiles(record);
+          // A start that fails before the record is saved has still written its subtitles
+          // and trickplay sheets.
+          deletePendingDownloadFiles(
+            record ?? { itemId: item.Id, item, mediaSource },
+          );
         }
         toast.error(t("home.downloads.toasts.failed_to_start_download"), {
           description: error instanceof Error ? error.message : "Unknown error",
@@ -288,6 +292,10 @@ export function useDownloadOperations({
   const deleteAllFiles = useCallback(async () => {
     const allItems = getAllDownloadedItems();
 
+    // Out of the database first: downloads that share a file name would otherwise keep each
+    // other's files alive.
+    clearAllDownloadedItems();
+
     for (const item of allItems) {
       try {
         deleteAllAssociatedFiles(item);
@@ -296,7 +304,6 @@ export function useDownloadOperations({
       }
     }
 
-    clearAllDownloadedItems();
     toast.success(t("home.downloads.toasts.all_files_deleted"));
     onDataChange?.();
   }, [t, onDataChange]);

@@ -1,4 +1,11 @@
-import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
+import type {
+  BaseItemDto,
+  MediaStream,
+} from "@jellyfin/sdk/lib/generated-client/models";
+import {
+  DOWNLOAD_SUBTITLE_INFIX,
+  DOWNLOAD_TRICKPLAY_DIR_SUFFIX,
+} from "@/constants/Downloads";
 
 /**
  * Generate a safe filename from item metadata
@@ -22,6 +29,20 @@ export function generateFilename(item: BaseItemDto): string {
   }
 
   return `${item.Id}`;
+}
+
+/** Name, in Documents, of the local copy of an external subtitle stream. */
+export function subtitleFileName(
+  item: BaseItemDto,
+  stream: MediaStream,
+): string {
+  const extension = stream.Codec || "srt";
+  return `${generateFilename(item)}${DOWNLOAD_SUBTITLE_INFIX}${stream.Index}.${extension}`;
+}
+
+/** Name, in Documents, of the folder holding an item's trickplay sheets. */
+export function trickplayDirName(item: BaseItemDto): string {
+  return `${generateFilename(item)}${DOWNLOAD_TRICKPLAY_DIR_SUFFIX}`;
 }
 
 /**
