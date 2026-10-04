@@ -21,6 +21,7 @@ import { Platform } from "react-native";
 import { GlobalModal } from "@/components/GlobalModal";
 import { PendingAccountSaveModal } from "@/components/PendingAccountSaveModal";
 import { SeerrAutoLogin } from "@/components/seerr/SeerrAutoLogin";
+import { useMediaPreferences } from "@/hooks/useMediaPreferences";
 import { enableTVMenuKeyInterception } from "@/hooks/useTVBackHandler";
 import i18n from "@/i18n";
 import { DownloadProvider } from "@/providers/DownloadProvider";
@@ -254,6 +255,12 @@ const checkAndRequestPermissions = async () => {
     return false;
   }
 };
+
+/** Sync server-owned playback preferences without requiring a settings-screen visit. */
+function MediaPreferencesSync() {
+  useMediaPreferences(true);
+  return null;
+}
 
 function RootLayout() {
   Appearance.setColorScheme("dark");
@@ -686,6 +693,7 @@ function Layout() {
                                       <PendingAccountSaveModal />
                                     )}
                                     <SeerrAutoLogin />
+                                    <MediaPreferencesSync />
                                   </ThemeProvider>
                                 </IntroSheetProvider>
                               </BottomSheetModalProvider>

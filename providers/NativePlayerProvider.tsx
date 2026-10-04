@@ -117,7 +117,11 @@ import {
   getSegmentsForItem,
   type SegmentBuckets,
 } from "@/utils/segments";
-import { rememberSeriesTrack } from "@/utils/seriesTrackMemory";
+import {
+  getTrackMemoryScope,
+  type RememberTrackSettings,
+  rememberTrackSelectionFromRow,
+} from "@/utils/seriesTrackMemory";
 import {
   isLocalSubtitleIndex,
   localSubtitleIndex,
@@ -133,6 +137,8 @@ const NEXT_EPISODE_COUNTDOWN_SECONDS = 10;
  * in React state, so a tick already in flight can't observe a stale value.
  */
 interface NativeSession extends NativePlayerSessionSeed {
+  /** Account that owns this session's remembered selections. */
+  memoryScope?: string;
   currentAudioIndex: number | undefined;
   currentSubtitleIndex: number;
   positionMs: number;
@@ -225,45 +231,33 @@ const nativePlayerSubtitleFacade: SubtitleSelectablePlayer = {
 };
 
 /**
- * Persist a deliberate in-player track pick as the series preference (stored
- * by language — indexes differ between episode files). Client-side sidecar
- * selections carry no server-side identity and are skipped.
+ * Persist a native menu selection through the same replay/series memory as the
+ * JS menus. Client-side files have no server-side identity and are skipped.
  */
-const rememberSeriesSelection = (
+const rememberTrackSelection = (
   session: NativeSession,
   kind: "audio" | "subtitle",
   jellyfinIndex: number,
-  settings:
-    | {
-        rememberAudioSelections?: boolean;
-        rememberSubtitleSelections?: boolean;
-      }
-    | null
-    | undefined,
+  settings: RememberTrackSettings | null | undefined,
 ) => {
-  const item = session.item;
-  if (item?.Type !== "Episode" || !item.SeriesId) return;
-  // A sidecar has no server-side stream to read a language off, so there is
-  // nothing to remember for the next episode.
   if (isLocalSubtitleIndex(jellyfinIndex)) return;
-  const streams = session.stream.mediaSource.MediaStreams;
-  if (kind === "audio") {
-    if (!settings?.rememberAudioSelections) return;
-    const lang = streams?.find(
-      (s) => s.Index === jellyfinIndex && s.Type === "Audio",
-    )?.Language;
-    if (lang) rememberSeriesTrack(item.SeriesId, { audioLang: lang });
-    return;
-  }
-  if (!settings?.rememberSubtitleSelections) return;
-  if (jellyfinIndex === -1) {
-    rememberSeriesTrack(item.SeriesId, { subtitleLang: "off" });
-    return;
-  }
-  const lang = streams?.find(
-    (s) => s.Index === jellyfinIndex && s.Type === "Subtitle",
-  )?.Language;
-  if (lang) rememberSeriesTrack(item.SeriesId, { subtitleLang: lang });
+  const stream = session.stream.mediaSource.MediaStreams?.find(
+    (candidate) =>
+      candidate.Index === jellyfinIndex &&
+      candidate.Type === (kind === "audio" ? "Audio" : "Subtitle"),
+  );
+  rememberTrackSelectionFromRow({
+    item: session.item,
+    kind,
+    row: {
+      index: jellyfinIndex,
+      kind: jellyfinIndex === SUBTITLES_OFF ? "off" : "server",
+      stream,
+    },
+    settings,
+    mediaSourceId: session.mediaSourceId,
+    memoryScope: session.memoryScope,
+  });
 };
 
 const mapSearchResults = (
@@ -668,10 +662,12 @@ const NativePlayerProviderInner: React.FC<{
       const currentSettings = settingsRef.current;
       if (!currentSettings) return false;
       const token = ++playRequestTokenRef.current;
+      const memoryScope = getTrackMemoryScope(userRef.current);
 
       const built = await buildNativePlayerConfig({
         api: apiRef.current,
         userId: userRef.current?.Id,
+        memoryScope,
         settings: currentSettings,
         subtitleSizeLocked:
           pluginSettingsRef.current?.subtitleSize?.locked === true,
@@ -689,6 +685,7 @@ const NativePlayerProviderInner: React.FC<{
 
       const session: NativeSession = {
         ...built.seed,
+        memoryScope,
         currentAudioIndex: built.seed.audioIndex,
         currentSubtitleIndex: built.seed.subtitleIndex,
         positionMs: ticksToSeconds(built.seed.startTicks) * 1000,
@@ -922,6 +919,7 @@ const NativePlayerProviderInner: React.FC<{
         audioIndex: defaultAudioIndex,
         subtitleIndex: defaultSubtitleIndex,
       } = getDefaultPlaySettings(target, currentSettings, {
+        memoryScope: session.memoryScope,
         indexes: {
           subtitleIndex: session.currentSubtitleIndex,
           audioIndex: session.currentAudioIndex,
@@ -1564,7 +1562,7 @@ const NativePlayerProviderInner: React.FC<{
         const session = sessionRef.current;
         if (!session || session.awaitingLoad) return;
         if (payload.kind === "audio") {
-          rememberSeriesSelection(
+          rememberTrackSelection(
             session,
             "audio",
             payload.jellyfinIndex,
@@ -1588,7 +1586,7 @@ const NativePlayerProviderInner: React.FC<{
               released: true,
             };
           }
-          rememberSeriesSelection(
+          rememberTrackSelection(
             session,
             "subtitle",
             payload.jellyfinIndex,

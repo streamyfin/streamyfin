@@ -44,7 +44,10 @@ import {
   isExternalSubtitle,
 } from "@/utils/jellyfin/subtitleUtils";
 import { logAndCaptureError } from "@/utils/log";
-import type { PlayRequest } from "@/utils/nativePlayer/playRequest";
+import {
+  getExplicitTrackIndexes,
+  type PlayRequest,
+} from "@/utils/nativePlayer/playRequest";
 import { formatDuration, runtimeTicksToMinutes } from "@/utils/time";
 import { chromecast } from "../utils/profiles/chromecast";
 import { chromecasth265 } from "../utils/profiles/chromecasth265";
@@ -56,6 +59,8 @@ interface Props extends React.ComponentProps<typeof TouchableOpacity> {
   item: BaseItemDto;
   selectedOptions: SelectedOptions;
   colors?: ThemeColors;
+  /** Consume one-shot menu overrides after playback is handed off. */
+  onPlayRequested?: () => void;
 }
 
 const ANIMATION_DURATION = 500;
@@ -65,6 +70,7 @@ export const PlayButton: React.FC<Props> = ({
   item,
   selectedOptions,
   colors,
+  onPlayRequested,
 }: Props) => {
   const isOffline = useOfflineMode();
   const { showActionSheetWithOptions } = useActionSheet();
@@ -96,10 +102,12 @@ export const PlayButton: React.FC<Props> = ({
     async (positionTicks: number) => {
       if (!item) return;
 
+      const { audioIndex, subtitleIndex } =
+        getExplicitTrackIndexes(selectedOptions);
       const playRequest: PlayRequest = {
         itemId: item.Id!,
-        audioIndex: selectedOptions.audioIndex,
-        subtitleIndex: selectedOptions.subtitleIndex,
+        audioIndex,
+        subtitleIndex,
         mediaSourceId: selectedOptions.mediaSource?.Id ?? undefined,
         bitrateValue: selectedOptions.bitrate?.value,
         offline: isOffline,
@@ -108,6 +116,7 @@ export const PlayButton: React.FC<Props> = ({
 
       if (!client) {
         await playMedia(playRequest, { item });
+        onPlayRequested?.();
         return;
       }
 
@@ -169,10 +178,10 @@ export const PlayButton: React.FC<Props> = ({
                       deviceProfile: enableH265 ? chromecasth265 : chromecast,
                       startTimeTicks: positionTicks,
                       userId: user.Id,
-                      audioStreamIndex: selectedOptions.audioIndex,
+                      audioStreamIndex: audioIndex,
                       maxStreamingBitrate: selectedOptions.bitrate?.value,
                       mediaSourceId: selectedOptions.mediaSource?.Id,
-                      subtitleStreamIndex: selectedOptions.subtitleIndex,
+                      subtitleStreamIndex: subtitleIndex,
                     });
 
                     if (!data?.url) {
@@ -311,8 +320,9 @@ export const PlayButton: React.FC<Props> = ({
                         startTime: startTimeSeconds,
                       })
                       .then(() => {
+                        onPlayRequested?.();
                         const activeSubtitle = subtitleTracks.find(
-                          (s) => s.id === selectedOptions.subtitleIndex,
+                          (s) => s.id === data.subtitleIndex,
                         );
                         if (activeSubtitle) {
                           client
@@ -351,6 +361,7 @@ export const PlayButton: React.FC<Props> = ({
               break;
             case 1:
               await playMedia(playRequest, { item });
+              onPlayRequested?.();
               break;
             case cancelButtonIndex:
               break;
@@ -369,6 +380,7 @@ export const PlayButton: React.FC<Props> = ({
       mediaStatus,
       selectedOptions,
       playMedia,
+      onPlayRequested,
       isOffline,
       t,
     ],

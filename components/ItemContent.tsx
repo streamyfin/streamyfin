@@ -30,6 +30,7 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
+import type { TrackMenuSelection } from "@/utils/nativePlayer/playRequest";
 import { AddToFavorites } from "./AddToFavorites";
 import { AddToWatchlist } from "./AddToWatchlist";
 import { ItemHeader } from "./ItemHeader";
@@ -46,7 +47,7 @@ export type SelectedOptions = {
   mediaSource: MediaSourceInfo | undefined;
   audioIndex: number | undefined;
   subtitleIndex: number;
-};
+} & TrackMenuSelection;
 
 interface ItemContentProps {
   item?: BaseItemDto | null;
@@ -65,10 +66,11 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
   // A download pins the tracks it was pulled with, and only the record knows
   // them: resolving against the server media source hands back an index for a
   // stream the local file may not contain.
-  const downloadedTracks =
-    isOffline && item?.Id
-      ? getDownloadedItemById(item.Id)?.userData
-      : undefined;
+  const downloadedItem = useMemo(
+    () => (isOffline && item?.Id ? getDownloadedItemById(item.Id) : undefined),
+    [isOffline, item, getDownloadedItemById],
+  );
+  const downloadedTracks = downloadedItem?.userData;
   const { settings } = useSettings();
   const { orientation } = useOrientation();
   const navigation = useNavigation();
@@ -83,6 +85,16 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
   const [selectedOptions, setSelectedOptions] = useState<
     SelectedOptions | undefined
   >(undefined);
+  const clearTrackOverrides = React.useCallback(() => {
+    setSelectedOptions(
+      (previous) =>
+        previous && {
+          ...previous,
+          audioSelectionExplicit: false,
+          subtitleSelectionExplicit: false,
+        },
+    );
+  }, []);
 
   // Use itemWithSources for play settings since it has MediaSources data
   const {
@@ -90,7 +102,11 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
     defaultBitrate,
     defaultMediaSource,
     defaultSubtitleIndex,
-  } = useDefaultPlaySettings(itemWithSources ?? item, settings);
+  } = useDefaultPlaySettings(itemWithSources ?? item, settings, {
+    offline: isOffline,
+    downloaded: downloadedTracks,
+    downloadedMediaSource: downloadedItem?.mediaSource,
+  });
 
   const logoUrl = useMemo(
     () => (item ? getLogoImageUrlById({ api, item }) : null),
@@ -107,12 +123,21 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
 
   // Needs to automatically change the selected to the default values for default indexes.
   useEffect(() => {
-    setSelectedOptions(() => ({
+    setSelectedOptions((previous) => ({
       bitrate: defaultBitrate,
       mediaSource: defaultMediaSource ?? undefined,
-      subtitleIndex:
-        downloadedTracks?.subtitleStreamIndex ?? defaultSubtitleIndex ?? -1,
-      audioIndex: downloadedTracks?.audioStreamIndex ?? defaultAudioIndex,
+      subtitleIndex: defaultSubtitleIndex ?? -1,
+      audioIndex: defaultAudioIndex,
+      ...(previous?.mediaSource?.Id === defaultMediaSource?.Id &&
+        previous?.audioSelectionExplicit && {
+          audioIndex: previous.audioIndex,
+          audioSelectionExplicit: true,
+        }),
+      ...(previous?.mediaSource?.Id === defaultMediaSource?.Id &&
+        previous?.subtitleSelectionExplicit && {
+          subtitleIndex: previous.subtitleIndex,
+          subtitleSelectionExplicit: true,
+        }),
     }));
   }, [
     defaultAudioIndex,
@@ -121,6 +146,10 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
     defaultMediaSource,
     downloadedTracks,
   ]);
+
+  useEffect(() => {
+    clearTrackOverrides();
+  }, [clearTrackOverrides, user?.Id, user?.ServerId]);
 
   useEffect(() => {
     if (!Platform.isTV && itemWithSources) {
@@ -222,6 +251,7 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
 
             <View className='flex flex-row px-0 mb-2 justify-between space-x-2'>
               <PlayButton
+                onPlayRequested={clearTrackOverrides}
                 selectedOptions={selectedOptions}
                 item={item}
                 colors={itemColors}

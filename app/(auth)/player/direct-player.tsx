@@ -83,6 +83,12 @@ import {
 } from "@/utils/jellyfin/subtitleUtils";
 import { logAndCaptureError, writeToLog } from "@/utils/log";
 import {
+  getStreamRequestIndexes,
+  type StreamTrackRequest,
+} from "@/utils/nativePlayer/playRequest";
+import { resolveTrackIndexes } from "@/utils/nativePlayer/resolveTrackIndexes";
+import { getTrackMemoryScope } from "@/utils/seriesTrackMemory";
+import {
   getEffectiveSubtitleMarginY,
   getEffectiveSubtitleScale,
 } from "@/utils/subtitles";
@@ -143,10 +149,21 @@ export default function DirectPlayerPage() {
   const [showTechnicalInfo, setShowTechnicalInfo] = useState(false);
 
   // TV audio/subtitle selection state (tracks current selection for dynamic changes)
-  const [currentAudioIndex, setCurrentAudioIndex] = useState<
+  const [currentAudioIndex, updateCurrentAudioIndex] = useState<
     number | undefined
   >(undefined);
-  const [currentSubtitleIndex, setCurrentSubtitleIndex] = useState<number>(-1);
+  const [currentSubtitleIndex, updateCurrentSubtitleIndex] =
+    useState<number>(-1);
+  const currentAudioIndexRef = useRef<number | undefined>(undefined);
+  const currentSubtitleIndexRef = useRef(-1);
+  const setCurrentAudioIndex = useCallback((index: number | undefined) => {
+    currentAudioIndexRef.current = index;
+    updateCurrentAudioIndex(index);
+  }, []);
+  const setCurrentSubtitleIndex = useCallback((index: number) => {
+    currentSubtitleIndexRef.current = index;
+    updateCurrentSubtitleIndex(index);
+  }, []);
 
   // Device output volume plus the player's own mute, combined. Reported to the
   // server and consumed by the automatic subtitle feature below.
@@ -207,7 +224,7 @@ export default function DirectPlayerPage() {
     : undefined;
   const subtitleIndex = subtitleIndexStr
     ? Number.parseInt(subtitleIndexStr, 10)
-    : -1;
+    : undefined;
   const bitrateValue = bitrateValueStr
     ? Number.parseInt(bitrateValueStr, 10)
     : BITRATES[0].value;
@@ -259,26 +276,18 @@ export default function DirectPlayerPage() {
   });
 
   // Resolve audio index: use URL param if provided, otherwise use stored index for offline playback
-  const audioIndex = useMemo(() => {
-    if (audioIndexFromUrl !== undefined) {
-      return audioIndexFromUrl;
-    }
-    if (offline && downloadedItem?.userData?.audioStreamIndex !== undefined) {
-      return downloadedItem.userData.audioStreamIndex;
-    }
-    return undefined;
-  }, [audioIndexFromUrl, offline, downloadedItem?.userData?.audioStreamIndex]);
+  const audioIndex = audioIndexFromUrl;
 
   // Initialize TV audio/subtitle indices from URL params.
   // No undefined guard: when a new episode's URL omits audioIndex, reset to
   // undefined (media default) rather than leaking the previous episode's track.
   useEffect(() => {
-    setCurrentAudioIndex(audioIndex);
-  }, [audioIndex]);
+    if (audioIndex !== undefined) setCurrentAudioIndex(audioIndex);
+  }, [audioIndex, setCurrentAudioIndex]);
 
   useEffect(() => {
-    setCurrentSubtitleIndex(subtitleIndex);
-  }, [subtitleIndex]);
+    if (subtitleIndex !== undefined) setCurrentSubtitleIndex(subtitleIndex);
+  }, [subtitleIndex, setCurrentSubtitleIndex]);
 
   // Get the playback speed for this item based on settings
   const { playbackSpeed: initialPlaybackSpeed } = usePlaybackSpeed(
@@ -414,6 +423,10 @@ export default function DirectPlayerPage() {
   }, [settings?.defaultVideoOrientation, lockOrientation, unlockOrientation]);
 
   interface Stream {
+    /** Negotiated soundtrack, not a stale route default. */
+    audioIndex: number | undefined;
+    /** Negotiated subtitle, including -1 for off. */
+    subtitleIndex: number;
     mediaSource: MediaSourceInfo;
     sessionId: string;
     url: string;
@@ -421,13 +434,23 @@ export default function DirectPlayerPage() {
   }
 
   const [stream, setStream] = useState<Stream | null>(null);
+  const streamRef = useRef<Stream | null>(null);
+  useEffect(() => {
+    streamRef.current = stream;
+  }, [stream]);
+  useEffect(() => {
+    setCurrentAudioIndex(stream?.audioIndex);
+    setCurrentSubtitleIndex(stream?.subtitleIndex ?? -1);
+  }, [stream, setCurrentAudioIndex, setCurrentSubtitleIndex]);
   const [streamStatus, setStreamStatus] = useState({
     isLoading: true,
     isError: false,
   });
 
   // Ref to store the stream fetch function for refreshing subtitle tracks
-  const refetchStreamRef = useRef<(() => Promise<Stream | null>) | null>(null);
+  const refetchStreamRef = useRef<
+    ((live?: StreamTrackRequest) => Promise<Stream | null>) | null
+  >(null);
 
   // Live TV opens a server-side live stream via autoOpenLiveStream. If it is
   // never closed, Jellyfin's M3U tuner limit fills up and every channel then
@@ -478,7 +501,9 @@ export default function DirectPlayerPage() {
   }, [stream?.mediaSource?.LiveStreamId, releaseLiveStream]);
 
   useEffect(() => {
-    const fetchStreamData = async (): Promise<Stream | null> => {
+    const fetchStreamData = async (
+      live?: StreamTrackRequest,
+    ): Promise<Stream | null> => {
       setStreamStatus({ isLoading: true, isError: false });
       try {
         // Don't attempt to fetch stream data if item is not available
@@ -495,11 +520,31 @@ export default function DirectPlayerPage() {
         }
 
         let result: Stream | null = null;
+        const requested = getStreamRequestIndexes(
+          { audioIndex, subtitleIndex, mediaSourceId },
+          live,
+        );
+        const liveSubtitleIndex = live?.subtitleIndex;
+        const selectedTracks = resolveTrackIndexes({
+          item,
+          settings,
+          offline,
+          downloaded: downloadedItem?.userData,
+          downloadedMediaSource: downloadedItem?.mediaSource,
+          memoryScope: getTrackMemoryScope(user),
+          requested: {
+            ...requested,
+          },
+        });
         if (offline && downloadedItem?.mediaSource) {
           const url = downloadedItem.videoFilePath;
           if (item) {
             result = {
               mediaSource: downloadedItem.mediaSource,
+              audioIndex: selectedTracks.audioIndex,
+              subtitleIndex: isLocalSubtitleIndex(liveSubtitleIndex)
+                ? liveSubtitleIndex
+                : (selectedTracks.subtitleIndex ?? -1),
               sessionId: "",
               url: url,
             };
@@ -522,10 +567,10 @@ export default function DirectPlayerPage() {
             item,
             startTimeTicks: startTicks,
             userId: user.Id,
-            audioStreamIndex: audioIndex,
+            audioStreamIndex: selectedTracks.audioIndex,
             maxStreamingBitrate: bitrateValue,
-            mediaSourceId: mediaSourceId,
-            subtitleStreamIndex: subtitleIndex,
+            mediaSourceId: requested.mediaSourceId,
+            subtitleStreamIndex: selectedTracks.subtitleIndex,
             // Match the device profile to the player that will render the
             // stream so the server picks a codec/container the player can
             // actually decode.
@@ -561,7 +606,16 @@ export default function DirectPlayerPage() {
             setStreamStatus({ isLoading: false, isError: true });
             return null;
           }
-          result = { mediaSource, sessionId, url, requiredHttpHeaders };
+          result = {
+            mediaSource,
+            sessionId,
+            url,
+            requiredHttpHeaders,
+            audioIndex: res.audioIndex,
+            subtitleIndex: isLocalSubtitleIndex(liveSubtitleIndex)
+              ? liveSubtitleIndex
+              : res.subtitleIndex,
+          };
         }
         setTracksReady(false);
         setStream(result);
@@ -593,7 +647,37 @@ export default function DirectPlayerPage() {
     api,
     item,
     user?.Id,
+    user?.ServerId,
     downloadedItem,
+    offline,
+  ]);
+
+  const currentPlayStateInfo = useCallback(():
+    | PlaybackProgressInfo
+    | undefined => {
+    if (!stream || !item?.Id) return;
+    return {
+      ItemId: item.Id,
+      AudioStreamIndex: currentAudioIndex,
+      SubtitleStreamIndex: toServerSubtitleIndex(currentSubtitleIndex),
+      MediaSourceId: stream.mediaSource.Id ?? mediaSourceId,
+      PositionTicks: msToTicks(progress.get()),
+      IsPaused: !isPlayingRef.current,
+      PlayMethod: getPlayMethod(stream, offline),
+      PlaySessionId: stream.sessionId,
+      IsMuted: isMuted,
+      CanSeek: true,
+      RepeatMode: RepeatMode.RepeatNone,
+      PlaybackOrder: PlaybackOrder.Default,
+    };
+  }, [
+    stream,
+    item?.Id,
+    currentAudioIndex,
+    currentSubtitleIndex,
+    mediaSourceId,
+    progress,
+    isMuted,
     offline,
   ]);
 
@@ -609,6 +693,8 @@ export default function DirectPlayerPage() {
         await getPlaystateApi(api).reportPlaybackStart({
           playbackStartInfo: {
             ...progressInfo,
+            AudioStreamIndex: stream.audioIndex,
+            SubtitleStreamIndex: toServerSubtitleIndex(stream.subtitleIndex),
             // This runs once the stream resolves, before MPV has produced a
             // frame: the live state still says paused at 0:00. The source is
             // built with autoplay, so describe the session that is starting
@@ -662,11 +748,32 @@ export default function DirectPlayerPage() {
     if (reportedStopKeyRef.current === stopKey) return;
     reportedStopKeyRef.current = stopKey;
     const currentTimeInTicks = msToTicks(progress.get());
+    const finalProgress = currentPlayStateInfo();
+    if (finalProgress) {
+      try {
+        // A track switch followed immediately by exit must reach Jellyfin before
+        // the stop report. Refs include picks that React has not committed yet.
+        await reportProgressRef.current({
+          ...finalProgress,
+          PositionTicks: currentTimeInTicks,
+          AudioStreamIndex: currentAudioIndexRef.current,
+          SubtitleStreamIndex: toServerSubtitleIndex(
+            currentSubtitleIndexRef.current,
+          ),
+        });
+      } catch (error) {
+        writeToLog(
+          "ERROR",
+          "Final playback progress failed",
+          error instanceof Error ? error.message : String(error),
+        );
+      }
+    }
     try {
       await getPlaystateApi(api).reportPlaybackStopped({
         playbackStopInfo: {
           ItemId: item.Id,
-          MediaSourceId: mediaSourceId,
+          MediaSourceId: stream.mediaSource.Id ?? mediaSourceId,
           PositionTicks: currentTimeInTicks,
           PlaySessionId: stream.sessionId || undefined,
           // Release the server-side live stream (and its tuner slot) on stop.
@@ -691,7 +798,15 @@ export default function DirectPlayerPage() {
         error instanceof Error ? error.message : String(error),
       );
     }
-  }, [api, item, mediaSourceId, stream, progress, isConnected]);
+  }, [
+    api,
+    item,
+    mediaSourceId,
+    stream,
+    progress,
+    isConnected,
+    currentPlayStateInfo,
+  ]);
 
   const stop = useCallback(() => {
     // Update URL with final playback position before stopping
@@ -759,42 +874,6 @@ export default function DirectPlayerPage() {
       beforeRemoveListener();
     };
   }, [navigation]);
-
-  const currentPlayStateInfo = useCallback(():
-    | PlaybackProgressInfo
-    | undefined => {
-    if (!stream || !item?.Id) return;
-
-    return {
-      ItemId: item.Id,
-      // Report the live selection so server-side session/resume state reflects
-      // mid-playback track changes. Note: index 0 is valid (don't treat as
-      // falsy); -1 means "off" and is reported as-is.
-      AudioStreamIndex: currentAudioIndex,
-      SubtitleStreamIndex: currentSubtitleIndex,
-      MediaSourceId: mediaSourceId,
-      PositionTicks: msToTicks(progress.get()),
-      // Read through the ref, not the isPlaying state: this is called from
-      // handlers that may have been created before the last transition, and a
-      // report must describe the state at the moment it is built.
-      IsPaused: !isPlayingRef.current,
-      PlayMethod: getPlayMethod(stream, offline),
-      PlaySessionId: stream.sessionId,
-      IsMuted: isMuted,
-      CanSeek: true,
-      RepeatMode: RepeatMode.RepeatNone,
-      PlaybackOrder: PlaybackOrder.Default,
-    };
-  }, [
-    stream,
-    item?.Id,
-    currentAudioIndex,
-    currentSubtitleIndex,
-    mediaSourceId,
-    progress,
-    isMuted,
-    offline,
-  ]);
 
   // Report after the state commits. Deliberately excludes playbackManager:
   // usePlaybackManager returns a new object every render, which would fire this
@@ -955,7 +1034,7 @@ export default function DirectPlayerPage() {
     // list is known — see applySubtitleSelection / onTracksReady.
     const initialAudioId = getMpvAudioId(
       mediaSource,
-      audioIndex,
+      stream.audioIndex,
       isTranscoding,
     );
 
@@ -1412,6 +1491,7 @@ export default function DirectPlayerPage() {
       audioIndex: defaultAudioIndex,
       subtitleIndex: defaultSubtitleIndex,
     } = getDefaultPlaySettings(previousItem, settings, {
+      memoryScope: getTrackMemoryScope(user),
       indexes: {
         // Use the live selection, not the stale URL params (see goToNextItem).
         subtitleIndex: currentSubtitleIndex,
@@ -1438,6 +1518,7 @@ export default function DirectPlayerPage() {
   }, [
     previousItem,
     settings,
+    user,
     currentSubtitleIndex,
     currentAudioIndex,
     stream?.mediaSource,
@@ -1470,7 +1551,11 @@ export default function DirectPlayerPage() {
     if (!refetchStreamRef.current) return [];
 
     setTracksReady(false);
-    const newStream = await refetchStreamRef.current();
+    const newStream = await refetchStreamRef.current({
+      audioIndex: currentAudioIndexRef.current,
+      subtitleIndex: currentSubtitleIndexRef.current,
+      mediaSourceId: streamRef.current?.mediaSource.Id ?? undefined,
+    });
 
     // Check if component is still mounted before updating state
     // This callback may be invoked from a modal after the player unmounts
@@ -1496,6 +1581,7 @@ export default function DirectPlayerPage() {
       audioIndex: defaultAudioIndex,
       subtitleIndex: defaultSubtitleIndex,
     } = getDefaultPlaySettings(nextItem, settings, {
+      memoryScope: getTrackMemoryScope(user),
       indexes: {
         // Use the live selection (updated when the user changes tracks
         // mid-playback), not the stale URL params the episode started with.
@@ -1528,6 +1614,7 @@ export default function DirectPlayerPage() {
   }, [
     nextItem,
     settings,
+    user,
     currentSubtitleIndex,
     currentAudioIndex,
     stream?.mediaSource,

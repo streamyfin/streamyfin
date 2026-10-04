@@ -47,6 +47,7 @@ import useRouter from "@/hooks/useAppRouter";
 import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
 import { useImageColorsReturn } from "@/hooks/useImageColorsReturn";
 import { usePlayMedia } from "@/hooks/usePlayMedia";
+import { useTrackSelectionMemory } from "@/hooks/useTrackSelectionMemory";
 import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
 import { useTVOptionModal } from "@/hooks/useTVOptionModal";
 import { useTVSubtitleModal } from "@/hooks/useTVSubtitleModal";
@@ -59,8 +60,8 @@ import { useSettings } from "@/utils/atoms/settings";
 import type { TVOptionItem } from "@/utils/atoms/tvOptionModal";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
 import { getPrimaryImageUrlById } from "@/utils/jellyfin/image/getPrimaryImageUrlById";
+import { getExplicitTrackIndexes } from "@/utils/nativePlayer/playRequest";
 import { scaleSize } from "@/utils/scaleSize";
-import { rememberSeriesTrackFromRow } from "@/utils/seriesTrackMemory";
 import { SUBTITLES_OFF } from "@/utils/subtitles/subtitleIndex";
 import {
   buildAudioMenu,
@@ -68,15 +69,11 @@ import {
   type TrackMenuRow,
 } from "@/utils/subtitles/trackMenu";
 import { formatDuration, runtimeTicksToMinutes } from "@/utils/time";
+import type { SelectedOptions } from "./ItemContent";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
-export type SelectedOptions = {
-  bitrate: Bitrate;
-  mediaSource: MediaSourceInfo | undefined;
-  audioIndex: number | undefined;
-  subtitleIndex: number;
-};
+export type { SelectedOptions } from "./ItemContent";
 
 interface ItemContentTVProps {
   item?: BaseItemDto | null;
@@ -95,11 +92,14 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
     // A download pins the tracks it was pulled with, and only the record knows
     // them: resolving against the server media source hands back an index for a
     // stream the local file may not contain.
-    const downloadedTracks =
-      isOffline && item?.Id
-        ? getDownloadedItemById(item.Id)?.userData
-        : undefined;
+    const downloadedItem = useMemo(
+      () =>
+        isOffline && item?.Id ? getDownloadedItemById(item.Id) : undefined,
+      [isOffline, item, getDownloadedItemById],
+    );
+    const downloadedTracks = downloadedItem?.userData;
     const { settings } = useSettings();
+    const { rememberTrack } = useTrackSelectionMemory();
     const insets = useSafeAreaInsets();
     const router = useRouter();
     const { showItemActions } = useTVItemActionModal();
@@ -139,13 +139,27 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
     const [selectedOptions, setSelectedOptions] = useState<
       SelectedOptions | undefined
     >(undefined);
+    const clearTrackOverrides = useCallback(() => {
+      setSelectedOptions(
+        (previous) =>
+          previous && {
+            ...previous,
+            audioSelectionExplicit: false,
+            subtitleSelectionExplicit: false,
+          },
+      );
+    }, []);
 
     const {
       defaultAudioIndex,
       defaultBitrate,
       defaultMediaSource,
       defaultSubtitleIndex,
-    } = useDefaultPlaySettings(itemWithSources ?? item, settings);
+    } = useDefaultPlaySettings(itemWithSources ?? item, settings, {
+      offline: isOffline,
+      downloaded: downloadedTracks,
+      downloadedMediaSource: downloadedItem?.mediaSource,
+    });
 
     const logoUrl = useMemo(
       () => (item ? getLogoImageUrlById({ api, item }) : null),
@@ -154,12 +168,21 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
 
     // Set default play options
     useEffect(() => {
-      setSelectedOptions(() => ({
+      setSelectedOptions((previous) => ({
         bitrate: defaultBitrate,
         mediaSource: defaultMediaSource ?? undefined,
-        subtitleIndex:
-          downloadedTracks?.subtitleStreamIndex ?? defaultSubtitleIndex ?? -1,
-        audioIndex: downloadedTracks?.audioStreamIndex ?? defaultAudioIndex,
+        subtitleIndex: defaultSubtitleIndex ?? -1,
+        audioIndex: defaultAudioIndex,
+        ...(previous?.mediaSource?.Id === defaultMediaSource?.Id &&
+          previous?.audioSelectionExplicit && {
+            audioIndex: previous.audioIndex,
+            audioSelectionExplicit: true,
+          }),
+        ...(previous?.mediaSource?.Id === defaultMediaSource?.Id &&
+          previous?.subtitleSelectionExplicit && {
+            subtitleIndex: previous.subtitleIndex,
+            subtitleSelectionExplicit: true,
+          }),
       }));
     }, [
       defaultAudioIndex,
@@ -168,6 +191,10 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
       defaultMediaSource,
       downloadedTracks,
     ]);
+
+    useEffect(() => {
+      clearTrackOverrides();
+    }, [clearTrackOverrides, user?.Id, user?.ServerId]);
 
     const playMedia = usePlayMedia();
 
@@ -179,11 +206,13 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
         // and routes to the native player (default on tvOS 26+) or the JS
         // route.
         const positionTicks = Number(playbackPosition);
+        const { audioIndex, subtitleIndex } =
+          getExplicitTrackIndexes(selectedOptions);
         void playMedia(
           {
             itemId: item.Id!,
-            audioIndex: selectedOptions.audioIndex,
-            subtitleIndex: selectedOptions.subtitleIndex,
+            audioIndex,
+            subtitleIndex,
             mediaSourceId: selectedOptions.mediaSource?.Id ?? undefined,
             bitrateValue: selectedOptions.bitrate?.value ?? undefined,
             offline: isOffline,
@@ -192,9 +221,9 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
               : 0,
           },
           { item },
-        );
+        ).then(clearTrackOverrides);
       },
-      [item, selectedOptions, isOffline, playMedia],
+      [item, selectedOptions, isOffline, playMedia, clearTrackOverrides],
     );
 
     const handlePlay = () => {
@@ -370,36 +399,58 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
     }, [selectedOptions?.bitrate?.value]);
 
     // Handlers for option changes. A pick here is as deliberate as one made
-    // inside the player, so it feeds the per-series memory the same way —
+    // inside the player, so it feeds replay and series memory the same way —
     // otherwise the next episode comes back on the server's default track.
     const handleAudioChange = useCallback(
       (row: TrackMenuRow) => {
         setSelectedOptions((prev) =>
-          prev ? { ...prev, audioIndex: row.index } : undefined,
+          prev
+            ? { ...prev, audioIndex: row.index, audioSelectionExplicit: true }
+            : undefined,
         );
-        rememberSeriesTrackFromRow({
+        rememberTrack({
           item: itemWithSources ?? item,
           kind: "audio",
           row,
           settings,
+          mediaSourceId: selectedOptions?.mediaSource?.Id ?? undefined,
         });
       },
-      [item, itemWithSources, settings],
+      [
+        item,
+        itemWithSources,
+        settings,
+        rememberTrack,
+        selectedOptions?.mediaSource?.Id,
+      ],
     );
 
     const handleSubtitleChange = useCallback(
       (row: TrackMenuRow) => {
         setSelectedOptions((prev) =>
-          prev ? { ...prev, subtitleIndex: row.index } : undefined,
+          prev
+            ? {
+                ...prev,
+                subtitleIndex: row.index,
+                subtitleSelectionExplicit: true,
+              }
+            : undefined,
         );
-        rememberSeriesTrackFromRow({
+        rememberTrack({
           item: itemWithSources ?? item,
           kind: "subtitle",
           row,
           settings,
+          mediaSourceId: selectedOptions?.mediaSource?.Id ?? undefined,
         });
       },
-      [item, itemWithSources, settings],
+      [
+        item,
+        itemWithSources,
+        settings,
+        selectedOptions?.mediaSource?.Id,
+        rememberTrack,
+      ],
     );
 
     // Keep the ref updated with the latest callback
@@ -418,8 +469,16 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
             ? {
                 ...prev,
                 mediaSource,
-                audioIndex: defaultAudio?.Index ?? prev.audioIndex,
-                subtitleIndex: defaultSubtitle?.Index ?? -1,
+                audioIndex:
+                  mediaSource.DefaultAudioStreamIndex ??
+                  defaultAudio?.Index ??
+                  undefined,
+                subtitleIndex:
+                  mediaSource.DefaultSubtitleStreamIndex ??
+                  defaultSubtitle?.Index ??
+                  -1,
+                audioSelectionExplicit: false,
+                subtitleSelectionExplicit: false,
               }
             : undefined,
         );
