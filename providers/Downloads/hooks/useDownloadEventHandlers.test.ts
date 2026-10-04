@@ -1,6 +1,6 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { renderHook } from "@testing-library/react-native";
-import type { DownloadCompleteEvent } from "@/modules";
+import type { DownloadCompleteEvent, DownloadStartedEvent } from "@/modules";
 import { DOCUMENTS, fakeFiles } from "@/test-utils/fileSystem";
 import { clearMmkv } from "@/test-utils/mmkv";
 
@@ -15,11 +15,17 @@ jest.mock(
   () => jest.requireActual("@/test-utils/fileSystem").fileSystemModule,
 );
 const mockListeners: {
+  started?: (event: DownloadStartedEvent) => void;
   complete?: (event: DownloadCompleteEvent) => Promise<void>;
 } = {};
+const mockCancelDownload = jest.fn();
 jest.mock("@/modules", () => ({
   BackgroundDownloader: {
-    addStartedListener: () => ({ remove: () => {} }),
+    cancelDownload: (taskId: number) => mockCancelDownload(taskId),
+    addStartedListener: (listener: typeof mockListeners.started) => {
+      mockListeners.started = listener;
+      return { remove: () => {} };
+    },
     addProgressListener: () => ({ remove: () => {} }),
     addErrorListener: () => ({ remove: () => {} }),
     addCompleteListener: (listener: typeof mockListeners.complete) => {
@@ -43,7 +49,9 @@ jest.mock("react-i18next", () => ({
 import { clearAllDownloadedItems, getDownloadedItemById } from "../database";
 import {
   finalizePendingDownload,
+  getPendingDownload,
   type PendingDownload,
+  savePendingDownload,
 } from "../pendingDownloads";
 import { useDownloadEventHandlers } from "./useDownloadEventHandlers";
 
@@ -77,7 +85,17 @@ const completed: DownloadCompleteEvent = {
   itemId: "item-1",
 };
 
-const complete = async (event: DownloadCompleteEvent) => {
+const started: DownloadStartedEvent = {
+  taskId: 7,
+  url: record.inputUrl,
+  itemId: "item-1",
+};
+
+/**
+ * Mounts the hook and hands back the listener it registered. A hook that registers none fails
+ * the test: every "nothing was deleted" assertion below would otherwise pass on its own.
+ */
+const listenerFor = async <K extends keyof typeof mockListeners>(name: K) => {
   await renderHook(() =>
     useDownloadEventHandlers({
       processes: [],
@@ -85,10 +103,21 @@ const complete = async (event: DownloadCompleteEvent) => {
       removeProcess: jest.fn(),
     }),
   );
-  await mockListeners.complete?.(event);
+  const listener = mockListeners[name];
+  if (!listener) throw new Error(`the hook registered no ${name} listener`);
+  return listener as NonNullable<(typeof mockListeners)[K]>;
 };
 
+const complete = async (event: DownloadCompleteEvent) =>
+  (await listenerFor("complete"))(event);
+
+const start = async (event: DownloadStartedEvent) =>
+  (await listenerFor("started"))(event);
+
 beforeEach(() => {
+  mockListeners.started = undefined;
+  mockListeners.complete = undefined;
+  mockCancelDownload.mockClear();
   clearMmkv();
   // The database caches what it parsed, so emptying the store alone would not reset it.
   clearAllDownloadedItems();
@@ -131,5 +160,68 @@ describe("a completed download with no pending record", () => {
     await complete({ ...completed, itemId: undefined });
 
     expect(fakeFiles.deleted()).toEqual([]);
+  });
+});
+
+// The item was cancelled and started again, and the first transfer still finished: its event
+// carries the item id the new record is filed under. Taken for the new download's completion,
+// it finalized that download with the old file while its own transfer was still running.
+describe("a completed download whose record waits on another task", () => {
+  it("does not finalize the record of the new transfer", async () => {
+    fakeFiles.add(VIDEO);
+    savePendingDownload({ ...record, taskId: 8 });
+
+    await complete(completed);
+
+    expect(getPendingDownload("item-1")).toMatchObject({ taskId: 8 });
+    expect(getDownloadedItemById("item-1")).toBeUndefined();
+    // The new transfer replaces the file when it finishes.
+    expect(fakeFiles.deleted()).toEqual([]);
+  });
+
+  // A record that was never told its task id (the started event went to a dead runtime) is
+  // completed by whichever transfer reports for the item.
+  it("finalizes a record that has no task id yet", async () => {
+    fakeFiles.add(VIDEO);
+    savePendingDownload({ ...record, status: "queued", taskId: undefined });
+    // The handler takes the card down on a timer, which would outlive the test.
+    jest.useFakeTimers();
+
+    await complete(completed);
+    jest.runOnlyPendingTimers();
+    jest.useRealTimers();
+
+    expect(getPendingDownload("item-1")).toBeUndefined();
+    expect(getDownloadedItemById("item-1")).toBeDefined();
+  });
+});
+
+describe("a download that starts", () => {
+  // A cancel of a queued download only has the queue to try. When native had just taken the
+  // download out of it, the cancel found nothing, the record went, and the transfer ran to the
+  // end with no card.
+  it("is cancelled when its record is already gone", async () => {
+    await start(started);
+
+    expect(mockCancelDownload).toHaveBeenCalledWith(7);
+  });
+
+  it("gets its task id when its record is there", async () => {
+    savePendingDownload({ ...record, status: "queued", taskId: undefined });
+
+    await start(started);
+
+    expect(mockCancelDownload).not.toHaveBeenCalled();
+    expect(getPendingDownload("item-1")).toMatchObject({
+      status: "downloading",
+      taskId: 7,
+    });
+  });
+
+  // Music downloads go through the same native module without an item id.
+  it("is left alone when it is not a video download", async () => {
+    await start({ ...started, itemId: undefined });
+
+    expect(mockCancelDownload).not.toHaveBeenCalled();
   });
 });

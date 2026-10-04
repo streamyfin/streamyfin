@@ -239,6 +239,70 @@ describe("cancelDownload", () => {
       expect(getPendingDownload("item-1")).toBeUndefined();
     });
 
+    // The cancelled start only notices once its staging step returns. Its cleanup used to run
+    // then, and took the subtitles and trickplay sheets a new start of the item had reused.
+    it("leaves the files of a new start of the item alone", async () => {
+      const cancelledStaging = hold<undefined>();
+      const nextStaging = hold<undefined>();
+      mockBuildDownloadActivityMetadata
+        .mockReturnValueOnce(cancelledStaging.promise)
+        .mockReturnValueOnce(nextStaging.promise);
+      const { operations, setProcesses } = await renderOperations();
+
+      const cancelled = operations.startBackgroundDownload(
+        url,
+        item,
+        mediaSource,
+        maxBitrate,
+      );
+      await waitFor(() => expect(setProcesses).toHaveBeenCalledTimes(1));
+      await act(() => operations.cancelDownload("item-1"));
+      expect(fakeFiles.remaining()).toEqual([]);
+
+      const next = operations.startBackgroundDownload(
+        url,
+        item,
+        mediaSource,
+        maxBitrate,
+      );
+      await waitFor(() => expect(setProcesses).toHaveBeenCalledTimes(2));
+      cancelledStaging.release(undefined);
+      await act(() => cancelled);
+      nextStaging.release(undefined);
+      await act(() => next);
+
+      expect(mockDownloader.enqueueDownload).toHaveBeenCalledTimes(1);
+      expect(getPendingDownload("item-1")).toMatchObject({ taskId: 7 });
+      expect(fakeFiles.remaining()).toEqual(SIDECARS);
+    });
+
+    // The user cancelled and was told so. A start that fails after that is not a failed start.
+    it("does not report a failure when native refuses the cancelled download", async () => {
+      let refuse!: (error: Error) => void;
+      mockDownloader.enqueueDownload.mockReturnValue(
+        new Promise<number>((_resolve, reject) => {
+          refuse = reject;
+        }),
+      );
+      const { operations } = await renderOperations();
+
+      const started = operations.startBackgroundDownload(
+        url,
+        item,
+        mediaSource,
+        maxBitrate,
+      );
+      await waitFor(() =>
+        expect(mockDownloader.enqueueDownload).toHaveBeenCalled(),
+      );
+      await act(() => operations.cancelDownload("item-1"));
+      refuse(new Error("no session"));
+
+      await expect(act(() => started)).resolves.not.toThrow();
+      expect(toast.error).not.toHaveBeenCalled();
+      expect(fakeFiles.remaining()).toEqual([]);
+    });
+
     it("does not hold the cancel against the next download of the item", async () => {
       const staging = hold<undefined>();
       mockBuildDownloadActivityMetadata.mockReturnValueOnce(staging.promise);
@@ -305,6 +369,38 @@ describe("startBackgroundDownload", () => {
 
     expect(mockDownloader.enqueueDownload).not.toHaveBeenCalled();
     expect(fakeFiles.remaining()).toEqual([]);
+  });
+
+  // Until its assets are written a start has neither a card nor a pending record, so a second
+  // start of the item got through. A cancel then only reached one of the two, and the other
+  // enqueued a download that ran with no card.
+  it("refuses a second start of an item that is still being prepared", async () => {
+    const assets = hold<ReturnType<typeof writeSidecars>>();
+    mockDownloadAdditionalAssets.mockReturnValueOnce(assets.promise);
+    const { operations, setProcesses } = await renderOperations();
+
+    const first = operations.startBackgroundDownload(
+      url,
+      item,
+      mediaSource,
+      maxBitrate,
+    );
+    await waitFor(() =>
+      expect(mockDownloadAdditionalAssets).toHaveBeenCalled(),
+    );
+    await act(() =>
+      operations.startBackgroundDownload(url, item, mediaSource, maxBitrate),
+    );
+    expect(toast.info).toHaveBeenCalledWith(
+      "home.downloads.toasts.item_already_downloading",
+    );
+
+    assets.release(writeSidecars());
+    await act(() => first);
+
+    expect(mockDownloadAdditionalAssets).toHaveBeenCalledTimes(1);
+    expect(setProcesses).toHaveBeenCalledTimes(1);
+    expect(mockDownloader.enqueueDownload).toHaveBeenCalledTimes(1);
   });
 
   it("leaves a download of the same item that is already in flight alone", async () => {

@@ -37,14 +37,23 @@ import type { JobStatus } from "../types";
 import { generateFilename, uriToFilePath } from "../utils";
 
 /**
- * Starts whose card is on screen but which have not handed their download to native yet, by
- * item id.
+ * Starts that have not finished handing their download to native yet, by item id.
  *
- * The card, with its cancel button, is there before the pending record that cancelDownload works
- * from, and the record has no task id until native answers. A cancel in that stretch has
- * nothing to cancel yet, so it leaves a mark here and the start stops itself at its next step.
+ * A start is in here from its first step, which is what keeps a second start of the same item
+ * out while the first is still writing its subtitles and trickplay sheets: neither the card nor
+ * the pending record exists yet at that point.
+ *
+ * It is also what a cancel goes by. The card, with its cancel button, is on screen before the
+ * pending record that cancelDownload works from, and the record has no task id until native
+ * answers. A cancel in that stretch removes what the start wrote, takes the start out of here so
+ * the item can be started again, and leaves a mark for the start to stop at its next step.
  */
-const startsInFlight = new Map<string, { cancelled: boolean }>();
+type StartInFlight = {
+  cancelled: boolean;
+  item: BaseItemDto;
+  mediaSource: MediaSourceInfo;
+};
+const startsInFlight = new Map<string, StartInFlight>();
 
 interface UseDownloadOperationsProps {
   processes: JobStatus[];
@@ -85,14 +94,19 @@ export function useDownloadOperations({
       }
 
       const processId = item.Id;
-      const start = { cancelled: false };
+      const start: StartInFlight = { cancelled: false, item, mediaSource };
 
       try {
         const deviceId = getOrSetDeviceId();
 
-        // Check if already downloading — in-memory process or persisted pending record
+        // Check if already downloading — in-memory process, persisted pending record, or a
+        // start that has produced neither yet
         const existingProcess = processes.find((p) => p.id === processId);
-        if (existingProcess || getPendingDownload(processId)) {
+        if (
+          existingProcess ||
+          getPendingDownload(processId) ||
+          startsInFlight.has(processId)
+        ) {
           toast.info(
             t("home.downloads.toasts.item_already_downloading", {
               item: item.Name,
@@ -100,6 +114,7 @@ export function useDownloadOperations({
           );
           return;
         }
+        startsInFlight.set(processId, start);
 
         // Download all additional assets BEFORE starting native video download
         const additionalAssets = await downloadAdditionalAssets({
@@ -143,8 +158,23 @@ export function useDownloadOperations({
           subtitleStreamIndex,
         };
 
-        // Add to processes. From here on the download can be cancelled.
-        startsInFlight.set(processId, start);
+        // Cancelled before its card was up, so the cancel ran before the assets above were all
+        // written. They go now, unless the item has been started again since and owns them.
+        if (start.cancelled) {
+          if (
+            !startsInFlight.has(processId) &&
+            !getPendingDownload(processId)
+          ) {
+            deletePendingDownloadFiles({
+              itemId: processId,
+              item,
+              mediaSource,
+            });
+          }
+          return;
+        }
+
+        // Add to processes. From here on the card, and its cancel button, is on screen.
         setProcesses((prev) => [...prev, jobStatus]);
 
         // Generate destination path
@@ -184,12 +214,10 @@ export function useDownloadOperations({
           labels: {},
         };
 
-        // cancelDownload has already taken the card down and told the user. What it could not
-        // do, with no record to go by, is remove what this start wrote.
-        if (start.cancelled) {
-          deletePendingDownloadFiles({ itemId: processId, item, mediaSource });
-          return;
-        }
+        // cancelDownload has already taken the card down, removed what this start wrote and
+        // told the user. Nothing is cleaned up here: the item may have been started again in
+        // the meantime, and those files would be the new start's.
+        if (start.cancelled) return;
 
         // Persist the pending record BEFORE handing the download to native, so there is no window
         // where a transfer exists that a later app session cannot account for.
@@ -247,6 +275,13 @@ export function useDownloadOperations({
           }),
         );
       } catch (error) {
+        // The user cancelled this start and has been told so. cancelDownload cleaned up, and
+        // the record and the files of the item may belong to a newer start by now.
+        if (start.cancelled) {
+          console.warn("[DOWNLOAD] Cancelled start failed afterwards:", error);
+          return;
+        }
+
         logAndCaptureError("Failed to start download", error, {
           itemType: item.Type,
         });
@@ -276,7 +311,12 @@ export function useDownloadOperations({
   const cancelDownload = useCallback(
     async (id: string) => {
       const start = startsInFlight.get(id);
-      if (start) start.cancelled = true;
+      if (start) {
+        start.cancelled = true;
+        // Out of the map right away: the cancelled start may take a while to notice, and the
+        // item can be started again before it does.
+        startsInFlight.delete(id);
+      }
 
       const record = getPendingDownload(id);
 
@@ -291,8 +331,18 @@ export function useDownloadOperations({
       removePendingDownload(id);
       removeProcess(id);
 
-      // The record is the only thing that knows which files the enqueue step wrote.
-      if (record) deletePendingDownloadFiles(record);
+      // The record knows which files the enqueue step wrote. A start cancelled before it saved
+      // one is cleaned up here as well, not when it resumes: by then the same names may belong
+      // to a new start of the item.
+      if (record) {
+        deletePendingDownloadFiles(record);
+      } else if (start) {
+        deletePendingDownloadFiles({
+          itemId: id,
+          item: start.item,
+          mediaSource: start.mediaSource,
+        });
+      }
       toast.info(t("home.downloads.toasts.download_cancelled"));
     },
     [removeProcess, t],
