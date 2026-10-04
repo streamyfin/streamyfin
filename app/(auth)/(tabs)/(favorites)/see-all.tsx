@@ -10,7 +10,7 @@ import { Stack, useLocalSearchParams } from "expo-router";
 import { t } from "i18next";
 import { useAtom } from "jotai";
 import { useCallback, useMemo } from "react";
-import { useWindowDimensions, View } from "react-native";
+import { Platform, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useCardGrid } from "@/components/cards/useCardGrid";
 import { Text } from "@/components/common/Text";
@@ -130,7 +130,10 @@ export default function FavoritesSeeAllScreen() {
         options={{
           headerTitle: headerTitle,
           headerBlurEffect: "none",
-          headerTransparent: true,
+          // Only iOS lays the list out under a transparent header
+          // (contentInsetAdjustmentBehavior); on Android the first row of
+          // posters would sit beneath it.
+          headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
         }}
       />
