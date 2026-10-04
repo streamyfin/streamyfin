@@ -97,8 +97,8 @@ export const IntroSheet = forwardRef<IntroSheetRef>((_, ref) => {
               <Image
                 source={require("@/assets/icons/seerr-logo.svg")}
                 style={{
-                  width: 50,
-                  height: 50,
+                  width: 30,
+                  height: 30,
                 }}
               />
               <View className='shrink ml-2'>
