@@ -51,6 +51,7 @@ import { AxiosError } from "axios";
 import { OFFICIAL_APPLICATION_IDS } from "@/constants/Sentry";
 import { describeHttpResponse, markExpectedError } from "./errors";
 import {
+  applicationIdKind,
   type BuildIdentity,
   classifyOutgoingEvent,
   initializeSentryIfConsented,
@@ -222,9 +223,24 @@ describe("dev builds do not report", () => {
     expect(initCalls).toHaveLength(0);
   });
 
-  // Issues were filed under `production` from a tvOS simulator, from forks
-  // (com.gauvino.streamyfin) and from builds re-signed under another
-  // identifier, next to the ones from the store.
+  // A case that does initialize runs in a copy of the module of its own:
+  // initializeSentry latches on success, and the copy the other cases share
+  // must stay unlatched until the last of them.
+  const initializesOn = (OS: "ios" | "android"): unknown[] => {
+    const before = initCalls.length;
+    jest.isolateModules(() => {
+      require("@/test-utils/reactNative").stubReactNative({ OS });
+      require("./sentry").initializeSentryIfConsented();
+    });
+    return initCalls.splice(before);
+  };
+
+  const tagsOf = (options: unknown) =>
+    (options as { initialScope: { tags: Record<string, string> } }).initialScope
+      .tags;
+
+  // Issues were filed under `production` from a tvOS simulator and from forks
+  // (com.gauvino.streamyfin), next to the ones from the store.
   test("a release build on a simulator never initializes the SDK", () => {
     setDev(false);
     mockBuild.isDevice = false;
@@ -241,12 +257,35 @@ describe("dev builds do not report", () => {
     mockBuild.applicationId = "com.fredrikburmester.streamyfin";
   });
 
+  // expo-device guesses on Android, from Build fields that real hardware
+  // matches (a Rockchip box ships as "rk30sdk"): a wrong guess must not be
+  // what keeps a TV box out. The same answer on iOS is a fact and does.
+  test("an Android build taken for an emulator initializes all the same", () => {
+    setDev(false);
+    mockBuild.isDevice = false;
+    expect(initializesOn("ios")).toHaveLength(0);
+    expect(initializesOn("android")).toHaveLength(1);
+    mockBuild.isDevice = true;
+  });
+
+  // The IPAs handed to beta testers are sideloaded, and AltStore and
+  // Sideloadly sign them under the official identifier plus the signer's
+  // team id.
+  test("the official build re-signed for sideloading initializes, and says so", () => {
+    setDev(false);
+    mockBuild.applicationId = "com.fredrikburmester.streamyfin.ABCDE12345";
+    const [options] = initializesOn("ios");
+    expect(tagsOf(options)["build.identifier"]).toBe("resigned");
+    mockBuild.applicationId = "com.fredrikburmester.streamyfin";
+  });
+
   // Ordering matters: initializeSentry latches on success, so the release
   // case runs last or it would mask the cases above.
   test("the official release build initializes as normal", () => {
     setDev(false);
     initializeSentryIfConsented();
     expect(initCalls).toHaveLength(1);
+    expect(tagsOf(initCalls[0])["build.identifier"]).toBe("official");
   });
 
   // "App Hang Non Fully Blocked" kept arriving from a build that passed
@@ -276,17 +315,24 @@ describe("reportsFromBuild — which builds report at all", () => {
     expect(reportsFromBuild({ ...store, isDev: true })).toBe(false);
   });
 
-  test("a simulator or an emulator does not", () => {
+  test("a simulator does not", () => {
     expect(reportsFromBuild({ ...store, isDevice: false })).toBe(false);
   });
 
-  test.each([
-    "com.gauvino.streamyfin",
-    "com.massimotseng.yomifin",
-    // The official app re-signed under a team's own identifier.
-    "com.fredrikburmester.streamyfin.ABCDE12345",
-  ])("a build running as %s does not", (applicationId) => {
-    expect(reportsFromBuild({ ...store, applicationId })).toBe(false);
+  test.each(["com.gauvino.streamyfin", "com.massimotseng.yomifin"])(
+    "a fork running as %s does not",
+    (applicationId) => {
+      expect(reportsFromBuild({ ...store, applicationId })).toBe(false);
+    },
+  );
+
+  test("the official build re-signed under a signer's team id does", () => {
+    expect(
+      reportsFromBuild({
+        ...store,
+        applicationId: "com.fredrikburmester.streamyfin.ABCDE12345",
+      }),
+    ).toBe(true);
   });
 
   // EXPO_PUBLIC_SENTRY_DSN: its events never reach this project, so its
@@ -325,6 +371,36 @@ describe("reportsFromBuild — which builds report at all", () => {
         debugOverride: true,
       }),
     ).toBe(true);
+  });
+});
+
+describe("applicationIdKind — whose build an identifier names", () => {
+  test("the identifiers the project ships under are official", () => {
+    for (const id of OFFICIAL_APPLICATION_IDS) {
+      expect(applicationIdKind(id)).toBe("official");
+    }
+  });
+
+  test("an identifier that cannot be read counts as official", () => {
+    expect(applicationIdKind(null)).toBe("official");
+  });
+
+  test("an official identifier with a suffix is the build re-signed", () => {
+    expect(
+      applicationIdKind("com.fredrikburmester.streamyfin.ABCDE12345"),
+    ).toBe("resigned");
+  });
+
+  // Only a whole extra segment counts: an identifier that merely starts
+  // with the same letters is somebody else's app.
+  test.each([
+    "com.gauvino.streamyfin",
+    "com.fredrikburmester.streamyfin2",
+    "com.fredrikburmester.streamyfintv",
+    "com.fredrikburmester",
+    "",
+  ])("%p is a fork's", (applicationId) => {
+    expect(applicationIdKind(applicationId)).toBe("foreign");
   });
 });
 

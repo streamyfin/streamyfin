@@ -2,6 +2,7 @@ import { isAxiosError } from "axios";
 import {
   HTTP_FAILURE_STORM_WINDOW_MS,
   MAX_SESSION_REPORT_KEYS,
+  SERVER_WIDE_CLIENT_STATUSES,
 } from "@/constants/Sentry";
 import { describeHttpError } from "@/utils/errors";
 
@@ -10,7 +11,8 @@ import { describeHttpError } from "@/utils/errors";
  * - "report": the first of its kind, send it
  * - "duplicate": this route already failed with this status in this session
  * - "storm": another route of the same backend failed with this status a
- *   moment ago, and this one is taken to be the same incident
+ *   moment ago, the status is one a whole server answers with, and this one
+ *   is taken to be the same incident
  */
 export type HttpFailureVerdict = "report" | "duplicate" | "storm";
 
@@ -26,6 +28,11 @@ const reported = new Set<string>();
 // The latest reported failure per (backend, status), which is what the next
 // failures are compared with.
 const storms = new Map<string, { route: string; at: number }>();
+
+// Whether a status can be the whole server's answer and not this request's:
+// every 5xx, and the few 4xx that depend on who is asking or how often.
+const isServerWideStatus = (status: number): boolean =>
+  status >= 500 || SERVER_WIDE_CLIENT_STATUSES.includes(status);
 
 const ORIGIN = /^[a-z][a-z0-9+.-]*:\/\/[^/?#]+/i;
 
@@ -46,9 +53,15 @@ const requestOrigin = (error: unknown): string => {
  *
  * The storm rule: one server having a bad minute fails every request in
  * flight with the same status (a 500 from a broken database, a 403 from a
- * gateway), and each route would open its own issue. So once a status is
- * reported for a backend, other routes failing with that status within
+ * gateway), and each route would open its own issue. So once such a status
+ * is reported for a backend, other routes failing with that status within
  * HTTP_FAILURE_STORM_WINDOW_MS are not sent.
+ *
+ * The rule only holds for a status a whole server can answer with. A 400, a
+ * 404 or a 409 is the answer to one request: a second route failing that way
+ * is not the same incident, it is what an app bug looks like, and a harmless
+ * 404 early in the session would otherwise be what hides it. Those are only
+ * ever deduplicated per route.
  *
  * The window is fixed from the reported failure and is not extended by what
  * it silences, so a server that stays broken reports again, on whichever
@@ -56,9 +69,9 @@ const requestOrigin = (error: unknown): string => {
  * remembered either: if that route still fails after the window, it is
  * reported then.
  *
- * What this gives up: a route with a bug of its own stays quiet in a session
- * where another route of the same server failed with the same status less
- * than a window before. A route that fails on its own, which is what an app
+ * What this gives up: a route with a bug of its own that shows as a 5xx, a
+ * 401, a 403 or a 429 stays quiet in a session where another route of the
+ * same server failed with the same status less than a window before. A route that fails on its own, which is what an app
  * bug looks like for every other user, is always the first and always
  * reported.
  */
@@ -74,17 +87,20 @@ export const admitHttpFailure = (
   const key = `${origin}|${route}|${http.status}`;
   if (reported.has(key)) return "duplicate";
 
+  const serverWide = isServerWideStatus(http.status);
   const stormKey = `${origin}|${http.status}`;
-  const storm = storms.get(stormKey);
-  if (
-    storm &&
-    storm.route !== route &&
-    now - storm.at < HTTP_FAILURE_STORM_WINDOW_MS
-  ) {
-    return "storm";
+  if (serverWide) {
+    const storm = storms.get(stormKey);
+    if (
+      storm &&
+      storm.route !== route &&
+      now - storm.at < HTTP_FAILURE_STORM_WINDOW_MS
+    ) {
+      return "storm";
+    }
   }
 
   if (reported.size < MAX_SESSION_REPORT_KEYS) reported.add(key);
-  storms.set(stormKey, { route, at: now });
+  if (serverWide) storms.set(stormKey, { route, at: now });
   return "report";
 };

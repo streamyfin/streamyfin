@@ -34,13 +34,45 @@ const SENTRY_DSN = process.env.EXPO_PUBLIC_SENTRY_DSN ?? PROJECT_SENTRY_DSN;
 // those events report under the "development" environment.
 export const sentryDebugInDev = process.env.EXPO_PUBLIC_SENTRY_DEBUG === "1";
 
+/**
+ * What an application identifier says about the build that runs under it:
+ * - "official": one of the identifiers this project ships under, or none
+ *   that could be read
+ * - "resigned": an official identifier with a suffix. Sideloading tools
+ *   (AltStore, Sideloadly) cannot sign under an identifier another team owns,
+ *   so they append the signer's team id: the IPAs the project hands its beta
+ *   testers all run this way, and they are the builds whose reports are
+ *   wanted first.
+ * - "foreign": anything else, which is a fork that renamed the app
+ *
+ * A fork that keeps the official identifier is "official" either way, so
+ * accepting the suffix lets in nothing the exact match kept out. Exported for
+ * tests.
+ */
+export type ApplicationIdKind = "official" | "resigned" | "foreign";
+
+export const applicationIdKind = (
+  applicationId: string | null,
+): ApplicationIdKind => {
+  if (applicationId === null) return "official";
+  if (OFFICIAL_APPLICATION_IDS.includes(applicationId)) return "official";
+  return OFFICIAL_APPLICATION_IDS.some((official) =>
+    applicationId.startsWith(`${official}.`),
+  )
+    ? "resigned"
+    : "foreign";
+};
+
 export type BuildIdentity = {
   isDev: boolean;
   /** EXPO_PUBLIC_SENTRY_DEBUG=1: the build was made to test the pipeline. */
   debugOverride: boolean;
   /** The bundle identifier or application id the build runs under. */
   applicationId: string | null;
-  /** False on a simulator or an emulator, null when it cannot be told. */
+  /**
+   * False on a simulator, null when it cannot be told, which is always the
+   * case on Android (see reportsFromThisBuild).
+   */
   isDevice: boolean | null;
   /** Whether events go to this project, and not to one a fork configured. */
   reportsToProject: boolean;
@@ -50,11 +82,14 @@ export type BuildIdentity = {
  * Whether a build reports at all. The same reasoning that keeps dev builds
  * out applies to two more kinds of build, which were filing issues under
  * `production` next to the ones from the store:
- * - a simulator or an emulator is somebody trying a build, not a user
- * - a build under another identifier is a fork, or the app re-signed, and
- *   what it runs is not known to be what this repository ships. A fork that
- *   wants crash reports sets EXPO_PUBLIC_SENTRY_DSN, and then reports to its
- *   own project under whatever identifier it likes.
+ * - a simulator is somebody trying a build, not a user
+ * - a build under another identifier is a fork, and what it runs is not
+ *   known to be what this repository ships. A fork that wants crash reports
+ *   sets EXPO_PUBLIC_SENTRY_DSN, and then reports to its own project under
+ *   whatever identifier it likes.
+ *
+ * The official build re-signed for sideloading is not a fork and reports,
+ * tagged `build.identifier: resigned` so it can be told from the store's.
  *
  * An identifier or a device kind that cannot be read counts as official and
  * real: a failed read must not switch reporting off for the store build.
@@ -65,10 +100,7 @@ export const reportsFromBuild = (build: BuildIdentity): boolean => {
   if (build.isDev) return false;
   if (build.isDevice === false) return false;
   if (!build.reportsToProject) return true;
-  return (
-    build.applicationId === null ||
-    OFFICIAL_APPLICATION_IDS.includes(build.applicationId)
-  );
+  return applicationIdKind(build.applicationId) !== "foreign";
 };
 
 // Native values are read defensively: deciding whether to report must never
@@ -81,6 +113,16 @@ const readNative = <T>(read: () => T): T | null => {
   }
 };
 
+// Whether this is a simulator. Only asked on Apple platforms, where it is a
+// compile-time fact of the binary. On Android expo-device guesses from the
+// Build fields (a PRODUCT containing "sdk", a FINGERPRINT starting with
+// "generic" or "unknown"), which real hardware matches: Rockchip boxes ship
+// as "rk30sdk" and the like, and cheap TV boxes with generic fingerprints.
+// A wrong guess there would switch reporting off for the very devices whose
+// decoders fail, so an Android build counts as a device that cannot be told.
+const readIsDevice = (): boolean | null =>
+  Platform.OS === "ios" ? readNative(() => Device.isDevice) : null;
+
 // Read at call time rather than module scope so the gate is observable in
 // tests, which drive __DEV__ per case.
 const reportsFromThisBuild = (): boolean =>
@@ -88,7 +130,7 @@ const reportsFromThisBuild = (): boolean =>
     isDev: __DEV__,
     debugOverride: sentryDebugInDev,
     applicationId: readNative(() => Application.applicationId),
-    isDevice: readNative(() => Device.isDevice),
+    isDevice: readIsDevice(),
     reportsToProject: SENTRY_DSN === PROJECT_SENTRY_DSN,
   });
 
@@ -332,6 +374,11 @@ const initializeSentry = () => {
           "build.branch": build.branch ?? "unknown",
           "build.profile": build.profile ?? "local",
           "build.run": build.runNumber ?? "none",
+          // "resigned" for the official build sideloaded under a signer's
+          // own identifier, so those events can be filtered either way.
+          "build.identifier": applicationIdKind(
+            readNative(() => Application.applicationId),
+          ),
         },
       },
       beforeSend: (event, hint) => {

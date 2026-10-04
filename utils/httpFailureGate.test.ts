@@ -144,6 +144,20 @@ describe("admitHttpFailure — one server's bad minute is one event", () => {
     ).toBe("report");
   });
 
+  // A session that ended, a refusal and a rate limit meet every route alike.
+  test.each([401, 403, 429, 503])(
+    "a %i on every route is one event as well",
+    (status) => {
+      const server = newServer();
+      expect(admitHttpFailure(failure(server, "/Items", status), T0)).toBe(
+        "report",
+      );
+      expect(
+        admitHttpFailure(failure(server, "/UserViews", status), T0 + 1_000),
+      ).toBe("storm");
+    },
+  );
+
   // Otherwise a route failing every few seconds would keep every other route
   // of the server quiet for the whole session.
   test("what a storm silences does not extend it", () => {
@@ -161,5 +175,50 @@ describe("admitHttpFailure — one server's bad minute is one event", () => {
         T0 + HTTP_FAILURE_STORM_WINDOW_MS + 1,
       ),
     ).toBe("report");
+  });
+});
+
+// A 404 on POST /Sessions/Capabilities/Full, which some servers answer at
+// every launch, kept every other 404 of the first two minutes out: the whole
+// home screen load, and a wrong path there is the app's own bug.
+describe("admitHttpFailure — a status that answers one request is no storm", () => {
+  test.each([400, 404, 405, 409, 422])(
+    "a %i on one route does not silence the same status on another",
+    (status) => {
+      const server = newServer();
+      expect(
+        admitHttpFailure(
+          failure(server, "/Sessions/Capabilities/Full", status, "post"),
+          T0,
+        ),
+      ).toBe("report");
+      expect(
+        admitHttpFailure(failure(server, "/Items/Latest", status), T0 + 1_000),
+      ).toBe("report");
+      expect(
+        admitHttpFailure(failure(server, "/UserViews", status), T0 + 2_000),
+      ).toBe("report");
+    },
+  );
+
+  test("each of those routes is still reported once per session", () => {
+    const server = newServer();
+    expect(admitHttpFailure(failure(server, "/Items/Latest", 404), T0)).toBe(
+      "report",
+    );
+    expect(admitHttpFailure(failure(server, "/UserViews", 404), T0 + 1)).toBe(
+      "report",
+    );
+    expect(admitHttpFailure(failure(server, "/UserViews", 404), T0 + 2)).toBe(
+      "duplicate",
+    );
+  });
+
+  test("it does not open a window for the statuses that do storm", () => {
+    const server = newServer();
+    expect(admitHttpFailure(failure(server, "/Items", 404), T0)).toBe("report");
+    expect(admitHttpFailure(failure(server, "/UserViews", 500), T0 + 1)).toBe(
+      "report",
+    );
   });
 });
