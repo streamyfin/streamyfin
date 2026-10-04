@@ -371,6 +371,49 @@ describe("describeHttpResponse", () => {
     });
   });
 
+  // A proxy does not always label its page as one, and the content type was
+  // all that kept a page out: under text/plain or a JSON type the start of it
+  // went onto the event, with the host it names.
+  describe("an HTML page under a content type that does not announce it", () => {
+    const PAGE =
+      "<!DOCTYPE html><html><head><title>my-private-host.duckdns.org | 500</title>";
+    const described = (data: unknown, contentType: string) =>
+      describeHttpResponse(
+        httpError(500, {
+          headers: { "content-type": contentType, server: "nginx" },
+          data,
+        }),
+      );
+
+    test.each([
+      "text/plain",
+      "text/plain; charset=utf-8",
+      "application/json",
+      "application/problem+json",
+    ])("is dropped under %s, and the headers are kept", (contentType) => {
+      expect(described(PAGE, contentType)).toEqual({
+        status: 500,
+        contentType,
+        server: "nginx",
+        body: undefined,
+      });
+    });
+
+    test("is dropped behind whitespace or a byte order mark", () => {
+      expect(described(`\r\n  ${PAGE}`, "text/plain")?.body).toBeUndefined();
+      expect(described(`\uFEFF${PAGE}`, "text/plain")?.body).toBeUndefined();
+    });
+
+    test("is dropped when it opens with its html tag", () => {
+      expect(
+        described(
+          "<html><body>my-private-host.duckdns.org</body></html>",
+          "text/plain",
+        )?.body,
+      ).toBeUndefined();
+    });
+  });
+
   test("is undefined without a response", () => {
     expect(describeHttpResponse(httpError(undefined))).toBeUndefined();
     expect(describeHttpResponse(new Error("boom"))).toBeUndefined();

@@ -205,7 +205,9 @@ const MAX_RESPONSE_BODY_CHARS = 200;
  * reason ("Session not found.") and `Server: Kestrel`; proxies answer with
  * their own Server header and an HTML page. The body is only kept when it is
  * plain text or JSON, and truncated: an HTML error page can embed the proxy's
- * hostname, which is the user's private server address.
+ * hostname, which is the user's private server address. A page is a page
+ * whatever it was sent as, so one that starts as an HTML document is dropped
+ * under any content type.
  */
 export const describeHttpResponse = (
   error: unknown,
@@ -214,13 +216,14 @@ export const describeHttpResponse = (
   const headers = error.response.headers ?? {};
   const contentType = headers["content-type"];
   const server = headers.server;
+  const data = error.response.data;
   let body: string | undefined;
   if (
     /^(?:text\/plain|application\/(?:problem\+)?json)/i.test(
       String(contentType ?? ""),
-    )
+    ) &&
+    !isHtmlDocument(data)
   ) {
-    const data = error.response.data;
     try {
       body = typeof data === "string" ? data : JSON.stringify(data);
     } catch {

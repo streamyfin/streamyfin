@@ -49,7 +49,7 @@ stubReactNative();
 
 import { AxiosError } from "axios";
 import { OFFICIAL_APPLICATION_IDS } from "@/constants/Sentry";
-import { markExpectedError } from "./errors";
+import { describeHttpResponse, markExpectedError } from "./errors";
 import {
   type BuildIdentity,
   classifyOutgoingEvent,
@@ -559,5 +559,58 @@ describe("scrubDeep — the causes the classifiers attach pass unchanged", () =>
     "Read error: ssl=0x[addr]: Failure in SSL library",
   ])("%s", (cause) => {
     expect(scrubDeep(cause)).toBe(cause);
+  });
+});
+
+// describeHttpResponse (utils/errors.ts) puts part of a server's answer on an
+// event as context, and this is all that stands behind it. What it cannot
+// catch is pinned here on purpose: a case that starts failing because the
+// scrubber learned to catch it is good news, and only needs moving up.
+describe("scrubDeep — what it makes of a piece of a response body", () => {
+  test("a URL with a scheme and a bare IPv4 address are caught", () => {
+    expect(
+      scrubDeep("upstream https://my-private-host.duckdns.org:8920/ timed out"),
+    ).toBe("upstream https://[server]/ timed out");
+    expect(scrubDeep("no route to 192.168.1.5:8096")).toBe("no route to [ip]");
+  });
+
+  // Nothing tells a host name from any other word once the scheme is gone.
+  test.each([
+    "<title>my-private-host.duckdns.org | 502: Bad gateway</title>",
+    "Error occurred while trying to proxy: my-private-host.duckdns.org/Sessions",
+    '{"zone":"my-private-host.duckdns.org"}',
+    "no healthy upstream for jellyfin.lan:8096",
+    "connect to [2001:db8::5]:8096 failed",
+  ])("a host without a scheme is not: %s", (text) => {
+    expect(scrubDeep(text)).toBe(text);
+  });
+
+  const reaches = (contentType: string, data: unknown) =>
+    JSON.stringify(
+      scrubDeep({
+        details: describeHttpResponse(
+          new AxiosError(
+            "Request failed with status code 500",
+            AxiosError.ERR_BAD_RESPONSE,
+            undefined,
+            {},
+            {
+              status: 500,
+              headers: { "content-type": contentType },
+              data,
+            } as never,
+          ),
+        ),
+      }),
+    );
+
+  // So the page has to be gone before it gets here, whatever it was sent as.
+  test("a proxy's page sent as text/plain leaves no host on the event", () => {
+    expect(
+      reaches(
+        "text/plain",
+        "<!DOCTYPE html><html><head><title>my-private-host.duckdns.org | 500</title>",
+      ),
+    ).toBe('{"details":{"status":500,"contentType":"text/plain"}}');
   });
 });
