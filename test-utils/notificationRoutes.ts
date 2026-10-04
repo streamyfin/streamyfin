@@ -31,8 +31,10 @@ const files = readdirSync(appDirectory, {
   recursive: true,
   encoding: "utf8",
 }).filter((file) => /\.[jt]sx?$/.test(file));
+// readdirSync joins with backslashes on Windows, but route keys are always
+// slash separated, so unnormalised paths never form the route tree.
 const context = Object.assign(() => ({ default: () => null }), {
-  keys: () => files.map((file) => `./${file}`),
+  keys: () => files.map((file) => `./${file.replaceAll("\\", "/")}`),
 });
 const tree = getRoutes(context, {
   platform: "ios",
