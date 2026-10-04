@@ -3,12 +3,12 @@ import { DOWNLOAD_PART_FILE_SUFFIX } from "@/constants/Downloads";
 import { getAllDownloadedItems, getDownloadedItemById } from "./database";
 import { getPendingDownloads, type PendingDownload } from "./pendingDownloads";
 import type { DownloadedItem } from "./types";
-import { filePathToUri, subtitleFileName, trickplayDirName } from "./utils";
-
-/** A single file name: no separators and not a relative-path segment. */
-function isPlainFileName(name: string | undefined): name is string {
-  return !!name && name !== "." && name !== ".." && !/[/\\]/.test(name);
-}
+import {
+  filePathToUri,
+  isPlainFileName,
+  subtitleFileName,
+  trickplayDirName,
+} from "./utils";
 
 /** What owns files in Documents: a finished download, or the record of one in flight. */
 type FileOwner = Pick<DownloadedItem, "item" | "mediaSource"> & {
@@ -16,21 +16,19 @@ type FileOwner = Pick<DownloadedItem, "item" | "mediaSource"> & {
   videoFilePath?: string;
 };
 
-type OwnedNames = { video?: string; subtitles: string[]; trickplay?: string };
+type OwnedNames = { video?: string; subtitles: string[]; trickplay: string };
 
 /**
  * Names in Documents of everything `owner` wrote, or was about to write.
  *
  * The subtitle and trickplay names come from the item, through the builders the writer uses,
  * never from a stored DeliveryUrl: a subtitle whose download failed still carries the server's
- * URL, while on Android its partial file sits at the name the writer picked. Every name has to
- * be a plain file name, because the item id and the subtitle codec that end up in it are the
- * server's to choose.
+ * URL, while on Android its partial file sits at the name the writer picked. The builders only
+ * give plain file names. The video name is read back as it was stored, so it is checked here.
  */
 function ownedNames(owner: FileOwner): OwnedNames {
   // A download saved before videoFileName existed only carries the path.
   const video = owner.videoFileName ?? owner.videoFilePath?.split("/").pop();
-  const trickplay = trickplayDirName(owner.item);
   return {
     video: isPlainFileName(video) ? video : undefined,
     subtitles: (owner.mediaSource?.MediaStreams ?? [])
@@ -38,9 +36,8 @@ function ownedNames(owner: FileOwner): OwnedNames {
         (stream) =>
           stream?.Type === "Subtitle" && stream.DeliveryMethod === "External",
       )
-      .map((stream) => subtitleFileName(owner.item, stream))
-      .filter(isPlainFileName),
-    trickplay: isPlainFileName(trickplay) ? trickplay : undefined,
+      .map((stream) => subtitleFileName(owner.item, stream)),
+    trickplay: trickplayDirName(owner.item),
   };
 }
 
@@ -95,7 +92,7 @@ function deleteSidecars(
   for (const name of subtitles) {
     if (!usedElsewhere.has(name)) removeFromDocuments(File, name, "Subtitle");
   }
-  if (trickplay && !usedElsewhere.has(trickplay)) {
+  if (!usedElsewhere.has(trickplay)) {
     removeFromDocuments(Directory, trickplay, "Trickplay directory");
   }
 }

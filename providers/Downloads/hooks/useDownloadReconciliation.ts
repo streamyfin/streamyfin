@@ -11,11 +11,12 @@ import {
   getPendingDownload,
   getPendingDownloads,
   type PendingDownload,
+  pendingDownloadFileUri,
   removePendingDownload,
   updatePendingDownload,
 } from "../pendingDownloads";
 import type { JobStatus } from "../types";
-import { uriToFilePath } from "../utils";
+import { isPlainFileName, uriToFilePath } from "../utils";
 
 interface UseDownloadReconciliationProps {
   setProcesses: (updater: (prev: JobStatus[]) => JobStatus[]) => void;
@@ -61,9 +62,7 @@ async function reEnqueue(
   headers?: Record<string, string>,
 ): Promise<boolean> {
   try {
-    const destinationPath = uriToFilePath(
-      new File(Paths.document, record.videoFileName).uri,
-    );
+    const destinationPath = uriToFilePath(pendingDownloadFileUri(record));
     const taskId = await BackgroundDownloader.enqueueDownload(
       record.inputUrl,
       destinationPath,
@@ -167,8 +166,12 @@ export function useDownloadReconciliation({
           continue;
         }
 
-        const file = new File(Paths.document, record.videoFileName);
-        if (file.exists && (file.size ?? 0) > 0) {
+        // A stored name with a path in it is never looked up: the record falls through and is
+        // dropped below.
+        const file = isPlainFileName(record.videoFileName)
+          ? new File(Paths.document, record.videoFileName)
+          : undefined;
+        if (file?.exists && (file.size ?? 0) > 0) {
           console.log(
             `[RECONCILE] Completed while app was dead: ${record.item.Name}`,
           );

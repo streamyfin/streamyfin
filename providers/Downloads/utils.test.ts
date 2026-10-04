@@ -126,6 +126,17 @@ describe("names built from values the server chooses", () => {
       { Type: "Movie", Name: "Movie", ProductionYear: asNumber("/../x") },
       subtitle,
     ],
+    // The reverse of the cases above: a number or an object where the types say string.
+    [
+      "a series name that is a number",
+      { ...episode, SeriesName: 123 as unknown as string },
+      subtitle,
+    ],
+    [
+      "a movie name that is an object",
+      { Type: "Movie", Name: { path: "../x" } as unknown as string },
+      subtitle,
+    ],
   ])("are plain file names, given %s", (_label, item, stream) => {
     const names = [
       `${generateFilename(item)}.mp4`,

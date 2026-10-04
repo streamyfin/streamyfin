@@ -81,9 +81,10 @@ Three rules keep mocks from becoming the thing that breaks:
   `clearMmkv()` empties it between tests.
 - `secureStoreModule` stands for `expo-secure-store`, the same way; `clearSecureStore()`
   empties it, and `secureStoreValues` seeds or reads it back.
-- `fileSystemModule` stands for `expo-file-system` in specs that delete files: a path exists
-  once `fakeFiles.add()` puts it there and until something deletes it. `fakeFiles.clear()`
-  empties the disk, `fakeFiles.remaining()` and `fakeFiles.deleted()` read it back.
+- `fileSystemModule` stands for `expo-file-system` in specs that delete or download files: a
+  path exists once `fakeFiles.add()` puts it there, or a download lands on it, and until
+  something deletes it. `fakeFiles.clear()` empties the disk, `fakeFiles.remaining()`,
+  `fakeFiles.deleted()` and `fakeFiles.downloads()` read it back.
 - `customHeadersModule()` stands for the `@/utils/customHeaders` barrel, with the pure
   helpers for real and the native side stubbed; `setJellyfinHeaders()` sets what it reports.
 - `reanimatedModule` stands for `react-native-reanimated` when a spec renders a component
