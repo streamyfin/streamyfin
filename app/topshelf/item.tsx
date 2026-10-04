@@ -1,4 +1,8 @@
-import { useLocalSearchParams, useRootNavigationState } from "expo-router";
+import {
+  type Href,
+  useLocalSearchParams,
+  useRootNavigationState,
+} from "expo-router";
 import { useEffect } from "react";
 import { View } from "react-native";
 import useRouter from "@/hooks/useAppRouter";
@@ -24,7 +28,14 @@ export default function TopShelfItemRedirect() {
       return;
     }
 
-    router.replace(getTopShelfItemPath({ id, type, seriesId, seasonIndex }));
+    // The path is built from the link at run time, so the typed routes cannot
+    // check it. `withAnchor` puts Home under the page: without it the page is
+    // the only screen in the stack, and Back has nowhere to go but out of the
+    // app.
+    router.replace(
+      getTopShelfItemPath({ id, type, seriesId, seasonIndex }) as Href,
+      { withAnchor: true },
+    );
   }, [id, rootNavigationState?.key, router, seasonIndex, seriesId, type]);
 
   return <View style={{ flex: 1, backgroundColor: "#000" }} />;

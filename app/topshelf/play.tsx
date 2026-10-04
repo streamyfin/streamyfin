@@ -1,4 +1,8 @@
-import { useLocalSearchParams, useRootNavigationState } from "expo-router";
+import {
+  type Href,
+  useLocalSearchParams,
+  useRootNavigationState,
+} from "expo-router";
 import { useAtomValue } from "jotai";
 import { useEffect, useRef } from "react";
 import { View } from "react-native";
@@ -44,7 +48,10 @@ export default function TopShelfPlayRedirect() {
       });
       const landing = getTopShelfPlayLanding(item);
       if (landing) {
-        router.replace(landing);
+        // The path is built from the item at run time, so the typed routes
+        // cannot check it. `withAnchor` puts Home under the page, the same
+        // as a tile's own link does in item.tsx.
+        router.replace(landing as Href, { withAnchor: true });
         return;
       }
 
