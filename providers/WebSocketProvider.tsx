@@ -19,6 +19,10 @@ import { getJellyfinHeaders, hasHeaders } from "@/utils/customHeaders";
 import { getOrSetDeviceId } from "@/utils/device";
 import { describeHttpResponse } from "@/utils/errors";
 import { getWebSocketUrl } from "@/utils/jellyfin/getWebSocketUrl";
+import {
+  createSocketFailureRecorder,
+  reportSocketGiveUp,
+} from "@/utils/jellyfin/socketFailure";
 import { logAndCaptureError, writeErrorLog } from "@/utils/log";
 
 // Query keys that depend on the set of library items and should be refreshed
@@ -218,9 +222,12 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
       }, 30000);
     };
 
-    newWebSocket.onerror = () => {
+    const failure = createSocketFailureRecorder();
+
+    newWebSocket.onerror = (event) => {
       // Don't log errors - this is expected when offline or server unreachable
       setIsConnected(false);
+      failure.error(event);
 
       // Replace any still-pending reconnect so only one is ever queued; the
       // previously untracked handle could leak and open a second socket.
@@ -240,20 +247,21 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
         // All retries burned while the SERVER is reachable (a real probe,
         // not just device connectivity): the server itself is rejecting the
         // socket, which silently kills remote control and live updates
-        // until the next app foreground.
+        // until the next app foreground. Reported on the next tick: the
+        // close event that follows this one is what brings the reason, and
+        // the reason is what keeps every proxy that drops the upgrade from
+        // piling onto the real bugs.
         reportedSocketGiveUpRef.current = true;
-        logAndCaptureError(
-          "WebSocket gave up reconnecting while server is reachable",
-          null,
-        );
+        setTimeout(() => reportSocketGiveUp(failure.describe()), 0);
       }
     };
 
-    newWebSocket.onclose = () => {
+    newWebSocket.onclose = (event) => {
       if (keepAliveInterval) {
         clearInterval(keepAliveInterval);
       }
       setIsConnected(false);
+      failure.close(event);
     };
     newWebSocket.onmessage = (e) => {
       try {

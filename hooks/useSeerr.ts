@@ -21,6 +21,7 @@ import {
   getIntegrationHeaders,
 } from "@/utils/customHeaders";
 import { logAndCaptureError, writeErrorLog, writeToLog } from "@/utils/log";
+import { settleSeerrFailure } from "@/utils/seerr/errorReporting";
 import { tmdbImageUrl } from "@/utils/seerr/images";
 import {
   isMovieOrTvResult,
@@ -127,52 +128,6 @@ export type TestResult =
   | {
       isValid: false;
     };
-
-// The response interceptor fires once per axios attempt, and React Query
-// retries a failing request up to 3× — without a throttle one user-visible
-// failure emits several Sentry events. 401/403 are excluded entirely:
-// expired cookies are routine and self-heal via auto-login.
-const recentSeerrReports = new Map<string, number>();
-const SEERR_REPORT_THROTTLE_MS = 60_000;
-
-const shouldReportSeerrError = (
-  status: number | undefined,
-  path: string | undefined,
-  method?: string,
-): boolean => {
-  if (status === 401 || status === 403) return false;
-  // Answers Seerr gives in the normal course of business, not defects:
-  // - /ratings 404/500: no Rotten Tomatoes entry for the title (404) or its
-  //   ratings upstream failed (500) — the badge simply doesn't render.
-  // - /user/jellyfin/:id 404: Seerr servers predating the route (seerr#2074);
-  //   the caller falls back to password login.
-  // - /auth/jellyfin/quickconnect/initiate 404: Seerr predating 3.4.0; the
-  //   caller falls back to the key or the password.
-  // - POST /request 400: request validation (already requested, no seasons
-  //   selected) — the request flow surfaces it to the user.
-  if (path?.endsWith(Endpoints.RATINGS) && (status === 404 || status === 500))
-    return false;
-  if (status === 404 && path?.includes(Endpoints.USER_JELLYFIN)) return false;
-  if (
-    status === 404 &&
-    path?.endsWith(Endpoints.AUTH_JELLYFIN_QUICK_CONNECT_INITIATE)
-  )
-    return false;
-  if (
-    status === 400 &&
-    method?.toUpperCase() === "POST" &&
-    path?.endsWith(Endpoints.REQUEST)
-  )
-    return false;
-  const key = `${status}|${path}`;
-  const now = Date.now();
-  const last = recentSeerrReports.get(key);
-  if (last !== undefined && now - last < SEERR_REPORT_THROTTLE_MS) {
-    return false;
-  }
-  recentSeerrReports.set(key, now);
-  return true;
-};
 
 const truncateForLog = (value: unknown): string | undefined => {
   if (value === null || value === undefined) return undefined;
@@ -624,23 +579,20 @@ export class SeerrApi {
       (error: AxiosError) => {
         const status = error.response?.status;
         const path = error.config?.url?.split("?")[0];
-        if (
-          error.response &&
-          shouldReportSeerrError(status, path, error.config?.method)
-        ) {
-          // A real server response — one capture covers the entire
-          // Seerr surface. 401/403 are excluded (expired cookies are
-          // routine and self-heal via auto-login), and repeats of the same
-          // status+path are throttled: this fires once per axios attempt,
-          // so React Query retries would otherwise emit several events for
-          // one user-visible failure.
-          logAndCaptureError("Seerr response error", error, {
-            status,
-            // Relative URLs escape the scheme-anchored scrubber, and search
-            // requests put the user's typed query in the query string.
-            url: path,
-          });
-        } else if (!error.response) {
+        if (error.response) {
+          // A real server response — one capture covers the entire Seerr
+          // surface. Expected answers and retries of a failure already
+          // captured are marked instead, so that React Query's own error
+          // handler does not report what this one passed over.
+          settleSeerrFailure(error, () =>
+            logAndCaptureError("Seerr response error", error, {
+              status,
+              // Relative URLs escape the scheme-anchored scrubber, and search
+              // requests put the user's typed query in the query string.
+              url: path,
+            }),
+          );
+        } else {
           // No response = connectivity; routine when away from the server,
           // so keep it out of Sentry but in the local log trail.
           writeToLog("WARN", `Seerr unreachable: ${error.toString()}`);

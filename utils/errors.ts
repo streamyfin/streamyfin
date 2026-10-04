@@ -52,10 +52,26 @@ export const isAbortLikeError = (error: unknown): boolean =>
 
 // A gateway status means the reverse proxy in front of Jellyfin answered but
 // Jellyfin itself did not (container down, restarting, upstream timeout) —
-// from the app's side that is an unreachable server, not an app bug. 521-523
-// are Cloudflare's spellings of the same thing (origin down/unreachable); one
-// origin-down blip otherwise fans out into one issue per in-flight route.
-const GATEWAY_STATUSES = new Set([502, 503, 504, 521, 522, 523]);
+// from the app's side that is an unreachable server, not an app bug. The 52x
+// and 530 codes are Cloudflare's own, which no origin ever sends, each one a
+// way of saying that Cloudflare could not get an answer out of the origin:
+// - 520: the origin answered with something empty or unreadable
+// - 521: the origin refused the connection (web server down)
+// - 522: the connection to the origin timed out
+// - 523: the origin is unreachable (routing, DNS)
+// - 524: the origin accepted the connection and then never answered
+// - 525: the TLS handshake between Cloudflare and the origin failed
+// - 526: the origin's certificate is not valid
+// - 530: sent with a 1xxx error page, in practice 1033, a Cloudflare Tunnel
+//   that is not running
+// One origin-down blip otherwise fans out into one issue per in-flight route.
+const GATEWAY_STATUSES = new Set([
+  502, 503, 504, 520, 521, 522, 523, 524, 525, 526, 530,
+]);
+
+/** Whether a status is a proxy's way of saying the server did not answer. */
+export const isGatewayStatus = (status: number): boolean =>
+  GATEWAY_STATUSES.has(status);
 
 /**
  * True for requests that never got a usable HTTP response — the server is
@@ -66,12 +82,38 @@ const GATEWAY_STATUSES = new Set([502, 503, 504, 521, 522, 523]);
  */
 export const isConnectivityError = (error: unknown): boolean => {
   if (isAxiosError(error)) {
-    return !error.response || GATEWAY_STATUSES.has(error.response.status);
+    return !error.response || isGatewayStatus(error.response.status);
   }
   return (
     error instanceof TypeError && /network request failed/i.test(error.message)
   );
 };
+
+/**
+ * True for a 403 that a gateway in front of the server sent in the server's
+ * place: a WAF rule, Cloudflare Access, a geo block. Told apart by the body,
+ * which is the gateway's HTML page; Jellyfin and Seerr refuse with JSON,
+ * plain text or nothing at all, and the app asks neither for HTML. Once such
+ * a block is up every route answers the same way, and none of it is
+ * something the app can act on.
+ *
+ * Only 403: a 404 or a 500 with an HTML body can still be the app asking for
+ * the wrong path, which is worth a report.
+ */
+export const isGatewayBlockError = (error: unknown): boolean => {
+  if (!isAxiosError(error) || error.response?.status !== 403) return false;
+  const contentType = error.response.headers?.["content-type"];
+  return /^text\/html\b/i.test(String(contentType ?? ""));
+};
+
+/**
+ * True for a failure that comes from where the user is and what stands
+ * between them and their server, rather than from the app: no answer, a
+ * gateway that could not reach the server, or a gateway that refused the
+ * request itself. Logged locally, never reported.
+ */
+export const isEnvironmentError = (error: unknown): boolean =>
+  isConnectivityError(error) || isGatewayBlockError(error);
 
 export const isExpectedError = (error: unknown): boolean =>
   error !== null &&

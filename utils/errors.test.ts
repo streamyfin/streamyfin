@@ -4,6 +4,9 @@ import {
   describeHttpResponse,
   isAbortLikeError,
   isConnectivityError,
+  isEnvironmentError,
+  isGatewayBlockError,
+  isGatewayStatus,
   templateRequestPath,
 } from "./errors";
 
@@ -119,6 +122,96 @@ describe("isConnectivityError", () => {
     expect(isConnectivityError(httpError(521))).toBe(true);
     expect(isConnectivityError(httpError(522))).toBe(true);
     expect(isConnectivityError(httpError(523))).toBe(true);
+  });
+
+  // A stopped Cloudflare Tunnel answers 530 ("Error 1033") on every route:
+  // seven issues from five users, one per route that happened to be in
+  // flight.
+  test.each([520, 524, 525, 526, 530])(
+    "Cloudflare's %i is connectivity: the origin gave it no answer",
+    (status) => {
+      expect(isConnectivityError(httpError(status))).toBe(true);
+    },
+  );
+
+  test("statuses a server sends itself are not swept up with them", () => {
+    expect(isConnectivityError(httpError(501))).toBe(false);
+    expect(isConnectivityError(httpError(505))).toBe(false);
+    expect(isConnectivityError(httpError(507))).toBe(false);
+  });
+});
+
+describe("isGatewayStatus", () => {
+  test("says the same of a bare status as of an axios error", () => {
+    expect(isGatewayStatus(502)).toBe(true);
+    expect(isGatewayStatus(530)).toBe(true);
+    expect(isGatewayStatus(500)).toBe(false);
+    expect(isGatewayStatus(403)).toBe(false);
+  });
+});
+
+// One user behind a Cloudflare WAF rule: 24 events across 9 issues in two
+// minutes, every Jellyfin route answering 403 with Cloudflare's HTML page.
+describe("isGatewayBlockError", () => {
+  test("a 403 with an HTML page is the gateway's refusal", () => {
+    expect(
+      isGatewayBlockError(
+        httpError(403, {
+          headers: { "content-type": "text/html; charset=UTF-8" },
+          data: "<!DOCTYPE html><title>Attention Required!</title>",
+        }),
+      ),
+    ).toBe(true);
+  });
+
+  test("a 403 the server sent itself is not", () => {
+    expect(
+      isGatewayBlockError(
+        httpError(403, {
+          headers: { "content-type": "application/json; charset=utf-8" },
+        }),
+      ),
+    ).toBe(false);
+    expect(
+      isGatewayBlockError(
+        httpError(403, { headers: { "content-type": "text/plain" } }),
+      ),
+    ).toBe(false);
+    // Jellyfin refuses with an empty body and no content type.
+    expect(isGatewayBlockError(httpError(403))).toBe(false);
+  });
+
+  // An HTML 404 or 500 can be the app asking a proxy for a path that is not
+  // there, which is the app's bug to hear about.
+  test("an HTML page under another status is still reported", () => {
+    const html = { headers: { "content-type": "text/html" } };
+    expect(isGatewayBlockError(httpError(404, html))).toBe(false);
+    expect(isGatewayBlockError(httpError(500, html))).toBe(false);
+  });
+
+  test("is false for anything that is not an HTTP response", () => {
+    expect(isGatewayBlockError(httpError(undefined))).toBe(false);
+    expect(isGatewayBlockError(new Error("403"))).toBe(false);
+    expect(isGatewayBlockError("403")).toBe(false);
+  });
+});
+
+describe("isEnvironmentError", () => {
+  test("covers an unreachable server and a gateway's refusal", () => {
+    expect(isEnvironmentError(httpError(undefined))).toBe(true);
+    expect(isEnvironmentError(httpError(530))).toBe(true);
+    expect(
+      isEnvironmentError(
+        httpError(403, { headers: { "content-type": "text/html" } }),
+      ),
+    ).toBe(true);
+  });
+
+  test("leaves the answers of the server itself alone", () => {
+    expect(isEnvironmentError(httpError(403))).toBe(false);
+    expect(isEnvironmentError(httpError(404))).toBe(false);
+    expect(isEnvironmentError(httpError(500))).toBe(false);
+    expect(isEnvironmentError(new Error("boom"))).toBe(false);
   });
 });
 

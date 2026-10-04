@@ -30,14 +30,32 @@ jest.mock("@/utils/version", () => ({
     display: "test",
   }),
 }));
+// What the native side says the build is; each case sets what it needs.
+const mockBuild: { applicationId: string | null; isDevice: boolean | null } = {
+  applicationId: "com.fredrikburmester.streamyfin",
+  isDevice: true,
+};
+jest.mock("expo-application", () => ({
+  get applicationId() {
+    return mockBuild.applicationId;
+  },
+}));
+jest.mock("expo-device", () => ({
+  get isDevice() {
+    return mockBuild.isDevice;
+  },
+}));
 stubReactNative();
 
 import { AxiosError } from "axios";
+import { OFFICIAL_APPLICATION_IDS } from "@/constants/Sentry";
 import { markExpectedError } from "./errors";
 import {
+  type BuildIdentity,
   classifyOutgoingEvent,
   initializeSentryIfConsented,
   isUserInteractionBreadcrumb,
+  reportsFromBuild,
   scrubDeep,
 } from "./sentry";
 
@@ -204,12 +222,109 @@ describe("dev builds do not report", () => {
     expect(initCalls).toHaveLength(0);
   });
 
+  // Issues were filed under `production` from a tvOS simulator, from forks
+  // (com.gauvino.streamyfin) and from builds re-signed under another
+  // identifier, next to the ones from the store.
+  test("a release build on a simulator never initializes the SDK", () => {
+    setDev(false);
+    mockBuild.isDevice = false;
+    initializeSentryIfConsented();
+    expect(initCalls).toHaveLength(0);
+    mockBuild.isDevice = true;
+  });
+
+  test("a release build under another identifier never initializes the SDK", () => {
+    setDev(false);
+    mockBuild.applicationId = "com.gauvino.streamyfin";
+    initializeSentryIfConsented();
+    expect(initCalls).toHaveLength(0);
+    mockBuild.applicationId = "com.fredrikburmester.streamyfin";
+  });
+
   // Ordering matters: initializeSentry latches on success, so the release
-  // case runs last or it would mask the dev case above.
-  test("a release build initializes as normal", () => {
+  // case runs last or it would mask the cases above.
+  test("the official release build initializes as normal", () => {
     setDev(false);
     initializeSentryIfConsented();
     expect(initCalls).toHaveLength(1);
+  });
+
+  // "App Hang Non Fully Blocked" kept arriving from a build that passed
+  // `enableReportNonFullyBlockedAppHangs: false`: sentry-cocoa reads the key
+  // as "Blocking" and ignores one it does not know.
+  test("non fully blocking app hangs are switched off under the key sentry-cocoa reads", () => {
+    const options = initCalls[0] as Record<string, unknown>;
+    expect(options.enableReportNonFullyBlockingAppHangs).toBe(false);
+    expect(options).not.toHaveProperty("enableReportNonFullyBlockedAppHangs");
+  });
+});
+
+describe("reportsFromBuild — which builds report at all", () => {
+  const store: BuildIdentity = {
+    isDev: false,
+    debugOverride: false,
+    applicationId: OFFICIAL_APPLICATION_IDS[0],
+    isDevice: true,
+    reportsToProject: true,
+  };
+
+  test("the store build on a real device reports", () => {
+    expect(reportsFromBuild(store)).toBe(true);
+  });
+
+  test("a dev build does not", () => {
+    expect(reportsFromBuild({ ...store, isDev: true })).toBe(false);
+  });
+
+  test("a simulator or an emulator does not", () => {
+    expect(reportsFromBuild({ ...store, isDevice: false })).toBe(false);
+  });
+
+  test.each([
+    "com.gauvino.streamyfin",
+    "com.massimotseng.yomifin",
+    // The official app re-signed under a team's own identifier.
+    "com.fredrikburmester.streamyfin.ABCDE12345",
+  ])("a build running as %s does not", (applicationId) => {
+    expect(reportsFromBuild({ ...store, applicationId })).toBe(false);
+  });
+
+  // EXPO_PUBLIC_SENTRY_DSN: its events never reach this project, so its
+  // identifier is its own business.
+  test("a fork reporting to a project of its own does", () => {
+    expect(
+      reportsFromBuild({
+        ...store,
+        applicationId: "com.gauvino.streamyfin",
+        reportsToProject: false,
+      }),
+    ).toBe(true);
+  });
+
+  test("a fork's simulator still does not", () => {
+    expect(
+      reportsFromBuild({ ...store, isDevice: false, reportsToProject: false }),
+    ).toBe(false);
+  });
+
+  // A failed native read must not be what switches crash reporting off for
+  // the store build.
+  test("what cannot be read counts as the official build on a real device", () => {
+    expect(
+      reportsFromBuild({ ...store, applicationId: null, isDevice: null }),
+    ).toBe(true);
+  });
+
+  test("the debug switch reports from anything, to test the pipeline", () => {
+    expect(
+      reportsFromBuild({
+        ...store,
+        isDev: true,
+        isDevice: false,
+        applicationId: "com.example.fork",
+        debugOverride: true,
+      }),
+    ).toBe(true);
   });
 });
 
@@ -278,5 +393,148 @@ describe("classifyOutgoingEvent — axios errors on the unhandledrejection path"
       classifyOutgoingEvent(event, { originalException: new Error("x") }),
     ).toBe(event);
     expect(classifyOutgoingEvent(event, undefined)).toBe(event);
+  });
+
+  test("a Cloudflare tunnel that is down is dropped", () => {
+    expect(
+      classifyOutgoingEvent({} as never, {
+        originalException: axiosError(530),
+      }),
+    ).toBeNull();
+  });
+
+  test("a gateway's own 403 page is dropped, the server's 403 is not", () => {
+    const withContentType = (contentType: string) =>
+      new AxiosError(
+        "Request failed with status code 403",
+        AxiosError.ERR_BAD_RESPONSE,
+        { method: "get", url: "https://server/Items", headers: {} as never },
+        {},
+        {
+          status: 403,
+          headers: { "content-type": contentType },
+          config: {},
+        } as never,
+      );
+    expect(
+      classifyOutgoingEvent({} as never, {
+        originalException: withContentType("text/html; charset=UTF-8"),
+      }),
+    ).toBeNull();
+    expect(
+      classifyOutgoingEvent({ contexts: {} } as never, {
+        originalException: withContentType("application/json"),
+      }),
+    ).not.toBeNull();
+  });
+});
+
+// REACT-NATIVE-3S: 10 users, a few seconds after launch on Android. The cast
+// library's hooks ask a session that is still being resumed for its device
+// and media status, with no catch.
+describe("classifyOutgoingEvent — the cast library's own unhandled rejection", () => {
+  type OutgoingEvent = Parameters<typeof classifyOutgoingEvent>[0];
+
+  // The shape React Native gives a rejected native promise.
+  const nativeRejection = (message: string, className: string) =>
+    Object.assign(new Error(message), {
+      code: "EUNSPECIFIED",
+      nativeStackAndroid: [
+        { class: className, file: "With.java", methodName: "run" },
+        { class: "android.os.Handler", file: "Handler.java" },
+      ],
+    });
+
+  const eventOf = (
+    mechanism: string,
+    value: string,
+    module?: string,
+  ): OutgoingEvent =>
+    ({
+      exception: {
+        values: [
+          ...(module
+            ? [
+                {
+                  type: "java.lang.IllegalStateException",
+                  value,
+                  stacktrace: { frames: [{ module, function: "run" }] },
+                },
+              ]
+            : []),
+          { type: "Error", value, mechanism: { type: mechanism } },
+        ],
+      },
+    }) as never;
+
+  const CAST_CLASS = "com.reactnative.googlecast.api.With$3";
+
+  test("is dropped", () => {
+    expect(
+      classifyOutgoingEvent(eventOf("onunhandledrejection", "No session"), {
+        originalException: nativeRejection("No session", CAST_CLASS),
+      }),
+    ).toBeNull();
+  });
+
+  test("is dropped when only the event carries the native frames", () => {
+    expect(
+      classifyOutgoingEvent(
+        eventOf("onunhandledrejection", "No session", CAST_CLASS),
+        { originalException: new Error("No session") },
+      ),
+    ).toBeNull();
+  });
+
+  // loadMedia or stop failing in the app's own code is a failed user action,
+  // caught and reported at the call site.
+  test("the same error caught by a call site of the app is kept", () => {
+    const event = eventOf("generic", "No session");
+    expect(
+      classifyOutgoingEvent(event, {
+        originalException: nativeRejection("No session", CAST_CLASS),
+      }),
+    ).toBe(event);
+  });
+
+  test("another unhandled rejection out of the cast library is kept", () => {
+    const event = eventOf("onunhandledrejection", "Invalid request");
+    expect(
+      classifyOutgoingEvent(event, {
+        originalException: nativeRejection("Invalid request", CAST_CLASS),
+      }),
+    ).toBe(event);
+  });
+
+  test("a 'No session' from anywhere else is kept", () => {
+    const event = eventOf("onunhandledrejection", "No session");
+    expect(
+      classifyOutgoingEvent(event, {
+        originalException: nativeRejection(
+          "No session",
+          "com.example.other.Player",
+        ),
+      }),
+    ).toBe(event);
+    const plain = eventOf("onunhandledrejection", "No session");
+    expect(
+      classifyOutgoingEvent(plain, {
+        originalException: new Error("No session"),
+      }),
+    ).toBe(plain);
+  });
+});
+
+// What the socket and download classifiers attach is built from a fixed
+// vocabulary, and must mean the same on either side of the boundary.
+describe("scrubDeep — the causes the classifiers attach pass unchanged", () => {
+  test.each([
+    "handshake-http-404",
+    "close-1011",
+    "tls",
+    "HTTP error: 500",
+    "Read error: ssl=0x[addr]: Failure in SSL library",
+  ])("%s", (cause) => {
+    expect(scrubDeep(cause)).toBe(cause);
   });
 });
