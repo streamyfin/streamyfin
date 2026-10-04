@@ -16,6 +16,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ParallaxPageColors } from "@/constants/Colors";
+import { LOGO_HEIGHT } from "@/constants/Images";
 
 /**
  * The page's scroll, for content that follows it, such as a header that stays
@@ -110,7 +111,7 @@ export const ParallaxScrollView: React.FC<PropsWithChildren<Props>> = ({
           <View
             style={{
               top: headerHeight - 200,
-              height: 130,
+              height: LOGO_HEIGHT,
             }}
             className='absolute left-0 w-full z-40 px-4 flex justify-center items-center'
           >
