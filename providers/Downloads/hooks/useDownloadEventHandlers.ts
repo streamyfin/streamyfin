@@ -9,6 +9,7 @@ import type {
 } from "@/modules";
 import { BackgroundDownloader } from "@/modules";
 import { logAndCaptureError, writeToLog } from "@/utils/log";
+import { classifyDownloadError } from "../downloadErrors";
 import {
   getNotificationContent,
   sendDownloadNotification,
@@ -260,19 +261,15 @@ export function useDownloadEventHandlers({
         const record = getPendingDownload(itemId);
         if (!record) return;
 
-        // Native error payloads are plain strings, so user-environment
-        // failures — connectivity (walking out of Wi-Fi range is the normal
-        // downloads scenario) and a full disk — are classified by keyword and
-        // kept out of Sentry; the scrubbers redact any scheme-less host/IP
-        // the native message embeds.
-        if (
-          /connect|network|internet|offline|time.?out|timed out|unreachable|resolve|dns|route|no space|enospc|disk full|not enough (?:free )?space|insufficient storage/i.test(
-            event.error,
-          )
-        ) {
+        // User-environment failures stay in the local log; the rest is
+        // reported once per distinct error per session, however many queued
+        // items fail the same way. The scrubbers redact any scheme-less
+        // host/IP the native message embeds.
+        const errorClass = classifyDownloadError(String(event.error));
+        if (errorClass.kind === "environment") {
           writeToLog("WARN", "Download failed (user environment)", event.error);
         } else {
-          logAndCaptureError("Download failed", event.error, {
+          logAndCaptureError("Download failed", errorClass.detail, {
             itemType: record.item?.Type,
           });
         }

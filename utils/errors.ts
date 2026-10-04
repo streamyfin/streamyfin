@@ -52,10 +52,26 @@ export const isAbortLikeError = (error: unknown): boolean =>
 
 // A gateway status means the reverse proxy in front of Jellyfin answered but
 // Jellyfin itself did not (container down, restarting, upstream timeout) —
-// from the app's side that is an unreachable server, not an app bug. 521-523
-// are Cloudflare's spellings of the same thing (origin down/unreachable); one
-// origin-down blip otherwise fans out into one issue per in-flight route.
-const GATEWAY_STATUSES = new Set([502, 503, 504, 521, 522, 523]);
+// from the app's side that is an unreachable server, not an app bug. The 52x
+// and 530 codes are Cloudflare's own, which no origin ever sends, each one a
+// way of saying that Cloudflare could not get an answer out of the origin:
+// - 520: the origin answered with something empty or unreadable
+// - 521: the origin refused the connection (web server down)
+// - 522: the connection to the origin timed out
+// - 523: the origin is unreachable (routing, DNS)
+// - 524: the origin accepted the connection and then never answered
+// - 525: the TLS handshake between Cloudflare and the origin failed
+// - 526: the origin's certificate is not valid
+// - 530: sent with a 1xxx error page, in practice 1033, a Cloudflare Tunnel
+//   that is not running
+// One origin-down blip otherwise fans out into one issue per in-flight route.
+const GATEWAY_STATUSES = new Set([
+  502, 503, 504, 520, 521, 522, 523, 524, 525, 526, 530,
+]);
+
+/** Whether a status is a proxy's way of saying the server did not answer. */
+export const isGatewayStatus = (status: number): boolean =>
+  GATEWAY_STATUSES.has(status);
 
 /**
  * True for requests that never got a usable HTTP response — the server is
@@ -66,12 +82,62 @@ const GATEWAY_STATUSES = new Set([502, 503, 504, 521, 522, 523]);
  */
 export const isConnectivityError = (error: unknown): boolean => {
   if (isAxiosError(error)) {
-    return !error.response || GATEWAY_STATUSES.has(error.response.status);
+    return !error.response || isGatewayStatus(error.response.status);
   }
   return (
     error instanceof TypeError && /network request failed/i.test(error.message)
   );
 };
+
+// How far into a body the HTML check reads: room for a byte order mark, some
+// leading whitespace and the opening tag, and no more. An error page can be
+// large and this runs for every 403.
+const HTML_SNIFF_CHARS = 256;
+
+// The start of an HTML document: "<!doctype html" or "<html", in any case,
+// after optional whitespace (which in a JS regex includes the byte order
+// mark). The lookahead keeps "<htmlfoo" out.
+const HTML_DOCUMENT_START = /^\s*<(?:!doctype\s+html|html)(?=[\s>])/i;
+
+const HTML_CONTENT_TYPE = /^text\/html\b/i;
+
+const isHtmlDocument = (body: unknown): boolean =>
+  typeof body === "string" &&
+  HTML_DOCUMENT_START.test(body.slice(0, HTML_SNIFF_CHARS));
+
+/**
+ * True for a 403 that a gateway in front of the server sent in the server's
+ * place: a WAF rule, Cloudflare Access, a geo block. Told apart by the body,
+ * which is the gateway's HTML page; Jellyfin and Seerr refuse with JSON,
+ * plain text or nothing at all, and the app asks neither for HTML. Once such
+ * a block is up every route answers the same way, and none of it is
+ * something the app can act on.
+ *
+ * The page is recognised by its content type, or, since a gateway does not
+ * always label its page and sometimes labels it wrong, by the body starting
+ * as an HTML document. The body is only looked at here: it never goes onto
+ * an event, as an error page can name the user's server.
+ *
+ * Only 403: a 404 or a 500 with an HTML body can still be the app asking for
+ * the wrong path, which is worth a report.
+ */
+export const isGatewayBlockError = (error: unknown): boolean => {
+  if (!isAxiosError(error) || error.response?.status !== 403) return false;
+  const contentType = error.response.headers?.["content-type"];
+  return (
+    HTML_CONTENT_TYPE.test(String(contentType ?? "")) ||
+    isHtmlDocument(error.response.data)
+  );
+};
+
+/**
+ * True for a failure that comes from where the user is and what stands
+ * between them and their server, rather than from the app: no answer, a
+ * gateway that could not reach the server, or a gateway that refused the
+ * request itself. Logged locally, never reported.
+ */
+export const isEnvironmentError = (error: unknown): boolean =>
+  isConnectivityError(error) || isGatewayBlockError(error);
 
 export const isExpectedError = (error: unknown): boolean =>
   error !== null &&
@@ -133,41 +199,97 @@ export const describeHttpError = (
   };
 };
 
-const MAX_RESPONSE_BODY_CHARS = 200;
+// The reasons a server gives in fixed words: the same sentence for every
+// user, so it says who answered and nothing about whom it answered. Only
+// these are quoted. A reason goes on the list once it is known to be fixed,
+// by the server's source and not by having seen it twice.
+const FIXED_RESPONSE_REASONS: ReadonlySet<string> = new Set([
+  // Jellyfin's ExceptionMiddleware, for any exception outside development
+  // mode. In development mode it sends the exception message instead, which
+  // can hold a library path.
+  "Error processing request.",
+]);
+
+// A top-level key that reads as a field name ("title", "traceId", "ray_id").
+// An object keyed by something the server chose (a host, a path, a name) is
+// data, and its keys do not pass.
+const FIELD_NAME = /^[A-Za-z_][A-Za-z0-9_]{0,31}$/;
+const MAX_RESPONSE_BODY_KEYS = 12;
+
+type ResponseBodyDescription = {
+  bodyKind: "empty" | "html" | "text" | "json" | "other";
+  /** Characters in a text or HTML body. */
+  bodyLength?: number;
+  /** The field names of a JSON object, in the order they came. */
+  bodyKeys?: string[];
+  /** The body itself, only when it is one of FIXED_RESPONSE_REASONS. */
+  body?: string;
+};
+
+export type HttpResponseDescription = ResponseBodyDescription & {
+  status: number;
+  contentType?: string;
+  server?: string;
+};
+
+const describeResponseBody = (
+  data: unknown,
+  contentType: string,
+): ResponseBodyDescription => {
+  if (data === undefined || data === null || data === "") {
+    return { bodyKind: "empty" };
+  }
+  if (typeof data === "string") {
+    if (HTML_CONTENT_TYPE.test(contentType) || isHtmlDocument(data)) {
+      return { bodyKind: "html", bodyLength: data.length };
+    }
+    const reason = data.trim();
+    return {
+      bodyKind: "text",
+      bodyLength: data.length,
+      ...(FIXED_RESPONSE_REASONS.has(reason) ? { body: reason } : {}),
+    };
+  }
+  // What axios makes of a JSON body.
+  if (Array.isArray(data)) return { bodyKind: "json" };
+  if (Object.getPrototypeOf(data) === Object.prototype) {
+    return {
+      bodyKind: "json",
+      bodyKeys: Object.keys(data as object)
+        .filter((key) => FIELD_NAME.test(key))
+        .slice(0, MAX_RESPONSE_BODY_KEYS),
+    };
+  }
+  return { bodyKind: "other" };
+};
 
 /**
- * What the server said about a rejected request — enough to tell a Jellyfin
- * rejection apart from a proxy one: Jellyfin answers with a text/plain
- * reason ("Session not found.") and `Server: Kestrel`; proxies answer with
- * their own Server header and an HTML page. The body is only kept when it is
- * plain text or JSON, and truncated: an HTML error page can embed the proxy's
- * hostname, which is the user's private server address.
+ * What the server said about a rejected request, enough to tell who answered:
+ * Jellyfin answers with `Server: Kestrel` and a text/plain reason or ASP.NET
+ * problem details, Seerr with a JSON message, a proxy with its own Server
+ * header and an HTML page.
+ *
+ * This goes to Sentry as context, so the body is described and not quoted.
+ * A body is text written by a machine the app knows nothing about: a proxy
+ * names the host it could not reach, a gateway its zone, a server the path or
+ * the name it did not find. utils/sentry's scrubDeep only knows a host by its
+ * scheme or as an IPv4 address, and nothing knows a title or a user name, so
+ * no cut of that text is safe to send. What is sent instead is the kind of
+ * body, its length, the field names of a JSON object, and the text itself
+ * only when it is one of FIXED_RESPONSE_REASONS. An HTML page counts as one
+ * under any content type, since a proxy does not always label its page.
  */
 export const describeHttpResponse = (
   error: unknown,
-): Record<string, unknown> | undefined => {
+): HttpResponseDescription | undefined => {
   if (!isAxiosError(error) || !error.response) return undefined;
   const headers = error.response.headers ?? {};
   const contentType = headers["content-type"];
   const server = headers.server;
-  let body: string | undefined;
-  if (
-    /^(?:text\/plain|application\/(?:problem\+)?json)/i.test(
-      String(contentType ?? ""),
-    )
-  ) {
-    const data = error.response.data;
-    try {
-      body = typeof data === "string" ? data : JSON.stringify(data);
-    } catch {
-      body = undefined;
-    }
-    body = body?.slice(0, MAX_RESPONSE_BODY_CHARS);
-  }
   return {
     status: error.response.status,
     contentType: contentType ? String(contentType) : undefined,
     server: server ? String(server) : undefined,
-    body,
+    ...describeResponseBody(error.response.data, String(contentType ?? "")),
   };
 };

@@ -1,10 +1,13 @@
 import * as Sentry from "@sentry/react-native";
 import { isAxiosError } from "axios";
+import * as Application from "expo-application";
+import * as Device from "expo-device";
 import { Platform } from "react-native";
+import { OFFICIAL_APPLICATION_IDS } from "@/constants/Sentry";
 import {
   describeHttpError,
   isAbortLikeError,
-  isConnectivityError,
+  isEnvironmentError,
   isExpectedError,
 } from "@/utils/errors";
 import {
@@ -16,9 +19,9 @@ import { getVersionInfo } from "@/utils/version";
 // Public Sentry DSN for org "streamyfin", project "react-native". A DSN only
 // allows submitting events, so shipping it in the client bundle is fine.
 // EXPO_PUBLIC_SENTRY_DSN overrides it (e.g. to point a fork at its own org).
-const SENTRY_DSN =
-  process.env.EXPO_PUBLIC_SENTRY_DSN ??
+const PROJECT_SENTRY_DSN =
   "https://5c548edf47663532bb529ba72b2ddbb1@o4509610343596032.ingest.de.sentry.io/4509610370728016";
+const SENTRY_DSN = process.env.EXPO_PUBLIC_SENTRY_DSN ?? PROJECT_SENTRY_DSN;
 
 // Dev builds stay out of Sentry entirely. Their frames carry local absolute
 // paths — the developer's username and worktree layout — Metro reloads throw
@@ -31,9 +34,105 @@ const SENTRY_DSN =
 // those events report under the "development" environment.
 export const sentryDebugInDev = process.env.EXPO_PUBLIC_SENTRY_DEBUG === "1";
 
+/**
+ * What an application identifier says about the build that runs under it:
+ * - "official": one of the identifiers this project ships under, or none
+ *   that could be read
+ * - "resigned": an official identifier with a suffix. Sideloading tools
+ *   (AltStore, Sideloadly) cannot sign under an identifier another team owns,
+ *   so they append the signer's team id: the IPAs the project hands its beta
+ *   testers all run this way, and they are the builds whose reports are
+ *   wanted first.
+ * - "foreign": anything else, which is a fork that renamed the app
+ *
+ * A fork that keeps the official identifier is "official" either way, so
+ * accepting the suffix lets in nothing the exact match kept out. Exported for
+ * tests.
+ */
+export type ApplicationIdKind = "official" | "resigned" | "foreign";
+
+export const applicationIdKind = (
+  applicationId: string | null,
+): ApplicationIdKind => {
+  if (applicationId === null) return "official";
+  if (OFFICIAL_APPLICATION_IDS.includes(applicationId)) return "official";
+  return OFFICIAL_APPLICATION_IDS.some((official) =>
+    applicationId.startsWith(`${official}.`),
+  )
+    ? "resigned"
+    : "foreign";
+};
+
+export type BuildIdentity = {
+  isDev: boolean;
+  /** EXPO_PUBLIC_SENTRY_DEBUG=1: the build was made to test the pipeline. */
+  debugOverride: boolean;
+  /** The bundle identifier or application id the build runs under. */
+  applicationId: string | null;
+  /**
+   * False on a simulator, null when it cannot be told, which is always the
+   * case on Android (see reportsFromThisBuild).
+   */
+  isDevice: boolean | null;
+  /** Whether events go to this project, and not to one a fork configured. */
+  reportsToProject: boolean;
+};
+
+/**
+ * Whether a build reports at all. The same reasoning that keeps dev builds
+ * out applies to two more kinds of build, which were filing issues under
+ * `production` next to the ones from the store:
+ * - a simulator is somebody trying a build, not a user
+ * - a build under another identifier is a fork, and what it runs is not
+ *   known to be what this repository ships. A fork that wants crash reports
+ *   sets EXPO_PUBLIC_SENTRY_DSN, and then reports to its own project under
+ *   whatever identifier it likes.
+ *
+ * The official build re-signed for sideloading is not a fork and reports,
+ * tagged `build.identifier: resigned` so it can be told from the store's.
+ *
+ * An identifier or a device kind that cannot be read counts as official and
+ * real: a failed read must not switch reporting off for the store build.
+ * Exported for tests.
+ */
+export const reportsFromBuild = (build: BuildIdentity): boolean => {
+  if (build.debugOverride) return true;
+  if (build.isDev) return false;
+  if (build.isDevice === false) return false;
+  if (!build.reportsToProject) return true;
+  return applicationIdKind(build.applicationId) !== "foreign";
+};
+
+// Native values are read defensively: deciding whether to report must never
+// be what crashes the app at startup.
+const readNative = <T>(read: () => T): T | null => {
+  try {
+    return read() ?? null;
+  } catch {
+    return null;
+  }
+};
+
+// Whether this is a simulator. Only asked on Apple platforms, where it is a
+// compile-time fact of the binary. On Android expo-device guesses from the
+// Build fields (a PRODUCT containing "sdk", a FINGERPRINT starting with
+// "generic" or "unknown"), which real hardware matches: Rockchip boxes ship
+// as "rk30sdk" and the like, and cheap TV boxes with generic fingerprints.
+// A wrong guess there would switch reporting off for the very devices whose
+// decoders fail, so an Android build counts as a device that cannot be told.
+const readIsDevice = (): boolean | null =>
+  Platform.OS === "ios" ? readNative(() => Device.isDevice) : null;
+
 // Read at call time rather than module scope so the gate is observable in
 // tests, which drive __DEV__ per case.
-const reportsFromThisBuild = (): boolean => !__DEV__ || sentryDebugInDev;
+const reportsFromThisBuild = (): boolean =>
+  reportsFromBuild({
+    isDev: __DEV__,
+    debugOverride: sentryDebugInDev,
+    applicationId: readNative(() => Application.applicationId),
+    isDevice: readIsDevice(),
+    reportsToProject: SENTRY_DSN === PROJECT_SENTRY_DSN,
+  });
 
 let initialized = false;
 
@@ -151,8 +250,61 @@ const NATIVE_SDK_OPTIONS = {
   // still turns: every event so far was a 2-3s startup stall on a slow
   // device whose stack held only UIApplicationMain/CFRunLoop frames —
   // nothing to act on. Fully blocked hangs keep reporting.
-  enableReportNonFullyBlockedAppHangs: false,
+  //
+  // The key is spelled as sentry-cocoa reads it (Options+Dictionary.swift),
+  // "Blocking", although the events it silences are titled "App Hang Non
+  // Fully Blocked". The dictionary initialiser ignores a key it does not
+  // know without a word, so the "Blocked" spelling this had first changed
+  // nothing and the hangs kept arriving.
+  enableReportNonFullyBlockingAppHangs: false,
 } as Partial<Parameters<typeof Sentry.init>[0]>;
+
+// The cast library's own hooks (useMediaStatus, useCastDevice, mounted on
+// every screen by components/Chromecast.tsx) ask the native side for the
+// media status and the device as soon as the session manager names a
+// session, with `.then()` and no catch. On Android that includes the session
+// the Cast SDK is still trying to resume from the previous launch: it is not
+// connected yet, the native side has no session to ask, and it rejects with
+// IllegalStateException("No session"). That is an unhandled rejection a few
+// seconds after launch which no app code can catch, about a state the hooks
+// correct themselves on the next session event.
+const CAST_NATIVE_PACKAGE = "com.reactnative.googlecast.";
+const CAST_NO_SESSION_MESSAGE = "No session";
+
+const isCastNoSessionRejection = (
+  event: Sentry.ErrorEvent,
+  cause: unknown,
+): boolean => {
+  const exceptions = event.exception?.values ?? [];
+  // Only the rejection nobody handled. The same error caught at a call site
+  // of the app's own (loadMedia, stop) is a failed user action and reports.
+  if (!exceptions.some((e) => e.mechanism?.type === "onunhandledrejection")) {
+    return false;
+  }
+  const causeRecord =
+    cause !== null && typeof cause === "object"
+      ? (cause as { message?: unknown; nativeStackAndroid?: unknown })
+      : undefined;
+  const saysNoSession =
+    causeRecord?.message === CAST_NO_SESSION_MESSAGE ||
+    exceptions.some((e) => e.value === CAST_NO_SESSION_MESSAGE);
+  if (!saysNoSession) return false;
+  const nativeStack = Array.isArray(causeRecord?.nativeStackAndroid)
+    ? (causeRecord.nativeStackAndroid as { class?: unknown }[])
+    : [];
+  return (
+    nativeStack.some(
+      (frame) =>
+        typeof frame?.class === "string" &&
+        frame.class.startsWith(CAST_NATIVE_PACKAGE),
+    ) ||
+    exceptions.some((e) =>
+      e.stacktrace?.frames?.some((frame) =>
+        frame.module?.startsWith(CAST_NATIVE_PACKAGE),
+      ),
+    )
+  );
+};
 
 /**
  * The last line of defence for axios failures that reach Sentry OUTSIDE the
@@ -160,8 +312,11 @@ const NATIVE_SDK_OPTIONS = {
  * events carry no app frames and none of the route identity the data-layer
  * and logAndCaptureError paths attach, so every such failure — any endpoint,
  * any status — regroups into one stackless issue. Apply the same rules here:
- * connectivity/aborted/expected failures never leave the app, and the rest
- * are fingerprinted by route and status. Exported for tests.
+ * environment/aborted/expected failures never leave the app, and the rest
+ * are fingerprinted by route and status.
+ *
+ * It is also where a rejection inside a dependency is dropped when no call
+ * site of the app's could have caught it. Exported for tests.
  */
 export const classifyOutgoingEvent = (
   event: Sentry.ErrorEvent,
@@ -169,10 +324,11 @@ export const classifyOutgoingEvent = (
   hint: { originalException?: unknown } | undefined,
 ): Sentry.ErrorEvent | null => {
   const cause = hint?.originalException;
+  if (isCastNoSessionRejection(event, cause)) return null;
   if (!isAxiosError(cause)) return event;
   if (
     isAbortLikeError(cause) ||
-    isConnectivityError(cause) ||
+    isEnvironmentError(cause) ||
     isExpectedError(cause)
   ) {
     return null;
@@ -218,6 +374,11 @@ const initializeSentry = () => {
           "build.branch": build.branch ?? "unknown",
           "build.profile": build.profile ?? "local",
           "build.run": build.runNumber ?? "none",
+          // "resigned" for the official build sideloaded under a signer's
+          // own identifier, so those events can be filtered either way.
+          "build.identifier": applicationIdKind(
+            readNative(() => Application.applicationId),
+          ),
         },
       },
       beforeSend: (event, hint) => {

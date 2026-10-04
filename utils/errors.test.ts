@@ -4,6 +4,9 @@ import {
   describeHttpResponse,
   isAbortLikeError,
   isConnectivityError,
+  isEnvironmentError,
+  isGatewayBlockError,
+  isGatewayStatus,
   templateRequestPath,
 } from "./errors";
 
@@ -120,6 +123,186 @@ describe("isConnectivityError", () => {
     expect(isConnectivityError(httpError(522))).toBe(true);
     expect(isConnectivityError(httpError(523))).toBe(true);
   });
+
+  // A stopped Cloudflare Tunnel answers 530 ("Error 1033") on every route:
+  // seven issues from five users, one per route that happened to be in
+  // flight.
+  test.each([520, 524, 525, 526, 530])(
+    "Cloudflare's %i is connectivity: the origin gave it no answer",
+    (status) => {
+      expect(isConnectivityError(httpError(status))).toBe(true);
+    },
+  );
+
+  test("statuses a server sends itself are not swept up with them", () => {
+    expect(isConnectivityError(httpError(501))).toBe(false);
+    expect(isConnectivityError(httpError(505))).toBe(false);
+    expect(isConnectivityError(httpError(507))).toBe(false);
+  });
+});
+
+describe("isGatewayStatus", () => {
+  test("says the same of a bare status as of an axios error", () => {
+    expect(isGatewayStatus(502)).toBe(true);
+    expect(isGatewayStatus(530)).toBe(true);
+    expect(isGatewayStatus(500)).toBe(false);
+    expect(isGatewayStatus(403)).toBe(false);
+  });
+});
+
+// One user behind a Cloudflare WAF rule: 24 events across 9 issues in two
+// minutes, every Jellyfin route answering 403 with Cloudflare's HTML page.
+describe("isGatewayBlockError", () => {
+  test("a 403 with an HTML page is the gateway's refusal", () => {
+    expect(
+      isGatewayBlockError(
+        httpError(403, {
+          headers: { "content-type": "text/html; charset=UTF-8" },
+          data: "<!DOCTYPE html><title>Attention Required!</title>",
+        }),
+      ),
+    ).toBe(true);
+  });
+
+  test("a 403 the server sent itself is not", () => {
+    expect(
+      isGatewayBlockError(
+        httpError(403, {
+          headers: { "content-type": "application/json; charset=utf-8" },
+        }),
+      ),
+    ).toBe(false);
+    expect(
+      isGatewayBlockError(
+        httpError(403, { headers: { "content-type": "text/plain" } }),
+      ),
+    ).toBe(false);
+    // Jellyfin refuses with an empty body and no content type.
+    expect(isGatewayBlockError(httpError(403))).toBe(false);
+  });
+
+  // An HTML 404 or 500 can be the app asking a proxy for a path that is not
+  // there, which is the app's bug to hear about.
+  test("an HTML page under another status is still reported", () => {
+    const html = { headers: { "content-type": "text/html" } };
+    expect(isGatewayBlockError(httpError(404, html))).toBe(false);
+    expect(isGatewayBlockError(httpError(500, html))).toBe(false);
+  });
+
+  test("is false for anything that is not an HTTP response", () => {
+    expect(isGatewayBlockError(httpError(undefined))).toBe(false);
+    expect(isGatewayBlockError(new Error("403"))).toBe(false);
+    expect(isGatewayBlockError("403")).toBe(false);
+  });
+});
+
+// A gateway does not always say what it sends. Going by the header alone, a
+// page sent without one, or under the wrong one, was reported as the
+// server's refusal.
+describe("isGatewayBlockError — a page the content type does not announce", () => {
+  const PAGE = "<!DOCTYPE html><html><head><title>Access denied</title></head>";
+  const blocked = (data: unknown, contentType?: string, status = 403) =>
+    isGatewayBlockError(
+      httpError(status, {
+        headers: contentType ? { "content-type": contentType } : {},
+        data,
+      }),
+    );
+
+  test("an HTML page with no content type is the gateway's refusal", () => {
+    expect(blocked(PAGE)).toBe(true);
+  });
+
+  test("an HTML page under a wrong content type is the gateway's refusal", () => {
+    expect(blocked(PAGE, "text/plain")).toBe(true);
+    expect(blocked(PAGE, "application/octet-stream")).toBe(true);
+  });
+
+  test("whitespace or a byte order mark before the page does not hide it", () => {
+    expect(blocked(`\n\n  \t${PAGE}`)).toBe(true);
+    expect(blocked(`﻿${PAGE}`)).toBe(true);
+    expect(blocked(`﻿\r\n${PAGE}`)).toBe(true);
+  });
+
+  test("a page that opens with its html tag, in any case", () => {
+    expect(blocked("<html><body>403 Forbidden</body></html>")).toBe(true);
+    expect(blocked('<HTML lang="en"><BODY>Forbidden')).toBe(true);
+    expect(blocked("<!doctype html>\n<html>")).toBe(true);
+    expect(
+      blocked('<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN"><html>'),
+    ).toBe(true);
+  });
+
+  // What Jellyfin and Seerr refuse with.
+  test("a JSON body is the server's refusal", () => {
+    expect(blocked('{"message":"Forbidden"}')).toBe(false);
+    expect(blocked('{"message":"Forbidden"}', "application/json")).toBe(false);
+    expect(blocked('"Forbidden"', "application/json")).toBe(false);
+  });
+
+  test("a plain-text body is the server's refusal", () => {
+    expect(blocked("Forbidden")).toBe(false);
+    expect(blocked("Forbidden", "text/plain")).toBe(false);
+  });
+
+  test("an empty body is the server's refusal", () => {
+    expect(blocked("")).toBe(false);
+    expect(blocked(undefined)).toBe(false);
+    expect(blocked(null)).toBe(false);
+  });
+
+  test("a body axios parsed into an object is the server's refusal", () => {
+    expect(blocked({ message: "Forbidden" })).toBe(false);
+    expect(blocked({ html: PAGE })).toBe(false);
+    expect(blocked([PAGE])).toBe(false);
+  });
+
+  test("an HTML page under another status is still reported", () => {
+    expect(blocked(PAGE, undefined, 404)).toBe(false);
+    expect(blocked(PAGE, undefined, 500)).toBe(false);
+    expect(blocked(PAGE, "text/plain", 400)).toBe(false);
+  });
+
+  // The body is a document, not a text that mentions one.
+  test("markup that is not the start of an HTML document does not count", () => {
+    expect(blocked("Forbidden <html>")).toBe(false);
+    expect(blocked("<?xml version='1.0'?><error>Forbidden</error>")).toBe(
+      false,
+    );
+    expect(blocked("<htmlish>Forbidden</htmlish>")).toBe(false);
+    expect(blocked("<!doctype htmlx>")).toBe(false);
+  });
+
+  // Only the start of the body is read, however large the page.
+  test("a page that starts beyond the first characters is not searched for", () => {
+    expect(blocked(`${" ".repeat(100)}${PAGE}`)).toBe(true);
+    expect(blocked(`${" ".repeat(5_000)}${PAGE}`)).toBe(false);
+    expect(blocked(`${PAGE}${"x".repeat(2_000_000)}`)).toBe(true);
+  });
+});
+
+describe("isEnvironmentError", () => {
+  test("covers an unreachable server and a gateway's refusal", () => {
+    expect(isEnvironmentError(httpError(undefined))).toBe(true);
+    expect(isEnvironmentError(httpError(530))).toBe(true);
+    expect(
+      isEnvironmentError(
+        httpError(403, { headers: { "content-type": "text/html" } }),
+      ),
+    ).toBe(true);
+    expect(
+      isEnvironmentError(
+        httpError(403, { data: "<!DOCTYPE html><html><body>Blocked" }),
+      ),
+    ).toBe(true);
+  });
+
+  test("leaves the answers of the server itself alone", () => {
+    expect(isEnvironmentError(httpError(403))).toBe(false);
+    expect(isEnvironmentError(httpError(404))).toBe(false);
+    expect(isEnvironmentError(httpError(500))).toBe(false);
+    expect(isEnvironmentError(new Error("boom"))).toBe(false);
+  });
 });
 
 describe("isAbortLikeError", () => {
@@ -142,50 +325,285 @@ describe("isAbortLikeError", () => {
 });
 
 describe("describeHttpResponse", () => {
-  test("keeps a plain-text reason and the Server header", () => {
+  const HOST = "my-private-host.duckdns.org";
+  const described = (
+    data: unknown,
+    contentType?: string,
+    { status = 500, server }: { status?: number; server?: string } = {},
+  ) =>
+    describeHttpResponse(
+      httpError(status, {
+        headers: {
+          ...(contentType ? { "content-type": contentType } : {}),
+          ...(server ? { server } : {}),
+        },
+        data,
+      }),
+    );
+
+  // How the 404 on POST /Sessions/Capabilities/Full was traced to Jellyfin's
+  // own ExceptionMiddleware and not to a proxy. Whatever else this function
+  // gives up, it has to keep saying this.
+  test("quotes the reason Jellyfin gives in fixed words, with the Server header", () => {
     expect(
-      describeHttpResponse(
-        httpError(404, {
-          headers: {
-            "content-type": "text/plain; charset=utf-8",
-            server: "Kestrel",
-          },
-          data: "Session not found.",
-        }),
-      ),
+      described("Error processing request.", "text/plain; charset=utf-8", {
+        status: 404,
+        server: "Kestrel",
+      }),
     ).toEqual({
       status: 404,
       contentType: "text/plain; charset=utf-8",
       server: "Kestrel",
-      body: "Session not found.",
+      bodyKind: "text",
+      bodyLength: 25,
+      body: "Error processing request.",
     });
   });
 
-  test("serialises and truncates a JSON body", () => {
-    const described = describeHttpResponse(
-      httpError(404, {
-        headers: { "content-type": "application/problem+json" },
-        data: { title: "Not Found", detail: "x".repeat(400) },
-      }),
+  test("knows the reason with a line break after it", () => {
+    expect(described("Error processing request.\n", "text/plain")?.body).toBe(
+      "Error processing request.",
     );
-    expect(described?.body).toMatch(/^\{"title":"Not Found"/);
-    expect(described?.body).toHaveLength(200);
   });
 
-  test("drops an HTML body but keeps the headers", () => {
-    expect(
-      describeHttpResponse(
-        httpError(404, {
-          headers: { "content-type": "text/html", server: "nginx/1.25" },
-          data: "<html><title>my-private-host.duckdns.org</title></html>",
-        }),
-      ),
-    ).toEqual({
-      status: 404,
-      contentType: "text/html",
-      server: "nginx/1.25",
-      body: undefined,
+  // Text a machine the app knows nothing about wrote. Each of these was sent
+  // as it is before, the first 200 characters of it, and none of them holds
+  // anything the scrubber recognises.
+  describe("plain text it does not know is described, not quoted", () => {
+    test.each([
+      // http-proxy-middleware, when it cannot reach its target
+      `Error occurred while trying to proxy: ${HOST}/Sessions/Capabilities/Full`,
+      "no healthy upstream for jellyfin.lan:8096",
+      "dial tcp [2001:db8::5]:8096: connect: connection refused",
+      // Jellyfin in development mode sends the exception message
+      "Could not find a part of the path '/media/Movies/Inception (2010)'.",
+      "User fredrik not found",
+      "Session not found.",
+    ])("%s", (text) => {
+      expect(described(text, "text/plain", { server: "nginx" })).toEqual({
+        status: 500,
+        contentType: "text/plain",
+        server: "nginx",
+        bodyKind: "text",
+        bodyLength: text.length,
+      });
     });
+
+    test("under no content type at all", () => {
+      expect(described(`upstream ${HOST} timed out`)).toEqual({
+        status: 500,
+        bodyKind: "text",
+        bodyLength: 46,
+      });
+    });
+
+    test("markup that is not an HTML document", () => {
+      const fragment = `<head><title>${HOST}</title></head>`;
+      expect(described(fragment, "text/plain")).toEqual({
+        status: 500,
+        contentType: "text/plain",
+        bodyKind: "text",
+        bodyLength: fragment.length,
+      });
+    });
+  });
+
+  describe("a JSON body is described by its field names", () => {
+    test("ASP.NET problem details", () => {
+      expect(
+        described(
+          {
+            type: "https://tools.ietf.org/html/rfc9110#section-15.5.1",
+            title: "One or more validation errors occurred.",
+            status: 400,
+            errors: { "$.PlayableMediaTypes": ["The value 'x' is not valid."] },
+            traceId: "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-00",
+          },
+          "application/problem+json; charset=utf-8",
+          { status: 400, server: "Kestrel" },
+        ),
+      ).toEqual({
+        status: 400,
+        contentType: "application/problem+json; charset=utf-8",
+        server: "Kestrel",
+        bodyKind: "json",
+        bodyKeys: ["type", "title", "status", "errors", "traceId"],
+      });
+    });
+
+    test("a Seerr error", () => {
+      expect(
+        described(
+          { message: "Request for Inception already exists." },
+          "application/json",
+        ),
+      ).toEqual({
+        status: 500,
+        contentType: "application/json",
+        bodyKind: "json",
+        bodyKeys: ["message"],
+      });
+    });
+
+    // Cloudflare answers a client that accepts JSON, which axios does, with
+    // problem details of its own, and they carry the zone. Not an HTML page,
+    // so isGatewayBlockError does not see it and the failure is reported.
+    test("Cloudflare's own problem details name the field, not the zone", () => {
+      const result = described(
+        {
+          type: "https://developers.cloudflare.com/support/troubleshooting/http-status-codes/cloudflare-1xxx-errors/error-1020/",
+          title: "Error 1020: Access denied",
+          status: 403,
+          ray_id: "9d99a4434fz2d168",
+          zone: HOST,
+          cloudflare_error: true,
+        },
+        "application/problem+json; charset=utf-8",
+        { status: 403, server: "cloudflare" },
+      );
+      expect(result?.bodyKeys).toEqual([
+        "type",
+        "title",
+        "status",
+        "ray_id",
+        "zone",
+        "cloudflare_error",
+      ]);
+      expect(JSON.stringify(result)).not.toContain(HOST);
+    });
+
+    // A map keyed by something the server chose is data, not a field name.
+    test("a key that is not a plain field name is left out", () => {
+      expect(
+        described(
+          {
+            [HOST]: "down",
+            "192.168.1.5:8096": "down",
+            "a b": 1,
+            message: "x",
+          },
+          "application/json",
+        )?.bodyKeys,
+      ).toEqual(["message"]);
+      expect(
+        described({ [`k${"x".repeat(40)}`]: 1 }, "application/json")?.bodyKeys,
+      ).toEqual([]);
+    });
+
+    test("only the first field names are listed", () => {
+      const many = Object.fromEntries(
+        Array.from({ length: 40 }, (_, i) => [`field${i}`, i]),
+      );
+      expect(described(many, "application/json")?.bodyKeys).toHaveLength(12);
+    });
+
+    test("an array has no field names to give", () => {
+      expect(described([{ host: HOST }], "application/json")).toEqual({
+        status: 500,
+        contentType: "application/json",
+        bodyKind: "json",
+      });
+    });
+
+    // axios leaves a body it could not parse as the text it was.
+    test("JSON that arrives as text is text", () => {
+      expect(described(`{"zone":"${HOST}"`, "application/json")).toEqual({
+        status: 500,
+        contentType: "application/json",
+        bodyKind: "text",
+        bodyLength: 37,
+      });
+    });
+  });
+
+  // A proxy does not always label its page as one, and the content type was
+  // all that kept a page out: under text/plain or a JSON type the start of it
+  // went onto the event, with the host it names.
+  describe("an HTML page", () => {
+    const PAGE = `<!DOCTYPE html><html><head><title>${HOST} | 500</title>`;
+
+    test("is told by its content type", () => {
+      expect(
+        described(`<center>${HOST}</center>`, "text/html", {
+          status: 404,
+          server: "nginx/1.25",
+        }),
+      ).toEqual({
+        status: 404,
+        contentType: "text/html",
+        server: "nginx/1.25",
+        bodyKind: "html",
+        bodyLength: 44,
+      });
+    });
+
+    test.each([
+      "text/plain",
+      "text/plain; charset=utf-8",
+      "application/json",
+      "application/problem+json",
+    ])("is told by how it starts when sent as %s", (contentType) => {
+      expect(described(PAGE, contentType, { server: "nginx" })).toEqual({
+        status: 500,
+        contentType,
+        server: "nginx",
+        bodyKind: "html",
+        bodyLength: PAGE.length,
+      });
+    });
+
+    test("is told behind whitespace or a byte order mark", () => {
+      expect(described(`\r\n  ${PAGE}`, "text/plain")?.bodyKind).toBe("html");
+      expect(described(`﻿${PAGE}`, "text/plain")?.bodyKind).toBe("html");
+    });
+
+    test("is told when it opens with its html tag", () => {
+      expect(
+        described(`<html><body>${HOST}</body></html>`, "text/plain")?.bodyKind,
+      ).toBe("html");
+    });
+  });
+
+  // Jellyfin refuses with a status and nothing else.
+  test("an empty body is said to be empty", () => {
+    for (const data of [undefined, null, ""]) {
+      expect(described(data, undefined, { status: 403 })).toEqual({
+        status: 403,
+        bodyKind: "empty",
+      });
+    }
+  });
+
+  test("a body that is neither text nor JSON is only said to be there", () => {
+    expect(described(new ArrayBuffer(8), "application/octet-stream")).toEqual({
+      status: 500,
+      contentType: "application/octet-stream",
+      bodyKind: "other",
+    });
+    expect(described(42, "application/json")?.bodyKind).toBe("other");
+  });
+
+  // The sweep behind all of the above: nothing of a body is repeated unless
+  // it is one of the reasons listed by name.
+  test("no body leaves anything of itself but a known reason", () => {
+    const secret = `${HOST} Inception fredrik`;
+    for (const data of [
+      secret,
+      `<html>${secret}`,
+      { message: secret, [secret]: secret },
+      [secret],
+    ]) {
+      for (const contentType of [
+        undefined,
+        "text/plain",
+        "text/html",
+        "application/json",
+        "application/problem+json",
+      ]) {
+        const out = JSON.stringify(described(data, contentType));
+        expect(out).not.toMatch(/duckdns|Inception|fredrik/);
+      }
+    }
   });
 
   test("is undefined without a response", () => {

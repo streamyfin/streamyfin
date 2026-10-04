@@ -19,6 +19,10 @@ import { getJellyfinHeaders, hasHeaders } from "@/utils/customHeaders";
 import { getOrSetDeviceId } from "@/utils/device";
 import { describeHttpResponse } from "@/utils/errors";
 import { getWebSocketUrl } from "@/utils/jellyfin/getWebSocketUrl";
+import {
+  createSocketFailureRecorder,
+  reportSocketGiveUp,
+} from "@/utils/jellyfin/socketFailure";
 import { logAndCaptureError, writeErrorLog } from "@/utils/log";
 
 // Query keys that depend on the set of library items and should be refreshed
@@ -225,9 +229,12 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
       }, 30000);
     };
 
-    newWebSocket.onerror = () => {
+    const failure = createSocketFailureRecorder();
+
+    newWebSocket.onerror = (event) => {
       // Don't log errors - this is expected when offline or server unreachable
       setIsConnected(false);
+      failure.error(event);
 
       // Replace any still-pending reconnect so only one is ever queued; the
       // previously untracked handle could leak and open a second socket.
@@ -247,20 +254,21 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
         // All retries burned while the SERVER is reachable (a real probe,
         // not just device connectivity): the server itself is rejecting the
         // socket, which silently kills remote control and live updates
-        // until the next app foreground.
+        // until the next app foreground. Reported on the next tick: the
+        // close event that follows this one is what brings the reason, and
+        // the reason is what keeps every proxy that drops the upgrade from
+        // piling onto the real bugs.
         reportedSocketGiveUpRef.current = true;
-        logAndCaptureError(
-          "WebSocket gave up reconnecting while server is reachable",
-          null,
-        );
+        setTimeout(() => reportSocketGiveUp(failure.describe()), 0);
       }
     };
 
-    newWebSocket.onclose = () => {
+    newWebSocket.onclose = (event) => {
       if (keepAliveInterval) {
         clearInterval(keepAliveInterval);
       }
       setIsConnected(false);
+      failure.close(event);
     };
     newWebSocket.onmessage = (e) => {
       try {
@@ -397,10 +405,11 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
         // Connectivity failures are filtered centrally; 401 is routine
         // session expiry (the auth interceptor handles it). What remains is
         // a server rejection that silently breaks remote control — and the
-        // response's content type, Server header and plain-text reason are
-        // what tell Jellyfin's own "Session not found" apart from a proxy
+        // response's content type, Server header and the kind of body it
+        // came with are what tell Jellyfin's own refusal apart from a proxy
         // that blocks the POST, or turns it into a GET via an http→https
-        // redirect (405).
+        // redirect (405). The body itself is not sent: describeHttpResponse
+        // only quotes a reason it knows to be fixed words.
         if (isAxiosError(error) && error.response?.status === 401) return;
         if (isAxiosError(error) && error.response?.status === 404) {
           // Jellyfin's own ExceptionMiddleware answers 404 ("Error processing
