@@ -1,34 +1,22 @@
+import { setJellyfinHeaders } from "@/test-utils/customHeaders";
+import { makeApi } from "@/test-utils/jellyfinApi";
 import {
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  mock,
-  spyOn,
-  test,
-} from "bun:test";
-import {
-  setJellyfinHeaders,
-  stubCustomHeaders,
-} from "@/test-utils/customHeaders";
+  reportOrphanedReceiverStop,
+  toReceiverDeviceName,
+} from "./reportOrphanedReceiverStop";
 
-stubCustomHeaders();
+jest.mock("@/utils/customHeaders", () =>
+  jest.requireActual("@/test-utils/customHeaders").customHeadersModule(),
+);
 
 // The real waits are 3 s and 15 s; the connection-loss path is about what is
 // compared between the two reads, not how long it waits. Kept above zero so a
 // wait sneaking into the stopped-casting path still shows as a delayed timer.
-mock.module("@/constants/Cast", () => ({
-  JELLYFIN_RECEIVER_CLIENT: "Chromecast",
-  RECEIVER_ERROR_WINDOW_MS: 5,
-  RECEIVER_MAX_QUEUE_ITEMS: 100,
+jest.mock("@/constants/Cast", () => ({
+  ...jest.requireActual("@/constants/Cast"),
   RECEIVER_STOP_GRACE_MS: 5,
   RECEIVER_LIVENESS_WINDOW_MS: 5,
 }));
-
-const { reportOrphanedReceiverStop, toReceiverDeviceName } = await import(
-  "./reportOrphanedReceiverStop"
-);
-const { makeApi } = await import("@/test-utils/jellyfinApi");
 
 const receiverSession = (overrides: Record<string, unknown> = {}) => ({
   Id: "session-tv",
@@ -51,16 +39,18 @@ const phoneSession = {
   DeviceId: "phone-1",
 };
 
-let fetchMock: ReturnType<typeof spyOn<typeof globalThis, "fetch">>;
+let fetchMock: jest.SpiedFunction<typeof fetch>;
 
 beforeEach(() => {
-  fetchMock = spyOn(globalThis, "fetch").mockResolvedValue(
-    new Response(null, { status: 204 }),
-  );
+  // No proxy headers unless a test sets some.
+  setJellyfinHeaders();
+  fetchMock = jest
+    .spyOn(globalThis, "fetch")
+    .mockResolvedValue(new Response(null, { status: 204 }));
 });
 
 afterEach(() => {
-  mock.restore();
+  jest.restoreAllMocks();
 });
 
 const ended = (
@@ -109,7 +99,7 @@ describe("reportOrphanedReceiverStop", () => {
     // Android does not fire delayed timers while the app is in the background,
     // and stopping a cast is usually followed by leaving the app: a delayed
     // timer on this path froze the report until the app was reopened.
-    const setTimeoutSpy = spyOn(globalThis, "setTimeout");
+    const setTimeoutSpy = jest.spyOn(globalThis, "setTimeout");
     const api = makeApi();
     api.mock.onGet(/\/Sessions/).reply(200, [receiverSession()]);
 
@@ -169,9 +159,7 @@ describe("reportOrphanedReceiverStop", () => {
     const { headers } = sentRequest();
     expect(headers["CF-Access-Client-Id"]).toBe("gateway");
     expect(headers.authorization).toBeUndefined();
-    expect(headers.Authorization).toStartWith(
-      'MediaBrowser Client="Chromecast"',
-    );
+    expect(headers.Authorization).toMatch(/^MediaBrowser Client="Chromecast"/);
   });
 
   test("after a connection loss, leaves a receiver that still checks in", async () => {

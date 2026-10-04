@@ -1,47 +1,5 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
-
-type FakeChannel = {
-  connected: boolean;
-  sendMessage: ReturnType<typeof mock>;
-  remove: ReturnType<typeof mock>;
-  receive: (message: unknown) => void;
-};
-
-let channels: FakeChannel[] = [];
-let connectOnAdd = true;
-let sessionId: string | undefined = "session-1";
-let holdAdd: Promise<void> | null = null;
-let friendlyName: string | undefined = "Living Room TV";
-
-mock.module("react-native-google-cast", () => ({
-  default: {
-    getSessionManager: () => ({
-      getCurrentCastSession: async () =>
-        sessionId === undefined
-          ? null
-          : {
-              id: sessionId,
-              getCastDevice: async () =>
-                friendlyName === undefined ? null : { friendlyName },
-            },
-    }),
-  },
-  CastChannel: {
-    add: mock(async (_namespace: string, onMessage: (m: unknown) => void) => {
-      if (holdAdd) await holdAdd;
-      const channel: FakeChannel = {
-        connected: connectOnAdd,
-        sendMessage: mock(async () => {}),
-        remove: mock(async () => {}),
-        receive: onMessage,
-      };
-      channels.push(channel);
-      return channel;
-    }),
-  },
-}));
-
-const {
+import { makeApi } from "@/test-utils/jellyfinApi";
+import {
   currentReceiverName,
   JELLYFIN_CAST_NAMESPACE,
   playOnJellyfinReceiver,
@@ -49,10 +7,57 @@ const {
   sendJellyfinCastCommand,
   subscribeToJellyfinReceiverMessages,
   watchReceiverLoadErrors,
-} = await import("./jellyfinReceiver");
-const { makeApi } = await import("@/test-utils/jellyfinApi");
+} from "./jellyfinReceiver";
 
-const lastChannel = () => channels[channels.length - 1];
+type FakeChannel = {
+  connected: boolean;
+  sendMessage: jest.Mock;
+  remove: jest.Mock;
+  receive: (message: unknown) => void;
+};
+
+// Read by the Cast double below. Jest hoists `jest.mock` above the imports and
+// only lets its factory reach variables named `mock*`.
+let mockChannels: FakeChannel[] = [];
+let mockConnectOnAdd = true;
+let mockSessionId: string | undefined = "session-1";
+let mockHoldAdd: Promise<void> | null = null;
+let mockFriendlyName: string | undefined = "Living Room TV";
+
+jest.mock("react-native-google-cast", () => ({
+  __esModule: true,
+  default: {
+    getSessionManager: () => ({
+      getCurrentCastSession: async () =>
+        mockSessionId === undefined
+          ? null
+          : {
+              id: mockSessionId,
+              getCastDevice: async () =>
+                mockFriendlyName === undefined
+                  ? null
+                  : { friendlyName: mockFriendlyName },
+            },
+    }),
+  },
+  CastChannel: {
+    add: jest.fn(
+      async (_namespace: string, onMessage: (m: unknown) => void) => {
+        if (mockHoldAdd) await mockHoldAdd;
+        const channel: FakeChannel = {
+          connected: mockConnectOnAdd,
+          sendMessage: jest.fn(async () => {}),
+          remove: jest.fn(async () => {}),
+          receive: onMessage,
+        };
+        mockChannels.push(channel);
+        return channel;
+      },
+    ),
+  },
+}));
+
+const lastChannel = () => mockChannels[mockChannels.length - 1];
 
 let nextSession = 0;
 
@@ -60,11 +65,11 @@ beforeEach(() => {
   // The module caches its channel per Cast session, so each test starts on a
   // session of its own rather than on whatever the last one left open.
   nextSession += 1;
-  sessionId = `session-${nextSession}`;
-  friendlyName = "Living Room TV";
-  channels = [];
-  connectOnAdd = true;
-  holdAdd = null;
+  mockSessionId = `session-${nextSession}`;
+  mockFriendlyName = "Living Room TV";
+  mockChannels = [];
+  mockConnectOnAdd = true;
+  mockHoldAdd = null;
 });
 
 describe("playOnJellyfinReceiver", () => {
@@ -132,7 +137,7 @@ describe("receiver channel", () => {
     await sendJellyfinCastCommand("Pause", session);
     await sendJellyfinCastCommand("Unpause", session);
 
-    expect(channels).toHaveLength(1);
+    expect(mockChannels).toHaveLength(1);
     expect(JELLYFIN_CAST_NAMESPACE).toBe("urn:x-cast:com.connectsdk");
   });
 
@@ -143,10 +148,10 @@ describe("receiver channel", () => {
 
     await sendJellyfinCastCommand("Pause", session);
     const previous = lastChannel();
-    sessionId = "session-next";
+    mockSessionId = "session-next";
     await sendJellyfinCastCommand("Unpause", session);
 
-    expect(channels).toHaveLength(2);
+    expect(mockChannels).toHaveLength(2);
     expect(previous.remove).toHaveBeenCalled();
   });
 
@@ -154,7 +159,7 @@ describe("receiver channel", () => {
     // Both would otherwise register on the session, with only the last one
     // tracked and the other left behind for good.
     let release = () => {};
-    holdAdd = new Promise<void>((resolve) => {
+    mockHoldAdd = new Promise<void>((resolve) => {
       release = resolve;
     });
     const session = { api: makeApi(), userId: "user-1" };
@@ -166,7 +171,7 @@ describe("receiver channel", () => {
     release();
     await commands;
 
-    expect(channels).toHaveLength(1);
+    expect(mockChannels).toHaveLength(1);
     expect(lastChannel().sendMessage).toHaveBeenCalledTimes(2);
   });
 
@@ -174,7 +179,7 @@ describe("receiver channel", () => {
     // The session can change while the open is pending; the old session's
     // channel would reach the receiver that is no longer there.
     let release = () => {};
-    holdAdd = new Promise<void>((resolve) => {
+    mockHoldAdd = new Promise<void>((resolve) => {
       release = resolve;
     });
     const command = sendJellyfinCastCommand("Pause", {
@@ -182,19 +187,19 @@ describe("receiver channel", () => {
       userId: "user-1",
     });
 
-    sessionId = "session-after";
-    holdAdd = null;
+    mockSessionId = "session-after";
+    mockHoldAdd = null;
     release();
     await command;
 
-    expect(channels).toHaveLength(2);
-    expect(channels[0].sendMessage).not.toHaveBeenCalled();
-    expect(channels[0].remove).toHaveBeenCalled();
-    expect(channels[1].sendMessage).toHaveBeenCalledTimes(1);
+    expect(mockChannels).toHaveLength(2);
+    expect(mockChannels[0].sendMessage).not.toHaveBeenCalled();
+    expect(mockChannels[0].remove).toHaveBeenCalled();
+    expect(mockChannels[1].sendMessage).toHaveBeenCalledTimes(1);
   });
 
   test("refuses to send when the channel does not connect", async () => {
-    connectOnAdd = false;
+    mockConnectOnAdd = false;
 
     await expect(
       sendJellyfinCastCommand("Pause", { api: makeApi(), userId: "user-1" }),
@@ -325,11 +330,11 @@ describe("currentReceiverName", () => {
   });
 
   test("is undefined with no session or no device name", async () => {
-    sessionId = undefined;
+    mockSessionId = undefined;
     expect(await currentReceiverName()).toBeUndefined();
 
-    sessionId = "session-x";
-    friendlyName = undefined;
+    mockSessionId = "session-x";
+    mockFriendlyName = undefined;
     expect(await currentReceiverName()).toBeUndefined();
   });
 });
