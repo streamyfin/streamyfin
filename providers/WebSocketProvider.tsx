@@ -398,10 +398,11 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
         // Connectivity failures are filtered centrally; 401 is routine
         // session expiry (the auth interceptor handles it). What remains is
         // a server rejection that silently breaks remote control — and the
-        // response's content type, Server header and plain-text reason are
-        // what tell Jellyfin's own "Session not found" apart from a proxy
+        // response's content type, Server header and the kind of body it
+        // came with are what tell Jellyfin's own refusal apart from a proxy
         // that blocks the POST, or turns it into a GET via an http→https
-        // redirect (405).
+        // redirect (405). The body itself is not sent: describeHttpResponse
+        // only quotes a reason it knows to be fixed words.
         if (isAxiosError(error) && error.response?.status === 401) return;
         if (isAxiosError(error) && error.response?.status === 404) {
           // Jellyfin's own ExceptionMiddleware answers 404 ("Error processing
