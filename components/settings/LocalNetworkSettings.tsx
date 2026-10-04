@@ -224,29 +224,29 @@ export function LocalNetworkSettings(): React.ReactElement | null {
 
       {config.enabled && (
         <View className='pt-4'>
-          <ListGroup
-            title={t("home.settings.network.local_url")}
-            description={
-              <Text className='text-[#8E8D91] text-xs'>
-                {t("home.settings.network.local_url_hint")}
+          {/* Not a ListGroup: its card clips whatever sits under the input,
+              and the field's status line and the warning below belong under
+              the box, next to the hint, not inside it. */}
+          <View>
+            <Text className='ml-4 mb-1 uppercase text-[#8E8D91] text-xs'>
+              {t("home.settings.network.local_url")}
+            </Text>
+            <ServerUrlField
+              value={localUrlDraft}
+              onChangeText={setLocalUrlDraft}
+              onCommit={handleLocalUrlCommit}
+              probe={jellyfinProbe}
+              placeholder={t("home.settings.network.local_url_placeholder")}
+            />
+            {localUrlUnusable && (
+              <Text className='text-xs text-amber-400 mt-2 px-4'>
+                {t("home.settings.network.local_url_unusable")}
               </Text>
-            }
-          >
-            <View className=''>
-              <ServerUrlField
-                value={localUrlDraft}
-                onChangeText={setLocalUrlDraft}
-                onCommit={handleLocalUrlCommit}
-                probe={jellyfinProbe}
-                placeholder={t("home.settings.network.local_url_placeholder")}
-              />
-              {localUrlUnusable && (
-                <Text className='text-xs text-amber-400 mt-2'>
-                  {t("home.settings.network.local_url_unusable")}
-                </Text>
-              )}
-            </View>
-          </ListGroup>
+            )}
+            <Text className='text-[#8E8D91] text-xs mt-2 px-4'>
+              {t("home.settings.network.local_url_hint")}
+            </Text>
+          </View>
 
           <ListGroup
             title={t("home.settings.network.home_wifi_networks")}
