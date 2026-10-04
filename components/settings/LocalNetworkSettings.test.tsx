@@ -60,6 +60,7 @@ const REMOTE_URL = "https://jellyfin.example.com";
 const PLACEHOLDER = "home.settings.network.local_url_placeholder";
 const NOT_SAVED = "home.settings.network.local_url_not_saved";
 const UNUSABLE = "home.settings.network.local_url_unusable";
+const INVALID = "server_url.invalid_url";
 
 /** A signed-in install with auto-switching on and this local URL stored. */
 const storedLocalUrl = (localUrl: string) => {
@@ -110,6 +111,82 @@ describe("LocalNetworkSettings", () => {
       );
       expect(savedLocalUrl()).toBe("http://10.0.0.2:8096");
       expect(mockRefreshUrlState).not.toHaveBeenCalled();
+    },
+  );
+
+  // Return submits and, by dismissing the keyboard, blurs. A failure that came
+  // back before that blur had already reopened the field for a retry, so the
+  // blur resolved the same address again and the toast showed twice.
+  test("says once that an address was not saved when Return also blurs the field", async () => {
+    storedLocalUrl("http://10.0.0.2:8096");
+    mockProbe.mockResolvedValue({ status: "unreachable" });
+    await render(<LocalNetworkSettings />);
+    const field = screen.getByPlaceholderText(PLACEHOLDER);
+
+    await fireEvent.changeText(field, "localhost:8096");
+    await fireEvent(field, "submitEditing");
+    await waitFor(() => expect(mockToastError).toHaveBeenCalledTimes(1));
+    const probesForOneAttempt = mockProbe.mock.calls.length;
+    await fireEvent(field, "blur");
+
+    // A second attempt would have started its probes by now.
+    expect(mockProbe).toHaveBeenCalledTimes(probesForOneAttempt);
+    expect(mockToastError).toHaveBeenCalledTimes(1);
+  });
+
+  // The other half of the rule above: the server may only have been slow to
+  // come up, so leaving the field again without editing it tries once more.
+  test("tries an unanswered address again on a later blur", async () => {
+    storedLocalUrl("");
+    mockProbe.mockResolvedValue({ status: "unreachable" });
+    await render(<LocalNetworkSettings />);
+    const field = screen.getByPlaceholderText(PLACEHOLDER);
+
+    await fireEvent.changeText(field, "192.168.1.10:8096");
+    await fireEvent(field, "submitEditing");
+    await waitFor(() => expect(mockToastError).toHaveBeenCalledTimes(1));
+    await fireEvent(field, "blur");
+
+    mockProbe.mockImplementation(async (url) =>
+      url.startsWith("http://") ? { status: "ok" } : { status: "unreachable" },
+    );
+    await fireEvent(field, "blur");
+
+    await waitFor(() =>
+      expect(savedLocalUrl()).toBe("http://192.168.1.10:8096"),
+    );
+    expect(mockToastError).toHaveBeenCalledTimes(1);
+  });
+
+  test("clears the local URL once when Return also blurs the emptied field", async () => {
+    storedLocalUrl("http://10.0.0.2:8096");
+    await render(<LocalNetworkSettings />);
+    const field = await screen.findByDisplayValue("http://10.0.0.2:8096");
+
+    await fireEvent.changeText(field, "");
+    await fireEvent(field, "submitEditing");
+    await fireEvent(field, "blur");
+
+    expect(savedLocalUrl()).toBe("");
+    expect(mockRefreshUrlState).toHaveBeenCalledTimes(1);
+  });
+
+  // A port past 65535 with the scheme typed: nothing could answer there, yet
+  // the field read "Server unreachable" and the toast asked for the http://
+  // the address already started with.
+  test.each(["http://192.168.1.105:80969", "192.168.1.105:80969"])(
+    "calls %p invalid instead of unanswered, and does not save it",
+    async (address) => {
+      storedLocalUrl("http://10.0.0.2:8096");
+      mockProbe.mockResolvedValue({ status: "unreachable" });
+      await render(<LocalNetworkSettings />);
+
+      await enter(address);
+
+      expect(await screen.findByText(INVALID)).toBeTruthy();
+      expect(mockToastError).not.toHaveBeenCalled();
+      expect(mockProbe).not.toHaveBeenCalled();
+      expect(savedLocalUrl()).toBe("http://10.0.0.2:8096");
     },
   );
 
