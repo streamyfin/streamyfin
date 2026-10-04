@@ -70,6 +70,18 @@ describe("logAndCaptureError — what is kept local", () => {
     ]);
   });
 
+  // REACT-NATIVE-2X: a token that expired mid-session failed whichever
+  // request was in flight, and each call site that logged it opened an issue
+  // for what is the user being signed out.
+  test("a 401 is the session ending and is not sent", () => {
+    logAndCaptureError(
+      "Fetching remote item during playback sync failed",
+      httpError(newServer(), "/Items/abc", 401),
+    );
+    expect(mockCaptured).toHaveLength(0);
+    expect(readFromLog()).toHaveLength(1);
+  });
+
   test("a Cloudflare tunnel that is down is not sent", () => {
     logAndCaptureError("Sessions", httpError(newServer(), "/Sessions", 530));
     expect(mockCaptured).toHaveLength(0);
@@ -117,6 +129,12 @@ describe("logAndCaptureError — what is kept local", () => {
     );
     expect(contexts).toEqual({
       http: { method: "GET", path: "/Sessions", status: 403 },
+      http_response: {
+        status: 403,
+        contentType: "text/plain",
+        bodyKind: "text",
+        bodyLength: 41,
+      },
     });
   });
 
@@ -128,6 +146,37 @@ describe("logAndCaptureError — what is kept local", () => {
       }),
     );
     expect(mockCaptured).toHaveLength(1);
+  });
+});
+
+describe("logAndCaptureError — what goes with an HTTP failure", () => {
+  // A 400 on a Jellyfin route reads the same in Sentry whether the app sent
+  // a parameter the server does not know or a proxy refused the request.
+  // Who answered, and which parameters it named, is what tells them apart.
+  test("the server's answer is described next to the route", () => {
+    logAndCaptureError(
+      "Fetching items failed",
+      httpError(
+        newServer(),
+        "/Items",
+        400,
+        { "content-type": "application/problem+json", server: "Kestrel" },
+        {
+          title: "One or more validation errors occurred.",
+          status: 400,
+          errors: { sortBy: ["The value 'Foo' is not valid."] },
+        },
+      ),
+    );
+    expect(mockCaptured).toHaveLength(1);
+    expect(mockCaptured[0].contexts.http_response).toEqual({
+      status: 400,
+      contentType: "application/problem+json",
+      server: "Kestrel",
+      bodyKind: "json",
+      bodyKeys: ["title", "status", "errors"],
+      errorFields: ["sortBy"],
+    });
   });
 });
 

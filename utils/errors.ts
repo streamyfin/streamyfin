@@ -215,6 +215,11 @@ const FIXED_RESPONSE_REASONS: ReadonlySet<string> = new Set([
 // data, and its keys do not pass.
 const FIELD_NAME = /^[A-Za-z_][A-Za-z0-9_]{0,31}$/;
 const MAX_RESPONSE_BODY_KEYS = 12;
+// A key of the `errors` object in ASP.NET validation problem details: the
+// request parameter the server could not bind ("sortBy"), or the body field
+// ("$.PlayableMediaTypes"). Dots are not let through beyond that prefix, so a
+// host name used as a key does not pass.
+const ERROR_FIELD_NAME = /^(?:\$\.)?[A-Za-z_][A-Za-z0-9_]{0,31}$/;
 
 type ResponseBodyDescription = {
   bodyKind: "empty" | "html" | "text" | "json" | "other";
@@ -222,6 +227,11 @@ type ResponseBodyDescription = {
   bodyLength?: number;
   /** The field names of a JSON object, in the order they came. */
   bodyKeys?: string[];
+  /**
+   * The names under a JSON object's `errors`: for a 400 from Jellyfin, the
+   * parameters it rejected, which is what tells an app bug from a server one.
+   */
+  errorFields?: string[];
   /** The body itself, only when it is one of FIXED_RESPONSE_REASONS. */
   body?: string;
 };
@@ -231,6 +241,11 @@ export type HttpResponseDescription = ResponseBodyDescription & {
   contentType?: string;
   server?: string;
 };
+
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" &&
+  value !== null &&
+  Object.getPrototypeOf(value) === Object.prototype;
 
 const describeResponseBody = (
   data: unknown,
@@ -252,12 +267,19 @@ const describeResponseBody = (
   }
   // What axios makes of a JSON body.
   if (Array.isArray(data)) return { bodyKind: "json" };
-  if (Object.getPrototypeOf(data) === Object.prototype) {
+  if (isPlainObject(data)) {
+    const { errors } = data;
+    const errorFields = isPlainObject(errors)
+      ? Object.keys(errors)
+          .filter((key) => ERROR_FIELD_NAME.test(key))
+          .slice(0, MAX_RESPONSE_BODY_KEYS)
+      : [];
     return {
       bodyKind: "json",
-      bodyKeys: Object.keys(data as object)
+      bodyKeys: Object.keys(data)
         .filter((key) => FIELD_NAME.test(key))
         .slice(0, MAX_RESPONSE_BODY_KEYS),
+      ...(errorFields.length > 0 ? { errorFields } : {}),
     };
   }
   return { bodyKind: "other" };

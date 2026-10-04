@@ -428,7 +428,33 @@ describe("describeHttpResponse", () => {
         server: "Kestrel",
         bodyKind: "json",
         bodyKeys: ["type", "title", "status", "errors", "traceId"],
+        errorFields: ["$.PlayableMediaTypes"],
       });
+    });
+
+    // The names under `errors` are the parameters the server rejected. They
+    // are only names when they read as one: a server is free to key the
+    // object by anything, a host among them.
+    test("the rejected parameters are named, and nothing that is not a name", () => {
+      const result = described(
+        {
+          errors: {
+            sortBy: ["not valid"],
+            "my-host.example.org": ["unreachable"],
+            "/media/films": ["missing"],
+          },
+        },
+        "application/problem+json",
+      );
+      expect(result?.errorFields).toEqual(["sortBy"]);
+      expect(JSON.stringify(result)).not.toContain("example.org");
+    });
+
+    test("an errors field that is not an object names nothing", () => {
+      expect(
+        described({ errors: ["my-host.example.org"] }, "application/json")
+          ?.errorFields,
+      ).toBeUndefined();
     });
 
     test("a Seerr error", () => {
