@@ -77,6 +77,9 @@ Three rules keep mocks from becoming the thing that breaks:
   empties it, and `secureStoreValues` seeds or reads it back.
 - `customHeadersModule()` stands for the `@/utils/customHeaders` barrel, with the pure
   helpers for real and the native side stubbed; `setJellyfinHeaders()` sets what it reports.
+- `tsxRequireHook` stands for `tsx/cjs` in every spec, wired once through
+  `moduleNameMapper` instead of per spec. A require hook registered from a spec lands on
+  the Jest worker's own loader and breaks whichever spec that worker loads next.
 
 A module double is wired the same way everywhere:
 
