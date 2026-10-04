@@ -49,6 +49,14 @@ page that is depends on the kind:
 Home only publishes movies and episodes today, so the last case is a guard. Publishing
 another container kind means giving it a landing in `itemPath.ts` first.
 
+A tile keeps the links it was published with until Home runs again, so a tile from an
+older build can still carry a play link for a container. `play.tsx` therefore asks the
+server what the id is before it opens a player
+([utils/tvDiscovery/playLanding.ts](../utils/tvDiscovery/playLanding.ts)) and sends a
+container to the same page its `route` would. The lookup gives up after
+`TOP_SHELF_PLAY_LOOKUP_TIMEOUT` and plays the link as it is, so an unreachable server
+cannot hold up the launch.
+
 How the platforms use the two links:
 
 - `tvOS`: `route` is the tile's display action (Select), `playRoute` its play action (the
