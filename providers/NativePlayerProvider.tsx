@@ -106,6 +106,7 @@ import {
   buildTrackMenus,
   type NativePlayerSessionSeed,
 } from "@/utils/nativePlayer/buildNativePlayerConfig";
+import { parseRemotePlayCommand } from "@/utils/nativePlayer/parseRemotePlayCommand";
 import {
   type PlayRequest,
   toDirectPlayerQuery,
@@ -312,25 +313,9 @@ const PlayCommandRouteFallback: React.FC<{
 
   useEffect(
     () =>
-      subscribe("Play", (data: any) => {
-        if (!data?.ItemIds?.length) return;
-        const req: PlayRequest = {
-          itemId: data.ItemIds[0],
-          audioIndex:
-            data.AudioStreamIndex !== undefined
-              ? Number(data.AudioStreamIndex)
-              : undefined,
-          subtitleIndex:
-            data.SubtitleStreamIndex !== undefined
-              ? Number(data.SubtitleStreamIndex)
-              : undefined,
-          mediaSourceId: data.MediaSourceId || undefined,
-          offline: false,
-          playbackPositionTicks:
-            data.StartPositionTicks !== undefined
-              ? Number(data.StartPositionTicks)
-              : undefined,
-        };
+      subscribe("Play", (data: unknown) => {
+        const req = parseRemotePlayCommand(data);
+        if (!req) return;
         router.push(
           `/(auth)/player/direct-player?${toDirectPlayerQuery(req)}` as any,
         );
@@ -1778,26 +1763,9 @@ const NativePlayerProviderInner: React.FC<{
   // the JS route when the native player declines.
   useEffect(
     () =>
-      subscribe("Play", (data: any) => {
-        if (!data?.ItemIds?.length) return;
-        const req: PlayRequest = {
-          itemId: data.ItemIds[0],
-          audioIndex:
-            data.AudioStreamIndex !== undefined
-              ? Number(data.AudioStreamIndex)
-              : undefined,
-          subtitleIndex:
-            data.SubtitleStreamIndex !== undefined
-              ? Number(data.SubtitleStreamIndex)
-              : undefined,
-          mediaSourceId: data.MediaSourceId || undefined,
-          offline: false,
-          // Previously dropped by WebSocketProvider's handler; pass through.
-          playbackPositionTicks:
-            data.StartPositionTicks !== undefined
-              ? Number(data.StartPositionTicks)
-              : undefined,
-        };
+      subscribe("Play", (data: unknown) => {
+        const req = parseRemotePlayCommand(data);
+        if (!req) return;
         void (async () => {
           // The WS Play path must pick the same player the play button would.
           const useNative = isNativeChromeActive(settingsRef.current);
