@@ -30,6 +30,7 @@ cadence meant knowing both existed, and nothing would have failed if only one ha
 | `constants/Values.ts` | Cross cutting app values with no better home (tab height, carousel height, sheet ratio) |
 | `constants/Colors.ts` | Colour tokens |
 | `constants/MediaTypes.ts` | Media type unions |
+| `constants/Images.ts` | Server image requests: the detail page logo height and the pixel caps on what is asked for |
 | `constants/TVSizes.ts` | TV poster sizes, gaps, padding, animation timings |
 | `constants/TVTypography.ts` | TV type scale and the `useScaledTVTypography` hook |
 | `constants/TVPosterSizes.ts` | TV poster size keys |

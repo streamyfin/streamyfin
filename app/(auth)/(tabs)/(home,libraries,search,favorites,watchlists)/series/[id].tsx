@@ -5,7 +5,7 @@ import { useAtom } from "jotai";
 import type React from "react";
 import { useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { Platform, View } from "react-native";
+import { Platform, useWindowDimensions, View } from "react-native";
 import { AddToFavorites } from "@/components/AddToFavorites";
 import { HeaderButtonGroup } from "@/components/common/HeaderButton";
 import { HeaderIcon } from "@/components/common/HeaderIcon";
@@ -20,6 +20,7 @@ import {
 import { SeriesHeader } from "@/components/series/SeriesHeader";
 import { TVSeriesPage } from "@/components/series/TVSeriesPage";
 import { Colors } from "@/constants/Colors";
+import { LOGO_HEIGHT } from "@/constants/Images";
 import { useLeaveWhenGone } from "@/hooks/useLeaveWhenGone";
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
@@ -30,13 +31,18 @@ import {
 } from "@/utils/downloads/offline-series";
 import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
+import { toImagePixels } from "@/utils/jellyfin/image/imagePixels";
 import { getUserItemData } from "@/utils/jellyfin/user-library/getUserItemData";
 import { storage } from "@/utils/mmkv";
 import { getSeriesPlaybackTarget } from "@/utils/seriesPlaybackTarget";
 
+// Height of the backdrop header, in layout points.
+const HEADER_HEIGHT = 400;
+
 const page: React.FC = () => {
   const navigation = useNavigation();
   const { t } = useTranslation();
+  const { width: windowWidth } = useWindowDimensions();
   const params = useLocalSearchParams();
   const {
     id: seriesId,
@@ -101,9 +107,10 @@ const page: React.FC = () => {
       api,
       item,
       quality: 90,
-      width: 1000,
+      width: toImagePixels(windowWidth),
+      height: toImagePixels(HEADER_HEIGHT),
     });
-  }, [isOffline, base64Image, api, item]);
+  }, [isOffline, base64Image, api, item, windowWidth]);
 
   const logoUrl = useMemo(() => {
     if (isOffline) {
@@ -223,7 +230,7 @@ const page: React.FC = () => {
   return (
     <OfflineModeProvider isOffline={isOffline}>
       <ParallaxScrollView
-        headerHeight={400}
+        headerHeight={HEADER_HEIGHT}
         headerImage={
           backdropUrl ? (
             <Image
@@ -252,7 +259,7 @@ const page: React.FC = () => {
                 uri: logoUrl,
               }}
               style={{
-                height: 130,
+                height: LOGO_HEIGHT,
                 width: "100%",
               }}
               contentFit='contain'
