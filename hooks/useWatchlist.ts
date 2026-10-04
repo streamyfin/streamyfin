@@ -1,9 +1,12 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { atom, useAtom } from "jotai";
+import { atom, useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner-native";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { useSettings } from "@/utils/atoms/settings";
+import { writeToLog } from "@/utils/log";
+import { removeWatchedFromWatchlist } from "@/utils/watchlistPrune";
 
 // Shared atom to store watchlist (Likes) status across all components
 // Maps itemId -> isWatchlisted
@@ -153,4 +156,53 @@ export const useWatchlist = (item: BaseItemDto) => {
     isPending: watchlistMutation.isPending,
     watchlistMutation,
   };
+};
+
+/**
+ * Returns a callback that takes finished items off the KefinTweaks watchlist:
+ * pass the ids of items just marked played or just stopped playing. A no-op
+ * unless KefinTweaks is on. Housekeeping, so it never throws: a failure is
+ * logged and the item simply stays watchlisted.
+ */
+export const usePruneWatchedFromWatchlist = () => {
+  const queryClient = useQueryClient();
+  const api = useAtomValue(apiAtom);
+  const user = useAtomValue(userAtom);
+  const setWatchlist = useSetAtom(watchlistAtom);
+  const { settings } = useSettings();
+  const enabled = settings?.useKefinTweaks ?? false;
+
+  return useCallback(
+    async (itemIds: string[]) => {
+      const userId = user?.Id;
+      if (!enabled || !api || !userId || itemIds.length === 0) return;
+
+      try {
+        const removed = await removeWatchedFromWatchlist(api, userId, itemIds);
+        if (removed.length === 0) return;
+
+        // Mounted toggles read the shared atom first, so flip it here rather
+        // than wait for every item query to refetch.
+        setWatchlist((prev) => {
+          const next = { ...prev };
+          for (const id of removed) next[`${userId}:${id}`] = false;
+          return next;
+        });
+        for (const id of removed) {
+          queryClient.invalidateQueries({ queryKey: ["item", id] });
+        }
+        queryClient.invalidateQueries({ queryKey: ["home", "watchlist"] });
+        queryClient.invalidateQueries({ queryKey: ["favorites", "see-all"] });
+        // Season toggles read their season from the series page's list.
+        queryClient.invalidateQueries({ queryKey: ["seasons"] });
+      } catch (error) {
+        writeToLog(
+          "WARN",
+          "Removing watched items from the watchlist failed",
+          error instanceof Error ? error.message : String(error),
+        );
+      }
+    },
+    [enabled, api, user?.Id, setWatchlist, queryClient],
+  );
 };

@@ -5,12 +5,14 @@ import { logAndCaptureError } from "@/utils/log";
 import { useHaptic } from "./useHaptic";
 import { usePlaybackManager } from "./usePlaybackManager";
 import { useInvalidatePlaybackProgressCache } from "./useRevalidatePlaybackProgressCache";
+import { usePruneWatchedFromWatchlist } from "./useWatchlist";
 
 export const useMarkAsPlayed = (items: BaseItemDto[]) => {
   const queryClient = useQueryClient();
   const lightHapticFeedback = useHaptic("light");
   const { markItemPlayed, markItemUnplayed } = usePlaybackManager();
   const invalidatePlaybackProgressCache = useInvalidatePlaybackProgressCache();
+  const pruneWatchedFromWatchlist = usePruneWatchedFromWatchlist();
 
   const toggle = useCallback(
     async (played: boolean) => {
@@ -51,6 +53,9 @@ export const useMarkAsPlayed = (items: BaseItemDto[]) => {
             return played ? markItemPlayed(item.Id) : markItemUnplayed(item.Id);
           }),
         );
+        // Watched means done with it: drop it, and any season or show it
+        // finished, from the KefinTweaks watchlist.
+        if (played) void pruneWatchedFromWatchlist(itemIds);
       } catch (error) {
         // The optimistic update is rolled back, so without a report this
         // user action fails with zero trace anywhere.
@@ -76,6 +81,7 @@ export const useMarkAsPlayed = (items: BaseItemDto[]) => {
       lightHapticFeedback,
       markItemPlayed,
       markItemUnplayed,
+      pruneWatchedFromWatchlist,
       queryClient,
     ],
   );

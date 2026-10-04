@@ -50,6 +50,7 @@ import { useOrientation } from "@/hooks/useOrientation";
 import { usePlaybackManager } from "@/hooks/usePlaybackManager";
 import usePlaybackSpeed from "@/hooks/usePlaybackSpeed";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
+import { usePruneWatchedFromWatchlist } from "@/hooks/useWatchlist";
 import { useWebSocket } from "@/hooks/useWebsockets";
 import {
   type MpvOnErrorEventPayload,
@@ -171,6 +172,7 @@ export default function DirectPlayerPage() {
   const { pauseInactivityTimer, resumeInactivityTimer } = useInactivity();
 
   const revalidateProgressCache = useInvalidatePlaybackProgressCache();
+  const pruneWatchedFromWatchlist = usePruneWatchedFromWatchlist();
 
   const lightHapticFeedback = useHaptic("light");
 
@@ -685,6 +687,9 @@ export default function DirectPlayerPage() {
           LiveStreamId: stream.mediaSource?.LiveStreamId ?? undefined,
         },
       });
+      // The server has now decided whether the item counts as played; a
+      // finished one leaves the KefinTweaks watchlist.
+      void pruneWatchedFromWatchlist([item.Id]);
     } catch (error) {
       // Un-mark the session so a later teardown path can retry: e.g. a failed
       // report from a WebSocket remote-stop (player still mounted) must not
@@ -699,7 +704,15 @@ export default function DirectPlayerPage() {
         error instanceof Error ? error.message : String(error),
       );
     }
-  }, [api, item, mediaSourceId, stream, progress, isConnected]);
+  }, [
+    api,
+    item,
+    mediaSourceId,
+    stream,
+    progress,
+    isConnected,
+    pruneWatchedFromWatchlist,
+  ]);
 
   const stop = useCallback(() => {
     // Update URL with final playback position before stopping
