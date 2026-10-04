@@ -403,6 +403,27 @@ describe("startBackgroundDownload", () => {
     expect(mockDownloader.enqueueDownload).toHaveBeenCalledTimes(1);
   });
 
+  // For item types other than Movie and Episode the video is named after the Jellyfin item id,
+  // which the server chooses: a separator in it used to put the video outside Documents.
+  it("hands native a path directly in Documents for an item whose id has a separator", async () => {
+    const hostile: BaseItemDto = { Id: "../escape", Type: "Video" };
+    const { operations } = await renderOperations();
+
+    await act(() =>
+      operations.startBackgroundDownload(url, hostile, mediaSource, {
+        key: "Max",
+        value: undefined,
+      }),
+    );
+
+    expect(mockDownloader.enqueueDownload.mock.calls[0][1]).toBe(
+      "/documents/___escape.mp4",
+    );
+    expect(getPendingDownload("../escape")?.videoFileName).toBe(
+      "___escape.mp4",
+    );
+  });
+
   it("leaves a download of the same item that is already in flight alone", async () => {
     fakeFiles.add(...SIDECARS);
     savePendingDownload({
