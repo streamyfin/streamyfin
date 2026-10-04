@@ -1,6 +1,7 @@
 const existing = new Set<string>();
 const deleted: string[] = [];
 const undeletable = new Set<string>();
+const downloaded: { url: string; destination: string }[] = [];
 
 const withoutTrailingSlash = (uri: string) => uri.replace(/\/+$/, "");
 
@@ -32,6 +33,13 @@ class FakeEntry {
 }
 
 class FakeFile extends FakeEntry {
+  /** Records the download and puts the file on the fake disk, without fetching anything. */
+  static async downloadFileAsync(url: string, destination: FakeFile) {
+    downloaded.push({ url, destination: destination.uri });
+    existing.add(destination.uri);
+    return destination;
+  }
+
   /** Sizes are not modelled: every file reports 0 bytes. */
   info() {
     return { exists: this.exists, size: 0 };
@@ -44,6 +52,21 @@ class FakeDirectory extends FakeEntry {
     return `${this.location}/`;
   }
 
+  create() {
+    existing.add(this.location);
+  }
+
+  /** The entries directly inside, every one as a file: nothing here tells the two apart. */
+  list() {
+    const prefix = `${this.location}/`;
+    return [...existing]
+      .filter(
+        (path) =>
+          path.startsWith(prefix) && !path.slice(prefix.length).includes("/"),
+      )
+      .map((path) => new FakeFile(path));
+  }
+
   delete() {
     super.delete();
     for (const path of existing) {
@@ -54,18 +77,21 @@ class FakeDirectory extends FakeEntry {
 
 /** Where `Paths.document` points in a spec. */
 export const DOCUMENTS = "file:///documents";
+/** Where `Paths.cache` points in a spec. */
+export const CACHE = "file:///cache";
 
 /**
- * An expo-file-system double for specs that delete files: a path exists once a spec adds it and
- * until something deletes it, and every delete is recorded. Wire it at the top of a spec, where
- * Jest hoists it above the imports:
+ * An expo-file-system double for specs that delete or download files: a path exists once a spec
+ * adds it, or something downloads to it, and until something deletes it. Every delete and every
+ * download is recorded. Wire it at the top of a spec, where Jest hoists it above the imports:
  *
  *   jest.mock("expo-file-system", () =>
  *     jest.requireActual("@/test-utils/fileSystem").fileSystemModule,
  *   );
  *
- * Only what the app's delete paths call is implemented: the `File` and `Directory`
- * constructors, `uri`, `exists` and `delete()`, plus `File.info()` for the completion handler.
+ * Only what the app's delete and download paths call is implemented: the `File` and `Directory`
+ * constructors, `uri`, `exists`, `delete()`, `File.downloadFileAsync()`, `File.info()` for the
+ * completion handler, and `create()` and `list()` on a directory.
  */
 export const fileSystemModule = {
   File: FakeFile,
@@ -73,6 +99,9 @@ export const fileSystemModule = {
   Paths: {
     get document() {
       return new FakeDirectory(DOCUMENTS);
+    },
+    get cache() {
+      return new FakeDirectory(CACHE);
     },
   },
 };
@@ -86,12 +115,15 @@ export const fakeFiles = {
   remaining: () => [...existing],
   /** Every path deleted so far, in order. */
   deleted: () => [...deleted],
+  /** Every download so far, in order. */
+  downloads: () => [...downloaded],
   /** Makes deleting `path` throw, as a locked or protected file would. */
   lock: (path: string) => void undeletable.add(withoutTrailingSlash(path)),
   /** Empties the fake disk. Call it from `beforeEach` so tests stay isolated. */
   clear: () => {
     existing.clear();
     deleted.length = 0;
+    downloaded.length = 0;
     undeletable.clear();
   },
 };

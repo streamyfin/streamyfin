@@ -16,8 +16,16 @@ import {
  * Real ids, codecs and indexes only use these characters, so the name of a download that is
  * already on disk does not change.
  */
-function safeNamePart(value: unknown): string {
+export function safeNamePart(value: unknown): string {
   return String(value).replace(/[^A-Za-z0-9_-]/g, "_");
+}
+
+/**
+ * A single file name: no separators and not a relative-path segment. For a name that has to be
+ * kept as it is (one read back from storage, one a subtitle provider chose) rather than built.
+ */
+export function isPlainFileName(name: string | undefined): name is string {
+  return !!name && name !== "." && name !== ".." && !/[/\\]/.test(name);
 }
 
 /**
@@ -28,14 +36,14 @@ export function generateFilename(item: BaseItemDto): string {
   if (item.Type === "Episode") {
     const season = String(item.ParentIndexNumber || 0).padStart(2, "0");
     const episode = String(item.IndexNumber || 0).padStart(2, "0");
-    const seriesName = (item.SeriesName || "Unknown")
+    const seriesName = String(item.SeriesName || "Unknown")
       .replace(/[^a-z0-9]/gi, "_")
       .toLowerCase();
     return safeNamePart(`${seriesName}_s${season}e${episode}`);
   }
 
   if (item.Type === "Movie") {
-    const movieName = (item.Name || "Unknown")
+    const movieName = String(item.Name || "Unknown")
       .replace(/[^a-z0-9]/gi, "_")
       .toLowerCase();
     const year = item.ProductionYear || "";

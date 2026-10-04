@@ -1,6 +1,7 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import type { TFunction } from "i18next";
 import { setJellyfinHeaders } from "@/test-utils/customHeaders";
+import { fakeFiles } from "@/test-utils/fileSystem";
 import { makeApi } from "@/test-utils/jellyfinApi";
 import { stubReactNative } from "@/test-utils/reactNative";
 
@@ -18,41 +19,10 @@ jest.mock("@/modules", () => ({
   },
 }));
 
-// Fake expo-file-system that records download calls instead of hitting disk.
-const downloads: { url: string; destination: string }[] = [];
-
-class mockFakeDirectory {
-  uri: string;
-  exists = true;
-  constructor(uri: string) {
-    this.uri = uri;
-  }
-  create() {}
-  list() {
-    return [];
-  }
-}
-class mockFakeFile {
-  uri: string;
-  constructor(directory: mockFakeDirectory, name: string) {
-    this.uri = `${directory.uri}/${name}`;
-  }
-  static downloadFileAsync = async (url: string, destination: mockFakeFile) => {
-    downloads.push({ url, destination: destination.uri });
-    return destination;
-  };
-}
-// jest.mock is hoisted above the class declarations, so the classes are read
-// through getters: by the time the module under test touches them, their
-// temporal dead zone is over.
-jest.mock("expo-file-system", () => ({
-  get Directory() {
-    return mockFakeDirectory;
-  },
-  get File() {
-    return mockFakeFile;
-  },
-}));
+jest.mock(
+  "expo-file-system",
+  () => jest.requireActual("@/test-utils/fileSystem").fileSystemModule,
+);
 
 // liveActivity.ts reads Platform when it loads, so it is required after the stub above.
 const { buildDownloadActivityMetadata } =
@@ -65,7 +35,7 @@ const stage = (item: BaseItemDto) =>
   buildDownloadActivityMetadata({ item, api, t });
 
 beforeEach(() => {
-  downloads.length = 0;
+  fakeFiles.clear();
 });
 
 describe("the poster staged for the download Live Activity", () => {
@@ -82,7 +52,7 @@ describe("the poster staged for the download Live Activity", () => {
       ImageTags: { Primary: "tag-1" },
     });
 
-    expect(downloads).toEqual([
+    expect(fakeFiles.downloads()).toEqual([
       {
         url: `https://jellyfin.example.com/Items/${id}/Images/Primary?quality=90&tag=tag-1&width=300`,
         destination: `file:///app-group/LiveActivity/${id}.jpg`,
@@ -121,9 +91,9 @@ describe("the poster staged for the download Live Activity", () => {
         ImageTags: { Primary: "tag-1" },
       });
 
-      expect(downloads.map((download) => download.destination)).toEqual([
-        `file:///app-group/LiveActivity/${name}`,
-      ]);
+      expect(
+        fakeFiles.downloads().map((download) => download.destination),
+      ).toEqual([`file:///app-group/LiveActivity/${name}`]);
       // The native side opens the poster by this name, so it has to be the name written.
       expect(metadata?.posterFileName).toBe(name);
     },
