@@ -103,6 +103,8 @@ import {
 import { msToTicks, ticksToSeconds } from "@/utils/time";
 import { generateDeviceProfile } from "../../../utils/profiles/native";
 
+// Spec: utils/directPlayer/directPlayerPage.test.tsx. It cannot sit next to
+// this file, Expo Router turns everything under app/ into a route.
 export default function DirectPlayerPage() {
   const videoRef = useRef<MpvPlayerViewRef>(null);
   const user = useAtomValue(userAtom);
@@ -896,10 +898,13 @@ export default function DirectPlayerPage() {
 
       const { position, cacheSeconds } = data.nativeEvent;
 
-      // The view ticks once the duration is known, before MPV has a position,
-      // and that tick says 0:00. Taking it would move a resumed session to the
-      // start: reported as progress, written to the URL below and carried by
-      // the stop report if the user leaves before playback begins.
+      // A tick at 0:00 before MPV has reached a position is not one. Taking
+      // it would move a resumed session to the start: reported as progress,
+      // written to the URL below and carried by the stop report if the user
+      // leaves before playback begins. The MPV renderer seeds its position
+      // from the start position, but this view also renders the ExoPlayer
+      // engine and relays mpv's own time-pos, and neither promises that the
+      // first tick of a resumed stream is past 0.
       if (
         isPlaceholderTick(position, startTicksRef.current, hasLivePosition())
       ) {
@@ -1216,10 +1221,21 @@ export default function DirectPlayerPage() {
     videoRef.current?.pause?.();
   }, []);
 
-  const seek = useCallback((position: number) => {
-    // MPV expects seconds, convert from ms
-    videoRef.current?.seekTo?.(position / 1000);
-  }, []);
+  const seek = useCallback(
+    (position: number) => {
+      // A seek made before MPV has reported a position is where the session
+      // is now. Without this a seek to 0:00 is lost: the tick it produces is
+      // indistinguishable from the one MPV sends before it has a position,
+      // and nothing follows it while the player is paused.
+      if (stream && !hasLivePosition()) {
+        progress.set(position);
+        livePositionStreamRef.current = stream;
+      }
+      // MPV expects seconds, convert from ms
+      videoRef.current?.seekTo?.(position / 1000);
+    },
+    [stream, hasLivePosition, progress],
+  );
 
   // TV audio track change handler
   const handleAudioIndexChange = useCallback(
@@ -1241,7 +1257,7 @@ export default function DirectPlayerPage() {
           subtitleIndex: String(toServerSubtitleIndex(currentSubtitleIndex)),
           mediaSourceId: stream?.mediaSource?.Id ?? "",
           bitrateValue: bitrateValue?.toString() ?? "",
-          playbackPosition: msToTicks(progress.get()).toString(),
+          playbackPosition: getSessionPositionTicks().toString(),
         }).toString();
         // Destroy the current mpv instance BEFORE navigating, same rationale as
         // goToNextItem/goToPreviousItem: Expo Router briefly holds two players
@@ -1269,7 +1285,7 @@ export default function DirectPlayerPage() {
       currentSubtitleIndex,
       bitrateValue,
       router,
-      progress,
+      getSessionPositionTicks,
     ],
   );
 
@@ -1313,7 +1329,7 @@ export default function DirectPlayerPage() {
           String(toServerSubtitleIndex(currentSubtitleIndex)),
         mediaSourceId: stream?.mediaSource?.Id ?? "",
         bitrateValue: params.bitrateValue ?? bitrateValue?.toString() ?? "",
-        playbackPosition: msToTicks(progress.get()).toString(),
+        playbackPosition: getSessionPositionTicks().toString(),
       }).toString();
       // Destroy the current mpv instance before re-navigating, same rationale as
       // goToNextItem: Expo Router briefly holds two players during the
@@ -1328,7 +1344,7 @@ export default function DirectPlayerPage() {
       stream?.mediaSource?.Id,
       bitrateValue,
       router,
-      progress,
+      getSessionPositionTicks,
     ],
   );
 

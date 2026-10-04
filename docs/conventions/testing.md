@@ -31,6 +31,12 @@ Next to the code, as `<name>.test.ts`, or `<name>.test.tsx` when the test
 contains JSX. `utils/chapters.ts` is covered by `utils/chapters.test.ts`.
 Shared fixtures and doubles go in `test-utils/`.
 
+The one exception is a screen under `app/`. Expo Router turns every `.ts` and `.tsx`
+file there into a route, a spec included, so the spec lives with the logic the screen
+uses and the screen carries a comment pointing at it:
+`app/(auth)/player/direct-player.tsx` is covered by
+`utils/directPlayer/directPlayerPage.test.tsx`.
+
 ## Writing a test
 
 Name the test after the behaviour, not the function: "keeps the resume point when the
@@ -77,6 +83,9 @@ Three rules keep mocks from becoming the thing that breaks:
   empties it, and `secureStoreValues` seeds or reads it back.
 - `customHeadersModule()` stands for the `@/utils/customHeaders` barrel, with the pure
   helpers for real and the native side stubbed; `setJellyfinHeaders()` sets what it reports.
+- `reanimatedModule` stands for `react-native-reanimated` when a spec renders a component
+  that holds shared values. Reanimated's own Jest mock returns a new shared value on
+  every render, which re-runs any effect that depends on one.
 - `tsxRequireHook` stands for `tsx/cjs` in every spec, wired once through
   `moduleNameMapper` instead of per spec. A require hook registered from a spec lands on
   the Jest worker's own loader and breaks whichever spec that worker loads next.
