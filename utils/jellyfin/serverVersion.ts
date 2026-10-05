@@ -58,3 +58,10 @@ export const supportsLanguageFilters = (version?: string | null) =>
  */
 export const honoursExcludedPersonTypes = (version?: string | null) =>
   isServerMajorAtLeast(version, 12);
+
+/**
+ * `position` on POST /Playlists/{id}/Items landed in Jellyfin 12, see
+ * jellyfin/jellyfin#15138. An older server ignores it and appends.
+ */
+export const supportsPlaylistInsertPosition = (version?: string | null) =>
+  isServerMajorAtLeast(version, 12);

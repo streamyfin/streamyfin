@@ -34,7 +34,7 @@ cadence meant knowing both existed, and nothing would have failed if only one ha
 | `constants/TVSizes.ts` | TV poster sizes, gaps, padding, animation timings |
 | `constants/TVTypography.ts` | TV type scale and the `useScaledTVTypography` hook |
 | `constants/TVPosterSizes.ts` | TV poster size keys |
-| `constants/Playback.ts` | Playback policy shared by the JS and native players (progress report cadence, play queue size cap), and how long a remote repeat or shuffle change waits to be confirmed |
+| `constants/Playback.ts` | Playback policy shared by the JS and native players (progress report cadence, play queue size cap), how long a remote repeat or shuffle change waits to be confirmed, and how often the stats overlay polls the transcode progress |
 | `constants/Logs.ts` | App log storage key and how many entries it keeps |
 | `constants/Privacy.ts` | What stands in for a secret in anything the app writes out (log, Sentry) |
 | `constants/Music.ts` | Music player policy: the volume normalization modes, their default, and the gain ceiling |

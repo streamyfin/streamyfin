@@ -24,3 +24,10 @@ export const PLAY_QUEUE_MAX_ITEMS = 100;
  * enough that one ignoring the command does not keep a state it never had.
  */
 export const REMOTE_MODE_CONFIRM_TIMEOUT = 10_000;
+
+/**
+ * How often, in ms, the stats overlay asks the server how far its transcode
+ * has come. The player's own numbers refresh faster, but these cost a request
+ * to /Sessions each time and move slowly.
+ */
+export const TRANSCODE_PROGRESS_POLL_INTERVAL = 5_000;

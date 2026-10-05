@@ -21,6 +21,7 @@ import Animated, {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import { useControlsSafeAreaInsets } from "@/hooks/useControlsSafeAreaInsets";
+import { useTranscodingProgress } from "@/hooks/useTranscodingProgress";
 import type { TechnicalInfo } from "@/modules/mpv-player";
 import { getStreamFrameRate } from "@/utils/jellyfin/media/getStreamFrameRate";
 import { HEADER_LAYOUT } from "./constants";
@@ -222,6 +223,12 @@ export const TechnicalInfoOverlay: FC<TechnicalInfoOverlayProps> = memo(
     const insets = useSafeAreaInsets();
     const safeInsets = useControlsSafeAreaInsets();
     const [info, setInfo] = useState<TechnicalInfo | null>(null);
+    // Only the server knows how its transcode is going, and only a transcode
+    // has anything to report, so nothing is asked in any other case.
+    const transcoding = useTranscodingProgress(
+      visible && playMethod === "Transcode",
+      item?.Id,
+    );
 
     const opacity = useSharedValue(0);
 
@@ -344,6 +351,27 @@ export const TechnicalInfoOverlay: FC<TechnicalInfoOverlayProps> = memo(
           {transcodeReasons && transcodeReasons.length > 0 && (
             <Text style={[textStyle, reasonStyle]}>
               {transcodeReasons.map(formatTranscodeReason).join(", ")}
+            </Text>
+          )}
+          {transcoding?.percent !== undefined && (
+            <Text style={textStyle}>
+              {t("player.technical_info.transcode_progress", {
+                percent: transcoding.percent,
+              })}
+            </Text>
+          )}
+          {transcoding?.fps !== undefined && (
+            <Text style={textStyle}>
+              {t("player.technical_info.transcode_speed", {
+                fps: transcoding.fps,
+              })}
+            </Text>
+          )}
+          {transcoding?.hardware !== undefined && (
+            <Text style={textStyle}>
+              {t("player.technical_info.transcode_hardware", {
+                type: transcoding.hardware,
+              })}
             </Text>
           )}
           {info?.videoWidth && info?.videoHeight && (

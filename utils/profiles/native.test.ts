@@ -53,4 +53,15 @@ describe("generateDeviceProfile", () => {
     expect(video?.VideoCodec).toBe("h264,hevc");
     expect(video?.Container).toBe("ts");
   });
+
+  // Jellyfin 12 ignores the entry, but on 10.11 it is the only thing that
+  // lets a Live TV channel served as an HLS manifest direct play. Drop it
+  // once 10.11 is no longer supported, not before.
+  test("MPV still lists hls as a direct play container for Jellyfin 10.11", () => {
+    const direct = generateDeviceProfile({
+      supportsAv1Transcode: false,
+    }).DirectPlayProfiles.find((p) => p.Type === "Video");
+
+    expect(direct?.Container?.split(",")).toContain("hls");
+  });
 });

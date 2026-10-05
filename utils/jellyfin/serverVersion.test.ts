@@ -4,6 +4,7 @@ import {
   supportsLanguageFilters,
   supportsLibraryCollectionsAndPlaylists,
   supportsOriginalAudioLanguage,
+  supportsPlaylistInsertPosition,
   supportsQuickConnectForOtherUsers,
 } from "./serverVersion";
 
@@ -86,4 +87,11 @@ test("trusts the person type exclusion from Jellyfin 12 on", () => {
   expect(honoursExcludedPersonTypes("12.0.0")).toBe(true);
   expect(honoursExcludedPersonTypes("12.1.0")).toBe(true);
   expect(honoursExcludedPersonTypes()).toBe(false);
+});
+
+test("requires Jellyfin 12 or newer for a playlist insert position", () => {
+  expect(supportsPlaylistInsertPosition("10.11.11")).toBe(false);
+  expect(supportsPlaylistInsertPosition("12.0.0-rc5")).toBe(true);
+  expect(supportsPlaylistInsertPosition("12.0.0")).toBe(true);
+  expect(supportsPlaylistInsertPosition()).toBe(false);
 });

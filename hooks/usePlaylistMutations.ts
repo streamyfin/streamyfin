@@ -54,7 +54,12 @@ export const useCreatePlaylist = () => {
 };
 
 /**
- * Hook to add a track to a playlist
+ * Hook to add a track to a playlist.
+ *
+ * `position` is the 0-based index the tracks go in at, 0 for the top. Leave it
+ * out and they are appended. It needs Jellyfin 12: an older server ignores it
+ * and appends, so a control that offers it checks
+ * `supportsPlaylistInsertPosition` first.
  */
 export const useAddToPlaylist = () => {
   const api = useAtomValue(apiAtom);
@@ -66,20 +71,27 @@ export const useAddToPlaylist = () => {
     mutationFn: async ({
       playlistId,
       trackIds,
+      position,
     }: {
       playlistId: string;
       trackIds: string[];
       playlistName?: string;
+      position?: number;
     }): Promise<void> => {
       if (!api || !user?.Id) {
         throw new Error("API not configured");
       }
 
-      await getPlaylistsApi(api).addItemToPlaylist({
-        playlistId,
-        ids: trackIds,
-        userId: user.Id,
-      });
+      await getPlaylistsApi(api).addItemToPlaylist(
+        {
+          playlistId,
+          ids: trackIds,
+          userId: user.Id,
+        },
+        // The 0.13 SDK predates the parameter, so it rides along as a plain
+        // query parameter next to the ones the SDK writes.
+        position === undefined ? undefined : { params: { position } },
+      );
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({

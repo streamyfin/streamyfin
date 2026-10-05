@@ -789,6 +789,9 @@
       "buffer_seconds": "Buffer: {{seconds}}s",
       "vo": "VO:",
       "dropped_frames": "Dropped: {{count}} frames",
+      "transcode_progress": "Transcoded: {{percent}}%",
+      "transcode_speed": "Transcode speed: {{fps}} fps",
+      "transcode_hardware": "Hardware acceleration: {{type}}",
       "loading": "Loading..."
     },
     "mpv_player_title": "MPV player",

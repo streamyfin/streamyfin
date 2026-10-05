@@ -250,3 +250,28 @@ describe("buildItemCards parent-first labels", () => {
     });
   });
 });
+
+// Jellyfin 12 sets IsLive from XMLTV (jellyfin/jellyfin#8890), so the flag is
+// finally common enough to show on the Live TV program rows.
+describe("buildItemCards live badge", () => {
+  const liveOf = (item: BaseItemDto) =>
+    buildItemCards([{ Id: "item-1", ...item }], { api, kind: "wide" })[0].live;
+
+  test("marks a program the listings call live", () => {
+    expect(liveOf({ Type: "Program", IsLive: true })).toBe(true);
+  });
+
+  test.each([false, null, undefined])(
+    "leaves a program alone when IsLive is %p",
+    (IsLive) => {
+      expect(liveOf({ Type: "Program", IsLive })).toBe(false);
+    },
+  );
+
+  // The flag only means something on a guide entry: a recording of a live
+  // broadcast is not live any more.
+  test("leaves anything that is not a program alone", () => {
+    expect(liveOf({ Type: "Recording", IsLive: true })).toBe(false);
+    expect(liveOf({ Type: "Movie", IsLive: true })).toBe(false);
+  });
+});

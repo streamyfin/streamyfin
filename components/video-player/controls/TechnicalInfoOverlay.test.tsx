@@ -26,6 +26,11 @@ jest.mock("@/constants/TVTypography", () => ({
 jest.mock("react-i18next", () => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }));
+// The transcode progress is polled from the server through the provider tree,
+// and has its own spec in hooks/useTranscodingProgress.test.tsx.
+jest.mock("@/hooks/useTranscodingProgress", () => ({
+  useTranscodingProgress: () => null,
+}));
 
 const sourceWith = (
   frameRates: { ReferenceFrameRate?: number; AverageFrameRate?: number } = {},
