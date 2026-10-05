@@ -515,7 +515,8 @@ export const Controls: FC<Props> = ({
   // which stops moving while playback does.
   const autoAdvanceNextEpisode = showNextEpisodeFromRemainingTime;
 
-  // Reset after an in-place episode switch (setParams keeps Controls mounted).
+  // Reset whenever the item changes. direct-player remounts Controls on an
+  // episode switch today, so this mostly covers the mount itself.
   useEffect(() => {
     stillWatchingArmedRef.current = false;
     setStillWatchingVisible(false);
@@ -625,12 +626,19 @@ export const Controls: FC<Props> = ({
         return;
       }
 
-      // An unanswered prompt holds autoplay, whoever asks for it.
-      if (stillWatchingRequired) return;
+      // A due or unanswered prompt holds autoplay, whoever asks for it; a tap
+      // on the shown prompt can make it no longer due.
+      if (stillWatchingRequired || stillWatchingVisible) return;
       recordStillWatchingAutoplay();
       goToItemCommon(nextItem);
     },
-    [nextItem, goToItemCommon, goToItemByUser, stillWatchingRequired],
+    [
+      nextItem,
+      goToItemCommon,
+      goToItemByUser,
+      stillWatchingRequired,
+      stillWatchingVisible,
+    ],
   );
 
   // Add a memoized handler for autoplay next episode

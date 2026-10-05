@@ -5,6 +5,7 @@ import {
   StillWatchingPresets,
   type StillWatchingThresholds,
 } from "@/constants/StillWatching";
+import { hasMeaningfulSettingValue } from "@/utils/atoms/settingsOverrides";
 
 const MS_PER_MINUTE = 60_000;
 
@@ -22,7 +23,7 @@ export const coerceStillWatchingPreset = (
   value: unknown,
 ): StillWatchingPreset | undefined => {
   if (isStillWatchingPreset(value)) return value;
-  if (value === undefined || value === null || value === "") return undefined;
+  if (!hasMeaningfulSettingValue(value)) return undefined;
   return (
     stillWatchingPresetFromEpisodeCount(value) ?? DEFAULT_STILL_WATCHING_PRESET
   );
