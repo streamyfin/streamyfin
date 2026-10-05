@@ -1,3 +1,4 @@
+import { ItemFilter } from "@jellyfin/sdk/lib/generated-client/models";
 import { atom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
 import { useMemo } from "react";
@@ -21,14 +22,22 @@ export enum SortByOption {
   Studio = "Studio",
   Random = "Random",
 }
-export enum FilterByOption {
-  IsFavoriteOrLiked = "IsFavoriteOrLiked",
-  IsUnplayed = "IsUnplayed",
-  IsPlayed = "IsPlayed",
-  Likes = "Likes",
-  IsFavorite = "IsFavorite",
-  IsResumable = "IsResumable",
-}
+// These go to the server as they are, so each one is the SDK's own ItemFilter
+// constant: a name the server does not have no longer compiles.
+export const FilterByOption = {
+  IsFavoriteOrLikes: ItemFilter.IsFavoriteOrLikes,
+  IsUnplayed: ItemFilter.IsUnplayed,
+  IsPlayed: ItemFilter.IsPlayed,
+  Likes: ItemFilter.Likes,
+  IsFavorite: ItemFilter.IsFavorite,
+  IsResumable: ItemFilter.IsResumable,
+} as const satisfies Record<string, ItemFilter>;
+export type FilterByOption =
+  (typeof FilterByOption)[keyof typeof FilterByOption];
+
+// How the favourite-or-liked filter was spelt until the server's name replaced
+// it. Per-library preferences saved before that still hold it.
+const LEGACY_IS_FAVORITE_OR_LIKES = "IsFavoriteOrLiked";
 
 export enum SortOrderOption {
   Ascending = "Ascending",
@@ -65,11 +74,11 @@ export const useFilterOptions = () => {
   // which rebuilds the whole filter bar on any unrelated re-render.
   // We only show the watchlist option if someone has ticked that setting.
   return useMemo(
-    () =>
+    (): { key: FilterByOption; value: string }[] =>
       settings?.useKefinTweaks
         ? [
             {
-              key: FilterByOption.IsFavoriteOrLiked,
+              key: FilterByOption.IsFavoriteOrLikes,
               value: "Is Favorite Or Liked",
             },
             { key: FilterByOption.IsUnplayed, value: "Is Unplayed" },
@@ -80,7 +89,7 @@ export const useFilterOptions = () => {
           ]
         : [
             {
-              key: FilterByOption.IsFavoriteOrLiked,
+              key: FilterByOption.IsFavoriteOrLikes,
               value: "Is Favorite Or Liked",
             },
             { key: FilterByOption.IsUnplayed, value: "Is Unplayed" },
@@ -156,10 +165,31 @@ export const sortByPreferenceAtom = atomWithStorage<SortPreference>(
   mmkvStorage<SortPreference>(),
 );
 
+// Renames the legacy spelling as the map is read, so every reader gets a
+// filter the server accepts and the next save writes the fixed name back.
+const filterPreferenceStorage = () => {
+  const base = mmkvStorage<FilterPreference>();
+  return {
+    ...base,
+    getItem: (key: string, initialValue: FilterPreference) => {
+      const stored: Record<string, string> = base.getItem(key, initialValue);
+      const migrated: FilterPreference = {};
+      for (const [libraryId, filter] of Object.entries(stored ?? {})) {
+        migrated[libraryId] = (
+          filter === LEGACY_IS_FAVORITE_OR_LIKES
+            ? FilterByOption.IsFavoriteOrLikes
+            : filter
+        ) as FilterByOption;
+      }
+      return migrated;
+    },
+  };
+};
+
 export const FilterByPreferenceAtom = atomWithStorage<FilterPreference>(
   "filterByPreference",
   defaultFilterPreference,
-  mmkvStorage<FilterPreference>(),
+  filterPreferenceStorage(),
 );
 
 export const sortOrderPreferenceAtom = atomWithStorage<SortOrderPreference>(
