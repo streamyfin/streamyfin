@@ -1,4 +1,7 @@
-import { supportsOriginalAudioLanguage } from "./serverVersion";
+import {
+  supportsOriginalAudioLanguage,
+  supportsPerVersionUserData,
+} from "./serverVersion";
 
 test("requires Jellyfin 12 or newer for original audio", () => {
   expect(supportsOriginalAudioLanguage("10.11.11")).toBe(false);
@@ -13,4 +16,10 @@ test("treats an unknown version as unsupported", () => {
   expect(supportsOriginalAudioLanguage(null)).toBe(false);
   expect(supportsOriginalAudioLanguage("")).toBe(false);
   expect(supportsOriginalAudioLanguage("12invalid")).toBe(false);
+});
+
+test("per-version UserData follows the Jellyfin 12 cut", () => {
+  expect(supportsPerVersionUserData("10.11.11")).toBe(false);
+  expect(supportsPerVersionUserData("12.0.0")).toBe(true);
+  expect(supportsPerVersionUserData(undefined)).toBe(false);
 });

@@ -51,6 +51,7 @@ import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
 import { useTVOptionModal } from "@/hooks/useTVOptionModal";
 import { useTVSubtitleModal } from "@/hooks/useTVSubtitleModal";
 import { useTVThemeMusic } from "@/hooks/useTVThemeMusic";
+import { useVersionItem } from "@/hooks/useVersionItem";
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
@@ -141,6 +142,17 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
       SelectedOptions | undefined
     >(undefined);
 
+    // On Jellyfin 12 each version keeps its own resume point and played
+    // state, so those read the selected version's UserData.
+    const versionItem = useVersionItem(
+      item,
+      itemWithSources?.MediaSources,
+      selectedOptions?.mediaSource?.Id,
+    );
+    const userData = versionItem?.UserData;
+    // A version's resume point is against its own runtime.
+    const runTimeTicks = versionItem?.RunTimeTicks || item?.RunTimeTicks;
+
     const {
       defaultAudioIndex,
       defaultBitrate,
@@ -201,15 +213,12 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
     const handlePlay = () => {
       if (!item || !selectedOptions) return;
 
-      const hasPlaybackProgress =
-        (item.UserData?.PlaybackPositionTicks ?? 0) > 0;
+      const hasPlaybackProgress = (userData?.PlaybackPositionTicks ?? 0) > 0;
 
       // With the resume dialog turned off in settings, an in-progress item
       // resumes right away instead of asking resume-or-restart.
       if (hasPlaybackProgress && !settings.showResumeDialog) {
-        navigateToPlayer(
-          item.UserData?.PlaybackPositionTicks?.toString() ?? "0",
-        );
+        navigateToPlayer(userData?.PlaybackPositionTicks?.toString() ?? "0");
         return;
       }
 
@@ -228,11 +237,11 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
             },
             {
               text: t("item_card.continue_from", {
-                time: formatDuration(item.UserData?.PlaybackPositionTicks),
+                time: formatDuration(userData?.PlaybackPositionTicks),
               }),
               onPress: () =>
                 navigateToPlayer(
-                  item.UserData?.PlaybackPositionTicks?.toString() ?? "0",
+                  userData?.PlaybackPositionTicks?.toString() ?? "0",
                 ),
               isPreferred: true,
             },
@@ -520,14 +529,11 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
 
     // Format year and duration
     const year = item?.ProductionYear;
-    const duration = item?.RunTimeTicks
-      ? runtimeTicksToMinutes(item.RunTimeTicks)
-      : null;
-    const hasProgress = (item?.UserData?.PlaybackPositionTicks ?? 0) > 0;
+    const duration = runTimeTicks ? runtimeTicksToMinutes(runTimeTicks) : null;
+    const hasProgress = (userData?.PlaybackPositionTicks ?? 0) > 0;
     const remainingTime = hasProgress
       ? runtimeTicksToMinutes(
-          (item?.RunTimeTicks || 0) -
-            (item?.UserData?.PlaybackPositionTicks || 0),
+          (runTimeTicks || 0) - (userData?.PlaybackPositionTicks || 0),
         )
       : null;
 
@@ -799,7 +805,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                 {/* Exactly one element asks for the initial focus: Play when
                     it is there, otherwise the first button left in the row. */}
                 <TVFavoriteButton item={item} hasTVPreferredFocus={!playable} />
-                <TVPlayedButton item={item} />
+                <TVPlayedButton item={versionItem ?? item} />
                 <TVRefreshButton itemId={item.Id} />
               </View>
 
@@ -896,11 +902,10 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
               )}
 
               {/* Progress bar (if partially watched) */}
-              {hasProgress && item.RunTimeTicks != null && (
+              {hasProgress && !!runTimeTicks && (
                 <TVProgressBar
                   progress={
-                    (item.UserData?.PlaybackPositionTicks || 0) /
-                    item.RunTimeTicks
+                    (userData?.PlaybackPositionTicks || 0) / runTimeTicks
                   }
                   fillColor='#FFFFFF'
                 />
