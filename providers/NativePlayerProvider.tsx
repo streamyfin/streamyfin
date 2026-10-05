@@ -554,12 +554,12 @@ const NativePlayerProviderInner: React.FC<{
     }
   }, []);
 
-  // The prompt decision for one session, reused by every later push of its
-  // payload (a refetched next item re-runs the push effect).
-  const stillWatchingDecisionRef = useRef<{
-    session: NativeSession;
-    required: boolean;
-  } | null>(null);
+  // The prompt decision per session, reused by every later push of its
+  // payload (a refetched next item re-runs the push effect). Weak, so a torn
+  // down session is not kept alive for it.
+  const stillWatchingDecisionsRef = useRef(
+    new WeakMap<NativeSession, boolean>(),
+  );
 
   const buildNextEpisodePayload = useCallback(
     (session: NativeSession, next: BaseItemDto): NativePlayerNextEpisode => {
@@ -569,11 +569,13 @@ const NativePlayerProviderInner: React.FC<{
       // it later would race a countdown native may already be running (from
       // the outro on iOS), which ignores a newer payload. A pause makes the
       // prompt come an episode late; a faster speed can bring it early.
-      if (stillWatchingDecisionRef.current?.session !== session) {
-        stillWatchingDecisionRef.current = {
+      const decisions = stillWatchingDecisionsRef.current;
+      if (!decisions.has(session)) {
+        decisions.set(
           session,
-          required: isStillWatchingDueAtEnd({
-            autoPlayNextEpisode: autoplayWanted,
+          isStillWatchingDueAtEnd({
+            // Decided without the autoplay gate, which is applied per push.
+            autoPlayNextEpisode: true,
             preset: currentSettings?.stillWatchingPreset,
             remainingMs:
               ticksToMs(session.item.RunTimeTicks ?? 0) - session.positionMs,
@@ -581,10 +583,10 @@ const NativePlayerProviderInner: React.FC<{
             // unknown and only the episode count can trip the prompt.
             tracksInput: false,
           }),
-        };
+        );
       }
       const stillWatchingRequired =
-        autoplayWanted && stillWatchingDecisionRef.current.required;
+        autoplayWanted && decisions.get(session) === true;
       const autoplayAllowed = autoplayWanted && !stillWatchingRequired;
       const epNumber =
         next.ParentIndexNumber !== undefined && next.IndexNumber !== undefined

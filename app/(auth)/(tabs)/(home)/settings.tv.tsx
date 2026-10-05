@@ -925,8 +925,9 @@ export default function SettingsTV() {
             onToggle={(value) => updateSettings({ showResumeDialog: value })}
           />
 
-          {/* Only the native TV players ask "Still watching?" */}
-          {isNativeChromeActive(settings) && (
+          {/* Only the native TV players ask "Still watching?", and only
+              instead of an autoplay */}
+          {isNativeChromeActive(settings) && settings.autoPlayNextEpisode && (
             <TVSettingsOptionButton
               disabledByAdmin={pluginSettings?.stillWatchingPreset?.locked}
               label={t("home.settings.other.still_watching")}

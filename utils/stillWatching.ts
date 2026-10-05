@@ -65,11 +65,13 @@ export const stillWatchingPresetFromEpisodeCount = (
     typeof raw === "string" && raw.trim() !== "" ? Number(raw) : raw;
   if (typeof count !== "number" || !Number.isFinite(count)) return undefined;
   if (count <= 0) return "disabled";
-  const presets = Object.entries(StillWatchingPresets) as Array<
-    [Exclude<StillWatchingPreset, "disabled">, StillWatchingThresholds]
-  >;
+  const presets = STILL_WATCHING_PRESET_ORDER.filter(
+    (preset): preset is Exclude<StillWatchingPreset, "disabled"> =>
+      preset !== "disabled",
+  );
   return (
-    presets.find(([, { episodes }]) => episodes >= count)?.[0] ?? "veryLong"
+    presets.find((preset) => StillWatchingPresets[preset].episodes >= count) ??
+    presets[presets.length - 1]
   );
 };
 
@@ -97,6 +99,20 @@ export const markStillWatchingInput = (nowMs: number = Date.now()) => {
 
 export const recordStillWatchingAutoplay = () => {
   session.playedCount += 1;
+};
+
+/**
+ * One step of the JS player's decide-once rule: inside the window the first
+ * decision taken on this episode's own playback (`armed`) holds; outside it
+ * nothing is held.
+ */
+export const latchStillWatching = (
+  latched: boolean | null,
+  { armed, inWindow, due }: { armed: boolean; inWindow: boolean; due: boolean },
+): boolean | null => {
+  if (!inWindow) return null;
+  if (latched !== null) return latched;
+  return armed ? due : null;
 };
 
 /**

@@ -38,6 +38,7 @@ import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings"
 import { SEGMENT_SKIP_KEY, useSegments } from "@/utils/segments";
 import {
   isStillWatchingDueAtEnd,
+  latchStillWatching,
   markStillWatchingInput,
   recordStillWatchingAutoplay,
   resetStillWatchingSession,
@@ -283,6 +284,7 @@ export const Controls: FC<Props> = ({
     if (e?.eventType !== "press") return;
     const key = e.key;
 
+    markStillWatchingInput();
     if (key === " " || key === "Spacebar" || key === "Space") {
       togglePlay();
     } else if (!Platform.isTV && key === "ArrowLeft") {
@@ -461,29 +463,30 @@ export const Controls: FC<Props> = ({
   // incoming episode. Only a progress tick from mid-playback of the episode
   // itself arms the trigger, and every navigation disarms it.
   const stillWatchingArmedRef = useRef(false);
-  // The decision is latched once the countdown window opens, so the countdown
-  // and the prompt never trade places inside it; seeking back out lets go.
+  // The decision is latched once the credits or the countdown window start,
+  // so a touch there can't swap Skip Credits, the countdown and the prompt
+  // around under the viewer; seeking back out lets go. Latched without the
+  // autoplay gate, so a next item that resolves late still gets the prompt.
   const stillWatchingLatchRef = useRef<boolean | null>(null);
-  const stillWatchingDue =
-    autoPlayWanted &&
-    isStillWatchingDueAtEnd({
-      autoPlayNextEpisode: true,
-      preset: settings.stillWatchingPreset,
-      remainingMs: remainingTime,
-      playbackRate: playbackSpeed,
-      tracksInput: true,
-    });
-  if (remainingTime >= CONTROLS_CONSTANTS.NEXT_EPISODE_COUNTDOWN_MS) {
-    stillWatchingLatchRef.current = null;
-  } else if (
-    stillWatchingLatchRef.current === null &&
-    // Armed means a tick from this episode's own playback has been seen, not
-    // the outgoing one's near-zero values right after a switch.
-    stillWatchingArmedRef.current &&
-    remainingTime < CONTROLS_CONSTANTS.NEXT_EPISODE_COUNTDOWN_MS
-  ) {
-    stillWatchingLatchRef.current = stillWatchingDue;
-  }
+  const stillWatchingDue = isStillWatchingDueAtEnd({
+    autoPlayNextEpisode: true,
+    preset: settings.stillWatchingPreset,
+    remainingMs: remainingTime,
+    playbackRate: playbackSpeed,
+    tracksInput: true,
+  });
+  stillWatchingLatchRef.current = latchStillWatching(
+    stillWatchingLatchRef.current,
+    {
+      // A tick from this episode's own playback, not the outgoing one's
+      // near-zero values right after a switch.
+      armed: stillWatchingArmedRef.current,
+      inWindow:
+        showSkipOutroButton ||
+        remainingTime < CONTROLS_CONSTANTS.NEXT_EPISODE_COUNTDOWN_MS,
+      due: stillWatchingDue,
+    },
+  );
   const stillWatchingRequired =
     autoPlayWanted && (stillWatchingLatchRef.current ?? stillWatchingDue);
 

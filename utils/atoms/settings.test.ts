@@ -1,13 +1,17 @@
 // The mocked JellyfinProvider is what loads this in the app: `storage.get`
 // and `storage.setAny`, which the plugin settings are read and written with.
 import "@/augmentations/mmkv";
-import { act, renderHook } from "@testing-library/react-native";
+import { act, cleanup, renderHook } from "@testing-library/react-native";
 import { AxiosError, type AxiosResponse } from "axios";
 import { getDefaultStore } from "jotai";
 import { clearMmkv } from "@/test-utils/mmkv";
 import { stubReactNative } from "@/test-utils/reactNative";
 import { storage } from "@/utils/mmkv";
-import { PLUGIN_SETTINGS_KEY, SETTINGS_KEY } from "@/utils/storedSettings";
+import {
+  PLUGIN_APPLIED_DEFAULTS_KEY,
+  PLUGIN_SETTINGS_KEY,
+  SETTINGS_KEY,
+} from "@/utils/storedSettings";
 
 jest.mock(
   "react-native-mmkv",
@@ -55,7 +59,6 @@ const {
   isNativeChromeActive,
   migrateStillWatchingSetting,
   pluginSettingsAtom,
-  PLUGIN_APPLIED_DEFAULTS,
   redactPluginSettings,
   settingsAtom,
   useSettings,
@@ -208,20 +211,19 @@ describe("the still watching migration", () => {
     expect(stored).toEqual({ stillWatchingPreset: "short" });
   });
 
-  // Dropping a value it cannot read would drop an admin's lock with it.
-  test("leaves a value it cannot read where it is", () => {
-    const sent: Record<string, unknown> = {
-      maxAutoPlayEpisodeCount: { locked: true, value: null },
-    };
+  // Dropping a locked value it cannot read would drop the admin's lock too.
+  test("keeps a lock on a plugin cap it cannot read", async () => {
+    const settings = await fetchPluginSettings({
+      getStreamyfinPluginConfig: async () => ({
+        data: {
+          settings: { maxAutoPlayEpisodeCount: { locked: true, value: null } },
+        },
+      }),
+    } as never);
 
-    expect(
-      migrateStillWatchingSetting(
-        sent,
-        (l) => (l as { value?: unknown } | undefined)?.value,
-      ),
-    ).toBe(false);
-    expect(sent).toEqual({
-      maxAutoPlayEpisodeCount: { locked: true, value: null },
+    expect(settings?.stillWatchingPreset).toEqual({
+      locked: true,
+      value: "default",
     });
   });
 
@@ -250,18 +252,20 @@ describe("the still watching migration", () => {
   // A locked value the app cannot read would otherwise turn the prompt off.
   test("reads a plugin preset it does not know as the nearest one", () => {
     const store = getDefaultStore();
-    store.set(pluginSettingsAtom, {
-      stillWatchingPreset: { locked: true, value: 5 },
-    } as never);
-    expect(store.get(effectiveSettingsAtom).stillWatchingPreset).toBe("long");
-
-    store.set(pluginSettingsAtom, {
-      stillWatchingPreset: { locked: true, value: "medium" },
-    } as never);
-    expect(store.get(effectiveSettingsAtom).stillWatchingPreset).toBe(
-      "default",
-    );
-    store.set(pluginSettingsAtom, undefined);
+    const effectivePreset = (value: unknown, locked = true) => {
+      store.set(pluginSettingsAtom, {
+        stillWatchingPreset: { locked, value },
+      } as never);
+      return store.get(effectiveSettingsAtom).stillWatchingPreset;
+    };
+    try {
+      expect(effectivePreset(5)).toBe("long");
+      expect(effectivePreset("medium")).toBe("default");
+      // Empty is not an admin's choice: it supplies nothing.
+      expect(effectivePreset(null, false)).toBe("default");
+    } finally {
+      store.set(pluginSettingsAtom, undefined);
+    }
   });
 
   // An admin who pinned the old cap must keep the prompt pinned.
@@ -309,7 +313,6 @@ describe("refreshing the plugin settings", () => {
   afterEach(() => {
     store.set(apiAtom, null);
     store.set(pluginSettingsAtom, undefined);
-    store.set(settingsAtom, null);
   });
 
   // The refresh runs every time the app comes to the foreground, which is when
@@ -377,16 +380,22 @@ describe("refreshing the plugin settings", () => {
       SETTINGS_KEY,
       JSON.stringify({ stillWatchingPreset: "disabled" }),
     );
-    storage.setAny(PLUGIN_APPLIED_DEFAULTS, {
+    storage.setAny(PLUGIN_APPLIED_DEFAULTS_KEY, {
       maxAutoPlayEpisodeCount: { key: "3", value: 3 },
     });
 
-    await refreshAgainst(async () => ({
-      data: {
-        settings: { maxAutoPlayEpisodeCount: { locked: false, value: 3 } },
-      },
-    }));
+    try {
+      await refreshAgainst(async () => ({
+        data: {
+          settings: { maxAutoPlayEpisodeCount: { locked: false, value: 3 } },
+        },
+      }));
 
-    expect(store.get(settingsAtom)?.stillWatchingPreset).toBe("disabled");
+      expect(store.get(settingsAtom)?.stillWatchingPreset).toBe("disabled");
+    } finally {
+      // Unmount first: a null atom under a mounted useSettings reloads it.
+      await cleanup();
+      store.set(settingsAtom, null);
+    }
   });
 });

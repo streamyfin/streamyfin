@@ -23,6 +23,7 @@ import {
   stillWatchingPresetFromEpisodeCount,
 } from "@/utils/stillWatching";
 import {
+  PLUGIN_APPLIED_DEFAULTS_KEY,
   PLUGIN_SETTINGS_KEY,
   readStoredSettings,
   SETTINGS_KEY,
@@ -38,7 +39,7 @@ import {
 
 const _STREAMYFIN_PLUGIN_ID = "1e9e5d386e6746158719e98a5c34f004";
 const STREAMYFIN_PLUGIN_SETTINGS = PLUGIN_SETTINGS_KEY;
-export const PLUGIN_APPLIED_DEFAULTS = "STREAMYFIN_PLUGIN_APPLIED_DEFAULTS";
+const PLUGIN_APPLIED_DEFAULTS = PLUGIN_APPLIED_DEFAULTS_KEY;
 
 export type DownloadQuality = "original" | "high" | "low";
 
@@ -155,8 +156,13 @@ const normalizePluginValue = (
   }
 
   // A preset this build does not know, or the old episode count sent under
-  // the new name, would otherwise turn the prompt off without a word.
-  if (settingsKey === "stillWatchingPreset" && !isStillWatchingPreset(value)) {
+  // the new name, would otherwise turn the prompt off without a word. An
+  // empty value stays empty, so it is not mistaken for an admin's choice.
+  if (
+    settingsKey === "stillWatchingPreset" &&
+    value != null &&
+    !isStillWatchingPreset(value)
+  ) {
     return (
       stillWatchingPresetFromEpisodeCount(value) ??
       DEFAULT_STILL_WATCHING_PRESET
@@ -780,22 +786,25 @@ const migrateSubtitleSettings = (settings: LegacySubtitleSettings) => {
 /**
  * Carries the old `maxAutoPlayEpisodeCount` cap over to `stillWatchingPreset`
  * and drops the old key. Also used on the plugin's answer, whose value is
- * wrapped in `{ locked, value }`, and on the applied-defaults record. A value
- * it cannot read is left where it is rather than dropped with its lock.
+ * wrapped in `{ locked, value }`, and on the applied-defaults record.
+ * `fallback` names the preset for a value it cannot read; without one, such
+ * a value is dropped.
  */
 export const migrateStillWatchingSetting = (
   settings: Record<string, unknown>,
   unwrap: (value: unknown) => unknown = (value) => value,
   wrap: (preset: StillWatchingPreset, legacy: unknown) => unknown = (preset) =>
     preset,
+  fallback: (legacy: unknown) => StillWatchingPreset | undefined = () =>
+    undefined,
 ): boolean => {
   if (!("maxAutoPlayEpisodeCount" in settings)) return false;
   const legacy = settings.maxAutoPlayEpisodeCount;
-  const preset = stillWatchingPresetFromEpisodeCount(unwrap(legacy));
-  if (!preset) return false;
   delete settings.maxAutoPlayEpisodeCount;
+  const preset =
+    stillWatchingPresetFromEpisodeCount(unwrap(legacy)) ?? fallback(legacy);
   // An empty entry under the new name must not win over the old value.
-  if (unwrap(settings.stillWatchingPreset) == null) {
+  if (preset && unwrap(settings.stillWatchingPreset) == null) {
     settings.stillWatchingPreset = wrap(preset, legacy);
   }
   return true;
@@ -880,7 +889,8 @@ const migratePluginSettings = (
     return settings;
   }
   const migrated = { ...settings } as Record<string, unknown>;
-  // An admin's lock on the old episode cap keeps locking the preset.
+  // An admin's lock on the old episode cap keeps locking the preset, even
+  // when its value can't be read.
   migrateStillWatchingSetting(
     migrated,
     (lockable) => (lockable as Lockable<unknown> | undefined)?.value,
@@ -888,6 +898,10 @@ const migratePluginSettings = (
       ...(lockable as Lockable<unknown>),
       value: preset,
     }),
+    (lockable) =>
+      (lockable as Lockable<unknown> | undefined)?.locked
+        ? DEFAULT_STILL_WATCHING_PRESET
+        : undefined,
   );
   const legacy = migrated.showTVHeroCarousel;
   if (migrated.showHeroCarousel === undefined && legacy !== undefined) {
