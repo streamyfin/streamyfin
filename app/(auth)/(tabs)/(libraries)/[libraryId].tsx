@@ -2,7 +2,6 @@ import type {
   BaseItemDto,
   BaseItemDtoQueryResult,
   BaseItemKind,
-  ItemFilter,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import {
   getFilterApi,
@@ -408,7 +407,7 @@ const Page = () => {
         sortBy: [sortBy[0], "SortName", "ProductionYear"],
         sortOrder: [sortOrder[0]],
         enableImageTypes: ["Primary", "Backdrop", "Banner", "Thumb"],
-        filters: filterBy as ItemFilter[],
+        filters: filterBy,
         // true is needed for merged versions
         recursive: true,
         imageTypeLimit: 1,
