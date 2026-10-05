@@ -14,6 +14,7 @@ import { ItemImage } from "@/components/common/ItemImage";
 import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { DownloadSingleItem } from "@/components/DownloadItem";
+import { ItemCollections } from "@/components/ItemCollections";
 import { ItemPeopleSections } from "@/components/item/ItemPeopleSections";
 import { MediaSourceButton } from "@/components/MediaSourceButton";
 import { OverviewText } from "@/components/OverviewText";
@@ -294,6 +295,8 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
               )}
 
               <ItemPeopleSections item={item} />
+
+              {!isOffline && <ItemCollections itemId={item.Id} />}
 
               {!isOffline && <SimilarItems itemId={item.Id} />}
             </>

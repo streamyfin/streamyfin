@@ -32,6 +32,7 @@ import {
   TVButton,
   TVCastCrewText,
   TVCastSection,
+  TVCollectionsSection,
   TVFavoriteButton,
   TVMetadataBadges,
   TVOptionButton,
@@ -46,6 +47,7 @@ import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
 import { useImageColorsReturn } from "@/hooks/useImageColorsReturn";
+import { useItemCollections } from "@/hooks/useItemCollections";
 import { usePlayMedia } from "@/hooks/usePlayMedia";
 import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
 import { useTVOptionModal } from "@/hooks/useTVOptionModal";
@@ -72,6 +74,10 @@ import {
 import { formatDuration, runtimeTicksToMinutes } from "@/utils/time";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
+
+// One array for "no collections", so the memoized section is not handed a new
+// one on every render.
+const EMPTY_COLLECTIONS: BaseItemDto[] = [];
 
 export type SelectedOptions = {
   bitrate: Bitrate;
@@ -137,6 +143,13 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
         !!item?.SeasonId &&
         item?.Type === "Episode",
     });
+
+    // Collections the item belongs to. A downloaded item has no server to
+    // ask, and a Program is not a library item.
+    const { data: collections = EMPTY_COLLECTIONS } = useItemCollections(
+      item?.Id,
+      !isOffline && item?.Type !== "Program",
+    );
 
     const [selectedOptions, setSelectedOptions] = useState<
       SelectedOptions | undefined
@@ -624,6 +637,14 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
       [router],
     );
 
+    const handleCollectionPress = useCallback(
+      (collection: BaseItemDto) => {
+        if (!collection.Id) return;
+        router.push(getItemNavigation(collection, "(home)") as any);
+      },
+      [router],
+    );
+
     if (!item || !selectedOptions) return null;
 
     const playable = isPlayableItem(item);
@@ -1003,6 +1024,17 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                 apiBasePath={api?.basePath}
                 onActorPress={handleActorPress}
                 firstActorRefSetter={setFirstActorCardRef}
+                horizontalPadding={insets.left + scaleSize(80)}
+              />
+            )}
+
+            {/* Collections the item belongs to (Jellyfin 12 and newer).
+                Gated here as well as in the query: a disabled query still
+                hands back what it cached while online. */}
+            {!isOffline && (
+              <TVCollectionsSection
+                collections={collections}
+                onCollectionPress={handleCollectionPress}
                 horizontalPadding={insets.left + scaleSize(80)}
               />
             )}
