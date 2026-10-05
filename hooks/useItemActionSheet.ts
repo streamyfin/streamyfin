@@ -11,8 +11,8 @@ import { useSettings } from "@/utils/atoms/settings";
 
 /**
  * The long-press action sheet for a media item: played state, favorite, the
- * KefinTweaks watchlist when enabled, and —
- * offline — deleting the download.
+ * KefinTweaks watchlist when enabled and online, and — offline — deleting the
+ * download.
  *
  * Returns a function that presents the sheet and resolves once it closes, so a
  * caller that mounts it on demand knows when to unmount again. Unsupported item
@@ -62,7 +62,9 @@ export function useItemActionSheet(item: BaseItemDto) {
       },
     ];
 
-    if (settings?.useKefinTweaks) {
+    // The watchlist is Jellyfin's Likes rating; offline the toggle could only
+    // fail.
+    if (settings?.useKefinTweaks && !isOffline) {
       actions.push({
         label: isWatchlisted
           ? t("watchlists.remove_from_watchlist")

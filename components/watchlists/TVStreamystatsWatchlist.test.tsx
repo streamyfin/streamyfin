@@ -66,7 +66,7 @@ beforeEach(() => {
 test("lists my watchlists before public ones", async () => {
   await render(<TVStreamystatsWatchlists />);
   const texts = screen
-    .getAllByText(/watchlists\.(my|public)_watchlists|list$/i)
+    .getAllByText(/(watchlists\.(my|public)_watchlists|list)$/i)
     .map((node) => node.props.children);
   expect(texts).toEqual([
     "watchlists.my_watchlists",

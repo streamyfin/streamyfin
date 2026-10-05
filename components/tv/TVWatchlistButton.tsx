@@ -3,6 +3,7 @@ import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import type React from "react";
 import type { View } from "react-native";
 import { useWatchlist } from "@/hooks/useWatchlist";
+import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { scaleSize } from "@/utils/scaleSize";
 import { TVButton } from "./TVButton";
 
@@ -23,6 +24,10 @@ export const TVWatchlistButton: React.FC<TVWatchlistButtonProps> = ({
   refSetter,
 }) => {
   const { isWatchlisted, toggleWatchlist, isPending } = useWatchlist(item);
+  const isOffline = useOfflineMode();
+
+  // The toggle writes Jellyfin's Likes rating, so offline it could only fail.
+  if (isOffline) return null;
 
   return (
     <TVButton

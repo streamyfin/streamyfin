@@ -1,6 +1,6 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { atom, useAtom, useAtomValue, useSetAtom } from "jotai";
+import { atom, useAtom, useAtomValue, useSetAtom, useStore } from "jotai";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner-native";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
@@ -18,6 +18,7 @@ const watchlistAtom = atom<Record<string, boolean>>({});
  */
 export const useWatchlist = (item: BaseItemDto) => {
   const queryClient = useQueryClient();
+  const store = useStore();
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
   const [watchlist, setWatchlist] = useAtom(watchlistAtom);
@@ -121,9 +122,19 @@ export const useWatchlist = (item: BaseItemDto) => {
       setIsWatchlisted(nextIsWatchlisted);
       updateItemInQueries({ UserData: { Likes: nextIsWatchlisted } });
 
-      return { previousIsWatchlisted, previousQueries };
+      return {
+        previousIsWatchlisted,
+        previousQueries,
+        userId: userRef.current?.Id,
+      };
     },
     onError: (error: Error, _nextIsWatchlisted, context) => {
+      // The item queries are not keyed by account, so a request that fails
+      // after a logout or user switch must not restore its snapshots into the
+      // next account's cache. Read the store, not userRef: the page that sent
+      // the request has usually unmounted by then, freezing the ref.
+      if (store.get(userAtom)?.Id !== context?.userId) return;
+
       // Roll back the optimistic Likes flip applied in onMutate.
       if (context?.previousQueries) {
         for (const [queryKey, data] of context.previousQueries) {
@@ -178,7 +189,18 @@ export const usePruneWatchedFromWatchlist = () => {
       if (!enabled || !api || !userId || itemIds.length === 0) return;
 
       try {
-        const removed = await removeWatchedFromWatchlist(api, userId, itemIds);
+        const { removed, failed } = await removeWatchedFromWatchlist(
+          api,
+          userId,
+          itemIds,
+        );
+        if (failed.length > 0) {
+          writeToLog(
+            "WARN",
+            "Some watched items could not be removed from the watchlist",
+            failed.join(", "),
+          );
+        }
         if (removed.length === 0) return;
 
         // Mounted toggles read the shared atom first, so flip it here rather

@@ -611,7 +611,7 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
               action row geometrically. */}
           {upwardFocusTarget && (
             <TVFocusGuideView
-              destinations={[playButtonRef]}
+              destinations={[upwardFocusTarget]}
               style={{ height: 1, width: "100%" }}
             />
           )}

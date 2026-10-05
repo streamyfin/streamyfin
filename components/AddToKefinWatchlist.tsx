@@ -5,6 +5,7 @@ import { HeaderIcon } from "@/components/common/HeaderIcon";
 import { RoundButton } from "@/components/RoundButton";
 import { Colors } from "@/constants/Colors";
 import { useWatchlist } from "@/hooks/useWatchlist";
+import { useOfflineMode } from "@/providers/OfflineModeProvider";
 
 interface Props extends ViewProps {
   item: BaseItemDto;
@@ -22,6 +23,10 @@ export const AddToKefinWatchlist: FC<Props> = ({
   ...props
 }) => {
   const { isWatchlisted, toggleWatchlist, isPending } = useWatchlist(item);
+  const isOffline = useOfflineMode();
+
+  // The toggle writes Jellyfin's Likes rating, so offline it could only fail.
+  if (isOffline) return null;
 
   return (
     <View {...props}>

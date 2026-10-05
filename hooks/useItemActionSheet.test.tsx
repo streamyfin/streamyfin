@@ -84,9 +84,9 @@ test("toggles the watchlist from its own entry when KefinTweaks is on", async ()
   expect(mockDeleteFile).not.toHaveBeenCalled();
 });
 
-// With index-based handling the watchlist entry would have shifted the offline
-// delete to an index whose handler toggled the watchlist instead.
-test("keeps offline delete last and destructive after the watchlist entry", async () => {
+// Toggling the watchlist needs the server, so offline it is left out; the
+// delete entry still has to land last and destructive with it gone.
+test("leaves the watchlist entry out offline and keeps delete destructive", async () => {
   mockState.useKefinTweaks = true;
   mockState.isOffline = true;
   const { sheet, onSelect } = await present();
@@ -95,14 +95,13 @@ test("keeps offline delete last and destructive after the watchlist entry", asyn
     "common.mark_as_played",
     "common.mark_as_not_played",
     "music.track_options.add_to_favorites",
-    "watchlists.add_to_watchlist",
     "home.downloads.delete_download",
     "common.cancel",
   ]);
-  expect(sheet.destructiveButtonIndex).toBe(4);
-  expect(sheet.cancelButtonIndex).toBe(5);
+  expect(sheet.destructiveButtonIndex).toBe(3);
+  expect(sheet.cancelButtonIndex).toBe(4);
 
-  await onSelect(4);
+  await onSelect(3);
   expect(mockDeleteFile).toHaveBeenCalledWith("movie-1");
   expect(mockToggleWatchlist).not.toHaveBeenCalled();
 });

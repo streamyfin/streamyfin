@@ -6,9 +6,10 @@ type Library = Record<string, BaseItemDto>;
 
 /**
  * A Jellyfin double serving `library` by id, the Likes-filtered children of a
- * parent for /Items, and recording every rating change it receives.
+ * parent for /Items, and recording every rating change it receives. Rating
+ * changes for the ids in `failRatingFor` fail with a 500.
  */
-const serve = (library: Library) => {
+const serve = (library: Library, failRatingFor: string[] = []) => {
   const api = makeApi();
   const unliked: string[] = [];
 
@@ -30,7 +31,9 @@ const serve = (library: Library) => {
   api.mock.onPost(/\/UserItems\/[^/]+\/Rating/).reply((config) => {
     const url = new URL(config.url ?? "", "https://x");
     expect(url.searchParams.get("likes")).toBe("false");
-    unliked.push(url.pathname.split("/")[2]);
+    const id = url.pathname.split("/")[2];
+    if (failRatingFor.includes(id)) return [500];
+    unliked.push(id);
     return [200, {}];
   });
 
@@ -46,9 +49,10 @@ test("takes a finished, watchlisted movie off the watchlist", async () => {
     m1: { Id: "m1", Type: "Movie", ...userData(true, true) },
   });
 
-  await expect(removeWatchedFromWatchlist(api, "u", ["m1"])).resolves.toEqual([
-    "m1",
-  ]);
+  await expect(removeWatchedFromWatchlist(api, "u", ["m1"])).resolves.toEqual({
+    removed: ["m1"],
+    failed: [],
+  });
   expect(unliked).toEqual(["m1"]);
 });
 
@@ -59,9 +63,10 @@ test("leaves an unfinished movie on the watchlist", async () => {
     m1: { Id: "m1", Type: "Movie", ...userData(false, true) },
   });
 
-  await expect(removeWatchedFromWatchlist(api, "u", ["m1"])).resolves.toEqual(
-    [],
-  );
+  await expect(removeWatchedFromWatchlist(api, "u", ["m1"])).resolves.toEqual({
+    removed: [],
+    failed: [],
+  });
   expect(unliked).toEqual([]);
 });
 
@@ -126,4 +131,34 @@ test("removes each item once when several share a season", async () => {
 
   await removeWatchedFromWatchlist(api, "u", ["ep", "ep2"]);
   expect(unliked).toEqual(["ep", "s1", "ep2"]);
+});
+
+// A batch is housekeeping for every id in it: one item the server cannot
+// serve must not leave the rest of the batch on the watchlist.
+test("carries on past an item that fails to load", async () => {
+  const { api, unliked } = serve({
+    m2: { Id: "m2", Type: "Movie", ...userData(true, true) },
+  });
+
+  const result = await removeWatchedFromWatchlist(api, "u", ["gone", "m2"]);
+
+  expect(unliked).toEqual(["m2"]);
+  expect(result.removed).toEqual(["m2"]);
+  expect(result.failed).toEqual(["gone"]);
+});
+
+test("carries on past a rating update that fails", async () => {
+  const { api, unliked } = serve(
+    {
+      m1: { Id: "m1", Type: "Movie", ...userData(true, true) },
+      m2: { Id: "m2", Type: "Movie", ...userData(true, true) },
+    },
+    ["m1"],
+  );
+
+  const result = await removeWatchedFromWatchlist(api, "u", ["m1", "m2"]);
+
+  expect(unliked).toEqual(["m2"]);
+  expect(result.removed).toEqual(["m2"]);
+  expect(result.failed).toEqual(["m1"]);
 });

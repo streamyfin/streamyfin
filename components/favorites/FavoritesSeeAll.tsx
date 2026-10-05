@@ -105,7 +105,9 @@ export default function FavoritesSeeAll() {
 
   const { data, isFetching, fetchNextPage, hasNextPage, isLoading } =
     useInfiniteQuery({
-      queryKey: ["favorites", "see-all", itemType, filter],
+      // Keyed by account: the cache outlives a user switch, and without the id
+      // the grid would open on the previous account's list.
+      queryKey: ["favorites", "see-all", user?.Id, itemType, filter],
       queryFn: ({ pageParam = 0 }) => fetchItems({ pageParam }),
       getNextPageParam: (lastPage, pages) => {
         if (!lastPage || lastPage.length < pageSize) return undefined;

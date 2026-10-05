@@ -25,21 +25,33 @@ const isWatchlistedAndWatched = (item: BaseItemDto) =>
  * Reads the server's state rather than trusting the caller's, so a stop report
  * for an episode abandoned halfway removes nothing.
  *
- * @returns the ids taken off the watchlist.
+ * Each item, parent and rating update stands alone: one the server cannot
+ * serve is reported in `failed` and the rest of the batch still goes through.
+ *
+ * @returns the ids taken off the watchlist, and the ids that could not be
+ * loaded or updated.
  */
 export async function removeWatchedFromWatchlist(
   api: Api,
   userId: string,
   itemIds: string[],
-): Promise<string[]> {
+): Promise<{ removed: string[]; failed: string[] }> {
   const userLibrary = getUserLibraryApi(api);
   const removed = new Set<string>();
+  const failed = new Set<string>();
 
-  const getItem = async (itemId: string) =>
-    (await userLibrary.getItem({ itemId, userId })).data;
+  const getItem = async (itemId: string): Promise<BaseItemDto | null> => {
+    try {
+      return (await userLibrary.getItem({ itemId, userId })).data;
+    } catch {
+      failed.add(itemId);
+      return null;
+    }
+  };
 
   for (const itemId of itemIds) {
     const item = await getItem(itemId);
+    if (!item) continue;
     const candidates: BaseItemDto[] = [item];
 
     const parentIds = [
@@ -49,31 +61,41 @@ export async function removeWatchedFromWatchlist(
         : undefined,
     ].filter((id): id is string => !!id);
     for (const parentId of parentIds) {
-      candidates.push(await getItem(parentId));
+      const parent = await getItem(parentId);
+      if (parent) candidates.push(parent);
     }
 
     if (isContainer(item) && item.Id && item.UserData?.Played) {
-      const { data } = await getItemsApi(api).getItems({
-        userId,
-        parentId: item.Id,
-        recursive: true,
-        filters: ["Likes"],
-        includeItemTypes: ["Season", "Episode"],
-      });
-      candidates.push(...(data.Items ?? []));
+      try {
+        const { data } = await getItemsApi(api).getItems({
+          userId,
+          parentId: item.Id,
+          recursive: true,
+          filters: ["Likes"],
+          includeItemTypes: ["Season", "Episode"],
+        });
+        candidates.push(...(data.Items ?? []));
+      } catch {
+        failed.add(item.Id);
+      }
     }
 
     for (const candidate of candidates) {
       if (!candidate.Id || removed.has(candidate.Id)) continue;
       if (!isWatchlistedAndWatched(candidate)) continue;
-      await userLibrary.updateUserItemRating({
-        itemId: candidate.Id,
-        userId,
-        likes: false,
-      });
-      removed.add(candidate.Id);
+      try {
+        await userLibrary.updateUserItemRating({
+          itemId: candidate.Id,
+          userId,
+          likes: false,
+        });
+        removed.add(candidate.Id);
+        failed.delete(candidate.Id);
+      } catch {
+        failed.add(candidate.Id);
+      }
     }
   }
 
-  return [...removed];
+  return { removed: [...removed], failed: [...failed] };
 }

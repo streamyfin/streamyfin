@@ -141,8 +141,11 @@ export const StreamystatsWatchlists: React.FC = () => {
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
-    await refetch();
-    setRefreshing(false);
+    try {
+      await refetch();
+    } finally {
+      setRefreshing(false);
+    }
   }, [refetch]);
 
   const handleWatchlistPress = useCallback(
