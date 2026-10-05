@@ -664,6 +664,7 @@ const NativePlayerProviderInner: React.FC<{
         req,
         getDownloadedItemById: downloadUtils.getDownloadedItemById,
         strings: buildNativePlayerStrings(t),
+        originalLabel: t("common.original_audio"),
         item: options.item,
       }).catch((error) => {
         logAndCaptureError("NativePlayer config build failed", error, {
@@ -1010,6 +1011,7 @@ const NativePlayerProviderInner: React.FC<{
           offline: session.offline,
           downloadedItem: session.downloadedItem,
           offLabel: buildNativePlayerStrings(t).off ?? "None",
+          originalLabel: t("common.original_audio"),
           bitrateValue: session.bitrateValue,
           localSubtitle: session.localSubtitle
             ? {

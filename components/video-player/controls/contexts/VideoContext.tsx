@@ -56,6 +56,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { useTranslation } from "react-i18next";
 import { Platform } from "react-native";
 import useRouter from "@/hooks/useAppRouter";
 import type { MpvAudioTrack } from "@/modules";
@@ -68,6 +69,7 @@ import {
   getExternalSubtitleUrl,
   isImageBasedSubtitle,
 } from "@/utils/jellyfin/subtitleUtils";
+import { tagOriginalAudioTrack } from "@/utils/jellyfin/trackLabel";
 import { rememberSeriesTrackFromRow } from "@/utils/seriesTrackMemory";
 import {
   isLocalSubtitleIndex,
@@ -98,6 +100,9 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
   const playerControls = usePlayerControls();
   const offline = useOfflineMode();
   const api = useAtomValue(apiAtom);
+  const { t } = useTranslation();
+  // A string, not `t`, so the track effect below keeps primitive dependencies.
+  const originalAudioLabel = t("common.original_audio");
   const router = useRouter();
   const { settings } = useSettings();
 
@@ -223,7 +228,11 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
         if (downloadedTrack) {
           const audio: Track[] = [
             {
-              name: downloadedTrack.DisplayTitle || "Audio",
+              name: tagOriginalAudioTrack(
+                downloadedTrack.DisplayTitle || "Audio",
+                downloadedTrack,
+                originalAudioLabel,
+              ),
               index: downloadedTrack.Index ?? 0,
               mpvIndex: 1, // Only track in file (MPV uses 1-based indexing)
               setTrack: () => {
@@ -342,6 +351,7 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
         selectedIndex: currentAudioIndex,
         isTranscoding,
         formatLabel: (a) => a.DisplayTitle || "Unknown",
+        originalLabel: originalAudioLabel,
       }).map((row) => {
         // mpv ids come from the player's own enumeration, so position against
         // the unfiltered stream list — not the row list, which drops streams
@@ -388,6 +398,7 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
     localSubFiles,
     currentSubtitleIndex,
     currentAudioIndex,
+    originalAudioLabel,
   ]);
 
   return (

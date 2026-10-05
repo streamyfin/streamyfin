@@ -2,6 +2,7 @@ import type { Api } from "@jellyfin/sdk";
 import type {
   BaseItemDto,
   MediaSourceInfo,
+  MediaStream,
 } from "@jellyfin/sdk/lib/generated-client";
 import { getUserLibraryApi } from "@jellyfin/sdk/lib/utils/api";
 import type { OrientationLock as OrientationLockType } from "expo-screen-orientation";
@@ -38,6 +39,7 @@ import {
   getExternalSubtitleUrl,
   getMpvAudioId,
 } from "@/utils/jellyfin/subtitleUtils";
+import { streamLanguageName } from "@/utils/jellyfin/trackLabel";
 import { COMMON_SUBTITLE_LANGUAGES } from "@/utils/opensubtitles/api";
 import { generateDeviceProfile } from "@/utils/profiles/native";
 import { SEGMENT_SKIP_KEY, SEGMENT_SKIPPED_KEY } from "@/utils/segments";
@@ -272,11 +274,8 @@ const ISO_639_2_T_TO_B: Record<string, string> = {
  * (burned-in subtitle / audio-under-transcode → stream re-negotiation).
  */
 /** Native menu labels: DisplayTitle, else language, else the raw index. */
-const nativeLabel = (s: {
-  DisplayTitle?: string | null;
-  Language?: string | null;
-  Index?: number | null;
-}) => s.DisplayTitle ?? s.Language ?? `#${s.Index}`;
+const nativeLabel = (s: MediaStream) =>
+  s.DisplayTitle || streamLanguageName(s) || `#${s.Index}`;
 
 export const buildTrackMenus = (options: {
   mediaSource: MediaSourceInfo;
@@ -285,6 +284,8 @@ export const buildTrackMenus = (options: {
   offline: boolean;
   downloadedItem: DownloadedItem | null;
   offLabel: string;
+  /** Localized tag for the original-language audio track. */
+  originalLabel: string;
   /** Current max streaming bitrate (undefined = Max). */
   bitrateValue?: number;
   /** Client-side downloaded sidecar subtitle, listed after the server tracks. */
@@ -328,6 +329,7 @@ export const buildTrackMenus = (options: {
     isTranscoding,
     offlineTranscoded,
     formatLabel: nativeLabel,
+    originalLabel: options.originalLabel,
   }).map(toMenuItem);
 
   // Quality/bitrate menu (JS DropdownView parity): online only; changing it
@@ -384,6 +386,11 @@ export async function buildNativePlayerConfig(params: {
   req: PlayRequest;
   getDownloadedItemById: (id: string) => DownloadedItem | undefined;
   strings: NativePlayerStrings;
+  /**
+   * Tag for the original-language audio track. Not part of `strings`: the
+   * track labels are finished in JS, the native chrome never composes them.
+   */
+  originalLabel: string;
   /** Skip the item refetch when the caller already has it (episode switch). */
   item?: BaseItemDto;
 }): Promise<{
@@ -553,6 +560,7 @@ export async function buildNativePlayerConfig(params: {
       offline,
       downloadedItem,
       offLabel: strings.off ?? "None",
+      originalLabel: params.originalLabel,
       bitrateValue,
     }),
     subtitleStyle: {

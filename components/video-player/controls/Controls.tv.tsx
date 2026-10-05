@@ -52,6 +52,7 @@ import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import type { TVOptionItem } from "@/utils/atoms/tvOptionModal";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
+import { streamLanguageName } from "@/utils/jellyfin/trackLabel";
 import { useSegments } from "@/utils/segments";
 import { rememberSeriesTrackFromRow } from "@/utils/seriesTrackMemory";
 import { SUBTITLES_OFF } from "@/utils/subtitles/subtitleIndex";
@@ -310,13 +311,15 @@ export const Controls: FC<Props> = ({
         selectedIndex: audioIndex,
         isTranscoding: Boolean(mediaSource?.TranscodingUrl),
         formatLabel: (s) =>
-          s.DisplayTitle || `${s.Language || "Unknown"} (${s.Codec})`,
+          s.DisplayTitle ||
+          `${streamLanguageName(s) || "Unknown"} (${s.Codec})`,
+        originalLabel: t("common.original_audio"),
       }).map((row) => ({
         label: row.label,
         value: row,
         selected: row.selected,
       })),
-    [mediaSource, audioIndex],
+    [mediaSource, audioIndex, t],
   );
 
   const handleAudioChange = useCallback(
@@ -359,7 +362,8 @@ export const Controls: FC<Props> = ({
         offLabel: "",
         isTranscoding: Boolean(mediaSource?.TranscodingUrl),
         formatLabel: (s) =>
-          s.DisplayTitle || `${s.Language || "Unknown"} (${s.Codec})`,
+          s.DisplayTitle ||
+          `${streamLanguageName(s) || "Unknown"} (${s.Codec})`,
       })
         .filter((row) => row.kind !== "off")
         .map((row) => ({

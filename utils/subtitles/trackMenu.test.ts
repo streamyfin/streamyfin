@@ -2,6 +2,7 @@ import type {
   MediaStream,
   SubtitleDeliveryMethod,
 } from "@jellyfin/sdk/lib/generated-client";
+import type { Jellyfin12MediaStream } from "@/utils/jellyfin/trackLabel";
 import { localSubtitleIndex, SUBTITLES_OFF } from "./subtitleIndex";
 import { buildAudioMenu, buildSubtitleMenu } from "./trackMenu";
 
@@ -19,8 +20,8 @@ const sub = (
 
 const audio = (
   index: number | undefined,
-  extra: Partial<MediaStream> = {},
-): MediaStream => ({ Type: "Audio", Index: index, ...extra });
+  extra: Jellyfin12MediaStream = {},
+): Jellyfin12MediaStream => ({ Type: "Audio", Index: index, ...extra });
 
 const base = { offLabel: "Off", isTranscoding: false, selectedIndex: -1 };
 
@@ -181,12 +182,16 @@ describe("buildAudioMenu", () => {
   test("drops streams with no Index", () => {
     const rows = buildAudioMenu([audio(undefined), audio(1)], {
       isTranscoding: false,
+      originalLabel: "Original",
     });
     expect(rows.map((r) => r.index)).toEqual([1]);
   });
 
   test("marks every row as needing a re-process while transcoding", () => {
-    const rows = buildAudioMenu([audio(1), audio(2)], { isTranscoding: true });
+    const rows = buildAudioMenu([audio(1), audio(2)], {
+      isTranscoding: true,
+      originalLabel: "Original",
+    });
     expect(rows.every((r) => r.requiresReload)).toBe(true);
   });
 
@@ -197,6 +202,7 @@ describe("buildAudioMenu", () => {
       isTranscoding: false,
       offlineTranscoded: true,
       selectedIndex: 2,
+      originalLabel: "Original",
     });
     expect(rows.map((r) => r.index)).toEqual([2]);
     expect(rows[0].selected).toBe(true);
@@ -205,7 +211,60 @@ describe("buildAudioMenu", () => {
   test("carries the language for the series memory", () => {
     const rows = buildAudioMenu([audio(1, { Language: "jpn" })], {
       isTranscoding: false,
+      originalLabel: "Original",
     });
+    expect(rows[0].language).toBe("jpn");
+  });
+
+  test("marks the original track, and only that one", () => {
+    const rows = buildAudioMenu(
+      [
+        audio(1, { DisplayTitle: "English - AAC" }),
+        audio(2, { DisplayTitle: "Japanese - AAC", IsOriginal: true }),
+      ],
+      { isTranscoding: false, originalLabel: "Original" },
+    );
+    expect(rows.map((r) => r.label)).toEqual([
+      "English - AAC",
+      "Japanese - AAC - Original",
+    ]);
+  });
+
+  test("leaves a Jellyfin 12 DisplayTitle that already carries the tag as it is", () => {
+    const rows = buildAudioMenu(
+      [
+        audio(1, {
+          DisplayTitle: "Japanese - AAC - Stereo - Original",
+          LocalizedOriginal: "Original",
+          IsOriginal: true,
+        }),
+      ],
+      { isTranscoding: false, originalLabel: "Original" },
+    );
+    expect(rows[0].label).toBe("Japanese - AAC - Stereo - Original");
+  });
+
+  test("tags the label a surface formats itself", () => {
+    // Each surface keeps its own fallback format; the tag is applied after it,
+    // so a custom formatLabel cannot drop the marker.
+    const rows = buildAudioMenu([audio(1, { IsOriginal: true })], {
+      isTranscoding: false,
+      originalLabel: "Original",
+      formatLabel: () => "Unknown",
+    });
+    expect(rows[0].label).toBe("Unknown - Original");
+  });
+
+  test("names the language the way Jellyfin 12 resolved it when there is no DisplayTitle", () => {
+    const rows = buildAudioMenu(
+      [
+        audio(1, { Language: "jpn", LocalizedLanguage: "Japanese" }),
+        audio(2, { Language: "eng" }),
+      ],
+      { isTranscoding: false, originalLabel: "Original" },
+    );
+    expect(rows.map((r) => r.label)).toEqual(["Japanese", "eng"]);
+    // The series memory still keys on the ISO code.
     expect(rows[0].language).toBe("jpn");
   });
 });

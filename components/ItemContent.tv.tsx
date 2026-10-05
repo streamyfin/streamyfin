@@ -60,6 +60,7 @@ import type { TVOptionItem } from "@/utils/atoms/tvOptionModal";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
 import { getPrimaryImageUrlById } from "@/utils/jellyfin/image/getPrimaryImageUrlById";
 import { isPlayableItem } from "@/utils/jellyfin/media/isPlayableItem";
+import { streamLanguageName } from "@/utils/jellyfin/trackLabel";
 import { scaleSize } from "@/utils/scaleSize";
 import { rememberSeriesTrackFromRow } from "@/utils/seriesTrackMemory";
 import { SUBTITLES_OFF } from "@/utils/subtitles/subtitleIndex";
@@ -257,7 +258,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
     /** Existing label format on this screen; kept so the menus read the same. */
     const tvTrackLabel = useCallback(
       (s: MediaStream) =>
-        s.DisplayTitle || `${s.Language || "Unknown"} (${s.Codec})`,
+        s.DisplayTitle || `${streamLanguageName(s) || "Unknown"} (${s.Codec})`,
       [],
     );
 
@@ -287,8 +288,14 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
           selectedIndex: selectedOptions?.audioIndex,
           isTranscoding: Boolean(selectedOptions?.mediaSource?.TranscodingUrl),
           formatLabel: tvTrackLabel,
+          originalLabel: t("common.original_audio"),
         }),
-      [selectedOptions?.mediaSource, selectedOptions?.audioIndex, tvTrackLabel],
+      [
+        selectedOptions?.mediaSource,
+        selectedOptions?.audioIndex,
+        tvTrackLabel,
+        t,
+      ],
     );
 
     const subtitleRows = useMemo(
