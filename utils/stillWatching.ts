@@ -24,6 +24,7 @@ export const coerceStillWatchingPreset = (
 ): StillWatchingPreset | undefined => {
   if (isStillWatchingPreset(value)) return value;
   if (!hasMeaningfulSettingValue(value)) return undefined;
+  if (typeof value === "boolean") return value ? "default" : "disabled";
   return (
     stillWatchingPresetFromEpisodeCount(value) ?? DEFAULT_STILL_WATCHING_PRESET
   );
@@ -61,7 +62,8 @@ export const isStillWatchingDue = ({
 }: StillWatchingGateInput): boolean => {
   if (!thresholds) return false;
   const durationMs = thresholds.minutes * MS_PER_MINUTE;
-  if (sessionDurationMs < durationMs) return false;
+  // Written so a NaN duration (a missing position) fails the gate too.
+  if (!(sessionDurationMs >= durationMs)) return false;
   if (idleMs !== undefined && idleMs >= durationMs) return true;
   return playedCount >= thresholds.episodes;
 };
@@ -98,9 +100,8 @@ const session = {
   startMs: Date.now(),
   lastInputMs: Date.now(),
   playedCount: 0,
-  // Bumped on every reset, autoplay and input, so a decision taken for an
-  // episode can tell a later stream swap of it from a new play of it, and an
-  // input re-opens it, as the idle rule needs.
+  // Bumped on every reset and autoplay, so a decision taken for an episode
+  // can tell a later stream swap of it from a new play of it.
   epoch: 0,
 };
 
@@ -117,7 +118,6 @@ export const resetStillWatchingSession = (nowMs: number = Date.now()) => {
 
 export const markStillWatchingInput = (nowMs: number = Date.now()) => {
   session.lastInputMs = nowMs;
-  session.epoch += 1;
 };
 
 export const recordStillWatchingAutoplay = () => {
@@ -125,21 +125,28 @@ export const recordStillWatchingAutoplay = () => {
   session.epoch += 1;
 };
 
-let decision: { key: string; due: boolean } | null = null;
+let decision: { key: string; due: boolean; inputMs: number } | null = null;
 
 /**
- * The first decision taken for `itemId` since the last reset, autoplay or
- * input, reused for as long as that episode keeps playing, a stream swap
- * included. The native player only gets a snapshot, so changing it later
- * could race a countdown native is already running.
+ * The first decision taken for `itemId` since the last reset or autoplay,
+ * reused for as long as that episode keeps playing, a stream swap included.
+ * The native player only gets a snapshot, so changing it later could race a
+ * countdown native is already running. An input since a "due" decision takes
+ * it again, as the idle rule needs; it never turns "not due" into "due", so a
+ * pause and resume inside a countdown can't swap it for the prompt.
  */
 export const decideStillWatchingOnce = (
   itemId: string,
   decide: () => boolean,
 ): boolean => {
   const key = `${session.epoch}:${itemId}`;
-  if (decision?.key !== key) decision = { key, due: decide() };
-  return decision.due;
+  const stale =
+    decision?.key !== key ||
+    (decision.due && session.lastInputMs > decision.inputMs);
+  if (stale) {
+    decision = { key, due: decide(), inputMs: session.lastInputMs };
+  }
+  return decision?.due === true;
 };
 
 /**

@@ -70,6 +70,16 @@ describe("isStillWatchingDue", () => {
     ).toBe(false);
   });
 
+  test("a missing duration fails the session gate", () => {
+    expect(
+      isStillWatchingDue({
+        thresholds: preset,
+        playedCount: 10,
+        sessionDurationMs: Number.NaN,
+      }),
+    ).toBe(false);
+  });
+
   // The native chrome cannot report input: only the count may trip it.
   test("without idle time, only the count fires it", () => {
     const base = {
@@ -216,9 +226,16 @@ describe("the session", () => {
     resetStillWatchingSession(start);
     expect(decideStillWatchingOnce("ep-2", () => false)).toBe(false);
 
-    // An input resets idle time, so the decision has to be taken again.
-    markStillWatchingInput(start);
-    expect(decideStillWatchingOnce("ep-2", () => true)).toBe(true);
+    // An input never turns "not due" into "due": a pause and resume inside
+    // the countdown must not swap it for the prompt.
+    markStillWatchingInput(start + 1);
+    expect(decideStillWatchingOnce("ep-2", () => true)).toBe(false);
+
+    // An input since a "due" decision takes it again: idle time was reset.
+    recordStillWatchingAutoplay();
+    expect(decideStillWatchingOnce("ep-3", () => true)).toBe(true);
+    markStillWatchingInput(start + 2);
+    expect(decideStillWatchingOnce("ep-3", () => false)).toBe(false);
   });
 });
 
@@ -228,6 +245,7 @@ describe("coerceStillWatchingPreset", () => {
     ["disabled", "disabled"],
     [3, "default"],
     [-1, "disabled"],
+    [false, "disabled"],
     // A preset from a newer build.
     ["medium", "default"],
     [null, undefined],

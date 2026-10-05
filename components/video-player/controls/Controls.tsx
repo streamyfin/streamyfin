@@ -152,6 +152,9 @@ export const Controls: FC<Props> = ({
   const [episodeView, setEpisodeView] = useState(false);
   const [showAudioSlider, setShowAudioSlider] = useState(false);
   const [showSubtitleScale, setShowSubtitleScale] = useState(false);
+  // The "Still watching?" prompt itself waits for the end, so it never covers a video that is
+  // still playing.
+  const [stillWatchingVisible, setStillWatchingVisible] = useState(false);
 
   const { height: screenHeight, width: screenWidth } = useWindowDimensions();
   const { previousItem, nextItem } = usePlaybackManager({
@@ -283,7 +286,8 @@ export const Controls: FC<Props> = ({
   useKeyEventListener((e) => {
     if (e?.eventType !== "press") return;
     markStillWatchingInput();
-    if (episodeView || showAudioSlider) return;
+    // Nothing may resume playback under the prompt but its own answer.
+    if (episodeView || showAudioSlider || stillWatchingVisible) return;
     const key = e.key;
 
     if (key === " " || key === "Spacebar" || key === "Space") {
@@ -464,7 +468,7 @@ export const Controls: FC<Props> = ({
   const stillWatchingArmedRef = useRef(false);
   // Decided once the credits or the countdown window start, so time passing
   // can't swap Skip Credits, the countdown and the prompt around under the
-  // viewer; an input re-opens it, as the idle rule needs. The decision lives
+  // viewer; an input can only cancel a due prompt, as the idle rule needs. The decision lives
   // with the session, not this component, so a track change that remounts
   // the player keeps it. Taken without the autoplay gate, so a next item that
   // resolves late still gets the prompt.
@@ -484,10 +488,6 @@ export const Controls: FC<Props> = ({
       ? decideStillWatchingOnce(item.Id, isDueNow)
       : isDueNow();
   const stillWatchingRequired = autoPlayWanted && stillWatchingDue;
-
-  // The prompt itself waits for the end, so it never covers a video that is
-  // still playing.
-  const [stillWatchingVisible, setStillWatchingVisible] = useState(false);
 
   // Whether the "Next Episode" countdown can be rendered at all. The Skip
   // Credits button yields to it only when this is true; if autoplay is
