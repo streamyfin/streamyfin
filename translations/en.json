@@ -164,6 +164,8 @@
         "download_live_activity_hint": "Show download progress on the Lock Screen and in the Dynamic Island.",
         "merge_next_up_continue_watching": "Merge Continue watching & Next up",
         "merge_next_up_continue_watching_hint": "Combine Continue Watching and Next Up into a single home row.",
+        "show_upcoming_on_home": "Upcoming episodes on home",
+        "show_upcoming_on_home_hint": "Add a home row with the episodes about to air in your TV libraries.",
         "use_episode_images_next_up": "Use episode images for Next Up & Continue Watching",
         "use_episode_images_next_up_hint": "Show each episode's own thumbnail in the Next Up and Continue Watching rows instead of the series image.",
         "hide_remote_session_button": "Hide remote session button",
@@ -739,6 +741,13 @@
       "desc": "Descending"
     }
   },
+  "upcoming": {
+    "title": "Upcoming",
+    "no_episodes": "No upcoming episodes",
+    "yesterday": "Yesterday",
+    "today": "Today",
+    "tomorrow": "Tomorrow"
+  },
   "favorites": {
     "series": "Series",
     "movies": "Movies",
@@ -868,6 +877,8 @@
     "view_season": "View season",
     "select_season": "Select season",
     "no_episodes_for_this_season": "No episodes for this season",
+    "missing": "Missing",
+    "not_yet_aired": "Not yet aired",
     "overview": "Overview",
     "more_with": "More with {{name}}",
     "similar_items": "Similar items",

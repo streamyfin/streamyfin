@@ -33,11 +33,13 @@ import { StreamystatsRecommendations } from "@/components/home/StreamystatsRecom
 import { TVHeroCarousel } from "@/components/home/TVHeroCarousel";
 import { Loader } from "@/components/Loader";
 import { useScaledTVTypography } from "@/constants/TVTypography";
+import { UPCOMING_HOME_PAGE_SIZE } from "@/constants/Upcoming";
 import useRouter from "@/hooks/useAppRouter";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { useRefreshLibraryOnFocus } from "@/hooks/useRefreshLibraryOnFocus";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
 import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
+import { fetchUpcomingEpisodes } from "@/hooks/useUpcomingEpisodes";
 import {
   apiAtom,
   cacheVersionAtom,
@@ -447,8 +449,29 @@ export const Home = () => {
           },
         ];
 
+    // After Continue watching and Next up: the hero stands in for those two,
+    // and the rows it replaces are dropped by position.
+    const upcomingSections: Section[] = settings.showUpcomingOnHome
+      ? [
+          {
+            title: t("upcoming.title"),
+            queryKey: ["home", "upcoming", user.Id],
+            queryFn: ({ pageParam = 0 }) =>
+              fetchUpcomingEpisodes(api, {
+                userId: user.Id!,
+                startIndex: pageParam,
+                limit: UPCOMING_HOME_PAGE_SIZE,
+              }),
+            type: "InfiniteScrollingCollectionList",
+            orientation: "horizontal",
+            pageSize: UPCOMING_HOME_PAGE_SIZE,
+          },
+        ]
+      : [];
+
     const ss: Section[] = [
       ...firstSections,
+      ...upcomingSections,
       ...latestMediaViews,
       ...(!settings?.streamyStatsMovieRecommendations
         ? [
@@ -481,6 +504,7 @@ export const Home = () => {
     createCollectionConfig,
     settings?.streamyStatsMovieRecommendations,
     settings.mergeNextUpAndContinueWatching,
+    settings.showUpcomingOnHome,
   ]);
 
   const customSections = useMemo(() => {

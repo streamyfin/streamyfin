@@ -34,10 +34,12 @@ import { StreamystatsRecommendations } from "@/components/home/StreamystatsRecom
 import { Loader } from "@/components/Loader";
 import { MediaListSection } from "@/components/medialists/MediaListSection";
 import { Colors } from "@/constants/Colors";
+import { UPCOMING_HOME_PAGE_SIZE } from "@/constants/Upcoming";
 import useRouter from "@/hooks/useAppRouter";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { useRefreshLibraryOnFocus } from "@/hooks/useRefreshLibraryOnFocus";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
+import { fetchUpcomingEpisodes } from "@/hooks/useUpcomingEpisodes";
 import { useDownload } from "@/providers/DownloadProvider";
 import { useIntroSheet } from "@/providers/IntroSheetProvider";
 import {
@@ -371,8 +373,30 @@ const HomeMobile = () => {
           },
         ];
 
+    // After Continue watching and Next up, where the TV home has it too.
+    const upcomingSections: Section[] = settings.showUpcomingOnHome
+      ? [
+          {
+            title: t("upcoming.title"),
+            queryKey: ["home", "upcoming", user.Id],
+            queryFn: ({ pageParam = 0 }) =>
+              fetchUpcomingEpisodes(api, {
+                userId: user.Id!,
+                startIndex: pageParam,
+                limit: UPCOMING_HOME_PAGE_SIZE,
+              }),
+            type: "InfiniteScrollingCollectionList",
+            orientation: "horizontal",
+            pageSize: UPCOMING_HOME_PAGE_SIZE,
+            priority: 2 as const,
+            showParentTitle: true,
+          },
+        ]
+      : [];
+
     const ss: Section[] = [
       ...firstSections,
+      ...upcomingSections,
       ...latestMediaViews.map((s) => ({ ...s, priority: 2 as const })),
       // Only show Jellyfin suggested movies if StreamyStats recommendations are disabled
       ...(!settings?.streamyStatsMovieRecommendations
@@ -406,6 +430,7 @@ const HomeMobile = () => {
     t,
     settings?.streamyStatsMovieRecommendations,
     settings.mergeNextUpAndContinueWatching,
+    settings.showUpcomingOnHome,
   ]);
 
   const customSections = useMemo(() => {

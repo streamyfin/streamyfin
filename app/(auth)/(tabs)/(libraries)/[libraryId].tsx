@@ -41,6 +41,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useCardGrid } from "@/components/cards/useCardGrid";
+import { HeaderButton } from "@/components/common/HeaderButton";
 import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { getItemNavigation } from "@/components/common/TouchableItemRouter";
@@ -464,6 +465,16 @@ const Page = () => {
   // ignores the parameters, and waiting for the version would send a first,
   // unfiltered request on a cold cache.
   const languageFilters = useLanguageFilters(library);
+
+  // Only a TV library has episodes still to air. `/Shows/Upcoming` answers for
+  // any parent, with nothing.
+  const showUpcoming = library?.CollectionType === "tvshows";
+  const openUpcoming = useCallback(() => {
+    router.push({
+      pathname: "/(auth)/(tabs)/(libraries)/upcoming",
+      params: { parentId: libraryId },
+    } as any);
+  }, [router, libraryId]);
 
   const navigation = useNavigation();
   useEffect(() => {
@@ -1218,20 +1229,39 @@ const Page = () => {
   const canQueue =
     hasFilterBar && !!library && isQueueableLibrary(library.CollectionType);
   const isEmpty = flatData.length === 0;
+  // The header has one right-hand slot, so everything that goes there is set
+  // in one place. A show library gets Upcoming and is never queueable, so the
+  // two do not compete. TV has no header: its buttons sit by the filter bar.
   useEffect(() => {
     if (Platform.isTV) return;
     navigation.setOptions({
-      headerRight: canQueue
+      headerRight: showUpcoming
         ? () => (
-            <LibraryPlayButtons
-              onPlayAll={playAll}
-              onShuffle={shuffle}
-              disabled={isEmpty || isStarting}
-            />
+            <HeaderButton variant='text' onPress={openUpcoming}>
+              <Text>{t("upcoming.title")}</Text>
+            </HeaderButton>
           )
-        : undefined,
+        : canQueue
+          ? () => (
+              <LibraryPlayButtons
+                onPlayAll={playAll}
+                onShuffle={shuffle}
+                disabled={isEmpty || isStarting}
+              />
+            )
+          : undefined,
     });
-  }, [navigation, canQueue, playAll, shuffle, isEmpty, isStarting]);
+  }, [
+    navigation,
+    showUpcoming,
+    openUpcoming,
+    t,
+    canQueue,
+    playAll,
+    shuffle,
+    isEmpty,
+    isStarting,
+  ]);
 
   // With tabs the header stays mounted while a tab loads: replacing the whole
   // screen would drop the TV focus held by the tab that was just pressed.
@@ -1445,6 +1475,13 @@ const Page = () => {
           onPress={handleShowFilterByFilter}
           hasActiveFilter={filterBy.length > 0}
         />
+        {showUpcoming && (
+          <TVFilterButton
+            label=''
+            value={t("upcoming.title")}
+            onPress={openUpcoming}
+          />
+        )}
       </TVFocusGuideView>
 
       {canJumpToLetter && (

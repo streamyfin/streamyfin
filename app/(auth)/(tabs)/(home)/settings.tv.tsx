@@ -1365,6 +1365,11 @@ export default function SettingsTV() {
             }
           />
           <TVSettingsToggle
+            label={t("home.settings.appearance.show_upcoming_on_home")}
+            value={settings.showUpcomingOnHome}
+            onToggle={(value) => updateSettings({ showUpcomingOnHome: value })}
+          />
+          <TVSettingsToggle
             label={t("home.settings.appearance.use_episode_images_next_up")}
             value={settings.useEpisodeImagesForNextUp}
             onToggle={(value) =>
