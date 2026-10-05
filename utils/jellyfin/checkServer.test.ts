@@ -375,6 +375,36 @@ describe("checkJellyfinServer — the typed address stays out of what Sentry is 
     expect(reachesSentry()).not.toContain(HOST);
   });
 
+  // The host is read out of the address the way the probe's URL is built
+  // from it. A second reading of the same text took `admin@host` for the
+  // host and gave up on `user:password@host`, so neither was found in the
+  // error and the host stayed in it.
+  test.each([
+    `admin@${HOST}`,
+    `https://admin:hunter2@${HOST}:8096/jellyfin`,
+    `${HOST}\\jellyfin`,
+  ])("typed as %j, with a failure that names the host", async (input) => {
+    const failure = () =>
+      Promise.reject(new Error(`Hostname ${HOST} not verified`));
+    routes({ https: failure, http: failure });
+
+    await checkJellyfinServer(input);
+
+    expect(reachesSentry()).not.toContain(HOST);
+    expect(reachesSentry()).not.toContain("hunter2");
+    expect(reachesSentry()).toContain("Hostname [server] not verified");
+  });
+
+  test("an IPv6 address typed in brackets", async () => {
+    const failure = () =>
+      Promise.reject(new Error("Hostname 2001:db8::5 not verified"));
+    routes({ https: failure, http: failure });
+
+    await checkJellyfinServer("[2001:db8::5]:8096");
+
+    expect(reachesSentry()).not.toContain("2001:db8::5");
+  });
+
   // A certificate error goes on to list the names the certificate is for.
   test("a failure that lists the certificate's other names", async () => {
     const message = [

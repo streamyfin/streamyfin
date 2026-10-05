@@ -11,7 +11,6 @@ import {
   getServerCustomHeaders,
   updateServerCustomHeaders,
 } from "@/utils/secureCredentials";
-import { parseServerInput } from "@/utils/serverUrl/candidates";
 
 /** Thrown when the server answered but is older than Streamyfin supports. */
 export class ServerTooOldError extends Error {
@@ -44,6 +43,23 @@ const errorText = (error: unknown): string =>
   error instanceof Error ? `${error.name}: ${error.message}` : String(error);
 
 /**
+ * The host in an address whose scheme is already off, read the way the
+ * probe's URL is built from it: what precedes the path, less any credentials
+ * in front and the port behind, and without the brackets of an IPv6 address.
+ *
+ * Not parseServerInput: that one reads the address for the server URL field,
+ * takes `admin@host` for the host and gives up on `user:password@host`, and
+ * where the two readings differ the host is not found and stays in the log.
+ */
+const hostNameOf = (host: string): string => {
+  const authority = host.split(/[/\\?#]/)[0];
+  return authority
+    .slice(authority.lastIndexOf("@") + 1)
+    .replace(/:\d*$/, "")
+    .replace(/^\[|\]$/g, "");
+};
+
+/**
  * What a failed probe says for itself, fit to be a log message.
  *
  * A log message is mirrored into Sentry as a breadcrumb, and the scrubber on
@@ -54,15 +70,13 @@ const errorText = (error: unknown): string =>
  * kept: a certificate error goes on to list the names the certificate is
  * for, which are the same server's.
  *
- * @param address The address as typed, with or without its scheme.
+ * @param host The address as it is probed, without its scheme.
  */
-function describeProbeFailure(error: unknown, address: string): string {
+function describeProbeFailure(error: unknown, host: string): string {
   const detail = errorText(error).split("\n")[0];
-  // The host alone is what an error repeats. An address that does not parse
-  // is looked for as it was typed.
-  const host = parseServerInput(address)?.host ?? address;
-  return host
-    ? detail.replace(new RegExp(escapeRegExp(host), "gi"), REDACTED_SERVER)
+  const hostName = hostNameOf(host);
+  return hostName
+    ? detail.replace(new RegExp(escapeRegExp(hostName), "gi"), REDACTED_SERVER)
     : detail;
 }
 
@@ -149,7 +163,7 @@ export async function checkJellyfinServer(
         `Server check: ${url} failed — ${
           abort.signal.aborted
             ? `timed out after ${probeTimeoutMs}ms`
-            : describeProbeFailure(e, trimmed)
+            : describeProbeFailure(e, host)
         }`,
         { error: errorText(e) },
       );
