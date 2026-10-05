@@ -87,7 +87,10 @@ import {
   INITIAL_AUTO_SUBTITLE_STATE,
   resolveAutoSubtitleAction,
 } from "@/utils/autoSubtitleOnMute";
-import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
+import {
+  getAdjacentStartTicks,
+  getDefaultPlaySettings,
+} from "@/utils/jellyfin/getDefaultPlaySettings";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { subtitleSearchErrorMessage } from "@/utils/jellyfin/subtitleSearchAccess";
 import {
@@ -913,6 +916,7 @@ const NativePlayerProviderInner: React.FC<{
           audioIndex: session.currentAudioIndex,
         },
         source: session.stream.mediaSource,
+        offline: session.offline,
       });
 
       const req: PlayRequest = {
@@ -922,7 +926,9 @@ const NativePlayerProviderInner: React.FC<{
         mediaSourceId: newMediaSource?.Id ?? undefined,
         bitrateValue: session.bitrateValue,
         offline: session.offline,
-        playbackPositionTicks: target.UserData?.PlaybackPositionTicks,
+        playbackPositionTicks:
+          getAdjacentStartTicks(target, newMediaSource, session.offline) ??
+          undefined,
       };
       // Target came from the adjacent-items query without full MediaSources —
       // let the builder refetch it online; offline uses the downloads DB.

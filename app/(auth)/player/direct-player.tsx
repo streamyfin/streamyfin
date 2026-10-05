@@ -75,7 +75,10 @@ import {
   resolveSessionPositionTicks,
 } from "@/utils/directPlayer/sessionPosition";
 import { isExpectedError } from "@/utils/errors";
-import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
+import {
+  getAdjacentStartTicks,
+  getDefaultPlaySettings,
+} from "@/utils/jellyfin/getDefaultPlaySettings";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import { isPlayableItem } from "@/utils/jellyfin/media/isPlayableItem";
@@ -1508,6 +1511,7 @@ export default function DirectPlayerPage() {
         audioIndex: currentAudioIndex,
       },
       source: stream?.mediaSource ?? undefined,
+      offline,
     });
 
     const queryParams = new URLSearchParams({
@@ -1517,7 +1521,11 @@ export default function DirectPlayerPage() {
       mediaSourceId: newMediaSource?.Id ?? "",
       bitrateValue: bitrateValue?.toString() ?? "",
       playbackPosition:
-        previousItem.UserData?.PlaybackPositionTicks?.toString() ?? "",
+        getAdjacentStartTicks(
+          previousItem,
+          newMediaSource,
+          offline,
+        )?.toString() ?? "",
     }).toString();
 
     // Free the current mpv instance before navigating, matching goToNextItem —
@@ -1533,6 +1541,7 @@ export default function DirectPlayerPage() {
     stream?.mediaSource,
     bitrateValue,
     router,
+    offline,
   ]);
 
   // TV: Add subtitle file to player (for client-side downloaded subtitles)
@@ -1593,6 +1602,7 @@ export default function DirectPlayerPage() {
         audioIndex: currentAudioIndex,
       },
       source: stream?.mediaSource ?? undefined,
+      offline,
     });
 
     const queryParams = new URLSearchParams({
@@ -1602,7 +1612,8 @@ export default function DirectPlayerPage() {
       mediaSourceId: newMediaSource?.Id ?? "",
       bitrateValue: bitrateValue?.toString() ?? "",
       playbackPosition:
-        nextItem.UserData?.PlaybackPositionTicks?.toString() ?? "",
+        getAdjacentStartTicks(nextItem, newMediaSource, offline)?.toString() ??
+        "",
     }).toString();
 
     // Destroy the current mpv instance BEFORE navigating so the old 4K
@@ -1625,6 +1636,7 @@ export default function DirectPlayerPage() {
     router,
     isPlaybackStopped,
     videoRef,
+    offline,
   ]);
 
   // Apply subtitle settings after MPV has enumerated tracks; applying them on

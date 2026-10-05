@@ -4,7 +4,10 @@ import { useCallback } from "react";
 import { usePlayMedia } from "@/hooks/usePlayMedia";
 import { useSettings } from "@/utils/atoms/settings";
 import { shuffleQueueAtom } from "@/utils/atoms/shuffleQueue";
-import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
+import {
+  getAdjacentStartTicks,
+  getDefaultPlaySettings,
+} from "@/utils/jellyfin/getDefaultPlaySettings";
 import { shuffle } from "@/utils/shuffle";
 
 interface StartShuffleOptions {
@@ -56,7 +59,8 @@ export const useShuffleQueue = () => {
           mediaSourceId: mediaSource?.Id ?? undefined,
           bitrateValue: bitrate?.value,
           offline: options.isOffline ?? false,
-          playbackPositionTicks: first.UserData?.PlaybackPositionTicks ?? 0,
+          playbackPositionTicks:
+            getAdjacentStartTicks(first, mediaSource, !!options.isOffline) ?? 0,
         },
         { preserveShuffleQueue: true, item: first },
       );

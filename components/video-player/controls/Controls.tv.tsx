@@ -51,7 +51,10 @@ import { apiAtom } from "@/providers/JellyfinProvider";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import type { TVOptionItem } from "@/utils/atoms/tvOptionModal";
-import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
+import {
+  getAdjacentStartTicks,
+  getDefaultPlaySettings,
+} from "@/utils/jellyfin/getDefaultPlaySettings";
 import { useSegments } from "@/utils/segments";
 import { rememberSeriesTrackFromRow } from "@/utils/seriesTrackMemory";
 import { SUBTITLES_OFF } from "@/utils/subtitles/subtitleIndex";
@@ -1207,6 +1210,7 @@ export const Controls: FC<Props> = ({
       } = getDefaultPlaySettings(nextItem, settings, {
         indexes: previousIndexes,
         source: mediaSource ?? undefined,
+        offline,
       });
 
       const queryParams = new URLSearchParams({
@@ -1216,7 +1220,11 @@ export const Controls: FC<Props> = ({
         mediaSourceId: newMediaSource?.Id ?? "",
         bitrateValue: bitrateValue?.toString() ?? "",
         playbackPosition:
-          nextItem.UserData?.PlaybackPositionTicks?.toString() ?? "",
+          getAdjacentStartTicks(
+            nextItem,
+            newMediaSource,
+            offline,
+          )?.toString() ?? "",
       }).toString();
 
       router.replace(`player/direct-player?${queryParams}` as any);
@@ -1229,6 +1237,7 @@ export const Controls: FC<Props> = ({
       mediaSource,
       bitrateValue,
       router,
+      offline,
     ],
   );
 

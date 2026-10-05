@@ -34,7 +34,10 @@ import { DownloadedItem } from "@/providers/Downloads/types";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { hasChapterMarkers } from "@/utils/chapters";
-import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
+import {
+  getAdjacentStartTicks,
+  getDefaultPlaySettings,
+} from "@/utils/jellyfin/getDefaultPlaySettings";
 import { SEGMENT_SKIP_KEY, useSegments } from "@/utils/segments";
 import { ticksToMs } from "@/utils/time";
 import { BottomControls } from "./BottomControls";
@@ -539,6 +542,7 @@ export const Controls: FC<Props> = ({
       } = getDefaultPlaySettings(item, settings, {
         indexes: previousIndexes,
         source: mediaSource ?? undefined,
+        offline,
       });
 
       // Use setParams instead of replace to avoid unmounting/remounting the player,
@@ -551,7 +555,8 @@ export const Controls: FC<Props> = ({
         mediaSourceId: newMediaSource?.Id ?? "",
         bitrateValue: bitrateValue?.toString(),
         playbackPosition:
-          item.UserData?.PlaybackPositionTicks?.toString() ?? "",
+          getAdjacentStartTicks(item, newMediaSource, offline)?.toString() ??
+          "",
       });
     },
     [
