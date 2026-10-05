@@ -37,6 +37,7 @@ import { UPCOMING_HOME_PAGE_SIZE } from "@/constants/Upcoming";
 import useRouter from "@/hooks/useAppRouter";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { useRefreshLibraryOnFocus } from "@/hooks/useRefreshLibraryOnFocus";
+import { useRemapHiddenLibraries } from "@/hooks/useRemapHiddenLibraries";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
 import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
 import { fetchUpcomingEpisodes } from "@/hooks/useUpcomingEpisodes";
@@ -221,6 +222,7 @@ export const Home = () => {
     staleTime: 60 * 1000,
     refetchInterval: 60 * 1000,
   });
+  useRemapHiddenLibraries(data, user?.Id);
 
   // Fetch hero items (Continue Watching + Next Up combined)
   const { data: heroItems } = useQuery({

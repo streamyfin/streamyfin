@@ -40,7 +40,7 @@ cadence meant knowing both existed, and nothing would have failed if only one ha
 | `constants/Music.ts` | Music player policy: the volume normalization modes, their default, and the gain ceiling |
 | `constants/Search.ts` | Library search: results asked for per section, the person types the People section leaves out, a studio page's size |
 | `constants/Sentry.ts` | Error reporting policy: which builds report, the per session dedupe cap, the failure storm window |
-| `constants/Jellyfin.ts` | Jellyfin server queries: how long the public server info is trusted |
+| `constants/Jellyfin.ts` | The Jellyfin server itself: the product name that identifies one in its public system info, and how long that info is trusted |
 | `constants/Upcoming.ts` | Upcoming episodes: how many are asked per request, on the screen and in the home row |
 | `constants/TVDiscovery.ts` | TV home screen tiles: Top Shelf and Android TV recommendations (play link lookup timeout) |
 | `constants/Recommendations.ts` | Similar item rows: how many items a detail page asks the server for, and for which kinds of item |
