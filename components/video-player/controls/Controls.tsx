@@ -546,7 +546,13 @@ export const Controls: FC<Props> = ({
     }
     if (
       stillWatchingRequired &&
-      stillWatchingArmedRef.current &&
+      // Or a real tick (not the 0/0 placeholder) after a remount inside the
+      // last moments, where arming can't happen: the known decision held the
+      // countdown back, so the prompt must come or the episode just stops.
+      (stillWatchingArmedRef.current ||
+        (currentTime > 0 &&
+          !!item.Id &&
+          peekStillWatchingDecision(item.Id) === true)) &&
       remainingTime <= CONTROLS_CONSTANTS.STILL_WATCHING_EOF_WINDOW_MS
     ) {
       setStillWatchingVisible(true);
@@ -559,6 +565,7 @@ export const Controls: FC<Props> = ({
     currentTime,
     remainingTime,
     pause,
+    item.Id,
   ]);
 
   const goToItemCommon = useCallback(
