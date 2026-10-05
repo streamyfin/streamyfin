@@ -23,6 +23,7 @@ import { TVEpisodeList } from "@/components/series/TVEpisodeList";
 import { TVSeriesHeader } from "@/components/series/TVSeriesHeader";
 import { TVSimilarItems } from "@/components/TVSimilarItems";
 import { TVButton } from "@/components/tv/TVButton";
+import { TVCastCrewText } from "@/components/tv/TVCastCrewText";
 import { TVFavoriteButton } from "@/components/tv/TVFavoriteButton";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
@@ -238,6 +239,15 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
     );
     return season?.Name || `Season ${selectedSeasonIndex}`;
   }, [seasons, selectedSeasonIndex]);
+
+  const handlePersonPress = useCallback(
+    (personId: string) => {
+      // The id comes from the server: encoded, it stays one path segment
+      // whatever it contains.
+      router.push(`/(auth)/persons/${encodeURIComponent(personId)}`);
+    },
+    [router],
+  );
 
   // Handle episode press
   const handleEpisodePress = useCallback(
@@ -586,6 +596,14 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
             horizontalPadding={HORIZONTAL_PADDING}
           />
         </View>
+
+        {/* Credits lines - creators, directors, writers */}
+        <TVCastCrewText
+          people={item.People}
+          onPersonPress={isOffline ? undefined : handlePersonPress}
+          disabled={isSeasonModalVisible}
+          style={{ marginTop: scaleSize(40), marginLeft: SCALE_PADDING }}
+        />
 
         {!isOffline && (
           <TVSimilarItems

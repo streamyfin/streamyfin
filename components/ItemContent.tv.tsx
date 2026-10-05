@@ -552,9 +552,6 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
         )
       : null;
 
-    // Get director
-    const director = item?.People?.find((p) => p.Type === "Director");
-
     // Get cast (first 3 for text display)
     const cast = item?.People?.filter((p) => p.Type === "Actor")?.slice(0, 3);
 
@@ -611,7 +608,9 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
     // Navigation handlers
     const handleActorPress = useCallback(
       (personId: string) => {
-        router.push(`/(auth)/persons/${personId}`);
+        // The id comes from the server: encoded, it stays one path segment
+        // whatever it contains.
+        router.push(`/(auth)/persons/${encodeURIComponent(personId)}`);
       },
       [router],
     );
@@ -1040,9 +1039,10 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
               />
             )}
 
-            {/* Cast & Crew (text version - director, etc.) */}
+            {/* Cast & Crew (credits lines - directors, writers, etc.) */}
             <TVCastCrewText
-              director={director}
+              people={item.People}
+              onPersonPress={isOffline ? undefined : handleActorPress}
               cast={cast}
               hideCast={showVisualCast}
             />

@@ -15,6 +15,7 @@ import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { DownloadSingleItem } from "@/components/DownloadItem";
 import { ItemCollections } from "@/components/ItemCollections";
+import { ItemCredits } from "@/components/item/ItemCredits";
 import { ItemPeopleSections } from "@/components/item/ItemPeopleSections";
 import { MediaSourceButton } from "@/components/MediaSourceButton";
 import { OverviewText } from "@/components/OverviewText";
@@ -287,6 +288,8 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
             )}
 
           <OverviewText text={item.Overview} className='px-4 mb-4' />
+
+          <ItemCredits people={item.People} className='px-4 mb-4' />
 
           {item.Type !== "Program" && (
             <>
