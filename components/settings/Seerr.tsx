@@ -146,6 +146,15 @@ export const SeerrSettings = () => {
         return { user: loggedInUser, url: finalUrl, apiKey };
       }
 
+      // The form did not ask for a password and Quick Connect did not sign
+      // in. Seerr hands the password to Jellyfin as a login for the user's
+      // own account, so the empty one would be a failed login there, counted
+      // towards the account's lockout. Failing here brings the field up
+      // instead. Once it is on screen an empty password is sent as typed: a
+      // Jellyfin account can have none.
+      if (!seerrPassword && !askPassword)
+        throw markExpectedError(new Error("Password needed"));
+
       const loggedInUser = await seerrTempApi.login(
         user.Name,
         seerrPassword || "",
