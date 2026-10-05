@@ -84,6 +84,7 @@ describe("getStillWatchingThresholds", () => {
   test("maps each preset to jellyfin-web 12's numbers", () => {
     expect(getStillWatchingThresholds("disabled")).toBeNull();
     expect(getStillWatchingThresholds(undefined)).toBeNull();
+    expect(getStillWatchingThresholds("medium" as never)).toBeNull();
     expect(getStillWatchingThresholds("short")).toEqual({
       episodes: 2,
       minutes: 60,
@@ -174,6 +175,22 @@ describe("the session", () => {
     expect(dueAtEnd({ tracksInput: false })).toBe(false);
     for (let i = 0; i < 3; i++) recordStillWatchingAutoplay();
     expect(dueAtEnd({ tracksInput: false })).toBe(true);
+  });
+
+  // At 2x the episode ends in half the media time left.
+  test("turns media time into wall-clock time at the playback rate", () => {
+    const at80 = { nowMs: start + 80 * MINUTE, remainingMs: 20 * MINUTE };
+    expect(dueAtEnd({ ...at80, playbackRate: 2 })).toBe(true);
+    expect(
+      dueAtEnd({ nowMs: start + 70 * MINUTE, remainingMs: 30 * MINUTE }),
+    ).toBe(true);
+    expect(
+      dueAtEnd({
+        nowMs: start + 70 * MINUTE,
+        remainingMs: 30 * MINUTE,
+        playbackRate: 2,
+      }),
+    ).toBe(false);
   });
 
   test("never fires without autoplay or with the preset off", () => {

@@ -454,14 +454,38 @@ export const Controls: FC<Props> = ({
   // Autoplay would run at EOF but the session is long enough to ask "Still
   // watching?" there instead, with playback paused — mirroring the native
   // player's stillWatchingRequired flow.
-  const stillWatchingRequired =
+  //
+  // An autoplay records the episode synchronously while currentTime and
+  // remainingTime still hold the outgoing episode's near-zero values (the
+  // next item loads async), so "at EOF" alone would fire the prompt over the
+  // incoming episode. Only a progress tick from mid-playback of the episode
+  // itself arms the trigger, and every navigation disarms it.
+  const stillWatchingArmedRef = useRef(false);
+  // The decision is latched once the countdown window opens, so the countdown
+  // and the prompt never trade places inside it; seeking back out lets go.
+  const stillWatchingLatchRef = useRef<boolean | null>(null);
+  const stillWatchingDue =
     autoPlayWanted &&
     isStillWatchingDueAtEnd({
       autoPlayNextEpisode: true,
       preset: settings.stillWatchingPreset,
       remainingMs: remainingTime,
+      playbackRate: playbackSpeed,
       tracksInput: true,
     });
+  if (remainingTime >= CONTROLS_CONSTANTS.NEXT_EPISODE_COUNTDOWN_MS) {
+    stillWatchingLatchRef.current = null;
+  } else if (
+    stillWatchingLatchRef.current === null &&
+    // Armed means a tick from this episode's own playback has been seen, not
+    // the outgoing one's near-zero values right after a switch.
+    stillWatchingArmedRef.current &&
+    remainingTime < CONTROLS_CONSTANTS.NEXT_EPISODE_COUNTDOWN_MS
+  ) {
+    stillWatchingLatchRef.current = stillWatchingDue;
+  }
+  const stillWatchingRequired =
+    autoPlayWanted && (stillWatchingLatchRef.current ?? stillWatchingDue);
 
   // The prompt itself waits for the end, so it never covers a video that is
   // still playing.
@@ -494,18 +518,10 @@ export const Controls: FC<Props> = ({
   // which stops moving while playback does.
   const autoAdvanceNextEpisode = showNextEpisodeFromRemainingTime;
 
-  // An autoplay records the episode synchronously while currentTime and
-  // remainingTime still hold the outgoing episode's near-zero values (the
-  // next item loads async), so "at EOF" alone would fire the prompt over the
-  // incoming episode. Only a progress tick from mid-playback of the episode
-  // itself arms the trigger, and every navigation disarms it. Arming does not
-  // wait for the prompt to be due: a pause near the end can make it due
-  // inside the EOF window, after the countdown has already gone.
-  const stillWatchingArmedRef = useRef(false);
-
   // Reset after an in-place episode switch (setParams keeps Controls mounted).
   useEffect(() => {
     stillWatchingArmedRef.current = false;
+    stillWatchingLatchRef.current = null;
     setStillWatchingVisible(false);
   }, [item.Id]);
 
@@ -543,6 +559,7 @@ export const Controls: FC<Props> = ({
         return;
       }
       stillWatchingArmedRef.current = false;
+      stillWatchingLatchRef.current = null;
       lightHapticFeedback();
       const previousIndexes = {
         subtitleIndex: subtitleIndex

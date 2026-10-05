@@ -1,4 +1,5 @@
 import {
+  STILL_WATCHING_PRESET_ORDER,
   type StillWatchingPreset,
   StillWatchingPresets,
   type StillWatchingThresholds,
@@ -6,11 +7,16 @@ import {
 
 const MS_PER_MINUTE = 60_000;
 
+export const isStillWatchingPreset = (
+  value: unknown,
+): value is StillWatchingPreset =>
+  STILL_WATCHING_PRESET_ORDER.includes(value as StillWatchingPreset);
+
 export const getStillWatchingThresholds = (
   preset: StillWatchingPreset | undefined,
 ): StillWatchingThresholds | null =>
-  preset && preset !== "disabled"
-    ? (StillWatchingPresets[preset] ?? null)
+  isStillWatchingPreset(preset) && preset !== "disabled"
+    ? StillWatchingPresets[preset]
     : null;
 
 export type StillWatchingGateInput = {
@@ -102,18 +108,22 @@ export const isStillWatchingDueAtEnd = ({
   autoPlayNextEpisode,
   preset,
   remainingMs,
+  playbackRate = 1,
   tracksInput,
   nowMs = Date.now(),
 }: {
   autoPlayNextEpisode: boolean;
   preset: StillWatchingPreset | undefined;
+  /** Media time left; `playbackRate` turns it into wall-clock time. */
   remainingMs: number;
+  playbackRate?: number;
   /** False where the player cannot report input to JS (the native chrome). */
   tracksInput: boolean;
   nowMs?: number;
 }): boolean => {
   if (!autoPlayNextEpisode) return false;
-  const atMs = nowMs + Math.max(0, remainingMs);
+  const rate = playbackRate > 0 ? playbackRate : 1;
+  const atMs = nowMs + Math.max(0, remainingMs) / rate;
   return isStillWatchingDue({
     thresholds: getStillWatchingThresholds(preset),
     playedCount: session.playedCount,

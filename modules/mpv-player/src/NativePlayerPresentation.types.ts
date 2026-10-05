@@ -97,10 +97,10 @@ export type NativePlayerNextEpisode = {
   /** 0 = no auto-countdown; show the "Next episode" button only. */
   countdownSeconds?: number;
   /**
-   * The autoplay episode cap is reached: EOF shows the "Still watching?"
-   * card instead of auto-advancing (countdownSeconds is 0 in that case).
+   * The "Still watching?" preset is due (utils/stillWatching.ts): EOF shows
+   * the card instead of auto-advancing (countdownSeconds is 0 in that case).
    * Continue emits onNextEpisodeRequested with reason "userTap", which
-   * resets the autoplay counter JS-side.
+   * starts a new session JS-side.
    */
   stillWatchingRequired?: boolean;
 };

@@ -554,23 +554,37 @@ const NativePlayerProviderInner: React.FC<{
     }
   }, []);
 
+  // The prompt decision for one session, reused by every later push of its
+  // payload (a refetched next item re-runs the push effect).
+  const stillWatchingDecisionRef = useRef<{
+    session: NativeSession;
+    required: boolean;
+  } | null>(null);
+
   const buildNextEpisodePayload = useCallback(
     (session: NativeSession, next: BaseItemDto): NativePlayerNextEpisode => {
       const currentSettings = settingsRef.current;
       const autoplayWanted = currentSettings?.autoPlayNextEpisode ?? false;
-      // Decided once per payload, against the episode's projected end. A pause
-      // pushes the real end later, which can only make the prompt come an
-      // episode late, never early. Re-deciding mid-episode would race the
-      // countdown native may already be running (from the outro on iOS).
-      const stillWatchingRequired = isStillWatchingDueAtEnd({
-        autoPlayNextEpisode: autoplayWanted,
-        preset: currentSettings?.stillWatchingPreset,
-        remainingMs:
-          ticksToMs(session.item.RunTimeTicks ?? 0) - session.positionMs,
-        // The native chrome reports no touches to JS, so idle time is unknown
-        // and only the episode count can trip the prompt.
-        tracksInput: false,
-      });
+      // Decided once per episode, against its projected end at 1x. Changing
+      // it later would race a countdown native may already be running (from
+      // the outro on iOS), which ignores a newer payload. A pause makes the
+      // prompt come an episode late; a faster speed can bring it early.
+      if (stillWatchingDecisionRef.current?.session !== session) {
+        stillWatchingDecisionRef.current = {
+          session,
+          required: isStillWatchingDueAtEnd({
+            autoPlayNextEpisode: autoplayWanted,
+            preset: currentSettings?.stillWatchingPreset,
+            remainingMs:
+              ticksToMs(session.item.RunTimeTicks ?? 0) - session.positionMs,
+            // The native chrome reports no touches to JS, so idle time is
+            // unknown and only the episode count can trip the prompt.
+            tracksInput: false,
+          }),
+        };
+      }
+      const stillWatchingRequired =
+        autoplayWanted && stillWatchingDecisionRef.current.required;
       const autoplayAllowed = autoplayWanted && !stillWatchingRequired;
       const epNumber =
         next.ParentIndexNumber !== undefined && next.IndexNumber !== undefined
@@ -1865,14 +1879,19 @@ const NativePlayerProviderInner: React.FC<{
           }
           break;
         }
+        // Picked from another client: plays someone chose, new sessions.
         case "NextTrack": {
           const next = nextItemRef.current;
-          if (next) void playAdjacentItem(session, next);
+          if (!next) break;
+          resetStillWatchingSession();
+          void playAdjacentItem(session, next);
           break;
         }
         case "PreviousTrack": {
           const previous = previousItemRef.current;
-          if (previous) void playAdjacentItem(session, previous);
+          if (!previous) break;
+          resetStillWatchingSession();
+          void playAdjacentItem(session, previous);
           break;
         }
         default:

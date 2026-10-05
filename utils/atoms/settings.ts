@@ -18,7 +18,10 @@ import {
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { logAndCaptureError, writeInfoLog } from "@/utils/log";
-import { stillWatchingPresetFromEpisodeCount } from "@/utils/stillWatching";
+import {
+  isStillWatchingPreset,
+  stillWatchingPresetFromEpisodeCount,
+} from "@/utils/stillWatching";
 import {
   PLUGIN_SETTINGS_KEY,
   readStoredSettings,
@@ -35,7 +38,7 @@ import {
 
 const _STREAMYFIN_PLUGIN_ID = "1e9e5d386e6746158719e98a5c34f004";
 const STREAMYFIN_PLUGIN_SETTINGS = PLUGIN_SETTINGS_KEY;
-const PLUGIN_APPLIED_DEFAULTS = "STREAMYFIN_PLUGIN_APPLIED_DEFAULTS";
+export const PLUGIN_APPLIED_DEFAULTS = "STREAMYFIN_PLUGIN_APPLIED_DEFAULTS";
 
 export type DownloadQuality = "original" | "high" | "low";
 
@@ -151,6 +154,15 @@ const normalizePluginValue = (
     return value / 100;
   }
 
+  // A preset this build does not know, or the old episode count sent under
+  // the new name, would otherwise turn the prompt off without a word.
+  if (settingsKey === "stillWatchingPreset" && !isStillWatchingPreset(value)) {
+    return (
+      stillWatchingPresetFromEpisodeCount(value) ??
+      DEFAULT_STILL_WATCHING_PRESET
+    );
+  }
+
   if (typeof value !== "object" || value === null) {
     const defaultVal = defaultValues[settingsKey];
     if (
@@ -161,8 +173,7 @@ const normalizePluginValue = (
     ) {
       // defaultBitrate needs a lookup because its keys are human-readable
       // (e.g. "8 Mb/s") that can't be derived from the raw value (e.g. 8000000).
-      // Other { key, value } settings work with the fallback because their
-      // keys are just String(value) (e.g. "5").
+      // Anything else falls back to a key of String(value).
       if (settingsKey === "defaultBitrate") {
         const match = BITRATES.find(
           (b) => b.key === value || b.value === value,
@@ -783,7 +794,8 @@ export const migrateStillWatchingSetting = (
   const preset = stillWatchingPresetFromEpisodeCount(unwrap(legacy));
   if (!preset) return false;
   delete settings.maxAutoPlayEpisodeCount;
-  if (settings.stillWatchingPreset === undefined) {
+  // An empty entry under the new name must not win over the old value.
+  if (unwrap(settings.stillWatchingPreset) == null) {
     settings.stillWatchingPreset = wrap(preset, legacy);
   }
   return true;
@@ -943,7 +955,12 @@ export const fetchPluginSettings = (api: {
 
 const loadAppliedPluginDefaults = (): AppliedPluginDefaults => {
   try {
-    return storage.get<AppliedPluginDefaults>(PLUGIN_APPLIED_DEFAULTS) ?? {};
+    const applied =
+      storage.get<AppliedPluginDefaults>(PLUGIN_APPLIED_DEFAULTS) ?? {};
+    // Under the old name, a default applied then would be applied again over
+    // whatever the user has chosen since.
+    migrateStillWatchingSetting(applied as Record<string, unknown>);
+    return applied;
   } catch {
     return {};
   }
@@ -1003,9 +1020,6 @@ export const useSettings = () => {
         if (!currentSettings) return currentSettings;
 
         const applied = loadAppliedPluginDefaults();
-        // Under the old name, a default applied then would be applied again
-        // over whatever the user has chosen since.
-        migrateStillWatchingSetting(applied as Record<string, unknown>);
         const result = pluginRefreshOverlay(
           currentSettings,
           newPluginSettings,

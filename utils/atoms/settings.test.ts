@@ -47,6 +47,7 @@ stubReactNative({ OS: "android", isTV: true });
 // Required after the platform is set, not imported: settings.ts reads
 // Platform once, when the module is evaluated.
 const {
+  effectiveSettingsAtom,
   getActivePlayerType,
   getActiveVideoPlayer,
   getActiveVideoPlayerEngine,
@@ -54,6 +55,7 @@ const {
   isNativeChromeActive,
   migrateStillWatchingSetting,
   pluginSettingsAtom,
+  PLUGIN_APPLIED_DEFAULTS,
   redactPluginSettings,
   settingsAtom,
   useSettings,
@@ -212,9 +214,12 @@ describe("the still watching migration", () => {
       maxAutoPlayEpisodeCount: { locked: true, value: null },
     };
 
-    expect(migrateStillWatchingSetting(sent, (l) => (l as never)?.value)).toBe(
-      false,
-    );
+    expect(
+      migrateStillWatchingSetting(
+        sent,
+        (l) => (l as { value?: unknown } | undefined)?.value,
+      ),
+    ).toBe(false);
     expect(sent).toEqual({
       maxAutoPlayEpisodeCount: { locked: true, value: null },
     });
@@ -224,6 +229,39 @@ describe("the still watching migration", () => {
     const stored: Record<string, unknown> = { stillWatchingPreset: "long" };
 
     expect(migrateStillWatchingSetting(stored)).toBe(false);
+  });
+
+  test("an empty entry under the new name does not drop the old lock", () => {
+    const sent: Record<string, unknown> = {
+      maxAutoPlayEpisodeCount: { locked: true, value: 2 },
+      stillWatchingPreset: { locked: false, value: null },
+    };
+
+    migrateStillWatchingSetting(
+      sent,
+      (l) => (l as { value?: unknown } | undefined)?.value,
+      (preset, l) => ({ ...(l as object), value: preset }),
+    );
+    expect(sent).toEqual({
+      stillWatchingPreset: { locked: true, value: "short" },
+    });
+  });
+
+  // A locked value the app cannot read would otherwise turn the prompt off.
+  test("reads a plugin preset it does not know as the nearest one", () => {
+    const store = getDefaultStore();
+    store.set(pluginSettingsAtom, {
+      stillWatchingPreset: { locked: true, value: 5 },
+    } as never);
+    expect(store.get(effectiveSettingsAtom).stillWatchingPreset).toBe("long");
+
+    store.set(pluginSettingsAtom, {
+      stillWatchingPreset: { locked: true, value: "medium" },
+    } as never);
+    expect(store.get(effectiveSettingsAtom).stillWatchingPreset).toBe(
+      "default",
+    );
+    store.set(pluginSettingsAtom, undefined);
   });
 
   // An admin who pinned the old cap must keep the prompt pinned.
@@ -271,6 +309,7 @@ describe("refreshing the plugin settings", () => {
   afterEach(() => {
     store.set(apiAtom, null);
     store.set(pluginSettingsAtom, undefined);
+    store.set(settingsAtom, null);
   });
 
   // The refresh runs every time the app comes to the foreground, which is when
@@ -338,7 +377,7 @@ describe("refreshing the plugin settings", () => {
       SETTINGS_KEY,
       JSON.stringify({ stillWatchingPreset: "disabled" }),
     );
-    storage.setAny("STREAMYFIN_PLUGIN_APPLIED_DEFAULTS", {
+    storage.setAny(PLUGIN_APPLIED_DEFAULTS, {
       maxAutoPlayEpisodeCount: { key: "3", value: 3 },
     });
 
@@ -349,6 +388,5 @@ describe("refreshing the plugin settings", () => {
     }));
 
     expect(store.get(settingsAtom)?.stillWatchingPreset).toBe("disabled");
-    store.set(settingsAtom, null);
   });
 });
