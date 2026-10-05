@@ -159,7 +159,7 @@ export const Controls: FC<Props> = ({
     calculateTrickplayUrl,
     trickplayInfo,
     prefetchAllTrickplayImages,
-  } = useTrickplay(item);
+  } = useTrickplay(item, mediaSource?.Id);
 
   const min = useSharedValue(0);
   // Regular value for use during render (avoids Reanimated warning)

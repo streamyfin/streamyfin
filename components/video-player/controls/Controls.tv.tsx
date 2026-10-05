@@ -390,7 +390,7 @@ export const Controls: FC<Props> = ({
     calculateTrickplayUrl,
     trickplayInfo,
     prefetchAllTrickplayImages,
-  } = useTrickplay(item);
+  } = useTrickplay(item, mediaSource?.Id);
 
   const min = useSharedValue(0);
   const maxMs = ticksToMs(item.RunTimeTicks || 0);
