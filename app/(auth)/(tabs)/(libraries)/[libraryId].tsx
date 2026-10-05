@@ -42,6 +42,7 @@ import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import { useFilterReset } from "@/hooks/useFilterReset";
 import { useOrientation } from "@/hooks/useOrientation";
+import { usePinListToTop } from "@/hooks/usePinListToTop";
 import { useRefreshLibraryOnFocus } from "@/hooks/useRefreshLibraryOnFocus";
 import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
 import { useTVOptionModal } from "@/hooks/useTVOptionModal";
@@ -492,24 +493,12 @@ const Page = () => {
     sortOrder[0],
     filterBy.join(","),
   ].join("|");
-  const pendingScrollTopRef = useRef(false);
-
-  // Instant feedback: pin to the top as soon as the filters change, without
-  // waiting for the new fetch, and flag a re-pin for once it settles.
-  useEffect(() => {
-    flashListRef.current?.scrollToOffset({ offset: 0, animated: false });
-    pendingScrollTopRef.current = true;
-  }, [filterSignature]);
-
-  // Safety net: FlashList can restore the previous offset as the filtered list
-  // grows, so re-pin once the fetch settles. Pagination keeps the same
-  // signature, so it never re-pins.
-  useEffect(() => {
-    if (pendingScrollTopRef.current && !isFetching) {
-      pendingScrollTopRef.current = false;
-      flashListRef.current?.scrollToOffset({ offset: 0, animated: false });
-    }
-  }, [isFetching, flatData]);
+  // Covered by hooks/usePinListToTop.test.tsx.
+  usePinListToTop(flashListRef, {
+    resetKey: filterSignature,
+    isFetching,
+    data: flatData,
+  });
 
   const grid = useCardGrid({
     items: flatData,
@@ -960,6 +949,10 @@ const Page = () => {
             </View>
           }
           contentInsetAdjustmentBehavior='automatic'
+          // React Native clamps a programmatic scroll to the inset it was
+          // given, and the header's inset is one the system adds on its own,
+          // so without this usePinListToTop's pin is cut back to 0.
+          scrollToOverflowEnabled
           data={grid.data}
           renderItem={grid.renderItem}
           extraData={[orientation, nrOfCols]}
