@@ -1,5 +1,6 @@
 import type { PublicSystemInfo } from "@jellyfin/sdk/lib/generated-client";
 import { escapeRegExp } from "lodash";
+import { JELLYFIN_PRODUCT_NAME } from "@/constants/Jellyfin";
 import { REDACTED_SERVER } from "@/constants/Sentry";
 import {
   type CustomHeader,
@@ -11,6 +12,7 @@ import {
   getServerCustomHeaders,
   updateServerCustomHeaders,
 } from "@/utils/secureCredentials";
+import { stripLegacyRoutePrefix } from "@/utils/serverUrl/legacyRoutePrefix";
 
 /** Thrown when the server answered but is older than Streamyfin supports. */
 export class ServerTooOldError extends Error {
@@ -103,6 +105,17 @@ export async function checkJellyfinServer(
   const typedScheme = /^(https?):\/\//i.exec(trimmed)?.[1]?.toLowerCase();
   const host = trimmed.replace(/^https?:\/\//i, "");
   const protocols = typedScheme ? [typedScheme] : ["https", "http"];
+  // Jellyfin 12 no longer answers under /emby or /mediabrowser, and older
+  // servers answer at the root as well, so the root goes first. The address
+  // as typed stays a fallback, for a proxy that serves Jellyfin there.
+  const rootHost = stripLegacyRoutePrefix(host);
+  const hosts = rootHost === host ? [host] : [rootHost, host];
+  const candidates = protocols.flatMap((protocol) =>
+    hosts.map((candidate) => ({
+      url: `${protocol}://${candidate}`,
+      typedUrl: `${protocol}://${host}`,
+    })),
+  );
   // The address goes with the entry as data, which stays in the log on the
   // device, and not into the message, which is also a Sentry breadcrumb: an
   // address typed without a scheme reads there as it was typed.
@@ -114,16 +127,20 @@ export async function checkJellyfinServer(
     typed,
   );
 
-  for (const protocol of protocols) {
-    const url = `${protocol}://${host}`;
+  for (const { url, typedUrl } of candidates) {
+    const isRoot = url !== typedUrl;
     // A dead HTTPS port on a LAN IP can leave the connection hanging instead
     // of refusing it, which would block the http fallback forever.
     const abort = new AbortController();
     const timeout = setTimeout(() => abort.abort(), probeTimeoutMs);
     try {
-      const headers = normalizeCustomHeaders(
-        customHeaders ?? getServerCustomHeaders(url),
-      );
+      // The root has no saved headers of its own yet: it borrows those of
+      // the address as typed, and keeps them once they get through.
+      const saved = customHeaders ?? getServerCustomHeaders(url);
+      const borrowed =
+        customHeaders === undefined && isRoot && saved.length === 0;
+      const sentHeaders = borrowed ? getServerCustomHeaders(typedUrl) : saved;
+      const headers = normalizeCustomHeaders(sentHeaders);
       const response = await fetch(
         `${url}/System/Info/Public`,
         optionsWithOptionalHeaders(
@@ -143,11 +160,27 @@ export async function checkJellyfinServer(
       }
 
       const data = (await response.json()) as PublicSystemInfo;
-      if (!isSupportedVersion(data.Version)) throw new ServerTooOldError();
+      const supported = isSupportedVersion(data.Version);
+      // The root is a guess, and what answers there can be another service
+      // than the one typed. What it calls itself goes with the entry as
+      // data, out of the breadcrumb, like the server name below.
+      if (
+        isRoot &&
+        (data.ProductName !== JELLYFIN_PRODUCT_NAME || !supported)
+      ) {
+        writeToLog("WARN", `Server check: ${url} is not the server typed`, {
+          product: data.ProductName,
+          version: data.Version,
+        });
+        continue;
+      }
+      if (!supported) throw new ServerTooOldError();
 
       // Only persist the headers once they are known to reach the server.
       if (customHeaders !== undefined) {
         updateServerCustomHeaders(url, customHeaders);
+      } else if (borrowed && sentHeaders.length > 0) {
+        updateServerCustomHeaders(url, sentHeaders);
       }
       // The name is the admin's to choose, and is often the host again.
       writeInfoLog(`Server check: ${url} OK — v${data.Version}`, {

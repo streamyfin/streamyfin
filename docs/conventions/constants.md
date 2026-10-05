@@ -36,6 +36,7 @@ cadence meant knowing both existed, and nothing would have failed if only one ha
 | `constants/TVPosterSizes.ts` | TV poster size keys |
 | `constants/Playback.ts` | Playback reporting policy shared by the JS and native players (progress report cadence) |
 | `constants/Sentry.ts` | Error reporting policy: which builds report, the per session dedupe cap, the failure storm window |
+| `constants/Jellyfin.ts` | What identifies a Jellyfin server (the product name in its public system info) |
 | `constants/TVDiscovery.ts` | TV home screen tiles: Top Shelf and Android TV recommendations (play link lookup timeout) |
 
 Add a new domain file when a group grows its own identity (playback, downloads,
