@@ -17,6 +17,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHaptic } from "@/hooks/useHaptic";
+import { useSheetOpenState } from "@/hooks/useSheetOpenState";
 import { verifyAccountPIN } from "@/utils/secureCredentials";
 import { Button } from "./Button";
 import { Text } from "./common/Text";
@@ -59,13 +60,11 @@ export const PINEntryModal: React.FC<PINEntryModalProps> = ({
 
   useEffect(() => {
     if (visible) {
-      bottomSheetModalRef.current?.present();
       setPinCode("");
       setError(null);
-    } else {
-      bottomSheetModalRef.current?.dismiss();
     }
   }, [visible]);
+  const handleDismissed = useSheetOpenState(bottomSheetModalRef, visible);
 
   const handleSheetChanges = useCallback(
     (index: number) => {
@@ -162,6 +161,7 @@ export const PINEntryModal: React.FC<PINEntryModalProps> = ({
   return (
     <BottomSheetModal
       ref={bottomSheetModalRef}
+      onDismiss={handleDismissed}
       snapPoints={snapPoints}
       onChange={handleSheetChanges}
       handleIndicatorStyle={{ backgroundColor: "white" }}
