@@ -24,7 +24,11 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
-import { useAnimatedReaction, useSharedValue } from "react-native-reanimated";
+import {
+  runOnJS,
+  useAnimatedReaction,
+  useSharedValue,
+} from "react-native-reanimated";
 import { BITRATES } from "@/components/BitrateSelector";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
@@ -865,10 +869,19 @@ export default function DirectPlayerPage() {
     // when the user pauses or resumes.
   }, [currentPlayStateInfo, isPlaying, item?.Id, stream, hasPlaybackStarted]);
 
-  const lastUrlUpdateTime = useSharedValue(0);
-  const lastProgressReportTime = useSharedValue(0);
-  const wasJustSeeking = useSharedValue(false);
+  // What onProgress holds its intervals with stays on the JS thread, in refs.
+  // A shared value written from JS is applied later, on the UI thread, while
+  // a read answers with what the UI thread holds: ticks handled back to back
+  // after the JS thread was held up each read the time from before the first
+  // of them, and every one reported progress and wrote the route.
+  const lastUrlUpdateTimeRef = useRef(0);
+  const lastProgressReportTimeRef = useRef(0);
+  const wasJustSeekingRef = useRef(false);
   const URL_UPDATE_INTERVAL = 30000; // Update URL every 30 seconds instead of every second
+
+  const markSeekEnded = useCallback(() => {
+    wasJustSeekingRef.current = true;
+  }, []);
 
   // Track when seeking ends to update URL immediately
   useAnimatedReaction(
@@ -876,7 +889,7 @@ export default function DirectPlayerPage() {
     (currentSeeking, previousSeeking) => {
       if (previousSeeking && !currentSeeking) {
         // Seeking just ended
-        wasJustSeeking.value = true;
+        runOnJS(markSeekEnded)();
       }
     },
     [],
@@ -929,17 +942,17 @@ export default function DirectPlayerPage() {
 
       // Update URL immediately after seeking, or every 30 seconds during normal playback
       const now = Date.now();
-      const shouldUpdateUrl = wasJustSeeking.get();
-      wasJustSeeking.value = false;
+      const shouldUpdateUrl = wasJustSeekingRef.current;
+      wasJustSeekingRef.current = false;
 
       if (
         shouldUpdateUrl ||
-        now - lastUrlUpdateTime.get() > URL_UPDATE_INTERVAL
+        now - lastUrlUpdateTimeRef.current > URL_UPDATE_INTERVAL
       ) {
         router.setParams({
           playbackPosition: msToTicks(currentTime).toString(),
         });
-        lastUrlUpdateTime.value = now;
+        lastUrlUpdateTimeRef.current = now;
       }
 
       // Reporting every tick meant one request per second per player, and for
@@ -948,9 +961,9 @@ export default function DirectPlayerPage() {
       // right after a seek, since the position jumped, otherwise heartbeat.
       const shouldReportProgress =
         shouldUpdateUrl ||
-        now - lastProgressReportTime.get() >= PROGRESS_REPORT_INTERVAL;
+        now - lastProgressReportTimeRef.current >= PROGRESS_REPORT_INTERVAL;
       if (!shouldReportProgress) return;
-      lastProgressReportTime.value = now;
+      lastProgressReportTimeRef.current = now;
 
       const progressInfo = currentPlayStateInfo();
       if (!progressInfo) return;
