@@ -25,6 +25,15 @@ export const coerceStillWatchingPreset = (
   if (isStillWatchingPreset(value)) return value;
   if (!hasMeaningfulSettingValue(value)) return undefined;
   if (typeof value === "boolean") return value ? "default" : "disabled";
+  if (typeof value === "string") {
+    // A server may spell them its own way ("VeryLong", "Disabled", "off").
+    const spelled = value.trim().toLowerCase();
+    if (spelled === "off" || spelled === "none") return "disabled";
+    const known = STILL_WATCHING_PRESET_ORDER.find(
+      (preset) => preset.toLowerCase() === spelled,
+    );
+    if (known) return known;
+  }
   return (
     stillWatchingPresetFromEpisodeCount(value) ?? DEFAULT_STILL_WATCHING_PRESET
   );

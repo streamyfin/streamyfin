@@ -479,12 +479,12 @@ export const Controls: FC<Props> = ({
       playbackRate: playbackSpeed,
       tracksInput: true,
     });
-  const stillWatchingDue =
-    // Armed: a tick from this episode's own playback has been seen, not the
-    // 0/0 progress a freshly loaded item starts from.
-    stillWatchingArmedRef.current &&
-    (showSkipOutroButton || inCountdownWindow) &&
-    item.Id
+  // Unarmed (no tick from this episode's own playback yet, only the 0/0 a
+  // freshly mounted item starts from) the prompt cannot show, so nothing may
+  // hold the countdown back either, or the episode would end with neither.
+  const stillWatchingDue = !stillWatchingArmedRef.current
+    ? false
+    : (showSkipOutroButton || inCountdownWindow) && item.Id
       ? decideStillWatchingOnce(item.Id, isDueNow)
       : isDueNow();
   const stillWatchingRequired = autoPlayWanted && stillWatchingDue;

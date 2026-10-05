@@ -246,6 +246,9 @@ describe("coerceStillWatchingPreset", () => {
     [3, "default"],
     [-1, "disabled"],
     [false, "disabled"],
+    ["Disabled", "disabled"],
+    ["VeryLong", "veryLong"],
+    ["off", "disabled"],
     // A preset from a newer build.
     ["medium", "default"],
     [null, undefined],
