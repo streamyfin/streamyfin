@@ -14,6 +14,7 @@ import { useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { TouchableOpacity, View } from "react-native";
 import { formatBitrate } from "@/utils/bitrate";
+import { getStreamFrameRate } from "@/utils/jellyfin/media/getStreamFrameRate";
 import { Badge } from "./Badge";
 import { Text } from "./common/Text";
 
@@ -183,6 +184,8 @@ const VideoStreamInfo = ({ source }: { source?: MediaSourceInfo }) => {
 
   if (!source || !videoStream) return null;
 
+  const frameRate = getStreamFrameRate(videoStream);
+
   // Dolby Vision video check
   const isDolbyVision =
     videoStream.VideoRangeType === "DOVI" ||
@@ -234,11 +237,7 @@ const VideoStreamInfo = ({ source }: { source?: MediaSourceInfo }) => {
       <Badge
         variant='gray'
         iconLeft={<Ionicons name='play-outline' size={16} color='white' />}
-        text={
-          videoStream.AverageFrameRate != null
-            ? `${videoStream.AverageFrameRate.toFixed(0)} fps`
-            : ""
-        }
+        text={frameRate != null ? `${frameRate.toFixed(0)} fps` : ""}
       />
     </View>
   );

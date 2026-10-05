@@ -22,6 +22,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import { useControlsSafeAreaInsets } from "@/hooks/useControlsSafeAreaInsets";
 import type { TechnicalInfo } from "@/modules/mpv-player";
+import { getStreamFrameRate } from "@/utils/jellyfin/media/getStreamFrameRate";
 import { HEADER_LAYOUT } from "./constants";
 
 type PlayMethod = "DirectPlay" | "DirectStream" | "Transcode";
@@ -249,6 +250,7 @@ export const TechnicalInfoOverlay: FC<TechnicalInfoOverlayProps> = memo(
       return {
         videoRange: videoStream?.VideoRangeType,
         bitDepth: videoStream?.BitDepth,
+        frameRate: getStreamFrameRate(videoStream),
         audioChannels: audioStream?.Channels,
         subtitleCodec: subtitleStream?.Codec,
         // Nominal bitrate of the source file. Unlike info.videoBitrate this does
@@ -317,6 +319,15 @@ export const TechnicalInfoOverlay: FC<TechnicalInfoOverlayProps> = memo(
       : styles.reasonText;
     const boxStyle = Platform.isTV ? styles.infoBoxTV : styles.infoBox;
 
+    // The player's own frame rate describes the stream being decoded, so it
+    // wins. Not every engine reports one (ExoPlayer leaves it out when the
+    // container does not carry it): the Jellyfin metadata fills that gap,
+    // except for a transcode. That metadata describes the source file, and
+    // the server may have capped or doubled (deinterlacing) the frame rate.
+    const videoFps =
+      info?.fps ||
+      (playMethod === "Transcode" ? undefined : streamInfo?.frameRate);
+
     return (
       <Animated.View
         style={[styles.container, animatedStyle, containerStyle]}
@@ -352,7 +363,7 @@ export const TechnicalInfoOverlay: FC<TechnicalInfoOverlayProps> = memo(
           {info?.videoCodec && (
             <Text style={textStyle}>
               {t("player.technical_info.video")} {formatCodec(info.videoCodec)}
-              {info.fps ? ` @ ${formatFps(info.fps)} fps` : ""}
+              {videoFps ? ` @ ${formatFps(videoFps)} fps` : ""}
             </Text>
           )}
           {info?.audioCodec && (
