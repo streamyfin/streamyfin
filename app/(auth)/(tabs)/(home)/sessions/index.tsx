@@ -15,6 +15,7 @@ import { Badge } from "@/components/Badge";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
 import Poster from "@/components/posters/Poster";
+import { SessionModeControls } from "@/components/sessions/SessionModeControls";
 import { useInterval } from "@/hooks/useInterval";
 import { useSessions, type useSessionsProps } from "@/hooks/useSessions";
 import { apiAtom } from "@/providers/JellyfinProvider";
@@ -336,6 +337,13 @@ const SessionCard = ({ session }: SessionCardProps) => {
                 <Ionicons name='volume-high' size={24} color='white' />
               </TouchableOpacity>
             </View>
+
+            {/* Shuffle and repeat, on a row of their own: the one above
+                already holds seven buttons. Keyed by session, because the
+                list reuses a card for another session when it re-sorts, and
+                a mode asked of one must not show on the next. Covered by
+                components/sessions/SessionModeControls.test.tsx. */}
+            <SessionModeControls key={session.Id} session={session} />
           </View>
         </View>
       </View>

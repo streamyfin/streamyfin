@@ -12,7 +12,7 @@ import {
   useState,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { AppState, type AppStateStatus } from "react-native";
+import { AppState, type AppStateStatus, Platform } from "react-native";
 import { useNetworkAwareQueryClient } from "@/hooks/useNetworkAwareQueryClient";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { useNetworkStatus } from "@/providers/NetworkStatusProvider";
@@ -24,6 +24,7 @@ import {
   withAcceptLanguage,
 } from "@/utils/jellyfin/acceptLanguage";
 import { getWebSocketUrl } from "@/utils/jellyfin/getWebSocketUrl";
+import { supportedCommands } from "@/utils/jellyfin/playbackModes";
 import {
   createSocketFailureRecorder,
   reportSocketGiveUp,
@@ -409,7 +410,7 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
             IconUrl:
               "https://raw.githubusercontent.com/streamyfin/streamyfin/refs/heads/develop/assets/images/streamyfin-client-badge.png",
             PlayableMediaTypes: ["Audio", "Video"],
-            SupportedCommands: ["Play"],
+            SupportedCommands: supportedCommands(Platform.isTV),
             SupportsMediaControl: true,
             SupportsPersistentIdentifier: true,
           },

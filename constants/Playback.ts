@@ -16,3 +16,11 @@ export const PROGRESS_REPORT_INTERVAL = 10_000;
  * payload.
  */
 export const PLAY_QUEUE_MAX_ITEMS = 100;
+
+/**
+ * How long, in ms, the sessions page shows a repeat or shuffle mode it asked
+ * another client for before that client has reported it. Two rounds of the
+ * 5 s sessions poll: enough for a client that obeys to say so, and short
+ * enough that one ignoring the command does not keep a state it never had.
+ */
+export const REMOTE_MODE_CONFIRM_TIMEOUT = 10_000;

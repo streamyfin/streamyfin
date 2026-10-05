@@ -299,7 +299,7 @@ export const NativePlayerProvider: React.FC<{
   if (!enabled) {
     // The server-initiated "Play" command still needs a handler on platforms
     // without the native player (Android, stale iOS binaries) — the app
-    // advertises SupportedCommands: ["Play"] everywhere.
+    // advertises the "Play" command everywhere.
     return <PlayCommandRouteFallback>{children}</PlayCommandRouteFallback>;
   }
 

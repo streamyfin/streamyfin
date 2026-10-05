@@ -568,7 +568,10 @@
       "title": "Sessions",
       "no_active_sessions": "No active sessions",
       "select_session": "Select session",
-      "now_playing": "Now playing:"
+      "now_playing": "Now playing:",
+      "repeat_off": "Repeat off",
+      "repeat_all": "Repeat all",
+      "repeat_one": "Repeat one"
     },
     "downloads": {
       "downloads_title": "Downloads",
