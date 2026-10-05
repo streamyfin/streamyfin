@@ -285,6 +285,25 @@ describe("the still watching migration", () => {
     });
   });
 
+  // An admin's lock on the new name stands, even with an empty value.
+  test("an empty locked preset keeps its lock over a free old cap", async () => {
+    const settings = await fetchPluginSettings({
+      getStreamyfinPluginConfig: async () => ({
+        data: {
+          settings: {
+            maxAutoPlayEpisodeCount: { locked: false, value: 5 },
+            stillWatchingPreset: { locked: true, value: null },
+          },
+        },
+      }),
+    } as never);
+
+    expect(settings?.stillWatchingPreset).toEqual({
+      locked: true,
+      value: "default",
+    });
+  });
+
   // A locked value the app cannot read would otherwise turn the prompt off.
   test("reads a plugin preset it does not know as the nearest one", () => {
     const store = getDefaultStore();

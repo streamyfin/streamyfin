@@ -800,7 +800,8 @@ export const migrateStillWatchingSetting = (
   // The new name wins unless it is empty, or the old one is the admin's lock.
   const current = settings.stillWatchingPreset;
   const replace =
-    !hasMeaningfulSettingValue(unwrap(current)) ||
+    (!hasMeaningfulSettingValue(unwrap(current)) &&
+      !(isLocked(current) && !isLocked(legacy))) ||
     (isLocked(legacy) && !isLocked(current));
   if (preset && replace) {
     settings.stillWatchingPreset = wrap(preset, legacy);

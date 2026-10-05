@@ -559,7 +559,8 @@ const NativePlayerProviderInner: React.FC<{
   }, []);
 
   // Sessions whose countdown already advanced; see onNextEpisodeRequested.
-  const countdownAdvancedRef = useRef(new WeakSet<NativeSession>());
+  const [countdownAdvanced] = useState(() => new WeakSet<NativeSession>());
+  const countdownAdvancedRef = useRef(countdownAdvanced);
 
   const buildNextEpisodePayload = useCallback(
     (session: NativeSession, next: BaseItemDto): NativePlayerNextEpisode => {
@@ -1656,7 +1657,13 @@ const NativePlayerProviderInner: React.FC<{
           // session.
           resetStillWatchingSession();
         }
-        void playAdjacentItem(session, next);
+        void playAdjacentItem(session, next).then(() => {
+          // The swap did not take: a later countdown on this session is a
+          // real request again.
+          if (sessionRef.current === session) {
+            countdownAdvancedRef.current.delete(session);
+          }
+        });
       }),
 
       addNativePlayerListener("onPreviousEpisodeRequested", (payload) => {
