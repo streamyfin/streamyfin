@@ -32,3 +32,13 @@ export const supportsQuickConnectForOtherUsers = (version?: string | null) => {
   if (!/^\d+$/.test(major ?? "") || !/^\d+$/.test(minor ?? "")) return false;
   return Number(major) > 10 || (Number(major) === 10 && Number(minor) >= 9);
 };
+
+/**
+ * Jellyfin 12 scopes a BoxSet or Playlist query to the library given as its
+ * parent (jellyfin/jellyfin#16882, #16893). Older servers drop the parent of a
+ * BoxSet query, so every library would list every collection, and never hold a
+ * playlist under a library.
+ */
+export const supportsLibraryCollectionsAndPlaylists = (
+  version?: string | null,
+) => isServerMajorAtLeast(version, 12);

@@ -696,6 +696,11 @@
     "no_results": "No results",
     "no_libraries_found": "No libraries found",
     "jump_to_letter": "Jump to letter",
+    "tabs": {
+      "items": "Items",
+      "collections": "Collections",
+      "playlists": "Playlists"
+    },
     "item_types": {
       "movies": "Movies",
       "series": "Series",

@@ -1,5 +1,6 @@
 import {
   supportsItemCollections,
+  supportsLibraryCollectionsAndPlaylists,
   supportsOriginalAudioLanguage,
   supportsQuickConnectForOtherUsers,
 } from "./serverVersion";
@@ -52,4 +53,12 @@ test("does not offer Quick Connect for another user on an unknown version", () =
   expect(supportsQuickConnectForOtherUsers("10")).toBe(false);
   expect(supportsQuickConnectForOtherUsers("10.x")).toBe(false);
   expect(supportsQuickConnectForOtherUsers("10invalid.9")).toBe(false);
+});
+
+test("requires Jellyfin 12 or newer for collections and playlists under a library", () => {
+  expect(supportsLibraryCollectionsAndPlaylists("10.11.11")).toBe(false);
+  expect(supportsLibraryCollectionsAndPlaylists("12.0.0-rc5")).toBe(true);
+  expect(supportsLibraryCollectionsAndPlaylists("12.1.0")).toBe(true);
+  expect(supportsLibraryCollectionsAndPlaylists()).toBe(false);
+  expect(supportsLibraryCollectionsAndPlaylists(null)).toBe(false);
 });

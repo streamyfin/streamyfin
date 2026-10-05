@@ -1,7 +1,7 @@
 import type {
   BaseItemDto,
   BaseItemDtoQueryResult,
-  BaseItemKind,
+  ItemFilter,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import {
   getFilterApi,
@@ -48,7 +48,9 @@ import { FilterButton } from "@/components/filters/FilterButton";
 import { ResetFiltersButton } from "@/components/filters/ResetFiltersButton";
 import { Loader } from "@/components/Loader";
 import { AlphabetRail } from "@/components/library/AlphabetRail";
+import { LibraryTabs } from "@/components/library/LibraryTabs";
 import { TVAlphabetRow } from "@/components/library/TVAlphabetRow";
+import { TVLibraryTabs } from "@/components/library/TVLibraryTabs";
 import { TVFilterButton, TVFocusablePoster } from "@/components/tv";
 import { TVPosterCard } from "@/components/tv/TVPosterCard";
 import { useScaledTVPosterSizes } from "@/constants/TVPosterSizes";
@@ -56,6 +58,7 @@ import { useScaledTVTypography } from "@/constants/TVTypography";
 import { TAB_HEIGHT } from "@/constants/Values";
 import useRouter from "@/hooks/useAppRouter";
 import { useFilterReset } from "@/hooks/useFilterReset";
+import { useLibraryTabs } from "@/hooks/useLibraryTabs";
 import { useOrientation } from "@/hooks/useOrientation";
 import { useRefreshLibraryOnFocus } from "@/hooks/useRefreshLibraryOnFocus";
 import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
@@ -88,6 +91,11 @@ import {
 import type { TVOptionItem } from "@/utils/atoms/tvOptionModal";
 import { alphabetJumpParams } from "@/utils/jellyfin/alphabetJump";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
+import {
+  getLibraryTabFilters,
+  getLibraryTabQuery,
+  libraryTabUsesFilterBar,
+} from "@/utils/library/libraryTabs";
 
 const TV_ITEM_GAP = 20;
 const TV_HORIZONTAL_PADDING = 60;
@@ -366,6 +374,13 @@ const Page = () => {
     staleTime: 60 * 1000,
   });
 
+  // Collections and playlists that hold items of this library (Jellyfin 12).
+  // The policy is covered by utils/library/libraryTabs.test.ts, the counts by
+  // hooks/useLibraryTabs.test.tsx.
+  const { tabs, activeTab, setActiveTab } = useLibraryTabs(library);
+  const hasTabs = tabs.length > 1;
+  const hasFilterBar = libraryTabUsesFilterBar(activeTab);
+
   const navigation = useNavigation();
   useEffect(() => {
     navigation.setOptions({
@@ -390,28 +405,33 @@ const Page = () => {
     }
   }, [navigation, fromSeeAll]);
 
-  // Identifies the result set on screen. A change of filters or sort, reset
-  // included, has to show its results from the top instead of staying deep in
-  // the previous set, so the list is keyed by it and starts over.
+  // The filter atoms are global, and the collection or playlist opened from a
+  // tab rewrites them while this screen stays mounted underneath. A tab that
+  // ignores the filter bar must not follow them: it would refetch what it
+  // already has and lose its scroll position.
+  const filterKey = hasFilterBar
+    ? [selectedGenres, selectedYears, selectedTags, sortBy, sortOrder, filterBy]
+    : [];
+
+  // Identifies the result set on screen. A change of tab, filters or sort,
+  // reset included, has to show its results from the top instead of staying
+  // deep in the previous set, so the list is keyed by it and starts over.
   //
   // Scrolling the existing list to the top does not work on iOS: the header is
   // transparent and the system insets the list under it, React Native clamps
   // a scroll to offset 0, which is behind the header, and a list that has just
   // mounted has no inset yet to aim at.
   const filterSignature = [
-    selectedGenres.join(","),
-    selectedYears.join(","),
-    selectedTags.join(","),
-    sortBy[0],
-    sortOrder[0],
-    filterBy.join(","),
+    activeTab,
+    ...filterKey.map((values) => values.join(",")),
   ].join("|");
 
-  // The alphabet picker. A letter is a place in the list the filters describe,
-  // so it is remembered with their signature and only applies while they
-  // match it: a list under other filters opens at its top. The logic is
-  // covered by utils/jellyfin/alphabetJump.test.ts.
-  const canJumpToLetter = sortBy[0] === SortByOption.SortName;
+  // The alphabet picker. A letter is a place in the list the tab and the
+  // filters describe, so it is remembered with their signature and only
+  // applies while they match it: another tab, or a list under other filters,
+  // opens at its top. It belongs to the items tab, next to the sort it
+  // depends on. The logic is covered by utils/jellyfin/alphabetJump.test.ts.
+  const canJumpToLetter = hasFilterBar && sortBy[0] === SortByOption.SortName;
   // `serial` tells one jump from the next, the same letter again included:
   // that is the way back to the first of its titles, so every jump starts the
   // list over the way a filter change does, through its key.
@@ -447,44 +467,25 @@ const Page = () => {
     }): Promise<BaseItemDtoQueryResult | null> => {
       if (!api || !library) return null;
 
-      let itemType: BaseItemKind | undefined;
-
-      // This fix makes sure to only return 1 type of items, if defined.
-      // This is because the underlying directory some times contains other types, and we don't want to show them.
-      if (library.CollectionType === "movies") {
-        itemType = "Movie";
-      } else if (library.CollectionType === "tvshows") {
-        itemType = "Series";
-      } else if (library.CollectionType === "boxsets") {
-        itemType = "BoxSet";
-      } else if (library.CollectionType === "homevideos") {
-        itemType = "Video";
-      } else if (library.CollectionType === "musicvideos") {
-        itemType = "MusicVideo";
-      } else if (library.CollectionType === "playlists") {
-        itemType = "Playlist";
-      }
-
       const response = await getItemsApi(api).getItems({
         userId: user?.Id,
         parentId: libraryId,
         limit: 36,
         startIndex: pageParam,
-        sortBy: [sortBy[0], "SortName", "ProductionYear"],
-        sortOrder: [sortOrder[0]],
         enableImageTypes: ["Primary", "Backdrop", "Banner", "Thumb"],
-        filters: filterBy,
         // true is needed for merged versions
         recursive: true,
         imageTypeLimit: 1,
         fields: ["PrimaryImageAspectRatio", "SortName"],
-        genres: selectedGenres,
-        tags: selectedTags,
-        years: selectedYears.map((year) => Number.parseInt(year, 10)),
-        includeItemTypes: itemType ? [itemType] : undefined,
-        ...(Platform.isTV && library.CollectionType === "playlists"
-          ? { mediaTypes: ["Video"] }
-          : {}),
+        ...getLibraryTabFilters(activeTab, {
+          sortBy: [sortBy[0], "SortName", "ProductionYear"],
+          sortOrder: [sortOrder[0]],
+          filters: filterBy as ItemFilter[],
+          genres: selectedGenres,
+          tags: selectedTags,
+          years: selectedYears.map((year) => Number.parseInt(year, 10)),
+        }),
+        ...getLibraryTabQuery(activeTab, library, Platform.isTV),
         ...jumpParams,
       });
 
@@ -495,6 +496,7 @@ const Page = () => {
       user?.Id,
       libraryId,
       library,
+      activeTab,
       selectedGenres,
       selectedYears,
       selectedTags,
@@ -510,12 +512,8 @@ const Page = () => {
       queryKey: [
         "library-items",
         libraryId,
-        selectedGenres,
-        selectedYears,
-        selectedTags,
-        sortBy,
-        sortOrder,
-        filterBy,
+        activeTab,
+        ...filterKey,
         jumpParams,
       ],
       queryFn: fetchItems,
@@ -546,14 +544,16 @@ const Page = () => {
       enabled: !!api && !!user?.Id && !!library,
     });
 
-  // A list of this library on its way for the first time. With a list still
-  // on screen that is a jump landing, since any other change shows the loader,
-  // and the list being left is dimmed until then.
-  const isJumpLanding =
+  // A list of this library on its way for the first time. With a letter
+  // chosen and a list still on screen that is a jump landing, and the list
+  // being left is dimmed until then. A tab loading for the first time is not:
+  // it has no list to dim, only its loader.
+  const isFirstFetch =
     useIsFetching({
       queryKey: ["library-items", libraryId],
       predicate: (query) => query.state.data === undefined,
     }) > 0;
+  const isJumpLanding = jumpLetter !== null && isFirstFetch;
 
   const flatData = useMemo(() => {
     return (
@@ -562,10 +562,24 @@ const Page = () => {
     );
   }, [data]);
 
+  // A playlist normally opens the music playlist screen, which plays its
+  // entries through the music player. The ones listed under a library hold that
+  // library's videos, so they open as a grid, the way TV opens every playlist.
+  const openPlaylistAsGrid = useCallback(
+    (item: BaseItemDto) => {
+      router.push({
+        pathname: "/(auth)/(tabs)/(libraries)/[libraryId]",
+        params: { libraryId: item.Id! },
+      });
+    },
+    [router],
+  );
+
   const grid = useCardGrid({
     items: flatData,
     columns: nrOfCols,
     enableActionSheet: true,
+    onPressItem: activeTab === "playlists" ? openPlaylistAsGrid : undefined,
   });
 
   const renderTVItem = useCallback(
@@ -650,7 +664,7 @@ const Page = () => {
   );
 
   const generalFilters = useFilterOptions();
-  const ListHeaderComponent = useCallback(
+  const FilterBar = useCallback(
     () => (
       <FlatList
         horizontal
@@ -990,7 +1004,9 @@ const Page = () => {
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
 
-  if (isLoading || isLibraryLoading)
+  // With tabs the header stays mounted while a tab loads: replacing the whole
+  // screen would drop the TV focus held by the tab that was just pressed.
+  if (isLibraryLoading || (isLoading && !hasTabs))
     return (
       <View className='w-full h-full flex items-center justify-center'>
         <Loader />
@@ -1006,9 +1022,13 @@ const Page = () => {
           style={{ opacity: isJumpLanding ? OUTGOING_LIST_OPACITY : 1 }}
           ListEmptyComponent={
             <View className='flex flex-col items-center justify-center h-full'>
-              <Text className='font-bold text-xl text-neutral-500'>
-                {t("library.no_results")}
-              </Text>
+              {isLoading ? (
+                <Loader />
+              ) : (
+                <Text className='font-bold text-xl text-neutral-500'>
+                  {t("library.no_results")}
+                </Text>
+              )}
             </View>
           }
           contentInsetAdjustmentBehavior='automatic'
@@ -1023,7 +1043,18 @@ const Page = () => {
             }
           }}
           onEndReachedThreshold={1}
-          ListHeaderComponent={ListHeaderComponent}
+          ListHeaderComponent={
+            <>
+              {hasTabs && (
+                <LibraryTabs
+                  tabs={tabs}
+                  activeTab={activeTab}
+                  onSelect={setActiveTab}
+                />
+              )}
+              {hasFilterBar && <FilterBar />}
+            </>
+          }
           contentContainerStyle={{
             paddingBottom: 24,
             paddingLeft: insets.left,
@@ -1072,15 +1103,26 @@ const Page = () => {
       }}
       scrollEventThrottle={400}
     >
-      {/* Filter bar. Next to the letter row it is a focus guide, and so is the
-          grid, because tvOS only moves the focus to what lies straight ahead:
-          the bar is narrower than the row and a short grid is too, so the
-          outer letters would have nothing above or below them. A guide is as
-          wide as the page and hands the focus to one of its children. Without
-          the row both stay plain views, as they were. */}
+      {hasTabs && (
+        <TVLibraryTabs
+          tabs={tabs}
+          activeTab={activeTab}
+          onSelect={setActiveTab}
+        />
+      )}
+
+      {/* Filter bar. Hidden rather than unmounted off the items tab: mounting it
+          again would let its preferred focus pull the focus off the tab that
+          was just pressed. Next to the letter row it is a focus guide, and so
+          is the grid, because tvOS only moves the focus to what lies straight
+          ahead: the bar is narrower than the row and a short grid is too, so
+          the outer letters would have nothing above or below them. A guide is
+          as wide as the page and hands the focus to one of its children.
+          Without the row both stay plain views, as they were. */}
       <TVFocusGuideView
         autoFocus={canJumpToLetter}
         style={{
+          display: hasFilterBar ? "flex" : "none",
           flexDirection: "row",
           flexWrap: "nowrap",
           justifyContent: "center",
@@ -1156,7 +1198,7 @@ const Page = () => {
       )}
 
       {/* Grid with flexWrap */}
-      {flatData.length === 0 ? (
+      {isLoading ? null : flatData.length === 0 ? (
         <View
           style={{
             flex: 1,
