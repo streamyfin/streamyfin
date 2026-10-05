@@ -1,4 +1,5 @@
 import {
+  honoursExcludedPersonTypes,
   supportsItemCollections,
   supportsLanguageFilters,
   supportsLibraryCollectionsAndPlaylists,
@@ -77,4 +78,12 @@ test("hides the language filters while the server version is unknown", () => {
   expect(supportsLanguageFilters(null)).toBe(false);
   expect(supportsLanguageFilters("")).toBe(false);
   expect(supportsLanguageFilters("12invalid")).toBe(false);
+});
+
+// Jellyfin 10.11 filters on the wrong list, so the exclusion does nothing.
+test("trusts the person type exclusion from Jellyfin 12 on", () => {
+  expect(honoursExcludedPersonTypes("10.11.11")).toBe(false);
+  expect(honoursExcludedPersonTypes("12.0.0")).toBe(true);
+  expect(honoursExcludedPersonTypes("12.1.0")).toBe(true);
+  expect(honoursExcludedPersonTypes()).toBe(false);
 });

@@ -50,3 +50,11 @@ export const supportsLibraryCollectionsAndPlaylists = (
  */
 export const supportsLanguageFilters = (version?: string | null) =>
   isServerMajorAtLeast(version, 12);
+
+/**
+ * Whether `/Persons` applies `excludePersonTypes`. Jellyfin 10.11 reads the
+ * parameter and then filters on the include list instead, so the exclusion
+ * silently does nothing there; 12 fixed it.
+ */
+export const honoursExcludedPersonTypes = (version?: string | null) =>
+  isServerMajorAtLeast(version, 12);

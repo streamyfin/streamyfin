@@ -42,8 +42,10 @@ import {
   SeerrIndexPage,
   SeerrSearchSort,
 } from "@/components/seerr/SeerrIndexPage";
+import { SEARCH_RESULT_LIMIT } from "@/constants/Search";
 import useRouter from "@/hooks/useAppRouter";
 import { useSeerr } from "@/hooks/useSeerr";
+import { useServerVersion } from "@/hooks/useServerVersion";
 import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
@@ -51,6 +53,7 @@ import { getIntegrationHeaders } from "@/utils/customHeaders";
 import { isAbortLikeError } from "@/utils/errors";
 import { eventBus } from "@/utils/eventBus";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
+import { searchPeople, searchStudios } from "@/utils/jellyfin/search";
 import { logAndCaptureError } from "@/utils/log";
 import { isSeerrQuery } from "@/utils/seerr/queries";
 import { searchSeerr } from "@/utils/seerr/search";
@@ -70,6 +73,8 @@ const exampleSearches = [
   "The Mandalorian",
 ];
 
+// The people and studio requests are covered by utils/jellyfin/search.test.ts,
+// the TV's studio section by components/search/TVSearchPage.test.tsx.
 export default function SearchPage() {
   const params = useLocalSearchParams();
   const insets = useSafeAreaInsets();
@@ -114,6 +119,7 @@ export default function SearchPage() {
   }, [search]);
 
   const [api] = useAtom(apiAtom);
+  const serverVersion = useServerVersion();
 
   const { settings } = useSettings();
   const { seerrApi } = useSeerr();
@@ -151,7 +157,7 @@ export default function SearchPage() {
           const searchApi = await getItemsApi(api).getItems(
             {
               searchTerm: query,
-              limit: 10,
+              limit: SEARCH_RESULT_LIMIT,
               includeItemTypes: types,
               recursive: true,
               userId: user?.Id,
@@ -185,7 +191,7 @@ export default function SearchPage() {
           const response = await streamyStatsApi.searchIds(
             query,
             searchType as "movies" | "series" | "episodes" | "actors" | "media",
-            10,
+            SEARCH_RESULT_LIMIT,
             signal,
           );
 
@@ -274,7 +280,7 @@ export default function SearchPage() {
         const searchApi = await getItemsApi(api).getItems(
           {
             searchTerm: query,
-            limit: 10,
+            limit: SEARCH_RESULT_LIMIT,
             includeItemTypes: types,
             recursive: true,
             userId: user?.Id,
@@ -382,12 +388,35 @@ export default function SearchPage() {
     enabled: searchType === "Library" && debouncedSearch.length > 0,
   });
 
+  // Jellyfin's own search asks the Persons API, which can leave the musicians
+  // out. Marlin and Streamystats rank people themselves, so they keep theirs.
   const { data: actors, isFetching: l8 } = useQuery({
-    queryKey: ["search", "actors", debouncedSearch],
+    queryKey: ["search", "actors", searchEngine, debouncedSearch],
     queryFn: ({ signal }) =>
-      searchFn({
+      searchEngine === "Jellyfin"
+        ? searchPeople({
+            api,
+            userId: user?.Id,
+            query: debouncedSearch,
+            serverVersion,
+            signal,
+          })
+        : searchFn({
+            query: debouncedSearch,
+            types: ["Person"],
+            signal,
+          }),
+    enabled: searchType === "Library" && debouncedSearch.length > 0,
+  });
+
+  // Always Jellyfin: neither Marlin nor Streamystats indexes studios.
+  const { data: studios, isFetching: l13 } = useQuery({
+    queryKey: ["search", "studios", debouncedSearch],
+    queryFn: ({ signal }) =>
+      searchStudios({
+        api,
+        userId: user?.Id,
         query: debouncedSearch,
-        types: ["Person"],
         signal,
       }),
     enabled: searchType === "Library" && debouncedSearch.length > 0,
@@ -445,6 +474,7 @@ export default function SearchPage() {
       series?.length ||
       collections?.length ||
       actors?.length ||
+      studios?.length ||
       artists?.length ||
       albums?.length ||
       songs?.length ||
@@ -456,6 +486,7 @@ export default function SearchPage() {
     series,
     collections,
     actors,
+    studios,
     artists,
     albums,
     songs,
@@ -463,8 +494,8 @@ export default function SearchPage() {
   ]);
 
   const loading = useMemo(() => {
-    return l1 || l2 || l3 || l7 || l8 || l9 || l10 || l11 || l12;
-  }, [l1, l2, l3, l7, l8, l9, l10, l11, l12]);
+    return l1 || l2 || l3 || l7 || l8 || l9 || l10 || l11 || l12 || l13;
+  }, [l1, l2, l3, l7, l8, l9, l10, l11, l12, l13]);
 
   // TV item press handler
   const handleItemPress = useCallback(
@@ -602,6 +633,7 @@ export default function SearchPage() {
         episodes={episodes}
         collections={collections}
         actors={actors}
+        studios={studios}
         artists={artists}
         albums={albums}
         songs={songs}
@@ -706,6 +738,12 @@ export default function SearchPage() {
               title={t("search.actors")}
               items={actors ?? []}
               kind='portrait'
+              hideIfEmpty
+            />
+            <CardRow
+              title={t("search.studios")}
+              items={studios ?? []}
+              kind='wide'
               hideIfEmpty
             />
             {/* Music search results */}
