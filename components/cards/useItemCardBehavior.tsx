@@ -17,6 +17,8 @@ type Options = {
   /** Prebuilt cards, for anything that isn't a `BaseItemDto`. */
   cards?: CardData[];
   kind: CardKind;
+  /** Width the cards are drawn at, when it isn't the kind's own (items mode). */
+  cardWidth?: number;
   useEpisodePoster?: boolean;
   /** Show a TV child's series name before its own name. */
   showParentTitle?: boolean;
@@ -42,6 +44,7 @@ export function useItemCardBehavior({
   items,
   cards: providedCards,
   kind,
+  cardWidth,
   useEpisodePoster = false,
   showParentTitle = false,
   selectedId,
@@ -66,6 +69,7 @@ export function useItemCardBehavior({
       buildItemCards(items ?? [], {
         api,
         kind,
+        cardWidth,
         useEpisodePoster,
         showParentTitle,
         selectedId,
@@ -75,6 +79,7 @@ export function useItemCardBehavior({
       items,
       api,
       kind,
+      cardWidth,
       useEpisodePoster,
       showParentTitle,
       selectedId,

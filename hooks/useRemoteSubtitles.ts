@@ -9,6 +9,7 @@ import { Directory, File, Paths } from "expo-file-system";
 import { useAtomValue } from "jotai";
 import { useCallback, useMemo } from "react";
 import { Platform } from "react-native";
+import { isPlainFileName, safeNamePart } from "@/providers/Downloads/utils";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import {
   addDownloadedSubtitle,
@@ -218,7 +219,12 @@ export function useRemoteSubtitles({
 
       // Get download link
       const response = await openSubtitlesApi.download(fileId);
-      const originalFileName = response.file_name || `subtitle_${fileId}.srt`;
+      // The name is OpenSubtitles' to choose, and whatever sits at the destination is deleted
+      // before the write: only its last segment is used, so the file stays in the cache.
+      const suggestedFileName = response.file_name?.split(/[/\\]/).pop();
+      const originalFileName = isPlainFileName(suggestedFileName)
+        ? suggestedFileName
+        : `subtitle_${fileId}.srt`;
 
       // Use cache directory for both platforms (tvOS has permission issues with documents)
       // TV: Uses itemId prefix for organization and persists metadata
@@ -233,7 +239,7 @@ export function useRemoteSubtitles({
       // TV: Prefix filename with itemId for organization
       // Mobile: Use original filename
       const fileName = Platform.isTV
-        ? `${itemId}_${originalFileName}`
+        ? `${safeNamePart(itemId)}_${originalFileName}`
         : originalFileName;
 
       // Create file and download
