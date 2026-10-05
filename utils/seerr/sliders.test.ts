@@ -1,5 +1,5 @@
 import { Permission } from "./permissions";
-import { discoverRows } from "./sliders";
+import { discoverRows, loadDiscoverSliders, slidersOf } from "./sliders";
 import { type DiscoverSlider, DiscoverSliderType } from "./types";
 
 const slider = (
@@ -55,5 +55,56 @@ describe("discoverRows", () => {
 
   test("has no rows without sliders", () => {
     expect(discoverRows(undefined, Permission.REQUEST)).toEqual([]);
+  });
+
+  // The cache is kept on the device for a day, so a body stored before
+  // slidersOf read the response still reaches a render (REACT-NATIVE-8V).
+  test.each([
+    ["a page", "<!DOCTYPE html><html></html>"],
+    ["an empty body", ""],
+    ["an object", { message: "Not found" }],
+  ])("has no rows when what was cached is %s", (_name, cached) => {
+    expect(discoverRows(cached, Permission.REQUEST)).toEqual([]);
+  });
+});
+
+// What the server sends for its sliders, which is not always sliders: a
+// proxy's login page or the web app's own page answers 200 too.
+describe("slidersOf", () => {
+  test("keeps the sliders of a list", () => {
+    const sliders = [slider(DiscoverSliderType.TRENDING, 0)];
+    expect(slidersOf(sliders)).toEqual(sliders);
+  });
+
+  test.each([
+    ["a page", "<!DOCTYPE html><html></html>"],
+    ["an empty body", ""],
+    ["an object", { message: "Not found" }],
+    ["nothing", undefined],
+    ["null", null],
+  ])("has no sliders in %s", (_name, body) => {
+    expect(slidersOf(body)).toEqual([]);
+  });
+
+  test("leaves out what is not a slider in a list", () => {
+    const trending = slider(DiscoverSliderType.TRENDING, 0);
+    expect(slidersOf([null, "slider", trending, 3])).toEqual([trending]);
+  });
+});
+
+describe("loadDiscoverSliders", () => {
+  test("asks the server for its sliders", async () => {
+    const sliders = [slider(DiscoverSliderType.TRENDING, 0)];
+    expect(
+      await loadDiscoverSliders({ discoverSettings: async () => sliders }),
+    ).toEqual(sliders);
+  });
+
+  // The query lives on after the Seerr client is gone, signed out of from
+  // the settings while a retry waits. Undefined is the one value React Query
+  // refuses, as a failure reported under the query's name
+  // (REACT-NATIVE-1N).
+  test("has no sliders, rather than undefined, without a client", async () => {
+    expect(await loadDiscoverSliders(undefined)).toEqual([]);
   });
 });
