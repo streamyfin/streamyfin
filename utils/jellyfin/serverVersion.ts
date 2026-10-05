@@ -65,3 +65,10 @@ export const honoursExcludedPersonTypes = (version?: string | null) =>
  */
 export const supportsPlaylistInsertPosition = (version?: string | null) =>
   isServerMajorAtLeast(version, 12);
+
+/**
+ * Each version of a multi-version item keeps its own UserData from Jellyfin
+ * 12 on (jellyfin/jellyfin#16828); before that the primary item carries it.
+ */
+export const supportsPerVersionUserData = (version?: string | null) =>
+  isServerMajorAtLeast(version, 12);

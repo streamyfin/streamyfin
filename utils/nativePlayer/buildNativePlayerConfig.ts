@@ -56,7 +56,7 @@ import {
   type TrackMenuRow,
 } from "@/utils/subtitles/trackMenu";
 import { ticksToSeconds } from "@/utils/time";
-import { getTrickplayInfo } from "@/utils/trickplay";
+import { getTrickplayInfo, trickplaySheetUrl } from "@/utils/trickplay";
 import type { PlayRequest } from "./playRequest";
 import { resolveTrackIndexes } from "./resolveTrackIndexes";
 
@@ -203,9 +203,11 @@ export const buildTrickplayDescriptor = (
     api: Api | null;
     offline: boolean;
     downloadedItem: DownloadedItem | null;
+    /** The playing version; its thumbnails differ from the primary's. */
+    mediaSourceId?: string | null;
   },
 ): NativePlayerTrickplay | undefined => {
-  const info = getTrickplayInfo(item);
+  const info = getTrickplayInfo(item, options.mediaSourceId);
   if (!info) return undefined;
   const { Interval, TileWidth, TileHeight, Width, Height } = info.data;
   if (!Interval || !TileWidth || !TileHeight || !Width || !Height) {
@@ -218,9 +220,15 @@ export const buildTrickplayDescriptor = (
       sheetUrls.push(
         toFileUri(`${options.downloadedItem.trickPlayData.path}${index}.jpg`),
       );
-    } else if (options.api) {
+    } else if (options.api && item.Id) {
       sheetUrls.push(
-        `${options.api.basePath}/Videos/${item.Id}/Trickplay/${info.resolution}/${index}.jpg?ApiKey=${options.api.accessToken}`,
+        trickplaySheetUrl(
+          options.api,
+          item.Id,
+          info.resolution,
+          index,
+          info.sourceId,
+        ),
       );
     }
   }
@@ -559,6 +567,7 @@ export async function buildNativePlayerConfig(params: {
       api,
       offline,
       downloadedItem,
+      mediaSourceId: mediaSource.Id,
     }),
     tracks: buildTrackMenus({
       mediaSource,

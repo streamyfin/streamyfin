@@ -24,6 +24,7 @@ import {
   StreamRanker,
   SubtitleStreamRanker,
 } from "../streamRanker";
+import { isAlternateVersion } from "./mediaSourceVersion";
 import { ORIGINAL_LANGUAGE } from "./serverVersion";
 
 export interface PlaySettings {
@@ -156,16 +157,62 @@ function applySubtitleMode(
 }
 
 /**
+ * The version of `item` matching the one played before it, by name.
+ *
+ * Jellyfin 12 groups alternate episode versions in MediaSources the way it
+ * groups movie versions, with a fresh source ID per episode. jellyfin-web's
+ * getMatchingMediaSource keeps the user's version across episodes by Name, so
+ * do the same and fall back to the first source.
+ */
+export function getMatchingMediaSource(
+  item: BaseItemDto,
+  previousSource?: MediaSourceInfo,
+): MediaSourceInfo | undefined {
+  const sources = item.MediaSources;
+  if (sources && sources.length > 1 && previousSource?.Name) {
+    const match = sources.find((s) => s.Name === previousSource.Name);
+    if (match) return match;
+  }
+  return sources?.[0];
+}
+
+/**
+ * Where to start `item` when advancing onto it with `mediaSource`.
+ *
+ * The item's UserData is its primary version's, and on Jellyfin 12 each
+ * version keeps its own, so a matched alternate version starts from the top
+ * rather than at another version's resume point.
+ */
+export function getAdjacentStartTicks(
+  item: BaseItemDto,
+  mediaSource: MediaSourceInfo | null | undefined,
+  offline: boolean,
+): number | null | undefined {
+  // Offline keeps the download record's position: its item lists every
+  // server version, so the source picked here need not be the one on disk.
+  return !offline &&
+    isAlternateVersion(item.Id, item.MediaSources, mediaSource?.Id)
+    ? 0
+    : item.UserData?.PlaybackPositionTicks;
+}
+
+/**
  * Get default play settings for an item.
  *
  * @param item - The media item to play
  * @param settings - User settings (language preferences, bitrate, etc.)
  * @param previous - Optional previous track selections to carry over (for sequential play)
+ *   and, online, the version to keep
  */
 export function getDefaultPlaySettings(
   item: BaseItemDto | null | undefined,
   settings: Settings | null,
-  previous?: { indexes?: PreviousIndexes; source?: MediaSourceInfo },
+  previous?: {
+    indexes?: PreviousIndexes;
+    source?: MediaSourceInfo;
+    // A downloaded item lists every server version, not only the one on disk.
+    offline?: boolean;
+  },
 ): PlaySettings {
   const bitrate = settings?.defaultBitrate ?? BITRATES[0];
 
@@ -179,7 +226,9 @@ export function getDefaultPlaySettings(
     return { item, bitrate };
   }
 
-  const mediaSource = item.MediaSources?.[0];
+  const mediaSource = previous?.offline
+    ? item.MediaSources?.[0]
+    : getMatchingMediaSource(item, previous?.source);
   const streams = mediaSource?.MediaStreams ?? [];
 
   // Start with media source defaults

@@ -18,15 +18,24 @@ interface TrickplayUrl {
   url: string;
 }
 
-/** Hook to handle trickplay logic for a given item. */
-export const useTrickplay = (item: BaseItemDto) => {
+/**
+ * Hook to handle trickplay logic for a given item.
+ * @param mediaSourceId The playing version, see getTrickplayInfo.
+ */
+export const useTrickplay = (
+  item: BaseItemDto,
+  mediaSourceId?: string | null,
+) => {
   const api = useAtomValue(apiAtom);
   const { getDownloadedItemById } = useDownload();
   const [trickPlayUrl, setTrickPlayUrl] = useState<TrickplayUrl | null>(null);
   const lastCalculationTime = useRef(0);
   const throttleDelay = 200;
   const isOffline = useGlobalSearchParams().offline === "true";
-  const trickplayInfo = useMemo(() => getTrickplayInfo(item), [item]);
+  const trickplayInfo = useMemo(
+    () => getTrickplayInfo(item, mediaSourceId),
+    [item, mediaSourceId],
+  );
 
   /** Generates the trickplay URL for the given item and sheet index.
    * We change between offline and online trickplay URLs depending on the state of the app. */
@@ -37,9 +46,9 @@ export const useTrickplay = (item: BaseItemDto) => {
       if (isOffline && downloadedItem?.trickPlayData?.path) {
         return `${downloadedItem.trickPlayData.path}${sheetIndex}.jpg`;
       }
-      return generateTrickplayUrl(item, sheetIndex, api);
+      return generateTrickplayUrl(item, sheetIndex, api, mediaSourceId);
     },
-    [trickplayInfo, isOffline, getDownloadedItemById, api],
+    [trickplayInfo, isOffline, getDownloadedItemById, api, mediaSourceId],
   );
 
   /** Calculates the trickplay URL for the current progress. */

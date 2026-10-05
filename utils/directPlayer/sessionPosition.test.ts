@@ -1,6 +1,7 @@
 import {
   isPlaceholderTick,
   resolveSessionPositionTicks,
+  resolveStartTicks,
 } from "./sessionPosition";
 
 /** 19m 18s. */
@@ -71,5 +72,21 @@ describe("resolveSessionPositionTicks", () => {
         startTicks: RESUME_TICKS,
       }),
     ).toBe(0);
+  });
+});
+
+describe("resolveStartTicks", () => {
+  test("the route's position wins over the item's resume point", () => {
+    // An alternate cut starts at its own position (or 0), while the item's
+    // resume point is the primary version's and can lie past a shorter cut.
+    expect(resolveStartTicks("0", 900)).toBe(0);
+    expect(resolveStartTicks("1200", 900)).toBe(1200);
+  });
+
+  test("falls back to the resume point when the param is missing or invalid", () => {
+    expect(resolveStartTicks(undefined, 900)).toBe(900);
+    expect(resolveStartTicks("", 900)).toBe(900);
+    expect(resolveStartTicks("1200invalid", 900)).toBe(900);
+    expect(resolveStartTicks("-5", null)).toBe(0);
   });
 });

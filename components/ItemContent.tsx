@@ -29,6 +29,7 @@ import { LOGO_HEIGHT } from "@/constants/Images";
 import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
 import { useImageColorsReturn } from "@/hooks/useImageColorsReturn";
 import { useOrientation } from "@/hooks/useOrientation";
+import { useVersionItem } from "@/hooks/useVersionItem";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
@@ -40,6 +41,7 @@ import {
   canPlayInRemoteSession,
   isPlayableItem,
 } from "@/utils/jellyfin/media/isPlayableItem";
+import { getPlayingRunTimeTicks } from "@/utils/jellyfin/mediaSourceVersion";
 import { AddToFavorites } from "./AddToFavorites";
 import { AddToWatchlist } from "./AddToWatchlist";
 import { ItemHeader } from "./ItemHeader";
@@ -108,6 +110,28 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
     SelectedOptions | undefined
   >(undefined);
 
+  // On Jellyfin 12 each version keeps its own resume point and played state.
+  // A downloaded item keeps the page as it was: Play can open the download,
+  // whose position is the item's, not the selected version's.
+  const isDownloaded = !!item?.Id && !!getDownloadedItemById(item.Id);
+  const versionItem = useVersionItem(
+    item,
+    itemWithSources?.MediaSources,
+    isDownloaded ? undefined : selectedOptions?.mediaSource?.Id,
+  );
+  const playButtonItem = useMemo(
+    () =>
+      item && versionItem && versionItem !== item
+        ? {
+            ...item,
+            // A version's resume point is against its own runtime.
+            RunTimeTicks: getPlayingRunTimeTicks(item, versionItem),
+            UserData: versionItem.UserData,
+          }
+        : item,
+    [item, versionItem],
+  );
+
   // Use itemWithSources for play settings since it has MediaSources data
   const {
     defaultAudioIndex,
@@ -168,7 +192,7 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
                       <PlayInRemoteSessionButton item={item} size='large' />
                     )}
 
-                  <PlayedStatus items={[item]} size='large' />
+                  <PlayedStatus items={[versionItem ?? item]} size='large' />
                   <AddToFavorites item={item} />
                   {settings.streamyStatsServerUrl &&
                     !settings.hideWatchlistsTab && (
@@ -182,6 +206,7 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
     }
   }, [
     item,
+    versionItem,
     navigation,
     user,
     itemWithSources,
@@ -258,7 +283,7 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
               <View className='flex flex-row px-0 mb-2 justify-between space-x-2'>
                 <PlayButton
                   selectedOptions={selectedOptions}
-                  item={item}
+                  item={playButtonItem ?? item}
                   colors={itemColors}
                 />
                 <View className='w-1' />
