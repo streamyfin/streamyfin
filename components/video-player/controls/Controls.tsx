@@ -37,8 +37,9 @@ import { hasChapterMarkers } from "@/utils/chapters";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { SEGMENT_SKIP_KEY, useSegments } from "@/utils/segments";
 import {
-  isStillWatchingDueAt,
+  isStillWatchingDueAtEnd,
   markStillWatchingInput,
+  recordStillWatchingAutoplay,
   resetStillWatchingSession,
 } from "@/utils/stillWatching";
 import { ticksToMs } from "@/utils/time";
@@ -142,7 +143,7 @@ export const Controls: FC<Props> = ({
   transcodeReasons,
 }) => {
   const offline = useOfflineMode();
-  const { settings, updateSettings } = useSettings();
+  const { settings } = useSettings();
   const router = useRouter();
   const lightHapticFeedback = useHaptic("light");
 
@@ -315,6 +316,8 @@ export const Controls: FC<Props> = ({
   });
 
   const toggleControls = useCallback(() => {
+    // Touches are caught at the root; this covers the remote, which toggles
+    // the controls without one.
     markStillWatchingInput();
     if (showControls) {
       setShowAudioSlider(false);
@@ -450,21 +453,27 @@ export const Controls: FC<Props> = ({
 
   // Autoplay would run at EOF but the session is long enough to ask "Still
   // watching?" there instead, with playback paused — mirroring the native
-  // player's stillWatchingRequired flow. Judged at the episode's end, which
-  // is where the prompt takes autoplay's place.
+  // player's stillWatchingRequired flow.
   const stillWatchingRequired =
     autoPlayWanted &&
-    isStillWatchingDueAt({
+    isStillWatchingDueAtEnd({
+      autoPlayNextEpisode: true,
       preset: settings.stillWatchingPreset,
-      playedCount: settings.autoPlayEpisodeCount,
-      atMs: Date.now() + Math.max(0, remainingTime),
+      remainingMs: remainingTime,
       tracksInput: true,
     });
 
+  // The prompt itself waits for the end, so it never covers a video that is
+  // still playing.
+  const [stillWatchingVisible, setStillWatchingVisible] = useState(false);
+
   // Whether the "Next Episode" countdown can be rendered at all. The Skip
   // Credits button yields to it only when this is true; if autoplay is
-  // disabled or the prompt is due, Skip Credits must stay available.
-  const willShowNextEpisode = autoPlayWanted && !stillWatchingRequired;
+  // disabled or the prompt is due, Skip Credits must stay available. A shown
+  // prompt keeps it away even after a touch makes the prompt no longer due,
+  // or the countdown would auto-advance under an unanswered prompt.
+  const willShowNextEpisode =
+    autoPlayWanted && !stillWatchingRequired && !stillWatchingVisible;
 
   // Credits segment metadata (hasContentAfterCredits) can be wrong, so this
   // path only swaps Skip Credits for a manually-tappable Next Episode button
@@ -485,14 +494,13 @@ export const Controls: FC<Props> = ({
   // which stops moving while playback does.
   const autoAdvanceNextEpisode = showNextEpisodeFromRemainingTime;
 
-  // The prompt itself waits for the end, so it never covers a video that is
-  // still playing.
-  const [stillWatchingVisible, setStillWatchingVisible] = useState(false);
-  // The prompt-arming autoplay updates the episode count synchronously while
-  // currentTime/remainingTime still hold the outgoing episode's near-zero
-  // values (the next item loads async), so "at EOF" alone would fire the
-  // prompt over the incoming episode. Only a progress tick from mid-playback
-  // of the final episode itself arms the trigger.
+  // An autoplay records the episode synchronously while currentTime and
+  // remainingTime still hold the outgoing episode's near-zero values (the
+  // next item loads async), so "at EOF" alone would fire the prompt over the
+  // incoming episode. Only a progress tick from mid-playback of the episode
+  // itself arms the trigger, and every navigation disarms it. Arming does not
+  // wait for the prompt to be due: a pause near the end can make it due
+  // inside the EOF window, after the countdown has already gone.
   const stillWatchingArmedRef = useRef(false);
 
   // Reset after an in-place episode switch (setParams keeps Controls mounted).
@@ -502,7 +510,7 @@ export const Controls: FC<Props> = ({
   }, [item.Id]);
 
   useEffect(() => {
-    if (!stillWatchingRequired || stillWatchingVisible || maxMs <= 0) {
+    if (stillWatchingVisible || maxMs <= 0) {
       return;
     }
     if (
@@ -513,6 +521,7 @@ export const Controls: FC<Props> = ({
       return;
     }
     if (
+      stillWatchingRequired &&
       stillWatchingArmedRef.current &&
       remainingTime <= CONTROLS_CONSTANTS.STILL_WATCHING_EOF_WINDOW_MS
     ) {
@@ -533,6 +542,7 @@ export const Controls: FC<Props> = ({
       if (!item || !settings) {
         return;
       }
+      stillWatchingArmedRef.current = false;
       lightHapticFeedback();
       const previousIndexes = {
         subtitleIndex: subtitleIndex
@@ -574,12 +584,22 @@ export const Controls: FC<Props> = ({
     ],
   );
 
+  // Any navigation the viewer picks is a play they started themselves: a new
+  // session, as in jellyfin-web. Autoplay goes through goToItemCommon alone.
+  const goToItemByUser = useCallback(
+    (target: BaseItemDto) => {
+      resetStillWatchingSession();
+      goToItemCommon(target);
+    },
+    [goToItemCommon],
+  );
+
   const goToPreviousItem = useCallback(() => {
     if (!previousItem) {
       return;
     }
-    goToItemCommon(previousItem);
-  }, [previousItem, goToItemCommon]);
+    goToItemByUser(previousItem);
+  }, [previousItem, goToItemByUser]);
 
   const goToNextItem = useCallback(
     ({ isAutoPlay }: { isAutoPlay?: boolean }) => {
@@ -587,25 +607,18 @@ export const Controls: FC<Props> = ({
         return;
       }
 
-      // The countdown only runs while the prompt is not due, so a completed
-      // countdown always navigates.
-      goToItemCommon(nextItem);
-
+      // "Continue watching" is a deliberate advance too.
       if (!isAutoPlay) {
-        // A deliberate advance, "Continue watching" included, is the viewer
-        // starting playback themselves: a new session, as in jellyfin-web.
-        resetStillWatchingSession();
-        updateSettings({ autoPlayEpisodeCount: 0 });
+        goToItemByUser(nextItem);
         return;
       }
 
-      if (settings.stillWatchingPreset !== "disabled") {
-        updateSettings({
-          autoPlayEpisodeCount: settings.autoPlayEpisodeCount + 1,
-        });
-      }
+      // The countdown only runs while the prompt is not due, so a completed
+      // countdown always navigates.
+      recordStillWatchingAutoplay();
+      goToItemCommon(nextItem);
     },
-    [nextItem, goToItemCommon],
+    [nextItem, goToItemCommon, goToItemByUser],
   );
 
   // Add a memoized handler for autoplay next episode
@@ -617,14 +630,6 @@ export const Controls: FC<Props> = ({
   const handleNextEpisodeManual = useCallback(() => {
     goToNextItem({ isAutoPlay: false });
   }, [goToNextItem]);
-
-  // Add a memoized handler for ContinueWatchingOverlay
-  const handleContinueWatching = useCallback(
-    (options: { isAutoPlay?: boolean; resetWatchCount?: boolean }) => {
-      goToNextItem(options);
-    },
-    [goToNextItem],
-  );
 
   const hideControls = useCallback(() => {
     setShowControls(false);
@@ -665,7 +670,7 @@ export const Controls: FC<Props> = ({
         <EpisodeList
           item={item}
           close={() => setEpisodeView(false)}
-          goToItem={goToItemCommon}
+          goToItem={goToItemByUser}
         />
       ) : (
         <>
@@ -799,7 +804,7 @@ export const Controls: FC<Props> = ({
         </>
       )}
       {stillWatchingVisible && (
-        <ContinueWatchingOverlay goToNextItem={handleContinueWatching} />
+        <ContinueWatchingOverlay goToNextItem={goToNextItem} />
       )}
     </View>
   );

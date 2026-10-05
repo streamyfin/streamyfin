@@ -6,7 +6,6 @@ import { usePlayMedia } from "./usePlayMedia";
 const mockPush = jest.fn();
 const mockPresentFromRequest = jest.fn();
 let mockNativeChromeActive = false;
-const mockUpdateSettings = jest.fn();
 const mockResetStillWatchingSession = jest.fn();
 
 jest.mock("@/hooks/useAppRouter", () => ({
@@ -22,8 +21,7 @@ jest.mock("@/providers/NativePlayerProvider", () => ({
 jest.mock("@/utils/atoms/settings", () => ({
   isNativeChromeActive: () => mockNativeChromeActive,
   useSettings: () => ({
-    settings: { stillWatchingPreset: "default" },
-    updateSettings: mockUpdateSettings,
+    settings: {},
   }),
 }));
 jest.mock("@/utils/stillWatching", () => ({
@@ -48,7 +46,6 @@ describe("usePlayMedia", () => {
     mockPush.mockClear();
     mockPresentFromRequest.mockReset().mockResolvedValue(false);
     mockNativeChromeActive = false;
-    mockUpdateSettings.mockClear();
     mockResetStillWatchingSession.mockClear();
     alert = jest.spyOn(Alert, "alert").mockImplementation(() => {});
   });
@@ -72,9 +69,6 @@ describe("usePlayMedia", () => {
     await play({ Id: "episode-1", Type: "Episode" });
 
     expect(mockResetStillWatchingSession).toHaveBeenCalledTimes(1);
-    expect(mockUpdateSettings).toHaveBeenCalledWith({
-      autoPlayEpisodeCount: 0,
-    });
   });
 
   // A top shelf play link asks for an item and nothing else. Opening the

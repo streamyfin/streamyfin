@@ -7,7 +7,7 @@ import { getDefaultStore } from "jotai";
 import { clearMmkv } from "@/test-utils/mmkv";
 import { stubReactNative } from "@/test-utils/reactNative";
 import { storage } from "@/utils/mmkv";
-import { PLUGIN_SETTINGS_KEY } from "@/utils/storedSettings";
+import { PLUGIN_SETTINGS_KEY, SETTINGS_KEY } from "@/utils/storedSettings";
 
 jest.mock(
   "react-native-mmkv",
@@ -55,6 +55,7 @@ const {
   migrateStillWatchingSetting,
   pluginSettingsAtom,
   redactPluginSettings,
+  settingsAtom,
   useSettings,
   VideoPlayer,
 } = require("./settings") as typeof import("./settings");
@@ -205,6 +206,20 @@ describe("the still watching migration", () => {
     expect(stored).toEqual({ stillWatchingPreset: "short" });
   });
 
+  // Dropping a value it cannot read would drop an admin's lock with it.
+  test("leaves a value it cannot read where it is", () => {
+    const sent: Record<string, unknown> = {
+      maxAutoPlayEpisodeCount: { locked: true, value: null },
+    };
+
+    expect(migrateStillWatchingSetting(sent, (l) => (l as never)?.value)).toBe(
+      false,
+    );
+    expect(sent).toEqual({
+      maxAutoPlayEpisodeCount: { locked: true, value: null },
+    });
+  });
+
   test("leaves settings without the old key alone", () => {
     const stored: Record<string, unknown> = { stillWatchingPreset: "long" };
 
@@ -313,5 +328,27 @@ describe("refreshing the plugin settings", () => {
     expect(refreshed).toEqual(sent);
     expect(store.get(pluginSettingsAtom)).toEqual(sent);
     expect(storage.get(PLUGIN_SETTINGS_KEY)).toEqual(sent);
+  });
+
+  // The admin's unlocked cap was applied once under its old name. Read under
+  // the new one only, it looked unapplied and overwrote the user's choice.
+  test("does not seed an episode cap applied under its old name again", async () => {
+    store.set(settingsAtom, null);
+    storage.set(
+      SETTINGS_KEY,
+      JSON.stringify({ stillWatchingPreset: "disabled" }),
+    );
+    storage.setAny("STREAMYFIN_PLUGIN_APPLIED_DEFAULTS", {
+      maxAutoPlayEpisodeCount: { key: "3", value: 3 },
+    });
+
+    await refreshAgainst(async () => ({
+      data: {
+        settings: { maxAutoPlayEpisodeCount: { locked: false, value: 3 } },
+      },
+    }));
+
+    expect(store.get(settingsAtom)?.stillWatchingPreset).toBe("disabled");
+    store.set(settingsAtom, null);
   });
 });

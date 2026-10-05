@@ -2,8 +2,9 @@ import { StillWatchingPresets } from "@/constants/StillWatching";
 import {
   getStillWatchingThresholds,
   isStillWatchingDue,
-  isStillWatchingDueAt,
+  isStillWatchingDueAtEnd,
   markStillWatchingInput,
+  recordStillWatchingAutoplay,
   resetStillWatchingSession,
   stillWatchingPresetFromEpisodeCount,
 } from "./stillWatching";
@@ -109,34 +110,74 @@ describe("stillWatchingPresetFromEpisodeCount", () => {
     expect(stillWatchingPresetFromEpisodeCount(legacy)).toBe(expected);
   });
 
+  test("reads a count the plugin sent as a string", () => {
+    expect(stillWatchingPresetFromEpisodeCount("3")).toBe("default");
+  });
+
   test("ignores values it cannot read", () => {
     expect(stillWatchingPresetFromEpisodeCount(undefined)).toBeUndefined();
-    expect(stillWatchingPresetFromEpisodeCount("3")).toBeUndefined();
+    expect(stillWatchingPresetFromEpisodeCount(null)).toBeUndefined();
+    expect(stillWatchingPresetFromEpisodeCount("three")).toBeUndefined();
     expect(stillWatchingPresetFromEpisodeCount({ key: "x" })).toBeUndefined();
   });
 });
 
 describe("the session", () => {
   const start = 1_000_000_000;
+  const dueAtEnd = (
+    overrides: Partial<Parameters<typeof isStillWatchingDueAtEnd>[0]> = {},
+  ) =>
+    isStillWatchingDueAtEnd({
+      autoPlayNextEpisode: true,
+      preset: "default",
+      remainingMs: 0,
+      tracksInput: true,
+      nowMs: start + 100 * MINUTE,
+      ...overrides,
+    });
 
-  test("measures duration and idle time from the last reset and input", () => {
-    resetStillWatchingSession(start);
-    const at = start + 100 * MINUTE;
-    const due = (tracksInput: boolean, playedCount = 0) =>
-      isStillWatchingDueAt({
-        preset: "default",
-        playedCount,
-        atMs: at,
-        tracksInput,
-      });
+  beforeEach(() => resetStillWatchingSession(start));
 
-    expect(due(true)).toBe(true);
+  test("fires on idle time once the session is long enough", () => {
+    expect(dueAtEnd()).toBe(true);
+    expect(dueAtEnd({ nowMs: start + 80 * MINUTE })).toBe(false);
+  });
+
+  test("judges at the end of the episode, not now", () => {
+    expect(
+      dueAtEnd({ nowMs: start + 80 * MINUTE, remainingMs: 10 * MINUTE }),
+    ).toBe(true);
+  });
+
+  test("an input pushes the idle branch back", () => {
     markStillWatchingInput(start + 50 * MINUTE);
-    expect(due(true)).toBe(false);
-    expect(due(false)).toBe(false);
-    expect(due(false, 3)).toBe(true);
+    expect(dueAtEnd()).toBe(false);
+  });
 
-    resetStillWatchingSession(start + 60 * MINUTE);
-    expect(due(true, 3)).toBe(false);
+  test("counts autoplays, and a reset clears them", () => {
+    markStillWatchingInput(start + 50 * MINUTE);
+    recordStillWatchingAutoplay();
+    recordStillWatchingAutoplay();
+    expect(dueAtEnd()).toBe(false);
+    recordStillWatchingAutoplay();
+    expect(dueAtEnd()).toBe(true);
+
+    resetStillWatchingSession(start + 50 * MINUTE);
+    expect(dueAtEnd({ nowMs: start + 200 * MINUTE })).toBe(true); // idle
+    expect(dueAtEnd({ nowMs: start + 200 * MINUTE, tracksInput: false })).toBe(
+      false,
+    );
+  });
+
+  // The native chrome has no idle time: only the count may trip it.
+  test("without input tracking, only the count fires it", () => {
+    expect(dueAtEnd({ tracksInput: false })).toBe(false);
+    for (let i = 0; i < 3; i++) recordStillWatchingAutoplay();
+    expect(dueAtEnd({ tracksInput: false })).toBe(true);
+  });
+
+  test("never fires without autoplay or with the preset off", () => {
+    expect(dueAtEnd({ autoPlayNextEpisode: false })).toBe(false);
+    expect(dueAtEnd({ preset: "disabled" })).toBe(false);
   });
 });

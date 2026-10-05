@@ -121,7 +121,8 @@ import {
 } from "@/utils/segments";
 import { rememberSeriesTrack } from "@/utils/seriesTrackMemory";
 import {
-  isStillWatchingDueAt,
+  isStillWatchingDueAtEnd,
+  recordStillWatchingAutoplay,
   resetStillWatchingSession,
 } from "@/utils/stillWatching";
 import {
@@ -132,10 +133,6 @@ import {
 import { msToTicks, ticksToMs, ticksToSeconds } from "@/utils/time";
 
 const NEXT_EPISODE_COUNTDOWN_SECONDS = 10;
-// Past this point the next-episode payload is left alone: native may already
-// be counting down on it, and flipping it under a running countdown races EOF.
-const STILL_WATCHING_RESYNC_CUTOFF_MS =
-  (NEXT_EPISODE_COUNTDOWN_SECONDS + 5) * 1000;
 
 /**
  * One presented native-player session. Mirrors the ref discipline of
@@ -325,6 +322,8 @@ const PlayCommandRouteFallback: React.FC<{
       subscribe("Play", (data: unknown) => {
         const req = parseRemotePlayCommand(data);
         if (!req) return;
+        // Someone chose this play, from another client: a new session.
+        resetStillWatchingSession();
         router.push(
           `/(auth)/player/direct-player?${toDirectPlayerQuery(req)}` as any,
         );
@@ -555,35 +554,23 @@ const NativePlayerProviderInner: React.FC<{
     }
   }, []);
 
-  // The stillWatchingRequired native last received, so a progress tick only
-  // re-pushes the payload when the prompt's due-ness actually changes.
-  const pushedStillWatchingRef = useRef<boolean | null>(null);
-
-  const isStillWatchingDue = useCallback((remainingMs: number) => {
-    const currentSettings = settingsRef.current;
-    if (!(currentSettings?.autoPlayNextEpisode ?? false)) return false;
-    return isStillWatchingDueAt({
-      preset: currentSettings?.stillWatchingPreset,
-      playedCount: currentSettings?.autoPlayEpisodeCount ?? 0,
-      // Judged at EOF, where the prompt takes autoplay's place.
-      atMs: Date.now() + Math.max(0, remainingMs),
-      // The native chrome reports no touches to JS, so idle time is unknown
-      // and only the episode count can trip the prompt.
-      tracksInput: false,
-    });
-  }, []);
-
   const buildNextEpisodePayload = useCallback(
-    (
-      session: NativeSession,
-      next: BaseItemDto,
-      remainingMs: number = ticksToMs(session.item.RunTimeTicks ?? 0) -
-        session.positionMs,
-    ): NativePlayerNextEpisode => {
+    (session: NativeSession, next: BaseItemDto): NativePlayerNextEpisode => {
       const currentSettings = settingsRef.current;
       const autoplayWanted = currentSettings?.autoPlayNextEpisode ?? false;
-      const stillWatchingRequired = isStillWatchingDue(remainingMs);
-      pushedStillWatchingRef.current = stillWatchingRequired;
+      // Decided once per payload, against the episode's projected end. A pause
+      // pushes the real end later, which can only make the prompt come an
+      // episode late, never early. Re-deciding mid-episode would race the
+      // countdown native may already be running (from the outro on iOS).
+      const stillWatchingRequired = isStillWatchingDueAtEnd({
+        autoPlayNextEpisode: autoplayWanted,
+        preset: currentSettings?.stillWatchingPreset,
+        remainingMs:
+          ticksToMs(session.item.RunTimeTicks ?? 0) - session.positionMs,
+        // The native chrome reports no touches to JS, so idle time is unknown
+        // and only the episode count can trip the prompt.
+        tracksInput: false,
+      });
       const autoplayAllowed = autoplayWanted && !stillWatchingRequired;
       const epNumber =
         next.ParentIndexNumber !== undefined && next.IndexNumber !== undefined
@@ -606,7 +593,7 @@ const NativePlayerProviderInner: React.FC<{
         stillWatchingRequired,
       };
     },
-    [isStillWatchingDue],
+    [],
   );
 
   const pushEpisodeList = useCallback(
@@ -670,7 +657,6 @@ const NativePlayerProviderInner: React.FC<{
         buildNextEpisodePayload(session, next),
       );
     } else {
-      pushedStillWatchingRef.current = null;
       void updateNativePlayerNextEpisode(null);
     }
   }, [playbackManager.nextItem, isActive, buildNextEpisodePayload]);
@@ -1514,24 +1500,6 @@ const NativePlayerProviderInner: React.FC<{
           Date.now(),
           PROGRESS_REPORT_INTERVAL,
         );
-        // The prompt's time threshold can be crossed mid-episode (or by a long
-        // pause), so keep native's flag in step until the countdown window.
-        const next = nextItemRef.current;
-        const remainingMs = (payload.duration - payload.position) * 1000;
-        if (
-          next?.Id &&
-          // Right after an in-place swap the ref can still hold the episode
-          // now playing, until the adjacent-items query catches up.
-          next.Id !== session.item.Id &&
-          payload.duration > 0 &&
-          remainingMs > STILL_WATCHING_RESYNC_CUTOFF_MS &&
-          pushedStillWatchingRef.current !== null &&
-          isStillWatchingDue(remainingMs) !== pushedStillWatchingRef.current
-        ) {
-          void updateNativePlayerNextEpisode(
-            buildNextEpisodePayload(session, next, remainingMs),
-          );
-        }
         if (!due) return;
         void reportProgressRef.current(buildProgressInfo(session));
       }),
@@ -1653,28 +1621,18 @@ const NativePlayerProviderInner: React.FC<{
           return;
         }
         const currentSettings = settingsRef.current;
-        const trackCount = currentSettings?.stillWatchingPreset !== "disabled";
         if (payload.reason === "countdown") {
-          // Native only counts down on a payload that allowed it; anything
-          // else is a stale countdown.
-          const allowed =
-            (currentSettings?.autoPlayNextEpisode ?? false) &&
-            pushedStillWatchingRef.current !== true;
-          if (!allowed) {
+          // Native only counts down on a payload that allowed autoplay, so
+          // the prompt has had its say; only autoplay itself may refuse.
+          if (!(currentSettings?.autoPlayNextEpisode ?? false)) {
             void dismissNativePlayer();
             return;
           }
-          if (trackCount) {
-            updateSettings({
-              autoPlayEpisodeCount:
-                (currentSettings?.autoPlayEpisodeCount ?? 0) + 1,
-            });
-          }
+          recordStillWatchingAutoplay();
         } else {
           // A deliberate tap, "Continue watching" included, starts a new
           // session.
           resetStillWatchingSession();
-          if (trackCount) updateSettings({ autoPlayEpisodeCount: 0 });
         }
         void playAdjacentItem(session, next);
       }),
@@ -1684,7 +1642,9 @@ const NativePlayerProviderInner: React.FC<{
         if (!session || session.awaitingLoad) return;
         session.positionMs = payload.positionSec * 1000;
         const previous = previousItemRef.current;
-        if (previous) void playAdjacentItem(session, previous);
+        if (!previous) return;
+        resetStillWatchingSession();
+        void playAdjacentItem(session, previous);
       }),
 
       addNativePlayerListener("onEpisodeSelected", (payload) => {
@@ -1702,7 +1662,9 @@ const NativePlayerProviderInner: React.FC<{
               .catch(() => null);
             target = res?.data;
           }
-          if (target) await playAdjacentItem(session, target);
+          if (!target) return;
+          resetStillWatchingSession();
+          await playAdjacentItem(session, target);
         })();
       }),
 
@@ -1820,6 +1782,8 @@ const NativePlayerProviderInner: React.FC<{
       subscribe("Play", (data: unknown) => {
         const req = parseRemotePlayCommand(data);
         if (!req) return;
+        // Someone chose this play, from another client: a new session.
+        resetStillWatchingSession();
         void (async () => {
           // The WS Play path must pick the same player the play button would.
           const useNative = isNativeChromeActive(settingsRef.current);

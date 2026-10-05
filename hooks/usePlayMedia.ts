@@ -37,7 +37,7 @@ interface PlayMediaOptions {
  */
 export const usePlayMedia = () => {
   const router = useRouter();
-  const { settings, updateSettings } = useSettings();
+  const { settings } = useSettings();
   const setShuffleQueue = useSetAtom(shuffleQueueAtom);
   const { presentFromRequest } = useNativePlayer();
   const { t } = useTranslation();
@@ -55,9 +55,6 @@ export const usePlayMedia = () => {
       // Moved from PlayButton.goToPlayer: a fresh play starts a new "Still
       // watching?" session and cancels any active shuffle queue.
       resetStillWatchingSession();
-      if (settings.stillWatchingPreset !== "disabled") {
-        updateSettings({ autoPlayEpisodeCount: 0 });
-      }
       if (!options?.preserveShuffleQueue) {
         setShuffleQueue(null);
       }
@@ -85,6 +82,6 @@ export const usePlayMedia = () => {
 
       router.push(`/player/direct-player?${toDirectPlayerQuery(req)}`);
     },
-    [router, settings, updateSettings, setShuffleQueue, presentFromRequest, t],
+    [router, settings, setShuffleQueue, presentFromRequest, t],
   );
 };

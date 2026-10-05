@@ -45,16 +45,18 @@ export const isStillWatchingDue = ({
 
 /**
  * Maps the old `maxAutoPlayEpisodeCount` cap (stored as `{ key, value }`, or a
- * bare number from the plugin) to the preset that stops no earlier than it
- * did, so nobody is prompted sooner than before.
+ * bare number from the plugin) to the first preset whose episode count is at
+ * least the cap; a cap past the longest preset gets the longest.
  */
 export const stillWatchingPresetFromEpisodeCount = (
   legacy: unknown,
 ): StillWatchingPreset | undefined => {
-  const count =
+  const raw =
     typeof legacy === "object" && legacy !== null && "value" in legacy
       ? (legacy as { value: unknown }).value
       : legacy;
+  const count =
+    typeof raw === "string" && raw.trim() !== "" ? Number(raw) : raw;
   if (typeof count !== "number" || !Number.isFinite(count)) return undefined;
   if (count <= 0) return "disabled";
   const presets = Object.entries(StillWatchingPresets) as Array<
@@ -66,38 +68,56 @@ export const stillWatchingPresetFromEpisodeCount = (
 };
 
 // The session lives in memory like jellyfin-web's: an app restart means the
-// next play is a deliberate one, which resets it anyway.
-let sessionStartMs = Date.now();
-let lastInputMs = sessionStartMs;
-
-/** A play the viewer started themselves, or a "Continue watching" answer. */
-export const resetStillWatchingSession = (nowMs: number = Date.now()) => {
-  sessionStartMs = nowMs;
-  lastInputMs = nowMs;
-};
-
-export const markStillWatchingInput = (nowMs: number = Date.now()) => {
-  lastInputMs = nowMs;
+// next play is one the viewer starts, which resets it anyway.
+const session = {
+  startMs: Date.now(),
+  lastInputMs: Date.now(),
+  playedCount: 0,
 };
 
 /**
- * Whether the prompt is due at `atMs`. Callers pass the projected end of the
- * current episode, since that is where the prompt replaces autoplay.
+ * A play the viewer started themselves, "Continue watching" included. Every
+ * such path calls this; autoplay never does.
  */
-export const isStillWatchingDueAt = ({
+export const resetStillWatchingSession = (nowMs: number = Date.now()) => {
+  session.startMs = nowMs;
+  session.lastInputMs = nowMs;
+  session.playedCount = 0;
+};
+
+export const markStillWatchingInput = (nowMs: number = Date.now()) => {
+  session.lastInputMs = nowMs;
+};
+
+export const recordStillWatchingAutoplay = () => {
+  session.playedCount += 1;
+};
+
+/**
+ * Whether the prompt should replace autoplay at the end of the episode now
+ * playing. Judged at the projected end, `remainingMs` from now, since that is
+ * where the prompt takes autoplay's place.
+ */
+export const isStillWatchingDueAtEnd = ({
+  autoPlayNextEpisode,
   preset,
-  playedCount,
-  atMs,
+  remainingMs,
   tracksInput,
+  nowMs = Date.now(),
 }: {
+  autoPlayNextEpisode: boolean;
   preset: StillWatchingPreset | undefined;
-  playedCount: number;
-  atMs: number;
+  remainingMs: number;
+  /** False where the player cannot report input to JS (the native chrome). */
   tracksInput: boolean;
-}): boolean =>
-  isStillWatchingDue({
+  nowMs?: number;
+}): boolean => {
+  if (!autoPlayNextEpisode) return false;
+  const atMs = nowMs + Math.max(0, remainingMs);
+  return isStillWatchingDue({
     thresholds: getStillWatchingThresholds(preset),
-    playedCount,
-    sessionDurationMs: atMs - sessionStartMs,
-    idleMs: tracksInput ? atMs - lastInputMs : undefined,
+    playedCount: session.playedCount,
+    sessionDurationMs: atMs - session.startMs,
+    idleMs: tracksInput ? atMs - session.lastInputMs : undefined,
   });
+};

@@ -448,8 +448,6 @@ export type Settings = {
   enableH265ForChromecast: boolean;
   /** "Still watching?" prompt, see constants/StillWatching.ts. */
   stillWatchingPreset: StillWatchingPreset;
-  /** Episodes auto-played since the viewer last started playback. */
-  autoPlayEpisodeCount: number;
   autoPlayNextEpisode: boolean;
   // Media segment skip preferences
   skipIntro: SegmentSkipMode;
@@ -623,7 +621,6 @@ export const defaultValues: Settings = {
   hiddenLibraries: [],
   enableH265ForChromecast: false,
   stillWatchingPreset: DEFAULT_STILL_WATCHING_PRESET,
-  autoPlayEpisodeCount: 0,
   autoPlayNextEpisode: true,
   // Media segment skip defaults
   skipIntro: "ask",
@@ -772,7 +769,8 @@ const migrateSubtitleSettings = (settings: LegacySubtitleSettings) => {
 /**
  * Carries the old `maxAutoPlayEpisodeCount` cap over to `stillWatchingPreset`
  * and drops the old key. Also used on the plugin's answer, whose value is
- * wrapped in `{ locked, value }`.
+ * wrapped in `{ locked, value }`, and on the applied-defaults record. A value
+ * it cannot read is left where it is rather than dropped with its lock.
  */
 export const migrateStillWatchingSetting = (
   settings: Record<string, unknown>,
@@ -782,9 +780,10 @@ export const migrateStillWatchingSetting = (
 ): boolean => {
   if (!("maxAutoPlayEpisodeCount" in settings)) return false;
   const legacy = settings.maxAutoPlayEpisodeCount;
-  delete settings.maxAutoPlayEpisodeCount;
   const preset = stillWatchingPresetFromEpisodeCount(unwrap(legacy));
-  if (settings.stillWatchingPreset === undefined && preset) {
+  if (!preset) return false;
+  delete settings.maxAutoPlayEpisodeCount;
+  if (settings.stillWatchingPreset === undefined) {
     settings.stillWatchingPreset = wrap(preset, legacy);
   }
   return true;
@@ -812,8 +811,13 @@ const loadSettings = (): Partial<Settings> => {
     changed = true;
   }
 
-  // The episode cap became jellyfin-web 12's "Still watching?" presets.
+  // The episode cap became jellyfin-web 12's "Still watching?" presets, and
+  // the count it was checked against now lives with the in-memory session.
   if (migrateStillWatchingSetting(stored as Record<string, unknown>)) {
+    changed = true;
+  }
+  if ("autoPlayEpisodeCount" in stored) {
+    delete (stored as Record<string, unknown>).autoPlayEpisodeCount;
     changed = true;
   }
 
@@ -999,6 +1003,9 @@ export const useSettings = () => {
         if (!currentSettings) return currentSettings;
 
         const applied = loadAppliedPluginDefaults();
+        // Under the old name, a default applied then would be applied again
+        // over whatever the user has chosen since.
+        migrateStillWatchingSetting(applied as Record<string, unknown>);
         const result = pluginRefreshOverlay(
           currentSettings,
           newPluginSettings,
