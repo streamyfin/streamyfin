@@ -6,7 +6,9 @@ import {
   isStillWatchingDue,
   isStillWatchingDueAtEnd,
   markStillWatchingInput,
+  peekStillWatchingDecision,
   recordStillWatchingAutoplay,
+  releaseStillWatchingDecision,
   resetStillWatchingSession,
   stillWatchingPresetFromEpisodeCount,
 } from "./stillWatching";
@@ -211,6 +213,14 @@ describe("the session", () => {
     expect(dueAtEnd({ preset: "disabled" })).toBe(false);
   });
 
+  test("a decision can be read without taking one, and dropped", () => {
+    expect(peekStillWatchingDecision("ep-9")).toBeUndefined();
+    decideStillWatchingOnce("ep-9", () => true);
+    expect(peekStillWatchingDecision("ep-9")).toBe(true);
+    releaseStillWatchingDecision("ep-9");
+    expect(peekStillWatchingDecision("ep-9")).toBeUndefined();
+  });
+
   // A stream swap of the same episode must not re-decide under a countdown.
   test("decides once per episode until a reset or an autoplay", () => {
     const decide = jest.fn(() => true);
@@ -249,6 +259,7 @@ describe("coerceStillWatchingPreset", () => {
     ["Disabled", "disabled"],
     ["VeryLong", "veryLong"],
     ["off", "disabled"],
+    ["false", "disabled"],
     // A preset from a newer build.
     ["medium", "default"],
     [null, undefined],

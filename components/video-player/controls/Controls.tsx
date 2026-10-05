@@ -41,7 +41,9 @@ import {
   decideStillWatchingOnce,
   isStillWatchingDueAtEnd,
   markStillWatchingInput,
+  peekStillWatchingDecision,
   recordStillWatchingAutoplay,
+  releaseStillWatchingDecision,
   resetStillWatchingSession,
 } from "@/utils/stillWatching";
 import { ticksToMs } from "@/utils/time";
@@ -479,14 +481,25 @@ export const Controls: FC<Props> = ({
       playbackRate: playbackSpeed,
       tracksInput: true,
     });
-  // Unarmed (no tick from this episode's own playback yet, only the 0/0 a
-  // freshly mounted item starts from) the prompt cannot show, so nothing may
-  // hold the countdown back either, or the episode would end with neither.
-  const stillWatchingDue = !stillWatchingArmedRef.current
-    ? false
-    : (showSkipOutroButton || inCountdownWindow) && item.Id
+  const inDecisionWindow = showSkipOutroButton || inCountdownWindow;
+  // Armed: a tick from this episode's own playback has been seen, not the 0/0
+  // a freshly mounted item starts from. A decision already taken for this
+  // episode is its own data too, so a remount (a track change) can use it
+  // before the next tick. Unarmed the prompt cannot show, so nothing may hold
+  // the countdown back either, or the episode would end with neither.
+  const knownStillWatching = item.Id
+    ? peekStillWatchingDecision(item.Id)
+    : undefined;
+  const stillWatchingArmed =
+    stillWatchingArmedRef.current || knownStillWatching !== undefined;
+  // Leaving the window (a seek back) lets go, so the end is judged again.
+  if (stillWatchingArmed && !inDecisionWindow && item.Id) {
+    releaseStillWatchingDecision(item.Id);
+  }
+  const stillWatchingDue =
+    stillWatchingArmed && inDecisionWindow && item.Id
       ? decideStillWatchingOnce(item.Id, isDueNow)
-      : isDueNow();
+      : false;
   const stillWatchingRequired = autoPlayWanted && stillWatchingDue;
 
   // Whether the "Next Episode" countdown can be rendered at all. The Skip
@@ -535,7 +548,7 @@ export const Controls: FC<Props> = ({
     }
     if (
       stillWatchingRequired &&
-      stillWatchingArmedRef.current &&
+      stillWatchingArmed &&
       remainingTime <= CONTROLS_CONSTANTS.STILL_WATCHING_EOF_WINDOW_MS
     ) {
       setStillWatchingVisible(true);
@@ -544,6 +557,7 @@ export const Controls: FC<Props> = ({
   }, [
     stillWatchingVisible,
     stillWatchingRequired,
+    stillWatchingArmed,
     maxMs,
     currentTime,
     remainingTime,

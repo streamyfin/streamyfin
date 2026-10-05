@@ -28,7 +28,9 @@ export const coerceStillWatchingPreset = (
   if (typeof value === "string") {
     // A server may spell them its own way ("VeryLong", "Disabled", "off").
     const spelled = value.trim().toLowerCase();
-    if (spelled === "off" || spelled === "none") return "disabled";
+    if (["off", "none", "no", "never", "false"].includes(spelled)) {
+      return "disabled";
+    }
     const known = STILL_WATCHING_PRESET_ORDER.find(
       (preset) => preset.toLowerCase() === spelled,
     );
@@ -148,7 +150,7 @@ export const decideStillWatchingOnce = (
   itemId: string,
   decide: () => boolean,
 ): boolean => {
-  const key = `${session.epoch}:${itemId}`;
+  const key = decisionKey(itemId);
   const stale =
     decision?.key !== key ||
     (decision.due && session.lastInputMs > decision.inputMs);
@@ -156,6 +158,19 @@ export const decideStillWatchingOnce = (
     decision = { key, due: decide(), inputMs: session.lastInputMs };
   }
   return decision?.due === true;
+};
+
+const decisionKey = (itemId: string) => `${session.epoch}:${itemId}`;
+
+/** The decision already taken for `itemId`, if any, without taking one. */
+export const peekStillWatchingDecision = (
+  itemId: string,
+): boolean | undefined =>
+  decision?.key === decisionKey(itemId) ? decision.due : undefined;
+
+/** Drops the decision for `itemId`, so the next one is taken afresh. */
+export const releaseStillWatchingDecision = (itemId: string) => {
+  if (decision?.key === decisionKey(itemId)) decision = null;
 };
 
 /**

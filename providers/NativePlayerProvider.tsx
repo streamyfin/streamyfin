@@ -558,8 +558,8 @@ const NativePlayerProviderInner: React.FC<{
     }
   }, []);
 
-  // The session whose countdown already advanced; see onNextEpisodeRequested.
-  const countdownAdvancedRef = useRef<NativeSession | null>(null);
+  // Sessions whose countdown already advanced; see onNextEpisodeRequested.
+  const countdownAdvancedRef = useRef(new WeakSet<NativeSession>());
 
   const buildNextEpisodePayload = useCallback(
     (session: NativeSession, next: BaseItemDto): NativePlayerNextEpisode => {
@@ -1642,8 +1642,8 @@ const NativePlayerProviderInner: React.FC<{
         if (payload.reason === "countdown") {
           // A countdown fired twice for one session (before the swap lands)
           // is one autoplay, not two.
-          if (countdownAdvancedRef.current === session) return;
-          countdownAdvancedRef.current = session;
+          if (countdownAdvancedRef.current.has(session)) return;
+          countdownAdvancedRef.current.add(session);
           // Native only counts down on a payload that allowed autoplay, so
           // the prompt has had its say; only autoplay itself may refuse.
           if (!(currentSettings?.autoPlayNextEpisode ?? false)) {
