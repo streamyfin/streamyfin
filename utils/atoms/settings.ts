@@ -12,6 +12,10 @@ import { atom, useAtom, useAtomValue } from "jotai";
 import { useCallback, useEffect } from "react";
 import { Platform } from "react-native";
 import { BITRATES, type Bitrate } from "@/components/BitrateSelector";
+import {
+  DEFAULT_MUSIC_NORMALIZATION_MODE,
+  type MusicNormalizationMode,
+} from "@/constants/Music";
 import { REDACTED_PLACEHOLDER } from "@/constants/Privacy";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { apiAtom } from "@/providers/JellyfinProvider";
@@ -525,6 +529,8 @@ export type Settings = {
   audioMaxCacheSizeMB: number;
   // Music playback
   preferLocalAudio: boolean;
+  /** Evens out loudness between music tracks with the server's gains. */
+  musicNormalizationMode: MusicNormalizationMode;
   // Audio transcoding mode
   audioTranscodeMode: AudioTranscodeMode;
   // Optional third-party lookups. Both call a service directly from the client
@@ -688,6 +694,7 @@ export const defaultValues: Settings = {
   audioMaxCacheSizeMB: 500,
   // Music playback
   preferLocalAudio: true,
+  musicNormalizationMode: DEFAULT_MUSIC_NORMALIZATION_MODE,
   // Audio transcoding mode
   audioTranscodeMode: AudioTranscodeMode.Auto,
   // Optional third-party lookups

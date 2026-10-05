@@ -38,6 +38,7 @@ jest.mock(
       setupPlayer: async () => undefined,
       updateOptions: async () => undefined,
       setRepeatMode: async () => undefined,
+      setVolume: async () => undefined,
       play: async () => undefined,
       pause: async () => undefined,
       seekTo: async () => undefined,

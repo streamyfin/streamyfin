@@ -16,6 +16,7 @@ import React, {
   useState,
 } from "react";
 import { Platform } from "react-native";
+import { DEFAULT_MUSIC_NORMALIZATION_MODE } from "@/constants/Music";
 import {
   downloadTrack,
   getLocalPath,
@@ -25,6 +26,10 @@ import {
 } from "@/providers/AudioStorage";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useNetworkStatus } from "@/providers/NetworkStatusProvider";
+import {
+  setMusicNormalizationMode,
+  setMusicNormalizationTrack,
+} from "@/services/MusicNormalization";
 import { settingsAtom } from "@/utils/atoms/settings";
 import { getJellyfinHeadersForUrl } from "@/utils/customHeaders";
 import { getAudioStreamUrl } from "@/utils/jellyfin/audio/getAudioStreamUrl";
@@ -35,6 +40,7 @@ import {
   nativeIndexOf,
   nativeInsertIndexFor,
 } from "@/utils/music/nativeQueue";
+import { toTrackNormalizationGains } from "@/utils/music/normalization";
 
 // Conditionally import TrackPlayer only on non-TV platforms
 // This prevents the native module from being loaded on TV where it doesn't exist
@@ -391,6 +397,9 @@ const itemToTrack = (
         ? { uri: artwork, headers: artworkHeaders }
         : artwork,
     duration: item.RunTimeTicks ? item.RunTimeTicks / 10000000 : undefined,
+    // The gains ride on the track itself: the playback service sets the volume
+    // from them when the track becomes active, with no queue to look it up in.
+    ...toTrackNormalizationGains(item),
   };
 
   // A local file needs no headers; a stream from a protected server does.
@@ -543,6 +552,14 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       setMaxCacheSizeMB(settings.audioMaxCacheSizeMB);
     }
   }, [settings?.audioMaxCacheSizeMB]);
+
+  // Hand the normalization mode to the playback service, which sets the volume
+  // and outlives this provider.
+  const normalizationMode =
+    settings?.musicNormalizationMode ?? DEFAULT_MUSIC_NORMALIZATION_MODE;
+  useEffect(() => {
+    setMusicNormalizationMode(normalizationMode);
+  }, [normalizationMode]);
 
   // Sync repeat mode to TrackPlayer
   useEffect(() => {
@@ -972,6 +989,9 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         // Reset and start playback immediately with just the target track
         loadedOutOfOrderRef.current = false;
         await TrackPlayer.reset();
+        // Before the first sample: the track change event that also sets the
+        // volume reaches JS only once the track is already loading.
+        setMusicNormalizationTrack(targetTrackResult.track);
         await TrackPlayer.add(targetTrackResult.track);
         await TrackPlayer.play();
         if (isStale()) {
@@ -1170,10 +1190,15 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       );
       if (result) {
         const preferLocal = settings?.preferLocalAudio ?? true;
-        await TrackPlayer.reset();
-        await TrackPlayer.add(
-          itemToTrack(state.currentTrack, result.url, api, preferLocal),
+        const track = itemToTrack(
+          state.currentTrack,
+          result.url,
+          api,
+          preferLocal,
         );
+        await TrackPlayer.reset();
+        setMusicNormalizationTrack(track);
+        await TrackPlayer.add(track);
         await TrackPlayer.seekTo(state.progress);
         await TrackPlayer.play();
         setState((prev) => ({
