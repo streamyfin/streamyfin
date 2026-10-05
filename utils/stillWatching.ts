@@ -1,4 +1,5 @@
 import {
+  DEFAULT_STILL_WATCHING_PRESET,
   STILL_WATCHING_PRESET_ORDER,
   type StillWatchingPreset,
   StillWatchingPresets,
@@ -12,12 +13,27 @@ export const isStillWatchingPreset = (
 ): value is StillWatchingPreset =>
   STILL_WATCHING_PRESET_ORDER.includes(value as StillWatchingPreset);
 
+/**
+ * The preset a stored or plugin value stands for: a known one as is, the old
+ * episode count or a preset from a newer build as the nearest known one, and
+ * nothing for an empty value.
+ */
+export const coerceStillWatchingPreset = (
+  value: unknown,
+): StillWatchingPreset | undefined => {
+  if (isStillWatchingPreset(value)) return value;
+  if (value === undefined || value === null || value === "") return undefined;
+  return (
+    stillWatchingPresetFromEpisodeCount(value) ?? DEFAULT_STILL_WATCHING_PRESET
+  );
+};
+
 export const getStillWatchingThresholds = (
   preset: StillWatchingPreset | undefined,
-): StillWatchingThresholds | null =>
-  isStillWatchingPreset(preset) && preset !== "disabled"
-    ? StillWatchingPresets[preset]
-    : null;
+): StillWatchingThresholds | null => {
+  const known = coerceStillWatchingPreset(preset);
+  return known && known !== "disabled" ? StillWatchingPresets[known] : null;
+};
 
 export type StillWatchingGateInput = {
   thresholds: StillWatchingThresholds | null;
@@ -81,8 +97,9 @@ const session = {
   startMs: Date.now(),
   lastInputMs: Date.now(),
   playedCount: 0,
-  // Bumped on every reset and autoplay, so a decision taken for an episode
-  // can tell a later stream swap of that same episode from a new play of it.
+  // Bumped on every reset, autoplay and input, so a decision taken for an
+  // episode can tell a later stream swap of it from a new play of it, and an
+  // input re-opens it, as the idle rule needs.
   epoch: 0,
 };
 
@@ -99,6 +116,7 @@ export const resetStillWatchingSession = (nowMs: number = Date.now()) => {
 
 export const markStillWatchingInput = (nowMs: number = Date.now()) => {
   session.lastInputMs = nowMs;
+  session.epoch += 1;
 };
 
 export const recordStillWatchingAutoplay = () => {
@@ -109,9 +127,9 @@ export const recordStillWatchingAutoplay = () => {
 let decision: { key: string; due: boolean } | null = null;
 
 /**
- * The first decision taken for `itemId` in this session (since the last reset
- * or autoplay), reused for as long as that episode keeps playing, a stream
- * swap included. The native player only gets a snapshot, so changing it later
+ * The first decision taken for `itemId` since the last reset, autoplay or
+ * input, reused for as long as that episode keeps playing, a stream swap
+ * included. The native player only gets a snapshot, so changing it later
  * could race a countdown native is already running.
  */
 export const decideStillWatchingOnce = (

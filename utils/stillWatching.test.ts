@@ -1,5 +1,6 @@
 import { StillWatchingPresets } from "@/constants/StillWatching";
 import {
+  coerceStillWatchingPreset,
   decideStillWatchingOnce,
   getStillWatchingThresholds,
   isStillWatchingDue,
@@ -85,7 +86,10 @@ describe("getStillWatchingThresholds", () => {
   test("maps each preset to jellyfin-web 12's numbers", () => {
     expect(getStillWatchingThresholds("disabled")).toBeNull();
     expect(getStillWatchingThresholds(undefined)).toBeNull();
-    expect(getStillWatchingThresholds("medium" as never)).toBeNull();
+    // Acts as it is labelled: a preset from a newer build as the nearest.
+    expect(getStillWatchingThresholds("medium" as never)).toEqual(
+      StillWatchingPresets.default,
+    );
     expect(getStillWatchingThresholds("short")).toEqual({
       episodes: 2,
       minutes: 60,
@@ -211,5 +215,24 @@ describe("the session", () => {
 
     resetStillWatchingSession(start);
     expect(decideStillWatchingOnce("ep-2", () => false)).toBe(false);
+
+    // An input resets idle time, so the decision has to be taken again.
+    markStillWatchingInput(start);
+    expect(decideStillWatchingOnce("ep-2", () => true)).toBe(true);
+  });
+});
+
+describe("coerceStillWatchingPreset", () => {
+  test.each([
+    ["long", "long"],
+    ["disabled", "disabled"],
+    [3, "default"],
+    [-1, "disabled"],
+    // A preset from a newer build.
+    ["medium", "default"],
+    [null, undefined],
+    ["", undefined],
+  ])("reads %p as %p", (value, expected) => {
+    expect(coerceStillWatchingPreset(value)).toBe(expected);
   });
 });

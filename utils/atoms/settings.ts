@@ -19,7 +19,7 @@ import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { logAndCaptureError, writeInfoLog } from "@/utils/log";
 import {
-  isStillWatchingPreset,
+  coerceStillWatchingPreset,
   stillWatchingPresetFromEpisodeCount,
 } from "@/utils/stillWatching";
 import {
@@ -158,15 +158,8 @@ const normalizePluginValue = (
   // A preset this build does not know, or the old episode count sent under
   // the new name, would otherwise turn the prompt off without a word. An
   // empty value stays empty, so it is not mistaken for an admin's choice.
-  if (
-    settingsKey === "stillWatchingPreset" &&
-    hasMeaningfulSettingValue(value) &&
-    !isStillWatchingPreset(value)
-  ) {
-    return (
-      stillWatchingPresetFromEpisodeCount(value) ??
-      DEFAULT_STILL_WATCHING_PRESET
-    );
+  if (settingsKey === "stillWatchingPreset") {
+    return coerceStillWatchingPreset(value) ?? value;
   }
 
   if (typeof value !== "object" || value === null) {
@@ -840,16 +833,6 @@ const loadSettings = (): Partial<Settings> => {
   // The episode cap became jellyfin-web 12's "Still watching?" presets, and
   // the count it was checked against now lives with the in-memory session.
   if (migrateStillWatchingSetting(stored as Record<string, unknown>)) {
-    changed = true;
-  }
-  // A preset a newer build wrote reads as the nearest one this build knows.
-  if (
-    hasMeaningfulSettingValue(stored.stillWatchingPreset) &&
-    !isStillWatchingPreset(stored.stillWatchingPreset)
-  ) {
-    stored.stillWatchingPreset =
-      stillWatchingPresetFromEpisodeCount(stored.stillWatchingPreset) ??
-      DEFAULT_STILL_WATCHING_PRESET;
     changed = true;
   }
   if ("autoPlayEpisodeCount" in stored) {

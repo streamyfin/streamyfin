@@ -462,25 +462,27 @@ export const Controls: FC<Props> = ({
   // incoming episode. Only a progress tick from mid-playback of the episode
   // itself arms the trigger, and every navigation disarms it.
   const stillWatchingArmedRef = useRef(false);
-  // Decided once the credits or the countdown window start, so a touch there
+  // Decided once the credits or the countdown window start, so time passing
   // can't swap Skip Credits, the countdown and the prompt around under the
-  // viewer. The decision lives with the session, not this component, so a
-  // track change that remounts the player keeps it. Taken without the
-  // autoplay gate, so a next item that resolves late still gets the prompt.
-  const stillWatchingDueNow = isStillWatchingDueAtEnd({
-    preset: settings.stillWatchingPreset,
-    remainingMs: remainingTime,
-    playbackRate: playbackSpeed,
-    tracksInput: true,
-  });
+  // viewer; an input re-opens it, as the idle rule needs. The decision lives
+  // with the session, not this component, so a track change that remounts
+  // the player keeps it. Taken without the autoplay gate, so a next item that
+  // resolves late still gets the prompt.
+  const isDueNow = () =>
+    isStillWatchingDueAtEnd({
+      preset: settings.stillWatchingPreset,
+      remainingMs: remainingTime,
+      playbackRate: playbackSpeed,
+      tracksInput: true,
+    });
   const stillWatchingDue =
     // Armed: a tick from this episode's own playback has been seen, not the
-    // outgoing one's near-zero values right after a switch.
+    // 0/0 progress a freshly loaded item starts from.
     stillWatchingArmedRef.current &&
     (showSkipOutroButton || inCountdownWindow) &&
     item.Id
-      ? decideStillWatchingOnce(item.Id, () => stillWatchingDueNow)
-      : stillWatchingDueNow;
+      ? decideStillWatchingOnce(item.Id, isDueNow)
+      : isDueNow();
   const stillWatchingRequired = autoPlayWanted && stillWatchingDue;
 
   // The prompt itself waits for the end, so it never covers a video that is

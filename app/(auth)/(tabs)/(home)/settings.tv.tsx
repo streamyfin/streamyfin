@@ -64,6 +64,7 @@ import {
   type SavedServer,
   type SavedServerAccount,
 } from "@/utils/secureCredentials";
+import { coerceStillWatchingPreset } from "@/utils/stillWatching";
 import { clearTopShelfCacheSafely } from "@/utils/topshelf/cache";
 
 const SEGMENT_SKIP_ROWS: {
@@ -699,7 +700,8 @@ export default function SettingsTV() {
       STILL_WATCHING_PRESET_ORDER.map((preset) => ({
         label: stillWatchingPresetLabel(t, preset),
         value: preset,
-        selected: preset === settings.stillWatchingPreset,
+        selected:
+          preset === coerceStillWatchingPreset(settings.stillWatchingPreset),
       })),
     [t, settings.stillWatchingPreset],
   );

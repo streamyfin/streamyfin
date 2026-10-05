@@ -13,6 +13,7 @@ import { STILL_WATCHING_PRESET_ORDER } from "@/constants/StillWatching";
 import useRouter from "@/hooks/useAppRouter";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { ScreenOrientationEnum, useSettings } from "@/utils/atoms/settings";
+import { coerceStillWatchingPreset } from "@/utils/stillWatching";
 import { Text } from "../common/Text";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
@@ -92,7 +93,8 @@ export const PlaybackControlsSettings: React.FC = () => {
           type: "radio" as const,
           label: stillWatchingPresetLabel(t, preset),
           value: preset,
-          selected: preset === settings?.stillWatchingPreset,
+          selected:
+            preset === coerceStillWatchingPreset(settings?.stillWatchingPreset),
           onPress: () => updateSettings({ stillWatchingPreset: preset }),
         })),
       },
