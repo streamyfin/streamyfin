@@ -15,7 +15,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { Text } from "@/components/common/Text";
 import { Colors } from "@/constants/Colors";
-import { CONTROLS_CONSTANTS } from "./constants";
+import { NEXT_EPISODE_COUNTDOWN_MS } from "@/constants/Playback";
 
 interface NextEpisodeCountDownButtonProps extends TouchableOpacityProps {
   onFinish?: () => void;
@@ -36,7 +36,7 @@ interface NextEpisodeCountDownButtonProps extends TouchableOpacityProps {
 }
 
 /** Media time the fill represents, matching the window the button appears in. */
-const COUNTDOWN_WINDOW_MS = CONTROLS_CONSTANTS.NEXT_EPISODE_COUNTDOWN_MS;
+const COUNTDOWN_WINDOW_MS = NEXT_EPISODE_COUNTDOWN_MS;
 /**
  * The player reports its position about once a second, so the last sample of
  * an item can sit that far short of the end. Anything inside this window is

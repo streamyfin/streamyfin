@@ -14,6 +14,7 @@ import {
   type PlayRequest,
   toDirectPlayerQuery,
 } from "@/utils/nativePlayer/playRequest";
+import { resetStillWatchingSession } from "@/utils/stillWatching";
 
 interface PlayMediaOptions {
   /** Shuffle sets the queue right before playing — don't clear it. */
@@ -36,7 +37,7 @@ interface PlayMediaOptions {
  */
 export const usePlayMedia = () => {
   const router = useRouter();
-  const { settings, updateSettings } = useSettings();
+  const { settings } = useSettings();
   const setShuffleQueue = useSetAtom(shuffleQueueAtom);
   const { presentFromRequest } = useNativePlayer();
   const { t } = useTranslation();
@@ -51,11 +52,9 @@ export const usePlayMedia = () => {
         return;
       }
 
-      // Moved from PlayButton.goToPlayer: a fresh play resets the auto-play
-      // chain counter and cancels any active shuffle queue.
-      if (settings.maxAutoPlayEpisodeCount.value !== -1) {
-        updateSettings({ autoPlayEpisodeCount: 0 });
-      }
+      // Moved from PlayButton.goToPlayer: a fresh play starts a new "Still
+      // watching?" session and cancels any active shuffle queue.
+      resetStillWatchingSession();
       if (!options?.preserveShuffleQueue) {
         setShuffleQueue(null);
       }
@@ -83,6 +82,6 @@ export const usePlayMedia = () => {
 
       router.push(`/player/direct-player?${toDirectPlayerQuery(req)}`);
     },
-    [router, settings, updateSettings, setShuffleQueue, presentFromRequest, t],
+    [router, settings, setShuffleQueue, presentFromRequest, t],
   );
 };

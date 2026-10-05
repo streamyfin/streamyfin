@@ -398,7 +398,14 @@
         "default_quality": "Default quality",
         "default_playback_speed": "Default playback speed",
         "auto_play_next_episode": "Auto-play next episode",
-        "max_auto_play_episode_count": "Max auto-play episode count",
+        "still_watching": "Ask \"Are you still watching?\"",
+        "still_watching_hint": "Before auto-playing the next episode, check that someone is still watching after a long session.",
+        "still_watching_presets": {
+          "short": "Short",
+          "default": "Default",
+          "long": "Long",
+          "veryLong": "Very long"
+        },
         "segment_skip_settings": "Segment skip settings",
         "segment_skip_settings_description": "Configure skip behavior for intros, outros, and other segments",
         "skip_intro": "Skip intro",

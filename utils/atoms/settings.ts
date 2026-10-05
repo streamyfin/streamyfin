@@ -7,7 +7,6 @@ import {
   SubtitlePlaybackMode,
 } from "@jellyfin/sdk/lib/generated-client";
 import { isAxiosError } from "axios";
-import { t } from "i18next";
 import { atom, useAtom, useAtomValue } from "jotai";
 import { useCallback, useEffect } from "react";
 import { Platform } from "react-native";
@@ -17,10 +16,19 @@ import {
   type MusicNormalizationMode,
 } from "@/constants/Music";
 import { REDACTED_PLACEHOLDER } from "@/constants/Privacy";
+import {
+  DEFAULT_STILL_WATCHING_PRESET,
+  type StillWatchingPreset,
+} from "@/constants/StillWatching";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { logAndCaptureError, writeInfoLog } from "@/utils/log";
 import {
+  coerceStillWatchingPreset,
+  stillWatchingPresetFromEpisodeCount,
+} from "@/utils/stillWatching";
+import {
+  PLUGIN_APPLIED_DEFAULTS_KEY,
   PLUGIN_SETTINGS_KEY,
   readStoredSettings,
   SETTINGS_KEY,
@@ -28,6 +36,7 @@ import {
 import { storage } from "../mmkv";
 import {
   type AppliedPluginDefaults,
+  hasMeaningfulSettingValue,
   pluginRefreshOverlay,
   readIntegrationBlocks,
   renameLegacySeerrSettings,
@@ -36,7 +45,6 @@ import {
 
 const _STREAMYFIN_PLUGIN_ID = "1e9e5d386e6746158719e98a5c34f004";
 const STREAMYFIN_PLUGIN_SETTINGS = PLUGIN_SETTINGS_KEY;
-const PLUGIN_APPLIED_DEFAULTS = "STREAMYFIN_PLUGIN_APPLIED_DEFAULTS";
 
 export type DownloadQuality = "original" | "high" | "low";
 
@@ -137,11 +145,6 @@ export type HomeSectionNextUpResolver = {
   enableRewatching?: boolean;
 };
 
-export interface MaxAutoPlayEpisodeCount {
-  key: string;
-  value: number;
-}
-
 const isFiniteNumber = (value: unknown): value is number =>
   typeof value === "number" && Number.isFinite(value);
 
@@ -157,6 +160,13 @@ const normalizePluginValue = (
     return value / 100;
   }
 
+  // A preset this build does not know, or the old episode count sent under
+  // the new name, would otherwise turn the prompt off without a word. An
+  // empty value stays empty, so it is not mistaken for an admin's choice.
+  if (settingsKey === "stillWatchingPreset") {
+    return coerceStillWatchingPreset(value) ?? value;
+  }
+
   if (typeof value !== "object" || value === null) {
     const defaultVal = defaultValues[settingsKey];
     if (
@@ -167,21 +177,12 @@ const normalizePluginValue = (
     ) {
       // defaultBitrate needs a lookup because its keys are human-readable
       // (e.g. "8 Mb/s") that can't be derived from the raw value (e.g. 8000000).
-      // Other { key, value } settings like maxAutoPlayEpisodeCount work with
-      // the fallback because their keys are just String(value) (e.g. "5").
+      // Anything else falls back to a key of String(value).
       if (settingsKey === "defaultBitrate") {
         const match = BITRATES.find(
           (b) => b.key === value || b.value === value,
         );
         if (match) return match;
-      }
-      // maxAutoPlayEpisodeCount: 0 is invalid (breaks autoplay), clamp to -1
-      // -1 key must match the translated dropdown label so the UI shows "Disabled"
-      if (
-        settingsKey === "maxAutoPlayEpisodeCount" &&
-        (value === 0 || value === -1)
-      ) {
-        return { key: t("home.settings.other.disabled"), value: -1 };
       }
       return { key: String(value), value };
     }
@@ -460,8 +461,8 @@ export type Settings = {
   useKefinTweaks: boolean;
   hiddenLibraries?: string[];
   enableH265ForChromecast: boolean;
-  maxAutoPlayEpisodeCount: MaxAutoPlayEpisodeCount;
-  autoPlayEpisodeCount: number;
+  /** "Still watching?" prompt, see constants/StillWatching.ts. */
+  stillWatchingPreset: StillWatchingPreset;
   autoPlayNextEpisode: boolean;
   // Media segment skip preferences
   skipIntro: SegmentSkipMode;
@@ -638,8 +639,7 @@ export const defaultValues: Settings = {
   useKefinTweaks: false,
   hiddenLibraries: [],
   enableH265ForChromecast: false,
-  maxAutoPlayEpisodeCount: { key: "3", value: 3 },
-  autoPlayEpisodeCount: 0,
+  stillWatchingPreset: DEFAULT_STILL_WATCHING_PRESET,
   autoPlayNextEpisode: true,
   // Media segment skip defaults
   skipIntro: "ask",
@@ -787,9 +787,43 @@ const migrateSubtitleSettings = (settings: LegacySubtitleSettings) => {
   return changed;
 };
 
+/**
+ * Carries the old `maxAutoPlayEpisodeCount` cap over to `stillWatchingPreset`
+ * and drops the old key. Also used on the plugin's answer, whose value is
+ * wrapped in `{ locked, value }`, and on the applied-defaults record.
+ * `fallback` names the preset for a value it cannot read; without one, such
+ * a value is dropped.
+ */
+export const migrateStillWatchingSetting = (
+  settings: Record<string, unknown>,
+  unwrap: (value: unknown) => unknown = (value) => value,
+  wrap: (preset: StillWatchingPreset, legacy: unknown) => unknown = (preset) =>
+    preset,
+  fallback: (legacy: unknown) => StillWatchingPreset | undefined = () =>
+    undefined,
+  isLocked: (value: unknown) => boolean = () => false,
+): boolean => {
+  if (!("maxAutoPlayEpisodeCount" in settings)) return false;
+  const legacy = settings.maxAutoPlayEpisodeCount;
+  delete settings.maxAutoPlayEpisodeCount;
+  const preset =
+    stillWatchingPresetFromEpisodeCount(unwrap(legacy)) ?? fallback(legacy);
+  // The new name wins unless it is empty, or the old one is the admin's lock.
+  const current = settings.stillWatchingPreset;
+  const replace =
+    (!hasMeaningfulSettingValue(unwrap(current)) &&
+      !(isLocked(current) && !isLocked(legacy))) ||
+    (isLocked(legacy) && !isLocked(current));
+  if (preset && replace) {
+    settings.stillWatchingPreset = wrap(preset, legacy);
+  }
+  return true;
+};
+
 const loadSettings = (): Partial<Settings> => {
   const stored = readStoredSettings() as LegacySubtitleSettings & {
     showTVHeroCarousel?: boolean;
+    maxAutoPlayEpisodeCount?: unknown;
   };
   let changed = migrateSubtitleSettings(stored);
 
@@ -805,6 +839,16 @@ const loadSettings = (): Partial<Settings> => {
   }
   if ("showTVHeroCarousel" in stored) {
     delete stored.showTVHeroCarousel;
+    changed = true;
+  }
+
+  // The episode cap became jellyfin-web 12's "Still watching?" presets, and
+  // the count it was checked against now lives with the in-memory session.
+  if (migrateStillWatchingSetting(stored as Record<string, unknown>)) {
+    changed = true;
+  }
+  if ("autoPlayEpisodeCount" in stored) {
+    delete (stored as Record<string, unknown>).autoPlayEpisodeCount;
     changed = true;
   }
 
@@ -854,14 +898,40 @@ const migratePluginSettings = (
   if (!settings) {
     return settings;
   }
-  const legacy = (settings as Record<string, unknown>).showTVHeroCarousel;
-  if (settings.showHeroCarousel !== undefined || legacy === undefined) {
-    return settings;
+  const migrated = { ...settings } as Record<string, unknown>;
+  // An admin's lock on the old episode cap keeps locking the preset, even
+  // when its value can't be read.
+  migrateStillWatchingSetting(
+    migrated,
+    (lockable) => (lockable as Lockable<unknown> | undefined)?.value,
+    (preset, lockable) => ({
+      ...(lockable as Lockable<unknown>),
+      value: preset,
+    }),
+    (lockable) =>
+      (lockable as Lockable<unknown> | undefined)?.locked
+        ? DEFAULT_STILL_WATCHING_PRESET
+        : undefined,
+    (lockable) => (lockable as Lockable<unknown> | undefined)?.locked === true,
+  );
+  // An empty preset is no choice: locked, it keeps the prompt on at the app
+  // default rather than pinning it off; unlocked, it supplies nothing.
+  const preset = migrated.stillWatchingPreset as Lockable<unknown> | undefined;
+  if (preset && !hasMeaningfulSettingValue(preset.value)) {
+    if (preset.locked) {
+      migrated.stillWatchingPreset = {
+        ...preset,
+        value: DEFAULT_STILL_WATCHING_PRESET,
+      };
+    } else {
+      delete migrated.stillWatchingPreset;
+    }
   }
-  return {
-    ...settings,
-    showHeroCarousel: legacy as PluginLockableSettings["showHeroCarousel"],
-  };
+  const legacy = migrated.showTVHeroCarousel;
+  if (migrated.showHeroCarousel === undefined && legacy !== undefined) {
+    migrated.showHeroCarousel = legacy;
+  }
+  return migrated as PluginLockableSettings;
 };
 
 const loadPluginSettings = () => {
@@ -923,7 +993,12 @@ export const fetchPluginSettings = (api: {
 
 const loadAppliedPluginDefaults = (): AppliedPluginDefaults => {
   try {
-    return storage.get<AppliedPluginDefaults>(PLUGIN_APPLIED_DEFAULTS) ?? {};
+    const applied =
+      storage.get<AppliedPluginDefaults>(PLUGIN_APPLIED_DEFAULTS_KEY) ?? {};
+    // Under the old name, a default applied then would be applied again over
+    // whatever the user has chosen since.
+    migrateStillWatchingSetting(applied as Record<string, unknown>);
+    return applied;
   } catch {
     return {};
   }
@@ -998,7 +1073,7 @@ export const useSettings = () => {
         } as Settings;
         saveSettings(newSettings);
         if (result.applied) {
-          storage.setAny(PLUGIN_APPLIED_DEFAULTS, result.applied);
+          storage.setAny(PLUGIN_APPLIED_DEFAULTS_KEY, result.applied);
         }
         return newSettings;
       });

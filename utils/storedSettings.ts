@@ -7,6 +7,7 @@ import { storage } from "@/utils/mmkv";
 // here, not in call sites.
 export const SETTINGS_KEY = "settings";
 export const PLUGIN_SETTINGS_KEY = "STREAMYFIN_PLUGIN_SETTINGS";
+export const PLUGIN_APPLIED_DEFAULTS_KEY = "STREAMYFIN_PLUGIN_APPLIED_DEFAULTS";
 
 // A corrupt blob silently resets every setting to defaults, so report it —
 // once per blob per session, since these readers run on every consent check.
