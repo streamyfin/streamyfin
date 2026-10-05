@@ -166,6 +166,18 @@ describe("scrubDeep — the privacy boundary for outgoing Sentry data", () => {
     );
   });
 
+  // Android puts the host in quotes, and the quote used to end the match
+  // before it had begun.
+  test("a host Android quotes in a native error string is redacted too", () => {
+    expect(
+      scrubDeep(
+        'java.net.UnknownHostException: Unable to resolve host "jellyfin.example.org": No address associated with hostname',
+      ),
+    ).toBe(
+      'java.net.UnknownHostException: Unable to resolve host "[server]": No address associated with hostname',
+    );
+  });
+
   test("media basenames inside server URL paths are redacted as well", () => {
     expect(scrubDeep("https://x.example.com/videos/abc-123/stream.mp4")).toBe(
       "https://[server]/videos/abc-123/[media].mp4",

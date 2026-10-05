@@ -54,3 +54,10 @@ export const SERVER_WIDE_CLIENT_STATUSES: readonly number[] = [401, 403, 429];
  * Query retries a failing request three times.
  */
 export const SEERR_REPORT_THROTTLE_MS = 60_000;
+
+/**
+ * What stands in for the address of the user's server in anything that
+ * leaves the app. One spelling, so that a search of Sentry for redacted
+ * hosts finds all of them.
+ */
+export const REDACTED_SERVER = "[server]";

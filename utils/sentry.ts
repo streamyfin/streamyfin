@@ -3,7 +3,7 @@ import { isAxiosError } from "axios";
 import * as Application from "expo-application";
 import * as Device from "expo-device";
 import { Platform } from "react-native";
-import { OFFICIAL_APPLICATION_IDS } from "@/constants/Sentry";
+import { OFFICIAL_APPLICATION_IDS, REDACTED_SERVER } from "@/constants/Sentry";
 import {
   describeHttpError,
   isAbortLikeError,
@@ -170,9 +170,10 @@ const CREDENTIAL_PARAM_PATTERN =
 
 // Native error strings can embed the private server address without a scheme:
 // Android's OkHttp writes "Failed to connect to host/1.2.3.4:8096". Redact the
-// known phrases plus any bare IPv4 (LAN servers are usually IPs).
+// known phrases plus any bare IPv4 (LAN servers are usually IPs). Android
+// quotes the host it could not resolve ('Unable to resolve host "host": …').
 const SCHEMELESS_HOST_PATTERN =
-  /((?:failed to connect to|unable to resolve host)[: ]+)[^\s"']+/gi;
+  /((?:failed to connect to|unable to resolve host)[: ]+["']?)[^\s"']+/gi;
 const IPV4_PATTERN = /\b\d{1,3}(?:\.\d{1,3}){3}(?::\d+)?\b/g;
 
 // Jellyfin/Seerr URLs carry credentials in the query string (api_key=...,
@@ -182,9 +183,9 @@ const IPV4_PATTERN = /\b\d{1,3}(?:\.\d{1,3}){3}(?::\d+)?\b/g;
 const scrubUrl = (value: string): string =>
   value
     .replace(/((?:https?|wss?):\/\/[^\s"'?]+)\?[^\s"']*/g, "$1")
-    .replace(/((?:https?|wss?):\/\/)[^/\s"']+/g, "$1[server]")
+    .replace(/((?:https?|wss?):\/\/)[^/\s"']+/g, `$1${REDACTED_SERVER}`)
     .replace(CREDENTIAL_PARAM_PATTERN, "$1[redacted]")
-    .replace(SCHEMELESS_HOST_PATTERN, "$1[server]")
+    .replace(SCHEMELESS_HOST_PATTERN, `$1${REDACTED_SERVER}`)
     .replace(IPV4_PATTERN, "[ip]")
     .replace(MEDIA_FILENAME_PATTERN, "$1[media].$3");
 
