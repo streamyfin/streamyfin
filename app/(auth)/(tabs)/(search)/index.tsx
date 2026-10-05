@@ -54,6 +54,7 @@ import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { logAndCaptureError } from "@/utils/log";
 import { isSeerrQuery } from "@/utils/seerr/queries";
 import { searchSeerr } from "@/utils/seerr/search";
+import { loadDiscoverSliders } from "@/utils/seerr/sliders";
 import type { MovieResult, PersonResult, TvResult } from "@/utils/seerr/types";
 import { MediaType } from "@/utils/seerr/types";
 import { createStreamystatsApi } from "@/utils/streamystats";
@@ -533,7 +534,7 @@ export default function SearchPage() {
   // Fetch discover settings for TV (when no search query in Discover mode)
   const { data: discoverSliders } = useQuery({
     queryKey: ["search", "seerr", "discoverSettings", "tv"],
-    queryFn: async () => seerrApi?.discoverSettings(),
+    queryFn: () => loadDiscoverSliders(seerrApi),
     enabled:
       Platform.isTV &&
       !!seerrApi &&

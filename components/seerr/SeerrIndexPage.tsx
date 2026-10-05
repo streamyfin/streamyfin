@@ -11,6 +11,7 @@ import {
 import Discover from "@/components/seerr/discover/Discover";
 import { useSeerr } from "@/hooks/useSeerr";
 import { searchSeerr } from "@/utils/seerr/search";
+import { loadDiscoverSliders } from "@/utils/seerr/sliders";
 import type { MovieResult, PersonResult, TvResult } from "@/utils/seerr/types";
 import { MediaType } from "@/utils/seerr/types";
 import { useReactNavigationQuery } from "@/utils/useReactNavigationQuery";
@@ -47,7 +48,7 @@ export const SeerrIndexPage: React.FC<Props> = ({
     isLoading: l1,
   } = useReactNavigationQuery({
     queryKey: ["search", "seerr", "discoverSettings", searchQuery],
-    queryFn: async () => seerrApi?.discoverSettings(),
+    queryFn: () => loadDiscoverSliders(seerrApi),
     enabled: !!seerrApi && searchQuery.length === 0,
   });
 
