@@ -3,8 +3,18 @@ import type { StreamystatsWatchlist } from "@/utils/streamystats/types";
 import { TVStreamystatsWatchlists } from "./TVStreamystatsWatchlist";
 
 const mockPush = jest.fn();
-const mockQuery: { data?: StreamystatsWatchlist[]; isLoading: boolean } = {
+const mockRefetch = jest.fn();
+const mockQuery: {
+  data?: StreamystatsWatchlist[];
+  isLoading: boolean;
+  isError: boolean;
+  isFetching: boolean;
+  refetch: () => void;
+} = {
   isLoading: false,
+  isError: false,
+  isFetching: false,
+  refetch: mockRefetch,
 };
 
 jest.mock("@/providers/JellyfinProvider", () => {
@@ -32,6 +42,9 @@ jest.mock("@/components/tv/hooks/useTVFocusAnimation", () => ({
     animatedStyle: {},
   }),
 }));
+jest.mock("@/providers/InactivityProvider", () => ({
+  useInactivity: () => ({ resetInactivityTimer: () => {} }),
+}));
 jest.mock("react-i18next", () => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }));
@@ -43,19 +56,21 @@ const watchlist = (
 ): StreamystatsWatchlist =>
   ({ id, name, userId, isPublic: true, itemCount: 2 }) as StreamystatsWatchlist;
 
-/** The Pressable wrapping a card, found through the card's name. */
-const cardFor = (name: string) => {
+/** The focusable element wrapping a card or button, found through its text. */
+const focusableFor = (name: string) => {
   let node = screen.getByText(name).parent;
   while (node && node.props.hasTVPreferredFocus === undefined) {
     node = node.parent;
   }
-  if (!node) throw new Error(`no focusable card for ${name}`);
+  if (!node) throw new Error(`no focusable element for ${name}`);
   return node;
 };
 
 beforeEach(() => {
   mockPush.mockClear();
+  mockRefetch.mockClear();
   mockQuery.isLoading = false;
+  mockQuery.isError = false;
   mockQuery.data = [
     watchlist(1, "Their list", "someone-else"),
     watchlist(2, "My list", "me"),
@@ -79,16 +94,16 @@ test("lists my watchlists before public ones", async () => {
 
 test("gives initial focus to the first card only", async () => {
   await render(<TVStreamystatsWatchlists />);
-  expect(cardFor("My list").props.hasTVPreferredFocus).toBe(true);
-  expect(cardFor("My other list").props.hasTVPreferredFocus).toBe(false);
-  expect(cardFor("Their list").props.hasTVPreferredFocus).toBe(false);
+  expect(focusableFor("My list").props.hasTVPreferredFocus).toBe(true);
+  expect(focusableFor("My other list").props.hasTVPreferredFocus).toBe(false);
+  expect(focusableFor("Their list").props.hasTVPreferredFocus).toBe(false);
 });
 
 // The watchlists tab puts its source toggle above this list and gives the toggle
 // initial focus; a second preferred-focus target makes TV focus flicker.
 test("takes no initial focus when it is not the first section", async () => {
   await render(<TVStreamystatsWatchlists isFirstSection={false} />);
-  expect(cardFor("My list").props.hasTVPreferredFocus).toBe(false);
+  expect(focusableFor("My list").props.hasTVPreferredFocus).toBe(false);
 });
 
 test("opens the watchlist's detail page", async () => {
@@ -101,4 +116,32 @@ test("shows the empty state when there are no watchlists", async () => {
   mockQuery.data = [];
   await render(<TVStreamystatsWatchlists />);
   expect(screen.getByText("watchlists.empty_title")).toBeTruthy();
+});
+
+// A failed request is not an empty list: the empty state would tell the user
+// they have no watchlists.
+test("shows a retryable error, not the empty state, when loading fails", async () => {
+  mockQuery.data = undefined;
+  mockQuery.isError = true;
+  await render(<TVStreamystatsWatchlists />);
+
+  expect(screen.getByText("common.something_went_wrong")).toBeTruthy();
+  expect(screen.queryByText("watchlists.empty_title")).toBeNull();
+
+  await fireEvent.press(screen.getByText("home.retry"));
+  expect(mockRefetch).toHaveBeenCalledTimes(1);
+});
+
+// With no cards on screen the retry button is the only thing to focus, unless
+// the source toggle above already owns the initial focus.
+test("gives the retry button initial focus only as the first section", async () => {
+  mockQuery.data = undefined;
+  mockQuery.isError = true;
+
+  const first = await render(<TVStreamystatsWatchlists />);
+  expect(focusableFor("home.retry").props.hasTVPreferredFocus).toBe(true);
+  await first.unmount();
+
+  await render(<TVStreamystatsWatchlists isFirstSection={false} />);
+  expect(focusableFor("home.retry").props.hasTVPreferredFocus).toBe(false);
 });

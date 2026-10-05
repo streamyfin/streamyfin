@@ -1,6 +1,6 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react-native";
+import { fireEvent, render, screen } from "@testing-library/react-native";
 import { getDefaultStore } from "jotai";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { makeApi } from "@/test-utils/jellyfinApi";
@@ -22,6 +22,10 @@ jest.mock("expo-router", () => ({
   }),
 }));
 jest.mock("@/components/Loader", () => ({ Loader: () => null }));
+jest.mock("react-i18next", () => ({
+  useTranslation: () => ({ t: (key: string) => key }),
+}));
+jest.mock("@/hooks/useHaptic", () => ({ useHaptic: () => () => {} }));
 // The cards are not what is under test; an item shows up as its name.
 jest.mock("@/components/cards/useCardGrid", () => {
   const { Text } = jest.requireActual("react-native");
@@ -37,6 +41,7 @@ jest.mock("@/components/cards/useCardGrid", () => {
 });
 jest.mock("@shopify/flash-list", () => {
   const { View } = jest.requireActual("react-native");
+  const { Fragment } = jest.requireActual("react");
   return {
     FlashList: ({
       data,
@@ -44,7 +49,13 @@ jest.mock("@shopify/flash-list", () => {
     }: {
       data: unknown[];
       renderItem: (info: { item: unknown; index: number }) => React.ReactNode;
-    }) => <View>{data.map((item, index) => renderItem({ item, index }))}</View>,
+    }) => (
+      <View>
+        {data.map((item, index) => (
+          <Fragment key={index}>{renderItem({ item, index })}</Fragment>
+        ))}
+      </View>
+    ),
   };
 });
 
@@ -83,4 +94,28 @@ test("never shows the previous account's items to the next one", async () => {
   await renderScreen(client);
 
   expect(screen.queryByText("First account's movie")).toBeNull();
+});
+
+// A failed request is not an empty list: saying "no items" would tell the user
+// their watchlist or favorites were gone.
+test("shows a retryable error, not the empty state, when loading fails", async () => {
+  const client = new QueryClient({
+    defaultOptions: { queries: { gcTime: Infinity, retry: false } },
+  });
+  signInAs("first");
+  const api = store.get(apiAtom) as unknown as ReturnType<typeof makeApi>;
+  api.mock.reset();
+  api.mock.onGet(/\/Items/).replyOnce(500);
+  api.mock
+    .onGet(/\/Items/)
+    .replyOnce(200, { Items: [{ Id: "m1", Name: "Back again" }] });
+
+  await renderScreen(client);
+
+  expect(await screen.findByText("common.something_went_wrong")).toBeTruthy();
+  expect(screen.queryByText("home.no_items")).toBeNull();
+
+  await fireEvent.press(screen.getByText("home.retry"));
+
+  expect(await screen.findByText("Back again")).toBeTruthy();
 });

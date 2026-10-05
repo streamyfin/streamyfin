@@ -640,7 +640,8 @@
     "loading": "Loading...",
     "seeAll": "See all",
     "close": "Close",
-    "something_went_wrong": "Something went wrong"
+    "something_went_wrong": "Something went wrong",
+    "load_failed_message": "This couldn't be loaded. Check your connection and try again."
   },
   "search": {
     "search": "Search...",

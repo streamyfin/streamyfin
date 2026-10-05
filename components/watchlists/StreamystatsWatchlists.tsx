@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { Platform, RefreshControl, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button } from "@/components/Button";
+import { QueryErrorState } from "@/components/common/QueryErrorState";
 import { Text } from "@/components/common/Text";
 import useRouter from "@/hooks/useAppRouter";
 import {
@@ -136,7 +137,13 @@ export const StreamystatsWatchlists: React.FC = () => {
   const insets = useSafeAreaInsets();
   const user = useAtomValue(userAtom);
   const streamystatsEnabled = useStreamystatsEnabled();
-  const { data: watchlists, isLoading, refetch } = useWatchlistsQuery();
+  const {
+    data: watchlists,
+    isLoading,
+    isError,
+    isFetching,
+    refetch,
+  } = useWatchlistsQuery();
   const [refreshing, setRefreshing] = useState(false);
 
   const handleRefresh = useCallback(async () => {
@@ -199,6 +206,11 @@ export const StreamystatsWatchlists: React.FC = () => {
 
   if (!streamystatsEnabled) {
     return <NotConfiguredState />;
+  }
+
+  // Checked before the empty state: a failed load is not an empty list.
+  if (isError && !watchlists?.length) {
+    return <QueryErrorState onRetry={refetch} retrying={isFetching} />;
   }
 
   if (!isLoading && (!watchlists || watchlists.length === 0)) {

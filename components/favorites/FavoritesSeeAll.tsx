@@ -14,6 +14,7 @@ import { useCallback, useMemo } from "react";
 import { Platform, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useCardGrid } from "@/components/cards/useCardGrid";
+import { QueryErrorState } from "@/components/common/QueryErrorState";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
@@ -103,19 +104,26 @@ export default function FavoritesSeeAll() {
     [api, itemType, user?.Id, filter],
   );
 
-  const { data, isFetching, fetchNextPage, hasNextPage, isLoading } =
-    useInfiniteQuery({
-      // Keyed by account: the cache outlives a user switch, and without the id
-      // the grid would open on the previous account's list.
-      queryKey: ["favorites", "see-all", user?.Id, itemType, filter],
-      queryFn: ({ pageParam = 0 }) => fetchItems({ pageParam }),
-      getNextPageParam: (lastPage, pages) => {
-        if (!lastPage || lastPage.length < pageSize) return undefined;
-        return pages.reduce((acc, page) => acc + page.length, 0);
-      },
-      initialPageParam: 0,
-      enabled: !!api && !!user?.Id && !!itemType,
-    });
+  const {
+    data,
+    isFetching,
+    fetchNextPage,
+    hasNextPage,
+    isLoading,
+    isError,
+    refetch,
+  } = useInfiniteQuery({
+    // Keyed by account: the cache outlives a user switch, and without the id
+    // the grid would open on the previous account's list.
+    queryKey: ["favorites", "see-all", user?.Id, itemType, filter],
+    queryFn: ({ pageParam = 0 }) => fetchItems({ pageParam }),
+    getNextPageParam: (lastPage, pages) => {
+      if (!lastPage || lastPage.length < pageSize) return undefined;
+      return pages.reduce((acc, page) => acc + page.length, 0);
+    },
+    initialPageParam: 0,
+    enabled: !!api && !!user?.Id && !!itemType,
+  });
 
   const flatData = useMemo(() => data?.pages.flat() ?? [], [data]);
 
@@ -135,7 +143,7 @@ export default function FavoritesSeeAll() {
   });
 
   const handleEndReached = useCallback(() => {
-    if (hasNextPage) {
+    if (hasNextPage && !isFetching) {
       fetchNextPage();
     }
   }, [fetchNextPage, hasNextPage]);
@@ -161,6 +169,8 @@ export default function FavoritesSeeAll() {
         <View className='justify-center items-center h-full'>
           <Loader />
         </View>
+      ) : isError && flatData.length === 0 ? (
+        <QueryErrorState onRetry={refetch} retrying={isFetching} />
       ) : (
         <FlashList
           data={grid.data}
