@@ -4,7 +4,6 @@ import {
   getStillWatchingThresholds,
   isStillWatchingDue,
   isStillWatchingDueAtEnd,
-  latchStillWatching,
   markStillWatchingInput,
   recordStillWatchingAutoplay,
   resetStillWatchingSession,
@@ -212,24 +211,5 @@ describe("the session", () => {
 
     resetStillWatchingSession(start);
     expect(decideStillWatchingOnce("ep-2", () => false)).toBe(false);
-  });
-});
-
-describe("latchStillWatching", () => {
-  const step = latchStillWatching;
-
-  test("holds nothing outside the window", () => {
-    expect(step(true, { armed: true, inWindow: false, due: false })).toBeNull();
-  });
-
-  test("latches the first armed decision inside the window", () => {
-    expect(step(null, { armed: true, inWindow: true, due: true })).toBe(true);
-    expect(step(true, { armed: true, inWindow: true, due: false })).toBe(true);
-    expect(step(false, { armed: true, inWindow: true, due: true })).toBe(false);
-  });
-
-  // Right after a switch the outgoing episode's values are still current.
-  test("does not latch before this episode's own playback is seen", () => {
-    expect(step(null, { armed: false, inWindow: true, due: true })).toBeNull();
   });
 });

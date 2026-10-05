@@ -29,7 +29,10 @@ import {
   PlaybackSpeedScope,
   updatePlaybackSpeedSettings,
 } from "@/components/video-player/controls/utils/playback-speed-settings";
-import { PROGRESS_REPORT_INTERVAL } from "@/constants/Playback";
+import {
+  NEXT_EPISODE_COUNTDOWN_MS,
+  PROGRESS_REPORT_INTERVAL,
+} from "@/constants/Playback";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { useOrientation } from "@/hooks/useOrientation";
 import { usePlaybackManager } from "@/hooks/usePlaybackManager";
@@ -133,7 +136,7 @@ import {
 } from "@/utils/subtitles/subtitleIndex";
 import { msToTicks, ticksToMs, ticksToSeconds } from "@/utils/time";
 
-const NEXT_EPISODE_COUNTDOWN_SECONDS = 10;
+const NEXT_EPISODE_COUNTDOWN_SECONDS = NEXT_EPISODE_COUNTDOWN_MS / 1000;
 
 /**
  * One presented native-player session. Mirrors the ref discipline of

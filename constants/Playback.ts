@@ -6,3 +6,10 @@
  * at once. Shared by the JS and native players so the server sees one cadence.
  */
 export const PROGRESS_REPORT_INTERVAL = 10_000;
+
+/**
+ * Media time left when the next-episode countdown starts, in both players.
+ * The JS countdown fill spans the same window, and the "Still watching?"
+ * decision is taken once it opens.
+ */
+export const NEXT_EPISODE_COUNTDOWN_MS = 10_000;

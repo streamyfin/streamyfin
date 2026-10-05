@@ -24,6 +24,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import ContinueWatchingOverlay from "@/components/video-player/controls/ContinueWatchingOverlay";
+import { NEXT_EPISODE_COUNTDOWN_MS } from "@/constants/Playback";
 import useRouter from "@/hooks/useAppRouter";
 import { useHaptic } from "@/hooks/useHaptic";
 import { useMediaSegments } from "@/hooks/useMediaSegments";
@@ -37,8 +38,8 @@ import { hasChapterMarkers } from "@/utils/chapters";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { SEGMENT_SKIP_KEY, useSegments } from "@/utils/segments";
 import {
+  decideStillWatchingOnce,
   isStillWatchingDueAtEnd,
-  latchStillWatching,
   markStillWatchingInput,
   recordStillWatchingAutoplay,
   resetStillWatchingSession,
@@ -280,11 +281,11 @@ export const Controls: FC<Props> = ({
   });
 
   useKeyEventListener((e) => {
-    if (episodeView || showAudioSlider) return;
     if (e?.eventType !== "press") return;
+    markStillWatchingInput();
+    if (episodeView || showAudioSlider) return;
     const key = e.key;
 
-    markStillWatchingInput();
     if (key === " " || key === "Spacebar" || key === "Space") {
       togglePlay();
     } else if (!Platform.isTV && key === "ArrowLeft") {
@@ -449,8 +450,7 @@ export const Controls: FC<Props> = ({
   );
 
   const autoPlayWanted = !!nextItem && settings.autoPlayNextEpisode !== false;
-  const inCountdownWindow =
-    remainingTime < CONTROLS_CONSTANTS.NEXT_EPISODE_COUNTDOWN_MS;
+  const inCountdownWindow = remainingTime < NEXT_EPISODE_COUNTDOWN_MS;
 
   // Autoplay would run at EOF but the session is long enough to ask "Still
   // watching?" there instead, with playback paused — mirroring the native
@@ -462,29 +462,26 @@ export const Controls: FC<Props> = ({
   // incoming episode. Only a progress tick from mid-playback of the episode
   // itself arms the trigger, and every navigation disarms it.
   const stillWatchingArmedRef = useRef(false);
-  // The decision is latched once the credits or the countdown window start,
-  // so a touch there can't swap Skip Credits, the countdown and the prompt
-  // around under the viewer; seeking back out lets go. Latched without the
+  // Decided once the credits or the countdown window start, so a touch there
+  // can't swap Skip Credits, the countdown and the prompt around under the
+  // viewer. The decision lives with the session, not this component, so a
+  // track change that remounts the player keeps it. Taken without the
   // autoplay gate, so a next item that resolves late still gets the prompt.
-  const stillWatchingLatchRef = useRef<boolean | null>(null);
-  const stillWatchingDue = isStillWatchingDueAtEnd({
+  const stillWatchingDueNow = isStillWatchingDueAtEnd({
     preset: settings.stillWatchingPreset,
     remainingMs: remainingTime,
     playbackRate: playbackSpeed,
     tracksInput: true,
   });
-  stillWatchingLatchRef.current = latchStillWatching(
-    stillWatchingLatchRef.current,
-    {
-      // A tick from this episode's own playback, not the outgoing one's
-      // near-zero values right after a switch.
-      armed: stillWatchingArmedRef.current,
-      inWindow: showSkipOutroButton || inCountdownWindow,
-      due: stillWatchingDue,
-    },
-  );
-  const stillWatchingRequired =
-    autoPlayWanted && (stillWatchingLatchRef.current ?? stillWatchingDue);
+  const stillWatchingDue =
+    // Armed: a tick from this episode's own playback has been seen, not the
+    // outgoing one's near-zero values right after a switch.
+    stillWatchingArmedRef.current &&
+    (showSkipOutroButton || inCountdownWindow) &&
+    item.Id
+      ? decideStillWatchingOnce(item.Id, () => stillWatchingDueNow)
+      : stillWatchingDueNow;
+  const stillWatchingRequired = autoPlayWanted && stillWatchingDue;
 
   // The prompt itself waits for the end, so it never covers a video that is
   // still playing.
@@ -519,7 +516,6 @@ export const Controls: FC<Props> = ({
   // Reset after an in-place episode switch (setParams keeps Controls mounted).
   useEffect(() => {
     stillWatchingArmedRef.current = false;
-    stillWatchingLatchRef.current = null;
     setStillWatchingVisible(false);
   }, [item.Id]);
 
@@ -557,7 +553,6 @@ export const Controls: FC<Props> = ({
         return;
       }
       stillWatchingArmedRef.current = false;
-      stillWatchingLatchRef.current = null;
       lightHapticFeedback();
       const previousIndexes = {
         subtitleIndex: subtitleIndex
@@ -628,12 +623,12 @@ export const Controls: FC<Props> = ({
         return;
       }
 
-      // The countdown only runs while the prompt is not due, so a completed
-      // countdown always navigates.
+      // An unanswered prompt holds autoplay, whoever asks for it.
+      if (stillWatchingRequired) return;
       recordStillWatchingAutoplay();
       goToItemCommon(nextItem);
     },
-    [nextItem, goToItemCommon, goToItemByUser],
+    [nextItem, goToItemCommon, goToItemByUser, stillWatchingRequired],
   );
 
   // Add a memoized handler for autoplay next episode

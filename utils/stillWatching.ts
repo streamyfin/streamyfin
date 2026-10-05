@@ -106,20 +106,6 @@ export const recordStillWatchingAutoplay = () => {
   session.epoch += 1;
 };
 
-/**
- * One step of the JS player's decide-once rule: inside the window the first
- * decision taken on this episode's own playback (`armed`) holds; outside it
- * nothing is held.
- */
-export const latchStillWatching = (
-  latched: boolean | null,
-  { armed, inWindow, due }: { armed: boolean; inWindow: boolean; due: boolean },
-): boolean | null => {
-  if (!inWindow) return null;
-  if (latched !== null) return latched;
-  return armed ? due : null;
-};
-
 let decision: { key: string; due: boolean } | null = null;
 
 /**

@@ -227,6 +227,23 @@ describe("the still watching migration", () => {
     });
   });
 
+  // A locked empty preset pinned the prompt off, unchangeable.
+  test("reads an empty plugin preset as no choice", async () => {
+    const fetchWith = (stillWatchingPreset: unknown) =>
+      fetchPluginSettings({
+        getStreamyfinPluginConfig: async () => ({
+          data: { settings: { stillWatchingPreset } },
+        }),
+      } as never);
+
+    expect(
+      (await fetchWith({ locked: true, value: "" }))?.stillWatchingPreset,
+    ).toEqual({ locked: true, value: "default" });
+    expect(
+      (await fetchWith({ locked: false, value: null }))?.stillWatchingPreset,
+    ).toBeUndefined();
+  });
+
   test("leaves settings without the old key alone", () => {
     const stored: Record<string, unknown> = { stillWatchingPreset: "long" };
 
@@ -282,7 +299,6 @@ describe("the still watching migration", () => {
       expect(effectivePreset("medium")).toBe("default");
       // Empty is not an admin's choice: it supplies nothing.
       expect(effectivePreset(null, false)).toBe("default");
-      expect(effectivePreset("", true)).toBe("");
     } finally {
       store.set(pluginSettingsAtom, undefined);
     }

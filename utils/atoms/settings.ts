@@ -919,6 +919,19 @@ const migratePluginSettings = (
         : undefined,
     (lockable) => (lockable as Lockable<unknown> | undefined)?.locked === true,
   );
+  // An empty preset is no choice: locked, it keeps the prompt on at the app
+  // default rather than pinning it off; unlocked, it supplies nothing.
+  const preset = migrated.stillWatchingPreset as Lockable<unknown> | undefined;
+  if (preset && !hasMeaningfulSettingValue(preset.value)) {
+    if (preset.locked) {
+      migrated.stillWatchingPreset = {
+        ...preset,
+        value: DEFAULT_STILL_WATCHING_PRESET,
+      };
+    } else {
+      delete migrated.stillWatchingPreset;
+    }
+  }
   const legacy = migrated.showTVHeroCarousel;
   if (migrated.showHeroCarousel === undefined && legacy !== undefined) {
     migrated.showHeroCarousel = legacy;
