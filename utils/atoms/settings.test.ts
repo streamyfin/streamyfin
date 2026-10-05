@@ -249,6 +249,25 @@ describe("the still watching migration", () => {
     });
   });
 
+  // The admin's lock under the old name outranks a free value under the new.
+  test("a locked cap wins over an unlocked preset", () => {
+    const sent: Record<string, unknown> = {
+      maxAutoPlayEpisodeCount: { locked: true, value: 2 },
+      stillWatchingPreset: { locked: false, value: "long" },
+    };
+
+    migrateStillWatchingSetting(
+      sent,
+      (l) => (l as { value?: unknown } | undefined)?.value,
+      (preset, l) => ({ ...(l as object), value: preset }),
+      () => undefined,
+      (l) => (l as { locked?: boolean } | undefined)?.locked === true,
+    );
+    expect(sent).toEqual({
+      stillWatchingPreset: { locked: true, value: "short" },
+    });
+  });
+
   // A locked value the app cannot read would otherwise turn the prompt off.
   test("reads a plugin preset it does not know as the nearest one", () => {
     const store = getDefaultStore();
@@ -263,6 +282,7 @@ describe("the still watching migration", () => {
       expect(effectivePreset("medium")).toBe("default");
       // Empty is not an admin's choice: it supplies nothing.
       expect(effectivePreset(null, false)).toBe("default");
+      expect(effectivePreset("", true)).toBe("");
     } finally {
       store.set(pluginSettingsAtom, undefined);
     }

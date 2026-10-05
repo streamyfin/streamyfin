@@ -121,6 +121,7 @@ import {
 } from "@/utils/segments";
 import { rememberSeriesTrack } from "@/utils/seriesTrackMemory";
 import {
+  decideStillWatchingOnce,
   isStillWatchingDueAtEnd,
   recordStillWatchingAutoplay,
   resetStillWatchingSession,
@@ -554,28 +555,17 @@ const NativePlayerProviderInner: React.FC<{
     }
   }, []);
 
-  // The prompt decision per session, reused by every later push of its
-  // payload (a refetched next item re-runs the push effect). Weak, so a torn
-  // down session is not kept alive for it.
-  const stillWatchingDecisionsRef = useRef(
-    new WeakMap<NativeSession, boolean>(),
-  );
-
   const buildNextEpisodePayload = useCallback(
     (session: NativeSession, next: BaseItemDto): NativePlayerNextEpisode => {
       const currentSettings = settingsRef.current;
       const autoplayWanted = currentSettings?.autoPlayNextEpisode ?? false;
-      // Decided once per episode, against its projected end at 1x. Changing
-      // it later would race a countdown native may already be running (from
-      // the outro on iOS), which ignores a newer payload. A pause makes the
-      // prompt come an episode late; a faster speed can bring it early.
-      const decisions = stillWatchingDecisionsRef.current;
-      if (!decisions.has(session)) {
-        decisions.set(
-          session,
+      // Decided once per episode, against its projected end at 1x. A pause
+      // makes the prompt come an episode late; a faster speed can bring it
+      // early.
+      const stillWatchingRequired =
+        autoplayWanted &&
+        decideStillWatchingOnce(session.item.Id ?? "", () =>
           isStillWatchingDueAtEnd({
-            // Decided without the autoplay gate, which is applied per push.
-            autoPlayNextEpisode: true,
             preset: currentSettings?.stillWatchingPreset,
             remainingMs:
               ticksToMs(session.item.RunTimeTicks ?? 0) - session.positionMs,
@@ -584,9 +574,6 @@ const NativePlayerProviderInner: React.FC<{
             tracksInput: false,
           }),
         );
-      }
-      const stillWatchingRequired =
-        autoplayWanted && decisions.get(session) === true;
       const autoplayAllowed = autoplayWanted && !stillWatchingRequired;
       const epNumber =
         next.ParentIndexNumber !== undefined && next.IndexNumber !== undefined
@@ -868,6 +855,14 @@ const NativePlayerProviderInner: React.FC<{
       reportPlaybackStart(session);
       void pushSegments(session);
       void pushEpisodeList(session);
+      // A stream swap of the same episode reloads native, which drops the
+      // next-episode payload, and nextItem does not change to push it again.
+      const next = nextItemRef.current;
+      if (previous?.item.Id === session.item.Id && next?.Id) {
+        void updateNativePlayerNextEpisode(
+          buildNextEpisodePayload(session, next),
+        );
+      }
       return true;
     },
     [
@@ -882,6 +877,7 @@ const NativePlayerProviderInner: React.FC<{
       clearLastMessage,
       pushSegments,
       pushEpisodeList,
+      buildNextEpisodePayload,
     ],
   );
 

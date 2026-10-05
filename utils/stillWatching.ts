@@ -81,6 +81,9 @@ const session = {
   startMs: Date.now(),
   lastInputMs: Date.now(),
   playedCount: 0,
+  // Bumped on every reset and autoplay, so a decision taken for an episode
+  // can tell a later stream swap of that same episode from a new play of it.
+  epoch: 0,
 };
 
 /**
@@ -91,6 +94,7 @@ export const resetStillWatchingSession = (nowMs: number = Date.now()) => {
   session.startMs = nowMs;
   session.lastInputMs = nowMs;
   session.playedCount = 0;
+  session.epoch += 1;
 };
 
 export const markStillWatchingInput = (nowMs: number = Date.now()) => {
@@ -99,6 +103,7 @@ export const markStillWatchingInput = (nowMs: number = Date.now()) => {
 
 export const recordStillWatchingAutoplay = () => {
   session.playedCount += 1;
+  session.epoch += 1;
 };
 
 /**
@@ -115,20 +120,35 @@ export const latchStillWatching = (
   return armed ? due : null;
 };
 
+let decision: { key: string; due: boolean } | null = null;
+
+/**
+ * The first decision taken for `itemId` in this session (since the last reset
+ * or autoplay), reused for as long as that episode keeps playing, a stream
+ * swap included. The native player only gets a snapshot, so changing it later
+ * could race a countdown native is already running.
+ */
+export const decideStillWatchingOnce = (
+  itemId: string,
+  decide: () => boolean,
+): boolean => {
+  const key = `${session.epoch}:${itemId}`;
+  if (decision?.key !== key) decision = { key, due: decide() };
+  return decision.due;
+};
+
 /**
  * Whether the prompt should replace autoplay at the end of the episode now
  * playing. Judged at the projected end, `remainingMs` from now, since that is
  * where the prompt takes autoplay's place.
  */
 export const isStillWatchingDueAtEnd = ({
-  autoPlayNextEpisode,
   preset,
   remainingMs,
   playbackRate = 1,
   tracksInput,
   nowMs = Date.now(),
 }: {
-  autoPlayNextEpisode: boolean;
   preset: StillWatchingPreset | undefined;
   /** Media time left; `playbackRate` turns it into wall-clock time. */
   remainingMs: number;
@@ -137,7 +157,6 @@ export const isStillWatchingDueAtEnd = ({
   tracksInput: boolean;
   nowMs?: number;
 }): boolean => {
-  if (!autoPlayNextEpisode) return false;
   const rate = playbackRate > 0 ? playbackRate : 1;
   const atMs = nowMs + Math.max(0, remainingMs) / rate;
   return isStillWatchingDue({

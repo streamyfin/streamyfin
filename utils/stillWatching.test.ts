@@ -1,5 +1,6 @@
 import { StillWatchingPresets } from "@/constants/StillWatching";
 import {
+  decideStillWatchingOnce,
   getStillWatchingThresholds,
   isStillWatchingDue,
   isStillWatchingDueAtEnd,
@@ -130,7 +131,6 @@ describe("the session", () => {
     overrides: Partial<Parameters<typeof isStillWatchingDueAtEnd>[0]> = {},
   ) =>
     isStillWatchingDueAtEnd({
-      autoPlayNextEpisode: true,
       preset: "default",
       remainingMs: 0,
       tracksInput: true,
@@ -194,9 +194,24 @@ describe("the session", () => {
     ).toBe(false);
   });
 
-  test("never fires without autoplay or with the preset off", () => {
-    expect(dueAtEnd({ autoPlayNextEpisode: false })).toBe(false);
+  test("never fires with the preset off", () => {
     expect(dueAtEnd({ preset: "disabled" })).toBe(false);
+  });
+
+  // A stream swap of the same episode must not re-decide under a countdown.
+  test("decides once per episode until a reset or an autoplay", () => {
+    const decide = jest.fn(() => true);
+    expect(decideStillWatchingOnce("ep-1", decide)).toBe(true);
+    expect(decideStillWatchingOnce("ep-1", () => false)).toBe(true);
+    expect(decide).toHaveBeenCalledTimes(1);
+
+    expect(decideStillWatchingOnce("ep-2", () => false)).toBe(false);
+
+    recordStillWatchingAutoplay();
+    expect(decideStillWatchingOnce("ep-2", () => true)).toBe(true);
+
+    resetStillWatchingSession(start);
+    expect(decideStillWatchingOnce("ep-2", () => false)).toBe(false);
   });
 });
 

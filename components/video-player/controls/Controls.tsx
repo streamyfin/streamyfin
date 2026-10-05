@@ -318,9 +318,6 @@ export const Controls: FC<Props> = ({
   });
 
   const toggleControls = useCallback(() => {
-    // Touches are caught at the root; this covers the remote, which toggles
-    // the controls without one.
-    markStillWatchingInput();
     if (showControls) {
       setShowAudioSlider(false);
       setShowControls(false);
@@ -452,6 +449,8 @@ export const Controls: FC<Props> = ({
   );
 
   const autoPlayWanted = !!nextItem && settings.autoPlayNextEpisode !== false;
+  const inCountdownWindow =
+    remainingTime < CONTROLS_CONSTANTS.NEXT_EPISODE_COUNTDOWN_MS;
 
   // Autoplay would run at EOF but the session is long enough to ask "Still
   // watching?" there instead, with playback paused — mirroring the native
@@ -469,7 +468,6 @@ export const Controls: FC<Props> = ({
   // autoplay gate, so a next item that resolves late still gets the prompt.
   const stillWatchingLatchRef = useRef<boolean | null>(null);
   const stillWatchingDue = isStillWatchingDueAtEnd({
-    autoPlayNextEpisode: true,
     preset: settings.stillWatchingPreset,
     remainingMs: remainingTime,
     playbackRate: playbackSpeed,
@@ -481,9 +479,7 @@ export const Controls: FC<Props> = ({
       // A tick from this episode's own playback, not the outgoing one's
       // near-zero values right after a switch.
       armed: stillWatchingArmedRef.current,
-      inWindow:
-        showSkipOutroButton ||
-        remainingTime < CONTROLS_CONSTANTS.NEXT_EPISODE_COUNTDOWN_MS,
+      inWindow: showSkipOutroButton || inCountdownWindow,
       due: stillWatchingDue,
     },
   );
@@ -511,8 +507,7 @@ export const Controls: FC<Props> = ({
   // Driven by actual playback position vs. duration, independent of segment
   // metadata, so it's safe to auto-advance from this trigger.
   const showNextEpisodeFromRemainingTime =
-    willShowNextEpisode &&
-    remainingTime < CONTROLS_CONSTANTS.NEXT_EPISODE_COUNTDOWN_MS;
+    willShowNextEpisode && inCountdownWindow;
 
   const showNextEpisode =
     showNextEpisodeFromCredits || showNextEpisodeFromRemainingTime;

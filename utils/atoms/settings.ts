@@ -31,6 +31,7 @@ import {
 import { storage } from "../mmkv";
 import {
   type AppliedPluginDefaults,
+  hasMeaningfulSettingValue,
   pluginRefreshOverlay,
   readIntegrationBlocks,
   renameLegacySeerrSettings,
@@ -39,7 +40,6 @@ import {
 
 const _STREAMYFIN_PLUGIN_ID = "1e9e5d386e6746158719e98a5c34f004";
 const STREAMYFIN_PLUGIN_SETTINGS = PLUGIN_SETTINGS_KEY;
-const PLUGIN_APPLIED_DEFAULTS = PLUGIN_APPLIED_DEFAULTS_KEY;
 
 export type DownloadQuality = "original" | "high" | "low";
 
@@ -160,7 +160,7 @@ const normalizePluginValue = (
   // empty value stays empty, so it is not mistaken for an admin's choice.
   if (
     settingsKey === "stillWatchingPreset" &&
-    value != null &&
+    hasMeaningfulSettingValue(value) &&
     !isStillWatchingPreset(value)
   ) {
     return (
@@ -797,14 +797,19 @@ export const migrateStillWatchingSetting = (
     preset,
   fallback: (legacy: unknown) => StillWatchingPreset | undefined = () =>
     undefined,
+  isLocked: (value: unknown) => boolean = () => false,
 ): boolean => {
   if (!("maxAutoPlayEpisodeCount" in settings)) return false;
   const legacy = settings.maxAutoPlayEpisodeCount;
   delete settings.maxAutoPlayEpisodeCount;
   const preset =
     stillWatchingPresetFromEpisodeCount(unwrap(legacy)) ?? fallback(legacy);
-  // An empty entry under the new name must not win over the old value.
-  if (preset && unwrap(settings.stillWatchingPreset) == null) {
+  // The new name wins unless it is empty, or the old one is the admin's lock.
+  const current = settings.stillWatchingPreset;
+  const replace =
+    !hasMeaningfulSettingValue(unwrap(current)) ||
+    (isLocked(legacy) && !isLocked(current));
+  if (preset && replace) {
     settings.stillWatchingPreset = wrap(preset, legacy);
   }
   return true;
@@ -835,6 +840,16 @@ const loadSettings = (): Partial<Settings> => {
   // The episode cap became jellyfin-web 12's "Still watching?" presets, and
   // the count it was checked against now lives with the in-memory session.
   if (migrateStillWatchingSetting(stored as Record<string, unknown>)) {
+    changed = true;
+  }
+  // A preset a newer build wrote reads as the nearest one this build knows.
+  if (
+    hasMeaningfulSettingValue(stored.stillWatchingPreset) &&
+    !isStillWatchingPreset(stored.stillWatchingPreset)
+  ) {
+    stored.stillWatchingPreset =
+      stillWatchingPresetFromEpisodeCount(stored.stillWatchingPreset) ??
+      DEFAULT_STILL_WATCHING_PRESET;
     changed = true;
   }
   if ("autoPlayEpisodeCount" in stored) {
@@ -902,6 +917,7 @@ const migratePluginSettings = (
       (lockable as Lockable<unknown> | undefined)?.locked
         ? DEFAULT_STILL_WATCHING_PRESET
         : undefined,
+    (lockable) => (lockable as Lockable<unknown> | undefined)?.locked === true,
   );
   const legacy = migrated.showTVHeroCarousel;
   if (migrated.showHeroCarousel === undefined && legacy !== undefined) {
@@ -970,7 +986,7 @@ export const fetchPluginSettings = (api: {
 const loadAppliedPluginDefaults = (): AppliedPluginDefaults => {
   try {
     const applied =
-      storage.get<AppliedPluginDefaults>(PLUGIN_APPLIED_DEFAULTS) ?? {};
+      storage.get<AppliedPluginDefaults>(PLUGIN_APPLIED_DEFAULTS_KEY) ?? {};
     // Under the old name, a default applied then would be applied again over
     // whatever the user has chosen since.
     migrateStillWatchingSetting(applied as Record<string, unknown>);
@@ -1049,7 +1065,7 @@ export const useSettings = () => {
         } as Settings;
         saveSettings(newSettings);
         if (result.applied) {
-          storage.setAny(PLUGIN_APPLIED_DEFAULTS, result.applied);
+          storage.setAny(PLUGIN_APPLIED_DEFAULTS_KEY, result.applied);
         }
         return newSettings;
       });
