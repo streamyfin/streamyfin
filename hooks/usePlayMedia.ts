@@ -14,6 +14,7 @@ import {
   type PlayRequest,
   toDirectPlayerQuery,
 } from "@/utils/nativePlayer/playRequest";
+import { resetStillWatchingSession } from "@/utils/stillWatching";
 
 interface PlayMediaOptions {
   /** Shuffle sets the queue right before playing — don't clear it. */
@@ -51,9 +52,10 @@ export const usePlayMedia = () => {
         return;
       }
 
-      // Moved from PlayButton.goToPlayer: a fresh play resets the auto-play
-      // chain counter and cancels any active shuffle queue.
-      if (settings.maxAutoPlayEpisodeCount.value !== -1) {
+      // Moved from PlayButton.goToPlayer: a fresh play starts a new "Still
+      // watching?" session and cancels any active shuffle queue.
+      resetStillWatchingSession();
+      if (settings.stillWatchingPreset !== "disabled") {
         updateSettings({ autoPlayEpisodeCount: 0 });
       }
       if (!options?.preserveShuffleQueue) {

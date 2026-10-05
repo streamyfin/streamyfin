@@ -52,6 +52,7 @@ const {
   getActiveVideoPlayerEngine,
   fetchPluginSettings,
   isNativeChromeActive,
+  migrateStillWatchingSetting,
   pluginSettingsAtom,
   redactPluginSettings,
   useSettings,
@@ -181,6 +182,50 @@ describe("fetchPluginSettings", () => {
         },
       } as never),
     ).rejects.toBe(failure);
+  });
+});
+
+describe("the still watching migration", () => {
+  test("carries the stored episode cap over to a preset", () => {
+    const stored: Record<string, unknown> = {
+      maxAutoPlayEpisodeCount: { key: "5", value: 5 },
+    };
+
+    expect(migrateStillWatchingSetting(stored)).toBe(true);
+    expect(stored).toEqual({ stillWatchingPreset: "long" });
+  });
+
+  test("keeps a preset already chosen and drops the old key", () => {
+    const stored: Record<string, unknown> = {
+      maxAutoPlayEpisodeCount: { key: "Disabled", value: -1 },
+      stillWatchingPreset: "short",
+    };
+
+    migrateStillWatchingSetting(stored);
+    expect(stored).toEqual({ stillWatchingPreset: "short" });
+  });
+
+  test("leaves settings without the old key alone", () => {
+    const stored: Record<string, unknown> = { stillWatchingPreset: "long" };
+
+    expect(migrateStillWatchingSetting(stored)).toBe(false);
+  });
+
+  // An admin who pinned the old cap must keep the prompt pinned.
+  test("keeps the plugin's lock on the episode cap", async () => {
+    const settings = await fetchPluginSettings({
+      getStreamyfinPluginConfig: async () => ({
+        data: {
+          settings: { maxAutoPlayEpisodeCount: { locked: true, value: 2 } },
+        },
+      }),
+    } as never);
+
+    expect(settings?.stillWatchingPreset).toEqual({
+      locked: true,
+      value: "short",
+    });
+    expect(settings && "maxAutoPlayEpisodeCount" in settings).toBe(false);
   });
 });
 

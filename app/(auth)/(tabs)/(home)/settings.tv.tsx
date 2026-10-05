@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { TVPasswordEntryModal } from "@/components/login/TVPasswordEntryModal";
 import { TVPINEntryModal } from "@/components/login/TVPINEntryModal";
+import { stillWatchingPresetLabel } from "@/components/settings/stillWatchingPresetLabel";
 import type { TVOptionItem } from "@/components/tv";
 import {
   TVCustomHeadersSection,
@@ -24,6 +25,10 @@ import {
   TVSettingsTextInput,
   TVSettingsToggle,
 } from "@/components/tv";
+import {
+  STILL_WATCHING_PRESET_ORDER,
+  type StillWatchingPreset,
+} from "@/constants/StillWatching";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import { useMediaPreferences } from "@/hooks/useMediaPreferences";
 import { useTVOptionModal } from "@/hooks/useTVOptionModal";
@@ -41,6 +46,7 @@ import {
   defaultValues,
   getActiveVideoPlayerEngine,
   InactivityTimeout,
+  isNativeChromeActive,
   isNativePlayerSupportedTV,
   type MpvCacheMode,
   type MpvVoDriver,
@@ -688,6 +694,16 @@ export default function SettingsTV() {
     [t, currentInactivityTimeout],
   );
 
+  const stillWatchingOptions: TVOptionItem<StillWatchingPreset>[] = useMemo(
+    () =>
+      STILL_WATCHING_PRESET_ORDER.map((preset) => ({
+        label: stillWatchingPresetLabel(t, preset),
+        value: preset,
+        selected: preset === settings.stillWatchingPreset,
+      })),
+    [t, settings.stillWatchingPreset],
+  );
+
   // Get display labels for option buttons
   const audioTranscodeLabel = useMemo(() => {
     const option = audioTranscodeModeOptions.find((o) => o.selected);
@@ -908,6 +924,23 @@ export default function SettingsTV() {
             value={settings.showResumeDialog}
             onToggle={(value) => updateSettings({ showResumeDialog: value })}
           />
+
+          {/* Only the native TV players ask "Still watching?" */}
+          {isNativeChromeActive(settings) && (
+            <TVSettingsOptionButton
+              disabledByAdmin={pluginSettings?.stillWatchingPreset?.locked}
+              label={t("home.settings.other.still_watching")}
+              value={stillWatchingPresetLabel(t, settings.stillWatchingPreset)}
+              onPress={() =>
+                showOptions({
+                  title: t("home.settings.other.still_watching"),
+                  options: stillWatchingOptions,
+                  onSelect: (value) =>
+                    updateSettings({ stillWatchingPreset: value }),
+                })
+              }
+            />
+          )}
 
           {/* Audio Section */}
           <TVSectionHeader title={t("home.settings.audio.audio_title")} />

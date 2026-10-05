@@ -1,5 +1,4 @@
 import { Ionicons } from "@expo/vector-icons";
-import { TFunction } from "i18next";
 import type React from "react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -9,6 +8,8 @@ import { SettingSwitch } from "@/components/common/SettingSwitch";
 import { PlatformDropdown } from "@/components/PlatformDropdown";
 import { PLAYBACK_SPEEDS } from "@/components/PlaybackSpeedSelector";
 import DisabledSetting from "@/components/settings/DisabledSetting";
+import { stillWatchingPresetLabel } from "@/components/settings/stillWatchingPresetLabel";
+import { STILL_WATCHING_PRESET_ORDER } from "@/constants/StillWatching";
 import useRouter from "@/hooks/useAppRouter";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { ScreenOrientationEnum, useSettings } from "@/utils/atoms/settings";
@@ -84,19 +85,19 @@ export const PlaybackControlsSettings: React.FC = () => {
     [settings?.defaultBitrate?.key, updateSettings],
   );
 
-  const autoPlayEpisodeOptions = useMemo(
+  const stillWatchingOptions = useMemo(
     () => [
       {
-        options: AUTOPLAY_EPISODES_COUNT(t).map((item) => ({
+        options: STILL_WATCHING_PRESET_ORDER.map((preset) => ({
           type: "radio" as const,
-          label: item.key,
-          value: item.key,
-          selected: item.key === settings?.maxAutoPlayEpisodeCount?.key,
-          onPress: () => updateSettings({ maxAutoPlayEpisodeCount: item }),
+          label: stillWatchingPresetLabel(t, preset),
+          value: preset,
+          selected: preset === settings?.stillWatchingPreset,
+          onPress: () => updateSettings({ stillWatchingPreset: preset }),
         })),
       },
     ],
-    [settings?.maxAutoPlayEpisodeCount?.key, t, updateSettings],
+    [settings?.stillWatchingPreset, t, updateSettings],
   );
 
   const playbackSpeedOptions = useMemo(
@@ -244,18 +245,19 @@ export const PlaybackControlsSettings: React.FC = () => {
         </ListItem>
 
         <ListItem
-          title={t("home.settings.other.max_auto_play_episode_count")}
+          title={t("home.settings.other.still_watching")}
+          subtitle={t("home.settings.other.still_watching_hint")}
           disabled={
             !settings.autoPlayNextEpisode ||
-            pluginSettings?.maxAutoPlayEpisodeCount?.locked
+            pluginSettings?.stillWatchingPreset?.locked
           }
         >
           <PlatformDropdown
-            groups={autoPlayEpisodeOptions}
+            groups={stillWatchingOptions}
             trigger={
               <View className='flex flex-row items-center justify-between py-1.5 pl-3'>
                 <Text className='mr-1 text-[#8E8D91]'>
-                  {t(settings?.maxAutoPlayEpisodeCount.key)}
+                  {stillWatchingPresetLabel(t, settings.stillWatchingPreset)}
                 </Text>
                 <Ionicons
                   name='chevron-expand-sharp'
@@ -264,7 +266,7 @@ export const PlaybackControlsSettings: React.FC = () => {
                 />
               </View>
             }
-            title={t("home.settings.other.max_auto_play_episode_count")}
+            title={t("home.settings.other.still_watching")}
           />
         </ListItem>
 
@@ -280,19 +282,3 @@ export const PlaybackControlsSettings: React.FC = () => {
     </DisabledSetting>
   );
 };
-
-const AUTOPLAY_EPISODES_COUNT = (
-  t: TFunction<"translation", undefined>,
-): {
-  key: string;
-  value: number;
-}[] => [
-  { key: t("home.settings.other.disabled"), value: -1 },
-  { key: "1", value: 1 },
-  { key: "2", value: 2 },
-  { key: "3", value: 3 },
-  { key: "4", value: 4 },
-  { key: "5", value: 5 },
-  { key: "6", value: 6 },
-  { key: "7", value: 7 },
-];

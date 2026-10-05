@@ -36,6 +36,11 @@ import { useSettings } from "@/utils/atoms/settings";
 import { hasChapterMarkers } from "@/utils/chapters";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { SEGMENT_SKIP_KEY, useSegments } from "@/utils/segments";
+import {
+  isStillWatchingDueAt,
+  markStillWatchingInput,
+  resetStillWatchingSession,
+} from "@/utils/stillWatching";
 import { ticksToMs } from "@/utils/time";
 import { BottomControls } from "./BottomControls";
 import { CenterControls } from "./CenterControls";
@@ -310,6 +315,7 @@ export const Controls: FC<Props> = ({
   });
 
   const toggleControls = useCallback(() => {
+    markStillWatchingInput();
     if (showControls) {
       setShowAudioSlider(false);
       setShowControls(false);
@@ -440,14 +446,25 @@ export const Controls: FC<Props> = ({
     [item.Chapters, maxMs],
   );
 
+  const autoPlayWanted = !!nextItem && settings.autoPlayNextEpisode !== false;
+
+  // Autoplay would run at EOF but the session is long enough to ask "Still
+  // watching?" there instead, with playback paused — mirroring the native
+  // player's stillWatchingRequired flow. Judged at the episode's end, which
+  // is where the prompt takes autoplay's place.
+  const stillWatchingRequired =
+    autoPlayWanted &&
+    isStillWatchingDueAt({
+      preset: settings.stillWatchingPreset,
+      playedCount: settings.autoPlayEpisodeCount,
+      atMs: Date.now() + Math.max(0, remainingTime),
+      tracksInput: true,
+    });
+
   // Whether the "Next Episode" countdown can be rendered at all. The Skip
   // Credits button yields to it only when this is true; if autoplay is
-  // disabled or its episode limit is reached, Skip Credits must stay available.
-  const willShowNextEpisode =
-    !!nextItem &&
-    settings.autoPlayNextEpisode !== false &&
-    (settings.maxAutoPlayEpisodeCount.value === -1 ||
-      settings.autoPlayEpisodeCount < settings.maxAutoPlayEpisodeCount.value);
+  // disabled or the prompt is due, Skip Credits must stay available.
+  const willShowNextEpisode = autoPlayWanted && !stillWatchingRequired;
 
   // Credits segment metadata (hasContentAfterCredits) can be wrong, so this
   // path only swaps Skip Credits for a manually-tappable Next Episode button
@@ -468,18 +485,10 @@ export const Controls: FC<Props> = ({
   // which stops moving while playback does.
   const autoAdvanceNextEpisode = showNextEpisodeFromRemainingTime;
 
-  // Autoplay would run at EOF but the episode cap stops it: ask "Still
-  // watching?" there instead, with playback paused — mirroring the native
-  // player's stillWatchingRequired flow. Gated on reaching the end so the
-  // prompt never covers a video that is still playing.
-  const stillWatchingRequired =
-    !!nextItem &&
-    settings.autoPlayNextEpisode !== false &&
-    settings.maxAutoPlayEpisodeCount.value !== -1 &&
-    settings.autoPlayEpisodeCount >= settings.maxAutoPlayEpisodeCount.value;
-
+  // The prompt itself waits for the end, so it never covers a video that is
+  // still playing.
   const [stillWatchingVisible, setStillWatchingVisible] = useState(false);
-  // The cap-hitting autoplay updates the episode count synchronously while
+  // The prompt-arming autoplay updates the episode count synchronously while
   // currentTime/remainingTime still hold the outgoing episode's near-zero
   // values (the next item loads async), so "at EOF" alone would fire the
   // prompt over the incoming episode. Only a progress tick from mid-playback
@@ -573,47 +582,24 @@ export const Controls: FC<Props> = ({
   }, [previousItem, goToItemCommon]);
 
   const goToNextItem = useCallback(
-    ({
-      isAutoPlay,
-      resetWatchCount,
-    }: {
-      isAutoPlay?: boolean;
-      resetWatchCount?: boolean;
-    }) => {
+    ({ isAutoPlay }: { isAutoPlay?: boolean }) => {
       if (!nextItem) {
         return;
       }
 
+      // The countdown only runs while the prompt is not due, so a completed
+      // countdown always navigates.
+      goToItemCommon(nextItem);
+
       if (!isAutoPlay) {
-        // if we are not autoplaying, we won't update anything, we just go to the next item
-        goToItemCommon(nextItem);
-        if (resetWatchCount) {
-          updateSettings({
-            autoPlayEpisodeCount: 0,
-          });
-        }
+        // A deliberate advance, "Continue watching" included, is the viewer
+        // starting playback themselves: a new session, as in jellyfin-web.
+        resetStillWatchingSession();
+        updateSettings({ autoPlayEpisodeCount: 0 });
         return;
       }
 
-      // Skip autoplay logic if maxAutoPlayEpisodeCount is -1
-      if (settings.maxAutoPlayEpisodeCount.value === -1) {
-        goToItemCommon(nextItem);
-        return;
-      }
-
-      // Same boundary as the countdown's willShowNextEpisode gate — the
-      // countdown must never complete without actually navigating.
-      if (
-        settings.autoPlayEpisodeCount < settings.maxAutoPlayEpisodeCount.value
-      ) {
-        goToItemCommon(nextItem);
-      }
-
-      // Check if the autoPlayEpisodeCount is less than maxAutoPlayEpisodeCount for the autoPlay
-      if (
-        settings.autoPlayEpisodeCount < settings.maxAutoPlayEpisodeCount.value
-      ) {
-        // update the autoPlayEpisodeCount in settings
+      if (settings.stillWatchingPreset !== "disabled") {
         updateSettings({
           autoPlayEpisodeCount: settings.autoPlayEpisodeCount + 1,
         });
@@ -664,7 +650,17 @@ export const Controls: FC<Props> = ({
   }, [isPlaying, togglePlay]);
 
   return (
-    <View style={styles.controlsContainer} pointerEvents='box-none'>
+    <View
+      style={styles.controlsContainer}
+      pointerEvents='box-none'
+      // Any touch on the player counts as "still watching": the idle half of
+      // the prompt's rule. The capture phase sees every touch before a child
+      // claims it, and returning false leaves the touch to that child.
+      onStartShouldSetResponderCapture={() => {
+        markStillWatchingInput();
+        return false;
+      }}
+    >
       {episodeView ? (
         <EpisodeList
           item={item}
