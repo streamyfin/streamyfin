@@ -6,6 +6,7 @@ import {
   type SortOrder,
   SubtitlePlaybackMode,
 } from "@jellyfin/sdk/lib/generated-client";
+import { isAxiosError } from "axios";
 import { t } from "i18next";
 import { atom, useAtom, useAtomValue } from "jotai";
 import { useCallback, useEffect } from "react";
@@ -887,7 +888,11 @@ export const effectiveSettingsAtom = atom<Settings>((get) =>
 
 /**
  * The plugin's settings under the app's names, logged with their secrets
- * redacted. Undefined when the server has no plugin or cannot answer.
+ * redacted. Undefined when the server has no plugin, which it says with a 404.
+ *
+ * Every other failure rejects: a request that never arrived, or a server that
+ * answered with an error of its own, says nothing about the plugin, and the
+ * caller must not read it as "no plugin".
  */
 export const fetchPluginSettings = (api: {
   getStreamyfinPluginConfig: () => Promise<{ data: StreamyfinPluginConfig }>;
@@ -897,7 +902,12 @@ export const fetchPluginSettings = (api: {
       writeInfoLog("Got plugin settings", redactPluginSettings(data?.settings));
       return migratePluginSettings(data?.settings);
     },
-    () => undefined,
+    (error) => {
+      if (isAxiosError(error) && error.response?.status === 404) {
+        return undefined;
+      }
+      throw error;
+    },
   );
 
 const loadAppliedPluginDefaults = (): AppliedPluginDefaults => {
@@ -933,7 +943,24 @@ export const useSettings = () => {
     if (!api) {
       return;
     }
-    const newPluginSettings = await fetchPluginSettings(api);
+    let newPluginSettings: PluginLockableSettings | undefined;
+    try {
+      newPluginSettings = await fetchPluginSettings(api);
+    } catch (error) {
+      // No answer about the plugin, so what is stored stands. This runs on
+      // every return to the foreground, where a request fails for no better
+      // reason than the network not being back yet, and clearing here dropped
+      // the admin's locks and the tabs the plugin turns on until a later
+      // refresh got through.
+      //
+      // An HTTP failure is the server's or the network's and is left quiet.
+      // Anything else broke while reading an answer that did arrive, and
+      // would otherwise fail the same way on every refresh without a trace.
+      if (!isAxiosError(error)) {
+        logAndCaptureError("Refreshing plugin settings failed", error);
+      }
+      return undefined;
+    }
     setPluginSettings(newPluginSettings);
 
     // Write against the atom's value at apply time, not the hook's render
