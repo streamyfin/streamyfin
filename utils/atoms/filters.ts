@@ -112,6 +112,9 @@ export const sortOrderOptions: {
 export const genreFilterAtom = atom<string[]>([]);
 export const tagsFilterAtom = atom<string[]>([]);
 export const yearFilterAtom = atom<string[]>([]);
+// Language tags as Filters2 reports them, not display names (Jellyfin 12+).
+export const audioLanguageFilterAtom = atom<string[]>([]);
+export const subtitleLanguageFilterAtom = atom<string[]>([]);
 export const sortByAtom = atom<SortByOption[]>([SortByOption.Default]);
 export const sortOrderAtom = atom<SortOrderOption[]>([
   SortOrderOption.Ascending,
@@ -130,7 +133,8 @@ export interface FilterPreference {
   [libraryId: string]: FilterByOption;
 }
 
-// Genres, years and tags are multi-select, so each library remembers a list.
+// Genres, years, tags and the two language filters are multi-select, so each
+// library remembers a list.
 export interface MultiFilterPreference {
   [libraryId: string]: string[];
 }
@@ -215,6 +219,20 @@ export const tagPreferenceAtom = atomWithStorage<MultiFilterPreference>(
   defaultMultiFilterPreference,
   mmkvStorage<MultiFilterPreference>(),
 );
+
+export const audioLanguagePreferenceAtom =
+  atomWithStorage<MultiFilterPreference>(
+    "audioLanguagePreference",
+    defaultMultiFilterPreference,
+    mmkvStorage<MultiFilterPreference>(),
+  );
+
+export const subtitleLanguagePreferenceAtom =
+  atomWithStorage<MultiFilterPreference>(
+    "subtitleLanguagePreference",
+    defaultMultiFilterPreference,
+    mmkvStorage<MultiFilterPreference>(),
+  );
 
 export const getSortByPreference = (
   libraryId: string,

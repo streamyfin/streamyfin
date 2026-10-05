@@ -12,8 +12,3 @@ export const SHEET_MAX_HEIGHT_RATIO = 0.85;
 
 /** A poster's width over its height, as TMDB's artwork is cut. */
 export const POSTER_ASPECT_RATIO = 10 / 15;
-
-// How long the server's public info (its version, mostly) is trusted before
-// it is asked for again, in milliseconds. A server only changes version when
-// it is upgraded, so the features gated on it can wait half a day.
-export const SERVER_INFO_STALE_TIME = 12 * 60 * 60 * 1000;

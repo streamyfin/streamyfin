@@ -58,6 +58,7 @@ import { useScaledTVTypography } from "@/constants/TVTypography";
 import { TAB_HEIGHT } from "@/constants/Values";
 import useRouter from "@/hooks/useAppRouter";
 import { useFilterReset } from "@/hooks/useFilterReset";
+import { useLanguageFilters } from "@/hooks/useLanguageFilters";
 import { useLibraryTabs } from "@/hooks/useLibraryTabs";
 import { useOrientation } from "@/hooks/useOrientation";
 import { useRefreshLibraryOnFocus } from "@/hooks/useRefreshLibraryOnFocus";
@@ -65,6 +66,8 @@ import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
 import { useTVOptionModal } from "@/hooks/useTVOptionModal";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import {
+  audioLanguageFilterAtom,
+  audioLanguagePreferenceAtom,
   FilterByOption,
   FilterByPreferenceAtom,
   filterByAtom,
@@ -82,6 +85,8 @@ import {
   sortOrderAtom,
   sortOrderOptions,
   sortOrderPreferenceAtom,
+  subtitleLanguageFilterAtom,
+  subtitleLanguagePreferenceAtom,
   tagPreferenceAtom,
   tagsFilterAtom,
   useFilterOptions,
@@ -91,6 +96,12 @@ import {
 import type { TVOptionItem } from "@/utils/atoms/tvOptionModal";
 import { alphabetJumpParams } from "@/utils/jellyfin/alphabetJump";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
+import {
+  getLanguageFilterLabel,
+  type LanguageFilterOption,
+  languageFilterRequestOptions,
+  withSelectedLanguages,
+} from "@/utils/jellyfin/languageFilters";
 import {
   getLibraryTabFilters,
   getLibraryTabQuery,
@@ -102,6 +113,14 @@ const TV_HORIZONTAL_PADDING = 60;
 const _TV_SCALE_PADDING = 20;
 const TV_PLAYLIST_SQUARE_SIZE = 180;
 const OUTGOING_LIST_OPACITY = 0.4;
+
+interface LanguageFilterEntry {
+  key: string;
+  title: string;
+  options: LanguageFilterOption[];
+  selected: string[];
+  set: (languages: string[]) => void;
+}
 
 const Page = () => {
   const searchParams = useLocalSearchParams() as {
@@ -122,6 +141,12 @@ const Page = () => {
   const [selectedGenres, setSelectedGenres] = useAtom(genreFilterAtom);
   const [selectedYears, setSelectedYears] = useAtom(yearFilterAtom);
   const [selectedTags, setSelectedTags] = useAtom(tagsFilterAtom);
+  const [selectedAudioLanguages, setSelectedAudioLanguages] = useAtom(
+    audioLanguageFilterAtom,
+  );
+  const [selectedSubtitleLanguages, setSelectedSubtitleLanguages] = useAtom(
+    subtitleLanguageFilterAtom,
+  );
   const [sortBy, _setSortBy] = useAtom(sortByAtom);
   const [filterBy, _setFilterBy] = useAtom(filterByAtom);
   const [sortOrder, _setSortOrder] = useAtom(sortOrderAtom);
@@ -135,6 +160,12 @@ const Page = () => {
   const [genrePreference, setGenrePreference] = useAtom(genrePreferenceAtom);
   const [yearPreference, setYearPreference] = useAtom(yearPreferenceAtom);
   const [tagPreference, setTagPreference] = useAtom(tagPreferenceAtom);
+  const [audioLanguagePreference, setAudioLanguagePreference] = useAtom(
+    audioLanguagePreferenceAtom,
+  );
+  const [subtitleLanguagePreference, setSubtitleLanguagePreference] = useAtom(
+    subtitleLanguagePreferenceAtom,
+  );
 
   const { orientation } = useOrientation();
 
@@ -257,10 +288,17 @@ const Page = () => {
         _setFilterBy(fp ? [fp] : []);
       }
 
-      // Genres / years / tags have no URL params, only the per-library memory.
+      // Genres / years / tags / languages have no URL params, only the
+      // per-library memory.
       setSelectedGenres(getMultiFilterPreference(libraryId, genrePreference));
       setSelectedYears(getMultiFilterPreference(libraryId, yearPreference));
       setSelectedTags(getMultiFilterPreference(libraryId, tagPreference));
+      setSelectedAudioLanguages(
+        getMultiFilterPreference(libraryId, audioLanguagePreference),
+      );
+      setSelectedSubtitleLanguages(
+        getMultiFilterPreference(libraryId, subtitleLanguagePreference),
+      );
     }, [
       libraryId,
       sortOrderPreference,
@@ -272,9 +310,13 @@ const Page = () => {
       genrePreference,
       yearPreference,
       tagPreference,
+      audioLanguagePreference,
+      subtitleLanguagePreference,
       setSelectedGenres,
       setSelectedYears,
       setSelectedTags,
+      setSelectedAudioLanguages,
+      setSelectedSubtitleLanguages,
       searchParams.sortBy,
       searchParams.sortOrder,
       searchParams.filterBy,
@@ -347,6 +389,31 @@ const Page = () => {
     [libraryId, tagPreference, setTagPreference, setSelectedTags],
   );
 
+  // A functional update, unlike the setters above: the language sheet stays
+  // open across picks and keeps calling the setter of the render that opened
+  // it, so nothing here may be read from that render.
+  const setAudioLanguages = useCallback(
+    (languages: string[]) => {
+      setAudioLanguagePreference((saved) => ({
+        ...saved,
+        [libraryId]: languages,
+      }));
+      setSelectedAudioLanguages(languages);
+    },
+    [libraryId, setAudioLanguagePreference, setSelectedAudioLanguages],
+  );
+
+  const setSubtitleLanguages = useCallback(
+    (languages: string[]) => {
+      setSubtitleLanguagePreference((saved) => ({
+        ...saved,
+        [libraryId]: languages,
+      }));
+      setSelectedSubtitleLanguages(languages);
+    },
+    [libraryId, setSubtitleLanguagePreference, setSelectedSubtitleLanguages],
+  );
+
   const nrOfCols = useMemo(() => {
     if (Platform.isTV) {
       // TV uses flexWrap, so nrOfCols is just for mobile
@@ -381,6 +448,13 @@ const Page = () => {
   const hasTabs = tabs.length > 1;
   const hasFilterBar = libraryTabUsesFilterBar(activeTab);
 
+  // Offered on Jellyfin 12+ and on movie, show or mixed libraries only. That
+  // gates the buttons and the Filters2 call, not what is sent below: a
+  // selection can only have been made through those buttons, an older server
+  // ignores the parameters, and waiting for the version would send a first,
+  // unfiltered request on a cold cache.
+  const languageFilters = useLanguageFilters(library);
+
   const navigation = useNavigation();
   useEffect(() => {
     navigation.setOptions({
@@ -410,7 +484,16 @@ const Page = () => {
   // ignores the filter bar must not follow them: it would refetch what it
   // already has and lose its scroll position.
   const filterKey = hasFilterBar
-    ? [selectedGenres, selectedYears, selectedTags, sortBy, sortOrder, filterBy]
+    ? [
+        selectedGenres,
+        selectedYears,
+        selectedTags,
+        selectedAudioLanguages,
+        selectedSubtitleLanguages,
+        sortBy,
+        sortOrder,
+        filterBy,
+      ]
     : [];
 
   // Identifies the result set on screen. A change of tab, filters or sort,
@@ -467,27 +550,39 @@ const Page = () => {
     }): Promise<BaseItemDtoQueryResult | null> => {
       if (!api || !library) return null;
 
-      const response = await getItemsApi(api).getItems({
-        userId: user?.Id,
-        parentId: libraryId,
-        limit: 36,
-        startIndex: pageParam,
-        enableImageTypes: ["Primary", "Backdrop", "Banner", "Thumb"],
-        // true is needed for merged versions
-        recursive: true,
-        imageTypeLimit: 1,
-        fields: ["PrimaryImageAspectRatio", "SortName"],
-        ...getLibraryTabFilters(activeTab, {
-          sortBy: [sortBy[0], "SortName", "ProductionYear"],
-          sortOrder: [sortOrder[0]],
-          filters: filterBy as ItemFilter[],
-          genres: selectedGenres,
-          tags: selectedTags,
-          years: selectedYears.map((year) => Number.parseInt(year, 10)),
-        }),
-        ...getLibraryTabQuery(activeTab, library, Platform.isTV),
-        ...jumpParams,
-      });
+      const response = await getItemsApi(api).getItems(
+        {
+          userId: user?.Id,
+          parentId: libraryId,
+          limit: 36,
+          startIndex: pageParam,
+          enableImageTypes: ["Primary", "Backdrop", "Banner", "Thumb"],
+          // true is needed for merged versions
+          recursive: true,
+          imageTypeLimit: 1,
+          fields: ["PrimaryImageAspectRatio", "SortName"],
+          ...getLibraryTabFilters(activeTab, {
+            sortBy: [sortBy[0], "SortName", "ProductionYear"],
+            sortOrder: [sortOrder[0]],
+            filters: filterBy as ItemFilter[],
+            genres: selectedGenres,
+            tags: selectedTags,
+            years: selectedYears.map((year) => Number.parseInt(year, 10)),
+          }),
+          ...getLibraryTabQuery(activeTab, library, Platform.isTV),
+          ...jumpParams,
+        },
+        // The language filters are part of the filter bar: off the items tab
+        // they apply as little as its genres do.
+        languageFilterRequestOptions(
+          hasFilterBar
+            ? {
+                audioLanguages: selectedAudioLanguages,
+                subtitleLanguages: selectedSubtitleLanguages,
+              }
+            : { audioLanguages: [], subtitleLanguages: [] },
+        ),
+      );
 
       return response.data || null;
     },
@@ -500,6 +595,8 @@ const Page = () => {
       selectedGenres,
       selectedYears,
       selectedTags,
+      selectedAudioLanguages,
+      selectedSubtitleLanguages,
       sortBy,
       sortOrder,
       filterBy,
@@ -664,6 +761,45 @@ const Page = () => {
   );
 
   const generalFilters = useFilterOptions();
+  // The two language filters, described once for the mobile chips and the TV
+  // buttons. Empty when the filters are not offered.
+  const languageFilterEntries = useMemo(
+    (): LanguageFilterEntry[] =>
+      languageFilters.enabled
+        ? [
+            {
+              key: "audioLanguageFilter",
+              title: t("library.filters.audio_languages"),
+              options: withSelectedLanguages(
+                languageFilters.audio,
+                selectedAudioLanguages,
+              ),
+              selected: selectedAudioLanguages,
+              set: setAudioLanguages,
+            },
+            {
+              key: "subtitleLanguageFilter",
+              title: t("library.filters.subtitle_languages"),
+              options: withSelectedLanguages(
+                languageFilters.subtitle,
+                selectedSubtitleLanguages,
+              ),
+              selected: selectedSubtitleLanguages,
+              set: setSubtitleLanguages,
+            },
+          ]
+        : [],
+    [
+      languageFilters.enabled,
+      languageFilters.audio,
+      languageFilters.subtitle,
+      selectedAudioLanguages,
+      setAudioLanguages,
+      selectedSubtitleLanguages,
+      setSubtitleLanguages,
+      t,
+    ],
+  );
   const FilterBar = useCallback(
     () => (
       <FlatList
@@ -752,6 +888,24 @@ const Page = () => {
               />
             ),
           },
+          ...languageFilterEntries.map((filter) => ({
+            key: filter.key,
+            component: (
+              <FilterButton
+                className='mr-1'
+                id={libraryId}
+                queryKey={filter.key}
+                options={filter.options.map((option) => option.value)}
+                set={filter.set}
+                values={filter.selected}
+                title={filter.title}
+                renderItemLabel={(item) =>
+                  getLanguageFilterLabel(filter.options, item)
+                }
+                multiple
+              />
+            ),
+          })),
           {
             key: "sortBy",
             component: (
@@ -818,6 +972,7 @@ const Page = () => {
       setYears,
       selectedTags,
       setTags,
+      languageFilterEntries,
       sortBy,
       setSortBy,
       sortOrder,
@@ -966,6 +1121,36 @@ const Page = () => {
       },
     });
   }, [showOptions, t, tvTagFilterOptions, selectedTags, setTags]);
+
+  // Like genres on TV: a pick toggles one language, "All" clears the filter.
+  const showLanguageFilter = useCallback(
+    ({ title, options, selected, set }: LanguageFilterEntry) => {
+      showOptions({
+        title,
+        options: [
+          {
+            label: t("library.filters.all"),
+            value: "__all__",
+            selected: selected.length === 0,
+          },
+          ...options.map((option) => ({
+            ...option,
+            selected: selected.includes(option.value),
+          })),
+        ],
+        onSelect: (value: string) => {
+          if (value === "__all__") {
+            set([]);
+          } else if (selected.includes(value)) {
+            set(selected.filter((language) => language !== value));
+          } else {
+            set([...selected, value]);
+          }
+        },
+      });
+    },
+    [showOptions, t],
+  );
 
   const handleShowSortByFilter = useCallback(() => {
     showOptions({
@@ -1124,7 +1309,9 @@ const Page = () => {
         style={{
           display: hasFilterBar ? "flex" : "none",
           flexDirection: "row",
-          flexWrap: "nowrap",
+          // Wraps instead of clipping: the two language filters can push the
+          // bar past one row.
+          flexWrap: "wrap",
           justifyContent: "center",
           paddingBottom: 24,
           gap: 12,
@@ -1169,6 +1356,21 @@ const Page = () => {
           onPress={handleShowTagFilter}
           hasActiveFilter={selectedTags.length > 0}
         />
+        {languageFilterEntries.map((filter) => (
+          <TVFilterButton
+            key={filter.key}
+            label={filter.title}
+            value={
+              filter.selected.length > 0
+                ? t("library.filters.selected_count", {
+                    count: filter.selected.length,
+                  })
+                : t("library.filters.all")
+            }
+            onPress={() => showLanguageFilter(filter)}
+            hasActiveFilter={filter.selected.length > 0}
+          />
+        ))}
         <TVFilterButton
           label={t("library.filters.sort_by")}
           value={sortOptions.find((o) => o.key === sortBy[0])?.value || ""}

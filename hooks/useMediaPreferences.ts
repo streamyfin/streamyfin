@@ -12,7 +12,7 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useRef } from "react";
-import { SERVER_INFO_STALE_TIME } from "@/constants/Values";
+import { SERVER_INFO_STALE_TIME_MS } from "@/constants/Jellyfin";
 import { useNetworkAwareQueryClient } from "@/hooks/useNetworkAwareQueryClient";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { type Settings, useSettings } from "@/utils/atoms/settings";
@@ -98,7 +98,7 @@ export function useMediaPreferences(): MediaPreferences {
       return (await getSystemApi(api).getPublicSystemInfo()).data;
     },
     enabled: !!api,
-    staleTime: SERVER_INFO_STALE_TIME,
+    staleTime: SERVER_INFO_STALE_TIME_MS,
   });
   const supportsOriginalLanguage =
     isServerInfoAvailable && supportsOriginalAudioLanguage(serverInfo?.Version);

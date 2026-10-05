@@ -7,7 +7,7 @@ import type {
 import { getSystemApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
-import { SERVER_INFO_STALE_TIME } from "@/constants/Values";
+import { SERVER_INFO_STALE_TIME_MS } from "@/constants/Jellyfin";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { getAuthHeaders } from "@/utils/jellyfin/jellyfin";
 import { supportsItemCollections } from "@/utils/jellyfin/serverVersion";
@@ -34,7 +34,7 @@ export const useItemCollections = (
       return (await getSystemApi(api).getPublicSystemInfo()).data;
     },
     enabled: !!api && enabled,
-    staleTime: SERVER_INFO_STALE_TIME,
+    staleTime: SERVER_INFO_STALE_TIME_MS,
   });
 
   return useQuery<BaseItemDto[]>({

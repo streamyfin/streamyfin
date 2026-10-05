@@ -42,3 +42,11 @@ export const supportsQuickConnectForOtherUsers = (version?: string | null) => {
 export const supportsLibraryCollectionsAndPlaylists = (
   version?: string | null,
 ) => isServerMajorAtLeast(version, 12);
+
+/**
+ * Filtering a library by audio or subtitle language landed in Jellyfin 12, see
+ * jellyfin/jellyfin#9787. An older server ignores the query parameters and
+ * answers Filters2 without the language lists.
+ */
+export const supportsLanguageFilters = (version?: string | null) =>
+  isServerMajorAtLeast(version, 12);
