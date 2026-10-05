@@ -70,6 +70,11 @@ them.
 - **`Authorization` is dropped.** Jellyfin and Streamystats authenticate with
   that header themselves; a custom one would replace the session token. It is
   filtered out in `normalizeCustomHeaders`, so no preset offers it.
+- **A custom `Accept-Language` replaces the app's.** The app sends its display
+  language with every Jellyfin API call, video stream and the session WebSocket
+  (`utils/jellyfin/acceptLanguage.ts`), which is what a Jellyfin 12 server
+  localizes track names from. A custom header of that name wins, whatever its
+  case, and the header is never sent twice.
 - **Nothing is attached when nothing is configured.** The helpers in
   `optionalHeaders.ts` leave request options byte-for-byte unchanged rather
   than adding an empty `headers` object — several native APIs behave

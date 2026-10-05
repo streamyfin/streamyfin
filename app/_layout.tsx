@@ -50,6 +50,7 @@ import {
 import { storage } from "@/utils/mmkv";
 import { notificationRoute } from "@/utils/notificationRoute";
 import { pushRegistrationStep } from "@/utils/pushRegistration";
+import { invalidateQueriesWhenOnline } from "@/utils/query/networkAwareInvalidate";
 import {
   queryDehydrateOptions,
   withoutPersistedMutations,
@@ -69,7 +70,7 @@ import type { ExpoPushToken } from "expo-notifications/build/Tokens.types";
 import { Stack, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import * as TaskManager from "expo-task-manager";
-import { Provider as JotaiProvider, useAtom } from "jotai";
+import { Provider as JotaiProvider, useAtom, useAtomValue } from "jotai";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { I18nextProvider } from "react-i18next";
 import { Appearance, LogBox } from "react-native";
@@ -326,6 +327,7 @@ const mmkvPersister = withoutPersistedMutations(
 
 function Layout() {
   const { settings } = useSettings();
+  const settingsLoaded = useAtomValue(settingsAtom) !== null;
   const [user] = useAtom(userAtom);
   const [api] = useAtom(apiAtom);
   const _segments = useSegments();
@@ -337,10 +339,21 @@ function Layout() {
   }, []);
 
   useEffect(() => {
-    i18n.changeLanguage(
-      settings?.preferedLanguage ?? getLocales()[0].languageCode ?? "en",
-    );
-  }, [settings?.preferedLanguage, i18n]);
+    // Until the stored settings hydrate, `settings` holds the defaults, and
+    // following them would move i18n off the stored language it started in.
+    if (!settingsLoaded) return;
+    const language =
+      settings?.preferedLanguage ?? getLocales()[0].languageCode ?? "en";
+    if (language === i18n.language) return;
+    // A Jellyfin 12 server answers in the language of the request (track
+    // names, for one), so what is cached is in the previous one. Screens that
+    // stay mounted, in another tab for instance, would keep showing it.
+    // Only when online: offline the refetches would fail, and a query in the
+    // error state is dropped from the persisted cache offline mode reads.
+    void i18n
+      .changeLanguage(language)
+      .then(() => invalidateQueriesWhenOnline(queryClient, {}));
+  }, [settingsLoaded, settings?.preferedLanguage, i18n]);
 
   useNotificationObserver();
   useNativePlayerLogBridge();

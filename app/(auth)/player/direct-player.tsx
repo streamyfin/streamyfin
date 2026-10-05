@@ -75,6 +75,7 @@ import {
   resolveSessionPositionTicks,
 } from "@/utils/directPlayer/sessionPosition";
 import { isExpectedError } from "@/utils/errors";
+import { withAcceptLanguageForUrl } from "@/utils/jellyfin/acceptLanguage";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
@@ -1086,8 +1087,14 @@ export default function DirectPlayerPage() {
         Object.assign(headers, stream.requiredHttpHeaders);
       }
 
-      if (Object.keys(headers).length > 0) {
-        source.headers = headers;
+      // Last, so a custom or required header of the same name is kept as is.
+      const withLanguage = withAcceptLanguageForUrl(
+        headers,
+        stream.url,
+        api?.basePath,
+      );
+      if (Object.keys(withLanguage).length > 0) {
+        source.headers = withLanguage;
       }
     }
 

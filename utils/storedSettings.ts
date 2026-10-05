@@ -42,3 +42,20 @@ export const readStoredPluginSettings = (): Record<
     return {};
   }
 };
+
+/**
+ * The app language in effect, read before the settings atoms hydrate: the one
+ * the plugin locks, else the one the user picked, else the plugin's default.
+ * The same order `resolveEffectiveSettings` gives it once they have.
+ *
+ * i18n starts from this. The atoms hydrate in an effect, after the first
+ * requests have left, and those carry the current language to the server
+ * (`Accept-Language`): starting in the device language would have a Jellyfin 12
+ * server answer them in it, and open the websocket in it.
+ */
+export const readStoredAppLanguage = (): string | undefined => {
+  const own = readStoredSettings().preferedLanguage;
+  const plugin = readStoredPluginSettings().preferedLanguage;
+  const language = plugin?.locked ? plugin.value : own || plugin?.value;
+  return typeof language === "string" && language ? language : undefined;
+};

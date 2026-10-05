@@ -28,6 +28,7 @@ import {
   getJellyfinHeadersForUrl,
   hasHeaders,
 } from "@/utils/customHeaders";
+import { withAcceptLanguageForUrl } from "@/utils/jellyfin/acceptLanguage";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import {
@@ -508,7 +509,13 @@ export async function buildNativePlayerConfig(params: {
     if (stream.requiredHttpHeaders) {
       Object.assign(built, stream.requiredHttpHeaders);
     }
-    if (Object.keys(built).length > 0) headers = built;
+    // Last, so a custom or required header of the same name is kept as is.
+    const withLanguage = withAcceptLanguageForUrl(
+      built,
+      stream.url,
+      api?.basePath,
+    );
+    if (Object.keys(withLanguage).length > 0) headers = withLanguage;
   }
 
   const config: NativePlayerConfig = {

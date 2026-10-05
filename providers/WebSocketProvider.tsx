@@ -11,6 +11,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { useTranslation } from "react-i18next";
 import { AppState, type AppStateStatus } from "react-native";
 import { useNetworkAwareQueryClient } from "@/hooks/useNetworkAwareQueryClient";
 import { apiAtom } from "@/providers/JellyfinProvider";
@@ -18,6 +19,10 @@ import { useNetworkStatus } from "@/providers/NetworkStatusProvider";
 import { getJellyfinHeaders, hasHeaders } from "@/utils/customHeaders";
 import { getOrSetDeviceId } from "@/utils/device";
 import { describeHttpResponse } from "@/utils/errors";
+import {
+  getAcceptLanguage,
+  withAcceptLanguage,
+} from "@/utils/jellyfin/acceptLanguage";
 import { getWebSocketUrl } from "@/utils/jellyfin/getWebSocketUrl";
 import {
   createSocketFailureRecorder,
@@ -106,6 +111,11 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
   // exhaustion the attempt counter stays maxed, so every later foreground/
   // network flip would re-trigger it.
   const reportedSocketGiveUpRef = useRef(false);
+  // The server localizes what it sends over the socket from the language of
+  // the handshake, so a new language needs a new socket. useTranslation is
+  // what re-renders this provider when the language changes.
+  useTranslation();
+  const acceptLanguage = getAcceptLanguage();
   const serverConnectedRef = useRef(serverConnected);
   serverConnectedRef.current = serverConnected;
   const [ws, setWs] = useState<WebSocket | null>(null);
@@ -204,10 +214,13 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
     // React Native's WebSocket takes request headers as a third argument (the
     // DOM typings don't know about it), so a server behind an access gateway
     // can complete the upgrade handshake.
-    const customHeaders = getJellyfinHeaders(api.basePath);
-    const newWebSocket = hasHeaders(customHeaders)
+    const headers = withAcceptLanguage(
+      getJellyfinHeaders(api.basePath),
+      acceptLanguage,
+    );
+    const newWebSocket = hasHeaders(headers)
       ? new (WebSocket as unknown as RNWebSocketConstructor)(url, undefined, {
-          headers: customHeaders,
+          headers,
         })
       : new WebSocket(url);
     let keepAliveInterval: ReturnType<typeof setInterval> | null = null;
@@ -293,7 +306,7 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
       }
       newWebSocket.close();
     };
-  }, [api, deviceId, isNetworkConnected, dispatchMessage]);
+  }, [api, deviceId, isNetworkConnected, dispatchMessage, acceptLanguage]);
 
   const handleLibraryChanged = useCallback(
     (data: any) => {
