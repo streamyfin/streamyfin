@@ -31,6 +31,8 @@ interface NextEpisodeCountDownButtonProps extends TouchableOpacityProps {
   isPlaying: boolean;
   /** Id of the item being played, to scope the countdown to it. */
   itemId?: string | null;
+  /** False when a play queue lines up something else, a movie for instance. */
+  nextIsEpisode?: boolean;
 }
 
 /** Media time the fill represents, matching the window the button appears in. */
@@ -52,6 +54,7 @@ const NextEpisodeCountDownButton: React.FC<NextEpisodeCountDownButtonProps> = ({
   remainingMs,
   isPlaying,
   itemId,
+  nextIsEpisode = true,
   ...props
 }) => {
   const progress = useSharedValue(0);
@@ -163,7 +166,7 @@ const NextEpisodeCountDownButton: React.FC<NextEpisodeCountDownButtonProps> = ({
       <Animated.View style={animatedStyle} />
       <View className='px-3 py-2'>
         <Text numberOfLines={1} className='text-center text-sm font-bold'>
-          {t("player.next_episode")}
+          {t(nextIsEpisode ? "player.next_episode" : "player.up_next")}
         </Text>
       </View>
     </TouchableOpacity>

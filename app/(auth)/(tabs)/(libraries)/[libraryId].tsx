@@ -48,8 +48,10 @@ import { FilterButton } from "@/components/filters/FilterButton";
 import { ResetFiltersButton } from "@/components/filters/ResetFiltersButton";
 import { Loader } from "@/components/Loader";
 import { AlphabetRail } from "@/components/library/AlphabetRail";
+import { LibraryPlayButtons } from "@/components/library/LibraryPlayButtons";
 import { LibraryTabs } from "@/components/library/LibraryTabs";
 import { TVAlphabetRow } from "@/components/library/TVAlphabetRow";
+import { TVLibraryPlayButtons } from "@/components/library/TVLibraryPlayButtons";
 import { TVLibraryTabs } from "@/components/library/TVLibraryTabs";
 import { TVFilterButton, TVFocusablePoster } from "@/components/tv";
 import { TVPosterCard } from "@/components/tv/TVPosterCard";
@@ -59,6 +61,7 @@ import { TAB_HEIGHT } from "@/constants/Values";
 import useRouter from "@/hooks/useAppRouter";
 import { useFilterReset } from "@/hooks/useFilterReset";
 import { useLanguageFilters } from "@/hooks/useLanguageFilters";
+import { useLibraryPlayQueue } from "@/hooks/useLibraryPlayQueue";
 import { useLibraryTabs } from "@/hooks/useLibraryTabs";
 import { useOrientation } from "@/hooks/useOrientation";
 import { useRefreshLibraryOnFocus } from "@/hooks/useRefreshLibraryOnFocus";
@@ -99,15 +102,22 @@ import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import {
   getLanguageFilterLabel,
   type LanguageFilterOption,
-  languageFilterRequestOptions,
   withSelectedLanguages,
 } from "@/utils/jellyfin/languageFilters";
+import {
+  buildLibraryItemsQuery,
+  isQueueableLibrary,
+  type LibraryItemsFilter,
+  libraryLanguageOptions,
+} from "@/utils/library/libraryItemsQuery";
 import {
   getLibraryTabFilters,
   getLibraryTabQuery,
   libraryTabUsesFilterBar,
 } from "@/utils/library/libraryTabs";
 
+/** Items per request of the grid; more load as the list is scrolled. */
+const PAGE_SIZE = 36;
 const TV_ITEM_GAP = 20;
 const TV_HORIZONTAL_PADDING = 60;
 const _TV_SCALE_PADDING = 20;
@@ -542,56 +552,26 @@ const Page = () => {
     [jumpLetter, sortOrder],
   );
 
-  const fetchItems = useCallback(
-    async ({
-      pageParam,
-    }: {
-      pageParam: number;
-    }): Promise<BaseItemDtoQueryResult | null> => {
-      if (!api || !library) return null;
-
-      const response = await getItemsApi(api).getItems(
-        {
-          userId: user?.Id,
-          parentId: libraryId,
-          limit: 36,
-          startIndex: pageParam,
-          enableImageTypes: ["Primary", "Backdrop", "Banner", "Thumb"],
-          // true is needed for merged versions
-          recursive: true,
-          imageTypeLimit: 1,
-          fields: ["PrimaryImageAspectRatio", "SortName"],
-          ...getLibraryTabFilters(activeTab, {
-            sortBy: [sortBy[0], "SortName", "ProductionYear"],
-            sortOrder: [sortOrder[0]],
-            filters: filterBy as ItemFilter[],
-            genres: selectedGenres,
-            tags: selectedTags,
-            years: selectedYears.map((year) => Number.parseInt(year, 10)),
-          }),
-          ...getLibraryTabQuery(activeTab, library, Platform.isTV),
-          ...jumpParams,
-        },
-        // The language filters are part of the filter bar: off the items tab
-        // they apply as little as its genres do.
-        languageFilterRequestOptions(
-          hasFilterBar
-            ? {
-                audioLanguages: selectedAudioLanguages,
-                subtitleLanguages: selectedSubtitleLanguages,
-              }
-            : { audioLanguages: [], subtitleLanguages: [] },
-        ),
-      );
-
-      return response.data || null;
-    },
+  // What the filter bar selects. The grid and the Play All / Shuffle queue
+  // are both built from it, so they cannot drift apart.
+  const libraryFilter = useMemo(
+    (): LibraryItemsFilter => ({
+      userId: user?.Id,
+      libraryId,
+      collectionType: library?.CollectionType,
+      sortBy: sortBy[0],
+      sortOrder: sortOrder[0],
+      filterBy: filterBy as ItemFilter[],
+      genres: selectedGenres,
+      years: selectedYears,
+      tags: selectedTags,
+      audioLanguages: selectedAudioLanguages,
+      subtitleLanguages: selectedSubtitleLanguages,
+    }),
     [
-      api,
       user?.Id,
       libraryId,
-      library,
-      activeTab,
+      library?.CollectionType,
       selectedGenres,
       selectedYears,
       selectedTags,
@@ -600,8 +580,50 @@ const Page = () => {
       sortBy,
       sortOrder,
       filterBy,
-      jumpParams,
     ],
+  );
+
+  const fetchItems = useCallback(
+    async ({
+      pageParam,
+    }: {
+      pageParam: number;
+    }): Promise<BaseItemDtoQueryResult | null> => {
+      if (!api || !library) return null;
+
+      // The filter bar's part comes from the filter Play All queues from, so
+      // the two cannot drift apart. A collections or playlists tab swaps it,
+      // and the item type, for its own.
+      const itemsQuery = buildLibraryItemsQuery(libraryFilter);
+      const response = await getItemsApi(api).getItems(
+        {
+          userId: itemsQuery.userId,
+          parentId: itemsQuery.parentId,
+          recursive: itemsQuery.recursive,
+          ...getLibraryTabFilters(activeTab, {
+            sortBy: itemsQuery.sortBy,
+            sortOrder: itemsQuery.sortOrder,
+            filters: itemsQuery.filters,
+            genres: itemsQuery.genres,
+            tags: itemsQuery.tags,
+            years: itemsQuery.years,
+          }),
+          ...getLibraryTabQuery(activeTab, library, Platform.isTV),
+          ...jumpParams,
+          limit: PAGE_SIZE,
+          startIndex: pageParam,
+          enableImageTypes: ["Primary", "Backdrop", "Banner", "Thumb"],
+          imageTypeLimit: 1,
+          fields: ["PrimaryImageAspectRatio", "SortName"],
+        },
+        // The language filters are part of the filter bar: off the items tab
+        // they apply as little as its genres do.
+        hasFilterBar ? libraryLanguageOptions(libraryFilter) : undefined,
+      );
+
+      return response.data || null;
+    },
+    [api, library, libraryFilter, activeTab, hasFilterBar, jumpParams],
   );
 
   const { data, isFetching, fetchNextPage, hasNextPage, isLoading } =
@@ -1189,6 +1211,28 @@ const Page = () => {
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
 
+  // Play All and Shuffle. Covered by hooks/useLibraryPlayQueue.test.tsx.
+  const { playAll, shuffle, isStarting } = useLibraryPlayQueue(libraryFilter);
+  // The queue is the items tab's list: a collections or playlists tab lists
+  // containers, which no player opens one after another.
+  const canQueue =
+    hasFilterBar && !!library && isQueueableLibrary(library.CollectionType);
+  const isEmpty = flatData.length === 0;
+  useEffect(() => {
+    if (Platform.isTV) return;
+    navigation.setOptions({
+      headerRight: canQueue
+        ? () => (
+            <LibraryPlayButtons
+              onPlayAll={playAll}
+              onShuffle={shuffle}
+              disabled={isEmpty || isStarting}
+            />
+          )
+        : undefined,
+    });
+  }, [navigation, canQueue, playAll, shuffle, isEmpty, isStarting]);
+
   // With tabs the header stays mounted while a tab loads: replacing the whole
   // screen would drop the TV focus held by the tab that was just pressed.
   if (isLibraryLoading || (isLoading && !hasTabs))
@@ -1293,6 +1337,14 @@ const Page = () => {
           tabs={tabs}
           activeTab={activeTab}
           onSelect={setActiveTab}
+        />
+      )}
+
+      {canQueue && (
+        <TVLibraryPlayButtons
+          onPlayAll={playAll}
+          onShuffle={shuffle}
+          disabled={isEmpty}
         />
       )}
 

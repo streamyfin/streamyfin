@@ -518,10 +518,11 @@ export const Controls: FC<Props> = ({
 
   // Countdown logic
   const isCountdownActive = useMemo(() => {
+    // An episode has a next item when the series does; anything else only
+    // when a play queue holds it, and a queue continues whatever it plays.
     if (!nextItem) return false;
-    if (item?.Type !== "Episode") return false;
     return remainingTime > 0 && remainingTime <= 10000;
-  }, [nextItem, item, remainingTime]);
+  }, [nextItem, remainingTime]);
 
   // Simple boolean - when skip cards or countdown are visible, they have focus
   const isSkipOrCountdownVisible = useMemo(() => {

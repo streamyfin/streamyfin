@@ -7,7 +7,10 @@ import { useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Platform, useWindowDimensions, View } from "react-native";
 import { AddToFavorites } from "@/components/AddToFavorites";
-import { HeaderButtonGroup } from "@/components/common/HeaderButton";
+import {
+  HeaderButton,
+  HeaderButtonGroup,
+} from "@/components/common/HeaderButton";
 import { HeaderIcon } from "@/components/common/HeaderIcon";
 import { Image } from "@/components/common/ServerImage";
 import { DownloadItems } from "@/components/DownloadItem";
@@ -23,6 +26,7 @@ import { TVSeriesPage } from "@/components/series/TVSeriesPage";
 import { Colors } from "@/constants/Colors";
 import { LOGO_HEIGHT } from "@/constants/Images";
 import { useLeaveWhenGone } from "@/hooks/useLeaveWhenGone";
+import { useShuffleQueue } from "@/hooks/useShuffleQueue";
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { OfflineModeProvider } from "@/providers/OfflineModeProvider";
@@ -67,6 +71,7 @@ const page: React.FC = () => {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
   const { getDownloadedItems, downloadedItems } = useDownload();
+  const { startShuffle } = useShuffleQueue();
 
   // For offline mode, construct series data from downloaded episodes
   // Include downloadedItems.length so query refetches when items are deleted
@@ -180,10 +185,23 @@ const page: React.FC = () => {
   }, [allEpisodes, requestedSeasonIndex]);
 
   useEffect(() => {
-    // Don't show header buttons in offline mode
+    // The TV page has its own Shuffle button, with a choice of season.
+    // startShuffle is covered by hooks/useLibraryPlayQueue.test.tsx.
+    const shuffleButton =
+      !Platform.isTV && allEpisodes && allEpisodes.length > 1 ? (
+        <HeaderButton
+          onPress={() => startShuffle(allEpisodes, { isOffline })}
+          accessibilityRole='button'
+          accessibilityLabel={t("player.shuffle")}
+        >
+          <HeaderIcon name='shuffle' />
+        </HeaderButton>
+      ) : null;
+
+    // The other header buttons need the server; shuffling downloads does not.
     if (isOffline) {
       navigation.setOptions({
-        headerRight: () => null,
+        headerRight: () => shuffleButton,
       });
       return;
     }
@@ -192,6 +210,7 @@ const page: React.FC = () => {
       headerRight: () =>
         !isLoading && item && allEpisodes && allEpisodes.length > 0 ? (
           <HeaderButtonGroup>
+            {shuffleButton}
             <AddToFavorites item={item} />
             {!Platform.isTV && (
               <DownloadItems
@@ -209,7 +228,7 @@ const page: React.FC = () => {
           </HeaderButtonGroup>
         ) : null,
     });
-  }, [allEpisodes, isLoading, item, isOffline]);
+  }, [allEpisodes, isLoading, item, isOffline, startShuffle]);
 
   // For offline mode, we can show the page even without backdropUrl
   if (!item || (!isOffline && !backdropUrl)) return null;

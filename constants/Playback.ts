@@ -6,3 +6,13 @@
  * at once. Shared by the JS and native players so the server sees one cadence.
  */
 export const PROGRESS_REPORT_INTERVAL = 10_000;
+
+/**
+ * Most items one Play All or Shuffle on a library page may queue. Every queued
+ * item carries its media sources, which the players read to pick the audio
+ * and subtitle tracks of the next one, so the request that builds the queue
+ * grows with it and playback only starts once it has answered. A hundred
+ * titles is several days of video; jellyfin-web stops at 300 with a lighter
+ * payload.
+ */
+export const PLAY_QUEUE_MAX_ITEMS = 100;

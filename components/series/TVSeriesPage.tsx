@@ -275,7 +275,7 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
     // A single-season series has no "season vs series" distinction — shuffle
     // the whole thing without prompting.
     if (seasons.length <= 1) {
-      startShuffle(item.Id, allEpisodes, { isOffline });
+      startShuffle(allEpisodes, { isOffline });
       return;
     }
 
@@ -305,7 +305,7 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
       onSelect: (value: "season" | "series") => {
         if (!item.Id) return;
         const pool = value === "season" ? episodesForSeason : allEpisodes;
-        startShuffle(item.Id, pool, { isOffline });
+        startShuffle(pool, { isOffline });
       },
     });
   }, [

@@ -792,6 +792,7 @@ export const Controls: FC<Props> = ({
             remainingTime={remainingTime}
             isPlaying={isPlaying}
             itemId={item.Id}
+            nextIsEpisode={nextItem?.Type === "Episode"}
             skipIntro={onSkipSegment}
             skipCredit={onSkipOutro}
             onNextEpisodeFinish={handleNextEpisodeAutoPlay}

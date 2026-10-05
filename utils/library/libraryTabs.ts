@@ -5,6 +5,7 @@ import type {
   MediaType,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { supportsLibraryCollectionsAndPlaylists } from "@/utils/jellyfin/serverVersion";
+import { ITEM_TYPE_BY_COLLECTION } from "@/utils/library/libraryItemsQuery";
 
 export type LibraryTab = "items" | "collections" | "playlists";
 
@@ -58,15 +59,6 @@ export const getVisibleLibraryTabs = (
   ...containerTabs.filter((tab) => (counts[tab] ?? 0) > 0),
 ];
 
-const ITEM_TYPE_BY_COLLECTION_TYPE = new Map<string, BaseItemKind>([
-  ["movies", "Movie"],
-  ["tvshows", "Series"],
-  ["boxsets", "BoxSet"],
-  ["homevideos", "Video"],
-  ["musicvideos", "MusicVideo"],
-  ["playlists", "Playlist"],
-]);
-
 /**
  * What tells one tab's request from another's. The list and the count that
  * decides whether a tab shows both use it, so they cannot disagree.
@@ -83,7 +75,9 @@ export const getLibraryTabQuery = (
       ? "BoxSet"
       : tab === "playlists"
         ? "Playlist"
-        : ITEM_TYPE_BY_COLLECTION_TYPE.get(library.CollectionType ?? "");
+        : library.CollectionType
+          ? ITEM_TYPE_BY_COLLECTION[library.CollectionType]
+          : undefined;
 
   return {
     includeItemTypes: itemType ? [itemType] : undefined,

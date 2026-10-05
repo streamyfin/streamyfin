@@ -1,48 +1,51 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { useSetAtom } from "jotai";
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 import { usePlayMedia } from "@/hooks/usePlayMedia";
 import { useSettings } from "@/utils/atoms/settings";
 import { shuffleQueueAtom } from "@/utils/atoms/shuffleQueue";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { shuffle } from "@/utils/shuffle";
 
-interface StartShuffleOptions {
+interface StartQueueOptions {
   isOffline?: boolean;
 }
 
 /**
- * Shared, platform-agnostic control for the shuffle play queue.
+ * Shared, platform-agnostic control for the play queue.
  *
- * `startShuffle` builds a randomized queue for a series and immediately starts
- * playing the first entry. Once the queue is set, `usePlaybackManager` walks it
- * for next/previous instead of the sequential adjacent-episode order.
+ * `startQueue` stores the items in the order given and immediately starts
+ * playing the first entry. Once the queue is set, `usePlaybackManager` walks
+ * it for next/previous instead of the sequential adjacent-episode order.
+ * `startShuffle` does the same in a random order.
  *
  * `clearShuffleQueue` tears the queue down; it is called from the normal
- * (non-shuffle) play paths so a stale queue can't hijack a later playback.
+ * (non-queue) play paths so a stale queue can't hijack a later playback.
  */
 export const useShuffleQueue = () => {
   const playMedia = usePlayMedia();
   const { settings } = useSettings();
   const setShuffleQueue = useSetAtom(shuffleQueueAtom);
+  // usePlayMedia hands out a new function on every render, and these
+  // callbacks end up in header options set from an effect: reading the latest
+  // through a ref keeps them stable, so the header is not rebuilt per render.
+  const latest = useRef({ playMedia, settings });
+  latest.current = { playMedia, settings };
 
   const clearShuffleQueue = useCallback(() => {
     setShuffleQueue(null);
   }, [setShuffleQueue]);
 
-  const startShuffle = useCallback(
-    (
-      seriesId: string,
-      episodes: BaseItemDto[],
-      options: StartShuffleOptions = {},
-    ) => {
+  /** Returns false when nothing in `candidates` can be played. */
+  const startQueue = useCallback(
+    (candidates: BaseItemDto[], options: StartQueueOptions = {}): boolean => {
       // Skip "Virtual"/missing episode placeholders — they have no media file.
-      const playable = episodes.filter((e) => e.LocationType !== "Virtual");
-      if (playable.length === 0) return;
+      const items = candidates.filter((e) => e.LocationType !== "Virtual");
+      if (items.length === 0) return false;
 
-      const items = shuffle(playable);
-      setShuffleQueue({ seriesId, items });
+      setShuffleQueue({ items });
 
+      const { playMedia, settings } = latest.current;
       const first = items[0];
       const { mediaSource, audioIndex, subtitleIndex, bitrate } =
         getDefaultPlaySettings(first, settings);
@@ -60,9 +63,16 @@ export const useShuffleQueue = () => {
         },
         { preserveShuffleQueue: true, item: first },
       );
+      return true;
     },
-    [playMedia, settings, setShuffleQueue],
+    [setShuffleQueue],
   );
 
-  return { startShuffle, clearShuffleQueue };
+  const startShuffle = useCallback(
+    (episodes: BaseItemDto[], options: StartQueueOptions = {}) =>
+      startQueue(shuffle(episodes), options),
+    [startQueue],
+  );
+
+  return { startQueue, startShuffle, clearShuffleQueue };
 };

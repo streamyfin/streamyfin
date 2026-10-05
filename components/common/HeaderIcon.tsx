@@ -54,6 +54,8 @@ const HEADER_ICONS = {
   edit: { ios: "pencil", android: "edit" },
   delete: { ios: "trash", android: "delete" },
   trailer: { ios: "film", android: "movie" },
+  play: { ios: "play.fill", android: "play_arrow" },
+  shuffle: { ios: "shuffle", android: "shuffle" },
   back: { ios: "chevron.backward", android: "chevron_backward" },
 } as const;
 
