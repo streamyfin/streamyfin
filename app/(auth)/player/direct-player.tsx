@@ -73,6 +73,7 @@ import { getJellyfinHeadersForUrl } from "@/utils/customHeaders";
 import {
   isPlaceholderTick,
   resolveSessionPositionTicks,
+  resolveStartTicks,
 } from "@/utils/directPlayer/sessionPosition";
 import { isExpectedError } from "@/utils/errors";
 import {
@@ -237,18 +238,15 @@ export default function DirectPlayerPage() {
   const [item, setItem] = useState<BaseItemDto | null>(null);
   const initialSeekDoneRef = useRef(false);
 
-  /** Position MPV is told to start from: the URL param wins, since it is
-   * rewritten during playback, otherwise the item's stored resume position.
-   * The route is deep-linkable, so the param is parsed whole rather than by
-   * prefix: parseInt would turn "1200invalid" into a position instead of
-   * falling back, and NaN would reach getStreamUrl and MPV. */
-  const startTicks = useMemo(() => {
-    const raw = playbackPositionFromUrl?.trim();
-    const fromUrl = raw ? Number(raw) : Number.NaN;
-    return Number.isInteger(fromUrl) && fromUrl >= 0
-      ? fromUrl
-      : (item?.UserData?.PlaybackPositionTicks ?? 0);
-  }, [playbackPositionFromUrl, item?.UserData?.PlaybackPositionTicks]);
+  /** Position MPV is told to start from, see resolveStartTicks. */
+  const startTicks = useMemo(
+    () =>
+      resolveStartTicks(
+        playbackPositionFromUrl,
+        item?.UserData?.PlaybackPositionTicks,
+      ),
+    [playbackPositionFromUrl, item?.UserData?.PlaybackPositionTicks],
+  );
 
   // Pinned on mount: the initial seek must not follow the position the player
   // writes back into the URL every 30s. Zero here is not a missed resume:

@@ -39,6 +39,7 @@ import {
   canPlayInRemoteSession,
   isPlayableItem,
 } from "@/utils/jellyfin/media/isPlayableItem";
+import { getPlayingRunTimeTicks } from "@/utils/jellyfin/mediaSourceVersion";
 import { AddToFavorites } from "./AddToFavorites";
 import { AddToWatchlist } from "./AddToWatchlist";
 import { ItemHeader } from "./ItemHeader";
@@ -122,7 +123,7 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
         ? {
             ...item,
             // A version's resume point is against its own runtime.
-            RunTimeTicks: versionItem.RunTimeTicks || item.RunTimeTicks,
+            RunTimeTicks: getPlayingRunTimeTicks(item, versionItem),
             UserData: versionItem.UserData,
           }
         : item,

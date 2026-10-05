@@ -34,10 +34,12 @@ import { DownloadedItem } from "@/providers/Downloads/types";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { hasChapterMarkers } from "@/utils/chapters";
+import { resolveStartTicks } from "@/utils/directPlayer/sessionPosition";
 import {
   getAdjacentStartTicks,
   getDefaultPlaySettings,
 } from "@/utils/jellyfin/getDefaultPlaySettings";
+import { getPlayingRunTimeTicks } from "@/utils/jellyfin/mediaSourceVersion";
 import { SEGMENT_SKIP_KEY, useSegments } from "@/utils/segments";
 import { ticksToMs } from "@/utils/time";
 import { BottomControls } from "./BottomControls";
@@ -163,7 +165,8 @@ export const Controls: FC<Props> = ({
 
   const min = useSharedValue(0);
   // Regular value for use during render (avoids Reanimated warning)
-  const maxMs = ticksToMs(item.RunTimeTicks || 0);
+  // The playing version's runtime: seek limit, remaining time, countdown.
+  const maxMs = ticksToMs(getPlayingRunTimeTicks(item, mediaSource));
   const max = useSharedValue(maxMs);
 
   // Animation values for controls
@@ -257,10 +260,20 @@ export const Controls: FC<Props> = ({
   // Initialize progress values - MPV uses milliseconds
   useEffect(() => {
     if (item) {
-      progress.value = ticksToMs(item?.UserData?.PlaybackPositionTicks);
-      max.value = ticksToMs(item.RunTimeTicks || 0);
+      // Where the player starts, not the item's resume point: that is the
+      // primary version's, and can lie past the end of a shorter cut.
+      progress.value = ticksToMs(
+        resolveStartTicks(
+          playbackPositionRef.current,
+          item.UserData?.PlaybackPositionTicks,
+        ),
+      );
     }
-  }, [item, progress, max]);
+  }, [item, progress]);
+
+  useEffect(() => {
+    max.value = maxMs;
+  }, [maxMs, max]);
 
   // Navigation hooks
   const {
@@ -396,11 +409,16 @@ export const Controls: FC<Props> = ({
     [],
   );
 
-  const { bitrateValue, subtitleIndex, audioIndex } = useLocalSearchParams<{
-    bitrateValue: string;
-    audioIndex: string;
-    subtitleIndex: string;
-  }>();
+  const { playbackPosition, bitrateValue, subtitleIndex, audioIndex } =
+    useLocalSearchParams<{
+      playbackPosition: string;
+      bitrateValue: string;
+      audioIndex: string;
+      subtitleIndex: string;
+    }>();
+  // Read when the item changes only: the player rewrites the param as it goes.
+  const playbackPositionRef = useRef(playbackPosition);
+  playbackPositionRef.current = playbackPosition;
 
   // Fetch all segments for the current item
   const { data: segments } = useSegments(

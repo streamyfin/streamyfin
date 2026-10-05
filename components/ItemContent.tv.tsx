@@ -61,6 +61,7 @@ import type { TVOptionItem } from "@/utils/atoms/tvOptionModal";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
 import { getPrimaryImageUrlById } from "@/utils/jellyfin/image/getPrimaryImageUrlById";
 import { isPlayableItem } from "@/utils/jellyfin/media/isPlayableItem";
+import { getPlayingRunTimeTicks } from "@/utils/jellyfin/mediaSourceVersion";
 import { scaleSize } from "@/utils/scaleSize";
 import { rememberSeriesTrackFromRow } from "@/utils/seriesTrackMemory";
 import { SUBTITLES_OFF } from "@/utils/subtitles/subtitleIndex";
@@ -151,7 +152,9 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
     );
     const userData = versionItem?.UserData;
     // A version's resume point is against its own runtime.
-    const runTimeTicks = versionItem?.RunTimeTicks || item?.RunTimeTicks;
+    const runTimeTicks = item
+      ? getPlayingRunTimeTicks(item, versionItem)
+      : undefined;
 
     const {
       defaultAudioIndex,

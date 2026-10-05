@@ -51,10 +51,12 @@ import { apiAtom } from "@/providers/JellyfinProvider";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import type { TVOptionItem } from "@/utils/atoms/tvOptionModal";
+import { resolveStartTicks } from "@/utils/directPlayer/sessionPosition";
 import {
   getAdjacentStartTicks,
   getDefaultPlaySettings,
 } from "@/utils/jellyfin/getDefaultPlaySettings";
+import { getPlayingRunTimeTicks } from "@/utils/jellyfin/mediaSourceVersion";
 import { useSegments } from "@/utils/segments";
 import { rememberSeriesTrackFromRow } from "@/utils/seriesTrackMemory";
 import { SUBTITLES_OFF } from "@/utils/subtitles/subtitleIndex";
@@ -260,9 +262,13 @@ export const Controls: FC<Props> = ({
   const api = useAtomValue(apiAtom);
   const { settings } = useSettings();
   const router = useRouter();
-  const { bitrateValue } = useLocalSearchParams<{
+  const { playbackPosition, bitrateValue } = useLocalSearchParams<{
+    playbackPosition: string;
     bitrateValue: string;
   }>();
+  // Read when the item changes only: the player rewrites the param as it goes.
+  const playbackPositionRef = useRef(playbackPosition);
+  playbackPositionRef.current = playbackPosition;
 
   const { nextItem: internalNextItem } = usePlaybackManager({
     item,
@@ -393,7 +399,8 @@ export const Controls: FC<Props> = ({
   } = useTrickplay(item, mediaSource?.Id);
 
   const min = useSharedValue(0);
-  const maxMs = ticksToMs(item.RunTimeTicks || 0);
+  // The playing version's runtime: seek limit, remaining time, countdown.
+  const maxMs = ticksToMs(getPlayingRunTimeTicks(item, mediaSource));
   const max = useSharedValue(maxMs);
 
   const controlsOpacity = useSharedValue(showControls ? 1 : 0);
@@ -451,10 +458,20 @@ export const Controls: FC<Props> = ({
 
   useEffect(() => {
     if (item) {
-      progress.value = ticksToMs(item?.UserData?.PlaybackPositionTicks);
-      max.value = ticksToMs(item.RunTimeTicks || 0);
+      // Where the player starts, not the item's resume point: that is the
+      // primary version's, and can lie past the end of a shorter cut.
+      progress.value = ticksToMs(
+        resolveStartTicks(
+          playbackPositionRef.current,
+          item.UserData?.PlaybackPositionTicks,
+        ),
+      );
     }
-  }, [item, progress, max]);
+  }, [item, progress]);
+
+  useEffect(() => {
+    max.value = maxMs;
+  }, [maxMs, max]);
 
   const { currentTime, remainingTime } = useVideoTime({
     progress,
