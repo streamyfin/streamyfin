@@ -33,6 +33,7 @@ import { isSeerrQuery, touchedByRequest } from "@/utils/seerr/queries";
 import { endsSeerrSession, sendSeerrRequest } from "@/utils/seerr/requestFlow";
 import { seerrQueryString } from "@/utils/seerr/search";
 import { rememberSeerrSession } from "@/utils/seerr/session";
+import { slidersOf } from "@/utils/seerr/sliders";
 import type {
   CombinedCredit,
   DiscoverSlider,
@@ -327,12 +328,23 @@ export class SeerrApi {
     clearSeerrStorageData();
   }
 
+  /**
+   * The rows of the server's Discover, none when what answered is not a list
+   * of them (slidersOf). The body then stays in the local log, truncated, as
+   * the one trace of a proxy or a server URL answering in Seerr's place.
+   */
   async discoverSettings(): Promise<DiscoverSlider[]> {
-    return this.axios
-      ?.get<DiscoverSlider[]>(
-        Endpoints.API_V1 + Endpoints.SETTINGS + Endpoints.DISCOVER,
-      )
-      .then(({ data }) => data);
+    const { data } = await this.axios.get<unknown>(
+      Endpoints.API_V1 + Endpoints.SETTINGS + Endpoints.DISCOVER,
+    );
+    if (!Array.isArray(data)) {
+      writeToLog(
+        "WARN",
+        "Seerr discover settings are not a list",
+        truncateForLog(data),
+      );
+    }
+    return slidersOf(data);
   }
 
   async discover(
