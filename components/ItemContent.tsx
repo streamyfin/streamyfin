@@ -298,7 +298,7 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
 
               {!isOffline && <ItemCollections itemId={item.Id} />}
 
-              {!isOffline && <SimilarItems itemId={item.Id} />}
+              {!isOffline && <SimilarItems item={item} />}
             </>
           )}
         </View>

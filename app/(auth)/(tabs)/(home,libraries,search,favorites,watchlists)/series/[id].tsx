@@ -12,6 +12,7 @@ import { HeaderIcon } from "@/components/common/HeaderIcon";
 import { Image } from "@/components/common/ServerImage";
 import { DownloadItems } from "@/components/DownloadItem";
 import { ParallaxScrollView } from "@/components/ParallaxPage";
+import { SimilarItems } from "@/components/SimilarItems";
 import { NextUp } from "@/components/series/NextUp";
 import {
   SeasonPicker,
@@ -277,6 +278,7 @@ const page: React.FC = () => {
           {allEpisodes !== undefined && (
             <SeasonPicker item={item} initialSeasonIndex={initialSeasonIndex} />
           )}
+          {!isOffline && <SimilarItems item={item} className='mt-4' />}
         </View>
       </ParallaxScrollView>
     </OfflineModeProvider>

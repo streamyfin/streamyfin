@@ -27,6 +27,7 @@ import { Text } from "@/components/common/Text";
 import { getItemNavigation } from "@/components/common/TouchableItemRouter";
 import { GenreTags } from "@/components/GenreTags";
 import { TVEpisodeList } from "@/components/series/TVEpisodeList";
+import { TVSimilarItems } from "@/components/TVSimilarItems";
 import {
   TVBackdrop,
   TVButton,
@@ -1053,6 +1054,15 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                   mediaStreams={selectedOptions.mediaSource.MediaStreams}
                 />
               )}
+
+            {/* Similar items - last, as on the phone. Only a movie or a
+                series has any, and the row draws nothing otherwise. */}
+            {!isOffline && (
+              <TVSimilarItems
+                item={item}
+                horizontalPadding={insets.left + scaleSize(80)}
+              />
+            )}
           </View>
         </ScrollView>
       </View>
