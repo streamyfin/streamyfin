@@ -37,6 +37,7 @@ import { Colors } from "@/constants/Colors";
 import useRouter from "@/hooks/useAppRouter";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { useRefreshLibraryOnFocus } from "@/hooks/useRefreshLibraryOnFocus";
+import { useRemapHiddenLibraries } from "@/hooks/useRemapHiddenLibraries";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
 import { useDownload } from "@/providers/DownloadProvider";
 import { useIntroSheet } from "@/providers/IntroSheetProvider";
@@ -196,6 +197,7 @@ const HomeMobile = () => {
     enabled: !!api && !!user?.Id,
     staleTime: 60 * 1000,
   });
+  useRemapHiddenLibraries(data, user?.Id);
 
   const latestMediaLibraries = useMemo(() => {
     const excludedIds = new Set([
