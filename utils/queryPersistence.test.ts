@@ -63,9 +63,9 @@ const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 // What a favourite toggled without a connection leaves behind.
 const mutateWhileOffline = (client: QueryClient) => {
   onlineManager.setOnline(false);
-  const mutationFn = jest.fn(async (itemId: string) => itemId);
-  new MutationObserver(client, { mutationFn }).mutate("item-1").catch(() => {});
-  return mutationFn;
+  new MutationObserver(client, { mutationFn: async (itemId: string) => itemId })
+    .mutate("item-1")
+    .catch(() => {});
 };
 
 // Quitting the app: the cache goes to disk through the same save and the same
