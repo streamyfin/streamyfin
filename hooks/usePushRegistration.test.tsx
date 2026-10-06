@@ -6,14 +6,21 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { writeErrorLog } from "@/utils/log";
 import { usePushRegistration } from "./usePushRegistration";
 
+let mockPrimaryUrl: string | null = null;
+
 jest.mock("@/providers/JellyfinProvider", () => {
   const { atom } = jest.requireActual("jotai");
-  return { apiAtom: atom(null), userAtom: atom(null) };
+  return {
+    apiAtom: atom(null),
+    userAtom: atom(null),
+    getServerUrlFromStorage: () => mockPrimaryUrl,
+  };
 });
 jest.mock("@/utils/device", () => ({ getOrSetDeviceId: () => "device-1" }));
 jest.mock("@/utils/log", () => ({ writeErrorLog: jest.fn() }));
 
 const REMOTE_URL = "https://jellyfin.example.com";
+const LAN_URL = "http://192.168.1.10:8096";
 
 /** A registration the hook sent, waiting for the test to answer it. */
 interface Request {
@@ -71,6 +78,7 @@ const settle = () =>
 describe("usePushRegistration", () => {
   beforeEach(() => {
     requests = [];
+    mockPrimaryUrl = REMOTE_URL;
     store = createStore();
     signIn();
     jest.mocked(writeErrorLog).mockClear();
@@ -139,6 +147,56 @@ describe("usePushRegistration", () => {
     await act(async () => signIn());
 
     expect(requests).toHaveLength(2);
+  });
+
+  // On the home Wi-Fi the api talks to the LAN address, and the plugin built
+  // every notification's poster from the address it was sent: a phone away
+  // from home could not fetch it.
+  test("sends the server's primary address while the app talks to its LAN one", async () => {
+    signIn(apiAt(LAN_URL));
+
+    await renderRegistration();
+
+    expect(requests[0].body).toMatchObject({ serverUrl: REMOTE_URL });
+  });
+
+  test("does not post again when the app moves between the LAN and the remote address", async () => {
+    await renderRegistration();
+    requests[0].answer();
+    await settle();
+
+    await act(async () => store.set(apiAtom, apiAt(LAN_URL)));
+    await act(async () => store.set(apiAtom, apiAt(REMOTE_URL)));
+
+    expect(requests).toHaveLength(1);
+  });
+
+  // The address now comes from storage rather than from the api, so a missing
+  // api has to keep meaning no session, or its key would count as sent.
+  test("posts once an api arrives after the user", async () => {
+    store.set(apiAtom, null);
+    await renderRegistration();
+    expect(requests).toHaveLength(0);
+
+    await act(async () => store.set(apiAtom, apiAt(REMOTE_URL)));
+
+    expect(requests).toHaveLength(1);
+  });
+
+  test("registers again with the new server after a switch of server", async () => {
+    await renderRegistration();
+    requests[0].answer();
+    await settle();
+
+    await act(async () => {
+      mockPrimaryUrl = "https://other.example.com";
+      signIn(apiAt("https://other.example.com"));
+    });
+
+    expect(requests).toHaveLength(2);
+    expect(requests[1].body).toMatchObject({
+      serverUrl: "https://other.example.com",
+    });
   });
 
   test("posts again on the next run after a failure, and never on its own", async () => {

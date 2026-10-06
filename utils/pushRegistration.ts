@@ -16,7 +16,7 @@
  * device.
  */
 export const pushRegistrationKey = (
-  serverUrl: string | undefined,
+  serverUrl: string | null | undefined,
   userId: string | undefined,
   token: string | undefined,
   language?: string | undefined,
@@ -27,7 +27,7 @@ export const pushRegistrationKey = (
 
 export const pushRegistrationStep = (
   last: string | null,
-  serverUrl: string | undefined,
+  serverUrl: string | null | undefined,
   userId: string | undefined,
   token: string | undefined,
   language?: string | undefined,

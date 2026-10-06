@@ -2,7 +2,11 @@ import { useAtomValue } from "jotai";
 import { useEffect, useRef } from "react";
 import { Platform } from "react-native";
 import { PUSH_DEVICE_PATH } from "@/constants/Notifications";
-import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import {
+  apiAtom,
+  getServerUrlFromStorage,
+  userAtom,
+} from "@/providers/JellyfinProvider";
 import { getOrSetDeviceId } from "@/utils/device";
 import { writeErrorLog } from "@/utils/log";
 import { pushRegistrationStep } from "@/utils/pushRegistration";
@@ -27,26 +31,31 @@ export const usePushRegistration = (
   useEffect(() => {
     if (Platform.isTV) return;
 
+    // The server's primary address, which the app keeps when the api moves to the
+    // LAN one on the home Wi-Fi: a notification is opened wherever the phone is,
+    // and its poster is fetched from this address. Moving between the two posts
+    // nothing new. No api is no session, as the api's own address used to say.
+    const serverUrl = api ? getServerUrlFromStorage() : null;
+
     const step = pushRegistrationStep(
       registeredPush.current,
-      api?.basePath,
+      serverUrl,
       user?.Id,
       token,
       language,
     );
     registeredPush.current = step.key;
-    if (!step.post || !api || !user || !token) return;
+    if (!step.post || !serverUrl || !api || !user || !token) return;
 
     api
       .post(PUSH_DEVICE_PATH, {
         token,
         deviceId: getOrSetDeviceId(),
         userId: user.Id,
-        // What the plugin writes this device's notifications in, and where it fetches
-        // the poster in them from: the server is reached at a different address by a
-        // phone at home and by the same phone away.
+        // What the plugin writes this device's notifications in, and the address
+        // it fetches the poster in them from.
         language,
-        serverUrl: api.basePath,
+        serverUrl,
       })
       .catch((_) => {
         // Forgotten only if nothing newer was posted meanwhile, so the next change
