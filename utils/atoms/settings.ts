@@ -886,7 +886,8 @@ export const effectiveSettingsAtom = atom<Settings>((get) =>
 
 /**
  * The plugin's settings under the app's names, logged with their secrets
- * redacted. Undefined when the server has no plugin, which it says with a 404.
+ * redacted. Undefined when the server has said there is nothing to apply,
+ * which readPluginSettings (utils/pluginSettingsSource) decides.
  *
  * Every other failure rejects: a request that never arrived, or a server that
  * answered with an error of its own, says nothing about the plugin, and the
@@ -897,9 +898,6 @@ export const fetchPluginSettings = (api: {
     PluginLockableSettings | undefined
   >;
 }): Promise<PluginLockableSettings | undefined> =>
-  // The transport (utils/pluginSettingsSource) asks for what the server
-  // resolved for this user, falls back to what it stores, and answers
-  // undefined only when neither route exists. Every other failure rejects.
   api.getStreamyfinPluginSettings().then((settings) => {
     writeInfoLog("Got plugin settings", redactPluginSettings(settings));
     return migratePluginSettings(settings);
