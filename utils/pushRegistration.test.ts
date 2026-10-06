@@ -38,3 +38,13 @@ describe("the language in the key", () => {
     expect(key).not.toBe(pushRegistrationKey("https://jf", "u", "t", "fr"));
   });
 });
+
+describe("the poster's address in the key", () => {
+  // A server behind custom headers is sent no address, and setting the headers
+  // up after the first registration has to reach the plugin.
+  test("leaving the address out changes the key", () => {
+    expect(
+      pushRegistrationKey("https://jf", "u", "t", "en", undefined),
+    ).not.toBe(pushRegistrationKey("https://jf", "u", "t", "en", "https://jf"));
+  });
+});

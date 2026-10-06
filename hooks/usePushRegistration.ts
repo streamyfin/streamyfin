@@ -7,6 +7,11 @@ import {
   getServerUrlFromStorage,
   userAtom,
 } from "@/providers/JellyfinProvider";
+import {
+  customHeadersVersionAtom,
+  getJellyfinHeaders,
+  hasHeaders,
+} from "@/utils/customHeaders";
 import { getOrSetDeviceId } from "@/utils/device";
 import { writeErrorLog } from "@/utils/log";
 import { pushRegistrationKey } from "@/utils/pushRegistration";
@@ -21,6 +26,8 @@ export const usePushRegistration = (
 ): void => {
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
+  // Bumped by an edit of the custom headers, which changes no api.
+  const headersVersion = useAtomValue(customHeadersVersionAtom);
 
   // Each post waits for the one before it to land. Two in flight could land the
   // wrong way round, leaving the plugin with the older registration while the
@@ -31,8 +38,9 @@ export const usePushRegistration = (
   // one goes out.
   const latest = useRef<string | null>(null);
   // The key on the plugin, or on its way there. Posted once per server, user,
-  // token and language: the api and the user object change identity on sign in,
-  // and without this the token went out twice within a second.
+  // token, language and poster address: the api and the user object change
+  // identity on sign in, and without this the token went out twice within a
+  // second.
   const sent = useRef<string | null>(null);
 
   useEffect(() => {
@@ -41,10 +49,23 @@ export const usePushRegistration = (
     // The server's primary address, which the app keeps when the api moves to the
     // LAN one on the home Wi-Fi: a notification is opened wherever the phone is,
     // and its poster is fetched from this address. Moving between the two posts
-    // nothing new. No api is no session, as the api's own address used to say.
+    // nothing new. Without an api there is no session to register with.
     const serverUrl = api ? getServerUrlFromStorage() : null;
+    // The system fetches the poster with none of the app's headers, so a server
+    // behind a gateway that asks for some answers it with a 403. Such a server
+    // is sent no address, and its notifications come without a poster.
+    const posterServerUrl =
+      serverUrl && !hasHeaders(getJellyfinHeaders(serverUrl))
+        ? serverUrl
+        : undefined;
 
-    const key = pushRegistrationKey(serverUrl, user?.Id, token, language);
+    const key = pushRegistrationKey(
+      serverUrl,
+      user?.Id,
+      token,
+      language,
+      posterServerUrl,
+    );
     latest.current = key;
     if (!key || !serverUrl || !api || !user?.Id || !token) {
       // No session, which is what sign out looks like. Sign out deleted the
@@ -60,7 +81,7 @@ export const usePushRegistration = (
       // What the plugin writes this device's notifications in, and the address
       // it fetches the poster in them from.
       language,
-      serverUrl,
+      serverUrl: posterServerUrl,
     };
 
     queue.current = queue.current.then(async () => {
@@ -74,5 +95,5 @@ export const usePushRegistration = (
         writeErrorLog("Failed to push expo push token to plugin");
       }
     });
-  }, [api, token, user, language]);
+  }, [api, token, user, language, headersVersion]);
 };

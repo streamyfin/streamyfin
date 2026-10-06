@@ -3,6 +3,8 @@ import { act, renderHook } from "@testing-library/react-native";
 import { createStore, Provider as JotaiProvider } from "jotai";
 import type { ReactNode } from "react";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { setJellyfinHeaders } from "@/test-utils/customHeaders";
+import { customHeadersVersionAtom } from "@/utils/customHeaders";
 import { writeErrorLog } from "@/utils/log";
 import { usePushRegistration } from "./usePushRegistration";
 
@@ -16,11 +18,15 @@ jest.mock("@/providers/JellyfinProvider", () => {
     getServerUrlFromStorage: () => mockPrimaryUrl,
   };
 });
+jest.mock("@/utils/customHeaders", () =>
+  jest.requireActual("@/test-utils/customHeaders").customHeadersModule(),
+);
 jest.mock("@/utils/device", () => ({ getOrSetDeviceId: () => "device-1" }));
 jest.mock("@/utils/log", () => ({ writeErrorLog: jest.fn() }));
 
 const REMOTE_URL = "https://jellyfin.example.com";
 const LAN_URL = "http://192.168.1.10:8096";
+const GATEWAY_HEADERS = { "CF-Access-Client-Id": "client-id" };
 
 /** A registration the hook sent, which lands when the test answers it. */
 interface Request {
@@ -103,6 +109,7 @@ describe("usePushRegistration", () => {
     requests = [];
     held = undefined;
     mockPrimaryUrl = REMOTE_URL;
+    setJellyfinHeaders();
     store = createStore();
     signIn();
     jest.mocked(writeErrorLog).mockClear();
@@ -221,6 +228,42 @@ describe("usePushRegistration", () => {
     expect(requests[1].body).toMatchObject({
       serverUrl: "https://other.example.com",
     });
+  });
+
+  // The system fetches a notification's poster with none of the app's headers,
+  // so a server behind a gateway that asks for some answers it with a 403.
+  test("leaves the address out for a server behind custom headers", async () => {
+    setJellyfinHeaders(GATEWAY_HEADERS, REMOTE_URL);
+
+    await renderRegistration();
+
+    expect(requests[0].body).toMatchObject({ language: "en" });
+    expect(requests[0].body.serverUrl).toBeUndefined();
+  });
+
+  // On the LAN the app sends no headers, but the poster still goes to the
+  // primary address, behind the gateway.
+  test("leaves it out while the app talks to the LAN address too", async () => {
+    setJellyfinHeaders(GATEWAY_HEADERS, REMOTE_URL);
+    signIn(apiAt(LAN_URL));
+
+    await renderRegistration();
+
+    expect(requests[0].body.serverUrl).toBeUndefined();
+  });
+
+  test("registers again without the address once headers are set up for the server", async () => {
+    await renderRegistration();
+    requests[0].answer();
+    await settle();
+
+    await act(async () => {
+      setJellyfinHeaders(GATEWAY_HEADERS, REMOTE_URL);
+      store.set(customHeadersVersionAtom, (version) => version + 1);
+    });
+
+    expect(requests).toHaveLength(2);
+    expect(requests[1].body.serverUrl).toBeUndefined();
   });
 
   test("posts again on the next run after a failure, and never on its own", async () => {
