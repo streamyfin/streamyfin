@@ -26,8 +26,13 @@ const read = (key: string) => {
  * (`update` in ios/SecureStoreModule.swift). Only deleting the item drops it.
  */
 const write = (key: string, value: string, options?: Options) => {
-  if (!values.has(key) && options?.keychainAccessible !== undefined) {
-    accessibility.set(key, options.keychainAccessible);
+  if (!values.has(key)) {
+    // A spec can drop an item through `secureStoreValues`, which leaves what
+    // it was created with behind. A new item never inherits it.
+    accessibility.delete(key);
+    if (options?.keychainAccessible !== undefined) {
+      accessibility.set(key, options.keychainAccessible);
+    }
   }
   values.set(key, value);
 };
