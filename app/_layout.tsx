@@ -20,6 +20,7 @@ import { Platform } from "react-native";
 import { GlobalModal } from "@/components/GlobalModal";
 import { PendingAccountSaveModal } from "@/components/PendingAccountSaveModal";
 import { SeerrAutoLogin } from "@/components/seerr/SeerrAutoLogin";
+import { PUSH_DEVICE_PATH } from "@/constants/Notifications";
 import { enableTVMenuKeyInterception } from "@/hooks/useTVBackHandler";
 import i18n from "@/i18n";
 import { DownloadProvider } from "@/providers/DownloadProvider";
@@ -364,7 +365,7 @@ function Layout() {
     if (!step.post || !api || !user || !expoPushToken) return;
 
     api
-      .post("/Streamyfin/device", {
+      .post(PUSH_DEVICE_PATH, {
         token: expoPushToken.data,
         deviceId: getOrSetDeviceId(),
         userId: user.Id,
