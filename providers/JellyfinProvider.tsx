@@ -561,6 +561,9 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
         const auth = await api.authenticateUserByName(username, password);
 
         if (auth.data.AccessToken && auth.data.User) {
+          // A previous session's plugin settings are not this user's; the
+          // refresh below brings this user's once the server answers.
+          setPluginSettings(undefined);
           setUser(auth.data.User);
           storage.set("user", JSON.stringify(auth.data.User));
           // Kept rather than only handed to setApi: the token is what makes
@@ -783,6 +786,9 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
         // Clear React Query cache to prevent data from previous account lingering
         queryClient.clear();
         storage.remove("REACT_QUERY_OFFLINE_CACHE");
+        // Nor its plugin settings: the refresh below replaces them only once
+        // the server answers, and keeps them when it does not.
+        setPluginSettings(undefined);
 
         // Token is valid, update state
         setApi(apiInstance);
@@ -879,6 +885,9 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
         // Clear React Query cache to prevent data from previous account lingering
         queryClient.clear();
         storage.remove("REACT_QUERY_OFFLINE_CACHE");
+        // Nor its plugin settings: the refresh below replaces them only once
+        // the server answers, and keeps them when it does not.
+        setPluginSettings(undefined);
 
         setUser(auth.data.User);
         storage.set("user", JSON.stringify(auth.data.User));
