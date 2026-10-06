@@ -18,9 +18,10 @@ export const usePushRegistration = (
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
 
-  // Posted once per server, user and token. The api and the user object change
-  // identity on sign in, so without this the token went out twice within a second.
-  // Sign out clears the session, and the key with it, so the next sign in posts again.
+  // Posted once per server, user, token and language. The api and the user object
+  // change identity on sign in, so without this the token went out twice within a
+  // second. Sign out clears the session, and the key with it, so the next sign in
+  // posts again.
   const registeredPush = useRef<string | null>(null);
 
   useEffect(() => {
@@ -49,7 +50,7 @@ export const usePushRegistration = (
       })
       .catch((_) => {
         // Forgotten only if nothing newer was posted meanwhile, so the next change
-        // of session or token posts again. No retry on its own, as before.
+        // of session, token or language posts again. No retry on its own, as before.
         if (registeredPush.current === step.key) registeredPush.current = null;
         writeErrorLog("Failed to push expo push token to plugin");
       });
