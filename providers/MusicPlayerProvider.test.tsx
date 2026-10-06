@@ -349,6 +349,48 @@ describe("MusicPlayerProvider and the native queue", () => {
     expect(player.isLoading).toBe(false);
   });
 
+  // The same switch, later: the stream URL is in and the jump is already
+  // reading the queue. Checking the session once after the request is not
+  // enough, it has to hold at the moment the track is added.
+  test("drops a jump when the account switches while it reads the queue", async () => {
+    await mount();
+    holdStreams("t1");
+    await run((p) => p.playQueue(ALBUM, 0));
+
+    let reads = 0;
+    let finishRead = () => {};
+    mockNative.afterQueueRead = async () => {
+      reads += 1;
+      // The jump's second read, the one it takes after preparing the track.
+      if (reads !== 2) return;
+      await new Promise<void>((resolve) => {
+        finishRead = resolve;
+      });
+    };
+    let jump: unknown;
+    await act(async () => {
+      jump = player.jumpToIndex(3);
+    });
+    await settle();
+
+    await act(async () => {
+      getDefaultStore().set(userAtom, { Id: "other", ServerId: "server" });
+    });
+    await settle();
+    expect(nativeIds()).toEqual([]);
+
+    mockNative.afterQueueRead = undefined;
+    await act(async () => {
+      finishRead();
+      await jump;
+    });
+    await settle();
+
+    expect(nativeIds()).toEqual([]);
+    expect(player.currentTrack).toBeNull();
+    expect(player.isLoading).toBe(false);
+  });
+
   // Same report, the other way in: a queue restored after a restart is only
   // on screen. Resuming loads the one track it stopped on.
   test("jumps to another track of a queue restored after a restart", async () => {

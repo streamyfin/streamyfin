@@ -408,8 +408,11 @@ const addInQueueOrder = async (
   appQueue: BaseItemDto[],
   appIndex: number,
   track: Track,
+  isStale: () => boolean,
 ) => {
   const nativeQueue: Track[] = await TrackPlayer.getQueue();
+  // The read was a wait like any other: see the note on isStale at the caller.
+  if (isStale()) return;
   if (nativeIndexOf(nativeQueue, track.id) >= 0) return;
   await TrackPlayer.add(
     track,
@@ -796,6 +799,10 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       // This runs for a long time, one network round trip per track. If the
       // session switches meanwhile, every remaining track belongs to an account
       // that is no longer signed in, so stop instead of adding them.
+      // Checked again inside every turn on the native queue, right before the
+      // call that adds: the turn may have waited behind another edit, and the
+      // session teardown bumps the generation before it resets the player, so
+      // an add that passes the check is ahead of that reset.
       const generation = sessionGenerationRef.current;
       const isStale = () => generation !== sessionGenerationRef.current;
 
@@ -823,7 +830,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       // Insert tracks before current track (they go at index 0)
       if (beforeTracks.length > 0) {
         const addedTogether = await editNativeQueue(async () => {
-          if (loadedOutOfOrderRef.current) return false;
+          if (isStale() || loadedOutOfOrderRef.current) return false;
           await TrackPlayer.add(
             beforeTracks.map(({ track }) => track),
             0,
@@ -833,9 +840,12 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         if (!addedTogether) {
           for (const { track, index } of beforeTracks) {
             if (isStale()) return;
-            await editNativeQueue(() => addInQueueOrder(queue, index, track));
+            await editNativeQueue(() =>
+              addInQueueOrder(queue, index, track, isStale),
+            );
           }
         }
+        if (isStale()) return;
         // Update queue index since we inserted tracks before the current one,
         // unless a jump has moved playback off the track this load started on
         // and set the index itself.
@@ -857,12 +867,15 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         const prepared = await prepareTrack(item, preferLocal);
         if (isStale()) return;
         if (prepared) {
-          await editNativeQueue(
-            () =>
-              loadedOutOfOrderRef.current
-                ? addInQueueOrder(queue, i, prepared.track)
-                : TrackPlayer.add(prepared.track), // Append to end
-          );
+          await editNativeQueue(async () => {
+            if (isStale()) return;
+            if (loadedOutOfOrderRef.current) {
+              await addInQueueOrder(queue, i, prepared.track, isStale);
+            } else {
+              await TrackPlayer.add(prepared.track); // Append to end
+            }
+          });
+          if (isStale()) return;
           if (prepared.mediaInfo && item.Id) {
             setState((prev) => ({
               ...prev,
@@ -1589,6 +1602,14 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       const targetId = targetItem?.Id;
       if (!targetId) return;
 
+      // A session that switches account resets the player, and nothing of the
+      // previous account may go back into it. Checked after every wait, and
+      // inside a turn on the native queue right before the call that changes
+      // it: the teardown bumps the generation before it resets the player, so
+      // a call that passes the check is ahead of that reset.
+      const generation = sessionGenerationRef.current;
+      const isStale = () => generation !== sessionGenerationRef.current;
+
       // `index` is a position in the queue on screen. The native queue only
       // holds what has been loaded so far, so look the track up there by id.
       // Finding it and skipping to it is one edit: the background load must
@@ -1602,6 +1623,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         if (nativeIndex >= 0) await TrackPlayer.skip(nativeIndex);
         return nativeIndex >= 0;
       });
+      if (isStale()) return;
 
       if (!jumped) {
         // Track not loaded yet - need to load it first
@@ -1612,17 +1634,15 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         }));
 
         try {
-          // Preparing is a network round trip. A session that switched account
-          // meanwhile has reset the player, and this track is not its to play.
-          const generation = sessionGenerationRef.current;
           const preferLocal = settings?.preferLocalAudio ?? true;
           const prepared = await prepareTrack(targetItem, preferLocal);
-          if (!prepared || generation !== sessionGenerationRef.current) return;
+          if (!prepared || isStale()) return;
 
-          await editNativeQueue(async () => {
+          const landed = await editNativeQueue(async () => {
             // Preparing was a network round trip, so read the queue again: the
             // background load may have added this very track meanwhile.
             const nativeQueue: Track[] = await TrackPlayer.getQueue();
+            if (isStale()) return false;
             let nativeIndex = nativeIndexOf(nativeQueue, targetId, index);
 
             if (nativeIndex < 0) {
@@ -1633,10 +1653,13 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
               );
               loadedOutOfOrderRef.current = true;
               await TrackPlayer.add(prepared.track, insertIndex);
+              if (isStale()) return false;
               nativeIndex = insertIndex ?? nativeQueue.length;
             }
             await TrackPlayer.skip(nativeIndex);
+            return !isStale();
           });
+          if (!landed) return;
 
           if (prepared.mediaInfo) {
             const mediaInfo = prepared.mediaInfo;
