@@ -42,9 +42,14 @@ jest.mock("@/providers/JellyfinProvider", () => {
 const NOT_OPENED = "custom_links.could_not_open_link";
 const COLD_START_TIMEOUT_MS = 60_000;
 
-/** Renders the screen with one link and taps it. */
-const tapLink = async (url: string) => {
-  mockMenuLinks.mockReturnValue([{ name: "My link", url, icon: "link" }]);
+/**
+ * Renders the screen with one link and taps it. The address is whatever the
+ * server's config holds, which nothing has checked to be a string.
+ */
+const tapLink = async (url: unknown) => {
+  mockMenuLinks.mockReturnValue([
+    { name: "My link", url, icon: "link" } as MenuLink,
+  ]);
   await render(<CustomLinksPage />);
   await fireEvent.press(await screen.findByText("My link"));
 };
@@ -95,6 +100,23 @@ describe("custom links", () => {
   // caught. The tap did nothing at all.
   it("says so when a link has no scheme, without guessing one", async () => {
     await tapLink("example.com/status");
+
+    await waitFor(() =>
+      expect(mockToastError).toHaveBeenCalledWith(NOT_OPENED),
+    );
+    expect(mockOpenBrowser).not.toHaveBeenCalled();
+    expect(openURL).not.toHaveBeenCalled();
+  });
+
+  // The config is JSON the admin edits by hand. An entry with no address, or
+  // one that is not text, threw before anything was caught and left the same
+  // unhandled rejection behind.
+  it.each([
+    ["is missing", undefined],
+    ["is empty", ""],
+    ["is not text", 8096],
+  ])("says so when a link's address %s", async (_case, url) => {
+    await tapLink(url);
 
     await waitFor(() =>
       expect(mockToastError).toHaveBeenCalledWith(NOT_OPENED),

@@ -20,9 +20,13 @@ const WEB_SCHEMES = ["http", "https"];
  * guess at which the admin meant.
  */
 export const openCustomLink = async (
-  url: string,
+  url: unknown,
   openers: CustomLinkOpeners,
 ): Promise<boolean> => {
+  // Read rather than trusted: the links come out of JSON the admin edits by
+  // hand, and an entry can lack its address or hold something that is not text.
+  if (typeof url !== "string") return false;
+
   const address = url.trim();
   const scheme = SCHEME.exec(address)?.[1].toLowerCase();
   if (!scheme) return false;
