@@ -122,12 +122,16 @@ export const useTwoWaySync = () => {
           },
         });
       } catch (error) {
-        if (isServerRefusal(error)) {
-          // The server's answer about this user or this item, which the
-          // next run would get again: remember which state it was for, so
-          // only a newer one is offered. The download and its local progress
-          // stay as they are. Read again before writing, the player may
-          // have moved the item on while the request was out.
+        // The server's answer about this user or this item, which the next
+        // run would get again. Anything else (a server error, a rate limit,
+        // a lost connection) leaves the state owed, and the next run sends
+        // it again.
+        const refused = isServerRefusal(error);
+        if (refused) {
+          // Remember which state it was for, so only a newer one is
+          // offered. The download and its local progress stay as they are.
+          // Read again before writing, the player may have moved the item
+          // on while the request was out.
           const current = getDownloadedItemById(itemId);
           if (current && localLastPlayedDate) {
             updateDownloadedItem(itemId, {
@@ -135,20 +139,13 @@ export const useTwoWaySync = () => {
               refusedPlaybackStateDate: localLastPlayedDate,
             });
           }
-          // Not an app defect, so the local log only.
-          logAndCaptureError(
-            "Pushing offline playback state to server failed",
-            markExpectedError(error),
-          );
-          return false;
         }
         // Offline watch progress silently never reaches the server when
-        // this fails, so report it. Nothing is marked: a server error, a
-        // rate limit or a lost connection leaves the state owed, and the
-        // next run sends it again.
+        // this fails, so report it, unless it was refused: that is not an
+        // app defect and goes to the local log only.
         logAndCaptureError(
           "Pushing offline playback state to server failed",
-          error,
+          refused ? markExpectedError(error) : error,
         );
         // The write never reached the server, so the caller must not treat
         // this as a successful update.
