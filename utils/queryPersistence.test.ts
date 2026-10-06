@@ -19,8 +19,6 @@ import {
   withoutPersistedMutations,
 } from "./queryPersistence";
 
-const CACHE_KEY = "REACT_QUERY_OFFLINE_CACHE";
-
 const clients: QueryClient[] = [];
 const mutationErrors: unknown[] = [];
 
@@ -42,23 +40,23 @@ const newClient = () => {
   return client;
 };
 
+// One device's storage, read and written through the persister the app uses,
+// so the spec never has to know the key it stores under.
 const newDisk = () => {
   const values = new Map<string, string>();
-  return {
-    values,
+  return createSyncStoragePersister({
     storage: {
-      getItem: (key: string) => values.get(key) ?? null,
-      setItem: (key: string, value: string) => {
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => {
         values.set(key, value);
       },
-      removeItem: (key: string) => {
+      removeItem: (key) => {
         values.delete(key);
       },
     },
-  };
+    throttleTime: 0,
+  });
 };
-
-type Disk = ReturnType<typeof newDisk>;
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -72,28 +70,28 @@ const mutateWhileOffline = (client: QueryClient) => {
 
 // Quitting the app: the cache goes to disk through the same save and the same
 // JSON round trip as in the app.
-const quit = (client: QueryClient, disk: Disk, options: DehydrateOptions) =>
-  persistQueryClientSave({
+const quit = async (
+  client: QueryClient,
+  disk: Persister,
+  options: DehydrateOptions,
+) => {
+  await persistQueryClientSave({
     queryClient: client,
-    persister: {
-      persistClient: (persisted) =>
-        disk.storage.setItem(CACHE_KEY, JSON.stringify(persisted)),
-      restoreClient: () => undefined,
-      removeClient: () => {},
-    },
+    persister: disk,
     dehydrateOptions: options,
   });
+  // The persister writes on a timer, even with no throttle.
+  await flush();
+};
 
 // The next launch: restore, mount, then the network comes back. That online
 // event is what resumes paused mutations on a mounted client, and it is the
 // path in the Sentry stack, so nothing here resumes them by hand.
-const relaunch = async (disk: Disk) => {
+const relaunch = async (disk: Persister) => {
   const client = newClient();
   await persistQueryClientRestore({
     queryClient: client,
-    persister: withoutPersistedMutations(
-      createSyncStoragePersister({ storage: disk.storage }),
-    ),
+    persister: withoutPersistedMutations(disk),
   });
   client.mount();
   onlineManager.setOnline(false);
@@ -207,9 +205,7 @@ describe("withoutPersistedMutations", () => {
 
   test("a paused mutation already on disk is not replayed on the first launch after the update", async () => {
     const disk = await cacheWrittenBy0550();
-    expect(
-      JSON.parse(disk.values.get(CACHE_KEY) ?? "").clientState.mutations,
-    ).toHaveLength(1);
+    expect((await disk.restoreClient())?.clientState.mutations).toHaveLength(1);
 
     const client = await relaunch(disk);
 
