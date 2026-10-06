@@ -189,12 +189,14 @@ export default function SearchPage() {
             signal,
           );
 
+          // searchIds answers with every list, empty when the server's body has
+          // none: covered by utils/streamystats/api.test.ts.
           const allIds: string[] = [
-            ...(response.data.movies || []),
-            ...(response.data.series || []),
-            ...(response.data.episodes || []),
-            ...(response.data.actors || []),
-            ...(response.data.audio || []),
+            ...response.data.movies,
+            ...response.data.series,
+            ...response.data.episodes,
+            ...response.data.actors,
+            ...response.data.audio,
           ];
 
           if (!allIds.length) {
