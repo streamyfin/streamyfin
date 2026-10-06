@@ -1,4 +1,5 @@
 import { AxiosError, type AxiosResponse } from "axios";
+import { FetchError } from "expo/src/winter/fetch/FetchErrors";
 import {
   describeHttpError,
   describeHttpResponse,
@@ -157,13 +158,31 @@ describe("isConnectivityError", () => {
 });
 
 // expo/fetch, which is the global fetch on native, rejects with its own
-// FetchError: a plain Error whose message is "fetch failed: " and whatever
-// the native request was rejected with. Built here the way
-// expo/src/winter/fetch/FetchErrors.ts builds it.
+// FetchError, made from whatever the native request was rejected with. Built
+// here by Expo's own class, the way its fetch() builds it, so that an Expo
+// which words or shapes the error differently fails these specs instead of
+// leaving the rule to stop matching unnoticed.
 const fetchError = (nativeMessage: string) =>
-  new Error(`fetch failed: ${nativeMessage}`);
+  FetchError.createFromError(
+    // What expo-modules-core rejects a native promise with: a CodedError.
+    Object.assign(new Error(nativeMessage), { code: "ERR_UNEXPECTED" }),
+  );
 
 describe("isConnectivityError — expo/fetch", () => {
+  // What the rule reads, and all there is to read: the native error's code
+  // and class do not survive the wrapping.
+  test("the rejection is a plain Error that says 'fetch failed: ' first", () => {
+    const error = fetchError("java.net.SocketException: Connection reset");
+    expect(error).toBeInstanceOf(Error);
+    expect(error).not.toBeInstanceOf(TypeError);
+    expect(error.name).toBe("Error");
+    expect(error.message).toBe(
+      "fetch failed: java.net.SocketException: Connection reset",
+    );
+    expect(error).not.toHaveProperty("code");
+    expect(error).not.toHaveProperty("status");
+  });
+
   // The Wikidata awards badge, from 35 users between them.
   test.each([
     // REACT-NATIVE-28, Android: the IOException OkHttp failed with, as text.
