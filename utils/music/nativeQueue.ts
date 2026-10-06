@@ -46,3 +46,21 @@ export const nativeInsertIndexFor = (
   }
   return undefined;
 };
+
+let lastEdit: Promise<unknown> = Promise.resolve();
+
+/**
+ * Runs one edit of the native queue at a time, in the order they were asked
+ * for. An edit that reads the queue and then acts on an index it worked out
+ * from the read takes several native round trips, and the background load adds
+ * tracks on its own schedule in between: without taking turns the index is
+ * stale by the time it is used, or the same track goes in twice.
+ *
+ * Keep network requests out of `edit`. Everything queued behind it waits.
+ */
+export const editNativeQueue = <T>(edit: () => Promise<T>): Promise<T> => {
+  const run = lastEdit.then(edit);
+  // A failed edit must not fail the ones behind it.
+  lastEdit = run.catch(() => undefined);
+  return run;
+};

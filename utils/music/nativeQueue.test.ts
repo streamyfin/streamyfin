@@ -1,4 +1,8 @@
-import { nativeIndexOf, nativeInsertIndexFor } from "./nativeQueue";
+import {
+  editNativeQueue,
+  nativeIndexOf,
+  nativeInsertIndexFor,
+} from "./nativeQueue";
 
 const ids = (...list: string[]) => list.map((id) => ({ id }));
 const items = (...list: string[]) => list.map((Id) => ({ Id }));
@@ -51,5 +55,44 @@ describe("nativeInsertIndexFor", () => {
       const index = nativeInsertIndexFor(APP_QUEUE, appIndex, native);
       expect(index ?? native.length).toBeLessThanOrEqual(native.length);
     }
+  });
+});
+
+describe("editNativeQueue", () => {
+  test("lets an edit finish before the next one starts", async () => {
+    const steps: string[] = [];
+    let finishFirst = () => {};
+
+    const first = editNativeQueue(async () => {
+      steps.push("first reads");
+      await new Promise<void>((resolve) => {
+        finishFirst = resolve;
+      });
+      steps.push("first acts");
+    });
+    const second = editNativeQueue(async () => {
+      steps.push("second");
+    });
+
+    for (let i = 0; i < 5; i++) await Promise.resolve();
+    expect(steps).toEqual(["first reads"]);
+
+    finishFirst();
+    await Promise.all([first, second]);
+    expect(steps).toEqual(["first reads", "first acts", "second"]);
+  });
+
+  test("hands the result of an edit back to its caller", async () => {
+    await expect(editNativeQueue(async () => 3)).resolves.toBe(3);
+  });
+
+  test("keeps going after an edit that fails", async () => {
+    const failed = editNativeQueue(async () => {
+      throw new Error("out of bounds");
+    });
+    const next = editNativeQueue(async () => "ran");
+
+    await expect(failed).rejects.toThrow("out of bounds");
+    await expect(next).resolves.toBe("ran");
   });
 });

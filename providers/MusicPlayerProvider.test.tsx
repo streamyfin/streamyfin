@@ -17,6 +17,11 @@ const mockNative = {
   queue: [] as NativeTrack[],
   activeIndex: undefined as number | undefined,
   outOfBounds: () => new Error("The track index is out of bounds"),
+  /**
+   * Runs between the native side answering a queue read and the caller seeing
+   * the answer, which is when another caller's edit can slip in.
+   */
+  afterQueueRead: undefined as (() => Promise<void>) | undefined,
 };
 
 // The package is installed from git with `main` pointing at a build output it
@@ -35,7 +40,11 @@ jest.mock(
       pause: async () => undefined,
       seekTo: async () => undefined,
       getProgress: async () => ({ position: 0, duration: 0, buffered: 0 }),
-      getQueue: async () => [...mockNative.queue],
+      getQueue: async () => {
+        const answer = [...mockNative.queue];
+        await mockNative.afterQueueRead?.();
+        return answer;
+      },
       getActiveTrackIndex: async () => mockNative.activeIndex,
       getActiveTrack: async () =>
         mockNative.activeIndex === undefined
@@ -156,6 +165,13 @@ const releaseStreams = async () => {
   await settle();
 };
 
+/** Lets the pending stream URL request of one track through. */
+const releaseStream = (id: string) => {
+  const pending = mockHeldStreams.get(id) ?? [];
+  mockHeldStreams.delete(id);
+  for (const release of pending) release();
+};
+
 /** Lets the promise chains started by the last action run out. */
 const settle = async () => {
   for (let i = 0; i < 20; i++) {
@@ -211,6 +227,7 @@ describe("MusicPlayerProvider and the native queue", () => {
     mockHeldStreams.clear();
     mockNative.queue = [];
     mockNative.activeIndex = undefined;
+    mockNative.afterQueueRead = undefined;
   });
 
   // Sentry REACT-NATIVE-AW. Playback starts on one track and the rest of the
@@ -253,6 +270,34 @@ describe("MusicPlayerProvider and the native queue", () => {
     expect(nativeActiveId()).toBe("t1");
     expect(player.currentTrack?.Id).toBe("t1");
     expect(player.queueIndex).toBe(1);
+  });
+
+  // A jump reads the native queue and then acts on what it read, and the
+  // background load edits that queue on its own schedule. Here the load gets
+  // its next stream URL right after the jump's read: without taking turns it
+  // appends t1 (then t2, t3...) under the jump, which goes on to add t3 a
+  // second time and to skip to the index it worked out from the stale read.
+  test("plays the tapped track when the background load adds one at the same moment", async () => {
+    await mount();
+    holdStreams("t1");
+    await run((p) => p.playQueue(ALBUM, 0));
+    expect(nativeIds()).toEqual(["t0"]);
+
+    let reads = 0;
+    mockNative.afterQueueRead = async () => {
+      reads += 1;
+      // The jump's second read, the one it takes after preparing the track.
+      if (reads !== 2) return;
+      releaseStream("t1");
+      for (let i = 0; i < 20; i++) await Promise.resolve();
+    };
+    await run((p) => p.jumpToIndex(3));
+    mockNative.afterQueueRead = undefined;
+    await settle();
+
+    expect(nativeIds()).toEqual(["t0", "t1", "t2", "t3", "t4"]);
+    expect(nativeActiveId()).toBe("t3");
+    expect(player.currentTrack?.Id).toBe("t3");
   });
 
   // Same report, the other way in: a queue restored after a restart is only

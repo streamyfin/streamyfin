@@ -30,7 +30,11 @@ import { getJellyfinHeadersForUrl } from "@/utils/customHeaders";
 import { getAudioStreamUrl } from "@/utils/jellyfin/audio/getAudioStreamUrl";
 import { logAndCaptureError } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
-import { nativeIndexOf, nativeInsertIndexFor } from "@/utils/music/nativeQueue";
+import {
+  editNativeQueue,
+  nativeIndexOf,
+  nativeInsertIndexFor,
+} from "@/utils/music/nativeQueue";
 
 // Conditionally import TrackPlayer only on non-TV platforms
 // This prevents the native module from being loaded on TV where it doesn't exist
@@ -453,7 +457,8 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
 
   // Set once jumpToIndex has loaded a track ahead of the background load. From
   // then on that load can no longer append: it has to place each track, and
-  // skip the one that is already there.
+  // skip the one that is already there. Read and written inside
+  // editNativeQueue, so the load sees it together with the track it stands for.
   const loadedOutOfOrderRef = useRef(false);
 
   const [state, setState] = useState<MusicPlayerState>({
@@ -808,15 +813,18 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
 
       // Insert tracks before current track (they go at index 0)
       if (beforeTracks.length > 0) {
-        if (loadedOutOfOrderRef.current) {
-          for (const { track, index } of beforeTracks) {
-            await addInQueueOrder(queue, index, track);
-          }
-        } else {
+        const addedTogether = await editNativeQueue(async () => {
+          if (loadedOutOfOrderRef.current) return false;
           await TrackPlayer.add(
             beforeTracks.map(({ track }) => track),
             0,
           );
+          return true;
+        });
+        if (!addedTogether) {
+          for (const { track, index } of beforeTracks) {
+            await editNativeQueue(() => addInQueueOrder(queue, index, track));
+          }
         }
         // Update queue index since we inserted tracks before the current one,
         // unless a jump has moved playback off the track this load started on
@@ -839,11 +847,12 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         const prepared = await prepareTrack(item, preferLocal);
         if (isStale()) return;
         if (prepared) {
-          if (loadedOutOfOrderRef.current) {
-            await addInQueueOrder(queue, i, prepared.track);
-          } else {
-            await TrackPlayer.add(prepared.track); // Append to end
-          }
+          await editNativeQueue(
+            () =>
+              loadedOutOfOrderRef.current
+                ? addInQueueOrder(queue, i, prepared.track)
+                : TrackPlayer.add(prepared.track), // Append to end
+          );
           if (prepared.mediaInfo && item.Id) {
             setState((prev) => ({
               ...prev,
@@ -1598,13 +1607,19 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
 
       // `index` is a position in the queue on screen. The native queue only
       // holds what has been loaded so far, so look the track up there by id.
-      let nativeIndex = nativeIndexOf(
-        await TrackPlayer.getQueue(),
-        targetId,
-        index,
-      );
+      // Finding it and skipping to it is one edit: the background load must
+      // not put a track in front of it in between.
+      const jumped = await editNativeQueue(async () => {
+        const nativeIndex = nativeIndexOf(
+          await TrackPlayer.getQueue(),
+          targetId,
+          index,
+        );
+        if (nativeIndex >= 0) await TrackPlayer.skip(nativeIndex);
+        return nativeIndex >= 0;
+      });
 
-      if (nativeIndex < 0) {
+      if (!jumped) {
         // Track not loaded yet - need to load it first
         setState((prev) => ({
           ...prev,
@@ -1617,21 +1632,24 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
           const prepared = await prepareTrack(targetItem, preferLocal);
           if (!prepared) return;
 
-          // Preparing was a network round trip, so read the queue again: the
-          // background load may have added this very track meanwhile.
-          const nativeQueue: Track[] = await TrackPlayer.getQueue();
-          nativeIndex = nativeIndexOf(nativeQueue, targetId, index);
+          await editNativeQueue(async () => {
+            // Preparing was a network round trip, so read the queue again: the
+            // background load may have added this very track meanwhile.
+            const nativeQueue: Track[] = await TrackPlayer.getQueue();
+            let nativeIndex = nativeIndexOf(nativeQueue, targetId, index);
 
-          if (nativeIndex < 0) {
-            const insertIndex = nativeInsertIndexFor(
-              state.queue,
-              index,
-              nativeQueue,
-            );
-            loadedOutOfOrderRef.current = true;
-            await TrackPlayer.add(prepared.track, insertIndex);
-            nativeIndex = insertIndex ?? nativeQueue.length;
-          }
+            if (nativeIndex < 0) {
+              const insertIndex = nativeInsertIndexFor(
+                state.queue,
+                index,
+                nativeQueue,
+              );
+              loadedOutOfOrderRef.current = true;
+              await TrackPlayer.add(prepared.track, insertIndex);
+              nativeIndex = insertIndex ?? nativeQueue.length;
+            }
+            await TrackPlayer.skip(nativeIndex);
+          });
 
           if (prepared.mediaInfo) {
             const mediaInfo = prepared.mediaInfo;
@@ -1653,7 +1671,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         }
       }
 
-      // Report stop for current track
+      // Report stop for the track that was playing
       if (state.currentTrack && state.playSessionId) {
         reportPlaybackStopped(
           state.currentTrack,
@@ -1661,8 +1679,6 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
           state.playSessionId,
         );
       }
-
-      await TrackPlayer.skip(nativeIndex);
 
       setState((prev) => {
         const mediaInfo = prev.trackMediaInfoMap[targetId];
