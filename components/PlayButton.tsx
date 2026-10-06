@@ -40,7 +40,7 @@ import { getParentBackdropImageUrl } from "@/utils/jellyfin/image/getParentBackd
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import {
-  getExternalSubtitleUrl,
+  getCastSubtitleUrl,
   isExternalSubtitle,
 } from "@/utils/jellyfin/subtitleUtils";
 import { logAndCaptureError } from "@/utils/log";
@@ -195,24 +195,17 @@ export const PlayButton: React.FC<Props> = ({
                         (s) => s.Type === "Subtitle" && isExternalSubtitle(s),
                       )
                       .flatMap((s) => {
-                        const url = getExternalSubtitleUrl(s, {
-                          offline: false,
+                        const url = getCastSubtitleUrl(s, {
                           basePath: api.basePath,
+                          accessToken: api.accessToken,
                         });
                         if (!url || s.Index == null) return [];
-                        // Only server-relative URLs get the token — an
-                        // IsExternalUrl sub lives on a third-party host that
-                        // must never see the Jellyfin access token.
-                        const needsApiKey =
-                          !s.IsExternalUrl && !/[?&]api_?key=/i.test(url);
                         return [
                           {
                             id: s.Index,
                             type: "text" as const,
                             subtype: "subtitles" as const,
-                            contentId: needsApiKey
-                              ? `${url}${url.includes("?") ? "&" : "?"}api_key=${encodeURIComponent(api.accessToken)}`
-                              : url,
+                            contentId: url,
                             contentType: "text/vtt",
                             language: s.Language ?? "und",
                             name: s.DisplayTitle ?? undefined,

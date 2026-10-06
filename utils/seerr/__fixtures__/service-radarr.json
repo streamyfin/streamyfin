@@ -1,0 +1,15 @@
+{
+  "route": "GET /service/radarr",
+  "status": 200,
+  "shape": {
+    "[]": {
+      "activeDirectory": "string",
+      "activeProfileId": "number",
+      "activeTags": "array<empty>",
+      "id": "number",
+      "is4k": "boolean",
+      "isDefault": "boolean",
+      "name": "string"
+    }
+  }
+}

@@ -119,6 +119,16 @@ class OkHttpDownloadManager {
           // Send final progress update
           onProgress(bytesWritten, totalBytes)
 
+          // The loop only sees a cancel after a read that returned data. A cancel that lands
+          // once the last bytes are in must not move the file into place either: that would
+          // replace whatever a finished download already has at the destination.
+          if (call.isCanceled()) {
+            Log.d(TAG, "Download cancelled before it was moved into place: taskId=$taskId")
+            partFile.delete()
+            activeDownloads.remove(taskId)
+            return
+          }
+
           if (destFile.exists()) {
             destFile.delete()
           }

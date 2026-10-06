@@ -293,7 +293,8 @@ final class MPVLayerRenderer {
         }
 
         // Pass the AVSampleBufferDisplayLayer to mpv via --wid
-        // The vo_avfoundation driver expects this
+        // The vo_avfoundation driver expects this. It does not retain the
+        // layer; stop() keeps it alive until the handle is destroyed.
         let layerPtrInt = Int(bitPattern: Unmanaged.passUnretained(displayLayer).toOpaque())
         var displayLayerPtr = Int64(layerPtrInt)
         checkError(mpv_set_option(handle, "wid", MPV_FORMAT_INT64, &displayLayerPtr))
@@ -570,20 +571,47 @@ final class MPVLayerRenderer {
             mpv_set_wakeup_callback(handle, nil, nil)
             mpv = nil  // Clear immediately so nothing else uses it
 
+            // Pin the display layer until this handle is fully destroyed.
+            // mpv only has it as a raw pointer (start() hands it over
+            // unretained through --wid, and the VO is compiled without ARC,
+            // so its `__strong` ivars retain nothing), and the VO keeps
+            // messaging it for as long as its thread lives: frames are
+            // enqueued until the quit lands, then uninit flushes the layer on
+            // the vo thread and removes the OSD sublayer on main. That
+            // sublayer is owned by nothing but the display layer, so it dies
+            // with it. All of this runs after stop() has returned, by which
+            // time the engine and this renderer can already be deallocated,
+            // and the layer with them — the VO then messages freed memory
+            // (SIGSEGV in objc_msgSend, on the vo thread or on main).
+            //
+            // Unmanaged rather than a captured reference: closure contexts
+            // are released on whichever thread finishes a block last, and
+            // this can be the layer's final reference. A CALayer that has
+            // been in a layer tree should be torn down on main, so the
+            // release is spelled out there instead of left to that race.
+            let pinnedLayer = Unmanaged.passRetained(displayLayer)
+
             // Quit + drain + destroy on the mpv queue WITHOUT blocking the
             // caller: stop() runs on main (dismiss/deinit), and a queue.sync
             // here can wedge behind a client call that is itself waiting out
             // vo_create — the exact watchdog cycle onQueue() documents. The
-            // block deliberately captures only the raw handle, never self
-            // (stop() may run from deinit). Ordering on the serial queue
-            // guarantees the drain runs after any still-pending client calls
-            // against this handle, and terminate runs after the drain.
+            // block deliberately captures only the raw handle and the pinned
+            // layer, never self (stop() may run from deinit). Ordering on the
+            // serial queue guarantees the drain runs after any still-pending
+            // client calls against this handle, and terminate runs after the
+            // drain.
             queue.async {
                 Self.quitAndDrain(handle)
                 // mpv_terminate_destroy may need the main thread for
                 // AVFoundation cleanup, so keep it off this queue too.
                 DispatchQueue.global(qos: .userInitiated).async {
+                    // Returns only once the core has joined the vo thread,
+                    // so nothing in mpv can reach the layer after this.
                     mpv_terminate_destroy(handle)
+                    // async, never sync: main may be the thread waiting on us.
+                    DispatchQueue.main.async {
+                        pinnedLayer.release()
+                    }
                 }
             }
         }
@@ -661,6 +689,12 @@ final class MPVLayerRenderer {
             } else {
                 self.setProperty(name: "start", value: "0")
             }
+            // Until the first time-pos arrives the file is where it was told
+            // to start. The duration event emits this cache as the position,
+            // and left at 0 (or at the previous file's position) it told the
+            // delegate a resumed file was at 0:00, which was then reported to
+            // the server and cleared the item's resume point.
+            self.cachedPosition = max(0, startPosition ?? 0)
             // Set initial audio track if specified
             if let audioId = self.initialAudioId, audioId > 0 {
                 self.setAudioTrack(audioId)

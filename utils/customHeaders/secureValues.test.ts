@@ -1,21 +1,14 @@
-const mockSecureStoreValues = new Map<string, string>();
-
-jest.mock("expo-secure-store", () => ({
-  getItem: (key: string) => mockSecureStoreValues.get(key) ?? null,
-  setItem: (key: string, value: string) => {
-    mockSecureStoreValues.set(key, value);
-  },
-  deleteItemAsync: async (key: string) => {
-    mockSecureStoreValues.delete(key);
-  },
-}));
-
+import { secureStoreValues } from "@/test-utils/secureStore";
 import {
   resolveCustomHeaderValues,
   secureCustomHeaderMetadata,
 } from "./secureValues";
-
 import type { CustomHeader } from "./types";
+
+jest.mock(
+  "expo-secure-store",
+  () => jest.requireActual("@/test-utils/secureStore").secureStoreModule,
+);
 
 const header = (
   key: string,
@@ -25,7 +18,7 @@ const header = (
 
 describe("secureCustomHeaderMetadata", () => {
   beforeEach(() => {
-    mockSecureStoreValues.clear();
+    secureStoreValues.clear();
   });
 
   test("keeps values out of the persisted metadata", () => {
@@ -35,7 +28,7 @@ describe("secureCustomHeaderMetadata", () => {
 
     expect(metadata[0]?.value).toBe("");
     expect(metadata[0]?.secureValueKey).toBeTruthy();
-    expect(mockSecureStoreValues.get(metadata[0]!.secureValueKey!)).toBe(
+    expect(secureStoreValues.get(metadata[0]!.secureValueKey!)).toBe(
       "id-value",
     );
     expect(resolveCustomHeaderValues(metadata)[0]?.value).toBe("id-value");
@@ -55,7 +48,7 @@ describe("secureCustomHeaderMetadata", () => {
       [stored!],
     );
 
-    expect(mockSecureStoreValues.get(edited[0]!.secureValueKey!)).toBe(
+    expect(secureStoreValues.get(edited[0]!.secureValueKey!)).toBe(
       "new-secret",
     );
     expect(resolveCustomHeaderValues(edited)[0]?.value).toBe("new-secret");
@@ -73,10 +66,8 @@ describe("secureCustomHeaderMetadata", () => {
     const kept = resolveCustomHeaderValues([original[1]!]);
     secureCustomHeaderMetadata(scope, kept, original);
 
-    expect(mockSecureStoreValues.has(removedKey)).toBe(false);
-    expect(mockSecureStoreValues.get(original[1]!.secureValueKey!)).toBe(
-      "kept",
-    );
+    expect(secureStoreValues.has(removedKey)).toBe(false);
+    expect(secureStoreValues.get(original[1]!.secureValueKey!)).toBe("kept");
   });
 
   test("does not assign a generated key that collides with a retained row", () => {
@@ -99,10 +90,10 @@ describe("secureCustomHeaderMetadata", () => {
 
     expect(metadata[0]?.secureValueKey).toBe(retainedKey);
     expect(new Set(secureValueKeys).size).toBe(secureValueKeys.length);
-    expect(mockSecureStoreValues.get(metadata[0]!.secureValueKey!)).toBe(
+    expect(secureStoreValues.get(metadata[0]!.secureValueKey!)).toBe(
       "retained-new-value",
     );
-    expect(mockSecureStoreValues.get(metadata[1]!.secureValueKey!)).toBe(
+    expect(secureStoreValues.get(metadata[1]!.secureValueKey!)).toBe(
       "new-secret",
     );
   });
@@ -120,8 +111,8 @@ describe("secureCustomHeaderMetadata", () => {
     );
 
     expect(secondMetadata[0]?.secureValueKey).not.toBe(copiedKey);
-    expect(mockSecureStoreValues.get(copiedKey!)).toBe("first-secret");
-    expect(mockSecureStoreValues.get(secondMetadata[0]!.secureValueKey!)).toBe(
+    expect(secureStoreValues.get(copiedKey!)).toBe("first-secret");
+    expect(secureStoreValues.get(secondMetadata[0]!.secureValueKey!)).toBe(
       "second-secret",
     );
   });
@@ -131,7 +122,7 @@ describe("secureCustomHeaderMetadata", () => {
       header("CF-Access-Client-Id", "id-value"),
     ]);
 
-    expect(mockSecureStoreValues.get(metadata[0]!.secureValueKey!)).toBe(
+    expect(secureStoreValues.get(metadata[0]!.secureValueKey!)).toBe(
       "id-value",
     );
   });
@@ -147,9 +138,9 @@ describe("secureCustomHeaderMetadata", () => {
     ]);
 
     expect(shorterScopeMetadata[0]?.secureValueKey).not.toBe(overlappingKey);
-    expect(mockSecureStoreValues.get(overlappingKey!)).toBe("longer-secret");
+    expect(secureStoreValues.get(overlappingKey!)).toBe("longer-secret");
     expect(
-      mockSecureStoreValues.get(shorterScopeMetadata[0]!.secureValueKey!),
+      secureStoreValues.get(shorterScopeMetadata[0]!.secureValueKey!),
     ).toBe("shorter-secret");
   });
 });

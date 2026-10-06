@@ -6,6 +6,7 @@ import {
   type SortOrder,
   SubtitlePlaybackMode,
 } from "@jellyfin/sdk/lib/generated-client";
+import { isAxiosError } from "axios";
 import { t } from "i18next";
 import { atom, useAtom, useAtomValue } from "jotai";
 import { useCallback, useEffect } from "react";
@@ -23,6 +24,8 @@ import { storage } from "../mmkv";
 import {
   type AppliedPluginDefaults,
   pluginRefreshOverlay,
+  readIntegrationBlocks,
+  renameLegacySeerrSettings,
   resolveEffectiveSettings,
 } from "./settingsOverrides";
 
@@ -439,16 +442,16 @@ export type Settings = {
   subtitleAlignX?: "left" | "center" | "right";
   subtitleAlignY?: "top" | "center" | "bottom";
   safeAreaInControlsEnabled: boolean;
-  jellyseerrServerUrl?: string;
+  seerrServerUrl?: string;
   /** Seerr admin API key: signs the user in via their Jellyfin ID, no password. */
-  jellyseerrApiKey?: string;
+  seerrApiKey?: string;
   /**
-   * Sign in to Jellyseerr automatically on launch using the Jellyfin password.
-   * Jellyseerr's /auth/jellyfin endpoint takes the password rather than the
+   * Sign in to Seerr automatically on launch using the Jellyfin password.
+   * Seerr's /auth/jellyfin endpoint takes the password rather than the
    * Jellyfin token, so enabling this persists that password in the platform
-   * secure store. Nothing is stored unless a Jellyseerr server is configured.
+   * secure store. Nothing is stored unless a Seerr server is configured.
    */
-  autoLoginJellyseerr: boolean;
+  autoLoginSeerr: boolean;
   useKefinTweaks: boolean;
   hiddenLibraries?: string[];
   enableH265ForChromecast: boolean;
@@ -550,22 +553,28 @@ export type StreamyfinPluginConfig = {
 // Settings whose values are secrets. They must never reach the app log,
 // which users read in-app and paste into bug reports.
 const SENSITIVE_SETTING_KEYS: ReadonlySet<keyof Settings> = new Set([
-  "jellyseerrApiKey",
+  "seerrApiKey",
   "openSubtitlesApiKey",
 ] as const);
 
+// Read first: the plugin sends the Seerr key under its old flat name and
+// inside the seerr block, and only the app's own name is on the list above.
 export const redactPluginSettings = (
-  settings: PluginLockableSettings | undefined,
-): PluginLockableSettings | undefined =>
-  settings &&
-  (Object.fromEntries(
-    Object.entries(settings).map(([key, lockable]) => [
-      key,
-      SENSITIVE_SETTING_KEYS.has(key as keyof Settings) && lockable?.value
-        ? { ...lockable, value: "[redacted]" }
-        : lockable,
-    ]),
-  ) as PluginLockableSettings);
+  sent: PluginLockableSettings | undefined,
+): PluginLockableSettings | undefined => {
+  const settings = readIntegrationBlocks(sent);
+  return (
+    settings &&
+    (Object.fromEntries(
+      Object.entries(settings).map(([key, lockable]) => [
+        key,
+        SENSITIVE_SETTING_KEYS.has(key as keyof Settings) && lockable?.value
+          ? { ...lockable, value: "[redacted]" }
+          : lockable,
+      ]),
+    ) as PluginLockableSettings)
+  );
+};
 
 export const defaultValues: Settings = {
   home: null,
@@ -614,9 +623,9 @@ export const defaultValues: Settings = {
   subtitleAlignX: "center",
   subtitleAlignY: "bottom",
   safeAreaInControlsEnabled: true,
-  jellyseerrServerUrl: undefined,
-  jellyseerrApiKey: undefined,
-  autoLoginJellyseerr: true,
+  seerrServerUrl: undefined,
+  seerrApiKey: undefined,
+  autoLoginSeerr: true,
   useKefinTweaks: false,
   hiddenLibraries: [],
   enableH265ForChromecast: false,
@@ -788,6 +797,11 @@ const loadSettings = (): Partial<Settings> => {
     changed = true;
   }
 
+  // Seerr's settings were stored under the names they had as Jellyseerr.
+  if (renameLegacySeerrSettings(stored as Record<string, unknown>)) {
+    changed = true;
+  }
+
   if (changed) {
     storage.set(SETTINGS_KEY, JSON.stringify(stored));
   }
@@ -818,11 +832,14 @@ export const settingsAtom = atom<Partial<Settings> | null>(null);
  * Server-side counterpart to the `showTVHeroCarousel` migration in
  * `loadSettings`: the Streamyfin plugin config still keys the hero switch
  * under the old name, so alias it or an admin's existing lock and default
- * would quietly stop being enforced after the rename.
+ * would quietly stop being enforced after the rename. Seerr's settings are
+ * read the same way, from the block or the old flat keys, which covers the
+ * copy an earlier build stored as well as a fresh answer.
  */
 const migratePluginSettings = (
-  settings: PluginLockableSettings | undefined,
+  sent: PluginLockableSettings | undefined,
 ): PluginLockableSettings | undefined => {
+  const settings = readIntegrationBlocks(sent);
   if (!settings) {
     return settings;
   }
@@ -869,6 +886,27 @@ export const effectiveSettingsAtom = atom<Settings>((get) =>
   ),
 );
 
+/**
+ * The plugin's settings under the app's names, logged with their secrets
+ * redacted. Undefined when the server has no plugin, which it says with a 404.
+ *
+ * Every other failure rejects: a request that never arrived, or a server that
+ * answered with an error of its own, says nothing about the plugin, and the
+ * caller must not read it as "no plugin".
+ */
+export const fetchPluginSettings = (api: {
+  getStreamyfinPluginSettings: () => Promise<
+    PluginLockableSettings | undefined
+  >;
+}): Promise<PluginLockableSettings | undefined> =>
+  // The transport (utils/pluginSettingsSource) asks for what the server
+  // resolved for this user, falls back to what it stores, and answers
+  // undefined only when neither route exists. Every other failure rejects.
+  api.getStreamyfinPluginSettings().then((settings) => {
+    writeInfoLog("Got plugin settings", redactPluginSettings(settings));
+    return migratePluginSettings(settings);
+  });
+
 const loadAppliedPluginDefaults = (): AppliedPluginDefaults => {
   try {
     return storage.get<AppliedPluginDefaults>(PLUGIN_APPLIED_DEFAULTS) ?? {};
@@ -904,20 +942,22 @@ export const useSettings = () => {
     }
     let newPluginSettings: PluginLockableSettings | undefined;
     try {
-      newPluginSettings = await api.getStreamyfinPluginSettings();
+      newPluginSettings = await fetchPluginSettings(api);
     } catch (error) {
-      // A server that cannot be reached has not said it has no plugin. This
-      // runs on every foreground, so overwriting the stored policy here would
-      // unlock every setting the admin pinned and drop the URLs they supplied
-      // on nothing worse than a flaky network. Keep what is stored and report
-      // the failure, which is what the plugins page turns into a toast.
-      logAndCaptureError("Refreshing plugin settings failed", error);
+      // No answer about the plugin, so what is stored stands. This runs on
+      // every return to the foreground, where a request fails for no better
+      // reason than the network not being back yet, and clearing here dropped
+      // the admin's locks and the tabs the plugin turns on until a later
+      // refresh got through.
+      //
+      // An HTTP failure is the server's or the network's and is left quiet.
+      // Anything else broke while reading an answer that did arrive, and
+      // would otherwise fail the same way on every refresh without a trace.
+      if (!isAxiosError(error)) {
+        logAndCaptureError("Refreshing plugin settings failed", error);
+      }
       return undefined;
     }
-    writeInfoLog(
-      "Got plugin settings",
-      redactPluginSettings(newPluginSettings),
-    );
     setPluginSettings(newPluginSettings);
 
     // Write against the atom's value at apply time, not the hook's render

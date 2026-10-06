@@ -39,10 +39,5 @@
     ".expo/types/**/*.ts",
     "expo-env.d.ts"
   ],
-  "exclude": [
-    "node_modules",
-    "babel.config.js",
-    "metro.config.js",
-    "utils/jellyseerr/**/*"
-  ]
+  "exclude": ["node_modules", "babel.config.js", "metro.config.js"]
 }

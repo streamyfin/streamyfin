@@ -1,8 +1,10 @@
+import { LEGACY_SEERR_HEADERS_NAME } from "@/constants/Seerr";
 import { logAndCaptureError } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
 import { normalizeCustomHeaders } from "./normalize";
 import {
   bumpCustomHeadersVersion,
+  deleteSecureCustomHeaderValues,
   resolveCustomHeaderValues,
   secureCustomHeaderMetadata,
 } from "./secureValues";
@@ -47,10 +49,38 @@ function parseHeaderConfig(stored?: string): HeaderConfig {
   }
 }
 
+/**
+ * Seerr's headers as a build from before the rename filed them, under
+ * "jellyseerr". Moved on first use, secret values included, and the old
+ * configuration and keys deleted: SecureStore values belong to the scope
+ * that wrote them, so leaving them under the old one would orphan them.
+ */
+function moveLegacySeerrHeaders(): void {
+  const legacyKey = `${INTEGRATION_CONFIG_KEY_PREFIX}${LEGACY_SEERR_HEADERS_NAME}`;
+  const legacy = storage.getString(legacyKey);
+  if (legacy === undefined) return;
+
+  const config = parseHeaderConfig(legacy);
+  if (storage.getString(configStorageKey("seerr")) === undefined) {
+    const customHeaders = secureCustomHeaderMetadata(
+      "integration:seerr",
+      resolveCustomHeaderValues(config.customHeaders),
+      [],
+    );
+    storage.set(
+      configStorageKey("seerr"),
+      JSON.stringify({ source: config.source, customHeaders }),
+    );
+  }
+  deleteSecureCustomHeaderValues(config.customHeaders);
+  storage.remove(legacyKey);
+}
+
 export function updateIntegrationHeaderConfig(
   integrationKey: IntegrationKey,
   config: HeaderConfig,
 ): void {
+  if (integrationKey === "seerr") moveLegacySeerrHeaders();
   const previousConfig = parseHeaderConfig(
     storage.getString(configStorageKey(integrationKey)),
   );
@@ -72,6 +102,7 @@ export function updateIntegrationHeaderConfig(
 export function getIntegrationHeaderConfig(
   integrationKey: IntegrationKey,
 ): HeaderConfig {
+  if (integrationKey === "seerr") moveLegacySeerrHeaders();
   const config = parseHeaderConfig(
     storage.getString(configStorageKey(integrationKey)),
   );

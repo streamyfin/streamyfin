@@ -1,3 +1,9 @@
+import {
+  LEGACY_SEERR_COOKIES_STORAGE_KEY,
+  LEGACY_SEERR_USER_STORAGE_KEY,
+  SEERR_COOKIES_STORAGE_KEY,
+  SEERR_USER_STORAGE_KEY,
+} from "@/constants/Seerr";
 import { writeErrorLog, writeInfoLog } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
 
@@ -25,6 +31,7 @@ const SCHEMA_VERSION_KEY = "storageSchemaVersion";
 /** The slice of the MMKV surface migrations are allowed to touch. */
 export interface MigrationStorage {
   getNumber: (key: string) => number | undefined;
+  getString: (key: string) => string | undefined;
   getAllKeys: () => string[];
   set: (key: string, value: boolean | number | string) => void;
   remove: (key: string) => void;
@@ -45,6 +52,24 @@ const MIGRATIONS: Migration[] = [
       "clear hasShownIntro so existing users see the intro again, now that it carries the crash-reporting opt-out",
     run: (store) => {
       store.remove("hasShownIntro");
+    },
+  },
+  // 2 is the log redaction's (#2103), which reaches develop first.
+  {
+    version: 3,
+    description:
+      "move the Seerr session from the keys it had when Seerr was called Jellyseerr",
+    run: (store) => {
+      for (const [legacy, current] of [
+        [LEGACY_SEERR_USER_STORAGE_KEY, SEERR_USER_STORAGE_KEY],
+        [LEGACY_SEERR_COOKIES_STORAGE_KEY, SEERR_COOKIES_STORAGE_KEY],
+      ] as const) {
+        const stored = store.getString(legacy);
+        if (stored !== undefined && store.getString(current) === undefined) {
+          store.set(current, stored);
+        }
+        store.remove(legacy);
+      }
     },
   },
 ];

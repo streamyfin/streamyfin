@@ -1,8 +1,13 @@
 import type { Api } from "@jellyfin/sdk";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { getItemProgressPercentage } from "@/components/common/ProgressBar";
+import {
+  CARD_IMAGE_WIDTH_STEP_PX,
+  MAX_CARD_IMAGE_WIDTH_PX,
+} from "@/constants/Images";
 import { getPortraitImageUrl } from "@/utils/jellyfin/image/getPortraitImageUrl";
 import { getWideImageUrl } from "@/utils/jellyfin/image/getWideImageUrl";
+import { toImagePixels } from "@/utils/jellyfin/image/imagePixels";
 
 /** One card. Everything is prebuilt here; the card view is presentational. */
 export type CardData = {
@@ -113,13 +118,39 @@ export const cardRowHeight = (kind: CardKind) => {
 };
 
 /**
+ * Pixel width to request artwork at for a card this many layout points wide:
+ * what the screen draws, rounded up to the next step so cards of nearly the
+ * same width share one image.
+ */
+const cardImageWidth = (cardWidth: number) =>
+  Math.min(
+    Math.ceil(toImagePixels(cardWidth) / CARD_IMAGE_WIDTH_STEP_PX) *
+      CARD_IMAGE_WIDTH_STEP_PX,
+    MAX_CARD_IMAGE_WIDTH_PX,
+  );
+
+/**
  * The second line under a title: which episode this is, or when it came out.
  * Exported so anything building cards outside `buildItemCards` — the offline
  * downloads, say — labels an item the same way.
+ *
+ * @param episodeLabel Text shown after an episode number. Defaults to its series.
  */
-export const cardSubtitle = (item: BaseItemDto): string | null => {
+export const cardSubtitle = (
+  item: BaseItemDto,
+  episodeLabel?: string,
+): string | null => {
   if (item.Type === "Episode") {
-    return `S${item.ParentIndexNumber}:E${item.IndexNumber} - ${item.SeriesName ?? ""}`;
+    const episodeNumber = `S${item.ParentIndexNumber}:E${item.IndexNumber}`;
+    if (episodeLabel === undefined) {
+      return `${episodeNumber} - ${item.SeriesName ?? ""}`;
+    }
+
+    const hasEpisodeNumber =
+      item.ParentIndexNumber != null && item.IndexNumber != null;
+    return [hasEpisodeNumber ? episodeNumber : null, episodeLabel]
+      .filter(Boolean)
+      .join(" - ");
   }
   return item.ProductionYear ? String(item.ProductionYear) : null;
 };
@@ -159,15 +190,37 @@ export const itemProgressFraction = (item: BaseItemDto): number =>
 const hasPortraitArtwork = (item: BaseItemDto) =>
   item.Type === "Movie" ||
   item.Type === "Series" ||
+  item.Type === "Season" ||
   item.Type === "BoxSet" ||
   item.Type === "Episode" ||
   item.Type === "Person";
 
+/** Returns parent-first labels for latest season and episode cards. */
+const latestCardText = (item: BaseItemDto) => {
+  if (!item.SeriesName) return null;
+  if (item.Type === "Season") {
+    return { title: item.SeriesName, subtitle: item.Name };
+  }
+  if (item.Type !== "Episode") return null;
+
+  return {
+    title: item.SeriesName,
+    subtitle: cardSubtitle(item, item.Name ?? ""),
+  };
+};
+
 type BuildOptions = {
   api?: Api | null;
   kind: CardKind;
+  /**
+   * Width the cards are drawn at, in layout points, which sizes the artwork
+   * request. Defaults to the kind's own width; a grid passes its column width.
+   */
+  cardWidth?: number;
   /** Prefer the episode's own still over the series thumbnail. */
   useEpisodePoster?: boolean;
+  /** Show a TV child's series name before its own name, as Jellyfin Web does. */
+  showParentTitle?: boolean;
   /** Item to keep at full opacity; every other card is faded back. */
   selectedId?: string | null;
 };
@@ -178,20 +231,41 @@ type BuildOptions = {
  */
 export function buildItemCards(
   items: BaseItemDto[],
-  { api, kind, useEpisodePoster = false, selectedId }: BuildOptions,
+  {
+    api,
+    kind,
+    cardWidth,
+    useEpisodePoster = false,
+    showParentTitle = false,
+    selectedId,
+  }: BuildOptions,
 ): CardData[] {
   if (!api) return [];
+
+  const layout = CARD_LAYOUTS[kind];
+  const imageWidth = cardImageWidth(cardWidth ?? layout.cardWidth);
+  const imageHeight = Math.round(imageWidth / layout.aspectRatio);
 
   return items.flatMap((item) => {
     if (!item.Id) return [];
 
-    const subtitle = cardSubtitle(item);
+    const parentFirstText = showParentTitle ? latestCardText(item) : null;
+    const title = parentFirstText?.title ?? item.Name ?? "";
+    const subtitle = parentFirstText
+      ? parentFirstText.subtitle
+      : cardSubtitle(item);
 
     const unplayed = item.UserData?.UnplayedItemCount ?? 0;
     const imageUrl =
       kind === "portrait"
-        ? getPortraitImageUrl({ api, item })
-        : getWideImageUrl({ api, item, useEpisodePoster });
+        ? getPortraitImageUrl({ api, item, width: imageWidth })
+        : getWideImageUrl({
+            api,
+            item,
+            useEpisodePoster,
+            fillWidth: imageWidth,
+            fillHeight: imageHeight,
+          });
 
     const progress = itemProgressFraction(item);
     // Strict === false: items without UserData (unknown state) get no dot.
@@ -206,7 +280,7 @@ export function buildItemCards(
     return [
       {
         id: item.Id,
-        title: item.Name ?? "",
+        title,
         subtitle,
         imageUrl,
         progress,
