@@ -77,7 +77,7 @@ const isSettingsMap = (value: unknown): value is PluginLockableSettings =>
  * not look the same to whoever decides what to keep. The same goes for an
  * answer that is not a settings map.
  */
-export const fetchPluginSettings = async (
+export const readPluginSettings = async (
   api: PluginSettingsReader,
 ): Promise<PluginLockableSettings | undefined> => {
   try {

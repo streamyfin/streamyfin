@@ -1,9 +1,9 @@
 import type { PluginLockableSettings } from "@/utils/atoms/settings";
 import {
-  fetchPluginSettings,
   LEGACY_CONFIG_PATH,
   type PluginSettingsReader,
   RESOLVED_SETTINGS_PATH,
+  readPluginSettings,
 } from "@/utils/pluginSettingsSource";
 
 const plugin = (
@@ -37,14 +37,14 @@ const resolvedSettings = plugin({
   marlinServerUrl: { locked: false, value: "https://marlin.example" },
 });
 
-describe("fetchPluginSettings", () => {
+describe("readPluginSettings", () => {
   test("asks the server what applies to this user", async () => {
     const { api, asked } = server({
       [RESOLVED_SETTINGS_PATH]: resolvedSettings,
       [LEGACY_CONFIG_PATH]: { settings: plugin({}) },
     });
 
-    expect(await fetchPluginSettings(api)).toEqual(resolvedSettings);
+    expect(await readPluginSettings(api)).toEqual(resolvedSettings);
     // The stored configuration is never asked for when the server can resolve.
     expect(asked).toEqual([RESOLVED_SETTINGS_PATH]);
   });
@@ -56,7 +56,7 @@ describe("fetchPluginSettings", () => {
       [LEGACY_CONFIG_PATH]: { settings: resolvedSettings },
     });
 
-    expect(await fetchPluginSettings(api)).toEqual(resolvedSettings);
+    expect(await readPluginSettings(api)).toEqual(resolvedSettings);
     expect(asked).toEqual([RESOLVED_SETTINGS_PATH, LEGACY_CONFIG_PATH]);
   });
 
@@ -69,14 +69,14 @@ describe("fetchPluginSettings", () => {
       [LEGACY_CONFIG_PATH]: { settings: resolvedSettings },
     });
 
-    await expect(fetchPluginSettings(api)).rejects.toThrow("HTTP 401");
+    await expect(readPluginSettings(api)).rejects.toThrow("HTTP 401");
     expect(asked).toEqual([RESOLVED_SETTINGS_PATH]);
   });
 
   test("a server with no plugin has answered: there is no policy to apply", async () => {
     const { api, asked } = server({});
 
-    expect(await fetchPluginSettings(api)).toBeUndefined();
+    expect(await readPluginSettings(api)).toBeUndefined();
     expect(asked).toEqual([RESOLVED_SETTINGS_PATH, LEGACY_CONFIG_PATH]);
   });
 
@@ -89,7 +89,7 @@ describe("fetchPluginSettings", () => {
       [LEGACY_CONFIG_PATH]: httpError(503),
     });
 
-    await expect(fetchPluginSettings(api)).rejects.toThrow("HTTP 503");
+    await expect(readPluginSettings(api)).rejects.toThrow("HTTP 503");
   });
 
   // Undefined is the answer "no plugin here", and it clears the admin's policy.
@@ -105,9 +105,7 @@ describe("fetchPluginSettings", () => {
       [LEGACY_CONFIG_PATH]: { settings: resolvedSettings },
     });
 
-    await expect(fetchPluginSettings(api)).rejects.toThrow(
-      "not a settings map",
-    );
+    await expect(readPluginSettings(api)).rejects.toThrow("not a settings map");
     // The route exists, so the stored configuration is not asked instead.
     expect(asked).toEqual([RESOLVED_SETTINGS_PATH]);
   });
@@ -119,6 +117,6 @@ describe("fetchPluginSettings", () => {
   ])("refuses a stored configuration with %s", async (_case, answer) => {
     const { api } = server({ [LEGACY_CONFIG_PATH]: answer });
 
-    await expect(fetchPluginSettings(api)).rejects.toThrow("no settings map");
+    await expect(readPluginSettings(api)).rejects.toThrow("no settings map");
   });
 });
