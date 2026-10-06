@@ -1,5 +1,6 @@
 import * as SecureStore from "expo-secure-store";
 import { atom } from "jotai";
+import { Platform } from "react-native";
 import { store } from "@/utils/store";
 import type { CustomHeader } from "./types";
 
@@ -220,11 +221,16 @@ export function deleteSecureCustomHeaderValues(headers: CustomHeader[]): void {
  * read back from its new item, keeps its row as it is and is tried again the
  * next time. A row that was moved no longer has a legacy key, so running this
  * again does nothing.
+ *
+ * iOS only: the accessibility is the Keychain's, and nowhere else is there a
+ * reason to touch a stored secret.
  */
 export function recreateLegacySecureValues(
   scope: string,
   headers: CustomHeader[],
 ): { headers: CustomHeader[]; replaced: CustomHeader[] } | null {
+  if (Platform.OS !== "ios") return null;
+
   const takenKeys = new Set(
     headers.filter(isStoredCustomHeader).map((header) => header.secureValueKey),
   );

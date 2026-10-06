@@ -1,4 +1,5 @@
 import * as SecureStore from "expo-secure-store";
+import { stubReactNative } from "@/test-utils/reactNative";
 import {
   clearSecureStore,
   lockSecureStore,
@@ -170,6 +171,7 @@ describe("a header value on a locked phone", () => {
 
   beforeEach(() => {
     clearSecureStore();
+    stubReactNative();
   });
 
   test("can be read when this build stored it", () => {
@@ -285,6 +287,16 @@ describe("a header value on a locked phone", () => {
         expect.objectContaining({ value: "id" }),
         expect.objectContaining({ value: "s" }),
       ]);
+    });
+
+    // The accessibility is the iOS Keychain's. On Android there is nothing
+    // to gain from storing a secret a second time.
+    test("is left alone on Android", () => {
+      const row = storedByAnEarlierBuild("CF-Access-Client-Secret", "secret");
+      stubReactNative({ OS: "android" });
+
+      expect(recreateLegacySecureValues(scope, [row])).toBe(null);
+      expect([...secureStoreValues.keys()]).toEqual([legacyKey(0)]);
     });
 
     // The rows are whatever an older build left in storage.
