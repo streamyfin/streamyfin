@@ -82,11 +82,6 @@ final class MPVPlayerEngine: NSObject {
 		renderer = MPVLayerRenderer(displayLayer: displayLayer)
 		renderer?.delegate = self
 
-		// Warm the answer off the main thread; see `pictureInPictureSupported`.
-		DispatchQueue.global(qos: .userInitiated).async {
-			_ = MPVPlayerEngine.pictureInPictureSupported
-		}
-
 		NotificationCenter.default.addObserver(
 			self, selector: #selector(handleAudioSessionInterruption),
 			name: AVAudioSession.interruptionNotification, object: nil)
@@ -477,8 +472,10 @@ final class MPVPlayerEngine: NSObject {
 	/// A device capability, so one answer serves the whole process. AVKit's
 	/// own answer is not free: PlayerTopBar asks from its SwiftUI body, on
 	/// every evaluation, and one such call held the main thread for 4 seconds
-	/// (Sentry REACT-NATIVE-FC). Resolved once, and `init` warms it off the
-	/// main thread so that the first reader on main rarely pays for it.
+	/// (Sentry REACT-NATIVE-FC). Resolved once, on first use, by whoever asks.
+	/// Deliberately not warmed from a background queue: main would then wait
+	/// on this initializer, and if AVKit needs the main thread to answer, the
+	/// two wait on each other for good.
 	private static let pictureInPictureSupported =
 		AVPictureInPictureController.isPictureInPictureSupported()
 
