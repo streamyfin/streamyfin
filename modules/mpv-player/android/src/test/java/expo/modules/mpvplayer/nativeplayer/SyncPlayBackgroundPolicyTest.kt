@@ -33,4 +33,30 @@ class SyncPlayBackgroundPolicyTest {
         assertFalse(stopped(changingConfigurations = true))
         assertFalse(stopped(syncPlayActive = false))
     }
+
+    private fun pipEnded(
+        inPictureInPicture: Boolean = false,
+        activityStopped: Boolean = true,
+        syncPlayActive: Boolean = true,
+        dismissing: Boolean = false
+    ) = shouldLeaveSyncPlayOnPictureInPictureEnd(
+        inPictureInPicture, activityStopped, syncPlayActive, dismissing
+    )
+
+    // The stop that closing a PiP window causes still reports PiP, so the
+    // stop rule lets it pass: without this one the member plays on unseen.
+    @Test fun closingThePipWindowLeavesTheGroup() {
+        assertFalse(stopped(inPictureInPicture = true))
+        assertTrue(pipEnded())
+    }
+
+    @Test fun expandingPipBackToFullScreenKeepsTheGroup() {
+        assertFalse(pipEnded(activityStopped = false))
+    }
+
+    @Test fun enteringPipSoloPlaybackAndPlayerDismissalAreNotAPipClose() {
+        assertFalse(pipEnded(inPictureInPicture = true))
+        assertFalse(pipEnded(syncPlayActive = false))
+        assertFalse(pipEnded(dismissing = true))
+    }
 }

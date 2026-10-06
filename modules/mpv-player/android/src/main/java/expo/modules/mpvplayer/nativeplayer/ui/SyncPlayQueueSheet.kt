@@ -49,9 +49,19 @@ import expo.modules.mpvplayer.nativeplayer.syncPlayQueueControlEnabled
 import expo.modules.mpvplayer.nativeplayer.syncPlayQueueGatedControlEnabled
 import kotlinx.coroutines.delay
 
-/** The same native controls are used by the phone and DPAD-driven TV chrome. */
+/**
+ * The group's queue and modes inside the player. A phone gets the sheet the
+ * iOS player shows (SyncPlayQueueView.swift): grouped rows, drag to reorder.
+ * A remote cannot drag or flick a switch, so the TV chrome keeps a dialog of
+ * buttons.
+ */
 @Composable
 fun SyncPlayQueueSheet(viewModel: PlayerViewModel) {
+    if (viewModel.isTvChrome) SyncPlayQueueTvDialog(viewModel) else SyncPlayQueuePhoneSheet(viewModel)
+}
+
+@Composable
+private fun SyncPlayQueueTvDialog(viewModel: PlayerViewModel) {
     val state = viewModel.syncPlay ?: return
     // A temporary request must not remove the focused TV node. Capability
     // restrictions still disable unavailable controls; busy actions are ignored

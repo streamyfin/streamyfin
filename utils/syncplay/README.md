@@ -35,7 +35,7 @@ against the Jellyfin 10.11 server and web sources, and run against 10.11.11.
 | `SyncPlayQueue` | The queue in the panel, on the music player's `DraggableQueueList`: posters, drag to reorder, remove, tap to play |
 | `SyncPlayQueueButton` | "Play next" and "add to queue" for what a page shows. Only there in a group |
 | Play buttons | In a group they carry the SyncPlay icon and play for everyone, through `usePlayMedia` |
-| Queue in the player | Native, fed by `buildNativeSyncPlayState`: `SyncPlayQueueView.swift` (a sheet, iOS), `TVSyncPlayPanel.swift` (a focus panel on its own layer, tvOS), `SyncPlayQueueSheet.kt` (Android and Android TV) |
+| Queue in the player | Native, fed by `buildNativeSyncPlayState`: `SyncPlayQueueView.swift` (a sheet, iOS), `TVSyncPlayPanel.swift` (a focus panel on its own layer, tvOS), `SyncPlayQueuePhoneSheet.kt` (a sheet laid out as the iOS one, Android) and the dialog of buttons in `SyncPlayQueueSheet.kt` (Android TV) |
 | `NativePlayerProvider` | The player adapter: decoder state in, group commands out |
 | Swift and Kotlin `SyncPlayCommandScheduler` | Runs a command at its deadline, on the decoder |
 
@@ -142,6 +142,11 @@ getters. Update that state before calling `notifyReady`, `notifyBuffering` or
   the first card when its rows change, the delay before the player opens) and the
   player's controls keeping focus when they become unavailable. Removing the focused
   queue row in the player still drops focus.
+- Android TV still shows the queue as a dialog of buttons. It has not been run, and it
+  is the one queue that was not redesigned.
+- Android rejoining after a lock or a closed picture in picture window makes the group
+  wait twice within two seconds: the player reports buffering again while it rebuilds
+  its video output.
 - TV has no way to add to a group's queue, and its sheet does not show the queue. Play
   on an item replaces what the group plays.
 - Seek latency is not compensated. A decoder whose seeks take longer than the drift
