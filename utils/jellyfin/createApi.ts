@@ -4,8 +4,8 @@ import {
   getJellyfinHeaders,
   headersUnreadable,
   isUrlForBaseUrl,
+  unreadableHeadersError,
 } from "@/utils/customHeaders";
-import { markExpectedError } from "@/utils/errors";
 
 /**
  * Whether a request URL carries its own origin, and so ignores whatever base
@@ -86,11 +86,7 @@ export function createApiWithCustomHeaders(
     // request is turned away by the user's gateway, and a gateway that answers
     // 401 would end the session in `JellyfinProvider` over a phone that was
     // merely locked. Failing here leaves no response for anything to misread.
-    if (headersUnreadable(headers)) {
-      throw markExpectedError(
-        new Error("Custom headers are unreadable, request not sent"),
-      );
-    }
+    if (headersUnreadable(headers)) throw unreadableHeadersError();
 
     for (const [key, value] of Object.entries(headers)) {
       config.headers.set(key, value);

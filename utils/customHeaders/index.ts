@@ -16,7 +16,6 @@ export {
   getIntegrationHeaders,
   getJellyfinHeaders,
   getJellyfinHeadersForUrl,
-  headersUnreadable,
 } from "./resolve";
 export {
   bumpCustomHeadersVersion,
@@ -32,4 +31,5 @@ export type {
   HeaderSource,
   IntegrationKey,
 } from "./types";
+export { headersUnreadable, unreadableHeadersError } from "./unreadable";
 export { isUrlForBaseUrl, normalizeHttpBaseUrl } from "./urlMatching";

@@ -10,6 +10,11 @@ import {
 } from "@/utils/customHeaders/optionalHeaders";
 import { HEADER_PRESETS, presetRows } from "@/utils/customHeaders/presets";
 import {
+  headersUnreadable,
+  UNREADABLE_HEADERS,
+  unreadableHeadersError,
+} from "@/utils/customHeaders/unreadable";
+import {
   isUrlForBaseUrl,
   normalizeHttpBaseUrl,
 } from "@/utils/customHeaders/urlMatching";
@@ -21,7 +26,7 @@ let configuredFor: string | undefined;
  * What the resolvers answer on a locked phone, where the Keychain refuses the
  * stored values. Pass it to `setJellyfinHeaders` to put a spec there.
  */
-export const unreadableHeaders: Record<string, string> = Object.freeze({});
+export const unreadableHeaders = UNREADABLE_HEADERS;
 
 /**
  * Sets the proxy auth headers the double reports. Call it from a spec's
@@ -70,6 +75,8 @@ export const customHeadersModule = () => ({
   presetRows,
   isUrlForBaseUrl,
   normalizeHttpBaseUrl,
+  headersUnreadable,
+  unreadableHeadersError,
 
   // Read through the binding rather than captured, so what a spec sets in
   // beforeEach applies to the test that follows.
@@ -88,8 +95,6 @@ export const customHeadersModule = () => ({
     const headers = configuredForServer(serverUrl) ? jellyfinHeaders : {};
     return Object.keys(headers).length > 0 ? headers : undefined;
   },
-  headersUnreadable: (headers: Record<string, string>) =>
-    headers === unreadableHeaders,
   getHeadersForUrl: () => undefined,
   getIntegrationHeaders: () => ({}),
   getIntegrationHeaderConfig: () => undefined,

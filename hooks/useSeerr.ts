@@ -20,8 +20,8 @@ import {
   customHeadersVersionAtom,
   getIntegrationHeaders,
   headersUnreadable,
+  unreadableHeadersError,
 } from "@/utils/customHeaders";
-import { markExpectedError } from "@/utils/errors";
 import { logAndCaptureError, writeErrorLog, writeToLog } from "@/utils/log";
 import { settleSeerrFailure } from "@/utils/seerr/errorReporting";
 import { tmdbImageUrl } from "@/utils/seerr/images";
@@ -636,9 +636,7 @@ export class SeerrApi {
         // handler above takes for the session being over. Nothing is sent
         // instead; `useSeerr` rebuilds the client once they can be read.
         if (headersUnreadable(this.customHeaders)) {
-          throw markExpectedError(
-            new Error("Custom headers are unreadable, request not sent"),
-          );
+          throw unreadableHeadersError();
         }
 
         // set() rather than index assignment so axios normalizes the name and

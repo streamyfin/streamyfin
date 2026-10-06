@@ -12,9 +12,9 @@ import {
   getHeadersForUrl,
   getIntegrationHeaders,
   getJellyfinHeaders,
-  headersUnreadable,
 } from "./resolve";
 import { bumpCustomHeadersVersion } from "./secureValues";
+import { headersUnreadable } from "./unreadable";
 
 jest.mock(
   "react-native-mmkv",
