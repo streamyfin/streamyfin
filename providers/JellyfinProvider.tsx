@@ -428,6 +428,9 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
           );
           storage.set("token", AccessToken);
           storage.set("user", JSON.stringify(User));
+          // As every other sign-in does: without it the plugin's locks and
+          // Seerr address waited for the next return to the foreground.
+          await refreshStreamyfinPluginSettings();
           return true;
         }
       }
@@ -446,7 +449,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       console.error("Error polling Quick Connect:", error);
       throw error;
     }
-  }, [api, secret, headers, jellyfin]);
+  }, [api, secret, headers, jellyfin, refreshStreamyfinPluginSettings]);
 
   useEffect(() => {
     (async () => {
