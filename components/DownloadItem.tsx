@@ -22,6 +22,7 @@ import { Colors } from "@/constants/Colors";
 import useRouter from "@/hooks/useAppRouter";
 import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
 import { useDownload } from "@/providers/DownloadProvider";
+import { lacksMediaSource } from "@/providers/Downloads/downloadRequest";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { queueAtom } from "@/utils/atoms/queue";
 import { useSettings } from "@/utils/atoms/settings";
@@ -207,15 +208,21 @@ export const DownloadItems: React.FC<DownloadProps> = ({
 
   const initiateDownload = useCallback(
     async (...items: BaseItemDto[]) => {
-      if (
-        !api ||
-        !user?.Id ||
-        items.some((p) => !p.Id) ||
-        (itemsNotDownloaded.length === 1 && !selectedOptions?.mediaSource?.Id)
-      ) {
+      if (!api || !user?.Id || items.some((p) => !p.Id)) {
         throw new Error(
           "DownloadItem ~ initiateDownload: No api or user or item",
         );
+      }
+      // Reachable by pressing download, unlike the broken state above: the
+      // user is told and nothing is reported.
+      if (
+        lacksMediaSource(
+          itemsNotDownloaded.length,
+          selectedOptions?.mediaSource,
+        )
+      ) {
+        toast.error(t("home.downloads.toasts.no_media_source_to_download"));
+        return;
       }
       const downloadDetailsPromises = items.map(async (item) => {
         // Ensure the snapshot we store offline carries the Chapters array.
