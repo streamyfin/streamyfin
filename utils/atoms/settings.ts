@@ -982,9 +982,7 @@ export const useSettings = () => {
           ...result.overlay,
         } as Settings;
         saveSettings(newSettings);
-        if (result.applied) {
-          storage.setAny(PLUGIN_APPLIED_DEFAULTS, result.applied);
-        }
+        storage.setAny(PLUGIN_APPLIED_DEFAULTS, result.applied);
         return newSettings;
       });
     }

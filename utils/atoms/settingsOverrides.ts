@@ -126,7 +126,7 @@ export const pluginRefreshOverlay = (
   normalize: NormalizePluginValue,
 ): {
   overlay: Partial<Settings>;
-  applied: AppliedPluginDefaults | null;
+  applied: AppliedPluginDefaults;
 } | null => {
   // Only what the admin declared is applied. An admin who wants to impose a
   // search engine declares searchEngine, locked to impose it or unlocked to
