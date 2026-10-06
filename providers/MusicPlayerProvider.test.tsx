@@ -379,6 +379,40 @@ describe("MusicPlayerProvider and the native queue", () => {
     expect(player.queueIndex).toBe(1);
   });
 
+  // The native queue lines up with the one on screen here, so the copy the
+  // player landed on is the row at the same index, not the first row that
+  // has its id.
+  test("previous wraps to the last copy of a track that is queued twice", async () => {
+    storage.set("music_player_repeat_mode", "all");
+    await mount();
+    await run((p) => p.playQueue(["a", "b", "a"].map(track), 0));
+
+    await run((p) => p.previous());
+
+    expect(mockNative.activeIndex).toBe(2);
+    expect(player.queueIndex).toBe(2);
+  });
+
+  // After a jump has loaded a track on demand the native queue has gaps, and
+  // its neighbours are not the rows next to each other on screen.
+  test("next and previous show the track the player moved to across a gap", async () => {
+    persistQueue(ALBUM, 2);
+    await mount();
+    await run((p) => p.resume());
+    await run((p) => p.jumpToIndex(4));
+    expect(nativeIds()).toEqual(["t2", "t4"]);
+
+    await run((p) => p.previous());
+    expect(nativeActiveId()).toBe("t2");
+    expect(player.currentTrack?.Id).toBe("t2");
+    expect(player.queueIndex).toBe(2);
+
+    await run((p) => p.next());
+    expect(nativeActiveId()).toBe("t4");
+    expect(player.currentTrack?.Id).toBe("t4");
+    expect(player.queueIndex).toBe(4);
+  });
+
   test("next leaves a restored queue alone until something is loaded", async () => {
     storage.set("music_player_repeat_mode", "all");
     persistQueue(ALBUM, 2);

@@ -418,12 +418,21 @@ const addInQueueOrder = async (
 };
 
 // Points the state at the track the native player was just moved to. By id:
-// the two queues only share indexes once the native one is fully loaded.
+// the two queues only share indexes once the native one is fully loaded. When
+// they do line up at `nativeIndex`, that row is the one, which matters for a
+// track that is queued twice.
 const withCurrentTrack = (
   prev: MusicPlayerState,
-  trackId: string | undefined,
+  nativeQueue: Track[],
+  nativeIndex: number,
 ): MusicPlayerState => {
-  const index = trackId ? prev.queue.findIndex((t) => t.Id === trackId) : -1;
+  const trackId: string | undefined = nativeQueue[nativeIndex]?.id;
+  if (!trackId) return prev;
+
+  const index =
+    prev.queue[nativeIndex]?.Id === trackId
+      ? nativeIndex
+      : prev.queue.findIndex((t) => t.Id === trackId);
   if (index < 0) return prev;
 
   const track = prev.queue[index];
@@ -1197,20 +1206,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         );
       }
       await TrackPlayer.skipToNext();
-      const newIndex = currentIndex + 1;
-      setState((prev) => {
-        const nextTrack = prev.queue[newIndex];
-        const mediaInfo = nextTrack?.Id
-          ? prev.trackMediaInfoMap[nextTrack.Id]
-          : null;
-        return {
-          ...prev,
-          queueIndex: newIndex,
-          currentTrack: nextTrack,
-          mediaSource: mediaInfo?.mediaSource ?? null,
-          isTranscoding: mediaInfo?.isTranscoding ?? false,
-        };
-      });
+      setState((prev) => withCurrentTrack(prev, nativeQueue, currentIndex + 1));
     } else if (state.repeatMode === "all" && queueLength > 0) {
       // Wrapping needs a native track to wrap to. A queue restored after a
       // restart is only on screen until playback resumes, and the native side
@@ -1223,7 +1219,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         );
       }
       await TrackPlayer.skip(0);
-      setState((prev) => withCurrentTrack(prev, nativeQueue[0].id));
+      setState((prev) => withCurrentTrack(prev, nativeQueue, 0));
     }
   }, [
     state.currentTrack,
@@ -1246,6 +1242,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     }
 
     const currentIndex = await TrackPlayer.getActiveTrackIndex();
+    const nativeQueue: Track[] = await TrackPlayer.getQueue();
 
     if (currentIndex !== undefined && currentIndex > 0) {
       if (state.currentTrack && state.playSessionId) {
@@ -1256,25 +1253,11 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         );
       }
       await TrackPlayer.skipToPrevious();
-      const newIndex = currentIndex - 1;
-      setState((prev) => {
-        const prevTrack = prev.queue[newIndex];
-        const mediaInfo = prevTrack?.Id
-          ? prev.trackMediaInfoMap[prevTrack.Id]
-          : null;
-        return {
-          ...prev,
-          queueIndex: newIndex,
-          currentTrack: prevTrack,
-          mediaSource: mediaInfo?.mediaSource ?? null,
-          isTranscoding: mediaInfo?.isTranscoding ?? false,
-        };
-      });
+      setState((prev) => withCurrentTrack(prev, nativeQueue, currentIndex - 1));
     } else if (state.repeatMode === "all") {
       // Wrap to the last track the native queue holds, not the last one on
       // screen: while the queue is still loading the native one is shorter,
       // and it rejects an index past its end.
-      const nativeQueue: Track[] = await TrackPlayer.getQueue();
       const lastIndex = nativeQueue.length - 1;
       if (lastIndex < 0) return;
 
@@ -1286,7 +1269,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         );
       }
       await TrackPlayer.skip(lastIndex);
-      setState((prev) => withCurrentTrack(prev, nativeQueue[lastIndex].id));
+      setState((prev) => withCurrentTrack(prev, nativeQueue, lastIndex));
     }
   }, [
     state.currentTrack,
