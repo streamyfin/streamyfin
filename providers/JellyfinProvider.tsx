@@ -24,7 +24,7 @@ import { getDeviceNameSync } from "react-native-device-info";
 import { toast } from "sonner-native";
 import useRouter from "@/hooks/useAppRouter";
 import { useInterval } from "@/hooks/useInterval";
-import { JellyseerrApi, useJellyseerr } from "@/hooks/useJellyseerr";
+import { SeerrApi, useSeerr } from "@/hooks/useSeerr";
 import { settingsAtom, useSettings } from "@/utils/atoms/settings";
 import {
   getIntegrationHeaders,
@@ -33,7 +33,6 @@ import {
 import { getOrSetDeviceId } from "@/utils/device";
 import { markExpectedError } from "@/utils/errors";
 import { createApiWithCustomHeaders } from "@/utils/jellyfin/createApi";
-import { signInWithQuickConnect } from "@/utils/jellyseerrQuickConnect";
 import {
   logAndCaptureError,
   writeErrorLog,
@@ -47,14 +46,15 @@ import {
   addAccountToServer,
   addServerToList,
   deleteAccountCredential,
-  deleteJellyseerrPassword,
   getAccountCredential,
+  getCredentialOrForgetAccount,
   hashPIN,
   migrateToMultiAccount,
   saveAccountCredential,
-  saveJellyseerrPassword,
   updateAccountToken,
 } from "@/utils/secureCredentials";
+import { deleteSeerrPassword, saveSeerrPassword } from "@/utils/seerrPassword";
+import { signInWithQuickConnect } from "@/utils/seerrQuickConnect";
 import { store } from "@/utils/store";
 import { clearTVDiscoverySafely } from "@/utils/tvDiscovery/sync";
 import { APP_VERSION } from "@/utils/version";
@@ -209,8 +209,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
   const [secret, setSecret] = useState<string | null>(null);
   const { settings, setPluginSettings, refreshStreamyfinPluginSettings } =
     useSettings();
-  const { clearAllJellyseerData, jellyseerrUser, setJellyseerrUser } =
-    useJellyseerr();
+  const { clearAllSeerrData, seerrUser, setSeerrUser } = useSeerr();
   const queryClient = useQueryClient();
 
   // Passwordless Seerr sign-in, in order of how much it costs the user.
@@ -228,31 +227,31 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
   // Either way this covers Quick Connect and OIDC logins to Jellyfin, where no
   // password is ever available. One attempt per server+user per app run, so a
   // failing server cannot turn into a retry loop.
-  const jellyseerrAutoConnectAttempt = useRef<string | null>(null);
+  const seerrAutoConnectAttempt = useRef<string | null>(null);
   useEffect(() => {
     if (!user?.Id) {
       // Logout invalidates the guard so the next login may connect again.
-      jellyseerrAutoConnectAttempt.current = null;
+      seerrAutoConnectAttempt.current = null;
       return;
     }
-    const serverUrl = settings?.jellyseerrServerUrl;
-    const apiKey = settings?.jellyseerrApiKey;
+    const serverUrl = settings?.seerrServerUrl;
+    const apiKey = settings?.seerrApiKey;
     // The API-key path. Without a key, the passwordless launch sign-in is
-    // JellyseerrAutoLogin's; gating this on the key keeps the two from both
+    // SeerrAutoLogin's; gating this on the key keeps the two from both
     // running Quick Connect for the same user and racing to open a session.
-    if (!serverUrl || !apiKey || jellyseerrUser) return;
+    if (!serverUrl || !apiKey || seerrUser) return;
     const attemptKey = `${serverUrl}:${user.Id}`;
-    if (jellyseerrAutoConnectAttempt.current === attemptKey) return;
-    jellyseerrAutoConnectAttempt.current = attemptKey;
+    if (seerrAutoConnectAttempt.current === attemptKey) return;
+    seerrAutoConnectAttempt.current = attemptKey;
 
     const userId = user.Id;
     // Three round trips is long enough to log out or switch account in, and
     // the Seerr session belongs to whoever approved the code.
     const stillCurrent = () => store.get(userAtom)?.Id === userId;
     (async () => {
-      const seerr = new JellyseerrApi(
+      const seerr = new SeerrApi(
         serverUrl,
-        getIntegrationHeaders("jellyseerr"),
+        getIntegrationHeaders("seerr"),
         apiKey,
       );
 
@@ -265,7 +264,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
           stillCurrent,
         );
         if (quickConnected) {
-          setJellyseerrUser(quickConnected);
+          setSeerrUser(quickConnected);
           return;
         }
       }
@@ -274,7 +273,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       // resolved for the previous user, it would sign the next one in as them.
       if (!stillCurrent()) return;
       try {
-        setJellyseerrUser(await seerr.loginWithApiKey(userId));
+        setSeerrUser(await seerr.loginWithApiKey(userId));
       } catch (e) {
         writeErrorLog(
           `Seerr API-key sign-in failed: ${e instanceof Error ? e.message : e}`,
@@ -284,10 +283,10 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
   }, [
     api,
     user?.Id,
-    settings?.jellyseerrServerUrl,
-    settings?.jellyseerrApiKey,
-    jellyseerrUser,
-    setJellyseerrUser,
+    settings?.seerrServerUrl,
+    settings?.seerrApiKey,
+    seerrUser,
+    setSeerrUser,
   ]);
 
   // --- Session-expiry handling ----------------------------------------------
@@ -301,16 +300,16 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
 
   // Shared teardown for manual logout AND forced session expiry — keeping it
   // in one place prevents the two paths from drifting (a 401 expiry must wipe
-  // plugin settings / Jellyseerr state too, or the next login on the same
+  // plugin settings / Seerr state too, or the next login on the same
   // device inherits the previous user's data).
   // Saved credentials are kept so the user can quick-login again.
   const clearSessionState = useCallback(async () => {
-    // Read before the wipe below: the Jellyseerr password is filed under the
+    // Read before the wipe below: the Seerr password is filed under the
     // Jellyfin server URL + user id, and both are about to be cleared.
     const jellyfinUrl = storage.getString("serverUrl");
     const jellyfinUserId = store.get(userAtom)?.Id;
 
-    // All synchronous teardown first: if the async Jellyseerr cleanup below
+    // All synchronous teardown first: if the async Seerr cleanup below
     // fails or resolves late (user may already be re-authenticating), the
     // session/cache state is already gone.
     storage.remove("token");
@@ -323,19 +322,19 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     queryClient.clear();
 
     if (jellyfinUrl && jellyfinUserId) {
-      await deleteJellyseerrPassword(jellyfinUrl, jellyfinUserId).catch((e) =>
-        writeErrorLog(`Failed to clear Jellyseerr password: ${e}`),
+      await deleteSeerrPassword(jellyfinUrl, jellyfinUserId).catch((e) =>
+        writeErrorLog(`Failed to clear Seerr password: ${e}`),
       );
     }
 
     try {
-      await clearAllJellyseerData();
+      await clearAllSeerrData();
     } catch (e) {
       writeErrorLog(
-        `Failed to clear Jellyseerr data: ${e instanceof Error ? e.message : e}`,
+        `Failed to clear Seerr data: ${e instanceof Error ? e.message : e}`,
       );
     }
-  }, [setUser, setApi, setPluginSettings, clearAllJellyseerData, queryClient]);
+  }, [setUser, setApi, setPluginSettings, clearAllSeerrData, queryClient]);
 
   const handleSessionExpired = useCallback(() => {
     if (sessionExpiredRef.current) return; // run once per session
@@ -614,12 +613,12 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
           // without a password — don't start a password session here, and
           // don't store the password either.
           if (
-            recentPluginSettings?.jellyseerrServerUrl?.value &&
-            !recentPluginSettings?.jellyseerrApiKey?.value
+            recentPluginSettings?.seerrServerUrl?.value &&
+            !recentPluginSettings?.seerrApiKey?.value
           ) {
-            const jellyseerrApi = new JellyseerrApi(
-              recentPluginSettings.jellyseerrServerUrl.value,
-              getIntegrationHeaders("jellyseerr"),
+            const seerrApi = new SeerrApi(
+              recentPluginSettings.seerrServerUrl.value,
+              getIntegrationHeaders("seerr"),
             );
             const jellyfinServerUrl = api.basePath;
             const jellyfinUserId = auth.data.User.Id;
@@ -630,47 +629,45 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
             // can open a session from the Jellyfin token means there is no
             // reason to keep the user's password on the device at all.
             const quickConnected = await signInWithQuickConnect(
-              jellyseerrApi,
+              seerrApi,
               authedApi,
               stillCurrent,
             );
-            if (quickConnected) setJellyseerrUser(quickConnected);
+            if (quickConnected) setSeerrUser(quickConnected);
 
             // The password path runs only when Quick Connect could not open a
             // session, so on a server that supports it nothing is ever stored.
             // Nor for an account that has since been left: the password is
             // the previous user's, and would be stored under their id.
             if (!quickConnected && stillCurrent())
-              await jellyseerrApi.test().then((result) => {
+              await seerrApi.test().then((result) => {
                 if (result.isValid && result.requiresPass) {
-                  jellyseerrApi
+                  seerrApi
                     .login(username, password)
                     .then((seerrUser) => {
-                      setJellyseerrUser(seerrUser);
-                      // Remember the password so Jellyseerr can be signed in
+                      setSeerrUser(seerrUser);
+                      // Remember the password so Seerr can be signed in
                       // again on later launches — but only once it has proven
                       // to work, and only on a server where Quick Connect just
                       // declined, since that is the token-shaped alternative
                       // and it runs first. Goes to the platform secure store,
                       // never MMKV; users who typed their own URL get nothing
-                      // stored, and the autoLoginJellyseerr toggle opts out.
+                      // stored, and the autoLoginSeerr toggle opts out.
                       const autoLogin =
-                        store.get(settingsAtom)?.autoLoginJellyseerr !== false;
+                        store.get(settingsAtom)?.autoLoginSeerr !== false;
                       if (jellyfinServerUrl && jellyfinUserId && autoLogin) {
-                        saveJellyseerrPassword(
+                        saveSeerrPassword(
                           jellyfinServerUrl,
                           jellyfinUserId,
                           password,
                         ).catch((e) =>
-                          writeErrorLog(
-                            `Could not store Jellyseerr password: ${e}`,
-                          ),
+                          writeErrorLog(`Could not store Seerr password: ${e}`),
                         );
                       }
                     })
                     .catch((e) =>
                       writeErrorLog(
-                        `Jellyseerr sign-in at login failed: ${
+                        `Seerr sign-in at login failed: ${
                           e instanceof Error ? e.message : e
                         }`,
                       ),
@@ -767,9 +764,11 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     }) => {
       if (!jellyfin) throw new Error("Jellyfin not initialized");
 
-      const credential = await getAccountCredential(serverUrl, userId);
+      const credential = await getCredentialOrForgetAccount(serverUrl, userId);
       if (!credential) {
-        throw new Error("No saved credential found");
+        // Nothing to sign in with, and nothing the app got wrong on this
+        // attempt: the user is told to sign in again, as for a rejected token.
+        throw markExpectedError(new Error(t("server.session_expired")));
       }
 
       // Create API instance with saved token

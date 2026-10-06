@@ -1,11 +1,14 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { useSetAtom } from "jotai";
 import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
+import { Alert } from "react-native";
 import useRouter from "@/hooks/useAppRouter";
 import { isNativePlayerPresented } from "@/modules/mpv-player";
 import { useNativePlayer } from "@/providers/NativePlayerProvider";
 import { isNativeChromeActive, useSettings } from "@/utils/atoms/settings";
 import { shuffleQueueAtom } from "@/utils/atoms/shuffleQueue";
+import { isPlayableItem } from "@/utils/jellyfin/media/isPlayableItem";
 import { writeErrorLog } from "@/utils/log";
 import {
   type PlayRequest,
@@ -17,7 +20,8 @@ interface PlayMediaOptions {
   preserveShuffleQueue?: boolean;
   /**
    * Pass when available: lets the chooser route Live TV (Program/TvChannel)
-   * straight to the JS route, which owns live-stream lifecycle handling.
+   * straight to the JS route, which owns live-stream lifecycle handling, and
+   * refuse an item that has nothing to play before a player is opened.
    */
   item?: BaseItemDto | null;
 }
@@ -35,9 +39,18 @@ export const usePlayMedia = () => {
   const { settings, updateSettings } = useSettings();
   const setShuffleQueue = useSetAtom(shuffleQueueAtom);
   const { presentFromRequest } = useNativePlayer();
+  const { t } = useTranslation();
 
   return useCallback(
     async (req: PlayRequest, options?: PlayMediaOptions): Promise<void> => {
+      // A Book, a Season or a folder has no stream: both players would open,
+      // get a 400 from the server and leave the user on a dead screen. Say
+      // why instead, and leave the shuffle queue and auto-play chain alone.
+      if (options?.item && !isPlayableItem(options.item)) {
+        Alert.alert(t("player.error"), t("player.unsupported_item_type"));
+        return;
+      }
+
       // Moved from PlayButton.goToPlayer: a fresh play resets the auto-play
       // chain counter and cancels any active shuffle queue.
       if (settings.maxAutoPlayEpisodeCount.value !== -1) {
@@ -70,6 +83,6 @@ export const usePlayMedia = () => {
 
       router.push(`/player/direct-player?${toDirectPlayerQuery(req)}`);
     },
-    [router, settings, updateSettings, setShuffleQueue, presentFromRequest],
+    [router, settings, updateSettings, setShuffleQueue, presentFromRequest, t],
   );
 };

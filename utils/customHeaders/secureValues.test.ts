@@ -1,22 +1,14 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
-
-const secureStoreValues = new Map<string, string>();
-
-mock.module("expo-secure-store", () => ({
-  getItem: (key: string) => secureStoreValues.get(key) ?? null,
-  setItem: (key: string, value: string) => {
-    secureStoreValues.set(key, value);
-  },
-  deleteItemAsync: async (key: string) => {
-    secureStoreValues.delete(key);
-  },
-}));
-
-const { resolveCustomHeaderValues, secureCustomHeaderMetadata } = await import(
-  "./secureValues"
-);
-
+import { secureStoreValues } from "@/test-utils/secureStore";
+import {
+  resolveCustomHeaderValues,
+  secureCustomHeaderMetadata,
+} from "./secureValues";
 import type { CustomHeader } from "./types";
+
+jest.mock(
+  "expo-secure-store",
+  () => jest.requireActual("@/test-utils/secureStore").secureStoreModule,
+);
 
 const header = (
   key: string,

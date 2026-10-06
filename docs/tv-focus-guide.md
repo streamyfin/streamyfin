@@ -302,4 +302,4 @@ const TVCastCard: React.FC<TVCastCardProps> = ({
 
 ## Reference Implementation
 
-See `components/jellyseerr/tv/TVJellyseerrPage.tsx` for a complete implementation of bidirectional focus navigation between action buttons and a cast list.
+See `components/seerr/tv/TVSeerrPage.tsx` for a complete implementation of bidirectional focus navigation between action buttons and a cast list.

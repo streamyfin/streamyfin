@@ -2,7 +2,7 @@
   "expo": {
     "name": "Streamyfin",
     "slug": "streamyfin",
-    "version": "0.55.0",
+    "version": "0.55.1",
     "orientation": "default",
     "icon": "./assets/images/icon.png",
     "scheme": "streamyfin",
@@ -106,6 +106,7 @@
         {
           "ios": {
             "deploymentTarget": "16.4",
+            "enableSceneSupport": true,
             "useFrameworks": "static",
             "forceStaticLinking": [
               "ExpoUI",
@@ -117,7 +118,7 @@
           "android": {
             "buildArchs": ["arm64-v8a", "x86_64", "armeabi-v7a"],
             "compileSdkVersion": 36,
-            "targetSdkVersion": 35,
+            "targetSdkVersion": 36,
             "buildToolsVersion": "35.0.0",
             "kotlinVersion": "2.1.20",
             "minSdkVersion": 26,

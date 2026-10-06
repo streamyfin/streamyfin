@@ -16,6 +16,7 @@ import type {
   DownloadErrorEvent as BGDownloadErrorEvent,
 } from "@/modules";
 import { BackgroundDownloader } from "@/modules";
+import { safeNamePart } from "@/providers/Downloads/utils";
 import { storage } from "@/utils/mmkv";
 import type {
   AudioStorageIndex,
@@ -471,9 +472,11 @@ export async function downloadTrack(
     return;
   }
 
-  // Use the actual container format as extension, fallback to m4a
-  const extension = options.container?.toLowerCase() || "m4a";
-  const filename = `${itemId}.${extension}`;
+  // Use the actual container format as extension, fallback to m4a. The id and the container are
+  // the server's to choose and native replaces whatever is at the path it is handed, so neither
+  // goes into the name as it came.
+  const extension = safeNamePart(options.container?.toLowerCase() || "m4a");
+  const filename = `${safeNamePart(itemId)}.${extension}`;
   const destinationPath =
     `${targetDir.uri.replace(/\/$/, "")}/${filename}`.replace("file://", "");
 

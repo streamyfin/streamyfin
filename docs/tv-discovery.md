@@ -22,6 +22,48 @@ The sync layer:
 - sends it to the Android TV recommendations module on Android TV
 - clears published content when server or user state changes
 
+## Tile Actions
+
+Every item in the payload carries two deep links, and the payload builder is the only
+place that decides what they point at:
+
+- `route` opens the item's page. `streamyfin://topshelf/item` is handled by
+  [app/topshelf/item.tsx](../app/topshelf/item.tsx), and
+  [utils/tvDiscovery/itemPath.ts](../utils/tvDiscovery/itemPath.ts) maps it to a screen.
+- `playRoute` is what Play does. For an item with a stream it is
+  `streamyfin://topshelf/play`, handled by [app/topshelf/play.tsx](../app/topshelf/play.tsx),
+  which hands the id to the player.
+
+A container (a series, a season, a collection, anything `isPlayableItem` refuses) has no
+stream: the server answers `PlaybackInfo` for it with a 400 or a 500. Its `playRoute` is
+therefore the same link as its `route`, so Play opens the same page Select does. Which
+page that is depends on the kind:
+
+- a series opens the series page, where the app picks the episode to continue with, the
+  same way Play on a series does inside the app
+- a season opens its series page with that season selected, which is why a season link
+  also carries `seriesId` and `seasonIndex`
+- anything else (a collection, a playlist, a season the server sent without its series)
+  opens the item page, which has no Play button for it
+
+Home only publishes movies and episodes today, so the last case is a guard. Publishing
+another container kind means giving it a landing in `itemPath.ts` first.
+
+A tile keeps the links it was published with until Home runs again, so a tile from an
+older build can still carry a play link for a container. `play.tsx` therefore asks the
+server what the id is before it opens a player
+([utils/tvDiscovery/playLanding.ts](../utils/tvDiscovery/playLanding.ts)) and sends a
+container to the same page its `route` would. The lookup gives up after
+`TOP_SHELF_PLAY_LOOKUP_TIMEOUT` and plays the link as it is, so an unreachable server
+cannot hold up the launch.
+
+How the platforms use the two links:
+
+- `tvOS`: `route` is the tile's display action (Select), `playRoute` its play action (the
+  Play button on the remote).
+- `Android TV`: a preview program has a single intent. It is `playRoute`, and `route`
+  when there is none.
+
 ## Apple TV Top Shelf
 
 Apple TV uses a Top Shelf extension target, not the main app process.

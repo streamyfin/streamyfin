@@ -1,29 +1,24 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
-import type { Api } from "@jellyfin/sdk";
 import type {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
-import { atom } from "jotai";
-import {
-  setJellyfinHeaders,
-  stubCustomHeaders,
-} from "@/test-utils/customHeaders";
+import { setJellyfinHeaders } from "@/test-utils/customHeaders";
 import { stubReactNative } from "@/test-utils/reactNative";
 
-// --- Module-boundary stubs (React Native / Expo can't load under bun:test) ---
+// --- Module-boundary stubs: keep the native surface out of this spec ---
 stubReactNative();
-mock.module("expo", () => ({
-  // codecSupport probes the native MPV module; under bun:test there is none.
+jest.mock("expo", () => ({
+  // codecSupport probes the native MPV module, which no test environment has.
   requireOptionalNativeModule: () => null,
 }));
-mock.module("@/components/BitrateSelector", () => ({}));
-stubCustomHeaders();
-// No proxy headers in these specs, set per test so another file cannot
-// leave its own behind.
+jest.mock("@/components/BitrateSelector", () => ({}));
+jest.mock("@/utils/customHeaders", () =>
+  jest.requireActual("@/test-utils/customHeaders").customHeadersModule(),
+);
+// No proxy headers in these specs.
 beforeEach(() => setJellyfinHeaders());
-mock.module("@/providers/JellyfinProvider", () => ({
-  apiAtom: atom<Api | null>(null),
+jest.mock("@/providers/JellyfinProvider", () => ({
+  apiAtom: jest.requireActual("jotai").atom(null),
 }));
 
 // Fake expo-file-system that records download calls instead of hitting disk.
@@ -36,26 +31,26 @@ const downloads: RecordedDownload[] = [];
 let inFlight = 0;
 let maxInFlight = 0;
 
-class FakeDirectory {
+class mockFakeDirectory {
   uri: string;
   exists = true;
-  constructor(...parts: (string | FakeDirectory)[]) {
+  constructor(...parts: (string | mockFakeDirectory)[]) {
     this.uri = `${parts.map((p) => (typeof p === "string" ? p : p.uri)).join("/")}/`;
   }
   create() {}
 }
-class FakeFile {
+class mockFakeFile {
   uri: string;
   exists = false;
   size = 0;
-  constructor(...parts: (string | FakeDirectory | FakeFile)[]) {
+  constructor(...parts: (string | mockFakeDirectory | mockFakeFile)[]) {
     this.uri = parts
       .map((p) => (typeof p === "string" ? p : p.uri.replace(/\/$/, "")))
       .join("/");
   }
   static downloadFileAsync = async (
     url: string,
-    destination: FakeFile,
+    destination: mockFakeFile,
     options?: { headers?: Record<string, string> },
   ) => {
     inFlight++;
@@ -66,17 +61,27 @@ class FakeFile {
     return destination;
   };
 }
-mock.module("expo-file-system", () => ({
-  Directory: FakeDirectory,
-  File: FakeFile,
+// jest.mock is hoisted above the class declarations, so the classes are read
+// through getters: by the time the module under test touches them, their
+// temporal dead zone is over.
+jest.mock("expo-file-system", () => ({
+  get Directory() {
+    return mockFakeDirectory;
+  },
+  get File() {
+    return mockFakeFile;
+  },
   Paths: { document: "file:///documents" },
 }));
 
-const { apiAtom } = await import("@/providers/JellyfinProvider");
-const { store } = await import("@/utils/store");
-const { makeApi } = await import("@/test-utils/jellyfinApi");
-const { downloadTrickplayImages, downloadSubtitles, downloadAdditionalAssets } =
-  await import("./additionalDownloads");
+import { apiAtom } from "@/providers/JellyfinProvider";
+import { makeApi } from "@/test-utils/jellyfinApi";
+import { store } from "@/utils/store";
+import {
+  downloadAdditionalAssets,
+  downloadSubtitles,
+  downloadTrickplayImages,
+} from "./additionalDownloads";
 
 const api = makeApi();
 // makeApi() throws on unmatched requests; the segment fetch is not under test.
@@ -207,6 +212,79 @@ describe("downloadSubtitles", () => {
 
     expect(downloads.length).toBe(3);
     expect(maxInFlight).toBe(1);
+  });
+});
+
+// The subtitle codec and, for item types other than Movie and Episode, the item id end up in the
+// names of what a download writes, and both are the server's to choose. A separator or a
+// parent-directory segment in one used to steer the write out of Documents or onto another file.
+describe("names built from values the server chooses", () => {
+  test.each([
+    ["a path separator", "srt/../x", "some_movie__subtitle_3.srt____x"],
+    ["a parent-directory segment", "..", "some_movie__subtitle_3.__"],
+  ])(
+    "writes a subtitle whose Codec is %s to a plain file in Documents",
+    async (_label, codec, name) => {
+      const mediaSource: MediaSourceInfo = {
+        MediaStreams: [
+          {
+            Type: "Subtitle",
+            DeliveryMethod: "External",
+            DeliveryUrl: "/Videos/item-1/subs/3/Stream.srt",
+            Index: 3,
+            Codec: codec,
+          },
+        ],
+      };
+
+      const result = await downloadSubtitles(mediaSource, trickplayItem, api);
+
+      expect(downloads.map((download) => download.destination)).toEqual([
+        `file:///documents/${name}`,
+      ]);
+      expect(result.MediaStreams?.[0].DeliveryUrl).toBe(
+        `file:///documents/${name}`,
+      );
+    },
+  );
+
+  describe("an item that is neither a movie nor an episode, whose id has a separator", () => {
+    const hostileItem: BaseItemDto = {
+      ...trickplayItem,
+      Id: "../escape",
+      Type: "Video",
+      Trickplay: { "../escape": trickplayItem.Trickplay?.["item-1"] ?? {} },
+    };
+
+    test("keeps its trickplay sheets in a folder directly under Documents", async () => {
+      await downloadTrickplayImages(hostileItem, api);
+
+      expect(downloads.map((download) => download.destination)).toEqual(
+        [0, 1, 2, 3].map(
+          (index) => `file:///documents/___escape_trickplay/${index}.jpg`,
+        ),
+      );
+    });
+
+    test("keeps its subtitles in Documents", async () => {
+      const mediaSource: MediaSourceInfo = {
+        MediaStreams: [
+          {
+            Type: "Subtitle",
+            DeliveryMethod: "External",
+            DeliveryUrl: "/Videos/x/subs/2/Stream.srt",
+            Index: 2,
+            Codec: "srt",
+          },
+        ],
+      };
+
+      await downloadSubtitles(mediaSource, hostileItem, api);
+
+      expect(downloads.map((download) => download.destination)).toEqual([
+        "file:///documents/___escape_subtitle_2.srt",
+      ]);
+    });
   });
 });
 

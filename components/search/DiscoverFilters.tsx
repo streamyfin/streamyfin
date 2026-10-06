@@ -1,6 +1,6 @@
 import { Platform, View } from "react-native";
 import { FilterButton } from "@/components/filters/FilterButton";
-import { JellyseerrSearchSort } from "@/components/jellyseerr/JellyseerrIndexPage";
+import { SeerrSearchSort } from "@/components/seerr/SeerrIndexPage";
 
 // @expo/ui's SwiftUI native module (ExpoUI) does not exist in tvOS builds.
 // A static top-level import crashes the route tree on tvOS at module load.
@@ -8,21 +8,21 @@ import { JellyseerrSearchSort } from "@/components/jellyseerr/JellyseerrIndexPag
 const { Button, Host, Menu } = Platform.isTV
   ? ({} as typeof import("@expo/ui/swift-ui"))
   : require("@expo/ui/swift-ui");
-const { buttonStyle } = Platform.isTV
+const { buttonStyle, labelStyle } = Platform.isTV
   ? ({} as typeof import("@expo/ui/swift-ui/modifiers"))
   : require("@expo/ui/swift-ui/modifiers");
 
 interface DiscoverFiltersProps {
   searchFilterId: string;
   orderFilterId: string;
-  jellyseerrOrderBy: JellyseerrSearchSort;
-  setJellyseerrOrderBy: (value: JellyseerrSearchSort) => void;
-  jellyseerrSortOrder: "asc" | "desc";
-  setJellyseerrSortOrder: (value: "asc" | "desc") => void;
+  seerrOrderBy: SeerrSearchSort;
+  setSeerrOrderBy: (value: SeerrSearchSort) => void;
+  seerrSortOrder: "asc" | "desc";
+  setSeerrSortOrder: (value: "asc" | "desc") => void;
   t: (key: string) => string;
 }
 
-const sortOptions = Object.keys(JellyseerrSearchSort).filter((v) =>
+const sortOptions = Object.keys(SeerrSearchSort).filter((v) =>
   Number.isNaN(Number(v)),
 );
 
@@ -31,10 +31,10 @@ const orderOptions = ["asc", "desc"] as const;
 export const DiscoverFilters: React.FC<DiscoverFiltersProps> = ({
   searchFilterId,
   orderFilterId,
-  jellyseerrOrderBy,
-  setJellyseerrOrderBy,
-  jellyseerrSortOrder,
-  setJellyseerrSortOrder,
+  seerrOrderBy,
+  setSeerrOrderBy,
+  seerrSortOrder,
+  setSeerrSortOrder,
   t,
 }) => {
   if (Platform.OS === "ios" && !Platform.isTV) {
@@ -51,29 +51,30 @@ export const DiscoverFilters: React.FC<DiscoverFiltersProps> = ({
       >
         <Menu
           label={
+            // A label, then only its icon shown: @expo/ui draws systemImage
+            // only when there is a label, and the button was an empty pill.
             <Button
-              modifiers={[buttonStyle("glass")]}
+              label={t("library.filters.sort_by")}
+              modifiers={[buttonStyle("glass"), labelStyle("iconOnly")]}
               systemImage='line.3.horizontal.decrease.circle'
             />
           }
         >
           <Menu
             label={`${t("library.filters.sort_by")}: ${t(
-              `home.settings.plugins.jellyseerr.order_by.${jellyseerrOrderBy}`,
+              `home.settings.plugins.seerr.order_by.${seerrOrderBy}`,
             )}`}
           >
             {sortOptions.map((item) => {
               const isSelected =
-                jellyseerrOrderBy === (item as unknown as JellyseerrSearchSort);
+                seerrOrderBy === (item as unknown as SeerrSearchSort);
               return (
                 <Button
                   key={item}
-                  label={t(`home.settings.plugins.jellyseerr.order_by.${item}`)}
+                  label={t(`home.settings.plugins.seerr.order_by.${item}`)}
                   systemImage={isSelected ? "checkmark.circle.fill" : "circle"}
                   onPress={() =>
-                    setJellyseerrOrderBy(
-                      item as unknown as JellyseerrSearchSort,
-                    )
+                    setSeerrOrderBy(item as unknown as SeerrSearchSort)
                   }
                 />
               );
@@ -81,17 +82,17 @@ export const DiscoverFilters: React.FC<DiscoverFiltersProps> = ({
           </Menu>
           <Menu
             label={`${t("library.filters.sort_order")}: ${t(
-              `library.filters.${jellyseerrSortOrder}`,
+              `library.filters.${seerrSortOrder}`,
             )}`}
           >
             {orderOptions.map((item) => {
-              const isSelected = jellyseerrSortOrder === item;
+              const isSelected = seerrSortOrder === item;
               return (
                 <Button
                   key={item}
                   label={t(`library.filters.${item}`)}
                   systemImage={isSelected ? "checkmark.circle.fill" : "circle"}
-                  onPress={() => setJellyseerrSortOrder(item)}
+                  onPress={() => setSeerrSortOrder(item)}
                 />
               );
             })}
@@ -106,25 +107,23 @@ export const DiscoverFilters: React.FC<DiscoverFiltersProps> = ({
     <View className='flex flex-row justify-end items-center space-x-1'>
       <FilterButton
         id={searchFilterId}
-        queryKey='jellyseerr_search'
+        queryKey='seerr_search'
         queryFn={async () =>
-          Object.keys(JellyseerrSearchSort).filter((v) =>
-            Number.isNaN(Number(v)),
-          )
+          Object.keys(SeerrSearchSort).filter((v) => Number.isNaN(Number(v)))
         }
-        set={(value) => setJellyseerrOrderBy(value[0])}
-        values={[jellyseerrOrderBy]}
+        set={(value) => setSeerrOrderBy(value[0])}
+        values={[seerrOrderBy]}
         title={t("library.filters.sort_by")}
         renderItemLabel={(item) =>
-          t(`home.settings.plugins.jellyseerr.order_by.${item}`)
+          t(`home.settings.plugins.seerr.order_by.${item}`)
         }
       />
       <FilterButton
         id={orderFilterId}
-        queryKey='jellysearr_search'
+        queryKey='seerr_search'
         queryFn={async () => ["asc", "desc"]}
-        set={(value) => setJellyseerrSortOrder(value[0])}
-        values={[jellyseerrSortOrder]}
+        set={(value) => setSeerrSortOrder(value[0])}
+        values={[seerrSortOrder]}
         title={t("library.filters.sort_order")}
         renderItemLabel={(item) => t(`library.filters.${item}`)}
       />

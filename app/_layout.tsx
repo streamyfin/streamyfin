@@ -12,15 +12,14 @@ import {
   QueryClient,
 } from "@tanstack/react-query";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
-import { isAxiosError } from "axios";
 import * as BackgroundTask from "expo-background-task";
 import * as Device from "expo-device";
 import { Image } from "expo-image";
 import { DarkTheme, ThemeProvider } from "expo-router/react-navigation";
 import { Platform } from "react-native";
 import { GlobalModal } from "@/components/GlobalModal";
-import { JellyseerrAutoLogin } from "@/components/jellyseerr/JellyseerrAutoLogin";
 import { PendingAccountSaveModal } from "@/components/PendingAccountSaveModal";
+import { SeerrAutoLogin } from "@/components/seerr/SeerrAutoLogin";
 import { enableTVMenuKeyInterception } from "@/hooks/useTVBackHandler";
 import i18n from "@/i18n";
 import { DownloadProvider } from "@/providers/DownloadProvider";
@@ -43,20 +42,15 @@ import {
 } from "@/utils/background-tasks";
 import { getOrSetDeviceId } from "@/utils/device";
 import {
-  describeHttpError,
-  isAbortLikeError,
-  isConnectivityError,
-  isErrorReported,
-  isExpectedError,
-} from "@/utils/errors";
-import {
   LogProvider,
   writeErrorLog,
   writeInfoLog,
   writeToLog,
 } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
+import { notificationRoute } from "@/utils/notificationRoute";
 import { pushRegistrationStep } from "@/utils/pushRegistration";
+import { reportDataError } from "@/utils/reportDataError";
 
 const Notifications = !Platform.isTV ? require("expo-notifications") : null;
 
@@ -164,14 +158,21 @@ function useNotificationObserver() {
 
     let isMounted = true;
 
+    // The notification the app was opened by, which is the one case the listener below
+    // never sees: it is registered once the app is running, and by then the tap that
+    // started it has been and gone. It read only a route sent ready made, which the
+    // plugin does not send, so opening a notification from a closed app landed on the
+    // home screen.
     Notifications.getLastNotificationResponseAsync().then(
       (response: { notification: any }) => {
         if (!isMounted || !response?.notification) {
           return;
         }
-        const url = response?.notification.request.content.data?.url;
-        if (url) {
-          router.push(url);
+        const route = notificationRoute(
+          response.notification.request.content.data,
+        );
+        if (route) {
+          router.push(route as never);
         }
       },
     );
@@ -277,72 +278,9 @@ onlineManager.setEventListener((setOnline) => {
   });
 });
 
-// Every React Query failure funnels through here instead of needing per-call
-// handlers. Skipped: anything while offline, aborted requests, connectivity
-// failures — no HTTP response or a gateway error, axios or fetch — (an
-// unreachable server is the user's environment, not an app bug), and 401s
-// (session expiry has its own interceptor in JellyfinProvider).
-const shouldReportDataError = (error: unknown): boolean => {
-  if (!onlineManager.isOnline()) return false;
-  if (isExpectedError(error) || isErrorReported(error)) return false;
-  if (isAbortLikeError(error) || isConnectivityError(error)) return false;
-  if (isAxiosError(error) && error.response?.status === 401) return false;
-  return true;
-};
-
-// A persistently failing query refetches on every mount (staleTime 0), and
-// Sentry's Dedupe integration only drops an event identical to the
-// immediately-previous one — two alternating failing queries defeat it. One
-// report per (source, key, route, status) per session is enough.
-const reportedDataErrors = new Set<string>();
-
-const reportDataError = (
-  source: "query" | "mutation",
-  key: readonly unknown[] | undefined,
-  error: unknown,
-) => {
-  if (!shouldReportDataError(error)) return;
-  // Only the key's first element (the query's name) is used — later
-  // elements can carry search text or item titles, and the name alone
-  // already says which data path failed.
-  const name = typeof key?.[0] === "string" ? key[0] : undefined;
-  const http = describeHttpError(error);
-  // A 404 from a Streamystats endpoint is a server that predates the route
-  // (recommendations, watchlists) — feature-unsupported, not an app bug, and
-  // the UI already renders nothing for it.
-  if (name === "streamystats" && http?.status === 404) return;
-  const dedupeKey = [
-    source,
-    name ?? "?",
-    http ? `${http.method} ${http.path} ${http.status}` : "no-http",
-    error instanceof Error ? error.name : typeof error,
-  ].join("|");
-  if (reportedDataErrors.has(dedupeKey)) return;
-  if (reportedDataErrors.size < 200) reportedDataErrors.add(dedupeKey);
-  Sentry.withScope((scope) => {
-    scope.setContext("data_layer", {
-      source,
-      key: name,
-      keyLength: key?.length,
-    });
-    if (http) {
-      // An AxiosError's stack has no app frames (it is built inside axios),
-      // so left to Sentry every HTTP failure in the app lands in ONE issue.
-      // Group by the query that failed, its route and the status instead.
-      scope.setContext("http", http);
-      scope.setFingerprint([
-        "data-layer",
-        source,
-        name ?? "?",
-        http.method,
-        http.path,
-        String(http.status),
-      ]);
-    }
-    Sentry.captureException(error);
-  });
-};
-
+// Every React Query failure funnels through reportDataError instead of
+// needing per-call handlers; what it skips and why is in
+// utils/reportDataError.ts.
 const queryClient = new QueryClient({
   queryCache: new QueryCache({
     onError: (error, query) => reportDataError("query", query.queryKey, error),
@@ -514,35 +452,11 @@ function Layout() {
             const { title, data } = response.notification.request.content;
             writeInfoLog(`Notification ${title} opened`, data);
 
-            let url: any;
-            const type = (data?.type ?? "").toString().toLowerCase();
-            const itemId = data?.id;
-
-            switch (type) {
-              case "movie":
-                url = `/(auth)/(tabs)/home/items/page?id=${itemId}`;
-                break;
-              case "episode":
-                // `/(auth)/(tabs)/${from}/items/page?id=${item.Id}`;
-                // We just clicked a notification for an individual episode.
-                if (itemId) {
-                  url = `/(auth)/(tabs)/home/items/page?id=${itemId}`;
-                  // summarized season notification for multiple episodes. Bring them to series season
-                } else {
-                  const seriesId = data?.seriesId;
-                  const seasonIndex = data?.seasonIndex;
-                  if (seasonIndex) {
-                    url = `/(auth)/(tabs)/home/series/${seriesId}?seasonIndex=${seasonIndex}`;
-                  } else {
-                    url = `/(auth)/(tabs)/home/series/${seriesId}`;
-                  }
-                }
-                break;
-            }
+            const url = notificationRoute(data);
 
             writeInfoLog(`Notification attempting to redirect to ${url}`);
             if (url) {
-              router.push(url);
+              router.push(url as never);
             }
           },
         );
@@ -653,6 +567,14 @@ function Layout() {
                                         }}
                                       />
                                       <Stack.Screen
+                                        name='(auth)/tv-issue-modal'
+                                        options={{
+                                          headerShown: false,
+                                          presentation: "transparentModal",
+                                          animation: "fade",
+                                        }}
+                                      />
+                                      <Stack.Screen
                                         name='(auth)/tv-series-season-modal'
                                         options={{
                                           headerShown: false,
@@ -703,7 +625,7 @@ function Layout() {
                                     {!Platform.isTV && (
                                       <PendingAccountSaveModal />
                                     )}
-                                    <JellyseerrAutoLogin />
+                                    <SeerrAutoLogin />
                                   </ThemeProvider>
                                 </IntroSheetProvider>
                               </BottomSheetModalProvider>

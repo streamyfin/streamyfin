@@ -1,25 +1,33 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
 import type {
   BaseItemDto,
   MediaSourceInfo,
   MediaStream,
 } from "@jellyfin/sdk/lib/generated-client";
-import { clearMmkv, stubMmkv } from "@/test-utils/mmkv";
 import type { Settings } from "@/utils/atoms/settings";
 
-// The double stores for real, so the per-series memory under test is exercised
-// rather than stubbed out.
-stubMmkv();
+jest.mock(
+  "react-native-mmkv",
+  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
+);
 
 // BitrateSelector is a React component module; only the BITRATES table matters.
-mock.module("@/components/BitrateSelector", () => ({
+jest.mock("@/components/BitrateSelector", () => ({
   BITRATES: [{ key: "Max", value: undefined }],
 }));
+// The log module reaches Sentry, whose client keeps a timer running past the
+// last test, so it is stubbed with the surface the modules under test call.
+jest.mock("@/utils/log", () => ({
+  writeToLog: () => undefined,
+  writeInfoLog: () => undefined,
+  writeErrorLog: () => undefined,
+  writeDebugLog: () => undefined,
+  logAndCaptureError: () => undefined,
+  readFromLog: () => [],
+}));
 
-// Imported after the mocks are registered — static ESM imports would evaluate
-// the real modules first.
-const { getDefaultPlaySettings } = await import("./getDefaultPlaySettings");
-const { rememberSeriesTrack } = await import("@/utils/seriesTrackMemory");
+import { clearMmkv } from "@/test-utils/mmkv";
+import { rememberSeriesTrack } from "@/utils/seriesTrackMemory";
+import { getDefaultPlaySettings } from "./getDefaultPlaySettings";
 
 const audio = (
   index: number,
@@ -149,6 +157,96 @@ describe("findTrackByLanguage — ISO 639 variants", () => {
     const result = getDefaultPlaySettings(
       item,
       settingsWith({ defaultSubtitleLanguage: lang("eng") }),
+    );
+    expect(result.subtitleIndex).toBe(1);
+  });
+});
+
+describe("findTrackByLanguage — region and script variants", () => {
+  // Regression: tags were compared by primary subtag only, so "pt-BR" and
+  // "pt-PT" (or "zh-Hans" and "zh-Hant") were one language and the first track
+  // of it won, whichever variant had been picked.
+  test("a remembered subtitle variant carries over to the same variant", () => {
+    rememberSeriesTrack("series-1", { subtitleLang: "pt-BR" });
+    const item = episode(source([sub(0, "pt-PT"), sub(1, "pt-BR")]));
+    const result = getDefaultPlaySettings(item, settingsWith({}));
+    expect(result.subtitleIndex).toBe(1);
+  });
+
+  test("a remembered script variant carries over to the same script", () => {
+    rememberSeriesTrack("series-1", { subtitleLang: "zh-Hant" });
+    const item = episode(source([sub(0, "zh-Hans"), sub(1, "zh-Hant")]));
+    const result = getDefaultPlaySettings(item, settingsWith({}));
+    expect(result.subtitleIndex).toBe(1);
+  });
+
+  test("a remembered audio variant carries over to the same variant", () => {
+    rememberSeriesTrack("series-1", { audioLang: "es-419" });
+    const item = episode(
+      source([audio(0, "es-ES"), audio(1, "es-419")], { audio: 0 }),
+    );
+    const result = getDefaultPlaySettings(item, settingsWith({}));
+    expect(result.audioIndex).toBe(1);
+  });
+
+  test("a remembered variant is not carried over to a different one", () => {
+    rememberSeriesTrack("series-1", { subtitleLang: "pt-BR" });
+    const item = episode(
+      source([sub(0, "eng"), sub(1, "pt-PT")], { subtitle: 0 }),
+    );
+    const result = getDefaultPlaySettings(item, settingsWith({}));
+    expect(result.subtitleIndex).toBe(0);
+  });
+
+  test("the track tagged exactly as remembered beats one that only shares the language", () => {
+    // Both directions: a bare "por" track is not the Brazilian one that was
+    // picked, and a Brazilian one is not the bare track that was picked.
+    rememberSeriesTrack("series-1", { subtitleLang: "pt-BR" });
+    expect(
+      getDefaultPlaySettings(
+        episode(source([sub(0, "por"), sub(1, "pt-BR")])),
+        settingsWith({}),
+      ).subtitleIndex,
+    ).toBe(1);
+
+    rememberSeriesTrack("series-1", { subtitleLang: "por" });
+    expect(
+      getDefaultPlaySettings(
+        episode(source([sub(0, "pt-BR", { IsDefault: true }), sub(1, "por")])),
+        settingsWith({}),
+      ).subtitleIndex,
+    ).toBe(1);
+  });
+
+  test("a remembered variant subtag carries over to the same one", () => {
+    // Regression: variant subtags were dropped, so "ca-valencia" was plain
+    // Catalan and "de-1901" was "de-1996".
+    rememberSeriesTrack("series-1", { subtitleLang: "ca-valencia" });
+    expect(
+      getDefaultPlaySettings(
+        episode(source([sub(0, "cat"), sub(1, "ca-valencia")])),
+        settingsWith({}),
+      ).subtitleIndex,
+    ).toBe(1);
+
+    rememberSeriesTrack("series-1", { subtitleLang: "de-1996" });
+    expect(
+      getDefaultPlaySettings(
+        episode(source([sub(0, "de-1901"), sub(1, "de-1996")])),
+        settingsWith({}),
+      ).subtitleIndex,
+    ).toBe(1);
+  });
+
+  test("a bare preference matches every variant and keeps the default-track rule", () => {
+    // CultureDto codes carry no region, so the preference cannot choose between
+    // variants: both match and the file's own default decides.
+    const item = episode(
+      source([sub(0, "pt-PT"), sub(1, "pt-BR", { IsDefault: true })]),
+    );
+    const result = getDefaultPlaySettings(
+      item,
+      settingsWith({ defaultSubtitleLanguage: lang("por") }),
     );
     expect(result.subtitleIndex).toBe(1);
   });

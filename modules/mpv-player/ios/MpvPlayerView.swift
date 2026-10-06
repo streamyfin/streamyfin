@@ -117,6 +117,11 @@ class MpvPlayerView: ExpoView {
 		CATransaction.commit()
 	}
 
+	override func didMoveToWindow() {
+		super.didMoveToWindow()
+		engine.setPictureInPictureHostVisible(window != nil)
+	}
+
 	// MARK: - Now Playing Info
 
 	func setNowPlayingMetadata(_ metadata: [String: String], artworkHeaders: [String: String]? = nil) {

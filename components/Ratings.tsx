@@ -4,14 +4,14 @@ import { useQuery } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import { useMemo } from "react";
 import { View, type ViewProps } from "react-native";
-import { useJellyseerr } from "@/hooks/useJellyseerr";
-import { MediaType } from "@/utils/jellyseerr/server/constants/media";
-import type { MovieDetails } from "@/utils/jellyseerr/server/models/Movie";
+import { useSeerr } from "@/hooks/useSeerr";
 import type {
+  MovieDetails,
   MovieResult,
+  TvDetails,
   TvResult,
-} from "@/utils/jellyseerr/server/models/Search";
-import type { TvDetails } from "@/utils/jellyseerr/server/models/Tv";
+} from "@/utils/seerr/types";
+import { MediaType } from "@/utils/seerr/types";
 import { AwardsBadge } from "./AwardsBadge";
 import { Badge } from "./Badge";
 
@@ -63,23 +63,23 @@ export const Ratings: React.FC<Props> = ({ item, className, ...props }) => {
   );
 };
 
-export const JellyserrRatings: React.FC<{
+export const SeerrRatings: React.FC<{
   result: MovieResult | TvResult | TvDetails | MovieDetails;
 }> = ({ result }) => {
-  const { jellyseerrApi, getMediaType } = useJellyseerr();
+  const { seerrApi, getMediaType } = useSeerr();
 
   const mediaType = useMemo(() => getMediaType(result), [result]);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["jellyseerr", result.id, mediaType, "ratings"],
+    queryKey: ["seerr", result.id, mediaType, "ratings"],
     queryFn: async () => {
       return mediaType === MediaType.MOVIE
-        ? jellyseerrApi?.movieRatings(result.id)
-        : jellyseerrApi?.tvRatings(result.id);
+        ? seerrApi?.movieRatings(result.id)
+        : seerrApi?.tvRatings(result.id);
     },
     staleTime: (5).minutesToMilliseconds(),
     retry: false,
-    enabled: !!jellyseerrApi,
+    enabled: !!seerrApi,
   });
 
   return (
@@ -128,7 +128,7 @@ export const JellyserrRatings: React.FC<{
             }
           />
         )}
-        {!!result.voteCount && (
+        {!!result.voteCount && result.voteAverage !== undefined && (
           <Badge
             text={`${Math.round(result.voteAverage * 10)}%`}
             variant='gray'
@@ -136,6 +136,8 @@ export const JellyserrRatings: React.FC<{
               <Image
                 className='mr-1'
                 source={require("@/assets/images/tmdb_logo.svg")}
+                // The logo is wider than tall: cover, the default, cut it.
+                contentFit='contain'
                 style={{
                   width: 14,
                   height: 14,
