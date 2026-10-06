@@ -60,6 +60,27 @@ describe("readPluginSettings", () => {
     expect(asked).toEqual([RESOLVED_SETTINGS_PATH, LEGACY_CONFIG_PATH]);
   });
 
+  test("asks a server without the resolved route for it only once", async () => {
+    // The refresh runs at every foreground, and on such a server the first
+    // question is certain to fail.
+    const { api, asked } = server({
+      [LEGACY_CONFIG_PATH]: { settings: resolvedSettings },
+    });
+
+    await readPluginSettings(api);
+    expect(await readPluginSettings(api)).toEqual(resolvedSettings);
+    expect(asked).toEqual([
+      RESOLVED_SETTINGS_PATH,
+      LEGACY_CONFIG_PATH,
+      LEGACY_CONFIG_PATH,
+    ]);
+
+    // What one server lacks says nothing about another.
+    const other = server({ [RESOLVED_SETTINGS_PATH]: resolvedSettings });
+    expect(await readPluginSettings(other.api)).toEqual(resolvedSettings);
+    expect(other.asked).toEqual([RESOLVED_SETTINGS_PATH]);
+  });
+
   test("does not fall back when the request failed for another reason", async () => {
     // A server that is down or a token that expired fails the same way on the
     // old path. Asking twice only doubles the wait before the same failure, and

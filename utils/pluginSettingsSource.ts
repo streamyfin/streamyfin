@@ -51,6 +51,13 @@ const isMissingRoute = (error: unknown): boolean =>
     ?.status === 404;
 
 /**
+ * The servers that answered 404 for the resolved route, so it is not asked
+ * again at every refresh. Keyed on the `Api`, which signing in again builds
+ * anew: that asks once more, and finds a plugin updated in the meantime.
+ */
+const withoutResolvedRoute = new WeakSet<PluginSettingsReader>();
+
+/**
  * An answer that arrived and is not the plugin's. Something in front of the
  * server sent it in the server's place, which is the user's network rather
  * than a fault of the app's: it fails like an unreachable server, and is
@@ -102,20 +109,23 @@ const isSettingsMap = (value: unknown): value is PluginLockableSettings =>
 export const readPluginSettings = async (
   api: PluginSettingsReader,
 ): Promise<PluginLockableSettings | undefined> => {
-  try {
-    const { data } = await api.get<unknown>(RESOLVED_SETTINGS_PATH);
-    if (!isSettingsMap(data)) {
-      throw notThePluginsAnswer(
-        "The resolved plugin settings are not a settings map",
-      );
-    }
-    return data;
-  } catch (error) {
-    // Only a missing route means "older plugin". A server that is down or a
-    // token that expired would fail the same way on the old path, and asking
-    // it there as well only doubles the wait before the same failure.
-    if (!isMissingRoute(error)) {
-      throw error;
+  if (!withoutResolvedRoute.has(api)) {
+    try {
+      const { data } = await api.get<unknown>(RESOLVED_SETTINGS_PATH);
+      if (!isSettingsMap(data)) {
+        throw notThePluginsAnswer(
+          "The resolved plugin settings are not a settings map",
+        );
+      }
+      return data;
+    } catch (error) {
+      // Only a missing route means "older plugin". A server that is down or a
+      // token that expired would fail the same way on the old path, and asking
+      // it there as well only doubles the wait before the same failure.
+      if (!isMissingRoute(error)) {
+        throw error;
+      }
+      withoutResolvedRoute.add(api);
     }
   }
 
