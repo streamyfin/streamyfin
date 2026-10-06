@@ -18,7 +18,10 @@ export const queryDehydrateOptions: DehydrateOptions = {
  * replay the failure once more on the first launch after the update.
  */
 export const withoutPersistedMutations = (persister: Persister): Persister => ({
-  ...persister,
+  // Delegated rather than spread: a spread would lose methods a persister
+  // keeps on its prototype.
+  persistClient: (persisted) => persister.persistClient(persisted),
+  removeClient: () => persister.removeClient(),
   restoreClient: async () => {
     const persisted = await persister.restoreClient();
     if (!persisted) return persisted;

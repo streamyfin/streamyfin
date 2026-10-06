@@ -9,6 +9,8 @@ import {
   QueryObserver,
 } from "@tanstack/react-query";
 import {
+  type PersistedClient,
+  type Persister,
   persistQueryClientRestore,
   persistQueryClientSave,
 } from "@tanstack/react-query-persist-client";
@@ -218,6 +220,35 @@ describe("withoutPersistedMutations", () => {
     const client = await relaunch(await cacheWrittenBy0550());
 
     expect(client.getQueryData(["item", "1"])).toEqual({ Name: "Alien" });
+  });
+
+  test("saving and clearing still reach a persister that keeps its methods on a prototype", async () => {
+    class MemoryPersister implements Persister {
+      saved?: PersistedClient;
+      persistClient(persisted: PersistedClient) {
+        this.saved = persisted;
+      }
+      restoreClient() {
+        return this.saved;
+      }
+      removeClient() {
+        this.saved = undefined;
+      }
+    }
+    const memory = new MemoryPersister();
+    const persister = withoutPersistedMutations(memory);
+    const client = newClient();
+    client.setQueryData(["item", "1"], { Name: "Alien" });
+
+    await persistQueryClientSave({
+      queryClient: client,
+      persister,
+      dehydrateOptions: queryDehydrateOptions,
+    });
+    expect(memory.saved?.clientState.queries).toHaveLength(1);
+
+    await persister.removeClient();
+    expect(memory.saved).toBeUndefined();
   });
 
   test("an empty disk restores nothing", async () => {
