@@ -3,6 +3,7 @@ import * as SecureStore from "expo-secure-store";
 import {
   bumpCustomHeadersVersion,
   deleteSecureCustomHeaderValues,
+  recreateLegacySecureValues,
   resolveCustomHeaderValues,
   secureCustomHeaderMetadata,
 } from "./customHeaders/secureValues";
@@ -451,6 +452,34 @@ export function getServerCustomHeaders(serverUrl: string): CustomHeader[] {
   // This is a read: it must not write, because it runs during render (every
   // <Image> resolves its headers through it).
   return resolveCustomHeaderValues(server?.customHeaders ?? []);
+}
+
+/**
+ * Moves the header values an earlier build stored to items that can be read
+ * while the phone is locked: see `recreateLegacySecureValues`. Run at startup.
+ * It does nothing once every value is moved, and nothing on a locked phone,
+ * where the next launch tries again.
+ */
+export function makeServerHeadersReadableWhileLocked(): void {
+  try {
+    const replaced: CustomHeader[] = [];
+    const servers = getPreviousServers().map((server) => {
+      const moved = recreateLegacySecureValues(
+        `server:${server.address}`,
+        server.customHeaders ?? [],
+      );
+      if (!moved) return server;
+
+      replaced.push(...moved.replaced);
+      return { ...server, customHeaders: moved.headers };
+    });
+    if (replaced.length === 0) return;
+
+    storage.set("previousServers", JSON.stringify(servers));
+    deleteSecureCustomHeaderValues(replaced);
+  } catch (error) {
+    logAndCaptureError("Moving the server header values failed", error);
+  }
 }
 
 /**

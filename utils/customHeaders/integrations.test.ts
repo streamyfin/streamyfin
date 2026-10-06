@@ -1,8 +1,13 @@
 import { clearMmkv } from "@/test-utils/mmkv";
-import { clearSecureStore, secureStoreValues } from "@/test-utils/secureStore";
+import {
+  clearSecureStore,
+  lockSecureStore,
+  secureStoreValues,
+} from "@/test-utils/secureStore";
 import { storage } from "@/utils/mmkv";
 import {
   getIntegrationHeaderConfig,
+  makeIntegrationHeadersReadableWhileLocked,
   updateIntegrationHeaderConfig,
 } from "./integrations";
 import { secureCustomHeaderMetadata } from "./secureValues";
@@ -95,5 +100,63 @@ describe("Seerr's custom headers", () => {
     expect(
       storage.getString("custom_headers_config_streamystats"),
     ).toBeDefined();
+  });
+});
+
+// See `makeServerHeadersReadableWhileLocked`: the same move, for the headers
+// an integration has of its own.
+describe("makeIntegrationHeadersReadableWhileLocked", () => {
+  const LEGACY_KEY = "custom_header_value_aW50ZWdyYXRpb24_0";
+
+  const storedByAnEarlierBuild = () => {
+    storage.set(
+      "custom_headers_config_streamystats",
+      JSON.stringify({
+        source: "custom",
+        customHeaders: [
+          {
+            key: "X-Gateway",
+            value: "",
+            enabled: true,
+            secureValueKey: LEGACY_KEY,
+          },
+        ],
+      }),
+    );
+    secureStoreValues.set(LEGACY_KEY, "secret");
+  };
+
+  beforeEach(() => {
+    clearMmkv();
+    clearSecureStore();
+  });
+
+  test("makes a value from an earlier build readable on a locked phone", async () => {
+    storedByAnEarlierBuild();
+
+    makeIntegrationHeadersReadableWhileLocked();
+    // The old item is removed asynchronously.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    lockSecureStore();
+    expect(getIntegrationHeaderConfig("streamystats")).toEqual({
+      source: "custom",
+      customHeaders: [
+        expect.objectContaining({ key: "X-Gateway", value: "secret" }),
+      ],
+    });
+    expect([...secureStoreValues.keys()]).not.toContain(LEGACY_KEY);
+  });
+
+  test("leaves an integration with nothing to move as it is", () => {
+    updateIntegrationHeaderConfig("marlin", {
+      source: "jellyfin",
+      customHeaders: [],
+    });
+    const config = storage.getString("custom_headers_config_marlin");
+
+    makeIntegrationHeadersReadableWhileLocked();
+
+    expect(storage.getString("custom_headers_config_marlin")).toBe(config);
   });
 });
