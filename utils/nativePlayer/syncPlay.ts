@@ -6,12 +6,11 @@ import type {
 import type { useSyncPlay } from "@/providers/SyncPlayProvider";
 import type { SyncPlaySnapshot } from "@/utils/syncplay/types";
 
-export type SyncPlayLibraryState = {
-  items: { itemId: string; title: string }[];
-  loading: boolean;
-  query: string;
-  error?: string;
-};
+/** What a queue row shows, by media id. */
+export type SyncPlayQueueDisplay = Record<
+  string,
+  { title: string; subtitle?: string; imageUrl?: string }
+>;
 
 const labels = [
   "queue",
@@ -29,13 +28,7 @@ const labels = [
   "remove",
   "clear_upcoming",
   "clear_all",
-  "add_videos",
-  "search_videos",
-  "videos_failed",
-  "no_videos",
   "play_now",
-  "play_next",
-  "append",
   "refresh_group",
   "close",
   "play",
@@ -47,8 +40,7 @@ const labels = [
 
 export function buildNativeSyncPlayState(
   sync: SyncPlaySnapshot,
-  titles: Record<string, string>,
-  library: SyncPlayLibraryState,
+  display: SyncPlayQueueDisplay,
   t: TFunction,
 ): NativePlayerSyncPlayState | null {
   if (!sync.group) return null;
@@ -59,11 +51,13 @@ export function buildNativeSyncPlayState(
     status: t(`syncplay.states.${status}`),
     connected: sync.connected,
     busy: sync.busy,
-    error: sync.error || library.error || undefined,
+    error: sync.error || undefined,
     playlist: sync.playlist.map((item) => ({
       itemId: item.ItemId,
       playlistItemId: item.PlaylistItemId,
-      title: titles[item.ItemId] || t("syncplay.unavailable_video"),
+      title: display[item.ItemId]?.title || t("syncplay.unavailable_video"),
+      subtitle: display[item.ItemId]?.subtitle || undefined,
+      imageUrl: display[item.ItemId]?.imageUrl || undefined,
     })),
     currentPlaylistItemId: sync.currentPlaylistItemId || undefined,
     repeatMode: sync.repeatMode,
@@ -71,9 +65,6 @@ export function buildNativeSyncPlayState(
     ignoreWait: sync.ignoreWait,
     hasNext: sync.hasNext,
     hasPrevious: sync.hasPrevious,
-    library: library.items,
-    libraryLoading: library.loading,
-    libraryQuery: library.query,
     strings: {
       ...Object.fromEntries(labels.map((key) => [key, t(`syncplay.${key}`)])),
       repeat_modes_RepeatNone: t("syncplay.repeat_modes.RepeatNone"),
@@ -89,13 +80,27 @@ export function buildNativeSyncPlayState(
   };
 }
 
+const decoded = (url: string) => {
+  try {
+    return decodeURI(url);
+  } catch {
+    return url;
+  }
+};
+
+/**
+ * Whether a native onLoad names the stream JS asked for. iOS echoes the URL
+ * through Foundation, which percent-encodes characters JS passed raw.
+ */
+export const isSameStreamUrl = (a: string, b: string): boolean =>
+  a === b || decoded(a) === decoded(b);
+
 type Coordinator = ReturnType<typeof useSyncPlay>;
 
 /** Swift/Compose requests change the Jellyfin group; they never mutate a solo decoder. */
 export async function dispatchNativeSyncPlayAction(
   sync: Coordinator,
   request: NativePlayerSyncPlayAction,
-  search: (query: string) => Promise<void>,
 ): Promise<void> {
   if (!sync.enabled) return;
   switch (request.action) {
@@ -117,6 +122,8 @@ export async function dispatchNativeSyncPlayAction(
       return sync.notifyEnded(request.playlistItemId);
     case "leave":
       return sync.leaveGroup();
+    case "suspend":
+      return sync.suspendGroup();
     case "refresh":
       if (sync.group) await sync.getGroup(sync.group.GroupId);
       return;
@@ -155,18 +162,6 @@ export async function dispatchNativeSyncPlayAction(
     case "clear":
       if (typeof request.value === "boolean")
         return sync.clearPlaylist(request.value);
-      break;
-    case "queue":
-      if (
-        request.itemIds?.length &&
-        (request.mode === "Queue" || request.mode === "QueueNext")
-      )
-        return sync.queueItems(request.itemIds, request.mode);
-      break;
-    case "search":
-      return search(request.query || "");
-    case "playItems":
-      if (request.itemIds?.length) return sync.playItems(request.itemIds, 0, 0);
       break;
   }
   throw new Error("Invalid native SyncPlay action");

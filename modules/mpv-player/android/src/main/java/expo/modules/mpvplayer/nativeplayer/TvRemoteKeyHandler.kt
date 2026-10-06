@@ -165,7 +165,9 @@ class TvRemoteKeyHandler(
                                 PlayerConstants.TV_SCRUB_ACCEL_MAX_MULTIPLIER
                             )
                             viewModel.nudgeScrub(-viewModel.uiOptions.seekBackwardSec * mult)
-                        } else {
+                        } else if (!viewModel.syncPlayActive || repeatCount == 0) {
+                            // A held key repeats about 20 times a second, and in
+                            // a group every one would be a seek for everyone.
                             viewModel.seekBy(-viewModel.uiOptions.seekBackwardSec)
                             viewModel.flashSeekFeedback()
                         }
@@ -180,7 +182,7 @@ class TvRemoteKeyHandler(
                                 PlayerConstants.TV_SCRUB_ACCEL_MAX_MULTIPLIER
                             )
                             viewModel.nudgeScrub(viewModel.uiOptions.seekForwardSec * mult)
-                        } else {
+                        } else if (!viewModel.syncPlayActive || repeatCount == 0) {
                             viewModel.seekBy(viewModel.uiOptions.seekForwardSec)
                             viewModel.flashSeekFeedback()
                         }

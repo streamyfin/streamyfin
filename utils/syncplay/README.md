@@ -1,128 +1,144 @@
 # Jellyfin SyncPlay
 
-`SyncPlayController` uses Jellyfin's existing SyncPlay HTTP endpoints and
-`SyncPlayGroupUpdate` / `SyncPlayCommand` websocket messages. It shares groups
-with Jellyfin Web; no plugin or additional server is required. The protocol was
-checked against official Jellyfin server/web source and tested with Jellyfin
-10.11.11 in the local Docker fixture.
+Group playback over Jellyfin's own SyncPlay: the REST endpoints plus the
+`SyncPlayGroupUpdate` and `SyncPlayCommand` websocket messages. No plugin and no extra
+server, so a group is shared with Jellyfin Web and any other SyncPlay client. Checked
+against the Jellyfin 10.11 server and web sources, and run against 10.11.11.
 
-The server owns group membership, playlist positions and playback commands.
-User controls send pause, unpause, seek, stop or playlist requests. Decoder
-callbacks report Ready/Buffering and correct local drift; they never echo a
-server command as another user request. Ready/Buffering HTTP requests run in
-transition order so a late Buffering response cannot overtake Ready. Pausing
-avoids redundant seeks within 100 ms to prevent decoder buffering loops.
-UTC clock samples exclude server processing time and select the lowest-delay
-measurement. Commands execute at
-the server's scheduled time; late unpause commands include elapsed playback.
+## Scope
 
-The transport covers all 22 Jellyfin SyncPlay API endpoints: group list/detail,
-create/join/leave; play a new queue, append or queue next, select/remove/move
-playlist entries, clear the queue; pause/unpause/seek/stop/next/previous;
-repeat/shuffle; session ignore-wait; Ready/Buffering/Ping. UTC sampling uses the
-separate Jellyfin TimeSync API. Requests use HTTP; authoritative playback,
-membership, queue and mode changes arrive through Jellyfin's existing
-websocket messages. No custom server or protocol is involved.
+- Online video at normal speed. Downloads, Live TV and music stay out of a group.
+- A group's queue is filled from the app's own pages. A group started from a page takes
+  what that page shows as its queue (a video, or the episodes of a show) and plays
+  nothing yet. In a group, item pages and season rows offer "add to queue", and every
+  Play button carries the SyncPlay icon: it starts the video where it sits in the queue,
+  or replaces the queue with it, as playing does in Jellyfin. The queue can be reordered
+  in the panel and in the player.
+- The presented native player only (SwiftUI on iOS and tvOS, Compose on Android and
+  Android TV). A group always plays there, whatever the solo player setting says. Where
+  that player cannot run (tvOS below 26) `isSyncPlayAvailable()` is false, the provider
+  creates no controller and every entry point hides. The JS player does not follow a
+  group.
 
-`queueItems` accepts media IDs and `Queue`/`QueueNext`. Selection, movement and
-removal use the server's **playlist entry IDs**, which distinguish repeated
-copies of the same media. `clearPlaylist(false)` preserves the playing entry;
-`clearPlaylist(true)` also removes it. Queue snapshots publish entries, playing
-index/current entry, repeat and shuffle modes. Queue edits never optimistically
-change these values. Appending, reordering and changing modes preserve the
-current decoder and scheduled command; replacing/removing the playing entry
-invalidates pending playback. An empty active queue closes the decoder and
-retains membership even before a following Stop arrives.
+## Who owns what
 
-Repeat modes follow Jellyfin's queue manager: `RepeatNone` has queue boundaries,
-`RepeatAll` wraps both directions, and `RepeatOne` restarts the same entry for
-both EOF and explicit next/previous. Shuffle order comes from the server;
-restoring `Sorted` also follows its authoritative order. Explicit actions run
-in request order, with stale queued actions discarded on leaving. Ignore-wait
-is a setting for this session, acknowledged by HTTP (no websocket setting
-event), and resets with membership. It excludes this session from the group's
-readiness barrier; decoder readiness still reports normally. Jellyfin can
-still pause on a Buffering report from an ignored member. Setting ignore-wait
-while Waiting releases ready peers without requiring that member's Ready.
+| Piece | Owns |
+| --- | --- |
+| Server | Membership, the queue, playback commands and their timing |
+| `SyncPlayController` (`controller.ts`) | The protocol state machine. No React, no native code |
+| `transport.ts` | The 22 SyncPlay endpoints and TimeSync, through the SDK |
+| `SyncPlayProvider` | One controller per signed in api, fed from the websocket |
+| `SyncPlayPlaybackBridge` | Presents the native player when the group starts an item |
+| `SyncPlayPanel` | Everything outside the player. Not in a group: "New group" and the groups to join. In one: the group, what it plays (`SyncPlayPlayback`), its queue, its modes (`SyncPlayOptions`), stop, switch and leave. A sheet on phones and tablets (`useSyncPlaySheet`), a screen on TV |
+| `SyncPlayButton` | The header entry, on Home, item and series pages. It opens the panel, with what the page shows as the queue of a group started there |
+| `SyncPlayQueue` | The queue in the panel, on the music player's `DraggableQueueList`: posters, drag to reorder, remove, tap to play |
+| `SyncPlayQueueButton` | "Play next" and "add to queue" for what a page shows. Only there in a group |
+| Play buttons | In a group they carry the SyncPlay icon and play for everyone, through `usePlayMedia` |
+| `NativePlayerProvider` | The player adapter: decoder state in, group commands out |
+| Swift and Kotlin `SyncPlayCommandScheduler` | Runs a command at its deadline, on the decoder |
 
-At final EOF with repeat disabled the client requests group Stop. Jellyfin's
-explicit NextItem endpoint is a no-op at that boundary, so it cannot finish the
-group on its own. Intermediate/repeating EOF requests NextItem. End reports
-are deduplicated per entry and cannot advance a new movie if queued behind an
-older pending action.
-Native EOF carries the loaded playlist entry identity. Outgoing or unready
-decoders cannot advance a newly selected entry, including duplicate movie IDs.
+Tuning lives in `constants/SyncPlay.ts`, with the reason for each value.
 
-`getGroup` refreshes matching current group information without joining it.
-Its response cannot overwrite membership or state updated by a newer websocket
-event during the request.
+## Rules the controller keeps
 
-`registerLauncher` opens the group item paused. Check a launch request's
-`isCurrent()` after asynchronous preparation so leaving or a newer playlist
-cannot present an obsolete item. `registerPlayer` supplies local decoder
-operations and synchronous state getters. Publish updated state before calling
-`notifyReady`, `notifyBuffering` or `notifyProgress`.
+**User input is a request, never a local action.** Pause, play, seek, stop, next and
+every queue edit go to the server and come back as a command for the whole group. A
+command from the server only ever reaches the decoder, so it cannot echo back as a new
+request. Queue and mode changes are never applied optimistically.
 
-Only the current group and playlist receive playback commands. Older commands,
-older queue updates and duplicate scheduled commands are ignored. Seek
-readiness waits until the decoder reaches its requested position. Decoder
-replacement reports buffering/readiness again. Loading failure or a readiness
-timeout withdraws the member so others can continue.
+**Clock.** Each TimeSync sample excludes the server's processing time, and the sample
+with the lowest delay wins. Commands run at the server's time translated to this clock.
+An Unpause that runs late starts at the position the group has reached by then.
 
-Scope: online video at normal playback speed, using the presented native
-SwiftUI/Compose players and Jellyfin Web. Downloads, Live TV and music playback
-are outside this integration. Jellyfin HTTP/websocket networking stays in the
-app coordinator; native controls emit group requests without optimistic local
-playback. Swift/Kotlin own the corrected client deadline and local decoder
-operations through the adapter's optional `scheduleCommand`. Native queue
-controls expose shared queue edits, repeat/shuffle and this session's ignore-wait.
-Leaving
-allows solo continuation; websocket disconnect or account change cancels
-scheduled work, pauses locally and attempts to leave. Reconnection stays solo
-until the user joins again. This includes native background transitions that
-close the existing websocket.
+**Readiness.** Ready and Buffering are sent one at a time, in the order they happened,
+so a late Buffering response cannot overtake Ready. Ready after a seek waits until the
+decoder is actually within tolerance of the target. A member that cannot load, or stays
+unready past the timeout, leaves so the others are not held.
 
-Tests:
+**Requests.** User requests are sent one at a time in the order they were made, and each
+has a timeout: the SDK client has none, and one request that never settles would hold
+everything behind it.
 
-- `bun run test:unit --runInBand --watchman=false utils/syncplay/controller.test.ts`
-  checks scheduling, readiness, stale events, no echo loops and cleanup with
-  deterministic decoder states.
-- `swiftc -module-cache-path /tmp/streamyfin-syncplay-swiftcache
-  modules/mpv-player/ios/NativePlayer/SyncPlayCommandScheduler.swift
-  modules/mpv-player/tests/native-syncplay-scheduler.swift
-  -o /tmp/streamyfin-native-syncplay-scheduler-test` followed by the executable
-  checks the production Swift deadline executor, exact fractional positions,
-  late Unpause catch-up and cancellation on replacement/queue change/leave.
-- `bun e2e/syncplay/controller-integration.ts` uses production controller/SDK
-  requests and real Docker-server websocket events with isolated test sessions.
-  It checks both directions of pause/seek, playlist navigation, late join,
-  buffering, stopping, missing groups, denied access and disconnect/reconnect,
-  plus all queue edits, repeat/shuffle and session ignore-wait behavior.
-  JSON results and websocket events are saved under ignored
-  `e2e/syncplay/artifacts/controller-integration.json`.
+**Stale input.** Only the current group and playlist are obeyed. Commands older than the
+join or the current queue, repeated commands, and queue updates older than the one held
+are dropped. Work queued for a group that was left is discarded.
 
-The controller harness simulates decoder timing. Actual browser/native decoder
-and interface verification is a separate requirement; see the local testing
-instructions in `e2e/syncplay/README.md`.
+**Queue identity.** Select, move and remove use the server's playlist entry ids, which
+tell two copies of the same video apart. `clearPlaylist(false)` keeps the playing entry,
+`clearPlaylist(true)` removes it too. Appending, reordering and changing modes keep the
+decoder and any scheduled command. Replacing or removing the playing entry cancels
+pending playback.
 
-Browser/Jellyfin Web queue-switch testing exposed two related races: seeking
-an already-paused video to its current position triggered repeated buffering
-events, and concurrent HTTP requests let Ready reach Jellyfin before its
-preceding Buffering. The group could remain Waiting while one client resumed.
-Pause now avoids seeks within 100 ms; readiness reports wait for each preceding
-HTTP response. Group reset starts a fresh report queue, and queued reports from
-an old group or playlist are discarded.
+**An idle queue.** Items queued while nothing plays leave the group without a current
+entry, and the server waits forever on an Unpause for such a group. Play starts it by
+selecting the first entry instead.
 
-Regressions cover no-op Pause, both HTTP ordering directions, stale queued
-reports, readiness timeout behind a hung request, and successful rejoin while
-the old request remains pending. Queue regressions cover entry IDs for duplicate
-media, server-confirmed modes, repeat boundaries, clearing/removing playback,
-preserving scheduled Unpause across all six metadata edits, and stale explicit
-actions after rejoining. Browser traces and server logs confirmed the request
-race before the fix.
+**End of an item.** With something to play next, repeat included, the client asks for
+the next item. At the last item with repeat off it asks the group to stop, because the
+server's next is a no-op there. The report carries the playlist entry that ended, and is
+ignored unless that entry is still current and was ready.
 
-Native scheduled commands bypass user-intent interception. A superseded native
-promise cannot leave the active group; decoder removal during Stop cannot leave
-a readiness timer behind. Metadata-only queue updates preserve native deadlines.
-Seek readiness waits for native dispatch completion and actual progress within
-500 ms of its target, never a synthetic requested position.
+**Leaving.** A leave stays owed until the server has confirmed it, and is repeated when
+the socket returns or the group list is refreshed. A join the server completed after the
+client gave up on it is left again. Otherwise the server keeps counting a member that
+never reports Ready, and the group waits on it at every seek.
+
+**Losing the socket.** A member pauses, drops its scheduled work and leaves. Outside a
+group a socket drop touches nothing: the adapter is registered for solo playback too, and
+the socket closes on every backgrounding.
+
+**Going away and coming back.** Only the user's own Leave is final. An app in the
+background is suspended as soon as it stops playing, and could not answer the group's
+next seek, so it leaves when it is backgrounded without Picture in Picture, when the PiP
+window is closed, and when the socket is lost. The native players report the first two
+as `suspend`, not `leave`. The group is remembered and joined again once the app is in
+front and connected, landing wherever the group is by then. One attempt per return, and
+not after `SYNCPLAY_RESUME_WINDOW_MS`. A failure to play is never walked back into.
+
+**Closing the player** is not leaving either. The member stays, the server is told not to
+wait for it, and the group's playback no longer loads anything here: `watching` is false
+in the snapshot. Watching again sends a join for the group the client is already in,
+which makes the server send the whole state once more, and it loads like any late join.
+Playing something for the group is also a way back. A choice of ignore wait made while
+away is kept for the return, since the server's own flag is busy meaning "not watching".
+
+**Drift.** While playing, a position more than the threshold from the group's timeline
+is corrected with a local seek, never a group seek. Not after this client buffered:
+the server re-times the group around a stalled member and sends the new Unpause to
+everyone else, so this client's command describes a timeline the group has left.
+
+**Ignore wait** belongs to this session, is acknowledged over HTTP only, and resets with
+membership. It takes the session out of the readiness barrier, but the server still
+pauses the group when an ignored member reports Buffering.
+
+## Using it from a player
+
+`registerLauncher` opens the group's item paused. After any asynchronous preparation,
+check the request's `isCurrent()` before presenting: the user may have left or the queue
+moved on. `registerPlayer` supplies the local decoder operations and synchronous state
+getters. Update that state before calling `notifyReady`, `notifyBuffering` or
+`notifyProgress`.
+
+## Tests
+
+- `utils/syncplay/controller.test.ts`: the state machine against a fake transport and
+  decoder, on fake timers.
+- `modules/mpv-player/tests/native-syncplay-scheduler.swift`: the Swift scheduler,
+  compiled together with `SyncPlayCommandScheduler.swift` and run as a plain executable.
+- `modules/mpv-player/android/src/test`: the Kotlin scheduler and its policies.
+- `e2e/syncplay/`: the controller against a real server in Docker, and the fixture for
+  testing the native players by hand. Not run in CI.
+
+## Known gaps
+
+- A group whose clock has run past the end of its item (every real member gone, a
+  crashed client still counted) tells the next client to join to seek past the end. That
+  client can never report Ready and leaves at the readiness timeout. Reaching the end
+  during such a seek should count as the item ending.
+- Repeat one: every member reports the end, and each report restarts the item.
+- TV: controls that become unavailable while focused now keep their focus, but that has
+  not been tried with a remote yet. Removing the focused queue row still drops focus.
+- Seek latency is not compensated. A decoder whose seeks take longer than the drift
+  threshold can keep correcting.
+- Swift still decides that a seek landed by proximity to the target. Android uses the
+  decoder's completion event.

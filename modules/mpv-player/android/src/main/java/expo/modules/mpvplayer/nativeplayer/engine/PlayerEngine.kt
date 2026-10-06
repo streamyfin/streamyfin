@@ -46,6 +46,9 @@ interface PlayerEngine {
      */
     interface Delegate {
         fun onPositionChanged(position: Double, duration: Double, cacheSeconds: Double)
+        fun onSeekCompleted(requestId: Long, position: Double, duration: Double, cacheSeconds: Double) {
+            onPositionChanged(position, duration, cacheSeconds)
+        }
         fun onPauseChanged(isPaused: Boolean)
         fun onLoadingChanged(isLoading: Boolean)
         fun onReadyToSeek()
@@ -87,6 +90,10 @@ interface PlayerEngine {
     fun seekTo(seconds: Double)
     /** Shared playback deadlines require the target frame, not a nearby keyframe. */
     fun seekToExact(seconds: Double) = seekTo(seconds)
+    /** Native chrome correlates decoder completion independently of ordinary progress. */
+    fun seekToTracked(seconds: Double, exact: Boolean, requestId: Long) {
+        if (exact) seekToExact(seconds) else seekTo(seconds)
+    }
     fun seekBy(seconds: Double)
     fun setSpeed(speed: Double)
     fun getSpeed(): Double

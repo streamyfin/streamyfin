@@ -261,7 +261,7 @@ class ExoPlayerModule : Module() {
             }
 
             // Events that the view can send to JavaScript — same set as MPV.
-            Events("onLoad", "onPlaybackStateChange", "onPlaybackEnded", "onProgress", "onError", "onTracksReady", "onPictureInPictureChange")
+            Events("onLoad", "onPlaybackStateChange", "onProgress", "onError", "onTracksReady", "onPictureInPictureChange")
         }
     }
 }

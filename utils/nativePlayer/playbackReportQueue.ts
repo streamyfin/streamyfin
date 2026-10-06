@@ -7,6 +7,8 @@ type ReportKind = "start" | "progress" | "final-progress" | "stop";
 export class NativePlaybackReportQueue {
   private tail: Promise<void> = Promise.resolve();
   private closedSessions = new WeakSet<object>();
+  private waiting = 0;
+  private latestProgress = new WeakMap<object, object>();
 
   closeSession(session: object) {
     this.closedSessions.add(session);
@@ -22,9 +24,26 @@ export class NativePlaybackReportQueue {
     // subsequent decoder tick, drift correction or ref replacement can run.
     const payload = { ...snapshot };
     if (kind === "stop") this.closeSession(session);
+    const queuedBehindAnother = this.waiting > 0;
+    this.waiting++;
+    if (kind === "progress") this.latestProgress.set(session, payload);
     const request = this.tail.then(async () => {
-      if (kind === "progress" && this.closedSessions.has(session)) return;
-      await report(payload);
+      try {
+        if (kind === "progress") {
+          if (this.closedSessions.has(session)) return;
+          // The SDK client has no timeout. Behind a server that stopped
+          // answering, ticks would otherwise pile up and drain one per
+          // timeout: only the newest position is still worth sending.
+          if (
+            queuedBehindAnother &&
+            this.latestProgress.get(session) !== payload
+          )
+            return;
+        }
+        await report(payload);
+      } finally {
+        this.waiting--;
+      }
     });
     // A failed HTTP write must not suppress a later pause, Stop or new Start.
     this.tail = request.catch(() => {});

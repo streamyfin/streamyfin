@@ -93,6 +93,11 @@ export interface SyncPlaySnapshot {
   shuffleMode: SyncPlayShuffleMode;
   /** This session's setting; Jellyfin does not broadcast ignore-wait updates. */
   ignoreWait: boolean;
+  /**
+   * False once the user has closed the player without leaving: still a
+   * member, but the group's playback no longer opens a player here.
+   */
+  watching: boolean;
   hasNext: boolean;
   hasPrevious: boolean;
   /** Server minus client clock, milliseconds. */

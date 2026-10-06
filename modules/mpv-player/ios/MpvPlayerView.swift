@@ -65,7 +65,6 @@ class MpvPlayerView: ExpoView {
 	private var videoContainer: UIView!
 	let onLoad = EventDispatcher()
 	let onPlaybackStateChange = EventDispatcher()
-	let onPlaybackEnded = EventDispatcher()
 	let onProgress = EventDispatcher()
 	let onError = EventDispatcher()
 	let onTracksReady = EventDispatcher()
@@ -367,7 +366,9 @@ extension MpvPlayerView: MPVPlayerEngineDelegate {
 	}
 
 	func engineDidReachEnd(_ engine: MPVPlayerEngine) {
-		onPlaybackEnded([:])
+		// EOF is only consumed by the presented native player (auto-advance /
+		// auto-close). The RN-embedded player's JS layer derives end-of-video
+		// from onProgress, so this is intentionally a no-op here.
 	}
 }
 

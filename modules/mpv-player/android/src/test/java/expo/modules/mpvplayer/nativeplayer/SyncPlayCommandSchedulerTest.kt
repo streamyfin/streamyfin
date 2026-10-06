@@ -154,10 +154,4 @@ class SyncPlayCommandSchedulerTest {
         assertEquals(listOf(false), results)
     }
 
-    @Test fun pauseAvoidsAnUnnecessarySeekWithinPointOneSeconds() {
-        assertFalse(syncPlayPauseNeedsSeek(20.0, 20.05))
-        assertFalse(syncPlayPauseNeedsSeek(20.0, 20.0))
-        assertTrue(syncPlayPauseNeedsSeek(20.0, 20.11))
-        assertTrue(syncPlayPauseNeedsSeek(20.0, 19.89))
-    }
 }

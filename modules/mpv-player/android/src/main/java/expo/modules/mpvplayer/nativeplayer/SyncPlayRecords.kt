@@ -7,11 +7,9 @@ class SyncPlayPlaylistItemRecord : Record {
     @Field var itemId: String = ""
     @Field var playlistItemId: String = ""
     @Field var title: String = ""
-}
-
-class SyncPlayLibraryItemRecord : Record {
-    @Field var itemId: String = ""
-    @Field var title: String = ""
+    @Field var subtitle: String? = null
+    /** Poster. */
+    @Field var imageUrl: String? = null
 }
 
 class SyncPlayStateRecord : Record {
@@ -28,9 +26,6 @@ class SyncPlayStateRecord : Record {
     @Field var ignoreWait: Boolean = false
     @Field var hasNext: Boolean = false
     @Field var hasPrevious: Boolean = false
-    @Field var library: List<SyncPlayLibraryItemRecord> = emptyList()
-    @Field var libraryLoading: Boolean = false
-    @Field var libraryQuery: String = ""
     @Field var strings: Map<String, String> = emptyMap()
 }
 

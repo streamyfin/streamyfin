@@ -1,7 +1,6 @@
 package expo.modules.mpvplayer.nativeplayer
 
 import kotlin.math.ceil
-import kotlin.math.abs
 import kotlin.math.max
 
 /** Main-thread coordinator; the injected clock/task queue makes deadline races testable. */
@@ -13,9 +12,6 @@ internal data class ScheduledSyncPlayCommand(
     val executeAtMs: Double,
     val positionSec: Double
 )
-
-internal fun syncPlayPauseNeedsSeek(currentPosition: Double, requestedPosition: Double): Boolean =
-    abs(currentPosition - requestedPosition) > 0.1
 
 internal class SyncPlayCommandScheduler(
     private val nowMs: () -> Long,
@@ -59,8 +55,15 @@ internal class SyncPlayCommandScheduler(
         val token = generation
         val delay = max(0.0, ceil(command.executeAtMs - nowMs())).toLong()
         cancelTask = schedule(delay) {
-            if (generation != token || !matches(command)) return@schedule
+            // cancel() bumps the generation and has already answered.
+            if (generation != token) return@schedule
             cancelTask = null
+            if (!matches(command)) {
+                val rejected = completion
+                completion = null
+                rejected?.invoke(false)
+                return@schedule
+            }
             // A Handler can run late after a busy frame/background transition.
             // Unpause must join the advancing timeline rather than its old start.
             val position = command.positionSec + if (command.command == "Unpause") {

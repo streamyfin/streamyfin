@@ -515,7 +515,10 @@ function Layout() {
                                         />
                                         <Stack.Screen
                                           name='(auth)/syncplay'
-                                          options={{ title: "SyncPlay" }}
+                                          options={{
+                                            title: "",
+                                            headerShown: !Platform.isTV,
+                                          }}
                                         />
                                         <Stack.Screen
                                           name='(auth)/now-playing'

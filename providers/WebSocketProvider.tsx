@@ -21,7 +21,7 @@ import { describeHttpResponse } from "@/utils/errors";
 import { getWebSocketUrl } from "@/utils/jellyfin/getWebSocketUrl";
 import {
   createSocketFailureRecorder,
-  reportSocketGiveUp,
+  reportSocketFastRetriesExhausted,
 } from "@/utils/jellyfin/socketFailure";
 import { SocketLifecycle } from "@/utils/jellyfin/socketLifecycle";
 import { logAndCaptureError, writeErrorLog } from "@/utils/log";
@@ -105,12 +105,11 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
   const api = useAtomValue(apiAtom);
   const { isConnected: isNetworkConnected, serverConnected } =
     useNetworkStatus();
-  // The give-up report fires at most once per session: after the first
-  // exhaustion the attempt counter stays maxed, so every later foreground/
-  // network flip would re-trigger it.
-  const reportedSocketGiveUpRef = useRef(false);
+  // Report a failed fast retry window once; recovery keeps retrying slowly.
+  const reportedSocketRetryExhaustionRef = useRef(false);
   const serverConnectedRef = useRef(serverConnected);
   serverConnectedRef.current = serverConnected;
+  const previousServerConnectedRef = useRef(serverConnected);
   const [ws, setWs] = useState<WebSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [socketLifecycle] = useState(
@@ -219,8 +218,9 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
     socketLifecycle.setSocket(newWebSocket);
     let keepAliveInterval: ReturnType<typeof setInterval> | null = null;
 
-    const maxReconnectAttempts = 5;
-    const reconnectDelay = 10000;
+    const fastReconnectAttempts = 5;
+    const fastReconnectDelay = 10000;
+    const slowReconnectDelay = 60000;
 
     newWebSocket.onopen = () => {
       if (!socketLifecycle.isCurrent(newWebSocket)) return;
@@ -240,29 +240,32 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
         socketLifecycle.hasPendingReconnect()
       )
         return;
-      if (reconnectAttemptsRef.current < maxReconnectAttempts) {
-        if (
-          socketLifecycle.scheduleReconnect(
-            newWebSocket,
-            reconnectDelay,
-            connectWebSocket,
-          )
-        )
-          reconnectAttemptsRef.current++;
-      } else if (
+      const fastRetriesExhausted =
+        reconnectAttemptsRef.current >= fastReconnectAttempts;
+      if (
+        fastRetriesExhausted &&
         serverConnectedRef.current === true &&
-        !reportedSocketGiveUpRef.current
+        !reportedSocketRetryExhaustionRef.current
       ) {
-        // All retries burned while the SERVER is reachable (a real probe,
-        // not just device connectivity): the server itself is rejecting the
-        // socket, which silently kills remote control and live updates
-        // until the next app foreground. Reported on the next tick: the
-        // close event that follows this one is what brings the reason, and
-        // the reason is what keeps every proxy that drops the upgrade from
-        // piling onto the real bugs.
-        reportedSocketGiveUpRef.current = true;
-        setTimeout(() => reportSocketGiveUp(failure.describe()), 0);
+        // The close event following an error supplies the failure reason.
+        // Keep proxy refusals out of reports, and continue capped slow retries.
+        reportedSocketRetryExhaustionRef.current = true;
+        setTimeout(() => {
+          if (socketLifecycle.isCurrent(newWebSocket))
+            reportSocketFastRetriesExhausted(failure.describe());
+        }, 0);
       }
+      if (
+        socketLifecycle.scheduleReconnect(
+          newWebSocket,
+          fastRetriesExhausted ? slowReconnectDelay : fastReconnectDelay,
+          connectWebSocket,
+        )
+      )
+        reconnectAttemptsRef.current = Math.min(
+          fastReconnectAttempts,
+          reconnectAttemptsRef.current + 1,
+        );
     };
 
     newWebSocket.onerror = (event) => {
@@ -397,6 +400,21 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
       setIsConnected(false);
     };
   }, [connectWebSocket, socketLifecycle]);
+
+  // Home's Retry proves that an unreachable server has recovered. Restart
+  // the fast retry window immediately, without replacing a healthy socket.
+  useEffect(() => {
+    const previous = previousServerConnectedRef.current;
+    previousServerConnectedRef.current = serverConnected;
+    if (
+      previous === false &&
+      serverConnected === true &&
+      socketLifecycle.canConnect()
+    ) {
+      reconnectAttemptsRef.current = 0;
+      connectWebSocket();
+    }
+  }, [serverConnected, connectWebSocket, socketLifecycle]);
 
   useEffect(() => {
     if (!deviceId || !api?.accessToken || !isNetworkConnected) {

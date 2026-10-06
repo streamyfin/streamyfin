@@ -84,6 +84,44 @@ describe("NativePlaybackReportQueue", () => {
     expect(report).toHaveBeenCalledTimes(1);
   });
 
+  test("ticks stuck behind a hung request collapse into the newest one", async () => {
+    const queue = new NativePlaybackReportQueue();
+    const session = {};
+    const hung = deferred();
+    const received: number[] = [];
+    const send = async (info: { position: number }) => {
+      received.push(info.position);
+    };
+    const first = queue.enqueue(
+      session,
+      "progress",
+      { position: 10 },
+      () => hung.promise,
+    );
+    const stale = [20, 30].map((position) =>
+      queue.enqueue(session, "progress", { position }, send),
+    );
+    const newest = queue.enqueue(session, "progress", { position: 40 }, send);
+    hung.resolve();
+    await Promise.all([first, ...stale, newest]);
+    expect(received).toEqual([40]);
+  });
+
+  test("a tick is not dropped in favour of another session's tick", async () => {
+    const queue = new NativePlaybackReportQueue();
+    const hung = deferred();
+    const received: string[] = [];
+    const first = queue.enqueue({}, "start", {}, () => hung.promise);
+    const reports = ["a", "b"].map((name) =>
+      queue.enqueue({}, "progress", { name }, async (info) => {
+        received.push(info.name);
+      }),
+    );
+    hung.resolve();
+    await Promise.all([first, ...reports]);
+    expect(received).toEqual(["a", "b"]);
+  });
+
   test("HTTP rejection does not block a later pause", async () => {
     const queue = new NativePlaybackReportQueue();
     const session = {};

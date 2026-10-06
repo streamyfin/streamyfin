@@ -67,6 +67,11 @@ final class MPVPlayerEngine: NSObject {
 	private var isShutDown = false
 	#if os(iOS)
 	private var isPictureInPictureHostVisible = false
+	/// True while the delegate hears that PiP stopped, when the user asked to
+	/// return to the app. False when the PiP window was simply closed.
+	private(set) var pictureInPictureStopIsRestore = false
+	/// True from AVKit announcing that PiP will stop until it has stopped.
+	private(set) var isPictureInPictureStopping = false
 	private var hasRenderedFirstFrame = false
 	private var pictureInPictureAutoStartEnabled = false
 	#endif
@@ -740,6 +745,8 @@ extension MPVPlayerEngine: MPVLayerRendererDelegate {
 extension MPVPlayerEngine: PiPControllerDelegate {
 	func pipController(_ controller: PiPController, willStartPictureInPicture: Bool) {
 		Logger.shared.log("PiP: will start", type: "Info")
+		pictureInPictureStopIsRestore = false
+		isPictureInPictureStopping = false
 		// Sync timebase before PiP starts for smooth transition
 		renderer?.syncTimebase()
 		// Set current time for PiP progress bar
@@ -763,6 +770,7 @@ extension MPVPlayerEngine: PiPControllerDelegate {
 
 	func pipController(_ controller: PiPController, willStopPictureInPicture: Bool) {
 		Logger.shared.log("PiP: will stop", type: "Info")
+		isPictureInPictureStopping = true
 		// Sync timebase before returning from PiP
 		renderer?.syncTimebase()
 	}
@@ -781,10 +789,13 @@ extension MPVPlayerEngine: PiPControllerDelegate {
 		// Notify the host that PiP has fully stopped so the controls overlay
 		// can be re-mounted when the user returns to full screen.
 		delegate?.engine(self, didChangePictureInPicture: false)
+		pictureInPictureStopIsRestore = false
+		isPictureInPictureStopping = false
 	}
 
 	func pipController(_ controller: PiPController, restoreUserInterfaceForPictureInPictureStop completionHandler: @escaping (Bool) -> Void) {
 		Logger.shared.log("PiP: restore user interface requested", type: "Info")
+		pictureInPictureStopIsRestore = true
 		completionHandler(true)
 	}
 

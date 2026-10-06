@@ -49,7 +49,6 @@ import type { TechnicalInfo } from "@/modules/mpv-player";
 import type { DownloadedItem } from "@/providers/Downloads/types";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
-import { useSyncPlay } from "@/providers/SyncPlayProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import type { TVOptionItem } from "@/utils/atoms/tvOptionModal";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
@@ -248,7 +247,6 @@ export const Controls: FC<Props> = ({
   const insets = useSafeAreaInsets();
   const { width: screenWidth } = useWindowDimensions();
   const { t } = useTranslation();
-  const syncPlay = useSyncPlay();
 
   // Calculate progress bar width (matches the padding used in bottomInner)
   const progressBarWidth = useMemo(() => {
@@ -516,18 +514,17 @@ export const Controls: FC<Props> = ({
 
   // Countdown logic
   const isCountdownActive = useMemo(() => {
-    if (syncPlay.enabled) return false;
     if (!nextItem) return false;
     if (item?.Type !== "Episode") return false;
     return remainingTime > 0 && remainingTime <= 10000;
-  }, [syncPlay.enabled, nextItem, item, remainingTime]);
+  }, [nextItem, item, remainingTime]);
 
   // Simple boolean - when skip cards or countdown are visible, they have focus
   const isSkipOrCountdownVisible = useMemo(() => {
     const skipIntroVisible = showSkipButton && !isCountdownActive;
     const skipCreditsVisible =
       showSkipCreditButton &&
-      (hasContentAfterCredits || !nextItem || syncPlay.enabled) &&
+      (hasContentAfterCredits || !nextItem) &&
       !isCountdownActive;
     return skipIntroVisible || skipCreditsVisible || isCountdownActive;
   }, [
@@ -536,7 +533,6 @@ export const Controls: FC<Props> = ({
     hasContentAfterCredits,
     nextItem,
     isCountdownActive,
-    syncPlay.enabled,
   ]);
 
   // Live TV detection - check for both Program (when playing from guide) and TvChannel (when playing from channels)
@@ -1175,32 +1171,23 @@ export const Controls: FC<Props> = ({
   }, [onToggleMute]);
 
   const handlePreviousItem = useCallback(() => {
-    if (syncPlay.enabled) {
-      void syncPlay.requestPrevious().catch(() => {});
-    } else if (goToPreviousItem) {
+    if (goToPreviousItem) {
       goToPreviousItem();
     }
     controlsInteractionRef.current();
-  }, [goToPreviousItem, syncPlay]);
+  }, [goToPreviousItem]);
 
   const handleNextItemButton = useCallback(() => {
-    if (syncPlay.enabled) {
-      void syncPlay.requestNext().catch(() => {});
-    } else if (goToNextItemProp) {
+    if (goToNextItemProp) {
       goToNextItemProp();
     } else {
       goToNextItemRef.current({ isAutoPlay: false });
     }
     controlsInteractionRef.current();
-  }, [goToNextItemProp, syncPlay]);
+  }, [goToNextItemProp]);
 
   const goToNextItem = useCallback(
-    ({ isAutoPlay }: { isAutoPlay?: boolean } = {}) => {
-      // Group EOF owns auto-advance; manual navigation changes the shared queue.
-      if (syncPlay.enabled) {
-        if (!isAutoPlay) void syncPlay.requestNext().catch(() => {});
-        return;
-      }
+    ({ isAutoPlay: _isAutoPlay }: { isAutoPlay?: boolean } = {}) => {
       if (!nextItem || !settings) {
         return;
       }
@@ -1242,16 +1229,15 @@ export const Controls: FC<Props> = ({
       mediaSource,
       bitrateValue,
       router,
-      syncPlay,
     ],
   );
 
   goToNextItemRef.current = goToNextItem;
 
   const handleAutoPlayFinish = useCallback(() => {
-    if (exitingRef.current || syncPlay.enabled) return;
+    if (exitingRef.current) return;
     goToNextItem({ isAutoPlay: true });
-  }, [goToNextItem, syncPlay.enabled]);
+  }, [goToNextItem]);
 
   const topOverlayFocusTarget = skipSegmentRef ?? nextEpisodeRef;
 
@@ -1320,7 +1306,7 @@ export const Controls: FC<Props> = ({
       <TVSkipSegmentCard
         show={
           showSkipCreditButton &&
-          (hasContentAfterCredits || !nextItem || syncPlay.enabled) &&
+          (hasContentAfterCredits || !nextItem) &&
           !isCountdownActive
         }
         onPress={() => {
@@ -1335,7 +1321,7 @@ export const Controls: FC<Props> = ({
         playButtonRef={showControls ? playButtonRef : null}
       />
 
-      {nextItem && !syncPlay.enabled && (
+      {nextItem && (
         <TVNextEpisodeCountdown
           nextItem={nextItem}
           api={api}

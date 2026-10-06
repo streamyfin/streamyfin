@@ -65,6 +65,15 @@ export const usePlayMedia = () => {
           return;
         }
         try {
+          // Already in the group's queue: start it there and keep the queue.
+          // Anything else replaces the queue, as playing does in Jellyfin.
+          const queued = options?.queueItemIds?.length
+            ? undefined
+            : syncPlay.playlist.find((entry) => entry.ItemId === req.itemId);
+          if (queued) {
+            await syncPlay.requestPlaylistItem(queued.PlaylistItemId);
+            return;
+          }
           const itemIds = options?.queueItemIds?.length
             ? options.queueItemIds
             : [req.itemId];

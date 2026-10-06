@@ -90,8 +90,6 @@ export type MpvPlayerViewProps = {
   onPlaybackStateChange?: (event: {
     nativeEvent: OnPlaybackStateChangePayload;
   }) => void;
-  /** Natural end of the video, never a user stop or stream replacement. */
-  onPlaybackEnded?: (event: { nativeEvent: Record<string, never> }) => void;
   onProgress?: (event: { nativeEvent: OnProgressEventPayload }) => void;
   onError?: (event: { nativeEvent: OnErrorEventPayload }) => void;
   onTracksReady?: (event: { nativeEvent: OnTracksReadyEventPayload }) => void;

@@ -246,12 +246,21 @@ class PlayerViewModel : PlayerEngine.Delegate {
                 when (command.command) {
                     "Pause" -> {
                         pauseLocal()
-                        if (syncPlayPauseNeedsSeek(engine?.currentPosition ?: authoritativePosition, position)) {
-                            seekLocal(position)
-                        }
+                        // Engine snapshots are throttled. A matching cached
+                        // tick cannot prove the decoder paused at this target.
+                        seekLocal(position)
                     }
                     "Seek" -> { pauseLocal(); seekLocal(position) }
-                    "Unpause" -> { seekLocal(position); playLocal() }
+                    "Unpause" -> {
+                        // A decoder already at the target is not seeked: every
+                        // seek reports loading, and a slow exact one would send
+                        // the group it just resumed back to waiting.
+                        val current = engine?.currentPosition
+                        if (current == null ||
+                            abs(current - position) > PlayerConstants.SYNC_PLAY_UNPAUSE_SEEK_TOLERANCE_SEC
+                        ) seekLocal(position)
+                        playLocal()
+                    }
                     "Stop" -> { pauseLocal(); onDismissRequested?.invoke("programmatic") }
                 }
                 true
@@ -271,7 +280,9 @@ class PlayerViewModel : PlayerEngine.Delegate {
             countdownRemaining = null
             showStillWatching = false
             activeSegment = null
-            cancelSleepTimer()
+            // This runs on every state push, and cancelSleepTimer() re-arms the
+            // auto-hide: without the check the chrome could never stay hidden.
+            if (sleepTimerMinutes != null) cancelSleepTimer()
             if (tvMenuRoute.any { it == TvMenuScreen.SPEED }) closeTvMenu()
         }
     }
@@ -291,7 +302,7 @@ class PlayerViewModel : PlayerEngine.Delegate {
 
     fun syncPlayAction(action: String, details: Map<String, Any?> = emptyMap()) {
         val state = syncPlay ?: return
-        if (isTearingDown || (!state.connected && action != "leave")) return
+        if (isTearingDown || (!state.connected && action != "leave" && action != "suspend")) return
         emit?.invoke("onSyncPlayAction", mapOf(
             "action" to action,
             "positionSec" to (engine?.currentPosition ?: authoritativePosition),
@@ -303,7 +314,6 @@ class PlayerViewModel : PlayerEngine.Delegate {
         if (!syncPlayActive) return
         showSyncPlayQueue = true
         autoHideJob?.cancel()
-        syncPlayAction("search", mapOf("query" to (syncPlay?.libraryQuery ?: "")))
     }
 
     fun closeSyncPlayQueue() {
@@ -324,8 +334,8 @@ class PlayerViewModel : PlayerEngine.Delegate {
     var authoritativePosition: Double = 0.0
         private set
     private var hasAuthoritativePosition = false
-    // Set on every user/remote seek; the next progress tick reports
-    // didSeek=true so the JS coordinator sends an immediate progress report.
+    // Decoder completion, rather than a nearby ordinary progress tick, reports
+    // didSeek=true so the JS coordinator persists the physical landing clock.
     private val pendingSeekReport = PendingSeekReport()
     private var speedBeforeHold: Double? = null
     private var currentItemId: String? = null
@@ -621,12 +631,12 @@ class PlayerViewModel : PlayerEngine.Delegate {
 
     fun seekLocal(positionSec: Double, trackOnly: Boolean = !syncPlayActive) {
         val clamped = max(0.0, if (duration > 0) min(positionSec, duration) else positionSec)
-        pendingSeekReport.request(clamped)
+        val requestId = pendingSeekReport.request(clamped)
         if (trackOnly) {
             displayPosition = clamped
             authoritativePosition = clamped
         }
-        if (syncPlayActive) engine?.seekToExact(clamped) else engine?.seekTo(clamped)
+        engine?.seekToTracked(clamped, exact = syncPlayActive, requestId = requestId)
         onPlaybackStateSync?.invoke()
         // Move JS's tracked position with the seek right away rather than on
         // the next time-pos tick: at teardown JS takes the later of its tracked
@@ -1308,6 +1318,15 @@ class PlayerViewModel : PlayerEngine.Delegate {
     // MARK: - MPVLayerRenderer.Delegate Implementation
 
     override fun onPositionChanged(position: Double, duration: Double, cacheSeconds: Double) {
+        reportPosition(position, duration, cacheSeconds, requestId = null)
+    }
+
+    override fun onSeekCompleted(requestId: Long, position: Double, duration: Double, cacheSeconds: Double) {
+        if (!pendingSeekReport.acceptCompletion(requestId, position)) return
+        reportPosition(position, duration, cacheSeconds, requestId)
+    }
+
+    private fun reportPosition(position: Double, duration: Double, cacheSeconds: Double, requestId: Long?) {
         // renderer.stop() zeroes its cached position, and a tick posted to the
         // main handler before that runs still delivers those zeroed fields
         // afterwards — emitting it would hand JS position 0 while teardown is
@@ -1326,7 +1345,7 @@ class PlayerViewModel : PlayerEngine.Delegate {
             displayPosition = position
         }
 
-        val didSeek = pendingSeekReport.consume(position)
+        val didSeek = requestId != null
 
         emit?.invoke("onProgress", mapOf(
             "position" to position,

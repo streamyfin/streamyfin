@@ -2,6 +2,7 @@ import { useState } from "react";
 import {
   type AccessibilityRole,
   ActivityIndicator,
+  Platform,
   Pressable,
   type StyleProp,
   View,
@@ -46,9 +47,12 @@ export function SyncPlayAction({
       accessibilityHint={accessibilityHint}
       accessibilityLabel={children}
       accessibilityState={{ disabled: unavailable, busy: loading, checked }}
-      disabled={unavailable}
-      focusable={!unavailable}
-      onPress={onPress}
+      // A focused control that turns unfocusable hands its focus to whatever
+      // the engine finds next, and `busy` flips on every request. On TV the
+      // control stays in the focus graph and only the press is dropped.
+      disabled={unavailable && !Platform.isTV}
+      focusable={!unavailable || Platform.isTV}
+      onPress={unavailable ? undefined : onPress}
       onFocus={() => setFocused(true)}
       onBlur={() => setFocused(false)}
       style={({ pressed }) => [

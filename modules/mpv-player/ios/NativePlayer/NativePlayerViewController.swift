@@ -488,7 +488,9 @@ final class NativePlayerViewController: UIViewController {
 			// when playback was paused before the scrub began.
 			viewModel.endScrub()
 			if engine.isPaused() {
-				engine.play()
+				// Shared playback resumes through the coordinator after the
+				// seek request; only Jellyfin's command starts the decoder.
+				engine.requestPlaying(true)
 			}
 		} else {
 			// Never skips a segment or fires the next-episode card:

@@ -412,7 +412,9 @@ class NativePlayerSession(
      */
     private fun syncKeepScreenOn() {
         val window = hostActivity?.window ?: return
-        if (viewModel.isPlaying || viewModel.isBuffering) {
+        // A paused group is a break, not the end: once the screen times out
+        // the host activity stops, and a stopped activity leaves the group.
+        if (viewModel.isPlaying || viewModel.isBuffering || viewModel.syncPlayActive) {
             if (viewModel.isPlaying) playbackStarted = true
             window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         } else if (playbackStarted) {
@@ -485,9 +487,14 @@ class NativePlayerSession(
                 // JS. Android's stopped/PiP state owns this decision instead.
                 Log.i(TAG, "SyncPlay leaving stopped non-PiP host activity")
                 mainHandler.removeCallbacks(recoverResumeRunnable)
+                // Leave first: canceling resolves a pending command as not
+                // applied, which JS reads as a playback failure while it is
+                // still a member.
+                // "suspend", not "leave": the user did not ask to go, so JS
+                // rejoins the group when the app is back in front.
+                viewModel.syncPlayAction("suspend")
                 viewModel.cancelSyncPlayCommands()
                 viewModel.pauseLocal()
-                viewModel.syncPlayAction("leave")
             }
             override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) {}
             override fun onActivityDestroyed(activity: Activity) {}

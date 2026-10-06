@@ -140,6 +140,15 @@ fun TvControlsRow(
         }
     }
 
+    // Previous and Next follow the group's queue, the queue button and the
+    // speed button follow membership. One of them unmounting under the focus
+    // (Next pressed on the second to last item) leaves the remote dead.
+    LaunchedEffect(showPrevious, showNext, viewModel.syncPlayActive) {
+        if (viewModel.controlsVisible && lastFocused != null && !isAvailable(lastFocused)) {
+            viewModel.restoreTvControlsFocus()
+        }
+    }
+
     Row(
         modifier = modifier,
         verticalAlignment = Alignment.CenterVertically,

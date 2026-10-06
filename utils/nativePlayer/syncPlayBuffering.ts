@@ -1,3 +1,5 @@
+import { SYNCPLAY_BUFFERING_REPORT_DELAY_MS } from "@/constants/SyncPlay";
+
 /** MPV briefly reports loading for seeks, including a scheduled Unpause's
  * catch-up seek. Reporting those as stalls repeatedly pauses the whole group.
  * A decoder that is not loaded still enters the readiness barrier immediately.
@@ -7,7 +9,7 @@ export class NativeSyncPlayBufferingReporter {
 
   constructor(
     private readonly report: (buffering: boolean) => void,
-    private readonly delayMs = 250,
+    private readonly delayMs = SYNCPLAY_BUFFERING_REPORT_DELAY_MS,
   ) {}
 
   update(buffering: boolean, ready: boolean) {

@@ -184,11 +184,9 @@ struct SyncPlayPlaylistItemRecord: Record {
 	@Field var itemId: String = ""
 	@Field var playlistItemId: String = ""
 	@Field var title: String = ""
-}
-
-struct SyncPlayLibraryItemRecord: Record {
-	@Field var itemId: String = ""
-	@Field var title: String = ""
+	@Field var subtitle: String?
+	/// Poster, loaded with the config's image headers.
+	@Field var imageUrl: String?
 }
 
 struct SyncPlayStateRecord: Record {
@@ -205,9 +203,6 @@ struct SyncPlayStateRecord: Record {
 	@Field var ignoreWait: Bool = false
 	@Field var hasNext: Bool = false
 	@Field var hasPrevious: Bool = false
-	@Field var library: [SyncPlayLibraryItemRecord] = []
-	@Field var libraryLoading: Bool = false
-	@Field var libraryQuery: String = ""
 	@Field var strings: [String: String] = [:]
 }
 

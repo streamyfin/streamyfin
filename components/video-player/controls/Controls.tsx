@@ -32,7 +32,6 @@ import { useTrickplay } from "@/hooks/useTrickplay";
 import type { TechnicalInfo } from "@/modules/mpv-player";
 import { DownloadedItem } from "@/providers/Downloads/types";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
-import { useSyncPlay } from "@/providers/SyncPlayProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { hasChapterMarkers } from "@/utils/chapters";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
@@ -138,7 +137,6 @@ export const Controls: FC<Props> = ({
   transcodeReasons,
 }) => {
   const offline = useOfflineMode();
-  const syncPlay = useSyncPlay();
   const { settings, updateSettings } = useSettings();
   const router = useRouter();
   const lightHapticFeedback = useHaptic("light");
@@ -446,7 +444,6 @@ export const Controls: FC<Props> = ({
   // Credits button yields to it only when this is true; if autoplay is
   // disabled or its episode limit is reached, Skip Credits must stay available.
   const willShowNextEpisode =
-    !syncPlay.enabled &&
     !!nextItem &&
     settings.autoPlayNextEpisode !== false &&
     (settings.maxAutoPlayEpisodeCount.value === -1 ||
@@ -476,7 +473,6 @@ export const Controls: FC<Props> = ({
   // player's stillWatchingRequired flow. Gated on reaching the end so the
   // prompt never covers a video that is still playing.
   const stillWatchingRequired =
-    !syncPlay.enabled &&
     !!nextItem &&
     settings.autoPlayNextEpisode !== false &&
     settings.maxAutoPlayEpisodeCount.value !== -1 &&
@@ -528,10 +524,6 @@ export const Controls: FC<Props> = ({
       if (!item || !settings) {
         return;
       }
-      if (syncPlay.enabled && item.Id) {
-        void syncPlay.playItems([item.Id]).catch(() => {});
-        return;
-      }
       lightHapticFeedback();
       const previousIndexes = {
         subtitleIndex: subtitleIndex
@@ -570,20 +562,15 @@ export const Controls: FC<Props> = ({
       bitrateValue,
       router,
       offline,
-      syncPlay,
     ],
   );
 
   const goToPreviousItem = useCallback(() => {
-    if (syncPlay.enabled) {
-      void syncPlay.requestPrevious().catch(() => {});
-      return;
-    }
     if (!previousItem) {
       return;
     }
     goToItemCommon(previousItem);
-  }, [previousItem, goToItemCommon, syncPlay]);
+  }, [previousItem, goToItemCommon]);
 
   const goToNextItem = useCallback(
     ({
@@ -593,10 +580,6 @@ export const Controls: FC<Props> = ({
       isAutoPlay?: boolean;
       resetWatchCount?: boolean;
     }) => {
-      if (syncPlay.enabled) {
-        if (!isAutoPlay) void syncPlay.requestNext().catch(() => {});
-        return;
-      }
       if (!nextItem) {
         return;
       }
@@ -636,7 +619,7 @@ export const Controls: FC<Props> = ({
         });
       }
     },
-    [nextItem, goToItemCommon, syncPlay],
+    [nextItem, goToItemCommon],
   );
 
   // Add a memoized handler for autoplay next episode

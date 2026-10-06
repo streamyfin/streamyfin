@@ -124,7 +124,8 @@ import { resolveTeardownReport } from "@/utils/nativePlayer/resolveTeardownRepor
 import {
   buildNativeSyncPlayState,
   dispatchNativeSyncPlayAction,
-  type SyncPlayLibraryState,
+  isSameStreamUrl,
+  type SyncPlayQueueDisplay,
 } from "@/utils/nativePlayer/syncPlay";
 import { NativeSyncPlayBufferingReporter } from "@/utils/nativePlayer/syncPlayBuffering";
 import {
@@ -138,6 +139,10 @@ import {
   localSubtitleIndex,
   SUBTITLES_OFF,
 } from "@/utils/subtitles/subtitleIndex";
+import {
+  syncPlayQueuePosterUrl,
+  syncPlayQueueSubtitle,
+} from "@/utils/syncplay/queueDisplay";
 import { msToTicks, ticksToSeconds } from "@/utils/time";
 
 const NEXT_EPISODE_COUNTDOWN_SECONDS = 10;
@@ -369,16 +374,10 @@ const NativePlayerProviderInner: React.FC<{
       }),
   );
   useEffect(() => () => syncBufferingReporter.reset(), [syncBufferingReporter]);
-  const [syncTitles, setSyncTitles] = useState<Record<string, string>>({});
-  const [syncLibrary, setSyncLibrary] = useState<SyncPlayLibraryState>({
-    items: [],
-    loading: false,
-    query: "",
-  });
-  const syncSearchToken = useRef(0);
+  const [syncDisplay, setSyncDisplay] = useState<SyncPlayQueueDisplay>({});
   const nativeSyncState = useMemo(
-    () => buildNativeSyncPlayState(syncPlay, syncTitles, syncLibrary, t),
-    [syncPlay, syncTitles, syncLibrary, t],
+    () => buildNativeSyncPlayState(syncPlay, syncDisplay, t),
+    [syncPlay, syncDisplay, t],
   );
   const nativeSyncStateRef = useRef(nativeSyncState);
   nativeSyncStateRef.current = nativeSyncState;
@@ -386,15 +385,25 @@ const NativePlayerProviderInner: React.FC<{
   useEffect(() => {
     let current = true;
     if (!syncIds) {
-      setSyncTitles({});
+      setSyncDisplay({});
       return;
     }
     void syncPlay
       .resolveVideos(syncIds.split(","))
       .then((items) => {
         if (current)
-          setSyncTitles(
-            Object.fromEntries(items.map((item) => [item.Id, item.Name || ""])),
+          setSyncDisplay(
+            Object.fromEntries(
+              items.map((item) => [
+                item.Id,
+                {
+                  title: item.Name || "",
+                  subtitle: syncPlayQueueSubtitle(item),
+                  imageUrl:
+                    syncPlayQueuePosterUrl(apiRef.current, item) || undefined,
+                },
+              ]),
+            ),
           );
       })
       .catch(() => {});
@@ -402,44 +411,6 @@ const NativePlayerProviderInner: React.FC<{
       current = false;
     };
   }, [syncIds, syncPlay.resolveVideos]);
-  const searchSyncVideos = useCallback(
-    async (query: string) => {
-      const token = ++syncSearchToken.current;
-      const groupId = syncRef.current.group?.GroupId;
-      setSyncLibrary({ items: [], loading: true, query });
-      try {
-        const items = await syncRef.current.listVideos(query);
-        if (
-          token !== syncSearchToken.current ||
-          groupId !== syncRef.current.group?.GroupId
-        )
-          return;
-        setSyncLibrary({
-          query,
-          loading: false,
-          items: items
-            .filter((item) => !!item.Id)
-            .map((item) => ({ itemId: item.Id!, title: item.Name || "" })),
-        });
-      } catch {
-        if (
-          token === syncSearchToken.current &&
-          groupId === syncRef.current.group?.GroupId
-        )
-          setSyncLibrary({
-            items: [],
-            loading: false,
-            query,
-            error: t("syncplay.videos_failed"),
-          });
-      }
-    },
-    [t],
-  );
-  useEffect(() => {
-    ++syncSearchToken.current;
-    setSyncLibrary({ items: [], loading: false, query: "" });
-  }, [syncPlay.group?.GroupId]);
 
   const sessionRef = useRef<NativeSession | null>(null);
   const reportQueue = useRef(new NativePlaybackReportQueue()).current;
@@ -460,6 +431,13 @@ const NativePlayerProviderInner: React.FC<{
     if (isActive && isNativePlayerSyncPlayAvailable())
       void updateNativePlayerSyncPlay(nativeSyncState).catch(() => {});
   }, [isActive, nativeSyncState]);
+
+  // Dropped from the group (socket lost, playback failed) the player is left
+  // paused with no SyncPlay state to carry the reason, so it is said here.
+  useEffect(() => {
+    if (isActive && !syncPlay.enabled && syncPlay.error)
+      void nativePlayerShowNotice(syncPlay.error);
+  }, [isActive, syncPlay.enabled, syncPlay.error]);
 
   useEffect(() => {
     if (!isNativePlayerSyncPlayAvailable()) return;
@@ -520,13 +498,16 @@ const NativePlayerProviderInner: React.FC<{
       if (
         state !== "background" ||
         !syncRef.current.enabled ||
+        // Nobody waits for a member who is not watching, so there is nothing
+        // to step out of. A socket lost in the background is rejoined.
+        !syncRef.current.watching ||
         nativePipRef.current ||
         // Native lifecycle callbacks can distinguish PiP from a real stop.
         // AppState reaches background before Android's PiP event reaches JS.
         (sessionRef.current && isNativePlayerSyncPlayAvailable())
       )
         return;
-      void syncRef.current.leaveGroup().catch(() => {});
+      void syncRef.current.suspendGroup().catch(() => {});
       void nativePlayerPause().catch(() => {});
     });
     return () => subscription.remove();
@@ -539,13 +520,20 @@ const NativePlayerProviderInner: React.FC<{
 
   // usePlaybackManager returns a fresh object per render; handlers below live
   // in refs, so mirror the pieces they need (same pattern as direct-player).
-  const reportProgressRef = useRef(playbackManager.reportPlaybackProgress);
+  const saveLocalProgressRef = useRef(
+    playbackManager.saveLocalPlaybackProgress,
+  );
+  const reportRemoteProgressRef = useRef(
+    playbackManager.reportRemotePlaybackProgress,
+  );
   const nextItemRef = useRef<BaseItemDto | null>(playbackManager.nextItem);
   const previousItemRef = useRef<BaseItemDto | null>(
     playbackManager.previousItem,
   );
   useEffect(() => {
-    reportProgressRef.current = playbackManager.reportPlaybackProgress;
+    saveLocalProgressRef.current = playbackManager.saveLocalPlaybackProgress;
+    reportRemoteProgressRef.current =
+      playbackManager.reportRemotePlaybackProgress;
     nextItemRef.current = playbackManager.nextItem;
     previousItemRef.current = playbackManager.previousItem;
   });
@@ -633,12 +621,15 @@ const NativePlayerProviderInner: React.FC<{
 
   const reportNativeProgress = useCallback(
     (session: NativeSession, info: PlaybackProgressInfo, final = false) => {
-      const report = reportProgressRef.current;
+      // The downloads database is written here, not in the queue: the resume
+      // position of a downloaded item must not wait for a server that has
+      // stopped answering.
+      saveLocalProgressRef.current(info);
       return reportQueue.enqueue(
         session,
         final ? "final-progress" : "progress",
         info,
-        report,
+        reportRemoteProgressRef.current,
       );
     },
     [reportQueue],
@@ -1731,19 +1722,25 @@ const NativePlayerProviderInner: React.FC<{
             playlistItemId: session.syncPlaylistItemId,
           };
         }
-        void dispatchNativeSyncPlayAction(
-          syncRef.current,
-          payload,
-          searchSyncVideos,
-        ).catch(() => {
-          if (syncRef.current.error)
-            void nativePlayerShowNotice(syncRef.current.error);
-        });
+        void dispatchNativeSyncPlayAction(syncRef.current, payload).catch(
+          () => {
+            if (syncRef.current.error)
+              void nativePlayerShowNotice(syncRef.current.error);
+          },
+        );
       }),
       addNativePlayerListener("onLoad", (payload) => {
         const session = sessionRef.current;
         if (!session) return;
-        if (payload.url !== session.stream.url) return;
+        // An in-place swap can deliver the outgoing stream's onLoad late, and
+        // in a group that would report Ready for an item still loading. Solo
+        // playback keeps accepting any onLoad, as it always has: a URL this
+        // comparison got wrong would leave the session dead with no error.
+        if (
+          syncRef.current.enabled &&
+          !isSameStreamUrl(payload.url, session.stream.url)
+        )
+          return;
         // The engine has taken the new stream; events from here on belong to
         // this session.
         session.awaitingLoad = false;
@@ -2057,8 +2054,9 @@ const NativePlayerProviderInner: React.FC<{
         const session = sessionRef.current;
         if (!session) return;
         nativePipRef.current = false;
+        // Closing the player is not leaving the group: only Leave is.
         if (syncRef.current.enabled && payload.reason !== "programmatic")
-          void syncRef.current.leaveGroup().catch(() => {});
+          void syncRef.current.stopWatching().catch(() => {});
         void teardownSession(session, payload.positionSec);
       }),
     ];
@@ -2086,7 +2084,6 @@ const NativePlayerProviderInner: React.FC<{
     downloadUtils,
     updateSettings,
     lockOrientation,
-    searchSyncVideos,
     syncBufferingReporter,
   ]);
 

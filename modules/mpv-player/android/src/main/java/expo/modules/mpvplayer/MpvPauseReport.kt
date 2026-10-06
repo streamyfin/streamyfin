@@ -1,6 +1,6 @@
 package expo.modules.mpvplayer
 
-/** Snapshot taken on mpv's event thread, delivered in order on the UI thread. */
+/** Physical pause snapshot shared by mpv and Media3, delivered on the UI thread. */
 internal data class MpvPauseReport(
     val paused: Boolean,
     val position: Double?,

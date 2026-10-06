@@ -1,59 +1,41 @@
-import { usePathname, useRouter } from "expo-router";
+import { router, usePathname } from "expo-router";
 import { useEffect, useRef } from "react";
-import { isNativePlayerSyncPlayAvailable } from "@/modules/mpv-player";
 import { useNativePlayer } from "@/providers/NativePlayerProvider";
 import { useSyncPlay } from "@/providers/SyncPlayProvider";
-import { toDirectPlayerQuery } from "@/utils/nativePlayer/playRequest";
+import { isSyncPlayAvailable } from "@/utils/syncplay/availability";
 
-/** Keeps a launcher available even before a player has been opened. */
+/**
+ * Presents the native player when the group starts an item, whatever screen
+ * is up. Mounted at the root so a launcher exists before any player has opened.
+ */
 export function SyncPlayPlaybackBridge() {
   const { registerLauncher } = useSyncPlay();
   const { presentFromRequest } = useNativePlayer();
-  // This global launcher outlives player routes. Screen push guards would stay
-  // locked after the first launch because the root never loses/regains focus.
-  const router = useRouter();
   const pathname = usePathname();
-  const routeRef = useRef({ router, pathname, presentFromRequest });
-  routeRef.current = { router, pathname, presentFromRequest };
+  const latest = useRef({ pathname, presentFromRequest });
+  latest.current = { pathname, presentFromRequest };
 
-  useEffect(
-    () =>
-      registerLauncher(async (request) => {
-        if (request.isCurrent?.() === false) return;
-        // The presented SwiftUI/Compose player owns SyncPlay controls/timing.
-        // Keep the route adapter only for platforms without the native module.
-        if (isNativePlayerSyncPlayAvailable()) {
-          if (routeRef.current.pathname.endsWith("/player/direct-player"))
-            routeRef.current.router.back();
-          const presented = await routeRef.current.presentFromRequest(
-            {
-              itemId: request.itemId,
-              playbackPositionTicks: request.startPositionTicks,
-              offline: false,
-            },
-            { isCurrent: request.isCurrent },
-          );
-          if (!presented && request.isCurrent?.() !== false)
-            throw new Error("Native SyncPlay player could not be presented");
-          return;
-        }
-        if (request.isCurrent?.() === false) return;
-        const query = toDirectPlayerQuery({
+  useEffect(() => {
+    if (!isSyncPlayAvailable()) return;
+    return registerLauncher(async (request) => {
+      if (request.isCurrent?.() === false) return;
+      // The JS player does not follow the group. One that is still open (Live
+      // TV started while in a group) would keep playing under the native one.
+      // Static router: a provider level useRouter() disturbs the native tabs.
+      if (latest.current.pathname.endsWith("/player/direct-player"))
+        router.back();
+      const presented = await latest.current.presentFromRequest(
+        {
           itemId: request.itemId,
           playbackPositionTicks: request.startPositionTicks,
           offline: false,
-        });
-        const current = routeRef.current;
-        if (current.pathname.endsWith("/player/direct-player")) {
-          current.router.setParams(
-            Object.fromEntries(new URLSearchParams(query)),
-          );
-        } else {
-          current.router.push(`/player/direct-player?${query}`);
-        }
-      }),
-    [registerLauncher],
-  );
+        },
+        { isCurrent: request.isCurrent },
+      );
+      if (!presented && request.isCurrent?.() !== false)
+        throw new Error("Native SyncPlay player could not be presented");
+    });
+  }, [registerLauncher]);
 
   return null;
 }

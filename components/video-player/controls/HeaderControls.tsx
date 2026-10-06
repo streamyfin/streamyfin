@@ -195,9 +195,6 @@ export const HeaderControls: FC<HeaderControlsProps> = ({
         />
         <TouchableOpacity
           onPress={onClose}
-          testID='player-close'
-          accessibilityRole='button'
-          accessibilityLabel={t("common.close")}
           className='aspect-square flex flex-col rounded-xl items-center justify-center p-2'
         >
           <Ionicons name='close' size={ICON_SIZES.HEADER} color='white' />

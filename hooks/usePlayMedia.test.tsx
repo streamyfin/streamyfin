@@ -8,11 +8,15 @@ const mockPresentFromRequest = jest.fn();
 let mockNativeChromeActive = false;
 let mockSyncPlayEnabled = false;
 const mockSyncPlayItems = jest.fn();
+const mockSyncPlaylistItem = jest.fn();
+let mockSyncPlaylist: { ItemId: string; PlaylistItemId: string }[] = [];
 
 jest.mock("@/providers/SyncPlayProvider", () => ({
   useSyncPlay: () => ({
     enabled: mockSyncPlayEnabled,
+    playlist: mockSyncPlaylist,
     playItems: mockSyncPlayItems,
+    requestPlaylistItem: mockSyncPlaylistItem,
   }),
 }));
 
@@ -54,6 +58,8 @@ describe("usePlayMedia", () => {
     mockNativeChromeActive = false;
     mockSyncPlayEnabled = false;
     mockSyncPlayItems.mockReset().mockResolvedValue(undefined);
+    mockSyncPlaylistItem.mockReset().mockResolvedValue(undefined);
+    mockSyncPlaylist = [];
     alert = jest.spyOn(Alert, "alert").mockImplementation(() => {});
   });
 
@@ -77,6 +83,17 @@ describe("usePlayMedia", () => {
     expect(mockSyncPlayItems).toHaveBeenCalledWith(["movie-1"], 0, 0);
     expect(mockPush).not.toHaveBeenCalled();
     expect(mockPresentFromRequest).not.toHaveBeenCalled();
+  });
+
+  test("a video already in the group's queue starts there, and the queue stays", async () => {
+    mockSyncPlayEnabled = true;
+    mockSyncPlaylist = [
+      { ItemId: "movie-0", PlaylistItemId: "entry-0" },
+      { ItemId: "movie-1", PlaylistItemId: "entry-1" },
+    ];
+    await play({ Id: "movie-1", Type: "Movie" });
+    expect(mockSyncPlaylistItem).toHaveBeenCalledWith("entry-1");
+    expect(mockSyncPlayItems).not.toHaveBeenCalled();
   });
 
   test("keeps live television out of a synchronized video group", async () => {

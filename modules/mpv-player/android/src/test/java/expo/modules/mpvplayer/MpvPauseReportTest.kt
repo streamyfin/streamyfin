@@ -36,6 +36,23 @@ class MpvPauseReportTest {
         assertEquals(56.708, reportedPosition, 0.000001)
     }
 
+    @Test fun progressReentryCannotTurnAPausedReportIntoPlaying() {
+        var enginePaused = true
+        var lastReportedPosition = 20.0
+        val persisted = mutableListOf<Pair<Double, Boolean>>()
+        val pausedSnapshot = MpvPauseReport(enginePaused, 20.8, 120.0, 3.0)
+        pausedSnapshot.deliver(
+            onProgress = { position, _, _ ->
+                lastReportedPosition = position
+                // A progress consumer can initiate a newer playback action.
+                enginePaused = false
+            },
+            onPause = { paused -> persisted += lastReportedPosition to paused },
+        )
+        assertFalse(enginePaused)
+        assertEquals(listOf(20.8 to true), persisted)
+    }
+
     @Test fun missingPhysicalClockDoesNotReportAnOptimisticSeekTarget() {
         for (position in listOf(null, Double.NaN, Double.POSITIVE_INFINITY, -1.0)) {
             var progressReported = false

@@ -1,7 +1,7 @@
 /**
  * Live production-controller checks against the isolated Docker Jellyfin.
  * Run setup.py first, then: bun e2e/syncplay/controller-integration.ts
- * Simulated decoder states complement the real browser/native UI checks.
+ * Simulated decoder states complement the checks on the real native players.
  */
 
 import { mkdir, readFile, writeFile } from "node:fs/promises";

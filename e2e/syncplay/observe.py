@@ -35,7 +35,7 @@ def main():
     sessions = []
     for session in raw_sessions:
         client = session.get("Client", "")
-        if client not in ("Streamyfin", "Streamyfin Web", "Jellyfin Web"):
+        if client not in ("Streamyfin", "Jellyfin Web"):
             continue
         if args.device and session.get("DeviceName") not in args.device:
             continue

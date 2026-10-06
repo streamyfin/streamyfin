@@ -5,6 +5,7 @@ import { useEffect } from "react";
 import { Platform, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { HeaderButton } from "@/components/common/HeaderButton";
+import { SettingSwitch } from "@/components/common/SettingSwitch";
 import { Text } from "@/components/common/Text";
 import { ListGroup } from "@/components/list/ListGroup";
 import { ListItem } from "@/components/list/ListItem";
@@ -14,6 +15,8 @@ import { StorageSettings } from "@/components/settings/StorageSettings";
 import { UserInfo } from "@/components/settings/UserInfo";
 import useRouter from "@/hooks/useAppRouter";
 import { useJellyfin, userAtom } from "@/providers/JellyfinProvider";
+import { useSyncPlay } from "@/providers/SyncPlayProvider";
+import { useSettings } from "@/utils/atoms/settings";
 
 // TV-specific settings component
 const SettingsTV = Platform.isTV ? require("./settings.tv").default : null;
@@ -21,6 +24,8 @@ const SettingsTV = Platform.isTV ? require("./settings.tv").default : null;
 // Mobile settings component
 function SettingsMobile() {
   const router = useRouter();
+  const { available: syncPlayAvailable } = useSyncPlay();
+  const { settings, updateSettings } = useSettings();
   const insets = useSafeAreaInsets();
   const [_user] = useAtom(userAtom);
   const { logout } = useJellyfin();
@@ -61,19 +66,24 @@ function SettingsMobile() {
 
         <QuickConnect className='mb-4' />
 
-        <View className='mb-4'>
-          <ListGroup title={t("syncplay.title")}>
-            <ListItem
-              testID='syncplay-settings-open'
-              accessibilityRole='button'
-              accessibilityLabel={t("syncplay.title")}
-              onPress={() => router.push("/(auth)/syncplay")}
-              title={t("syncplay.watch_together")}
-              subtitle={t("syncplay.description")}
-              showArrow
-            />
-          </ListGroup>
-        </View>
+        {syncPlayAvailable && (
+          <View className='mb-4'>
+            <ListGroup title={t("syncplay.title")}>
+              <ListItem
+                title={t("syncplay.ignore_wait")}
+                subtitle={t("syncplay.ignore_wait_setting_hint")}
+              >
+                <SettingSwitch
+                  testID='syncplay-settings-ignore-wait'
+                  value={settings.syncPlayIgnoreWait}
+                  onValueChange={(value) =>
+                    updateSettings({ syncPlayIgnoreWait: value })
+                  }
+                />
+              </ListItem>
+            </ListGroup>
+          </View>
+        )}
 
         {Platform.OS !== "ios" && (
           <View className='mb-4'>

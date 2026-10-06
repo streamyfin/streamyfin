@@ -283,16 +283,20 @@ export type NativePlayerSyncPlayState = {
   connected: boolean;
   busy: boolean;
   error?: string;
-  playlist: { itemId: string; playlistItemId: string; title: string }[];
+  playlist: {
+    itemId: string;
+    playlistItemId: string;
+    title: string;
+    subtitle?: string;
+    /** Poster. Loaded with the config's image headers. */
+    imageUrl?: string;
+  }[];
   currentPlaylistItemId?: string;
   repeatMode: "RepeatNone" | "RepeatOne" | "RepeatAll";
   shuffleMode: "Sorted" | "Shuffle";
   ignoreWait: boolean;
   hasNext: boolean;
   hasPrevious: boolean;
-  library: { itemId: string; title: string }[];
-  libraryLoading: boolean;
-  libraryQuery: string;
   strings: Record<string, string>;
 };
 
@@ -315,6 +319,8 @@ export type NativePlayerSyncPlayAction = {
     | "previous"
     | "stop"
     | "leave"
+    // Out of the group because the app went away, not because the user asked.
+    | "suspend"
     | "refresh"
     | "repeat"
     | "shuffle"
@@ -323,17 +329,12 @@ export type NativePlayerSyncPlayAction = {
     | "remove"
     | "move"
     | "clear"
-    | "queue"
-    | "search"
-    | "playItems"
     | "ended";
   positionSec?: number;
   playlistItemId?: string;
-  itemIds?: string[];
   newIndex?: number;
   mode?: string;
   value?: boolean;
-  query?: string;
 };
 
 export type NativePlayerConfig = {
