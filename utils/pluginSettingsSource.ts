@@ -53,6 +53,15 @@ const isMissingRoute = (error: unknown): boolean =>
     ?.status === 404;
 
 /**
+ * What both routes answer with: a map of key to `{ locked, value }`. A 200 that
+ * is anything else is not an answer about the plugin. A captive portal's login
+ * page arrives the same way, and reading it as "no settings" would drop every
+ * lock the admin set.
+ */
+const isSettingsMap = (value: unknown): value is PluginLockableSettings =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+/**
  * The settings that apply to the signed-in user, whatever the server's age.
  *
  * Both endpoints answer with the same map of `key -> { locked, value }`, so
@@ -65,16 +74,18 @@ const isMissingRoute = (error: unknown): boolean =>
  *
  * @throws whatever the request failed with, for anything else. A server that
  * cannot be reached has not told the caller it has no plugin, and the two must
- * not look the same to whoever decides what to keep.
+ * not look the same to whoever decides what to keep. The same goes for an
+ * answer that is not a settings map.
  */
 export const fetchPluginSettings = async (
   api: PluginSettingsReader,
 ): Promise<PluginLockableSettings | undefined> => {
   try {
-    const { data } = await api.get<PluginLockableSettings>(
-      RESOLVED_SETTINGS_PATH,
-    );
-    return data ?? undefined;
+    const { data } = await api.get<unknown>(RESOLVED_SETTINGS_PATH);
+    if (!isSettingsMap(data)) {
+      throw new Error("The resolved plugin settings are not a settings map");
+    }
+    return data;
   } catch (error) {
     // Only a missing route means "older plugin". A server that is down or a
     // token that expired would fail the same way on the old path, and asking
@@ -86,7 +97,12 @@ export const fetchPluginSettings = async (
 
   try {
     const { data } = await api.get<StreamyfinPluginConfig>(LEGACY_CONFIG_PATH);
-    return data?.settings ?? undefined;
+    // Every published plugin sends its settings block, defaulted since 0.58, so
+    // a configuration without one is broken rather than empty.
+    if (!isSettingsMap(data?.settings)) {
+      throw new Error("The plugin configuration has no settings map");
+    }
+    return data.settings;
   } catch (error) {
     if (!isMissingRoute(error)) {
       throw error;

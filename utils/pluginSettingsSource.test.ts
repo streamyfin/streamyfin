@@ -96,10 +96,34 @@ describe("fetchPluginSettings", () => {
     await expect(fetchPluginSettings(api)).rejects.toThrow("HTTP 503");
   });
 
-  test("treats a configuration with no settings block as nothing to apply", async () => {
-    const { api } = server({ [LEGACY_CONFIG_PATH]: {} });
+  // Undefined is the answer "no plugin here", and it clears the admin's policy.
+  // A 200 that carries no settings map has not said that: a captive portal's
+  // login page arrives the same way, so it fails like an unreachable server.
+  test.each([
+    ["a login page", "<html><body>Sign in to the Wi-Fi</body></html>"],
+    ["an empty body", null],
+    ["a list", []],
+  ])("refuses %s in place of the resolved settings", async (_case, answer) => {
+    const { api, asked } = server({
+      [RESOLVED_SETTINGS_PATH]: answer,
+      [LEGACY_CONFIG_PATH]: { settings: resolvedSettings },
+    });
 
-    expect(await fetchPluginSettings(api)).toBeUndefined();
+    await expect(fetchPluginSettings(api)).rejects.toThrow(
+      "not a settings map",
+    );
+    // The route exists, so the stored configuration is not asked instead.
+    expect(asked).toEqual([RESOLVED_SETTINGS_PATH]);
+  });
+
+  // Every published plugin sends its settings block, defaulted since 0.58.
+  test.each([
+    ["no settings block", {}],
+    ["a login page", "<html><body>Sign in to the Wi-Fi</body></html>"],
+  ])("refuses a stored configuration with %s", async (_case, answer) => {
+    const { api } = server({ [LEGACY_CONFIG_PATH]: answer });
+
+    await expect(fetchPluginSettings(api)).rejects.toThrow("no settings map");
   });
 });
 
