@@ -22,6 +22,8 @@ On iOS the rejection message does not name the call. `rejectWhenTrackIndexOutOfB
 | `One or more of the indexes were out of bounds.` | `remove` only |
 | `The fromIndex is out of bounds` / `The toIndex is out of bounds` | `move` |
 
-Sentry REACT-NATIVE-AW (`The track index is out of bounds`, no stack) read as a `skip` and was mostly an `add`: `jumpToIndex` inserted a track that was not loaded yet at its state index. Android words these differently (`MusicModule.kt`), so match on the platform before reading a message.
+Sentry REACT-NATIVE-AW (`The track index is out of bounds`, no stack) read as a `skip`, and the path that reproduces most readily is an `add`: `jumpToIndex` inserted a track that was not loaded yet at its state index. The events carry no stack, so which call each one came from is not known. Android shares that message between `add` and `skip` too, and words the `remove` and `move` ones differently (`MusicModule.kt`), so match on the platform before reading a message.
+
+Reading the queue and then acting on an index from the read is several native round trips, and the background load adds tracks in between. Run such an edit through `editNativeQueue` so the two take turns.
 
 The player actions are typed as returning nothing and screens fire them from press handlers, so any rejection inside one is an unhandled rejection with no JS stack.
