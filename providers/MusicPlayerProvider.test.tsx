@@ -500,6 +500,33 @@ describe("MusicPlayerProvider and the native queue", () => {
     expect(nativeActiveId()).toBe("t2");
   });
 
+  // The stream URL request has no timeout. One that hangs must not hold back
+  // the taps after it, and must not load the queue again when it does answer.
+  test("resumes a restored queue on a later tap while the first request hangs", async () => {
+    persistQueue(ALBUM, 2);
+    await mount();
+    holdStreams("t2");
+    await run((p) => {
+      p.resume();
+      p.resume();
+    });
+    const requests = mockHeldStreams.get("t2") ?? [];
+    expect(requests).toHaveLength(2);
+
+    await act(async () => requests[1]());
+    await settle();
+    expect(nativeIds()).toEqual(["t0", "t1", "t2", "t3", "t4"]);
+    expect(nativeActiveId()).toBe("t2");
+    expect(player.isPlaying).toBe(true);
+
+    await releaseStreams();
+    expect(nativeIds()).toEqual(["t0", "t1", "t2", "t3", "t4"]);
+    expect(nativeActiveId()).toBe("t2");
+  });
+
+  // resume has to notice the switch itself: the load it starts afterwards
+  // would take the new session for its own and fill the native queue with
+  // the previous account's tracks.
   test("leaves the native queue empty when the account changes while a restored queue resumes", async () => {
     persistQueue(ALBUM, 2);
     await mount();
