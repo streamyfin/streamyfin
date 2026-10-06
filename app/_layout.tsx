@@ -67,7 +67,7 @@ import * as SplashScreen from "expo-splash-screen";
 import * as TaskManager from "expo-task-manager";
 import { Provider as JotaiProvider, useAtom } from "jotai";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { I18nextProvider, useTranslation } from "react-i18next";
+import { I18nextProvider } from "react-i18next";
 import { Appearance, LogBox } from "react-native";
 import { SystemBars } from "react-native-edge-to-edge";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -329,11 +329,14 @@ function Layout() {
     enableTVMenuKeyInterception();
   }, []);
 
+  // What the app is shown in, and what the plugin writes this device's
+  // notifications in.
+  const language =
+    settings?.preferedLanguage ?? getLocales()[0].languageCode ?? "en";
+
   useEffect(() => {
-    i18n.changeLanguage(
-      settings?.preferedLanguage ?? getLocales()[0].languageCode ?? "en",
-    );
-  }, [settings?.preferedLanguage, i18n]);
+    i18n.changeLanguage(language);
+  }, [language]);
 
   useNotificationObserver();
   useNativePlayerLogBridge();
@@ -346,10 +349,6 @@ function Layout() {
   // identity on sign in, so without this the token went out twice within a second.
   // Sign out clears the session, and the key with it, so the next sign in posts again.
   const registeredPush = useRef<string | null>(null);
-  // Read through the hook so a change of language renders again and the effect
-  // below posts it: the module-level i18n changes without anyone noticing.
-  const { i18n: translation } = useTranslation();
-  const language = translation.language;
 
   useEffect(() => {
     if (Platform.isTV) return;
