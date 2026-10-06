@@ -4,7 +4,7 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react-native";
-import { Linking } from "react-native";
+import { Linking, Platform } from "react-native";
 import CustomLinksPage, {
   type MenuLink,
 } from "@/app/(auth)/(tabs)/(custom-links)/index";
@@ -177,6 +177,21 @@ describe("custom links", () => {
     await waitFor(() =>
       expect(mockToastError).toHaveBeenCalledWith(NOT_OPENED),
     );
+  });
+
+  // TV has no browser to hand a link to, and the screen does not even load
+  // the in-app one there. A tap stays quiet instead of blaming the link.
+  it("opens nothing on TV", async () => {
+    const isTV = jest.spyOn(Platform, "isTV", "get").mockReturnValue(true);
+
+    await tapLink("https://example.com/status");
+    // Let a handler that got past the guard reach its openers.
+    await new Promise((resolve) => setImmediate(resolve));
+    isTV.mockRestore();
+
+    expect(mockOpenBrowser).not.toHaveBeenCalled();
+    expect(openURL).not.toHaveBeenCalled();
+    expect(mockToastError).not.toHaveBeenCalled();
   });
 
   it("ignores the spaces around an address", async () => {
