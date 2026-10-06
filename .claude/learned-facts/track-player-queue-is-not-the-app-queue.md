@@ -9,7 +9,7 @@
 `MusicPlayerProvider` keeps the whole queue in state, and the native queue only holds the part of it that has been loaded:
 
 - `loadAndPlayQueue` resets the native queue to the one track that was tapped, then `loadRemainingTracksInBackground` adds the rest with a network round trip per track. The tracks before the tapped one go in as one batch at index 0 once all of them are prepared, so until then even the loaded tracks sit at other indexes than on screen.
-- A queue restored after a restart is in state only. `resume` loads the one track it stopped on, and nothing loads the others.
+- A queue restored after a restart is in state only, and the native queue is empty until `resume` runs. That loads the track it stopped on and then hands the rest to the same `loadRemainingTracksInBackground`.
 - `toggleShuffle` reorders the state queue and leaves the native one alone.
 
 So an index into the state queue does not address the native queue. Resolve the track by id against `TrackPlayer.getQueue()` right before the call, with `nativeIndexOf` and `nativeInsertIndexFor`.

@@ -1,5 +1,7 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { act, render } from "@testing-library/react-native";
+import { getDefaultStore } from "jotai";
+import { userAtom } from "@/providers/JellyfinProvider";
 import { clearMmkv } from "@/test-utils/mmkv";
 import { storage } from "@/utils/mmkv";
 import { MusicPlayerProvider, useMusicPlayer } from "./MusicPlayerProvider";
@@ -141,6 +143,16 @@ const track = (id: string): BaseItemDto => ({
 });
 const ALBUM = ["t0", "t1", "t2", "t3", "t4"].map(track);
 
+const USER = { Id: "user", ServerId: "server" };
+
+/** Signs another account in on the same server, which ends the session. */
+const switchUser = async () => {
+  await act(async () => {
+    getDefaultStore().set(userAtom, { Id: "other", ServerId: "server" });
+  });
+  await settle();
+};
+
 /** Keeps the stream URL request of these tracks pending until released. */
 const holdStreams = (...ids: string[]) => {
   for (const id of ids) mockHeldStreams.set(id, []);
@@ -208,6 +220,7 @@ const nativeActiveId = () =>
 describe("MusicPlayerProvider and the native queue", () => {
   beforeEach(() => {
     clearMmkv();
+    getDefaultStore().set(userAtom, USER);
     mockHeldStreams.clear();
     mockNative.queue = [];
     mockNative.activeIndex = undefined;
@@ -256,10 +269,12 @@ describe("MusicPlayerProvider and the native queue", () => {
   });
 
   // Same report, the other way in: a queue restored after a restart is only
-  // on screen. Resuming loads the one track it stopped on.
+  // on screen. Resuming loads the track it stopped on and the rest follows in
+  // the background, so a row tapped right away is not in the native queue yet.
   test("jumps to another track of a queue restored after a restart", async () => {
     persistQueue(ALBUM, 2);
     await mount();
+    holdStreams("t0");
     await run((p) => p.resume());
     expect(nativeIds()).toEqual(["t2"]);
 
@@ -268,10 +283,70 @@ describe("MusicPlayerProvider and the native queue", () => {
     expect(nativeActiveId()).toBe("t4");
     expect(player.currentTrack?.Id).toBe("t4");
 
-    await run((p) => p.jumpToIndex(0));
-    expect(nativeIds()).toEqual(["t0", "t2", "t4"]);
-    expect(nativeActiveId()).toBe("t0");
-    expect(player.queueIndex).toBe(0);
+    await run((p) => p.jumpToIndex(1));
+    expect(nativeIds()).toEqual(["t1", "t2", "t4"]);
+    expect(nativeActiveId()).toBe("t1");
+    expect(player.queueIndex).toBe(1);
+
+    await releaseStreams();
+    expect(nativeIds()).toEqual(["t0", "t1", "t2", "t3", "t4"]);
+    expect(nativeActiveId()).toBe("t1");
+    expect(player.currentTrack?.Id).toBe("t1");
+    expect(player.queueIndex).toBe(1);
+  });
+
+  // Resuming used to load the one track the queue stopped on and nothing
+  // else: next did nothing, the track did not advance when it ended, and the
+  // queue on screen was not the one the player held.
+  test("loads the rest of a queue restored after a restart once it resumes", async () => {
+    persistQueue(ALBUM, 2);
+    await mount();
+
+    await run((p) => p.resume());
+
+    expect(nativeIds()).toEqual(["t0", "t1", "t2", "t3", "t4"]);
+    expect(nativeActiveId()).toBe("t2");
+    expect(player.currentTrack?.Id).toBe("t2");
+    expect(player.queueIndex).toBe(2);
+
+    await run((p) => p.next());
+
+    expect(nativeActiveId()).toBe("t3");
+    expect(player.currentTrack?.Id).toBe("t3");
+    expect(player.queueIndex).toBe(3);
+  });
+
+  // Play is a toggle, and the second tap lands while the stream URL of the
+  // first is still on its way.
+  test("loads a restored queue once when resume is tapped twice", async () => {
+    persistQueue(ALBUM, 2);
+    await mount();
+    holdStreams("t2");
+
+    await run((p) => {
+      p.resume();
+      p.resume();
+    });
+    await releaseStreams();
+
+    expect(nativeIds()).toEqual(["t0", "t1", "t2", "t3", "t4"]);
+    expect(nativeActiveId()).toBe("t2");
+  });
+
+  test("leaves the native queue empty when the account changes while a restored queue resumes", async () => {
+    persistQueue(ALBUM, 2);
+    await mount();
+    holdStreams("t2");
+    await run((p) => {
+      p.resume();
+    });
+
+    await switchUser();
+    await releaseStreams();
+
+    expect(nativeIds()).toEqual([]);
+    expect(player.currentTrack).toBeNull();
+    expect(player.isPlaying).toBe(false);
   });
 
   // An id cannot tell two copies of a track apart; the row's index can, once

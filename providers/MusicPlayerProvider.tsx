@@ -456,6 +456,11 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   // skip the one that is already there.
   const loadedOutOfOrderRef = useRef(false);
 
+  // Held while resume loads a restored queue. Play is a toggle, so a second
+  // tap lands during the stream URL request, and a second load would put every
+  // track in the native queue twice.
+  const restoringQueueRef = useRef(false);
+
   const [state, setState] = useState<MusicPlayerState>({
     currentTrack: null,
     queue: [],
@@ -1130,26 +1135,56 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   const resume = useCallback(async () => {
     if (!TrackPlayer) return;
     if (!state.streamUrl && state.currentTrack && api && user?.Id) {
-      // Need to load the track first (e.g., after app restart)
-      const result = await getAudioStreamUrl(
-        api,
-        user.Id,
-        state.currentTrack.Id!,
-      );
-      if (result) {
+      // A queue restored after a restart is in state only: the native queue is
+      // empty until this loads it.
+      if (restoringQueueRef.current) return;
+      restoringQueueRef.current = true;
+
+      // The stream URL is a network round trip. After a session switch during
+      // it, the track and its queue belong to an account that is signed out.
+      const generation = sessionGenerationRef.current;
+      const isStale = () => generation !== sessionGenerationRef.current;
+
+      try {
+        const result = await getAudioStreamUrl(
+          api,
+          user.Id,
+          state.currentTrack.Id!,
+        );
+        if (isStale() || !result) return;
+
         const preferLocal = settings?.preferLocalAudio ?? true;
+        loadedOutOfOrderRef.current = false;
         await TrackPlayer.reset();
         await TrackPlayer.add(
           itemToTrack(state.currentTrack, result.url, api, preferLocal),
         );
         await TrackPlayer.seekTo(state.progress);
         await TrackPlayer.play();
+        if (isStale()) {
+          await TrackPlayer.reset().catch(() => {});
+          return;
+        }
+
         setState((prev) => ({
           ...prev,
           streamUrl: result.url,
           playSessionId: result.sessionId,
           isPlaying: true,
         }));
+
+        // The rest of the queue, as when a queue is started: without it the
+        // native queue ends on this track, so next and the end of the track
+        // lead nowhere.
+        if (state.queue.length > 1) {
+          loadRemainingTracksInBackground(
+            state.queue,
+            state.queueIndex,
+            preferLocal,
+          );
+        }
+      } finally {
+        restoringQueueRef.current = false;
       }
     } else {
       await TrackPlayer.play();
@@ -1161,7 +1196,10 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     state.streamUrl,
     state.currentTrack,
     state.progress,
+    state.queue,
+    state.queueIndex,
     settings?.preferLocalAudio,
+    loadRemainingTracksInBackground,
   ]);
 
   const togglePlayPause = useCallback(async () => {
