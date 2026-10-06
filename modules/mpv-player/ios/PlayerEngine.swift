@@ -65,13 +65,15 @@ final class MPVPlayerEngine: NSObject {
 	private(set) var intendedPlayState: Bool = false
 	private var _isZoomedToFill: Bool = false
 	private var isShutDown = false
-	#if os(iOS)
-	private var isPictureInPictureHostVisible = false
+	// Outside the iOS block below: the PiP delegate that sets these compiles
+	// on tvOS too, where it is never called.
 	/// True while the delegate hears that PiP stopped, when the user asked to
 	/// return to the app. False when the PiP window was simply closed.
 	private(set) var pictureInPictureStopIsRestore = false
 	/// True from AVKit announcing that PiP will stop until it has stopped.
 	private(set) var isPictureInPictureStopping = false
+	#if os(iOS)
+	private var isPictureInPictureHostVisible = false
 	private var hasRenderedFirstFrame = false
 	private var pictureInPictureAutoStartEnabled = false
 	#endif

@@ -1,8 +1,9 @@
+#if os(iOS)
 import SwiftUI
 
 /// Native controls render server-owned queue/modes. Taps are requests to the
 /// shared Jellyfin coordinator; this sheet never changes the decoder locally.
-@available(tvOS 17.0, *)
+/// The TV player shows the same in its own panel (TVSyncPlayPanel).
 struct SyncPlayQueueView: View {
 	@ObservedObject var viewModel: PlayerViewModel
 	/// The order a drag left on screen, until the server's answer replaces it.
@@ -12,39 +13,10 @@ struct SyncPlayQueueView: View {
 		viewModel.syncStr(key, fallback)
 	}
 	private var unavailable: Bool {
-		#if os(tvOS)
-		// Disabling a focused control drops TV focus during every request.
-		return viewModel.syncPlay?.connected != true
-		#else
-		return viewModel.syncPlay?.connected != true || viewModel.syncPlay?.busy == true
-		#endif
-	}
-
-	/// Disabled state of a control whose availability follows the queue
-	/// (previous and next at the ends, clear on an empty queue). On tvOS the
-	/// queue changes under the focused control, often because of its own
-	/// press, and a disabled control hands its focus to a neighbour: there it
-	/// stays focusable, dims, and its action checks the same condition.
-	private func gated(_ capable: Bool) -> Bool {
-		#if os(tvOS)
-		return unavailable
-		#else
-		return unavailable || !capable
-		#endif
-	}
-
-	private func gatedOpacity(_ capable: Bool) -> Double {
-		#if os(tvOS)
-		return capable ? 1 : 0.4
-		#else
-		return 1
-		#endif
+		viewModel.syncPlay?.connected != true || viewModel.syncPlay?.busy == true
 	}
 
 	private func requestAction(_ action: String, _ fields: [String: Any] = [:]) {
-		#if os(tvOS)
-		guard viewModel.syncPlay?.busy != true else { return }
-		#endif
 		viewModel.syncPlayAction(action, fields)
 	}
 
@@ -58,42 +30,20 @@ struct SyncPlayQueueView: View {
 							.foregroundStyle(.secondary)
 						if let error = state.error { Text(error).foregroundStyle(.red) }
 						HStack {
-							Button { if state.hasPrevious { requestAction("previous") } } label: {
+							Button { requestAction("previous") } label: {
 								Label(text("previous", "Previous"), systemImage: "backward.end.fill")
-							}.disabled(gated(state.hasPrevious)).opacity(gatedOpacity(state.hasPrevious))
+							}.disabled(unavailable || !state.hasPrevious)
 							Button { requestAction(viewModel.isPlaying ? "pause" : "play") } label: {
 								Label(text(viewModel.isPlaying ? "pause" : "play", viewModel.isPlaying ? "Pause" : "Play"),
 									systemImage: viewModel.isPlaying ? "pause.fill" : "play.fill")
 							}.disabled(unavailable)
-							Button { if state.hasNext { requestAction("next") } } label: {
+							Button { requestAction("next") } label: {
 								Label(text("next", "Next"), systemImage: "forward.end.fill")
-							}.disabled(gated(state.hasNext)).opacity(gatedOpacity(state.hasNext))
+							}.disabled(unavailable || !state.hasNext)
 						}.buttonStyle(.borderless)
 					} header: { Text(text("title", "SyncPlay")) }
 
 					Section {
-						#if os(tvOS)
-						Menu {
-							ForEach(["RepeatNone", "RepeatAll", "RepeatOne"], id: \.self) { mode in
-								Button { requestAction("repeat", ["mode": mode]) } label: {
-									if mode == state.repeatMode {
-										Label(text("repeat_modes_\(mode)", mode == "RepeatNone" ? "Off" : mode == "RepeatAll" ? "All" : "One"), systemImage: "checkmark")
-									} else {
-										Text(text("repeat_modes_\(mode)", mode == "RepeatNone" ? "Off" : mode == "RepeatAll" ? "All" : "One"))
-									}
-								}.accessibilityIdentifier("syncplay-repeat-\(mode)")
-							}
-						} label: {
-							HStack {
-								Text(text("repeat", "Repeat"))
-								Spacer()
-								Text(text("repeat_modes_\(state.repeatMode)", state.repeatMode == "RepeatNone" ? "Off" : state.repeatMode == "RepeatAll" ? "All" : "One"))
-									.foregroundStyle(.secondary)
-							}
-						}
-						.menuOrder(.fixed)
-						.accessibilityIdentifier("syncplay-repeat")
-						#else
 						Picker(text("repeat", "Repeat"), selection: Binding(
 							get: { viewModel.syncPlay?.repeatMode ?? "RepeatNone" },
 							set: { requestAction("repeat", ["mode": $0]) })) {
@@ -101,7 +51,6 @@ struct SyncPlayQueueView: View {
 								Text(text("repeat_modes_\(mode)", mode == "RepeatNone" ? "Off" : mode == "RepeatAll" ? "All" : "One")).tag(mode)
 							}
 						}.accessibilityIdentifier("syncplay-repeat")
-						#endif
 						Toggle(text("shuffle", "Shuffle"), isOn: Binding(
 							get: { viewModel.syncPlay?.shuffleMode == "Shuffle" },
 							set: { requestAction("shuffle", ["mode": $0 ? "Shuffle" : "Sorted"]) }))
@@ -118,10 +67,9 @@ struct SyncPlayQueueView: View {
 					Section {
 						if state.playlist.isEmpty { Text(text("empty_queue", "The queue is empty")) }
 						let entries = ordered(state.playlist)
-						#if os(iOS)
 						ForEach(entries, id: \.playlistItemId) { item in
 							Button { requestAction("select", ["playlistItemId": item.playlistItemId]) } label: {
-								queueLabel(item, current: item.playlistItemId == state.currentPlaylistItemId, handle: true)
+								queueLabel(item, current: item.playlistItemId == state.currentPlaylistItemId)
 							}
 							.buttonStyle(.plain)
 							.disabled(unavailable)
@@ -133,19 +81,12 @@ struct SyncPlayQueueView: View {
 						}
 						.moveDisabled(unavailable)
 						.deleteDisabled(unavailable)
-						#else
-						ForEach(Array(entries.enumerated()), id: \.element.playlistItemId) { index, item in
-							queueRow(item, index: index, count: entries.count)
-						}
-						#endif
 						Button(text("clear_upcoming", "Clear upcoming")) {
-							if !state.playlist.isEmpty { requestAction("clear", ["value": false]) }
-						}
-							.disabled(gated(!state.playlist.isEmpty)).opacity(gatedOpacity(!state.playlist.isEmpty))
+							requestAction("clear", ["value": false])
+						}.disabled(unavailable || state.playlist.isEmpty)
 						Button(text("clear_all", "Clear all"), role: .destructive) {
-							if !state.playlist.isEmpty { requestAction("clear", ["value": true]) }
-						}
-							.disabled(gated(!state.playlist.isEmpty)).opacity(gatedOpacity(!state.playlist.isEmpty))
+							requestAction("clear", ["value": true])
+						}.disabled(unavailable || state.playlist.isEmpty)
 					} header: { Text(text("queue", "Queue")) }
 
 					Section {
@@ -168,9 +109,6 @@ struct SyncPlayQueueView: View {
 		// Whatever the server says replaces the order a drag left on screen.
 		.onChange(of: viewModel.syncPlay?.playlist.map(\.playlistItemId) ?? []) { _ in draggedOrder = nil }
 		.preferredColorScheme(.dark)
-		#if os(tvOS)
-		.onExitCommand { viewModel.closeSyncPlayQueue() }
-		#endif
 	}
 
 	private func ordered(_ playlist: [SyncPlayPlaylistItemRecord]) -> [SyncPlayPlaylistItemRecord] {
@@ -180,7 +118,6 @@ struct SyncPlayQueueView: View {
 		return moved.count == playlist.count ? moved : playlist
 	}
 
-	#if os(iOS)
 	/// The server owns the order: a drag is a request, shown at once and
 	/// corrected by the answer.
 	private func move(_ entries: [SyncPlayPlaylistItemRecord], from source: IndexSet, to destination: Int) {
@@ -197,14 +134,11 @@ struct SyncPlayQueueView: View {
 			if draggedOrder == order { draggedOrder = nil }
 		}
 	}
-	#endif
 
 	/// Poster, title and what the entry belongs to: the music queue's row.
-	private func queueLabel(_ item: SyncPlayPlaylistItemRecord, current: Bool, handle: Bool) -> some View {
+	private func queueLabel(_ item: SyncPlayPlaylistItemRecord, current: Bool) -> some View {
 		HStack(spacing: 12) {
-			if handle {
-				Image(systemName: "line.3.horizontal").foregroundStyle(.secondary)
-			}
+			Image(systemName: "line.3.horizontal").foregroundStyle(.secondary)
 			poster(item)
 				.frame(width: 40, height: 60)
 				.clipShape(RoundedRectangle(cornerRadius: 4))
@@ -237,24 +171,5 @@ struct SyncPlayQueueView: View {
 			}
 		}
 	}
-
-	#if os(tvOS)
-	// A remote cannot drag: the same row, with its actions in a menu.
-	private func queueRow(_ item: SyncPlayPlaylistItemRecord, index: Int, count: Int) -> some View {
-		Menu {
-			Button(text("play_now", "Play now")) { requestAction("select", ["playlistItemId": item.playlistItemId]) }
-			Button(text("move_up", "Move up")) {
-				requestAction("move", ["playlistItemId": item.playlistItemId, "newIndex": index - 1])
-			}.disabled(index == 0)
-			Button(text("move_down", "Move down")) {
-				requestAction("move", ["playlistItemId": item.playlistItemId, "newIndex": index + 1])
-			}.disabled(index == count - 1)
-			Button(text("remove", "Remove"), role: .destructive) { requestAction("remove", ["playlistItemId": item.playlistItemId]) }
-		} label: {
-			queueLabel(item, current: item.playlistItemId == viewModel.syncPlay?.currentPlaylistItemId, handle: false)
-		}
-		.disabled(unavailable)
-		.accessibilityIdentifier("syncplay-queue-item-\(index)")
-	}
-	#endif
 }
+#endif

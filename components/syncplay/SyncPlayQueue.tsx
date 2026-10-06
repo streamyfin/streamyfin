@@ -2,7 +2,7 @@ import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Platform, View } from "react-native";
+import { View } from "react-native";
 import {
   DraggableQueueList,
   type QueueRow,
@@ -86,9 +86,8 @@ export function SyncPlayQueue({
           artwork='poster'
           icon='film'
           emptyText={t("syncplay.empty_queue")}
-          // The sheet or the screen around this scrolls.
+          // The sheet around this scrolls.
           scrollable={false}
-          reorderable={!Platform.isTV}
           disabled={disabled}
           canRemoveCurrent
           onPressRow={(index) =>

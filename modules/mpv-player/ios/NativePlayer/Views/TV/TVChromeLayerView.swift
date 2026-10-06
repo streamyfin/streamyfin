@@ -70,9 +70,6 @@ struct TVChromeLayerView: View {
 		.animation(.easeInOut(duration: 0.2), value: viewModel.controlsVisible)
 		.animation(.easeInOut(duration: 0.2), value: viewModel.isScrubbing)
 		.animation(.easeInOut(duration: 0.2), value: viewModel.seekFeedbackVisible)
-		.sheet(isPresented: $viewModel.showSyncPlayQueue) {
-			SyncPlayQueueView(viewModel: viewModel)
-		}
 	}
 
 	/// Subtitles are burned into the video frames by mpv, so the scrims and

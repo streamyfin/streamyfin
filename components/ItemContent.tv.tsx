@@ -27,6 +27,7 @@ import { Text } from "@/components/common/Text";
 import { getItemNavigation } from "@/components/common/TouchableItemRouter";
 import { GenreTags } from "@/components/GenreTags";
 import { TVEpisodeList } from "@/components/series/TVEpisodeList";
+import { TVSyncPlayButton } from "@/components/syncplay/TVSyncPlayButton";
 import {
   TVBackdrop,
   TVButton,
@@ -812,6 +813,9 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                 <TVFavoriteButton item={item} hasTVPreferredFocus={!playable} />
                 <TVPlayedButton item={item} />
                 <TVRefreshButton itemId={item.Id} />
+                {!isOffline && item.Type !== "Program" && (
+                  <TVSyncPlayButton items={[item]} title={item.Name} />
+                )}
               </View>
 
               {/* Playback options */}

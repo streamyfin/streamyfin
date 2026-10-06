@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { useAtomValue } from "jotai";
 import { useTranslation } from "react-i18next";
-import { Platform, TouchableOpacity, View } from "react-native";
+import { TouchableOpacity, View } from "react-native";
 import { Button } from "@/components/Button";
 import { Image } from "@/components/common/ServerImage";
 import { SettingSwitch } from "@/components/common/SettingSwitch";
@@ -32,8 +32,9 @@ interface Props {
 /**
  * What the group is doing and how: the video it is on with the way back into
  * the player, or the button that starts its queue, and the modes below. The
- * native players show the same controls in their own queue sheet
- * (SyncPlayQueueView.swift, SyncPlayQueueSheet.kt): keep the three in step.
+ * TV sheet (TVSyncPlaySheet) and the native players' queue sheets
+ * (SyncPlayQueueView.swift, SyncPlayQueueSheet.kt) show the same controls:
+ * keep them in step.
  */
 export function SyncPlayPlayback({ items, onClose }: Props) {
   const { t } = useTranslation();
@@ -173,34 +174,22 @@ export function SyncPlayOptions() {
 
   if (!group) return null;
 
-  // A remote has nothing to flick: on TV the same row is a button that
-  // toggles and says where it stands.
   const toggle = (
     testID: string,
     icon: keyof typeof Ionicons.glyphMap,
     title: string,
     value: boolean,
     onChange: (next: boolean) => Promise<void>,
-  ) =>
-    Platform.isTV ? (
-      <SyncPlaySheetRow
+  ) => (
+    <SyncPlaySheetRow icon={icon} title={title} disabled={disabled}>
+      <SettingSwitch
         testID={testID}
-        icon={icon}
-        title={title}
-        value={t(value ? "syncplay.on" : "syncplay.off")}
+        value={value}
         disabled={disabled}
-        onPress={() => void onChange(!value).catch(() => {})}
+        onValueChange={(next) => void onChange(next).catch(() => {})}
       />
-    ) : (
-      <SyncPlaySheetRow icon={icon} title={title} disabled={disabled}>
-        <SettingSwitch
-          testID={testID}
-          value={value}
-          disabled={disabled}
-          onValueChange={(next) => void onChange(next).catch(() => {})}
-        />
-      </SyncPlaySheetRow>
-    );
+    </SyncPlaySheetRow>
+  );
 
   return (
     <SyncPlaySheetGroup>

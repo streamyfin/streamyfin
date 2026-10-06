@@ -150,6 +150,10 @@ final class NativePlayerViewController: UIViewController {
 				zone: .subtitleSearch)
 			addOverlayLayer(
 				AnyView(
+					TVSyncPlayLayerView(viewModel: viewModel, focusCoordinator: focusCoordinator)),
+				zone: .syncPlay)
+			addOverlayLayer(
+				AnyView(
 					TVStillWatchingLayerView(
 						viewModel: viewModel, focusCoordinator: focusCoordinator)),
 				zone: .stillWatching)
@@ -419,11 +423,12 @@ final class NativePlayerViewController: UIViewController {
 			viewModel.$controlsVisible, viewModel.$isScrubbing,
 			viewModel.$showEpisodeList, viewModel.$showStillWatching
 		)
-		.combineLatest(viewModel.$showSubtitleSearch)
-		.map { state, subtitleSearch -> TVFocusZone in
+		.combineLatest(viewModel.$showSubtitleSearch, viewModel.$showSyncPlayQueue)
+		.map { state, subtitleSearch, syncPlayQueue -> TVFocusZone in
 			let (visible, scrubbing, shelf, stillWatching) = state
 			// Top-most focusable layer wins — mirror of the hosts' z-order.
 			if stillWatching { return .stillWatching }
+			if syncPlayQueue { return .syncPlay }
 			if subtitleSearch { return .subtitleSearch }
 			if shelf { return .shelf }
 			if visible && !scrubbing { return .chrome }

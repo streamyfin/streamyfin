@@ -137,3 +137,9 @@ export interface SyncPlayTransport {
   ready(request: SyncPlayReadyRequest): Promise<void>;
   buffering(request: SyncPlayReadyRequest): Promise<void>;
 }
+
+/** What the page SyncPlay was opened from can put in a new group's queue. */
+export interface SyncPlaySeed {
+  ids: string[];
+  title: string;
+}

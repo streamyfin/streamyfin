@@ -1235,7 +1235,6 @@
     "play": "Play",
     "online_video_only": "SyncPlay supports online videos only. Leave the group to watch downloaded videos or cast.",
     "title": "SyncPlay",
-    "watch_together": "Watch together",
     "watch": "Watch",
     "new_group": "New group",
     "new_group_queues": "Queues {{title}} · {{count}} videos",

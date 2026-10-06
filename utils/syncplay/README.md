@@ -29,11 +29,13 @@ against the Jellyfin 10.11 server and web sources, and run against 10.11.11.
 | `transport.ts` | The 22 SyncPlay endpoints and TimeSync, through the SDK |
 | `SyncPlayProvider` | One controller per signed in api, fed from the websocket |
 | `SyncPlayPlaybackBridge` | Presents the native player when the group starts an item |
-| `SyncPlayPanel` | Everything outside the player. Not in a group: "New group" and the groups to join. In one: the group, what it plays (`SyncPlayPlayback`), its queue, its modes (`SyncPlayOptions`), stop, switch and leave. A sheet on phones and tablets (`useSyncPlaySheet`), a screen on TV |
+| `SyncPlayPanel` | Everything outside the player. Not in a group: "New group" and the groups to join. In one: the group, what it plays (`SyncPlayPlayback`), its queue, its modes (`SyncPlayOptions`), stop, switch and leave. The sheet of phones and tablets (`useSyncPlaySheet`) |
+| `TVSyncPlaySheet` | The same on TV, as rows of cards in a sheet that is a route (`app/(auth)/tv-syncplay-modal.tsx`), opened by `TVSyncPlayButton` in the action row of an item. No queue: the player has it. Both sheets act through `useSyncPlayPanel` |
 | `SyncPlayButton` | The header entry, on Home, item and series pages. It opens the panel, with what the page shows as the queue of a group started there |
 | `SyncPlayQueue` | The queue in the panel, on the music player's `DraggableQueueList`: posters, drag to reorder, remove, tap to play |
 | `SyncPlayQueueButton` | "Play next" and "add to queue" for what a page shows. Only there in a group |
 | Play buttons | In a group they carry the SyncPlay icon and play for everyone, through `usePlayMedia` |
+| Queue in the player | Native, fed by `buildNativeSyncPlayState`: `SyncPlayQueueView.swift` (a sheet, iOS), `TVSyncPlayPanel.swift` (a focus panel on its own layer, tvOS), `SyncPlayQueueSheet.kt` (Android and Android TV) |
 | `NativePlayerProvider` | The player adapter: decoder state in, group commands out |
 | Swift and Kotlin `SyncPlayCommandScheduler` | Runs a command at its deadline, on the decoder |
 
@@ -136,8 +138,12 @@ getters. Update that state before calling `notifyReady`, `notifyBuffering` or
   client can never report Ready and leaves at the readiness timeout. Reaching the end
   during such a seek should count as the item ending.
 - Repeat one: every member reports the end, and each report restarts the item.
-- TV: controls that become unavailable while focused now keep their focus, but that has
-  not been tried with a remote yet. Removing the focused queue row still drops focus.
+- TV: nothing has been tried with a remote yet. That covers the sheet (focus moving to
+  the first card when its rows change, the delay before the player opens) and the
+  player's controls keeping focus when they become unavailable. Removing the focused
+  queue row in the player still drops focus.
+- TV has no way to add to a group's queue, and its sheet does not show the queue. Play
+  on an item replaces what the group plays.
 - Seek latency is not compensated. A decoder whose seeks take longer than the drift
   threshold can keep correcting.
 - Swift still decides that a seek landed by proximity to the target. Android uses the

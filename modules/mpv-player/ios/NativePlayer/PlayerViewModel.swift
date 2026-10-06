@@ -402,6 +402,11 @@ final class PlayerViewModel: NSObject, ObservableObject {
 
 	func openSyncPlayQueue() {
 		guard isSyncPlayActive else { return }
+		#if os(tvOS)
+		// The TV panel is a focus overlay: the chrome goes, so its buttons
+		// are the only focusable content (closeSyncPlayQueue brings it back).
+		controlsVisible = false
+		#endif
 		showSyncPlayQueue = true
 		autoHideTask?.cancel()
 	}

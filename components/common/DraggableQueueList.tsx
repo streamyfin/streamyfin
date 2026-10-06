@@ -32,8 +32,6 @@ interface Props {
    * which is the one nesting React Native accepts for a virtualized list.
    */
   scrollable?: boolean;
-  /** Dragging needs a finger: off for a remote, which gets plain rows. */
-  reorderable?: boolean;
   /** Rows show but ignore presses: a request is pending or the list is stale. */
   disabled?: boolean;
   /** Whether the playing row can be removed. Music cannot drop its own track. */
@@ -58,7 +56,6 @@ export const DraggableQueueList: React.FC<Props> = ({
   header,
   emptyText,
   scrollable = true,
-  reorderable = true,
   disabled = false,
   canRemoveCurrent = false,
   testID,
@@ -67,7 +64,7 @@ export const DraggableQueueList: React.FC<Props> = ({
   onMoveRow,
 }) => {
   const row = useCallback(
-    (item: QueueRow, index: number, isActive: boolean, drag?: () => void) => {
+    (item: QueueRow, index: number, isActive: boolean, drag: () => void) => {
       const isCurrent = index === currentIndex;
       const isPast = index < currentIndex;
 
@@ -88,20 +85,18 @@ export const DraggableQueueList: React.FC<Props> = ({
                 : "#121212",
           }}
         >
-          {drag && (
-            <TouchableOpacity
-              onPressIn={drag}
-              disabled={isActive || disabled}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              className='pr-2'
-            >
-              <Ionicons
-                name='reorder-three'
-                size={20}
-                color={isActive ? ACCENT : "#666"}
-              />
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity
+            onPressIn={drag}
+            disabled={isActive || disabled}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            className='pr-2'
+          >
+            <Ionicons
+              name='reorder-three'
+              size={20}
+              color={isActive ? ACCENT : "#666"}
+            />
+          </TouchableOpacity>
 
           <View
             className={`rounded overflow-hidden bg-neutral-800 mr-3 ${
@@ -194,19 +189,6 @@ export const DraggableQueueList: React.FC<Props> = ({
       <Text className='text-neutral-500'>{emptyText}</Text>
     </View>
   );
-
-  // No drag list at all without dragging: its gesture handlers have nothing
-  // to do for a remote, and plain rows keep the focus engine's job simple.
-  if (!reorderable) {
-    return (
-      <View testID={testID}>
-        {headerView}
-        {rows.length === 0
-          ? emptyView
-          : rows.map((item, index) => row(item, index, false))}
-      </View>
-    );
-  }
 
   return (
     <DraggableFlatList

@@ -1,21 +1,14 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useAtomValue } from "jotai";
-import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ActivityIndicator, TouchableOpacity, View } from "react-native";
 import { Text } from "@/components/common/Text";
-import { userAtom } from "@/providers/JellyfinProvider";
-import { type SyncPlayGroup, useSyncPlay } from "@/providers/SyncPlayProvider";
+import type { SyncPlayGroup } from "@/providers/SyncPlayProvider";
+import type { SyncPlaySeed } from "@/utils/syncplay/types";
 import { SyncPlayOptions, SyncPlayPlayback } from "./SyncPlayControls";
 import { SyncPlayQueue } from "./SyncPlayQueue";
 import { SyncPlaySheetGroup, SyncPlaySheetRow } from "./SyncPlaySheetRow";
+import { syncPlayGroupIsPlaying, useSyncPlayPanel } from "./useSyncPlayPanel";
 import { useSyncPlayQueueItems } from "./useSyncPlayQueueItems";
-
-/** What the page the panel was opened from can put in a new group's queue. */
-export interface SyncPlaySeed {
-  ids: string[];
-  title: string;
-}
 
 interface Props {
   seed?: SyncPlaySeed;
@@ -28,76 +21,34 @@ const SECONDARY = "#9899A1";
 
 /**
  * Everything SyncPlay outside the player: the groups to join and a way to
- * start one, or the group this device is in. Shown as a sheet on phones and
- * tablets and as a screen on TV.
+ * start one, or the group this device is in. The sheet of phones and
+ * tablets; TV draws the same thing its own way (TVSyncPlaySheet).
  */
 export function SyncPlayPanel({ seed, onClose }: Props) {
   const { t } = useTranslation();
-  const user = useAtomValue(userAtom);
-  const sync = useSyncPlay();
-  const { group, groups, groupState, supported, canCreate, connected } = sync;
-  const { busy, error, refreshGroups } = sync;
+  const panel = useSyncPlayPanel(seed);
+  const { sync, available, others, idle, memberLine } = panel;
+  const { group, groupState, canCreate, connected, busy, error } = sync;
   const {
     items,
     failed: titlesFailed,
     retry: retryTitles,
   } = useSyncPlayQueueItems();
-  // A group started from a page takes that page as its queue, once the
-  // server has made the group. Someone else's group keeps its own queue.
-  const [seedWhenJoined, setSeedWhenJoined] = useState(false);
-  // In a group, the list of the others is one step away.
-  const [switching, setSwitching] = useState(false);
-  const available = supported && connected;
-  const others = groups.filter((entry) => entry.GroupId !== group?.GroupId);
-  const idle = !groupState || groupState === "Idle";
 
-  useEffect(() => {
-    if (available) void refreshGroups().catch(() => {});
-  }, [available, refreshGroups]);
-
-  useEffect(() => {
-    if (!seedWhenJoined || !group) return;
-    setSeedWhenJoined(false);
-    if (seed?.ids.length)
-      void sync.queueItems(seed.ids, "Queue").catch(() => {});
-  }, [seedWhenJoined, group]);
-
-  // Nothing starts with the group. Its queue is filled from the page it was
-  // started on, and from then on Play buttons play for everyone in it.
-  const create = () => {
-    setSeedWhenJoined(!!seed?.ids.length);
-    void sync
-      .createGroup(
-        t("syncplay.default_group_name", { name: user?.Name ?? "" }).trim(),
-      )
-      .catch(() => setSeedWhenJoined(false));
-  };
-
-  const join = (entry: SyncPlayGroup) => {
-    void (
-      group ? sync.switchGroup(entry.GroupId) : sync.joinGroup(entry.GroupId)
-    )
-      .then(() => {
-        setSwitching(false);
-        // A group that is playing opens the player, which covers this panel.
-        if (entry.State && entry.State !== "Idle") onClose?.();
-      })
+  const join = (entry: SyncPlayGroup) =>
+    void panel
+      .join(entry)
+      // The player opens over a group that is playing and covers this panel.
+      .then(() => syncPlayGroupIsPlaying(entry) && onClose?.())
       .catch(() => {});
-  };
-
-  const memberLine = (entry: SyncPlayGroup, state?: string | null) =>
-    [
-      entry.Participants.join(", ") || t("syncplay.no_participants"),
-      state ? t(`syncplay.states.${state}`) : null,
-    ]
-      .filter(Boolean)
-      .join(" · ");
 
   const notices = (
     <>
       {!available && (
         <Text testID='syncplay-unavailable' className='text-amber-200'>
-          {supported ? t("syncplay.disconnected") : t("syncplay.unavailable")}
+          {sync.supported
+            ? t("syncplay.disconnected")
+            : t("syncplay.unavailable")}
         </Text>
       )}
       {error && (
@@ -113,10 +64,7 @@ export function SyncPlayPanel({ seed, onClose }: Props) {
             icon='refresh'
             title={t("syncplay.retry")}
             disabled={!available || busy}
-            onPress={() => {
-              sync.clearError();
-              void refreshGroups().catch(() => {});
-            }}
+            onPress={panel.retry}
           />
         </SyncPlaySheetGroup>
       )}
@@ -171,7 +119,7 @@ export function SyncPlayPanel({ seed, onClose }: Props) {
     </View>
   );
 
-  if (group && !switching)
+  if (group && panel.showingGroup)
     return (
       <View testID='syncplay-panel' style={{ gap: 14 }}>
         <View className='flex-row items-center' style={{ gap: 12 }}>
@@ -226,10 +174,7 @@ export function SyncPlayPanel({ seed, onClose }: Props) {
             icon='swap-horizontal'
             title={t("syncplay.switch_group")}
             disabled={!available || busy}
-            onPress={() => {
-              setSwitching(true);
-              void refreshGroups().catch(() => {});
-            }}
+            onPress={panel.startSwitching}
           />
           <SyncPlaySheetRow
             testID='syncplay-leave'
@@ -263,7 +208,7 @@ export function SyncPlayPanel({ seed, onClose }: Props) {
         <TouchableOpacity
           testID='syncplay-back'
           accessibilityRole='button'
-          onPress={() => setSwitching(false)}
+          onPress={panel.stopSwitching}
           className='flex-row items-center py-2.5'
           style={{ gap: 12 }}
         >
@@ -280,7 +225,7 @@ export function SyncPlayPanel({ seed, onClose }: Props) {
             testID='syncplay-create'
             accessibilityRole='button'
             disabled={!available || busy}
-            onPress={create}
+            onPress={panel.create}
             className='flex-row items-center py-2.5'
             style={{ gap: 12, opacity: !available || busy ? 0.5 : 1 }}
           >
@@ -296,12 +241,7 @@ export function SyncPlayPanel({ seed, onClose }: Props) {
                 numberOfLines={2}
                 className='text-[#9899A1] text-sm'
               >
-                {seed?.ids.length
-                  ? t("syncplay.new_group_queues", {
-                      title: seed.title,
-                      count: seed.ids.length,
-                    })
-                  : t("syncplay.how_to_play")}
+                {panel.seedLine ?? t("syncplay.how_to_play")}
               </Text>
             </View>
           </TouchableOpacity>

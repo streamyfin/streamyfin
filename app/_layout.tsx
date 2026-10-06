@@ -514,13 +514,6 @@ function Layout() {
                                           }}
                                         />
                                         <Stack.Screen
-                                          name='(auth)/syncplay'
-                                          options={{
-                                            title: "",
-                                            headerShown: !Platform.isTV,
-                                          }}
-                                        />
-                                        <Stack.Screen
                                           name='(auth)/now-playing'
                                           options={{
                                             headerShown: false,
@@ -538,6 +531,14 @@ function Layout() {
                                           }}
                                         />
                                         <Stack.Screen name='+not-found' />
+                                        <Stack.Screen
+                                          name='(auth)/tv-syncplay-modal'
+                                          options={{
+                                            headerShown: false,
+                                            presentation: "transparentModal",
+                                            animation: "fade",
+                                          }}
+                                        />
                                         <Stack.Screen
                                           name='(auth)/tv-option-modal'
                                           options={{

@@ -71,3 +71,10 @@ export const SYNCPLAY_QUEUE_POSTER_WIDTH = 40;
  * is one bounded request. Jellyfin Web's own "play all" limit.
  */
 export const SYNCPLAY_QUEUE_ADD_LIMIT = 300;
+
+/**
+ * How long the TV sheet's route takes to leave the screen, with margin. What
+ * opens the player waits this long: a player presented while a modal route
+ * is still closing lands under it or not at all.
+ */
+export const SYNCPLAY_TV_SHEET_DISMISS_MS = 350;
