@@ -610,6 +610,7 @@
         "all_files_deleted": "ลบรายการดาวน์โหลดทั้งหมดเรียบร้อยแล้ว",
         "files_deleted_by_type": "ลบ {{type}} แล้ว {{count}} รายการ",
         "could_not_get_download_url_for_item": "ไม่สามารถรับ URL ดาวน์โหลดสำหรับ {{itemName}} ได้",
+        "no_media_source_to_download": "This item cannot be downloaded",
         "file_deleted": "ลบ {{item}} แล้ว"
       }
     }
@@ -727,7 +728,8 @@
     "noData": "สิ่งที่คุณทำเครื่องหมายเป็นรายการโปรดจะแสดงที่นี่."
   },
   "custom_links": {
-    "no_links": "ไม่มีลิงก์"
+    "no_links": "ไม่มีลิงก์",
+    "could_not_open_link": "Could not open this link"
   },
   "player": {
     "live": "สด",

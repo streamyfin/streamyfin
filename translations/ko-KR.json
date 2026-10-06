@@ -610,6 +610,7 @@
         "all_files_deleted": "모든 다운로드 삭제 완료",
         "files_deleted_by_type": "{{count}}개의 {{type}}이(가) 삭제되었습니다",
         "could_not_get_download_url_for_item": "{{itemName}}의 다운로드 URL을 가져오지 못했습니다",
+        "no_media_source_to_download": "This item cannot be downloaded",
         "file_deleted": "{{item}} 이(가) 삭제되었습니다"
       }
     }
@@ -727,7 +728,8 @@
     "noData": "즐겨찾기로 표시한 항목이 여기에 표시됩니다."
   },
   "custom_links": {
-    "no_links": "링크 없음"
+    "no_links": "링크 없음",
+    "could_not_open_link": "Could not open this link"
   },
   "player": {
     "live": "라이브",
