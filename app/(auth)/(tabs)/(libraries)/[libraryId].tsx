@@ -8,7 +8,7 @@ import {
   getItemsApi,
   getUserLibraryApi,
 } from "@jellyfin/sdk/lib/utils/api";
-import { FlashList, type FlashListRef } from "@shopify/flash-list";
+import { FlashList } from "@shopify/flash-list";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import {
   useFocusEffect,
@@ -27,7 +27,6 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import type { CardData } from "@/components/cards/CardData";
 import { useCardGrid } from "@/components/cards/useCardGrid";
 import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
@@ -480,10 +479,14 @@ const Page = () => {
     );
   }, [data]);
 
-  const flashListRef = useRef<FlashListRef<CardData>>(null);
-
-  // Jump the grid back to the top when the filters or the sort change, reset
-  // included, instead of staying deep in the previous result set.
+  // Identifies the result set on screen. A change of filters or sort, reset
+  // included, has to show its results from the top instead of staying deep in
+  // the previous set, so the list is keyed by it and starts over.
+  //
+  // Scrolling the existing list to the top does not work on iOS: the header is
+  // transparent and the system insets the list under it, React Native clamps
+  // a scroll to offset 0, which is behind the header, and a list that has just
+  // mounted has no inset yet to aim at.
   const filterSignature = [
     selectedGenres.join(","),
     selectedYears.join(","),
@@ -492,25 +495,6 @@ const Page = () => {
     sortOrder[0],
     filterBy.join(","),
   ].join("|");
-  const pendingScrollTopRef = useRef(false);
-
-  // Instant feedback: pin to the top as soon as the filters change, without
-  // waiting for the new fetch, and flag a re-pin for once it settles.
-  useEffect(() => {
-    flashListRef.current?.scrollToOffset({ offset: 0, animated: false });
-    pendingScrollTopRef.current = true;
-  }, [filterSignature]);
-
-  // Safety net: FlashList can restore the previous offset as the filtered list
-  // grows, so re-pin once the fetch settles. Pagination keeps the same
-  // signature, so it never re-pins.
-  useEffect(() => {
-    if (pendingScrollTopRef.current && !isFetching) {
-      pendingScrollTopRef.current = false;
-      flashListRef.current?.scrollToOffset({ offset: 0, animated: false });
-    }
-  }, [isFetching, flatData]);
-
   const grid = useCardGrid({
     items: flatData,
     columns: nrOfCols,
@@ -950,8 +934,7 @@ const Page = () => {
     return (
       <>
         <FlashList
-          ref={flashListRef}
-          key={orientation}
+          key={`${orientation}|${filterSignature}`}
           ListEmptyComponent={
             <View className='flex flex-col items-center justify-center h-full'>
               <Text className='font-bold text-xl text-neutral-500'>
