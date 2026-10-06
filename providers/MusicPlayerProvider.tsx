@@ -1687,23 +1687,28 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       if (!targetId) return;
 
       // A session that switches account resets the player, and nothing of the
-      // previous account may go back into it. Checked after every wait, and
-      // inside a turn on the native queue right before the call that changes
-      // it: the teardown bumps the generation before it resets the player, so
-      // a call that passes the check is ahead of that reset.
+      // previous account may go back into it. Neither may a track of this
+      // queue once another one was started or playback was stopped: the row
+      // that was tapped is gone from the screen by then. Checked after every
+      // wait, and inside a turn on the native queue right before the call
+      // that changes it: both generations are bumped before the player is
+      // reset, so a call that passes the check is ahead of that reset.
       const generation = sessionGenerationRef.current;
-      const isStale = () => generation !== sessionGenerationRef.current;
+      const queueGeneration = queueGenerationRef.current;
+      const isStale = () =>
+        generation !== sessionGenerationRef.current ||
+        queueGeneration !== queueGenerationRef.current;
 
       // `index` is a position in the queue on screen. The native queue only
       // holds what has been loaded so far, so look the track up there by id.
       // Finding it and skipping to it is one edit: the background load must
       // not put a track in front of it in between.
       const jumped = await editNativeQueue(async () => {
-        const nativeIndex = nativeIndexOf(
-          await TrackPlayer.getQueue(),
-          targetId,
-          index,
-        );
+        const nativeQueue: Track[] = await TrackPlayer.getQueue();
+        // A queue that replaced this one during the read is not the one the
+        // position was found in, and may be shorter than it.
+        if (isStale()) return false;
+        const nativeIndex = nativeIndexOf(nativeQueue, targetId, index);
         if (nativeIndex >= 0) await TrackPlayer.skip(nativeIndex);
         return nativeIndex >= 0;
       });

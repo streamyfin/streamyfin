@@ -435,6 +435,87 @@ describe("MusicPlayerProvider and the native queue", () => {
     expect(player.isLoading).toBe(false);
   });
 
+  // A jump waits for a stream URL like the background load does, and it only
+  // noticed an account switch. Once the URL was in, it added its track to
+  // whatever queue the player held by then and made it the current one.
+  test("drops a jump whose track arrives after another queue started", async () => {
+    await mount();
+    holdStreams("t1");
+    await run((p) => p.playQueue(ALBUM, 0));
+
+    holdStreams("t3");
+    let jump: unknown;
+    await act(async () => {
+      jump = player.jumpToIndex(3);
+    });
+    await run((p) => p.playQueue(["o0", "o1"].map(track), 0));
+    await releaseStreams();
+    await act(async () => {
+      await jump;
+    });
+
+    expect(nativeIds()).toEqual(["o0", "o1"]);
+    expect(nativeActiveId()).toBe("o0");
+    expect(player.currentTrack?.Id).toBe("o0");
+    expect(player.queueIndex).toBe(0);
+    expect(player.isLoading).toBe(false);
+  });
+
+  test("drops a jump whose track arrives after playback stopped", async () => {
+    await mount();
+    holdStreams("t1");
+    await run((p) => p.playQueue(ALBUM, 0));
+
+    holdStreams("t3");
+    let jump: unknown;
+    await act(async () => {
+      jump = player.jumpToIndex(3);
+    });
+    await run((p) => p.stop());
+    await releaseStreams();
+    await act(async () => {
+      await jump;
+    });
+
+    expect(nativeIds()).toEqual([]);
+    expect(player.currentTrack).toBeNull();
+    expect(player.queue).toEqual([]);
+    expect(player.isLoading).toBe(false);
+  });
+
+  // The track is loaded, so the jump only reads the queue and skips to where
+  // it found it. A queue that starts between the two is shorter than that
+  // position, and the native side rejects the skip.
+  test("drops a jump when another queue starts while it reads the queue", async () => {
+    await mount();
+    await run((p) => p.playQueue(ALBUM, 0));
+    expect(nativeIds()).toEqual(["t0", "t1", "t2", "t3", "t4"]);
+
+    let finishRead = () => {};
+    mockNative.afterQueueRead = () =>
+      new Promise<void>((resolve) => {
+        finishRead = resolve;
+      });
+    let jump: unknown;
+    await act(async () => {
+      jump = player.jumpToIndex(3);
+    });
+    await settle();
+
+    await run((p) => p.playQueue(["o0", "t3"].map(track), 0));
+    mockNative.afterQueueRead = undefined;
+    await act(async () => {
+      finishRead();
+      await jump;
+    });
+    await settle();
+
+    expect(nativeIds()).toEqual(["o0", "t3"]);
+    expect(nativeActiveId()).toBe("o0");
+    expect(player.currentTrack?.Id).toBe("o0");
+    expect(player.queueIndex).toBe(0);
+  });
+
   // Same report, the other way in: a queue restored after a restart is only
   // on screen. Resuming loads the track it stopped on and the rest follows in
   // the background, so a row tapped right away is not in the native queue yet.
