@@ -1,5 +1,5 @@
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { SyncPlayPanel } from "@/components/syncplay/SyncPlayPanel";
@@ -8,6 +8,33 @@ import { useGlobalModal } from "@/providers/GlobalModalProvider";
 import { tvSyncPlayModalAtom } from "@/utils/atoms/tvSyncPlayModal";
 import { store } from "@/utils/store";
 import type { SyncPlaySeed } from "@/utils/syncplay/types";
+
+function SyncPlaySheetContent({
+  seed,
+  onClose,
+  bottomInset,
+}: {
+  seed?: SyncPlaySeed;
+  onClose: () => void;
+  bottomInset: number;
+}) {
+  // The sheet stands still while a queue entry is dragged: on iOS its own
+  // pan would otherwise take the drag and scroll instead.
+  const [dragging, setDragging] = useState(false);
+  return (
+    <BottomSheetScrollView
+      keyboardShouldPersistTaps='handled'
+      scrollEnabled={!dragging}
+      contentContainerStyle={{ padding: 16, paddingBottom: bottomInset + 24 }}
+    >
+      <SyncPlayPanel
+        seed={seed}
+        onClose={onClose}
+        onQueueDragChange={setDragging}
+      />
+    </BottomSheetScrollView>
+  );
+}
 
 /**
  * Opens SyncPlay: a sheet on phones and tablets, and on TV a route that
@@ -27,15 +54,11 @@ export const useSyncPlaySheet = () => {
         return;
       }
       showModal(
-        <BottomSheetScrollView
-          keyboardShouldPersistTaps='handled'
-          contentContainerStyle={{
-            padding: 16,
-            paddingBottom: insets.bottom + 24,
-          }}
-        >
-          <SyncPlayPanel seed={seed} onClose={hideModal} />
-        </BottomSheetScrollView>,
+        <SyncPlaySheetContent
+          seed={seed}
+          onClose={hideModal}
+          bottomInset={insets.bottom}
+        />,
         // Dragging a queue row must reorder the queue, not move the sheet.
         { enableContentPanningGesture: false },
       );

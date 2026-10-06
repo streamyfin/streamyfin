@@ -27,9 +27,12 @@ export function useSyncPlayPanel(seed?: SyncPlaySeed | null) {
   const available = supported && connected;
   const seeded = !!seed?.ids.length;
 
+  // On opening, and whenever this device joins or leaves: the list it has
+  // still counts it in the group it just left.
+  const groupId = group?.GroupId;
   useEffect(() => {
     if (available) void refreshGroups().catch(() => {});
-  }, [available, refreshGroups]);
+  }, [available, refreshGroups, groupId]);
 
   useEffect(() => {
     if (!seedWhenJoined || !group) return;

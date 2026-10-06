@@ -23,8 +23,11 @@ import type { SyncPlayQueueItem } from "@/utils/syncplay/types";
  */
 export function SyncPlayQueue({
   items,
+  onDragActiveChange,
 }: {
   items: Record<string, BaseItemDto>;
+  /** See DraggableQueueList: the sheet around this stops scrolling meanwhile. */
+  onDragActiveChange?: (active: boolean) => void;
 }) {
   const { t } = useTranslation();
   const api = useAtomValue(apiAtom);
@@ -101,6 +104,7 @@ export function SyncPlayQueue({
               .catch(() => {})
           }
           onMoveRow={move}
+          onDragActiveChange={onDragActiveChange}
         />
       </View>
     </View>

@@ -194,6 +194,16 @@ describe("in a group", () => {
     expect(screen.getByTestId("syncplay-leave")).toBeTruthy();
   });
 
+  test("leaving reloads the list, which still counts this device in the group", async () => {
+    inGroup();
+    const refreshGroups = mockState.refreshGroups;
+    await render(<SyncPlayPanel />);
+    expect(refreshGroups).toHaveBeenCalledTimes(1);
+    mockState = { ...mockState, group: null, groupState: null };
+    await screen.rerender(<SyncPlayPanel />);
+    expect(refreshGroups).toHaveBeenCalledTimes(2);
+  });
+
   test("an error is shown with a way to try again", async () => {
     inGroup({ error: "The request failed." });
     await render(<SyncPlayPanel />);

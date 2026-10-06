@@ -40,9 +40,19 @@ interface Props {
   onPressRow: (index: number) => void;
   onRemoveRow: (index: number) => void;
   onMoveRow: (from: number, to: number) => void;
+  /**
+   * Whether a row is being dragged. For a parent that scrolls: it has to
+   * stand still meanwhile, or on iOS its own pan takes the drag.
+   */
+  onDragActiveChange?: (active: boolean) => void;
 }
 
 const ACCENT = "#9334E9";
+/**
+ * The strip a row's drag handle sits in, from the row's leading edge: its
+ * padding, the handle and the handle's own hit slop.
+ */
+const DRAG_HANDLE_STRIP = { left: 0, width: 52 };
 
 /**
  * A queue as the music player shows it: artwork, title and subtitle, a drag
@@ -62,6 +72,7 @@ export const DraggableQueueList: React.FC<Props> = ({
   onPressRow,
   onRemoveRow,
   onMoveRow,
+  onDragActiveChange,
 }) => {
   const row = useCallback(
     (item: QueueRow, index: number, isActive: boolean, drag: () => void) => {
@@ -73,7 +84,8 @@ export const DraggableQueueList: React.FC<Props> = ({
           key={item.key}
           testID={testID ? `${testID}-row-${item.key}` : undefined}
           onPress={() => onPressRow(index)}
-          onLongPress={drag}
+          // Only where the list scrolls itself: see dragHitSlop below.
+          onLongPress={scrollable ? drag : undefined}
           disabled={isActive || disabled}
           className='flex-row items-center px-4 py-3'
           style={{
@@ -154,6 +166,7 @@ export const DraggableQueueList: React.FC<Props> = ({
       icon,
       artwork,
       testID,
+      scrollable,
       onPressRow,
       onRemoveRow,
     ],
@@ -170,9 +183,10 @@ export const DraggableQueueList: React.FC<Props> = ({
 
   const handleDragEnd = useCallback(
     ({ from, to }: { from: number; to: number }) => {
+      onDragActiveChange?.(false);
       if (from !== to) onMoveRow(from, to);
     },
-    [onMoveRow],
+    [onMoveRow, onDragActiveChange],
   );
 
   const headerView = header ? (
@@ -196,8 +210,16 @@ export const DraggableQueueList: React.FC<Props> = ({
       data={rows}
       keyExtractor={(item) => item.key}
       renderItem={renderRow}
+      onDragBegin={() => onDragActiveChange?.(true)}
+      // A press on the handle that never moves ends here, not in onDragEnd.
+      onRelease={() => onDragActiveChange?.(false)}
       onDragEnd={handleDragEnd}
       scrollEnabled={scrollable}
+      // Inside something else that scrolls, the list's pan would claim every
+      // vertical swipe that starts on a row, and on Android the parent then
+      // never scrolls: a long queue hid whatever came after it. Limited to
+      // the handles, a swipe anywhere else on a row belongs to the parent.
+      dragHitSlop={scrollable ? undefined : DRAG_HANDLE_STRIP}
       showsVerticalScrollIndicator={false}
       ListHeaderComponent={headerView}
       ListEmptyComponent={emptyView}

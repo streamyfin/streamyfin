@@ -1,7 +1,13 @@
 import { BlurView } from "expo-blur";
 import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useRef } from "react";
-import { Animated, Easing, StyleSheet, TVFocusGuideView } from "react-native";
+import {
+  Animated,
+  Easing,
+  Platform,
+  StyleSheet,
+  TVFocusGuideView,
+} from "react-native";
 import { TVSyncPlaySheet } from "@/components/syncplay/TVSyncPlaySheet";
 import useRouter from "@/hooks/useAppRouter";
 import { useTVBackPress } from "@/hooks/useTVBackPress";
@@ -74,6 +80,10 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: scaleSize(24),
     borderTopRightRadius: scaleSize(24),
     overflow: "hidden",
+    // Android has no blur behind this, only a tint, and three rows of cards
+    // over a page of text cannot be read through a tint.
+    backgroundColor:
+      Platform.OS === "android" ? "rgba(18, 18, 18, 0.92)" : undefined,
   },
   content: {
     paddingTop: scaleSize(32),

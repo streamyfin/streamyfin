@@ -14,6 +14,8 @@ interface Props {
   seed?: SyncPlaySeed;
   /** Closes whatever shows the panel, once it has done its job. */
   onClose?: () => void;
+  /** A queue entry is being dragged: whatever scrolls the panel should not. */
+  onQueueDragChange?: (dragging: boolean) => void;
 }
 
 const PLAYING = "#c084fc";
@@ -24,7 +26,7 @@ const SECONDARY = "#9899A1";
  * start one, or the group this device is in. The sheet of phones and
  * tablets; TV draws the same thing its own way (TVSyncPlaySheet).
  */
-export function SyncPlayPanel({ seed, onClose }: Props) {
+export function SyncPlayPanel({ seed, onClose, onQueueDragChange }: Props) {
   const { t } = useTranslation();
   const panel = useSyncPlayPanel(seed);
   const { sync, available, others, idle, memberLine } = panel;
@@ -158,7 +160,7 @@ export function SyncPlayPanel({ seed, onClose }: Props) {
             />
           </SyncPlaySheetGroup>
         )}
-        <SyncPlayQueue items={items} />
+        <SyncPlayQueue items={items} onDragActiveChange={onQueueDragChange} />
         <SyncPlayOptions />
 
         <SyncPlaySheetGroup>
