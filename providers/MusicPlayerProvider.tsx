@@ -467,8 +467,10 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   const sessionKeyRef = useRef<string | null>(null);
   const sessionGenerationRef = useRef(0);
 
-  // Identifies the queue the native player holds. Bumped whenever that queue is
-  // thrown away, so the background load of the previous one stops adding to it.
+  // Identifies the queue the native player holds. Bumped when another queue
+  // replaces it or playback is stopped, so the background load of the previous
+  // one stops adding to it. An account switch is told apart by
+  // sessionGenerationRef instead, and the reset in resume() bumps neither.
   const queueGenerationRef = useRef(0);
 
   // Set once jumpToIndex has loaded a track ahead of the background load. From
