@@ -122,6 +122,7 @@
   "patchedDependencies": {
     "react-native-track-player@github:lovegaoshi/react-native-track-player#33a3ecd": "patches/react-native-track-player@4.1.1.patch",
     "react-native-udp@4.1.7": "patches/react-native-udp@4.1.7.patch",
+    "react-native-bottom-tabs@1.4.0": "patches/react-native-bottom-tabs@1.4.0.patch",
   },
   "overrides": {
     "uuid": "11.1.1",
