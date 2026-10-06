@@ -26,6 +26,8 @@ const mockNative = {
   afterQueueRead: undefined as (() => Promise<void>) | undefined,
   /** Queue reads the spec keeps pending, or null to answer them at once. */
   heldQueueReads: null as Array<() => void> | null,
+  /** Resets the spec keeps from answering, or null to answer them at once. */
+  heldResets: null as Array<() => void> | null,
 };
 
 // The package is installed from git with `main` pointing at a build output it
@@ -56,9 +58,13 @@ jest.mock(
         mockNative.activeIndex === undefined
           ? undefined
           : mockNative.queue[mockNative.activeIndex],
+      // The native side runs its calls in the order they were made, so the
+      // queue is empty at once and only the answer can be kept waiting.
       reset: async () => {
         mockNative.queue = [];
         mockNative.activeIndex = undefined;
+        const held = mockNative.heldResets;
+        if (held) await new Promise<void>((release) => held.push(release));
       },
       add: async (
         tracks: NativeTrack | NativeTrack[],
@@ -195,6 +201,20 @@ const releaseQueueReads = async () => {
   await settle();
 };
 
+/** Keeps every reset of the native queue from answering until released. */
+const holdResets = () => {
+  mockNative.heldResets = [];
+};
+
+const releaseResets = async () => {
+  const pending = mockNative.heldResets ?? [];
+  mockNative.heldResets = null;
+  await act(async () => {
+    for (const release of pending) release();
+  });
+  await settle();
+};
+
 /** Lets the promise chains started by the last action run out. */
 const settle = async () => {
   for (let i = 0; i < 20; i++) {
@@ -254,6 +274,7 @@ describe("MusicPlayerProvider and the native queue", () => {
     mockNative.afterQueueRead = undefined;
     getDefaultStore().set(userAtom, { Id: "user", ServerId: "server" });
     mockNative.heldQueueReads = null;
+    mockNative.heldResets = null;
   });
 
   // Sentry REACT-NATIVE-AW. Playback starts on one track and the rest of the
@@ -597,6 +618,43 @@ describe("MusicPlayerProvider and the native queue", () => {
       expect(nativeIds()).toEqual([]);
       expect(player.queue).toEqual([]);
       expect(player.currentTrack).toBeNull();
+    });
+
+    // The load has to be called off before the reset is sent, not once it has
+    // answered: a stream URL that arrives in between passes for current, and
+    // its track lands in the queue the reset just emptied.
+    test("adds nothing while the reset that stops playback is under way", async () => {
+      await mount();
+      holdStreams("t2");
+      await run((p) => p.playQueue(ALBUM, 0));
+
+      holdResets();
+      let stopped: unknown;
+      await act(async () => {
+        stopped = player.stop();
+      });
+      await releaseStreams();
+      await releaseResets();
+      await act(async () => {
+        await stopped;
+      });
+
+      expect(nativeIds()).toEqual([]);
+      expect(player.queue).toEqual([]);
+    });
+
+    test("adds nothing while the reset for the queue that replaces it is under way", async () => {
+      await mount();
+      holdStreams("t2");
+      await run((p) => p.playQueue(ALBUM, 0));
+
+      holdResets();
+      await run((p) => p.playQueue(OTHER, 0));
+      await releaseStreams();
+      await releaseResets();
+
+      expect(nativeIds()).toEqual(["o0", "o1"]);
+      expect(player.queue.map((t) => t.Id)).toEqual(["o0", "o1"]);
     });
 
     // Nothing was reset, so the first queue is still the one playing and the
