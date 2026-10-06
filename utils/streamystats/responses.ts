@@ -6,8 +6,8 @@ import type {
 // Streamystats is a server the user points the app at, so a 200 promises nothing
 // about the body: another version of the server, an error object, or a proxy's own
 // page all arrive as one. These turn whatever came back into the shape the types
-// declare, with nothing in it, so a caller shows an empty result instead of reading
-// a field off undefined.
+// declare: the ids a well formed body carries are kept, and every list it lacks is
+// empty, so a caller shows an empty result instead of reading a field off undefined.
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
