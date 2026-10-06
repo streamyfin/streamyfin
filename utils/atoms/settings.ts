@@ -965,6 +965,12 @@ export const useSettings = () => {
       }
       return undefined;
     }
+    // The answer belongs to the session that asked. A sign-out or an account
+    // switch while it was on its way has moved on, and writing it now would
+    // hand the previous user's settings, credentials included, to the next.
+    if (jotaiStore.get(apiAtom) !== api) {
+      return undefined;
+    }
     setPluginSettings(newPluginSettings);
 
     // Write against the atom's value at apply time, not the hook's render

@@ -284,6 +284,38 @@ describe("refreshing the plugin settings", () => {
     expect(store.get(pluginSettingsAtom)).toEqual(sent);
   });
 
+  // The answer belongs to the session that asked. One landing after a sign-out
+  // or an account switch is the previous user's: written then, it put their
+  // settings, an administrator's credentials included, back on the device.
+  test("drops an answer that lands after the session moved on", async () => {
+    let answer: (value: unknown) => void = () => {};
+    const asked = jest.fn(
+      () =>
+        new Promise((resolve) => {
+          answer = resolve;
+        }),
+    );
+    store.set(apiAtom, { getStreamyfinPluginConfig: asked } as never);
+    const { result } = await renderHook(() => useSettings());
+
+    let refreshed: unknown = "not settled";
+    await act(async () => {
+      const pending = result.current.refreshStreamyfinPluginSettings();
+      store.set(apiAtom, null);
+      answer({
+        data: {
+          settings: { showCustomMenuLinks: { locked: false, value: false } },
+        },
+      });
+      refreshed = await pending;
+    });
+
+    expect(asked).toHaveBeenCalledTimes(1);
+    expect(refreshed).toBeUndefined();
+    expect(store.get(pluginSettingsAtom)).toEqual(stored);
+    expect(storage.get(PLUGIN_SETTINGS_KEY)).toEqual(stored);
+  });
+
   test("takes what the server sends", async () => {
     const sent = { showCustomMenuLinks: { locked: false, value: false } };
     const refreshed = await refreshAgainst(async () => ({
