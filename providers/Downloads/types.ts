@@ -58,6 +58,12 @@ export interface DownloadedItem {
   previewSegments?: MediaTimeSegment[];
   /** The user data for the item. */
   userData: UserData;
+  /**
+   * The LastPlayedDate of the offline playback state the server refused to
+   * take, see PLAYBACK_SYNC_REFUSAL_STATUSES. That state is not pushed again;
+   * a later one, written by watching the download again, is.
+   */
+  refusedPlaybackStateDate?: string;
 }
 /**
  * Represents a downloaded Season, containing a map of its episodes.

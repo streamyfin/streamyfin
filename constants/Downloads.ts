@@ -11,3 +11,10 @@ export const DOWNLOAD_TRICKPLAY_DIR_SUFFIX = "_trickplay";
 // Android stages the transfer in `<destination>.part` and renames it once it is complete
 // (OkHttpDownloadManager.kt). The native side owns the value; this mirrors it.
 export const DOWNLOAD_PART_FILE_SUFFIX = ".part";
+
+// The answers to pushing a download's offline playback state that settle it
+// (hooks/useTwoWaySync.ts): Jellyfin sends 403 when the user's policy does not
+// allow them to change user data, 404 when the item is gone or no longer
+// visible to them. Asking again gets the same answer, so that state is not
+// sent again. Any other failure (5xx, 429, no connection) leaves it owed.
+export const PLAYBACK_SYNC_REFUSAL_STATUSES: readonly number[] = [403, 404];
