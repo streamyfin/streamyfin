@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { classifyDownloadError } from "./downloadErrors";
 
 const environment = { kind: "environment" };
@@ -52,14 +54,23 @@ describe("classifyDownloadError — the user's environment", () => {
   });
 
   // REACT-NATIVE-HT: Android 15+ ends a download service's foreground time
-  // after about six hours a day. The wording is FOREGROUND_TIME_LIMIT_ERROR in
-  // BackgroundDownloaderModule.kt, and it is the system's limit, not a fault.
+  // after about six hours a day. It is the system's limit, not a fault. The
+  // wording is read out of the native module: a copy of it here would go on
+  // passing after the module's own text had changed.
   test("Android's time limit for background downloads", () => {
-    expect(
-      classifyDownloadError(
-        "Download timed out: Android's daily time limit for background downloads was reached",
+    const module = readFileSync(
+      join(
+        __dirname,
+        "../../modules/background-downloader/android/src/main/java/expo/modules/backgrounddownloader/BackgroundDownloaderModule.kt",
       ),
-    ).toEqual(environment);
+      "utf8",
+    );
+    const wording = /FOREGROUND_TIME_LIMIT_ERROR =\s*"([^"]+)"/.exec(
+      module,
+    )?.[1];
+
+    expect(wording).toContain("time limit");
+    expect(classifyDownloadError(String(wording))).toEqual(environment);
   });
 });
 
