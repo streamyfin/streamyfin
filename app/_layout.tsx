@@ -20,7 +20,6 @@ import { Platform } from "react-native";
 import { GlobalModal } from "@/components/GlobalModal";
 import { PendingAccountSaveModal } from "@/components/PendingAccountSaveModal";
 import { SeerrAutoLogin } from "@/components/seerr/SeerrAutoLogin";
-import { PUSH_DEVICE_PATH } from "@/constants/Notifications";
 import { enableTVMenuKeyInterception } from "@/hooks/useTVBackHandler";
 import i18n from "@/i18n";
 import { DownloadProvider } from "@/providers/DownloadProvider";
@@ -41,7 +40,6 @@ import {
   BACKGROUND_FETCH_TASK_SESSIONS,
   registerBackgroundFetchAsyncSessions,
 } from "@/utils/background-tasks";
-import { getOrSetDeviceId } from "@/utils/device";
 import {
   LogProvider,
   writeErrorLog,
@@ -50,7 +48,6 @@ import {
 } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
 import { notificationRoute } from "@/utils/notificationRoute";
-import { pushRegistrationStep } from "@/utils/pushRegistration";
 import { reportDataError } from "@/utils/reportDataError";
 
 const Notifications = !Platform.isTV ? require("expo-notifications") : null;
@@ -81,6 +78,7 @@ if (Platform.isTV) {
 import * as Sentry from "@sentry/react-native";
 import useRouter from "@/hooks/useAppRouter";
 import { useNativePlayerLogBridge } from "@/hooks/useNativePlayerLogBridge";
+import { usePushRegistration } from "@/hooks/usePushRegistration";
 import { userAtom } from "@/providers/JellyfinProvider";
 import { effectiveSettingsAtom, settingsAtom } from "@/utils/atoms/settings";
 import {
@@ -321,7 +319,6 @@ const mmkvPersister = createSyncStoragePersister({
 function Layout() {
   const { settings } = useSettings();
   const [user] = useAtom(userAtom);
-  const [api] = useAtom(apiAtom);
   const _segments = useSegments();
   const router = useRouter();
 
@@ -346,42 +343,7 @@ function Layout() {
   const notificationListener = useRef<EventSubscription>(null);
   const responseListener = useRef<EventSubscription>(null);
 
-  // Posted once per server, user and token. The api and the user object change
-  // identity on sign in, so without this the token went out twice within a second.
-  // Sign out clears the session, and the key with it, so the next sign in posts again.
-  const registeredPush = useRef<string | null>(null);
-
-  useEffect(() => {
-    if (Platform.isTV) return;
-
-    const step = pushRegistrationStep(
-      registeredPush.current,
-      api?.basePath,
-      user?.Id,
-      expoPushToken?.data,
-      language,
-    );
-    registeredPush.current = step.key;
-    if (!step.post || !api || !user || !expoPushToken) return;
-
-    api
-      .post(PUSH_DEVICE_PATH, {
-        token: expoPushToken.data,
-        deviceId: getOrSetDeviceId(),
-        userId: user.Id,
-        // What the plugin writes this device's notifications in, and where it fetches
-        // the poster in them from: the server is reached at a different address by a
-        // phone at home and by the same phone away.
-        language,
-        serverUrl: api.basePath,
-      })
-      .catch((_) => {
-        // Forgotten only if nothing newer was posted meanwhile, so the next change
-        // of session or token posts again. No retry on its own, as before.
-        if (registeredPush.current === step.key) registeredPush.current = null;
-        writeErrorLog("Failed to push expo push token to plugin");
-      });
-  }, [api, expoPushToken, user, language]);
+  usePushRegistration(expoPushToken?.data, language);
 
   const registerNotifications = useCallback(async () => {
     if (Platform.OS === "android") {
