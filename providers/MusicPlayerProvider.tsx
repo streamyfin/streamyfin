@@ -456,10 +456,12 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   // skip the one that is already there.
   const loadedOutOfOrderRef = useRef(false);
 
-  // Held while resume loads a restored queue. Play is a toggle, so a second
-  // tap lands during the stream URL request, and a second load would put every
-  // track in the native queue twice.
-  const restoringQueueRef = useRef(false);
+  // Set once resume has started loading the restored queue. Play is a toggle,
+  // so a second tap lands during the stream URL request of the first, and a
+  // second load would put every track in the native queue twice. It is not
+  // cleared after a load that went through: the state only holds a track
+  // without a stream URL between the restore at mount and that load.
+  const restoredQueueLoadedRef = useRef(false);
 
   const [state, setState] = useState<MusicPlayerState>({
     currentTrack: null,
@@ -1137,22 +1139,26 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     if (!state.streamUrl && state.currentTrack && api && user?.Id) {
       // A queue restored after a restart is in state only: the native queue is
       // empty until this loads it.
-      if (restoringQueueRef.current) return;
-      restoringQueueRef.current = true;
 
       // The stream URL is a network round trip. After a session switch during
       // it, the track and its queue belong to an account that is signed out.
       const generation = sessionGenerationRef.current;
       const isStale = () => generation !== sessionGenerationRef.current;
 
-      try {
-        const result = await getAudioStreamUrl(
-          api,
-          user.Id,
-          state.currentTrack.Id!,
-        );
-        if (isStale() || !result) return;
+      const result = await getAudioStreamUrl(
+        api,
+        user.Id,
+        state.currentTrack.Id!,
+      );
+      if (isStale() || !result) return;
 
+      // Every tap sends its own request and the first answer loads the queue.
+      // Holding the later taps back instead would leave play dead for as long
+      // as a request hangs, and this one has no timeout.
+      if (restoredQueueLoadedRef.current) return;
+      restoredQueueLoadedRef.current = true;
+
+      try {
         const preferLocal = settings?.preferLocalAudio ?? true;
         loadedOutOfOrderRef.current = false;
         await TrackPlayer.reset();
@@ -1183,8 +1189,10 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
             preferLocal,
           );
         }
-      } finally {
-        restoringQueueRef.current = false;
+      } catch (error) {
+        // The load did not go through, so the next tap has to try again.
+        restoredQueueLoadedRef.current = false;
+        throw error;
       }
     } else {
       await TrackPlayer.play();
