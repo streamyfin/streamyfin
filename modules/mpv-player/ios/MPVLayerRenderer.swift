@@ -1193,7 +1193,7 @@ final class MPVLayerRenderer {
     func play() {
         // Same order as when the session was activated inline on the main
         // thread: active first, then unpause, or the audio unit fails to start
-        // against an inactive session. Returns at once when nothing is pending.
+        // against an inactive session.
         onQueue {
             PlayerAudioSession.shared.waitForPendingChanges()
         }

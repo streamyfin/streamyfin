@@ -138,9 +138,9 @@ final class MPVPlayerEngine: NSObject {
 	// MARK: - Audio Session
 
 	// Every change to the session goes through `PlayerAudioSession`, off the
-	// main thread. It observes the interruption handled below as well, and
-	// forgets the session is active, so the play() that resumes after one
-	// activates it again.
+	// main thread. Nothing re-activates it after the interruption handled
+	// below except the play() that resumes, which is why play() still applies
+	// it every time.
 
 	@objc private func handleAudioSessionInterruption(_ notification: Notification) {
 		guard let userInfo = notification.userInfo,
@@ -240,7 +240,7 @@ final class MPVPlayerEngine: NSObject {
 		// Queued ahead of the load on purpose. The renderer's load block waits
 		// for pending session changes, so the playback category is in place
 		// before mpv opens its audio output, which sizes itself from the route
-		// the session reports at that moment. play() below then finds it done.
+		// the session reports at that moment.
 		if config.autoplay {
 			audioSession.activate()
 		}
@@ -263,7 +263,7 @@ final class MPVPlayerEngine: NSObject {
 		)
 
 		if config.autoplay {
-			play()
+			resumePlayback()
 		}
 
 		delegate?.engine(self, didLoad: config.url)
@@ -272,11 +272,16 @@ final class MPVPlayerEngine: NSObject {
 	// MARK: - Transport
 
 	func play() {
-		intendedPlayState = true
-		// Does nothing unless the session needs applying: the first play of a
-		// player session, or the first after an interruption. When it does,
-		// renderer.play() holds the unpause until it is done.
+		// Queued before the unpause, which renderer.play() holds until the
+		// session is active.
 		audioSession.activate()
+		resumePlayback()
+	}
+
+	/// play() without the session request: loadVideo() has to make that one
+	/// before the load is queued, and once is enough.
+	private func resumePlayback() {
+		intendedPlayState = true
 		setupRemoteCommands()
 		renderer?.play()
 		pipController?.setPlaybackRate(1.0)
@@ -305,9 +310,6 @@ final class MPVPlayerEngine: NSObject {
 		pipController?.stopPictureInPicture()
 		pipController = nil
 		renderer?.stop()
-		// The handle being torn down deactivates the session when its audio
-		// output closes, so the load that follows applies it again.
-		audioSession.invalidate()
 
 		// Reset state and re-create the mpv handle so a subsequent
 		// loadVideo() on the SAME engine instance can actually load.
@@ -713,7 +715,7 @@ extension MPVPlayerEngine: MPVLayerRendererDelegate {
 		// player closes, and an activation queued behind the teardown would
 		// take the session back after the player is gone.
 		guard !isShutDown else { return }
-		audioSession.activate(reapply: true) { [weak self] in
+		audioSession.activate { [weak self] in
 			// A shutdown in between has cleared Now Playing; leave it cleared.
 			guard let self, !self.isShutDown else { return }
 			self.syncNowPlaying(isPlaying: self.intendedPlayState)

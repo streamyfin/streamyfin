@@ -1,6 +1,4 @@
-import { execFileSync, spawnSync } from "node:child_process";
-import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 // The audio session is the shared AVAudioSession, and every call on it is a
@@ -27,6 +25,22 @@ describe("iOS audio session", () => {
       .map(({ file }) => file);
 
     expect(offenders).toEqual([]);
+  });
+
+  // Other audio code in the process shares the session and can deactivate it
+  // with no notification: expo-audio does, 100 ms after its last player
+  // pauses. Pausing and resuming is what brings the audio back, so play() has
+  // to reach the session every time, not only the first.
+  test("every activation reaches the session, not only the first", () => {
+    const activate = section(
+      sourceOf("PlayerAudioSession.swift"),
+      "\tfunc activate(",
+      "\n\t}\n",
+    );
+
+    expect(activate).toMatch(
+      /queue\.async \{\s*let session = AVAudioSession\.sharedInstance\(\)\s*do \{\s*try session\.setCategory\([^\n]*\s*try session\.setActive\(true\)/,
+    );
   });
 
   test("the session is settled before mpv is told to load", () => {
@@ -62,31 +76,4 @@ describe("iOS audio session", () => {
       /^Self\.audioRouteLogQueue\.async \{/,
     );
   });
-});
-
-// The rules themselves are plain Swift, so they run for real wherever there is
-// a Swift compiler: a Mac. The Linux CI runners have none and skip this.
-const hasSwift =
-  process.platform === "darwin" &&
-  spawnSync("swiftc", ["--version"]).status === 0;
-
-(hasSwift ? describe : describe.skip)("AudioSessionState", () => {
-  test("passes its Swift unit tests", () => {
-    const outDir = mkdtempSync(join(tmpdir(), "audio-session-state-"));
-    const binary = join(outDir, "tests");
-    try {
-      execFileSync("swiftc", [
-        join(iosDir, "AudioSessionState.swift"),
-        join(__dirname, "../ios-tests/AudioSessionStateTests.swift"),
-        "-o",
-        binary,
-      ]);
-      const result = spawnSync(binary, { encoding: "utf8" });
-
-      expect(result.stdout).not.toContain("FAIL");
-      expect(result.status).toBe(0);
-    } finally {
-      rmSync(outDir, { recursive: true, force: true });
-    }
-  }, 120_000);
 });
