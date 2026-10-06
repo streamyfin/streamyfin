@@ -190,10 +190,29 @@ describe("readPluginSettings", () => {
     ).toEqual(map);
   });
 
+  // A plugin newer than the app can serve a block the app does not know yet.
+  // It is left out, and the rest of the answer still applies.
+  test("leaves out a block it does not know, from either route", async () => {
+    const newer = {
+      ...servedByThePlugin,
+      streamystats: { serverUrl: { locked: false, value: "https://stats" } },
+    };
+
+    expect(
+      await readPluginSettings(server({ [RESOLVED_SETTINGS_PATH]: newer }).api),
+    ).toEqual(servedByThePlugin);
+    expect(
+      await readPluginSettings(
+        server({ [LEGACY_CONFIG_PATH]: { settings: newer } }).api,
+      ),
+    ).toEqual(servedByThePlugin);
+  });
+
   // A JSON 200 can be somebody else's answer too. Every entry of a settings map
-  // is an object, and every one but the seerr block carries its lock.
+  // is an object, and one that is not empty holds a setting or the seerr block.
   test.each([
     ["an error message", { error: "Sign in" }],
+    ["an error object", { error: { code: 401, message: "Sign in" } }],
     ["an entry without its lock", { subtitleSize: { value: 120 } }],
     ["a lock that is not a boolean", { subtitleSize: { locked: "true" } }],
     ["a seerr block that is a sentence", { seerr: "Sign in" }],

@@ -70,24 +70,43 @@ const notThePluginsAnswer = (message: string): Error =>
 const isJsonObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
+/** The blocks this app reads, whose entries carry the locks (readIntegrationBlocks). */
+const KNOWN_BLOCKS: ReadonlySet<string> = new Set(["seerr"]);
+
 /**
- * What both routes answer with: a map of key to `{ locked, value }`. A 200 that
- * is anything else is not an answer about the plugin. A captive portal's login
+ * The settings map in what a route answered, or undefined when it is not one.
+ *
+ * Both routes answer with a map of key to `{ locked, value }`. A 200 that is
+ * anything else is not an answer about the plugin: a captive portal's login
  * page arrives the same way, and so can a JSON error, and reading either as the
- * admin's policy would drop every lock they set.
+ * admin's policy would drop every lock they set. So every entry has to be an
+ * object, and a map that is not empty has to hold a setting or a block this app
+ * reads.
  *
  * `value` can be missing: the plugin leaves a null out, so a locked "no cap"
- * quality arrives as `{ locked: true }`. The one entry without a lock of its
- * own is `seerr`, Seerr served a second time as a block whose entries carry
- * theirs. A block the plugin adds later is refused until the app knows it.
+ * quality arrives as `{ locked: true }`. An entry that is neither a setting nor
+ * a known block, such as a block a newer plugin adds, is left out rather than
+ * failing the whole answer: the plugin keeps the flat keys until the apps in
+ * the field read the block.
  */
-const isSettingsMap = (value: unknown): value is PluginLockableSettings =>
-  isJsonObject(value) &&
-  Object.entries(value).every(
+const settingsMapOf = (value: unknown): PluginLockableSettings | undefined => {
+  if (!isJsonObject(value)) {
+    return undefined;
+  }
+  const entries = Object.entries(value);
+  if (!entries.every(([, entry]) => isJsonObject(entry))) {
+    return undefined;
+  }
+  const read = entries.filter(
     ([key, entry]) =>
-      isJsonObject(entry) &&
-      (key === "seerr" || typeof entry.locked === "boolean"),
+      KNOWN_BLOCKS.has(key) ||
+      typeof (entry as Record<string, unknown>).locked === "boolean",
   );
+  if (entries.length > 0 && read.length === 0) {
+    return undefined;
+  }
+  return Object.fromEntries(read) as PluginLockableSettings;
+};
 
 /**
  * The settings that apply to the signed-in user, whatever the server's age.
@@ -112,12 +131,13 @@ export const readPluginSettings = async (
   if (!withoutResolvedRoute.has(api)) {
     try {
       const { data } = await api.get<unknown>(RESOLVED_SETTINGS_PATH);
-      if (!isSettingsMap(data)) {
+      const map = settingsMapOf(data);
+      if (!map) {
         throw notThePluginsAnswer(
           "The resolved plugin settings are not a settings map",
         );
       }
-      return data;
+      return map;
     } catch (error) {
       // Only a missing route means "older plugin". A server that is down or a
       // token that expired would fail the same way on the old path, and asking
@@ -140,12 +160,13 @@ export const readPluginSettings = async (
     if (settings == null) {
       return undefined;
     }
-    if (!isSettingsMap(settings)) {
+    const map = settingsMapOf(settings);
+    if (!map) {
       throw notThePluginsAnswer(
         "The plugin configuration's settings are not a settings map",
       );
     }
-    return settings;
+    return map;
   } catch (error) {
     if (!isMissingRoute(error)) {
       throw error;
