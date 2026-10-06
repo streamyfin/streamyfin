@@ -4,6 +4,7 @@ import { useAtomValue } from "jotai";
 import { PLAYBACK_SYNC_REFUSAL_STATUSES } from "@/constants/Downloads";
 import { useDownload } from "@/providers/DownloadProvider";
 import { isGatewayBlockError, markExpectedError } from "@/utils/errors";
+import { canUpdateUserData } from "@/utils/jellyfin/userDataAccess";
 import { logAndCaptureError } from "@/utils/log";
 import { apiAtom, userAtom } from "../providers/JellyfinProvider";
 import { useNetworkStatus } from "./useNetworkStatus";
@@ -94,6 +95,11 @@ export const useTwoWaySync = () => {
       });
       return false;
     } else if (remoteLastPlayed < localLastPlayed) {
+      // The server refuses this push for a user who may not change their
+      // user data, and the app can tell without asking. Nothing is sent and
+      // nothing is marked, so the state goes out once an admin gives the
+      // permission back.
+      if (!canUpdateUserData(user)) return false;
       const localLastPlayedDate = localItem.item.UserData?.LastPlayedDate;
       // The server already turned this very state down, and would again.
       if (

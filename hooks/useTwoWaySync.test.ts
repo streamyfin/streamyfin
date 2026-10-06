@@ -1,3 +1,4 @@
+import type { UserPolicy } from "@jellyfin/sdk/lib/generated-client/models";
 import { renderHook } from "@testing-library/react-native";
 import { getDefaultStore } from "jotai";
 import {
@@ -7,7 +8,7 @@ import {
   updateDownloadedItem,
 } from "@/providers/Downloads/database";
 import type { DownloadedItem } from "@/providers/Downloads/types";
-import { apiAtom } from "@/providers/JellyfinProvider";
+import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import type { makeApi } from "@/test-utils/jellyfinApi";
 import { clearMmkv } from "@/test-utils/mmkv";
 import { isExpectedError } from "@/utils/errors";
@@ -39,6 +40,13 @@ jest.mock("@/utils/log", () => ({
 }));
 
 const api = getDefaultStore().get(apiAtom) as ReturnType<typeof makeApi>;
+
+// Only the two fields the server's rule reads; it sends the whole policy.
+const signInWith = (policy?: Partial<UserPolicy>) =>
+  getDefaultStore().set(userAtom, {
+    Id: "user-1",
+    Policy: policy as UserPolicy | undefined,
+  });
 
 const WATCHED_OFFLINE = "2026-10-05T20:00:00.000Z";
 const WATCHED_OFFLINE_AGAIN = "2026-10-06T20:00:00.000Z";
@@ -91,6 +99,7 @@ const GATEWAY_BLOCK = [
 
 beforeEach(() => {
   api.mock.reset();
+  signInWith();
   mockLogAndCaptureError.mockClear();
   clearMmkv();
   clearAllDownloadedItems();
@@ -205,6 +214,57 @@ describe("useTwoWaySync — a push the server refuses", () => {
       LastPlayedDate: WATCHED_OFFLINE,
       PlaybackPositionTicks: OFFLINE_POSITION_TICKS,
     });
+  });
+});
+
+describe("useTwoWaySync — a user who may not change their user data", () => {
+  // What REACT-NATIVE-DB's 403 was: Jellyfin refuses the push for anyone but
+  // an administrator when their policy has EnableUserPreferenceAccess off.
+  // The app holds that policy, so it does not have to ask to find out.
+  test("has nothing pushed, and nothing logged", async () => {
+    signInWith({ IsAdministrator: false, EnableUserPreferenceAccess: false });
+    download("movie-1");
+    serverHas("movie-1");
+
+    expect(await sync("movie-1")).toBe(false);
+
+    expect(api.mock.history.post).toHaveLength(0);
+    expect(mockLogAndCaptureError).not.toHaveBeenCalled();
+  });
+
+  // Nothing was refused, so nothing is marked: the state is still owed.
+  test("has it pushed once an admin gives the permission back", async () => {
+    signInWith({ IsAdministrator: false, EnableUserPreferenceAccess: false });
+    download("movie-1");
+    serverHas("movie-1");
+    api.mock.onPost(userDataUrl("movie-1")).reply(200, {});
+    await sync("movie-1");
+
+    signInWith({ IsAdministrator: false, EnableUserPreferenceAccess: true });
+
+    expect(await sync("movie-1")).toBe(true);
+    expect(pushes("movie-1")).toHaveLength(1);
+  });
+
+  test("still takes the server's newer state", async () => {
+    signInWith({ IsAdministrator: false, EnableUserPreferenceAccess: false });
+    download("movie-1");
+    serverHas("movie-1", WATCHED_OFFLINE_AGAIN);
+
+    await sync("movie-1");
+
+    expect(
+      getDownloadedItemById("movie-1")?.item.UserData?.LastPlayedDate,
+    ).toBe(WATCHED_OFFLINE_AGAIN);
+  });
+
+  test("does not hold an administrator back", async () => {
+    signInWith({ IsAdministrator: true, EnableUserPreferenceAccess: false });
+    download("movie-1");
+    serverHas("movie-1");
+    api.mock.onPost(userDataUrl("movie-1")).reply(200, {});
+
+    expect(await sync("movie-1")).toBe(true);
   });
 });
 
