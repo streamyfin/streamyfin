@@ -2,6 +2,7 @@ import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import { toast } from "sonner-native";
 import { getDownloadStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
+import { logAndCaptureError, writeToLog } from "@/utils/log";
 import { DownloadSingleItem } from "./DownloadItem";
 
 const mockStartBackgroundDownload = jest.fn();
@@ -33,7 +34,10 @@ jest.mock("@/utils/atoms/settings", () => ({
 jest.mock("@/utils/jellyfin/media/getStreamUrl", () => ({
   getDownloadStreamUrl: jest.fn(),
 }));
-jest.mock("@/utils/log", () => ({ logAndCaptureError: jest.fn() }));
+jest.mock("@/utils/log", () => ({
+  logAndCaptureError: jest.fn(),
+  writeToLog: jest.fn(),
+}));
 jest.mock("@/hooks/useAppRouter", () => ({
   __esModule: true,
   default: () => ({ push: jest.fn() }),
@@ -117,6 +121,19 @@ describe("DownloadSingleItem", () => {
     );
     expect(getDownloadStreamUrl).not.toHaveBeenCalled();
     expect(mockStartBackgroundDownload).not.toHaveBeenCalled();
+  });
+
+  // The throw was the only trace of this state. What kind of item it was
+  // stays in the local log, which is where a user's own situation belongs.
+  test("keeps a turned-down download in the local log without reporting it", async () => {
+    await render(<DownloadSingleItem item={FOLDER} />);
+
+    await confirmDownload();
+
+    expect(writeToLog).toHaveBeenCalledWith("WARN", expect.any(String), {
+      itemType: "Folder",
+    });
+    expect(logAndCaptureError).not.toHaveBeenCalled();
   });
 
   test("starts the download of an item that has a media source", async () => {
