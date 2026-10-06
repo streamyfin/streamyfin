@@ -93,7 +93,7 @@ const FOLDER: BaseItemDto = {
 const confirmDownload = async () => {
   await fireEvent.press(screen.getByText("item_card.download.download_button"));
   await act(async () => {
-    await jest.advanceTimersByTimeAsync(300);
+    await jest.runOnlyPendingTimersAsync();
   });
 };
 
@@ -101,6 +101,9 @@ describe("DownloadSingleItem", () => {
   beforeEach(() => {
     jest.useFakeTimers();
     jest.clearAllMocks();
+    // Clearing keeps a stubbed answer, and it must not outlive its test.
+    // Resetting every mock instead would also wipe the ones jest-expo sets up.
+    jest.mocked(getDownloadStreamUrl).mockReset();
   });
 
   afterEach(() => {
