@@ -18,6 +18,12 @@ let jellyfinHeaders: Record<string, string> = {};
 let configuredFor: string | undefined;
 
 /**
+ * What the resolvers answer on a locked phone, where the Keychain refuses the
+ * stored values. Pass it to `setJellyfinHeaders` to put a spec there.
+ */
+export const unreadableHeaders: Record<string, string> = Object.freeze({});
+
+/**
  * Sets the proxy auth headers the double reports. Call it from a spec's
  * `beforeEach`, so every test starts from the headers it declares.
  *
@@ -82,6 +88,8 @@ export const customHeadersModule = () => ({
     const headers = configuredForServer(serverUrl) ? jellyfinHeaders : {};
     return Object.keys(headers).length > 0 ? headers : undefined;
   },
+  headersUnreadable: (headers: Record<string, string>) =>
+    headers === unreadableHeaders,
   getHeadersForUrl: () => undefined,
   getIntegrationHeaders: () => ({}),
   getIntegrationHeaderConfig: () => undefined,

@@ -1,5 +1,7 @@
 import * as SecureStore from "expo-secure-store";
 import { atom } from "jotai";
+import { AppState } from "react-native";
+import { logAndCaptureError, writeToLog } from "@/utils/log";
 import { store } from "@/utils/store";
 import type { CustomHeader } from "./types";
 
@@ -83,23 +85,114 @@ function deleteSecureValue(key: string): void {
   pendingDeletes.set(key, deletion);
 }
 
+/**
+ * iOS can launch the app in the background while the phone is locked, and the
+ * requests made there need the headers. The default, readable only while
+ * unlocked, refuses every read on such a launch. No weaker than this: the
+ * values stay unreadable until the phone has been unlocked once after a
+ * restart.
+ *
+ * It only takes on an item being created. Saving over an existing one updates
+ * its data and keeps the accessibility it was created with, so a value stored
+ * by an earlier build stays as it was until its row is removed and added back.
+ */
+const WRITE_OPTIONS: SecureStore.SecureStoreOptions = {
+  keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK,
+};
+
 function writeSecureValue(key: string, value: string): void {
-  SecureStore.setItem(key, value);
+  SecureStore.setItem(key, value, WRITE_OPTIONS);
 
   const deletion = pendingDeletes.get(key);
   if (deletion) {
     void deletion.then(() => {
-      SecureStore.setItem(key, value);
+      SecureStore.setItem(key, value, WRITE_OPTIONS);
     });
   }
 }
 
-function getSecureHeaderValue(header: CustomHeader): string {
-  if (!header.secureValueKey) return header.value;
-  return SecureStore.getItem(header.secureValueKey) ?? "";
+let failedReads = 0;
+let awaitingForeground = false;
+let reportedUnexpectedFailure = false;
+
+/**
+ * A read can fail and then start working without anything in the
+ * configuration changing, so nothing would tell the clients and image sources
+ * that memoized the empty headers to ask again. Reaching the foreground is the
+ * one moment the phone is known to be unlocked.
+ */
+function announceHeadersOnForeground(): void {
+  if (awaitingForeground) return;
+  awaitingForeground = true;
+
+  const subscription = AppState.addEventListener("change", (state) => {
+    if (state !== "active") return;
+    subscription.remove();
+    awaitingForeground = false;
+    bumpCustomHeadersVersion();
+  });
 }
 
-/** Fills in the SecureStore-backed values for display or request injection. */
+function noteFailedRead(error: unknown): void {
+  failedReads += 1;
+  const firstOfThisStretch = !awaitingForeground;
+  announceHeadersOnForeground();
+
+  if (AppState.currentState === "background") {
+    // The phone is locked: expected, and over as soon as it is unlocked.
+    if (firstOfThisStretch) {
+      writeToLog(
+        "WARN",
+        "Custom header values are unreadable in the background",
+        error instanceof Error ? error.message : String(error),
+      );
+    }
+    return;
+  }
+
+  // Anywhere but the background the phone is unlocked, so this is not the
+  // lock. The headers are dropped all the same, which looks exactly like a
+  // server outage.
+  if (!reportedUnexpectedFailure) {
+    reportedUnexpectedFailure = true;
+    logAndCaptureError("Custom header value could not be read", error);
+  }
+}
+
+/**
+ * Runs `read` and tells whether every stored value it asked for was there to
+ * be had. When `complete` is false the result holds an empty string in place
+ * of each value the Keychain refused: fit to render, but not to be remembered,
+ * written back, or sent in place of the real thing.
+ */
+export function trackSecureReads<T>(read: () => T): {
+  value: T;
+  complete: boolean;
+} {
+  const failedBefore = failedReads;
+  const value = read();
+  return { value, complete: failedReads === failedBefore };
+}
+
+function getSecureHeaderValue(header: CustomHeader): string {
+  if (!header.secureValueKey) return header.value;
+
+  // This runs during render (every <Image> resolves its headers through it),
+  // so a refusal from the Keychain must not become a thrown error: it took
+  // the whole provider tree down with it.
+  try {
+    return SecureStore.getItem(header.secureValueKey) ?? "";
+  } catch (error) {
+    noteFailedRead(error);
+    return "";
+  }
+}
+
+/**
+ * Fills in the SecureStore-backed values for display or request injection.
+ * Never throws: a value that could not be read comes back empty, and
+ * `trackSecureReads` tells a caller that needs to know the difference.
+ */
 export function resolveCustomHeaderValues(
   headers: CustomHeader[],
 ): CustomHeader[] {

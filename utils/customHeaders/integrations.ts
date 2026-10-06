@@ -7,6 +7,7 @@ import {
   deleteSecureCustomHeaderValues,
   resolveCustomHeaderValues,
   secureCustomHeaderMetadata,
+  trackSecureReads,
 } from "./secureValues";
 import type { HeaderConfig, HeaderSource, IntegrationKey } from "./types";
 
@@ -62,9 +63,17 @@ function moveLegacySeerrHeaders(): void {
 
   const config = parseHeaderConfig(legacy);
   if (storage.getString(configStorageKey("seerr")) === undefined) {
+    const { value: legacyHeaders, complete } = trackSecureReads(() =>
+      resolveCustomHeaderValues(config.customHeaders),
+    );
+    // This runs from a read, and so on a locked phone too, where the values
+    // come back empty. Moving those would delete the only copy of each
+    // secret; the next read with the phone unlocked moves the real ones.
+    if (!complete) return;
+
     const customHeaders = secureCustomHeaderMetadata(
       "integration:seerr",
-      resolveCustomHeaderValues(config.customHeaders),
+      legacyHeaders,
       [],
     );
     storage.set(

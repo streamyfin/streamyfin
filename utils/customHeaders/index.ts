@@ -16,6 +16,7 @@ export {
   getIntegrationHeaders,
   getJellyfinHeaders,
   getJellyfinHeadersForUrl,
+  headersUnreadable,
 } from "./resolve";
 export {
   bumpCustomHeadersVersion,

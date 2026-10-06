@@ -80,13 +80,17 @@ Three rules keep mocks from becoming the thing that breaks:
 - `mmkvModule` stands for `react-native-mmkv`, backed by one map per spec file;
   `clearMmkv()` empties it between tests.
 - `secureStoreModule` stands for `expo-secure-store`, the same way; `clearSecureStore()`
-  empties it, and `secureStoreValues` seeds or reads it back.
+  empties it, and `secureStoreValues` seeds or reads it back. `lockSecureStore()` locks the
+  phone, so reads throw as the Keychain does for an app launched in the background, and
+  `storeAsAnEarlierBuildDid()` turns what is stored into items that are readable only
+  while unlocked.
 - `fileSystemModule` stands for `expo-file-system` in specs that delete or download files: a
   path exists once `fakeFiles.add()` puts it there, or a download lands on it, and until
   something deletes it. `fakeFiles.clear()` empties the disk, `fakeFiles.remaining()`,
   `fakeFiles.deleted()` and `fakeFiles.downloads()` read it back.
 - `customHeadersModule()` stands for the `@/utils/customHeaders` barrel, with the pure
-  helpers for real and the native side stubbed; `setJellyfinHeaders()` sets what it reports.
+  helpers for real and the native side stubbed; `setJellyfinHeaders()` sets what it reports,
+  and `unreadableHeaders` is what it reports on a locked phone.
 - `reanimatedModule` stands for `react-native-reanimated` when a spec renders a component
   that holds shared values. Reanimated's own Jest mock returns a new shared value on
   every render, which re-runs any effect that depends on one.

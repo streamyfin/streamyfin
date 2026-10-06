@@ -1,7 +1,17 @@
-import { secureStoreValues } from "@/test-utils/secureStore";
+import { AppState } from "react-native";
+import { emitAppState, stubReactNative } from "@/test-utils/reactNative";
 import {
+  clearSecureStore,
+  lockSecureStore,
+  secureStoreValues,
+  storeAsAnEarlierBuildDid,
+} from "@/test-utils/secureStore";
+import { store } from "@/utils/store";
+import {
+  customHeadersVersionAtom,
   resolveCustomHeaderValues,
   secureCustomHeaderMetadata,
+  trackSecureReads,
 } from "./secureValues";
 import type { CustomHeader } from "./types";
 
@@ -9,6 +19,14 @@ jest.mock(
   "expo-secure-store",
   () => jest.requireActual("@/test-utils/secureStore").secureStoreModule,
 );
+// The real log loads Sentry, whose timers keep Jest from exiting.
+jest.mock("@/utils/log", () => ({
+  writeToLog: (...args: unknown[]) => mockWriteToLog(...args),
+  logAndCaptureError: (...args: unknown[]) => mockLogAndCaptureError(...args),
+}));
+
+const mockWriteToLog = jest.fn();
+const mockLogAndCaptureError = jest.fn();
 
 const header = (
   key: string,
@@ -18,7 +36,7 @@ const header = (
 
 describe("secureCustomHeaderMetadata", () => {
   beforeEach(() => {
-    secureStoreValues.clear();
+    clearSecureStore();
   });
 
   test("keeps values out of the persisted metadata", () => {
@@ -142,5 +160,144 @@ describe("secureCustomHeaderMetadata", () => {
     expect(
       secureStoreValues.get(shorterScopeMetadata[0]!.secureValueKey!),
     ).toBe("shorter-secret");
+  });
+});
+
+// iOS can launch the app in the background while the phone is locked, and the
+// Keychain then refuses every item stored as readable only when unlocked. The
+// read used to throw, in the middle of a render: the provider tree never
+// mounted on that launch (Sentry REACT-NATIVE-16, REACT-NATIVE-AA).
+describe("a header value on a locked phone", () => {
+  const scope = "server:https://example.test";
+  const appState = (state: string) =>
+    Object.defineProperty(AppState, "currentState", {
+      value: state,
+      configurable: true,
+    });
+
+  /** One header whose value was stored by a build from before the fix. */
+  const storedByAnEarlierBuild = () => {
+    const metadata = secureCustomHeaderMetadata(scope, [
+      header("CF-Access-Client-Secret", "secret"),
+    ]);
+    storeAsAnEarlierBuildDid();
+    return metadata;
+  };
+
+  beforeEach(() => {
+    clearSecureStore();
+    stubReactNative();
+    appState("background");
+    mockWriteToLog.mockClear();
+    mockLogAndCaptureError.mockClear();
+  });
+
+  // Whatever the previous test left waiting for the foreground is spent here,
+  // so each test counts its own announcements only.
+  afterEach(() => {
+    lockSecureStore(false);
+    emitAppState("active");
+  });
+
+  test("reads as empty instead of throwing", () => {
+    const metadata = storedByAnEarlierBuild();
+    lockSecureStore();
+
+    expect(resolveCustomHeaderValues(metadata)[0]?.value).toBe("");
+  });
+
+  test("tells the caller that what it got is not the stored value", () => {
+    const metadata = storedByAnEarlierBuild();
+
+    lockSecureStore();
+    expect(
+      trackSecureReads(() => resolveCustomHeaderValues(metadata)).complete,
+    ).toBe(false);
+
+    lockSecureStore(false);
+    expect(trackSecureReads(() => resolveCustomHeaderValues(metadata))).toEqual(
+      {
+        value: [expect.objectContaining({ value: "secret" })],
+        complete: true,
+      },
+    );
+  });
+
+  test("is read again once the phone is unlocked", () => {
+    const metadata = storedByAnEarlierBuild();
+    lockSecureStore();
+    resolveCustomHeaderValues(metadata);
+
+    lockSecureStore(false);
+
+    expect(resolveCustomHeaderValues(metadata)[0]?.value).toBe("secret");
+  });
+
+  // Clients and image sources memoize on the version, so the empty headers a
+  // locked phone gave them would otherwise last until the app is restarted.
+  test("is announced as changed when the app comes to the foreground", () => {
+    const metadata = storedByAnEarlierBuild();
+    lockSecureStore();
+    resolveCustomHeaderValues(metadata);
+    resolveCustomHeaderValues(metadata);
+    const version = store.get(customHeadersVersionAtom);
+
+    emitAppState("inactive");
+    expect(store.get(customHeadersVersionAtom)).toBe(version);
+
+    emitAppState("active");
+    expect(store.get(customHeadersVersionAtom)).toBe(version + 1);
+
+    // Once per failed stretch, not on every return to the app.
+    emitAppState("active");
+    expect(store.get(customHeadersVersionAtom)).toBe(version + 1);
+  });
+
+  test("announces nothing when every read worked", () => {
+    const metadata = storedByAnEarlierBuild();
+    resolveCustomHeaderValues(metadata);
+    const version = store.get(customHeadersVersionAtom);
+
+    emitAppState("active");
+
+    expect(store.get(customHeadersVersionAtom)).toBe(version);
+  });
+
+  test("can be read when this build stored it", () => {
+    const metadata = secureCustomHeaderMetadata(scope, [
+      header("CF-Access-Client-Secret", "secret"),
+    ]);
+    lockSecureStore();
+
+    expect(resolveCustomHeaderValues(metadata)[0]?.value).toBe("secret");
+  });
+
+  // A locked phone in the background is the user's phone doing what it does.
+  test("stays out of Sentry", () => {
+    const metadata = storedByAnEarlierBuild();
+    lockSecureStore();
+
+    resolveCustomHeaderValues(metadata);
+    resolveCustomHeaderValues(metadata);
+
+    expect(mockLogAndCaptureError).not.toHaveBeenCalled();
+    expect(mockWriteToLog).toHaveBeenCalledTimes(1);
+    expect(mockWriteToLog).toHaveBeenCalledWith(
+      "WARN",
+      expect.any(String),
+      expect.stringContaining("User interaction is not allowed"),
+    );
+  });
+
+  // In the foreground the phone is unlocked, so the Keychain refusing is
+  // something else, and worth knowing about.
+  test("is reported when the app is in the foreground", () => {
+    const metadata = storedByAnEarlierBuild();
+    lockSecureStore();
+    appState("active");
+
+    resolveCustomHeaderValues(metadata);
+
+    expect(mockLogAndCaptureError).toHaveBeenCalledTimes(1);
   });
 });

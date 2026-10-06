@@ -19,7 +19,9 @@ import { useSettings } from "@/utils/atoms/settings";
 import {
   customHeadersVersionAtom,
   getIntegrationHeaders,
+  headersUnreadable,
 } from "@/utils/customHeaders";
+import { markExpectedError } from "@/utils/errors";
 import { logAndCaptureError, writeErrorLog, writeToLog } from "@/utils/log";
 import { settleSeerrFailure } from "@/utils/seerr/errorReporting";
 import { tmdbImageUrl } from "@/utils/seerr/images";
@@ -629,6 +631,16 @@ export class SeerrApi {
 
     this.axios.interceptors.request.use(
       async (config) => {
+        // Built on a locked phone, where the Keychain refuses the values.
+        // Without them the gateway answers a read with a 403, which the
+        // handler above takes for the session being over. Nothing is sent
+        // instead; `useSeerr` rebuilds the client once they can be read.
+        if (headersUnreadable(this.customHeaders)) {
+          throw markExpectedError(
+            new Error("Custom headers are unreadable, request not sent"),
+          );
+        }
+
         // set() rather than index assignment so axios normalizes the name and
         // a differently-cased duplicate cannot be emitted twice.
         for (const [key, value] of Object.entries(this.customHeaders)) {

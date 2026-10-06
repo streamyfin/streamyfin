@@ -1,5 +1,11 @@
 import { clearMmkv } from "@/test-utils/mmkv";
-import { clearSecureStore, secureStoreValues } from "@/test-utils/secureStore";
+import { stubReactNative } from "@/test-utils/reactNative";
+import {
+  clearSecureStore,
+  lockSecureStore,
+  secureStoreValues,
+  storeAsAnEarlierBuildDid,
+} from "@/test-utils/secureStore";
 import { storage } from "@/utils/mmkv";
 import {
   getIntegrationHeaderConfig,
@@ -39,12 +45,14 @@ const storedByAnEarlierBuild = () => {
     "custom_headers_config_jellyseerr",
     JSON.stringify({ source: "custom", customHeaders }),
   );
+  storeAsAnEarlierBuildDid();
 };
 
 describe("Seerr's custom headers", () => {
   beforeEach(() => {
     clearMmkv();
     clearSecureStore();
+    stubReactNative();
   });
 
   // Seerr's headers were filed under "jellyseerr" before the rename. Looking
@@ -67,6 +75,31 @@ describe("Seerr's custom headers", () => {
     ).toBeUndefined();
     expect(storage.getString("custom_headers_config_seerr")).toBeDefined();
     expect(secureStoreValues.size).toBe(1);
+  });
+
+  // The move copies the values and deletes the originals. Run on a locked
+  // phone it would copy the empty strings that stand in for what the Keychain
+  // refused, and delete the only copy of the secret.
+  test("leaves them where they are while the phone is locked", () => {
+    storedByAnEarlierBuild();
+    lockSecureStore();
+
+    expect(getIntegrationHeaderConfig("seerr")).toEqual({
+      source: "none",
+      customHeaders: [],
+    });
+    expect(storage.getString("custom_headers_config_jellyseerr")).toBeDefined();
+    expect(storage.getString("custom_headers_config_seerr")).toBeUndefined();
+    expect([...secureStoreValues.values()]).toEqual(["secret"]);
+
+    lockSecureStore(false);
+
+    expect(getIntegrationHeaderConfig("seerr").customHeaders).toEqual([
+      expect.objectContaining({ value: "secret" }),
+    ]);
+    expect(
+      storage.getString("custom_headers_config_jellyseerr"),
+    ).toBeUndefined();
   });
 
   test("saves under the new name, leaving nothing under the old one", () => {

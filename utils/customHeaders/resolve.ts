@@ -9,7 +9,7 @@ import {
   resolveIntegrationHeaders,
 } from "./integrations";
 import { normalizeCustomHeaders } from "./normalize";
-import { customHeadersVersionAtom } from "./secureValues";
+import { customHeadersVersionAtom, trackSecureReads } from "./secureValues";
 import type { IntegrationKey } from "./types";
 import { isUrlForBaseUrl, normalizeHttpBaseUrl } from "./urlMatching";
 
@@ -35,20 +35,61 @@ function withFreshCaches<T>(read: () => T): T {
   return read();
 }
 
+/**
+ * What a resolver answers when a value behind the headers could not be read:
+ * iOS launched the app in the background on a locked phone, and the Keychain
+ * hands nothing out until it is unlocked.
+ *
+ * It is empty, so anything that renders with it attaches nothing. All of the
+ * headers are withheld even when only one value failed: half of a gateway's
+ * credentials open nothing.
+ */
+const UNREADABLE_HEADERS: Record<string, string> = Object.freeze({});
+
+/**
+ * Whether `headers` stand for values that could not be read, rather than for
+ * a service with no headers configured.
+ *
+ * A client that takes a refusal as the end of the session has to ask before
+ * it sends anything: without its headers a request is turned away by the
+ * user's gateway, not by the server behind it. It only holds for the object a
+ * resolver returned, not for a copy of it.
+ */
+export function headersUnreadable(headers: Record<string, string>): boolean {
+  return headers === UNREADABLE_HEADERS;
+}
+
+/**
+ * Remembers what `resolve` answers, unless a value was unreadable. The cache
+ * lasts until the configuration changes and unlocking the phone changes none
+ * of it, so a remembered failure would outlive its cause.
+ */
+function resolveOnce(
+  cache: Map<string, Record<string, string>>,
+  key: string,
+  resolve: () => Record<string, string>,
+): Record<string, string> {
+  const cached = cache.get(key);
+  if (cached) return cached;
+
+  const { value, complete } = trackSecureReads(resolve);
+  if (!complete) return UNREADABLE_HEADERS;
+
+  cache.set(key, value);
+  return value;
+}
+
 /** Headers configured for a Jellyfin server, ready to put on a request. */
 export function getJellyfinHeaders(
   serverUrl?: string | null,
 ): Record<string, string> {
   if (!serverUrl) return {};
 
-  return withFreshCaches(() => {
-    const cached = serverHeaderCache.get(serverUrl);
-    if (cached) return cached;
-
-    const headers = normalizeCustomHeaders(getServerCustomHeaders(serverUrl));
-    serverHeaderCache.set(serverUrl, headers);
-    return headers;
-  });
+  return withFreshCaches(() =>
+    resolveOnce(serverHeaderCache, serverUrl, () =>
+      normalizeCustomHeaders(getServerCustomHeaders(serverUrl)),
+    ),
+  );
 }
 
 /**
@@ -64,15 +105,13 @@ export function getIntegrationHeaders(
     // header configuration — so nothing else would invalidate this entry.
     const serverUrl = storage.getString("serverUrl");
     const cacheKey = `${integrationKey}\u0000${serverUrl ?? ""}`;
-    const cached = integrationHeaderCache.get(cacheKey);
-    if (cached) return cached;
 
-    const headers = resolveIntegrationHeaders(
-      getIntegrationHeaderConfig(integrationKey),
-      () => getJellyfinHeaders(serverUrl),
+    return resolveOnce(integrationHeaderCache, cacheKey, () =>
+      resolveIntegrationHeaders(
+        getIntegrationHeaderConfig(integrationKey),
+        () => getJellyfinHeaders(serverUrl),
+      ),
     );
-    integrationHeaderCache.set(cacheKey, headers);
-    return headers;
   });
 }
 

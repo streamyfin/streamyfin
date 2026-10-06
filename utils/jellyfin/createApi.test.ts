@@ -4,7 +4,11 @@ import axios, {
   type AxiosInstance,
   type InternalAxiosRequestConfig,
 } from "axios";
-import { setJellyfinHeaders } from "@/test-utils/customHeaders";
+import {
+  setJellyfinHeaders,
+  unreadableHeaders,
+} from "@/test-utils/customHeaders";
+import { isExpectedError } from "@/utils/errors";
 import { createApiWithCustomHeaders } from "./createApi";
 
 jest.mock("@/utils/customHeaders", () =>
@@ -106,6 +110,36 @@ describe("createApiWithCustomHeaders", () => {
     expect(sent).toHaveLength(1);
     expect(sent[0].url).toBe(`${SERVER}/System/Info/Public`);
     expect(sent[0].headers.get("cf-access-client-id")).toBe("abc");
+  });
+
+  // On a locked phone the Keychain refuses the header values. Sent without
+  // them, the request is turned away by the user's gateway, and a gateway that
+  // answers 401 would sign the user out through the session-expiry
+  // interceptor: over a locked phone, not over a revoked token.
+  test("sends nothing while the headers cannot be read", async () => {
+    setJellyfinHeaders(unreadableHeaders, SERVER);
+    const api = createApiWithCustomHeaders(jellyfin(), SERVER);
+    const sent = captureRequests(api.axiosInstance);
+
+    const failure = await getSystemApi(api)
+      .getPublicSystemInfo()
+      .catch((error: unknown) => error);
+
+    expect(sent).toHaveLength(0);
+    // The phone doing what it does: not a response, and not a Sentry event.
+    expect(failure).toBeInstanceOf(Error);
+    expect(failure).not.toHaveProperty("response");
+    expect(isExpectedError(failure)).toBe(true);
+  });
+
+  test("still reaches another host while they cannot be read", async () => {
+    setJellyfinHeaders(unreadableHeaders, SERVER);
+    const api = createApiWithCustomHeaders(jellyfin(), SERVER);
+    const sent = captureRequests(api.axiosInstance);
+
+    await api.axiosInstance.get("https://ipwho.is/203.0.113.7");
+
+    expect(sent).toHaveLength(1);
   });
 
   test("looks the headers up under the server it was created for", async () => {

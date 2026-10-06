@@ -37,6 +37,27 @@ back (masked) so a header can be corrected without retyping all of them.
   (`utils/customHeaders/integrations.ts`).
 - Removing a server, or a header row, deletes the SecureStore values behind it.
 
+### On a locked phone
+
+iOS can launch the app in the background while the phone is locked, and the
+Keychain refuses any item stored as readable only while unlocked. Values are
+written with `AFTER_FIRST_UNLOCK`, so they can be read on such a launch. That
+only applies to an item being created: `expo-secure-store` updates an existing
+item's data and keeps its accessibility, so a value saved by 0.55.0 or
+earlier stays unreadable while locked until its row is removed and added back.
+
+A read that fails never throws, because it runs during render:
+
+- the value comes back empty, and the resolvers in `resolve.ts` answer with
+  nothing at all, marked so that `headersUnreadable()` can tell it from a
+  service with no headers;
+- that answer is not cached, so the next read after the unlock gets the values;
+- the Jellyfin `Api` and `SeerrApi` send nothing while their headers are
+  unreadable. Sent bare, a request is refused by the gateway, and both clients
+  take a refusal (a 401, a 403) for the session being over;
+- `customHeadersVersionAtom` is bumped the next time the app reaches the
+  foreground, which rebuilds everything that memoized the empty headers.
+
 `customHeadersVersionAtom` is bumped on every write. Anything that builds a
 long-lived client from the headers (the Seerr client, image sources)
 depends on it, so an edit applies without a restart — and it also invalidates

@@ -1,4 +1,15 @@
 import type { AxiosAdapter } from "axios";
+import { stubReactNative } from "@/test-utils/reactNative";
+import {
+  clearSecureStore,
+  lockSecureStore,
+  storeAsAnEarlierBuildDid,
+} from "@/test-utils/secureStore";
+import {
+  getIntegrationHeaders,
+  updateIntegrationHeaderConfig,
+} from "@/utils/customHeaders";
+import { isExpectedError } from "@/utils/errors";
 import { DiscoverSliderType } from "@/utils/seerr/types";
 import { SeerrApi } from "./useSeerr";
 
@@ -6,11 +17,16 @@ jest.mock(
   "react-native-mmkv",
   () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
 );
+jest.mock(
+  "expo-secure-store",
+  () => jest.requireActual("@/test-utils/secureStore").secureStoreModule,
+);
 // Ships as ES modules, which Jest does not load, and nothing here toasts.
 jest.mock("sonner-native", () => ({ toast: {} }));
 // The real log loads Sentry, whose timers keep Jest from exiting.
 jest.mock("@/utils/log", () => ({
   writeToLog: (...args: unknown[]) => mockWriteToLog(...args),
+  logAndCaptureError: () => undefined,
 }));
 // The settings atom imports the screens that edit it; the client reads none.
 jest.mock("@/utils/atoms/settings", () => ({ useSettings: () => ({}) }));
@@ -70,5 +86,49 @@ describe("SeerrApi.discoverSettings", () => {
 
   test("has no sliders when the answer is empty", async () => {
     expect(await answering("").discoverSettings()).toEqual([]);
+  });
+});
+
+// iOS launches the app in the background while the phone is locked, and the
+// Keychain refuses the gateway headers until it is unlocked. Sent without
+// them, a read is refused by the gateway with a 403, which this client takes
+// for the Seerr session being over, and signs the user out of Seerr.
+describe("a SeerrApi built while its headers cannot be read", () => {
+  beforeEach(() => {
+    clearSecureStore();
+    stubReactNative();
+  });
+
+  const builtOnALockedPhone = () => {
+    updateIntegrationHeaderConfig("seerr", {
+      source: "custom",
+      customHeaders: [{ key: "X-Gateway", value: "secret", enabled: true }],
+    });
+    storeAsAnEarlierBuildDid();
+    lockSecureStore();
+
+    const api = new SeerrApi(
+      "https://seerr.example",
+      getIntegrationHeaders("seerr"),
+    );
+    const sent: string[] = [];
+    const adapter: AxiosAdapter = async (config) => {
+      sent.push(config.url ?? "");
+      return { data: [], status: 200, statusText: "OK", headers: {}, config };
+    };
+    api.axios.defaults.adapter = adapter;
+    return { api, sent };
+  };
+
+  test("sends nothing", async () => {
+    const { api, sent } = builtOnALockedPhone();
+
+    const failure = await api.axios
+      .get("/api/v1/auth/me")
+      .catch((error: unknown) => error);
+
+    expect(sent).toHaveLength(0);
+    expect(failure).toBeInstanceOf(Error);
+    expect(isExpectedError(failure)).toBe(true);
   });
 });

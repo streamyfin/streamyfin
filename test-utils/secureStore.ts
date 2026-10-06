@@ -1,4 +1,41 @@
 const values = new Map<string, string>();
+const accessibility = new Map<string, number>();
+let locked = false;
+
+type Options = { keychainAccessible?: number };
+
+const AFTER_FIRST_UNLOCK = 1;
+
+/**
+ * A locked iPhone refuses to read an item unless it was stored as readable
+ * after the first unlock, which is how iOS answers an app it launched in the
+ * background. The message is the Keychain's own.
+ */
+const read = (key: string) => {
+  if (locked && accessibility.get(key) !== AFTER_FIRST_UNLOCK) {
+    throw new Error(
+      "Calling the 'getValueWithKeySync' function has failed → Caused by: User interaction is not allowed.",
+    );
+  }
+  return values.get(key) ?? null;
+};
+
+/**
+ * The accessibility is set when an item is created and survives every later
+ * write: expo-secure-store updates an existing item's data and nothing else
+ * (`update` in ios/SecureStoreModule.swift). Only deleting the item drops it.
+ */
+const write = (key: string, value: string, options?: Options) => {
+  if (!values.has(key) && options?.keychainAccessible !== undefined) {
+    accessibility.set(key, options.keychainAccessible);
+  }
+  values.set(key, value);
+};
+
+const remove = (key: string) => {
+  values.delete(key);
+  accessibility.delete(key);
+};
 
 /**
  * An expo-secure-store double for specs, which cannot load its native module.
@@ -13,16 +50,33 @@ const values = new Map<string, string>();
  * asynchronous halves of the API the app calls.
  */
 export const secureStoreModule = {
-  getItem: (key: string) => values.get(key) ?? null,
-  setItem: (key: string, value: string) => void values.set(key, value),
-  getItemAsync: async (key: string) => values.get(key) ?? null,
-  setItemAsync: async (key: string, value: string) =>
-    void values.set(key, value),
-  deleteItemAsync: async (key: string) => void values.delete(key),
+  AFTER_FIRST_UNLOCK,
+  getItem: (key: string) => read(key),
+  setItem: (key: string, value: string, options?: Options) =>
+    write(key, value, options),
+  getItemAsync: async (key: string) => read(key),
+  setItemAsync: async (key: string, value: string, options?: Options) =>
+    write(key, value, options),
+  deleteItemAsync: async (key: string) => remove(key),
 };
 
 /** Empties the store. Call it from `beforeEach` so tests stay isolated. */
-export const clearSecureStore = () => values.clear();
+export const clearSecureStore = () => {
+  values.clear();
+  accessibility.clear();
+  locked = false;
+};
 
 /** What a spec needs to set up or read back the stored values directly. */
 export const secureStoreValues = values;
+
+/** Locks the phone, or unlocks it again with `false`. */
+export const lockSecureStore = (isLocked = true) => {
+  locked = isLocked;
+};
+
+/**
+ * Turns everything in the store into what a build from before
+ * `AFTER_FIRST_UNLOCK` left behind: readable only while the phone is unlocked.
+ */
+export const storeAsAnEarlierBuildDid = () => accessibility.clear();

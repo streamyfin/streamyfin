@@ -1,6 +1,11 @@
 import type { Api, Jellyfin } from "@jellyfin/sdk";
 import axios, { type InternalAxiosRequestConfig } from "axios";
-import { getJellyfinHeaders, isUrlForBaseUrl } from "@/utils/customHeaders";
+import {
+  getJellyfinHeaders,
+  headersUnreadable,
+  isUrlForBaseUrl,
+} from "@/utils/customHeaders";
+import { markExpectedError } from "@/utils/errors";
 
 /**
  * Whether a request URL carries its own origin, and so ignores whatever base
@@ -36,7 +41,8 @@ const isForServer = (
  * interceptor existed and be rejected by the gateway.
  *
  * Headers are read per request (they are memoized until the configuration
- * changes), so an edit in settings applies without recreating the `Api`.
+ * changes), so an edit in settings applies without recreating the `Api`, and
+ * so does unlocking a phone whose Keychain refused them a moment ago.
  *
  * ## Why the axios instance is passed in
  *
@@ -75,7 +81,18 @@ export function createApiWithCustomHeaders(
   api.axiosInstance.interceptors.request.use((config) => {
     if (!isForServer(config, serverUrl)) return config;
 
-    for (const [key, value] of Object.entries(getJellyfinHeaders(serverUrl))) {
+    const headers = getJellyfinHeaders(serverUrl);
+    // A locked phone: the Keychain refused the values. Sent without them the
+    // request is turned away by the user's gateway, and a gateway that answers
+    // 401 would end the session in `JellyfinProvider` over a phone that was
+    // merely locked. Failing here leaves no response for anything to misread.
+    if (headersUnreadable(headers)) {
+      throw markExpectedError(
+        new Error("Custom headers are unreadable, request not sent"),
+      );
+    }
+
+    for (const [key, value] of Object.entries(headers)) {
       config.headers.set(key, value);
     }
     return config;
