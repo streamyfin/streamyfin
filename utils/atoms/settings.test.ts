@@ -32,7 +32,7 @@ jest.mock("@/providers/JellyfinProvider", () => ({
 jest.mock("@/utils/log", () => ({
   writeToLog: () => undefined,
   logAndCaptureError: (...args: unknown[]) => mockLogAndCaptureError(...args),
-  writeInfoLog: () => undefined,
+  writeInfoLog: (...args: unknown[]) => mockWriteInfoLog(...args),
   writeErrorLog: () => undefined,
   writeDebugLog: () => undefined,
   readFromLog: () => [],
@@ -42,6 +42,7 @@ jest.mock("@/utils/log", () => ({
 }));
 
 const mockLogAndCaptureError = jest.fn();
+const mockWriteInfoLog = jest.fn();
 
 // Android TV: the only platform where ExoPlayer ships alongside a
 // native-player toggle, so the only place the engine/controls split is
@@ -171,6 +172,25 @@ describe("fetchPluginSettings", () => {
     });
 
     expect(settings).toBeUndefined();
+  });
+
+  // The refresh runs at every foreground, and against a server without the
+  // plugin each one wrote "Got plugin settings" to the app log, with nothing.
+  test("logs the settings only when there are some", async () => {
+    mockWriteInfoLog.mockClear();
+
+    await fetchPluginSettings({
+      getStreamyfinPluginSettings: async () => undefined,
+    });
+    expect(mockWriteInfoLog).not.toHaveBeenCalled();
+
+    await fetchPluginSettings({
+      getStreamyfinPluginSettings: async () =>
+        ({ subtitleSize: { locked: true, value: 120 } }) as never,
+    });
+    expect(mockWriteInfoLog).toHaveBeenCalledWith("Got plugin settings", {
+      subtitleSize: { locked: true, value: 120 },
+    });
   });
 
   test.each(failuresThatSayNothing)("fails when %s", async (_case, failure) => {

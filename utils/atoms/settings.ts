@@ -899,7 +899,9 @@ export const fetchPluginSettings = (api: {
   >;
 }): Promise<PluginLockableSettings | undefined> =>
   api.getStreamyfinPluginSettings().then((settings) => {
-    writeInfoLog("Got plugin settings", redactPluginSettings(settings));
+    if (settings) {
+      writeInfoLog("Got plugin settings", redactPluginSettings(settings));
+    }
     return migratePluginSettings(settings);
   });
 
