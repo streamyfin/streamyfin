@@ -60,7 +60,7 @@ const newDisk = () => {
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
-// What a "mark as played" tapped without a connection leaves behind.
+// What a favourite toggled without a connection leaves behind.
 const mutateWhileOffline = (client: QueryClient) => {
   onlineManager.setOnline(false);
   const mutationFn = jest.fn(async (itemId: string) => itemId);
