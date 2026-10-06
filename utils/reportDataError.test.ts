@@ -226,6 +226,27 @@ describe("reportDataError", () => {
     expect(mockCaptured).toHaveLength(2);
   });
 
+  // REACT-NATIVE-28 and its iOS siblings: the awards badge asking Wikidata
+  // from a network that does not reach it. expo/fetch's rejection is a plain
+  // Error, which this took for a failure of the app's.
+  test("a fetch that got no answer is not reported", () => {
+    reportDataError(
+      "query",
+      ["wikidata", "awards", "tt0111161"],
+      new Error(
+        'fetch failed: java.net.UnknownHostException: Unable to resolve host "www.wikidata.org": No address associated with hostname',
+      ),
+    );
+    reportDataError(
+      "query",
+      ["wikidata", "awards", "tt0111161"],
+      new Error(
+        "fetch failed: UnexpectedException: The Internet connection appears to be offline. (at ExpoModulesCore/Promise.swift:56)",
+      ),
+    );
+    expect(mockCaptured).toHaveLength(0);
+  });
+
   test("a Streamystats server without the route is not a failure", () => {
     reportDataError(
       "query",

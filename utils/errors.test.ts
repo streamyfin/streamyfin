@@ -134,6 +134,21 @@ describe("isConnectivityError", () => {
     },
   );
 
+  // REACT-NATIVE-88 / C7 / 77 / C6 (421) and D9 / D8 (444): one user each
+  // time, on whichever Streamystats and Seerr routes were in flight.
+  test.each([421, 444])(
+    "%i is connectivity: a proxy that had no server to hand the request to",
+    (status) => {
+      expect(isConnectivityError(httpError(status))).toBe(true);
+    },
+  );
+
+  test("the client statuses around them are still the server's answer", () => {
+    for (const status of [400, 403, 404, 409, 422, 429, 451]) {
+      expect(isConnectivityError(httpError(status))).toBe(false);
+    }
+  });
+
   test("statuses a server sends itself are not swept up with them", () => {
     expect(isConnectivityError(httpError(501))).toBe(false);
     expect(isConnectivityError(httpError(505))).toBe(false);
@@ -141,10 +156,147 @@ describe("isConnectivityError", () => {
   });
 });
 
+// expo/fetch, which is the global fetch on native, rejects with its own
+// FetchError: a plain Error whose message is "fetch failed: " and whatever
+// the native request was rejected with. Built here the way
+// expo/src/winter/fetch/FetchErrors.ts builds it.
+const fetchError = (nativeMessage: string) =>
+  new Error(`fetch failed: ${nativeMessage}`);
+
+describe("isConnectivityError — expo/fetch", () => {
+  // The Wikidata awards badge, from 35 users between them.
+  test.each([
+    // REACT-NATIVE-28, Android: the IOException OkHttp failed with, as text.
+    [
+      'java.net.UnknownHostException: Unable to resolve host "www.wikidata.org": No address associated with hostname',
+    ],
+    // REACT-NATIVE-AB / E1 / ET / HP, iOS: the URLSession error, wrapped.
+    [
+      "UnexpectedException: A server with the specified hostname could not be found. (at ExpoModulesCore/Promise.swift:56)",
+    ],
+    [
+      "UnexpectedException: Could not connect to the server. (at ExpoModulesCore/Promise.swift:56)",
+    ],
+    [
+      "UnexpectedException: A TLS error caused the secure connection to fail. (at ExpoModulesCore/Promise.swift:56)",
+    ],
+    [
+      "UnexpectedException: The Internet connection appears to be offline. (at ExpoModulesCore/Promise.swift:56)",
+    ],
+  ])("a request that got no answer is connectivity: %j", (nativeMessage) => {
+    expect(isConnectivityError(fetchError(nativeMessage))).toBe(true);
+    expect(isEnvironmentError(fetchError(nativeMessage))).toBe(true);
+  });
+
+  test.each([
+    ["java.net.SocketTimeoutException: timeout"],
+    ["java.net.ConnectException: Failed to connect to /192.168.1.5:8096"],
+    ["javax.net.ssl.SSLHandshakeException: Handshake failed"],
+    ["java.io.IOException: unexpected end of stream on https://host/..."],
+    ["okhttp3.internal.http2.StreamResetException: stream was reset: CANCEL"],
+    // An exception that carries no message is its class name alone.
+    ["java.net.SocketException"],
+  ])(
+    "any exception OkHttp gives up with is connectivity: %j",
+    (nativeMessage) => {
+      expect(isConnectivityError(fetchError(nativeMessage))).toBe(true);
+    },
+  );
+
+  // iOS words the error in the user's language (REACT-NATIVE-GM is the same
+  // thing happening to downloads), so it is known by how it is wrapped and
+  // not by what it says.
+  test("the iOS wording is recognised in any language", () => {
+    expect(
+      isConnectivityError(
+        fetchError(
+          "UnexpectedException: La connessione a Internet sembra essere disattivata. (at ExpoModulesCore/Promise.swift:56)",
+        ),
+      ),
+    ).toBe(true);
+    // The line the wrapper sits on moves with the version of Expo.
+    expect(
+      isConnectivityError(
+        fetchError(
+          "UnexpectedException: Zeitüberschreitung bei der Anforderung. (at ExpoModulesCore/Promise.swift:61)",
+        ),
+      ),
+    ).toBe(true);
+  });
+
+  // What the native side rejects with for reasons of its own: these are the
+  // app's doing, or Expo's.
+  test.each([
+    ["Unknown error"],
+    [
+      "FetchUnknownException: Unknown error (at ExpoFetch/ExpoFetchModule.swift:107)",
+    ],
+    ["Redirect is not allowed when redirect mode is 'error'"],
+    [
+      "FetchRedirectException: Redirect is not allowed when redirect mode is 'error' (at ExpoFetch/NativeResponse.swift:195)",
+    ],
+    ["The Android context has been lost"],
+    ["connection lost"],
+  ])("a failure that is not the network's is not: %j", (nativeMessage) => {
+    expect(isConnectivityError(fetchError(nativeMessage))).toBe(false);
+  });
+
+  test("a cancelled request is an abort, not connectivity", () => {
+    const cancelled = fetchError(
+      "FetchRequestCanceledException: Fetch request has been canceled (at ExpoFetch/NativeResponse.swift:63)",
+    );
+    expect(isConnectivityError(cancelled)).toBe(false);
+    expect(isAbortLikeError(cancelled)).toBe(true);
+  });
+
+  // expo/fetch resolves for any status, so a "fetch failed" that names one
+  // was thrown by a caller that did get an answer.
+  test.each([
+    ["fetch failed: 500"],
+    ["fetch failed: 502 Bad Gateway"],
+    ["fetch failed: HTTP 404"],
+    ["fetch failed: status code 403"],
+    ["fetch failed with status 500"],
+    ["Wikidata responded 500"],
+  ])("a failure that carries an HTTP status is not: %j", (message) => {
+    expect(isConnectivityError(new Error(message))).toBe(false);
+  });
+
+  test("nor is one that carries the status or the response beside the message", () => {
+    const nativeMessage =
+      "UnexpectedException: Could not connect to the server. (at ExpoModulesCore/Promise.swift:56)";
+    expect(
+      isConnectivityError(
+        Object.assign(fetchError(nativeMessage), { status: 500 }),
+      ),
+    ).toBe(false);
+    expect(
+      isConnectivityError(
+        Object.assign(fetchError(nativeMessage), { response: { status: 404 } }),
+      ),
+    ).toBe(false);
+  });
+
+  test("the wording is only known at the start of an Error's message", () => {
+    expect(
+      isConnectivityError(
+        new Error(
+          "Saving failed after fetch failed: java.net.SocketException: reset",
+        ),
+      ),
+    ).toBe(false);
+    expect(
+      isConnectivityError("fetch failed: java.net.SocketException: reset"),
+    ).toBe(false);
+  });
+});
+
 describe("isGatewayStatus", () => {
   test("says the same of a bare status as of an axios error", () => {
     expect(isGatewayStatus(502)).toBe(true);
     expect(isGatewayStatus(530)).toBe(true);
+    expect(isGatewayStatus(421)).toBe(true);
+    expect(isGatewayStatus(444)).toBe(true);
     expect(isGatewayStatus(500)).toBe(false);
     expect(isGatewayStatus(403)).toBe(false);
   });
@@ -278,6 +430,120 @@ describe("isGatewayBlockError — a page the content type does not announce", ()
     expect(blocked(`${" ".repeat(100)}${PAGE}`)).toBe(true);
     expect(blocked(`${" ".repeat(5_000)}${PAGE}`)).toBe(false);
     expect(blocked(`${PAGE}${"x".repeat(2_000_000)}`)).toBe(true);
+  });
+});
+
+// REACT-NATIVE-2B: 25 users. Cloudflare answers a client that accepts JSON,
+// which axios does, with its 1xxx errors as a problem document instead of the
+// HTML page: the same refusal, in a shape the HTML check does not see.
+describe("isGatewayBlockError — Cloudflare's own error as JSON", () => {
+  const CLOUDFLARE_ERRORS =
+    "https://developers.cloudflare.com/support/troubleshooting/http-status-codes/cloudflare-1xxx-errors";
+  // What axios makes of the body the events carried.
+  const cloudflareProblem = (code = 1000) => ({
+    type: `${CLOUDFLARE_ERRORS}/error-${code}/`,
+    title: `Error ${code}: DNS points to prohibited IP`,
+    status: 403,
+    detail: "The domain's DNS records point to a prohibited IP address.",
+  });
+  const blocked = (data: unknown, status = 403) =>
+    isGatewayBlockError(
+      httpError(status, {
+        headers: {
+          "content-type": "application/json; charset=utf-8",
+          server: "cloudflare",
+        },
+        data,
+      }),
+    );
+
+  test("a 403 with Cloudflare's problem document is the gateway's refusal", () => {
+    expect(blocked(cloudflareProblem())).toBe(true);
+    expect(
+      isEnvironmentError(httpError(403, { data: cloudflareProblem() })),
+    ).toBe(true);
+  });
+
+  // 1006 to 1009 are bans by address and country, 1010 and 1020 the zone's
+  // own firewall rules: what the HTML page says, when the HTML page is sent.
+  test.each([1003, 1006, 1009, 1010, 1020])(
+    "error %i is recognised the same way",
+    (code) => {
+      expect(blocked(cloudflareProblem(code))).toBe(true);
+    },
+  );
+
+  test("the document is known by its type, with or without the last slash", () => {
+    expect(blocked({ type: `${CLOUDFLARE_ERRORS}/error-1000` })).toBe(true);
+    expect(blocked({ type: `${CLOUDFLARE_ERRORS}/error-1000/` })).toBe(true);
+  });
+
+  // Every 403 of a server behind Cloudflare carries its Server header: the
+  // header says who relayed the answer, not who gave it.
+  test("a 403 of the server's own that came through Cloudflare is not", () => {
+    // Jellyfin: ASP.NET problem details.
+    expect(
+      blocked({
+        type: "https://tools.ietf.org/html/rfc9110#section-15.5.4",
+        title: "Forbidden",
+        status: 403,
+        traceId: "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-00",
+      }),
+    ).toBe(false);
+    // Seerr.
+    expect(
+      blocked({
+        message: "You do not have permission to access this endpoint",
+      }),
+    ).toBe(false);
+    expect(blocked(undefined)).toBe(false);
+    expect(blocked("")).toBe(false);
+    expect(blocked("Forbidden")).toBe(false);
+  });
+
+  test("a body that only resembles the document is not", () => {
+    // The words without the type.
+    expect(
+      blocked({
+        title: "Error 1000: DNS points to prohibited IP",
+        status: 403,
+      }),
+    ).toBe(false);
+    // Another page of Cloudflare's documentation.
+    expect(
+      blocked({
+        type: "https://developers.cloudflare.com/support/troubleshooting/http-status-codes/cloudflare-5xx-errors/error-520/",
+      }),
+    ).toBe(false);
+    expect(blocked({ type: "https://developers.cloudflare.com/" })).toBe(false);
+    // The same path on a host that is not Cloudflare's.
+    expect(
+      blocked({
+        type: "https://example.com/cloudflare-1xxx-errors/error-1000/",
+      }),
+    ).toBe(false);
+    expect(
+      blocked({
+        type: "https://developers.cloudflare.com.example.com/cloudflare-1xxx-errors/error-1000/",
+      }),
+    ).toBe(false);
+    // A number that is not one of the 1xxx errors.
+    expect(blocked({ type: `${CLOUDFLARE_ERRORS}/error-520/` })).toBe(false);
+    expect(blocked({ type: `${CLOUDFLARE_ERRORS}/error-10000/` })).toBe(false);
+    // A type that is not text.
+    expect(blocked({ type: [`${CLOUDFLARE_ERRORS}/error-1000/`] })).toBe(false);
+    expect(blocked({ type: 1000 })).toBe(false);
+    // A list of documents, or one nested in something else.
+    expect(blocked([cloudflareProblem()])).toBe(false);
+    expect(blocked({ error: cloudflareProblem() })).toBe(false);
+  });
+
+  // Only 403, as for the HTML page: 1015 is Cloudflare's rate limit, sent as
+  // a 429, which can be the app asking too often.
+  test("the document under another status is still reported", () => {
+    expect(blocked(cloudflareProblem(1015), 429)).toBe(false);
+    expect(blocked(cloudflareProblem(), 404)).toBe(false);
+    expect(blocked(cloudflareProblem(), 500)).toBe(false);
   });
 });
 
