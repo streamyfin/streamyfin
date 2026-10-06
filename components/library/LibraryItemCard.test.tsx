@@ -6,7 +6,7 @@ import {
 } from "@tanstack/react-query";
 import { act, render, screen, waitFor } from "@testing-library/react-native";
 import { createStore, Provider as JotaiProvider } from "jotai";
-import { apiAtom } from "@/providers/JellyfinProvider";
+import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { makeApi } from "@/test-utils/jellyfinApi";
 import { LibraryItemCard } from "./LibraryItemCard";
 
@@ -40,7 +40,14 @@ const LIBRARY: BaseItemDto = {
   ImageTags: { Primary: "tag" },
 };
 
-const renderCard = async () => {
+const countApi = () => {
+  const api = makeApi();
+  // The SDK writes the query into the url.
+  api.mock.onGet(/\/Items\?/).reply(200, { Items: [], TotalRecordCount: 12 });
+  return api;
+};
+
+const renderCard = async (api: ReturnType<typeof makeApi> | null = null) => {
   /** What the app's own query cache would have handed to Sentry. */
   const errors: Error[] = [];
   // No garbage collection timer nor retry: either keeps Jest from exiting.
@@ -51,6 +58,7 @@ const renderCard = async () => {
     },
   });
   const store = createStore();
+  store.set(apiAtom, api);
   await render(
     <QueryClientProvider client={client}>
       <JotaiProvider store={store}>
@@ -60,25 +68,43 @@ const renderCard = async () => {
   );
   // Lets a query that started on mount settle.
   await act(async () => {});
-  return { store, errors };
+  return { store, client, errors };
 };
 
 describe("LibraryItemCard", () => {
-  // Sentry REACT-NATIVE-D7: the card mounted before the api was restored and
-  // its count query handed the null api to the SDK, which threw "Cannot read
-  // property 'configuration' of null".
-  test("does not ask for the item count before the api is there", async () => {
+  // Sentry REACT-NATIVE-D7: the session was torn down, by a logout or an
+  // expiry, while the cards were still mounted. The teardown nulls the api
+  // and clears the query cache in one go, so each card started its count
+  // again, on a null api, and the SDK threw "Cannot read property
+  // 'configuration' of null".
+  test("does not ask for the item count again when the session is torn down", async () => {
+    const api = countApi();
+    const { store, client, errors } = await renderCard(api);
+    await waitFor(() =>
+      expect(screen.getByText("12 library.item_types.movies")).toBeTruthy(),
+    );
+
+    // What clearSessionState in JellyfinProvider does.
+    await act(async () => {
+      store.set(userAtom, null);
+      store.set(apiAtom, null);
+      client.clear();
+    });
+
+    expect(errors).toEqual([]);
+    expect(api.mock.history.get).toHaveLength(1);
+  });
+
+  test("does not ask for the item count without an api", async () => {
     const { errors } = await renderCard();
 
     expect(errors).toEqual([]);
   });
 
-  // The query key does not carry the api, so a count that failed on a null
-  // api never came back on its own.
+  // The query key does not carry the api, so a count that settled without one
+  // would not be asked for again when it arrives.
   test("asks for the item count once the api arrives", async () => {
-    const api = makeApi();
-    // The SDK writes the query into the url.
-    api.mock.onGet(/\/Items\?/).reply(200, { Items: [], TotalRecordCount: 12 });
+    const api = countApi();
     const { store, errors } = await renderCard();
 
     await act(async () => store.set(apiAtom, api));

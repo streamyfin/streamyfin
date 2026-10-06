@@ -10,7 +10,7 @@ import {
 import { act, render, screen, waitFor } from "@testing-library/react-native";
 import { createStore, Provider as JotaiProvider } from "jotai";
 import LiveTvGuidePage from "@/app/(auth)/(tabs)/(home,libraries,search,favorites,watchlists)/livetv/guide";
-import { apiAtom } from "@/providers/JellyfinProvider";
+import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { makeApi } from "@/test-utils/jellyfinApi";
 
 jest.mock("@/providers/JellyfinProvider", () => {
@@ -60,7 +60,13 @@ const guideApi = () => {
   return api;
 };
 
-const renderGuide = async (seed?: (client: QueryClient) => void) => {
+const renderGuide = async ({
+  api = null,
+  seed,
+}: {
+  api?: ReturnType<typeof makeApi> | null;
+  seed?: (client: QueryClient) => void;
+} = {}) => {
   /** What the app's own query cache would have handed to Sentry. */
   const errors: Error[] = [];
   // No garbage collection timer nor retry: either keeps Jest from exiting.
@@ -72,6 +78,7 @@ const renderGuide = async (seed?: (client: QueryClient) => void) => {
   });
   seed?.(client);
   const store = createStore();
+  store.set(apiAtom, api);
   await render(
     <QueryClientProvider client={client}>
       <JotaiProvider store={store}>
@@ -81,27 +88,47 @@ const renderGuide = async (seed?: (client: QueryClient) => void) => {
   );
   // Lets a query that started on mount settle.
   await act(async () => {});
-  return { store, errors };
+  return { store, client, errors };
 };
 
 describe("LiveTvGuidePage", () => {
-  // Sentry REACT-NATIVE-FG: the guide mounted before the api was restored and
-  // handed the null api to the SDK, which threw "Cannot read property
-  // 'configuration' of null".
-  test("does not ask for the channels before the api is there", async () => {
+  // Sentry REACT-NATIVE-FG: the user logged out with the guide still mounted
+  // behind the login screen. The teardown nulls the api and clears the query
+  // cache in one go, so the guide started its channels query again, on a null
+  // api, and the SDK threw "Cannot read property 'configuration' of null".
+  test("does not ask for the channels again when the session is torn down", async () => {
+    const api = guideApi();
+    const { store, client, errors } = await renderGuide({ api });
+    await waitFor(() => expect(screen.getByText("Evening News")).toBeTruthy());
+
+    // What clearSessionState in JellyfinProvider does.
+    await act(async () => {
+      store.set(userAtom, null);
+      store.set(apiAtom, null);
+      client.clear();
+    });
+
+    expect(errors).toEqual([]);
+    expect(api.mock.history.get).toHaveLength(1);
+    expect(api.mock.history.post).toHaveLength(1);
+  });
+
+  test("does not ask for the channels without an api", async () => {
     const { errors } = await renderGuide();
 
     expect(errors).toEqual([]);
   });
 
-  // The app persists its query cache, so the channels can be there from the
-  // last launch while the api is not: the programs wait for both. The query
-  // key does not carry the api, so programs settled without one never load.
-  test("loads the programs of restored channels only once the api is there", async () => {
+  // The programs need the api as much as they need the channels: channels
+  // that are in the cache while the api is gone must not start them. The
+  // query key does not carry the api, so programs settled without one would
+  // not load when it arrives.
+  test("loads the programs of cached channels only once the api is there", async () => {
     const api = guideApi();
-    const { store, errors } = await renderGuide((client) =>
-      client.setQueryData(["livetv", "channels", 1], CHANNELS),
-    );
+    const { store, errors } = await renderGuide({
+      seed: (client) =>
+        client.setQueryData(["livetv", "channels", 1], CHANNELS),
+    });
 
     expect(errors).toEqual([]);
 

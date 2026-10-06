@@ -40,7 +40,8 @@ export default function LiveTvGuidePage() {
       });
       return res.data;
     },
-    // The page can mount before the api is restored.
+    // Logout and session expiry null the api and clear the query cache while
+    // this page is still mounted, which starts the query again.
     enabled: !!api,
   });
 
@@ -72,7 +73,6 @@ export default function LiveTvGuidePage() {
       });
       return res.data;
     },
-    // The channels can come back from the persisted cache before the api does.
     enabled: !!api && !!channels,
   });
 

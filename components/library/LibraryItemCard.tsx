@@ -101,7 +101,8 @@ export const LibraryItemCard: React.FC<Props> = ({ library, ...props }) => {
       });
       return response.data.TotalRecordCount;
     },
-    // The card can mount before the api is restored.
+    // Logout and session expiry null the api and clear the query cache while
+    // the card is still mounted, which starts the query again.
     enabled: !!api,
   });
 
