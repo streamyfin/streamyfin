@@ -56,11 +56,21 @@ const isJsonObject = (value: unknown): value is Record<string, unknown> =>
 /**
  * What both routes answer with: a map of key to `{ locked, value }`. A 200 that
  * is anything else is not an answer about the plugin. A captive portal's login
- * page arrives the same way, and reading it as "no settings" would drop every
- * lock the admin set.
+ * page arrives the same way, and so can a JSON error, and reading either as the
+ * admin's policy would drop every lock they set.
+ *
+ * `value` can be missing: the plugin leaves a null out, so a locked "no cap"
+ * quality arrives as `{ locked: true }`. The one entry without a lock of its
+ * own is `seerr`, Seerr served a second time as a block whose entries carry
+ * theirs. A block the plugin adds later is refused until the app knows it.
  */
 const isSettingsMap = (value: unknown): value is PluginLockableSettings =>
-  isJsonObject(value);
+  isJsonObject(value) &&
+  Object.entries(value).every(
+    ([key, entry]) =>
+      isJsonObject(entry) &&
+      (key === "seerr" || typeof entry.locked === "boolean"),
+  );
 
 /**
  * The settings that apply to the signed-in user, whatever the server's age.

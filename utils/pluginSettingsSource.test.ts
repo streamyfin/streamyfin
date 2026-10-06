@@ -145,4 +145,45 @@ describe("readPluginSettings", () => {
       );
     },
   );
+
+  // What a plugin from the rewrite serves. A null value is left out, Jellyfin's
+  // JSON options omit it, so a locked "no cap" quality comes without one. Seerr
+  // comes a second time as a bare block, whose entries carry their own locks.
+  const servedByThePlugin = {
+    defaultBitrate: { locked: true },
+    jellyseerrServerUrl: { locked: false, value: "https://seerr.example" },
+    seerr: { serverUrl: { locked: false, value: "https://seerr.example" } },
+  };
+
+  test.each([
+    ["the plugin's own answer", servedByThePlugin],
+    ["an empty map", {}],
+  ])("takes %s from either route", async (_case, map) => {
+    expect(
+      await readPluginSettings(server({ [RESOLVED_SETTINGS_PATH]: map }).api),
+    ).toEqual(map);
+    expect(
+      await readPluginSettings(
+        server({ [LEGACY_CONFIG_PATH]: { settings: map } }).api,
+      ),
+    ).toEqual(map);
+  });
+
+  // A JSON 200 can be somebody else's answer too. Every entry of a settings map
+  // is an object, and every one but the seerr block carries its lock.
+  test.each([
+    ["an error message", { error: "Sign in" }],
+    ["an entry without its lock", { subtitleSize: { value: 120 } }],
+    ["a lock that is not a boolean", { subtitleSize: { locked: "true" } }],
+    ["a seerr block that is a sentence", { seerr: "Sign in" }],
+  ])("refuses a map that holds %s, from either route", async (_case, map) => {
+    await expect(
+      readPluginSettings(server({ [RESOLVED_SETTINGS_PATH]: map }).api),
+    ).rejects.toThrow("not a settings map");
+    await expect(
+      readPluginSettings(
+        server({ [LEGACY_CONFIG_PATH]: { settings: map } }).api,
+      ),
+    ).rejects.toThrow("not a settings map");
+  });
 });
