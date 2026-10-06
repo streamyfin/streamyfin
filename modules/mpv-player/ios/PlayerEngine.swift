@@ -137,6 +137,14 @@ final class MPVPlayerEngine: NSObject {
 	// below except the play() that resumes, which is why play() still applies
 	// it every time.
 
+	/// Not after a shutdown: a play() or an mpv callback can still arrive once
+	/// the player has closed, and an activation queued behind the teardown
+	/// would take the session back with no player left to give it up.
+	private func activateAudioSession(completion: (() -> Void)? = nil) {
+		guard !isShutDown else { return }
+		audioSession.activate(completion: completion)
+	}
+
 	@objc private func handleAudioSessionInterruption(_ notification: Notification) {
 		guard let userInfo = notification.userInfo,
 			  let typeValue = userInfo[AVAudioSessionInterruptionTypeKey] as? UInt,
@@ -237,7 +245,7 @@ final class MPVPlayerEngine: NSObject {
 		// before mpv opens its audio output, which sizes itself from the route
 		// the session reports at that moment.
 		if config.autoplay {
-			audioSession.activate()
+			activateAudioSession()
 		}
 
 		// Pass everything to the renderer - it handles start position and external subs
@@ -269,7 +277,7 @@ final class MPVPlayerEngine: NSObject {
 	func play() {
 		// Queued before the unpause, which renderer.play() holds until the
 		// session is active.
-		audioSession.activate()
+		activateAudioSession()
 		resumePlayback()
 	}
 
@@ -707,12 +715,7 @@ extension MPVPlayerEngine: MPVLayerRendererDelegate {
 		// mpv reconfigures the shared AVAudioSession when its audio unit spins up,
 		// overriding what play() set. Until ours is re-applied the system doesn't
 		// treat us as the Now Playing app and drops every info update.
-		//
-		// Not after a shutdown: this callback can still be in flight when the
-		// player closes, and an activation queued behind the teardown would
-		// take the session back after the player is gone.
-		guard !isShutDown else { return }
-		audioSession.activate { [weak self] in
+		activateAudioSession { [weak self] in
 			// A shutdown in between has cleared Now Playing; leave it cleared.
 			guard let self, !self.isShutDown else { return }
 			self.syncNowPlaying(isPlaying: self.intendedPlayState)

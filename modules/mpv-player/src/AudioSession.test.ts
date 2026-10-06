@@ -43,6 +43,18 @@ describe("iOS audio session", () => {
     );
   });
 
+  // A play() or an mpv callback can still arrive once the player has closed.
+  // An activation queued behind the teardown would take the session back
+  // with no player left to give it up.
+  test("the engine never asks for the session after a shutdown", () => {
+    const requests = sourceOf("PlayerEngine.swift").split(
+      "audioSession.activate(",
+    );
+
+    expect(requests).toHaveLength(2);
+    expect(requests[0]).toMatch(/guard !isShutDown else \{ return \}\s*$/);
+  });
+
   test("the session is settled before mpv is told to load", () => {
     const load = section(
       rendererSource,
