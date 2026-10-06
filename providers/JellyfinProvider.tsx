@@ -637,7 +637,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
             void signInToSeerrAtLogin({
               quickConnect: () =>
                 signInWithQuickConnect(seerrApi, authedApi, stillCurrent),
-              test: () => seerrApi.test(),
+              test: () => seerrApi.test({ quiet: true }),
               login: () => seerrApi.login(username, password),
               forget: () => seerrApi.forget(),
               stillCurrent,
