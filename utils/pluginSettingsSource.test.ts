@@ -110,13 +110,39 @@ describe("readPluginSettings", () => {
     expect(asked).toEqual([RESOLVED_SETTINGS_PATH]);
   });
 
-  // Every published plugin sends its settings block, defaulted since 0.58.
+  // An administrator can save the configuration without a settings block:
+  // 0.68.1.0 checks nothing on save, and leaves the null out of what it
+  // serves. That server has answered, with no policy to apply.
   test.each([
-    ["no settings block", {}],
-    ["a login page", "<html><body>Sign in to the Wi-Fi</body></html>"],
-  ])("refuses a stored configuration with %s", async (_case, answer) => {
-    const { api } = server({ [LEGACY_CONFIG_PATH]: answer });
+    ["nothing in it", {}],
+    ["only its other blocks", { notifications: {}, other: {} }],
+    ["a null settings block", { settings: null }],
+  ])(
+    "reads a stored configuration with %s as nothing to apply",
+    async (_case, answer) => {
+      const { api } = server({ [LEGACY_CONFIG_PATH]: answer });
 
-    await expect(readPluginSettings(api)).rejects.toThrow("no settings map");
-  });
+      expect(await readPluginSettings(api)).toBeUndefined();
+    },
+  );
+
+  // What is not a configuration at all has said nothing, and neither has a
+  // settings block that is not a map.
+  test.each([
+    ["a login page", "<html><body>Sign in to the Wi-Fi</body></html>"],
+    ["an empty body", ""],
+    ["a null body", null],
+    ["a list", []],
+    ["settings that are a sentence", { settings: "Sign in" }],
+    ["settings that are a list", { settings: [] }],
+  ])(
+    "refuses %s in place of the stored configuration",
+    async (_case, answer) => {
+      const { api } = server({ [LEGACY_CONFIG_PATH]: answer });
+
+      await expect(readPluginSettings(api)).rejects.toThrow(
+        "plugin configuration",
+      );
+    },
+  );
 });

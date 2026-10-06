@@ -23,10 +23,7 @@
  * the normal path today rather than an edge case, and stays correct afterwards:
  * `config` keeps working, it is just the wrong question.
  */
-import type {
-  PluginLockableSettings,
-  StreamyfinPluginConfig,
-} from "@/utils/atoms/settings";
+import type { PluginLockableSettings } from "@/utils/atoms/settings";
 
 /** What applies to the caller, resolved and redacted by the server. */
 export const RESOLVED_SETTINGS_PATH = "/Streamyfin/v1/config/resolved";
@@ -52,6 +49,10 @@ const isMissingRoute = (error: unknown): boolean =>
   (error as { response?: { status?: number } } | undefined)?.response
     ?.status === 404;
 
+/** What axios makes of a body that is a JSON object. */
+const isJsonObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
 /**
  * What both routes answer with: a map of key to `{ locked, value }`. A 200 that
  * is anything else is not an answer about the plugin. A captive portal's login
@@ -59,7 +60,7 @@ const isMissingRoute = (error: unknown): boolean =>
  * lock the admin set.
  */
 const isSettingsMap = (value: unknown): value is PluginLockableSettings =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
+  isJsonObject(value);
 
 /**
  * The settings that apply to the signed-in user, whatever the server's age.
@@ -69,8 +70,9 @@ const isSettingsMap = (value: unknown): value is PluginLockableSettings =>
  * unlocked still seeds a default once, and an absent key still leaves the user
  * alone.
  *
- * Returns `undefined` for a server that serves neither route, which is a server
- * without the plugin. That is an answer: there is no policy to apply.
+ * Returns `undefined` when the server has said there is no policy to apply: it
+ * serves neither route, which is a server without the plugin, or it stores a
+ * configuration saved without its settings block.
  *
  * @throws whatever the request failed with, for anything else. A server that
  * cannot be reached has not told the caller it has no plugin, and the two must
@@ -96,13 +98,22 @@ export const readPluginSettings = async (
   }
 
   try {
-    const { data } = await api.get<StreamyfinPluginConfig>(LEGACY_CONFIG_PATH);
-    // Every published plugin sends its settings block, defaulted since 0.58, so
-    // a configuration without one is broken rather than empty.
-    if (!isSettingsMap(data?.settings)) {
-      throw new Error("The plugin configuration has no settings map");
+    const { data } = await api.get<unknown>(LEGACY_CONFIG_PATH);
+    if (!isJsonObject(data)) {
+      throw new Error("The plugin configuration is not an object");
     }
-    return data.settings;
+    // An administrator can save the configuration without its settings block,
+    // and the plugin then serves it without one: there is nothing to apply.
+    const { settings } = data;
+    if (settings == null) {
+      return undefined;
+    }
+    if (!isSettingsMap(settings)) {
+      throw new Error(
+        "The plugin configuration's settings are not a settings map",
+      );
+    }
+    return settings;
   } catch (error) {
     if (!isMissingRoute(error)) {
       throw error;

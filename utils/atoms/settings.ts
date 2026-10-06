@@ -546,9 +546,6 @@ export interface Lockable<T> {
 export type PluginLockableSettings = {
   [K in keyof Settings]: Lockable<Settings[K]>;
 };
-export type StreamyfinPluginConfig = {
-  settings: PluginLockableSettings;
-};
 
 // Settings whose values are secrets. They must never reach the app log,
 // which users read in-app and paste into bug reports.
