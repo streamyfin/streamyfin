@@ -8,7 +8,8 @@ export const queryDehydrateOptions: DehydrateOptions = {
   // TanStack persists paused mutations by default, the ones started while
   // offline. A restored mutation only gets its mutationFn back from
   // setMutationDefaults, which the app never calls, so resuming one after a
-  // restart threw "No mutationFn found".
+  // restart threw "No mutationFn found". withoutPersistedMutations drops them on
+  // restore as well, so making mutations survive a restart means changing both.
   shouldDehydrateMutation: () => false,
 };
 
