@@ -275,6 +275,22 @@ describe("MusicPlayerProvider and the native queue", () => {
     expect(player.queueIndex).toBe(1);
   });
 
+  // The tracks in front of the start track go in once they are all prepared.
+  // Nothing moved playback meanwhile, so the position is theirs to set.
+  test("points at the track playback started on once the earlier tracks are in", async () => {
+    await mount();
+    holdStreams("t0");
+    await run((p) => p.playQueue(ALBUM, 3));
+    expect(nativeIds()).toEqual(["t3"]);
+
+    await releaseStreams();
+
+    expect(nativeIds()).toEqual(["t0", "t1", "t2", "t3", "t4"]);
+    expect(nativeActiveId()).toBe("t3");
+    expect(player.currentTrack?.Id).toBe("t3");
+    expect(player.queueIndex).toBe(3);
+  });
+
   // A jump reads the native queue and then acts on what it read, and the
   // background load edits that queue on its own schedule. Here the load gets
   // its next stream URL right after the jump's read: without taking turns it
