@@ -6,7 +6,7 @@
 
 ## Detail
 
-Every `AVAudioSession` call is a synchronous XPC round trip to the audio server. That covers the getters too, not only `setCategory` and `setActive`: `outputNumberOfChannels` alone held the main thread for 3 seconds from a route change notification (Sentry REACT-NATIVE-3G), and `setActive(true)` for up to 8 seconds on Apple TV (REACT-NATIVE-G7). The route change and interruption notifications are delivered on the main thread, so a handler that reads the session is on main unless it hops.
+Every `AVAudioSession` call is a synchronous XPC round trip to the audio server. That covers the getters too, not only `setCategory` and `setActive`: `outputNumberOfChannels` alone held the main thread for 3 seconds from a route change notification (Sentry REACT-NATIVE-3G), and `setActive(true)` for up to 8 seconds on Apple TV (REACT-NATIVE-G7). In that 3G event (iOS 26.6) the route change notification was delivered on the main thread. Apple does not promise a thread for it, so a handler should assume neither: hop off main before reading the session, and hop to main before touching UI state.
 
 Rules that came out of it:
 
