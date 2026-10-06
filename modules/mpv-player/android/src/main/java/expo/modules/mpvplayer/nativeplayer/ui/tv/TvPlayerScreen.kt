@@ -31,7 +31,6 @@ import androidx.tv.material3.Text
 import expo.modules.mpvplayer.nativeplayer.PlayerViewModel
 import expo.modules.mpvplayer.nativeplayer.TvFocusZone
 import expo.modules.mpvplayer.nativeplayer.deriveTvFocusZone
-import expo.modules.mpvplayer.nativeplayer.ui.SyncPlayQueueSheet
 
 @Composable
 fun TvPlayerScreen(
@@ -164,7 +163,7 @@ fun TvPlayerScreen(
             TvErrorOverlay(viewModel = viewModel)
         }
 
-        if (viewModel.showSyncPlayQueue) SyncPlayQueueSheet(viewModel)
+        if (viewModel.showSyncPlayQueue) TvSyncPlayPanel(viewModel = viewModel)
     }
 }
 

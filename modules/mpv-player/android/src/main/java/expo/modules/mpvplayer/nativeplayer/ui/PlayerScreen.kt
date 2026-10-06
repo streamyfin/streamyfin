@@ -303,7 +303,7 @@ fun PlayerScreen(
         }
 
         if (viewModel.showSyncPlayQueue) {
-            SyncPlayQueueSheet(viewModel)
+            SyncPlayQueuePhoneSheet(viewModel)
         }
     }
 }

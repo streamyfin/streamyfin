@@ -17,6 +17,9 @@ class TvRemoteKeyHandler(
         if (keyCode == KeyEvent.KEYCODE_BACK) {
             if (action == KeyEvent.ACTION_UP && repeatCount == 0) {
                 when {
+                    // An entry's page is one step inside the panel.
+                    viewModel.showSyncPlayQueue && viewModel.syncPlayEntryMenu != null ->
+                        viewModel.syncPlayEntryMenu = null
                     viewModel.showSyncPlayQueue -> viewModel.closeSyncPlayQueue()
                     viewModel.showExitConfirmation -> {
                         viewModel.dismissExitConfirmation()

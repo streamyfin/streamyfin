@@ -83,8 +83,9 @@ private const val REFUSED_MOVE_RESET_MS = 2000L
 private val RepeatModes = listOf("RepeatNone", "RepeatAll", "RepeatOne")
 
 /**
- * The phone form of the queue: the same sections, in the same order, as the
- * iOS sheet. Presses are requests to the shared Jellyfin coordinator in JS;
+ * The queue inside the player on a phone: the same sections, in the same
+ * order, as the iOS sheet (SyncPlayQueueView.swift). The TV has its own
+ * panel (TvSyncPlayPanel). Presses are requests to the shared Jellyfin coordinator in JS;
  * nothing here changes the decoder.
  */
 @OptIn(ExperimentalMaterial3Api::class)

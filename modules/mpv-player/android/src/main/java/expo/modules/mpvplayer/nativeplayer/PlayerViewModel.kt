@@ -228,6 +228,8 @@ class PlayerViewModel : PlayerEngine.Delegate {
     var syncPlay by mutableStateOf<SyncPlayStateRecord?>(null)
         private set
     var showSyncPlayQueue by mutableStateOf(false)
+    /** TV: the queue entry whose page of actions is open, by playlist item id. */
+    var syncPlayEntryMenu by mutableStateOf<String?>(null)
     val syncPlayActive: Boolean get() = syncPlay != null
     fun syncStr(key: String, fallback: String): String = syncPlay?.strings?.get(key) ?: fallback
 
@@ -318,6 +320,7 @@ class PlayerViewModel : PlayerEngine.Delegate {
 
     fun closeSyncPlayQueue() {
         showSyncPlayQueue = false
+        syncPlayEntryMenu = null
         showControls()
         restoreTvControlsFocus()
     }
