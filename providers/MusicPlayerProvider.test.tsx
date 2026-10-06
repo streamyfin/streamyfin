@@ -24,6 +24,8 @@ const mockNative = {
    * the answer, which is when another caller's edit can slip in.
    */
   afterQueueRead: undefined as (() => Promise<void>) | undefined,
+  /** Queue reads the spec keeps pending, or null to answer them at once. */
+  heldQueueReads: null as Array<() => void> | null,
 };
 
 // The package is installed from git with `main` pointing at a build output it
@@ -43,6 +45,8 @@ jest.mock(
       seekTo: async () => undefined,
       getProgress: async () => ({ position: 0, duration: 0, buffered: 0 }),
       getQueue: async () => {
+        const held = mockNative.heldQueueReads;
+        if (held) await new Promise<void>((release) => held.push(release));
         const answer = [...mockNative.queue];
         await mockNative.afterQueueRead?.();
         return answer;
@@ -95,11 +99,14 @@ jest.mock(
 
 /** Stream URL requests the spec keeps pending, by item id. */
 const mockHeldStreams = new Map<string, Array<() => void>>();
+/** Items the server has no stream for. */
+const mockUnavailableStreams = new Set<string>();
 
 jest.mock("@/utils/jellyfin/audio/getAudioStreamUrl", () => ({
   getAudioStreamUrl: async (_api: unknown, _userId: string, itemId: string) => {
     const held = mockHeldStreams.get(itemId);
     if (held) await new Promise<void>((release) => held.push(release));
+    if (mockUnavailableStreams.has(itemId)) return null;
     return {
       url: `https://jellyfin.example.com/Audio/${itemId}/stream`,
       sessionId: null,
@@ -174,6 +181,20 @@ const releaseStream = (id: string) => {
   for (const release of pending) release();
 };
 
+/** Keeps every native queue read pending until released. */
+const holdQueueReads = () => {
+  mockNative.heldQueueReads = [];
+};
+
+const releaseQueueReads = async () => {
+  const pending = mockNative.heldQueueReads ?? [];
+  mockNative.heldQueueReads = null;
+  await act(async () => {
+    for (const release of pending) release();
+  });
+  await settle();
+};
+
 /** Lets the promise chains started by the last action run out. */
 const settle = async () => {
   for (let i = 0; i < 20; i++) {
@@ -227,10 +248,12 @@ describe("MusicPlayerProvider and the native queue", () => {
   beforeEach(() => {
     clearMmkv();
     mockHeldStreams.clear();
+    mockUnavailableStreams.clear();
     mockNative.queue = [];
     mockNative.activeIndex = undefined;
     mockNative.afterQueueRead = undefined;
     getDefaultStore().set(userAtom, { Id: "user", ServerId: "server" });
+    mockNative.heldQueueReads = null;
   });
 
   // Sentry REACT-NATIVE-AW. Playback starts on one track and the rest of the
@@ -506,5 +529,109 @@ describe("MusicPlayerProvider and the native queue", () => {
 
     expect(nativeIds()).toEqual(["other", "extra"]);
     expect(nativeActiveId()).toBe("other");
+  });
+
+  // The rest of a queue is added in the background, a network round trip per
+  // track, and that load only noticed an account switch. Starting another queue
+  // meanwhile reset the native queue, and the first load went on appending its
+  // own tracks behind the new one, where they played without being on screen.
+  describe("a queue that is still loading", () => {
+    const OTHER = ["o0", "o1"].map(track);
+
+    test("stops loading once another queue replaces it", async () => {
+      await mount();
+      holdStreams("t2");
+      await run((p) => p.playQueue(ALBUM, 0));
+      expect(nativeIds()).toEqual(["t0", "t1"]);
+
+      await run((p) => p.playQueue(OTHER, 0));
+      await releaseStreams();
+
+      expect(nativeIds()).toEqual(["o0", "o1"]);
+      expect(nativeActiveId()).toBe("o0");
+      expect(player.queue.map((t) => t.Id)).toEqual(["o0", "o1"]);
+      expect(player.queueIndex).toBe(0);
+    });
+
+    // The tracks in front of the one that was tapped go in as one batch, and
+    // the load then points the index at the tapped track by id. Playing that
+    // same track on its own left the index past the end of a one track queue.
+    test("leaves the index of the queue that replaced it alone", async () => {
+      await mount();
+      holdStreams("t0");
+      await run((p) => p.playQueue(ALBUM, 3));
+      expect(nativeIds()).toEqual(["t3"]);
+
+      await run((p) => p.playQueue([track("t3")], 0));
+      await releaseStreams();
+
+      expect(nativeIds()).toEqual(["t3"]);
+      expect(player.queue.map((t) => t.Id)).toEqual(["t3"]);
+      expect(player.queueIndex).toBe(0);
+    });
+
+    // A track that fails to load is dropped from the queue on screen once the
+    // load is through, by id, so it must not reach a queue that came after.
+    test("does not drop its unavailable tracks from the queue that replaced it", async () => {
+      await mount();
+      mockUnavailableStreams.add("t1");
+      holdStreams("t2");
+      await run((p) => p.playQueue(ALBUM, 0));
+      mockUnavailableStreams.clear();
+
+      await run((p) => p.playQueue(["o0", "t1"].map(track), 0));
+      await releaseStreams();
+
+      expect(nativeIds()).toEqual(["o0", "t1"]);
+      expect(player.queue.map((t) => t.Id)).toEqual(["o0", "t1"]);
+    });
+
+    test("stops loading once playback is stopped", async () => {
+      await mount();
+      holdStreams("t2");
+      await run((p) => p.playQueue(ALBUM, 0));
+
+      await run((p) => p.stop());
+      await releaseStreams();
+
+      expect(nativeIds()).toEqual([]);
+      expect(player.queue).toEqual([]);
+      expect(player.currentTrack).toBeNull();
+    });
+
+    // Nothing was reset, so the first queue is still the one playing and the
+    // one on screen. Cancelling its load here would leave it cut short.
+    test("keeps loading when the queue meant to replace it cannot start", async () => {
+      await mount();
+      holdStreams("t2");
+      await run((p) => p.playQueue(ALBUM, 0));
+
+      mockUnavailableStreams.add("gone");
+      await run((p) => p.playQueue([track("gone")], 0));
+      expect(player.isLoading).toBe(false);
+      await releaseStreams();
+
+      expect(nativeIds()).toEqual(["t0", "t1", "t2", "t3", "t4"]);
+      expect(nativeActiveId()).toBe("t0");
+      expect(player.queue.map((t) => t.Id)).toEqual(nativeIds());
+    });
+
+    // After a jump ahead of the load, each track is placed by reading the
+    // native queue first. A queue that starts during that read has already
+    // reset by the time the answer is back.
+    test("does not place a track in a queue that started while it read the native one", async () => {
+      await mount();
+      holdStreams("t1");
+      await run((p) => p.playQueue(ALBUM, 0));
+      await run((p) => p.jumpToIndex(3));
+      expect(nativeIds()).toEqual(["t0", "t3"]);
+
+      holdQueueReads();
+      await releaseStreams();
+      await run((p) => p.playQueue([track("o0")], 0));
+      await releaseQueueReads();
+
+      expect(nativeIds()).toEqual(["o0"]);
+    });
   });
 });
