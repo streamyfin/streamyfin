@@ -16,6 +16,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ParallaxPageColors } from "@/constants/Colors";
+import { LOGO_HEIGHT } from "@/constants/Images";
 
 /**
  * The page's scroll, for content that follows it, such as a header that stays
@@ -36,6 +37,9 @@ export interface ParallaxScroll {
 
 export const ParallaxScrollContext = createContext<ParallaxScroll | null>(null);
 
+/** Height of the header when a page does not set its own, in layout points. */
+export const PARALLAX_HEADER_HEIGHT = 400;
+
 interface Props extends ViewProps {
   headerImage: ReactElement;
   logo?: ReactElement;
@@ -48,7 +52,7 @@ export const ParallaxScrollView: React.FC<PropsWithChildren<Props>> = ({
   children,
   headerImage,
   episodePoster,
-  headerHeight = 400,
+  headerHeight = PARALLAX_HEADER_HEIGHT,
   logo,
   onEndReached,
   ...props
@@ -110,7 +114,7 @@ export const ParallaxScrollView: React.FC<PropsWithChildren<Props>> = ({
           <View
             style={{
               top: headerHeight - 200,
-              height: 130,
+              height: LOGO_HEIGHT,
             }}
             className='absolute left-0 w-full z-40 px-4 flex justify-center items-center'
           >

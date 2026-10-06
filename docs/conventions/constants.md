@@ -30,12 +30,15 @@ cadence meant knowing both existed, and nothing would have failed if only one ha
 | `constants/Values.ts` | Cross cutting app values with no better home (tab height, carousel height, sheet ratio) |
 | `constants/Colors.ts` | Colour tokens |
 | `constants/MediaTypes.ts` | Media type unions |
+| `constants/Images.ts` | Server image requests: the detail page logo height, and the pixel caps and steps on what is asked for |
 | `constants/TVSizes.ts` | TV poster sizes, gaps, padding, animation timings |
 | `constants/TVTypography.ts` | TV type scale and the `useScaledTVTypography` hook |
 | `constants/TVPosterSizes.ts` | TV poster size keys |
 | `constants/Playback.ts` | Playback reporting policy shared by the JS and native players (progress report cadence) |
 | `constants/Logs.ts` | App log storage key and how many entries it keeps |
 | `constants/Privacy.ts` | What stands in for a secret in anything the app writes out (log, Sentry) |
+| `constants/Sentry.ts` | Error reporting policy: which builds report, the per session dedupe cap, the failure storm window |
+| `constants/TVDiscovery.ts` | TV home screen tiles: Top Shelf and Android TV recommendations (play link lookup timeout) |
 
 Add a new domain file when a group grows its own identity (playback, downloads,
 networking). Do not let `Values.ts` become the place where everything lands.

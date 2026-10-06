@@ -81,20 +81,26 @@ export function useAppRouter() {
   );
 
   const replace = useCallback(
-    (href: Parameters<typeof router.replace>[0]) => {
+    (
+      href: Parameters<typeof router.replace>[0],
+      options?: Parameters<typeof router.replace>[1],
+    ) => {
       if (typeof href === "string") {
-        router.replace(href as any);
+        router.replace(href as any, options);
       } else {
         const callerParams = (href.params ?? {}) as Record<string, unknown>;
         const hasExplicitOffline = "offline" in callerParams;
-        router.replace({
-          ...href,
-          params: {
-            // Only add offline if caller hasn't explicitly set it
-            ...(isOffline && !hasExplicitOffline && { offline: "true" }),
-            ...callerParams,
-          },
-        } as any);
+        router.replace(
+          {
+            ...href,
+            params: {
+              // Only add offline if caller hasn't explicitly set it
+              ...(isOffline && !hasExplicitOffline && { offline: "true" }),
+              ...callerParams,
+            },
+          } as any,
+          options,
+        );
       }
     },
     [router, isOffline],

@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import Module from "node:module";
 import { join } from "node:path";
 import type { ConfigContext } from "expo/config";
 import resolveConfig from "./app.config";
@@ -62,4 +63,23 @@ describe.each([
       catalogTargetSdk,
     );
   });
+});
+
+// app.config.ts registers the tsx require hook for the Expo CLI. Registered
+// from a spec, it lands on Node's own loader, which the Jest worker shares
+// with every spec it runs afterwards. The hook then outlives the spec that
+// loaded it and reads globals of a sandbox that is gone, so the next file
+// Babel had to load in that worker failed with "URLSearchParams is not a
+// constructor". Which suite paid for it depended on how the workers were
+// dealt their files, hence the intermittent utils/stickyHeader failure in CI.
+test("loading the config leaves Node's module loader alone", () => {
+  // The loader's handlers, one per file extension. Internal to Node, so untyped.
+  const { _extensions: handlers } = Module as unknown as {
+    _extensions: Record<string, unknown>;
+  };
+  const before = { ...handlers };
+  jest.isolateModules(() => {
+    require("./app.config");
+  });
+  expect({ ...handlers }).toEqual(before);
 });

@@ -16,7 +16,7 @@ import type {
 } from "@jellyfin/sdk/lib/generated-client";
 import { SubtitlePlaybackMode } from "@jellyfin/sdk/lib/generated-client";
 import { BITRATES } from "@/components/BitrateSelector";
-import { langEq } from "@/utils/jellyfin/subtitleUtils";
+import { closestLanguageMatches, langEq } from "@/utils/jellyfin/subtitleUtils";
 import { getSeriesTrackMemory } from "@/utils/seriesTrackMemory";
 import { type Settings } from "../atoms/settings";
 import {
@@ -49,6 +49,10 @@ export interface PreviousIndexes {
  * all — it turned "swe" into "sw", which is Swahili, so a Swedish preference
  * matched Swahili tracks and missed "sv"-tagged Swedish ones.
  *
+ * Among the matches only the closest tags compete: a remembered "pt-BR" takes
+ * the "pt-BR" track over a bare "por" one, and the other way round. The
+ * default-track rule then applies within that set.
+ *
  * @param forcedOnly - If true, only match forced subtitles
  */
 function findTrackByLanguage(
@@ -59,11 +63,11 @@ function findTrackByLanguage(
 ): number | undefined {
   if (!languageCode) return undefined;
 
-  const candidates = streams.filter((s) => {
-    if (s.Type !== streamType) return false;
-    if (forcedOnly && !s.IsForced) return false;
-    return langEq(s.Language, languageCode);
-  });
+  const candidates = closestLanguageMatches(
+    streams.filter((s) => s.Type === streamType && (!forcedOnly || s.IsForced)),
+    languageCode,
+    (s) => s.Language,
+  );
 
   // Prefer default track if multiple match
   const defaultTrack = candidates.find((s) => s.IsDefault);

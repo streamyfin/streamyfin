@@ -22,6 +22,8 @@ export {
 export {
   calculateTotalDownloadedSize,
   deleteAllAssociatedFiles,
+  deletePendingDownloadFiles,
+  deleteUnclaimedVideo,
   deleteVideoFile,
   getDownloadedItemSize,
 } from "./fileOperations";

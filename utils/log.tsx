@@ -3,13 +3,17 @@ import { useQuery } from "@tanstack/react-query";
 import { isAxiosError } from "axios";
 import type React from "react";
 import { createContext, useContext } from "react";
+import { MAX_SESSION_REPORT_KEYS } from "@/constants/Sentry";
 import {
   describeHttpError,
+  describeHttpResponse,
   isAbortLikeError,
-  isConnectivityError,
+  isEnvironmentError,
+  isErrorReported,
   isExpectedError,
   markErrorReported,
 } from "./errors";
+import { admitHttpFailure } from "./httpFailureGate";
 import { type LogLevel, readFromLog, storeLogEntry } from "./logStorage";
 
 export type { LogLevel };
@@ -98,20 +102,34 @@ const describeErrorForLog = (error: unknown): unknown => {
   return error;
 };
 
-// One Sentry event per (call site, endpoint, status) per session. A failing
-// endpoint is hit again by every keystroke in search and by every screen that
-// mounts the same request, and the Nth repeat says nothing the first didn't.
-const reportedHttpErrors = new Set<string>();
-const MAX_REPORTED_HTTP_ERRORS = 200;
+// A heap address in a native message ("ssl=0xb400007329635958") is different
+// on every run, so a fingerprint that keeps it opens one issue per event. It
+// points at nothing anyone can look up, so the message loses it too. Nine hex
+// digits and up: a 32-bit error code ("0x80001001") is worth keeping.
+const NATIVE_ADDRESS_PATTERN = /\b0x[0-9a-f]{9,16}\b/gi;
+
+/** A native error string with what changes from one run to the next taken out. */
+export const normalizeNativeDetail = (detail: string): string =>
+  detail.replace(NATIVE_ADDRESS_PATTERN, "0x[addr]");
+
+// One Sentry event per distinct native failure per session. Native errors
+// arrive as strings, one per failed job: a queue of 58 episodes refused with
+// the same status was 58 events from one user in forty minutes.
+const reportedNativeFailures = new Set<string>();
 
 /**
  * Records a failure both in the local log and as a Sentry exception — the
  * ONLY path that turns handled errors into Sentry events. Prefer it over
  * writeErrorLog when the caught error object is available.
  *
- * Connectivity failures (aborted requests, no HTTP response, gateway errors)
- * stay in the local log but are never sent: an unreachable server is the
- * user's environment, not an app bug.
+ * Every failure reaches the local log. What reaches Sentry is narrower:
+ * - expected outcomes, aborted requests and the user's environment (no HTTP
+ *   response, a gateway error, a gateway's own refusal) are never sent: an
+ *   unreachable server is not an app bug
+ * - an error is sent once, however many layers catch and log it
+ * - an HTTP failure is sent once per route and status per session, and one
+ *   server failing on every route at once is one event (utils/httpFailureGate)
+ * - a native error string is sent once per session
  *
  * `context` is SENT to Sentry (after URL scrubbing), so pass only curated
  * values (codecs, status codes, item IDs) — never raw payloads or settings
@@ -129,21 +147,39 @@ export const logAndCaptureError = (
   if (
     isExpectedError(error) ||
     isAbortLikeError(error) ||
-    isConnectivityError(error)
+    isEnvironmentError(error)
   ) {
     return;
   }
+  // A 401 is the session ending, on whichever request happened to be in
+  // flight: JellyfinProvider's interceptor signs the user out and the login
+  // screen says the rest. utils/reportDataError leaves it out the same way.
+  if (isAxiosError(error) && error.response?.status === 401) {
+    return;
+  }
+  // The same error object caught by a second layer, or one whose twin the
+  // Seerr interceptor already sent: under another message it would be a
+  // second issue for the same failure.
+  if (isErrorReported(error)) {
+    return;
+  }
   // If this error is later rethrown into React Query, the global handler in
-  // app/_layout.tsx must not report it again.
+  // utils/reportDataError.ts must not report it again.
   markErrorReported(error);
   const http = describeHttpError(error);
-  if (http) {
-    const key = [message, http.method, http.path, http.status].join("|");
-    if (reportedHttpErrors.has(key)) {
+  if (http && admitHttpFailure(error) !== "report") {
+    return;
+  }
+  let nativeDetail: string | undefined;
+  if (!(error instanceof Error)) {
+    const detail = stringifyErrorValue(error);
+    nativeDetail = detail ? normalizeNativeDetail(detail) : undefined;
+    const key = `${message}|${nativeDetail ?? ""}`;
+    if (reportedNativeFailures.has(key)) {
       return;
     }
-    if (reportedHttpErrors.size < MAX_REPORTED_HTTP_ERRORS) {
-      reportedHttpErrors.add(key);
+    if (reportedNativeFailures.size < MAX_SESSION_REPORT_KEYS) {
+      reportedNativeFailures.add(key);
     }
   }
   Sentry.withScope((scope) => {
@@ -156,6 +192,7 @@ export const logAndCaptureError = (
       // Group by what actually separates them: which call failed, to which
       // route, with which status.
       scope.setContext("http", http);
+      scope.setContext("http_response", describeHttpResponse(error) ?? null);
       scope.setFingerprint([
         message,
         http.method,
@@ -172,10 +209,9 @@ export const logAndCaptureError = (
       // log message + detail instead: one issue per distinct failure, not
       // one blob per call site. (Fingerprints are scrubbed like the rest of
       // the event, so URLs in the detail don't fragment grouping.)
-      const detail = stringifyErrorValue(error);
-      scope.setFingerprint(detail ? [message, detail] : [message]);
+      scope.setFingerprint(nativeDetail ? [message, nativeDetail] : [message]);
       Sentry.captureException(
-        new Error(detail ? `${message}: ${detail}` : message),
+        new Error(nativeDetail ? `${message}: ${nativeDetail}` : message),
       );
     }
   });

@@ -169,6 +169,25 @@ export async function getAccountCredential(
 }
 
 /**
+ * The credential a saved account signs in with, or null once an account that
+ * has none is forgotten.
+ *
+ * The account list and the credentials are two stores, and an account can be
+ * listed with no credential behind it (REACT-NATIVE-2K, on tvOS). Such an
+ * entry can never sign in, so it comes off the list the way an account whose
+ * token was rejected does, and signing in again puts it back.
+ */
+export async function getCredentialOrForgetAccount(
+  serverUrl: string,
+  userId: string,
+): Promise<ServerCredential | null> {
+  const credential = await getAccountCredential(serverUrl, userId);
+  if (credential) return credential;
+  await deleteAccountCredential(serverUrl, userId);
+  return null;
+}
+
+/**
  * Delete credential for a specific account.
  */
 export async function deleteAccountCredential(
