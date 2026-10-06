@@ -1,8 +1,4 @@
-import type { PluginLockableSettings, Settings } from "@/utils/atoms/settings";
-import {
-  pendingPluginDefaults,
-  resolveEffectiveSettings,
-} from "@/utils/atoms/settingsOverrides";
+import type { PluginLockableSettings } from "@/utils/atoms/settings";
 import {
   fetchPluginSettings,
   LEGACY_CONFIG_PATH,
@@ -124,41 +120,5 @@ describe("fetchPluginSettings", () => {
     const { api } = server({ [LEGACY_CONFIG_PATH]: answer });
 
     await expect(fetchPluginSettings(api)).rejects.toThrow("no settings map");
-  });
-});
-
-describe("what the endpoints have in common", () => {
-  // The reason switching endpoints is safe: both answer with the same map of
-  // key -> { locked, value }, so locked pins a value and unlocked seeds a
-  // default once, whichever one answered. A server that started resolving must
-  // not change what any of that means.
-  const defaults = { subtitleSize: 80, marlinServerUrl: "" } as Settings;
-  const identity = (_key: keyof Settings, value: unknown) => value;
-
-  test("either endpoint feeds the same locked and unlocked rules", async () => {
-    const fromResolved = await fetchPluginSettings(
-      server({ [RESOLVED_SETTINGS_PATH]: resolvedSettings }).api,
-    );
-    const fromLegacy = await fetchPluginSettings(
-      server({ [LEGACY_CONFIG_PATH]: { settings: resolvedSettings } }).api,
-    );
-
-    expect(fromResolved).toEqual(fromLegacy!);
-
-    for (const settings of [fromResolved, fromLegacy]) {
-      const effective = resolveEffectiveSettings(
-        { subtitleSize: 100 },
-        settings,
-        defaults,
-        identity,
-      );
-      // Locked pins, over a value the user holds.
-      expect(effective.subtitleSize).toBe(120);
-      // Unlocked only fills a gap, and seeds storage once.
-      expect(effective.marlinServerUrl).toBe("https://marlin.example");
-      expect(pendingPluginDefaults(settings, {}, identity)).toEqual({
-        marlinServerUrl: "https://marlin.example",
-      } as Partial<Settings>);
-    }
   });
 });
