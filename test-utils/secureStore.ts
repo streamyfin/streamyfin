@@ -12,6 +12,8 @@ const AFTER_FIRST_UNLOCK = 1;
  * background. The message is the Keychain's own.
  */
 const read = (key: string) => {
+  // An item that is not there is not found, locked or not.
+  if (!values.has(key)) return null;
   if (locked && accessibility.get(key) !== AFTER_FIRST_UNLOCK) {
     throw new Error(
       "Calling the 'getValueWithKeySync' function has failed → Caused by: User interaction is not allowed.",
