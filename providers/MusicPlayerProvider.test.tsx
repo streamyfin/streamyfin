@@ -436,10 +436,12 @@ describe("MusicPlayerProvider and the native queue", () => {
   });
 
   // Same report, the other way in: a queue restored after a restart is only
-  // on screen. Resuming loads the one track it stopped on.
+  // on screen. Resuming loads the track it stopped on and the rest follows in
+  // the background, so a row tapped right away is not in the native queue yet.
   test("jumps to another track of a queue restored after a restart", async () => {
     persistQueue(ALBUM, 2);
     await mount();
+    holdStreams("t0");
     await run((p) => p.resume());
     expect(nativeIds()).toEqual(["t2"]);
 
@@ -448,10 +450,138 @@ describe("MusicPlayerProvider and the native queue", () => {
     expect(nativeActiveId()).toBe("t4");
     expect(player.currentTrack?.Id).toBe("t4");
 
-    await run((p) => p.jumpToIndex(0));
-    expect(nativeIds()).toEqual(["t0", "t2", "t4"]);
-    expect(nativeActiveId()).toBe("t0");
-    expect(player.queueIndex).toBe(0);
+    await run((p) => p.jumpToIndex(1));
+    expect(nativeIds()).toEqual(["t1", "t2", "t4"]);
+    expect(nativeActiveId()).toBe("t1");
+    expect(player.queueIndex).toBe(1);
+
+    await releaseStreams();
+    expect(nativeIds()).toEqual(["t0", "t1", "t2", "t3", "t4"]);
+    expect(nativeActiveId()).toBe("t1");
+    expect(player.currentTrack?.Id).toBe("t1");
+    expect(player.queueIndex).toBe(1);
+  });
+
+  // Resuming used to load the one track the queue stopped on and nothing
+  // else: next did nothing, the track did not advance when it ended, and the
+  // queue on screen was not the one the player held.
+  test("loads the rest of a queue restored after a restart once it resumes", async () => {
+    persistQueue(ALBUM, 2);
+    await mount();
+
+    await run((p) => p.resume());
+
+    expect(nativeIds()).toEqual(["t0", "t1", "t2", "t3", "t4"]);
+    expect(nativeActiveId()).toBe("t2");
+    expect(player.currentTrack?.Id).toBe("t2");
+    expect(player.queueIndex).toBe(2);
+
+    await run((p) => p.next());
+
+    expect(nativeActiveId()).toBe("t3");
+    expect(player.currentTrack?.Id).toBe("t3");
+    expect(player.queueIndex).toBe(3);
+  });
+
+  // Play is a toggle, and the second tap lands while the stream URL of the
+  // first is still on its way.
+  test("loads a restored queue once when resume is tapped twice", async () => {
+    persistQueue(ALBUM, 2);
+    await mount();
+    holdStreams("t2");
+
+    await run((p) => {
+      p.resume();
+      p.resume();
+    });
+    await releaseStreams();
+
+    expect(nativeIds()).toEqual(["t0", "t1", "t2", "t3", "t4"]);
+    expect(nativeActiveId()).toBe("t2");
+  });
+
+  test("leaves the native queue empty when the account changes while a restored queue resumes", async () => {
+    persistQueue(ALBUM, 2);
+    await mount();
+    holdStreams("t2");
+    await run((p) => {
+      p.resume();
+    });
+
+    await act(async () => {
+      getDefaultStore().set(userAtom, { Id: "other", ServerId: "server" });
+    });
+    await settle();
+    await releaseStreams();
+
+    expect(nativeIds()).toEqual([]);
+    expect(player.currentTrack).toBeNull();
+    expect(player.isPlaying).toBe(false);
+  });
+
+  // A restored queue is loaded like one that was just started, so its load is
+  // called off the same way.
+  test("stops loading a restored queue once another queue replaces it", async () => {
+    persistQueue(ALBUM, 2);
+    await mount();
+    holdStreams("t0");
+    await run((p) => p.resume());
+    expect(nativeIds()).toEqual(["t2"]);
+
+    await run((p) => p.playQueue(["o0", "o1"].map(track), 0));
+    await releaseStreams();
+
+    expect(nativeIds()).toEqual(["o0", "o1"]);
+    expect(nativeActiveId()).toBe("o0");
+    expect(player.queue.map((t) => t.Id)).toEqual(["o0", "o1"]);
+  });
+
+  test("stops loading a restored queue once playback is stopped", async () => {
+    persistQueue(ALBUM, 2);
+    await mount();
+    holdStreams("t0");
+    await run((p) => p.resume());
+
+    await run((p) => p.stop());
+    await releaseStreams();
+
+    expect(nativeIds()).toEqual([]);
+    expect(player.queue).toEqual([]);
+  });
+
+  // The stream URL of the restored track can arrive after the player has
+  // moved on. Resuming then would reset a queue that is not the restored one.
+  test("leaves a queue alone that started while a restored one was resuming", async () => {
+    persistQueue(ALBUM, 2);
+    await mount();
+    holdStreams("t2");
+    await run((p) => {
+      p.resume();
+    });
+
+    await run((p) => p.playQueue(["o0", "o1"].map(track), 0));
+    await releaseStreams();
+
+    expect(nativeIds()).toEqual(["o0", "o1"]);
+    expect(nativeActiveId()).toBe("o0");
+    expect(player.currentTrack?.Id).toBe("o0");
+    expect(player.queue.map((t) => t.Id)).toEqual(["o0", "o1"]);
+  });
+
+  test("stays stopped when the stream URL of a restored queue arrives after stop", async () => {
+    persistQueue(ALBUM, 2);
+    await mount();
+    holdStreams("t2");
+    await run((p) => {
+      p.resume();
+    });
+
+    await run((p) => p.stop());
+    await releaseStreams();
+
+    expect(nativeIds()).toEqual([]);
+    expect(player.currentTrack).toBeNull();
+    expect(player.isPlaying).toBe(false);
   });
 
   // An id cannot tell two copies of a track apart; the row's index can, once
@@ -496,10 +626,12 @@ describe("MusicPlayerProvider and the native queue", () => {
   });
 
   // After a jump has loaded a track on demand the native queue has gaps, and
-  // its neighbours are not the rows next to each other on screen.
+  // its neighbours are not the rows next to each other on screen. The load is
+  // held back so the gap is still there.
   test("next and previous show the track the player moved to across a gap", async () => {
     persistQueue(ALBUM, 2);
     await mount();
+    holdStreams("t0");
     await run((p) => p.resume());
     await run((p) => p.jumpToIndex(4));
     expect(nativeIds()).toEqual(["t2", "t4"]);

@@ -1,11 +1,11 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 
 /**
- * The native player's queue only holds the tracks loaded so far: one after a
- * restored queue resumes, a growing part of it while the rest loads in the
- * background. An index into the app's queue therefore does not address it, and
- * the native side rejects one that falls outside. These resolve a track by id
- * against the native queue as it is right now.
+ * The native player's queue only holds the tracks loaded so far: none for a
+ * restored queue until it resumes, a growing part of it while the rest loads
+ * in the background. An index into the app's queue therefore does not address
+ * it, and the native side rejects one that falls outside. These resolve a
+ * track by id against the native queue as it is right now.
  */
 interface NativeTrack {
   id?: string;
