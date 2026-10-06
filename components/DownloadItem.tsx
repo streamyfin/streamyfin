@@ -28,7 +28,7 @@ import { queueAtom } from "@/utils/atoms/queue";
 import { useSettings } from "@/utils/atoms/settings";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { getDownloadStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
-import { logAndCaptureError } from "@/utils/log";
+import { logAndCaptureError, writeToLog } from "@/utils/log";
 import { AudioTrackSelector } from "./AudioTrackSelector";
 import { type Bitrate, BitrateSelector } from "./BitrateSelector";
 import { Button } from "./Button";
@@ -220,13 +220,17 @@ export const DownloadItems: React.FC<DownloadProps> = ({
         );
       }
       // Reachable by pressing download, unlike the broken state above: the
-      // user is told and nothing is reported.
+      // user is told and nothing is reported. The local log keeps what kind of
+      // item it was.
       if (
         lacksMediaSource(
           itemsNotDownloaded.length,
           selectedOptions?.mediaSource,
         )
       ) {
+        writeToLog("WARN", "Download turned down: item has no media source", {
+          itemType: items[0]?.Type,
+        });
         toast.error(t("home.downloads.toasts.no_media_source_to_download"));
         return;
       }

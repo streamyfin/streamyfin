@@ -20,7 +20,6 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { scaleSize } from "@/utils/scaleSize";
 import { createStreamystatsApi } from "@/utils/streamystats/api";
-import type { StreamystatsRecommendationsIdsResponse } from "@/utils/streamystats/types";
 
 interface Props extends ViewProps {
   title: string;
@@ -97,12 +96,7 @@ export const StreamystatsRecommendations: React.FC<Props> = ({
         limit,
       );
 
-      const data = response as StreamystatsRecommendationsIdsResponse;
-
-      if (type === "Movie") {
-        return data.data.movies || [];
-      }
-      return data.data.series || [];
+      return type === "Movie" ? response.data.movies : response.data.series;
     },
     enabled:
       enabled &&

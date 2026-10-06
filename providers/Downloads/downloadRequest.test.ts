@@ -1,9 +1,9 @@
 import { lacksMediaSource } from "./downloadRequest";
 
 describe("lacksMediaSource", () => {
-  // Sentry REACT-NATIVE-FX: the server lists no media source for some items (a
-  // missing episode is one), the download sheet opened all the same, and
-  // confirming it threw "No api or user or item".
+  // Sentry REACT-NATIVE-FX: the server lists no media source for an item it
+  // cannot play (a folder, a photo, a book), the download sheet opened all the
+  // same, and confirming it threw "No api or user or item".
   test("turns down a single item the server gave no media source for", () => {
     expect(lacksMediaSource(1, undefined)).toBe(true);
   });

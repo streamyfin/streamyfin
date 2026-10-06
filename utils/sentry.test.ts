@@ -538,6 +538,61 @@ describe("classifyOutgoingEvent — axios errors on the unhandledrejection path"
       http: { method: "GET", path: "/Items", status: 403 },
     });
   });
+  // REACT-NATIVE-88 / D9: a proxy with no server to hand the request to.
+  test.each([421, 444])("a proxy's %i is dropped", (status) => {
+    expect(
+      classifyOutgoingEvent({} as never, {
+        originalException: axiosError(status),
+      }),
+    ).toBeNull();
+  });
+
+  // REACT-NATIVE-2B: Cloudflare's 1xxx error, sent as JSON to a client that
+  // accepts it.
+  test("Cloudflare's own 403 as JSON is dropped, the server's JSON 403 is not", () => {
+    const withBody = (data: unknown) =>
+      new AxiosError(
+        "Request failed with status code 403",
+        AxiosError.ERR_BAD_RESPONSE,
+        {
+          method: "post",
+          url: "https://server/Sessions/Capabilities/Full",
+          headers: {} as never,
+        },
+        {},
+        {
+          status: 403,
+          headers: {
+            "content-type": "application/json; charset=utf-8",
+            server: "cloudflare",
+          },
+          data,
+          config: {},
+        } as never,
+      );
+    expect(
+      classifyOutgoingEvent({} as never, {
+        originalException: withBody({
+          type: "https://developers.cloudflare.com/support/troubleshooting/http-status-codes/cloudflare-1xxx-errors/error-1000/",
+          title: "Error 1000: DNS points to prohibited IP",
+          status: 403,
+        }),
+      }),
+    ).toBeNull();
+    const kept = classifyOutgoingEvent({ contexts: {} } as never, {
+      originalException: withBody({
+        type: "https://tools.ietf.org/html/rfc9110#section-15.5.4",
+        title: "Forbidden",
+        status: 403,
+      }),
+    });
+    expect(kept?.fingerprint).toEqual([
+      "unhandled-http",
+      "POST",
+      "/Sessions/Capabilities/Full",
+      "403",
+    ]);
+  });
 });
 
 // REACT-NATIVE-3S: 10 users, a few seconds after launch on Android. The cast
