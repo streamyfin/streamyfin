@@ -404,8 +404,12 @@ const addInQueueOrder = async (
   appQueue: BaseItemDto[],
   appIndex: number,
   track: Track,
+  isStale: () => boolean,
 ) => {
   const nativeQueue: Track[] = await TrackPlayer.getQueue();
+  // The queue may have been reset while it was being read, and the answer
+  // then describes one that is gone.
+  if (isStale()) return;
   if (nativeIndexOf(nativeQueue, track.id) >= 0) return;
   await TrackPlayer.add(
     track,
@@ -450,6 +454,10 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   const sessionKey = sessionKeyFor(user);
   const sessionKeyRef = useRef<string | null>(null);
   const sessionGenerationRef = useRef(0);
+
+  // Identifies the queue the native player holds. Bumped whenever that queue is
+  // thrown away, so the background load of the previous one stops adding to it.
+  const queueGenerationRef = useRef(0);
 
   // Set once jumpToIndex has loaded a track ahead of the background load. From
   // then on that load can no longer append: it has to place each track, and
@@ -776,14 +784,23 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
 
   // Load remaining tracks in the background without blocking playback
   const loadRemainingTracksInBackground = useCallback(
-    async (queue: BaseItemDto[], startIndex: number, preferLocal: boolean) => {
+    async (
+      queue: BaseItemDto[],
+      startIndex: number,
+      preferLocal: boolean,
+      queueGeneration: number,
+    ) => {
       if (!api || !user?.Id || !TrackPlayer) return;
 
       // This runs for a long time, one network round trip per track. If the
       // session switches meanwhile, every remaining track belongs to an account
-      // that is no longer signed in, so stop instead of adding them.
+      // that is no longer signed in, and if another queue is started or
+      // playback is stopped, to a queue that is no longer the one playing. Stop
+      // instead of adding them, and leave the state to whatever came after.
       const generation = sessionGenerationRef.current;
-      const isStale = () => generation !== sessionGenerationRef.current;
+      const isStale = () =>
+        generation !== sessionGenerationRef.current ||
+        queueGeneration !== queueGenerationRef.current;
 
       const mediaInfoMap: Record<string, TrackMediaInfo> = {};
       const failedItemIds: string[] = []; // Track items that failed to prepare
@@ -810,7 +827,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       if (beforeTracks.length > 0) {
         if (loadedOutOfOrderRef.current) {
           for (const { track, index } of beforeTracks) {
-            await addInQueueOrder(queue, index, track);
+            await addInQueueOrder(queue, index, track, isStale);
           }
         } else {
           await TrackPlayer.add(
@@ -818,6 +835,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
             0,
           );
         }
+        if (isStale()) return;
         // Update queue index since we inserted tracks before the current one,
         // unless a jump has moved playback off the track this load started on
         // and set the index itself.
@@ -840,10 +858,11 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         if (isStale()) return;
         if (prepared) {
           if (loadedOutOfOrderRef.current) {
-            await addInQueueOrder(queue, i, prepared.track);
+            await addInQueueOrder(queue, i, prepared.track, isStale);
           } else {
             await TrackPlayer.add(prepared.track); // Append to end
           }
+          if (isStale()) return;
           if (prepared.mediaInfo && item.Id) {
             setState((prev) => ({
               ...prev,
@@ -937,7 +956,10 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
           return;
         }
 
-        // Reset and start playback immediately with just the target track
+        // Reset and start playback immediately with just the target track.
+        // Only from here on is the previous queue gone: bailing out above
+        // leaves it playing, and its background load has to finish.
+        const queueGeneration = ++queueGenerationRef.current;
         loadedOutOfOrderRef.current = false;
         await TrackPlayer.reset();
         await TrackPlayer.add(targetTrackResult.track);
@@ -974,7 +996,12 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
 
         // PHASE 2: Load remaining tracks in background (non-blocking)
         if (finalQueue.length > 1) {
-          loadRemainingTracksInBackground(finalQueue, finalIndex, preferLocal);
+          loadRemainingTracksInBackground(
+            finalQueue,
+            finalIndex,
+            preferLocal,
+            queueGeneration,
+          );
         }
       } catch (error) {
         // Tapping a track just stops spinning when this fails.
@@ -1302,6 +1329,9 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       );
     }
 
+    // Before the reset: a background load that is between two tracks would
+    // otherwise add its next one to the emptied queue.
+    queueGenerationRef.current += 1;
     try {
       await TrackPlayer.reset();
     } finally {
