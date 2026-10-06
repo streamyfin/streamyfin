@@ -2,14 +2,15 @@ import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import { toast } from "sonner-native";
 import { getDownloadStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
-import { DownloadSingleItem } from "./DownloadItem";
+import { DownloadItems, DownloadSingleItem } from "./DownloadItem";
 
 const mockStartBackgroundDownload = jest.fn();
+let mockDownloadedItems: { item: BaseItemDto }[] = [];
 
 jest.mock("@/providers/DownloadProvider", () => ({
   useDownload: () => ({
     processes: [],
-    downloadedItems: [],
+    downloadedItems: mockDownloadedItems,
     startBackgroundDownload: mockStartBackgroundDownload,
   }),
 }));
@@ -73,6 +74,31 @@ const MOVIE: BaseItemDto = {
   Chapters: [],
 };
 
+/** An episode whose source and default tracks are told apart by its number. */
+const episode = (number: number): BaseItemDto => ({
+  Id: `episode-${number}`,
+  Type: "Episode",
+  Name: `Episode ${number}`,
+  Chapters: [],
+  MediaSources: [
+    {
+      Id: `source-${number}`,
+      DefaultAudioStreamIndex: number,
+      DefaultSubtitleStreamIndex: number + 10,
+      MediaStreams: [],
+    },
+  ],
+});
+
+const renderSeasonDownload = (items: BaseItemDto[]) =>
+  render(
+    <DownloadItems
+      items={items}
+      MissingDownloadIconComponent={() => <></>}
+      DownloadedIconComponent={() => <></>}
+    />,
+  );
+
 /** Presses Download in the sheet and lets the wait for its dismissal pass. */
 const confirmDownload = async () => {
   await fireEvent.press(screen.getByText("item_card.download.download_button"));
@@ -85,6 +111,7 @@ describe("DownloadSingleItem", () => {
   beforeEach(() => {
     jest.useFakeTimers();
     jest.clearAllMocks();
+    mockDownloadedItems = [];
   });
 
   afterEach(() => {
@@ -125,5 +152,87 @@ describe("DownloadSingleItem", () => {
       expect.objectContaining({ mediaSourceId: "source-1" }),
     );
     expect(mockStartBackgroundDownload).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("DownloadItems, with one episode of a season left to download", () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+    jest.clearAllMocks();
+    mockDownloadedItems = [];
+    jest.mocked(getDownloadStreamUrl).mockResolvedValue({
+      url: "http://server/download",
+      sessionId: null,
+      mediaSource: { Id: "source", MediaStreams: [] },
+    });
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  // The sheet took its source and tracks from the first episode of the list
+  // while the one left to download was another, so the server was asked for
+  // that episode with a media source id that belongs to a different one.
+  test("downloads it with its own media source and default tracks", async () => {
+    mockDownloadedItems = [{ item: episode(1) }];
+    await renderSeasonDownload([episode(1), episode(2)]);
+
+    await confirmDownload();
+
+    expect(getDownloadStreamUrl).toHaveBeenCalledTimes(1);
+    expect(getDownloadStreamUrl).toHaveBeenCalledWith(
+      expect.objectContaining({
+        item: expect.objectContaining({ Id: "episode-2" }),
+        mediaSourceId: "source-2",
+        audioStreamIndex: 2,
+        subtitleStreamIndex: 12,
+      }),
+    );
+    expect(mockStartBackgroundDownload).toHaveBeenCalledWith(
+      "http://server/download",
+      expect.objectContaining({ Id: "episode-2" }),
+      expect.anything(),
+      expect.anything(),
+      2,
+      12,
+    );
+  });
+
+  // The first episode can be downloaded and no longer have a source on the
+  // server (its file was removed there). That is not the episode being asked
+  // for, so it must not turn the download down.
+  test("is not turned down because the first episode has no media source", async () => {
+    const downloaded = { ...episode(1), MediaSources: [] };
+    mockDownloadedItems = [{ item: downloaded }];
+    await renderSeasonDownload([downloaded, episode(2)]);
+
+    await confirmDownload();
+
+    expect(toast.error).not.toHaveBeenCalled();
+    expect(getDownloadStreamUrl).toHaveBeenCalledWith(
+      expect.objectContaining({ mediaSourceId: "source-2" }),
+    );
+    expect(mockStartBackgroundDownload).toHaveBeenCalledTimes(1);
+  });
+
+  // "Unwatched only" narrows what is sent, not what is pending: the sheet
+  // offers no source or tracks then, and each episode resolves its own.
+  test("left by the unwatched only switch, downloads it with its own media source", async () => {
+    const watched = { ...episode(1), UserData: { Played: true } };
+    await renderSeasonDownload([watched, episode(2)]);
+
+    await fireEvent(screen.getByRole("switch"), "valueChange", true);
+    await confirmDownload();
+
+    expect(getDownloadStreamUrl).toHaveBeenCalledTimes(1);
+    expect(getDownloadStreamUrl).toHaveBeenCalledWith(
+      expect.objectContaining({
+        item: expect.objectContaining({ Id: "episode-2" }),
+        mediaSourceId: "source-2",
+        audioStreamIndex: 2,
+        subtitleStreamIndex: 12,
+      }),
+    );
   });
 });

@@ -97,13 +97,6 @@ export const DownloadItems: React.FC<DownloadProps> = ({
     SelectedOptions | undefined
   >(undefined);
 
-  const {
-    defaultAudioIndex,
-    defaultBitrate,
-    defaultMediaSource,
-    defaultSubtitleIndex,
-  } = useDefaultPlaySettings(items[0], settings);
-
   const userCanDownload = useMemo(
     () => user?.Policy?.EnableContentDownloading,
     [user],
@@ -130,6 +123,19 @@ export const DownloadItems: React.FC<DownloadProps> = ({
       items.filter((i) => !downloadedFiles?.some((f) => f.item.Id === i.Id)),
     [items, downloadedFiles],
   );
+
+  // The sheet offers a source and tracks when one item is left to download,
+  // and that item is the one they are for. In a season with the rest already
+  // downloaded it is rarely the first of the list.
+  const optionsItem =
+    itemsNotDownloaded.length === 1 ? itemsNotDownloaded[0] : items[0];
+
+  const {
+    defaultAudioIndex,
+    defaultBitrate,
+    defaultMediaSource,
+    defaultSubtitleIndex,
+  } = useDefaultPlaySettings(optionsItem, settings);
 
   // Initialize selectedOptions with default values
   useEffect(() => {
@@ -466,7 +472,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
                 <View>
                   <View className='items-start'>
                     <MediaSourceSelector
-                      item={items[0]}
+                      item={optionsItem}
                       onChange={(val) =>
                         setSelectedOptions(
                           (prev) =>
