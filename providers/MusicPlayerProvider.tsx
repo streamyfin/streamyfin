@@ -823,6 +823,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         });
         if (!addedTogether) {
           for (const { track, index } of beforeTracks) {
+            if (isStale()) return;
             await editNativeQueue(() => addInQueueOrder(queue, index, track));
           }
         }
@@ -1628,9 +1629,12 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         }));
 
         try {
+          // Preparing is a network round trip. A session that switched account
+          // meanwhile has reset the player, and this track is not its to play.
+          const generation = sessionGenerationRef.current;
           const preferLocal = settings?.preferLocalAudio ?? true;
           const prepared = await prepareTrack(targetItem, preferLocal);
-          if (!prepared) return;
+          if (!prepared || generation !== sessionGenerationRef.current) return;
 
           await editNativeQueue(async () => {
             // Preparing was a network round trip, so read the queue again: the

@@ -1,5 +1,7 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { act, render } from "@testing-library/react-native";
+import { getDefaultStore } from "jotai";
+import { userAtom } from "@/providers/JellyfinProvider";
 import { clearMmkv } from "@/test-utils/mmkv";
 import { storage } from "@/utils/mmkv";
 import { MusicPlayerProvider, useMusicPlayer } from "./MusicPlayerProvider";
@@ -228,6 +230,7 @@ describe("MusicPlayerProvider and the native queue", () => {
     mockNative.queue = [];
     mockNative.activeIndex = undefined;
     mockNative.afterQueueRead = undefined;
+    getDefaultStore().set(userAtom, { Id: "user", ServerId: "server" });
   });
 
   // Sentry REACT-NATIVE-AW. Playback starts on one track and the rest of the
@@ -298,6 +301,36 @@ describe("MusicPlayerProvider and the native queue", () => {
     expect(nativeIds()).toEqual(["t0", "t1", "t2", "t3", "t4"]);
     expect(nativeActiveId()).toBe("t3");
     expect(player.currentTrack?.Id).toBe("t3");
+  });
+
+  // Switching account resets the player, and nothing of the previous account
+  // may come back into it. A jump that was waiting for its stream URL used to
+  // carry on: it added the old account's track to the emptied queue and made
+  // it the current track again.
+  test("drops a jump whose track arrives after the session switched account", async () => {
+    await mount();
+    holdStreams("t1");
+    await run((p) => p.playQueue(ALBUM, 0));
+
+    holdStreams("t3");
+    let jump: unknown;
+    await act(async () => {
+      jump = player.jumpToIndex(3);
+    });
+    await act(async () => {
+      getDefaultStore().set(userAtom, { Id: "other", ServerId: "server" });
+    });
+    await settle();
+    expect(nativeIds()).toEqual([]);
+
+    await releaseStreams();
+    await act(async () => {
+      await jump;
+    });
+
+    expect(nativeIds()).toEqual([]);
+    expect(player.currentTrack).toBeNull();
+    expect(player.isLoading).toBe(false);
   });
 
   // Same report, the other way in: a queue restored after a restart is only
