@@ -196,10 +196,19 @@ class DownloadService : Service() {
     }
   }
   
+  /**
+   * Synchronized with syncActiveDownloads() and onTimeout(), which take the service out of the
+   * foreground: a progress tick that lands just after would put the notification back with
+   * notify(), ongoing, and nothing removes it then. A download that runs without the
+   * foreground, because the promotion was refused, has no notification for the same reason.
+   */
+  @Synchronized
   fun updateProgress(title: String, progress: Int) {
     currentDownloadTitle = title
     currentProgress = progress
-    
+
+    if (!foreground.isPromoted) return
+
     val notificationManager = getSystemService(NotificationManager::class.java)
     notificationManager.notify(NOTIFICATION_ID, createNotification())
   }

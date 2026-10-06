@@ -178,4 +178,38 @@ class ForegroundPromotionTest {
 
     assertEquals(2, demotions)
   }
+
+  // The service only posts download progress while this says so. notify() on the id of a
+  // notification that left with the foreground puts it back, and nothing removes it then.
+  @Test
+  fun ownsTheNotificationOnlyWhileInTheForeground() {
+    assertFalse(foreground.isPromoted)
+
+    foreground.onStartCommand()
+    assertTrue(foreground.isPromoted)
+
+    foreground.onActiveDownloads(0)
+    assertFalse(foreground.isPromoted)
+  }
+
+  @Test
+  fun doesNotOwnTheNotificationAfterATimeout() {
+    foreground.onStartCommand()
+    foreground.onActiveDownloads(1)
+
+    foreground.onTimeout()
+
+    assertFalse(foreground.isPromoted)
+  }
+
+  // A download started while the time limit is used up runs without the foreground, with the
+  // app on screen or a playing music service keeping the process up.
+  @Test
+  fun doesNotOwnTheNotificationWhenThePromotionWasRefused() {
+    systemAllows = false
+
+    foreground.onActiveDownloads(1)
+
+    assertFalse(foreground.isPromoted)
+  }
 }

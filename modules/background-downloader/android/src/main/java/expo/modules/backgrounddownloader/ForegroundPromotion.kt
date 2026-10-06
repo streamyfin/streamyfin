@@ -17,6 +17,10 @@ internal class ForegroundPromotion(
 ) {
   private var promoted = false
 
+  /** Whether the service is in the foreground, which is also when its notification is up. */
+  val isPromoted: Boolean
+    @Synchronized get() = promoted
+
   /**
    * Answers one start command. Nothing is checked first, not even whether the service is
    * already in the foreground: the system decides which starts are owed an answer, and this
