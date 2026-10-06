@@ -108,4 +108,74 @@ class ForegroundPromotionTest {
 
     assertEquals(1, demotions)
   }
+
+  // Sentry REACT-NATIVE-HT: Android 15+ gives a dataSync service about six hours in the
+  // foreground per day, then calls onTimeout() and kills the process unless the service leaves
+  // the foreground within seconds.
+  @Test
+  fun leavesTheForegroundWhenTheSystemEndsItsTime() {
+    foreground.onStartCommand()
+    foreground.onActiveDownloads(1)
+
+    foreground.onTimeout()
+
+    assertEquals(1, demotions)
+  }
+
+  // The system is the one saying the service is in the foreground. Whether this class agrees
+  // is not a reason to leave its call unanswered.
+  @Test
+  fun leavesTheForegroundOnATimeoutItDidNotExpect() {
+    foreground.onTimeout()
+
+    assertEquals(1, demotions)
+  }
+
+  @Test
+  fun doesNotLeaveTheForegroundTwiceAfterATimeout() {
+    foreground.onStartCommand()
+    foreground.onTimeout()
+
+    assertFalse(foreground.onActiveDownloads(0))
+
+    assertEquals(1, demotions)
+  }
+
+  // The limit stays used up until the app has been on screen, and only the system knows when
+  // that is. A start command in between is still owed its startForeground() call, which is
+  // refused, and the service then has nothing to stay for.
+  @Test
+  fun answersAStartCommandWhileTheTimeLimitIsUsedUp() {
+    foreground.onStartCommand()
+    foreground.onTimeout()
+    systemAllows = false
+
+    assertFalse(foreground.onStartCommand())
+
+    assertEquals(2, promotions)
+  }
+
+  @Test
+  fun asksToStopWhenADownloadRunsWhileTheTimeLimitIsUsedUp() {
+    foreground.onStartCommand()
+    foreground.onTimeout()
+    systemAllows = false
+
+    assertFalse(foreground.onActiveDownloads(1))
+
+    assertEquals(2, promotions)
+  }
+
+  @Test
+  fun takesTheForegroundAgainOnceTheSystemAllowsItAfterATimeout() {
+    foreground.onStartCommand()
+    foreground.onTimeout()
+
+    assertTrue(foreground.onActiveDownloads(1))
+    assertEquals(2, promotions)
+
+    foreground.onActiveDownloads(0)
+
+    assertEquals(2, demotions)
+  }
 }

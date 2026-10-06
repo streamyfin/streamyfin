@@ -50,6 +50,17 @@ describe("classifyDownloadError — the user's environment", () => {
     ).toEqual(environment);
     expect(classifyDownloadError("TLS handshake failed")).toEqual(environment);
   });
+
+  // REACT-NATIVE-HT: Android 15+ ends a download service's foreground time
+  // after about six hours a day. The wording is FOREGROUND_TIME_LIMIT_ERROR in
+  // BackgroundDownloaderModule.kt, and it is the system's limit, not a fault.
+  test("Android's time limit for background downloads", () => {
+    expect(
+      classifyDownloadError(
+        "Download timed out: Android's daily time limit for background downloads was reached",
+      ),
+    ).toEqual(environment);
+  });
 });
 
 // A download refused with a status is a request like any other, and sorted

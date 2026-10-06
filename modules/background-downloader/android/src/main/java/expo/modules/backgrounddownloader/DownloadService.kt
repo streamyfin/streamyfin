@@ -31,6 +31,13 @@ class DownloadService : Service() {
   )
   private var wakeLock: PowerManager.WakeLock? = null
 
+  /**
+   * Told when the system ends the foreground time, on the main thread. The module sets it: it
+   * owns the downloads, which lose what kept the process running for them.
+   */
+  @Volatile
+  var onForegroundTimeLimit: (() -> Unit)? = null
+
   inner class DownloadServiceBinder : Binder() {
     fun getService(): DownloadService = this@DownloadService
   }
@@ -91,6 +98,30 @@ class DownloadService : Service() {
     }
   }
   
+  /**
+   * Android 15+: a dataSync service gets about six hours in the foreground per 24 hours,
+   * counted from the last time the app was on screen. When they are used up the system calls
+   * this, and kills the process with ForegroundServiceDidNotStopInTimeException when the
+   * service is still in the foreground a few seconds later (Sentry REACT-NATIVE-HT). Never
+   * called below API 35.
+   */
+  override fun onTimeout(startId: Int, fgsType: Int) {
+    Log.w(TAG, "Foreground time limit reached, leaving the foreground")
+
+    // Left explicitly, not through stopSelf(): the module's binding keeps a stopped service
+    // up, and in the foreground with it.
+    synchronized(this) {
+      foreground.onTimeout()
+      releaseWakeLock()
+    }
+    // With the start id, so that a start command still on its way is not stopped unanswered.
+    stopSelf(startId)
+
+    // Outside the lock: the module takes its own, and holds it when it calls
+    // syncActiveDownloads().
+    onForegroundTimeLimit?.invoke()
+  }
+
   override fun onDestroy() {
     releaseWakeLock()
     Log.d(TAG, "DownloadService destroyed")

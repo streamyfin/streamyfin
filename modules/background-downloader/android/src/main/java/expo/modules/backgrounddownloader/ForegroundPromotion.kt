@@ -50,4 +50,18 @@ internal class ForegroundPromotion(
     }
     return false
   }
+
+  /**
+   * The system has ended the service's time in the foreground: Service.onTimeout() for a time
+   * limited type such as dataSync. Leaving the foreground is the answer it waits for, and it
+   * kills the process when that does not come, so nothing is checked first here either.
+   *
+   * The promotion is forgotten with it. The next running download asks again, and is refused
+   * until the system has reset the limit.
+   */
+  @Synchronized
+  fun onTimeout() {
+    demote()
+    promoted = false
+  }
 }

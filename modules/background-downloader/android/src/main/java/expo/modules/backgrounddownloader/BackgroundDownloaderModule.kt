@@ -29,6 +29,14 @@ private data class QueuedDownload(
 class BackgroundDownloaderModule : Module() {
   companion object {
     private const val TAG = "BackgroundDownloader"
+
+    /**
+     * What a download fails with when Android ends the foreground time it ran on. JS files an
+     * error by its wording (classifyDownloadError), and "timed out" is what keeps this one with
+     * the failures of the user's environment: downloadErrors.test.ts pins this text.
+     */
+    private const val FOREGROUND_TIME_LIMIT_ERROR =
+      "Download timed out: Android's daily time limit for background downloads was reached"
   }
 
   private val context
@@ -44,6 +52,13 @@ class BackgroundDownloaderModule : Module() {
   private val downloadQueue = mutableListOf<QueuedDownload>()
   private var taskIdCounter = 1
 
+  /**
+   * Set when Android ended the service's foreground time, cleared when the app is on screen
+   * again, which is also what resets the limit. The queue does not advance in between: a
+   * download started then would run in a process the system may freeze or kill at any moment.
+   */
+  private var queueHeldForTimeLimit = false
+
   @Volatile
   private var downloadService: DownloadService? = null
   @Volatile
@@ -54,7 +69,9 @@ class BackgroundDownloaderModule : Module() {
       Log.d(TAG, "Service connected")
       val binder = service as DownloadService.DownloadServiceBinder
       synchronized(stateLock) {
-        downloadService = binder.getService()
+        downloadService = binder.getService().also {
+          it.onForegroundTimeLimit = { handleForegroundTimeLimit() }
+        }
         serviceBound = true
         // bindService is async, so the first download could not reach the service.
         syncServiceLocked()
@@ -82,9 +99,22 @@ class BackgroundDownloaderModule : Module() {
       Log.d(TAG, "Module created")
     }
 
+    // The time limit only runs out with the app off screen, so this is the first moment the
+    // held queue can go on with the foreground behind it again.
+    OnActivityEntersForeground {
+      synchronized(stateLock) {
+        if (queueHeldForTimeLimit) {
+          Log.d(TAG, "App is on screen again, resuming the queue")
+          queueHeldForTimeLimit = false
+          processNextInQueueLocked()
+        }
+      }
+    }
+
     OnDestroy {
       Log.d(TAG, "Module destroyed")
       downloadManager.cancelAllDownloads()
+      downloadService?.onForegroundTimeLimit = null
       if (serviceBound) {
         try {
           context.unbindService(serviceConnection)
@@ -266,6 +296,11 @@ class BackgroundDownloaderModule : Module() {
       return -1
     }
 
+    if (queueHeldForTimeLimit) {
+      Log.d(TAG, "Queue is held until the app is on screen again (${downloadQueue.size} waiting)")
+      return -1
+    }
+
     // Check if there are active downloads (one at a time)
     if (downloadTasks.isNotEmpty()) {
       Log.d(TAG, "Active downloads in progress (${downloadTasks.size}), waiting...")
@@ -363,6 +398,30 @@ class BackgroundDownloaderModule : Module() {
     }
   }
 
+  /**
+   * The service has left the foreground because Android's time limit for it ran out. Called on
+   * the main thread.
+   *
+   * The transfers are this module's and would outlive the service, but not by much: with the
+   * app off screen and nothing in the foreground the process is frozen or killed, and a
+   * transfer cannot be resumed (no Range support, and a transcode has nothing to resume from).
+   * JS would then drop the record of a download that died with the process without a word. So
+   * the running ones fail now, with an error JS reports, and the queued ones wait.
+   */
+  private fun handleForegroundTimeLimit() {
+    val running = synchronized(stateLock) {
+      // Before the tasks fail: each failure goes on to the next item in the queue.
+      queueHeldForTimeLimit = true
+      downloadTasks.keys.toList()
+    }
+    Log.w(TAG, "Foreground time limit reached, failing ${running.size} running download(s)")
+
+    running.forEach { taskId ->
+      downloadManager.cancelDownload(taskId)
+      handleError(taskId, FOREGROUND_TIME_LIMIT_ERROR)
+    }
+  }
+
   /** Assumes `stateLock` is held. */
   private fun syncServiceLocked() {
     downloadService?.syncActiveDownloads(downloadTasks.size)
@@ -380,6 +439,7 @@ class BackgroundDownloaderModule : Module() {
     val idle = synchronized(stateLock) { downloadTasks.isEmpty() }
     if (serviceBound && idle) {
       try {
+        downloadService?.onForegroundTimeLimit = null
         context.unbindService(serviceConnection)
         serviceBound = false
         downloadService = null
