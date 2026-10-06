@@ -12,6 +12,7 @@ import { atom, useAtom, useAtomValue } from "jotai";
 import { useCallback, useEffect } from "react";
 import { Platform } from "react-native";
 import { BITRATES, type Bitrate } from "@/components/BitrateSelector";
+import { REDACTED_PLACEHOLDER } from "@/constants/Privacy";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { logAndCaptureError, writeInfoLog } from "@/utils/log";
@@ -569,7 +570,7 @@ export const redactPluginSettings = (
       Object.entries(settings).map(([key, lockable]) => [
         key,
         SENSITIVE_SETTING_KEYS.has(key as keyof Settings) && lockable?.value
-          ? { ...lockable, value: "[redacted]" }
+          ? { ...lockable, value: REDACTED_PLACEHOLDER }
           : lockable,
       ]),
     ) as PluginLockableSettings)
