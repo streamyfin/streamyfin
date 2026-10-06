@@ -463,20 +463,12 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
 
   useInterval(pollQuickConnect, isPolling ? 1000 : null);
 
-  // Refresh plugin settings when the app comes to the foreground.
-  //
-  // Through a ref rather than a dependency: re-registering the listener every
-  // time the refresh callback changes is churn, and registering once with the
-  // callback captured is how the refresh kept running against the api of the
-  // first render. Switch account without restarting the process and it went to
-  // the previous server with the previous token, which comes back as a 401 on
-  // a server the user is no longer using.
-  const refreshPluginSettingsRef = useRef(refreshStreamyfinPluginSettings);
-  useEffect(() => {
-    refreshPluginSettingsRef.current = refreshStreamyfinPluginSettings;
-  }, [refreshStreamyfinPluginSettings]);
-
-  useEffect(() => onAppForeground(() => refreshPluginSettingsRef.current), []);
+  // Refresh plugin settings when the app comes to the foreground. The refresh
+  // reads the session when it runs, so the listener is registered once.
+  useEffect(
+    () => onAppForeground(() => refreshStreamyfinPluginSettings),
+    [refreshStreamyfinPluginSettings],
+  );
 
   const discoverServers = async (url: string): Promise<Server[]> => {
     const servers =
