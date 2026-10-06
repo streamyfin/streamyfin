@@ -84,8 +84,9 @@ const quit = (client: QueryClient, disk: Disk, options: DehydrateOptions) =>
     dehydrateOptions: options,
   });
 
-// The next launch: restore, then the network comes back, which is what resumes
-// paused mutations on a mounted client.
+// The next launch: restore, mount, then the network comes back. That online
+// event is what resumes paused mutations on a mounted client, and it is the
+// path in the Sentry stack, so nothing here resumes them by hand.
 const relaunch = async (disk: Disk) => {
   const client = newClient();
   await persistQueryClientRestore({
@@ -95,8 +96,8 @@ const relaunch = async (disk: Disk) => {
     ),
   });
   client.mount();
+  onlineManager.setOnline(false);
   onlineManager.setOnline(true);
-  await client.resumePausedMutations();
   await flush();
   return client;
 };
