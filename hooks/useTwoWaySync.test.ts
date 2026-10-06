@@ -1,4 +1,7 @@
-import type { UserPolicy } from "@jellyfin/sdk/lib/generated-client/models";
+import type {
+  BaseItemDto,
+  UserPolicy,
+} from "@jellyfin/sdk/lib/generated-client/models";
 import { renderHook } from "@testing-library/react-native";
 import { getDefaultStore } from "jotai";
 import {
@@ -53,20 +56,36 @@ const WATCHED_OFFLINE_AGAIN = "2026-10-06T20:00:00.000Z";
 const SEEN_BY_SERVER = "2026-10-01T20:00:00.000Z";
 const OFFLINE_POSITION_TICKS = 6_000_000_000;
 
-// A movie watched offline after the server last saw it, so its state is
-// waiting to be pushed.
-const download = (id: string, lastPlayed = WATCHED_OFFLINE) =>
+// A download watched offline after the server last saw it, so its state is
+// waiting to be pushed. A movie unless told otherwise.
+const download = (id: string, item: Partial<BaseItemDto> = {}) =>
   addDownloadedItem({
     item: {
       Id: id,
       Type: "Movie",
       UserData: {
-        LastPlayedDate: lastPlayed,
+        LastPlayedDate: WATCHED_OFFLINE,
         PlaybackPositionTicks: OFFLINE_POSITION_TICKS,
         Played: false,
       },
+      ...item,
     },
   } as DownloadedItem);
+
+// What the player writes when the download is played once more.
+const watchAgain = (id: string) => {
+  const downloaded = getDownloadedItemById(id)!;
+  updateDownloadedItem(id, {
+    ...downloaded,
+    item: {
+      ...downloaded.item,
+      UserData: {
+        ...downloaded.item.UserData,
+        LastPlayedDate: WATCHED_OFFLINE_AGAIN,
+      },
+    },
+  });
+};
 
 const itemUrl = (id: string) => new RegExp(`/Items/${id}(\\?|$)`);
 const userDataUrl = (id: string) => new RegExp(`/UserItems/${id}/UserData`);
@@ -124,6 +143,24 @@ describe("useTwoWaySync — a push the server refuses", () => {
     },
   );
 
+  // Most downloads are episodes, and those are stored by series, season and
+  // episode number, not by id.
+  test("is not sent again for an episode either", async () => {
+    download("episode-1", {
+      Type: "Episode",
+      SeriesId: "series-1",
+      ParentIndexNumber: 1,
+      IndexNumber: 2,
+    });
+    serverHas("episode-1");
+    api.mock.onPost(userDataUrl("episode-1")).reply(403);
+
+    await sync("episode-1");
+    await sync("episode-1");
+
+    expect(pushes("episode-1")).toHaveLength(1);
+  });
+
   test("leaves the download and its offline progress in place", async () => {
     download("movie-1");
     serverHas("movie-1");
@@ -147,20 +184,30 @@ describe("useTwoWaySync — a push the server refuses", () => {
     api.mock.onPost(userDataUrl("movie-1")).reply(403);
     await sync("movie-1");
 
-    const refused = getDownloadedItemById("movie-1")!;
-    updateDownloadedItem("movie-1", {
-      ...refused,
-      item: {
-        ...refused.item,
-        UserData: {
-          ...refused.item.UserData,
-          LastPlayedDate: WATCHED_OFFLINE_AGAIN,
-        },
-      },
-    });
+    watchAgain("movie-1");
     await sync("movie-1");
     await sync("movie-1");
 
+    expect(pushes("movie-1")).toHaveLength(2);
+  });
+
+  // The refusal comes back while the player is writing: remembering it must
+  // not put the download back to what it was when the push went out.
+  test("keeps what was watched while the push was on its way", async () => {
+    download("movie-1");
+    serverHas("movie-1");
+    api.mock.onPost(userDataUrl("movie-1")).reply(() => {
+      watchAgain("movie-1");
+      return [403];
+    });
+
+    await sync("movie-1");
+
+    expect(
+      getDownloadedItemById("movie-1")?.item.UserData?.LastPlayedDate,
+    ).toBe(WATCHED_OFFLINE_AGAIN);
+    // And that newer state was not the one refused, so it is still owed.
+    await sync("movie-1");
     expect(pushes("movie-1")).toHaveLength(2);
   });
 
