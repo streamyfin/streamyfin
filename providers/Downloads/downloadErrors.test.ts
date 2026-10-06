@@ -50,6 +50,32 @@ describe("classifyDownloadError — the user's environment", () => {
     ).toEqual(environment);
     expect(classifyDownloadError("TLS handshake failed")).toEqual(environment);
   });
+
+  // A connection cut under the transfer, in the words that carry none of the
+  // usual ones.
+  test.each([
+    // REACT-NATIVE-A1, Android: the peer, or a proxy, reset the HTTP/2 stream.
+    ["stream was reset: INTERNAL_ERROR"],
+    ["stream was reset: CANCEL"],
+    ["stream was reset: REFUSED_STREAM"],
+    // REACT-NATIVE-83, Android: the connection closed before the body ended.
+    ["unexpected end of stream"],
+    ["unexpected end of stream on https://jellyfin.example.com/..."],
+    // REACT-NATIVE-4S, iOS: NSURLErrorCannotParseResponse, an answer cut
+    // short or mangled on the way.
+    ["cannot parse response"],
+  ])("a transfer the network cut: %j", (error) => {
+    expect(classifyDownloadError(error)).toEqual(environment);
+  });
+
+  // REACT-NATIVE-GM: iOS words its errors in the user's language, and no list
+  // of words covers that. Pinned so that it is not taken for covered: it
+  // needs the NSURLError code from the native side.
+  test("the same iOS error in another language is still reported", () => {
+    expect(classifyDownloadError("impossibile analizzare la risposta")).toEqual(
+      reportedAs("impossibile analizzare la risposta"),
+    );
+  });
 });
 
 // A download refused with a status is a request like any other, and sorted
