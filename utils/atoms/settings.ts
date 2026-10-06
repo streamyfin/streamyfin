@@ -8,7 +8,7 @@ import {
 } from "@jellyfin/sdk/lib/generated-client";
 import { isAxiosError } from "axios";
 import { t } from "i18next";
-import { atom, useAtom, useAtomValue } from "jotai";
+import { atom, useAtom, useAtomValue, useStore } from "jotai";
 import { useCallback, useEffect } from "react";
 import { Platform } from "react-native";
 import { BITRATES, type Bitrate } from "@/components/BitrateSelector";
@@ -920,7 +920,7 @@ const loadAppliedPluginDefaults = (): AppliedPluginDefaults => {
 };
 
 export const useSettings = () => {
-  const api = useAtomValue(apiAtom);
+  const jotaiStore = useStore();
   const [_settings, setSettings] = useAtom(settingsAtom);
   const [pluginSettings, _setPluginSettings] = useAtom(pluginSettingsAtom);
 
@@ -941,6 +941,9 @@ export const useSettings = () => {
   );
 
   const refreshStreamyfinPluginSettings = useCallback(async () => {
+    // Read when called, not when rendered: a sign-in sets the new api and
+    // refreshes straight away, before a render hands this callback the new one.
+    const api = jotaiStore.get(apiAtom);
     if (!api) {
       return;
     }
@@ -995,7 +998,7 @@ export const useSettings = () => {
     }
 
     return newPluginSettings;
-  }, [api, setPluginSettings, setSettings]);
+  }, [jotaiStore, setPluginSettings, setSettings]);
 
   const updateSettings = (update: Partial<Settings>) => {
     // Admin-locked settings are enforced at write time too: a control that

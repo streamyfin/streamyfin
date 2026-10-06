@@ -259,6 +259,31 @@ describe("refreshing the plugin settings", () => {
     expect(storage.get(PLUGIN_SETTINGS_KEY)).toBeUndefined();
   });
 
+  // A sign-in sets the new api and refreshes straight away, through the
+  // refresh it took from a render that still had the previous api. Asking
+  // with that one sent the previous session's token: none at all on a first
+  // sign-in, and on a TV account switch the previous user's, which handed the
+  // new user the settings the server resolved for the one before.
+  test("asks with the api set last, not the one it was rendered with", async () => {
+    const previous = jest.fn(async () => ({ data: { settings: stored } }));
+    const sent = { showCustomMenuLinks: { locked: false, value: false } };
+    const current = jest.fn(async () => ({ data: { settings: sent } }));
+
+    store.set(apiAtom, { getStreamyfinPluginConfig: previous } as never);
+    const { result } = await renderHook(() => useSettings());
+    const refresh = result.current.refreshStreamyfinPluginSettings;
+
+    let refreshed: unknown;
+    await act(async () => {
+      store.set(apiAtom, { getStreamyfinPluginConfig: current } as never);
+      refreshed = await refresh();
+    });
+
+    expect(previous).not.toHaveBeenCalled();
+    expect(refreshed).toEqual(sent);
+    expect(store.get(pluginSettingsAtom)).toEqual(sent);
+  });
+
   test("takes what the server sends", async () => {
     const sent = { showCustomMenuLinks: { locked: false, value: false } };
     const refreshed = await refreshAgainst(async () => ({
