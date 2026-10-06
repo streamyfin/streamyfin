@@ -6,6 +6,15 @@ import { usePlayMedia } from "./usePlayMedia";
 const mockPush = jest.fn();
 const mockPresentFromRequest = jest.fn();
 let mockNativeChromeActive = false;
+let mockSyncPlayEnabled = false;
+const mockSyncPlayItems = jest.fn();
+
+jest.mock("@/providers/SyncPlayProvider", () => ({
+  useSyncPlay: () => ({
+    enabled: mockSyncPlayEnabled,
+    playItems: mockSyncPlayItems,
+  }),
+}));
 
 jest.mock("@/hooks/useAppRouter", () => ({
   __esModule: true,
@@ -43,6 +52,8 @@ describe("usePlayMedia", () => {
     mockPush.mockClear();
     mockPresentFromRequest.mockReset().mockResolvedValue(false);
     mockNativeChromeActive = false;
+    mockSyncPlayEnabled = false;
+    mockSyncPlayItems.mockReset().mockResolvedValue(undefined);
     alert = jest.spyOn(Alert, "alert").mockImplementation(() => {});
   });
 
@@ -57,6 +68,53 @@ describe("usePlayMedia", () => {
       expect.stringContaining("/player/direct-player?itemId=movie-1"),
     );
     expect(alert).not.toHaveBeenCalled();
+  });
+
+  test("starts the group's queue instead of presenting a solo player", async () => {
+    mockSyncPlayEnabled = true;
+    mockNativeChromeActive = true;
+    await play({ Id: "movie-1", Type: "Movie" });
+    expect(mockSyncPlayItems).toHaveBeenCalledWith(["movie-1"], 0, 0);
+    expect(mockPush).not.toHaveBeenCalled();
+    expect(mockPresentFromRequest).not.toHaveBeenCalled();
+  });
+
+  test("keeps live television out of a synchronized video group", async () => {
+    mockSyncPlayEnabled = true;
+    await play({ Id: "channel-1", Type: "TvChannel" });
+    expect(mockSyncPlayItems).not.toHaveBeenCalled();
+    expect(mockPush).not.toHaveBeenCalled();
+    expect(alert).toHaveBeenCalledWith(
+      "syncplay.title",
+      "syncplay.online_video_only",
+    );
+  });
+
+  test("shares the complete queue and selected resume point with the group", async () => {
+    mockSyncPlayEnabled = true;
+    const { result } = await renderHook(() => usePlayMedia());
+    await act(async () => {
+      await result.current(
+        {
+          itemId: "episode-2",
+          offline: false,
+          playbackPositionTicks: 120_000_000,
+        },
+        {
+          item: { Id: "episode-2", Type: "Episode" },
+          preserveShuffleQueue: true,
+          queueItemIds: ["episode-3", "episode-2", "episode-1"],
+        },
+      );
+    });
+
+    expect(mockSyncPlayItems).toHaveBeenCalledWith(
+      ["episode-3", "episode-2", "episode-1"],
+      1,
+      120_000_000,
+    );
+    expect(mockPush).not.toHaveBeenCalled();
+    expect(mockPresentFromRequest).not.toHaveBeenCalled();
   });
 
   // A top shelf play link asks for an item and nothing else. Opening the

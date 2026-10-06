@@ -17,6 +17,7 @@ class TvRemoteKeyHandler(
         if (keyCode == KeyEvent.KEYCODE_BACK) {
             if (action == KeyEvent.ACTION_UP && repeatCount == 0) {
                 when {
+                    viewModel.showSyncPlayQueue -> viewModel.closeSyncPlayQueue()
                     viewModel.showExitConfirmation -> {
                         viewModel.dismissExitConfirmation()
                     }
@@ -103,13 +104,15 @@ class TvRemoteKeyHandler(
             }
             KeyEvent.KEYCODE_MEDIA_PREVIOUS -> {
                 if (action == KeyEvent.ACTION_UP && repeatCount == 0) {
-                    viewModel.seekTo(0.0)
+                    if (viewModel.syncPlayActive) viewModel.playPreviousEpisode()
+                    else viewModel.seekTo(0.0)
                 }
                 return true
             }
             KeyEvent.KEYCODE_MEDIA_STOP -> {
                 if (action == KeyEvent.ACTION_UP && repeatCount == 0) {
-                    viewModel.requestExitConfirmation()
+                    if (viewModel.syncPlayActive) viewModel.syncPlayAction("stop")
+                    else viewModel.requestExitConfirmation()
                 }
                 return true
             }

@@ -74,7 +74,11 @@ export const CenterControls: FC<CenterControlsProps> = ({
       )}
 
       {!Platform.isTV && (
-        <TouchableOpacity onPress={handleSkipBackward}>
+        <TouchableOpacity
+          testID='player-skip-backward'
+          accessibilityRole='button'
+          onPress={handleSkipBackward}
+        >
           <View
             style={{
               position: "relative",
@@ -120,7 +124,11 @@ export const CenterControls: FC<CenterControlsProps> = ({
       )}
 
       <View style={Platform.isTV ? { flex: 1, alignItems: "center" } : {}}>
-        <TouchableOpacity onPress={togglePlay}>
+        <TouchableOpacity
+          testID='player-toggle-play'
+          accessibilityRole='button'
+          onPress={togglePlay}
+        >
           {!isBuffering ? (
             <Ionicons
               name={isPlaying ? "pause" : "play"}
@@ -148,7 +156,11 @@ export const CenterControls: FC<CenterControlsProps> = ({
       )}
 
       {!Platform.isTV && (
-        <TouchableOpacity onPress={handleSkipForward}>
+        <TouchableOpacity
+          testID='player-skip-forward'
+          accessibilityRole='button'
+          onPress={handleSkipForward}
+        >
           <View
             style={{
               position: "relative",

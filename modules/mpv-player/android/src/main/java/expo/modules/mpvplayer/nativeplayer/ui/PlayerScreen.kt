@@ -301,5 +301,9 @@ fun PlayerScreen(
         if (viewModel.showSubtitleScaleOverlay) {
             SubtitleScaleOverlay(viewModel)
         }
+
+        if (viewModel.showSyncPlayQueue) {
+            SyncPlayQueueSheet(viewModel)
+        }
     }
 }

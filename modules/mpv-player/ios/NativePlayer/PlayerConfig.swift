@@ -180,7 +180,48 @@ struct UIOptionsRecord: Record {
 	@Field var strings: [String: String] = [:]
 }
 
+struct SyncPlayPlaylistItemRecord: Record {
+	@Field var itemId: String = ""
+	@Field var playlistItemId: String = ""
+	@Field var title: String = ""
+}
+
+struct SyncPlayLibraryItemRecord: Record {
+	@Field var itemId: String = ""
+	@Field var title: String = ""
+}
+
+struct SyncPlayStateRecord: Record {
+	@Field var groupId: String = ""
+	@Field var groupName: String = ""
+	@Field var status: String = ""
+	@Field var connected: Bool = false
+	@Field var busy: Bool = false
+	@Field var error: String?
+	@Field var playlist: [SyncPlayPlaylistItemRecord] = []
+	@Field var currentPlaylistItemId: String?
+	@Field var repeatMode: String = "RepeatNone"
+	@Field var shuffleMode: String = "Sorted"
+	@Field var ignoreWait: Bool = false
+	@Field var hasNext: Bool = false
+	@Field var hasPrevious: Bool = false
+	@Field var library: [SyncPlayLibraryItemRecord] = []
+	@Field var libraryLoading: Bool = false
+	@Field var libraryQuery: String = ""
+	@Field var strings: [String: String] = [:]
+}
+
+struct SyncPlayCommandRecord: Record {
+	@Field var commandId: String = ""
+	@Field var groupId: String = ""
+	@Field var playlistItemId: String = ""
+	@Field var command: String = ""
+	@Field var executeAtMs: Double = 0
+	@Field var positionSec: Double = 0
+}
+
 struct PlayerPresentConfigRecord: Record {
+	@Field var syncPlay: SyncPlayStateRecord?
 	@Field var stream: StreamConfigRecord = StreamConfigRecord()
 	@Field var metadata: MetadataRecord?
 	/// Custom proxy auth headers for the thumbnails the player loads itself

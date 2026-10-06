@@ -34,10 +34,20 @@ struct PlayerTopBar: View {
 						.foregroundStyle(.white.opacity(0.7))
 						.lineLimit(1)
 				}
+				if let group = viewModel.syncPlay {
+					Text("\(group.groupName) · \(group.connected ? group.status : viewModel.syncStr("reconnecting", "Reconnecting"))")
+						.font(.caption).foregroundStyle(.white.opacity(0.7)).lineLimit(1)
+				}
 			}
 			.padding(.leading, 8)
 
 			Spacer(minLength: 12)
+
+			if viewModel.isSyncPlayActive {
+				barButton(systemName: "person.2.fill") { viewModel.openSyncPlayQueue() }
+					.accessibilityLabel(viewModel.syncStr("queue", "Queue"))
+					.accessibilityIdentifier("syncplay-open-queue")
+			}
 
 			if viewModel.engine?.isPictureInPictureSupported() == true {
 				barButton(systemName: viewModel.isPipActive ? "pip.exit" : "pip.enter") {
@@ -55,7 +65,7 @@ struct PlayerTopBar: View {
 				}
 			}
 
-			if !viewModel.episodeList.isEmpty {
+			if !viewModel.isSyncPlayActive && !viewModel.episodeList.isEmpty {
 				barButton(systemName: "list.bullet") {
 					viewModel.showEpisodeList = true
 					viewModel.scheduleAutoHide()
@@ -63,7 +73,7 @@ struct PlayerTopBar: View {
 				.accessibilityLabel(viewModel.str("episodes", "Episodes"))
 			}
 
-			if !compact {
+			if !compact && !viewModel.isSyncPlayActive {
 				speedMenu
 			}
 
@@ -254,10 +264,12 @@ struct PlayerTopBar: View {
 						Label(viewModel.str("zoomToFill", "Zoom to fill"), systemImage: "arrow.up.left.and.arrow.down.right")
 					}
 				}
-				Menu {
-					speedMenuEntries
-				} label: {
-					Label(viewModel.str("speed", "Speed"), systemImage: "speedometer")
+				if !viewModel.isSyncPlayActive {
+					Menu {
+						speedMenuEntries
+					} label: {
+						Label(viewModel.str("speed", "Speed"), systemImage: "speedometer")
+					}
 				}
 			}
 			if !viewModel.qualityMenu.isEmpty {
@@ -280,7 +292,7 @@ struct PlayerTopBar: View {
 					Label(viewModel.str("chapters", "Chapters"), systemImage: "bookmark")
 				}
 			}
-			sleepTimerMenu
+			if !viewModel.isSyncPlayActive { sleepTimerMenu }
 			Button {
 				viewModel.requestRotate()
 			} label: {

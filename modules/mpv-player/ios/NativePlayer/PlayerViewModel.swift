@@ -101,6 +101,11 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	@Published var scrubPosition: Double = 0
 	@Published var showTechnicalInfo = false
 	@Published var showEpisodeList = false
+	@Published var syncPlay: SyncPlayStateRecord?
+	@Published var showSyncPlayQueue = false
+	private let syncPlayScheduler = SyncPlayCommandScheduler()
+	private var pendingSeekTarget: Double?
+	var isSyncPlayActive: Bool { syncPlay != nil }
 	@Published var showSubtitleScaleControl = false
 	#if os(tvOS)
 	/// Transient transport-bar reveal after a blind arrow jump with the
@@ -349,6 +354,88 @@ final class PlayerViewModel: NSObject, ObservableObject {
 
 	// MARK: - Config application
 
+	func syncStr(_ key: String, _ fallback: String) -> String {
+		syncPlay?.strings[key] ?? fallback
+	}
+
+	func updateSyncPlay(_ state: SyncPlayStateRecord?) {
+		syncPlayScheduler.updateMembership(
+			groupId: state?.groupId, playlistItemId: state?.currentPlaylistItemId)
+		syncPlay = state
+		if state == nil { showSyncPlayQueue = false; return }
+		// Group time has one speed. Local episode countdowns, sleep timers and
+		// automatic segment jumps cannot advance one participant independently.
+		cancelCountdownTask()
+		countdownRemaining = nil
+		showStillWatching = false
+		if sleepTimerMinutes != nil { cancelSleepTimer() }
+		isHoldSpeedActive = false
+		speedBeforeHold = nil
+		if speed != 1 { speed = 1; engine?.setSpeed(speed: 1) }
+	}
+
+	func syncPlayAction(_ action: String, _ fields: [String: Any] = [:]) {
+		guard let state = syncPlay, !isTearingDown,
+			state.connected || action == "leave" else { return }
+		var payload = fields
+		payload["action"] = action
+		emit?("onSyncPlayAction", payload)
+		scheduleAutoHide()
+	}
+
+	func openSyncPlayQueue() {
+		guard isSyncPlayActive else { return }
+		showSyncPlayQueue = true
+		autoHideTask?.cancel()
+		syncPlayAction("search", ["query": syncPlay?.libraryQuery ?? ""])
+	}
+
+	func closeSyncPlayQueue() {
+		showSyncPlayQueue = false
+		showControls()
+	}
+
+	func cancelSyncPlayCommands() { syncPlayScheduler.cancel() }
+
+	func applySyncPlayCommand(_ record: SyncPlayCommandRecord, completion: @escaping (Bool) -> Void) {
+		guard !isTearingDown, let state = syncPlay,
+			record.command == "Stop" ||
+			state.playlist.first(where: { $0.playlistItemId == record.playlistItemId })?.itemId == currentItemId
+		else { completion(false); return }
+		let command = SyncPlayCommandScheduler.Command(
+			id: record.commandId, groupId: record.groupId,
+			playlistItemId: record.playlistItemId, kind: record.command,
+			executeAtMs: record.executeAtMs, positionSec: record.positionSec)
+		syncPlayScheduler.schedule(command, execute: { [weak self] command, target in
+			guard let self, !self.isTearingDown else { return }
+			switch command.kind {
+			case "Stop":
+				self.engine?.pause()
+				self.onDismissRequested?(.programmatic)
+			case "Unpause":
+				if abs(self.position - target) > 0.1 { self.seekLocally(to: target, trackOnly: false) }
+				self.engine?.play()
+			case "Pause":
+				self.engine?.pause()
+				// position is a throttled tick; matching it does not prove the
+				// decoder has stopped at the group's authoritative position.
+				self.seekLocally(to: target, trackOnly: false, exact: true)
+			case "Seek":
+				self.engine?.pause()
+				self.seekLocally(to: target, trackOnly: false)
+			default: break
+			}
+		}, completion: completion)
+	}
+
+	/// Losing foreground without PiP withdraws this session from the barrier.
+	func syncPlayDidEnterBackground() {
+		guard isSyncPlayActive, engine?.isPictureInPictureActive() != true else { return }
+		cancelSyncPlayCommands()
+		engine?.pause()
+		syncPlayAction("leave")
+	}
+
 	func apply(config: PlayerPresentConfigRecord) {
 		// The sticky countdown cancel survives same-item swaps (track/bitrate
 		// re-negotiation goes through load() too) and resets only when the
@@ -405,6 +492,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		subtitleScaleLocked = config.subtitleStyle?.scaleLocked ?? false
 		subtitlesAtTop = config.subtitleStyle?.alignY == "top"
 		uiStrings = config.ui.strings
+		updateSyncPlay(config.syncPlay)
 		position = config.stream.startPositionSec ?? 0
 		displayPosition = position
 		hasAuthoritativePosition = false
@@ -414,6 +502,8 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	/// Reset transient state before an in-place stream swap (re-negotiation
 	/// or episode change) — the view controller stays presented.
 	func prepareForReload() {
+		cancelSyncPlayCommands()
+		pendingSeekTarget = nil
 		// Drop before the swap: startStream rewrites the engine speed from the
 		// new config, and a release after that must not restore a stale one.
 		isHoldSpeedActive = false
@@ -541,6 +631,10 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	func togglePlayPause() {
 		guard let engine else { return }
 		haptic()
+		if isSyncPlayActive {
+			syncPlayAction(engine.isPaused() ? "play" : "pause")
+			return
+		}
 		if engine.isPaused() {
 			engine.play()
 		} else {
@@ -550,11 +644,21 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	}
 
 	func seek(to target: Double) {
+		guard target.isFinite else { return }
+		if isSyncPlayActive {
+			let clamped = max(0, duration > 0 ? min(target, duration) : target)
+			syncPlayAction("seek", ["positionSec": clamped])
+			return
+		}
+		seekLocally(to: target, trackOnly: true)
+	}
+
+	private func seekLocally(to target: Double, trackOnly: Bool, exact: Bool = false) {
 		let clamped = max(0, duration > 0 ? min(target, duration) : target)
 		pendingSeekReport = true
-		position = clamped
-		displayPosition = clamped
-		engine?.seekTo(position: clamped)
+		pendingSeekTarget = clamped
+		if trackOnly { position = clamped; displayPosition = clamped }
+		engine?.seekTo(position: clamped, exact: exact)
 		// Move JS's tracked position with the seek right away rather than on
 		// the next time-pos tick: at teardown JS takes the later of its tracked
 		// position and `position` above, so a backward seek has to lower the
@@ -562,7 +666,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		// position. trackingOnly keeps this tick out of the progress reports:
 		// it carries the requested target and mpv may still snap to a nearby
 		// keyframe, so the report rides the next authoritative tick (didSeek).
-		if !isTearingDown {
+		if trackOnly && !isTearingDown {
 			emit?("onProgress", [
 				"position": clamped,
 				"duration": duration,
@@ -572,6 +676,12 @@ final class PlayerViewModel: NSObject, ObservableObject {
 			])
 		}
 		scheduleAutoHide()
+	}
+
+	/// Incoming coordinator corrections bypass the user-request path.
+	func seekFromCoordinator(to target: Double) {
+		guard target.isFinite else { return }
+		seekLocally(to: target, trackOnly: !isSyncPlayActive)
 	}
 
 	func seekForward() {
@@ -616,7 +726,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		// Pause while scrubbing; endScrub resumes only if it was playing
 		// (mirror of the JS player's useVideoSlider).
 		wasPlayingBeforeScrub = isPlaying
-		if wasPlayingBeforeScrub {
+		if wasPlayingBeforeScrub && !isSyncPlayActive {
 			engine?.pause()
 		}
 		autoHideTask?.cancel()
@@ -643,7 +753,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		let target = scrubPosition
 		isScrubbing = false
 		seek(to: target)
-		if wasPlayingBeforeScrub {
+		if wasPlayingBeforeScrub && !isSyncPlayActive {
 			wasPlayingBeforeScrub = false
 			engine?.play()
 		}
@@ -679,7 +789,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	func cancelScrub() {
 		guard isScrubbing else { return }
 		isScrubbing = false
-		if wasPlayingBeforeScrub {
+		if wasPlayingBeforeScrub && !isSyncPlayActive {
 			wasPlayingBeforeScrub = false
 			engine?.play()
 		}
@@ -1069,6 +1179,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	}
 
 	func setSpeed(_ newSpeed: Double) {
+		guard !isSyncPlayActive else { return }
 		// A deliberate speed choice (menu / remote) wins over a transient hold.
 		isHoldSpeedActive = false
 		speedBeforeHold = nil
@@ -1094,6 +1205,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	/// onSpeedChange — the transient rate must never be persisted as the
 	/// user's speed preference.
 	func beginHoldSpeed() {
+		guard !isSyncPlayActive else { return }
 		guard holdToSpeedEnabled, holdToSpeedRate > 0, !isHoldSpeedActive,
 			isPlaying, !controlsLocked, !showStillWatching, errorMessage == nil
 		else { return }
@@ -1208,6 +1320,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	}
 
 	func playNextEpisode() {
+		if isSyncPlayActive { syncPlayAction("next"); return }
 		disarmCountdownForEpisodeChange()
 		emit?("onNextEpisodeRequested", [
 			"reason": "userTap",
@@ -1216,6 +1329,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	}
 
 	func playPreviousEpisode() {
+		if isSyncPlayActive { syncPlayAction("previous"); return }
 		disarmCountdownForEpisodeChange()
 		emit?("onPreviousEpisodeRequested", [
 			"positionSec": displayPosition,
@@ -1233,6 +1347,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	func selectEpisode(_ episode: EpisodeListItemRecord) {
 		showEpisodeList = false
 		guard !episode.isCurrent else { return }
+		if isSyncPlayActive { syncPlayAction("playItems", ["itemIds": [episode.itemId]]); return }
 		disarmCountdownForEpisodeChange()
 		emit?("onEpisodeSelected", [
 			"itemId": episode.itemId,
@@ -1273,6 +1388,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	/// checked in 1s slices, so a stint suspended in the background fires on
 	/// resume instead of drifting.
 	func setSleepTimer(minutes: Int) {
+		guard !isSyncPlayActive else { return }
 		haptic()
 		sleepTimerTask?.cancel()
 		sleepTimerMinutes = minutes
@@ -1310,6 +1426,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	// MARK: - Teardown
 
 	func willTeardown() {
+		cancelSyncPlayCommands()
 		isTearingDown = true
 		isHoldSpeedActive = false
 		speedBeforeHold = nil
@@ -1397,7 +1514,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 			Date().timeIntervalSince($0) >= 1.5
 		} ?? false
 
-		if autoSkipArmed, let active, active.skipMode == "auto" {
+		if !isSyncPlayActive, autoSkipArmed, let active, active.skipMode == "auto" {
 			let id = "\(active.type):\(active.startSec)-\(active.endSec)"
 			if !autoSkippedSegmentIds.contains(id) {
 				autoSkippedSegmentIds.insert(id)
@@ -1418,6 +1535,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		// Items without credits markers still get the countdown near the end
 		// (JS parity: remainingTime < countdown length arms it too).
 		var nearEnd = false
+		guard !isSyncPlayActive else { return }
 		if let next = nextEpisode, next.countdownSeconds > 0, duration > 0 {
 			nearEnd = currentPosition > 0 && duration - currentPosition <= next.countdownSeconds
 		}
@@ -1529,8 +1647,9 @@ extension PlayerViewModel: MPVPlayerEngineDelegate {
 			"progress": duration > 0 ? position / duration : 0,
 			"cacheSeconds": cacheSeconds,
 		]
-		if pendingSeekReport {
+		if pendingSeekReport && pendingSeekTarget.map({ abs(position - $0) <= 0.5 }) != false {
 			pendingSeekReport = false
+			pendingSeekTarget = nil
 			payload["didSeek"] = true
 		}
 		emit?("onProgress", payload)
@@ -1549,6 +1668,12 @@ extension PlayerViewModel: MPVPlayerEngineDelegate {
 	func engine(_ engine: MPVPlayerEngine, requestsSeekBy offset: Double) {
 		guard !isTearingDown else { return }
 		seek(to: position + offset)
+	}
+
+	func engine(_ engine: MPVPlayerEngine, requestsPlaying playing: Bool) {
+		guard !isTearingDown else { return }
+		if isSyncPlayActive { syncPlayAction(playing ? "play" : "pause") }
+		else if playing { engine.play() } else { engine.pause() }
 	}
 
 	func engine(_ engine: MPVPlayerEngine, didChangePause isPaused: Bool) {
@@ -1611,6 +1736,12 @@ extension PlayerViewModel: MPVPlayerEngineDelegate {
 
 	func engineDidReachEnd(_ engine: MPVPlayerEngine) {
 		guard !isTearingDown else { return }
+		if isSyncPlayActive {
+			isPlaying = false
+			updateDisplayLinkState()
+			syncPlayAction("ended")
+			return
+		}
 		// A canceled countdown is a deliberate "let me watch to the end" —
 		// EOF must not auto-advance past it.
 		if let next = nextEpisode, next.countdownSeconds > 0, !countdownCanceled {

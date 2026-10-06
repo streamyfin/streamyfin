@@ -27,7 +27,8 @@
     "test:coverage": "jest --coverage",
     "test": "bun run typecheck && bun run test:unit && bun run lint && bun run format && bun run i18n:check && bun run doctor",
     "seerr:types": "bun run scripts/seerr/generate-types.ts",
-    "seerr:capture": "bun run scripts/seerr/capture.ts"
+    "seerr:capture": "bun run scripts/seerr/capture.ts",
+    "syncplay:test:web": "cross-env EXPO_TV=0 EXPO_PUBLIC_SYNCPLAY_TEST_CLIENT=1 expo start --web --port 8083"
   },
   "overrides": {
     "uuid": "11.1.1"
@@ -139,6 +140,8 @@
     "jest-expo": "~57.0.5",
     "lint-staged": "17.6.0",
     "openapi-typescript": "7.13.0",
+    "react-dom": "19.2.3",
+    "react-native-web": "^0.21.2",
     "tsx": "4.23.12",
     "typescript": "6.0.3"
   },

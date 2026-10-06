@@ -459,7 +459,9 @@ final class NativePlayerViewController: UIViewController {
 		// window before this recognizer ever sees it): an armed scrub is
 		// abandoned first, visible chrome is hidden next; only a Menu press
 		// from the bare-video state asks to leave playback.
-		if viewModel.showSubtitleSearch {
+		if viewModel.showSyncPlayQueue {
+			viewModel.closeSyncPlayQueue()
+		} else if viewModel.showSubtitleSearch {
 			viewModel.closeSubtitleSearch()
 		} else if viewModel.showEpisodeList {
 			viewModel.showEpisodeList = false

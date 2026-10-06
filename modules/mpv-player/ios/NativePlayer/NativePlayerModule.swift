@@ -41,7 +41,7 @@ public class NativePlayerModule: Module {
 			"onNextEpisodeRequested", "onPreviousEpisodeRequested",
 			"onEpisodeSelected", "onPlaybackEnded", "onDismiss",
 			"onSubtitleSearchRequested", "onSubtitleDownloadRequested",
-			"onMuteStateChanged"
+			"onMuteStateChanged", "onSyncPlayAction"
 		)
 
 		// MARK: - Lifecycle
@@ -104,6 +104,19 @@ public class NativePlayerModule: Module {
 		}
 
 		// MARK: - Late-arriving data pushes
+
+		AsyncFunction("updateSyncPlay") { (state: SyncPlayStateRecord?) in
+			self.session?.viewModel.updateSyncPlay(state)
+		}.runOnQueue(.main)
+
+		AsyncFunction("applySyncPlayCommand") { (command: SyncPlayCommandRecord, promise: Promise) in
+			guard let session = self.session else { promise.resolve(false); return }
+			session.viewModel.applySyncPlayCommand(command) { applied in promise.resolve(applied) }
+		}.runOnQueue(.main)
+
+		AsyncFunction("cancelSyncPlayCommands") { () in
+			self.session?.viewModel.cancelSyncPlayCommands()
+		}.runOnQueue(.main)
 
 		AsyncFunction("updateSegments") { (segments: [MediaSegmentRecord]) in
 			self.session?.viewModel.updateSegments(segments)
@@ -171,7 +184,7 @@ public class NativePlayerModule: Module {
 		// one, or the server keeps reporting the pre-seek position until the
 		// next 10s interval. Android routes this the same way.
 		AsyncFunction("seekTo") { (positionSec: Double) in
-			self.session?.viewModel.seek(to: positionSec)
+			self.session?.viewModel.seekFromCoordinator(to: positionSec)
 		}.runOnQueue(.main)
 
 		AsyncFunction("setSpeed") { (speed: Double) in

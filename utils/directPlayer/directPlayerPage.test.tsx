@@ -9,6 +9,7 @@ import {
   holdSharedValueWrites,
   releaseSharedValueWrites,
 } from "@/test-utils/reanimated";
+import type { SyncPlayPlayerAdapter } from "@/utils/syncplay/types";
 
 /** 19m 18s, the resume position of the item in the bug report. */
 const RESUME_TICKS = 11_580_000_000;
@@ -46,6 +47,7 @@ let mockPlayerProps: MpvPlayerViewProps | null = null;
 let mockPlayerMounts = 0;
 /** What the page handed the controls: the shared position and its handlers. */
 type ControlsProps = {
+  togglePlay: () => Promise<void>;
   progress: { get: () => number; set: (ms: number) => void };
   seek: (ms: number) => void;
   onBitrateChange?: (bitrate: number | undefined) => void;
@@ -59,8 +61,38 @@ let mockSeekReaction:
   | null = null;
 /** Set to have the server answer with a transcode instead of a direct stream. */
 let mockTranscodingUrl: string | undefined;
+const mockStreamWaits = new Map<string, Promise<void>>();
+const mockStreamRequests: string[] = [];
 const mockSettings = {};
 const mockNoop = () => {};
+let mockSyncPlayer: SyncPlayPlayerAdapter | null = null;
+let mockNativeSyncPlayAvailable = false;
+jest.mock("@/modules/mpv-player", () => ({
+  isNativePlayerSyncPlayAvailable: () => mockNativeSyncPlayAvailable,
+}));
+const mockSyncPlay = {
+  enabled: false,
+  registerPlayer: jest.fn((player: SyncPlayPlayerAdapter) => {
+    mockSyncPlayer = player;
+    return () => {
+      mockSyncPlayer = null;
+    };
+  }),
+  requestPause: jest.fn(async () => {}),
+  requestUnpause: jest.fn(async () => {}),
+  requestSeek: jest.fn(async (_ticks: number) => {}),
+  leaveGroup: jest.fn(async () => {}),
+  notifyReady: jest.fn(),
+  notifyBuffering: jest.fn(),
+  notifyProgress: jest.fn(),
+  notifyEnded: jest.fn(),
+};
+jest.mock("@/providers/SyncPlayProvider", () => ({
+  useSyncPlay: () => mockSyncPlay,
+}));
+jest.mock("@/components/syncplay/SyncPlayStatus", () => ({
+  SyncPlayStatus: () => null,
+}));
 
 jest.mock("expo-router", () => ({
   useLocalSearchParams: () => mockParams,
@@ -149,15 +181,19 @@ jest.mock("@/utils/profiles/native", () => ({
   generateDeviceProfile: () => ({}),
 }));
 jest.mock("@/utils/jellyfin/media/getStreamUrl", () => ({
-  getStreamUrl: async ({ item }: { item: { Id: string } }) => ({
-    mediaSource: {
-      Id: "source-1",
-      MediaStreams: [],
-      TranscodingUrl: mockTranscodingUrl,
-    },
-    sessionId: `session-${item.Id}`,
-    url: `https://jellyfin.example.com/Videos/${item.Id}/stream.mkv`,
-  }),
+  getStreamUrl: async ({ item }: { item: { Id: string } }) => {
+    mockStreamRequests.push(item.Id);
+    await mockStreamWaits.get(item.Id);
+    return {
+      mediaSource: {
+        Id: "source-1",
+        MediaStreams: [],
+        TranscodingUrl: mockTranscodingUrl,
+      },
+      sessionId: `session-${item.Id}`,
+      url: `https://jellyfin.example.com/Videos/${item.Id}/stream.mkv`,
+    };
+  },
 }));
 jest.mock("@/utils/subtitles/subtitleStyle", () => ({
   applySubtitleStyle: async () => {},
@@ -309,6 +345,11 @@ const leavePlayer = async () => {
 
 describe("direct player stop report", () => {
   beforeEach(() => {
+    mockSyncPlay.enabled = false;
+    mockNativeSyncPlayAvailable = false;
+    for (const value of Object.values(mockSyncPlay)) {
+      if (typeof value === "function") value.mockClear();
+    }
     // The page logs each stream fetch it skips while the item is loading.
     jest.spyOn(console, "log").mockImplementation(() => {});
     mockPlayerProps = null;
@@ -316,6 +357,8 @@ describe("direct player stop report", () => {
     mockControlsProps = null;
     mockSeekReaction = null;
     mockTranscodingUrl = undefined;
+    mockStreamWaits.clear();
+    mockStreamRequests.length = 0;
     mockRouter.setParams.mockClear();
     mockRouter.replace.mockClear();
     mockReportProgress.mockClear();
@@ -344,6 +387,220 @@ describe("direct player stop report", () => {
     screen.unmount();
     await waitFor(() => expect(stopReports()).toHaveLength(sessions));
     jest.restoreAllMocks();
+  });
+
+  test("the deprecated player cannot replace or signal the native SyncPlay adapter", async () => {
+    mockNativeSyncPlayAvailable = true;
+    mockSyncPlay.enabled = true;
+    await openPlayer();
+    await act(async () => {
+      mockPlayerProps?.onLoad?.({
+        nativeEvent: { url: mockPlayerProps.source!.url },
+      });
+      mockPlayerProps?.onTracksReady?.({ nativeEvent: {} });
+      mockPlayerProps?.onPlaybackStateChange?.({
+        nativeEvent: { isLoading: true },
+      });
+      mockPlayerProps?.onPlaybackEnded?.({ nativeEvent: {} });
+    });
+    expect(mockSyncPlay.registerPlayer).not.toHaveBeenCalled();
+    expect(mockSyncPlay.notifyReady).not.toHaveBeenCalled();
+    expect(mockSyncPlay.notifyBuffering).not.toHaveBeenCalled();
+    expect(mockSyncPlay.notifyEnded).not.toHaveBeenCalled();
+    await leavePlayer();
+    expect(mockSyncPlay.leaveGroup).not.toHaveBeenCalled();
+  });
+
+  test("SyncPlay loads paused and waits for server commands after ready", async () => {
+    mockSyncPlay.enabled = true;
+    await openPlayer();
+    expect(mockPlayerProps?.source?.autoplay).toBe(false);
+    expect(JSON.parse(startReports()[0].data).IsPaused).toBe(true);
+    await act(async () => {
+      mockPlayerProps?.onLoad?.({
+        nativeEvent: { url: mockPlayerProps.source!.url },
+      });
+      mockPlayerProps?.onTracksReady?.({ nativeEvent: {} });
+    });
+    expect(mockSyncPlay.notifyReady).toHaveBeenCalledTimes(1);
+    expect(mockSyncPlayer?.getState().isReady).toBe(true);
+  });
+
+  test("group source loading and initial seek preserve a fractional start", async () => {
+    mockSyncPlay.enabled = true;
+    mockParams.playbackPosition = "288000000";
+    try {
+      await openPlayer();
+      expect(mockPlayerProps?.source?.startPosition).toBe(28.8);
+      mockPlayer.seekTo.mockClear();
+      await act(async () => {
+        mockPlayerProps?.onLoad?.({
+          nativeEvent: { url: mockPlayerProps.source!.url },
+        });
+        mockPlayerProps?.onTracksReady?.({ nativeEvent: {} });
+      });
+      expect(mockPlayer.seekTo).toHaveBeenCalledWith(28.8);
+    } finally {
+      mockParams.playbackPosition = String(RESUME_TICKS);
+    }
+  });
+
+  test("SyncPlay controls request pause and seek without executing them locally", async () => {
+    mockSyncPlay.enabled = true;
+    await openPlayer();
+    await announcePlaying();
+    mockPlayer.pause.mockClear();
+    mockPlayer.seekTo.mockClear();
+    await act(async () => {
+      await mockControlsProps?.togglePlay();
+      mockControlsProps?.seek(12345);
+    });
+    expect(mockSyncPlay.requestPause).toHaveBeenCalledTimes(1);
+    expect(mockSyncPlay.requestSeek).toHaveBeenCalledWith(123450000);
+    expect(mockPlayer.pause).not.toHaveBeenCalled();
+    expect(mockPlayer.seekTo).not.toHaveBeenCalled();
+  });
+
+  test("advances SyncPlay only on genuine decoder EOF", async () => {
+    mockSyncPlay.enabled = true;
+    await openPlayer();
+    await tick(RUNTIME_TICKS / 10000000 - 0.05);
+    expect(mockSyncPlay.notifyEnded).not.toHaveBeenCalled();
+    await act(async () => {
+      mockPlayerProps?.onPlaybackEnded?.({ nativeEvent: {} });
+    });
+    expect(mockSyncPlay.notifyEnded).toHaveBeenCalledTimes(1);
+  });
+
+  test("ignores an outgoing item's stream response after a shared queue switch", async () => {
+    mockSyncPlay.enabled = true;
+    let resolveOld!: () => void;
+    mockStreamWaits.set(
+      "item-1",
+      new Promise<void>((resolve) => {
+        resolveOld = resolve;
+      }),
+    );
+    await render(<DirectPlayerPage />);
+    await waitFor(() => expect(mockStreamRequests).toContain("item-1"));
+    mockParams.itemId = "item-2";
+    mockParams.playbackPosition = "0";
+    try {
+      await screen.rerender(<DirectPlayerPage />);
+      await waitFor(() => expect(startReports()).toHaveLength(1));
+      await act(async () => resolveOld());
+      expect(mockPlayerProps?.source?.url).toContain("/Videos/item-2/");
+      expect(startReports()).toHaveLength(1);
+      expect(JSON.parse(startReports()[0].data).ItemId).toBe("item-2");
+    } finally {
+      resolveOld();
+      mockParams.itemId = "item-1";
+      mockParams.playbackPosition = String(RESUME_TICKS);
+    }
+  });
+
+  test("server pause and seek apply locally without echoing control requests", async () => {
+    mockSyncPlay.enabled = true;
+    await openPlayer();
+    mockPlayer.seekTo.mockClear();
+    mockPlayer.pause.mockClear();
+    await act(async () => {
+      await mockSyncPlayer?.pause();
+      await mockSyncPlayer?.seek(420000000);
+    });
+    expect(mockPlayer.pause).toHaveBeenCalledTimes(1);
+    expect(mockPlayer.seekTo).toHaveBeenCalledWith(42);
+    expect(mockSyncPlay.requestPause).not.toHaveBeenCalled();
+    expect(mockSyncPlay.requestSeek).not.toHaveBeenCalled();
+    await tick(42);
+    expect(mockSyncPlayer?.getState().positionTicks).toBe(420000000);
+  });
+
+  test("a paused group seek reports once at the actual target even before UI writes land", async () => {
+    mockSyncPlay.enabled = true;
+    await openPlayer();
+    await tick(1200);
+    mockReportProgress.mockClear();
+    mockRouter.setParams.mockClear();
+    await act(async () => {
+      await mockSyncPlayer?.seek(420000000);
+    });
+    expect(mockReportProgress).not.toHaveBeenCalled();
+    await pileUp([1199, 40]);
+    expect(mockReportProgress).not.toHaveBeenCalled();
+    await pileUp([42, 42.1, 42.2]);
+    expect(mockReportProgress).toHaveBeenCalledTimes(1);
+    expect(mockReportProgress).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ItemId: "item-1",
+        PositionTicks: 420000000,
+        IsPaused: true,
+      }),
+    );
+    expect(mockRouter.setParams).toHaveBeenCalledTimes(1);
+    expect(mockSyncPlay.requestSeek).not.toHaveBeenCalled();
+  });
+
+  test("a paused fractional group seek reaches 28.8 seconds and reports that position", async () => {
+    mockSyncPlay.enabled = true;
+    await openPlayer();
+    await tick(1200);
+    mockReportProgress.mockClear();
+    mockPlayer.seekTo.mockClear();
+    // The decoder reaches the position it was actually asked to seek to.
+    // Flooring here would land 800 ms short and never satisfy group Ready.
+    mockPlayer.seekTo.mockImplementationOnce((seconds: number) =>
+      mockPlayerProps?.onProgress?.(progressEvent(seconds)),
+    );
+    await act(async () => {
+      await mockSyncPlayer?.seek(288000000);
+    });
+    expect(mockPlayer.seekTo).toHaveBeenCalledWith(28.8);
+    expect(mockSyncPlayer?.getState().positionTicks).toBe(288000000);
+    expect(mockReportProgress).toHaveBeenCalledTimes(1);
+    expect(mockReportProgress).toHaveBeenCalledWith(
+      expect.objectContaining({
+        PositionTicks: 288000000,
+        IsPaused: true,
+      }),
+    );
+    expect(mockSyncPlay.requestSeek).not.toHaveBeenCalled();
+  });
+
+  test("a group seek reports when the decoder reaches the 500 ms tolerance boundary", async () => {
+    mockSyncPlay.enabled = true;
+    await openPlayer();
+    await tick(1200);
+    mockReportProgress.mockClear();
+    await act(async () => {
+      await mockSyncPlayer?.seek(420000000);
+    });
+    await tick(41.499);
+    expect(mockReportProgress).not.toHaveBeenCalled();
+    await tick(41.5);
+    expect(mockReportProgress).toHaveBeenCalledTimes(1);
+    expect(mockReportProgress).toHaveBeenCalledWith(
+      expect.objectContaining({
+        PositionTicks: 415000000,
+        IsPaused: true,
+      }),
+    );
+  });
+
+  test("leaving and rejoining clears an unfinished group seek report", async () => {
+    mockSyncPlay.enabled = true;
+    await openPlayer();
+    await tick(1200);
+    await act(async () => {
+      await mockSyncPlayer?.seek(420000000);
+    });
+    mockSyncPlay.enabled = false;
+    await screen.rerender(<DirectPlayerPage />);
+    mockSyncPlay.enabled = true;
+    await screen.rerender(<DirectPlayerPage />);
+    mockReportProgress.mockClear();
+    await tick(42);
+    expect(mockReportProgress).not.toHaveBeenCalled();
   });
 
   // Jellyfin clears the resume point of an item stopped below its minimum

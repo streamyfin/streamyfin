@@ -27,10 +27,14 @@ protocol MPVPlayerEngineDelegate: AnyObject {
 	/// forwards the request.
 	func engine(_ engine: MPVPlayerEngine, requestsSeekTo position: Double)
 	func engine(_ engine: MPVPlayerEngine, requestsSeekBy offset: Double)
+	func engine(_ engine: MPVPlayerEngine, requestsPlaying playing: Bool)
 }
 
 /// Hosts without position bookkeeping of their own let the engine seek.
 extension MPVPlayerEngineDelegate {
+	func engine(_ engine: MPVPlayerEngine, requestsPlaying playing: Bool) {
+		if playing { engine.play() } else { engine.pause() }
+	}
 	func engine(_ engine: MPVPlayerEngine, requestsSeekTo position: Double) {
 		engine.seekTo(position: position)
 	}
@@ -182,11 +186,11 @@ final class MPVPlayerEngine: NSObject {
 
 	private func setupRemoteCommands() {
 		nowPlayingManager.setupRemoteCommands(
-			playHandler: { [weak self] in self?.play() },
-			pauseHandler: { [weak self] in self?.pause() },
+			playHandler: { [weak self] in self?.requestPlaying(true) },
+			pauseHandler: { [weak self] in self?.requestPlaying(false) },
 			toggleHandler: { [weak self] in
 				guard let self else { return }
-				if self.intendedPlayState { self.pause() } else { self.play() }
+				self.requestPlaying(!self.intendedPlayState)
 			},
 			seekHandler: { [weak self] time in self?.requestSeek(to: time) },
 			skipForward: { [weak self] interval in self?.requestSeek(by: interval) },
@@ -263,8 +267,16 @@ final class MPVPlayerEngine: NSObject {
 			loadGeneration: currentLoadGeneration
 		)
 
+		// A SyncPlay late join loads paused. Remote Play and Seek must already
+		// have intent handlers before the first group Unpause ever arrives.
+		setupRemoteCommands()
 		if config.autoplay {
 			play()
+		} else {
+			// mpv's pause property survives loadfile. A shared queue restart
+			// must stay paused until Jellyfin's scheduled Unpause, even when
+			// the previous source was playing or reached EOF while unpaused.
+			pause()
 		}
 
 		delegate?.engine(self, didLoad: config.url)
@@ -359,11 +371,11 @@ final class MPVPlayerEngine: NSObject {
 		shutdown()
 	}
 
-	func seekTo(position: Double) {
+	func seekTo(position: Double, exact: Bool = false) {
 		// Update cached position and Now Playing immediately for smooth Control Center feedback
 		cachedPosition = position
 		syncNowPlaying(isPlaying: !isPaused())
-		renderer?.seek(to: position)
+		renderer?.seek(to: position, exact: exact)
 	}
 
 	func seekBy(offset: Double) {
@@ -385,6 +397,11 @@ final class MPVPlayerEngine: NSObject {
 		} else {
 			seekTo(position: position)
 		}
+	}
+
+	func requestPlaying(_ playing: Bool) {
+		if let delegate { delegate.engine(self, requestsPlaying: playing) }
+		else if playing { play() } else { pause() }
 	}
 
 	func requestSeek(by offset: Double) {
@@ -773,16 +790,12 @@ extension MPVPlayerEngine: PiPControllerDelegate {
 
 	func pipControllerPlay(_ controller: PiPController) {
 		print("PiP play requested")
-		intendedPlayState = true
-		renderer?.play()
-		pipController?.setPlaybackRate(1.0)
+		requestPlaying(true)
 	}
 
 	func pipControllerPause(_ controller: PiPController) {
 		print("PiP pause requested")
-		intendedPlayState = false
-		renderer?.pausePlayback()
-		pipController?.setPlaybackRate(0.0)
+		requestPlaying(false)
 	}
 
 	func pipController(_ controller: PiPController, skipByInterval interval: CMTime) {

@@ -23,6 +23,7 @@ import {
   createSocketFailureRecorder,
   reportSocketGiveUp,
 } from "@/utils/jellyfin/socketFailure";
+import { SocketLifecycle } from "@/utils/jellyfin/socketLifecycle";
 import { logAndCaptureError, writeErrorLog } from "@/utils/log";
 
 // Query keys that depend on the set of library items and should be refreshed
@@ -87,6 +88,8 @@ interface WebSocketContextType {
   ) => () => void;
   sendMessage: (message: any) => void;
   clearLastMessage: () => void;
+  /** Native playback owns whether backgrounding leaves its SyncPlay group. */
+  retainInBackground: () => () => void;
 }
 
 const WebSocketContext = createContext<WebSocketContextType | null>(null);
@@ -110,6 +113,13 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
   serverConnectedRef.current = serverConnected;
   const [ws, setWs] = useState<WebSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
+  const [socketLifecycle] = useState(
+    () =>
+      new SocketLifecycle(
+        () => AppState.currentState,
+        () => setIsConnected(false),
+      ),
+  );
   const [lastMessage, setLastMessage] = useState<WebSocketMessage | null>(null);
   const queryClient = useNetworkAwareQueryClient();
   const deviceId = useMemo(() => {
@@ -122,12 +132,6 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
   const userDataChangeDebounceRef = useRef<ReturnType<
     typeof setTimeout
   > | null>(null);
-  // Handle for the onerror backoff timer. Tracked so a reconnect triggered by
-  // another path (foreground, network reconnect, effect re-run) can cancel a
-  // pending one — an untracked timer would later open a second socket.
-  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
-    null,
-  );
 
   // Pub/sub registry: messageType -> set of handlers. Stored in a ref so
   // subscribing/dispatching never triggers a re-render.
@@ -183,12 +187,14 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
     // Cancel any reconnect queued by a previous onerror before opening a new
     // socket, so we never end up with two live sockets — each would double the
     // message fan-out and double-invalidate queries.
-    if (reconnectTimeoutRef.current) {
-      clearTimeout(reconnectTimeoutRef.current);
-      reconnectTimeoutRef.current = null;
-    }
+    socketLifecycle.cancelReconnect();
 
-    if (!deviceId || !api?.accessToken || !isNetworkConnected) {
+    if (
+      !deviceId ||
+      !api?.accessToken ||
+      !isNetworkConnected ||
+      !socketLifecycle.canConnect()
+    ) {
       return;
     }
 
@@ -210,43 +216,39 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
           headers: customHeaders,
         })
       : new WebSocket(url);
+    socketLifecycle.setSocket(newWebSocket);
     let keepAliveInterval: ReturnType<typeof setInterval> | null = null;
 
     const maxReconnectAttempts = 5;
     const reconnectDelay = 10000;
 
     newWebSocket.onopen = () => {
+      if (!socketLifecycle.isCurrent(newWebSocket)) return;
       setIsConnected(true);
       reconnectAttemptsRef.current = 0;
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current);
-        reconnectTimeoutRef.current = null;
-      }
+      socketLifecycle.cancelReconnect();
       keepAliveInterval = setInterval(() => {
-        if (newWebSocket.readyState === WebSocket.OPEN) {
-          newWebSocket.send(JSON.stringify({ MessageType: "KeepAlive" }));
-        }
+        socketLifecycle.sendKeepAlive(newWebSocket);
       }, 30000);
     };
 
     const failure = createSocketFailureRecorder();
 
-    newWebSocket.onerror = (event) => {
-      // Don't log errors - this is expected when offline or server unreachable
-      setIsConnected(false);
-      failure.error(event);
-
-      // Replace any still-pending reconnect so only one is ever queued; the
-      // previously untracked handle could leak and open a second socket.
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current);
-      }
+    const scheduleReconnect = () => {
+      if (
+        !socketLifecycle.isCurrent(newWebSocket) ||
+        socketLifecycle.hasPendingReconnect()
+      )
+        return;
       if (reconnectAttemptsRef.current < maxReconnectAttempts) {
-        reconnectAttemptsRef.current++;
-        reconnectTimeoutRef.current = setTimeout(() => {
-          reconnectTimeoutRef.current = null;
-          connectWebSocket();
-        }, reconnectDelay);
+        if (
+          socketLifecycle.scheduleReconnect(
+            newWebSocket,
+            reconnectDelay,
+            connectWebSocket,
+          )
+        )
+          reconnectAttemptsRef.current++;
       } else if (
         serverConnectedRef.current === true &&
         !reportedSocketGiveUpRef.current
@@ -263,16 +265,30 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
       }
     };
 
+    newWebSocket.onerror = (event) => {
+      if (!socketLifecycle.isCurrent(newWebSocket)) return;
+      // Don't log errors - this is expected when offline or server unreachable
+      setIsConnected(false);
+      failure.error(event);
+      scheduleReconnect();
+    };
+
     newWebSocket.onclose = (event) => {
       if (keepAliveInterval) {
         clearInterval(keepAliveInterval);
       }
+      if (!socketLifecycle.isCurrent(newWebSocket)) return;
       setIsConnected(false);
       failure.close(event);
+      scheduleReconnect();
     };
     newWebSocket.onmessage = (e) => {
+      if (!socketLifecycle.isCurrent(newWebSocket)) return;
       try {
         const message = JSON.parse(e.data);
+        // Native PiP/backgrounding can suspend JS interval timers. Respond
+        // in the message handler rather than wait for the next heartbeat.
+        socketLifecycle.respondToKeepAlive(newWebSocket, message.MessageType);
         // Legacy single-slot state, still consumed by useWebsockets.
         setLastMessage(message);
         // Pub/sub: deliver to every subscriber without coalescing.
@@ -287,13 +303,9 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
       if (keepAliveInterval) {
         clearInterval(keepAliveInterval);
       }
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current);
-        reconnectTimeoutRef.current = null;
-      }
-      newWebSocket.close();
+      socketLifecycle.closeSocket(newWebSocket);
     };
-  }, [api, deviceId, isNetworkConnected, dispatchMessage]);
+  }, [api, deviceId, isNetworkConnected, dispatchMessage, socketLifecycle]);
 
   const handleLibraryChanged = useCallback(
     (data: any) => {
@@ -367,11 +379,9 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
       if (userDataChangeDebounceRef.current) {
         clearTimeout(userDataChangeDebounceRef.current);
       }
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current);
-      }
+      socketLifecycle.cancelReconnect();
     };
-  }, []);
+  }, [socketLifecycle]);
 
   // The server-initiated "Play me this item" command is handled by
   // NativePlayerProvider (mounted below this provider): it presents the
@@ -379,8 +389,14 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
 
   useEffect(() => {
     const cleanup = connectWebSocket();
-    return cleanup;
-  }, [connectWebSocket]);
+    return () => {
+      cleanup?.();
+      // A foreground/error reconnect may have replaced the initial socket.
+      // Session/network teardown must close the current one even with a lease.
+      socketLifecycle.close();
+      setIsConnected(false);
+    };
+  }, [connectWebSocket, socketLifecycle]);
 
   useEffect(() => {
     if (!deviceId || !api?.accessToken || !isNetworkConnected) {
@@ -434,13 +450,7 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
 
   useEffect(() => {
     const handleAppStateChange = (state: AppStateStatus) => {
-      if (state === "background" || state === "inactive") {
-        console.log("App moving to background, closing WebSocket...");
-        ws?.close();
-      } else if (state === "active") {
-        console.log("App coming to foreground, reconnecting WebSocket...");
-        connectWebSocket();
-      }
+      if (socketLifecycle.onAppState(state)) connectWebSocket();
     };
 
     const subscription = AppState.addEventListener(
@@ -450,9 +460,8 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
 
     return () => {
       subscription.remove();
-      ws?.close();
     };
-  }, [ws, connectWebSocket]);
+  }, [socketLifecycle, connectWebSocket]);
   const sendMessage = useCallback(
     (message: any) => {
       if (ws && isConnected) {
@@ -474,6 +483,7 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
         subscribe,
         sendMessage,
         clearLastMessage,
+        retainInBackground: socketLifecycle.retainInBackground,
       }}
     >
       {children}

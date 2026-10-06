@@ -70,6 +70,9 @@ struct TVChromeLayerView: View {
 		.animation(.easeInOut(duration: 0.2), value: viewModel.controlsVisible)
 		.animation(.easeInOut(duration: 0.2), value: viewModel.isScrubbing)
 		.animation(.easeInOut(duration: 0.2), value: viewModel.seekFeedbackVisible)
+		.sheet(isPresented: $viewModel.showSyncPlayQueue) {
+			SyncPlayQueueView(viewModel: viewModel)
+		}
 	}
 
 	/// Subtitles are burned into the video frames by mpv, so the scrims and
@@ -113,6 +116,10 @@ private struct TVMetadataHeader: View {
 						.font(.callout)
 						.foregroundStyle(.white.opacity(0.7))
 						.lineLimit(1)
+				}
+				if let group = viewModel.syncPlay {
+					Text("\(group.groupName) · \(group.connected ? group.status : viewModel.syncStr("reconnecting", "Reconnecting"))")
+						.font(.callout).foregroundStyle(.white.opacity(0.7)).lineLimit(1)
 				}
 			}
 			Spacer()

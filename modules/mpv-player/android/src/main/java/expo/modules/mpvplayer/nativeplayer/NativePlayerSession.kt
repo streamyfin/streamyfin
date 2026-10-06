@@ -381,7 +381,9 @@ class NativePlayerSession(
             (activity as? ComponentActivity)?.let { owner ->
                 backCallback = object : OnBackPressedCallback(true) {
                     override fun handleOnBackPressed() {
-                        if (viewModel.showSubtitleScaleOverlay) {
+                        if (viewModel.showSyncPlayQueue) {
+                            viewModel.closeSyncPlayQueue()
+                        } else if (viewModel.showSubtitleScaleOverlay) {
                             viewModel.showSubtitleScaleOverlay = false
                             viewModel.scheduleAutoHide()
                         } else {
@@ -467,7 +469,26 @@ class NativePlayerSession(
                 mainHandler.postDelayed(recoverResumeRunnable, RESUME_RECOVERY_DELAY_MS)
             }
             override fun onActivityPaused(activity: Activity) {}
-            override fun onActivityStopped(activity: Activity) {}
+            override fun onActivityStopped(activity: Activity) {
+                if (activity !== hostActivity) return
+                val inPictureInPicture = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+                    activity.isInPictureInPictureMode
+                if (!shouldLeaveSyncPlayOnActivityStop(
+                        ownsActivity = activity === hostActivity,
+                        syncPlayActive = viewModel.syncPlayActive,
+                        inPictureInPicture = inPictureInPicture,
+                        changingConfigurations = activity.isChangingConfigurations,
+                        dismissing = isDismissing
+                    )) return
+
+                // AppState can report background before the PiP change reaches
+                // JS. Android's stopped/PiP state owns this decision instead.
+                Log.i(TAG, "SyncPlay leaving stopped non-PiP host activity")
+                mainHandler.removeCallbacks(recoverResumeRunnable)
+                viewModel.cancelSyncPlayCommands()
+                viewModel.pauseLocal()
+                viewModel.syncPlayAction("leave")
+            }
             override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) {}
             override fun onActivityDestroyed(activity: Activity) {}
         }
@@ -632,6 +653,8 @@ class NativePlayerSession(
         // PlayerEngine.swift / MpvPlayerView.loadVideo: honor stream.autoplay.
         if (loadConfig.autoplay) {
             engine?.play()
+        } else {
+            engine?.pause()
         }
 
         viewModel.setSpeed(config.ui.initialPlaybackSpeed)

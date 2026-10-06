@@ -61,6 +61,20 @@ function SettingsMobile() {
 
         <QuickConnect className='mb-4' />
 
+        <View className='mb-4'>
+          <ListGroup title={t("syncplay.title")}>
+            <ListItem
+              testID='syncplay-settings-open'
+              accessibilityRole='button'
+              accessibilityLabel={t("syncplay.title")}
+              onPress={() => router.push("/(auth)/syncplay")}
+              title={t("syncplay.watch_together")}
+              subtitle={t("syncplay.description")}
+              showArrow
+            />
+          </ListGroup>
+        </View>
+
         {Platform.OS !== "ios" && (
           <View className='mb-4'>
             <ListGroup title={t("pairing.pair_with_phone_title")}>

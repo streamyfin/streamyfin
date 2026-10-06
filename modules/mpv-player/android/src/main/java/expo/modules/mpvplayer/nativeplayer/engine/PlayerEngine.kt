@@ -85,6 +85,8 @@ interface PlayerEngine {
     fun pause()
     fun togglePause()
     fun seekTo(seconds: Double)
+    /** Shared playback deadlines require the target frame, not a nearby keyframe. */
+    fun seekToExact(seconds: Double) = seekTo(seconds)
     fun seekBy(seconds: Double)
     fun setSpeed(speed: Double)
     fun getSpeed(): Double

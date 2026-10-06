@@ -96,13 +96,19 @@ class MediaSessionController(
                 }
 
                 override fun onSkipToNext() {
-                    if (viewModel.nextEpisode != null) {
+                    if (viewModel.nextEpisode != null || viewModel.syncPlay?.hasNext == true) {
                         viewModel.playNextEpisodeNow()
                     }
                 }
 
                 override fun onSkipToPrevious() {
-                    viewModel.seekTo(0.0)
+                    if (viewModel.syncPlayActive) viewModel.playPreviousEpisode()
+                    else viewModel.seekTo(0.0)
+                }
+
+                override fun onStop() {
+                    if (viewModel.syncPlayActive) viewModel.syncPlayAction("stop")
+                    else viewModel.close()
                 }
             })
             setFlags(MediaSession.FLAG_HANDLES_MEDIA_BUTTONS or MediaSession.FLAG_HANDLES_TRANSPORT_CONTROLS)

@@ -86,6 +86,7 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     // Event dispatchers — names must match the Events() declaration in the module.
     val onLoad by EventDispatcher()
     val onPlaybackStateChange by EventDispatcher()
+    val onPlaybackEnded by EventDispatcher()
     val onProgress by EventDispatcher()
     val onError by EventDispatcher()
     val onTracksReady by EventDispatcher()
@@ -218,6 +219,7 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
                         "isPlaying" to false,
                         "isPaused" to true
                     ))
+                    onPlaybackEnded(emptyMap<String, Any>())
                 }
                 Player.STATE_IDLE -> {
                     // no-op

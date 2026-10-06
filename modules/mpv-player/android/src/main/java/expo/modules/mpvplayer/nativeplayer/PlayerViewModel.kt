@@ -225,6 +225,93 @@ class PlayerViewModel : PlayerEngine.Delegate {
     var uiOptions by mutableStateOf(UIOptionsRecord())
     var strings by mutableStateOf(PlayerStrings(emptyMap()))
 
+    var syncPlay by mutableStateOf<SyncPlayStateRecord?>(null)
+        private set
+    var showSyncPlayQueue by mutableStateOf(false)
+    val syncPlayActive: Boolean get() = syncPlay != null
+    fun syncStr(key: String, fallback: String): String = syncPlay?.strings?.get(key) ?: fallback
+
+    private val syncHandler = Handler(Looper.getMainLooper())
+    private val syncScheduler = SyncPlayCommandScheduler(
+        nowMs = System::currentTimeMillis,
+        schedule = { delay, task ->
+            val runnable = Runnable { task() }
+            syncHandler.postDelayed(runnable, delay)
+            val cancel: () -> Unit = { syncHandler.removeCallbacks(runnable) }
+            cancel
+        },
+        execute = { command, position ->
+            if (isTearingDown || engine == null) false else {
+                forceSyncSpeed()
+                when (command.command) {
+                    "Pause" -> {
+                        pauseLocal()
+                        if (syncPlayPauseNeedsSeek(engine?.currentPosition ?: authoritativePosition, position)) {
+                            seekLocal(position)
+                        }
+                    }
+                    "Seek" -> { pauseLocal(); seekLocal(position) }
+                    "Unpause" -> { seekLocal(position); playLocal() }
+                    "Stop" -> { pauseLocal(); onDismissRequested?.invoke("programmatic") }
+                }
+                true
+            }
+        }
+    )
+
+    fun updateSyncPlay(state: SyncPlayStateRecord?) {
+        val active = state?.takeIf { it.groupId.isNotEmpty() }
+        syncScheduler.updateIdentity(active?.groupId, active?.currentPlaylistItemId, active?.connected == true)
+        syncPlay = active
+        if (active == null) {
+            showSyncPlayQueue = false
+        } else {
+            forceSyncSpeed()
+            cancelCountdown()
+            countdownRemaining = null
+            showStillWatching = false
+            activeSegment = null
+            cancelSleepTimer()
+            if (tvMenuRoute.any { it == TvMenuScreen.SPEED }) closeTvMenu()
+        }
+    }
+
+    fun applySyncPlayCommand(command: SyncPlayCommandRecord, completion: (Boolean) -> Unit) {
+        syncScheduler.submit(command.scheduled(), completion)
+    }
+
+    fun cancelSyncPlayCommands() = syncScheduler.cancel()
+
+    private fun forceSyncSpeed() {
+        isHoldSpeedActive = false
+        speedBeforeHold = null
+        speed = 1.0
+        engine?.setSpeed(1.0)
+    }
+
+    fun syncPlayAction(action: String, details: Map<String, Any?> = emptyMap()) {
+        val state = syncPlay ?: return
+        if (isTearingDown || (!state.connected && action != "leave")) return
+        emit?.invoke("onSyncPlayAction", mapOf(
+            "action" to action,
+            "positionSec" to (engine?.currentPosition ?: authoritativePosition),
+            "playlistItemId" to state.currentPlaylistItemId
+        ) + details)
+    }
+
+    fun openSyncPlayQueue() {
+        if (!syncPlayActive) return
+        showSyncPlayQueue = true
+        autoHideJob?.cancel()
+        syncPlayAction("search", mapOf("query" to (syncPlay?.libraryQuery ?: "")))
+    }
+
+    fun closeSyncPlayQueue() {
+        showSyncPlayQueue = false
+        showControls()
+        restoreTvControlsFocus()
+    }
+
     fun str(key: String, fallback: String? = null): String = strings.get(key, fallback)
 
     // Controllers
@@ -239,7 +326,7 @@ class PlayerViewModel : PlayerEngine.Delegate {
     private var hasAuthoritativePosition = false
     // Set on every user/remote seek; the next progress tick reports
     // didSeek=true so the JS coordinator sends an immediate progress report.
-    private var pendingSeekReport = false
+    private val pendingSeekReport = PendingSeekReport()
     private var speedBeforeHold: Double? = null
     private var currentItemId: String? = null
     private var isTearingDown = false
@@ -285,6 +372,7 @@ class PlayerViewModel : PlayerEngine.Delegate {
     }
 
     fun apply(config: PlayerPresentConfigRecord) {
+        updateSyncPlay(config.syncPlay)
         isMpvEngine = config.engine?.lowercase() != "exoplayer"
         val newItemId = config.metadata?.itemId
         if (newItemId == null || newItemId != currentItemId) {
@@ -331,6 +419,8 @@ class PlayerViewModel : PlayerEngine.Delegate {
     }
 
     fun prepareForReload() {
+        cancelSyncPlayCommands()
+        pendingSeekReport.reset()
         isHoldSpeedActive = false
         speedBeforeHold = nilSpeed()
         isBuffering = true
@@ -464,7 +554,7 @@ class PlayerViewModel : PlayerEngine.Delegate {
     }
 
     private fun canAutoHide(): Boolean {
-        return isPlaying && !isScrubbing && !isBuffering && !showEpisodeList && !showTechnicalInfo && !showSubtitleSearch && tvMenuRoute.isEmpty() && !showExitConfirmation && errorMessage == null
+        return isPlaying && !isScrubbing && !isBuffering && !showSyncPlayQueue && !showEpisodeList && !showTechnicalInfo && !showSubtitleSearch && tvMenuRoute.isEmpty() && !showExitConfirmation && errorMessage == null
     }
 
     private fun revealUnlockButton() {
@@ -496,10 +586,20 @@ class PlayerViewModel : PlayerEngine.Delegate {
 
     // MARK: - Playback Transport
     fun play() {
+        if (syncPlayActive) { syncPlayAction("play"); return }
+        playLocal()
+    }
+
+    fun playLocal() {
         engine?.play()
     }
 
     fun pause() {
+        if (syncPlayActive) { syncPlayAction("pause"); return }
+        pauseLocal()
+    }
+
+    fun pauseLocal() {
         engine?.pause()
     }
 
@@ -510,11 +610,23 @@ class PlayerViewModel : PlayerEngine.Delegate {
     }
 
     fun seekTo(positionSec: Double) {
+        if (syncPlayActive) {
+            val target = max(0.0, if (duration > 0) min(positionSec, duration) else positionSec)
+            syncPlayAction("seek", mapOf("positionSec" to target))
+            scheduleAutoHide()
+            return
+        }
+        seekLocal(positionSec)
+    }
+
+    fun seekLocal(positionSec: Double, trackOnly: Boolean = !syncPlayActive) {
         val clamped = max(0.0, if (duration > 0) min(positionSec, duration) else positionSec)
-        pendingSeekReport = true
-        displayPosition = clamped
-        authoritativePosition = clamped
-        engine?.seekTo(clamped)
+        pendingSeekReport.request(clamped)
+        if (trackOnly) {
+            displayPosition = clamped
+            authoritativePosition = clamped
+        }
+        if (syncPlayActive) engine?.seekToExact(clamped) else engine?.seekTo(clamped)
         onPlaybackStateSync?.invoke()
         // Move JS's tracked position with the seek right away rather than on
         // the next time-pos tick: at teardown JS takes the later of its tracked
@@ -524,7 +636,7 @@ class PlayerViewModel : PlayerEngine.Delegate {
         // progress reports: it carries the requested target and mpv may still
         // snap to a nearby keyframe, so the report rides the next
         // authoritative tick (didSeek).
-        if (!isTearingDown) {
+        if (trackOnly && !isTearingDown) {
             emit?.invoke("onProgress", mapOf(
                 "position" to clamped,
                 "duration" to duration,
@@ -569,6 +681,7 @@ class PlayerViewModel : PlayerEngine.Delegate {
 
     @JvmName("applySpeed")
     fun setSpeed(newSpeed: Double) {
+        if (syncPlayActive) { forceSyncSpeed(); return }
         speed = newSpeed
         engine?.setSpeed(newSpeed)
         emit?.invoke("onSpeedChange", mapOf("speed" to newSpeed))
@@ -577,7 +690,7 @@ class PlayerViewModel : PlayerEngine.Delegate {
     }
 
     fun startHoldSpeed() {
-        if (!uiOptions.holdToSpeedEnabled || isHoldSpeedActive || isScrubbing) return
+        if (syncPlayActive || !uiOptions.holdToSpeedEnabled || isHoldSpeedActive || isScrubbing) return
         haptic()
         speedBeforeHold = speed
         isHoldSpeedActive = true
@@ -595,7 +708,7 @@ class PlayerViewModel : PlayerEngine.Delegate {
     // MARK: - Scrubbing (Phone Touch)
     fun startScrubbing() {
         wasPlayingBeforeScrub = isPlaying
-        if (isPlaying) engine?.pause()
+        if (isPlaying && !syncPlayActive) engine?.pause()
         isScrubbing = true
         scrubPosition = displayPosition
         scheduleAutoHide(PlayerConstants.MENU_AUTO_HIDE_DELAY_MS)
@@ -604,7 +717,7 @@ class PlayerViewModel : PlayerEngine.Delegate {
     fun updateScrub(targetPosition: Double) {
         val clamped = max(0.0, targetPosition)
         scrubPosition = clamped
-        displayPosition = clamped
+        if (!syncPlayActive) displayPosition = clamped
         scheduleAutoHide(PlayerConstants.MENU_AUTO_HIDE_DELAY_MS)
     }
 
@@ -612,7 +725,7 @@ class PlayerViewModel : PlayerEngine.Delegate {
         val clamped = max(0.0, targetPosition)
         isScrubbing = false
         seekTo(clamped)
-        if (wasPlayingBeforeScrub) {
+        if (wasPlayingBeforeScrub && !syncPlayActive) {
             engine?.play()
         }
         scheduleAutoHide()
@@ -622,7 +735,7 @@ class PlayerViewModel : PlayerEngine.Delegate {
     fun beginScrub() {
         if (isScrubbing) return
         wasPlayingBeforeScrub = isPlaying
-        if (isPlaying) engine?.pause()
+        if (isPlaying && !syncPlayActive) engine?.pause()
         isScrubbing = true
         scrubPosition = displayPosition
         autoHideJob?.cancel()
@@ -639,7 +752,7 @@ class PlayerViewModel : PlayerEngine.Delegate {
         val target = scrubPosition
         isScrubbing = false
         seekTo(target)
-        if (wasPlayingBeforeScrub) {
+        if (wasPlayingBeforeScrub && !syncPlayActive) {
             engine?.play()
         }
         scheduleAutoHide()
@@ -650,14 +763,14 @@ class PlayerViewModel : PlayerEngine.Delegate {
         val target = scrubPosition
         isScrubbing = false
         seekTo(target)
-        engine?.play()
+        play()
         scheduleAutoHide()
     }
 
     fun cancelScrub() {
         if (!isScrubbing) return
         isScrubbing = false
-        if (wasPlayingBeforeScrub) {
+        if (wasPlayingBeforeScrub && !syncPlayActive) {
             engine?.play()
         }
         scheduleAutoHide()
@@ -865,6 +978,7 @@ class PlayerViewModel : PlayerEngine.Delegate {
 
     // MARK: - Sleep Timer
     fun setSleepTimer(minutes: Int) {
+        if (syncPlayActive) return
         sleepTimerMinutes = minutes
         val deadline = System.currentTimeMillis() + (minutes * 60 * 1000L)
         sleepTimerEndDate = deadline
@@ -885,6 +999,7 @@ class PlayerViewModel : PlayerEngine.Delegate {
 
     // MARK: - Segments & Countdown
     private fun checkSegmentsAndCountdown(pos: Double) {
+        if (syncPlayActive) return
         // The list arrives in priority order (Commercial > Recap > Intro >
         // Preview > Outro), so the first match is the one to act on.
         val matched = segments.firstOrNull { pos >= it.startSec && pos < it.endSec }
@@ -1031,18 +1146,21 @@ class PlayerViewModel : PlayerEngine.Delegate {
     }
 
     fun playNextEpisode() {
+        if (syncPlayActive) { if (syncPlay?.hasNext == true) syncPlayAction("next"); return }
         haptic()
         disarmCountdownForEpisodeChange()
         fireNextEpisode(reason = "userTap")
     }
 
     fun playNextEpisodeNow() {
+        if (syncPlayActive) { if (syncPlay?.hasNext == true) syncPlayAction("next"); return }
         haptic()
         disarmCountdownForEpisodeChange()
         fireNextEpisode(reason = "userTap")
     }
 
     fun playPreviousEpisode() {
+        if (syncPlayActive) { if (syncPlay?.hasPrevious == true) syncPlayAction("previous"); return }
         haptic()
         disarmCountdownForEpisodeChange()
         emit?.invoke("onPreviousEpisodeRequested", mapOf(
@@ -1063,6 +1181,7 @@ class PlayerViewModel : PlayerEngine.Delegate {
     }
 
     private fun fireNextEpisode(reason: String) {
+        if (syncPlayActive) return
         // Idempotent: the countdown tick and the EOF handler can both reach
         // here for the same transition. Emit onNextEpisodeRequested only once.
         if (countdownFired) return
@@ -1081,6 +1200,7 @@ class PlayerViewModel : PlayerEngine.Delegate {
 
     // MARK: - TV Menus
     fun openTvMenu(screen: TvMenuScreen) {
+        if (syncPlayActive && screen == TvMenuScreen.SPEED) return
         tvMenuRoute = listOf(screen)
         menuInteractionStarted()
     }
@@ -1125,6 +1245,11 @@ class PlayerViewModel : PlayerEngine.Delegate {
 
     // MARK: - Episode List & Subtitle Search
     fun selectEpisode(itemId: String) {
+        if (syncPlayActive) {
+            syncPlayAction("playItems", mapOf("itemIds" to listOf(itemId)))
+            showEpisodeList = false
+            return
+        }
         haptic()
         disarmCountdownForEpisodeChange()
         emit?.invoke("onEpisodeSelected", mapOf(
@@ -1168,6 +1293,7 @@ class PlayerViewModel : PlayerEngine.Delegate {
 
     fun willTeardown() {
         isTearingDown = true
+        cancelSyncPlayCommands()
         autoHideJob?.cancel()
         countdownJob?.cancel()
         volumeRevealJob?.cancel()
@@ -1200,8 +1326,7 @@ class PlayerViewModel : PlayerEngine.Delegate {
             displayPosition = position
         }
 
-        val didSeek = pendingSeekReport
-        pendingSeekReport = false
+        val didSeek = pendingSeekReport.consume(position)
 
         emit?.invoke("onProgress", mapOf(
             "position" to position,
@@ -1298,6 +1423,10 @@ class PlayerViewModel : PlayerEngine.Delegate {
 
     override fun onPlaybackEnded() {
         if (isTearingDown) return
+        if (syncPlayActive) {
+            syncPlayAction("ended")
+            return
+        }
         val next = nextEpisode
         if (next != null && next.countdownSeconds > 0 && !countdownCanceled) {
             cancelCountdown()

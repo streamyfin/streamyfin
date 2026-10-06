@@ -50,6 +50,7 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     // Event dispatchers
     val onLoad by EventDispatcher()
     val onPlaybackStateChange by EventDispatcher()
+    val onPlaybackEnded by EventDispatcher()
     val onProgress by EventDispatcher()
     val onError by EventDispatcher()
     val onTracksReady by EventDispatcher()
@@ -552,6 +553,10 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
 
     override fun onTracksReady() {
         onTracksReady(emptyMap<String, Any>())
+    }
+
+    override fun onPlaybackEnded() {
+        onPlaybackEnded(emptyMap<String, Any>())
     }
 
     override fun onVideoDimensionsChanged(width: Int, height: Int) {

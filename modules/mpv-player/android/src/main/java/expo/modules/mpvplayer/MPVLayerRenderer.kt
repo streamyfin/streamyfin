@@ -150,6 +150,8 @@ class MPVLayerRenderer(
     // This optimization reduced CPU usage by ~50% for downloaded file playback.
     private var lastProgressUpdateTime: Long = 0
     private var _isSeeking: Boolean = false
+    // libmpv can announce one EOF through both the property and END_FILE.
+    private var didNotifyPlaybackEnd: Boolean = false
     
     // Video dimensions
     private var _videoWidth: Int = 0
@@ -775,6 +777,14 @@ class MPVLayerRenderer(
         cachedPosition = clamped
         mpv?.command(arrayOf("seek", clamped.toString(), "absolute"))
     }
+
+    override fun seekToExact(seconds: Double) {
+        val clamped = maxOf(0.0, seconds)
+        cachedPosition = clamped
+        // Override hr-seek=no for SyncPlay. Repeated drift corrections to a
+        // keyframe before the target can otherwise keep playback from EOF.
+        mpv?.command(arrayOf("seek", clamped.toString(), "absolute+exact"))
+    }
     
     override fun seekBy(seconds: Double) {
         val newPosition = maxOf(0.0, cachedPosition + seconds)
@@ -1201,7 +1211,23 @@ class MPVLayerRenderer(
             "pause" -> {
                 if (value != _isPaused) {
                     _isPaused = value
-                    mainHandler.post { delegate?.onPauseChanged(value) }
+                    // time-pos notifications are throttled while playing, and
+                    // seekTo's cache is optimistic. Read the physical clock so
+                    // an immediate pause report includes the stopped frame.
+                    val report = MpvPauseReport(
+                        paused = value,
+                        position = if (value) mpv?.getPropertyDouble("time-pos") else null,
+                        duration = cachedDuration,
+                        cacheSeconds = cachedCacheSeconds,
+                    )
+                    mainHandler.post {
+                        report.deliver(
+                            onProgress = { position, duration, cache ->
+                                delegate?.onPositionChanged(position, duration, cache)
+                            },
+                            onPause = { paused -> delegate?.onPauseChanged(paused) },
+                        )
+                    }
                 }
             }
             "paused-for-cache" -> {
@@ -1213,7 +1239,9 @@ class MPVLayerRenderer(
             "eof-reached" -> {
                 if (value) {
                     Log.i(TAG, "EOF reached (property)")
-                    mainHandler.post { delegate?.onPlaybackEnded() }
+                    notifyPlaybackEnd()
+                } else {
+                    didNotifyPlaybackEnd = false
                 }
             }
         }
@@ -1248,6 +1276,7 @@ class MPVLayerRenderer(
     override fun event(eventId: Int) {
         when (eventId) {
             MPVLib.MPV_EVENT_FILE_LOADED -> {
+                didNotifyPlaybackEnd = false
                 // Add external subtitles now that file is loaded
                 if (pendingExternalSubtitles.isNotEmpty()) {
                     pendingExternalSubtitles.forEachIndexed { index, subUrl ->
@@ -1304,7 +1333,7 @@ class MPVLayerRenderer(
                 Log.i(TAG, "Playback ended (MPV_EVENT_END_FILE)")
                 val eof = mpv?.getPropertyBoolean("eof-reached") ?: false
                 if (eof) {
-                    mainHandler.post { delegate?.onPlaybackEnded() }
+                    notifyPlaybackEnd()
                 }
             }
             MPVLib.MPV_EVENT_SHUTDOWN -> {
@@ -1312,5 +1341,10 @@ class MPVLayerRenderer(
             }
         }
     }
-}
 
+    private fun notifyPlaybackEnd() {
+        if (didNotifyPlaybackEnd) return
+        didNotifyPlaybackEnd = true
+        mainHandler.post { delegate?.onPlaybackEnded() }
+    }
+}

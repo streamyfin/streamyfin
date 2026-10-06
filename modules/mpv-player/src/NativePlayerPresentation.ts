@@ -14,6 +14,8 @@ import type {
   NativePlayerNextEpisode,
   NativePlayerSegment,
   NativePlayerSubtitleSearchState,
+  NativePlayerSyncPlayCommand,
+  NativePlayerSyncPlayState,
   NativePlayerTrackMenus,
   NativePlayerTrickplay,
 } from "./NativePlayerPresentation.types";
@@ -31,6 +33,9 @@ declare class NativePlayerModuleType extends NativeModule<NativePlayerEvents> {
   updateMetadata(metadata: NativePlayerMetadata): Promise<void>;
   updateEpisodeList(episodes: NativePlayerEpisodeListItem[]): Promise<void>;
   updateSubtitleSearch(state: NativePlayerSubtitleSearchState): Promise<void>;
+  updateSyncPlay(state: NativePlayerSyncPlayState | null): Promise<void>;
+  applySyncPlayCommand(command: NativePlayerSyncPlayCommand): Promise<boolean>;
+  cancelSyncPlayCommands(): Promise<void>;
   showNotice(text: string): Promise<void>;
   toggleMute(): Promise<void>;
   addExternalSubtitle(url: string): Promise<void>;
@@ -61,6 +66,23 @@ try {
 
 export const isNativePlayerModuleAvailable = (): boolean =>
   NativePlayerNativeModule !== null;
+
+export const isNativePlayerSyncPlayAvailable = (): boolean =>
+  typeof NativePlayerNativeModule?.applySyncPlayCommand === "function";
+
+export const updateNativePlayerSyncPlay = (
+  state: NativePlayerSyncPlayState | null,
+): Promise<void> =>
+  NativePlayerNativeModule?.updateSyncPlay(state) ?? Promise.resolve();
+
+export const applyNativePlayerSyncPlayCommand = (
+  command: NativePlayerSyncPlayCommand,
+): Promise<boolean> =>
+  NativePlayerNativeModule?.applySyncPlayCommand(command) ??
+  Promise.resolve(false);
+
+export const cancelNativePlayerSyncPlayCommands = (): Promise<void> =>
+  NativePlayerNativeModule?.cancelSyncPlayCommands() ?? Promise.resolve();
 
 /**
  * Attach a NativePlayer event listener. IMPORTANT: attach every listener

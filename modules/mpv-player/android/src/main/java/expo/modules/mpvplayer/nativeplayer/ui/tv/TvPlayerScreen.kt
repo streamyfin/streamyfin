@@ -31,6 +31,7 @@ import androidx.tv.material3.Text
 import expo.modules.mpvplayer.nativeplayer.PlayerViewModel
 import expo.modules.mpvplayer.nativeplayer.TvFocusZone
 import expo.modules.mpvplayer.nativeplayer.deriveTvFocusZone
+import expo.modules.mpvplayer.nativeplayer.ui.SyncPlayQueueSheet
 
 @Composable
 fun TvPlayerScreen(
@@ -50,6 +51,7 @@ fun TvPlayerScreen(
 
     val showChrome = viewModel.controlsVisible || viewModel.isScrubbing || viewModel.seekFeedbackVisible
     val isModalOpen = viewModel.tvMenuRoute.isNotEmpty() ||
+            viewModel.showSyncPlayQueue ||
             viewModel.showEpisodeList ||
             viewModel.showSubtitleSearch ||
             viewModel.showStillWatching ||
@@ -161,6 +163,8 @@ fun TvPlayerScreen(
         if (viewModel.errorMessage != null) {
             TvErrorOverlay(viewModel = viewModel)
         }
+
+        if (viewModel.showSyncPlayQueue) SyncPlayQueueSheet(viewModel)
     }
 }
 
@@ -191,6 +195,15 @@ private fun TvMetadataHeader(
                 text = meta.subtitle ?: "",
                 color = Color.White.copy(alpha = 0.7f),
                 fontSize = 18.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        viewModel.syncPlay?.let { state ->
+            Text(
+                text = "${state.groupName} · ${if (state.connected) state.status else viewModel.syncStr("reconnecting", "Reconnecting")}",
+                color = TvPalette.OnSurface,
+                fontSize = 16.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )

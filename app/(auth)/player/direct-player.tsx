@@ -32,6 +32,7 @@ import {
 import { BITRATES } from "@/components/BitrateSelector";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
+import { SyncPlayStatus } from "@/components/syncplay/SyncPlayStatus";
 import { AutoSubtitleNotice } from "@/components/video-player/controls/AutoSubtitleNotice";
 import { Controls } from "@/components/video-player/controls/Controls";
 import { Controls as TVControls } from "@/components/video-player/controls/Controls.tv";
@@ -62,11 +63,13 @@ import {
   type MpvPlayerViewRef,
   type MpvVideoSource,
 } from "@/modules";
+import { isNativePlayerSyncPlayAvailable } from "@/modules/mpv-player";
 import { useDownload } from "@/providers/DownloadProvider";
 import { DownloadedItem } from "@/providers/Downloads/types";
 import { useInactivity } from "@/providers/InactivityProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { OfflineModeProvider } from "@/providers/OfflineModeProvider";
+import { useSyncPlay } from "@/providers/SyncPlayProvider";
 import { getSubtitlesForItem } from "@/utils/atoms/downloadedSubtitles";
 import { getActivePlayerType, useSettings } from "@/utils/atoms/settings";
 import { getJellyfinHeadersForUrl } from "@/utils/customHeaders";
@@ -117,6 +120,15 @@ export default function DirectPlayerPage() {
   const navigation = useNavigation();
   const router = useRouter();
   const { settings, updateSettings } = useSettings();
+  const syncPlayContext = useSyncPlay();
+  const ownsSyncPlay = !isNativePlayerSyncPlayAvailable();
+  const syncPlay = {
+    ...syncPlayContext,
+    enabled: syncPlayContext.enabled && ownsSyncPlay,
+  };
+  const syncPlayRef = useRef(syncPlay);
+  syncPlayRef.current = syncPlay;
+  const syncPlayStoppingRef = useRef(false);
 
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
 
@@ -128,6 +140,7 @@ export default function DirectPlayerPage() {
   const isPlaybackStoppedRef = useRef(false);
   const markPlaybackStopped = useCallback(() => {
     isPlaybackStoppedRef.current = true;
+    pendingSyncSeekRef.current = null;
     setIsPlaybackStopped(true);
   }, []);
   const [showControls, _setShowControls] = useState(true);
@@ -166,6 +179,15 @@ export default function DirectPlayerPage() {
   });
 
   const progress = useSharedValue(0);
+  // Synchronization runs on JS; shared-value writes may still be queued on
+  // the UI thread when a server command or readiness check reads the position.
+  const syncPositionRef = useRef<{ itemId: string | null; ticks: number }>({
+    itemId: null,
+    ticks: 0,
+  });
+  const pendingSyncSeekRef = useRef<{ itemId: string; ticks: number } | null>(
+    null,
+  );
   // The stream MPV has reported a position from. While it is not the current
   // one, `progress` is not a playback position (it is reset when an item
   // loads, and the controls seed it for the scrubber) and the session is where
@@ -320,6 +342,7 @@ export default function DirectPlayerPage() {
   // Handler for changing playback speed
   const handleSetPlaybackSpeed = useCallback(
     async (speed: number, scope: PlaybackSpeedScope) => {
+      if (syncPlayRef.current.enabled) return;
       // A deliberate speed choice wins over a transient hold
       speedBeforeHoldRef.current = null;
 
@@ -340,6 +363,7 @@ export default function DirectPlayerPage() {
   );
 
   const handleHoldSpeedStart = useCallback(async () => {
+    if (syncPlayRef.current.enabled) return;
     if (speedBeforeHoldRef.current !== null) return;
     speedBeforeHoldRef.current = currentPlaybackSpeed;
     await videoRef.current?.setSpeed?.(settings?.holdToSpeedRate ?? 2.0);
@@ -375,11 +399,16 @@ export default function DirectPlayerPage() {
     const ticks = initialPlaybackTicksRef.current;
 
     if (ticks > 0) {
-      videoRef.current.seekTo(ticksToSeconds(ticks));
+      videoRef.current.seekTo(
+        syncPlayRef.current.enabled
+          ? ticks / 10_000_000
+          : ticksToSeconds(ticks),
+      );
     }
   }, [tracksReady]);
 
   useEffect(() => {
+    let active = true;
     const fetchItemData = async () => {
       setItemStatus({ isLoading: true, isError: false });
       try {
@@ -402,9 +431,11 @@ export default function DirectPlayerPage() {
           });
           fetchedItem = res.data;
         }
+        if (!active) return;
         setItem(fetchedItem);
         setItemStatus({ isLoading: false, isError: false });
       } catch (error) {
+        if (!active) return;
         logAndCaptureError("Failed to fetch item for player", error, {
           offline,
         });
@@ -413,11 +444,17 @@ export default function DirectPlayerPage() {
     };
 
     if (itemId) {
+      syncPositionRef.current = { itemId: null, ticks: 0 };
+      pendingSyncSeekRef.current = null;
+      isPlaybackStoppedRef.current = false;
+      setIsPlaybackStopped(false);
       setItem(null);
       setDownloadedItem(null);
       // Clear the previous episode's stream so the loader gate stays closed
       // until the new item's stream resolves (avoids a stale MPV source frame).
       setTracksReady(false);
+      setIsVideoLoaded(false);
+      setIsBuffering(true);
       setStream(null);
       // Scope the started flag and the position to the item being played. The
       // component is reused across an in-place item switch, and both are read
@@ -428,6 +465,9 @@ export default function DirectPlayerPage() {
       livePositionStreamRef.current = null;
       fetchItemData();
     }
+    return () => {
+      active = false;
+    };
   }, [itemId, offline, api, user?.Id, progress]);
 
   // Lock orientation based on user settings
@@ -494,15 +534,18 @@ export default function DirectPlayerPage() {
   /** Position (ticks) a report carries: where MPV is once it has reported a
    * position for this stream, where the session starts until then. A stop or
    * progress report at 0 makes the server clear the item's resume point. */
-  const getSessionPositionTicks = useCallback(
-    () =>
-      resolveSessionPositionTicks({
-        hasLivePosition: hasLivePosition(),
-        positionMs: progress.get(),
-        startTicks: startTicksRef.current,
-      }),
-    [hasLivePosition, progress],
-  );
+  const getSessionPositionTicks = useCallback(() => {
+    const position = syncPositionRef.current;
+    // JS receives decoder ticks before Reanimated applies the same position
+    // on the UI thread. Reports must use the decoder's synchronous position.
+    if (hasLivePosition() && position.itemId === currentItemIdRef.current)
+      return position.ticks;
+    return resolveSessionPositionTicks({
+      hasLivePosition: hasLivePosition(),
+      positionMs: progress.get(),
+      startTicks: startTicksRef.current,
+    });
+  }, [hasLivePosition, progress]);
 
   const releaseLiveStream = useCallback(
     (liveStreamId: string | null) => {
@@ -525,7 +568,10 @@ export default function DirectPlayerPage() {
   }, [stream?.mediaSource?.LiveStreamId, releaseLiveStream]);
 
   useEffect(() => {
+    let active = true;
+    let fetchGeneration = 0;
     const fetchStreamData = async (): Promise<Stream | null> => {
+      const generation = ++fetchGeneration;
       setStreamStatus({ isLoading: true, isError: false });
       try {
         // Don't attempt to fetch stream data if item is not available
@@ -581,6 +627,10 @@ export default function DirectPlayerPage() {
               audioMode: settings.audioTranscodeMode,
             }),
           });
+          if (!active || generation !== fetchGeneration) {
+            releaseLiveStream(res?.mediaSource?.LiveStreamId ?? null);
+            return null;
+          }
           if (!res) {
             // Without flipping isError this path used to leave the loading
             // spinner up forever.
@@ -615,6 +665,7 @@ export default function DirectPlayerPage() {
         setStreamStatus({ isLoading: false, isError: false });
         return result;
       } catch (error) {
+        if (!active || generation !== fetchGeneration) return null;
         logAndCaptureError("Failed to fetch stream", error, {
           itemType: item?.Type,
           player: getActivePlayerType(settings),
@@ -640,6 +691,9 @@ export default function DirectPlayerPage() {
     // Store the fetch function in ref for use by refresh handler
     refetchStreamRef.current = fetchStreamData;
     fetchStreamData();
+    return () => {
+      active = false;
+    };
   }, [
     itemId,
     mediaSourceId,
@@ -649,6 +703,7 @@ export default function DirectPlayerPage() {
     user?.Id,
     downloadedItem,
     offline,
+    releaseLiveStream,
   ]);
 
   useEffect(() => {
@@ -668,7 +723,7 @@ export default function DirectPlayerPage() {
             // built with autoplay, so describe the session that is starting
             // instead, or the dashboard shows "paused at 0:00" until the first
             // progress tick.
-            IsPaused: false,
+            IsPaused: syncPlayRef.current.enabled,
             PositionTicks: startTicks,
           },
         });
@@ -690,6 +745,14 @@ export default function DirectPlayerPage() {
 
   const togglePlay = async () => {
     lightHapticFeedback();
+    if (syncPlayRef.current.enabled) {
+      try {
+        await (isPlayingRef.current
+          ? syncPlayRef.current.requestPause()
+          : syncPlayRef.current.requestUnpause());
+      } catch {}
+      return;
+    }
     // Read the ref so two taps inside one render cycle don't both see the same
     // stale state and cancel each other out.
     const wasPlaying = isPlayingRef.current;
@@ -806,8 +869,21 @@ export default function DirectPlayerPage() {
   // Stop on navigation-away. Re-subscribing when the navigation object identity
   // changes (e.g. after a setParams) no longer reports anything on its own.
   useEffect(() => {
-    const beforeRemoveListener = navigation.addListener("beforeRemove", () =>
-      stopRef.current(),
+    const beforeRemoveListener = navigation.addListener(
+      "beforeRemove",
+      (event) => {
+        stopRef.current();
+        // Closing the player withdraws this participant so others needn't wait
+        // for a decoder that no longer exists. An in-place quality replacement
+        // keeps membership and announces readiness again after loading.
+        if (
+          syncPlayRef.current.enabled &&
+          !syncPlayStoppingRef.current &&
+          event.data.action.type !== "REPLACE"
+        ) {
+          void syncPlayRef.current.leaveGroup().catch(() => {});
+        }
+      },
     );
     return () => {
       beforeRemoveListener();
@@ -927,12 +1003,28 @@ export default function DirectPlayerPage() {
 
       // MPV reports position in seconds, convert to ms
       const currentTime = position * 1000;
+      const positionTicks = msToTicks(currentTime);
 
       if (isBuffering) {
         setIsBuffering(false);
+        syncPlayerStateRef.current.isBuffering = false;
       }
 
       progress.set(currentTime);
+      syncPositionRef.current = {
+        itemId: item.Id,
+        ticks: positionTicks,
+      };
+      const pendingSeek = pendingSyncSeekRef.current;
+      const reachedSyncSeek =
+        syncPlayRef.current.enabled &&
+        pendingSeek?.itemId === item.Id &&
+        Math.abs(positionTicks - pendingSeek.ticks) <= 5_000_000;
+      if (reachedSyncSeek) pendingSyncSeekRef.current = null;
+      if (syncPlayRef.current.enabled) {
+        if (isBuffering) syncPlayRef.current.notifyBuffering(false);
+        syncPlayRef.current.notifyProgress();
+      }
 
       // Update cache progress (current position + buffered seconds ahead)
       if (cacheSeconds !== undefined && cacheSeconds > 0) {
@@ -942,7 +1034,7 @@ export default function DirectPlayerPage() {
 
       // Update URL immediately after seeking, or every 30 seconds during normal playback
       const now = Date.now();
-      const shouldUpdateUrl = wasJustSeekingRef.current;
+      const shouldUpdateUrl = wasJustSeekingRef.current || reachedSyncSeek;
       wasJustSeekingRef.current = false;
 
       if (
@@ -967,7 +1059,10 @@ export default function DirectPlayerPage() {
 
       const progressInfo = currentPlayStateInfo();
       if (!progressInfo) return;
-      void reportProgressRef.current(progressInfo);
+      void reportProgressRef.current({
+        ...progressInfo,
+        PositionTicks: positionTicks,
+      });
     },
     [
       // Depend on the builder itself rather than re-listing what it reads: it
@@ -1038,13 +1133,17 @@ export default function DirectPlayerPage() {
       isTranscoding,
     );
 
-    const startPos = ticksToSeconds(startTicks);
+    // SyncPlay positions include fractions; flooring can exceed its 500 ms
+    // readiness tolerance and leave a paused group waiting indefinitely.
+    const startPos = syncPlayRef.current.enabled
+      ? startTicks / 10_000_000
+      : ticksToSeconds(startTicks);
 
     // Build source config - headers only needed for online streaming
     const source: MpvVideoSource = {
       url: stream.url,
       startPosition: startPos,
-      autoplay: true,
+      autoplay: !syncPlayRef.current.enabled,
       initialAudioId,
       // Pass cache/buffer settings from user preferences
       cacheConfig: {
@@ -1174,9 +1273,19 @@ export default function DirectPlayerPage() {
     async (e: { nativeEvent: MpvOnPlaybackStateChangePayload }) => {
       const { isPaused, isPlaying: playing, isLoading } = e.nativeEvent;
 
+      if (isLoading !== undefined) {
+        setIsBuffering(isLoading);
+        syncPlayerStateRef.current.isBuffering = isLoading;
+        if (syncPlayRef.current.enabled)
+          syncPlayRef.current.notifyBuffering(isLoading);
+      }
+
       if (playing) {
         setPlaying(true);
         setIsBuffering(false);
+        syncPlayerStateRef.current.isBuffering = false;
+        if (syncPlayRef.current.enabled)
+          syncPlayRef.current.notifyBuffering(false);
         setHasPlaybackStarted(true);
         // Pause inactivity timer during playback (TV only)
         pauseInactivityTimer();
@@ -1190,10 +1299,6 @@ export default function DirectPlayerPage() {
         resumeInactivityTimer();
         await deactivateKeepAwake();
         return;
-      }
-
-      if (isLoading !== undefined) {
-        setIsBuffering(isLoading);
       }
     },
     [setPlaying, pauseInactivityTimer, resumeInactivityTimer],
@@ -1227,15 +1332,29 @@ export default function DirectPlayerPage() {
   }, []);
 
   const play = useCallback(() => {
+    if (syncPlayRef.current.enabled) {
+      void syncPlayRef.current.requestUnpause().catch(() => {});
+      return;
+    }
     videoRef.current?.play?.();
   }, []);
 
   const pause = useCallback(() => {
+    if (syncPlayRef.current.enabled) {
+      void syncPlayRef.current.requestPause().catch(() => {});
+      return;
+    }
     videoRef.current?.pause?.();
   }, []);
 
   const seek = useCallback(
     (position: number) => {
+      if (syncPlayRef.current.enabled) {
+        void syncPlayRef.current
+          .requestSeek(msToTicks(position))
+          .catch(() => {});
+        return;
+      }
       // A seek made before MPV has reported a position is where the session
       // is now. Without this a seek to 0:00 is lost: the tick it produces is
       // indistinguishable from the one MPV sends before it has a position,
@@ -1249,6 +1368,86 @@ export default function DirectPlayerPage() {
     },
     [stream, hasLivePosition, progress],
   );
+
+  const syncPlayerStateRef = useRef({
+    itemId,
+    isReady: false,
+    isBuffering: true,
+    getPositionTicks: getSessionPositionTicks,
+  });
+  syncPlayerStateRef.current = {
+    itemId,
+    isReady: isVideoLoaded && tracksReady && !isPlaybackStopped,
+    isBuffering,
+    getPositionTicks: getSessionPositionTicks,
+  };
+  const syncRouterRef = useRef(router);
+  syncRouterRef.current = router;
+
+  useEffect(() => {
+    pendingSyncSeekRef.current = null;
+    return () => {
+      pendingSyncSeekRef.current = null;
+    };
+  }, [itemId, stream, syncPlay.enabled]);
+
+  useEffect(() => {
+    if (!ownsSyncPlay) return;
+    return syncPlay.registerPlayer({
+      getState: () => ({
+        itemId: syncPlayerStateRef.current.itemId,
+        positionTicks:
+          syncPositionRef.current.itemId === syncPlayerStateRef.current.itemId
+            ? syncPositionRef.current.ticks
+            : syncPlayerStateRef.current.getPositionTicks(),
+        isPlaying: isPlayingRef.current,
+        isReady: syncPlayerStateRef.current.isReady,
+        isBuffering: syncPlayerStateRef.current.isBuffering,
+      }),
+      pause: async () => {
+        setPlaying(false);
+        await videoRef.current?.pause();
+      },
+      resume: async () => {
+        await videoRef.current?.play();
+      },
+      seek: async (positionTicks) => {
+        const request = {
+          itemId: syncPlayerStateRef.current.itemId,
+          ticks: positionTicks,
+        };
+        pendingSyncSeekRef.current = request;
+        try {
+          await videoRef.current?.seekTo(positionTicks / 10_000_000);
+        } catch (error) {
+          if (pendingSyncSeekRef.current === request)
+            pendingSyncSeekRef.current = null;
+          throw error;
+        }
+      },
+      stop: () => {
+        syncPlayStoppingRef.current = true;
+        stopRef.current();
+        syncRouterRef.current.back();
+      },
+    });
+  }, [syncPlay.registerPlayer, setPlaying, progress, ownsSyncPlay]);
+
+  useEffect(() => {
+    if (!syncPlay.enabled || !isVideoLoaded || !tracksReady) return;
+    // A paused group still has a loaded frame. Remove the startup scrim and
+    // report the readiness edge so Jellyfin can schedule everyone's start.
+    setHasPlaybackStarted(true);
+    setIsBuffering(false);
+    syncPlayerStateRef.current.isBuffering = false;
+    syncPlay.notifyReady();
+  }, [
+    syncPlay.enabled,
+    syncPlay.notifyReady,
+    isVideoLoaded,
+    tracksReady,
+    stream,
+  ]);
 
   // TV audio track change handler
   const handleAudioIndexChange = useCallback(
@@ -1495,6 +1694,10 @@ export default function DirectPlayerPage() {
 
   // TV: Navigate to previous item
   const goToPreviousItem = useCallback(() => {
+    if (syncPlayRef.current.enabled) {
+      void syncPlayRef.current.requestPrevious().catch(() => {});
+      return;
+    }
     if (!previousItem || !settings) return;
 
     const {
@@ -1579,6 +1782,10 @@ export default function DirectPlayerPage() {
 
   // TV: Navigate to next item
   const goToNextItem = useCallback(() => {
+    if (syncPlayRef.current.enabled) {
+      void syncPlayRef.current.requestNext().catch(() => {});
+      return;
+    }
     if (!nextItem || !settings || isPlaybackStopped) return;
 
     const {
@@ -1675,6 +1882,12 @@ export default function DirectPlayerPage() {
   useEffect(() => {
     if (!isVideoLoaded || !videoRef.current) return;
 
+    if (syncPlay.enabled) {
+      setCurrentPlaybackSpeed(1);
+      void videoRef.current.setSpeed(1);
+      return;
+    }
+
     const applyInitialPlaybackSpeed = async () => {
       if (initialPlaybackSpeed !== 1.0) {
         setCurrentPlaybackSpeed(initialPlaybackSpeed);
@@ -1683,7 +1896,7 @@ export default function DirectPlayerPage() {
     };
 
     applyInitialPlaybackSpeed();
-  }, [isVideoLoaded, initialPlaybackSpeed]);
+  }, [isVideoLoaded, initialPlaybackSpeed, syncPlay.enabled]);
 
   // TV only: Pre-load locally downloaded subtitles when video loads
   // This adds them to MPV's track list without auto-selecting them
@@ -1768,6 +1981,10 @@ export default function DirectPlayerPage() {
                 style={{ width: "100%", height: "100%" }}
                 nowPlayingMetadata={nowPlayingMetadata}
                 onProgress={onProgress}
+                onPlaybackEnded={() => {
+                  if (syncPlayRef.current.enabled)
+                    syncPlayRef.current.notifyEnded();
+                }}
                 onPlaybackStateChange={onPlaybackStateChanged}
                 onPictureInPictureChange={_onPictureInPictureChange}
                 onLoad={() => setIsVideoLoaded(true)}
@@ -1896,9 +2113,15 @@ export default function DirectPlayerPage() {
                   api={api}
                   downloadedFiles={downloadedFiles}
                   playbackSpeed={currentPlaybackSpeed}
-                  setPlaybackSpeed={handleSetPlaybackSpeed}
-                  onHoldSpeedStart={handleHoldSpeedStart}
-                  onHoldSpeedEnd={handleHoldSpeedEnd}
+                  setPlaybackSpeed={
+                    syncPlay.enabled ? undefined : handleSetPlaybackSpeed
+                  }
+                  onHoldSpeedStart={
+                    syncPlay.enabled ? undefined : handleHoldSpeedStart
+                  }
+                  onHoldSpeedEnd={
+                    syncPlay.enabled ? undefined : handleHoldSpeedEnd
+                  }
                   showTechnicalInfo={showTechnicalInfo}
                   onToggleTechnicalInfo={handleToggleTechnicalInfo}
                   getTechnicalInfo={getTechnicalInfo}
@@ -1906,6 +2129,18 @@ export default function DirectPlayerPage() {
                   transcodeReasons={transcodeReasons}
                 />
               ))}
+            {syncPlay.enabled && !isPipMode && (
+              <SyncPlayStatus
+                style={{
+                  position: "absolute",
+                  top: 128,
+                  left: 24,
+                  right: 24,
+                  zIndex: 20,
+                  elevation: 20,
+                }}
+              />
+            )}
           </View>
         </VideoProvider>
       </PlayerProvider>

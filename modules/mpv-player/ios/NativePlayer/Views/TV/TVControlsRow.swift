@@ -20,7 +20,7 @@ enum TVControl: Hashable {
 	case previousEpisode, skipBack, previousChapter, playPause
 	case nextChapter, skipForward, nextEpisode, skipSegment
 	case mute
-	case quality, audio, subtitles, speed, episodes, more, chapters
+	case quality, audio, subtitles, speed, episodes, more, chapters, syncPlay
 }
 
 @available(tvOS 26.0, *)
@@ -50,7 +50,7 @@ struct TVControlsRow: View {
 	private func isAvailable(_ control: TVControl) -> Bool {
 		switch control {
 		case .previousEpisode, .nextEpisode:
-			return viewModel.metadata?.isEpisode == true
+			return viewModel.isSyncPlayActive || viewModel.metadata?.isEpisode == true
 		case .previousChapter, .nextChapter, .chapters:
 			return !viewModel.chapters.isEmpty
 		case .quality:
@@ -60,18 +60,23 @@ struct TVControlsRow: View {
 		case .subtitles:
 			return !viewModel.subtitleMenu.isEmpty || viewModel.subtitleSearchEnabled
 		case .episodes:
-			return !viewModel.episodeList.isEmpty
+			return !viewModel.isSyncPlayActive && !viewModel.episodeList.isEmpty
+		case .syncPlay:
+			return viewModel.isSyncPlayActive
 		case .skipSegment:
 			return viewModel.activeSegment != nil
-		case .mute, .skipBack, .skipForward, .playPause, .speed, .more:
+		case .speed:
+			return !viewModel.isSyncPlayActive
+		case .mute, .skipBack, .skipForward, .playPause, .more:
 			return true
 		}
 	}
 
 	var body: some View {
 		HStack(spacing: 22) {
-			if viewModel.metadata?.isEpisode == true {
+			if viewModel.isSyncPlayActive || viewModel.metadata?.isEpisode == true {
 				iconButton("backward.end.fill") { viewModel.playPreviousEpisode() }
+					.disabled(viewModel.isSyncPlayActive && viewModel.syncPlay?.hasPrevious != true)
 					.focused($focusedControl, equals: .previousEpisode)
 					.tvFocusGated(focusGate, TVControl.previousEpisode)
 			}
@@ -100,8 +105,9 @@ struct TVControlsRow: View {
 			}
 			.focused($focusedControl, equals: .skipForward)
 			.tvFocusGated(focusGate, TVControl.skipForward)
-			if viewModel.metadata?.isEpisode == true {
+			if viewModel.isSyncPlayActive || viewModel.metadata?.isEpisode == true {
 				iconButton("forward.end.fill") { viewModel.playNextEpisode() }
+					.disabled(viewModel.isSyncPlayActive && viewModel.syncPlay?.hasNext != true)
 					.focused($focusedControl, equals: .nextEpisode)
 					.tvFocusGated(focusGate, TVControl.nextEpisode)
 			}
@@ -141,7 +147,14 @@ struct TVControlsRow: View {
 
 			Spacer(minLength: 12)
 
-			if !viewModel.episodeList.isEmpty {
+			if viewModel.isSyncPlayActive {
+				iconButton("person.2.fill") { viewModel.openSyncPlayQueue() }
+					.accessibilityLabel(viewModel.syncStr("queue", "Queue"))
+					.accessibilityIdentifier("syncplay-open-queue")
+					.focused($focusedControl, equals: .syncPlay)
+					.tvFocusGated(focusGate, TVControl.syncPlay)
+			}
+			if !viewModel.isSyncPlayActive && !viewModel.episodeList.isEmpty {
 				iconButton("rectangle.stack.badge.play") {
 					viewModel.showEpisodeList = true
 				}
@@ -170,9 +183,11 @@ struct TVControlsRow: View {
 					.focused($focusedControl, equals: .subtitles)
 					.tvFocusGated(focusGate, TVControl.subtitles)
 			}
-			speedMenu
-				.focused($focusedControl, equals: .speed)
-				.tvFocusGated(focusGate, TVControl.speed)
+			if !viewModel.isSyncPlayActive {
+				speedMenu
+					.focused($focusedControl, equals: .speed)
+					.tvFocusGated(focusGate, TVControl.speed)
+			}
 			moreMenu
 				.focused($focusedControl, equals: .more)
 				.tvFocusGated(focusGate, TVControl.more)

@@ -483,12 +483,17 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
         // Drop the redundant initial seek that mirrors the resume position we
         // already applied via setMediaSource(). Only the first seek after load
         // is eligible, so a genuine seek to ~the start later still works.
-        if (loadStartPositionMs > 0 && Math.abs(targetMs - loadStartPositionMs) < 1000L) {
+        if (loadStartPositionMs > 0 && Math.abs(targetMs - loadStartPositionMs) <= 100L) {
             loadStartPositionMs = 0L
+            if (p.playbackState == Player.STATE_READY) reportPosition(p)
             return@post
         }
         loadStartPositionMs = 0L
         p.seekTo(targetMs)
+        // A buffered seek can stay READY without another state transition.
+        // Read Media3's position even while paused; group readiness cannot
+        // acknowledge a synthetic JS target or wait for playing-only ticks.
+        if (p.playbackState == Player.STATE_READY) reportPosition(p)
     }
 
     override fun seekBy(seconds: Double) = post {
@@ -1238,6 +1243,7 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
             when (playbackState) {
                 Player.STATE_BUFFERING -> delegate?.onLoadingChanged(true)
                 Player.STATE_READY -> {
+                    player?.let { reportPosition(it) }
                     delegate?.onLoadingChanged(false)
                     delegate?.onReadyToSeek()
                     if (!tracksReadyFired) {
@@ -1299,29 +1305,33 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
     private val progressRunnable = object : Runnable {
         override fun run() {
             val p = player ?: return
-            val positionMs = p.currentPosition
-            val durationMs = p.duration
-            val bufferedMs = p.bufferedPosition
-
-            cachedPositionSec = positionMs / 1000.0
-            cachedDurationSec = if (durationMs > 0) durationMs / 1000.0 else 0.0
-            cachedCacheSeconds =
-                if (bufferedMs > positionMs) (bufferedMs - positionMs) / 1000.0 else 0.0
-
             refreshTechnicalInfo()
 
             // mpv goes silent while paused — the chrome's Choreographer clock
             // interpolates instead. Match that: no ticks while paused.
             if (p.playWhenReady) {
-                delegate?.onPositionChanged(
-                    cachedPositionSec,
-                    cachedDurationSec,
-                    cachedCacheSeconds,
-                )
+                reportPosition(p)
+            } else {
+                cachePosition(p)
             }
 
             mainHandler.postDelayed(this, PROGRESS_INTERVAL_MS)
         }
+    }
+
+    private fun cachePosition(p: ExoPlayer) {
+        val positionMs = p.currentPosition
+        val durationMs = p.duration
+        val bufferedMs = p.bufferedPosition
+        cachedPositionSec = positionMs / 1000.0
+        cachedDurationSec = if (durationMs > 0) durationMs / 1000.0 else 0.0
+        cachedCacheSeconds =
+            if (bufferedMs > positionMs) (bufferedMs - positionMs) / 1000.0 else 0.0
+    }
+
+    private fun reportPosition(p: ExoPlayer) {
+        cachePosition(p)
+        delegate?.onPositionChanged(cachedPositionSec, cachedDurationSec, cachedCacheSeconds)
     }
 
     private fun startProgressLoop() {

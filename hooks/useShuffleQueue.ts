@@ -37,7 +37,9 @@ export const useShuffleQueue = () => {
       options: StartShuffleOptions = {},
     ) => {
       // Skip "Virtual"/missing episode placeholders — they have no media file.
-      const playable = episodes.filter((e) => e.LocationType !== "Virtual");
+      const playable = episodes.filter(
+        (e) => e.Id && e.LocationType !== "Virtual",
+      );
       if (playable.length === 0) return;
 
       const items = shuffle(playable);
@@ -58,7 +60,11 @@ export const useShuffleQueue = () => {
           offline: options.isOffline ?? false,
           playbackPositionTicks: first.UserData?.PlaybackPositionTicks ?? 0,
         },
-        { preserveShuffleQueue: true, item: first },
+        {
+          preserveShuffleQueue: true,
+          item: first,
+          queueItemIds: items.map((item) => item.Id!),
+        },
       );
     },
     [playMedia, settings, setShuffleQueue],

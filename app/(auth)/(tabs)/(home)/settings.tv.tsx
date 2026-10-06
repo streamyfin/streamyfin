@@ -25,6 +25,7 @@ import {
   TVSettingsToggle,
 } from "@/components/tv";
 import { useScaledTVTypography } from "@/constants/TVTypography";
+import useRouter from "@/hooks/useAppRouter";
 import { useMediaPreferences } from "@/hooks/useMediaPreferences";
 import { useTVOptionModal } from "@/hooks/useTVOptionModal";
 import { useTVUserSwitchModal } from "@/hooks/useTVUserSwitchModal";
@@ -78,6 +79,7 @@ const SEGMENT_SKIP_ROWS: {
 
 export default function SettingsTV() {
   const { t } = useTranslation();
+  const router = useRouter();
   const insets = useSafeAreaInsets();
   const { settings, updateSettings, pluginSettings } = useSettings();
   const { logout, loginWithSavedCredential, loginWithPassword } = useJellyfin();
@@ -818,6 +820,14 @@ export default function SettingsTV() {
             onPress={handleSwitchUser}
             disabled={!hasOtherAccounts || isAnyModalOpen}
             isFirst
+          />
+
+          <TVSectionHeader title={t("syncplay.title")} />
+          <TVSettingsOptionButton
+            label={t("syncplay.watch_together")}
+            value=''
+            onPress={() => router.push("/(auth)/syncplay")}
+            disabled={isAnyModalOpen}
           />
 
           {/* Security Section */}

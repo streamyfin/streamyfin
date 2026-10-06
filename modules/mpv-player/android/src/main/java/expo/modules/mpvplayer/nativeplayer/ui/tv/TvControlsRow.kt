@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.FastRewind
 import androidx.compose.material.icons.filled.Forward10
 import androidx.compose.material.icons.filled.Forward30
+import androidx.compose.material.icons.filled.FormatListBulleted
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
@@ -75,6 +76,7 @@ enum class TvControl {
     AUDIO,
     SUBTITLES,
     SPEED,
+    SYNCPLAY_QUEUE,
     MORE
 }
 
@@ -85,16 +87,21 @@ fun TvControlsRow(
     onControlFocused: (TvControl) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val isEpisode = viewModel.metadata?.isEpisode == true
+    val isEpisode = viewModel.metadata?.isEpisode == true && !viewModel.syncPlayActive
+    val showPrevious = isEpisode || viewModel.syncPlay?.hasPrevious == true
+    val showNext = isEpisode || viewModel.syncPlay?.hasNext == true
     val hasChapters = viewModel.chapters.isNotEmpty()
-    val hasEpisodes = viewModel.episodeList.isNotEmpty()
+    val hasEpisodes = viewModel.episodeList.isNotEmpty() && !viewModel.syncPlayActive
     val hasQuality = viewModel.qualityMenu.isNotEmpty()
     val hasAudio = viewModel.audioMenu.isNotEmpty()
     val hasSubtitles = viewModel.subtitleMenu.isNotEmpty() || viewModel.uiOptions.subtitleSearchEnabled
     val activeSegment = viewModel.activeSegment
 
     fun isAvailable(control: TvControl): Boolean = when (control) {
-        TvControl.PREV_EPISODE, TvControl.NEXT_EPISODE -> isEpisode
+        TvControl.PREV_EPISODE -> showPrevious
+        TvControl.NEXT_EPISODE -> showNext
+        TvControl.SYNCPLAY_QUEUE -> viewModel.syncPlayActive
+        TvControl.SPEED -> !viewModel.syncPlayActive
         TvControl.PREV_CHAPTER, TvControl.NEXT_CHAPTER, TvControl.CHAPTERS -> hasChapters
         TvControl.EPISODES -> hasEpisodes
         TvControl.QUALITY -> hasQuality
@@ -102,7 +109,7 @@ fun TvControlsRow(
         TvControl.SUBTITLES -> hasSubtitles
         TvControl.SKIP_SEGMENT -> activeSegment != null
         TvControl.MUTE, TvControl.SKIP_BACK, TvControl.SKIP_FORWARD, TvControl.PLAY_PAUSE,
-        TvControl.SPEED, TvControl.MORE -> true
+        TvControl.MORE -> true
     }
 
     val defaultFocusTarget = if (lastFocused != null && isAvailable(lastFocused)) {
@@ -139,11 +146,11 @@ fun TvControlsRow(
         horizontalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         // --- Left Transport Cluster ---
-        if (isEpisode) {
+        if (showPrevious) {
             TvIconButton(
                 control = TvControl.PREV_EPISODE,
                 icon = Icons.Filled.SkipPrevious,
-                contentDescription = "Previous Episode",
+                contentDescription = if (viewModel.syncPlayActive) viewModel.syncStr("previous", "Previous") else "Previous Episode",
                 focusRequester = focusRequesters.getValue(TvControl.PREV_EPISODE),
                 onFocused = onControlFocused,
                 onClick = { viewModel.playPreviousEpisode() }
@@ -178,7 +185,7 @@ fun TvControlsRow(
         TvIconButton(
             control = TvControl.PLAY_PAUSE,
             icon = if (viewModel.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-            contentDescription = if (viewModel.isPlaying) "Pause" else "Play",
+            contentDescription = if (viewModel.isPlaying) viewModel.syncStr("pause", "Pause") else viewModel.syncStr("play", "Play"),
             focusRequester = focusRequesters.getValue(TvControl.PLAY_PAUSE),
             onFocused = onControlFocused,
             onClick = { viewModel.togglePlayPause() }
@@ -209,11 +216,11 @@ fun TvControlsRow(
             onClick = { viewModel.seekBy(viewModel.uiOptions.seekForwardSec) }
         )
 
-        if (isEpisode) {
+        if (showNext) {
             TvIconButton(
                 control = TvControl.NEXT_EPISODE,
                 icon = Icons.Filled.SkipNext,
-                contentDescription = "Next Episode",
+                contentDescription = if (viewModel.syncPlayActive) viewModel.syncStr("next", "Next") else "Next Episode",
                 focusRequester = focusRequesters.getValue(TvControl.NEXT_EPISODE),
                 onFocused = onControlFocused,
                 onClick = { viewModel.playNextEpisode() }
@@ -274,6 +281,16 @@ fun TvControlsRow(
         Spacer(modifier = Modifier.weight(1f))
 
         // --- Right Options Cluster ---
+        if (viewModel.syncPlayActive) {
+            TvIconButton(
+                control = TvControl.SYNCPLAY_QUEUE,
+                icon = Icons.Filled.FormatListBulleted,
+                contentDescription = viewModel.syncStr("queue", "Queue"),
+                focusRequester = focusRequesters.getValue(TvControl.SYNCPLAY_QUEUE),
+                onFocused = onControlFocused,
+                onClick = { viewModel.openSyncPlayQueue() }
+            )
+        }
         if (hasEpisodes) {
             TvIconButton(
                 control = TvControl.EPISODES,
@@ -329,7 +346,7 @@ fun TvControlsRow(
             )
         }
 
-        TvIconButton(
+        if (!viewModel.syncPlayActive) TvIconButton(
             control = TvControl.SPEED,
             icon = Icons.Filled.Timer,
             contentDescription = "Speed",
