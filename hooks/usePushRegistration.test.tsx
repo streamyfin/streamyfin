@@ -22,14 +22,17 @@ jest.mock("@/utils/log", () => ({ writeErrorLog: jest.fn() }));
 const REMOTE_URL = "https://jellyfin.example.com";
 const LAN_URL = "http://192.168.1.10:8096";
 
-/** A registration the hook sent, waiting for the test to answer it. */
+/** A registration the hook sent, which lands when the test answers it. */
 interface Request {
   path: string;
   body: Record<string, unknown>;
+  answered: boolean;
   answer: (ok?: boolean) => void;
 }
 
 let requests: Request[] = [];
+// What the plugin holds for the device: the last registration that landed.
+let held: Record<string, unknown> | undefined;
 
 /** An api at `basePath` whose posts wait until the test answers them. */
 const apiAt = (basePath: string) =>
@@ -37,12 +40,18 @@ const apiAt = (basePath: string) =>
     basePath,
     post: (path: string, body: Record<string, unknown>) =>
       new Promise((resolve, reject) => {
-        requests.push({
+        const request: Request = {
           path,
           body,
-          answer: (ok = true) =>
-            ok ? resolve({ status: 200 }) : reject(new Error("refused")),
-        });
+          answered: false,
+          answer: (ok = true) => {
+            request.answered = true;
+            if (!ok) return reject(new Error("refused"));
+            held = body;
+            resolve({ status: 200 });
+          },
+        };
+        requests.push(request);
       }),
   }) as unknown as Api;
 
@@ -75,9 +84,24 @@ const renderRegistration = (
 const settle = () =>
   act(() => new Promise<void>((resolve) => setTimeout(resolve, 0)));
 
+const waiting = () => requests.filter((request) => !request.answered);
+
+/**
+ * Answers every request still waiting, the newest first, and whatever those
+ * answers send in turn: the order that leaves the plugin with the older of
+ * two registrations in flight.
+ */
+const answerNewestFirst = async () => {
+  for (let next = waiting().at(-1); next; next = waiting().at(-1)) {
+    next.answer();
+    await settle();
+  }
+};
+
 describe("usePushRegistration", () => {
   beforeEach(() => {
     requests = [];
+    held = undefined;
     mockPrimaryUrl = REMOTE_URL;
     store = createStore();
     signIn();
@@ -211,5 +235,53 @@ describe("usePushRegistration", () => {
     await act(async () => store.set(userAtom, { Id: "user-1" }));
 
     expect(requests).toHaveLength(2);
+  });
+
+  // Two registrations in flight could land the wrong way round: the plugin kept
+  // the older one while the app took the newer one as sent.
+  test("waits for the post in flight, and leaves the plugin with the latest language", async () => {
+    const { rerender } = await renderRegistration();
+    await rerender({ token: "token-1", language: "fr" });
+    await rerender({ token: "token-1", language: "de" });
+
+    expect(requests).toHaveLength(1);
+
+    await answerNewestFirst();
+
+    expect(requests.map((request) => request.body.language)).toEqual([
+      "en",
+      "de",
+    ]);
+    expect(held).toMatchObject({ language: "de" });
+  });
+
+  test("sends the new server's registration once the post in flight fails", async () => {
+    await renderRegistration();
+    await act(async () => {
+      mockPrimaryUrl = "https://other.example.com";
+      signIn(apiAt("https://other.example.com"));
+    });
+
+    expect(requests).toHaveLength(1);
+
+    requests[0].answer(false);
+    await settle();
+    await answerNewestFirst();
+
+    expect(requests).toHaveLength(2);
+    expect(held).toMatchObject({ serverUrl: "https://other.example.com" });
+  });
+
+  test("drops a post still waiting when the session ends", async () => {
+    const { rerender } = await renderRegistration();
+    await rerender({ token: "token-1", language: "fr" });
+    await act(async () => {
+      store.set(apiAtom, null);
+      store.set(userAtom, null);
+    });
+
+    await answerNewestFirst();
+
+    expect(requests).toHaveLength(1);
   });
 });

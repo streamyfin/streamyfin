@@ -1,4 +1,4 @@
-import { pushRegistrationKey, pushRegistrationStep } from "./pushRegistration";
+import { pushRegistrationKey } from "./pushRegistration";
 
 describe("pushRegistrationKey", () => {
   test("is null while any of the three parts is missing", () => {
@@ -24,64 +24,17 @@ describe("pushRegistrationKey", () => {
 });
 
 describe("the language in the key", () => {
-  test("changing the app's language posts again", () => {
-    const { key } = pushRegistrationStep(null, "https://jf", "u", "t", "en");
+  test("changing the app's language changes the key", () => {
+    const english = pushRegistrationKey("https://jf", "u", "t", "en");
 
-    expect(pushRegistrationStep(key, "https://jf", "u", "t", "fr").post).toBe(
-      true,
-    );
-    expect(pushRegistrationStep(key, "https://jf", "u", "t", "en").post).toBe(
-      false,
-    );
+    expect(pushRegistrationKey("https://jf", "u", "t", "fr")).not.toBe(english);
+    expect(pushRegistrationKey("https://jf", "u", "t", "en")).toBe(english);
   });
 
-  test("no language is a key of its own, and still posts", () => {
-    const { key, post } = pushRegistrationStep(
-      null,
-      "https://jf",
-      "u",
-      "t",
-      undefined,
-    );
+  test("no language is a key of its own, not a missing session", () => {
+    const key = pushRegistrationKey("https://jf", "u", "t", undefined);
 
-    expect(post).toBe(true);
-    expect(pushRegistrationStep(key, "https://jf", "u", "t", "fr").post).toBe(
-      true,
-    );
-  });
-});
-
-describe("pushRegistrationStep", () => {
-  test("posts the first time, and not again for the same server, user and token", () => {
-    const first = pushRegistrationStep(null, "https://jf", "u", "t");
-    expect(first.post).toBe(true);
-
-    const again = pushRegistrationStep(first.key, "https://jf", "u", "t");
-    expect(again.post).toBe(false);
-    expect(again.key).toBe(first.key);
-  });
-
-  test("posts again after a different user, server or token", () => {
-    const { key } = pushRegistrationStep(null, "https://jf", "u", "t");
-
-    expect(pushRegistrationStep(key, "https://jf", "v", "t").post).toBe(true);
-    expect(pushRegistrationStep(key, "https://other", "u", "t").post).toBe(
-      true,
-    );
-    expect(pushRegistrationStep(key, "https://jf", "u", "s").post).toBe(true);
-  });
-
-  // Sign out deletes the device on the server and clears the session, so the same
-  // sign in afterwards has to post again.
-  test("forgets the key when the session ends, so the same sign in posts again", () => {
-    const { key } = pushRegistrationStep(null, "https://jf", "u", "t");
-
-    const signedOut = pushRegistrationStep(key, undefined, undefined, "t");
-    expect(signedOut.key).toBeNull();
-    expect(signedOut.post).toBe(false);
-
-    expect(
-      pushRegistrationStep(signedOut.key, "https://jf", "u", "t").post,
-    ).toBe(true);
+    expect(key).not.toBeNull();
+    expect(key).not.toBe(pushRegistrationKey("https://jf", "u", "t", "fr"));
   });
 });
