@@ -8,7 +8,7 @@ import {
   getItemsApi,
   getUserLibraryApi,
 } from "@jellyfin/sdk/lib/utils/api";
-import { FlashList, type FlashListRef } from "@shopify/flash-list";
+import { FlashList } from "@shopify/flash-list";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import {
   useFocusEffect,
@@ -27,7 +27,6 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import type { CardData } from "@/components/cards/CardData";
 import { useCardGrid } from "@/components/cards/useCardGrid";
 import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
@@ -42,7 +41,6 @@ import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import { useFilterReset } from "@/hooks/useFilterReset";
 import { useOrientation } from "@/hooks/useOrientation";
-import { usePinListToTop } from "@/hooks/usePinListToTop";
 import { useRefreshLibraryOnFocus } from "@/hooks/useRefreshLibraryOnFocus";
 import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
 import { useTVOptionModal } from "@/hooks/useTVOptionModal";
@@ -481,10 +479,14 @@ const Page = () => {
     );
   }, [data]);
 
-  const flashListRef = useRef<FlashListRef<CardData>>(null);
-
-  // Jump the grid back to the top when the filters or the sort change, reset
-  // included, instead of staying deep in the previous result set.
+  // Identifies the result set on screen. A change of filters or sort, reset
+  // included, has to show its results from the top instead of staying deep in
+  // the previous set, so the list is keyed by it and starts over.
+  //
+  // Scrolling the existing list to the top does not work on iOS: the header is
+  // transparent and the system insets the list under it, React Native clamps
+  // a scroll to offset 0, which is behind the header, and a list that has just
+  // mounted has no inset yet to aim at.
   const filterSignature = [
     selectedGenres.join(","),
     selectedYears.join(","),
@@ -493,13 +495,6 @@ const Page = () => {
     sortOrder[0],
     filterBy.join(","),
   ].join("|");
-  // Covered by hooks/usePinListToTop.test.tsx.
-  usePinListToTop(flashListRef, {
-    resetKey: filterSignature,
-    isFetching,
-    data: flatData,
-  });
-
   const grid = useCardGrid({
     items: flatData,
     columns: nrOfCols,
@@ -939,8 +934,7 @@ const Page = () => {
     return (
       <>
         <FlashList
-          ref={flashListRef}
-          key={orientation}
+          key={`${orientation}|${filterSignature}`}
           ListEmptyComponent={
             <View className='flex flex-col items-center justify-center h-full'>
               <Text className='font-bold text-xl text-neutral-500'>
@@ -949,10 +943,6 @@ const Page = () => {
             </View>
           }
           contentInsetAdjustmentBehavior='automatic'
-          // React Native clamps a programmatic scroll to the inset it was
-          // given, and the header's inset is one the system adds on its own,
-          // so without this usePinListToTop's pin is cut back to 0.
-          scrollToOverflowEnabled
           data={grid.data}
           renderItem={grid.renderItem}
           extraData={[orientation, nrOfCols]}
