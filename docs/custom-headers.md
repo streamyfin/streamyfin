@@ -43,7 +43,7 @@ iOS can launch the app in the background while the phone is locked, and the
 Keychain refuses any item stored as readable only while unlocked. Values are
 written with `AFTER_FIRST_UNLOCK`, so they can be read on such a launch. That
 only applies to an item being created: `expo-secure-store` updates an existing
-item's data and keeps its accessibility, so a value saved by 0.55.0 or
+item's data and keeps its accessibility, so a value saved by 0.55.1 or
 earlier stays unreadable while locked until its row is removed and added back.
 
 A read that fails never throws, because it runs during render:
