@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import { toast } from "sonner-native";
 import { getDownloadStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import { DownloadItems, DownloadSingleItem } from "./DownloadItem";
+import type { OptionGroup } from "./PlatformDropdown";
 
 const mockStartBackgroundDownload = jest.fn();
 let mockDownloadedItems: { item: BaseItemDto }[] = [];
@@ -64,7 +65,24 @@ jest.mock("@gorhom/bottom-sheet", () => {
   };
 });
 jest.mock("@/components/common/HeaderIcon", () => ({ HeaderIcon: () => null }));
-jest.mock("./PlatformDropdown", () => ({ PlatformDropdown: () => null }));
+// Lists the options instead of a menu to open, so a spec can see what a
+// selector offers and pick from it.
+jest.mock("./PlatformDropdown", () => {
+  const { Text } = jest.requireActual("react-native");
+  return {
+    PlatformDropdown: ({ groups }: { groups: OptionGroup[] }) =>
+      groups.flatMap((group) =>
+        group.options.map((option) => (
+          <Text
+            key={option.label}
+            onPress={"onPress" in option ? option.onPress : undefined}
+          >
+            {option.label}
+          </Text>
+        )),
+      ),
+  };
+});
 
 const MOVIE: BaseItemDto = {
   Id: "movie-1",
@@ -107,17 +125,17 @@ const confirmDownload = async () => {
   });
 };
 
+beforeEach(() => {
+  jest.useFakeTimers();
+  jest.clearAllMocks();
+  mockDownloadedItems = [];
+});
+
+afterEach(() => {
+  jest.useRealTimers();
+});
+
 describe("DownloadSingleItem", () => {
-  beforeEach(() => {
-    jest.useFakeTimers();
-    jest.clearAllMocks();
-    mockDownloadedItems = [];
-  });
-
-  afterEach(() => {
-    jest.useRealTimers();
-  });
-
   // Sentry REACT-NATIVE-FX: the server lists no media source for some items (a
   // missing episode is one). Confirming the sheet threw "No api or user or
   // item" where nobody caught it, so the user saw nothing happen and the app
@@ -155,11 +173,8 @@ describe("DownloadSingleItem", () => {
   });
 });
 
-describe("DownloadItems, with one episode of a season left to download", () => {
+describe("DownloadItems, sending one episode of a season", () => {
   beforeEach(() => {
-    jest.useFakeTimers();
-    jest.clearAllMocks();
-    mockDownloadedItems = [];
     jest.mocked(getDownloadStreamUrl).mockResolvedValue({
       url: "http://server/download",
       sessionId: null,
@@ -167,14 +182,10 @@ describe("DownloadItems, with one episode of a season left to download", () => {
     });
   });
 
-  afterEach(() => {
-    jest.useRealTimers();
-  });
-
   // The sheet took its source and tracks from the first episode of the list
   // while the one left to download was another, so the server was asked for
   // that episode with a media source id that belongs to a different one.
-  test("downloads it with its own media source and default tracks", async () => {
+  test("downloads the last one pending with its own media source and default tracks", async () => {
     mockDownloadedItems = [{ item: episode(1) }];
     await renderSeasonDownload([episode(1), episode(2)]);
 
@@ -202,7 +213,7 @@ describe("DownloadItems, with one episode of a season left to download", () => {
   // The first episode can be downloaded and no longer have a source on the
   // server (its file was removed there). That is not the episode being asked
   // for, so it must not turn the download down.
-  test("is not turned down because the first episode has no media source", async () => {
+  test("does not turn the last one pending down because the first episode has no media source", async () => {
     const downloaded = { ...episode(1), MediaSources: [] };
     mockDownloadedItems = [{ item: downloaded }];
     await renderSeasonDownload([downloaded, episode(2)]);
@@ -216,9 +227,42 @@ describe("DownloadItems, with one episode of a season left to download", () => {
     expect(mockStartBackgroundDownload).toHaveBeenCalledTimes(1);
   });
 
-  // "Unwatched only" narrows what is sent, not what is pending: the sheet
-  // offers no source or tracks then, and each episode resolves its own.
-  test("left by the unwatched only switch, downloads it with its own media source", async () => {
+  // The sheet lists the versions to pick from as well, and picking one of the
+  // first episode's sent a source the pending episode does not have.
+  test("offers the versions of the last one pending and downloads the one picked", async () => {
+    const pending: BaseItemDto = {
+      ...episode(2),
+      MediaSources: [
+        ...(episode(2).MediaSources ?? []),
+        { Id: "source-2b", Name: "Episode 2, version B", MediaStreams: [] },
+      ],
+    };
+    const downloaded: BaseItemDto = {
+      ...episode(1),
+      MediaSources: [
+        { Id: "source-1", Name: "Episode 1, version A", MediaStreams: [] },
+      ],
+    };
+    mockDownloadedItems = [{ item: downloaded }];
+    await renderSeasonDownload([downloaded, pending]);
+
+    expect(screen.queryByText("Episode 1, version A")).toBeNull();
+    await fireEvent.press(screen.getByText("Episode 2, version B"));
+    await confirmDownload();
+
+    expect(getDownloadStreamUrl).toHaveBeenCalledWith(
+      expect.objectContaining({
+        item: expect.objectContaining({ Id: "episode-2" }),
+        mediaSourceId: "source-2b",
+      }),
+    );
+  });
+
+  // Not a regression of the above, and green before it was fixed: "unwatched
+  // only" narrows what is sent, not what is pending. The sheet offers no
+  // source or tracks then, and each episode resolves its own. Pinned so a
+  // later change to which item the sheet follows does not pull this case in.
+  test("downloads the one left by the unwatched only switch with its own media source", async () => {
     const watched = { ...episode(1), UserData: { Played: true } };
     await renderSeasonDownload([watched, episode(2)]);
 
