@@ -9,7 +9,7 @@ import { logAndCaptureError } from "@/utils/log";
 import { apiAtom, userAtom } from "../providers/JellyfinProvider";
 import { useNetworkStatus } from "./useNetworkStatus";
 
-// Whether the server itself turned the request down for this user or this
+// Whether the server itself turned the push down for this user or this
 // item. A gateway's 403 page is not that: it comes from where the user is,
 // and the same request goes through from somewhere else.
 const isServerRefusal = (error: unknown): boolean =>
@@ -61,9 +61,11 @@ export const useTwoWaySync = () => {
         // access. Kept in the local log and out of Sentry, and nothing is
         // dropped: the playback state was never offered, the next run asks
         // again.
+        const turnedAway =
+          isAxiosError(error) && error.response?.status === 403;
         logAndCaptureError(
           "Fetching remote item during playback sync failed",
-          isServerRefusal(error) ? markExpectedError(error) : error,
+          turnedAway ? markExpectedError(error) : error,
         );
         return undefined;
       }
