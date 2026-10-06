@@ -1,5 +1,5 @@
 diff --git a/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt b/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt
-index ba950700ac89099eeac571f14e049ad9a12558f5..ddd76eb23aa8538f8d990addf99fe96e7e8afd30 100644
+index 84f25c29816f203cf1974b07d6abd6228b937fe8..1f1f879cf15f4f09c09a26db97ed4dee97891f13 100644
 --- a/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt
 +++ b/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt
 @@ -936,9 +936,19 @@ class MusicService : HeadlessJsMediaService() {

@@ -82,7 +82,7 @@
         "react-native-svg": "15.15.5",
         "react-native-tab-view": "4.3.2",
         "react-native-text-ticker": "1.16.0",
-        "react-native-track-player": "github:lovegaoshi/react-native-track-player#APM",
+        "react-native-track-player": "github:lovegaoshi/react-native-track-player#d2baf9a",
         "react-native-udp": "^4.1.7",
         "react-native-url-polyfill": "^4.0.0",
         "react-native-volume-manager": "^2.0.8",
@@ -120,8 +120,8 @@
     "@sentry/cli",
   ],
   "patchedDependencies": {
-    "react-native-track-player@github:lovegaoshi/react-native-track-player#a671bee": "patches/react-native-track-player@4.1.1.patch",
     "react-native-udp@4.1.7": "patches/react-native-udp@4.1.7.patch",
+    "react-native-track-player@github:lovegaoshi/react-native-track-player#d2baf9a": "patches/react-native-track-player@4.1.1.patch",
     "react-native-bottom-tabs@1.4.0": "patches/react-native-bottom-tabs@1.4.0.patch",
   },
   "overrides": {
@@ -1874,7 +1874,7 @@
 
     "react-native-text-ticker": ["react-native-text-ticker@1.16.0", "", {}, "sha512-UHZcIrXzNQ3CnGSA6d5foR9weqSCEk5w+eJGnUf5OQkKbuq/xtt1ZaNVnsgcG5+3f9EnRrNCt52/a46LXVKGGw=="],
 
-    "react-native-track-player": ["react-native-track-player@github:lovegaoshi/react-native-track-player#a671bee", { "peerDependencies": { "react": "*", "react-native": "*", "react-native-windows": "*", "shaka-player": "^4.7.9" }, "optionalPeers": ["react-native-windows", "shaka-player"] }, "lovegaoshi-react-native-track-player-a671bee", "sha512-Rc7r8wtbcvOYL7WHBHqMlc6Bbs4+VreTSHYpbSzmuaxyBahkmGh3hYKXnWNZlbbdBESGyFoJSqHjJDt20tOt0A=="],
+    "react-native-track-player": ["react-native-track-player@github:lovegaoshi/react-native-track-player#d2baf9a", { "peerDependencies": { "react": "*", "react-native": "*", "react-native-windows": "*", "shaka-player": "^4.7.9" }, "optionalPeers": ["react-native-windows", "shaka-player"] }, "lovegaoshi-react-native-track-player-d2baf9a", "sha512-7KQ1iC+ue8i0wrrIKZST04fCk0/X4zihRSSTMLsSBzFkr6Z1054V33ysarWHo8SZQxWU38SfrWh7ii3oxXov6w=="],
 
     "react-native-udp": ["react-native-udp@4.1.7", "", { "dependencies": { "buffer": "^5.6.0", "events": "^3.1.0" } }, "sha512-NUE3zewu61NCdSsLlj+l0ad6qojcVEZPT4hVG/x6DU9U4iCzwtfZSASh9vm7teAcVzLkdD+cO3411LHshAi/wA=="],
 
