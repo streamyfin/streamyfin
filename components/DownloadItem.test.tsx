@@ -65,11 +65,23 @@ jest.mock("@gorhom/bottom-sheet", () => {
 jest.mock("@/components/common/HeaderIcon", () => ({ HeaderIcon: () => null }));
 jest.mock("./PlatformDropdown", () => ({ PlatformDropdown: () => null }));
 
+const MEDIA_SOURCE = { Id: "source-1", MediaStreams: [] };
+
+// Chapters are present so the download does not go and fetch the item again.
 const MOVIE: BaseItemDto = {
   Id: "movie-1",
   Type: "Movie",
   Name: "Movie",
-  // Present, so the download does not go and fetch the item again.
+  Chapters: [],
+  MediaSources: [MEDIA_SOURCE],
+};
+
+// The server lists media sources for what it can play only, so a folder
+// comes back without the field.
+const FOLDER: BaseItemDto = {
+  Id: "folder-1",
+  Type: "Folder",
+  Name: "Holiday",
   Chapters: [],
 };
 
@@ -91,12 +103,12 @@ describe("DownloadSingleItem", () => {
     jest.useRealTimers();
   });
 
-  // Sentry REACT-NATIVE-FX: the server lists no media source for some items (a
-  // missing episode is one). Confirming the sheet threw "No api or user or
-  // item" where nobody caught it, so the user saw nothing happen and the app
-  // reported an error of its own.
+  // Sentry REACT-NATIVE-FX: the item page shows the download button for an
+  // item the server lists no media source for. Confirming the sheet threw "No
+  // api or user or item" where nobody caught it, so the user saw nothing
+  // happen and the app reported an error of its own.
   test("tells the user when the item has no media source to download", async () => {
-    await render(<DownloadSingleItem item={{ ...MOVIE, MediaSources: [] }} />);
+    await render(<DownloadSingleItem item={FOLDER} />);
 
     await confirmDownload();
 
@@ -108,15 +120,12 @@ describe("DownloadSingleItem", () => {
   });
 
   test("starts the download of an item that has a media source", async () => {
-    const mediaSource = { Id: "source-1", MediaStreams: [] };
     jest.mocked(getDownloadStreamUrl).mockResolvedValue({
       url: "http://server/download",
       sessionId: null,
-      mediaSource,
+      mediaSource: MEDIA_SOURCE,
     });
-    await render(
-      <DownloadSingleItem item={{ ...MOVIE, MediaSources: [mediaSource] }} />,
-    );
+    await render(<DownloadSingleItem item={MOVIE} />);
 
     await confirmDownload();
 
