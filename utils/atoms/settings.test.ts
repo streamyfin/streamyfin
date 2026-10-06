@@ -7,6 +7,10 @@ import { getDefaultStore } from "jotai";
 import { clearMmkv } from "@/test-utils/mmkv";
 import { stubReactNative } from "@/test-utils/reactNative";
 import { storage } from "@/utils/mmkv";
+import {
+  type PluginSettingsReader,
+  readPluginSettings,
+} from "@/utils/pluginSettingsSource";
 import { PLUGIN_SETTINGS_KEY } from "@/utils/storedSettings";
 
 jest.mock(
@@ -245,6 +249,29 @@ describe("refreshing the plugin settings", () => {
       failure,
     );
   });
+
+  // Something in front of the server can answer in its place with a 200 of
+  // its own, a captive portal's login page or a JSON error. That is the
+  // user's network, like an unreachable server: what is stored stands, and
+  // nothing is reported, on a refresh that runs at every foreground.
+  test.each([
+    ["a login page", "<html><body>Sign in to the Wi-Fi</body></html>"],
+    ["a JSON error", { error: "Sign in" }],
+  ])(
+    "keeps what is stored and reports nothing when %s answers",
+    async (_case, answer) => {
+      const inFront: PluginSettingsReader = {
+        get: async <T>() => ({ data: answer as T }),
+      };
+
+      const refreshed = await refreshAgainst(() => readPluginSettings(inFront));
+
+      expect(refreshed).toBeUndefined();
+      expect(store.get(pluginSettingsAtom)).toEqual(stored);
+      expect(storage.get(PLUGIN_SETTINGS_KEY)).toEqual(stored);
+      expect(mockLogAndCaptureError).not.toHaveBeenCalled();
+    },
+  );
 
   test("forgets what is stored when the server has no plugin", async () => {
     await refreshAgainst(async () => undefined);

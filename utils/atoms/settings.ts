@@ -14,6 +14,7 @@ import { Platform } from "react-native";
 import { BITRATES, type Bitrate } from "@/components/BitrateSelector";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { apiAtom } from "@/providers/JellyfinProvider";
+import { isExpectedError } from "@/utils/errors";
 import { logAndCaptureError, writeInfoLog } from "@/utils/log";
 import {
   PLUGIN_SETTINGS_KEY,
@@ -947,10 +948,12 @@ export const useSettings = () => {
       // the admin's locks and the tabs the plugin turns on until a later
       // refresh got through.
       //
-      // An HTTP failure is the server's or the network's and is left quiet.
-      // Anything else broke while reading an answer that did arrive, and
-      // would otherwise fail the same way on every refresh without a trace.
-      if (!isAxiosError(error)) {
+      // An HTTP failure is the server's or the network's and is left quiet,
+      // and so is an answer that is not the plugin's, which the transport
+      // marks expected: something in front of the server sent it. Anything
+      // else broke while reading an answer that did arrive, and would
+      // otherwise fail the same way on every refresh without a trace.
+      if (!isAxiosError(error) && !isExpectedError(error)) {
         logAndCaptureError("Refreshing plugin settings failed", error);
       }
       return undefined;

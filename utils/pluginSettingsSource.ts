@@ -24,6 +24,7 @@
  * `config` keeps working, it is just the wrong question.
  */
 import type { PluginLockableSettings } from "@/utils/atoms/settings";
+import { markExpectedError } from "@/utils/errors";
 
 /** What applies to the caller, resolved and redacted by the server. */
 export const RESOLVED_SETTINGS_PATH = "/Streamyfin/v1/config/resolved";
@@ -48,6 +49,15 @@ export interface PluginSettingsReader {
 const isMissingRoute = (error: unknown): boolean =>
   (error as { response?: { status?: number } } | undefined)?.response
     ?.status === 404;
+
+/**
+ * An answer that arrived and is not the plugin's. Something in front of the
+ * server sent it in the server's place, which is the user's network rather
+ * than a fault of the app's: it fails like an unreachable server, and is
+ * marked expected so it never becomes a Sentry event.
+ */
+const notThePluginsAnswer = (message: string): Error =>
+  markExpectedError(new Error(message));
 
 /** What axios makes of a body that is a JSON object. */
 const isJsonObject = (value: unknown): value is Record<string, unknown> =>
@@ -87,7 +97,7 @@ const isSettingsMap = (value: unknown): value is PluginLockableSettings =>
  * @throws whatever the request failed with, for anything else. A server that
  * cannot be reached has not told the caller it has no plugin, and the two must
  * not look the same to whoever decides what to keep. The same goes for an
- * answer that is not a settings map.
+ * answer that is not a settings map, which throws an error marked expected.
  */
 export const readPluginSettings = async (
   api: PluginSettingsReader,
@@ -95,7 +105,9 @@ export const readPluginSettings = async (
   try {
     const { data } = await api.get<unknown>(RESOLVED_SETTINGS_PATH);
     if (!isSettingsMap(data)) {
-      throw new Error("The resolved plugin settings are not a settings map");
+      throw notThePluginsAnswer(
+        "The resolved plugin settings are not a settings map",
+      );
     }
     return data;
   } catch (error) {
@@ -110,7 +122,7 @@ export const readPluginSettings = async (
   try {
     const { data } = await api.get<unknown>(LEGACY_CONFIG_PATH);
     if (!isJsonObject(data)) {
-      throw new Error("The plugin configuration is not an object");
+      throw notThePluginsAnswer("The plugin configuration is not an object");
     }
     // An administrator can save the configuration without its settings block,
     // and the plugin then serves it without one: there is nothing to apply.
@@ -119,7 +131,7 @@ export const readPluginSettings = async (
       return undefined;
     }
     if (!isSettingsMap(settings)) {
-      throw new Error(
+      throw notThePluginsAnswer(
         "The plugin configuration's settings are not a settings map",
       );
     }
