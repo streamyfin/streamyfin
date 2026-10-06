@@ -41,6 +41,10 @@ describe("nativeInsertIndexFor", () => {
     expect(nativeInsertIndexFor(APP_QUEUE, 0, ids("c"))).toBe(0);
   });
 
+  test("inserts in front of the first copy of a later track that is loaded twice", () => {
+    expect(nativeInsertIndexFor(APP_QUEUE, 0, ids("a", "c", "d", "c"))).toBe(1);
+  });
+
   test("appends when nothing after the track is loaded", () => {
     expect(nativeInsertIndexFor(APP_QUEUE, 3, ids("a", "c"))).toBeUndefined();
     expect(nativeInsertIndexFor(APP_QUEUE, 4, ids("a"))).toBeUndefined();

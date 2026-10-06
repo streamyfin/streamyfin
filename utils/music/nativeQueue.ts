@@ -40,9 +40,18 @@ export const nativeInsertIndexFor = (
   appIndex: number,
   nativeQueue: NativeTrack[],
 ): number | undefined => {
+  // One pass over each queue. The background load asks this once per track,
+  // and searching the native queue for every later row made that quadratic.
+  const loadedAt = new Map<string, number>();
+  nativeQueue.forEach((track, nativeIndex) => {
+    if (track.id && !loadedAt.has(track.id))
+      loadedAt.set(track.id, nativeIndex);
+  });
+
   for (let i = appIndex + 1; i < appQueue.length; i++) {
-    const nativeIndex = nativeIndexOf(nativeQueue, appQueue[i].Id);
-    if (nativeIndex >= 0) return nativeIndex;
+    const id = appQueue[i].Id;
+    const nativeIndex = id ? loadedAt.get(id) : undefined;
+    if (nativeIndex !== undefined) return nativeIndex;
   }
   return undefined;
 };
