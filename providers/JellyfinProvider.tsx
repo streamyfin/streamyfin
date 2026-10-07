@@ -60,6 +60,7 @@ import { signInWithQuickConnect } from "@/utils/seerrQuickConnect";
 import {
   holdSeerrSignIn,
   signInToSeerrAtLogin,
+  signInToSeerrWithApiKey,
 } from "@/utils/seerrSignInAtLogin";
 import { store } from "@/utils/store";
 import { clearTVDiscoverySafely } from "@/utils/tvDiscovery/sync";
@@ -258,38 +259,21 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     // Three round trips is long enough to log out or switch account in, and
     // the Seerr session belongs to whoever approved the code.
     const stillCurrent = () => store.get(userAtom)?.Id === userId;
-    (async () => {
-      const seerr = new SeerrApi(
-        serverUrl,
-        getIntegrationHeaders("seerr"),
-        apiKey,
-      );
-
+    const seerr = new SeerrApi(
+      serverUrl,
+      getIntegrationHeaders("seerr"),
+      apiKey,
+    );
+    void signInToSeerrWithApiKey({
       // Quick Connect first when a session api is there — it needs no key. The
       // key stays as the fallback for when it declines or the api is not ready.
-      if (api) {
-        const quickConnected = await signInWithQuickConnect(
-          seerr,
-          api,
-          stillCurrent,
-        );
-        if (quickConnected) {
-          setSeerrUser(quickConnected);
-          return;
-        }
-      }
-
-      // The key is not replayed for an account that has since been left:
-      // resolved for the previous user, it would sign the next one in as them.
-      if (!stillCurrent()) return;
-      try {
-        setSeerrUser(await seerr.loginWithApiKey(userId));
-      } catch (e) {
-        writeErrorLog(
-          `Seerr API-key sign-in failed: ${e instanceof Error ? e.message : e}`,
-        );
-      }
-    })();
+      quickConnect: async () =>
+        api ? signInWithQuickConnect(seerr, api, stillCurrent) : undefined,
+      loginWithApiKey: () => seerr.loginWithApiKey(userId),
+      forget: () => seerr.forget(),
+      stillCurrent,
+      signedIn: setSeerrUser,
+    });
   }, [
     api,
     user?.Id,

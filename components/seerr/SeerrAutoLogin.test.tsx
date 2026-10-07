@@ -1,4 +1,4 @@
-import { act, render } from "@testing-library/react-native";
+import { act, render, waitFor } from "@testing-library/react-native";
 import { atom, Provider } from "jotai";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import {
@@ -9,6 +9,8 @@ import { store } from "@/utils/store";
 import { SeerrAutoLogin } from "./SeerrAutoLogin";
 
 const mockSignInWithQuickConnect = jest.fn();
+const mockGetSeerrPassword = jest.fn();
+const mockSeerr = { login: jest.fn(), forget: jest.fn() };
 const mockSeerrUserAtom = atom<{ id: number } | undefined>(undefined);
 
 jest.mock("@/providers/JellyfinProvider", () => {
@@ -19,7 +21,7 @@ jest.mock("@/providers/JellyfinProvider", () => {
   };
 });
 jest.mock("@/hooks/useSeerr", () => ({
-  SeerrApi: jest.fn(),
+  SeerrApi: jest.fn(() => mockSeerr),
   useSeerr: () => {
     const { useAtom } = require("jotai");
     const [seerrUser, setSeerrUser] = useAtom(mockSeerrUserAtom);
@@ -45,7 +47,7 @@ jest.mock("@/utils/mmkv", () => ({
 }));
 jest.mock("@/utils/seerrPassword", () => ({
   deleteSeerrPassword: jest.fn(async () => {}),
-  getSeerrPassword: jest.fn(async () => undefined),
+  getSeerrPassword: (...args: unknown[]) => mockGetSeerrPassword(...args),
 }));
 jest.mock("@/utils/seerrQuickConnect", () => ({
   signInWithQuickConnect: (...args: unknown[]) =>
@@ -66,6 +68,10 @@ describe("signing in to Seerr at launch", () => {
   beforeEach(() => {
     mockSignInWithQuickConnect.mockReset();
     mockSignInWithQuickConnect.mockResolvedValue(undefined);
+    mockGetSeerrPassword.mockReset();
+    mockGetSeerrPassword.mockResolvedValue(undefined);
+    mockSeerr.login.mockReset();
+    mockSeerr.forget.mockReset();
     store.set(userAtom, { Id: "user", Name: "alex" } as never);
     store.set(apiAtom, {} as never);
   });
@@ -113,5 +119,43 @@ describe("signing in to Seerr at launch", () => {
 
     expect(mockSignInWithQuickConnect).toHaveBeenCalledTimes(1);
     end();
+  });
+
+  test("signs in with the stored password when Quick Connect could not", async () => {
+    mockGetSeerrPassword.mockResolvedValue("secret");
+    mockSeerr.login.mockResolvedValue({ id: 8 });
+
+    await renderAutoLogin();
+
+    await waitFor(() =>
+      expect(store.get(mockSeerrUserAtom)).toEqual({ id: 8 }),
+    );
+  });
+
+  // A sign-out or an account switch clears the Seerr data, and a sign-in still
+  // on its way would bring the previous account's session back for the next.
+  test("drops the session of an account that left while its stored password signed it in", async () => {
+    mockGetSeerrPassword.mockResolvedValue("secret");
+    mockSeerr.login.mockImplementation(async () => {
+      store.set(userAtom, { Id: "next", Name: "sam" } as never);
+      return { id: 8 };
+    });
+
+    await renderAutoLogin();
+
+    await waitFor(() => expect(mockSeerr.forget).toHaveBeenCalledTimes(1));
+    expect(store.get(mockSeerrUserAtom)).toBeUndefined();
+  });
+
+  test("drops Quick Connect's session for an account that left before it was handed over", async () => {
+    mockSignInWithQuickConnect.mockImplementation(async () => {
+      store.set(userAtom, { Id: "next", Name: "sam" } as never);
+      return { id: 7 };
+    });
+
+    await renderAutoLogin();
+
+    await waitFor(() => expect(mockSeerr.forget).toHaveBeenCalledTimes(1));
+    expect(store.get(mockSeerrUserAtom)).toBeUndefined();
   });
 });
