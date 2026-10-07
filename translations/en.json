@@ -562,6 +562,12 @@
           "requests": "Your requests",
           "account": "Your account",
           "server_alerts": "Server alerts"
+        },
+        "actions": {
+          "pause": "Pause for 8 hours",
+          "mute_show": "Turn off for this show",
+          "paused": "Notifications paused for 8 hours",
+          "muted": "Notifications for this show turned off"
         }
       }
     },

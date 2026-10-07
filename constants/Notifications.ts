@@ -32,3 +32,18 @@ export const NOTIFICATION_FAMILIES = {
   account: "account",
   serverAlerts: "server-alerts",
 } as const;
+
+/** The buttons a notification can carry, by the identifier the app is told back. */
+export const NOTIFICATION_ACTIONS = {
+  pause: "pause",
+  muteShow: "muteShow",
+} as const;
+
+/**
+ * The buttons of each category the plugin names: an episode can also turn its show off.
+ * Category ids have neither `:` nor `-`, as expo-notifications asks.
+ */
+export const NOTIFICATION_CATEGORIES = {
+  episode: [NOTIFICATION_ACTIONS.pause, NOTIFICATION_ACTIONS.muteShow],
+  general: [NOTIFICATION_ACTIONS.pause],
+} as const;
