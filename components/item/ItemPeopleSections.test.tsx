@@ -7,18 +7,22 @@ import { Text } from "react-native";
 import { ItemPeopleSections } from "@/components/item/ItemPeopleSections";
 import { pendingIdleCallbacks } from "@/test-utils/idleCallback";
 
-const mockPeople: BaseItemPerson[] = [
-  { Id: "person-1", Name: "Ada Actor", Type: "Actor" },
-];
+const mockPeopleByItem: Record<string, BaseItemPerson[]> = {
+  "movie-1": [{ Id: "person-1", Name: "Ada Actor", Type: "Actor" }],
+  "movie-2": [{ Id: "person-2", Name: "Bea Actor", Type: "Actor" }],
+};
 let mockOffline = false;
 /** Whether the page asked the server for its people. */
 let mockRequested = false;
 
 // Stands in for the React Query hook: the people arrive once it is enabled.
 jest.mock("@/hooks/useItemPeopleQuery", () => ({
-  useItemPeopleQuery: (_itemId: string | undefined, enabled: boolean) => {
+  useItemPeopleQuery: (itemId: string | undefined, enabled: boolean) => {
     if (enabled) mockRequested = true;
-    return { data: enabled ? mockPeople : undefined, isLoading: false };
+    return {
+      data: enabled ? mockPeopleByItem[itemId ?? ""] : undefined,
+      isLoading: false,
+    };
   },
 }));
 jest.mock("@/providers/OfflineModeProvider", () => ({
@@ -36,6 +40,7 @@ jest.mock("@/components/MoreMoviesWithActor", () => ({
 }));
 
 const item = { Id: "movie-1", Name: "Movie" } as BaseItemDto;
+const otherItem = { Id: "movie-2", Name: "Other movie" } as BaseItemDto;
 
 describe("ItemPeopleSections", () => {
   beforeEach(() => {
@@ -56,6 +61,24 @@ describe("ItemPeopleSections", () => {
       jest.runAllTimers();
     });
     expect(screen.getByText("Ada Actor")).toBeTruthy();
+  });
+
+  // The page can switch to another item without remounting; that item's
+  // request waits for idle too.
+  test("waits for idle again when the page moves to another item", async () => {
+    const view = await render(<ItemPeopleSections item={item} />);
+    await act(async () => {
+      jest.runAllTimers();
+    });
+    expect(screen.getByText("Ada Actor")).toBeTruthy();
+
+    await view.rerender(<ItemPeopleSections item={otherItem} />);
+    expect(screen.queryByText("Bea Actor")).toBeNull();
+
+    await act(async () => {
+      jest.runAllTimers();
+    });
+    expect(screen.getByText("Bea Actor")).toBeTruthy();
   });
 
   test("shows nothing and asks for nothing offline", async () => {

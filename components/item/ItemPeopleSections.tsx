@@ -16,15 +16,20 @@ interface Props extends ViewProps {
 
 export const ItemPeopleSections: React.FC<Props> = ({ item, ...props }) => {
   const isOffline = useOfflineMode();
-  const [enabled, setEnabled] = useState(false);
+  // The item the idle callback cleared for loading. The people are asked for
+  // once the JS thread is idle, so the request does not compete with the rest
+  // of the item page while it mounts, and a page that moves to another item
+  // waits for idle again.
+  const [readyFor, setReadyFor] = useState<string | null>(null);
 
-  // Ask for the people once the JS thread is idle, so the request does not
-  // compete with the rest of the item page while it mounts.
   useEffect(() => {
     if (isOffline) return;
-    const handle = requestIdleCallback(() => setEnabled(true));
+    const itemId = item.Id ?? "";
+    const handle = requestIdleCallback(() => setReadyFor(itemId));
     return () => cancelIdleCallback(handle);
-  }, [isOffline]);
+  }, [isOffline, item.Id]);
+
+  const enabled = readyFor === (item.Id ?? "");
 
   const { data, isLoading } = useItemPeopleQuery(
     item.Id,
