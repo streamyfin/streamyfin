@@ -968,7 +968,11 @@ export const useSettings = () => {
     // The answer belongs to the session that asked. A sign-out or an account
     // switch while it was on its way has moved on, and writing it now would
     // hand the previous user's settings, credentials included, to the next.
-    if (jotaiStore.get(apiAtom) !== api) {
+    // Compared by session rather than by object: the same session's api is
+    // rebuilt at launch, once the stored session is read back, and when the
+    // network changes the server's address, and its answer is still its own.
+    const current = jotaiStore.get(apiAtom);
+    if (!current || current.accessToken !== api.accessToken) {
       return undefined;
     }
     setPluginSettings(newPluginSettings);

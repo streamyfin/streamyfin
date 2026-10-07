@@ -316,6 +316,71 @@ describe("refreshing the plugin settings", () => {
     expect(storage.get(PLUGIN_SETTINGS_KEY)).toEqual(stored);
   });
 
+  // Another session's answer is dropped the same way: an account switch
+  // replaces the token while the previous account's answer is on its way.
+  test("drops an answer that lands after another account signed in", async () => {
+    let answer: (value: unknown) => void = () => {};
+    const asked = jest.fn(
+      () =>
+        new Promise((resolve) => {
+          answer = resolve;
+        }),
+    );
+    store.set(apiAtom, {
+      accessToken: "alice",
+      getStreamyfinPluginConfig: asked,
+    } as never);
+    const { result } = await renderHook(() => useSettings());
+
+    let refreshed: unknown = "not settled";
+    await act(async () => {
+      const pending = result.current.refreshStreamyfinPluginSettings();
+      store.set(apiAtom, {
+        accessToken: "bob",
+        getStreamyfinPluginConfig: asked,
+      } as never);
+      answer({
+        data: {
+          settings: { showCustomMenuLinks: { locked: false, value: false } },
+        },
+      });
+      refreshed = await pending;
+    });
+
+    expect(refreshed).toBeUndefined();
+    expect(store.get(pluginSettingsAtom)).toEqual(stored);
+  });
+
+  // The same session's api is rebuilt while the answer is on its way: at
+  // launch, once the stored session is read back, and when the network changes
+  // the server's address. The answer is still that session's, and dropping it
+  // left a TV, which is cold started, without its plugin settings.
+  test("keeps an answer when the same session's api is rebuilt meanwhile", async () => {
+    const sent = { showCustomMenuLinks: { locked: false, value: false } };
+    let answer: (value: unknown) => void = () => {};
+    const asked = jest.fn(
+      () =>
+        new Promise((resolve) => {
+          answer = resolve;
+        }),
+    );
+    const launched = { accessToken: "alice", getStreamyfinPluginConfig: asked };
+    store.set(apiAtom, launched as never);
+    const { result } = await renderHook(() => useSettings());
+
+    let refreshed: unknown = "not settled";
+    await act(async () => {
+      const pending = result.current.refreshStreamyfinPluginSettings();
+      await Promise.resolve();
+      store.set(apiAtom, { ...launched } as never);
+      answer({ data: { settings: sent } });
+      refreshed = await pending;
+    });
+
+    expect(refreshed).toEqual(sent);
+    expect(store.get(pluginSettingsAtom)).toEqual(sent);
+  });
+
   test("takes what the server sends", async () => {
     const sent = { showCustomMenuLinks: { locked: false, value: false } };
     const refreshed = await refreshAgainst(async () => ({
