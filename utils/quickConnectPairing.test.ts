@@ -19,6 +19,27 @@ describe("quickConnectPairingUrl", () => {
       "http://jellyfin.local:8096/jellyfin/web/#/quickconnect?code=042117",
     );
   });
+
+  // The QR code is on screen for anyone in the room to photograph, so a server
+  // address saved as user:password@host must not carry the password into it.
+  test("leaves out credentials written into the server address", () => {
+    expect(
+      quickConnectPairingUrl(
+        "https://ada:s3cr@t@media.example.com/jf",
+        "123456",
+      ),
+    ).toBe("https://media.example.com/jf/web/#/quickconnect?code=123456");
+  });
+
+  // The web client reads only the code, so the server id rides along for the
+  // app without changing what a phone camera opens.
+  test("adds the server id when the TV knows it", () => {
+    expect(
+      quickConnectPairingUrl("https://media.example.com", "123456", "f00d"),
+    ).toBe(
+      "https://media.example.com/web/#/quickconnect?code=123456&serverId=f00d",
+    );
+  });
 });
 
 describe("parsePairingCode", () => {
@@ -31,6 +52,20 @@ describe("parsePairingCode", () => {
       kind: "quick-connect",
       serverUrl: "http://jellyfin.local:8096/jf",
       code: "123456",
+    });
+  });
+
+  test("reads the server id back when the QR code carries one", () => {
+    const url = quickConnectPairingUrl(
+      "https://media.example.com",
+      "123456",
+      "f00d",
+    );
+    expect(parsePairingCode(url)).toEqual({
+      kind: "quick-connect",
+      serverUrl: "https://media.example.com",
+      code: "123456",
+      serverId: "f00d",
     });
   });
 
@@ -61,6 +96,11 @@ describe("parsePairingCode", () => {
       "https://media.example.com/web/#/quickconnect",
     ],
     ["an empty code", "https://media.example.com/web/#/quickconnect?code=%20"],
+    // A damaged or hostile QR code must not throw out of the scanner callback.
+    [
+      "a code with a broken escape",
+      "https://media.example.com/web/#/quickconnect?code=%E0%A4%A",
+    ],
     [
       "a link that is not http",
       "ftp://media.example.com/web/#/quickconnect?code=1",
