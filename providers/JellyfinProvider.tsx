@@ -57,7 +57,10 @@ import {
 } from "@/utils/secureCredentials";
 import { deleteSeerrPassword, saveSeerrPassword } from "@/utils/seerrPassword";
 import { signInWithQuickConnect } from "@/utils/seerrQuickConnect";
-import { signInToSeerrAtLogin } from "@/utils/seerrSignInAtLogin";
+import {
+  holdSeerrSignIn,
+  signInToSeerrAtLogin,
+} from "@/utils/seerrSignInAtLogin";
 import { store } from "@/utils/store";
 import { clearTVDiscoverySafely } from "@/utils/tvDiscovery/sync";
 import { APP_VERSION } from "@/utils/version";
@@ -568,97 +571,108 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
         const auth = await api.authenticateUserByName(username, password);
 
         if (auth.data.AccessToken && auth.data.User) {
-          // What a previous session signs in with is not this user's. Its
-          // other plugin settings stay until the refresh below replaces them.
-          forgetPluginSignIns();
-          setUser(auth.data.User);
-          storage.set("user", JSON.stringify(auth.data.User));
-          // Kept rather than only handed to setApi: the token is what makes
-          // this client able to speak for the user, and mutating accessToken on
-          // the old instance propagates nowhere.
-          const authedApi = createApiWithCustomHeaders(
-            jellyfin,
-            api.basePath,
-            auth.data?.AccessToken,
-          );
-          setApi(authedApi);
-          storage.set("token", auth.data?.AccessToken);
+          // Held from before the session is set: SeerrAutoLogin starts as soon
+          // as the plugin's Seerr address reaches it, and would open a second
+          // Seerr session for the same user. Let go once the sign-in to Seerr
+          // below is over, or straight away when there is none.
+          const endSeerrSignIn = holdSeerrSignIn(auth.data.User.Id);
+          let seerrSignIn: Promise<void> | undefined;
+          try {
+            // What a previous session signs in with is not this user's. Its
+            // other plugin settings stay until the refresh below replaces them.
+            forgetPluginSignIns();
+            setUser(auth.data.User);
+            storage.set("user", JSON.stringify(auth.data.User));
+            // Kept rather than only handed to setApi: the token is what makes
+            // this client able to speak for the user, and mutating accessToken on
+            // the old instance propagates nowhere.
+            const authedApi = createApiWithCustomHeaders(
+              jellyfin,
+              api.basePath,
+              auth.data?.AccessToken,
+            );
+            setApi(authedApi);
+            storage.set("token", auth.data?.AccessToken);
 
-          // Save credentials to secure storage if requested
-          if (api.basePath && options?.saveAccount) {
-            const securityType = options.securityType || "none";
-            let pinHash: string | undefined;
+            // Save credentials to secure storage if requested
+            if (api.basePath && options?.saveAccount) {
+              const securityType = options.securityType || "none";
+              let pinHash: string | undefined;
 
-            if (securityType === "pin" && options.pinCode) {
-              pinHash = await hashPIN(options.pinCode);
+              if (securityType === "pin" && options.pinCode) {
+                pinHash = await hashPIN(options.pinCode);
+              }
+              if (securityType === "pin" && !pinHash) {
+                // Never persist a "pin" credential without its hash — it would be
+                // impossible to unlock. Skip the save rather than failing a login
+                // that already succeeded, and tell the user it didn't happen.
+                writeErrorLog("Account save skipped: PIN required but missing");
+                toast.error(t("save_account.not_saved"));
+              } else {
+                await saveAccountCredential({
+                  serverUrl: api.basePath,
+                  serverName: serverName || "",
+                  token: auth.data.AccessToken,
+                  userId: auth.data.User.Id || "",
+                  username,
+                  savedAt: Date.now(),
+                  securityType,
+                  pinHash,
+                  primaryImageTag: auth.data.User.PrimaryImageTag ?? undefined,
+                });
+              }
             }
-            if (securityType === "pin" && !pinHash) {
-              // Never persist a "pin" credential without its hash — it would be
-              // impossible to unlock. Skip the save rather than failing a login
-              // that already succeeded, and tell the user it didn't happen.
-              writeErrorLog("Account save skipped: PIN required but missing");
-              toast.error(t("save_account.not_saved"));
-            } else {
-              await saveAccountCredential({
-                serverUrl: api.basePath,
-                serverName: serverName || "",
-                token: auth.data.AccessToken,
-                userId: auth.data.User.Id || "",
-                username,
-                savedAt: Date.now(),
-                securityType,
-                pinHash,
-                primaryImageTag: auth.data.User.PrimaryImageTag ?? undefined,
+
+            const recentPluginSettings = await refreshStreamyfinPluginSettings({
+              atSignIn: true,
+            });
+            // With a plugin-provided API key the auto-connect effect signs in
+            // without a password — don't start a password session here, and
+            // don't store the password either.
+            if (
+              recentPluginSettings?.seerrServerUrl?.value &&
+              !recentPluginSettings?.seerrApiKey?.value
+            ) {
+              const seerrApi = new SeerrApi(
+                recentPluginSettings.seerrServerUrl.value,
+                getIntegrationHeaders("seerr"),
+              );
+              const jellyfinServerUrl = api.basePath;
+              const jellyfinUserId = auth.data.User.Id;
+              const stillCurrent = () =>
+                store.get(userAtom)?.Id === jellyfinUserId;
+              // Not awaited: the user is signed in to Jellyfin already, and a
+              // Seerr out of reach would hold the login for the platform's
+              // request timeout, once per request.
+              seerrSignIn = signInToSeerrAtLogin({
+                quickConnect: () =>
+                  signInWithQuickConnect(seerrApi, authedApi, stillCurrent),
+                test: () => seerrApi.test({ quiet: true }),
+                login: () => seerrApi.login(username, password),
+                forget: () => seerrApi.forget(),
+                stillCurrent,
+                signedIn: setSeerrUser,
+                // Goes to the platform secure store, never MMKV; users who typed
+                // their own URL get nothing stored, and the autoLoginSeerr
+                // toggle opts out.
+                rememberPassword: () => {
+                  const autoLogin =
+                    store.get(settingsAtom)?.autoLoginSeerr !== false;
+                  if (jellyfinServerUrl && jellyfinUserId && autoLogin) {
+                    saveSeerrPassword(
+                      jellyfinServerUrl,
+                      jellyfinUserId,
+                      password,
+                    ).catch((e) =>
+                      writeErrorLog(`Could not store Seerr password: ${e}`),
+                    );
+                  }
+                },
               });
             }
-          }
-
-          const recentPluginSettings = await refreshStreamyfinPluginSettings({
-            atSignIn: true,
-          });
-          // With a plugin-provided API key the auto-connect effect signs in
-          // without a password — don't start a password session here, and
-          // don't store the password either.
-          if (
-            recentPluginSettings?.seerrServerUrl?.value &&
-            !recentPluginSettings?.seerrApiKey?.value
-          ) {
-            const seerrApi = new SeerrApi(
-              recentPluginSettings.seerrServerUrl.value,
-              getIntegrationHeaders("seerr"),
-            );
-            const jellyfinServerUrl = api.basePath;
-            const jellyfinUserId = auth.data.User.Id;
-            const stillCurrent = () =>
-              store.get(userAtom)?.Id === jellyfinUserId;
-            // Not awaited: the user is signed in to Jellyfin already, and a
-            // Seerr out of reach would hold the login for the platform's
-            // request timeout, once per request.
-            void signInToSeerrAtLogin({
-              quickConnect: () =>
-                signInWithQuickConnect(seerrApi, authedApi, stillCurrent),
-              test: () => seerrApi.test({ quiet: true }),
-              login: () => seerrApi.login(username, password),
-              forget: () => seerrApi.forget(),
-              stillCurrent,
-              signedIn: setSeerrUser,
-              // Goes to the platform secure store, never MMKV; users who typed
-              // their own URL get nothing stored, and the autoLoginSeerr
-              // toggle opts out.
-              rememberPassword: () => {
-                const autoLogin =
-                  store.get(settingsAtom)?.autoLoginSeerr !== false;
-                if (jellyfinServerUrl && jellyfinUserId && autoLogin) {
-                  saveSeerrPassword(
-                    jellyfinServerUrl,
-                    jellyfinUserId,
-                    password,
-                  ).catch((e) =>
-                    writeErrorLog(`Could not store Seerr password: ${e}`),
-                  );
-                }
-              },
-            });
+          } finally {
+            if (seerrSignIn) void seerrSignIn.finally(endSeerrSignIn);
+            else endSeerrSignIn();
           }
         }
       } catch (error) {

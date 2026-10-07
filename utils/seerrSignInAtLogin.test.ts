@@ -9,7 +9,12 @@ jest.mock("@/utils/log", () => ({
   writeErrorLog: (...args: unknown[]) => mockWriteErrorLog(...args),
 }));
 
-import { signInToSeerrAtLogin } from "./seerrSignInAtLogin";
+import { store } from "@/utils/store";
+import {
+  holdSeerrSignIn,
+  seerrSignInsAtLoginAtom,
+  signInToSeerrAtLogin,
+} from "./seerrSignInAtLogin";
 
 const QUICK_CONNECTED = { id: 7 } as SeerrUser;
 const WITH_PASSWORD = { id: 8 } as SeerrUser;
@@ -182,5 +187,69 @@ describe("signInToSeerrAtLogin", () => {
     expect(mockWriteErrorLog).toHaveBeenCalledWith(
       "Seerr sign-in at login failed: Seerr said no",
     );
+  });
+});
+
+// SeerrAutoLogin waits while a password sign-in is signing the same user in to
+// Seerr, or both run Quick Connect and race to open the session.
+describe("holding SeerrAutoLogin off", () => {
+  const held = (userId: string) =>
+    store.get(seerrSignInsAtLoginAtom).has(userId);
+
+  afterEach(() => store.set(seerrSignInsAtLoginAtom, new Map()));
+
+  test("holds the user while the sign-in runs, and lets go with it", () => {
+    const end = holdSeerrSignIn("alex");
+    expect(held("alex")).toBe(true);
+
+    end();
+    expect(held("alex")).toBe(false);
+  });
+
+  // A URL sign-in and a submitted form can both be signing the same user in,
+  // and they need not end in the order they started.
+  test.each([
+    ["the first", 0],
+    ["the second", 1],
+  ])(
+    "holds until the last of two sign-ins ends, %s ending first",
+    (_case, first) => {
+      const ends = [holdSeerrSignIn("alex"), holdSeerrSignIn("alex")];
+
+      ends[first]();
+      expect(held("alex")).toBe(true);
+
+      ends[1 - first]();
+      expect(held("alex")).toBe(false);
+    },
+  );
+
+  test("holds one user, not the next", () => {
+    const end = holdSeerrSignIn("alex");
+
+    expect(held("sam")).toBe(false);
+    end();
+  });
+
+  test("a sign-in without a user holds nothing and takes nothing away", () => {
+    const endNamed = holdSeerrSignIn("alex");
+    const endUnnamed = holdSeerrSignIn(undefined);
+
+    expect([...store.get(seerrSignInsAtLoginAtom).keys()]).toEqual(["alex"]);
+    endUnnamed();
+    expect(held("alex")).toBe(true);
+    endNamed();
+  });
+
+  test("ending twice takes nothing from another sign-in", () => {
+    const endFirst = holdSeerrSignIn("alex");
+    const endSecond = holdSeerrSignIn("alex");
+
+    endFirst();
+    endFirst();
+    expect(held("alex")).toBe(true);
+
+    endSecond();
+    expect(held("alex")).toBe(false);
   });
 });
