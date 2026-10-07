@@ -556,7 +556,13 @@
         }
       },
       "notifications": {
-        "save_failed": "Couldn't save your notification choices. Try again."
+        "save_failed": "Couldn't save your notification choices. Try again.",
+        "channels": {
+          "new_content": "New on the server",
+          "requests": "Your requests",
+          "account": "Your account",
+          "server_alerts": "Server alerts"
+        }
       }
     },
     "sessions": {

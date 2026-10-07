@@ -47,6 +47,7 @@ import {
   writeToLog,
 } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
+import { createNotificationChannels } from "@/utils/notificationChannels";
 import { notificationRoute } from "@/utils/notificationRoute";
 import {
   queryDehydrateOptions,
@@ -340,7 +341,13 @@ function Layout() {
     settings?.preferedLanguage ?? getLocales()[0].languageCode ?? "en";
 
   useEffect(() => {
-    i18n.changeLanguage(language);
+    void i18n.changeLanguage(language).then(() => {
+      // One channel per family the plugin sends, named in the app's language: Android
+      // shows each name in its settings as it was last given.
+      if (Platform.OS === "android" && !Platform.isTV) {
+        void createNotificationChannels(Notifications, (key) => i18n.t(key));
+      }
+    });
   }, [language]);
 
   useNotificationObserver();

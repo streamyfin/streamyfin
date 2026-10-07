@@ -24,3 +24,11 @@ export const NOTIFICATION_CAPABILITIES = {
   channels: Platform.OS === "android" ? 1 : 0,
   categories: 1,
 } as const;
+
+/** The families the plugin sends, each an Android channel of the same id. */
+export const NOTIFICATION_FAMILIES = {
+  newContent: "new-content",
+  requests: "requests",
+  account: "account",
+  serverAlerts: "server-alerts",
+} as const;
