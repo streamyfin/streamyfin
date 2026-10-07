@@ -81,6 +81,29 @@ describe("ItemPeopleSections", () => {
     expect(screen.getByText("Bea Actor")).toBeTruthy();
   });
 
+  // The page stays mounted while the app is offline; coming back online waits
+  // for idle again rather than asking at once.
+  test("waits for idle again when the app comes back online", async () => {
+    const view = await render(<ItemPeopleSections item={item} />);
+    await act(async () => {
+      jest.runAllTimers();
+    });
+    expect(screen.getByText("Ada Actor")).toBeTruthy();
+
+    mockOffline = true;
+    await view.rerender(<ItemPeopleSections item={item} />);
+    expect(screen.queryByText("Ada Actor")).toBeNull();
+
+    mockOffline = false;
+    await view.rerender(<ItemPeopleSections item={item} />);
+    expect(screen.queryByText("Ada Actor")).toBeNull();
+
+    await act(async () => {
+      jest.runAllTimers();
+    });
+    expect(screen.getByText("Ada Actor")).toBeTruthy();
+  });
+
   test("shows nothing and asks for nothing offline", async () => {
     mockOffline = true;
     await render(<ItemPeopleSections item={item} />);
