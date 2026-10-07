@@ -5,14 +5,24 @@ import QRCode from "react-native-qrcode-svg";
 import { Text } from "@/components/common/Text";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import { useTVBackPress } from "@/hooks/useTVBackPress";
+import { quickConnectPairingUrl } from "@/utils/quickConnectPairing";
 import { scaleSize } from "@/utils/scaleSize";
 
 interface TVQRCodeDisplayProps {
+  /** The server the TV started Quick Connect on. */
+  serverUrl: string;
+  /** The Quick Connect code the server handed out. */
   code: string;
   onBack?: () => void;
 }
 
+/**
+ * The TV side of Quick Connect: the code, and a QR code a phone scans to
+ * approve it, with the Streamyfin app or with the camera and the server's web
+ * client. The TV then signs in by itself; no password crosses the network.
+ */
 export const TVQRCodeDisplay: React.FC<TVQRCodeDisplayProps> = ({
+  serverUrl,
   code,
   onBack,
 }) => {
@@ -23,10 +33,7 @@ export const TVQRCodeDisplay: React.FC<TVQRCodeDisplayProps> = ({
   const sectionPadding = scaleSize(32);
   const outerPadding = scaleSize(60);
 
-  const qrData = JSON.stringify({
-    action: "streamyfin-pair",
-    code,
-  });
+  const qrData = quickConnectPairingUrl(serverUrl, code);
 
   const handleBack = useCallback(() => {
     if (!onBack) return false;
@@ -69,7 +76,7 @@ export const TVQRCodeDisplay: React.FC<TVQRCodeDisplayProps> = ({
               marginBottom: scaleSize(8),
             }}
           >
-            {t("pairing.waiting_for_phone")}
+            {t("login.quick_connect")}
           </Text>
 
           <View
@@ -104,9 +111,21 @@ export const TVQRCodeDisplay: React.FC<TVQRCodeDisplayProps> = ({
               fontSize: typography.callout,
               color: "#9CA3AF",
               marginTop: scaleSize(8),
+              textAlign: "center",
             }}
           >
-            {t("pairing.scan_with_phone")}
+            {t("pairing.scan_quick_connect")}
+          </Text>
+
+          <Text
+            style={{
+              fontSize: typography.callout,
+              color: "#9CA3AF",
+              marginTop: scaleSize(4),
+              textAlign: "center",
+            }}
+          >
+            {t("login.quick_connect_instructions")}
           </Text>
         </View>
       </View>
