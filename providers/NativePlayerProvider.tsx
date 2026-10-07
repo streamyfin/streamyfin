@@ -143,6 +143,7 @@ import {
   syncPlayQueuePosterUrl,
   syncPlayQueueSubtitle,
 } from "@/utils/syncplay/queueDisplay";
+import { syncPlayLookupKey } from "@/utils/syncplay/queueItems";
 import { msToTicks, ticksToSeconds } from "@/utils/time";
 
 const NEXT_EPISODE_COUNTDOWN_SECONDS = 10;
@@ -381,7 +382,7 @@ const NativePlayerProviderInner: React.FC<{
   );
   const nativeSyncStateRef = useRef(nativeSyncState);
   nativeSyncStateRef.current = nativeSyncState;
-  const syncIds = syncPlay.playlist.map((item) => item.ItemId).join(",");
+  const syncIds = syncPlayLookupKey(syncPlay.playlist);
   useEffect(() => {
     let current = true;
     if (!syncIds) {
@@ -434,9 +435,19 @@ const NativePlayerProviderInner: React.FC<{
 
   // Dropped from the group (socket lost, playback failed) the player is left
   // paused with no SyncPlay state to carry the reason, so it is said here.
+  // Only an error that arrives while the player is up: one left behind by
+  // the sheet says nothing about a video played later.
+  const noticedSyncErrorRef = useRef<string | null>(null);
   useEffect(() => {
-    if (isActive && !syncPlay.enabled && syncPlay.error)
-      void nativePlayerShowNotice(syncPlay.error);
+    const error = syncPlay.error;
+    if (
+      isActive &&
+      !syncPlay.enabled &&
+      error &&
+      error !== noticedSyncErrorRef.current
+    )
+      void nativePlayerShowNotice(error);
+    noticedSyncErrorRef.current = error;
   }, [isActive, syncPlay.enabled, syncPlay.error]);
 
   useEffect(() => {

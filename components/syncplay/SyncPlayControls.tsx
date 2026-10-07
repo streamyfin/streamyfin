@@ -13,14 +13,8 @@ import {
   syncPlayQueuePosterUrl,
   syncPlayQueueSubtitle,
 } from "@/utils/syncplay/queueDisplay";
-import type { SyncPlayRepeatMode } from "@/utils/syncplay/types";
+import { nextSyncPlayRepeatMode } from "@/utils/syncplay/repeatMode";
 import { SyncPlaySheetGroup, SyncPlaySheetRow } from "./SyncPlaySheetRow";
-
-const repeatModes: SyncPlayRepeatMode[] = [
-  "RepeatNone",
-  "RepeatAll",
-  "RepeatOne",
-];
 
 interface Props {
   /** The videos behind the queue, by media id. */
@@ -203,11 +197,7 @@ export function SyncPlayOptions() {
         disabled={disabled}
         onPress={() =>
           void sync
-            .setRepeatMode(
-              repeatModes[
-                (repeatModes.indexOf(repeatMode) + 1) % repeatModes.length
-              ],
-            )
+            .setRepeatMode(nextSyncPlayRepeatMode(repeatMode))
             .catch(() => {})
         }
       />

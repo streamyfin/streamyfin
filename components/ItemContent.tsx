@@ -153,7 +153,9 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
           item && (
             <HeaderButtonGroup>
               <Chromecast.Chromecast />
-              {item.Type !== "Program" && (
+              {/* A group plays from the server: a downloaded copy has
+                  nothing to start one with. */}
+              {item.Type !== "Program" && !isOffline && (
                 <SyncPlayButton items={[item]} title={item.Name} />
               )}
               {item.Type !== "Program" && (
@@ -188,6 +190,7 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
     navigation,
     user,
     itemWithSources,
+    isOffline,
     settings.hideRemoteSessionButton,
     settings.streamyStatsServerUrl,
     settings.hideWatchlistsTab,

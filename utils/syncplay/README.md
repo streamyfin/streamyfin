@@ -73,7 +73,9 @@ pending playback.
 
 **An idle queue.** Items queued while nothing plays leave the group without a current
 entry, and the server waits forever on an Unpause for such a group. Play starts it by
-selecting the first entry instead.
+selecting the first entry instead, whenever there is no current entry: the Stop a new
+group sends cannot be relied on to say so, since it is dropped when the queue arrives
+before the clock.
 
 **End of an item.** With something to play next, repeat included, the client asks for
 the next item. At the last item with repeat off it asks the group to stop, because the
@@ -81,8 +83,11 @@ server's next is a no-op there. The report carries the playlist entry that ended
 ignored unless that entry is still current and was ready.
 
 **Leaving.** A leave stays owed until the server has confirmed it, and is repeated when
-the socket returns or the group list is refreshed. A join the server completed after the
-client gave up on it is left again. Otherwise the server keeps counting a member that
+the socket returns, when the group list is refreshed, and before any join. A join waits
+for a leave still in flight: one that reached the server after the join would take the
+session out of the group it had just entered. Once the server has put the session in a
+group, nothing is owed any more. A join the server completed after the client gave up on
+it is left again. Otherwise the server keeps counting a member that
 never reports Ready, and the group waits on it at every seek.
 
 **Losing the socket.** A member pauses, drops its scheduled work and leaves. Outside a
@@ -101,7 +106,9 @@ not after `SYNCPLAY_RESUME_WINDOW_MS`. A failure to play is never walked back in
 wait for it, and the group's playback no longer loads anything here: `watching` is false
 in the snapshot. Watching again sends a join for the group the client is already in,
 which makes the server send the whole state once more, and it loads like any late join.
-Playing something for the group is also a way back. A choice of ignore wait made while
+The server is told to wait again only once it has answered that join: a way back that
+fails leaves no player here to wait for. Playing something for the group, or choosing an
+entry of its queue, is also a way back. A choice of ignore wait made while
 away is kept for the return, since the server's own flag is busy meaning "not watching".
 
 **Drift.** While playing, a position more than the threshold from the group's timeline

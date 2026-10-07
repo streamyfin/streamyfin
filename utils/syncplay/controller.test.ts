@@ -1028,6 +1028,31 @@ describe("SyncPlay server-coordinated playback", () => {
       );
     });
 
+    test("a leave still owed is settled before the next group is joined", async () => {
+      await join();
+      transport.leaveGroup.mockRejectedValueOnce(new Error("timeout"));
+      await controller.leaveGroup().catch(() => {});
+      await join();
+      // The sheet reloads its list on every change of membership.
+      await controller.refreshGroups();
+      expect(transport.leaveGroup).toHaveBeenCalledTimes(2);
+      expect(transport.leaveGroup.mock.invocationCallOrder[1]).toBeLessThan(
+        transport.joinGroup.mock.invocationCallOrder[1],
+      );
+      expect(controller.getSnapshot().group).not.toBeNull();
+    });
+
+    test("a join the server went through with settles a leave that never got out", async () => {
+      await join();
+      transport.leaveGroup.mockRejectedValue(new Error("timeout"));
+      await controller.leaveGroup().catch(() => {});
+      await join();
+      transport.leaveGroup.mockResolvedValue(undefined);
+      const leaves = transport.leaveGroup.mock.calls.length;
+      await controller.refreshGroups();
+      expect(transport.leaveGroup).toHaveBeenCalledTimes(leaves);
+    });
+
     test("suspending outside a group is a no-op", async () => {
       await controller.suspendGroup();
       expect(transport.leaveGroup).not.toHaveBeenCalled();
@@ -1088,9 +1113,12 @@ describe("SyncPlay server-coordinated playback", () => {
       state.isReady = false;
       const launches = launch.mock.calls.length;
       await controller.startWatching();
-      expect(transport.setIgnoreWait).toHaveBeenLastCalledWith(false);
       expect(transport.joinGroup).toHaveBeenCalledTimes(2);
+      // Still not waited for until the server has answered the join.
+      expect(transport.setIgnoreWait).toHaveBeenLastCalledWith(true);
       restored();
+      await settle();
+      expect(transport.setIgnoreWait).toHaveBeenLastCalledWith(false);
       expect(controller.getSnapshot()).toMatchObject({ group, watching: true });
       queue(250_000_000);
       await settle();
@@ -1110,9 +1138,54 @@ describe("SyncPlay server-coordinated playback", () => {
       expect(transport.setIgnoreWait.mock.calls).toEqual([[true]]);
       await controller.setIgnoreWait(true);
       await controller.startWatching();
-      expect(transport.setIgnoreWait).toHaveBeenLastCalledWith(true);
       restored();
+      await settle();
+      expect(transport.setIgnoreWait.mock.calls).toEqual([[true], [true]]);
       expect(controller.getSnapshot().ignoreWait).toBe(true);
+    });
+
+    test("a way back that fails leaves the group not waiting for this device", async () => {
+      await playing();
+      await controller.stopWatching();
+      transport.joinGroup.mockRejectedValueOnce(new Error("timeout"));
+      await expect(controller.startWatching()).rejects.toThrow("timeout");
+      // No player here: a server told to wait again would hold everyone.
+      expect(transport.setIgnoreWait.mock.calls).toEqual([[true]]);
+      expect(controller.getSnapshot().watching).toBe(false);
+    });
+
+    test("choosing an entry of the queue is a way back too", async () => {
+      await playing();
+      await controller.stopWatching();
+      await controller.requestPlaylistItem("playlist-1");
+      expect(controller.getSnapshot().watching).toBe(true);
+      expect(transport.setIgnoreWait).toHaveBeenLastCalledWith(false);
+      expect(transport.setPlaylistItem).toHaveBeenCalledWith("playlist-1");
+    });
+
+    test("a rejoin the server refuses does not leave the next group unwatched", async () => {
+      await playing();
+      await controller.stopWatching();
+      controller.setConnected(false);
+      controller.setConnected(true);
+      await controller.resumeGroup();
+      controller.handleGroupUpdate({
+        GroupId: group.GroupId,
+        Type: "GroupDoesNotExist",
+      });
+      expect(controller.getSnapshot().error).toBe("group_missing");
+      const other = { ...group, GroupId: "group-2" };
+      await controller.joinGroup(other.GroupId);
+      controller.handleGroupUpdate({
+        GroupId: other.GroupId,
+        Type: "GroupJoined",
+        Data: other,
+      });
+      await settle();
+      expect(controller.getSnapshot()).toMatchObject({
+        group: other,
+        watching: true,
+      });
     });
 
     test("playing something for the group is a way back", async () => {
@@ -1166,6 +1239,17 @@ describe("SyncPlay server-coordinated playback", () => {
     playlist({ Reason: "Queue", PlayingItemIndex: -1 });
     await settle();
     expect(launch).not.toHaveBeenCalled();
+    await controller.requestUnpause();
+    expect(transport.setPlaylistItem).toHaveBeenCalledWith("playlist-1");
+    expect(transport.unpause).not.toHaveBeenCalled();
+  });
+
+  // The Stop a new group sends is dropped when the queue arrives before the
+  // clock: nothing then says the group is stopped.
+  test("a queue with no current entry is started from the top without a Stop", async () => {
+    await join();
+    playlist({ Reason: "Queue", PlayingItemIndex: -1 });
+    await settle();
     await controller.requestUnpause();
     expect(transport.setPlaylistItem).toHaveBeenCalledWith("playlist-1");
     expect(transport.unpause).not.toHaveBeenCalled();

@@ -99,6 +99,8 @@ export class SyncPlayController {
   private pendingOperations = 0;
   /** A leave the server has not confirmed. It may still count this session. */
   private leaveOwed = false;
+  /** The leave in flight, if any. A join waits for it. */
+  private leaving: Promise<void> = Promise.resolve();
   /**
    * A group this client left without the user asking. Only an explicit leave
    * is final: this one is joined again when the app is back and connected.
@@ -194,7 +196,7 @@ export class SyncPlayController {
   refreshGroups = async () => {
     const generation = this.generation;
     await this.operation(async () => {
-      if (this.leaveOwed) await this.sendLeave().catch(() => {});
+      await this.settleLeave();
       const groups = await this.transport.listGroups();
       if (generation === this.generation) this.update({ groups });
     });
@@ -242,6 +244,7 @@ export class SyncPlayController {
       throw new Error("Invalid SyncPlay group name");
     }
     await this.operation(async () => {
+      await this.settleLeave();
       this.beginJoin("*");
       const generation = this.generation;
       try {
@@ -262,9 +265,11 @@ export class SyncPlayController {
     });
   };
 
-  joinGroup = async (groupId: string) => {
+  joinGroup = async (groupId: string, away = false) => {
     await this.operation(async () => {
+      await this.settleLeave();
       this.beginJoin(groupId);
+      this.resumingAway = away;
       const generation = this.generation;
       try {
         await this.transport.joinGroup(groupId);
@@ -319,11 +324,7 @@ export class SyncPlayController {
     // and must not be tried again on every later foregrounding.
     this.resumable = null;
     if (Date.now() - resumable.leftAt > SYNCPLAY_RESUME_WINDOW_MS) return;
-    if (this.leaveOwed) await this.sendLeave().catch(() => {});
-    this.resumingAway = resumable.away;
-    await this.joinGroup(resumable.groupId).catch(() => {
-      this.resumingAway = false;
-    });
+    await this.joinGroup(resumable.groupId, resumable.away).catch(() => {});
   };
 
   /**
@@ -355,10 +356,9 @@ export class SyncPlayController {
     this.assertConnected();
     this.restoring = group.GroupId;
     try {
-      await this.operation(async () => {
-        await this.transport.setIgnoreWait(this.snapshot.ignoreWait);
-        await this.transport.joinGroup(group.GroupId);
-      });
+      // The server goes on not waiting for this session until it has
+      // answered: a join that fails leaves no player here to wait for.
+      await this.operation(() => this.transport.joinGroup(group.GroupId));
     } catch (error) {
       this.restoring = null;
       throw error;
@@ -384,12 +384,32 @@ export class SyncPlayController {
    * A member the server still counts never reports Ready, and the group
    * waits on it at every seek. A leave stays owed until the server has it.
    */
-  private async sendLeave() {
+  private sendLeave() {
+    const leave = this.requestLeave();
+    this.leaving = leave.catch(() => {});
+    return leave;
+  }
+
+  /**
+   * Before a join, and wherever the session is known to be outside a group:
+   * a leave that reached the server after the join would take the session
+   * out of the group it has just entered.
+   */
+  private async settleLeave() {
+    await this.leaving;
+    if (this.leaveOwed && !this.snapshot.group && !this.expectedGroupId)
+      await this.sendLeave().catch(() => {});
+  }
+
+  private async requestLeave() {
     const sentConnected = this.connected;
     try {
       await this.transport.leaveGroup();
       this.leaveOwed = false;
     } catch (error) {
+      // The server moves a session that joins: once in a group again, the
+      // leave that failed has nothing left to undo.
+      if (this.snapshot.group) throw error;
       this.leaveOwed = true;
       // Sent as the socket dropped and failed only after it came back: the
       // reconnect has passed, so nothing else would repeat this one.
@@ -405,6 +425,7 @@ export class SyncPlayController {
 
   private cancelJoin() {
     this.expectedGroupId = null;
+    this.resumingAway = false;
     if (this.joinTimer) clearTimeout(this.joinTimer);
     this.joinTimer = null;
     this.update({ busy: this.pendingOperations > 0 });
@@ -532,8 +553,9 @@ export class SyncPlayController {
       // ignore wait is still the server's.
       const ignoreWait = restoring && this.snapshot.ignoreWait;
       const away = this.resumingAway;
-      this.resumingAway = false;
       this.resetGroup(false);
+      // The server took the session out of its last group to put it here.
+      this.leaveOwed = false;
       this.joinedAt = Number.isFinite(time(group.LastUpdatedAt))
         ? time(group.LastUpdatedAt)
         : 0;
@@ -545,6 +567,8 @@ export class SyncPlayController {
       // Rejoined after a lost socket, by someone who had closed the player:
       // back in the group, and still not watching.
       if (away) void this.stopWatching();
+      // Watching again: the server was told not to wait while away.
+      if (restoring) void this.ignoreWaitOnServer(ignoreWait);
       void this.syncClock();
       return;
     }
@@ -1395,11 +1419,15 @@ export class SyncPlayController {
         throw new Error("Invalid SyncPlay playlist index");
       return this.transport.movePlaylistItem(playlistItemId, newIndex);
     });
-  requestPlaylistItem = (playlistItemId: string) =>
-    this.playbackRequest(() => {
+  requestPlaylistItem = (playlistItemId: string) => {
+    // Picking what the group plays is asking to watch it.
+    if (this.queue?.Playlist.some((i) => i.PlaylistItemId === playlistItemId))
+      this.returnToPlayback();
+    return this.playbackRequest(() => {
       this.requirePlaylistItems([playlistItemId]);
       return this.transport.setPlaylistItem(playlistItemId);
     });
+  };
   setRepeatMode = (mode: SyncPlayRepeatMode) => {
     if (!["RepeatNone", "RepeatOne", "RepeatAll"].includes(mode))
       return Promise.reject(new Error("Invalid SyncPlay repeat mode"));
@@ -1421,17 +1449,19 @@ export class SyncPlayController {
   };
   requestPause = () => this.playbackRequest(() => this.transport.pause());
   requestUnpause = () => {
-    // Starting a stopped group again is asking to watch it.
-    if (this.stopped) this.returnToPlayback();
+    // Starting a group that plays nothing is asking to watch it.
+    if (this.stopped || !this.currentItem()) this.returnToPlayback();
     return this.playbackRequest(() => {
       // A queue filled while nothing was playing has no current entry yet,
       // and the server waits forever on an Unpause for it: start at the top.
+      // Not only after a Stop: the one a new group sends is dropped when
+      // the queue arrives before the clock.
+      const current = this.currentItem();
       const id =
-        this.currentItem()?.PlaylistItemId ??
-        this.queue?.Playlist[0]?.PlaylistItemId;
+        current?.PlaylistItemId ?? this.queue?.Playlist[0]?.PlaylistItemId;
       // Stop closes every decoder while keeping the shared queue. Unpause
       // alone does not broadcast PlayQueue, so peers cannot reopen a source.
-      return this.stopped && id
+      return (this.stopped || !current) && id
         ? this.transport.setPlaylistItem(id)
         : this.transport.unpause();
     });

@@ -1,6 +1,7 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { useCallback, useEffect, useState } from "react";
 import { useSyncPlay } from "@/providers/SyncPlayProvider";
+import { syncPlayLookupKey } from "@/utils/syncplay/queueItems";
 
 /**
  * The videos behind the group's queue, by media id. The queue itself only
@@ -11,7 +12,7 @@ export function useSyncPlayQueueItems() {
   const [items, setItems] = useState<Record<string, BaseItemDto>>({});
   const [failed, setFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
-  const ids = playlist.map((entry) => entry.ItemId).join(",");
+  const ids = syncPlayLookupKey(playlist);
 
   useEffect(() => {
     let active = true;

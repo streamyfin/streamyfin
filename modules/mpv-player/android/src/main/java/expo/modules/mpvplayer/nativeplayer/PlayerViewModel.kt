@@ -1258,11 +1258,6 @@ class PlayerViewModel : PlayerEngine.Delegate {
 
     // MARK: - Episode List & Subtitle Search
     fun selectEpisode(itemId: String) {
-        if (syncPlayActive) {
-            syncPlayAction("playItems", mapOf("itemIds" to listOf(itemId)))
-            showEpisodeList = false
-            return
-        }
         haptic()
         disarmCountdownForEpisodeChange()
         emit?.invoke("onEpisodeSelected", mapOf(

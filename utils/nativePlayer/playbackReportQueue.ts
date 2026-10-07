@@ -1,3 +1,5 @@
+import { PLAYBACK_REPORT_TIMEOUT_MS } from "@/constants/Playback";
+
 type ReportKind = "start" | "progress" | "final-progress" | "stop";
 
 /**
@@ -9,6 +11,26 @@ export class NativePlaybackReportQueue {
   private closedSessions = new WeakSet<object>();
   private waiting = 0;
   private latestProgress = new WeakMap<object, object>();
+
+  constructor(private readonly timeoutMs = PLAYBACK_REPORT_TIMEOUT_MS) {}
+
+  /**
+   * Stops waiting, not the request: the queue moves on and the caller sees a
+   * failure, whatever the client underneath does with a server that has
+   * stopped answering.
+   */
+  private bounded(report: Promise<unknown>) {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    return Promise.race([
+      report,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () => reject(new Error("Playback report timed out")),
+          this.timeoutMs,
+        );
+      }),
+    ]).finally(() => clearTimeout(timer));
+  }
 
   closeSession(session: object) {
     this.closedSessions.add(session);
@@ -40,7 +62,7 @@ export class NativePlaybackReportQueue {
           )
             return;
         }
-        await report(payload);
+        await this.bounded(report(payload));
       } finally {
         this.waiting--;
       }

@@ -3,7 +3,16 @@
  * and should move only when those do, or groups shared with Web clients drift.
  */
 
+import type { SyncPlayRepeatMode } from "@/utils/syncplay/types";
+
 const TICKS_PER_SECOND = 10_000_000;
+
+/** The repeat modes, in the order a press steps through them. */
+export const SYNCPLAY_REPEAT_MODES: readonly SyncPlayRepeatMode[] = [
+  "RepeatNone",
+  "RepeatAll",
+  "RepeatOne",
+];
 
 /**
  * Longest a SyncPlay request may hang, in ms. The SDK client has no timeout of
@@ -71,6 +80,13 @@ export const SYNCPLAY_QUEUE_POSTER_WIDTH = 40;
  * is one bounded request. Jellyfin Web's own "play all" limit.
  */
 export const SYNCPLAY_QUEUE_ADD_LIMIT = 300;
+
+/**
+ * Most ids one library lookup for the queue's titles carries. They travel in
+ * the query string, 37 bytes each, and servers and proxies commonly refuse a
+ * request line past 8 KB.
+ */
+export const SYNCPLAY_ITEM_LOOKUP_CHUNK = 100;
 
 /**
  * How long the TV sheet's route takes to leave the screen, with margin. What

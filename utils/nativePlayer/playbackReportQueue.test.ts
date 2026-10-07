@@ -154,4 +154,31 @@ describe("NativePlaybackReportQueue", () => {
     expect(original).toHaveBeenCalledWith({ position: 72.291 });
     expect(replacement).not.toHaveBeenCalled();
   });
+
+  test("a report that never settles does not hold the reports behind it", async () => {
+    jest.useFakeTimers();
+    try {
+      const queue = new NativePlaybackReportQueue(15_000);
+      const session = {};
+      const received: string[] = [];
+      const hung = queue.enqueue(
+        session,
+        "start",
+        {},
+        () => new Promise<void>(() => {}),
+      );
+      const failed = expect(hung).rejects.toThrow("timed out");
+      const stop = queue.enqueue(session, "stop", {}, async () => {
+        received.push("stop");
+      });
+      await Promise.resolve();
+      expect(received).toEqual([]);
+      await jest.advanceTimersByTimeAsync(15_000);
+      await stop;
+      await failed;
+      expect(received).toEqual(["stop"]);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
 });

@@ -13,15 +13,10 @@ import { SYNCPLAY_TV_SHEET_DISMISS_MS } from "@/constants/SyncPlay";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import type { SyncPlayGroup } from "@/providers/SyncPlayProvider";
 import { scaleSize } from "@/utils/scaleSize";
-import type { SyncPlayRepeatMode, SyncPlaySeed } from "@/utils/syncplay/types";
+import { nextSyncPlayRepeatMode } from "@/utils/syncplay/repeatMode";
+import type { SyncPlaySeed } from "@/utils/syncplay/types";
 import { syncPlayGroupIsPlaying, useSyncPlayPanel } from "./useSyncPlayPanel";
 import { useSyncPlayQueueItems } from "./useSyncPlayQueueItems";
-
-const repeatModes: SyncPlayRepeatMode[] = [
-  "RepeatNone",
-  "RepeatAll",
-  "RepeatOne",
-];
 
 /** Long enough for a newly mounted row to be laid out and focusable. */
 const FOCUS_DELAY_MS = 150;
@@ -166,11 +161,7 @@ export function TVSyncPlaySheet({ seed, onClose }: Props) {
         selected: repeatMode !== "RepeatNone",
         usable: connected,
         onPress: run(() =>
-          sync.setRepeatMode(
-            repeatModes[
-              (repeatModes.indexOf(repeatMode) + 1) % repeatModes.length
-            ],
-          ),
+          sync.setRepeatMode(nextSyncPlayRepeatMode(repeatMode)),
         ),
       },
       {

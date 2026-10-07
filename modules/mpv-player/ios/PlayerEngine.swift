@@ -72,6 +72,10 @@ final class MPVPlayerEngine: NSObject {
 	private(set) var pictureInPictureStopIsRestore = false
 	/// True from AVKit announcing that PiP will stop until it has stopped.
 	private(set) var isPictureInPictureStopping = false
+	/// True from AVKit announcing that PiP will start until it has started or
+	/// failed to. Automatic PiP begins as the app leaves the foreground, and
+	/// the app can be in the background before the window is up.
+	private(set) var isPictureInPictureStarting = false
 	#if os(iOS)
 	private var isPictureInPictureHostVisible = false
 	private var hasRenderedFirstFrame = false
@@ -749,6 +753,7 @@ extension MPVPlayerEngine: PiPControllerDelegate {
 		Logger.shared.log("PiP: will start", type: "Info")
 		pictureInPictureStopIsRestore = false
 		isPictureInPictureStopping = false
+		isPictureInPictureStarting = true
 		// Sync timebase before PiP starts for smooth transition
 		renderer?.syncTimebase()
 		// Set current time for PiP progress bar
@@ -763,6 +768,7 @@ extension MPVPlayerEngine: PiPControllerDelegate {
 
 	func pipController(_ controller: PiPController, didStartPictureInPicture: Bool) {
 		Logger.shared.log("PiP: did start = \(didStartPictureInPicture)", type: "Info")
+		isPictureInPictureStarting = false
 		// Ensure current time is synced when PiP starts
 		pipController?.setCurrentTimeFromSeconds(cachedPosition)
 		// Notify the host of the actual PiP active state. `didStartPictureInPicture`
@@ -779,6 +785,7 @@ extension MPVPlayerEngine: PiPControllerDelegate {
 
 	func pipController(_ controller: PiPController, didStopPictureInPicture: Bool) {
 		Logger.shared.log("PiP: did stop", type: "Info")
+		isPictureInPictureStarting = false
 		// Ensure timebase is synced after PiP ends
 		renderer?.syncTimebase()
 		pipController?.updatePlaybackState()

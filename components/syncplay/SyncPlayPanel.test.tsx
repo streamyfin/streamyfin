@@ -136,6 +136,19 @@ describe("outside a group", () => {
     expect(mockState.playItems).not.toHaveBeenCalled();
   });
 
+  test("a group the server refused does not pass its queue on to the next one", async () => {
+    const seed = { ids: ["e1"], title: "Severance" };
+    await render(<SyncPlayPanel seed={seed} />);
+    await fireEvent.press(screen.getByTestId("syncplay-create"));
+    // The request went through; the refusal came over the socket.
+    mockState.error = "create_denied";
+    await screen.rerender(<SyncPlayPanel seed={seed} />);
+    mockState.error = null;
+    inGroup();
+    await screen.rerender(<SyncPlayPanel seed={seed} />);
+    expect(mockState.queueItems).not.toHaveBeenCalled();
+  });
+
   test("joining someone else's group leaves their queue alone", async () => {
     const seed = { ids: ["e1"], title: "Severance" };
     await render(<SyncPlayPanel seed={seed} />);

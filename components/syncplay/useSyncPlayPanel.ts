@@ -35,11 +35,17 @@ export function useSyncPlayPanel(seed?: SyncPlaySeed | null) {
   }, [available, refreshGroups, groupId]);
 
   useEffect(() => {
-    if (!seedWhenJoined || !group) return;
+    if (!seedWhenJoined) return;
+    // The server can refuse a group after the request for it went through,
+    // or never answer: what was to be its queue is not the next group's.
+    if (!group) {
+      if (sync.error) setSeedWhenJoined(false);
+      return;
+    }
     setSeedWhenJoined(false);
     if (seed?.ids.length)
       void sync.queueItems(seed.ids, "Queue").catch(() => {});
-  }, [seedWhenJoined, group]);
+  }, [seedWhenJoined, group, sync.error]);
 
   // Nothing starts with the group. Its queue is filled from the page it was
   // started on, and from then on Play buttons play for everyone in it.
@@ -53,11 +59,12 @@ export function useSyncPlayPanel(seed?: SyncPlaySeed | null) {
   };
 
   /** Rejects when the server refuses, with the error already in `sync`. */
-  const join = (entry: SyncPlayGroup) =>
-    (group
-      ? sync.switchGroup(entry.GroupId)
-      : sync.joinGroup(entry.GroupId)
+  const join = (entry: SyncPlayGroup) => {
+    setSeedWhenJoined(false);
+    return (
+      group ? sync.switchGroup(entry.GroupId) : sync.joinGroup(entry.GroupId)
     ).then(() => setSwitching(false));
+  };
 
   const startSwitching = () => {
     setSwitching(true);

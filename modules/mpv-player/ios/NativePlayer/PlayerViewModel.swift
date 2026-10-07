@@ -452,8 +452,12 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	}
 
 	/// Losing foreground without PiP withdraws this session from the barrier.
+	/// A window that is still on its way up counts: if it fails to appear,
+	/// the PiP change handler below withdraws instead.
 	func syncPlayDidEnterBackground() {
-		guard isSyncPlayActive, engine?.isPictureInPictureActive() != true else { return }
+		guard isSyncPlayActive, engine?.isPictureInPictureActive() != true,
+			engine?.isPictureInPictureStarting != true
+		else { return }
 		withdrawFromSyncPlay()
 	}
 
@@ -1380,7 +1384,6 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	func selectEpisode(_ episode: EpisodeListItemRecord) {
 		showEpisodeList = false
 		guard !episode.isCurrent else { return }
-		if isSyncPlayActive { syncPlayAction("playItems", ["itemIds": [episode.itemId]]); return }
 		disarmCountdownForEpisodeChange()
 		emit?("onEpisodeSelected", [
 			"itemId": episode.itemId,

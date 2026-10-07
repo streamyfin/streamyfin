@@ -20,6 +20,7 @@ import {
   initialSyncPlaySnapshot,
   SyncPlayController,
 } from "@/utils/syncplay/controller";
+import { syncPlayLookupChunks } from "@/utils/syncplay/queueItems";
 import { createSyncPlayTransport } from "@/utils/syncplay/transport";
 import type {
   SyncPlayGroup,
@@ -143,14 +144,12 @@ export function SyncPlayProvider({ children }: { children: ReactNode }) {
   const resolveVideos = useCallback(
     async (ids: string[]) => {
       if (!api || !user?.Id || ids.length === 0) return [];
-      return (
-        (
-          await getItemsApi(api).getItems({
-            userId: user.Id,
-            ids: [...new Set(ids)],
-          })
-        ).data.Items ?? []
+      const pages = await Promise.all(
+        syncPlayLookupChunks(ids).map((chunk) =>
+          getItemsApi(api).getItems({ userId: user.Id, ids: chunk }),
+        ),
       );
+      return pages.flatMap((page) => page.data.Items ?? []);
     },
     [api, user?.Id],
   );

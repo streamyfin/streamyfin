@@ -22,7 +22,19 @@ beforeEach(() => {
 test("looks the queue's videos up by media id", async () => {
   const { result } = await renderHook(() => useSyncPlayQueueItems());
   await waitFor(() => expect(result.current.items.a?.Name).toBe("Arrival"));
-  expect(mockState.resolveVideos).toHaveBeenCalledWith(["a", "a"]);
+  expect(mockState.resolveVideos).toHaveBeenCalledWith(["a"]);
+});
+
+test("a reordered queue is not looked up again", async () => {
+  mockState.playlist = [
+    { ItemId: "a", PlaylistItemId: "1" },
+    { ItemId: "b", PlaylistItemId: "2" },
+  ];
+  const { rerender } = await renderHook(() => useSyncPlayQueueItems());
+  await waitFor(() => expect(mockState.resolveVideos).toHaveBeenCalledTimes(1));
+  mockState.playlist = [...mockState.playlist].reverse();
+  await rerender({});
+  expect(mockState.resolveVideos).toHaveBeenCalledTimes(1);
 });
 
 test("a failed lookup can be tried again", async () => {
