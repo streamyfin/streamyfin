@@ -554,6 +554,9 @@
           "4_hours": "4 hours",
           "24_hours": "24 hours"
         }
+      },
+      "notifications": {
+        "save_failed": "Couldn't save your notification choices. Try again."
       }
     },
     "sessions": {
