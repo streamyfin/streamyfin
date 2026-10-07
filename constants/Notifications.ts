@@ -33,6 +33,10 @@ export const NOTIFICATION_FAMILIES = {
   serverAlerts: "server-alerts",
 } as const;
 
+/** A Jellyfin item id, with or without dashes: the only show id a button acts on. */
+export const ITEM_ID =
+  /^(?:[0-9a-f]{32}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
+
 /** The buttons a notification can carry, by the identifier the app is told back. */
 export const NOTIFICATION_ACTIONS = {
   pause: "pause",

@@ -96,24 +96,19 @@ export const pauseNotifications = async (
 export const resumeNotifications = async (api: Api): Promise<MyNotifications> =>
   (await api.delete<MyNotifications>(`${MY_NOTIFICATIONS_PATH}/pause`)).data;
 
+// The show's route, with its id as one part of the path whatever it holds.
+const showMutePath = (seriesId: string): string =>
+  `${MY_NOTIFICATIONS_PATH}/shows/${encodeURIComponent(seriesId)}/mute`;
+
 // The route takes no body; the show is in the path.
 export const muteShow = async (
   api: Api,
   seriesId: string,
 ): Promise<MyNotifications> =>
-  (
-    await api.post<MyNotifications>(
-      `${MY_NOTIFICATIONS_PATH}/shows/${seriesId}/mute`,
-      undefined,
-    )
-  ).data;
+  (await api.post<MyNotifications>(showMutePath(seriesId), undefined)).data;
 
 export const unmuteShow = async (
   api: Api,
   seriesId: string,
 ): Promise<MyNotifications> =>
-  (
-    await api.delete<MyNotifications>(
-      `${MY_NOTIFICATIONS_PATH}/shows/${seriesId}/mute`,
-    )
-  ).data;
+  (await api.delete<MyNotifications>(showMutePath(seriesId))).data;

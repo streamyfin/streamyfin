@@ -98,6 +98,19 @@ describe("the plugin's routes for a person's choices", () => {
     expect(api.delete).toHaveBeenCalledWith(`${MY_NOTIFICATIONS_PATH}/pause`);
   });
 
+  it("put a show id in the path as one part of it", async () => {
+    await muteShow(client, "a/../b?c");
+    await unmuteShow(client, "a/../b?c");
+
+    expect(api.post).toHaveBeenCalledWith(
+      `${MY_NOTIFICATIONS_PATH}/shows/a%2F..%2Fb%3Fc/mute`,
+      undefined,
+    );
+    expect(api.delete).toHaveBeenCalledWith(
+      `${MY_NOTIFICATIONS_PATH}/shows/a%2F..%2Fb%3Fc/mute`,
+    );
+  });
+
   it("turn a show off and back on", async () => {
     await muteShow(client, "bear");
     await unmuteShow(client, "bear");

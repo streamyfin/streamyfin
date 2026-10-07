@@ -34,11 +34,27 @@ describe("a notification's buttons", () => {
   test("turn the show off", async () => {
     expect(
       await handleNotificationAction(
-        response("muteShow", { seriesId: "bear" }),
+        response("muteShow", { seriesId: "9bd5926326d651153928e0d11c6ee7cb" }),
         api,
       ),
     ).toBe("muted");
-    expect(muteShow).toHaveBeenCalledWith(api, "bear");
+    expect(muteShow).toHaveBeenCalledWith(
+      api,
+      "9bd5926326d651153928e0d11c6ee7cb",
+    );
+  });
+
+  // The data of a notification is not the server's word: anyone with the device's push token
+  // can send one, and a show id built as a path would send the button to another route.
+  test.each([
+    "../../../../System/Restart",
+    "9bd5926326d651153928e0d11c6ee7cb/../../Users",
+    "show?x=",
+  ])("do nothing with a show id that is not an id: %s", async (seriesId) => {
+    expect(
+      await handleNotificationAction(response("muteShow", { seriesId }), api),
+    ).toBeNull();
+    expect(muteShow).not.toHaveBeenCalled();
   });
 
   // A message from a plugin that sends no show id does nothing.
