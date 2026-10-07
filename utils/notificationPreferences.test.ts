@@ -28,13 +28,15 @@ const mine: MyNotifications = {
 };
 
 describe("a person's notification choices", () => {
-  it("are sent back in the shape the plugin stores", () => {
-    expect(toUpdate(mine)).toEqual({
-      pause: null,
+  // The pause and the muted shows have routes of their own, which a notification's buttons
+  // call: sending them as the screen last saw them took back what a button had just done.
+  it("are sent back in the shape the plugin stores, without the pause and the muted shows", () => {
+    expect(
+      toUpdate({ ...mine, pause: { until: "2026-10-07T20:00:00Z" } }),
+    ).toEqual({
       events: { itemAdded: true, seerrRequests: false },
       mutedLibraries: ["music"],
       follow: { favorites: true, started: false },
-      mutedShows: ["bear"],
     });
   });
 

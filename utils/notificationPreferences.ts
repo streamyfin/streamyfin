@@ -25,18 +25,18 @@ export type MyNotifications = {
   mutedShows: MyShow[];
 };
 
-/** What the app sends to replace the person's choices. */
+/**
+ * What the app sends to replace the choices its screen edits. The pause and the muted shows
+ * have routes of their own, which the plugin keeps apart from this.
+ */
 export type MyNotificationsUpdate = {
-  pause: NotificationPause | null;
   events: Record<string, boolean>;
   mutedLibraries: string[];
   follow: FollowChoice;
-  mutedShows: string[];
 };
 
-/** The person's choices in the shape the plugin stores. */
+/** The choices the screen edits, in the shape the plugin stores. */
 export const toUpdate = (mine: MyNotifications): MyNotificationsUpdate => ({
-  pause: mine.pause,
   events: Object.fromEntries(
     mine.events.map((event) => [event.key, event.enabled]),
   ),
@@ -44,7 +44,6 @@ export const toUpdate = (mine: MyNotifications): MyNotificationsUpdate => ({
     .filter((library) => !library.enabled)
     .map((library) => library.id),
   follow: mine.follow,
-  mutedShows: mine.mutedShows.map((show) => show.id),
 });
 
 export const withEvent = (
