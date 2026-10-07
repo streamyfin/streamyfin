@@ -61,6 +61,9 @@ export const useMyNotifications = () => {
     mine: query.data,
     supported: !(query.isError && notFound(query.error)),
     isLoading: query.isLoading,
+    // Failed for another reason than an older plugin: worth trying again.
+    isError: query.isError && !notFound(query.error),
+    refetch: query.refetch,
     update: (next: MyNotifications) =>
       apply(next, () => setMyNotifications(api!, toUpdate(next))),
     pause: (hours: number | null) =>
