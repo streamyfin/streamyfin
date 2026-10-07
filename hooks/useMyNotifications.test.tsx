@@ -1,7 +1,11 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react-native";
 import type React from "react";
-import { useMyNotifications } from "./useMyNotifications";
+import type { MyNotifications } from "@/utils/notificationPreferences";
+import {
+  MY_NOTIFICATIONS_QUERY,
+  useMyNotifications,
+} from "./useMyNotifications";
 
 const mockGet = jest.fn();
 const mockPut = jest.fn();
@@ -25,20 +29,19 @@ jest.mock("react-i18next", () => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }));
 
-// No garbage collection timer nor retry: either keeps Jest from exiting.
+let client: QueryClient;
+
+// What the cache holds, which the screen shows once it renders. A rendered value can still
+// be the one from before a change, so a test that has to see a change undone reads this.
+const cached = () =>
+  client.getQueryData<MyNotifications>([
+    MY_NOTIFICATIONS_QUERY,
+    "https://jellyfin.example.com",
+    "alice",
+  ]);
+
 const wrapper = ({ children }: { children: React.ReactNode }) => (
-  <QueryClientProvider
-    client={
-      new QueryClient({
-        defaultOptions: {
-          queries: { gcTime: Number.POSITIVE_INFINITY, retry: false },
-          mutations: { gcTime: Number.POSITIVE_INFINITY, retry: false },
-        },
-      })
-    }
-  >
-    {children}
-  </QueryClientProvider>
+  <QueryClientProvider client={client}>{children}</QueryClientProvider>
 );
 
 const mine = {
@@ -50,7 +53,20 @@ const mine = {
 };
 
 describe("the person's notification choices", () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    // Implementations too, so what one test told the server to answer stays in it.
+    jest.resetAllMocks();
+    // No garbage collection timer nor retry: either keeps Jest from exiting.
+    client = new QueryClient({
+      defaultOptions: {
+        queries: { gcTime: Number.POSITIVE_INFINITY, retry: false },
+        mutations: { gcTime: Number.POSITIVE_INFINITY, retry: false },
+      },
+    });
+  });
+  // The hook retries a failed read on its own, and a retry left running would answer in the
+  // next test.
+  afterEach(() => client.clear());
 
   // A plugin without the route hides the screen, silently.
   it("are unsupported when the plugin does not know the route", async () => {
@@ -101,6 +117,28 @@ describe("the person's notification choices", () => {
     );
   });
 
+  // Offline, the server cannot be asked what it kept either, so the snapshot is what the
+  // screen goes back to.
+  it("go back to what they were when a change fails and the server cannot be asked", async () => {
+    mockGet.mockResolvedValue({ data: mine });
+    mockPut.mockRejectedValue(new Error("offline"));
+
+    const { result } = await renderHook(() => useMyNotifications(), {
+      wrapper,
+    });
+    await waitFor(() => expect(result.current.mine).toBeDefined());
+    mockGet.mockRejectedValue(new Error("offline"));
+
+    await act(async () => {
+      await result.current.update({
+        ...mine,
+        events: [{ ...mine.events[0], enabled: false }],
+      });
+    });
+
+    expect(cached()).toEqual(mine);
+  });
+
   // Two switches moved in a row: the second change carried the first, and the server kept
   // both, then the first one failed. Going back to what was there before the first would
   // show neither, so the screen asks the server what it kept.
@@ -143,5 +181,53 @@ describe("the person's notification choices", () => {
     });
 
     await waitFor(() => expect(result.current.mine).toEqual(both));
+  });
+
+  // The same two changes, but the server cannot be asked afterwards either. Going back to
+  // what was there before the first change would leave the screen on a state the server no
+  // longer has, which the next switch would then send, so the later change's answer stays.
+  it("keep what a later change saved when an earlier one fails and the server cannot be asked", async () => {
+    const both = {
+      ...mine,
+      events: [{ ...mine.events[0], enabled: false }],
+      follow: { favorites: false, started: true },
+    };
+    let failFirst: (error: Error) => void = () => {};
+    mockGet.mockResolvedValue({ data: mine });
+    mockPut
+      .mockImplementationOnce(
+        () =>
+          new Promise((_, reject) => {
+            failFirst = reject;
+          }),
+      )
+      .mockResolvedValueOnce({ data: both });
+
+    const { result } = await renderHook(() => useMyNotifications(), {
+      wrapper,
+    });
+    await waitFor(() => expect(result.current.mine).toBeDefined());
+
+    let first: Promise<void> = Promise.resolve();
+    await act(async () => {
+      first = result.current.update({
+        ...mine,
+        events: [{ ...mine.events[0], enabled: false }],
+      });
+    });
+    await act(async () => {
+      await result.current.update(both);
+    });
+    mockGet.mockRejectedValue(new Error("offline"));
+    await act(async () => {
+      failFirst(new Error("timeout"));
+      await first;
+    });
+
+    await waitFor(() => expect(mockGet).toHaveBeenCalledTimes(2));
+    expect(cached()).toEqual(both);
+    expect(mockToastError).toHaveBeenCalledWith(
+      "home.settings.notifications.save_failed",
+    );
   });
 });

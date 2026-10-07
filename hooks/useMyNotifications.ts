@@ -48,11 +48,19 @@ export const useMyNotifications = () => {
     change: () => Promise<MyNotifications>,
   ) => {
     const before = queryClient.getQueryData<MyNotifications>(key);
-    if (optimistic) queryClient.setQueryData(key, optimistic);
+    // What the cache holds once this change is in it. Not `optimistic` itself: the cache
+    // keeps a copy that shares the parts that did not change.
+    const shown = optimistic
+      ? queryClient.setQueryData<MyNotifications>(key, optimistic)
+      : undefined;
     try {
       await run.mutateAsync(change);
     } catch {
-      queryClient.setQueryData(key, before);
+      // Only while the screen still shows this change: a later one may have saved since,
+      // and its answer is newer than the snapshot.
+      if (shown && queryClient.getQueryData(key) === shown) {
+        queryClient.setQueryData(key, before);
+      }
       toast.error(t("home.settings.notifications.save_failed"));
       // A later change may have carried this one to the server already, so what it kept
       // decides, and the snapshot only stands in until it answers.

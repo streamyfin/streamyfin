@@ -1,9 +1,14 @@
-import * as Notifications from "expo-notifications";
+import type * as NotificationsType from "expo-notifications";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AppState, TouchableOpacity, View } from "react-native";
+import { AppState, Platform, TouchableOpacity, View } from "react-native";
 import { Text } from "@/components/common/Text";
 import { openNotificationSettings } from "@/utils/openNotificationSettings";
+
+// Left out of TV builds (react-native.config.js), where loading it fails as the app starts.
+const Notifications = Platform.isTV
+  ? null
+  : (require("expo-notifications") as typeof NotificationsType);
 
 /** Says when the phone itself blocks the app's notifications, whatever is chosen below. */
 export const NotificationPermissionBanner: React.FC = () => {
@@ -11,10 +16,13 @@ export const NotificationPermissionBanner: React.FC = () => {
   const [blocked, setBlocked] = useState(false);
 
   useEffect(() => {
+    // Null on TV, which has no notification permission to ask about.
+    const notifications = Notifications;
+    if (!notifications) return;
     const check = () =>
-      Notifications.getPermissionsAsync().then(({ status }) =>
-        setBlocked(status !== "granted"),
-      );
+      notifications
+        .getPermissionsAsync()
+        .then(({ status }) => setBlocked(status !== "granted"));
     void check();
     // Back from the system settings, the answer may have changed.
     const subscription = AppState.addEventListener("change", (state) => {
