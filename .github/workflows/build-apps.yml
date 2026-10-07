@@ -591,7 +591,7 @@ jobs:
     # which would count as a pass. The full build runs when no earlier IPA can
     # be repacked or the repack job did not succeed.
     if: ${{ always() && !cancelled() && !contains(github.event.head_commit.message, '[skip ci]') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == 'streamyfin/streamyfin') && (needs.fingerprint.outputs.ios_phone_source == '' || needs.repack-ios-phone.result != 'success') }}
-    runs-on: macos-26
+    runs-on: xcode-27
     name: 🍎 Build iOS IPA (Phone)
     permissions:
       contents: read
@@ -738,7 +738,7 @@ jobs:
     # which would count as a pass. The full build runs when no earlier IPA can
     # be repacked or the repack job did not succeed.
     if: ${{ always() && !cancelled() && !contains(github.event.head_commit.message, '[skip ci]') && (needs.fingerprint.outputs.ios_phone_unsigned_source == '' || needs.repack-ios-phone-unsigned.result != 'success') }}
-    runs-on: macos-26
+    runs-on: xcode-27
     name: 🍎 Build iOS IPA (Phone - Unsigned)
     permissions:
       contents: read
@@ -876,7 +876,7 @@ jobs:
     # be repacked or the repack job did not succeed.
     needs: [fingerprint, repack-ios-tv-unsigned]
     if: ${{ always() && !cancelled() && !contains(github.event.head_commit.message, '[skip ci]') && (needs.fingerprint.outputs.ios_tv_unsigned_source == '' || needs.repack-ios-tv-unsigned.result != 'success') }}
-    runs-on: macos-26
+    runs-on: xcode-27
     name: 🍎 Build tvOS IPA (Unsigned)
     permissions:
       contents: read
