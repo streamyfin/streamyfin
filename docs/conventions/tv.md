@@ -75,6 +75,12 @@ for a full screen modal on TV. Use the navigation based pattern: a Jotai atom pl
 `router.push()`. See [tv-modal-guide.md](../tv-modal-guide.md) for the full pattern,
 including dropdowns, bottom sheets and overlay focus management.
 
+Close a modal once. On Android TV one remote select can fire `onPress` twice in the same
+JS batch (react-native-tvos#110 and #138), and a second `router.back()` pops the screen
+under the modal as well. Every handler that closes a modal, or starts an action while it
+stays open, goes through `createSubmission` from `utils/submission.ts`: `dismiss()` lets
+the first close through, `start()` and `finish()` hold one action at a time.
+
 ## Lists and focus flicker between zones
 
 A page with several focusable zones (a filter bar above a grid, for instance) can make
