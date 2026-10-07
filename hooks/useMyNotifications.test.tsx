@@ -100,4 +100,48 @@ describe("the person's notification choices", () => {
       "home.settings.notifications.save_failed",
     );
   });
+
+  // Two switches moved in a row: the second change carried the first, and the server kept
+  // both, then the first one failed. Going back to what was there before the first would
+  // show neither, so the screen asks the server what it kept.
+  it("end on what the server kept when a change fails after a later one saved", async () => {
+    const both = {
+      ...mine,
+      events: [{ ...mine.events[0], enabled: false }],
+      follow: { favorites: false, started: true },
+    };
+    let failFirst: (error: Error) => void = () => {};
+    mockGet.mockResolvedValue({ data: mine });
+    mockPut
+      .mockImplementationOnce(
+        () =>
+          new Promise((_, reject) => {
+            failFirst = reject;
+          }),
+      )
+      .mockResolvedValueOnce({ data: both });
+
+    const { result } = await renderHook(() => useMyNotifications(), {
+      wrapper,
+    });
+    await waitFor(() => expect(result.current.mine).toBeDefined());
+
+    let first: Promise<void> = Promise.resolve();
+    await act(async () => {
+      first = result.current.update({
+        ...mine,
+        events: [{ ...mine.events[0], enabled: false }],
+      });
+    });
+    await act(async () => {
+      await result.current.update(both);
+    });
+    mockGet.mockResolvedValue({ data: both });
+    await act(async () => {
+      failFirst(new Error("timeout"));
+      await first;
+    });
+
+    await waitFor(() => expect(result.current.mine).toEqual(both));
+  });
 });

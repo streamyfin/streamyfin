@@ -54,6 +54,9 @@ export const useMyNotifications = () => {
     } catch {
       queryClient.setQueryData(key, before);
       toast.error(t("home.settings.notifications.save_failed"));
+      // A later change may have carried this one to the server already, so what it kept
+      // decides, and the snapshot only stands in until it answers.
+      void queryClient.invalidateQueries({ queryKey: key });
     }
   };
 
