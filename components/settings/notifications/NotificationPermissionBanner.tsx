@@ -1,8 +1,9 @@
 import * as Notifications from "expo-notifications";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AppState, Linking, TouchableOpacity, View } from "react-native";
+import { AppState, TouchableOpacity, View } from "react-native";
 import { Text } from "@/components/common/Text";
+import { openNotificationSettings } from "@/utils/openNotificationSettings";
 
 /** Says when the phone itself blocks the app's notifications, whatever is chosen below. */
 export const NotificationPermissionBanner: React.FC = () => {
@@ -32,7 +33,10 @@ export const NotificationPermissionBanner: React.FC = () => {
       <Text className='mt-1 text-xs text-neutral-400'>
         {t("home.settings.notifications.blocked.body")}
       </Text>
-      <TouchableOpacity onPress={() => Linking.openSettings()} className='mt-2'>
+      <TouchableOpacity
+        onPress={() => void openNotificationSettings()}
+        className='mt-2'
+      >
         <Text className='font-semibold text-purple-500'>
           {t("home.settings.notifications.blocked.open")}
         </Text>

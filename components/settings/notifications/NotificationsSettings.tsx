@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { Linking, Platform, View } from "react-native";
+import { Platform, View } from "react-native";
 import { SettingSwitch } from "@/components/common/SettingSwitch";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
@@ -13,6 +13,7 @@ import {
   withFollow,
   withLibrary,
 } from "@/utils/notificationPreferences";
+import { openNotificationSettings } from "@/utils/openNotificationSettings";
 import { EVENT_LABELS } from "./eventLabels";
 import { NotificationPauseRow } from "./NotificationPauseRow";
 import { NotificationPermissionBanner } from "./NotificationPermissionBanner";
@@ -217,7 +218,7 @@ export const NotificationsSettings: React.FC = () => {
               title={t("home.settings.notifications.sound.title")}
               subtitle={t("home.settings.notifications.sound.help")}
               showArrow
-              onPress={() => void Linking.openSettings()}
+              onPress={() => void openNotificationSettings()}
             />
           </ListGroup>
         </View>

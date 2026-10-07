@@ -47,3 +47,9 @@ export const NOTIFICATION_CATEGORIES = {
   episode: [NOTIFICATION_ACTIONS.pause, NOTIFICATION_ACTIONS.muteShow],
   general: [NOTIFICATION_ACTIONS.pause],
 } as const;
+
+/** The Android screen with an app's notification settings and its channels. */
+export const ANDROID_NOTIFICATION_SETTINGS = {
+  action: "android.settings.APP_NOTIFICATION_SETTINGS",
+  packageExtra: "android.provider.extra.APP_PACKAGE",
+} as const;
