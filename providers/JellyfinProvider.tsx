@@ -784,6 +784,10 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       try {
         const response = await getUserApi(apiInstance).getCurrentUser();
 
+        // Sign the previous account out of Seerr, as a sign-out does: its
+        // session would otherwise be the next account's.
+        await clearAllSeerrData();
+
         // Clear React Query cache to prevent data from previous account lingering
         queryClient.clear();
         storage.remove("REACT_QUERY_OFFLINE_CACHE");
@@ -886,6 +890,10 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
         });
 
       if (auth.data.AccessToken && auth.data.User) {
+        // Sign the previous account out of Seerr, as a sign-out does: its
+        // session would otherwise be the next account's.
+        await clearAllSeerrData();
+
         // Clear React Query cache to prevent data from previous account lingering
         queryClient.clear();
         storage.remove("REACT_QUERY_OFFLINE_CACHE");
