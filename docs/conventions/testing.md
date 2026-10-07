@@ -90,6 +90,10 @@ Three rules keep mocks from becoming the thing that breaks:
 - `reanimatedModule` stands for `react-native-reanimated` when a spec renders a component
   that holds shared values. Reanimated's own Jest mock returns a new shared value on
   every render, which re-runs any effect that depends on one.
+- `idleCallback.ts` gives every spec the `requestIdleCallback` React Native provides and
+  Node lacks, built on timers so fake timers drive it. Jest loads it through `setupFiles`.
+  `pendingIdleCallbacks()` counts the ones still waiting, which is how a spec proves an
+  unmounted component cancelled its own.
 - `tsxRequireHook` stands for `tsx/cjs` in every spec, wired once through
   `moduleNameMapper` instead of per spec. A require hook registered from a spec lands on
   the Jest worker's own loader and breaks whichever spec that worker loads next.

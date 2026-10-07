@@ -4,7 +4,7 @@ import type {
 } from "@jellyfin/sdk/lib/generated-client/models";
 import type React from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { InteractionManager, View, type ViewProps } from "react-native";
+import { View, type ViewProps } from "react-native";
 import { MoreMoviesWithActor } from "@/components/MoreMoviesWithActor";
 import { CastAndCrew } from "@/components/series/CastAndCrew";
 import { useItemPeopleQuery } from "@/hooks/useItemPeopleQuery";
@@ -18,12 +18,12 @@ export const ItemPeopleSections: React.FC<Props> = ({ item, ...props }) => {
   const isOffline = useOfflineMode();
   const [enabled, setEnabled] = useState(false);
 
+  // Ask for the people once the JS thread is idle, so the request does not
+  // compete with the rest of the item page while it mounts.
   useEffect(() => {
     if (isOffline) return;
-    const task = InteractionManager.runAfterInteractions(() =>
-      setEnabled(true),
-    );
-    return () => task.cancel();
+    const handle = requestIdleCallback(() => setEnabled(true));
+    return () => cancelIdleCallback(handle);
   }, [isOffline]);
 
   const { data, isLoading } = useItemPeopleQuery(

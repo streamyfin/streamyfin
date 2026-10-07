@@ -155,16 +155,14 @@ describe("TV subtitle sheet", () => {
 
   // In the player a track can navigate (a burn-in switch while transcoding
   // replaces the player), which the sheet's route would swallow: the sheet
-  // closes first and the track lands after it.
-  test("closes first and applies a navigating track after", async () => {
+  // closes first and the track lands right after the press.
+  test("closes first and applies a navigating track once the press has returned", async () => {
     await openSheet(true);
 
-    await fireEvent.press(screen.getByText("French - SRT"));
+    const pressed = fireEvent.press(screen.getByText("French - SRT"));
     expect(mockCalls).toEqual(["back"]);
 
-    await act(async () => {
-      jest.runAllTimers();
-    });
+    await pressed;
     expect(mockCalls).toEqual(["back", "select French"]);
   });
 
@@ -186,9 +184,6 @@ describe("TV subtitle sheet", () => {
     await openSheet(true);
 
     await fireEvent.press(screen.getByText("French - SRT"));
-    await act(async () => {
-      jest.runAllTimers();
-    });
     expect(mockCalls).toEqual(["back", "select French"]);
   });
 
