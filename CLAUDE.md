@@ -75,6 +75,7 @@ Native modules:
 - `mpv-view-first-progress-tick-is-zero` | the MPV renderer emits its position cache once the duration is known; load() seeds it from startPosition, and JS player reports read resolveSessionPositionTicks, never progress.get()
 - `sentry-native-options-fail-silently` | sentry-cocoa ignores an option key it does not know, with no error; check the spelling in Options+Dictionary.swift
 - `foreground-service-start-must-be-answered` | every startForegroundService() needs startForeground() first in onStartCommand, unconditionally; a refused call still answers it, a skipped one kills the process
+- `track-player-queue-is-not-the-app-queue` | the native music queue only holds the tracks loaded so far, so a state queue index does not address it; on iOS `add` past the end rejects with the same message as `skip`
 
 TV platform:
 - `tv-modals-must-use-navigation-pattern` | Use atom+router.push(), never overlay/absolute modals
