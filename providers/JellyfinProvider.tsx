@@ -470,7 +470,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
   // Refresh plugin settings when the app comes to the foreground. The refresh
   // reads the session when it runs, so the listener is registered once.
   useEffect(
-    () => onAppForeground(() => refreshStreamyfinPluginSettings),
+    () => onAppForeground(refreshStreamyfinPluginSettings),
     [refreshStreamyfinPluginSettings],
   );
 
