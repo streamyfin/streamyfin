@@ -85,6 +85,7 @@ import * as Sentry from "@sentry/react-native";
 import useRouter from "@/hooks/useAppRouter";
 import { useNativePlayerLogBridge } from "@/hooks/useNativePlayerLogBridge";
 import { useNotificationActions } from "@/hooks/useNotificationActions";
+import { useNotificationSettingsLink } from "@/hooks/useNotificationSettingsLink";
 import { usePushRegistration } from "@/hooks/usePushRegistration";
 import { userAtom } from "@/providers/JellyfinProvider";
 import { effectiveSettingsAtom, settingsAtom } from "@/utils/atoms/settings";
@@ -218,6 +219,17 @@ if (!Platform.isTV) {
   });
 }
 
+// What the app asks iOS for. The last one puts a link to the app's Notifications screen in
+// the iOS Settings, under the app's notifications.
+const PERMISSIONS = {
+  ios: {
+    allowAlert: true,
+    allowBadge: true,
+    allowSound: true,
+    provideAppNotificationSettings: true,
+  },
+};
+
 const checkAndRequestPermissions = async () => {
   try {
     const hasAskedBefore = storage.getString(
@@ -225,7 +237,8 @@ const checkAndRequestPermissions = async () => {
     );
     let granted = false;
     if (hasAskedBefore !== "true") {
-      const { status } = await Notifications.requestPermissionsAsync();
+      const { status } =
+        await Notifications.requestPermissionsAsync(PERMISSIONS);
       granted = status === "granted";
       if (granted) {
         writeToLog("INFO", "Notification permissions granted.");
@@ -239,6 +252,11 @@ const checkAndRequestPermissions = async () => {
       // Already asked before, check current status
       const { status } = await Notifications.getPermissionsAsync();
       granted = status === "granted";
+      // Asked again, which shows nothing once answered, so the link in the iOS Settings
+      // also appears for people who said yes before the app offered it.
+      if (granted && Platform.OS === "ios") {
+        await Notifications.requestPermissionsAsync(PERMISSIONS);
+      }
       if (!granted) {
         writeToLog(
           "ERROR",
@@ -362,6 +380,7 @@ function Layout() {
 
   useNotificationObserver();
   useNotificationActions(queryClient);
+  useNotificationSettingsLink();
   useNativePlayerLogBridge();
 
   const [expoPushToken, setExpoPushToken] = useState<ExpoPushToken>();
