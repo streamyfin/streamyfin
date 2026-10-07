@@ -79,3 +79,21 @@ final class SyncPlayCommandScheduler {
 
 	deinit { cancel() }
 }
+
+/// AVKit wraps a skip made in the picture in picture window in set-playing
+/// calls of its own: a pause just before the skip, and another once the seek
+/// has landed, with no play to follow. Seen on an iPad, iOS 26: one tap on
+/// skip, two pause requests. In a group each would pause everyone, so what
+/// the window asks for around a skip is not the user's.
+struct SyncPlayPipSkipBracket {
+	/// Seconds after a skip in which the window's play and pause are AVKit's.
+	static let window: TimeInterval = 1.5
+	private var skippedAt: TimeInterval?
+
+	mutating func skipped(at now: TimeInterval) { skippedAt = now }
+
+	func covers(_ now: TimeInterval) -> Bool {
+		guard let skippedAt else { return false }
+		return now >= skippedAt && now - skippedAt < Self.window
+	}
+}

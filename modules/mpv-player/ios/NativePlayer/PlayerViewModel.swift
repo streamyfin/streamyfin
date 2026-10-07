@@ -258,6 +258,8 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	/// How long that pause is held, in seconds. Long enough for AVKit to
 	/// announce the stop, short enough to pass as a button press.
 	private static let pipPauseHold: TimeInterval = 0.4
+	/// See SyncPlayPipSkipBracket: the pauses AVKit sends with a PiP skip.
+	private var pipSkipBracket = SyncPlayPipSkipBracket()
 	#if os(iOS)
 	private lazy var impactGenerator = UIImpactFeedbackGenerator(style: .light)
 	#endif
@@ -1703,6 +1705,12 @@ extension PlayerViewModel: MPVPlayerEngineDelegate {
 
 	func engine(_ engine: MPVPlayerEngine, requestsSeekBy offset: Double) {
 		guard !isTearingDown else { return }
+		if isSyncPlayActive, engine.isPictureInPictureActive() {
+			// The pause AVKit sent just ahead of this skip is still held.
+			pendingPipPause?.cancel()
+			pendingPipPause = nil
+			pipSkipBracket.skipped(at: Date().timeIntervalSinceReferenceDate)
+		}
 		seek(to: position + offset)
 	}
 
@@ -1715,6 +1723,10 @@ extension PlayerViewModel: MPVPlayerEngineDelegate {
 			return
 		}
 		#if os(iOS)
+		if engine.isPictureInPictureActive(),
+			pipSkipBracket.covers(Date().timeIntervalSinceReferenceDate) {
+			return
+		}
 		// AVKit pauses the player when the PiP window is closed, just before
 		// it stops PiP. Forwarded at once, that pause would stop the whole
 		// group because one member closed a window. Hold it for a moment: if

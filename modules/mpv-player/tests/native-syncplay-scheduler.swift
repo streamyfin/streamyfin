@@ -58,5 +58,13 @@ struct NativeSyncPlaySchedulerTests {
 		schedule(command("bad-position", position: .infinity))
 		precondition(deliveries.isEmpty && results.last == false, "reject invalid times")
 		print("Native SyncPlay scheduler: 8 checks passed")
+
+		// A skip in the PiP window arrives wrapped in AVKit's own pauses.
+		var bracket = SyncPlayPipSkipBracket()
+		precondition(!bracket.covers(10), "a pause with no skip near it is the user's")
+		bracket.skipped(at: 100)
+		precondition(bracket.covers(100) && bracket.covers(100.65), "AVKit's pauses around a skip are not the user's")
+		precondition(!bracket.covers(100 + SyncPlayPipSkipBracket.window), "a pause well after the skip is the user's again")
+		precondition(!bracket.covers(99), "a clock that stepped back covers nothing")
 	}
 }
