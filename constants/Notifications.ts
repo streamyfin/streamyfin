@@ -9,6 +9,22 @@ export const PUSH_DEVICE_PATH = "/Streamyfin/device";
 /** The plugin route a person reads and replaces their notification choices at. */
 export const MY_NOTIFICATIONS_PATH = "/Streamyfin/v1/notifications/mine";
 
+/**
+ * What the app asks iOS for. The last one puts a link to the app's Notifications screen in the
+ * iOS Settings, under the app's notifications.
+ */
+export const NOTIFICATION_PERMISSIONS = {
+  ios: {
+    allowAlert: true,
+    allowBadge: true,
+    allowSound: true,
+    provideAppNotificationSettings: true,
+  },
+};
+
+/** Set once iOS was asked for that link, so it is asked once per install. */
+export const SETTINGS_LINK_ASKED_KEY = "hasAskedForNotificationSettingsLink";
+
 /** The lengths of a pause the app offers, in hours; null is until turned back on. */
 export const PAUSE_HOURS = [1, 8, 24, null] as const;
 

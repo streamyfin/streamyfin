@@ -20,6 +20,7 @@ import { Platform } from "react-native";
 import { GlobalModal } from "@/components/GlobalModal";
 import { PendingAccountSaveModal } from "@/components/PendingAccountSaveModal";
 import { SeerrAutoLogin } from "@/components/seerr/SeerrAutoLogin";
+import { NOTIFICATION_PERMISSIONS } from "@/constants/Notifications";
 import { enableTVMenuKeyInterception } from "@/hooks/useTVBackHandler";
 import i18n from "@/i18n";
 import { DownloadProvider } from "@/providers/DownloadProvider";
@@ -49,6 +50,7 @@ import {
 import { storage } from "@/utils/mmkv";
 import { registerNotificationCategories } from "@/utils/notificationActions";
 import { createNotificationChannels } from "@/utils/notificationChannels";
+import { offerSettingsLinkOnce } from "@/utils/notificationPermissions";
 import { notificationRoute } from "@/utils/notificationRoute";
 import {
   queryDehydrateOptions,
@@ -219,17 +221,6 @@ if (!Platform.isTV) {
   });
 }
 
-// What the app asks iOS for. The last one puts a link to the app's Notifications screen in
-// the iOS Settings, under the app's notifications.
-const PERMISSIONS = {
-  ios: {
-    allowAlert: true,
-    allowBadge: true,
-    allowSound: true,
-    provideAppNotificationSettings: true,
-  },
-};
-
 const checkAndRequestPermissions = async () => {
   try {
     const hasAskedBefore = storage.getString(
@@ -237,8 +228,9 @@ const checkAndRequestPermissions = async () => {
     );
     let granted = false;
     if (hasAskedBefore !== "true") {
-      const { status } =
-        await Notifications.requestPermissionsAsync(PERMISSIONS);
+      const { status } = await Notifications.requestPermissionsAsync(
+        NOTIFICATION_PERMISSIONS,
+      );
       granted = status === "granted";
       if (granted) {
         writeToLog("INFO", "Notification permissions granted.");
@@ -252,10 +244,8 @@ const checkAndRequestPermissions = async () => {
       // Already asked before, check current status
       const { status } = await Notifications.getPermissionsAsync();
       granted = status === "granted";
-      // Asked again, which shows nothing once answered, so the link in the iOS Settings
-      // also appears for people who said yes before the app offered it.
       if (granted && Platform.OS === "ios") {
-        await Notifications.requestPermissionsAsync(PERMISSIONS);
+        await offerSettingsLinkOnce(Notifications, storage);
       }
       if (!granted) {
         writeToLog(
