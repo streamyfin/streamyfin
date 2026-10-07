@@ -18,15 +18,18 @@ export const ItemPeopleSections: React.FC<Props> = ({ item, ...props }) => {
   const isOffline = useOfflineMode();
   // The item the idle callback cleared for loading. The people are asked for
   // once the JS thread is idle, so the request does not compete with the rest
-  // of the item page while it mounts, and a page that moves to another item
-  // waits for idle again.
+  // of the item page while it mounts. Moving to another item or going offline
+  // clears it, so both wait for idle again.
   const [readyFor, setReadyFor] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOffline) return;
     const itemId = item.Id ?? "";
     const handle = requestIdleCallback(() => setReadyFor(itemId));
-    return () => cancelIdleCallback(handle);
+    return () => {
+      cancelIdleCallback(handle);
+      setReadyFor(null);
+    };
   }, [isOffline, item.Id]);
 
   const enabled = readyFor === (item.Id ?? "");
