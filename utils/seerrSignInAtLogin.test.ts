@@ -87,6 +87,20 @@ describe("signInToSeerrAtLogin", () => {
     expect(calls.remembered).toBe(0);
   });
 
+  // Quick Connect checks the account before it stores the session, and the
+  // account can still move on before the session is handed over.
+  test("drops Quick Connect's session for an account that left before it was handed over", async () => {
+    const { steps: s, calls } = steps({
+      quickConnect: async () => QUICK_CONNECTED,
+      stillCurrent: () => false,
+    });
+
+    await signInToSeerrAtLogin(s);
+
+    expect(calls.forgot).toBe(1);
+    expect(calls.signedIn).toEqual([]);
+  });
+
   test("signs in with the password when Quick Connect could not", async () => {
     const { steps: s, calls } = steps();
 

@@ -34,6 +34,13 @@ export const signInToSeerrAtLogin = async (
     // on the device at all.
     const quickConnected = await steps.quickConnect();
     if (quickConnected) {
+      // Checked again, as after the password: Quick Connect checks the account
+      // before it stores the session, and the account can still move on
+      // before the session is handed over.
+      if (!steps.stillCurrent()) {
+        steps.forget();
+        return;
+      }
       steps.signedIn(quickConnected);
       return;
     }
