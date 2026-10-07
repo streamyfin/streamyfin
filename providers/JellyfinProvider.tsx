@@ -211,7 +211,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
   const {
     settings,
     setPluginSettings,
-    forgetPluginSecrets,
+    forgetPluginSignIns,
     refreshStreamyfinPluginSettings,
   } = useSettings();
   const { clearAllSeerrData, seerrUser, setSeerrUser } = useSeerr();
@@ -566,9 +566,9 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
         const auth = await api.authenticateUserByName(username, password);
 
         if (auth.data.AccessToken && auth.data.User) {
-          // A previous session's plugin secrets are not this user's. Its
+          // What a previous session signs in with is not this user's. Its
           // other plugin settings stay until the refresh below replaces them.
-          forgetPluginSecrets();
+          forgetPluginSignIns();
           setUser(auth.data.User);
           storage.set("user", JSON.stringify(auth.data.User));
           // Kept rather than only handed to setApi: the token is what makes
@@ -771,10 +771,11 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
         // Clear React Query cache to prevent data from previous account lingering
         queryClient.clear();
         storage.remove("REACT_QUERY_OFFLINE_CACHE");
-        // Nor its plugin secrets. Its other plugin settings stay until the
-        // refresh below replaces them in one write: cleared now, a tab they
-        // turn on would go and come back, which takes the app down on Apple TV.
-        forgetPluginSecrets();
+        // Nor what it signs in with: its plugin keys and Seerr address. Its
+        // other plugin settings stay until the refresh below replaces them in
+        // one write: cleared now, a tab they turn on would go and come back,
+        // which takes the app down on Apple TV.
+        forgetPluginSignIns();
 
         // Token is valid, update state
         setApi(apiInstance);
@@ -872,10 +873,11 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
         // Clear React Query cache to prevent data from previous account lingering
         queryClient.clear();
         storage.remove("REACT_QUERY_OFFLINE_CACHE");
-        // Nor its plugin secrets. Its other plugin settings stay until the
-        // refresh below replaces them in one write: cleared now, a tab they
-        // turn on would go and come back, which takes the app down on Apple TV.
-        forgetPluginSecrets();
+        // Nor what it signs in with: its plugin keys and Seerr address. Its
+        // other plugin settings stay until the refresh below replaces them in
+        // one write: cleared now, a tab they turn on would go and come back,
+        // which takes the app down on Apple TV.
+        forgetPluginSignIns();
 
         setUser(auth.data.User);
         storage.set("user", JSON.stringify(auth.data.User));

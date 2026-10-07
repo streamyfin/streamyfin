@@ -577,10 +577,17 @@ export const redactPluginSettings = (
   );
 };
 
-// What an account switch keeps of the previous account's plugin settings until
-// the next account's arrive: the locks, never the secrets. Read first, as
-// above, so no secret stays behind under an old name.
-const withoutSecrets = (
+// What the previous account signs in with, dropped as soon as another account
+// signs in: the secrets, and the Seerr address, where a Seerr sign-in starting
+// for the next account would send that account's password. No tab depends on
+// the address, unlike the locks that stay until the next account's arrive.
+const SIGN_IN_SETTING_KEYS: ReadonlySet<keyof Settings> = new Set([
+  ...SENSITIVE_SETTING_KEYS,
+  "seerrServerUrl",
+]);
+
+// Read first, as above, so nothing stays behind under an old name.
+const withoutSignIns = (
   sent: PluginLockableSettings | undefined,
 ): PluginLockableSettings | undefined => {
   const settings = readIntegrationBlocks(sent);
@@ -588,7 +595,7 @@ const withoutSecrets = (
     settings &&
     (Object.fromEntries(
       Object.entries(settings).filter(
-        ([key]) => !SENSITIVE_SETTING_KEYS.has(key as keyof Settings),
+        ([key]) => !SIGN_IN_SETTING_KEYS.has(key as keyof Settings),
       ),
     ) as PluginLockableSettings)
   );
@@ -958,10 +965,10 @@ export const useSettings = () => {
   );
 
   // At an account switch, before the next account's refresh: the Seerr
-  // API-key sign-in would otherwise run for the next account with the
-  // previous one's key. The locks stay until that refresh replaces them.
-  const forgetPluginSecrets = useCallback(() => {
-    setPluginSettings(withoutSecrets(jotaiStore.get(pluginSettingsAtom)));
+  // sign-ins would otherwise run for the next account with the previous one's
+  // key or toward its Seerr. The locks stay until that refresh replaces them.
+  const forgetPluginSignIns = useCallback(() => {
+    setPluginSettings(withoutSignIns(jotaiStore.get(pluginSettingsAtom)));
   }, [jotaiStore, setPluginSettings]);
 
   const refreshStreamyfinPluginSettings = useCallback(
@@ -1087,7 +1094,7 @@ export const useSettings = () => {
     updateSettings,
     pluginSettings,
     setPluginSettings,
-    forgetPluginSecrets,
+    forgetPluginSignIns,
     refreshStreamyfinPluginSettings,
   };
 };

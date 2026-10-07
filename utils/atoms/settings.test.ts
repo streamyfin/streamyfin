@@ -381,48 +381,62 @@ describe("refreshing the plugin settings", () => {
     expect(store.get(pluginSettingsAtom)).toEqual(sent);
   });
 
-  // At an account switch, what is stored is the previous account's. Its secrets
-  // go at once, since the API-key sign-in would otherwise run with them for the
-  // next account; its locks stay until the new answer replaces them in one
-  // write, so a tab they turn on does not disappear and come back meanwhile.
-  test("forgets the previous account's secrets and keeps its locks", async () => {
-    const withSecrets = {
+  // At an account switch, what is stored is the previous account's. What it
+  // signs in with goes at once: its keys, which the API-key sign-in would
+  // otherwise use for the next account, and its Seerr address, where a Seerr
+  // sign-in starting for the next account would send that account's password.
+  // Its locks stay until the new answer replaces them in one write, so a tab
+  // they turn on does not disappear and come back meanwhile.
+  test("forgets what the previous account signs in with and keeps its locks", async () => {
+    const previous = {
       showCustomMenuLinks: { locked: true, value: true },
+      streamyStatsServerUrl: { locked: true, value: "https://stats.example" },
+      seerrServerUrl: { locked: true, value: "https://seerr.example" },
       seerrApiKey: { locked: true, value: "admin-key" },
       openSubtitlesApiKey: { locked: false, value: "subtitles-key" },
     };
-    storage.setAny(PLUGIN_SETTINGS_KEY, withSecrets);
-    store.set(pluginSettingsAtom, withSecrets as never);
+    storage.setAny(PLUGIN_SETTINGS_KEY, previous);
+    store.set(pluginSettingsAtom, previous as never);
     const { result } = await renderHook(() => useSettings());
 
     await act(async () => {
-      result.current.forgetPluginSecrets();
+      result.current.forgetPluginSignIns();
     });
 
-    expect(store.get(pluginSettingsAtom)).toEqual({
+    const kept = {
       showCustomMenuLinks: { locked: true, value: true },
-    });
-    expect(storage.get(PLUGIN_SETTINGS_KEY)).toEqual({
-      showCustomMenuLinks: { locked: true, value: true },
-    });
+      streamyStatsServerUrl: { locked: true, value: "https://stats.example" },
+    };
+    expect(store.get(pluginSettingsAtom)).toEqual(kept);
+    expect(storage.get(PLUGIN_SETTINGS_KEY)).toEqual(kept);
   });
 
-  test("forgets the Seerr key in every shape it can be stored under", async () => {
-    const withSecrets = {
+  test("forgets the Seerr key and address in every shape they can be stored under", async () => {
+    const previous = {
       showCustomMenuLinks: { locked: true, value: true },
+      jellyseerrServerUrl: { locked: true, value: "https://flat.example" },
       jellyseerrApiKey: { locked: true, value: "flat-key" },
-      seerr: { apiKey: { locked: true, value: "block-key" } },
+      seerr: {
+        serverUrl: { locked: true, value: "https://block.example" },
+        apiKey: { locked: true, value: "block-key" },
+      },
     };
-    store.set(pluginSettingsAtom, withSecrets as never);
+    store.set(pluginSettingsAtom, previous as never);
     const { result } = await renderHook(() => useSettings());
 
     await act(async () => {
-      result.current.forgetPluginSecrets();
+      result.current.forgetPluginSignIns();
     });
 
     const kept = JSON.stringify(store.get(pluginSettingsAtom));
-    expect(kept).not.toContain("flat-key");
-    expect(kept).not.toContain("block-key");
+    for (const value of [
+      "https://flat.example",
+      "flat-key",
+      "https://block.example",
+      "block-key",
+    ]) {
+      expect(kept).not.toContain(value);
+    }
   });
 
   // A refresh at a sign-in that gets no answer has nothing of this account to
