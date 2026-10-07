@@ -381,6 +381,102 @@ describe("refreshing the plugin settings", () => {
     expect(store.get(pluginSettingsAtom)).toEqual(sent);
   });
 
+  // At an account switch, what is stored is the previous account's. Its secrets
+  // go at once, since the API-key sign-in would otherwise run with them for the
+  // next account; its locks stay until the new answer replaces them in one
+  // write, so a tab they turn on does not disappear and come back meanwhile.
+  test("forgets the previous account's secrets and keeps its locks", async () => {
+    const withSecrets = {
+      showCustomMenuLinks: { locked: true, value: true },
+      seerrApiKey: { locked: true, value: "admin-key" },
+      openSubtitlesApiKey: { locked: false, value: "subtitles-key" },
+    };
+    storage.setAny(PLUGIN_SETTINGS_KEY, withSecrets);
+    store.set(pluginSettingsAtom, withSecrets as never);
+    const { result } = await renderHook(() => useSettings());
+
+    await act(async () => {
+      result.current.forgetPluginSecrets();
+    });
+
+    expect(store.get(pluginSettingsAtom)).toEqual({
+      showCustomMenuLinks: { locked: true, value: true },
+    });
+    expect(storage.get(PLUGIN_SETTINGS_KEY)).toEqual({
+      showCustomMenuLinks: { locked: true, value: true },
+    });
+  });
+
+  test("forgets the Seerr key in every shape it can be stored under", async () => {
+    const withSecrets = {
+      showCustomMenuLinks: { locked: true, value: true },
+      jellyseerrApiKey: { locked: true, value: "flat-key" },
+      seerr: { apiKey: { locked: true, value: "block-key" } },
+    };
+    store.set(pluginSettingsAtom, withSecrets as never);
+    const { result } = await renderHook(() => useSettings());
+
+    await act(async () => {
+      result.current.forgetPluginSecrets();
+    });
+
+    const kept = JSON.stringify(store.get(pluginSettingsAtom));
+    expect(kept).not.toContain("flat-key");
+    expect(kept).not.toContain("block-key");
+  });
+
+  // A refresh at a sign-in that gets no answer has nothing of this account to
+  // keep: what is stored is the previous one's, so it goes.
+  test.each(failuresThatSayNothing)(
+    "leaves nothing of the previous account when the sign-in's refresh fails because %s",
+    async (_case, failure) => {
+      store.set(apiAtom, {
+        accessToken: "bob",
+        getStreamyfinPluginConfig: async () => {
+          throw failure;
+        },
+      } as never);
+      const { result } = await renderHook(() => useSettings());
+
+      await act(async () => {
+        await result.current.refreshStreamyfinPluginSettings({
+          atSignIn: true,
+        });
+      });
+
+      expect(store.get(pluginSettingsAtom)).toBeUndefined();
+      expect(storage.get(PLUGIN_SETTINGS_KEY)).toBeUndefined();
+    },
+  );
+
+  // Nor does a failure clear anything once the session moved on again: what
+  // is stored by then is the next sign-in's business.
+  test("leaves the next session's settings alone when a sign-in's refresh fails late", async () => {
+    let fail: (error: Error) => void = () => {};
+    store.set(apiAtom, {
+      accessToken: "bob",
+      getStreamyfinPluginConfig: () =>
+        new Promise((_, reject) => {
+          fail = reject;
+        }),
+    } as never);
+    const { result } = await renderHook(() => useSettings());
+
+    await act(async () => {
+      const pending = result.current.refreshStreamyfinPluginSettings({
+        atSignIn: true,
+      });
+      store.set(apiAtom, {
+        accessToken: "carol",
+        getStreamyfinPluginConfig: async () => ({}),
+      } as never);
+      fail(new TypeError("too late"));
+      await pending;
+    });
+
+    expect(store.get(pluginSettingsAtom)).toEqual(stored);
+  });
+
   test("takes what the server sends", async () => {
     const sent = { showCustomMenuLinks: { locked: false, value: false } };
     const refreshed = await refreshAgainst(async () => ({

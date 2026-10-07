@@ -207,8 +207,12 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
   const [user, setUser] = useAtom(userAtom);
   const [isPolling, setIsPolling] = useState<boolean>(false);
   const [secret, setSecret] = useState<string | null>(null);
-  const { settings, setPluginSettings, refreshStreamyfinPluginSettings } =
-    useSettings();
+  const {
+    settings,
+    setPluginSettings,
+    forgetPluginSecrets,
+    refreshStreamyfinPluginSettings,
+  } = useSettings();
   const { clearAllSeerrData, seerrUser, setSeerrUser } = useSeerr();
   const queryClient = useQueryClient();
 
@@ -561,9 +565,9 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
         const auth = await api.authenticateUserByName(username, password);
 
         if (auth.data.AccessToken && auth.data.User) {
-          // A previous session's plugin settings are not this user's; the
-          // refresh below brings this user's once the server answers.
-          setPluginSettings(undefined);
+          // A previous session's plugin secrets are not this user's. Its
+          // other plugin settings stay until the refresh below replaces them.
+          forgetPluginSecrets();
           setUser(auth.data.User);
           storage.set("user", JSON.stringify(auth.data.User));
           // Kept rather than only handed to setApi: the token is what makes
@@ -606,7 +610,9 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
             }
           }
 
-          const recentPluginSettings = await refreshStreamyfinPluginSettings();
+          const recentPluginSettings = await refreshStreamyfinPluginSettings({
+            atSignIn: true,
+          });
           // With a plugin-provided API key the auto-connect effect signs in
           // without a password — don't start a password session here, and
           // don't store the password either.
@@ -786,9 +792,10 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
         // Clear React Query cache to prevent data from previous account lingering
         queryClient.clear();
         storage.remove("REACT_QUERY_OFFLINE_CACHE");
-        // Nor its plugin settings: the refresh below replaces them only once
-        // the server answers, and keeps them when it does not.
-        setPluginSettings(undefined);
+        // Nor its plugin secrets. Its other plugin settings stay until the
+        // refresh below replaces them in one write: cleared now, a tab they
+        // turn on would go and come back, which takes the app down on Apple TV.
+        forgetPluginSecrets();
 
         // Token is valid, update state
         setApi(apiInstance);
@@ -808,8 +815,9 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
           });
         }
 
-        // Refresh plugin settings
-        await refreshStreamyfinPluginSettings();
+        // Replaces the previous account's plugin settings, or drops them when
+        // the server does not answer.
+        await refreshStreamyfinPluginSettings({ atSignIn: true });
       } catch (error) {
         // Check for axios error
         if (axios.isAxiosError(error)) {
@@ -885,9 +893,10 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
         // Clear React Query cache to prevent data from previous account lingering
         queryClient.clear();
         storage.remove("REACT_QUERY_OFFLINE_CACHE");
-        // Nor its plugin settings: the refresh below replaces them only once
-        // the server answers, and keeps them when it does not.
-        setPluginSettings(undefined);
+        // Nor its plugin secrets. Its other plugin settings stay until the
+        // refresh below replaces them in one write: cleared now, a tab they
+        // turn on would go and come back, which takes the app down on Apple TV.
+        forgetPluginSecrets();
 
         setUser(auth.data.User);
         storage.set("user", JSON.stringify(auth.data.User));
@@ -909,8 +918,9 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
           auth.data.User.PrimaryImageTag ?? undefined,
         );
 
-        // Refresh plugin settings
-        await refreshStreamyfinPluginSettings();
+        // Replaces the previous account's plugin settings, or drops them when
+        // the server does not answer.
+        await refreshStreamyfinPluginSettings({ atSignIn: true });
       }
     },
     onError: (error) => {

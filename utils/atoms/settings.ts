@@ -577,6 +577,23 @@ export const redactPluginSettings = (
   );
 };
 
+// What an account switch keeps of the previous account's plugin settings until
+// the next account's arrive: the locks, never the secrets. Read first, as
+// above, so no secret stays behind under an old name.
+const withoutSecrets = (
+  sent: PluginLockableSettings | undefined,
+): PluginLockableSettings | undefined => {
+  const settings = readIntegrationBlocks(sent);
+  return (
+    settings &&
+    (Object.fromEntries(
+      Object.entries(settings).filter(
+        ([key]) => !SENSITIVE_SETTING_KEYS.has(key as keyof Settings),
+      ),
+    ) as PluginLockableSettings)
+  );
+};
+
 export const defaultValues: Settings = {
   home: null,
   deviceProfile: "Expo",
@@ -940,75 +957,94 @@ export const useSettings = () => {
     [_setPluginSettings],
   );
 
-  const refreshStreamyfinPluginSettings = useCallback(async () => {
-    // Read when called, not when rendered: a sign-in sets the new api and
-    // refreshes straight away, before a render hands this callback the new one.
-    const api = jotaiStore.get(apiAtom);
-    if (!api) {
-      return;
-    }
-    let newPluginSettings: PluginLockableSettings | undefined;
-    try {
-      newPluginSettings = await fetchPluginSettings(api);
-    } catch (error) {
-      // No answer about the plugin, so what is stored stands. This runs on
-      // every return to the foreground, where a request fails for no better
-      // reason than the network not being back yet, and clearing here dropped
-      // the admin's locks and the tabs the plugin turns on until a later
-      // refresh got through.
-      //
-      // An HTTP failure is the server's or the network's and is left quiet.
-      // Anything else broke while reading an answer that did arrive, and
-      // would otherwise fail the same way on every refresh without a trace.
-      if (!isAxiosError(error)) {
-        logAndCaptureError("Refreshing plugin settings failed", error);
+  // At an account switch, before the next account's refresh: the Seerr
+  // API-key sign-in would otherwise run for the next account with the
+  // previous one's key. The locks stay until that refresh replaces them.
+  const forgetPluginSecrets = useCallback(() => {
+    setPluginSettings(withoutSecrets(jotaiStore.get(pluginSettingsAtom)));
+  }, [jotaiStore, setPluginSettings]);
+
+  const refreshStreamyfinPluginSettings = useCallback(
+    async ({ atSignIn = false }: { atSignIn?: boolean } = {}) => {
+      // Read when called, not when rendered: a sign-in sets the new api and
+      // refreshes straight away, before a render hands this callback the new
+      // one.
+      const api = jotaiStore.get(apiAtom);
+      if (!api) {
+        return;
       }
-      return undefined;
-    }
-    // The answer belongs to the session that asked. A sign-out or an account
-    // switch while it was on its way has moved on, and writing it now would
-    // hand the previous user's settings, credentials included, to the next.
-    // Compared by session rather than by object: the same session's api is
-    // rebuilt at launch, once the stored session is read back, and when the
-    // network changes the server's address, and its answer is still its own.
-    const current = jotaiStore.get(apiAtom);
-    if (!current || current.accessToken !== api.accessToken) {
-      return undefined;
-    }
-    setPluginSettings(newPluginSettings);
-
-    // Write against the atom's value at apply time, not the hook's render
-    // snapshot: this runs while the user can be changing settings (the intro
-    // sheet is up during first-run login), and a merge built from the
-    // snapshot resurrected whatever the user had just overwritten.
-    if (newPluginSettings) {
-      setSettings((currentSettings) => {
-        if (!currentSettings) return currentSettings;
-
-        const applied = loadAppliedPluginDefaults();
-        const result = pluginRefreshOverlay(
-          currentSettings,
-          newPluginSettings,
-          applied,
-          normalizePluginValue,
-        );
-        if (!result) return currentSettings;
-
-        const newSettings = {
-          ...defaultValues,
-          ...currentSettings,
-          ...result.overlay,
-        } as Settings;
-        saveSettings(newSettings);
-        if (result.applied) {
-          storage.setAny(PLUGIN_APPLIED_DEFAULTS, result.applied);
+      // The answer belongs to the session that asked. A sign-out or an account
+      // switch while it was on its way has moved on, and writing it now would
+      // hand the previous user's settings, credentials included, to the next.
+      // Compared by session rather than by object: the same session's api is
+      // rebuilt at launch, once the stored session is read back, and when the
+      // network changes the server's address, and its answer is still its own.
+      const stillCurrent = () => {
+        const current = jotaiStore.get(apiAtom);
+        return !!current && current.accessToken === api.accessToken;
+      };
+      let newPluginSettings: PluginLockableSettings | undefined;
+      try {
+        newPluginSettings = await fetchPluginSettings(api);
+      } catch (error) {
+        // No answer about the plugin, so what is stored stands. This runs on
+        // every return to the foreground, where a request fails for no better
+        // reason than the network not being back yet, and clearing here
+        // dropped the admin's locks and the tabs the plugin turns on until a
+        // later refresh got through.
+        //
+        // An HTTP failure is the server's or the network's and is left quiet.
+        // Anything else broke while reading an answer that did arrive, and
+        // would otherwise fail the same way on every refresh without a trace.
+        if (!isAxiosError(error)) {
+          logAndCaptureError("Refreshing plugin settings failed", error);
         }
-        return newSettings;
-      });
-    }
+        // Except at a sign-in: what is stored is then the previous account's,
+        // kept only until this answer.
+        if (atSignIn && stillCurrent()) {
+          setPluginSettings(undefined);
+        }
+        return undefined;
+      }
+      if (!stillCurrent()) {
+        return undefined;
+      }
+      setPluginSettings(newPluginSettings);
 
-    return newPluginSettings;
-  }, [jotaiStore, setPluginSettings, setSettings]);
+      // Write against the atom's value at apply time, not the hook's render
+      // snapshot: this runs while the user can be changing settings (the intro
+      // sheet is up during first-run login), and a merge built from the
+      // snapshot resurrected whatever the user had just overwritten.
+      if (newPluginSettings) {
+        setSettings((currentSettings) => {
+          if (!currentSettings) return currentSettings;
+
+          const applied = loadAppliedPluginDefaults();
+          const result = pluginRefreshOverlay(
+            currentSettings,
+            newPluginSettings,
+            applied,
+            normalizePluginValue,
+          );
+          if (!result) return currentSettings;
+
+          const newSettings = {
+            ...defaultValues,
+            ...currentSettings,
+            ...result.overlay,
+          } as Settings;
+          saveSettings(newSettings);
+          if (result.applied) {
+            storage.setAny(PLUGIN_APPLIED_DEFAULTS, result.applied);
+          }
+          return newSettings;
+        });
+      }
+
+      return newPluginSettings;
+    },
+    [jotaiStore, setPluginSettings, setSettings],
+  );
 
   const updateSettings = (update: Partial<Settings>) => {
     // Admin-locked settings are enforced at write time too: a control that
@@ -1051,6 +1087,7 @@ export const useSettings = () => {
     updateSettings,
     pluginSettings,
     setPluginSettings,
+    forgetPluginSecrets,
     refreshStreamyfinPluginSettings,
   };
 };
