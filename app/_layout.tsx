@@ -48,6 +48,10 @@ import {
 } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
 import { notificationRoute } from "@/utils/notificationRoute";
+import {
+  queryDehydrateOptions,
+  withoutPersistedMutations,
+} from "@/utils/queryPersistence";
 import { reportDataError } from "@/utils/reportDataError";
 
 const Notifications = !Platform.isTV ? require("expo-notifications") : null;
@@ -307,14 +311,17 @@ const queryClient = new QueryClient({
   },
 });
 
-// Create MMKV-based persister for offline support
-const mmkvPersister = createSyncStoragePersister({
-  storage: {
-    getItem: (key) => storage.getString(key) ?? null,
-    setItem: (key, value) => storage.set(key, value),
-    removeItem: (key) => storage.remove(key),
-  },
-});
+// Create MMKV-based persister for offline support. What it writes and what it
+// restores is in utils/queryPersistence.ts.
+const mmkvPersister = withoutPersistedMutations(
+  createSyncStoragePersister({
+    storage: {
+      getItem: (key) => storage.getString(key) ?? null,
+      setItem: (key, value) => storage.set(key, value),
+      removeItem: (key) => storage.remove(key),
+    },
+  }),
+);
 
 function Layout() {
   const { settings } = useSettings();
@@ -436,13 +443,7 @@ function Layout() {
       persistOptions={{
         persister: mmkvPersister,
         maxAge: 1000 * 60 * 60 * 24, // 24 hours max cache age
-        dehydrateOptions: {
-          shouldDehydrateQuery: (query) => {
-            return (
-              query.state.status === "success" && query.options.gcTime !== 0
-            );
-          },
-        },
+        dehydrateOptions: queryDehydrateOptions,
       }}
     >
       <JellyfinProvider>

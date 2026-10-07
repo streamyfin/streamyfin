@@ -753,7 +753,11 @@ final class MPVLayerRenderer {
             guard let self, let handle = self.mpv else { return }
             let status = mpv_set_property_string(handle, name, value)
             if status < 0 {
-                Logger.shared.log("Failed to set property \(name)=\(value) (\(status))", type: "Warn")
+                // The header list holds the Jellyfin token and the proxy auth
+                // headers, and this log reaches the exportable app log, so it is
+                // named without its value, as the Android module already does.
+                let shown = name == "http-header-fields" ? name : "\(name)=\(value)"
+                Logger.shared.log("Failed to set property \(shown) (\(status))", type: "Warn")
             }
         }
     }
