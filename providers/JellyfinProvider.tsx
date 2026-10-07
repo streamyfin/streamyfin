@@ -768,10 +768,6 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       try {
         const response = await getUserApi(apiInstance).getCurrentUser();
 
-        // Sign the previous account out of Seerr, as a sign-out does: its
-        // session would otherwise be the next account's.
-        await clearAllSeerrData();
-
         // Clear React Query cache to prevent data from previous account lingering
         queryClient.clear();
         storage.remove("REACT_QUERY_OFFLINE_CACHE");
@@ -780,6 +776,15 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
         // one write: cleared now, a tab they turn on would go and come back,
         // which takes the app down on Apple TV.
         forgetPluginSignIns();
+        // Nor its Seerr session, as a sign-out does. Not awaited: what it
+        // clears is gone before it returns, and waiting would let a sign-in of
+        // the previous account finish while it is still the one signed in, and
+        // hand its session over again.
+        clearAllSeerrData().catch((e) =>
+          writeErrorLog(
+            `Failed to clear Seerr data: ${e instanceof Error ? e.message : e}`,
+          ),
+        );
 
         // Token is valid, update state
         setApi(apiInstance);
@@ -874,10 +879,6 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
         });
 
       if (auth.data.AccessToken && auth.data.User) {
-        // Sign the previous account out of Seerr, as a sign-out does: its
-        // session would otherwise be the next account's.
-        await clearAllSeerrData();
-
         // Clear React Query cache to prevent data from previous account lingering
         queryClient.clear();
         storage.remove("REACT_QUERY_OFFLINE_CACHE");
@@ -886,6 +887,15 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
         // one write: cleared now, a tab they turn on would go and come back,
         // which takes the app down on Apple TV.
         forgetPluginSignIns();
+        // Nor its Seerr session, as a sign-out does. Not awaited: what it
+        // clears is gone before it returns, and waiting would let a sign-in of
+        // the previous account finish while it is still the one signed in, and
+        // hand its session over again.
+        clearAllSeerrData().catch((e) =>
+          writeErrorLog(
+            `Failed to clear Seerr data: ${e instanceof Error ? e.message : e}`,
+          ),
+        );
 
         setUser(auth.data.User);
         storage.set("user", JSON.stringify(auth.data.User));
