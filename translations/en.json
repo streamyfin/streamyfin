@@ -226,8 +226,8 @@
         "enter_the_quick_connect_code": "Enter the Quick Connect code...",
         "success": "Success",
         "quick_connect_authorized": "Quick Connect authorized",
-        "error": "Error",
         "invalid_code": "Invalid code",
+        "disabled": "Quick Connect is turned off on this server. An administrator can turn it on in the server's dashboard.",
         "authorize": "Authorize",
         "paste_code": "Paste code"
       },
