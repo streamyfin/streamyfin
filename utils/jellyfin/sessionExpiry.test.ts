@@ -35,6 +35,29 @@ describe("endsSession", () => {
     ).toBe(false);
   });
 
+  // A server can sit behind any base path, Quick Connect's name included:
+  // only the Quick Connect routes themselves count.
+  test("ends the session behind a base path that looks like Quick Connect", () => {
+    expect(
+      endsSession(failure(401, "https://host/quickconnect/Shows/NextUp")),
+    ).toBe(true);
+    expect(
+      endsSession(
+        failure(401, "https://host/Items?searchTerm=/QuickConnect/Authorize"),
+      ),
+    ).toBe(true);
+  });
+
+  test("keeps the session for each Quick Connect route behind a base path", () => {
+    for (const route of ["Enabled", "Initiate", "Connect", "Authorize"]) {
+      expect(
+        endsSession(
+          failure(401, `https://host/quickconnect/QuickConnect/${route}`),
+        ),
+      ).toBe(false);
+    }
+  });
+
   test("keeps the session on anything but a 401", () => {
     expect(endsSession(failure(403, "https://media.example.com/Items"))).toBe(
       false,

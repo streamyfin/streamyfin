@@ -1,7 +1,14 @@
 import { isAxiosError } from "axios";
 
-/** Quick Connect's routes, which answer 401 for a reason of their own. */
-const QUICK_CONNECT_PATH = /\/quickconnect\//i;
+/**
+ * Quick Connect's routes, at the end of the path: a server's base path can
+ * carry any name, Quick Connect's included.
+ */
+const QUICK_CONNECT_ROUTE =
+  /\/quickconnect\/(?:enabled|initiate|connect|authorize)\/?$/i;
+
+/** The path of a request URL, without its query or fragment. */
+const pathOf = (url: string) => url.split(/[?#]/)[0];
 
 /**
  * Whether a failed request means the server no longer accepts this session.
@@ -13,4 +20,4 @@ const QUICK_CONNECT_PATH = /\/quickconnect\//i;
 export const endsSession = (error: unknown): boolean =>
   isAxiosError(error) &&
   error.response?.status === 401 &&
-  !QUICK_CONNECT_PATH.test(error.config?.url ?? "");
+  !QUICK_CONNECT_ROUTE.test(pathOf(error.config?.url ?? ""));
