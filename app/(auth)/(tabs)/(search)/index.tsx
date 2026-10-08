@@ -11,7 +11,6 @@ import { orderBy } from "lodash";
 import {
   useCallback,
   useEffect,
-  useId,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -83,9 +82,6 @@ export default function SearchPage() {
   const [user] = useAtom(userAtom);
 
   const { t } = useTranslation();
-
-  const searchFilterId = useId();
-  const orderFilterId = useId();
 
   const { q } = params as { q: string };
 
@@ -655,8 +651,6 @@ export default function SearchPage() {
             {/* Covered by components/search/searchFilters.test.ts. */}
             {showDiscoverFilters(searchType, debouncedSearch) && (
               <DiscoverFilters
-                searchFilterId={searchFilterId}
-                orderFilterId={orderFilterId}
                 seerrOrderBy={seerrOrderBy}
                 setSeerrOrderBy={setSeerrOrderBy}
                 seerrSortOrder={seerrSortOrder}
