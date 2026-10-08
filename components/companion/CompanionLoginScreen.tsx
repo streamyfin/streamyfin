@@ -1,4 +1,4 @@
-import { getQuickConnectApi } from "@jellyfin/sdk/lib/utils/api";
+import axios from "axios";
 import { useAtomValue } from "jotai";
 import type React from "react";
 import { useCallback, useEffect, useState } from "react";
@@ -16,6 +16,11 @@ import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
 import useRouter from "@/hooks/useAppRouter";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import {
+  approveQuickConnectCode,
+  isQuickConnectEnabled,
+} from "@/utils/jellyfin/quickConnect";
+import { writeErrorLog } from "@/utils/log";
 import { parsePairingCode } from "@/utils/quickConnectPairing";
 
 type ScreenState =
@@ -32,6 +37,14 @@ type ExpoCameraModule = typeof import("expo-camera");
 const ExpoCamera: ExpoCameraModule | null = Platform.isTV
   ? null
   : require("expo-camera");
+
+/** A server address as shown on screen: no scheme, no credentials. */
+const serverLabel = (url: string) =>
+  url.replace(/^https?:\/\//i, "").replace(/^[^/?#]*@/, "");
+
+/** Jellyfin hands out server ids with and without dashes. */
+const sameServerId = (a: string, b: string) =>
+  a.replace(/-/g, "").toLowerCase() === b.replace(/-/g, "").toLowerCase();
 
 /**
  * Signs a TV in with this phone's session. The TV shows a Quick Connect code,
@@ -51,20 +64,26 @@ export const CompanionLoginScreen: React.FC = () => {
   const [code, setCode] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const serverLabel = (api?.basePath ?? "").replace(/^https?:\/\//, "");
+  const server = serverLabel(api?.basePath ?? "");
 
-  // Request camera permission
+  // Asks only when the system still can: a refused permission answers false
+  // without showing anything.
+  const cameraAllowed = useCallback(async () => {
+    if (!ExpoCamera) return false;
+    const { Camera } = ExpoCamera;
+    const current = await Camera.getCameraPermissionsAsync();
+    if (current.granted || !current.canAskAgain) return current.granted;
+    return (await Camera.requestCameraPermissionsAsync()).granted;
+  }, []);
+
+  // Only a refusal changes the screen here: someone who already went on to
+  // type the code stays where they are.
   useEffect(() => {
     if (!ExpoCamera) return;
-    const { Camera } = ExpoCamera;
-
-    void (async () => {
-      const current = await Camera.getCameraPermissionsAsync();
-      if (current.granted) return;
-      const requested = await Camera.requestCameraPermissionsAsync();
-      if (!requested.granted) setScreenState("no-permission");
-    })();
-  }, []);
+    void cameraAllowed().then((allowed) => {
+      if (!allowed) setScreenState("no-permission");
+    });
+  }, [cameraAllowed]);
 
   const showError = useCallback((message: string) => {
     setErrorMessage(message);
@@ -86,10 +105,25 @@ export const CompanionLoginScreen: React.FC = () => {
         showError(t("companion_login.error_old_tv"));
         return;
       }
+      // Only the id is compared: the TV may reach the server through another
+      // address than this phone, and the address in the QR code is never
+      // contacted.
+      if (
+        scanned.serverId &&
+        user?.ServerId &&
+        !sameServerId(scanned.serverId, user.ServerId)
+      ) {
+        showError(
+          t("companion_login.error_other_server", {
+            server: serverLabel(scanned.serverUrl),
+          }),
+        );
+        return;
+      }
       setCode(scanned.code);
       setScreenState("confirm");
     },
-    [screenState, showError, t],
+    [screenState, showError, t, user?.ServerId],
   );
 
   const handleAuthorize = useCallback(async () => {
@@ -101,30 +135,49 @@ export const CompanionLoginScreen: React.FC = () => {
 
     setScreenState("authorizing");
     try {
+      // Checked first: with Quick Connect off, Jellyfin answers the approval
+      // with a 401, which the session handling takes for an expired token.
+      if (!(await isQuickConnectEnabled(api))) {
+        showError(
+          t("companion_login.error_quick_connect_disabled", { server }),
+        );
+        return;
+      }
       // Approved on the phone's server: a TV on another server never sees it,
       // and the server answers that it does not know the code.
-      const response = await getQuickConnectApi(api).authorizeQuickConnect({
-        code: trimmed,
-        userId: user?.Id,
-      });
-      // Jellyfin answers true once the code is approved.
-      if (response.data === true) {
+      const result = await approveQuickConnectCode(api, trimmed);
+      if (result === "approved") {
         setScreenState("success");
         return;
       }
-    } catch {
-      // Unknown or expired code, or Quick Connect turned off on the server.
+      showError(
+        result === "unknown-code"
+          ? t("companion_login.error_code_not_waiting", { server })
+          : t("companion_login.error_generic"),
+      );
+    } catch (error) {
+      writeErrorLog(
+        `Quick Connect approval failed: ${error instanceof Error ? error.message : error}`,
+      );
+      showError(
+        axios.isAxiosError(error) && !error.response
+          ? t("home.server_unreachable_message")
+          : t("companion_login.error_generic"),
+      );
     }
-    showError(
-      t("companion_login.error_code_not_waiting", { server: serverLabel }),
-    );
-  }, [api, code, serverLabel, showError, t, user?.Id]);
+  }, [api, code, server, showError, t]);
 
-  const handleScanAgain = useCallback(() => {
+  // Back to the camera through the permission again, so a refused one shows
+  // the permission screen instead of a camera that stays black.
+  const handleScanAgain = useCallback(async () => {
     setCode("");
     setErrorMessage(null);
-    setScreenState(ExpoCamera ? "scanning" : "manual");
-  }, []);
+    if (!ExpoCamera) {
+      setScreenState("manual");
+      return;
+    }
+    setScreenState((await cameraAllowed()) ? "scanning" : "no-permission");
+  }, [cameraAllowed]);
 
   const handleDone = useCallback(() => {
     router.back();
@@ -269,7 +322,7 @@ export const CompanionLoginScreen: React.FC = () => {
           </Text>
 
           <Text className='mb-8 text-center text-base text-gray-400'>
-            {t("companion_login.on_server", { server: serverLabel })}
+            {t("companion_login.on_server", { server })}
           </Text>
 
           <View className='mb-8 items-center'>
@@ -285,6 +338,9 @@ export const CompanionLoginScreen: React.FC = () => {
                 placeholder={t("companion_login.pairing_code_label")}
                 placeholderTextColor='#6B7280'
                 keyboardType='number-pad'
+                // iOS adds a toolbar above the number pad whose button would
+                // read "Done" in English without a label.
+                inputAccessoryViewButtonLabel={t("common.ok")}
                 autoCorrect={false}
                 returnKeyType='done'
                 onSubmitEditing={handleAuthorize}

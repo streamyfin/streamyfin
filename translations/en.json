@@ -1187,6 +1187,8 @@
     "error_invalid_qr": "Invalid QR code. Please scan the TV pairing code.",
     "error_old_tv": "This TV runs an older version of Streamyfin. Update it, then try again.",
     "error_code_not_waiting": "This code is not waiting on {{server}}. Check that the TV uses the same server as this phone, then start Quick Connect again on the TV.",
+    "error_quick_connect_disabled": "Quick Connect is turned off on {{server}}. An administrator can turn it on in the server's dashboard.",
+    "error_other_server": "This TV is connecting to another server, {{server}}. Sign in to that server in this app, then scan again.",
     "error_generic": "Something went wrong. Please try again.",
     "error_permission_denied": "Camera permission is required to scan QR codes.",
     "login_as": "Log in as {{username}}?",
@@ -1197,6 +1199,8 @@
     "pair_with_phone": "Pair with phone",
     "pair_with_phone_title": "Log in on TV",
     "scan_quick_connect": "Scan the QR code with the Streamyfin app or your phone's camera.",
+    "code_expired": "This code has expired.",
+    "get_new_code": "Get a new code",
     "logging_in": "Logging in...",
     "logging_in_description": "Connecting to your server"
   },
