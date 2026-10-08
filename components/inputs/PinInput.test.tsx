@@ -6,8 +6,12 @@ import { PinInput } from "@/components/inputs/PinInput";
 jest.mock("@gorhom/bottom-sheet", () => ({
   BottomSheetTextInput: jest.requireActual("react-native").TextInput,
 }));
+// A real translation for the key under test, so handing over the raw key
+// fails.
 jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
+  useTranslation: () => ({
+    t: (key: string) => (key === "common.ok" ? "OK" : key),
+  }),
 }));
 
 describe("PinInput", () => {
@@ -18,7 +22,7 @@ describe("PinInput", () => {
     await render(<PinInput testID='pin' value='' onChangeText={() => {}} />);
 
     expect(screen.getByTestId("pin").props.inputAccessoryViewButtonLabel).toBe(
-      "common.ok",
+      "OK",
     );
   });
 });
