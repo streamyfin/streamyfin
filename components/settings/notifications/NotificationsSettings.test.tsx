@@ -232,6 +232,11 @@ describe("the Notifications screen", () => {
         "the plugin does not know the route",
         { supported: false, titles: undefined },
       ],
+      // A later read failing keeps the list the query had.
+      [
+        "the route went away after a list was read",
+        { supported: false, titles: [matrix] },
+      ],
     ])("shows no section when %s", async (_case, awaited) => {
       mockAwaited = { ...mockAwaited, ...awaited };
       await render(<NotificationsSettings />);

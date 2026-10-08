@@ -75,12 +75,17 @@ export const useAwaitedTitles = () => {
     }
   };
 
+  const supported = !(query.isError && statusOf(query.error) === 404);
+  // A failed read keeps what an earlier one returned: a plugin that lost the route would
+  // otherwise leave that list showing, with no route left to change it.
+  const titles = supported ? query.data : undefined;
+
   return {
-    titles: query.data,
-    supported: !(query.isError && statusOf(query.error) === 404),
+    titles,
+    supported,
     isLoading: query.isLoading,
     isAwaited: (mediaType: AwaitedMediaType, tmdbId: number) =>
-      isAwaited(query.data, mediaType, tmdbId),
+      isAwaited(titles, mediaType, tmdbId),
     add: (request: AwaitTitleRequest) =>
       apply(
         (list) => withAwaited(list, request, new Date().toISOString()),

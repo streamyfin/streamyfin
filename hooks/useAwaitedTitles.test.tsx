@@ -95,6 +95,21 @@ describe("the titles the person waits for", () => {
     expect(mockToastError).not.toHaveBeenCalled();
   });
 
+  // The query keeps what it read when a later read fails, so a plugin that loses the route
+  // would otherwise leave the old list on the screen, with nothing to take it off.
+  it("drop the list they had once the route goes away", async () => {
+    const { result } = await ready();
+
+    mockGet.mockRejectedValue(answered(404));
+    await act(async () => {
+      await client.refetchQueries({ queryKey: [AWAITED_TITLES_QUERY] });
+    });
+
+    await waitFor(() => expect(result.current.supported).toBe(false));
+    expect(result.current.titles).toBeUndefined();
+    expect(result.current.isAwaited("movie", 603)).toBe(false);
+  });
+
   it("know a title by its kind and its TMDB id", async () => {
     const { result } = await ready();
 

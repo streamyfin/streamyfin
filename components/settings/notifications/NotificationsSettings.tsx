@@ -205,7 +205,7 @@ export const NotificationsSettings: React.FC = () => {
         </View>
       )}
 
-      {!!awaited.titles?.length && (
+      {awaited.supported && !!awaited.titles?.length && (
         <View className='mb-4'>
           <ListGroup title={t("home.settings.notifications.groups.awaited")}>
             {awaited.titles.map((title) => (
