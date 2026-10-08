@@ -259,6 +259,238 @@ describe("refreshing the plugin settings", () => {
     expect(storage.get(PLUGIN_SETTINGS_KEY)).toBeUndefined();
   });
 
+  // A sign-in sets the new api and refreshes straight away, through the
+  // refresh it took from a render that still had the previous api. Asking
+  // with that one sent the previous session's token: none at all on a first
+  // sign-in, and on a TV account switch the previous user's, which handed the
+  // new user the settings the server resolved for the one before.
+  test("asks with the api set last, not the one it was rendered with", async () => {
+    const previous = jest.fn(async () => ({ data: { settings: stored } }));
+    const sent = { showCustomMenuLinks: { locked: false, value: false } };
+    const current = jest.fn(async () => ({ data: { settings: sent } }));
+
+    store.set(apiAtom, { getStreamyfinPluginConfig: previous } as never);
+    const { result } = await renderHook(() => useSettings());
+    const refresh = result.current.refreshStreamyfinPluginSettings;
+
+    let refreshed: unknown;
+    await act(async () => {
+      store.set(apiAtom, { getStreamyfinPluginConfig: current } as never);
+      refreshed = await refresh();
+    });
+
+    expect(previous).not.toHaveBeenCalled();
+    expect(refreshed).toEqual(sent);
+    expect(store.get(pluginSettingsAtom)).toEqual(sent);
+  });
+
+  // The answer belongs to the session that asked. One landing after a sign-out
+  // or an account switch is the previous user's: written then, it put their
+  // settings, an administrator's credentials included, back on the device.
+  test("drops an answer that lands after the session moved on", async () => {
+    let answer: (value: unknown) => void = () => {};
+    const asked = jest.fn(
+      () =>
+        new Promise((resolve) => {
+          answer = resolve;
+        }),
+    );
+    store.set(apiAtom, { getStreamyfinPluginConfig: asked } as never);
+    const { result } = await renderHook(() => useSettings());
+
+    let refreshed: unknown = "not settled";
+    await act(async () => {
+      const pending = result.current.refreshStreamyfinPluginSettings();
+      store.set(apiAtom, null);
+      answer({
+        data: {
+          settings: { showCustomMenuLinks: { locked: false, value: false } },
+        },
+      });
+      refreshed = await pending;
+    });
+
+    expect(asked).toHaveBeenCalledTimes(1);
+    expect(refreshed).toBeUndefined();
+    expect(store.get(pluginSettingsAtom)).toEqual(stored);
+    expect(storage.get(PLUGIN_SETTINGS_KEY)).toEqual(stored);
+  });
+
+  // Another session's answer is dropped the same way: an account switch
+  // replaces the token while the previous account's answer is on its way.
+  test("drops an answer that lands after another account signed in", async () => {
+    let answer: (value: unknown) => void = () => {};
+    const asked = jest.fn(
+      () =>
+        new Promise((resolve) => {
+          answer = resolve;
+        }),
+    );
+    store.set(apiAtom, {
+      accessToken: "alice",
+      getStreamyfinPluginConfig: asked,
+    } as never);
+    const { result } = await renderHook(() => useSettings());
+
+    let refreshed: unknown = "not settled";
+    await act(async () => {
+      const pending = result.current.refreshStreamyfinPluginSettings();
+      store.set(apiAtom, {
+        accessToken: "bob",
+        getStreamyfinPluginConfig: asked,
+      } as never);
+      answer({
+        data: {
+          settings: { showCustomMenuLinks: { locked: false, value: false } },
+        },
+      });
+      refreshed = await pending;
+    });
+
+    expect(refreshed).toBeUndefined();
+    expect(store.get(pluginSettingsAtom)).toEqual(stored);
+  });
+
+  // The same session's api is rebuilt while the answer is on its way: at
+  // launch, once the stored session is read back, and when the network changes
+  // the server's address. The answer is still that session's, and dropping it
+  // left a TV, which is cold started, without its plugin settings.
+  test("keeps an answer when the same session's api is rebuilt meanwhile", async () => {
+    const sent = { showCustomMenuLinks: { locked: false, value: false } };
+    let answer: (value: unknown) => void = () => {};
+    const asked = jest.fn(
+      () =>
+        new Promise((resolve) => {
+          answer = resolve;
+        }),
+    );
+    const launched = { accessToken: "alice", getStreamyfinPluginConfig: asked };
+    store.set(apiAtom, launched as never);
+    const { result } = await renderHook(() => useSettings());
+
+    let refreshed: unknown = "not settled";
+    await act(async () => {
+      const pending = result.current.refreshStreamyfinPluginSettings();
+      await Promise.resolve();
+      store.set(apiAtom, { ...launched } as never);
+      answer({ data: { settings: sent } });
+      refreshed = await pending;
+    });
+
+    expect(refreshed).toEqual(sent);
+    expect(store.get(pluginSettingsAtom)).toEqual(sent);
+  });
+
+  // At an account switch, what is stored is the previous account's. What it
+  // signs in with goes at once: its keys, which the API-key sign-in would
+  // otherwise use for the next account, and its Seerr address, where a Seerr
+  // sign-in starting for the next account would send that account's password.
+  // Its locks stay until the new answer replaces them in one write, so a tab
+  // they turn on does not disappear and come back meanwhile.
+  test("forgets what the previous account signs in with and keeps its locks", async () => {
+    const previous = {
+      showCustomMenuLinks: { locked: true, value: true },
+      streamyStatsServerUrl: { locked: true, value: "https://stats.example" },
+      seerrServerUrl: { locked: true, value: "https://seerr.example" },
+      seerrApiKey: { locked: true, value: "admin-key" },
+      openSubtitlesApiKey: { locked: false, value: "subtitles-key" },
+    };
+    storage.setAny(PLUGIN_SETTINGS_KEY, previous);
+    store.set(pluginSettingsAtom, previous as never);
+    const { result } = await renderHook(() => useSettings());
+
+    await act(async () => {
+      result.current.forgetPluginSignIns();
+    });
+
+    const kept = {
+      showCustomMenuLinks: { locked: true, value: true },
+      streamyStatsServerUrl: { locked: true, value: "https://stats.example" },
+    };
+    expect(store.get(pluginSettingsAtom)).toEqual(kept);
+    expect(storage.get(PLUGIN_SETTINGS_KEY)).toEqual(kept);
+  });
+
+  test("forgets the Seerr key and address in every shape they can be stored under", async () => {
+    const previous = {
+      showCustomMenuLinks: { locked: true, value: true },
+      jellyseerrServerUrl: { locked: true, value: "https://flat.example" },
+      jellyseerrApiKey: { locked: true, value: "flat-key" },
+      seerr: {
+        serverUrl: { locked: true, value: "https://block.example" },
+        apiKey: { locked: true, value: "block-key" },
+      },
+    };
+    store.set(pluginSettingsAtom, previous as never);
+    const { result } = await renderHook(() => useSettings());
+
+    await act(async () => {
+      result.current.forgetPluginSignIns();
+    });
+
+    const kept = JSON.stringify(store.get(pluginSettingsAtom));
+    for (const value of [
+      "https://flat.example",
+      "flat-key",
+      "https://block.example",
+      "block-key",
+    ]) {
+      expect(kept).not.toContain(value);
+    }
+  });
+
+  // A refresh at a sign-in that gets no answer has nothing of this account to
+  // keep: what is stored is the previous one's, so it goes.
+  test.each(failuresThatSayNothing)(
+    "leaves nothing of the previous account when the sign-in's refresh fails because %s",
+    async (_case, failure) => {
+      store.set(apiAtom, {
+        accessToken: "bob",
+        getStreamyfinPluginConfig: async () => {
+          throw failure;
+        },
+      } as never);
+      const { result } = await renderHook(() => useSettings());
+
+      await act(async () => {
+        await result.current.refreshStreamyfinPluginSettings({
+          atSignIn: true,
+        });
+      });
+
+      expect(store.get(pluginSettingsAtom)).toBeUndefined();
+      expect(storage.get(PLUGIN_SETTINGS_KEY)).toBeUndefined();
+    },
+  );
+
+  // Nor does a failure clear anything once the session moved on again: what
+  // is stored by then is the next sign-in's business.
+  test("leaves the next session's settings alone when a sign-in's refresh fails late", async () => {
+    let fail: (error: Error) => void = () => {};
+    store.set(apiAtom, {
+      accessToken: "bob",
+      getStreamyfinPluginConfig: () =>
+        new Promise((_, reject) => {
+          fail = reject;
+        }),
+    } as never);
+    const { result } = await renderHook(() => useSettings());
+
+    await act(async () => {
+      const pending = result.current.refreshStreamyfinPluginSettings({
+        atSignIn: true,
+      });
+      store.set(apiAtom, {
+        accessToken: "carol",
+        getStreamyfinPluginConfig: async () => ({}),
+      } as never);
+      fail(new TypeError("too late"));
+      await pending;
+    });
+
+    expect(store.get(pluginSettingsAtom)).toEqual(stored);
+  });
+
   test("takes what the server sends", async () => {
     const sent = { showCustomMenuLinks: { locked: false, value: false } };
     const refreshed = await refreshAgainst(async () => ({
