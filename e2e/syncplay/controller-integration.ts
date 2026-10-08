@@ -4,6 +4,7 @@
  * Simulated decoder states complement the checks on the real native players.
  */
 
+import { randomUUID } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { type Api, Jellyfin } from "@jellyfin/sdk";
@@ -30,7 +31,7 @@ const credentials = JSON.parse(
 };
 if (new URL(credentials.url).hostname !== "127.0.0.1")
   throw new Error("Local test server required");
-const run = `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+const run = `${Date.now()}-${randomUUID().slice(0, 6)}`;
 const records: { name: string; passed: boolean; detail?: unknown }[] = [];
 const eventLog: { client: string; type: string; data: unknown }[] = [];
 const requests: {

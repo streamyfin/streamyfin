@@ -387,7 +387,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		// and a rebuild under an open Menu greys it out.
 		if countdownRemaining != nil { countdownRemaining = nil }
 		if showStillWatching { showStillWatching = false }
-		if sleepTimerMinutes != nil { cancelSleepTimer() }
+		if sleepTimerMinutes != nil { clearSleepTimer() }
 		isHoldSpeedActive = false
 		speedBeforeHold = nil
 		if speed != 1 { speed = 1; engine?.setSpeed(speed: 1) }
@@ -1454,11 +1454,16 @@ final class PlayerViewModel: NSObject, ObservableObject {
 
 	func cancelSleepTimer() {
 		haptic()
+		clearSleepTimer()
+		scheduleAutoHide()
+	}
+
+	/// Without the feedback of a press: a group taking over clears it too.
+	private func clearSleepTimer() {
 		sleepTimerTask?.cancel()
 		sleepTimerTask = nil
 		sleepTimerEndDate = nil
 		sleepTimerMinutes = nil
-		scheduleAutoHide()
 	}
 
 	// MARK: - Teardown

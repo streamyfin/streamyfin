@@ -101,6 +101,8 @@ export class SyncPlayController {
   private leaveOwed = false;
   /** The leave in flight, if any. A join waits for it. */
   private leaving: Promise<void> = Promise.resolve();
+  /** The owed leave being settled. Every caller waits for the same one. */
+  private settling: Promise<void> | null = null;
   /**
    * A group this client left without the user asking. Only an explicit leave
    * is final: this one is joined again when the app is back and connected.
@@ -245,6 +247,8 @@ export class SyncPlayController {
     }
     await this.operation(async () => {
       await this.settleLeave();
+      // The socket may have dropped during the wait.
+      this.assertConnected();
       this.beginJoin("*");
       const generation = this.generation;
       try {
@@ -268,6 +272,7 @@ export class SyncPlayController {
   joinGroup = async (groupId: string, away = false) => {
     await this.operation(async () => {
       await this.settleLeave();
+      this.assertConnected();
       this.beginJoin(groupId);
       this.resumingAway = away;
       const generation = this.generation;
@@ -373,6 +378,23 @@ export class SyncPlayController {
     void this.ignoreWaitOnServer(this.snapshot.ignoreWait);
   }
 
+  /**
+   * A request that brings this member back. One the server refuses opens no
+   * player here, and a server told to wait for this session again would hold
+   * everyone at the next seek.
+   */
+  private async returning(request: () => Promise<void>) {
+    const wasAway = this.away;
+    this.returnToPlayback();
+    try {
+      await request();
+    } catch (error) {
+      if (wasAway && !this.loadingPlaylistId && !this.launchedPlaylistId)
+        await this.stopWatching();
+      throw error;
+    }
+  }
+
   /** The server's flag only. What the user chose stays in the snapshot. */
   private ignoreWaitOnServer(ignoreWait: boolean) {
     return this.playbackRequest(() =>
@@ -395,10 +417,18 @@ export class SyncPlayController {
    * a leave that reached the server after the join would take the session
    * out of the group it has just entered.
    */
-  private async settleLeave() {
-    await this.leaving;
-    if (this.leaveOwed && !this.snapshot.group && !this.expectedGroupId)
-      await this.sendLeave().catch(() => {});
+  private settleLeave() {
+    // One leave for every caller: the list reloading as the sheet opens and
+    // a join tapped right behind it would otherwise each send their own, and
+    // the join would wait for only one of them.
+    this.settling ??= (async () => {
+      await this.leaving;
+      if (this.leaveOwed && !this.snapshot.group && !this.expectedGroupId)
+        await this.sendLeave().catch(() => {});
+    })().finally(() => {
+      this.settling = null;
+    });
+    return this.settling;
   }
 
   private async requestLeave() {
@@ -1382,9 +1412,10 @@ export class SyncPlayController {
     )
       return Promise.reject(new Error("Invalid SyncPlay queue"));
     const items = [...ids];
-    this.returnToPlayback();
-    return this.playbackRequest(() =>
-      this.transport.playItems(items, index, ticks(startPositionTicks)),
+    return this.returning(() =>
+      this.playbackRequest(() =>
+        this.transport.playItems(items, index, ticks(startPositionTicks)),
+      ),
     );
   };
   queueItems = (ids: string[], mode: SyncPlayQueueMode = "Queue") => {
@@ -1420,13 +1451,15 @@ export class SyncPlayController {
       return this.transport.movePlaylistItem(playlistItemId, newIndex);
     });
   requestPlaylistItem = (playlistItemId: string) => {
+    const request = () =>
+      this.playbackRequest(() => {
+        this.requirePlaylistItems([playlistItemId]);
+        return this.transport.setPlaylistItem(playlistItemId);
+      });
     // Picking what the group plays is asking to watch it.
-    if (this.queue?.Playlist.some((i) => i.PlaylistItemId === playlistItemId))
-      this.returnToPlayback();
-    return this.playbackRequest(() => {
-      this.requirePlaylistItems([playlistItemId]);
-      return this.transport.setPlaylistItem(playlistItemId);
-    });
+    return this.queue?.Playlist.some((i) => i.PlaylistItemId === playlistItemId)
+      ? this.returning(request)
+      : request();
   };
   setRepeatMode = (mode: SyncPlayRepeatMode) => {
     if (!["RepeatNone", "RepeatOne", "RepeatAll"].includes(mode))
@@ -1449,22 +1482,25 @@ export class SyncPlayController {
   };
   requestPause = () => this.playbackRequest(() => this.transport.pause());
   requestUnpause = () => {
+    const request = () =>
+      this.playbackRequest(() => {
+        // A queue filled while nothing was playing has no current entry yet,
+        // and the server waits forever on an Unpause for it: start at the top.
+        // Not only after a Stop: the one a new group sends is dropped when
+        // the queue arrives before the clock.
+        const current = this.currentItem();
+        const id =
+          current?.PlaylistItemId ?? this.queue?.Playlist[0]?.PlaylistItemId;
+        // Stop closes every decoder while keeping the shared queue. Unpause
+        // alone does not broadcast PlayQueue, so peers cannot reopen a source.
+        return (this.stopped || !current) && id
+          ? this.transport.setPlaylistItem(id)
+          : this.transport.unpause();
+      });
     // Starting a group that plays nothing is asking to watch it.
-    if (this.stopped || !this.currentItem()) this.returnToPlayback();
-    return this.playbackRequest(() => {
-      // A queue filled while nothing was playing has no current entry yet,
-      // and the server waits forever on an Unpause for it: start at the top.
-      // Not only after a Stop: the one a new group sends is dropped when
-      // the queue arrives before the clock.
-      const current = this.currentItem();
-      const id =
-        current?.PlaylistItemId ?? this.queue?.Playlist[0]?.PlaylistItemId;
-      // Stop closes every decoder while keeping the shared queue. Unpause
-      // alone does not broadcast PlayQueue, so peers cannot reopen a source.
-      return (this.stopped || !current) && id
-        ? this.transport.setPlaylistItem(id)
-        : this.transport.unpause();
-    });
+    return this.stopped || !this.currentItem()
+      ? this.returning(request)
+      : request();
   };
   requestSeek = (positionTicks: number) =>
     this.playbackRequest(() => this.transport.seek(ticks(positionTicks)));

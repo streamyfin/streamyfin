@@ -15,19 +15,20 @@ export class NativePlaybackReportQueue {
   constructor(private readonly timeoutMs = PLAYBACK_REPORT_TIMEOUT_MS) {}
 
   /**
-   * Stops waiting, not the request: the queue moves on and the caller sees a
-   * failure, whatever the client underneath does with a server that has
-   * stopped answering.
+   * The queue moves on and the caller sees a failure. The request is
+   * cancelled first: one still on its way could reach the server after the
+   * reports behind it and put an older state back.
    */
-  private bounded(report: Promise<unknown>) {
+  private bounded(report: (signal: AbortSignal) => Promise<unknown>) {
+    const controller = new AbortController();
     let timer: ReturnType<typeof setTimeout> | undefined;
     return Promise.race([
-      report,
+      report(controller.signal),
       new Promise<never>((_, reject) => {
-        timer = setTimeout(
-          () => reject(new Error("Playback report timed out")),
-          this.timeoutMs,
-        );
+        timer = setTimeout(() => {
+          controller.abort();
+          reject(new Error("Playback report timed out"));
+        }, this.timeoutMs);
       }),
     ]).finally(() => clearTimeout(timer));
   }
@@ -40,7 +41,7 @@ export class NativePlaybackReportQueue {
     session: object,
     kind: ReportKind,
     snapshot: T,
-    report: (snapshot: T) => Promise<unknown>,
+    report: (snapshot: T, signal: AbortSignal) => Promise<unknown>,
   ): Promise<void> {
     // Native reporting DTOs contain scalar session fields. Copy before any
     // subsequent decoder tick, drift correction or ref replacement can run.
@@ -62,7 +63,7 @@ export class NativePlaybackReportQueue {
           )
             return;
         }
-        await this.bounded(report(payload));
+        await this.bounded((signal) => report(payload, signal));
       } finally {
         this.waiting--;
       }

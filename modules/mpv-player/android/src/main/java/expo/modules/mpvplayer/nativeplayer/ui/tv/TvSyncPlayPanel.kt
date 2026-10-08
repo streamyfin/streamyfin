@@ -73,12 +73,13 @@ fun TvSyncPlayPanel(viewModel: PlayerViewModel, modifier: Modifier = Modifier) {
     // Nothing here is ever disabled: a disabled row hands its focus to a
     // neighbour, and the state under these rows changes on every request,
     // often because of the row's own press. What cannot act dims and ignores
-    // the press.
-    fun action(name: String, vararg details: Pair<String, Any?>) {
-        val current = viewModel.syncPlay ?: return
-        if (syncPlayQueueActionAllowed(current.connected || name == "leave", current.busy)) {
-            viewModel.syncPlayAction(name, mapOf(*details))
-        }
+    // the press. The answer is whether the request went out, so a page
+    // that closes on its own press stays up for one that was ignored.
+    fun action(name: String, vararg details: Pair<String, Any?>): Boolean {
+        val current = viewModel.syncPlay ?: return false
+        if (!syncPlayQueueActionAllowed(current.connected || name == "leave", current.busy)) return false
+        viewModel.syncPlayAction(name, mapOf(*details))
+        return true
     }
 
     val menuEntry = state.playlist.firstOrNull { it.playlistItemId == viewModel.syncPlayEntryMenu }
@@ -121,17 +122,21 @@ fun TvSyncPlayPanel(viewModel: PlayerViewModel, modifier: Modifier = Modifier) {
                     connected = state.connected,
                     label = ::label,
                     onPlay = {
-                        action("select", "playlistItemId" to menuEntry.playlistItemId)
-                        focusTarget = menuEntry.playlistItemId
-                        viewModel.syncPlayEntryMenu = null
+                        if (action("select", "playlistItemId" to menuEntry.playlistItemId)) {
+                            focusTarget = menuEntry.playlistItemId
+                            viewModel.syncPlayEntryMenu = null
+                        }
                     },
-                    onMove = { to -> action("move", "playlistItemId" to menuEntry.playlistItemId, "newIndex" to to) },
+                    onMove = { to ->
+                        action("move", "playlistItemId" to menuEntry.playlistItemId, "newIndex" to to)
+                    },
                     onRemove = {
-                        val index = state.playlist.indexOf(menuEntry)
-                        focusTarget = (state.playlist.getOrNull(index + 1) ?: state.playlist.getOrNull(index - 1))
-                            ?.playlistItemId ?: REPEAT_ROW
-                        action("remove", "playlistItemId" to menuEntry.playlistItemId)
-                        viewModel.syncPlayEntryMenu = null
+                        if (action("remove", "playlistItemId" to menuEntry.playlistItemId)) {
+                            val index = state.playlist.indexOf(menuEntry)
+                            focusTarget = (state.playlist.getOrNull(index + 1) ?: state.playlist.getOrNull(index - 1))
+                                ?.playlistItemId ?: REPEAT_ROW
+                            viewModel.syncPlayEntryMenu = null
+                        }
                     }
                 )
             } else {
@@ -151,7 +156,7 @@ fun TvSyncPlayPanel(viewModel: PlayerViewModel, modifier: Modifier = Modifier) {
                         focusRepeat = focusTarget == REPEAT_ROW,
                         onFocused = { focusTarget = null },
                         label = ::label,
-                        action = ::action,
+                        action = { name, details -> action(name, *details) },
                         onLeave = { action("leave"); viewModel.closeSyncPlayQueue() },
                         modifier = Modifier.width(360.dp).fillMaxHeight()
                     )

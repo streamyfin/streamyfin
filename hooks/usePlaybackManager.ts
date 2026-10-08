@@ -243,12 +243,14 @@ export const usePlaybackManager = ({
   /** Reports progress to the server when online. Never throws. */
   const reportRemotePlaybackProgress = async (
     playbackProgressInfo: PlaybackProgressInfo,
+    signal?: AbortSignal,
   ) => {
     if (isOnline && api) {
       try {
-        await getPlaystateApi(api).reportPlaybackProgress({
-          playbackProgressInfo,
-        });
+        await getPlaystateApi(api).reportPlaybackProgress(
+          { playbackProgressInfo },
+          { signal },
+        );
       } catch (error) {
         console.error("Failed to report playback progress", error);
       }

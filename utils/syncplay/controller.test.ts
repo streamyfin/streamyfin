@@ -1053,6 +1053,46 @@ describe("SyncPlay server-coordinated playback", () => {
       expect(transport.leaveGroup).toHaveBeenCalledTimes(leaves);
     });
 
+    test("a list reload and a join share the leave that was still owed", async () => {
+      await join();
+      transport.leaveGroup.mockRejectedValueOnce(new Error("timeout"));
+      await controller.leaveGroup().catch(() => {});
+      const releases: (() => void)[] = [];
+      transport.leaveGroup.mockImplementation(
+        () => new Promise<void>((resolve) => releases.push(resolve)),
+      );
+      // The sheet reloads its list as it opens, and a group is tapped at once.
+      const reload = controller.refreshGroups();
+      const joining = controller.joinGroup(group.GroupId);
+      await settle();
+      for (const release of releases) release();
+      await settle();
+      for (const release of releases) release();
+      await Promise.all([reload, joining]);
+      // A second leave still on its way would land after the join.
+      expect(transport.leaveGroup).toHaveBeenCalledTimes(2);
+      expect(transport.leaveGroup.mock.invocationCallOrder[1]).toBeLessThan(
+        transport.joinGroup.mock.invocationCallOrder[1],
+      );
+    });
+
+    test("a socket that drops while a leave settles does not send the join", async () => {
+      await join();
+      transport.leaveGroup.mockRejectedValueOnce(new Error("timeout"));
+      await controller.leaveGroup().catch(() => {});
+      let release = () => {};
+      transport.leaveGroup.mockImplementationOnce(
+        () => new Promise<void>((resolve) => (release = resolve)),
+      );
+      const joins = transport.joinGroup.mock.calls.length;
+      const joining = controller.joinGroup("group-2");
+      await settle();
+      controller.setConnected(false);
+      release();
+      await expect(joining).rejects.toThrow("disconnected");
+      expect(transport.joinGroup).toHaveBeenCalledTimes(joins);
+    });
+
     test("suspending outside a group is a no-op", async () => {
       await controller.suspendGroup();
       expect(transport.leaveGroup).not.toHaveBeenCalled();
@@ -1161,6 +1201,31 @@ describe("SyncPlay server-coordinated playback", () => {
       expect(controller.getSnapshot().watching).toBe(true);
       expect(transport.setIgnoreWait).toHaveBeenLastCalledWith(false);
       expect(transport.setPlaylistItem).toHaveBeenCalledWith("playlist-1");
+    });
+
+    test("an entry the server refuses leaves the group not waiting for this device", async () => {
+      await playing();
+      await controller.stopWatching();
+      transport.setPlaylistItem.mockRejectedValueOnce(new Error("timeout"));
+      await expect(
+        controller.requestPlaylistItem("playlist-1"),
+      ).rejects.toThrow("timeout");
+      await settle();
+      // No player opened here: nothing for the group to wait for.
+      expect(controller.getSnapshot().watching).toBe(false);
+      expect(transport.setIgnoreWait).toHaveBeenLastCalledWith(true);
+    });
+
+    test("a queue the server refuses leaves the group not waiting for this device", async () => {
+      await playing();
+      await controller.stopWatching();
+      transport.playItems.mockRejectedValueOnce(new Error("timeout"));
+      await expect(controller.playItems(["movie-2"])).rejects.toThrow(
+        "timeout",
+      );
+      await settle();
+      expect(controller.getSnapshot().watching).toBe(false);
+      expect(transport.setIgnoreWait).toHaveBeenLastCalledWith(true);
     });
 
     test("a rejoin the server refuses does not leave the next group unwatched", async () => {

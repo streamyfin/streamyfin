@@ -151,7 +151,7 @@ describe("NativePlaybackReportQueue", () => {
     ref.current = replacement;
     pending.resolve();
     await Promise.all([first, next]);
-    expect(original).toHaveBeenCalledWith({ position: 72.291 });
+    expect(original.mock.calls[0][0]).toEqual({ position: 72.291 });
     expect(replacement).not.toHaveBeenCalled();
   });
 
@@ -180,5 +180,39 @@ describe("NativePlaybackReportQueue", () => {
     } finally {
       jest.useRealTimers();
     }
+  });
+
+  test("a report given up on is cancelled before the next one is sent", async () => {
+    jest.useFakeTimers();
+    try {
+      const queue = new NativePlaybackReportQueue(15_000);
+      const session = {};
+      let hungSignal: AbortSignal | undefined;
+      const hung = queue.enqueue(session, "start", {}, (_info, signal) => {
+        hungSignal = signal;
+        return new Promise<void>(() => {});
+      });
+      const failed = expect(hung).rejects.toThrow("timed out");
+      // Left running, it could reach the server after the Stop behind it.
+      let cancelledBeforeStop: boolean | undefined;
+      const stop = queue.enqueue(session, "stop", {}, async () => {
+        cancelledBeforeStop = hungSignal?.aborted;
+      });
+      await jest.advanceTimersByTimeAsync(15_000);
+      await stop;
+      await failed;
+      expect(cancelledBeforeStop).toBe(true);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test("a report that settles in time is not cancelled", async () => {
+    const queue = new NativePlaybackReportQueue(15_000);
+    let signal: AbortSignal | undefined;
+    await queue.enqueue({}, "start", {}, async (_info, given) => {
+      signal = given;
+    });
+    expect(signal?.aborted).toBe(false);
   });
 });

@@ -616,8 +616,11 @@ const NativePlayerProviderInner: React.FC<{
       };
       const playstate = getPlaystateApi(currentApi);
       reportQueue
-        .enqueue(session, "start", playbackStartInfo, (info) =>
-          playstate.reportPlaybackStart({ playbackStartInfo: info }),
+        .enqueue(session, "start", playbackStartInfo, (info, signal) =>
+          playstate.reportPlaybackStart(
+            { playbackStartInfo: info },
+            { signal },
+          ),
         )
         .catch((error) => {
           writeToLog(
@@ -646,14 +649,17 @@ const NativePlayerProviderInner: React.FC<{
     [reportQueue],
   );
 
-  const releaseLiveStream = useCallback((session: NativeSession) => {
-    const liveStreamId = session.stream.mediaSource?.LiveStreamId;
-    const currentApi = apiRef.current;
-    if (!liveStreamId || !currentApi || session.offline) return;
-    getMediaInfoApi(currentApi)
-      .closeLiveStream({ liveStreamId })
-      .catch(() => {});
-  }, []);
+  const releaseLiveStream = useCallback(
+    (session: Pick<NativeSession, "stream" | "offline">) => {
+      const liveStreamId = session.stream.mediaSource?.LiveStreamId;
+      const currentApi = apiRef.current;
+      if (!liveStreamId || !currentApi || session.offline) return;
+      getMediaInfoApi(currentApi)
+        .closeLiveStream({ liveStreamId })
+        .catch(() => {});
+    },
+    [],
+  );
 
   const reportPlaybackStopped = useCallback(
     async (session: NativeSession, positionTicks?: number) => {
@@ -678,8 +684,15 @@ const NativePlayerProviderInner: React.FC<{
       };
       const playstate = getPlaystateApi(currentApi);
       try {
-        await reportQueue.enqueue(session, "stop", playbackStopInfo, (info) =>
-          playstate.reportPlaybackStopped({ playbackStopInfo: info }),
+        await reportQueue.enqueue(
+          session,
+          "stop",
+          playbackStopInfo,
+          (info, signal) =>
+            playstate.reportPlaybackStopped(
+              { playbackStopInfo: info },
+              { signal },
+            ),
         );
       } catch (error) {
         // Un-mark so a later teardown path can retry.
@@ -895,7 +908,11 @@ const NativePlayerProviderInner: React.FC<{
         return null;
       });
       if (!built) return false;
-      if (options.isCurrent?.() === false) return false;
+      if (options.isCurrent?.() === false) {
+        // The build may have opened a live stream nothing will play.
+        releaseLiveStream(built.seed);
+        return false;
+      }
       if (syncRef.current.enabled && !req.offline) {
         built.config.syncPlay = nativeSyncStateRef.current || undefined;
         built.config.stream.autoplay = false;

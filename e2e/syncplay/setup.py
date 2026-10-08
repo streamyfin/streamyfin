@@ -6,7 +6,6 @@ import os
 from pathlib import Path
 import subprocess
 import time
-import urllib.error
 import urllib.parse
 import urllib.request
 
@@ -35,8 +34,10 @@ def wait_for_server():
             with urllib.request.urlopen(URL + "/health", timeout=5) as response:
                 if response.read().decode() == "Healthy":
                     return info
-        except (OSError, urllib.error.URLError):
-            time.sleep(2)
+        except (OSError, ValueError):
+            # Not up yet, or up and answering with something else.
+            pass
+        time.sleep(2)
     raise RuntimeError("Jellyfin did not become ready within 180 seconds")
 
 
