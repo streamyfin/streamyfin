@@ -610,6 +610,7 @@
         "all_files_deleted": "Toate descărcările au fost șterse cu succes",
         "files_deleted_by_type": "{{type}} șterse: {{count}}",
         "could_not_get_download_url_for_item": "Nu s-a putut obține URL-ul de descărcare pentru {{itemName}}",
+        "no_media_source_to_download": "This item cannot be downloaded",
         "file_deleted": "{{item}} șters"
       }
     }
@@ -727,7 +728,8 @@
     "noData": "Elementele pe care le marcați ca favorite apar aici."
   },
   "custom_links": {
-    "no_links": "Niciun link"
+    "no_links": "Niciun link",
+    "could_not_open_link": "Could not open this link"
   },
   "player": {
     "live": "ÎN DIRECT",

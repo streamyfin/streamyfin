@@ -610,6 +610,7 @@
         "all_files_deleted": "Bütün indirilenler başarıyla silindi",
         "files_deleted_by_type": "{{count}} {{type}} silindi",
         "could_not_get_download_url_for_item": "{{itemName}} için indirme URL'si alınamadı",
+        "no_media_source_to_download": "This item cannot be downloaded",
         "file_deleted": "{{item}} silindi"
       }
     }
@@ -727,7 +728,8 @@
     "noData": "Favori olarak işaretlediğiniz öğeler burada görünür."
   },
   "custom_links": {
-    "no_links": "Bağlantı yok"
+    "no_links": "Bağlantı yok",
+    "could_not_open_link": "Could not open this link"
   },
   "player": {
     "live": "CANLI",

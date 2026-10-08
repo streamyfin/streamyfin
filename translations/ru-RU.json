@@ -610,6 +610,7 @@
         "all_files_deleted": "Все загрузки удалены",
         "files_deleted_by_type": "{{type}}: удалено {{count}}",
         "could_not_get_download_url_for_item": "Не удалось получить URL для загрузки {{itemName}}",
+        "no_media_source_to_download": "This item cannot be downloaded",
         "file_deleted": "Удалено: {{item}}"
       }
     }
@@ -727,7 +728,8 @@
     "noData": "Элементы, которые вы отмечаете как избранные, отображаются здесь."
   },
   "custom_links": {
-    "no_links": "Нет ссылок"
+    "no_links": "Нет ссылок",
+    "could_not_open_link": "Could not open this link"
   },
   "player": {
     "live": "ПРЯМОЙ ЭФИР",

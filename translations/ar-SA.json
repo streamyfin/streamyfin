@@ -610,6 +610,7 @@
         "all_files_deleted": "تم حذف جميع التنزيلات بنجاح",
         "files_deleted_by_type": "تم حذف {{type}} ({{count}})",
         "could_not_get_download_url_for_item": "تعذر الحصول على عنوان URL للتنزيل لـ{{itemName}}",
+        "no_media_source_to_download": "This item cannot be downloaded",
         "file_deleted": "تم حذف {{item}}"
       }
     }
@@ -727,7 +728,8 @@
     "noData": "العناصر التي تضيفها إلى المفضلة تظهر هنا."
   },
   "custom_links": {
-    "no_links": "لا توجد روابط"
+    "no_links": "لا توجد روابط",
+    "could_not_open_link": "Could not open this link"
   },
   "player": {
     "live": "مباشر",

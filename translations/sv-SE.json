@@ -610,6 +610,7 @@
         "all_files_deleted": "Alla nedladdningar raderades",
         "files_deleted_by_type": "{{count}} {{type}} Raderad",
         "could_not_get_download_url_for_item": "Kunde inte hämta nedladdnings-URL för {{itemName}}",
+        "no_media_source_to_download": "This item cannot be downloaded",
         "file_deleted": "{{item}} Raderad"
       }
     }
@@ -727,7 +728,8 @@
     "noData": "Objekt du markerar som favoriter visas här."
   },
   "custom_links": {
-    "no_links": "Inga länkar"
+    "no_links": "Inga länkar",
+    "could_not_open_link": "Could not open this link"
   },
   "player": {
     "live": "LIVE",
