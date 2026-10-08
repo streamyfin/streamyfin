@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import { AxiosError, type AxiosResponse } from "axios";
-import { Alert } from "react-native";
+import { AccessibilityInfo, Alert } from "react-native";
 import { QuickConnect } from "@/components/settings/QuickConnect";
 
 const mockAuthorize = jest.fn();
@@ -73,7 +73,12 @@ const typeCode = async (code: string) => {
 
 describe("Settings, Quick Connect", () => {
   let alert: jest.SpyInstance;
+  let announce: jest.SpyInstance;
   beforeEach(() => {
+    mockClipboard = "";
+    announce = jest
+      .spyOn(AccessibilityInfo, "announceForAccessibility")
+      .mockImplementation(() => {});
     mockAuthorize.mockReset();
     mockAuthorize.mockResolvedValue({ status: 200, data: true });
     mockEnabled.mockReset();
@@ -81,7 +86,18 @@ describe("Settings, Quick Connect", () => {
     mockClose.mockClear();
     alert = jest.spyOn(Alert, "alert").mockImplementation(() => {});
   });
-  afterEach(() => alert.mockRestore());
+  afterEach(() => {
+    alert.mockRestore();
+    announce.mockRestore();
+  });
+
+  const pressAuthorize = async () => {
+    await act(async () => {
+      await fireEvent.press(
+        screen.getByText("home.settings.quick_connect.authorize"),
+      );
+    });
+  };
 
   // Like the PIN entry: the code goes as soon as it is complete.
   test("authorizes on its own once the sixth digit is in", async () => {
@@ -111,19 +127,73 @@ describe("Settings, Quick Connect", () => {
     );
   });
 
-  // A wrong or expired code: say so under the cells and empty them for
-  // another try, without a dialog in the way.
-  test("shows a wrong code under the cells and clears them", async () => {
-    mockAuthorize.mockRejectedValue(httpError(404));
+  // As other apps do with a code: the first one goes by itself, and after a
+  // failure the code stays for a fix and Authorize sends it.
+  test("keeps a failed code for a fix and waits for Authorize", async () => {
+    mockAuthorize.mockRejectedValueOnce(httpError(404));
     await render(<QuickConnect />);
     await typeCode("123456");
 
     expect(
       screen.getByText("home.settings.quick_connect.invalid_code"),
     ).toBeTruthy();
-    expect(screen.getByTestId("quick-connect-code").props.value).toBe("");
+    expect(screen.getByTestId("quick-connect-code").props.value).toBe("123456");
     expect(alert).not.toHaveBeenCalled();
+    expect(announce).toHaveBeenCalledWith(
+      "home.settings.quick_connect.invalid_code",
+    );
+
+    await typeCode("12345");
+    await typeCode("123457");
+    expect(mockAuthorize).toHaveBeenCalledTimes(1);
+
+    await pressAuthorize();
+    expect(mockAuthorize).toHaveBeenCalledTimes(2);
+    expect(mockAuthorize).toHaveBeenLastCalledWith(
+      expect.objectContaining({ code: "123457" }),
+    );
+  });
+
+  // Six digits pulled out of any text are not a code: they fill the cells and
+  // wait to be checked.
+  test("fills the cells from a pasted text that is not a code, without sending it", async () => {
+    mockClipboard = "2026-10-08 code 482913";
+    await render(<QuickConnect />);
+    await act(async () => {
+      await fireEvent.press(
+        screen.getByText("home.settings.quick_connect.paste_code"),
+      );
+    });
+
+    expect(mockAuthorize).not.toHaveBeenCalled();
+    expect(screen.getByTestId("quick-connect-code").props.value).toBe("202610");
+  });
+
+  // A request still running when the sheet closes belongs to the sheet that
+  // was closed, not to the one opened since.
+  test("ignores a result that comes back after the sheet was opened again", async () => {
+    let answer: (value: unknown) => void = () => {};
+    mockAuthorize.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          answer = resolve;
+        }),
+    );
+    await render(<QuickConnect />);
+    await typeCode("123456");
+
+    await act(async () => {
+      await fireEvent.press(
+        screen.getByText("home.settings.quick_connect.authorize_button"),
+      );
+    });
+    await act(async () => {
+      answer({ status: 200, data: true });
+    });
+
     expect(mockClose).not.toHaveBeenCalled();
+    expect(alert).not.toHaveBeenCalled();
+    expect(screen.getByTestId("quick-connect-code").props.value).toBe("");
   });
 
   // Jellyfin answers an approval with a 401 while Quick Connect is off, and
@@ -137,6 +207,14 @@ describe("Settings, Quick Connect", () => {
     expect(
       screen.getByText("home.settings.quick_connect.disabled"),
     ).toBeTruthy();
+  });
+
+  test("says the server cannot be reached when its proxy answers for it", async () => {
+    mockAuthorize.mockRejectedValue(httpError(502));
+    await render(<QuickConnect />);
+    await typeCode("123456");
+
+    expect(screen.getByText("home.server_unreachable_message")).toBeTruthy();
   });
 
   test("says the server cannot be reached when no answer comes back", async () => {

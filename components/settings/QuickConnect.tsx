@@ -6,16 +6,22 @@ import {
   BottomSheetView,
 } from "@gorhom/bottom-sheet";
 import { getQuickConnectApi } from "@jellyfin/sdk/lib/utils/api";
-import axios from "axios";
 import { requireOptionalNativeModule } from "expo-modules-core";
 import { useAtom } from "jotai";
 import type React from "react";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Alert, Platform, View, type ViewProps } from "react-native";
+import {
+  AccessibilityInfo,
+  Alert,
+  Platform,
+  View,
+  type ViewProps,
+} from "react-native";
 import { Pressable } from "react-native-gesture-handler";
 import { useHaptic } from "@/hooks/useHaptic";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { isConnectivityError } from "@/utils/errors";
 import { isQuickConnectEnabled } from "@/utils/seerrQuickConnect";
 import { Button } from "../Button";
 import { Text } from "../common/Text";
@@ -39,6 +45,12 @@ export const QuickConnect: React.FC<Props> = ({ ...props }) => {
   // A ref as well as the state: a paste and the last digit can land in the
   // same render, and only one request may go out.
   const authorizingRef = useRef(false);
+  // The first complete code goes by itself. Once one has failed, the next goes
+  // when Authorize is pressed, so a code being fixed is not sent half done.
+  const [sendsByItself, setSendsByItself] = useState(true);
+  // Numbers each attempt: an answer that comes back after the sheet was
+  // opened again, or after a newer attempt, is left alone.
+  const attemptRef = useRef(0);
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
   const successHapticFeedback = useHaptic("success");
   const errorHapticFeedback = useHaptic("error");
@@ -64,15 +76,19 @@ export const QuickConnect: React.FC<Props> = ({ ...props }) => {
   const authorize = useCallback(
     async (code: string) => {
       if (!api || authorizingRef.current) return;
+      const attempt = ++attemptRef.current;
+      const current = () => attempt === attemptRef.current;
       authorizingRef.current = true;
       setAuthorizing(true);
       setError(null);
-      // A failed code is said under the cells and cleared for another try,
-      // as the PIN entry does, with no dialog in the way.
+      // The reason shows under the cells, the code stays for a fix, and
+      // Authorize sends the next one. Read out too: there is no dialog.
       const fail = (message: string) => {
+        if (!current()) return;
         errorHapticFeedback();
         setError(message);
-        setQuickConnectCode("");
+        setSendsByItself(false);
+        AccessibilityInfo.announceForAccessibility(message);
       };
       try {
         // Checked first: Jellyfin answers an approval with a 401 while Quick
@@ -86,6 +102,7 @@ export const QuickConnect: React.FC<Props> = ({ ...props }) => {
           code,
           userId: user?.Id,
         });
+        if (!current()) return;
         if (res.status === 200 && res.data !== false) {
           successHapticFeedback();
           Alert.alert(
@@ -99,36 +116,55 @@ export const QuickConnect: React.FC<Props> = ({ ...props }) => {
         fail(t("home.settings.quick_connect.invalid_code"));
       } catch (e) {
         fail(
-          axios.isAxiosError(e) && !e.response
+          isConnectivityError(e)
             ? t("home.server_unreachable_message")
             : t("home.settings.quick_connect.invalid_code"),
         );
       } finally {
-        authorizingRef.current = false;
-        setAuthorizing(false);
+        if (current()) {
+          authorizingRef.current = false;
+          setAuthorizing(false);
+        }
       }
     },
     [api, user?.Id, t, successHapticFeedback, errorHapticFeedback],
   );
 
-  // The code goes as soon as it is complete, typed or pasted, like the PIN.
   const handleCodeChange = useCallback(
-    (code: string) => {
+    (code: string, send = sendsByItself) => {
       setQuickConnectCode(code);
       setError(null);
-      if (code.length === CODE_LENGTH) void authorize(code);
+      if (send && code.length === CODE_LENGTH) void authorize(code);
     },
-    [authorize],
+    [authorize, sendsByItself],
   );
 
   const pasteCode = useCallback(async () => {
     // Builds without the expo-clipboard native module: probe first (no-op).
     if (!requireOptionalNativeModule("ExpoClipboard")) return;
     const Clipboard: typeof import("expo-clipboard") = require("expo-clipboard");
-    const text = await Clipboard.getStringAsync();
-    const digits = (text || "").replace(/\D/g, "").slice(0, CODE_LENGTH);
-    if (digits) handleCodeChange(digits);
-  }, [handleCodeChange]);
+    const text = (await Clipboard.getStringAsync()) || "";
+    const digits = text.replace(/\D/g, "");
+    if (!digits) return;
+    // Only a pasted code goes by itself: six digits pulled out of any other
+    // text fill the cells and wait to be checked.
+    const isCode = new RegExp(`^\\d{${CODE_LENGTH}}$`).test(
+      text.replace(/\s/g, ""),
+    );
+    handleCodeChange(digits.slice(0, CODE_LENGTH), isCode && sendsByItself);
+  }, [handleCodeChange, sendsByItself]);
+
+  // Opening the sheet starts over: an attempt still running belongs to the
+  // sheet that was closed.
+  const openSheet = useCallback(() => {
+    attemptRef.current++;
+    authorizingRef.current = false;
+    setAuthorizing(false);
+    setSendsByItself(true);
+    setQuickConnectCode("");
+    setError(null);
+    bottomSheetModalRef?.current?.present();
+  }, []);
 
   if (isTv) return null;
 
@@ -136,12 +172,7 @@ export const QuickConnect: React.FC<Props> = ({ ...props }) => {
     <View {...props}>
       <ListGroup title={t("home.settings.quick_connect.quick_connect_title")}>
         <ListItem
-          onPress={() => {
-            // Reset the code and the last error when opening the sheet
-            setQuickConnectCode("");
-            setError(null);
-            bottomSheetModalRef?.current?.present();
-          }}
+          onPress={openSheet}
           title={t("home.settings.quick_connect.authorize_button")}
           textColor='blue'
         />
@@ -185,7 +216,12 @@ export const QuickConnect: React.FC<Props> = ({ ...props }) => {
                   autoFocus
                 />
                 {error && (
-                  <Text className='text-red-500 text-center'>{error}</Text>
+                  <Text
+                    className='text-red-500 text-center'
+                    accessibilityLiveRegion='polite'
+                  >
+                    {error}
+                  </Text>
                 )}
                 <Pressable
                   onPress={pasteCode}
