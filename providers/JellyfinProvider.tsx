@@ -769,8 +769,9 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       if (!jellyfin) throw new Error("Jellyfin not initialized");
 
       // A server saved under /emby or /mediabrowser moves to its root address
-      // first: on Jellyfin 12 the saved one answers nothing, and the sign-in
-      // would fail as if the server were gone.
+      // first, while the saved one still answers and can vouch for it: once
+      // the server is on Jellyfin 12 it answers nothing, and the sign-in
+      // fails as if the server were gone.
       const serverUrl =
         (await migrateLegacyServerAddress(savedServerUrl)) ?? savedServerUrl;
 
@@ -1078,7 +1079,11 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
             // validation, which looks the saved account up by address and
             // would save it again under the old one. Not awaited either: it
             // asks the network.
-            void migrateLegacyServerAddress(serverUrl).then((movedTo) => {
+            void migrateLegacyServerAddress(serverUrl, {
+              // What proves the root to be this server and not another one
+              // behind the same host.
+              expectedServerId: storedUser?.ServerId,
+            }).then((movedTo) => {
               // Signed out, or into another account, in the meantime.
               if (
                 getTokenFromStorage() !== token ||

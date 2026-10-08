@@ -105,7 +105,9 @@ describe("migrateLegacyServerAddress", () => {
       [`${OLD}${INFO}`]: 404,
     };
 
-    expect(await migrateLegacyServerAddress(OLD)).toBe(NEW);
+    expect(
+      await migrateLegacyServerAddress(OLD, { expectedServerId: "server-1" }),
+    ).toBe(NEW);
 
     expect(addresses()).toEqual([NEW]);
     expect(await getAccountCredential(NEW, "a")).toMatchObject({
@@ -165,6 +167,55 @@ describe("migrateLegacyServerAddress", () => {
     expect(await getAccountCredential(OLD, "a")).not.toBeNull();
   });
 
+  // The session knows which server it signed in to, so a root that is some
+  // other Jellyfin server is refused even when the saved address is silent.
+  test("leaves the address alone when the root is not the server signed in to", async () => {
+    answers = {
+      [`${NEW}${INFO}`]: jellyfin("server-2"),
+      [`${OLD}${INFO}`]: 404,
+    };
+
+    expect(
+      await migrateLegacyServerAddress(OLD, { expectedServerId: "server-1" }),
+    ).toBeNull();
+
+    expect(addresses()).toEqual([OLD]);
+    expect(await getAccountCredential(OLD, "a")).not.toBeNull();
+  });
+
+  // Nothing says which server the address was saved for: the saved address
+  // answers nothing any more and the caller has no id. A Jellyfin server at
+  // the root is then not proof enough to hand it the saved tokens.
+  test.each<[string, Answer]>([
+    ["no longer answers", 404],
+    ["cannot be reached", "unreachable"],
+  ])(
+    "leaves the address alone when the saved one %s and no id is known",
+    async (_what, saved) => {
+      answers = {
+        [`${NEW}${INFO}`]: jellyfin("server-1"),
+        [`${OLD}${INFO}`]: saved,
+      };
+
+      expect(await migrateLegacyServerAddress(OLD)).toBeNull();
+
+      expect(addresses()).toEqual([OLD]);
+      expect(await getAccountCredential(OLD, "a")).not.toBeNull();
+    },
+  );
+
+  test("leaves the address alone when the root gives no id to compare", async () => {
+    answers = {
+      [`${NEW}${INFO}`]: { ...jellyfin("server-1"), Id: undefined },
+      [`${OLD}${INFO}`]: 404,
+    };
+
+    expect(
+      await migrateLegacyServerAddress(OLD, { expectedServerId: "server-1" }),
+    ).toBeNull();
+    expect(addresses()).toEqual([OLD]);
+  });
+
   test("leaves the address alone while the server cannot be reached", async () => {
     expect(await migrateLegacyServerAddress(OLD)).toBeNull();
 
@@ -197,8 +248,8 @@ describe("migrateLegacyServerAddress", () => {
     };
 
     const [first, second] = await Promise.all([
-      migrateLegacyServerAddress(OLD),
-      migrateLegacyServerAddress(OLD),
+      migrateLegacyServerAddress(OLD, { expectedServerId: "server-1" }),
+      migrateLegacyServerAddress(OLD, { expectedServerId: "server-1" }),
     ]);
 
     expect([first, second]).toEqual([NEW, NEW]);
@@ -210,7 +261,7 @@ describe("migrateLegacyServerAddress", () => {
       [`${NEW}${INFO}`]: jellyfin("server-1"),
       [`${OLD}${INFO}`]: 404,
     };
-    await migrateLegacyServerAddress(OLD);
+    await migrateLegacyServerAddress(OLD, { expectedServerId: "server-1" });
     fetched = [];
 
     expect(await migrateLegacyServerAddress(NEW)).toBeNull();

@@ -58,28 +58,46 @@ const probeServerId = async (
 // ask for the same one, and two runs would interleave their keychain writes.
 const running = new Map<string, Promise<string | null>>();
 
+interface Options {
+  /**
+   * The id of the server the address was saved for, when the caller knows it:
+   * the signed-in user carries it. Without it the id is asked of the saved
+   * address itself, which only answers until the server is on Jellyfin 12.
+   */
+  expectedServerId?: string | null;
+  timeoutMs?: number;
+}
+
 const migrate = async (
   serverUrl: string,
-  timeoutMs: number,
+  { expectedServerId, timeoutMs = PROBE_TIMEOUT_MS }: Options,
 ): Promise<string | null> => {
   try {
     // Tries the root first and falls back to the address as saved, with the
     // custom headers saved for it.
     const reached = await checkJellyfinServer(serverUrl, undefined, timeoutMs);
     // Nothing answers (offline, most likely), or only the address as saved
-    // does: a proxy that forwards the prefixed path and nothing else.
-    if (!reached || hasLegacyRoutePrefix(reached.url)) return null;
+    // does: a proxy that forwards the prefixed path and nothing else. The
+    // only address a server moves to is its own without the prefix: same
+    // scheme, host and port, so nothing saved for it leaves that origin.
+    if (!reached || reached.url !== stripLegacyRoutePrefix(serverUrl)) {
+      return null;
+    }
 
-    // The root is a Jellyfin server. It is the same one unless the address
-    // as saved still answers and says otherwise: a proxy can put two servers
-    // on one host, and the accounts must not be moved onto the wrong one. On
-    // Jellyfin 12 the saved address no longer answers, and there is nothing
-    // left there to compare with, or to lose.
-    const savedId = await probeServerId(serverUrl, timeoutMs);
-    if (savedId && reached.id && savedId !== reached.id) {
+    // A Jellyfin server at the root is not yet this server: a proxy can put
+    // two on one host, and the saved tokens and header secrets would follow
+    // the address to the wrong one. So the move needs proof, the server's own
+    // id, from the caller or from the saved address while it still answers.
+    // Without either the address stays: the user can still add the server
+    // again, which a move onto the wrong server would not leave them.
+    const knownId =
+      expectedServerId || (await probeServerId(serverUrl, timeoutMs));
+    if (!knownId || knownId !== reached.id) {
       writeToLog(
         "WARN",
-        "Server address migration: the root is another server, left alone",
+        knownId
+          ? "Server address migration: the root is another server, left alone"
+          : "Server address migration: the root could not be told to be the same server, left alone",
       );
       return null;
     }
@@ -102,23 +120,23 @@ const migrate = async (
 
 /**
  * Moves a server saved under `/emby` or `/mediabrowser` to its root address,
- * once that root is known to be the same Jellyfin server: accounts,
+ * once that root is proven to be the same Jellyfin server: accounts,
  * credentials, custom headers and local network setup all move with it.
  *
  * Resolves to the new address, or to null when nothing moved: the address
- * has no such prefix, the server could not be reached, or the root is not
- * that server. Never rejects, and asking again is safe.
+ * has no such prefix, the server could not be reached, or the root could not
+ * be shown to be that server. Never rejects, and asking again is safe.
  */
 export const migrateLegacyServerAddress = (
   serverUrl: string,
-  timeoutMs: number = PROBE_TIMEOUT_MS,
+  options: Options = {},
 ): Promise<string | null> => {
   if (!hasLegacyRoutePrefix(serverUrl)) return Promise.resolve(null);
 
   const ongoing = running.get(serverUrl);
   if (ongoing) return ongoing;
 
-  const migration = migrate(serverUrl, timeoutMs).finally(() => {
+  const migration = migrate(serverUrl, options).finally(() => {
     running.delete(serverUrl);
   });
   running.set(serverUrl, migration);

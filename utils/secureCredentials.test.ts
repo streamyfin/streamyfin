@@ -10,6 +10,7 @@ jest.mock("./log", () => ({ logAndCaptureError: jest.fn() }));
 
 import { clearMmkv } from "@/test-utils/mmkv";
 import { clearSecureStore, secureStoreValues } from "@/test-utils/secureStore";
+import { storage } from "@/utils/mmkv";
 import {
   credentialKey,
   getAccountCredential,
@@ -203,6 +204,55 @@ describe("renameSavedServer", () => {
     });
     expect(getPreviousServers()[0].accounts).toEqual([
       expect.objectContaining({ userId: "a", savedAt: 2 }),
+    ]);
+  });
+
+  // The same account saved under both addresses, protected under one only.
+  // Keeping the fresher of the two as it was would have taken the PIN off.
+  test.each<["old" | "new"]>([["old"], ["new"]])(
+    "keeps the PIN an account has under the %s address only",
+    async (protectedUnder) => {
+      const pin = { securityType: "pin" as const, pinHash: "hash-a" };
+      await saved("a", {
+        token: "old-token",
+        savedAt: protectedUnder === "old" ? 1 : 2,
+        ...(protectedUnder === "old" ? pin : {}),
+      });
+      await saveAccountCredential({
+        ...credential("a"),
+        serverUrl: NEW,
+        token: "new-token",
+        savedAt: protectedUnder === "old" ? 2 : 1,
+        ...(protectedUnder === "new" ? pin : {}),
+      });
+
+      await renameSavedServer(OLD, NEW);
+
+      // The fresher token, and the protection either way.
+      expect(await getAccountCredential(NEW, "a")).toMatchObject({
+        token: protectedUnder === "old" ? "new-token" : "old-token",
+        securityType: "pin",
+        pinHash: "hash-a",
+      });
+      expect(getPreviousServers()[0].accounts).toEqual([
+        expect.objectContaining({ userId: "a", securityType: "pin" }),
+      ]);
+    },
+  );
+
+  // The sign-in screen asks for the PIN when the list says so, and signs in
+  // with the credential: a list entry that says "none" for a credential that
+  // has a PIN would let the prompt be skipped.
+  test("lists an account with the protection its credential has", async () => {
+    await saved("a", { securityType: "pin", pinHash: "hash-a" });
+    const servers = getPreviousServers();
+    servers[0].accounts[0].securityType = "none";
+    storage.set("previousServers", JSON.stringify(servers));
+
+    await renameSavedServer(OLD, NEW);
+
+    expect(getPreviousServers()[0].accounts).toEqual([
+      expect.objectContaining({ userId: "a", securityType: "pin" }),
     ]);
   });
 

@@ -458,26 +458,53 @@ export function getServerCustomHeaders(serverUrl: string): CustomHeader[] {
 }
 
 /**
+ * The one credential an account keeps when it is saved under both addresses:
+ * the fresher token, since the account signed in with it since, and the
+ * stricter protection. A move must never be what takes a PIN or a password
+ * prompt off an account, whichever address it was set under.
+ */
+function mergeCredentials(
+  moving: ServerCredential,
+  present: ServerCredential | null,
+  to: string,
+): ServerCredential {
+  if (!present) return { ...moving, serverUrl: to };
+
+  const [fresher, other] =
+    present.savedAt < moving.savedAt ? [moving, present] : [present, moving];
+  const guard =
+    fresher.securityType === "none" && other.securityType !== "none"
+      ? other
+      : fresher;
+  return {
+    ...fresher,
+    serverUrl: to,
+    securityType: guard.securityType,
+    pinHash: guard.pinHash,
+  };
+}
+
+/**
  * Moves what the keychain holds for one account to another server address:
  * its credential, PIN or password protection included, and its Seerr
  * password. Copied before it is deleted, so nothing is lost in between.
+ *
+ * Resolves to the credential the account has at the new address afterwards,
+ * or to null when it has none.
  */
 async function moveAccountSecrets(
   from: string,
   to: string,
   userId: string,
-): Promise<void> {
-  const credential = await getAccountCredential(from, userId);
-  if (credential) {
-    const existing = await getAccountCredential(to, userId);
-    // One already at the new address is kept when it is the fresher: the
-    // account signed in there since.
-    if (!existing || existing.savedAt < credential.savedAt) {
-      await SecureStore.setItemAsync(
-        credentialKey(to, userId),
-        JSON.stringify({ ...credential, serverUrl: to }),
-      );
-    }
+): Promise<ServerCredential | null> {
+  const moving = await getAccountCredential(from, userId);
+  let kept = await getAccountCredential(to, userId);
+  if (moving) {
+    kept = mergeCredentials(moving, kept, to);
+    await SecureStore.setItemAsync(
+      credentialKey(to, userId),
+      JSON.stringify(kept),
+    );
     await SecureStore.deleteItemAsync(credentialKey(from, userId));
   }
 
@@ -488,12 +515,22 @@ async function moveAccountSecrets(
     }
     await deleteSeerrPassword(from, userId);
   }
+  return kept;
 }
 
-/** One entry per user, the more recently saved one when both lists have it. */
+/**
+ * One entry per user, the more recently saved one when both lists have it.
+ *
+ * The list is what the sign-in screen reads to decide whether to ask for a
+ * PIN or a password, and the credential is what it then signs in with. So an
+ * entry takes its protection from the credential the account ended up with:
+ * the two must not disagree, or the prompt could be skipped for a credential
+ * that asks for one.
+ */
 function mergeAccounts(
   moved: SavedServerAccount[],
   present: SavedServerAccount[],
+  credentials: Map<string, ServerCredential>,
 ): SavedServerAccount[] {
   const byUser = new Map(present.map((account) => [account.userId, account]));
   for (const account of moved) {
@@ -502,7 +539,12 @@ function mergeAccounts(
       byUser.set(account.userId, account);
     }
   }
-  return [...byUser.values()];
+  return [...byUser.values()].map((account) => {
+    const credential = credentials.get(account.userId);
+    return credential
+      ? { ...account, securityType: credential.securityType }
+      : account;
+  });
 }
 
 /**
@@ -523,8 +565,10 @@ export async function renameSavedServer(
   const source = getPreviousServers().find((s) => s.address === from);
   if (!source) return;
 
+  const credentials = new Map<string, ServerCredential>();
   for (const account of source.accounts) {
-    await moveAccountSecrets(from, to, account.userId);
+    const kept = await moveAccountSecrets(from, to, account.userId);
+    if (kept) credentials.set(account.userId, kept);
   }
 
   // The header values are stored under keys made from the address, so they
@@ -539,7 +583,11 @@ export async function renameSavedServer(
   const merged: SavedServer = {
     address: to,
     name: target?.name ?? source.name,
-    accounts: mergeAccounts(source.accounts, target?.accounts ?? []),
+    accounts: mergeAccounts(
+      source.accounts,
+      target?.accounts ?? [],
+      credentials,
+    ),
     localNetworkConfig: target?.localNetworkConfig ?? source.localNetworkConfig,
     customHeaders: target?.customHeaders,
   };
