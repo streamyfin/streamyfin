@@ -28,6 +28,16 @@ const sortOptions = Object.keys(SeerrSearchSort).filter((v) =>
 
 const orderOptions = ["asc", "desc"] as const;
 
+/**
+ * Whether the Search screen shows these filters. They sort Seerr's results, so
+ * any Discover search gets them; what the library search found has no bearing,
+ * and its results stay cached while the Discover tab is open.
+ */
+export const showDiscoverFilters = (
+  searchType: "Library" | "Discover",
+  query: string,
+) => searchType === "Discover" && query.length > 0;
+
 export const DiscoverFilters: React.FC<DiscoverFiltersProps> = ({
   searchFilterId,
   orderFilterId,

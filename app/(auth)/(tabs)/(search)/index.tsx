@@ -33,7 +33,10 @@ import {
   getItemNavigation,
   TouchableItemRouter,
 } from "@/components/common/TouchableItemRouter";
-import { DiscoverFilters } from "@/components/search/DiscoverFilters";
+import {
+  DiscoverFilters,
+  showDiscoverFilters,
+} from "@/components/search/DiscoverFilters";
 import { LoadingSkeleton } from "@/components/search/LoadingSkeleton";
 import { SearchItemWrapper } from "@/components/search/SearchItemWrapper";
 import { SearchTabButtons } from "@/components/search/SearchTabButtons";
@@ -650,20 +653,17 @@ export default function SearchPage() {
               setSearchType={setSearchType}
               t={t}
             />
-            {searchType === "Discover" &&
-              !loading &&
-              noResults &&
-              debouncedSearch.length > 0 && (
-                <DiscoverFilters
-                  searchFilterId={searchFilterId}
-                  orderFilterId={orderFilterId}
-                  seerrOrderBy={seerrOrderBy}
-                  setSeerrOrderBy={setSeerrOrderBy}
-                  seerrSortOrder={seerrSortOrder}
-                  setSeerrSortOrder={setSeerrSortOrder}
-                  t={t}
-                />
-              )}
+            {showDiscoverFilters(searchType, debouncedSearch) && (
+              <DiscoverFilters
+                searchFilterId={searchFilterId}
+                orderFilterId={orderFilterId}
+                seerrOrderBy={seerrOrderBy}
+                setSeerrOrderBy={setSeerrOrderBy}
+                seerrSortOrder={seerrSortOrder}
+                setSeerrSortOrder={setSeerrSortOrder}
+                t={t}
+              />
+            )}
           </View>
         )}
 
