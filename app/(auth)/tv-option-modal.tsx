@@ -113,10 +113,14 @@ export default function TVOptionModal() {
     // State-only callers (detail page, library filters, settings): run before
     // closing so the re-render happens while the modal is up. Deferring it until
     // after dismissal re-renders the page after focus returns and yanks TV
-    // focus, leaving navigation stuck.
-    modalState.onSelect(value);
-    store.set(tvOptionModalAtom, null);
-    router.back();
+    // focus, leaving navigation stuck. The guard is spent already, so the
+    // sheet closes even when the choice throws.
+    try {
+      modalState.onSelect(value);
+    } finally {
+      store.set(tvOptionModalAtom, null);
+      router.back();
+    }
   };
 
   const handleClose = useCallback(() => {

@@ -110,11 +110,9 @@ export default function TVExampleModal() {
     router.back();
   };
 
-  // Handle case where modal is opened without data
-  if (!modalData) {
-    router.back();
-    return null;
-  }
+  // Opened without data, or closing: close() clears the atom before
+  // router.back(), so a back here would pop the screen under the modal too.
+  if (!modalData) return null;
 
   return (
     <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
