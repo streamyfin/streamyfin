@@ -8,9 +8,7 @@ import {
   View,
   type ViewStyle,
 } from "react-native";
-
-/** Names no InputAccessoryView, so iOS shows no toolbar above the keys. */
-const NO_KEYBOARD_TOOLBAR = "no-keyboard-toolbar";
+import { NO_KEYBOARD_TOOLBAR } from "@/constants/Keyboard";
 
 interface PinInputProps
   extends Omit<TextInputProps, "value" | "onChangeText" | "style"> {
@@ -58,11 +56,8 @@ const PinInputComponent = React.forwardRef<PinInputRef, PinInputProps>(
           value={value}
           onChangeText={onChangeText}
           keyboardType='number-pad'
-          // react-native-tvos adds a toolbar with a "Default" button above
-          // every iOS number pad, which upstream React Native and native apps
-          // do not have. An accessory view id that names no view leaves it
-          // out; the sheets around this input keep their buttons above the
-          // keyboard.
+          // The sheets around this input keep their buttons above the
+          // keyboard, so the number pad needs no toolbar of its own.
           inputAccessoryViewID={NO_KEYBOARD_TOOLBAR}
           maxLength={length}
           style={styles.hiddenInput}
