@@ -5,12 +5,21 @@ import { SeerrSearchSort } from "@/components/seerr/SeerrIndexPage";
 // @expo/ui's SwiftUI native module (ExpoUI) does not exist in tvOS builds.
 // A static top-level import crashes the route tree on tvOS at module load.
 // Load it lazily and only off-TV; TV never renders this component.
-const { Button, Host, Menu } = Platform.isTV
+const { Button, Host, Image, Menu } = Platform.isTV
   ? ({} as typeof import("@expo/ui/swift-ui"))
   : require("@expo/ui/swift-ui");
-const { buttonStyle, labelStyle } = Platform.isTV
+const { accessibilityLabel, buttonStyle, frame } = Platform.isTV
   ? ({} as typeof import("@expo/ui/swift-ui/modifiers"))
   : require("@expo/ui/swift-ui/modifiers");
+
+/**
+ * The filter icon's frame, in points. A glass button pads a custom label by
+ * seven points above and below, so 20 gives the 34 point pill that the Library
+ * and Discover buttons get from their text; the icon-only label it replaces
+ * came out a point shorter. The text buttons grow with a larger text size and
+ * this frame does not.
+ */
+const FILTER_ICON_FRAME = 20;
 
 interface DiscoverFiltersProps {
   searchFilterId: string;
@@ -61,13 +70,22 @@ export const DiscoverFilters: React.FC<DiscoverFiltersProps> = ({
       >
         <Menu
           label={
-            // A label, then only its icon shown: @expo/ui draws systemImage
-            // only when there is a label, and the button was an empty pill.
             <Button
-              label={t("library.filters.sort_by")}
-              modifiers={[buttonStyle("glass"), labelStyle("iconOnly")]}
-              systemImage='line.3.horizontal.decrease.circle'
-            />
+              modifiers={[
+                buttonStyle("glass"),
+                accessibilityLabel(t("library.filters.sort_by")),
+              ]}
+            >
+              <Image
+                systemName='line.3.horizontal.decrease.circle'
+                modifiers={[
+                  frame({
+                    width: FILTER_ICON_FRAME,
+                    height: FILTER_ICON_FRAME,
+                  }),
+                ]}
+              />
+            </Button>
           }
         >
           <Menu
