@@ -8,12 +8,12 @@ import {
   Linking,
   Platform,
   ScrollView,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
 import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
+import { PinInput } from "@/components/inputs/PinInput";
 import { NO_KEYBOARD_TOOLBAR } from "@/constants/Keyboard";
 import useRouter from "@/hooks/useAppRouter";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
@@ -322,27 +322,24 @@ export const CompanionLoginScreen: React.FC = () => {
             {t("companion_login.login_as", { username: user?.Name ?? "" })}
           </Text>
 
-          <Text className='mb-8 text-center text-base text-gray-400'>
+          <Text className='mb-6 text-center text-base text-gray-400'>
             {t("companion_login.on_server", { server })}
           </Text>
 
-          <View className='mb-8 items-center'>
-            <Text className='mb-1 text-sm text-gray-400'>
+          <View className='mb-6 items-center'>
+            <Text className='mb-2 text-sm text-gray-400'>
               {t("companion_login.pairing_code_label")}
             </Text>
 
             {typed ? (
-              <TextInput
-                className='w-full rounded-lg border border-neutral-700 bg-neutral-900 p-3 text-center text-2xl font-bold tracking-[6px] text-white'
+              <PinInput
+                testID='pairing-code'
                 value={code}
                 onChangeText={setCode}
-                placeholder={t("companion_login.pairing_code_label")}
-                placeholderTextColor='#6B7280'
-                keyboardType='number-pad'
+                inBottomSheet={false}
                 // Authorize stays in reach above the keyboard, so the number
                 // pad needs no toolbar of its own.
                 inputAccessoryViewID={NO_KEYBOARD_TOOLBAR}
-                autoCorrect={false}
                 onSubmitEditing={handleAuthorize}
                 autoFocus
               />
@@ -363,7 +360,7 @@ export const CompanionLoginScreen: React.FC = () => {
           </Button>
 
           {ExpoCamera && (
-            <View className='mt-6 items-center'>
+            <View className='mt-3 items-center'>
               <TouchableOpacity onPress={handleScanAgain} className='py-2'>
                 <Text className='text-sm text-gray-500 underline'>
                   {t("companion_login.scan_again")}

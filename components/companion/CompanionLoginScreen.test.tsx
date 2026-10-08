@@ -22,6 +22,13 @@ jest.mock("@jellyfin/sdk/lib/utils/api", () => ({
   }),
 }));
 jest.mock("@/utils/log", () => ({ writeErrorLog: jest.fn() }));
+// The sheet's own input throws outside a bottom sheet, which this screen is
+// not: the code field has to be a plain one.
+jest.mock("@gorhom/bottom-sheet", () => ({
+  BottomSheetTextInput: () => {
+    throw new Error("BottomSheetTextInput outside a bottom sheet");
+  },
+}));
 jest.mock("@/providers/JellyfinProvider", () => {
   const { atom } = jest.requireActual("jotai");
   return {
@@ -116,10 +123,7 @@ describe("CompanionLoginScreen", () => {
       screen.getByText("companion_login.enter_code_manually"),
     );
 
-    await fireEvent.changeText(
-      screen.getByPlaceholderText("companion_login.pairing_code_label"),
-      "042 117",
-    );
+    await fireEvent.changeText(screen.getByTestId("pairing-code"), "042 117");
     await pressAuthorize();
     expect(mockAuthorize).toHaveBeenCalledWith({ code: "042117" });
   });
@@ -131,12 +135,25 @@ describe("CompanionLoginScreen", () => {
     await fireEvent.press(
       screen.getByText("companion_login.enter_code_manually"),
     );
-    const input = screen.getByPlaceholderText(
-      "companion_login.pairing_code_label",
-    );
+    const input = screen.getByTestId("pairing-code");
 
+    // With an accessory view id set, React Native leaves its own toolbar out
+    // whatever else the input carries.
     expect(input.props.inputAccessoryViewID).toBeTruthy();
-    expect(input.props.inputAccessoryViewButtonLabel).toBeUndefined();
+  });
+
+  // Digits only, so the same six cells as Quick Connect in Settings.
+  test("shows a typed code in six cells, as Quick Connect does", async () => {
+    await render(<CompanionLoginScreen />);
+    await fireEvent.press(
+      screen.getByText("companion_login.enter_code_manually"),
+    );
+    await fireEvent.changeText(screen.getByTestId("pairing-code"), "042117");
+
+    expect(screen.getByText("0")).toBeTruthy();
+    expect(screen.getByText("4")).toBeTruthy();
+    expect(screen.getAllByText("1")).toHaveLength(2);
+    expect(screen.getByText("7")).toBeTruthy();
   });
 
   // A TV on an older version waits for a password over the network, which
