@@ -980,6 +980,14 @@
     }
   },
   "seerr": {
+    "awaited": {
+      "notify_me": "Notify me when it's here",
+      "waiting": "You'll be notified",
+      "stop_hint": "Stops waiting for this title",
+      "already_here": "This title is already on the server",
+      "too_many": "You're already waiting for as many titles as you can",
+      "failed": "Couldn't change the titles you're waiting for"
+    },
     "cancel": "Cancel",
     "whats_wrong": "What's wrong?",
     "issue_type": "Issue type",

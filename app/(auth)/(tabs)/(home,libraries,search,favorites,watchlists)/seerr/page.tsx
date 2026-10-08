@@ -23,6 +23,7 @@ import { OverviewText } from "@/components/OverviewText";
 import { ParallaxScrollView } from "@/components/ParallaxPage";
 import { PlatformDropdown } from "@/components/PlatformDropdown";
 import { SeerrRatings } from "@/components/Ratings";
+import { AwaitTitleButton } from "@/components/seerr/AwaitTitleButton";
 import Cast from "@/components/seerr/Cast";
 import DetailFacts from "@/components/seerr/DetailFacts";
 import RequestModal from "@/components/seerr/RequestModal";
@@ -428,6 +429,13 @@ const MobilePage: React.FC = () => {
                     )}
                   </View>
                 )
+              )}
+              {!isLoading && !isFetching && (
+                <AwaitTitleButton
+                  details={details}
+                  mediaType={mediaType}
+                  className={jellyfinMediaId || offersRequest ? "mt-2" : "mt-4"}
+                />
               )}
               {canManageRequests && pendingRequest && (
                 <View className='flex flex-col mt-4' style={{ gap: 8 }}>
