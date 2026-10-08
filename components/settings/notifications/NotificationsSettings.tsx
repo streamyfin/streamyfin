@@ -6,6 +6,7 @@ import { Loader } from "@/components/Loader";
 import { ListGroup } from "@/components/list/ListGroup";
 import { ListItem } from "@/components/list/ListItem";
 import { NOTIFICATION_FAMILIES } from "@/constants/Notifications";
+import { useAwaitedTitles } from "@/hooks/useAwaitedTitles";
 import { useMyNotifications } from "@/hooks/useMyNotifications";
 import {
   type MyEvent,
@@ -39,6 +40,7 @@ export const NotificationsSettings: React.FC = () => {
     unmute,
     refetch,
   } = useMyNotifications();
+  const awaited = useAwaitedTitles();
 
   if (!supported) {
     return (
@@ -199,6 +201,29 @@ export const NotificationsSettings: React.FC = () => {
         <View className='mb-4'>
           <ListGroup title={t("home.settings.notifications.groups.yours")}>
             {yours.map(eventRow)}
+          </ListGroup>
+        </View>
+      )}
+
+      {!!awaited.titles?.length && (
+        <View className='mb-4'>
+          <ListGroup title={t("home.settings.notifications.groups.awaited")}>
+            {awaited.titles.map((title) => (
+              <ListItem
+                key={`${title.mediaType}-${title.tmdbId}`}
+                title={title.title}
+                subtitle={
+                  title.arrived
+                    ? t("home.settings.notifications.awaited.arrived")
+                    : title.year?.toString()
+                }
+                onPress={() => awaited.remove(title.mediaType, title.tmdbId)}
+              >
+                <Text className='text-purple-500'>
+                  {t("home.settings.notifications.awaited.stop")}
+                </Text>
+              </ListItem>
+            ))}
           </ListGroup>
         </View>
       )}
