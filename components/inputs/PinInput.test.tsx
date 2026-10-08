@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
 import { Pressable } from "react-native";
 import { PinInput } from "@/components/inputs/PinInput";
+import { NO_KEYBOARD_TOOLBAR } from "@/constants/Keyboard";
 
 // The sheet's input is a plain TextInput as far as this spec is concerned;
 // the real one pulls in Reanimated.
@@ -17,7 +18,7 @@ describe("PinInput", () => {
     await render(<PinInput testID='pin' value='' onChangeText={() => {}} />);
     const input = screen.getByTestId("pin");
 
-    expect(input.props.inputAccessoryViewID).toBeTruthy();
+    expect(input.props.inputAccessoryViewID).toBe(NO_KEYBOARD_TOOLBAR);
   });
 
   // A tap on the sheet around the field closes the keyboard, so a tap on the
