@@ -2,10 +2,10 @@ import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
 import { Platform, Pressable, View } from "react-native";
 import { Text as RNText } from "@/components/common/Text";
-import { SeerrSearchSort } from "@/components/seerr/SeerrIndexPage";
+import type { SortOrder } from "@/components/search/searchSort";
 import { Colors } from "@/constants/Colors";
 import {
-  DISCOVER_FILTER_WIDTH,
+  SEARCH_SORT_BUTTON_WIDTH,
   SEARCH_TAB_ROW_HEIGHT,
 } from "@/constants/Values";
 
@@ -24,27 +24,38 @@ const compose =
     ? (require("@expo/ui/jetpack-compose") as typeof import("@expo/ui/jetpack-compose"))
     : ({} as typeof import("@expo/ui/jetpack-compose"));
 
-interface DiscoverFiltersProps {
-  seerrOrderBy: SeerrSearchSort;
-  setSeerrOrderBy: (value: SeerrSearchSort) => void;
-  seerrSortOrder: "asc" | "desc";
-  setSeerrSortOrder: (value: "asc" | "desc") => void;
+/** One sort the menu offers, its label already translated. */
+export interface SearchSortOption<T extends string> {
+  value: T;
+  label: string;
+}
+
+interface SearchSortMenuProps<T extends string> {
+  sorts: SearchSortOption<T>[];
+  sort: T;
+  onSort: (value: T) => void;
+  /** Left out for a sort that has no direction, as relevance. */
+  order?: SortOrder;
+  onOrder: (value: SortOrder) => void;
   t: (key: string) => string;
 }
 
-const sortOptions = Object.keys(SeerrSearchSort).filter((v) =>
-  Number.isNaN(Number(v)),
-);
-
 const orderOptions = ["asc", "desc"] as const;
 
-export const DiscoverFilters: React.FC<DiscoverFiltersProps> = ({
-  seerrOrderBy,
-  setSeerrOrderBy,
-  seerrSortOrder,
-  setSeerrSortOrder,
+/**
+ * The Search screen's sort button and the menu it opens, for the Library and
+ * the Discover results alike: the sorts, then the orders.
+ */
+export const SearchSortMenu = <T extends string>({
+  sorts,
+  sort,
+  onSort,
+  order,
+  onOrder,
   t,
-}) => {
+}: SearchSortMenuProps<T>) => {
+  const current = sorts.find((s) => s.value === sort);
+
   if (Platform.OS === "ios" && !Platform.isTV) {
     return (
       <Host
@@ -53,7 +64,7 @@ export const DiscoverFilters: React.FC<DiscoverFiltersProps> = ({
           alignItems: "center",
           overflow: "visible",
           height: SEARCH_TAB_ROW_HEIGHT,
-          width: DISCOVER_FILTER_WIDTH,
+          width: SEARCH_SORT_BUTTON_WIDTH,
           marginLeft: "auto",
         }}
       >
@@ -73,61 +84,55 @@ export const DiscoverFilters: React.FC<DiscoverFiltersProps> = ({
                   systemName='line.3.horizontal.decrease.circle'
                   modifiers={[font({ textStyle: "body" })]}
                 />
-                <Text modifiers={[font({ textStyle: "body" })]}>
-                  {"\u200B"}
-                </Text>
+                <Text modifiers={[font({ textStyle: "body" })]}>{"​"}</Text>
               </HStack>
             </Button>
           }
         >
           <Menu
-            label={`${t("library.filters.sort_by")}: ${t(
-              `home.settings.plugins.seerr.order_by.${seerrOrderBy}`,
-            )}`}
+            label={`${t("library.filters.sort_by")}: ${current?.label ?? ""}`}
           >
-            {sortOptions.map((item) => {
-              const isSelected =
-                seerrOrderBy === (item as unknown as SeerrSearchSort);
-              return (
-                <Button
-                  key={item}
-                  label={t(`home.settings.plugins.seerr.order_by.${item}`)}
-                  systemImage={isSelected ? "checkmark.circle.fill" : "circle"}
-                  onPress={() =>
-                    setSeerrOrderBy(item as unknown as SeerrSearchSort)
-                  }
-                />
-              );
-            })}
+            {sorts.map((item) => (
+              <Button
+                key={item.value}
+                label={item.label}
+                systemImage={
+                  item.value === sort ? "checkmark.circle.fill" : "circle"
+                }
+                onPress={() => onSort(item.value)}
+              />
+            ))}
           </Menu>
-          <Menu
-            label={`${t("library.filters.sort_order")}: ${t(
-              `library.filters.${seerrSortOrder}`,
-            )}`}
-          >
-            {orderOptions.map((item) => {
-              const isSelected = seerrSortOrder === item;
-              return (
+          {order && (
+            <Menu
+              label={`${t("library.filters.sort_order")}: ${t(
+                `library.filters.${order}`,
+              )}`}
+            >
+              {orderOptions.map((item) => (
                 <Button
                   key={item}
                   label={t(`library.filters.${item}`)}
-                  systemImage={isSelected ? "checkmark.circle.fill" : "circle"}
-                  onPress={() => setSeerrSortOrder(item)}
+                  systemImage={
+                    order === item ? "checkmark.circle.fill" : "circle"
+                  }
+                  onPress={() => onOrder(item)}
                 />
-              );
-            })}
-          </Menu>
+              ))}
+            </Menu>
+          )}
         </Menu>
       </Host>
     );
   }
 
   return (
-    <AndroidDiscoverFilters
-      seerrOrderBy={seerrOrderBy}
-      setSeerrOrderBy={setSeerrOrderBy}
-      seerrSortOrder={seerrSortOrder}
-      setSeerrSortOrder={setSeerrSortOrder}
+    <AndroidSearchSortMenu
+      sorts={sorts}
+      sort={sort}
+      onSort={onSort}
+      order={order}
+      onOrder={onOrder}
       t={t}
     />
   );
@@ -137,13 +142,14 @@ export const DiscoverFilters: React.FC<DiscoverFiltersProps> = ({
  * One button and the menu it drops down, as on iOS: Material's own dropdown,
  * the sorts and then the orders, the current one of each marked.
  */
-const AndroidDiscoverFilters: React.FC<DiscoverFiltersProps> = ({
-  seerrOrderBy,
-  setSeerrOrderBy,
-  seerrSortOrder,
-  setSeerrSortOrder,
+const AndroidSearchSortMenu = <T extends string>({
+  sorts,
+  sort,
+  onSort,
+  order,
+  onOrder,
   t,
-}) => {
+}: SearchSortMenuProps<T>) => {
   const [open, setOpen] = useState(false);
   const {
     HorizontalDivider,
@@ -198,40 +204,35 @@ const AndroidDiscoverFilters: React.FC<DiscoverFiltersProps> = ({
         </DropdownMenu.Trigger>
         <DropdownMenu.Items>
           {heading(t("library.filters.sort_by"))}
-          {sortOptions.map((item) => (
+          {sorts.map((item) => (
             <DropdownMenuItem
-              key={item}
-              onClick={() =>
-                pick(() => setSeerrOrderBy(item as unknown as SeerrSearchSort))
-              }
+              key={item.value}
+              onClick={() => pick(() => onSort(item.value))}
             >
               <DropdownMenuItem.LeadingIcon>
-                <RadioButton
-                  selected={
-                    seerrOrderBy === (item as unknown as SeerrSearchSort)
-                  }
-                />
+                <RadioButton selected={item.value === sort} />
               </DropdownMenuItem.LeadingIcon>
               <DropdownMenuItem.Text>
-                <Text>{t(`home.settings.plugins.seerr.order_by.${item}`)}</Text>
+                <Text>{item.label}</Text>
               </DropdownMenuItem.Text>
             </DropdownMenuItem>
           ))}
-          <HorizontalDivider />
-          {heading(t("library.filters.sort_order"))}
-          {orderOptions.map((item) => (
-            <DropdownMenuItem
-              key={item}
-              onClick={() => pick(() => setSeerrSortOrder(item))}
-            >
-              <DropdownMenuItem.LeadingIcon>
-                <RadioButton selected={seerrSortOrder === item} />
-              </DropdownMenuItem.LeadingIcon>
-              <DropdownMenuItem.Text>
-                <Text>{t(`library.filters.${item}`)}</Text>
-              </DropdownMenuItem.Text>
-            </DropdownMenuItem>
-          ))}
+          {order && <HorizontalDivider />}
+          {order && heading(t("library.filters.sort_order"))}
+          {order &&
+            orderOptions.map((item) => (
+              <DropdownMenuItem
+                key={item}
+                onClick={() => pick(() => onOrder(item))}
+              >
+                <DropdownMenuItem.LeadingIcon>
+                  <RadioButton selected={order === item} />
+                </DropdownMenuItem.LeadingIcon>
+                <DropdownMenuItem.Text>
+                  <Text>{t(`library.filters.${item}`)}</Text>
+                </DropdownMenuItem.Text>
+              </DropdownMenuItem>
+            ))}
         </DropdownMenu.Items>
       </DropdownMenu>
     </Host>

@@ -15,9 +15,9 @@ export const POSTER_ASPECT_RATIO = 10 / 15;
 
 /**
  * The row at the top of the Search screen on iOS: the Library and Discover
- * buttons, and the Discover filter button, each in a SwiftUI host this high.
+ * buttons, and the sort button, each in a SwiftUI host this high.
  */
 export const SEARCH_TAB_ROW_HEIGHT = 40;
 
-/** Room for the Discover filter button's host, beside the tabs. */
-export const DISCOVER_FILTER_WIDTH = 50;
+/** Room for the sort button's host, beside the tabs. */
+export const SEARCH_SORT_BUTTON_WIDTH = 50;

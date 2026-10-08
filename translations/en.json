@@ -681,7 +681,14 @@
     "tmdb_studio": "TMDB studio",
     "tmdb_network": "TMDB network",
     "tmdb_movie_streaming_services": "TMDB movie streaming services",
-    "tmdb_tv_streaming_services": "TMDB TV streaming services"
+    "tmdb_tv_streaming_services": "TMDB TV streaming services",
+    "library_sort": {
+      "Relevance": "Relevance",
+      "Name": "Name",
+      "CommunityRating": "Rating",
+      "ProductionYear": "Year",
+      "DateCreated": "Date added"
+    }
   },
   "library": {
     "no_results": "No results",

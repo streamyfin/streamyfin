@@ -19,7 +19,10 @@ import type {
   TvResult,
 } from "@/utils/seerr/types";
 import { TVSearchSection } from "./TVSearchSection";
-import { TVSearchTabBadges } from "./TVSearchTabBadges";
+import {
+  type TVSearchSortButtons,
+  TVSearchTabBadges,
+} from "./TVSearchTabBadges";
 import { TVSeerrSearchResults } from "./TVSeerrSearchResults";
 
 const TOP_PADDING = 100;
@@ -120,6 +123,8 @@ interface TVSearchPageProps {
   searchType: SearchType;
   setSearchType: (type: SearchType) => void;
   showDiscover: boolean;
+  /** The sort of the results, given once something is typed. */
+  sortButtons?: TVSearchSortButtons;
   seerrMovies?: MovieResult[];
   seerrTv?: TvResult[];
   seerrPersons?: PersonResult[];
@@ -151,6 +156,7 @@ export const TVSearchPage: React.FC<TVSearchPageProps> = ({
   searchType,
   setSearchType,
   showDiscover,
+  sortButtons,
   seerrMovies = [],
   seerrTv = [],
   seerrPersons = [],
@@ -283,13 +289,14 @@ export const TVSearchPage: React.FC<TVSearchPageProps> = ({
           paddingBottom: insets.bottom + 60,
         }}
       >
-        {/* Search Type Tab Badges */}
-        {showDiscover && (
+        {/* Search type tabs, and the sort of the results */}
+        {(showDiscover || sortButtons) && (
           <View style={{ marginHorizontal: sizes.padding.horizontal }}>
             <TVSearchTabBadges
               searchType={searchType}
               setSearchType={setSearchType}
               showDiscover={showDiscover}
+              sortButtons={sortButtons}
             />
           </View>
         )}

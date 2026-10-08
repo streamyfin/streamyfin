@@ -2,7 +2,6 @@ import { fireEvent, render, screen } from "@testing-library/react-native";
 import type { ReactNode } from "react";
 import { Children, isValidElement } from "react";
 import { Pressable, Text, View } from "react-native";
-import type { SeerrSearchSort } from "@/components/seerr/SeerrIndexPage";
 import { stubReactNative } from "@/test-utils/reactNative";
 
 stubReactNative({ OS: "android" });
@@ -57,31 +56,27 @@ jest.mock("@expo/ui/jetpack-compose", () => ({
   Text: MockText,
   RadioButton: MockRadioButton,
 }));
-// The sort enum lives in the Seerr page, which would pull the whole page in.
-jest.mock("@/components/seerr/SeerrIndexPage", () => ({
-  SeerrSearchSort: {
-    0: "DEFAULT",
-    1: "VOTE_COUNT_AND_AVERAGE",
-    2: "POPULARITY",
-    DEFAULT: 0,
-    VOTE_COUNT_AND_AVERAGE: 1,
-    POPULARITY: 2,
-  },
-}));
+const { SearchSortMenu } =
+  require("@/components/search/SearchSortMenu") as typeof import("@/components/search/SearchSortMenu");
 
-const { DiscoverFilters } =
-  require("@/components/search/DiscoverFilters") as typeof import("@/components/search/DiscoverFilters");
+const onSort = jest.fn();
+const onOrder = jest.fn();
+const sorts = [
+  { value: "DEFAULT", label: "Default" },
+  { value: "VOTE_COUNT_AND_AVERAGE", label: "Vote count and average" },
+  { value: "POPULARITY", label: "Popularity" },
+];
 
-const setSeerrOrderBy = jest.fn();
-const setSeerrSortOrder = jest.fn();
-
-const renderFilters = () =>
+const renderMenu = (
+  { order }: { order?: "asc" | "desc" } = { order: "desc" },
+) =>
   render(
-    <DiscoverFilters
-      seerrOrderBy={"DEFAULT" as unknown as SeerrSearchSort}
-      setSeerrOrderBy={setSeerrOrderBy}
-      seerrSortOrder='desc'
-      setSeerrSortOrder={setSeerrSortOrder}
+    <SearchSortMenu
+      sorts={sorts}
+      sort='DEFAULT'
+      onSort={onSort}
+      order={order}
+      onOrder={onOrder}
       t={(key: string) => key}
     />,
   );
@@ -91,15 +86,15 @@ const openMenu = () =>
     screen.getByRole("button", { name: "library.filters.sort_by" }),
   );
 
-describe("DiscoverFilters on Android", () => {
+describe("SearchSortMenu on Android", () => {
   beforeEach(() => {
-    setSeerrOrderBy.mockClear();
-    setSeerrSortOrder.mockClear();
+    onSort.mockClear();
+    onOrder.mockClear();
   });
 
   // As on iOS: one button, and the sort and the order in the menu it opens.
   test("shows one filter button that opens both choices", async () => {
-    await renderFilters();
+    await renderMenu();
     expect(screen.getAllByRole("button")).toHaveLength(1);
     expect(screen.queryByText("library.filters.sort_order")).toBeNull();
 
@@ -109,29 +104,25 @@ describe("DiscoverFilters on Android", () => {
   });
 
   test("sorts by the choice picked and closes the menu", async () => {
-    await renderFilters();
+    await renderMenu();
     await openMenu();
-    await fireEvent.press(
-      screen.getByText("home.settings.plugins.seerr.order_by.POPULARITY"),
-    );
+    await fireEvent.press(screen.getByText("Popularity"));
 
-    expect(setSeerrOrderBy).toHaveBeenCalledWith("POPULARITY");
-    expect(
-      screen.queryByText("home.settings.plugins.seerr.order_by.POPULARITY"),
-    ).toBeNull();
+    expect(onSort).toHaveBeenCalledWith("POPULARITY");
+    expect(screen.queryByText("Popularity")).toBeNull();
   });
 
   test("orders by the choice picked", async () => {
-    await renderFilters();
+    await renderMenu();
     await openMenu();
     await fireEvent.press(screen.getByText("library.filters.asc"));
 
-    expect(setSeerrSortOrder).toHaveBeenCalledWith("asc");
+    expect(onOrder).toHaveBeenCalledWith("asc");
   });
 
   // The current sort and order show as picked, as their circles do on iOS.
   test("marks the current choices", async () => {
-    await renderFilters();
+    await renderMenu();
     await openMenu();
 
     const marks = screen.getAllByText(/selected/).map((m) => m.props.children);
@@ -143,5 +134,15 @@ describe("DiscoverFilters on Android", () => {
       "not selected",
       "selected",
     ]);
+  });
+
+  // Relevance, the Library search's own order, has no direction to pick.
+  test("leaves the order out for a sort that has none", async () => {
+    await renderMenu({});
+    await openMenu();
+
+    expect(screen.getByText("library.filters.sort_by")).toBeTruthy();
+    expect(screen.queryByText("library.filters.sort_order")).toBeNull();
+    expect(screen.queryByText("library.filters.asc")).toBeNull();
   });
 });
