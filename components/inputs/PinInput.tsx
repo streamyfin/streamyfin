@@ -47,7 +47,8 @@ const PinInputComponent = React.forwardRef<PinInputRef, PinInputProps>(
     // A new id on each mount. Fabric reuses a text input's native view and
     // diffs the new props against the ones that view had: its reuse clears
     // the id, so the same id again would never be set back.
-    const toolbarId = `${NO_KEYBOARD_TOOLBAR}-${useId()}`;
+    const instanceId = useId();
+    const toolbarId = `${NO_KEYBOARD_TOOLBAR}-${instanceId}`;
 
     const handlePress = useCallback(() => {
       inputRef.current?.focus();
