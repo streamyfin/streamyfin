@@ -51,6 +51,8 @@ export const QuickConnect: React.FC<Props> = ({ ...props }) => {
   // Numbers each attempt: an answer that comes back after the sheet was
   // opened again, or after a newer attempt, is left alone.
   const attemptRef = useRef(0);
+  // Cancels the approval of an attempt the sheet was opened again over.
+  const controllerRef = useRef<AbortController | null>(null);
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
   const successHapticFeedback = useHaptic("success");
   const errorHapticFeedback = useHaptic("error");
@@ -78,6 +80,8 @@ export const QuickConnect: React.FC<Props> = ({ ...props }) => {
       if (!api || authorizingRef.current) return;
       const attempt = ++attemptRef.current;
       const current = () => attempt === attemptRef.current;
+      const controller = new AbortController();
+      controllerRef.current = controller;
       authorizingRef.current = true;
       setAuthorizing(true);
       setError(null);
@@ -98,10 +102,13 @@ export const QuickConnect: React.FC<Props> = ({ ...props }) => {
           fail(t("home.settings.quick_connect.disabled"));
           return;
         }
-        const res = await getQuickConnectApi(api).authorizeQuickConnect({
-          code,
-          userId: user?.Id,
-        });
+        // The sheet may have been opened again during the check: an attempt
+        // it left behind sends no approval.
+        if (!current()) return;
+        const res = await getQuickConnectApi(api).authorizeQuickConnect(
+          { code, userId: user?.Id },
+          { signal: controller.signal },
+        );
         if (!current()) return;
         if (res.status === 200 && res.data !== false) {
           successHapticFeedback();
@@ -157,6 +164,7 @@ export const QuickConnect: React.FC<Props> = ({ ...props }) => {
   // Opening the sheet starts over: an attempt still running belongs to the
   // sheet that was closed.
   const openSheet = useCallback(() => {
+    controllerRef.current?.abort();
     attemptRef.current++;
     authorizingRef.current = false;
     setAuthorizing(false);
@@ -211,6 +219,8 @@ export const QuickConnect: React.FC<Props> = ({ ...props }) => {
                   testID='quick-connect-code'
                   value={quickConnectCode}
                   onChangeText={handleCodeChange}
+                  // Locked while the code shown is the one being checked.
+                  editable={!authorizing}
                   length={CODE_LENGTH}
                   style={{ paddingHorizontal: 16 }}
                   autoFocus

@@ -6,7 +6,10 @@ import { QuickConnect } from "@/components/settings/QuickConnect";
 const mockAuthorize = jest.fn();
 jest.mock("@jellyfin/sdk/lib/utils/api", () => ({
   getQuickConnectApi: () => ({
-    authorizeQuickConnect: (params: { code: string }) => mockAuthorize(params),
+    authorizeQuickConnect: (
+      params: { code: string },
+      options?: { signal?: AbortSignal },
+    ) => mockAuthorize(params, options),
   }),
 }));
 const mockEnabled = jest.fn(async () => true);
@@ -109,6 +112,7 @@ describe("Settings, Quick Connect", () => {
     expect(mockAuthorize).toHaveBeenCalledTimes(1);
     expect(mockAuthorize).toHaveBeenCalledWith(
       expect.objectContaining({ code: "123456" }),
+      expect.anything(),
     );
     expect(mockClose).toHaveBeenCalled();
   });
@@ -124,6 +128,7 @@ describe("Settings, Quick Connect", () => {
 
     expect(mockAuthorize).toHaveBeenCalledWith(
       expect.objectContaining({ code: "123456" }),
+      expect.anything(),
     );
   });
 
@@ -151,6 +156,7 @@ describe("Settings, Quick Connect", () => {
     expect(mockAuthorize).toHaveBeenCalledTimes(2);
     expect(mockAuthorize).toHaveBeenLastCalledWith(
       expect.objectContaining({ code: "123457" }),
+      expect.anything(),
     );
   });
 
@@ -198,6 +204,54 @@ describe("Settings, Quick Connect", () => {
 
   // Jellyfin answers an approval with a 401 while Quick Connect is off, and
   // the session handling takes any 401 for an expired token (#2237).
+  // A sheet opened again during the check that Quick Connect is on must not
+  // let the previous attempt send its approval.
+  test("sends no approval for an attempt the sheet was reopened over", async () => {
+    let enabled: (value: boolean) => void = () => {};
+    mockEnabled.mockImplementationOnce(
+      () =>
+        new Promise<boolean>((resolve) => {
+          enabled = resolve;
+        }),
+    );
+    await render(<QuickConnect />);
+    await typeCode("123456");
+    await act(async () => {
+      await fireEvent.press(
+        screen.getByText("home.settings.quick_connect.authorize_button"),
+      );
+    });
+    await act(async () => {
+      enabled(true);
+    });
+
+    expect(mockAuthorize).not.toHaveBeenCalled();
+  });
+
+  test("cancels an approval on its way when the sheet is opened again", async () => {
+    mockAuthorize.mockImplementationOnce(() => new Promise(() => {}));
+    await render(<QuickConnect />);
+    await typeCode("123456");
+    const signal = mockAuthorize.mock.calls[0][1]?.signal as AbortSignal;
+    expect(signal.aborted).toBe(false);
+
+    await act(async () => {
+      await fireEvent.press(
+        screen.getByText("home.settings.quick_connect.authorize_button"),
+      );
+    });
+    expect(signal.aborted).toBe(true);
+  });
+
+  // The cells show the code being checked: they are locked until it answers.
+  test("locks the cells while a code is being checked", async () => {
+    mockAuthorize.mockImplementationOnce(() => new Promise(() => {}));
+    await render(<QuickConnect />);
+    await typeCode("123456");
+
+    expect(screen.getByTestId("quick-connect-code").props.editable).toBe(false);
+  });
+
   test("says Quick Connect is off instead of asking the server to approve", async () => {
     mockEnabled.mockResolvedValue(false);
     await render(<QuickConnect />);
