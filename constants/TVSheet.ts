@@ -12,4 +12,6 @@ export const TVSheetTiming = {
   contentDelayMs: 100,
   /** Delay before focus moves to the current card, so the cards exist. */
   focusDelayMs: 50,
+  /** Delay before a tab's content mounts, on opening and after a tab switch. */
+  tabContentDelayMs: 50,
 } as const;

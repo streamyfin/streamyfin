@@ -28,7 +28,13 @@ jest.mock("@/hooks/useAppRouter", () => ({
   __esModule: true,
   default: () => mockRouter,
 }));
-jest.mock("@/hooks/useTVBackPress", () => ({ useTVBackPress: () => {} }));
+/** The sheet's back and menu handler, as it last handed it over. */
+let mockBackPress: () => boolean | null | undefined = () => false;
+jest.mock("@/hooks/useTVBackPress", () => ({
+  useTVBackPress: (handler: () => boolean | null | undefined) => {
+    mockBackPress = handler;
+  },
+}));
 /** How many times one press fires onPress, to stand for a remote that fires twice. */
 let mockSelectFires = 1;
 // The track cards are React Native Pressables inside the sheet, so the double
@@ -82,31 +88,39 @@ jest.mock("@/components/tv", () => ({
     animatedStyle: {},
   }),
 }));
-const mockDownload = jest.fn(async (_result: { id: string }) => ({
-  type: "local",
-  path: "/subtitles/movie.fr.srt",
-}));
+const mockDownload = jest.fn(
+  async (_result: { id: string }): Promise<{ type: string; path: string }> => ({
+    type: "local",
+    path: "/subtitles/movie.fr.srt",
+  }),
+);
+const frenchResult = {
+  id: "result-1",
+  name: "Movie.FR.srt",
+  providerName: "OpenSubtitles",
+  format: "srt",
+  language: "fre",
+};
+/** What a subtitle search finds. */
+let mockSearchResults = [frenchResult];
 jest.mock("@/hooks/useRemoteSubtitles", () => ({
   useRemoteSubtitles: () => ({
     hasOpenSubtitlesApiKey: true,
     isSearching: false,
     searchError: null,
-    searchResults: [
-      {
-        id: "result-1",
-        name: "Movie.FR.srt",
-        providerName: "OpenSubtitles",
-        format: "srt",
-        language: "fre",
-      },
-    ],
+    searchResults: mockSearchResults,
     search: () => {},
     downloadAsync: (result: { id: string }) => mockDownload(result),
     reset: () => {},
   }),
 }));
 
-const openSheet = async (deferApplyUntilDismissed: boolean) => {
+const openSheet = async (
+  deferApplyUntilDismissed: boolean,
+  setTrack = () => {
+    mockCalls.push("select French");
+  },
+) => {
   const { result } = await renderHook(() => useTVSubtitleModal());
   await act(async () => {
     result.current.showSubtitleModal({
@@ -115,9 +129,7 @@ const openSheet = async (deferApplyUntilDismissed: boolean) => {
         {
           name: "French - SRT",
           index: 3,
-          setTrack: () => {
-            mockCalls.push("select French");
-          },
+          setTrack,
         },
       ],
       currentSubtitleIndex: -1,
@@ -140,7 +152,7 @@ const openSheet = async (deferApplyUntilDismissed: boolean) => {
     jest.advanceTimersByTime(TVSheetTiming.contentDelayMs);
   });
   await act(async () => {
-    jest.advanceTimersByTime(50);
+    jest.advanceTimersByTime(TVSheetTiming.tabContentDelayMs);
   });
 };
 
@@ -150,6 +162,7 @@ describe("TV subtitle sheet", () => {
     mockCalls.length = 0;
     mockSelectFires = 1;
     mockDownload.mockClear();
+    mockSearchResults = [frenchResult];
   });
   afterEach(() => jest.useRealTimers());
 
@@ -206,7 +219,7 @@ describe("TV subtitle sheet", () => {
     await openSheet(true);
     await fireEvent.press(screen.getByText("player.download"));
     await act(async () => {
-      jest.advanceTimersByTime(50);
+      jest.advanceTimersByTime(TVSheetTiming.tabContentDelayMs);
     });
 
     mockSelectFires = 2;
@@ -215,5 +228,65 @@ describe("TV subtitle sheet", () => {
     });
     expect(mockDownload).toHaveBeenCalledTimes(1);
     expect(mockCalls).toEqual(["added /subtitles/movie.fr.srt"]);
+  });
+
+  // Presses on the other results are dropped while one downloads, five
+  // seconds or more for a server-side one: they look it, so the remote does
+  // not seem to be ignored.
+  test("shows the other results as unavailable while one downloads", async () => {
+    mockSearchResults = [
+      frenchResult,
+      { ...frenchResult, id: "result-2", name: "Movie.FR.forced.srt" },
+    ];
+    mockDownload.mockImplementationOnce(() => new Promise(() => {}));
+    await openSheet(true);
+    await fireEvent.press(screen.getByText("player.download"));
+    await act(async () => {
+      jest.advanceTimersByTime(TVSheetTiming.tabContentDelayMs);
+    });
+    expect(screen.getByTestId("subtitle-result-result-2")).not.toHaveStyle({
+      opacity: 0.4,
+    });
+
+    await act(async () => {
+      await fireEvent.press(screen.getByText("Movie.FR.srt"));
+    });
+    expect(screen.getByTestId("subtitle-result-result-2")).toHaveStyle({
+      opacity: 0.4,
+    });
+  });
+
+  // The back and menu press closes through the same guard as a track.
+  test("closes once when back follows a track", async () => {
+    await openSheet(false);
+
+    await fireEvent.press(screen.getByText("French - SRT"));
+    await act(async () => {
+      mockBackPress();
+    });
+    expect(mockCalls).toEqual(["select French", "back"]);
+  });
+
+  test("closes once when back fires twice", async () => {
+    await openSheet(false);
+
+    await act(async () => {
+      mockBackPress();
+      mockBackPress();
+    });
+    expect(mockCalls).toEqual(["back"]);
+  });
+
+  // The guard is spent before the track is applied: a track that throws must
+  // still close the sheet, or it stays open and ignores every press.
+  test("still closes when the track throws", async () => {
+    await openSheet(false, () => {
+      throw new Error("track failed");
+    });
+
+    await expect(
+      fireEvent.press(screen.getByText("French - SRT")),
+    ).rejects.toThrow("track failed");
+    expect(mockCalls).toEqual(["back"]);
   });
 });

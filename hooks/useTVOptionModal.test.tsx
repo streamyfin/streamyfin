@@ -27,7 +27,13 @@ jest.mock("@/hooks/useAppRouter", () => ({
   __esModule: true,
   default: () => mockRouter,
 }));
-jest.mock("@/hooks/useTVBackPress", () => ({ useTVBackPress: () => {} }));
+/** The sheet's back and menu handler, as it last handed it over. */
+let mockBackPress: () => boolean | null | undefined = () => false;
+jest.mock("@/hooks/useTVBackPress", () => ({
+  useTVBackPress: (handler: () => boolean | null | undefined) => {
+    mockBackPress = handler;
+  },
+}));
 // The real scale reads the settings atom, which loads the whole settings UI.
 jest.mock("@/constants/TVTypography", () => ({
   useScaledTVTypography: () => ({ callout: 20 }),
@@ -50,7 +56,12 @@ jest.mock("@/components/tv", () => ({
     MockOptionCard(props),
 }));
 
-const openSheet = async (deferApplyUntilDismissed: boolean) => {
+const openSheet = async (
+  deferApplyUntilDismissed: boolean,
+  onSelect = (value: string) => {
+    mockCalls.push(`select ${value}`);
+  },
+) => {
   const { result } = await renderHook(() => useTVOptionModal());
   await act(async () => {
     result.current.showOptions({
@@ -59,9 +70,7 @@ const openSheet = async (deferApplyUntilDismissed: boolean) => {
         { label: "English", value: "eng", selected: true },
         { label: "French", value: "fre", selected: false },
       ],
-      onSelect: (value: string) => {
-        mockCalls.push(`select ${value}`);
-      },
+      onSelect,
       deferApplyUntilDismissed,
     });
   });
@@ -129,5 +138,39 @@ describe("TV option sheet", () => {
 
     await fireEvent.press(screen.getByText("French"));
     expect(mockCalls).toEqual(["select fre", "back"]);
+  });
+
+  // The back and menu press closes through the same guard as a choice.
+  test("closes once when back follows a choice", async () => {
+    await openSheet(false);
+
+    await fireEvent.press(screen.getByText("French"));
+    await act(async () => {
+      mockBackPress();
+    });
+    expect(mockCalls).toEqual(["select fre", "back"]);
+  });
+
+  test("closes once when back fires twice", async () => {
+    await openSheet(false);
+
+    await act(async () => {
+      mockBackPress();
+      mockBackPress();
+    });
+    expect(mockCalls).toEqual(["back"]);
+  });
+
+  // The guard is spent before the choice runs: a choice that throws must still
+  // close the sheet, or it stays open and ignores every press, back included.
+  test("still closes when the choice throws", async () => {
+    await openSheet(false, () => {
+      throw new Error("choice failed");
+    });
+
+    await expect(fireEvent.press(screen.getByText("French"))).rejects.toThrow(
+      "choice failed",
+    );
+    expect(mockCalls).toEqual(["back"]);
   });
 });

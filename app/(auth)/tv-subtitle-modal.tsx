@@ -191,9 +191,11 @@ const SubtitleResultCard = React.forwardRef<
     result: SubtitleSearchResult;
     hasTVPreferredFocus?: boolean;
     isDownloading?: boolean;
+    /** Another result is downloading: presses on this one are dropped. */
+    dimmed?: boolean;
     onPress: () => void;
   }
->(({ result, hasTVPreferredFocus, isDownloading, onPress }, ref) => {
+>(({ result, hasTVPreferredFocus, isDownloading, dimmed, onPress }, ref) => {
   const { focused, handleFocus, handleBlur, animatedStyle } =
     useTVFocusAnimation({ scaleAmount: 1.03 });
   const { t } = useTranslation();
@@ -208,6 +210,7 @@ const SubtitleResultCard = React.forwardRef<
       disabled={isDownloading}
     >
       <Animated.View
+        testID={`subtitle-result-${result.id}`}
         style={[
           styles.resultCard,
           animatedStyle,
@@ -216,6 +219,7 @@ const SubtitleResultCard = React.forwardRef<
             borderColor: focused
               ? "rgba(255,255,255,0.8)"
               : "rgba(255,255,255,0.1)",
+            opacity: dimmed ? 0.4 : 1,
           },
         ]}
       >
@@ -637,7 +641,10 @@ export default function TVSubtitleModal() {
   useEffect(() => {
     if (isReady) {
       setIsTabContentReady(false);
-      const timer = setTimeout(() => setIsTabContentReady(true), 50);
+      const timer = setTimeout(
+        () => setIsTabContentReady(true),
+        TVSheetTiming.tabContentDelayMs,
+      );
       return () => clearTimeout(timer);
     }
     setIsTabContentReady(false);
@@ -682,9 +689,13 @@ export default function TVSubtitleModal() {
       // Detail page: setTrack only updates state. Run it BEFORE closing so the
       // re-render happens while the modal is up; deferring it until after
       // dismissal re-renders the detail page after focus returns and yanks TV
-      // focus, leaving navigation stuck.
-      option.setTrack?.();
-      close();
+      // focus, leaving navigation stuck. The guard is spent already, so the
+      // sheet closes even when the track throws.
+      try {
+        option.setTrack?.();
+      } finally {
+        close();
+      }
     },
     [close, modalState?.deferApplyUntilDismissed, submission],
   );
@@ -982,6 +993,10 @@ export default function TVSubtitleModal() {
                             result={result}
                             hasTVPreferredFocus={index === 0}
                             isDownloading={downloadingId === result.id}
+                            dimmed={
+                              downloadingId !== null &&
+                              downloadingId !== result.id
+                            }
                             onPress={() => handleDownload(result)}
                           />
                         ))}
