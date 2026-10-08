@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react-native";
+import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import { AWAITED_TITLE_EVENT } from "@/constants/Notifications";
 import { MediaStatus, MediaType } from "@/utils/seerr/types";
 import { AwaitTitleButton } from "./AwaitTitleButton";
@@ -80,6 +80,27 @@ describe("waiting for a title from its Seerr page", () => {
 
     expect(mockRemove).toHaveBeenCalledWith("movie", 603);
     expect(mockAdd).not.toHaveBeenCalled();
+  });
+
+  // A second press before the first change answered could reach the plugin first, and leave
+  // the title in the state the person just left.
+  test("ignores a press while its change is on its way", async () => {
+    let answer: () => void = () => {};
+    mockAdd.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          answer = resolve;
+        }),
+    );
+    await renderButton();
+
+    fireEvent.press(screen.getByText("seerr.awaited.notify_me"));
+    fireEvent.press(screen.getByText("seerr.awaited.notify_me"));
+    expect(mockAdd).toHaveBeenCalledTimes(1);
+
+    await act(async () => answer());
+    fireEvent.press(screen.getByText("seerr.awaited.notify_me"));
+    expect(mockAdd).toHaveBeenCalledTimes(2);
   });
 
   test("is not offered by a plugin that does not know the route", async () => {

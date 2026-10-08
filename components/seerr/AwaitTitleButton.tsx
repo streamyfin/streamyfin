@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
@@ -22,6 +23,10 @@ export const AwaitTitleButton: React.FC<{
   const { seerrUser } = useSeerr();
   const { mine } = useMyNotifications();
   const { supported, titles, isAwaited, add, remove } = useAwaitedTitles();
+  // One change at a time: a second press could reach the plugin before the first, and leave
+  // the title in the state the person just left. The ref holds before the re-render does.
+  const changing = useRef(false);
+  const [busy, setBusy] = useState(false);
 
   const request = awaitRequestFrom(details, mediaType);
   // Nothing until the plugin has answered both: a button that appears, then goes because the
@@ -48,9 +53,20 @@ export const AwaitTitleButton: React.FC<{
       accessibilityLabel={label}
       accessibilityHint={waiting ? t("seerr.awaited.stop_hint") : undefined}
       accessibilityState={{ selected: waiting }}
-      onPress={() =>
-        waiting ? remove(request.mediaType, request.tmdbId) : add(request)
-      }
+      disabled={busy}
+      onPress={async () => {
+        if (changing.current) return;
+        changing.current = true;
+        setBusy(true);
+        try {
+          await (waiting
+            ? remove(request.mediaType, request.tmdbId)
+            : add(request));
+        } finally {
+          changing.current = false;
+          setBusy(false);
+        }
+      }}
       iconLeft={
         <Ionicons
           name={waiting ? "notifications" : "notifications-outline"}
