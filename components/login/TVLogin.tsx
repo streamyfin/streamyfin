@@ -387,6 +387,7 @@ export const TVLogin: React.FC = () => {
     saveAccount: boolean,
   ) => {
     if (!currentServer) return;
+    setQuickConnectSave(null);
 
     if (saveAccount) {
       setPendingLogin({ username, password });
@@ -484,6 +485,7 @@ export const TVLogin: React.FC = () => {
         setCurrentScreen("qr-code-display");
       }
     } catch (_error) {
+      setQuickConnectSave(null);
       Alert.alert(
         t("login.error_title"),
         t("login.failed_to_initiate_quick_connect"),
@@ -584,6 +586,9 @@ export const TVLogin: React.FC = () => {
             onBack={() => {
               stopQuickConnectPolling();
               setQuickConnectCode(null);
+              // The protection was chosen for this code, not for whatever
+              // sign-in comes next.
+              setQuickConnectSave(null);
               setCurrentScreen("add-user");
             }}
           />

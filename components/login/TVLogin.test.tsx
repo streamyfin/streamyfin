@@ -214,6 +214,44 @@ describe("TVLogin", () => {
     });
   });
 
+  // Going back from the code drops the protection chosen for it: a password
+  // sign-in afterwards follows its own "save account" switch.
+  test("forgets the protection chosen for Quick Connect after going back", async () => {
+    mockSaveAccount = true;
+    await render(<TVLogin />);
+    await startQuickConnect();
+    await act(async () => {
+      await fireEvent.press(screen.getByText("protect with a PIN"));
+    });
+
+    await act(async () => {
+      mockBackHandler?.();
+    });
+    await act(async () => {
+      getDefaultStore().set(userAtom as never, { Id: "user-1" } as never);
+    });
+    expect(mockSaveCurrentAccount).not.toHaveBeenCalled();
+  });
+
+  test("forgets the protection chosen when Quick Connect cannot start", async () => {
+    const alert = jest.spyOn(Alert, "alert").mockImplementation(() => {});
+    mockInitiateQuickConnect.mockImplementation(async () => {
+      throw new Error("403");
+    });
+    mockSaveAccount = true;
+    await render(<TVLogin />);
+    await startQuickConnect();
+    await act(async () => {
+      await fireEvent.press(screen.getByText("protect with a PIN"));
+    });
+
+    await act(async () => {
+      getDefaultStore().set(userAtom as never, { Id: "user-1" } as never);
+    });
+    expect(mockSaveCurrentAccount).not.toHaveBeenCalled();
+    alert.mockRestore();
+  });
+
   test("saves nothing when the account is not to be saved", async () => {
     await render(<TVLogin />);
     await startQuickConnect();
