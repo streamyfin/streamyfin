@@ -322,6 +322,38 @@ describe("TVLogin", () => {
     );
   });
 
+  // The provider starts polling as soon as it has a code: a new code still on
+  // its way when the user goes back must not leave it polling a code nobody
+  // sees, which would sign the TV in from the form.
+  test("stops polling for a new code that arrives after going back", async () => {
+    jest.useFakeTimers();
+    await render(<TVLogin />);
+    await startQuickConnect();
+    await act(async () => {
+      jest.advanceTimersByTime(QUICK_CONNECT_CODE_LIFETIME_MS);
+    });
+    let answer: (code: string) => void = () => {};
+    mockInitiateQuickConnect.mockImplementationOnce(
+      () =>
+        new Promise<string>((resolve) => {
+          answer = resolve;
+        }),
+    );
+    await act(async () => {
+      fireEvent.press(screen.getByText("pairing.get_new_code"));
+    });
+    await act(async () => {
+      mockBackHandler?.();
+    });
+    mockStopQuickConnectPolling.mockClear();
+
+    await act(async () => {
+      answer("654321");
+    });
+    expect(mockStopQuickConnectPolling).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText("654321")).toBeNull();
+  });
+
   test("starts Quick Connect once for a press made twice", async () => {
     let answer: (code: string) => void = () => {};
     mockInitiateQuickConnect.mockImplementation(

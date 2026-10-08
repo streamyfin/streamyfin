@@ -482,7 +482,12 @@ export const TVLogin: React.FC = () => {
     const start = ++startRef.current;
     try {
       const code = await initiateQuickConnect();
-      if (start !== startRef.current) return;
+      // A start overtaken by going back: the provider started polling its
+      // code as it came in, and nobody sees that code.
+      if (start !== startRef.current) {
+        stopQuickConnectPolling();
+        return;
+      }
       if (!code) {
         setQuickConnectSave(null);
         return;
