@@ -28,6 +28,7 @@ import { SeerrApi, useSeerr } from "@/hooks/useSeerr";
 import { settingsAtom, useSettings } from "@/utils/atoms/settings";
 import {
   getIntegrationHeaders,
+  makeIntegrationHeadersReadableWhileLocked,
   normalizeHttpBaseUrl,
 } from "@/utils/customHeaders";
 import { getOrSetDeviceId } from "@/utils/device";
@@ -49,6 +50,7 @@ import {
   getAccountCredential,
   getCredentialOrForgetAccount,
   hashPIN,
+  makeServerHeadersReadableWhileLocked,
   migrateToMultiAccount,
   saveAccountCredential,
   updateAccountToken,
@@ -963,6 +965,9 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       try {
         // Run migration to multi-account format (once)
         await migrateToMultiAccount();
+        // After it: both rewrite the saved servers.
+        makeServerHeadersReadableWhileLocked();
+        makeIntegrationHeadersReadableWhileLocked();
 
         const token = getTokenFromStorage();
         const serverUrl = getServerUrlFromStorage();
