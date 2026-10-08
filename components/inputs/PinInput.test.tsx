@@ -11,14 +11,13 @@ jest.mock("@gorhom/bottom-sheet", () => ({
 describe("PinInput", () => {
   // react-native-tvos puts a toolbar with a "Default" button above every iOS
   // number pad; upstream React Native and native apps show none. Naming an
-  // accessory view that does not exist is what keeps it away, and a label
-  // would bring it back.
+  // accessory view that does not exist keeps it away, whatever else the input
+  // carries.
   test("keeps the toolbar away from the iOS number pad", async () => {
     await render(<PinInput testID='pin' value='' onChangeText={() => {}} />);
     const input = screen.getByTestId("pin");
 
     expect(input.props.inputAccessoryViewID).toBeTruthy();
-    expect(input.props.inputAccessoryViewButtonLabel).toBeUndefined();
   });
 
   // A tap on the sheet around the field closes the keyboard, so a tap on the

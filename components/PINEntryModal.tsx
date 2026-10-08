@@ -181,53 +181,50 @@ export const PINEntryModal: React.FC<PINEntryModalProps> = ({
           paddingBottom: Math.max(16, insets.bottom),
         }}
       >
-        {/* No return key on the number pad: a tap beside it closes it. */}
         <DismissKeyboardArea style={{ flex: 1 }}>
-          <View className='flex-1'>
-            {/* Header */}
-            <View className='mb-6'>
-              <Text className='font-bold text-2xl text-neutral-100'>
-                {t("pin.enter_pin")}
-              </Text>
-              <Text className='text-neutral-400 mt-1'>
-                {t("pin.enter_pin_for", { username })}
-              </Text>
-            </View>
-
-            {/* PIN Input */}
-            <Animated.View
-              style={{ transform: [{ translateX: shakeAnimation }] }}
-              className='p-4 border border-neutral-800 rounded-xl bg-neutral-900 mb-4'
-            >
-              <PinInput
-                value={pinCode}
-                onChangeText={handlePinChange}
-                length={4}
-                style={{ paddingHorizontal: 16 }}
-                autoFocus
-              />
-              {error && (
-                <Text className='text-red-500 text-center mt-3'>{error}</Text>
-              )}
-              {isVerifying && (
-                <Text className='text-neutral-400 text-center mt-3'>
-                  {t("common.verifying") || "Verifying..."}
-                </Text>
-              )}
-            </Animated.View>
-
-            {/* Forgot PIN */}
-            <TouchableOpacity onPress={handleForgotPIN} className='mb-4'>
-              <Text className='text-purple-400 text-center'>
-                {t("pin.forgot_pin")}
-              </Text>
-            </TouchableOpacity>
-
-            {/* Cancel Button */}
-            <Button onPress={onClose} color='black'>
-              {t("common.cancel")}
-            </Button>
+          {/* Header */}
+          <View className='mb-6'>
+            <Text className='font-bold text-2xl text-neutral-100'>
+              {t("pin.enter_pin")}
+            </Text>
+            <Text className='text-neutral-400 mt-1'>
+              {t("pin.enter_pin_for", { username })}
+            </Text>
           </View>
+
+          {/* PIN Input */}
+          <Animated.View
+            style={{ transform: [{ translateX: shakeAnimation }] }}
+            className='p-4 border border-neutral-800 rounded-xl bg-neutral-900 mb-4'
+          >
+            <PinInput
+              value={pinCode}
+              onChangeText={handlePinChange}
+              length={4}
+              style={{ paddingHorizontal: 16 }}
+              autoFocus
+            />
+            {error && (
+              <Text className='text-red-500 text-center mt-3'>{error}</Text>
+            )}
+            {isVerifying && (
+              <Text className='text-neutral-400 text-center mt-3'>
+                {t("common.verifying") || "Verifying..."}
+              </Text>
+            )}
+          </Animated.View>
+
+          {/* Forgot PIN */}
+          <TouchableOpacity onPress={handleForgotPIN} className='mb-4'>
+            <Text className='text-purple-400 text-center'>
+              {t("pin.forgot_pin")}
+            </Text>
+          </TouchableOpacity>
+
+          {/* Cancel Button */}
+          <Button onPress={onClose} color='black'>
+            {t("common.cancel")}
+          </Button>
         </DismissKeyboardArea>
       </BottomSheetView>
     </BottomSheetModal>

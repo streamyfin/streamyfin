@@ -11,8 +11,9 @@ import { useAtom } from "jotai";
 import type React from "react";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Alert, Platform, View, type ViewProps } from "react-native";
-import { Pressable } from "react-native-gesture-handler";
+// React Native's Pressable rather than the gesture handler's: it takes the
+// touch, so a paste does not also reach the area that closes the keyboard.
+import { Alert, Platform, Pressable, View, type ViewProps } from "react-native";
 import { DismissKeyboardArea } from "@/components/common/DismissKeyboardArea";
 import { useHaptic } from "@/hooks/useHaptic";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
@@ -124,7 +125,6 @@ export const QuickConnect: React.FC<Props> = ({ ...props }) => {
         topInset={isAndroid ? 0 : undefined}
       >
         <BottomSheetView>
-          {/* No return key on the number pad: a tap beside it closes it. */}
           <DismissKeyboardArea>
             <View className='flex flex-col space-y-4 px-4 pb-8 pt-2'>
               <View>

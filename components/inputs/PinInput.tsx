@@ -24,6 +24,13 @@ export interface PinInputRef {
   focus: () => void;
 }
 
+/**
+ * Six cells over a hidden number field, for a PIN or a Quick Connect code.
+ *
+ * iOS shows no toolbar above its number pad, so the screen around it has to
+ * offer a way out of the keyboard: a button kept above it, or a
+ * DismissKeyboardArea.
+ */
 const PinInputComponent = React.forwardRef<PinInputRef, PinInputProps>(
   (props, ref) => {
     const {
