@@ -1,7 +1,20 @@
 import {
   parsePairingCode,
   quickConnectPairingUrl,
+  stripUrlCredentials,
 } from "@/utils/quickConnectPairing";
+
+// One rule for every place a server address is shown: no user:password@.
+describe("stripUrlCredentials", () => {
+  test.each([
+    ["https://ada:s3cr@t@media.example.com/jf", "https://media.example.com/jf"],
+    ["http://ada@jellyfin.local:8096", "http://jellyfin.local:8096"],
+    ["https://media.example.com/a@b", "https://media.example.com/a@b"],
+    ["https://media.example.com?next=@x", "https://media.example.com?next=@x"],
+  ])("%s", (url, expected) => {
+    expect(stripUrlCredentials(url)).toBe(expected);
+  });
+});
 
 describe("quickConnectPairingUrl", () => {
   // jellyfin-web reads ?code= on its Quick Connect page and fills the code in,

@@ -115,7 +115,9 @@ export const TVQRCodeDisplay: React.FC<TVQRCodeDisplayProps> = ({
                   style={{
                     fontSize: typography.callout,
                     fontWeight: "600",
-                    color: "#FFFFFF",
+                    // The default TV button turns white when focused, and this
+                    // one is focused from the start.
+                    color: "#000000",
                   }}
                 >
                   {t("pairing.get_new_code")}
@@ -159,7 +161,11 @@ export const TVQRCodeDisplay: React.FC<TVQRCodeDisplayProps> = ({
                   textAlign: "center",
                 }}
               >
-                {t("pairing.scan_quick_connect")}
+                {/* Over http the camera would open the web client and have the
+                password typed in clear on the local network. */}
+                {/^https:\/\//i.test(serverUrl)
+                  ? t("pairing.scan_quick_connect")
+                  : t("pairing.scan_with_app")}
               </Text>
 
               <Text

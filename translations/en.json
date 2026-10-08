@@ -1201,6 +1201,8 @@
     "scan_quick_connect": "Scan the QR code with the Streamyfin app or your phone's camera.",
     "code_expired": "This code has expired.",
     "get_new_code": "Get a new code",
+    "scan_with_app": "Scan the QR code with the Streamyfin app on your phone.",
+    "account_that_approves": "The account that approves the code",
     "logging_in": "Logging in...",
     "logging_in_description": "Connecting to your server"
   },

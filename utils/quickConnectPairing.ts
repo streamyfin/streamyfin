@@ -7,6 +7,10 @@
  * The server id, when the TV has it, lets the app tell a TV on another server
  * apart from an expired code without contacting the address in the QR code.
  */
+/** A server address without the user:password@ some addresses carry. */
+export const stripUrlCredentials = (url: string) =>
+  url.replace(/^(https?:\/\/)[^/?#]*@/i, "$1");
+
 export const quickConnectPairingUrl = (
   serverUrl: string,
   code: string,
@@ -14,7 +18,7 @@ export const quickConnectPairingUrl = (
 ) => {
   // The QR code is on screen for anyone in the room to read, so credentials
   // saved in the address (user:password@host) stay out of it.
-  let base = serverUrl.replace(/^(https?:\/\/)[^/?#]*@/i, "$1");
+  let base = stripUrlCredentials(serverUrl);
   while (base.endsWith("/")) base = base.slice(0, -1);
   const params = [`code=${encodeURIComponent(code)}`];
   if (serverId) params.push(`serverId=${encodeURIComponent(serverId)}`);

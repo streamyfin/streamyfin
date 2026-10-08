@@ -1,10 +1,12 @@
 import { getSystemApi } from "@jellyfin/sdk/lib/utils/api";
+import axios from "axios";
 import { useLocalSearchParams, useNavigation } from "expo-router";
 import { t } from "i18next";
 import { useAtom, useAtomValue } from "jotai";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, View } from "react-native";
 import { useMMKVString } from "react-native-mmkv";
+import { toast } from "sonner-native";
 import { Text } from "@/components/common/Text";
 import { useTVMenuKeyInterception } from "@/hooks/useTVBackPress";
 import { apiAtom, useJellyfin, userAtom } from "@/providers/JellyfinProvider";
@@ -113,6 +115,9 @@ export const TVLogin: React.FC = () => {
   const [quickConnectServerId, setQuickConnectServerId] = useState<string>();
   // The save-account sheet was opened for Quick Connect, not for a password.
   const [quickConnectSaveAsked, setQuickConnectSaveAsked] = useState(false);
+  // A start on its way, and the number of the latest one.
+  const startingRef = useRef(false);
+  const startRef = useRef(0);
   // How to protect the account once the phone has approved the code.
   const [quickConnectSave, setQuickConnectSave] = useState<{
     securityType: AccountSecurityType;
@@ -145,15 +150,19 @@ export const TVLogin: React.FC = () => {
 
   // The session only exists once the phone approves the code, so a Quick
   // Connect sign-in that asked to be saved is saved then.
+  // Only a sign-in made from the code screen: the protection was chosen for
+  // that code, and a saved account opened later must keep its own.
   useEffect(() => {
-    if (!user || !quickConnectSave) return;
-    saveCurrentAccount({ ...quickConnectSave, serverName }).catch((error) =>
+    if (!user || !quickConnectSave || currentScreen !== "qr-code-display")
+      return;
+    saveCurrentAccount({ ...quickConnectSave, serverName }).catch((error) => {
       writeErrorLog(
         `Failed to save the Quick Connect account: ${error?.message ?? error}`,
-      ),
-    );
+      );
+      toast.error(t("save_account.not_saved"));
+    });
     setQuickConnectSave(null);
-  }, [user, quickConnectSave, saveCurrentAccount, serverName]);
+  }, [user, quickConnectSave, currentScreen, saveCurrentAccount, serverName]);
 
   // Stop Quick Connect polling when leaving the login page
   useEffect(() => {
@@ -466,30 +475,46 @@ export const TVLogin: React.FC = () => {
   // the server's id, and the provider polls until a signed-in device approves
   // it.
   const startQuickConnect = async () => {
+    // One start at a time, and only the latest counts: going back or asking
+    // again leaves a start still on its way behind.
+    if (startingRef.current) return;
+    startingRef.current = true;
+    const start = ++startRef.current;
     try {
-      const [code, serverId] = await Promise.all([
-        initiateQuickConnect(),
-        // Best effort: without the id the phone only skips its server check.
-        api
-          ? getSystemApi(api)
-              .getPublicSystemInfo()
-              .then(
-                ({ data }) => data.Id ?? undefined,
-                () => undefined,
-              )
-          : undefined,
-      ]);
-      if (code) {
-        setQuickConnectCode(code);
-        setQuickConnectServerId(serverId);
-        setCurrentScreen("qr-code-display");
+      const code = await initiateQuickConnect();
+      if (start !== startRef.current) return;
+      if (!code) {
+        setQuickConnectSave(null);
+        return;
       }
-    } catch (_error) {
-      setQuickConnectSave(null);
+      setQuickConnectCode(code);
+      setQuickConnectServerId(undefined);
+      setCurrentScreen("qr-code-display");
+      // Best effort, once the code is up: without the id the phone only skips
+      // its server check.
+      if (api)
+        getSystemApi(api)
+          .getPublicSystemInfo()
+          .then(
+            ({ data }) => {
+              if (start === startRef.current)
+                setQuickConnectServerId(data.Id ?? undefined);
+            },
+            () => {},
+          );
+    } catch (error) {
+      if (start !== startRef.current) return;
+      // Jellyfin refuses to start one with a 401 while it is turned off.
       Alert.alert(
         t("login.error_title"),
-        t("login.failed_to_initiate_quick_connect"),
+        axios.isAxiosError(error) && error.response?.status === 401
+          ? t("companion_login.error_quick_connect_disabled", {
+              server: serverName || api?.basePath,
+            })
+          : t("login.failed_to_initiate_quick_connect"),
       );
+    } finally {
+      startingRef.current = false;
     }
   };
 
@@ -584,6 +609,7 @@ export const TVLogin: React.FC = () => {
               void startQuickConnect();
             }}
             onBack={() => {
+              startRef.current++;
               stopQuickConnectPolling();
               setQuickConnectCode(null);
               // The protection was chosen for this code, not for whatever
@@ -659,7 +685,12 @@ export const TVLogin: React.FC = () => {
           setQuickConnectSaveAsked(false);
         }}
         onSave={handleSaveAccountConfirm}
-        username={pendingLogin?.username || ""}
+        username={
+          quickConnectSaveAsked
+            ? t("pairing.account_that_approves")
+            : pendingLogin?.username || ""
+        }
+        allowPassword={!quickConnectSaveAsked}
       />
 
       {/* PIN Entry Modal */}

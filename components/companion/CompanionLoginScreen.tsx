@@ -1,7 +1,7 @@
 import axios from "axios";
 import { useAtomValue } from "jotai";
 import type React from "react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   KeyboardAvoidingView,
@@ -22,7 +22,10 @@ import {
   isQuickConnectEnabled,
 } from "@/utils/jellyfin/quickConnect";
 import { writeErrorLog } from "@/utils/log";
-import { parsePairingCode } from "@/utils/quickConnectPairing";
+import {
+  parsePairingCode,
+  stripUrlCredentials,
+} from "@/utils/quickConnectPairing";
 
 type ScreenState =
   | "scanning"
@@ -39,9 +42,9 @@ const ExpoCamera: ExpoCameraModule | null = Platform.isTV
   ? null
   : require("expo-camera");
 
-/** A server address as shown on screen: no scheme, no credentials. */
+/** A server address as shown on screen: no credentials, no scheme. */
 const serverLabel = (url: string) =>
-  url.replace(/^https?:\/\//i, "").replace(/^[^/?#]*@/, "");
+  stripUrlCredentials(url).replace(/^https?:\/\//i, "");
 
 /** Jellyfin hands out server ids with and without dashes. */
 const sameServerId = (a: string, b: string) =>
@@ -64,6 +67,7 @@ export const CompanionLoginScreen: React.FC = () => {
   );
   const [code, setCode] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const authorizingRef = useRef(false);
 
   const server = serverLabel(api?.basePath ?? "");
 
@@ -72,9 +76,14 @@ export const CompanionLoginScreen: React.FC = () => {
   const cameraAllowed = useCallback(async () => {
     if (!ExpoCamera) return false;
     const { Camera } = ExpoCamera;
-    const current = await Camera.getCameraPermissionsAsync();
-    if (current.granted || !current.canAskAgain) return current.granted;
-    return (await Camera.requestCameraPermissionsAsync()).granted;
+    try {
+      const current = await Camera.getCameraPermissionsAsync();
+      if (current.granted || !current.canAskAgain) return current.granted;
+      return (await Camera.requestCameraPermissionsAsync()).granted;
+    } catch {
+      // No answer about the camera reads as no camera.
+      return false;
+    }
   }, []);
 
   // Only a refusal changes the screen here: someone who already went on to
@@ -134,6 +143,10 @@ export const CompanionLoginScreen: React.FC = () => {
       return;
     }
 
+    // One approval at a time: a second one of the same code comes back as a
+    // 500 and would turn a success into an error on screen.
+    if (authorizingRef.current) return;
+    authorizingRef.current = true;
     setScreenState("authorizing");
     try {
       // Checked first: with Quick Connect off, Jellyfin answers the approval
@@ -165,6 +178,8 @@ export const CompanionLoginScreen: React.FC = () => {
           ? t("home.server_unreachable_message")
           : t("companion_login.error_generic"),
       );
+    } finally {
+      authorizingRef.current = false;
     }
   }, [api, code, server, showError, t]);
 

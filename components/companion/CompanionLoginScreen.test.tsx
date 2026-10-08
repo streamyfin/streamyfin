@@ -61,9 +61,14 @@ const MockCamera = (props: {
 );
 /** What the camera permission prompts answer. */
 let mockPermission = { granted: true, canAskAgain: true };
+/** Set to make the permission check itself fail. */
+let mockPermissionCheckFails = false;
 jest.mock("expo-camera", () => ({
   Camera: {
-    getCameraPermissionsAsync: async () => mockPermission,
+    getCameraPermissionsAsync: async () => {
+      if (mockPermissionCheckFails) throw new Error("no camera service");
+      return mockPermission;
+    },
     requestCameraPermissionsAsync: async () => mockPermission,
   },
   CameraView: (props: {
@@ -98,6 +103,7 @@ describe("CompanionLoginScreen", () => {
     mockEnabled.mockClear();
     mockEnabled.mockImplementation(async () => ({ data: true }));
     mockPermission = { granted: true, canAskAgain: true };
+    mockPermissionCheckFails = false;
   });
 
   // The TV shows a Quick Connect code; the phone approves it with its own
@@ -154,6 +160,38 @@ describe("CompanionLoginScreen", () => {
     expect(screen.getByText("4")).toBeTruthy();
     expect(screen.getAllByText("1")).toHaveLength(2);
     expect(screen.getByText("7")).toBeTruthy();
+  });
+
+  // A second approval of the same code comes back as a 500 from Jellyfin,
+  // which would turn a success into an error on screen.
+  test("approves a code once for a double tap", async () => {
+    let answer: (value: { status: number; data: boolean }) => void = () => {};
+    mockAuthorize.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          answer = resolve;
+        }),
+    );
+    await render(<CompanionLoginScreen />);
+    await scan(quickConnectPairingUrl("https://media.example.com", "123456"));
+    await act(async () => {
+      fireEvent.press(screen.getByText("companion_login.authorize_button"));
+    });
+    await act(async () => {
+      answer({ status: 200, data: true });
+    });
+
+    expect(mockAuthorize).toHaveBeenCalledTimes(1);
+    expect(screen.getByText("companion_login.success_title")).toBeTruthy();
+  });
+
+  test("shows the permission screen when the permission check itself fails", async () => {
+    mockPermissionCheckFails = true;
+    await render(<CompanionLoginScreen />);
+
+    expect(
+      screen.getByText("companion_login.error_permission_denied"),
+    ).toBeTruthy();
   });
 
   // A TV on an older version waits for a password over the network, which

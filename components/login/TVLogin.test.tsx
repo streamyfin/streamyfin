@@ -1,9 +1,10 @@
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
+import { AxiosError, type AxiosResponse } from "axios";
 import { getDefaultStore } from "jotai";
-import { Alert, Pressable, Text } from "react-native";
+import { Alert, Pressable, StyleSheet, Text } from "react-native";
 import { TVLogin } from "@/components/login/TVLogin";
 import { QUICK_CONNECT_CODE_LIFETIME_MS } from "@/constants/QuickConnect";
-import { userAtom } from "@/providers/JellyfinProvider";
+import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 
 const mockInitiateQuickConnect = jest.fn(async () => "123456");
 const mockStopQuickConnectPolling = jest.fn();
@@ -84,16 +85,26 @@ const MockAddUserForm = (props: {
 );
 type SaveModalProps = {
   visible: boolean;
+  username: string;
+  allowPassword?: boolean;
   onSave: (securityType: string, pinCode?: string) => void;
 };
+const mockToastError = jest.fn();
+jest.mock("sonner-native", () => ({
+  toast: { error: (message: string) => mockToastError(message) },
+}));
 jest.mock("@/components/login/TVSaveAccountModal", () => ({
   TVSaveAccountModal: (props: SaveModalProps) => MockSaveAccountModal(props),
 }));
 const MockSaveAccountModal = (props: SaveModalProps) =>
   props.visible ? (
-    <Pressable onPress={() => props.onSave("pin", "1234")}>
-      <Text>protect with a PIN</Text>
-    </Pressable>
+    <>
+      <Text>{props.username}</Text>
+      {props.allowPassword === false && <Text>no password option</Text>}
+      <Pressable onPress={() => props.onSave("pin", "1234")}>
+        <Text>protect with a PIN</Text>
+      </Pressable>
+    </>
   ) : null;
 jest.mock("@/components/login/TVPINEntryModal", () => ({
   TVPINEntryModal: () => null,
@@ -116,8 +127,17 @@ describe("TVLogin", () => {
     mockInitiateQuickConnect.mockClear();
     mockInitiateQuickConnect.mockImplementation(async () => "123456");
     mockStopQuickConnectPolling.mockClear();
-    mockSaveCurrentAccount.mockClear();
-    mockPublicInfo.mockClear();
+    mockSaveCurrentAccount.mockReset();
+    mockSaveCurrentAccount.mockImplementation(async () => {});
+    mockPublicInfo.mockReset();
+    mockPublicInfo.mockImplementation(async () => ({
+      data: { Id: "server-1" },
+    }));
+    mockToastError.mockClear();
+    getDefaultStore().set(
+      apiAtom as never,
+      { basePath: "http://jellyfin.local:8096" } as never,
+    );
     mockSaveAccount = false;
     mockBackHandler = null;
     getDefaultStore().set(userAtom as never, null as never);
@@ -125,6 +145,7 @@ describe("TVLogin", () => {
 
   afterEach(() => {
     jest.useRealTimers();
+    jest.restoreAllMocks();
   });
 
   const startQuickConnect = async () => {
@@ -163,9 +184,6 @@ describe("TVLogin", () => {
         "http://jellyfin.local:8096/web/#/quickconnect?code=123456",
       ),
     ).toBeTruthy();
-    mockPublicInfo.mockImplementation(async () => ({
-      data: { Id: "server-1" },
-    }));
   });
 
   // Jellyfin drops a Quick Connect request after ten minutes. The TV says so
@@ -250,6 +268,161 @@ describe("TVLogin", () => {
     });
     expect(mockSaveCurrentAccount).not.toHaveBeenCalled();
     alert.mockRestore();
+  });
+
+  test("saves nothing after a start that brought no code", async () => {
+    mockInitiateQuickConnect.mockImplementation(
+      async () => undefined as unknown as string,
+    );
+    mockSaveAccount = true;
+    await render(<TVLogin />);
+    await startQuickConnect();
+    await act(async () => {
+      await fireEvent.press(screen.getByText("protect with a PIN"));
+    });
+    await act(async () => {
+      getDefaultStore().set(userAtom as never, { Id: "user-1" } as never);
+    });
+
+    expect(mockSaveCurrentAccount).not.toHaveBeenCalled();
+  });
+
+  // Getting a new code is the same sign-in: a failed attempt keeps the
+  // protection chosen for it.
+  test("keeps the protection when getting a new code fails once", async () => {
+    jest.useFakeTimers();
+    jest.spyOn(Alert, "alert").mockImplementation(() => {});
+    mockSaveAccount = true;
+    await render(<TVLogin />);
+    await startQuickConnect();
+    await act(async () => {
+      await fireEvent.press(screen.getByText("protect with a PIN"));
+    });
+    await act(async () => {
+      jest.advanceTimersByTime(QUICK_CONNECT_CODE_LIFETIME_MS);
+    });
+
+    mockInitiateQuickConnect.mockImplementationOnce(async () => {
+      throw new Error("offline");
+    });
+    await act(async () => {
+      await fireEvent.press(screen.getByText("pairing.get_new_code"));
+    });
+    mockInitiateQuickConnect.mockImplementationOnce(async () => "654321");
+    await act(async () => {
+      await fireEvent.press(screen.getByText("pairing.get_new_code"));
+    });
+    expect(screen.getByText("654321")).toBeTruthy();
+
+    await act(async () => {
+      getDefaultStore().set(userAtom as never, { Id: "user-1" } as never);
+    });
+    expect(mockSaveCurrentAccount).toHaveBeenCalledWith(
+      expect.objectContaining({ securityType: "pin", pinCode: "1234" }),
+    );
+  });
+
+  test("starts Quick Connect once for a press made twice", async () => {
+    let answer: (code: string) => void = () => {};
+    mockInitiateQuickConnect.mockImplementation(
+      () =>
+        new Promise<string>((resolve) => {
+          answer = resolve;
+        }),
+    );
+    await render(<TVLogin />);
+    await act(async () => {
+      fireEvent.press(screen.getByText("add user form"));
+      fireEvent.press(screen.getByText("add user form"));
+    });
+    await act(async () => {
+      answer("123456");
+    });
+
+    expect(mockInitiateQuickConnect).toHaveBeenCalledTimes(1);
+  });
+
+  // The default TV button turns white when focused, as the new code button is
+  // from the start.
+  test("writes Get a new code dark on its light button", async () => {
+    jest.useFakeTimers();
+    await render(<TVLogin />);
+    await startQuickConnect();
+    await act(async () => {
+      jest.advanceTimersByTime(QUICK_CONNECT_CODE_LIFETIME_MS);
+    });
+
+    expect(
+      StyleSheet.flatten(screen.getByText("pairing.get_new_code").props.style)
+        .color,
+    ).toBe("#000000");
+  });
+
+  // Nobody has approved the code yet, so the sheet says whose account it will
+  // be, and a password protection would lock out an account that signs in
+  // through single sign-on.
+  test("names the account the save is for, without a password protection", async () => {
+    mockSaveAccount = true;
+    await render(<TVLogin />);
+    await startQuickConnect();
+
+    expect(screen.getByText("pairing.account_that_approves")).toBeTruthy();
+    expect(screen.getByText("no password option")).toBeTruthy();
+  });
+
+  test("says the account was not saved when saving fails", async () => {
+    mockSaveCurrentAccount.mockImplementation(async () => {
+      throw new Error("keychain");
+    });
+    mockSaveAccount = true;
+    await render(<TVLogin />);
+    await startQuickConnect();
+    await act(async () => {
+      await fireEvent.press(screen.getByText("protect with a PIN"));
+    });
+    await act(async () => {
+      getDefaultStore().set(userAtom as never, { Id: "user-1" } as never);
+    });
+
+    expect(mockToastError).toHaveBeenCalledWith("save_account.not_saved");
+  });
+
+  // Jellyfin answers 401 to a start while Quick Connect is off.
+  test("says Quick Connect is off when the server will not start it", async () => {
+    const alert = jest.spyOn(Alert, "alert").mockImplementation(() => {});
+    mockInitiateQuickConnect.mockImplementation(async () => {
+      throw new AxiosError("refused", "ERR_BAD_REQUEST", undefined, undefined, {
+        status: 401,
+      } as AxiosResponse);
+    });
+    await render(<TVLogin />);
+    await startQuickConnect();
+
+    expect(alert).toHaveBeenCalledWith(
+      "login.error_title",
+      "companion_login.error_quick_connect_disabled",
+    );
+  });
+
+  // Over http, the camera would open the web client and have the password
+  // typed in clear on the local network: only the app is suggested then.
+  test("suggests only the app for a server reached over http", async () => {
+    await render(<TVLogin />);
+    await startQuickConnect();
+
+    expect(screen.getByText("pairing.scan_with_app")).toBeTruthy();
+    expect(screen.queryByText("pairing.scan_quick_connect")).toBeNull();
+  });
+
+  test("suggests the app or the camera for a server reached over https", async () => {
+    getDefaultStore().set(
+      apiAtom as never,
+      { basePath: "https://media.example.com" } as never,
+    );
+    await render(<TVLogin />);
+    await startQuickConnect();
+
+    expect(screen.getByText("pairing.scan_quick_connect")).toBeTruthy();
   });
 
   test("saves nothing when the account is not to be saved", async () => {
