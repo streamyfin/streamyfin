@@ -95,7 +95,11 @@ export const CompanionLoginScreen: React.FC = () => {
   useEffect(() => {
     if (!ExpoCamera) return;
     void cameraAllowed().then((allowed) => {
-      if (!allowed) setScreenState("no-permission");
+      if (!allowed) {
+        setScreenState((state) =>
+          state === "scanning" ? "no-permission" : state,
+        );
+      }
     });
   }, [cameraAllowed]);
 

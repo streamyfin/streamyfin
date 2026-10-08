@@ -64,13 +64,16 @@ const MockCamera = (props: {
 let mockPermission = { granted: true, canAskAgain: true };
 /** Set to make the permission check itself fail. */
 let mockPermissionCheckFails = false;
+/** Set to hold the permission prompt open until the spec answers it. */
+let mockPermissionPrompt: Promise<typeof mockPermission> | null = null;
 jest.mock("expo-camera", () => ({
   Camera: {
     getCameraPermissionsAsync: async () => {
       if (mockPermissionCheckFails) throw new Error("no camera service");
       return mockPermission;
     },
-    requestCameraPermissionsAsync: async () => mockPermission,
+    requestCameraPermissionsAsync: async () =>
+      mockPermissionPrompt ?? mockPermission,
   },
   CameraView: (props: {
     onBarcodeScanned: (result: { data: string }) => void;
@@ -105,6 +108,7 @@ describe("CompanionLoginScreen", () => {
     mockEnabled.mockImplementation(async () => ({ data: true }));
     mockPermission = { granted: true, canAskAgain: true };
     mockPermissionCheckFails = false;
+    mockPermissionPrompt = null;
   });
 
   // The TV shows a Quick Connect code; the phone approves it with its own
@@ -233,6 +237,30 @@ describe("CompanionLoginScreen", () => {
     expect(
       screen.getByText("companion_login.error_permission_denied"),
     ).toBeTruthy();
+  });
+
+  // The prompt can still be open when someone goes on to type the code; a
+  // refusal that comes after must not take the code field away.
+  test("keeps the code field when the camera is refused after it opened", async () => {
+    mockPermission = { granted: false, canAskAgain: true };
+    let answer: (value: typeof mockPermission) => void = () => {};
+    mockPermissionPrompt = new Promise((resolve) => {
+      answer = resolve;
+    });
+    await render(<CompanionLoginScreen />);
+    await fireEvent.press(
+      screen.getByText("companion_login.enter_code_manually"),
+    );
+
+    await act(async () => {
+      answer({ granted: false, canAskAgain: false });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(screen.getByTestId("pairing-code")).toBeTruthy();
+    expect(
+      screen.queryByText("companion_login.error_permission_denied"),
+    ).toBeNull();
   });
 
   // A TV on an older version waits for a password over the network, which
