@@ -33,13 +33,14 @@ import {
   getItemNavigation,
   TouchableItemRouter,
 } from "@/components/common/TouchableItemRouter";
-import {
-  DiscoverFilters,
-  showDiscoverFilters,
-} from "@/components/search/DiscoverFilters";
+import { DiscoverFilters } from "@/components/search/DiscoverFilters";
 import { LoadingSkeleton } from "@/components/search/LoadingSkeleton";
 import { SearchItemWrapper } from "@/components/search/SearchItemWrapper";
 import { SearchTabButtons } from "@/components/search/SearchTabButtons";
+import {
+  type SearchType,
+  showDiscoverFilters,
+} from "@/components/search/searchFilters";
 import { TVSearchPage } from "@/components/search/TVSearchPage";
 import {
   SeerrIndexPage,
@@ -61,8 +62,6 @@ import { loadDiscoverSliders } from "@/utils/seerr/sliders";
 import type { MovieResult, PersonResult, TvResult } from "@/utils/seerr/types";
 import { MediaType } from "@/utils/seerr/types";
 import { createStreamystatsApi } from "@/utils/streamystats";
-
-type SearchType = "Library" | "Discover";
 
 const exampleSearches = [
   "Lord of the rings",
@@ -653,6 +652,7 @@ export default function SearchPage() {
               setSearchType={setSearchType}
               t={t}
             />
+            {/* Covered by components/search/searchFilters.test.ts. */}
             {showDiscoverFilters(searchType, debouncedSearch) && (
               <DiscoverFilters
                 searchFilterId={searchFilterId}

@@ -1,25 +1,20 @@
 import { Platform, View } from "react-native";
 import { FilterButton } from "@/components/filters/FilterButton";
 import { SeerrSearchSort } from "@/components/seerr/SeerrIndexPage";
+import {
+  DISCOVER_FILTER_WIDTH,
+  SEARCH_TAB_ROW_HEIGHT,
+} from "@/constants/Values";
 
 // @expo/ui's SwiftUI native module (ExpoUI) does not exist in tvOS builds.
 // A static top-level import crashes the route tree on tvOS at module load.
 // Load it lazily and only off-TV; TV never renders this component.
-const { Button, Host, Image, Menu } = Platform.isTV
+const { Button, Host, HStack, Image, Menu, Text } = Platform.isTV
   ? ({} as typeof import("@expo/ui/swift-ui"))
-  : require("@expo/ui/swift-ui");
-const { accessibilityLabel, buttonStyle, frame } = Platform.isTV
+  : (require("@expo/ui/swift-ui") as typeof import("@expo/ui/swift-ui"));
+const { accessibilityLabel, buttonStyle, font } = Platform.isTV
   ? ({} as typeof import("@expo/ui/swift-ui/modifiers"))
-  : require("@expo/ui/swift-ui/modifiers");
-
-/**
- * The filter icon's frame, in points. A glass button pads a custom label by
- * seven points above and below, so 20 gives the 34 point pill that the Library
- * and Discover buttons get from their text; the icon-only label it replaces
- * came out a point shorter. The text buttons grow with a larger text size and
- * this frame does not.
- */
-const FILTER_ICON_FRAME = 20;
+  : (require("@expo/ui/swift-ui/modifiers") as typeof import("@expo/ui/swift-ui/modifiers"));
 
 interface DiscoverFiltersProps {
   searchFilterId: string;
@@ -37,16 +32,6 @@ const sortOptions = Object.keys(SeerrSearchSort).filter((v) =>
 
 const orderOptions = ["asc", "desc"] as const;
 
-/**
- * Whether the Search screen shows these filters. They sort Seerr's results, so
- * any Discover search gets them; what the library search found has no bearing,
- * and its results stay cached while the Discover tab is open.
- */
-export const showDiscoverFilters = (
-  searchType: "Library" | "Discover",
-  query: string,
-) => searchType === "Discover" && query.length > 0;
-
 export const DiscoverFilters: React.FC<DiscoverFiltersProps> = ({
   searchFilterId,
   orderFilterId,
@@ -63,8 +48,8 @@ export const DiscoverFilters: React.FC<DiscoverFiltersProps> = ({
           justifyContent: "center",
           alignItems: "center",
           overflow: "visible",
-          height: 40,
-          width: 50,
+          height: SEARCH_TAB_ROW_HEIGHT,
+          width: DISCOVER_FILTER_WIDTH,
           marginLeft: "auto",
         }}
       >
@@ -76,15 +61,18 @@ export const DiscoverFilters: React.FC<DiscoverFiltersProps> = ({
                 accessibilityLabel(t("library.filters.sort_by")),
               ]}
             >
-              <Image
-                systemName='line.3.horizontal.decrease.circle'
-                modifiers={[
-                  frame({
-                    width: FILTER_ICON_FRAME,
-                    height: FILTER_ICON_FRAME,
-                  }),
-                ]}
-              />
+              {/* Built like the Library and Discover buttons, a body-sized
+                  label: the zero-width text gives the icon a line of text's
+                  height, so the three stay the same height at any text size. */}
+              <HStack spacing={0}>
+                <Image
+                  systemName='line.3.horizontal.decrease.circle'
+                  modifiers={[font({ textStyle: "body" })]}
+                />
+                <Text modifiers={[font({ textStyle: "body" })]}>
+                  {"\u200B"}
+                </Text>
+              </HStack>
             </Button>
           }
         >

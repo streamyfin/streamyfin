@@ -12,3 +12,12 @@ export const SHEET_MAX_HEIGHT_RATIO = 0.85;
 
 /** A poster's width over its height, as TMDB's artwork is cut. */
 export const POSTER_ASPECT_RATIO = 10 / 15;
+
+/**
+ * The row at the top of the Search screen on iOS: the Library and Discover
+ * buttons, and the Discover filter button, each in a SwiftUI host this high.
+ */
+export const SEARCH_TAB_ROW_HEIGHT = 40;
+
+/** Room for the Discover filter button's host, beside the tabs. */
+export const DISCOVER_FILTER_WIDTH = 50;

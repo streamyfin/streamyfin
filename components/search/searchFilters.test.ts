@@ -1,15 +1,4 @@
-import { showDiscoverFilters } from "@/components/search/DiscoverFilters";
-
-// The SwiftUI module does not load under Jest; only the visibility rule is
-// under test here.
-jest.mock("@expo/ui/swift-ui", () => ({}));
-jest.mock("@expo/ui/swift-ui/modifiers", () => ({}));
-jest.mock("@/components/seerr/SeerrIndexPage", () => ({
-  SeerrSearchSort: {},
-}));
-jest.mock("@/components/filters/FilterButton", () => ({
-  FilterButton: () => null,
-}));
+import { showDiscoverFilters } from "@/components/search/searchFilters";
 
 describe("showDiscoverFilters", () => {
   // The filters sort Seerr's results. Gating them on the library search hid
