@@ -610,6 +610,7 @@
         "all_files_deleted": "Alle Bestanden Succesvol Gedownload",
         "files_deleted_by_type": "{{count}} {{type}} verwijderd",
         "could_not_get_download_url_for_item": "Kan download-URL voor {{itemName}} niet ophalen",
+        "no_media_source_to_download": "This item cannot be downloaded",
         "file_deleted": "{{item}} verwijderd"
       }
     }
@@ -727,7 +728,8 @@
     "noData": "Items die je als favoriet markeert, verschijnen hier."
   },
   "custom_links": {
-    "no_links": "Geen links"
+    "no_links": "Geen links",
+    "could_not_open_link": "Could not open this link"
   },
   "player": {
     "live": "LIVE",

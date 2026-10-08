@@ -610,6 +610,7 @@
         "all_files_deleted": "Tutti i Download Eliminati con Successo",
         "files_deleted_by_type": "{{count}} {{type}} cancellati",
         "could_not_get_download_url_for_item": "Impossibile ottenere l'URL di download per {{itemName}}",
+        "no_media_source_to_download": "This item cannot be downloaded",
         "file_deleted": "{{item}} cancellato"
       }
     }
@@ -727,7 +728,8 @@
     "noData": "Gli elementi che contrassegni come preferiti compaiono qui."
   },
   "custom_links": {
-    "no_links": "Nessun link"
+    "no_links": "Nessun link",
+    "could_not_open_link": "Could not open this link"
   },
   "player": {
     "live": "IN DIRETTA",
