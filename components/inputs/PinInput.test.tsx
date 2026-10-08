@@ -6,23 +6,17 @@ import { PinInput } from "@/components/inputs/PinInput";
 jest.mock("@gorhom/bottom-sheet", () => ({
   BottomSheetTextInput: jest.requireActual("react-native").TextInput,
 }));
-// A real translation for the key under test, so handing over the raw key
-// fails.
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({
-    t: (key: string) => (key === "common.ok" ? "OK" : key),
-  }),
-}));
 
 describe("PinInput", () => {
-  // iOS has no return key on the number pad, so React Native adds a toolbar
-  // above it whose button reads the return key type: "Default", in English,
-  // unless a label is given.
-  test("labels the number pad's toolbar button with a translated OK", async () => {
+  // react-native-tvos puts a toolbar with a "Default" button above every iOS
+  // number pad; upstream React Native and native apps show none. Naming an
+  // accessory view that does not exist is what keeps it away, and a label
+  // would bring it back.
+  test("keeps the toolbar away from the iOS number pad", async () => {
     await render(<PinInput testID='pin' value='' onChangeText={() => {}} />);
+    const input = screen.getByTestId("pin");
 
-    expect(screen.getByTestId("pin").props.inputAccessoryViewButtonLabel).toBe(
-      "OK",
-    );
+    expect(input.props.inputAccessoryViewID).toBeTruthy();
+    expect(input.props.inputAccessoryViewButtonLabel).toBeUndefined();
   });
 });

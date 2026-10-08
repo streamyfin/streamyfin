@@ -1,6 +1,5 @@
 import { BottomSheetTextInput } from "@gorhom/bottom-sheet";
 import React, { useCallback, useImperativeHandle, useRef } from "react";
-import { useTranslation } from "react-i18next";
 import {
   type StyleProp,
   StyleSheet,
@@ -9,6 +8,9 @@ import {
   View,
   type ViewStyle,
 } from "react-native";
+
+/** Names no InputAccessoryView, so iOS shows no toolbar above the keys. */
+const NO_KEYBOARD_TOOLBAR = "no-keyboard-toolbar";
 
 interface PinInputProps
   extends Omit<TextInputProps, "value" | "onChangeText" | "style"> {
@@ -34,7 +36,6 @@ const PinInputComponent = React.forwardRef<PinInputRef, PinInputProps>(
       ...rest
     } = props;
 
-    const { t } = useTranslation();
     const inputRef = useRef<any>(null);
     const activeIndex = value.length;
 
@@ -57,10 +58,12 @@ const PinInputComponent = React.forwardRef<PinInputRef, PinInputProps>(
           value={value}
           onChangeText={onChangeText}
           keyboardType='number-pad'
-          // iOS has no return key on the number pad, so React Native adds a
-          // toolbar whose button reads the return key type, "Default" in
-          // English, unless it is given a label.
-          inputAccessoryViewButtonLabel={t("common.ok")}
+          // react-native-tvos adds a toolbar with a "Default" button above
+          // every iOS number pad, which upstream React Native and native apps
+          // do not have. An accessory view id that names no view leaves it
+          // out; the sheets around this input keep their buttons above the
+          // keyboard.
+          inputAccessoryViewID={NO_KEYBOARD_TOOLBAR}
           maxLength={length}
           style={styles.hiddenInput}
           autoFocus={autoFocus}
