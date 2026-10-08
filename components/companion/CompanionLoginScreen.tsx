@@ -2,7 +2,14 @@ import axios from "axios";
 import { HeaderHeightContext } from "expo-router/react-navigation";
 import { useAtomValue } from "jotai";
 import type React from "react";
-import { useCallback, useContext, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useContext,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+} from "react";
 import { useTranslation } from "react-i18next";
 import {
   KeyboardAvoidingView,
@@ -69,6 +76,9 @@ export const CompanionLoginScreen: React.FC = () => {
   const [code, setCode] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const authorizingRef = useRef(false);
+  // A new id each time the screen opens: Fabric reuses a text input's native
+  // view and sets the id on it again only when the id changed.
+  const toolbarId = `${NO_KEYBOARD_TOOLBAR}-${useId()}`;
   // The home stack draws a transparent header over the screen on iOS.
   const headerHeight = useContext(HeaderHeightContext) ?? 0;
   const headerInset = Platform.OS === "ios" ? headerHeight : 0;
@@ -364,7 +374,7 @@ export const CompanionLoginScreen: React.FC = () => {
                 inBottomSheet={false}
                 // Authorize stays in reach above the keyboard, so the number
                 // pad needs no toolbar of its own.
-                inputAccessoryViewID={NO_KEYBOARD_TOOLBAR}
+                inputAccessoryViewID={toolbarId}
                 onSubmitEditing={handleAuthorize}
                 autoFocus
               />

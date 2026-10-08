@@ -153,6 +153,24 @@ describe("CompanionLoginScreen", () => {
     expect(input.props.inputAccessoryViewID).toBeTruthy();
   });
 
+  // Fabric reuses a text input's native view and diffs the new props against
+  // the ones that view had. Its reuse clears the id, so the same id again is
+  // never set back and the toolbar returns from the second opening on.
+  test("names another accessory view each time the screen opens", async () => {
+    const typeByHand = () =>
+      fireEvent.press(screen.getByText("companion_login.enter_code_manually"));
+    const { unmount } = await render(<CompanionLoginScreen />);
+    await typeByHand();
+    const first = screen.getByTestId("pairing-code").props.inputAccessoryViewID;
+    await unmount();
+    await render(<CompanionLoginScreen />);
+    await typeByHand();
+
+    expect(
+      screen.getByTestId("pairing-code").props.inputAccessoryViewID,
+    ).not.toBe(first);
+  });
+
   // Digits only, so the same six cells as Quick Connect in Settings.
   test("shows a typed code in six cells, as Quick Connect does", async () => {
     await render(<CompanionLoginScreen />);
