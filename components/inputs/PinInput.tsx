@@ -5,6 +5,7 @@ import {
   type StyleProp,
   StyleSheet,
   Text,
+  TextInput,
   type TextInputProps,
   View,
   type ViewStyle,
@@ -17,6 +18,11 @@ interface PinInputProps
   length?: number;
   autoFocus?: boolean;
   style?: StyleProp<ViewStyle>;
+  /**
+   * In a bottom sheet the field has to be the sheet's own input, or the sheet
+   * does not move with the keyboard; anywhere else that input throws.
+   */
+  inBottomSheet?: boolean;
 }
 
 export interface PinInputRef {
@@ -31,8 +37,10 @@ const PinInputComponent = React.forwardRef<PinInputRef, PinInputProps>(
       length = 6,
       style,
       autoFocus,
+      inBottomSheet = true,
       ...rest
     } = props;
+    const Input = inBottomSheet ? BottomSheetTextInput : TextInput;
 
     const { t } = useTranslation();
     const inputRef = useRef<any>(null);
@@ -52,7 +60,7 @@ const PinInputComponent = React.forwardRef<PinInputRef, PinInputProps>(
 
     return (
       <View style={[styles.container, style]}>
-        <BottomSheetTextInput
+        <Input
           ref={inputRef}
           value={value}
           onChangeText={onChangeText}

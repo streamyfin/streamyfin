@@ -34,6 +34,7 @@ import {
 import { getOrSetDeviceId } from "@/utils/device";
 import { markExpectedError } from "@/utils/errors";
 import { createApiWithCustomHeaders } from "@/utils/jellyfin/createApi";
+import { endsSession } from "@/utils/jellyfin/sessionExpiry";
 import {
   logAndCaptureError,
   writeErrorLog,
@@ -289,7 +290,8 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
   // the dead token stays in storage, so every reload re-fires authed calls →
   // 401 spam + uncaught rejections, and the app lingers in a half-authenticated
   // state. A single response interceptor on the authenticated api clears the
-  // session on the first 401 so the app drops cleanly to the login screen.
+  // session on the first 401 so the app drops cleanly to the login screen,
+  // except Quick Connect's own 401 (see endsSession).
   const sessionExpiredRef = useRef(false);
 
   // Shared teardown for manual logout AND forced session expiry — keeping it
@@ -346,7 +348,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     const interceptorId = api.axiosInstance.interceptors.response.use(
       (response) => response,
       (error) => {
-        if (error?.response?.status === 401) {
+        if (endsSession(error)) {
           handleSessionExpired();
         }
         return Promise.reject(error);

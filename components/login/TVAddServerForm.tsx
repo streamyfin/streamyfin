@@ -1,6 +1,6 @@
 import { t } from "i18next";
 import React, { useCallback, useState } from "react";
-import { Platform, ScrollView, View } from "react-native";
+import { ScrollView, View } from "react-native";
 import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
 import { TVCustomHeaderEditor } from "@/components/tv/settings";
@@ -12,7 +12,6 @@ import { TVInput } from "./TVInput";
 
 interface TVAddServerFormProps {
   onConnect: (url: string, headers?: CustomHeader[]) => Promise<void>;
-  onStartPairing?: () => void;
   onBack: () => void;
   loading?: boolean;
   disabled?: boolean;
@@ -20,7 +19,6 @@ interface TVAddServerFormProps {
 
 export const TVAddServerForm: React.FC<TVAddServerFormProps> = ({
   onConnect,
-  onStartPairing,
   onBack,
   loading = false,
   disabled = false,
@@ -136,18 +134,6 @@ export const TVAddServerForm: React.FC<TVAddServerFormProps> = ({
             onHeadersChange={setPendingHeaders}
             disabled={isDisabled}
           />
-        )}
-
-        {/* Pair with Phone */}
-        {Platform.OS !== "ios" && onStartPairing && (
-          <View>
-            <Button
-              onPress={onStartPairing}
-              className='bg-neutral-800 border border-neutral-700'
-            >
-              {t("pairing.pair_with_phone")}
-            </Button>
-          </View>
         )}
       </View>
     </ScrollView>
