@@ -49,6 +49,7 @@ import {
   nativeInsertIndexFor,
 } from "@/utils/music/nativeQueue";
 import { toTrackNormalizationGains } from "@/utils/music/normalization";
+import { isVideoSessionOpen } from "@/utils/videoSession";
 
 // Conditionally import TrackPlayer only on non-TV platforms
 // This prevents the native module from being loaded on TV where it doesn't exist
@@ -1823,12 +1824,17 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   // toggling, so a command that repeats the current one must change nothing,
   // least of all reshuffle a queue that is already shuffled. The session is
   // one for the whole app, so a command sent while a video plays lands here
-  // too; without a track of its own the music player leaves it alone.
+  // too. The music player leaves it alone without a track of its own, and
+  // also with one while a video is on screen: a song paused in the mini
+  // player is not what that remote is controlling, and reporting its modes
+  // would put the song in place of the video on the server.
   useEffect(
     () =>
       subscribe("GeneralCommand", (data) => {
         const change = parsePlaybackModeCommand(data);
-        if (!change || !hasLiveTrackRef.current) return;
+        if (!change || !hasLiveTrackRef.current || isVideoSessionOpen()) {
+          return;
+        }
 
         if ("repeatMode" in change) {
           setRepeatMode(change.repeatMode);

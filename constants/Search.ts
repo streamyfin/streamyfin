@@ -12,6 +12,15 @@ export const SEARCH_RESULT_LIMIT = 10;
 export const SEARCH_PEOPLE_FETCH_LIMIT = 100;
 
 /**
+ * How many people a search asks for once more when its first answer came back
+ * full. A full answer was cut off somewhere along the alphabet, and the best
+ * match can lie past the cut: on a large library "Tom Hanks" sorts after a
+ * hundred names that merely contain "tom". Ten times the first ask covers
+ * that without making every search carry it.
+ */
+export const SEARCH_PEOPLE_WIDE_FETCH_LIMIT = 1000;
+
+/**
  * Person types the People section leaves out, as Jellyfin Web does. A music
  * library registers every artist as a person, so without this a search for an
  * actor lists musicians too; those already have the Artists section.

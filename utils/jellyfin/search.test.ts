@@ -88,6 +88,40 @@ describe("searchPeople", () => {
     expect(people[0].Name).toBe("Tom Hanks");
   });
 
+  // On a large library a short search matches more people than one answer
+  // holds, and the answer is cut along the alphabet, not by relevance: the
+  // hundred names kept all merely contained "tom", and Tom Hanks was not one
+  // of them.
+  test("asks once more, wider, when the first answer came back full", async () => {
+    const api = makeApi();
+    const cutOff = Array.from({ length: 100 }, (_, index) =>
+      person(`Atom ${String(index).padStart(3, "0")}`),
+    );
+    api.mock.onGet().replyOnce(200, { Items: cutOff });
+    api.mock
+      .onGet()
+      .replyOnce(200, { Items: [...cutOff, person("Tom Hanks")] });
+
+    const people = await searchPeople({
+      api,
+      query: "tom",
+      serverVersion: "12.1.0",
+    });
+
+    expect(people).toHaveLength(10);
+    expect(people[0].Name).toBe("Tom Hanks");
+    const limits = api.mock.history.get.map((request) =>
+      new URL(request.url ?? "").searchParams.get("limit"),
+    );
+    expect(limits).toEqual(["100", "1000"]);
+    // The wider ask is the same search, musicians still left out.
+    expect(
+      new URL(api.mock.history.get[1].url ?? "").searchParams.getAll(
+        "excludePersonTypes",
+      ),
+    ).toEqual(["Artist", "AlbumArtist"]);
+  });
+
   test("sends nothing for an empty search", async () => {
     const api = makeApi({ Items: [] });
 

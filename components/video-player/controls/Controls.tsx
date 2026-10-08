@@ -47,6 +47,7 @@ import {
   isStillWatchingDueAtEnd,
   markStillWatchingInput,
   peekStillWatchingDecision,
+  previewStillWatchingDecision,
   recordStillWatchingAutoplay,
   releaseStillWatchingDecision,
   resetStillWatchingSession,
@@ -509,17 +510,28 @@ export const Controls: FC<Props> = ({
   // countdown back, but nothing is decided or released on placeholder values,
   // and only an armed player shows the prompt.
   const stillWatchingArmed = stillWatchingArmedRef.current;
-  if (stillWatchingArmed && !inDecisionWindow && item.Id) {
-    // Leaving the window (a seek back) lets go, so the end is judged again.
-    releaseStillWatchingDecision(item.Id);
-  }
+  // Only read here: React may run a render and throw it away, and the
+  // decision is shared with the native player and with the next mount. The
+  // effect below takes it, for the render that was kept.
   const stillWatchingDue =
     !inDecisionWindow || !item.Id
       ? false
       : stillWatchingArmed
-        ? decideStillWatchingOnce(item.Id, isDueNow)
+        ? previewStillWatchingDecision(item.Id, isDueNow)
         : (peekStillWatchingDecision(item.Id) ?? false);
   const stillWatchingRequired = autoPlayWanted && stillWatchingDue;
+
+  // After every render, on purpose: the window, the arming and the inputs
+  // that can make a "due" decision stale all move between two of them.
+  useEffect(() => {
+    if (!stillWatchingArmed || !item.Id) return;
+    if (inDecisionWindow) {
+      decideStillWatchingOnce(item.Id, isDueNow);
+    } else {
+      // Leaving the window (a seek back) lets go, so the end is judged again.
+      releaseStillWatchingDecision(item.Id);
+    }
+  });
 
   // Whether the "Next Episode" countdown can be rendered at all. The Skip
   // Credits button yields to it only when this is true; if autoplay is

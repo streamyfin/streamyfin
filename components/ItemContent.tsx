@@ -29,7 +29,7 @@ import { LOGO_HEIGHT } from "@/constants/Images";
 import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
 import { useImageColorsReturn } from "@/hooks/useImageColorsReturn";
 import { useOrientation } from "@/hooks/useOrientation";
-import { useVersionItem } from "@/hooks/useVersionItem";
+import { useVersionItemState } from "@/hooks/useVersionItem";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
@@ -114,7 +114,7 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
   // A downloaded item keeps the page as it was: Play can open the download,
   // whose position is the item's, not the selected version's.
   const isDownloaded = !!item?.Id && !!getDownloadedItemById(item.Id);
-  const versionItem = useVersionItem(
+  const { versionItem, isPending: isVersionPending } = useVersionItemState(
     item,
     itemWithSources?.MediaSources,
     isDownloaded ? undefined : selectedOptions?.mediaSource?.Id,
@@ -192,7 +192,13 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
                       <PlayInRemoteSessionButton item={item} size='large' />
                     )}
 
-                  <PlayedStatus items={[versionItem ?? item]} size='large' />
+                  {/* Until the selected version's own state is in, the
+                      toggle would mark the primary version instead. */}
+                  <PlayedStatus
+                    items={[versionItem ?? item]}
+                    size='large'
+                    pointerEvents={isVersionPending ? "none" : "auto"}
+                  />
                   <AddToFavorites item={item} />
                   {settings.streamyStatsServerUrl &&
                     !settings.hideWatchlistsTab && (
@@ -207,6 +213,7 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
   }, [
     item,
     versionItem,
+    isVersionPending,
     navigation,
     user,
     itemWithSources,
@@ -285,6 +292,8 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
                   selectedOptions={selectedOptions}
                   item={playButtonItem ?? item}
                   colors={itemColors}
+                  // The resume point shown is still the primary version's.
+                  disabled={isVersionPending}
                 />
                 <View className='w-1' />
                 {!isOffline && (

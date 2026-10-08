@@ -95,6 +95,7 @@ import {
   getDefaultPlaySettings,
 } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
+import { getPlayingRunTimeTicks } from "@/utils/jellyfin/mediaSourceVersion";
 import { subtitleSearchErrorMessage } from "@/utils/jellyfin/subtitleSearchAccess";
 import {
   applyMpvSubtitleSelection,
@@ -131,6 +132,7 @@ import {
   isStillWatchingDueAtEnd,
   recordStillWatchingAutoplay,
   resetStillWatchingSession,
+  revertStillWatchingAutoplay,
 } from "@/utils/stillWatching";
 import {
   isLocalSubtitleIndex,
@@ -138,6 +140,7 @@ import {
   SUBTITLES_OFF,
 } from "@/utils/subtitles/subtitleIndex";
 import { msToTicks, ticksToMs, ticksToSeconds } from "@/utils/time";
+import { useVideoSession } from "@/utils/videoSession";
 
 const NEXT_EPISODE_COUNTDOWN_SECONDS = NEXT_EPISODE_COUNTDOWN_MS / 1000;
 
@@ -577,8 +580,14 @@ const NativePlayerProviderInner: React.FC<{
         decideStillWatchingOnce(session.item.Id ?? "", () =>
           isStillWatchingDueAtEnd({
             preset: currentSettings?.stillWatchingPreset,
+            // The playing version's runtime: another cut ends elsewhere.
             remainingMs:
-              ticksToMs(session.item.RunTimeTicks ?? 0) - session.positionMs,
+              ticksToMs(
+                getPlayingRunTimeTicks(
+                  session.item,
+                  session.stream.mediaSource,
+                ),
+              ) - session.positionMs,
             // The native chrome reports no touches to JS, so idle time is
             // unknown and only the episode count can trip the prompt.
             tracksInput: false,
@@ -1648,7 +1657,8 @@ const NativePlayerProviderInner: React.FC<{
           return;
         }
         const currentSettings = settingsRef.current;
-        if (payload.reason === "countdown") {
+        const isAutoplay = payload.reason === "countdown";
+        if (isAutoplay) {
           // A countdown fired twice for one session (before the swap lands)
           // is one autoplay, not two.
           if (countdownAdvancedRef.current.has(session)) return;
@@ -1665,12 +1675,22 @@ const NativePlayerProviderInner: React.FC<{
           // session.
           resetStillWatchingSession();
         }
-        void playAdjacentItem(session, next).then(() => {
-          // The swap did not take: a later countdown on this session is a
-          // real request again.
-          if (sessionRef.current === session) {
-            countdownAdvancedRef.current.delete(session);
-          }
+        // Recorded before the swap, so the next episode's prompt is decided
+        // with this autoplay counted; taken back when the swap does not take.
+        const onSwapSettled = () => {
+          if (sessionRef.current !== session) return;
+          // Still on the episode that ended: a later countdown on this
+          // session is a real request again, and no autoplay happened.
+          countdownAdvancedRef.current.delete(session);
+          if (isAutoplay) revertStillWatchingAutoplay();
+        };
+        playAdjacentItem(session, next).then(onSwapSettled, (error) => {
+          // A swap that throws would otherwise leave the session marked as
+          // advanced, and every later countdown on it ignored.
+          logAndCaptureError("NativePlayer next episode swap failed", error, {
+            itemId: next.Id,
+          });
+          onSwapSettled();
         });
       }),
 
@@ -1946,6 +1966,9 @@ const NativePlayerProviderInner: React.FC<{
       void dismissNativePlayer();
     }
   }, [user]);
+
+  // The music player reads this to leave a remote's command to the video.
+  useVideoSession(isActive);
 
   // BackHandler for Android: hardware back button dismisses presented native player
   useEffect(() => {

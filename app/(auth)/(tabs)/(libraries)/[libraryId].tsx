@@ -114,6 +114,7 @@ import {
 import {
   getLibraryTabFilters,
   getLibraryTabQuery,
+  isLibraryTabCountQueryKey,
   libraryTabUsesFilterBar,
 } from "@/utils/library/libraryTabs";
 
@@ -679,11 +680,14 @@ const Page = () => {
   // A list of this library on its way for the first time. With a letter
   // chosen and a list still on screen that is a jump landing, and the list
   // being left is dimmed until then. A tab loading for the first time is not:
-  // it has no list to dim, only its loader.
+  // it has no list to dim, only its loader. The tab counts share the key
+  // prefix and are no list at all.
   const isFirstFetch =
     useIsFetching({
       queryKey: ["library-items", libraryId],
-      predicate: (query) => query.state.data === undefined,
+      predicate: (query) =>
+        query.state.data === undefined &&
+        !isLibraryTabCountQueryKey(query.queryKey),
     }) > 0;
   const isJumpLanding = jumpLetter !== null && isFirstFetch;
 

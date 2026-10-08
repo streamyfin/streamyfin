@@ -54,7 +54,7 @@ import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
 import { useTVOptionModal } from "@/hooks/useTVOptionModal";
 import { useTVSubtitleModal } from "@/hooks/useTVSubtitleModal";
 import { useTVThemeMusic } from "@/hooks/useTVThemeMusic";
-import { useVersionItem } from "@/hooks/useVersionItem";
+import { useVersionItemState } from "@/hooks/useVersionItem";
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
@@ -160,7 +160,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
 
     // On Jellyfin 12 each version keeps its own resume point and played
     // state, so those read the selected version's UserData.
-    const versionItem = useVersionItem(
+    const { versionItem, isPending: isVersionPending } = useVersionItemState(
       item,
       itemWithSources?.MediaSources,
       selectedOptions?.mediaSource?.Id,
@@ -229,7 +229,10 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
     );
 
     const handlePlay = () => {
-      if (!item || !selectedOptions) return;
+      // While the selected version's own resume point is on its way, the one
+      // in hand is the primary version's. The press is dropped rather than
+      // the button disabled, which would hand its focus to a neighbour.
+      if (!item || !selectedOptions || isVersionPending) return;
 
       const hasPlaybackProgress = (userData?.PlaybackPositionTicks ?? 0) > 0;
 
@@ -836,7 +839,10 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                 {/* Exactly one element asks for the initial focus: Play when
                     it is there, otherwise the first button left in the row. */}
                 <TVFavoriteButton item={item} hasTVPreferredFocus={!playable} />
-                <TVPlayedButton item={versionItem ?? item} />
+                <TVPlayedButton
+                  item={versionItem ?? item}
+                  disabled={isVersionPending}
+                />
                 <TVRefreshButton itemId={item.Id} />
               </View>
 

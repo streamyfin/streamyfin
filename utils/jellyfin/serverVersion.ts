@@ -60,13 +60,6 @@ export const honoursExcludedPersonTypes = (version?: string | null) =>
   isServerMajorAtLeast(version, 12);
 
 /**
- * `position` on POST /Playlists/{id}/Items landed in Jellyfin 12, see
- * jellyfin/jellyfin#15138. An older server ignores it and appends.
- */
-export const supportsPlaylistInsertPosition = (version?: string | null) =>
-  isServerMajorAtLeast(version, 12);
-
-/**
  * Each version of a multi-version item keeps its own UserData from Jellyfin
  * 12 on (jellyfin/jellyfin#16828); before that the primary item carries it.
  */

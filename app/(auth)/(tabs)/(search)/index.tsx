@@ -391,7 +391,16 @@ export default function SearchPage() {
   // Jellyfin's own search asks the Persons API, which can leave the musicians
   // out. Marlin and Streamystats rank people themselves, so they keep theirs.
   const { data: actors, isFetching: l8 } = useQuery({
-    queryKey: ["search", "actors", searchEngine, debouncedSearch],
+    // The version picks between the two ways of leaving the musicians out,
+    // which do not answer alike, so an answer is only good for the version
+    // it was asked under.
+    queryKey: [
+      "search",
+      "actors",
+      searchEngine,
+      debouncedSearch,
+      serverVersion,
+    ],
     queryFn: ({ signal }) =>
       searchEngine === "Jellyfin"
         ? searchPeople({

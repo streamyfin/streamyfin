@@ -18,6 +18,17 @@ export const LIBRARY_TAB_LABEL_KEYS: Record<LibraryTab, string> = {
 };
 
 /**
+ * Marks a tab's count among a library's item queries. The counts sit under
+ * "library-items" on purpose, so a library change refreshes them with the
+ * grid; whatever asks about the grid's own requests tells them apart by this.
+ */
+export const LIBRARY_TAB_COUNT_KEY = "tab-count";
+
+/** Whether a "library-items" query key is a tab's count and not a grid page. */
+export const isLibraryTabCountQueryKey = (queryKey: readonly unknown[]) =>
+  queryKey[2] === LIBRARY_TAB_COUNT_KEY;
+
+/**
  * The tabs a library can have next to its own items, before knowing whether
  * they hold anything. Which library type gets which follows jellyfin-web
  * (jellyfin-web#7939, #7946).

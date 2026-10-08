@@ -6,6 +6,7 @@ import { userAtom } from "@/providers/JellyfinProvider";
 import type { makeApi } from "@/test-utils/jellyfinApi";
 import { clearMmkv } from "@/test-utils/mmkv";
 import { storage } from "@/utils/mmkv";
+import { enterVideoSession } from "@/utils/videoSession";
 import { MusicPlayerProvider, useMusicPlayer } from "./MusicPlayerProvider";
 
 interface NativeTrack {
@@ -670,6 +671,31 @@ describe("MusicPlayerProvider repeat and shuffle", () => {
 
     expect(screen.getByText("off sorted")).toBeTruthy();
     expect(api.mock.history.post).toEqual([]);
+  });
+
+  // A song paused in the mini player still counts as a track of the music
+  // player's own. With a video on screen the remote is controlling the video:
+  // obeying it here reshuffled the song's queue, and the report that follows
+  // a mode change put the song in place of the video on the server.
+  test("a command is left to the video while one is on screen", async () => {
+    await startPlaying();
+    const leaveVideo = enterVideoSession();
+    try {
+      await receive("SetRepeatMode", { RepeatMode: "RepeatAll" });
+      await receive("SetShuffleQueue", { ShuffleMode: "Shuffle" });
+      await settleRequests();
+
+      expect(screen.getByText("off sorted")).toBeTruthy();
+      expect(reports(PROGRESS_URL)).toEqual([]);
+    } finally {
+      leaveVideo();
+    }
+
+    // Back on the music player, the same command is its own again.
+    await receive("SetRepeatMode", { RepeatMode: "RepeatAll" });
+
+    expect(screen.getByText("all sorted")).toBeTruthy();
+    await waitFor(() => expect(reports(PROGRESS_URL)).toHaveLength(1));
   });
 
   test("changing a mode with nothing playing reports nothing", async () => {

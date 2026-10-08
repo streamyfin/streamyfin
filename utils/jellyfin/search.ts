@@ -14,6 +14,7 @@ import { sortBy } from "lodash";
 import {
   SEARCH_EXCLUDED_PERSON_TYPES,
   SEARCH_PEOPLE_FETCH_LIMIT,
+  SEARCH_PEOPLE_WIDE_FETCH_LIMIT,
   SEARCH_RESULT_LIMIT,
 } from "@/constants/Search";
 import { isAbortLikeError } from "@/utils/errors";
@@ -94,11 +95,11 @@ export const searchPeople = ({
 }): Promise<BaseItemDto[]> => {
   if (!api || !query) return Promise.resolve([]);
 
-  return emptyOnFailure("People search request failed", async () => {
+  const fetchPeople = async (limit: number): Promise<BaseItemDto[]> => {
     const response = await getPersonsApi(api).getPersons(
       {
         searchTerm: query,
-        limit: SEARCH_PEOPLE_FETCH_LIMIT,
+        limit,
         userId,
         // Never both: 10.11 would then keep no one, see serverVersion.ts.
         ...(honoursExcludedPersonTypes(serverVersion)
@@ -107,10 +108,18 @@ export const searchPeople = ({
       },
       { signal },
     );
-    return rankByName(response.data.Items ?? [], query).slice(
-      0,
-      SEARCH_RESULT_LIMIT,
-    );
+    return response.data.Items ?? [];
+  };
+
+  return emptyOnFailure("People search request failed", async () => {
+    let people = await fetchPeople(SEARCH_PEOPLE_FETCH_LIMIT);
+    // A full answer is one the server cut off, in an order that is not
+    // relevance: ranking it can only pick among the names that came early in
+    // the alphabet. The wider ask is what lets the best match be in hand.
+    if (people.length >= SEARCH_PEOPLE_FETCH_LIMIT) {
+      people = await fetchPeople(SEARCH_PEOPLE_WIDE_FETCH_LIMIT);
+    }
+    return rankByName(people, query).slice(0, SEARCH_RESULT_LIMIT);
   });
 };
 

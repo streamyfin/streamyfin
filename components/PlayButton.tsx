@@ -65,6 +65,7 @@ export const PlayButton: React.FC<Props> = ({
   item,
   selectedOptions,
   colors,
+  disabled,
 }: Props) => {
   const isOffline = useOfflineMode();
   const { showActionSheetWithOptions } = useActionSheet();
@@ -614,7 +615,7 @@ export const PlayButton: React.FC<Props> = ({
 
   return (
     <TouchableOpacity
-      disabled={!item}
+      disabled={!item || !!disabled}
       accessibilityLabel={t("accessibility.play_button")}
       accessibilityHint={t("accessibility.play_hint")}
       onPress={onPress}

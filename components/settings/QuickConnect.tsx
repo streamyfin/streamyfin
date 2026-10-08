@@ -5,15 +5,8 @@ import {
   BottomSheetModal,
   BottomSheetView,
 } from "@gorhom/bottom-sheet";
-import type {
-  PublicSystemInfo,
-  UserDto,
-} from "@jellyfin/sdk/lib/generated-client/models";
-import {
-  getQuickConnectApi,
-  getSystemApi,
-  getUserApi,
-} from "@jellyfin/sdk/lib/utils/api";
+import type { UserDto } from "@jellyfin/sdk/lib/generated-client/models";
+import { getQuickConnectApi, getUserApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import { requireOptionalNativeModule } from "expo-modules-core";
 import { useAtom } from "jotai";
@@ -23,6 +16,7 @@ import { useTranslation } from "react-i18next";
 import { Alert, Keyboard, Platform, View, type ViewProps } from "react-native";
 import { Pressable } from "react-native-gesture-handler";
 import { useHaptic } from "@/hooks/useHaptic";
+import { useServerVersion } from "@/hooks/useServerVersion";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { supportsQuickConnectForOtherUsers } from "@/utils/jellyfin/serverVersion";
 import { Button } from "../Button";
@@ -61,20 +55,15 @@ export const QuickConnect: React.FC<Props> = ({ ...props }) => {
   // the cache holds will do, since a server does not go back below 10.9, and
   // asking again would be worse than useless: a refetch that fails marks the
   // shared query as errored, which useMediaPreferences reads as not ready.
-  const { data: serverInfo } = useQuery({
-    queryKey: ["jellyfin", "serverInfo"],
-    queryFn: async (): Promise<PublicSystemInfo | null> => {
-      if (!api) return null;
-      return (await getSystemApi(api).getPublicSystemInfo()).data;
-    },
-    enabled: !!api && isAdmin,
+  const serverVersion = useServerVersion({
+    enabled: isAdmin,
     staleTime: Number.POSITIVE_INFINITY,
   });
 
   // An unknown version counts as an old one: the code is then approved for
   // the signed-in user, as it always was.
   const canAuthorizeOthers =
-    isAdmin && supportsQuickConnectForOtherUsers(serverInfo?.Version);
+    isAdmin && supportsQuickConnectForOtherUsers(serverVersion);
 
   const { data: users = EMPTY_USERS } = useQuery({
     queryKey: ["jellyfin", "users", "enabled"],

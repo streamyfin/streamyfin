@@ -37,6 +37,7 @@ import {
   TVSkipSegmentCard,
 } from "@/components/tv";
 import { TVFocusableProgressBar } from "@/components/tv/TVFocusableProgressBar";
+import { NEXT_EPISODE_COUNTDOWN_MS } from "@/constants/Playback";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import { useMediaSegments } from "@/hooks/useMediaSegments";
@@ -541,7 +542,7 @@ export const Controls: FC<Props> = ({
     // An episode has a next item when the series does; anything else only
     // when a play queue holds it, and a queue continues whatever it plays.
     if (!nextItem) return false;
-    return remainingTime > 0 && remainingTime <= 10000;
+    return remainingTime > 0 && remainingTime <= NEXT_EPISODE_COUNTDOWN_MS;
   }, [nextItem, remainingTime]);
 
   // Simple boolean - when skip cards or countdown are visible, they have focus

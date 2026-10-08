@@ -136,6 +136,16 @@ export const recordStillWatchingAutoplay = () => {
   session.epoch += 1;
 };
 
+/**
+ * Takes back an autoplay that was recorded and then did not happen: the next
+ * episode failed to load, and the viewer is still on the one that ended. The
+ * count goes back down, and the decisions taken with it in are dropped.
+ */
+export const revertStillWatchingAutoplay = () => {
+  session.playedCount = Math.max(0, session.playedCount - 1);
+  session.epoch += 1;
+};
+
 let decision: { key: string; due: boolean; inputMs: number } | null = null;
 
 /**
@@ -151,16 +161,28 @@ export const decideStillWatchingOnce = (
   decide: () => boolean,
 ): boolean => {
   const key = decisionKey(itemId);
-  const stale =
-    decision?.key !== key ||
-    (decision.due && session.lastInputMs > decision.inputMs);
-  if (stale) {
+  if (isDecisionStale(key)) {
     decision = { key, due: decide(), inputMs: session.lastInputMs };
   }
   return decision?.due === true;
 };
 
+/**
+ * What `decideStillWatchingOnce` would answer for `itemId`, without taking
+ * the decision. For a render: React may run one and throw it away, and it
+ * must leave nothing behind. An effect of the render that is kept takes it.
+ */
+export const previewStillWatchingDecision = (
+  itemId: string,
+  decide: () => boolean,
+): boolean =>
+  isDecisionStale(decisionKey(itemId)) ? decide() : decision?.due === true;
+
 const decisionKey = (itemId: string) => `${session.epoch}:${itemId}`;
+
+const isDecisionStale = (key: string) =>
+  decision?.key !== key ||
+  (decision.due && session.lastInputMs > decision.inputMs);
 
 /** The decision already taken for `itemId`, if any, without taking one. */
 export const peekStillWatchingDecision = (

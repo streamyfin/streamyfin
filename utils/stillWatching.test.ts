@@ -7,9 +7,11 @@ import {
   isStillWatchingDueAtEnd,
   markStillWatchingInput,
   peekStillWatchingDecision,
+  previewStillWatchingDecision,
   recordStillWatchingAutoplay,
   releaseStillWatchingDecision,
   resetStillWatchingSession,
+  revertStillWatchingAutoplay,
   stillWatchingPresetFromEpisodeCount,
 } from "./stillWatching";
 
@@ -186,6 +188,39 @@ describe("the session", () => {
     );
   });
 
+  // The countdown ran out and the next episode failed to load: the viewer
+  // never left this one, so it must not bring the prompt an episode early.
+  test("an autoplay that did not happen is taken back", () => {
+    markStillWatchingInput(start + 50 * MINUTE);
+    recordStillWatchingAutoplay();
+    recordStillWatchingAutoplay();
+    recordStillWatchingAutoplay();
+    expect(dueAtEnd()).toBe(true);
+
+    revertStillWatchingAutoplay();
+    expect(dueAtEnd()).toBe(false);
+
+    // Never below zero: three more are still what it takes.
+    resetStillWatchingSession(start);
+    revertStillWatchingAutoplay();
+    markStillWatchingInput(start + 50 * MINUTE);
+    recordStillWatchingAutoplay();
+    recordStillWatchingAutoplay();
+    expect(dueAtEnd()).toBe(false);
+    recordStillWatchingAutoplay();
+    expect(dueAtEnd()).toBe(true);
+  });
+
+  test("a decision taken with the autoplay counted goes with it", () => {
+    recordStillWatchingAutoplay();
+    expect(decideStillWatchingOnce("ep-1", () => true)).toBe(true);
+
+    revertStillWatchingAutoplay();
+
+    expect(peekStillWatchingDecision("ep-1")).toBeUndefined();
+    expect(decideStillWatchingOnce("ep-1", () => false)).toBe(false);
+  });
+
   // The native chrome has no idle time: only the count may trip it.
   test("without input tracking, only the count fires it", () => {
     expect(dueAtEnd({ tracksInput: false })).toBe(false);
@@ -219,6 +254,25 @@ describe("the session", () => {
     expect(peekStillWatchingDecision("ep-9")).toBe(true);
     releaseStillWatchingDecision("ep-9");
     expect(peekStillWatchingDecision("ep-9")).toBeUndefined();
+  });
+
+  // A render reads the decision and may be thrown away, so reading must not
+  // be what takes it.
+  test("a preview answers like the decision without taking it", () => {
+    expect(previewStillWatchingDecision("ep-1", () => true)).toBe(true);
+    expect(peekStillWatchingDecision("ep-1")).toBeUndefined();
+    // Nothing was taken, so the next preview decides for itself again.
+    expect(previewStillWatchingDecision("ep-1", () => false)).toBe(false);
+
+    // Once taken, the preview is the decision, whatever it would be now.
+    expect(decideStillWatchingOnce("ep-1", () => true)).toBe(true);
+    expect(previewStillWatchingDecision("ep-1", () => false)).toBe(true);
+
+    // And it goes stale exactly as the decision does: on an input since a
+    // "due" one.
+    markStillWatchingInput(start + 1);
+    expect(previewStillWatchingDecision("ep-1", () => false)).toBe(false);
+    expect(peekStillWatchingDecision("ep-1")).toBe(true);
   });
 
   // A stream swap of the same episode must not re-decide under a countdown.

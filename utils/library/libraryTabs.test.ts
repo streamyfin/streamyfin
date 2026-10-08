@@ -4,6 +4,8 @@ import {
   getLibraryTabFilters,
   getLibraryTabQuery,
   getVisibleLibraryTabs,
+  isLibraryTabCountQueryKey,
+  LIBRARY_TAB_COUNT_KEY,
 } from "./libraryTabs";
 
 const library = (CollectionType?: BaseItemDto["CollectionType"]) =>
@@ -143,5 +145,28 @@ describe("the filter bar", () => {
     const byName = { sortBy: ["SortName"], sortOrder: ["Ascending"] };
     expect(getLibraryTabFilters("collections", filterBar)).toEqual(byName);
     expect(getLibraryTabFilters("playlists", filterBar)).toEqual(byName);
+  });
+});
+
+describe("telling a tab's count from a grid page", () => {
+  // Both live under ["library-items", libraryId], so a library change
+  // refreshes them together, and the grid asks which of them is loading for
+  // the first time: a count is not a list it could dim.
+  test("only the count's key is one", () => {
+    expect(
+      isLibraryTabCountQueryKey([
+        "library-items",
+        "library-1",
+        LIBRARY_TAB_COUNT_KEY,
+        "collections",
+        "user-1",
+      ]),
+    ).toBe(true);
+    expect(
+      isLibraryTabCountQueryKey(["library-items", "library-1", "items", {}]),
+    ).toBe(false);
+    expect(isLibraryTabCountQueryKey(["library-items", "library-1"])).toBe(
+      false,
+    );
   });
 });

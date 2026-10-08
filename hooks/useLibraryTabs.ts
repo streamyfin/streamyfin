@@ -1,17 +1,16 @@
-import type {
-  BaseItemDto,
-  PublicSystemInfo,
-} from "@jellyfin/sdk/lib/generated-client/models";
-import { getItemsApi, getSystemApi } from "@jellyfin/sdk/lib/utils/api";
-import { useQueries, useQuery } from "@tanstack/react-query";
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
+import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
+import { useQueries } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
 import { useCallback, useMemo, useState } from "react";
 import { Platform } from "react-native";
+import { useServerVersion } from "@/hooks/useServerVersion";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import {
   getLibraryContainerTabs,
   getLibraryTabQuery,
   getVisibleLibraryTabs,
+  LIBRARY_TAB_COUNT_KEY,
   type LibraryTab,
 } from "@/utils/library/libraryTabs";
 
@@ -38,29 +37,24 @@ export function useLibraryTabs(library: BaseItemDto | null | undefined) {
     [library?.Id],
   );
 
-  // Kept aligned with the other consumers of this key (useMediaPreferences,
-  // useWatchlists): same shape, same nullable contract.
-  const { data: serverInfo } = useQuery({
-    queryKey: ["jellyfin", "serverInfo"],
-    queryFn: async (): Promise<PublicSystemInfo | null> => {
-      if (!api) return null;
-      return (await getSystemApi(api).getPublicSystemInfo()).data;
-    },
-    enabled: !!api,
-    staleTime: 43200000, // 12 hours
-  });
+  const serverVersion = useServerVersion();
 
   const containerTabs = useMemo(
-    () =>
-      library ? getLibraryContainerTabs(library, serverInfo?.Version) : [],
-    [library, serverInfo?.Version],
+    () => (library ? getLibraryContainerTabs(library, serverVersion) : []),
+    [library, serverVersion],
   );
 
   const tabs = useQueries({
     queries: containerTabs.map((tab) => ({
       // Under "library-items" so a LibraryChanged event refreshes the counts
       // along with the grid.
-      queryKey: ["library-items", library?.Id, "tab-count", tab, user?.Id],
+      queryKey: [
+        "library-items",
+        library?.Id,
+        LIBRARY_TAB_COUNT_KEY,
+        tab,
+        user?.Id,
+      ],
       queryFn: async (): Promise<number> => {
         if (!api || !library) return 0;
         const response = await getItemsApi(api).getItems({

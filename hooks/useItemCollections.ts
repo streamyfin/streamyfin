@@ -2,12 +2,10 @@ import type {
   BaseItemDto,
   BaseItemDtoQueryResult,
   ItemFields,
-  PublicSystemInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
-import { getSystemApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
-import { SERVER_INFO_STALE_TIME_MS } from "@/constants/Jellyfin";
+import { useServerVersion } from "@/hooks/useServerVersion";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { getAuthHeaders } from "@/utils/jellyfin/jellyfin";
 import { supportsItemCollections } from "@/utils/jellyfin/serverVersion";
@@ -25,17 +23,7 @@ export const useItemCollections = (
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
 
-  // Kept aligned with the other consumers of this key (useMediaPreferences,
-  // useJellyfinServerId): same shape, same nullable contract.
-  const { data: serverInfo } = useQuery({
-    queryKey: ["jellyfin", "serverInfo"],
-    queryFn: async (): Promise<PublicSystemInfo | null> => {
-      if (!api) return null;
-      return (await getSystemApi(api).getPublicSystemInfo()).data;
-    },
-    enabled: !!api && enabled,
-    staleTime: SERVER_INFO_STALE_TIME_MS,
-  });
+  const serverVersion = useServerVersion({ enabled });
 
   return useQuery<BaseItemDto[]>({
     // Deliberately not under ["item", itemId]: the favorite and played
@@ -65,6 +53,6 @@ export const useItemCollections = (
       !!user?.Id &&
       !!itemId &&
       enabled &&
-      supportsItemCollections(serverInfo?.Version),
+      supportsItemCollections(serverVersion),
   });
 };

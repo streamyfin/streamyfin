@@ -6,12 +6,17 @@ import {
   episodeAvailability,
   formatAirDay,
   formatAirTime,
+  localDayKey,
 } from "@/utils/upcomingEpisodes";
 
 /** How an episode's air day, air time and missing file are worded. */
 export const useEpisodeAirLabels = () => {
   const { t, i18n } = useTranslation();
   const locale = i18n?.language;
+  // The labels are relative to today, so they are built again once the day
+  // has turned: a screen that stays mounted in its tab overnight would
+  // otherwise keep calling yesterday "Today".
+  const today = localDayKey(new Date());
 
   return useMemo(() => {
     const now = new Date();
@@ -35,5 +40,5 @@ export const useEpisodeAirLabels = () => {
         return null;
       },
     };
-  }, [t, locale]);
+  }, [t, locale, today]);
 };

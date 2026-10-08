@@ -110,6 +110,7 @@ import {
   buildSubtitleStyle,
 } from "@/utils/subtitles/subtitleStyle";
 import { msToTicks, ticksToSeconds } from "@/utils/time";
+import { useVideoSession } from "@/utils/videoSession";
 import { generateDeviceProfile } from "../../../utils/profiles/native";
 
 // Spec: utils/directPlayer/directPlayerPage.test.tsx. It cannot sit next to
@@ -221,6 +222,9 @@ export default function DirectPlayerPage() {
     playbackPosition?: string;
   }>();
   const { lockOrientation, unlockOrientation } = useOrientation();
+  // A video is on screen for as long as this page is: the music player reads
+  // it to leave a remote's shuffle or repeat command to the video.
+  useVideoSession();
 
   const offline = offlineStr === "true";
 
