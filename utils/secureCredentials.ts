@@ -9,7 +9,11 @@ import {
 import type { CustomHeader } from "./customHeaders/types";
 import { logAndCaptureError } from "./log";
 import { storage } from "./mmkv";
-import { deleteSeerrPassword } from "./seerrPassword";
+import {
+  deleteSeerrPassword,
+  getSeerrPassword,
+  saveSeerrPassword,
+} from "./seerrPassword";
 
 const CREDENTIAL_KEY_PREFIX = "credential_";
 const MULTI_ACCOUNT_MIGRATED_KEY = "multiAccountMigrated";
@@ -451,6 +455,103 @@ export function getServerCustomHeaders(serverUrl: string): CustomHeader[] {
   // This is a read: it must not write, because it runs during render (every
   // <Image> resolves its headers through it).
   return resolveCustomHeaderValues(server?.customHeaders ?? []);
+}
+
+/**
+ * Moves what the keychain holds for one account to another server address:
+ * its credential, PIN or password protection included, and its Seerr
+ * password. Copied before it is deleted, so nothing is lost in between.
+ */
+async function moveAccountSecrets(
+  from: string,
+  to: string,
+  userId: string,
+): Promise<void> {
+  const credential = await getAccountCredential(from, userId);
+  if (credential) {
+    const existing = await getAccountCredential(to, userId);
+    // One already at the new address is kept when it is the fresher: the
+    // account signed in there since.
+    if (!existing || existing.savedAt < credential.savedAt) {
+      await SecureStore.setItemAsync(
+        credentialKey(to, userId),
+        JSON.stringify({ ...credential, serverUrl: to }),
+      );
+    }
+    await SecureStore.deleteItemAsync(credentialKey(from, userId));
+  }
+
+  const password = await getSeerrPassword(from, userId);
+  if (password !== null) {
+    if ((await getSeerrPassword(to, userId)) === null) {
+      await saveSeerrPassword(to, userId, password);
+    }
+    await deleteSeerrPassword(from, userId);
+  }
+}
+
+/** One entry per user, the more recently saved one when both lists have it. */
+function mergeAccounts(
+  moved: SavedServerAccount[],
+  present: SavedServerAccount[],
+): SavedServerAccount[] {
+  const byUser = new Map(present.map((account) => [account.userId, account]));
+  for (const account of moved) {
+    const existing = byUser.get(account.userId);
+    if (!existing || existing.savedAt < account.savedAt) {
+      byUser.set(account.userId, account);
+    }
+  }
+  return [...byUser.values()];
+}
+
+/**
+ * Moves a saved server to another address, for an address that turned out to
+ * be another spelling of the same server: its accounts and what the keychain
+ * holds for them, its local network configuration and its custom headers.
+ *
+ * Whatever is already saved under the new address stays, and the two are
+ * merged. Every store is copied to before it is deleted from and the list is
+ * written last, so a run that is cut short loses nothing: the old entry is
+ * still listed, and the next run finishes the move.
+ */
+export async function renameSavedServer(
+  from: string,
+  to: string,
+): Promise<void> {
+  if (from === to) return;
+  const source = getPreviousServers().find((s) => s.address === from);
+  if (!source) return;
+
+  for (const account of source.accounts) {
+    await moveAccountSecrets(from, to, account.userId);
+  }
+
+  // The header values are stored under keys made from the address, so they
+  // are written again under the new one rather than pointed at.
+  const sourceHeaders = getServerCustomHeaders(from);
+  if (sourceHeaders.length > 0 && getServerCustomHeaders(to).length === 0) {
+    updateServerCustomHeaders(to, sourceHeaders);
+  }
+
+  const servers = getPreviousServers();
+  const target = servers.find((s) => s.address === to);
+  const merged: SavedServer = {
+    address: to,
+    name: target?.name ?? source.name,
+    accounts: mergeAccounts(source.accounts, target?.accounts ?? []),
+    localNetworkConfig: target?.localNetworkConfig ?? source.localNetworkConfig,
+    customHeaders: target?.customHeaders,
+  };
+  // In the place of the old entry, so the list keeps its order.
+  const updated = servers.flatMap((server) => {
+    if (server.address === from) return [merged];
+    return server.address === to ? [] : [server];
+  });
+  storage.set("previousServers", JSON.stringify(updated));
+
+  deleteSecureCustomHeaderValues(source.customHeaders ?? []);
+  bumpCustomHeadersVersion();
 }
 
 /**

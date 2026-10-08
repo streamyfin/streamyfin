@@ -26,11 +26,13 @@ export interface CheckedServer {
   /** The URL that answered, including the protocol that worked. */
   url: string;
   name: string;
+  /** The server's own id, which stays the same whatever address reaches it. */
+  id?: string;
 }
 
 /** LAN probes either answer near-instantly or never; don't let one candidate
  * hang the whole check. */
-const PROBE_TIMEOUT_MS = 10_000;
+export const PROBE_TIMEOUT_MS = 10_000;
 
 /** Streamyfin needs 10.10 or newer. Anything unparseable is given the benefit
  * of the doubt — a server that answers but reports an odd version string must
@@ -186,7 +188,7 @@ export async function checkJellyfinServer(
       writeInfoLog(`Server check: ${url} OK — v${data.Version}`, {
         name: data.ServerName,
       });
-      return { url, name: data.ServerName || "" };
+      return { url, name: data.ServerName || "", id: data.Id ?? undefined };
     } catch (e) {
       if (e instanceof ServerTooOldError) throw e;
       // The error as it came goes with the entry as data: the lines cut
