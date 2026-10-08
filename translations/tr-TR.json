@@ -18,7 +18,6 @@
     "password_placeholder": "Şifre",
     "login_button": "Giriş yap",
     "quick_connect": "Hızlı Bağlan",
-    "enter_code_to_login": "Giriş yapmak için {{code}} kodunu girin",
     "quick_connect_instructions": "Bu kodu, oturum açmış olan bir cihazda girin. Otomatik olarak giriş yapacaksınız.",
     "tap_code_to_copy": "Kopyalamak için koda dokunun",
     "code_copied": "Kod kopyalandı",
@@ -226,8 +225,8 @@
         "enter_the_quick_connect_code": "Hızlı bağlantı kodunu girin...",
         "success": "Başarılı",
         "quick_connect_authorized": "Hızlı Bağlantı Yetkilendirildi",
-        "error": "Hata",
         "invalid_code": "Geçersiz kod",
+        "disabled": "Quick Connect is turned off on this server. An administrator can turn it on in the server's dashboard.",
         "authorize": "Yetkilendir",
         "paste_code": "Kodu yapıştır"
       },
@@ -729,7 +728,7 @@
   },
   "custom_links": {
     "no_links": "Bağlantı yok",
-    "could_not_open_link": "Could not open this link"
+    "could_not_open_link": "Bu bağlantı açılamadı"
   },
   "player": {
     "live": "CANLI",
@@ -1177,9 +1176,7 @@
     "title": "TV ile Eşleştir",
     "align_qr": "QR kodunu çerçeveye hizalayın",
     "enter_code_manually": "Kodu manuel girin",
-    "pairing_enter_credentials": "TV için kimlik bilgilerini girin",
     "pairing_code_label": "Eşleştirme kodu",
-    "server": "Sunucu",
     "authorize_button": "Yetkilendir",
     "authorizing": "Yetkilendiriliyor...",
     "scan_again": "Tekrar Tarayın",
@@ -1188,18 +1185,24 @@
     "pairing_tv_connecting": "TV hesabınıza bağlanıyor",
     "error_title": "Yetkilendirme Başarısız",
     "error_invalid_qr": "Geçersiz QR kod. Lütfen TV eşleştirme kodunu tarayın.",
+    "error_old_tv": "This TV runs an older version of Streamyfin. Update it, then try again.",
+    "error_code_not_waiting": "This code is not waiting on {{server}}. Check that the TV uses the same server as this phone, then start Quick Connect again on the TV.",
+    "error_quick_connect_disabled": "Quick Connect is turned off on {{server}}. An administrator can turn it on in the server's dashboard.",
+    "error_other_server": "This TV is connecting to another server, {{server}}. Sign in to that server in this app, then scan again.",
     "error_generic": "Bir şeyler ters gitti. Lütfen tekrar deneyin.",
     "error_permission_denied": "QR kodlarını taramak için kamera izni gereklidir.",
     "login_as": "{{username}} olarak giriş yapılsın mı?",
     "on_server": "{{server}} sunucusunda",
-    "use_different_user": "Farklı bir kullanıcı kullan",
     "open_settings": "Ayarları Aç"
   },
   "pairing": {
     "pair_with_phone": "Telefonla Eşleştir",
     "pair_with_phone_title": "TV'de oturum aç",
-    "waiting_for_phone": "Telefon bekleniyor...",
-    "scan_with_phone": "Telefonunuzdaki Streamyfin uygulamasıyla tarayın",
+    "scan_quick_connect": "Scan the QR code with the Streamyfin app or your phone's camera.",
+    "code_expired": "This code has expired.",
+    "get_new_code": "Get a new code",
+    "scan_with_app": "Scan the QR code with the Streamyfin app on your phone.",
+    "account_that_approves": "The account that approves the code",
     "logging_in": "Giriş yapılıyor...",
     "logging_in_description": "Sunucunuza bağlanılıyor"
   },
