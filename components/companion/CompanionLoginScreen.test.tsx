@@ -124,18 +124,19 @@ describe("CompanionLoginScreen", () => {
     expect(mockAuthorize).toHaveBeenCalledWith({ code: "042117" });
   });
 
-  // iOS adds a toolbar above the number pad whose button would read "Done" in
-  // English without a label.
-  test("labels the number pad's button in the app's language", async () => {
+  // react-native-tvos puts a toolbar above every iOS number pad; upstream
+  // React Native and native apps show none, and Authorize stays in reach.
+  test("keeps the toolbar away from the number pad", async () => {
     await render(<CompanionLoginScreen />);
     await fireEvent.press(
       screen.getByText("companion_login.enter_code_manually"),
     );
+    const input = screen.getByPlaceholderText(
+      "companion_login.pairing_code_label",
+    );
 
-    expect(
-      screen.getByPlaceholderText("companion_login.pairing_code_label").props
-        .inputAccessoryViewButtonLabel,
-    ).toBe("common.ok");
+    expect(input.props.inputAccessoryViewID).toBeTruthy();
+    expect(input.props.inputAccessoryViewButtonLabel).toBeUndefined();
   });
 
   // A TV on an older version waits for a password over the network, which

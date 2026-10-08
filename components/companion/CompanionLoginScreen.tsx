@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
+import { NO_KEYBOARD_TOOLBAR } from "@/constants/Keyboard";
 import useRouter from "@/hooks/useAppRouter";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import {
@@ -338,11 +339,10 @@ export const CompanionLoginScreen: React.FC = () => {
                 placeholder={t("companion_login.pairing_code_label")}
                 placeholderTextColor='#6B7280'
                 keyboardType='number-pad'
-                // iOS adds a toolbar above the number pad whose button would
-                // read "Done" in English without a label.
-                inputAccessoryViewButtonLabel={t("common.ok")}
+                // Authorize stays in reach above the keyboard, so the number
+                // pad needs no toolbar of its own.
+                inputAccessoryViewID={NO_KEYBOARD_TOOLBAR}
                 autoCorrect={false}
-                returnKeyType='done'
                 onSubmitEditing={handleAuthorize}
                 autoFocus
               />
