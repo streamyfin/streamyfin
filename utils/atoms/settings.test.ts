@@ -7,7 +7,7 @@ import { getDefaultStore } from "jotai";
 import { clearMmkv } from "@/test-utils/mmkv";
 import { stubReactNative } from "@/test-utils/reactNative";
 import { storage } from "@/utils/mmkv";
-import { PLUGIN_SETTINGS_KEY } from "@/utils/storedSettings";
+import { PLUGIN_SETTINGS_KEY, SETTINGS_KEY } from "@/utils/storedSettings";
 
 jest.mock(
   "react-native-mmkv",
@@ -52,8 +52,10 @@ const {
   getActiveVideoPlayerEngine,
   fetchPluginSettings,
   isNativeChromeActive,
+  PLUGIN_APPLIED_DEFAULTS,
   pluginSettingsAtom,
   redactPluginSettings,
+  settingsAtom,
   useSettings,
   VideoPlayer,
 } = require("./settings") as typeof import("./settings");
@@ -500,5 +502,41 @@ describe("refreshing the plugin settings", () => {
     expect(refreshed).toEqual(sent);
     expect(store.get(pluginSettingsAtom)).toEqual(sent);
     expect(storage.get(PLUGIN_SETTINGS_KEY)).toEqual(sent);
+  });
+});
+
+describe("loading the settings", () => {
+  const store = getDefaultStore();
+
+  beforeEach(() => {
+    clearMmkv();
+    store.set(settingsAtom, null);
+  });
+
+  afterEach(() => {
+    store.set(settingsAtom, null);
+  });
+
+  // An earlier build seeded the plugin's keys into the settings, which belong
+  // to the device, and every account signed in after found them there.
+  test("drops a key the plugin seeded and keeps one the user typed", async () => {
+    storage.set(
+      SETTINGS_KEY,
+      JSON.stringify({
+        seerrApiKey: "admin-key",
+        openSubtitlesApiKey: "my-key",
+      }),
+    );
+    storage.setAny(PLUGIN_APPLIED_DEFAULTS, {
+      seerrApiKey: "admin-key",
+      openSubtitlesApiKey: "admin-subtitles-key",
+    });
+
+    await renderHook(() => useSettings());
+
+    expect(JSON.parse(storage.getString(SETTINGS_KEY) ?? "{}")).toEqual({
+      openSubtitlesApiKey: "my-key",
+    });
+    expect(storage.get(PLUGIN_APPLIED_DEFAULTS)).toEqual({});
   });
 });

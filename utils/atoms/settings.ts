@@ -24,15 +24,17 @@ import {
 import { storage } from "../mmkv";
 import {
   type AppliedPluginDefaults,
+  dropSeededSecrets,
   pluginRefreshOverlay,
   readIntegrationBlocks,
   renameLegacySeerrSettings,
   resolveEffectiveSettings,
+  SENSITIVE_SETTING_KEYS,
 } from "./settingsOverrides";
 
 const _STREAMYFIN_PLUGIN_ID = "1e9e5d386e6746158719e98a5c34f004";
 const STREAMYFIN_PLUGIN_SETTINGS = PLUGIN_SETTINGS_KEY;
-const PLUGIN_APPLIED_DEFAULTS = "STREAMYFIN_PLUGIN_APPLIED_DEFAULTS";
+export const PLUGIN_APPLIED_DEFAULTS = "STREAMYFIN_PLUGIN_APPLIED_DEFAULTS";
 
 export type DownloadQuality = "original" | "high" | "low";
 
@@ -551,13 +553,6 @@ export type StreamyfinPluginConfig = {
   settings: PluginLockableSettings;
 };
 
-// Settings whose values are secrets. They must never reach the app log,
-// which users read in-app and paste into bug reports.
-const SENSITIVE_SETTING_KEYS: ReadonlySet<keyof Settings> = new Set([
-  "seerrApiKey",
-  "openSubtitlesApiKey",
-] as const);
-
 // Read first: the plugin sends the Seerr key under its old flat name and
 // inside the seerr block, and only the app's own name is on the list above.
 export const redactPluginSettings = (
@@ -824,6 +819,16 @@ const loadSettings = (): Partial<Settings> => {
 
   // Seerr's settings were stored under the names they had as Jellyseerr.
   if (renameLegacySeerrSettings(stored as Record<string, unknown>)) {
+    changed = true;
+  }
+
+  // An earlier build seeded the plugin's secrets here, where they stayed for
+  // every account signed in after the one they were served to. The record of
+  // what was seeded is read under the same names as the settings.
+  const applied = { ...loadAppliedPluginDefaults() } as Record<string, unknown>;
+  renameLegacySeerrSettings(applied);
+  if (dropSeededSecrets(stored as Record<string, unknown>, applied)) {
+    storage.setAny(PLUGIN_APPLIED_DEFAULTS, applied);
     changed = true;
   }
 

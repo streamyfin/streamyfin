@@ -8,7 +8,10 @@ import { writeInfoLog, writeToLog } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
 import { deleteSeerrPassword, getSeerrPassword } from "@/utils/seerrPassword";
 import { signInWithQuickConnect } from "@/utils/seerrQuickConnect";
-import { seerrSignInsAtLoginAtom } from "@/utils/seerrSignInAtLogin";
+import {
+  handOverSeerrSession,
+  seerrSignInsAtLoginAtom,
+} from "@/utils/seerrSignInAtLogin";
 import { store } from "@/utils/store";
 
 /**
@@ -74,6 +77,11 @@ export const SeerrAutoLogin: React.FC = () => {
         const seerr = new SeerrApi(serverUrl, getIntegrationHeaders("seerr"));
 
         const stillCurrent = () => store.get(userAtom)?.Id === userId;
+        const handOver = {
+          stillCurrent,
+          forget: () => seerr.forget(),
+          signedIn: setSeerrUser,
+        };
 
         // Quick Connect first, even with no stored password: an OIDC or Quick
         // Connect login to Jellyfin never had one, and this is the launch path
@@ -86,7 +94,7 @@ export const SeerrAutoLogin: React.FC = () => {
           stillCurrent,
         );
         if (quickConnected) {
-          setSeerrUser(quickConnected);
+          if (!handOverSeerrSession(quickConnected, handOver)) return;
           await deleteSeerrPassword(jellyfinUrl, userId).catch((e) =>
             writeToLog(
               "WARN",
@@ -104,8 +112,11 @@ export const SeerrAutoLogin: React.FC = () => {
         // the previous user's, and would sign the next one in as them.
         if (!stillCurrent()) return;
 
-        setSeerrUser(await seerr.login(username, password));
-        writeInfoLog("Seerr auto-login succeeded");
+        if (
+          handOverSeerrSession(await seerr.login(username, password), handOver)
+        ) {
+          writeInfoLog("Seerr auto-login succeeded");
+        }
       } catch (e) {
         // Silent on purpose: this runs unprompted at launch, so a failure
         // belongs in the log rather than as a toast over the home screen.

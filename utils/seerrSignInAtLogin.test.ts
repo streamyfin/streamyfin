@@ -1,5 +1,8 @@
 import type { User as SeerrUser } from "@/utils/seerr/types";
-import type { SeerrSignInAtLogin } from "./seerrSignInAtLogin";
+import type {
+  SeerrApiKeySignIn,
+  SeerrSignInAtLogin,
+} from "./seerrSignInAtLogin";
 
 const mockWriteErrorLog = jest.fn();
 
@@ -14,6 +17,7 @@ import {
   holdSeerrSignIn,
   seerrSignInsAtLoginAtom,
   signInToSeerrAtLogin,
+  signInToSeerrWithApiKey,
 } from "./seerrSignInAtLogin";
 
 const QUICK_CONNECTED = { id: 7 } as SeerrUser;
@@ -186,6 +190,110 @@ describe("signInToSeerrAtLogin", () => {
     expect(calls.signedIn).toEqual([]);
     expect(mockWriteErrorLog).toHaveBeenCalledWith(
       "Seerr sign-in at login failed: Seerr said no",
+    );
+  });
+});
+
+const WITH_KEY = { id: 9 } as SeerrUser;
+
+/** What each step of the API-key sign-in did. */
+interface KeyCalls {
+  usedKey: number;
+  forgot: number;
+  signedIn: SeerrUser[];
+}
+
+const keySteps = (
+  over: Partial<SeerrApiKeySignIn> = {},
+): { steps: SeerrApiKeySignIn; calls: KeyCalls } => {
+  const calls: KeyCalls = { usedKey: 0, forgot: 0, signedIn: [] };
+  return {
+    calls,
+    steps: {
+      quickConnect: async () => undefined,
+      loginWithApiKey: async () => {
+        calls.usedKey += 1;
+        return WITH_KEY;
+      },
+      forget: () => {
+        calls.forgot += 1;
+      },
+      stillCurrent: () => true,
+      signedIn: (user) => {
+        calls.signedIn.push(user);
+      },
+      ...over,
+    },
+  };
+};
+
+// JellyfinProvider runs it for each account whose plugin gives an API key. A
+// sign-out or an account switch clears the Seerr data, and a sign-in still on
+// its way would bring the previous account's session back for the next one.
+describe("signInToSeerrWithApiKey", () => {
+  beforeEach(() => mockWriteErrorLog.mockClear());
+
+  test("takes Quick Connect's session and never uses the key", async () => {
+    const { steps: s, calls } = keySteps({
+      quickConnect: async () => QUICK_CONNECTED,
+    });
+
+    await signInToSeerrWithApiKey(s);
+
+    expect(calls.signedIn).toEqual([QUICK_CONNECTED]);
+    expect(calls.usedKey).toBe(0);
+  });
+
+  test("signs in with the key when Quick Connect could not", async () => {
+    const { steps: s, calls } = keySteps();
+
+    await signInToSeerrWithApiKey(s);
+
+    expect(calls.signedIn).toEqual([WITH_KEY]);
+  });
+
+  test("uses no key for an account that has already left", async () => {
+    const { steps: s, calls } = keySteps({ stillCurrent: () => false });
+
+    await signInToSeerrWithApiKey(s);
+
+    expect(calls.usedKey).toBe(0);
+    expect(calls.signedIn).toEqual([]);
+  });
+
+  test("drops the session of an account that left while the key signed it in", async () => {
+    const { steps: s, calls } = keySteps({ stillCurrent: leavesAfter(1) });
+
+    await signInToSeerrWithApiKey(s);
+
+    expect(calls.usedKey).toBe(1);
+    expect(calls.forgot).toBe(1);
+    expect(calls.signedIn).toEqual([]);
+  });
+
+  test("drops Quick Connect's session for an account that left before it was handed over", async () => {
+    const { steps: s, calls } = keySteps({
+      quickConnect: async () => QUICK_CONNECTED,
+      stillCurrent: () => false,
+    });
+
+    await signInToSeerrWithApiKey(s);
+
+    expect(calls.forgot).toBe(1);
+    expect(calls.signedIn).toEqual([]);
+  });
+
+  test("logs a failed sign-in rather than throwing it", async () => {
+    const { steps: s } = keySteps({
+      loginWithApiKey: async () => {
+        throw new Error("Seerr said no");
+      },
+    });
+
+    await expect(signInToSeerrWithApiKey(s)).resolves.toBeUndefined();
+
+    expect(mockWriteErrorLog).toHaveBeenCalledWith(
+      "Seerr API-key sign-in failed: Seerr said no",
     );
   });
 });

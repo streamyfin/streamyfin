@@ -59,6 +59,29 @@ export interface SeerrSignInAtLogin {
   rememberPassword: () => void;
 }
 
+/**
+ * Hands a session to the app while the account it was opened for is still the
+ * one signed in, and drops it otherwise. Every sign-in stores its session as
+ * it opens, before the account can be checked again, and a sign-out or a
+ * switch meanwhile would leave the previous account's session to the next.
+ * True if handed over.
+ */
+export const handOverSeerrSession = (
+  user: SeerrUser,
+  {
+    stillCurrent,
+    forget,
+    signedIn,
+  }: Pick<SeerrSignInAtLogin, "stillCurrent" | "forget" | "signedIn">,
+): boolean => {
+  if (!stillCurrent()) {
+    forget();
+    return false;
+  }
+  signedIn(user);
+  return true;
+};
+
 export const signInToSeerrAtLogin = async (
   steps: SeerrSignInAtLogin,
 ): Promise<void> => {
@@ -68,14 +91,7 @@ export const signInToSeerrAtLogin = async (
     // on the device at all.
     const quickConnected = await steps.quickConnect();
     if (quickConnected) {
-      // Checked again, as after the password: Quick Connect checks the account
-      // before it stores the session, and the account can still move on
-      // before the session is handed over.
-      if (!steps.stillCurrent()) {
-        steps.forget();
-        return;
-      }
-      steps.signedIn(quickConnected);
+      handOverSeerrSession(quickConnected, steps);
       return;
     }
 
@@ -85,20 +101,54 @@ export const signInToSeerrAtLogin = async (
     const result = await steps.test();
     if (!result.isValid || !result.requiresPass) return;
 
-    // Checked on both sides of the call, as Quick Connect does: before, so an
-    // account that has left opens no session, and after, because login stores
-    // the session it opens before anyone can look.
+    // Checked before the call too, so an account that has left opens no
+    // session at all.
     if (!steps.stillCurrent()) return;
-    const user = await steps.login();
-    if (!steps.stillCurrent()) {
-      steps.forget();
-      return;
+    if (handOverSeerrSession(await steps.login(), steps)) {
+      steps.rememberPassword();
     }
-    steps.signedIn(user);
-    steps.rememberPassword();
   } catch (e) {
     writeErrorLog(
       `Seerr sign-in at login failed: ${e instanceof Error ? e.message : e}`,
+    );
+  }
+};
+
+/**
+ * The passwordless sign-in JellyfinProvider runs for an account whose plugin
+ * gives Seerr's admin API key: Quick Connect when a session api is there, the
+ * key otherwise.
+ */
+export interface SeerrApiKeySignIn {
+  /** Quick Connect, which needs no key. Undefined when it could not. */
+  quickConnect: () => Promise<SeerrUser | undefined>;
+  /** Resolves the account through the admin key, and stores the session. */
+  loginWithApiKey: () => Promise<SeerrUser>;
+  /** Drops the stored Seerr session, cookies included. */
+  forget: () => void;
+  /** Whether the account this started for is still the one signed in. */
+  stillCurrent: () => boolean;
+  /** Hands the session to the app. */
+  signedIn: (user: SeerrUser) => void;
+}
+
+export const signInToSeerrWithApiKey = async (
+  steps: SeerrApiKeySignIn,
+): Promise<void> => {
+  try {
+    const quickConnected = await steps.quickConnect();
+    if (quickConnected) {
+      handOverSeerrSession(quickConnected, steps);
+      return;
+    }
+
+    // The key is not replayed for an account that has since been left:
+    // resolved for the previous user, it would sign the next one in as them.
+    if (!steps.stillCurrent()) return;
+    handOverSeerrSession(await steps.loginWithApiKey(), steps);
+  } catch (e) {
+    writeErrorLog(
+      `Seerr API-key sign-in failed: ${e instanceof Error ? e.message : e}`,
     );
   }
 };
