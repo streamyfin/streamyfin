@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import { AxiosError, type AxiosResponse } from "axios";
-import { Pressable, Text } from "react-native";
+import { HeaderHeightContext } from "expo-router/react-navigation";
+import { Pressable, StyleSheet, Text } from "react-native";
 import { CompanionLoginScreen } from "@/components/companion/CompanionLoginScreen";
 import { quickConnectPairingUrl } from "@/utils/quickConnectPairing";
 
@@ -161,6 +162,46 @@ describe("CompanionLoginScreen", () => {
     expect(screen.getAllByText("1")).toHaveLength(2);
     expect(screen.getByText("7")).toBeTruthy();
   });
+
+  // The header floats over the screen on iOS. An automatic inset for it put
+  // the card in a box pushed down by the header's height, so the card sat low;
+  // the header's height on both sides keeps it mid-screen, as on every other
+  // step, and the title clear of the header when the keyboard is up.
+  test.each([
+    [
+      "a scanned code",
+      () =>
+        scan(quickConnectPairingUrl("http://jellyfin.local:8096", "123456")),
+    ],
+    [
+      "a typed code",
+      () =>
+        fireEvent.press(
+          screen.getByText("companion_login.enter_code_manually"),
+        ),
+    ],
+  ])(
+    "keeps the card for %s mid-screen under the header",
+    async (_label, open) => {
+      await render(
+        <HeaderHeightContext value={100}>
+          <CompanionLoginScreen />
+        </HeaderHeightContext>,
+      );
+      await open();
+
+      const card = screen.getByTestId("pairing-approval");
+      expect(card.props.contentInsetAdjustmentBehavior ?? "never").toBe(
+        "never",
+      );
+      const style = StyleSheet.flatten(card.props.contentContainerStyle);
+      const top = style.paddingTop ?? style.paddingVertical ?? style.padding;
+      const bottom =
+        style.paddingBottom ?? style.paddingVertical ?? style.padding;
+      expect(top).toBe(bottom);
+      expect(top).toBeGreaterThanOrEqual(100);
+    },
+  );
 
   // A second approval of the same code comes back as a 500 from Jellyfin,
   // which would turn a success into an error on screen.

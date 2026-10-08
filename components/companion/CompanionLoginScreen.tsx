@@ -1,7 +1,8 @@
 import axios from "axios";
+import { HeaderHeightContext } from "expo-router/react-navigation";
 import { useAtomValue } from "jotai";
 import type React from "react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   KeyboardAvoidingView,
@@ -68,6 +69,9 @@ export const CompanionLoginScreen: React.FC = () => {
   const [code, setCode] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const authorizingRef = useRef(false);
+  // The home stack draws a transparent header over the screen on iOS.
+  const headerHeight = useContext(HeaderHeightContext) ?? 0;
+  const headerInset = Platform.OS === "ios" ? headerHeight : 0;
 
   const server = serverLabel(api?.basePath ?? "");
 
@@ -323,13 +327,15 @@ export const CompanionLoginScreen: React.FC = () => {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <ScrollView
-          // The header is transparent on iOS: keep the title below it when the
-          // keyboard pushes the centered content up.
-          contentInsetAdjustmentBehavior='automatic'
+          testID='pairing-approval'
+          // The header's height on both sides keeps the card mid-screen, as on
+          // every other step, and the title below the header when the keyboard
+          // is up. An automatic inset pushed the card down by that height.
           contentContainerStyle={{
             flexGrow: 1,
             justifyContent: "center",
-            padding: 24,
+            paddingHorizontal: 24,
+            paddingVertical: 24 + headerInset,
           }}
           keyboardShouldPersistTaps='handled'
         >
