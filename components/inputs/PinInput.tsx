@@ -1,7 +1,7 @@
 import { BottomSheetTextInput } from "@gorhom/bottom-sheet";
-import React, { useCallback, useImperativeHandle, useRef } from "react";
-import { useTranslation } from "react-i18next";
+import React, { useCallback, useId, useImperativeHandle, useRef } from "react";
 import {
+  Pressable,
   type StyleProp,
   StyleSheet,
   Text,
@@ -10,6 +10,7 @@ import {
   View,
   type ViewStyle,
 } from "react-native";
+import { NO_KEYBOARD_TOOLBAR } from "@/constants/Keyboard";
 
 interface PinInputProps
   extends Omit<TextInputProps, "value" | "onChangeText" | "style"> {
@@ -29,6 +30,13 @@ export interface PinInputRef {
   focus: () => void;
 }
 
+/**
+ * Six cells over a hidden number field, for a PIN or a Quick Connect code.
+ *
+ * iOS shows no toolbar above its number pad, so the screen around it has to
+ * offer a way out of the keyboard: a button kept above it, or a
+ * DismissKeyboardArea.
+ */
 const PinInputComponent = React.forwardRef<PinInputRef, PinInputProps>(
   (props, ref) => {
     const {
@@ -42,9 +50,13 @@ const PinInputComponent = React.forwardRef<PinInputRef, PinInputProps>(
     } = props;
     const Input = inBottomSheet ? BottomSheetTextInput : TextInput;
 
-    const { t } = useTranslation();
     const inputRef = useRef<any>(null);
     const activeIndex = value.length;
+    // A new id on each mount. Fabric reuses a text input's native view and
+    // diffs the new props against the ones that view had: its reuse clears
+    // the id, so the same id again would never be set back.
+    const instanceId = useId();
+    const toolbarId = `${NO_KEYBOARD_TOOLBAR}-${instanceId}`;
 
     const handlePress = useCallback(() => {
       inputRef.current?.focus();
@@ -65,16 +77,23 @@ const PinInputComponent = React.forwardRef<PinInputRef, PinInputProps>(
           value={value}
           onChangeText={onChangeText}
           keyboardType='number-pad'
-          // iOS has no return key on the number pad, so React Native adds a
-          // toolbar whose button reads the return key type, "Default" in
-          // English, unless it is given a label.
-          inputAccessoryViewButtonLabel={t("common.ok")}
+          // react-native-tvos adds a toolbar with a "Default" button above
+          // every iOS number pad, which upstream React Native and native apps
+          // do not have. The sheets around this input keep their buttons above
+          // the keyboard, and a tap beside the field closes it.
+          inputAccessoryViewID={toolbarId}
           maxLength={length}
           style={styles.hiddenInput}
           autoFocus={autoFocus}
           {...rest}
         />
-        <View style={styles.cells} onTouchStart={handlePress}>
+        {/* A press of its own, so a tap that opens the keyboard does not
+            also reach an area that closes it. */}
+        <Pressable
+          accessible={false}
+          style={styles.cells}
+          onPress={handlePress}
+        >
           {Array(length)
             .fill(0)
             .map((_, i) => (
@@ -90,7 +109,7 @@ const PinInputComponent = React.forwardRef<PinInputRef, PinInputProps>(
                 {i === activeIndex && <View style={styles.cursor} />}
               </View>
             ))}
-        </View>
+        </Pressable>
       </View>
     );
   },

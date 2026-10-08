@@ -11,14 +11,17 @@ import { useAtom } from "jotai";
 import type React from "react";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+// React Native's Pressable rather than the gesture handler's: it takes the
+// touch, so a paste does not also reach the area that closes the keyboard.
 import {
   AccessibilityInfo,
   Alert,
   Platform,
+  Pressable,
   View,
   type ViewProps,
 } from "react-native";
-import { Pressable } from "react-native-gesture-handler";
+import { DismissKeyboardArea } from "@/components/common/DismissKeyboardArea";
 import { useHaptic } from "@/hooks/useHaptic";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { isConnectivityError } from "@/utils/errors";
@@ -202,58 +205,60 @@ export const QuickConnect: React.FC<Props> = ({ ...props }) => {
         topInset={isAndroid ? 0 : undefined}
       >
         <BottomSheetView>
-          <View className='flex flex-col space-y-4 px-4 pb-8 pt-2'>
-            <View>
-              <Text className='font-bold text-2xl text-neutral-100'>
-                {t("home.settings.quick_connect.quick_connect_title")}
-              </Text>
-            </View>
-            <View className='flex flex-col space-y-2'>
-              <View className='p-4 border border-neutral-800 rounded-xl bg-neutral-900 w-full space-y-4'>
-                <Text className='text-neutral-400 text-center'>
-                  {t(
-                    "home.settings.quick_connect.enter_the_quick_connect_code",
-                  )}
+          <DismissKeyboardArea>
+            <View className='flex flex-col space-y-4 px-4 pb-8 pt-2'>
+              <View>
+                <Text className='font-bold text-2xl text-neutral-100'>
+                  {t("home.settings.quick_connect.quick_connect_title")}
                 </Text>
-                <PinInput
-                  testID='quick-connect-code'
-                  value={quickConnectCode}
-                  onChangeText={handleCodeChange}
-                  // Locked while the code shown is the one being checked.
-                  editable={!authorizing}
-                  length={CODE_LENGTH}
-                  style={{ paddingHorizontal: 16 }}
-                  autoFocus
-                />
-                {error && (
-                  <Text
-                    className='text-red-500 text-center'
-                    accessibilityLiveRegion='polite'
-                  >
-                    {error}
-                  </Text>
-                )}
-                <Pressable
-                  onPress={pasteCode}
-                  className='flex-row items-center justify-center self-center'
-                >
-                  <Feather name='clipboard' size={15} color='#a3a3a3' />
-                  <Text className='text-neutral-400 ml-2'>
-                    {t("home.settings.quick_connect.paste_code")}
-                  </Text>
-                </Pressable>
               </View>
+              <View className='flex flex-col space-y-2'>
+                <View className='p-4 border border-neutral-800 rounded-xl bg-neutral-900 w-full space-y-4'>
+                  <Text className='text-neutral-400 text-center'>
+                    {t(
+                      "home.settings.quick_connect.enter_the_quick_connect_code",
+                    )}
+                  </Text>
+                  <PinInput
+                    testID='quick-connect-code'
+                    value={quickConnectCode}
+                    onChangeText={handleCodeChange}
+                    // Locked while the code shown is the one being checked.
+                    editable={!authorizing}
+                    length={CODE_LENGTH}
+                    style={{ paddingHorizontal: 16 }}
+                    autoFocus
+                  />
+                  {error && (
+                    <Text
+                      className='text-red-500 text-center'
+                      accessibilityLiveRegion='polite'
+                    >
+                      {error}
+                    </Text>
+                  )}
+                  <Pressable
+                    onPress={pasteCode}
+                    className='flex-row items-center justify-center self-center'
+                  >
+                    <Feather name='clipboard' size={15} color='#a3a3a3' />
+                    <Text className='text-neutral-400 ml-2'>
+                      {t("home.settings.quick_connect.paste_code")}
+                    </Text>
+                  </Pressable>
+                </View>
+              </View>
+              <Button
+                className='mt-auto'
+                onPress={() => authorize(quickConnectCode)}
+                disabled={quickConnectCode.length !== CODE_LENGTH}
+                loading={authorizing}
+                color='purple'
+              >
+                {t("home.settings.quick_connect.authorize")}
+              </Button>
             </View>
-            <Button
-              className='mt-auto'
-              onPress={() => authorize(quickConnectCode)}
-              disabled={quickConnectCode.length !== CODE_LENGTH}
-              loading={authorizing}
-              color='purple'
-            >
-              {t("home.settings.quick_connect.authorize")}
-            </Button>
-          </View>
+          </DismissKeyboardArea>
         </BottomSheetView>
       </BottomSheetModal>
     </View>
