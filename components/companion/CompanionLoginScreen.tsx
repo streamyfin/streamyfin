@@ -78,7 +78,8 @@ export const CompanionLoginScreen: React.FC = () => {
   const authorizingRef = useRef(false);
   // A new id each time the screen opens: Fabric reuses a text input's native
   // view and sets the id on it again only when the id changed.
-  const toolbarId = `${NO_KEYBOARD_TOOLBAR}-${useId()}`;
+  const instanceId = useId();
+  const toolbarId = `${NO_KEYBOARD_TOOLBAR}-${instanceId}`;
   // The home stack draws a transparent header over the screen on iOS.
   const headerHeight = useContext(HeaderHeightContext) ?? 0;
   const headerInset = Platform.OS === "ios" ? headerHeight : 0;
