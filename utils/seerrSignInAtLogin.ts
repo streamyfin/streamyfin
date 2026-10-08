@@ -1,6 +1,40 @@
+import { atom } from "jotai";
 import type { TestResult } from "@/hooks/useSeerr";
 import { writeErrorLog } from "@/utils/log";
 import type { User as SeerrUser } from "@/utils/seerr/types";
+import { store } from "@/utils/store";
+
+// How many password sign-ins are signing each user in to Seerr, only users
+// with one listed. SeerrAutoLogin waits while the signed-in user is listed:
+// the plugin's Seerr address reaches it with that sign-in's refresh, and both
+// would otherwise run Quick Connect for the same user and race to open the
+// session.
+export const seerrSignInsAtLoginAtom = atom<ReadonlyMap<string, number>>(
+  new Map(),
+);
+
+// Counted rather than marked: two sign-ins for the same user can overlap and
+// end in any order, and the hold lasts until the last one ends. A sign-in
+// without a user holds nothing, and ending twice counts once.
+export const holdSeerrSignIn = (
+  userId: string | null | undefined,
+): (() => void) => {
+  if (!userId) return () => {};
+  const count = (by: number) => {
+    const held = new Map(store.get(seerrSignInsAtLoginAtom));
+    const left = (held.get(userId) ?? 0) + by;
+    if (left > 0) held.set(userId, left);
+    else held.delete(userId);
+    store.set(seerrSignInsAtLoginAtom, held);
+  };
+  count(1);
+  let ended = false;
+  return () => {
+    if (ended) return;
+    ended = true;
+    count(-1);
+  };
+};
 
 /**
  * Signing in to Seerr once a sign-in with the Jellyfin password succeeded.
