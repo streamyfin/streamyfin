@@ -610,6 +610,7 @@
         "all_files_deleted": "Kaikki lataukset poistettu onnistuneesti",
         "files_deleted_by_type": "{{count}} {{type}} poistettu",
         "could_not_get_download_url_for_item": "Latauksen URL-osoitetta ei voitu ladata {{itemName}}",
+        "no_media_source_to_download": "This item cannot be downloaded",
         "file_deleted": "{{item}} poistettu"
       }
     }
@@ -727,7 +728,8 @@
     "noData": "Suosikeiksi merkitsemäsi kohteet näkyvät täällä."
   },
   "custom_links": {
-    "no_links": "Ei Linkkejä"
+    "no_links": "Ei Linkkejä",
+    "could_not_open_link": "Could not open this link"
   },
   "player": {
     "live": "SUORA",

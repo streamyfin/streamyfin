@@ -2,11 +2,19 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { useAtom } from "jotai/index";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FlatList, Platform, TouchableOpacity, View } from "react-native";
+import {
+  FlatList,
+  Linking,
+  Platform,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { toast } from "sonner-native";
 import { Text } from "@/components/common/Text";
 import { ListItem } from "@/components/list/ListItem";
 import { apiAtom } from "@/providers/JellyfinProvider";
+import { openCustomLink } from "@/utils/customLinks";
 
 const WebBrowser = !Platform.isTV ? require("expo-web-browser") : null;
 
@@ -16,6 +24,8 @@ export interface MenuLink {
   icon: string;
 }
 
+// Spec: utils/customLinks.test.tsx. It cannot sit next to this file, Expo
+// Router turns everything under app/ into a route.
 export default function CustomLinksPage() {
   const [api] = useAtom(apiAtom);
   const insets = useSafeAreaInsets();
@@ -43,6 +53,21 @@ export default function CustomLinksPage() {
   useEffect(() => {
     getMenuLinks();
   }, []);
+
+  const openLink = useCallback(
+    async (url: string) => {
+      if (Platform.isTV) return;
+      const opened = await openCustomLink(url, {
+        browser: (address) => WebBrowser.openBrowserAsync(address),
+        system: (address) => Linking.openURL(address),
+      });
+      // A tap that does nothing reads as a broken app, when it is the address
+      // the admin entered that nothing can open.
+      if (!opened) toast.error(t("custom_links.could_not_open_link"));
+    },
+    [t],
+  );
+
   return (
     <FlatList
       contentInsetAdjustmentBehavior='automatic'
@@ -53,13 +78,7 @@ export default function CustomLinksPage() {
       }}
       data={menuLinks}
       renderItem={({ item }) => (
-        <TouchableOpacity
-          onPress={() => {
-            if (!Platform.isTV) {
-              WebBrowser.openBrowserAsync(item.url);
-            }
-          }}
-        >
+        <TouchableOpacity onPress={() => openLink(item.url)}>
           <ListItem
             title={item.name}
             iconAfter={<Ionicons name='link' size={24} color='white' />}

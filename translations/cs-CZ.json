@@ -610,6 +610,7 @@
         "all_files_deleted": "Všechna stažená data byla smazána",
         "files_deleted_by_type": "{{type}}: smazáno {{count}}",
         "could_not_get_download_url_for_item": "Nelze získat URL pro stažení {{itemName}}",
+        "no_media_source_to_download": "This item cannot be downloaded",
         "file_deleted": "{{item}} smazán"
       }
     }
@@ -727,7 +728,8 @@
     "noData": "Položky, které označíte jako oblíbené, se zde zobrazí."
   },
   "custom_links": {
-    "no_links": "Žádné odkazy"
+    "no_links": "Žádné odkazy",
+    "could_not_open_link": "Could not open this link"
   },
   "player": {
     "live": "ŽIVĚ",

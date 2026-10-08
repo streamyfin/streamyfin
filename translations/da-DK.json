@@ -610,6 +610,7 @@
         "all_files_deleted": "Alle downloads er slettet",
         "files_deleted_by_type": "{{count}} {{type}} slettet",
         "could_not_get_download_url_for_item": "Kunne ikke hente download URL til {{itemName}}",
+        "no_media_source_to_download": "This item cannot be downloaded",
         "file_deleted": "{{item}} slettet"
       }
     }
@@ -727,7 +728,8 @@
     "noData": "Elementer, du markerer som favoritter, vises her."
   },
   "custom_links": {
-    "no_links": "Ingen links"
+    "no_links": "Ingen links",
+    "could_not_open_link": "Could not open this link"
   },
   "player": {
     "live": "LIVE",

@@ -6,18 +6,25 @@ jest.mock(
   "react-native-mmkv",
   () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
 );
-// Ships as ES modules, which Jest does not load, and nothing here toasts.
-jest.mock("sonner-native", () => ({ toast: {} }));
+// Ships as ES modules, which Jest does not load.
+jest.mock("sonner-native", () => ({
+  toast: { error: (...args: unknown[]) => mockToastError(...args) },
+}));
 // The real log loads Sentry, whose timers keep Jest from exiting.
 jest.mock("@/utils/log", () => ({
   writeToLog: (...args: unknown[]) => mockWriteToLog(...args),
+  writeErrorLog: jest.fn(),
 }));
 // The settings atom imports the screens that edit it; the client reads none.
 jest.mock("@/utils/atoms/settings", () => ({ useSettings: () => ({}) }));
 
 const mockWriteToLog = jest.fn();
+const mockToastError = jest.fn();
 
-beforeEach(() => mockWriteToLog.mockClear());
+beforeEach(() => {
+  mockWriteToLog.mockClear();
+  mockToastError.mockClear();
+});
 
 // A Seerr that answers 200 with `body`, as the wire carries it: axios parses
 // it, and hands back a string it could not parse as it came.
@@ -70,5 +77,37 @@ describe("SeerrApi.discoverSettings", () => {
 
   test("has no sliders when the answer is empty", async () => {
     expect(await answering("").discoverSettings()).toEqual([]);
+  });
+});
+
+// A Seerr the device cannot reach from where it is.
+const unreachable = () => {
+  const api = new SeerrApi("https://seerr.example");
+  api.axios.defaults.adapter = async () => {
+    throw new Error("Network Error");
+  };
+  return api;
+};
+
+describe("SeerrApi.test", () => {
+  // The settings screen tests an address the user just typed and says when it
+  // fails. A sign-in tests the plugin's address without being asked, and must
+  // not toast over the home screen when that Seerr is out of reach.
+  test("says when the server cannot be reached", async () => {
+    jest.spyOn(console, "error").mockImplementation(() => {});
+    expect(await unreachable().test()).toEqual({
+      isValid: false,
+      requiresPass: false,
+    });
+    expect(mockToastError).toHaveBeenCalledTimes(1);
+  });
+
+  test("stays quiet when the caller asks it to", async () => {
+    jest.spyOn(console, "error").mockImplementation(() => {});
+    expect(await unreachable().test({ quiet: true })).toEqual({
+      isValid: false,
+      requiresPass: false,
+    });
+    expect(mockToastError).not.toHaveBeenCalled();
   });
 });

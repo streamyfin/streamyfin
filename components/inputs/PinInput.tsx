@@ -1,5 +1,6 @@
 import { BottomSheetTextInput } from "@gorhom/bottom-sheet";
 import React, { useCallback, useImperativeHandle, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import {
   type StyleProp,
   StyleSheet,
@@ -33,6 +34,7 @@ const PinInputComponent = React.forwardRef<PinInputRef, PinInputProps>(
       ...rest
     } = props;
 
+    const { t } = useTranslation();
     const inputRef = useRef<any>(null);
     const activeIndex = value.length;
 
@@ -55,6 +57,10 @@ const PinInputComponent = React.forwardRef<PinInputRef, PinInputProps>(
           value={value}
           onChangeText={onChangeText}
           keyboardType='number-pad'
+          // iOS has no return key on the number pad, so React Native adds a
+          // toolbar whose button reads the return key type, "Default" in
+          // English, unless it is given a label.
+          inputAccessoryViewButtonLabel={t("common.ok")}
           maxLength={length}
           style={styles.hiddenInput}
           autoFocus={autoFocus}

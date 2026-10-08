@@ -610,6 +610,7 @@
         "all_files_deleted": "Đã xóa tất cả bản tải xuống",
         "files_deleted_by_type": "Đã xóa {{count}} {{type}}",
         "could_not_get_download_url_for_item": "Không thể lấy URL tải xuống cho {{itemName}}",
+        "no_media_source_to_download": "This item cannot be downloaded",
         "file_deleted": "Đã xóa {{item}}"
       }
     }
@@ -727,7 +728,8 @@
     "noData": "Các mục bạn đánh dấu yêu thích sẽ hiển thị ở đây."
   },
   "custom_links": {
-    "no_links": "Chưa có liên kết"
+    "no_links": "Chưa có liên kết",
+    "could_not_open_link": "Could not open this link"
   },
   "player": {
     "live": "TRỰC TIẾP",

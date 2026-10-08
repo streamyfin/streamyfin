@@ -659,6 +659,10 @@ final class MPVLayerRenderer {
                 self.delegate?.renderer(self, didChangeLoading: true)
             }
 
+            // The audio session is applied off the main thread, and mpv must
+            // not open its audio output before that has finished.
+            PlayerAudioSession.shared.waitForPendingChanges()
+
             guard let handle = self.mpv else { return }
 
             self.apply(commands: preset.commands, on: handle)
@@ -753,7 +757,11 @@ final class MPVLayerRenderer {
             guard let self, let handle = self.mpv else { return }
             let status = mpv_set_property_string(handle, name, value)
             if status < 0 {
-                Logger.shared.log("Failed to set property \(name)=\(value) (\(status))", type: "Warn")
+                // The header list holds the Jellyfin token and the proxy auth
+                // headers, and this log reaches the exportable app log, so it is
+                // named without its value, as the Android module already does.
+                let shown = name == "http-header-fields" ? name : "\(name)=\(value)"
+                Logger.shared.log("Failed to set property \(shown) (\(status))", type: "Warn")
             }
         }
     }
@@ -1131,22 +1139,33 @@ final class MPVLayerRenderer {
     /// recorded what the HDMI route actually reported; this is that record.
     /// Channel labels are CoreAudio AudioChannelLabel values (1=L, 2=R, 3=C,
     /// 4=LFE, 5=Ls, 6=Rs, ...; 0xFFFFFFFF=unknown; 0x1000N=discrete N).
+    ///
+    /// Read off the main thread: each of these getters can be a synchronous
+    /// round trip to the audio server, and the route change notification
+    /// arrives on main. One of them held it for 3 seconds there (Sentry
+    /// REACT-NATIVE-3G). A queue of its own, so a slow read never delays the
+    /// session changes playback waits for.
     private func logAudioRoute(_ reason: String) {
-        let session = AVAudioSession.sharedInstance()
-        let outputs = session.currentRoute.outputs.map { port -> String in
-            let channels = port.channels ?? []
-            let labels = channels.map { String($0.channelLabel) }.joined(separator: ",")
-            return "\(port.portType.rawValue)(\(channels.count)ch labels=[\(labels)])"
+        Self.audioRouteLogQueue.async {
+            let session = AVAudioSession.sharedInstance()
+            let outputs = session.currentRoute.outputs.map { port -> String in
+                let channels = port.channels ?? []
+                let labels = channels.map { String($0.channelLabel) }.joined(separator: ",")
+                return "\(port.portType.rawValue)(\(channels.count)ch labels=[\(labels)])"
+            }
+            Logger.shared.log(
+                "Audio route (\(reason)): outputs=\(outputs.joined(separator: " + ")) "
+                    + "outputChannels=\(session.outputNumberOfChannels) "
+                    + "maxChannels=\(session.maximumOutputNumberOfChannels) "
+                    + "sampleRate=\(Int(session.sampleRate)) "
+                    + "outputLatency=\(Int(session.outputLatency * 1000))ms",
+                type: "Info"
+            )
         }
-        Logger.shared.log(
-            "Audio route (\(reason)): outputs=\(outputs.joined(separator: " + ")) "
-                + "outputChannels=\(session.outputNumberOfChannels) "
-                + "maxChannels=\(session.maximumOutputNumberOfChannels) "
-                + "sampleRate=\(Int(session.sampleRate)) "
-                + "outputLatency=\(Int(session.outputLatency * 1000))ms",
-            type: "Info"
-        )
     }
+
+    /// Serial, so the route lines keep the order they were requested in.
+    private static let audioRouteLogQueue = DispatchQueue(label: "mpv.audio-route-log", qos: .utility)
 
     private func getStringProperty(handle: OpaquePointer, name: String) -> String? {
         var result: String?
@@ -1188,6 +1207,12 @@ final class MPVLayerRenderer {
     // MARK: - Playback Controls
     
     func play() {
+        // Same order as when the session was activated inline on the main
+        // thread: active first, then unpause, or the audio unit fails to start
+        // against an inactive session.
+        onQueue {
+            PlayerAudioSession.shared.waitForPendingChanges()
+        }
         setProperty(name: "pause", value: "no")
     }
     
