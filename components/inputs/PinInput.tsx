@@ -1,5 +1,5 @@
 import { BottomSheetTextInput } from "@gorhom/bottom-sheet";
-import React, { useCallback, useImperativeHandle, useRef } from "react";
+import React, { useCallback, useId, useImperativeHandle, useRef } from "react";
 import {
   Pressable,
   type StyleProp,
@@ -44,6 +44,10 @@ const PinInputComponent = React.forwardRef<PinInputRef, PinInputProps>(
 
     const inputRef = useRef<any>(null);
     const activeIndex = value.length;
+    // A new id on each mount. Fabric reuses a text input's native view and
+    // diffs the new props against the ones that view had: its reuse clears
+    // the id, so the same id again would never be set back.
+    const toolbarId = `${NO_KEYBOARD_TOOLBAR}-${useId()}`;
 
     const handlePress = useCallback(() => {
       inputRef.current?.focus();
@@ -68,7 +72,7 @@ const PinInputComponent = React.forwardRef<PinInputRef, PinInputProps>(
           // every iOS number pad, which upstream React Native and native apps
           // do not have. The sheets around this input keep their buttons above
           // the keyboard, and a tap beside the field closes it.
-          inputAccessoryViewID={NO_KEYBOARD_TOOLBAR}
+          inputAccessoryViewID={toolbarId}
           maxLength={length}
           style={styles.hiddenInput}
           autoFocus={autoFocus}

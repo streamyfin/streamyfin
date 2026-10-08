@@ -18,7 +18,24 @@ describe("PinInput", () => {
     await render(<PinInput testID='pin' value='' onChangeText={() => {}} />);
     const input = screen.getByTestId("pin");
 
-    expect(input.props.inputAccessoryViewID).toBe(NO_KEYBOARD_TOOLBAR);
+    expect(input.props.inputAccessoryViewID).toMatch(
+      new RegExp(`^${NO_KEYBOARD_TOOLBAR}`),
+    );
+  });
+
+  // Fabric reuses a text input's native view and diffs the new props against
+  // the ones that view had. Its reuse clears the id, so the same id again is
+  // never set back and the toolbar returns from the second opening on.
+  test("names another accessory view each time it mounts", async () => {
+    const pin = <PinInput testID='pin' value='' onChangeText={() => {}} />;
+    const { unmount } = await render(pin);
+    const first = screen.getByTestId("pin").props.inputAccessoryViewID;
+    await unmount();
+    await render(pin);
+
+    expect(screen.getByTestId("pin").props.inputAccessoryViewID).not.toBe(
+      first,
+    );
   });
 
   // A tap on the sheet around the field closes the keyboard, so a tap on the
