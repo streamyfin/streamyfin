@@ -41,6 +41,7 @@ import {
   useJellyfin,
   userAtom,
 } from "@/providers/JellyfinProvider";
+import { useSyncPlay } from "@/providers/SyncPlayProvider";
 import {
   AudioTranscodeMode,
   defaultValues,
@@ -87,6 +88,7 @@ export default function SettingsTV() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { settings, updateSettings, pluginSettings } = useSettings();
+  const { available: syncPlayAvailable } = useSyncPlay();
   const { logout, loginWithSavedCredential, loginWithPassword } = useJellyfin();
   const [user] = useAtom(userAtom);
   const [api] = useAtom(apiAtom);
@@ -837,6 +839,19 @@ export default function SettingsTV() {
             disabled={!hasOtherAccounts || isAnyModalOpen}
             isFirst
           />
+
+          {syncPlayAvailable && (
+            <>
+              <TVSectionHeader title={t("syncplay.title")} />
+              <TVSettingsToggle
+                label={t("syncplay.ignore_wait")}
+                value={settings.syncPlayIgnoreWait}
+                onToggle={(value) =>
+                  updateSettings({ syncPlayIgnoreWait: value })
+                }
+              />
+            </>
+          )}
 
           {/* Security Section */}
           <TVSectionHeader title={t("home.settings.security.title")} />

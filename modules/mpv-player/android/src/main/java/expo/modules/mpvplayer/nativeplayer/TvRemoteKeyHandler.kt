@@ -17,6 +17,10 @@ class TvRemoteKeyHandler(
         if (keyCode == KeyEvent.KEYCODE_BACK) {
             if (action == KeyEvent.ACTION_UP && repeatCount == 0) {
                 when {
+                    // An entry's page is one step inside the panel.
+                    viewModel.showSyncPlayQueue && viewModel.syncPlayEntryMenu != null ->
+                        viewModel.syncPlayEntryMenu = null
+                    viewModel.showSyncPlayQueue -> viewModel.closeSyncPlayQueue()
                     viewModel.showExitConfirmation -> {
                         viewModel.dismissExitConfirmation()
                     }
@@ -103,13 +107,15 @@ class TvRemoteKeyHandler(
             }
             KeyEvent.KEYCODE_MEDIA_PREVIOUS -> {
                 if (action == KeyEvent.ACTION_UP && repeatCount == 0) {
-                    viewModel.seekTo(0.0)
+                    if (viewModel.syncPlayActive) viewModel.playPreviousEpisode()
+                    else viewModel.seekTo(0.0)
                 }
                 return true
             }
             KeyEvent.KEYCODE_MEDIA_STOP -> {
                 if (action == KeyEvent.ACTION_UP && repeatCount == 0) {
-                    viewModel.requestExitConfirmation()
+                    if (viewModel.syncPlayActive) viewModel.syncPlayAction("stop")
+                    else viewModel.requestExitConfirmation()
                 }
                 return true
             }
@@ -162,7 +168,9 @@ class TvRemoteKeyHandler(
                                 PlayerConstants.TV_SCRUB_ACCEL_MAX_MULTIPLIER
                             )
                             viewModel.nudgeScrub(-viewModel.uiOptions.seekBackwardSec * mult)
-                        } else {
+                        } else if (!viewModel.syncPlayActive || repeatCount == 0) {
+                            // A held key repeats about 20 times a second, and in
+                            // a group every one would be a seek for everyone.
                             viewModel.seekBy(-viewModel.uiOptions.seekBackwardSec)
                             viewModel.flashSeekFeedback()
                         }
@@ -177,7 +185,7 @@ class TvRemoteKeyHandler(
                                 PlayerConstants.TV_SCRUB_ACCEL_MAX_MULTIPLIER
                             )
                             viewModel.nudgeScrub(viewModel.uiOptions.seekForwardSec * mult)
-                        } else {
+                        } else if (!viewModel.syncPlayActive || repeatCount == 0) {
                             viewModel.seekBy(viewModel.uiOptions.seekForwardSec)
                             viewModel.flashSeekFeedback()
                         }

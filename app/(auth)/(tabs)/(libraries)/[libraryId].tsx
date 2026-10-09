@@ -21,7 +21,7 @@ import {
   useNavigation,
 } from "expo-router";
 import { useHeaderHeight } from "expo-router/react-navigation";
-import { useAtom } from "jotai";
+import { useAtom, useSetAtom } from "jotai";
 import React, {
   useCallback,
   useEffect,
@@ -64,6 +64,7 @@ import { TAB_HEIGHT } from "@/constants/Values";
 import useRouter from "@/hooks/useAppRouter";
 import { useFilterReset } from "@/hooks/useFilterReset";
 import { useLanguageFilters } from "@/hooks/useLanguageFilters";
+import { useLibraryFilters } from "@/hooks/useLibraryFilters";
 import { useLibraryPlayQueue } from "@/hooks/useLibraryPlayQueue";
 import { useLibraryTabs } from "@/hooks/useLibraryTabs";
 import { useOrientation } from "@/hooks/useOrientation";
@@ -77,6 +78,7 @@ import {
   FilterByOption,
   FilterByPreferenceAtom,
   filterByAtom,
+  filterOwnerAtom,
   genreFilterAtom,
   genrePreferenceAtom,
   getFilterByPreference,
@@ -186,6 +188,13 @@ const Page = () => {
   const [sortBy, _setSortBy] = useAtom(sortByAtom);
   const [filterBy, _setFilterBy] = useAtom(filterByAtom);
   const [sortOrder, _setSortOrder] = useAtom(sortOrderAtom);
+  const setFilterOwner = useSetAtom(filterOwnerAtom);
+  // What the item query runs on. The atoms above are shared with every other
+  // library screen and only hold this library's selection once the focus
+  // effect below has written it, so the query waits for that instead of
+  // fetching with whatever they held before. Covered by
+  // hooks/useLibraryFilters.test.tsx.
+  const ownFilters = useLibraryFilters(libraryId);
   const [sortByPreference, setSortByPreference] = useAtom(sortByPreferenceAtom);
   const [filterByPreference, setFilterByPreference] = useAtom(
     FilterByPreferenceAtom,
@@ -335,6 +344,9 @@ const Page = () => {
       setSelectedSubtitleLanguages(
         getMultiFilterPreference(libraryId, subtitleLanguagePreference),
       );
+
+      // Last, and in the same batch: from here on the atoms are this library's.
+      setFilterOwner(libraryId);
     }, [
       libraryId,
       sortOrderPreference,
@@ -353,6 +365,7 @@ const Page = () => {
       setSelectedTags,
       setSelectedAudioLanguages,
       setSelectedSubtitleLanguages,
+      setFilterOwner,
       searchParams.sortBy,
       searchParams.sortOrder,
       searchParams.filterBy,
@@ -528,21 +541,23 @@ const Page = () => {
   }, [navigation, fromSeeAll]);
 
   // The filter atoms are global, and the collection or playlist opened from a
-  // tab rewrites them while this screen stays mounted underneath. A tab that
-  // ignores the filter bar must not follow them: it would refetch what it
+  // tab rewrites them while this screen stays mounted underneath. So the query
+  // runs on the selection this library holds for itself, and a tab that
+  // ignores the filter bar leaves even that out: it would refetch what it
   // already has and lose its scroll position.
-  const filterKey = hasFilterBar
-    ? [
-        selectedGenres,
-        selectedYears,
-        selectedTags,
-        selectedAudioLanguages,
-        selectedSubtitleLanguages,
-        sortBy,
-        sortOrder,
-        filterBy,
-      ]
-    : [];
+  const filterKey =
+    hasFilterBar && ownFilters
+      ? [
+          ownFilters.genres,
+          ownFilters.years,
+          ownFilters.tags,
+          ownFilters.audioLanguages,
+          ownFilters.subtitleLanguages,
+          ownFilters.sortBy,
+          ownFilters.sortOrder,
+          ownFilters.filterBy,
+        ]
+      : [];
 
   // Identifies the result set on screen. A change of tab, filters or sort,
   // reset included, has to show its results from the top instead of staying
@@ -585,40 +600,30 @@ const Page = () => {
     () =>
       alphabetJumpParams(
         jumpLetter,
-        sortOrder[0] === SortOrderOption.Descending,
+        ownFilters?.sortOrder[0] === SortOrderOption.Descending,
       ),
-    [jumpLetter, sortOrder],
+    [jumpLetter, ownFilters?.sortOrder],
   );
 
   // What the filter bar selects. The grid and the Play All / Shuffle queue
-  // are both built from it, so they cannot drift apart.
+  // are both built from it, so they cannot drift apart. Null until the
+  // library has a selection of its own: nothing is asked for before that.
   const libraryFilter = useMemo(
-    (): LibraryItemsFilter => ({
-      userId: user?.Id,
-      libraryId,
-      collectionType: library?.CollectionType,
-      sortBy: sortBy[0],
-      sortOrder: sortOrder[0],
-      filterBy: filterBy as ItemFilter[],
-      genres: selectedGenres,
-      years: selectedYears,
-      tags: selectedTags,
-      audioLanguages: selectedAudioLanguages,
-      subtitleLanguages: selectedSubtitleLanguages,
-    }),
-    [
-      user?.Id,
-      libraryId,
-      library?.CollectionType,
-      selectedGenres,
-      selectedYears,
-      selectedTags,
-      selectedAudioLanguages,
-      selectedSubtitleLanguages,
-      sortBy,
-      sortOrder,
-      filterBy,
-    ],
+    (): LibraryItemsFilter | null =>
+      ownFilters && {
+        userId: user?.Id,
+        libraryId,
+        collectionType: library?.CollectionType,
+        sortBy: ownFilters.sortBy[0],
+        sortOrder: ownFilters.sortOrder[0],
+        filterBy: ownFilters.filterBy as ItemFilter[],
+        genres: ownFilters.genres,
+        years: ownFilters.years,
+        tags: ownFilters.tags,
+        audioLanguages: ownFilters.audioLanguages,
+        subtitleLanguages: ownFilters.subtitleLanguages,
+      },
+    [user?.Id, libraryId, library?.CollectionType, ownFilters],
   );
 
   const fetchItems = useCallback(
@@ -627,7 +632,7 @@ const Page = () => {
     }: {
       pageParam: number;
     }): Promise<BaseItemDtoQueryResult | null> => {
-      if (!api || !library) return null;
+      if (!api || !library || !libraryFilter) return null;
 
       // The filter bar's part comes from the filter Play All queues from, so
       // the two cannot drift apart. A collections or playlists tab swaps it,
@@ -698,7 +703,7 @@ const Page = () => {
         return undefined;
       },
       initialPageParam: 0,
-      enabled: !!api && !!user?.Id && !!library,
+      enabled: !!api && !!user?.Id && !!library && !!libraryFilter,
     });
 
   // A list of this library on its way for the first time. With a letter
@@ -1360,7 +1365,13 @@ const Page = () => {
   // TV it stays mounted in any case: a filter picked in a sheet reloads the
   // list, and a toolbar mounted again hands the focus to its first button
   // instead of back to the one that opened the sheet.
-  if (isLibraryLoading || (isLoading && !hasTabs && !Platform.isTV))
+  // Without its filters the query has not started, which is not an empty
+  // library.
+  if (
+    isLibraryLoading ||
+    !ownFilters ||
+    (isLoading && !hasTabs && !Platform.isTV)
+  )
     return (
       <View className='w-full h-full flex items-center justify-center'>
         <Loader />

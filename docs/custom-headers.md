@@ -37,6 +37,15 @@ back (masked) so a header can be corrected without retyping all of them.
   (`utils/customHeaders/integrations.ts`).
 - Removing a server, or a header row, deletes the SecureStore values behind it.
 
+Values are stored with `AFTER_FIRST_UNLOCK`. iOS can launch the app in the
+background while the phone is locked, and the default accessibility, readable
+only while unlocked, makes every read throw there. The accessibility is fixed
+when an item is created, so on iOS the values 0.55.1 and earlier stored are
+stored again as new items, under new keys, at the first launch on which they
+can be read (`makeServerHeadersReadableWhileLocked`,
+`makeIntegrationHeadersReadableWhileLocked`). Until that launch, and before the
+first unlock after a restart, a background launch still cannot read them.
+
 `customHeadersVersionAtom` is bumped on every write. Anything that builds a
 long-lived client from the headers (the Seerr client, image sources)
 depends on it, so an edit applies without a restart — and it also invalidates

@@ -25,6 +25,8 @@ import { PlayedStatus } from "@/components/PlayedStatus";
 import { SimilarItems } from "@/components/SimilarItems";
 import { CurrentSeries } from "@/components/series/CurrentSeries";
 import { SeasonEpisodesCarousel } from "@/components/series/SeasonEpisodesCarousel";
+import { SyncPlayButton } from "@/components/syncplay/SyncPlayButton";
+import { SyncPlayQueueButton } from "@/components/syncplay/SyncPlayQueueButton";
 import { LOGO_HEIGHT } from "@/constants/Images";
 import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
 import { useImageColorsReturn } from "@/hooks/useImageColorsReturn";
@@ -177,6 +179,11 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
           item && (
             <HeaderButtonGroup>
               <Chromecast.Chromecast />
+              {/* A group plays from the server: a downloaded copy has
+                  nothing to start one with. */}
+              {item.Type !== "Program" && !isOffline && (
+                <SyncPlayButton items={[item]} title={item.Name} />
+              )}
               {item.Type !== "Program" && (
                 <>
                   {!Platform.isTV && (
@@ -217,6 +224,7 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
     navigation,
     user,
     itemWithSources,
+    isOffline,
     settings.hideRemoteSessionButton,
     settings.streamyStatsServerUrl,
     settings.hideWatchlistsTab,
@@ -296,6 +304,15 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
                   disabled={isVersionPending}
                 />
                 <View className='w-1' />
+                <SyncPlayQueueButton
+                  items={[item]}
+                  color={itemColors.primary}
+                  iconColor={itemColors.text}
+                  // Its own gap to the next button, the one Play has: it is
+                  // only there in a group, so a spacer in the row would be
+                  // there always.
+                  trailingGap={12}
+                />
                 {!isOffline && (
                   <MediaSourceButton
                     selectedOptions={selectedOptions}

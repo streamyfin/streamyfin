@@ -187,23 +187,17 @@ export const usePlaybackManager = ({
   ]);
 
   /**
-   * Reports playback progress.
-   *
-   * - If offline and the item is downloaded, updates are saved locally.
-   * - If online and the item is downloaded, it updates locally and syncs with the server.
-   * - If online and streaming, it reports directly to the server.
-   *
-   * @param itemId The ID of the item.
-   * @param positionTicks The current playback position in ticks.
+   * Writes progress to the downloads database when the item is downloaded.
+   * Synchronous, so a caller that queues its server reports can still save
+   * the resume position at once.
    */
-  const reportPlaybackProgress = async (
+  const saveLocalPlaybackProgress = (
     playbackProgressInfo: PlaybackProgressInfo,
   ) => {
     const positionTicks = playbackProgressInfo.PositionTicks || 0;
     const itemId = playbackProgressInfo.ItemId!;
     const localItem = getDownloadedItemById(itemId);
 
-    // Handle local state update for downloaded items
     if (localItem) {
       const runTimeTicks = localItem.item.RunTimeTicks ?? 0;
       const playedPercentage =
@@ -243,17 +237,37 @@ export const usePlaybackManager = ({
       queryClient.invalidateQueries({ queryKey: ["item", itemId] });
       queryClient.invalidateQueries({ queryKey: ["episodes"] });
     }
+  };
 
-    // Handle remote state update if online
+  /** Reports progress to the server when online. Never throws. */
+  const reportRemotePlaybackProgress = async (
+    playbackProgressInfo: PlaybackProgressInfo,
+    signal?: AbortSignal,
+  ) => {
     if (isOnline && api) {
       try {
-        await getPlaystateApi(api).reportPlaybackProgress({
-          playbackProgressInfo,
-        });
+        await getPlaystateApi(api).reportPlaybackProgress(
+          { playbackProgressInfo },
+          { signal },
+        );
       } catch (error) {
         console.error("Failed to report playback progress", error);
       }
     }
+  };
+
+  /**
+   * Reports playback progress.
+   *
+   * - If offline and the item is downloaded, updates are saved locally.
+   * - If online and the item is downloaded, it updates locally and syncs with the server.
+   * - If online and streaming, it reports directly to the server.
+   */
+  const reportPlaybackProgress = async (
+    playbackProgressInfo: PlaybackProgressInfo,
+  ) => {
+    saveLocalPlaybackProgress(playbackProgressInfo);
+    await reportRemotePlaybackProgress(playbackProgressInfo);
   };
 
   /**
@@ -348,6 +362,8 @@ export const usePlaybackManager = ({
 
   return {
     reportPlaybackProgress,
+    saveLocalPlaybackProgress,
+    reportRemotePlaybackProgress,
     markItemPlayed,
     markItemUnplayed,
     previousItem,

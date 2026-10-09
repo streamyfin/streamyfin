@@ -27,8 +27,9 @@ import { getWebSocketUrl } from "@/utils/jellyfin/getWebSocketUrl";
 import { supportedCommands } from "@/utils/jellyfin/playbackModes";
 import {
   createSocketFailureRecorder,
-  reportSocketGiveUp,
+  reportSocketFastRetriesExhausted,
 } from "@/utils/jellyfin/socketFailure";
+import { SocketLifecycle } from "@/utils/jellyfin/socketLifecycle";
 import { logAndCaptureError, writeErrorLog } from "@/utils/log";
 
 // Query keys that depend on the set of library items and should be refreshed
@@ -93,6 +94,8 @@ interface WebSocketContextType {
   ) => () => void;
   sendMessage: (message: any) => void;
   clearLastMessage: () => void;
+  /** Native playback owns whether backgrounding leaves its SyncPlay group. */
+  retainInBackground: () => () => void;
 }
 
 const WebSocketContext = createContext<WebSocketContextType | null>(null);
@@ -108,10 +111,8 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
   const api = useAtomValue(apiAtom);
   const { isConnected: isNetworkConnected, serverConnected } =
     useNetworkStatus();
-  // The give-up report fires at most once per session: after the first
-  // exhaustion the attempt counter stays maxed, so every later foreground/
-  // network flip would re-trigger it.
-  const reportedSocketGiveUpRef = useRef(false);
+  // Report a failed fast retry window once; recovery keeps retrying slowly.
+  const reportedSocketRetryExhaustionRef = useRef(false);
   // The server localizes what it sends over the socket from the language of
   // the handshake, so a new language needs a new socket. useTranslation is
   // what re-renders this provider when the language changes.
@@ -119,8 +120,16 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
   const acceptLanguage = getAcceptLanguage();
   const serverConnectedRef = useRef(serverConnected);
   serverConnectedRef.current = serverConnected;
+  const previousServerConnectedRef = useRef(serverConnected);
   const [ws, setWs] = useState<WebSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
+  const [socketLifecycle] = useState(
+    () =>
+      new SocketLifecycle(
+        () => AppState.currentState,
+        () => setIsConnected(false),
+      ),
+  );
   const [lastMessage, setLastMessage] = useState<WebSocketMessage | null>(null);
   const queryClient = useNetworkAwareQueryClient();
   const deviceId = useMemo(() => {
@@ -133,12 +142,6 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
   const userDataChangeDebounceRef = useRef<ReturnType<
     typeof setTimeout
   > | null>(null);
-  // Handle for the onerror backoff timer. Tracked so a reconnect triggered by
-  // another path (foreground, network reconnect, effect re-run) can cancel a
-  // pending one — an untracked timer would later open a second socket.
-  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
-    null,
-  );
 
   // Pub/sub registry: messageType -> set of handlers. Stored in a ref so
   // subscribing/dispatching never triggers a re-render.
@@ -194,12 +197,14 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
     // Cancel any reconnect queued by a previous onerror before opening a new
     // socket, so we never end up with two live sockets — each would double the
     // message fan-out and double-invalidate queries.
-    if (reconnectTimeoutRef.current) {
-      clearTimeout(reconnectTimeoutRef.current);
-      reconnectTimeoutRef.current = null;
-    }
+    socketLifecycle.cancelReconnect();
 
-    if (!deviceId || !api?.accessToken || !isNetworkConnected) {
+    if (
+      !deviceId ||
+      !api?.accessToken ||
+      !isNetworkConnected ||
+      !socketLifecycle.canConnect()
+    ) {
       return;
     }
 
@@ -224,69 +229,83 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
           headers,
         })
       : new WebSocket(url);
+    socketLifecycle.setSocket(newWebSocket);
     let keepAliveInterval: ReturnType<typeof setInterval> | null = null;
 
-    const maxReconnectAttempts = 5;
-    const reconnectDelay = 10000;
+    const fastReconnectAttempts = 5;
+    const fastReconnectDelay = 10000;
+    const slowReconnectDelay = 60000;
 
     newWebSocket.onopen = () => {
+      if (!socketLifecycle.isCurrent(newWebSocket)) return;
       setIsConnected(true);
       reconnectAttemptsRef.current = 0;
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current);
-        reconnectTimeoutRef.current = null;
-      }
+      socketLifecycle.cancelReconnect();
       keepAliveInterval = setInterval(() => {
-        if (newWebSocket.readyState === WebSocket.OPEN) {
-          newWebSocket.send(JSON.stringify({ MessageType: "KeepAlive" }));
-        }
+        socketLifecycle.sendKeepAlive(newWebSocket);
       }, 30000);
     };
 
     const failure = createSocketFailureRecorder();
 
+    const scheduleReconnect = () => {
+      if (
+        !socketLifecycle.isCurrent(newWebSocket) ||
+        socketLifecycle.hasPendingReconnect()
+      )
+        return;
+      const fastRetriesExhausted =
+        reconnectAttemptsRef.current >= fastReconnectAttempts;
+      if (
+        fastRetriesExhausted &&
+        serverConnectedRef.current === true &&
+        !reportedSocketRetryExhaustionRef.current
+      ) {
+        // The close event following an error supplies the failure reason.
+        // Keep proxy refusals out of reports, and continue capped slow retries.
+        reportedSocketRetryExhaustionRef.current = true;
+        setTimeout(() => {
+          if (socketLifecycle.isCurrent(newWebSocket))
+            reportSocketFastRetriesExhausted(failure.describe());
+        }, 0);
+      }
+      if (
+        socketLifecycle.scheduleReconnect(
+          newWebSocket,
+          fastRetriesExhausted ? slowReconnectDelay : fastReconnectDelay,
+          connectWebSocket,
+        )
+      )
+        reconnectAttemptsRef.current = Math.min(
+          fastReconnectAttempts,
+          reconnectAttemptsRef.current + 1,
+        );
+    };
+
     newWebSocket.onerror = (event) => {
+      if (!socketLifecycle.isCurrent(newWebSocket)) return;
       // Don't log errors - this is expected when offline or server unreachable
       setIsConnected(false);
       failure.error(event);
-
-      // Replace any still-pending reconnect so only one is ever queued; the
-      // previously untracked handle could leak and open a second socket.
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current);
-      }
-      if (reconnectAttemptsRef.current < maxReconnectAttempts) {
-        reconnectAttemptsRef.current++;
-        reconnectTimeoutRef.current = setTimeout(() => {
-          reconnectTimeoutRef.current = null;
-          connectWebSocket();
-        }, reconnectDelay);
-      } else if (
-        serverConnectedRef.current === true &&
-        !reportedSocketGiveUpRef.current
-      ) {
-        // All retries burned while the SERVER is reachable (a real probe,
-        // not just device connectivity): the server itself is rejecting the
-        // socket, which silently kills remote control and live updates
-        // until the next app foreground. Reported on the next tick: the
-        // close event that follows this one is what brings the reason, and
-        // the reason is what keeps every proxy that drops the upgrade from
-        // piling onto the real bugs.
-        reportedSocketGiveUpRef.current = true;
-        setTimeout(() => reportSocketGiveUp(failure.describe()), 0);
-      }
+      scheduleReconnect();
     };
 
     newWebSocket.onclose = (event) => {
       if (keepAliveInterval) {
         clearInterval(keepAliveInterval);
       }
+      if (!socketLifecycle.isCurrent(newWebSocket)) return;
       setIsConnected(false);
       failure.close(event);
+      scheduleReconnect();
     };
     newWebSocket.onmessage = (e) => {
+      if (!socketLifecycle.isCurrent(newWebSocket)) return;
       try {
         const message = JSON.parse(e.data);
+        // Native PiP/backgrounding can suspend JS interval timers. Respond
+        // in the message handler rather than wait for the next heartbeat.
+        socketLifecycle.respondToKeepAlive(newWebSocket, message.MessageType);
         // Legacy single-slot state, still consumed by useWebsockets.
         setLastMessage(message);
         // Pub/sub: deliver to every subscriber without coalescing.
@@ -301,13 +320,16 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
       if (keepAliveInterval) {
         clearInterval(keepAliveInterval);
       }
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current);
-        reconnectTimeoutRef.current = null;
-      }
-      newWebSocket.close();
+      socketLifecycle.closeSocket(newWebSocket);
     };
-  }, [api, deviceId, isNetworkConnected, dispatchMessage, acceptLanguage]);
+  }, [
+    api,
+    deviceId,
+    isNetworkConnected,
+    dispatchMessage,
+    socketLifecycle,
+    acceptLanguage,
+  ]);
 
   const handleLibraryChanged = useCallback(
     (data: any) => {
@@ -381,11 +403,9 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
       if (userDataChangeDebounceRef.current) {
         clearTimeout(userDataChangeDebounceRef.current);
       }
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current);
-      }
+      socketLifecycle.cancelReconnect();
     };
-  }, []);
+  }, [socketLifecycle]);
 
   // The server-initiated "Play me this item" command is handled by
   // NativePlayerProvider (mounted below this provider): it presents the
@@ -393,8 +413,29 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
 
   useEffect(() => {
     const cleanup = connectWebSocket();
-    return cleanup;
-  }, [connectWebSocket]);
+    return () => {
+      cleanup?.();
+      // A foreground/error reconnect may have replaced the initial socket.
+      // Session/network teardown must close the current one even with a lease.
+      socketLifecycle.close();
+      setIsConnected(false);
+    };
+  }, [connectWebSocket, socketLifecycle]);
+
+  // Home's Retry proves that an unreachable server has recovered. Restart
+  // the fast retry window immediately, without replacing a healthy socket.
+  useEffect(() => {
+    const previous = previousServerConnectedRef.current;
+    previousServerConnectedRef.current = serverConnected;
+    if (
+      previous === false &&
+      serverConnected === true &&
+      socketLifecycle.canConnect()
+    ) {
+      reconnectAttemptsRef.current = 0;
+      connectWebSocket();
+    }
+  }, [serverConnected, connectWebSocket, socketLifecycle]);
 
   useEffect(() => {
     if (!deviceId || !api?.accessToken || !isNetworkConnected) {
@@ -448,13 +489,7 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
 
   useEffect(() => {
     const handleAppStateChange = (state: AppStateStatus) => {
-      if (state === "background" || state === "inactive") {
-        console.log("App moving to background, closing WebSocket...");
-        ws?.close();
-      } else if (state === "active") {
-        console.log("App coming to foreground, reconnecting WebSocket...");
-        connectWebSocket();
-      }
+      if (socketLifecycle.onAppState(state)) connectWebSocket();
     };
 
     const subscription = AppState.addEventListener(
@@ -464,9 +499,8 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
 
     return () => {
       subscription.remove();
-      ws?.close();
     };
-  }, [ws, connectWebSocket]);
+  }, [socketLifecycle, connectWebSocket]);
   const sendMessage = useCallback(
     (message: any) => {
       if (ws && isConnected) {
@@ -488,6 +522,7 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
         subscribe,
         sendMessage,
         clearLastMessage,
+        retainInBackground: socketLifecycle.retainInBackground,
       }}
     >
       {children}

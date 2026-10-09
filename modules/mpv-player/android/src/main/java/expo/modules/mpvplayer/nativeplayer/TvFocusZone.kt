@@ -6,11 +6,13 @@ enum class TvFocusZone {
     MENU,
     SHELF,
     SUBTITLE_SEARCH,
+    SYNCPLAY_QUEUE,
     STILL_WATCHING,
     EXIT_CONFIRM
 }
 
 fun deriveTvFocusZone(vm: PlayerViewModel): TvFocusZone {
+    if (vm.showSyncPlayQueue) return TvFocusZone.SYNCPLAY_QUEUE
     if (vm.showExitConfirmation) return TvFocusZone.EXIT_CONFIRM
     if (vm.showStillWatching) return TvFocusZone.STILL_WATCHING
     if (vm.showSubtitleSearch) return TvFocusZone.SUBTITLE_SEARCH

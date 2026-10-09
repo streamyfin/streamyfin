@@ -147,7 +147,12 @@ describe("library Play All and Shuffle", () => {
     expect(mockPlayMedia).toHaveBeenCalledTimes(1);
     expect(mockPlayMedia).toHaveBeenCalledWith(
       expect.objectContaining({ itemId: "c", offline: false }),
-      { preserveShuffleQueue: true, item: picked[0] },
+      // The whole queue goes along: a SyncPlay group plays it together.
+      {
+        preserveShuffleQueue: true,
+        item: picked[0],
+        queueItemIds: ["c", "a", "b"],
+      },
     );
 
     // A movie belongs to no series: the queue is what names its neighbours.
@@ -234,6 +239,20 @@ describe("library Play All and Shuffle", () => {
 
     expect(mockPlayMedia).not.toHaveBeenCalled();
     expect(store.get(shuffleQueueAtom)).toBeNull();
+  });
+
+  // The filter atoms are shared between library screens: until this one has
+  // its own selection, a queue would be built from another library's.
+  test("asks for nothing before the library has filters of its own", async () => {
+    const { api, wrapper } = setup([movie("a")]);
+    const { result } = await renderHook(() => useLibraryPlayQueue(null), {
+      wrapper,
+    });
+
+    await act(() => result.current.playAll());
+
+    expect(api.mock.history.get).toHaveLength(0);
+    expect(mockPlayMedia).not.toHaveBeenCalled();
   });
 
   test("says so instead of opening a player when nothing can be played", async () => {

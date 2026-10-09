@@ -43,7 +43,9 @@ export const useShuffleQueue = () => {
   const startQueue = useCallback(
     (candidates: BaseItemDto[], options: StartQueueOptions = {}): boolean => {
       // Skip "Virtual"/missing episode placeholders — they have no media file.
-      const items = candidates.filter((e) => e.LocationType !== "Virtual");
+      const items = candidates.filter(
+        (e) => e.Id && e.LocationType !== "Virtual",
+      );
       if (items.length === 0) return false;
 
       setShuffleQueue({ items });
@@ -65,7 +67,11 @@ export const useShuffleQueue = () => {
           playbackPositionTicks:
             getAdjacentStartTicks(first, mediaSource, !!options.isOffline) ?? 0,
         },
-        { preserveShuffleQueue: true, item: first },
+        {
+          preserveShuffleQueue: true,
+          item: first,
+          queueItemIds: items.map((item) => item.Id!),
+        },
       );
       return true;
     },

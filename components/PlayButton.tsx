@@ -34,6 +34,7 @@ import { getDownloadedItemById } from "@/providers/Downloads/database";
 import { useGlobalModal } from "@/providers/GlobalModalProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
+import { useSyncPlay } from "@/providers/SyncPlayProvider";
 import { itemThemeColorAtom } from "@/utils/atoms/primaryColor";
 import { useSettings } from "@/utils/atoms/settings";
 import { getParentBackdropImageUrl } from "@/utils/jellyfin/image/getParentBackdropImageUrl";
@@ -92,6 +93,7 @@ export const PlayButton: React.FC<Props> = ({
   const { settings } = useSettings();
   const lightHapticFeedback = useHaptic("light");
   const playMedia = usePlayMedia();
+  const { enabled: inSyncPlayGroup } = useSyncPlay();
 
   const handleNormalPlayFlow = useCallback(
     async (positionTicks: number) => {
@@ -660,6 +662,16 @@ export const PlayButton: React.FC<Props> = ({
             <Animated.Text style={animatedTextStyle}>
               <Feather name='cast' size={22} />
               <CastButton tintColor='transparent' />
+            </Animated.Text>
+          )}
+          {/* In a group this button plays for everyone in it. Downloads
+              stay solo, so they keep the plain button. */}
+          {inSyncPlayGroup && !isOffline && (
+            <Animated.Text
+              testID='play-button-syncplay'
+              style={animatedTextStyle}
+            >
+              <Ionicons name='people' size={22} />
             </Animated.Text>
           )}
         </View>

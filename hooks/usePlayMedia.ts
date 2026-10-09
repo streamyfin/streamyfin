@@ -6,6 +6,7 @@ import { Alert } from "react-native";
 import useRouter from "@/hooks/useAppRouter";
 import { isNativePlayerPresented } from "@/modules/mpv-player";
 import { useNativePlayer } from "@/providers/NativePlayerProvider";
+import { useSyncPlay } from "@/providers/SyncPlayProvider";
 import { isNativeChromeActive, useSettings } from "@/utils/atoms/settings";
 import { shuffleQueueAtom } from "@/utils/atoms/shuffleQueue";
 import { isPlayableItem } from "@/utils/jellyfin/media/isPlayableItem";
@@ -19,6 +20,8 @@ import { resetStillWatchingSession } from "@/utils/stillWatching";
 interface PlayMediaOptions {
   /** Shuffle sets the queue right before playing — don't clear it. */
   preserveShuffleQueue?: boolean;
+  /** Complete ordered video queue; the requested item selects its start index. */
+  queueItemIds?: string[];
   /**
    * Pass when available: lets the chooser route Live TV (Program/TvChannel)
    * straight to the JS route, which owns live-stream lifecycle handling, and
@@ -40,6 +43,7 @@ export const usePlayMedia = () => {
   const { settings } = useSettings();
   const setShuffleQueue = useSetAtom(shuffleQueueAtom);
   const { presentFromRequest } = useNativePlayer();
+  const syncPlay = useSyncPlay();
   const { t } = useTranslation();
 
   return useCallback(
@@ -49,6 +53,39 @@ export const usePlayMedia = () => {
       // why instead, and leave the shuffle queue and auto-play chain alone.
       if (options?.item && !isPlayableItem(options.item)) {
         Alert.alert(t("player.error"), t("player.unsupported_item_type"));
+        return;
+      }
+
+      if (syncPlay.enabled) {
+        if (
+          req.offline ||
+          options?.item?.Type === "Program" ||
+          options?.item?.Type === "TvChannel"
+        ) {
+          Alert.alert(t("syncplay.title"), t("syncplay.online_video_only"));
+          return;
+        }
+        try {
+          // Already in the group's queue: start it there and keep the queue.
+          // Anything else replaces the queue, as playing does in Jellyfin.
+          const queued = options?.queueItemIds?.length
+            ? undefined
+            : syncPlay.playlist.find((entry) => entry.ItemId === req.itemId);
+          if (queued) {
+            await syncPlay.requestPlaylistItem(queued.PlaylistItemId);
+            return;
+          }
+          const itemIds = options?.queueItemIds?.length
+            ? options.queueItemIds
+            : [req.itemId];
+          await syncPlay.playItems(
+            itemIds,
+            Math.max(0, itemIds.indexOf(req.itemId)),
+            req.playbackPositionTicks ?? 0,
+          );
+        } catch {
+          Alert.alert(t("syncplay.title"), t("syncplay.errors.request_failed"));
+        }
         return;
       }
 
@@ -82,6 +119,6 @@ export const usePlayMedia = () => {
 
       router.push(`/player/direct-player?${toDirectPlayerQuery(req)}`);
     },
-    [router, settings, setShuffleQueue, presentFromRequest, t],
+    [router, settings, setShuffleQueue, presentFromRequest, syncPlay, t],
   );
 };

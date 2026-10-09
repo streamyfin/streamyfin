@@ -176,6 +176,7 @@ class PlayerPresentConfigRecord : Record {
     @Field var tracks: TrackMenusRecord? = null
     @Field var subtitleStyle: SubtitleStyleRecord? = null
     @Field var ui: UIOptionsRecord = UIOptionsRecord()
+    @Field var syncPlay: SyncPlayStateRecord? = null
     // Which engine decodes the stream: "mpv" (default) or "exoplayer".
     // Ignored on iOS — its chrome always runs mpv.
     @Field var engine: String? = null

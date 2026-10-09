@@ -17,7 +17,7 @@ import { writeErrorLog } from "@/utils/log";
  * Play All and Shuffle for a library page: asks the server for the list the
  * filters currently select, queues it and starts the first item.
  */
-export const useLibraryPlayQueue = (filter: LibraryItemsFilter) => {
+export const useLibraryPlayQueue = (filter: LibraryItemsFilter | null) => {
   const api = useAtomValue(apiAtom);
   const { t } = useTranslation();
   const { startQueue } = useShuffleQueue();
@@ -29,7 +29,7 @@ export const useLibraryPlayQueue = (filter: LibraryItemsFilter) => {
 
   const start = useCallback(
     async (shuffle: boolean) => {
-      if (!api || startingRef.current) return;
+      if (!api || !filter || startingRef.current) return;
       startingRef.current = true;
       setIsStarting(true);
       try {

@@ -15,7 +15,7 @@ import {
   useLocalSearchParams,
   useNavigation,
 } from "expo-router";
-import { useAtom } from "jotai";
+import { useAtom, useSetAtom } from "jotai";
 import type React from "react";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -37,6 +37,7 @@ import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import {
   audioLanguageFilterAtom,
+  filterOwnerAtom,
   genreFilterAtom,
   SortByOption,
   SortOrderOption,
@@ -79,6 +80,7 @@ const page: React.FC = () => {
   const [, setSelectedSubtitleLanguages] = useAtom(subtitleLanguageFilterAtom);
   const [sortBy, setSortBy] = useAtom(sortByAtom);
   const [sortOrder, setSortOrder] = useAtom(sortOrderAtom);
+  const setFilterOwner = useSetAtom(filterOwnerAtom);
 
   const { data: collection, isLoading: isCollectionLoading } = useQuery({
     queryKey: ["collection", collectionId],
@@ -149,6 +151,9 @@ const page: React.FC = () => {
       // Not offered here, but the shared reset button counts them as active.
       setSelectedAudioLanguages([]);
       setSelectedSubtitleLanguages([]);
+      // The atoms are this collection's now: a library mounted underneath
+      // keeps its own selection instead of following this one.
+      setFilterOwner(collectionId);
 
       if (!collection) return;
 
@@ -170,6 +175,8 @@ const page: React.FC = () => {
       setSelectedTags,
       setSelectedAudioLanguages,
       setSelectedSubtitleLanguages,
+      setFilterOwner,
+      collectionId,
     ]),
   );
 

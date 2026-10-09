@@ -39,11 +39,21 @@ class MediaSessionController(
     private var isDucked: Boolean = false
     private var noisyReceiverRegistered = false
 
+    /**
+     * In a group pause() only asks the server, and the sound would keep
+     * coming out of the speaker until the answer returns, or for good if the
+     * request fails. Unplugged headphones and lost focus pause here first.
+     */
+    private fun pauseNow() {
+        if (viewModel.syncPlayActive) viewModel.pauseLocal()
+        viewModel.pause()
+    }
+
     private val noisyReceiver = object : BroadcastReceiver() {
         override fun onReceive(ctx: Context?, intent: Intent?) {
             if (intent?.action == AudioManager.ACTION_AUDIO_BECOMING_NOISY) {
                 Log.i(TAG, "Audio becoming noisy — pausing playback")
-                viewModel.pause()
+                pauseNow()
             }
         }
     }
@@ -53,7 +63,7 @@ class MediaSessionController(
             AudioManager.AUDIOFOCUS_LOSS,
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
                 Log.i(TAG, "Audio focus lost ($focusChange) — pausing without auto-resume")
-                viewModel.pause()
+                pauseNow()
             }
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
                 Log.i(TAG, "Audio focus duck — lowering volume to 30%")
@@ -96,13 +106,19 @@ class MediaSessionController(
                 }
 
                 override fun onSkipToNext() {
-                    if (viewModel.nextEpisode != null) {
+                    if (viewModel.nextEpisode != null || viewModel.syncPlay?.hasNext == true) {
                         viewModel.playNextEpisodeNow()
                     }
                 }
 
                 override fun onSkipToPrevious() {
-                    viewModel.seekTo(0.0)
+                    if (viewModel.syncPlayActive) viewModel.playPreviousEpisode()
+                    else viewModel.seekTo(0.0)
+                }
+
+                // Solo playback keeps ignoring Stop, as before SyncPlay.
+                override fun onStop() {
+                    if (viewModel.syncPlayActive) viewModel.syncPlayAction("stop")
                 }
             })
             setFlags(MediaSession.FLAG_HANDLES_MEDIA_BUTTONS or MediaSession.FLAG_HANDLES_TRANSPORT_CONTROLS)

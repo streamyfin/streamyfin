@@ -38,3 +38,11 @@ export const TRANSCODE_PROGRESS_POLL_INTERVAL = 5_000;
  * decision is taken once it opens.
  */
 export const NEXT_EPISODE_COUNTDOWN_MS = 10_000;
+
+/**
+ * Longest one playback report may hold the native player's report queue, in
+ * ms. Reports go out one at a time so the server sees them in order, and the
+ * SDK client has no timeout of its own: without this, one request that never
+ * settles would hold every later report, the Stop included.
+ */
+export const PLAYBACK_REPORT_TIMEOUT_MS = 15_000;

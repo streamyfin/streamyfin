@@ -10,6 +10,7 @@ import {
   SeasonDropdown,
   type SeasonIndexState,
 } from "@/components/series/SeasonDropdown";
+import { SyncPlayQueueButton } from "@/components/syncplay/SyncPlayQueueButton";
 import { Colors } from "@/constants/Colors";
 import { useEpisodeAirLabels } from "@/hooks/useEpisodeAirLabels";
 import { useDownload } from "@/providers/DownloadProvider";
@@ -255,6 +256,7 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
               )}
             />
             <PlayedStatus items={episodes || []} />
+            <SyncPlayQueueButton items={episodes || []} variant='icon' />
           </View>
         ) : null}
       </View>

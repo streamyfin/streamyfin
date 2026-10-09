@@ -18,7 +18,6 @@
     "password_placeholder": "Passord",
     "login_button": "Logg inn",
     "quick_connect": "Kjapp tilkobling",
-    "enter_code_to_login": "Angi koden {{code}} for å logge inn",
     "quick_connect_instructions": "Skriv inn denne koden på en enhet som allerede er logget inn. Du blir logget inn automatisk.",
     "tap_code_to_copy": "Trykk på koden for å kopiere den",
     "code_copied": "Kode kopiert",
@@ -226,8 +225,8 @@
         "enter_the_quick_connect_code": "Skriv inn hurtig-tilkobling kode...",
         "success": "Vellykket",
         "quick_connect_authorized": "Hurtig tilkobling autorisert",
-        "error": "Feil",
         "invalid_code": "Ugyldig kode",
+        "disabled": "Quick Connect is turned off on this server. An administrator can turn it on in the server's dashboard.",
         "authorize": "Autoriser",
         "paste_code": "Lim inn kode"
       },
@@ -610,6 +609,7 @@
         "all_files_deleted": "Alle nedlastinger er slettet",
         "files_deleted_by_type": "{{count}} {{type}} slettet",
         "could_not_get_download_url_for_item": "Kunne ikke hente nedlastings-URL for {{itemName}}",
+        "no_media_source_to_download": "This item cannot be downloaded",
         "file_deleted": "{{item}} slettet"
       }
     }
@@ -727,7 +727,8 @@
     "noData": "Elementer du merker som favoritter, vises her."
   },
   "custom_links": {
-    "no_links": "Ingen lenke"
+    "no_links": "Ingen lenke",
+    "could_not_open_link": "Could not open this link"
   },
   "player": {
     "live": "DIREKTE",
@@ -1175,9 +1176,7 @@
     "title": "Koble til TV",
     "align_qr": "Plasser QR-koden innenfor rammen",
     "enter_code_manually": "Skriv inn koden manuelt",
-    "pairing_enter_credentials": "Skriv inn påloggingsinformasjon for TV",
     "pairing_code_label": "Tilkoblingskode",
-    "server": "Tjener",
     "authorize_button": "Godkjenn",
     "authorizing": "Godkjenner...",
     "scan_again": "Skann på nytt",
@@ -1186,18 +1185,24 @@
     "pairing_tv_connecting": "TV-en kobler seg til kontoen din",
     "error_title": "Autorisering mislyktes",
     "error_invalid_qr": "Ugyldig QR-kode. Skann tilkoblingskoden på TV-en.",
+    "error_old_tv": "This TV runs an older version of Streamyfin. Update it, then try again.",
+    "error_code_not_waiting": "This code is not waiting on {{server}}. Check that the TV uses the same server as this phone, then start Quick Connect again on the TV.",
+    "error_quick_connect_disabled": "Quick Connect is turned off on {{server}}. An administrator can turn it on in the server's dashboard.",
+    "error_other_server": "This TV is connecting to another server, {{server}}. Sign in to that server in this app, then scan again.",
     "error_generic": "Noe gikk galt. Prøv igjen.",
     "error_permission_denied": "Kameratilgang kreves for å skanne QR-koder.",
     "login_as": "Logge inn som {{username}}?",
     "on_server": "på {{server}}",
-    "use_different_user": "Bruk en annen bruker",
     "open_settings": "Åpne innstillinger"
   },
   "pairing": {
     "pair_with_phone": "Koble til telefon",
     "pair_with_phone_title": "Logg inn på TV",
-    "waiting_for_phone": "Venter på telefonen...",
-    "scan_with_phone": "Skann med Streamyfin-appen på telefonen din",
+    "scan_quick_connect": "Scan the QR code with the Streamyfin app or your phone's camera.",
+    "code_expired": "This code has expired.",
+    "get_new_code": "Get a new code",
+    "scan_with_app": "Scan the QR code with the Streamyfin app on your phone.",
+    "account_that_approves": "The account that approves the code",
     "logging_in": "Logger inn...",
     "logging_in_description": "Kobler til serveren din"
   },
