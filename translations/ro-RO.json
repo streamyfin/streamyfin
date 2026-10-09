@@ -18,7 +18,6 @@
     "password_placeholder": "Parola",
     "login_button": "Conectare",
     "quick_connect": "Conectare rapidă",
-    "enter_code_to_login": "Introduceți codul {{code}} pentru a vă conecta",
     "quick_connect_instructions": "Introduceți acest cod pe un dispozitiv pe care sunteți deja conectat. Veți fi conectat automat.",
     "tap_code_to_copy": "Atingeți codul pentru a-l copia",
     "code_copied": "Cod copiat",
@@ -226,8 +225,8 @@
         "enter_the_quick_connect_code": "Introduceți codul pt. conectare rapidă...",
         "success": "Succes",
         "quick_connect_authorized": "Conectare rapidă autorizată",
-        "error": "Eroare",
         "invalid_code": "Cod invalid.",
+        "disabled": "Quick Connect is turned off on this server. An administrator can turn it on in the server's dashboard.",
         "authorize": "Autorizează",
         "paste_code": "Lipiți codul"
       },
@@ -610,6 +609,7 @@
         "all_files_deleted": "Toate descărcările au fost șterse cu succes",
         "files_deleted_by_type": "{{type}} șterse: {{count}}",
         "could_not_get_download_url_for_item": "Nu s-a putut obține URL-ul de descărcare pentru {{itemName}}",
+        "no_media_source_to_download": "This item cannot be downloaded",
         "file_deleted": "{{item}} șters"
       }
     }
@@ -727,7 +727,8 @@
     "noData": "Elementele pe care le marcați ca favorite apar aici."
   },
   "custom_links": {
-    "no_links": "Niciun link"
+    "no_links": "Niciun link",
+    "could_not_open_link": "Could not open this link"
   },
   "player": {
     "live": "ÎN DIRECT",
@@ -1175,9 +1176,7 @@
     "title": "Asociază cu televizorul",
     "align_qr": "Aliniază codul QR în cadru",
     "enter_code_manually": "Introdu codul manual",
-    "pairing_enter_credentials": "Introdu datele de autentificare pentru televizor",
     "pairing_code_label": "Cod de asociere",
-    "server": "Server",
     "authorize_button": "Autorizează",
     "authorizing": "Se autorizează...",
     "scan_again": "Scanează din nou",
@@ -1186,18 +1185,24 @@
     "pairing_tv_connecting": "Televizorul se conectează la contul tău",
     "error_title": "Autorizarea a eșuat",
     "error_invalid_qr": "Cod QR invalid. Scanează codul de asociere de pe televizor.",
+    "error_old_tv": "This TV runs an older version of Streamyfin. Update it, then try again.",
+    "error_code_not_waiting": "This code is not waiting on {{server}}. Check that the TV uses the same server as this phone, then start Quick Connect again on the TV.",
+    "error_quick_connect_disabled": "Quick Connect is turned off on {{server}}. An administrator can turn it on in the server's dashboard.",
+    "error_other_server": "This TV is connecting to another server, {{server}}. Sign in to that server in this app, then scan again.",
     "error_generic": "Ceva nu a mers bine. Încearcă din nou.",
     "error_permission_denied": "Este necesară permisiunea pentru cameră pentru a scana coduri QR.",
     "login_as": "Te autentifici ca {{username}}?",
     "on_server": "pe {{server}}",
-    "use_different_user": "Folosește alt utilizator",
     "open_settings": "Deschide setările"
   },
   "pairing": {
     "pair_with_phone": "Asociază cu telefonul",
     "pair_with_phone_title": "Autentificare pe televizor",
-    "waiting_for_phone": "Se așteaptă telefonul...",
-    "scan_with_phone": "Scanează cu aplicația Streamyfin de pe telefon",
+    "scan_quick_connect": "Scan the QR code with the Streamyfin app or your phone's camera.",
+    "code_expired": "This code has expired.",
+    "get_new_code": "Get a new code",
+    "scan_with_app": "Scan the QR code with the Streamyfin app on your phone.",
+    "account_that_approves": "The account that approves the code",
     "logging_in": "Se autentifică...",
     "logging_in_description": "Se conectează la serverul tău"
   },

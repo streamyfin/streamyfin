@@ -11,27 +11,20 @@ import { onAppForeground } from "./onAppForeground";
 stubReactNative();
 
 describe("onAppForeground", () => {
-  test("runs the callback the caller holds now, not the one it held then", () => {
-    // The listener is registered once and lives for the process, so resolving
-    // the callback at registration is how a stale api survives an account
-    // switch: the refresh keeps going to the previous server with the previous
-    // token, and comes back 401 on a server the user has left.
+  test("runs the callback each time the app comes back", () => {
     const calls: string[] = [];
-    let current = () => calls.push("first");
-
-    const stop = onAppForeground(() => current);
+    const stop = onAppForeground(() => calls.push("ran"));
 
     emitAppState("active");
-    current = () => calls.push("second");
     emitAppState("active");
 
-    expect(calls).toEqual(["first", "second"]);
+    expect(calls).toEqual(["ran", "ran"]);
     stop();
   });
 
   test("ignores every state that is not active", () => {
     const calls: string[] = [];
-    const stop = onAppForeground(() => () => calls.push("ran"));
+    const stop = onAppForeground(() => calls.push("ran"));
 
     emitAppState("background");
     emitAppState("inactive");
@@ -40,20 +33,14 @@ describe("onAppForeground", () => {
     stop();
   });
 
-  test("survives having nothing to call", () => {
-    // The ref is empty until the first render settles, and a wake in that
-    // window must not take the app down.
-    const stop = onAppForeground(() => undefined);
-
-    expect(() => emitAppState("active")).not.toThrow();
-    stop();
-  });
-
   test("unsubscribes", () => {
+    const calls: string[] = [];
     const before = appStateRemovalCount();
 
-    onAppForeground(() => undefined)();
+    onAppForeground(() => calls.push("ran"))();
+    emitAppState("active");
 
     expect(appStateRemovalCount()).toBe(before + 1);
+    expect(calls).toEqual([]);
   });
 });

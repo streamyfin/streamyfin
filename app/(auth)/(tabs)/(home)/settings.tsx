@@ -61,19 +61,19 @@ function SettingsMobile() {
 
         <QuickConnect className='mb-4' />
 
-        {Platform.OS !== "ios" && (
-          <View className='mb-4'>
-            <ListGroup title={t("pairing.pair_with_phone_title")}>
-              <ListItem
-                onPress={() =>
-                  router.push("/(auth)/(tabs)/(home)/companion-login")
-                }
-                title={t("pairing.pair_with_phone")}
-                textColor='blue'
-              />
-            </ListGroup>
-          </View>
-        )}
+        {/* On every phone: Quick Connect needs no local network access.
+            Covered by components/companion/companionLoginEntry.test.tsx. */}
+        <View className='mb-4'>
+          <ListGroup title={t("pairing.pair_with_phone_title")}>
+            <ListItem
+              onPress={() =>
+                router.push("/(auth)/(tabs)/(home)/companion-login")
+              }
+              title={t("pairing.pair_with_phone")}
+              textColor='blue'
+            />
+          </ListGroup>
+        </View>
 
         <View className='mb-4'>
           <AppLanguageSelector />

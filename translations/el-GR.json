@@ -18,7 +18,6 @@
     "password_placeholder": "Κωδικός",
     "login_button": "Σύνδεση",
     "quick_connect": "Γρήγορη Σύνδεση",
-    "enter_code_to_login": "Εισάγετε τον κωδικό {{code}} για να συνδεθείτε",
     "quick_connect_instructions": "Εισάγετε αυτόν τον κωδικό σε μια ήδη συνδεδεμένη συσκευή. Θα συνδεθείτε αυτόματα.",
     "tap_code_to_copy": "Πατήστε τον κωδικό για αντιγραφή",
     "code_copied": "Ο κωδικός αντιγράφηκε",
@@ -226,8 +225,8 @@
         "enter_the_quick_connect_code": "Εισάγετε τον κωδικό γρήγορης σύνδεσης...",
         "success": "Επιτυχία",
         "quick_connect_authorized": "Γρήγορη Σύνδεση Εξουσιοδοτήθηκε",
-        "error": "Σφάλμα",
         "invalid_code": "Μη Έγκυρος Κωδικός",
+        "disabled": "Quick Connect is turned off on this server. An administrator can turn it on in the server's dashboard.",
         "authorize": "Εξουσιοδότηση",
         "paste_code": "Επικόλληση Κωδικού"
       },
@@ -610,6 +609,7 @@
         "all_files_deleted": "Όλες οι λήψεις διαγράφηκαν με επιτυχία",
         "files_deleted_by_type": "Διαγράφηκαν {{count}} {{type}}",
         "could_not_get_download_url_for_item": "Αδυναμία λήψης του URL λήψης για το {{itemName}}",
+        "no_media_source_to_download": "This item cannot be downloaded",
         "file_deleted": "Το {{item}} διαγράφηκε"
       }
     }
@@ -727,7 +727,8 @@
     "noData": "Τα στοιχεία που σημειώνετε ως αγαπημένα εμφανίζονται εδώ."
   },
   "custom_links": {
-    "no_links": "Δεν Υπάρχουν Σύνδεσμοι"
+    "no_links": "Δεν Υπάρχουν Σύνδεσμοι",
+    "could_not_open_link": "Could not open this link"
   },
   "player": {
     "live": "ΖΩΝΤΑΝΑ",
@@ -1175,9 +1176,7 @@
     "title": "Σύζευξη με τηλεόραση",
     "align_qr": "Ευθυγραμμίστε τον κωδικό QR μέσα στο πλαίσιο",
     "enter_code_manually": "Μη αυτόματη εισαγωγή κωδικού",
-    "pairing_enter_credentials": "Εισαγάγετε τα στοιχεία σύνδεσης για την τηλεόραση",
     "pairing_code_label": "Κωδικός σύζευξης",
-    "server": "Διακομιστής",
     "authorize_button": "Εξουσιοδότηση",
     "authorizing": "Γίνεται εξουσιοδότηση...",
     "scan_again": "Νέα σάρωση",
@@ -1186,18 +1185,24 @@
     "pairing_tv_connecting": "Η τηλεόραση συνδέεται στον λογαριασμό σας",
     "error_title": "Η εξουσιοδότηση απέτυχε",
     "error_invalid_qr": "Μη έγκυρος κωδικός QR. Σαρώστε τον κωδικό σύζευξης της τηλεόρασης.",
+    "error_old_tv": "This TV runs an older version of Streamyfin. Update it, then try again.",
+    "error_code_not_waiting": "This code is not waiting on {{server}}. Check that the TV uses the same server as this phone, then start Quick Connect again on the TV.",
+    "error_quick_connect_disabled": "Quick Connect is turned off on {{server}}. An administrator can turn it on in the server's dashboard.",
+    "error_other_server": "This TV is connecting to another server, {{server}}. Sign in to that server in this app, then scan again.",
     "error_generic": "Κάτι πήγε στραβά. Δοκιμάστε ξανά.",
     "error_permission_denied": "Απαιτείται άδεια κάμερας για τη σάρωση κωδικών QR.",
     "login_as": "Σύνδεση ως {{username}};",
     "on_server": "στον {{server}}",
-    "use_different_user": "Χρήση άλλου χρήστη",
     "open_settings": "Άνοιγμα ρυθμίσεων"
   },
   "pairing": {
     "pair_with_phone": "Σύζευξη με τηλέφωνο",
     "pair_with_phone_title": "Σύνδεση στην τηλεόραση",
-    "waiting_for_phone": "Αναμονή για το τηλέφωνο...",
-    "scan_with_phone": "Σαρώστε με την εφαρμογή Streamyfin στο τηλέφωνό σας",
+    "scan_quick_connect": "Scan the QR code with the Streamyfin app or your phone's camera.",
+    "code_expired": "This code has expired.",
+    "get_new_code": "Get a new code",
+    "scan_with_app": "Scan the QR code with the Streamyfin app on your phone.",
+    "account_that_approves": "The account that approves the code",
     "logging_in": "Γίνεται σύνδεση...",
     "logging_in_description": "Σύνδεση με τον διακομιστή σας"
   },
