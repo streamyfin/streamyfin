@@ -246,6 +246,16 @@ export default function IndexLayout() {
           headerShadowVisible: false,
         }}
       />
+      <Stack.Screen
+        name='settings/notifications/page'
+        options={{
+          title: t("home.settings.notifications.title"),
+          headerShown: !Platform.isTV,
+          headerBlurEffect: "none",
+          headerTransparent: Platform.OS === "ios",
+          headerShadowVisible: false,
+        }}
+      />
       {Object.entries(nestedTabPageScreenOptions).map(([name, options]) => (
         <Stack.Screen key={name} name={name} options={options} />
       ))}

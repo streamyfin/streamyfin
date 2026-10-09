@@ -13,6 +13,7 @@ import { QuickConnect } from "@/components/settings/QuickConnect";
 import { StorageSettings } from "@/components/settings/StorageSettings";
 import { UserInfo } from "@/components/settings/UserInfo";
 import useRouter from "@/hooks/useAppRouter";
+import { useMyNotifications } from "@/hooks/useMyNotifications";
 import { useJellyfin, userAtom } from "@/providers/JellyfinProvider";
 
 // TV-specific settings component
@@ -22,6 +23,8 @@ const SettingsTV = Platform.isTV ? require("./settings.tv").default : null;
 function SettingsMobile() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { supported: notificationsSupported, mine: notifications } =
+    useMyNotifications();
   const [_user] = useAtom(userAtom);
   const { logout } = useJellyfin();
 
@@ -91,6 +94,14 @@ function SettingsMobile() {
               showArrow
               title={t("home.settings.audio_subtitles.title")}
             />
+            {/* Only once the server's plugin answered: an older one has no such screen. */}
+            {notificationsSupported && notifications !== undefined && (
+              <ListItem
+                onPress={() => router.push("/settings/notifications/page")}
+                showArrow
+                title={t("home.settings.notifications.title")}
+              />
+            )}
             <ListItem
               onPress={() => router.push("/settings/music/page")}
               showArrow

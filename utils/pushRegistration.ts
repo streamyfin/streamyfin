@@ -10,7 +10,8 @@
  * The language and the poster's address are part of the key rather than of what
  * makes a session: the plugin writes each notification in the language of the device
  * it goes to and fetches its poster from that address, so a change to either has to
- * reach it, and not having a language yet is not a reason to wait.
+ * reach it, and not having a language yet is not a reason to wait. What the device can
+ * show is too: a build that starts showing channels or buttons has to say so.
  *
  * A missing server, user or token means there is no session to register with, which
  * is what sign out looks like: there is no key, and the registration forgets the one
@@ -23,7 +24,8 @@ export const pushRegistrationKey = (
   token: string | undefined,
   language?: string | undefined,
   posterServerUrl?: string | undefined,
+  capabilities?: { channels: number; categories: number },
 ): string | null =>
   serverUrl && userId && token
-    ? `${serverUrl}|${userId}|${token}|${language ?? ""}|${posterServerUrl ?? ""}`
+    ? `${serverUrl}|${userId}|${token}|${language ?? ""}|${posterServerUrl ?? ""}|${capabilities?.channels ?? 0}.${capabilities?.categories ?? 0}`
     : null;

@@ -1,7 +1,10 @@
 import { useAtomValue } from "jotai";
 import { useEffect, useRef } from "react";
 import { Platform } from "react-native";
-import { PUSH_DEVICE_PATH } from "@/constants/Notifications";
+import {
+  NOTIFICATION_CAPABILITIES,
+  PUSH_DEVICE_PATH,
+} from "@/constants/Notifications";
 import {
   apiAtom,
   getServerUrlFromStorage,
@@ -65,6 +68,7 @@ export const usePushRegistration = (
       token,
       language,
       posterServerUrl,
+      NOTIFICATION_CAPABILITIES,
     );
     latest.current = key;
     if (!key || !serverUrl || !api || !user?.Id || !token) {
@@ -82,6 +86,9 @@ export const usePushRegistration = (
       // it fetches the poster in them from.
       language,
       serverUrl: posterServerUrl,
+      // Which of our channels and buttons it shows, so the plugin adds no field it
+      // would hide the message for.
+      capabilities: NOTIFICATION_CAPABILITIES,
     };
 
     queue.current = queue.current.then(async () => {

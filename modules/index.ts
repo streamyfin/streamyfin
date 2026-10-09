@@ -68,6 +68,11 @@ export {
   updateNativePlayerSegments,
   updateNativePlayerTrackMenus,
 } from "./mpv-player";
+// Notification settings link (iOS)
+export {
+  addSettingsOpenListener,
+  takePendingSettingsOpen,
+} from "./notification-settings-link";
 // System volume (iOS, tvOS, Android, Android TV)
 export type { SystemVolumeChangeEvent } from "./system-volume";
 export {

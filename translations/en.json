@@ -553,6 +553,76 @@
           "4_hours": "4 hours",
           "24_hours": "24 hours"
         }
+      },
+      "notifications": {
+        "title": "Notifications",
+        "save_failed": "Couldn't save your notification choices. Try again.",
+        "channels": {
+          "new_content": "New on the server",
+          "requests": "Your requests",
+          "account": "Your account",
+          "server_alerts": "Server alerts"
+        },
+        "actions": {
+          "pause": "Pause for 8 hours",
+          "mute_show": "Turn off for this show",
+          "paused": "Notifications paused for 8 hours",
+          "muted": "Notifications for this show turned off"
+        },
+        "unsupported": "Your server's Streamyfin plugin does not offer notification choices yet.",
+        "load_failed": "Couldn't load your notification choices.",
+        "try_again": "Try again",
+        "events": {
+          "item_added": "New movies and episodes",
+          "seerr_requests": "Your requests",
+          "seerr_requests_help": "Approved, declined or available",
+          "user_locked_out": "Your account gets locked",
+          "seerr_pending": "New requests",
+          "seerr_pending_help": "Waiting for approval, approved automatically, or failed",
+          "session_started": "Someone signs in",
+          "playback_started": "Someone starts playing",
+          "sign_in_failed": "A sign-in fails",
+          "task_failed": "A scheduled task fails",
+          "plugin_changed": "A plugin changes",
+          "plugin_changed_help": "Installed, updated or removed"
+        },
+        "groups": {
+          "new": "New on the server",
+          "follow": "Shows you follow",
+          "muted": "Shows turned off",
+          "yours": "Your requests and account",
+          "server": "Server alerts"
+        },
+        "libraries_footer": "New movies and episodes from these libraries.",
+        "follow": {
+          "favorites": "Your favorite shows",
+          "favorites_help": "A new episode of a show you marked as favorite",
+          "started": "Shows you started",
+          "started_help": "A new episode of a show you have started watching",
+          "footer": "These arrive even with new movies and episodes off."
+        },
+        "muted": {
+          "turn_back_on": "Turn back on"
+        },
+        "pause": {
+          "title": "Pause notifications",
+          "off": "Off",
+          "one_hour": "1 hour",
+          "eight_hours": "8 hours",
+          "one_day": "24 hours",
+          "until_on": "Until I turn it back on",
+          "until": "Until {{when}}"
+        },
+        "blocked": {
+          "title": "Notifications are off for Streamyfin",
+          "body": "Your phone blocks them, whatever you choose below.",
+          "open": "Open Settings"
+        },
+        "sound": {
+          "title": "Sound and vibration",
+          "help": "For each kind of notification, in Android's settings"
+        },
+        "account_footer": "These choices follow your account on every device."
       }
     },
     "sessions": {

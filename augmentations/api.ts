@@ -13,6 +13,11 @@ declare module "@jellyfin/sdk" {
       data: D,
       config?: AxiosRequestConfig<D>,
     ): Promise<AxiosResponse<T>>;
+    put<T, D = any>(
+      url: string,
+      data: D,
+      config?: AxiosRequestConfig<D>,
+    ): Promise<AxiosResponse<T>>;
     delete<T, D = any>(
       url: string,
       config?: AxiosRequestConfig<D>,
@@ -37,6 +42,17 @@ Api.prototype.post = function <T, D = any>(
   config: AxiosRequestConfig<D>,
 ): Promise<AxiosResponse<T>> {
   return this.axiosInstance.post<T>(`${this.basePath}${url}`, data, {
+    ...(config || {}),
+    headers: { [AUTHORIZATION_HEADER]: this.authorizationHeader },
+  });
+};
+
+Api.prototype.put = function <T, D = any>(
+  url: string,
+  data: D,
+  config: AxiosRequestConfig<D>,
+): Promise<AxiosResponse<T>> {
+  return this.axiosInstance.put<T>(`${this.basePath}${url}`, data, {
     ...(config || {}),
     headers: { [AUTHORIZATION_HEADER]: this.authorizationHeader },
   });

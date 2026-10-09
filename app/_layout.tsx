@@ -20,6 +20,7 @@ import { Platform } from "react-native";
 import { GlobalModal } from "@/components/GlobalModal";
 import { PendingAccountSaveModal } from "@/components/PendingAccountSaveModal";
 import { SeerrAutoLogin } from "@/components/seerr/SeerrAutoLogin";
+import { NOTIFICATION_PERMISSIONS } from "@/constants/Notifications";
 import { enableTVMenuKeyInterception } from "@/hooks/useTVBackHandler";
 import i18n from "@/i18n";
 import { DownloadProvider } from "@/providers/DownloadProvider";
@@ -47,6 +48,9 @@ import {
   writeToLog,
 } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
+import { registerNotificationCategories } from "@/utils/notificationActions";
+import { createNotificationChannels } from "@/utils/notificationChannels";
+import { offerSettingsLinkOnce } from "@/utils/notificationPermissions";
 import { notificationRoute } from "@/utils/notificationRoute";
 import {
   queryDehydrateOptions,
@@ -82,6 +86,8 @@ if (Platform.isTV) {
 import * as Sentry from "@sentry/react-native";
 import useRouter from "@/hooks/useAppRouter";
 import { useNativePlayerLogBridge } from "@/hooks/useNativePlayerLogBridge";
+import { useNotificationActions } from "@/hooks/useNotificationActions";
+import { useNotificationSettingsLink } from "@/hooks/useNotificationSettingsLink";
 import { usePushRegistration } from "@/hooks/usePushRegistration";
 import { userAtom } from "@/providers/JellyfinProvider";
 import { effectiveSettingsAtom, settingsAtom } from "@/utils/atoms/settings";
@@ -167,8 +173,13 @@ function useNotificationObserver() {
     // plugin does not send, so opening a notification from a closed app landed on the
     // home screen.
     Notifications.getLastNotificationResponseAsync().then(
-      (response: { notification: any }) => {
-        if (!isMounted || !response?.notification) {
+      (response: { notification: any; actionIdentifier: string } | null) => {
+        // A button is carried out by useNotificationActions, and opens nothing.
+        if (
+          !isMounted ||
+          !response?.notification ||
+          response.actionIdentifier !== Notifications.DEFAULT_ACTION_IDENTIFIER
+        ) {
           return;
         }
         const route = notificationRoute(
@@ -217,7 +228,9 @@ const checkAndRequestPermissions = async () => {
     );
     let granted = false;
     if (hasAskedBefore !== "true") {
-      const { status } = await Notifications.requestPermissionsAsync();
+      const { status } = await Notifications.requestPermissionsAsync(
+        NOTIFICATION_PERMISSIONS,
+      );
       granted = status === "granted";
       if (granted) {
         writeToLog("INFO", "Notification permissions granted.");
@@ -231,6 +244,9 @@ const checkAndRequestPermissions = async () => {
       // Already asked before, check current status
       const { status } = await Notifications.getPermissionsAsync();
       granted = status === "granted";
+      if (granted && Platform.OS === "ios") {
+        await offerSettingsLinkOnce(Notifications, storage);
+      }
       if (!granted) {
         writeToLog(
           "ERROR",
@@ -340,10 +356,21 @@ function Layout() {
     settings?.preferedLanguage ?? getLocales()[0].languageCode ?? "en";
 
   useEffect(() => {
-    i18n.changeLanguage(language);
+    void i18n.changeLanguage(language).then(() => {
+      if (Platform.isTV) return;
+      // One channel per family the plugin sends, named in the app's language: Android
+      // shows each name in its settings as it was last given.
+      if (Platform.OS === "android") {
+        void createNotificationChannels(Notifications, (key) => i18n.t(key));
+      }
+      // The buttons the plugin's notifications carry, titled in the app's language.
+      void registerNotificationCategories(Notifications, (key) => i18n.t(key));
+    });
   }, [language]);
 
   useNotificationObserver();
+  useNotificationActions(queryClient);
+  useNotificationSettingsLink();
   useNativePlayerLogBridge();
 
   const [expoPushToken, setExpoPushToken] = useState<ExpoPushToken>();
@@ -417,6 +444,13 @@ function Layout() {
       responseListener.current =
         Notifications?.addNotificationResponseReceivedListener(
           (response: NotificationResponse) => {
+            // A button is carried out by useNotificationActions, and opens nothing.
+            if (
+              response.actionIdentifier !==
+              Notifications.DEFAULT_ACTION_IDENTIFIER
+            ) {
+              return;
+            }
             // Currently the notifications supported by the plugin will send data for deep links.
             const { title, data } = response.notification.request.content;
             writeInfoLog(`Notification ${title} opened`, data);
