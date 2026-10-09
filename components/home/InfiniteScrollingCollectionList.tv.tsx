@@ -51,6 +51,11 @@ interface Props extends ViewProps {
    * queryFn side effect, which React Query skips when it serves cache.
    */
   onEmptyStateChange?: (isEmpty: boolean | null) => void;
+  /**
+   * Whether the last load failed. Emptiness reports null for a failure, which
+   * reads the same as still loading; this tells the two apart.
+   */
+  onErrorChange?: (isError: boolean) => void;
 }
 
 type Typography = ReturnType<typeof useScaledTVTypography>;
@@ -134,6 +139,7 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
   onItemFocus,
   parentId,
   onEmptyStateChange,
+  onErrorChange,
   ...props
 }) => {
   const typography = useScaledTVTypography();
@@ -210,6 +216,12 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
       isLoading || isError ? null : allItems.length === 0,
     );
   }, [isLoading, isError, allItems.length]);
+
+  const onErrorChangeRef = useRef(onErrorChange);
+  onErrorChangeRef.current = onErrorChange;
+  useEffect(() => {
+    onErrorChangeRef.current?.(isError);
+  }, [isError]);
 
   const itemWidth =
     orientation === "horizontal" ? posterSizes.episode : posterSizes.poster;

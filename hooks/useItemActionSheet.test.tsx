@@ -31,11 +31,13 @@ jest.mock("@/hooks/useFavorite", () => ({
     toggleFavorite: mockToggleFavorite,
   }),
 }));
+const mockUseWatchlist = jest.fn((_item: unknown, _options?: unknown) => ({
+  isWatchlisted: false,
+  toggleWatchlist: mockToggleWatchlist,
+}));
 jest.mock("@/hooks/useWatchlist", () => ({
-  useWatchlist: () => ({
-    isWatchlisted: false,
-    toggleWatchlist: mockToggleWatchlist,
-  }),
+  useWatchlist: (item: unknown, options?: unknown) =>
+    mockUseWatchlist(item, options),
 }));
 jest.mock("@/utils/atoms/settings", () => ({
   useSettings: () => ({
@@ -122,4 +124,37 @@ test("presents nothing for an unsupported item type", async () => {
   );
   await expect(result.current()).resolves.toBeUndefined();
   expect(mockShowActionSheet).not.toHaveBeenCalled();
+});
+
+// The host unmounts the sheet once the returned promise settles; an action that
+// threw used to leave it pending, and the host mounted for good.
+test("reports the sheet closed even when the chosen action fails", async () => {
+  mockToggleFavorite.mockImplementationOnce(() => {
+    throw new Error("server said no");
+  });
+  const { sheet, onSelect, closed } = await present();
+
+  // The failure itself still surfaces; only the close is under test.
+  await Promise.resolve(
+    onSelect(sheet.options.indexOf("music.track_options.add_to_favorites")),
+  ).catch(() => {});
+
+  await expect(closed).resolves.toBeUndefined();
+});
+
+// Every card mounts this sheet's hooks. With KefinTweaks off the watchlist
+// toggle must stay passive, or each card writes shared state on mount.
+test.each([
+  ["KefinTweaks is off", { useKefinTweaks: false, isOffline: false }],
+  ["offline", { useKefinTweaks: true, isOffline: true }],
+])("keeps the watchlist toggle passive while %s", async (_label, state) => {
+  Object.assign(mockState, state);
+  await present();
+  expect(mockUseWatchlist).toHaveBeenCalledWith(movie, { enabled: false });
+});
+
+test("enables the watchlist toggle when KefinTweaks is on and online", async () => {
+  mockState.useKefinTweaks = true;
+  await present();
+  expect(mockUseWatchlist).toHaveBeenCalledWith(movie, { enabled: true });
 });

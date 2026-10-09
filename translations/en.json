@@ -1165,6 +1165,7 @@
     "go_to_settings": "Go to Settings",
     "add_to_watchlist": "Add to watchlist",
     "remove_from_watchlist": "Remove from watchlist",
+    "update_failed": "Couldn't update your watchlist.",
     "select_watchlist": "Select watchlist",
     "create_new": "Create new watchlist",
     "item": "item",

@@ -1,74 +1,56 @@
 import { Stack } from "expo-router";
 import { useHeaderHeight } from "expo-router/react-navigation";
-import { useMemo, useState } from "react";
-import { useTranslation } from "react-i18next";
-import { Platform, ScrollView, View } from "react-native";
+import { useCallback, useState } from "react";
+import { Platform, RefreshControl, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { HeaderButton } from "@/components/common/HeaderButton";
 import { HeaderIcon } from "@/components/common/HeaderIcon";
 import { SegmentedToggle } from "@/components/common/SegmentedToggle";
 import { Favorites } from "@/components/home/Favorites";
-import { Favorites as TVFavorites } from "@/components/home/Favorites.tv";
-import { TVSegmentedControl } from "@/components/tv";
 import { StreamystatsWatchlists } from "@/components/watchlists/StreamystatsWatchlists";
-import { TVStreamystatsWatchlists } from "@/components/watchlists/TVStreamystatsWatchlist";
-import { TV_HORIZONTAL_PADDING } from "@/constants/Values";
 import useRouter from "@/hooks/useAppRouter";
-import { useSettings } from "@/utils/atoms/settings";
-import { scaleSize } from "@/utils/scaleSize";
+import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
 import {
-  getWatchlistSources,
-  resolveActiveWatchlistSource,
-  type WatchlistSource,
-} from "@/utils/watchlistSources";
+  useWatchlistSource,
+  useWatchlistSourceOptions,
+} from "@/hooks/useWatchlistSource";
+import { useSettings } from "@/utils/atoms/settings";
+import { getWatchlistSources } from "@/utils/watchlistSources";
 
-const TV_TOP_PADDING = scaleSize(100);
+// Required, not imported: an import would put the TV view, and every TV
+// component it uses, in the phone bundle too.
+const TVWatchlists: typeof import("@/components/watchlists/TVWatchlists").TVWatchlists =
+  Platform.isTV
+    ? require("@/components/watchlists/TVWatchlists").TVWatchlists
+    : null;
 
 interface WatchlistsViewProps {
   streamystatsShown: boolean;
   kefinShown: boolean;
 }
 
-function useToggleOptions() {
-  const { t } = useTranslation();
-  return useMemo(
-    () => [
-      {
-        value: "streamystats" as const,
-        label: t("watchlists.source_streamystats"),
-      },
-      { value: "kefin" as const, label: t("watchlists.source_kefintweaks") },
-    ],
-    [t],
-  );
-}
-
-/**
- * Resolves which watchlist source is active given what's enabled. When both
- * are shown the user toggles between them (defaulting to Streamystats);
- * otherwise the single enabled source wins.
- */
-function useWatchlistSource(streamystatsShown: boolean, kefinShown: boolean) {
-  const showToggle = streamystatsShown && kefinShown;
-  const [source, setSource] = useState<WatchlistSource>(
-    streamystatsShown ? "streamystats" : "kefin",
-  );
-
-  const activeSource = resolveActiveWatchlistSource(
-    streamystatsShown,
-    kefinShown,
-    source,
-  );
-
-  return { source, setSource, activeSource, showToggle };
-}
-
 /** Shared KefinTweaks (Likes-backed) view — the favorites grid with a Likes filter. */
 function KefinWatchlistView() {
   const insets = useSafeAreaInsets();
+  // Pull to refresh, as on the Favorites tab: Likes also change from Jellyfin
+  // web and KefinTweaks, which this screen cannot hear about.
+  const invalidateCache = useInvalidatePlaybackProgressCache();
+  const [refreshing, setRefreshing] = useState(false);
+  const refresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await invalidateCache();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [invalidateCache]);
+
   return (
     <ScrollView
       contentInsetAdjustmentBehavior='automatic'
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={refresh} />
+      }
       contentContainerStyle={{
         paddingLeft: insets.left,
         paddingRight: insets.right,
@@ -94,9 +76,9 @@ function MobileWatchlists({
   kefinShown,
 }: WatchlistsViewProps) {
   const headerHeight = useHeaderHeight();
-  const options = useToggleOptions();
+  const options = useWatchlistSourceOptions();
   const router = useRouter();
-  const { source, setSource, activeSource, showToggle } = useWatchlistSource(
+  const { activeSource, setSource, showToggle } = useWatchlistSource(
     streamystatsShown,
     kefinShown,
   );
@@ -139,7 +121,7 @@ function MobileWatchlists({
           >
             <SegmentedToggle
               options={options}
-              value={source}
+              value={activeSource}
               onChange={setSource}
             />
           </View>
@@ -149,65 +131,6 @@ function MobileWatchlists({
         activeView
       )}
     </>
-  );
-}
-
-function TVWatchlists({ streamystatsShown, kefinShown }: WatchlistsViewProps) {
-  const insets = useSafeAreaInsets();
-  const options = useToggleOptions();
-  const { source, setSource, activeSource, showToggle } = useWatchlistSource(
-    streamystatsShown,
-    kefinShown,
-  );
-
-  if (!streamystatsShown && !kefinShown) return null;
-
-  if (!showToggle) {
-    return activeSource === "streamystats" ? (
-      <TVStreamystatsWatchlists />
-    ) : (
-      <TVFavorites
-        filter='Likes'
-        queryKeyBase='watchlist'
-        emptyTitleKey='kefintweaksWatchlist.noDataTitle'
-        emptyTextKey='kefintweaksWatchlist.noData'
-      />
-    );
-  }
-
-  return (
-    <View style={{ flex: 1 }}>
-      <View
-        style={{
-          paddingTop: insets.top + TV_TOP_PADDING,
-          paddingHorizontal: TV_HORIZONTAL_PADDING,
-        }}
-      >
-        <TVSegmentedControl
-          options={options}
-          value={source}
-          onChange={setSource}
-          hasTVPreferredFocus
-        />
-      </View>
-      <View style={{ flex: 1 }}>
-        {activeSource === "streamystats" ? (
-          <TVStreamystatsWatchlists
-            isFirstSection={false}
-            contentTopPadding={0}
-          />
-        ) : (
-          <TVFavorites
-            filter='Likes'
-            queryKeyBase='watchlist'
-            emptyTitleKey='kefintweaksWatchlist.noDataTitle'
-            emptyTextKey='kefintweaksWatchlist.noData'
-            isFirstSection={false}
-            contentTopPadding={0}
-          />
-        )}
-      </View>
-    </View>
   );
 }
 

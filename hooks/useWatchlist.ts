@@ -4,23 +4,27 @@ import {
 } from "@jellyfin/sdk/lib/generated-client";
 import { getUserLibraryApi } from "@jellyfin/sdk/lib/utils/api";
 import {
-  type QueryClient,
-  useMutation,
+  type InvalidateQueryFilters,
   useQueryClient,
 } from "@tanstack/react-query";
-import { atom, useAtom, useAtomValue, useSetAtom, useStore } from "jotai";
-import { useCallback, useEffect, useMemo, useRef } from "react";
-import { toast } from "sonner-native";
+import { atom, useAtomValue, useSetAtom } from "jotai";
+import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { writeToLog } from "@/utils/log";
+import { patchCachedItemUserData } from "@/utils/patchCachedItem";
 import { removeWatchedFromWatchlist } from "@/utils/watchlistPrune";
+import {
+  type ToggleStateAtom,
+  toggleStateKey,
+  useUserDataToggle,
+} from "./useUserDataToggle";
 
-// Shared atom to store watchlist (Likes) status across all components
-// Maps itemId -> isWatchlisted
-const watchlistAtom = atom<Record<string, boolean>>({});
+// Shared watchlist (Likes) status across all components, keyed by user and item.
+const watchlistAtom: ToggleStateAtom = atom<Record<string, boolean>>({});
 
 const LIKES_FILTERS: readonly string[] = [
   ItemFilter.Likes,
@@ -28,12 +32,15 @@ const LIKES_FILTERS: readonly string[] = [
 ];
 
 /**
- * Refetches the library grids that filter by Likes (the "Watchlist" filter).
- * Their server filter list rides the query key, so the others, which a
- * watchlist change cannot affect, are left alone.
+ * What a watchlist change makes stale beyond the item's own query: the home
+ * rows, the see-all grid, and the library grids that filter by Likes (the
+ * "Watchlist" filter). Those carry their server filter list in the query key,
+ * so library grids a watchlist change cannot affect are left alone.
  */
-const invalidateWatchlistFilteredLibraries = (queryClient: QueryClient) =>
-  queryClient.invalidateQueries({
+const INVALIDATE: InvalidateQueryFilters[] = [
+  { queryKey: ["home", "watchlist"] },
+  { queryKey: ["favorites", "see-all"] },
+  {
     predicate: ({ queryKey }) =>
       queryKey[0] === "library-items" &&
       queryKey.some(
@@ -41,162 +48,41 @@ const invalidateWatchlistFilteredLibraries = (queryClient: QueryClient) =>
           Array.isArray(part) &&
           part.some((filter) => LIKES_FILTERS.includes(filter)),
       ),
-  });
+  },
+];
 
 /**
  * KefinTweaks watchlist is backed by Jellyfin's native "Likes" rating.
  * Toggling watchlist membership toggles UserData.Likes on the item.
+ *
+ * Pass `enabled: false` where the toggle is not offered (KefinTweaks off,
+ * offline): every card mounts one, and a passive one writes nothing shared.
  */
-export const useWatchlist = (item: BaseItemDto) => {
-  const queryClient = useQueryClient();
-  const store = useStore();
-  const [api] = useAtom(apiAtom);
-  const [user] = useAtom(userAtom);
-  const [watchlist, setWatchlist] = useAtom(watchlistAtom);
-
-  const watchlistKey = user?.Id && item.Id ? `${user.Id}:${item.Id}` : "";
-
-  // Get current watchlist status from shared state, falling back to item data
-  const isWatchlisted = watchlistKey
-    ? (watchlist[watchlistKey] ?? item.UserData?.Likes)
-    : item.UserData?.Likes;
-
-  // Update shared state when item data changes
-  useEffect(() => {
-    if (watchlistKey && item.UserData?.Likes !== undefined) {
-      setWatchlist((prev) => ({
-        ...prev,
-        [watchlistKey]: item.UserData!.Likes!,
-      }));
-    }
-  }, [watchlistKey, item.UserData?.Likes, setWatchlist]);
-  // Helper to update watchlist status in shared state
-  const setIsWatchlisted = useCallback(
-    (value: boolean | null | undefined) => {
-      if (watchlistKey && typeof value === "boolean") {
-        setWatchlist((prev) => ({ ...prev, [watchlistKey]: value }));
-      }
-    },
-    [watchlistKey, setWatchlist],
-  );
-
-  // Use refs to avoid stale closure issues in mutationFn
-  const itemRef = useRef(item);
-  const apiRef = useRef(api);
-  const userRef = useRef(user);
-
-  // Keep refs updated
-  useEffect(() => {
-    itemRef.current = item;
-  }, [item]);
-
-  useEffect(() => {
-    apiRef.current = api;
-  }, [api]);
-
-  useEffect(() => {
-    userRef.current = user;
-  }, [user]);
-
-  const itemQueryKeyPrefix = useMemo(
-    () => ["item", item.Id] as const,
-    [item.Id],
-  );
-
-  const updateItemInQueries = useCallback(
-    (newData: Partial<BaseItemDto>) => {
-      queryClient.setQueriesData<BaseItemDto | null | undefined>(
-        { queryKey: itemQueryKeyPrefix },
-        (old) => {
-          if (!old) return old;
-          return {
-            ...old,
-            ...newData,
-            UserData: { ...old.UserData, ...newData.UserData },
-          };
-        },
-      );
-    },
-    [itemQueryKeyPrefix, queryClient],
-  );
-
-  const watchlistMutation = useMutation({
-    mutationFn: async (nextIsWatchlisted: boolean) => {
-      const currentApi = apiRef.current;
-      const currentUser = userRef.current;
-      const currentItem = itemRef.current;
-
-      if (!currentApi || !currentUser?.Id || !currentItem?.Id) {
-        throw new Error("Cannot update watchlist: not signed in");
-      }
-
-      // Watchlist == Jellyfin "Likes" rating: likes=true adds the item,
-      // likes=false removes it.
-      const response = await getUserLibraryApi(currentApi).updateUserItemRating(
-        {
-          itemId: currentItem.Id,
-          userId: currentUser.Id,
-          likes: nextIsWatchlisted,
-        },
-      );
-      return response.data;
-    },
-    onMutate: async (nextIsWatchlisted: boolean) => {
-      await queryClient.cancelQueries({ queryKey: itemQueryKeyPrefix });
-
-      const previousIsWatchlisted = isWatchlisted;
-      const previousQueries = queryClient.getQueriesData<BaseItemDto | null>({
-        queryKey: itemQueryKeyPrefix,
-      });
-
-      setIsWatchlisted(nextIsWatchlisted);
-      updateItemInQueries({ UserData: { Likes: nextIsWatchlisted } });
-
-      return {
-        previousIsWatchlisted,
-        previousQueries,
-        userId: userRef.current?.Id,
-      };
-    },
-    onError: (error: Error, _nextIsWatchlisted, context) => {
-      // The item queries are not keyed by account, so a request that fails
-      // after a logout or user switch must not restore its snapshots into the
-      // next account's cache. Read the store, not userRef: the page that sent
-      // the request has usually unmounted by then, freezing the ref.
-      if (store.get(userAtom)?.Id !== context?.userId) return;
-
-      // Roll back the optimistic Likes flip applied in onMutate.
-      if (context?.previousQueries) {
-        for (const [queryKey, data] of context.previousQueries) {
-          queryClient.setQueryData(queryKey, data);
-        }
-      }
-      setIsWatchlisted(context?.previousIsWatchlisted);
-      toast.error(error.message || "Failed to update watchlist");
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: itemQueryKeyPrefix });
-      queryClient.invalidateQueries({ queryKey: ["home", "watchlist"] });
-      // The favorites/watchlist "see all" grid keeps its own infinite query
-      // (["favorites", "see-all", ...]); invalidate it so removing an item
-      // from within the see-all screen updates the list in place.
-      queryClient.invalidateQueries({ queryKey: ["favorites", "see-all"] });
-      invalidateWatchlistFilteredLibraries(queryClient);
-    },
+export const useWatchlist = (
+  item: BaseItemDto,
+  { enabled = true }: { enabled?: boolean } = {},
+) => {
+  const { t } = useTranslation();
+  const { value, toggle, isPending, mutation } = useUserDataToggle({
+    item,
+    field: "Likes",
+    stateAtom: watchlistAtom,
+    enabled,
+    invalidate: INVALIDATE,
+    errorMessage: t("watchlists.update_failed"),
+    send: (api, userId, itemId, next) =>
+      getUserLibraryApi(api).updateUserItemRating({
+        itemId,
+        userId,
+        likes: next,
+      }),
   });
 
-  const toggleWatchlist = useCallback(() => {
-    // Ignore taps while a flip is in flight so overlapping requests can't
-    // race and leave Jellyfin's Likes value out of sync with the UI.
-    if (watchlistMutation.isPending) return;
-    watchlistMutation.mutate(!isWatchlisted);
-  }, [watchlistMutation, isWatchlisted]);
-
   return {
-    isWatchlisted,
-    toggleWatchlist,
-    isPending: watchlistMutation.isPending,
-    watchlistMutation,
+    isWatchlisted: value,
+    toggleWatchlist: toggle,
+    isPending,
+    watchlistMutation: mutation,
   };
 };
 
@@ -242,15 +128,18 @@ export const usePruneWatchedFromWatchlist = () => {
         // than wait for every item query to refetch.
         setWatchlist((prev) => {
           const next = { ...prev };
-          for (const id of removed) next[`${userId}:${id}`] = false;
+          for (const id of removed) next[toggleStateKey(userId, id)] = false;
           return next;
         });
+        // A toggle mounted later from a cached list would otherwise read the
+        // old Likes back and write it over the shared entry.
         for (const id of removed) {
+          patchCachedItemUserData(queryClient, id, { Likes: false });
           queryClient.invalidateQueries({ queryKey: ["item", id] });
         }
-        queryClient.invalidateQueries({ queryKey: ["home", "watchlist"] });
-        queryClient.invalidateQueries({ queryKey: ["favorites", "see-all"] });
-        invalidateWatchlistFilteredLibraries(queryClient);
+        for (const filters of INVALIDATE) {
+          queryClient.invalidateQueries(filters);
+        }
         // Season toggles read their season from the series page's list.
         queryClient.invalidateQueries({ queryKey: ["seasons"] });
       } catch (error) {

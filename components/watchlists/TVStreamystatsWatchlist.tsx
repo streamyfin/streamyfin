@@ -8,7 +8,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
 import { useTVFocusAnimation } from "@/components/tv/hooks/useTVFocusAnimation";
-import { TVButton } from "@/components/tv/TVButton";
+import { TVQueryErrorState } from "@/components/tv/TVQueryErrorState";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import { TV_HORIZONTAL_PADDING } from "@/constants/Values";
 import useRouter from "@/hooks/useAppRouter";
@@ -222,61 +222,14 @@ export const TVStreamystatsWatchlists: React.FC<
   // Checked before the empty state: a failed load is not an empty list.
   if (isError && !watchlists?.length) {
     return (
-      <View
+      <TVQueryErrorState
+        onRetry={() => refetch()}
+        hasTVPreferredFocus={isFirstSection}
         style={{
-          flex: 1,
-          alignItems: "center",
-          justifyContent: "center",
           paddingTop: topPadding,
           paddingHorizontal: TV_HORIZONTAL_PADDING,
         }}
-      >
-        <Ionicons
-          name='cloud-offline-outline'
-          size={scaleSize(64)}
-          color='#4b5563'
-        />
-        <Text
-          style={{
-            fontSize: typography.heading,
-            fontWeight: "600",
-            color: "#fff",
-            marginTop: scaleSize(16),
-            textAlign: "center",
-          }}
-        >
-          {t("common.something_went_wrong")}
-        </Text>
-        <Text
-          style={{
-            fontSize: typography.callout,
-            color: "rgba(255,255,255,0.6)",
-            marginTop: scaleSize(8),
-            marginBottom: scaleSize(32),
-            textAlign: "center",
-          }}
-        >
-          {t("common.load_failed_message")}
-        </Text>
-        {/* With no cards there is nothing else to focus, unless the source
-            toggle above already owns the initial focus. Never disabled while
-            retrying: a disabled button drops the focus, and a second press
-            only restarts the request. */}
-        <TVButton
-          onPress={() => refetch()}
-          hasTVPreferredFocus={isFirstSection}
-        >
-          <Text
-            style={{
-              fontSize: typography.callout,
-              fontWeight: "bold",
-              color: "#000000",
-            }}
-          >
-            {t("home.retry")}
-          </Text>
-        </TVButton>
-      </View>
+      />
     );
   }
 

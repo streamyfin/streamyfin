@@ -4,6 +4,7 @@ import type {
   ItemFilter,
 } from "@jellyfin/sdk/lib/generated-client";
 import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAtom } from "jotai";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -13,6 +14,7 @@ import heart from "@/assets/icons/heart.fill.png";
 import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { InfiniteScrollingCollectionList } from "@/components/home/InfiniteScrollingCollectionList.tv";
+import { TVQueryErrorState } from "@/components/tv/TVQueryErrorState";
 import { Colors } from "@/constants/Colors";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import { TV_HORIZONTAL_PADDING } from "@/constants/Values";
@@ -119,6 +121,34 @@ export const Favorites = ({
     );
   };
 
+  // Whether each category's last load failed. A failure reports null
+  // emptiness, the same as loading, so it needs its own record.
+  const [failedState, setFailedState] = useState<
+    Partial<Record<FavoriteTypes, boolean>>
+  >({});
+  const setTypeFailed = useCallback(
+    (type: FavoriteTypes, isError: boolean) =>
+      setFailedState((prev) =>
+        prev[type] === isError ? prev : { ...prev, [type]: isError },
+      ),
+    [],
+  );
+
+  // Every category settled without items and at least one failed: each row
+  // hides itself, so without this the screen would be blank, with nothing to
+  // explain it or to retry.
+  const types = Object.keys(emptyState) as FavoriteTypes[];
+  const allFailedOrEmpty =
+    types.some((type) => failedState[type]) &&
+    types.every((type) => failedState[type] || emptyState[type] === true);
+
+  const queryClient = useQueryClient();
+  const retry = useCallback(() => {
+    queryClient.refetchQueries({
+      queryKey: ["home", queryKeyBase, user?.Id],
+    });
+  }, [queryClient, queryKeyBase, user?.Id]);
+
   const fetchFavoriteSeries = useCallback(
     ({ pageParam }: { pageParam: number }) =>
       fetchFavoritesByType("Series", pageParam, pageSize),
@@ -169,6 +199,13 @@ export const Favorites = ({
         {/* Rendered alongside the lists (never instead of them) so they stay
             mounted and re-report emptiness on a favorites/watchlist switch;
             an early return here would freeze the all-empty state. */}
+        {allFailedOrEmpty && (
+          <TVQueryErrorState
+            onRetry={retry}
+            hasTVPreferredFocus={isFirstSection}
+            style={{ paddingHorizontal: TV_HORIZONTAL_PADDING }}
+          />
+        )}
         {areAllEmpty() && (
           <View
             style={{
@@ -220,6 +257,7 @@ export const Favorites = ({
           pageSize={pageSize}
           isFirstSection={isFirstSection}
           onEmptyStateChange={(isEmpty) => setTypeEmpty("Series", isEmpty)}
+          onErrorChange={(isError) => setTypeFailed("Series", isError)}
         />
         <InfiniteScrollingCollectionList
           queryFn={fetchFavoriteSeasons}
@@ -230,6 +268,7 @@ export const Favorites = ({
           displayShowName
           pageSize={pageSize}
           onEmptyStateChange={(isEmpty) => setTypeEmpty("Season", isEmpty)}
+          onErrorChange={(isError) => setTypeFailed("Season", isError)}
         />
         <InfiniteScrollingCollectionList
           queryFn={fetchFavoriteMovies}
@@ -239,6 +278,7 @@ export const Favorites = ({
           orientation='vertical'
           pageSize={pageSize}
           onEmptyStateChange={(isEmpty) => setTypeEmpty("Movie", isEmpty)}
+          onErrorChange={(isError) => setTypeFailed("Movie", isError)}
         />
         <InfiniteScrollingCollectionList
           queryFn={fetchFavoriteEpisodes}
@@ -247,6 +287,7 @@ export const Favorites = ({
           hideIfEmpty
           pageSize={pageSize}
           onEmptyStateChange={(isEmpty) => setTypeEmpty("Episode", isEmpty)}
+          onErrorChange={(isError) => setTypeFailed("Episode", isError)}
         />
         <InfiniteScrollingCollectionList
           queryFn={fetchFavoriteVideos}
@@ -255,6 +296,7 @@ export const Favorites = ({
           hideIfEmpty
           pageSize={pageSize}
           onEmptyStateChange={(isEmpty) => setTypeEmpty("Video", isEmpty)}
+          onErrorChange={(isError) => setTypeFailed("Video", isError)}
         />
         <InfiniteScrollingCollectionList
           queryFn={fetchFavoriteBoxsets}
@@ -263,6 +305,7 @@ export const Favorites = ({
           hideIfEmpty
           pageSize={pageSize}
           onEmptyStateChange={(isEmpty) => setTypeEmpty("BoxSet", isEmpty)}
+          onErrorChange={(isError) => setTypeFailed("BoxSet", isError)}
         />
         <InfiniteScrollingCollectionList
           queryFn={fetchFavoritePlaylists}
@@ -271,6 +314,7 @@ export const Favorites = ({
           hideIfEmpty
           pageSize={pageSize}
           onEmptyStateChange={(isEmpty) => setTypeEmpty("Playlist", isEmpty)}
+          onErrorChange={(isError) => setTypeFailed("Playlist", isError)}
         />
       </View>
     </ScrollView>

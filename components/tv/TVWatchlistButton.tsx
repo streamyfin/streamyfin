@@ -23,7 +23,7 @@ export const TVWatchlistButton: React.FC<TVWatchlistButtonProps> = ({
   disabled,
   refSetter,
 }) => {
-  const { isWatchlisted, toggleWatchlist, isPending } = useWatchlist(item);
+  const { isWatchlisted, toggleWatchlist } = useWatchlist(item);
   const isOffline = useOfflineMode();
 
   // The toggle writes Jellyfin's Likes rating, so offline it could only fail.
@@ -34,7 +34,9 @@ export const TVWatchlistButton: React.FC<TVWatchlistButtonProps> = ({
       onPress={toggleWatchlist}
       variant='glass'
       square
-      disabled={disabled || isPending}
+      // Not disabled while the request runs: a disabled TVButton gives up the
+      // focus, and the toggle already ignores presses until it settles.
+      disabled={disabled}
       refSetter={refSetter}
     >
       <Ionicons

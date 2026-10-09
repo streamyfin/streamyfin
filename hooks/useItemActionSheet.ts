@@ -23,9 +23,13 @@ export function useItemActionSheet(item: BaseItemDto) {
   const { showActionSheetWithOptions } = useActionSheet();
   const markAsPlayedStatus = useMarkAsPlayed([item]);
   const { isFavorite, toggleFavorite } = useFavorite(item);
-  const { isWatchlisted, toggleWatchlist } = useWatchlist(item);
   const { settings } = useSettings();
   const isOffline = useOfflineMode();
+  // Every card mounts this hook: where the entry is not offered, keep the
+  // watchlist toggle passive so the cards write nothing shared on mount.
+  const { isWatchlisted, toggleWatchlist } = useWatchlist(item, {
+    enabled: !!settings?.useKefinTweaks && !isOffline,
+  });
   const { deleteFile } = useDownload();
 
   return useCallback((): Promise<void> => {
@@ -95,14 +99,19 @@ export function useItemActionSheet(item: BaseItemDto) {
             destructiveIndex === -1 ? undefined : destructiveIndex,
         },
         async (selectedIndex) => {
-          if (
-            selectedIndex !== undefined &&
-            selectedIndex >= 0 &&
-            selectedIndex < actions.length
-          ) {
-            await actions[selectedIndex].action();
+          // Resolve however the action ends: the host unmounts the sheet on
+          // it, and a failed action must not keep it mounted.
+          try {
+            if (
+              selectedIndex !== undefined &&
+              selectedIndex >= 0 &&
+              selectedIndex < actions.length
+            ) {
+              await actions[selectedIndex].action();
+            }
+          } finally {
+            resolve();
           }
-          resolve();
         },
       );
     });

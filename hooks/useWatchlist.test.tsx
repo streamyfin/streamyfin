@@ -280,3 +280,75 @@ test("refreshes the library grids filtered by the watchlist after a prune", asyn
   expect(invalidated("favoritesOrWatchlist")).toBe(true);
   expect(invalidated("unplayed")).toBe(false);
 });
+
+// A list kept the old Likes value, and a toggle mounted from it later wrote
+// that value back over the one just set.
+test("a toggle mounted from a cached list after a flip shows the new value", async () => {
+  mockRate.mockResolvedValue({});
+  const client = newClient();
+  client.setQueryData(["seasons", "show"], [movie]);
+  const { result } = await renderHook(() => useWatchlist(movie), {
+    wrapper: wrapperFor(client),
+  });
+
+  await act(async () => result.current.toggleWatchlist());
+
+  const fromList = client.getQueryData<(typeof movie)[]>([
+    "seasons",
+    "show",
+  ])![0];
+  const card = await renderHook(() => useWatchlist(fromList), {
+    wrapper: wrapperFor(client),
+  });
+  expect(card.result.current.isWatchlisted).toBe(false);
+  expect(result.current.isWatchlisted).toBe(false);
+});
+
+test("a card mounted from a cached list after a prune shows it removed", async () => {
+  mockRemove.mockResolvedValue({ removed: ["m1"], failed: [] });
+  const client = newClient();
+  client.setQueryData(["home", "watchlist", "u", "movies"], {
+    pages: [[movie]],
+    pageParams: [0],
+  });
+  const { result } = await renderHook(() => usePruneWatchedFromWatchlist(), {
+    wrapper: wrapperFor(client),
+  });
+
+  await act(() => result.current(["m1"]));
+
+  const fromList = client.getQueryData<{ pages: (typeof movie)[][] }>([
+    "home",
+    "watchlist",
+    "u",
+    "movies",
+  ])!.pages[0][0];
+  const card = await renderHook(() => useWatchlist(fromList), {
+    wrapper: wrapperFor(client),
+  });
+  expect(card.result.current.isWatchlisted).toBe(false);
+});
+
+// Every card in a grid mounts one of these; a card must not re-render
+// because another card's entry was written.
+test("does not re-render for another item's entry", async () => {
+  const client = newClient();
+  let renders = 0;
+  const { result } = await renderHook(
+    () => {
+      renders++;
+      return useWatchlist(movie);
+    },
+    { wrapper: wrapperFor(client) },
+  );
+  expect(result.current.isWatchlisted).toBe(true);
+  const before = renders;
+
+  // A second toggle in the same store writes its own entry on mount.
+  await renderHook(
+    () => useWatchlist({ Id: "m2", UserData: { Likes: false } }),
+    { wrapper: wrapperFor(client) },
+  );
+
+  expect(renders).toBe(before);
+});

@@ -58,10 +58,30 @@ export async function removeWatchedFromWatchlist(
     return pending;
   };
 
-  for (const itemId of itemIds) {
+  // Items in a batch share seasons and shows, and run in parallel: start each
+  // rating update once, and let a second candidate wait on the first.
+  const unliking = new Map<string, Promise<void>>();
+  const unlike = (itemId: string) => {
+    let pending = unliking.get(itemId);
+    if (!pending) {
+      pending = userLibrary
+        .updateUserItemRating({ itemId, userId, likes: false })
+        .then(() => {
+          removed.add(itemId);
+          failed.delete(itemId);
+        })
+        .catch(() => {
+          failed.add(itemId);
+        });
+      unliking.set(itemId, pending);
+    }
+    return pending;
+  };
+
+  const prune = async (itemId: string) => {
     const item = await getItem(itemId);
     // An unfinished item leaves its season and show unfinished as well.
-    if (!item?.UserData?.Played) continue;
+    if (!item?.UserData?.Played) return;
 
     const parentIds = [
       item.Type === "Episode" ? item.SeasonId : undefined,
@@ -90,22 +110,16 @@ export async function removeWatchedFromWatchlist(
       }
     }
 
-    for (const candidate of candidates) {
-      if (!candidate.Id || removed.has(candidate.Id)) continue;
-      if (!isWatchlistedAndWatched(candidate)) continue;
-      try {
-        await userLibrary.updateUserItemRating({
-          itemId: candidate.Id,
-          userId,
-          likes: false,
-        });
-        removed.add(candidate.Id);
-        failed.delete(candidate.Id);
-      } catch {
-        failed.add(candidate.Id);
-      }
-    }
-  }
+    await Promise.all(
+      candidates
+        .filter(isWatchlistedAndWatched)
+        .map((candidate) => candidate.Id)
+        .filter((id): id is string => !!id)
+        .map(unlike),
+    );
+  };
+
+  await Promise.all(itemIds.map(prune));
 
   return { removed: [...removed], failed: [...failed] };
 }

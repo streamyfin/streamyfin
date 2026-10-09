@@ -107,14 +107,14 @@ test("finishing a season's last episode removes the season too", async () => {
   const { api, unliked } = serve(show(true, false));
 
   await removeWatchedFromWatchlist(api, "u", ["ep"]);
-  expect(unliked).toEqual(["ep", "s1"]);
+  expect(unliked.sort()).toEqual(["ep", "s1"]);
 });
 
 test("finishing a show's last episode removes the show too", async () => {
   const { api, unliked } = serve(show(true, true));
 
   await removeWatchedFromWatchlist(api, "u", ["ep"]);
-  expect(unliked).toEqual(["ep", "s1", "show"]);
+  expect(unliked.sort()).toEqual(["ep", "s1", "show"]);
 });
 
 test("marking a whole show played clears its watchlisted seasons and episodes", async () => {
@@ -130,7 +130,7 @@ test("removes each item once when several share a season", async () => {
   const { api, unliked } = serve(library);
 
   await removeWatchedFromWatchlist(api, "u", ["ep", "ep2"]);
-  expect(unliked).toEqual(["ep", "s1", "ep2"]);
+  expect(unliked.sort()).toEqual(["ep", "ep2", "s1"]);
 });
 
 // A batch is housekeeping for every id in it: one item the server cannot
@@ -193,4 +193,78 @@ test("fetches a season and show shared by a batch once", async () => {
 
   expect(getsFor(api, "s1")).toBe(1);
   expect(getsFor(api, "show")).toBe(1);
+});
+
+/**
+ * Holds every request matching `pattern` until `count` of them are in flight
+ * at once, then answers them all; a client that sends them one at a time never
+ * gets past the first.
+ */
+const holdUntilConcurrent = (
+  api: ReturnType<typeof serve>["api"],
+  method: "onGet" | "onPost",
+  pattern: RegExp,
+  count: number,
+  answer: (url: string) => [number, unknown],
+) => {
+  const waiting: (() => void)[] = [];
+  api.mock[method](pattern).reply(
+    (config) =>
+      new Promise((resolve) => {
+        waiting.push(() => resolve(answer(config.url ?? "")));
+        if (waiting.length === count) for (const release of waiting) release();
+      }),
+  );
+};
+
+const withinASecond = <T>(promise: Promise<T>) =>
+  Promise.race([
+    promise,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("requests ran one at a time")), 1000),
+    ),
+  ]);
+
+// Marking a season played passes every episode; one round trip after another
+// left the watchlist stale for seconds on a slow server.
+test("looks up the items of a batch in parallel", async () => {
+  const library: Library = {
+    m1: { Id: "m1", Type: "Movie", ...userData(true, true) },
+    m2: { Id: "m2", Type: "Movie", ...userData(true, true) },
+  };
+  const api = makeApi();
+  holdUntilConcurrent(api, "onGet", /\/Items\/m\d/, 2, (url) => [
+    200,
+    library[url.match(/\/Items\/([^/?]+)/)?.[1] ?? ""],
+  ]);
+  api.mock.onPost(/\/Rating/).reply(200, {});
+
+  const result = await withinASecond(
+    removeWatchedFromWatchlist(api, "u", ["m1", "m2"]),
+  );
+  expect(result.removed.sort()).toEqual(["m1", "m2"]);
+});
+
+test("sends the rating updates of a batch in parallel", async () => {
+  const { api } = serve({
+    m1: { Id: "m1", Type: "Movie", ...userData(true, true) },
+    m2: { Id: "m2", Type: "Movie", ...userData(true, true) },
+  });
+  api.mock.resetHandlers();
+  api.mock.onGet(/\/Items\/m1/).reply(200, {
+    Id: "m1",
+    Type: "Movie",
+    ...userData(true, true),
+  });
+  api.mock.onGet(/\/Items\/m2/).reply(200, {
+    Id: "m2",
+    Type: "Movie",
+    ...userData(true, true),
+  });
+  holdUntilConcurrent(api, "onPost", /\/Rating/, 2, () => [200, {}]);
+
+  const result = await withinASecond(
+    removeWatchedFromWatchlist(api, "u", ["m1", "m2"]),
+  );
+  expect(result.removed.sort()).toEqual(["m1", "m2"]);
 });

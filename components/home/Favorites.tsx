@@ -4,12 +4,14 @@ import type {
   ItemFilter,
 } from "@jellyfin/sdk/lib/generated-client";
 import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
+import { useQueryClient } from "@tanstack/react-query";
 import { t } from "i18next";
 import { useAtom } from "jotai";
 import { useCallback, useState } from "react";
 import { Text, View } from "react-native";
 // PNG ASSET
 import heart from "@/assets/icons/heart.fill.png";
+import { QueryErrorState } from "@/components/common/QueryErrorState";
 import { Image } from "@/components/common/ServerImage";
 import { Colors } from "@/constants/Colors";
 import useRouter from "@/hooks/useAppRouter";
@@ -107,6 +109,34 @@ export const Favorites = ({
     );
   };
 
+  // Whether each category's last load failed. A failure reports null
+  // emptiness, the same as loading, so it needs its own record.
+  const [failedState, setFailedState] = useState<
+    Partial<Record<FavoriteTypes, boolean>>
+  >({});
+  const setTypeFailed = useCallback(
+    (type: FavoriteTypes, isError: boolean) =>
+      setFailedState((prev) =>
+        prev[type] === isError ? prev : { ...prev, [type]: isError },
+      ),
+    [],
+  );
+
+  // Every category settled without items and at least one failed: each row
+  // hides itself, so without this the screen would be blank, with nothing to
+  // explain it or to retry.
+  const types = Object.keys(emptyState) as FavoriteTypes[];
+  const allFailedOrEmpty =
+    types.some((type) => failedState[type]) &&
+    types.every((type) => failedState[type] || emptyState[type] === true);
+
+  const queryClient = useQueryClient();
+  const retry = useCallback(() => {
+    queryClient.refetchQueries({
+      queryKey: ["home", queryKeyBase, user?.Id],
+    });
+  }, [queryClient, queryKeyBase, user?.Id]);
+
   const fetchFavoriteSeries = useCallback(
     ({ pageParam }: { pageParam: number }) =>
       fetchFavoritesByType("Series", pageParam, pageSize),
@@ -166,6 +196,7 @@ export const Favorites = ({
 
   return (
     <View className='flex flex-co gap-y-4'>
+      {allFailedOrEmpty && <QueryErrorState onRetry={retry} />}
       {areAllEmpty() && (
         <View className='flex-1 items-center justify-center py-12'>
           <Image
@@ -191,6 +222,7 @@ export const Favorites = ({
         hideIfEmpty
         pageSize={pageSize}
         onEmptyStateChange={(isEmpty) => setTypeEmpty("Series", isEmpty)}
+        onErrorChange={(isError) => setTypeFailed("Series", isError)}
         onPressSeeAll={() => seeAll("Series", "Series")}
       />
       <InfiniteScrollingCollectionList
@@ -202,6 +234,7 @@ export const Favorites = ({
         showParentTitle
         pageSize={pageSize}
         onEmptyStateChange={(isEmpty) => setTypeEmpty("Season", isEmpty)}
+        onErrorChange={(isError) => setTypeFailed("Season", isError)}
         onPressSeeAll={() => seeAll("Season", "Seasons")}
       />
 
@@ -213,6 +246,7 @@ export const Favorites = ({
         orientation='vertical'
         pageSize={pageSize}
         onEmptyStateChange={(isEmpty) => setTypeEmpty("Movie", isEmpty)}
+        onErrorChange={(isError) => setTypeFailed("Movie", isError)}
         onPressSeeAll={() => seeAll("Movie", "Movies")}
       />
       <InfiniteScrollingCollectionList
@@ -222,6 +256,7 @@ export const Favorites = ({
         hideIfEmpty
         pageSize={pageSize}
         onEmptyStateChange={(isEmpty) => setTypeEmpty("Episode", isEmpty)}
+        onErrorChange={(isError) => setTypeFailed("Episode", isError)}
         onPressSeeAll={() => seeAll("Episode", "Episodes")}
       />
       <InfiniteScrollingCollectionList
@@ -231,6 +266,7 @@ export const Favorites = ({
         hideIfEmpty
         pageSize={pageSize}
         onEmptyStateChange={(isEmpty) => setTypeEmpty("Video", isEmpty)}
+        onErrorChange={(isError) => setTypeFailed("Video", isError)}
         onPressSeeAll={() => seeAll("Video", "Videos")}
       />
       <InfiniteScrollingCollectionList
@@ -240,6 +276,7 @@ export const Favorites = ({
         hideIfEmpty
         pageSize={pageSize}
         onEmptyStateChange={(isEmpty) => setTypeEmpty("BoxSet", isEmpty)}
+        onErrorChange={(isError) => setTypeFailed("BoxSet", isError)}
         onPressSeeAll={() => seeAll("BoxSet", "Boxsets")}
       />
       <InfiniteScrollingCollectionList
@@ -249,6 +286,7 @@ export const Favorites = ({
         hideIfEmpty
         pageSize={pageSize}
         onEmptyStateChange={(isEmpty) => setTypeEmpty("Playlist", isEmpty)}
+        onErrorChange={(isError) => setTypeFailed("Playlist", isError)}
         onPressSeeAll={() => seeAll("Playlist", "Playlists")}
       />
     </View>
