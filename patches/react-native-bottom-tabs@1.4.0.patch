@@ -1,0 +1,69 @@
+diff --git a/ios/TabViewImpl.swift b/ios/TabViewImpl.swift
+index 68053e1f17cbdd489f1712aac82f58e24ff4d892..5a611abb2eca702fc2929d1ca5cec467ccd5dff2 100644
+--- a/ios/TabViewImpl.swift
++++ b/ios/TabViewImpl.swift
+@@ -120,14 +120,31 @@ struct TabViewImpl: View {
+       let items = tabBar.items
+     else { return }
+ 
+-    configureTabBarItemImages(items: items, props: props)
++    configureTabBarItemImages(items: items, tabBar: tabBar, props: props)
+ 
+     DispatchQueue.main.async { [weak tabBar] in
+       guard let tabBar, let items = tabBar.items else { return }
+-      configureTabBarItemImages(items: items, props: props)
++      configureTabBarItemImages(items: items, tabBar: tabBar, props: props)
+     }
+   }
+ 
++  /// Position of a tab bar item among the rendered tabs, in declaration order.
++  ///
++  /// `tabBar.items` comes back in display order, which stops being the declaration order as soon as
++  /// UIKit moves a tab: an app linked against the iOS 27 SDK gets its search tab last. Reading the tab
++  /// by the item's own index then puts every label after the moved tab on the wrong item, so the item
++  /// is matched to its tab by identity instead.
++  private func declarationIndex(of item: UITabBarItem, at tabBarIndex: Int, in tabBar: UITabBar) -> Int {
++    if #available(iOS 18.0, tvOS 18.0, visionOS 2.0, *),
++      let tabController = tabBar.delegate as? UITabBarController,
++      let index = tabController.tabs.firstIndex(where: { $0.viewController?.tabBarItem === item })
++    {
++      return index
++    }
++
++    return tabBarIndex
++  }
++
+   private func updateTabBarAppearance(props: TabViewProps, tabBar: UITabBar?) {
+     guard let tabBar else { return }
+ 
+@@ -219,9 +236,10 @@ struct TabViewImpl: View {
+     }
+   }
+ 
+-  private func configureTabBarItemImages(items: [UITabBarItem], props: TabViewProps) {
++  private func configureTabBarItemImages(items: [UITabBarItem], tabBar: UITabBar, props: TabViewProps) {
+     for (tabBarIndex, item) in items.enumerated() {
+-      guard let tabData = props.filteredItems[safe: tabBarIndex],
++      let tabIndex = declarationIndex(of: item, at: tabBarIndex, in: tabBar)
++      guard let tabData = props.filteredItems[safe: tabIndex],
+         let itemIndex = props.items.firstIndex(where: { $0.key == tabData.key })
+       else { continue }
+ 
+diff --git a/ios/TabViewProps.swift b/ios/TabViewProps.swift
+index dd4c3c883720d265126b9dd544c9389a3ed8cbdd..0d4c99fdfc6fc70b2d83980d6bcc9ab981bb74ac 100644
+--- a/ios/TabViewProps.swift
++++ b/ios/TabViewProps.swift
+@@ -35,6 +35,13 @@ public enum TabBarRole: String {
+   func convert() -> TabRole {
+     switch self {
+     case .search:
++      #if compiler(>=6.4) && os(iOS)
++        // An app linked against the iOS 27 SDK gets its search tab inline, at the end of the bar.
++        // The detached trailing button a search tab had on iOS 26 is the prominent role there.
++        if #available(iOS 27.0, *) {
++          return .prominent
++        }
++      #endif
+       return .search
+     }
+   }

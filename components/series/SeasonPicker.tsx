@@ -10,6 +10,7 @@ import {
   SeasonDropdown,
   type SeasonIndexState,
 } from "@/components/series/SeasonDropdown";
+import { SyncPlayQueueButton } from "@/components/syncplay/SyncPlayQueueButton";
 import { Colors } from "@/constants/Colors";
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
@@ -19,6 +20,7 @@ import {
   buildOfflineSeasons,
   getDownloadedEpisodesForSeason,
 } from "@/utils/downloads/offline-series";
+import { replacementSeason } from "@/utils/seasonSelection";
 import { runtimeTicksToSeconds } from "@/utils/time";
 import { AddToKefinWatchlist } from "../AddToKefinWatchlist";
 import { buildItemCards, type CardData } from "../cards/CardData";
@@ -78,6 +80,17 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
     staleTime: isOffline ? Infinity : 60,
     enabled: isOffline || (!!api && !!user?.Id && !!item.Id),
   });
+
+  // The remembered season can go away under the page: offline, deleting its
+  // last downloaded episode removes it from the list. SeasonDropdown only
+  // picks a season while none is remembered, so without this the page stays
+  // on a season it can no longer show.
+  useEffect(() => {
+    if (!item.Id) return;
+    const replacement = replacementSeason(seasons, seasonIndex);
+    if (replacement === undefined) return;
+    setSeasonIndexState((prev) => ({ ...prev, [item.Id!]: replacement }));
+  }, [item.Id, seasons, seasonIndex, setSeasonIndexState]);
 
   const selectedSeason: BaseItemDto | undefined = useMemo(
     () =>
@@ -244,6 +257,7 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
                 size='default'
               />
             )}
+            <SyncPlayQueueButton items={episodes || []} variant='icon' />
           </View>
         ) : null}
       </View>

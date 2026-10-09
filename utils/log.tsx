@@ -1,12 +1,12 @@
 import * as Sentry from "@sentry/react-native";
 import { useQuery } from "@tanstack/react-query";
 import { isAxiosError } from "axios";
-import { atomWithStorage, createJSONStorage } from "jotai/utils";
 import type React from "react";
 import { createContext, useContext } from "react";
 import { MAX_SESSION_REPORT_KEYS } from "@/constants/Sentry";
 import {
   describeHttpError,
+  describeHttpResponse,
   isAbortLikeError,
   isEnvironmentError,
   isErrorReported,
@@ -14,9 +14,10 @@ import {
   markErrorReported,
 } from "./errors";
 import { admitHttpFailure } from "./httpFailureGate";
-import { storage } from "./mmkv";
+import { type LogLevel, readFromLog, storeLogEntry } from "./logStorage";
 
-export type LogLevel = "INFO" | "WARN" | "ERROR" | "DEBUG";
+export type { LogLevel };
+export { readFromLog };
 
 const SENTRY_BREADCRUMB_LEVELS: Record<LogLevel, Sentry.SeverityLevel> = {
   INFO: "info",
@@ -24,20 +25,6 @@ const SENTRY_BREADCRUMB_LEVELS: Record<LogLevel, Sentry.SeverityLevel> = {
   ERROR: "error",
   DEBUG: "debug",
 };
-
-interface LogEntry {
-  timestamp: string;
-  level: LogLevel;
-  message: string;
-  data?: any;
-}
-
-const mmkvStorage = createJSONStorage(() => ({
-  getItem: (key: string) => storage.getString(key) || null,
-  setItem: (key: string, value: string) => storage.set(key, value),
-  removeItem: (key: string) => storage.remove(key),
-}));
-const logsAtom = atomWithStorage("logs", [], mmkvStorage);
 
 const LogContext = createContext<ReturnType<typeof useLogProvider> | null>(
   null,
@@ -68,41 +55,7 @@ const appendLogEntry = (level: LogLevel, message: string, data?: any) => {
     message,
   });
 
-  const newEntry: LogEntry = {
-    timestamp: new Date().toISOString(),
-    level: level,
-    message: message,
-    data: data,
-  };
-
-  // The logging path itself must never throw: a corrupt persisted blob or a
-  // non-serializable `data` payload (circular refs) falls back instead of
-  // taking down the caller — which is often itself a catch block.
-  let logs: LogEntry[];
-  try {
-    const currentLogs = storage.getString("logs");
-    logs = currentLogs ? JSON.parse(currentLogs) : [];
-  } catch {
-    logs = [];
-  }
-  logs.push(newEntry);
-
-  // The native player mirrors its log in here too (useNativePlayerLogBridge),
-  // so one playback can add a couple of dozen lines; 100 was pushing the
-  // startup/audio-route entries out before a user got to Settings → Logs.
-  const maxLogs = 250;
-  const recentLogs = logs.slice(Math.max(logs.length - maxLogs, 0));
-
-  try {
-    storage.set("logs", JSON.stringify(recentLogs));
-  } catch {
-    newEntry.data = String(data);
-    try {
-      storage.set("logs", JSON.stringify(recentLogs));
-    } catch {
-      // Even the fallback failed — drop the write rather than throw.
-    }
-  }
+  storeLogEntry(level, message, data);
 };
 
 // Sentry capture is always explicit (logAndCaptureError), never a side
@@ -198,6 +151,12 @@ export const logAndCaptureError = (
   ) {
     return;
   }
+  // A 401 is the session ending, on whichever request happened to be in
+  // flight: JellyfinProvider's interceptor signs the user out and the login
+  // screen says the rest. utils/reportDataError leaves it out the same way.
+  if (isAxiosError(error) && error.response?.status === 401) {
+    return;
+  }
   // The same error object caught by a second layer, or one whose twin the
   // Seerr interceptor already sent: under another message it would be a
   // second issue for the same failure.
@@ -233,6 +192,7 @@ export const logAndCaptureError = (
       // Group by what actually separates them: which call failed, to which
       // route, with which status.
       scope.setContext("http", http);
+      scope.setContext("http_response", describeHttpResponse(error) ?? null);
       scope.setFingerprint([
         message,
         http.method,
@@ -267,11 +227,6 @@ export const writeDebugLog = (message: string, data?: any) => {
   }
 };
 
-export const readFromLog = (): LogEntry[] => {
-  const logs = storage.getString("logs");
-  return logs ? JSON.parse(logs) : [];
-};
-
 export function useLog() {
   const context = useContext(LogContext);
   if (context === null) {
@@ -285,5 +240,3 @@ export function LogProvider({ children }: { children: React.ReactNode }) {
 
   return <LogContext.Provider value={provider}>{children}</LogContext.Provider>;
 }
-
-export default logsAtom;

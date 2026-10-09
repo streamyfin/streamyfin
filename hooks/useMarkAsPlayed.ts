@@ -54,8 +54,9 @@ export const useMarkAsPlayed = (items: BaseItemDto[]) => {
           }),
         );
         // Watched means done with it: drop it, and any season or show it
-        // finished, from the KefinTweaks watchlist.
-        if (played) void pruneWatchedFromWatchlist(itemIds);
+        // finished, from the KefinTweaks watchlist. `items` still holds the
+        // played state from before the mark, which the prune needs.
+        if (played) void pruneWatchedFromWatchlist(items);
       } catch (error) {
         // The optimistic update is rolled back, so without a report this
         // user action fails with zero trace anywhere.

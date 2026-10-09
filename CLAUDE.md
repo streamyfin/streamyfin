@@ -50,6 +50,7 @@ Navigation:
 - `introsheet-rendering-location` | IntroSheet in IntroSheetProvider affects native bottom tabs via nav state hooks
 - `intro-modal-trigger-location` | Trigger in Home.tsx, not tabs _layout.tsx
 - `expo-router-top-tabs-runtime-peers` | js-top-tabs requires react-native-tab-view (+ pager-view) at runtime; no import shows it, removing them crashes on launch
+- `ios27-sdk-tab-bar-items-display-order` | linked against the iOS 27 SDK, UITabBar.items is in display order (search last) and the detached button is TabRole.prominent; patched in react-native-bottom-tabs
 
 UI and headers:
 - `macos-header-buttons-fix` | macOS Catalyst: use RNGH Pressable, not RN TouchableOpacity
@@ -57,10 +58,13 @@ UI and headers:
 - `stack-screen-header-configuration` | Sub-pages need explicit Stack.Screen with headerTransparent + back button
 - `switch-pointerevents-ignored` | Switch ignores its own pointerEvents (Android); wrap in a View pointerEvents="none"
 - `nativewind-classname-arrives-as-style` | a className passed to one of our own components reaches it as `style`; forward that, reading `className` drops it silently
+- `bottom-sheet-dismiss-before-present` | dismiss() on a BottomSheetModal that is not on screen leaves it unable to present, silently; follow `open` with useSheetOpenState
 
 State and data:
 - `use-network-aware-query-client-limitations` | Object.create breaks private fields; only for invalidateQueries
 - `mark-as-played-flow` | PlayedStatus -> useMarkAsPlayed -> playbackManager with optimistic updates
+- `shared-value-js-write-lands-later` | a shared value set from JS is applied later on the UI thread, the next JS read still gets the old one; keep JS-only state in a ref
+- `unobserved-query-reports-its-first-failure` | a query whose key changed under it has no observer left, so React Query cancels its retries and its first failure goes to Sentry; one failing request and an instant event in the breadcrumbs is that
 
 Native modules:
 - `expo-view-props-fail-silently` | `try? prop.set()` drops failed prop conversions with NO error; use a JSON string prop
@@ -69,7 +73,12 @@ Native modules:
 - `thread-safe-state-for-stop-flags` | Stop flags need synchronous setter (stateQueue.sync not async)
 - `native-swiftui-view-sizing` | Need explicit frame + intrinsicContentSize override in ExpoView
 - `engine-agnostic-native-chrome` | The Android TV chrome consumes PlayerEngine; engine rides config.engine, resolvers split engine vs renderer
+- `mpv-view-first-progress-tick-is-zero` | the MPV renderer emits its position cache once the duration is known; load() seeds it from startPosition, and JS player reports read resolveSessionPositionTicks, never progress.get()
 - `sentry-native-options-fail-silently` | sentry-cocoa ignores an option key it does not know, with no error; check the spelling in Options+Dictionary.swift
+- `avaudiosession-calls-block-on-the-audio-server` | every AVAudioSession setter AND getter is a synchronous XPC call that can take seconds; never on main, session changes go through PlayerAudioSession
+- `foreground-service-start-must-be-answered` | every startForegroundService() needs startForeground() first in onStartCommand, unconditionally; a refused call still answers it, a skipped one kills the process
+- `keychain-accessibility-set-at-creation` | a SecureStore item keeps the accessibility it was created with, `setItem` over it changes only the data; a default item throws on read when iOS launches the app on a locked phone
+- `track-player-queue-is-not-the-app-queue` | the native music queue only holds the tracks loaded so far, so a state queue index does not address it; on iOS `add` past the end rejects with the same message as `skip`
 
 TV platform:
 - `tv-modals-must-use-navigation-pattern` | Use atom+router.push(), never overlay/absolute modals
@@ -149,10 +158,11 @@ bun run ios:install-metal-toolchain   # Fixes "missing Metal Toolchain" build er
 | `plugins/` | Expo config plugins |
 | `patches/` | Patch package overrides |
 | `augmentations/` | Type augmentations |
-| `test-utils/` | Shared test doubles: Jellyfin API, MMKV, custom headers, React Native |
+| `test-utils/` | Shared test doubles: Jellyfin API, MMKV, the file system, custom headers, React Native, Reanimated |
 | `translations/` | i18n catalogues, `en.json` is the only source |
 | `scripts/` | Repo tooling run through bun |
 | `docs/` | Conventions and deep dives |
+| `e2e/` | Manual end to end fixtures that need Docker, never run in CI (a local Jellyfin for SyncPlay) |
 
 ## Key patterns
 
@@ -204,13 +214,14 @@ PersistQueryClientProvider
             PlaySettingsProvider
               LogProvider
                 WebSocketProvider
-                  DownloadProvider
-                    NativePlayerProvider
-                      MusicPlayerProvider
-                        GlobalModalProvider
-                          BottomSheetModalProvider
-                            IntroSheetProvider
-                              ThemeProvider
+                  SyncPlayProvider          group playback, needs the socket
+                    DownloadProvider
+                      NativePlayerProvider
+                        MusicPlayerProvider
+                          GlobalModalProvider
+                            BottomSheetModalProvider
+                              IntroSheetProvider
+                                ThemeProvider
 ```
 
 `JotaiProvider` and `ActionSheetProvider` wrap the tree higher up, at the root layout.

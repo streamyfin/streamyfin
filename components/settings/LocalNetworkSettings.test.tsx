@@ -63,6 +63,7 @@ const NOT_SAVED = "home.settings.network.local_url_not_saved";
 const UNUSABLE = "home.settings.network.local_url_unusable";
 const SAVED_UNANSWERED = "home.settings.network.local_url_saved_unanswered";
 const INVALID = "server_url.invalid_url";
+const COLD_START_TIMEOUT_MS = 60_000;
 
 /** A signed-in install with auto-switching on and this local URL stored. */
 const storedLocalUrl = (localUrl: string) => {
@@ -89,6 +90,21 @@ const enter = async (address: string) => {
 };
 
 describe("LocalNetworkSettings", () => {
+  // The first render of a spec loads and transforms what the component tree
+  // requires lazily (React Native's components, the test renderer's host
+  // detection). With a cold Jest cache, which is every CI run, that is over a
+  // second on a fast machine and has gone past the 5 s a test gets on a busy
+  // runner, failing whichever test happened to come first. One full pass
+  // through the screen, with its own time limit, pays for it up front.
+  beforeAll(async () => {
+    storedLocalUrl("http://10.0.0.2:8096");
+    mockProbe.mockResolvedValue({ status: "unreachable" });
+    const view = await render(<LocalNetworkSettings />);
+    await enter("192.168.1.10");
+    await waitFor(() => expect(mockToastError).toHaveBeenCalled());
+    await view.unmount();
+  }, COLD_START_TIMEOUT_MS);
+
   beforeEach(() => {
     clearMmkv();
     mockProbe.mockReset();

@@ -42,6 +42,7 @@ import {
   getDownloadedEpisodesForSeason,
 } from "@/utils/downloads/offline-series";
 import { scaleSize } from "@/utils/scaleSize";
+import { replacementSeason } from "@/utils/seasonSelection";
 import { getSeriesPlaybackTarget } from "@/utils/seriesPlaybackTarget";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
@@ -151,7 +152,11 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
   // and no episodes.
   const selectedSeasonIndex = useMemo(() => {
     const remembered = seasonIndexState[item.Id ?? ""];
-    if (remembered !== undefined && remembered !== null) return remembered;
+    if (remembered !== undefined && remembered !== null) {
+      // A remembered season that is gone (offline: its last downloaded
+      // episode was deleted) would show its name over an empty row.
+      return replacementSeason(seasons, remembered) ?? remembered;
+    }
 
     if (
       Number.isFinite(initialSeasonIndex) &&

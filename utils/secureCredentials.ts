@@ -3,6 +3,7 @@ import * as SecureStore from "expo-secure-store";
 import {
   bumpCustomHeadersVersion,
   deleteSecureCustomHeaderValues,
+  recreateLegacySecureValues,
   resolveCustomHeaderValues,
   secureCustomHeaderMetadata,
 } from "./customHeaders/secureValues";
@@ -165,6 +166,25 @@ export async function getAccountCredential(
       return null;
     }
   }
+  return null;
+}
+
+/**
+ * The credential a saved account signs in with, or null once an account that
+ * has none is forgotten.
+ *
+ * The account list and the credentials are two stores, and an account can be
+ * listed with no credential behind it (REACT-NATIVE-2K, on tvOS). Such an
+ * entry can never sign in, so it comes off the list the way an account whose
+ * token was rejected does, and signing in again puts it back.
+ */
+export async function getCredentialOrForgetAccount(
+  serverUrl: string,
+  userId: string,
+): Promise<ServerCredential | null> {
+  const credential = await getAccountCredential(serverUrl, userId);
+  if (credential) return credential;
+  await deleteAccountCredential(serverUrl, userId);
   return null;
 }
 
@@ -432,6 +452,34 @@ export function getServerCustomHeaders(serverUrl: string): CustomHeader[] {
   // This is a read: it must not write, because it runs during render (every
   // <Image> resolves its headers through it).
   return resolveCustomHeaderValues(server?.customHeaders ?? []);
+}
+
+/**
+ * Moves the header values an earlier build stored to items that can be read
+ * while the phone is locked: see `recreateLegacySecureValues`. Run at startup.
+ * It does nothing once every value is moved, and nothing on a locked phone,
+ * where the next launch tries again.
+ */
+export function makeServerHeadersReadableWhileLocked(): void {
+  try {
+    const replaced: CustomHeader[] = [];
+    const servers = getPreviousServers().map((server) => {
+      const moved = recreateLegacySecureValues(
+        `server:${server.address}`,
+        server.customHeaders ?? [],
+      );
+      if (!moved) return server;
+
+      replaced.push(...moved.replaced);
+      return { ...server, customHeaders: moved.headers };
+    });
+    if (replaced.length === 0) return;
+
+    storage.set("previousServers", JSON.stringify(servers));
+    deleteSecureCustomHeaderValues(replaced);
+  } catch (error) {
+    logAndCaptureError("Moving the server header values failed", error);
+  }
 }
 
 /**

@@ -193,11 +193,58 @@ describe("reportDataError", () => {
     expect(mockCaptured).toHaveLength(3);
   });
 
+  // REACT-NATIVE-3C, 6B, 87: a 400 on /Items and /Items/Latest came with the
+  // route and the status and nothing to say whether Jellyfin rejected a
+  // parameter or a proxy answered in its place.
+  test("the server's answer is described next to the route", () => {
+    reportDataError(
+      "query",
+      ["library-items"],
+      httpError(
+        newServer(),
+        "/Items",
+        400,
+        { "content-type": "application/problem+json", server: "Kestrel" },
+        { status: 400, errors: { sortBy: ["The value 'Foo' is not valid."] } },
+      ),
+    );
+    expect(mockCaptured).toHaveLength(1);
+    expect(mockCaptured[0].contexts.http_response).toEqual({
+      status: 400,
+      contentType: "application/problem+json",
+      server: "Kestrel",
+      bodyKind: "json",
+      bodyKeys: ["status", "errors"],
+      errorFields: ["sortBy"],
+    });
+  });
+
   test("a failure with no HTTP response is reported once per query", () => {
     reportDataError("mutation", ["play"], new TypeError("x is undefined"));
     reportDataError("mutation", ["play"], new TypeError("x is undefined"));
     reportDataError("mutation", ["other"], new TypeError("x is undefined"));
     expect(mockCaptured).toHaveLength(2);
+  });
+
+  // REACT-NATIVE-28 and its iOS siblings: the awards badge asking Wikidata
+  // from a network that does not reach it. expo/fetch's rejection is a plain
+  // Error, which this took for a failure of the app's.
+  test("a fetch that got no answer is not reported", () => {
+    reportDataError(
+      "query",
+      ["wikidata", "awards", "tt0111161"],
+      new Error(
+        'fetch failed: java.net.UnknownHostException: Unable to resolve host "www.wikidata.org": No address associated with hostname',
+      ),
+    );
+    reportDataError(
+      "query",
+      ["wikidata", "awards", "tt0111161"],
+      new Error(
+        "fetch failed: UnexpectedException: The Internet connection appears to be offline. (at ExpoModulesCore/Promise.swift:56)",
+      ),
+    );
+    expect(mockCaptured).toHaveLength(0);
   });
 
   test("a Streamystats server without the route is not a failure", () => {

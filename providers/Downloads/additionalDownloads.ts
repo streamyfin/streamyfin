@@ -14,7 +14,7 @@ import { getExternalSubtitleUrl } from "@/utils/jellyfin/subtitleUtils";
 import { fetchAndParseSegments, type SegmentBuckets } from "@/utils/segments";
 import { generateTrickplayUrl, getTrickplayInfo } from "@/utils/trickplay";
 import type { TrickPlayData } from "./types";
-import { generateFilename } from "./utils";
+import { subtitleFileName, trickplayDirName } from "./utils";
 
 /**
  * Downloads trickplay images for an item
@@ -29,8 +29,7 @@ export async function downloadTrickplayImages(
     return undefined;
   }
 
-  const filename = generateFilename(item);
-  const trickplayDir = new Directory(Paths.document, `${filename}_trickplay`);
+  const trickplayDir = new Directory(Paths.document, trickplayDirName(item));
 
   // Create directory if it doesn't exist
   if (!trickplayDir.exists) {
@@ -99,7 +98,6 @@ export async function downloadSubtitles(
     return mediaSource;
   }
 
-  const filename = generateFilename(item);
   // Sequential on purpose: concurrent subtitle requests make Jellyfin's
   // first-time extraction race with itself and serve corrupted files
   for (const subtitle of externalSubtitles) {
@@ -109,10 +107,9 @@ export async function downloadSubtitles(
     });
     if (!url) continue;
 
-    const extension = subtitle.Codec || "srt";
     const destination = new File(
       Paths.document,
-      `${filename}_subtitle_${subtitle.Index}.${extension}`,
+      subtitleFileName(item, subtitle),
     );
 
     // Skip if already exists

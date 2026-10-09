@@ -27,10 +27,14 @@ protocol MPVPlayerEngineDelegate: AnyObject {
 	/// forwards the request.
 	func engine(_ engine: MPVPlayerEngine, requestsSeekTo position: Double)
 	func engine(_ engine: MPVPlayerEngine, requestsSeekBy offset: Double)
+	func engine(_ engine: MPVPlayerEngine, requestsPlaying playing: Bool)
 }
 
 /// Hosts without position bookkeeping of their own let the engine seek.
 extension MPVPlayerEngineDelegate {
+	func engine(_ engine: MPVPlayerEngine, requestsPlaying playing: Bool) {
+		if playing { engine.play() } else { engine.pause() }
+	}
 	func engine(_ engine: MPVPlayerEngine, requestsSeekTo position: Double) {
 		engine.seekTo(position: position)
 	}
@@ -52,6 +56,7 @@ final class MPVPlayerEngine: NSObject {
 	private var renderer: MPVLayerRenderer?
 	private var pipController: PiPController?
 	private let nowPlayingManager = MPVNowPlayingManager.shared
+	private let audioSession = PlayerAudioSession.shared
 
 	private var currentURL: URL?
 	private var currentLoop = false
@@ -61,6 +66,17 @@ final class MPVPlayerEngine: NSObject {
 	private(set) var intendedPlayState: Bool = false
 	private var _isZoomedToFill: Bool = false
 	private var isShutDown = false
+	// Outside the iOS block below: the PiP delegate that sets these compiles
+	// on tvOS too, where it is never called.
+	/// True while the delegate hears that PiP stopped, when the user asked to
+	/// return to the app. False when the PiP window was simply closed.
+	private(set) var pictureInPictureStopIsRestore = false
+	/// True from AVKit announcing that PiP will stop until it has stopped.
+	private(set) var isPictureInPictureStopping = false
+	/// True from AVKit announcing that PiP will start until it has started or
+	/// failed to. Automatic PiP begins as the app leaves the foreground, and
+	/// the app can be in the background before the window is up.
+	private(set) var isPictureInPictureStarting = false
 	#if os(iOS)
 	private var isPictureInPictureHostVisible = false
 	private var hasRenderedFirstFrame = false
@@ -131,23 +147,17 @@ final class MPVPlayerEngine: NSObject {
 
 	// MARK: - Audio Session
 
-	private func configureAudioSession() {
-		let session = AVAudioSession.sharedInstance()
-		do {
-			try session.setCategory(.playback, mode: .moviePlayback, policy: .longFormAudio, options: [])
-			try session.setActive(true)
-		} catch {
-			print("Failed to configure audio session: \(error)")
-		}
-	}
+	// Every change to the session goes through `PlayerAudioSession`, off the
+	// main thread. Nothing re-activates it after the interruption handled
+	// below except the play() that resumes, which is why play() still applies
+	// it every time.
 
-	/// Deactivate the session AND reset the category — `setActive(false)` alone
-	/// leaves `.playback`/`.longFormAudio` on the shared singleton, so any later
-	/// reactivation (foreground, route change, other modules) re-steals audio.
-	private func tearDownAudioSession() {
-		let session = AVAudioSession.sharedInstance()
-		try? session.setActive(false, options: .notifyOthersOnDeactivation)
-		try? session.setCategory(.ambient, mode: .default, options: [.mixWithOthers])
+	/// Not after a shutdown: a play() or an mpv callback can still arrive once
+	/// the player has closed, and an activation queued behind the teardown
+	/// would take the session back with no player left to give it up.
+	private func activateAudioSession(completion: (() -> Void)? = nil) {
+		guard !isShutDown else { return }
+		audioSession.activate(completion: completion)
 	}
 
 	@objc private func handleAudioSessionInterruption(_ notification: Notification) {
@@ -182,11 +192,11 @@ final class MPVPlayerEngine: NSObject {
 
 	private func setupRemoteCommands() {
 		nowPlayingManager.setupRemoteCommands(
-			playHandler: { [weak self] in self?.play() },
-			pauseHandler: { [weak self] in self?.pause() },
+			playHandler: { [weak self] in self?.requestPlaying(true) },
+			pauseHandler: { [weak self] in self?.requestPlaying(false) },
 			toggleHandler: { [weak self] in
 				guard let self else { return }
-				if self.intendedPlayState { self.pause() } else { self.play() }
+				self.requestPlaying(!self.intendedPlayState)
 			},
 			seekHandler: { [weak self] time in self?.requestSeek(to: time) },
 			skipForward: { [weak self] interval in self?.requestSeek(by: interval) },
@@ -209,7 +219,6 @@ final class MPVPlayerEngine: NSObject {
 
 	private func clearNowPlayingInfo() {
 		nowPlayingManager.cleanupRemoteCommands()
-		nowPlayingManager.deactivateAudioSession()
 		nowPlayingManager.clear()
 	}
 
@@ -246,6 +255,14 @@ final class MPVPlayerEngine: NSObject {
 			commands: []
 		)
 
+		// Queued ahead of the load on purpose. The renderer's load block waits
+		// for pending session changes, so the playback category is in place
+		// before mpv opens its audio output, which sizes itself from the route
+		// the session reports at that moment.
+		if config.autoplay {
+			activateAudioSession()
+		}
+
 		// Pass everything to the renderer - it handles start position and external subs
 		renderer?.load(
 			url: config.url,
@@ -263,8 +280,16 @@ final class MPVPlayerEngine: NSObject {
 			loadGeneration: currentLoadGeneration
 		)
 
+		// A SyncPlay late join loads paused. Remote Play and Seek must already
+		// have intent handlers before the first group Unpause ever arrives.
+		setupRemoteCommands()
 		if config.autoplay {
-			play()
+			resumePlayback()
+		} else {
+			// mpv's pause property survives loadfile. A shared queue restart
+			// must stay paused until Jellyfin's scheduled Unpause, even when
+			// the previous source was playing or reached EOF while unpaused.
+			pause()
 		}
 
 		delegate?.engine(self, didLoad: config.url)
@@ -273,8 +298,16 @@ final class MPVPlayerEngine: NSObject {
 	// MARK: - Transport
 
 	func play() {
+		// Queued before the unpause, which renderer.play() holds until the
+		// session is active.
+		activateAudioSession()
+		resumePlayback()
+	}
+
+	/// play() without the session request: loadVideo() has to make that one
+	/// before the load is queued, and once is enough.
+	private func resumePlayback() {
 		intendedPlayState = true
-		configureAudioSession()
 		setupRemoteCommands()
 		renderer?.play()
 		pipController?.setPlaybackRate(1.0)
@@ -351,7 +384,7 @@ final class MPVPlayerEngine: NSObject {
 		renderer?.stop()
 		displayLayer.removeFromSuperlayer()
 		clearNowPlayingInfo()
-		tearDownAudioSession()
+		audioSession.tearDown()
 		NotificationCenter.default.removeObserver(self)
 	}
 
@@ -359,11 +392,11 @@ final class MPVPlayerEngine: NSObject {
 		shutdown()
 	}
 
-	func seekTo(position: Double) {
+	func seekTo(position: Double, exact: Bool = false) {
 		// Update cached position and Now Playing immediately for smooth Control Center feedback
 		cachedPosition = position
 		syncNowPlaying(isPlaying: !isPaused())
-		renderer?.seek(to: position)
+		renderer?.seek(to: position, exact: exact)
 	}
 
 	func seekBy(offset: Double) {
@@ -385,6 +418,11 @@ final class MPVPlayerEngine: NSObject {
 		} else {
 			seekTo(position: position)
 		}
+	}
+
+	func requestPlaying(_ playing: Bool) {
+		if let delegate { delegate.engine(self, requestsPlaying: playing) }
+		else if playing { play() } else { pause() }
 	}
 
 	func requestSeek(by offset: Double) {
@@ -467,8 +505,18 @@ final class MPVPlayerEngine: NSObject {
 		pipController?.stopPictureInPicture()
 	}
 
+	/// A device capability, so one answer serves the whole process. AVKit's
+	/// own answer is not free: PlayerTopBar asks from its SwiftUI body, on
+	/// every evaluation, and one such call held the main thread for 4 seconds
+	/// (Sentry REACT-NATIVE-FC). Resolved once, on first use, by whoever asks.
+	/// Deliberately not warmed from a background queue: main would then wait
+	/// on this initializer, and if AVKit needs the main thread to answer, the
+	/// two wait on each other for good.
+	private static let pictureInPictureSupported =
+		AVPictureInPictureController.isPictureInPictureSupported()
+
 	func isPictureInPictureSupported() -> Bool {
-		return AVPictureInPictureController.isPictureInPictureSupported()
+		return MPVPlayerEngine.pictureInPictureSupported
 	}
 
 	func isPictureInPictureActive() -> Bool {
@@ -695,8 +743,11 @@ extension MPVPlayerEngine: MPVLayerRendererDelegate {
 		// mpv reconfigures the shared AVAudioSession when its audio unit spins up,
 		// overriding what play() set. Until ours is re-applied the system doesn't
 		// treat us as the Now Playing app and drops every info update.
-		configureAudioSession()
-		syncNowPlaying(isPlaying: intendedPlayState)
+		activateAudioSession { [weak self] in
+			// A shutdown in between has cleared Now Playing; leave it cleared.
+			guard let self, !self.isShutDown else { return }
+			self.syncNowPlaying(isPlaying: self.intendedPlayState)
+		}
 	}
 
 	func rendererPlaybackDidRestart(
@@ -723,6 +774,9 @@ extension MPVPlayerEngine: MPVLayerRendererDelegate {
 extension MPVPlayerEngine: PiPControllerDelegate {
 	func pipController(_ controller: PiPController, willStartPictureInPicture: Bool) {
 		Logger.shared.log("PiP: will start", type: "Info")
+		pictureInPictureStopIsRestore = false
+		isPictureInPictureStopping = false
+		isPictureInPictureStarting = true
 		// Sync timebase before PiP starts for smooth transition
 		renderer?.syncTimebase()
 		// Set current time for PiP progress bar
@@ -737,6 +791,7 @@ extension MPVPlayerEngine: PiPControllerDelegate {
 
 	func pipController(_ controller: PiPController, didStartPictureInPicture: Bool) {
 		Logger.shared.log("PiP: did start = \(didStartPictureInPicture)", type: "Info")
+		isPictureInPictureStarting = false
 		// Ensure current time is synced when PiP starts
 		pipController?.setCurrentTimeFromSeconds(cachedPosition)
 		// Notify the host of the actual PiP active state. `didStartPictureInPicture`
@@ -746,12 +801,14 @@ extension MPVPlayerEngine: PiPControllerDelegate {
 
 	func pipController(_ controller: PiPController, willStopPictureInPicture: Bool) {
 		Logger.shared.log("PiP: will stop", type: "Info")
+		isPictureInPictureStopping = true
 		// Sync timebase before returning from PiP
 		renderer?.syncTimebase()
 	}
 
 	func pipController(_ controller: PiPController, didStopPictureInPicture: Bool) {
 		Logger.shared.log("PiP: did stop", type: "Info")
+		isPictureInPictureStarting = false
 		// Ensure timebase is synced after PiP ends
 		renderer?.syncTimebase()
 		pipController?.updatePlaybackState()
@@ -764,25 +821,24 @@ extension MPVPlayerEngine: PiPControllerDelegate {
 		// Notify the host that PiP has fully stopped so the controls overlay
 		// can be re-mounted when the user returns to full screen.
 		delegate?.engine(self, didChangePictureInPicture: false)
+		pictureInPictureStopIsRestore = false
+		isPictureInPictureStopping = false
 	}
 
 	func pipController(_ controller: PiPController, restoreUserInterfaceForPictureInPictureStop completionHandler: @escaping (Bool) -> Void) {
 		Logger.shared.log("PiP: restore user interface requested", type: "Info")
+		pictureInPictureStopIsRestore = true
 		completionHandler(true)
 	}
 
 	func pipControllerPlay(_ controller: PiPController) {
 		print("PiP play requested")
-		intendedPlayState = true
-		renderer?.play()
-		pipController?.setPlaybackRate(1.0)
+		requestPlaying(true)
 	}
 
 	func pipControllerPause(_ controller: PiPController) {
 		print("PiP pause requested")
-		intendedPlayState = false
-		renderer?.pausePlayback()
-		pipController?.setPlaybackRate(0.0)
+		requestPlaying(false)
 	}
 
 	func pipController(_ controller: PiPController, skipByInterval interval: CMTime) {

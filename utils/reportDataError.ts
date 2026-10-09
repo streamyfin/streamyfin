@@ -4,6 +4,7 @@ import { isAxiosError } from "axios";
 import { MAX_SESSION_REPORT_KEYS } from "@/constants/Sentry";
 import {
   describeHttpError,
+  describeHttpResponse,
   isAbortLikeError,
   isEnvironmentError,
   isErrorReported,
@@ -77,6 +78,9 @@ export const reportDataError = (
       // so left to Sentry every HTTP failure in the app lands in ONE issue.
       // Group by the query that failed, its route and the status instead.
       scope.setContext("http", http);
+      // Who answered and in what shape: the route and the status alone do
+      // not tell a parameter the server rejected from a proxy's own page.
+      scope.setContext("http_response", describeHttpResponse(error) ?? null);
       scope.setFingerprint([
         "data-layer",
         source,

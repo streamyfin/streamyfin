@@ -6,12 +6,13 @@ import {
   BottomSheetView,
 } from "@gorhom/bottom-sheet";
 import type React from "react";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, Platform, TouchableOpacity, View } from "react-native";
 import { Swipeable } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Colors } from "@/constants/Colors";
+import { useSheetOpenState } from "@/hooks/useSheetOpenState";
 import {
   deleteAccountCredential,
   type SavedServer,
@@ -47,13 +48,7 @@ export const AccountsSheet: React.FC<AccountsSheetProps> = ({
     [isAndroid],
   );
 
-  useEffect(() => {
-    if (open) {
-      bottomSheetModalRef.current?.present();
-    } else {
-      bottomSheetModalRef.current?.dismiss();
-    }
-  }, [open]);
+  const handleDismissed = useSheetOpenState(bottomSheetModalRef, open);
 
   const handleSheetChanges = useCallback(
     (index: number) => {
@@ -122,6 +117,7 @@ export const AccountsSheet: React.FC<AccountsSheetProps> = ({
   return (
     <BottomSheetModal
       ref={bottomSheetModalRef}
+      onDismiss={handleDismissed}
       snapPoints={snapPoints}
       onChange={handleSheetChanges}
       handleIndicatorStyle={{ backgroundColor: "white" }}

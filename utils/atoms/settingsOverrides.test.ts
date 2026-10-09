@@ -1,5 +1,6 @@
 import type { PluginLockableSettings, Settings } from "./settings";
 import {
+  dropSeededSecrets,
   pendingPluginDefaults,
   pluginRefreshOverlay,
   readIntegrationBlocks,
@@ -188,6 +189,18 @@ describe("pendingPluginDefaults", () => {
     // user action; an admin enforces it with a lock instead.
     const pending = pendingPluginDefaults(
       plugin({ sentryEnabled: { locked: false, value: true } }),
+      {},
+      identity,
+    );
+    expect(pending).toEqual({});
+  });
+
+  // Seeded, a key lands in the settings, which belong to the device and
+  // outlive the account it was served to. It applies at read time instead,
+  // for as long as the plugin serves it to whoever is signed in.
+  test.each(["seerrApiKey", "openSubtitlesApiKey"])("never seeds %s", (key) => {
+    const pending = pendingPluginDefaults(
+      plugin({ [key]: { locked: false, value: "a-key" } }),
       {},
       identity,
     );
@@ -415,5 +428,43 @@ describe("renameLegacySeerrSettings", () => {
 
   test("says when there was nothing to carry", () => {
     expect(renameLegacySeerrSettings({ seerrApiKey: "a-key" })).toBe(false);
+  });
+});
+
+describe("dropSeededSecrets", () => {
+  // An earlier build seeded the keys, and the copy stayed for every account
+  // signed in after the one it was served to.
+  test("drops a key the plugin seeded and the user never changed", () => {
+    const stored: Record<string, unknown> = {
+      seerrServerUrl: "http://seerr.example",
+      seerrApiKey: "admin-key",
+      openSubtitlesApiKey: "subtitles-key",
+    };
+    const applied: Record<string, unknown> = {
+      seerrServerUrl: "http://seerr.example",
+      seerrApiKey: "admin-key",
+      openSubtitlesApiKey: "subtitles-key",
+    };
+
+    expect(dropSeededSecrets(stored, applied)).toBe(true);
+
+    expect(stored).toEqual({ seerrServerUrl: "http://seerr.example" });
+    expect(applied).toEqual({ seerrServerUrl: "http://seerr.example" });
+  });
+
+  test("keeps a key the user typed", () => {
+    const stored: Record<string, unknown> = { seerrApiKey: "my-key" };
+    const applied: Record<string, unknown> = { seerrApiKey: "admin-key" };
+
+    expect(dropSeededSecrets(stored, applied)).toBe(true);
+
+    expect(stored).toEqual({ seerrApiKey: "my-key" });
+    expect(applied).toEqual({});
+  });
+
+  test("says when there was nothing to drop", () => {
+    expect(
+      dropSeededSecrets({ seerrServerUrl: "http://seerr.example" }, {}),
+    ).toBe(false);
   });
 });

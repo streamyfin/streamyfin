@@ -64,28 +64,68 @@ export const isAbortLikeError = (error: unknown): boolean =>
 // - 526: the origin's certificate is not valid
 // - 530: sent with a 1xxx error page, in practice 1033, a Cloudflare Tunnel
 //   that is not running
+// Two more are a proxy turning the request away before any server saw it,
+// and none of the servers the app talks to answers with either:
+// - 421: Misdirected Request, the connection reached a proxy that does not
+//   serve this host name (an SNI and Host mismatch, a reused HTTP/2
+//   connection to the wrong virtual host)
+// - 444: nginx's own, its way of closing the connection without an answer
+//   on a host name or a client it was told not to serve; a client sees the
+//   number when whatever stands in front of that nginx relays it
 // One origin-down blip otherwise fans out into one issue per in-flight route.
 const GATEWAY_STATUSES = new Set([
-  502, 503, 504, 520, 521, 522, 523, 524, 525, 526, 530,
+  421, 444, 502, 503, 504, 520, 521, 522, 523, 524, 525, 526, 530,
 ]);
 
 /** Whether a status is a proxy's way of saying the server did not answer. */
 export const isGatewayStatus = (status: number): boolean =>
   GATEWAY_STATUSES.has(status);
 
+// expo/fetch, which is the global fetch on native, rejects with its own
+// FetchError: a plain Error, named "Error" and without a code, whose message
+// is "fetch failed: " and the message of what the native request was rejected
+// with. For a request that got no answer that is:
+// - iOS: the URLSession error. It is not one of Expo's own exceptions, so it
+//   arrives wrapped: "UnexpectedException: <text> (at …/Promise.swift:56)".
+//   The text is in the user's language, the wrapper is not.
+// - Android: the IOException OkHttp gave up with, as its toString():
+//   "java.net.UnknownHostException: Unable to resolve host …", or the class
+//   name alone when the exception has no message.
+// What Expo rejects with for reasons of its own (a cancel, a redirect it was
+// told to refuse, "Unknown error") is named after its own exception on iOS
+// and carries no class name on Android, so none of it matches. Nor does a
+// status: expo/fetch resolves for every status, and a "fetch failed" that
+// names one was thrown by a caller that did get an answer.
+const FETCH_NO_RESPONSE_PATTERN =
+  /^fetch failed: (?:UnexpectedException: |(?:[a-z_][\w$]*\.)+[A-Z][\w$]*(?:Exception|Error)(?=:|$))/;
+
+// A status or a response attached to an error says the request was answered,
+// whatever the message reads like.
+const carriesHttpAnswer = (error: Error): boolean => {
+  const { status, response } = error as {
+    status?: unknown;
+    response?: unknown;
+  };
+  return typeof status === "number" || (response ?? null) !== null;
+};
+
 /**
  * True for requests that never got a usable HTTP response — the server is
  * unreachable (LAN-only server while roaming, DNS failure, timeout) or its
  * proxy could not reach it. That is the user's environment, not an app bug,
- * so it must never become a Sentry event. Covers both axios errors and React
- * Native's fetch TypeError.
+ * so it must never become a Sentry event. Covers axios errors, React Native's
+ * fetch TypeError and expo/fetch's "fetch failed".
  */
 export const isConnectivityError = (error: unknown): boolean => {
   if (isAxiosError(error)) {
     return !error.response || isGatewayStatus(error.response.status);
   }
+  if (!(error instanceof Error)) return false;
+  if (error instanceof TypeError) {
+    return /network request failed/i.test(error.message);
+  }
   return (
-    error instanceof TypeError && /network request failed/i.test(error.message)
+    FETCH_NO_RESPONSE_PATTERN.test(error.message) && !carriesHttpAnswer(error)
   );
 };
 
@@ -105,6 +145,26 @@ const isHtmlDocument = (body: unknown): boolean =>
   typeof body === "string" &&
   HTML_DOCUMENT_START.test(body.slice(0, HTML_SNIFF_CHARS));
 
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" &&
+  value !== null &&
+  Object.getPrototypeOf(value) === Object.prototype;
+
+// The `type` of the problem document (RFC 9457) Cloudflare sends for one of
+// its 1xxx errors to a client that accepts JSON, which axios does: the page
+// of Cloudflare's documentation for that error. The whole value is matched,
+// host included, so a path that only resembles it on another host is not
+// taken for it.
+const CLOUDFLARE_ERROR_TYPE =
+  /^https:\/\/developers\.cloudflare\.com\/(?:[\w-]+\/)*cloudflare-1xxx-errors\/error-1\d{3}\/?$/;
+
+// What axios makes of that document. A body left as text is not looked into:
+// axios parses every JSON body the app asks for.
+const isCloudflareErrorDocument = (body: unknown): boolean =>
+  isPlainObject(body) &&
+  typeof body.type === "string" &&
+  CLOUDFLARE_ERROR_TYPE.test(body.type);
+
 /**
  * True for a 403 that a gateway in front of the server sent in the server's
  * place: a WAF rule, Cloudflare Access, a geo block. Told apart by the body,
@@ -118,6 +178,12 @@ const isHtmlDocument = (body: unknown): boolean =>
  * as an HTML document. The body is only looked at here: it never goes onto
  * an event, as an error page can name the user's server.
  *
+ * Cloudflare sends the same refusal as JSON to a client that accepts it, and
+ * that one is recognised by the `type` it names itself with. Nothing else
+ * about a JSON 403 counts, the `Server: cloudflare` header least of all:
+ * every answer of a server behind Cloudflare carries it, the server's own
+ * refusals included.
+ *
  * Only 403: a 404 or a 500 with an HTML body can still be the app asking for
  * the wrong path, which is worth a report.
  */
@@ -126,7 +192,8 @@ export const isGatewayBlockError = (error: unknown): boolean => {
   const contentType = error.response.headers?.["content-type"];
   return (
     HTML_CONTENT_TYPE.test(String(contentType ?? "")) ||
-    isHtmlDocument(error.response.data)
+    isHtmlDocument(error.response.data) ||
+    isCloudflareErrorDocument(error.response.data)
   );
 };
 
@@ -215,6 +282,11 @@ const FIXED_RESPONSE_REASONS: ReadonlySet<string> = new Set([
 // data, and its keys do not pass.
 const FIELD_NAME = /^[A-Za-z_][A-Za-z0-9_]{0,31}$/;
 const MAX_RESPONSE_BODY_KEYS = 12;
+// A key of the `errors` object in ASP.NET validation problem details: the
+// request parameter the server could not bind ("sortBy"), or the body field
+// ("$.PlayableMediaTypes"). Dots are not let through beyond that prefix, so a
+// host name used as a key does not pass.
+const ERROR_FIELD_NAME = /^(?:\$\.)?[A-Za-z_][A-Za-z0-9_]{0,31}$/;
 
 type ResponseBodyDescription = {
   bodyKind: "empty" | "html" | "text" | "json" | "other";
@@ -222,6 +294,11 @@ type ResponseBodyDescription = {
   bodyLength?: number;
   /** The field names of a JSON object, in the order they came. */
   bodyKeys?: string[];
+  /**
+   * The names under a JSON object's `errors`: for a 400 from Jellyfin, the
+   * parameters it rejected, which is what tells an app bug from a server one.
+   */
+  errorFields?: string[];
   /** The body itself, only when it is one of FIXED_RESPONSE_REASONS. */
   body?: string;
 };
@@ -252,12 +329,19 @@ const describeResponseBody = (
   }
   // What axios makes of a JSON body.
   if (Array.isArray(data)) return { bodyKind: "json" };
-  if (Object.getPrototypeOf(data) === Object.prototype) {
+  if (isPlainObject(data)) {
+    const { errors } = data;
+    const errorFields = isPlainObject(errors)
+      ? Object.keys(errors)
+          .filter((key) => ERROR_FIELD_NAME.test(key))
+          .slice(0, MAX_RESPONSE_BODY_KEYS)
+      : [];
     return {
       bodyKind: "json",
-      bodyKeys: Object.keys(data as object)
+      bodyKeys: Object.keys(data)
         .filter((key) => FIELD_NAME.test(key))
         .slice(0, MAX_RESPONSE_BODY_KEYS),
+      ...(errorFields.length > 0 ? { errorFields } : {}),
     };
   }
   return { bodyKind: "other" };

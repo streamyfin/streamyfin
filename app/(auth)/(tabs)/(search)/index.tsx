@@ -54,6 +54,7 @@ import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { logAndCaptureError } from "@/utils/log";
 import { isSeerrQuery } from "@/utils/seerr/queries";
 import { searchSeerr } from "@/utils/seerr/search";
+import { loadDiscoverSliders } from "@/utils/seerr/sliders";
 import type { MovieResult, PersonResult, TvResult } from "@/utils/seerr/types";
 import { MediaType } from "@/utils/seerr/types";
 import { createStreamystatsApi } from "@/utils/streamystats";
@@ -188,12 +189,14 @@ export default function SearchPage() {
             signal,
           );
 
+          // searchIds answers with every list, empty when the server's body has
+          // none: covered by utils/streamystats/api.test.ts.
           const allIds: string[] = [
-            ...(response.data.movies || []),
-            ...(response.data.series || []),
-            ...(response.data.episodes || []),
-            ...(response.data.actors || []),
-            ...(response.data.audio || []),
+            ...response.data.movies,
+            ...response.data.series,
+            ...response.data.episodes,
+            ...response.data.actors,
+            ...response.data.audio,
           ];
 
           if (!allIds.length) {
@@ -533,7 +536,7 @@ export default function SearchPage() {
   // Fetch discover settings for TV (when no search query in Discover mode)
   const { data: discoverSliders } = useQuery({
     queryKey: ["search", "seerr", "discoverSettings", "tv"],
-    queryFn: async () => seerrApi?.discoverSettings(),
+    queryFn: () => loadDiscoverSliders(seerrApi),
     enabled:
       Platform.isTV &&
       !!seerrApi &&

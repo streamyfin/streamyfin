@@ -17,6 +17,7 @@ const ITEMS_PER_PAGE = 20;
 
 const MemoizedLiveTVGuideRow = React.memo(LiveTVGuideRow);
 
+// Covered by components/livetv/liveTvGuidePage.test.tsx.
 export default function LiveTvGuidePage() {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
@@ -27,7 +28,8 @@ export default function LiveTvGuidePage() {
   const { data: channels } = useQuery({
     queryKey: ["livetv", "channels", currentPage],
     queryFn: async () => {
-      const res = await getLiveTvApi(api!).getLiveTvChannels({
+      if (!api) return null;
+      const res = await getLiveTvApi(api).getLiveTvChannels({
         startIndex: (currentPage - 1) * ITEMS_PER_PAGE,
         limit: ITEMS_PER_PAGE,
         enableFavoriteSorting: true,
@@ -38,11 +40,14 @@ export default function LiveTvGuidePage() {
       });
       return res.data;
     },
+    // The page can mount before the api is restored.
+    enabled: !!api,
   });
 
   const { data: programs } = useQuery({
     queryKey: ["livetv", "programs", date, currentPage],
     queryFn: async () => {
+      if (!api) return null;
       const startOfDay = new Date(date);
       startOfDay.setHours(0, 0, 0, 0);
       const endOfDay = new Date(date);
@@ -51,7 +56,7 @@ export default function LiveTvGuidePage() {
       const now = new Date();
       const isToday = startOfDay.toDateString() === now.toDateString();
 
-      const res = await getLiveTvApi(api!).getPrograms({
+      const res = await getLiveTvApi(api).getPrograms({
         getProgramsDto: {
           MaxStartDate: endOfDay.toISOString(),
           MinEndDate: isToday ? now.toISOString() : startOfDay.toISOString(),
@@ -67,7 +72,8 @@ export default function LiveTvGuidePage() {
       });
       return res.data;
     },
-    enabled: !!channels,
+    // The channels can come back from the persisted cache before the api does.
+    enabled: !!api && !!channels,
   });
 
   const screenWidth = Dimensions.get("window").width;

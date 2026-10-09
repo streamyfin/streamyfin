@@ -5,7 +5,7 @@ import { useAtom } from "jotai";
 import type React from "react";
 import { useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { Platform, View } from "react-native";
+import { Platform, useWindowDimensions, View } from "react-native";
 import { AddToFavorites } from "@/components/AddToFavorites";
 import { AddToKefinWatchlist } from "@/components/AddToKefinWatchlist";
 import { HeaderButtonGroup } from "@/components/common/HeaderButton";
@@ -20,7 +20,10 @@ import {
 } from "@/components/series/SeasonPicker";
 import { SeriesHeader } from "@/components/series/SeriesHeader";
 import { TVSeriesPage } from "@/components/series/TVSeriesPage";
+import { SyncPlayButton } from "@/components/syncplay/SyncPlayButton";
 import { Colors } from "@/constants/Colors";
+import { LOGO_HEIGHT } from "@/constants/Images";
+import { useLeaveWhenGone } from "@/hooks/useLeaveWhenGone";
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { OfflineModeProvider } from "@/providers/OfflineModeProvider";
@@ -31,13 +34,18 @@ import {
 } from "@/utils/downloads/offline-series";
 import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
+import { toImagePixels } from "@/utils/jellyfin/image/imagePixels";
 import { getUserItemData } from "@/utils/jellyfin/user-library/getUserItemData";
 import { storage } from "@/utils/mmkv";
 import { getSeriesPlaybackTarget } from "@/utils/seriesPlaybackTarget";
 
+// Height of the backdrop header, in layout points.
+const HEADER_HEIGHT = 400;
+
 const page: React.FC = () => {
   const navigation = useNavigation();
   const { t } = useTranslation();
+  const { width: windowWidth } = useWindowDimensions();
   const params = useLocalSearchParams();
   const {
     id: seriesId,
@@ -82,6 +90,11 @@ const page: React.FC = () => {
     enabled: isOffline || (!!api && !!user?.Id),
   });
 
+  // Offline, the series is nothing but its downloaded episodes, so the query
+  // above answers null once the last one is deleted. There is nothing left to
+  // show here: go back to the downloads instead of leaving an empty screen.
+  useLeaveWhenGone(isOffline && item === null);
+
   // For offline mode, use stored base64 image
   const base64Image = useMemo(() => {
     if (isOffline) {
@@ -98,9 +111,10 @@ const page: React.FC = () => {
       api,
       item,
       quality: 90,
-      width: 1000,
+      width: toImagePixels(windowWidth),
+      height: toImagePixels(HEADER_HEIGHT),
     });
-  }, [isOffline, base64Image, api, item]);
+  }, [isOffline, base64Image, api, item, windowWidth]);
 
   const logoUrl = useMemo(() => {
     if (isOffline) {
@@ -181,6 +195,9 @@ const page: React.FC = () => {
       headerRight: () =>
         !isLoading && item && allEpisodes && allEpisodes.length > 0 ? (
           <HeaderButtonGroup>
+            {!Platform.isTV && !isOffline && (
+              <SyncPlayButton items={allEpisodes} title={item.Name} />
+            )}
             <AddToFavorites item={item} />
             {settings?.useKefinTweaks && <AddToKefinWatchlist item={item} />}
             {!Platform.isTV && (
@@ -221,7 +238,7 @@ const page: React.FC = () => {
   return (
     <OfflineModeProvider isOffline={isOffline}>
       <ParallaxScrollView
-        headerHeight={400}
+        headerHeight={HEADER_HEIGHT}
         headerImage={
           backdropUrl ? (
             <Image
@@ -250,7 +267,7 @@ const page: React.FC = () => {
                 uri: logoUrl,
               }}
               style={{
-                height: 130,
+                height: LOGO_HEIGHT,
                 width: "100%",
               }}
               contentFit='contain'

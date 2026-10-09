@@ -8,6 +8,8 @@ object PlayerConstants {
     val SPEED_PRESETS = listOf(0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0)
 
     const val AUTO_HIDE_DELAY_MS = 4000L
+    /** A group Unpause closer to the decoder than this plays without seeking. Same value as iOS. */
+    const val SYNC_PLAY_UNPAUSE_SEEK_TOLERANCE_SEC = 0.1
     const val MENU_AUTO_HIDE_DELAY_MS = 15000L
     const val CHAPTER_RESTART_THRESHOLD_SEC = 3.0
     const val VERTICAL_DRAG_RANGE_DP = 280f

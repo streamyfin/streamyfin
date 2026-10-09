@@ -21,10 +21,14 @@ export function useItemActionSheet(item: BaseItemDto) {
   const { t } = useTranslation();
   const { showActionSheetWithOptions } = useActionSheet();
   const markAsPlayedStatus = useMarkAsPlayed([item]);
-  const { isFavorite, toggleFavorite } = useFavorite(item);
-  const { isWatchlisted, toggleWatchlist } = useWatchlist(item);
   const { settings } = useSettings();
   const isOffline = useOfflineMode();
+  // The rating can only reach the server online.
+  const showWatchlist = !!settings?.useKefinTweaks && !isOffline;
+  const { isFavorite, toggleFavorite } = useFavorite(item);
+  const { isWatchlisted, toggleWatchlist } = useWatchlist(item, {
+    enabled: showWatchlist,
+  });
   const { deleteFile } = useDownload();
 
   return useCallback((): Promise<void> => {
@@ -61,7 +65,7 @@ export function useItemActionSheet(item: BaseItemDto) {
       },
     ];
 
-    if (settings?.useKefinTweaks) {
+    if (showWatchlist) {
       actions.push({
         label: isWatchlisted
           ? t("watchlists.remove_from_watchlist")
@@ -110,7 +114,7 @@ export function useItemActionSheet(item: BaseItemDto) {
     toggleFavorite,
     isWatchlisted,
     toggleWatchlist,
-    settings?.useKefinTweaks,
+    showWatchlist,
     isOffline,
     deleteFile,
     item.Id,

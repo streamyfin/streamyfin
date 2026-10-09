@@ -5,6 +5,7 @@ import type {
 import {
   applyMpvSubtitleSelection,
   compareTracksForMenu,
+  getCastSubtitleUrl,
   getExternalSubtitleUrl,
   isExternalSubtitle,
   langEq,
@@ -362,6 +363,53 @@ describe("applyMpvSubtitleSelection — short-circuits", () => {
   });
 });
 
+describe("getCastSubtitleUrl — what a cast receiver can fetch", () => {
+  const opts = { basePath: "http://srv", accessToken: "tok en" };
+
+  // Jellyfin 12 turns legacy authorization off by default, and `api_key` is
+  // part of it: the receiver got a 401 for every subtitle track.
+  test("the token goes in as ApiKey, not the legacy api_key", () => {
+    expect(getCastSubtitleUrl(ext(0), opts)).toBe(
+      "http://srv/sub/0.srt?ApiKey=tok%20en",
+    );
+  });
+
+  test("joins an existing query string", () => {
+    expect(
+      getCastSubtitleUrl(ext(0, { DeliveryUrl: "/sub/0.vtt?a=1" }), opts),
+    ).toBe("http://srv/sub/0.vtt?a=1&ApiKey=tok%20en");
+  });
+
+  test("a URL the server already signed is left alone", () => {
+    for (const DeliveryUrl of [
+      "/sub/0.vtt?ApiKey=abc",
+      "/sub/0.vtt?api_key=abc",
+    ]) {
+      expect(getCastSubtitleUrl(ext(0, { DeliveryUrl }), opts)).toBe(
+        `http://srv${DeliveryUrl}`,
+      );
+    }
+  });
+
+  test("a third-party host never sees the token", () => {
+    expect(
+      getCastSubtitleUrl(
+        ext(0, {
+          DeliveryUrl: "https://cdn.example/sub.vtt",
+          IsExternalUrl: true,
+        }),
+        opts,
+      ),
+    ).toBe("https://cdn.example/sub.vtt");
+  });
+
+  test("no DeliveryUrl → undefined", () => {
+    expect(
+      getCastSubtitleUrl(sub({ Index: 0, IsExternal: true }), opts),
+    ).toBeUndefined();
+  });
+});
+
 describe("getExternalSubtitleUrl — server contract (MediaInfoHelper)", () => {
   test("server-relative DeliveryUrl gets the basePath prefix", () => {
     expect(
@@ -500,7 +548,68 @@ describe("langEq — region and script variants", () => {
   });
 });
 
+describe("langEq — variant subtags", () => {
+  // Regression: variant subtags were dropped while parsing, so two orthographies
+  // or dialects of one language counted as the same track.
+  test.each([
+    ["de-1901", "de-1996"],
+    ["el-monoton", "el-polyton"],
+    ["sr-Latn-ekavsk", "sr-Latn-ijekavsk"],
+    ["zh-Latn-pinyin", "zh-Latn-wadegile"],
+    ["de-CH-1901", "de-CH-1996"],
+  ])("%s and %s are different", (a, b) => {
+    expect(langEq(a, b)).toBe(false);
+    expect(langEq(b, a)).toBe(false);
+  });
+
+  // Same rule as script and region: a tag that names no variant leaves it open.
+  // A tag naming fewer variants is the wider one, so it still covers the
+  // narrower ("sl-rozaj" is Resian, "sl-rozaj-biske" one dialect of it).
+  test.each([
+    ["ca-valencia", "cat"],
+    ["ca-valencia", "ca-ES"],
+    ["de-CH-1901", "de-CH"],
+    ["sl-rozaj", "sl-rozaj-biske"],
+  ])("%s still matches %s, which leaves the variant open", (a, b) => {
+    expect(langEq(a, b)).toBe(true);
+    expect(langEq(b, a)).toBe(true);
+  });
+
+  test.each([
+    ["CA-Valencia", "ca_valencia"],
+    ["ca-ES-valencia", "ca-valencia"],
+    ["de-1996-u-co-phonebk", "de-1996"],
+    ["sl-rozaj-biske", "sl-biske-rozaj"],
+  ])("%s and %s are two spellings of one variant", (a, b) => {
+    expect(langEq(a, b)).toBe(true);
+  });
+
+  test("a private-use subtag is not read as a variant", () => {
+    // "forced" and "commentary" have the shape of a variant, but after "x" they
+    // are free text and say nothing about the language.
+    expect(langEq("en-US-x-forced", "en-US-x-commentary")).toBe(true);
+  });
+});
+
 describe("resolveSubtitleTrack — several variants of one language", () => {
+  test("tells two orthographies of one language apart", () => {
+    const streams = [emb(0, { Language: "de-1996" })];
+    const player = [
+      track({ id: 1, language: "de-1901" }),
+      track({ id: 2, language: "de-1996" }),
+    ];
+    expect(resolve(streams, 0, player)).toEqual({ kind: "select", trackId: 2 });
+  });
+
+  test("a track carrying the variant asked for beats one that names none", () => {
+    const streams = [emb(0, { Language: "ca-valencia" })];
+    const player = [
+      track({ id: 1, language: "ca" }),
+      track({ id: 2, language: "ca-valencia" }),
+    ];
+    expect(resolve(streams, 0, player)).toEqual({ kind: "select", trackId: 2 });
+  });
+
   test("picks the variant asked for when the player also carries one the server hides", () => {
     // The library hides the European track, so it is gone from MediaStreams but
     // still in the file. With both reduced to "pt" the group ordinal picked the
@@ -860,6 +969,15 @@ describe("sameSubtitleTrack", () => {
       sameSubtitleTrack(
         { language: "pt-BR", isForced: false },
         { language: "pt-PT", isForced: false },
+      ),
+    ).toBe(false);
+  });
+
+  test("another orthography of the language is not the carried-over track", () => {
+    expect(
+      sameSubtitleTrack(
+        { language: "sr-Latn-ekavsk", isForced: false },
+        { language: "sr-Latn-ijekavsk", isForced: false },
       ),
     ).toBe(false);
   });

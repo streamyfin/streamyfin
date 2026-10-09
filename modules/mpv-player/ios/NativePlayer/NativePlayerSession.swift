@@ -26,6 +26,7 @@ final class NativePlayerSession {
 	private let onTornDown: () -> Void
 	private let presenterProvider: () -> UIViewController?
 	private var isDismissing = false
+	private var backgroundObserver: NSObjectProtocol?
 
 	init(
 		emit: @escaping (String, [String: Any]) -> Void,
@@ -42,6 +43,13 @@ final class NativePlayerSession {
 			self?.dismiss(reason: reason)
 		}
 		engine.delegate = viewModel
+		backgroundObserver = NotificationCenter.default.addObserver(
+			forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main
+		) { [weak self] _ in self?.viewModel.syncPlayDidEnterBackground() }
+	}
+
+	deinit {
+		if let backgroundObserver { NotificationCenter.default.removeObserver(backgroundObserver) }
 	}
 
 	// MARK: - Presentation
@@ -153,8 +161,9 @@ final class NativePlayerSession {
 		// Unconditional: mpv's speed property persists on the handle across
 		// loadfile, so an in-place swap from a 2× stream to a 1× config must
 		// explicitly write 1.0 or the old speed carries over.
-		engine.setSpeed(speed: config.ui.initialPlaybackSpeed)
-		viewModel.speed = config.ui.initialPlaybackSpeed
+		let speed = config.syncPlay == nil ? config.ui.initialPlaybackSpeed : 1.0
+		engine.setSpeed(speed: speed)
+		viewModel.speed = speed
 		// Same persistence rule as speed: sync offsets and gain survive on
 		// the mpv handle across loadfile, so write the view model's current
 		// values on every swap (apply() resets them when the item changes).

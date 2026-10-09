@@ -46,9 +46,10 @@ test("takes a finished, watchlisted movie off the watchlist", async () => {
     m1: { Id: "m1", Type: "Movie", ...userData(true, true) },
   });
 
-  await expect(removeWatchedFromWatchlist(api, "u", ["m1"])).resolves.toEqual([
-    "m1",
-  ]);
+  await expect(removeWatchedFromWatchlist(api, "u", ["m1"])).resolves.toEqual({
+    removed: ["m1"],
+    failures: [],
+  });
   expect(unliked).toEqual(["m1"]);
 });
 
@@ -59,9 +60,10 @@ test("leaves an unfinished movie on the watchlist", async () => {
     m1: { Id: "m1", Type: "Movie", ...userData(false, true) },
   });
 
-  await expect(removeWatchedFromWatchlist(api, "u", ["m1"])).resolves.toEqual(
-    [],
-  );
+  await expect(removeWatchedFromWatchlist(api, "u", ["m1"])).resolves.toEqual({
+    removed: [],
+    failures: [],
+  });
   expect(unliked).toEqual([]);
 });
 
@@ -126,4 +128,47 @@ test("removes each item once when several share a season", async () => {
 
   await removeWatchedFromWatchlist(api, "u", ["ep", "ep2"]);
   expect(unliked).toEqual(["ep", "s1", "ep2"]);
+});
+
+const getsFor = (api: ReturnType<typeof serve>["api"], id: string) =>
+  api.mock.history.get.filter((request) =>
+    request.url?.match(new RegExp(`/Items/${id}(\\?|$)`)),
+  ).length;
+
+// An unfinished episode cannot have finished its season or show, so their
+// lookups would only cost round trips.
+test("does not look up the parents of an unfinished episode", async () => {
+  const library = show(false, false);
+  library.ep.UserData = { Played: false, Likes: true };
+  const { api, unliked } = serve(library);
+
+  await removeWatchedFromWatchlist(api, "u", ["ep"]);
+  expect(unliked).toEqual([]);
+  expect(getsFor(api, "s1")).toBe(0);
+  expect(getsFor(api, "show")).toBe(0);
+});
+
+test("fetches a season and show shared by a batch once", async () => {
+  const library = show(false, false);
+  library.ep2 = { ...library.ep, Id: "ep2" };
+  const { api } = serve(library);
+
+  await removeWatchedFromWatchlist(api, "u", ["ep", "ep2"]);
+  expect(getsFor(api, "s1")).toBe(1);
+  expect(getsFor(api, "show")).toBe(1);
+});
+
+// The ratings cleared before the failure are on the server already; losing
+// them would leave the app showing those items as watchlisted.
+test("reports the items it removed when a later one fails", async () => {
+  const { api, unliked } = serve({
+    m1: { Id: "m1", Type: "Movie", ...userData(true, true) },
+    m3: { Id: "m3", Type: "Movie", ...userData(true, true) },
+  });
+
+  const result = await removeWatchedFromWatchlist(api, "u", ["m1", "m2", "m3"]);
+
+  expect(result.removed).toEqual(["m1", "m3"]);
+  expect(result.failures).toHaveLength(1);
+  expect(unliked).toEqual(["m1", "m3"]);
 });

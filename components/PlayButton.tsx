@@ -34,13 +34,14 @@ import { getDownloadedItemById } from "@/providers/Downloads/database";
 import { useGlobalModal } from "@/providers/GlobalModalProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
+import { useSyncPlay } from "@/providers/SyncPlayProvider";
 import { itemThemeColorAtom } from "@/utils/atoms/primaryColor";
 import { useSettings } from "@/utils/atoms/settings";
 import { getParentBackdropImageUrl } from "@/utils/jellyfin/image/getParentBackdropImageUrl";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import {
-  getExternalSubtitleUrl,
+  getCastSubtitleUrl,
   isExternalSubtitle,
 } from "@/utils/jellyfin/subtitleUtils";
 import { logAndCaptureError } from "@/utils/log";
@@ -91,6 +92,7 @@ export const PlayButton: React.FC<Props> = ({
   const { settings } = useSettings();
   const lightHapticFeedback = useHaptic("light");
   const playMedia = usePlayMedia();
+  const { enabled: inSyncPlayGroup } = useSyncPlay();
 
   const handleNormalPlayFlow = useCallback(
     async (positionTicks: number) => {
@@ -195,24 +197,17 @@ export const PlayButton: React.FC<Props> = ({
                         (s) => s.Type === "Subtitle" && isExternalSubtitle(s),
                       )
                       .flatMap((s) => {
-                        const url = getExternalSubtitleUrl(s, {
-                          offline: false,
+                        const url = getCastSubtitleUrl(s, {
                           basePath: api.basePath,
+                          accessToken: api.accessToken,
                         });
                         if (!url || s.Index == null) return [];
-                        // Only server-relative URLs get the token — an
-                        // IsExternalUrl sub lives on a third-party host that
-                        // must never see the Jellyfin access token.
-                        const needsApiKey =
-                          !s.IsExternalUrl && !/[?&]api_?key=/i.test(url);
                         return [
                           {
                             id: s.Index,
                             type: "text" as const,
                             subtype: "subtitles" as const,
-                            contentId: needsApiKey
-                              ? `${url}${url.includes("?") ? "&" : "?"}api_key=${encodeURIComponent(api.accessToken)}`
-                              : url,
+                            contentId: url,
                             contentType: "text/vtt",
                             language: s.Language ?? "und",
                             name: s.DisplayTitle ?? undefined,
@@ -666,6 +661,16 @@ export const PlayButton: React.FC<Props> = ({
             <Animated.Text style={animatedTextStyle}>
               <Feather name='cast' size={22} />
               <CastButton tintColor='transparent' />
+            </Animated.Text>
+          )}
+          {/* In a group this button plays for everyone in it. Downloads
+              stay solo, so they keep the plain button. */}
+          {inSyncPlayGroup && !isOffline && (
+            <Animated.Text
+              testID='play-button-syncplay'
+              style={animatedTextStyle}
+            >
+              <Ionicons name='people' size={22} />
             </Animated.Text>
           )}
         </View>

@@ -144,6 +144,9 @@ export default function FavoritesSeeAll() {
         options={{
           headerTitle: headerTitle,
           headerBlurEffect: "none",
+          // Only iOS lays the list out under a transparent header
+          // (contentInsetAdjustmentBehavior); on Android the first row of
+          // posters would sit beneath it.
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
         }}

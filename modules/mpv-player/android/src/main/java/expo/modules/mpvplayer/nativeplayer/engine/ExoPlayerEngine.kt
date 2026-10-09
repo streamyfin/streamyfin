@@ -19,6 +19,7 @@ import androidx.media3.common.C
 import androidx.media3.common.ColorInfo
 import androidx.media3.common.Format
 import androidx.media3.common.MediaItem
+import androidx.media3.common.MimeTypes
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
@@ -28,6 +29,7 @@ import androidx.media3.common.text.Cue
 import androidx.media3.common.text.CueGroup
 import androidx.media3.common.VideoSize
 import androidx.media3.exoplayer.DefaultLoadControl
+import androidx.media3.exoplayer.ExoPlaybackException
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.exoplayer.audio.AudioCapabilities
@@ -38,6 +40,7 @@ import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.ui.CaptionStyleCompat
 import androidx.media3.ui.SubtitleView
 import expo.modules.mpvplayer.DeviceKind
+import expo.modules.mpvplayer.MpvPauseReport
 import expo.modules.mpvplayer.nativeplayer.MpvOwnership
 
 /**
@@ -105,6 +108,8 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
     @Volatile override var playbackResumeIntent: Boolean = false
 
     private var currentUrl: String? = null
+    // The item an audio renderer failure was already retried for.
+    private var audioRecoveryAttemptedForUrl: String? = null
     private var currentHeaders: Map<String, String>? = null
     private var currentLoop: Boolean = false
     private var currentExternalSubtitles: List<String> = emptyList()
@@ -114,6 +119,8 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
     // Resume position handed to setMediaSource() on load. seekTo() uses it to
     // drop the redundant re-seek the JS layer fires once tracks are ready.
     private var loadStartPositionMs: Long = 0L
+    @Volatile private var seekReportGeneration = 0L
+    private var seekReportRequestId: Long? = null
 
     // Side-loaded subtitle configurations accumulated across load and
     // addSubtitleFile. Media3 doesn't expose the live SubtitleConfiguration
@@ -202,6 +209,7 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
     }
 
     override fun stop() {
+        invalidateSeekReports()
         val pendingToken = pendingOwnershipToken
         val activeToken = activeOwnershipToken
         if (!isRunning && pendingToken == null && activeToken == null) return
@@ -257,6 +265,7 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
             return
         }
 
+        invalidateSeekReports()
         currentUrl = config.url
         currentHeaders = config.headers
         currentLoop = config.loop
@@ -473,18 +482,39 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
         player?.let { it.playWhenReady = !it.playWhenReady }
     }
 
-    override fun seekTo(seconds: Double) = post {
-        val p = player ?: return@post
+    override fun seekTo(seconds: Double) = post { seekToOnMain(seconds, null, exact = false) }
+
+    override fun seekToTracked(seconds: Double, exact: Boolean, requestId: Long) {
+        val generation = seekReportGeneration
+        post {
+            if (generation != seekReportGeneration) return@post
+            seekToOnMain(seconds, requestId, exact)
+        }
+    }
+
+    private fun seekToOnMain(seconds: Double, requestId: Long?, exact: Boolean) {
+        val p = player ?: return
+        seekReportRequestId = requestId
         val targetMs = (seconds * 1000).toLong()
         // Drop the redundant initial seek that mirrors the resume position we
         // already applied via setMediaSource(). Only the first seek after load
         // is eligible, so a genuine seek to ~the start later still works.
-        if (loadStartPositionMs > 0 && Math.abs(targetMs - loadStartPositionMs) < 1000L) {
+        if (!exact && loadStartPositionMs > 0 && Math.abs(targetMs - loadStartPositionMs) <= 100L) {
             loadStartPositionMs = 0L
-            return@post
+            if (p.playbackState == Player.STATE_READY) reportSeekCompletion(p)
+            return
         }
         loadStartPositionMs = 0L
         p.seekTo(targetMs)
+        // A buffered seek can stay READY without another state transition.
+        // Read Media3's position even while paused; group readiness cannot
+        // acknowledge a synthetic JS target or wait for playing-only ticks.
+        if (p.playbackState == Player.STATE_READY) reportSeekCompletion(p)
+    }
+
+    private fun invalidateSeekReports() {
+        seekReportGeneration++
+        seekReportRequestId = null
     }
 
     override fun seekBy(seconds: Double) = post {
@@ -522,6 +552,44 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
         if (isMuted) 0f else (volumeBoostPercent / 100f).coerceIn(0f, 1f)
 
     override fun getChapters(): List<Map<String, Any>> = emptyList()
+
+    /**
+     * Prepares the item again, once, after an audio renderer failed.
+     *
+     * A bitstream track (AC3, E-AC3) is mapped to the passthrough renderer
+     * while the HDMI sink accepts it, and nothing maps it anew when the sink
+     * stops doing so (the TV or receiver is switched off or to another
+     * input, a Bluetooth headset connects): the renderer then fails on a
+     * format it reports as unsupported. Preparing again maps the track with
+     * the capabilities as they are now, which puts it on the software decoder.
+     *
+     * Once per item, so a track nothing can decode still ends in the error
+     * it is. Inferred from REACT-NATIVE-8A; not reproduced on a device.
+     */
+    private fun recoverFromAudioRendererError(error: PlaybackException): Boolean {
+        val p = player ?: return false
+        val rendererError = error as? ExoPlaybackException ?: return false
+        if (rendererError.type != ExoPlaybackException.TYPE_RENDERER) return false
+        val mimeType = rendererError.rendererFormat?.sampleMimeType ?: return false
+        if (!MimeTypes.isAudio(mimeType)) return false
+        val url = currentUrl ?: return false
+        if (audioRecoveryAttemptedForUrl == url) return false
+        audioRecoveryAttemptedForUrl = url
+        Log.w(TAG, "Audio renderer failed (${error.errorCodeName}), preparing again", error)
+        p.prepare()
+        return true
+    }
+
+    /**
+     * The error as it is reported: Media3's message, the name of its error
+     * code and the class of what caused it. The message alone reads the same
+     * for a sink that went away and for a decoder that was never there.
+     */
+    private fun describePlaybackError(error: PlaybackException): String {
+        val message = error.message ?: "Unknown playback error"
+        val cause = error.cause?.javaClass?.simpleName
+        return listOfNotNull(message, error.errorCodeName, cause).joinToString(" | ")
+    }
 
     override fun reloadCurrentItem() {
         val url = currentUrl ?: return
@@ -1196,6 +1264,7 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
             when (playbackState) {
                 Player.STATE_BUFFERING -> delegate?.onLoadingChanged(true)
                 Player.STATE_READY -> {
+                    player?.let { reportSeekCompletion(it) }
                     delegate?.onLoadingChanged(false)
                     delegate?.onReadyToSeek()
                     if (!tracksReadyFired) {
@@ -1213,13 +1282,39 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
             // Authoritative pause intent — fires on pause/resume even while
             // buffering. Mirrors mpv reporting the `pause` property.
             cachedPlayWhenReady = playWhenReady
-            delegate?.onPauseChanged(!playWhenReady)
+            val paused = !playWhenReady
+            val currentPlayer = player
+            if (paused && currentPlayer != null) cachePosition(currentPlayer)
+            // The paused callback immediately persists the last JS progress
+            // tick. Capture Media3's physical clock first, not its 1Hz cache.
+            MpvPauseReport(
+                paused,
+                if (paused && currentPlayer != null) cachedPositionSec else null,
+                cachedDurationSec,
+                cachedCacheSeconds,
+            ).deliver(
+                onProgress = { position, duration, cache ->
+                    delegate?.onPositionChanged(position, duration, cache)
+                },
+                onPause = { isPaused -> delegate?.onPauseChanged(isPaused) },
+            )
+        }
+
+        override fun onPositionDiscontinuity(
+            oldPosition: Player.PositionInfo,
+            newPosition: Player.PositionInfo,
+            reason: Int,
+        ) {
+            if (reason == Player.DISCONTINUITY_REASON_SEEK) {
+                player?.takeIf { it.playbackState == Player.STATE_READY }?.let { reportSeekCompletion(it) }
+            }
         }
 
         override fun onPlayerErrorChanged(error: PlaybackException?) {
             // Null = a previous error was cleared (recovering), not a failure.
             if (error == null) return
-            val message = error.message ?: "Unknown playback error"
+            if (recoverFromAudioRendererError(error)) return
+            val message = describePlaybackError(error)
             Log.e(TAG, "Player error: $message", error)
             delegate?.onError(message)
         }
@@ -1256,29 +1351,44 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
     private val progressRunnable = object : Runnable {
         override fun run() {
             val p = player ?: return
-            val positionMs = p.currentPosition
-            val durationMs = p.duration
-            val bufferedMs = p.bufferedPosition
-
-            cachedPositionSec = positionMs / 1000.0
-            cachedDurationSec = if (durationMs > 0) durationMs / 1000.0 else 0.0
-            cachedCacheSeconds =
-                if (bufferedMs > positionMs) (bufferedMs - positionMs) / 1000.0 else 0.0
-
             refreshTechnicalInfo()
 
             // mpv goes silent while paused — the chrome's Choreographer clock
             // interpolates instead. Match that: no ticks while paused.
             if (p.playWhenReady) {
-                delegate?.onPositionChanged(
-                    cachedPositionSec,
-                    cachedDurationSec,
-                    cachedCacheSeconds,
-                )
+                reportPosition(p)
+            } else {
+                cachePosition(p)
             }
 
             mainHandler.postDelayed(this, PROGRESS_INTERVAL_MS)
         }
+    }
+
+    private fun cachePosition(p: ExoPlayer) {
+        val positionMs = p.currentPosition
+        val durationMs = p.duration
+        val bufferedMs = p.bufferedPosition
+        cachedPositionSec = positionMs / 1000.0
+        cachedDurationSec = if (durationMs > 0) durationMs / 1000.0 else 0.0
+        cachedCacheSeconds =
+            if (bufferedMs > positionMs) (bufferedMs - positionMs) / 1000.0 else 0.0
+    }
+
+    private fun reportPosition(p: ExoPlayer) {
+        cachePosition(p)
+        delegate?.onPositionChanged(cachedPositionSec, cachedDurationSec, cachedCacheSeconds)
+    }
+
+    private fun reportSeekCompletion(p: ExoPlayer) {
+        cachePosition(p)
+        val requestId = seekReportRequestId
+        seekReportRequestId = null
+        val position = cachedPositionSec
+        val duration = cachedDurationSec
+        val cache = cachedCacheSeconds
+        if (requestId != null) delegate?.onSeekCompleted(requestId, position, duration, cache)
+        else delegate?.onPositionChanged(position, duration, cache)
     }
 
     private fun startProgressLoop() {

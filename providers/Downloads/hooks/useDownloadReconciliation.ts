@@ -5,16 +5,18 @@ import type { ActiveDownload } from "@/modules";
 import { BackgroundDownloader } from "@/modules";
 import { getHeadersForUrl } from "@/utils/customHeaders";
 import { logAndCaptureError } from "@/utils/log";
+import { deletePendingDownloadFiles } from "../fileOperations";
 import {
   finalizePendingDownload,
   getPendingDownload,
   getPendingDownloads,
   type PendingDownload,
+  pendingDownloadFileUri,
   removePendingDownload,
   updatePendingDownload,
 } from "../pendingDownloads";
 import type { JobStatus } from "../types";
-import { uriToFilePath } from "../utils";
+import { isPlainFileName, uriToFilePath } from "../utils";
 
 interface UseDownloadReconciliationProps {
   setProcesses: (updater: (prev: JobStatus[]) => JobStatus[]) => void;
@@ -60,9 +62,7 @@ async function reEnqueue(
   headers?: Record<string, string>,
 ): Promise<boolean> {
   try {
-    const destinationPath = uriToFilePath(
-      new File(Paths.document, record.videoFileName).uri,
-    );
+    const destinationPath = uriToFilePath(pendingDownloadFileUri(record));
     const taskId = await BackgroundDownloader.enqueueDownload(
       record.inputUrl,
       destinationPath,
@@ -80,6 +80,7 @@ async function reEnqueue(
       itemType: record.item?.Type,
     });
     removePendingDownload(record.itemId);
+    deletePendingDownloadFiles(record);
     return false;
   }
 }
@@ -165,8 +166,12 @@ export function useDownloadReconciliation({
           continue;
         }
 
-        const file = new File(Paths.document, record.videoFileName);
-        if (file.exists && (file.size ?? 0) > 0) {
+        // A stored name with a path in it is never looked up: the record falls through and is
+        // dropped below.
+        const file = isPlainFileName(record.videoFileName)
+          ? new File(Paths.document, record.videoFileName)
+          : undefined;
+        if (file?.exists && (file.size ?? 0) > 0) {
           console.log(
             `[RECONCILE] Completed while app was dead: ${record.item.Name}`,
           );
@@ -187,6 +192,7 @@ export function useDownloadReconciliation({
 
         console.log(`[RECONCILE] Lost download dropped: ${record.item.Name}`);
         removePendingDownload(record.itemId);
+        deletePendingDownloadFiles(record);
       }
 
       if (restored.length > 0) {

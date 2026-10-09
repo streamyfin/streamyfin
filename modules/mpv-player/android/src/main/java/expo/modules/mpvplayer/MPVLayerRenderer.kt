@@ -16,6 +16,8 @@ import expo.modules.mpvplayer.nativeplayer.engine.VideoLoadConfig
 import java.io.File
 import java.io.FileOutputStream
 import java.util.Locale
+import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicReference
 
 internal fun normalizeVideoDimensions(width: Int, height: Int, rotation: Int): Pair<Int, Int> {
     val normalizedRotation = ((rotation % 360) + 360) % 360
@@ -60,6 +62,12 @@ class MPVLayerRenderer(
         const val MPV_FORMAT_INT64 = 4
         const val MPV_FORMAT_DOUBLE = 5
         const val MPV_FORMAT_NODE = 6
+
+        // One worker for every renderer: only one player is alive at a time,
+        // and a daemon thread never keeps the process from exiting.
+        private val surfaceSizeExecutor = Executors.newSingleThreadExecutor { task ->
+            Thread(task, "mpv-surface-size").apply { isDaemon = true }
+        }
     }
 
     private fun isTvDevice(): Boolean {
@@ -93,6 +101,9 @@ class MPVLayerRenderer(
     override var delegate: PlayerEngine.Delegate? = null
     
     private val mainHandler = Handler(Looper.getMainLooper())
+
+    // The latest surface size not yet handed to mpv; see updateSurfaceSize.
+    private val pendingSurfaceSize = AtomicReference<String?>(null)
     
     private var surface: Surface? = null
     @Volatile private var isRunning = false
@@ -105,7 +116,7 @@ class MPVLayerRenderer(
     // nativeDestroy has an internal use-after-free we can't fix from Kotlin,
     // so we mirror Findroid and let the JVM GC + native finalization path
     // reclaim resources. Only one player is alive at a time in this app.
-    private var mpv: MPVLib? = null
+    @Volatile private var mpv: MPVLib? = null
 
     /** Retained across mpv re-creation; see setMute. */
     private var isMuted = false
@@ -139,6 +150,11 @@ class MPVLayerRenderer(
     // This optimization reduced CPU usage by ~50% for downloaded file playback.
     private var lastProgressUpdateTime: Long = 0
     private var _isSeeking: Boolean = false
+    @Volatile private var seekReportGeneration = 0L
+    @Volatile private var seekReportRequestId: Long? = null
+    @Volatile private var activeSeekReportRequestId: Long? = null
+    // libmpv can announce one EOF through both the property and END_FILE.
+    private var didNotifyPlaybackEnd: Boolean = false
     
     // Video dimensions
     private var _videoWidth: Int = 0
@@ -379,6 +395,7 @@ class MPVLayerRenderer(
     }
 
     override fun stop() {
+        invalidateSeekReports()
         val pendingToken = pendingOwnershipToken
         val activeToken = activeOwnershipToken
         if (!isRunning && pendingToken == null && activeToken == null) return
@@ -505,11 +522,24 @@ class MPVLayerRenderer(
      * Based on Findroid's implementation.
      */
     override fun updateSurfaceSize(width: Int, height: Int) {
-        if (isRunning) {
-            mpv?.setPropertyString("android-surface-size", "${width}x$height")
-            Log.i(TAG, "[PiP] updateSurfaceSize — ${width}x${height}")
-        } else {
+        if (!isRunning) {
             Log.w(TAG, "[PiP] updateSurfaceSize — called but renderer not running")
+            return
+        }
+        // Setting an mpv property waits for the player core, and the core can
+        // be busy for seconds (opening a stream, bringing up a decoder). This
+        // is called from layout on the UI thread, where that wait is an ANR
+        // (seen under onSurfaceTextureSizeChanged). The size is a hint for
+        // the VO and only the latest one matters, so it is handed to a worker.
+        pendingSurfaceSize.set("${width}x$height")
+        surfaceSizeExecutor.execute {
+            val size = pendingSurfaceSize.getAndSet(null) ?: return@execute
+            try {
+                mpv?.setPropertyString("android-surface-size", size)
+                Log.i(TAG, "[PiP] updateSurfaceSize — $size")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error updating surface size: ${e.message}")
+            }
         }
     }
 
@@ -618,6 +648,7 @@ class MPVLayerRenderer(
     }
     
     override fun load(config: VideoLoadConfig) {
+        invalidateSeekReports()
         val url = config.url
         currentUrl = url
         currentHeaders = config.headers
@@ -660,6 +691,12 @@ class MPVLayerRenderer(
         } else {
             mpv?.setPropertyString("start", "0")
         }
+        // Until the first time-pos arrives the file is where it was told to
+        // start. The duration event below emits this cache as the position,
+        // and left at 0 (or at the previous file's position) it told the
+        // delegate a resumed file was at 0:00, which was then reported to the
+        // server and cleared the item's resume point.
+        cachedPosition = if (startPosition != null && startPosition > 0) startPosition else 0.0
 
         // Set initial audio track if specified
         val initialAudioId = config.initialAudioId
@@ -741,12 +778,37 @@ class MPVLayerRenderer(
     }
     
     override fun seekTo(seconds: Double) {
+        seekReportRequestId = null
+        seekToInternal(seconds, exact = false)
+    }
+
+    private fun seekToInternal(seconds: Double, exact: Boolean) {
         val clamped = maxOf(0.0, seconds)
         cachedPosition = clamped
-        mpv?.command(arrayOf("seek", clamped.toString(), "absolute"))
+        mpv?.command(arrayOf("seek", clamped.toString(), if (exact) "absolute+exact" else "absolute"))
+    }
+
+    override fun seekToExact(seconds: Double) {
+        seekReportRequestId = null
+        // Override hr-seek=no for SyncPlay. Repeated drift corrections to a
+        // keyframe before the target can otherwise keep playback from EOF.
+        seekToInternal(seconds, exact = true)
+    }
+
+    override fun seekToTracked(seconds: Double, exact: Boolean, requestId: Long) {
+        seekReportRequestId = requestId
+        seekToInternal(seconds, exact)
+    }
+
+    private fun invalidateSeekReports() {
+        seekReportGeneration++
+        seekReportRequestId = null
+        activeSeekReportRequestId = null
+        _isSeeking = false
     }
     
     override fun seekBy(seconds: Double) {
+        seekReportRequestId = null
         val newPosition = maxOf(0.0, cachedPosition + seconds)
         cachedPosition = newPosition
         mpv?.command(arrayOf("seek", seconds.toString(), "relative"))
@@ -1171,7 +1233,23 @@ class MPVLayerRenderer(
             "pause" -> {
                 if (value != _isPaused) {
                     _isPaused = value
-                    mainHandler.post { delegate?.onPauseChanged(value) }
+                    // time-pos notifications are throttled while playing, and
+                    // seekTo's cache is optimistic. Read the physical clock so
+                    // an immediate pause report includes the stopped frame.
+                    val report = MpvPauseReport(
+                        paused = value,
+                        position = if (value) mpv?.getPropertyDouble("time-pos") else null,
+                        duration = cachedDuration,
+                        cacheSeconds = cachedCacheSeconds,
+                    )
+                    mainHandler.post {
+                        report.deliver(
+                            onProgress = { position, duration, cache ->
+                                delegate?.onPositionChanged(position, duration, cache)
+                            },
+                            onPause = { paused -> delegate?.onPauseChanged(paused) },
+                        )
+                    }
                 }
             }
             "paused-for-cache" -> {
@@ -1183,7 +1261,9 @@ class MPVLayerRenderer(
             "eof-reached" -> {
                 if (value) {
                     Log.i(TAG, "EOF reached (property)")
-                    mainHandler.post { delegate?.onPlaybackEnded() }
+                    notifyPlaybackEnd()
+                } else {
+                    didNotifyPlaybackEnd = false
                 }
             }
         }
@@ -1218,6 +1298,7 @@ class MPVLayerRenderer(
     override fun event(eventId: Int) {
         when (eventId) {
             MPVLib.MPV_EVENT_FILE_LOADED -> {
+                didNotifyPlaybackEnd = false
                 // Add external subtitles now that file is loaded
                 if (pendingExternalSubtitles.isNotEmpty()) {
                     pendingExternalSubtitles.forEachIndexed { index, subUrl ->
@@ -1257,6 +1338,7 @@ class MPVLayerRenderer(
             MPVLib.MPV_EVENT_SEEK -> {
                 // Seek started - show loading indicator and enable immediate progress updates
                 _isSeeking = true
+                activeSeekReportRequestId = seekReportRequestId
                 if (!_isLoading) {
                     _isLoading = true
                     mainHandler.post { delegate?.onLoadingChanged(true) }
@@ -1264,17 +1346,39 @@ class MPVLayerRenderer(
             }
             MPVLib.MPV_EVENT_PLAYBACK_RESTART -> {
                 // Video playback has started/restarted (including after seek)
+                val generation = seekReportGeneration
+                val requestId = if (_isSeeking) activeSeekReportRequestId else null
+                val currentRequestId = seekReportRequestId
+                val position = mpv?.getPropertyDouble("time-pos")
+                if (position != null && position.isFinite() && position >= 0) cachedPosition = position
+                val duration = cachedDuration
+                val cache = cachedCacheSeconds
+                val wasLoading = _isLoading
                 _isSeeking = false
-                if (_isLoading) {
-                    _isLoading = false
-                    mainHandler.post { delegate?.onLoadingChanged(false) }
+                activeSeekReportRequestId = null
+                _isLoading = false
+                // Paused seeks may have no further time-pos notification.
+                // Persist the decoder's final clock before releasing readiness.
+                mainHandler.post {
+                    if (generation != seekReportGeneration || !isRunning) return@post
+                    if (currentRequestId != seekReportRequestId) return@post
+                    // An older seek cannot release the new seek's readiness.
+                    if (requestId != null && requestId != currentRequestId) return@post
+                    if (position != null && position.isFinite() && position >= 0) {
+                        if (requestId != null && requestId == seekReportRequestId) {
+                            delegate?.onSeekCompleted(requestId, position, duration, cache)
+                        } else if (requestId == null) {
+                            delegate?.onPositionChanged(position, duration, cache)
+                        }
+                    }
+                    if (wasLoading) delegate?.onLoadingChanged(false)
                 }
             }
             MPVLib.MPV_EVENT_END_FILE -> {
                 Log.i(TAG, "Playback ended (MPV_EVENT_END_FILE)")
                 val eof = mpv?.getPropertyBoolean("eof-reached") ?: false
                 if (eof) {
-                    mainHandler.post { delegate?.onPlaybackEnded() }
+                    notifyPlaybackEnd()
                 }
             }
             MPVLib.MPV_EVENT_SHUTDOWN -> {
@@ -1282,5 +1386,10 @@ class MPVLayerRenderer(
             }
         }
     }
-}
 
+    private fun notifyPlaybackEnd() {
+        if (didNotifyPlaybackEnd) return
+        didNotifyPlaybackEnd = true
+        mainHandler.post { delegate?.onPlaybackEnded() }
+    }
+}

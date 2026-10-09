@@ -6,7 +6,7 @@ import { useNavigation } from "expo-router";
 import { useAtom } from "jotai";
 import React, { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Platform, View } from "react-native";
+import { Platform, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { type Bitrate } from "@/components/BitrateSelector";
 import { HeaderButtonGroup } from "@/components/common/HeaderButton";
@@ -23,6 +23,9 @@ import { PlayedStatus } from "@/components/PlayedStatus";
 import { SimilarItems } from "@/components/SimilarItems";
 import { CurrentSeries } from "@/components/series/CurrentSeries";
 import { SeasonEpisodesCarousel } from "@/components/series/SeasonEpisodesCarousel";
+import { SyncPlayButton } from "@/components/syncplay/SyncPlayButton";
+import { SyncPlayQueueButton } from "@/components/syncplay/SyncPlayQueueButton";
+import { LOGO_HEIGHT } from "@/constants/Images";
 import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
 import { useImageColorsReturn } from "@/hooks/useImageColorsReturn";
 import { useOrientation } from "@/hooks/useOrientation";
@@ -32,6 +35,7 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
+import { toImagePixels } from "@/utils/jellyfin/image/imagePixels";
 import {
   canPlayInRemoteSession,
   isPlayableItem,
@@ -47,6 +51,11 @@ const Chromecast = !Platform.isTV ? require("./Chromecast") : null;
 const ItemContentTV = Platform.isTV
   ? require("./ItemContent.tv").ItemContentTV
   : null;
+
+// Header heights, in layout points.
+const HEADER_HEIGHT = 350;
+const MOVIE_HEADER_HEIGHT = 500;
+const LANDSCAPE_HEADER_HEIGHT = 230;
 
 export type SelectedOptions = {
   bitrate: Bitrate;
@@ -86,7 +95,15 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
   const itemColors = useImageColorsReturn({ item });
 
   const [loadingLogo, setLoadingLogo] = useState(true);
-  const [headerHeight, setHeaderHeight] = useState(350);
+  const [headerHeight, setHeaderHeight] = useState(HEADER_HEIGHT);
+  const { width: windowWidth } = useWindowDimensions();
+
+  // The header image is requested for the portrait header in either
+  // orientation. The orientation settles a render after mount, so a request
+  // sized by the live header would be sent twice, and the portrait header is
+  // the taller one: an image that covers it covers the landscape one too.
+  const headerImageHeight =
+    item?.Type === "Movie" ? MOVIE_HEADER_HEIGHT : HEADER_HEIGHT;
 
   const [selectedOptions, setSelectedOptions] = useState<
     SelectedOptions | undefined
@@ -137,6 +154,11 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
           item && (
             <HeaderButtonGroup>
               <Chromecast.Chromecast />
+              {/* A group plays from the server: a downloaded copy has
+                  nothing to start one with. */}
+              {item.Type !== "Program" && !isOffline && (
+                <SyncPlayButton items={[item]} title={item.Name} />
+              )}
               {item.Type !== "Program" && (
                 <>
                   {!Platform.isTV && (
@@ -172,6 +194,7 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
     navigation,
     user,
     itemWithSources,
+    isOffline,
     settings.hideRemoteSessionButton,
     settings.streamyStatsServerUrl,
     settings.hideWatchlistsTab,
@@ -181,9 +204,9 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
   useEffect(() => {
     if (item) {
       if (orientation !== ScreenOrientation.OrientationLock.PORTRAIT_UP)
-        setHeaderHeight(230);
-      else if (item.Type === "Movie") setHeaderHeight(500);
-      else setHeaderHeight(350);
+        setHeaderHeight(LANDSCAPE_HEADER_HEIGHT);
+      else if (item.Type === "Movie") setHeaderHeight(MOVIE_HEADER_HEIGHT);
+      else setHeaderHeight(HEADER_HEIGHT);
     }
   }, [item, orientation]);
 
@@ -207,6 +230,8 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
                 item.Type === "Movie" && logoUrl ? "Backdrop" : "Primary"
               }
               item={item}
+              width={toImagePixels(windowWidth)}
+              height={toImagePixels(headerImageHeight)}
               style={{
                 width: "100%",
                 height: "100%",
@@ -221,7 +246,7 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
                 uri: logoUrl,
               }}
               style={{
-                height: 130,
+                height: LOGO_HEIGHT,
                 width: "100%",
               }}
               contentFit='contain'
@@ -248,6 +273,15 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
                   colors={itemColors}
                 />
                 <View className='w-1' />
+                <SyncPlayQueueButton
+                  items={[item]}
+                  color={itemColors.primary}
+                  iconColor={itemColors.text}
+                  // Its own gap to the next button, the one Play has: it is
+                  // only there in a group, so a spacer in the row would be
+                  // there always.
+                  trailingGap={12}
+                />
                 {!isOffline && (
                   <MediaSourceButton
                     selectedOptions={selectedOptions}

@@ -24,7 +24,11 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
-import { useAnimatedReaction, useSharedValue } from "react-native-reanimated";
+import {
+  runOnJS,
+  useAnimatedReaction,
+  useSharedValue,
+} from "react-native-reanimated";
 import { BITRATES } from "@/components/BitrateSelector";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
@@ -67,6 +71,10 @@ import { OfflineModeProvider } from "@/providers/OfflineModeProvider";
 import { getSubtitlesForItem } from "@/utils/atoms/downloadedSubtitles";
 import { getActivePlayerType, useSettings } from "@/utils/atoms/settings";
 import { getJellyfinHeadersForUrl } from "@/utils/customHeaders";
+import {
+  isPlaceholderTick,
+  resolveSessionPositionTicks,
+} from "@/utils/directPlayer/sessionPosition";
 import { isExpectedError } from "@/utils/errors";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
@@ -100,6 +108,8 @@ import {
 import { msToTicks, ticksToSeconds } from "@/utils/time";
 import { generateDeviceProfile } from "../../../utils/profiles/native";
 
+// Spec: utils/directPlayer/directPlayerPage.test.tsx. It cannot sit next to
+// this file, Expo Router turns everything under app/ into a route.
 export default function DirectPlayerPage() {
   const videoRef = useRef<MpvPlayerViewRef>(null);
   const user = useAtomValue(userAtom);
@@ -157,6 +167,14 @@ export default function DirectPlayerPage() {
   });
 
   const progress = useSharedValue(0);
+  // The stream MPV has reported a position from. While it is not the current
+  // one, `progress` is not a playback position (it is reset when an item
+  // loads, and the controls seed it for the scrubber) and the session is where
+  // it was told to start. Compared by identity, not by URL: every fetch sets a
+  // new stream object and takes the MPV view off screen while it runs, so the
+  // view that comes back loads from the start position again even when the
+  // URL is the same (a downloaded file, a remote path).
+  const livePositionStreamRef = useRef<Stream | null>(null);
   const isSeeking = useSharedValue(false);
   const cacheProgress = useSharedValue(0);
   const VolumeManager = Platform.isTV
@@ -237,6 +255,14 @@ export default function DirectPlayerPage() {
   // resume still happens through the stream offset and MPV's startPosition,
   // which read startTicks after the item has loaded.
   const initialPlaybackTicksRef = useRef<number>(startTicks);
+
+  // Read by the reports without making it a dependency of them: the position
+  // is rewritten into the URL during playback, and a report builder that
+  // changed identity each time would fire the progress effect below with it.
+  const startTicksRef = useRef(startTicks);
+  useEffect(() => {
+    startTicksRef.current = startTicks;
+  }, [startTicks]);
 
   const [downloadedItem, setDownloadedItem] = useState<DownloadedItem | null>(
     null,
@@ -401,6 +427,7 @@ export default function DirectPlayerPage() {
       // the previous one's position before its own playback has even started.
       setHasPlaybackStarted(false);
       progress.set(0);
+      livePositionStreamRef.current = null;
       fetchItemData();
     }
   }, [itemId, offline, api, user?.Id, progress]);
@@ -459,6 +486,25 @@ export default function DirectPlayerPage() {
   useEffect(() => {
     currentItemIdRef.current = itemId;
   }, [itemId]);
+
+  /** Whether MPV has reported a position for the current stream. */
+  const hasLivePosition = useCallback(
+    () => !!stream && livePositionStreamRef.current === stream,
+    [stream],
+  );
+
+  /** Position (ticks) a report carries: where MPV is once it has reported a
+   * position for this stream, where the session starts until then. A stop or
+   * progress report at 0 makes the server clear the item's resume point. */
+  const getSessionPositionTicks = useCallback(
+    () =>
+      resolveSessionPositionTicks({
+        hasLivePosition: hasLivePosition(),
+        positionMs: progress.get(),
+        startTicks: startTicksRef.current,
+      }),
+    [hasLivePosition, progress],
+  );
 
   const releaseLiveStream = useCallback(
     (liveStreamId: string | null) => {
@@ -671,7 +717,7 @@ export default function DirectPlayerPage() {
     const stopKey = stream.sessionId || item.Id;
     if (reportedStopKeyRef.current === stopKey) return;
     reportedStopKeyRef.current = stopKey;
-    const currentTimeInTicks = msToTicks(progress.get());
+    const currentTimeInTicks = getSessionPositionTicks();
     try {
       await getPlaystateApi(api).reportPlaybackStopped({
         playbackStopInfo: {
@@ -689,7 +735,7 @@ export default function DirectPlayerPage() {
       });
       // The server has now decided whether the item counts as played; a
       // finished one leaves the KefinTweaks watchlist.
-      void pruneWatchedFromWatchlist([item.Id]);
+      void pruneWatchedFromWatchlist([item]);
     } catch (error) {
       // Un-mark the session so a later teardown path can retry: e.g. a failed
       // report from a WebSocket remote-stop (player still mounted) must not
@@ -709,7 +755,7 @@ export default function DirectPlayerPage() {
     item,
     mediaSourceId,
     stream,
-    progress,
+    getSessionPositionTicks,
     isConnected,
     pruneWatchedFromWatchlist,
   ]);
@@ -717,7 +763,7 @@ export default function DirectPlayerPage() {
   const stop = useCallback(() => {
     // Update URL with final playback position before stopping
     router.setParams({
-      playbackPosition: msToTicks(progress.get()).toString(),
+      playbackPosition: getSessionPositionTicks().toString(),
     });
     reportPlaybackStopped();
     markPlaybackStopped();
@@ -742,7 +788,7 @@ export default function DirectPlayerPage() {
     videoRef,
     reportPlaybackStopped,
     markPlaybackStopped,
-    progress,
+    getSessionPositionTicks,
     resumeInactivityTimer,
   ]);
 
@@ -794,7 +840,7 @@ export default function DirectPlayerPage() {
       AudioStreamIndex: currentAudioIndex,
       SubtitleStreamIndex: currentSubtitleIndex,
       MediaSourceId: mediaSourceId,
-      PositionTicks: msToTicks(progress.get()),
+      PositionTicks: getSessionPositionTicks(),
       // Read through the ref, not the isPlaying state: this is called from
       // handlers that may have been created before the last transition, and a
       // report must describe the state at the moment it is built.
@@ -812,7 +858,7 @@ export default function DirectPlayerPage() {
     currentAudioIndex,
     currentSubtitleIndex,
     mediaSourceId,
-    progress,
+    getSessionPositionTicks,
     isMuted,
     offline,
   ]);
@@ -836,10 +882,19 @@ export default function DirectPlayerPage() {
     // when the user pauses or resumes.
   }, [currentPlayStateInfo, isPlaying, item?.Id, stream, hasPlaybackStarted]);
 
-  const lastUrlUpdateTime = useSharedValue(0);
-  const lastProgressReportTime = useSharedValue(0);
-  const wasJustSeeking = useSharedValue(false);
+  // What onProgress holds its intervals with stays on the JS thread, in refs.
+  // A shared value written from JS is applied later, on the UI thread, while
+  // a read answers with what the UI thread holds: ticks handled back to back
+  // after the JS thread was held up each read the time from before the first
+  // of them, and every one reported progress and wrote the route.
+  const lastUrlUpdateTimeRef = useRef(0);
+  const lastProgressReportTimeRef = useRef(0);
+  const wasJustSeekingRef = useRef(false);
   const URL_UPDATE_INTERVAL = 30000; // Update URL every 30 seconds instead of every second
+
+  const markSeekEnded = useCallback(() => {
+    wasJustSeekingRef.current = true;
+  }, []);
 
   // Track when seeking ends to update URL immediately
   useAnimatedReaction(
@@ -847,7 +902,7 @@ export default function DirectPlayerPage() {
     (currentSeeking, previousSeeking) => {
       if (previousSeeking && !currentSeeking) {
         // Seeking just ended
-        wasJustSeeking.value = true;
+        runOnJS(markSeekEnded)();
       }
     },
     [],
@@ -868,6 +923,21 @@ export default function DirectPlayerPage() {
       if (item.Id !== currentItemIdRef.current) return;
 
       const { position, cacheSeconds } = data.nativeEvent;
+
+      // A tick at 0:00 before MPV has reached a position is not one. Taking
+      // it would move a resumed session to the start: reported as progress,
+      // written to the URL below and carried by the stop report if the user
+      // leaves before playback begins. The MPV renderer seeds its position
+      // from the start position, but this view also renders the ExoPlayer
+      // engine and relays mpv's own time-pos, and neither promises that the
+      // first tick of a resumed stream is past 0.
+      if (
+        isPlaceholderTick(position, startTicksRef.current, hasLivePosition())
+      ) {
+        return;
+      }
+      livePositionStreamRef.current = stream;
+
       // MPV reports position in seconds, convert to ms
       const currentTime = position * 1000;
 
@@ -885,17 +955,17 @@ export default function DirectPlayerPage() {
 
       // Update URL immediately after seeking, or every 30 seconds during normal playback
       const now = Date.now();
-      const shouldUpdateUrl = wasJustSeeking.get();
-      wasJustSeeking.value = false;
+      const shouldUpdateUrl = wasJustSeekingRef.current;
+      wasJustSeekingRef.current = false;
 
       if (
         shouldUpdateUrl ||
-        now - lastUrlUpdateTime.get() > URL_UPDATE_INTERVAL
+        now - lastUrlUpdateTimeRef.current > URL_UPDATE_INTERVAL
       ) {
         router.setParams({
           playbackPosition: msToTicks(currentTime).toString(),
         });
-        lastUrlUpdateTime.value = now;
+        lastUrlUpdateTimeRef.current = now;
       }
 
       // Reporting every tick meant one request per second per player, and for
@@ -904,9 +974,9 @@ export default function DirectPlayerPage() {
       // right after a seek, since the position jumped, otherwise heartbeat.
       const shouldReportProgress =
         shouldUpdateUrl ||
-        now - lastProgressReportTime.get() >= PROGRESS_REPORT_INTERVAL;
+        now - lastProgressReportTimeRef.current >= PROGRESS_REPORT_INTERVAL;
       if (!shouldReportProgress) return;
-      lastProgressReportTime.value = now;
+      lastProgressReportTimeRef.current = now;
 
       const progressInfo = currentPlayStateInfo();
       if (!progressInfo) return;
@@ -922,6 +992,7 @@ export default function DirectPlayerPage() {
       currentSubtitleIndex,
       mediaSourceId,
       stream,
+      hasLivePosition,
       isSeeking,
       isBuffering,
     ],
@@ -1176,10 +1247,21 @@ export default function DirectPlayerPage() {
     videoRef.current?.pause?.();
   }, []);
 
-  const seek = useCallback((position: number) => {
-    // MPV expects seconds, convert from ms
-    videoRef.current?.seekTo?.(position / 1000);
-  }, []);
+  const seek = useCallback(
+    (position: number) => {
+      // A seek made before MPV has reported a position is where the session
+      // is now. Without this a seek to 0:00 is lost: the tick it produces is
+      // indistinguishable from the one MPV sends before it has a position,
+      // and nothing follows it while the player is paused.
+      if (stream && !hasLivePosition()) {
+        progress.set(position);
+        livePositionStreamRef.current = stream;
+      }
+      // MPV expects seconds, convert from ms
+      videoRef.current?.seekTo?.(position / 1000);
+    },
+    [stream, hasLivePosition, progress],
+  );
 
   // TV audio track change handler
   const handleAudioIndexChange = useCallback(
@@ -1201,7 +1283,7 @@ export default function DirectPlayerPage() {
           subtitleIndex: String(toServerSubtitleIndex(currentSubtitleIndex)),
           mediaSourceId: stream?.mediaSource?.Id ?? "",
           bitrateValue: bitrateValue?.toString() ?? "",
-          playbackPosition: msToTicks(progress.get()).toString(),
+          playbackPosition: getSessionPositionTicks().toString(),
         }).toString();
         // Destroy the current mpv instance BEFORE navigating, same rationale as
         // goToNextItem/goToPreviousItem: Expo Router briefly holds two players
@@ -1229,7 +1311,7 @@ export default function DirectPlayerPage() {
       currentSubtitleIndex,
       bitrateValue,
       router,
-      progress,
+      getSessionPositionTicks,
     ],
   );
 
@@ -1273,7 +1355,7 @@ export default function DirectPlayerPage() {
           String(toServerSubtitleIndex(currentSubtitleIndex)),
         mediaSourceId: stream?.mediaSource?.Id ?? "",
         bitrateValue: params.bitrateValue ?? bitrateValue?.toString() ?? "",
-        playbackPosition: msToTicks(progress.get()).toString(),
+        playbackPosition: getSessionPositionTicks().toString(),
       }).toString();
       // Destroy the current mpv instance before re-navigating, same rationale as
       // goToNextItem: Expo Router briefly holds two players during the
@@ -1288,7 +1370,7 @@ export default function DirectPlayerPage() {
       stream?.mediaSource?.Id,
       bitrateValue,
       router,
-      progress,
+      getSessionPositionTicks,
     ],
   );
 
