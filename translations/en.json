@@ -738,6 +738,14 @@
     "shuffle": "Shuffle",
     "entire_series": "Entire series",
     "episode_count": "{{count}} episodes",
+    "episode_details": {
+      "season_episode": "S{{season}} E{{episode}}",
+      "season": "Season {{season}}",
+      "episode": "Episode {{episode}}",
+      "rating": "{{rating}}/10",
+      "watched": "Watched",
+      "unwatched": "Unwatched"
+    },
     "menu": {
       "quality": "Quality",
       "subtitles": "Subtitles",

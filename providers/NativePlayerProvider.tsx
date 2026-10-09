@@ -44,7 +44,6 @@ import {
   isNativePlayerModuleAvailable,
   isNativePlayerPresented,
   loadNativePlayerStream,
-  type NativePlayerEpisodeListItem,
   type NativePlayerNextEpisode,
   type NativePlayerSegment,
   type NativePlayerSegmentType,
@@ -101,6 +100,7 @@ import {
 } from "@/utils/jellyfin/subtitleUtils";
 import { logAndCaptureError, writeErrorLog, writeToLog } from "@/utils/log";
 import { applyProgressTick } from "@/utils/nativePlayer/applyProgressTick";
+import { buildEpisodeList } from "@/utils/nativePlayer/buildEpisodeList";
 import {
   buildNativePlayerConfig,
   buildNativePlayerStrings,
@@ -332,7 +332,7 @@ const NativePlayerProviderInner: React.FC<{
 }> = ({ children }) => {
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { settings, updateSettings, pluginSettings } = useSettings();
   const { isConnected } = useNetworkStatus();
   const { lockOrientation, unlockOrientation } = useOrientation();
@@ -602,32 +602,24 @@ const NativePlayerProviderInner: React.FC<{
             seriesId: item.SeriesId,
             seasonId: item.SeasonId ?? undefined,
             userId: userRef.current?.Id,
+            fields: ["Overview"],
+            enableUserData: true,
           });
           episodes = res.data.Items ?? [];
         }
         if (sessionRef.current !== session) return;
-        const mapped: NativePlayerEpisodeListItem[] = episodes
-          .filter((ep) => ep.LocationType !== "Virtual")
-          .map((ep) => ({
-            itemId: ep.Id ?? "",
-            title: ep.Name ?? "",
-            indexNumber: ep.IndexNumber ?? undefined,
-            imageUrl:
-              getPrimaryImageUrl({
-                api: apiRef.current,
-                item: ep,
-                quality: 80,
-                width: 300,
-              }) ?? undefined,
-            progressPercent: ep.UserData?.PlayedPercentage ?? 0,
-            isCurrent: ep.Id === item.Id,
-          }));
+        const mapped = buildEpisodeList(episodes, {
+          api: apiRef.current,
+          currentItemId: item.Id,
+          t,
+          locale: i18n.resolvedLanguage ?? i18n.language,
+        });
         await updateNativePlayerEpisodeList(mapped);
-      } catch {
-        // Episode list is progressive enhancement.
+      } catch (error) {
+        writeErrorLog("NativePlayer episode list update failed", error);
       }
     },
-    [downloadUtils],
+    [downloadUtils, t, i18n],
   );
 
   // Push the next-episode preview whenever the adjacent-items query resolves.

@@ -44,7 +44,7 @@ struct EpisodeListView: View {
 	}
 
 	private func row(for episode: EpisodeListItemRecord) -> some View {
-		HStack(spacing: 12) {
+		HStack(alignment: .top, spacing: 12) {
 			ZStack(alignment: .bottomLeading) {
 				thumbnail(for: episode)
 				if episode.progressPercent > 0 {
@@ -59,18 +59,31 @@ struct EpisodeListView: View {
 			.frame(width: 110, height: 62)
 			.clipShape(RoundedRectangle(cornerRadius: 8))
 
-			VStack(alignment: .leading, spacing: 3) {
-				Text(episodeTitle(for: episode))
+			VStack(alignment: .leading, spacing: 6) {
+				Text(episode.details == nil ? episodeTitle(for: episode) : episode.title)
 					.font(.subheadline.weight(episode.isCurrent ? .semibold : .regular))
 					.foregroundStyle(.primary)
 					.lineLimit(2)
+				if let details = episode.details, !details.isEmpty {
+					Text(details)
+						.font(.caption)
+						.foregroundStyle(.secondary)
+						.fixedSize(horizontal: false, vertical: true)
+				}
+				if let overview = episode.overview, !overview.isEmpty {
+					Text(overview)
+						.font(.subheadline)
+						.foregroundStyle(.secondary)
+						.fixedSize(horizontal: false, vertical: true)
+				}
 				if episode.isCurrent {
 					Image(systemName: "play.fill")
 						.font(.caption2)
 						.foregroundStyle(.secondary)
+						.accessibilityLabel(viewModel.str("nowPlaying", "Now Playing"))
 				}
 			}
-			Spacer()
+			.frame(maxWidth: .infinity, alignment: .leading)
 		}
 		.padding(.vertical, 4)
 	}
