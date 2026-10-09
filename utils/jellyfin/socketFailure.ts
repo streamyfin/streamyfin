@@ -100,13 +100,14 @@ export const createSocketFailureRecorder = () => {
 };
 
 /**
- * Reports that the socket was given up on although the server answers HTTP,
- * which silently kills remote control and live updates until the next app
- * foreground. Grouped by cause, so that a bug in the app's own handling does
+ * Reports that fast socket retries failed although the server answers HTTP.
+ * Slow retries continue. Grouped by cause, so a bug in the app's handling does
  * not hide among the proxies that drop the upgrade; those stay in the local
  * log, where a user looking for why remote control is dead can find them.
  */
-export const reportSocketGiveUp = (failure: SocketFailure): void => {
+export const reportSocketFastRetriesExhausted = (
+  failure: SocketFailure,
+): void => {
   if (failure.environment) {
     writeToLog(
       "WARN",
@@ -116,7 +117,7 @@ export const reportSocketGiveUp = (failure: SocketFailure): void => {
     return;
   }
   logAndCaptureError(
-    "WebSocket gave up reconnecting while server is reachable",
+    "WebSocket fast reconnects exhausted while server is reachable; slow retries continue",
     failure.cause,
   );
 };

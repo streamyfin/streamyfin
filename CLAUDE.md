@@ -162,6 +162,7 @@ bun run ios:install-metal-toolchain   # Fixes "missing Metal Toolchain" build er
 | `translations/` | i18n catalogues, `en.json` is the only source |
 | `scripts/` | Repo tooling run through bun |
 | `docs/` | Conventions and deep dives |
+| `e2e/` | Manual end to end fixtures that need Docker, never run in CI (a local Jellyfin for SyncPlay) |
 
 ## Key patterns
 
@@ -213,13 +214,14 @@ PersistQueryClientProvider
             PlaySettingsProvider
               LogProvider
                 WebSocketProvider
-                  DownloadProvider
-                    NativePlayerProvider
-                      MusicPlayerProvider
-                        GlobalModalProvider
-                          BottomSheetModalProvider
-                            IntroSheetProvider
-                              ThemeProvider
+                  SyncPlayProvider          group playback, needs the socket
+                    DownloadProvider
+                      NativePlayerProvider
+                        MusicPlayerProvider
+                          GlobalModalProvider
+                            BottomSheetModalProvider
+                              IntroSheetProvider
+                                ThemeProvider
 ```
 
 `JotaiProvider` and `ActionSheetProvider` wrap the tree higher up, at the root layout.

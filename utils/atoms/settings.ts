@@ -461,6 +461,8 @@ export type Settings = {
   maxAutoPlayEpisodeCount: MaxAutoPlayEpisodeCount;
   autoPlayEpisodeCount: number;
   autoPlayNextEpisode: boolean;
+  /** SyncPlay: join groups without being waited for. Per device. */
+  syncPlayIgnoreWait: boolean;
   // Media segment skip preferences
   skipIntro: SegmentSkipMode;
   skipOutro: SegmentSkipMode;
@@ -652,6 +654,7 @@ export const defaultValues: Settings = {
   maxAutoPlayEpisodeCount: { key: "3", value: 3 },
   autoPlayEpisodeCount: 0,
   autoPlayNextEpisode: true,
+  syncPlayIgnoreWait: false,
   // Media segment skip defaults
   skipIntro: "ask",
   skipOutro: "ask",

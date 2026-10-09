@@ -3,7 +3,7 @@ import SwiftUI
 
 /// Thin per-host layer roots. NativePlayerViewController stacks one hosting
 /// controller per layer (back-to-front: chrome, status, shelf, subtitle
-/// search, still watching, error) and TVFocusCoordinator flips exactly one
+/// search, SyncPlay, still watching, error) and TVFocusCoordinator flips exactly one
 /// of the focusable ones into the focus system at a time. Each layer carries
 /// its own transition/animation — the conditions and values mirror the old
 /// single-ZStack root view exactly.
@@ -48,7 +48,7 @@ struct TVStatusLayerView: View {
 			// non-focusable card next to focusable glass buttons reads as a
 			// control that focus can never reach.
 			if !viewModel.controlsVisible, !viewModel.showEpisodeList,
-				!viewModel.showSubtitleSearch {
+				!viewModel.showSubtitleSearch, !viewModel.showSyncPlayQueue {
 				VStack {
 					Spacer()
 					HStack {
@@ -75,6 +75,7 @@ struct TVStatusLayerView: View {
 		.animation(.easeInOut(duration: 0.2), value: viewModel.countdownRemaining != nil)
 		.animation(.easeInOut(duration: 0.25), value: viewModel.showEpisodeList)
 		.animation(.easeInOut(duration: 0.2), value: viewModel.showSubtitleSearch)
+		.animation(.easeInOut(duration: 0.2), value: viewModel.showSyncPlayQueue)
 	}
 }
 
@@ -114,6 +115,24 @@ struct TVSubtitleSearchLayerView: View {
 		}
 		.frame(maxWidth: .infinity, maxHeight: .infinity)
 		.animation(.easeInOut(duration: 0.2), value: viewModel.showSubtitleSearch)
+	}
+}
+
+/// The group's queue and modes (focus zone: .syncPlay).
+@available(tvOS 26.0, *)
+struct TVSyncPlayLayerView: View {
+	@ObservedObject var viewModel: PlayerViewModel
+	let focusCoordinator: TVFocusCoordinator
+
+	var body: some View {
+		ZStack {
+			if viewModel.showSyncPlayQueue {
+				TVSyncPlayPanel(viewModel: viewModel, focusCoordinator: focusCoordinator)
+					.transition(.opacity)
+			}
+		}
+		.frame(maxWidth: .infinity, maxHeight: .infinity)
+		.animation(.easeInOut(duration: 0.2), value: viewModel.showSyncPlayQueue)
 	}
 }
 

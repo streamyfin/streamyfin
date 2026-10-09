@@ -23,16 +23,16 @@ import {
   View,
 } from "react-native";
 import { Slider } from "react-native-awesome-slider";
-import DraggableFlatList, {
-  type RenderItemParams,
-  ScaleDecorator,
-} from "react-native-draggable-flatlist";
 import { CastButton, CastState } from "react-native-google-cast";
 import { useSharedValue } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import TextTicker from "react-native-text-ticker";
 import type { VolumeResult } from "react-native-volume-manager";
 import { Badge } from "@/components/Badge";
+import {
+  DraggableQueueList,
+  type QueueRow,
+} from "@/components/common/DraggableQueueList";
 import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { CreatePlaylistModal } from "@/components/music/CreatePlaylistModal";
@@ -723,130 +723,44 @@ const QueueView: React.FC<QueueViewProps> = ({
   onReorderQueue,
 }) => {
   const { t } = useTranslation();
-  const renderQueueItem = useCallback(
-    ({ item, drag, isActive, getIndex }: RenderItemParams<BaseItemDto>) => {
-      const index = getIndex() ?? 0;
-      const isCurrentTrack = index === queueIndex;
-      const isPast = index < queueIndex;
-
-      const albumId = item.AlbumId || item.ParentId;
-      const imageUrl = api
-        ? albumId
-          ? `${api.basePath}/Items/${albumId}/Images/Primary?maxHeight=80&maxWidth=80`
-          : `${api.basePath}/Items/${item.Id}/Images/Primary?maxHeight=80&maxWidth=80`
-        : null;
-
-      return (
-        <ScaleDecorator>
-          <TouchableOpacity
-            onPress={() => onJumpToIndex(index)}
-            onLongPress={drag}
-            disabled={isActive}
-            className='flex-row items-center px-4 py-3'
-            style={{
-              opacity: isPast && !isActive ? 0.5 : 1,
-              backgroundColor: isActive
-                ? "#2a2a2a"
-                : isCurrentTrack
-                  ? "rgba(147, 52, 233, 0.3)"
-                  : "#121212",
-            }}
-          >
-            {/* Drag handle */}
-            <TouchableOpacity
-              onPressIn={drag}
-              disabled={isActive}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              className='pr-2'
-            >
-              <Ionicons
-                name='reorder-three'
-                size={20}
-                color={isActive ? "#9334E9" : "#666"}
-              />
-            </TouchableOpacity>
-
-            {/* Album art */}
-            <View className='w-12 h-12 rounded overflow-hidden bg-neutral-800 mr-3'>
-              {imageUrl ? (
-                <Image
-                  source={{ uri: imageUrl }}
-                  style={{ width: "100%", height: "100%" }}
-                  contentFit='cover'
-                  cachePolicy='memory-disk'
-                />
-              ) : (
-                <View className='flex-1 items-center justify-center'>
-                  <Ionicons name='musical-note' size={16} color='#666' />
-                </View>
-              )}
-            </View>
-
-            {/* Track info */}
-            <View className='flex-1 mr-2'>
-              <Text
-                numberOfLines={1}
-                className={`text-base ${isCurrentTrack ? "text-purple-400 font-semibold" : "text-white"}`}
-              >
-                {item.Name}
-              </Text>
-              <Text numberOfLines={1} className='text-neutral-500 text-sm'>
-                {item.Artists?.join(", ") || item.AlbumArtist}
-              </Text>
-            </View>
-
-            {/* Now playing indicator */}
-            {isCurrentTrack && (
-              <Ionicons name='musical-note' size={16} color='#9334E9' />
-            )}
-
-            {/* Remove button (not for current track) */}
-            {!isCurrentTrack && (
-              <TouchableOpacity
-                onPress={() => onRemoveFromQueue(index)}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                className='p-2'
-              >
-                <Ionicons name='close' size={20} color='#666' />
-              </TouchableOpacity>
-            )}
-          </TouchableOpacity>
-        </ScaleDecorator>
-      );
-    },
-    [api, queueIndex, onJumpToIndex, onRemoveFromQueue],
+  const rows = useMemo<QueueRow[]>(
+    () =>
+      queue.map((item, index) => {
+        const albumId = item.AlbumId || item.ParentId;
+        return {
+          key: `${item.Id}-${index}`,
+          title: item.Name ?? "",
+          subtitle: item.Artists?.join(", ") || item.AlbumArtist || undefined,
+          imageUrl: api
+            ? `${api.basePath}/Items/${albumId || item.Id}/Images/Primary?maxHeight=80&maxWidth=80`
+            : null,
+        };
+      }),
+    [api, queue],
   );
 
-  const handleDragEnd = useCallback(
-    ({ data }: { data: BaseItemDto[] }) => {
-      onReorderQueue(data);
+  const handleMove = useCallback(
+    (from: number, to: number) => {
+      const next = [...queue];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      onReorderQueue(next);
     },
-    [onReorderQueue],
+    [queue, onReorderQueue],
   );
-
-  const history = queue.slice(0, queueIndex);
 
   return (
-    <DraggableFlatList
-      data={queue}
-      keyExtractor={(item, index) => `${item.Id}-${index}`}
-      renderItem={renderQueueItem}
-      onDragEnd={handleDragEnd}
-      showsVerticalScrollIndicator={false}
-      ListHeaderComponent={
-        <View className='px-4 py-2'>
-          <Text className='text-neutral-400 text-xs uppercase tracking-wider'>
-            {history.length > 0
-              ? t("music.playing_from_queue")
-              : t("music.up_next")}
-          </Text>
-        </View>
+    <DraggableQueueList
+      rows={rows}
+      currentIndex={queueIndex}
+      icon='musical-note'
+      header={
+        queueIndex > 0 ? t("music.playing_from_queue") : t("music.up_next")
       }
-      ListEmptyComponent={
-        <View className='flex-1 items-center justify-center py-20'>
-          <Text className='text-neutral-500'>{t("music.queue_empty")}</Text>
-        </View>
-      }
+      emptyText={t("music.queue_empty")}
+      onPressRow={onJumpToIndex}
+      onRemoveRow={onRemoveFromQueue}
+      onMoveRow={handleMove}
     />
   );
 };
