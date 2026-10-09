@@ -15,7 +15,7 @@ import {
   useLocalSearchParams,
   useNavigation,
 } from "expo-router";
-import { useAtom } from "jotai";
+import { useAtom, useSetAtom } from "jotai";
 import React, { useCallback, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -40,6 +40,7 @@ import { useScaledTVPosterSizes } from "@/constants/TVPosterSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import { useFilterReset } from "@/hooks/useFilterReset";
+import { useLibraryFilters } from "@/hooks/useLibraryFilters";
 import { useOrientation } from "@/hooks/useOrientation";
 import { useRefreshLibraryOnFocus } from "@/hooks/useRefreshLibraryOnFocus";
 import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
@@ -49,6 +50,7 @@ import {
   FilterByOption,
   FilterByPreferenceAtom,
   filterByAtom,
+  filterOwnerAtom,
   genreFilterAtom,
   genrePreferenceAtom,
   getFilterByPreference,
@@ -99,6 +101,13 @@ const Page = () => {
   const [sortBy, _setSortBy] = useAtom(sortByAtom);
   const [filterBy, _setFilterBy] = useAtom(filterByAtom);
   const [sortOrder, _setSortOrder] = useAtom(sortOrderAtom);
+  const setFilterOwner = useSetAtom(filterOwnerAtom);
+  // What the item query runs on. The atoms above are shared with every other
+  // library screen and only hold this library's selection once the focus
+  // effect below has written it, so the query waits for that instead of
+  // fetching with whatever they held before. Covered by
+  // hooks/useLibraryFilters.test.tsx.
+  const ownFilters = useLibraryFilters(libraryId);
   const [sortByPreference, setSortByPreference] = useAtom(sortByPreferenceAtom);
   const [filterByPreference, setFilterByPreference] = useAtom(
     FilterByPreferenceAtom,
@@ -235,6 +244,9 @@ const Page = () => {
       setSelectedGenres(getMultiFilterPreference(libraryId, genrePreference));
       setSelectedYears(getMultiFilterPreference(libraryId, yearPreference));
       setSelectedTags(getMultiFilterPreference(libraryId, tagPreference));
+
+      // Last, and in the same batch: from here on the atoms are this library's.
+      setFilterOwner(libraryId);
     }, [
       libraryId,
       sortOrderPreference,
@@ -249,6 +261,7 @@ const Page = () => {
       setSelectedGenres,
       setSelectedYears,
       setSelectedTags,
+      setFilterOwner,
       searchParams.sortBy,
       searchParams.sortOrder,
       searchParams.filterBy,
@@ -378,7 +391,7 @@ const Page = () => {
     }: {
       pageParam: number;
     }): Promise<BaseItemDtoQueryResult | null> => {
-      if (!api || !library) return null;
+      if (!api || !library || !ownFilters) return null;
 
       let itemType: BaseItemKind | undefined;
 
@@ -403,17 +416,17 @@ const Page = () => {
         parentId: libraryId,
         limit: 36,
         startIndex: pageParam,
-        sortBy: [sortBy[0], "SortName", "ProductionYear"],
-        sortOrder: [sortOrder[0]],
+        sortBy: [ownFilters.sortBy[0], "SortName", "ProductionYear"],
+        sortOrder: [ownFilters.sortOrder[0]],
         enableImageTypes: ["Primary", "Backdrop", "Banner", "Thumb"],
-        filters: filterBy,
+        filters: ownFilters.filterBy,
         // true is needed for merged versions
         recursive: true,
         imageTypeLimit: 1,
         fields: ["PrimaryImageAspectRatio", "SortName"],
-        genres: selectedGenres,
-        tags: selectedTags,
-        years: selectedYears.map((year) => Number.parseInt(year, 10)),
+        genres: ownFilters.genres,
+        tags: ownFilters.tags,
+        years: ownFilters.years.map((year) => Number.parseInt(year, 10)),
         includeItemTypes: itemType ? [itemType] : undefined,
         ...(Platform.isTV && library.CollectionType === "playlists"
           ? { mediaTypes: ["Video"] }
@@ -422,18 +435,7 @@ const Page = () => {
 
       return response.data || null;
     },
-    [
-      api,
-      user?.Id,
-      libraryId,
-      library,
-      selectedGenres,
-      selectedYears,
-      selectedTags,
-      sortBy,
-      sortOrder,
-      filterBy,
-    ],
+    [api, user?.Id, libraryId, library, ownFilters],
   );
 
   const { data, isFetching, fetchNextPage, hasNextPage, isLoading } =
@@ -441,12 +443,12 @@ const Page = () => {
       queryKey: [
         "library-items",
         libraryId,
-        selectedGenres,
-        selectedYears,
-        selectedTags,
-        sortBy,
-        sortOrder,
-        filterBy,
+        ownFilters?.genres,
+        ownFilters?.years,
+        ownFilters?.tags,
+        ownFilters?.sortBy,
+        ownFilters?.sortOrder,
+        ownFilters?.filterBy,
       ],
       queryFn: fetchItems,
       getNextPageParam: (lastPage, pages) => {
@@ -469,7 +471,7 @@ const Page = () => {
         return undefined;
       },
       initialPageParam: 0,
-      enabled: !!api && !!user?.Id && !!library,
+      enabled: !!api && !!user?.Id && !!library && !!ownFilters,
     });
 
   const flatData = useMemo(() => {
@@ -488,12 +490,12 @@ const Page = () => {
   // a scroll to offset 0, which is behind the header, and a list that has just
   // mounted has no inset yet to aim at.
   const filterSignature = [
-    selectedGenres.join(","),
-    selectedYears.join(","),
-    selectedTags.join(","),
-    sortBy[0],
-    sortOrder[0],
-    filterBy.join(","),
+    ownFilters?.genres.join(","),
+    ownFilters?.years.join(","),
+    ownFilters?.tags.join(","),
+    ownFilters?.sortBy[0],
+    ownFilters?.sortOrder[0],
+    ownFilters?.filterBy.join(","),
   ].join("|");
   const grid = useCardGrid({
     items: flatData,
@@ -922,7 +924,9 @@ const Page = () => {
 
   const insets = useSafeAreaInsets();
 
-  if (isLoading || isLibraryLoading)
+  // Without its filters the query has not started, which is not an empty
+  // library.
+  if (isLoading || isLibraryLoading || !ownFilters)
     return (
       <View className='w-full h-full flex items-center justify-center'>
         <Loader />
