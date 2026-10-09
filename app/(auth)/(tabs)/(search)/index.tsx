@@ -1,17 +1,16 @@
-import type {
-  BaseItemDto,
-  BaseItemKind,
+import {
+  type BaseItemDto,
+  type BaseItemKind,
+  ItemFields,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import { useLocalSearchParams, useNavigation, useSegments } from "expo-router";
 import { useAtom } from "jotai";
-import { orderBy } from "lodash";
 import {
   useCallback,
   useEffect,
-  useId,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -33,10 +32,21 @@ import {
   getItemNavigation,
   TouchableItemRouter,
 } from "@/components/common/TouchableItemRouter";
-import { DiscoverFilters } from "@/components/search/DiscoverFilters";
 import { LoadingSkeleton } from "@/components/search/LoadingSkeleton";
 import { SearchItemWrapper } from "@/components/search/SearchItemWrapper";
+import { SearchSortMenu } from "@/components/search/SearchSortMenu";
 import { SearchTabButtons } from "@/components/search/SearchTabButtons";
+import {
+  type SearchType,
+  showSearchSort,
+} from "@/components/search/searchFilters";
+import {
+  LIBRARY_SORTS,
+  type LibrarySort,
+  type SortOrder,
+  sortLibraryResults,
+  sortSeerrResults,
+} from "@/components/search/searchSort";
 import { TVSearchPage } from "@/components/search/TVSearchPage";
 import {
   SeerrIndexPage,
@@ -45,6 +55,7 @@ import {
 import useRouter from "@/hooks/useAppRouter";
 import { useSeerr } from "@/hooks/useSeerr";
 import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
+import { useTVOptionModal } from "@/hooks/useTVOptionModal";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { getIntegrationHeaders } from "@/utils/customHeaders";
@@ -58,8 +69,6 @@ import { loadDiscoverSliders } from "@/utils/seerr/sliders";
 import type { MovieResult, PersonResult, TvResult } from "@/utils/seerr/types";
 import { MediaType } from "@/utils/seerr/types";
 import { createStreamystatsApi } from "@/utils/streamystats";
-
-type SearchType = "Library" | "Discover";
 
 const exampleSearches = [
   "Lord of the rings",
@@ -75,15 +84,13 @@ export default function SearchPage() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { showItemActions } = useTVItemActionModal();
+  const { showOptions } = useTVOptionModal();
   const segments = useSegments();
   const from = (segments as string[])[2] || "(search)";
 
   const [user] = useAtom(userAtom);
 
   const { t } = useTranslation();
-
-  const searchFilterId = useId();
-  const orderFilterId = useId();
 
   const { q } = params as { q: string };
 
@@ -120,7 +127,11 @@ export default function SearchPage() {
   const [seerrOrderBy, setSeerrOrderBy] = useState<SeerrSearchSort>(
     SeerrSearchSort[SeerrSearchSort.DEFAULT] as unknown as SeerrSearchSort,
   );
-  const [seerrSortOrder, setSeerrSortOrder] = useState<"asc" | "desc">("desc");
+  const [seerrSortOrder, setSeerrSortOrder] = useState<SortOrder>("desc");
+  // Relevance is the order the search engine answered with. Ascending, as
+  // the library pages start.
+  const [librarySort, setLibrarySort] = useState<LibrarySort>("Relevance");
+  const [librarySortOrder, setLibrarySortOrder] = useState<SortOrder>("asc");
 
   const searchEngine = useMemo(() => {
     return settings?.searchEngine || "Jellyfin";
@@ -155,6 +166,8 @@ export default function SearchPage() {
               includeItemTypes: types,
               recursive: true,
               userId: user?.Id,
+              // For the sort by date added.
+              fields: [ItemFields.DateCreated],
             },
             { signal },
           );
@@ -207,6 +220,7 @@ export default function SearchPage() {
             {
               ids: allIds,
               enableImageTypes: ["Primary", "Backdrop", "Thumb"],
+              fields: [ItemFields.DateCreated],
             },
             { signal },
           );
@@ -238,6 +252,7 @@ export default function SearchPage() {
           {
             ids,
             enableImageTypes: ["Primary", "Backdrop", "Thumb"],
+            fields: [ItemFields.DateCreated],
           },
           { signal },
         );
@@ -278,6 +293,7 @@ export default function SearchPage() {
             includeItemTypes: types,
             recursive: true,
             userId: user?.Id,
+            fields: [ItemFields.DateCreated],
           },
           { signal },
         );
@@ -338,7 +354,7 @@ export default function SearchPage() {
     };
   }, []);
 
-  const { data: movies, isFetching: l1 } = useQuery({
+  const { data: moviesFound, isFetching: l1 } = useQuery({
     queryKey: ["search", "movies", debouncedSearch],
     queryFn: ({ signal }) =>
       searchFn({
@@ -349,7 +365,7 @@ export default function SearchPage() {
     enabled: searchType === "Library" && debouncedSearch.length > 0,
   });
 
-  const { data: series, isFetching: l2 } = useQuery({
+  const { data: seriesFound, isFetching: l2 } = useQuery({
     queryKey: ["search", "series", debouncedSearch],
     queryFn: ({ signal }) =>
       searchFn({
@@ -360,7 +376,7 @@ export default function SearchPage() {
     enabled: searchType === "Library" && debouncedSearch.length > 0,
   });
 
-  const { data: episodes, isFetching: l3 } = useQuery({
+  const { data: episodesFound, isFetching: l3 } = useQuery({
     queryKey: ["search", "episodes", debouncedSearch],
     queryFn: ({ signal }) =>
       searchFn({
@@ -371,7 +387,7 @@ export default function SearchPage() {
     enabled: searchType === "Library" && debouncedSearch.length > 0,
   });
 
-  const { data: collections, isFetching: l7 } = useQuery({
+  const { data: collectionsFound, isFetching: l7 } = useQuery({
     queryKey: ["search", "collections", debouncedSearch],
     queryFn: ({ signal }) =>
       searchFn({
@@ -382,7 +398,7 @@ export default function SearchPage() {
     enabled: searchType === "Library" && debouncedSearch.length > 0,
   });
 
-  const { data: actors, isFetching: l8 } = useQuery({
+  const { data: actorsFound, isFetching: l8 } = useQuery({
     queryKey: ["search", "actors", debouncedSearch],
     queryFn: ({ signal }) =>
       searchFn({
@@ -394,7 +410,7 @@ export default function SearchPage() {
   });
 
   // Music search queries - always use Jellyfin since Streamystats doesn't support music
-  const { data: artists, isFetching: l9 } = useQuery({
+  const { data: artistsFound, isFetching: l9 } = useQuery({
     queryKey: ["search", "artists", debouncedSearch],
     queryFn: ({ signal }) =>
       jellyfinSearchFn({
@@ -405,7 +421,7 @@ export default function SearchPage() {
     enabled: searchType === "Library" && debouncedSearch.length > 0,
   });
 
-  const { data: albums, isFetching: l10 } = useQuery({
+  const { data: albumsFound, isFetching: l10 } = useQuery({
     queryKey: ["search", "albums", debouncedSearch],
     queryFn: ({ signal }) =>
       jellyfinSearchFn({
@@ -416,7 +432,7 @@ export default function SearchPage() {
     enabled: searchType === "Library" && debouncedSearch.length > 0,
   });
 
-  const { data: songs, isFetching: l11 } = useQuery({
+  const { data: songsFound, isFetching: l11 } = useQuery({
     queryKey: ["search", "songs", debouncedSearch],
     queryFn: ({ signal }) =>
       jellyfinSearchFn({
@@ -427,7 +443,7 @@ export default function SearchPage() {
     enabled: searchType === "Library" && debouncedSearch.length > 0,
   });
 
-  const { data: playlists, isFetching: l12 } = useQuery({
+  const { data: playlistsFound, isFetching: l12 } = useQuery({
     queryKey: ["search", "playlists", debouncedSearch],
     queryFn: ({ signal }) =>
       jellyfinSearchFn({
@@ -437,6 +453,45 @@ export default function SearchPage() {
       }),
     enabled: searchType === "Library" && debouncedSearch.length > 0,
   });
+
+  // The Library results in the order picked, for the phone and the TV alike.
+  const {
+    movies,
+    series,
+    episodes,
+    collections,
+    actors,
+    artists,
+    albums,
+    songs,
+    playlists,
+  } = useMemo(() => {
+    const sorted = (items?: BaseItemDto[]) =>
+      sortLibraryResults(items, librarySort, librarySortOrder);
+    return {
+      movies: sorted(moviesFound),
+      series: sorted(seriesFound),
+      episodes: sorted(episodesFound),
+      collections: sorted(collectionsFound),
+      actors: sorted(actorsFound),
+      artists: sorted(artistsFound),
+      albums: sorted(albumsFound),
+      songs: sorted(songsFound),
+      playlists: sorted(playlistsFound),
+    };
+  }, [
+    moviesFound,
+    seriesFound,
+    episodesFound,
+    collectionsFound,
+    actorsFound,
+    artistsFound,
+    albumsFound,
+    songsFound,
+    playlistsFound,
+    librarySort,
+    librarySortOrder,
+  ]);
 
   const noResults = useMemo(() => {
     return !(
@@ -488,41 +543,47 @@ export default function SearchPage() {
       debouncedSearch.length > 0,
   });
 
-  // Process Seerr results for TV
+  // Seerr's results for TV, sorted as the phone sorts them.
   const seerrMovieResults = useMemo(
     () =>
-      orderBy(
+      sortSeerrResults(
         seerrTVResults?.filter(
           (r) => r.mediaType === MediaType.MOVIE,
         ) as MovieResult[],
-        [(m) => m?.title?.toLowerCase() === debouncedSearch.toLowerCase()],
-        "desc",
+        seerrOrderBy,
+        seerrSortOrder,
+        (m) => m?.title,
+        debouncedSearch,
       ),
-    [seerrTVResults, debouncedSearch],
+    [seerrTVResults, seerrOrderBy, seerrSortOrder, debouncedSearch],
   );
 
   const seerrTvResults = useMemo(
     () =>
-      orderBy(
+      sortSeerrResults(
         seerrTVResults?.filter(
           (r) => r.mediaType === MediaType.TV,
         ) as TvResult[],
-        [(t) => t?.name?.toLowerCase() === debouncedSearch.toLowerCase()],
-        "desc",
+        seerrOrderBy,
+        seerrSortOrder,
+        (t) => t?.name,
+        debouncedSearch,
       ),
-    [seerrTVResults, debouncedSearch],
+    [seerrTVResults, seerrOrderBy, seerrSortOrder, debouncedSearch],
   );
 
   const seerrPersonResults = useMemo(
     () =>
-      orderBy(
+      sortSeerrResults(
         seerrTVResults?.filter(
           (r) => r.mediaType === "person",
         ) as PersonResult[],
-        [(p) => p?.name?.toLowerCase() === debouncedSearch.toLowerCase()],
-        "desc",
+        seerrOrderBy,
+        seerrSortOrder,
+        (p) => p?.name,
+        debouncedSearch,
       ),
-    [seerrTVResults, debouncedSearch],
+    [seerrTVResults, seerrOrderBy, seerrSortOrder, debouncedSearch],
   );
 
   const seerrTVNoResults = useMemo(() => {
@@ -590,6 +651,75 @@ export default function SearchPage() {
     [router],
   );
 
+  // The sort of the tab on screen: Seerr's for Discover, the Library's
+  // otherwise. Relevance has no order to pick.
+  const seerrSorts = useMemo(
+    () =>
+      Object.keys(SeerrSearchSort)
+        .filter((v) => Number.isNaN(Number(v)))
+        .map((value) => ({
+          value,
+          label: t(`home.settings.plugins.seerr.order_by.${value}`),
+        })),
+    [t],
+  );
+  const librarySorts = useMemo(
+    () =>
+      LIBRARY_SORTS.map((value) => ({
+        value: value as string,
+        label: t(`search.library_sort.${value}`),
+      })),
+    [t],
+  );
+  const sortMenu =
+    searchType === "Discover"
+      ? {
+          sorts: seerrSorts,
+          sort: seerrOrderBy as unknown as string,
+          onSort: (value: string) =>
+            setSeerrOrderBy(value as unknown as SeerrSearchSort),
+          order: seerrSortOrder as SortOrder | undefined,
+          onOrder: setSeerrSortOrder,
+        }
+      : {
+          sorts: librarySorts,
+          sort: librarySort as string,
+          onSort: (value: string) => setLibrarySort(value as LibrarySort),
+          order: librarySort === "Relevance" ? undefined : librarySortOrder,
+          onOrder: setLibrarySortOrder,
+        };
+
+  // On TV, as on the TV library page: a sheet for the sort, one for the order.
+  const tvSortButtons = showSearchSort(debouncedSearch)
+    ? {
+        sortValue:
+          sortMenu.sorts.find((s) => s.value === sortMenu.sort)?.label ?? "",
+        onSortPress: () =>
+          showOptions({
+            title: t("library.filters.sort_by"),
+            options: sortMenu.sorts.map((s) => ({
+              label: s.label,
+              value: s.value,
+              selected: s.value === sortMenu.sort,
+            })),
+            onSelect: sortMenu.onSort,
+          }),
+        orderValue: sortMenu.order
+          ? t(`library.filters.${sortMenu.order}`)
+          : undefined,
+        onOrderPress: () =>
+          showOptions({
+            title: t("library.filters.sort_order"),
+            options: (["asc", "desc"] as const).map((order) => ({
+              label: t(`library.filters.${order}`),
+              value: order,
+              selected: order === sortMenu.order,
+            })),
+            onSelect: sortMenu.onOrder,
+          }),
+      }
+    : undefined;
+
   // Render TV search page
   if (Platform.isTV) {
     return (
@@ -613,6 +743,7 @@ export default function SearchPage() {
         searchType={searchType}
         setSearchType={setSearchType}
         showDiscover={!!seerrApi}
+        sortButtons={tvSortButtons}
         seerrMovies={seerrMovieResults}
         seerrTv={seerrTvResults}
         seerrPersons={seerrPersonResults}
@@ -643,27 +774,28 @@ export default function SearchPage() {
         className='flex flex-col'
         style={{ paddingTop: Platform.OS === "android" ? 10 : 0 }}
       >
-        {seerrApi && (
+        {/* The tabs come with Seerr; the sort with any search, so the Library
+            results sort without Seerr too. */}
+        {(seerrApi || showSearchSort(debouncedSearch)) && (
           <View className='pl-4 pr-4 flex flex-row'>
-            <SearchTabButtons
-              searchType={searchType}
-              setSearchType={setSearchType}
-              t={t}
-            />
-            {searchType === "Discover" &&
-              !loading &&
-              noResults &&
-              debouncedSearch.length > 0 && (
-                <DiscoverFilters
-                  searchFilterId={searchFilterId}
-                  orderFilterId={orderFilterId}
-                  seerrOrderBy={seerrOrderBy}
-                  setSeerrOrderBy={setSeerrOrderBy}
-                  seerrSortOrder={seerrSortOrder}
-                  setSeerrSortOrder={setSeerrSortOrder}
-                  t={t}
-                />
-              )}
+            {seerrApi && (
+              <SearchTabButtons
+                searchType={searchType}
+                setSearchType={setSearchType}
+                t={t}
+              />
+            )}
+            {/* Covered by components/search/searchFilters.test.ts. */}
+            {showSearchSort(debouncedSearch) && (
+              <SearchSortMenu
+                sorts={sortMenu.sorts}
+                sort={sortMenu.sort}
+                onSort={sortMenu.onSort}
+                order={sortMenu.order}
+                onOrder={sortMenu.onOrder}
+                t={t}
+              />
+            )}
           </View>
         )}
 
