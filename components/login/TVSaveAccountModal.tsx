@@ -22,6 +22,11 @@ interface TVSaveAccountModalProps {
   onClose: () => void;
   onSave: (securityType: AccountSecurityType, pinCode?: string) => void;
   username: string;
+  /**
+   * Off when no password is known to work for the account, as after a Quick
+   * Connect sign-in: an account that signs in through single sign-on has none.
+   */
+  allowPassword?: boolean;
 }
 
 interface SecurityOption {
@@ -163,6 +168,7 @@ export const TVSaveAccountModal: React.FC<TVSaveAccountModalProps> = ({
   onClose,
   onSave,
   username,
+  allowPassword = true,
 }) => {
   const { t } = useTranslation();
   const [isReady, setIsReady] = useState(false);
@@ -307,7 +313,9 @@ export const TVSaveAccountModal: React.FC<TVSaveAccountModalProps> = ({
                     style={styles.scrollView}
                     contentContainerStyle={styles.scrollContent}
                   >
-                    {SECURITY_OPTIONS.map((option, index) => (
+                    {SECURITY_OPTIONS.filter(
+                      (option) => allowPassword || option.type !== "password",
+                    ).map((option, index) => (
                       <TVOptionCard
                         key={option.type}
                         ref={index === 0 ? setFirstCardRef : undefined}

@@ -169,7 +169,10 @@ export class SeerrApi {
     this.setInterceptors();
   }
 
-  async test(): Promise<TestResult> {
+  // `quiet` is for a caller the user did not prompt, a sign-in testing the
+  // plugin's address: a Seerr out of reach from where the user is would
+  // otherwise toast over the home screen. The failures are logged either way.
+  async test({ quiet = false }: { quiet?: boolean } = {}): Promise<TestResult> {
     const user = storage.get<SeerrUser>(SEERR_USER_STORAGE_KEY);
     const cookies = storage.get<string[]>(SEERR_COOKIES_STORAGE_KEY);
 
@@ -189,7 +192,9 @@ export class SeerrApi {
             writeErrorLog(
               `Seerr version ${data.version} is below the required 2.0.0`,
             );
-            toast.error(t("seerr.toasts.seerr_does_not_meet_requirements"));
+            if (!quiet) {
+              toast.error(t("seerr.toasts.seerr_does_not_meet_requirements"));
+            }
             // Return rather than throw: the catch below exists for transport
             // failures and would stack a second, misleading "could not test
             // the server URL" toast on top of this precise one.
@@ -208,7 +213,7 @@ export class SeerrApi {
             requiresPass: true,
           };
         }
-        toast.error(t("seerr.toasts.seerr_test_failed"));
+        if (!quiet) toast.error(t("seerr.toasts.seerr_test_failed"));
         writeErrorLog(
           `Seerr returned a ${status} for url:\n${response.config.url}`,
           response.data,
@@ -220,7 +225,7 @@ export class SeerrApi {
       })
       .catch((e) => {
         const msg = t("seerr.toasts.failed_to_test_seerr_server_url");
-        toast.error(msg);
+        if (!quiet) toast.error(msg);
         console.error(msg, e);
         return {
           isValid: false,

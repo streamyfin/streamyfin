@@ -18,7 +18,6 @@
     "password_placeholder": "Jelszó",
     "login_button": "Bejelentkezés",
     "quick_connect": "Gyorscsatlakozás",
-    "enter_code_to_login": "Írd be a {{code}} kódot a bejelentkezéshez",
     "quick_connect_instructions": "Írd be ezt a kódot egy már bejelentkezett eszközön. Ezután automatikusan bejelentkezel.",
     "tap_code_to_copy": "Koppints a kódra a másolásához",
     "code_copied": "Kód másolva",
@@ -226,8 +225,8 @@
         "enter_the_quick_connect_code": "Add meg a gyors csatlakozási kódot...",
         "success": "Siker",
         "quick_connect_authorized": "Gyorscsatlakozás Engedélyezve",
-        "error": "Hiba",
         "invalid_code": "Érvénytelen Kód",
+        "disabled": "Quick Connect is turned off on this server. An administrator can turn it on in the server's dashboard.",
         "authorize": "Engedélyezés",
         "paste_code": "Kód Beillesztése"
       },
@@ -610,6 +609,7 @@
         "all_files_deleted": "Az összes letöltés törölve",
         "files_deleted_by_type": "{{count}} {{type}} törölve",
         "could_not_get_download_url_for_item": "Nem sikerült lekérni a(z) {{itemName}} letöltési címét",
+        "no_media_source_to_download": "This item cannot be downloaded",
         "file_deleted": "{{item}} törölve"
       }
     }
@@ -727,7 +727,8 @@
     "noData": "Az elemek, amelyeket kedvencként jelölsz meg, itt jelennek meg."
   },
   "custom_links": {
-    "no_links": "Nincsenek Linkek"
+    "no_links": "Nincsenek Linkek",
+    "could_not_open_link": "Could not open this link"
   },
   "player": {
     "live": "ÉLŐ",
@@ -1175,9 +1176,7 @@
     "title": "Párosítás tévével",
     "align_qr": "Igazítsd a QR-kódot a keretbe",
     "enter_code_manually": "Kód megadása kézzel",
-    "pairing_enter_credentials": "Add meg a tévéhez tartozó bejelentkezési adatokat",
     "pairing_code_label": "Párosítási kód",
-    "server": "Kiszolgáló",
     "authorize_button": "Engedélyezés",
     "authorizing": "Engedélyezés...",
     "scan_again": "Beolvasás újra",
@@ -1186,18 +1185,24 @@
     "pairing_tv_connecting": "A tévé csatlakozik a fiókodhoz",
     "error_title": "Az engedélyezés sikertelen",
     "error_invalid_qr": "Érvénytelen QR-kód. Olvasd be a tévén megjelenő párosítási kódot.",
+    "error_old_tv": "This TV runs an older version of Streamyfin. Update it, then try again.",
+    "error_code_not_waiting": "This code is not waiting on {{server}}. Check that the TV uses the same server as this phone, then start Quick Connect again on the TV.",
+    "error_quick_connect_disabled": "Quick Connect is turned off on {{server}}. An administrator can turn it on in the server's dashboard.",
+    "error_other_server": "This TV is connecting to another server, {{server}}. Sign in to that server in this app, then scan again.",
     "error_generic": "Valami hiba történt. Próbáld újra.",
     "error_permission_denied": "A QR-kódok beolvasásához kamerahozzáférés szükséges.",
     "login_as": "Bejelentkezés {{username}} néven?",
     "on_server": "ezen: {{server}}",
-    "use_different_user": "Másik felhasználó használata",
     "open_settings": "Beállítások megnyitása"
   },
   "pairing": {
     "pair_with_phone": "Párosítás telefonnal",
     "pair_with_phone_title": "Bejelentkezés a tévén",
-    "waiting_for_phone": "Várakozás a telefonra...",
-    "scan_with_phone": "Olvasd be a telefonodon lévő Streamyfin alkalmazással",
+    "scan_quick_connect": "Scan the QR code with the Streamyfin app or your phone's camera.",
+    "code_expired": "This code has expired.",
+    "get_new_code": "Get a new code",
+    "scan_with_app": "Scan the QR code with the Streamyfin app on your phone.",
+    "account_that_approves": "The account that approves the code",
     "logging_in": "Bejelentkezés...",
     "logging_in_description": "Csatlakozás a kiszolgálódhoz"
   },
