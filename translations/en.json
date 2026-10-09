@@ -576,6 +576,8 @@
           "item_added": "New movies and episodes",
           "seerr_requests": "Your requests",
           "seerr_requests_help": "Approved, declined or available",
+          "awaited_title": "A title you're waiting for arrives",
+          "awaited_title_help": "One you asked to be told about from its Seerr page",
           "user_locked_out": "Your account gets locked",
           "seerr_pending": "New requests",
           "seerr_pending_help": "Waiting for approval, approved automatically, or failed",
@@ -591,6 +593,7 @@
           "follow": "Shows you follow",
           "muted": "Shows turned off",
           "yours": "Your requests and account",
+          "awaited": "Titles you're waiting for",
           "server": "Server alerts"
         },
         "libraries_footer": "New movies and episodes from these libraries.",
@@ -603,6 +606,10 @@
         },
         "muted": {
           "turn_back_on": "Turn back on"
+        },
+        "awaited": {
+          "stop": "Stop waiting",
+          "arrived": "Already here, you'll be told when your pause ends"
         },
         "pause": {
           "title": "Pause notifications",
@@ -979,6 +986,14 @@
     }
   },
   "seerr": {
+    "awaited": {
+      "notify_me": "Notify me when it's here",
+      "waiting": "You'll be notified",
+      "stop_hint": "Stops waiting for this title",
+      "already_here": "This title is already on the server",
+      "too_many": "You're already waiting for as many titles as you can",
+      "failed": "Couldn't change the titles you're waiting for"
+    },
     "cancel": "Cancel",
     "whats_wrong": "What's wrong?",
     "issue_type": "Issue type",

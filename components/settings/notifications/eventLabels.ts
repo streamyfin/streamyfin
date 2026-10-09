@@ -8,6 +8,10 @@ export const EVENT_LABELS: Record<string, { title: string; help?: string }> = {
   userLockedOut: {
     title: "home.settings.notifications.events.user_locked_out",
   },
+  awaitedTitle: {
+    title: "home.settings.notifications.events.awaited_title",
+    help: "home.settings.notifications.events.awaited_title_help",
+  },
   seerrPending: {
     title: "home.settings.notifications.events.seerr_pending",
     help: "home.settings.notifications.events.seerr_pending_help",

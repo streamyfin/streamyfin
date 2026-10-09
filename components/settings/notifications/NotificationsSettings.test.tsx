@@ -11,11 +11,16 @@ import { NotificationsSettings } from "./NotificationsSettings";
 const mockUpdate = jest.fn();
 const mockUnmute = jest.fn();
 const mockRefetch = jest.fn();
+const mockStopWaiting = jest.fn();
 let mockState: Record<string, unknown> = {};
+let mockAwaited: Record<string, unknown> = {};
 let mockPermission = "granted";
 
 jest.mock("@/hooks/useMyNotifications", () => ({
   useMyNotifications: () => mockState,
+}));
+jest.mock("@/hooks/useAwaitedTitles", () => ({
+  useAwaitedTitles: () => mockAwaited,
 }));
 jest.mock("expo-notifications", () => ({
   getPermissionsAsync: () => Promise.resolve({ status: mockPermission }),
@@ -56,6 +61,7 @@ describe("the Notifications screen", () => {
     jest.clearAllMocks();
     stubReactNative();
     mockState = state(base);
+    mockAwaited = { supported: true, titles: [], remove: mockStopWaiting };
     mockPermission = "granted";
   });
 
@@ -176,5 +182,83 @@ describe("the Notifications screen", () => {
     );
 
     expect(mockRefetch).toHaveBeenCalled();
+  });
+
+  describe("the titles the person waits for", () => {
+    const matrix = {
+      mediaType: "movie",
+      tmdbId: 603,
+      title: "The Matrix",
+      year: 1999,
+      addedAt: "2026-10-08T08:00:00Z",
+      arrived: false,
+    };
+
+    test("lists each title with its year", async () => {
+      mockAwaited.titles = [matrix];
+      await render(<NotificationsSettings />);
+
+      expect(
+        screen.getByText("home.settings.notifications.groups.awaited"),
+      ).toBeTruthy();
+      expect(screen.getByText("The Matrix")).toBeTruthy();
+      expect(screen.getByText("1999")).toBeTruthy();
+    });
+
+    test("stops waiting for a title", async () => {
+      mockAwaited.titles = [matrix];
+      await render(<NotificationsSettings />);
+
+      fireEvent.press(screen.getByText("The Matrix"));
+
+      expect(mockStopWaiting).toHaveBeenCalledWith("movie", 603);
+    });
+
+    // It arrived during a pause, and is told once the pause ends.
+    test("says when a title is already here, held by the pause", async () => {
+      mockAwaited.titles = [{ ...matrix, arrived: true }];
+      await render(<NotificationsSettings />);
+
+      expect(
+        screen.getByText("home.settings.notifications.awaited.arrived"),
+      ).toBeTruthy();
+    });
+
+    test.each([
+      ["the person waits for nothing", { titles: [] }],
+      ["the list is not known yet", { titles: undefined }],
+      // A 404 leaves the list unknown.
+      [
+        "the plugin does not know the route",
+        { supported: false, titles: undefined },
+      ],
+      // A later read failing keeps the list the query had.
+      [
+        "the route went away after a list was read",
+        { supported: false, titles: [matrix] },
+      ],
+    ])("shows no section when %s", async (_case, awaited) => {
+      mockAwaited = { ...mockAwaited, ...awaited };
+      await render(<NotificationsSettings />);
+
+      expect(
+        screen.queryByText("home.settings.notifications.groups.awaited"),
+      ).toBeNull();
+    });
+
+    test("names the event that tells the person", async () => {
+      mockState = state({
+        ...base,
+        events: [
+          ...base.events,
+          { key: "awaitedTitle", family: "requests", enabled: true },
+        ],
+      });
+      await render(<NotificationsSettings />);
+
+      expect(
+        screen.getByText("home.settings.notifications.events.awaited_title"),
+      ).toBeTruthy();
+    });
   });
 });

@@ -9,6 +9,12 @@ export const PUSH_DEVICE_PATH = "/Streamyfin/device";
 /** The plugin route a person reads and replaces their notification choices at. */
 export const MY_NOTIFICATIONS_PATH = "/Streamyfin/v1/notifications/mine";
 
+/** The plugin route of the titles a person waits for, to be told when they arrive. */
+export const MY_AWAITED_TITLES_PATH = `${MY_NOTIFICATIONS_PATH}/awaited`;
+
+/** The event that tells a person a title they wait for has arrived. */
+export const AWAITED_TITLE_EVENT = "awaitedTitle";
+
 /**
  * What the app asks iOS for. The last one puts a link to the app's Notifications screen in the
  * iOS Settings, under the app's notifications.
