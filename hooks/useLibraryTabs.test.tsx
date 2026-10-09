@@ -98,14 +98,14 @@ describe("useLibraryTabs", () => {
   test("asks an older server nothing, and offers no tab", async () => {
     serve("10.11.11", { BoxSet: 3, Playlist: 3 });
 
-    const { result } = await renderLibraryTabs();
+    const { result, client } = await renderLibraryTabs();
 
+    // Until the version has arrived, and not just been asked for: the counts
+    // are only held back once the hook knows which server this is.
     await waitFor(() =>
-      expect(
-        mockApi.mock.history.get.some((request) =>
-          request.url?.includes("/System/Info/Public"),
-        ),
-      ).toBe(true),
+      expect(client.getQueryData(["jellyfin", "serverInfo"])).toMatchObject({
+        Version: "10.11.11",
+      }),
     );
     // React Query hands its state updates to a timer.
     await act(() => new Promise((resolve) => setTimeout(resolve, 0)));

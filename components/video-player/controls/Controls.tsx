@@ -29,6 +29,7 @@ import useRouter from "@/hooks/useAppRouter";
 import { useHaptic } from "@/hooks/useHaptic";
 import { useMediaSegments } from "@/hooks/useMediaSegments";
 import { usePlaybackManager } from "@/hooks/usePlaybackManager";
+import { useServerVersion } from "@/hooks/useServerVersion";
 import { useTrickplay } from "@/hooks/useTrickplay";
 import type { TechnicalInfo } from "@/modules/mpv-player";
 import { DownloadedItem } from "@/providers/Downloads/types";
@@ -154,6 +155,12 @@ export const Controls: FC<Props> = ({
 }) => {
   const offline = useOfflineMode();
   const { settings } = useSettings();
+  // Decides where a matched alternate version starts, see
+  // getAdjacentStartTicks. Whatever is cached will do: a server does not go
+  // back a major version.
+  const serverVersion = useServerVersion({
+    staleTime: Number.POSITIVE_INFINITY,
+  });
   const router = useRouter();
   const lightHapticFeedback = useHaptic("light");
 
@@ -635,8 +642,12 @@ export const Controls: FC<Props> = ({
         mediaSourceId: newMediaSource?.Id ?? "",
         bitrateValue: bitrateValue?.toString(),
         playbackPosition:
-          getAdjacentStartTicks(item, newMediaSource, offline)?.toString() ??
-          "",
+          getAdjacentStartTicks(
+            item,
+            newMediaSource,
+            offline,
+            serverVersion,
+          )?.toString() ?? "",
       });
     },
     [
@@ -647,6 +658,7 @@ export const Controls: FC<Props> = ({
       bitrateValue,
       router,
       offline,
+      serverVersion,
     ],
   );
 

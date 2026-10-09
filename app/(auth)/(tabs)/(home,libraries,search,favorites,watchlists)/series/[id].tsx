@@ -27,7 +27,7 @@ import { SyncPlayButton } from "@/components/syncplay/SyncPlayButton";
 import { Colors } from "@/constants/Colors";
 import { LOGO_HEIGHT } from "@/constants/Images";
 import { useLeaveWhenGone } from "@/hooks/useLeaveWhenGone";
-import { useShuffleQueue } from "@/hooks/useShuffleQueue";
+import { playableQueueItems, useShuffleQueue } from "@/hooks/useShuffleQueue";
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { OfflineModeProvider } from "@/providers/OfflineModeProvider";
@@ -188,8 +188,12 @@ const page: React.FC = () => {
   useEffect(() => {
     // The TV page has its own Shuffle button, with a choice of season.
     // startShuffle is covered by hooks/useLibraryPlayQueue.test.tsx.
+    // Counted the way the queue is built: a series of placeholders for
+    // missing episodes has nothing to shuffle, and one episode is no shuffle.
     const shuffleButton =
-      !Platform.isTV && allEpisodes && allEpisodes.length > 1 ? (
+      !Platform.isTV &&
+      allEpisodes &&
+      playableQueueItems(allEpisodes).length > 1 ? (
         <HeaderButton
           onPress={() => startShuffle(allEpisodes, { isOffline })}
           accessibilityRole='button'

@@ -15,6 +15,9 @@ jest.mock("jotai", () => ({
 jest.mock("@/utils/atoms/settings", () => ({
   useSettings: () => ({ settings: {} }),
 }));
+jest.mock("@/hooks/useServerVersion", () => ({
+  useServerVersion: () => "12.0.0",
+}));
 jest.mock("@/utils/jellyfin/getDefaultPlaySettings", () => ({
   // Where an item starts is covered by getDefaultPlaySettings.test.ts.
   getAdjacentStartTicks: (item: BaseItemDto) =>

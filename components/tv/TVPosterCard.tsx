@@ -482,6 +482,9 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
           }}
         >
           {overlay}
+          {/* Here most of all: without artwork the badge is what says what
+              the card is. */}
+          {LiveBadge}
         </View>
       );
     }

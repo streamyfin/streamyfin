@@ -69,6 +69,7 @@ import { useLibraryPlayQueue } from "@/hooks/useLibraryPlayQueue";
 import { useLibraryTabs } from "@/hooks/useLibraryTabs";
 import { useOrientation } from "@/hooks/useOrientation";
 import { useRefreshLibraryOnFocus } from "@/hooks/useRefreshLibraryOnFocus";
+import { useServerVersion } from "@/hooks/useServerVersion";
 import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
 import { useTVLibrarySheet } from "@/hooks/useTVLibrarySheet";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
@@ -114,6 +115,7 @@ import {
   type LanguageFilterOption,
   withSelectedLanguages,
 } from "@/utils/jellyfin/languageFilters";
+import { supportsNameBounds } from "@/utils/jellyfin/serverVersion";
 import {
   buildLibraryItemsQuery,
   isQueueableLibrary,
@@ -503,6 +505,8 @@ const Page = () => {
   // ignores the parameters, and waiting for the version would send a first,
   // unfiltered request on a cold cache.
   const languageFilters = useLanguageFilters(library);
+  // Shared with the language filters above: one request for both.
+  const serverVersion = useServerVersion();
 
   // Only a TV library has episodes still to air. `/Shows/Upcoming` answers for
   // any parent, with nothing.
@@ -577,7 +581,10 @@ const Page = () => {
   // applies while they match it: another tab, or a list under other filters,
   // opens at its top. It belongs to the items tab, next to the sort it
   // depends on. The logic is covered by utils/jellyfin/alphabetJump.test.ts.
-  const canJumpToLetter = hasFilterBar && sortBy[0] === SortByOption.SortName;
+  const canJumpToLetter =
+    hasFilterBar &&
+    sortBy[0] === SortByOption.SortName &&
+    supportsNameBounds(serverVersion);
   // `serial` tells one jump from the next, the same letter again included:
   // that is the way back to the first of its titles, so every jump starts the
   // list over the way a filter change does, through its key.

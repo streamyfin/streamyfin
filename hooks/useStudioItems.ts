@@ -21,7 +21,8 @@ export const useStudioItems = (studioId: string) => {
   const enabled = !!api && !!user?.Id && !!studioId;
 
   const { data: studio } = useQuery({
-    queryKey: ["studio", studioId],
+    // Both are asked as the user, so both are cached as theirs.
+    queryKey: ["studio", studioId, user?.Id],
     queryFn: async ({ signal }) => {
       if (!api) return null;
       const response = await getUserLibraryApi(api).getItem(
@@ -36,7 +37,7 @@ export const useStudioItems = (studioId: string) => {
 
   const { data, isLoading, hasNextPage, isFetchingNextPage, fetchNextPage } =
     useInfiniteQuery({
-      queryKey: ["studio-items", studioId],
+      queryKey: ["studio-items", studioId, user?.Id],
       queryFn: ({ pageParam, signal }) => {
         if (!api) return null;
         return getStudioItems({

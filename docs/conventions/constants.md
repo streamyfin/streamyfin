@@ -32,7 +32,7 @@ cadence meant knowing both existed, and nothing would have failed if only one ha
 | `constants/Colors.ts` | Colour tokens |
 | `constants/MediaTypes.ts` | Media type unions |
 | `constants/Images.ts` | Server image requests: the detail page logo height, and the pixel caps and steps on what is asked for |
-| `constants/TVSizes.ts` | TV poster sizes, gaps, padding, animation timings |
+| `constants/TVSizes.ts` | TV poster sizes, gaps, padding, animation timings, how close to the end a growing grid asks for more |
 | `constants/TVTypography.ts` | TV type scale and the `useScaledTVTypography` hook |
 | `constants/TVPosterSizes.ts` | TV poster size keys |
 | `constants/Playback.ts` | Playback policy shared by the JS and native players (progress report cadence, next-episode countdown window, play queue size cap), how long a remote repeat or shuffle change waits to be confirmed, and how often the stats overlay polls the transcode progress |

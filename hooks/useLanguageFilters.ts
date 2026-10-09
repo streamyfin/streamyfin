@@ -28,7 +28,9 @@ export const useLanguageFilters = (library: BaseItemDto | null | undefined) => {
   const enabled = supportsLanguageFilters(serverVersion) && !!itemTypes;
 
   const { data } = useQuery({
-    queryKey: ["filters", "languages", libraryId, itemTypes],
+    // The user is part of it: the server only lists the languages of the
+    // items that user may see.
+    queryKey: ["filters", "languages", libraryId, itemTypes, user?.Id],
     queryFn: async () => {
       if (!api || !libraryId || !itemTypes) return NO_LANGUAGE_FILTERS;
       return fetchLanguageFilters(api, {

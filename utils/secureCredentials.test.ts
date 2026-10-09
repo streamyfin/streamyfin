@@ -8,6 +8,8 @@ jest.mock(
 );
 jest.mock("./log", () => ({ logAndCaptureError: jest.fn() }));
 
+import * as SecureStore from "expo-secure-store";
+
 import { clearMmkv } from "@/test-utils/mmkv";
 import {
   clearSecureStore,
@@ -261,8 +263,61 @@ describe("renameSavedServer", () => {
     ]);
   });
 
-  // The app was closed between the keychain writes and the list write: the
-  // old entry is still listed, one credential has already moved.
+  // The keychain refuses partway, on the second account here. A sign-in that
+  // then falls back to the old address looks the first account up there, and
+  // an account whose credential is missing is taken off the list for good.
+  test("leaves the old address whole when the keychain refuses partway", async () => {
+    await saved("a");
+    await saved("b");
+    const write = jest
+      .spyOn(SecureStore, "setItemAsync")
+      .mockImplementation(async (key, value) => {
+        if (key === credentialKey(NEW, "b")) {
+          throw new Error("User interaction is not allowed");
+        }
+        secureStoreValues.set(key, value);
+      });
+
+    await expect(renameSavedServer(OLD, NEW)).rejects.toThrow();
+    write.mockRestore();
+
+    expect(addresses()).toEqual([OLD]);
+    expect(await getCredentialOrForgetAccount(OLD, "a")).toMatchObject({
+      token: "token-a",
+    });
+    expect(await getCredentialOrForgetAccount(OLD, "b")).toMatchObject({
+      token: "token-b",
+    });
+
+    // And the next run does the whole move.
+    await renameSavedServer(OLD, NEW);
+    expect(addresses()).toEqual([NEW]);
+    expect(await getAccountCredential(NEW, "a")).toMatchObject({
+      token: "token-a",
+    });
+    expect(await getAccountCredential(OLD, "a")).toBeNull();
+  });
+
+  // A keychain that will not let go of the old items does not undo a move
+  // the list already shows.
+  test("is done once the list is written, whatever the clean-up meets", async () => {
+    await saved("a");
+    const remove = jest
+      .spyOn(SecureStore, "deleteItemAsync")
+      .mockRejectedValue(new Error("User interaction is not allowed"));
+
+    await renameSavedServer(OLD, NEW);
+    expect(remove).toHaveBeenCalledWith(credentialKey(OLD, "a"));
+    remove.mockRestore();
+
+    expect(addresses()).toEqual([NEW]);
+    expect(await getAccountCredential(NEW, "a")).toMatchObject({
+      token: "token-a",
+    });
+  });
+
+  // Left by a run of an earlier shape of this move: the old entry is still
+  // listed, one credential is already under the new address only.
   test("finishes a move that was cut short", async () => {
     await saved("a");
     await saved("b");

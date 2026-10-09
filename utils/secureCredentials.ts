@@ -486,14 +486,15 @@ function mergeCredentials(
 }
 
 /**
- * Moves what the keychain holds for one account to another server address:
+ * Copies what the keychain holds for one account to another server address:
  * its credential, PIN or password protection included, and its Seerr
- * password. Copied before it is deleted, so nothing is lost in between.
+ * password. Nothing is taken from the old address here: until the list names
+ * the new one, the old one is what a saved login is looked up under.
  *
  * Resolves to the credential the account has at the new address afterwards,
  * or to null when it has none.
  */
-async function moveAccountSecrets(
+async function copyAccountSecrets(
   from: string,
   to: string,
   userId: string,
@@ -506,17 +507,28 @@ async function moveAccountSecrets(
       credentialKey(to, userId),
       JSON.stringify(kept),
     );
-    await SecureStore.deleteItemAsync(credentialKey(from, userId));
   }
 
   const password = await getSeerrPassword(from, userId);
-  if (password !== null) {
-    if ((await getSeerrPassword(to, userId)) === null) {
-      await saveSeerrPassword(to, userId, password);
-    }
-    await deleteSeerrPassword(from, userId);
+  if (password !== null && (await getSeerrPassword(to, userId)) === null) {
+    await saveSeerrPassword(to, userId, password);
   }
   return kept;
+}
+
+/**
+ * Removes what `copyAccountSecrets` left under the old address. What cannot
+ * be removed stays behind as an item nothing reads any more, so a keychain
+ * that refuses here does not undo a move that is already done.
+ */
+async function removeAccountSecrets(
+  from: string,
+  userId: string,
+): Promise<void> {
+  await Promise.allSettled([
+    SecureStore.deleteItemAsync(credentialKey(from, userId)),
+    deleteSeerrPassword(from, userId),
+  ]);
 }
 
 /**
@@ -554,9 +566,10 @@ function mergeAccounts(
  * holds for them, its local network configuration and its custom headers.
  *
  * Whatever is already saved under the new address stays, and the two are
- * merged. Every store is copied to before it is deleted from and the list is
- * written last, so a run that is cut short loses nothing: the old entry is
- * still listed, and the next run finishes the move.
+ * merged. Everything is copied first, then the list is written, and only then
+ * is the old address emptied. A run that fails or is cut short before the
+ * list is written leaves the old entry listed with all it had, so a saved
+ * login still works under it and the next run does the move again.
  */
 export async function renameSavedServer(
   from: string,
@@ -568,7 +581,7 @@ export async function renameSavedServer(
 
   const credentials = new Map<string, ServerCredential>();
   for (const account of source.accounts) {
-    const kept = await moveAccountSecrets(from, to, account.userId);
+    const kept = await copyAccountSecrets(from, to, account.userId);
     if (kept) credentials.set(account.userId, kept);
   }
 
@@ -599,6 +612,9 @@ export async function renameSavedServer(
   });
   storage.set("previousServers", JSON.stringify(updated));
 
+  for (const account of source.accounts) {
+    await removeAccountSecrets(from, account.userId);
+  }
   deleteSecureCustomHeaderValues(source.customHeaders ?? []);
   bumpCustomHeadersVersion();
 }

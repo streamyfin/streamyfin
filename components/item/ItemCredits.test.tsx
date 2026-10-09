@@ -43,6 +43,7 @@ describe("ItemCredits", () => {
   test("a name opens that person", async () => {
     await render(<ItemCredits people={PEOPLE} />);
 
+    expect(screen.queryAllByRole("link").length).toBeGreaterThan(0);
     fireEvent.press(screen.getByText("Jonathan Nolan"));
 
     expect(mockPush).toHaveBeenCalledWith({
@@ -56,8 +57,10 @@ describe("ItemCredits", () => {
     mockOffline = true;
     await render(<ItemCredits people={PEOPLE} />);
 
-    expect(screen.getByText(/Jonathan Nolan/)).toBeTruthy();
+    fireEvent.press(screen.getByText(/Jonathan Nolan/));
+
     expect(screen.queryAllByRole("link")).toHaveLength(0);
+    expect(mockPush).not.toHaveBeenCalled();
   });
 
   test("draws nothing for an item without credits", async () => {

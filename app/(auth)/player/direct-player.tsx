@@ -54,6 +54,7 @@ import { useOrientation } from "@/hooks/useOrientation";
 import { usePlaybackManager } from "@/hooks/usePlaybackManager";
 import usePlaybackSpeed from "@/hooks/usePlaybackSpeed";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
+import { useServerVersion } from "@/hooks/useServerVersion";
 import { useWebSocket } from "@/hooks/useWebsockets";
 import {
   type MpvOnErrorEventPayload,
@@ -123,6 +124,12 @@ export default function DirectPlayerPage() {
   const navigation = useNavigation();
   const router = useRouter();
   const { settings, updateSettings } = useSettings();
+  // Decides where a matched alternate version starts, see
+  // getAdjacentStartTicks. Whatever is cached will do: a server does not go
+  // back a major version.
+  const serverVersion = useServerVersion({
+    staleTime: Number.POSITIVE_INFINITY,
+  });
 
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
 
@@ -1534,6 +1541,7 @@ export default function DirectPlayerPage() {
           previousItem,
           newMediaSource,
           offline,
+          serverVersion,
         )?.toString() ?? "",
     }).toString();
 
@@ -1551,6 +1559,7 @@ export default function DirectPlayerPage() {
     bitrateValue,
     router,
     offline,
+    serverVersion,
   ]);
 
   // TV: Add subtitle file to player (for client-side downloaded subtitles)
@@ -1621,8 +1630,12 @@ export default function DirectPlayerPage() {
       mediaSourceId: newMediaSource?.Id ?? "",
       bitrateValue: bitrateValue?.toString() ?? "",
       playbackPosition:
-        getAdjacentStartTicks(nextItem, newMediaSource, offline)?.toString() ??
-        "",
+        getAdjacentStartTicks(
+          nextItem,
+          newMediaSource,
+          offline,
+          serverVersion,
+        )?.toString() ?? "",
     }).toString();
 
     // Destroy the current mpv instance BEFORE navigating so the old 4K
@@ -1646,6 +1659,7 @@ export default function DirectPlayerPage() {
     isPlaybackStopped,
     videoRef,
     offline,
+    serverVersion,
   ]);
 
   // Apply subtitle settings after MPV has enumerated tracks; applying them on

@@ -135,6 +135,11 @@ jest.mock("@/hooks/useRevalidatePlaybackProgressCache", () => ({
   useInvalidatePlaybackProgressCache: () => mockNoop,
 }));
 jest.mock("@/hooks/useWebsockets", () => ({ useWebSocket: () => {} }));
+// Where an alternate version starts is covered by
+// getDefaultPlaySettings.test.ts; the version itself is not under test here.
+jest.mock("@/hooks/useServerVersion", () => ({
+  useServerVersion: () => "12.0.0",
+}));
 jest.mock("@/utils/atoms/settings", () => ({
   getActivePlayerType: () => "mpv",
   useSettings: () => ({ settings: mockSettings, updateSettings: mockNoop }),

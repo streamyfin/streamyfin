@@ -31,7 +31,9 @@ const renderChip = async (chip: ReactElement) => {
 // What the sheet would list once the chip is pressed.
 const offeredOnPress = () => {
   fireEvent.press(screen.getByText("Audio languages"));
-  return mockShowModal.mock.calls[0]?.[0].props.data;
+  // The latest call: a press that came before the options had loaded stays
+  // in the list with the data it had then.
+  return mockShowModal.mock.lastCall?.[0].props.data;
 };
 
 const chipProps = {

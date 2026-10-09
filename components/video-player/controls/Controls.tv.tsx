@@ -43,6 +43,7 @@ import useRouter from "@/hooks/useAppRouter";
 import { useMediaSegments } from "@/hooks/useMediaSegments";
 import { usePlaybackManager } from "@/hooks/usePlaybackManager";
 import type { SegmentType } from "@/hooks/useSegmentSkipper";
+import { useServerVersion } from "@/hooks/useServerVersion";
 import { useTrickplay } from "@/hooks/useTrickplay";
 import { useTVOptionModal } from "@/hooks/useTVOptionModal";
 import { useTVSubtitleModal } from "@/hooks/useTVSubtitleModal";
@@ -263,6 +264,12 @@ export const Controls: FC<Props> = ({
   }, [screenWidth, insets.left, insets.right]);
   const api = useAtomValue(apiAtom);
   const { settings } = useSettings();
+  // Decides where a matched alternate version starts, see
+  // getAdjacentStartTicks. Whatever is cached will do: a server does not go
+  // back a major version.
+  const serverVersion = useServerVersion({
+    staleTime: Number.POSITIVE_INFINITY,
+  });
   const router = useRouter();
   const { playbackPosition, bitrateValue } = useLocalSearchParams<{
     playbackPosition: string;
@@ -1247,6 +1254,7 @@ export const Controls: FC<Props> = ({
             nextItem,
             newMediaSource,
             offline,
+            serverVersion,
           )?.toString() ?? "",
       }).toString();
 
@@ -1261,6 +1269,7 @@ export const Controls: FC<Props> = ({
       bitrateValue,
       router,
       offline,
+      serverVersion,
     ],
   );
 

@@ -51,6 +51,10 @@ jest.mock("@/utils/atoms/settings", () => ({
 // The log module reaches Sentry, whose client keeps a timer running past the
 // last test.
 jest.mock("@/utils/log", () => ({ writeErrorLog: () => undefined }));
+// Asked of the server otherwise, ahead of the items a test looks at.
+jest.mock("@/hooks/useServerVersion", () => ({
+  useServerVersion: () => "12.0.0",
+}));
 jest.mock("react-i18next", () => {
   // One `t` for every render, as react-i18next keeps it.
   const t = (key: string) => key;

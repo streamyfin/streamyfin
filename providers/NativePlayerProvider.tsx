@@ -41,6 +41,7 @@ import {
   useRemoteSubtitles,
 } from "@/hooks/useRemoteSubtitles";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
+import { useServerVersion } from "@/hooks/useServerVersion";
 import {
   addNativePlayerListener,
   applyNativePlayerSyncPlayCommand,
@@ -566,12 +567,20 @@ const NativePlayerProviderInner: React.FC<{
     previousItemRef.current = playbackManager.previousItem;
   });
 
+  // Decides where a matched alternate version starts, see
+  // getAdjacentStartTicks. Whatever is cached will do: a server does not go
+  // back a major version.
+  const serverVersion = useServerVersion({
+    staleTime: Number.POSITIVE_INFINITY,
+  });
+  const serverVersionRef = useRef(serverVersion);
   const apiRef = useRef(api);
   const settingsRef = useRef(settings);
   const pluginSettingsRef = useRef(pluginSettings);
   const userRef = useRef(user);
   const isConnectedRef = useRef(isConnected);
   useEffect(() => {
+    serverVersionRef.current = serverVersion;
     apiRef.current = api;
     settingsRef.current = settings;
     pluginSettingsRef.current = pluginSettings;
@@ -1247,8 +1256,12 @@ const NativePlayerProviderInner: React.FC<{
         bitrateValue: session.bitrateValue,
         offline: session.offline,
         playbackPositionTicks:
-          getAdjacentStartTicks(target, newMediaSource, session.offline) ??
-          undefined,
+          getAdjacentStartTicks(
+            target,
+            newMediaSource,
+            session.offline,
+            serverVersionRef.current,
+          ) ?? undefined,
       };
       // Target came from the adjacent-items query without full MediaSources —
       // let the builder refetch it online; offline uses the downloads DB.

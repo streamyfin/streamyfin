@@ -18,8 +18,9 @@ export type AlphabetJumpParams = {
  * it, so paging carries on into the letters that follow.
  *
  * Both bounds compare against the sort name, which is why "The Matrix" is an
- * M title. `/Items` has taken them since long before Jellyfin 12, so nothing
- * here is gated on a server version.
+ * M title. `/Items` has taken them since long before Jellyfin 12; the three
+ * 10.11 releases that got them wrong are left out by `supportsNameBounds`,
+ * where the page decides whether to offer the jump at all.
  */
 export const alphabetJumpParams = (
   letter: string | null,

@@ -25,7 +25,7 @@ import {
   SubtitleStreamRanker,
 } from "../streamRanker";
 import { isAlternateVersion } from "./mediaSourceVersion";
-import { ORIGINAL_LANGUAGE } from "./serverVersion";
+import { ORIGINAL_LANGUAGE, supportsPerVersionUserData } from "./serverVersion";
 
 export interface PlaySettings {
   item: BaseItemDto;
@@ -181,16 +181,20 @@ export function getMatchingMediaSource(
  *
  * The item's UserData is its primary version's, and on Jellyfin 12 each
  * version keeps its own, so a matched alternate version starts from the top
- * rather than at another version's resume point.
+ * rather than at another version's resume point. Before Jellyfin 12 the
+ * primary's is the one every version shares, and an unknown server version
+ * counts as one of those: it keeps the resume point.
  */
 export function getAdjacentStartTicks(
   item: BaseItemDto,
   mediaSource: MediaSourceInfo | null | undefined,
   offline: boolean,
+  serverVersion?: string | null,
 ): number | null | undefined {
   // Offline keeps the download record's position: its item lists every
   // server version, so the source picked here need not be the one on disk.
   return !offline &&
+    supportsPerVersionUserData(serverVersion) &&
     isAlternateVersion(item.Id, item.MediaSources, mediaSource?.Id)
     ? 0
     : item.UserData?.PlaybackPositionTicks;

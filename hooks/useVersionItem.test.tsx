@@ -163,7 +163,14 @@ test("stops waiting when the version item cannot be fetched", async () => {
 
 test("keeps the item's own UserData before Jellyfin 12", async () => {
   mockServerVersion = "10.11.0";
-  const { result } = await render("alt");
+  const { result, client } = await render("alt");
+  // Until the version has arrived: before that the hook asks for nothing
+  // either, which would pass without the gate being tried at all.
+  await waitFor(() =>
+    expect(client.getQueryData(["jellyfin", "serverInfo"])).toMatchObject({
+      Version: "10.11.0",
+    }),
+  );
   await act(async () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
   });

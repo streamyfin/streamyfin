@@ -177,6 +177,9 @@ export default function MusicSettingsPage() {
             disabled={pluginSettings?.musicNormalizationMode?.locked}
           >
             <PlatformDropdown
+              // A locked setting is not written, so the menu must not open
+              // on choices that would do nothing.
+              disabled={pluginSettings?.musicNormalizationMode?.locked}
               groups={normalizationOptions}
               trigger={
                 <View className='flex flex-row items-center justify-between py-1.5 pl-3'>

@@ -60,6 +60,21 @@ export const honoursExcludedPersonTypes = (version?: string | null) =>
   isServerMajorAtLeast(version, 12);
 
 /**
+ * Whether `nameStartsWithOrGreater` and `nameLessThan` cut a list at a sort
+ * name, which is what a jump to a letter needs. Jellyfin 10.11.0 to 10.11.2
+ * compared the first character only, and against the display name as well
+ * (jellyfin/jellyfin#15282), so a jump to M listed "The 100" and skipped the
+ * M titles. Every release before and after compares the whole sort name. An
+ * unknown version is not jumped on.
+ */
+export const supportsNameBounds = (version?: string | null) => {
+  const [major, minor, patch] = (version ?? "").split(".", 3);
+  if (!/^\d+$/.test(major ?? "") || !/^\d+$/.test(minor ?? "")) return false;
+  if (Number(major) !== 10 || Number(minor) !== 11) return true;
+  return Number.parseInt(patch ?? "", 10) >= 3;
+};
+
+/**
  * Each version of a multi-version item keeps its own UserData from Jellyfin
  * 12 on (jellyfin/jellyfin#16828); before that the primary item carries it.
  */

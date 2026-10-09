@@ -3,6 +3,7 @@ import {
   supportsItemCollections,
   supportsLanguageFilters,
   supportsLibraryCollectionsAndPlaylists,
+  supportsNameBounds,
   supportsOriginalAudioLanguage,
   supportsPerVersionUserData,
   supportsQuickConnectForOtherUsers,
@@ -87,6 +88,23 @@ test("trusts the person type exclusion from Jellyfin 12 on", () => {
   expect(honoursExcludedPersonTypes("12.0.0")).toBe(true);
   expect(honoursExcludedPersonTypes("12.1.0")).toBe(true);
   expect(honoursExcludedPersonTypes()).toBe(false);
+});
+
+// jellyfin/jellyfin#15282: three releases compared a first character, and
+// the display name with it.
+test("jumps to a letter everywhere but on Jellyfin 10.11.0 to 10.11.2", () => {
+  expect(supportsNameBounds("10.10.7")).toBe(true);
+  expect(supportsNameBounds("10.11.0")).toBe(false);
+  expect(supportsNameBounds("10.11.2")).toBe(false);
+  expect(supportsNameBounds("10.11.3")).toBe(true);
+  expect(supportsNameBounds("10.11.11")).toBe(true);
+  expect(supportsNameBounds("12.0.0")).toBe(true);
+});
+
+test("does not jump to a letter on a server of unknown version", () => {
+  expect(supportsNameBounds(undefined)).toBe(false);
+  expect(supportsNameBounds("")).toBe(false);
+  expect(supportsNameBounds("10.11")).toBe(false);
 });
 
 test("per-version UserData follows the Jellyfin 12 cut", () => {

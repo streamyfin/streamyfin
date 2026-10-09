@@ -29,7 +29,9 @@ export const useItemCollections = (
     // Deliberately not under ["item", itemId]: the favorite and played
     // toggles rewrite everything below that prefix as if it were the item
     // itself, which turns a cached list into a plain object.
-    queryKey: ["itemCollections", itemId],
+    // The user is part of it: which collections come back depends on what
+    // that user may see.
+    queryKey: ["itemCollections", itemId, user?.Id],
     queryFn: async () => {
       if (!api || !user?.Id || !itemId) return [];
 
