@@ -77,6 +77,8 @@ body:
       label: Streamyfin Version
       description: What version of Streamyfin are you running? On a TestFlight or development build, choose "TestFlight/Development build" and include the exact version string shown in the app's Settings.
       options:
+        - 0.55.2
+        - 0.55.1
         - 0.55.0
         - 0.54.1
         - 0.51.0

@@ -1,8 +1,8 @@
 diff --git a/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt b/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt
-index 6b23eed182f91fef39b379b714dcd63c96dcff94..03e742faa4dcf387cec4203a659aa8ae21ded481 100644
+index 84f25c29816f203cf1974b07d6abd6228b937fe8..1f1f879cf15f4f09c09a26db97ed4dee97891f13 100644
 --- a/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt
 +++ b/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt
-@@ -934,9 +934,19 @@ class MusicService : HeadlessJsMediaService() {
+@@ -936,9 +936,19 @@ class MusicService : HeadlessJsMediaService() {
      @MainThread
      override fun onDestroy() {
          Timber.tag("APM").d("RNTP service is destroyed.")

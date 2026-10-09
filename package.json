@@ -37,7 +37,7 @@
     "@douglowder/expo-av-route-picker-view": "^0.0.5",
     "@expo/metro-runtime": "~57.0.16",
     "@expo/react-native-action-sheet": "^4.1.1",
-    "@expo/ui": "57.0.20",
+    "@expo/ui": "57.0.21",
     "@expo/vector-icons": "^15.1.1",
     "@gorhom/bottom-sheet": "5.2.14",
     "@jellyfin/sdk": "^0.13.0",
@@ -110,7 +110,7 @@
     "react-native-svg": "15.15.5",
     "react-native-tab-view": "4.3.2",
     "react-native-text-ticker": "1.16.0",
-    "react-native-track-player": "github:lovegaoshi/react-native-track-player#APM",
+    "react-native-track-player": "github:lovegaoshi/react-native-track-player#d2baf9a",
     "react-native-udp": "^4.1.7",
     "react-native-url-polyfill": "^4.0.0",
     "react-native-volume-manager": "^2.0.8",
@@ -183,7 +183,7 @@
   ],
   "patchedDependencies": {
     "react-native-udp@4.1.7": "patches/react-native-udp@4.1.7.patch",
-    "react-native-track-player@github:lovegaoshi/react-native-track-player#33a3ecd": "patches/react-native-track-player@4.1.1.patch",
+    "react-native-track-player@github:lovegaoshi/react-native-track-player#d2baf9a": "patches/react-native-track-player@4.1.1.patch",
     "react-native-bottom-tabs@1.4.0": "patches/react-native-bottom-tabs@1.4.0.patch"
   },
   "jest": {

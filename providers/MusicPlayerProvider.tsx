@@ -30,6 +30,11 @@ import { getJellyfinHeadersForUrl } from "@/utils/customHeaders";
 import { getAudioStreamUrl } from "@/utils/jellyfin/audio/getAudioStreamUrl";
 import { logAndCaptureError } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
+import {
+  editNativeQueue,
+  nativeIndexOf,
+  nativeInsertIndexFor,
+} from "@/utils/music/nativeQueue";
 
 // Conditionally import TrackPlayer only on non-TV platforms
 // This prevents the native module from being loaded on TV where it doesn't exist
@@ -397,6 +402,53 @@ const itemToTrack = (
   return track;
 };
 
+// Adds a track where the app queue has it rather than at the end, for a native
+// queue that was filled out of order. A track that is already there is left.
+const addInQueueOrder = async (
+  appQueue: BaseItemDto[],
+  appIndex: number,
+  track: Track,
+  isStale: () => boolean,
+) => {
+  const nativeQueue: Track[] = await TrackPlayer.getQueue();
+  // The read was a wait like any other: see the note on isStale at the caller.
+  if (isStale()) return;
+  if (nativeIndexOf(nativeQueue, track.id) >= 0) return;
+  await TrackPlayer.add(
+    track,
+    nativeInsertIndexFor(appQueue, appIndex, nativeQueue),
+  );
+};
+
+// Points the state at the track the native player was just moved to. By id:
+// the two queues only share indexes once the native one is fully loaded. When
+// they do line up at `nativeIndex`, that row is the one, which matters for a
+// track that is queued twice.
+const withCurrentTrack = (
+  prev: MusicPlayerState,
+  nativeQueue: Track[],
+  nativeIndex: number,
+): MusicPlayerState => {
+  const trackId: string | undefined = nativeQueue[nativeIndex]?.id;
+  if (!trackId) return prev;
+
+  const index =
+    prev.queue[nativeIndex]?.Id === trackId
+      ? nativeIndex
+      : prev.queue.findIndex((t) => t.Id === trackId);
+  if (index < 0) return prev;
+
+  const track = prev.queue[index];
+  const mediaInfo = track.Id ? prev.trackMediaInfoMap[track.Id] : null;
+  return {
+    ...prev,
+    queueIndex: index,
+    currentTrack: track,
+    mediaSource: mediaInfo?.mediaSource ?? null,
+    isTranscoding: mediaInfo?.isTranscoding ?? false,
+  };
+};
+
 // Full implementation for non-TV platforms
 const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   children,
@@ -414,6 +466,12 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   const sessionKey = sessionKeyFor(user);
   const sessionKeyRef = useRef<string | null>(null);
   const sessionGenerationRef = useRef(0);
+
+  // Set once jumpToIndex has loaded a track ahead of the background load. From
+  // then on that load can no longer append: it has to place each track, and
+  // skip the one that is already there. Read and written inside
+  // editNativeQueue, so the load sees it together with the track it stands for.
+  const loadedOutOfOrderRef = useRef(false);
 
   const [state, setState] = useState<MusicPlayerState>({
     currentTrack: null,
@@ -741,6 +799,10 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       // This runs for a long time, one network round trip per track. If the
       // session switches meanwhile, every remaining track belongs to an account
       // that is no longer signed in, so stop instead of adding them.
+      // Checked again inside every turn on the native queue, right before the
+      // call that adds: the turn may have waited behind another edit, and the
+      // session teardown bumps the generation before it resets the player, so
+      // an add that passes the check is ahead of that reset.
       const generation = sessionGenerationRef.current;
       const isStale = () => generation !== sessionGenerationRef.current;
 
@@ -748,7 +810,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       const failedItemIds: string[] = []; // Track items that failed to prepare
 
       // Process tracks BEFORE the start index (insert at position 0, pushing current track forward)
-      const beforeTracks: Track[] = [];
+      const beforeTracks: { track: Track; index: number }[] = [];
       for (let i = 0; i < startIndex; i++) {
         const item = queue[i];
         if (!item.Id) continue;
@@ -756,7 +818,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         const prepared = await prepareTrack(item, preferLocal);
         if (isStale()) return;
         if (prepared) {
-          beforeTracks.push(prepared.track);
+          beforeTracks.push({ track: prepared.track, index: i });
           if (prepared.mediaInfo) {
             mediaInfoMap[item.Id] = prepared.mediaInfo;
           }
@@ -767,11 +829,32 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
 
       // Insert tracks before current track (they go at index 0)
       if (beforeTracks.length > 0) {
-        await TrackPlayer.add(beforeTracks, 0);
-        // Update queue index since we inserted tracks before the current one
+        const addedTogether = await editNativeQueue(async () => {
+          if (isStale() || loadedOutOfOrderRef.current) return false;
+          await TrackPlayer.add(
+            beforeTracks.map(({ track }) => track),
+            0,
+          );
+          return true;
+        });
+        if (!addedTogether) {
+          for (const { track, index } of beforeTracks) {
+            if (isStale()) return;
+            await editNativeQueue(() =>
+              addInQueueOrder(queue, index, track, isStale),
+            );
+          }
+        }
+        if (isStale()) return;
+        // Update queue index since we inserted tracks before the current one,
+        // unless a jump has moved playback off the track this load started on
+        // and set the index itself.
         setState((prev) => ({
           ...prev,
-          queueIndex: beforeTracks.length,
+          queueIndex:
+            prev.currentTrack?.Id === queue[startIndex]?.Id
+              ? beforeTracks.length
+              : prev.queueIndex,
           trackMediaInfoMap: { ...prev.trackMediaInfoMap, ...mediaInfoMap },
         }));
       }
@@ -784,7 +867,15 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         const prepared = await prepareTrack(item, preferLocal);
         if (isStale()) return;
         if (prepared) {
-          await TrackPlayer.add(prepared.track); // Append to end
+          await editNativeQueue(async () => {
+            if (isStale()) return;
+            if (loadedOutOfOrderRef.current) {
+              await addInQueueOrder(queue, i, prepared.track, isStale);
+            } else {
+              await TrackPlayer.add(prepared.track); // Append to end
+            }
+          });
+          if (isStale()) return;
           if (prepared.mediaInfo && item.Id) {
             setState((prev) => ({
               ...prev,
@@ -879,6 +970,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         }
 
         // Reset and start playback immediately with just the target track
+        loadedOutOfOrderRef.current = false;
         await TrackPlayer.reset();
         await TrackPlayer.add(targetTrackResult.track);
         await TrackPlayer.play();
@@ -1115,7 +1207,8 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   const next = useCallback(async () => {
     if (!TrackPlayer) return;
     const currentIndex = await TrackPlayer.getActiveTrackIndex();
-    const queueLength = (await TrackPlayer.getQueue()).length;
+    const nativeQueue: Track[] = await TrackPlayer.getQueue();
+    const queueLength = nativeQueue.length;
 
     if (currentIndex !== undefined && currentIndex < queueLength - 1) {
       if (state.currentTrack && state.playSessionId) {
@@ -1126,21 +1219,11 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         );
       }
       await TrackPlayer.skipToNext();
-      const newIndex = currentIndex + 1;
-      setState((prev) => {
-        const nextTrack = prev.queue[newIndex];
-        const mediaInfo = nextTrack?.Id
-          ? prev.trackMediaInfoMap[nextTrack.Id]
-          : null;
-        return {
-          ...prev,
-          queueIndex: newIndex,
-          currentTrack: nextTrack,
-          mediaSource: mediaInfo?.mediaSource ?? null,
-          isTranscoding: mediaInfo?.isTranscoding ?? false,
-        };
-      });
-    } else if (state.repeatMode === "all" && state.queue.length > 0) {
+      setState((prev) => withCurrentTrack(prev, nativeQueue, currentIndex + 1));
+    } else if (state.repeatMode === "all" && queueLength > 0) {
+      // Wrapping needs a native track to wrap to. A queue restored after a
+      // restart is only on screen until playback resumes, and the native side
+      // rejects a skip into an empty queue.
       if (state.currentTrack && state.playSessionId) {
         reportPlaybackStopped(
           state.currentTrack,
@@ -1149,22 +1232,9 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         );
       }
       await TrackPlayer.skip(0);
-      setState((prev) => {
-        const firstTrack = prev.queue[0];
-        const mediaInfo = firstTrack?.Id
-          ? prev.trackMediaInfoMap[firstTrack.Id]
-          : null;
-        return {
-          ...prev,
-          queueIndex: 0,
-          currentTrack: firstTrack,
-          mediaSource: mediaInfo?.mediaSource ?? null,
-          isTranscoding: mediaInfo?.isTranscoding ?? false,
-        };
-      });
+      setState((prev) => withCurrentTrack(prev, nativeQueue, 0));
     }
   }, [
-    state.queue,
     state.currentTrack,
     state.playSessionId,
     state.progress,
@@ -1185,6 +1255,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     }
 
     const currentIndex = await TrackPlayer.getActiveTrackIndex();
+    const nativeQueue: Track[] = await TrackPlayer.getQueue();
 
     if (currentIndex !== undefined && currentIndex > 0) {
       if (state.currentTrack && state.playSessionId) {
@@ -1195,22 +1266,14 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         );
       }
       await TrackPlayer.skipToPrevious();
-      const newIndex = currentIndex - 1;
-      setState((prev) => {
-        const prevTrack = prev.queue[newIndex];
-        const mediaInfo = prevTrack?.Id
-          ? prev.trackMediaInfoMap[prevTrack.Id]
-          : null;
-        return {
-          ...prev,
-          queueIndex: newIndex,
-          currentTrack: prevTrack,
-          mediaSource: mediaInfo?.mediaSource ?? null,
-          isTranscoding: mediaInfo?.isTranscoding ?? false,
-        };
-      });
-    } else if (state.repeatMode === "all" && state.queue.length > 0) {
-      const lastIndex = state.queue.length - 1;
+      setState((prev) => withCurrentTrack(prev, nativeQueue, currentIndex - 1));
+    } else if (state.repeatMode === "all") {
+      // Wrap to the last track the native queue holds, not the last one on
+      // screen: while the queue is still loading the native one is shorter,
+      // and it rejects an index past its end.
+      const lastIndex = nativeQueue.length - 1;
+      if (lastIndex < 0) return;
+
       if (state.currentTrack && state.playSessionId) {
         reportPlaybackStopped(
           state.currentTrack,
@@ -1219,22 +1282,9 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         );
       }
       await TrackPlayer.skip(lastIndex);
-      setState((prev) => {
-        const lastTrack = prev.queue[lastIndex];
-        const mediaInfo = lastTrack?.Id
-          ? prev.trackMediaInfoMap[lastTrack.Id]
-          : null;
-        return {
-          ...prev,
-          queueIndex: lastIndex,
-          currentTrack: lastTrack,
-          mediaSource: mediaInfo?.mediaSource ?? null,
-          isTranscoding: mediaInfo?.isTranscoding ?? false,
-        };
-      });
+      setState((prev) => withCurrentTrack(prev, nativeQueue, lastIndex));
     }
   }, [
-    state.queue,
     state.currentTrack,
     state.playSessionId,
     state.progress,
@@ -1331,8 +1381,6 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       if (!api || !user?.Id || !TrackPlayer) return;
 
       const tracksArray = Array.isArray(tracks) ? tracks : [tracks];
-      const currentIndex = await TrackPlayer.getActiveTrackIndex();
-      const insertIndex = (currentIndex ?? -1) + 1;
       const preferLocal = settings?.preferLocalAudio ?? true;
 
       // Add to TrackPlayer queue after current track
@@ -1341,6 +1389,11 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         if (!item.Id) continue;
         const cachedUrl = getLocalPath(item.Id);
         const result = await getAudioStreamUrl(api, user.Id, item.Id);
+        // Read where to insert after the network round trip, not before it: a
+        // queue started or stopped meanwhile is shorter than a position taken
+        // from the previous one, and the native side rejects that.
+        const currentIndex = await TrackPlayer.getActiveTrackIndex();
+        const insertIndex = (currentIndex ?? -1) + 1;
         if (result) {
           await TrackPlayer.add(
             itemToTrack(item, result.url, api, preferLocal),
@@ -1545,50 +1598,90 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       )
         return;
 
-      // Check if the track exists in TrackPlayer queue (might not be loaded yet due to background loading)
-      const tpQueue = await TrackPlayer.getQueue();
       const targetItem = state.queue[index];
+      const targetId = targetItem?.Id;
+      if (!targetId) return;
 
-      if (index >= tpQueue.length) {
+      // A session that switches account resets the player, and nothing of the
+      // previous account may go back into it. Checked after every wait, and
+      // inside a turn on the native queue right before the call that changes
+      // it: the teardown bumps the generation before it resets the player, so
+      // a call that passes the check is ahead of that reset.
+      const generation = sessionGenerationRef.current;
+      const isStale = () => generation !== sessionGenerationRef.current;
+
+      // `index` is a position in the queue on screen. The native queue only
+      // holds what has been loaded so far, so look the track up there by id.
+      // Finding it and skipping to it is one edit: the background load must
+      // not put a track in front of it in between.
+      const jumped = await editNativeQueue(async () => {
+        const nativeIndex = nativeIndexOf(
+          await TrackPlayer.getQueue(),
+          targetId,
+          index,
+        );
+        if (nativeIndex >= 0) await TrackPlayer.skip(nativeIndex);
+        return nativeIndex >= 0;
+      });
+      if (isStale()) return;
+
+      if (!jumped) {
         // Track not loaded yet - need to load it first
-        if (!targetItem) return;
-
         setState((prev) => ({
           ...prev,
           isLoading: true,
-          loadingTrackId: targetItem?.Id ?? null,
+          loadingTrackId: targetId,
         }));
 
-        const preferLocal = settings?.preferLocalAudio ?? true;
-        const prepared = await prepareTrack(targetItem, preferLocal);
+        try {
+          const preferLocal = settings?.preferLocalAudio ?? true;
+          const prepared = await prepareTrack(targetItem, preferLocal);
+          if (!prepared || isStale()) return;
 
-        if (!prepared) {
+          const landed = await editNativeQueue(async () => {
+            // Preparing was a network round trip, so read the queue again: the
+            // background load may have added this very track meanwhile.
+            const nativeQueue: Track[] = await TrackPlayer.getQueue();
+            if (isStale()) return false;
+            let nativeIndex = nativeIndexOf(nativeQueue, targetId, index);
+
+            if (nativeIndex < 0) {
+              const insertIndex = nativeInsertIndexFor(
+                state.queue,
+                index,
+                nativeQueue,
+              );
+              loadedOutOfOrderRef.current = true;
+              await TrackPlayer.add(prepared.track, insertIndex);
+              if (isStale()) return false;
+              nativeIndex = insertIndex ?? nativeQueue.length;
+            }
+            await TrackPlayer.skip(nativeIndex);
+            return !isStale();
+          });
+          if (!landed) return;
+
+          if (prepared.mediaInfo) {
+            const mediaInfo = prepared.mediaInfo;
+            setState((prev) => ({
+              ...prev,
+              trackMediaInfoMap: {
+                ...prev.trackMediaInfoMap,
+                [targetId]: mediaInfo,
+              },
+            }));
+          }
+        } finally {
+          // Also when the load throws, or the row keeps its spinner for good.
           setState((prev) => ({
             ...prev,
             isLoading: false,
             loadingTrackId: null,
           }));
-          return;
         }
-
-        // Add the track at the correct position
-        await TrackPlayer.add(prepared.track, index);
-        setState((prev) => ({
-          ...prev,
-          isLoading: false,
-          loadingTrackId: null,
-          ...(prepared.mediaInfo && targetItem.Id
-            ? {
-                trackMediaInfoMap: {
-                  ...prev.trackMediaInfoMap,
-                  [targetItem.Id]: prepared.mediaInfo,
-                },
-              }
-            : {}),
-        }));
       }
 
-      // Report stop for current track
+      // Report stop for the track that was playing
       if (state.currentTrack && state.playSessionId) {
         reportPlaybackStopped(
           state.currentTrack,
@@ -1597,12 +1690,8 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         );
       }
 
-      await TrackPlayer.skip(index);
-
       setState((prev) => {
-        const mediaInfo = targetItem?.Id
-          ? prev.trackMediaInfoMap[targetItem.Id]
-          : null;
+        const mediaInfo = prev.trackMediaInfoMap[targetId];
         return {
           ...prev,
           queueIndex: index,

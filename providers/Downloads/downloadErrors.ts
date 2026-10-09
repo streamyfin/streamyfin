@@ -16,8 +16,17 @@ export type DownloadErrorClass =
 // transfer ("Read error: ssl=…: Failure in SSL library, usually a protocol
 // error" is Android's wording for a connection cut mid-read; a certificate
 // the device does not trust is the server's setup either way).
+//
+// A transfer cut on the way carries none of those words: "stream was reset:
+// INTERNAL_ERROR" (Android, the peer or a proxy resetting the HTTP/2 stream),
+// "unexpected end of stream" (Android, the connection closed before the body
+// ended) and "cannot parse response" (iOS, an answer cut short or mangled).
+//
+// iOS hands over its errors in the user's language ("impossibile analizzare
+// la risposta"), which no list of words covers: only the English wording is
+// known here.
 const ENVIRONMENT_PATTERN =
-  /connect|network|internet|offline|time.?out|timed out|unreachable|resolve|dns|route|no space|enospc|disk full|not enough (?:free )?space|insufficient storage|\bssl\b|\btls\b|handshake|certificate/i;
+  /connect|network|internet|offline|time.?out|timed out|unreachable|resolve|dns|route|no space|enospc|disk full|not enough (?:free )?space|insufficient storage|\bssl\b|\btls\b|handshake|certificate|stream was reset|unexpected end of stream|cannot parse response/i;
 
 // The status the server refused the download with: "HTTP error: 500 Internal
 // Server Error" on Android, "HTTP error: 500" and "Server responded with HTTP

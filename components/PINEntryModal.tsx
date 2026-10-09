@@ -16,6 +16,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { DismissKeyboardArea } from "@/components/common/DismissKeyboardArea";
 import { useHaptic } from "@/hooks/useHaptic";
 import { useSheetOpenState } from "@/hooks/useSheetOpenState";
 import { verifyAccountPIN } from "@/utils/secureCredentials";
@@ -180,7 +181,7 @@ export const PINEntryModal: React.FC<PINEntryModalProps> = ({
           paddingBottom: Math.max(16, insets.bottom),
         }}
       >
-        <View className='flex-1'>
+        <DismissKeyboardArea style={{ flex: 1 }}>
           {/* Header */}
           <View className='mb-6'>
             <Text className='font-bold text-2xl text-neutral-100'>
@@ -224,7 +225,7 @@ export const PINEntryModal: React.FC<PINEntryModalProps> = ({
           <Button onPress={onClose} color='black'>
             {t("common.cancel")}
           </Button>
-        </View>
+        </DismissKeyboardArea>
       </BottomSheetView>
     </BottomSheetModal>
   );
