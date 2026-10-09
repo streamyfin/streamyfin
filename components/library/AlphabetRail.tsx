@@ -12,12 +12,14 @@ import {
   ALPHABET,
   letterAtIndex,
   letterAtOffset,
+  railMarginToClear,
 } from "@/utils/jellyfin/alphabetJump";
 
 // The rail stands in the grid's side gutter, beside the artwork rather than
 // on it.
 const RAIL_WIDTH = CARD_LAYOUTS.portrait.contentInset;
 const MAX_LETTER_HEIGHT = 18;
+const MAX_RAIL_HEIGHT = ALPHABET.length * MAX_LETTER_HEIGHT;
 const MAX_FONT_SIZE = 11;
 const BUBBLE_SIZE = 56;
 
@@ -27,15 +29,27 @@ interface Props {
   onSelect: (letter: string) => void;
   /** Where the rail may stand: the screen edge it hugs and the bars it clears. */
   style?: StyleProp<ViewStyle>;
+  /**
+   * How much of the top of that area the list's header takes. The rail starts
+   * below it: centred on a short screen, its first letters stood on the
+   * filter chips.
+   */
+  clearTop?: number;
 }
 
 /**
  * The letter index down the side of a list sorted by name. Tap a letter, or
  * drag along the rail and let go on one.
  */
-export const AlphabetRail: React.FC<Props> = ({ active, onSelect, style }) => {
+export const AlphabetRail: React.FC<Props> = ({
+  active,
+  onSelect,
+  style,
+  clearTop = 0,
+}) => {
   const { t } = useTranslation();
   const [height, setHeight] = useState(0);
+  const [areaHeight, setAreaHeight] = useState(0);
   // The letter under the finger. It only reaches the list on release: every
   // letter crossed on the way would otherwise refetch the library.
   const [scrubbed, setScrubbed] = useState<string | null>(null);
@@ -62,6 +76,7 @@ export const AlphabetRail: React.FC<Props> = ({ active, onSelect, style }) => {
   return (
     <View
       pointerEvents='box-none'
+      onLayout={(event) => setAreaHeight(event.nativeEvent.layout.height)}
       style={[
         { position: "absolute", width: RAIL_WIDTH, justifyContent: "center" },
         style,
@@ -93,7 +108,8 @@ export const AlphabetRail: React.FC<Props> = ({ active, onSelect, style }) => {
         onResponderTerminate={() => setScrubbed(null)}
         style={{
           flexGrow: 1,
-          maxHeight: ALPHABET.length * MAX_LETTER_HEIGHT,
+          maxHeight: MAX_RAIL_HEIGHT,
+          marginTop: railMarginToClear(areaHeight, clearTop, MAX_RAIL_HEIGHT),
         }}
       >
         {/* The letters take no touches of their own, so an offset is always

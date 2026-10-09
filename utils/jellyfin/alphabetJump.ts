@@ -62,3 +62,17 @@ export const letterAtIndex = (index: number): string =>
  */
 export const letterAtOffset = (offset: number, railHeight: number): string =>
   letterAtIndex(Math.floor((offset / railHeight) * ALPHABET.length));
+
+/**
+ * The top margin that keeps a rail off whatever fills the first `clearTop` of
+ * its area, the list's own header. The rail is centred in what the margin
+ * leaves and no taller than `maxRailHeight`, so the margin is only as large
+ * as it takes: a rail whose centred place is already below the header gets
+ * none and stays where it was.
+ */
+export const railMarginToClear = (
+  areaHeight: number,
+  clearTop: number,
+  maxRailHeight: number,
+): number =>
+  Math.max(0, Math.min(clearTop, 2 * clearTop - areaHeight + maxRailHeight));

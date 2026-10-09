@@ -125,6 +125,11 @@ const TV_HORIZONTAL_PADDING = 60;
 const _TV_SCALE_PADDING = 20;
 const TV_PLAYLIST_SQUARE_SIZE = 180;
 const OUTGOING_LIST_OPACITY = 0.4;
+/**
+ * The room between the phone list's header and its first row. The filter bar
+ * brings it as its own padding; a tab without one has to leave it itself.
+ */
+const LIST_HEADER_GAP = 16;
 
 interface LanguageFilterEntry {
   key: string;
@@ -847,7 +852,7 @@ const Page = () => {
         contentContainerStyle={{
           display: "flex",
           paddingHorizontal: 15,
-          paddingVertical: 16,
+          paddingVertical: LIST_HEADER_GAP,
           flexDirection: "row",
         }}
         data={[
@@ -1231,6 +1236,8 @@ const Page = () => {
 
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
+  // The tabs and the filter bar, which the letter rail has to start below.
+  const [listHeaderHeight, setListHeaderHeight] = useState(0);
 
   // Play All and Shuffle. Covered by hooks/useLibraryPlayQueue.test.tsx.
   const { playAll, shuffle, isStarting } = useLibraryPlayQueue(libraryFilter);
@@ -1313,7 +1320,11 @@ const Page = () => {
           }}
           onEndReachedThreshold={1}
           ListHeaderComponent={
-            <>
+            <View
+              onLayout={(event) =>
+                setListHeaderHeight(event.nativeEvent.layout.height)
+              }
+            >
               {hasTabs && (
                 <LibraryTabs
                   tabs={tabs}
@@ -1321,8 +1332,12 @@ const Page = () => {
                   onSelect={setActiveTab}
                 />
               )}
-              {hasFilterBar && <FilterBar />}
-            </>
+              {hasFilterBar ? (
+                <FilterBar />
+              ) : (
+                <View style={{ height: LIST_HEADER_GAP }} />
+              )}
+            </View>
           }
           contentContainerStyle={{
             paddingBottom: 24,
@@ -1337,13 +1352,15 @@ const Page = () => {
           <AlphabetRail
             active={jumpLetter}
             onSelect={jumpTo}
-            // Only the iOS header is transparent, with the list running under
-            // it; the tab bar is cleared on both platforms.
+            // Only iOS draws its bars over the list, a transparent header and
+            // a floating tab bar. On Android the screen ends where they begin,
+            // and clearing them again there left the rail centred too high.
             style={{
               top: Platform.OS === "ios" ? headerHeight : 0,
-              bottom: TAB_HEIGHT + insets.bottom,
+              bottom: Platform.OS === "ios" ? TAB_HEIGHT + insets.bottom : 0,
               right: insets.right,
             }}
+            clearTop={listHeaderHeight}
           />
         )}
         {grid.actionSheet}

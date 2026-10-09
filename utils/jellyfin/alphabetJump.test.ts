@@ -3,6 +3,7 @@ import {
   type AlphabetJumpParams,
   alphabetJumpParams,
   letterAtOffset,
+  railMarginToClear,
 } from "./alphabetJump";
 
 const PAGE_SIZE = 36;
@@ -115,5 +116,39 @@ describe("letterAtOffset", () => {
 
   test("a touch with no position answers with the first entry too", () => {
     expect(letterAtOffset(Number.NaN, railHeight)).toBe("#");
+  });
+});
+
+describe("railMarginToClear", () => {
+  const MAX = 486;
+
+  /** Where the rail ends up: centred in what the margin leaves of its area. */
+  const place = (areaHeight: number, clearTop: number) => {
+    const margin = railMarginToClear(areaHeight, clearTop, MAX);
+    const height = Math.min(MAX, areaHeight - margin);
+    return { top: margin + (areaHeight - margin - height) / 2, height };
+  };
+
+  test("leaves a rail alone that is centred below the header anyway", () => {
+    expect(railMarginToClear(800, 100, MAX)).toBe(0);
+    expect(place(800, 100)).toEqual({ top: 157, height: MAX });
+  });
+
+  // An Android phone: centred, the first letters stood on the filter chips.
+  test("pushes a centred rail down to just below the header", () => {
+    expect(place(600, 100)).toEqual({ top: 100, height: MAX });
+  });
+
+  test("a rail with no room for its full height starts below the header", () => {
+    expect(place(500, 100)).toEqual({ top: 100, height: 400 });
+  });
+
+  test("nothing to clear leaves the rail centred", () => {
+    expect(railMarginToClear(600, 0, MAX)).toBe(0);
+  });
+
+  // Before the first layout the rail must not flash on top of the header.
+  test("an area not measured yet keeps the rail below the header", () => {
+    expect(railMarginToClear(0, 100, MAX)).toBe(100);
   });
 });
