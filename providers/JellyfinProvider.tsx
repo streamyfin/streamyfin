@@ -22,6 +22,7 @@ import { useTranslation } from "react-i18next";
 import { Platform } from "react-native";
 import { getDeviceNameSync } from "react-native-device-info";
 import { toast } from "sonner-native";
+import { PUSH_DEVICE_PATH } from "@/constants/Notifications";
 import useRouter from "@/hooks/useAppRouter";
 import { useInterval } from "@/hooks/useInterval";
 import { SeerrApi, useSeerr } from "@/hooks/useSeerr";
@@ -726,7 +727,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     mutationFn: async () => {
       // Fire-and-forget: don't block logout on server cleanup
       api
-        ?.delete(`/Streamyfin/device/${deviceId}`)
+        ?.delete(`${PUSH_DEVICE_PATH}/${deviceId}`)
         .then((_r) => writeInfoLog("Deleted expo push token for device"))
         .catch((_e) =>
           writeErrorLog("Failed to delete expo push token for device"),

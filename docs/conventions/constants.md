@@ -40,6 +40,7 @@ cadence meant knowing both existed, and nothing would have failed if only one ha
 | `constants/Privacy.ts` | What stands in for a secret in anything the app writes out (log, Sentry) |
 | `constants/Sentry.ts` | Error reporting policy: which builds report, the per session dedupe cap, the failure storm window |
 | `constants/TVDiscovery.ts` | TV home screen tiles: Top Shelf and Android TV recommendations (play link lookup timeout) |
+| `constants/Notifications.ts` | Push notifications: the plugin route a device registers at and is deleted from on sign out |
 | `constants/QuickConnect.ts` | Quick Connect: how long a code the TV shows stays valid |
 
 Add a new domain file when a group grows its own identity (playback, downloads,
