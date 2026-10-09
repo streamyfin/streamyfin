@@ -35,6 +35,11 @@ jest.mock("@/components/settings/StorageSettings", () => ({
   StorageSettings: () => null,
 }));
 jest.mock("@/components/settings/UserInfo", () => ({ UserInfo: () => null }));
+// The Notifications row asks the server's plugin first: here no plugin
+// answers, as on a server whose plugin does not serve the routes.
+jest.mock("@/hooks/useMyNotifications", () => ({
+  useMyNotifications: () => ({ supported: false, mine: undefined }),
+}));
 
 describe("Settings, Log in on TV", () => {
   // The entry was hidden on iOS while pairing went through a UDP broadcast.
