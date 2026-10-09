@@ -15,7 +15,13 @@ jest.mock("jotai", () => ({
 jest.mock("@/utils/atoms/settings", () => ({
   useSettings: () => ({ settings: {} }),
 }));
+jest.mock("@/hooks/useServerVersion", () => ({
+  useServerVersion: () => "12.0.0",
+}));
 jest.mock("@/utils/jellyfin/getDefaultPlaySettings", () => ({
+  // Where an item starts is covered by getDefaultPlaySettings.test.ts.
+  getAdjacentStartTicks: (item: BaseItemDto) =>
+    item.UserData?.PlaybackPositionTicks,
   getDefaultPlaySettings: () => ({
     mediaSource: { Id: "source" },
     audioIndex: 0,
@@ -41,7 +47,7 @@ describe("useShuffleQueue", () => {
     };
     const { result } = await renderHook(() => useShuffleQueue());
     await act(async () => {
-      result.current.startShuffle("series", [
+      result.current.startShuffle([
         first,
         { Id: "missing", LocationType: "Virtual" },
         { Name: "No item ID" },
@@ -62,7 +68,6 @@ describe("useShuffleQueue", () => {
       },
     );
     expect(mockSetShuffleQueue).toHaveBeenCalledWith({
-      seriesId: "series",
       items: [second, first],
     });
   });
@@ -70,7 +75,7 @@ describe("useShuffleQueue", () => {
   test("does not launch a queue containing only missing media", async () => {
     const { result } = await renderHook(() => useShuffleQueue());
     await act(async () => {
-      result.current.startShuffle("series", [
+      result.current.startShuffle([
         { Id: "missing", LocationType: "Virtual" },
         {},
       ]);

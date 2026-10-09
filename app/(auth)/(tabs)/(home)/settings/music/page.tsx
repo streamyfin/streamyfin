@@ -10,6 +10,7 @@ import { Text } from "@/components/common/Text";
 import { ListGroup } from "@/components/list/ListGroup";
 import { ListItem } from "@/components/list/ListItem";
 import { PlatformDropdown } from "@/components/PlatformDropdown";
+import { MUSIC_NORMALIZATION_MODES } from "@/constants/Music";
 import { useHaptic } from "@/hooks/useHaptic";
 import { useNetworkAwareQueryClient } from "@/hooks/useNetworkAwareQueryClient";
 import {
@@ -26,6 +27,12 @@ const CACHE_SIZE_OPTIONS = [
   { label: "1 GB", value: 1024 },
   { label: "2 GB", value: 2048 },
 ];
+
+const NORMALIZATION_LABEL_KEYS = {
+  off: "home.settings.music.normalization_off",
+  track: "home.settings.music.normalization_track",
+  album: "home.settings.music.normalization_album",
+} as const;
 
 const LOOKAHEAD_COUNT_OPTIONS = [
   { label: "1 song", value: 1 },
@@ -72,6 +79,26 @@ export default function MusicSettingsPage() {
       toast.error(t("home.settings.toasts.error_deleting_files"));
     }
   }, [queryClient, successHapticFeedback, errorHapticFeedback, t]);
+
+  const normalizationOptions = useMemo(
+    () => [
+      {
+        options: MUSIC_NORMALIZATION_MODES.map((mode) => ({
+          type: "radio" as const,
+          label: t(NORMALIZATION_LABEL_KEYS[mode]),
+          value: mode,
+          selected: mode === settings.musicNormalizationMode,
+          onPress: () => updateSettings({ musicNormalizationMode: mode }),
+        })),
+      },
+    ],
+    [settings.musicNormalizationMode, updateSettings, t],
+  );
+
+  // A mode this build does not know (the plugin can push one) plays as off.
+  const currentNormalizationLabelKey =
+    NORMALIZATION_LABEL_KEYS[settings.musicNormalizationMode] ??
+    NORMALIZATION_LABEL_KEYS.off;
 
   const cacheSizeOptions = useMemo(
     () => [
@@ -142,6 +169,31 @@ export default function MusicSettingsPage() {
               onValueChange={(value) =>
                 updateSettings({ preferLocalAudio: value })
               }
+            />
+          </ListItem>
+          <ListItem
+            title={t("home.settings.music.normalization")}
+            subtitle={t("home.settings.music.normalization_hint")}
+            disabled={pluginSettings?.musicNormalizationMode?.locked}
+          >
+            <PlatformDropdown
+              // A locked setting is not written, so the menu must not open
+              // on choices that would do nothing.
+              disabled={pluginSettings?.musicNormalizationMode?.locked}
+              groups={normalizationOptions}
+              trigger={
+                <View className='flex flex-row items-center justify-between py-1.5 pl-3'>
+                  <Text className='mr-1 text-[#8E8D91]'>
+                    {t(currentNormalizationLabelKey)}
+                  </Text>
+                  <Ionicons
+                    name='chevron-expand-sharp'
+                    size={18}
+                    color='#5A5960'
+                  />
+                </View>
+              }
+              title={t("home.settings.music.normalization")}
             />
           </ListItem>
         </ListGroup>

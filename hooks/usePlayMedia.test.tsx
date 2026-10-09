@@ -6,6 +6,7 @@ import { usePlayMedia } from "./usePlayMedia";
 const mockPush = jest.fn();
 const mockPresentFromRequest = jest.fn();
 let mockNativeChromeActive = false;
+const mockResetStillWatchingSession = jest.fn();
 let mockSyncPlayEnabled = false;
 const mockSyncPlayItems = jest.fn();
 const mockSyncPlaylistItem = jest.fn();
@@ -33,9 +34,11 @@ jest.mock("@/providers/NativePlayerProvider", () => ({
 jest.mock("@/utils/atoms/settings", () => ({
   isNativeChromeActive: () => mockNativeChromeActive,
   useSettings: () => ({
-    settings: { maxAutoPlayEpisodeCount: { value: -1 } },
-    updateSettings: jest.fn(),
+    settings: {},
   }),
+}));
+jest.mock("@/utils/stillWatching", () => ({
+  resetStillWatchingSession: () => mockResetStillWatchingSession(),
 }));
 jest.mock("@/utils/log", () => ({ writeErrorLog: jest.fn() }));
 jest.mock("react-i18next", () => ({
@@ -56,6 +59,7 @@ describe("usePlayMedia", () => {
     mockPush.mockClear();
     mockPresentFromRequest.mockReset().mockResolvedValue(false);
     mockNativeChromeActive = false;
+    mockResetStillWatchingSession.mockClear();
     mockSyncPlayEnabled = false;
     mockSyncPlayItems.mockReset().mockResolvedValue(undefined);
     mockSyncPlaylistItem.mockReset().mockResolvedValue(undefined);
@@ -74,6 +78,14 @@ describe("usePlayMedia", () => {
       expect.stringContaining("/player/direct-player?itemId=movie-1"),
     );
     expect(alert).not.toHaveBeenCalled();
+  });
+
+  // jellyfin-web 12 starts a new "Still watching?" session whenever the
+  // viewer starts playback themselves.
+  test("starts a new still watching session on a play", async () => {
+    await play({ Id: "episode-1", Type: "Episode" });
+
+    expect(mockResetStillWatchingSession).toHaveBeenCalledTimes(1);
   });
 
   test("starts the group's queue instead of presenting a solo player", async () => {

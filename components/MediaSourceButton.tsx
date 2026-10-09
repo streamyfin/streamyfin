@@ -70,8 +70,9 @@ export const MediaSourceButton: React.FC<Props> = ({
         selectedIndex: selectedOptions.audioIndex,
         isTranscoding: Boolean(selectedOptions.mediaSource?.TranscodingUrl),
         formatLabel: trackLabel,
+        originalLabel: t("common.original_audio"),
       }),
-    [selectedOptions.mediaSource, selectedOptions.audioIndex, trackLabel],
+    [selectedOptions.mediaSource, selectedOptions.audioIndex, trackLabel, t],
   );
 
   const subtitleRows = useMemo(

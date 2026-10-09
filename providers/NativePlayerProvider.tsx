@@ -29,7 +29,10 @@ import {
   PlaybackSpeedScope,
   updatePlaybackSpeedSettings,
 } from "@/components/video-player/controls/utils/playback-speed-settings";
-import { PROGRESS_REPORT_INTERVAL } from "@/constants/Playback";
+import {
+  NEXT_EPISODE_COUNTDOWN_MS,
+  PROGRESS_REPORT_INTERVAL,
+} from "@/constants/Playback";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { useOrientation } from "@/hooks/useOrientation";
 import { usePlaybackManager } from "@/hooks/usePlaybackManager";
@@ -38,6 +41,7 @@ import {
   useRemoteSubtitles,
 } from "@/hooks/useRemoteSubtitles";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
+import { useServerVersion } from "@/hooks/useServerVersion";
 import {
   addNativePlayerListener,
   applyNativePlayerSyncPlayCommand,
@@ -93,8 +97,12 @@ import {
   INITIAL_AUTO_SUBTITLE_STATE,
   resolveAutoSubtitleAction,
 } from "@/utils/autoSubtitleOnMute";
-import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
+import {
+  getAdjacentStartTicks,
+  getDefaultPlaySettings,
+} from "@/utils/jellyfin/getDefaultPlaySettings";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
+import { getPlayingRunTimeTicks } from "@/utils/jellyfin/mediaSourceVersion";
 import { subtitleSearchErrorMessage } from "@/utils/jellyfin/subtitleSearchAccess";
 import {
   applyMpvSubtitleSelection,
@@ -135,6 +143,13 @@ import {
 } from "@/utils/segments";
 import { rememberSeriesTrack } from "@/utils/seriesTrackMemory";
 import {
+  decideStillWatchingOnce,
+  isStillWatchingDueAtEnd,
+  recordStillWatchingAutoplay,
+  resetStillWatchingSession,
+  revertStillWatchingAutoplay,
+} from "@/utils/stillWatching";
+import {
   isLocalSubtitleIndex,
   localSubtitleIndex,
   SUBTITLES_OFF,
@@ -144,9 +159,10 @@ import {
   syncPlayQueueSubtitle,
 } from "@/utils/syncplay/queueDisplay";
 import { syncPlayLookupKey } from "@/utils/syncplay/queueItems";
-import { msToTicks, ticksToSeconds } from "@/utils/time";
+import { msToTicks, ticksToMs, ticksToSeconds } from "@/utils/time";
+import { useVideoSession } from "@/utils/videoSession";
 
-const NEXT_EPISODE_COUNTDOWN_SECONDS = 10;
+const NEXT_EPISODE_COUNTDOWN_SECONDS = NEXT_EPISODE_COUNTDOWN_MS / 1000;
 
 /**
  * One presented native-player session. Mirrors the ref discipline of
@@ -324,7 +340,7 @@ export const NativePlayerProvider: React.FC<{
   if (!enabled) {
     // The server-initiated "Play" command still needs a handler on platforms
     // without the native player (Android, stale iOS binaries) — the app
-    // advertises SupportedCommands: ["Play"] everywhere.
+    // advertises the "Play" command everywhere.
     return <PlayCommandRouteFallback>{children}</PlayCommandRouteFallback>;
   }
 
@@ -342,6 +358,8 @@ const PlayCommandRouteFallback: React.FC<{
       subscribe("Play", (data: unknown) => {
         const req = parseRemotePlayCommand(data);
         if (!req) return;
+        // Someone chose this play, from another client: a new session.
+        resetStillWatchingSession();
         router.push(
           `/(auth)/player/direct-player?${toDirectPlayerQuery(req)}` as any,
         );
@@ -549,12 +567,20 @@ const NativePlayerProviderInner: React.FC<{
     previousItemRef.current = playbackManager.previousItem;
   });
 
+  // Decides where a matched alternate version starts, see
+  // getAdjacentStartTicks. Whatever is cached will do: a server does not go
+  // back a major version.
+  const serverVersion = useServerVersion({
+    staleTime: Number.POSITIVE_INFINITY,
+  });
+  const serverVersionRef = useRef(serverVersion);
   const apiRef = useRef(api);
   const settingsRef = useRef(settings);
   const pluginSettingsRef = useRef(pluginSettings);
   const userRef = useRef(user);
   const isConnectedRef = useRef(isConnected);
   useEffect(() => {
+    serverVersionRef.current = serverVersion;
     apiRef.current = api;
     settingsRef.current = settings;
     pluginSettingsRef.current = pluginSettings;
@@ -769,14 +795,36 @@ const NativePlayerProviderInner: React.FC<{
     }
   }, []);
 
+  // Sessions whose countdown already advanced; see onNextEpisodeRequested.
+  const [countdownAdvanced] = useState(() => new WeakSet<NativeSession>());
+  const countdownAdvancedRef = useRef(countdownAdvanced);
+
   const buildNextEpisodePayload = useCallback(
-    (_session: NativeSession, next: BaseItemDto): NativePlayerNextEpisode => {
+    (session: NativeSession, next: BaseItemDto): NativePlayerNextEpisode => {
       const currentSettings = settingsRef.current;
-      const max = currentSettings?.maxAutoPlayEpisodeCount?.value ?? -1;
       const autoplayWanted = currentSettings?.autoPlayNextEpisode ?? false;
-      const capReached =
-        max !== -1 && (currentSettings?.autoPlayEpisodeCount ?? 0) >= max;
-      const autoplayAllowed = autoplayWanted && !capReached;
+      // Decided once per episode, against its projected end at 1x. A pause
+      // makes the prompt come an episode late; a faster speed can bring it
+      // early.
+      const stillWatchingRequired =
+        autoplayWanted &&
+        decideStillWatchingOnce(session.item.Id ?? "", () =>
+          isStillWatchingDueAtEnd({
+            preset: currentSettings?.stillWatchingPreset,
+            // The playing version's runtime: another cut ends elsewhere.
+            remainingMs:
+              ticksToMs(
+                getPlayingRunTimeTicks(
+                  session.item,
+                  session.stream.mediaSource,
+                ),
+              ) - session.positionMs,
+            // The native chrome reports no touches to JS, so idle time is
+            // unknown and only the episode count can trip the prompt.
+            tracksInput: false,
+          }),
+        );
+      const autoplayAllowed = autoplayWanted && !stillWatchingRequired;
       const epNumber =
         next.ParentIndexNumber !== undefined && next.IndexNumber !== undefined
           ? `S${next.ParentIndexNumber}E${next.IndexNumber}`
@@ -793,9 +841,9 @@ const NativePlayerProviderInner: React.FC<{
             width: 300,
           }) ?? undefined,
         countdownSeconds: autoplayAllowed ? NEXT_EPISODE_COUNTDOWN_SECONDS : 0,
-        // Autoplay would have run but the episode cap stops it: EOF shows
-        // the "Still watching?" card instead (JS ContinueWatchingOverlay).
-        stillWatchingRequired: autoplayWanted && capReached,
+        // Autoplay would have run but the session is long enough to ask:
+        // EOF shows the "Still watching?" card instead.
+        stillWatchingRequired,
       };
     },
     [],
@@ -900,6 +948,7 @@ const NativePlayerProviderInner: React.FC<{
         req,
         getDownloadedItemById: downloadUtils.getDownloadedItemById,
         strings: buildNativePlayerStrings(t),
+        originalLabel: t("common.original_audio"),
         item: options.item,
       }).catch((error) => {
         logAndCaptureError("NativePlayer config build failed", error, {
@@ -1102,6 +1151,14 @@ const NativePlayerProviderInner: React.FC<{
       reportPlaybackStart(session);
       void pushSegments(session);
       void pushEpisodeList(session);
+      // A stream swap of the same episode reloads native, which drops the
+      // next-episode payload, and nextItem does not change to push it again.
+      const next = nextItemRef.current;
+      if (previous?.item.Id === session.item.Id && next?.Id) {
+        void updateNativePlayerNextEpisode(
+          buildNextEpisodePayload(session, next),
+        );
+      }
       return true;
     },
     [
@@ -1116,6 +1173,7 @@ const NativePlayerProviderInner: React.FC<{
       clearLastMessage,
       pushSegments,
       pushEpisodeList,
+      buildNextEpisodePayload,
       syncBufferingReporter,
     ],
   );
@@ -1187,6 +1245,7 @@ const NativePlayerProviderInner: React.FC<{
           audioIndex: session.currentAudioIndex,
         },
         source: session.stream.mediaSource,
+        offline: session.offline,
       });
 
       const req: PlayRequest = {
@@ -1196,7 +1255,13 @@ const NativePlayerProviderInner: React.FC<{
         mediaSourceId: newMediaSource?.Id ?? undefined,
         bitrateValue: session.bitrateValue,
         offline: session.offline,
-        playbackPositionTicks: target.UserData?.PlaybackPositionTicks,
+        playbackPositionTicks:
+          getAdjacentStartTicks(
+            target,
+            newMediaSource,
+            session.offline,
+            serverVersionRef.current,
+          ) ?? undefined,
       };
       // Target came from the adjacent-items query without full MediaSources —
       // let the builder refetch it online; offline uses the downloads DB.
@@ -1292,6 +1357,7 @@ const NativePlayerProviderInner: React.FC<{
           offline: session.offline,
           downloadedItem: session.downloadedItem,
           offLabel: buildNativePlayerStrings(t).off ?? "None",
+          originalLabel: t("common.original_audio"),
           bitrateValue: session.bitrateValue,
           localSubtitle: session.localSubtitle
             ? {
@@ -1936,24 +2002,41 @@ const NativePlayerProviderInner: React.FC<{
           return;
         }
         const currentSettings = settingsRef.current;
-        if (payload.reason === "countdown") {
-          const max = currentSettings?.maxAutoPlayEpisodeCount?.value ?? -1;
-          const count = currentSettings?.autoPlayEpisodeCount ?? 0;
-          const allowed =
-            (currentSettings?.autoPlayNextEpisode ?? false) &&
-            (max === -1 || count < max);
-          if (!allowed) {
+        const isAutoplay = payload.reason === "countdown";
+        if (isAutoplay) {
+          // A countdown fired twice for one session (before the swap lands)
+          // is one autoplay, not two.
+          if (countdownAdvancedRef.current.has(session)) return;
+          countdownAdvancedRef.current.add(session);
+          // Native only counts down on a payload that allowed autoplay, so
+          // the prompt has had its say; only autoplay itself may refuse.
+          if (!(currentSettings?.autoPlayNextEpisode ?? false)) {
             void dismissNativePlayer();
             return;
           }
-          if (max !== -1) {
-            updateSettings({ autoPlayEpisodeCount: count + 1 });
-          }
-        } else if (currentSettings?.maxAutoPlayEpisodeCount?.value !== -1) {
-          // A deliberate tap resets the auto-play chain counter.
-          updateSettings({ autoPlayEpisodeCount: 0 });
+          recordStillWatchingAutoplay();
+        } else {
+          // A deliberate tap, "Continue watching" included, starts a new
+          // session.
+          resetStillWatchingSession();
         }
-        void playAdjacentItem(session, next);
+        // Recorded before the swap, so the next episode's prompt is decided
+        // with this autoplay counted; taken back when the swap does not take.
+        const onSwapSettled = () => {
+          if (sessionRef.current !== session) return;
+          // Still on the episode that ended: a later countdown on this
+          // session is a real request again, and no autoplay happened.
+          countdownAdvancedRef.current.delete(session);
+          if (isAutoplay) revertStillWatchingAutoplay();
+        };
+        playAdjacentItem(session, next).then(onSwapSettled, (error) => {
+          // A swap that throws would otherwise leave the session marked as
+          // advanced, and every later countdown on it ignored.
+          logAndCaptureError("NativePlayer next episode swap failed", error, {
+            itemId: next.Id,
+          });
+          onSwapSettled();
+        });
       }),
 
       addNativePlayerListener("onPreviousEpisodeRequested", (payload) => {
@@ -1965,7 +2048,9 @@ const NativePlayerProviderInner: React.FC<{
           return;
         }
         const previous = previousItemRef.current;
-        if (previous) void playAdjacentItem(session, previous);
+        if (!previous) return;
+        resetStillWatchingSession();
+        void playAdjacentItem(session, previous);
       }),
 
       addNativePlayerListener("onEpisodeSelected", (payload) => {
@@ -1989,7 +2074,9 @@ const NativePlayerProviderInner: React.FC<{
               .catch(() => null);
             target = res?.data;
           }
-          if (target) await playAdjacentItem(session, target);
+          if (!target) return;
+          resetStillWatchingSession();
+          await playAdjacentItem(session, target);
         })();
       }),
 
@@ -2131,6 +2218,8 @@ const NativePlayerProviderInner: React.FC<{
             .catch(() => {});
           return;
         }
+        // Someone chose this play, from another client: a new session.
+        resetStillWatchingSession();
         void (async () => {
           // The WS Play path must pick the same player the play button would.
           const useNative = isNativeChromeActive(settingsRef.current);
@@ -2244,14 +2333,19 @@ const NativePlayerProviderInner: React.FC<{
           }
           break;
         }
+        // Picked from another client: plays someone chose, new sessions.
         case "NextTrack": {
           const next = nextItemRef.current;
-          if (next) void playAdjacentItem(session, next);
+          if (!next) break;
+          resetStillWatchingSession();
+          void playAdjacentItem(session, next);
           break;
         }
         case "PreviousTrack": {
           const previous = previousItemRef.current;
-          if (previous) void playAdjacentItem(session, previous);
+          if (!previous) break;
+          resetStillWatchingSession();
+          void playAdjacentItem(session, previous);
           break;
         }
         default:
@@ -2283,6 +2377,9 @@ const NativePlayerProviderInner: React.FC<{
       void dismissNativePlayer();
     }
   }, [user]);
+
+  // The music player reads this to leave a remote's command to the video.
+  useVideoSession(isActive);
 
   // BackHandler for Android: hardware back button dismisses presented native player
   useEffect(() => {

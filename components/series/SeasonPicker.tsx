@@ -12,6 +12,7 @@ import {
 } from "@/components/series/SeasonDropdown";
 import { SyncPlayQueueButton } from "@/components/syncplay/SyncPlayQueueButton";
 import { Colors } from "@/constants/Colors";
+import { useEpisodeAirLabels } from "@/hooks/useEpisodeAirLabels";
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
@@ -23,6 +24,7 @@ import { replacementSeason } from "@/utils/seasonSelection";
 import { runtimeTicksToSeconds } from "@/utils/time";
 import { buildItemCards, type CardData } from "../cards/CardData";
 import { CardListRow } from "../cards/CardListRow";
+import { CardPill } from "../cards/CardPill";
 import { useItemCardBehavior } from "../cards/useItemCardBehavior";
 import { Text } from "../common/Text";
 import { DownloadItems, DownloadSingleItem } from "../DownloadItem";
@@ -189,11 +191,18 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
       enableActionSheet: true,
     });
 
+  const { availabilityLabel } = useEpisodeAirLabels();
   const slots = useMemo(
     () => ({
+      // An episode the library has no file for says so, and offers no
+      // download, rather than looking like one that plays.
+      overlay: (card: CardData) => {
+        const label = availabilityLabel(episodeById.get(card.id));
+        return label ? <CardPill label={label} /> : null;
+      },
       trailing: (card: CardData) => {
         const episode = episodeById.get(card.id);
-        if (isOffline || !episode) return null;
+        if (isOffline || !episode || availabilityLabel(episode)) return null;
         return <DownloadSingleItem item={episode} />;
       },
       footer: (card: CardData) => {
@@ -206,7 +215,7 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
         );
       },
     }),
-    [episodeById, isOffline],
+    [episodeById, isOffline, availabilityLabel],
   );
 
   return (

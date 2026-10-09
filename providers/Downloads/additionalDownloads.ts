@@ -23,8 +23,9 @@ import { subtitleFileName, trickplayDirName } from "./utils";
 export async function downloadTrickplayImages(
   item: BaseItemDto,
   api: Api,
+  mediaSourceId?: string | null,
 ): Promise<TrickPlayData | undefined> {
-  const trickplayInfo = getTrickplayInfo(item);
+  const trickplayInfo = getTrickplayInfo(item, mediaSourceId);
   if (!trickplayInfo || !item.Id) {
     return undefined;
   }
@@ -40,7 +41,7 @@ export async function downloadTrickplayImages(
   const downloadPromises: Promise<void>[] = [];
 
   for (let index = 0; index < trickplayInfo.totalImageSheets; index++) {
-    const url = generateTrickplayUrl(item, index, api);
+    const url = generateTrickplayUrl(item, index, api, mediaSourceId);
     if (!url) continue;
 
     const destination = new File(trickplayDir, `${index}.jpg`);
@@ -240,7 +241,7 @@ export async function downloadAdditionalAssets(params: {
     segments,
     // Cover images (fire and forget, errors are logged)
   ] = await Promise.all([
-    downloadTrickplayImages(item, api),
+    downloadTrickplayImages(item, api, mediaSource.Id),
     downloadSubtitles(mediaSource, item, api),
     item.Id
       ? fetchSegments(item.Id, api)

@@ -21,7 +21,9 @@ import { getItemNavigation } from "@/components/common/TouchableItemRouter";
 import { seasonIndexAtom } from "@/components/series/SeasonPicker";
 import { TVEpisodeList } from "@/components/series/TVEpisodeList";
 import { TVSeriesHeader } from "@/components/series/TVSeriesHeader";
+import { TVSimilarItems } from "@/components/TVSimilarItems";
 import { TVButton } from "@/components/tv/TVButton";
+import { TVCastCrewText } from "@/components/tv/TVCastCrewText";
 import { TVFavoriteButton } from "@/components/tv/TVFavoriteButton";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
@@ -238,6 +240,15 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
     return season?.Name || `Season ${selectedSeasonIndex}`;
   }, [seasons, selectedSeasonIndex]);
 
+  const handlePersonPress = useCallback(
+    (personId: string) => {
+      // The id comes from the server: encoded, it stays one path segment
+      // whatever it contains.
+      router.push(`/(auth)/persons/${encodeURIComponent(personId)}`);
+    },
+    [router],
+  );
+
   // Handle episode press
   const handleEpisodePress = useCallback(
     (episode: BaseItemDto) => {
@@ -264,7 +275,7 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
     // A single-season series has no "season vs series" distinction — shuffle
     // the whole thing without prompting.
     if (seasons.length <= 1) {
-      startShuffle(item.Id, allEpisodes, { isOffline });
+      startShuffle(allEpisodes, { isOffline });
       return;
     }
 
@@ -294,7 +305,7 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
       onSelect: (value: "season" | "series") => {
         if (!item.Id) return;
         const pool = value === "season" ? episodesForSeason : allEpisodes;
-        startShuffle(item.Id, pool, { isOffline });
+        startShuffle(pool, { isOffline });
       },
     });
   }, [
@@ -585,6 +596,24 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
             horizontalPadding={HORIZONTAL_PADDING}
           />
         </View>
+
+        {/* Credits lines - creators, directors, writers */}
+        <TVCastCrewText
+          people={item.People}
+          onPersonPress={isOffline ? undefined : handlePersonPress}
+          disabled={isSeasonModalVisible}
+          style={{ marginTop: scaleSize(40), marginLeft: SCALE_PADDING }}
+        />
+
+        {!isOffline && (
+          <TVSimilarItems
+            item={item}
+            disabled={isSeasonModalVisible}
+            horizontalPadding={HORIZONTAL_PADDING}
+            titleInset={SCALE_PADDING}
+            style={{ marginTop: scaleSize(40), overflow: "visible" }}
+          />
+        )}
       </ScrollView>
     </View>
   );

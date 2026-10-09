@@ -55,7 +55,6 @@ export const chromecasth265: DeviceProfile = {
       Context: "Streaming",
       MaxAudioChannels: "2",
       MinSegments: 2,
-      BreakOnNonKeyFrames: true,
     },
     {
       Container: "mp4",

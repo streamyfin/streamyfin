@@ -88,8 +88,8 @@ final class TopShelfProvider: TVTopShelfContentProvider {
 
     if let apiKey, !apiKey.isEmpty {
       var queryItems = components.queryItems ?? []
-      queryItems.removeAll { $0.name == "api_key" }
-      queryItems.append(URLQueryItem(name: "api_key", value: apiKey))
+      queryItems.removeAll { $0.name == "api_key" || $0.name == "ApiKey" }
+      queryItems.append(URLQueryItem(name: "ApiKey", value: apiKey))
       components.queryItems = queryItems
     }
 

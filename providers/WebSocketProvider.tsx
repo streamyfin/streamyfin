@@ -11,14 +11,20 @@ import {
   useRef,
   useState,
 } from "react";
-import { AppState, type AppStateStatus } from "react-native";
+import { useTranslation } from "react-i18next";
+import { AppState, type AppStateStatus, Platform } from "react-native";
 import { useNetworkAwareQueryClient } from "@/hooks/useNetworkAwareQueryClient";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { useNetworkStatus } from "@/providers/NetworkStatusProvider";
 import { getJellyfinHeaders, hasHeaders } from "@/utils/customHeaders";
 import { getOrSetDeviceId } from "@/utils/device";
 import { describeHttpResponse } from "@/utils/errors";
+import {
+  getAcceptLanguage,
+  withAcceptLanguage,
+} from "@/utils/jellyfin/acceptLanguage";
 import { getWebSocketUrl } from "@/utils/jellyfin/getWebSocketUrl";
+import { supportedCommands } from "@/utils/jellyfin/playbackModes";
 import {
   createSocketFailureRecorder,
   reportSocketFastRetriesExhausted,
@@ -107,6 +113,11 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
     useNetworkStatus();
   // Report a failed fast retry window once; recovery keeps retrying slowly.
   const reportedSocketRetryExhaustionRef = useRef(false);
+  // The server localizes what it sends over the socket from the language of
+  // the handshake, so a new language needs a new socket. useTranslation is
+  // what re-renders this provider when the language changes.
+  useTranslation();
+  const acceptLanguage = getAcceptLanguage();
   const serverConnectedRef = useRef(serverConnected);
   serverConnectedRef.current = serverConnected;
   const previousServerConnectedRef = useRef(serverConnected);
@@ -209,10 +220,13 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
     // React Native's WebSocket takes request headers as a third argument (the
     // DOM typings don't know about it), so a server behind an access gateway
     // can complete the upgrade handshake.
-    const customHeaders = getJellyfinHeaders(api.basePath);
-    const newWebSocket = hasHeaders(customHeaders)
+    const headers = withAcceptLanguage(
+      getJellyfinHeaders(api.basePath),
+      acceptLanguage,
+    );
+    const newWebSocket = hasHeaders(headers)
       ? new (WebSocket as unknown as RNWebSocketConstructor)(url, undefined, {
-          headers: customHeaders,
+          headers,
         })
       : new WebSocket(url);
     socketLifecycle.setSocket(newWebSocket);
@@ -308,7 +322,14 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
       }
       socketLifecycle.closeSocket(newWebSocket);
     };
-  }, [api, deviceId, isNetworkConnected, dispatchMessage, socketLifecycle]);
+  }, [
+    api,
+    deviceId,
+    isNetworkConnected,
+    dispatchMessage,
+    socketLifecycle,
+    acceptLanguage,
+  ]);
 
   const handleLibraryChanged = useCallback(
     (data: any) => {
@@ -430,7 +451,7 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
             IconUrl:
               "https://raw.githubusercontent.com/streamyfin/streamyfin/refs/heads/develop/assets/images/streamyfin-client-badge.png",
             PlayableMediaTypes: ["Audio", "Video"],
-            SupportedCommands: ["Play"],
+            SupportedCommands: supportedCommands(Platform.isTV),
             SupportsMediaControl: true,
             SupportsPersistentIdentifier: true,
           },

@@ -1,6 +1,8 @@
 import { useAtom } from "jotai";
 import { useCallback } from "react";
 import {
+  audioLanguageFilterAtom,
+  audioLanguagePreferenceAtom,
   FilterByPreferenceAtom,
   filterByAtom,
   genreFilterAtom,
@@ -11,6 +13,8 @@ import {
   sortByPreferenceAtom,
   sortOrderAtom,
   sortOrderPreferenceAtom,
+  subtitleLanguageFilterAtom,
+  subtitleLanguagePreferenceAtom,
   tagPreferenceAtom,
   tagsFilterAtom,
   yearFilterAtom,
@@ -24,13 +28,20 @@ import {
  * the reset (X) never reflected a changed sort.
  *
  * A reset clears the active filters AND the library's saved preferences (sort,
- * order, filterBy, genres, years, tags); otherwise the stored preference
- * resurfaces when the screen's mount effect re-applies it on the next entry.
+ * order, filterBy, genres, years, tags, audio and subtitle languages);
+ * otherwise the stored preference resurfaces when the screen's mount effect
+ * re-applies it on the next entry.
  */
 export const useFilterReset = (libraryId: string) => {
   const [selectedGenres, setSelectedGenres] = useAtom(genreFilterAtom);
   const [selectedYears, setSelectedYears] = useAtom(yearFilterAtom);
   const [selectedTags, setSelectedTags] = useAtom(tagsFilterAtom);
+  const [selectedAudioLanguages, setSelectedAudioLanguages] = useAtom(
+    audioLanguageFilterAtom,
+  );
+  const [selectedSubtitleLanguages, setSelectedSubtitleLanguages] = useAtom(
+    subtitleLanguageFilterAtom,
+  );
   const [filterBy, setFilterBy] = useAtom(filterByAtom);
   const [sortBy, setSortBy] = useAtom(sortByAtom);
   const [sortOrder, setSortOrder] = useAtom(sortOrderAtom);
@@ -40,6 +51,10 @@ export const useFilterReset = (libraryId: string) => {
   const [, setGenrePreference] = useAtom(genrePreferenceAtom);
   const [, setYearPreference] = useAtom(yearPreferenceAtom);
   const [, setTagPreference] = useAtom(tagPreferenceAtom);
+  const [, setAudioLanguagePreference] = useAtom(audioLanguagePreferenceAtom);
+  const [, setSubtitleLanguagePreference] = useAtom(
+    subtitleLanguagePreferenceAtom,
+  );
 
   // SortName / Ascending is the baseline a library opens with (the mount-effect
   // fallback), so any other value counts as an active, resettable sort.
@@ -47,6 +62,8 @@ export const useFilterReset = (libraryId: string) => {
     selectedGenres.length > 0 ||
     selectedYears.length > 0 ||
     selectedTags.length > 0 ||
+    selectedAudioLanguages.length > 0 ||
+    selectedSubtitleLanguages.length > 0 ||
     filterBy.length > 0 ||
     sortBy[0] !== SortByOption.SortName ||
     sortOrder[0] !== SortOrderOption.Ascending;
@@ -55,6 +72,8 @@ export const useFilterReset = (libraryId: string) => {
     setSelectedGenres([]);
     setSelectedYears([]);
     setSelectedTags([]);
+    setSelectedAudioLanguages([]);
+    setSelectedSubtitleLanguages([]);
     setFilterBy([]);
     setSortBy([SortByOption.SortName]);
     setSortOrder([SortOrderOption.Ascending]);
@@ -71,11 +90,15 @@ export const useFilterReset = (libraryId: string) => {
     setGenrePreference(forget);
     setYearPreference(forget);
     setTagPreference(forget);
+    setAudioLanguagePreference(forget);
+    setSubtitleLanguagePreference(forget);
   }, [
     libraryId,
     setSelectedGenres,
     setSelectedYears,
     setSelectedTags,
+    setSelectedAudioLanguages,
+    setSelectedSubtitleLanguages,
     setFilterBy,
     setSortBy,
     setSortOrder,
@@ -85,6 +108,8 @@ export const useFilterReset = (libraryId: string) => {
     setGenrePreference,
     setYearPreference,
     setTagPreference,
+    setAudioLanguagePreference,
+    setSubtitleLanguagePreference,
   ]);
 
   return { hasActiveFilters, resetAllFilters };

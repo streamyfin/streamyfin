@@ -59,7 +59,10 @@ export function ServerUrlProvider({ children }: Props): React.ReactElement {
 
   // Function to evaluate and switch URL based on current config and SSID
   const evaluateAndSwitchUrl = useCallback(() => {
-    const remoteUrl = remoteUrlRef.current;
+    // Read now rather than when the api last changed: the remote address can
+    // be replaced in storage while the app stays on the local one (a server
+    // moved off a legacy route prefix), and the ref would still name the old.
+    const remoteUrl = storage.getString("serverUrl") || remoteUrlRef.current;
     if (!remoteUrl || !switchServerUrl) return;
 
     const config = getServerLocalConfig(remoteUrl);

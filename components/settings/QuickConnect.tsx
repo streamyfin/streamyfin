@@ -1,11 +1,13 @@
-import { Feather } from "@expo/vector-icons";
+import { Feather, Ionicons } from "@expo/vector-icons";
 import {
   BottomSheetBackdrop,
   type BottomSheetBackdropProps,
   BottomSheetModal,
   BottomSheetView,
 } from "@gorhom/bottom-sheet";
-import { getQuickConnectApi } from "@jellyfin/sdk/lib/utils/api";
+import type { UserDto } from "@jellyfin/sdk/lib/generated-client/models";
+import { getQuickConnectApi, getUserApi } from "@jellyfin/sdk/lib/utils/api";
+import { useQuery } from "@tanstack/react-query";
 import { requireOptionalNativeModule } from "expo-modules-core";
 import { useAtom } from "jotai";
 import type React from "react";
@@ -16,6 +18,7 @@ import { useTranslation } from "react-i18next";
 import {
   AccessibilityInfo,
   Alert,
+  Keyboard,
   Platform,
   Pressable,
   View,
@@ -23,25 +26,37 @@ import {
 } from "react-native";
 import { DismissKeyboardArea } from "@/components/common/DismissKeyboardArea";
 import { useHaptic } from "@/hooks/useHaptic";
+import { useServerVersion } from "@/hooks/useServerVersion";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { isConnectivityError } from "@/utils/errors";
+import { supportsQuickConnectForOtherUsers } from "@/utils/jellyfin/serverVersion";
 import { isQuickConnectEnabled } from "@/utils/seerrQuickConnect";
 import { Button } from "../Button";
 import { Text } from "../common/Text";
 import { PinInput } from "../inputs/PinInput";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
+import { PlatformDropdown } from "../PlatformDropdown";
 
 interface Props extends ViewProps {}
 
 /** Jellyfin's Quick Connect codes are six digits. */
 const CODE_LENGTH = 6;
 
+// The share of the window the sheet opens at on iOS. The user row an
+// administrator gets does not fit above the keyboard in the smaller one.
+const SHEET_SNAP_POINT = "40%";
+const SHEET_SNAP_POINT_WITH_USER_PICKER = "50%";
+
+// Stable reference so a pending users query does not churn the menu's groups.
+const EMPTY_USERS: UserDto[] = [];
+
 export const QuickConnect: React.FC<Props> = ({ ...props }) => {
   const isTv = Platform.isTV;
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
   const [quickConnectCode, setQuickConnectCode] = useState("");
+  const [selectedUserId, setSelectedUserId] = useState<string>();
   // Why the last code did not go through, shown under the cells.
   const [error, setError] = useState<string | null>(null);
   const [authorizing, setAuthorizing] = useState(false);
@@ -59,13 +74,94 @@ export const QuickConnect: React.FC<Props> = ({ ...props }) => {
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
   const successHapticFeedback = useHaptic("success");
   const errorHapticFeedback = useHaptic("error");
-  const snapPoints = useMemo(
-    () => (Platform.OS === "android" ? ["100%"] : ["40%"]),
-    [],
-  );
   const isAndroid = Platform.OS === "android";
 
   const { t } = useTranslation();
+
+  const isAdmin = !isTv && !!user?.Policy?.IsAdministrator;
+
+  // Same key and shape as the other consumers of the server info. Whatever
+  // the cache holds will do, since a server does not go back below 10.9, and
+  // asking again would be worse than useless: a refetch that fails marks the
+  // shared query as errored, which useMediaPreferences reads as not ready.
+  const serverVersion = useServerVersion({
+    enabled: isAdmin,
+    staleTime: Number.POSITIVE_INFINITY,
+  });
+
+  // An unknown version counts as an old one: the code is then approved for
+  // the signed-in user, as it always was.
+  const canAuthorizeOthers =
+    isAdmin && supportsQuickConnectForOtherUsers(serverVersion);
+
+  const { data: users = EMPTY_USERS } = useQuery({
+    queryKey: ["jellyfin", "users", "enabled"],
+    queryFn: async () => {
+      if (!api) return EMPTY_USERS;
+      const res = await getUserApi(api).getUsers();
+      return res.data.filter((u) => !u.Policy?.IsDisabled);
+    },
+    enabled: !!api && canAuthorizeOthers,
+    // Every account on the server: kept out of the cache persisted to disk.
+    gcTime: 0,
+  });
+
+  // Nothing to pick from on a server whose only enabled account is this one.
+  const showUserPicker =
+    canAuthorizeOthers && users.some((u) => u.Id !== user?.Id);
+
+  const pickedUser = showUserPicker
+    ? users.find((u) => u.Id === selectedUserId)
+    : undefined;
+
+  // Somebody was picked and has since left the list. That never falls back
+  // to the administrator: a code meant for another user would sign their
+  // device in as an admin, and a request without a user id does just that.
+  const isPickUnavailable = selectedUserId !== undefined && !pickedUser;
+
+  const targetUser = selectedUserId === undefined ? user : pickedUser;
+
+  // With a user to pick, a complete code waits for Authorize: one that went
+  // by itself on its last digit would be approved for the administrator
+  // before they had picked whose device it is.
+  const sendsOnLastDigit = sendsByItself && !showUserPicker;
+
+  const snapPoints = useMemo(() => {
+    if (Platform.OS === "android") return ["100%"];
+    return [
+      showUserPicker ? SHEET_SNAP_POINT_WITH_USER_PICKER : SHEET_SNAP_POINT,
+    ];
+  }, [showUserPicker]);
+
+  // Memoized: PlatformDropdown compares its groups by reference.
+  const userGroups = useMemo(
+    () => [
+      {
+        options: users.map((u) => ({
+          type: "radio" as const,
+          label: u.Name ?? "",
+          value: u.Id,
+          selected: u.Id === targetUser?.Id,
+          // Their own row is no pick at all: it is what the sheet starts on.
+          onPress: () =>
+            setSelectedUserId(u.Id === user?.Id ? undefined : u.Id),
+        })),
+      },
+    ],
+    [users, user?.Id, targetUser?.Id],
+  );
+
+  const userPickerTrigger = useMemo(
+    () => (
+      <View className='bg-neutral-900 h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between'>
+        <Text numberOfLines={1} className='flex-1 mr-2'>
+          {targetUser?.Name}
+        </Text>
+        <Ionicons name='chevron-expand-sharp' size={18} color='#5A5960' />
+      </View>
+    ),
+    [targetUser?.Name],
+  );
 
   const renderBackdrop = useCallback(
     (props: BottomSheetBackdropProps) => (
@@ -98,6 +194,11 @@ export const QuickConnect: React.FC<Props> = ({ ...props }) => {
         AccessibilityInfo.announceForAccessibility(message);
       };
       try {
+        if (isPickUnavailable) {
+          fail(t("home.settings.quick_connect.selected_user_unavailable"));
+          setSelectedUserId(undefined);
+          return;
+        }
         // Checked first: Jellyfin answers an approval with a 401 while Quick
         // Connect is off, and the session handling takes any 401 for an
         // expired token and signs the user out.
@@ -109,7 +210,7 @@ export const QuickConnect: React.FC<Props> = ({ ...props }) => {
         // it left behind sends no approval.
         if (!current()) return;
         const res = await getQuickConnectApi(api).authorizeQuickConnect(
-          { code, userId: user?.Id },
+          { code, userId: targetUser?.Id },
           { signal: controller.signal },
         );
         if (!current()) return;
@@ -117,7 +218,11 @@ export const QuickConnect: React.FC<Props> = ({ ...props }) => {
           successHapticFeedback();
           Alert.alert(
             t("home.settings.quick_connect.success"),
-            t("home.settings.quick_connect.quick_connect_authorized"),
+            targetUser?.Id === user?.Id
+              ? t("home.settings.quick_connect.quick_connect_authorized")
+              : t("home.settings.quick_connect.quick_connect_authorized_for", {
+                  username: targetUser?.Name,
+                }),
           );
           setQuickConnectCode("");
           bottomSheetModalRef?.current?.close();
@@ -137,16 +242,25 @@ export const QuickConnect: React.FC<Props> = ({ ...props }) => {
         }
       }
     },
-    [api, user?.Id, t, successHapticFeedback, errorHapticFeedback],
+    [
+      api,
+      user?.Id,
+      targetUser?.Id,
+      targetUser?.Name,
+      isPickUnavailable,
+      t,
+      successHapticFeedback,
+      errorHapticFeedback,
+    ],
   );
 
   const handleCodeChange = useCallback(
-    (code: string, send = sendsByItself) => {
+    (code: string, send = sendsOnLastDigit) => {
       setQuickConnectCode(code);
       setError(null);
       if (send && code.length === CODE_LENGTH) void authorize(code);
     },
-    [authorize, sendsByItself],
+    [authorize, sendsOnLastDigit],
   );
 
   const pasteCode = useCallback(async () => {
@@ -161,11 +275,12 @@ export const QuickConnect: React.FC<Props> = ({ ...props }) => {
     const isCode = new RegExp(`^\\d{${CODE_LENGTH}}$`).test(
       text.replace(/\s/g, ""),
     );
-    handleCodeChange(digits.slice(0, CODE_LENGTH), isCode && sendsByItself);
-  }, [handleCodeChange, sendsByItself]);
+    handleCodeChange(digits.slice(0, CODE_LENGTH), isCode && sendsOnLastDigit);
+  }, [handleCodeChange, sendsOnLastDigit]);
 
   // Opening the sheet starts over: an attempt still running belongs to the
-  // sheet that was closed.
+  // sheet that was closed, and so does the user it was for. Approving for
+  // someone else is a choice made each time.
   const openSheet = useCallback(() => {
     controllerRef.current?.abort();
     attemptRef.current++;
@@ -173,6 +288,7 @@ export const QuickConnect: React.FC<Props> = ({ ...props }) => {
     setAuthorizing(false);
     setSendsByItself(true);
     setQuickConnectCode("");
+    setSelectedUserId(undefined);
     setError(null);
     bottomSheetModalRef?.current?.present();
   }, []);
@@ -212,7 +328,28 @@ export const QuickConnect: React.FC<Props> = ({ ...props }) => {
                   {t("home.settings.quick_connect.quick_connect_title")}
                 </Text>
               </View>
-              <View className='flex flex-col space-y-2'>
+              {/* Spaced with styles: a release build drops the space-y classes. */}
+              <View style={{ gap: 16 }}>
+                {showUserPicker && (
+                  <View
+                    className='flex flex-col'
+                    // On Android the options open as a second sheet, and a
+                    // sheet only rises above a keyboard its own input raised:
+                    // the one the code field keeps up would cover it.
+                    onTouchStart={
+                      isAndroid ? () => Keyboard.dismiss() : undefined
+                    }
+                  >
+                    <Text className='opacity-50 mb-1 text-xs'>
+                      {t("home.settings.quick_connect.user")}
+                    </Text>
+                    <PlatformDropdown
+                      groups={userGroups}
+                      trigger={userPickerTrigger}
+                      title={t("home.settings.quick_connect.user")}
+                    />
+                  </View>
+                )}
                 <View className='p-4 border border-neutral-800 rounded-xl bg-neutral-900 w-full space-y-4'>
                   <Text className='text-neutral-400 text-center'>
                     {t(
