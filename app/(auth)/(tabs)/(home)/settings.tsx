@@ -75,6 +75,7 @@ function SettingsMobile() {
               >
                 <SettingSwitch
                   testID='syncplay-settings-ignore-wait'
+                  accessibilityLabel={t("syncplay.ignore_wait")}
                   value={settings.syncPlayIgnoreWait}
                   onValueChange={(value) =>
                     updateSettings({ syncPlayIgnoreWait: value })
