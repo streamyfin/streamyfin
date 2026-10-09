@@ -29,9 +29,7 @@ export const TVLibraryTabs: React.FC<Props> = ({
     <View
       style={{
         flexDirection: "row",
-        justifyContent: "center",
         gap: 8,
-        paddingBottom: 24,
       }}
     >
       {tabs.map((tab) => (

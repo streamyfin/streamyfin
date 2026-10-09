@@ -708,6 +708,8 @@
     "no_results": "No results",
     "no_libraries_found": "No libraries found",
     "jump_to_letter": "Jump to letter",
+    "sort": "Sort",
+    "letters": "A–Z",
     "tabs": {
       "items": "Items",
       "collections": "Collections",
@@ -743,6 +745,8 @@
       "subtitle_languages": "Subtitle languages",
       "selected_count": "{{count}} selected",
       "all": "All",
+      "title": "Filters",
+      "title_count": "Filters · {{count}}",
       "reset": "Reset",
       "asc": "Ascending",
       "desc": "Descending"

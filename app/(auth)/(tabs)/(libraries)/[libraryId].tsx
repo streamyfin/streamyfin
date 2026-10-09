@@ -51,10 +51,12 @@ import { Loader } from "@/components/Loader";
 import { AlphabetRail } from "@/components/library/AlphabetRail";
 import { LibraryPlayButtons } from "@/components/library/LibraryPlayButtons";
 import { LibraryTabs } from "@/components/library/LibraryTabs";
-import { TVAlphabetRow } from "@/components/library/TVAlphabetRow";
-import { TVLibraryPlayButtons } from "@/components/library/TVLibraryPlayButtons";
 import { TVLibraryTabs } from "@/components/library/TVLibraryTabs";
-import { TVFilterButton, TVFocusablePoster } from "@/components/tv";
+import {
+  TVLibraryToolbar,
+  type TVLibraryToolbarAction,
+} from "@/components/library/TVLibraryToolbar";
+import { TVFocusablePoster } from "@/components/tv";
 import { TVPosterCard } from "@/components/tv/TVPosterCard";
 import { useScaledTVPosterSizes } from "@/constants/TVPosterSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
@@ -67,7 +69,7 @@ import { useLibraryTabs } from "@/hooks/useLibraryTabs";
 import { useOrientation } from "@/hooks/useOrientation";
 import { useRefreshLibraryOnFocus } from "@/hooks/useRefreshLibraryOnFocus";
 import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
-import { useTVOptionModal } from "@/hooks/useTVOptionModal";
+import { useTVLibrarySheet } from "@/hooks/useTVLibrarySheet";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import {
   audioLanguageFilterAtom,
@@ -97,8 +99,13 @@ import {
   yearFilterAtom,
   yearPreferenceAtom,
 } from "@/utils/atoms/filters";
+import {
+  type TVLibrarySheetGroup,
+  type TVLibrarySheetState,
+  tvLibrarySheetAtom,
+} from "@/utils/atoms/tvLibrarySheet";
 import type { TVOptionItem } from "@/utils/atoms/tvOptionModal";
-import { alphabetJumpParams } from "@/utils/jellyfin/alphabetJump";
+import { ALPHABET, alphabetJumpParams } from "@/utils/jellyfin/alphabetJump";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import {
   getLanguageFilterLabel,
@@ -111,12 +118,14 @@ import {
   type LibraryItemsFilter,
   libraryLanguageOptions,
 } from "@/utils/library/libraryItemsQuery";
+import { ALL_OPTION, filterSummary } from "@/utils/library/librarySheet";
 import {
   getLibraryTabFilters,
   getLibraryTabQuery,
   isLibraryTabCountQueryKey,
   libraryTabUsesFilterBar,
 } from "@/utils/library/libraryTabs";
+import { store } from "@/utils/store";
 
 /** Items per request of the grid; more load as the list is scrolled. */
 const PAGE_SIZE = 36;
@@ -130,6 +139,16 @@ const OUTGOING_LIST_OPACITY = 0.4;
  * brings it as its own padding; a tab without one has to leave it itself.
  */
 const LIST_HEADER_GAP = 16;
+
+type TVSheetKind = "filters" | "sort" | "letters";
+
+/** A filter's picks after one more press: "all" clears, a pick toggles. */
+const toggled = (selected: string[], value: string): string[] =>
+  value === ALL_OPTION
+    ? []
+    : selected.includes(value)
+      ? selected.filter((picked) => picked !== value)
+      : [...selected, value];
 
 interface LanguageFilterEntry {
   key: string;
@@ -192,7 +211,7 @@ const Page = () => {
 
   const { t } = useTranslation();
   const router = useRouter();
-  const { showOptions } = useTVOptionModal();
+  const { openSheet } = useTVLibrarySheet();
 
   // When this library detail was opened from the home "See All" button, its
   // libraries stack is just [detail], so the default TV Back would exit to home.
@@ -1121,118 +1140,174 @@ const Page = () => {
     [filterBy, generalFilters, t],
   );
 
-  // TV Filter handlers using navigation-based modal
-  const handleShowGenreFilter = useCallback(() => {
-    showOptions({
-      title: t("library.filters.genres"),
-      options: tvGenreFilterOptions,
-      onSelect: (value: string) => {
-        if (value === "__all__") {
-          setGenres([]);
-        } else if (selectedGenres.includes(value)) {
-          setGenres(selectedGenres.filter((g) => g !== value));
-        } else {
-          setGenres([...selectedGenres, value]);
-        }
-      },
-    });
-  }, [showOptions, t, tvGenreFilterOptions, selectedGenres, setGenres]);
+  // TV: the filters, the sort and the letter jump each live in a sheet, so
+  // the posters start right under one toolbar row.
+  const [openTVSheet, setOpenTVSheet] = useState<TVSheetKind | null>(null);
+  // The toolbar button a closed sheet hands the focus back to: each sheet is
+  // opened by the action of the same name.
+  const [tvFocusRequest, setTVFocusRequest] = useState<{
+    key: TVSheetKind;
+  } | null>(null);
 
-  const handleShowYearFilter = useCallback(() => {
-    showOptions({
-      title: t("library.filters.years"),
-      options: tvYearFilterOptions,
-      onSelect: (value: string) => {
-        if (value === "__all__") {
-          setYears([]);
-        } else if (selectedYears.includes(value)) {
-          setYears(selectedYears.filter((y) => y !== value));
-        } else {
-          setYears([...selectedYears, value]);
-        }
-      },
+  const tvFilterGroups = useMemo((): TVLibrarySheetGroup[] => {
+    const all = t("library.filters.all");
+    const labels = {
+      all,
+      count: (count: number) => t("library.filters.selected_count", { count }),
+    };
+    const group = (
+      key: string,
+      label: string,
+      options: TVLibrarySheetGroup["options"],
+      onSelect: (value: string) => void,
+      multi = true,
+    ): TVLibrarySheetGroup => ({
+      key,
+      label,
+      options,
+      onSelect,
+      multi,
+      summary: filterSummary(options, labels),
     });
-  }, [showOptions, t, tvYearFilterOptions, selectedYears, setYears]);
+    return [
+      group("genres", t("library.filters.genres"), tvGenreFilterOptions, (v) =>
+        setGenres(toggled(selectedGenres, v)),
+      ),
+      group("years", t("library.filters.years"), tvYearFilterOptions, (v) =>
+        setYears(toggled(selectedYears, v)),
+      ),
+      group("tags", t("library.filters.tags"), tvTagFilterOptions, (v) =>
+        setTags(toggled(selectedTags, v)),
+      ),
+      ...languageFilterEntries.map((filter) =>
+        group(
+          filter.key,
+          filter.title,
+          [
+            {
+              label: all,
+              value: ALL_OPTION,
+              selected: filter.selected.length === 0,
+            },
+            ...filter.options.map((option) => ({
+              ...option,
+              selected: filter.selected.includes(option.value),
+            })),
+          ],
+          (v) => filter.set(toggled(filter.selected, v)),
+        ),
+      ),
+      group(
+        "filterBy",
+        t("library.filters.filter_by"),
+        tvFilterByOptions,
+        (v) =>
+          v === ALL_OPTION
+            ? _setFilterBy([])
+            : setFilter([v as FilterByOption]),
+        false,
+      ),
+    ];
+  }, [
+    t,
+    tvGenreFilterOptions,
+    tvYearFilterOptions,
+    tvTagFilterOptions,
+    tvFilterByOptions,
+    languageFilterEntries,
+    selectedGenres,
+    selectedYears,
+    selectedTags,
+    setGenres,
+    setYears,
+    setTags,
+    setFilter,
+    _setFilterBy,
+  ]);
 
-  const handleShowTagFilter = useCallback(() => {
-    showOptions({
-      title: t("library.filters.tags"),
-      options: tvTagFilterOptions,
-      onSelect: (value: string) => {
-        if (value === "__all__") {
-          setTags([]);
-        } else if (selectedTags.includes(value)) {
-          setTags(selectedTags.filter((tag) => tag !== value));
-        } else {
-          setTags([...selectedTags, value]);
-        }
-      },
-    });
-  }, [showOptions, t, tvTagFilterOptions, selectedTags, setTags]);
-
-  // Like genres on TV: a pick toggles one language, "All" clears the filter.
-  const showLanguageFilter = useCallback(
-    ({ title, options, selected, set }: LanguageFilterEntry) => {
-      showOptions({
-        title,
-        options: [
+  const buildTVSheet = useCallback(
+    (kind: TVSheetKind): NonNullable<TVLibrarySheetState> => {
+      const onClose = () => {
+        setOpenTVSheet(null);
+        setTVFocusRequest({ key: kind });
+      };
+      const picked = (options: TVLibrarySheetGroup["options"]) =>
+        options.find((option) => option.selected)?.label ?? "";
+      if (kind === "filters") {
+        return {
+          title: t("library.filters.title"),
+          groups: tvFilterGroups,
+          onReset: hasActiveFilters ? resetAllFilters : undefined,
+          onClose,
+        };
+      }
+      if (kind === "sort") {
+        return {
+          title: t("library.sort"),
+          groups: [
+            {
+              key: "sortBy",
+              label: t("library.filters.sort_by"),
+              summary: picked(tvSortByOptions),
+              options: tvSortByOptions,
+              onSelect: (v) => setSortBy([v as SortByOption]),
+            },
+            {
+              key: "sortOrder",
+              label: t("library.filters.sort_order"),
+              summary: picked(tvSortOrderOptions),
+              options: tvSortOrderOptions,
+              onSelect: (v) => setSortOrder([v as SortOrderOption]),
+            },
+          ],
+          onClose,
+        };
+      }
+      return {
+        title: t("library.jump_to_letter"),
+        groups: [
           {
-            label: t("library.filters.all"),
-            value: "__all__",
-            selected: selected.length === 0,
+            key: "letters",
+            label: t("library.jump_to_letter"),
+            summary: jumpLetter ?? "",
+            compact: true,
+            options: ALPHABET.map((letter) => ({
+              label: letter,
+              value: letter,
+              selected: letter === jumpLetter,
+            })),
+            onSelect: jumpTo,
           },
-          ...options.map((option) => ({
-            ...option,
-            selected: selected.includes(option.value),
-          })),
         ],
-        onSelect: (value: string) => {
-          if (value === "__all__") {
-            set([]);
-          } else if (selected.includes(value)) {
-            set(selected.filter((language) => language !== value));
-          } else {
-            set([...selected, value]);
-          }
-        },
-      });
+        onClose,
+      };
     },
-    [showOptions, t],
+    [
+      t,
+      tvFilterGroups,
+      hasActiveFilters,
+      resetAllFilters,
+      tvSortByOptions,
+      tvSortOrderOptions,
+      setSortBy,
+      setSortOrder,
+      jumpLetter,
+      jumpTo,
+    ],
   );
 
-  const handleShowSortByFilter = useCallback(() => {
-    showOptions({
-      title: t("library.filters.sort_by"),
-      options: tvSortByOptions,
-      onSelect: (value: SortByOption) => {
-        setSortBy([value]);
-      },
-    });
-  }, [showOptions, t, tvSortByOptions, setSortBy]);
+  // Kept current while it is open, so a pick shows in the sheet at once.
+  useEffect(() => {
+    if (openTVSheet) store.set(tvLibrarySheetAtom, buildTVSheet(openTVSheet));
+  }, [openTVSheet, buildTVSheet]);
 
-  const handleShowSortOrderFilter = useCallback(() => {
-    showOptions({
-      title: t("library.filters.sort_order"),
-      options: tvSortOrderOptions,
-      onSelect: (value: SortOrderOption) => {
-        setSortOrder([value]);
-      },
-    });
-  }, [showOptions, t, tvSortOrderOptions, setSortOrder]);
-
-  const handleShowFilterByFilter = useCallback(() => {
-    showOptions({
-      title: t("library.filters.filter_by"),
-      options: tvFilterByOptions,
-      onSelect: (value: string) => {
-        if (value === "__all__") {
-          _setFilterBy([]);
-        } else {
-          setFilter([value as FilterByOption]);
-        }
-      },
-    });
-  }, [showOptions, t, tvFilterByOptions, setFilter, _setFilterBy]);
+  const showTVSheet = useCallback(
+    (kind: TVSheetKind) => {
+      setOpenTVSheet(kind);
+      openSheet(buildTVSheet(kind));
+    },
+    [openSheet, buildTVSheet],
+  );
 
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
@@ -1281,8 +1356,11 @@ const Page = () => {
   ]);
 
   // With tabs the header stays mounted while a tab loads: replacing the whole
-  // screen would drop the TV focus held by the tab that was just pressed.
-  if (isLibraryLoading || (isLoading && !hasTabs))
+  // screen would drop the TV focus held by the tab that was just pressed. On
+  // TV it stays mounted in any case: a filter picked in a sheet reloads the
+  // list, and a toolbar mounted again hands the focus to its first button
+  // instead of back to the one that opened the sheet.
+  if (isLibraryLoading || (isLoading && !hasTabs && !Platform.isTV))
     return (
       <View className='w-full h-full flex items-center justify-center'>
         <Loader />
@@ -1368,7 +1446,70 @@ const Page = () => {
     );
   }
 
-  // TV return with filter bar
+  const tvActiveFilters = tvFilterGroups.filter((group) =>
+    group.options.some(
+      (option) => option.selected && option.value !== ALL_OPTION,
+    ),
+  );
+  // A show library gets Upcoming and is never queueable, so the row stays
+  // five buttons wide at most.
+  const tvActions: TVLibraryToolbarAction[] = [
+    ...(canQueue
+      ? [
+          {
+            key: "play",
+            icon: "play" as const,
+            label: t("library.play_all"),
+            onPress: playAll,
+            disabled: isEmpty,
+          },
+          {
+            key: "shuffle",
+            icon: "shuffle" as const,
+            label: t("player.shuffle"),
+            onPress: shuffle,
+            disabled: isEmpty,
+          },
+        ]
+      : []),
+    ...(showUpcoming
+      ? [
+          {
+            key: "upcoming",
+            icon: "calendar-outline" as const,
+            label: t("upcoming.title"),
+            onPress: openUpcoming,
+          },
+        ]
+      : []),
+    ...(canJumpToLetter
+      ? [
+          {
+            key: "letters",
+            icon: "text" as const,
+            label: t("library.letters"),
+            onPress: () => showTVSheet("letters"),
+          },
+        ]
+      : []),
+    {
+      key: "sort",
+      icon: "swap-vertical" as const,
+      label: t("library.sort"),
+      onPress: () => showTVSheet("sort"),
+    },
+    {
+      key: "filters",
+      icon: "funnel-outline" as const,
+      label:
+        tvActiveFilters.length > 0
+          ? t("library.filters.title_count", { count: tvActiveFilters.length })
+          : t("library.filters.title"),
+      onPress: () => showTVSheet("filters"),
+    },
+  ];
+
+  // TV return: one toolbar row, then the posters
   return (
     <ScrollView
       style={{ flex: 1 }}
@@ -1389,131 +1530,24 @@ const Page = () => {
       }}
       scrollEventThrottle={400}
     >
-      {hasTabs && (
-        <TVLibraryTabs
-          tabs={tabs}
-          activeTab={activeTab}
-          onSelect={setActiveTab}
-        />
-      )}
-
-      {canQueue && (
-        <TVLibraryPlayButtons
-          onPlayAll={playAll}
-          onShuffle={shuffle}
-          disabled={isEmpty}
-        />
-      )}
-
-      {/* Filter bar. Hidden rather than unmounted off the items tab: mounting it
-          again would let its preferred focus pull the focus off the tab that
-          was just pressed. Next to the letter row it is a focus guide, and so
-          is the grid, because tvOS only moves the focus to what lies straight
-          ahead: the bar is narrower than the row and a short grid is too, so
-          the outer letters would have nothing above or below them. A guide is
-          as wide as the page and hands the focus to one of its children.
-          Without the row both stay plain views, as they were. */}
-      <TVFocusGuideView
-        autoFocus={canJumpToLetter}
-        style={{
-          display: hasFilterBar ? "flex" : "none",
-          flexDirection: "row",
-          // Wraps instead of clipping: the two language filters can push the
-          // bar past one row.
-          flexWrap: "wrap",
-          justifyContent: "center",
-          paddingBottom: 24,
-          gap: 12,
-        }}
-      >
-        {hasActiveFilters && (
-          <TVFilterButton
-            label=''
-            value={t("library.filters.reset")}
-            onPress={resetAllFilters}
-            hasActiveFilter
-          />
-        )}
-        <TVFilterButton
-          label={t("library.filters.genres")}
-          value={
-            selectedGenres.length > 0
-              ? `${selectedGenres.length} selected`
-              : t("library.filters.all")
-          }
-          onPress={handleShowGenreFilter}
-          hasTVPreferredFocus={!hasActiveFilters}
-          hasActiveFilter={selectedGenres.length > 0}
-        />
-        <TVFilterButton
-          label={t("library.filters.years")}
-          value={
-            selectedYears.length > 0
-              ? `${selectedYears.length} selected`
-              : t("library.filters.all")
-          }
-          onPress={handleShowYearFilter}
-          hasActiveFilter={selectedYears.length > 0}
-        />
-        <TVFilterButton
-          label={t("library.filters.tags")}
-          value={
-            selectedTags.length > 0
-              ? `${selectedTags.length} selected`
-              : t("library.filters.all")
-          }
-          onPress={handleShowTagFilter}
-          hasActiveFilter={selectedTags.length > 0}
-        />
-        {languageFilterEntries.map((filter) => (
-          <TVFilterButton
-            key={filter.key}
-            label={filter.title}
-            value={
-              filter.selected.length > 0
-                ? t("library.filters.selected_count", {
-                    count: filter.selected.length,
-                  })
-                : t("library.filters.all")
-            }
-            onPress={() => showLanguageFilter(filter)}
-            hasActiveFilter={filter.selected.length > 0}
-          />
-        ))}
-        <TVFilterButton
-          label={t("library.filters.sort_by")}
-          value={sortOptions.find((o) => o.key === sortBy[0])?.value || ""}
-          onPress={handleShowSortByFilter}
-        />
-        <TVFilterButton
-          label={t("library.filters.sort_order")}
-          value={
-            sortOrderOptions.find((o) => o.key === sortOrder[0])?.value || ""
-          }
-          onPress={handleShowSortOrderFilter}
-        />
-        <TVFilterButton
-          label={t("library.filters.filter_by")}
-          value={
-            filterBy.length > 0
-              ? generalFilters.find((o) => o.key === filterBy[0])?.value || ""
-              : t("library.filters.all")
-          }
-          onPress={handleShowFilterByFilter}
-          hasActiveFilter={filterBy.length > 0}
-        />
-        {showUpcoming && (
-          <TVFilterButton
-            label=''
-            value={t("upcoming.title")}
-            onPress={openUpcoming}
-          />
-        )}
-      </TVFocusGuideView>
-
-      {canJumpToLetter && (
-        <TVAlphabetRow active={jumpLetter} onSelect={jumpTo} />
-      )}
+      <TVLibraryToolbar
+        title={library?.Name ?? ""}
+        tabs={
+          hasTabs ? (
+            <TVLibraryTabs
+              tabs={tabs}
+              activeTab={activeTab}
+              onSelect={setActiveTab}
+            />
+          ) : undefined
+        }
+        actions={tvActions}
+        actionsHidden={!hasFilterBar}
+        focusRequest={tvFocusRequest}
+        summary={tvActiveFilters
+          .map((group) => `${group.label}: ${group.summary}`)
+          .join("  ·  ")}
+      />
 
       {/* Grid with flexWrap */}
       {isLoading ? null : flatData.length === 0 ? (
@@ -1530,8 +1564,10 @@ const Page = () => {
           </Text>
         </View>
       ) : (
+        // A focus guide as wide as the page: tvOS only moves the focus to what
+        // lies straight ahead, and a short grid is narrower than the toolbar.
         <TVFocusGuideView
-          autoFocus={canJumpToLetter}
+          autoFocus
           style={{
             flexDirection: "row",
             flexWrap: "wrap",

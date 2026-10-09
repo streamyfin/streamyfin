@@ -84,6 +84,8 @@ TV platform:
 - `tv-horizontal-padding-standard` | TV_HORIZONTAL_PADDING=60, not old TV_SCALE_PADDING=20
 - `streamystats-components-location` | components/home/Streamystats*.tv.tsx, watchlists/[watchlistId].tsx
 - `platform-specific-file-suffix-does-not-work` | .tv.* only resolves under EXPO_TV=1; require the TV file explicitly behind Platform.isTV
+- `tvfocusguideview-ignores-display-style` | TVFocusGuideView sets its own display last, so `display: "none"` in its style is ignored; hide it with `enabled={false}`
+- `android-tv-modal-close-loses-focus` | a dismissed TV modal route leaves Android TV with nothing focused; the page must hand the focus back with requestTVFocus(). BlurView only tints there
 
 Build and tooling:
 - `eas-archive-drops-gitignored-tracked-files` | EAS uploads skip anything matching .gitignore even if tracked; re-include required assets, keep asset require() at module scope

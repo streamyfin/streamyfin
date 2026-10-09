@@ -547,6 +547,14 @@ function Layout() {
                                         }}
                                       />
                                       <Stack.Screen
+                                        name='(auth)/tv-library-sheet-modal'
+                                        options={{
+                                          headerShown: false,
+                                          presentation: "transparentModal",
+                                          animation: "fade",
+                                        }}
+                                      />
+                                      <Stack.Screen
                                         name='(auth)/tv-subtitle-modal'
                                         options={{
                                           headerShown: false,
