@@ -96,16 +96,15 @@ describe("TV option sheet", () => {
 
   // A choice that navigates (the player's audio or quality switch while
   // transcoding) fired while the sheet is the active route would be
-  // swallowed, so the sheet closes first and the choice lands after it.
-  test("closes first and applies a navigating choice after", async () => {
+  // swallowed, so the sheet closes first and the choice lands right after the
+  // press, on the timing the player was tested with.
+  test("closes first and applies a navigating choice once the press has returned", async () => {
     await openSheet(true);
 
-    await fireEvent.press(screen.getByText("French"));
+    const pressed = fireEvent.press(screen.getByText("French"));
     expect(mockCalls).toEqual(["back"]);
 
-    await act(async () => {
-      jest.runAllTimers();
-    });
+    await pressed;
     expect(mockCalls).toEqual(["back", "select fre"]);
   });
 
@@ -126,9 +125,6 @@ describe("TV option sheet", () => {
     await openSheet(true);
 
     await fireEvent.press(screen.getByText("French"));
-    await act(async () => {
-      jest.runAllTimers();
-    });
     expect(mockCalls).toEqual(["back", "select fre"]);
   });
 
