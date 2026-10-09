@@ -1213,10 +1213,10 @@ const Page = () => {
         "filterBy",
         t("library.filters.filter_by"),
         tvFilterByOptions,
-        (v) =>
-          v === ALL_OPTION
-            ? _setFilterBy([])
-            : setFilter([v as FilterByOption]),
+        // Through setFilter for "All" as well: it also clears what is saved
+        // for this library, which the page puts back each time it regains
+        // the focus, the moment this sheet closes included.
+        (v) => setFilter(v === ALL_OPTION ? [] : [v as FilterByOption]),
         false,
       ),
     ];
@@ -1234,7 +1234,6 @@ const Page = () => {
     setYears,
     setTags,
     setFilter,
-    _setFilterBy,
   ]);
 
   const buildTVSheet = useCallback(
