@@ -52,6 +52,7 @@ final class MPVPlayerEngine: NSObject {
 	private var renderer: MPVLayerRenderer?
 	private var pipController: PiPController?
 	private let nowPlayingManager = MPVNowPlayingManager.shared
+	private let audioSession = PlayerAudioSession.shared
 
 	private var currentURL: URL?
 	private var currentLoop = false
@@ -131,23 +132,17 @@ final class MPVPlayerEngine: NSObject {
 
 	// MARK: - Audio Session
 
-	private func configureAudioSession() {
-		let session = AVAudioSession.sharedInstance()
-		do {
-			try session.setCategory(.playback, mode: .moviePlayback, policy: .longFormAudio, options: [])
-			try session.setActive(true)
-		} catch {
-			print("Failed to configure audio session: \(error)")
-		}
-	}
+	// Every change to the session goes through `PlayerAudioSession`, off the
+	// main thread. Nothing re-activates it after the interruption handled
+	// below except the play() that resumes, which is why play() still applies
+	// it every time.
 
-	/// Deactivate the session AND reset the category — `setActive(false)` alone
-	/// leaves `.playback`/`.longFormAudio` on the shared singleton, so any later
-	/// reactivation (foreground, route change, other modules) re-steals audio.
-	private func tearDownAudioSession() {
-		let session = AVAudioSession.sharedInstance()
-		try? session.setActive(false, options: .notifyOthersOnDeactivation)
-		try? session.setCategory(.ambient, mode: .default, options: [.mixWithOthers])
+	/// Not after a shutdown: a play() or an mpv callback can still arrive once
+	/// the player has closed, and an activation queued behind the teardown
+	/// would take the session back with no player left to give it up.
+	private func activateAudioSession(completion: (() -> Void)? = nil) {
+		guard !isShutDown else { return }
+		audioSession.activate(completion: completion)
 	}
 
 	@objc private func handleAudioSessionInterruption(_ notification: Notification) {
@@ -209,7 +204,6 @@ final class MPVPlayerEngine: NSObject {
 
 	private func clearNowPlayingInfo() {
 		nowPlayingManager.cleanupRemoteCommands()
-		nowPlayingManager.deactivateAudioSession()
 		nowPlayingManager.clear()
 	}
 
@@ -246,6 +240,14 @@ final class MPVPlayerEngine: NSObject {
 			commands: []
 		)
 
+		// Queued ahead of the load on purpose. The renderer's load block waits
+		// for pending session changes, so the playback category is in place
+		// before mpv opens its audio output, which sizes itself from the route
+		// the session reports at that moment.
+		if config.autoplay {
+			activateAudioSession()
+		}
+
 		// Pass everything to the renderer - it handles start position and external subs
 		renderer?.load(
 			url: config.url,
@@ -264,7 +266,7 @@ final class MPVPlayerEngine: NSObject {
 		)
 
 		if config.autoplay {
-			play()
+			resumePlayback()
 		}
 
 		delegate?.engine(self, didLoad: config.url)
@@ -273,8 +275,16 @@ final class MPVPlayerEngine: NSObject {
 	// MARK: - Transport
 
 	func play() {
+		// Queued before the unpause, which renderer.play() holds until the
+		// session is active.
+		activateAudioSession()
+		resumePlayback()
+	}
+
+	/// play() without the session request: loadVideo() has to make that one
+	/// before the load is queued, and once is enough.
+	private func resumePlayback() {
 		intendedPlayState = true
-		configureAudioSession()
 		setupRemoteCommands()
 		renderer?.play()
 		pipController?.setPlaybackRate(1.0)
@@ -351,7 +361,7 @@ final class MPVPlayerEngine: NSObject {
 		renderer?.stop()
 		displayLayer.removeFromSuperlayer()
 		clearNowPlayingInfo()
-		tearDownAudioSession()
+		audioSession.tearDown()
 		NotificationCenter.default.removeObserver(self)
 	}
 
@@ -467,8 +477,18 @@ final class MPVPlayerEngine: NSObject {
 		pipController?.stopPictureInPicture()
 	}
 
+	/// A device capability, so one answer serves the whole process. AVKit's
+	/// own answer is not free: PlayerTopBar asks from its SwiftUI body, on
+	/// every evaluation, and one such call held the main thread for 4 seconds
+	/// (Sentry REACT-NATIVE-FC). Resolved once, on first use, by whoever asks.
+	/// Deliberately not warmed from a background queue: main would then wait
+	/// on this initializer, and if AVKit needs the main thread to answer, the
+	/// two wait on each other for good.
+	private static let pictureInPictureSupported =
+		AVPictureInPictureController.isPictureInPictureSupported()
+
 	func isPictureInPictureSupported() -> Bool {
-		return AVPictureInPictureController.isPictureInPictureSupported()
+		return MPVPlayerEngine.pictureInPictureSupported
 	}
 
 	func isPictureInPictureActive() -> Bool {
@@ -695,8 +715,11 @@ extension MPVPlayerEngine: MPVLayerRendererDelegate {
 		// mpv reconfigures the shared AVAudioSession when its audio unit spins up,
 		// overriding what play() set. Until ours is re-applied the system doesn't
 		// treat us as the Now Playing app and drops every info update.
-		configureAudioSession()
-		syncNowPlaying(isPlaying: intendedPlayState)
+		activateAudioSession { [weak self] in
+			// A shutdown in between has cleared Now Playing; leave it cleared.
+			guard let self, !self.isShutDown else { return }
+			self.syncNowPlaying(isPlaying: self.intendedPlayState)
+		}
 	}
 
 	func rendererPlaybackDidRestart(

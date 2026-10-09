@@ -18,7 +18,6 @@
     "password_placeholder": "Contrasenya",
     "login_button": "Inicia sessió",
     "quick_connect": "Connexió ràpida",
-    "enter_code_to_login": "Introdueix el codi {{code}} per iniciar sessió",
     "quick_connect_instructions": "Introdueix aquest codi en un dispositiu amb la sessió iniciada. Iniciaràs sessió automàticament.",
     "tap_code_to_copy": "Toca el codi per copiar-lo",
     "code_copied": "Codi copiat",
@@ -226,8 +225,8 @@
         "enter_the_quick_connect_code": "Introdueix el codi de connexió ràpida...",
         "success": "Èxit",
         "quick_connect_authorized": "Connexió ràpida autoritzada",
-        "error": "Error",
         "invalid_code": "Codi invàlid",
+        "disabled": "Quick Connect is turned off on this server. An administrator can turn it on in the server's dashboard.",
         "authorize": "Autoritza",
         "paste_code": "Enganxa el codi"
       },
@@ -610,6 +609,7 @@
         "all_files_deleted": "S'han suprimit totes les descàrregues",
         "files_deleted_by_type": "S'han suprimit {{count}} {{type}}",
         "could_not_get_download_url_for_item": "No s'ha pogut obtenir l'URL de descàrrega de {{itemName}}",
+        "no_media_source_to_download": "This item cannot be downloaded",
         "file_deleted": "S'ha suprimit {{item}}"
       }
     }
@@ -727,7 +727,8 @@
     "noData": "Els elements que marqueu com a preferits apareixen aquí."
   },
   "custom_links": {
-    "no_links": "No hi ha enllaços"
+    "no_links": "No hi ha enllaços",
+    "could_not_open_link": "Could not open this link"
   },
   "player": {
     "live": "EN DIRECTE",
@@ -1175,9 +1176,7 @@
     "title": "Vincula amb el televisor",
     "align_qr": "Alinea el codi QR dins del marc",
     "enter_code_manually": "Introdueix el codi manualment",
-    "pairing_enter_credentials": "Introdueix les credencials per al televisor",
     "pairing_code_label": "Codi de vinculació",
-    "server": "Servidor",
     "authorize_button": "Autoritza",
     "authorizing": "S'està autoritzant...",
     "scan_again": "Torna a escanejar",
@@ -1186,18 +1185,24 @@
     "pairing_tv_connecting": "El televisor s'està connectant al teu compte",
     "error_title": "Ha fallat l'autorització",
     "error_invalid_qr": "Codi QR no vàlid. Escaneja el codi de vinculació del televisor.",
+    "error_old_tv": "This TV runs an older version of Streamyfin. Update it, then try again.",
+    "error_code_not_waiting": "This code is not waiting on {{server}}. Check that the TV uses the same server as this phone, then start Quick Connect again on the TV.",
+    "error_quick_connect_disabled": "Quick Connect is turned off on {{server}}. An administrator can turn it on in the server's dashboard.",
+    "error_other_server": "This TV is connecting to another server, {{server}}. Sign in to that server in this app, then scan again.",
     "error_generic": "Alguna cosa ha anat malament. Torna-ho a provar.",
     "error_permission_denied": "Cal permís de càmera per escanejar codis QR.",
     "login_as": "Vols iniciar la sessió com a {{username}}?",
     "on_server": "a {{server}}",
-    "use_different_user": "Fes servir un altre usuari",
     "open_settings": "Obre la configuració"
   },
   "pairing": {
     "pair_with_phone": "Vincula amb el telèfon",
     "pair_with_phone_title": "Inicia la sessió a la TV",
-    "waiting_for_phone": "S'està esperant el telèfon...",
-    "scan_with_phone": "Escaneja amb l'aplicació Streamyfin del teu telèfon",
+    "scan_quick_connect": "Scan the QR code with the Streamyfin app or your phone's camera.",
+    "code_expired": "This code has expired.",
+    "get_new_code": "Get a new code",
+    "scan_with_app": "Scan the QR code with the Streamyfin app on your phone.",
+    "account_that_approves": "The account that approves the code",
     "logging_in": "S'està iniciant la sessió...",
     "logging_in_description": "S'està connectant al teu servidor"
   },

@@ -18,7 +18,6 @@
     "password_placeholder": "Lösenord",
     "login_button": "Logga in",
     "quick_connect": "Snabbanslutning",
-    "enter_code_to_login": "Ange koden {{code}} för att logga in",
     "quick_connect_instructions": "Ange koden på en inloggad enhet. Du loggas in automatiskt.",
     "tap_code_to_copy": "Tryck på koden för att kopiera den",
     "code_copied": "Koden kopierad",
@@ -226,8 +225,8 @@
         "enter_the_quick_connect_code": "Ange snabbanslutningskod...",
         "success": "Snabbanslutning lyckades",
         "quick_connect_authorized": "Snabbanslutning Godkänd",
-        "error": "Fel",
         "invalid_code": "Ogiltig kod",
+        "disabled": "Quick Connect is turned off on this server. An administrator can turn it on in the server's dashboard.",
         "authorize": "Autentisera",
         "paste_code": "Klistra in kod"
       },
@@ -610,6 +609,7 @@
         "all_files_deleted": "Alla nedladdningar raderades",
         "files_deleted_by_type": "{{count}} {{type}} Raderad",
         "could_not_get_download_url_for_item": "Kunde inte hämta nedladdnings-URL för {{itemName}}",
+        "no_media_source_to_download": "This item cannot be downloaded",
         "file_deleted": "{{item}} Raderad"
       }
     }
@@ -727,7 +727,8 @@
     "noData": "Objekt du markerar som favoriter visas här."
   },
   "custom_links": {
-    "no_links": "Inga länkar"
+    "no_links": "Inga länkar",
+    "could_not_open_link": "Could not open this link"
   },
   "player": {
     "live": "LIVE",
@@ -1175,9 +1176,7 @@
     "title": "Parkoppla med TV",
     "align_qr": "Placera QR-koden inom ramen",
     "enter_code_manually": "Ange koden manuellt",
-    "pairing_enter_credentials": "Ange inloggningsuppgifter för TV",
     "pairing_code_label": "Parkopplingskod",
-    "server": "Server",
     "authorize_button": "Godkänn",
     "authorizing": "Godkänner...",
     "scan_again": "Skanna igen",
@@ -1186,18 +1185,24 @@
     "pairing_tv_connecting": "TV:n ansluter till ditt konto",
     "error_title": "Auktorisering misslyckades",
     "error_invalid_qr": "Ogiltig QR-kod. Skanna parkopplingskoden på TV:n.",
+    "error_old_tv": "This TV runs an older version of Streamyfin. Update it, then try again.",
+    "error_code_not_waiting": "This code is not waiting on {{server}}. Check that the TV uses the same server as this phone, then start Quick Connect again on the TV.",
+    "error_quick_connect_disabled": "Quick Connect is turned off on {{server}}. An administrator can turn it on in the server's dashboard.",
+    "error_other_server": "This TV is connecting to another server, {{server}}. Sign in to that server in this app, then scan again.",
     "error_generic": "Något gick fel. Vänligen försök igen.",
     "error_permission_denied": "Kameraåtkomst krävs för att skanna QR-koder.",
     "login_as": "Logga in som {{username}}?",
     "on_server": "på {{server}}",
-    "use_different_user": "Använd en annan användare",
     "open_settings": "Öppna inställningar"
   },
   "pairing": {
     "pair_with_phone": "Parkoppla med telefon",
     "pair_with_phone_title": "Logga in på TV:n",
-    "waiting_for_phone": "Väntar på telefonen...",
-    "scan_with_phone": "Skanna med Streamyfin-appen på din telefon",
+    "scan_quick_connect": "Scan the QR code with the Streamyfin app or your phone's camera.",
+    "code_expired": "This code has expired.",
+    "get_new_code": "Get a new code",
+    "scan_with_app": "Scan the QR code with the Streamyfin app on your phone.",
+    "account_that_approves": "The account that approves the code",
     "logging_in": "Loggar in...",
     "logging_in_description": "Ansluter till din server"
   },

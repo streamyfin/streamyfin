@@ -1,9 +1,31 @@
 import * as SecureStore from "expo-secure-store";
 import { atom } from "jotai";
+import { Platform } from "react-native";
 import { store } from "@/utils/store";
 import type { CustomHeader } from "./types";
 
-const CUSTOM_HEADER_VALUE_KEY_PREFIX = "custom_header_value_";
+/**
+ * iOS can launch the app in the background while the phone is locked, and a
+ * header value is read as soon as the first screen renders. An item stored
+ * with the default accessibility, readable only while unlocked, is refused
+ * there, and the read throws. No weaker than this: the values stay unreadable
+ * until the phone has been unlocked once after a restart.
+ *
+ * It only takes on an item being created: saving over an existing one updates
+ * its data and keeps the accessibility it was created with.
+ */
+const WRITE_OPTIONS: SecureStore.SecureStoreOptions = {
+  keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK,
+};
+
+/**
+ * The prefix says how an item was created, which SecureStore cannot be asked:
+ * everything under the current one was stored with `WRITE_OPTIONS`, and what
+ * is still under the legacy one was stored by a build from before them.
+ * `recreateLegacySecureValues` moves the second kind over.
+ */
+const CUSTOM_HEADER_VALUE_KEY_PREFIX = "header_value_";
+const LEGACY_VALUE_KEY_PREFIX = "custom_header_value_";
 
 /**
  * Bumped whenever any header configuration is written. Consumers that build a
@@ -38,10 +60,13 @@ function secureValueKeyScopeMatches(
   scope: string,
   secureValueKey: string,
 ): boolean {
-  if (!secureValueKey.startsWith(CUSTOM_HEADER_VALUE_KEY_PREFIX)) return false;
+  const prefix = [CUSTOM_HEADER_VALUE_KEY_PREFIX, LEGACY_VALUE_KEY_PREFIX].find(
+    (candidate) => secureValueKey.startsWith(candidate),
+  );
+  if (prefix === undefined) return false;
 
   const encodedScope = encodeStorageKey(scope);
-  const keySuffix = secureValueKey.slice(CUSTOM_HEADER_VALUE_KEY_PREFIX.length);
+  const keySuffix = secureValueKey.slice(prefix.length);
   const separatorIndex = keySuffix.lastIndexOf("_");
 
   return (
@@ -84,12 +109,12 @@ function deleteSecureValue(key: string): void {
 }
 
 function writeSecureValue(key: string, value: string): void {
-  SecureStore.setItem(key, value);
+  SecureStore.setItem(key, value, WRITE_OPTIONS);
 
   const deletion = pendingDeletes.get(key);
   if (deletion) {
     void deletion.then(() => {
-      SecureStore.setItem(key, value);
+      SecureStore.setItem(key, value, WRITE_OPTIONS);
     });
   }
 }
@@ -179,4 +204,66 @@ export function deleteSecureCustomHeaderValues(headers: CustomHeader[]): void {
       deleteSecureValue(header.secureValueKey);
     }
   }
+}
+
+/**
+ * Stores again, as a new item under a new key, each value of `headers` that a
+ * build from before `WRITE_OPTIONS` stored, so that it can be read on a locked
+ * phone too.
+ *
+ * Returns the rows to persist and the rows they replace, or null when nothing
+ * was moved. The old items are still there: the caller persists the new rows
+ * first and only then drops the replaced ones
+ * (`deleteSecureCustomHeaderValues`), so that at every step a stored row
+ * points at a value that exists.
+ *
+ * A value that cannot be read, on a locked phone for one, or that does not
+ * read back from its new item, keeps its row as it is and is tried again the
+ * next time. A row that was moved no longer has a legacy key, so running this
+ * again does nothing.
+ *
+ * iOS only: the accessibility is the Keychain's, and nowhere else is there a
+ * reason to touch a stored secret.
+ */
+export function recreateLegacySecureValues(
+  scope: string,
+  headers: CustomHeader[],
+): { headers: CustomHeader[]; replaced: CustomHeader[] } | null {
+  if (Platform.OS !== "ios") return null;
+
+  const takenKeys = new Set(
+    headers.filter(isStoredCustomHeader).map((header) => header.secureValueKey),
+  );
+  const replaced: CustomHeader[] = [];
+  let nextIndex = 0;
+
+  const recreated = headers.map((header) => {
+    if (!isStoredCustomHeader(header)) return header;
+    const legacyKey = header.secureValueKey;
+    if (!legacyKey?.startsWith(LEGACY_VALUE_KEY_PREFIX)) return header;
+
+    try {
+      const value = SecureStore.getItem(legacyKey);
+      if (value === null) return header;
+
+      // An item left under this key by a run that was interrupted before the
+      // rows were persisted is one of ours, and is simply written over.
+      let secureValueKey: string;
+      do {
+        secureValueKey = customHeaderValueKey(scope, nextIndex);
+        nextIndex += 1;
+      } while (takenKeys.has(secureValueKey));
+
+      writeSecureValue(secureValueKey, value);
+      if (SecureStore.getItem(secureValueKey) !== value) return header;
+
+      takenKeys.add(secureValueKey);
+      replaced.push(header);
+      return { ...header, secureValueKey };
+    } catch {
+      return header;
+    }
+  });
+
+  return replaced.length > 0 ? { headers: recreated, replaced } : null;
 }

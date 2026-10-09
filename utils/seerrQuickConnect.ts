@@ -1,7 +1,9 @@
 import type { Api } from "@jellyfin/sdk";
-import { getQuickConnectApi } from "@jellyfin/sdk/lib/utils/api";
-import axios from "axios";
 import type { SeerrApi } from "@/hooks/useSeerr";
+import {
+  approveQuickConnectCode,
+  isQuickConnectEnabled,
+} from "@/utils/jellyfin/quickConnect";
 import { writeToLog } from "@/utils/log";
 import type { User as SeerrUser } from "@/utils/seerr/types";
 
@@ -122,9 +124,7 @@ export const attemptQuickConnectSignIn = async (
   return { user };
 };
 
-/** Whether the Jellyfin server has Quick Connect turned on. */
-export const isQuickConnectEnabled = async (api: Api): Promise<boolean> =>
-  (await getQuickConnectApi(api).getQuickConnectEnabled()).data === true;
+export { isQuickConnectEnabled };
 
 /**
  * Whether the Seerr form should ask for the password, or the admin key that
@@ -156,21 +156,7 @@ export const quickConnectSteps = (
 
   initiate: () => seerr.initiateQuickConnect(),
 
-  // No userId: QuickConnectController authorizes the caller, and naming someone
-  // else is the part that needs elevation. This is why the flow works for an
-  // ordinary account and why it cannot be turned against another user.
-  approve: async (code) => {
-    try {
-      const { data } = await getQuickConnectApi(api).authorizeQuickConnect({
-        code,
-      });
-      return data ? "approved" : "refused";
-    } catch (e) {
-      if (axios.isAxiosError(e) && e.response?.status === 404)
-        return "unknown-code";
-      throw e;
-    }
-  },
+  approve: (code) => approveQuickConnectCode(api, code),
 
   authenticate: (secret) => seerr.authenticateQuickConnect(secret),
 });

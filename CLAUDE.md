@@ -64,6 +64,7 @@ State and data:
 - `use-network-aware-query-client-limitations` | Object.create breaks private fields; only for invalidateQueries
 - `mark-as-played-flow` | PlayedStatus -> useMarkAsPlayed -> playbackManager with optimistic updates
 - `shared-value-js-write-lands-later` | a shared value set from JS is applied later on the UI thread, the next JS read still gets the old one; keep JS-only state in a ref
+- `unobserved-query-reports-its-first-failure` | a query whose key changed under it has no observer left, so React Query cancels its retries and its first failure goes to Sentry; one failing request and an instant event in the breadcrumbs is that
 
 Native modules:
 - `expo-view-props-fail-silently` | `try? prop.set()` drops failed prop conversions with NO error; use a JSON string prop
@@ -74,7 +75,10 @@ Native modules:
 - `engine-agnostic-native-chrome` | The Android TV chrome consumes PlayerEngine; engine rides config.engine, resolvers split engine vs renderer
 - `mpv-view-first-progress-tick-is-zero` | the MPV renderer emits its position cache once the duration is known; load() seeds it from startPosition, and JS player reports read resolveSessionPositionTicks, never progress.get()
 - `sentry-native-options-fail-silently` | sentry-cocoa ignores an option key it does not know, with no error; check the spelling in Options+Dictionary.swift
+- `avaudiosession-calls-block-on-the-audio-server` | every AVAudioSession setter AND getter is a synchronous XPC call that can take seconds; never on main, session changes go through PlayerAudioSession
 - `foreground-service-start-must-be-answered` | every startForegroundService() needs startForeground() first in onStartCommand, unconditionally; a refused call still answers it, a skipped one kills the process
+- `keychain-accessibility-set-at-creation` | a SecureStore item keeps the accessibility it was created with, `setItem` over it changes only the data; a default item throws on read when iOS launches the app on a locked phone
+- `track-player-queue-is-not-the-app-queue` | the native music queue only holds the tracks loaded so far, so a state queue index does not address it; on iOS `add` past the end rejects with the same message as `skip`
 
 TV platform:
 - `tv-modals-must-use-navigation-pattern` | Use atom+router.push(), never overlay/absolute modals
