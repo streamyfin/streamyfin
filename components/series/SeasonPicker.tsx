@@ -10,6 +10,7 @@ import {
   SeasonDropdown,
   type SeasonIndexState,
 } from "@/components/series/SeasonDropdown";
+import { SyncPlayQueueButton } from "@/components/syncplay/SyncPlayQueueButton";
 import { Colors } from "@/constants/Colors";
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
@@ -256,6 +257,7 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
                 size='default'
               />
             )}
+            <SyncPlayQueueButton items={episodes || []} variant='icon' />
           </View>
         ) : null}
       </View>

@@ -5,6 +5,10 @@ import DirectPlayerPage from "@/app/(auth)/player/direct-player";
 import type { MpvPlayerViewProps } from "@/modules";
 import type { makeApi } from "@/test-utils/jellyfinApi";
 import { stubReactNative } from "@/test-utils/reactNative";
+import {
+  holdSharedValueWrites,
+  releaseSharedValueWrites,
+} from "@/test-utils/reanimated";
 
 /** 19m 18s, the resume position of the item in the bug report. */
 const RESUME_TICKS = 11_580_000_000;
@@ -48,6 +52,11 @@ type ControlsProps = {
   onAudioIndexChange?: (index: number) => void;
 };
 let mockControlsProps: ControlsProps | null = null;
+/** What the page does when the seeking flag changes, to run by hand: the
+ * reaction itself lives on the UI thread, which a spec does not have. */
+let mockSeekReaction:
+  | ((seeking: boolean, wasSeeking: boolean | null) => void)
+  | null = null;
 /** Set to have the server answer with a transcode instead of a direct stream. */
 let mockTranscodingUrl: string | undefined;
 const mockSettings = {};
@@ -60,10 +69,12 @@ jest.mock("expo-router", () => ({
 jest.mock("react-i18next", () => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }));
-jest.mock(
-  "react-native-reanimated",
-  () => jest.requireActual("@/test-utils/reanimated").reanimatedModule,
-);
+jest.mock("react-native-reanimated", () => ({
+  ...jest.requireActual("@/test-utils/reanimated").reanimatedModule,
+  useAnimatedReaction: (_prepare: unknown, react: typeof mockSeekReaction) => {
+    mockSeekReaction = react;
+  },
+}));
 jest.mock("react-native-volume-manager", () => ({}));
 jest.mock(
   "react-native-mmkv",
@@ -255,17 +266,40 @@ const restartPosition = () => {
   );
 };
 
+const progressEvent = (position: number) =>
+  ({
+    nativeEvent: {
+      position,
+      duration: 3400,
+      progress: position / 3400,
+      cacheSeconds: 0,
+    },
+  }) as Parameters<NonNullable<MpvPlayerViewProps["onProgress"]>>[0];
+
 const tick = async (position: number) => {
   await act(async () => {
-    await mockPlayerProps?.onProgress?.({
-      nativeEvent: {
-        position,
-        duration: 3400,
-        progress: position / 3400,
-        cacheSeconds: 0,
-      },
-    } as Parameters<NonNullable<MpvPlayerViewProps["onProgress"]>>[0]);
+    await mockPlayerProps?.onProgress?.(progressEvent(position));
   });
+};
+
+/**
+ * The ticks MPV sent while the JS thread was held up, handled back to back
+ * once it is free: none of them sees what the one before wrote to a shared
+ * value, the UI thread has not taken it yet. `at` is the time they are handled.
+ */
+const pileUp = async (positions: number[], at = Date.now()) => {
+  const clock = jest.spyOn(Date, "now").mockReturnValue(at);
+  holdSharedValueWrites();
+  try {
+    await act(async () => {
+      for (const position of positions) {
+        void mockPlayerProps?.onProgress?.(progressEvent(position));
+      }
+    });
+  } finally {
+    releaseSharedValueWrites();
+    clock.mockRestore();
+  }
 };
 
 /** Hardware back, the header button and a swipe all arrive as beforeRemove. */
@@ -283,6 +317,7 @@ describe("direct player stop report", () => {
     mockPlayerProps = null;
     mockPlayerMounts = 0;
     mockControlsProps = null;
+    mockSeekReaction = null;
     mockTranscodingUrl = undefined;
     mockRouter.setParams.mockClear();
     mockRouter.replace.mockClear();
@@ -524,6 +559,54 @@ describe("direct player stop report", () => {
     } finally {
       mockParams.playbackPosition = String(RESUME_TICKS);
     }
+  });
+
+  // One report every ten seconds and one route write every thirty were held
+  // to by a time kept in a shared value, written by one tick and read by the
+  // next. Ticks queued behind a busy JS thread are handled back to back, and
+  // none of them sees what the one before wrote. That reading of the library
+  // fits the breadcrumbs of one Android session (Sentry REACT-NATIVE-A7 and
+  // REACT-NATIVE-81): 14 to 24 progress reports and 15 to 18 route writes
+  // within milliseconds. It was not reproduced on a device.
+  describe("when the ticks of a held up JS thread arrive together", () => {
+    test("reports progress once and writes the route once when both are due", async () => {
+      await openPlayer();
+      await tick(1200);
+      mockReportProgress.mockClear();
+      mockRouter.setParams.mockClear();
+
+      await pileUp([1231, 1232, 1233, 1234, 1235], Date.now() + 31_000);
+
+      expect(mockReportProgress).toHaveBeenCalledTimes(1);
+      expect(mockRouter.setParams).toHaveBeenCalledTimes(1);
+    });
+
+    // The end of a seek is reported and written at once, whatever the
+    // intervals say, and the mark that asks for it was a shared value too.
+    test("reports the end of a seek once", async () => {
+      await openPlayer();
+      await tick(1200);
+      mockReportProgress.mockClear();
+      mockRouter.setParams.mockClear();
+
+      await act(async () => mockSeekReaction?.(false, true));
+      await pileUp([600, 601, 602]);
+
+      expect(mockReportProgress).toHaveBeenCalledTimes(1);
+      expect(mockRouter.setParams).toHaveBeenCalledTimes(1);
+    });
+
+    test("leaves ticks that are not due alone", async () => {
+      await openPlayer();
+      await tick(1200);
+      mockReportProgress.mockClear();
+      mockRouter.setParams.mockClear();
+
+      await pileUp([1201, 1202, 1203]);
+
+      expect(mockReportProgress).not.toHaveBeenCalled();
+      expect(mockRouter.setParams).not.toHaveBeenCalled();
+    });
   });
 
   test("reports 0 for an item that starts at the beginning", async () => {

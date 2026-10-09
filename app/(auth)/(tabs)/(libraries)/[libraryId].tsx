@@ -2,21 +2,20 @@ import type {
   BaseItemDto,
   BaseItemDtoQueryResult,
   BaseItemKind,
-  ItemFilter,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import {
   getFilterApi,
   getItemsApi,
   getUserLibraryApi,
 } from "@jellyfin/sdk/lib/utils/api";
-import { FlashList, type FlashListRef } from "@shopify/flash-list";
+import { FlashList } from "@shopify/flash-list";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import {
   useFocusEffect,
   useLocalSearchParams,
   useNavigation,
 } from "expo-router";
-import { useAtom } from "jotai";
+import { useAtom, useSetAtom } from "jotai";
 import React, { useCallback, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -28,7 +27,6 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import type { CardData } from "@/components/cards/CardData";
 import { useCardGrid } from "@/components/cards/useCardGrid";
 import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
@@ -40,8 +38,10 @@ import { TVFilterButton, TVFocusablePoster } from "@/components/tv";
 import { TVPosterCard } from "@/components/tv/TVPosterCard";
 import { useScaledTVPosterSizes } from "@/constants/TVPosterSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
+import { TV_HORIZONTAL_PADDING } from "@/constants/Values";
 import useRouter from "@/hooks/useAppRouter";
 import { useFilterReset } from "@/hooks/useFilterReset";
+import { useLibraryFilters } from "@/hooks/useLibraryFilters";
 import { useOrientation } from "@/hooks/useOrientation";
 import { useRefreshLibraryOnFocus } from "@/hooks/useRefreshLibraryOnFocus";
 import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
@@ -51,6 +51,7 @@ import {
   FilterByOption,
   FilterByPreferenceAtom,
   filterByAtom,
+  filterOwnerAtom,
   genreFilterAtom,
   genrePreferenceAtom,
   getFilterByPreference,
@@ -75,7 +76,6 @@ import type { TVOptionItem } from "@/utils/atoms/tvOptionModal";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 
 const TV_ITEM_GAP = 20;
-const TV_HORIZONTAL_PADDING = 60;
 const _TV_SCALE_PADDING = 20;
 const TV_PLAYLIST_SQUARE_SIZE = 180;
 
@@ -101,6 +101,13 @@ const Page = () => {
   const [sortBy, _setSortBy] = useAtom(sortByAtom);
   const [filterBy, _setFilterBy] = useAtom(filterByAtom);
   const [sortOrder, _setSortOrder] = useAtom(sortOrderAtom);
+  const setFilterOwner = useSetAtom(filterOwnerAtom);
+  // What the item query runs on. The atoms above are shared with every other
+  // library screen and only hold this library's selection once the focus
+  // effect below has written it, so the query waits for that instead of
+  // fetching with whatever they held before. Covered by
+  // hooks/useLibraryFilters.test.tsx.
+  const ownFilters = useLibraryFilters(libraryId);
   const [sortByPreference, setSortByPreference] = useAtom(sortByPreferenceAtom);
   const [filterByPreference, setFilterByPreference] = useAtom(
     FilterByPreferenceAtom,
@@ -237,6 +244,9 @@ const Page = () => {
       setSelectedGenres(getMultiFilterPreference(libraryId, genrePreference));
       setSelectedYears(getMultiFilterPreference(libraryId, yearPreference));
       setSelectedTags(getMultiFilterPreference(libraryId, tagPreference));
+
+      // Last, and in the same batch: from here on the atoms are this library's.
+      setFilterOwner(libraryId);
     }, [
       libraryId,
       sortOrderPreference,
@@ -251,6 +261,7 @@ const Page = () => {
       setSelectedGenres,
       setSelectedYears,
       setSelectedTags,
+      setFilterOwner,
       searchParams.sortBy,
       searchParams.sortOrder,
       searchParams.filterBy,
@@ -380,7 +391,7 @@ const Page = () => {
     }: {
       pageParam: number;
     }): Promise<BaseItemDtoQueryResult | null> => {
-      if (!api || !library) return null;
+      if (!api || !library || !ownFilters) return null;
 
       let itemType: BaseItemKind | undefined;
 
@@ -405,17 +416,17 @@ const Page = () => {
         parentId: libraryId,
         limit: 36,
         startIndex: pageParam,
-        sortBy: [sortBy[0], "SortName", "ProductionYear"],
-        sortOrder: [sortOrder[0]],
+        sortBy: [ownFilters.sortBy[0], "SortName", "ProductionYear"],
+        sortOrder: [ownFilters.sortOrder[0]],
         enableImageTypes: ["Primary", "Backdrop", "Banner", "Thumb"],
-        filters: filterBy as ItemFilter[],
+        filters: ownFilters.filterBy,
         // true is needed for merged versions
         recursive: true,
         imageTypeLimit: 1,
         fields: ["PrimaryImageAspectRatio", "SortName"],
-        genres: selectedGenres,
-        tags: selectedTags,
-        years: selectedYears.map((year) => Number.parseInt(year, 10)),
+        genres: ownFilters.genres,
+        tags: ownFilters.tags,
+        years: ownFilters.years.map((year) => Number.parseInt(year, 10)),
         includeItemTypes: itemType ? [itemType] : undefined,
         ...(Platform.isTV && library.CollectionType === "playlists"
           ? { mediaTypes: ["Video"] }
@@ -424,18 +435,7 @@ const Page = () => {
 
       return response.data || null;
     },
-    [
-      api,
-      user?.Id,
-      libraryId,
-      library,
-      selectedGenres,
-      selectedYears,
-      selectedTags,
-      sortBy,
-      sortOrder,
-      filterBy,
-    ],
+    [api, user?.Id, libraryId, library, ownFilters],
   );
 
   const { data, isFetching, fetchNextPage, hasNextPage, isLoading } =
@@ -443,12 +443,12 @@ const Page = () => {
       queryKey: [
         "library-items",
         libraryId,
-        selectedGenres,
-        selectedYears,
-        selectedTags,
-        sortBy,
-        sortOrder,
-        filterBy,
+        ownFilters?.genres,
+        ownFilters?.years,
+        ownFilters?.tags,
+        ownFilters?.sortBy,
+        ownFilters?.sortOrder,
+        ownFilters?.filterBy,
       ],
       queryFn: fetchItems,
       getNextPageParam: (lastPage, pages) => {
@@ -471,7 +471,7 @@ const Page = () => {
         return undefined;
       },
       initialPageParam: 0,
-      enabled: !!api && !!user?.Id && !!library,
+      enabled: !!api && !!user?.Id && !!library && !!ownFilters,
     });
 
   const flatData = useMemo(() => {
@@ -481,37 +481,22 @@ const Page = () => {
     );
   }, [data]);
 
-  const flashListRef = useRef<FlashListRef<CardData>>(null);
-
-  // Jump the grid back to the top when the filters or the sort change, reset
-  // included, instead of staying deep in the previous result set.
+  // Identifies the result set on screen. A change of filters or sort, reset
+  // included, has to show its results from the top instead of staying deep in
+  // the previous set, so the list is keyed by it and starts over.
+  //
+  // Scrolling the existing list to the top does not work on iOS: the header is
+  // transparent and the system insets the list under it, React Native clamps
+  // a scroll to offset 0, which is behind the header, and a list that has just
+  // mounted has no inset yet to aim at.
   const filterSignature = [
-    selectedGenres.join(","),
-    selectedYears.join(","),
-    selectedTags.join(","),
-    sortBy[0],
-    sortOrder[0],
-    filterBy.join(","),
+    ownFilters?.genres.join(","),
+    ownFilters?.years.join(","),
+    ownFilters?.tags.join(","),
+    ownFilters?.sortBy[0],
+    ownFilters?.sortOrder[0],
+    ownFilters?.filterBy.join(","),
   ].join("|");
-  const pendingScrollTopRef = useRef(false);
-
-  // Instant feedback: pin to the top as soon as the filters change, without
-  // waiting for the new fetch, and flag a re-pin for once it settles.
-  useEffect(() => {
-    flashListRef.current?.scrollToOffset({ offset: 0, animated: false });
-    pendingScrollTopRef.current = true;
-  }, [filterSignature]);
-
-  // Safety net: FlashList can restore the previous offset as the filtered list
-  // grows, so re-pin once the fetch settles. Pagination keeps the same
-  // signature, so it never re-pins.
-  useEffect(() => {
-    if (pendingScrollTopRef.current && !isFetching) {
-      pendingScrollTopRef.current = false;
-      flashListRef.current?.scrollToOffset({ offset: 0, animated: false });
-    }
-  }, [isFetching, flatData]);
-
   const grid = useCardGrid({
     items: flatData,
     columns: nrOfCols,
@@ -939,7 +924,9 @@ const Page = () => {
 
   const insets = useSafeAreaInsets();
 
-  if (isLoading || isLibraryLoading)
+  // Without its filters the query has not started, which is not an empty
+  // library.
+  if (isLoading || isLibraryLoading || !ownFilters)
     return (
       <View className='w-full h-full flex items-center justify-center'>
         <Loader />
@@ -951,8 +938,7 @@ const Page = () => {
     return (
       <>
         <FlashList
-          ref={flashListRef}
-          key={orientation}
+          key={`${orientation}|${filterSignature}`}
           ListEmptyComponent={
             <View className='flex flex-col items-center justify-center h-full'>
               <Text className='font-bold text-xl text-neutral-500'>

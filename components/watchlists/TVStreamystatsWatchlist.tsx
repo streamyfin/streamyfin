@@ -10,6 +10,7 @@ import { Loader } from "@/components/Loader";
 import { useTVFocusAnimation } from "@/components/tv/hooks/useTVFocusAnimation";
 import { TVButton } from "@/components/tv/TVButton";
 import { useScaledTVTypography } from "@/constants/TVTypography";
+import { TV_HORIZONTAL_PADDING } from "@/constants/Values";
 import useRouter from "@/hooks/useAppRouter";
 import { useWatchlistsQuery } from "@/hooks/useWatchlists";
 import { userAtom } from "@/providers/JellyfinProvider";
@@ -17,7 +18,6 @@ import { scaleSize } from "@/utils/scaleSize";
 import type { StreamystatsWatchlist } from "@/utils/streamystats/types";
 
 const TOP_PADDING = scaleSize(100);
-const HORIZONTAL_PADDING = scaleSize(60);
 const CARD_WIDTH = scaleSize(520);
 const CARD_HEIGHT = scaleSize(180);
 // Wide enough that a card scaled up on focus never touches its neighbour.
@@ -228,7 +228,7 @@ export const TVStreamystatsWatchlists: React.FC<
           alignItems: "center",
           justifyContent: "center",
           paddingTop: topPadding,
-          paddingHorizontal: HORIZONTAL_PADDING,
+          paddingHorizontal: TV_HORIZONTAL_PADDING,
         }}
       >
         <Ionicons
@@ -288,7 +288,7 @@ export const TVStreamystatsWatchlists: React.FC<
           alignItems: "center",
           justifyContent: "center",
           paddingTop: topPadding,
-          paddingHorizontal: HORIZONTAL_PADDING,
+          paddingHorizontal: TV_HORIZONTAL_PADDING,
         }}
       >
         <Ionicons name='list-outline' size={scaleSize(64)} color='#4b5563' />
@@ -323,7 +323,7 @@ export const TVStreamystatsWatchlists: React.FC<
       contentContainerStyle={{
         paddingTop: topPadding,
         paddingBottom: insets.bottom + scaleSize(60),
-        paddingHorizontal: insets.left + HORIZONTAL_PADDING,
+        paddingHorizontal: insets.left + TV_HORIZONTAL_PADDING,
         gap: SECTION_GAP,
       }}
     >

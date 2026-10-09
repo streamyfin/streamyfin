@@ -88,7 +88,14 @@ export const useWebSocket = ({
     if (!lastMessage) return;
     if (offline) return;
 
-    const _messageType = lastMessage.MessageType;
+    // SyncPlay commands are scheduled by its coordinator. Handling them as
+    // ordinary remote commands would echo pause/seek back into the group.
+    if (
+      lastMessage.MessageType !== "GeneralCommand" &&
+      lastMessage.MessageType !== "Playstate"
+    ) {
+      return;
+    }
     const command: string | undefined =
       lastMessage?.Data?.Command || lastMessage?.Data?.Name;
 
@@ -126,7 +133,8 @@ export const useWebSocket = ({
       console.log("Command ~ FastForward");
       fastForwardPlayback?.();
     } else if (command === "Seek") {
-      const positionStr = args?.SeekPositionTicks;
+      const positionStr =
+        args?.SeekPositionTicks ?? lastMessage.Data?.SeekPositionTicks;
       console.log("Command ~ Seek", { positionStr });
       if (positionStr) {
         const position = Number.parseInt(positionStr, 10);

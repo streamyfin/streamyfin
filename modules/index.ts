@@ -36,6 +36,9 @@ export type {
   NativePlayerProgressPayload,
   NativePlayerSegment,
   NativePlayerStateChangePayload,
+  NativePlayerSyncPlayAction,
+  NativePlayerSyncPlayCommand,
+  NativePlayerSyncPlayState,
   NativePlayerTrackMenuItem,
   NativePlayerTrackMenus,
   NativePlayerTrackSelectionRequest,
@@ -51,9 +54,12 @@ export type {
 } from "./mpv-player";
 export {
   addNativePlayerListener,
+  applyNativePlayerSyncPlayCommand,
+  cancelNativePlayerSyncPlayCommands,
   dismissNativePlayer,
   isNativePlayerModuleAvailable,
   isNativePlayerPresented,
+  isNativePlayerSyncPlayAvailable,
   loadNativePlayerStream,
   MpvPlayerView,
   nativePlayerGetAudioTracks,
@@ -66,6 +72,7 @@ export {
   updateNativePlayerEpisodeList,
   updateNativePlayerNextEpisode,
   updateNativePlayerSegments,
+  updateNativePlayerSyncPlay,
   updateNativePlayerTrackMenus,
 } from "./mpv-player";
 // System volume (iOS, tvOS, Android, Android TV)

@@ -12,3 +12,13 @@ export const SHEET_MAX_HEIGHT_RATIO = 0.85;
 
 /** A poster's width over its height, as TMDB's artwork is cut. */
 export const POSTER_ASPECT_RATIO = 10 / 15;
+
+/**
+ * How far a TV page's content sits in from the screen edges. Deliberately not
+ * scaled: `scaleSize` halves it on a 960-wide Android TV, which left a page
+ * built with it out of line with its neighbours. Not `TVPadding.horizontal`
+ * either, which follows the native search bar's inset. Kept here rather than
+ * in `TVSizes.ts`, which reads the settings atom: a plain number should not
+ * pull that into every page that imports it.
+ */
+export const TV_HORIZONTAL_PADDING = 60;

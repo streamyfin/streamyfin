@@ -142,9 +142,11 @@ export default function FavoritesSeeAll() {
     showParentTitle: itemType === "Season",
   });
 
+  // FlashList fires this again while the next page is still loading, before
+  // any render could reflect it; reuse that request instead of restarting it.
   const handleEndReached = useCallback(() => {
-    if (hasNextPage && !isFetching) {
-      fetchNextPage();
+    if (hasNextPage) {
+      fetchNextPage({ cancelRefetch: false });
     }
   }, [fetchNextPage, hasNextPage]);
 

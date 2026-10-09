@@ -55,6 +55,9 @@ jest.mock("../AddToKefinWatchlist", () => ({
 jest.mock("@/utils/atoms/settings", () => ({
   useSettings: () => ({ settings: {} }),
 }));
+jest.mock("@/components/syncplay/SyncPlayQueueButton", () => ({
+  SyncPlayQueueButton: () => null,
+}));
 jest.mock("../PlatformDropdown", () => ({
   PlatformDropdown: ({ trigger }: { trigger: React.ReactNode }) => trigger,
 }));

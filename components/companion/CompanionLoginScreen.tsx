@@ -1,36 +1,48 @@
-import { useAtom } from "jotai";
-import React, { useCallback, useEffect, useState } from "react";
+import axios from "axios";
+import { HeaderHeightContext } from "expo-router/react-navigation";
+import { useAtomValue } from "jotai";
+import type React from "react";
+import {
+  useCallback,
+  useContext,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+} from "react";
 import { useTranslation } from "react-i18next";
 import {
   KeyboardAvoidingView,
   Linking,
   Platform,
   ScrollView,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
 import { Button } from "@/components/Button";
-import { ServerUrlStatusText } from "@/components/common/ServerUrlStatusText";
 import { Text } from "@/components/common/Text";
+import { PinInput } from "@/components/inputs/PinInput";
+import { NO_KEYBOARD_TOOLBAR } from "@/constants/Keyboard";
 import useRouter from "@/hooks/useAppRouter";
-import { useServerUrlResolver } from "@/hooks/useServerUrlResolver";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import { sendCredentialsToTV } from "@/utils/pairingService";
-import { jellyfinProbe } from "@/utils/serverUrl/probes/jellyfin";
+import {
+  approveQuickConnectCode,
+  isQuickConnectEnabled,
+} from "@/utils/jellyfin/quickConnect";
+import { writeErrorLog } from "@/utils/log";
+import {
+  parsePairingCode,
+  stripUrlCredentials,
+} from "@/utils/quickConnectPairing";
 
 type ScreenState =
   | "scanning"
   | "no-permission"
+  | "manual"
   | "confirm"
-  | "form"
-  | "sending"
+  | "authorizing"
   | "success"
   | "error";
-
-interface ParsedPairingCode {
-  code: string;
-}
 
 type ExpoCameraModule = typeof import("expo-camera");
 
@@ -38,147 +50,177 @@ const ExpoCamera: ExpoCameraModule | null = Platform.isTV
   ? null
   : require("expo-camera");
 
+/** A server address as shown on screen: no credentials, no scheme. */
+const serverLabel = (url: string) =>
+  stripUrlCredentials(url).replace(/^https?:\/\//i, "");
+
+/** Jellyfin hands out server ids with and without dashes. */
+const sameServerId = (a: string, b: string) =>
+  a.replace(/-/g, "").toLowerCase() === b.replace(/-/g, "").toLowerCase();
+
+/**
+ * Signs a TV in with this phone's session. The TV shows a Quick Connect code,
+ * and a QR code that carries it; this screen reads the code, or takes it
+ * typed, and approves it on the phone's own server. No password leaves the
+ * phone.
+ */
 export const CompanionLoginScreen: React.FC = () => {
   const { t } = useTranslation();
   const router = useRouter();
-  const [api] = useAtom(apiAtom);
-  const [user] = useAtom(userAtom);
+  const api = useAtomValue(apiAtom);
+  const user = useAtomValue(userAtom);
 
   const [screenState, setScreenState] = useState<ScreenState>(
-    Platform.isTV ? "form" : "scanning",
+    ExpoCamera ? "scanning" : "manual",
   );
-  const [pairingCode, setPairingCode] = useState<string>("");
-  const [serverUrl, setServerUrl] = useState("");
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
+  const [code, setCode] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const serverResolver = useServerUrlResolver(jellyfinProbe);
+  const authorizingRef = useRef(false);
+  // A new id each time the screen opens: Fabric reuses a text input's native
+  // view and sets the id on it again only when the id changed.
+  const instanceId = useId();
+  const toolbarId = `${NO_KEYBOARD_TOOLBAR}-${instanceId}`;
+  // The home stack draws a transparent header over the screen on iOS.
+  const headerHeight = useContext(HeaderHeightContext) ?? 0;
+  const headerInset = Platform.OS === "ios" ? headerHeight : 0;
 
-  // Pre-fill server URL and username from current session
-  useEffect(() => {
-    if (api?.basePath) {
-      setServerUrl(api.basePath);
+  const server = serverLabel(api?.basePath ?? "");
+
+  // Asks only when the system still can: a refused permission answers false
+  // without showing anything.
+  const cameraAllowed = useCallback(async () => {
+    if (!ExpoCamera) return false;
+    const { Camera } = ExpoCamera;
+    try {
+      const current = await Camera.getCameraPermissionsAsync();
+      if (current.granted || !current.canAskAgain) return current.granted;
+      return (await Camera.requestCameraPermissionsAsync()).granted;
+    } catch {
+      // No answer about the camera reads as no camera.
+      return false;
     }
-
-    if (user?.Name) {
-      setUsername(user.Name);
-    }
-  }, [api?.basePath, user?.Name]);
-
-  // Request camera permission
-  useEffect(() => {
-    if (!ExpoCamera) return;
-
-    ExpoCamera.Camera.getCameraPermissionsAsync().then((response) => {
-      if (!response.granted) {
-        ExpoCamera.Camera.requestCameraPermissionsAsync().then((result) => {
-          if (!result.granted) {
-            setScreenState("no-permission");
-          }
-        });
-      }
-    });
   }, []);
 
-  const validateAndParseQR = useCallback(
-    (data: string): ParsedPairingCode | null => {
-      try {
-        const parsed = JSON.parse(data);
-
-        if (
-          parsed.action === "streamyfin-pair" &&
-          typeof parsed.code === "string" &&
-          parsed.code.length > 0
-        ) {
-          return { code: parsed.code };
-        }
-
-        return null;
-      } catch {
-        return null;
+  // Only a refusal changes the screen here: someone who already went on to
+  // type the code stays where they are.
+  useEffect(() => {
+    if (!ExpoCamera) return;
+    void cameraAllowed().then((allowed) => {
+      if (!allowed) {
+        setScreenState((state) =>
+          state === "scanning" ? "no-permission" : state,
+        );
       }
-    },
-    [],
-  );
+    });
+  }, [cameraAllowed]);
+
+  const showError = useCallback((message: string) => {
+    setErrorMessage(message);
+    setScreenState("error");
+  }, []);
 
   const handleBarCodeScanned = useCallback(
     ({ data }: { data: string }) => {
       if (screenState !== "scanning") return;
 
-      const parsed = validateAndParseQR(data);
-
-      if (!parsed) {
-        setErrorMessage(t("companion_login.error_invalid_qr"));
-        setScreenState("error");
+      const scanned = parsePairingCode(data);
+      if (!scanned) {
+        showError(t("companion_login.error_invalid_qr"));
         return;
       }
-
-      setPairingCode(parsed.code);
-
-      // If user is logged in, show confirmation screen (still needs password)
-      // Otherwise, go straight to the full form
-      if (user?.Name && api?.basePath) {
-        setScreenState("confirm");
-      } else {
-        setScreenState("form");
+      // An older TV waits for a password over the network, which this app no
+      // longer sends: it has to be updated to sign in this way.
+      if (scanned.kind === "legacy") {
+        showError(t("companion_login.error_old_tv"));
+        return;
       }
+      // Only the id is compared: the TV may reach the server through another
+      // address than this phone, and the address in the QR code is never
+      // contacted.
+      if (
+        scanned.serverId &&
+        user?.ServerId &&
+        !sameServerId(scanned.serverId, user.ServerId)
+      ) {
+        showError(
+          t("companion_login.error_other_server", {
+            server: serverLabel(scanned.serverUrl),
+          }),
+        );
+        return;
+      }
+      setCode(scanned.code);
+      setScreenState("confirm");
     },
-    [screenState, validateAndParseQR, t, user?.Name, api?.basePath],
+    [screenState, showError, t, user?.ServerId],
   );
 
-  const handleSendCredentials = useCallback(async () => {
-    if (
-      !serverUrl.trim() ||
-      !username.trim() ||
-      !password.trim() ||
-      !pairingCode
-    ) {
+  const handleAuthorize = useCallback(async () => {
+    const trimmed = code.replace(/\s/g, "");
+    if (!api || !trimmed) {
+      showError(t("companion_login.error_generic"));
       return;
     }
 
-    setScreenState("sending");
-
+    // One approval at a time: a second one of the same code comes back as a
+    // 500 and would turn a success into an error on screen.
+    if (authorizingRef.current) return;
+    authorizingRef.current = true;
+    setScreenState("authorizing");
     try {
-      // Send the canonical URL when the server resolves from here; fall back
-      // to the raw input so pairing still works when it doesn't (the TV may
-      // reach the server even if this phone currently can't).
-      let urlToSend = serverUrl.trim();
-      const resolved = await serverResolver.resolve(urlToSend);
-      if (resolved.ok) urlToSend = resolved.url;
-
-      await sendCredentialsToTV(
-        pairingCode,
-        urlToSend,
-        username.trim(),
-        password,
+      // Checked first: with Quick Connect off, Jellyfin answers the approval
+      // with a 401, which the session handling takes for an expired token.
+      if (!(await isQuickConnectEnabled(api))) {
+        showError(
+          t("companion_login.error_quick_connect_disabled", { server }),
+        );
+        return;
+      }
+      // Approved on the phone's server: a TV on another server never sees it,
+      // and the server answers that it does not know the code.
+      const result = await approveQuickConnectCode(api, trimmed);
+      if (result === "approved") {
+        setScreenState("success");
+        return;
+      }
+      showError(
+        result === "unknown-code"
+          ? t("companion_login.error_code_not_waiting", { server })
+          : t("companion_login.error_generic"),
       );
-
-      setScreenState("success");
-    } catch {
-      setErrorMessage(t("companion_login.error_generic"));
-      setScreenState("error");
+    } catch (error) {
+      writeErrorLog(
+        `Quick Connect approval failed: ${error instanceof Error ? error.message : error}`,
+      );
+      showError(
+        axios.isAxiosError(error) && !error.response
+          ? t("home.server_unreachable_message")
+          : t("companion_login.error_generic"),
+      );
+    } finally {
+      authorizingRef.current = false;
     }
-  }, [pairingCode, serverUrl, username, password, t, serverResolver.resolve]);
+  }, [api, code, server, showError, t]);
 
-  const handleScanAgain = useCallback(() => {
-    setPairingCode("");
+  // Back to the camera through the permission again, so a refused one shows
+  // the permission screen instead of a camera that stays black.
+  const handleScanAgain = useCallback(async () => {
+    setCode("");
     setErrorMessage(null);
-    setPassword("");
-    setScreenState("scanning");
-  }, []);
+    if (!ExpoCamera) {
+      setScreenState("manual");
+      return;
+    }
+    setScreenState((await cameraAllowed()) ? "scanning" : "no-permission");
+  }, [cameraAllowed]);
 
   const handleDone = useCallback(() => {
     router.back();
   }, [router]);
 
-  const handleUseDifferentUser = useCallback(() => {
-    setUsername("");
-    setPassword("");
-    setScreenState("form");
-  }, []);
-
   const handleEnterCodeManually = useCallback(() => {
-    setScreenState("form");
+    setCode("");
+    setScreenState("manual");
   }, []);
 
   if (screenState === "no-permission") {
@@ -199,6 +241,15 @@ export const CompanionLoginScreen: React.FC = () => {
               </Text>
             </TouchableOpacity>
           )}
+
+          <Button
+            onPress={handleEnterCodeManually}
+            color='purple'
+            className='mt-4'
+            textClassName='flex-1 text-center'
+          >
+            {t("companion_login.enter_code_manually")}
+          </Button>
 
           <Button
             onPress={handleDone}
@@ -271,7 +322,7 @@ export const CompanionLoginScreen: React.FC = () => {
     );
   }
 
-  if (screenState === "sending") {
+  if (screenState === "authorizing") {
     return (
       <View className='flex-1 bg-black'>
         <View className='flex-1 items-center justify-center p-8'>
@@ -283,216 +334,76 @@ export const CompanionLoginScreen: React.FC = () => {
     );
   }
 
-  if (screenState === "confirm") {
+  if (screenState === "confirm" || screenState === "manual") {
+    const typed = screenState === "manual";
     return (
       <KeyboardAvoidingView
         className='flex-1 bg-black'
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <ScrollView
+          testID='pairing-approval'
+          // The header's height on both sides keeps the card mid-screen, as on
+          // every other step, and the title below the header when the keyboard
+          // is up. An automatic inset pushed the card down by that height.
           contentContainerStyle={{
             flexGrow: 1,
             justifyContent: "center",
-            padding: 24,
+            paddingHorizontal: 24,
+            paddingVertical: 24 + headerInset,
           }}
           keyboardShouldPersistTaps='handled'
         >
           <Text className='mb-2 text-center text-2xl font-bold text-white'>
-            {t("companion_login.login_as", { username })}
+            {t("companion_login.login_as", { username: user?.Name ?? "" })}
           </Text>
 
-          <Text className='mb-8 text-center text-base text-gray-400'>
-            {t("companion_login.on_server", {
-              server: serverUrl.replace(/^https?:\/\//, ""),
-            })}
+          <Text className='mb-6 text-center text-base text-gray-400'>
+            {t("companion_login.on_server", { server })}
           </Text>
 
           <View className='mb-6 items-center'>
-            <Text className='mb-1 text-sm text-gray-400'>
-              {t("companion_login.pairing_code_label")}
-            </Text>
-
-            <Text className='mb-8 text-center text-4xl font-bold tracking-[6px] text-white'>
-              {pairingCode}
-            </Text>
-          </View>
-
-          <View className='mb-5'>
-            <Text className='mb-2 text-sm text-gray-400'>
-              {t("login.password_placeholder")}
-            </Text>
-
-            <TextInput
-              className='rounded-lg border border-neutral-700 bg-neutral-900 p-3 text-base text-white'
-              value={password}
-              onChangeText={setPassword}
-              placeholder={t("login.password_placeholder")}
-              placeholderTextColor='#6B7280'
-              autoCapitalize='none'
-              autoCorrect={false}
-              secureTextEntry
-              returnKeyType='done'
-              onSubmitEditing={handleSendCredentials}
-              autoFocus
-            />
-          </View>
-
-          <View className='mt-2'>
-            <Button
-              onPress={handleSendCredentials}
-              disabled={!password.trim()}
-              color='purple'
-              textClassName='flex-1 text-center'
-            >
-              {t("companion_login.authorize_button")}
-            </Button>
-          </View>
-
-          <View className='mt-6 items-center'>
-            <TouchableOpacity onPress={handleUseDifferentUser} className='py-2'>
-              <Text className='text-base text-gray-400 underline'>
-                {t("companion_login.use_different_user")}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity onPress={handleScanAgain} className='py-2'>
-              <Text className='text-sm text-gray-500 underline'>
-                {t("companion_login.scan_again")}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    );
-  }
-
-  if (screenState === "form") {
-    return (
-      <KeyboardAvoidingView
-        className='flex-1 bg-black'
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-      >
-        <ScrollView
-          contentContainerStyle={{
-            flexGrow: 1,
-            justifyContent: "center",
-            padding: 14,
-          }}
-          keyboardShouldPersistTaps='handled'
-        >
-          <Text className='mb-2 text-2xl font-bold text-white'>
-            {t("companion_login.pairing_enter_credentials")}
-          </Text>
-
-          <View className='mb-5'>
             <Text className='mb-2 text-sm text-gray-400'>
               {t("companion_login.pairing_code_label")}
             </Text>
 
-            <TextInput
-              className='rounded-lg border border-neutral-700 bg-neutral-900 p-3 text-center text-2xl font-bold tracking-[6px] text-white'
-              value={pairingCode}
-              onChangeText={setPairingCode}
-              placeholder={t("companion_login.pairing_code_label")}
-              placeholderTextColor='#6B7280'
-              autoCapitalize='characters'
-              autoCorrect={false}
-              returnKeyType='next'
-            />
+            {typed ? (
+              <PinInput
+                testID='pairing-code'
+                value={code}
+                onChangeText={setCode}
+                inBottomSheet={false}
+                // Authorize stays in reach above the keyboard, so the number
+                // pad needs no toolbar of its own.
+                inputAccessoryViewID={toolbarId}
+                onSubmitEditing={handleAuthorize}
+                autoFocus
+              />
+            ) : (
+              <Text className='text-center text-4xl font-bold tracking-[6px] text-white'>
+                {code}
+              </Text>
+            )}
           </View>
 
-          <View className='mb-5'>
-            <Text className='mb-2 text-sm text-gray-400'>
-              {t("companion_login.server")}
-            </Text>
+          <Button
+            onPress={handleAuthorize}
+            disabled={!code.trim()}
+            color='purple'
+            textClassName='flex-1 text-center'
+          >
+            {t("companion_login.authorize_button")}
+          </Button>
 
-            <TextInput
-              className='rounded-lg border border-neutral-700 bg-neutral-900 p-3 text-base text-white'
-              value={serverUrl}
-              onChangeText={(text) => {
-                setServerUrl(text);
-                // Editing invalidates the previous resolution status.
-                serverResolver.reset();
-              }}
-              placeholder={t("server.server_url_placeholder")}
-              placeholderTextColor='#6B7280'
-              autoCapitalize='none'
-              autoCorrect={false}
-              keyboardType='url'
-              returnKeyType='next'
-              onBlur={() => {
-                const candidate = serverUrl.trim();
-                if (candidate) {
-                  serverResolver.resolve(candidate).then((r) => {
-                    if (r.ok) setServerUrl(r.url);
-                  });
-                }
-              }}
-            />
-            <ServerUrlStatusText state={serverResolver} className='mt-2' />
-          </View>
-
-          <View className='mb-5'>
-            <Text className='mb-2 text-sm text-gray-400'>
-              {t("login.username_placeholder")}
-            </Text>
-
-            <TextInput
-              className='rounded-lg border border-neutral-700 bg-neutral-900 p-3 text-base text-white'
-              value={username}
-              onChangeText={setUsername}
-              placeholder={t("login.username_placeholder")}
-              placeholderTextColor='#6B7280'
-              autoCapitalize='none'
-              autoCorrect={false}
-              returnKeyType='next'
-            />
-          </View>
-
-          <View className='mb-5'>
-            <Text className='mb-2 text-sm text-gray-400'>
-              {t("login.password_placeholder")}
-            </Text>
-
-            <TextInput
-              className='rounded-lg border border-neutral-700 bg-neutral-900 p-3 text-base text-white'
-              value={password}
-              onChangeText={setPassword}
-              placeholder={t("login.password_placeholder")}
-              placeholderTextColor='#6B7280'
-              autoCapitalize='none'
-              autoCorrect={false}
-              secureTextEntry
-              returnKeyType='done'
-              onSubmitEditing={handleSendCredentials}
-            />
-          </View>
-
-          <View className='flex-row justify-center gap-3'>
-            <Button
-              onPress={handleScanAgain}
-              color='black'
-              className='w-40 border border-neutral-700 bg-neutral-800'
-              textClassName='flex-1 text-center'
-            >
-              {t("companion_login.scan_again")}
-            </Button>
-
-            <Button
-              onPress={handleSendCredentials}
-              disabled={
-                !serverUrl.trim() ||
-                !username.trim() ||
-                !password.trim() ||
-                !pairingCode.trim()
-              }
-              className='w-40'
-              color='purple'
-              textClassName='flex-1 text-center'
-            >
-              {t("companion_login.authorize_button")}
-            </Button>
-          </View>
+          {ExpoCamera && (
+            <View className='mt-3 items-center'>
+              <TouchableOpacity onPress={handleScanAgain} className='py-2'>
+                <Text className='text-sm text-gray-500 underline'>
+                  {t("companion_login.scan_again")}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
     );

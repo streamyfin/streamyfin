@@ -21,14 +21,28 @@ export type NormalizePluginValue = (
 export const hasMeaningfulSettingValue = (value: unknown): boolean =>
   value !== undefined && value !== null && value !== "";
 
+// Settings whose values are secrets. They must never reach the app log, which
+// users read in-app and paste into bug reports.
+export const SENSITIVE_SETTING_KEYS: ReadonlySet<keyof Settings> = new Set([
+  "seerrApiKey",
+  "openSubtitlesApiKey",
+] as const);
+
 /**
  * Settings an unlocked plugin default must never seed. Crash-report consent
  * can only change by explicit user action (or an admin lock): the intro sheet
  * is the opt-out surface and it is available before the first plugin sync
  * happens at login, so a deferred seed would silently re-enable reporting
  * over the user's explicit opt-out.
+ *
+ * Nor the secrets: the settings belong to the device, so a seeded key stayed
+ * for every account signed in after the one it was served to. They apply at
+ * read time instead, while the plugin serves them to whoever is signed in.
  */
-const NEVER_SEED_KEYS: ReadonlySet<keyof Settings> = new Set(["sentryEnabled"]);
+const NEVER_SEED_KEYS: ReadonlySet<keyof Settings> = new Set([
+  "sentryEnabled",
+  ...SENSITIVE_SETTING_KEYS,
+]);
 
 /**
  * Effective settings, in precedence order:
@@ -229,4 +243,31 @@ export const readIntegrationBlocks = (
   }
 
   return read as PluginLockableSettings;
+};
+
+/**
+ * Drops the secrets an earlier build seeded into the user's settings, and
+ * their entries in the record of what was seeded, since none is seeded now.
+ *
+ * A copy that still matches the record came from the plugin and was never
+ * changed; one that differs is the user's own and stays. True if it changed
+ * either.
+ */
+export const dropSeededSecrets = (
+  stored: Record<string, unknown>,
+  applied: Record<string, unknown>,
+): boolean => {
+  let changed = false;
+  for (const key of SENSITIVE_SETTING_KEYS) {
+    if (!(key in applied)) continue;
+    if (
+      key in stored &&
+      JSON.stringify(stored[key]) === JSON.stringify(applied[key])
+    ) {
+      delete stored[key];
+    }
+    delete applied[key];
+    changed = true;
+  }
+  return changed;
 };

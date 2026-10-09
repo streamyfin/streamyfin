@@ -15,10 +15,10 @@ import { Text } from "@/components/common/Text";
 import { InfiniteScrollingCollectionList } from "@/components/home/InfiniteScrollingCollectionList.tv";
 import { Colors } from "@/constants/Colors";
 import { useScaledTVTypography } from "@/constants/TVTypography";
+import { TV_HORIZONTAL_PADDING } from "@/constants/Values";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { scaleSize } from "@/utils/scaleSize";
 
-const HORIZONTAL_PADDING = 60;
 const TOP_PADDING = 100;
 const SECTION_GAP = 10;
 
@@ -175,7 +175,7 @@ export const Favorites = ({
               flex: 1,
               alignItems: "center",
               justifyContent: "center",
-              paddingHorizontal: HORIZONTAL_PADDING,
+              paddingHorizontal: TV_HORIZONTAL_PADDING,
             }}
           >
             <Image
@@ -210,9 +210,11 @@ export const Favorites = ({
             </Text>
           </View>
         )}
+        {/* Keyed by account: the cache outlives a user switch and is persisted,
+            so a key without the id opens on the previous account's rows. */}
         <InfiniteScrollingCollectionList
           queryFn={fetchFavoriteSeries}
-          queryKey={["home", queryKeyBase, "series"]}
+          queryKey={["home", queryKeyBase, user?.Id, "series"]}
           title={t("favorites.series")}
           hideIfEmpty
           pageSize={pageSize}
@@ -221,7 +223,7 @@ export const Favorites = ({
         />
         <InfiniteScrollingCollectionList
           queryFn={fetchFavoriteSeasons}
-          queryKey={["home", queryKeyBase, "seasons"]}
+          queryKey={["home", queryKeyBase, user?.Id, "seasons"]}
           title={t("favorites.seasons")}
           hideIfEmpty
           orientation='vertical'
@@ -231,7 +233,7 @@ export const Favorites = ({
         />
         <InfiniteScrollingCollectionList
           queryFn={fetchFavoriteMovies}
-          queryKey={["home", queryKeyBase, "movies"]}
+          queryKey={["home", queryKeyBase, user?.Id, "movies"]}
           title={t("favorites.movies")}
           hideIfEmpty
           orientation='vertical'
@@ -240,7 +242,7 @@ export const Favorites = ({
         />
         <InfiniteScrollingCollectionList
           queryFn={fetchFavoriteEpisodes}
-          queryKey={["home", queryKeyBase, "episodes"]}
+          queryKey={["home", queryKeyBase, user?.Id, "episodes"]}
           title={t("favorites.episodes")}
           hideIfEmpty
           pageSize={pageSize}
@@ -248,7 +250,7 @@ export const Favorites = ({
         />
         <InfiniteScrollingCollectionList
           queryFn={fetchFavoriteVideos}
-          queryKey={["home", queryKeyBase, "videos"]}
+          queryKey={["home", queryKeyBase, user?.Id, "videos"]}
           title={t("favorites.videos")}
           hideIfEmpty
           pageSize={pageSize}
@@ -256,7 +258,7 @@ export const Favorites = ({
         />
         <InfiniteScrollingCollectionList
           queryFn={fetchFavoriteBoxsets}
-          queryKey={["home", queryKeyBase, "boxsets"]}
+          queryKey={["home", queryKeyBase, user?.Id, "boxsets"]}
           title={t("favorites.boxsets")}
           hideIfEmpty
           pageSize={pageSize}
@@ -264,7 +266,7 @@ export const Favorites = ({
         />
         <InfiniteScrollingCollectionList
           queryFn={fetchFavoritePlaylists}
-          queryKey={["home", queryKeyBase, "playlists"]}
+          queryKey={["home", queryKeyBase, user?.Id, "playlists"]}
           title={t("favorites.playlists")}
           hideIfEmpty
           pageSize={pageSize}

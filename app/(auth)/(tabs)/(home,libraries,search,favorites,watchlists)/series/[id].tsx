@@ -20,6 +20,7 @@ import {
 } from "@/components/series/SeasonPicker";
 import { SeriesHeader } from "@/components/series/SeriesHeader";
 import { TVSeriesPage } from "@/components/series/TVSeriesPage";
+import { SyncPlayButton } from "@/components/syncplay/SyncPlayButton";
 import { Colors } from "@/constants/Colors";
 import { LOGO_HEIGHT } from "@/constants/Images";
 import { useLeaveWhenGone } from "@/hooks/useLeaveWhenGone";
@@ -194,6 +195,9 @@ const page: React.FC = () => {
       headerRight: () =>
         !isLoading && item && allEpisodes && allEpisodes.length > 0 ? (
           <HeaderButtonGroup>
+            {!Platform.isTV && !isOffline && (
+              <SyncPlayButton items={allEpisodes} title={item.Name} />
+            )}
             <AddToFavorites item={item} />
             {settings?.useKefinTweaks && <AddToKefinWatchlist item={item} />}
             {!Platform.isTV && (

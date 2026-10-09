@@ -74,6 +74,62 @@ describe("runStorageMigrations", () => {
     expect(version()).toBe(LATEST_SCHEMA_VERSION);
   });
 
+  test("redacts credentials the app log stored before redaction existed", () => {
+    const token = "0123456789abcdef0123456789abcdef";
+    data.set("storageSchemaVersion", 1);
+    data.set(
+      "logs",
+      JSON.stringify([
+        {
+          timestamp: "2026-09-27T15:04:07.000Z",
+          level: "INFO",
+          message: `[native player] getSubtitleTracks: found sub track id=2, title=Stream.subrip?ApiKey=${token}, lang=none, external=true`,
+        },
+      ]),
+    );
+
+    runStorageMigrations(store);
+
+    const stored = data.get("logs") as string;
+    expect(stored).not.toContain(token);
+    expect(JSON.parse(stored)[0].message).toContain(
+      "title=Stream.subrip?ApiKey=[redacted]",
+    );
+    expect(version()).toBe(LATEST_SCHEMA_VERSION);
+  });
+
+  test("drops an app log it cannot read", () => {
+    data.set("storageSchemaVersion", 1);
+    data.set("logs", '[{"message":"?api_key=0123456789abcdef');
+
+    runStorageMigrations(store);
+
+    expect(data.has("logs")).toBe(false);
+    expect(version()).toBe(LATEST_SCHEMA_VERSION);
+  });
+
+  // The redaction reached develop after the Seerr move took 3: an install
+  // already stamped at 3 must still run it, which it would not as a 2.
+  test("redacts the app log on an install already stamped at 3", () => {
+    const token = "0123456789abcdef0123456789abcdef";
+    data.set("storageSchemaVersion", 3);
+    data.set(
+      "logs",
+      JSON.stringify([
+        {
+          timestamp: "2026-09-27T15:04:07.000Z",
+          level: "INFO",
+          message: `[native player] getSubtitleTracks: found sub track id=2, title=Stream.subrip?ApiKey=${token}, lang=none, external=true`,
+        },
+      ]),
+    );
+
+    runStorageMigrations(store);
+
+    expect(data.get("logs")).not.toContain(token);
+    expect(version()).toBe(LATEST_SCHEMA_VERSION);
+  });
+
   test("does not re-run once the store is up to date", () => {
     data.set("storageSchemaVersion", LATEST_SCHEMA_VERSION);
     data.set("hasShownIntro", true);
@@ -112,18 +168,6 @@ describe("the Seerr session", () => {
     runStorageMigrations(store);
 
     expect(data.get("SEERR_USER")).toBe('{"id":9}');
-    expect(data.has("JELLYSEERR_USER")).toBe(false);
-  });
-
-  // Migration 2 is the log redaction's (#2103), which reaches develop first.
-  // A device it stamped at 2 has not moved its Seerr session yet.
-  test("still moves on a device another migration stamped at 2", () => {
-    data.set("storageSchemaVersion", 2);
-    data.set("JELLYSEERR_USER", '{"id":7}');
-
-    runStorageMigrations(store);
-
-    expect(data.get("SEERR_USER")).toBe('{"id":7}');
     expect(data.has("JELLYSEERR_USER")).toBe(false);
   });
 });

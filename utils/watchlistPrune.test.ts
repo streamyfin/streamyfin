@@ -162,3 +162,35 @@ test("carries on past a rating update that fails", async () => {
   expect(result.removed).toEqual(["m2"]);
   expect(result.failed).toEqual(["m1"]);
 });
+
+const getsFor = (api: ReturnType<typeof serve>["api"], id: string) =>
+  api.mock.history.get.filter((request) =>
+    request.url?.match(new RegExp(`/Items/${id}(\\?|$)`)),
+  ).length;
+
+// An unfinished episode cannot have finished its season or show, so their
+// lookups would only cost round trips.
+test("does not look up the parents of an unfinished episode", async () => {
+  const library = show(false, false);
+  library.ep.UserData = { Played: false, Likes: true };
+  const { api, unliked } = serve(library);
+
+  await removeWatchedFromWatchlist(api, "u", ["ep"]);
+
+  expect(unliked).toEqual([]);
+  expect(getsFor(api, "s1")).toBe(0);
+  expect(getsFor(api, "show")).toBe(0);
+});
+
+// Marking a season played passes every episode in it; without sharing the
+// lookups that is a season and a show request per episode.
+test("fetches a season and show shared by a batch once", async () => {
+  const library = show(false, false);
+  library.ep2 = { ...library.ep, Id: "ep2" };
+  const { api } = serve(library);
+
+  await removeWatchedFromWatchlist(api, "u", ["ep", "ep2"]);
+
+  expect(getsFor(api, "s1")).toBe(1);
+  expect(getsFor(api, "show")).toBe(1);
+});

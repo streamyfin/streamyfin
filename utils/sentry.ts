@@ -3,13 +3,14 @@ import { isAxiosError } from "axios";
 import * as Application from "expo-application";
 import * as Device from "expo-device";
 import { Platform } from "react-native";
-import { OFFICIAL_APPLICATION_IDS } from "@/constants/Sentry";
+import { OFFICIAL_APPLICATION_IDS, REDACTED_SERVER } from "@/constants/Sentry";
 import {
   describeHttpError,
   isAbortLikeError,
   isEnvironmentError,
   isExpectedError,
 } from "@/utils/errors";
+import { redactCredentials } from "@/utils/redactCredentials";
 import {
   readStoredPluginSettings,
   readStoredSettings,
@@ -159,20 +160,12 @@ const hasSentryConsent = (): boolean => {
 const MEDIA_FILENAME_PATTERN =
   /([/\\])([^/\\"\n]+)\.(mp4|mkv|m4v|mov|avi|webm|mpg|mpeg|wmv|flv|m2ts|mts|m3u8|mpd|mp3|m4a|m4b|flac|aac|ogg|oga|opus|wav|wma|srt|ass|ssa|vtt|sub|idx|jpg|jpeg|png|webp|gif|bif|nfo)\b/gi;
 
-// Credential query parameters can appear outside scheme-anchored URLs:
-// server-relative paths ("/Videos/{id}/stream?ApiKey=...") and URLs broken by
-// an unencoded space escape the URL regexes, so known credential params are
-// redacted wherever they occur.
-// `userId`/`deviceId` are not credentials, but they identify the person and
-// their install across events, so they are redacted alongside the secrets.
-const CREDENTIAL_PARAM_PATTERN =
-  /([?&](?:api_key|apikey|x-emby-token|access_token|token|userid|deviceid)=)[^&\s"']+/gi;
-
 // Native error strings can embed the private server address without a scheme:
 // Android's OkHttp writes "Failed to connect to host/1.2.3.4:8096". Redact the
-// known phrases plus any bare IPv4 (LAN servers are usually IPs).
+// known phrases plus any bare IPv4 (LAN servers are usually IPs). Android
+// quotes the host it could not resolve ('Unable to resolve host "host": …').
 const SCHEMELESS_HOST_PATTERN =
-  /((?:failed to connect to|unable to resolve host)[: ]+)[^\s"']+/gi;
+  /((?:failed to connect to|unable to resolve host)[: ]+["']?)[^\s"']+/gi;
 const IPV4_PATTERN = /\b\d{1,3}(?:\.\d{1,3}){3}(?::\d+)?\b/g;
 
 // Jellyfin/Seerr URLs carry credentials in the query string (api_key=...,
@@ -180,11 +173,12 @@ const IPV4_PATTERN = /\b\d{1,3}(?:\.\d{1,3}){3}(?::\d+)?\b/g;
 // address, so both are scrubbed from everything that leaves the app; the
 // request path survives because it's what makes an error debuggable.
 const scrubUrl = (value: string): string =>
-  value
-    .replace(/((?:https?|wss?):\/\/[^\s"'?]+)\?[^\s"']*/g, "$1")
-    .replace(/((?:https?|wss?):\/\/)[^/\s"']+/g, "$1[server]")
-    .replace(CREDENTIAL_PARAM_PATTERN, "$1[redacted]")
-    .replace(SCHEMELESS_HOST_PATTERN, "$1[server]")
+  redactCredentials(
+    value
+      .replace(/((?:https?|wss?):\/\/[^\s"'?]+)\?[^\s"']*/g, "$1")
+      .replace(/((?:https?|wss?):\/\/)[^/\s"']+/g, `$1${REDACTED_SERVER}`),
+  )
+    .replace(SCHEMELESS_HOST_PATTERN, `$1${REDACTED_SERVER}`)
     .replace(IPV4_PATTERN, "[ip]")
     .replace(MEDIA_FILENAME_PATTERN, "$1[media].$3");
 

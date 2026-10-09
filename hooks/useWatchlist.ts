@@ -1,9 +1,19 @@
-import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  type BaseItemDto,
+  ItemFilter,
+} from "@jellyfin/sdk/lib/generated-client";
+import { getUserLibraryApi } from "@jellyfin/sdk/lib/utils/api";
+import {
+  type QueryClient,
+  useMutation,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { atom, useAtom, useAtomValue, useSetAtom, useStore } from "jotai";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner-native";
+import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { writeToLog } from "@/utils/log";
 import { removeWatchedFromWatchlist } from "@/utils/watchlistPrune";
@@ -11,6 +21,27 @@ import { removeWatchedFromWatchlist } from "@/utils/watchlistPrune";
 // Shared atom to store watchlist (Likes) status across all components
 // Maps itemId -> isWatchlisted
 const watchlistAtom = atom<Record<string, boolean>>({});
+
+const LIKES_FILTERS: readonly string[] = [
+  ItemFilter.Likes,
+  ItemFilter.IsFavoriteOrLikes,
+];
+
+/**
+ * Refetches the library grids that filter by Likes (the "Watchlist" filter).
+ * Their server filter list rides the query key, so the others, which a
+ * watchlist change cannot affect, are left alone.
+ */
+const invalidateWatchlistFilteredLibraries = (queryClient: QueryClient) =>
+  queryClient.invalidateQueries({
+    predicate: ({ queryKey }) =>
+      queryKey[0] === "library-items" &&
+      queryKey.some(
+        (part) =>
+          Array.isArray(part) &&
+          part.some((filter) => LIKES_FILTERS.includes(filter)),
+      ),
+  });
 
 /**
  * KefinTweaks watchlist is backed by Jellyfin's native "Likes" rating.
@@ -99,15 +130,14 @@ export const useWatchlist = (item: BaseItemDto) => {
         throw new Error("Cannot update watchlist: not signed in");
       }
 
-      // Watchlist == Jellyfin "Likes" rating:
-      // POST /UserItems/{itemId}/Rating?userId={userId}&likes=true   - add to watchlist
-      // POST /UserItems/{itemId}/Rating?userId={userId}&likes=false  - remove from watchlist
-      const path = `/UserItems/${currentItem.Id}/Rating`;
-
-      const response = await currentApi.post(
-        path,
-        {},
-        { params: { userId: currentUser.Id, likes: nextIsWatchlisted } },
+      // Watchlist == Jellyfin "Likes" rating: likes=true adds the item,
+      // likes=false removes it.
+      const response = await getUserLibraryApi(currentApi).updateUserItemRating(
+        {
+          itemId: currentItem.Id,
+          userId: currentUser.Id,
+          likes: nextIsWatchlisted,
+        },
       );
       return response.data;
     },
@@ -151,6 +181,7 @@ export const useWatchlist = (item: BaseItemDto) => {
       // (["favorites", "see-all", ...]); invalidate it so removing an item
       // from within the see-all screen updates the list in place.
       queryClient.invalidateQueries({ queryKey: ["favorites", "see-all"] });
+      invalidateWatchlistFilteredLibraries(queryClient);
     },
   });
 
@@ -172,8 +203,8 @@ export const useWatchlist = (item: BaseItemDto) => {
 /**
  * Returns a callback that takes finished items off the KefinTweaks watchlist:
  * pass the ids of items just marked played or just stopped playing. A no-op
- * unless KefinTweaks is on. Housekeeping, so it never throws: a failure is
- * logged and the item simply stays watchlisted.
+ * unless KefinTweaks is on and the server is reachable. Housekeeping, so it
+ * never throws: a failure is logged and the item simply stays watchlisted.
  */
 export const usePruneWatchedFromWatchlist = () => {
   const queryClient = useQueryClient();
@@ -181,7 +212,11 @@ export const usePruneWatchedFromWatchlist = () => {
   const user = useAtomValue(userAtom);
   const setWatchlist = useSetAtom(watchlistAtom);
   const { settings } = useSettings();
-  const enabled = settings?.useKefinTweaks ?? false;
+  const isOffline = useOfflineMode();
+  const { isConnected } = useNetworkStatus();
+  // Offline the lookups could only fail, and log a warning on every finish.
+  const enabled =
+    (settings?.useKefinTweaks ?? false) && !isOffline && isConnected;
 
   return useCallback(
     async (itemIds: string[]) => {
@@ -215,6 +250,7 @@ export const usePruneWatchedFromWatchlist = () => {
         }
         queryClient.invalidateQueries({ queryKey: ["home", "watchlist"] });
         queryClient.invalidateQueries({ queryKey: ["favorites", "see-all"] });
+        invalidateWatchlistFilteredLibraries(queryClient);
         // Season toggles read their season from the series page's list.
         queryClient.invalidateQueries({ queryKey: ["seasons"] });
       } catch (error) {

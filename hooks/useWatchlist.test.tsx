@@ -11,15 +11,28 @@ const mockRemove = jest.fn<
   [unknown, string, string[]]
 >();
 const mockSettings = { useKefinTweaks: true };
+const mockConnection = { isOffline: false, isConnected: true };
 
 jest.mock("@/utils/watchlistPrune", () => ({
   removeWatchedFromWatchlist: (...args: [unknown, string, string[]]) =>
     mockRemove(...args),
 }));
+const mockRate = jest.fn<Promise<unknown>, [unknown]>();
+jest.mock("@jellyfin/sdk/lib/utils/api", () => ({
+  getUserLibraryApi: () => ({
+    updateUserItemRating: (params: unknown) => mockRate(params),
+  }),
+}));
 jest.mock("@/utils/atoms/settings", () => ({
   useSettings: () => ({ settings: mockSettings }),
 }));
 jest.mock("@/utils/log", () => ({ writeToLog: jest.fn() }));
+jest.mock("@/providers/OfflineModeProvider", () => ({
+  useOfflineMode: () => mockConnection.isOffline,
+}));
+jest.mock("@/hooks/useNetworkStatus", () => ({
+  useNetworkStatus: () => ({ isConnected: mockConnection.isConnected }),
+}));
 jest.mock("sonner-native", () => ({ toast: { error: jest.fn() } }));
 jest.mock("@/providers/JellyfinProvider", () => {
   const { atom } = jest.requireActual("jotai");
@@ -63,12 +76,28 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockRemove.mockReset();
   mockSettings.useKefinTweaks = true;
+  mockConnection.isOffline = false;
+  mockConnection.isConnected = true;
   store.set(apiAtom, {} as never);
   store.set(userAtom, { Id: "u" } as never);
 });
 
 test("does nothing while KefinTweaks is off", async () => {
   mockSettings.useKefinTweaks = false;
+  const { result } = await renderBoth();
+
+  await act(() => result.current.prune(["m1"]));
+
+  expect(mockRemove).not.toHaveBeenCalled();
+});
+
+// Marking a downloaded episode played offline must not fire requests that can
+// only fail and log a warning each time.
+test.each([
+  ["in offline mode", { isOffline: true, isConnected: true }],
+  ["without a connection", { isOffline: false, isConnected: false }],
+])("does nothing %s", async (_label, connection) => {
+  Object.assign(mockConnection, connection);
   const { result } = await renderBoth();
 
   await act(() => result.current.prune(["m1"]));
@@ -119,12 +148,12 @@ test("logs the items it could not prune and still unfills the ones it removed", 
  */
 const renderPendingToggle = async () => {
   let fail: (error: Error) => void = () => {};
-  store.set(apiAtom, {
-    post: () =>
+  mockRate.mockImplementation(
+    () =>
       new Promise((_resolve, reject) => {
         fail = reject;
       }),
-  } as never);
+  );
   const client = newClient();
   client.setQueryData(["item", "m1"], {
     Id: "m1",
@@ -178,4 +207,76 @@ test("does not roll back into the cache after the account changed", async () => 
   await fail(new Error("server said no"));
 
   expect(client.getQueryData(["item", "m1"])).toEqual(nextAccountsCopy);
+});
+
+test("rates the item through the SDK", async () => {
+  mockRate.mockResolvedValue({});
+  const { result } = await renderHook(() => useWatchlist(movie), { wrapper });
+
+  await act(async () => result.current.toggleWatchlist());
+
+  expect(mockRate).toHaveBeenCalledWith({
+    itemId: "m1",
+    userId: "u",
+    likes: false,
+  });
+});
+
+/**
+ * Library grids as `[libraryId].tsx` caches them: the filters ride the key,
+ * the server filter list last.
+ */
+const seedLibraryGrids = (client: QueryClient) => {
+  const grid = (filterBy: string[]) => [
+    "library-items",
+    "lib",
+    [],
+    [],
+    [],
+    ["SortName"],
+    ["Ascending"],
+    filterBy,
+  ];
+  const keys = {
+    watchlist: grid(["Likes"]),
+    favoritesOrWatchlist: grid(["IsFavoriteOrLikes"]),
+    unplayed: grid(["IsUnplayed"]),
+  };
+  for (const key of Object.values(keys)) {
+    client.setQueryData(key, { pages: [], pageParams: [] });
+  }
+  return (name: keyof typeof keys) =>
+    client.getQueryState(keys[name])?.isInvalidated;
+};
+
+// The library's "Watchlist" filter lists by Likes; without a refetch an item
+// taken off the watchlist stays in that grid until a manual refresh.
+test("refreshes the library grids filtered by the watchlist after a toggle", async () => {
+  mockRate.mockResolvedValue({});
+  const client = newClient();
+  const invalidated = seedLibraryGrids(client);
+  const { result } = await renderHook(() => useWatchlist(movie), {
+    wrapper: wrapperFor(client),
+  });
+
+  await act(async () => result.current.toggleWatchlist());
+
+  expect(invalidated("watchlist")).toBe(true);
+  expect(invalidated("favoritesOrWatchlist")).toBe(true);
+  expect(invalidated("unplayed")).toBe(false);
+});
+
+test("refreshes the library grids filtered by the watchlist after a prune", async () => {
+  mockRemove.mockResolvedValue({ removed: ["m1"], failed: [] });
+  const client = newClient();
+  const invalidated = seedLibraryGrids(client);
+  const { result } = await renderHook(() => usePruneWatchedFromWatchlist(), {
+    wrapper: wrapperFor(client),
+  });
+
+  await act(() => result.current(["m1"]));
+
+  expect(invalidated("watchlist")).toBe(true);
+  expect(invalidated("favoritesOrWatchlist")).toBe(true);
+  expect(invalidated("unplayed")).toBe(false);
 });

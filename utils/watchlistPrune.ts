@@ -40,19 +40,28 @@ export async function removeWatchedFromWatchlist(
   const removed = new Set<string>();
   const failed = new Set<string>();
 
-  const getItem = async (itemId: string): Promise<BaseItemDto | null> => {
-    try {
-      return (await userLibrary.getItem({ itemId, userId })).data;
-    } catch {
-      failed.add(itemId);
-      return null;
+  // Episodes in one batch share their season and show: fetch each once. A
+  // failed lookup is cached too, so it is reported once and not retried.
+  const fetched = new Map<string, Promise<BaseItemDto | null>>();
+  const getItem = (itemId: string) => {
+    let pending = fetched.get(itemId);
+    if (!pending) {
+      pending = userLibrary
+        .getItem({ itemId, userId })
+        .then((response) => response.data)
+        .catch(() => {
+          failed.add(itemId);
+          return null;
+        });
+      fetched.set(itemId, pending);
     }
+    return pending;
   };
 
   for (const itemId of itemIds) {
     const item = await getItem(itemId);
-    if (!item) continue;
-    const candidates: BaseItemDto[] = [item];
+    // An unfinished item leaves its season and show unfinished as well.
+    if (!item?.UserData?.Played) continue;
 
     const parentIds = [
       item.Type === "Episode" ? item.SeasonId : undefined,
@@ -60,12 +69,13 @@ export async function removeWatchedFromWatchlist(
         ? item.SeriesId
         : undefined,
     ].filter((id): id is string => !!id);
-    for (const parentId of parentIds) {
-      const parent = await getItem(parentId);
-      if (parent) candidates.push(parent);
-    }
+    const parents = await Promise.all(parentIds.map(getItem));
+    const candidates: BaseItemDto[] = [
+      item,
+      ...parents.filter((parent): parent is BaseItemDto => !!parent),
+    ];
 
-    if (isContainer(item) && item.Id && item.UserData?.Played) {
+    if (isContainer(item) && item.Id) {
       try {
         const { data } = await getItemsApi(api).getItems({
           userId,

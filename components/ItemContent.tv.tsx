@@ -27,6 +27,7 @@ import { Text } from "@/components/common/Text";
 import { getItemNavigation } from "@/components/common/TouchableItemRouter";
 import { GenreTags } from "@/components/GenreTags";
 import { TVEpisodeList } from "@/components/series/TVEpisodeList";
+import { TVSyncPlayButton } from "@/components/syncplay/TVSyncPlayButton";
 import {
   TVBackdrop,
   TVButton,
@@ -55,6 +56,7 @@ import { useTVThemeMusic } from "@/hooks/useTVThemeMusic";
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
+import { useSyncPlay } from "@/providers/SyncPlayProvider";
 import { getSubtitlesForItem } from "@/utils/atoms/downloadedSubtitles";
 import { useSettings } from "@/utils/atoms/settings";
 import type { TVOptionItem } from "@/utils/atoms/tvOptionModal";
@@ -93,6 +95,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
     const [api] = useAtom(apiAtom);
     const [user] = useAtom(userAtom);
     const isOffline = useOfflineMode();
+    const { enabled: inSyncPlayGroup } = useSyncPlay();
     const { getDownloadedItemById } = useDownload();
     // A download pins the tracks it was pulled with, and only the record knows
     // them: resolving against the server media source hands back an index for a
@@ -795,6 +798,15 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                         ? `${remainingTime} ${t("item_card.left")}`
                         : t("common.play")}
                     </Text>
+                    {/* In a group this button plays for everyone in it. */}
+                    {inSyncPlayGroup && !isOffline && (
+                      <Ionicons
+                        name='people'
+                        size={scaleSize(26)}
+                        color='#000000'
+                        style={{ marginLeft: scaleSize(10) }}
+                      />
+                    )}
                   </TVButton>
                 )}
                 {/* Exactly one element asks for the initial focus: Play when
@@ -803,6 +815,9 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                 {settings.useKefinTweaks && <TVWatchlistButton item={item} />}
                 <TVPlayedButton item={item} />
                 <TVRefreshButton itemId={item.Id} />
+                {!isOffline && item.Type !== "Program" && (
+                  <TVSyncPlayButton items={[item]} title={item.Name} />
+                )}
               </View>
 
               {/* Playback options */}

@@ -12,6 +12,7 @@ import { Favorites as TVFavorites } from "@/components/home/Favorites.tv";
 import { TVSegmentedControl } from "@/components/tv";
 import { StreamystatsWatchlists } from "@/components/watchlists/StreamystatsWatchlists";
 import { TVStreamystatsWatchlists } from "@/components/watchlists/TVStreamystatsWatchlist";
+import { TV_HORIZONTAL_PADDING } from "@/constants/Values";
 import useRouter from "@/hooks/useAppRouter";
 import { useSettings } from "@/utils/atoms/settings";
 import { scaleSize } from "@/utils/scaleSize";
@@ -22,7 +23,6 @@ import {
 } from "@/utils/watchlistSources";
 
 const TV_TOP_PADDING = scaleSize(100);
-const TV_HORIZONTAL_PADDING = scaleSize(60);
 
 interface WatchlistsViewProps {
   streamystatsShown: boolean;

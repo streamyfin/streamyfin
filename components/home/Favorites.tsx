@@ -182,9 +182,11 @@ export const Favorites = ({
           </Text>
         </View>
       )}
+      {/* Keyed by account: the cache outlives a user switch and is persisted,
+          so a key without the id opens on the previous account's rows. */}
       <InfiniteScrollingCollectionList
         queryFn={fetchFavoriteSeries}
-        queryKey={["home", queryKeyBase, "series"]}
+        queryKey={["home", queryKeyBase, user?.Id, "series"]}
         title={t("favorites.series")}
         hideIfEmpty
         pageSize={pageSize}
@@ -193,7 +195,7 @@ export const Favorites = ({
       />
       <InfiniteScrollingCollectionList
         queryFn={fetchFavoriteSeasons}
-        queryKey={["home", queryKeyBase, "seasons"]}
+        queryKey={["home", queryKeyBase, user?.Id, "seasons"]}
         title={t("favorites.seasons")}
         hideIfEmpty
         orientation='vertical'
@@ -205,7 +207,7 @@ export const Favorites = ({
 
       <InfiniteScrollingCollectionList
         queryFn={fetchFavoriteMovies}
-        queryKey={["home", queryKeyBase, "movies"]}
+        queryKey={["home", queryKeyBase, user?.Id, "movies"]}
         title={t("favorites.movies")}
         hideIfEmpty
         orientation='vertical'
@@ -215,7 +217,7 @@ export const Favorites = ({
       />
       <InfiniteScrollingCollectionList
         queryFn={fetchFavoriteEpisodes}
-        queryKey={["home", queryKeyBase, "episodes"]}
+        queryKey={["home", queryKeyBase, user?.Id, "episodes"]}
         title={t("favorites.episodes")}
         hideIfEmpty
         pageSize={pageSize}
@@ -224,7 +226,7 @@ export const Favorites = ({
       />
       <InfiniteScrollingCollectionList
         queryFn={fetchFavoriteVideos}
-        queryKey={["home", queryKeyBase, "videos"]}
+        queryKey={["home", queryKeyBase, user?.Id, "videos"]}
         title={t("favorites.videos")}
         hideIfEmpty
         pageSize={pageSize}
@@ -233,7 +235,7 @@ export const Favorites = ({
       />
       <InfiniteScrollingCollectionList
         queryFn={fetchFavoriteBoxsets}
-        queryKey={["home", queryKeyBase, "boxsets"]}
+        queryKey={["home", queryKeyBase, user?.Id, "boxsets"]}
         title={t("favorites.boxsets")}
         hideIfEmpty
         pageSize={pageSize}
@@ -242,7 +244,7 @@ export const Favorites = ({
       />
       <InfiniteScrollingCollectionList
         queryFn={fetchFavoritePlaylists}
-        queryKey={["home", queryKeyBase, "playlists"]}
+        queryKey={["home", queryKeyBase, user?.Id, "playlists"]}
         title={t("favorites.playlists")}
         hideIfEmpty
         pageSize={pageSize}

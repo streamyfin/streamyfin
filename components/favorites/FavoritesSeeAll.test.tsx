@@ -1,6 +1,6 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen } from "@testing-library/react-native";
+import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import { getDefaultStore } from "jotai";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { makeApi } from "@/test-utils/jellyfinApi";
@@ -39,6 +39,7 @@ jest.mock("@/components/cards/useCardGrid", () => {
     }),
   };
 });
+const mockList: { onEndReached?: () => void } = {};
 jest.mock("@shopify/flash-list", () => {
   const { View } = jest.requireActual("react-native");
   const { Fragment } = jest.requireActual("react");
@@ -46,16 +47,21 @@ jest.mock("@shopify/flash-list", () => {
     FlashList: ({
       data,
       renderItem,
+      onEndReached,
     }: {
       data: unknown[];
       renderItem: (info: { item: unknown; index: number }) => React.ReactNode;
-    }) => (
-      <View>
-        {data.map((item, index) => (
-          <Fragment key={index}>{renderItem({ item, index })}</Fragment>
-        ))}
-      </View>
-    ),
+      onEndReached?: () => void;
+    }) => {
+      mockList.onEndReached = onEndReached;
+      return (
+        <View>
+          {data.map((item, index) => (
+            <Fragment key={index}>{renderItem({ item, index })}</Fragment>
+          ))}
+        </View>
+      );
+    },
   };
 });
 
@@ -118,4 +124,31 @@ test("shows a retryable error, not the empty state, when loading fails", async (
   await fireEvent.press(screen.getByText("home.retry"));
 
   expect(await screen.findByText("Back again")).toBeTruthy();
+});
+
+// FlashList fires onEndReached again while the next page is still on its way;
+// each call that gets through cancels that request and starts it over.
+test("asks for the next page once while it is loading", async () => {
+  const client = new QueryClient({
+    defaultOptions: { queries: { gcTime: Infinity, retry: false } },
+  });
+  const firstPage = Array.from({ length: 50 }, (_, i) => ({
+    Id: `m${i}`,
+    Name: `Movie ${i}`,
+  }));
+  signInAs("first");
+  const api = store.get(apiAtom) as unknown as ReturnType<typeof makeApi>;
+  api.mock.reset();
+  api.mock.onGet(/\/Items/).replyOnce(200, { Items: firstPage });
+  // The second page never answers, so it stays in flight.
+  api.mock.onGet(/\/Items/).reply(() => new Promise(() => {}));
+
+  await renderScreen(client);
+  expect(await screen.findByText("Movie 0")).toBeTruthy();
+
+  await act(async () => mockList.onEndReached?.());
+  await act(async () => mockList.onEndReached?.());
+  await act(async () => mockList.onEndReached?.());
+
+  expect(api.mock.history.get).toHaveLength(2);
 });

@@ -6,11 +6,13 @@ import {
   type SortOrder,
   SubtitlePlaybackMode,
 } from "@jellyfin/sdk/lib/generated-client";
+import { isAxiosError } from "axios";
 import { t } from "i18next";
-import { atom, useAtom, useAtomValue } from "jotai";
+import { atom, useAtom, useAtomValue, useStore } from "jotai";
 import { useCallback, useEffect } from "react";
 import { Platform } from "react-native";
 import { BITRATES, type Bitrate } from "@/components/BitrateSelector";
+import { REDACTED_PLACEHOLDER } from "@/constants/Privacy";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { logAndCaptureError, writeInfoLog } from "@/utils/log";
@@ -22,15 +24,17 @@ import {
 import { storage } from "../mmkv";
 import {
   type AppliedPluginDefaults,
+  dropSeededSecrets,
   pluginRefreshOverlay,
   readIntegrationBlocks,
   renameLegacySeerrSettings,
   resolveEffectiveSettings,
+  SENSITIVE_SETTING_KEYS,
 } from "./settingsOverrides";
 
 const _STREAMYFIN_PLUGIN_ID = "1e9e5d386e6746158719e98a5c34f004";
 const STREAMYFIN_PLUGIN_SETTINGS = PLUGIN_SETTINGS_KEY;
-const PLUGIN_APPLIED_DEFAULTS = "STREAMYFIN_PLUGIN_APPLIED_DEFAULTS";
+export const PLUGIN_APPLIED_DEFAULTS = "STREAMYFIN_PLUGIN_APPLIED_DEFAULTS";
 
 export type DownloadQuality = "original" | "high" | "low";
 
@@ -457,6 +461,8 @@ export type Settings = {
   maxAutoPlayEpisodeCount: MaxAutoPlayEpisodeCount;
   autoPlayEpisodeCount: number;
   autoPlayNextEpisode: boolean;
+  /** SyncPlay: join groups without being waited for. Per device. */
+  syncPlayIgnoreWait: boolean;
   // Media segment skip preferences
   skipIntro: SegmentSkipMode;
   skipOutro: SegmentSkipMode;
@@ -549,13 +555,6 @@ export type StreamyfinPluginConfig = {
   settings: PluginLockableSettings;
 };
 
-// Settings whose values are secrets. They must never reach the app log,
-// which users read in-app and paste into bug reports.
-const SENSITIVE_SETTING_KEYS: ReadonlySet<keyof Settings> = new Set([
-  "seerrApiKey",
-  "openSubtitlesApiKey",
-] as const);
-
 // Read first: the plugin sends the Seerr key under its old flat name and
 // inside the seerr block, and only the app's own name is on the list above.
 export const redactPluginSettings = (
@@ -568,9 +567,33 @@ export const redactPluginSettings = (
       Object.entries(settings).map(([key, lockable]) => [
         key,
         SENSITIVE_SETTING_KEYS.has(key as keyof Settings) && lockable?.value
-          ? { ...lockable, value: "[redacted]" }
+          ? { ...lockable, value: REDACTED_PLACEHOLDER }
           : lockable,
       ]),
+    ) as PluginLockableSettings)
+  );
+};
+
+// What the previous account signs in with, dropped as soon as another account
+// signs in: the secrets, and the Seerr address, where a Seerr sign-in starting
+// for the next account would send that account's password. No tab depends on
+// the address, unlike the locks that stay until the next account's arrive.
+const SIGN_IN_SETTING_KEYS: ReadonlySet<keyof Settings> = new Set([
+  ...SENSITIVE_SETTING_KEYS,
+  "seerrServerUrl",
+]);
+
+// Read first, as above, so nothing stays behind under an old name.
+const withoutSignIns = (
+  sent: PluginLockableSettings | undefined,
+): PluginLockableSettings | undefined => {
+  const settings = readIntegrationBlocks(sent);
+  return (
+    settings &&
+    (Object.fromEntries(
+      Object.entries(settings).filter(
+        ([key]) => !SIGN_IN_SETTING_KEYS.has(key as keyof Settings),
+      ),
     ) as PluginLockableSettings)
   );
 };
@@ -631,6 +654,7 @@ export const defaultValues: Settings = {
   maxAutoPlayEpisodeCount: { key: "3", value: 3 },
   autoPlayEpisodeCount: 0,
   autoPlayNextEpisode: true,
+  syncPlayIgnoreWait: false,
   // Media segment skip defaults
   skipIntro: "ask",
   skipOutro: "ask",
@@ -801,6 +825,16 @@ const loadSettings = (): Partial<Settings> => {
     changed = true;
   }
 
+  // An earlier build seeded the plugin's secrets here, where they stayed for
+  // every account signed in after the one they were served to. The record of
+  // what was seeded is read under the same names as the settings.
+  const applied = { ...loadAppliedPluginDefaults() } as Record<string, unknown>;
+  renameLegacySeerrSettings(applied);
+  if (dropSeededSecrets(stored as Record<string, unknown>, applied)) {
+    storage.setAny(PLUGIN_APPLIED_DEFAULTS, applied);
+    changed = true;
+  }
+
   if (changed) {
     storage.set(SETTINGS_KEY, JSON.stringify(stored));
   }
@@ -887,7 +921,11 @@ export const effectiveSettingsAtom = atom<Settings>((get) =>
 
 /**
  * The plugin's settings under the app's names, logged with their secrets
- * redacted. Undefined when the server has no plugin or cannot answer.
+ * redacted. Undefined when the server has no plugin, which it says with a 404.
+ *
+ * Every other failure rejects: a request that never arrived, or a server that
+ * answered with an error of its own, says nothing about the plugin, and the
+ * caller must not read it as "no plugin".
  */
 export const fetchPluginSettings = (api: {
   getStreamyfinPluginConfig: () => Promise<{ data: StreamyfinPluginConfig }>;
@@ -897,7 +935,12 @@ export const fetchPluginSettings = (api: {
       writeInfoLog("Got plugin settings", redactPluginSettings(data?.settings));
       return migratePluginSettings(data?.settings);
     },
-    () => undefined,
+    (error) => {
+      if (isAxiosError(error) && error.response?.status === 404) {
+        return undefined;
+      }
+      throw error;
+    },
   );
 
 const loadAppliedPluginDefaults = (): AppliedPluginDefaults => {
@@ -909,7 +952,7 @@ const loadAppliedPluginDefaults = (): AppliedPluginDefaults => {
 };
 
 export const useSettings = () => {
-  const api = useAtomValue(apiAtom);
+  const jotaiStore = useStore();
   const [_settings, setSettings] = useAtom(settingsAtom);
   const [pluginSettings, _setPluginSettings] = useAtom(pluginSettingsAtom);
 
@@ -929,45 +972,94 @@ export const useSettings = () => {
     [_setPluginSettings],
   );
 
-  const refreshStreamyfinPluginSettings = useCallback(async () => {
-    if (!api) {
-      return;
-    }
-    const newPluginSettings = await fetchPluginSettings(api);
-    setPluginSettings(newPluginSettings);
+  // At an account switch, before the next account's refresh: the Seerr
+  // sign-ins would otherwise run for the next account with the previous one's
+  // key or toward its Seerr. The locks stay until that refresh replaces them.
+  const forgetPluginSignIns = useCallback(() => {
+    setPluginSettings(withoutSignIns(jotaiStore.get(pluginSettingsAtom)));
+  }, [jotaiStore, setPluginSettings]);
 
-    // Write against the atom's value at apply time, not the hook's render
-    // snapshot: this runs while the user can be changing settings (the intro
-    // sheet is up during first-run login), and a merge built from the
-    // snapshot resurrected whatever the user had just overwritten.
-    if (newPluginSettings) {
-      setSettings((currentSettings) => {
-        if (!currentSettings) return currentSettings;
-
-        const applied = loadAppliedPluginDefaults();
-        const result = pluginRefreshOverlay(
-          currentSettings,
-          newPluginSettings,
-          applied,
-          normalizePluginValue,
-        );
-        if (!result) return currentSettings;
-
-        const newSettings = {
-          ...defaultValues,
-          ...currentSettings,
-          ...result.overlay,
-        } as Settings;
-        saveSettings(newSettings);
-        if (result.applied) {
-          storage.setAny(PLUGIN_APPLIED_DEFAULTS, result.applied);
+  const refreshStreamyfinPluginSettings = useCallback(
+    async ({ atSignIn = false }: { atSignIn?: boolean } = {}) => {
+      // Read when called, not when rendered: a sign-in sets the new api and
+      // refreshes straight away, before a render hands this callback the new
+      // one.
+      const api = jotaiStore.get(apiAtom);
+      if (!api) {
+        return;
+      }
+      // The answer belongs to the session that asked. A sign-out or an account
+      // switch while it was on its way has moved on, and writing it now would
+      // hand the previous user's settings, credentials included, to the next.
+      // Compared by session rather than by object: the same session's api is
+      // rebuilt at launch, once the stored session is read back, and when the
+      // network changes the server's address, and its answer is still its own.
+      const stillCurrent = () => {
+        const current = jotaiStore.get(apiAtom);
+        return !!current && current.accessToken === api.accessToken;
+      };
+      let newPluginSettings: PluginLockableSettings | undefined;
+      try {
+        newPluginSettings = await fetchPluginSettings(api);
+      } catch (error) {
+        // No answer about the plugin, so what is stored stands. This runs on
+        // every return to the foreground, where a request fails for no better
+        // reason than the network not being back yet, and clearing here
+        // dropped the admin's locks and the tabs the plugin turns on until a
+        // later refresh got through.
+        //
+        // An HTTP failure is the server's or the network's and is left quiet.
+        // Anything else broke while reading an answer that did arrive, and
+        // would otherwise fail the same way on every refresh without a trace.
+        if (!isAxiosError(error)) {
+          logAndCaptureError("Refreshing plugin settings failed", error);
         }
-        return newSettings;
-      });
-    }
+        // Except at a sign-in: what is stored is then the previous account's,
+        // kept only until this answer.
+        if (atSignIn && stillCurrent()) {
+          setPluginSettings(undefined);
+        }
+        return undefined;
+      }
+      if (!stillCurrent()) {
+        return undefined;
+      }
+      setPluginSettings(newPluginSettings);
 
-    return newPluginSettings;
-  }, [api, setPluginSettings, setSettings]);
+      // Write against the atom's value at apply time, not the hook's render
+      // snapshot: this runs while the user can be changing settings (the intro
+      // sheet is up during first-run login), and a merge built from the
+      // snapshot resurrected whatever the user had just overwritten.
+      if (newPluginSettings) {
+        setSettings((currentSettings) => {
+          if (!currentSettings) return currentSettings;
+
+          const applied = loadAppliedPluginDefaults();
+          const result = pluginRefreshOverlay(
+            currentSettings,
+            newPluginSettings,
+            applied,
+            normalizePluginValue,
+          );
+          if (!result) return currentSettings;
+
+          const newSettings = {
+            ...defaultValues,
+            ...currentSettings,
+            ...result.overlay,
+          } as Settings;
+          saveSettings(newSettings);
+          if (result.applied) {
+            storage.setAny(PLUGIN_APPLIED_DEFAULTS, result.applied);
+          }
+          return newSettings;
+        });
+      }
+
+      return newPluginSettings;
+    },
+    [jotaiStore, setPluginSettings, setSettings],
+  );
 
   const updateSettings = (update: Partial<Settings>) => {
     // Admin-locked settings are enforced at write time too: a control that
@@ -1010,6 +1102,7 @@ export const useSettings = () => {
     updateSettings,
     pluginSettings,
     setPluginSettings,
+    forgetPluginSignIns,
     refreshStreamyfinPluginSettings,
   };
 };
