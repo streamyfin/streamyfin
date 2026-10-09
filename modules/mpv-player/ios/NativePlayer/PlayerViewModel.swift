@@ -18,6 +18,11 @@ final class PlaybackTimeModel: ObservableObject {
 	@Published var cacheSeconds: Double = 0
 }
 
+struct EpisodeSeason: Identifiable {
+	let id: String
+	let name: String
+}
+
 /// Bridges MPVPlayerEngine callbacks into SwiftUI state and dual-emits every
 /// engine event to the JS coordinator via `emit`. Also owns pure-UI behavior:
 /// auto-hide, scrubbing state, display-position interpolation between the
@@ -153,6 +158,17 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	/// Result id a download is in flight for (row spinner).
 	@Published var downloadingResultId: String?
 	@Published var episodeList: [EpisodeListItemRecord] = []
+	@Published var selectedEpisodeSeasonKey: String?
+	var episodeSeasons: [EpisodeSeason] {
+		var seen = Set<String>()
+		return episodeList.compactMap { episode in
+			guard seen.insert(episode.seasonKey).inserted else { return nil }
+			return EpisodeSeason(id: episode.seasonKey, name: episode.seasonName)
+		}
+	}
+	var visibleEpisodes: [EpisodeListItemRecord] {
+		episodeList.filter { $0.seasonKey == selectedEpisodeSeasonKey }
+	}
 	/// Custom proxy auth headers for the thumbnails above (see RemoteImage).
 	@Published var imageHeaders: [String: String]?
 	@Published var trickplay: TrickplayProvider?
@@ -355,6 +371,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		// played item actually changes.
 		let newItemId = config.metadata?.itemId
 		if newItemId == nil || newItemId != currentItemId {
+			selectedEpisodeSeasonKey = nil
 			countdownCanceled = false
 			countdownFired = false
 			// Sync offsets and gain are per-item compensations — a same-item
@@ -378,7 +395,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		chapters = config.chapters.sorted { $0.startSec < $1.startSec }
 		segments = config.segments
 		nextEpisode = config.nextEpisode
-		episodeList = config.episodeList
+		updateEpisodeList(config.episodeList)
 		subtitleMenu = config.tracks?.subtitles ?? []
 		audioMenu = config.tracks?.audio ?? []
 		qualityMenu = config.tracks?.quality ?? []
@@ -469,7 +486,13 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	}
 
 	func updateEpisodeList(_ episodes: [EpisodeListItemRecord]) {
+		let previousItem = episodeList.first(where: { $0.isCurrent })?.itemId
+		let currentEpisode = episodes.first(where: { $0.isCurrent })
 		episodeList = episodes
+		if previousItem != currentEpisode?.itemId ||
+			!episodes.contains(where: { $0.seasonKey == selectedEpisodeSeasonKey }) {
+			selectedEpisodeSeasonKey = currentEpisode?.seasonKey ?? episodes.first?.seasonKey
+		}
 	}
 
 	// MARK: - User intents

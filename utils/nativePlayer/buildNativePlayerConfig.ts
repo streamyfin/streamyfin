@@ -101,6 +101,7 @@ export const buildNativePlayerStrings = (
   playNow: t("common.play"),
   cancel: t("common.cancel"),
   episodes: t("common.episodes"),
+  season: t("item_card.season"),
   speed: t("player.menu.speed"),
   audio: t("player.menu.audio"),
   subtitles: t("player.menu.subtitles"),
