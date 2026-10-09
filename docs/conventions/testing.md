@@ -92,6 +92,9 @@ Three rules keep mocks from becoming the thing that breaks:
 - `reanimatedModule` stands for `react-native-reanimated` when a spec renders a component
   that holds shared values. Reanimated's own Jest mock returns a new shared value on
   every render, which re-runs any effect that depends on one.
+- `swiftUiModule` stands for `@expo/ui/swift-ui`: the SwiftUI views become plain views and
+  each `Menu` keeps the modifiers it was given, which `renderedMenuModifiers(screen)` reads
+  back. Leave `@expo/ui/swift-ui/modifiers` real, it is plain JavaScript and loads in Jest.
 - `tsxRequireHook` stands for `tsx/cjs` in every spec, wired once through
   `moduleNameMapper` instead of per spec. A require hook registered from a spec lands on
   the Jest worker's own loader and breaks whichever spec that worker loads next.

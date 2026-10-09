@@ -4,6 +4,7 @@ import React, { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Platform, StyleSheet, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { FixedOrderMenu } from "@/components/common/FixedOrderMenu";
 import { Text } from "@/components/common/Text";
 import { useGlobalModal } from "@/providers/GlobalModalProvider";
 
@@ -11,7 +12,7 @@ import { useGlobalModal } from "@/providers/GlobalModalProvider";
 // A static top-level import evaluates requireNativeModule('ExpoUI') at module
 // load and crashes the entire route tree on tvOS (expo-router requires every
 // route file). Load it lazily and only off-TV; TV never renders these.
-const { Button, Host, Menu } = Platform.isTV
+const { Button, Host } = Platform.isTV
   ? ({} as typeof import("@expo/ui/swift-ui"))
   : require("@expo/ui/swift-ui");
 const { disabled } = Platform.isTV
@@ -254,7 +255,7 @@ const PlatformDropdownComponent = ({
           {trigger}
         </View>
         <Host style={[StyleSheet.absoluteFill, expoUIConfig?.hostStyle as any]}>
-          <Menu label={trigger}>
+          <FixedOrderMenu label={trigger}>
             {groups.flatMap((group, groupIndex) => {
               // Check if this group has radio options
               const radioOptions = group.options.filter(
@@ -285,7 +286,10 @@ const PlatformDropdownComponent = ({
                     ? `${group.title}: ${selectedOption.label}`
                     : group.title;
                   items.push(
-                    <Menu key={`submenu-${groupIndex}`} label={displayTitle}>
+                    <FixedOrderMenu
+                      key={`submenu-${groupIndex}`}
+                      label={displayTitle}
+                    >
                       {radioOptions.map((option, optionIndex) => (
                         <Button
                           key={`radio-${groupIndex}-${optionIndex}`}
@@ -302,7 +306,7 @@ const PlatformDropdownComponent = ({
                           }}
                         />
                       ))}
-                    </Menu>,
+                    </FixedOrderMenu>,
                   );
                 } else {
                   // Render radio options as direct buttons
@@ -361,7 +365,7 @@ const PlatformDropdownComponent = ({
 
               return items;
             })}
-          </Menu>
+          </FixedOrderMenu>
         </Host>
       </View>
     );
