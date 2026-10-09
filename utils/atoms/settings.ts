@@ -15,6 +15,7 @@ import { BITRATES, type Bitrate } from "@/components/BitrateSelector";
 import { REDACTED_PLACEHOLDER } from "@/constants/Privacy";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { apiAtom } from "@/providers/JellyfinProvider";
+import { isExpectedError } from "@/utils/errors";
 import { logAndCaptureError, writeInfoLog } from "@/utils/log";
 import {
   PLUGIN_SETTINGS_KEY,
@@ -549,9 +550,6 @@ export interface Lockable<T> {
 export type PluginLockableSettings = {
   [K in keyof Settings]: Lockable<Settings[K]>;
 };
-export type StreamyfinPluginConfig = {
-  settings: PluginLockableSettings;
-};
 
 // Read first: the plugin sends the Seerr key under its old flat name and
 // inside the seerr block, and only the app's own name is on the list above.
@@ -918,27 +916,24 @@ export const effectiveSettingsAtom = atom<Settings>((get) =>
 
 /**
  * The plugin's settings under the app's names, logged with their secrets
- * redacted. Undefined when the server has no plugin, which it says with a 404.
+ * redacted. Undefined when the server has said there is nothing to apply,
+ * which readPluginSettings (utils/pluginSettingsSource) decides.
  *
  * Every other failure rejects: a request that never arrived, or a server that
  * answered with an error of its own, says nothing about the plugin, and the
  * caller must not read it as "no plugin".
  */
 export const fetchPluginSettings = (api: {
-  getStreamyfinPluginConfig: () => Promise<{ data: StreamyfinPluginConfig }>;
+  getStreamyfinPluginSettings: () => Promise<
+    PluginLockableSettings | undefined
+  >;
 }): Promise<PluginLockableSettings | undefined> =>
-  api.getStreamyfinPluginConfig().then(
-    ({ data }) => {
-      writeInfoLog("Got plugin settings", redactPluginSettings(data?.settings));
-      return migratePluginSettings(data?.settings);
-    },
-    (error) => {
-      if (isAxiosError(error) && error.response?.status === 404) {
-        return undefined;
-      }
-      throw error;
-    },
-  );
+  api.getStreamyfinPluginSettings().then((settings) => {
+    if (settings) {
+      writeInfoLog("Got plugin settings", redactPluginSettings(settings));
+    }
+    return migratePluginSettings(settings);
+  });
 
 const loadAppliedPluginDefaults = (): AppliedPluginDefaults => {
   try {
@@ -1005,10 +1000,12 @@ export const useSettings = () => {
         // dropped the admin's locks and the tabs the plugin turns on until a
         // later refresh got through.
         //
-        // An HTTP failure is the server's or the network's and is left quiet.
-        // Anything else broke while reading an answer that did arrive, and
-        // would otherwise fail the same way on every refresh without a trace.
-        if (!isAxiosError(error)) {
+        // An HTTP failure is the server's or the network's and is left quiet,
+        // and so is an answer that is not the plugin's, which the transport
+        // marks expected: something in front of the server sent it. Anything
+        // else broke while reading an answer that did arrive, and would
+        // otherwise fail the same way on every refresh without a trace.
+        if (!isAxiosError(error) && !isExpectedError(error)) {
           logAndCaptureError("Refreshing plugin settings failed", error);
         }
         // Except at a sign-in: what is stored is then the previous account's,
@@ -1033,7 +1030,6 @@ export const useSettings = () => {
 
           const applied = loadAppliedPluginDefaults();
           const result = pluginRefreshOverlay(
-            currentSettings,
             newPluginSettings,
             applied,
             normalizePluginValue,
@@ -1046,9 +1042,7 @@ export const useSettings = () => {
             ...result.overlay,
           } as Settings;
           saveSettings(newSettings);
-          if (result.applied) {
-            storage.setAny(PLUGIN_APPLIED_DEFAULTS, result.applied);
-          }
+          storage.setAny(PLUGIN_APPLIED_DEFAULTS, result.applied);
           return newSettings;
         });
       }
