@@ -34,6 +34,7 @@ cadence meant knowing both existed, and nothing would have failed if only one ha
 | `constants/Images.ts` | Server image requests: the detail page logo height, and the pixel caps and steps on what is asked for |
 | `constants/TVSizes.ts` | TV poster sizes, gaps, padding, animation timings |
 | `constants/TVTypography.ts` | TV type scale and the `useScaledTVTypography` hook |
+| `constants/TVSheet.ts` | How TV sheets come in: backdrop fade, slide, and the delays before their cards mount and take focus |
 | `constants/TVPosterSizes.ts` | TV poster size keys |
 | `constants/Playback.ts` | Playback reporting policy shared by the JS and native players (progress report cadence) |
 | `constants/Logs.ts` | App log storage key and how many entries it keeps |
