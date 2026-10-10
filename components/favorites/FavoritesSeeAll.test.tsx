@@ -22,6 +22,8 @@ jest.mock("expo-router", () => ({
   }),
 }));
 jest.mock("@/components/Loader", () => ({ Loader: () => null }));
+// The screen imports `t` from i18next directly; QueryErrorState uses the hook.
+jest.mock("i18next", () => ({ t: (key: string) => key }));
 jest.mock("react-i18next", () => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }));
@@ -48,10 +50,12 @@ jest.mock("@shopify/flash-list", () => {
       data,
       renderItem,
       onEndReached,
+      ListFooterComponent,
     }: {
       data: unknown[];
       renderItem: (info: { item: unknown; index: number }) => React.ReactNode;
       onEndReached?: () => void;
+      ListFooterComponent?: React.ReactNode;
     }) => {
       mockList.onEndReached = onEndReached;
       return (
@@ -59,6 +63,7 @@ jest.mock("@shopify/flash-list", () => {
           {data.map((item, index) => (
             <Fragment key={index}>{renderItem({ item, index })}</Fragment>
           ))}
+          {ListFooterComponent}
         </View>
       );
     },
@@ -151,4 +156,39 @@ test("asks for the next page once while it is loading", async () => {
   await act(async () => mockList.onEndReached?.());
 
   expect(api.mock.history.get).toHaveLength(2);
+});
+
+// A later page failing left the grid looking complete, with no way to fetch
+// the rest: FlashList only fires onEndReached again on a fresh scroll past
+// the end, and the user is already there.
+test("offers a retry when a later page fails, keeping the pages it has", async () => {
+  const client = new QueryClient({
+    defaultOptions: { queries: { gcTime: Infinity, retry: false } },
+  });
+  const firstPage = Array.from({ length: 50 }, (_, i) => ({
+    Id: `m${i}`,
+    Name: `Movie ${i}`,
+  }));
+  signInAs("first");
+  const api = store.get(apiAtom) as unknown as ReturnType<typeof makeApi>;
+  api.mock.reset();
+  api.mock.onGet(/\/Items/).replyOnce(200, { Items: firstPage });
+  api.mock.onGet(/\/Items/).replyOnce(500);
+  api.mock
+    .onGet(/\/Items/)
+    .replyOnce(200, { Items: [{ Id: "m50", Name: "Movie 50" }] });
+
+  await renderScreen(client);
+  expect(await screen.findByText("Movie 0")).toBeTruthy();
+
+  await act(async () => mockList.onEndReached?.());
+
+  expect(await screen.findByText("common.load_more_failed")).toBeTruthy();
+  expect(screen.getByText("Movie 49")).toBeTruthy();
+
+  await fireEvent.press(screen.getByText("home.retry"));
+
+  expect(await screen.findByText("Movie 50")).toBeTruthy();
+  expect(screen.queryByText("common.load_more_failed")).toBeNull();
+  expect(screen.getByText("Movie 0")).toBeTruthy();
 });

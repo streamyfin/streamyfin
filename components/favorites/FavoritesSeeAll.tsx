@@ -13,6 +13,7 @@ import { useAtom } from "jotai";
 import { useCallback, useMemo } from "react";
 import { Platform, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Button } from "@/components/Button";
 import { useCardGrid } from "@/components/cards/useCardGrid";
 import { QueryErrorState } from "@/components/common/QueryErrorState";
 import { Text } from "@/components/common/Text";
@@ -109,6 +110,8 @@ export default function FavoritesSeeAll() {
     isFetching,
     fetchNextPage,
     hasNextPage,
+    isFetchingNextPage,
+    isFetchNextPageError,
     isLoading,
     isError,
     refetch,
@@ -198,9 +201,27 @@ export default function FavoritesSeeAll() {
             </View>
           }
           ListFooterComponent={
-            isFetching ? (
+            isFetchingNextPage ? (
               <View style={{ paddingVertical: 16 }}>
                 <Loader />
+              </View>
+            ) : isFetchNextPageError ? (
+              // A later page failed: the grid would look complete, and
+              // FlashList only asks again on a fresh scroll past the end,
+              // where the user already is. TanStack keeps the loaded pages,
+              // so Retry fetches only the missing one.
+              <View className='items-center py-6 px-4'>
+                <Text className='text-neutral-400 text-center mb-3'>
+                  {t("common.load_more_failed")}
+                </Text>
+                <Button
+                  color='black'
+                  justify='center'
+                  className='px-6'
+                  onPress={() => fetchNextPage()}
+                >
+                  {t("home.retry")}
+                </Button>
               </View>
             ) : null
           }

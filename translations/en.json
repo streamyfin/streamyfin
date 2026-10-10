@@ -662,7 +662,8 @@
     "seeAll": "See all",
     "close": "Close",
     "something_went_wrong": "Something went wrong",
-    "load_failed_message": "This couldn't be loaded. Check your connection and try again."
+    "load_failed_message": "This couldn't be loaded. Check your connection and try again.",
+    "load_more_failed": "Couldn't load more."
   },
   "search": {
     "search": "Search...",
