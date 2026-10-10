@@ -352,3 +352,28 @@ test("does not re-render for another item's entry", async () => {
 
   expect(renders).toBe(before);
 });
+
+// isPending only changes after a re-render, so a second tap landing before it
+// saw nothing in flight and sent the opposite value too.
+test("sends one request for a double tap, and takes the next tap once it settles", async () => {
+  let settle: () => void = () => {};
+  mockRate.mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        settle = () => resolve({});
+      }),
+  );
+  const { result } = await renderHook(() => useWatchlist(movie), {
+    wrapper: wrapperFor(newClient()),
+  });
+
+  await act(async () => {
+    result.current.toggleWatchlist();
+    result.current.toggleWatchlist();
+  });
+  expect(mockRate).toHaveBeenCalledTimes(1);
+
+  await act(async () => settle());
+  await act(async () => result.current.toggleWatchlist());
+  expect(mockRate).toHaveBeenCalledTimes(2);
+});

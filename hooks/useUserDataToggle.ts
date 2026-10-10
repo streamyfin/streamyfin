@@ -101,6 +101,11 @@ export const useUserDataToggle = ({
     latest.current = { api, userId: user?.Id, itemId: item.Id };
   }, [api, user?.Id, item.Id]);
 
+  // Set the moment a toggle is sent and cleared once it settles. Unlike
+  // `mutation.isPending`, which only changes after a re-render, it already
+  // reads true for a second tap landing before that render.
+  const inFlight = useRef(false);
+
   const mutation = useMutation({
     mutationFn: async (next: boolean) => {
       const { api, userId, itemId } = latest.current;
@@ -132,6 +137,7 @@ export const useUserDataToggle = ({
       if (errorMessage) toast.error(errorMessage);
     },
     onSettled: () => {
+      inFlight.current = false;
       queryClient.invalidateQueries({ queryKey: ["item", item.Id] });
       for (const filters of invalidate) {
         queryClient.invalidateQueries(filters);
@@ -142,7 +148,8 @@ export const useUserDataToggle = ({
   const toggle = useCallback(() => {
     // Overlapping requests could land out of order and leave the server's
     // value out of step with the UI.
-    if (mutation.isPending) return;
+    if (inFlight.current) return;
+    inFlight.current = true;
     mutation.mutate(!value);
   }, [mutation, value]);
 
