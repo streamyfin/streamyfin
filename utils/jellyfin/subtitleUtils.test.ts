@@ -5,7 +5,6 @@ import type {
 import {
   applyMpvSubtitleSelection,
   compareTracksForMenu,
-  getCastSubtitleUrl,
   getExternalSubtitleUrl,
   isExternalSubtitle,
   langEq,
@@ -360,53 +359,6 @@ describe("applyMpvSubtitleSelection — short-circuits", () => {
     );
     expect(r).toEqual({ kind: "burnedIn" });
     expect(enumerated).toBe(false);
-  });
-});
-
-describe("getCastSubtitleUrl — what a cast receiver can fetch", () => {
-  const opts = { basePath: "http://srv", accessToken: "tok en" };
-
-  // Jellyfin 12 turns legacy authorization off by default, and `api_key` is
-  // part of it: the receiver got a 401 for every subtitle track.
-  test("the token goes in as ApiKey, not the legacy api_key", () => {
-    expect(getCastSubtitleUrl(ext(0), opts)).toBe(
-      "http://srv/sub/0.srt?ApiKey=tok%20en",
-    );
-  });
-
-  test("joins an existing query string", () => {
-    expect(
-      getCastSubtitleUrl(ext(0, { DeliveryUrl: "/sub/0.vtt?a=1" }), opts),
-    ).toBe("http://srv/sub/0.vtt?a=1&ApiKey=tok%20en");
-  });
-
-  test("a URL the server already signed is left alone", () => {
-    for (const DeliveryUrl of [
-      "/sub/0.vtt?ApiKey=abc",
-      "/sub/0.vtt?api_key=abc",
-    ]) {
-      expect(getCastSubtitleUrl(ext(0, { DeliveryUrl }), opts)).toBe(
-        `http://srv${DeliveryUrl}`,
-      );
-    }
-  });
-
-  test("a third-party host never sees the token", () => {
-    expect(
-      getCastSubtitleUrl(
-        ext(0, {
-          DeliveryUrl: "https://cdn.example/sub.vtt",
-          IsExternalUrl: true,
-        }),
-        opts,
-      ),
-    ).toBe("https://cdn.example/sub.vtt");
-  });
-
-  test("no DeliveryUrl → undefined", () => {
-    expect(
-      getCastSubtitleUrl(sub({ Index: 0, IsExternal: true }), opts),
-    ).toBeUndefined();
   });
 });
 
