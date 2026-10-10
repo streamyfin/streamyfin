@@ -5,13 +5,19 @@ import type {
 import { renderHook } from "@testing-library/react-native";
 import { useItemActionSheet } from "./useItemActionSheet";
 
-type SheetCallback = (selectedIndex?: number) => void | Promise<void>;
+type SheetOptions = {
+  options: string[];
+  cancelButtonIndex: number;
+  destructiveButtonIndex?: number;
+};
+type SheetCallback = (index?: number) => Promise<void> | void;
 
-const mockShowActionSheet = jest.fn<
-  void,
-  [{ options: string[] }, SheetCallback]
->();
+const mockShowActionSheet = jest.fn<void, [SheetOptions, SheetCallback]>();
 const mockMarkAsPlayed = jest.fn(async (_played: boolean) => {});
+const mockToggleFavorite = jest.fn();
+const mockToggleWatchlist = jest.fn();
+const mockDeleteFile = jest.fn();
+const mockState = { useKefinTweaks: false, isOffline: false };
 
 jest.mock("@expo/react-native-action-sheet", () => ({
   useActionSheet: () => ({ showActionSheetWithOptions: mockShowActionSheet }),
@@ -23,76 +29,179 @@ jest.mock("@/hooks/useMarkAsPlayed", () => ({
   useMarkAsPlayed: () => mockMarkAsPlayed,
 }));
 jest.mock("@/hooks/useFavorite", () => ({
-  useFavorite: () => ({ isFavorite: false, toggleFavorite: () => {} }),
+  useFavorite: () => ({
+    isFavorite: false,
+    toggleFavorite: mockToggleFavorite,
+  }),
 }));
-jest.mock("@/providers/DownloadProvider", () => ({
-  useDownload: () => ({ deleteFile: () => {} }),
+const mockUseWatchlist = jest.fn((_item: unknown, _options?: unknown) => ({
+  isWatchlisted: false,
+  toggleWatchlist: mockToggleWatchlist,
+}));
+jest.mock("@/hooks/useWatchlist", () => ({
+  useWatchlist: (item: unknown, options?: unknown) =>
+    mockUseWatchlist(item, options),
+}));
+jest.mock("@/utils/atoms/settings", () => ({
+  useSettings: () => ({
+    settings: { useKefinTweaks: mockState.useKefinTweaks },
+  }),
 }));
 jest.mock("@/providers/OfflineModeProvider", () => ({
-  useOfflineMode: () => false,
+  useOfflineMode: () => mockState.isOffline,
+}));
+jest.mock("@/providers/DownloadProvider", () => ({
+  useDownload: () => ({ deleteFile: mockDeleteFile }),
 }));
 
-// Hands the "sheet closed" promise back inside an object: returned bare,
-// awaiting the render would also wait for a sheet nobody has answered yet.
-const present = async (type: BaseItemKind | undefined) => {
-  const item: BaseItemDto = { Id: "item-1", Type: type };
+const movie = { Id: "movie-1", Type: "Movie" } as BaseItemDto;
+
+/** Presents the sheet and returns what it was shown with plus its callback. */
+const present = async (item: BaseItemDto = movie) => {
   const { result } = await renderHook(() => useItemActionSheet(item));
-  return { closed: result.current() };
+  const closed = result.current();
+  const [sheet, onSelect] = mockShowActionSheet.mock.calls[0];
+  return { sheet, onSelect, closed };
 };
 
-describe("useItemActionSheet", () => {
-  beforeEach(() => {
-    mockShowActionSheet.mockReset();
-    mockMarkAsPlayed.mockClear();
+beforeEach(() => {
+  jest.clearAllMocks();
+  mockState.useKefinTweaks = false;
+  mockState.isOffline = false;
+});
+
+test("leaves the watchlist entry out while KefinTweaks is off", async () => {
+  const { sheet } = await present();
+  expect(sheet.options).not.toContain("watchlists.add_to_watchlist");
+  expect(sheet.destructiveButtonIndex).toBeUndefined();
+});
+
+test("toggles the watchlist from its own entry when KefinTweaks is on", async () => {
+  mockState.useKefinTweaks = true;
+  const { sheet, onSelect, closed } = await present();
+
+  const index = sheet.options.indexOf("watchlists.add_to_watchlist");
+  expect(index).toBe(3);
+  await onSelect(index);
+  await closed;
+
+  expect(mockToggleWatchlist).toHaveBeenCalledTimes(1);
+  expect(mockDeleteFile).not.toHaveBeenCalled();
+});
+
+// Toggling the watchlist needs the server, so offline it is left out; the
+// delete entry still has to land last and destructive with it gone.
+test("leaves the watchlist entry out offline and keeps delete destructive", async () => {
+  mockState.useKefinTweaks = true;
+  mockState.isOffline = true;
+  const { sheet, onSelect } = await present();
+
+  expect(sheet.options).toEqual([
+    "common.mark_as_played",
+    "common.mark_as_not_played",
+    "music.track_options.add_to_favorites",
+    "home.downloads.delete_download",
+    "common.cancel",
+  ]);
+  expect(sheet.destructiveButtonIndex).toBe(3);
+  expect(sheet.cancelButtonIndex).toBe(4);
+
+  await onSelect(3);
+  expect(mockDeleteFile).toHaveBeenCalledWith("movie-1");
+  expect(mockToggleWatchlist).not.toHaveBeenCalled();
+});
+
+test("resolves without acting when the sheet is cancelled", async () => {
+  const { sheet, onSelect, closed } = await present();
+  await onSelect(sheet.cancelButtonIndex);
+  await onSelect(undefined);
+  await expect(closed).resolves.toBeUndefined();
+
+  expect(mockMarkAsPlayed).not.toHaveBeenCalled();
+  expect(mockToggleFavorite).not.toHaveBeenCalled();
+});
+
+// Jellyfin 12 (web #8063) lets a folder be marked played, the way a series
+// already could; before this only Movie, Episode and Series opened the sheet.
+test.each<BaseItemKind>([
+  "Movie",
+  "Episode",
+  "Video",
+  "Series",
+  "Season",
+  "BoxSet",
+  "Folder",
+])("offers the played actions for a %s", async (type) => {
+  const { sheet } = await present({ Id: "item-1", Type: type });
+
+  expect(sheet.options).toEqual(
+    expect.arrayContaining([
+      "common.mark_as_played",
+      "common.mark_as_not_played",
+    ]),
+  );
+});
+
+test.each<BaseItemKind | undefined>([
+  "Person",
+  "CollectionFolder",
+  "Playlist",
+  "MusicAlbum",
+  undefined,
+])("presents nothing for a %s and resolves at once", async (type) => {
+  const { result } = await renderHook(() =>
+    useItemActionSheet({ Id: "item-1", Type: type }),
+  );
+
+  await expect(result.current()).resolves.toBeUndefined();
+  expect(mockShowActionSheet).not.toHaveBeenCalled();
+});
+
+test("marks a folder played through the shared played mutation", async () => {
+  const { onSelect, closed } = await present({ Id: "item-1", Type: "Folder" });
+  await onSelect(0);
+  await closed;
+
+  expect(mockMarkAsPlayed).toHaveBeenCalledWith(true);
+});
+
+test("marks a season unplayed through the shared played mutation", async () => {
+  const { onSelect, closed } = await present({ Id: "item-1", Type: "Season" });
+  await onSelect(1);
+  await closed;
+
+  expect(mockMarkAsPlayed).toHaveBeenCalledWith(false);
+});
+
+// The host unmounts the sheet once the returned promise settles; an action that
+// threw used to leave it pending, and the host mounted for good.
+test("reports the sheet closed even when the chosen action fails", async () => {
+  mockToggleFavorite.mockImplementationOnce(() => {
+    throw new Error("server said no");
   });
+  const { sheet, onSelect, closed } = await present();
 
-  // Jellyfin 12 (web #8063) lets a folder be marked played, the way a series
-  // already could; before this only Movie, Episode and Series opened the sheet.
-  test.each<BaseItemKind>([
-    "Movie",
-    "Episode",
-    "Video",
-    "Series",
-    "Season",
-    "BoxSet",
-    "Folder",
-  ])("offers the played actions for a %s", async (type) => {
-    await present(type);
+  // The failure itself still surfaces; only the close is under test.
+  await Promise.resolve(
+    onSelect(sheet.options.indexOf("music.track_options.add_to_favorites")),
+  ).catch(() => {});
 
-    expect(mockShowActionSheet).toHaveBeenCalledTimes(1);
-    expect(mockShowActionSheet.mock.calls[0][0].options).toEqual(
-      expect.arrayContaining([
-        "common.mark_as_played",
-        "common.mark_as_not_played",
-      ]),
-    );
-  });
+  await expect(closed).resolves.toBeUndefined();
+});
 
-  test.each<BaseItemKind | undefined>([
-    "Person",
-    "CollectionFolder",
-    "Playlist",
-    undefined,
-  ])("presents nothing for a %s and resolves at once", async (type) => {
-    const { closed } = await present(type);
+// Every card mounts this sheet's hooks. With KefinTweaks off the watchlist
+// toggle must stay passive, or each card writes shared state on mount.
+test.each([
+  ["KefinTweaks is off", { useKefinTweaks: false, isOffline: false }],
+  ["offline", { useKefinTweaks: true, isOffline: true }],
+])("keeps the watchlist toggle passive while %s", async (_label, state) => {
+  Object.assign(mockState, state);
+  await present();
+  expect(mockUseWatchlist).toHaveBeenCalledWith(movie, { enabled: false });
+});
 
-    await expect(closed).resolves.toBeUndefined();
-    expect(mockShowActionSheet).not.toHaveBeenCalled();
-  });
-
-  test("marks a folder played through the shared played mutation", async () => {
-    const { closed } = await present("Folder");
-    await mockShowActionSheet.mock.calls[0][1](0);
-    await closed;
-
-    expect(mockMarkAsPlayed).toHaveBeenCalledWith(true);
-  });
-
-  test("marks a season unplayed through the shared played mutation", async () => {
-    const { closed } = await present("Season");
-    await mockShowActionSheet.mock.calls[0][1](1);
-    await closed;
-
-    expect(mockMarkAsPlayed).toHaveBeenCalledWith(false);
-  });
+test("enables the watchlist toggle when KefinTweaks is on and online", async () => {
+  mockState.useKefinTweaks = true;
+  await present();
+  expect(mockUseWatchlist).toHaveBeenCalledWith(movie, { enabled: true });
 });

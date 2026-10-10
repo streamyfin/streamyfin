@@ -24,6 +24,7 @@ import {
 } from "@/hooks/useTVBackHandler";
 import { useSettings } from "@/utils/atoms/settings";
 import { eventBus } from "@/utils/eventBus";
+import { isWatchlistsTabVisible } from "@/utils/watchlistSources";
 
 // Music components are not available on tvOS (TrackPlayer not supported)
 const MiniPlayerBar = Platform.isTV
@@ -65,7 +66,7 @@ function TVTabLayout() {
         { key: "(home)", label: t("tabs.home") },
         { key: "(search)", label: t("tabs.search") },
         { key: "(favorites)", label: t("tabs.favorites") },
-        !settings?.streamyStatsServerUrl || settings?.hideWatchlistsTab
+        !isWatchlistsTabVisible(settings)
           ? null
           : { key: "(watchlists)", label: t("watchlists.title") },
         { key: "(libraries)", label: t("tabs.library") },
@@ -77,6 +78,7 @@ function TVTabLayout() {
     [
       settings?.streamyStatsServerUrl,
       settings?.hideWatchlistsTab,
+      settings?.useKefinTweaks,
       settings?.showCustomMenuLinks,
       t,
     ],
@@ -207,8 +209,7 @@ export default function TabLayout() {
           name='(watchlists)'
           options={{
             title: t("watchlists.title"),
-            tabBarItemHidden:
-              !settings?.streamyStatsServerUrl || settings?.hideWatchlistsTab,
+            tabBarItemHidden: !isWatchlistsTabVisible(settings),
             tabBarIcon:
               Platform.OS === "android"
                 ? (_e) => require("@/assets/icons/list.star.png")

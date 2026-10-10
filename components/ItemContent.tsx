@@ -45,6 +45,7 @@ import {
 } from "@/utils/jellyfin/media/isPlayableItem";
 import { getPlayingRunTimeTicks } from "@/utils/jellyfin/mediaSourceVersion";
 import { AddToFavorites } from "./AddToFavorites";
+import { AddToKefinWatchlist } from "./AddToKefinWatchlist";
 import { AddToWatchlist } from "./AddToWatchlist";
 import { ItemHeader } from "./ItemHeader";
 import { ItemTechnicalDetails } from "./ItemTechnicalDetails";
@@ -207,6 +208,9 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
                     pointerEvents={isVersionPending ? "none" : "auto"}
                   />
                   <AddToFavorites item={item} />
+                  {settings.useKefinTweaks && (
+                    <AddToKefinWatchlist item={item} />
+                  )}
                   {settings.streamyStatsServerUrl &&
                     !settings.hideWatchlistsTab && (
                       <AddToWatchlist item={item} />
@@ -228,6 +232,7 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
     settings.hideRemoteSessionButton,
     settings.streamyStatsServerUrl,
     settings.hideWatchlistsTab,
+    settings.useKefinTweaks,
   ]);
 
   useEffect(() => {
