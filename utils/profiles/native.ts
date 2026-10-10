@@ -366,6 +366,10 @@ export const generateDeviceProfile = (options: ProfileOptions = {}) => {
     DirectPlayProfiles: [
       {
         Type: MediaTypes.Video,
+        // "hls" stays for Jellyfin 10.11, where it is what lets a Live TV
+        // channel that is itself an HLS manifest direct play. Jellyfin 12
+        // never direct plays a manifest and ignores the entry
+        // (jellyfin/jellyfin#17768).
         Container: "mp4,mkv,avi,mov,flv,ts,m2ts,webm,ogv,3gp,hls",
         VideoCodec: videoCodecs.directPlay,
         AudioCodec: directPlayCodec,

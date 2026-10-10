@@ -1,4 +1,7 @@
-import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
+import type {
+  BaseItemDto,
+  BaseItemKind,
+} from "@jellyfin/sdk/lib/generated-client/models";
 import { renderHook } from "@testing-library/react-native";
 import { useItemActionSheet } from "./useItemActionSheet";
 
@@ -118,12 +121,56 @@ test("resolves without acting when the sheet is cancelled", async () => {
   expect(mockToggleFavorite).not.toHaveBeenCalled();
 });
 
-test("presents nothing for an unsupported item type", async () => {
-  const { result } = await renderHook(() =>
-    useItemActionSheet({ Id: "a", Type: "MusicAlbum" } as BaseItemDto),
+// Jellyfin 12 (web #8063) lets a folder be marked played, the way a series
+// already could; before this only Movie, Episode and Series opened the sheet.
+test.each<BaseItemKind>([
+  "Movie",
+  "Episode",
+  "Video",
+  "Series",
+  "Season",
+  "BoxSet",
+  "Folder",
+])("offers the played actions for a %s", async (type) => {
+  const { sheet } = await present({ Id: "item-1", Type: type });
+
+  expect(sheet.options).toEqual(
+    expect.arrayContaining([
+      "common.mark_as_played",
+      "common.mark_as_not_played",
+    ]),
   );
+});
+
+test.each<BaseItemKind | undefined>([
+  "Person",
+  "CollectionFolder",
+  "Playlist",
+  "MusicAlbum",
+  undefined,
+])("presents nothing for a %s and resolves at once", async (type) => {
+  const { result } = await renderHook(() =>
+    useItemActionSheet({ Id: "item-1", Type: type }),
+  );
+
   await expect(result.current()).resolves.toBeUndefined();
   expect(mockShowActionSheet).not.toHaveBeenCalled();
+});
+
+test("marks a folder played through the shared played mutation", async () => {
+  const { onSelect, closed } = await present({ Id: "item-1", Type: "Folder" });
+  await onSelect(0);
+  await closed;
+
+  expect(mockMarkAsPlayed).toHaveBeenCalledWith(true);
+});
+
+test("marks a season unplayed through the shared played mutation", async () => {
+  const { onSelect, closed } = await present({ Id: "item-1", Type: "Season" });
+  await onSelect(1);
+  await closed;
+
+  expect(mockMarkAsPlayed).toHaveBeenCalledWith(false);
 });
 
 // The host unmounts the sheet once the returned promise settles; an action that

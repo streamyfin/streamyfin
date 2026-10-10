@@ -1,6 +1,7 @@
 // Spec for app/(auth)/player/direct-player.tsx. It lives here rather than next
 // to the page because Expo Router turns every file under app/ into a route.
 import { act, render, screen, waitFor } from "@testing-library/react-native";
+import i18next from "i18next";
 import DirectPlayerPage from "@/app/(auth)/player/direct-player";
 import type { MpvPlayerViewProps } from "@/modules";
 import type { makeApi } from "@/test-utils/jellyfinApi";
@@ -136,6 +137,11 @@ jest.mock("@/hooks/useRevalidatePlaybackProgressCache", () => ({
 jest.mock("@/hooks/useWebsockets", () => ({ useWebSocket: () => {} }));
 jest.mock("@/hooks/useWatchlist", () => ({
   usePruneWatchedFromWatchlist: () => mockNoop,
+}));
+// Where an alternate version starts is covered by
+// getDefaultPlaySettings.test.ts; the version itself is not under test here.
+jest.mock("@/hooks/useServerVersion", () => ({
+  useServerVersion: () => "12.0.0",
 }));
 jest.mock("@/utils/atoms/settings", () => ({
   getActivePlayerType: () => "mpv",
@@ -309,6 +315,9 @@ const leavePlayer = async () => {
   });
   await waitFor(() => expect(stopReports()).toHaveLength(1));
 };
+
+// The language the stream headers carry, the same for every test.
+beforeAll(() => i18next.init({ lng: "sv", resources: {} }));
 
 describe("direct player stop report", () => {
   beforeEach(() => {
@@ -606,6 +615,17 @@ describe("direct player stop report", () => {
 
       expect(mockReportProgress).not.toHaveBeenCalled();
       expect(mockRouter.setParams).not.toHaveBeenCalled();
+    });
+  });
+
+  test("asks the server for the app language on the stream", async () => {
+    // A Jellyfin 12 server localizes what it answers from this header. One
+    // tag and no list: mpv takes its headers comma separated.
+    await openPlayer();
+
+    expect(mockPlayerProps?.source?.headers).toEqual({
+      "Accept-Language": "sv",
+      Authorization: 'MediaBrowser Token="SECRET_TOKEN"',
     });
   });
 

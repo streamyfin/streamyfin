@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { TVPasswordEntryModal } from "@/components/login/TVPasswordEntryModal";
 import { TVPINEntryModal } from "@/components/login/TVPINEntryModal";
+import { stillWatchingPresetLabel } from "@/components/settings/stillWatchingPresetLabel";
 import type { TVOptionItem } from "@/components/tv";
 import {
   TVCustomHeadersSection,
@@ -24,6 +25,10 @@ import {
   TVSettingsTextInput,
   TVSettingsToggle,
 } from "@/components/tv";
+import {
+  STILL_WATCHING_PRESET_ORDER,
+  type StillWatchingPreset,
+} from "@/constants/StillWatching";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import { useMediaPreferences } from "@/hooks/useMediaPreferences";
 import { useTVOptionModal } from "@/hooks/useTVOptionModal";
@@ -42,6 +47,7 @@ import {
   defaultValues,
   getActiveVideoPlayerEngine,
   InactivityTimeout,
+  isNativeChromeActive,
   isNativePlayerSupportedTV,
   type MpvCacheMode,
   type MpvVoDriver,
@@ -59,6 +65,7 @@ import {
   type SavedServer,
   type SavedServerAccount,
 } from "@/utils/secureCredentials";
+import { coerceStillWatchingPreset } from "@/utils/stillWatching";
 import { clearTopShelfCacheSafely } from "@/utils/topshelf/cache";
 
 const SEGMENT_SKIP_ROWS: {
@@ -690,6 +697,17 @@ export default function SettingsTV() {
     [t, currentInactivityTimeout],
   );
 
+  const stillWatchingOptions: TVOptionItem<StillWatchingPreset>[] = useMemo(
+    () =>
+      STILL_WATCHING_PRESET_ORDER.map((preset) => ({
+        label: stillWatchingPresetLabel(t, preset),
+        value: preset,
+        selected:
+          preset === coerceStillWatchingPreset(settings.stillWatchingPreset),
+      })),
+    [t, settings.stillWatchingPreset],
+  );
+
   // Get display labels for option buttons
   const audioTranscodeLabel = useMemo(() => {
     const option = audioTranscodeModeOptions.find((o) => o.selected);
@@ -923,6 +941,24 @@ export default function SettingsTV() {
             value={settings.showResumeDialog}
             onToggle={(value) => updateSettings({ showResumeDialog: value })}
           />
+
+          {/* Only the native TV players ask "Still watching?", and only
+              instead of an autoplay */}
+          {isNativeChromeActive(settings) && settings.autoPlayNextEpisode && (
+            <TVSettingsOptionButton
+              disabledByAdmin={pluginSettings?.stillWatchingPreset?.locked}
+              label={t("home.settings.other.still_watching")}
+              value={stillWatchingPresetLabel(t, settings.stillWatchingPreset)}
+              onPress={() =>
+                showOptions({
+                  title: t("home.settings.other.still_watching"),
+                  options: stillWatchingOptions,
+                  onSelect: (value) =>
+                    updateSettings({ stillWatchingPreset: value }),
+                })
+              }
+            />
+          )}
 
           {/* Audio Section */}
           <TVSectionHeader title={t("home.settings.audio.audio_title")} />
@@ -1378,6 +1414,11 @@ export default function SettingsTV() {
             onToggle={(value) =>
               updateSettings({ mergeNextUpAndContinueWatching: value })
             }
+          />
+          <TVSettingsToggle
+            label={t("home.settings.appearance.show_upcoming_on_home")}
+            value={settings.showUpcomingOnHome}
+            onToggle={(value) => updateSettings({ showUpcomingOnHome: value })}
           />
           <TVSettingsToggle
             label={t("home.settings.appearance.use_episode_images_next_up")}

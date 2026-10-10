@@ -112,16 +112,15 @@ export const usePlaybackManager = ({
   });
 
   /**
-   * When a shuffle queue is active for the current series and contains the
-   * current item, prev/next come from the shuffled order instead of the
-   * sequential adjacent-episode order. The guard is intentionally strict
-   * (series match AND current item present) so an unrelated episode opened
-   * while a stale queue is set falls back to the adjacent-items path cleanly.
+   * When a queue is active and contains the current item, prev/next come from
+   * the queued order instead of the sequential adjacent-episode order. The
+   * current item has to be in it, so an unrelated item opened while a stale
+   * queue is set falls back to the adjacent-items path cleanly. Membership is
+   * the whole guard: a library queue holds movies, which belong to no series.
    */
   const shuffleActive =
     !!shuffleQueue &&
-    !!item?.SeriesId &&
-    shuffleQueue.seriesId === item.SeriesId &&
+    !!item?.Id &&
     shuffleQueue.items.some((e) => e.Id === item.Id);
 
   /**

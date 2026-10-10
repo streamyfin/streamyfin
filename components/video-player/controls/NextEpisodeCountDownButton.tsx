@@ -15,7 +15,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { Text } from "@/components/common/Text";
 import { Colors } from "@/constants/Colors";
-import { CONTROLS_CONSTANTS } from "./constants";
+import { NEXT_EPISODE_COUNTDOWN_MS } from "@/constants/Playback";
 
 interface NextEpisodeCountDownButtonProps extends TouchableOpacityProps {
   onFinish?: () => void;
@@ -31,10 +31,12 @@ interface NextEpisodeCountDownButtonProps extends TouchableOpacityProps {
   isPlaying: boolean;
   /** Id of the item being played, to scope the countdown to it. */
   itemId?: string | null;
+  /** False when a play queue lines up something else, a movie for instance. */
+  nextIsEpisode?: boolean;
 }
 
 /** Media time the fill represents, matching the window the button appears in. */
-const COUNTDOWN_WINDOW_MS = CONTROLS_CONSTANTS.NEXT_EPISODE_COUNTDOWN_MS;
+const COUNTDOWN_WINDOW_MS = NEXT_EPISODE_COUNTDOWN_MS;
 /**
  * The player reports its position about once a second, so the last sample of
  * an item can sit that far short of the end. Anything inside this window is
@@ -52,6 +54,7 @@ const NextEpisodeCountDownButton: React.FC<NextEpisodeCountDownButtonProps> = ({
   remainingMs,
   isPlaying,
   itemId,
+  nextIsEpisode = true,
   ...props
 }) => {
   const progress = useSharedValue(0);
@@ -163,7 +166,7 @@ const NextEpisodeCountDownButton: React.FC<NextEpisodeCountDownButtonProps> = ({
       <Animated.View style={animatedStyle} />
       <View className='px-3 py-2'>
         <Text numberOfLines={1} className='text-center text-sm font-bold'>
-          {t("player.next_episode")}
+          {t(nextIsEpisode ? "player.next_episode" : "player.up_next")}
         </Text>
       </View>
     </TouchableOpacity>

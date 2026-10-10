@@ -14,6 +14,8 @@ import { ItemImage } from "@/components/common/ItemImage";
 import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { DownloadSingleItem } from "@/components/DownloadItem";
+import { ItemCollections } from "@/components/ItemCollections";
+import { ItemCredits } from "@/components/item/ItemCredits";
 import { ItemPeopleSections } from "@/components/item/ItemPeopleSections";
 import { MediaSourceButton } from "@/components/MediaSourceButton";
 import { OverviewText } from "@/components/OverviewText";
@@ -29,6 +31,7 @@ import { LOGO_HEIGHT } from "@/constants/Images";
 import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
 import { useImageColorsReturn } from "@/hooks/useImageColorsReturn";
 import { useOrientation } from "@/hooks/useOrientation";
+import { useVersionItemState } from "@/hooks/useVersionItem";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
@@ -40,6 +43,7 @@ import {
   canPlayInRemoteSession,
   isPlayableItem,
 } from "@/utils/jellyfin/media/isPlayableItem";
+import { getPlayingRunTimeTicks } from "@/utils/jellyfin/mediaSourceVersion";
 import { AddToFavorites } from "./AddToFavorites";
 import { AddToKefinWatchlist } from "./AddToKefinWatchlist";
 import { AddToWatchlist } from "./AddToWatchlist";
@@ -109,6 +113,28 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
     SelectedOptions | undefined
   >(undefined);
 
+  // On Jellyfin 12 each version keeps its own resume point and played state.
+  // A downloaded item keeps the page as it was: Play can open the download,
+  // whose position is the item's, not the selected version's.
+  const isDownloaded = !!item?.Id && !!getDownloadedItemById(item.Id);
+  const { versionItem, isPending: isVersionPending } = useVersionItemState(
+    item,
+    itemWithSources?.MediaSources,
+    isDownloaded ? undefined : selectedOptions?.mediaSource?.Id,
+  );
+  const playButtonItem = useMemo(
+    () =>
+      item && versionItem && versionItem !== item
+        ? {
+            ...item,
+            // A version's resume point is against its own runtime.
+            RunTimeTicks: getPlayingRunTimeTicks(item, versionItem),
+            UserData: versionItem.UserData,
+          }
+        : item,
+    [item, versionItem],
+  );
+
   // Use itemWithSources for play settings since it has MediaSources data
   const {
     defaultAudioIndex,
@@ -174,7 +200,13 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
                       <PlayInRemoteSessionButton item={item} size='large' />
                     )}
 
-                  <PlayedStatus items={[item]} size='large' />
+                  {/* Until the selected version's own state is in, the
+                      toggle would mark the primary version instead. */}
+                  <PlayedStatus
+                    items={[versionItem ?? item]}
+                    size='large'
+                    pointerEvents={isVersionPending ? "none" : "auto"}
+                  />
                   <AddToFavorites item={item} />
                   {settings.useKefinTweaks && (
                     <AddToKefinWatchlist item={item} />
@@ -191,6 +223,8 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
     }
   }, [
     item,
+    versionItem,
+    isVersionPending,
     navigation,
     user,
     itemWithSources,
@@ -269,8 +303,10 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
               <View className='flex flex-row px-0 mb-2 justify-between space-x-2'>
                 <PlayButton
                   selectedOptions={selectedOptions}
-                  item={item}
+                  item={playButtonItem ?? item}
                   colors={itemColors}
+                  // The resume point shown is still the primary version's.
+                  disabled={isVersionPending}
                 />
                 <View className='w-1' />
                 <SyncPlayQueueButton
@@ -309,6 +345,8 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
 
           <OverviewText text={item.Overview} className='px-4 mb-4' />
 
+          <ItemCredits people={item.People} className='px-4 mb-4' />
+
           {item.Type !== "Program" && (
             <>
               {item.Type === "Episode" && !isOffline && (
@@ -317,7 +355,9 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
 
               <ItemPeopleSections item={item} />
 
-              {!isOffline && <SimilarItems itemId={item.Id} />}
+              {!isOffline && <ItemCollections itemId={item.Id} />}
+
+              {!isOffline && <SimilarItems item={item} />}
             </>
           )}
         </View>

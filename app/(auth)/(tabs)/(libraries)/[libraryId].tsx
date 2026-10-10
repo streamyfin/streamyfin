@@ -1,7 +1,7 @@
 import type {
   BaseItemDto,
   BaseItemDtoQueryResult,
-  BaseItemKind,
+  ItemFilter,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import {
   getFilterApi,
@@ -9,45 +9,73 @@ import {
   getUserLibraryApi,
 } from "@jellyfin/sdk/lib/utils/api";
 import { FlashList } from "@shopify/flash-list";
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useInfiniteQuery,
+  useIsFetching,
+  useQuery,
+} from "@tanstack/react-query";
 import {
   useFocusEffect,
   useLocalSearchParams,
   useNavigation,
 } from "expo-router";
+import { useHeaderHeight } from "expo-router/react-navigation";
 import { useAtom, useSetAtom } from "jotai";
-import React, { useCallback, useEffect, useMemo, useRef } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useTranslation } from "react-i18next";
 import {
   BackHandler,
   FlatList,
   Platform,
   ScrollView,
+  TVFocusGuideView,
   useWindowDimensions,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useCardGrid } from "@/components/cards/useCardGrid";
+import { HeaderButton } from "@/components/common/HeaderButton";
 import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { getItemNavigation } from "@/components/common/TouchableItemRouter";
 import { FilterButton } from "@/components/filters/FilterButton";
 import { ResetFiltersButton } from "@/components/filters/ResetFiltersButton";
 import { Loader } from "@/components/Loader";
-import { TVFilterButton, TVFocusablePoster } from "@/components/tv";
+import { AlphabetRail } from "@/components/library/AlphabetRail";
+import { LibraryPlayButtons } from "@/components/library/LibraryPlayButtons";
+import { LibraryTabs } from "@/components/library/LibraryTabs";
+import { TVLibraryTabs } from "@/components/library/TVLibraryTabs";
+import {
+  TVLibraryToolbar,
+  type TVLibraryToolbarAction,
+} from "@/components/library/TVLibraryToolbar";
+import { TVFocusablePoster } from "@/components/tv";
 import { TVPosterCard } from "@/components/tv/TVPosterCard";
 import { useScaledTVPosterSizes } from "@/constants/TVPosterSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
-import { TV_HORIZONTAL_PADDING } from "@/constants/Values";
+import { TAB_HEIGHT, TV_HORIZONTAL_PADDING } from "@/constants/Values";
 import useRouter from "@/hooks/useAppRouter";
 import { useFilterReset } from "@/hooks/useFilterReset";
+import { useLanguageFilters } from "@/hooks/useLanguageFilters";
 import { useLibraryFilters } from "@/hooks/useLibraryFilters";
+import { useLibraryPlayQueue } from "@/hooks/useLibraryPlayQueue";
+import { useLibraryTabs } from "@/hooks/useLibraryTabs";
 import { useOrientation } from "@/hooks/useOrientation";
 import { useRefreshLibraryOnFocus } from "@/hooks/useRefreshLibraryOnFocus";
+import { useServerVersion } from "@/hooks/useServerVersion";
 import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
-import { useTVOptionModal } from "@/hooks/useTVOptionModal";
+import { useTVLibrarySheet } from "@/hooks/useTVLibrarySheet";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import {
+  audioLanguageFilterAtom,
+  audioLanguagePreferenceAtom,
   FilterByOption,
   FilterByPreferenceAtom,
   filterByAtom,
@@ -62,22 +90,76 @@ import {
   SortOrderOption,
   sortByAtom,
   sortByPreferenceAtom,
-  sortOptions,
+  sortOptionsFor,
   sortOrderAtom,
   sortOrderOptions,
   sortOrderPreferenceAtom,
+  subtitleLanguageFilterAtom,
+  subtitleLanguagePreferenceAtom,
   tagPreferenceAtom,
   tagsFilterAtom,
   useFilterOptions,
   yearFilterAtom,
   yearPreferenceAtom,
 } from "@/utils/atoms/filters";
+import {
+  type TVLibrarySheetGroup,
+  type TVLibrarySheetState,
+  tvLibrarySheetAtom,
+} from "@/utils/atoms/tvLibrarySheet";
 import type { TVOptionItem } from "@/utils/atoms/tvOptionModal";
+import { ALPHABET, alphabetJumpParams } from "@/utils/jellyfin/alphabetJump";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
+import {
+  getLanguageFilterLabel,
+  type LanguageFilterOption,
+  withSelectedLanguages,
+} from "@/utils/jellyfin/languageFilters";
+import { supportsNameBounds } from "@/utils/jellyfin/serverVersion";
+import {
+  buildLibraryItemsQuery,
+  isQueueableLibrary,
+  type LibraryItemsFilter,
+  libraryLanguageOptions,
+} from "@/utils/library/libraryItemsQuery";
+import { ALL_OPTION, filterSummary } from "@/utils/library/librarySheet";
+import {
+  getLibraryTabFilters,
+  getLibraryTabQuery,
+  isLibraryTabCountQueryKey,
+  libraryTabUsesFilterBar,
+} from "@/utils/library/libraryTabs";
+import { store } from "@/utils/store";
 
+/** Items per request of the grid; more load as the list is scrolled. */
+const PAGE_SIZE = 36;
 const TV_ITEM_GAP = 20;
 const _TV_SCALE_PADDING = 20;
 const TV_PLAYLIST_SQUARE_SIZE = 180;
+const OUTGOING_LIST_OPACITY = 0.4;
+/**
+ * The room between the phone list's header and its first row. The filter bar
+ * brings it as its own padding; a tab without one has to leave it itself.
+ */
+const LIST_HEADER_GAP = 16;
+
+type TVSheetKind = "filters" | "sort" | "letters";
+
+/** A filter's picks after one more press: "all" clears, a pick toggles. */
+const toggled = (selected: string[], value: string): string[] =>
+  value === ALL_OPTION
+    ? []
+    : selected.includes(value)
+      ? selected.filter((picked) => picked !== value)
+      : [...selected, value];
+
+interface LanguageFilterEntry {
+  key: string;
+  title: string;
+  options: LanguageFilterOption[];
+  selected: string[];
+  set: (languages: string[]) => void;
+}
 
 const Page = () => {
   const searchParams = useLocalSearchParams() as {
@@ -98,6 +180,12 @@ const Page = () => {
   const [selectedGenres, setSelectedGenres] = useAtom(genreFilterAtom);
   const [selectedYears, setSelectedYears] = useAtom(yearFilterAtom);
   const [selectedTags, setSelectedTags] = useAtom(tagsFilterAtom);
+  const [selectedAudioLanguages, setSelectedAudioLanguages] = useAtom(
+    audioLanguageFilterAtom,
+  );
+  const [selectedSubtitleLanguages, setSelectedSubtitleLanguages] = useAtom(
+    subtitleLanguageFilterAtom,
+  );
   const [sortBy, _setSortBy] = useAtom(sortByAtom);
   const [filterBy, _setFilterBy] = useAtom(filterByAtom);
   const [sortOrder, _setSortOrder] = useAtom(sortOrderAtom);
@@ -118,6 +206,12 @@ const Page = () => {
   const [genrePreference, setGenrePreference] = useAtom(genrePreferenceAtom);
   const [yearPreference, setYearPreference] = useAtom(yearPreferenceAtom);
   const [tagPreference, setTagPreference] = useAtom(tagPreferenceAtom);
+  const [audioLanguagePreference, setAudioLanguagePreference] = useAtom(
+    audioLanguagePreferenceAtom,
+  );
+  const [subtitleLanguagePreference, setSubtitleLanguagePreference] = useAtom(
+    subtitleLanguagePreferenceAtom,
+  );
 
   const { orientation } = useOrientation();
 
@@ -127,7 +221,7 @@ const Page = () => {
 
   const { t } = useTranslation();
   const router = useRouter();
-  const { showOptions } = useTVOptionModal();
+  const { openSheet } = useTVLibrarySheet();
 
   // When this library detail was opened from the home "See All" button, its
   // libraries stack is just [detail], so the default TV Back would exit to home.
@@ -240,10 +334,17 @@ const Page = () => {
         _setFilterBy(fp ? [fp] : []);
       }
 
-      // Genres / years / tags have no URL params, only the per-library memory.
+      // Genres / years / tags / languages have no URL params, only the
+      // per-library memory.
       setSelectedGenres(getMultiFilterPreference(libraryId, genrePreference));
       setSelectedYears(getMultiFilterPreference(libraryId, yearPreference));
       setSelectedTags(getMultiFilterPreference(libraryId, tagPreference));
+      setSelectedAudioLanguages(
+        getMultiFilterPreference(libraryId, audioLanguagePreference),
+      );
+      setSelectedSubtitleLanguages(
+        getMultiFilterPreference(libraryId, subtitleLanguagePreference),
+      );
 
       // Last, and in the same batch: from here on the atoms are this library's.
       setFilterOwner(libraryId);
@@ -258,9 +359,13 @@ const Page = () => {
       genrePreference,
       yearPreference,
       tagPreference,
+      audioLanguagePreference,
+      subtitleLanguagePreference,
       setSelectedGenres,
       setSelectedYears,
       setSelectedTags,
+      setSelectedAudioLanguages,
+      setSelectedSubtitleLanguages,
       setFilterOwner,
       searchParams.sortBy,
       searchParams.sortOrder,
@@ -334,6 +439,31 @@ const Page = () => {
     [libraryId, tagPreference, setTagPreference, setSelectedTags],
   );
 
+  // A functional update, unlike the setters above: the language sheet stays
+  // open across picks and keeps calling the setter of the render that opened
+  // it, so nothing here may be read from that render.
+  const setAudioLanguages = useCallback(
+    (languages: string[]) => {
+      setAudioLanguagePreference((saved) => ({
+        ...saved,
+        [libraryId]: languages,
+      }));
+      setSelectedAudioLanguages(languages);
+    },
+    [libraryId, setAudioLanguagePreference, setSelectedAudioLanguages],
+  );
+
+  const setSubtitleLanguages = useCallback(
+    (languages: string[]) => {
+      setSubtitleLanguagePreference((saved) => ({
+        ...saved,
+        [libraryId]: languages,
+      }));
+      setSelectedSubtitleLanguages(languages);
+    },
+    [libraryId, setSubtitleLanguagePreference, setSelectedSubtitleLanguages],
+  );
+
   const nrOfCols = useMemo(() => {
     if (Platform.isTV) {
       // TV uses flexWrap, so nrOfCols is just for mobile
@@ -361,6 +491,34 @@ const Page = () => {
     staleTime: 60 * 1000,
   });
 
+  // Collections and playlists that hold items of this library (Jellyfin 12).
+  // The policy is covered by utils/library/libraryTabs.test.ts, the counts by
+  // hooks/useLibraryTabs.test.tsx.
+  const { tabs, activeTab, setActiveTab } = useLibraryTabs(library);
+  const hasTabs = tabs.length > 1;
+  const hasFilterBar = libraryTabUsesFilterBar(activeTab);
+
+  // Offered on Jellyfin 12+ and on movie, show or mixed libraries only. That
+  // gates the buttons and the Filters2 call, not what is sent below: a
+  // selection can only have been made through those buttons, an older server
+  // ignores the parameters, and waiting for the version would send a first,
+  // unfiltered request on a cold cache.
+  const languageFilters = useLanguageFilters(library);
+  // Shared with the language filters above: one request for both.
+  const serverVersion = useServerVersion();
+
+  // Only a TV library has episodes still to air. `/Shows/Upcoming` answers for
+  // any parent, with nothing.
+  const showUpcoming = library?.CollectionType === "tvshows";
+  const openUpcoming = useCallback(() => {
+    router.push({
+      pathname: "/(auth)/(tabs)/(libraries)/upcoming",
+      params: { parentId: libraryId },
+    } as any);
+  }, [router, libraryId]);
+
+  const sortOptions = sortOptionsFor(library?.CollectionType);
+
   const navigation = useNavigation();
   useEffect(() => {
     navigation.setOptions({
@@ -385,57 +543,136 @@ const Page = () => {
     }
   }, [navigation, fromSeeAll]);
 
+  // The filter atoms are global, and the collection or playlist opened from a
+  // tab rewrites them while this screen stays mounted underneath. So the query
+  // runs on the selection this library holds for itself, and a tab that
+  // ignores the filter bar leaves even that out: it would refetch what it
+  // already has and lose its scroll position.
+  const filterKey =
+    hasFilterBar && ownFilters
+      ? [
+          ownFilters.genres,
+          ownFilters.years,
+          ownFilters.tags,
+          ownFilters.audioLanguages,
+          ownFilters.subtitleLanguages,
+          ownFilters.sortBy,
+          ownFilters.sortOrder,
+          ownFilters.filterBy,
+        ]
+      : [];
+
+  // Identifies the result set on screen. A change of tab, filters or sort,
+  // reset included, has to show its results from the top instead of staying
+  // deep in the previous set, so the list is keyed by it and starts over.
+  //
+  // Scrolling the existing list to the top does not work on iOS: the header is
+  // transparent and the system insets the list under it, React Native clamps
+  // a scroll to offset 0, which is behind the header, and a list that has just
+  // mounted has no inset yet to aim at.
+  const filterSignature = [
+    activeTab,
+    ...filterKey.map((values) => values.join(",")),
+  ].join("|");
+
+  // The alphabet picker. A letter is a place in the list the tab and the
+  // filters describe, so it is remembered with their signature and only
+  // applies while they match it: another tab, or a list under other filters,
+  // opens at its top. It belongs to the items tab, next to the sort it
+  // depends on. The logic is covered by utils/jellyfin/alphabetJump.test.ts.
+  const canJumpToLetter =
+    hasFilterBar &&
+    sortBy[0] === SortByOption.SortName &&
+    supportsNameBounds(serverVersion);
+  // `serial` tells one jump from the next, the same letter again included:
+  // that is the way back to the first of its titles, so every jump starts the
+  // list over the way a filter change does, through its key.
+  const [jump, setJump] = useState<{
+    letter: string;
+    scope: string;
+    serial: number;
+  } | null>(null);
+  const jumpLetter = jump?.scope === filterSignature ? jump.letter : null;
+  const jumpTo = useCallback(
+    (letter: string) =>
+      setJump((previous) => ({
+        letter,
+        scope: filterSignature,
+        serial: (previous?.serial ?? 0) + 1,
+      })),
+    [filterSignature],
+  );
+  const jumpParams = useMemo(
+    () =>
+      alphabetJumpParams(
+        jumpLetter,
+        ownFilters?.sortOrder[0] === SortOrderOption.Descending,
+      ),
+    [jumpLetter, ownFilters?.sortOrder],
+  );
+
+  // What the filter bar selects. The grid and the Play All / Shuffle queue
+  // are both built from it, so they cannot drift apart. Null until the
+  // library has a selection of its own: nothing is asked for before that.
+  const libraryFilter = useMemo(
+    (): LibraryItemsFilter | null =>
+      ownFilters && {
+        userId: user?.Id,
+        libraryId,
+        collectionType: library?.CollectionType,
+        sortBy: ownFilters.sortBy[0],
+        sortOrder: ownFilters.sortOrder[0],
+        filterBy: ownFilters.filterBy as ItemFilter[],
+        genres: ownFilters.genres,
+        years: ownFilters.years,
+        tags: ownFilters.tags,
+        audioLanguages: ownFilters.audioLanguages,
+        subtitleLanguages: ownFilters.subtitleLanguages,
+      },
+    [user?.Id, libraryId, library?.CollectionType, ownFilters],
+  );
+
   const fetchItems = useCallback(
     async ({
       pageParam,
     }: {
       pageParam: number;
     }): Promise<BaseItemDtoQueryResult | null> => {
-      if (!api || !library || !ownFilters) return null;
+      if (!api || !library || !libraryFilter) return null;
 
-      let itemType: BaseItemKind | undefined;
-
-      // This fix makes sure to only return 1 type of items, if defined.
-      // This is because the underlying directory some times contains other types, and we don't want to show them.
-      if (library.CollectionType === "movies") {
-        itemType = "Movie";
-      } else if (library.CollectionType === "tvshows") {
-        itemType = "Series";
-      } else if (library.CollectionType === "boxsets") {
-        itemType = "BoxSet";
-      } else if (library.CollectionType === "homevideos") {
-        itemType = "Video";
-      } else if (library.CollectionType === "musicvideos") {
-        itemType = "MusicVideo";
-      } else if (library.CollectionType === "playlists") {
-        itemType = "Playlist";
-      }
-
-      const response = await getItemsApi(api).getItems({
-        userId: user?.Id,
-        parentId: libraryId,
-        limit: 36,
-        startIndex: pageParam,
-        sortBy: [ownFilters.sortBy[0], "SortName", "ProductionYear"],
-        sortOrder: [ownFilters.sortOrder[0]],
-        enableImageTypes: ["Primary", "Backdrop", "Banner", "Thumb"],
-        filters: ownFilters.filterBy,
-        // true is needed for merged versions
-        recursive: true,
-        imageTypeLimit: 1,
-        fields: ["PrimaryImageAspectRatio", "SortName"],
-        genres: ownFilters.genres,
-        tags: ownFilters.tags,
-        years: ownFilters.years.map((year) => Number.parseInt(year, 10)),
-        includeItemTypes: itemType ? [itemType] : undefined,
-        ...(Platform.isTV && library.CollectionType === "playlists"
-          ? { mediaTypes: ["Video"] }
-          : {}),
-      });
+      // The filter bar's part comes from the filter Play All queues from, so
+      // the two cannot drift apart. A collections or playlists tab swaps it,
+      // and the item type, for its own.
+      const itemsQuery = buildLibraryItemsQuery(libraryFilter);
+      const response = await getItemsApi(api).getItems(
+        {
+          userId: itemsQuery.userId,
+          parentId: itemsQuery.parentId,
+          recursive: itemsQuery.recursive,
+          ...getLibraryTabFilters(activeTab, {
+            sortBy: itemsQuery.sortBy,
+            sortOrder: itemsQuery.sortOrder,
+            filters: itemsQuery.filters,
+            genres: itemsQuery.genres,
+            tags: itemsQuery.tags,
+            years: itemsQuery.years,
+          }),
+          ...getLibraryTabQuery(activeTab, library, Platform.isTV),
+          ...jumpParams,
+          limit: PAGE_SIZE,
+          startIndex: pageParam,
+          enableImageTypes: ["Primary", "Backdrop", "Banner", "Thumb"],
+          imageTypeLimit: 1,
+          fields: ["PrimaryImageAspectRatio", "SortName"],
+        },
+        // The language filters are part of the filter bar: off the items tab
+        // they apply as little as its genres do.
+        hasFilterBar ? libraryLanguageOptions(libraryFilter) : undefined,
+      );
 
       return response.data || null;
     },
-    [api, user?.Id, libraryId, library, ownFilters],
+    [api, library, libraryFilter, activeTab, hasFilterBar, jumpParams],
   );
 
   const { data, isFetching, fetchNextPage, hasNextPage, isLoading } =
@@ -443,14 +680,15 @@ const Page = () => {
       queryKey: [
         "library-items",
         libraryId,
-        ownFilters?.genres,
-        ownFilters?.years,
-        ownFilters?.tags,
-        ownFilters?.sortBy,
-        ownFilters?.sortOrder,
-        ownFilters?.filterBy,
+        activeTab,
+        ...filterKey,
+        jumpParams,
       ],
       queryFn: fetchItems,
+      // A jump moves within the list already on screen, so that list stays up
+      // until the new page lands. Falling back to the loader would unmount the
+      // page, and on TV take the focus off the letter that was just pressed.
+      placeholderData: jumpLetter ? keepPreviousData : undefined,
       getNextPageParam: (lastPage, pages) => {
         if (
           !lastPage?.Items ||
@@ -471,8 +709,22 @@ const Page = () => {
         return undefined;
       },
       initialPageParam: 0,
-      enabled: !!api && !!user?.Id && !!library && !!ownFilters,
+      enabled: !!api && !!user?.Id && !!library && !!libraryFilter,
     });
+
+  // A list of this library on its way for the first time. With a letter
+  // chosen and a list still on screen that is a jump landing, and the list
+  // being left is dimmed until then. A tab loading for the first time is not:
+  // it has no list to dim, only its loader. The tab counts share the key
+  // prefix and are no list at all.
+  const isFirstFetch =
+    useIsFetching({
+      queryKey: ["library-items", libraryId],
+      predicate: (query) =>
+        query.state.data === undefined &&
+        !isLibraryTabCountQueryKey(query.queryKey),
+    }) > 0;
+  const isJumpLanding = jumpLetter !== null && isFirstFetch;
 
   const flatData = useMemo(() => {
     return (
@@ -481,26 +733,24 @@ const Page = () => {
     );
   }, [data]);
 
-  // Identifies the result set on screen. A change of filters or sort, reset
-  // included, has to show its results from the top instead of staying deep in
-  // the previous set, so the list is keyed by it and starts over.
-  //
-  // Scrolling the existing list to the top does not work on iOS: the header is
-  // transparent and the system insets the list under it, React Native clamps
-  // a scroll to offset 0, which is behind the header, and a list that has just
-  // mounted has no inset yet to aim at.
-  const filterSignature = [
-    ownFilters?.genres.join(","),
-    ownFilters?.years.join(","),
-    ownFilters?.tags.join(","),
-    ownFilters?.sortBy[0],
-    ownFilters?.sortOrder[0],
-    ownFilters?.filterBy.join(","),
-  ].join("|");
+  // A playlist normally opens the music playlist screen, which plays its
+  // entries through the music player. The ones listed under a library hold that
+  // library's videos, so they open as a grid, the way TV opens every playlist.
+  const openPlaylistAsGrid = useCallback(
+    (item: BaseItemDto) => {
+      router.push({
+        pathname: "/(auth)/(tabs)/(libraries)/[libraryId]",
+        params: { libraryId: item.Id! },
+      });
+    },
+    [router],
+  );
+
   const grid = useCardGrid({
     items: flatData,
     columns: nrOfCols,
     enableActionSheet: true,
+    onPressItem: activeTab === "playlists" ? openPlaylistAsGrid : undefined,
   });
 
   const renderTVItem = useCallback(
@@ -585,7 +835,46 @@ const Page = () => {
   );
 
   const generalFilters = useFilterOptions();
-  const ListHeaderComponent = useCallback(
+  // The two language filters, described once for the mobile chips and the TV
+  // buttons. Empty when the filters are not offered.
+  const languageFilterEntries = useMemo(
+    (): LanguageFilterEntry[] =>
+      languageFilters.enabled
+        ? [
+            {
+              key: "audioLanguageFilter",
+              title: t("library.filters.audio_languages"),
+              options: withSelectedLanguages(
+                languageFilters.audio,
+                selectedAudioLanguages,
+              ),
+              selected: selectedAudioLanguages,
+              set: setAudioLanguages,
+            },
+            {
+              key: "subtitleLanguageFilter",
+              title: t("library.filters.subtitle_languages"),
+              options: withSelectedLanguages(
+                languageFilters.subtitle,
+                selectedSubtitleLanguages,
+              ),
+              selected: selectedSubtitleLanguages,
+              set: setSubtitleLanguages,
+            },
+          ]
+        : [],
+    [
+      languageFilters.enabled,
+      languageFilters.audio,
+      languageFilters.subtitle,
+      selectedAudioLanguages,
+      setAudioLanguages,
+      selectedSubtitleLanguages,
+      setSubtitleLanguages,
+      t,
+    ],
+  );
+  const FilterBar = useCallback(
     () => (
       <FlatList
         horizontal
@@ -593,7 +882,7 @@ const Page = () => {
         contentContainerStyle={{
           display: "flex",
           paddingHorizontal: 15,
-          paddingVertical: 16,
+          paddingVertical: LIST_HEADER_GAP,
           flexDirection: "row",
         }}
         data={[
@@ -673,13 +962,33 @@ const Page = () => {
               />
             ),
           },
+          ...languageFilterEntries.map((filter) => ({
+            key: filter.key,
+            component: (
+              <FilterButton
+                className='mr-1'
+                id={libraryId}
+                queryKey={filter.key}
+                options={filter.options.map((option) => option.value)}
+                set={filter.set}
+                values={filter.selected}
+                title={filter.title}
+                renderItemLabel={(item) =>
+                  getLanguageFilterLabel(filter.options, item)
+                }
+                multiple
+              />
+            ),
+          })),
           {
             key: "sortBy",
             component: (
               <FilterButton
                 className='mr-1'
                 id={libraryId}
-                queryKey='sortBy'
+                // The options depend on the library's type, which can arrive
+                // after the button has cached the list for this id.
+                queryKey={`sortBy:${library?.CollectionType ?? ""}`}
                 queryFn={async () => sortOptions.map((s) => s.key)}
                 set={setSortBy}
                 values={sortBy}
@@ -739,6 +1048,7 @@ const Page = () => {
       setYears,
       selectedTags,
       setTags,
+      languageFilterEntries,
       sortBy,
       setSortBy,
       sortOrder,
@@ -746,6 +1056,8 @@ const Page = () => {
       filterBy,
       setFilter,
       generalFilters,
+      sortOptions,
+      library?.CollectionType,
     ],
   );
 
@@ -810,7 +1122,7 @@ const Page = () => {
         value: option.key,
         selected: sortBy[0] === option.key,
       })),
-    [sortBy],
+    [sortBy, sortOptions],
   );
 
   const tvSortOrderOptions = useMemo(
@@ -839,94 +1151,232 @@ const Page = () => {
     [filterBy, generalFilters, t],
   );
 
-  // TV Filter handlers using navigation-based modal
-  const handleShowGenreFilter = useCallback(() => {
-    showOptions({
-      title: t("library.filters.genres"),
-      options: tvGenreFilterOptions,
-      onSelect: (value: string) => {
-        if (value === "__all__") {
-          setGenres([]);
-        } else if (selectedGenres.includes(value)) {
-          setGenres(selectedGenres.filter((g) => g !== value));
-        } else {
-          setGenres([...selectedGenres, value]);
-        }
-      },
-    });
-  }, [showOptions, t, tvGenreFilterOptions, selectedGenres, setGenres]);
+  // TV: the filters, the sort and the letter jump each live in a sheet, so
+  // the posters start right under one toolbar row.
+  const [openTVSheet, setOpenTVSheet] = useState<TVSheetKind | null>(null);
+  // The toolbar button a closed sheet hands the focus back to: each sheet is
+  // opened by the action of the same name.
+  const [tvFocusRequest, setTVFocusRequest] = useState<{
+    key: TVSheetKind;
+  } | null>(null);
 
-  const handleShowYearFilter = useCallback(() => {
-    showOptions({
-      title: t("library.filters.years"),
-      options: tvYearFilterOptions,
-      onSelect: (value: string) => {
-        if (value === "__all__") {
-          setYears([]);
-        } else if (selectedYears.includes(value)) {
-          setYears(selectedYears.filter((y) => y !== value));
-        } else {
-          setYears([...selectedYears, value]);
-        }
-      },
+  const tvFilterGroups = useMemo((): TVLibrarySheetGroup[] => {
+    const all = t("library.filters.all");
+    const labels = {
+      all,
+      count: (count: number) => t("library.filters.selected_count", { count }),
+    };
+    const group = (
+      key: string,
+      label: string,
+      options: TVLibrarySheetGroup["options"],
+      onSelect: (value: string) => void,
+      multi = true,
+    ): TVLibrarySheetGroup => ({
+      key,
+      label,
+      options,
+      onSelect,
+      multi,
+      summary: filterSummary(options, labels),
     });
-  }, [showOptions, t, tvYearFilterOptions, selectedYears, setYears]);
+    return [
+      group("genres", t("library.filters.genres"), tvGenreFilterOptions, (v) =>
+        setGenres(toggled(selectedGenres, v)),
+      ),
+      group("years", t("library.filters.years"), tvYearFilterOptions, (v) =>
+        setYears(toggled(selectedYears, v)),
+      ),
+      group("tags", t("library.filters.tags"), tvTagFilterOptions, (v) =>
+        setTags(toggled(selectedTags, v)),
+      ),
+      ...languageFilterEntries.map((filter) =>
+        group(
+          filter.key,
+          filter.title,
+          [
+            {
+              label: all,
+              value: ALL_OPTION,
+              selected: filter.selected.length === 0,
+            },
+            ...filter.options.map((option) => ({
+              ...option,
+              selected: filter.selected.includes(option.value),
+            })),
+          ],
+          (v) => filter.set(toggled(filter.selected, v)),
+        ),
+      ),
+      group(
+        "filterBy",
+        t("library.filters.filter_by"),
+        tvFilterByOptions,
+        // Through setFilter for "All" as well: it also clears what is saved
+        // for this library, which the page puts back each time it regains
+        // the focus, the moment this sheet closes included.
+        (v) => setFilter(v === ALL_OPTION ? [] : [v as FilterByOption]),
+        false,
+      ),
+    ];
+  }, [
+    t,
+    tvGenreFilterOptions,
+    tvYearFilterOptions,
+    tvTagFilterOptions,
+    tvFilterByOptions,
+    languageFilterEntries,
+    selectedGenres,
+    selectedYears,
+    selectedTags,
+    setGenres,
+    setYears,
+    setTags,
+    setFilter,
+  ]);
 
-  const handleShowTagFilter = useCallback(() => {
-    showOptions({
-      title: t("library.filters.tags"),
-      options: tvTagFilterOptions,
-      onSelect: (value: string) => {
-        if (value === "__all__") {
-          setTags([]);
-        } else if (selectedTags.includes(value)) {
-          setTags(selectedTags.filter((tag) => tag !== value));
-        } else {
-          setTags([...selectedTags, value]);
-        }
-      },
-    });
-  }, [showOptions, t, tvTagFilterOptions, selectedTags, setTags]);
+  const buildTVSheet = useCallback(
+    (kind: TVSheetKind): NonNullable<TVLibrarySheetState> => {
+      const onClose = () => {
+        setOpenTVSheet(null);
+        setTVFocusRequest({ key: kind });
+      };
+      const picked = (options: TVLibrarySheetGroup["options"]) =>
+        options.find((option) => option.selected)?.label ?? "";
+      if (kind === "filters") {
+        return {
+          title: t("library.filters.title"),
+          groups: tvFilterGroups,
+          onReset: hasActiveFilters ? resetAllFilters : undefined,
+          onClose,
+        };
+      }
+      if (kind === "sort") {
+        return {
+          title: t("library.sort"),
+          groups: [
+            {
+              key: "sortBy",
+              label: t("library.filters.sort_by"),
+              summary: picked(tvSortByOptions),
+              options: tvSortByOptions,
+              onSelect: (v) => setSortBy([v as SortByOption]),
+            },
+            {
+              key: "sortOrder",
+              label: t("library.filters.sort_order"),
+              summary: picked(tvSortOrderOptions),
+              options: tvSortOrderOptions,
+              onSelect: (v) => setSortOrder([v as SortOrderOption]),
+            },
+          ],
+          onClose,
+        };
+      }
+      return {
+        title: t("library.jump_to_letter"),
+        groups: [
+          {
+            key: "letters",
+            label: t("library.jump_to_letter"),
+            summary: jumpLetter ?? "",
+            compact: true,
+            options: ALPHABET.map((letter) => ({
+              label: letter,
+              value: letter,
+              selected: letter === jumpLetter,
+            })),
+            onSelect: jumpTo,
+          },
+        ],
+        onClose,
+      };
+    },
+    [
+      t,
+      tvFilterGroups,
+      hasActiveFilters,
+      resetAllFilters,
+      tvSortByOptions,
+      tvSortOrderOptions,
+      setSortBy,
+      setSortOrder,
+      jumpLetter,
+      jumpTo,
+    ],
+  );
 
-  const handleShowSortByFilter = useCallback(() => {
-    showOptions({
-      title: t("library.filters.sort_by"),
-      options: tvSortByOptions,
-      onSelect: (value: SortByOption) => {
-        setSortBy([value]);
-      },
-    });
-  }, [showOptions, t, tvSortByOptions, setSortBy]);
+  // Kept current while it is open, so a pick shows in the sheet at once.
+  useEffect(() => {
+    if (openTVSheet) store.set(tvLibrarySheetAtom, buildTVSheet(openTVSheet));
+  }, [openTVSheet, buildTVSheet]);
 
-  const handleShowSortOrderFilter = useCallback(() => {
-    showOptions({
-      title: t("library.filters.sort_order"),
-      options: tvSortOrderOptions,
-      onSelect: (value: SortOrderOption) => {
-        setSortOrder([value]);
-      },
-    });
-  }, [showOptions, t, tvSortOrderOptions, setSortOrder]);
-
-  const handleShowFilterByFilter = useCallback(() => {
-    showOptions({
-      title: t("library.filters.filter_by"),
-      options: tvFilterByOptions,
-      onSelect: (value: string) => {
-        if (value === "__all__") {
-          _setFilterBy([]);
-        } else {
-          setFilter([value as FilterByOption]);
-        }
-      },
-    });
-  }, [showOptions, t, tvFilterByOptions, setFilter, _setFilterBy]);
+  const showTVSheet = useCallback(
+    (kind: TVSheetKind) => {
+      setOpenTVSheet(kind);
+      openSheet(buildTVSheet(kind));
+    },
+    [openSheet, buildTVSheet],
+  );
 
   const insets = useSafeAreaInsets();
+  const headerHeight = useHeaderHeight();
+  // The tabs and the filter bar, which the letter rail has to start below.
+  const [listHeaderHeight, setListHeaderHeight] = useState(0);
 
+  // Play All and Shuffle. Covered by hooks/useLibraryPlayQueue.test.tsx.
+  const { playAll, shuffle, isStarting } = useLibraryPlayQueue(libraryFilter);
+  // The queue is the items tab's list: a collections or playlists tab lists
+  // containers, which no player opens one after another.
+  const canQueue =
+    hasFilterBar && !!library && isQueueableLibrary(library.CollectionType);
+  const isEmpty = flatData.length === 0;
+  // The header has one right-hand slot, so everything that goes there is set
+  // in one place. A show library gets Upcoming and is never queueable, so the
+  // two do not compete. TV has no header: its buttons sit by the filter bar.
+  useEffect(() => {
+    if (Platform.isTV) return;
+    navigation.setOptions({
+      headerRight: showUpcoming
+        ? () => (
+            <HeaderButton variant='text' onPress={openUpcoming}>
+              <Text>{t("upcoming.title")}</Text>
+            </HeaderButton>
+          )
+        : canQueue
+          ? () => (
+              <LibraryPlayButtons
+                onPlayAll={playAll}
+                onShuffle={shuffle}
+                disabled={isEmpty || isStarting}
+              />
+            )
+          : undefined,
+    });
+  }, [
+    navigation,
+    showUpcoming,
+    openUpcoming,
+    t,
+    canQueue,
+    playAll,
+    shuffle,
+    isEmpty,
+    isStarting,
+  ]);
+
+  // With tabs the header stays mounted while a tab loads: replacing the whole
+  // screen would drop the TV focus held by the tab that was just pressed. On
+  // TV it stays mounted in any case: a filter picked in a sheet reloads the
+  // list, and a toolbar mounted again hands the focus to its first button
+  // instead of back to the one that opened the sheet.
   // Without its filters the query has not started, which is not an empty
   // library.
-  if (isLoading || isLibraryLoading || !ownFilters)
+  if (
+    isLibraryLoading ||
+    !ownFilters ||
+    (isLoading && !hasTabs && !Platform.isTV)
+  )
     return (
       <View className='w-full h-full flex items-center justify-center'>
         <Loader />
@@ -938,12 +1388,17 @@ const Page = () => {
     return (
       <>
         <FlashList
-          key={`${orientation}|${filterSignature}`}
+          key={`${orientation}|${filterSignature}|${jump?.serial ?? 0}`}
+          style={{ opacity: isJumpLanding ? OUTGOING_LIST_OPACITY : 1 }}
           ListEmptyComponent={
             <View className='flex flex-col items-center justify-center h-full'>
-              <Text className='font-bold text-xl text-neutral-500'>
-                {t("library.no_results")}
-              </Text>
+              {isLoading ? (
+                <Loader />
+              ) : (
+                <Text className='font-bold text-xl text-neutral-500'>
+                  {t("library.no_results")}
+                </Text>
+              )}
             </View>
           }
           contentInsetAdjustmentBehavior='automatic'
@@ -958,7 +1413,26 @@ const Page = () => {
             }
           }}
           onEndReachedThreshold={1}
-          ListHeaderComponent={ListHeaderComponent}
+          ListHeaderComponent={
+            <View
+              onLayout={(event) =>
+                setListHeaderHeight(event.nativeEvent.layout.height)
+              }
+            >
+              {hasTabs && (
+                <LibraryTabs
+                  tabs={tabs}
+                  activeTab={activeTab}
+                  onSelect={setActiveTab}
+                />
+              )}
+              {hasFilterBar ? (
+                <FilterBar />
+              ) : (
+                <View style={{ height: LIST_HEADER_GAP }} />
+              )}
+            </View>
+          }
           contentContainerStyle={{
             paddingBottom: 24,
             paddingLeft: insets.left,
@@ -968,12 +1442,90 @@ const Page = () => {
             <View style={{ height: grid.rowGap }} />
           )}
         />
+        {canJumpToLetter && (
+          <AlphabetRail
+            active={jumpLetter}
+            onSelect={jumpTo}
+            // Only iOS draws its bars over the list, a transparent header and
+            // a floating tab bar. On Android the screen ends where they begin,
+            // and clearing them again there left the rail centred too high.
+            style={{
+              top: Platform.OS === "ios" ? headerHeight : 0,
+              bottom: Platform.OS === "ios" ? TAB_HEIGHT + insets.bottom : 0,
+              right: insets.right,
+            }}
+            clearTop={listHeaderHeight}
+          />
+        )}
         {grid.actionSheet}
       </>
     );
   }
 
-  // TV return with filter bar
+  const tvActiveFilters = tvFilterGroups.filter((group) =>
+    group.options.some(
+      (option) => option.selected && option.value !== ALL_OPTION,
+    ),
+  );
+  // A show library gets Upcoming and is never queueable, so the row stays
+  // five buttons wide at most.
+  const tvActions: TVLibraryToolbarAction[] = [
+    ...(canQueue
+      ? [
+          {
+            key: "play",
+            icon: "play" as const,
+            label: t("library.play_all"),
+            onPress: playAll,
+            disabled: isEmpty,
+          },
+          {
+            key: "shuffle",
+            icon: "shuffle" as const,
+            label: t("player.shuffle"),
+            onPress: shuffle,
+            disabled: isEmpty,
+          },
+        ]
+      : []),
+    ...(showUpcoming
+      ? [
+          {
+            key: "upcoming",
+            icon: "calendar-outline" as const,
+            label: t("upcoming.title"),
+            onPress: openUpcoming,
+          },
+        ]
+      : []),
+    ...(canJumpToLetter
+      ? [
+          {
+            key: "letters",
+            icon: "text" as const,
+            label: t("library.letters"),
+            onPress: () => showTVSheet("letters"),
+          },
+        ]
+      : []),
+    {
+      key: "sort",
+      icon: "swap-vertical" as const,
+      label: t("library.sort"),
+      onPress: () => showTVSheet("sort"),
+    },
+    {
+      key: "filters",
+      icon: "funnel-outline" as const,
+      label:
+        tvActiveFilters.length > 0
+          ? t("library.filters.title_count", { count: tvActiveFilters.length })
+          : t("library.filters.title"),
+      onPress: () => showTVSheet("filters"),
+    },
+  ];
+
+  // TV return: one toolbar row, then the posters
   return (
     <ScrollView
       style={{ flex: 1 }}
@@ -994,81 +1546,27 @@ const Page = () => {
       }}
       scrollEventThrottle={400}
     >
-      {/* Filter bar */}
-      <View
-        style={{
-          flexDirection: "row",
-          flexWrap: "nowrap",
-          justifyContent: "center",
-          paddingBottom: 24,
-          gap: 12,
-        }}
-      >
-        {hasActiveFilters && (
-          <TVFilterButton
-            label=''
-            value={t("library.filters.reset")}
-            onPress={resetAllFilters}
-            hasActiveFilter
-          />
-        )}
-        <TVFilterButton
-          label={t("library.filters.genres")}
-          value={
-            selectedGenres.length > 0
-              ? `${selectedGenres.length} selected`
-              : t("library.filters.all")
-          }
-          onPress={handleShowGenreFilter}
-          hasTVPreferredFocus={!hasActiveFilters}
-          hasActiveFilter={selectedGenres.length > 0}
-        />
-        <TVFilterButton
-          label={t("library.filters.years")}
-          value={
-            selectedYears.length > 0
-              ? `${selectedYears.length} selected`
-              : t("library.filters.all")
-          }
-          onPress={handleShowYearFilter}
-          hasActiveFilter={selectedYears.length > 0}
-        />
-        <TVFilterButton
-          label={t("library.filters.tags")}
-          value={
-            selectedTags.length > 0
-              ? `${selectedTags.length} selected`
-              : t("library.filters.all")
-          }
-          onPress={handleShowTagFilter}
-          hasActiveFilter={selectedTags.length > 0}
-        />
-        <TVFilterButton
-          label={t("library.filters.sort_by")}
-          value={sortOptions.find((o) => o.key === sortBy[0])?.value || ""}
-          onPress={handleShowSortByFilter}
-        />
-        <TVFilterButton
-          label={t("library.filters.sort_order")}
-          value={
-            sortOrderOptions.find((o) => o.key === sortOrder[0])?.value || ""
-          }
-          onPress={handleShowSortOrderFilter}
-        />
-        <TVFilterButton
-          label={t("library.filters.filter_by")}
-          value={
-            filterBy.length > 0
-              ? generalFilters.find((o) => o.key === filterBy[0])?.value || ""
-              : t("library.filters.all")
-          }
-          onPress={handleShowFilterByFilter}
-          hasActiveFilter={filterBy.length > 0}
-        />
-      </View>
+      <TVLibraryToolbar
+        title={library?.Name ?? ""}
+        tabs={
+          hasTabs ? (
+            <TVLibraryTabs
+              tabs={tabs}
+              activeTab={activeTab}
+              onSelect={setActiveTab}
+            />
+          ) : undefined
+        }
+        actions={tvActions}
+        actionsHidden={!hasFilterBar}
+        focusRequest={tvFocusRequest}
+        summary={tvActiveFilters
+          .map((group) => `${group.label}: ${group.summary}`)
+          .join("  ·  ")}
+      />
 
       {/* Grid with flexWrap */}
-      {flatData.length === 0 ? (
+      {isLoading ? null : flatData.length === 0 ? (
         <View
           style={{
             flex: 1,
@@ -1082,16 +1580,20 @@ const Page = () => {
           </Text>
         </View>
       ) : (
-        <View
+        // A focus guide as wide as the page: tvOS only moves the focus to what
+        // lies straight ahead, and a short grid is narrower than the toolbar.
+        <TVFocusGuideView
+          autoFocus
           style={{
             flexDirection: "row",
             flexWrap: "wrap",
             justifyContent: "center",
             gap: TV_ITEM_GAP,
+            opacity: isJumpLanding ? OUTGOING_LIST_OPACITY : 1,
           }}
         >
           {flatData.map((item) => renderTVItem(item))}
-        </View>
+        </TVFocusGuideView>
       )}
 
       {/* Loading indicator */}

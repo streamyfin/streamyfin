@@ -2,6 +2,7 @@ import type { Api } from "@jellyfin/sdk";
 import type {
   BaseItemDto,
   MediaSourceInfo,
+  MediaStream,
 } from "@jellyfin/sdk/lib/generated-client";
 import { getUserLibraryApi } from "@jellyfin/sdk/lib/utils/api";
 import type { OrientationLock as OrientationLockType } from "expo-screen-orientation";
@@ -27,6 +28,7 @@ import {
   getJellyfinHeadersForUrl,
   hasHeaders,
 } from "@/utils/customHeaders";
+import { withAcceptLanguageForUrl } from "@/utils/jellyfin/acceptLanguage";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import {
@@ -38,6 +40,7 @@ import {
   getExternalSubtitleUrl,
   getMpvAudioId,
 } from "@/utils/jellyfin/subtitleUtils";
+import { streamLanguageName } from "@/utils/jellyfin/trackLabel";
 import { COMMON_SUBTITLE_LANGUAGES } from "@/utils/opensubtitles/api";
 import { generateDeviceProfile } from "@/utils/profiles/native";
 import { SEGMENT_SKIP_KEY, SEGMENT_SKIPPED_KEY } from "@/utils/segments";
@@ -53,7 +56,7 @@ import {
   type TrackMenuRow,
 } from "@/utils/subtitles/trackMenu";
 import { ticksToSeconds } from "@/utils/time";
-import { getTrickplayInfo } from "@/utils/trickplay";
+import { getTrickplayInfo, trickplaySheetUrl } from "@/utils/trickplay";
 import type { PlayRequest } from "./playRequest";
 import { resolveTrackIndexes } from "./resolveTrackIndexes";
 
@@ -200,9 +203,11 @@ export const buildTrickplayDescriptor = (
     api: Api | null;
     offline: boolean;
     downloadedItem: DownloadedItem | null;
+    /** The playing version; its thumbnails differ from the primary's. */
+    mediaSourceId?: string | null;
   },
 ): NativePlayerTrickplay | undefined => {
-  const info = getTrickplayInfo(item);
+  const info = getTrickplayInfo(item, options.mediaSourceId);
   if (!info) return undefined;
   const { Interval, TileWidth, TileHeight, Width, Height } = info.data;
   if (!Interval || !TileWidth || !TileHeight || !Width || !Height) {
@@ -215,9 +220,15 @@ export const buildTrickplayDescriptor = (
       sheetUrls.push(
         toFileUri(`${options.downloadedItem.trickPlayData.path}${index}.jpg`),
       );
-    } else if (options.api) {
+    } else if (options.api && item.Id) {
       sheetUrls.push(
-        `${options.api.basePath}/Videos/${item.Id}/Trickplay/${info.resolution}/${index}.jpg?ApiKey=${options.api.accessToken}`,
+        trickplaySheetUrl(
+          options.api,
+          item.Id,
+          info.resolution,
+          index,
+          info.sourceId,
+        ),
       );
     }
   }
@@ -272,11 +283,8 @@ const ISO_639_2_T_TO_B: Record<string, string> = {
  * (burned-in subtitle / audio-under-transcode → stream re-negotiation).
  */
 /** Native menu labels: DisplayTitle, else language, else the raw index. */
-const nativeLabel = (s: {
-  DisplayTitle?: string | null;
-  Language?: string | null;
-  Index?: number | null;
-}) => s.DisplayTitle ?? s.Language ?? `#${s.Index}`;
+const nativeLabel = (s: MediaStream) =>
+  s.DisplayTitle || streamLanguageName(s) || `#${s.Index}`;
 
 export const buildTrackMenus = (options: {
   mediaSource: MediaSourceInfo;
@@ -285,6 +293,8 @@ export const buildTrackMenus = (options: {
   offline: boolean;
   downloadedItem: DownloadedItem | null;
   offLabel: string;
+  /** Localized tag for the original-language audio track. */
+  originalLabel: string;
   /** Current max streaming bitrate (undefined = Max). */
   bitrateValue?: number;
   /** Client-side downloaded sidecar subtitle, listed after the server tracks. */
@@ -328,6 +338,7 @@ export const buildTrackMenus = (options: {
     isTranscoding,
     offlineTranscoded,
     formatLabel: nativeLabel,
+    originalLabel: options.originalLabel,
   }).map(toMenuItem);
 
   // Quality/bitrate menu (JS DropdownView parity): online only; changing it
@@ -384,6 +395,11 @@ export async function buildNativePlayerConfig(params: {
   req: PlayRequest;
   getDownloadedItemById: (id: string) => DownloadedItem | undefined;
   strings: NativePlayerStrings;
+  /**
+   * Tag for the original-language audio track. Not part of `strings`: the
+   * track labels are finished in JS, the native chrome never composes them.
+   */
+  originalLabel: string;
   /** Skip the item refetch when the caller already has it (episode switch). */
   item?: BaseItemDto;
 }): Promise<{
@@ -501,7 +517,13 @@ export async function buildNativePlayerConfig(params: {
     if (stream.requiredHttpHeaders) {
       Object.assign(built, stream.requiredHttpHeaders);
     }
-    if (Object.keys(built).length > 0) headers = built;
+    // Last, so a custom or required header of the same name is kept as is.
+    const withLanguage = withAcceptLanguageForUrl(
+      built,
+      stream.url,
+      api?.basePath,
+    );
+    if (Object.keys(withLanguage).length > 0) headers = withLanguage;
   }
 
   const config: NativePlayerConfig = {
@@ -545,6 +567,7 @@ export async function buildNativePlayerConfig(params: {
       api,
       offline,
       downloadedItem,
+      mediaSourceId: mediaSource.Id,
     }),
     tracks: buildTrackMenus({
       mediaSource,
@@ -553,6 +576,7 @@ export async function buildNativePlayerConfig(params: {
       offline,
       downloadedItem,
       offLabel: strings.off ?? "None",
+      originalLabel: params.originalLabel,
       bitrateValue,
     }),
     subtitleStyle: {

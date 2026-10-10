@@ -37,11 +37,13 @@ import {
   TVSkipSegmentCard,
 } from "@/components/tv";
 import { TVFocusableProgressBar } from "@/components/tv/TVFocusableProgressBar";
+import { NEXT_EPISODE_COUNTDOWN_MS } from "@/constants/Playback";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import { useMediaSegments } from "@/hooks/useMediaSegments";
 import { usePlaybackManager } from "@/hooks/usePlaybackManager";
 import type { SegmentType } from "@/hooks/useSegmentSkipper";
+import { useServerVersion } from "@/hooks/useServerVersion";
 import { useTrickplay } from "@/hooks/useTrickplay";
 import { useTVOptionModal } from "@/hooks/useTVOptionModal";
 import { useTVSubtitleModal } from "@/hooks/useTVSubtitleModal";
@@ -51,7 +53,13 @@ import { apiAtom } from "@/providers/JellyfinProvider";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import type { TVOptionItem } from "@/utils/atoms/tvOptionModal";
-import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
+import { resolveStartTicks } from "@/utils/directPlayer/sessionPosition";
+import {
+  getAdjacentStartTicks,
+  getDefaultPlaySettings,
+} from "@/utils/jellyfin/getDefaultPlaySettings";
+import { getPlayingRunTimeTicks } from "@/utils/jellyfin/mediaSourceVersion";
+import { streamLanguageName } from "@/utils/jellyfin/trackLabel";
 import { useSegments } from "@/utils/segments";
 import { rememberSeriesTrackFromRow } from "@/utils/seriesTrackMemory";
 import { SUBTITLES_OFF } from "@/utils/subtitles/subtitleIndex";
@@ -256,10 +264,20 @@ export const Controls: FC<Props> = ({
   }, [screenWidth, insets.left, insets.right]);
   const api = useAtomValue(apiAtom);
   const { settings } = useSettings();
+  // Decides where a matched alternate version starts, see
+  // getAdjacentStartTicks. Whatever is cached will do: a server does not go
+  // back a major version.
+  const serverVersion = useServerVersion({
+    staleTime: Number.POSITIVE_INFINITY,
+  });
   const router = useRouter();
-  const { bitrateValue } = useLocalSearchParams<{
+  const { playbackPosition, bitrateValue } = useLocalSearchParams<{
+    playbackPosition: string;
     bitrateValue: string;
   }>();
+  // Read when the item changes only: the player rewrites the param as it goes.
+  const playbackPositionRef = useRef(playbackPosition);
+  playbackPositionRef.current = playbackPosition;
 
   const { nextItem: internalNextItem } = usePlaybackManager({
     item,
@@ -310,13 +328,15 @@ export const Controls: FC<Props> = ({
         selectedIndex: audioIndex,
         isTranscoding: Boolean(mediaSource?.TranscodingUrl),
         formatLabel: (s) =>
-          s.DisplayTitle || `${s.Language || "Unknown"} (${s.Codec})`,
+          s.DisplayTitle ||
+          `${streamLanguageName(s) || "Unknown"} (${s.Codec})`,
+        originalLabel: t("common.original_audio"),
       }).map((row) => ({
         label: row.label,
         value: row,
         selected: row.selected,
       })),
-    [mediaSource, audioIndex],
+    [mediaSource, audioIndex, t],
   );
 
   const handleAudioChange = useCallback(
@@ -359,7 +379,8 @@ export const Controls: FC<Props> = ({
         offLabel: "",
         isTranscoding: Boolean(mediaSource?.TranscodingUrl),
         formatLabel: (s) =>
-          s.DisplayTitle || `${s.Language || "Unknown"} (${s.Codec})`,
+          s.DisplayTitle ||
+          `${streamLanguageName(s) || "Unknown"} (${s.Codec})`,
       })
         .filter((row) => row.kind !== "off")
         .map((row) => ({
@@ -387,10 +408,11 @@ export const Controls: FC<Props> = ({
     calculateTrickplayUrl,
     trickplayInfo,
     prefetchAllTrickplayImages,
-  } = useTrickplay(item);
+  } = useTrickplay(item, mediaSource?.Id);
 
   const min = useSharedValue(0);
-  const maxMs = ticksToMs(item.RunTimeTicks || 0);
+  // The playing version's runtime: seek limit, remaining time, countdown.
+  const maxMs = ticksToMs(getPlayingRunTimeTicks(item, mediaSource));
   const max = useSharedValue(maxMs);
 
   const controlsOpacity = useSharedValue(showControls ? 1 : 0);
@@ -448,10 +470,20 @@ export const Controls: FC<Props> = ({
 
   useEffect(() => {
     if (item) {
-      progress.value = ticksToMs(item?.UserData?.PlaybackPositionTicks);
-      max.value = ticksToMs(item.RunTimeTicks || 0);
+      // Where the player starts, not the item's resume point: that is the
+      // primary version's, and can lie past the end of a shorter cut.
+      progress.value = ticksToMs(
+        resolveStartTicks(
+          playbackPositionRef.current,
+          item.UserData?.PlaybackPositionTicks,
+        ),
+      );
     }
-  }, [item, progress, max]);
+  }, [item, progress]);
+
+  useEffect(() => {
+    max.value = maxMs;
+  }, [maxMs, max]);
 
   const { currentTime, remainingTime } = useVideoTime({
     progress,
@@ -514,10 +546,11 @@ export const Controls: FC<Props> = ({
 
   // Countdown logic
   const isCountdownActive = useMemo(() => {
+    // An episode has a next item when the series does; anything else only
+    // when a play queue holds it, and a queue continues whatever it plays.
     if (!nextItem) return false;
-    if (item?.Type !== "Episode") return false;
-    return remainingTime > 0 && remainingTime <= 10000;
-  }, [nextItem, item, remainingTime]);
+    return remainingTime > 0 && remainingTime <= NEXT_EPISODE_COUNTDOWN_MS;
+  }, [nextItem, remainingTime]);
 
   // Simple boolean - when skip cards or countdown are visible, they have focus
   const isSkipOrCountdownVisible = useMemo(() => {
@@ -1207,6 +1240,7 @@ export const Controls: FC<Props> = ({
       } = getDefaultPlaySettings(nextItem, settings, {
         indexes: previousIndexes,
         source: mediaSource ?? undefined,
+        offline,
       });
 
       const queryParams = new URLSearchParams({
@@ -1216,7 +1250,12 @@ export const Controls: FC<Props> = ({
         mediaSourceId: newMediaSource?.Id ?? "",
         bitrateValue: bitrateValue?.toString() ?? "",
         playbackPosition:
-          nextItem.UserData?.PlaybackPositionTicks?.toString() ?? "",
+          getAdjacentStartTicks(
+            nextItem,
+            newMediaSource,
+            offline,
+            serverVersion,
+          )?.toString() ?? "",
       }).toString();
 
       router.replace(`player/direct-player?${queryParams}` as any);
@@ -1229,6 +1268,8 @@ export const Controls: FC<Props> = ({
       mediaSource,
       bitrateValue,
       router,
+      offline,
+      serverVersion,
     ],
   );
 

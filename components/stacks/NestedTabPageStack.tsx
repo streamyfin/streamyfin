@@ -36,6 +36,7 @@ export const commonScreenOptions: ICommonScreenOptions = {
 
 const routes = [
   "persons/[personId]",
+  "studios/[studioId]",
   "items/page",
   "series/[id]",
   "music/album/[albumId]",

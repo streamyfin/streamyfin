@@ -1,5 +1,5 @@
 import { FontAwesome, Ionicons } from "@expo/vector-icons";
-import { useQuery } from "@tanstack/react-query";
+import { skipToken, useQuery } from "@tanstack/react-query";
 import { TouchableOpacity, View, type ViewProps } from "react-native";
 import { Text } from "@/components/common/Text";
 import { useGlobalModal } from "@/providers/GlobalModalProvider";
@@ -11,15 +11,21 @@ interface FilterButtonProps<T> extends ViewProps {
   values: T[];
   title: string;
   set: (value: T[]) => void;
-  queryFn: (params: any) => Promise<any>;
   renderItemLabel: (item: T) => string;
   multiple?: boolean;
   icon?: "filter" | "sort";
 }
 
+// One or the other: a chip given neither would render and never open.
+type FilterSource<T> =
+  | { queryFn: (params: any) => Promise<any>; options?: undefined }
+  // Options the caller already holds. The query is skipped.
+  | { options: T[]; queryFn?: undefined };
+
 export const FilterButton = <T,>({
   id,
   queryFn,
+  options,
   queryKey,
   set,
   values, // selected values
@@ -28,15 +34,18 @@ export const FilterButton = <T,>({
   multiple = false,
   icon = "filter",
   ...props
-}: FilterButtonProps<T>) => {
+}: FilterButtonProps<T> & FilterSource<T>) => {
   const { showModal, hideModal } = useGlobalModal();
 
-  const { data: filters } = useQuery<T[]>({
+  const { data } = useQuery<T[]>({
     queryKey: ["filters", title, queryKey, id],
-    queryFn,
+    // Not undefined: React Query logs a missing queryFn on every render, even
+    // for a disabled query. The token also disables it.
+    queryFn: queryFn ?? skipToken,
     staleTime: 0,
     enabled: !!id && !!queryFn && !!queryKey,
   });
+  const filters = options ?? data;
 
   const openSheet = () => {
     if (!filters?.length) return;

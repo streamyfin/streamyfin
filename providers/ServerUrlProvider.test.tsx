@@ -97,6 +97,51 @@ describe("ServerUrlProvider", () => {
     },
   );
 
+  // A server saved under /emby moves to its root address while the app runs,
+  // possibly on the local address, so the api does not change with it. The
+  // address remembered from the last api change is then the dead one, and
+  // going back to it away from home would fail every request.
+  test("goes back to the remote address storage holds now", async () => {
+    const legacyUrl = `${REMOTE_URL}/emby`;
+    const away = {
+      enabled: true,
+      localUrl: "http://192.168.1.10:8096",
+      homeWifiSSIDs: ["Elsewhere"],
+    };
+    storage.set("serverUrl", legacyUrl);
+    storage.set(
+      "previousServers",
+      JSON.stringify([
+        { address: legacyUrl, accounts: [], localNetworkConfig: away },
+      ]),
+    );
+    let refresh = () => {};
+    const Refresher = () => {
+      refresh = useServerUrl().refreshUrlState;
+      return null;
+    };
+    await render(
+      <ServerUrlProvider>
+        <Refresher />
+      </ServerUrlProvider>,
+    );
+    await act(async () => {
+      jest.runOnlyPendingTimers();
+    });
+    expect(mockSwitchServerUrl).toHaveBeenLastCalledWith(legacyUrl);
+
+    storage.set("serverUrl", REMOTE_URL);
+    storage.set(
+      "previousServers",
+      JSON.stringify([
+        { address: REMOTE_URL, accounts: [], localNetworkConfig: away },
+      ]),
+    );
+    await act(async () => refresh());
+
+    expect(mockSwitchServerUrl).toHaveBeenLastCalledWith(REMOTE_URL);
+  });
+
   test("stays on the remote URL away from home", async () => {
     atHomeWith({
       enabled: true,

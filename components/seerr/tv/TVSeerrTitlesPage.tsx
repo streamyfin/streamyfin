@@ -3,11 +3,11 @@ import { ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Loader } from "@/components/Loader";
 import { TVSeerrPosterCard } from "@/components/tv/TVSeerrPosterCard";
+import { SEERR_TV_ROW_CARD_GAP } from "@/constants/Seerr";
 import {
-  SEERR_TV_LOAD_MORE_DISTANCE,
-  SEERR_TV_ROW_CARD_GAP,
-} from "@/constants/Seerr";
-import { useScaledTVSizes } from "@/constants/TVSizes";
+  TV_GRID_LOAD_MORE_DISTANCE,
+  useScaledTVSizes,
+} from "@/constants/TVSizes";
 import useRouter from "@/hooks/useAppRouter";
 import {
   type SeerrTitlesSource,
@@ -42,7 +42,7 @@ export const TVSeerrTitlesPage: React.FC<{
       }) => {
         if (
           layoutMeasurement.height + contentOffset.y >=
-          contentSize.height - scaleSize(SEERR_TV_LOAD_MORE_DISTANCE)
+          contentSize.height - scaleSize(TV_GRID_LOAD_MORE_DISTANCE)
         )
           loadMore();
       }}

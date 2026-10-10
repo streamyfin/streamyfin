@@ -30,6 +30,7 @@ interface Props {
   isPlaying: boolean;
   /** Id of the item being played, to scope the countdown to it. */
   itemId?: string | null;
+  nextIsEpisode?: boolean;
   skipIntro: () => void;
   skipCredit: () => void;
   onNextEpisodeFinish: () => void;
@@ -91,6 +92,7 @@ export const SkipSegmentOverlay: FC<Props> = ({
   remainingTime,
   isPlaying,
   itemId,
+  nextIsEpisode,
   skipIntro,
   skipCredit,
   onNextEpisodeFinish,
@@ -155,6 +157,7 @@ export const SkipSegmentOverlay: FC<Props> = ({
         remainingMs={remainingTime}
         isPlaying={isPlaying}
         itemId={itemId}
+        nextIsEpisode={nextIsEpisode}
         onFinish={onNextEpisodeFinish}
         onPress={onNextEpisodePress}
       />

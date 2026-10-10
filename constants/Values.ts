@@ -22,3 +22,10 @@ export const POSTER_ASPECT_RATIO = 10 / 15;
  * pull that into every page that imports it.
  */
 export const TV_HORIZONTAL_PADDING = 60;
+
+/**
+ * MMKV key for the collection type and server of each hidden singleton view
+ * (Live TV, Collections, Playlists), which is what carries a hidden view over
+ * when Jellyfin 12 changes its id.
+ */
+export const HIDDEN_LIBRARY_ORIGINS_STORAGE_KEY = "hiddenLibraryOrigins";

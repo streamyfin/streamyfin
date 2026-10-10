@@ -51,7 +51,6 @@ export const chromecast: DeviceProfile = {
       Context: "Streaming",
       MaxAudioChannels: "2",
       MinSegments: 2,
-      BreakOnNonKeyFrames: true,
     },
     {
       Container: "mp4",

@@ -1,6 +1,7 @@
 import { useAtomValue, useSetAtom } from "jotai";
 import { useEffect, useMemo, useState } from "react";
 import {
+  audioLanguageFilterAtom,
   type FilterByOption,
   filterByAtom,
   filterOwnerAtom,
@@ -9,6 +10,7 @@ import {
   type SortOrderOption,
   sortByAtom,
   sortOrderAtom,
+  subtitleLanguageFilterAtom,
   tagsFilterAtom,
   yearFilterAtom,
 } from "@/utils/atoms/filters";
@@ -17,6 +19,8 @@ export interface LibraryFilters {
   genres: string[];
   years: string[];
   tags: string[];
+  audioLanguages: string[];
+  subtitleLanguages: string[];
   sortBy: SortByOption[];
   sortOrder: SortOrderOption[];
   filterBy: FilterByOption[];
@@ -49,13 +53,33 @@ export const useLibraryFilters = (screenId: string): LibraryFilters | null => {
   const genres = useAtomValue(genreFilterAtom);
   const years = useAtomValue(yearFilterAtom);
   const tags = useAtomValue(tagsFilterAtom);
+  const audioLanguages = useAtomValue(audioLanguageFilterAtom);
+  const subtitleLanguages = useAtomValue(subtitleLanguageFilterAtom);
   const sortBy = useAtomValue(sortByAtom);
   const sortOrder = useAtomValue(sortOrderAtom);
   const filterBy = useAtomValue(filterByAtom);
 
   const shared = useMemo(
-    () => ({ genres, years, tags, sortBy, sortOrder, filterBy }),
-    [genres, years, tags, sortBy, sortOrder, filterBy],
+    () => ({
+      genres,
+      years,
+      tags,
+      audioLanguages,
+      subtitleLanguages,
+      sortBy,
+      sortOrder,
+      filterBy,
+    }),
+    [
+      genres,
+      years,
+      tags,
+      audioLanguages,
+      subtitleLanguages,
+      sortBy,
+      sortOrder,
+      filterBy,
+    ],
   );
 
   const [own, setOwn] = useState<{

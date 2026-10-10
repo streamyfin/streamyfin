@@ -8,6 +8,7 @@ import {
 import { getPortraitImageUrl } from "@/utils/jellyfin/image/getPortraitImageUrl";
 import { getWideImageUrl } from "@/utils/jellyfin/image/getWideImageUrl";
 import { toImagePixels } from "@/utils/jellyfin/image/imagePixels";
+import { isLiveBroadcast } from "@/utils/jellyfin/media/isLiveBroadcast";
 
 /** One card. Everything is prebuilt here; the card view is presentational. */
 export type CardData = {
@@ -33,6 +34,8 @@ export type CardData = {
    * something is a slot the screen fills in.
    */
   detail?: string | null;
+  /** A Live TV program broadcast live — draws the LIVE pill in the corner. */
+  live?: boolean;
   /** Faded back because another card in the row is the current one. */
   dimmed?: boolean;
   /**
@@ -286,6 +289,7 @@ export function buildItemCards(
         progress,
         unwatched,
         unplayedCount,
+        live: isLiveBroadcast(item),
         dimmed,
         aspectRatio,
       },

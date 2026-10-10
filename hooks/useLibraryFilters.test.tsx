@@ -2,6 +2,7 @@ import { act, renderHook } from "@testing-library/react-native";
 import { createStore, Provider } from "jotai";
 import type { PropsWithChildren } from "react";
 import {
+  audioLanguageFilterAtom,
   filterByAtom,
   filterOwnerAtom,
   genreFilterAtom,
@@ -9,6 +10,7 @@ import {
   SortOrderOption,
   sortByAtom,
   sortOrderAtom,
+  subtitleLanguageFilterAtom,
   tagsFilterAtom,
   yearFilterAtom,
 } from "@/utils/atoms/filters";
@@ -40,11 +42,17 @@ const renderFilters = async (store: Store, screenId: string) =>
 const claim = (
   store: Store,
   screenId: string,
-  selection: { years?: string[]; sortBy?: SortByOption } = {},
+  selection: {
+    years?: string[];
+    audioLanguages?: string[];
+    sortBy?: SortByOption;
+  } = {},
 ) => {
   store.set(genreFilterAtom, []);
   store.set(yearFilterAtom, selection.years ?? []);
   store.set(tagsFilterAtom, []);
+  store.set(audioLanguageFilterAtom, selection.audioLanguages ?? []);
+  store.set(subtitleLanguageFilterAtom, []);
   store.set(sortByAtom, [selection.sortBy ?? SortByOption.SortName]);
   store.set(sortOrderAtom, [SortOrderOption.Ascending]);
   store.set(filterByAtom, []);
@@ -83,6 +91,8 @@ describe("the filters a library screen queries with", () => {
       genres: [],
       years: [],
       tags: [],
+      audioLanguages: [],
+      subtitleLanguages: [],
       sortBy: [SortByOption.Random],
       sortOrder: [SortOrderOption.Ascending],
       filterBy: [],
@@ -111,6 +121,18 @@ describe("the filters a library screen queries with", () => {
 
     expect(result.current).toBe(own);
     expect(result.current?.years).toEqual(["2019"]);
+  });
+
+  // The language filters live in shared atoms like the rest: a library that
+  // followed them would query again in the language another one picked.
+  test("keeps its own languages when another screen picks one", async () => {
+    const store = createStore();
+    const { result } = await renderFilters(store, MOVIES);
+    await act(async () => claim(store, MOVIES, { audioLanguages: ["swe"] }));
+
+    await act(async () => claim(store, SHOWS, { audioLanguages: ["jpn"] }));
+
+    expect(result.current?.audioLanguages).toEqual(["swe"]);
   });
 
   // A second visit to a library is a new screen. While the first visit's name

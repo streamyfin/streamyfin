@@ -16,6 +16,8 @@ import React, {
   useState,
 } from "react";
 import { Platform } from "react-native";
+import { DEFAULT_MUSIC_NORMALIZATION_MODE } from "@/constants/Music";
+import { PROGRESS_REPORT_INTERVAL } from "@/constants/Playback";
 import {
   downloadTrack,
   getLocalPath,
@@ -25,9 +27,20 @@ import {
 } from "@/providers/AudioStorage";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useNetworkStatus } from "@/providers/NetworkStatusProvider";
+import { useWebSocketContext } from "@/providers/WebSocketProvider";
+import {
+  setMusicNormalizationMode,
+  setMusicNormalizationTrack,
+} from "@/services/MusicNormalization";
 import { settingsAtom } from "@/utils/atoms/settings";
 import { getJellyfinHeadersForUrl } from "@/utils/customHeaders";
 import { getAudioStreamUrl } from "@/utils/jellyfin/audio/getAudioStreamUrl";
+import {
+  type MusicRepeatMode,
+  parsePlaybackModeCommand,
+  toJellyfinRepeatMode,
+  toPlaybackOrder,
+} from "@/utils/jellyfin/playbackModes";
 import { logAndCaptureError } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
 import {
@@ -35,6 +48,8 @@ import {
   nativeIndexOf,
   nativeInsertIndexFor,
 } from "@/utils/music/nativeQueue";
+import { toTrackNormalizationGains } from "@/utils/music/normalization";
+import { isVideoSessionOpen } from "@/utils/videoSession";
 
 // Conditionally import TrackPlayer only on non-TV platforms
 // This prevents the native module from being loaded on TV where it doesn't exist
@@ -68,7 +83,7 @@ const sessionKeyFor = (
   user?: { Id?: string | null; ServerId?: string | null } | null,
 ) => (user?.Id ? `${user.ServerId ?? ""}:${user.Id}` : null);
 
-export type RepeatMode = "off" | "all" | "one";
+export type RepeatMode = MusicRepeatMode;
 
 interface TrackMediaInfo {
   mediaSource: MediaSourceInfo | null;
@@ -341,6 +356,31 @@ const shuffleArray = <T,>(array: T[], currentIndex: number): T[] => {
   return result;
 };
 
+// Turns shuffle on or off for a queue that is already loaded, keeping the
+// current track current.
+const applyShuffle = (
+  prev: MusicPlayerState,
+  shuffleEnabled: boolean,
+): MusicPlayerState => {
+  if (shuffleEnabled) {
+    return {
+      ...prev,
+      shuffleEnabled: true,
+      queue: shuffleArray(prev.queue, prev.queueIndex),
+      queueIndex: 0,
+    };
+  }
+
+  const currentTrackId = prev.currentTrack?.Id;
+  const newIndex = prev.originalQueue.findIndex((t) => t.Id === currentTrackId);
+  return {
+    ...prev,
+    shuffleEnabled: false,
+    queue: prev.originalQueue,
+    queueIndex: newIndex >= 0 ? newIndex : 0,
+  };
+};
+
 // Filter queue to only include downloaded items (for offline playback)
 const filterQueueForOffline = (
   queue: BaseItemDto[],
@@ -391,6 +431,9 @@ const itemToTrack = (
         ? { uri: artwork, headers: artworkHeaders }
         : artwork,
     duration: item.RunTimeTicks ? item.RunTimeTicks / 10000000 : undefined,
+    // The gains ride on the track itself: the playback service sets the volume
+    // from them when the track becomes active, with no queue to look it up in.
+    ...toTrackNormalizationGains(item),
   };
 
   // A local file needs no headers; a stream from a protected server does.
@@ -457,6 +500,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   const user = useAtomValue(userAtom);
   const settings = useAtomValue(settingsAtom);
   const { isConnected, serverConnected } = useNetworkStatus();
+  const { subscribe } = useWebSocketContext();
   const isOffline = !isConnected || serverConnected === false;
   const initializedRef = useRef(false);
   const playerSetupRef = useRef(false);
@@ -493,6 +537,16 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   });
 
   const lastReportRef = useRef<number>(0);
+
+  // The server only knows the repeat and shuffle state a report told it, and a
+  // remote control shows what the server knows. Read through a ref so a report
+  // sent from a callback created earlier still carries the current modes.
+  const playbackModes = {
+    RepeatMode: toJellyfinRepeatMode(state.repeatMode),
+    PlaybackOrder: toPlaybackOrder(state.shuffleEnabled),
+  };
+  const playbackModesRef = useRef(playbackModes);
+  playbackModesRef.current = playbackModes;
 
   // Setup TrackPlayer and AudioStorage
   useEffect(() => {
@@ -543,6 +597,14 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       setMaxCacheSizeMB(settings.audioMaxCacheSizeMB);
     }
   }, [settings?.audioMaxCacheSizeMB]);
+
+  // Hand the normalization mode to the playback service, which sets the volume
+  // and outlives this provider.
+  const normalizationMode =
+    settings?.musicNormalizationMode ?? DEFAULT_MUSIC_NORMALIZATION_MODE;
+  useEffect(() => {
+    setMusicNormalizationMode(normalizationMode);
+  }, [normalizationMode]);
 
   // Sync repeat mode to TrackPlayer
   useEffect(() => {
@@ -668,6 +730,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
             IsMuted: false,
             VolumeLevel: 100,
             PlayMethod: "DirectStream",
+            ...playbackModesRef.current,
           },
         });
       } catch {
@@ -677,12 +740,8 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     [api, user?.Id],
   );
 
-  const reportPlaybackProgress = useCallback(async () => {
+  const sendPlaybackProgress = useCallback(async () => {
     if (!api || !user?.Id || !state.currentTrack?.Id) return;
-
-    const now = Date.now();
-    if (now - lastReportRef.current < 10000) return;
-    lastReportRef.current = now;
 
     try {
       await getPlaystateApi(api).reportPlaybackProgress({
@@ -695,6 +754,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
           IsMuted: false,
           VolumeLevel: 100,
           PlayMethod: "DirectStream",
+          ...playbackModesRef.current,
         },
       });
     } catch {
@@ -708,6 +768,31 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     state.progress,
     state.isPlaying,
   ]);
+
+  // The heartbeat. Its throttle counts heartbeats only: a mode change reported
+  // in between must not push the next one back.
+  const reportPlaybackProgress = useCallback(async () => {
+    const now = Date.now();
+    if (now - lastReportRef.current < PROGRESS_REPORT_INTERVAL) return;
+    lastReportRef.current = now;
+    await sendPlaybackProgress();
+  }, [sendPlaybackProgress]);
+
+  // A repeat or shuffle change is reported at once, whoever made it: a remote
+  // control that just sent the command would otherwise keep showing the old
+  // state until the next heartbeat. A queue restored from storage has no
+  // stream yet and was never reported as playing, so it stays quiet: a
+  // progress report for it would make the server list a session that is not
+  // there.
+  const sendPlaybackProgressRef = useRef(sendPlaybackProgress);
+  sendPlaybackProgressRef.current = sendPlaybackProgress;
+  const hasLiveTrack = !!state.currentTrack && !!state.streamUrl;
+  const hasLiveTrackRef = useRef(hasLiveTrack);
+  hasLiveTrackRef.current = hasLiveTrack;
+  useEffect(() => {
+    if (!hasLiveTrackRef.current) return;
+    sendPlaybackProgressRef.current();
+  }, [state.repeatMode, state.shuffleEnabled]);
 
   const reportPlaybackStopped = useCallback(
     async (
@@ -972,6 +1057,9 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         // Reset and start playback immediately with just the target track
         loadedOutOfOrderRef.current = false;
         await TrackPlayer.reset();
+        // Before the first sample: the track change event that also sets the
+        // volume reaches JS only once the track is already loading.
+        setMusicNormalizationTrack(targetTrackResult.track);
         await TrackPlayer.add(targetTrackResult.track);
         await TrackPlayer.play();
         if (isStale()) {
@@ -1170,10 +1258,15 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       );
       if (result) {
         const preferLocal = settings?.preferLocalAudio ?? true;
-        await TrackPlayer.reset();
-        await TrackPlayer.add(
-          itemToTrack(state.currentTrack, result.url, api, preferLocal),
+        const track = itemToTrack(
+          state.currentTrack,
+          result.url,
+          api,
+          preferLocal,
         );
+        await TrackPlayer.reset();
+        setMusicNormalizationTrack(track);
+        await TrackPlayer.add(track);
         await TrackPlayer.seekTo(state.progress);
         await TrackPlayer.play();
         setState((prev) => ({
@@ -1723,29 +1816,38 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     setState((prev) => {
       const newShuffleEnabled = !prev.shuffleEnabled;
       storage.set(STORAGE_KEYS.SHUFFLE_ENABLED, newShuffleEnabled);
-
-      if (newShuffleEnabled) {
-        const shuffled = shuffleArray(prev.queue, prev.queueIndex);
-        return {
-          ...prev,
-          shuffleEnabled: true,
-          queue: shuffled,
-          queueIndex: 0,
-        };
-      } else {
-        const currentTrackId = prev.currentTrack?.Id;
-        const newIndex = prev.originalQueue.findIndex(
-          (t) => t.Id === currentTrackId,
-        );
-        return {
-          ...prev,
-          shuffleEnabled: false,
-          queue: prev.originalQueue,
-          queueIndex: newIndex >= 0 ? newIndex : 0,
-        };
-      }
+      return applyShuffle(prev, newShuffleEnabled);
     });
   }, []);
+
+  // Remote control: another client names the mode it wants instead of
+  // toggling, so a command that repeats the current one must change nothing,
+  // least of all reshuffle a queue that is already shuffled. The session is
+  // one for the whole app, so a command sent while a video plays lands here
+  // too. The music player leaves it alone without a track of its own, and
+  // also with one while a video is on screen: a song paused in the mini
+  // player is not what that remote is controlling, and reporting its modes
+  // would put the song in place of the video on the server.
+  useEffect(
+    () =>
+      subscribe("GeneralCommand", (data) => {
+        const change = parsePlaybackModeCommand(data);
+        if (!change || !hasLiveTrackRef.current || isVideoSessionOpen()) {
+          return;
+        }
+
+        if ("repeatMode" in change) {
+          setRepeatMode(change.repeatMode);
+          return;
+        }
+        setState((prev) => {
+          if (prev.shuffleEnabled === change.shuffleEnabled) return prev;
+          storage.set(STORAGE_KEYS.SHUFFLE_ENABLED, change.shuffleEnabled);
+          return applyShuffle(prev, change.shuffleEnabled);
+        });
+      }),
+    [subscribe, setRepeatMode],
+  );
 
   const setProgress = useCallback((progress: number) => {
     setState((prev) => ({ ...prev, progress }));
