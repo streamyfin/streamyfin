@@ -7,6 +7,7 @@ import {
   compareTracksForMenu,
   getCastSubtitleUrl,
   getExternalSubtitleUrl,
+  getMpvAudioId,
   isExternalSubtitle,
   langEq,
   type PlayerSubtitleTrack,
@@ -989,5 +990,24 @@ describe("sameSubtitleTrack", () => {
         { language: "pt-br", isForced: false },
       ),
     ).toBe(true);
+  });
+});
+
+describe("getMpvAudioId", () => {
+  // mpv numbers only the file's own audio tracks: the app never loads an
+  // external audio file, which Jellyfin lists ahead of them. Counting it
+  // made "2012" play its AC-3 track when TrueHD was selected.
+  it("skips external audio streams mpv never loads", () => {
+    const mediaSource = {
+      MediaStreams: [
+        { Type: "Audio", Index: 1, Codec: "eac3", IsExternal: true },
+        { Type: "Video", Index: 2, Codec: "hevc" },
+        { Type: "Audio", Index: 3, Codec: "truehd" },
+        { Type: "Audio", Index: 4, Codec: "ac3" },
+      ] as MediaStream[],
+    };
+    expect(getMpvAudioId(mediaSource, 3, false)).toBe(1);
+    expect(getMpvAudioId(mediaSource, 4, false)).toBe(2);
+    expect(getMpvAudioId(mediaSource, 1, false)).toBeUndefined();
   });
 });
