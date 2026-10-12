@@ -34,11 +34,24 @@ export const buildSongsPageQuery = (
 });
 
 /**
- * One page of a folder as it is on disk: its subfolders first, then its songs.
- * The server types a folder that holds songs as an album and one that holds
- * folders as a plain folder, so the page asks for no type at all.
+ * Every subfolder of a folder, with its path. A folder that holds songs is an
+ * album to the server, which renames it after the album tag of its first song,
+ * so only the path still has the name the folder has on disk.
  */
-export const buildFolderPageQuery = (
+export const buildSubfoldersQuery = (
+  userId: string,
+  folderId: string,
+): ItemsApiGetItemsRequest => ({
+  userId,
+  parentId: folderId,
+  recursive: false,
+  filters: ["IsFolder"],
+  fields: ["Path"],
+  enableTotalRecordCount: false,
+});
+
+/** One page of the songs directly in a folder. */
+export const buildFolderSongsPageQuery = (
   userId: string,
   folderId: string,
   page: { startIndex: number; limit: number },
@@ -46,8 +59,8 @@ export const buildFolderPageQuery = (
   userId,
   parentId: folderId,
   recursive: false,
-  sortBy: ["IsFolder", ...(SONG_ORDER.sortBy ?? [])],
-  sortOrder: ["Descending", ...(SONG_ORDER.sortOrder ?? [])],
+  includeItemTypes: ["Audio"],
+  ...SONG_ORDER,
   ...page,
 });
 

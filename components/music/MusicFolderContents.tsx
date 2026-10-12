@@ -1,7 +1,7 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
 import { FlashList } from "@shopify/flash-list";
-import { useInfiniteQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
 import type React from "react";
 import { useCallback, useMemo, useState } from "react";
@@ -17,7 +17,11 @@ import { TrackOptionsSheets } from "@/components/music/TrackOptionsSheets";
 import { useIncludeSubfolders } from "@/hooks/useIncludeSubfolders";
 import { useMusicPlayQueue } from "@/hooks/useMusicPlayQueue";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import { buildFolderPageQuery } from "@/utils/music/musicQueries";
+import { sortMusicFolders } from "@/utils/music/musicFolders";
+import {
+  buildFolderSongsPageQuery,
+  buildSubfoldersQuery,
+} from "@/utils/music/musicQueries";
 
 const ITEMS_PER_PAGE = 100;
 
@@ -41,18 +45,31 @@ export const MusicFolderContents: React.FC<Props> = ({
   const [selectedTrack, setSelectedTrack] = useState<BaseItemDto | null>(null);
   const [trackOptionsOpen, setTrackOptionsOpen] = useState(false);
 
+  // The server can only sort folders by the album name it gave them, so they
+  // come in one request and are sorted here by their name on disk.
+  const subfoldersQuery = useQuery({
+    queryKey: ["music-folder-subfolders", folderId, user?.Id],
+    queryFn: async () => {
+      const response = await getItemsApi(api!).getItems(
+        buildSubfoldersQuery(user!.Id!, folderId!),
+      );
+      return sortMusicFolders(response.data.Items || []);
+    },
+    enabled: !!api && !!user?.Id && !!folderId,
+  });
+
   const {
     data,
-    isLoading,
+    isLoading: songsLoading,
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-    refetch,
+    refetch: refetchSongs,
   } = useInfiniteQuery({
-    queryKey: ["music-folder", folderId, user?.Id],
+    queryKey: ["music-folder-songs", folderId, user?.Id],
     queryFn: async ({ pageParam = 0 }) => {
       const response = await getItemsApi(api!).getItems(
-        buildFolderPageQuery(user!.Id!, folderId!, {
+        buildFolderSongsPageQuery(user!.Id!, folderId!, {
           startIndex: pageParam,
           limit: ITEMS_PER_PAGE,
         }),
@@ -71,13 +88,22 @@ export const MusicFolderContents: React.FC<Props> = ({
     enabled: !!api && !!user?.Id && !!folderId,
   });
 
-  const items = useMemo(
+  const subfolders = subfoldersQuery.data ?? [];
+  // Tapping a song plays on through the songs of this folder.
+  const tracks = useMemo(
     () => data?.pages.flatMap((page) => page.items) || [],
     [data],
   );
-  // Tapping a song plays on through the songs of this folder.
-  const tracks = useMemo(() => items.filter((item) => !item.IsFolder), [items]);
-  const hasSubfolders = items.length > tracks.length;
+  const items = useMemo(
+    () => [...(subfoldersQuery.data ?? []), ...tracks],
+    [subfoldersQuery.data, tracks],
+  );
+  const hasSubfolders = subfolders.length > 0;
+  const isLoading = subfoldersQuery.isLoading || songsLoading;
+  const refetch = useCallback(() => {
+    subfoldersQuery.refetch();
+    refetchSongs();
+  }, [subfoldersQuery.refetch, refetchSongs]);
 
   const source = useMemo(
     () =>

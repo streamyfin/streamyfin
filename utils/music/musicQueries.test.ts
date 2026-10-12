@@ -1,8 +1,9 @@
 import { MUSIC_PLAY_QUEUE_MAX_ITEMS } from "@/constants/Music";
 import {
-  buildFolderPageQuery,
+  buildFolderSongsPageQuery,
   buildMusicQueueQuery,
   buildSongsPageQuery,
+  buildSubfoldersQuery,
 } from "./musicQueries";
 
 const page = { startIndex: 100, limit: 100 };
@@ -23,21 +24,31 @@ describe("the Songs tab", () => {
 });
 
 describe("a folder page", () => {
-  const query = buildFolderPageQuery("user-1", "folder-1", page);
+  const subfolders = buildSubfoldersQuery("user-1", "folder-1");
+  const songs = buildFolderSongsPageQuery("user-1", "folder-1", page);
 
   it("lists only what is directly in the folder", () => {
-    expect(query).toMatchObject({ parentId: "folder-1", recursive: false });
+    for (const query of [subfolders, songs]) {
+      expect(query).toMatchObject({ parentId: "folder-1", recursive: false });
+    }
   });
 
   // A folder holding songs is an album to the server, one holding folders is a
   // folder: a type filter would hide one kind or the other.
-  it("asks for every item type", () => {
-    expect(query.includeItemTypes).toBeUndefined();
+  it("asks for subfolders of every type, with their path", () => {
+    expect(subfolders.includeItemTypes).toBeUndefined();
+    expect(subfolders.filters).toEqual(["IsFolder"]);
+    expect(subfolders.fields).toEqual(["Path"]);
   });
 
-  it("puts the subfolders first, then the songs by name", () => {
-    expect(query.sortBy).toEqual(["IsFolder", "SortName"]);
-    expect(query.sortOrder).toEqual(["Descending", "Ascending"]);
+  it("pages through the songs by name", () => {
+    expect(songs).toMatchObject({
+      includeItemTypes: ["Audio"],
+      sortBy: ["SortName"],
+      sortOrder: ["Ascending"],
+      startIndex: 100,
+      limit: 100,
+    });
   });
 });
 

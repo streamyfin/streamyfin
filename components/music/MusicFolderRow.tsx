@@ -5,6 +5,7 @@ import { useCallback } from "react";
 import { TouchableOpacity, View } from "react-native";
 import { Text } from "@/components/common/Text";
 import useRouter from "@/hooks/useAppRouter";
+import { musicFolderName } from "@/utils/music/musicFolders";
 
 interface Props {
   folder: BaseItemDto;
@@ -16,13 +17,14 @@ interface Props {
  */
 export const MusicFolderRow: React.FC<Props> = ({ folder }) => {
   const router = useRouter();
+  const name = musicFolderName(folder);
 
   const handlePress = useCallback(() => {
     router.push({
       pathname: "/music/folder/[folderId]",
-      params: { folderId: folder.Id!, name: folder.Name ?? "" },
+      params: { folderId: folder.Id!, name },
     });
-  }, [router, folder.Id, folder.Name]);
+  }, [router, folder.Id, name]);
 
   return (
     <TouchableOpacity
@@ -34,7 +36,7 @@ export const MusicFolderRow: React.FC<Props> = ({ folder }) => {
         <Ionicons name='folder' size={22} color='#9334E9' />
       </View>
       <Text className='flex-1 ml-3 text-white' numberOfLines={1}>
-        {folder.Name}
+        {name}
       </Text>
       <Ionicons name='chevron-forward' size={18} color='#737373' />
     </TouchableOpacity>
