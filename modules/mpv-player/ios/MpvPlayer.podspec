@@ -11,6 +11,13 @@ Pod::Spec.new do |s|
   s.dependency 'ExpoModulesCore'
   s.dependency 'MPVKit'
 
+  # Spatial audio for TrueHD Atmos and DTS:X (SpatialAudioSink.swift).
+  spm_dependency(s,
+    url: 'https://github.com/kristofferR/SpatialAudioBridge',
+    requirement: { kind: 'upToNextMajorVersion', minimumVersion: '1.5.1' },
+    products: ['SpatialAudioBridge', 'SpatialAudioPlayback']
+  )
+
   s.pod_target_xcconfig = {
     'DEFINES_MODULE' => 'YES',
     'SWIFT_COMPILATION_MODE' => 'wholemodule'

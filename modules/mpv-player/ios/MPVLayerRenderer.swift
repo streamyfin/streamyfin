@@ -112,6 +112,29 @@ final class MPVLayerRenderer {
     /// restores exactly this instead of `auto`, so a device that was told to
     /// software-decode never gets silently promoted back to VideoToolbox.
     private var configuredHwdec = "videotoolbox"
+    /// The SpatialAudioSink mpv's `spatial` output calls, on tvOS 26; it must
+    /// outlive the handle.
+    private var spatialAudioSink: AnyObject?
+
+    /// The tracks mpv passes through to the spatial output, in `audio-spdif`.
+    private static let spatialAudioCodecs = ["truehd", "dts-hd"]
+    /// Those still passed through for this track, after any the library
+    /// refused. Read and written on `queue`.
+    private var spatialAudioPassthrough: [String] = []
+    /// Dialogue boost, mono downmix and speeds other than 1× are mpv filters,
+    /// which passthrough skips, so while any is on every track decodes to PCM.
+    /// On `queue`.
+    private var dialogueBoost = false
+    private var monoDownmix = false
+    private var stretchesTime = false
+
+    /// Whether mpv's output is playing a track as spatial audio.
+    var isPlayingSpatialAudio: Bool {
+        if #available(iOS 26, tvOS 26, *) {
+            return (spatialAudioSink as? SpatialAudioSink)?.isOpen ?? false
+        }
+        return false
+    }
 
     weak var delegate: MPVLayerRendererDelegate?
     
@@ -359,9 +382,26 @@ final class MPVLayerRenderer {
         // VLC's audiounit_ios does; av3's clamp for layouts that come back with
         // labels mpv cannot map stays in as well. iOS is unchanged either way -
         // its autoprobe already picks audiounit ahead of avfoundation.
-        #if os(tvOS)
-        checkError(mpv_set_option_string(handle, "ao", "audiounit"))
-        #endif
+        if #available(iOS 26, tvOS 26, *) {
+            // TrueHD and DTS-HD reach the app as passthrough and play as
+            // spatial audio (SpatialAudioSink), to an HDMI receiver or AirPods.
+            // Every other track, and any stream the sink fails on, is decoded
+            // to PCM for audiounit.
+            let handleAddress = Int(bitPattern: handle)
+            let sink = SpatialAudioSink { [weak self] codec, isCurrent in
+                self?.playAsPCM(codec, handleAddress: handleAddress, isCurrent: isCurrent)
+            }
+            spatialAudioSink = sink
+            spatialAudioPassthrough = Self.spatialAudioCodecs
+            var address = sink.address
+            checkError(mpv_set_option(handle, "ao-spatial-sink", MPV_FORMAT_INT64, &address))
+            checkError(mpv_set_option_string(handle, "audio-spdif", Self.spatialAudioCodecs.joined(separator: ",")))
+            checkError(mpv_set_option_string(handle, "ao", "spatial,audiounit"))
+        } else {
+            #if os(tvOS)
+            checkError(mpv_set_option_string(handle, "ao", "audiounit"))
+            #endif
+        }
 
         // Subtitle and audio settings
         checkError(mpv_set_option_string(mpv, "sub-scale-with-window", "no"))
@@ -590,6 +630,10 @@ final class MPVLayerRenderer {
             // been in a layer tree should be torn down on main, so the
             // release is spelled out there instead of left to that race.
             let pinnedLayer = Unmanaged.passRetained(displayLayer)
+            // The spatial output calls the sink through a raw address until
+            // the handle is destroyed, so it is pinned the same way.
+            let pinnedSink = spatialAudioSink.map { Unmanaged.passRetained($0) }
+            spatialAudioSink = nil
 
             // Quit + drain + destroy on the mpv queue WITHOUT blocking the
             // caller: stop() runs on main (dismiss/deinit), and a queue.sync
@@ -608,6 +652,7 @@ final class MPVLayerRenderer {
                     // Returns only once the core has joined the vo thread,
                     // so nothing in mpv can reach the layer after this.
                     mpv_terminate_destroy(handle)
+                    pinnedSink?.release()
                     // async, never sync: main may be the thread waiting on us.
                     DispatchQueue.main.async {
                         pinnedLayer.release()
@@ -669,6 +714,7 @@ final class MPVLayerRenderer {
             // Stop previous playback before loading new file
             self.command(handle, ["stop"])
             self.updateHTTPHeaders(headers)
+            self.restoreSpatialAudioPassthrough()
 
             // Set looping
             self.setProperty(name: "loop-file", value: loop ? "inf" : "no")
@@ -719,6 +765,42 @@ final class MPVLayerRenderer {
         }
     }
     
+    /// The library refused this track, so mpv decodes it to PCM until the next
+    /// track or file. Selecting it again rebuilds the decoder and output.
+    private func playAsPCM(_ codec: String, handleAddress: Int, isCurrent: @escaping @Sendable () -> Bool) {
+        onQueue { [weak self] in
+            // A failure from a handle since replaced, or from an output since
+            // closed by a track switch or the next item, is stale. Checked
+            // here, after any load or track switch queued before it.
+            guard let self, let handle = self.mpv, Int(bitPattern: handle) == handleAddress, isCurrent() else { return }
+            self.spatialAudioPassthrough.removeAll { $0 == codec }
+            Logger.shared.log("Spatial audio: playing \(codec) as PCM for this track", type: "Info")
+            self.updateSpatialAudioPassthrough(reselect: true)
+        }
+    }
+
+    /// A codec the library refused gets another try on the next track or file.
+    private func restoreSpatialAudioPassthrough() {
+        onQueue { [weak self] in
+            guard let self else { return }
+            self.spatialAudioPassthrough = Self.spatialAudioCodecs
+            self.updateSpatialAudioPassthrough(reselect: false)
+        }
+    }
+
+    /// Hands mpv the codecs to pass through. A new list alone leaves the
+    /// playing track as it is; selecting it again rebuilds its decoder and output.
+    private func updateSpatialAudioPassthrough(reselect: Bool) {
+        guard spatialAudioSink != nil, let handle = mpv else { return }
+        let codecs = (dialogueBoost || monoDownmix || stretchesTime ? [] : spatialAudioPassthrough).joined(separator: ",")
+        guard getStringProperty(handle: handle, name: "audio-spdif") != codecs else { return }
+        setProperty(name: "audio-spdif", value: codecs)
+        var aid: Int64 = 0
+        guard reselect, getProperty(handle: handle, name: "aid", format: MPV_FORMAT_INT64, value: &aid) >= 0, aid > 0 else { return }
+        setProperty(name: "aid", value: "no")
+        setProperty(name: "aid", value: String(aid))
+    }
+
     func applyPreset(_ preset: PlayerPreset) {
         guard let handle = mpv else { return }
         queue.async { [weak self] in
@@ -1112,6 +1194,7 @@ final class MPVLayerRenderer {
             // Audio output is now active - notify delegate
             if let aoName = getStringProperty(handle: handle, name: name) {
                 print("[MPV] 🔊 Audio output selected: \(aoName)")
+                if aoName == "spatial" { logAudioRoute("spatial audio") }
                 DispatchQueue.main.async { [weak self] in
                     guard let self else { return }
                     self.delegate?.renderer(self, didSelectAudioOutput: aoName)
@@ -1151,7 +1234,7 @@ final class MPVLayerRenderer {
             let outputs = session.currentRoute.outputs.map { port -> String in
                 let channels = port.channels ?? []
                 let labels = channels.map { String($0.channelLabel) }.joined(separator: ",")
-                return "\(port.portType.rawValue)(\(channels.count)ch labels=[\(labels)])"
+                return "\(port.portType.rawValue)(\(channels.count)ch labels=[\(labels)] spatial=\(port.isSpatialAudioEnabled))"
             }
             Logger.shared.log(
                 "Audio route (\(reason)): outputs=\(outputs.joined(separator: " + ")) "
@@ -1268,6 +1351,11 @@ final class MPVLayerRenderer {
     
     func setSpeed(_ speed: Double) {
         playbackSpeed = speed
+        onQueue { [weak self] in
+            guard let self else { return }
+            self.stretchesTime = speed != 1
+            self.updateSpatialAudioPassthrough(reselect: true)
+        }
         setProperty(name: "speed", value: String(speed))
     }
     
@@ -1449,6 +1537,11 @@ final class MPVLayerRenderer {
     /// is available. Gains are modest and net-neutral-ish so the float path
     /// cannot clip.
     func setDialogueBoost(_ enabled: Bool) {
+        onQueue { [weak self] in
+            guard let self else { return }
+            self.dialogueBoost = enabled
+            self.updateSpatialAudioPassthrough(reselect: true)
+        }
         if enabled {
             setProperty(
                 name: "af",
@@ -1462,6 +1555,11 @@ final class MPVLayerRenderer {
     /// Accessibility mono downmix — collapses all channels to a single one so
     /// both ears hear the full mix. "auto-safe" is mpv's default layout pick.
     func setMonoDownmix(_ enabled: Bool) {
+        onQueue { [weak self] in
+            guard let self else { return }
+            self.monoDownmix = enabled
+            self.updateSpatialAudioPassthrough(reselect: true)
+        }
         setProperty(name: "audio-channels", value: enabled ? "mono" : "auto-safe")
     }
     
@@ -1601,6 +1699,7 @@ final class MPVLayerRenderer {
             return
         }
         Logger.shared.log("setAudioTrack: setting aid to \(trackId)", type: "Info")
+        restoreSpatialAudioPassthrough()
         setProperty(name: "aid", value: String(trackId))
     }
     
