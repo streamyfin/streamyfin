@@ -5,6 +5,11 @@ import { TVEpisodeList } from "./TVEpisodeList";
 jest.mock("react-i18next", () => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }));
+jest.mock("@/utils/atoms/settings", () => ({
+  useSettings: () => ({
+    settings: { useEpisodeImagesForNextUp: true },
+  }),
+}));
 jest.mock("@/constants/TVTypography", () => ({
   useScaledTVTypography: () => ({ heading: 1, callout: 1 }),
 }));
@@ -13,11 +18,20 @@ jest.mock("@/constants/TVSizes", () => ({
 }));
 // An episode shows up as its name, with whatever the list draws over it.
 jest.mock("@/components/tv/TVPosterCard", () => ({
-  TVPosterCard: (props: { item: BaseItemDto; overlay?: React.ReactNode }) => {
+  TVPosterCard: (props: {
+    item: BaseItemDto;
+    overlay?: React.ReactNode;
+    preferEpisodeImage?: boolean;
+  }) => {
     const { Text, View } = jest.requireActual("react-native");
     return (
       <View>
         <Text>{props.item.Name}</Text>
+        <Text>
+          {props.preferEpisodeImage
+            ? "episode-image-preferred"
+            : "series-image-preferred"}
+        </Text>
         {props.overlay}
       </View>
     );
@@ -53,4 +67,5 @@ test("marks the episodes that have no file to play", async () => {
 
   expect(screen.getAllByText("item_card.missing")).toHaveLength(1);
   expect(screen.getAllByText("item_card.not_yet_aired")).toHaveLength(1);
+  expect(screen.getAllByText("episode-image-preferred")).toHaveLength(3);
 });
