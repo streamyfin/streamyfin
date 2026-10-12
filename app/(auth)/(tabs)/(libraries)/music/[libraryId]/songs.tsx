@@ -11,6 +11,7 @@ import { RefreshControl, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
+import { MusicLoadError } from "@/components/music/MusicLoadError";
 import { MusicPlayAllHeader } from "@/components/music/MusicPlayAllHeader";
 import { MusicTrackItem } from "@/components/music/MusicTrackItem";
 import { TrackOptionsSheets } from "@/components/music/TrackOptionsSheets";
@@ -37,6 +38,7 @@ export default function SongsScreen() {
   const {
     data,
     isLoading,
+    isError,
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
@@ -94,6 +96,11 @@ export default function SongsScreen() {
         <Loader />
       </View>
     );
+  }
+
+  // A first page that failed is not an empty library.
+  if (isError && songs.length === 0) {
+    return <MusicLoadError onRetry={refetch} />;
   }
 
   if (songs.length === 0) {

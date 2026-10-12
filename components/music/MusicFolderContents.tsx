@@ -11,6 +11,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
 import { MusicFolderRow } from "@/components/music/MusicFolderRow";
+import { MusicLoadError } from "@/components/music/MusicLoadError";
 import { MusicPlayAllHeader } from "@/components/music/MusicPlayAllHeader";
 import { MusicTrackItem } from "@/components/music/MusicTrackItem";
 import { TrackOptionsSheets } from "@/components/music/TrackOptionsSheets";
@@ -61,6 +62,7 @@ export const MusicFolderContents: React.FC<Props> = ({
   const {
     data,
     isLoading: songsLoading,
+    isError: songsFailed,
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
@@ -100,6 +102,10 @@ export const MusicFolderContents: React.FC<Props> = ({
   );
   const hasSubfolders = subfolders.length > 0;
   const isLoading = subfoldersQuery.isLoading || songsLoading;
+  // Either half missing would show a folder that looks complete but is not.
+  const failed =
+    (subfoldersQuery.isError && !subfoldersQuery.data) ||
+    (songsFailed && !data);
   const refetch = useCallback(() => {
     subfoldersQuery.refetch();
     refetchSongs();
@@ -133,6 +139,10 @@ export const MusicFolderContents: React.FC<Props> = ({
         <Loader />
       </View>
     );
+  }
+
+  if (failed) {
+    return <MusicLoadError onRetry={refetch} />;
   }
 
   if (items.length === 0) {
