@@ -175,6 +175,11 @@ describe("a stored location after the app's container moved", () => {
       `${now}show_s01e01_trickplay/`,
     ],
     [
+      "a URI that names the container through /private",
+      `file:///private${before.replace("file://", "")}/show_s01e01.mp4`,
+      `${now}show_s01e01.mp4`,
+    ],
+    [
       "a path that names the container through /private",
       `/private${before.replace("file://", "")}/show_s01e01.mp4`,
       `${now.replace("file://", "")}show_s01e01.mp4`,
@@ -200,6 +205,11 @@ describe("a stored location after the app's container moved", () => {
     [
       "a Documents folder elsewhere in the container",
       "file:///var/mobile/Containers/Shared/AppGroup/Documents/x.mp4",
+    ],
+    // The same layout as a container, but not under the app's containers.
+    [
+      "a lookalike container outside the app",
+      "file:///Users/x/Application/old/Documents/clip.mp4",
     ],
     ["an empty string", ""],
   ])("leaves %s alone", (_label, stored) => {

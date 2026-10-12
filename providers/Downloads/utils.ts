@@ -102,19 +102,27 @@ export function rebaseOntoDocuments(
   const path = uriToFilePath(stored);
   if (path === documents || path.startsWith(`${documents}/`)) return stored;
 
-  // Only a Documents directory in a sibling container is the old one: on iOS that is
-  // ".../Application/<any UUID>/Documents/". A "Documents" anywhere else in a path (a user's
-  // own folder, a directory a download happens to be named after) is left alone. Matching the
-  // layout rather than the whole prefix keeps "/private/var" and "/var" equivalent.
+  // Only a Documents directory in a sibling container is the old one: the same directory of
+  // containers as now (on iOS ".../Containers/Data/Application/"), then any UUID, then
+  // Documents. A "Documents" anywhere else (a user's own folder, a lookalike layout outside the
+  // app) is left alone. "/private/var" is the same directory as "/var" on iOS, so a path
+  // stored through either one matches.
   const segments = documents.split("/");
   if (segments.length < 4) return stored;
-  const containers = escapeRegExp(segments[segments.length - 3]);
+  const containers = escapeRegExp(
+    withoutPrivate(segments.slice(0, -2).join("/")),
+  );
   const name = escapeRegExp(segments[segments.length - 1]);
-  const match = new RegExp(`/${containers}/[^/]+/${name}/`).exec(path);
+  const inSibling = withoutPrivate(path);
+  const match = new RegExp(`^${containers}/[^/]+/${name}/`).exec(inSibling);
   if (!match) return stored;
 
-  const rebased = `${documents}/${path.slice(match.index + match[0].length)}`;
+  const rebased = `${documents}/${inSibling.slice(match[0].length)}`;
   return stored.startsWith("file://") ? filePathToUri(rebased) : rebased;
+}
+
+function withoutPrivate(path: string): string {
+  return path.replace(/^\/private(?=\/)/, "");
 }
 
 function escapeRegExp(text: string): string {
