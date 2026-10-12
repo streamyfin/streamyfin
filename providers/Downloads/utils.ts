@@ -84,6 +84,35 @@ export function uriToFilePath(uri: string): string {
 }
 
 /**
+ * Moves a stored location inside Documents onto the Documents directory the app has now.
+ *
+ * iOS puts the app's data in a container whose path holds a UUID, and an app update can move
+ * it to a new one: the files come along, but a location stored as an absolute path or URI
+ * still names the old container, and the player gets "No such file or directory" for a
+ * download that is on disk. A location already under the current Documents, one outside
+ * Documents altogether (a server URL), and every location on Android, where the directory
+ * never moves, come back unchanged. The result keeps the stored form, URI or plain path.
+ */
+export function rebaseOntoDocuments(
+  stored: string,
+  documentsUri: string,
+): string {
+  if (!stored.startsWith("file://") && !stored.startsWith("/")) return stored;
+  const documents = uriToFilePath(documentsUri).replace(/\/+$/, "");
+  const path = uriToFilePath(stored);
+  if (path === documents || path.startsWith(`${documents}/`)) return stored;
+
+  // The names joined onto Documents are built above and never name a directory "Documents",
+  // so the first occurrence is the old Documents directory itself.
+  const marker = `/${documents.split("/").pop()}/`;
+  const at = path.indexOf(marker);
+  if (at < 0) return stored;
+
+  const rebased = `${documents}/${path.slice(at + marker.length)}`;
+  return stored.startsWith("file://") ? filePathToUri(rebased) : rebased;
+}
+
+/**
  * Convert plain file path to file:// URI
  * Required for expo-file-system File constructor
  */
