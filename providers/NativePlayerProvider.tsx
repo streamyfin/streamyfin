@@ -114,6 +114,7 @@ import {
   type SubtitleSelectablePlayer,
 } from "@/utils/jellyfin/subtitleUtils";
 import { logAndCaptureError, writeErrorLog, writeToLog } from "@/utils/log";
+import { applyLoadEvent } from "@/utils/nativePlayer/applyLoadEvent";
 import { applyProgressTick } from "@/utils/nativePlayer/applyProgressTick";
 import {
   buildNativePlayerConfig,
@@ -1835,14 +1836,7 @@ const NativePlayerProviderInner: React.FC<{
           !isSameStreamUrl(payload.url, session.stream.url)
         )
           return;
-        // The engine has taken the new stream; events from here on belong to
-        // this session.
-        session.awaitingLoad = false;
-        // Mute only reaches us as a transition, so a player opened while the
-        // device is already muted would otherwise read as unmuted here.
-        if (typeof payload?.muted === "boolean") {
-          session.isMuted = payload.muted;
-        }
+        applyLoadEvent(session, payload);
         if (session.localSubtitle?.active) {
           // The swap's loadfile dropped the sub-added sidecar — re-attach it
           // (selection re-applies on onTracksReady) and restore its menu
