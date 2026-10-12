@@ -174,6 +174,16 @@ describe("a stored location after the app's container moved", () => {
       `${before}/show_s01e01_trickplay/`,
       `${now}show_s01e01_trickplay/`,
     ],
+    [
+      "a path that names the container through /private",
+      `/private${before.replace("file://", "")}/show_s01e01.mp4`,
+      `${now.replace("file://", "")}show_s01e01.mp4`,
+    ],
+    [
+      "a file in a folder that is also called Documents",
+      `${before}/Documents/show_s01e01.mp4`,
+      `${now}Documents/show_s01e01.mp4`,
+    ],
   ])("follows the container for %s", (_label, stored, expected) => {
     expect(rebaseOntoDocuments(stored, now)).toBe(expected);
   });
@@ -185,6 +195,12 @@ describe("a stored location after the app's container moved", () => {
       "https://jellyfin.example/Videos/1/Subtitles/2/Stream.srt",
     ],
     ["a file outside Documents", "file:///var/mobile/Library/Caches/x.jpg"],
+    // Only the app container's Documents is the old one, not any folder of that name.
+    ["a Documents folder outside the app", "file:///Users/x/Documents/x.mp4"],
+    [
+      "a Documents folder elsewhere in the container",
+      "file:///var/mobile/Containers/Shared/AppGroup/Documents/x.mp4",
+    ],
     ["an empty string", ""],
   ])("leaves %s alone", (_label, stored) => {
     expect(rebaseOntoDocuments(stored, now)).toBe(stored);

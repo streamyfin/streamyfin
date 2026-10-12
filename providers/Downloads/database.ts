@@ -43,14 +43,18 @@ function withCurrentDocumentPaths(item: DownloadedItem): DownloadedItem {
   return item;
 }
 
+// Runs on every stored database as it is loaded, so a section missing from an older or
+// damaged one must not stop the app from reading the downloads it does have.
 function forEachItem(
   db: DownloadsDatabase,
   visit: (item: DownloadedItem) => void,
 ): void {
-  for (const movie of Object.values(db.movies)) visit(movie);
-  for (const series of Object.values(db.series)) {
-    for (const season of Object.values(series.seasons)) {
-      for (const episode of Object.values(season.episodes)) visit(episode);
+  for (const movie of Object.values(db.movies ?? {})) visit(movie);
+  for (const series of Object.values(db.series ?? {})) {
+    for (const season of Object.values(series?.seasons ?? {})) {
+      for (const episode of Object.values(season?.episodes ?? {})) {
+        visit(episode);
+      }
     }
   }
   for (const item of Object.values(db.other ?? {})) visit(item);
@@ -110,24 +114,7 @@ export function getAllDownloadedItems(): DownloadedItem[] {
   // Build the items array from the database
   const db = getDownloadsDatabase();
   const items: DownloadedItem[] = [];
-
-  for (const movie of Object.values(db.movies)) {
-    items.push(movie);
-  }
-
-  for (const series of Object.values(db.series)) {
-    for (const season of Object.values(series.seasons)) {
-      for (const episode of Object.values(season.episodes)) {
-        items.push(episode);
-      }
-    }
-  }
-
-  if (db.other) {
-    for (const item of Object.values(db.other)) {
-      items.push(item);
-    }
-  }
+  forEachItem(db, (item) => items.push(item));
 
   // Cache the result
   cachedItems = items;

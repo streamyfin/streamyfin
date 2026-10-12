@@ -87,3 +87,31 @@ it("stores a download added with old container paths under the current one", () 
     `${mockDocuments}some_movie_1999.mp4`,
   );
 });
+
+// The paths are fixed up as the database is loaded, so a stored database that lacks one of
+// its sections must still load, with the downloads it does have moved over.
+it.each([
+  ["no series", { movies: { "movie-1": downloadedBefore(oldDocuments) } }],
+  [
+    "a series without seasons",
+    {
+      movies: { "movie-1": downloadedBefore(oldDocuments) },
+      series: { "series-1": { seriesInfo: {} } },
+    },
+  ],
+  [
+    "a season without episodes",
+    {
+      movies: { "movie-1": downloadedBefore(oldDocuments) },
+      series: { "series-1": { seriesInfo: {}, seasons: { 1: {} } } },
+    },
+  ],
+])("loads a stored database with %s", (_label, stored) => {
+  storage.set("downloads.v2.json", JSON.stringify(stored));
+  expect(database.getDownloadsDatabase().movies["movie-1"].videoFilePath).toBe(
+    `${mockDocuments}some_movie_1999.mp4`,
+  );
+  expect(database.getAllDownloadedItems().map((i) => i.item.Id)).toEqual([
+    "movie-1",
+  ]);
+});

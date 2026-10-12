@@ -102,14 +102,23 @@ export function rebaseOntoDocuments(
   const path = uriToFilePath(stored);
   if (path === documents || path.startsWith(`${documents}/`)) return stored;
 
-  // The names joined onto Documents are built above and never name a directory "Documents",
-  // so the first occurrence is the old Documents directory itself.
-  const marker = `/${documents.split("/").pop()}/`;
-  const at = path.indexOf(marker);
-  if (at < 0) return stored;
+  // Only a Documents directory in a sibling container is the old one: on iOS that is
+  // ".../Application/<any UUID>/Documents/". A "Documents" anywhere else in a path (a user's
+  // own folder, a directory a download happens to be named after) is left alone. Matching the
+  // layout rather than the whole prefix keeps "/private/var" and "/var" equivalent.
+  const segments = documents.split("/");
+  if (segments.length < 4) return stored;
+  const containers = escapeRegExp(segments[segments.length - 3]);
+  const name = escapeRegExp(segments[segments.length - 1]);
+  const match = new RegExp(`/${containers}/[^/]+/${name}/`).exec(path);
+  if (!match) return stored;
 
-  const rebased = `${documents}/${path.slice(at + marker.length)}`;
+  const rebased = `${documents}/${path.slice(match.index + match[0].length)}`;
   return stored.startsWith("file://") ? filePathToUri(rebased) : rebased;
+}
+
+function escapeRegExp(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 /**
