@@ -23,7 +23,8 @@ export const NOTIFICATION_CHANNELS = [
   {
     id: NOTIFICATION_FAMILIES.serverAlerts,
     nameKey: "home.settings.notifications.channels.server_alerts",
-    important: true,
+    // Someone signing in or starting to play is among them, many times a day.
+    important: false,
   },
 ] as const;
 
