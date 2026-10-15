@@ -239,6 +239,23 @@ describe("the titles the person waits for", () => {
     expect(mockGet).not.toHaveBeenCalled();
   });
 
+  // A disabled query still hands back what it kept, from an earlier session or before the
+  // plugin stopped offering the event: that list is no longer the person's to see.
+  it("show no list kept from before when not asked to read", async () => {
+    client.setQueryData(
+      [AWAITED_TITLES_QUERY, "https://jellyfin.example.com", "alice"],
+      [matrix],
+    );
+
+    const { result } = await renderHook(
+      () => useAwaitedTitles({ enabled: false }),
+      { wrapper },
+    );
+
+    expect(result.current.titles).toBeUndefined();
+    expect(result.current.isAwaited("movie", 603)).toBe(false);
+  });
+
   it("know a title by its kind and its TMDB id", async () => {
     const { result } = await ready();
 

@@ -79,9 +79,10 @@ export const useAwaitedTitles = ({
   });
 
   const supported = !(query.isError && isNotFound(query.error));
-  // A failed read keeps what an earlier one returned: a plugin that lost the route would
-  // otherwise leave that list showing, with no route left to change it.
-  const titles = supported ? query.data : undefined;
+  // A failed read keeps what an earlier one returned, and a disabled query what it kept: a
+  // plugin that lost the route, or stopped offering the event, would otherwise leave that
+  // list showing.
+  const titles = enabled && supported ? query.data : undefined;
 
   return {
     titles,
