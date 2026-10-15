@@ -1,5 +1,14 @@
-import { NOTIFICATION_PERMISSIONS } from "@/constants/Notifications";
+import {
+  NOTIFICATION_PERMISSIONS,
+  SETTINGS_LINK_ASKED_KEY,
+} from "@/constants/Notifications";
 import { offerSettingsLinkOnce } from "./notificationPermissions";
+
+const mockWarnings: string[] = [];
+jest.mock("@/utils/log", () => ({
+  writeToLog: (level: string, message: string) =>
+    void mockWarnings.push(`${level} ${message}`),
+}));
 
 const memory = () => {
   const values = new Map<string, string>();
@@ -24,5 +33,21 @@ describe("the link in the iOS Settings", () => {
     expect(requestPermissionsAsync).toHaveBeenCalledWith(
       NOTIFICATION_PERMISSIONS,
     );
+  });
+
+  // Asked when notifications are already allowed, for the link alone. iOS refusing the
+  // request must not cost the push registration that comes after it at every start.
+  it("lets the start go on when iOS refuses the request, and asks again next time", async () => {
+    const requestPermissionsAsync = jest
+      .fn()
+      .mockRejectedValue(new Error("Unexpected permission result type"));
+    const store = memory();
+
+    await expect(
+      offerSettingsLinkOnce({ requestPermissionsAsync }, store),
+    ).resolves.toBeUndefined();
+
+    expect(store.getString(SETTINGS_LINK_ASKED_KEY)).toBeUndefined();
+    expect(mockWarnings).toEqual([expect.stringContaining("WARN")]);
   });
 });

@@ -15,6 +15,15 @@ export const MY_AWAITED_TITLES_PATH = `${MY_NOTIFICATIONS_PATH}/awaited`;
 /** The event that tells a person a title they wait for has arrived. */
 export const AWAITED_TITLE_EVENT = "awaitedTitle";
 
+/** The query name every reader of the person's notification choices shares. */
+export const MY_NOTIFICATIONS_QUERY = "myNotifications";
+
+/** The app's Notifications screen, which Settings and the iOS Settings link open. */
+export const NOTIFICATIONS_SETTINGS_ROUTE = "/settings/notifications/page";
+
+/** Set once the app asked for notifications, so it asks once per install. */
+export const PERMISSION_ASKED_KEY = "hasAskedForNotificationPermission";
+
 /**
  * What the app asks iOS for. The last one puts a link to the app's Notifications screen in the
  * iOS Settings, under the app's notifications.
@@ -79,3 +88,10 @@ export const ANDROID_NOTIFICATION_SETTINGS = {
   action: "android.settings.APP_NOTIFICATION_SETTINGS",
   packageExtra: "android.provider.extra.APP_PACKAGE",
 } as const;
+
+/**
+ * How long a write of this device's registration may take before it is given up.
+ * The writes run one after the other, so one the server never answers would hold
+ * back every one after it.
+ */
+export const PUSH_REGISTRATION_TIMEOUT_MS = 15_000;

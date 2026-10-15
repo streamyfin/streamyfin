@@ -5,9 +5,13 @@ import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Platform } from "react-native";
 import { toast } from "sonner-native";
-import { MY_NOTIFICATIONS_QUERY } from "@/hooks/useMyNotifications";
-import { apiAtom } from "@/providers/JellyfinProvider";
+import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { handleNotificationAction } from "@/utils/notificationActions";
+import {
+  type MyNotifications,
+  myNotificationsKey,
+} from "@/utils/notificationPreferences";
+import { isPlainTap } from "@/utils/notificationRoute";
 
 // Left out of TV builds (react-native.config.js), where loading it fails as the app starts.
 const Notifications = Platform.isTV
@@ -18,7 +22,7 @@ type Response = Parameters<typeof handleNotificationAction>[0];
 
 const isButton = (response: Response | null): response is Response =>
   !!response &&
-  response.actionIdentifier !== Notifications?.DEFAULT_ACTION_IDENTIFIER;
+  !isPlainTap(response, Notifications?.DEFAULT_ACTION_IDENTIFIER ?? "");
 
 /**
  * Carries out the buttons on the plugin's notifications: one pressed while the app runs,
@@ -29,6 +33,7 @@ const isButton = (response: Response | null): response is Response =>
  */
 export const useNotificationActions = (queryClient: QueryClient): void => {
   const api = useAtomValue(apiAtom);
+  const user = useAtomValue(userAtom);
   const { t } = useTranslation();
 
   useEffect(() => {
@@ -40,19 +45,27 @@ export const useNotificationActions = (queryClient: QueryClient): void => {
       // Forgotten at once, so a later start or a new run of this effect does not do it again.
       notifications.clearLastNotificationResponse();
       try {
-        const done = await handleNotificationAction(response, api);
-        if (!done) return;
+        const outcome = await handleNotificationAction(response, api);
+        if (!outcome) return;
         toast.success(
           t(
-            done === "paused"
+            outcome.done === "paused"
               ? "home.settings.notifications.actions.paused"
               : "home.settings.notifications.actions.muted",
           ),
         );
-        // The Notifications screen shows what the button changed.
-        void queryClient.invalidateQueries({
-          queryKey: [MY_NOTIFICATIONS_QUERY],
-        });
+        // What the button changed, on the Notifications screen once it has read the rest. The
+        // pause and the muted shows have routes of their own, so a switch on its way keeps
+        // its change.
+        queryClient.setQueryData<MyNotifications>(
+          myNotificationsKey(api.basePath, user?.Id),
+          (shown) =>
+            shown && {
+              ...shown,
+              pause: outcome.mine.pause,
+              mutedShows: outcome.mine.mutedShows,
+            },
+        );
       } catch {
         toast.error(t("home.settings.notifications.save_failed"));
       }
@@ -67,5 +80,5 @@ export const useNotificationActions = (queryClient: QueryClient): void => {
       },
     );
     return () => subscription.remove();
-  }, [api, queryClient, t]);
+  }, [api, queryClient, t, user?.Id]);
 };

@@ -26,12 +26,36 @@ describe("the Android channels", () => {
       "server-alerts",
       expect.objectContaining({
         name: "home.settings.notifications.channels.server_alerts",
-        importance: 4,
       }),
     );
-    expect(setNotificationChannelAsync).toHaveBeenCalledWith(
-      "new-content",
-      expect.objectContaining({ importance: 3 }),
+  });
+
+  // An administrator is told each time someone signs in or starts playing, many times a day:
+  // a banner with a sound each time is too loud, and once the channel exists only the person
+  // can lower it. What rings is the person's own account getting locked.
+  test("ring for the person's own account only", async () => {
+    const setNotificationChannelAsync = jest.fn();
+
+    await createNotificationChannels(
+      {
+        setNotificationChannelAsync,
+        AndroidImportance: { DEFAULT: 3, HIGH: 4 },
+      },
+      (key: string) => key,
     );
+
+    expect(
+      Object.fromEntries(
+        setNotificationChannelAsync.mock.calls.map(([id, channel]) => [
+          id,
+          channel.importance,
+        ]),
+      ),
+    ).toEqual({
+      "new-content": 3,
+      requests: 3,
+      account: 4,
+      "server-alerts": 3,
+    });
   });
 });

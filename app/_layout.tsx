@@ -21,7 +21,10 @@ import { GlobalModal } from "@/components/GlobalModal";
 import { PendingAccountSaveModal } from "@/components/PendingAccountSaveModal";
 import { SeerrAutoLogin } from "@/components/seerr/SeerrAutoLogin";
 import { SyncPlayPlaybackBridge } from "@/components/syncplay/SyncPlayPlaybackBridge";
-import { NOTIFICATION_PERMISSIONS } from "@/constants/Notifications";
+import {
+  NOTIFICATION_PERMISSIONS,
+  PERMISSION_ASKED_KEY,
+} from "@/constants/Notifications";
 import { enableTVMenuKeyInterception } from "@/hooks/useTVBackHandler";
 import i18n from "@/i18n";
 import { DownloadProvider } from "@/providers/DownloadProvider";
@@ -51,7 +54,11 @@ import {
 } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
 import { offerSettingsLinkOnce } from "@/utils/notificationPermissions";
-import { notificationRoute } from "@/utils/notificationRoute";
+import {
+  isPlainTap,
+  notificationRoute,
+  responseRoute,
+} from "@/utils/notificationRoute";
 import {
   queryDehydrateOptions,
   withoutPersistedMutations,
@@ -175,16 +182,11 @@ function useNotificationObserver() {
     // home screen.
     Notifications.getLastNotificationResponseAsync().then(
       (response: { notification: any; actionIdentifier: string } | null) => {
+        if (!isMounted) return;
         // A button is carried out by useNotificationActions, and opens nothing.
-        if (
-          !isMounted ||
-          !response?.notification ||
-          response.actionIdentifier !== Notifications.DEFAULT_ACTION_IDENTIFIER
-        ) {
-          return;
-        }
-        const route = notificationRoute(
-          response.notification.request.content.data,
+        const route = responseRoute(
+          response,
+          Notifications.DEFAULT_ACTION_IDENTIFIER,
         );
         if (route) {
           router.push(route as never);
@@ -224,9 +226,7 @@ if (!Platform.isTV) {
 
 const checkAndRequestPermissions = async () => {
   try {
-    const hasAskedBefore = storage.getString(
-      "hasAskedForNotificationPermission",
-    );
+    const hasAskedBefore = storage.getString(PERMISSION_ASKED_KEY);
     let granted = false;
     if (hasAskedBefore !== "true") {
       const { status } = await Notifications.requestPermissionsAsync(
@@ -240,7 +240,7 @@ const checkAndRequestPermissions = async () => {
         writeToLog("ERROR", "Notification permissions denied.");
         console.log("Notification permissions denied.");
       }
-      storage.set("hasAskedForNotificationPermission", "true");
+      storage.set(PERMISSION_ASKED_KEY, "true");
     } else {
       // Already asked before, check current status
       const { status } = await Notifications.getPermissionsAsync();
@@ -437,8 +437,7 @@ function Layout() {
           (response: NotificationResponse) => {
             // A button is carried out by useNotificationActions, and opens nothing.
             if (
-              response.actionIdentifier !==
-              Notifications.DEFAULT_ACTION_IDENTIFIER
+              !isPlainTap(response, Notifications.DEFAULT_ACTION_IDENTIFIER)
             ) {
               return;
             }
