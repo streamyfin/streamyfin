@@ -28,12 +28,15 @@ export const pushRegistrationKey = (
     ? `${serverUrl}|${userId}|${token}|${language ?? ""}|${posterServerUrl ?? ""}`
     : null;
 
-// Every write of this device's registration on the plugin, the posts and the sign
-// out's delete, runs once the one before it settles. A post still in flight could
-// otherwise land after the delete and bring back the row of a signed out device,
-// which nothing removes afterwards.
+// The last write queued, which the next one waits for.
 let pending: Promise<unknown> = Promise.resolve();
 
+/**
+ * Runs a write of this device's registration on the plugin, a post or the sign out's
+ * delete, once the one before it settles. A post still in flight could otherwise land
+ * after the delete and bring back the row of a signed out device, which nothing removes
+ * afterwards.
+ */
 export const inRegistrationOrder = <T>(write: () => Promise<T>): Promise<T> => {
   const next = pending.then(write, write);
   pending = next.catch(() => undefined);
