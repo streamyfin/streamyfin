@@ -6,8 +6,9 @@
  *
  * - `v1/config/resolved` answers with what applies to *this* caller. The server
  *   merges its three targeting levels (what it declares for everyone, then the
- *   caller's groups, then anything aimed at that account alone) and removes the
- *   credentials on the way out.
+ *   caller's groups, then anything aimed at that account alone), and removes the
+ *   credentials for a caller who is not an administrator: an administrator's
+ *   answer still carries them, so it is redacted before it is logged.
  * - `config` answers with what the server *stores*. An administrator gets the
  *   global configuration raw and unresolved, on purpose: the admin pages save
  *   what they load, so serving a resolved view there would write one admin's own
@@ -23,8 +24,10 @@
  * the normal path today rather than an edge case, and stays correct afterwards:
  * `config` keeps working, it is just the wrong question.
  */
+import { RESOLVED_SETTINGS_RETRY_MS } from "@/constants/Plugin";
 import type { PluginLockableSettings } from "@/utils/atoms/settings";
-import { markExpectedError } from "@/utils/errors";
+import { isPlainObject, markExpectedError } from "@/utils/errors";
+import { writeErrorLog } from "@/utils/log";
 
 /** What applies to the caller, resolved and redacted by the server. */
 export const RESOLVED_SETTINGS_PATH = "/Streamyfin/v1/config/resolved";
@@ -39,7 +42,11 @@ export const LEGACY_CONFIG_PATH = "/Streamyfin/config";
  * `Api` cannot be built without a server.
  */
 export interface PluginSettingsReader {
-  get<T>(url: string): Promise<{ data: T }>;
+  /** The server's address, which what one server lacks is remembered by. */
+  basePath: string;
+  get<T>(
+    url: string,
+  ): Promise<{ data: T; status?: number; headers?: Record<string, unknown> }>;
 }
 
 /**
@@ -51,24 +58,41 @@ const isMissingRoute = (error: unknown): boolean =>
     ?.status === 404;
 
 /**
- * The servers that answered 404 for the resolved route, so it is not asked
- * again at every refresh. Keyed on the `Api`, which signing in again builds
- * anew: that asks once more, and finds a plugin updated in the meantime.
+ * The servers whose plugin answered 404 for the resolved route and then served
+ * its stored configuration, by address, with when to ask again. Not asked at
+ * every refresh, nor at every sign in, which builds a new `Api`; asked again
+ * after a while, which finds a plugin updated in the meantime.
  */
-const withoutResolvedRoute = new WeakSet<PluginSettingsReader>();
+const withoutResolvedRoute = new Map<string, number>();
 
 /**
  * An answer that arrived and is not the plugin's. Something in front of the
  * server sent it in the server's place, which is the user's network rather
  * than a fault of the app's: it fails like an unreachable server, and is
- * marked expected so it never becomes a Sentry event.
+ * marked expected so it never becomes a Sentry event. Every refresh then fails
+ * the same way, so it is logged, with the route, the status and the kind of
+ * body, never the body, which can name the person.
  */
-const notThePluginsAnswer = (message: string): Error =>
-  markExpectedError(new Error(message));
+const notThePluginsAnswer = (
+  message: string,
+  route: string,
+  answer: { status?: number; headers?: Record<string, unknown> },
+): Error => {
+  writeErrorLog(
+    `${message}: ${route} answered ${answer.status ?? "?"}, ${String(answer.headers?.["content-type"] ?? "no content type")}`,
+  );
+  return markExpectedError(new Error(message));
+};
 
-/** What axios makes of a body that is a JSON object. */
-const isJsonObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
+/**
+ * The parts of the plugin's stored configuration. A configuration without its
+ * settings block holds only these; anything else is somebody else's answer.
+ */
+const CONFIG_KEYS: ReadonlySet<string> = new Set([
+  "settings",
+  "notifications",
+  "other",
+]);
 
 /** The blocks this app reads, whose entries carry the locks (readIntegrationBlocks). */
 const KNOWN_BLOCKS: ReadonlySet<string> = new Set(["seerr"]);
@@ -79,28 +103,24 @@ const KNOWN_BLOCKS: ReadonlySet<string> = new Set(["seerr"]);
  * Both routes answer with a map of key to `{ locked, value }`. A 200 that is
  * anything else is not an answer about the plugin: a captive portal's login
  * page arrives the same way, and so can a JSON error, and reading either as the
- * admin's policy would drop every lock they set. So every entry has to be an
- * object, and a map that is not empty has to hold a setting or a block this app
- * reads.
+ * admin's policy would drop every lock they set. So a map that is not empty
+ * has to hold a setting or a block this app reads.
  *
  * `value` can be missing: the plugin leaves a null out, so a locked "no cap"
  * quality arrives as `{ locked: true }`. An entry that is neither a setting nor
- * a known block, such as a block a newer plugin adds, is left out rather than
- * failing the whole answer: the plugin keeps the flat keys until the apps in
- * the field read the block.
+ * a known block, such as a block or a plain value a newer plugin adds, is left
+ * out rather than failing the whole answer: the plugin keeps the flat keys
+ * until the apps in the field read the block.
  */
 const settingsMapOf = (value: unknown): PluginLockableSettings | undefined => {
-  if (!isJsonObject(value)) {
+  if (!isPlainObject(value)) {
     return undefined;
   }
   const entries = Object.entries(value);
-  if (!entries.every(([, entry]) => isJsonObject(entry))) {
-    return undefined;
-  }
   const read = entries.filter(
     ([key, entry]) =>
-      KNOWN_BLOCKS.has(key) ||
-      typeof (entry as Record<string, unknown>).locked === "boolean",
+      isPlainObject(entry) &&
+      (KNOWN_BLOCKS.has(key) || typeof entry.locked === "boolean"),
   );
   if (entries.length > 0 && read.length === 0) {
     return undefined;
@@ -128,13 +148,17 @@ const settingsMapOf = (value: unknown): PluginLockableSettings | undefined => {
 export const readPluginSettings = async (
   api: PluginSettingsReader,
 ): Promise<PluginLockableSettings | undefined> => {
-  if (!withoutResolvedRoute.has(api)) {
+  const asksResolved =
+    (withoutResolvedRoute.get(api.basePath) ?? 0) <= Date.now();
+  if (asksResolved) {
     try {
-      const { data } = await api.get<unknown>(RESOLVED_SETTINGS_PATH);
-      const map = settingsMapOf(data);
+      const answer = await api.get<unknown>(RESOLVED_SETTINGS_PATH);
+      const map = settingsMapOf(answer.data);
       if (!map) {
         throw notThePluginsAnswer(
           "The resolved plugin settings are not a settings map",
+          RESOLVED_SETTINGS_PATH,
+          answer,
         );
       }
       return map;
@@ -145,25 +169,47 @@ export const readPluginSettings = async (
       if (!isMissingRoute(error)) {
         throw error;
       }
-      withoutResolvedRoute.add(api);
     }
   }
 
   try {
-    const { data } = await api.get<unknown>(LEGACY_CONFIG_PATH);
-    if (!isJsonObject(data)) {
-      throw notThePluginsAnswer("The plugin configuration is not an object");
+    const answer = await api.get<unknown>(LEGACY_CONFIG_PATH);
+    // The plugin is older, which a 404 alone did not say: a proxy answers 404
+    // for everything while the server restarts.
+    if (asksResolved) {
+      withoutResolvedRoute.set(
+        api.basePath,
+        Date.now() + RESOLVED_SETTINGS_RETRY_MS,
+      );
+    }
+    const { data } = answer;
+    if (!isPlainObject(data)) {
+      throw notThePluginsAnswer(
+        "The plugin configuration is not an object",
+        LEGACY_CONFIG_PATH,
+        answer,
+      );
     }
     // An administrator can save the configuration without its settings block,
     // and the plugin then serves it without one: there is nothing to apply.
+    // Only its own parts, though: a JSON error is not a configuration.
     const { settings } = data;
     if (settings == null) {
+      if (!Object.keys(data).every((key) => CONFIG_KEYS.has(key))) {
+        throw notThePluginsAnswer(
+          "The plugin configuration is not the plugin's",
+          LEGACY_CONFIG_PATH,
+          answer,
+        );
+      }
       return undefined;
     }
     const map = settingsMapOf(settings);
     if (!map) {
       throw notThePluginsAnswer(
         "The plugin configuration's settings are not a settings map",
+        LEGACY_CONFIG_PATH,
+        answer,
       );
     }
     return map;

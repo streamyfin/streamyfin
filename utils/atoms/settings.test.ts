@@ -10,6 +10,7 @@ import { markExpectedError } from "@/utils/errors";
 import { storage } from "@/utils/mmkv";
 import {
   type PluginSettingsReader,
+  RESOLVED_SETTINGS_PATH,
   readPluginSettings,
 } from "@/utils/pluginSettingsSource";
 import {
@@ -426,15 +427,26 @@ describe("refreshing the plugin settings", () => {
   // Something in front of the server can answer in its place with a 200 of
   // its own, a captive portal's login page or a JSON error. That is the
   // user's network, like an unreachable server: what is stored stands, and
-  // nothing is reported, on a refresh that runs at every foreground.
+  // nothing is reported, on a refresh that runs at every foreground. The last
+  // case is the route every published plugin takes: the resolved one missing,
+  // and the error in place of the stored configuration.
   test.each([
-    ["a login page", "<html><body>Sign in to the Wi-Fi</body></html>"],
-    ["a JSON error", { error: "Sign in" }],
+    ["a login page", "<html><body>Sign in to the Wi-Fi</body></html>", false],
+    ["a JSON error", { error: "Sign in" }, false],
+    ["a JSON error past a missing resolved route", { error: "Sign in" }, true],
   ])(
     "keeps what is stored and reports nothing when %s answers",
-    async (_case, answer) => {
+    async (_case, answer, resolvedMissing) => {
       const inFront: PluginSettingsReader = {
-        get: async <T>() => ({ data: answer as T }),
+        basePath: `https://in-front-${_case.length}.example`,
+        get: async <T>(url: string) => {
+          if (resolvedMissing && url === RESOLVED_SETTINGS_PATH) {
+            throw Object.assign(new Error("HTTP 404"), {
+              response: { status: 404 },
+            });
+          }
+          return { data: answer as T };
+        },
       };
 
       const refreshed = await refreshAgainst(() => readPluginSettings(inFront));

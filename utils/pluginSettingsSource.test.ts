@@ -1,3 +1,4 @@
+import { RESOLVED_SETTINGS_RETRY_MS } from "@/constants/Plugin";
 import type { PluginLockableSettings } from "@/utils/atoms/settings";
 import {
   LEGACY_CONFIG_PATH,
@@ -5,6 +6,11 @@ import {
   RESOLVED_SETTINGS_PATH,
   readPluginSettings,
 } from "@/utils/pluginSettingsSource";
+
+const mockErrors: string[] = [];
+jest.mock("@/utils/log", () => ({
+  writeErrorLog: (message: string) => void mockErrors.push(message),
+}));
 
 const plugin = (
   entries: Record<string, { locked: boolean; value: unknown }>,
@@ -14,19 +20,33 @@ const plugin = (
 const httpError = (status: number) =>
   Object.assign(new Error(`HTTP ${status}`), { response: { status } });
 
+let servers = 0;
+
 /**
  * A server that answers the paths it is given and rejects with 404 for the rest,
- * recording what was asked so the order can be asserted.
+ * recording what was asked so the order can be asserted. Each one has an address
+ * of its own unless it is given one, as a session to the same server would be.
  */
-const server = (routes: Record<string, unknown>) => {
+const server = (
+  routes: Record<string, unknown>,
+  basePath = `https://jellyfin-${++servers}.example`,
+) => {
   const asked: string[] = [];
   const api: PluginSettingsReader = {
+    basePath,
     get: async <T>(url: string) => {
       asked.push(url);
       if (!(url in routes)) throw httpError(404);
       const answer = routes[url];
       if (answer instanceof Error) throw answer;
-      return { data: answer as T };
+      return {
+        data: answer as T,
+        status: 200,
+        headers: {
+          "content-type":
+            typeof answer === "string" ? "text/html" : "application/json",
+        },
+      };
     },
   };
   return { api, asked };
@@ -79,6 +99,66 @@ describe("readPluginSettings", () => {
     const other = server({ [RESOLVED_SETTINGS_PATH]: resolvedSettings });
     expect(await readPluginSettings(other.api)).toEqual(resolvedSettings);
     expect(other.asked).toEqual([RESOLVED_SETTINGS_PATH]);
+  });
+
+  // A sign in builds a new Api for the same server: the route it lacks is still lacking.
+  test("remembers the missing route per server, across sessions", async () => {
+    const first = server(
+      { [LEGACY_CONFIG_PATH]: { settings: resolvedSettings } },
+      "https://same.example",
+    );
+    await readPluginSettings(first.api);
+
+    const again = server(
+      { [LEGACY_CONFIG_PATH]: { settings: resolvedSettings } },
+      "https://same.example",
+    );
+    expect(await readPluginSettings(again.api)).toEqual(resolvedSettings);
+    expect(again.asked).toEqual([LEGACY_CONFIG_PATH]);
+  });
+
+  // A plugin updated while the app runs serves the route after a while.
+  test("asks for the resolved route again after a while", async () => {
+    jest.useFakeTimers({ now: new Date("2026-10-15T20:00:00Z") });
+    try {
+      const { api, asked } = server(
+        { [LEGACY_CONFIG_PATH]: { settings: resolvedSettings } },
+        "https://updated.example",
+      );
+      await readPluginSettings(api);
+      jest.setSystemTime(Date.now() + RESOLVED_SETTINGS_RETRY_MS + 1);
+
+      await readPluginSettings(api);
+
+      expect(asked).toEqual([
+        RESOLVED_SETTINGS_PATH,
+        LEGACY_CONFIG_PATH,
+        RESOLVED_SETTINGS_PATH,
+        LEGACY_CONFIG_PATH,
+      ]);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  // A 404 on the resolved route says the plugin is older only once the stored
+  // configuration has answered: a proxy answering 404 for everything while the
+  // server restarts would otherwise leave the route unasked once the new plugin is
+  // back, and an administrator on the stored values rather than their group's.
+  test("keeps asking for the resolved route until the stored configuration answered", async () => {
+    const down = server({
+      [RESOLVED_SETTINGS_PATH]: httpError(404),
+      [LEGACY_CONFIG_PATH]: httpError(503),
+    });
+    await expect(readPluginSettings(down.api)).rejects.toThrow("HTTP 503");
+
+    await expect(readPluginSettings(down.api)).rejects.toThrow("HTTP 503");
+    expect(down.asked).toEqual([
+      RESOLVED_SETTINGS_PATH,
+      LEGACY_CONFIG_PATH,
+      RESOLVED_SETTINGS_PATH,
+      LEGACY_CONFIG_PATH,
+    ]);
   });
 
   test("does not fall back when the request failed for another reason", async () => {
@@ -156,6 +236,10 @@ describe("readPluginSettings", () => {
     ["a list", []],
     ["settings that are a sentence", { settings: "Sign in" }],
     ["settings that are a list", { settings: [] }],
+    // A proxy's or a portal's JSON error, on the route every published plugin
+    // takes: read as "nothing to apply", it cleared the admin's every lock.
+    ["a JSON error", { error: "Sign in" }],
+    ["an error with a code", { message: "Unauthorized", code: 401 }],
   ])(
     "refuses %s in place of the stored configuration",
     async (_case, answer) => {
@@ -208,8 +292,40 @@ describe("readPluginSettings", () => {
     ).toEqual(servedByThePlugin);
   });
 
-  // A JSON 200 can be somebody else's answer too. Every entry of a settings map
-  // is an object, and one that is not empty holds a setting or the seerr block.
+  // A newer plugin can serve a plain value or a list next to the settings. It is
+  // left out like a block the app does not know, and the settings still apply.
+  test("leaves out an entry that is not an object, from either route", async () => {
+    const newer = { ...servedByThePlugin, schemaVersion: 2, sections: [] };
+
+    expect(
+      await readPluginSettings(server({ [RESOLVED_SETTINGS_PATH]: newer }).api),
+    ).toEqual(servedByThePlugin);
+    expect(
+      await readPluginSettings(
+        server({ [LEGACY_CONFIG_PATH]: { settings: newer } }).api,
+      ),
+    ).toEqual(servedByThePlugin);
+  });
+
+  // A refusal fails every refresh the same way, and the log the person exports is
+  // where it shows: the route, the status and the kind of body, never the body.
+  test("logs why it refused an answer, without what the answer said", async () => {
+    mockErrors.length = 0;
+    const page = "<html><body>Sign in to the Wi-Fi as alice</body></html>";
+
+    await expect(
+      readPluginSettings(server({ [RESOLVED_SETTINGS_PATH]: page }).api),
+    ).rejects.toThrow("not a settings map");
+
+    expect(mockErrors).toHaveLength(1);
+    expect(mockErrors[0]).toContain(RESOLVED_SETTINGS_PATH);
+    expect(mockErrors[0]).toContain("200");
+    expect(mockErrors[0]).toContain("text/html");
+    expect(mockErrors[0]).not.toContain("alice");
+  });
+
+  // A JSON 200 can be somebody else's answer too. A map that is not empty holds a
+  // setting or the seerr block.
   test.each([
     ["an error message", { error: "Sign in" }],
     ["an error object", { error: { code: 401, message: "Sign in" } }],
