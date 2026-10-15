@@ -114,6 +114,10 @@ private struct TVMetadataHeader: View {
 						.foregroundStyle(.white.opacity(0.7))
 						.lineLimit(1)
 				}
+				if let group = viewModel.syncPlay {
+					Text("\(group.groupName) · \(group.connected ? group.status : viewModel.syncStr("reconnecting", "Reconnecting"))")
+						.font(.callout).foregroundStyle(.white.opacity(0.7)).lineLimit(1)
+				}
 			}
 			Spacer()
 		}

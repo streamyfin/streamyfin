@@ -1,4 +1,7 @@
-import { ItemFilter } from "@jellyfin/sdk/lib/generated-client/models";
+import {
+  type CollectionType,
+  ItemFilter,
+} from "@jellyfin/sdk/lib/generated-client/models";
 import { atom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
 import { useMemo } from "react";
@@ -11,6 +14,7 @@ export enum SortByOption {
   CommunityRating = "CommunityRating",
   CriticRating = "CriticRating",
   DateCreated = "DateCreated",
+  DateLastContentAdded = "DateLastContentAdded",
   DatePlayed = "DatePlayed",
   PlayCount = "PlayCount",
   ProductionYear = "ProductionYear",
@@ -20,6 +24,7 @@ export enum SortByOption {
   StartDate = "StartDate",
   AirTime = "AirTime",
   Studio = "Studio",
+  IndexNumber = "IndexNumber",
   Random = "Random",
 }
 // These go to the server as they are, so each one is the SDK's own ItemFilter
@@ -44,10 +49,12 @@ export enum SortOrderOption {
   Descending = "Descending",
 }
 
-export const sortOptions: {
+type SortOption = {
   key: SortByOption;
   value: string;
-}[] = [
+};
+
+export const sortOptions: SortOption[] = [
   { key: SortByOption.Default, value: "Default" },
   { key: SortByOption.SortName, value: "Name" },
   { key: SortByOption.CommunityRating, value: "Community Rating" },
@@ -63,9 +70,35 @@ export const sortOptions: {
 
   { key: SortByOption.AirTime, value: "Air Time" },
   { key: SortByOption.Studio, value: "Studio" },
+  { key: SortByOption.IndexNumber, value: "Index Number" },
 
   { key: SortByOption.Random, value: "Random" },
 ];
+
+// The server keeps DateLastContentAdded on containers only, and what it means
+// depends on the container. For a playlist it is the last time an item went in,
+// which is the one reading the label covers, so the option is offered in
+// playlist libraries and nowhere else.
+const playlistSortOptions: SortOption[] = sortOptions.flatMap((option) =>
+  option.key === SortByOption.DateCreated
+    ? [
+        option,
+        {
+          key: SortByOption.DateLastContentAdded,
+          value: "Date Playlist Updated",
+        },
+      ]
+    : [option],
+);
+
+/**
+ * The sort options a library of this type offers. Both lists are built once,
+ * so the result is safe to use as a hook dependency.
+ */
+export const sortOptionsFor = (
+  collectionType: CollectionType | null | undefined,
+): SortOption[] =>
+  collectionType === "playlists" ? playlistSortOptions : sortOptions;
 
 export const useFilterOptions = () => {
   const { settings } = useSettings();
@@ -112,6 +145,9 @@ export const sortOrderOptions: {
 export const genreFilterAtom = atom<string[]>([]);
 export const tagsFilterAtom = atom<string[]>([]);
 export const yearFilterAtom = atom<string[]>([]);
+// Language tags as Filters2 reports them, not display names (Jellyfin 12+).
+export const audioLanguageFilterAtom = atom<string[]>([]);
+export const subtitleLanguageFilterAtom = atom<string[]>([]);
 export const sortByAtom = atom<SortByOption[]>([SortByOption.Default]);
 export const sortOrderAtom = atom<SortOrderOption[]>([
   SortOrderOption.Ascending,
@@ -137,7 +173,8 @@ export interface FilterPreference {
   [libraryId: string]: FilterByOption;
 }
 
-// Genres, years and tags are multi-select, so each library remembers a list.
+// Genres, years, tags and the two language filters are multi-select, so each
+// library remembers a list.
 export interface MultiFilterPreference {
   [libraryId: string]: string[];
 }
@@ -222,6 +259,20 @@ export const tagPreferenceAtom = atomWithStorage<MultiFilterPreference>(
   defaultMultiFilterPreference,
   mmkvStorage<MultiFilterPreference>(),
 );
+
+export const audioLanguagePreferenceAtom =
+  atomWithStorage<MultiFilterPreference>(
+    "audioLanguagePreference",
+    defaultMultiFilterPreference,
+    mmkvStorage<MultiFilterPreference>(),
+  );
+
+export const subtitleLanguagePreferenceAtom =
+  atomWithStorage<MultiFilterPreference>(
+    "subtitleLanguagePreference",
+    defaultMultiFilterPreference,
+    mmkvStorage<MultiFilterPreference>(),
+  );
 
 export const getSortByPreference = (
   libraryId: string,

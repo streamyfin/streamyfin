@@ -10,6 +10,8 @@ export const Colors = {
   icon: "#9BA1A6",
   tabIconDefault: "#9BA1A6",
   tabIconSelected: "#9333ea",
+  // The LIVE badge of a Live TV program, on the cards and in the TV guide.
+  live: "#EF4444",
 };
 
 /**

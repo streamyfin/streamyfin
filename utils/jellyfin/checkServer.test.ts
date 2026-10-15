@@ -76,7 +76,12 @@ const okResponse = (body: Record<string, unknown> = {}): Response =>
   ({
     ok: true,
     status: 200,
-    json: async () => ({ Version: "10.10.7", ServerName: "Homelab", ...body }),
+    json: async () => ({
+      Version: "10.10.7",
+      ServerName: "Homelab",
+      ProductName: "Jellyfin Server",
+      ...body,
+    }),
   }) as Response;
 
 const statusResponse = (status: number): Response =>
@@ -181,6 +186,79 @@ describe("checkJellyfinServer scheme handling", () => {
     expect(fetchCalls[0]?.url).toBe(
       "http://10.0.0.5:3000/jellyfin/System/Info/Public",
     );
+  });
+
+  test("a legacy /emby address is probed at the root first", async () => {
+    // Jellyfin 12 removed the /emby and /mediabrowser aliases, so probing
+    // under one 404s on an upgraded server.
+    routes({ https: async () => okResponse() });
+
+    const result = await checkJellyfinServer("https://host.example/emby/");
+
+    expect(result?.url).toBe("https://host.example");
+    expect(fetchCalls.map((call) => call.url)).toEqual([
+      "https://host.example/System/Info/Public",
+    ]);
+  });
+
+  test("a too-old answer at the root still tries the address as typed", async () => {
+    // The root is a guess: another service can live there.
+    fetchImpl = async (url) =>
+      okResponse({ Version: url.includes("/emby/") ? "10.11.0" : "4.8.0.0" });
+
+    const result = await checkJellyfinServer("https://host.example/emby");
+
+    expect(result?.url).toBe("https://host.example/emby");
+  });
+
+  test("a root that cannot be reached still tries the address as typed", async () => {
+    // A proxy can serve Jellyfin under /emby with nothing behind the root.
+    fetchImpl = async (url) =>
+      url.includes("/emby/") ? okResponse() : networkError();
+
+    const result = await checkJellyfinServer("https://host.example/emby");
+
+    expect(result?.url).toBe("https://host.example/emby");
+  });
+
+  test("another service at the root does not stand in for the one typed", async () => {
+    fetchImpl = async (url) =>
+      okResponse(url.includes("/emby/") ? {} : { ProductName: "Other" });
+
+    const result = await checkJellyfinServer("https://host.example/emby");
+
+    expect(result?.url).toBe("https://host.example/emby");
+  });
+
+  test("the root borrows the saved headers of the /emby address", async () => {
+    // Saved servers carry their proxy headers under the address they were
+    // saved with, and the gateway rejects a root probe without them.
+    const saved = [header("CF-Access-Client-Id", "saved")];
+    mockSavedHeaders.set("https://host.example/emby", saved);
+    routes({ https: async () => okResponse() });
+
+    await checkJellyfinServer("https://host.example/emby");
+
+    expect(
+      (fetchCalls[0]?.init as { headers?: Record<string, string> })?.headers,
+    ).toEqual({ "CF-Access-Client-Id": "saved" });
+    expect(persistedHeaders).toEqual([
+      { url: "https://host.example", headers: saved },
+    ]);
+  });
+
+  test("a legacy /emby address is kept when only it answers", async () => {
+    // A reverse proxy can serve Jellyfin under /emby itself.
+    fetchImpl = async (url) =>
+      url.includes("/emby/") ? okResponse() : statusResponse(404);
+
+    const result = await checkJellyfinServer("https://host.example/emby");
+
+    expect(result?.url).toBe("https://host.example/emby");
+    expect(fetchCalls.map((call) => call.url)).toEqual([
+      "https://host.example/System/Info/Public",
+      "https://host.example/emby/System/Info/Public",
+    ]);
   });
 });
 
