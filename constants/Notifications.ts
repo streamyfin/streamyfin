@@ -95,3 +95,9 @@ export const ANDROID_NOTIFICATION_SETTINGS = {
  * back every one after it.
  */
 export const PUSH_REGISTRATION_TIMEOUT_MS = 15_000;
+
+/**
+ * How many times a read of the person's notification choices or awaited titles is tried
+ * again after it fails, online and not for a missing route.
+ */
+export const PLUGIN_READ_RETRIES = 2;
