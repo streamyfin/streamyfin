@@ -703,9 +703,7 @@ describe("refreshing the plugin settings", () => {
 
     try {
       await refreshAgainst(async () => ({
-        data: {
-          settings: { maxAutoPlayEpisodeCount: { locked: false, value: 3 } },
-        },
+        maxAutoPlayEpisodeCount: { locked: false, value: 3 },
       }));
 
       expect(store.get(settingsAtom)?.stillWatchingPreset).toBe("disabled");
