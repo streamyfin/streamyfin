@@ -1,6 +1,19 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
+import { NEXT_EPISODES_COUNTS } from "@/constants/Downloads";
 import type { NextEpisodesRule } from "./nextEpisodesRules";
 import type { DownloadedItem } from "./types";
+
+/**
+ * The counts to offer next to the ones in use. A server admin can propose or
+ * lock any count from 3 to 10 through the plugin, and a picker that left it out
+ * would show nothing as selected.
+ */
+export const nextEpisodesCountChoices = (
+  ...inUse: (number | undefined)[]
+): number[] =>
+  [...new Set([...NEXT_EPISODES_COUNTS, ...inUse])]
+    .filter((count): count is number => typeof count === "number" && count > 0)
+    .sort((a, b) => a - b);
 
 const isPlayed = (episode: BaseItemDto) => episode.UserData?.Played === true;
 

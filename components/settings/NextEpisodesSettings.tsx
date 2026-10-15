@@ -8,8 +8,8 @@ import { Text } from "@/components/common/Text";
 import { ListGroup } from "@/components/list/ListGroup";
 import { ListItem } from "@/components/list/ListItem";
 import { PlatformDropdown } from "@/components/PlatformDropdown";
-import { NEXT_EPISODES_COUNTS } from "@/constants/Downloads";
 import { useDownload } from "@/providers/DownloadProvider";
+import { nextEpisodesCountChoices } from "@/providers/Downloads/nextEpisodes";
 import {
   type NextEpisodesRule,
   nextEpisodesRulesAtom,
@@ -47,7 +47,9 @@ export const NextEpisodesSettings: React.FC = () => {
   const countOptions = useMemo(
     () => [
       {
-        options: NEXT_EPISODES_COUNTS.map((count) => ({
+        options: nextEpisodesCountChoices(
+          settings.nextEpisodesDownloadCount,
+        ).map((count) => ({
           type: "radio" as const,
           label: t("home.settings.downloads.episode_count", { count }),
           value: String(count),
@@ -78,7 +80,7 @@ export const NextEpisodesSettings: React.FC = () => {
   const ruleOptions = (rule: NextEpisodesRule) => [
     {
       title: t("home.settings.downloads.episodes_to_keep"),
-      options: NEXT_EPISODES_COUNTS.map((count) => ({
+      options: nextEpisodesCountChoices(rule.count).map((count) => ({
         type: "radio" as const,
         label: countLabel(count),
         value: String(count),

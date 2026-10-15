@@ -177,6 +177,23 @@ describe("NextEpisodesSettings", () => {
     expect(mockRunNextEpisodesCheck).toHaveBeenCalled();
   });
 
+  // The plugin lets a server admin propose any count from 3 to 10.
+  test("shows a default count the server proposed among the choices", async () => {
+    mockSettings.settings.nextEpisodesDownloadCount = 7;
+    try {
+      await renderSettings();
+    } finally {
+      mockSettings.settings.nextEpisodesDownloadCount = 3;
+    }
+
+    expect(
+      screen.getByText("home.settings.downloads.episode_count:7"),
+    ).toBeTruthy();
+    expect(
+      screen.getByText("option:home.settings.downloads.episode_count:7"),
+    ).toBeTruthy();
+  });
+
   test("cannot change what the server admin locked", async () => {
     mockSettings.pluginSettings = {
       nextEpisodesWifiOnly: { locked: true, value: true },

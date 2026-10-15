@@ -4,7 +4,7 @@ import { getTvShowsApi } from "@jellyfin/sdk/lib/utils/api";
 import { getSessionApi } from "@jellyfin/sdk/lib/utils/api/session-api";
 import NetInfo from "@react-native-community/netinfo";
 import { useAtomValue, useStore } from "jotai";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import { Platform } from "react-native";
 import DeviceInfo from "react-native-device-info";
 import type { Bitrate } from "@/components/BitrateSelector";
@@ -94,14 +94,19 @@ export function useNextEpisodesDownloads({
 }: UseNextEpisodesDownloadsProps) {
   const store = useStore();
   // A check runs for a while and reads these when it gets to them, so a start
-  // late in a check sees the processes the earlier starts added.
+  // late in a check sees the processes the earlier starts added. Written once
+  // a render commits, so a render React discards cannot hand a check processes
+  // that never were, and in a layout effect, so the values are there before
+  // any effect can start a check.
   const latest = useRef({
     api,
     processes,
     startBackgroundDownload,
     onDataChange,
   });
-  latest.current = { api, processes, startBackgroundDownload, onDataChange };
+  useLayoutEffect(() => {
+    latest.current = { api, processes, startBackgroundDownload, onDataChange };
+  });
   const running = useRef<Promise<void> | null>(null);
   const runAgain = useRef(false);
 

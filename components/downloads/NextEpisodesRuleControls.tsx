@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { Switch, TouchableOpacity, View } from "react-native";
 import { Text } from "@/components/common/Text";
-import { NEXT_EPISODES_COUNTS } from "@/constants/Downloads";
+import { nextEpisodesCountChoices } from "@/providers/Downloads/nextEpisodes";
 import type { NextEpisodesRuleDraft } from "@/providers/Downloads/nextEpisodesRules";
 
 interface Props {
@@ -49,26 +49,28 @@ export const NextEpisodesRuleControls: React.FC<Props> = ({
           <View className='flex flex-row items-center justify-between w-full py-2'>
             <Text>{t("item_card.download.next_episodes_count")}</Text>
             <View className='flex flex-row' accessibilityRole='radiogroup'>
-              {NEXT_EPISODES_COUNTS.map((count) => {
-                const selected = draft.count === count;
-                return (
-                  <TouchableOpacity
-                    key={count}
-                    accessibilityRole='radio'
-                    accessibilityState={{ selected }}
-                    accessibilityLabel={t(
-                      "item_card.download.next_episodes_count_option",
-                      { count },
-                    )}
-                    onPress={() => onChange({ ...draft, count })}
-                    className={`ml-2 rounded-full px-4 py-1.5 ${
-                      selected ? "bg-purple-600" : "bg-neutral-800"
-                    }`}
-                  >
-                    <Text>{count}</Text>
-                  </TouchableOpacity>
-                );
-              })}
+              {nextEpisodesCountChoices(defaultCount, draft.count).map(
+                (count) => {
+                  const selected = draft.count === count;
+                  return (
+                    <TouchableOpacity
+                      key={count}
+                      accessibilityRole='radio'
+                      accessibilityState={{ selected }}
+                      accessibilityLabel={t(
+                        "item_card.download.next_episodes_count_option",
+                        { count },
+                      )}
+                      onPress={() => onChange({ ...draft, count })}
+                      className={`ml-2 rounded-full px-4 py-1.5 ${
+                        selected ? "bg-purple-600" : "bg-neutral-800"
+                      }`}
+                    >
+                      <Text>{count}</Text>
+                    </TouchableOpacity>
+                  );
+                },
+              )}
             </View>
           </View>
           <View className='flex flex-row items-center justify-between w-full py-2'>

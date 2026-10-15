@@ -13,13 +13,16 @@ import { NextEpisodesRuleControls } from "./NextEpisodesRuleControls";
 const KEEP = "item_card.download.keep_next_episodes";
 const DELETE_WATCHED = "item_card.download.delete_watched_episodes";
 
-const renderControls = async (draft: NextEpisodesRuleDraft | null) => {
+const renderControls = async (
+  draft: NextEpisodesRuleDraft | null,
+  defaultCount = 5,
+) => {
   const onChange = jest.fn();
   await render(
     <NextEpisodesRuleControls
       draft={draft}
       onChange={onChange}
-      defaultCount={5}
+      defaultCount={defaultCount}
       deletesAnyDownload={false}
     />,
   );
@@ -62,6 +65,16 @@ describe("NextEpisodesRuleControls", () => {
     );
 
     expect(onChange).toHaveBeenCalledWith({ count: 10, deleteWatched: true });
+  });
+
+  // The plugin lets a server admin set any count from 3 to 10.
+  test("offers and selects a default count the server set", async () => {
+    await renderControls({ count: 7, deleteWatched: false }, 7);
+
+    expect(
+      screen.getByLabelText("item_card.download.next_episodes_count_option:7")
+        .props.accessibilityState,
+    ).toMatchObject({ selected: true });
   });
 
   test("turns deleting watched episodes on", async () => {

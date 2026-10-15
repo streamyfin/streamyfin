@@ -1,6 +1,7 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import {
   nextEpisodes,
+  nextEpisodesCountChoices,
   planNextEpisodes,
   withLocalPlayState,
 } from "./nextEpisodes";
@@ -251,5 +252,16 @@ describe("planNextEpisodes", () => {
       rule: rule({ deleteWatched: true, downloadedIds: ["e1"] }),
     });
     expect(result.remove).toEqual([]);
+  });
+});
+
+// A server admin can propose any count from 3 to 10 through the plugin.
+describe("count choices", () => {
+  test("are the app's own while those are in use", () => {
+    expect(nextEpisodesCountChoices(3, 10)).toEqual([3, 5, 10]);
+  });
+
+  test("add a count from the server, in order", () => {
+    expect(nextEpisodesCountChoices(7, undefined)).toEqual([3, 5, 7, 10]);
   });
 });
