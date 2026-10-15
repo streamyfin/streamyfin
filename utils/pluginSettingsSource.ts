@@ -174,14 +174,17 @@ export const readPluginSettings = async (
 
   try {
     const answer = await api.get<unknown>(LEGACY_CONFIG_PATH);
-    // The plugin is older, which a 404 alone did not say: a proxy answers 404
-    // for everything while the server restarts.
-    if (asksResolved) {
-      withoutResolvedRoute.set(
-        api.basePath,
-        Date.now() + RESOLVED_SETTINGS_RETRY_MS,
-      );
-    }
+    // The plugin is older once its own configuration answers, which a 404
+    // alone did not say: a proxy answers 404 for everything while the server
+    // restarts, and something else can answer 200 in the plugin's place.
+    const older = () => {
+      if (asksResolved) {
+        withoutResolvedRoute.set(
+          api.basePath,
+          Date.now() + RESOLVED_SETTINGS_RETRY_MS,
+        );
+      }
+    };
     const { data } = answer;
     if (!isPlainObject(data)) {
       throw notThePluginsAnswer(
@@ -202,6 +205,7 @@ export const readPluginSettings = async (
           answer,
         );
       }
+      older();
       return undefined;
     }
     const map = settingsMapOf(settings);
@@ -212,6 +216,7 @@ export const readPluginSettings = async (
         answer,
       );
     }
+    older();
     return map;
   } catch (error) {
     if (!isMissingRoute(error)) {

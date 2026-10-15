@@ -145,21 +145,32 @@ describe("readPluginSettings", () => {
   // configuration has answered: a proxy answering 404 for everything while the
   // server restarts would otherwise leave the route unasked once the new plugin is
   // back, and an administrator on the stored values rather than their group's.
-  test("keeps asking for the resolved route until the stored configuration answered", async () => {
-    const down = server({
-      [RESOLVED_SETTINGS_PATH]: httpError(404),
-      [LEGACY_CONFIG_PATH]: httpError(503),
-    });
-    await expect(readPluginSettings(down.api)).rejects.toThrow("HTTP 503");
+  test.each([
+    ["is down", httpError(503), "HTTP 503"],
+    // A 200 that is not the plugin's has not shown an older plugin either.
+    [
+      "sends somebody else's answer",
+      { error: "Sign in" },
+      "plugin configuration",
+    ],
+  ])(
+    "keeps asking for the resolved route while the stored configuration %s",
+    async (_case, legacy, refusal) => {
+      const down = server({
+        [RESOLVED_SETTINGS_PATH]: httpError(404),
+        [LEGACY_CONFIG_PATH]: legacy,
+      });
+      await expect(readPluginSettings(down.api)).rejects.toThrow(refusal);
 
-    await expect(readPluginSettings(down.api)).rejects.toThrow("HTTP 503");
-    expect(down.asked).toEqual([
-      RESOLVED_SETTINGS_PATH,
-      LEGACY_CONFIG_PATH,
-      RESOLVED_SETTINGS_PATH,
-      LEGACY_CONFIG_PATH,
-    ]);
-  });
+      await expect(readPluginSettings(down.api)).rejects.toThrow(refusal);
+      expect(down.asked).toEqual([
+        RESOLVED_SETTINGS_PATH,
+        LEGACY_CONFIG_PATH,
+        RESOLVED_SETTINGS_PATH,
+        LEGACY_CONFIG_PATH,
+      ]);
+    },
+  );
 
   test("does not fall back when the request failed for another reason", async () => {
     // A server that is down or a token that expired fails the same way on the
