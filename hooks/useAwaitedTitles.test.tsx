@@ -230,6 +230,15 @@ describe("the titles the person waits for", () => {
     expect(result.current.titles).toBeUndefined();
   });
 
+  // Where the plugin does not offer the event there is nothing to wait for, and nothing to
+  // read on every Seerr page.
+  it("read nothing when not asked to", async () => {
+    await renderHook(() => useAwaitedTitles({ enabled: false }), { wrapper });
+    await act(async () => {});
+
+    expect(mockGet).not.toHaveBeenCalled();
+  });
+
   it("know a title by its kind and its TMDB id", async () => {
     const { result } = await ready();
 

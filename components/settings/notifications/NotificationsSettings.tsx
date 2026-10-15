@@ -5,7 +5,10 @@ import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
 import { ListGroup } from "@/components/list/ListGroup";
 import { ListItem } from "@/components/list/ListItem";
-import { NOTIFICATION_FAMILIES } from "@/constants/Notifications";
+import {
+  AWAITED_TITLE_EVENT,
+  NOTIFICATION_FAMILIES,
+} from "@/constants/Notifications";
 import { useAwaitedTitles } from "@/hooks/useAwaitedTitles";
 import { useMyNotifications } from "@/hooks/useMyNotifications";
 import {
@@ -40,7 +43,10 @@ export const NotificationsSettings: React.FC = () => {
     unmute,
     refetch,
   } = useMyNotifications();
-  const awaited = useAwaitedTitles();
+  // Read only where the plugin offers the event: there is nothing to wait for otherwise.
+  const awaited = useAwaitedTitles({
+    enabled: !!mine?.events.some((event) => event.key === AWAITED_TITLE_EVENT),
+  });
 
   if (!supported) {
     return (
@@ -209,7 +215,7 @@ export const NotificationsSettings: React.FC = () => {
         </View>
       )}
 
-      {awaited.supported && !!awaited.titles?.length && (
+      {!!awaited.titles?.length && (
         <View className='mb-4'>
           <ListGroup title={t("home.settings.notifications.groups.awaited")}>
             {awaited.titles.map((title) => (

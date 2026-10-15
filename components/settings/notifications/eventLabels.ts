@@ -1,3 +1,5 @@
+import { AWAITED_TITLE_EVENT } from "@/constants/Notifications";
+
 /** The title, and help where it needs one, of each event the plugin can send. */
 export const EVENT_LABELS: Record<string, { title: string; help?: string }> = {
   itemAdded: { title: "home.settings.notifications.events.item_added" },
@@ -8,7 +10,7 @@ export const EVENT_LABELS: Record<string, { title: string; help?: string }> = {
   userLockedOut: {
     title: "home.settings.notifications.events.user_locked_out",
   },
-  awaitedTitle: {
+  [AWAITED_TITLE_EVENT]: {
     title: "home.settings.notifications.events.awaited_title",
     help: "home.settings.notifications.events.awaited_title_help",
   },

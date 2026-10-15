@@ -36,7 +36,11 @@ const isRefusal = (error: unknown): boolean =>
  * rest of their notification choices: the button moves at once, and comes back with a message
  * when the plugin refuses.
  */
-export const useAwaitedTitles = () => {
+export const useAwaitedTitles = ({
+  enabled = true,
+}: {
+  enabled?: boolean;
+} = {}) => {
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
   const { t } = useTranslation();
@@ -46,7 +50,7 @@ export const useAwaitedTitles = () => {
   const query = useQuery({
     queryKey: key,
     queryFn: () => readPluginRoute(() => getAwaitedTitles(api!)),
-    enabled: !!api && !!user?.Id,
+    enabled: enabled && !!api && !!user?.Id,
     retry: retryPluginRead,
   });
 
@@ -82,7 +86,6 @@ export const useAwaitedTitles = () => {
   return {
     titles,
     supported,
-    isLoading: query.isLoading,
     isAwaited: (mediaType: AwaitedMediaType, tmdbId: number) =>
       isAwaited(titles, mediaType, tmdbId),
     add: (request: AwaitTitleRequest) =>
