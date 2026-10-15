@@ -29,6 +29,28 @@ let mockSettings: HomeSettings = defaultSettings;
 
 const mockPush = jest.fn();
 
+// Commits per poster card, by item id. A Profiler counts a card's own state
+// updates (its focus) as well as re-renders coming down from its row.
+const mockCardCommits: Record<string, number> = {};
+
+jest.mock("@/components/tv/TVPosterCard", () => {
+  const { Profiler } = jest.requireActual("react");
+  const actual = jest.requireActual("@/components/tv/TVPosterCard");
+  return {
+    ...actual,
+    TVPosterCard: (props: { item: BaseItemDto }) => (
+      <Profiler
+        id={props.item.Id!}
+        onRender={(id: string) => {
+          mockCardCommits[id] = (mockCardCommits[id] ?? 0) + 1;
+        }}
+      >
+        <actual.TVPosterCard {...props} />
+      </Profiler>
+    ),
+  };
+});
+
 jest.mock("@/utils/atoms/settings", () => ({
   TVTypographyScale: { Default: "default" },
   useSettings: () => ({
@@ -210,6 +232,9 @@ describe("Home.tv behaviours", () => {
     tvItemActionModalMock.showItemActions.mockClear();
     jest.mocked(prefetchServerImage).mockClear();
     stubServer();
+    for (const key of Object.keys(mockCardCommits)) {
+      delete mockCardCommits[key];
+    }
   });
 
   afterEach(() => {
@@ -343,6 +368,35 @@ describe("Home.tv behaviours", () => {
     expect(episodeImage).toBeTruthy();
   });
 
+  test("a focus move re-renders only the card losing focus and the card gaining it", async () => {
+    withSettings({ showHeroCarousel: false, showHomeBackdrop: true });
+
+    await render(<Home />, { wrapper: Wrapper });
+    await screen.findByText("LatestMovie 0");
+
+    await act(async () => {
+      fireEvent(card("Resume-0"), "focus");
+    });
+    // Past the backdrop debounce and its crossfade.
+    await act(async () => {
+      jest.advanceTimersByTime(1000);
+    });
+    const before = { ...mockCardCommits };
+
+    await act(async () => {
+      fireEvent(card("Resume-0"), "blur");
+      fireEvent(card("Resume-1"), "focus");
+    });
+    await act(async () => {
+      jest.advanceTimersByTime(1000);
+    });
+
+    const recommitted = Object.keys(mockCardCommits).filter(
+      (id) => mockCardCommits[id] !== before[id],
+    );
+    expect(recommitted.sort()).toEqual(["Resume-0", "Resume-1"]);
+  });
+
   test("a focus move loads the backdrop when it is drawn", async () => {
     withSettings({ showHeroCarousel: false, showHomeBackdrop: true });
 
@@ -367,6 +421,7 @@ describe("Home.tv behaviours", () => {
       "the backdrop is off",
       { showHeroCarousel: false, showHomeBackdrop: false },
     ],
+    ["the hero is shown", { showHeroCarousel: true, showHomeBackdrop: true }],
   ])(
     "a focus move in a row does no backdrop work when %s",
     async (_, settings) => {

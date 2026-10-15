@@ -212,7 +212,7 @@ const HeroCard: React.FC<HeroCardProps> = React.memo(
 // Debounce delay to prevent rapid backdrop changes when navigating fast
 const BACKDROP_DEBOUNCE_MS = 300;
 
-export const TVHeroCarousel: React.FC<TVHeroCarouselProps> = ({
+const TVHeroCarouselComponent: React.FC<TVHeroCarouselProps> = ({
   items,
   onItemFocus,
   onItemLongPress,
@@ -686,3 +686,5 @@ export const TVHeroCarousel: React.FC<TVHeroCarouselProps> = ({
     </View>
   );
 };
+
+export const TVHeroCarousel = React.memo(TVHeroCarouselComponent);
