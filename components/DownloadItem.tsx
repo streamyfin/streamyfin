@@ -18,6 +18,7 @@ import { Alert, Platform, Switch, View, type ViewProps } from "react-native";
 import { toast } from "sonner-native";
 import { HEADER_ICON_SIZE } from "@/components/common/HeaderButton";
 import { HeaderIcon } from "@/components/common/HeaderIcon";
+import { NextEpisodesRuleControls } from "@/components/downloads/NextEpisodesRuleControls";
 import { Colors } from "@/constants/Colors";
 import useRouter from "@/hooks/useAppRouter";
 import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
@@ -117,6 +118,19 @@ export const DownloadItems: React.FC<DownloadProps> = ({
   }, []);
 
   const itemIds = useMemo(() => items.map((i) => i.Id), [items]);
+
+  // The series a "keep next episodes downloaded" rule would be for: the sheet
+  // offers one when everything in it is an episode of the same series.
+  const ruleSeries = useMemo(() => {
+    const first = items[0];
+    if (
+      !first?.SeriesId ||
+      items.some((i) => i.Type !== "Episode" || i.SeriesId !== first.SeriesId)
+    ) {
+      return null;
+    }
+    return { id: first.SeriesId, name: first.SeriesName ?? "" };
+  }, [items]);
 
   const itemsNotDownloaded = useMemo(
     () =>
@@ -520,6 +534,12 @@ export const DownloadItems: React.FC<DownloadProps> = ({
                     </View>
                   )}
                 </View>
+              )}
+              {ruleSeries && userCanDownload === true && (
+                <NextEpisodesRuleControls
+                  seriesId={ruleSeries.id}
+                  seriesName={ruleSeries.name}
+                />
               )}
             </View>
 

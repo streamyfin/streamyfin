@@ -21,6 +21,7 @@ import { getDownloadedItemSize } from "./Downloads/fileOperations";
 import { useDownloadEventHandlers } from "./Downloads/hooks/useDownloadEventHandlers";
 import { useDownloadOperations } from "./Downloads/hooks/useDownloadOperations";
 import { useDownloadReconciliation } from "./Downloads/hooks/useDownloadReconciliation";
+import { useNextEpisodesDownloads } from "./Downloads/hooks/useNextEpisodesDownloads";
 import { setDownloadLiveActivityEnabled } from "./Downloads/liveActivity";
 import type { JobStatus } from "./Downloads/types";
 import { apiAtom } from "./JellyfinProvider";
@@ -139,9 +140,18 @@ function useDownloadProvider() {
     onDataChange: triggerRefresh,
   });
 
+  // Series rules: "keep the next episodes downloaded".
+  const { runNextEpisodesCheck } = useNextEpisodesDownloads({
+    api,
+    processes,
+    startBackgroundDownload,
+    onDataChange: triggerRefresh,
+  });
+
   return {
     processes,
     startBackgroundDownload,
+    runNextEpisodesCheck,
     downloadedItems, // Reactive value that auto-updates
     getDownloadedItems: getAllDownloadedItems, // Keep for backward compatibility
     getDownloadsDatabase,
@@ -171,6 +181,7 @@ export function useDownload() {
     return {
       processes: [],
       startBackgroundDownload: async () => {},
+      runNextEpisodesCheck: async () => {},
       downloadedItems: [],
       getDownloadedItems: () => [],
       getDownloadsDatabase: () => ({ movies: {}, series: {}, other: {} }),

@@ -11,6 +11,7 @@ import { atom, useAtom, useAtomValue, useStore } from "jotai";
 import { useCallback, useEffect } from "react";
 import { Platform } from "react-native";
 import { BITRATES, type Bitrate } from "@/components/BitrateSelector";
+import { DEFAULT_NEXT_EPISODES_COUNT } from "@/constants/Downloads";
 import {
   DEFAULT_MUSIC_NORMALIZATION_MODE,
   type MusicNormalizationMode,
@@ -418,6 +419,15 @@ export type Settings = {
   downloadQuality?: DownloadOption;
   /** iOS only: show a Lock Screen / Dynamic Island Live Activity while a download runs. */
   showDownloadLiveActivity: boolean;
+  /** How many episodes a new "keep next episodes downloaded" rule keeps. */
+  nextEpisodesDownloadCount: number;
+  /** Download next episodes only on Wi-Fi or Ethernet, never on mobile data. */
+  nextEpisodesWifiOnly: boolean;
+  /**
+   * Let a rule that deletes watched episodes also delete episodes downloaded
+   * by hand, not only the ones it downloaded itself.
+   */
+  nextEpisodesDeleteAnyDownload: boolean;
   defaultBitrate?: Bitrate;
   libraryOptions: LibraryOptions;
   defaultAudioLanguage: CultureDto | null;
@@ -622,6 +632,9 @@ export const defaultValues: Settings = {
   streamyStatsPromotedWatchlists: false,
   downloadQuality: DownloadOptions[0],
   showDownloadLiveActivity: true,
+  nextEpisodesDownloadCount: DEFAULT_NEXT_EPISODES_COUNT,
+  nextEpisodesWifiOnly: true,
+  nextEpisodesDeleteAnyDownload: false,
   defaultBitrate: BITRATES[0],
   libraryOptions: {
     display: "list",

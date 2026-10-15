@@ -14,11 +14,15 @@ The downloads module is structured with a clean separation of concerns:
 - **`additionalDownloads.ts`** - Pure functions for downloading additional assets
 - **`notifications.ts`** - Pure functions for notification handling
 - **`types.ts`** - TypeScript type definitions
+- **`nextEpisodes.ts`** - Pure functions deciding what a "keep next episodes downloaded" rule downloads and deletes
+- **`nextEpisodesRules.ts`** - The series rules, stored per user, and the atom they are read through
+- **`defaultDownload.ts`** - The stream a download nobody picked options for fetches, with the default source and tracks
 
 ### Hooks
 
 - **`useDownloadOperations.ts`** - Hook providing download operations (start, cancel, delete)
 - **`useDownloadEventHandlers.ts`** - Hook setting up native download event listeners
+- **`useNextEpisodesDownloads.ts`** - Hook keeping the next episodes of every series with a rule downloaded, and saying why when it cannot
 
 ### Main Provider
 
