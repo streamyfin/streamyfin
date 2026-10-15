@@ -1063,9 +1063,25 @@ final class MPVLayerRenderer {
                 let newPaused = flag != 0
                 if newPaused != isPaused {
                     isPaused = newPaused
+                    // The playing clock is reported only once per second and
+                    // cachedPosition can contain an optimistic seek target.
+                    // Capture mpv's physical clock before the immediate pause
+                    // report, keeping both callbacks immutable and ordered.
+                    var physicalPosition = Double(0)
+                    let positionStatus = newPaused
+                        ? getProperty(handle: handle, name: "time-pos", format: MPV_FORMAT_DOUBLE, value: &physicalPosition)
+                        : -1
+                    let pausedPosition: Double? = positionStatus >= 0
+                        && physicalPosition.isFinite && physicalPosition >= 0
+                        ? physicalPosition : nil
+                    let duration = cachedDuration
+                    let cacheSeconds = cachedCacheSeconds
                     DispatchQueue.main.async { [weak self] in
                         guard let self else { return }
-                        self.delegate?.renderer(self, didChangePause: self.isPaused)
+                        if let pausedPosition {
+                            self.delegate?.renderer(self, didUpdatePosition: pausedPosition, duration: duration, cacheSeconds: cacheSeconds)
+                        }
+                        self.delegate?.renderer(self, didChangePause: newPaused)
                     }
                 }
             }
@@ -1208,13 +1224,13 @@ final class MPVLayerRenderer {
         if isPaused { play() } else { pausePlayback() }
     }
     
-    func seek(to seconds: Double) {
+    func seek(to seconds: Double, exact: Bool = false) {
         guard mpv != nil else { return }
         let clamped = max(0, seconds)
         cachedPosition = clamped
         onQueue { [weak self] in
             guard let self, let handle = self.mpv else { return }
-            self.commandSync(handle, ["seek", String(clamped), "absolute"])
+            self.commandSync(handle, ["seek", String(clamped), exact ? "absolute+exact" : "absolute"])
         }
     }
 

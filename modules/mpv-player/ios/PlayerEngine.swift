@@ -27,10 +27,14 @@ protocol MPVPlayerEngineDelegate: AnyObject {
 	/// forwards the request.
 	func engine(_ engine: MPVPlayerEngine, requestsSeekTo position: Double)
 	func engine(_ engine: MPVPlayerEngine, requestsSeekBy offset: Double)
+	func engine(_ engine: MPVPlayerEngine, requestsPlaying playing: Bool)
 }
 
 /// Hosts without position bookkeeping of their own let the engine seek.
 extension MPVPlayerEngineDelegate {
+	func engine(_ engine: MPVPlayerEngine, requestsPlaying playing: Bool) {
+		if playing { engine.play() } else { engine.pause() }
+	}
 	func engine(_ engine: MPVPlayerEngine, requestsSeekTo position: Double) {
 		engine.seekTo(position: position)
 	}
@@ -62,6 +66,17 @@ final class MPVPlayerEngine: NSObject {
 	private(set) var intendedPlayState: Bool = false
 	private var _isZoomedToFill: Bool = false
 	private var isShutDown = false
+	// Outside the iOS block below: the PiP delegate that sets these compiles
+	// on tvOS too, where it is never called.
+	/// True while the delegate hears that PiP stopped, when the user asked to
+	/// return to the app. False when the PiP window was simply closed.
+	private(set) var pictureInPictureStopIsRestore = false
+	/// True from AVKit announcing that PiP will stop until it has stopped.
+	private(set) var isPictureInPictureStopping = false
+	/// True from AVKit announcing that PiP will start until it has started or
+	/// failed to. Automatic PiP begins as the app leaves the foreground, and
+	/// the app can be in the background before the window is up.
+	private(set) var isPictureInPictureStarting = false
 	#if os(iOS)
 	private var isPictureInPictureHostVisible = false
 	private var hasRenderedFirstFrame = false
@@ -177,11 +192,11 @@ final class MPVPlayerEngine: NSObject {
 
 	private func setupRemoteCommands() {
 		nowPlayingManager.setupRemoteCommands(
-			playHandler: { [weak self] in self?.play() },
-			pauseHandler: { [weak self] in self?.pause() },
+			playHandler: { [weak self] in self?.requestPlaying(true) },
+			pauseHandler: { [weak self] in self?.requestPlaying(false) },
 			toggleHandler: { [weak self] in
 				guard let self else { return }
-				if self.intendedPlayState { self.pause() } else { self.play() }
+				self.requestPlaying(!self.intendedPlayState)
 			},
 			seekHandler: { [weak self] time in self?.requestSeek(to: time) },
 			skipForward: { [weak self] interval in self?.requestSeek(by: interval) },
@@ -265,8 +280,16 @@ final class MPVPlayerEngine: NSObject {
 			loadGeneration: currentLoadGeneration
 		)
 
+		// A SyncPlay late join loads paused. Remote Play and Seek must already
+		// have intent handlers before the first group Unpause ever arrives.
+		setupRemoteCommands()
 		if config.autoplay {
 			resumePlayback()
+		} else {
+			// mpv's pause property survives loadfile. A shared queue restart
+			// must stay paused until Jellyfin's scheduled Unpause, even when
+			// the previous source was playing or reached EOF while unpaused.
+			pause()
 		}
 
 		delegate?.engine(self, didLoad: config.url)
@@ -369,11 +392,11 @@ final class MPVPlayerEngine: NSObject {
 		shutdown()
 	}
 
-	func seekTo(position: Double) {
+	func seekTo(position: Double, exact: Bool = false) {
 		// Update cached position and Now Playing immediately for smooth Control Center feedback
 		cachedPosition = position
 		syncNowPlaying(isPlaying: !isPaused())
-		renderer?.seek(to: position)
+		renderer?.seek(to: position, exact: exact)
 	}
 
 	func seekBy(offset: Double) {
@@ -395,6 +418,11 @@ final class MPVPlayerEngine: NSObject {
 		} else {
 			seekTo(position: position)
 		}
+	}
+
+	func requestPlaying(_ playing: Bool) {
+		if let delegate { delegate.engine(self, requestsPlaying: playing) }
+		else if playing { play() } else { pause() }
 	}
 
 	func requestSeek(by offset: Double) {
@@ -746,6 +774,9 @@ extension MPVPlayerEngine: MPVLayerRendererDelegate {
 extension MPVPlayerEngine: PiPControllerDelegate {
 	func pipController(_ controller: PiPController, willStartPictureInPicture: Bool) {
 		Logger.shared.log("PiP: will start", type: "Info")
+		pictureInPictureStopIsRestore = false
+		isPictureInPictureStopping = false
+		isPictureInPictureStarting = true
 		// Sync timebase before PiP starts for smooth transition
 		renderer?.syncTimebase()
 		// Set current time for PiP progress bar
@@ -760,6 +791,7 @@ extension MPVPlayerEngine: PiPControllerDelegate {
 
 	func pipController(_ controller: PiPController, didStartPictureInPicture: Bool) {
 		Logger.shared.log("PiP: did start = \(didStartPictureInPicture)", type: "Info")
+		isPictureInPictureStarting = false
 		// Ensure current time is synced when PiP starts
 		pipController?.setCurrentTimeFromSeconds(cachedPosition)
 		// Notify the host of the actual PiP active state. `didStartPictureInPicture`
@@ -769,12 +801,14 @@ extension MPVPlayerEngine: PiPControllerDelegate {
 
 	func pipController(_ controller: PiPController, willStopPictureInPicture: Bool) {
 		Logger.shared.log("PiP: will stop", type: "Info")
+		isPictureInPictureStopping = true
 		// Sync timebase before returning from PiP
 		renderer?.syncTimebase()
 	}
 
 	func pipController(_ controller: PiPController, didStopPictureInPicture: Bool) {
 		Logger.shared.log("PiP: did stop", type: "Info")
+		isPictureInPictureStarting = false
 		// Ensure timebase is synced after PiP ends
 		renderer?.syncTimebase()
 		pipController?.updatePlaybackState()
@@ -787,25 +821,24 @@ extension MPVPlayerEngine: PiPControllerDelegate {
 		// Notify the host that PiP has fully stopped so the controls overlay
 		// can be re-mounted when the user returns to full screen.
 		delegate?.engine(self, didChangePictureInPicture: false)
+		pictureInPictureStopIsRestore = false
+		isPictureInPictureStopping = false
 	}
 
 	func pipController(_ controller: PiPController, restoreUserInterfaceForPictureInPictureStop completionHandler: @escaping (Bool) -> Void) {
 		Logger.shared.log("PiP: restore user interface requested", type: "Info")
+		pictureInPictureStopIsRestore = true
 		completionHandler(true)
 	}
 
 	func pipControllerPlay(_ controller: PiPController) {
 		print("PiP play requested")
-		intendedPlayState = true
-		renderer?.play()
-		pipController?.setPlaybackRate(1.0)
+		requestPlaying(true)
 	}
 
 	func pipControllerPause(_ controller: PiPController) {
 		print("PiP pause requested")
-		intendedPlayState = false
-		renderer?.pausePlayback()
-		pipController?.setPlaybackRate(0.0)
+		requestPlaying(false)
 	}
 
 	func pipController(_ controller: PiPController, skipByInterval interval: CMTime) {

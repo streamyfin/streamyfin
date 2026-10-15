@@ -109,6 +109,25 @@ fun PlayerTopBar(
                     overflow = TextOverflow.Ellipsis
                 )
             }
+            viewModel.syncPlay?.let { state ->
+                Text(
+                    text = "${state.groupName} · ${if (state.connected) state.status else viewModel.syncStr("reconnecting", "Reconnecting")}",
+                    color = PlayerAccentColor,
+                    fontSize = 12.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+
+        if (viewModel.syncPlayActive) {
+            IconButton(onClick = { viewModel.openSyncPlayQueue() }, modifier = Modifier.size(48.dp)) {
+                Icon(
+                    imageVector = Icons.Default.FormatListBulleted,
+                    contentDescription = viewModel.syncStr("queue", "Queue"),
+                    tint = PlayerAccentColor
+                )
+            }
         }
 
         // PiP Button
@@ -140,7 +159,7 @@ fun PlayerTopBar(
         }
 
         // Episode list button
-        if (viewModel.episodeList.isNotEmpty()) {
+        if (viewModel.episodeList.isNotEmpty() && !viewModel.syncPlayActive) {
             IconButton(
                 onClick = {
                     viewModel.showEpisodeList = true
@@ -157,7 +176,7 @@ fun PlayerTopBar(
         }
 
         // Speed Menu Button (if not compact)
-        if (!compact) {
+        if (!compact && !viewModel.syncPlayActive) {
             Box {
                 IconButton(
                     onClick = {
@@ -552,38 +571,40 @@ fun PlayerTopBar(
                 }
 
                 // Sleep Timer
-                Text(
-                    text = viewModel.strings.get("sleepTimer", "Sleep Timer"),
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 13.sp,
-                    color = Color.Gray,
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                )
-                if (viewModel.sleepTimerMinutes != null) {
-                    DropdownMenuItem(
-                        text = { Text(viewModel.strings.get("sleepTimerOff", "Turn Off")) },
-                        onClick = {
-                            viewModel.cancelSleepTimer()
-                            showMoreMenu = false
-                        }
+                if (!viewModel.syncPlayActive) {
+                    Text(
+                        text = viewModel.strings.get("sleepTimer", "Sleep Timer"),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp,
+                        color = Color.Gray,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                     )
-                }
-                PlayerConstants.SLEEP_TIMER_PRESET_MINUTES.forEach { mins ->
-                    DropdownMenuItem(
-                        text = {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(if (mins < 60) "$mins min" else "${mins / 60} h")
-                                if (viewModel.sleepTimerMinutes == mins) {
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
-                                }
+                    if (viewModel.sleepTimerMinutes != null) {
+                        DropdownMenuItem(
+                            text = { Text(viewModel.strings.get("sleepTimerOff", "Turn Off")) },
+                            onClick = {
+                                viewModel.cancelSleepTimer()
+                                showMoreMenu = false
                             }
-                        },
-                        onClick = {
-                            viewModel.setSleepTimer(mins)
-                            showMoreMenu = false
-                        }
-                    )
+                        )
+                    }
+                    PlayerConstants.SLEEP_TIMER_PRESET_MINUTES.forEach { mins ->
+                        DropdownMenuItem(
+                            text = {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(if (mins < 60) "$mins min" else "${mins / 60} h")
+                                    if (viewModel.sleepTimerMinutes == mins) {
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    }
+                                }
+                            },
+                            onClick = {
+                                viewModel.setSleepTimer(mins)
+                                showMoreMenu = false
+                            }
+                        )
+                    }
                 }
 
                 HorizontalDivider()

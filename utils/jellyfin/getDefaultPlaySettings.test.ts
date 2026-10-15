@@ -27,7 +27,10 @@ jest.mock("@/utils/log", () => ({
 
 import { clearMmkv } from "@/test-utils/mmkv";
 import { rememberSeriesTrack } from "@/utils/seriesTrackMemory";
-import { getDefaultPlaySettings } from "./getDefaultPlaySettings";
+import {
+  getAdjacentStartTicks,
+  getDefaultPlaySettings,
+} from "./getDefaultPlaySettings";
 
 const audio = (
   index: number,
@@ -390,5 +393,109 @@ describe("precedence", () => {
       }),
     );
     expect(result.subtitleIndex).toBe(0);
+  });
+});
+
+describe("version carry-over on sequential play", () => {
+  // Jellyfin 12 groups alternate episode versions in MediaSources like movie
+  // versions. Advancing an episode keeps the version the user was watching,
+  // matched by name the way jellyfin-web's getMatchingMediaSource does.
+  const named = (id: string, name: string, streams: MediaStream[] = []) => ({
+    ...source(streams),
+    Id: id,
+    Name: name,
+  });
+  const twoVersions = (): BaseItemDto => ({
+    ...episode(named("next-1080", "1080p")),
+    MediaSources: [
+      named("next-1080", "1080p", [sub(0, "eng")]),
+      named("next-4k", "4K", [sub(0, "fre"), sub(1, "eng")]),
+    ],
+  });
+
+  test("picks the next episode's version with the same name", () => {
+    const result = getDefaultPlaySettings(twoVersions(), settingsWith({}), {
+      indexes: { subtitleIndex: 0 },
+      source: named("cur-4k", "4K", [sub(0, "eng")]),
+    });
+    expect(result.mediaSource?.Id).toBe("next-4k");
+    // Track carry-over ranks against the matched version's streams.
+    expect(result.subtitleIndex).toBe(1);
+  });
+
+  test("falls back to the first version when no name matches", () => {
+    const result = getDefaultPlaySettings(twoVersions(), settingsWith({}), {
+      source: named("cur-720", "720p"),
+    });
+    expect(result.mediaSource?.Id).toBe("next-1080");
+  });
+
+  test("offline keeps the first version", () => {
+    // A download's item lists every server version, not only the one on disk.
+    const result = getDefaultPlaySettings(twoVersions(), settingsWith({}), {
+      source: named("cur-4k", "4K"),
+      offline: true,
+    });
+    expect(result.mediaSource?.Id).toBe("next-1080");
+  });
+
+  test("uses the first version without a previous source", () => {
+    const result = getDefaultPlaySettings(twoVersions(), settingsWith({}));
+    expect(result.mediaSource?.Id).toBe("next-1080");
+  });
+});
+
+describe("getAdjacentStartTicks", () => {
+  const resumed = (sources: MediaSourceInfo[]): BaseItemDto => ({
+    Id: "ep-2",
+    MediaSources: sources,
+    UserData: { PlaybackPositionTicks: 600 },
+  });
+
+  test("the primary version resumes at the item's position", () => {
+    const item = resumed([{ Id: "ep-2" }, { Id: "ep-2-4k" }]);
+    expect(getAdjacentStartTicks(item, { Id: "ep-2" }, false, "12.0.0")).toBe(
+      600,
+    );
+  });
+
+  test("an alternate version does not take the primary's position", () => {
+    // Jellyfin 12 keeps UserData per version: the item's is the primary's.
+    const item = resumed([{ Id: "ep-2" }, { Id: "ep-2-4k" }]);
+    expect(
+      getAdjacentStartTicks(item, { Id: "ep-2-4k" }, false, "12.0.0"),
+    ).toBe(0);
+  });
+
+  // Before Jellyfin 12 the versions share the primary's UserData: starting
+  // one from the top would throw the resume point away.
+  test.each([
+    ["on Jellyfin 10.11", "10.11.2"],
+    ["while the server version is not known", undefined],
+  ])(
+    "an alternate version resumes at the item's position %s",
+    (_case, version) => {
+      const item = resumed([{ Id: "ep-2" }, { Id: "ep-2-4k" }]);
+      expect(
+        getAdjacentStartTicks(item, { Id: "ep-2-4k" }, false, version),
+      ).toBe(600);
+    },
+  );
+
+  test("plugin streams are not versions and keep the item's position", () => {
+    // None of the sources is the item itself, so none has its own UserData.
+    const item = resumed([{ Id: "stream-a" }, { Id: "stream-b" }]);
+    expect(
+      getAdjacentStartTicks(item, { Id: "stream-a" }, false, "12.0.0"),
+    ).toBe(600);
+  });
+
+  test("a download keeps its own position", () => {
+    // The record's item lists every server version, so the source matched
+    // here need not be the one on disk; its position is kept as before.
+    const item = resumed([{ Id: "ep-2" }, { Id: "ep-2-4k" }]);
+    expect(getAdjacentStartTicks(item, { Id: "ep-2-4k" }, true, "12.0.0")).toBe(
+      600,
+    );
   });
 });

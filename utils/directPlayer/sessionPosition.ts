@@ -48,3 +48,21 @@ export function resolveSessionPositionTicks(session: {
     ? msToTicks(session.positionMs)
     : session.startTicks;
 }
+
+/**
+ * Position (ticks) the player is told to start from: the route's
+ * playbackPosition wins, since it is rewritten during playback, otherwise the
+ * item's stored resume position. The route is deep-linkable, so the param is
+ * parsed whole rather than by prefix: parseInt would turn "1200invalid" into
+ * a position instead of falling back, and NaN would reach the player.
+ */
+export function resolveStartTicks(
+  playbackPosition: string | undefined,
+  resumeTicks: number | null | undefined,
+): number {
+  const raw = playbackPosition?.trim();
+  const fromUrl = raw ? Number(raw) : Number.NaN;
+  return Number.isInteger(fromUrl) && fromUrl >= 0
+    ? fromUrl
+    : (resumeTicks ?? 0);
+}
