@@ -1146,7 +1146,8 @@
       "albums": "Albums",
       "artists": "Artists",
       "playlists": "Playlists",
-      "tracks": "Songs"
+      "tracks": "Songs",
+      "folders": "Folders"
     },
     "recently_added": "Recently added",
     "recently_played": "Recently played",
@@ -1162,6 +1163,12 @@
     "album_not_found": "Album not found",
     "artist_not_found": "Artist not found",
     "playlist_not_found": "Playlist not found",
+    "no_songs": "No songs found",
+    "song_count": "{{count}} songs",
+    "song_count_one": "{{count}} song",
+    "song_count_other": "{{count}} songs",
+    "folder_empty": "This folder is empty",
+    "include_subfolders": "Include subfolders",
     "track_options": {
       "play_next": "Play next",
       "add_to_queue": "Add to queue",
