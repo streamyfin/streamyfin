@@ -100,6 +100,12 @@ class NativePlayerSession(
     private var lifecycleRegistered = false
     private val recoverResumeRunnable = Runnable { runResumeRecovery() }
 
+    /** Between the host activity's onStop and its next onStart. */
+    private var hostActivityStopped = false
+
+    /** The play state the PiP window's buttons were last built for. */
+    private var pipActionsPlaying: Boolean? = null
+
     private val pipBroadcastReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             when (intent?.action) {
@@ -187,6 +193,10 @@ class NativePlayerSession(
                 viewModel.onPlaybackStateSync = {
                     mediaSessionController?.updatePlaybackState()
                     syncKeepScreenOn()
+                    // The PiP window's play/pause button follows the decoder,
+                    // not the press: in a SyncPlay group a press is a request,
+                    // and the state changes when the group's command runs.
+                    if (viewModel.isPlaying != pipActionsPlaying) updatePiPParams(viewModel.isPlaying)
                 }
                 viewModel.onMetadataSync = {
                     mediaSessionController?.updateMetadata()
@@ -381,7 +391,9 @@ class NativePlayerSession(
             (activity as? ComponentActivity)?.let { owner ->
                 backCallback = object : OnBackPressedCallback(true) {
                     override fun handleOnBackPressed() {
-                        if (viewModel.showSubtitleScaleOverlay) {
+                        if (viewModel.showSyncPlayQueue) {
+                            viewModel.closeSyncPlayQueue()
+                        } else if (viewModel.showSubtitleScaleOverlay) {
                             viewModel.showSubtitleScaleOverlay = false
                             viewModel.scheduleAutoHide()
                         } else {
@@ -410,7 +422,9 @@ class NativePlayerSession(
      */
     private fun syncKeepScreenOn() {
         val window = hostActivity?.window ?: return
-        if (viewModel.isPlaying || viewModel.isBuffering) {
+        // A paused group is a break, not the end: once the screen times out
+        // the host activity stops, and a stopped activity leaves the group.
+        if (viewModel.isPlaying || viewModel.isBuffering || viewModel.syncPlayActive) {
             if (viewModel.isPlaying) playbackStarted = true
             window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         } else if (playbackStarted) {
@@ -457,7 +471,9 @@ class NativePlayerSession(
         }
         lifecycleCallbacks = object : android.app.Application.ActivityLifecycleCallbacks {
             override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {}
-            override fun onActivityStarted(activity: Activity) {}
+            override fun onActivityStarted(activity: Activity) {
+                if (activity === hostActivity) hostActivityStopped = false
+            }
             override fun onActivityResumed(activity: Activity) {
                 if (activity !== hostActivity) return
                 if (!rendererStarted) return
@@ -467,7 +483,23 @@ class NativePlayerSession(
                 mainHandler.postDelayed(recoverResumeRunnable, RESUME_RECOVERY_DELAY_MS)
             }
             override fun onActivityPaused(activity: Activity) {}
-            override fun onActivityStopped(activity: Activity) {}
+            override fun onActivityStopped(activity: Activity) {
+                if (activity !== hostActivity) return
+                hostActivityStopped = true
+                val inPictureInPicture = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+                    activity.isInPictureInPictureMode
+                if (!shouldLeaveSyncPlayOnActivityStop(
+                        ownsActivity = activity === hostActivity,
+                        syncPlayActive = viewModel.syncPlayActive,
+                        inPictureInPicture = inPictureInPicture,
+                        changingConfigurations = activity.isChangingConfigurations,
+                        dismissing = isDismissing
+                    )) return
+
+                // AppState can report background before the PiP change reaches
+                // JS. Android's stopped/PiP state owns this decision instead.
+                suspendSyncPlayInBackground("stopped non-PiP host activity")
+            }
             override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) {}
             override fun onActivityDestroyed(activity: Activity) {}
         }
@@ -509,8 +541,32 @@ class NativePlayerSession(
         }
     }
 
+    /**
+     * The app left the screen with no picture in picture to play in: a member
+     * that cannot be seen or heard holds the group to its buffering.
+     */
+    private fun suspendSyncPlayInBackground(reason: String) {
+        Log.i(TAG, "SyncPlay leaving: $reason")
+        mainHandler.removeCallbacks(recoverResumeRunnable)
+        // Leave first: canceling resolves a pending command as not applied,
+        // which JS reads as a playback failure while it is still a member.
+        // "suspend", not "leave": the user did not ask to go, so JS rejoins
+        // the group when the app is back in front.
+        viewModel.syncPlayAction("suspend")
+        viewModel.cancelSyncPlayCommands()
+        viewModel.pauseLocal()
+    }
+
     private fun onPiPModeChanged(isInPiP: Boolean) {
         viewModel.isPipActive = isInPiP
+        // Closing the PiP window stops the activity while it still reports
+        // PiP, so the stop above lets it pass. This is where it shows.
+        if (shouldLeaveSyncPlayOnPictureInPictureEnd(
+                inPictureInPicture = isInPiP,
+                activityStopped = hostActivityStopped,
+                syncPlayActive = viewModel.syncPlayActive,
+                dismissing = isDismissing
+            )) suspendSyncPlayInBackground("picture in picture closed")
         if (isInPiP) {
             engine?.setSubtitleUseMargins(false)
             engine?.setSubtitleScaleWithWindow(false)
@@ -548,6 +604,7 @@ class NativePlayerSession(
 
     private fun updatePiPParams(isPlaying: Boolean) {
         val activity = hostActivity ?: return
+        pipActionsPlaying = isPlaying
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && isPiPSupported()) {
             try {
                 val builder = PictureInPictureParams.Builder()
@@ -632,6 +689,8 @@ class NativePlayerSession(
         // PlayerEngine.swift / MpvPlayerView.loadVideo: honor stream.autoplay.
         if (loadConfig.autoplay) {
             engine?.play()
+        } else {
+            engine?.pause()
         }
 
         viewModel.setSpeed(config.ui.initialPlaybackSpeed)

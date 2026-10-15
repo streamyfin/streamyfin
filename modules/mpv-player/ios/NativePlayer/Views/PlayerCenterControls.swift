@@ -75,12 +75,13 @@ struct PlayerCenterControls: View {
 
 	private func row(_ density: Density, includeEpisodeButtons: Bool = true) -> some View {
 		let m = metrics(for: density)
-		let showEpisodeButtons = includeEpisodeButtons && viewModel.metadata?.isEpisode == true
+		let showEpisodeButtons = includeEpisodeButtons && (viewModel.isSyncPlayActive || viewModel.metadata?.isEpisode == true)
 		return HStack(spacing: m.spacing) {
 			if showEpisodeButtons {
 				controlButton(systemName: "backward.end.fill", iconSize: m.jumpIconSize, frame: m.sideButton) {
 					viewModel.playPreviousEpisode()
 				}
+				.disabled(viewModel.isSyncPlayActive && viewModel.syncPlay?.hasPrevious != true)
 			}
 
 			controlButton(
@@ -130,8 +131,8 @@ struct PlayerCenterControls: View {
 				controlButton(systemName: "forward.end.fill", iconSize: m.jumpIconSize, frame: m.sideButton) {
 					viewModel.playNextEpisode()
 				}
-				.opacity(viewModel.nextEpisode != nil ? 1 : 0.35)
-				.disabled(viewModel.nextEpisode == nil)
+				.opacity((viewModel.isSyncPlayActive ? viewModel.syncPlay?.hasNext == true : viewModel.nextEpisode != nil) ? 1 : 0.35)
+				.disabled(viewModel.isSyncPlayActive ? viewModel.syncPlay?.hasNext != true : viewModel.nextEpisode == nil)
 			}
 		}
 	}

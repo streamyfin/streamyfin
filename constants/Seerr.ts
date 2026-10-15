@@ -92,11 +92,9 @@ export const SEERR_TV_SECTION_GAP = 48;
 export const SEERR_TV_SEASON_CARD_WIDTH = 240;
 
 /**
- * A TV grid of titles (a person's, a genre's, a company's): how close to its
- * end, in points at 1080p, the next titles are asked for, and how many of a
- * person's roles it adds at a time, every poster being mounted at once.
+ * How many of a person's roles the TV grid adds at a time, every poster
+ * being mounted at once.
  */
-export const SEERR_TV_LOAD_MORE_DISTANCE = 600;
 export const SEERR_TV_PERSON_ROLES_STEP = 40;
 
 /** A person's page on the TV: the photo, in points at 1080p, and the lines of biography before it is cut. */

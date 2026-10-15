@@ -4,8 +4,11 @@ import { useQuery } from "@tanstack/react-query";
 import { useAtom } from "jotai";
 import { useMemo } from "react";
 import { View, type ViewStyle } from "react-native";
+import type { CardData } from "@/components/cards/CardData";
+import { CardPill } from "@/components/cards/CardPill";
 import { CardRow } from "@/components/cards/CardRow";
 import useRouter from "@/hooks/useAppRouter";
+import { useEpisodeAirLabels } from "@/hooks/useEpisodeAirLabels";
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
@@ -63,11 +66,25 @@ export const SeasonEpisodesCarousel: React.FC<Props> = ({
     enabled: !!seasonId && (isOffline || (!!api && !!user?.Id)),
   });
 
+  // An episode the library has no file for says so, rather than looking like
+  // one that plays.
+  const { availabilityLabel } = useEpisodeAirLabels();
+  const slots = useMemo(() => {
+    const episodeById = new Map(episodes?.map((e) => [e.Id, e]));
+    return {
+      overlay: (card: CardData) => {
+        const label = availabilityLabel(episodeById.get(card.id));
+        return label ? <CardPill label={label} /> : null;
+      },
+    };
+  }, [episodes, availabilityLabel]);
+
   return (
     <View style={[containerStyle, style]}>
       <CardRow
         kind='wide'
         items={episodes ?? []}
+        slots={slots}
         useEpisodePoster
         loading={loading || isPending}
         // Everything but the episode being viewed is faded back.

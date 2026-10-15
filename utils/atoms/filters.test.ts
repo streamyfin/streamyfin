@@ -1,4 +1,7 @@
-import { ItemFilter } from "@jellyfin/sdk/lib/generated-client/models";
+import {
+  ItemFilter,
+  ItemSortBy,
+} from "@jellyfin/sdk/lib/generated-client/models";
 import { renderHook } from "@testing-library/react-native";
 import { createStore } from "jotai";
 import { clearMmkv } from "@/test-utils/mmkv";
@@ -6,6 +9,9 @@ import { storage } from "@/utils/mmkv";
 import {
   FilterByPreferenceAtom,
   getFilterByPreference,
+  SortByOption,
+  sortOptions,
+  sortOptionsFor,
   useFilterOptions,
 } from "./filters";
 
@@ -113,5 +119,61 @@ describe("the saved filter of a library", () => {
     storage.set(STORAGE_KEY, "null");
 
     expect(readSavedPreferences()).toEqual({});
+  });
+});
+
+const keysOf = (options: { key: SortByOption }[]) =>
+  options.map((option) => option.key);
+
+describe("sort options", () => {
+  // The library screens send the chosen option to GET /Items as it is, so an
+  // option the server does not know is a request it rejects.
+  test("every option but the app's own Default is a server sort key", () => {
+    const serverKeys: string[] = Object.values(ItemSortBy);
+
+    for (const key of Object.values(SortByOption)) {
+      if (key === SortByOption.Default) continue;
+      expect(serverKeys).toContain(key);
+    }
+  });
+
+  test("offers sorting by index number in every library", () => {
+    expect(keysOf(sortOptionsFor("movies"))).toContain(
+      SortByOption.IndexNumber,
+    );
+    expect(keysOf(sortOptionsFor("books"))).toContain(SortByOption.IndexNumber);
+    expect(keysOf(sortOptionsFor(undefined))).toContain(
+      SortByOption.IndexNumber,
+    );
+  });
+
+  test("offers the playlist updated date in a playlist library", () => {
+    const options = sortOptionsFor("playlists");
+
+    expect(
+      options.find((o) => o.key === SortByOption.DateLastContentAdded)?.value,
+    ).toBe("Date Playlist Updated");
+    // Nothing else changes: the rest of the list is the shared one.
+    expect(
+      keysOf(options).filter(
+        (key) => key !== SortByOption.DateLastContentAdded,
+      ),
+    ).toEqual(keysOf(sortOptions));
+  });
+
+  // Outside a playlist the same server key means something else (the last
+  // episode of a series) or nothing at all (a movie), so the label would lie.
+  test.each(["movies", "tvshows", "boxsets", undefined, null] as const)(
+    "keeps the playlist updated date out of a %s library",
+    (collectionType) => {
+      expect(keysOf(sortOptionsFor(collectionType))).not.toContain(
+        SortByOption.DateLastContentAdded,
+      );
+    },
+  );
+
+  test("hands back the same list on every call", () => {
+    expect(sortOptionsFor("playlists")).toBe(sortOptionsFor("playlists"));
+    expect(sortOptionsFor("movies")).toBe(sortOptionsFor(undefined));
   });
 });

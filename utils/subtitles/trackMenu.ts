@@ -14,6 +14,10 @@ import {
   isBurnedInSubtitle,
   isImageBasedSubtitle,
 } from "@/utils/jellyfin/subtitleUtils";
+import {
+  streamLanguageName,
+  tagOriginalAudioTrack,
+} from "@/utils/jellyfin/trackLabel";
 import { localSubtitleIndex, SUBTITLES_OFF } from "./subtitleIndex";
 
 export type TrackRowKind =
@@ -53,7 +57,7 @@ export interface LocalSubtitleFile {
 }
 
 const defaultLabel = (stream: MediaStream): string =>
-  stream.DisplayTitle || stream.Language || `Track ${stream.Index}`;
+  stream.DisplayTitle || streamLanguageName(stream) || `Track ${stream.Index}`;
 
 /**
  * Under transcoding these are burned into the video by the server. Both
@@ -180,6 +184,12 @@ export interface AudioMenuOptions {
   /** A transcoded download contains only the audio track it was encoded with. */
   offlineTranscoded?: boolean;
   formatLabel?: (stream: MediaStream) => string;
+  /**
+   * Localized tag for the original-language track (Jellyfin 12). Required so no
+   * surface can forget it: it is appended to whatever `formatLabel` returns,
+   * unless that label already says so.
+   */
+  originalLabel: string;
 }
 
 export const buildAudioMenu = (
@@ -191,6 +201,7 @@ export const buildAudioMenu = (
     isTranscoding,
     offlineTranscoded,
     formatLabel = defaultLabel,
+    originalLabel,
   } = options;
 
   return (streams ?? [])
@@ -201,7 +212,7 @@ export const buildAudioMenu = (
     .filter((s) => !offlineTranscoded || s.Index === selectedIndex)
     .map((stream) => ({
       index: stream.Index,
-      label: formatLabel(stream),
+      label: tagOriginalAudioTrack(formatLabel(stream), stream, originalLabel),
       selected: stream.Index === selectedIndex,
       kind: "server" as const,
       language: stream.Language ?? undefined,

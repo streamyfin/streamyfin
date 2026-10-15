@@ -1,11 +1,27 @@
 import { useActionSheet } from "@expo/react-native-action-sheet";
-import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
+import type {
+  BaseItemDto,
+  BaseItemKind,
+} from "@jellyfin/sdk/lib/generated-client/models";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useFavorite } from "@/hooks/useFavorite";
 import { useMarkAsPlayed } from "@/hooks/useMarkAsPlayed";
 import { useDownload } from "@/providers/DownloadProvider";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
+
+// What the sheet opens for. The containers (Series, Season, BoxSet, Folder) go
+// through the same played call as a single video: the server walks down from
+// the id it is given and marks every child.
+const ACTION_SHEET_ITEM_TYPES: ReadonlySet<BaseItemKind> = new Set([
+  "Movie",
+  "Episode",
+  "Video",
+  "Series",
+  "Season",
+  "BoxSet",
+  "Folder",
+]);
 
 /**
  * The long-press action sheet for a media item: played state, favorite, and —
@@ -24,13 +40,7 @@ export function useItemActionSheet(item: BaseItemDto) {
   const { deleteFile } = useDownload();
 
   return useCallback((): Promise<void> => {
-    if (
-      !(
-        item.Type === "Movie" ||
-        item.Type === "Episode" ||
-        item.Type === "Series"
-      )
-    ) {
+    if (!item.Type || !ACTION_SHEET_ITEM_TYPES.has(item.Type)) {
       return Promise.resolve();
     }
 

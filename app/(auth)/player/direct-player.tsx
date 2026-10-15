@@ -54,6 +54,7 @@ import { useOrientation } from "@/hooks/useOrientation";
 import { usePlaybackManager } from "@/hooks/usePlaybackManager";
 import usePlaybackSpeed from "@/hooks/usePlaybackSpeed";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
+import { useServerVersion } from "@/hooks/useServerVersion";
 import { useWebSocket } from "@/hooks/useWebsockets";
 import {
   type MpvOnErrorEventPayload,
@@ -73,9 +74,14 @@ import { getJellyfinHeadersForUrl } from "@/utils/customHeaders";
 import {
   isPlaceholderTick,
   resolveSessionPositionTicks,
+  resolveStartTicks,
 } from "@/utils/directPlayer/sessionPosition";
 import { isExpectedError } from "@/utils/errors";
-import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
+import { withAcceptLanguageForUrl } from "@/utils/jellyfin/acceptLanguage";
+import {
+  getAdjacentStartTicks,
+  getDefaultPlaySettings,
+} from "@/utils/jellyfin/getDefaultPlaySettings";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import { isPlayableItem } from "@/utils/jellyfin/media/isPlayableItem";
@@ -105,6 +111,7 @@ import {
   buildSubtitleStyle,
 } from "@/utils/subtitles/subtitleStyle";
 import { msToTicks, ticksToSeconds } from "@/utils/time";
+import { useVideoSession } from "@/utils/videoSession";
 import { generateDeviceProfile } from "../../../utils/profiles/native";
 
 // Spec: utils/directPlayer/directPlayerPage.test.tsx. It cannot sit next to
@@ -117,6 +124,12 @@ export default function DirectPlayerPage() {
   const navigation = useNavigation();
   const router = useRouter();
   const { settings, updateSettings } = useSettings();
+  // Decides where a matched alternate version starts, see
+  // getAdjacentStartTicks. Whatever is cached will do: a server does not go
+  // back a major version.
+  const serverVersion = useServerVersion({
+    staleTime: Number.POSITIVE_INFINITY,
+  });
 
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
 
@@ -216,6 +229,9 @@ export default function DirectPlayerPage() {
     playbackPosition?: string;
   }>();
   const { lockOrientation, unlockOrientation } = useOrientation();
+  // A video is on screen for as long as this page is: the music player reads
+  // it to leave a remote's shuffle or repeat command to the video.
+  useVideoSession();
 
   const offline = offlineStr === "true";
 
@@ -234,18 +250,15 @@ export default function DirectPlayerPage() {
   const [item, setItem] = useState<BaseItemDto | null>(null);
   const initialSeekDoneRef = useRef(false);
 
-  /** Position MPV is told to start from: the URL param wins, since it is
-   * rewritten during playback, otherwise the item's stored resume position.
-   * The route is deep-linkable, so the param is parsed whole rather than by
-   * prefix: parseInt would turn "1200invalid" into a position instead of
-   * falling back, and NaN would reach getStreamUrl and MPV. */
-  const startTicks = useMemo(() => {
-    const raw = playbackPositionFromUrl?.trim();
-    const fromUrl = raw ? Number(raw) : Number.NaN;
-    return Number.isInteger(fromUrl) && fromUrl >= 0
-      ? fromUrl
-      : (item?.UserData?.PlaybackPositionTicks ?? 0);
-  }, [playbackPositionFromUrl, item?.UserData?.PlaybackPositionTicks]);
+  /** Position MPV is told to start from, see resolveStartTicks. */
+  const startTicks = useMemo(
+    () =>
+      resolveStartTicks(
+        playbackPositionFromUrl,
+        item?.UserData?.PlaybackPositionTicks,
+      ),
+    [playbackPositionFromUrl, item?.UserData?.PlaybackPositionTicks],
+  );
 
   // Pinned on mount: the initial seek must not follow the position the player
   // writes back into the URL every 30s. Zero here is not a missed resume:
@@ -1086,8 +1099,14 @@ export default function DirectPlayerPage() {
         Object.assign(headers, stream.requiredHttpHeaders);
       }
 
-      if (Object.keys(headers).length > 0) {
-        source.headers = headers;
+      // Last, so a custom or required header of the same name is kept as is.
+      const withLanguage = withAcceptLanguageForUrl(
+        headers,
+        stream.url,
+        api?.basePath,
+      );
+      if (Object.keys(withLanguage).length > 0) {
+        source.headers = withLanguage;
       }
     }
 
@@ -1508,6 +1527,7 @@ export default function DirectPlayerPage() {
         audioIndex: currentAudioIndex,
       },
       source: stream?.mediaSource ?? undefined,
+      offline,
     });
 
     const queryParams = new URLSearchParams({
@@ -1517,7 +1537,12 @@ export default function DirectPlayerPage() {
       mediaSourceId: newMediaSource?.Id ?? "",
       bitrateValue: bitrateValue?.toString() ?? "",
       playbackPosition:
-        previousItem.UserData?.PlaybackPositionTicks?.toString() ?? "",
+        getAdjacentStartTicks(
+          previousItem,
+          newMediaSource,
+          offline,
+          serverVersion,
+        )?.toString() ?? "",
     }).toString();
 
     // Free the current mpv instance before navigating, matching goToNextItem —
@@ -1533,6 +1558,8 @@ export default function DirectPlayerPage() {
     stream?.mediaSource,
     bitrateValue,
     router,
+    offline,
+    serverVersion,
   ]);
 
   // TV: Add subtitle file to player (for client-side downloaded subtitles)
@@ -1593,6 +1620,7 @@ export default function DirectPlayerPage() {
         audioIndex: currentAudioIndex,
       },
       source: stream?.mediaSource ?? undefined,
+      offline,
     });
 
     const queryParams = new URLSearchParams({
@@ -1602,7 +1630,12 @@ export default function DirectPlayerPage() {
       mediaSourceId: newMediaSource?.Id ?? "",
       bitrateValue: bitrateValue?.toString() ?? "",
       playbackPosition:
-        nextItem.UserData?.PlaybackPositionTicks?.toString() ?? "",
+        getAdjacentStartTicks(
+          nextItem,
+          newMediaSource,
+          offline,
+          serverVersion,
+        )?.toString() ?? "",
     }).toString();
 
     // Destroy the current mpv instance BEFORE navigating so the old 4K
@@ -1625,6 +1658,8 @@ export default function DirectPlayerPage() {
     router,
     isPlaybackStopped,
     videoRef,
+    offline,
+    serverVersion,
   ]);
 
   // Apply subtitle settings after MPV has enumerated tracks; applying them on

@@ -3,6 +3,8 @@ import React, { useCallback } from "react";
 import { ScrollView, View } from "react-native";
 import { TVHorizontalList } from "@/components/tv/TVHorizontalList";
 import { TVPosterCard } from "@/components/tv/TVPosterCard";
+import { TVPosterPill } from "@/components/tv/TVPosterPill";
+import { useEpisodeAirLabels } from "@/hooks/useEpisodeAirLabels";
 
 interface TVEpisodeListProps {
   episodes: BaseItemDto[];
@@ -41,11 +43,16 @@ export const TVEpisodeList: React.FC<TVEpisodeListProps> = ({
   emptyText,
   horizontalPadding,
 }) => {
+  const { availabilityLabel } = useEpisodeAirLabels();
+
   const renderItem = useCallback(
     ({ item: episode, index }: { item: BaseItemDto; index: number }) => {
       const isCurrent = currentEpisodeId
         ? episode.Id === currentEpisodeId
         : false;
+      // An episode the library has no file for says so, rather than looking
+      // like one that plays.
+      const unavailable = availabilityLabel(episode);
       return (
         <TVPosterCard
           item={episode}
@@ -60,10 +67,14 @@ export const TVEpisodeList: React.FC<TVEpisodeListProps> = ({
           focusableWhenDisabled={isCurrent}
           isCurrent={isCurrent}
           refSetter={index === 0 ? firstEpisodeRefSetter : undefined}
+          overlay={
+            unavailable ? <TVPosterPill label={unavailable} /> : undefined
+          }
         />
       );
     },
     [
+      availabilityLabel,
       currentEpisodeId,
       disabled,
       firstEpisodeRefSetter,
