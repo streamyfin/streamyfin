@@ -1,4 +1,4 @@
-import { pushRegistrationKey } from "./pushRegistration";
+import { inRegistrationOrder, pushRegistrationKey } from "./pushRegistration";
 
 describe("pushRegistrationKey", () => {
   test("is null while any of the three parts is missing", () => {
@@ -46,5 +46,43 @@ describe("the poster's address in the key", () => {
     expect(
       pushRegistrationKey("https://jf", "u", "t", "en", undefined),
     ).not.toBe(pushRegistrationKey("https://jf", "u", "t", "en", "https://jf"));
+  });
+});
+
+// A post still in flight could land after the sign out's delete and bring the row
+// of a signed out device back, so every write waits for the one before it.
+describe("the writes of this device's registration", () => {
+  test("run one after the other, in the order they were asked for", async () => {
+    const order: string[] = [];
+    let land = () => {};
+    const post = inRegistrationOrder(
+      () =>
+        new Promise<void>((resolve) => {
+          land = () => {
+            order.push("post");
+            resolve();
+          };
+        }),
+    );
+    const remove = inRegistrationOrder(async () => {
+      order.push("delete");
+    });
+
+    await Promise.resolve();
+    expect(order).toEqual([]);
+
+    land();
+    await Promise.all([post, remove]);
+    expect(order).toEqual(["post", "delete"]);
+  });
+
+  test("go on after one that fails, which still fails for its caller", async () => {
+    const failed = inRegistrationOrder(() =>
+      Promise.reject(new Error("refused")),
+    );
+    const next = inRegistrationOrder(async () => "deleted");
+
+    await expect(failed).rejects.toThrow("refused");
+    await expect(next).resolves.toBe("deleted");
   });
 });

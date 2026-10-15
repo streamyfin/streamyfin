@@ -2,10 +2,12 @@ import type { Api } from "@jellyfin/sdk";
 import { act, renderHook } from "@testing-library/react-native";
 import { createStore, Provider as JotaiProvider } from "jotai";
 import type { ReactNode } from "react";
+import { PUSH_REGISTRATION_TIMEOUT_MS } from "@/constants/Notifications";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { setJellyfinHeaders } from "@/test-utils/customHeaders";
 import { customHeadersVersionAtom } from "@/utils/customHeaders";
 import { writeErrorLog } from "@/utils/log";
+import { inRegistrationOrder } from "@/utils/pushRegistration";
 import { usePushRegistration } from "./usePushRegistration";
 
 let mockPrimaryUrl: string | null = null;
@@ -32,6 +34,7 @@ const GATEWAY_HEADERS = { "CF-Access-Client-Id": "client-id" };
 interface Request {
   path: string;
   body: Record<string, unknown>;
+  config?: unknown;
   answered: boolean;
   answer: (ok?: boolean) => void;
 }
@@ -44,11 +47,12 @@ let held: Record<string, unknown> | undefined;
 const apiAt = (basePath: string) =>
   ({
     basePath,
-    post: (path: string, body: Record<string, unknown>) =>
+    post: (path: string, body: Record<string, unknown>, config?: unknown) =>
       new Promise((resolve, reject) => {
         const request: Request = {
           path,
           body,
+          config,
           answered: false,
           answer: (ok = true) => {
             request.answered = true;
@@ -113,6 +117,12 @@ describe("usePushRegistration", () => {
     store = createStore();
     signIn();
     jest.mocked(writeErrorLog).mockClear();
+  });
+
+  // The writes share one queue for the whole app, so a post a test leaves
+  // unanswered would hold back every post of the tests after it.
+  afterEach(async () => {
+    await answerNewestFirst();
   });
 
   test("registers the token, the device, the user and the app's language", async () => {
@@ -313,6 +323,33 @@ describe("usePushRegistration", () => {
 
     expect(requests).toHaveLength(2);
     expect(held).toMatchObject({ serverUrl: "https://other.example.com" });
+  });
+
+  // Without a limit, a post the server never answers held back every one after it,
+  // the LAN address's, a new language's and the next account's.
+  test("gives each post a time limit", async () => {
+    await renderRegistration();
+
+    expect(requests[0].config).toEqual({
+      timeout: PUSH_REGISTRATION_TIMEOUT_MS,
+    });
+    await answerNewestFirst();
+  });
+
+  test("keeps a sign out's delete behind the post in flight", async () => {
+    await renderRegistration();
+    const order: string[] = [];
+    const remove = inRegistrationOrder(async () => {
+      order.push("delete");
+    });
+    await settle();
+
+    expect(order).toEqual([]);
+
+    await answerNewestFirst();
+    await remove;
+    expect(order).toEqual(["delete"]);
+    expect(held).toBeDefined();
   });
 
   test("drops a post still waiting when the session ends", async () => {

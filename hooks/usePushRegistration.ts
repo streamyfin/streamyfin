@@ -1,7 +1,10 @@
 import { useAtomValue } from "jotai";
 import { useEffect, useRef } from "react";
 import { Platform } from "react-native";
-import { PUSH_DEVICE_PATH } from "@/constants/Notifications";
+import {
+  PUSH_DEVICE_PATH,
+  PUSH_REGISTRATION_TIMEOUT_MS,
+} from "@/constants/Notifications";
 import {
   apiAtom,
   getServerUrlFromStorage,
@@ -14,7 +17,10 @@ import {
 } from "@/utils/customHeaders";
 import { getOrSetDeviceId } from "@/utils/device";
 import { writeErrorLog } from "@/utils/log";
-import { pushRegistrationKey } from "@/utils/pushRegistration";
+import {
+  inRegistrationOrder,
+  pushRegistrationKey,
+} from "@/utils/pushRegistration";
 
 /**
  * Registers this device's push token with the plugin of the signed in server,
@@ -29,10 +35,6 @@ export const usePushRegistration = (
   // Bumped by an edit of the custom headers, which changes no api.
   const headersVersion = useAtomValue(customHeadersVersionAtom);
 
-  // Each post waits for the one before it to land. Two in flight could land the
-  // wrong way round, leaving the plugin with the older registration while the
-  // app took the newer one as sent.
-  const queue = useRef<Promise<void>>(Promise.resolve());
   // The key the latest run asks for. A post whose turn comes once a newer run
   // asked for another is skipped, so after a burst of changes only the last
   // one goes out.
@@ -84,11 +86,16 @@ export const usePushRegistration = (
       serverUrl: posterServerUrl,
     };
 
-    queue.current = queue.current.then(async () => {
+    // Each post waits for the write before it to land: two in flight could land
+    // the wrong way round, leaving the plugin with the older registration while
+    // the app took the newer one as sent.
+    void inRegistrationOrder(async () => {
       if (latest.current !== key || sent.current === key) return;
       sent.current = key;
       try {
-        await api.post(PUSH_DEVICE_PATH, registration);
+        await api.post(PUSH_DEVICE_PATH, registration, {
+          timeout: PUSH_REGISTRATION_TIMEOUT_MS,
+        });
       } catch {
         // Forgotten, so the next run posts again. No retry on its own, as before.
         sent.current = null;
