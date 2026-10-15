@@ -167,6 +167,10 @@ try {
   // configureCache is a no-op on some platforms/versions; safe to ignore.
 }
 
+/**
+ * Opens what a notification is about: one tapped while the app runs, and the one that opened
+ * it. A button opens nothing.
+ */
 function useNotificationObserver() {
   const router = useRouter();
 
@@ -224,6 +228,9 @@ if (!Platform.isTV) {
   });
 }
 
+/**
+ * Asks for notifications once per install, and says whether they are allowed.
+ */
 const checkAndRequestPermissions = async () => {
   try {
     const hasAskedBefore = storage.getString(PERMISSION_ASKED_KEY);
