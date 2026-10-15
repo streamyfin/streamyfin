@@ -22,6 +22,7 @@ import { EVENT_LABELS } from "./eventLabels";
 import { NotificationPauseRow } from "./NotificationPauseRow";
 import { NotificationPermissionBanner } from "./NotificationPermissionBanner";
 
+/** The small print under a group. */
 const footer = (text: string) => (
   <Text className='text-xs text-neutral-500'>{text}</Text>
 );
