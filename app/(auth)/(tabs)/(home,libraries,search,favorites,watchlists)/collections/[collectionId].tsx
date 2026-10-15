@@ -215,7 +215,7 @@ const page: React.FC = () => {
           "MediaSourceCount",
         ],
         // true is needed for merged versions
-        recursive: true,
+        recursive: collection.Type !== "BoxSet",
         genres: selectedGenres,
         tags: selectedTags,
         years: selectedYears.map((year) => Number.parseInt(year, 10)),
