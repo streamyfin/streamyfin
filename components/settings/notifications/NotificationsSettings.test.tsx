@@ -86,6 +86,51 @@ describe("the Notifications screen", () => {
     ).toBeTruthy();
   });
 
+  // A newer plugin can send an event this build has no name for: a row titled with its key
+  // says nothing. What it holds still goes back with the next change, which replaces them all.
+  test("leaves out an event it has no name for, and sends it back as it was", async () => {
+    mockState = state({
+      ...base,
+      events: [
+        ...base.events,
+        { key: "somethingNew", family: "account", enabled: false },
+      ],
+    });
+
+    await render(<NotificationsSettings />);
+
+    expect(screen.queryByTestId("event-somethingNew")).toBeNull();
+    await fireEvent(
+      screen.getByTestId("event-itemAdded"),
+      "valueChange",
+      false,
+    );
+    expect(mockUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        events: expect.arrayContaining([
+          expect.objectContaining({ key: "somethingNew", enabled: false }),
+        ]),
+      }),
+    );
+  });
+
+  // A group with only such an event has nothing to show.
+  test("shows no group for an event it has no name for", async () => {
+    mockState = state({
+      ...base,
+      events: [
+        ...base.events,
+        { key: "somethingNew", family: "server-alerts", enabled: true },
+      ],
+    });
+
+    await render(<NotificationsSettings />);
+
+    expect(
+      screen.queryByText("home.settings.notifications.groups.server"),
+    ).toBeNull();
+  });
+
   test("sends a switched event at once", async () => {
     await render(<NotificationsSettings />);
 

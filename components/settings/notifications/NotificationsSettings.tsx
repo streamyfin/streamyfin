@@ -67,15 +67,19 @@ export const NotificationsSettings: React.FC = () => {
     );
   }
 
+  // An event this build has no name for, from a newer plugin, is left out. The changes still
+  // send it back as it was.
   const family = (name: string) =>
-    mine.events.filter((event) => event.family === name);
+    mine.events.filter(
+      (event) => event.family === name && EVENT_LABELS[event.key],
+    );
   const eventRow = (event: MyEvent) => {
     const label = EVENT_LABELS[event.key];
     return (
       <ListItem
         key={event.key}
-        title={t(label?.title ?? event.key)}
-        subtitle={label?.help ? t(label.help) : undefined}
+        title={t(label.title)}
+        subtitle={label.help ? t(label.help) : undefined}
       >
         <SettingSwitch
           testID={`event-${event.key}`}
