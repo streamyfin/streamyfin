@@ -1,58 +1,31 @@
-import { useAtom, useAtomValue } from "jotai";
 import { useTranslation } from "react-i18next";
 import { Switch, TouchableOpacity, View } from "react-native";
 import { Text } from "@/components/common/Text";
 import { NEXT_EPISODES_COUNTS } from "@/constants/Downloads";
-import { useDownload } from "@/providers/DownloadProvider";
-import {
-  type NextEpisodesRule,
-  nextEpisodesRulesAtom,
-  withoutRule,
-  withRule,
-} from "@/providers/Downloads/nextEpisodesRules";
-import { userAtom } from "@/providers/JellyfinProvider";
-import { useSettings } from "@/utils/atoms/settings";
+import type { NextEpisodesRuleDraft } from "@/providers/Downloads/nextEpisodesRules";
 
 interface Props {
-  seriesId: string;
-  seriesName: string;
+  /** The rule as the sheet has it, or null while it is off. */
+  draft: NextEpisodesRuleDraft | null;
+  onChange: (draft: NextEpisodesRuleDraft | null) => void;
+  /** The count a rule turned on here starts with. */
+  defaultCount: number;
+  /** Whether deleting watched episodes also takes the ones downloaded by hand. */
+  deletesAnyDownload: boolean;
 }
 
 /**
  * "Keep next episodes downloaded" in the download sheet of a series, a season
- * or an episode. A change is saved at once and checked straight away, without
- * the sheet's download button: the rule downloads what it needs by itself.
+ * or an episode. It only edits the sheet's choice: nothing is stored and
+ * nothing downloads until the sheet's button is pressed.
  */
 export const NextEpisodesRuleControls: React.FC<Props> = ({
-  seriesId,
-  seriesName,
+  draft,
+  onChange,
+  defaultCount,
+  deletesAnyDownload,
 }) => {
   const { t } = useTranslation();
-  const user = useAtomValue(userAtom);
-  const [rules, setRules] = useAtom(nextEpisodesRulesAtom);
-  const { settings } = useSettings();
-  const { runNextEpisodesCheck } = useDownload();
-  const userId = user?.Id;
-  const rule = userId ? rules[userId]?.[seriesId] : undefined;
-
-  if (!userId) return null;
-
-  // Merged into the stored rule, not the rendered one: a check that ran since
-  // may have recorded the episodes it downloaded.
-  const save = (change: Partial<NextEpisodesRule> | null) => {
-    setRules((current) => {
-      if (!change) return withoutRule(current, userId, seriesId);
-      const stored: NextEpisodesRule = current[userId]?.[seriesId] ?? {
-        seriesId,
-        seriesName,
-        count: settings.nextEpisodesDownloadCount,
-        deleteWatched: false,
-        downloadedIds: [],
-      };
-      return withRule(current, userId, { ...stored, ...change });
-    });
-    runNextEpisodesCheck();
-  };
 
   return (
     <View className='flex flex-col w-full'>
@@ -65,17 +38,19 @@ export const NextEpisodesRuleControls: React.FC<Props> = ({
         </View>
         <Switch
           accessibilityLabel={t("item_card.download.keep_next_episodes")}
-          value={!!rule}
-          onValueChange={(on) => save(on ? {} : null)}
+          value={!!draft}
+          onValueChange={(on) =>
+            onChange(on ? { count: defaultCount, deleteWatched: false } : null)
+          }
         />
       </View>
-      {rule && (
+      {draft && (
         <>
           <View className='flex flex-row items-center justify-between w-full py-2'>
             <Text>{t("item_card.download.next_episodes_count")}</Text>
             <View className='flex flex-row' accessibilityRole='radiogroup'>
               {NEXT_EPISODES_COUNTS.map((count) => {
-                const selected = rule.count === count;
+                const selected = draft.count === count;
                 return (
                   <TouchableOpacity
                     key={count}
@@ -85,7 +60,7 @@ export const NextEpisodesRuleControls: React.FC<Props> = ({
                       "item_card.download.next_episodes_count_option",
                       { count },
                     )}
-                    onPress={() => save({ count })}
+                    onPress={() => onChange({ ...draft, count })}
                     className={`ml-2 rounded-full px-4 py-1.5 ${
                       selected ? "bg-purple-600" : "bg-neutral-800"
                     }`}
@@ -100,7 +75,7 @@ export const NextEpisodesRuleControls: React.FC<Props> = ({
             <View className='flex-1 mr-4'>
               <Text>{t("item_card.download.delete_watched_episodes")}</Text>
               <Text className='text-xs text-neutral-400'>
-                {settings.nextEpisodesDeleteAnyDownload
+                {deletesAnyDownload
                   ? t("item_card.download.delete_watched_episodes_any_hint")
                   : t("item_card.download.delete_watched_episodes_hint")}
               </Text>
@@ -109,8 +84,10 @@ export const NextEpisodesRuleControls: React.FC<Props> = ({
               accessibilityLabel={t(
                 "item_card.download.delete_watched_episodes",
               )}
-              value={rule.deleteWatched}
-              onValueChange={(deleteWatched) => save({ deleteWatched })}
+              value={draft.deleteWatched}
+              onValueChange={(deleteWatched) =>
+                onChange({ ...draft, deleteWatched })
+              }
             />
           </View>
         </>

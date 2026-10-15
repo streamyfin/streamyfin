@@ -3,7 +3,7 @@ import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { getTvShowsApi } from "@jellyfin/sdk/lib/utils/api";
 import { getSessionApi } from "@jellyfin/sdk/lib/utils/api/session-api";
 import NetInfo from "@react-native-community/netinfo";
-import { atom, useAtomValue, useStore } from "jotai";
+import { useAtomValue, useStore } from "jotai";
 import { useCallback, useEffect, useRef } from "react";
 import { Platform } from "react-native";
 import DeviceInfo from "react-native-device-info";
@@ -19,6 +19,7 @@ import { resolveDefaultDownload } from "../defaultDownload";
 import { isUnmeteredConnection } from "../downloadRequest";
 import { deleteAllAssociatedFiles } from "../fileOperations";
 import { planNextEpisodes, withLocalPlayState } from "../nextEpisodes";
+import { nextEpisodesHoldAtom } from "../nextEpisodesHold";
 import {
   type NextEpisodesRule,
   nextEpisodesRulesAtom,
@@ -27,13 +28,6 @@ import {
 } from "../nextEpisodesRules";
 import { getPendingDownloads } from "../pendingDownloads";
 import type { JobStatus } from "../types";
-
-/**
- * Why the next episodes of a series are not downloading, for the downloads
- * page to say so. Null while nothing holds them back.
- */
-export type NextEpisodesHold = "low_space" | "waiting_for_wifi" | null;
-export const nextEpisodesHoldAtom = atom<NextEpisodesHold>(null);
 
 type StartDownload = (
   url: string,

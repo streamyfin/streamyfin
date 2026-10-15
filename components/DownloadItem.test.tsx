@@ -1,12 +1,18 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
+import { getDefaultStore } from "jotai";
 import { toast } from "sonner-native";
+import {
+  nextEpisodesRulesAtom,
+  withRule,
+} from "@/providers/Downloads/nextEpisodesRules";
 import { getDownloadStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import { logAndCaptureError, writeToLog } from "@/utils/log";
 import { DownloadItems, DownloadSingleItem } from "./DownloadItem";
 import type { OptionGroup } from "./PlatformDropdown";
 
 const mockStartBackgroundDownload = jest.fn();
+const mockRunNextEpisodesCheck = jest.fn(async () => {});
 let mockDownloadedItems: { item: BaseItemDto }[] = [];
 
 jest.mock("@/providers/DownloadProvider", () => ({
@@ -14,6 +20,7 @@ jest.mock("@/providers/DownloadProvider", () => ({
     processes: [],
     downloadedItems: mockDownloadedItems,
     startBackgroundDownload: mockStartBackgroundDownload,
+    runNextEpisodesCheck: mockRunNextEpisodesCheck,
   }),
 }));
 jest.mock("@/providers/JellyfinProvider", () => {
@@ -49,7 +56,9 @@ jest.mock("i18next", () => ({ t: (key: string) => key }));
 jest.mock("react-i18next", () => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }));
-jest.mock("sonner-native", () => ({ toast: { error: jest.fn() } }));
+jest.mock("sonner-native", () => ({
+  toast: { error: jest.fn(), info: jest.fn() },
+}));
 // The sheet is always open here: what is under test is what confirming it
 // does, not how it is presented.
 jest.mock("@gorhom/bottom-sheet", () => {
@@ -148,6 +157,7 @@ beforeEach(() => {
   // Resetting every mock instead would also wipe the ones jest-expo sets up.
   jest.mocked(getDownloadStreamUrl).mockReset();
   mockDownloadedItems = [];
+  getDefaultStore().set(nextEpisodesRulesAtom, () => ({}));
 });
 
 afterEach(() => {
@@ -307,5 +317,76 @@ describe("DownloadItems, sending one episode of a season", () => {
         subtitleStreamIndex: 12,
       }),
     );
+  });
+});
+
+describe("DownloadItems, keeping the next episodes downloaded", () => {
+  const seriesEpisode = (number: number): BaseItemDto => ({
+    ...episode(number),
+    SeriesId: "series-1",
+    SeriesName: "Show",
+  });
+  const KEEP = "item_card.download.keep_next_episodes";
+  const storedRule = () =>
+    getDefaultStore().get(nextEpisodesRulesAtom)["user-1"]?.["series-1"];
+
+  // Reported on the branch: turning the switch on stored the rule and started
+  // the downloads at once, before the download button was pressed.
+  test("turning it on downloads nothing until the button is pressed", async () => {
+    await renderSeasonDownload([seriesEpisode(1), seriesEpisode(2)]);
+
+    await fireEvent(screen.getByLabelText(KEEP), "valueChange", true);
+
+    expect(storedRule()).toBeUndefined();
+    expect(mockRunNextEpisodesCheck).not.toHaveBeenCalled();
+    expect(mockStartBackgroundDownload).not.toHaveBeenCalled();
+  });
+
+  test("the button stores the rule and leaves the downloads to it", async () => {
+    await renderSeasonDownload([seriesEpisode(1), seriesEpisode(2)]);
+    await fireEvent(screen.getByLabelText(KEEP), "valueChange", true);
+
+    await fireEvent.press(
+      screen.getByText("item_card.download.download_next_episodes"),
+    );
+
+    expect(storedRule()).toMatchObject({ count: 3, deleteWatched: false });
+    expect(mockRunNextEpisodesCheck).toHaveBeenCalledTimes(1);
+    // Not the whole season: the rule downloads only its next episodes.
+    expect(getDownloadStreamUrl).not.toHaveBeenCalled();
+  });
+
+  test("turning a rule off removes it with the download it starts", async () => {
+    getDefaultStore().set(nextEpisodesRulesAtom, (rules) =>
+      withRule(rules, "user-1", {
+        seriesId: "series-1",
+        seriesName: "Show",
+        count: 5,
+        deleteWatched: false,
+        downloadedIds: [],
+      }),
+    );
+    jest.mocked(getDownloadStreamUrl).mockResolvedValue({
+      url: "http://server/download",
+      sessionId: null,
+      mediaSource: MEDIA_SOURCE,
+    });
+    const { Text } = jest.requireActual("react-native");
+    await render(
+      <DownloadItems
+        items={[seriesEpisode(1)]}
+        MissingDownloadIconComponent={() => <Text>open sheet</Text>}
+        DownloadedIconComponent={() => <></>}
+      />,
+    );
+    // The sheet takes the stored rule as it opens.
+    await fireEvent.press(screen.getByText("open sheet"));
+    expect(screen.getByLabelText(KEEP).props.value).toBe(true);
+    await fireEvent(screen.getByLabelText(KEEP), "valueChange", false);
+
+    await confirmDownload();
+
+    expect(storedRule()).toBeUndefined();
+    expect(mockStartBackgroundDownload).toHaveBeenCalledTimes(1);
   });
 });

@@ -11,7 +11,7 @@ import type {
 import { getUserLibraryApi } from "@jellyfin/sdk/lib/utils/api";
 import { type Href } from "expo-router";
 import { t } from "i18next";
-import { useAtom } from "jotai";
+import { useAtom, useStore } from "jotai";
 import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Platform, Switch, View, type ViewProps } from "react-native";
@@ -20,10 +20,17 @@ import { HEADER_ICON_SIZE } from "@/components/common/HeaderButton";
 import { HeaderIcon } from "@/components/common/HeaderIcon";
 import { NextEpisodesRuleControls } from "@/components/downloads/NextEpisodesRuleControls";
 import { Colors } from "@/constants/Colors";
+import { DEFAULT_NEXT_EPISODES_COUNT } from "@/constants/Downloads";
 import useRouter from "@/hooks/useAppRouter";
 import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
 import { useDownload } from "@/providers/DownloadProvider";
 import { lacksMediaSource } from "@/providers/Downloads/downloadRequest";
+import { nextEpisodesHoldAtom } from "@/providers/Downloads/nextEpisodesHold";
+import {
+  type NextEpisodesRuleDraft,
+  nextEpisodesRulesAtom,
+  withRuleDraft,
+} from "@/providers/Downloads/nextEpisodesRules";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { queueAtom } from "@/utils/atoms/queue";
 import { useSettings } from "@/utils/atoms/settings";
@@ -91,7 +98,13 @@ export const DownloadItems: React.FC<DownloadProps> = ({
   const router = useRouter();
   const [downloadUnwatchedOnly, setDownloadUnwatchedOnly] = useState(false);
 
-  const { processes, startBackgroundDownload, downloadedItems } = useDownload();
+  const {
+    processes,
+    startBackgroundDownload,
+    downloadedItems,
+    runNextEpisodesCheck,
+  } = useDownload();
+  const store = useStore();
   const downloadedFiles = downloadedItems;
 
   const [selectedOptions, setSelectedOptions] = useState<
@@ -131,6 +144,26 @@ export const DownloadItems: React.FC<DownloadProps> = ({
     }
     return { id: first.SeriesId, name: first.SeriesName ?? "" };
   }, [items]);
+
+  // The sheet's choice for that rule. The sheet only edits it; its button is
+  // what stores it and starts the downloads.
+  const [ruleDraft, setRuleDraft] = useState<NextEpisodesRuleDraft | null>(
+    null,
+  );
+  const ruleOn = !!ruleSeries && userCanDownload === true && !!ruleDraft;
+
+  const presentSheet = useCallback(() => {
+    const stored =
+      ruleSeries && user?.Id
+        ? store.get(nextEpisodesRulesAtom)[user.Id]?.[ruleSeries.id]
+        : undefined;
+    setRuleDraft(
+      stored
+        ? { count: stored.count, deleteWatched: stored.deleteWatched }
+        : null,
+    );
+    handlePresentModalPress();
+  }, [ruleSeries, user?.Id, store, handlePresentModalPress]);
 
   const itemsNotDownloaded = useMemo(
     () =>
@@ -359,7 +392,28 @@ export const DownloadItems: React.FC<DownloadProps> = ({
         throw new Error("No item id");
       }
 
+      if (ruleSeries && user?.Id) {
+        const userId = user.Id;
+        store.set(nextEpisodesRulesAtom, (rules) =>
+          withRuleDraft(rules, userId, ruleSeries, ruleOn ? ruleDraft : null),
+        );
+      }
+
       closeModal();
+
+      // The rule downloads its episodes itself, with the default options.
+      if (ruleOn) {
+        await runNextEpisodesCheck();
+        const hold = store.get(nextEpisodesHoldAtom);
+        if (hold) {
+          toast.info(
+            hold === "low_space"
+              ? t("home.downloads.next_episodes.low_space_title")
+              : t("home.downloads.next_episodes.waiting_for_wifi_title"),
+          );
+        }
+        return;
+      }
 
       // Wait for modal dismiss animation to complete
       setTimeout(() => {
@@ -370,7 +424,18 @@ export const DownloadItems: React.FC<DownloadProps> = ({
         t("home.downloads.toasts.you_are_not_allowed_to_download_files"),
       );
     }
-  }, [closeModal, initiateDownload, itemsToDownload, userCanDownload]);
+  }, [
+    closeModal,
+    initiateDownload,
+    itemsToDownload,
+    userCanDownload,
+    ruleSeries,
+    ruleOn,
+    ruleDraft,
+    user?.Id,
+    store,
+    runNextEpisodesCheck,
+  ]);
 
   const renderBackdrop = useCallback(
     (props: BottomSheetBackdropProps) => (
@@ -426,7 +491,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
     } else if (allItemsDownloaded) {
       onDownloadedPress();
     } else {
-      handlePresentModalPress();
+      presentSheet();
     }
   };
 
@@ -466,18 +531,20 @@ export const DownloadItems: React.FC<DownloadProps> = ({
               </Text>
             </View>
             <View className='flex flex-col space-y-2 w-full'>
-              <View className='items-start'>
-                <BitrateSelector
-                  inverted
-                  onChange={(val) =>
-                    setSelectedOptions(
-                      (prev) => prev && { ...prev, bitrate: val },
-                    )
-                  }
-                  selected={selectedOptions?.bitrate}
-                />
-              </View>
-              {itemsNotDownloaded.length > 1 && (
+              {!ruleOn && (
+                <View className='items-start'>
+                  <BitrateSelector
+                    inverted
+                    onChange={(val) =>
+                      setSelectedOptions(
+                        (prev) => prev && { ...prev, bitrate: val },
+                      )
+                    }
+                    selected={selectedOptions?.bitrate}
+                  />
+                </View>
+              )}
+              {!ruleOn && itemsNotDownloaded.length > 1 && (
                 <View className='flex flex-row items-center justify-between w-full py-2'>
                   <Text>{t("item_card.download.download_unwatched_only")}</Text>
                   <Switch
@@ -486,7 +553,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
                   />
                 </View>
               )}
-              {itemsNotDownloaded.length === 1 && (
+              {!ruleOn && itemsNotDownloaded.length === 1 && (
                 <View>
                   <View className='items-start'>
                     <MediaSourceSelector
@@ -537,14 +604,25 @@ export const DownloadItems: React.FC<DownloadProps> = ({
               )}
               {ruleSeries && userCanDownload === true && (
                 <NextEpisodesRuleControls
-                  seriesId={ruleSeries.id}
-                  seriesName={ruleSeries.name}
+                  draft={ruleDraft}
+                  onChange={setRuleDraft}
+                  defaultCount={
+                    settings?.nextEpisodesDownloadCount ??
+                    DEFAULT_NEXT_EPISODES_COUNT
+                  }
+                  deletesAnyDownload={
+                    settings?.nextEpisodesDeleteAnyDownload ?? false
+                  }
                 />
               )}
             </View>
 
             <Button onPress={acceptDownloadOptions} color='purple'>
-              {t("item_card.download.download_button")}
+              {ruleOn && ruleDraft
+                ? t("item_card.download.download_next_episodes", {
+                    count: ruleDraft.count,
+                  })
+                : t("item_card.download.download_button")}
             </Button>
           </View>
         </BottomSheetView>

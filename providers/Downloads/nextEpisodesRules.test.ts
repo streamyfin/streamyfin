@@ -9,6 +9,7 @@ import {
   withDownloadedIds,
   withoutRule,
   withRule,
+  withRuleDraft,
 } from "./nextEpisodesRules";
 
 jest.mock(
@@ -79,5 +80,48 @@ describe("series rules", () => {
     expect(
       JSON.parse(storage.getString(NEXT_EPISODES_RULES_KEY) ?? "{}"),
     ).toEqual({ alice: { "series-1": rule("series-1") } });
+  });
+
+  describe("applying the download sheet's choice", () => {
+    const series = { id: "series-1", name: "Show" };
+
+    test("sets a new rule", () => {
+      const rules = withRuleDraft({}, "alice", series, {
+        count: 5,
+        deleteWatched: true,
+      });
+
+      expect(rules.alice["series-1"]).toEqual({
+        seriesId: "series-1",
+        seriesName: "Show",
+        count: 5,
+        deleteWatched: true,
+        downloadedIds: [],
+      });
+    });
+
+    // Otherwise a changed count would forget what the rule downloaded, and
+    // never delete those episodes once watched.
+    test("keeps the episodes an existing rule downloaded", () => {
+      const before = withRule({}, "alice", rule("series-1", ["e1"]));
+
+      const rules = withRuleDraft(before, "alice", series, {
+        count: 10,
+        deleteWatched: false,
+      });
+
+      expect(rules.alice["series-1"]).toMatchObject({
+        count: 10,
+        downloadedIds: ["e1"],
+      });
+    });
+
+    test("removes the rule when it was turned off", () => {
+      const before = withRule({}, "alice", rule("series-1"));
+
+      expect(
+        rulesOfUser(withRuleDraft(before, "alice", series, null), "alice"),
+      ).toEqual([]);
+    });
   });
 });

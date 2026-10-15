@@ -85,3 +85,30 @@ export const withDownloadedIds = (
   for (const id of removed) ids.delete(id);
   return withRule(rules, userId, { ...rule, downloadedIds: [...ids] });
 };
+
+/** What the download sheet edits of a rule, before its button applies it. */
+export type NextEpisodesRuleDraft = Pick<
+  NextEpisodesRule,
+  "count" | "deleteWatched"
+>;
+
+/**
+ * The rules once the download sheet's choice for a series is applied: a
+ * draft sets the rule, keeping the episodes it already downloaded, and no
+ * draft removes it.
+ */
+export const withRuleDraft = (
+  rules: NextEpisodesRules,
+  userId: string,
+  series: { id: string; name: string },
+  draft: NextEpisodesRuleDraft | null,
+): NextEpisodesRules => {
+  if (!draft) return withoutRule(rules, userId, series.id);
+  const stored = rules[userId]?.[series.id];
+  return withRule(rules, userId, {
+    seriesId: series.id,
+    seriesName: series.name,
+    downloadedIds: stored?.downloadedIds ?? [],
+    ...draft,
+  });
+};

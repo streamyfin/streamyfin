@@ -5,7 +5,7 @@ import { TouchableOpacity, View, type ViewProps } from "react-native";
 import { Text } from "@/components/common/Text";
 import { NEXT_EPISODES_MIN_FREE_BYTES } from "@/constants/Downloads";
 import useRouter from "@/hooks/useAppRouter";
-import { nextEpisodesHoldAtom } from "@/providers/Downloads/hooks/useNextEpisodesDownloads";
+import { nextEpisodesHoldAtom } from "@/providers/Downloads/nextEpisodesHold";
 
 /**
  * Says why the next episodes of series with a rule are not downloading, so a

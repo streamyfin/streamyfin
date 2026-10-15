@@ -13,18 +13,13 @@ jest.mock("@/hooks/useAppRouter", () => ({
   __esModule: true,
   default: () => ({ push: mockPush }),
 }));
-// The hook module loads the whole download stack; the notice reads one atom.
-jest.mock("@/providers/Downloads/hooks/useNextEpisodesDownloads", () => {
-  const { atom } = jest.requireActual("jotai");
-  return { nextEpisodesHoldAtom: atom(null) };
-});
 
-import { nextEpisodesHoldAtom } from "@/providers/Downloads/hooks/useNextEpisodesDownloads";
+import { nextEpisodesHoldAtom } from "@/providers/Downloads/nextEpisodesHold";
 import { NextEpisodesNotice } from "./NextEpisodesNotice";
 
 const renderNotice = async (hold: "low_space" | "waiting_for_wifi" | null) => {
   const store = createStore();
-  store.set(nextEpisodesHoldAtom as never, hold);
+  store.set(nextEpisodesHoldAtom, hold);
   await render(
     <Provider store={store}>
       <NextEpisodesNotice />

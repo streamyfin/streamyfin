@@ -70,13 +70,11 @@ import {
   clearAllDownloadedItems,
   getDownloadedItemById,
 } from "../database";
+import { nextEpisodesHoldAtom } from "../nextEpisodesHold";
 import { nextEpisodesRulesAtom, withRule } from "../nextEpisodesRules";
 import { savePendingDownload } from "../pendingDownloads";
 import type { DownloadedItem } from "../types";
-import {
-  nextEpisodesHoldAtom,
-  useNextEpisodesDownloads,
-} from "./useNextEpisodesDownloads";
+import { useNextEpisodesDownloads } from "./useNextEpisodesDownloads";
 
 const WIFI = { isConnected: true, type: "wifi", details: {} };
 const CELLULAR = { isConnected: true, type: "cellular", details: {} };

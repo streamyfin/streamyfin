@@ -16,6 +16,7 @@ The downloads module is structured with a clean separation of concerns:
 - **`types.ts`** - TypeScript type definitions
 - **`nextEpisodes.ts`** - Pure functions deciding what a "keep next episodes downloaded" rule downloads and deletes
 - **`nextEpisodesRules.ts`** - The series rules, stored per user, and the atom they are read through
+- **`nextEpisodesHold.ts`** - Why the next episodes are not downloading, for the downloads page and the download sheet
 - **`defaultDownload.ts`** - The stream a download nobody picked options for fetches, with the default source and tracks
 
 ### Hooks

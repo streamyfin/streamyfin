@@ -996,7 +996,8 @@
       "next_episodes_count_option": "{{count}} episodes",
       "delete_watched_episodes": "Delete watched episodes",
       "delete_watched_episodes_hint": "Only episodes this setting downloaded.",
-      "delete_watched_episodes_any_hint": "Episodes downloaded by hand as well."
+      "delete_watched_episodes_any_hint": "Episodes downloaded by hand as well.",
+      "download_next_episodes": "Download next {{count}} episodes"
     },
     "mark_played": "Mark as watched",
     "mark_unplayed": "Mark as unwatched",
