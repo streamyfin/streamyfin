@@ -53,6 +53,7 @@ export const GlobalModal = () => {
   const defaultOptions = {
     enableDynamicSizing: true,
     enablePanDownToClose: true,
+    enableContentPanningGesture: true,
     backgroundStyle: {
       backgroundColor: "#171717",
     },
@@ -81,6 +82,7 @@ export const GlobalModal = () => {
       handleIndicatorStyle={modalOptions.handleIndicatorStyle}
       backgroundStyle={modalOptions.backgroundStyle}
       enablePanDownToClose={modalOptions.enablePanDownToClose}
+      enableContentPanningGesture={modalOptions.enableContentPanningGesture}
       enableDismissOnClose
       // Left at gorhom's defaults on purpose. `adjustResize` only means
       // something when the window actually resizes for the keyboard, and this

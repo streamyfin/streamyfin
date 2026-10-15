@@ -1,0 +1,14 @@
+name: streamyfin-syncplay-e2e
+services:
+  jellyfin:
+    image: jellyfin/jellyfin:10.11.11
+    container_name: streamyfin-syncplay-e2e-jellyfin
+    ports:
+      - "${SYNCPLAY_BIND:-127.0.0.1}:${SYNCPLAY_PORT:-18096}:8096"
+    volumes:
+      - ./.state/config:/config
+      - ./.state/cache:/cache
+      - ./.state/media:/media:ro
+    environment:
+      JELLYFIN_PublishedServerUrl: "http://${SYNCPLAY_HOST:-127.0.0.1}:${SYNCPLAY_PORT:-18096}"
+    restart: "no"

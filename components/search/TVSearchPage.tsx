@@ -108,6 +108,7 @@ interface TVSearchPageProps {
   episodes?: BaseItemDto[];
   collections?: BaseItemDto[];
   actors?: BaseItemDto[];
+  studios?: BaseItemDto[];
   artists?: BaseItemDto[];
   albums?: BaseItemDto[];
   songs?: BaseItemDto[];
@@ -140,6 +141,7 @@ export const TVSearchPage: React.FC<TVSearchPageProps> = ({
   episodes,
   collections,
   actors,
+  studios,
   artists,
   albums,
   songs,
@@ -198,6 +200,12 @@ export const TVSearchPage: React.FC<TVSearchPageProps> = ({
         items: collections,
       },
       { key: "actors", title: t("search.actors"), items: actors },
+      {
+        key: "studios",
+        title: t("search.studios"),
+        items: studios,
+        orientation: "horizontal" as const,
+      },
       { key: "artists", title: t("search.artists"), items: artists },
       { key: "albums", title: t("search.albums"), items: albums },
       { key: "songs", title: t("search.songs"), items: songs },
@@ -211,6 +219,7 @@ export const TVSearchPage: React.FC<TVSearchPageProps> = ({
     episodes,
     collections,
     actors,
+    studios,
     artists,
     albums,
     songs,
@@ -317,7 +326,10 @@ export const TVSearchPage: React.FC<TVSearchPageProps> = ({
                 // grid manually.
                 isFirstSection={false}
                 onItemPress={onItemPress}
-                onItemLongPress={onItemLongPress}
+                // The long press marks an item played, which a studio is not.
+                onItemLongPress={
+                  section.key === "studios" ? undefined : onItemLongPress
+                }
                 imageUrlGetter={
                   ["artists", "albums", "songs", "playlists"].includes(
                     section.key,

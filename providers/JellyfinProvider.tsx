@@ -34,6 +34,10 @@ import {
 import { getOrSetDeviceId } from "@/utils/device";
 import { markExpectedError } from "@/utils/errors";
 import { createApiWithCustomHeaders } from "@/utils/jellyfin/createApi";
+import {
+  hasLegacyRoutePrefix,
+  migrateLegacyServerAddress,
+} from "@/utils/jellyfin/legacyServerAddress";
 import { endsSession } from "@/utils/jellyfin/sessionExpiry";
 import {
   logAndCaptureError,
@@ -741,13 +745,20 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
 
   const loginWithSavedCredentialMutation = useMutation({
     mutationFn: async ({
-      serverUrl,
+      serverUrl: savedServerUrl,
       userId,
     }: {
       serverUrl: string;
       userId: string;
     }) => {
       if (!jellyfin) throw new Error("Jellyfin not initialized");
+
+      // A server saved under /emby or /mediabrowser moves to its root address
+      // first, while the saved one still answers and can vouch for it: once
+      // the server is on Jellyfin 12 it answers nothing, and the sign-in
+      // fails as if the server were gone.
+      const serverUrl =
+        (await migrateLegacyServerAddress(savedServerUrl)) ?? savedServerUrl;
 
       const credential = await getCredentialOrForgetAccount(serverUrl, userId);
       if (!credential) {
@@ -849,7 +860,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
 
   const loginWithPasswordMutation = useMutation({
     mutationFn: async ({
-      serverUrl,
+      serverUrl: savedServerUrl,
       username,
       password,
     }: {
@@ -858,6 +869,10 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       password: string;
     }) => {
       if (!jellyfin) throw new Error("Jellyfin not initialized");
+
+      // As for a saved token: the server moves off a legacy prefix first.
+      const serverUrl =
+        (await migrateLegacyServerAddress(savedServerUrl)) ?? savedServerUrl;
 
       // Create API instance for the server
       const apiInstance = createApiWithCustomHeaders(jellyfin, serverUrl);
@@ -962,6 +977,17 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     [jellyfin, api?.accessToken],
   );
 
+  // Set when the address the session runs on is replaced under it. The
+  // requests in flight at that moment went to the old address, so once every
+  // screen has rendered with the new api (their effects run before this one)
+  // what is on screen is asked for again.
+  const refetchAfterAddressChangeRef = useRef(false);
+  useEffect(() => {
+    if (!refetchAfterAddressChangeRef.current) return;
+    refetchAfterAddressChangeRef.current = false;
+    void queryClient.invalidateQueries();
+  }, [api, queryClient]);
+
   const [loaded, setLoaded] = useState(false);
   const [initialLoaded, setInitialLoaded] = useState(false);
 
@@ -1003,57 +1029,110 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
           // offline this call hangs for the full OS TCP timeout (75-120s) and
           // blocks splash dismissal. The cached storedUser (set above) is enough
           // to render; on success we just refresh it.
-          getUserApi(apiInstance)
-            .getCurrentUser()
-            .then(async (response) => {
-              // The response can resolve long after startup (no axios timeout).
-              // If the session changed meanwhile (logout, account switch), drop
-              // it instead of repopulating a stale user / re-saving credentials.
-              if (getTokenFromStorage() !== token) return;
-              setUser(response.data);
+          const validateSession = (apiInstance: Api, serverUrl: string) =>
+            getUserApi(apiInstance)
+              .getCurrentUser()
+              .then(async (response) => {
+                // The response can resolve long after startup (no axios timeout).
+                // If the session changed meanwhile (logout, account switch), drop
+                // it instead of repopulating a stale user / re-saving credentials.
+                if (getTokenFromStorage() !== token) return;
+                setUser(response.data);
 
-              // Migrate current session to secure storage if not already saved
-              if (storedUser?.Id && storedUser?.Name) {
-                const existingCredential = await getAccountCredential(
-                  serverUrl,
-                  storedUser.Id,
-                );
-                if (!existingCredential) {
-                  await saveAccountCredential({
+                // Migrate current session to secure storage if not already saved
+                if (storedUser?.Id && storedUser?.Name) {
+                  const existingCredential = await getAccountCredential(
                     serverUrl,
-                    serverName: "",
-                    token,
-                    userId: storedUser.Id,
-                    username: storedUser.Name,
-                    savedAt: Date.now(),
-                    securityType: "none",
-                    primaryImageTag: response.data.PrimaryImageTag ?? undefined,
-                  });
-                } else if (
-                  response.data.PrimaryImageTag !==
-                  existingCredential.primaryImageTag
-                ) {
-                  // Update image tag if it has changed
-                  addAccountToServer(serverUrl, existingCredential.serverName, {
-                    userId: existingCredential.userId,
-                    username: existingCredential.username,
-                    securityType: existingCredential.securityType,
-                    savedAt: existingCredential.savedAt,
-                    primaryImageTag: response.data.PrimaryImageTag ?? undefined,
-                  });
+                    storedUser.Id,
+                  );
+                  if (!existingCredential) {
+                    await saveAccountCredential({
+                      serverUrl,
+                      serverName: "",
+                      token,
+                      userId: storedUser.Id,
+                      username: storedUser.Name,
+                      savedAt: Date.now(),
+                      securityType: "none",
+                      primaryImageTag:
+                        response.data.PrimaryImageTag ?? undefined,
+                    });
+                  } else if (
+                    response.data.PrimaryImageTag !==
+                    existingCredential.primaryImageTag
+                  ) {
+                    // Update image tag if it has changed
+                    addAccountToServer(
+                      serverUrl,
+                      existingCredential.serverName,
+                      {
+                        userId: existingCredential.userId,
+                        username: existingCredential.username,
+                        securityType: existingCredential.securityType,
+                        savedAt: existingCredential.savedAt,
+                        primaryImageTag:
+                          response.data.PrimaryImageTag ?? undefined,
+                      },
+                    );
+                  }
                 }
+              })
+              .catch((e) => {
+                // Expected, handled case (offline, or a token the server rejects —
+                // the UI prompts re-login): warn, don't error. Log only
+                // status/message — never the raw error (axios errors carry the
+                // request config incl. the Authorization header / token).
+                console.warn(
+                  "Background user validation failed:",
+                  e?.response?.status ?? e?.message ?? "unknown error",
+                );
+              });
+
+          if (!hasLegacyRoutePrefix(serverUrl)) {
+            validateSession(apiInstance, serverUrl);
+          } else {
+            // An address saved with /emby or /mediabrowser answers nothing
+            // once its server is on Jellyfin 12, so the session moves to the
+            // root address when that is the same server. Before the
+            // validation, which looks the saved account up by address and
+            // would save it again under the old one. Not awaited either: it
+            // asks the network.
+            void migrateLegacyServerAddress(serverUrl, {
+              // What proves the root to be this server and not another one
+              // behind the same host.
+              expectedServerId: storedUser?.ServerId,
+            }).then((movedTo) => {
+              // Signed out, or into another account, in the meantime.
+              if (
+                getTokenFromStorage() !== token ||
+                getServerUrlFromStorage() !== serverUrl
+              ) {
+                return;
               }
-            })
-            .catch((e) => {
-              // Expected, handled case (offline, or a token the server rejects —
-              // the UI prompts re-login): warn, don't error. Log only
-              // status/message — never the raw error (axios errors carry the
-              // request config incl. the Authorization header / token).
-              console.warn(
-                "Background user validation failed:",
-                e?.response?.status ?? e?.message ?? "unknown error",
+              if (!movedTo) {
+                validateSession(apiInstance, serverUrl);
+                return;
+              }
+
+              storage.set("serverUrl", movedTo);
+              // What the TV home screen was handed points at the old address.
+              clearTVDiscoverySafely();
+              const movedApi = createApiWithCustomHeaders(
+                jellyfin,
+                movedTo,
+                token,
               );
+              // On the home network the app runs on the server's local
+              // address, which did not change: only the remote one it goes
+              // back to did, and ServerUrlProvider reads that from storage.
+              setApi((current) => {
+                if (current?.basePath !== serverUrl) return current;
+                refetchAfterAddressChangeRef.current = true;
+                return movedApi;
+              });
+              validateSession(movedApi, movedTo);
             });
+          }
         }
       } catch (e) {
         // A failure here silently drops the user into an unauthenticated

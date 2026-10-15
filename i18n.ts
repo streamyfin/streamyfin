@@ -35,6 +35,7 @@ import uk from "./translations/uk-UA.json";
 import vi from "./translations/vi-VN.json";
 import zhCN from "./translations/zh-CN.json";
 import zhTW from "./translations/zh-TW.json";
+import { readStoredAppLanguage } from "./utils/storedSettings";
 
 const _APP_LANGUAGES = [
   { label: "Catalan", value: "ca" },
@@ -118,7 +119,9 @@ i18n.use(initReactI18next).init({
     "zh-TW": { translation: zhTW },
   },
 
-  lng: getLocales()[0].languageCode || "en",
+  // The stored language rather than the device's, which the layout effect
+  // would only correct after the first requests had gone out in it.
+  lng: readStoredAppLanguage() ?? (getLocales()[0].languageCode || "en"),
   fallbackLng: "en",
   interpolation: {
     escapeValue: false,

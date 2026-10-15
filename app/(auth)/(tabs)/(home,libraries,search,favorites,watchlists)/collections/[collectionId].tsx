@@ -36,6 +36,7 @@ import { useTVOptionModal } from "@/hooks/useTVOptionModal";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import {
+  audioLanguageFilterAtom,
   filterOwnerAtom,
   genreFilterAtom,
   SortByOption,
@@ -44,6 +45,7 @@ import {
   sortOptions,
   sortOrderAtom,
   sortOrderOptions,
+  subtitleLanguageFilterAtom,
   tagsFilterAtom,
   yearFilterAtom,
 } from "@/utils/atoms/filters";
@@ -74,6 +76,8 @@ const page: React.FC = () => {
   const [selectedGenres, setSelectedGenres] = useAtom(genreFilterAtom);
   const [selectedYears, setSelectedYears] = useAtom(yearFilterAtom);
   const [selectedTags, setSelectedTags] = useAtom(tagsFilterAtom);
+  const [, setSelectedAudioLanguages] = useAtom(audioLanguageFilterAtom);
+  const [, setSelectedSubtitleLanguages] = useAtom(subtitleLanguageFilterAtom);
   const [sortBy, setSortBy] = useAtom(sortByAtom);
   const [sortOrder, setSortOrder] = useAtom(sortOrderAtom);
   const setFilterOwner = useSetAtom(filterOwnerAtom);
@@ -144,6 +148,9 @@ const page: React.FC = () => {
       setSelectedGenres([]);
       setSelectedYears([]);
       setSelectedTags([]);
+      // Not offered here, but the shared reset button counts them as active.
+      setSelectedAudioLanguages([]);
+      setSelectedSubtitleLanguages([]);
       // The atoms are this collection's now: a library mounted underneath
       // keeps its own selection instead of following this one.
       setFilterOwner(collectionId);
@@ -166,6 +173,8 @@ const page: React.FC = () => {
       setSelectedGenres,
       setSelectedYears,
       setSelectedTags,
+      setSelectedAudioLanguages,
+      setSelectedSubtitleLanguages,
       setFilterOwner,
       collectionId,
     ]),

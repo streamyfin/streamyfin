@@ -32,14 +32,20 @@ cadence meant knowing both existed, and nothing would have failed if only one ha
 | `constants/Colors.ts` | Colour tokens |
 | `constants/MediaTypes.ts` | Media type unions |
 | `constants/Images.ts` | Server image requests: the detail page logo height, and the pixel caps and steps on what is asked for |
-| `constants/TVSizes.ts` | TV poster sizes, gaps, padding, animation timings |
+| `constants/TVSizes.ts` | TV poster sizes, gaps, padding, animation timings, how close to the end a growing grid asks for more |
 | `constants/TVTypography.ts` | TV type scale and the `useScaledTVTypography` hook |
 | `constants/TVPosterSizes.ts` | TV poster size keys |
-| `constants/Playback.ts` | Playback reporting policy shared by the JS and native players (progress report cadence) |
+| `constants/Playback.ts` | Playback policy shared by the JS and native players (progress report cadence, next-episode countdown window, play queue size cap), how long a remote repeat or shuffle change waits to be confirmed, and how often the stats overlay polls the transcode progress |
 | `constants/Logs.ts` | App log storage key and how many entries it keeps |
 | `constants/Privacy.ts` | What stands in for a secret in anything the app writes out (log, Sentry) |
+| `constants/Music.ts` | Music player policy: the volume normalization modes, their default, and the gain ceiling |
+| `constants/Search.ts` | Library search: results asked for per section, the person types the People section leaves out, a studio page's size |
+| `constants/StillWatching.ts` | The "Still watching?" presets, jellyfin-web 12's episode counts and session minutes |
 | `constants/Sentry.ts` | Error reporting policy: which builds report, the per session dedupe cap, the failure storm window |
+| `constants/Jellyfin.ts` | The Jellyfin server itself: the product name that identifies one in its public system info, and how long that info is trusted |
+| `constants/Upcoming.ts` | Upcoming episodes: how many are asked per request, on the screen and in the home row |
 | `constants/TVDiscovery.ts` | TV home screen tiles: Top Shelf and Android TV recommendations (play link lookup timeout) |
+| `constants/Recommendations.ts` | Similar item rows: how many items a detail page asks the server for, and for which kinds of item |
 | `constants/QuickConnect.ts` | Quick Connect: how long a code the TV shows stays valid |
 
 Add a new domain file when a group grows its own identity (playback, downloads,

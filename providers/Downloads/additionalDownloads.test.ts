@@ -328,4 +328,31 @@ describe("downloadAdditionalAssets", () => {
       "file:///documents/item-2_subtitle_2.srt",
     );
   });
+
+  test("downloads the trickplay sheets of the version being downloaded", async () => {
+    // Trickplay is keyed by media source ID: an alternate version's sheets
+    // are its own, and the offline player reads that version's entry.
+    const item: BaseItemDto = {
+      ...trickplayItem,
+      Trickplay: {
+        ...trickplayItem.Trickplay,
+        alt: { "480": { ...trickplayItem.Trickplay?.["item-1"]?.["320"] } },
+      },
+    };
+
+    await downloadAdditionalAssets({
+      item,
+      mediaSource: { Id: "alt" },
+      api,
+      saveImageFn: async () => {},
+      saveSeriesImageFn: async () => {},
+    });
+
+    expect(downloads.map((download) => download.url)).toContain(
+      "https://jellyfin.example.com/Videos/item-1/Trickplay/480/0.jpg?ApiKey=SECRET_TOKEN&MediaSourceId=alt",
+    );
+    expect(
+      downloads.some((download) => download.url.includes("/Trickplay/320/")),
+    ).toBe(false);
+  });
 });

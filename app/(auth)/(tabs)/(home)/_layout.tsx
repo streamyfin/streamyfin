@@ -10,6 +10,7 @@ import {
   nestedTabPageScreenOptions,
   stackScreenOptions,
 } from "@/components/stacks/NestedTabPageStack";
+import { SyncPlayButton } from "@/components/syncplay/SyncPlayButton";
 import { Colors } from "@/constants/Colors";
 import useRouter from "@/hooks/useAppRouter";
 
@@ -61,6 +62,7 @@ export default function IndexLayout() {
             Platform.isTV ? null : (
               <HeaderButtonGroup>
                 <Chromecast.Chromecast />
+                <SyncPlayButton />
                 {user?.Policy?.IsAdministrator && <SessionsButton />}
                 <SettingsButton />
               </HeaderButtonGroup>

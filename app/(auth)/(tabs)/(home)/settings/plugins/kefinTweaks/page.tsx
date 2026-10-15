@@ -13,7 +13,7 @@ export default function KefinTweaksPage() {
         paddingRight: insets.right,
       }}
     >
-      <View className='px-4'>
+      <View className='px-4 pt-4'>
         <KefinTweaksSettings />
       </View>
     </ScrollView>
