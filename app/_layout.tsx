@@ -54,7 +54,11 @@ import {
 } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
 import { offerSettingsLinkOnce } from "@/utils/notificationPermissions";
-import { notificationRoute } from "@/utils/notificationRoute";
+import {
+  isPlainTap,
+  notificationRoute,
+  responseRoute,
+} from "@/utils/notificationRoute";
 import {
   queryDehydrateOptions,
   withoutPersistedMutations,
@@ -178,16 +182,11 @@ function useNotificationObserver() {
     // home screen.
     Notifications.getLastNotificationResponseAsync().then(
       (response: { notification: any; actionIdentifier: string } | null) => {
+        if (!isMounted) return;
         // A button is carried out by useNotificationActions, and opens nothing.
-        if (
-          !isMounted ||
-          !response?.notification ||
-          response.actionIdentifier !== Notifications.DEFAULT_ACTION_IDENTIFIER
-        ) {
-          return;
-        }
-        const route = notificationRoute(
-          response.notification.request.content.data,
+        const route = responseRoute(
+          response,
+          Notifications.DEFAULT_ACTION_IDENTIFIER,
         );
         if (route) {
           router.push(route as never);
@@ -438,8 +437,7 @@ function Layout() {
           (response: NotificationResponse) => {
             // A button is carried out by useNotificationActions, and opens nothing.
             if (
-              response.actionIdentifier !==
-              Notifications.DEFAULT_ACTION_IDENTIFIER
+              !isPlainTap(response, Notifications.DEFAULT_ACTION_IDENTIFIER)
             ) {
               return;
             }
