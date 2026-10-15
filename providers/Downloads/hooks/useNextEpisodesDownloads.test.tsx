@@ -60,8 +60,10 @@ jest.mock("@/providers/JellyfinProvider", () => {
   return { userAtom: atom(null) };
 });
 const mockIsOnHomeNetwork = jest.fn();
+const mockHomeNetworkConfig = jest.fn();
 jest.mock("../homeNetwork", () => ({
   isOnHomeNetwork: (api: unknown) => mockIsOnHomeNetwork(api),
+  homeNetworkConfig: () => mockHomeNetworkConfig(),
 }));
 jest.mock("@/utils/device", () => ({ getOrSetDeviceId: () => "device-1" }));
 jest.mock("@/utils/log", () => ({ logAndCaptureError: jest.fn() }));
@@ -198,6 +200,11 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockSettings.nextEpisodesNetwork = "wifi";
   mockIsOnHomeNetwork.mockReturnValue(false);
+  mockHomeNetworkConfig.mockReturnValue({
+    localUrl: "http://192.168.1.10:8096",
+    homeWifiSSIDs: ["Home"],
+    enabled: true,
+  });
   mockSettings.nextEpisodesDeleteAnyDownload = false;
   mockNetwork.fetch.mockResolvedValue(WIFI);
   mockNetwork.addEventListener.mockReturnValue(() => {});
@@ -302,6 +309,18 @@ describe("useNextEpisodesDownloads", () => {
       expect(setup.startBackgroundDownload).not.toHaveBeenCalled();
       expect(setup.store.get(nextEpisodesHoldAtom)).toBe(
         "waiting_for_home_network",
+      );
+    });
+
+    test("says when no home network is set up on the device", async () => {
+      mockHomeNetworkConfig.mockReturnValue(null);
+      const setup = setUp();
+
+      await renderKeeper(setup);
+
+      expect(setup.startBackgroundDownload).not.toHaveBeenCalled();
+      expect(setup.store.get(nextEpisodesHoldAtom)).toBe(
+        "home_network_not_set_up",
       );
     });
 

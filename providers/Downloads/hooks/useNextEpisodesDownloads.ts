@@ -18,7 +18,7 @@ import { getAllDownloadedItems, removeDownloadedItem } from "../database";
 import { resolveDefaultDownload } from "../defaultDownload";
 import { isUnmeteredConnection } from "../downloadRequest";
 import { deleteAllAssociatedFiles } from "../fileOperations";
-import { isOnHomeNetwork } from "../homeNetwork";
+import { homeNetworkConfig, isOnHomeNetwork } from "../homeNetwork";
 import { planNextEpisodes, withLocalPlayState } from "../nextEpisodes";
 import { networkHold, nextEpisodesHoldAtom } from "../nextEpisodesHold";
 import {
@@ -218,11 +218,10 @@ export function useNextEpisodesDownloads({
       store.set(nextEpisodesHoldAtom, null);
       return;
     }
-    const heldByNetwork = networkHold(
-      settings.nextEpisodesNetwork,
-      network,
-      isOnHomeNetwork(api),
-    );
+    const heldByNetwork = networkHold(settings.nextEpisodesNetwork, network, {
+      setUp: homeNetworkConfig() !== null,
+      on: isOnHomeNetwork(api),
+    });
     if (heldByNetwork) {
       store.set(nextEpisodesHoldAtom, heldByNetwork);
       return;

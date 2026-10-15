@@ -661,9 +661,12 @@
         "waiting_for_wifi": "They download once the device is on Wi-Fi. Mobile data can be allowed in the download settings.",
         "waiting_for_home_network_title": "Next episodes are waiting for your home network",
         "waiting_for_home_network": "They download once the app uses the server's local address on your home Wi-Fi.",
+        "home_network_not_set_up_title": "Next episodes need your home network set up",
+        "home_network_not_set_up": "They only download over the server's local address, and none is set up on this device. Set it up under Network.",
         "low_space_title": "Next episodes are not downloading",
         "low_space": "Less than {{size}} of storage is free. They download once there is room again.",
-        "open_settings": "Opens the download settings"
+        "open_settings": "Opens the download settings",
+        "open_network_settings": "Opens the network settings"
       }
     }
   },

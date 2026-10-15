@@ -62,6 +62,17 @@ describe("NextEpisodesNotice", () => {
     ).toBeTruthy();
   });
 
+  test("opens the network settings when no home network is set up", async () => {
+    await renderNotice("home_network_not_set_up");
+    expect(
+      screen.getByText("home.downloads.next_episodes.home_network_not_set_up"),
+    ).toBeTruthy();
+
+    await fireEvent.press(screen.getByRole("button"));
+
+    expect(mockPush).toHaveBeenCalledWith("/settings/network/page");
+  });
+
   test("opens the download settings", async () => {
     await renderNotice("waiting_for_wifi");
     await fireEvent.press(screen.getByRole("button"));

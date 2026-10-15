@@ -37,14 +37,32 @@ export const NextEpisodesNotice: React.FC<ViewProps> = (props) => {
       message: t("home.downloads.next_episodes.waiting_for_home_network"),
       icon: "home-outline" as const,
     },
+    home_network_not_set_up: {
+      title: t("home.downloads.next_episodes.home_network_not_set_up_title"),
+      message: t("home.downloads.next_episodes.home_network_not_set_up"),
+      icon: "home-outline" as const,
+    },
   }[hold];
+  // What is missing is set up under Network; everything else is a download
+  // setting.
+  const opensNetworkSettings = hold === "home_network_not_set_up";
 
   return (
     <View {...props}>
       <TouchableOpacity
         accessibilityRole='button'
-        accessibilityHint={t("home.downloads.next_episodes.open_settings")}
-        onPress={() => router.push("/settings/downloads/page")}
+        accessibilityHint={
+          opensNetworkSettings
+            ? t("home.downloads.next_episodes.open_network_settings")
+            : t("home.downloads.next_episodes.open_settings")
+        }
+        onPress={() =>
+          router.push(
+            opensNetworkSettings
+              ? "/settings/network/page"
+              : "/settings/downloads/page",
+          )
+        }
         className='bg-neutral-900 p-4 rounded-2xl flex flex-row items-center'
       >
         <Ionicons name={icon} size={22} color='#f59e0b' />

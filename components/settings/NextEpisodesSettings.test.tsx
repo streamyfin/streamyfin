@@ -197,6 +197,16 @@ describe("NextEpisodesSettings", () => {
     ).toBeTruthy();
   });
 
+  // A server admin can set it on a device where it is not set up.
+  test("says what is missing when home network only is set without a home network", async () => {
+    mockSettings.settings.nextEpisodesNetwork = "home";
+    await renderSettings();
+
+    expect(
+      screen.getByText("home.settings.downloads.network_home_not_set_up"),
+    ).toBeTruthy();
+  });
+
   test("offers the home network once it is set up", async () => {
     mockHomeNetworkConfig.mockReturnValue({
       localUrl: "http://192.168.1.10:8096",

@@ -163,11 +163,11 @@ export const NextEpisodesSettings: React.FC = () => {
         <ListItem
           title={t("home.settings.downloads.network")}
           subtitle={
-            settings.nextEpisodesNetwork === "home"
-              ? t("home.settings.downloads.network_home_hint")
-              : homeNetworkSetUp
-                ? t("home.settings.downloads.network_hint")
-                : t("home.settings.downloads.network_home_not_set_up")
+            !homeNetworkSetUp
+              ? t("home.settings.downloads.network_home_not_set_up")
+              : settings.nextEpisodesNetwork === "home"
+                ? t("home.settings.downloads.network_home_hint")
+                : t("home.settings.downloads.network_hint")
           }
           disabledByAdmin={networkLocked}
         >
