@@ -50,11 +50,8 @@ import {
   writeToLog,
 } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
-import { registerNotificationCategories } from "@/utils/notificationActions";
-import { createNotificationChannels } from "@/utils/notificationChannels";
 import { offerSettingsLinkOnce } from "@/utils/notificationPermissions";
 import { notificationRoute } from "@/utils/notificationRoute";
-import { invalidateQueriesWhenOnline } from "@/utils/query/networkAwareInvalidate";
 import {
   queryDehydrateOptions,
   withoutPersistedMutations,
@@ -87,6 +84,7 @@ if (Platform.isTV) {
 }
 
 import * as Sentry from "@sentry/react-native";
+import { useAppLanguage } from "@/hooks/useAppLanguage";
 import useRouter from "@/hooks/useAppRouter";
 import { useNativePlayerLogBridge } from "@/hooks/useNativePlayerLogBridge";
 import { useNotificationActions } from "@/hooks/useNotificationActions";
@@ -359,36 +357,7 @@ function Layout() {
   const language =
     settings?.preferedLanguage ?? getLocales()[0].languageCode ?? "en";
 
-  useEffect(() => {
-    // Until the stored settings hydrate, `settings` holds the defaults, and
-    // following them would move i18n off the stored language it started in.
-    if (!settingsLoaded) return;
-    const changed = language !== i18n.language;
-    void (changed ? i18n.changeLanguage(language) : Promise.resolve()).then(
-      () => {
-        // A Jellyfin 12 server answers in the language of the request (track
-        // names, for one), so what is cached is in the previous one. Screens
-        // that stay mounted, in another tab for instance, would keep showing
-        // it. Only when online: offline the refetches would fail, and a query
-        // in the error state is dropped from the persisted cache offline mode
-        // reads.
-        if (changed) void invalidateQueriesWhenOnline(queryClient, {});
-        // At the first hydrated run too, when the language is already the
-        // stored one: the channels and buttons are named once in it.
-        if (Platform.isTV) return;
-        // One channel per family the plugin sends, named in the app's language:
-        // Android shows each name in its settings as it was last given.
-        if (Platform.OS === "android") {
-          void createNotificationChannels(Notifications, (key) => i18n.t(key));
-        }
-        // The buttons the plugin's notifications carry, titled in the app's
-        // language.
-        void registerNotificationCategories(Notifications, (key) =>
-          i18n.t(key),
-        );
-      },
-    );
-  }, [settingsLoaded, language, i18n]);
+  useAppLanguage(language, settingsLoaded, queryClient, Notifications);
 
   useNotificationObserver();
   useNotificationActions(queryClient);
