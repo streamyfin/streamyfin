@@ -4,8 +4,8 @@ import {
 } from "./notificationActions";
 
 jest.mock("./notificationPreferences", () => ({
-  pauseNotifications: jest.fn().mockResolvedValue({}),
-  muteShow: jest.fn().mockResolvedValue({}),
+  pauseNotifications: jest.fn().mockResolvedValue({ answer: "paused" }),
+  muteShow: jest.fn().mockResolvedValue({ answer: "muted" }),
 }));
 
 const { pauseNotifications, muteShow } = jest.requireMock(
@@ -25,9 +25,10 @@ describe("a notification's buttons", () => {
   beforeEach(() => jest.clearAllMocks());
 
   test("pause everything for eight hours", async () => {
-    expect(await handleNotificationAction(response("pause"), api)).toBe(
-      "paused",
-    );
+    expect(await handleNotificationAction(response("pause"), api)).toEqual({
+      done: "paused",
+      mine: { answer: "paused" },
+    });
     expect(pauseNotifications).toHaveBeenCalledWith(api, 8);
   });
 
@@ -37,7 +38,7 @@ describe("a notification's buttons", () => {
         response("muteShow", { seriesId: "9bd5926326d651153928e0d11c6ee7cb" }),
         api,
       ),
-    ).toBe("muted");
+    ).toEqual({ done: "muted", mine: { answer: "muted" } });
     expect(muteShow).toHaveBeenCalledWith(
       api,
       "9bd5926326d651153928e0d11c6ee7cb",

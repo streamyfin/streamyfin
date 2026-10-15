@@ -5,7 +5,11 @@ import {
   NOTIFICATION_ACTIONS,
   NOTIFICATION_CATEGORIES,
 } from "@/constants/Notifications";
-import { muteShow, pauseNotifications } from "./notificationPreferences";
+import {
+  type MyNotifications,
+  muteShow,
+  pauseNotifications,
+} from "./notificationPreferences";
 
 const TITLES: Record<string, string> = {
   [NOTIFICATION_ACTIONS.pause]: "home.settings.notifications.actions.pause",
@@ -50,22 +54,26 @@ type ActionResponse = {
   notification: { request: { content: { data?: Record<string, unknown> } } };
 };
 
-/** Carries out a notification button, and says which one it was, or null for none. */
+/**
+ * Carries out a notification button: which one it was and the choices the server answered
+ * with, or null for none.
+ */
 export const handleNotificationAction = async (
   response: ActionResponse,
   api: Api,
-): Promise<"paused" | "muted" | null> => {
+): Promise<{ done: "paused" | "muted"; mine: MyNotifications } | null> => {
   switch (response.actionIdentifier) {
     case NOTIFICATION_ACTIONS.pause:
-      await pauseNotifications(api, ACTION_PAUSE_HOURS);
-      return "paused";
+      return {
+        done: "paused",
+        mine: await pauseNotifications(api, ACTION_PAUSE_HOURS),
+      };
     case NOTIFICATION_ACTIONS.muteShow: {
       // Anyone with the device's push token can send a notification, so its data is only
       // used when it is what the plugin puts there.
       const seriesId = response.notification.request.content.data?.seriesId;
       if (typeof seriesId !== "string" || !ITEM_ID.test(seriesId)) return null;
-      await muteShow(api, seriesId);
-      return "muted";
+      return { done: "muted", mine: await muteShow(api, seriesId) };
     }
     default:
       return null;
