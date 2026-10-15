@@ -189,6 +189,9 @@
   "jest": {
     "preset": "jest-expo",
     "globalSetup": "<rootDir>/test-utils/timeZone.ts",
+    "setupFiles": [
+      "<rootDir>/test-utils/idleCallback.ts"
+    ],
     "moduleNameMapper": {
       "^tsx/cjs$": "<rootDir>/test-utils/tsxRequireHook.ts"
     },
