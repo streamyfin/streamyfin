@@ -1,6 +1,8 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
+import { Paths } from "expo-file-system";
 import { storage } from "@/utils/mmkv";
 import type { DownloadedItem, DownloadsDatabase } from "./types";
+import { rebaseOntoDocuments } from "./utils";
 
 const DOWNLOADS_DATABASE_KEY = "downloads.v2.json";
 
@@ -15,6 +17,48 @@ let itemsCacheVersion = -1;
 // Performance optimization: Index for O(1) item lookups by ID
 let itemIndex: Map<string, DownloadedItem> | null = null;
 let indexCacheVersion = -1;
+
+/**
+ * Points every local file an item stores (the video, the trickplay sheets, the downloaded
+ * subtitles) at the Documents directory the app has now. The locations are stored whole, and
+ * an iOS app update can move the app's container, which left every download unplayable until
+ * it was downloaded again (#2252). Mutates and returns the item.
+ */
+function withCurrentDocumentPaths(item: DownloadedItem): DownloadedItem {
+  const documents = Paths.document.uri;
+  if (item.videoFilePath) {
+    item.videoFilePath = rebaseOntoDocuments(item.videoFilePath, documents);
+  }
+  if (item.trickPlayData?.path) {
+    item.trickPlayData.path = rebaseOntoDocuments(
+      item.trickPlayData.path,
+      documents,
+    );
+  }
+  for (const stream of item.mediaSource?.MediaStreams ?? []) {
+    if (stream.DeliveryUrl) {
+      stream.DeliveryUrl = rebaseOntoDocuments(stream.DeliveryUrl, documents);
+    }
+  }
+  return item;
+}
+
+// Runs on every stored database as it is loaded, so a section missing from an older or
+// damaged one must not stop the app from reading the downloads it does have.
+function forEachItem(
+  db: DownloadsDatabase,
+  visit: (item: DownloadedItem) => void,
+): void {
+  for (const movie of Object.values(db.movies ?? {})) visit(movie);
+  for (const series of Object.values(db.series ?? {})) {
+    for (const season of Object.values(series?.seasons ?? {})) {
+      for (const episode of Object.values(season?.episodes ?? {})) {
+        visit(episode);
+      }
+    }
+  }
+  for (const item of Object.values(db.other ?? {})) visit(item);
+}
 
 /**
  * Get the downloads database from storage
@@ -32,7 +76,9 @@ export function getDownloadsDatabase(): DownloadsDatabase {
   // Parse from storage and cache the result
   const file = storage.getString(DOWNLOADS_DATABASE_KEY);
   if (file) {
-    cachedDb = JSON.parse(file) as DownloadsDatabase;
+    const db = JSON.parse(file) as DownloadsDatabase;
+    forEachItem(db, withCurrentDocumentPaths);
+    cachedDb = db;
     return cachedDb;
   }
 
@@ -68,24 +114,7 @@ export function getAllDownloadedItems(): DownloadedItem[] {
   // Build the items array from the database
   const db = getDownloadsDatabase();
   const items: DownloadedItem[] = [];
-
-  for (const movie of Object.values(db.movies)) {
-    items.push(movie);
-  }
-
-  for (const series of Object.values(db.series)) {
-    for (const season of Object.values(series.seasons)) {
-      for (const episode of Object.values(season.episodes)) {
-        items.push(episode);
-      }
-    }
-  }
-
-  if (db.other) {
-    for (const item of Object.values(db.other)) {
-      items.push(item);
-    }
-  }
+  forEachItem(db, (item) => items.push(item));
 
   // Cache the result
   cachedItems = items;
@@ -130,6 +159,8 @@ export function getDownloadedItemById(id: string): DownloadedItem | undefined {
 export function addDownloadedItem(item: DownloadedItem): void {
   const db = getDownloadsDatabase();
   const baseItem = item.item;
+  // A download that finishes after an update still carries the paths it was started with.
+  withCurrentDocumentPaths(item);
 
   if (baseItem.Type === "Movie" && baseItem.Id) {
     db.movies[baseItem.Id] = item;
