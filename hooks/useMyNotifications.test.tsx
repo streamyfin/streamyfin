@@ -1,15 +1,26 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, renderHook, waitFor } from "@testing-library/react-native";
-import type React from "react";
-import type { MyNotifications } from "@/utils/notificationPreferences";
 import {
-  MY_NOTIFICATIONS_QUERY,
-  useMyNotifications,
-} from "./useMyNotifications";
+  onlineManager,
+  QueryCache,
+  QueryClient,
+  QueryClientProvider,
+} from "@tanstack/react-query";
+import { act, renderHook, waitFor } from "@testing-library/react-native";
+import { AxiosError, AxiosHeaders } from "axios";
+import type React from "react";
+import { MY_NOTIFICATIONS_QUERY } from "@/constants/Notifications";
+import {
+  type MyNotifications,
+  toUpdate,
+  withEvent,
+  withFollow,
+} from "@/utils/notificationPreferences";
+import { reportDataError } from "@/utils/reportDataError";
+import { useMyNotifications } from "./useMyNotifications";
 
 const mockGet = jest.fn();
 const mockPut = jest.fn();
 const mockToastError = jest.fn();
+const mockCapture = jest.fn();
 
 jest.mock("@/providers/JellyfinProvider", () => {
   const { atom } = jest.requireActual("jotai");
@@ -28,6 +39,11 @@ jest.mock("sonner-native", () => ({
 jest.mock("react-i18next", () => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }));
+jest.mock("@sentry/react-native", () => ({
+  withScope: (report: (scope: unknown) => void) =>
+    report({ setContext: jest.fn(), setFingerprint: jest.fn() }),
+  captureException: (...args: unknown[]) => mockCapture(...args),
+}));
 
 let client: QueryClient;
 
@@ -44,13 +60,43 @@ const wrapper = ({ children }: { children: React.ReactNode }) => (
   <QueryClientProvider client={client}>{children}</QueryClientProvider>
 );
 
-const mine = {
+// A server answer the test gives when it chooses.
+const later = <T,>() => {
+  let resolve: (value: T) => void = () => {};
+  let reject: (error: Error) => void = () => {};
+  const promise = new Promise<T>((onResolve, onReject) => {
+    resolve = onResolve;
+    reject = onReject;
+  });
+  return { promise, resolve, reject };
+};
+
+// What axios rejects with when a plugin without the route answers.
+const notFound = () => {
+  const config = {
+    url: "https://jellyfin.example.com/Streamyfin/v1/notifications/mine",
+    method: "get",
+    headers: new AxiosHeaders(),
+  };
+  return new AxiosError(
+    "Request failed with status code 404",
+    "ERR_BAD_REQUEST",
+    config,
+    undefined,
+    { status: 404, statusText: "Not Found", data: "", headers: {}, config },
+  );
+};
+
+const mine: MyNotifications = {
   pause: null,
   events: [{ key: "itemAdded", family: "new-content", enabled: true }],
   libraries: [],
   follow: { favorites: true, started: true },
   mutedShows: [],
 };
+// Two switches moved one after the other: the first, then both.
+const one = withEvent(mine, "itemAdded", false);
+const both = withFollow(one, { favorites: false, started: true });
 
 describe("the person's notification choices", () => {
   beforeEach(() => {
@@ -66,7 +112,10 @@ describe("the person's notification choices", () => {
   });
   // The hook retries a failed read on its own, and a retry left running would answer in the
   // next test.
-  afterEach(() => client.clear());
+  afterEach(() => {
+    client.clear();
+    onlineManager.setOnline(true);
+  });
 
   // A plugin without the route hides the screen, silently.
   it("are unsupported when the plugin does not know the route", async () => {
@@ -81,6 +130,26 @@ describe("the person's notification choices", () => {
     expect(mockToastError).not.toHaveBeenCalled();
   });
 
+  // Every phone on a server with the current plugin release asks once a session, and its
+  // answer is no defect of the app. Wired as the root layout wires the reporting.
+  it("send the older plugin's 404 to nobody", async () => {
+    client = new QueryClient({
+      queryCache: new QueryCache({
+        onError: (error, query) =>
+          reportDataError("query", query.queryKey, error),
+      }),
+      defaultOptions: { queries: { gcTime: Number.POSITIVE_INFINITY } },
+    });
+    mockGet.mockRejectedValue(notFound());
+
+    const { result } = await renderHook(() => useMyNotifications(), {
+      wrapper,
+    });
+
+    await waitFor(() => expect(result.current.supported).toBe(false));
+    expect(mockCapture).not.toHaveBeenCalled();
+  });
+
   it("are supported once the plugin answers", async () => {
     mockGet.mockResolvedValue({ data: mine });
 
@@ -90,6 +159,27 @@ describe("the person's notification choices", () => {
 
     await waitFor(() => expect(result.current.mine).toEqual(mine));
     expect(result.current.supported).toBe(true);
+  });
+
+  // Offline with nothing kept, a read that waits for the network leaves the screen blank;
+  // failed at once, it says so and offers to try again. Set up as the app sets its queries.
+  it("fail at once offline, so the screen can offer to try again", async () => {
+    onlineManager.setOnline(false);
+    client = new QueryClient({
+      defaultOptions: {
+        queries: {
+          gcTime: Number.POSITIVE_INFINITY,
+          networkMode: "offlineFirst",
+        },
+      },
+    });
+    mockGet.mockRejectedValue(new Error("Network Error"));
+
+    const { result } = await renderHook(() => useMyNotifications(), {
+      wrapper,
+    });
+
+    await waitFor(() => expect(result.current.isError).toBe(true));
   });
 
   // A change the server refuses comes back, and says so.
@@ -103,10 +193,7 @@ describe("the person's notification choices", () => {
     await waitFor(() => expect(result.current.mine).toBeDefined());
 
     await act(async () => {
-      await result.current.update({
-        ...mine,
-        events: [{ ...mine.events[0], enabled: false }],
-      });
+      await result.current.update(one);
     });
 
     await waitFor(() =>
@@ -130,104 +217,195 @@ describe("the person's notification choices", () => {
     mockGet.mockRejectedValue(new Error("offline"));
 
     await act(async () => {
-      await result.current.update({
-        ...mine,
-        events: [{ ...mine.events[0], enabled: false }],
-      });
+      await result.current.update(one);
     });
 
     expect(cached()).toEqual(mine);
   });
 
-  // Two switches moved in a row: the second change carried the first, and the server kept
-  // both, then the first one failed. Going back to what was there before the first would
-  // show neither, so the screen asks the server what it kept.
-  it("end on what the server kept when a change fails after a later one saved", async () => {
-    const both = {
-      ...mine,
-      events: [{ ...mine.events[0], enabled: false }],
-      follow: { favorites: false, started: true },
-    };
-    let failFirst: (error: Error) => void = () => {};
-    mockGet.mockResolvedValue({ data: mine });
-    mockPut
-      .mockImplementationOnce(
-        () =>
-          new Promise((_, reject) => {
-            failFirst = reject;
-          }),
-      )
-      .mockResolvedValueOnce({ data: both });
-
+  // A read on its way when a switch moves answers with what the server had before. Landing
+  // after, it would put the switch back, and the next switch would send it so.
+  it("keep a switch that a read on its way would undo", async () => {
+    mockGet.mockResolvedValueOnce({ data: mine });
     const { result } = await renderHook(() => useMyNotifications(), {
       wrapper,
     });
     await waitFor(() => expect(result.current.mine).toBeDefined());
+    const read = later<{ data: MyNotifications }>();
+    mockGet.mockImplementationOnce(() => read.promise);
+    await act(async () => {
+      void client.invalidateQueries({ queryKey: [MY_NOTIFICATIONS_QUERY] });
+    });
+    const saved = later<{ data: MyNotifications }>();
+    mockPut.mockImplementationOnce(() => saved.promise);
 
-    let first: Promise<void> = Promise.resolve();
+    let change: Promise<void> = Promise.resolve();
     await act(async () => {
-      first = result.current.update({
-        ...mine,
-        events: [{ ...mine.events[0], enabled: false }],
-      });
+      change = result.current.update(one);
     });
     await act(async () => {
-      await result.current.update(both);
-    });
-    mockGet.mockResolvedValue({ data: both });
-    await act(async () => {
-      failFirst(new Error("timeout"));
-      await first;
+      read.resolve({ data: mine });
     });
 
-    await waitFor(() => expect(result.current.mine).toEqual(both));
+    expect(cached()).toEqual(one);
+    await act(async () => {
+      saved.resolve({ data: one });
+      await change;
+    });
   });
 
-  // The same two changes, but the server cannot be asked afterwards either. Going back to
-  // what was there before the first change would leave the screen on a state the server no
-  // longer has, which the next switch would then send, so the later change's answer stays.
-  it("keep what a later change saved when an earlier one fails and the server cannot be asked", async () => {
-    const both = {
-      ...mine,
-      events: [{ ...mine.events[0], enabled: false }],
-      follow: { favorites: false, started: true },
-    };
-    let failFirst: (error: Error) => void = () => {};
+  // Each change replaces what the plugin stores. Sent together, they can land in either
+  // order; one after the other, the later carries the earlier.
+  it("send one change at a time, in the order the switches moved", async () => {
     mockGet.mockResolvedValue({ data: mine });
+    const first = later<{ data: MyNotifications }>();
     mockPut
-      .mockImplementationOnce(
-        () =>
-          new Promise((_, reject) => {
-            failFirst = reject;
-          }),
-      )
+      .mockImplementationOnce(() => first.promise)
       .mockResolvedValueOnce({ data: both });
-
     const { result } = await renderHook(() => useMyNotifications(), {
       wrapper,
     });
     await waitFor(() => expect(result.current.mine).toBeDefined());
 
-    let first: Promise<void> = Promise.resolve();
+    const changes: Promise<void>[] = [];
     await act(async () => {
-      first = result.current.update({
-        ...mine,
-        events: [{ ...mine.events[0], enabled: false }],
-      });
+      changes.push(result.current.update(one));
     });
     await act(async () => {
-      await result.current.update(both);
+      changes.push(result.current.update(both));
+    });
+
+    expect(mockPut).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      first.resolve({ data: one });
+      await Promise.all(changes);
+    });
+    expect(mockPut).toHaveBeenCalledTimes(2);
+    expect(mockPut.mock.calls[1][1]).toEqual(toUpdate(both));
+  });
+
+  // The first answer does not have the change still waiting. Shown, it would put that
+  // switch back, and the next switch would send it so.
+  it("show a change's answer only once no later one waits", async () => {
+    // Another device turned a show off meanwhile, which only the last answer has.
+    const bothSaved = { ...both, mutedShows: [{ id: "show", name: "Show" }] };
+    mockGet.mockResolvedValue({ data: mine });
+    const first = later<{ data: MyNotifications }>();
+    const second = later<{ data: MyNotifications }>();
+    mockPut
+      .mockImplementationOnce(() => first.promise)
+      .mockImplementationOnce(() => second.promise);
+    const { result } = await renderHook(() => useMyNotifications(), {
+      wrapper,
+    });
+    await waitFor(() => expect(result.current.mine).toBeDefined());
+
+    const changes: Promise<void>[] = [];
+    await act(async () => {
+      changes.push(result.current.update(one));
+    });
+    await act(async () => {
+      changes.push(result.current.update(both));
+    });
+    await act(async () => {
+      first.resolve({ data: one });
+      await changes[0];
+    });
+
+    expect(cached()).toEqual(both);
+    await act(async () => {
+      second.resolve({ data: bothSaved });
+      await changes[1];
+    });
+    expect(cached()).toEqual(bothSaved);
+  });
+
+  // The later change carries the earlier one to the server, so the earlier failing says
+  // nothing yet: what the later one gets decides.
+  it("leave a failed change to the later one that carries it", async () => {
+    mockGet.mockResolvedValue({ data: mine });
+    const first = later<{ data: MyNotifications }>();
+    mockPut
+      .mockImplementationOnce(() => first.promise)
+      .mockResolvedValueOnce({ data: both });
+    const { result } = await renderHook(() => useMyNotifications(), {
+      wrapper,
+    });
+    await waitFor(() => expect(result.current.mine).toBeDefined());
+
+    const changes: Promise<void>[] = [];
+    await act(async () => {
+      changes.push(result.current.update(one));
+    });
+    await act(async () => {
+      changes.push(result.current.update(both));
+    });
+    await act(async () => {
+      first.reject(new Error("timeout"));
+      await Promise.all(changes);
+    });
+
+    expect(cached()).toEqual(both);
+    expect(mockToastError).not.toHaveBeenCalled();
+  });
+
+  // Neither change was saved, so the screen goes back to what the server has, and not to
+  // the first change, which the next switch would then send.
+  it("go back to what the server has when the last change fails too", async () => {
+    mockGet.mockResolvedValue({ data: mine });
+    const first = later<{ data: MyNotifications }>();
+    mockPut
+      .mockImplementationOnce(() => first.promise)
+      .mockRejectedValueOnce(new Error("timeout"));
+    const { result } = await renderHook(() => useMyNotifications(), {
+      wrapper,
+    });
+    await waitFor(() => expect(result.current.mine).toBeDefined());
+
+    const changes: Promise<void>[] = [];
+    await act(async () => {
+      changes.push(result.current.update(one));
+    });
+    await act(async () => {
+      changes.push(result.current.update(both));
     });
     mockGet.mockRejectedValue(new Error("offline"));
     await act(async () => {
-      failFirst(new Error("timeout"));
-      await first;
+      first.reject(new Error("timeout"));
+      await Promise.all(changes);
     });
 
-    await waitFor(() => expect(mockGet).toHaveBeenCalledTimes(2));
-    expect(cached()).toEqual(both);
-    expect(mockToastError).toHaveBeenCalledWith(
-      "home.settings.notifications.save_failed",
-    );
+    expect(cached()).toEqual(mine);
+    expect(mockToastError).toHaveBeenCalledTimes(1);
+  });
+
+  // The first change was saved, and its answer is the newest the server said.
+  it("go back to the earlier change's answer when only the last one fails", async () => {
+    const oneSaved = { ...one, mutedShows: [{ id: "show", name: "Show" }] };
+    mockGet.mockResolvedValue({ data: mine });
+    const first = later<{ data: MyNotifications }>();
+    mockPut
+      .mockImplementationOnce(() => first.promise)
+      .mockRejectedValueOnce(new Error("timeout"));
+    const { result } = await renderHook(() => useMyNotifications(), {
+      wrapper,
+    });
+    await waitFor(() => expect(result.current.mine).toBeDefined());
+
+    const changes: Promise<void>[] = [];
+    await act(async () => {
+      changes.push(result.current.update(one));
+    });
+    await act(async () => {
+      changes.push(result.current.update(both));
+    });
+    mockGet.mockRejectedValue(new Error("offline"));
+    await act(async () => {
+      first.resolve({ data: oneSaved });
+      await Promise.all(changes);
+    });
+
+    expect(cached()).toEqual(oneSaved);
+    expect(mockToastError).toHaveBeenCalledTimes(1);
   });
 });
