@@ -18,8 +18,9 @@ import { getAllDownloadedItems, removeDownloadedItem } from "../database";
 import { resolveDefaultDownload } from "../defaultDownload";
 import { isUnmeteredConnection } from "../downloadRequest";
 import { deleteAllAssociatedFiles } from "../fileOperations";
+import { isOnHomeNetwork } from "../homeNetwork";
 import { planNextEpisodes, withLocalPlayState } from "../nextEpisodes";
-import { nextEpisodesHoldAtom } from "../nextEpisodesHold";
+import { networkHold, nextEpisodesHoldAtom } from "../nextEpisodesHold";
 import {
   type NextEpisodesRule,
   nextEpisodesRulesAtom,
@@ -82,7 +83,8 @@ const freeDiskBytes = async (): Promise<number> => {
  * Each check works out the whole state again from the server's episodes and
  * what is on the device, so running it twice changes nothing and a missed
  * trigger is made up by the next. It runs when the app starts or comes back
- * to the foreground, when Wi-Fi returns while it was waiting for it, and from
+ * to the foreground, when Wi-Fi returns while it was waiting for it, when the
+ * app switches between the server's local and remote address, and from
  * the playback progress refresh that follows the player closing or an episode
  * being marked as watched.
  */
@@ -216,8 +218,13 @@ export function useNextEpisodesDownloads({
       store.set(nextEpisodesHoldAtom, null);
       return;
     }
-    if (settings.nextEpisodesWifiOnly && !isUnmeteredConnection(network)) {
-      store.set(nextEpisodesHoldAtom, "waiting_for_wifi");
+    const heldByNetwork = networkHold(
+      settings.nextEpisodesNetwork,
+      network,
+      isOnHomeNetwork(api),
+    );
+    if (heldByNetwork) {
+      store.set(nextEpisodesHoldAtom, heldByNetwork);
       return;
     }
 
@@ -298,7 +305,9 @@ export function useNextEpisodesDownloads({
     [runNextEpisodesCheck],
   );
 
-  // Downloads waiting for Wi-Fi start as soon as it is back.
+  // Downloads waiting for Wi-Fi start as soon as it is back. Those waiting for
+  // the home network start when the app switches to the server's local
+  // address: that is a new api, and the check above runs again for it.
   useEffect(
     () =>
       NetInfo.addEventListener((state) => {

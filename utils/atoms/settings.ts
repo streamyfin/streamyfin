@@ -399,6 +399,13 @@ export type MpvCacheMode = "auto" | "yes" | "no";
 export type MpvVoDriver = "gpu-next" | "gpu";
 
 /** Content groups that can appear in the home hero carousel. */
+/**
+ * Which connection "keep next episodes downloaded" may download over: any,
+ * Wi-Fi or Ethernet only, or only the home network, where the app talks to
+ * the server's local address (Settings → Network).
+ */
+export type NextEpisodesNetwork = "any" | "wifi" | "home";
+
 export type HomeHeroSection = "continueWatching" | "nextUp" | "recentlyAdded";
 /** Media kinds that can appear in the home hero carousel. */
 export type HomeHeroMediaType = "movie" | "tv";
@@ -421,8 +428,8 @@ export type Settings = {
   showDownloadLiveActivity: boolean;
   /** How many episodes a new "keep next episodes downloaded" rule keeps. */
   nextEpisodesDownloadCount: number;
-  /** Download next episodes only on Wi-Fi or Ethernet, never on mobile data. */
-  nextEpisodesWifiOnly: boolean;
+  /** Which connection next episodes may download over. */
+  nextEpisodesNetwork: NextEpisodesNetwork;
   /**
    * Let a rule that deletes watched episodes also delete episodes downloaded
    * by hand, not only the ones it downloaded itself.
@@ -633,7 +640,7 @@ export const defaultValues: Settings = {
   downloadQuality: DownloadOptions[0],
   showDownloadLiveActivity: true,
   nextEpisodesDownloadCount: DEFAULT_NEXT_EPISODES_COUNT,
-  nextEpisodesWifiOnly: true,
+  nextEpisodesNetwork: "wifi",
   nextEpisodesDeleteAnyDownload: false,
   defaultBitrate: BITRATES[0],
   libraryOptions: {

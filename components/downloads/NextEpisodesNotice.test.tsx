@@ -14,10 +14,13 @@ jest.mock("@/hooks/useAppRouter", () => ({
   default: () => ({ push: mockPush }),
 }));
 
-import { nextEpisodesHoldAtom } from "@/providers/Downloads/nextEpisodesHold";
+import {
+  type NextEpisodesHold,
+  nextEpisodesHoldAtom,
+} from "@/providers/Downloads/nextEpisodesHold";
 import { NextEpisodesNotice } from "./NextEpisodesNotice";
 
-const renderNotice = async (hold: "low_space" | "waiting_for_wifi" | null) => {
+const renderNotice = async (hold: NextEpisodesHold) => {
   const store = createStore();
   store.set(nextEpisodesHoldAtom, hold);
   await render(
@@ -49,6 +52,13 @@ describe("NextEpisodesNotice", () => {
     await renderNotice("waiting_for_wifi");
     expect(
       screen.getByText("home.downloads.next_episodes.waiting_for_wifi"),
+    ).toBeTruthy();
+  });
+
+  test("says the next episodes are waiting for the home network", async () => {
+    await renderNotice("waiting_for_home_network");
+    expect(
+      screen.getByText("home.downloads.next_episodes.waiting_for_home_network"),
     ).toBeTruthy();
   });
 

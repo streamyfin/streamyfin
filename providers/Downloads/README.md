@@ -16,7 +16,8 @@ The downloads module is structured with a clean separation of concerns:
 - **`types.ts`** - TypeScript type definitions
 - **`nextEpisodes.ts`** - Pure functions deciding what a "keep next episodes downloaded" rule downloads and deletes
 - **`nextEpisodesRules.ts`** - The series rules, stored per user, and the atom they are read through
-- **`nextEpisodesHold.ts`** - Why the next episodes are not downloading, for the downloads page and the download sheet
+- **`nextEpisodesHold.ts`** - Why the next episodes are not downloading, for the downloads page and the download sheet, and what the connection setting holds back
+- **`homeNetwork.ts`** - Whether the app talks to the server over the local address of the home network set up under Settings → Network
 - **`defaultDownload.ts`** - The stream a download nobody picked options for fetches, with the default source and tracks
 
 ### Hooks

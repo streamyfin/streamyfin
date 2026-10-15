@@ -19,18 +19,25 @@ export const NextEpisodesNotice: React.FC<ViewProps> = (props) => {
 
   if (!hold) return null;
 
-  const { title, message } =
-    hold === "low_space"
-      ? {
-          title: t("home.downloads.next_episodes.low_space_title"),
-          message: t("home.downloads.next_episodes.low_space", {
-            size: NEXT_EPISODES_MIN_FREE_BYTES.bytesToReadable(0),
-          }),
-        }
-      : {
-          title: t("home.downloads.next_episodes.waiting_for_wifi_title"),
-          message: t("home.downloads.next_episodes.waiting_for_wifi"),
-        };
+  const { title, message, icon } = {
+    low_space: {
+      title: t("home.downloads.next_episodes.low_space_title"),
+      message: t("home.downloads.next_episodes.low_space", {
+        size: NEXT_EPISODES_MIN_FREE_BYTES.bytesToReadable(0),
+      }),
+      icon: "warning-outline" as const,
+    },
+    waiting_for_wifi: {
+      title: t("home.downloads.next_episodes.waiting_for_wifi_title"),
+      message: t("home.downloads.next_episodes.waiting_for_wifi"),
+      icon: "wifi-outline" as const,
+    },
+    waiting_for_home_network: {
+      title: t("home.downloads.next_episodes.waiting_for_home_network_title"),
+      message: t("home.downloads.next_episodes.waiting_for_home_network"),
+      icon: "home-outline" as const,
+    },
+  }[hold];
 
   return (
     <View {...props}>
@@ -40,11 +47,7 @@ export const NextEpisodesNotice: React.FC<ViewProps> = (props) => {
         onPress={() => router.push("/settings/downloads/page")}
         className='bg-neutral-900 p-4 rounded-2xl flex flex-row items-center'
       >
-        <Ionicons
-          name={hold === "low_space" ? "warning-outline" : "wifi-outline"}
-          size={22}
-          color='#f59e0b'
-        />
+        <Ionicons name={icon} size={22} color='#f59e0b' />
         <View className='flex-1 ml-3'>
           <Text className='font-bold'>{title}</Text>
           <Text className='opacity-70 text-sm'>{message}</Text>

@@ -48,7 +48,7 @@ jest.mock("../defaultDownload", () => ({
 // The real modules load the whole settings and auth stack; the hook only
 // reads these two atoms.
 const mockSettings = {
-  nextEpisodesWifiOnly: true,
+  nextEpisodesNetwork: "wifi",
   nextEpisodesDeleteAnyDownload: false,
 };
 jest.mock("@/utils/atoms/settings", () => {
@@ -59,6 +59,10 @@ jest.mock("@/providers/JellyfinProvider", () => {
   const { atom } = jest.requireActual("jotai");
   return { userAtom: atom(null) };
 });
+const mockIsOnHomeNetwork = jest.fn();
+jest.mock("../homeNetwork", () => ({
+  isOnHomeNetwork: (api: unknown) => mockIsOnHomeNetwork(api),
+}));
 jest.mock("@/utils/device", () => ({ getOrSetDeviceId: () => "device-1" }));
 jest.mock("@/utils/log", () => ({ logAndCaptureError: jest.fn() }));
 
@@ -72,7 +76,10 @@ import {
 } from "../database";
 import { nextEpisodesHoldAtom } from "../nextEpisodesHold";
 import { nextEpisodesRulesAtom, withRule } from "../nextEpisodesRules";
-import { savePendingDownload } from "../pendingDownloads";
+import {
+  removePendingDownload,
+  savePendingDownload,
+} from "../pendingDownloads";
 import type { DownloadedItem } from "../types";
 import { useNextEpisodesDownloads } from "./useNextEpisodesDownloads";
 
@@ -189,7 +196,8 @@ beforeEach(() => {
   clearAllDownloadedItems();
   fakeFiles.clear();
   jest.clearAllMocks();
-  mockSettings.nextEpisodesWifiOnly = true;
+  mockSettings.nextEpisodesNetwork = "wifi";
+  mockIsOnHomeNetwork.mockReturnValue(false);
   mockSettings.nextEpisodesDeleteAnyDownload = false;
   mockNetwork.fetch.mockResolvedValue(WIFI);
   mockNetwork.addEventListener.mockReturnValue(() => {});
@@ -269,14 +277,89 @@ describe("useNextEpisodesDownloads", () => {
     expect(setup.store.get(nextEpisodesHoldAtom)).toBe("waiting_for_wifi");
   });
 
-  test("uses mobile data when Wi-Fi only is off", async () => {
+  test("uses mobile data when any network is allowed", async () => {
     mockNetwork.fetch.mockResolvedValue(CELLULAR);
-    mockSettings.nextEpisodesWifiOnly = false;
+    mockSettings.nextEpisodesNetwork = "any";
     const setup = setUp({ count: 1 });
 
     await renderKeeper(setup);
 
     expect(startedIds(setup.startBackgroundDownload)).toEqual(["e2"]);
+  });
+
+  // On the home network the app talks to the server's local address, so the
+  // downloads never go through the remote connection.
+  describe("home network only", () => {
+    beforeEach(() => {
+      mockSettings.nextEpisodesNetwork = "home";
+    });
+
+    test("waits on any other Wi-Fi, and says so", async () => {
+      const setup = setUp();
+
+      await renderKeeper(setup);
+
+      expect(setup.startBackgroundDownload).not.toHaveBeenCalled();
+      expect(setup.store.get(nextEpisodesHoldAtom)).toBe(
+        "waiting_for_home_network",
+      );
+    });
+
+    test("downloads on the server's local address", async () => {
+      mockIsOnHomeNetwork.mockReturnValue(true);
+      const setup = setUp({ count: 1 });
+
+      await renderKeeper(setup);
+
+      expect(startedIds(setup.startBackgroundDownload)).toEqual(["e2"]);
+      expect(setup.store.get(nextEpisodesHoldAtom)).toBeNull();
+    });
+
+    test("starts once the app switches to the local address", async () => {
+      const setup = setUp({ count: 1 });
+      const remote = { basePath: "https://jellyfin.example" };
+      const local = { basePath: "http://192.168.1.10:8096" };
+      mockIsOnHomeNetwork.mockImplementation((api) => api === local);
+      const { rerender } = await renderHook(
+        ({ api }: { api: typeof remote }) =>
+          useNextEpisodesDownloads({
+            api: api as never,
+            processes: [],
+            startBackgroundDownload: setup.startBackgroundDownload,
+            onDataChange: setup.onDataChange,
+          }),
+        {
+          initialProps: { api: remote },
+          wrapper: ({ children }: { children: React.ReactNode }) => (
+            <Provider store={setup.store}>{children}</Provider>
+          ),
+        },
+      );
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+      expect(setup.startBackgroundDownload).not.toHaveBeenCalled();
+
+      await rerender({ api: local });
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+
+      expect(startedIds(setup.startBackgroundDownload)).toEqual(["e2"]);
+    });
+  });
+
+  // A download from the local address fails once the device leaves home.
+  // The failed one is cleared, and a later check downloads it again.
+  test("downloads an episode again after its download failed", async () => {
+    const setup = setUp({ count: 1 });
+    const result = await renderKeeper(setup);
+    expect(startedIds(setup.startBackgroundDownload)).toEqual(["e2"]);
+
+    removePendingDownload("e2");
+    await act(() => result.current.runNextEpisodesCheck());
+
+    expect(startedIds(setup.startBackgroundDownload)).toEqual(["e2", "e2"]);
   });
 
   test("starts once Wi-Fi is back", async () => {

@@ -9,6 +9,7 @@ import { ListGroup } from "@/components/list/ListGroup";
 import { ListItem } from "@/components/list/ListItem";
 import { PlatformDropdown } from "@/components/PlatformDropdown";
 import { useDownload } from "@/providers/DownloadProvider";
+import { homeNetworkConfig } from "@/providers/Downloads/homeNetwork";
 import { nextEpisodesCountChoices } from "@/providers/Downloads/nextEpisodes";
 import {
   type NextEpisodesRule,
@@ -18,7 +19,7 @@ import {
   withRule,
 } from "@/providers/Downloads/nextEpisodesRules";
 import { userAtom } from "@/providers/JellyfinProvider";
-import { useSettings } from "@/utils/atoms/settings";
+import { type NextEpisodesNetwork, useSettings } from "@/utils/atoms/settings";
 
 const DropdownTrigger: React.FC<{ label: string }> = ({ label }) => (
   <View className='flex flex-row items-center justify-between py-1.5 pl-3'>
@@ -60,6 +61,31 @@ export const NextEpisodesSettings: React.FC = () => {
     ],
     [settings.nextEpisodesDownloadCount, updateSettings, t],
   );
+
+  const networkLocked = pluginSettings?.nextEpisodesNetwork?.locked;
+  // Read on every render: the network settings page is a push away, and the
+  // choice comes back usable once the home network is set up there.
+  const homeNetworkSetUp = homeNetworkConfig() !== null;
+  const networkLabels: Record<NextEpisodesNetwork, string> = {
+    any: t("home.settings.downloads.network_any"),
+    wifi: t("home.settings.downloads.network_wifi"),
+    home: t("home.settings.downloads.network_home"),
+  };
+  const networkOptions = [
+    {
+      options: (["any", "wifi", "home"] as const).map((network) => ({
+        type: "radio" as const,
+        label: networkLabels[network],
+        value: network,
+        selected: network === settings.nextEpisodesNetwork,
+        disabled: network === "home" && !homeNetworkSetUp,
+        onPress: () => {
+          updateSettings({ nextEpisodesNetwork: network });
+          runNextEpisodesCheck();
+        },
+      })),
+    },
+  ];
 
   const changeRule = (seriesId: string, change: Partial<NextEpisodesRule>) => {
     if (!userId) return;
@@ -135,18 +161,25 @@ export const NextEpisodesSettings: React.FC = () => {
           />
         </ListItem>
         <ListItem
-          title={t("home.settings.downloads.wifi_only")}
-          subtitle={t("home.settings.downloads.wifi_only_hint")}
-          disabledByAdmin={pluginSettings?.nextEpisodesWifiOnly?.locked}
+          title={t("home.settings.downloads.network")}
+          subtitle={
+            settings.nextEpisodesNetwork === "home"
+              ? t("home.settings.downloads.network_home_hint")
+              : homeNetworkSetUp
+                ? t("home.settings.downloads.network_hint")
+                : t("home.settings.downloads.network_home_not_set_up")
+          }
+          disabledByAdmin={networkLocked}
         >
-          <SettingSwitch
-            accessibilityLabel={t("home.settings.downloads.wifi_only")}
-            value={settings.nextEpisodesWifiOnly}
-            disabled={pluginSettings?.nextEpisodesWifiOnly?.locked}
-            onValueChange={(value) => {
-              updateSettings({ nextEpisodesWifiOnly: value });
-              runNextEpisodesCheck();
-            }}
+          <PlatformDropdown
+            disabled={networkLocked}
+            groups={networkOptions}
+            trigger={
+              <DropdownTrigger
+                label={networkLabels[settings.nextEpisodesNetwork]}
+              />
+            }
+            title={t("home.settings.downloads.network")}
           />
         </ListItem>
         <ListItem

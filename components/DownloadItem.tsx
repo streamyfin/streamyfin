@@ -422,11 +422,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
         await runNextEpisodesCheck();
         const hold = store.get(nextEpisodesHoldAtom);
         if (hold) {
-          toast.info(
-            hold === "low_space"
-              ? t("home.downloads.next_episodes.low_space_title")
-              : t("home.downloads.next_episodes.waiting_for_wifi_title"),
-          );
+          toast.info(t(`home.downloads.next_episodes.${hold}_title`));
         }
         return;
       }

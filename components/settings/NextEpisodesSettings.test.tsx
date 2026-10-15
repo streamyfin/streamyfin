@@ -24,6 +24,7 @@ jest.mock("@/components/PlatformDropdown", () => {
       groups: {
         options: {
           label: string;
+          disabled?: boolean;
           onPress?: () => void;
           onToggle?: () => void;
         }[];
@@ -39,9 +40,13 @@ jest.mock("@/components/PlatformDropdown", () => {
             .map((option) => (
               <Text
                 key={option.label}
-                onPress={option.onPress ?? option.onToggle}
+                onPress={
+                  option.disabled
+                    ? undefined
+                    : (option.onPress ?? option.onToggle)
+                }
               >
-                {`option:${option.label}`}
+                {`${option.disabled ? "disabled:" : "option:"}${option.label}`}
               </Text>
             ))}
       </View>
@@ -52,11 +57,15 @@ const mockRunNextEpisodesCheck = jest.fn();
 jest.mock("@/providers/DownloadProvider", () => ({
   useDownload: () => ({ runNextEpisodesCheck: mockRunNextEpisodesCheck }),
 }));
+const mockHomeNetworkConfig = jest.fn();
+jest.mock("@/providers/Downloads/homeNetwork", () => ({
+  homeNetworkConfig: () => mockHomeNetworkConfig(),
+}));
 const mockUpdateSettings = jest.fn();
 const mockSettings = {
   settings: {
     nextEpisodesDownloadCount: 3,
-    nextEpisodesWifiOnly: true,
+    nextEpisodesNetwork: "wifi",
     nextEpisodesDeleteAnyDownload: false,
   },
   pluginSettings: {} as Record<string, { locked: boolean; value: unknown }>,
@@ -110,6 +119,9 @@ beforeEach(() => {
   clearMmkv();
   jest.clearAllMocks();
   mockSettings.pluginSettings = {};
+  mockSettings.settings.nextEpisodesNetwork = "wifi";
+  mockSettings.settings.nextEpisodesDownloadCount = 3;
+  mockHomeNetworkConfig.mockReturnValue(null);
 });
 
 describe("NextEpisodesSettings", () => {
@@ -162,29 +174,49 @@ describe("NextEpisodesSettings", () => {
     ]);
   });
 
-  test("turning Wi-Fi only off checks again at once", async () => {
+  test("changing the network checks again at once", async () => {
     await renderSettings();
 
-    await fireEvent(
-      screen.getByLabelText("home.settings.downloads.wifi_only"),
-      "valueChange",
-      false,
+    await fireEvent.press(
+      screen.getByText("option:home.settings.downloads.network_any"),
     );
 
     expect(mockUpdateSettings).toHaveBeenCalledWith({
-      nextEpisodesWifiOnly: false,
+      nextEpisodesNetwork: "any",
     });
     expect(mockRunNextEpisodesCheck).toHaveBeenCalled();
+  });
+
+  test("does not offer the home network before it is set up", async () => {
+    await renderSettings();
+    expect(
+      screen.getByText("disabled:home.settings.downloads.network_home"),
+    ).toBeTruthy();
+    expect(
+      screen.getByText("home.settings.downloads.network_home_not_set_up"),
+    ).toBeTruthy();
+  });
+
+  test("offers the home network once it is set up", async () => {
+    mockHomeNetworkConfig.mockReturnValue({
+      localUrl: "http://192.168.1.10:8096",
+      homeWifiSSIDs: ["Home"],
+      enabled: true,
+    });
+    await renderSettings();
+    await fireEvent.press(
+      screen.getByText("option:home.settings.downloads.network_home"),
+    );
+
+    expect(mockUpdateSettings).toHaveBeenCalledWith({
+      nextEpisodesNetwork: "home",
+    });
   });
 
   // The plugin lets a server admin propose any count from 3 to 10.
   test("shows a default count the server proposed among the choices", async () => {
     mockSettings.settings.nextEpisodesDownloadCount = 7;
-    try {
-      await renderSettings();
-    } finally {
-      mockSettings.settings.nextEpisodesDownloadCount = 3;
-    }
+    await renderSettings();
 
     expect(
       screen.getByText("home.settings.downloads.episode_count:7"),
@@ -196,14 +228,14 @@ describe("NextEpisodesSettings", () => {
 
   test("cannot change what the server admin locked", async () => {
     mockSettings.pluginSettings = {
-      nextEpisodesWifiOnly: { locked: true, value: true },
+      nextEpisodesNetwork: { locked: true, value: "wifi" },
       nextEpisodesDownloadCount: { locked: true, value: 3 },
     };
     await renderSettings();
 
     expect(
-      screen.getByLabelText("home.settings.downloads.wifi_only").props.disabled,
-    ).toBe(true);
+      screen.queryByText("option:home.settings.downloads.network_any"),
+    ).toBeNull();
     expect(
       screen.queryByText("option:home.settings.downloads.episode_count:5"),
     ).toBeNull();
