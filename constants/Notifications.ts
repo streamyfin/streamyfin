@@ -73,3 +73,10 @@ export const ANDROID_NOTIFICATION_SETTINGS = {
   action: "android.settings.APP_NOTIFICATION_SETTINGS",
   packageExtra: "android.provider.extra.APP_PACKAGE",
 } as const;
+
+/**
+ * How long a write of this device's registration may take before it is given up.
+ * The writes run one after the other, so one the server never answers would hold
+ * back every one after it.
+ */
+export const PUSH_REGISTRATION_TIMEOUT_MS = 15_000;
