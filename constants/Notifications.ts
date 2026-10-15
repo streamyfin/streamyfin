@@ -9,6 +9,12 @@ export const PUSH_DEVICE_PATH = "/Streamyfin/device";
 /** The plugin route a person reads and replaces their notification choices at. */
 export const MY_NOTIFICATIONS_PATH = "/Streamyfin/v1/notifications/mine";
 
+/** The plugin route of the titles a person waits for, to be told when they arrive. */
+export const MY_AWAITED_TITLES_PATH = `${MY_NOTIFICATIONS_PATH}/awaited`;
+
+/** The event that tells a person a title they wait for has arrived. */
+export const AWAITED_TITLE_EVENT = "awaitedTitle";
+
 /** The query name every reader of the person's notification choices shares. */
 export const MY_NOTIFICATIONS_QUERY = "myNotifications";
 
@@ -89,3 +95,17 @@ export const ANDROID_NOTIFICATION_SETTINGS = {
  * back every one after it.
  */
 export const PUSH_REGISTRATION_TIMEOUT_MS = 15_000;
+
+/**
+ * How many times a read of the person's notification choices or awaited titles is tried
+ * again after it fails, online and not for a missing route.
+ */
+export const PLUGIN_READ_RETRIES = 2;
+
+/**
+ * The most titles a person can wait for, and the longest title the plugin keeps, as the
+ * plugin sets them (`AwaitedTitles.MostAwaited` and `LongestTitle`). A 400 for one more
+ * title than the most means the list is full; any other 400 is a title it cannot keep.
+ */
+export const MOST_AWAITED_TITLES = 1000;
+export const LONGEST_AWAITED_TITLE = 300;
