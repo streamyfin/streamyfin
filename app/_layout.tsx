@@ -21,7 +21,10 @@ import { GlobalModal } from "@/components/GlobalModal";
 import { PendingAccountSaveModal } from "@/components/PendingAccountSaveModal";
 import { SeerrAutoLogin } from "@/components/seerr/SeerrAutoLogin";
 import { SyncPlayPlaybackBridge } from "@/components/syncplay/SyncPlayPlaybackBridge";
-import { NOTIFICATION_PERMISSIONS } from "@/constants/Notifications";
+import {
+  NOTIFICATION_PERMISSIONS,
+  PERMISSION_ASKED_KEY,
+} from "@/constants/Notifications";
 import { enableTVMenuKeyInterception } from "@/hooks/useTVBackHandler";
 import i18n from "@/i18n";
 import { DownloadProvider } from "@/providers/DownloadProvider";
@@ -224,9 +227,7 @@ if (!Platform.isTV) {
 
 const checkAndRequestPermissions = async () => {
   try {
-    const hasAskedBefore = storage.getString(
-      "hasAskedForNotificationPermission",
-    );
+    const hasAskedBefore = storage.getString(PERMISSION_ASKED_KEY);
     let granted = false;
     if (hasAskedBefore !== "true") {
       const { status } = await Notifications.requestPermissionsAsync(
@@ -240,7 +241,7 @@ const checkAndRequestPermissions = async () => {
         writeToLog("ERROR", "Notification permissions denied.");
         console.log("Notification permissions denied.");
       }
-      storage.set("hasAskedForNotificationPermission", "true");
+      storage.set(PERMISSION_ASKED_KEY, "true");
     } else {
       // Already asked before, check current status
       const { status } = await Notifications.getPermissionsAsync();

@@ -1,5 +1,8 @@
 import type { Api } from "@jellyfin/sdk";
-import { MY_NOTIFICATIONS_PATH } from "@/constants/Notifications";
+import {
+  MY_NOTIFICATIONS_PATH,
+  MY_NOTIFICATIONS_QUERY,
+} from "@/constants/Notifications";
 
 /** A pause of every notification; no end means until it is turned back on. */
 export type NotificationPause = { until?: string | null };
@@ -34,6 +37,10 @@ export type MyNotificationsUpdate = {
   mutedLibraries: string[];
   follow: FollowChoice;
 };
+
+/** Where the cache keeps a person's choices on a server. */
+export const myNotificationsKey = (basePath?: string, userId?: string) =>
+  [MY_NOTIFICATIONS_QUERY, basePath, userId] as const;
 
 /** The choices the screen edits, in the shape the plugin stores. */
 export const toUpdate = (mine: MyNotifications): MyNotificationsUpdate => ({

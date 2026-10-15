@@ -9,6 +9,15 @@ export const PUSH_DEVICE_PATH = "/Streamyfin/device";
 /** The plugin route a person reads and replaces their notification choices at. */
 export const MY_NOTIFICATIONS_PATH = "/Streamyfin/v1/notifications/mine";
 
+/** The query name every reader of the person's notification choices shares. */
+export const MY_NOTIFICATIONS_QUERY = "myNotifications";
+
+/** The app's Notifications screen, which Settings and the iOS Settings link open. */
+export const NOTIFICATIONS_SETTINGS_ROUTE = "/settings/notifications/page";
+
+/** Set once the app asked for notifications, so it asks once per install. */
+export const PERMISSION_ASKED_KEY = "hasAskedForNotificationPermission";
+
 /**
  * What the app asks iOS for. The last one puts a link to the app's Notifications screen in the
  * iOS Settings, under the app's notifications.

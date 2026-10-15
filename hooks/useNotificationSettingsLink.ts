@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { Platform } from "react-native";
+import { NOTIFICATIONS_SETTINGS_ROUTE } from "@/constants/Notifications";
 import useRouter from "@/hooks/useAppRouter";
 import {
   addSettingsOpenListener,
@@ -12,7 +13,7 @@ export const useNotificationSettingsLink = (): void => {
 
   useEffect(() => {
     if (Platform.isTV) return;
-    const open = () => router.push("/settings/notifications/page" as never);
+    const open = () => router.push(NOTIFICATIONS_SETTINGS_ROUTE as never);
     if (takePendingSettingsOpen()) open();
     const subscription = addSettingsOpenListener(open);
     return () => subscription?.remove();
