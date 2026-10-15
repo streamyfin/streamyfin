@@ -177,7 +177,11 @@ export function useNextEpisodesDownloads({
     if (!network.isConnected) return;
 
     const playingIds = await playingOnThisDevice(api);
-    const toDownload: { seriesId: string; episode: BaseItemDto }[] = [];
+    const toDownload: {
+      seriesId: string;
+      episode: BaseItemDto;
+      bitrate?: Bitrate;
+    }[] = [];
     let removedAny = false;
     for (const rule of rules) {
       try {
@@ -190,7 +194,11 @@ export function useNextEpisodesDownloads({
         );
         removedAny ||= removed;
         for (const episode of download) {
-          toDownload.push({ seriesId: rule.seriesId, episode });
+          toDownload.push({
+            seriesId: rule.seriesId,
+            episode,
+            bitrate: rule.bitrate,
+          });
         }
       } catch (error) {
         // One series the server cannot list must not stop the others.
@@ -208,7 +216,7 @@ export function useNextEpisodesDownloads({
       return;
     }
 
-    for (const { seriesId, episode } of toDownload) {
+    for (const { seriesId, episode, bitrate } of toDownload) {
       // Checked before every episode: each one takes room the next needs.
       if ((await freeDiskBytes()) < NEXT_EPISODES_MIN_FREE_BYTES) {
         store.set(nextEpisodesHoldAtom, "low_space");
@@ -220,6 +228,7 @@ export function useNextEpisodesDownloads({
           userId,
           itemId: episode.Id!,
           settings,
+          bitrate,
         });
         if (!download) {
           console.warn(`[NextEpisodes] No stream for ${episode.Name}`);

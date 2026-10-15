@@ -356,6 +356,51 @@ describe("DownloadItems, keeping the next episodes downloaded", () => {
     expect(getDownloadStreamUrl).not.toHaveBeenCalled();
   });
 
+  // Reported on the branch: the quality picker was hidden while the rule was on.
+  test("keeps the quality picker, and the rule downloads at the one picked", async () => {
+    await renderSeasonDownload([seriesEpisode(1), seriesEpisode(2)]);
+    await fireEvent(screen.getByLabelText(KEEP), "valueChange", true);
+
+    await fireEvent.press(screen.getByText("4 Mb/s"));
+    await fireEvent.press(
+      screen.getByText("item_card.download.download_next_episodes"),
+    );
+
+    expect(storedRule()?.bitrate).toEqual(
+      expect.objectContaining({ key: "4 Mb/s", value: 4000000 }),
+    );
+  });
+
+  test("opens on the quality an existing rule downloads at", async () => {
+    getDefaultStore().set(nextEpisodesRulesAtom, (rules) =>
+      withRule(rules, "user-1", {
+        seriesId: "series-1",
+        seriesName: "Show",
+        count: 3,
+        deleteWatched: false,
+        downloadedIds: [],
+        bitrate: { key: "2 Mb/s", value: 2000000 },
+      }),
+    );
+    const { Text } = jest.requireActual("react-native");
+    await render(
+      <DownloadItems
+        items={[seriesEpisode(1), seriesEpisode(2)]}
+        MissingDownloadIconComponent={() => <Text>open sheet</Text>}
+        DownloadedIconComponent={() => <></>}
+      />,
+    );
+    await fireEvent.press(screen.getByText("open sheet"));
+
+    await fireEvent.press(
+      screen.getByText("item_card.download.download_next_episodes"),
+    );
+
+    expect(storedRule()?.bitrate).toEqual(
+      expect.objectContaining({ key: "2 Mb/s" }),
+    );
+  });
+
   test("turning a rule off removes it with the download it starts", async () => {
     getDefaultStore().set(nextEpisodesRulesAtom, (rules) =>
       withRule(rules, "user-1", {

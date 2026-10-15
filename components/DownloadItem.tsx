@@ -162,6 +162,11 @@ export const DownloadItems: React.FC<DownloadProps> = ({
         ? { count: stored.count, deleteWatched: stored.deleteWatched }
         : null,
     );
+    // The quality the rule downloads at, to keep or change.
+    const storedBitrate = stored?.bitrate;
+    if (storedBitrate) {
+      setSelectedOptions((prev) => prev && { ...prev, bitrate: storedBitrate });
+    }
     handlePresentModalPress();
   }, [ruleSeries, user?.Id, store, handlePresentModalPress]);
 
@@ -395,13 +400,24 @@ export const DownloadItems: React.FC<DownloadProps> = ({
       if (ruleSeries && user?.Id) {
         const userId = user.Id;
         store.set(nextEpisodesRulesAtom, (rules) =>
-          withRuleDraft(rules, userId, ruleSeries, ruleOn ? ruleDraft : null),
+          withRuleDraft(
+            rules,
+            userId,
+            ruleSeries,
+            ruleOn && ruleDraft
+              ? {
+                  ...ruleDraft,
+                  bitrate: selectedOptions?.bitrate || defaultBitrate,
+                }
+              : null,
+          ),
         );
       }
 
       closeModal();
 
-      // The rule downloads its episodes itself, with the default options.
+      // The rule downloads its episodes itself, at the quality picked here
+      // and with the default tracks.
       if (ruleOn) {
         await runNextEpisodesCheck();
         const hold = store.get(nextEpisodesHoldAtom);
@@ -432,6 +448,8 @@ export const DownloadItems: React.FC<DownloadProps> = ({
     ruleSeries,
     ruleOn,
     ruleDraft,
+    selectedOptions?.bitrate,
+    defaultBitrate,
     user?.Id,
     store,
     runNextEpisodesCheck,
@@ -531,19 +549,17 @@ export const DownloadItems: React.FC<DownloadProps> = ({
               </Text>
             </View>
             <View className='flex flex-col space-y-2 w-full'>
-              {!ruleOn && (
-                <View className='items-start'>
-                  <BitrateSelector
-                    inverted
-                    onChange={(val) =>
-                      setSelectedOptions(
-                        (prev) => prev && { ...prev, bitrate: val },
-                      )
-                    }
-                    selected={selectedOptions?.bitrate}
-                  />
-                </View>
-              )}
+              <View className='items-start'>
+                <BitrateSelector
+                  inverted
+                  onChange={(val) =>
+                    setSelectedOptions(
+                      (prev) => prev && { ...prev, bitrate: val },
+                    )
+                  }
+                  selected={selectedOptions?.bitrate}
+                />
+              </View>
               {!ruleOn && itemsNotDownloaded.length > 1 && (
                 <View className='flex flex-row items-center justify-between w-full py-2'>
                   <Text>{t("item_card.download.download_unwatched_only")}</Text>

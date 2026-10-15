@@ -30,18 +30,22 @@ export const resolveDefaultDownload = async ({
   userId,
   itemId,
   settings,
+  bitrate: chosenBitrate,
 }: {
   api: Api;
   userId: string;
   itemId: string;
   settings: Settings;
+  /** A quality picked for this download, over the user's default one. */
+  bitrate?: Bitrate;
 }): Promise<DefaultDownload | null> => {
   const { data: item } = await getUserLibraryApi(api).getItem({
     itemId,
     userId,
   });
-  const { mediaSource, audioIndex, subtitleIndex, bitrate } =
-    getDefaultPlaySettings(item, settings);
+  const defaults = getDefaultPlaySettings(item, settings);
+  const { mediaSource, audioIndex, subtitleIndex } = defaults;
+  const bitrate = chosenBitrate ?? defaults.bitrate;
   const stream = await getDownloadStreamUrl({
     api,
     item,

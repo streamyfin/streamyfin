@@ -1,4 +1,5 @@
 import { atom } from "jotai";
+import type { Bitrate } from "@/components/BitrateSelector";
 import { NEXT_EPISODES_RULES_KEY } from "@/constants/Downloads";
 import { storage } from "@/utils/mmkv";
 
@@ -9,6 +10,11 @@ export type NextEpisodesRule = {
   seriesName: string;
   count: number;
   deleteWatched: boolean;
+  /**
+   * The quality picked in the sheet when the rule was set. Rules from before
+   * there was one download at the user's default quality.
+   */
+  bitrate?: Bitrate;
   /**
    * The episodes this rule downloaded. Unless the user lets it delete any
    * download, these are the only ones it deletes once they are watched.
@@ -89,7 +95,7 @@ export const withDownloadedIds = (
 /** What the download sheet edits of a rule, before its button applies it. */
 export type NextEpisodesRuleDraft = Pick<
   NextEpisodesRule,
-  "count" | "deleteWatched"
+  "count" | "deleteWatched" | "bitrate"
 >;
 
 /**

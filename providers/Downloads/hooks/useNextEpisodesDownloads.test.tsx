@@ -218,6 +218,28 @@ describe("useNextEpisodesDownloads", () => {
     expect(setup.store.get(nextEpisodesHoldAtom)).toBeNull();
   });
 
+  test("downloads at the quality picked for the rule", async () => {
+    const setup = setUp({ count: 1 });
+    setup.store.set(nextEpisodesRulesAtom, (rules) => ({
+      ...rules,
+      "user-1": {
+        "series-1": {
+          ...rules["user-1"]["series-1"],
+          bitrate: { key: "4 Mb/s", value: 4000000 },
+        },
+      },
+    }));
+
+    await renderKeeper(setup);
+
+    expect(mockResolveDefaultDownload).toHaveBeenCalledWith(
+      expect.objectContaining({
+        itemId: "e2",
+        bitrate: { key: "4 Mb/s", value: 4000000 },
+      }),
+    );
+  });
+
   test("remembers which episodes it downloaded", async () => {
     const setup = setUp({ count: 2 });
 
