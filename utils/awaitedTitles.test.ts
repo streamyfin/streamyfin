@@ -1,4 +1,7 @@
-import { AWAITED_TITLE_EVENT } from "@/constants/Notifications";
+import {
+  AWAITED_TITLE_EVENT,
+  LONGEST_AWAITED_TITLE,
+} from "@/constants/Notifications";
 import { MediaStatus, MediaType } from "@/utils/seerr/types";
 import {
   type AwaitedTitle,
@@ -161,7 +164,24 @@ describe("what a Seerr page asks for", () => {
     expect(
       awaitRequestFrom({ id: 603 } as never, MediaType.MOVIE),
     ).toBeUndefined();
+    expect(
+      awaitRequestFrom({ id: 603, title: "   " } as never, MediaType.MOVIE),
+    ).toBeUndefined();
     expect(awaitRequestFrom(undefined, MediaType.MOVIE)).toBeUndefined();
+  });
+
+  // The plugin refuses a title longer than it keeps, and a TVDB id that is not one, with a
+  // 400 the person could only read as a full list.
+  test("sends what the plugin keeps: a trimmed title at most as long as it allows", () => {
+    const long = "A".repeat(LONGEST_AWAITED_TITLE + 20);
+
+    const request = awaitRequestFrom(
+      { id: 1399, name: `  ${long}  `, externalIds: { tvdbId: -1 } } as never,
+      MediaType.TV,
+    );
+
+    expect(request?.title).toBe("A".repeat(LONGEST_AWAITED_TITLE));
+    expect(request && "tvdbId" in request).toBe(false);
   });
 });
 

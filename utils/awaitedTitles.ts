@@ -1,6 +1,7 @@
 import type { Api } from "@jellyfin/sdk";
 import {
   AWAITED_TITLE_EVENT,
+  LONGEST_AWAITED_TITLE,
   MY_AWAITED_TITLES_PATH,
 } from "@/constants/Notifications";
 import type { MyEvent } from "@/utils/notificationPreferences";
@@ -96,9 +97,12 @@ export const awaitRequestFrom = (
 ): AwaitTitleRequest | undefined => {
   if (!details?.id) return undefined;
   const movie = mediaType === MediaType.MOVIE;
-  const title = movie
-    ? (details as MovieDetails).title
-    : (details as TvDetails).name;
+  // Trimmed and cut to what the plugin keeps, which refuses a blank or longer title.
+  const title = (
+    movie ? (details as MovieDetails).title : (details as TvDetails).name
+  )
+    ?.trim()
+    .slice(0, LONGEST_AWAITED_TITLE);
   if (!title) return undefined;
 
   const year = yearOf(
@@ -110,7 +114,7 @@ export const awaitRequestFrom = (
   return {
     mediaType: movie ? "movie" : "tv",
     tmdbId: details.id,
-    ...(tvdbId ? { tvdbId } : {}),
+    ...(tvdbId && tvdbId > 0 ? { tvdbId } : {}),
     title,
     ...(year ? { year } : {}),
   };
