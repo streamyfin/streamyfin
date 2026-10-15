@@ -430,10 +430,13 @@ const MobilePage: React.FC = () => {
                   </View>
                 )
               )}
-              {!isLoading && !isFetching && (
+              {/* Kept mounted while the details refetch, as after a request: remounted, it
+                  would read the person's choices and titles again. */}
+              {!isLoading && (
                 <AwaitTitleButton
                   details={details}
                   mediaType={mediaType}
+                  seerrUserId={seerrUser?.id}
                   className={jellyfinMediaId || offersRequest ? "mt-2" : "mt-4"}
                 />
               )}

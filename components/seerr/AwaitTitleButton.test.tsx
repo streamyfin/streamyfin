@@ -1,6 +1,11 @@
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
+import { StyleSheet } from "react-native";
 import { AWAITED_TITLE_EVENT } from "@/constants/Notifications";
-import { MediaStatus, MediaType } from "@/utils/seerr/types";
+import {
+  MediaRequestStatus,
+  MediaStatus,
+  MediaType,
+} from "@/utils/seerr/types";
 import { AwaitTitleButton } from "./AwaitTitleButton";
 
 const mockAdd = jest.fn();
@@ -16,14 +21,16 @@ let mockMine:
   | { events: { key: string; family: string; enabled: boolean }[] }
   | undefined;
 
+let mockAwaitedOptions: unknown;
+
 jest.mock("@/hooks/useAwaitedTitles", () => ({
-  useAwaitedTitles: () => mockAwaited,
+  useAwaitedTitles: (options: unknown) => {
+    mockAwaitedOptions = options;
+    return mockAwaited;
+  },
 }));
 jest.mock("@/hooks/useMyNotifications", () => ({
   useMyNotifications: () => ({ mine: mockMine }),
-}));
-jest.mock("@/hooks/useSeerr", () => ({
-  useSeerr: () => ({ seerrUser: { id: 7 } }),
 }));
 // Button reaches the settings, and through them native modules, for its haptics.
 jest.mock("@/hooks/useHaptic", () => ({ useHaptic: () => () => {} }));
@@ -40,8 +47,27 @@ const matrix = {
 
 const renderButton = (details: unknown = matrix) =>
   render(
-    <AwaitTitleButton details={details as never} mediaType={MediaType.MOVIE} />,
+    <AwaitTitleButton
+      details={details as never}
+      mediaType={MediaType.MOVIE}
+      seerrUserId={7}
+    />,
   );
+
+// The person asked for it themselves, so Seerr tells them when it is available.
+const requested = {
+  ...matrix,
+  mediaInfo: {
+    status: MediaStatus.PENDING,
+    requests: [
+      {
+        requestedBy: { id: 7 },
+        status: MediaRequestStatus.APPROVED,
+        is4k: false,
+      },
+    ],
+  },
+};
 
 describe("waiting for a title from its Seerr page", () => {
   beforeEach(() => {
@@ -62,7 +88,7 @@ describe("waiting for a title from its Seerr page", () => {
   test("offers to tell the person when a title the server does not have arrives", async () => {
     await renderButton();
 
-    fireEvent.press(screen.getByText("seerr.awaited.notify_me"));
+    await fireEvent.press(screen.getByText("seerr.awaited.notify_me"));
 
     expect(mockAdd).toHaveBeenCalledWith({
       mediaType: "movie",
@@ -76,7 +102,7 @@ describe("waiting for a title from its Seerr page", () => {
     mockAwaited.isAwaited = () => true;
     await renderButton();
 
-    fireEvent.press(screen.getByText("seerr.awaited.waiting"));
+    await fireEvent.press(screen.getByText("seerr.awaited.waiting"));
 
     expect(mockRemove).toHaveBeenCalledWith("movie", 603);
     expect(mockAdd).not.toHaveBeenCalled();
@@ -94,13 +120,15 @@ describe("waiting for a title from its Seerr page", () => {
     );
     await renderButton();
 
-    fireEvent.press(screen.getByText("seerr.awaited.notify_me"));
-    fireEvent.press(screen.getByText("seerr.awaited.notify_me"));
+    await fireEvent.press(screen.getByText("seerr.awaited.notify_me"));
+    await fireEvent.press(screen.getByText("seerr.awaited.notify_me"));
     expect(mockAdd).toHaveBeenCalledTimes(1);
 
     await act(async () => answer());
-    fireEvent.press(screen.getByText("seerr.awaited.notify_me"));
+    await fireEvent.press(screen.getByText("seerr.awaited.notify_me"));
     expect(mockAdd).toHaveBeenCalledTimes(2);
+    // Answered too: a press left on its way leaves the renders of the tests after it empty.
+    await act(async () => answer());
   });
 
   test("is not offered by a plugin that does not know the route", async () => {
@@ -119,6 +147,67 @@ describe("waiting for a title from its Seerr page", () => {
     mockMine = undefined;
     await renderButton();
     expect(screen.queryByText("seerr.awaited.notify_me")).toBeNull();
+  });
+
+  // Waiting for it, they keep a way to stop, whatever changed since: they requested it,
+  // part of it arrived, or they turned the event off.
+  test("stays for a title the person waits for, even once they requested it", async () => {
+    mockAwaited.isAwaited = () => true;
+    await renderButton(requested);
+
+    await fireEvent.press(screen.getByText("seerr.awaited.waiting"));
+
+    expect(mockRemove).toHaveBeenCalledWith("movie", 603);
+  });
+
+  test("stays for a title the person waits for, with the event turned off", async () => {
+    mockAwaited.isAwaited = () => true;
+    mockMine = {
+      events: [
+        { key: AWAITED_TITLE_EVENT, family: "requests", enabled: false },
+      ],
+    };
+    await renderButton();
+
+    expect(screen.getByText("seerr.awaited.waiting")).toBeTruthy();
+  });
+
+  test("is not offered for a title the person requested themselves", async () => {
+    await renderButton(requested);
+
+    expect(screen.queryByText("seerr.awaited.notify_me")).toBeNull();
+  });
+
+  // NativeWind hands an app component the classes it was given as a style.
+  test("keeps the spacing the page gives it", async () => {
+    await render(
+      <AwaitTitleButton
+        details={matrix as never}
+        mediaType={MediaType.MOVIE}
+        seerrUserId={7}
+        className='mt-2'
+      />,
+    );
+
+    const button = screen.getByLabelText("seerr.awaited.notify_me");
+    expect(StyleSheet.flatten(button.props.style)).toEqual(
+      expect.objectContaining({ marginTop: 8 }),
+    );
+  });
+
+  // A plugin that does not offer the event has no list to read, and a phone on a server
+  // without it would ask on every Seerr page.
+  test("reads the list only where the event is offered", async () => {
+    await renderButton();
+    expect(mockAwaitedOptions).toEqual({ enabled: true });
+
+    mockMine = { events: [] };
+    await renderButton();
+    expect(mockAwaitedOptions).toEqual({ enabled: false });
+
+    mockMine = undefined;
+    await renderButton();
+    expect(mockAwaitedOptions).toEqual({ enabled: false });
   });
 
   test("is not offered for a title the server has", async () => {
