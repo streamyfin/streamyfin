@@ -101,3 +101,11 @@ export const PUSH_REGISTRATION_TIMEOUT_MS = 15_000;
  * again after it fails, online and not for a missing route.
  */
 export const PLUGIN_READ_RETRIES = 2;
+
+/**
+ * The most titles a person can wait for, and the longest title the plugin keeps, as the
+ * plugin sets them (`AwaitedTitles.MostAwaited` and `LongestTitle`). A 400 for one more
+ * title than the most means the list is full; any other 400 is a title it cannot keep.
+ */
+export const MOST_AWAITED_TITLES = 1000;
+export const LONGEST_AWAITED_TITLE = 300;

@@ -1,7 +1,8 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner-native";
+import { MOST_AWAITED_TITLES } from "@/constants/Notifications";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import {
   type AwaitedMediaType,
@@ -14,18 +15,21 @@ import {
   withAwaited,
   withoutAwaited,
 } from "@/utils/awaitedTitles";
-
-const statusOf = (error: unknown): number | undefined =>
-  (error as { response?: { status?: number } })?.response?.status;
+import {
+  isNotFound,
+  readPluginRoute,
+  retryPluginRead,
+  statusOf,
+} from "@/utils/pluginReads";
+import { useOrderedWrites } from "./useOrderedWrites";
 
 /** The query key every reader of the person's awaited titles shares. */
 export const AWAITED_TITLES_QUERY = "myAwaitedTitles";
 
-// Why the plugin refused a title, in the person's words.
-const REFUSALS: Record<number, string> = {
-  409: "seerr.awaited.already_here",
-  400: "seerr.awaited.too_many",
-};
+// The plugin's refusals on purpose: the title is already here (409), or it keeps no more of
+// them, or cannot keep this one (400).
+const isRefusal = (error: unknown): boolean =>
+  statusOf(error) === 409 || statusOf(error) === 400;
 
 /**
  * The titles the signed in person waits for on this server, changed optimistically like the
@@ -41,41 +45,36 @@ export const useAwaitedTitles = () => {
 
   const query = useQuery({
     queryKey: key,
-    queryFn: () => getAwaitedTitles(api!),
+    queryFn: () => readPluginRoute(() => getAwaitedTitles(api!)),
     enabled: !!api && !!user?.Id,
-    // A plugin without the route answers 404, which only means nothing is offered.
-    retry: (count, error) => statusOf(error) !== 404 && count < 2,
+    retry: retryPluginRead,
   });
 
-  const run = useMutation({
-    mutationFn: (change: () => Promise<AwaitedTitle[]>) => change(),
-    onSuccess: (saved) => queryClient.setQueryData(key, saved),
-  });
-
-  const apply = async (
-    next: (list: AwaitedTitle[]) => AwaitedTitle[],
-    change: () => Promise<AwaitedTitle[]>,
-  ) => {
-    const before = queryClient.getQueryData<AwaitedTitle[]>(key);
-    // What the cache holds once this change is in it, to tell later whether a newer change
-    // replaced it.
-    const shown = queryClient.setQueryData<AwaitedTitle[]>(
-      key,
-      next(before ?? []),
+  // Why a change failed, in the person's words. A 400 is a full list only when the list is.
+  const sayWhy = (error: unknown) => {
+    const status = statusOf(error);
+    const full =
+      (queryClient.getQueryData<AwaitedTitle[]>(key)?.length ?? 0) >=
+      MOST_AWAITED_TITLES;
+    toast.error(
+      t(
+        status === 409
+          ? "seerr.awaited.already_here"
+          : status === 400 && full
+            ? "seerr.awaited.too_many"
+            : "seerr.awaited.failed",
+      ),
     );
-    try {
-      await run.mutateAsync(change);
-    } catch (error) {
-      // Only while this change is still what shows: a later one may have saved since.
-      if (queryClient.getQueryData(key) === shown) {
-        queryClient.setQueryData(key, before);
-      }
-      toast.error(t(REFUSALS[statusOf(error) ?? 0] ?? "seerr.awaited.failed"));
-      void queryClient.invalidateQueries({ queryKey: key });
-    }
   };
 
-  const supported = !(query.isError && statusOf(query.error) === 404);
+  // Each change is one title of its own, so a later one does not carry an earlier one.
+  const apply = useOrderedWrites<AwaitedTitle[]>(key, {
+    laterCarriesEarlier: false,
+    onFailure: sayWhy,
+    expected: isRefusal,
+  });
+
+  const supported = !(query.isError && isNotFound(query.error));
   // A failed read keeps what an earlier one returned: a plugin that lost the route would
   // otherwise leave that list showing, with no route left to change it.
   const titles = supported ? query.data : undefined;
@@ -88,12 +87,12 @@ export const useAwaitedTitles = () => {
       isAwaited(titles, mediaType, tmdbId),
     add: (request: AwaitTitleRequest) =>
       apply(
-        (list) => withAwaited(list, request, new Date().toISOString()),
+        (list) => withAwaited(list ?? [], request, new Date().toISOString()),
         () => awaitTitle(api!, request),
       ),
     remove: (mediaType: AwaitedMediaType, tmdbId: number) =>
       apply(
-        (list) => withoutAwaited(list, mediaType, tmdbId),
+        (list) => withoutAwaited(list ?? [], mediaType, tmdbId),
         () => stopAwaitingTitle(api!, mediaType, tmdbId),
       ),
   };
