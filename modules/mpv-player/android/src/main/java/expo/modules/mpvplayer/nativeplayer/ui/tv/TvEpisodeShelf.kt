@@ -1,5 +1,7 @@
 package expo.modules.mpvplayer.nativeplayer.ui.tv
 
+import android.util.Log
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -13,6 +15,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
@@ -26,6 +29,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -34,11 +38,14 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Border
+import androidx.tv.material3.Button
+import androidx.tv.material3.ButtonDefaults
 import androidx.tv.material3.Card
 import androidx.tv.material3.CardDefaults
 import androidx.tv.material3.MaterialTheme
@@ -46,34 +53,51 @@ import androidx.tv.material3.Text
 import expo.modules.mpvplayer.nativeplayer.EpisodeListItemRecord
 import expo.modules.mpvplayer.nativeplayer.PlayerViewModel
 import expo.modules.mpvplayer.nativeplayer.ui.RemoteImage
-import kotlinx.coroutines.delay
 
 @Composable
 fun TvEpisodeShelf(
     viewModel: PlayerViewModel,
     modifier: Modifier = Modifier
 ) {
-    val episodes = viewModel.episodeList
+    val episodes = viewModel.visibleEpisodes
+    val seasons = viewModel.episodeSeasons
+    val selectedSeasonKey = viewModel.selectedEpisodeSeasonKey
     val nowPlayingIndex = remember(episodes) {
         val idx = episodes.indexOfFirst { it.isCurrent }
         if (idx >= 0) idx else 0
     }
 
     val listState = rememberLazyListState()
+    val seasonListState = rememberLazyListState()
     val nowPlayingFocusRequester = remember { FocusRequester() }
-    var focusedEpisodeId by remember(episodes) { mutableStateOf<String?>(null) }
+    var initialEpisodeFocusPending by remember { mutableStateOf(true) }
+    var focusedEpisodeId by remember(selectedSeasonKey) { mutableStateOf<String?>(null) }
     val selectedEpisode = episodes.firstOrNull { it.itemId == focusedEpisodeId }
         ?: episodes.getOrNull(nowPlayingIndex)
 
-    LaunchedEffect(nowPlayingIndex) {
+    LaunchedEffect(selectedSeasonKey, episodes.isNotEmpty()) {
         if (episodes.isNotEmpty()) {
-            listState.scrollToItem(nowPlayingIndex)
-            // One frame retry for Compose focus
-            delay(50L)
-            runCatching {
-                nowPlayingFocusRequester.requestFocus()
+            if (initialEpisodeFocusPending) {
+                listState.scrollToItem(nowPlayingIndex)
+                withFrameNanos { }
+                if (initialEpisodeFocusPending) {
+                    try {
+                        nowPlayingFocusRequester.requestFocus()
+                    } catch (error: IllegalStateException) {
+                        Log.w("TvEpisodeShelf", "Could not focus the initial episode", error)
+                    }
+                    initialEpisodeFocusPending = false
+                }
+            } else {
+                // Browsing another season must leave focus on its chip.
+                listState.scrollToItem(0)
             }
         }
+    }
+
+    LaunchedEffect(selectedSeasonKey) {
+        val index = seasons.indexOfFirst { it.key == selectedSeasonKey }
+        if (index >= 0) seasonListState.scrollToItem(index)
     }
 
     Box(
@@ -95,12 +119,67 @@ fun TvEpisodeShelf(
             Text(
                 text = viewModel.str("episodes", "Episodes"),
                 color = Color.White,
-                fontSize = 24.sp,
+                style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(horizontal = TvMetrics.INSET_H)
             )
 
             Spacer(modifier = Modifier.height(18.dp))
+
+            if (seasons.size > 1) {
+                Text(
+                    text = viewModel.str("season", "Season"),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = TvPalette.OnSurfaceDim,
+                    modifier = Modifier.padding(horizontal = TvMetrics.INSET_H)
+                )
+                LazyRow(
+                    state = seasonListState,
+                    horizontalArrangement = Arrangement.spacedBy(24.dp),
+                    contentPadding = PaddingValues(horizontal = TvMetrics.INSET_H, vertical = 12.dp)
+                ) {
+                    items(seasons, key = { it.key }) { season ->
+                        val focusRequester = remember { FocusRequester() }
+                        val isSelected = season.key == selectedSeasonKey
+                        Button(
+                            onClick = {
+                                initialEpisodeFocusPending = false
+                                focusRequester.requestFocus()
+                                viewModel.selectEpisodeSeason(season.key)
+                            },
+                            modifier = Modifier
+                                .size(width = 180.dp, height = 40.dp)
+                                .focusRequester(focusRequester)
+                                .semantics { selected = isSelected },
+                            colors = ButtonDefaults.colors(
+                                containerColor = if (isSelected) {
+                                    Color.White.copy(alpha = 0.2f)
+                                } else {
+                                    TvPalette.SurfaceGlass
+                                },
+                                contentColor = TvPalette.OnSurface,
+                                focusedContainerColor = TvPalette.FocusFill,
+                                focusedContentColor = TvPalette.OnFocus
+                            ),
+                            border = ButtonDefaults.border(
+                                border = Border(
+                                    border = BorderStroke(
+                                        1.dp,
+                                        if (isSelected) Color.White else TvPalette.Hairline
+                                    )
+                                )
+                            )
+                        ) {
+                            Text(
+                                text = season.name.ifBlank { viewModel.str("season", "Season") },
+                                style = MaterialTheme.typography.labelLarge,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                }
+            }
 
             LazyRow(
                 state = listState,
@@ -119,37 +198,35 @@ fun TvEpisodeShelf(
                 }
             }
 
-            selectedEpisode?.let { episode ->
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = TvMetrics.INSET_H),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Text(
-                        text = episode.title,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = TvPalette.OnSurface,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        text = episode.details.orEmpty(),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = TvPalette.OnSurfaceDim,
-                        minLines = 2,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        text = episode.overview.orEmpty(),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = TvPalette.OnSurfaceDim,
-                        minLines = 3,
-                        maxLines = 3,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = TvMetrics.INSET_H),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    text = selectedEpisode?.title.orEmpty(),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = TvPalette.OnSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = selectedEpisode?.details.orEmpty(),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TvPalette.OnSurfaceDim,
+                    minLines = 2,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = selectedEpisode?.overview.orEmpty(),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = TvPalette.OnSurfaceDim,
+                    minLines = 3,
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
         }
     }
@@ -168,7 +245,7 @@ private fun TvEpisodeCard(
         shape = CardDefaults.shape(shape = RoundedCornerShape(TvMetrics.POSTER_CORNER)),
         border = CardDefaults.border(
             focusedBorder = Border(
-                border = androidx.compose.foundation.BorderStroke(3.dp, Color.White),
+                border = BorderStroke(3.dp, Color.White),
                 shape = RoundedCornerShape(TvMetrics.POSTER_CORNER)
             )
         )
@@ -207,7 +284,7 @@ private fun TvEpisodeCard(
                         Text(
                             text = nowPlayingText,
                             color = Color.Black,
-                            fontSize = 12.sp,
+                            style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -232,7 +309,7 @@ private fun TvEpisodeCard(
                 Text(
                     text = titleText,
                     color = Color.White,
-                    fontSize = 16.sp,
+                    style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Medium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
