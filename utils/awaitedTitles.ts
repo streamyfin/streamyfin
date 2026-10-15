@@ -6,6 +6,7 @@ import {
 } from "@/constants/Notifications";
 import type { MyEvent } from "@/utils/notificationPreferences";
 import {
+  MediaRequestStatus,
   MediaStatus,
   MediaType,
   type MovieDetails,
@@ -149,6 +150,11 @@ export const showsAwaitButton = ({
   }
   return !media?.requests?.some(
     (request) =>
-      seerrUserId !== undefined && request.requestedBy?.id === seerrUserId,
+      seerrUserId !== undefined &&
+      request.requestedBy?.id === seerrUserId &&
+      // Seerr tells about a request it completes: never a declined one, and a 4K one only
+      // about the 4K copy.
+      request.status !== MediaRequestStatus.DECLINED &&
+      !request.is4k,
   );
 };

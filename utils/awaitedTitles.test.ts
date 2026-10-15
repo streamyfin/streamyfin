@@ -2,7 +2,11 @@ import {
   AWAITED_TITLE_EVENT,
   LONGEST_AWAITED_TITLE,
 } from "@/constants/Notifications";
-import { MediaStatus, MediaType } from "@/utils/seerr/types";
+import {
+  MediaRequestStatus,
+  MediaStatus,
+  MediaType,
+} from "@/utils/seerr/types";
 import {
   type AwaitedTitle,
   awaitRequestFrom,
@@ -243,6 +247,36 @@ describe("when the button shows", () => {
 
     expect(shows({ details: requested })).toBe(false);
     expect(shows({ details: byAnother })).toBe(true);
+  });
+
+  // Seerr only tells about a request it completes: never a declined one, and a 4K request
+  // only about the 4K copy. Either leaves the person with nothing to be told by.
+  test("for a title the person asked for and was refused, or asked for in 4K only", () => {
+    const declined = {
+      ...absent,
+      mediaInfo: {
+        status: MediaStatus.UNKNOWN,
+        requests: [
+          { requestedBy: { id: 7 }, status: MediaRequestStatus.DECLINED },
+        ],
+      },
+    };
+    const inFourK = {
+      ...absent,
+      mediaInfo: {
+        status: MediaStatus.UNKNOWN,
+        requests: [
+          {
+            requestedBy: { id: 7 },
+            status: MediaRequestStatus.APPROVED,
+            is4k: true,
+          },
+        ],
+      },
+    };
+
+    expect(shows({ details: declined })).toBe(true);
+    expect(shows({ details: inFourK })).toBe(true);
   });
 
   test("not when the event does not reach the person, or they turned it off", () => {
