@@ -1,4 +1,3 @@
-import { describe, expect, test } from "bun:test";
 import type { Api } from "@jellyfin/sdk";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { makeApi } from "@/test-utils/jellyfinApi";
