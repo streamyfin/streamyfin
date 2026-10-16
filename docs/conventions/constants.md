@@ -46,7 +46,7 @@ cadence meant knowing both existed, and nothing would have failed if only one ha
 | `constants/Upcoming.ts` | Upcoming episodes: how many are asked per request, on the screen and in the home row |
 | `constants/TVDiscovery.ts` | TV home screen tiles: Top Shelf and Android TV recommendations (play link lookup timeout) |
 | `constants/Recommendations.ts` | Similar item rows: how many items a detail page asks the server for, and for which kinds of item |
-| `constants/QuickConnect.ts` | Quick Connect: how long a code the TV shows stays valid |
+| `constants/QuickConnect.ts` | Quick Connect: code lifetime and polling interval |
 
 Add a new domain file when a group grows its own identity (playback, downloads,
 networking). Do not let `Values.ts` become the place where everything lands.
