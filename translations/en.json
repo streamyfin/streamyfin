@@ -570,6 +570,30 @@
           "4_hours": "4 hours",
           "24_hours": "24 hours"
         }
+      },
+      "downloads": {
+        "title": "Downloads",
+        "next_episodes_title": "Next episodes",
+        "next_episodes_description": "Series that keep their next episodes downloaded. Turn it on in the download sheet of a series, season or episode.",
+        "default_count": "Episodes to keep",
+        "default_count_hint": "For series turned on from now on.",
+        "episodes_to_keep": "Episodes to keep",
+        "episode_count": "{{count}} episodes",
+        "network": "Download over",
+        "network_hint": "Which connection next episodes may download over.",
+        "network_any": "Any network",
+        "network_wifi": "Wi-Fi only",
+        "network_home": "Home network only",
+        "network_home_hint": "Downloads over the server's local address on your home Wi-Fi, never through the remote connection.",
+        "network_home_not_set_up": "Home network only needs the local network set up under Network.",
+        "delete_any_download": "Delete any watched download",
+        "delete_any_download_hint": "Deleting watched episodes also takes the ones downloaded by hand, not only those downloaded automatically.",
+        "series_title": "Series",
+        "no_series": "No series yet",
+        "series_rule": "Next {{count}} episodes",
+        "series_rule_delete": "Next {{count}} episodes, watched ones deleted",
+        "change": "Change",
+        "stop_keeping": "Stop keeping episodes downloaded"
       }
     },
     "sessions": {
@@ -631,6 +655,18 @@
         "could_not_get_download_url_for_item": "Could not get download URL for {{itemName}}",
         "no_media_source_to_download": "This item cannot be downloaded",
         "file_deleted": "{{item}} deleted"
+      },
+      "next_episodes": {
+        "waiting_for_wifi_title": "Next episodes are waiting for Wi-Fi",
+        "waiting_for_wifi": "They download once the device is on Wi-Fi. Mobile data can be allowed in the download settings.",
+        "waiting_for_home_network_title": "Next episodes are waiting for your home network",
+        "waiting_for_home_network": "They download once the app uses the server's local address on your home Wi-Fi.",
+        "home_network_not_set_up_title": "Next episodes need your home network set up",
+        "home_network_not_set_up": "They only download over the server's local address, and none is set up on this device. Set it up under Network.",
+        "low_space_title": "Next episodes are not downloading",
+        "low_space": "Less than {{size}} of storage is free. They download once there is room again.",
+        "open_settings": "Opens the download settings",
+        "open_network_settings": "Opens the network settings"
       }
     }
   },
@@ -963,7 +999,15 @@
       "download_movie": "Download movie",
       "download_x_item": "Download {{item_count}} items",
       "download_unwatched_only": "Unwatched only",
-      "download_button": "Download"
+      "download_button": "Download",
+      "keep_next_episodes": "Keep next episodes downloaded",
+      "keep_next_episodes_hint": "Downloads the next unwatched episodes of this series as they come up.",
+      "next_episodes_count": "Episodes",
+      "next_episodes_count_option": "{{count}} episodes",
+      "delete_watched_episodes": "Delete watched episodes",
+      "delete_watched_episodes_hint": "Only episodes this setting downloaded.",
+      "delete_watched_episodes_any_hint": "Episodes downloaded by hand as well.",
+      "download_next_episodes": "Download next {{count}} episodes"
     },
     "mark_played": "Mark as watched",
     "mark_unplayed": "Mark as unwatched",

@@ -149,6 +149,16 @@ export default function IndexLayout() {
         }}
       />
       <Stack.Screen
+        name='settings/downloads/page'
+        options={{
+          title: t("home.settings.downloads.title"),
+          headerShown: !Platform.isTV,
+          headerBlurEffect: "none",
+          headerTransparent: Platform.OS === "ios",
+          headerShadowVisible: false,
+        }}
+      />
+      <Stack.Screen
         name='settings/music/page'
         options={{
           title: t("home.settings.music.title"),
