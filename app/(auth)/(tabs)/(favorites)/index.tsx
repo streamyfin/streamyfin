@@ -2,8 +2,12 @@ import { useCallback, useState } from "react";
 import { Platform, RefreshControl, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Favorites } from "@/components/home/Favorites";
-import { Favorites as TVFavorites } from "@/components/home/Favorites.tv";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
+
+// Required, not imported: an import would put the TV favorites, and every TV
+// component they use, in the phone bundle too.
+const TVFavorites: typeof import("@/components/home/Favorites.tv").Favorites =
+  Platform.isTV ? require("@/components/home/Favorites.tv").Favorites : null;
 
 export default function FavoritesPage() {
   const invalidateCache = useInvalidatePlaybackProgressCache();
@@ -13,7 +17,7 @@ export default function FavoritesPage() {
     setLoading(true);
     await invalidateCache();
     setLoading(false);
-  }, []);
+  }, [invalidateCache]);
   const insets = useSafeAreaInsets();
 
   if (Platform.isTV) {

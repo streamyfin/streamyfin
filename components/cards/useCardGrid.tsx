@@ -16,6 +16,8 @@ type Options = {
   /** Replaces the long-press action sheet. */
   onLongPressItem?: (item: BaseItemDto) => void;
   enableActionSheet?: boolean;
+  /** Titles a season or episode with its show, as `CardRow` does. */
+  showParentTitle?: boolean;
 };
 
 /**
@@ -33,6 +35,7 @@ export function useCardGrid({
   onPressItem,
   onLongPressItem,
   enableActionSheet,
+  showParentTitle,
 }: Options) {
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -58,6 +61,7 @@ export function useCardGrid({
       onPressItem,
       onLongPressItem,
       enableActionSheet,
+      showParentTitle,
     });
 
   // A library can mix poster art with square album art, and a grid row is as

@@ -135,6 +135,9 @@ jest.mock("@/hooks/useRevalidatePlaybackProgressCache", () => ({
   useInvalidatePlaybackProgressCache: () => mockNoop,
 }));
 jest.mock("@/hooks/useWebsockets", () => ({ useWebSocket: () => {} }));
+jest.mock("@/hooks/useWatchlist", () => ({
+  usePruneWatchedFromWatchlist: () => mockNoop,
+}));
 // Where an alternate version starts is covered by
 // getDefaultPlaySettings.test.ts; the version itself is not under test here.
 jest.mock("@/hooks/useServerVersion", () => ({
