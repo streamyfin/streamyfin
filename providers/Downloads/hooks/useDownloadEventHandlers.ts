@@ -9,6 +9,11 @@ import type {
 } from "@/modules";
 import { BackgroundDownloader } from "@/modules";
 import { logAndCaptureError, writeToLog } from "@/utils/log";
+import { classifyDownloadError } from "../downloadErrors";
+import {
+  deletePendingDownloadFiles,
+  deleteUnclaimedVideo,
+} from "../fileOperations";
 import {
   getNotificationContent,
   sendDownloadNotification,
@@ -61,7 +66,15 @@ export function useDownloadEventHandlers({
     const startedSub = BackgroundDownloader.addStartedListener(
       (event: DownloadStartedEvent) => {
         const itemId = event.itemId;
-        if (!itemId || !getPendingDownload(itemId)) return;
+        if (!itemId) return;
+
+        if (!getPendingDownload(itemId)) {
+          // The record is saved before the download is handed to native, so a video download
+          // that starts without one was cancelled while native was starting it. That cancel
+          // only had the queue to try, and the download was no longer in it.
+          BackgroundDownloader.cancelDownload(event.taskId);
+          return;
+        }
 
         updatePendingDownload(itemId, {
           status: "downloading",
@@ -121,10 +134,11 @@ export function useDownloadEventHandlers({
         } else {
           // Transcoding - estimate from bitrate
           const process = processes.find((p) => p.id === processId);
-          if (process?.maxBitrate.value && process.item.RunTimeTicks) {
-            const { estimateDownloadSize } = require("@/utils/download");
-            estimatedTotalBytes = estimateDownloadSize(
+          if (process) {
+            const { estimateTranscodeSize } = require("@/utils/downloadSize");
+            estimatedTotalBytes = estimateTranscodeSize(
               process.maxBitrate.value,
+              process.mediaSource?.Bitrate,
               process.item.RunTimeTicks,
             );
           }
@@ -186,7 +200,17 @@ export function useDownloadEventHandlers({
         if (!itemId) return;
 
         const record = getPendingDownload(itemId);
-        if (!record) return;
+        // The record belongs to another transfer when it is waiting on a different task: the
+        // item was cancelled and started again before the first transfer reported back.
+        const isStale =
+          record?.taskId !== undefined && record.taskId !== event.taskId;
+        if (!record || isStale) {
+          // Either the download was finalized before this event arrived (reconciliation does
+          // that), or it was cancelled while it finished and its video is now a leftover.
+          // deleteUnclaimedVideo keeps a file that a download still accounts for.
+          deleteUnclaimedVideo(event.filePath);
+          return;
+        }
 
         try {
           const videoFile = new File(filePathToUri(event.filePath));
@@ -259,24 +283,21 @@ export function useDownloadEventHandlers({
         const record = getPendingDownload(itemId);
         if (!record) return;
 
-        // Native error payloads are plain strings, so user-environment
-        // failures — connectivity (walking out of Wi-Fi range is the normal
-        // downloads scenario) and a full disk — are classified by keyword and
-        // kept out of Sentry; the scrubbers redact any scheme-less host/IP
-        // the native message embeds.
-        if (
-          /connect|network|internet|offline|time.?out|timed out|unreachable|resolve|dns|route|no space|enospc|disk full|not enough (?:free )?space|insufficient storage/i.test(
-            event.error,
-          )
-        ) {
+        // User-environment failures stay in the local log; the rest is
+        // reported once per distinct error per session, however many queued
+        // items fail the same way. The scrubbers redact any scheme-less
+        // host/IP the native message embeds.
+        const errorClass = classifyDownloadError(String(event.error));
+        if (errorClass.kind === "environment") {
           writeToLog("WARN", "Download failed (user environment)", event.error);
         } else {
-          logAndCaptureError("Download failed", event.error, {
+          logAndCaptureError("Download failed", errorClass.detail, {
             itemType: record.item?.Type,
           });
         }
 
         removePendingDownload(itemId);
+        deletePendingDownloadFiles(record);
         updateProcess(itemId, { status: "error" });
 
         // Clean up speed data

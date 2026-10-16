@@ -1,0 +1,17 @@
+{
+  "route": "GET /settings/discover",
+  "status": 200,
+  "shape": {
+    "[]": {
+      "createdAt": "string",
+      "data": "null",
+      "enabled": "boolean",
+      "id": "number",
+      "isBuiltIn": "boolean",
+      "order": "number",
+      "title": "null",
+      "type": "number",
+      "updatedAt": "string"
+    }
+  }
+}

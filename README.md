@@ -14,13 +14,13 @@
 ---
 
 <p align="center">
-  <img src="./assets/images/screenshots/screenshot1.png" width="20%">
+  <img src="./assets/images/screenshots/01-home.png" width="20%" alt="Home screen with the hero carousel showing Dune: Part Two, and the Continue watching and Next up rows">
   &nbsp;
-  <img src="./assets/images/screenshots/screenshot3.png" width="20%">
+  <img src="./assets/images/screenshots/02-library.png" width="20%" alt="Library tab listing the server's libraries: movies, series, collections, music and playlists">
   &nbsp;
-  <img src="./assets/images/screenshots/screenshot2.png" width="20%">
+  <img src="./assets/images/screenshots/03-media-details.png" width="20%" alt="Movie page for Top Gun: Maverick with ratings, a resume button and the video details">
   &nbsp;
-  <img src="./assets/images/jellyseerr.PNG" width="21%">
+  <img src="./assets/images/screenshots/06-request-media.png" width="20%" alt="Seerr page for Insidious: Out of the Further with the Request button and release details">
 </p>
 
 
@@ -113,7 +113,7 @@ You can contribute translations directly on our [Crowdin project page](https://c
 ### 👨‍💻 Development Info
 
 1. Use node `>20`
-2. Install dependencies `bun i && bun run submodule-reload`
+2. Install dependencies `bun i`
 3. Make sure you have xcode and/or android studio installed. (follow the guides for expo: https://docs.expo.dev/workflow/android-studio-emulator/)
    - If iOS builds fail with `missing Metal Toolchain` (KSPlayer shaders), run `bun run ios:install-metal-toolchain` once
 4. Install BiomeJS extension in VSCode/Your IDE (https://biomejs.dev/)

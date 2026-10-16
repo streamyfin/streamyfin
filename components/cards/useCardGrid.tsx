@@ -36,14 +36,6 @@ export function useCardGrid({
 }: Options) {
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const { cards, handlePress, handleLongPress, actionSheet } =
-    useItemCardBehavior({
-      items,
-      kind,
-      onPressItem,
-      onLongPressItem,
-      enableActionSheet,
-    });
 
   const layout = CARD_LAYOUTS[kind];
   const cardWidth = useMemo(() => {
@@ -56,6 +48,17 @@ export function useCardGrid({
       layout.spacing * (safeColumns - 1);
     return Math.floor(available / safeColumns);
   }, [width, insets.left, insets.right, columns, layout]);
+
+  // The artwork is requested for the column width, not the kind's row width.
+  const { cards, handlePress, handleLongPress, actionSheet } =
+    useItemCardBehavior({
+      items,
+      kind,
+      cardWidth,
+      onPressItem,
+      onLongPressItem,
+      enableActionSheet,
+    });
 
   // A library can mix poster art with square album art, and a grid row is as
   // tall as its tallest cell — so without a common height the short cards

@@ -150,6 +150,10 @@ final class NativePlayerViewController: UIViewController {
 				zone: .subtitleSearch)
 			addOverlayLayer(
 				AnyView(
+					TVSyncPlayLayerView(viewModel: viewModel, focusCoordinator: focusCoordinator)),
+				zone: .syncPlay)
+			addOverlayLayer(
+				AnyView(
 					TVStillWatchingLayerView(
 						viewModel: viewModel, focusCoordinator: focusCoordinator)),
 				zone: .stillWatching)
@@ -348,6 +352,7 @@ final class NativePlayerViewController: UIViewController {
 	override func viewDidAppear(_ animated: Bool) {
 		super.viewDidAppear(animated)
 		isViewVisible = true
+		engine.setPictureInPictureHostVisible(true)
 		UIApplication.shared.isIdleTimerDisabled = viewModel.isPlaying
 		#if os(iOS)
 		UIApplication.shared.setStatusBarHidden(!viewModel.controlsVisible, with: .none)
@@ -363,6 +368,7 @@ final class NativePlayerViewController: UIViewController {
 	override func viewWillDisappear(_ animated: Bool) {
 		super.viewWillDisappear(animated)
 		isViewVisible = false
+		engine.setPictureInPictureHostVisible(false)
 		UIApplication.shared.isIdleTimerDisabled = false
 		#if os(iOS)
 		// Hand the bar back visible — the app-level state persists past this
@@ -417,11 +423,12 @@ final class NativePlayerViewController: UIViewController {
 			viewModel.$controlsVisible, viewModel.$isScrubbing,
 			viewModel.$showEpisodeList, viewModel.$showStillWatching
 		)
-		.combineLatest(viewModel.$showSubtitleSearch)
-		.map { state, subtitleSearch -> TVFocusZone in
+		.combineLatest(viewModel.$showSubtitleSearch, viewModel.$showSyncPlayQueue)
+		.map { state, subtitleSearch, syncPlayQueue -> TVFocusZone in
 			let (visible, scrubbing, shelf, stillWatching) = state
 			// Top-most focusable layer wins — mirror of the hosts' z-order.
 			if stillWatching { return .stillWatching }
+			if syncPlayQueue { return .syncPlay }
 			if subtitleSearch { return .subtitleSearch }
 			if shelf { return .shelf }
 			if visible && !scrubbing { return .chrome }
@@ -457,7 +464,9 @@ final class NativePlayerViewController: UIViewController {
 		// window before this recognizer ever sees it): an armed scrub is
 		// abandoned first, visible chrome is hidden next; only a Menu press
 		// from the bare-video state asks to leave playback.
-		if viewModel.showSubtitleSearch {
+		if viewModel.showSyncPlayQueue {
+			viewModel.closeSyncPlayQueue()
+		} else if viewModel.showSubtitleSearch {
 			viewModel.closeSubtitleSearch()
 		} else if viewModel.showEpisodeList {
 			viewModel.showEpisodeList = false
@@ -484,7 +493,9 @@ final class NativePlayerViewController: UIViewController {
 			// when playback was paused before the scrub began.
 			viewModel.endScrub()
 			if engine.isPaused() {
-				engine.play()
+				// Shared playback resumes through the coordinator after the
+				// seek request; only Jellyfin's command starts the decoder.
+				engine.requestPlaying(true)
 			}
 		} else {
 			// Never skips a segment or fires the next-episode card:

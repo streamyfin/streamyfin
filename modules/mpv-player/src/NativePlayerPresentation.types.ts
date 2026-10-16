@@ -97,10 +97,10 @@ export type NativePlayerNextEpisode = {
   /** 0 = no auto-countdown; show the "Next episode" button only. */
   countdownSeconds?: number;
   /**
-   * The autoplay episode cap is reached: EOF shows the "Still watching?"
-   * card instead of auto-advancing (countdownSeconds is 0 in that case).
+   * The "Still watching?" preset is due (utils/stillWatching.ts): EOF shows
+   * the card instead of auto-advancing (countdownSeconds is 0 in that case).
    * Continue emits onNextEpisodeRequested with reason "userTap", which
-   * resets the autoplay counter JS-side.
+   * starts a new session JS-side.
    */
   stillWatchingRequired?: boolean;
 };
@@ -268,6 +268,75 @@ export type NativePlayerUIOptions = {
   strings?: NativePlayerStrings;
 };
 
+/**
+ * Which engine decodes the stream inside the native chrome. Android-only:
+ * iOS's chrome always runs mpv and ignores the field. Defaults to "mpv"
+ * when absent (older configs, mobile).
+ */
+export type NativePlayerEngine = "mpv" | "exoplayer";
+
+/** Server-owned SyncPlay state rendered by SwiftUI / Compose. */
+export type NativePlayerSyncPlayState = {
+  groupId: string;
+  groupName: string;
+  status: string;
+  connected: boolean;
+  busy: boolean;
+  error?: string;
+  playlist: {
+    itemId: string;
+    playlistItemId: string;
+    title: string;
+    subtitle?: string;
+    /** Poster. Loaded with the config's image headers. */
+    imageUrl?: string;
+  }[];
+  currentPlaylistItemId?: string;
+  repeatMode: "RepeatNone" | "RepeatOne" | "RepeatAll";
+  shuffleMode: "Sorted" | "Shuffle";
+  ignoreWait: boolean;
+  hasNext: boolean;
+  hasPrevious: boolean;
+  strings: Record<string, string>;
+};
+
+/** Corrected client deadline; native owns scheduling and decoder operations. */
+export type NativePlayerSyncPlayCommand = {
+  commandId: string;
+  groupId: string;
+  playlistItemId: string;
+  command: "Pause" | "Unpause" | "Seek" | "Stop";
+  executeAtMs: number;
+  positionSec: number;
+};
+
+export type NativePlayerSyncPlayAction = {
+  action:
+    | "play"
+    | "pause"
+    | "seek"
+    | "next"
+    | "previous"
+    | "stop"
+    | "leave"
+    // Out of the group because the app went away, not because the user asked.
+    | "suspend"
+    | "refresh"
+    | "repeat"
+    | "shuffle"
+    | "ignoreWait"
+    | "select"
+    | "remove"
+    | "move"
+    | "clear"
+    | "ended";
+  positionSec?: number;
+  playlistItemId?: string;
+  newIndex?: number;
+  mode?: string;
+  value?: boolean;
+};
+
 export type NativePlayerConfig = {
   stream: NativePlayerStreamConfig;
   metadata?: NativePlayerMetadata;
@@ -284,6 +353,8 @@ export type NativePlayerConfig = {
   tracks?: NativePlayerTrackMenus;
   subtitleStyle?: NativePlayerSubtitleStyle;
   ui?: NativePlayerUIOptions;
+  engine?: NativePlayerEngine;
+  syncPlay?: NativePlayerSyncPlayState;
 };
 
 // MARK: - Events
@@ -337,6 +408,7 @@ export type NativePlayerDismissPayload = {
 };
 
 export type NativePlayerEvents = {
+  onSyncPlayAction: (payload: NativePlayerSyncPlayAction) => void;
   /** `muted` is the combined device-volume + player mute at load time. */
   onLoad: (payload: { url: string; muted?: boolean }) => void;
   onProgress: (payload: NativePlayerProgressPayload) => void;

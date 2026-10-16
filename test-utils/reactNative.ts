@@ -1,4 +1,4 @@
-import { mock } from "bun:test";
+import { AppState, Platform } from "react-native";
 
 type PlatformOverrides = {
   OS?: "ios" | "android";
@@ -19,10 +19,11 @@ export const emitAppState = (state: string) => {
 export const appStateRemovalCount = () => appStateRemovals;
 
 /**
- * `bun:test` cannot load react-native, so specs stub it. `mock.module` is
- * global and re-links every importer, so all of them must publish the same
- * export surface: a stub missing one name breaks whichever file links after it.
- * Only the Platform values differ per spec.
+ * jest-expo loads the real react-native, so a spec that needs a specific
+ * platform patches the Platform values in place rather than replacing the
+ * module, and routes `AppState` subscriptions through the listeners above so
+ * the spec can wake the app. Jest gives each test file its own module
+ * registry, so the patch never leaks into another spec.
  */
 export const stubReactNative = (overrides: PlatformOverrides = {}) => {
   const OS = overrides.OS ?? "ios";
@@ -30,26 +31,23 @@ export const stubReactNative = (overrides: PlatformOverrides = {}) => {
   appStateListeners.length = 0;
   appStateRemovals = 0;
 
-  return mock.module("react-native", () => ({
-    Platform: {
-      OS,
-      isTV: overrides.isTV ?? false,
-      select: (spec: Record<string, unknown>) => spec[OS] ?? spec.default,
+  Object.defineProperty(Platform, "OS", { value: OS, configurable: true });
+  Object.defineProperty(Platform, "isTV", {
+    value: overrides.isTV ?? false,
+    configurable: true,
+  });
+  Object.defineProperty(AppState, "addEventListener", {
+    configurable: true,
+    writable: true,
+    value: (event: string, listener: AppStateListener) => {
+      if (event === "change") appStateListeners.push(listener);
+      return {
+        remove() {
+          appStateRemovals += 1;
+          const at = appStateListeners.indexOf(listener);
+          if (at !== -1) appStateListeners.splice(at, 1);
+        },
+      };
     },
-    BackHandler: { addEventListener: () => ({ remove() {} }) },
-    AppState: {
-      addEventListener: (event: string, listener: AppStateListener) => {
-        if (event === "change") appStateListeners.push(listener);
-        return {
-          remove() {
-            appStateRemovals += 1;
-            const at = appStateListeners.indexOf(listener);
-            if (at !== -1) appStateListeners.splice(at, 1);
-          },
-        };
-      },
-    },
-    NativeModules: {},
-    TurboModuleRegistry: { get: () => null, getEnforcing: () => ({}) },
-  }));
+  });
 };

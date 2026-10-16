@@ -37,7 +37,7 @@ class NativePlayerModule : Module() {
             "onNextEpisodeRequested", "onPreviousEpisodeRequested",
             "onEpisodeSelected", "onPlaybackEnded", "onDismiss",
             "onSubtitleSearchRequested", "onSubtitleDownloadRequested",
-            "onMuteStateChanged"
+            "onMuteStateChanged", "onSyncPlayAction"
         )
 
         // MARK: - Lifecycle
@@ -104,6 +104,20 @@ class NativePlayerModule : Module() {
 
         // MARK: - Late-Arriving Data Pushes
 
+        AsyncFunction("updateSyncPlay") { state: SyncPlayStateRecord? ->
+            this@NativePlayerModule.session?.viewModel?.updateSyncPlay(state)
+        }.runOnQueue(Queues.MAIN)
+
+        AsyncFunction("applySyncPlayCommand") { command: SyncPlayCommandRecord, promise: Promise ->
+            val vm = this@NativePlayerModule.session?.viewModel
+            if (vm == null) promise.resolve(false)
+            else vm.applySyncPlayCommand(command) { applied -> promise.resolve(applied) }
+        }.runOnQueue(Queues.MAIN)
+
+        AsyncFunction("cancelSyncPlayCommands") {
+            this@NativePlayerModule.session?.viewModel?.cancelSyncPlayCommands()
+        }.runOnQueue(Queues.MAIN)
+
         AsyncFunction("updateSegments") { segments: List<MediaSegmentRecord> ->
             this@NativePlayerModule.session?.viewModel?.updateSegments(segments)
         }
@@ -148,18 +162,18 @@ class NativePlayerModule : Module() {
         }
 
         AsyncFunction("addExternalSubtitle") { url: String ->
-            this@NativePlayerModule.session?.renderer?.addSubtitleFile(url, select = true)
+            this@NativePlayerModule.session?.engine?.addSubtitleFile(url, select = true)
         }
 
         // MARK: - Transport
 
         AsyncFunction("play") {
-            this@NativePlayerModule.session?.viewModel?.play()
-        }
+            this@NativePlayerModule.session?.viewModel?.playLocal()
+        }.runOnQueue(Queues.MAIN)
 
         AsyncFunction("pause") {
-            this@NativePlayerModule.session?.viewModel?.pause()
-        }
+            this@NativePlayerModule.session?.viewModel?.pauseLocal()
+        }.runOnQueue(Queues.MAIN)
 
         // Main queue, as on iOS: viewModel.seekTo syncs the window's
         // keep-screen-on flag, which only the main thread may touch. On the
@@ -167,7 +181,7 @@ class NativePlayerModule : Module() {
         // before the tick that moves JS's tracked position, so a backward
         // remote seek followed by an exit reported the pre-seek position.
         AsyncFunction("seekTo") { positionSec: Double ->
-            this@NativePlayerModule.session?.viewModel?.seekTo(positionSec)
+            this@NativePlayerModule.session?.viewModel?.seekLocal(positionSec)
         }.runOnQueue(Queues.MAIN)
 
         AsyncFunction("setSpeed") { speed: Double ->
@@ -185,7 +199,7 @@ class NativePlayerModule : Module() {
         // MARK: - Track plumbing & technical info (executed off-main)
 
         AsyncFunction("getSubtitleTracks") { promise: Promise ->
-            val r = this@NativePlayerModule.session?.renderer
+            val r = this@NativePlayerModule.session?.engine
             if (r == null) {
                 promise.resolve(emptyList<Map<String, Any>>())
                 return@AsyncFunction
@@ -197,15 +211,15 @@ class NativePlayerModule : Module() {
         }
 
         AsyncFunction("setSubtitleTrack") { mpvId: Int ->
-            this@NativePlayerModule.session?.renderer?.setSubtitleTrack(mpvId)
+            this@NativePlayerModule.session?.engine?.setSubtitleTrack(mpvId)
         }
 
         AsyncFunction("disableSubtitles") {
-            this@NativePlayerModule.session?.renderer?.disableSubtitles()
+            this@NativePlayerModule.session?.engine?.disableSubtitles()
         }
 
         AsyncFunction("getAudioTracks") { promise: Promise ->
-            val r = this@NativePlayerModule.session?.renderer
+            val r = this@NativePlayerModule.session?.engine
             if (r == null) {
                 promise.resolve(emptyList<Map<String, Any>>())
                 return@AsyncFunction
@@ -217,11 +231,11 @@ class NativePlayerModule : Module() {
         }
 
         AsyncFunction("setAudioTrack") { mpvId: Int ->
-            this@NativePlayerModule.session?.renderer?.setAudioTrack(mpvId)
+            this@NativePlayerModule.session?.engine?.setAudioTrack(mpvId)
         }
 
         AsyncFunction("getTechnicalInfo") { promise: Promise ->
-            val r = this@NativePlayerModule.session?.renderer
+            val r = this@NativePlayerModule.session?.engine
             if (r == null) {
                 promise.resolve(emptyMap<String, Any>())
                 return@AsyncFunction

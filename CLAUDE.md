@@ -33,6 +33,7 @@ Read the relevant one before writing code in that area.
 | --- | --- |
 | [docs/conventions/constants.md](docs/conventions/constants.md) | Adding a threshold, interval, ratio, storage key, or any value used twice |
 | [docs/conventions/contributing-flow.md](docs/conventions/contributing-flow.md) | Opening, describing, or reviewing a PR |
+| [docs/conventions/testing.md](docs/conventions/testing.md) | Writing or changing any test, and before claiming a fix works |
 | [docs/conventions/tv.md](docs/conventions/tv.md) | Touching anything that renders on Apple TV or Android TV |
 
 Deep dives: [tv-modal-guide.md](docs/tv-modal-guide.md),
@@ -48,16 +49,23 @@ Navigation:
 - `native-bottom-tabs-userouter-conflict` | useRouter() at provider level causes tab switches; use static router import
 - `introsheet-rendering-location` | IntroSheet in IntroSheetProvider affects native bottom tabs via nav state hooks
 - `intro-modal-trigger-location` | Trigger in Home.tsx, not tabs _layout.tsx
+- `expo-router-top-tabs-runtime-peers` | js-top-tabs requires react-native-tab-view (+ pager-view) at runtime; no import shows it, removing them crashes on launch
+- `ios27-sdk-tab-bar-items-display-order` | linked against the iOS 27 SDK, UITabBar.items is in display order (search last) and the detached button is TabRole.prominent; patched in react-native-bottom-tabs
 
 UI and headers:
 - `macos-header-buttons-fix` | macOS Catalyst: use RNGH Pressable, not RN TouchableOpacity
 - `header-button-locations` | Defined in _layout.tsx, HeaderBackButton, Chromecast, RoundButton, etc.
 - `stack-screen-header-configuration` | Sub-pages need explicit Stack.Screen with headerTransparent + back button
 - `switch-pointerevents-ignored` | Switch ignores its own pointerEvents (Android); wrap in a View pointerEvents="none"
+- `nativewind-classname-arrives-as-style` | a className passed to one of our own components reaches it as `style`; forward that, reading `className` drops it silently
+- `bottom-sheet-dismiss-before-present` | dismiss() on a BottomSheetModal that is not on screen leaves it unable to present, silently; follow `open` with useSheetOpenState
+- `swiftui-host-dead-while-keyboard-is-up` | an @expo/ui Host honors the keyboard safe area, so a small one draws but takes no taps while a keyboard is up; set ignoreSafeArea='keyboard'
 
 State and data:
 - `use-network-aware-query-client-limitations` | Object.create breaks private fields; only for invalidateQueries
 - `mark-as-played-flow` | PlayedStatus -> useMarkAsPlayed -> playbackManager with optimistic updates
+- `shared-value-js-write-lands-later` | a shared value set from JS is applied later on the UI thread, the next JS read still gets the old one; keep JS-only state in a ref
+- `unobserved-query-reports-its-first-failure` | a query whose key changed under it has no observer left, so React Query cancels its retries and its first failure goes to Sentry; one failing request and an instant event in the breadcrumbs is that
 
 Native modules:
 - `expo-view-props-fail-silently` | `try? prop.set()` drops failed prop conversions with NO error; use a JSON string prop
@@ -65,6 +73,13 @@ Native modules:
 - `mpv-avfoundation-composite-osd-ordering` | MUST follow vo=avfoundation, before hwdec options
 - `thread-safe-state-for-stop-flags` | Stop flags need synchronous setter (stateQueue.sync not async)
 - `native-swiftui-view-sizing` | Need explicit frame + intrinsicContentSize override in ExpoView
+- `engine-agnostic-native-chrome` | The Android TV chrome consumes PlayerEngine; engine rides config.engine, resolvers split engine vs renderer
+- `mpv-view-first-progress-tick-is-zero` | the MPV renderer emits its position cache once the duration is known; load() seeds it from startPosition, and JS player reports read resolveSessionPositionTicks, never progress.get()
+- `sentry-native-options-fail-silently` | sentry-cocoa ignores an option key it does not know, with no error; check the spelling in Options+Dictionary.swift
+- `avaudiosession-calls-block-on-the-audio-server` | every AVAudioSession setter AND getter is a synchronous XPC call that can take seconds; never on main, session changes go through PlayerAudioSession
+- `foreground-service-start-must-be-answered` | every startForegroundService() needs startForeground() first in onStartCommand, unconditionally; a refused call still answers it, a skipped one kills the process
+- `keychain-accessibility-set-at-creation` | a SecureStore item keeps the accessibility it was created with, `setItem` over it changes only the data; a default item throws on read when iOS launches the app on a locked phone
+- `track-player-queue-is-not-the-app-queue` | the native music queue only holds the tracks loaded so far, so a state queue index does not address it; on iOS `add` past the end rejects with the same message as `skip`
 
 TV platform:
 - `tv-modals-must-use-navigation-pattern` | Use atom+router.push(), never overlay/absolute modals
@@ -72,16 +87,19 @@ TV platform:
 - `tv-horizontal-padding-standard` | TV_HORIZONTAL_PADDING=60, not old TV_SCALE_PADDING=20
 - `streamystats-components-location` | components/home/Streamystats*.tv.tsx, watchlists/[watchlistId].tsx
 - `platform-specific-file-suffix-does-not-work` | .tv.* only resolves under EXPO_TV=1; require the TV file explicitly behind Platform.isTV
+- `tvfocusguideview-ignores-display-style` | TVFocusGuideView sets its own display last, so `display: "none"` in its style is ignored; hide it with `enabled={false}`
+- `android-tv-modal-close-loses-focus` | a dismissed TV modal route leaves Android TV with nothing focused; the page must hand the focus back with requestTVFocus(). BlurView only tints there
 
 Build and tooling:
 - `eas-archive-drops-gitignored-tracked-files` | EAS uploads skip anything matching .gitignore even if tracked; re-include required assets, keep asset require() at module scope
 - `bun-test-discovery-leaks-fds` | bare `bun test` leaves ~14k fds open; child processes spawned from tests get dead stdio, so do the work in-process
+- `require-hooks-leak-across-jest-specs` | a require hook (tsx/cjs) registered from a spec stays on the Jest worker's Node loader and breaks later specs; map it to a stub
 
 ## Project overview
 
 Streamyfin is a cross platform Jellyfin client built with Expo and React Native. It runs
 on iOS, Android, Apple TV and Android TV, with offline downloads, Chromecast and
-Jellyseerr integration.
+Seerr integration.
 
 ## Commands
 
@@ -89,7 +107,7 @@ Jellyseerr integration.
 
 ```bash
 # Setup
-bun i && bun run submodule-reload
+bun i
 
 # Mobile
 bun run prebuild
@@ -106,7 +124,8 @@ bun run typecheck            # TypeScript
 bun run check                # Biome, read only
 bun run lint                 # Biome with fixes
 bun run format               # Biome formatter
-bun run test:unit            # Unit tests
+bun run test:unit            # Jest, the whole suite
+bun run test:coverage        # Jest plus a coverage report in coverage/
 bun run test                 # The full gate: typecheck, unit, lint, format, i18n, doctor
 
 # iOS specific
@@ -122,6 +141,7 @@ bun run ios:install-metal-toolchain   # Fixes "missing Metal Toolchain" build er
 - **API**: Jellyfin SDK (`@jellyfin/sdk`)
 - **Navigation**: Expo Router, file based
 - **Lint and format**: Biome
+- **Tests**: Jest with the `jest-expo` preset, React Native Testing Library
 - **Storage**: `react-native-mmkv`
 
 ## Repository layout
@@ -141,10 +161,11 @@ bun run ios:install-metal-toolchain   # Fixes "missing Metal Toolchain" build er
 | `plugins/` | Expo config plugins |
 | `patches/` | Patch package overrides |
 | `augmentations/` | Type augmentations |
-| `test-utils/` | Shared test doubles: Jellyfin API, MMKV, custom headers, React Native |
+| `test-utils/` | Shared test doubles: Jellyfin API, MMKV, the file system, custom headers, React Native, Reanimated |
 | `translations/` | i18n catalogues, `en.json` is the only source |
 | `scripts/` | Repo tooling run through bun |
 | `docs/` | Conventions and deep dives |
+| `e2e/` | Manual end to end fixtures that need Docker, never run in CI (a local Jellyfin for SyncPlay) |
 
 ## Key patterns
 
@@ -196,13 +217,14 @@ PersistQueryClientProvider
             PlaySettingsProvider
               LogProvider
                 WebSocketProvider
-                  DownloadProvider
-                    NativePlayerProvider
-                      MusicPlayerProvider
-                        GlobalModalProvider
-                          BottomSheetModalProvider
-                            IntroSheetProvider
-                              ThemeProvider
+                  SyncPlayProvider          group playback, needs the socket
+                    DownloadProvider
+                      NativePlayerProvider
+                        MusicPlayerProvider
+                          GlobalModalProvider
+                            BottomSheetModalProvider
+                              IntroSheetProvider
+                                ThemeProvider
 ```
 
 `JotaiProvider` and `ActionSheetProvider` wrap the tree higher up, at the root layout.
@@ -232,11 +254,11 @@ import { apiAtom } from "@/providers/JellyfinProvider";
 - Shared or tunable values go to `constants/`. See
   [docs/conventions/constants.md](docs/conventions/constants.md).
 - Behaviour changes come with tests. A bug fix starts with a test that fails on the
-  reported behaviour.
+  reported behaviour. See [docs/conventions/testing.md](docs/conventions/testing.md).
 - **Translations**: add keys to `translations/en.json` only. Every other catalogue is
   generated by Crowdin and hand edits are overwritten. Check for an existing key first,
   and keep one key per whole sentence instead of assembling sentences from fragments.
-- **Server images**: for images hosted by Jellyfin or Jellyseerr, import `Image` from
+- **Server images**: for images hosted by Jellyfin or Seerr, import `Image` from
   `@/components/common/ServerImage` rather than `expo-image`, so the user's custom proxy
   auth headers are attached. Bundled assets and data URIs can use `expo-image` directly.
   See [docs/custom-headers.md](docs/custom-headers.md).

@@ -24,7 +24,7 @@ export interface CustomHeader {
 }
 
 /** Integrations that can be put behind the same proxy as Jellyfin. */
-export type IntegrationKey = "jellyseerr" | "streamystats" | "marlin";
+export type IntegrationKey = "seerr" | "streamystats" | "marlin";
 
 /** Where an integration takes its custom headers from. */
 export type HeaderSource = "jellyfin" | "custom" | "none";

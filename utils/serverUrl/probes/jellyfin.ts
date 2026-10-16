@@ -1,8 +1,8 @@
 import axios from "axios";
+import { JELLYFIN_PRODUCT_NAME } from "@/constants/Jellyfin";
 import type { ServerProbe } from "../types";
 
-/** Public, unauthenticated Jellyfin endpoint; `ProductName` confirms the service. */
-const PRODUCT_NAME = "Jellyfin Server";
+// Public, unauthenticated Jellyfin endpoint; `ProductName` confirms the service.
 
 export const jellyfinProbe: ServerProbe = async (url, signal, headers) => {
   try {
@@ -13,7 +13,8 @@ export const jellyfinProbe: ServerProbe = async (url, signal, headers) => {
     });
 
     if (status < 200 || status >= 300) return { status: "unreachable" };
-    if (data?.ProductName !== PRODUCT_NAME) return { status: "wrong-service" };
+    if (data?.ProductName !== JELLYFIN_PRODUCT_NAME)
+      return { status: "wrong-service" };
 
     return {
       status: "ok",

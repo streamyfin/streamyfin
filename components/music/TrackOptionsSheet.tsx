@@ -26,6 +26,7 @@ import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import useRouter from "@/hooks/useAppRouter";
 import { useFavorite } from "@/hooks/useFavorite";
+import { useSheetOpenState } from "@/hooks/useSheetOpenState";
 import {
   audioStorageEvents,
   deleteTrack,
@@ -115,10 +116,7 @@ export const TrackOptionsSheet: React.FC<Props> = ({
     return getPrimaryImageUrl({ api, item: track });
   }, [api, track]);
 
-  useEffect(() => {
-    if (open) bottomSheetModalRef.current?.present();
-    else bottomSheetModalRef.current?.dismiss();
-  }, [open]);
+  const handleDismissed = useSheetOpenState(bottomSheetModalRef, open);
 
   const handleSheetChanges = useCallback(
     (index: number) => {
@@ -233,6 +231,7 @@ export const TrackOptionsSheet: React.FC<Props> = ({
   return (
     <BottomSheetModal
       ref={bottomSheetModalRef}
+      onDismiss={handleDismissed}
       enableDynamicSizing
       onChange={handleSheetChanges}
       backdropComponent={renderBackdrop}

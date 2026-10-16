@@ -1,13 +1,9 @@
 import { atom } from "jotai";
-import type { MediaStatus } from "@/utils/jellyseerr/server/constants/media";
+import type { TvDetails } from "@/utils/seerr/types";
 
 export type TVSeasonSelectModalState = {
-  seasons: Array<{
-    id: number;
-    seasonNumber: number;
-    episodeCount: number;
-    status: MediaStatus;
-  }>;
+  /** The series, whose seasons, requests and library state the sheet reads. */
+  series: TvDetails;
   title: string;
   mediaId: number;
   tvdbId?: number;

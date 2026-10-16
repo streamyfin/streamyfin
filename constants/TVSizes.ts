@@ -29,6 +29,12 @@ export const TVPosterSizes = {
 } as const;
 
 /**
+ * How close to the end of a TV grid that grows as it is scrolled, in points
+ * at 1080p, the next page is asked for.
+ */
+export const TV_GRID_LOAD_MORE_DISTANCE = 600;
+
+/**
  * Base gap/spacing values in pixels.
  */
 export const TVGaps = {

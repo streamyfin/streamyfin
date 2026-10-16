@@ -10,7 +10,7 @@ import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import expo.modules.mpvplayer.MPVLayerRenderer
+import expo.modules.mpvplayer.nativeplayer.engine.PlayerEngine
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -60,7 +60,7 @@ internal fun calculateSubtitleMargin(
         margin
     }
 
-class PlayerViewModel : MPVLayerRenderer.Delegate {
+class PlayerViewModel : PlayerEngine.Delegate {
 
     companion object {
         private const val TAG = "PlayerViewModel"
@@ -76,7 +76,7 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
         private const val SKIPPED_NOTICE_MS = 3_000L
     }
 
-    var renderer: MPVLayerRenderer? = null
+    var engine: PlayerEngine? = null
     var emit: ((String, Map<String, Any?>) -> Unit)? = null
     var onDismissRequested: ((String) -> Unit)? = null
     var onRotateRequested: (() -> Unit)? = null
@@ -85,6 +85,13 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
     var onPlaybackStateSync: (() -> Unit)? = null
     var onMetadataSync: (() -> Unit)? = null
     var isTvChrome: Boolean = false
+
+    /**
+     * False when the chrome decodes through the Media3 engine: the UI hides
+     * the rows whose engine calls are mpv-only no-ops there (volume boost,
+     * dialogue boost, mono downmix, audio/subtitle sync).
+     */
+    var isMpvEngine by mutableStateOf(true)
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -133,7 +140,7 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
      */
     fun toggleMute() {
         isPlayerMuted = !isPlayerMuted
-        renderer?.setMute(isPlayerMuted)
+        engine?.setMute(isPlayerMuted)
         haptic()
         refreshMuteState()
     }
@@ -218,6 +225,106 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
     var uiOptions by mutableStateOf(UIOptionsRecord())
     var strings by mutableStateOf(PlayerStrings(emptyMap()))
 
+    var syncPlay by mutableStateOf<SyncPlayStateRecord?>(null)
+        private set
+    var showSyncPlayQueue by mutableStateOf(false)
+    /** TV: the queue entry whose page of actions is open, by playlist item id. */
+    var syncPlayEntryMenu by mutableStateOf<String?>(null)
+    val syncPlayActive: Boolean get() = syncPlay != null
+    fun syncStr(key: String, fallback: String): String = syncPlay?.strings?.get(key) ?: fallback
+
+    private val syncHandler = Handler(Looper.getMainLooper())
+    private val syncScheduler = SyncPlayCommandScheduler(
+        nowMs = System::currentTimeMillis,
+        schedule = { delay, task ->
+            val runnable = Runnable { task() }
+            syncHandler.postDelayed(runnable, delay)
+            val cancel: () -> Unit = { syncHandler.removeCallbacks(runnable) }
+            cancel
+        },
+        execute = { command, position ->
+            if (isTearingDown || engine == null) false else {
+                forceSyncSpeed()
+                when (command.command) {
+                    "Pause" -> {
+                        pauseLocal()
+                        // Engine snapshots are throttled. A matching cached
+                        // tick cannot prove the decoder paused at this target.
+                        seekLocal(position)
+                    }
+                    "Seek" -> { pauseLocal(); seekLocal(position) }
+                    "Unpause" -> {
+                        // A decoder already at the target is not seeked: every
+                        // seek reports loading, and a slow exact one would send
+                        // the group it just resumed back to waiting.
+                        val current = engine?.currentPosition
+                        if (current == null ||
+                            abs(current - position) > PlayerConstants.SYNC_PLAY_UNPAUSE_SEEK_TOLERANCE_SEC
+                        ) seekLocal(position)
+                        playLocal()
+                    }
+                    "Stop" -> { pauseLocal(); onDismissRequested?.invoke("programmatic") }
+                }
+                true
+            }
+        }
+    )
+
+    fun updateSyncPlay(state: SyncPlayStateRecord?) {
+        val active = state?.takeIf { it.groupId.isNotEmpty() }
+        syncScheduler.updateIdentity(active?.groupId, active?.currentPlaylistItemId, active?.connected == true)
+        syncPlay = active
+        if (active == null) {
+            showSyncPlayQueue = false
+        } else {
+            forceSyncSpeed()
+            cancelCountdown()
+            countdownRemaining = null
+            showStillWatching = false
+            activeSegment = null
+            // This runs on every state push, and cancelSleepTimer() re-arms the
+            // auto-hide: without the check the chrome could never stay hidden.
+            if (sleepTimerMinutes != null) cancelSleepTimer()
+            if (tvMenuRoute.any { it == TvMenuScreen.SPEED }) closeTvMenu()
+        }
+    }
+
+    fun applySyncPlayCommand(command: SyncPlayCommandRecord, completion: (Boolean) -> Unit) {
+        syncScheduler.submit(command.scheduled(), completion)
+    }
+
+    fun cancelSyncPlayCommands() = syncScheduler.cancel()
+
+    private fun forceSyncSpeed() {
+        isHoldSpeedActive = false
+        speedBeforeHold = null
+        speed = 1.0
+        engine?.setSpeed(1.0)
+    }
+
+    fun syncPlayAction(action: String, details: Map<String, Any?> = emptyMap()) {
+        val state = syncPlay ?: return
+        if (isTearingDown || (!state.connected && action != "leave" && action != "suspend")) return
+        emit?.invoke("onSyncPlayAction", mapOf(
+            "action" to action,
+            "positionSec" to (engine?.currentPosition ?: authoritativePosition),
+            "playlistItemId" to state.currentPlaylistItemId
+        ) + details)
+    }
+
+    fun openSyncPlayQueue() {
+        if (!syncPlayActive) return
+        showSyncPlayQueue = true
+        autoHideJob?.cancel()
+    }
+
+    fun closeSyncPlayQueue() {
+        showSyncPlayQueue = false
+        syncPlayEntryMenu = null
+        showControls()
+        restoreTvControlsFocus()
+    }
+
     fun str(key: String, fallback: String? = null): String = strings.get(key, fallback)
 
     // Controllers
@@ -230,9 +337,9 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
     var authoritativePosition: Double = 0.0
         private set
     private var hasAuthoritativePosition = false
-    // Set on every user/remote seek; the next progress tick reports
-    // didSeek=true so the JS coordinator sends an immediate progress report.
-    private var pendingSeekReport = false
+    // Decoder completion, rather than a nearby ordinary progress tick, reports
+    // didSeek=true so the JS coordinator persists the physical landing clock.
+    private val pendingSeekReport = PendingSeekReport()
     private var speedBeforeHold: Double? = null
     private var currentItemId: String? = null
     private var isTearingDown = false
@@ -278,6 +385,8 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
     }
 
     fun apply(config: PlayerPresentConfigRecord) {
+        updateSyncPlay(config.syncPlay)
+        isMpvEngine = config.engine?.lowercase() != "exoplayer"
         val newItemId = config.metadata?.itemId
         if (newItemId == null || newItemId != currentItemId) {
             countdownCanceled = false
@@ -323,6 +432,8 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
     }
 
     fun prepareForReload() {
+        cancelSyncPlayCommands()
+        pendingSeekReport.reset()
         isHoldSpeedActive = false
         speedBeforeHold = nilSpeed()
         isBuffering = true
@@ -456,7 +567,7 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
     }
 
     private fun canAutoHide(): Boolean {
-        return isPlaying && !isScrubbing && !isBuffering && !showEpisodeList && !showTechnicalInfo && !showSubtitleSearch && tvMenuRoute.isEmpty() && !showExitConfirmation && errorMessage == null
+        return isPlaying && !isScrubbing && !isBuffering && !showSyncPlayQueue && !showEpisodeList && !showTechnicalInfo && !showSubtitleSearch && tvMenuRoute.isEmpty() && !showExitConfirmation && errorMessage == null
     }
 
     private fun revealUnlockButton() {
@@ -488,11 +599,21 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
 
     // MARK: - Playback Transport
     fun play() {
-        renderer?.play()
+        if (syncPlayActive) { syncPlayAction("play"); return }
+        playLocal()
+    }
+
+    fun playLocal() {
+        engine?.play()
     }
 
     fun pause() {
-        renderer?.pause()
+        if (syncPlayActive) { syncPlayAction("pause"); return }
+        pauseLocal()
+    }
+
+    fun pauseLocal() {
+        engine?.pause()
     }
 
     fun togglePlayPause() {
@@ -502,11 +623,23 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
     }
 
     fun seekTo(positionSec: Double) {
+        if (syncPlayActive) {
+            val target = max(0.0, if (duration > 0) min(positionSec, duration) else positionSec)
+            syncPlayAction("seek", mapOf("positionSec" to target))
+            scheduleAutoHide()
+            return
+        }
+        seekLocal(positionSec)
+    }
+
+    fun seekLocal(positionSec: Double, trackOnly: Boolean = !syncPlayActive) {
         val clamped = max(0.0, if (duration > 0) min(positionSec, duration) else positionSec)
-        pendingSeekReport = true
-        displayPosition = clamped
-        authoritativePosition = clamped
-        renderer?.seekTo(clamped)
+        val requestId = pendingSeekReport.request(clamped)
+        if (trackOnly) {
+            displayPosition = clamped
+            authoritativePosition = clamped
+        }
+        engine?.seekToTracked(clamped, exact = syncPlayActive, requestId = requestId)
         onPlaybackStateSync?.invoke()
         // Move JS's tracked position with the seek right away rather than on
         // the next time-pos tick: at teardown JS takes the later of its tracked
@@ -516,7 +649,7 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
         // progress reports: it carries the requested target and mpv may still
         // snap to a nearby keyframe, so the report rides the next
         // authoritative tick (didSeek).
-        if (!isTearingDown) {
+        if (trackOnly && !isTearingDown) {
             emit?.invoke("onProgress", mapOf(
                 "position" to clamped,
                 "duration" to duration,
@@ -561,19 +694,20 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
 
     @JvmName("applySpeed")
     fun setSpeed(newSpeed: Double) {
+        if (syncPlayActive) { forceSyncSpeed(); return }
         speed = newSpeed
-        renderer?.setSpeed(newSpeed)
+        engine?.setSpeed(newSpeed)
         emit?.invoke("onSpeedChange", mapOf("speed" to newSpeed))
         onPlaybackStateSync?.invoke()
         scheduleAutoHide()
     }
 
     fun startHoldSpeed() {
-        if (!uiOptions.holdToSpeedEnabled || isHoldSpeedActive || isScrubbing) return
+        if (syncPlayActive || !uiOptions.holdToSpeedEnabled || isHoldSpeedActive || isScrubbing) return
         haptic()
         speedBeforeHold = speed
         isHoldSpeedActive = true
-        renderer?.setSpeed(uiOptions.holdToSpeedRate)
+        engine?.setSpeed(uiOptions.holdToSpeedRate)
     }
 
     fun stopHoldSpeed() {
@@ -581,13 +715,13 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
         isHoldSpeedActive = false
         val original = speedBeforeHold ?: 1.0
         speedBeforeHold = null
-        renderer?.setSpeed(original)
+        engine?.setSpeed(original)
     }
 
     // MARK: - Scrubbing (Phone Touch)
     fun startScrubbing() {
         wasPlayingBeforeScrub = isPlaying
-        if (isPlaying) renderer?.pause()
+        if (isPlaying && !syncPlayActive) engine?.pause()
         isScrubbing = true
         scrubPosition = displayPosition
         scheduleAutoHide(PlayerConstants.MENU_AUTO_HIDE_DELAY_MS)
@@ -596,7 +730,7 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
     fun updateScrub(targetPosition: Double) {
         val clamped = max(0.0, targetPosition)
         scrubPosition = clamped
-        displayPosition = clamped
+        if (!syncPlayActive) displayPosition = clamped
         scheduleAutoHide(PlayerConstants.MENU_AUTO_HIDE_DELAY_MS)
     }
 
@@ -604,8 +738,8 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
         val clamped = max(0.0, targetPosition)
         isScrubbing = false
         seekTo(clamped)
-        if (wasPlayingBeforeScrub) {
-            renderer?.play()
+        if (wasPlayingBeforeScrub && !syncPlayActive) {
+            engine?.play()
         }
         scheduleAutoHide()
     }
@@ -614,7 +748,7 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
     fun beginScrub() {
         if (isScrubbing) return
         wasPlayingBeforeScrub = isPlaying
-        if (isPlaying) renderer?.pause()
+        if (isPlaying && !syncPlayActive) engine?.pause()
         isScrubbing = true
         scrubPosition = displayPosition
         autoHideJob?.cancel()
@@ -631,8 +765,8 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
         val target = scrubPosition
         isScrubbing = false
         seekTo(target)
-        if (wasPlayingBeforeScrub) {
-            renderer?.play()
+        if (wasPlayingBeforeScrub && !syncPlayActive) {
+            engine?.play()
         }
         scheduleAutoHide()
     }
@@ -642,15 +776,15 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
         val target = scrubPosition
         isScrubbing = false
         seekTo(target)
-        renderer?.play()
+        play()
         scheduleAutoHide()
     }
 
     fun cancelScrub() {
         if (!isScrubbing) return
         isScrubbing = false
-        if (wasPlayingBeforeScrub) {
-            renderer?.play()
+        if (wasPlayingBeforeScrub && !syncPlayActive) {
+            engine?.play()
         }
         scheduleAutoHide()
     }
@@ -709,7 +843,7 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
     }
 
     fun applyZoomState() {
-        renderer?.setZoomedToFill(isZoomedToFill)
+        engine?.setZoomedToFill(isZoomedToFill)
         applySubtitleGeometry()
     }
 
@@ -723,7 +857,7 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
         val portraitPhone =
             !isTvChrome && !isPipActive && subtitleSurfaceHeight > subtitleSurfaceWidth
         subtitleMarginY?.let { margin ->
-            renderer?.setSubtitleMarginY(
+            engine?.setSubtitleMarginY(
                 calculateSubtitleMargin(
                     margin,
                     isTvChrome,
@@ -733,16 +867,25 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
                 )
             )
         }
-        renderer?.setSubtitleScale(
-            calculateSubtitleScale(
-                baseScale = subtitleScale,
-                multiplier = subtitleScaleMultiplier,
-                videoWidth = subtitleVideoWidth,
-                videoHeight = subtitleVideoHeight,
-                surfaceWidth = subtitleSurfaceWidth,
-                surfaceHeight = subtitleSurfaceHeight,
-                zoomedToFill = isZoomedToFill && portraitPhone
-            )
+        engine?.setSubtitleScale(
+            if (isMpvEngine) {
+                calculateSubtitleScale(
+                    baseScale = subtitleScale,
+                    multiplier = subtitleScaleMultiplier,
+                    videoWidth = subtitleVideoWidth,
+                    videoHeight = subtitleVideoHeight,
+                    surfaceWidth = subtitleSurfaceWidth,
+                    surfaceHeight = subtitleSurfaceHeight,
+                    zoomedToFill = isZoomedToFill && portraitPhone
+                )
+            } else {
+                // Media3 sizes text as a viewport fraction, already
+                // independent of video resolution and letterboxing — the
+                // video-to-screen boost is mpv-only. Applying it here inflates
+                // the text (the JS route's getEffectiveSubtitleScale skips it
+                // for exoplayer for the same reason).
+                subtitleScale * subtitleScaleMultiplier
+            }
         )
     }
 
@@ -759,33 +902,33 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
     @JvmName("applySubtitleDelay")
     fun setSubtitleDelay(seconds: Double) {
         subtitleDelay = seconds
-        renderer?.setSubtitleDelay(seconds)
+        engine?.setSubtitleDelay(seconds)
         scheduleAutoHide()
     }
 
     @JvmName("applyAudioDelay")
     fun setAudioDelay(seconds: Double) {
         audioDelay = seconds
-        renderer?.setAudioDelay(seconds)
+        engine?.setAudioDelay(seconds)
         scheduleAutoHide()
     }
 
     @JvmName("applyVolumeBoost")
     fun setVolumeBoost(percent: Int) {
         volumeBoostPercent = percent
-        renderer?.setVolumeBoost(percent)
+        engine?.setVolumeBoost(percent)
         scheduleAutoHide()
     }
 
     fun toggleDialogueBoost() {
         dialogueBoostEnabled = !dialogueBoostEnabled
-        renderer?.setDialogueBoost(dialogueBoostEnabled)
+        engine?.setDialogueBoost(dialogueBoostEnabled)
         scheduleAutoHide()
     }
 
     fun toggleMonoAudio() {
         monoAudioEnabled = !monoAudioEnabled
-        renderer?.setMonoDownmix(monoAudioEnabled)
+        engine?.setMonoDownmix(monoAudioEnabled)
         scheduleAutoHide()
     }
 
@@ -848,6 +991,7 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
 
     // MARK: - Sleep Timer
     fun setSleepTimer(minutes: Int) {
+        if (syncPlayActive) return
         sleepTimerMinutes = minutes
         val deadline = System.currentTimeMillis() + (minutes * 60 * 1000L)
         sleepTimerEndDate = deadline
@@ -868,6 +1012,7 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
 
     // MARK: - Segments & Countdown
     private fun checkSegmentsAndCountdown(pos: Double) {
+        if (syncPlayActive) return
         // The list arrives in priority order (Commercial > Recap > Intro >
         // Preview > Outro), so the first match is the one to act on.
         val matched = segments.firstOrNull { pos >= it.startSec && pos < it.endSec }
@@ -1014,18 +1159,21 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
     }
 
     fun playNextEpisode() {
+        if (syncPlayActive) { if (syncPlay?.hasNext == true) syncPlayAction("next"); return }
         haptic()
         disarmCountdownForEpisodeChange()
         fireNextEpisode(reason = "userTap")
     }
 
     fun playNextEpisodeNow() {
+        if (syncPlayActive) { if (syncPlay?.hasNext == true) syncPlayAction("next"); return }
         haptic()
         disarmCountdownForEpisodeChange()
         fireNextEpisode(reason = "userTap")
     }
 
     fun playPreviousEpisode() {
+        if (syncPlayActive) { if (syncPlay?.hasPrevious == true) syncPlayAction("previous"); return }
         haptic()
         disarmCountdownForEpisodeChange()
         emit?.invoke("onPreviousEpisodeRequested", mapOf(
@@ -1046,6 +1194,7 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
     }
 
     private fun fireNextEpisode(reason: String) {
+        if (syncPlayActive) return
         // Idempotent: the countdown tick and the EOF handler can both reach
         // here for the same transition. Emit onNextEpisodeRequested only once.
         if (countdownFired) return
@@ -1064,6 +1213,7 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
 
     // MARK: - TV Menus
     fun openTvMenu(screen: TvMenuScreen) {
+        if (syncPlayActive && screen == TvMenuScreen.SPEED) return
         tvMenuRoute = listOf(screen)
         menuInteractionStarted()
     }
@@ -1151,6 +1301,7 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
 
     fun willTeardown() {
         isTearingDown = true
+        cancelSyncPlayCommands()
         autoHideJob?.cancel()
         countdownJob?.cancel()
         volumeRevealJob?.cancel()
@@ -1165,6 +1316,15 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
     // MARK: - MPVLayerRenderer.Delegate Implementation
 
     override fun onPositionChanged(position: Double, duration: Double, cacheSeconds: Double) {
+        reportPosition(position, duration, cacheSeconds, requestId = null)
+    }
+
+    override fun onSeekCompleted(requestId: Long, position: Double, duration: Double, cacheSeconds: Double) {
+        if (!pendingSeekReport.acceptCompletion(requestId, position)) return
+        reportPosition(position, duration, cacheSeconds, requestId)
+    }
+
+    private fun reportPosition(position: Double, duration: Double, cacheSeconds: Double, requestId: Long?) {
         // renderer.stop() zeroes its cached position, and a tick posted to the
         // main handler before that runs still delivers those zeroed fields
         // afterwards — emitting it would hand JS position 0 while teardown is
@@ -1183,8 +1343,7 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
             displayPosition = position
         }
 
-        val didSeek = pendingSeekReport
-        pendingSeekReport = false
+        val didSeek = requestId != null
 
         emit?.invoke("onProgress", mapOf(
             "position" to position,
@@ -1281,6 +1440,10 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
 
     override fun onPlaybackEnded() {
         if (isTearingDown) return
+        if (syncPlayActive) {
+            syncPlayAction("ended")
+            return
+        }
         val next = nextEpisode
         if (next != null && next.countdownSeconds > 0 && !countdownCanceled) {
             cancelCountdown()

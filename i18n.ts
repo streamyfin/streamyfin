@@ -17,6 +17,7 @@ import hu from "./translations/hu-HU.json";
 import it from "./translations/it-IT.json";
 import ja from "./translations/ja-JP.json";
 import ko from "./translations/ko-KR.json";
+import lb from "./translations/lb-LU.json";
 import nl from "./translations/nl-NL.json";
 import nn from "./translations/nn.json";
 import no from "./translations/no-NO.json";
@@ -34,6 +35,7 @@ import uk from "./translations/uk-UA.json";
 import vi from "./translations/vi-VN.json";
 import zhCN from "./translations/zh-CN.json";
 import zhTW from "./translations/zh-TW.json";
+import { readStoredAppLanguage } from "./utils/storedSettings";
 
 const _APP_LANGUAGES = [
   { label: "Catalan", value: "ca" },
@@ -51,6 +53,7 @@ const _APP_LANGUAGES = [
   { label: "日本語", value: "ja" },
   { label: "한국어", value: "ko" },
   { label: "Klingon", value: "tlh" },
+  { label: "Lëtzebuergesch", value: "lb" },
   { label: "Türkçe", value: "tr" },
   { label: "ไทย", value: "th" },
   { label: "Magyar", value: "hu" },
@@ -91,6 +94,7 @@ i18n.use(initReactI18next).init({
     it: { translation: it },
     ja: { translation: ja },
     ko: { translation: ko },
+    lb: { translation: lb },
     nl: { translation: nl },
     pl: { translation: pl },
     pt: { translation: pt },
@@ -115,7 +119,9 @@ i18n.use(initReactI18next).init({
     "zh-TW": { translation: zhTW },
   },
 
-  lng: getLocales()[0].languageCode || "en",
+  // The stored language rather than the device's, which the layout effect
+  // would only correct after the first requests had gone out in it.
+  lng: readStoredAppLanguage() ?? (getLocales()[0].languageCode || "en"),
   fallbackLng: "en",
   interpolation: {
     escapeValue: false,

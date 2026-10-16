@@ -109,6 +109,25 @@ fun PlayerTopBar(
                     overflow = TextOverflow.Ellipsis
                 )
             }
+            viewModel.syncPlay?.let { state ->
+                Text(
+                    text = "${state.groupName} · ${if (state.connected) state.status else viewModel.syncStr("reconnecting", "Reconnecting")}",
+                    color = PlayerAccentColor,
+                    fontSize = 12.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+
+        if (viewModel.syncPlayActive) {
+            IconButton(onClick = { viewModel.openSyncPlayQueue() }, modifier = Modifier.size(48.dp)) {
+                Icon(
+                    imageVector = Icons.Default.FormatListBulleted,
+                    contentDescription = viewModel.syncStr("queue", "Queue"),
+                    tint = PlayerAccentColor
+                )
+            }
         }
 
         // PiP Button
@@ -140,7 +159,7 @@ fun PlayerTopBar(
         }
 
         // Episode list button
-        if (viewModel.episodeList.isNotEmpty()) {
+        if (viewModel.episodeList.isNotEmpty() && !viewModel.syncPlayActive) {
             IconButton(
                 onClick = {
                     viewModel.showEpisodeList = true
@@ -157,7 +176,7 @@ fun PlayerTopBar(
         }
 
         // Speed Menu Button (if not compact)
-        if (!compact) {
+        if (!compact && !viewModel.syncPlayActive) {
             Box {
                 IconButton(
                     onClick = {
@@ -251,97 +270,101 @@ fun PlayerTopBar(
                         )
                     }
 
-                    HorizontalDivider()
+                    // The blocks below drive mpv-only engine calls (no-ops on
+                    // the Media3 engine) — hidden for an exo session.
+                    if (viewModel.isMpvEngine) {
+                        HorizontalDivider()
 
-                    // Sync Delays
-                    Text(
-                        text = viewModel.strings.get("audioSync", "Audio Sync"),
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp,
-                        color = Color.Gray,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                    )
-                    PlayerConstants.SYNC_OFFSET_PRESETS.forEach { offset ->
+                        // Sync Delays
+                        Text(
+                            text = viewModel.strings.get("audioSync", "Audio Sync"),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp,
+                            color = Color.Gray,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                        )
+                        PlayerConstants.SYNC_OFFSET_PRESETS.forEach { offset ->
+                            DropdownMenuItem(
+                                text = {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(if (offset == 0.0) "0 s" else "${offset} s")
+                                        if (kotlin.math.abs(viewModel.audioDelay - offset) < 0.01) {
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                                        }
+                                    }
+                                },
+                                onClick = {
+                                    viewModel.setAudioDelay(offset)
+                                    showAudioMenu = false
+                                }
+                            )
+                        }
+
+                        HorizontalDivider()
+
+                        // Volume Boost
+                        Text(
+                            text = viewModel.strings.get("volumeBoost", "Volume Boost"),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp,
+                            color = Color.Gray,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                        )
+                        PlayerConstants.VOLUME_BOOST_PRESETS.forEach { percent ->
+                            DropdownMenuItem(
+                                text = {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(if (percent == 100) viewModel.strings.get("off", "Off") else "$percent%")
+                                        if (viewModel.volumeBoostPercent == percent) {
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                                        }
+                                    }
+                                },
+                                onClick = {
+                                    viewModel.setVolumeBoost(percent)
+                                    showAudioMenu = false
+                                }
+                            )
+                        }
+
+                        HorizontalDivider()
+
+                        // Dialogue Boost
                         DropdownMenuItem(
                             text = {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(if (offset == 0.0) "0 s" else "${offset} s")
-                                    if (kotlin.math.abs(viewModel.audioDelay - offset) < 0.01) {
+                                    Text(viewModel.strings.get("dialogueBoost", "Dialogue Boost"))
+                                    if (viewModel.dialogueBoostEnabled) {
                                         Spacer(modifier = Modifier.width(8.dp))
                                         Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
                                     }
                                 }
                             },
                             onClick = {
-                                viewModel.setAudioDelay(offset)
+                                viewModel.toggleDialogueBoost()
                                 showAudioMenu = false
                             }
                         )
-                    }
 
-                    HorizontalDivider()
-
-                    // Volume Boost
-                    Text(
-                        text = viewModel.strings.get("volumeBoost", "Volume Boost"),
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp,
-                        color = Color.Gray,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                    )
-                    PlayerConstants.VOLUME_BOOST_PRESETS.forEach { percent ->
+                        // Mono Downmix
                         DropdownMenuItem(
                             text = {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(if (percent == 100) viewModel.strings.get("off", "Off") else "$percent%")
-                                    if (viewModel.volumeBoostPercent == percent) {
+                                    Text(viewModel.strings.get("monoAudio", "Mono Audio"))
+                                    if (viewModel.monoAudioEnabled) {
                                         Spacer(modifier = Modifier.width(8.dp))
                                         Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
                                     }
                                 }
                             },
                             onClick = {
-                                viewModel.setVolumeBoost(percent)
+                                viewModel.toggleMonoAudio()
                                 showAudioMenu = false
                             }
                         )
                     }
-
-                    HorizontalDivider()
-
-                    // Dialogue Boost
-                    DropdownMenuItem(
-                        text = {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(viewModel.strings.get("dialogueBoost", "Dialogue Boost"))
-                                if (viewModel.dialogueBoostEnabled) {
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
-                                }
-                            }
-                        },
-                        onClick = {
-                            viewModel.toggleDialogueBoost()
-                            showAudioMenu = false
-                        }
-                    )
-
-                    // Mono Downmix
-                    DropdownMenuItem(
-                        text = {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(viewModel.strings.get("monoAudio", "Mono Audio"))
-                                if (viewModel.monoAudioEnabled) {
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
-                                }
-                            }
-                        },
-                        onClick = {
-                            viewModel.toggleMonoAudio()
-                            showAudioMenu = false
-                        }
-                    )
                 }
             }
         }
@@ -548,38 +571,40 @@ fun PlayerTopBar(
                 }
 
                 // Sleep Timer
-                Text(
-                    text = viewModel.strings.get("sleepTimer", "Sleep Timer"),
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 13.sp,
-                    color = Color.Gray,
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                )
-                if (viewModel.sleepTimerMinutes != null) {
-                    DropdownMenuItem(
-                        text = { Text(viewModel.strings.get("sleepTimerOff", "Turn Off")) },
-                        onClick = {
-                            viewModel.cancelSleepTimer()
-                            showMoreMenu = false
-                        }
+                if (!viewModel.syncPlayActive) {
+                    Text(
+                        text = viewModel.strings.get("sleepTimer", "Sleep Timer"),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp,
+                        color = Color.Gray,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                     )
-                }
-                PlayerConstants.SLEEP_TIMER_PRESET_MINUTES.forEach { mins ->
-                    DropdownMenuItem(
-                        text = {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(if (mins < 60) "$mins min" else "${mins / 60} h")
-                                if (viewModel.sleepTimerMinutes == mins) {
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
-                                }
+                    if (viewModel.sleepTimerMinutes != null) {
+                        DropdownMenuItem(
+                            text = { Text(viewModel.strings.get("sleepTimerOff", "Turn Off")) },
+                            onClick = {
+                                viewModel.cancelSleepTimer()
+                                showMoreMenu = false
                             }
-                        },
-                        onClick = {
-                            viewModel.setSleepTimer(mins)
-                            showMoreMenu = false
-                        }
-                    )
+                        )
+                    }
+                    PlayerConstants.SLEEP_TIMER_PRESET_MINUTES.forEach { mins ->
+                        DropdownMenuItem(
+                            text = {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(if (mins < 60) "$mins min" else "${mins / 60} h")
+                                    if (viewModel.sleepTimerMinutes == mins) {
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    }
+                                }
+                            },
+                            onClick = {
+                                viewModel.setSleepTimer(mins)
+                                showMoreMenu = false
+                            }
+                        )
+                    }
                 }
 
                 HorizontalDivider()

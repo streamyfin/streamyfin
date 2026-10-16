@@ -1,33 +1,29 @@
+import { getSystemApi } from "@jellyfin/sdk/lib/utils/api";
+import axios from "axios";
 import { useLocalSearchParams, useNavigation } from "expo-router";
 import { t } from "i18next";
 import { useAtom, useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, View } from "react-native";
 import { useMMKVString } from "react-native-mmkv";
+import { toast } from "sonner-native";
 import { Text } from "@/components/common/Text";
 import { useTVMenuKeyInterception } from "@/hooks/useTVBackPress";
-import { apiAtom, useJellyfin } from "@/providers/JellyfinProvider";
+import { apiAtom, useJellyfin, userAtom } from "@/providers/JellyfinProvider";
 import { selectedTVServerAtom } from "@/utils/atoms/selectedTVServer";
 import type { CustomHeader } from "@/utils/customHeaders";
 import {
   checkJellyfinServer,
   ServerTooOldError,
 } from "@/utils/jellyfin/checkServer";
-import { storage } from "@/utils/mmkv";
-import {
-  generatePairingCode,
-  type PairingCredentials,
-  startPairingListener,
-} from "@/utils/pairingService";
+import { writeErrorLog } from "@/utils/log";
 import { scaleSize } from "@/utils/scaleSize";
 import {
   type AccountSecurityType,
   getPreviousServers,
-  hashPIN,
   removeServerFromList,
   type SavedServer,
   type SavedServerAccount,
-  saveAccountCredential,
 } from "@/utils/secureCredentials";
 import { TVAddServerForm } from "./TVAddServerForm";
 import { TVAddUserForm } from "./TVAddUserForm";
@@ -48,6 +44,7 @@ type TVLoginScreen =
 
 export const TVLogin: React.FC = () => {
   const api = useAtomValue(apiAtom);
+  const user = useAtomValue(userAtom);
   const navigation = useNavigation();
   const params = useLocalSearchParams();
   const {
@@ -58,6 +55,7 @@ export const TVLogin: React.FC = () => {
     stopQuickConnectPolling,
     loginWithSavedCredential,
     loginWithPassword,
+    saveCurrentAccount,
   } = useJellyfin();
 
   const {
@@ -111,16 +109,20 @@ export const TVLogin: React.FC = () => {
   const isAnyModalOpen =
     showSaveModal || pinModalVisible || passwordModalVisible;
 
-  // Pairing state (companion login via phone)
-  const [showPairingQR, setShowPairingQR] = useState(false);
-  const [pairingCode, setPairingCode] = useState("");
-  const [pendingPairingCredentials, setPendingPairingCredentials] = useState<{
-    serverUrl: string;
-    username: string;
-    password: string;
+  // The Quick Connect code on screen while the server waits for a phone to
+  // approve it.
+  const [quickConnectCode, setQuickConnectCode] = useState<string | null>(null);
+  const [quickConnectServerId, setQuickConnectServerId] = useState<string>();
+  // The save-account sheet was opened for Quick Connect, not for a password.
+  const [quickConnectSaveAsked, setQuickConnectSaveAsked] = useState(false);
+  // A start on its way, and the number of the latest one.
+  const startingRef = useRef(false);
+  const startRef = useRef(0);
+  // How to protect the account once the phone has approved the code.
+  const [quickConnectSave, setQuickConnectSave] = useState<{
+    securityType: AccountSecurityType;
+    pinCode?: string;
   } | null>(null);
-  // Ref to prevent double-handling when onSave and onClose both fire
-  const pairingHandledRef = useRef(false);
 
   // Refresh servers list helper
   const refreshServers = () => {
@@ -146,11 +148,26 @@ export const TVLogin: React.FC = () => {
     }
   }, []);
 
+  // The session only exists once the phone approves the code, so a Quick
+  // Connect sign-in that asked to be saved is saved then.
+  // Only a sign-in made from the code screen: the protection was chosen for
+  // that code, and a saved account opened later must keep its own.
+  useEffect(() => {
+    if (!user || !quickConnectSave || currentScreen !== "qr-code-display")
+      return;
+    saveCurrentAccount({ ...quickConnectSave, serverName }).catch((error) => {
+      writeErrorLog(
+        `Failed to save the Quick Connect account: ${error?.message ?? error}`,
+      );
+      toast.error(t("save_account.not_saved"));
+    });
+    setQuickConnectSave(null);
+  }, [user, quickConnectSave, currentScreen, saveCurrentAccount, serverName]);
+
   // Stop Quick Connect polling when leaving the login page
   useEffect(() => {
     return () => {
       stopQuickConnectPolling();
-      setShowPairingQR(false);
     };
   }, [stopQuickConnectPolling]);
 
@@ -379,6 +396,7 @@ export const TVLogin: React.FC = () => {
     saveAccount: boolean,
   ) => {
     if (!currentServer) return;
+    setQuickConnectSave(null);
 
     if (saveAccount) {
       setPendingLogin({ username, password });
@@ -420,60 +438,11 @@ export const TVLogin: React.FC = () => {
     pinCode?: string,
   ) => {
     setShowSaveModal(false);
-    const pairingCreds = pendingPairingCredentials;
 
-    if (pairingCreds) {
-      // Pairing flow: mark as handled, login, then save credential
-      pairingHandledRef.current = true;
-      setPendingPairingCredentials(null);
-      setPendingLogin(null);
-      setLoading(true);
-      try {
-        await loginWithPassword(
-          pairingCreds.serverUrl,
-          pairingCreds.username,
-          pairingCreds.password,
-        );
-        // Save credential after successful login
-        try {
-          const token = storage.getString("token");
-          const userJson = storage.getString("user");
-          const storedServerUrl = storage.getString("serverUrl");
-          if (token && userJson && storedServerUrl) {
-            const user = JSON.parse(userJson);
-            let pinHash: string | undefined;
-            if (securityType === "pin" && pinCode) {
-              pinHash = await hashPIN(pinCode);
-            }
-            await saveAccountCredential({
-              serverUrl: storedServerUrl,
-              serverName: storedServerUrl,
-              token,
-              userId: user.Id || "",
-              username: pairingCreds.username,
-              savedAt: Date.now(),
-              securityType,
-              pinHash,
-              primaryImageTag: user.PrimaryImageTag ?? undefined,
-            });
-          }
-        } catch (saveError) {
-          if (__DEV__)
-            console.error(
-              "[TVLogin] Failed to save pairing credential:",
-              saveError,
-            );
-        }
-      } catch (error) {
-        const message =
-          error instanceof Error
-            ? error.message
-            : t("login.an_unexpected_error_occurred");
-        Alert.alert(t("login.connection_failed"), message);
-        goToQRScreen();
-      } finally {
-        setLoading(false);
-      }
+    if (quickConnectSaveAsked) {
+      setQuickConnectSaveAsked(false);
+      setQuickConnectSave({ securityType, pinCode });
+      await startQuickConnect();
       return;
     }
 
@@ -502,86 +471,69 @@ export const TVLogin: React.FC = () => {
     }
   };
 
-  // Handle quick connect
-  const handleQuickConnect = async () => {
+  // Quick Connect: the server hands out a code, the QR screen shows it with
+  // the server's id, and the provider polls until a signed-in device approves
+  // it.
+  const startQuickConnect = async () => {
+    // One start at a time, and only the latest counts: going back or asking
+    // again leaves a start still on its way behind.
+    if (startingRef.current) return;
+    startingRef.current = true;
+    const start = ++startRef.current;
     try {
       const code = await initiateQuickConnect();
-      if (code) {
-        Alert.alert(
-          t("login.quick_connect"),
-          t("login.enter_code_to_login", { code: code }),
-          [{ text: t("login.got_it") }],
-        );
+      // A start overtaken by going back: the provider started polling its
+      // code as it came in, and nobody sees that code.
+      if (start !== startRef.current) {
+        stopQuickConnectPolling();
+        return;
       }
-    } catch (_error) {
+      if (!code) {
+        setQuickConnectSave(null);
+        return;
+      }
+      setQuickConnectCode(code);
+      setQuickConnectServerId(undefined);
+      setCurrentScreen("qr-code-display");
+      // Best effort, once the code is up: without the id the phone only skips
+      // its server check.
+      if (api)
+        getSystemApi(api)
+          .getPublicSystemInfo()
+          .then(
+            ({ data }) => {
+              if (start === startRef.current)
+                setQuickConnectServerId(data.Id ?? undefined);
+            },
+            () => {},
+          );
+    } catch (error) {
+      if (start !== startRef.current) return;
+      // Jellyfin refuses to start one with a 401 while it is turned off.
       Alert.alert(
         t("login.error_title"),
-        t("login.failed_to_initiate_quick_connect"),
+        axios.isAxiosError(error) && error.response?.status === 401
+          ? t("companion_login.error_quick_connect_disabled", {
+              server: serverName || api?.basePath,
+            })
+          : t("login.failed_to_initiate_quick_connect"),
       );
+    } finally {
+      startingRef.current = false;
     }
   };
 
-  // Navigate to QR screen with a fresh code and active listener
-  const goToQRScreen = useCallback(() => {
-    const code = generatePairingCode();
-    setPairingCode(code);
-    setShowPairingQR(true);
-    setCurrentScreen("qr-code-display");
-  }, []);
-
-  // Handle pairing with companion phone
-  const handleStartPairing = useCallback(() => {
-    goToQRScreen();
-  }, [goToQRScreen]);
-
-  // Handle credentials received from companion
-  const handlePairingCredentials = useCallback(
-    (credentials: PairingCredentials) => {
-      setShowPairingQR(false);
-      setCurrentScreen("loading");
-
-      // Store credentials and show save modal (same UX as normal login)
-      setPendingPairingCredentials({
-        serverUrl: credentials.serverUrl,
-        username: credentials.username,
-        password: credentials.password,
-      });
-      setPendingLogin({
-        username: credentials.username,
-        password: credentials.password,
-      });
+  // With "save account" on, the protection is chosen first, as for the
+  // password sign-in.
+  const handleQuickConnect = async (saveAccount: boolean) => {
+    if (saveAccount) {
+      setQuickConnectSaveAsked(true);
       setShowSaveModal(true);
-    },
-    [],
-  );
-
-  // Listen for pairing credentials when QR is shown
-  useEffect(() => {
-    if (!showPairingQR || !pairingCode) return;
-
-    const cleanup = startPairingListener(
-      pairingCode,
-      handlePairingCredentials,
-      (error) => {
-        if (__DEV__) console.error("[TVLogin] Pairing error:", error);
-        setShowPairingQR(false);
-        Alert.alert(t("login.error_title"), t("companion_login.error_generic"));
-      },
-    );
-
-    // Auto-dismiss after 5 minutes
-    const timeout = setTimeout(
-      () => {
-        setShowPairingQR(false);
-      },
-      5 * 60 * 1000,
-    );
-
-    return () => {
-      cleanup();
-      clearTimeout(timeout);
-    };
-  }, [showPairingQR, pairingCode, handlePairingCredentials]);
+      return;
+    }
+    setQuickConnectSave(null);
+    await startQuickConnect();
+  };
 
   // Render current screen
   const renderScreen = () => {
@@ -590,7 +542,8 @@ export const TVLogin: React.FC = () => {
     if (
       api?.basePath &&
       currentScreen !== "add-user" &&
-      currentScreen !== "loading"
+      currentScreen !== "loading" &&
+      currentScreen !== "qr-code-display"
     ) {
       // API is ready, show add-user form
       return (
@@ -640,7 +593,6 @@ export const TVLogin: React.FC = () => {
         return (
           <TVAddServerForm
             onConnect={handleConnect}
-            onStartPairing={handleStartPairing}
             onBack={() => setCurrentScreen("server-selection")}
             loading={loadingServerCheck}
             disabled={isAnyModalOpen}
@@ -648,12 +600,27 @@ export const TVLogin: React.FC = () => {
         );
 
       case "qr-code-display":
+        if (!quickConnectCode || !api?.basePath) {
+          setCurrentScreen("add-user");
+          return null;
+        }
         return (
           <TVQRCodeDisplay
-            code={pairingCode}
+            serverUrl={api.basePath}
+            code={quickConnectCode}
+            serverId={quickConnectServerId}
+            onNewCode={() => {
+              stopQuickConnectPolling();
+              void startQuickConnect();
+            }}
             onBack={() => {
-              setShowPairingQR(false);
-              setCurrentScreen("add-server");
+              startRef.current++;
+              stopQuickConnectPolling();
+              setQuickConnectCode(null);
+              // The protection was chosen for this code, not for whatever
+              // sign-in comes next.
+              setQuickConnectSave(null);
+              setCurrentScreen("add-user");
             }}
           />
         );
@@ -718,35 +685,17 @@ export const TVLogin: React.FC = () => {
       <TVSaveAccountModal
         visible={showSaveModal}
         onClose={() => {
-          // If onSave already handled this, just clean up
-          if (pairingHandledRef.current) {
-            pairingHandledRef.current = false;
-            return;
-          }
           setShowSaveModal(false);
-          if (pendingPairingCredentials) {
-            // Pairing: user dismissed without saving, login anyway
-            const creds = pendingPairingCredentials;
-            setPendingPairingCredentials(null);
-            setPendingLogin(null);
-            loginWithPassword(
-              creds.serverUrl,
-              creds.username,
-              creds.password,
-            ).catch((error) => {
-              const message =
-                error instanceof Error
-                  ? error.message
-                  : t("login.an_unexpected_error_occurred");
-              Alert.alert(t("login.connection_failed"), message);
-              goToQRScreen();
-            });
-            return;
-          }
           setPendingLogin(null);
+          setQuickConnectSaveAsked(false);
         }}
         onSave={handleSaveAccountConfirm}
-        username={pendingLogin?.username || ""}
+        username={
+          quickConnectSaveAsked
+            ? t("pairing.account_that_approves")
+            : pendingLogin?.username || ""
+        }
+        allowPassword={!quickConnectSaveAsked}
       />
 
       {/* PIN Entry Modal */}

@@ -293,6 +293,7 @@ const DropdownView = ({
         {...props}
         disappearsOnIndex={-1}
         appearsOnIndex={0}
+        pressBehavior='none'
       />
     ),
     [],

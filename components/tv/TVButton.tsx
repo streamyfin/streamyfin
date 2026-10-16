@@ -1,12 +1,13 @@
 import React from "react";
 import { Animated, Pressable, View, type ViewStyle } from "react-native";
+import { SeerrIssueColors } from "@/constants/Colors";
 import { scaleSize } from "@/utils/scaleSize";
 import { useTVFocusAnimation } from "./hooks/useTVFocusAnimation";
 
 export interface TVButtonProps {
   onPress: () => void;
   children: React.ReactNode;
-  variant?: "primary" | "secondary" | "glass";
+  variant?: "primary" | "secondary" | "glass" | "warning";
   hasTVPreferredFocus?: boolean;
   disabled?: boolean;
   style?: ViewStyle;
@@ -18,10 +19,21 @@ export interface TVButtonProps {
 }
 
 const getButtonStyles = (
-  variant: "primary" | "secondary" | "glass",
+  variant: "primary" | "secondary" | "glass" | "warning",
   focused: boolean,
 ) => {
   switch (variant) {
+    case "warning":
+      // Seerr's issue yellow, as the phone's report button.
+      return {
+        backgroundColor: focused
+          ? SeerrIssueColors.focused
+          : SeerrIssueColors.background,
+        borderWidth: scaleSize(2),
+        borderColor: focused
+          ? "rgba(255, 255, 255, 0.9)"
+          : SeerrIssueColors.border,
+      };
     case "glass":
       return {
         // Constant border width, color swaps only — toggling width would

@@ -9,6 +9,7 @@ import { logAndCaptureError } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
 import { addDownloadedItem } from "./database";
 import type { DownloadedItem, MediaTimeSegment, TrickPlayData } from "./types";
+import { isPlainFileName } from "./utils";
 
 /**
  * Persisted record of an in-flight download, written at enqueue time and removed on completion.
@@ -111,8 +112,17 @@ export function removePendingDownload(itemId: string): void {
   writeAll(records);
 }
 
-/** URI of the video file a pending download writes to (derived, never stored). */
+/**
+ * URI of the video file a pending download writes to (derived, never stored).
+ *
+ * Throws when the stored name is not a plain file name. A record saved before the name builders
+ * cleaned what the server sends can still carry a path, and this URI is where native writes the
+ * video and what a finished download later deletes.
+ */
 export function pendingDownloadFileUri(record: PendingDownload): string {
+  if (!isPlainFileName(record.videoFileName)) {
+    throw new Error("Pending download has an unsafe video file name");
+  }
   return new File(Paths.document, record.videoFileName).uri;
 }
 

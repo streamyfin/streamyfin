@@ -1,0 +1,25 @@
+diff --git a/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt b/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt
+index 84f25c29816f203cf1974b07d6abd6228b937fe8..1f1f879cf15f4f09c09a26db97ed4dee97891f13 100644
+--- a/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt
++++ b/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt
+@@ -936,9 +936,19 @@ class MusicService : HeadlessJsMediaService() {
+     @MainThread
+     override fun onDestroy() {
+         Timber.tag("APM").d("RNTP service is destroyed.")
+-        if (::player.isInitialized) {
++        // onCreate builds the session on a placeholder player, before JS has
++        // set anything up. Android can create and destroy the service without
++        // JS ever doing so (a media button, a browser client, a sticky
++        // restart), and a session that is not released stays registered under
++        // its id: the next onCreate in the process then throws "Session ID
++        // must be unique".
++        if (::mediaSession.isInitialized) {
+             mediaSession.release()
++        }
++        if (::player.isInitialized) {
+             player.destroy()
++        } else if (::fakePlayer.isInitialized) {
++            fakePlayer.release()
+         }
+ 
+         progressUpdateJob?.cancel()

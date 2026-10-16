@@ -23,13 +23,16 @@ import {
   useState,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { BackHandler, Platform } from "react-native";
+import { AppState, BackHandler, Platform } from "react-native";
 import { SystemBars } from "react-native-edge-to-edge";
 import {
   PlaybackSpeedScope,
   updatePlaybackSpeedSettings,
 } from "@/components/video-player/controls/utils/playback-speed-settings";
-import { PROGRESS_REPORT_INTERVAL } from "@/constants/Playback";
+import {
+  NEXT_EPISODE_COUNTDOWN_MS,
+  PROGRESS_REPORT_INTERVAL,
+} from "@/constants/Playback";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { useOrientation } from "@/hooks/useOrientation";
 import { usePlaybackManager } from "@/hooks/usePlaybackManager";
@@ -38,11 +41,15 @@ import {
   useRemoteSubtitles,
 } from "@/hooks/useRemoteSubtitles";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
+import { useServerVersion } from "@/hooks/useServerVersion";
 import {
   addNativePlayerListener,
+  applyNativePlayerSyncPlayCommand,
+  cancelNativePlayerSyncPlayCommands,
   dismissNativePlayer,
   isNativePlayerModuleAvailable,
   isNativePlayerPresented,
+  isNativePlayerSyncPlayAvailable,
   loadNativePlayerStream,
   type NativePlayerEpisodeListItem,
   type NativePlayerNextEpisode,
@@ -56,6 +63,7 @@ import {
   nativePlayerPlay,
   nativePlayerSeekTo,
   nativePlayerSetAudioTrack,
+  nativePlayerSetSpeed,
   nativePlayerSetSubtitleTrack,
   nativePlayerShowNotice,
   nativePlayerToggleMute,
@@ -64,6 +72,7 @@ import {
   updateNativePlayerNextEpisode,
   updateNativePlayerSegments,
   updateNativePlayerSubtitleSearch,
+  updateNativePlayerSyncPlay,
   updateNativePlayerTrackMenus,
 } from "@/modules/mpv-player";
 // The TV-safe wrapper, NOT expo-screen-orientation directly: the native
@@ -72,15 +81,15 @@ import { OrientationLock } from "@/packages/expo-screen-orientation";
 import { useDownload } from "@/providers/DownloadProvider";
 import type { MediaTimeSegment } from "@/providers/Downloads/types";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { useSyncPlay } from "@/providers/SyncPlayProvider";
 import { useWebSocketContext } from "@/providers/WebSocketProvider";
 import {
-  getActiveVideoPlayer,
+  isNativeChromeActive,
   isNativePlayerSupported,
   isNativePlayerSupportedAndroidTV,
   isNativePlayerSupportedTV,
   type SegmentSkipMode,
   useSettings,
-  VideoPlayer,
 } from "@/utils/atoms/settings";
 import {
   type AutoSubtitleState,
@@ -88,8 +97,13 @@ import {
   INITIAL_AUTO_SUBTITLE_STATE,
   resolveAutoSubtitleAction,
 } from "@/utils/autoSubtitleOnMute";
-import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
+import {
+  getAdjacentStartTicks,
+  getDefaultPlaySettings,
+} from "@/utils/jellyfin/getDefaultPlaySettings";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
+import { getPlayingRunTimeTicks } from "@/utils/jellyfin/mediaSourceVersion";
+import { subtitleSearchErrorMessage } from "@/utils/jellyfin/subtitleSearchAccess";
 import {
   applyMpvSubtitleSelection,
   findSubtitleTrackIdentity,
@@ -107,6 +121,8 @@ import {
   buildTrackMenus,
   type NativePlayerSessionSeed,
 } from "@/utils/nativePlayer/buildNativePlayerConfig";
+import { parseRemotePlayCommand } from "@/utils/nativePlayer/parseRemotePlayCommand";
+import { NativePlaybackReportQueue } from "@/utils/nativePlayer/playbackReportQueue";
 import {
   type PlayRequest,
   toDirectPlayerQuery,
@@ -114,19 +130,39 @@ import {
 import { resolveFailedPresentation } from "@/utils/nativePlayer/resolveFailedPresentation";
 import { resolveTeardownReport } from "@/utils/nativePlayer/resolveTeardownReport";
 import {
+  buildNativeSyncPlayState,
+  dispatchNativeSyncPlayAction,
+  isSameStreamUrl,
+  type SyncPlayQueueDisplay,
+} from "@/utils/nativePlayer/syncPlay";
+import { NativeSyncPlayBufferingReporter } from "@/utils/nativePlayer/syncPlayBuffering";
+import {
   fetchAndParseSegments,
   getSegmentsForItem,
   type SegmentBuckets,
 } from "@/utils/segments";
 import { rememberSeriesTrack } from "@/utils/seriesTrackMemory";
 import {
+  decideStillWatchingOnce,
+  isStillWatchingDueAtEnd,
+  recordStillWatchingAutoplay,
+  resetStillWatchingSession,
+  revertStillWatchingAutoplay,
+} from "@/utils/stillWatching";
+import {
   isLocalSubtitleIndex,
   localSubtitleIndex,
   SUBTITLES_OFF,
 } from "@/utils/subtitles/subtitleIndex";
-import { msToTicks, ticksToSeconds } from "@/utils/time";
+import {
+  syncPlayQueuePosterUrl,
+  syncPlayQueueSubtitle,
+} from "@/utils/syncplay/queueDisplay";
+import { syncPlayLookupKey } from "@/utils/syncplay/queueItems";
+import { msToTicks, ticksToMs, ticksToSeconds } from "@/utils/time";
+import { useVideoSession } from "@/utils/videoSession";
 
-const NEXT_EPISODE_COUNTDOWN_SECONDS = 10;
+const NEXT_EPISODE_COUNTDOWN_SECONDS = NEXT_EPISODE_COUNTDOWN_MS / 1000;
 
 /**
  * One presented native-player session. Mirrors the ref discipline of
@@ -134,6 +170,9 @@ const NEXT_EPISODE_COUNTDOWN_SECONDS = 10;
  * in React state, so a tick already in flight can't observe a stale value.
  */
 interface NativeSession extends NativePlayerSessionSeed {
+  isReady: boolean;
+  isBuffering: boolean;
+  syncPlaylistItemId?: string;
   currentAudioIndex: number | undefined;
   currentSubtitleIndex: number;
   positionMs: number;
@@ -206,7 +245,10 @@ interface NativePlayerContextValue {
    * superseded after its load was issued resolves true, since the newer
    * request owns the player.
    */
-  presentFromRequest: (req: PlayRequest) => Promise<boolean>;
+  presentFromRequest: (
+    req: PlayRequest,
+    options?: { isCurrent?: () => boolean },
+  ) => Promise<boolean>;
   isActive: boolean;
 }
 
@@ -287,7 +329,7 @@ export const NativePlayerProvider: React.FC<{
   children: React.ReactNode;
 }> = ({ children }) => {
   // Apple TV mounts the coordinator too — whether a play actually goes
-  // native is decided per-request by getActiveVideoPlayer (the TV opt-in
+  // native is decided per-request by isNativeChromeActive (the TV opt-in
   // toggle); the inner WS "Play" handler already respects it.
   const enabled =
     (isNativePlayerSupported ||
@@ -298,7 +340,7 @@ export const NativePlayerProvider: React.FC<{
   if (!enabled) {
     // The server-initiated "Play" command still needs a handler on platforms
     // without the native player (Android, stale iOS binaries) — the app
-    // advertises SupportedCommands: ["Play"] everywhere.
+    // advertises the "Play" command everywhere.
     return <PlayCommandRouteFallback>{children}</PlayCommandRouteFallback>;
   }
 
@@ -313,25 +355,11 @@ const PlayCommandRouteFallback: React.FC<{
 
   useEffect(
     () =>
-      subscribe("Play", (data: any) => {
-        if (!data?.ItemIds?.length) return;
-        const req: PlayRequest = {
-          itemId: data.ItemIds[0],
-          audioIndex:
-            data.AudioStreamIndex !== undefined
-              ? Number(data.AudioStreamIndex)
-              : undefined,
-          subtitleIndex:
-            data.SubtitleStreamIndex !== undefined
-              ? Number(data.SubtitleStreamIndex)
-              : undefined,
-          mediaSourceId: data.MediaSourceId || undefined,
-          offline: false,
-          playbackPositionTicks:
-            data.StartPositionTicks !== undefined
-              ? Number(data.StartPositionTicks)
-              : undefined,
-        };
+      subscribe("Play", (data: unknown) => {
+        const req = parseRemotePlayCommand(data);
+        if (!req) return;
+        // Someone chose this play, from another client: a new session.
+        resetStillWatchingSession();
         router.push(
           `/(auth)/player/direct-player?${toDirectPlayerQuery(req)}` as any,
         );
@@ -353,15 +381,166 @@ const NativePlayerProviderInner: React.FC<{
   const { lockOrientation, unlockOrientation } = useOrientation();
   const downloadUtils = useDownload();
   const revalidateProgressCache = useInvalidatePlaybackProgressCache();
-  const { subscribe, clearLastMessage } = useWebSocketContext();
+  const { subscribe, clearLastMessage, retainInBackground } =
+    useWebSocketContext();
+  const syncPlay = useSyncPlay();
+  const syncRef = useRef(syncPlay);
+  syncRef.current = syncPlay;
+  const [syncBufferingReporter] = useState(
+    () =>
+      new NativeSyncPlayBufferingReporter((buffering) => {
+        if (syncRef.current.enabled) syncRef.current.notifyBuffering(buffering);
+      }),
+  );
+  useEffect(() => () => syncBufferingReporter.reset(), [syncBufferingReporter]);
+  const [syncDisplay, setSyncDisplay] = useState<SyncPlayQueueDisplay>({});
+  const nativeSyncState = useMemo(
+    () => buildNativeSyncPlayState(syncPlay, syncDisplay, t),
+    [syncPlay, syncDisplay, t],
+  );
+  const nativeSyncStateRef = useRef(nativeSyncState);
+  nativeSyncStateRef.current = nativeSyncState;
+  const syncIds = syncPlayLookupKey(syncPlay.playlist);
+  useEffect(() => {
+    let current = true;
+    if (!syncIds) {
+      setSyncDisplay({});
+      return;
+    }
+    void syncPlay
+      .resolveVideos(syncIds.split(","))
+      .then((items) => {
+        if (current)
+          setSyncDisplay(
+            Object.fromEntries(
+              items.map((item) => [
+                item.Id,
+                {
+                  title: item.Name || "",
+                  subtitle: syncPlayQueueSubtitle(item),
+                  imageUrl:
+                    syncPlayQueuePosterUrl(apiRef.current, item) || undefined,
+                },
+              ]),
+            ),
+          );
+      })
+      .catch(() => {});
+    return () => {
+      current = false;
+    };
+  }, [syncIds, syncPlay.resolveVideos]);
 
   const sessionRef = useRef<NativeSession | null>(null);
+  const reportQueue = useRef(new NativePlaybackReportQueue()).current;
   // Monotonic id per beginSession call: the config build awaits a PlaybackInfo
   // round trip, so overlapping play requests (double-fired next-episode, WS
   // Play mid-swap, fast taps) can interleave — only the newest may commit.
   const playRequestTokenRef = useRef(0);
   const [activeItem, setActiveItem] = useState<BaseItemDto | null>(null);
   const [isActive, setIsActive] = useState(false);
+  const nativePipRef = useRef(false);
+
+  useEffect(() => {
+    if (isActive && syncPlay.enabled && isNativePlayerSyncPlayAvailable())
+      return retainInBackground();
+  }, [isActive, syncPlay.enabled, retainInBackground]);
+
+  useEffect(() => {
+    if (isActive && isNativePlayerSyncPlayAvailable())
+      void updateNativePlayerSyncPlay(nativeSyncState).catch(() => {});
+  }, [isActive, nativeSyncState]);
+
+  // Dropped from the group (socket lost, playback failed) the player is left
+  // paused with no SyncPlay state to carry the reason, so it is said here.
+  // Only an error that arrives while the player is up: one left behind by
+  // the sheet says nothing about a video played later.
+  const noticedSyncErrorRef = useRef<string | null>(null);
+  useEffect(() => {
+    const error = syncPlay.error;
+    if (
+      isActive &&
+      !syncPlay.enabled &&
+      error &&
+      error !== noticedSyncErrorRef.current
+    )
+      void nativePlayerShowNotice(error);
+    noticedSyncErrorRef.current = error;
+  }, [isActive, syncPlay.enabled, syncPlay.error]);
+
+  useEffect(() => {
+    if (!isNativePlayerSyncPlayAvailable()) return;
+    let commandId = 0;
+    return syncPlay.registerPlayer({
+      // MPV releases its file at EOF; queue restarts need a fresh stream and
+      // session identity even when another entry refers to the same media.
+      reloadOnQueueRestart: true,
+      getState: () => {
+        const session = sessionRef.current;
+        return {
+          itemId: session?.item.Id || null,
+          positionTicks: session ? Math.round(session.positionMs * 10_000) : 0,
+          isPlaying: session?.isPlaying ?? false,
+          isReady: !!session && !session.awaitingLoad && session.isReady,
+          isBuffering: session?.isBuffering ?? false,
+        };
+      },
+      pause: async () => {
+        await nativePlayerPause();
+      },
+      resume: async () => {
+        await nativePlayerPlay();
+      },
+      seek: async (ticks) => {
+        const session = sessionRef.current;
+        if (session) session.positionMs = ticks / 10_000;
+        await nativePlayerSeekTo(ticks / 10_000_000);
+      },
+      stop: async () => {
+        ++playRequestTokenRef.current;
+        await dismissNativePlayer();
+      },
+      cancelScheduledCommands: () => {
+        void cancelNativePlayerSyncPlayCommands().catch(() => {});
+      },
+      scheduleCommand: async (command, executeAtMs) => {
+        if (command.Command === "Stop") ++playRequestTokenRef.current;
+        if (command.Command === "Stop" && !sessionRef.current) return;
+        const applied = await applyNativePlayerSyncPlayCommand({
+          commandId: String(++commandId),
+          groupId: command.GroupId,
+          playlistItemId:
+            command.PlaylistItemId ||
+            syncRef.current.currentPlaylistItemId ||
+            "",
+          command: command.Command,
+          executeAtMs,
+          positionSec: (command.PositionTicks || 0) / 10_000_000,
+        });
+        if (!applied) throw new Error("Native SyncPlay command canceled");
+      },
+    });
+  }, [syncPlay.registerPlayer]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (
+        state !== "background" ||
+        !syncRef.current.enabled ||
+        // Nobody waits for a member who is not watching, so there is nothing
+        // to step out of. A socket lost in the background is rejoined.
+        !syncRef.current.watching ||
+        nativePipRef.current ||
+        // Native lifecycle callbacks can distinguish PiP from a real stop.
+        // AppState reaches background before Android's PiP event reaches JS.
+        (sessionRef.current && isNativePlayerSyncPlayAvailable())
+      )
+        return;
+      void syncRef.current.suspendGroup().catch(() => {});
+      void nativePlayerPause().catch(() => {});
+    });
+    return () => subscription.remove();
+  }, []);
 
   const playbackManager = usePlaybackManager({
     item: activeItem,
@@ -370,23 +549,38 @@ const NativePlayerProviderInner: React.FC<{
 
   // usePlaybackManager returns a fresh object per render; handlers below live
   // in refs, so mirror the pieces they need (same pattern as direct-player).
-  const reportProgressRef = useRef(playbackManager.reportPlaybackProgress);
+  const saveLocalProgressRef = useRef(
+    playbackManager.saveLocalPlaybackProgress,
+  );
+  const reportRemoteProgressRef = useRef(
+    playbackManager.reportRemotePlaybackProgress,
+  );
   const nextItemRef = useRef<BaseItemDto | null>(playbackManager.nextItem);
   const previousItemRef = useRef<BaseItemDto | null>(
     playbackManager.previousItem,
   );
   useEffect(() => {
-    reportProgressRef.current = playbackManager.reportPlaybackProgress;
+    saveLocalProgressRef.current = playbackManager.saveLocalPlaybackProgress;
+    reportRemoteProgressRef.current =
+      playbackManager.reportRemotePlaybackProgress;
     nextItemRef.current = playbackManager.nextItem;
     previousItemRef.current = playbackManager.previousItem;
   });
 
+  // Decides where a matched alternate version starts, see
+  // getAdjacentStartTicks. Whatever is cached will do: a server does not go
+  // back a major version.
+  const serverVersion = useServerVersion({
+    staleTime: Number.POSITIVE_INFINITY,
+  });
+  const serverVersionRef = useRef(serverVersion);
   const apiRef = useRef(api);
   const settingsRef = useRef(settings);
   const pluginSettingsRef = useRef(pluginSettings);
   const userRef = useRef(user);
   const isConnectedRef = useRef(isConnected);
   useEffect(() => {
+    serverVersionRef.current = serverVersion;
     apiRef.current = api;
     settingsRef.current = settings;
     pluginSettingsRef.current = pluginSettings;
@@ -422,8 +616,13 @@ const NativePlayerProviderInner: React.FC<{
       PlaySessionId: session.stream.sessionId,
       IsMuted: session.isMuted,
       CanSeek: true,
-      RepeatMode: RepeatMode.RepeatNone,
-      PlaybackOrder: PlaybackOrder.Default,
+      RepeatMode: syncRef.current.enabled
+        ? syncRef.current.repeatMode
+        : RepeatMode.RepeatNone,
+      PlaybackOrder:
+        syncRef.current.enabled && syncRef.current.shuffleMode === "Shuffle"
+          ? PlaybackOrder.Shuffle
+          : PlaybackOrder.Default,
     }),
     [],
   );
@@ -434,16 +633,21 @@ const NativePlayerProviderInner: React.FC<{
       // Gate on connectivity, not on the offline flag: a downloaded item
       // played with the server reachable still reports (direct-player.tsx).
       if (!currentApi || !isConnectedRef.current) return;
-      getPlaystateApi(currentApi)
-        .reportPlaybackStart({
-          playbackStartInfo: {
-            ...buildProgressInfo(session),
-            // The stream just resolved; describe the session that is starting
-            // (autoplay) instead of "paused at 0:00".
-            IsPaused: false,
-            PositionTicks: session.startTicks,
-          },
-        })
+      const playbackStartInfo = {
+        ...buildProgressInfo(session),
+        // The stream just resolved; describe the session that is starting
+        // (autoplay) instead of "paused at 0:00".
+        IsPaused: syncRef.current.enabled,
+        PositionTicks: session.startTicks,
+      };
+      const playstate = getPlaystateApi(currentApi);
+      reportQueue
+        .enqueue(session, "start", playbackStartInfo, (info, signal) =>
+          playstate.reportPlaybackStart(
+            { playbackStartInfo: info },
+            { signal },
+          ),
+        )
         .catch((error) => {
           writeToLog(
             "ERROR",
@@ -452,20 +656,40 @@ const NativePlayerProviderInner: React.FC<{
           );
         });
     },
-    [buildProgressInfo],
+    [buildProgressInfo, reportQueue],
   );
 
-  const releaseLiveStream = useCallback((session: NativeSession) => {
-    const liveStreamId = session.stream.mediaSource?.LiveStreamId;
-    const currentApi = apiRef.current;
-    if (!liveStreamId || !currentApi || session.offline) return;
-    getMediaInfoApi(currentApi)
-      .closeLiveStream({ liveStreamId })
-      .catch(() => {});
-  }, []);
+  const reportNativeProgress = useCallback(
+    (session: NativeSession, info: PlaybackProgressInfo, final = false) => {
+      // The downloads database is written here, not in the queue: the resume
+      // position of a downloaded item must not wait for a server that has
+      // stopped answering.
+      saveLocalProgressRef.current(info);
+      return reportQueue.enqueue(
+        session,
+        final ? "final-progress" : "progress",
+        info,
+        reportRemoteProgressRef.current,
+      );
+    },
+    [reportQueue],
+  );
+
+  const releaseLiveStream = useCallback(
+    (session: Pick<NativeSession, "stream" | "offline">) => {
+      const liveStreamId = session.stream.mediaSource?.LiveStreamId;
+      const currentApi = apiRef.current;
+      if (!liveStreamId || !currentApi || session.offline) return;
+      getMediaInfoApi(currentApi)
+        .closeLiveStream({ liveStreamId })
+        .catch(() => {});
+    },
+    [],
+  );
 
   const reportPlaybackStopped = useCallback(
     async (session: NativeSession, positionTicks?: number) => {
+      reportQueue.closeSession(session);
       const currentApi = apiRef.current;
       if (!session.item.Id || !currentApi || !isConnectedRef.current) return;
       // No start report went out for a session that never committed; a stop
@@ -476,17 +700,26 @@ const NativePlayerProviderInner: React.FC<{
       const stopKey = session.stream.sessionId || session.item.Id;
       if (session.reportedStopKey === stopKey) return;
       session.reportedStopKey = stopKey;
+      const playbackStopInfo = {
+        ItemId: session.item.Id,
+        MediaSourceId: session.mediaSourceId,
+        PositionTicks: positionTicks ?? msToTicks(session.positionMs),
+        PlaySessionId: session.stream.sessionId || undefined,
+        // Required to release the server-side live stream's tuner slot.
+        LiveStreamId: session.stream.mediaSource?.LiveStreamId ?? undefined,
+      };
+      const playstate = getPlaystateApi(currentApi);
       try {
-        await getPlaystateApi(currentApi).reportPlaybackStopped({
-          playbackStopInfo: {
-            ItemId: session.item.Id,
-            MediaSourceId: session.mediaSourceId,
-            PositionTicks: positionTicks ?? msToTicks(session.positionMs),
-            PlaySessionId: session.stream.sessionId || undefined,
-            // Required to release the server-side live stream's tuner slot.
-            LiveStreamId: session.stream.mediaSource?.LiveStreamId ?? undefined,
-          },
-        });
+        await reportQueue.enqueue(
+          session,
+          "stop",
+          playbackStopInfo,
+          (info, signal) =>
+            playstate.reportPlaybackStopped(
+              { playbackStopInfo: info },
+              { signal },
+            ),
+        );
       } catch (error) {
         // Un-mark so a later teardown path can retry.
         if (session.reportedStopKey === stopKey) {
@@ -499,7 +732,7 @@ const NativePlayerProviderInner: React.FC<{
         );
       }
     },
-    [],
+    [reportQueue],
   );
 
   // MARK: - Aux data pushes (segments / next episode / episode list)
@@ -562,14 +795,36 @@ const NativePlayerProviderInner: React.FC<{
     }
   }, []);
 
+  // Sessions whose countdown already advanced; see onNextEpisodeRequested.
+  const [countdownAdvanced] = useState(() => new WeakSet<NativeSession>());
+  const countdownAdvancedRef = useRef(countdownAdvanced);
+
   const buildNextEpisodePayload = useCallback(
-    (_session: NativeSession, next: BaseItemDto): NativePlayerNextEpisode => {
+    (session: NativeSession, next: BaseItemDto): NativePlayerNextEpisode => {
       const currentSettings = settingsRef.current;
-      const max = currentSettings?.maxAutoPlayEpisodeCount?.value ?? -1;
       const autoplayWanted = currentSettings?.autoPlayNextEpisode ?? false;
-      const capReached =
-        max !== -1 && (currentSettings?.autoPlayEpisodeCount ?? 0) >= max;
-      const autoplayAllowed = autoplayWanted && !capReached;
+      // Decided once per episode, against its projected end at 1x. A pause
+      // makes the prompt come an episode late; a faster speed can bring it
+      // early.
+      const stillWatchingRequired =
+        autoplayWanted &&
+        decideStillWatchingOnce(session.item.Id ?? "", () =>
+          isStillWatchingDueAtEnd({
+            preset: currentSettings?.stillWatchingPreset,
+            // The playing version's runtime: another cut ends elsewhere.
+            remainingMs:
+              ticksToMs(
+                getPlayingRunTimeTicks(
+                  session.item,
+                  session.stream.mediaSource,
+                ),
+              ) - session.positionMs,
+            // The native chrome reports no touches to JS, so idle time is
+            // unknown and only the episode count can trip the prompt.
+            tracksInput: false,
+          }),
+        );
+      const autoplayAllowed = autoplayWanted && !stillWatchingRequired;
       const epNumber =
         next.ParentIndexNumber !== undefined && next.IndexNumber !== undefined
           ? `S${next.ParentIndexNumber}E${next.IndexNumber}`
@@ -586,9 +841,9 @@ const NativePlayerProviderInner: React.FC<{
             width: 300,
           }) ?? undefined,
         countdownSeconds: autoplayAllowed ? NEXT_EPISODE_COUNTDOWN_SECONDS : 0,
-        // Autoplay would have run but the episode cap stops it: EOF shows
-        // the "Still watching?" card instead (JS ContinueWatchingOverlay).
-        stillWatchingRequired: autoplayWanted && capReached,
+        // Autoplay would have run but the session is long enough to ask:
+        // EOF shows the "Still watching?" card instead.
+        stillWatchingRequired,
       };
     },
     [],
@@ -649,6 +904,10 @@ const NativePlayerProviderInner: React.FC<{
   useEffect(() => {
     const session = sessionRef.current;
     if (!isActive || !session) return;
+    if (syncRef.current.enabled) {
+      void updateNativePlayerNextEpisode(null);
+      return;
+    }
     const next = playbackManager.nextItem;
     if (next?.Id) {
       void updateNativePlayerNextEpisode(
@@ -657,17 +916,27 @@ const NativePlayerProviderInner: React.FC<{
     } else {
       void updateNativePlayerNextEpisode(null);
     }
-  }, [playbackManager.nextItem, isActive, buildNextEpisodePayload]);
+  }, [
+    playbackManager.nextItem,
+    isActive,
+    buildNextEpisodePayload,
+    syncPlay.enabled,
+  ]);
 
   // MARK: - Present / load
 
   const beginSession = useCallback(
     async (
       req: PlayRequest,
-      options: { item?: BaseItemDto; replace: boolean },
+      options: {
+        item?: BaseItemDto;
+        replace: boolean;
+        isCurrent?: () => boolean;
+      },
     ): Promise<boolean> => {
       const currentSettings = settingsRef.current;
       if (!currentSettings) return false;
+      syncBufferingReporter.reset();
       const token = ++playRequestTokenRef.current;
 
       const built = await buildNativePlayerConfig({
@@ -679,6 +948,7 @@ const NativePlayerProviderInner: React.FC<{
         req,
         getDownloadedItemById: downloadUtils.getDownloadedItemById,
         strings: buildNativePlayerStrings(t),
+        originalLabel: t("common.original_audio"),
         item: options.item,
       }).catch((error) => {
         logAndCaptureError("NativePlayer config build failed", error, {
@@ -687,12 +957,32 @@ const NativePlayerProviderInner: React.FC<{
         return null;
       });
       if (!built) return false;
+      if (options.isCurrent?.() === false) {
+        // The build may have opened a live stream nothing will play.
+        releaseLiveStream(built.seed);
+        return false;
+      }
+      if (syncRef.current.enabled && !req.offline) {
+        built.config.syncPlay = nativeSyncStateRef.current || undefined;
+        built.config.stream.autoplay = false;
+        built.config.stream.startPositionSec =
+          built.seed.startTicks / 10_000_000;
+        built.config.nextEpisode = undefined;
+        built.config.ui = {
+          ...built.config.ui,
+          initialPlaybackSpeed: 1,
+          holdToSpeedEnabled: false,
+        };
+      }
 
       const session: NativeSession = {
         ...built.seed,
+        isReady: false,
+        isBuffering: true,
+        syncPlaylistItemId: built.config.syncPlay?.currentPlaylistItemId,
         currentAudioIndex: built.seed.audioIndex,
         currentSubtitleIndex: built.seed.subtitleIndex,
-        positionMs: ticksToSeconds(built.seed.startTicks) * 1000,
+        positionMs: built.seed.startTicks / 10_000,
         isPlaying: false,
         hasPlaybackStarted: false,
         reportedStopKey: null,
@@ -708,7 +998,10 @@ const NativePlayerProviderInner: React.FC<{
         autoSubtitleWasMuted: false,
       };
 
-      if (token !== playRequestTokenRef.current) {
+      if (
+        token !== playRequestTokenRef.current ||
+        options.isCurrent?.() === false
+      ) {
         // A newer play request started while this stream was negotiating —
         // abandon before touching sessionRef or the native player, and close
         // the live stream this build just opened on the server.
@@ -757,7 +1050,10 @@ const NativePlayerProviderInner: React.FC<{
           releaseLiveStream(previous);
           // A newer request started during that round trip: yield to it, as
           // the token check above does, so the newest request still wins.
-          if (token !== playRequestTokenRef.current) {
+          if (
+            token !== playRequestTokenRef.current ||
+            options.isCurrent?.() === false
+          ) {
             releaseLiveStream(session);
             return false;
           }
@@ -767,6 +1063,11 @@ const NativePlayerProviderInner: React.FC<{
           if (sessionRef.current !== previous) {
             releaseLiveStream(session);
             return true;
+          }
+          if (syncRef.current.enabled) {
+            previous.isReady = false;
+            previous.isBuffering = true;
+            syncRef.current.notifyBuffering(true);
           }
           sessionRef.current = session;
           await loadNativePlayerStream(built.config);
@@ -850,6 +1151,14 @@ const NativePlayerProviderInner: React.FC<{
       reportPlaybackStart(session);
       void pushSegments(session);
       void pushEpisodeList(session);
+      // A stream swap of the same episode reloads native, which drops the
+      // next-episode payload, and nextItem does not change to push it again.
+      const next = nextItemRef.current;
+      if (previous?.item.Id === session.item.Id && next?.Id) {
+        void updateNativePlayerNextEpisode(
+          buildNextEpisodePayload(session, next),
+        );
+      }
       return true;
     },
     [
@@ -864,15 +1173,23 @@ const NativePlayerProviderInner: React.FC<{
       clearLastMessage,
       pushSegments,
       pushEpisodeList,
+      buildNextEpisodePayload,
+      syncBufferingReporter,
     ],
   );
 
   const presentFromRequest = useCallback(
-    async (req: PlayRequest): Promise<boolean> => {
+    async (
+      req: PlayRequest,
+      options?: { isCurrent?: () => boolean },
+    ): Promise<boolean> => {
       // Present while a session is active (e.g. WS Play command) swaps in
       // place; beginSession closes the old server session once the new
       // stream is negotiated.
-      return beginSession(req, { replace: sessionRef.current !== null });
+      return beginSession(req, {
+        replace: sessionRef.current !== null,
+        isCurrent: options?.isCurrent,
+      });
     },
     [beginSession],
   );
@@ -928,6 +1245,7 @@ const NativePlayerProviderInner: React.FC<{
           audioIndex: session.currentAudioIndex,
         },
         source: session.stream.mediaSource,
+        offline: session.offline,
       });
 
       const req: PlayRequest = {
@@ -937,7 +1255,13 @@ const NativePlayerProviderInner: React.FC<{
         mediaSourceId: newMediaSource?.Id ?? undefined,
         bitrateValue: session.bitrateValue,
         offline: session.offline,
-        playbackPositionTicks: target.UserData?.PlaybackPositionTicks,
+        playbackPositionTicks:
+          getAdjacentStartTicks(
+            target,
+            newMediaSource,
+            session.offline,
+            serverVersionRef.current,
+          ) ?? undefined,
       };
       // Target came from the adjacent-items query without full MediaSources —
       // let the builder refetch it online; offline uses the downloads DB.
@@ -966,12 +1290,18 @@ const NativePlayerProviderInner: React.FC<{
         // Final progress write first: it also lands in the downloads DB for
         // offline items (5%/90% thresholds), then close the server session.
         const info = buildProgressInfo(session);
+        // Enqueue both before yielding: a newly presented session must not
+        // start on the server before this outgoing session's Stop arrives.
+        const finalProgress = reportNativeProgress(session, info, true);
+        const stopped = reportPlaybackStopped(session, positionTicks);
         try {
-          await reportProgressRef.current(info);
+          await finalProgress;
         } catch {}
         // Both reports carry the ticks resolved above; the stop report does
         // not re-read session.positionMs after the await.
-        await reportPlaybackStopped(session, positionTicks);
+        await stopped;
+      } else {
+        reportQueue.closeSession(session);
       }
       // The stream was negotiated on the server whether or not it loaded.
       releaseLiveStream(session);
@@ -984,6 +1314,8 @@ const NativePlayerProviderInner: React.FC<{
     },
     [
       buildProgressInfo,
+      reportNativeProgress,
+      reportQueue,
       reportPlaybackStopped,
       releaseLiveStream,
       revalidateProgressCache,
@@ -1025,6 +1357,7 @@ const NativePlayerProviderInner: React.FC<{
           offline: session.offline,
           downloadedItem: session.downloadedItem,
           offLabel: buildNativePlayerStrings(t).off ?? "None",
+          originalLabel: t("common.original_audio"),
           bitrateValue: session.bitrateValue,
           localSubtitle: session.localSubtitle
             ? {
@@ -1275,13 +1608,11 @@ const NativePlayerProviderInner: React.FC<{
         ) {
           return;
         }
-        // Mirror the TV modal: a failed server search without a client-side
-        // key most likely means no provider plugin on the server.
-        const message = remoteSubtitlesRef.current.hasOpenSubtitlesApiKey
-          ? error instanceof Error
-            ? error.message
-            : String(error)
-          : t("player.no_subtitle_provider");
+        const message = subtitleSearchErrorMessage(
+          error,
+          remoteSubtitlesRef.current.hasOpenSubtitlesApiKey,
+          t,
+        );
         void updateNativePlayerSubtitleSearch({
           status: "error",
           results: [],
@@ -1471,9 +1802,39 @@ const NativePlayerProviderInner: React.FC<{
 
   useEffect(() => {
     const subscriptions = [
+      addNativePlayerListener("onSyncPlayAction", (payload) => {
+        const session = sessionRef.current;
+        if (payload.action === "ended") {
+          if (
+            !session?.isReady ||
+            session.awaitingLoad ||
+            session.syncPlaylistItemId !== syncRef.current.currentPlaylistItemId
+          )
+            return;
+          payload = {
+            ...payload,
+            playlistItemId: session.syncPlaylistItemId,
+          };
+        }
+        void dispatchNativeSyncPlayAction(syncRef.current, payload).catch(
+          () => {
+            if (syncRef.current.error)
+              void nativePlayerShowNotice(syncRef.current.error);
+          },
+        );
+      }),
       addNativePlayerListener("onLoad", (payload) => {
         const session = sessionRef.current;
         if (!session) return;
+        // An in-place swap can deliver the outgoing stream's onLoad late, and
+        // in a group that would report Ready for an item still loading. Solo
+        // playback keeps accepting any onLoad, as it always has: a URL this
+        // comparison got wrong would leave the session dead with no error.
+        if (
+          syncRef.current.enabled &&
+          !isSameStreamUrl(payload.url, session.stream.url)
+        )
+          return;
         // The engine has taken the new stream; events from here on belong to
         // this session.
         session.awaitingLoad = false;
@@ -1500,13 +1861,27 @@ const NativePlayerProviderInner: React.FC<{
           Date.now(),
           PROGRESS_REPORT_INTERVAL,
         );
-        if (!due) return;
-        void reportProgressRef.current(buildProgressInfo(session));
+        const info = due ? buildProgressInfo(session) : null;
+        if (syncRef.current.enabled && !payload.trackingOnly) {
+          syncRef.current.notifyProgress();
+        }
+        if (info) void reportNativeProgress(session, info).catch(() => {});
       }),
 
       addNativePlayerListener("onPlaybackStateChange", (payload) => {
         const session = sessionRef.current;
         if (!session || session.awaitingLoad) return;
+        if (typeof payload.isReadyToSeek === "boolean") {
+          session.isReady = payload.isReadyToSeek;
+        }
+        if (typeof payload.isLoading === "boolean") {
+          session.isBuffering = payload.isLoading;
+          if (syncRef.current.enabled)
+            syncBufferingReporter.update(payload.isLoading, session.isReady);
+        }
+        if (payload.isReadyToSeek === true) {
+          if (syncRef.current.enabled) syncRef.current.notifyReady();
+        }
         if (payload.isPlaying === undefined && payload.isPaused === undefined) {
           return;
         }
@@ -1517,7 +1892,9 @@ const NativePlayerProviderInner: React.FC<{
         // Pause/resume transitions report immediately (mirror of the
         // state-transition effect in direct-player).
         if (changed && session.hasPlaybackStarted && !session.reportedStopKey) {
-          void reportProgressRef.current(buildProgressInfo(session));
+          void reportNativeProgress(session, buildProgressInfo(session)).catch(
+            () => {},
+          );
         }
       }),
 
@@ -1615,44 +1992,77 @@ const NativePlayerProviderInner: React.FC<{
         // in-place swap and re-request the next episode — advancing twice.
         if (!session || session.awaitingLoad) return;
         session.positionMs = payload.positionSec * 1000;
+        if (syncRef.current.enabled) {
+          void syncRef.current.requestNext().catch(() => {});
+          return;
+        }
         const next = nextItemRef.current;
         if (!next) {
           void dismissNativePlayer();
           return;
         }
         const currentSettings = settingsRef.current;
-        if (payload.reason === "countdown") {
-          const max = currentSettings?.maxAutoPlayEpisodeCount?.value ?? -1;
-          const count = currentSettings?.autoPlayEpisodeCount ?? 0;
-          const allowed =
-            (currentSettings?.autoPlayNextEpisode ?? false) &&
-            (max === -1 || count < max);
-          if (!allowed) {
+        const isAutoplay = payload.reason === "countdown";
+        if (isAutoplay) {
+          // A countdown fired twice for one session (before the swap lands)
+          // is one autoplay, not two.
+          if (countdownAdvancedRef.current.has(session)) return;
+          countdownAdvancedRef.current.add(session);
+          // Native only counts down on a payload that allowed autoplay, so
+          // the prompt has had its say; only autoplay itself may refuse.
+          if (!(currentSettings?.autoPlayNextEpisode ?? false)) {
             void dismissNativePlayer();
             return;
           }
-          if (max !== -1) {
-            updateSettings({ autoPlayEpisodeCount: count + 1 });
-          }
-        } else if (currentSettings?.maxAutoPlayEpisodeCount?.value !== -1) {
-          // A deliberate tap resets the auto-play chain counter.
-          updateSettings({ autoPlayEpisodeCount: 0 });
+          recordStillWatchingAutoplay();
+        } else {
+          // A deliberate tap, "Continue watching" included, starts a new
+          // session.
+          resetStillWatchingSession();
         }
-        void playAdjacentItem(session, next);
+        // Recorded before the swap, so the next episode's prompt is decided
+        // with this autoplay counted; taken back when the swap does not take.
+        const onSwapSettled = () => {
+          if (sessionRef.current !== session) return;
+          // Still on the episode that ended: a later countdown on this
+          // session is a real request again, and no autoplay happened.
+          countdownAdvancedRef.current.delete(session);
+          if (isAutoplay) revertStillWatchingAutoplay();
+        };
+        playAdjacentItem(session, next).then(onSwapSettled, (error) => {
+          // A swap that throws would otherwise leave the session marked as
+          // advanced, and every later countdown on it ignored.
+          logAndCaptureError("NativePlayer next episode swap failed", error, {
+            itemId: next.Id,
+          });
+          onSwapSettled();
+        });
       }),
 
       addNativePlayerListener("onPreviousEpisodeRequested", (payload) => {
         const session = sessionRef.current;
         if (!session || session.awaitingLoad) return;
         session.positionMs = payload.positionSec * 1000;
+        if (syncRef.current.enabled) {
+          void syncRef.current.requestPrevious().catch(() => {});
+          return;
+        }
         const previous = previousItemRef.current;
-        if (previous) void playAdjacentItem(session, previous);
+        if (!previous) return;
+        resetStillWatchingSession();
+        void playAdjacentItem(session, previous);
       }),
 
       addNativePlayerListener("onEpisodeSelected", (payload) => {
         const session = sessionRef.current;
         if (!session || session.awaitingLoad || !payload.itemId) return;
         session.positionMs = payload.positionSec * 1000;
+        if (syncRef.current.enabled) {
+          void syncRef.current
+            .playItems([payload.itemId], 0, 0)
+            .catch(() => {});
+          return;
+        }
         void (async () => {
           let target: BaseItemDto | undefined;
           if (session.offline) {
@@ -1664,7 +2074,9 @@ const NativePlayerProviderInner: React.FC<{
               .catch(() => null);
             target = res?.data;
           }
-          if (target) await playAdjacentItem(session, target);
+          if (!target) return;
+          resetStillWatchingSession();
+          await playAdjacentItem(session, target);
         })();
       }),
 
@@ -1708,6 +2120,10 @@ const NativePlayerProviderInner: React.FC<{
         const session = sessionRef.current;
         const currentSettings = settingsRef.current;
         if (!session || session.awaitingLoad || !currentSettings) return;
+        if (syncRef.current.enabled) {
+          void nativePlayerSetSpeed(1);
+          return;
+        }
         updatePlaybackSpeedSettings(
           payload.speed,
           PlaybackSpeedScope.All,
@@ -1717,7 +2133,8 @@ const NativePlayerProviderInner: React.FC<{
         );
       }),
 
-      addNativePlayerListener("onPictureInPictureChange", () => {
+      addNativePlayerListener("onPictureInPictureChange", (payload) => {
+        nativePipRef.current = payload.isActive;
         // Informational; reporting continues off onProgress either way.
       }),
 
@@ -1739,11 +2156,22 @@ const NativePlayerProviderInner: React.FC<{
         // not arrived (resolveTeardownReport).
         if (!session || session.awaitingLoad) return;
         session.positionMs = payload.positionSec * 1000;
+        if (
+          syncRef.current.enabled &&
+          session.isReady &&
+          session.syncPlaylistItemId === syncRef.current.currentPlaylistItemId
+        )
+          syncRef.current.notifyEnded(session.syncPlaylistItemId);
       }),
 
       addNativePlayerListener("onDismiss", (payload) => {
+        syncBufferingReporter.reset();
         const session = sessionRef.current;
         if (!session) return;
+        nativePipRef.current = false;
+        // Closing the player is not leaving the group: only Leave is.
+        if (syncRef.current.enabled && payload.reason !== "programmatic")
+          void syncRef.current.stopWatching().catch(() => {});
         void teardownSession(session, payload.positionSec);
       }),
     ];
@@ -1755,6 +2183,7 @@ const NativePlayerProviderInner: React.FC<{
     };
   }, [
     buildProgressInfo,
+    reportNativeProgress,
     applySubtitleSelection,
     applyLocalSubtitleSelection,
     handleAudioSelection,
@@ -1770,6 +2199,7 @@ const NativePlayerProviderInner: React.FC<{
     downloadUtils,
     updateSettings,
     lockOrientation,
+    syncBufferingReporter,
   ]);
 
   // MARK: - Remote control (Jellyfin WebSocket)
@@ -1779,31 +2209,20 @@ const NativePlayerProviderInner: React.FC<{
   // the JS route when the native player declines.
   useEffect(
     () =>
-      subscribe("Play", (data: any) => {
-        if (!data?.ItemIds?.length) return;
-        const req: PlayRequest = {
-          itemId: data.ItemIds[0],
-          audioIndex:
-            data.AudioStreamIndex !== undefined
-              ? Number(data.AudioStreamIndex)
-              : undefined,
-          subtitleIndex:
-            data.SubtitleStreamIndex !== undefined
-              ? Number(data.SubtitleStreamIndex)
-              : undefined,
-          mediaSourceId: data.MediaSourceId || undefined,
-          offline: false,
-          // Previously dropped by WebSocketProvider's handler; pass through.
-          playbackPositionTicks:
-            data.StartPositionTicks !== undefined
-              ? Number(data.StartPositionTicks)
-              : undefined,
-        };
+      subscribe("Play", (data: unknown) => {
+        const req = parseRemotePlayCommand(data);
+        if (!req) return;
+        if (syncRef.current.enabled && !req.offline) {
+          void syncRef.current
+            .playItems([req.itemId], 0, req.playbackPositionTicks || 0)
+            .catch(() => {});
+          return;
+        }
+        // Someone chose this play, from another client: a new session.
+        resetStillWatchingSession();
         void (async () => {
-          // Respect the user's explicit MPV opt-out — the WS Play path must
-          // pick the same player the play button would.
-          const useNative =
-            getActiveVideoPlayer(settingsRef.current) === VideoPlayer.Native;
+          // The WS Play path must pick the same player the play button would.
+          const useNative = isNativeChromeActive(settingsRef.current);
           const presented = useNative && (await presentFromRequest(req));
           if (!presented) {
             // Never stack the JS route under a still-presented native player
@@ -1834,6 +2253,38 @@ const NativePlayerProviderInner: React.FC<{
       if (!command) return;
       const session = sessionRef.current;
       if (!session) return;
+
+      if (syncRef.current.enabled) {
+        const sync = syncRef.current;
+        switch (command) {
+          case "PlayPause":
+            void (
+              session.isPlaying ? sync.requestPause() : sync.requestUnpause()
+            ).catch(() => {});
+            return;
+          case "Pause":
+            void sync.requestPause().catch(() => {});
+            return;
+          case "Unpause":
+            void sync.requestUnpause().catch(() => {});
+            return;
+          case "Stop":
+            void sync.requestStop().catch(() => {});
+            return;
+          case "Seek": {
+            const ticks = Number(args?.SeekPositionTicks);
+            if (Number.isFinite(ticks))
+              void sync.requestSeek(ticks).catch(() => {});
+            return;
+          }
+          case "NextTrack":
+            void sync.requestNext().catch(() => {});
+            return;
+          case "PreviousTrack":
+            void sync.requestPrevious().catch(() => {});
+            return;
+        }
+      }
 
       switch (command) {
         case "PlayPause":
@@ -1882,14 +2333,19 @@ const NativePlayerProviderInner: React.FC<{
           }
           break;
         }
+        // Picked from another client: plays someone chose, new sessions.
         case "NextTrack": {
           const next = nextItemRef.current;
-          if (next) void playAdjacentItem(session, next);
+          if (!next) break;
+          resetStillWatchingSession();
+          void playAdjacentItem(session, next);
           break;
         }
         case "PreviousTrack": {
           const previous = previousItemRef.current;
-          if (previous) void playAdjacentItem(session, previous);
+          if (!previous) break;
+          resetStillWatchingSession();
+          void playAdjacentItem(session, previous);
           break;
         }
         default:
@@ -1921,6 +2377,9 @@ const NativePlayerProviderInner: React.FC<{
       void dismissNativePlayer();
     }
   }, [user]);
+
+  // The music player reads this to leave a remote's command to the video.
+  useVideoSession(isActive);
 
   // BackHandler for Android: hardware back button dismisses presented native player
   useEffect(() => {

@@ -46,7 +46,7 @@ fun TechnicalInfoOverlay(
 
     LaunchedEffect(Unit) {
         while (true) {
-            techInfo = viewModel.renderer?.getTechnicalInfo() ?: emptyMap()
+            techInfo = viewModel.engine?.getTechnicalInfo() ?: emptyMap()
             delay(1000L)
         }
     }
@@ -91,7 +91,13 @@ fun TechnicalInfoOverlay(
             techInfo["videoBitrate"]?.let { TechInfoRow("Video Bitrate", "${(it as Number).toInt() / 1000} kbps") }
             techInfo["audioCodec"]?.let { TechInfoRow("Audio Codec", it.toString()) }
             techInfo["audioBitrate"]?.let { TechInfoRow("Audio Bitrate", "${(it as Number).toInt() / 1000} kbps") }
+            // Decoder rows are engine-dependent: mpv reports hwdec, the
+            // Media3 engine reports decoderName/decoderType. Each engine's
+            // page shows its own — the other's keys are simply absent.
             techInfo["hwdec"]?.let { TechInfoRow("Decoder", it.toString()) }
+            techInfo["decoderName"]?.let { TechInfoRow("Decoder", it.toString()) }
+            techInfo["decoderType"]?.let { TechInfoRow("Decode", it.toString()) }
+            techInfo["hdrFormat"]?.let { TechInfoRow("HDR", it.toString()) }
             techInfo["voDriver"]?.let { TechInfoRow("VO Driver", it.toString()) }
             techInfo["cacheSeconds"]?.let { TechInfoRow("Buffer", String.format("%.1f s", it)) }
             techInfo["droppedFrames"]?.let { TechInfoRow("Dropped Frames", it.toString()) }

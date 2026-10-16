@@ -30,7 +30,6 @@ const dependencies = {
   "expo-sharing": disableForTV("expo-sharing"),
   "expo-haptics": disableForTV("expo-haptics"),
   "expo-brightness": disableForTV("expo-brightness"),
-  "expo-sensors": disableForTV("expo-sensors"),
   "expo-screen-orientation": disableForTV("expo-screen-orientation"),
   "react-native-pager-view": disableForTV("react-native-pager-view"),
   "react-native-track-player": disableForTV("react-native-track-player"),

@@ -85,7 +85,9 @@ export function CustomHeaderSelector({
         <Text className='text-xs text-neutral-500 mb-3'>{description}</Text>
       ) : null}
 
-      <View className='flex-row gap-2 mb-4'>
+      {/* As a style: a release build drops the gap-2 class, and the three
+          buttons ran into each other. */}
+      <View className='flex-row mb-2' style={{ gap: 8 }}>
         <SourceButton
           selected={config.source === "jellyfin"}
           onPress={() => setSource("jellyfin")}
@@ -183,7 +185,10 @@ function SourceButton({
         color={selected ? "white" : disabled ? "#666" : "#999"}
       />
       <Text
-        className={`text-[10px] mt-0.5 ${
+        // As a style: a release build drops text-[10px], which made the
+        // buttons as tall as the default text size.
+        style={{ fontSize: 10 }}
+        className={`mt-0.5 ${
           selected
             ? "text-white"
             : disabled

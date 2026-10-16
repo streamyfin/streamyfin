@@ -3,12 +3,18 @@ import * as SecureStore from "expo-secure-store";
 import {
   bumpCustomHeadersVersion,
   deleteSecureCustomHeaderValues,
+  recreateLegacySecureValues,
   resolveCustomHeaderValues,
   secureCustomHeaderMetadata,
 } from "./customHeaders/secureValues";
 import type { CustomHeader } from "./customHeaders/types";
 import { logAndCaptureError } from "./log";
 import { storage } from "./mmkv";
+import {
+  deleteSeerrPassword,
+  getSeerrPassword,
+  saveSeerrPassword,
+} from "./seerrPassword";
 
 const CREDENTIAL_KEY_PREFIX = "credential_";
 const MULTI_ACCOUNT_MIGRATED_KEY = "multiAccountMigrated";
@@ -104,50 +110,6 @@ export function credentialKey(serverUrl: string, userId: string): string {
   return `${CREDENTIAL_KEY_PREFIX}${encoded}`;
 }
 
-const JELLYSEERR_PASSWORD_KEY_PREFIX = "jellyseerrpw_";
-
-function jellyseerrPasswordKey(serverUrl: string, userId: string): string {
-  const encoded = btoa(`${serverUrl}:${userId}`).replace(/[^a-zA-Z0-9]/g, "_");
-  return `${JELLYSEERR_PASSWORD_KEY_PREFIX}${encoded}`;
-}
-
-/**
- * Remember the Jellyfin password so Jellyseerr can be signed in automatically
- * on launch.
- *
- * Jellyseerr's /auth/jellyfin endpoint authenticates with the *password*, not
- * the Jellyfin access token, so there is no token-shaped way to do this — the
- * password itself has to be kept. It lives in the platform secure store
- * (Keychain / Android Keystore, and the OS keystore via Electron safeStorage on
- * desktop), never in MMKV. Only stored when the user opts in via the
- * `autoLoginJellyseerr` setting, and removed on logout with the rest of the
- * account's credentials.
- */
-export async function saveJellyseerrPassword(
-  serverUrl: string,
-  userId: string,
-  password: string,
-): Promise<void> {
-  await SecureStore.setItemAsync(
-    jellyseerrPasswordKey(serverUrl, userId),
-    password,
-  );
-}
-
-export async function getJellyseerrPassword(
-  serverUrl: string,
-  userId: string,
-): Promise<string | null> {
-  return SecureStore.getItemAsync(jellyseerrPasswordKey(serverUrl, userId));
-}
-
-export async function deleteJellyseerrPassword(
-  serverUrl: string,
-  userId: string,
-): Promise<void> {
-  await SecureStore.deleteItemAsync(jellyseerrPasswordKey(serverUrl, userId));
-}
-
 /**
  * Hash a PIN using SHA256.
  */
@@ -212,6 +174,25 @@ export async function getAccountCredential(
 }
 
 /**
+ * The credential a saved account signs in with, or null once an account that
+ * has none is forgotten.
+ *
+ * The account list and the credentials are two stores, and an account can be
+ * listed with no credential behind it (REACT-NATIVE-2K, on tvOS). Such an
+ * entry can never sign in, so it comes off the list the way an account whose
+ * token was rejected does, and signing in again puts it back.
+ */
+export async function getCredentialOrForgetAccount(
+  serverUrl: string,
+  userId: string,
+): Promise<ServerCredential | null> {
+  const credential = await getAccountCredential(serverUrl, userId);
+  if (credential) return credential;
+  await deleteAccountCredential(serverUrl, userId);
+  return null;
+}
+
+/**
  * Delete credential for a specific account.
  */
 export async function deleteAccountCredential(
@@ -221,9 +202,9 @@ export async function deleteAccountCredential(
   const key = credentialKey(serverUrl, userId);
   await SecureStore.deleteItemAsync(key);
 
-  // Forgetting the account also forgets its Jellyseerr password — it must
+  // Forgetting the account also forgets its Seerr password: it must
   // not outlive the credential it belongs to.
-  await deleteJellyseerrPassword(serverUrl, userId);
+  await deleteSeerrPassword(serverUrl, userId);
 
   // Remove account from previousServers
   removeAccountFromServer(serverUrl, userId);
@@ -475,6 +456,195 @@ export function getServerCustomHeaders(serverUrl: string): CustomHeader[] {
   // This is a read: it must not write, because it runs during render (every
   // <Image> resolves its headers through it).
   return resolveCustomHeaderValues(server?.customHeaders ?? []);
+}
+
+/**
+ * The one credential an account keeps when it is saved under both addresses:
+ * the fresher token, since the account signed in with it since, and the
+ * stricter protection. A move must never be what takes a PIN or a password
+ * prompt off an account, whichever address it was set under.
+ */
+function mergeCredentials(
+  moving: ServerCredential,
+  present: ServerCredential | null,
+  to: string,
+): ServerCredential {
+  if (!present) return { ...moving, serverUrl: to };
+
+  const [fresher, other] =
+    present.savedAt < moving.savedAt ? [moving, present] : [present, moving];
+  const guard =
+    fresher.securityType === "none" && other.securityType !== "none"
+      ? other
+      : fresher;
+  return {
+    ...fresher,
+    serverUrl: to,
+    securityType: guard.securityType,
+    pinHash: guard.pinHash,
+  };
+}
+
+/**
+ * Copies what the keychain holds for one account to another server address:
+ * its credential, PIN or password protection included, and its Seerr
+ * password. Nothing is taken from the old address here: until the list names
+ * the new one, the old one is what a saved login is looked up under.
+ *
+ * Resolves to the credential the account has at the new address afterwards,
+ * or to null when it has none.
+ */
+async function copyAccountSecrets(
+  from: string,
+  to: string,
+  userId: string,
+): Promise<ServerCredential | null> {
+  const moving = await getAccountCredential(from, userId);
+  let kept = await getAccountCredential(to, userId);
+  if (moving) {
+    kept = mergeCredentials(moving, kept, to);
+    await SecureStore.setItemAsync(
+      credentialKey(to, userId),
+      JSON.stringify(kept),
+    );
+  }
+
+  const password = await getSeerrPassword(from, userId);
+  if (password !== null && (await getSeerrPassword(to, userId)) === null) {
+    await saveSeerrPassword(to, userId, password);
+  }
+  return kept;
+}
+
+/**
+ * Removes what `copyAccountSecrets` left under the old address. What cannot
+ * be removed stays behind as an item nothing reads any more, so a keychain
+ * that refuses here does not undo a move that is already done.
+ */
+async function removeAccountSecrets(
+  from: string,
+  userId: string,
+): Promise<void> {
+  await Promise.allSettled([
+    SecureStore.deleteItemAsync(credentialKey(from, userId)),
+    deleteSeerrPassword(from, userId),
+  ]);
+}
+
+/**
+ * One entry per user, the more recently saved one when both lists have it.
+ *
+ * The list is what the sign-in screen reads to decide whether to ask for a
+ * PIN or a password, and the credential is what it then signs in with. So an
+ * entry takes its protection from the credential the account ended up with:
+ * the two must not disagree, or the prompt could be skipped for a credential
+ * that asks for one.
+ */
+function mergeAccounts(
+  moved: SavedServerAccount[],
+  present: SavedServerAccount[],
+  credentials: Map<string, ServerCredential>,
+): SavedServerAccount[] {
+  const byUser = new Map(present.map((account) => [account.userId, account]));
+  for (const account of moved) {
+    const existing = byUser.get(account.userId);
+    if (!existing || existing.savedAt < account.savedAt) {
+      byUser.set(account.userId, account);
+    }
+  }
+  return [...byUser.values()].map((account) => {
+    const credential = credentials.get(account.userId);
+    return credential
+      ? { ...account, securityType: credential.securityType }
+      : account;
+  });
+}
+
+/**
+ * Moves a saved server to another address, for an address that turned out to
+ * be another spelling of the same server: its accounts and what the keychain
+ * holds for them, its local network configuration and its custom headers.
+ *
+ * Whatever is already saved under the new address stays, and the two are
+ * merged. Everything is copied first, then the list is written, and only then
+ * is the old address emptied. A run that fails or is cut short before the
+ * list is written leaves the old entry listed with all it had, so a saved
+ * login still works under it and the next run does the move again.
+ */
+export async function renameSavedServer(
+  from: string,
+  to: string,
+): Promise<void> {
+  if (from === to) return;
+  const source = getPreviousServers().find((s) => s.address === from);
+  if (!source) return;
+
+  const credentials = new Map<string, ServerCredential>();
+  for (const account of source.accounts) {
+    const kept = await copyAccountSecrets(from, to, account.userId);
+    if (kept) credentials.set(account.userId, kept);
+  }
+
+  // The header values are stored under keys made from the address, so they
+  // are written again under the new one rather than pointed at.
+  const sourceHeaders = getServerCustomHeaders(from);
+  if (sourceHeaders.length > 0 && getServerCustomHeaders(to).length === 0) {
+    updateServerCustomHeaders(to, sourceHeaders);
+  }
+
+  const servers = getPreviousServers();
+  const target = servers.find((s) => s.address === to);
+  const merged: SavedServer = {
+    address: to,
+    name: target?.name ?? source.name,
+    accounts: mergeAccounts(
+      source.accounts,
+      target?.accounts ?? [],
+      credentials,
+    ),
+    localNetworkConfig: target?.localNetworkConfig ?? source.localNetworkConfig,
+    customHeaders: target?.customHeaders,
+  };
+  // In the place of the old entry, so the list keeps its order.
+  const updated = servers.flatMap((server) => {
+    if (server.address === from) return [merged];
+    return server.address === to ? [] : [server];
+  });
+  storage.set("previousServers", JSON.stringify(updated));
+
+  for (const account of source.accounts) {
+    await removeAccountSecrets(from, account.userId);
+  }
+  deleteSecureCustomHeaderValues(source.customHeaders ?? []);
+  bumpCustomHeadersVersion();
+}
+
+/**
+ * Moves the header values an earlier build stored to items that can be read
+ * while the phone is locked: see `recreateLegacySecureValues`. Run at startup.
+ * It does nothing once every value is moved, and nothing on a locked phone,
+ * where the next launch tries again.
+ */
+export function makeServerHeadersReadableWhileLocked(): void {
+  try {
+    const replaced: CustomHeader[] = [];
+    const servers = getPreviousServers().map((server) => {
+      const moved = recreateLegacySecureValues(
+        `server:${server.address}`,
+        server.customHeaders ?? [],
+      );
+      if (!moved) return server;
+
+      replaced.push(...moved.replaced);
+      return { ...server, customHeaders: moved.headers };
+    });
+    if (replaced.length === 0) return;
+
+    storage.set("previousServers", JSON.stringify(servers));
+    deleteSecureCustomHeaderValues(replaced);
+  } catch (error) {
+    logAndCaptureError("Moving the server header values failed", error);
+  }
 }
 
 /**

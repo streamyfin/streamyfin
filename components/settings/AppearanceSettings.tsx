@@ -77,6 +77,17 @@ export const AppearanceSettings: React.FC = () => {
           />
         </ListItem>
         <ListItem
+          title={t("home.settings.appearance.show_upcoming_on_home")}
+          subtitle={t("home.settings.appearance.show_upcoming_on_home_hint")}
+        >
+          <SettingSwitch
+            value={settings.showUpcomingOnHome}
+            onValueChange={(value) =>
+              updateSettings({ showUpcomingOnHome: value })
+            }
+          />
+        </ListItem>
+        <ListItem
           title={t("home.settings.appearance.use_episode_images_next_up")}
           subtitle={t(
             "home.settings.appearance.use_episode_images_next_up_hint",

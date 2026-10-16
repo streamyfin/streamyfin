@@ -33,42 +33,32 @@ class MPVLib private constructor(private val instance: LibMPV) {
         fun event(eventId: Int)
     }
 
-    private val observers = mutableListOf<EventObserver>()
+    private val observers = MpvObservers<EventObserver>()
 
     // Library event observer that forwards LibMPV callbacks to our observers.
     private val libObserver = object : LibMPV.EventObserver {
         override fun eventProperty(property: String) =
-            dispatch { it.eventProperty(property) }
+            observers.dispatch { it.eventProperty(property) }
 
         override fun eventProperty(property: String, value: Long) =
-            dispatch { it.eventProperty(property, value) }
+            observers.dispatch { it.eventProperty(property, value) }
 
         override fun eventProperty(property: String, value: Boolean) =
-            dispatch { it.eventProperty(property, value) }
+            observers.dispatch { it.eventProperty(property, value) }
 
         override fun eventProperty(property: String, value: String) =
-            dispatch { it.eventProperty(property, value) }
+            observers.dispatch { it.eventProperty(property, value) }
 
         override fun eventProperty(property: String, value: Double) =
-            dispatch { it.eventProperty(property, value) }
+            observers.dispatch { it.eventProperty(property, value) }
 
         override fun event(eventId: Int) =
-            dispatch { it.event(eventId) }
-
-        private inline fun dispatch(block: (EventObserver) -> Unit) {
-            synchronized(observers) {
-                observers.forEach(block)
-            }
-        }
+            observers.dispatch { it.event(eventId) }
     }
 
-    fun addObserver(observer: EventObserver) {
-        synchronized(observers) { observers.add(observer) }
-    }
+    fun addObserver(observer: EventObserver) = observers.add(observer)
 
-    fun removeObserver(observer: EventObserver) {
-        synchronized(observers) { observers.remove(observer) }
-    }
+    fun removeObserver(observer: EventObserver) = observers.remove(observer)
 
     fun initialize() {
         instance.init()

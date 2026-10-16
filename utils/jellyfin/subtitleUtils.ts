@@ -73,6 +73,30 @@ export const getExternalSubtitleUrl = (
 };
 
 /**
+ * The URL a cast receiver fetches a sidecar subtitle from. The receiver sends
+ * no auth headers, so the token rides in the URL — as `ApiKey`, the query
+ * parameter Jellyfin still accepts: `api_key` is legacy authorization, which
+ * Jellyfin 12 turns off by default.
+ *
+ * Only a server-relative URL gets the token. An `IsExternalUrl` sub lives on
+ * a third-party host that must never see the Jellyfin access token, and a URL
+ * the server already signed is left as it came.
+ */
+export const getCastSubtitleUrl = (
+  sub: MediaStream,
+  opts: { basePath?: string | null; accessToken?: string | null },
+): string | undefined => {
+  const url = getExternalSubtitleUrl(sub, {
+    offline: false,
+    basePath: opts.basePath,
+  });
+  if (!url) return undefined;
+  if (sub.IsExternalUrl || !opts.accessToken) return url;
+  if (/[?&]api_?key=/i.test(url)) return url;
+  return `${url}${url.includes("?") ? "&" : "?"}ApiKey=${encodeURIComponent(opts.accessToken)}`;
+};
+
+/**
  * Order subtitle MediaStreams for the selection menu exactly like jellyfin-web's
  * `itemHelper.sortTracks`: in-container tracks first then external, and within
  * each group forced first, then default, then `Index` ascending. Callers prepend
@@ -358,10 +382,94 @@ const LANG_CANONICAL: Record<string, string> = {
   zho: "chi",
 };
 
-/** Canonicalize a language tag: lowercase, primary subtag ("en-US" → "en"), 639-2/B. */
-export const canonicalLang = (raw: string): string => {
-  const primary = raw.trim().toLowerCase().split("-")[0];
-  return LANG_CANONICAL[primary] ?? primary;
+/**
+ * Script a Chinese region implies when the tag does not name one. Chinese is the
+ * one language whose variants are spelled by region about as often as by script
+ * ("zh-TW" and "zh-Hant" label the same subtitle), so without this the two
+ * spellings could never be told apart from "zh-CN" and "zh-Hans".
+ */
+const CHINESE_REGION_SCRIPT: Record<string, string> = {
+  cn: "hans",
+  sg: "hans",
+  tw: "hant",
+  hk: "hant",
+  mo: "hant",
+};
+
+type LangTag = {
+  language: string;
+  script?: string;
+  region?: string;
+  variants: string[];
+};
+
+/**
+ * Split a language tag into the parts that tell two tracks apart: the language
+ * as 639-2/B, plus the script, region and variants when the tag names them
+ * ("pt-BR", "zh-Hant", "sr-Latn-RS", "ca-valencia", "de-CH-1901").
+ * Extended-language subtags and extensions are dropped.
+ */
+const parseLangTag = (raw: string): LangTag => {
+  const [primary, ...rest] = raw.trim().toLowerCase().split(/[-_]/);
+  const language = LANG_CANONICAL[primary] ?? primary;
+  let script: string | undefined;
+  let region: string | undefined;
+  const variants: string[] = [];
+  for (const subtag of rest) {
+    // A single character opens an extension or private-use section, where a
+    // two-letter subtag is no longer a region ("en-x-us") and a longer one is
+    // no longer a variant ("en-x-forced").
+    if (subtag.length === 1) break;
+    if (!script && !region && /^[a-z]{4}$/.test(subtag)) {
+      script = subtag;
+    } else if (!region && /^([a-z]{2}|\d{3})$/.test(subtag)) {
+      region = subtag;
+    } else if (
+      // Five to eight characters, or four when the first is a digit ("1901"),
+      // which is what keeps a variant apart from a script.
+      /^([a-z0-9]{5,8}|\d[a-z0-9]{3})$/.test(subtag) &&
+      !variants.includes(subtag)
+    ) {
+      variants.push(subtag);
+    }
+  }
+  if (!script && region && language === "chi") {
+    script = CHINESE_REGION_SCRIPT[region];
+  }
+  return { language, script, region, variants };
+};
+
+/** A subtag one side leaves out is open, so it agrees with anything. */
+const subtagAgrees = (a?: string, b?: string): boolean => !a || !b || a === b;
+
+/**
+ * Variants agree when one side names nothing the other lacks. Naming none is
+ * the open case again, and "sl-rozaj" covers the narrower "sl-rozaj-biske".
+ */
+const variantsAgree = (a: string[], b: string[]): boolean =>
+  a.every((v) => b.includes(v)) || b.every((v) => a.includes(v));
+
+/**
+ * How closely two language tags agree: 0 when they are different languages or
+ * name different variants of one, otherwise higher the more of script, region
+ * and variants they have in common. Leaving a subtag out on both sides counts
+ * as common, so a bare "por" is closer to another "por" than to "pt-BR".
+ */
+const langAffinity = (a?: string | null, b?: string | null): number => {
+  if (!a || !b) return 0;
+  const x = parseLangTag(a);
+  const y = parseLangTag(b);
+  if (x.language !== y.language) return 0;
+  if (!subtagAgrees(x.script, y.script)) return 0;
+  if (!subtagAgrees(x.region, y.region)) return 0;
+  if (!variantsAgree(x.variants, y.variants)) return 0;
+  return (
+    1 +
+    Number(x.script === y.script) +
+    Number(x.region === y.region) +
+    // One list is inside the other by now, so equal length is the same list.
+    Number(x.variants.length === y.variants.length)
+  );
 };
 
 /**
@@ -372,9 +480,44 @@ export const canonicalLang = (raw: string): string => {
  * which carries .NET-style 639-2/T codes ("deu", "fra"), while MediaStreams are
  * tagged 639-2/B ("ger", "fre"). Anything comparing those two by string
  * equality — or by truncating to two letters — silently never matches.
+ *
+ * Script, region and variant subtags count: "pt-BR" is not "pt-PT", "zh-Hans"
+ * is not "zh-Hant" and "de-1901" is not "de-1996". A tag that leaves them out
+ * matches every variant of its language,
+ * which it has to: the server reports the legacy 639-2 tag ("por") for a track
+ * mpv reads as "pt-BR" from the same file. That makes this a compatibility
+ * check rather than an equivalence, so anything choosing between several
+ * matches goes through {@link closestLanguageMatches}.
  */
 export const langEq = (a?: string | null, b?: string | null): boolean =>
-  !!a && !!b && canonicalLang(a) === canonicalLang(b);
+  langAffinity(a, b) > 0;
+
+/**
+ * The entries of `items` whose language agrees best with `lang`, in their
+ * original order; empty when none match.
+ *
+ * {@link langEq} alone accepts both a bare "por" track and a "pt-BR" one for a
+ * "pt-BR" pick, and taking the first of those lands on whichever the file lists
+ * first. Narrowing to the closest tag keeps the pick on the variant asked for.
+ */
+export const closestLanguageMatches = <T>(
+  items: T[],
+  lang: string | null | undefined,
+  languageOf: (item: T) => string | null | undefined,
+): T[] => {
+  let best = 0;
+  let closest: T[] = [];
+  for (const item of items) {
+    const affinity = langAffinity(languageOf(item), lang);
+    if (affinity === 0 || affinity < best) continue;
+    if (affinity > best) {
+      best = affinity;
+      closest = [];
+    }
+    closest.push(item);
+  }
+  return closest;
+};
 
 /** Match an embedded player track to a Jellyfin stream by language/title (codec-agnostic). */
 const embeddedIdentityMatches = (
@@ -389,6 +532,25 @@ const embeddedIdentityMatches = (
   // No language on one side — fall back to a title match.
   if (!track.language || !stream.Language) return eq(track.title, stream.Title);
   return false;
+};
+
+/**
+ * The player tracks that could be `stream`, narrowed to the ones whose language
+ * tag is closest to it. A track matched on title alone has no tag to compare
+ * and stays in.
+ */
+const embeddedIdentityTracks = (
+  tracks: PlayerSubtitleTrack[],
+  stream: MediaStream,
+): PlayerSubtitleTrack[] => {
+  const matches = tracks.filter((t) => embeddedIdentityMatches(t, stream));
+  const affinities = matches.map((t) =>
+    langAffinity(t.language, stream.Language),
+  );
+  const best = Math.max(0, ...affinities);
+  return matches.filter(
+    (_, i) => affinities[i] === 0 || affinities[i] === best,
+  );
 };
 
 /**
@@ -470,9 +632,7 @@ export const resolveSubtitleTrack = (params: {
   const playerEmbedded = playerTracks.filter((t) => t.external !== true);
 
   // 1) Identity by language/title (unique match wins).
-  const identityMatches = playerEmbedded.filter((t) =>
-    embeddedIdentityMatches(t, target),
-  );
+  const identityMatches = embeddedIdentityTracks(playerEmbedded, target);
   if (identityMatches.length === 1) {
     return { kind: "select", trackId: identityMatches[0].id };
   }
@@ -482,9 +642,14 @@ export const resolveSubtitleTrack = (params: {
   //    (container order is preserved on both sides, filter preserves order).
   //    The group ordinal, not the global one: with [jpn, eng, eng] the first
   //    eng is global position 1 but group position 0.
+  //    The group is every stream competing for one of these tracks, judged the
+  //    same way as the target: a "por" stream whose own closest track is a
+  //    "por" one does not count towards the ordinal of the "pt-BR" tracks.
   if (identityMatches.length > 1) {
     const groupStreams = embeddedStreams.filter((s) =>
-      identityMatches.some((t) => embeddedIdentityMatches(t, s)),
+      embeddedIdentityTracks(playerEmbedded, s).some((t) =>
+        identityMatches.includes(t),
+      ),
     );
     const groupOrdinal = groupStreams.findIndex(
       (s) => s.Index === jellyfinSubtitleIndex,
@@ -720,13 +885,14 @@ export const pickAutoSubtitleTrack = (params: {
     return { index: null, track: null, reason: "restart-required" };
 
   const ordered = [...pool].sort(compareTracksForMenu);
+  const unforced = ordered.filter((s) => !s.IsForced);
   const byLanguage = (lang: string | null | undefined) =>
-    ordered.find((s) => !s.IsForced && langEq(s.Language, lang));
+    closestLanguageMatches(unforced, lang, (s) => s.Language)[0];
 
   const picked =
     byLanguage(params.preferredLanguage) ??
     byLanguage(params.audioLanguage) ??
-    ordered.find((s) => !s.IsForced) ??
+    unforced[0] ??
     ordered[0];
 
   return {

@@ -13,35 +13,40 @@ import {
   View,
 } from "react-native";
 import { Text } from "@/components/common/Text";
-import { TVRequestOptionRow } from "@/components/jellyseerr/tv/TVRequestOptionRow";
-import { TVToggleOptionRow } from "@/components/jellyseerr/tv/TVToggleOptionRow";
+import { TVRequestOptionRow } from "@/components/seerr/tv/TVRequestOptionRow";
+import { TVToggleOptionRow } from "@/components/seerr/tv/TVToggleOptionRow";
 import { TVButton, TVOptionSelector } from "@/components/tv";
 import type { TVOptionItem } from "@/components/tv/TVOptionSelector";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
-import { useJellyseerr } from "@/hooks/useJellyseerr";
+import { useSeerr } from "@/hooks/useSeerr";
 import { tvRequestModalAtom } from "@/utils/atoms/tvRequestModal";
+import { canRequestForOthers } from "@/utils/seerr/requests";
 import type {
+  MediaRequestBody,
   QualityProfile,
   RootFolder,
-  Tag,
-} from "@/utils/jellyseerr/server/api/servarr/base";
-import type { MediaRequestBody } from "@/utils/jellyseerr/server/interfaces/api/requestInterfaces";
+  ServarrTag as Tag,
+} from "@/utils/seerr/types";
 import { store } from "@/utils/store";
+import { createSubmission } from "@/utils/submission";
 
 export default function TVRequestModalPage() {
   const typography = useScaledTVTypography();
   const router = useRouter();
   const modalState = useAtomValue(tvRequestModalAtom);
   const { t } = useTranslation();
-  const { jellyseerrApi, jellyseerrUser, requestMedia } = useJellyseerr();
+  const { seerrApi, seerrUser, requestMedia } = useSeerr();
 
   const [isReady, setIsReady] = useState(false);
-  const [requestOverrides, setRequestOverrides] = useState<MediaRequestBody>({
-    mediaId: modalState?.id ? Number(modalState.id) : 0,
-    mediaType: modalState?.mediaType,
-    userId: jellyseerrUser?.id,
-  });
+  // Only what the user changes: the media itself comes from the request body
+  // the modal was opened with. No user named until one is picked: Seerr
+  // refuses a request naming one, even the caller's own, from anyone who may
+  // not request for others.
+  const [requestOverrides, setRequestOverrides] = useState<
+    Partial<MediaRequestBody>
+  >({});
+  const forOthers = canRequestForOthers(seerrUser?.permissions ?? 0);
 
   const [activeSelector, setActiveSelector] = useState<
     "profile" | "folder" | "user" | null
@@ -49,9 +54,11 @@ export default function TVRequestModalPage() {
 
   const overlayOpacity = useRef(new Animated.Value(0)).current;
   const sheetTranslateY = useRef(new Animated.Value(200)).current;
+  const submission = useRef(createSubmission()).current;
 
   // Animate in on mount
   useEffect(() => {
+    submission.show();
     overlayOpacity.setValue(0);
     sheetTranslateY.setValue(200);
 
@@ -73,24 +80,24 @@ export default function TVRequestModalPage() {
     const timer = setTimeout(() => setIsReady(true), 100);
     return () => {
       clearTimeout(timer);
+      submission.dismiss();
       store.set(tvRequestModalAtom, null);
     };
-  }, [overlayOpacity, sheetTranslateY]);
+  }, [overlayOpacity, sheetTranslateY, submission]);
 
   const { data: serviceSettings } = useQuery({
-    queryKey: ["jellyseerr", "request", modalState?.mediaType, "service"],
+    queryKey: ["seerr", "request", modalState?.mediaType, "service"],
     queryFn: async () =>
-      jellyseerrApi?.service(
+      seerrApi?.service(
         modalState?.mediaType === "movie" ? "radarr" : "sonarr",
       ),
-    enabled: !!jellyseerrApi && !!jellyseerrUser && !!modalState,
+    enabled: !!seerrApi && !!seerrUser && !!modalState,
   });
 
   const { data: users } = useQuery({
-    queryKey: ["jellyseerr", "users"],
-    queryFn: async () =>
-      jellyseerrApi?.user({ take: 1000, sort: "displayname" }),
-    enabled: !!jellyseerrApi && !!jellyseerrUser && !!modalState,
+    queryKey: ["seerr", "users"],
+    queryFn: async () => seerrApi?.user({ take: 1000, sort: "displayname" }),
+    enabled: forOthers && !!seerrApi && !!seerrUser && !!modalState,
   });
 
   const defaultService = useMemo(
@@ -100,7 +107,7 @@ export default function TVRequestModalPage() {
 
   const { data: defaultServiceDetails } = useQuery({
     queryKey: [
-      "jellyseerr",
+      "seerr",
       "request",
       modalState?.mediaType,
       "service",
@@ -112,13 +119,12 @@ export default function TVRequestModalPage() {
         ...prev,
         serverId: defaultService?.id,
       }));
-      return jellyseerrApi?.serviceDetails(
+      return seerrApi?.serviceDetails(
         modalState?.mediaType === "movie" ? "radarr" : "sonarr",
         defaultService!.id,
       );
     },
-    enabled:
-      !!jellyseerrApi && !!jellyseerrUser && !!defaultService && !!modalState,
+    enabled: !!seerrApi && !!seerrUser && !!defaultService && !!modalState,
   });
 
   const defaultProfile: QualityProfile | undefined = useMemo(
@@ -184,9 +190,9 @@ export default function TVRequestModalPage() {
       users?.map((user) => ({
         label: user.displayName,
         value: user.id,
-        selected: (requestOverrides.userId || jellyseerrUser?.id) === user.id,
+        selected: (requestOverrides.userId || seerrUser?.id) === user.id,
       })) || [],
-    [users, jellyseerrUser, requestOverrides.userId],
+    [users, seerrUser, requestOverrides.userId],
   );
 
   const tagItems = useMemo(() => {
@@ -206,7 +212,7 @@ export default function TVRequestModalPage() {
     const profile = defaultServiceDetails?.profiles.find(
       (p) => p.id === (requestOverrides.profileId || defaultProfile?.id),
     );
-    return profile?.name || defaultProfile?.name || t("jellyseerr.select");
+    return profile?.name || defaultProfile?.name || t("seerr.select");
   }, [
     defaultServiceDetails?.profiles,
     requestOverrides.profileId,
@@ -222,7 +228,7 @@ export default function TVRequestModalPage() {
       ? pathTitleExtractor(folder)
       : defaultFolder
         ? pathTitleExtractor(defaultFolder)
-        : t("jellyseerr.select");
+        : t("seerr.select");
   }, [
     defaultServiceDetails?.rootFolders,
     requestOverrides.rootFolder,
@@ -232,12 +238,10 @@ export default function TVRequestModalPage() {
 
   const selectedUserName = useMemo(() => {
     const user = users?.find(
-      (u) => u.id === (requestOverrides.userId || jellyseerrUser?.id),
+      (u) => u.id === (requestOverrides.userId || seerrUser?.id),
     );
-    return (
-      user?.displayName || jellyseerrUser?.displayName || t("jellyseerr.select")
-    );
-  }, [users, requestOverrides.userId, jellyseerrUser, t]);
+    return user?.displayName || seerrUser?.displayName || t("seerr.select");
+  }, [users, requestOverrides.userId, seerrUser, t]);
 
   // Handlers
   const handleProfileChange = useCallback((profileId: number) => {
@@ -271,7 +275,8 @@ export default function TVRequestModalPage() {
     [defaultTags],
   );
 
-  const handleRequest = useCallback(() => {
+  // One request at a time, and none closing a screen once this sheet is gone.
+  const handleRequest = useCallback(async () => {
     if (!modalState) return;
 
     const body = {
@@ -285,23 +290,27 @@ export default function TVRequestModalPage() {
 
     const seasonTitle =
       modalState.requestBody?.seasons?.length === 1
-        ? t("jellyseerr.season_number", {
+        ? t("seerr.season_number", {
             season_number: modalState.requestBody.seasons[0],
           })
         : modalState.requestBody?.seasons &&
             modalState.requestBody.seasons.length > 1
-          ? t("jellyseerr.season_all")
+          ? t("seerr.season_all")
           : undefined;
 
-    requestMedia(
+    if (!submission.start()) return;
+    await requestMedia(
       seasonTitle ? `${modalState.title}, ${seasonTitle}` : modalState.title,
       body,
       () => {
         modalState.onRequested();
-        router.back();
+        if (submission.dismiss()) router.back();
       },
     );
+    // A refusal leaves the sheet open, to try again.
+    submission.finish();
   }, [
+    submission,
     modalState,
     requestOverrides,
     defaultProfile,
@@ -318,7 +327,8 @@ export default function TVRequestModalPage() {
     return null;
   }
 
-  const isDataLoaded = defaultService && defaultServiceDetails && users;
+  const isDataLoaded =
+    defaultService && defaultServiceDetails && (!forOthers || users);
 
   return (
     <Animated.View style={[styles.overlay, { opacity: overlayOpacity }]}>
@@ -338,7 +348,7 @@ export default function TVRequestModalPage() {
             style={styles.content}
           >
             <Text style={[styles.heading, { fontSize: typography.heading }]}>
-              {t("jellyseerr.advanced")}
+              {t("seerr.advanced")}
             </Text>
             <Text style={[styles.subtitle, { fontSize: typography.callout }]}>
               {modalState.title}
@@ -351,25 +361,27 @@ export default function TVRequestModalPage() {
               >
                 <View style={styles.optionsContainer}>
                   <TVRequestOptionRow
-                    label={t("jellyseerr.quality_profile")}
+                    label={t("seerr.quality_profile")}
                     value={selectedProfileName}
                     onPress={() => setActiveSelector("profile")}
                     hasTVPreferredFocus
                   />
                   <TVRequestOptionRow
-                    label={t("jellyseerr.root_folder")}
+                    label={t("seerr.root_folder")}
                     value={selectedFolderName}
                     onPress={() => setActiveSelector("folder")}
                   />
-                  <TVRequestOptionRow
-                    label={t("jellyseerr.request_as")}
-                    value={selectedUserName}
-                    onPress={() => setActiveSelector("user")}
-                  />
+                  {forOthers && (
+                    <TVRequestOptionRow
+                      label={t("seerr.request_as")}
+                      value={selectedUserName}
+                      onPress={() => setActiveSelector("user")}
+                    />
+                  )}
 
                   {tagItems.length > 0 && (
                     <TVToggleOptionRow
-                      label={t("jellyseerr.tags")}
+                      label={t("seerr.tags")}
                       items={tagItems}
                       onToggle={handleTagToggle}
                     />
@@ -401,7 +413,7 @@ export default function TVRequestModalPage() {
                       { fontSize: typography.callout },
                     ]}
                   >
-                    {t("jellyseerr.request_button")}
+                    {t("seerr.request_button")}
                   </Text>
                 </TVButton>
               </View>
@@ -413,28 +425,28 @@ export default function TVRequestModalPage() {
       {/* Sub-selectors */}
       <TVOptionSelector
         visible={activeSelector === "profile"}
-        title={t("jellyseerr.quality_profile")}
+        title={t("seerr.quality_profile")}
         options={qualityProfileOptions}
         onSelect={handleProfileChange}
         onClose={() => setActiveSelector(null)}
-        cancelLabel={t("jellyseerr.cancel")}
+        cancelLabel={t("seerr.cancel")}
       />
       <TVOptionSelector
         visible={activeSelector === "folder"}
-        title={t("jellyseerr.root_folder")}
+        title={t("seerr.root_folder")}
         options={rootFolderOptions}
         onSelect={handleFolderChange}
         onClose={() => setActiveSelector(null)}
-        cancelLabel={t("jellyseerr.cancel")}
+        cancelLabel={t("seerr.cancel")}
         cardWidth={280}
       />
       <TVOptionSelector
         visible={activeSelector === "user"}
-        title={t("jellyseerr.request_as")}
+        title={t("seerr.request_as")}
         options={userOptions}
         onSelect={handleUserChange}
         onClose={() => setActiveSelector(null)}
-        cancelLabel={t("jellyseerr.cancel")}
+        cancelLabel={t("seerr.cancel")}
       />
     </Animated.View>
   );

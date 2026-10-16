@@ -1,5 +1,6 @@
 import axios from "axios";
 import { getIntegrationHeaders } from "@/utils/customHeaders";
+import { toRecommendationIds, toSearchIds } from "./responses";
 import type {
   AddWatchlistItemResponse,
   CreateWatchlistRequest,
@@ -70,15 +71,17 @@ export const createStreamystatsApi = (config: StreamystatsApiConfig) => {
     limit?: number,
     signal?: AbortSignal,
   ): Promise<StreamystatsSearchIdsResponse> => {
-    return search(
-      {
-        q: query,
-        format: "ids",
-        type,
-        limit,
-      },
-      signal,
-    ) as Promise<StreamystatsSearchIdsResponse>;
+    return toSearchIds(
+      await search(
+        {
+          q: query,
+          format: "ids",
+          type,
+          limit,
+        },
+        signal,
+      ),
+    );
   };
 
   const searchFull = async (
@@ -141,14 +144,16 @@ export const createStreamystatsApi = (config: StreamystatsApiConfig) => {
     type?: StreamystatsRecommendationsParams["type"],
     limit?: number,
   ): Promise<StreamystatsRecommendationsIdsResponse> => {
-    return getRecommendations({
-      jellyfinServerId,
-      format: "ids",
-      type,
-      limit,
-      includeBasedOn: false,
-      includeReasons: false,
-    }) as Promise<StreamystatsRecommendationsIdsResponse>;
+    return toRecommendationIds(
+      await getRecommendations({
+        jellyfinServerId,
+        format: "ids",
+        type,
+        limit,
+        includeBasedOn: false,
+        includeReasons: false,
+      }),
+    );
   };
 
   const getPromotedWatchlists = async (

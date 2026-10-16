@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { useAtomValue } from "jotai";
 import React, { useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Animated,
   Easing,
@@ -16,6 +17,7 @@ import {
   UnplayedCountBadge,
   WatchedIndicator,
 } from "@/components/WatchedIndicator";
+import { Colors } from "@/constants/Colors";
 import { useScaledTVPosterSizes } from "@/constants/TVPosterSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import {
@@ -24,6 +26,7 @@ import {
 } from "@/modules/glass-poster";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
+import { isLiveBroadcast } from "@/utils/jellyfin/media/isLiveBroadcast";
 import { scaleSize } from "@/utils/scaleSize";
 import { runtimeTicksToMinutes } from "@/utils/time";
 
@@ -77,6 +80,12 @@ export interface TVPosterCardProps {
 
   /** For horizontal episodes, prefer the episode's own image over the series thumb */
   preferEpisodeImage?: boolean;
+
+  /** Drawn over the poster, such as Seerr's badges. */
+  overlay?: React.ReactNode;
+
+  /** Lines a film's or a series' name may take under the poster (default 3). */
+  titleLines?: number;
 }
 
 /**
@@ -115,10 +124,13 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
   scaleAmount = 1.05,
   imageUrlGetter,
   preferEpisodeImage = false,
+  overlay,
+  titleLines = 3,
 }) => {
   const api = useAtomValue(apiAtom);
   const posterSizes = useScaledTVPosterSizes();
   const typography = useScaledTVTypography();
+  const { t } = useTranslation();
 
   const [focused, setFocused] = useState(false);
   const scale = useRef(new Animated.Value(1)).current;
@@ -410,6 +422,33 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
     </View>
   ) : null;
 
+  // A Live TV program broadcast live. Top right, where the watched state of
+  // library items sits: a program has none.
+  const LiveBadge = isLiveBroadcast(item) ? (
+    <View
+      style={{
+        position: "absolute",
+        top: scaleSize(12),
+        right: scaleSize(12),
+        backgroundColor: Colors.live,
+        borderRadius: scaleSize(8),
+        paddingHorizontal: scaleSize(12),
+        paddingVertical: scaleSize(6),
+        zIndex: 10,
+      }}
+    >
+      <Text
+        style={{
+          color: "#FFFFFF",
+          fontSize: typography.callout,
+          fontWeight: "700",
+        }}
+      >
+        {t("player.live")}
+      </Text>
+    </View>
+  ) : null;
+
   // Play button overlay component
   const PlayButtonOverlay = showPlayButton ? (
     <View
@@ -441,7 +480,12 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
             borderWidth: scaleSize(2),
             borderColor: focused ? "#FFFFFF" : "transparent",
           }}
-        />
+        >
+          {overlay}
+          {/* Here most of all: without artwork the badge is what says what
+              the card is. */}
+          {LiveBadge}
+        </View>
       );
     }
 
@@ -461,6 +505,8 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
           />
           {PlayButtonOverlay}
           {NowPlayingBadge}
+          {LiveBadge}
+          {overlay}
           {/*
             The glass view draws the watched checkmark natively but cannot show
             an unplayed-episode count, so render it as an RN overlay on top.
@@ -499,6 +545,8 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
         />
         {PlayButtonOverlay}
         {NowPlayingBadge}
+        {LiveBadge}
+        {overlay}
         {showWatchedIndicator && <WatchedIndicator item={item} />}
         <ProgressBar item={item} />
       </View>
@@ -548,7 +596,7 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
     // Default: show name
     return (
       <Text
-        numberOfLines={3}
+        numberOfLines={titleLines}
         style={{
           fontSize: typography.callout,
           color: "#FFFFFF",

@@ -1,28 +1,28 @@
-import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test";
-import {
-  setJellyfinHeaders,
-  stubCustomHeaders,
-} from "@/test-utils/customHeaders";
+import { setJellyfinHeaders } from "@/test-utils/customHeaders";
 import type { CustomHeader } from "@/utils/customHeaders/types";
 
 // checkServer pulls the two helpers through the barrel file, which also
 // re-exports modules with native dependencies (MMKV, SecureStore) — so the
-// barrel is replaced with just the real implementations of what it needs.
-stubCustomHeaders();
-// No proxy headers in these specs, set per test so another file cannot
-// leave its own behind.
+// barrel is replaced with the real pure helpers plus stubbed resolvers.
+jest.mock("@/utils/customHeaders", () =>
+  jest.requireActual("@/test-utils/customHeaders").customHeadersModule(),
+);
+// No proxy headers in these specs.
 beforeEach(() => setJellyfinHeaders());
 
-// Bun's mock.module retroactively re-links every module already importing the
-// specifier, so a log mock must cover the module's full function surface —
-// a missing name breaks OTHER test files' modules that import it.
-const loggedMessages: Array<{ level: string; message: string }> = [];
-mock.module("@/utils/log", () => ({
-  writeToLog: (level: string, message: string) => {
-    loggedMessages.push({ level, message });
+// The log module reaches Sentry and MMKV, so it is stubbed with the surface
+// this spec's module under test actually calls.
+const loggedMessages: Array<{
+  level: string;
+  message: string;
+  data?: unknown;
+}> = [];
+jest.mock("@/utils/log", () => ({
+  writeToLog: (level: string, message: string, data?: unknown) => {
+    loggedMessages.push({ level, message, data });
   },
-  writeInfoLog: (message: string) => {
-    loggedMessages.push({ level: "INFO", message });
+  writeInfoLog: (message: string, data?: unknown) => {
+    loggedMessages.push({ level: "INFO", message, data });
   },
   writeErrorLog: (message: string) => {
     loggedMessages.push({ level: "ERROR", message });
@@ -34,18 +34,23 @@ mock.module("@/utils/log", () => ({
   readFromLog: () => [],
 }));
 
-const savedHeaders = new Map<string, CustomHeader[]>();
+const mockSavedHeaders = new Map<string, CustomHeader[]>();
 const persistedHeaders: Array<{ url: string; headers: CustomHeader[] }> = [];
-mock.module("@/utils/secureCredentials", () => ({
-  getServerCustomHeaders: (url: string) => savedHeaders.get(url) ?? [],
+jest.mock("@/utils/secureCredentials", () => ({
+  getServerCustomHeaders: (url: string) => mockSavedHeaders.get(url) ?? [],
   updateServerCustomHeaders: (url: string, headers: CustomHeader[]) => {
     persistedHeaders.push({ url, headers });
   },
 }));
 
-const { checkJellyfinServer, ServerTooOldError } = await import(
-  "./checkServer"
-);
+// Only the scrubber is wanted from utils/sentry: what a log message is by the
+// time it has left the app. The SDK and what it reads at start-up are not.
+jest.mock("@sentry/react-native", () => ({}));
+jest.mock("@/utils/storedSettings", () => ({}));
+jest.mock("@/utils/version", () => ({}));
+
+import { scrubDeep } from "@/utils/sentry";
+import { checkJellyfinServer, ServerTooOldError } from "./checkServer";
 
 // --- fetch stub ------------------------------------------------------------
 
@@ -71,7 +76,12 @@ const okResponse = (body: Record<string, unknown> = {}): Response =>
   ({
     ok: true,
     status: 200,
-    json: async () => ({ Version: "10.10.7", ServerName: "Homelab", ...body }),
+    json: async () => ({
+      Version: "10.10.7",
+      ServerName: "Homelab",
+      ProductName: "Jellyfin Server",
+      ...body,
+    }),
   }) as Response;
 
 const statusResponse = (status: number): Response =>
@@ -101,7 +111,7 @@ const routes = (impl: {
 beforeEach(() => {
   fetchCalls = [];
   loggedMessages.length = 0;
-  savedHeaders.clear();
+  mockSavedHeaders.clear();
   persistedHeaders.length = 0;
   fetchImpl = networkError;
 });
@@ -177,6 +187,79 @@ describe("checkJellyfinServer scheme handling", () => {
       "http://10.0.0.5:3000/jellyfin/System/Info/Public",
     );
   });
+
+  test("a legacy /emby address is probed at the root first", async () => {
+    // Jellyfin 12 removed the /emby and /mediabrowser aliases, so probing
+    // under one 404s on an upgraded server.
+    routes({ https: async () => okResponse() });
+
+    const result = await checkJellyfinServer("https://host.example/emby/");
+
+    expect(result?.url).toBe("https://host.example");
+    expect(fetchCalls.map((call) => call.url)).toEqual([
+      "https://host.example/System/Info/Public",
+    ]);
+  });
+
+  test("a too-old answer at the root still tries the address as typed", async () => {
+    // The root is a guess: another service can live there.
+    fetchImpl = async (url) =>
+      okResponse({ Version: url.includes("/emby/") ? "10.11.0" : "4.8.0.0" });
+
+    const result = await checkJellyfinServer("https://host.example/emby");
+
+    expect(result?.url).toBe("https://host.example/emby");
+  });
+
+  test("a root that cannot be reached still tries the address as typed", async () => {
+    // A proxy can serve Jellyfin under /emby with nothing behind the root.
+    fetchImpl = async (url) =>
+      url.includes("/emby/") ? okResponse() : networkError();
+
+    const result = await checkJellyfinServer("https://host.example/emby");
+
+    expect(result?.url).toBe("https://host.example/emby");
+  });
+
+  test("another service at the root does not stand in for the one typed", async () => {
+    fetchImpl = async (url) =>
+      okResponse(url.includes("/emby/") ? {} : { ProductName: "Other" });
+
+    const result = await checkJellyfinServer("https://host.example/emby");
+
+    expect(result?.url).toBe("https://host.example/emby");
+  });
+
+  test("the root borrows the saved headers of the /emby address", async () => {
+    // Saved servers carry their proxy headers under the address they were
+    // saved with, and the gateway rejects a root probe without them.
+    const saved = [header("CF-Access-Client-Id", "saved")];
+    mockSavedHeaders.set("https://host.example/emby", saved);
+    routes({ https: async () => okResponse() });
+
+    await checkJellyfinServer("https://host.example/emby");
+
+    expect(
+      (fetchCalls[0]?.init as { headers?: Record<string, string> })?.headers,
+    ).toEqual({ "CF-Access-Client-Id": "saved" });
+    expect(persistedHeaders).toEqual([
+      { url: "https://host.example", headers: saved },
+    ]);
+  });
+
+  test("a legacy /emby address is kept when only it answers", async () => {
+    // A reverse proxy can serve Jellyfin under /emby itself.
+    fetchImpl = async (url) =>
+      url.includes("/emby/") ? okResponse() : statusResponse(404);
+
+    const result = await checkJellyfinServer("https://host.example/emby");
+
+    expect(result?.url).toBe("https://host.example/emby");
+    expect(fetchCalls.map((call) => call.url)).toEqual([
+      "https://host.example/System/Info/Public",
+      "https://host.example/emby/System/Info/Public",
+    ]);
+  });
 });
 
 // --- probe robustness ------------------------------------------------------
@@ -198,7 +281,7 @@ describe("checkJellyfinServer probing", () => {
       loggedMessages.some(
         (m) => m.level === "WARN" && m.message.includes("timed out after 20ms"),
       ),
-    ).toBeTrue();
+    ).toBe(true);
   });
 
   test("a non-OK https answer (e.g. a gateway 403) still falls through to http", async () => {
@@ -214,7 +297,7 @@ describe("checkJellyfinServer probing", () => {
       loggedMessages.some(
         (m) => m.level === "WARN" && m.message.includes("HTTP 403"),
       ),
-    ).toBeTrue();
+    ).toBe(true);
   });
 
   test("returns undefined when nothing answers", async () => {
@@ -262,7 +345,7 @@ describe("checkJellyfinServer custom headers", () => {
   });
 
   test("saved headers are reused when none are passed, and nothing is re-persisted", async () => {
-    savedHeaders.set("http://192.168.1.10:8096", [
+    mockSavedHeaders.set("http://192.168.1.10:8096", [
       header("CF-Access-Client-Id", "saved"),
     ]);
     routes({ http: async () => okResponse() });
@@ -283,5 +366,153 @@ describe("checkJellyfinServer custom headers", () => {
     ]);
 
     expect(persistedHeaders).toHaveLength(0);
+  });
+});
+
+// --- what leaves the app ---------------------------------------------------
+// A log message is mirrored into Sentry as a breadcrumb (utils/log.tsx), and
+// the scrubber it passes on the way only knows a host by its scheme or as an
+// IPv4 address. The check logged the address as it was typed, which is
+// usually without a scheme, and once more with the scheme taken off: users'
+// server hostnames stood in plain text in the breadcrumbs of REACT-NATIVE-78,
+// -73, -62, -5J and -50.
+
+describe("checkJellyfinServer — the typed address stays out of what Sentry is sent", () => {
+  const HOST = "jellyfin.example.org";
+
+  /** The log messages as they arrive at Sentry. */
+  const reachesSentry = () =>
+    loggedMessages
+      .map(({ message }) => scrubDeep(message) as string)
+      .join("\n");
+
+  const TYPED = [
+    HOST,
+    `https://${HOST}`,
+    `${HOST}:8096`,
+    `http://${HOST}:8096/jellyfin`,
+    `  HTTPS://Jellyfin.Example.org  `,
+  ];
+
+  test.each(TYPED)("typed as %j, and nothing answers", async (input) => {
+    routes({});
+
+    await checkJellyfinServer(input);
+
+    expect(loggedMessages.length).toBeGreaterThan(0);
+    expect(reachesSentry().toLowerCase()).not.toContain(HOST);
+  });
+
+  test.each(TYPED)("typed as %j, and the server answers", async (input) => {
+    routes({
+      https: async () => okResponse(),
+      http: async () => okResponse(),
+    });
+
+    await checkJellyfinServer(input);
+
+    expect(reachesSentry().toLowerCase()).not.toContain(HOST);
+  });
+
+  // The platform's own error names the host it could not reach, each in its
+  // own words: Android quotes it, iOS writes it into a sentence. What failed
+  // is still said, which is what the breadcrumb is for.
+  test.each([
+    [
+      `java.net.UnknownHostException: Unable to resolve host "${HOST}": No address associated with hostname`,
+      "java.net.UnknownHostException: Unable to resolve host",
+    ],
+    [
+      `javax.net.ssl.SSLPeerUnverifiedException: Hostname ${HOST} not verified`,
+      "javax.net.ssl.SSLPeerUnverifiedException: Hostname [server] not verified",
+    ],
+    [
+      `The certificate for this server is invalid. You might be connecting to a server that is pretending to be \u201c${HOST}\u201d which could put your confidential information at risk.`,
+      "pretending to be \u201c[server]\u201d",
+    ],
+  ])("a failure that names the host: %s", async (message, kept) => {
+    routes({
+      https: () => Promise.reject(new Error(message)),
+      http: () => Promise.reject(new Error(message)),
+    });
+
+    await checkJellyfinServer(`${HOST}:8096`);
+
+    expect(reachesSentry()).not.toContain(HOST);
+    expect(reachesSentry()).toContain(kept);
+  });
+
+  // Jellyfin names itself after its machine unless told otherwise, and an
+  // admin who renames it often picks the domain.
+  test("a server named after its own address", async () => {
+    routes({ https: async () => okResponse({ ServerName: HOST }) });
+
+    const result = await checkJellyfinServer(HOST);
+
+    expect(result?.name).toBe(HOST);
+    expect(reachesSentry()).not.toContain(HOST);
+  });
+
+  // The host is read out of the address the way the probe's URL is built
+  // from it. A second reading of the same text took `admin@host` for the
+  // host and gave up on `user:password@host`, so neither was found in the
+  // error and the host stayed in it.
+  test.each([
+    `admin@${HOST}`,
+    `https://admin:hunter2@${HOST}:8096/jellyfin`,
+    `${HOST}\\jellyfin`,
+  ])("typed as %j, with a failure that names the host", async (input) => {
+    const failure = () =>
+      Promise.reject(new Error(`Hostname ${HOST} not verified`));
+    routes({ https: failure, http: failure });
+
+    await checkJellyfinServer(input);
+
+    expect(reachesSentry()).not.toContain(HOST);
+    expect(reachesSentry()).not.toContain("hunter2");
+    expect(reachesSentry()).toContain("Hostname [server] not verified");
+  });
+
+  test("an IPv6 address typed in brackets", async () => {
+    const failure = () =>
+      Promise.reject(new Error("Hostname 2001:db8::5 not verified"));
+    routes({ https: failure, http: failure });
+
+    await checkJellyfinServer("[2001:db8::5]:8096");
+
+    expect(reachesSentry()).not.toContain("2001:db8::5");
+  });
+
+  // A certificate error goes on to list the names the certificate is for.
+  test("a failure that lists the certificate's other names", async () => {
+    const message = [
+      `Hostname ${HOST} not verified:`,
+      "    certificate: sha256/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+      "    DN: CN=*.example.org",
+      "    subjectAltNames: [*.example.org, example.org]",
+    ].join("\n");
+    routes({ https: () => Promise.reject(new Error(message)) });
+
+    await checkJellyfinServer(`https://${HOST}`);
+
+    expect(reachesSentry()).not.toContain("example.org");
+    expect(reachesSentry()).toContain("Hostname [server] not verified");
+    // The lines cut from the message stay in the log on the device, where a
+    // user fixing their certificate reads them.
+    expect(JSON.stringify(loggedMessages.map(({ data }) => data))).toContain(
+      "subjectAltNames",
+    );
+  });
+
+  // The log on the device is the user's own, and where they look when their
+  // server does not answer.
+  test("the log on the device still says which address was checked", async () => {
+    routes({});
+
+    await checkJellyfinServer(`${HOST}:8096`);
+
+    expect(JSON.stringify(loggedMessages.map(({ data }) => data))).toContain(
+      `${HOST}:8096`,
+    );
   });
 });
