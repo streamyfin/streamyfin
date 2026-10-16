@@ -4,6 +4,7 @@ import { getDefaultStore } from "jotai";
 import { Alert, Pressable, StyleSheet, Text } from "react-native";
 import { TVLogin } from "@/components/login/TVLogin";
 import { QUICK_CONNECT_CODE_LIFETIME_MS } from "@/constants/QuickConnect";
+import type { QuickConnectStatus } from "@/hooks/useQuickConnect";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 
 const mockInitiateQuickConnect = jest.fn(async () => "123456");
@@ -19,7 +20,12 @@ const mockJellyfin = {
   setServer: jest.fn(),
   login: jest.fn(),
   removeServer: jest.fn(),
-  initiateQuickConnect: () => mockInitiateQuickConnect(),
+  quickConnectStatus: "waiting" as QuickConnectStatus,
+  initiateQuickConnect: async () => {
+    const code = await mockInitiateQuickConnect();
+    if (code) mockJellyfin.quickConnectStatus = "waiting";
+    return code;
+  },
   stopQuickConnectPolling: () => mockStopQuickConnectPolling(),
   loginWithSavedCredential: jest.fn(),
   loginWithPassword: jest.fn(),
@@ -126,7 +132,7 @@ describe("TVLogin", () => {
   beforeEach(() => {
     mockInitiateQuickConnect.mockClear();
     mockInitiateQuickConnect.mockImplementation(async () => "123456");
-    mockStopQuickConnectPolling.mockClear();
+    mockStopQuickConnectPolling.mockReset();
     mockSaveCurrentAccount.mockReset();
     mockSaveCurrentAccount.mockImplementation(async () => {});
     mockPublicInfo.mockReset();
@@ -134,6 +140,7 @@ describe("TVLogin", () => {
       data: { Id: "server-1" },
     }));
     mockToastError.mockClear();
+    mockJellyfin.quickConnectStatus = "waiting";
     getDefaultStore().set(
       apiAtom as never,
       { basePath: "http://jellyfin.local:8096" } as never,
@@ -207,6 +214,63 @@ describe("TVLogin", () => {
     expect(mockInitiateQuickConnect).toHaveBeenCalledTimes(2);
     expect(screen.getByText("654321")).toBeTruthy();
   });
+
+  // A restart can make the server forget a code before its local timeout.
+  test("offers a new code as soon as the server expires it", async () => {
+    const view = await render(<TVLogin />);
+    await startQuickConnect();
+
+    mockJellyfin.quickConnectStatus = "expired";
+    await view.rerender(<TVLogin />);
+
+    expect(screen.getByText("pairing.code_expired")).toBeTruthy();
+    expect(screen.queryByText("123456")).toBeNull();
+    expect(screen.queryByText(/web\/#\/quickconnect/)).toBeNull();
+
+    mockInitiateQuickConnect.mockImplementation(async () => "654321");
+    await act(async () => {
+      await fireEvent.press(screen.getByText("pairing.get_new_code"));
+    });
+    expect(screen.getByText("654321")).toBeTruthy();
+    expect(screen.queryByText("pairing.code_expired")).toBeNull();
+  });
+
+  test("replaces a waiting code when Quick Connect is turned off", async () => {
+    const view = await render(<TVLogin />);
+    await startQuickConnect();
+
+    mockJellyfin.quickConnectStatus = "disabled";
+    await view.rerender(<TVLogin />);
+
+    expect(
+      screen.getByText("companion_login.error_quick_connect_disabled"),
+    ).toBeTruthy();
+    expect(screen.queryByText("123456")).toBeNull();
+    expect(screen.queryByText("pairing.get_new_code")).toBeNull();
+    await fireEvent.press(screen.getByText("common.back"));
+    expect(screen.getByText("add user form")).toBeTruthy();
+  });
+
+  test.each(["authenticating", "signed-in"] as const)(
+    "hides the code while Quick Connect is %s",
+    async (status) => {
+      jest.useFakeTimers();
+      const view = await render(<TVLogin />);
+      await startQuickConnect();
+
+      await act(async () => {
+        jest.advanceTimersByTime(QUICK_CONNECT_CODE_LIFETIME_MS);
+      });
+
+      mockJellyfin.quickConnectStatus = status;
+      await view.rerender(<TVLogin />);
+
+      expect(screen.queryByText("123456")).toBeNull();
+      expect(screen.queryByText(/web\/#\/quickconnect/)).toBeNull();
+      expect(screen.queryByText("pairing.code_expired")).toBeNull();
+      expect(screen.getByText("common.loading")).toBeTruthy();
+    },
+  );
 
   // With "save account" on, the TV asks how to protect the account first, as
   // the password sign-in does, and saves it once the phone has approved.
@@ -372,6 +436,33 @@ describe("TVLogin", () => {
     });
 
     expect(mockInitiateQuickConnect).toHaveBeenCalledTimes(1);
+  });
+
+  test("keeps requesting the replacement code when pressed twice", async () => {
+    const view = await render(<TVLogin />);
+    await startQuickConnect();
+    mockJellyfin.quickConnectStatus = "expired";
+    await view.rerender(<TVLogin />);
+    let answer: (code: string) => void = () => {};
+    mockInitiateQuickConnect.mockImplementationOnce(
+      () =>
+        new Promise<string>((resolve) => {
+          answer = resolve;
+        }),
+    );
+    // Stopping the provider also cancels an initiation still on its way.
+    mockStopQuickConnectPolling.mockImplementation(() => {
+      answer(undefined as unknown as string);
+    });
+
+    await fireEvent.press(screen.getByText("pairing.get_new_code"));
+    await fireEvent.press(screen.getByText("pairing.get_new_code"));
+    await act(async () => {
+      answer("654321");
+    });
+
+    expect(mockInitiateQuickConnect).toHaveBeenCalledTimes(2);
+    expect(screen.getByText("654321")).toBeTruthy();
   });
 
   // The default TV button turns white when focused, as the new code button is

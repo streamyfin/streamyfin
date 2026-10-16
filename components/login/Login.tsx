@@ -53,6 +53,7 @@ export const Login: React.FC = () => {
     login,
     removeServer,
     initiateQuickConnect,
+    quickConnectStatus,
     stopQuickConnectPolling,
     loginWithSavedCredential,
     loginWithPassword,
@@ -99,6 +100,8 @@ export const Login: React.FC = () => {
 
   // Quick Connect code shown in the in-app sheet while polling for authorization
   const [quickConnectCode, setQuickConnectCode] = useState<string | null>(null);
+  // Tracks an in-flight Quick Connect attempt (code issued, provider polling).
+  const [quickConnectActive, setQuickConnectActive] = useState(false);
 
   // Close the code sheet as soon as the session is authorized — the native
   // Alert used before had no programmatic dismiss and stayed open after login.
@@ -120,6 +123,7 @@ export const Login: React.FC = () => {
     if (!api?.basePath) {
       stopQuickConnectPolling();
       setQuickConnectCode(null);
+      setQuickConnectActive(false);
     }
   }, [api?.basePath, stopQuickConnectPolling]);
 
@@ -127,8 +131,11 @@ export const Login: React.FC = () => {
   // the global PendingAccountSaveModal, shown after the login succeeds.
   const [saveAccount, setSaveAccount] = useState(false);
 
-  // Tracks an in-flight Quick Connect attempt (code issued, provider polling).
-  const [quickConnectActive, setQuickConnectActive] = useState(false);
+  useEffect(() => {
+    if (quickConnectStatus === "expired" || quickConnectStatus === "disabled") {
+      setQuickConnectActive(false);
+    }
+  }, [quickConnectStatus]);
 
   // A Quick Connect login with "save account" on flags the post-login save:
   // the protection picker shows globally once the session exists (this screen
@@ -487,6 +494,9 @@ export const Login: React.FC = () => {
           completes if the code is authorized from another device afterwards. */}
       <QuickConnectCodeModal
         code={quickConnectCode}
+        status={quickConnectStatus}
+        serverName={serverName || api?.basePath || ""}
+        onNewCode={handleQuickConnect}
         onClose={() => setQuickConnectCode(null)}
       />
     </SafeAreaView>

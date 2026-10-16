@@ -4,3 +4,6 @@
  * offers a new code then instead of showing one nobody can approve.
  */
 export const QUICK_CONNECT_CODE_LIFETIME_MS = 10 * 60 * 1000;
+
+/** Wait between settled Quick Connect requests, so slow responses never overlap. */
+export const QUICK_CONNECT_POLL_INTERVAL_MS = 1000;
