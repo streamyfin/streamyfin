@@ -14,7 +14,7 @@ Pod::Spec.new do |s|
   # Spatial audio for TrueHD Atmos and DTS:X (SpatialAudioSink.swift).
   spm_dependency(s,
     url: 'https://github.com/kristofferR/SpatialAudioBridge',
-    requirement: { kind: 'upToNextMajorVersion', minimumVersion: '1.6.1' },
+    requirement: { kind: 'exactVersion', version: '2.0.0' },
     products: ['SpatialAudioBridge', 'SpatialAudioPlayback']
   )
 
