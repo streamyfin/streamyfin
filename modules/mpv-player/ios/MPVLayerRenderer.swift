@@ -296,6 +296,9 @@ final class MPVLayerRenderer {
             throw RendererError.mpvCreationFailed
         }
         mpv = handle
+        // A fresh handle plays at 1×, even if this renderer last played faster.
+        playbackSpeed = 1
+        onQueue { [weak self] in self?.stretchesTime = false }
 
         // Logging. Release builds used to request nothing at all, so a
         // TestFlight log could never show WHY playback failed - #1673 (silent
