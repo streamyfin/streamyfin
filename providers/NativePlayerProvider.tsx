@@ -133,7 +133,6 @@ import { resolveTeardownReport } from "@/utils/nativePlayer/resolveTeardownRepor
 import {
   buildNativeSyncPlayState,
   dispatchNativeSyncPlayAction,
-  isSameStreamUrl,
   type SyncPlayQueueDisplay,
 } from "@/utils/nativePlayer/syncPlay";
 import { NativeSyncPlayBufferingReporter } from "@/utils/nativePlayer/syncPlayBuffering";
@@ -1827,16 +1826,10 @@ const NativePlayerProviderInner: React.FC<{
       addNativePlayerListener("onLoad", (payload) => {
         const session = sessionRef.current;
         if (!session) return;
-        // An in-place swap can deliver the outgoing stream's onLoad late, and
-        // in a group that would report Ready for an item still loading. Solo
-        // playback keeps accepting any onLoad, as it always has: a URL this
-        // comparison got wrong would leave the session dead with no error.
-        if (
-          syncRef.current.enabled &&
-          !isSameStreamUrl(payload.url, session.stream.url)
-        )
-          return;
-        applyLoadEvent(session, payload);
+        // An in-place swap can deliver the outgoing stream's onLoad late; in a
+        // group it would report Ready for an item still loading, and solo its
+        // progress would land on the new item.
+        if (!applyLoadEvent(session, payload)) return;
         if (session.localSubtitle?.active) {
           // The swap's loadfile dropped the sub-added sidecar — re-attach it
           // (selection re-applies on onTracksReady) and restore its menu

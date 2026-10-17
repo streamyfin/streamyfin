@@ -1660,13 +1660,17 @@ final class PlayerViewModel: NSObject, ObservableObject {
 // MARK: - MPVPlayerEngineDelegate
 
 extension PlayerViewModel: MPVPlayerEngineDelegate {
-	func engine(_ engine: MPVPlayerEngine, didLoad url: URL) {
+	func engine(_ engine: MPVPlayerEngine, didLoad config: VideoLoadConfig) {
 		// Mute rides along: it is a device/session state, not a stream one, so
 		// JS has no other way to learn it for a player opened while already
 		// muted — no transition happens, so no onMuteStateChanged fires. The
 		// play state rides along for the same reason: a stream swapped in while
 		// the player plays never pauses or resumes.
-		emit?("onLoad", ["url": url.absoluteString, "muted": isMuted, "isPlaying": engine.intendedPlayState])
+		emit?("onLoad", [
+			"url": config.requestedURL ?? config.url.absoluteString,
+			"muted": isMuted,
+			"isPlaying": engine.intendedPlayState,
+		])
 	}
 
 	func engine(_ engine: MPVPlayerEngine, didUpdateProgress position: Double, duration: Double, cacheSeconds: Double) {
