@@ -178,6 +178,7 @@
       ["./plugins/withTVOSTopShelf.ts"],
       ["./plugins/withDownloadLiveActivity.ts"],
       ["./plugins/withTVXcodeEnv.ts"],
+      ["./plugins/withSpatialAudioCore.ts"],
       [
         "./plugins/withGitPod.ts",
         {
