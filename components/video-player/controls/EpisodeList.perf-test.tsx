@@ -1,7 +1,5 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, screen } from "@testing-library/react-native";
 import { getDefaultStore } from "jotai";
-import { type ReactNode, useState } from "react";
 import { measureRenders } from "reassure";
 import {
   EpisodeList,
@@ -10,13 +8,16 @@ import {
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { makeItems } from "@/test-utils/baseItems";
 import type { makeApi } from "@/test-utils/jellyfinApi";
+import { QueryWrapper } from "@/test-utils/queryWrapper";
 
-jest.mock("@/providers/GlobalModalProvider", () => ({
-  useGlobalModal: () => ({ showModal: () => {}, hideModal: () => {} }),
-}));
-jest.mock("@/providers/DownloadProvider", () => ({
-  useDownload: () => ({ getDownloadedItems: () => [] }),
-}));
+jest.mock(
+  "@/providers/GlobalModalProvider",
+  () => jest.requireActual("@/test-utils/appProviders").globalModalModule,
+);
+jest.mock(
+  "@/providers/DownloadProvider",
+  () => jest.requireActual("@/test-utils/appProviders").downloadModule,
+);
 
 const api = getDefaultStore().get(apiAtom) as ReturnType<typeof makeApi>;
 const store = getDefaultStore();
@@ -57,18 +58,6 @@ const stubServer = () => {
   api.mock.onGet(/\/Items\//).reply(200, {});
 };
 
-const Wrapper = ({ children }: { children: ReactNode }) => {
-  const [client] = useState(
-    () =>
-      new QueryClient({
-        defaultOptions: {
-          queries: { gcTime: Number.POSITIVE_INFINITY, retry: false },
-        },
-      }),
-  );
-  return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
-};
-
 describe("EpisodeList Performance", () => {
   beforeEach(() => {
     stubServer();
@@ -79,7 +68,7 @@ describe("EpisodeList Performance", () => {
     await measureRenders(
       <EpisodeList item={playing} close={() => {}} goToItem={() => {}} />,
       {
-        wrapper: Wrapper,
+        wrapper: QueryWrapper,
         scenario: async () => {
           await screen.findByText("Overview of Sseason-1 0");
           await act(async () => {
@@ -89,5 +78,5 @@ describe("EpisodeList Performance", () => {
         },
       },
     );
-  }, 60_000);
+  });
 });

@@ -20,9 +20,10 @@ jest.mock(
   () => jest.requireActual("@/test-utils/trackPlayer").trackPlayerModule,
   { virtual: true },
 );
-jest.mock("@/providers/NetworkStatusProvider", () => ({
-  useNetworkStatus: () => ({ isConnected: true, serverConnected: true }),
-}));
+jest.mock(
+  "@/providers/NetworkStatusProvider",
+  () => jest.requireActual("@/test-utils/appProviders").networkStatusModule,
+);
 
 jest.mock("@/hooks/useNetworkStatus", () => ({
   useNetworkStatus: () => ({
@@ -65,21 +66,9 @@ jest.mock("@/utils/jellyfin/audio/getAudioStreamUrl", () => ({
   }),
 }));
 
-jest.mock("@/utils/atoms/settings", () => {
-  const { atom } = jest.requireActual("jotai");
-  const { defaultValues: defaultSettings } = jest.requireActual(
-    "@/utils/atoms/settings",
-  );
-  return {
-    settingsAtom: atom(defaultSettings),
-    effectiveSettingsAtom: atom(defaultSettings),
-    useSettings: () => ({
-      settings: defaultSettings,
-      updateSettings: () => {},
-      pluginSettings: undefined,
-    }),
-  };
-});
+jest.mock("@/utils/atoms/settings", () =>
+  jest.requireActual("@/test-utils/settings").makeSettingsModule(),
+);
 
 const TRACK_COUNT = 50;
 const sampleTracks = makeItems(TRACK_COUNT, "Track", "Audio");
@@ -140,5 +129,5 @@ describe("MusicPlayer Performance", () => {
         }
       },
     });
-  }, 60_000);
+  });
 });

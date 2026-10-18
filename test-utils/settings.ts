@@ -1,17 +1,15 @@
 import { atom } from "jotai";
 
 /**
- * `@/utils/atoms/settings` with a Streamystats server configured, for a
- * scenario that renders what only shows when one is. Writes are dropped.
+ * `@/utils/atoms/settings` holding the default settings plus `overrides`.
+ * Writes are dropped.
  */
-export const streamystatsSettingsModule = (() => {
+export const makeSettingsModule = (overrides: Record<string, unknown> = {}) => {
   // The spec mocks this module, so the real one has to be asked for by name.
   const { defaultValues } = jest.requireActual("@/utils/atoms/settings");
-  const settings = {
-    ...defaultValues,
-    streamyStatsServerUrl: "http://streamystats.test",
-  };
+  const settings = { ...defaultValues, ...overrides };
   return {
+    settingsAtom: atom(settings),
     effectiveSettingsAtom: atom(settings),
     useSettings: () => ({
       settings,
@@ -19,4 +17,4 @@ export const streamystatsSettingsModule = (() => {
       pluginSettings: undefined,
     }),
   };
-})();
+};

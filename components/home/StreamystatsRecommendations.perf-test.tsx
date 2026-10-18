@@ -1,18 +1,16 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, screen } from "@testing-library/react-native";
 import { getDefaultStore } from "jotai";
-import { type ReactNode, useState } from "react";
 import { measureRenders } from "reassure";
 import { StreamystatsRecommendations } from "@/components/home/StreamystatsRecommendations";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { makeItems } from "@/test-utils/baseItems";
 import type { makeApi } from "@/test-utils/jellyfinApi";
+import { QueryWrapper } from "@/test-utils/queryWrapper";
 
-jest.mock(
-  "@/utils/atoms/settings",
-  () =>
-    jest.requireActual("@/test-utils/streamystatsSettings")
-      .streamystatsSettingsModule,
+jest.mock("@/utils/atoms/settings", () =>
+  jest
+    .requireActual("@/test-utils/settings")
+    .makeSettingsModule({ streamyStatsServerUrl: "http://streamystats.test" }),
 );
 // The Streamystats server is a second API; answering for it is all it is for.
 jest.mock("@/utils/streamystats/api", () => ({
@@ -25,12 +23,14 @@ jest.mock("@/utils/streamystats/api", () => ({
     }),
   }),
 }));
-jest.mock("@/providers/DownloadProvider", () => ({
-  useDownload: () => ({ downloadedItems: [], processes: [] }),
-}));
-jest.mock("@/providers/GlobalModalProvider", () => ({
-  useGlobalModal: () => ({ showModal: () => {}, hideModal: () => {} }),
-}));
+jest.mock(
+  "@/providers/DownloadProvider",
+  () => jest.requireActual("@/test-utils/appProviders").downloadModule,
+);
+jest.mock(
+  "@/providers/GlobalModalProvider",
+  () => jest.requireActual("@/test-utils/appProviders").globalModalModule,
+);
 
 const api = getDefaultStore().get(apiAtom) as ReturnType<typeof makeApi>;
 
@@ -40,18 +40,6 @@ const stubServer = () => {
   api.mock
     .onGet(/\/Items\?/)
     .reply(200, { Items: makeItems(20, "Recommended", "Movie") });
-};
-
-const Wrapper = ({ children }: { children: ReactNode }) => {
-  const [client] = useState(
-    () =>
-      new QueryClient({
-        defaultOptions: {
-          queries: { gcTime: Number.POSITIVE_INFINITY, retry: false },
-        },
-      }),
-  );
-  return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
 };
 
 describe("Streamystats Recommendations Performance", () => {
@@ -66,7 +54,7 @@ describe("Streamystats Recommendations Performance", () => {
     await measureRenders(
       <StreamystatsRecommendations title='Recommended' type='Movie' />,
       {
-        wrapper: Wrapper,
+        wrapper: QueryWrapper,
         scenario: async () => {
           await screen.findAllByText("Recommended 0");
           await act(async () => {
@@ -75,5 +63,5 @@ describe("Streamystats Recommendations Performance", () => {
         },
       },
     );
-  }, 60_000);
+  });
 });

@@ -1,33 +1,19 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, screen } from "@testing-library/react-native";
 import { getDefaultStore } from "jotai";
-import { type ReactNode, useState } from "react";
 import { measureRenders } from "reassure";
 import { Home } from "@/components/home/Home";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { makeItems } from "@/test-utils/baseItems";
 import type { makeApi } from "@/test-utils/jellyfinApi";
+import { QueryWrapper } from "@/test-utils/queryWrapper";
 
-jest.mock("@/utils/atoms/settings", () => {
-  const { atom } = jest.requireActual("jotai");
-  const { defaultValues: defaultSettings } = jest.requireActual(
-    "@/utils/atoms/settings",
-  );
-  return {
-    effectiveSettingsAtom: atom(defaultSettings),
-    useSettings: () => ({
-      settings: defaultSettings,
-      updateSettings: () => {},
-      pluginSettings: undefined,
-    }),
-  };
-});
-jest.mock("@/providers/DownloadProvider", () => ({
-  useDownload: () => ({
-    downloadedItems: [],
-    cleanCacheDirectory: async () => {},
-  }),
-}));
+jest.mock("@/utils/atoms/settings", () =>
+  jest.requireActual("@/test-utils/settings").makeSettingsModule(),
+);
+jest.mock(
+  "@/providers/DownloadProvider",
+  () => jest.requireActual("@/test-utils/appProviders").downloadModule,
+);
 jest.mock("@/providers/IntroSheetProvider", () => ({
   useIntroSheet: () => ({ showIntro: () => {} }),
 }));
@@ -82,18 +68,6 @@ const stubServer = () => {
     .reply(200, { Items: items("Suggested", "Movie") });
 };
 
-const Wrapper = ({ children }: { children: ReactNode }) => {
-  const [client] = useState(
-    () =>
-      new QueryClient({
-        defaultOptions: {
-          queries: { gcTime: Number.POSITIVE_INFINITY, retry: false },
-        },
-      }),
-  );
-  return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
-};
-
 describe("Home Mobile Performance", () => {
   beforeEach(() => {
     stubServer();
@@ -101,7 +75,7 @@ describe("Home Mobile Performance", () => {
 
   test("Home mounts and loads its rows", async () => {
     await measureRenders(<Home />, {
-      wrapper: Wrapper,
+      wrapper: QueryWrapper,
       scenario: async () => {
         await screen.findAllByText("Resume 0");
         await act(async () => {
@@ -109,5 +83,5 @@ describe("Home Mobile Performance", () => {
         });
       },
     });
-  }, 60_000);
+  });
 });

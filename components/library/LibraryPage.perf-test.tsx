@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { act, screen } from "@testing-library/react-native";
 import { createStore, getDefaultStore, Provider as JotaiProvider } from "jotai";
 import { type ReactNode, useState } from "react";
@@ -8,6 +8,7 @@ import { apiAtom } from "@/providers/JellyfinProvider";
 import { makeItems } from "@/test-utils/baseItems";
 import type { makeApi } from "@/test-utils/jellyfinApi";
 import { reachListEnd } from "@/test-utils/lists";
+import { usePerfQueryClient } from "@/test-utils/queryWrapper";
 import {
   genreFilterAtom,
   SortByOption,
@@ -32,9 +33,10 @@ jest.mock("@/hooks/useTVItemActionModal", () => ({
 jest.mock("@/hooks/useTVLibrarySheet", () => ({
   useTVLibrarySheet: () => ({ openSheet: () => {} }),
 }));
-jest.mock("@/providers/GlobalModalProvider", () => ({
-  useGlobalModal: () => ({ showModal: () => {}, hideModal: () => {} }),
-}));
+jest.mock(
+  "@/providers/GlobalModalProvider",
+  () => jest.requireActual("@/test-utils/appProviders").globalModalModule,
+);
 jest.mock("@/hooks/useRefreshLibraryOnFocus", () => ({
   useRefreshLibraryOnFocus: () => {},
 }));
@@ -83,14 +85,7 @@ const Wrapper = ({ children }: { children: ReactNode }) => {
     activeStore = s;
     return s;
   });
-  const [client] = useState(
-    () =>
-      new QueryClient({
-        defaultOptions: {
-          queries: { gcTime: Number.POSITIVE_INFINITY, retry: false },
-        },
-      }),
-  );
+  const client = usePerfQueryClient();
 
   return (
     <JotaiProvider store={store}>
@@ -131,5 +126,5 @@ describe("LibraryPage Performance", () => {
         await screen.findByText("Movie 36");
       },
     });
-  }, 60_000);
+  });
 });

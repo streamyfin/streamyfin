@@ -1,28 +1,23 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { act, screen } from "@testing-library/react-native";
-import { type ReactNode, useState } from "react";
+import { type ReactNode } from "react";
 import { measureRenders } from "reassure";
 import LogsPage from "@/app/(auth)/(tabs)/(home)/settings/logs/page";
 import { clearMmkv } from "@/test-utils/mmkv";
+import { usePerfQueryClient } from "@/test-utils/queryWrapper";
 import { LogProvider } from "@/utils/log";
 import { storeLogEntry } from "@/utils/logStorage";
 
-jest.mock("@/providers/GlobalModalProvider", () => ({
-  useGlobalModal: () => ({ showModal: () => {}, hideModal: () => {} }),
-}));
+jest.mock(
+  "@/providers/GlobalModalProvider",
+  () => jest.requireActual("@/test-utils/appProviders").globalModalModule,
+);
 
 const STORED_ENTRIES = 200;
 const POLLS = 5;
 
 const Wrapper = ({ children }: { children: ReactNode }) => {
-  const [client] = useState(
-    () =>
-      new QueryClient({
-        defaultOptions: {
-          queries: { gcTime: Number.POSITIVE_INFINITY, retry: false },
-        },
-      }),
-  );
+  const client = usePerfQueryClient();
   return (
     <QueryClientProvider client={client}>
       <LogProvider>{children}</LogProvider>
@@ -52,5 +47,5 @@ describe("Logs Performance", () => {
         await screen.findAllByText(`Arrived entry ${POLLS - 1}`);
       },
     });
-  }, 60_000);
+  });
 });

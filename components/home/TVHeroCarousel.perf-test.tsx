@@ -41,5 +41,5 @@ describe("TVHeroCarousel Performance", () => {
         }
       },
     });
-  }, 60_000);
+  });
 });

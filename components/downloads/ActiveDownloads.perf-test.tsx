@@ -1,5 +1,5 @@
 import "@/augmentations/number";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { act, screen } from "@testing-library/react-native";
 import { createStore, Provider as JotaiProvider } from "jotai";
 import { type ReactNode, useState } from "react";
@@ -9,6 +9,7 @@ import { DownloadSize } from "@/components/downloads/DownloadSize";
 import { DownloadProvider, processesAtom } from "@/providers/DownloadProvider";
 import type { JobStatus } from "@/providers/Downloads/types";
 import { makeItems } from "@/test-utils/baseItems";
+import { usePerfQueryClient } from "@/test-utils/queryWrapper";
 
 const makeJob = (id: string, progress = 0): JobStatus => ({
   id,
@@ -49,14 +50,7 @@ const createWrapper = (initialJobs: JobStatus[]) => {
       activeStore = s;
       return s;
     });
-    const [queryClient] = useState(
-      () =>
-        new QueryClient({
-          defaultOptions: {
-            queries: { gcTime: Number.POSITIVE_INFINITY, retry: false },
-          },
-        }),
-    );
+    const queryClient = usePerfQueryClient();
 
     return (
       <JotaiProvider store={store}>
@@ -94,7 +88,7 @@ describe("DownloadProvider Performance", () => {
         },
       },
     );
-  }, 60_000);
+  });
 
   test("download progress updates re-render an unrelated useDownload consumer", async () => {
     const unrelatedJob = [makeJob("unrelated", 0)];
@@ -123,5 +117,5 @@ describe("DownloadProvider Performance", () => {
         },
       },
     );
-  }, 60_000);
+  });
 });

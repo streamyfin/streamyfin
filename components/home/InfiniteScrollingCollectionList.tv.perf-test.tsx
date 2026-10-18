@@ -1,15 +1,17 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, screen, waitFor } from "@testing-library/react-native";
 import { Provider as JotaiProvider } from "jotai";
-import { type ReactNode, useState } from "react";
+import { type ReactNode } from "react";
 import { measureRenders } from "reassure";
 import { makeItems } from "@/test-utils/baseItems";
 import { reachListEnd } from "@/test-utils/lists";
+import { usePerfQueryClient } from "@/test-utils/queryWrapper";
 import { stubReactNative } from "@/test-utils/reactNative";
 
-jest.mock("@/providers/NetworkStatusProvider", () => ({
-  useNetworkStatus: () => ({ isConnected: true, serverConnected: true }),
-}));
+jest.mock(
+  "@/providers/NetworkStatusProvider",
+  () => jest.requireActual("@/test-utils/appProviders").networkStatusModule,
+);
 
 stubReactNative({ isTV: true });
 
@@ -33,14 +35,7 @@ const queryFn = async ({ pageParam = 0 }: { pageParam?: number }) => {
 };
 
 const Wrapper = ({ children }: { children: ReactNode }) => {
-  const [client] = useState(
-    () =>
-      new QueryClient({
-        defaultOptions: {
-          queries: { gcTime: Number.POSITIVE_INFINITY, retry: false },
-        },
-      }),
-  );
+  const client = usePerfQueryClient();
 
   return (
     <JotaiProvider>
@@ -91,5 +86,5 @@ describe("TV Poster Row Performance", () => {
         await act(async () => {});
       },
     });
-  }, 60_000);
+  });
 });

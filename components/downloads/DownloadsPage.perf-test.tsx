@@ -69,5 +69,5 @@ describe("Downloads Performance", () => {
         }
       },
     });
-  }, 60_000);
+  });
 });

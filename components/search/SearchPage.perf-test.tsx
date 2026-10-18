@@ -1,12 +1,11 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, screen } from "@testing-library/react-native";
 import { getDefaultStore } from "jotai";
-import { type ReactNode, useState } from "react";
 import { measureRenders } from "reassure";
 import SearchPage from "@/app/(auth)/(tabs)/(search)/index";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { makeItems } from "@/test-utils/baseItems";
 import type { makeApi } from "@/test-utils/jellyfinApi";
+import { QueryWrapper } from "@/test-utils/queryWrapper";
 
 // The header search bar is native: the screen hands its options to the
 // navigation, and typing calls the `onChangeText` it put there.
@@ -25,12 +24,14 @@ jest.mock("expo-router", () => {
     useNavigation: () => navigation,
   };
 });
-jest.mock("@/providers/NetworkStatusProvider", () => ({
-  useNetworkStatus: () => ({ isConnected: true, serverConnected: true }),
-}));
-jest.mock("@/providers/DownloadProvider", () => ({
-  useDownload: () => ({ downloadedItems: [], processes: [] }),
-}));
+jest.mock(
+  "@/providers/NetworkStatusProvider",
+  () => jest.requireActual("@/test-utils/appProviders").networkStatusModule,
+);
+jest.mock(
+  "@/providers/DownloadProvider",
+  () => jest.requireActual("@/test-utils/appProviders").downloadModule,
+);
 jest.mock("@/hooks/useTVItemActionModal", () => ({
   useTVItemActionModal: () => ({ showItemActions: () => {} }),
 }));
@@ -52,18 +53,6 @@ const stubServer = () => {
   api.mock.onGet(/\/Studios/).reply(200, { Items: [] });
 };
 
-const Wrapper = ({ children }: { children: ReactNode }) => {
-  const [client] = useState(
-    () =>
-      new QueryClient({
-        defaultOptions: {
-          queries: { gcTime: Number.POSITIVE_INFINITY, retry: false },
-        },
-      }),
-  );
-  return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
-};
-
 const type = async (text: string) => {
   await act(async () => {
     mockHeaderOptions.onChangeText?.({ nativeEvent: { text } });
@@ -77,7 +66,7 @@ describe("Search Performance", () => {
 
   test("typing a query debounces, then loads every result section", async () => {
     await measureRenders(<SearchPage />, {
-      wrapper: Wrapper,
+      wrapper: QueryWrapper,
       scenario: async () => {
         for (const text of ["l", "lo", "lor", "lord"]) {
           await type(text);
@@ -88,11 +77,11 @@ describe("Search Performance", () => {
         await screen.findAllByText("Result 0");
       },
     });
-  }, 60_000);
+  });
 
   test("refining a query re-renders the loaded results", async () => {
     await measureRenders(<SearchPage />, {
-      wrapper: Wrapper,
+      wrapper: QueryWrapper,
       scenario: async () => {
         await type("lord");
         await act(async () => {
@@ -108,5 +97,5 @@ describe("Search Performance", () => {
         await screen.findAllByText("Result 0");
       },
     });
-  }, 60_000);
+  });
 });

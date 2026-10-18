@@ -18,5 +18,5 @@ describe("Settings Performance", () => {
         });
       },
     });
-  }, 60_000);
+  });
 });

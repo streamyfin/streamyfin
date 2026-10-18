@@ -12,9 +12,10 @@ import {
 
 // The device id comes from native randomness, which Jest has none of.
 jest.mock("expo-crypto", () => ({ randomUUID: () => "test-device" }));
-jest.mock("@/providers/NetworkStatusProvider", () => ({
-  useNetworkStatus: () => ({ isConnected: true, serverConnected: true }),
-}));
+jest.mock(
+  "@/providers/NetworkStatusProvider",
+  () => jest.requireActual("@/test-utils/appProviders").networkStatusModule,
+);
 
 const CONSUMERS = 20;
 const MESSAGES = 30;
@@ -98,5 +99,5 @@ describe("WebSocketProvider Performance", () => {
         },
       },
     );
-  }, 60_000);
+  });
 });

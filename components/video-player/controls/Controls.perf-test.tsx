@@ -1,9 +1,10 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { act, screen } from "@testing-library/react-native";
 import { Provider as JotaiProvider } from "jotai";
 import { type ReactNode, useState } from "react";
 import { measureRenders } from "reassure";
 import { Controls } from "@/components/video-player/controls/Controls";
+import { usePerfQueryClient } from "@/test-utils/queryWrapper";
 import { makeSharedValue } from "@/test-utils/reanimated";
 
 jest.mock(
@@ -40,15 +41,18 @@ jest.mock("@/components/video-player/controls/contexts/PlayerContext", () => ({
     disableSubtitles: () => {},
   }),
 }));
-jest.mock("@/providers/NetworkStatusProvider", () => ({
-  useNetworkStatus: () => ({ isConnected: true, serverConnected: true }),
-}));
-jest.mock("@/providers/DownloadProvider", () => ({
-  useDownload: () => ({ downloadedItems: [], processes: [] }),
-}));
-jest.mock("@/providers/GlobalModalProvider", () => ({
-  useGlobalModal: () => ({ showModal: () => {}, hideModal: () => {} }),
-}));
+jest.mock(
+  "@/providers/NetworkStatusProvider",
+  () => jest.requireActual("@/test-utils/appProviders").networkStatusModule,
+);
+jest.mock(
+  "@/providers/DownloadProvider",
+  () => jest.requireActual("@/test-utils/appProviders").downloadModule,
+);
+jest.mock(
+  "@/providers/GlobalModalProvider",
+  () => jest.requireActual("@/test-utils/appProviders").globalModalModule,
+);
 jest.mock("@/hooks/useOrientation", () => ({
   useOrientation: () => ({ isLandscape: false, orientation: 1 }),
 }));
@@ -104,14 +108,7 @@ const TestControls = ({
 };
 
 const Wrapper = ({ children }: { children: ReactNode }) => {
-  const [client] = useState(
-    () =>
-      new QueryClient({
-        defaultOptions: {
-          queries: { gcTime: Number.POSITIVE_INFINITY, retry: false },
-        },
-      }),
-  );
+  const client = usePerfQueryClient();
 
   return (
     <JotaiProvider>
@@ -165,5 +162,5 @@ describe("Video Player Controls Performance", () => {
         });
       },
     });
-  }, 60_000);
+  });
 });

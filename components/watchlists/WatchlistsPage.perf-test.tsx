@@ -1,17 +1,15 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { screen } from "@testing-library/react-native";
 import { getDefaultStore } from "jotai";
-import { type ReactNode, useState } from "react";
 import { measureRenders } from "reassure";
 import WatchlistsPage from "@/app/(auth)/(tabs)/(watchlists)/index";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { pullToRefresh } from "@/test-utils/lists";
+import { QueryWrapper } from "@/test-utils/queryWrapper";
 
-jest.mock(
-  "@/utils/atoms/settings",
-  () =>
-    jest.requireActual("@/test-utils/streamystatsSettings")
-      .streamystatsSettingsModule,
+jest.mock("@/utils/atoms/settings", () =>
+  jest
+    .requireActual("@/test-utils/settings")
+    .makeSettingsModule({ streamyStatsServerUrl: "http://streamystats.test" }),
 );
 // The Streamystats server is a second API; answering for it is all it is for.
 jest.mock("@/utils/streamystats/api", () => ({
@@ -33,18 +31,6 @@ jest.mock("@/utils/streamystats/api", () => ({
   }),
 }));
 
-const Wrapper = ({ children }: { children: ReactNode }) => {
-  const [client] = useState(
-    () =>
-      new QueryClient({
-        defaultOptions: {
-          queries: { gcTime: Number.POSITIVE_INFINITY, retry: false },
-        },
-      }),
-  );
-  return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
-};
-
 describe("Watchlists Performance", () => {
   beforeEach(() => {
     Object.assign(getDefaultStore().get(apiAtom) as object, {
@@ -54,12 +40,12 @@ describe("Watchlists Performance", () => {
 
   test("the watchlists page loads its lists, then pulls to refresh", async () => {
     await measureRenders(<WatchlistsPage />, {
-      wrapper: Wrapper,
+      wrapper: QueryWrapper,
       scenario: async () => {
         await screen.findByText("Watchlist 1");
         await pullToRefresh();
         await screen.findByText("Watchlist 1");
       },
     });
-  }, 60_000);
+  });
 });

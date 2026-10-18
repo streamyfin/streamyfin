@@ -53,5 +53,5 @@ describe("CardGrid Performance", () => {
         await screen.findByText(`Pages: ${TOTAL_PAGES}`);
       },
     });
-  }, 60_000);
+  });
 });
