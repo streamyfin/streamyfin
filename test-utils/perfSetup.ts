@@ -15,6 +15,10 @@ jest.mock(
   "react-native-mmkv",
   () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
 );
+// Loading the real module logs an Expo Go push warning on import.
+jest.mock("expo-notifications", () => ({
+  scheduleNotificationAsync: jest.fn(),
+}));
 jest.mock("sonner-native", () => ({
   toast: { error: jest.fn(), success: jest.fn(), info: jest.fn() },
 }));
