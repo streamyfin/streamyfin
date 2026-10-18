@@ -11,6 +11,15 @@ import {
 import { makeItems } from "@/test-utils/baseItems";
 import { storage } from "@/utils/mmkv";
 
+jest.mock(
+  "react-native-gesture-handler",
+  () => jest.requireActual("@/test-utils/gestureHandler").gestureHandlerModule,
+);
+jest.mock(
+  "react-native-track-player",
+  () => jest.requireActual("@/test-utils/trackPlayer").trackPlayerModule,
+  { virtual: true },
+);
 jest.mock("@/providers/NetworkStatusProvider", () => ({
   useNetworkStatus: () => ({ isConnected: true, serverConnected: true }),
 }));

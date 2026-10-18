@@ -33,11 +33,13 @@ CI does the same thing on every PR into `develop` that touches code the scenario
 `test-utils/perfSetup.ts` runs before every scenario, so you don't have to set these up yourself:
 
 - Fake timers, with `performance` left real. React reads its render durations from `performance.now`, so faking it would make every duration zero.
-- Stubs for native modules and libraries that don't run in Jest: FlashList's measurements, MMKV, Reanimated, gesture handler, track player, safe area insets, the bottom sheet, sliders, gradients, glass effects, haptics, brightness, volume, toasts, i18n and the app's own native modules (`@/modules`).
-- Stubs for things that lead to another screen: `ServerImage`, the router (`test-utils/expoRouter.ts`), `useAppRouter` and the item action sheet.
+- Stubs for native modules and libraries that don't run in Jest: FlashList's measurements, MMKV, Reanimated, safe area insets, the bottom sheet, device info, toasts, i18n and the app's own native modules (`@/modules`).
+- A recording router: `test-utils/expoRouter.ts` stands for `expo-router`, and its `router` holds the `push` and `replace` calls the real `useAppRouter` makes, so a scenario can assert them.
 - A `JellyfinProvider` whose `apiAtom` holds a `makeApi()` double from `test-utils/jellyfinApi.ts`, so you can answer API requests with `api.mock`.
 
-Everything else is up to the scenario. App providers and hooks, like settings, downloads, network status or the player contexts, are mocked in the scenario that needs them, not here. That way each scenario shows what it replaced. If you need the real version of one of the modules above, `jest.unmock` it in your scenario. If you need different route params, spread `expoRouterModule` and override `useLocalSearchParams`, like `components/library/LibraryPage.perf-test.tsx` does.
+The app's own components render for real: `ServerImage`, `GlassSurface`, `TouchableItemRouter`, `useAppRouter`, haptics and the item action sheet. Stubbing them would leave their cost out of every number. Only what reaches native code is stubbed.
+
+Everything else is up to the scenario. Native modules only one feature uses, like the track player, volume, key events, the slider and gesture handler, have a double in `test-utils/` that the scenario wires with `jest.mock`, as `components/music/MusicTrackItem.perf-test.tsx` does. App providers and hooks, like settings, downloads, network status or the player contexts, are mocked in the scenario that needs them, not here. That way each scenario shows what it replaced. If you need the real version of one of the modules above, `jest.unmock` it in your scenario. If you need different route params, spread `expoRouterModule` and override `useLocalSearchParams`, like `components/library/LibraryPage.perf-test.tsx` does.
 
 ## Writing a scenario
 

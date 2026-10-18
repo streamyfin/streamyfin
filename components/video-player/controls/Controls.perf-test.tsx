@@ -6,6 +6,19 @@ import { measureRenders } from "reassure";
 import { Controls } from "@/components/video-player/controls/Controls";
 import { makeSharedValue } from "@/test-utils/reanimated";
 
+jest.mock(
+  "expo-key-event",
+  () => jest.requireActual("@/test-utils/playerControlsNative").keyEventModule,
+);
+jest.mock(
+  "react-native-volume-manager",
+  () =>
+    jest.requireActual("@/test-utils/playerControlsNative").volumeManagerModule,
+);
+jest.mock(
+  "react-native-awesome-slider",
+  () => jest.requireActual("@/test-utils/playerControlsNative").sliderModule,
+);
 // The player view and its tracks are native; the controls only read them.
 jest.mock("@/components/video-player/controls/contexts/VideoContext", () => ({
   useVideoContext: () => ({ subtitleTracks: [], audioTracks: [] }),
