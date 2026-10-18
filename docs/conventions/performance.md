@@ -63,6 +63,7 @@ test("a CardRow re-renders when its parent updates", async () => {
 `measureRenders` renders the component, runs the `scenario`, and records every commit in between. Some things to keep in mind:
 
 - Keep everything real that re-renders on the interaction you're measuring: the screen, its components, Jotai and React Query. Only stub what reaches native code or another screen.
+- For a component that only needs to survive its parent re-rendering, `measureParentRerenders(() => <Component />)` from `test-utils/rerender.tsx` is the whole scenario. Table it over props or components, as `components/cards/Cards.perf-test.tsx` and `components/tv/TVCards.perf-test.tsx` do.
 - Use `makeItems()` from `test-utils/baseItems.ts` to build the items a scenario renders.
 - Use `reachListEnd()` from `test-utils/lists.ts` to load the next page of a list. Jest has no layout, so a list never scrolls to its end by itself.
 - Use `pullToRefresh()` from the same file to pull a list down. Jest has no touches, so nothing else triggers its `onRefresh`.
