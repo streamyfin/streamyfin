@@ -1,11 +1,8 @@
-import { QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, screen, waitFor } from "@testing-library/react-native";
-import { Provider as JotaiProvider } from "jotai";
-import { type ReactNode } from "react";
 import { measureRenders } from "reassure";
 import { makeItems } from "@/test-utils/baseItems";
 import { reachListEnd } from "@/test-utils/lists";
-import { usePerfQueryClient } from "@/test-utils/queryWrapper";
+import { JotaiQueryWrapper } from "@/test-utils/queryWrapper";
 import { stubReactNative } from "@/test-utils/reactNative";
 
 jest.mock(
@@ -34,16 +31,6 @@ const queryFn = async ({ pageParam = 0 }: { pageParam?: number }) => {
   return allItems.slice(pageParam, pageParam + PAGE_SIZE);
 };
 
-const Wrapper = ({ children }: { children: ReactNode }) => {
-  const client = usePerfQueryClient();
-
-  return (
-    <JotaiProvider>
-      <QueryClientProvider client={client}>{children}</QueryClientProvider>
-    </JotaiProvider>
-  );
-};
-
 const Row = () => (
   <InfiniteScrollingCollectionList
     title='Test Collection'
@@ -56,7 +43,7 @@ const Row = () => (
 describe("TV Poster Row Performance", () => {
   test("focus moving along a poster row, then the next page arriving", async () => {
     await measureRenders(<Row />, {
-      wrapper: Wrapper,
+      wrapper: JotaiQueryWrapper,
       beforeEach: resetQuery,
       scenario: async () => {
         await screen.findByText("Movie 0");

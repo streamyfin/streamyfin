@@ -1,4 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Provider as JotaiProvider } from "jotai";
 import { type ReactNode, useState } from "react";
 
 /**
@@ -19,4 +20,10 @@ export const QueryWrapper = ({ children }: { children: ReactNode }) => (
   <QueryClientProvider client={usePerfQueryClient()}>
     {children}
   </QueryClientProvider>
+);
+
+export const JotaiQueryWrapper = ({ children }: { children: ReactNode }) => (
+  <JotaiProvider>
+    <QueryWrapper>{children}</QueryWrapper>
+  </JotaiProvider>
 );

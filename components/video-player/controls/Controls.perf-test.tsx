@@ -1,10 +1,8 @@
-import { QueryClientProvider } from "@tanstack/react-query";
 import { act, screen } from "@testing-library/react-native";
-import { Provider as JotaiProvider } from "jotai";
-import { type ReactNode, useState } from "react";
+import { useState } from "react";
 import { measureRenders } from "reassure";
 import { Controls } from "@/components/video-player/controls/Controls";
-import { usePerfQueryClient } from "@/test-utils/queryWrapper";
+import { JotaiQueryWrapper } from "@/test-utils/queryWrapper";
 import { makeSharedValue } from "@/test-utils/reanimated";
 
 jest.mock(
@@ -107,16 +105,6 @@ const TestControls = ({
   );
 };
 
-const Wrapper = ({ children }: { children: ReactNode }) => {
-  const client = usePerfQueryClient();
-
-  return (
-    <JotaiProvider>
-      <QueryClientProvider client={client}>{children}</QueryClientProvider>
-    </JotaiProvider>
-  );
-};
-
 // Fresh shared values for every run, so each run starts from 0 like the first.
 let progress = makeSharedValue(0);
 let isSeeking = makeSharedValue(false);
@@ -139,7 +127,7 @@ const ControlsWithFreshValues = () => (
 describe("Video Player Controls Performance", () => {
   test("progress updates and controls toggles re-render the controls tree", async () => {
     await measureRenders(<ControlsWithFreshValues />, {
-      wrapper: Wrapper,
+      wrapper: JotaiQueryWrapper,
       beforeEach: resetSharedValues,
       scenario: async () => {
         // Wait for controls to mount
