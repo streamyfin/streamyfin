@@ -11,7 +11,7 @@ import UIKit
 /// event surfaces without any payload translation. All callbacks arrive on
 /// the main thread.
 protocol MPVPlayerEngineDelegate: AnyObject {
-	func engine(_ engine: MPVPlayerEngine, didLoad url: URL)
+	func engine(_ engine: MPVPlayerEngine, didLoad config: VideoLoadConfig)
 	func engine(_ engine: MPVPlayerEngine, didUpdateProgress position: Double, duration: Double, cacheSeconds: Double)
 	func engine(_ engine: MPVPlayerEngine, didChangePause isPaused: Bool)
 	func engine(_ engine: MPVPlayerEngine, didChangeLoading isLoading: Bool)
@@ -292,7 +292,7 @@ final class MPVPlayerEngine: NSObject {
 			pause()
 		}
 
-		delegate?.engine(self, didLoad: config.url)
+		delegate?.engine(self, didLoad: config)
 	}
 
 	// MARK: - Transport
