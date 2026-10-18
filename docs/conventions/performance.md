@@ -32,8 +32,9 @@ CI does the same thing on every PR into `develop` that touches code the scenario
 
 `test-utils/perfSetup.ts` runs before every scenario, so you don't have to set these up yourself:
 
+- The app's real i18n, so translated strings cost what they cost in the app.
 - Fake timers, with `performance` left real. React reads its render durations from `performance.now`, so faking it would make every duration zero.
-- Stubs for native modules and libraries that don't run in Jest: FlashList's measurements, MMKV, Reanimated, safe area insets, the bottom sheet, device info, toasts, i18n and the app's own native modules (`@/modules`).
+- Stubs for native modules and libraries that don't run in Jest: FlashList's measurements, MMKV, Reanimated, safe area insets, the bottom sheet, device info, toasts and the app's own native modules (`@/modules`).
 - A recording router: `test-utils/expoRouter.ts` stands for `expo-router`, and its `router` holds the `push` and `replace` calls the real `useAppRouter` makes, so a scenario can assert them.
 - A `JellyfinProvider` whose `apiAtom` holds a `makeApi()` double from `test-utils/jellyfinApi.ts`, so you can answer API requests with `api.mock`.
 

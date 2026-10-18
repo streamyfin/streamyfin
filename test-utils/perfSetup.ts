@@ -8,6 +8,8 @@
  */
 // FlashList measures natively; its Jest setup stubs the measurements.
 require("@shopify/flash-list/jestSetup");
+// The app's own i18n, so a translated string costs what it costs in the app.
+require("@/i18n");
 
 jest.mock(
   "react-native-mmkv",
@@ -27,10 +29,6 @@ jest.mock(
 jest.mock("react-native-device-info", () => ({
   getFreeDiskStorage: async () => 10_000_000_000,
   getTotalDiskCapacity: async () => 64_000_000_000,
-}));
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-  initReactI18next: { type: "3rdParty", init: () => {} },
 }));
 jest.mock("@gorhom/bottom-sheet", () =>
   jest.requireActual("@gorhom/bottom-sheet/mock"),
