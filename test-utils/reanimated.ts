@@ -1,4 +1,5 @@
-import { useEffect, useRef } from "react";
+import { type ComponentType, useEffect, useRef } from "react";
+import { ScrollView, Text, View } from "react-native";
 
 /** Writes made from JS that the UI thread has not taken yet. */
 const heldWrites: (() => void)[] = [];
@@ -37,21 +38,16 @@ const triggerReanimatedReactions = () => {
   }
 };
 
-export const makeSharedValue = <Value>(initial: Value) => sharedValue(initial);
-
-const sharedValue = <Value>(initial: Value) => {
+export const makeSharedValue = <Value>(initial: Value) => {
   let held = initial;
+  const land = (next: Value) => {
+    const changed = !Object.is(held, next);
+    held = next;
+    if (changed) triggerReanimatedReactions();
+  };
   const write = (next: Value) => {
-    if (Object.is(held, next)) return;
-    if (holding) {
-      heldWrites.push(() => {
-        held = next;
-        triggerReanimatedReactions();
-      });
-    } else {
-      held = next;
-      triggerReanimatedReactions();
-    }
+    if (holding) heldWrites.push(() => land(next));
+    else land(next);
   };
   return {
     get value() {
@@ -63,6 +59,13 @@ const sharedValue = <Value>(initial: Value) => {
     get: () => held,
     set: write,
   };
+};
+
+const Animated = {
+  View,
+  Text,
+  ScrollView,
+  createAnimatedComponent: (component: ComponentType) => component,
 };
 
 /**
@@ -81,15 +84,6 @@ const sharedValue = <Value>(initial: Value) => {
  * under test imports another one, rather than reaching for the real module,
  * which needs the native worklets runtime.
  */
-const { View, Text, ScrollView } = require("react-native");
-
-const Animated = {
-  View,
-  Text,
-  ScrollView,
-  createAnimatedComponent: (comp: any) => comp,
-};
-
 export const reanimatedModule = {
   default: Animated,
   ...Animated,
@@ -100,11 +94,11 @@ export const reanimatedModule = {
     (...args: Args) =>
       fn(...args),
   useAnimatedReaction: (
-    prepare: () => any,
-    react: (current: any, previous: any) => void,
-    deps: any[] = [],
+    prepare: () => unknown,
+    react: (current: unknown, previous: unknown) => void,
+    deps: unknown[] = [],
   ) => {
-    const prevRef = useRef<any>(undefined);
+    const prevRef = useRef<unknown>(undefined);
     const prepareRef = useRef(prepare);
     prepareRef.current = prepare;
     const reactRef = useRef(react);
@@ -124,19 +118,22 @@ export const reanimatedModule = {
     }, deps);
   },
   useSharedValue: <Value>(initial: Value) =>
-    useRef(sharedValue(initial)).current,
-  useAnimatedStyle: (updater: () => any) => {
-    try {
-      return updater() ?? {};
-    } catch {
-      return {};
-    }
-  },
+    useRef(makeSharedValue(initial)).current,
+  useAnimatedStyle: (updater: () => object) => updater(),
   withTiming: (toValue: unknown) => toValue,
   withDelay: (_delay: unknown, animation: unknown) => animation,
   withRepeat: (animation: unknown) => animation,
   cancelAnimation: () => {},
-  interpolate: () => 0,
+  interpolate: (
+    value: number,
+    [inputStart, inputEnd]: number[],
+    [outputStart, outputEnd]: number[],
+  ) => {
+    const ratio = (value - inputStart) / (inputEnd - inputStart);
+    return (
+      outputStart + Math.min(Math.max(ratio, 0), 1) * (outputEnd - outputStart)
+    );
+  },
   Easing: {
     out: () => ({}),
     cubic: {},
