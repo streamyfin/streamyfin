@@ -19,7 +19,7 @@ To compare your branch against `develop`:
 
 The comparison is written to `.reassure/output.md`. The `.reassure/` folder is gitignored, so the baseline survives switching branches.
 
-CI does the same thing on every PR into `develop` and posts the result as a comment on the PR (`perf.yml`, `perf-comment.yml`). The comment is a report, not a gate: a regression won't fail the build. If your PR shows one, look into it, and either fix it or explain in the PR why it's expected.
+CI does the same thing on every PR into `develop` that touches code the scenarios can reach (the `paths` filter in `perf.yml`), and posts the result as a comment on the PR (`perf.yml`, `perf-comment.yml`). The comment is a report, not a gate: a regression won't fail the build. If your PR shows one, look into it, and either fix it or explain in the PR why it's expected.
 
 ## Where the files go
 

@@ -19,6 +19,7 @@ jobs:
     name: 📝 Post Reassure results
     if: github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-26.04
+    timeout-minutes: 5
     permissions:
       actions: read
       pull-requests: write
@@ -69,8 +70,19 @@ jobs:
               core.setFailed(`PR #${number} is not the one this run measured.`);
               return;
             }
+            // Reassure writes no report without a baseline to compare against.
+            if (!fs.existsSync("reassure/output.md")) {
+              core.notice("The run produced no comparison, nothing to post.");
+              return;
+            }
+            // The PR wrote this file too, so it is posted as text only: capped
+            // under the comment size limit, with mentions defused.
+            const report = fs
+              .readFileSync("reassure/output.md", "utf8")
+              .slice(0, 60000)
+              .replaceAll("@", "@\u200b");
             const marker = "<!-- reassure-performance -->";
-            const body = `${marker}\n${fs.readFileSync("reassure/output.md", "utf8")}`;
+            const body = `${marker}\n${report}`;
             const comments = await github.paginate(github.rest.issues.listComments, {
               owner: context.repo.owner,
               repo: context.repo.repo,

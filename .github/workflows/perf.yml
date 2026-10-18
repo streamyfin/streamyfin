@@ -8,6 +8,22 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
     branches: [develop]
+    # Each scenario runs on the base and on the PR, so a PR that cannot move
+    # them (translations, docs, native only) does not pay for it.
+    paths:
+      - "app/**"
+      - "components/**"
+      - "hooks/**"
+      - "providers/**"
+      - "services/**"
+      - "utils/**"
+      - "constants/**"
+      - "test-utils/**"
+      - "**/*.perf-test.*"
+      - "jest.perf.config.js"
+      - "package.json"
+      - "bun.lock"
+      - ".github/workflows/perf*.yml"
   workflow_dispatch:
 
 permissions:
@@ -21,6 +37,7 @@ jobs:
   reassure:
     name: 🐢 Reassure
     runs-on: ubuntu-26.04
+    timeout-minutes: 30
     env:
       BASE_REF: ${{ github.event.pull_request.base.ref || 'develop' }}
     steps:
@@ -45,27 +62,17 @@ jobs:
             ${{ runner.os }}-${{ runner.arch }}-bun-
 
       - name: 📏 Measure the base
-        # A base without Reassure (before it landed) has nothing to compare
-        # against; the PR is then measured on its own.
         run: |
           HEAD_SHA=$(git rev-parse HEAD)
           git switch --detach "origin/$BASE_REF"
-          if grep -q '"reassure"' package.json; then
-            bun install --frozen-lockfile
-            bun run perf:baseline -- --passWithNoTests
-          else
-            echo "The base has no Reassure setup: no baseline."
-          fi
+          bun install --frozen-lockfile
+          bun run --if-present perf:baseline
           git switch --detach "$HEAD_SHA"
 
       - name: 📏 Measure the PR
         run: |
           bun install --frozen-lockfile
           bun run perf
-          # Reassure only writes a report when it has a baseline to compare.
-          if [ ! -f .reassure/output.md ]; then
-            bun scripts/perf/currentReport.ts > .reassure/output.md
-          fi
 
       - name: 📝 Job summary
         if: always()
