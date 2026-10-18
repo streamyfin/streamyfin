@@ -157,7 +157,7 @@ final class MPVPlayerEngine: NSObject {
 	/// would take the session back with no player left to give it up.
 	private func activateAudioSession(completion: (() -> Void)? = nil) {
 		guard !isShutDown else { return }
-		audioSession.activate(completion: completion)
+		audioSession.activate(spatialAudio: renderer?.isPlayingSpatialAudio ?? false, completion: completion)
 	}
 
 	@objc private func handleAudioSessionInterruption(_ notification: Notification) {
