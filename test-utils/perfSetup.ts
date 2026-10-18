@@ -33,15 +33,11 @@ jest.mock("react-native-device-info", () => ({
 jest.mock("@gorhom/bottom-sheet", () =>
   jest.requireActual("@gorhom/bottom-sheet/mock"),
 );
-jest.mock("@/providers/JellyfinProvider", () => {
-  const { atom } = jest.requireActual("jotai");
-  const { makeApi } = jest.requireActual("@/test-utils/jellyfinApi");
-  return {
-    apiAtom: atom(makeApi()),
-    userAtom: atom({ Id: "user-1" }),
-    pendingAccountSaveAtom: atom(false),
-  };
-});
+jest.mock(
+  "@/providers/JellyfinProvider",
+  () =>
+    jest.requireActual("@/test-utils/jellyfinProvider").jellyfinProviderModule,
+);
 jest.mock(
   "expo-router",
   () => jest.requireActual("@/test-utils/expoRouter").expoRouterModule,
