@@ -33,10 +33,11 @@ CI does the same thing on every PR into `develop` and posts the result as a comm
 `test-utils/perfSetup.ts` runs before every scenario, so you don't have to set these up yourself:
 
 - Fake timers, with `performance` left real. React reads its render durations from `performance.now`, so faking it would make every duration zero.
-- Stubs for the modules that reach native code or another screen: FlashList's measurements, MMKV, Reanimated, safe area insets, the bottom sheet, i18n, `ServerImage`, the router, `useAppRouter` and the item action sheet.
+- Stubs for native modules and libraries that don't run in Jest: FlashList's measurements, MMKV, Reanimated, gesture handler, track player, safe area insets, the bottom sheet, sliders, gradients, glass effects, haptics, brightness, volume, toasts, i18n and the app's own native modules (`@/modules`).
+- Stubs for things that lead to another screen: `ServerImage`, the router (`test-utils/expoRouter.ts`), `useAppRouter` and the item action sheet.
 - A `JellyfinProvider` whose `apiAtom` holds a `makeApi()` double from `test-utils/jellyfinApi.ts`, so you can answer API requests with `api.mock`.
 
-A scenario only declares the mocks that are its own. If you need the real version of one of the modules above, `jest.unmock` it in your scenario.
+Everything else is up to the scenario. App providers and hooks, like settings, downloads, network status or the player contexts, are mocked in the scenario that needs them, not here. That way each scenario shows what it replaced. If you need the real version of one of the modules above, `jest.unmock` it in your scenario. If you need different route params, spread `expoRouterModule` and override `useLocalSearchParams`, like `components/library/LibraryPage.perf-test.tsx` does.
 
 ## Writing a scenario
 
@@ -60,6 +61,8 @@ test("a CardRow re-renders when its parent updates", async () => {
 
 - Keep everything real that re-renders on the interaction you're measuring: the screen, its components, Jotai and React Query. Only stub what reaches native code or another screen.
 - Use `makeItems()` from `test-utils/baseItems.ts` to build the items a scenario renders.
+- Use `reachListEnd()` from `test-utils/lists.ts` to load the next page of a list. Jest has no layout, so a list never scrolls to its end by itself.
+- `fireEvent` is async. Always `await` it, or React warns about overlapping `act()` calls.
 - Give each run a fresh `QueryClient` so every run starts from the same cold cache. `components/home/Home.perf-test.tsx` shows how.
 - Fire events where the user would: on the pressable itself, not on a label drawn next to it.
 - Reassure runs each scenario 11 times (1 warmup and 10 measured), so a scenario that does a lot of work needs its own Jest timeout.

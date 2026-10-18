@@ -4,7 +4,7 @@ import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 export const makeItems = (
   count: number,
   prefix = "Movie",
-  type: "Movie" | "Episode" = "Movie",
+  type: "Movie" | "Episode" | "Audio" = "Movie",
 ): BaseItemDto[] =>
   Array.from({ length: count }, (_, index) => ({
     Id: `${prefix}-${index}`,
@@ -12,4 +12,7 @@ export const makeItems = (
     Type: type,
     SeriesName: type === "Episode" ? `${prefix} series ${index}` : undefined,
     ImageTags: { Primary: `tag-${prefix}-${index}` },
+    RunTimeTicks: type === "Audio" ? 300 * 10_000_000 : undefined,
+    Artists: type === "Audio" ? [`${prefix} Artist`] : undefined,
+    Album: type === "Audio" ? `${prefix} Album` : undefined,
   }));

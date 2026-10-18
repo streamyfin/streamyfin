@@ -22,15 +22,6 @@ jest.mock("@/utils/atoms/settings", () => {
     }),
   };
 });
-jest.mock("@/modules", () => {
-  const { View } = jest.requireActual("react-native");
-  return {
-    HeroCarouselView: (props: any) => (
-      <View testID='hero-carousel' {...props} />
-    ),
-    isHeroCarouselAvailable: () => true,
-  };
-});
 jest.mock("@/providers/DownloadProvider", () => ({
   useDownload: () => ({
     downloadedItems: [],

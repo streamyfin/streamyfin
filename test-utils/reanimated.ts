@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 
 /** Writes made from JS that the UI thread has not taken yet. */
 const heldWrites: (() => void)[] = [];
@@ -24,15 +24,33 @@ export const releaseSharedValueWrites = () => {
   for (const write of heldWrites.splice(0)) write();
 };
 
+const reactions = new Set<() => void>();
+let runningReactions = false;
+
+const triggerReanimatedReactions = () => {
+  if (runningReactions) return;
+  runningReactions = true;
+  try {
+    for (const r of [...reactions]) r();
+  } finally {
+    runningReactions = false;
+  }
+};
+
+export const makeSharedValue = <Value>(initial: Value) => sharedValue(initial);
+
 const sharedValue = <Value>(initial: Value) => {
   let held = initial;
   const write = (next: Value) => {
+    if (Object.is(held, next)) return;
     if (holding) {
       heldWrites.push(() => {
         held = next;
+        triggerReanimatedReactions();
       });
     } else {
       held = next;
+      triggerReanimatedReactions();
     }
   };
   return {
@@ -63,14 +81,67 @@ const sharedValue = <Value>(initial: Value) => {
  * under test imports another one, rather than reaching for the real module,
  * which needs the native worklets runtime.
  */
+const { View, Text, ScrollView } = require("react-native");
+
+const Animated = {
+  View,
+  Text,
+  ScrollView,
+  createAnimatedComponent: (comp: any) => comp,
+};
+
 export const reanimatedModule = {
+  default: Animated,
+  ...Animated,
   // A worklet asking for a function to run on the JS thread: here it is
   // already there.
   runOnJS:
     <Args extends unknown[]>(fn: (...args: Args) => void) =>
     (...args: Args) =>
       fn(...args),
-  useAnimatedReaction: () => {},
+  useAnimatedReaction: (
+    prepare: () => any,
+    react: (current: any, previous: any) => void,
+    deps: any[] = [],
+  ) => {
+    const prevRef = useRef<any>(undefined);
+    const prepareRef = useRef(prepare);
+    prepareRef.current = prepare;
+    const reactRef = useRef(react);
+    reactRef.current = react;
+
+    useEffect(() => {
+      const runner = () => {
+        const current = prepareRef.current();
+        reactRef.current(current, prevRef.current);
+        prevRef.current = current;
+      };
+      reactions.add(runner);
+      runner();
+      return () => {
+        reactions.delete(runner);
+      };
+    }, deps);
+  },
   useSharedValue: <Value>(initial: Value) =>
     useRef(sharedValue(initial)).current,
+  useAnimatedStyle: (updater: () => any) => {
+    try {
+      return updater() ?? {};
+    } catch {
+      return {};
+    }
+  },
+  withTiming: (toValue: unknown) => toValue,
+  withDelay: (_delay: unknown, animation: unknown) => animation,
+  withRepeat: (animation: unknown) => animation,
+  cancelAnimation: () => {},
+  interpolate: () => 0,
+  Easing: {
+    out: () => ({}),
+    cubic: {},
+    inOut: () => ({}),
+    ease: {},
+  },
+  Extrapolation: { CLAMP: "clamp" },
 };
