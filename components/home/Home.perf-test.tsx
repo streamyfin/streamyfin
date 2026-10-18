@@ -108,7 +108,7 @@ describe("Home Mobile Performance", () => {
     stubServer();
   });
 
-  test("Home mounts and scrolls", async () => {
+  test("Home mounts and loads its rows", async () => {
     await measureRenders(<Home />, {
       wrapper: Wrapper,
       scenario: async () => {

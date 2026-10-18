@@ -1,0 +1,91 @@
+name: 🐢 Performance
+
+# Measures the Reassure scenarios (*.perf-test.tsx) on the PR's base and on the
+# PR, and compares them. Runs with a read-only token, so a PR from a fork is
+# measured like any other; perf-comment.yml posts the result once this ends.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  reassure:
+    name: 🐢 Reassure
+    runs-on: ubuntu-26.04
+    env:
+      BASE_REF: ${{ github.event.pull_request.base.ref || 'develop' }}
+    steps:
+      - name: 🛒 Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - name: 🍞 Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          # renovate: datasource=npm depName=bun
+          bun-version: "1.4.2"
+
+      - name: 💾 Cache Bun dependencies
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-${{ runner.arch }}-bun-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-bun-
+
+      - name: 📏 Measure the base
+        # A base without Reassure (before it landed) has nothing to compare
+        # against; the PR is then measured on its own.
+        run: |
+          HEAD_SHA=$(git rev-parse HEAD)
+          git switch --detach "origin/$BASE_REF"
+          if grep -q '"reassure"' package.json; then
+            bun install --frozen-lockfile
+            bun run perf:baseline -- --passWithNoTests
+          else
+            echo "The base has no Reassure setup: no baseline."
+          fi
+          git switch --detach "$HEAD_SHA"
+
+      - name: 📏 Measure the PR
+        run: |
+          bun install --frozen-lockfile
+          bun run perf
+          # Reassure only writes a report when it has a baseline to compare.
+          if [ ! -f .reassure/output.md ]; then
+            bun scripts/perf/currentReport.ts > .reassure/output.md
+          fi
+
+      - name: 📝 Job summary
+        if: always()
+        run: |
+          if [ -f .reassure/output.md ]; then
+            cat .reassure/output.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: 🔢 Record the PR number
+        if: github.event_name == 'pull_request'
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: echo "$PR_NUMBER" > .reassure/pr-number
+
+      - name: 📦 Upload results artifact
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: reassure
+          path: |
+            .reassure/output.md
+            .reassure/pr-number
+          retention-days: 7
