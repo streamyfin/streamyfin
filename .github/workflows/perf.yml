@@ -81,6 +81,13 @@ jobs:
             cat .reassure/output.md >> "$GITHUB_STEP_SUMMARY"
           fi
 
+      - name: ✂️ Filter the report for the comment
+        if: github.event_name == 'pull_request'
+        run: |
+          if [ -f .reassure/output.json ]; then
+            bun scripts/reassure-report.ts .reassure/output.json .reassure/comment.md
+          fi
+
       - name: 🔢 Record the PR number
         if: github.event_name == 'pull_request'
         env:
@@ -93,6 +100,6 @@ jobs:
         with:
           name: reassure
           path: |
-            .reassure/output.md
+            .reassure/comment.md
             .reassure/pr-number
           retention-days: 7
