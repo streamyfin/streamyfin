@@ -65,6 +65,7 @@ test("a CardRow re-renders when its parent updates", async () => {
 - Keep everything real that re-renders on the interaction you're measuring: the screen, its components, Jotai and React Query. Only stub what reaches native code or another screen.
 - Use `makeItems()` from `test-utils/baseItems.ts` to build the items a scenario renders.
 - Use `reachListEnd()` from `test-utils/lists.ts` to load the next page of a list. Jest has no layout, so a list never scrolls to its end by itself.
+- Use `pullToRefresh()` from the same file to pull a list down. Jest has no touches, so nothing else triggers its `onRefresh`.
 - `fireEvent` is async. Always `await` it, or React warns about overlapping `act()` calls.
 - Give each run a fresh `QueryClient` so every run starts from the same cold cache. `components/home/Home.perf-test.tsx` shows how.
 - Fire events where the user would: on the pressable itself, not on a label drawn next to it.
