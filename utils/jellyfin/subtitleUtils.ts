@@ -783,8 +783,12 @@ export const getMpvAudioId = (
     return undefined;
   }
 
+  // mpv numbers only the file's own tracks; no player loads an external
+  // audio file, which Jellyfin lists ahead of them.
   const allAudio =
-    mediaSource?.MediaStreams?.filter((s) => s.Type === "Audio") || [];
+    mediaSource?.MediaStreams?.filter(
+      (s) => s.Type === "Audio" && !s.IsExternal,
+    ) || [];
 
   // Find position in audio list (1-based for MPV)
   const position = allAudio.findIndex((a) => a.Index === jellyfinAudioIndex);
