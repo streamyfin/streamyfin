@@ -61,7 +61,9 @@ export const SeasonEpisodesCarousel: React.FC<Props> = ({
           "Overview",
         ],
       });
-      return response.data.Items as BaseItemDto[];
+      // An answer without the list resolved the query with undefined, which
+      // React Query rejects ("data is undefined"): show no episodes instead.
+      return response.data.Items ?? [];
     },
     enabled: !!seasonId && (isOffline || (!!api && !!user?.Id)),
   });
