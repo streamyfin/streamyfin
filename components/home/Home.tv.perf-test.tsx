@@ -7,12 +7,6 @@ import type { makeApi } from "@/test-utils/jellyfinApi";
 import { QueryWrapper } from "@/test-utils/queryWrapper";
 import { Home } from "./Home.tv";
 
-// Baselines for the TV Home screen (.scratchpad tv-performance ticket 01).
-// Everything that re-renders when focus moves is real: the screen, the hero,
-// the rows, the poster cards, Jotai and React Query. Only what reaches native
-// code or another screen is stubbed.
-
-// What a scenario changes from the default settings.
 type HomeSettings = Record<string, unknown>;
 
 let mockSettings: HomeSettings = {};

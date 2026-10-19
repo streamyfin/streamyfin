@@ -12,7 +12,6 @@ jest.mock("@/utils/atoms/settings", () =>
     .requireActual("@/test-utils/settings")
     .makeSettingsModule({ streamyStatsServerUrl: "http://streamystats.test" }),
 );
-// The Streamystats server is a second API; answering for it is all it is for.
 jest.mock("@/utils/streamystats/api", () => ({
   createStreamystatsApi: () => ({
     getRecommendationIds: async () => ({
