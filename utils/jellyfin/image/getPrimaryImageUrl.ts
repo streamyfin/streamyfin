@@ -30,7 +30,9 @@ export const getPrimaryImageUrl = ({
   width?: number | null;
   height?: number | null;
 }) => {
-  if (!item || !api) {
+  // A server or proxy that answers with text where an item belongs hands the
+  // page a string, and isBaseItemDto's `in` throws on anything but an object.
+  if (!item || !api || typeof item !== "object") {
     return null;
   }
 
