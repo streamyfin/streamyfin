@@ -69,6 +69,7 @@ test("a CardRow re-renders when its parent updates", async () => {
 - Use `pullToRefresh()` from the same file to pull a list down. Jest has no touches, so nothing else triggers its `onRefresh`.
 - `fireEvent` is async. Always `await` it, or React warns about overlapping `act()` calls.
 - Give each run a fresh `QueryClient` so every run starts from the same cold cache. `QueryWrapper` and `usePerfQueryClient` in `test-utils/queryWrapper.tsx` do that. If a scenario also needs Jotai, use `JotaiQueryWrapper` from the same file.
+- A scenario that sets atoms needs a fresh Jotai store on every mount too. `beforeEach` runs once per test, not once per run, so atoms set on the default store keep the last run's values into the next one. Create the store in the wrapper's `useState`, set its starting values there, and set atoms through that store, as `components/downloads/ActiveDownloads.perf-test.tsx` does.
 - Fire events where the user would: on the pressable itself, not on a label drawn next to it.
 - Reassure runs each scenario 11 times (1 warmup and 10 measured), so `jest.perf.config.js` raises the Jest timeout to 60 seconds.
 - Below a few milliseconds, timer noise looks like a real change. Repeat the work inside one scenario until it takes longer than that.
