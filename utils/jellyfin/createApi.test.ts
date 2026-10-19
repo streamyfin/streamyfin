@@ -1,18 +1,22 @@
-import { describe, expect, test } from "bun:test";
-import { Jellyfin } from "@jellyfin/sdk";
+import { type Api, Jellyfin } from "@jellyfin/sdk";
 import { getSystemApi } from "@jellyfin/sdk/lib/utils/api/system-api";
 import axios, {
   type AxiosInstance,
   type InternalAxiosRequestConfig,
 } from "axios";
-import {
-  setJellyfinHeaders,
-  stubCustomHeaders,
-} from "@/test-utils/customHeaders";
+import i18next from "i18next";
+import "@/augmentations/api";
+import { setJellyfinHeaders } from "@/test-utils/customHeaders";
+import { createApiWithCustomHeaders } from "./createApi";
 
-stubCustomHeaders();
+jest.mock("@/utils/customHeaders", () =>
+  jest.requireActual("@/test-utils/customHeaders").customHeadersModule(),
+);
+// Each test sets the proxy headers it needs; none carry over to the next.
+afterEach(() => setJellyfinHeaders());
 
-const { createApiWithCustomHeaders } = await import("./createApi");
+beforeAll(() => i18next.init({ lng: "sv", resources: {} }));
+beforeEach(() => i18next.changeLanguage("sv"));
 
 const SERVER = "https://jellyfin.example";
 
@@ -166,5 +170,75 @@ describe("createApiWithCustomHeaders", () => {
     });
 
     expect(headers.get("cf-access-client-id")).toBe("abc");
+  });
+
+  describe("the app language", () => {
+    // A Jellyfin 12 server localizes track names from this header.
+    const signedIn = () =>
+      createApiWithCustomHeaders(jellyfin(), SERVER, "token");
+
+    /** The headers of the one request `send` makes. */
+    const sentBy = async (send: (api: Api) => unknown) => {
+      const api = signedIn();
+      const sent = captureRequests(api.axiosInstance);
+      await send(api);
+      expect(sent).toHaveLength(1);
+      return sent[0].headers;
+    };
+
+    test("goes out with a request the SDK makes", async () => {
+      const headers = await sentBy((api) =>
+        getSystemApi(api).getPublicSystemInfo(),
+      );
+
+      expect(headers.get("Accept-Language")).toBe("sv");
+    });
+
+    test("goes out with the convenience methods too", async () => {
+      // `api.get` and friends replace the request's headers with
+      // `Authorization` alone, so a language the caller set would be dropped.
+      const headers = await sentBy((api) => api.get("/Streamyfin/config"));
+
+      expect(headers.get("Accept-Language")).toBe("sv");
+      expect(headers.get("Authorization")).toContain('Token="token"');
+    });
+
+    test("follows a language change without a new api", async () => {
+      const api = signedIn();
+      const sent = captureRequests(api.axiosInstance);
+
+      await getSystemApi(api).getPublicSystemInfo();
+      await i18next.changeLanguage("fr");
+      await getSystemApi(api).getPublicSystemInfo();
+
+      expect(
+        sent.map((request) => request.headers.get("Accept-Language")),
+      ).toEqual(["sv", "fr"]);
+    });
+
+    test("gives way to a custom header of the same name", async () => {
+      // Whatever its case: the user configured it by hand for their gateway,
+      // and two spellings must not turn into two headers.
+      setJellyfinHeaders({ "accept-language": "de" }, SERVER);
+
+      const headers = await sentBy((api) =>
+        getSystemApi(api).getPublicSystemInfo(),
+      );
+
+      expect(headers.get("Accept-Language")).toBe("de");
+      expect(
+        Object.keys(headers.toJSON()).filter(
+          (name) => name.toLowerCase() === "accept-language",
+        ),
+      ).toHaveLength(1);
+    });
+
+    test("does not go to a third-party host", async () => {
+      const headers = await sentBy((api) =>
+        api.axiosInstance.get("https://freeipapi.com/api/json/1.2.3.4"),
+      );
+
+      expect(headers.get("Accept-Language")).toBeUndefined();
+    });
   });
 });

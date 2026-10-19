@@ -6,15 +6,29 @@ import {
   type SortOrder,
   SubtitlePlaybackMode,
 } from "@jellyfin/sdk/lib/generated-client";
-import { t } from "i18next";
-import { atom, useAtom, useAtomValue } from "jotai";
+import { isAxiosError } from "axios";
+import { atom, useAtom, useAtomValue, useStore } from "jotai";
 import { useCallback, useEffect } from "react";
 import { Platform } from "react-native";
 import { BITRATES, type Bitrate } from "@/components/BitrateSelector";
+import {
+  DEFAULT_MUSIC_NORMALIZATION_MODE,
+  type MusicNormalizationMode,
+} from "@/constants/Music";
+import { REDACTED_PLACEHOLDER } from "@/constants/Privacy";
+import {
+  DEFAULT_STILL_WATCHING_PRESET,
+  type StillWatchingPreset,
+} from "@/constants/StillWatching";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { logAndCaptureError, writeInfoLog } from "@/utils/log";
 import {
+  coerceStillWatchingPreset,
+  stillWatchingPresetFromEpisodeCount,
+} from "@/utils/stillWatching";
+import {
+  PLUGIN_APPLIED_DEFAULTS_KEY,
   PLUGIN_SETTINGS_KEY,
   readStoredSettings,
   SETTINGS_KEY,
@@ -22,13 +36,17 @@ import {
 import { storage } from "../mmkv";
 import {
   type AppliedPluginDefaults,
+  dropSeededSecrets,
+  hasMeaningfulSettingValue,
   pluginRefreshOverlay,
+  readIntegrationBlocks,
+  renameLegacySeerrSettings,
   resolveEffectiveSettings,
+  SENSITIVE_SETTING_KEYS,
 } from "./settingsOverrides";
 
 const _STREAMYFIN_PLUGIN_ID = "1e9e5d386e6746158719e98a5c34f004";
 const STREAMYFIN_PLUGIN_SETTINGS = PLUGIN_SETTINGS_KEY;
-const PLUGIN_APPLIED_DEFAULTS = "STREAMYFIN_PLUGIN_APPLIED_DEFAULTS";
 
 export type DownloadQuality = "original" | "high" | "low";
 
@@ -129,11 +147,6 @@ export type HomeSectionNextUpResolver = {
   enableRewatching?: boolean;
 };
 
-export interface MaxAutoPlayEpisodeCount {
-  key: string;
-  value: number;
-}
-
 const isFiniteNumber = (value: unknown): value is number =>
   typeof value === "number" && Number.isFinite(value);
 
@@ -149,6 +162,13 @@ const normalizePluginValue = (
     return value / 100;
   }
 
+  // A preset this build does not know, or the old episode count sent under
+  // the new name, would otherwise turn the prompt off without a word. An
+  // empty value stays empty, so it is not mistaken for an admin's choice.
+  if (settingsKey === "stillWatchingPreset") {
+    return coerceStillWatchingPreset(value) ?? value;
+  }
+
   if (typeof value !== "object" || value === null) {
     const defaultVal = defaultValues[settingsKey];
     if (
@@ -159,21 +179,12 @@ const normalizePluginValue = (
     ) {
       // defaultBitrate needs a lookup because its keys are human-readable
       // (e.g. "8 Mb/s") that can't be derived from the raw value (e.g. 8000000).
-      // Other { key, value } settings like maxAutoPlayEpisodeCount work with
-      // the fallback because their keys are just String(value) (e.g. "5").
+      // Anything else falls back to a key of String(value).
       if (settingsKey === "defaultBitrate") {
         const match = BITRATES.find(
           (b) => b.key === value || b.value === value,
         );
         if (match) return match;
-      }
-      // maxAutoPlayEpisodeCount: 0 is invalid (breaks autoplay), clamp to -1
-      // -1 key must match the translated dropdown label so the UI shows "Disabled"
-      if (
-        settingsKey === "maxAutoPlayEpisodeCount" &&
-        (value === 0 || value === -1)
-      ) {
-        return { key: t("home.settings.other.disabled"), value: -1 };
       }
       return { key: String(value), value };
     }
@@ -439,22 +450,24 @@ export type Settings = {
   subtitleAlignX?: "left" | "center" | "right";
   subtitleAlignY?: "top" | "center" | "bottom";
   safeAreaInControlsEnabled: boolean;
-  jellyseerrServerUrl?: string;
+  seerrServerUrl?: string;
   /** Seerr admin API key: signs the user in via their Jellyfin ID, no password. */
-  jellyseerrApiKey?: string;
+  seerrApiKey?: string;
   /**
-   * Sign in to Jellyseerr automatically on launch using the Jellyfin password.
-   * Jellyseerr's /auth/jellyfin endpoint takes the password rather than the
+   * Sign in to Seerr automatically on launch using the Jellyfin password.
+   * Seerr's /auth/jellyfin endpoint takes the password rather than the
    * Jellyfin token, so enabling this persists that password in the platform
-   * secure store. Nothing is stored unless a Jellyseerr server is configured.
+   * secure store. Nothing is stored unless a Seerr server is configured.
    */
-  autoLoginJellyseerr: boolean;
+  autoLoginSeerr: boolean;
   useKefinTweaks: boolean;
   hiddenLibraries?: string[];
   enableH265ForChromecast: boolean;
-  maxAutoPlayEpisodeCount: MaxAutoPlayEpisodeCount;
-  autoPlayEpisodeCount: number;
+  /** "Still watching?" prompt, see constants/StillWatching.ts. */
+  stillWatchingPreset: StillWatchingPreset;
   autoPlayNextEpisode: boolean;
+  /** SyncPlay: join groups without being waited for. Per device. */
+  syncPlayIgnoreWait: boolean;
   // Media segment skip preferences
   skipIntro: SegmentSkipMode;
   skipOutro: SegmentSkipMode;
@@ -486,6 +499,8 @@ export type Settings = {
   hideBrightnessSlider: boolean;
   usePopularPlugin: boolean;
   mergeNextUpAndContinueWatching: boolean;
+  /** Home row of episodes about to air, from every TV library. Off by default. */
+  showUpcomingOnHome: boolean;
   /**
    * Home hero carousel filters. Both are "hidden" lists, so an empty list
    * (the default) shows everything, and they combine: hiding the
@@ -521,6 +536,8 @@ export type Settings = {
   audioMaxCacheSizeMB: number;
   // Music playback
   preferLocalAudio: boolean;
+  /** Evens out loudness between music tracks with the server's gains. */
+  musicNormalizationMode: MusicNormalizationMode;
   // Audio transcoding mode
   audioTranscodeMode: AudioTranscodeMode;
   // Optional third-party lookups. Both call a service directly from the client
@@ -547,25 +564,48 @@ export type StreamyfinPluginConfig = {
   settings: PluginLockableSettings;
 };
 
-// Settings whose values are secrets. They must never reach the app log,
-// which users read in-app and paste into bug reports.
-const SENSITIVE_SETTING_KEYS: ReadonlySet<keyof Settings> = new Set([
-  "jellyseerrApiKey",
-  "openSubtitlesApiKey",
-] as const);
-
+// Read first: the plugin sends the Seerr key under its old flat name and
+// inside the seerr block, and only the app's own name is on the list above.
 export const redactPluginSettings = (
-  settings: PluginLockableSettings | undefined,
-): PluginLockableSettings | undefined =>
-  settings &&
-  (Object.fromEntries(
-    Object.entries(settings).map(([key, lockable]) => [
-      key,
-      SENSITIVE_SETTING_KEYS.has(key as keyof Settings) && lockable?.value
-        ? { ...lockable, value: "[redacted]" }
-        : lockable,
-    ]),
-  ) as PluginLockableSettings);
+  sent: PluginLockableSettings | undefined,
+): PluginLockableSettings | undefined => {
+  const settings = readIntegrationBlocks(sent);
+  return (
+    settings &&
+    (Object.fromEntries(
+      Object.entries(settings).map(([key, lockable]) => [
+        key,
+        SENSITIVE_SETTING_KEYS.has(key as keyof Settings) && lockable?.value
+          ? { ...lockable, value: REDACTED_PLACEHOLDER }
+          : lockable,
+      ]),
+    ) as PluginLockableSettings)
+  );
+};
+
+// What the previous account signs in with, dropped as soon as another account
+// signs in: the secrets, and the Seerr address, where a Seerr sign-in starting
+// for the next account would send that account's password. No tab depends on
+// the address, unlike the locks that stay until the next account's arrive.
+const SIGN_IN_SETTING_KEYS: ReadonlySet<keyof Settings> = new Set([
+  ...SENSITIVE_SETTING_KEYS,
+  "seerrServerUrl",
+]);
+
+// Read first, as above, so nothing stays behind under an old name.
+const withoutSignIns = (
+  sent: PluginLockableSettings | undefined,
+): PluginLockableSettings | undefined => {
+  const settings = readIntegrationBlocks(sent);
+  return (
+    settings &&
+    (Object.fromEntries(
+      Object.entries(settings).filter(
+        ([key]) => !SIGN_IN_SETTING_KEYS.has(key as keyof Settings),
+      ),
+    ) as PluginLockableSettings)
+  );
+};
 
 export const defaultValues: Settings = {
   home: null,
@@ -614,15 +654,15 @@ export const defaultValues: Settings = {
   subtitleAlignX: "center",
   subtitleAlignY: "bottom",
   safeAreaInControlsEnabled: true,
-  jellyseerrServerUrl: undefined,
-  jellyseerrApiKey: undefined,
-  autoLoginJellyseerr: true,
+  seerrServerUrl: undefined,
+  seerrApiKey: undefined,
+  autoLoginSeerr: true,
   useKefinTweaks: false,
   hiddenLibraries: [],
   enableH265ForChromecast: false,
-  maxAutoPlayEpisodeCount: { key: "3", value: 3 },
-  autoPlayEpisodeCount: 0,
+  stillWatchingPreset: DEFAULT_STILL_WATCHING_PRESET,
   autoPlayNextEpisode: true,
+  syncPlayIgnoreWait: false,
   // Media segment skip defaults
   skipIntro: "ask",
   skipOutro: "ask",
@@ -658,6 +698,7 @@ export const defaultValues: Settings = {
   hideBrightnessSlider: false,
   usePopularPlugin: true,
   mergeNextUpAndContinueWatching: false,
+  showUpcomingOnHome: false,
   hiddenHomeHeroSections: [],
   hiddenHomeHeroMediaTypes: [],
   useEpisodeImagesForNextUp: false,
@@ -678,6 +719,7 @@ export const defaultValues: Settings = {
   audioMaxCacheSizeMB: 500,
   // Music playback
   preferLocalAudio: true,
+  musicNormalizationMode: DEFAULT_MUSIC_NORMALIZATION_MODE,
   // Audio transcoding mode
   audioTranscodeMode: AudioTranscodeMode.Auto,
   // Optional third-party lookups
@@ -767,9 +809,43 @@ const migrateSubtitleSettings = (settings: LegacySubtitleSettings) => {
   return changed;
 };
 
+/**
+ * Carries the old `maxAutoPlayEpisodeCount` cap over to `stillWatchingPreset`
+ * and drops the old key. Also used on the plugin's answer, whose value is
+ * wrapped in `{ locked, value }`, and on the applied-defaults record.
+ * `fallback` names the preset for a value it cannot read; without one, such
+ * a value is dropped.
+ */
+export const migrateStillWatchingSetting = (
+  settings: Record<string, unknown>,
+  unwrap: (value: unknown) => unknown = (value) => value,
+  wrap: (preset: StillWatchingPreset, legacy: unknown) => unknown = (preset) =>
+    preset,
+  fallback: (legacy: unknown) => StillWatchingPreset | undefined = () =>
+    undefined,
+  isLocked: (value: unknown) => boolean = () => false,
+): boolean => {
+  if (!("maxAutoPlayEpisodeCount" in settings)) return false;
+  const legacy = settings.maxAutoPlayEpisodeCount;
+  delete settings.maxAutoPlayEpisodeCount;
+  const preset =
+    stillWatchingPresetFromEpisodeCount(unwrap(legacy)) ?? fallback(legacy);
+  // The new name wins unless it is empty, or the old one is the admin's lock.
+  const current = settings.stillWatchingPreset;
+  const replace =
+    (!hasMeaningfulSettingValue(unwrap(current)) &&
+      !(isLocked(current) && !isLocked(legacy))) ||
+    (isLocked(legacy) && !isLocked(current));
+  if (preset && replace) {
+    settings.stillWatchingPreset = wrap(preset, legacy);
+  }
+  return true;
+};
+
 const loadSettings = (): Partial<Settings> => {
   const stored = readStoredSettings() as LegacySubtitleSettings & {
     showTVHeroCarousel?: boolean;
+    maxAutoPlayEpisodeCount?: unknown;
   };
   let changed = migrateSubtitleSettings(stored);
 
@@ -785,6 +861,31 @@ const loadSettings = (): Partial<Settings> => {
   }
   if ("showTVHeroCarousel" in stored) {
     delete stored.showTVHeroCarousel;
+    changed = true;
+  }
+
+  // The episode cap became jellyfin-web 12's "Still watching?" presets, and
+  // the count it was checked against now lives with the in-memory session.
+  if (migrateStillWatchingSetting(stored as Record<string, unknown>)) {
+    changed = true;
+  }
+  if ("autoPlayEpisodeCount" in stored) {
+    delete (stored as Record<string, unknown>).autoPlayEpisodeCount;
+    changed = true;
+  }
+
+  // Seerr's settings were stored under the names they had as Jellyseerr.
+  if (renameLegacySeerrSettings(stored as Record<string, unknown>)) {
+    changed = true;
+  }
+
+  // An earlier build seeded the plugin's secrets here, where they stayed for
+  // every account signed in after the one they were served to. The record of
+  // what was seeded is read under the same names as the settings.
+  const applied = { ...loadAppliedPluginDefaults() } as Record<string, unknown>;
+  renameLegacySeerrSettings(applied);
+  if (dropSeededSecrets(stored as Record<string, unknown>, applied)) {
+    storage.setAny(PLUGIN_APPLIED_DEFAULTS_KEY, applied);
     changed = true;
   }
 
@@ -818,22 +919,51 @@ export const settingsAtom = atom<Partial<Settings> | null>(null);
  * Server-side counterpart to the `showTVHeroCarousel` migration in
  * `loadSettings`: the Streamyfin plugin config still keys the hero switch
  * under the old name, so alias it or an admin's existing lock and default
- * would quietly stop being enforced after the rename.
+ * would quietly stop being enforced after the rename. Seerr's settings are
+ * read the same way, from the block or the old flat keys, which covers the
+ * copy an earlier build stored as well as a fresh answer.
  */
 const migratePluginSettings = (
-  settings: PluginLockableSettings | undefined,
+  sent: PluginLockableSettings | undefined,
 ): PluginLockableSettings | undefined => {
+  const settings = readIntegrationBlocks(sent);
   if (!settings) {
     return settings;
   }
-  const legacy = (settings as Record<string, unknown>).showTVHeroCarousel;
-  if (settings.showHeroCarousel !== undefined || legacy === undefined) {
-    return settings;
+  const migrated = { ...settings } as Record<string, unknown>;
+  // An admin's lock on the old episode cap keeps locking the preset, even
+  // when its value can't be read.
+  migrateStillWatchingSetting(
+    migrated,
+    (lockable) => (lockable as Lockable<unknown> | undefined)?.value,
+    (preset, lockable) => ({
+      ...(lockable as Lockable<unknown>),
+      value: preset,
+    }),
+    (lockable) =>
+      (lockable as Lockable<unknown> | undefined)?.locked
+        ? DEFAULT_STILL_WATCHING_PRESET
+        : undefined,
+    (lockable) => (lockable as Lockable<unknown> | undefined)?.locked === true,
+  );
+  // An empty preset is no choice: locked, it keeps the prompt on at the app
+  // default rather than pinning it off; unlocked, it supplies nothing.
+  const preset = migrated.stillWatchingPreset as Lockable<unknown> | undefined;
+  if (preset && !hasMeaningfulSettingValue(preset.value)) {
+    if (preset.locked) {
+      migrated.stillWatchingPreset = {
+        ...preset,
+        value: DEFAULT_STILL_WATCHING_PRESET,
+      };
+    } else {
+      delete migrated.stillWatchingPreset;
+    }
   }
-  return {
-    ...settings,
-    showHeroCarousel: legacy as PluginLockableSettings["showHeroCarousel"],
-  };
+  const legacy = migrated.showTVHeroCarousel;
+  if (migrated.showHeroCarousel === undefined && legacy !== undefined) {
+    migrated.showHeroCarousel = legacy;
+  }
+  return migrated as PluginLockableSettings;
 };
 
 const loadPluginSettings = () => {
@@ -869,16 +999,45 @@ export const effectiveSettingsAtom = atom<Settings>((get) =>
   ),
 );
 
+/**
+ * The plugin's settings under the app's names, logged with their secrets
+ * redacted. Undefined when the server has no plugin, which it says with a 404.
+ *
+ * Every other failure rejects: a request that never arrived, or a server that
+ * answered with an error of its own, says nothing about the plugin, and the
+ * caller must not read it as "no plugin".
+ */
+export const fetchPluginSettings = (api: {
+  getStreamyfinPluginConfig: () => Promise<{ data: StreamyfinPluginConfig }>;
+}): Promise<PluginLockableSettings | undefined> =>
+  api.getStreamyfinPluginConfig().then(
+    ({ data }) => {
+      writeInfoLog("Got plugin settings", redactPluginSettings(data?.settings));
+      return migratePluginSettings(data?.settings);
+    },
+    (error) => {
+      if (isAxiosError(error) && error.response?.status === 404) {
+        return undefined;
+      }
+      throw error;
+    },
+  );
+
 const loadAppliedPluginDefaults = (): AppliedPluginDefaults => {
   try {
-    return storage.get<AppliedPluginDefaults>(PLUGIN_APPLIED_DEFAULTS) ?? {};
+    const applied =
+      storage.get<AppliedPluginDefaults>(PLUGIN_APPLIED_DEFAULTS_KEY) ?? {};
+    // Under the old name, a default applied then would be applied again over
+    // whatever the user has chosen since.
+    migrateStillWatchingSetting(applied as Record<string, unknown>);
+    return applied;
   } catch {
     return {};
   }
 };
 
 export const useSettings = () => {
-  const api = useAtomValue(apiAtom);
+  const jotaiStore = useStore();
   const [_settings, setSettings] = useAtom(settingsAtom);
   const [pluginSettings, _setPluginSettings] = useAtom(pluginSettingsAtom);
 
@@ -898,54 +1057,94 @@ export const useSettings = () => {
     [_setPluginSettings],
   );
 
-  const refreshStreamyfinPluginSettings = useCallback(async () => {
-    if (!api) {
-      return;
-    }
-    const newPluginSettings = await api.getStreamyfinPluginConfig().then(
-      ({ data }) => {
-        writeInfoLog(
-          "Got plugin settings",
-          redactPluginSettings(data?.settings),
-        );
-        return data?.settings;
-      },
-      (_err) => undefined,
-    );
-    setPluginSettings(newPluginSettings);
+  // At an account switch, before the next account's refresh: the Seerr
+  // sign-ins would otherwise run for the next account with the previous one's
+  // key or toward its Seerr. The locks stay until that refresh replaces them.
+  const forgetPluginSignIns = useCallback(() => {
+    setPluginSettings(withoutSignIns(jotaiStore.get(pluginSettingsAtom)));
+  }, [jotaiStore, setPluginSettings]);
 
-    // Write against the atom's value at apply time, not the hook's render
-    // snapshot: this runs while the user can be changing settings (the intro
-    // sheet is up during first-run login), and a merge built from the
-    // snapshot resurrected whatever the user had just overwritten.
-    if (newPluginSettings) {
-      setSettings((currentSettings) => {
-        if (!currentSettings) return currentSettings;
-
-        const applied = loadAppliedPluginDefaults();
-        const result = pluginRefreshOverlay(
-          currentSettings,
-          newPluginSettings,
-          applied,
-          normalizePluginValue,
-        );
-        if (!result) return currentSettings;
-
-        const newSettings = {
-          ...defaultValues,
-          ...currentSettings,
-          ...result.overlay,
-        } as Settings;
-        saveSettings(newSettings);
-        if (result.applied) {
-          storage.setAny(PLUGIN_APPLIED_DEFAULTS, result.applied);
+  const refreshStreamyfinPluginSettings = useCallback(
+    async ({ atSignIn = false }: { atSignIn?: boolean } = {}) => {
+      // Read when called, not when rendered: a sign-in sets the new api and
+      // refreshes straight away, before a render hands this callback the new
+      // one.
+      const api = jotaiStore.get(apiAtom);
+      if (!api) {
+        return;
+      }
+      // The answer belongs to the session that asked. A sign-out or an account
+      // switch while it was on its way has moved on, and writing it now would
+      // hand the previous user's settings, credentials included, to the next.
+      // Compared by session rather than by object: the same session's api is
+      // rebuilt at launch, once the stored session is read back, and when the
+      // network changes the server's address, and its answer is still its own.
+      const stillCurrent = () => {
+        const current = jotaiStore.get(apiAtom);
+        return !!current && current.accessToken === api.accessToken;
+      };
+      let newPluginSettings: PluginLockableSettings | undefined;
+      try {
+        newPluginSettings = await fetchPluginSettings(api);
+      } catch (error) {
+        // No answer about the plugin, so what is stored stands. This runs on
+        // every return to the foreground, where a request fails for no better
+        // reason than the network not being back yet, and clearing here
+        // dropped the admin's locks and the tabs the plugin turns on until a
+        // later refresh got through.
+        //
+        // An HTTP failure is the server's or the network's and is left quiet.
+        // Anything else broke while reading an answer that did arrive, and
+        // would otherwise fail the same way on every refresh without a trace.
+        if (!isAxiosError(error)) {
+          logAndCaptureError("Refreshing plugin settings failed", error);
         }
-        return newSettings;
-      });
-    }
+        // Except at a sign-in: what is stored is then the previous account's,
+        // kept only until this answer.
+        if (atSignIn && stillCurrent()) {
+          setPluginSettings(undefined);
+        }
+        return undefined;
+      }
+      if (!stillCurrent()) {
+        return undefined;
+      }
+      setPluginSettings(newPluginSettings);
 
-    return newPluginSettings;
-  }, [api, setPluginSettings, setSettings]);
+      // Write against the atom's value at apply time, not the hook's render
+      // snapshot: this runs while the user can be changing settings (the intro
+      // sheet is up during first-run login), and a merge built from the
+      // snapshot resurrected whatever the user had just overwritten.
+      if (newPluginSettings) {
+        setSettings((currentSettings) => {
+          if (!currentSettings) return currentSettings;
+
+          const applied = loadAppliedPluginDefaults();
+          const result = pluginRefreshOverlay(
+            currentSettings,
+            newPluginSettings,
+            applied,
+            normalizePluginValue,
+          );
+          if (!result) return currentSettings;
+
+          const newSettings = {
+            ...defaultValues,
+            ...currentSettings,
+            ...result.overlay,
+          } as Settings;
+          saveSettings(newSettings);
+          if (result.applied) {
+            storage.setAny(PLUGIN_APPLIED_DEFAULTS_KEY, result.applied);
+          }
+          return newSettings;
+        });
+      }
+
+      return newPluginSettings;
+    },
+    [jotaiStore, setPluginSettings, setSettings],
+  );
 
   const updateSettings = (update: Partial<Settings>) => {
     // Admin-locked settings are enforced at write time too: a control that
@@ -988,6 +1187,7 @@ export const useSettings = () => {
     updateSettings,
     pluginSettings,
     setPluginSettings,
+    forgetPluginSignIns,
     refreshStreamyfinPluginSettings,
   };
 };

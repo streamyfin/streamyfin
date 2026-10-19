@@ -15,7 +15,7 @@ import { useNetworkAwareQueryClient } from "@/hooks/useNetworkAwareQueryClient";
 import { useDownload } from "@/providers/DownloadProvider";
 import { calculateSmoothedETA } from "@/providers/Downloads/hooks/useDownloadSpeedCalculator";
 import { JobStatus } from "@/providers/Downloads/types";
-import { estimateDownloadSize } from "@/utils/download";
+import { estimateTranscodeSize } from "@/utils/downloadSize";
 import { storage } from "@/utils/mmkv";
 import { formatTimeString } from "@/utils/time";
 
@@ -73,17 +73,14 @@ export const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
     if (process?.estimatedTotalSizeBytes)
       return process.estimatedTotalSizeBytes;
 
-    // Calculate from bitrate + duration (only if bitrate value is defined)
-    if (process?.maxBitrate?.value && process?.item?.RunTimeTicks) {
-      return estimateDownloadSize(
-        process.maxBitrate.value,
-        process.item.RunTimeTicks,
-      );
-    }
-
-    return undefined;
+    return estimateTranscodeSize(
+      process?.maxBitrate?.value,
+      process?.mediaSource?.Bitrate,
+      process?.item?.RunTimeTicks,
+    );
   }, [
     process?.maxBitrate?.value,
+    process?.mediaSource?.Bitrate,
     process?.item?.RunTimeTicks,
     process?.estimatedTotalSizeBytes,
   ]);

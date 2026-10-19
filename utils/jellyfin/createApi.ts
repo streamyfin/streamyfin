@@ -1,6 +1,7 @@
 import type { Api, Jellyfin } from "@jellyfin/sdk";
 import axios, { type InternalAxiosRequestConfig } from "axios";
 import { getJellyfinHeaders, isUrlForBaseUrl } from "@/utils/customHeaders";
+import { ACCEPT_LANGUAGE_HEADER, getAcceptLanguage } from "./acceptLanguage";
 
 /**
  * Whether a request URL carries its own origin, and so ignores whatever base
@@ -28,7 +29,8 @@ const isForServer = (
 
 /**
  * Creates a Jellyfin `Api` whose every request carries the custom proxy auth
- * headers configured for that server (Cloudflare Access, Pangolin, ...).
+ * headers configured for that server (Cloudflare Access, Pangolin, ...), and
+ * the app language a Jellyfin 12 server localizes its answers from.
  *
  * The interceptor belongs here rather than in a provider effect: `apiAtom`
  * starts out holding a live `Api`, and child effects run before parent effects,
@@ -36,7 +38,12 @@ const isForServer = (
  * interceptor existed and be rejected by the gateway.
  *
  * Headers are read per request (they are memoized until the configuration
- * changes), so an edit in settings applies without recreating the `Api`.
+ * changes), so an edit in settings applies without recreating the `Api`. The
+ * language is read per request for the same reason.
+ *
+ * SDK 1.0.0 can send the language itself, from `deviceInfo.languages`. The app
+ * is on 0.13, and that option only reaches the generated clients anyway: the
+ * raw `api.axiosInstance` calls would still go out without it.
  *
  * ## Why the axios instance is passed in
  *
@@ -74,6 +81,13 @@ export function createApiWithCustomHeaders(
 
   api.axiosInstance.interceptors.request.use((config) => {
     if (!isForServer(config, serverUrl)) return config;
+
+    // Before the custom headers, which win: a user who configured this header
+    // by hand for their gateway meant it. The convenience methods in
+    // `augmentations/api.ts` replace a request's headers with `Authorization`
+    // alone, which is one more reason this is set here and not by the caller.
+    const language = getAcceptLanguage();
+    if (language) config.headers.set(ACCEPT_LANGUAGE_HEADER, language);
 
     for (const [key, value] of Object.entries(getJellyfinHeaders(serverUrl))) {
       config.headers.set(key, value);

@@ -1,6 +1,5 @@
 import { atom } from "jotai";
-import type { MediaType } from "@/utils/jellyseerr/server/constants/media";
-import type { MediaRequestBody } from "@/utils/jellyseerr/server/interfaces/api/requestInterfaces";
+import type { MediaRequestBody, MediaType } from "@/utils/seerr/types";
 
 export type TVRequestModalState = {
   requestBody: MediaRequestBody;

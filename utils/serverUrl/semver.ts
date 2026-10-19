@@ -24,7 +24,7 @@ const parseSegments = (version: string): number[] | null => {
  * accepted.
  *
  * A version with no leading number is unknown, not old, and is reported as
- * NOT below the minimum. Jellyseerr's non-release builds report
+ * NOT below the minimum. Seerr's non-release builds report
  * `develop-<commit>`, which previously parsed to 0 and so failed every
  * minimum-version check — locking every develop/nightly/self-built server out
  * of the integration. This matches how the Jellyfin server check treats an

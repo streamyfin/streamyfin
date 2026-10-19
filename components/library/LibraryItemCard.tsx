@@ -91,7 +91,8 @@ export const LibraryItemCard: React.FC<Props> = ({ library, ...props }) => {
   const { data: itemsCount } = useQuery({
     queryKey: ["library-count", library.Id],
     queryFn: async () => {
-      const response = await getItemsApi(api!).getItems({
+      if (!api) return null;
+      const response = await getItemsApi(api).getItems({
         userId: user?.Id,
         parentId: library.Id,
         recursive: true,
@@ -100,6 +101,8 @@ export const LibraryItemCard: React.FC<Props> = ({ library, ...props }) => {
       });
       return response.data.TotalRecordCount;
     },
+    // The card can mount before the api is restored.
+    enabled: !!api,
   });
 
   if (!url) return null;

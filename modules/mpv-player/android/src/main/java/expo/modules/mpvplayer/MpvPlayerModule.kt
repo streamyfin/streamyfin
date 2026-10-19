@@ -1,5 +1,8 @@
 package expo.modules.mpvplayer
 
+import android.media.MediaCodecInfo
+import android.media.MediaCodecList
+import android.os.Build
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 import expo.modules.mpvplayer.nativeplayer.engine.VideoLoadConfig
@@ -20,6 +23,14 @@ class MpvPlayerModule : Module() {
         // is by default dispatched on the different thread than the JavaScript runtime runs on.
         AsyncFunction("setValueAsync") { value: String ->
             sendEvent("onChange", mapOf("value" to value))
+        }
+
+        // mpv decodes AV1 on any Android device (dav1d in software), so direct play never
+        // needs this. It decides whether Jellyfin may transcode *to* AV1: mpv only hands
+        // AV1 to MediaCodec (hwdec-codecs includes av1) when a hardware decoder exists,
+        // otherwise every transcoded frame would be decoded on the CPU.
+        Function("supportsAv1HardwareDecode") {
+            hasHardwareAv1Decoder()
         }
 
         // Enables the module to be used as a native view.
@@ -237,3 +248,25 @@ class MpvPlayerModule : Module() {
         }
     }
 }
+
+/** Whether a hardware MediaCodec decoder advertises AV1 (`video/av01`). */
+private fun hasHardwareAv1Decoder(): Boolean =
+    try {
+        MediaCodecList(MediaCodecList.REGULAR_CODECS).codecInfos.any { info ->
+            !info.isEncoder &&
+                info.supportedTypes.any { it.equals("video/av01", ignoreCase = true) } &&
+                isHardwareCodec(info)
+        }
+    } catch (e: Exception) {
+        // A vendor codec list that fails to load is no reason to advertise AV1.
+        false
+    }
+
+private fun isHardwareCodec(info: MediaCodecInfo): Boolean =
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        info.isHardwareAccelerated && !info.isSoftwareOnly
+    } else {
+        // Before API 29 the platform's software codecs are only recognisable by name.
+        val name = info.name.lowercase()
+        !name.startsWith("omx.google.") && !name.startsWith("c2.android.")
+    }

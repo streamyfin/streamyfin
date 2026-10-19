@@ -30,6 +30,10 @@ export const itemRouter = (item: BaseItemDto, from: string) => {
     return `/(auth)/(tabs)/${from}/persons/${item.Id}`;
   }
 
+  if (item.Type === "Studio") {
+    return `/(auth)/(tabs)/${from}/studios/${item.Id}`;
+  }
+
   if (item.Type === "BoxSet") {
     return `/(auth)/(tabs)/${from}/collections/${item.Id}`;
   }
@@ -70,10 +74,29 @@ export const getItemNavigation = (item: BaseItemDto, _from: string) => {
     };
   }
 
+  if (item.Type === "Season" && item.SeriesId) {
+    return {
+      pathname: "/series/[id]" as const,
+      params: {
+        id: item.SeriesId,
+        ...(item.IndexNumber != null && {
+          seasonIndex: item.IndexNumber.toString(),
+        }),
+      },
+    };
+  }
+
   if (item.Type === "Person") {
     return {
       pathname: "/persons/[personId]" as const,
       params: { personId: item.Id! },
+    };
+  }
+
+  if (item.Type === "Studio") {
+    return {
+      pathname: "/studios/[studioId]" as const,
+      params: { studioId: item.Id! },
     };
   }
 

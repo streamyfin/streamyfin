@@ -1,19 +1,23 @@
 import * as Sentry from "@sentry/react-native";
 import { useQuery } from "@tanstack/react-query";
 import { isAxiosError } from "axios";
-import { atomWithStorage, createJSONStorage } from "jotai/utils";
 import type React from "react";
 import { createContext, useContext } from "react";
+import { MAX_SESSION_REPORT_KEYS } from "@/constants/Sentry";
 import {
   describeHttpError,
+  describeHttpResponse,
   isAbortLikeError,
-  isConnectivityError,
+  isEnvironmentError,
+  isErrorReported,
   isExpectedError,
   markErrorReported,
 } from "./errors";
-import { storage } from "./mmkv";
+import { admitHttpFailure } from "./httpFailureGate";
+import { type LogLevel, readFromLog, storeLogEntry } from "./logStorage";
 
-export type LogLevel = "INFO" | "WARN" | "ERROR" | "DEBUG";
+export type { LogLevel };
+export { readFromLog };
 
 const SENTRY_BREADCRUMB_LEVELS: Record<LogLevel, Sentry.SeverityLevel> = {
   INFO: "info",
@@ -21,20 +25,6 @@ const SENTRY_BREADCRUMB_LEVELS: Record<LogLevel, Sentry.SeverityLevel> = {
   ERROR: "error",
   DEBUG: "debug",
 };
-
-interface LogEntry {
-  timestamp: string;
-  level: LogLevel;
-  message: string;
-  data?: any;
-}
-
-const mmkvStorage = createJSONStorage(() => ({
-  getItem: (key: string) => storage.getString(key) || null,
-  setItem: (key: string, value: string) => storage.set(key, value),
-  removeItem: (key: string) => storage.remove(key),
-}));
-const logsAtom = atomWithStorage("logs", [], mmkvStorage);
 
 const LogContext = createContext<ReturnType<typeof useLogProvider> | null>(
   null,
@@ -65,41 +55,7 @@ const appendLogEntry = (level: LogLevel, message: string, data?: any) => {
     message,
   });
 
-  const newEntry: LogEntry = {
-    timestamp: new Date().toISOString(),
-    level: level,
-    message: message,
-    data: data,
-  };
-
-  // The logging path itself must never throw: a corrupt persisted blob or a
-  // non-serializable `data` payload (circular refs) falls back instead of
-  // taking down the caller — which is often itself a catch block.
-  let logs: LogEntry[];
-  try {
-    const currentLogs = storage.getString("logs");
-    logs = currentLogs ? JSON.parse(currentLogs) : [];
-  } catch {
-    logs = [];
-  }
-  logs.push(newEntry);
-
-  // The native player mirrors its log in here too (useNativePlayerLogBridge),
-  // so one playback can add a couple of dozen lines; 100 was pushing the
-  // startup/audio-route entries out before a user got to Settings → Logs.
-  const maxLogs = 250;
-  const recentLogs = logs.slice(Math.max(logs.length - maxLogs, 0));
-
-  try {
-    storage.set("logs", JSON.stringify(recentLogs));
-  } catch {
-    newEntry.data = String(data);
-    try {
-      storage.set("logs", JSON.stringify(recentLogs));
-    } catch {
-      // Even the fallback failed — drop the write rather than throw.
-    }
-  }
+  storeLogEntry(level, message, data);
 };
 
 // Sentry capture is always explicit (logAndCaptureError), never a side
@@ -146,20 +102,34 @@ const describeErrorForLog = (error: unknown): unknown => {
   return error;
 };
 
-// One Sentry event per (call site, endpoint, status) per session. A failing
-// endpoint is hit again by every keystroke in search and by every screen that
-// mounts the same request, and the Nth repeat says nothing the first didn't.
-const reportedHttpErrors = new Set<string>();
-const MAX_REPORTED_HTTP_ERRORS = 200;
+// A heap address in a native message ("ssl=0xb400007329635958") is different
+// on every run, so a fingerprint that keeps it opens one issue per event. It
+// points at nothing anyone can look up, so the message loses it too. Nine hex
+// digits and up: a 32-bit error code ("0x80001001") is worth keeping.
+const NATIVE_ADDRESS_PATTERN = /\b0x[0-9a-f]{9,16}\b/gi;
+
+/** A native error string with what changes from one run to the next taken out. */
+export const normalizeNativeDetail = (detail: string): string =>
+  detail.replace(NATIVE_ADDRESS_PATTERN, "0x[addr]");
+
+// One Sentry event per distinct native failure per session. Native errors
+// arrive as strings, one per failed job: a queue of 58 episodes refused with
+// the same status was 58 events from one user in forty minutes.
+const reportedNativeFailures = new Set<string>();
 
 /**
  * Records a failure both in the local log and as a Sentry exception — the
  * ONLY path that turns handled errors into Sentry events. Prefer it over
  * writeErrorLog when the caught error object is available.
  *
- * Connectivity failures (aborted requests, no HTTP response, gateway errors)
- * stay in the local log but are never sent: an unreachable server is the
- * user's environment, not an app bug.
+ * Every failure reaches the local log. What reaches Sentry is narrower:
+ * - expected outcomes, aborted requests and the user's environment (no HTTP
+ *   response, a gateway error, a gateway's own refusal) are never sent: an
+ *   unreachable server is not an app bug
+ * - an error is sent once, however many layers catch and log it
+ * - an HTTP failure is sent once per route and status per session, and one
+ *   server failing on every route at once is one event (utils/httpFailureGate)
+ * - a native error string is sent once per session
  *
  * `context` is SENT to Sentry (after URL scrubbing), so pass only curated
  * values (codecs, status codes, item IDs) — never raw payloads or settings
@@ -177,21 +147,39 @@ export const logAndCaptureError = (
   if (
     isExpectedError(error) ||
     isAbortLikeError(error) ||
-    isConnectivityError(error)
+    isEnvironmentError(error)
   ) {
     return;
   }
+  // A 401 is the session ending, on whichever request happened to be in
+  // flight: JellyfinProvider's interceptor signs the user out and the login
+  // screen says the rest. utils/reportDataError leaves it out the same way.
+  if (isAxiosError(error) && error.response?.status === 401) {
+    return;
+  }
+  // The same error object caught by a second layer, or one whose twin the
+  // Seerr interceptor already sent: under another message it would be a
+  // second issue for the same failure.
+  if (isErrorReported(error)) {
+    return;
+  }
   // If this error is later rethrown into React Query, the global handler in
-  // app/_layout.tsx must not report it again.
+  // utils/reportDataError.ts must not report it again.
   markErrorReported(error);
   const http = describeHttpError(error);
-  if (http) {
-    const key = [message, http.method, http.path, http.status].join("|");
-    if (reportedHttpErrors.has(key)) {
+  if (http && admitHttpFailure(error) !== "report") {
+    return;
+  }
+  let nativeDetail: string | undefined;
+  if (!(error instanceof Error)) {
+    const detail = stringifyErrorValue(error);
+    nativeDetail = detail ? normalizeNativeDetail(detail) : undefined;
+    const key = `${message}|${nativeDetail ?? ""}`;
+    if (reportedNativeFailures.has(key)) {
       return;
     }
-    if (reportedHttpErrors.size < MAX_REPORTED_HTTP_ERRORS) {
-      reportedHttpErrors.add(key);
+    if (reportedNativeFailures.size < MAX_SESSION_REPORT_KEYS) {
+      reportedNativeFailures.add(key);
     }
   }
   Sentry.withScope((scope) => {
@@ -204,6 +192,7 @@ export const logAndCaptureError = (
       // Group by what actually separates them: which call failed, to which
       // route, with which status.
       scope.setContext("http", http);
+      scope.setContext("http_response", describeHttpResponse(error) ?? null);
       scope.setFingerprint([
         message,
         http.method,
@@ -220,10 +209,9 @@ export const logAndCaptureError = (
       // log message + detail instead: one issue per distinct failure, not
       // one blob per call site. (Fingerprints are scrubbed like the rest of
       // the event, so URLs in the detail don't fragment grouping.)
-      const detail = stringifyErrorValue(error);
-      scope.setFingerprint(detail ? [message, detail] : [message]);
+      scope.setFingerprint(nativeDetail ? [message, nativeDetail] : [message]);
       Sentry.captureException(
-        new Error(detail ? `${message}: ${detail}` : message),
+        new Error(nativeDetail ? `${message}: ${nativeDetail}` : message),
       );
     }
   });
@@ -239,11 +227,6 @@ export const writeDebugLog = (message: string, data?: any) => {
   }
 };
 
-export const readFromLog = (): LogEntry[] => {
-  const logs = storage.getString("logs");
-  return logs ? JSON.parse(logs) : [];
-};
-
 export function useLog() {
   const context = useContext(LogContext);
   if (context === null) {
@@ -257,5 +240,3 @@ export function LogProvider({ children }: { children: React.ReactNode }) {
 
   return <LogContext.Provider value={provider}>{children}</LogContext.Provider>;
 }
-
-export default logsAtom;

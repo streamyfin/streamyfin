@@ -9,8 +9,7 @@ import {
   type ViewProps,
 } from "react-native";
 import { HeaderIcon } from "@/components/common/HeaderIcon";
-import type { MovieDetails } from "@/utils/jellyseerr/server/models/Movie";
-import type { TvDetails } from "@/utils/jellyseerr/server/models/Tv";
+import type { MovieDetails, TvDetails } from "@/utils/seerr/types";
 
 interface Props extends ViewProps {
   item: BaseItemDto | MovieDetails | TvDetails;

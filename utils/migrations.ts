@@ -1,4 +1,12 @@
+import { LOGS_STORAGE_KEY } from "@/constants/Logs";
+import {
+  LEGACY_SEERR_COOKIES_STORAGE_KEY,
+  LEGACY_SEERR_USER_STORAGE_KEY,
+  SEERR_COOKIES_STORAGE_KEY,
+  SEERR_USER_STORAGE_KEY,
+} from "@/constants/Seerr";
 import { writeErrorLog, writeInfoLog } from "@/utils/log";
+import { redactStoredLog } from "@/utils/logStorage";
 import { storage } from "@/utils/mmkv";
 
 /**
@@ -25,6 +33,7 @@ const SCHEMA_VERSION_KEY = "storageSchemaVersion";
 /** The slice of the MMKV surface migrations are allowed to touch. */
 export interface MigrationStorage {
   getNumber: (key: string) => number | undefined;
+  getString: (key: string) => string | undefined;
   getAllKeys: () => string[];
   set: (key: string, value: boolean | number | string) => void;
   remove: (key: string) => void;
@@ -45,6 +54,40 @@ const MIGRATIONS: Migration[] = [
       "clear hasShownIntro so existing users see the intro again, now that it carries the crash-reporting opt-out",
     run: (store) => {
       store.remove("hasShownIntro");
+    },
+  },
+  // No 2: the log redaction was planned as 2 but reached develop after 3, so
+  // it is 4. An install already stamped at 3 would never run a 2.
+  {
+    version: 3,
+    description:
+      "move the Seerr session from the keys it had when Seerr was called Jellyseerr",
+    run: (store) => {
+      for (const [legacy, current] of [
+        [LEGACY_SEERR_USER_STORAGE_KEY, SEERR_USER_STORAGE_KEY],
+        [LEGACY_SEERR_COOKIES_STORAGE_KEY, SEERR_COOKIES_STORAGE_KEY],
+      ] as const) {
+        const stored = store.getString(legacy);
+        if (stored !== undefined && store.getString(current) === undefined) {
+          store.set(current, stored);
+        }
+        store.remove(legacy);
+      }
+    },
+  },
+  {
+    version: 4,
+    description:
+      "redact credentials from the app log, where the iOS player wrote access tokens inside subtitle URLs",
+    run: (store) => {
+      const stored = store.getString(LOGS_STORAGE_KEY);
+      if (stored === undefined) return;
+      const redacted = redactStoredLog(stored);
+      if (redacted === undefined) {
+        store.remove(LOGS_STORAGE_KEY);
+      } else {
+        store.set(LOGS_STORAGE_KEY, redacted);
+      }
     },
   },
 ];

@@ -183,12 +183,19 @@ export const Button: React.FC<PropsWithChildren<ButtonProps>> = ({
           <Loader />
         </View>
       ) : (
+        // Styles rather than classes: the row carried both justify classes, and
+        // which one won differed between builds. Centered, the icon and its
+        // label are one block: the placeholders only keep a "between" label
+        // clear of the edges, and centered they pushed it off its middle.
         <View
-          className={`
-            flex flex-row items-center justify-between w-full
-            ${justify === "between" ? "justify-between" : "justify-center"}`}
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: justify === "between" ? "space-between" : "center",
+            width: "100%",
+          }}
         >
-          {iconLeft ? iconLeft : <View className='w-4' />}
+          {iconLeft ?? (justify === "between" && <View className='w-4' />)}
           <Text
             className={`
           ${textColorClass} font-bold text-base
@@ -200,7 +207,7 @@ export const Button: React.FC<PropsWithChildren<ButtonProps>> = ({
           >
             {children}
           </Text>
-          {iconRight ? iconRight : <View className='w-4' />}
+          {iconRight ?? (justify === "between" && <View className='w-4' />)}
         </View>
       )}
     </TouchableOpacity>

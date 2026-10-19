@@ -519,6 +519,11 @@ public class BackgroundDownloaderModule: Module {
         "taskId": taskId,
         "error": "Download task info not found"
       ])
+      // A cancel that removed the task info before this callback ran is the usual way here. The
+      // transfer finished, so no cancellation error follows for handleErrorLocked to advance the
+      // queue from; without this the downloads queued behind it would wait for the next launch.
+      lastProgressTime.removeValue(forKey: taskId)
+      processNextInQueueSafelyLocked()
       return
     }
 

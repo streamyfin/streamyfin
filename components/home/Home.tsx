@@ -2,7 +2,6 @@ import { Ionicons } from "@expo/vector-icons";
 import type {
   BaseItemDto,
   BaseItemDtoQueryResult,
-  BaseItemKind,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import {
   getItemsApi,
@@ -35,10 +34,13 @@ import { StreamystatsRecommendations } from "@/components/home/StreamystatsRecom
 import { Loader } from "@/components/Loader";
 import { MediaListSection } from "@/components/medialists/MediaListSection";
 import { Colors } from "@/constants/Colors";
+import { UPCOMING_HOME_PAGE_SIZE } from "@/constants/Upcoming";
 import useRouter from "@/hooks/useAppRouter";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { useRefreshLibraryOnFocus } from "@/hooks/useRefreshLibraryOnFocus";
+import { useRemapHiddenLibraries } from "@/hooks/useRemapHiddenLibraries";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
+import { fetchUpcomingEpisodes } from "@/hooks/useUpcomingEpisodes";
 import { useDownload } from "@/providers/DownloadProvider";
 import { useIntroSheet } from "@/providers/IntroSheetProvider";
 import {
@@ -63,6 +65,7 @@ type InfiniteScrollingCollectionListSection = {
   pageSize?: number;
   priority?: 1 | 2; // 1 = high priority (loads first), 2 = low priority
   parentId?: string; // Library ID for "See All" navigation
+  showParentTitle?: boolean;
 };
 
 type MediaListSectionType = {
@@ -196,20 +199,32 @@ const HomeMobile = () => {
     enabled: !!api && !!user?.Id,
     staleTime: 60 * 1000,
   });
+  useRemapHiddenLibraries(data, user?.Id);
 
-  const userViews = useMemo(
-    () => data?.filter((l) => !settings?.hiddenLibraries?.includes(l.Id!)),
-    [data, settings?.hiddenLibraries],
-  );
+  const latestMediaLibraries = useMemo(() => {
+    const excludedIds = new Set([
+      ...(settings.hiddenLibraries ?? []),
+      ...(user?.Configuration?.LatestItemsExcludes ?? []),
+    ]);
+    const excludedTypes = new Set([
+      "playlists",
+      "livetv",
+      "boxsets",
+      "channels",
+      "folders",
+    ]);
 
-  const collections = useMemo(() => {
-    const allow = ["movies", "tvshows"];
-    return (
-      userViews?.filter(
-        (c) => c.CollectionType && allow.includes(c.CollectionType),
-      ) || []
+    return (data ?? []).filter(
+      (library) =>
+        library.Id &&
+        !excludedIds.has(library.Id) &&
+        (!library.CollectionType || !excludedTypes.has(library.CollectionType)),
     );
-  }, [userViews]);
+  }, [
+    data,
+    settings.hiddenLibraries,
+    user?.Configuration?.LatestItemsExcludes,
+  ]);
 
   const refetch = async () => {
     setLoading(true);
@@ -219,74 +234,46 @@ const HomeMobile = () => {
     setLoading(false);
   };
 
-  const createCollectionConfig = useCallback(
-    (
-      title: string,
-      queryKey: string[],
-      includeItemTypes: BaseItemKind[],
-      parentId: string | undefined,
-      pageSize: number = 10,
-    ): InfiniteScrollingCollectionListSection => ({
-      title,
-      queryKey,
-      queryFn: async ({ pageParam = 0 }) => {
-        if (!api) return [];
-        // Use getItems (not getLatestMedia) so we get item-level results
-        // filtered by type from a specific library. getLatestMedia is
-        // episode-oriented and groups results, which drops Series when
-        // combined with a parentId + includeItemTypes filter.
-        //
-        // The specific reason for this is jellyfin 12.0 returns episodes, seasons, or shows,
-        // but we only handle shows in our recently added in [shows] section. So we need to filter by type at the item level.
-        //
-        // For Series we sort by DateLastContentAdded so shows bubble up when
-        // a new episode is added (series cards for new episodes, matching how
-        // Jellyfin's "Latest" row worked pre-12.0). Movies use DateCreated.
-        const response = await getItemsApi(api).getItems({
-          userId: user?.Id,
-          parentId,
-          includeItemTypes,
-          recursive: true,
-          sortBy: includeItemTypes.includes("Series")
-            ? ["DateLastContentAdded"]
-            : ["DateCreated"],
-          sortOrder: ["Descending"],
-          startIndex: pageParam,
-          limit: pageSize,
-          fields: ["PrimaryImageAspectRatio"],
-          imageTypeLimit: 1,
-          enableImageTypes: ["Primary", "Backdrop", "Thumb"],
-        });
-        return response.data.Items || [];
-      },
-      type: "InfiniteScrollingCollectionList",
-      pageSize,
-      parentId,
-    }),
-    [api, user?.Id],
-  );
-
   const defaultSections = useMemo(() => {
     if (!api || !user?.Id) return [];
 
-    const latestMediaViews = collections.map((c) => {
-      const includeItemTypes: BaseItemKind[] =
-        c.CollectionType === "tvshows" ? ["Series"] : ["Movie"];
-      const title = t("home.recently_added_in", { libraryName: c.Name });
-      const queryKey: string[] = [
-        "home",
-        `recentlyAddedIn${c.CollectionType}`,
-        user.Id!,
-        c.Id!,
-      ];
-      return createCollectionConfig(
-        title || "",
-        queryKey,
-        includeItemTypes,
-        c.Id,
-        10,
+    const latestMediaViews =
+      latestMediaLibraries.map<InfiniteScrollingCollectionListSection>(
+        (library) => {
+          const title = t("home.recently_added_in", {
+            libraryName: library.Name,
+          });
+          const limit = library.CollectionType === "music" ? 30 : 16;
+          return {
+            title: title || "",
+            queryKey: [
+              "home",
+              "latestMedia",
+              api.basePath,
+              user.Id,
+              library.Id,
+            ],
+            queryFn: async ({ pageParam = 0 }) => {
+              if (pageParam > 0) return [];
+
+              return (
+                await getUserLibraryApi(api).getLatestMedia({
+                  userId: user.Id,
+                  parentId: library.Id,
+                  limit,
+                  fields: ["PrimaryImageAspectRatio", "Path"],
+                  imageTypeLimit: 1,
+                  enableImageTypes: ["Primary", "Backdrop", "Thumb"],
+                })
+              ).data;
+            },
+            type: "InfiniteScrollingCollectionList",
+            pageSize: limit + 1,
+            parentId: library.Id,
+            showParentTitle: true,
+          };
+        },
       );
-    });
 
     // Helper to sort items by most recent activity
     const sortByRecentActivity = (items: BaseItemDto[]): BaseItemDto[] => {
@@ -319,7 +306,7 @@ const HomeMobile = () => {
                 getItemsApi(api).getResumeItems({
                   userId: user.Id,
                   enableImageTypes: ["Primary", "Backdrop", "Thumb"],
-                  includeItemTypes: ["Movie", "Series", "Episode"],
+                  includeItemTypes: ["Movie", "Episode"],
                   startIndex: 0,
                   limit: 20,
                 }),
@@ -358,7 +345,7 @@ const HomeMobile = () => {
                 await getItemsApi(api).getResumeItems({
                   userId: user.Id,
                   enableImageTypes: ["Primary", "Backdrop", "Thumb"],
-                  includeItemTypes: ["Movie", "Series", "Episode"],
+                  includeItemTypes: ["Movie", "Episode"],
                   startIndex: pageParam,
                   limit: 10,
                 })
@@ -388,8 +375,30 @@ const HomeMobile = () => {
           },
         ];
 
+    // After Continue watching and Next up, where the TV home has it too.
+    const upcomingSections: Section[] = settings.showUpcomingOnHome
+      ? [
+          {
+            title: t("upcoming.title"),
+            queryKey: ["home", "upcoming", user.Id],
+            queryFn: ({ pageParam = 0 }) =>
+              fetchUpcomingEpisodes(api, {
+                userId: user.Id!,
+                startIndex: pageParam,
+                limit: UPCOMING_HOME_PAGE_SIZE,
+              }),
+            type: "InfiniteScrollingCollectionList",
+            orientation: "horizontal",
+            pageSize: UPCOMING_HOME_PAGE_SIZE,
+            priority: 2 as const,
+            showParentTitle: true,
+          },
+        ]
+      : [];
+
     const ss: Section[] = [
       ...firstSections,
+      ...upcomingSections,
       ...latestMediaViews.map((s) => ({ ...s, priority: 2 as const })),
       // Only show Jellyfin suggested movies if StreamyStats recommendations are disabled
       ...(!settings?.streamyStatsMovieRecommendations
@@ -419,11 +428,11 @@ const HomeMobile = () => {
   }, [
     api,
     user?.Id,
-    collections,
+    latestMediaLibraries,
     t,
-    createCollectionConfig,
     settings?.streamyStatsMovieRecommendations,
     settings.mergeNextUpAndContinueWatching,
+    settings.showUpcomingOnHome,
   ]);
 
   const customSections = useMemo(() => {
@@ -695,6 +704,7 @@ const HomeMobile = () => {
                       : undefined
                   }
                   onPressSeeAll={handleSeeAll}
+                  showParentTitle={section.showParentTitle}
                 />
                 {streamystatsSections}
               </View>

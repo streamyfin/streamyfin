@@ -32,6 +32,16 @@ jobs:
       actions: write # dispatch artifact-comment.yml to refresh the PR comment
 
     steps:
+      # Checkout stays out of the parallel group: the runner rewrites the
+      # shared event.json as each step starts, and checkout crashes with
+      # "Unexpected end of JSON input" when it reads the file mid-write.
+      - name: 📥 Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          show-progress: false
+
       - parallel:
           - name: 🗑️ Free Disk Space
             uses: BRAINSia/free-disk-space@7048ffbf50819342ac964ef3998a51c2564a8a75 # v2.1.3
@@ -44,14 +54,6 @@ jobs:
               large-packages: false
               docker-images: true
               swap-storage: false
-
-          - name: 📥 Checkout code
-            uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-            with:
-              ref: ${{ github.event.pull_request.head.sha || github.sha }}
-              fetch-depth: 0
-              submodules: recursive
-              show-progress: false
 
           - name: 🍞 Setup Bun
             uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
@@ -87,10 +89,9 @@ jobs:
               restore-keys: |
                 ${{ runner.os }}-${{ runner.arch }}-gradle-
 
-      - name: 📦 Install dependencies and reload submodules
+      - name: 📦 Install dependencies
         run: |
           bun install --frozen-lockfile
-          bun run submodule-reload
 
       - name: 🛠️ Generate project files
         run: bun run prebuild
@@ -134,6 +135,13 @@ jobs:
       actions: write # dispatch artifact-comment.yml to refresh the PR comment
 
     steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          show-progress: false
+
       - parallel:
           - name: 🗑️ Free Disk Space
             uses: BRAINSia/free-disk-space@7048ffbf50819342ac964ef3998a51c2564a8a75 # v2.1.3
@@ -146,14 +154,6 @@ jobs:
               large-packages: false
               docker-images: true
               swap-storage: false
-
-          - name: 📥 Checkout code
-            uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-            with:
-              ref: ${{ github.event.pull_request.head.sha || github.sha }}
-              fetch-depth: 0
-              submodules: recursive
-              show-progress: false
 
           - name: 🍞 Setup Bun
             uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
@@ -189,10 +189,9 @@ jobs:
               restore-keys: |
                 ${{ runner.os }}-${{ runner.arch }}-gradle-
 
-      - name: 📦 Install dependencies and reload submodules
+      - name: 📦 Install dependencies
         run: |
           bun install --frozen-lockfile
-          bun run submodule-reload
 
       - name: 🛠️ Generate project files
         run: bun run prebuild:tv
@@ -235,15 +234,14 @@ jobs:
       actions: write # dispatch artifact-comment.yml to refresh the PR comment
 
     steps:
-      - parallel:
-          - name: 📥 Checkout code
-            uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-            with:
-              ref: ${{ github.event.pull_request.head.sha || github.sha }}
-              fetch-depth: 0
-              submodules: recursive
-              show-progress: false
+      - name: 📥 Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          show-progress: false
 
+      - parallel:
           - name: 🍞 Setup Bun
             uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
             with:
@@ -271,10 +269,9 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-${{ runner.arch }}-bun-
 
-      - name: 📦 Install dependencies and reload submodules
+      - name: 📦 Install dependencies
         run: |
           bun install --frozen-lockfile
-          bun run submodule-reload
 
       - name: 🛠️ Generate project files
         run: bun run prebuild
@@ -308,15 +305,14 @@ jobs:
       actions: write # dispatch artifact-comment.yml to refresh the PR comment
 
     steps:
-      - parallel:
-          - name: 📥 Checkout code
-            uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-            with:
-              ref: ${{ github.event.pull_request.head.sha || github.sha }}
-              fetch-depth: 0
-              submodules: recursive
-              show-progress: false
+      - name: 📥 Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          show-progress: false
 
+      - parallel:
           - name: 🍞 Setup Bun
             uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
             with:
@@ -337,10 +333,9 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-${{ runner.arch }}-bun-
 
-      - name: 📦 Install dependencies and reload submodules
+      - name: 📦 Install dependencies
         run: |
           bun install --frozen-lockfile
-          bun run submodule-reload
 
       - name: 🛠️ Generate project files
         run: bun run prebuild
@@ -376,15 +371,14 @@ jobs:
       actions: write # dispatch artifact-comment.yml to refresh the PR comment
 
     steps:
-      - parallel:
-          - name: 📥 Checkout code
-            uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-            with:
-              ref: ${{ github.event.pull_request.head.sha || github.sha }}
-              fetch-depth: 0
-              submodules: recursive
-              show-progress: false
+      - name: 📥 Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          show-progress: false
 
+      - parallel:
           - name: 🍞 Setup Bun
             uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
             with:
@@ -412,10 +406,9 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-${{ runner.arch }}-bun-
 
-      - name: 📦 Install dependencies and reload submodules
+      - name: 📦 Install dependencies
         run: |
           bun install --frozen-lockfile
-          bun run submodule-reload
 
       - name: 🛠️ Generate project files
         run: bun run prebuild:tv
@@ -447,15 +440,14 @@ jobs:
       actions: write # dispatch artifact-comment.yml to refresh the PR comment
 
     steps:
-      - parallel:
-          - name: 📥 Checkout code
-            uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-            with:
-              ref: ${{ github.event.pull_request.head.sha || github.sha }}
-              fetch-depth: 0
-              submodules: recursive
-              show-progress: false
+      - name: 📥 Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          show-progress: false
 
+      - parallel:
           - name: 🍞 Setup Bun
             uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
             with:
@@ -476,10 +468,9 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-${{ runner.arch }}-bun-
 
-      - name: 📦 Install dependencies and reload submodules
+      - name: 📦 Install dependencies
         run: |
           bun install --frozen-lockfile
-          bun run submodule-reload
 
       - name: 🛠️ Generate project files
         run: bun run prebuild:tv

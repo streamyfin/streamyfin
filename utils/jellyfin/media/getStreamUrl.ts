@@ -8,6 +8,7 @@ import { getMediaInfoApi } from "@jellyfin/sdk/lib/utils/api";
 import { markExpectedError } from "../../errors";
 import { generateDownloadProfile } from "../../profiles/download";
 import type { AudioTranscodeModeType } from "../../profiles/native";
+import { isPlayableItem } from "./isPlayableItem";
 
 interface StreamResult {
   url: string;
@@ -143,6 +144,17 @@ export const getStreamUrl = async ({
   if (!api || !userId || !item?.Id) {
     console.warn("Missing required parameters for getStreamUrl");
     return null;
+  }
+
+  // Both players negotiate their stream here, so this is the last place an
+  // item with no stream (a Book, a Season, a folder) can be stopped whatever
+  // route it took: a deep link, a remote Play command, a screen that still
+  // shows a Play button. The server would answer with a 400; saying so
+  // without the round trip keeps it a user-facing outcome, not a Sentry event.
+  if (!isPlayableItem(item)) {
+    throw markExpectedError(
+      new Error(`Item of type ${item.Type ?? "unknown"} cannot be played`),
+    );
   }
 
   let mediaSource: MediaSourceInfo | undefined;

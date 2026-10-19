@@ -1,13 +1,12 @@
-import { describe, expect, test } from "bun:test";
 import { stubReactNative } from "@/test-utils/reactNative";
 
 stubReactNative({ OS: "android" });
 
-const {
+import {
   getDisplayVideoDimensions,
   getEffectiveSubtitleScale,
   getSubtitleBaseScaleMultiplier,
-} = await import("@/utils/subtitles");
+} from "@/utils/subtitles";
 
 describe("subtitle zoom compensation", () => {
   test("exports the Android native-player base calibration", () => {

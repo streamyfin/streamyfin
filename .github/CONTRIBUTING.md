@@ -91,10 +91,9 @@ cd streamyfin
 
 ```
 
-3. Initialize submodules and install dependencies:
+3. Install dependencies:
 
 ```
-bun run submodule-reload
 bun install
 ```
 

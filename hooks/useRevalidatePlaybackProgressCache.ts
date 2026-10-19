@@ -22,6 +22,9 @@ export function useInvalidatePlaybackProgressCache() {
       ["seasons"],
       ["home"],
       ["downloadedItems"],
+      // A similar-items row shows each poster's watched state, and its list
+      // never goes stale by itself.
+      ["similarItems"],
     ];
 
     // We Invalidate all the queries to the latest server versions

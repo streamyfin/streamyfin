@@ -15,7 +15,7 @@ import {
   useLocalSearchParams,
   useNavigation,
 } from "expo-router";
-import { useAtom } from "jotai";
+import { useAtom, useSetAtom } from "jotai";
 import type React from "react";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -36,6 +36,8 @@ import { useTVOptionModal } from "@/hooks/useTVOptionModal";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import {
+  audioLanguageFilterAtom,
+  filterOwnerAtom,
   genreFilterAtom,
   SortByOption,
   SortOrderOption,
@@ -43,6 +45,7 @@ import {
   sortOptions,
   sortOrderAtom,
   sortOrderOptions,
+  subtitleLanguageFilterAtom,
   tagsFilterAtom,
   yearFilterAtom,
 } from "@/utils/atoms/filters";
@@ -73,8 +76,11 @@ const page: React.FC = () => {
   const [selectedGenres, setSelectedGenres] = useAtom(genreFilterAtom);
   const [selectedYears, setSelectedYears] = useAtom(yearFilterAtom);
   const [selectedTags, setSelectedTags] = useAtom(tagsFilterAtom);
+  const [, setSelectedAudioLanguages] = useAtom(audioLanguageFilterAtom);
+  const [, setSelectedSubtitleLanguages] = useAtom(subtitleLanguageFilterAtom);
   const [sortBy, setSortBy] = useAtom(sortByAtom);
   const [sortOrder, setSortOrder] = useAtom(sortOrderAtom);
+  const setFilterOwner = useSetAtom(filterOwnerAtom);
 
   const { data: collection, isLoading: isCollectionLoading } = useQuery({
     queryKey: ["collection", collectionId],
@@ -142,6 +148,12 @@ const page: React.FC = () => {
       setSelectedGenres([]);
       setSelectedYears([]);
       setSelectedTags([]);
+      // Not offered here, but the shared reset button counts them as active.
+      setSelectedAudioLanguages([]);
+      setSelectedSubtitleLanguages([]);
+      // The atoms are this collection's now: a library mounted underneath
+      // keeps its own selection instead of following this one.
+      setFilterOwner(collectionId);
 
       if (!collection) return;
 
@@ -161,6 +173,10 @@ const page: React.FC = () => {
       setSelectedGenres,
       setSelectedYears,
       setSelectedTags,
+      setSelectedAudioLanguages,
+      setSelectedSubtitleLanguages,
+      setFilterOwner,
+      collectionId,
     ]),
   );
 
@@ -199,7 +215,7 @@ const page: React.FC = () => {
           "MediaSourceCount",
         ],
         // true is needed for merged versions
-        recursive: true,
+        recursive: collection.Type !== "BoxSet",
         genres: selectedGenres,
         tags: selectedTags,
         years: selectedYears.map((year) => Number.parseInt(year, 10)),

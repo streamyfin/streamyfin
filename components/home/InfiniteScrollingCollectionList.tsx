@@ -19,6 +19,8 @@ interface Props extends ViewProps {
   hideIfEmpty?: boolean;
   pageSize?: number;
   onPressSeeAll?: () => void;
+  /** Show a TV child's series name before its own name. */
+  showParentTitle?: boolean;
   enabled?: boolean;
   onLoaded?: () => void;
 }
@@ -32,6 +34,7 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
   hideIfEmpty = false,
   pageSize = 10,
   onPressSeeAll,
+  showParentTitle = false,
   enabled = true,
   onLoaded,
   ...props
@@ -109,6 +112,7 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
       kind={orientation === "horizontal" ? "wide" : "portrait"}
       items={allItems}
       useEpisodePoster={settings?.useEpisodeImagesForNextUp}
+      showParentTitle={showParentTitle}
       loading={isLoading}
       loadingMore={isFetchingNextPage}
       onEndReached={loadMore}

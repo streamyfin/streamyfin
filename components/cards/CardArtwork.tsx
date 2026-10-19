@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { View } from "react-native";
 import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
@@ -33,11 +34,14 @@ export const CardArtwork: React.FC<Props> = ({
   edgeProgress = false,
   overlay,
 }) => {
+  const { t } = useTranslation();
   const progress = Math.min(Math.max(card.progress ?? 0, 0), 1);
   const unplayed = card.unplayedCount ?? 0;
-  const badgeLabel =
-    card.badgeLabel ??
-    (unplayed > 0 ? (unplayed >= 1000 ? "1k+" : `${unplayed}`) : null);
+  // A live program has no unplayed count to show, so LIVE takes the corner.
+  const badgeLabel = card.live
+    ? t("player.live")
+    : (card.badgeLabel ??
+      (unplayed > 0 ? (unplayed >= 1000 ? "1k+" : `${unplayed}`) : null));
 
   return (
     <View
@@ -97,7 +101,7 @@ export const CardArtwork: React.FC<Props> = ({
             borderRadius: 10,
             alignItems: "center",
             justifyContent: "center",
-            backgroundColor: Colors.primary,
+            backgroundColor: card.live ? Colors.live : Colors.primary,
           }}
         >
           <Text style={{ fontSize: 11, fontWeight: "700" }}>{badgeLabel}</Text>

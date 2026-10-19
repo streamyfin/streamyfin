@@ -10,7 +10,6 @@ import android.os.Binder
 import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
-import android.os.SystemClock
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
@@ -20,15 +19,16 @@ class DownloadService : Service() {
   private val NOTIFICATION_ID = 1001
   private val CHANNEL_ID = "download_channel"
 
-  // Time threshold to detect if we're in boot context (10 minutes after boot)
-  private val BOOT_THRESHOLD_MS = 10 * 60 * 1000L
   private val WAKE_LOCK_TAG = "Streamyfin::DownloadWakeLock"
 
   private val binder = DownloadServiceBinder()
   private var activeDownloadCount = 0
   private var currentDownloadTitle = "Preparing download..."
   private var currentProgress = 0
-  private var isForegroundStarted = false
+  private val foreground = ForegroundPromotion(
+    promote = ::startForegroundSafely,
+    demote = { ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE) }
+  )
   private var wakeLock: PowerManager.WakeLock? = null
 
   inner class DownloadServiceBinder : Binder() {
@@ -55,34 +55,25 @@ class DownloadService : Service() {
   override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
     Log.d(TAG, "DownloadService started")
 
-    // On Android 15+, dataSync foreground services cannot be started from BOOT_COMPLETED context
-    // Check if we're likely in a boot context and skip foreground start if so
-    if (Build.VERSION.SDK_INT >= 35 && isLikelyBootContext()) {
-      Log.w(TAG, "Skipping foreground start - likely boot context on Android 15+")
+    // Nothing may come before this, see ForegroundPromotion. Where the promotion is not
+    // allowed (a dataSync service started from BOOT_COMPLETED on Android 15+)
+    // startForeground() throws, and the system counts the start as answered before it does.
+    // Guessing at that context from the uptime instead skipped the call for any download
+    // started within ten minutes of a reboot, and stopping with the start unanswered is what
+    // kills the process.
+    if (!foreground.onStartCommand()) {
       stopSelf()
-      return START_NOT_STICKY
     }
-
-    startForegroundSafely()
     return START_STICKY
   }
 
   /**
-   * Check if we're likely in a boot context by checking system uptime.
-   * If the system has been up for less than the threshold, we might be in boot context.
-   */
-  private fun isLikelyBootContext(): Boolean {
-    val uptimeMs = SystemClock.elapsedRealtime()
-    return uptimeMs < BOOT_THRESHOLD_MS
-  }
-
-  /**
    * Start foreground service safely with proper service type for Android 14+
+   *
+   * @return false when the system refused
    */
-  private fun startForegroundSafely() {
-    if (isForegroundStarted) return
-
-    try {
+  private fun startForegroundSafely(): Boolean {
+    return try {
       if (Build.VERSION.SDK_INT >= 34) {
         ServiceCompat.startForeground(
           this,
@@ -93,11 +84,10 @@ class DownloadService : Service() {
       } else {
         startForeground(NOTIFICATION_ID, createNotification())
       }
-      isForegroundStarted = true
+      true
     } catch (e: Exception) {
       Log.e(TAG, "Failed to start foreground service", e)
-      // If we can't start foreground, stop the service
-      stopSelf()
+      false
     }
   }
   
@@ -152,17 +142,10 @@ class DownloadService : Service() {
   fun syncActiveDownloads(count: Int) {
     activeDownloadCount = count
     Log.d(TAG, "Active downloads: $activeDownloadCount")
-    if (activeDownloadCount > 0) {
-      acquireWakeLock()
-      startForegroundSafely()
-      return
+    if (activeDownloadCount > 0) acquireWakeLock() else releaseWakeLock()
+    if (!foreground.onActiveDownloads(activeDownloadCount)) {
+      stopSelf()
     }
-    releaseWakeLock()
-    if (isForegroundStarted) {
-      ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
-      isForegroundStarted = false
-    }
-    stopSelf()
   }
 
   private fun acquireWakeLock() {

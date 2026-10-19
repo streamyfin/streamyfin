@@ -9,6 +9,7 @@ import android.util.Log
 import expo.modules.kotlin.Promise
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
+import java.io.File
 
 data class DownloadTaskInfo(
   val url: String,
@@ -315,7 +316,12 @@ class BackgroundDownloaderModule : Module() {
     val taskInfo = synchronized(stateLock) { downloadTasks[taskId] }
 
     if (taskInfo == null) {
-      Log.e(TAG, "Download completed but task info not found: taskId=$taskId")
+      // Only a cancel removes the task info of a running transfer, so this one finished while
+      // it was being cancelled: the last bytes were already read when the call was cancelled.
+      // JS has dropped its record and gets no event for a cancelled task, so nothing would ever
+      // remove the file.
+      Log.d(TAG, "Download completed after it was cancelled, removing file: taskId=$taskId")
+      File(filePath).delete()
       return
     }
 

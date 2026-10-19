@@ -14,6 +14,7 @@ import {
   type LocalNetworkConfig,
   updateServerLocalConfig,
 } from "@/utils/secureCredentials";
+import { getExplicitServerUrl, isHttpUrl } from "@/utils/serverUrl/candidates";
 import { jellyfinProbe } from "@/utils/serverUrl/probes/jellyfin";
 import { Button } from "../Button";
 import { ServerUrlField } from "../common/ServerUrlField";
@@ -153,10 +154,40 @@ export function LocalNetworkSettings(): React.ReactElement | null {
   );
 
   const handleLocalUrlCommit = useCallback(
-    (localUrl: string) => {
+    (input: string, resolved: boolean) => {
+      // A resolved URL is the one that answered, and "" clears the setting.
+      // Anything else is what was typed, with no server to say what it meant:
+      // it is kept only when it names its scheme. Stored as typed, a bare
+      // `192.168.1.10` became the API base path on home Wi-Fi and crashed the
+      // app at every launch there.
+      const localUrl =
+        resolved || input === "" ? input : getExplicitServerUrl(input);
+      if (localUrl === null) {
+        toast.error(t("home.settings.network.local_url_not_saved"));
+        return;
+      }
       saveConfig({ ...config, localUrl });
+      // Kept although nobody answered. The field only says "Server
+      // unreachable", in red and next to the address as it was typed, which
+      // reads as a refusal: show what was stored and say that it was. Only
+      // when the stored value changes, as leaving the field again retries the
+      // probe and commits the same address once more.
+      //
+      // And only once the store holds it: updateServerLocalConfig writes
+      // nothing for a server that is not in the saved list, and "saved" must
+      // not be said about an address that is gone on the next launch.
+      if (
+        !resolved &&
+        localUrl !== "" &&
+        localUrl !== config.localUrl &&
+        remoteUrl &&
+        getServerLocalConfig(remoteUrl)?.localUrl === localUrl
+      ) {
+        setLocalUrlDraft(localUrl);
+        toast.info(t("home.settings.network.local_url_saved_unanswered"));
+      }
     },
-    [config, saveConfig],
+    [config, remoteUrl, saveConfig, t],
   );
 
   const handleAddCurrentNetwork = useCallback(() => {
@@ -187,6 +218,11 @@ export function LocalNetworkSettings(): React.ReactElement | null {
 
   if (!remoteUrl) return null;
 
+  // A local URL saved before the commit above checked it. ServerUrlProvider
+  // does not switch to one, so say why the remote URL stays in use.
+  const localUrlUnusable =
+    config.localUrl !== "" && !isHttpUrl(config.localUrl);
+
   const addNetworkButtonText = currentSSID
     ? t("home.settings.network.add_current_network", { ssid: currentSSID })
     : t("home.settings.network.not_connected_to_wifi");
@@ -207,24 +243,29 @@ export function LocalNetworkSettings(): React.ReactElement | null {
 
       {config.enabled && (
         <View className='pt-4'>
-          <ListGroup
-            title={t("home.settings.network.local_url")}
-            description={
-              <Text className='text-[#8E8D91] text-xs'>
-                {t("home.settings.network.local_url_hint")}
+          {/* Not a ListGroup: its card clips whatever sits under the input,
+              and the field's status line and the warning below belong under
+              the box, next to the hint, not inside it. */}
+          <View>
+            <Text className='ml-4 mb-1 uppercase text-[#8E8D91] text-xs'>
+              {t("home.settings.network.local_url")}
+            </Text>
+            <ServerUrlField
+              value={localUrlDraft}
+              onChangeText={setLocalUrlDraft}
+              onCommit={handleLocalUrlCommit}
+              probe={jellyfinProbe}
+              placeholder={t("home.settings.network.local_url_placeholder")}
+            />
+            {localUrlUnusable && (
+              <Text className='text-xs text-amber-400 mt-2 px-4'>
+                {t("home.settings.network.local_url_unusable")}
               </Text>
-            }
-          >
-            <View className=''>
-              <ServerUrlField
-                value={localUrlDraft}
-                onChangeText={setLocalUrlDraft}
-                onCommit={handleLocalUrlCommit}
-                probe={jellyfinProbe}
-                placeholder={t("home.settings.network.local_url_placeholder")}
-              />
-            </View>
-          </ListGroup>
+            )}
+            <Text className='text-[#8E8D91] text-xs mt-2 px-4'>
+              {t("home.settings.network.local_url_hint")}
+            </Text>
+          </View>
 
           <ListGroup
             title={t("home.settings.network.home_wifi_networks")}

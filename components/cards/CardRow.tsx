@@ -31,6 +31,8 @@ interface Props extends ViewProps {
 
   /** Prefer the episode's own still over the series thumbnail. */
   useEpisodePoster?: boolean;
+  /** Show a TV child's series name before its own name. */
+  showParentTitle?: boolean;
   /** Item to keep at full opacity; every other card is faded back. */
   selectedId?: string | null;
   /** Card to scroll into view when this value changes. */
@@ -90,6 +92,7 @@ export const CardRow: React.FC<Props> = ({
   items,
   cards: providedCards,
   useEpisodePoster = false,
+  showParentTitle = false,
   selectedId,
   scrollToId,
   textPlacement = "over",
@@ -114,6 +117,7 @@ export const CardRow: React.FC<Props> = ({
       cards: providedCards,
       kind,
       useEpisodePoster,
+      showParentTitle,
       selectedId,
       onPressItem,
       onPressId,

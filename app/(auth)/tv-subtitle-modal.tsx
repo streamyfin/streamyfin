@@ -32,6 +32,7 @@ import {
 import { useTVBackPress } from "@/hooks/useTVBackPress";
 import { useSettings } from "@/utils/atoms/settings";
 import { tvSubtitleModalAtom } from "@/utils/atoms/tvSubtitleModal";
+import { subtitleSearchErrorMessage } from "@/utils/jellyfin/subtitleSearchAccess";
 import { COMMON_SUBTITLE_LANGUAGES } from "@/utils/opensubtitles/api";
 import { scaleSize } from "@/utils/scaleSize";
 import { store } from "@/utils/store";
@@ -910,10 +911,11 @@ export default function TVSubtitleModal() {
                       <Text
                         style={[styles.errorHint, { fontSize: scaleSize(13) }]}
                       >
-                        {!hasOpenSubtitlesApiKey
-                          ? t("player.no_subtitle_provider") ||
-                            "No subtitle provider configured on server"
-                          : String(searchError)}
+                        {subtitleSearchErrorMessage(
+                          searchError,
+                          hasOpenSubtitlesApiKey,
+                          t,
+                        )}
                       </Text>
                     </View>
                   )}

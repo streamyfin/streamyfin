@@ -1,13 +1,13 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
-import { clearMmkv, stubMmkv } from "@/test-utils/mmkv";
 import type { TrackMenuRow } from "@/utils/subtitles/trackMenu";
 
-stubMmkv();
-// Bun's mock.module retroactively re-links every module already importing the
-// specifier, so a log mock must cover the module's full function surface —
-// a missing name breaks OTHER test files' modules that import it.
-mock.module("@/utils/log", () => ({
+jest.mock(
+  "react-native-mmkv",
+  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
+);
+// The log module reaches Sentry and MMKV, so it is stubbed with the surface
+// this spec's module under test actually calls.
+jest.mock("@/utils/log", () => ({
   writeToLog: () => undefined,
   writeInfoLog: () => undefined,
   writeErrorLog: () => undefined,
@@ -16,9 +16,11 @@ mock.module("@/utils/log", () => ({
   readFromLog: () => [],
 }));
 
-const { getSeriesTrackMemory, rememberSeriesTrackFromRow } = await import(
-  "./seriesTrackMemory"
-);
+import { clearMmkv } from "@/test-utils/mmkv";
+import {
+  getSeriesTrackMemory,
+  rememberSeriesTrackFromRow,
+} from "./seriesTrackMemory";
 
 const episode = { Id: "e1", Type: "Episode", SeriesId: "s1" } as BaseItemDto;
 const on = { rememberAudioSelections: true, rememberSubtitleSelections: true };

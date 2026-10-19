@@ -4,16 +4,23 @@ import type {
 } from "@jellyfin/sdk/lib/generated-client";
 import { getSubtitleApi } from "@jellyfin/sdk/lib/utils/api";
 import { useMutation } from "@tanstack/react-query";
+import { isAxiosError } from "axios";
 import { Directory, File, Paths } from "expo-file-system";
 import { useAtomValue } from "jotai";
 import { useCallback, useMemo } from "react";
 import { Platform } from "react-native";
-import { apiAtom } from "@/providers/JellyfinProvider";
+import { isPlainFileName, safeNamePart } from "@/providers/Downloads/utils";
+import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import {
   addDownloadedSubtitle,
   type DownloadedSubtitle,
 } from "@/utils/atoms/downloadedSubtitles";
 import { useSettings } from "@/utils/atoms/settings";
+import { markExpectedError } from "@/utils/errors";
+import {
+  canSearchServerSubtitles,
+  SubtitleSearchNotAllowedError,
+} from "@/utils/jellyfin/subtitleSearchAccess";
 import {
   OpenSubtitlesApi,
   type OpenSubtitlesResult,
@@ -102,6 +109,7 @@ export function useRemoteSubtitles({
   mediaSourceId: _mediaSourceId,
 }: UseRemoteSubtitlesOptions) {
   const api = useAtomValue(apiAtom);
+  const user = useAtomValue(userAtom);
   const { settings } = useSettings();
   // Turning the lookup off keeps a stored key but stops direct client lookups.
   const openSubtitlesApiKey =
@@ -211,7 +219,12 @@ export function useRemoteSubtitles({
 
       // Get download link
       const response = await openSubtitlesApi.download(fileId);
-      const originalFileName = response.file_name || `subtitle_${fileId}.srt`;
+      // The name is OpenSubtitles' to choose, and whatever sits at the destination is deleted
+      // before the write: only its last segment is used, so the file stays in the cache.
+      const suggestedFileName = response.file_name?.split(/[/\\]/).pop();
+      const originalFileName = isPlainFileName(suggestedFileName)
+        ? suggestedFileName
+        : `subtitle_${fileId}.srt`;
 
       // Use cache directory for both platforms (tvOS has permission issues with documents)
       // TV: Uses itemId prefix for organization and persists metadata
@@ -226,7 +239,7 @@ export function useRemoteSubtitles({
       // TV: Prefix filename with itemId for organization
       // Mobile: Use original filename
       const fileName = Platform.isTV
-        ? `${itemId}_${originalFileName}`
+        ? `${safeNamePart(itemId)}_${originalFileName}`
         : originalFileName;
 
       // Create file and download
@@ -276,6 +289,15 @@ export function useRemoteSubtitles({
         return searchOpenSubtitles(language);
       }
 
+      // A user without the subtitle management permission gets a 403 from
+      // the server's search. That is an answer about the account, not a
+      // failure: don't ask, and say so unless the client-side lookup can
+      // take over.
+      if (!canSearchServerSubtitles(user)) {
+        if (hasOpenSubtitlesApiKey) return searchOpenSubtitles(language);
+        throw markExpectedError(new SubtitleSearchNotAllowedError());
+      }
+
       // Try Jellyfin first
       try {
         const results = await searchJellyfin(language);
@@ -288,6 +310,10 @@ export function useRemoteSubtitles({
         // If Jellyfin fails (no provider configured) and we have fallback, use it
         if (hasOpenSubtitlesApiKey) {
           return searchOpenSubtitles(language);
+        }
+        // The stored policy can be older than the server's.
+        if (isAxiosError(error) && error.response?.status === 403) {
+          throw markExpectedError(new SubtitleSearchNotAllowedError());
         }
         throw error;
       }

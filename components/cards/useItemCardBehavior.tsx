@@ -17,7 +17,11 @@ type Options = {
   /** Prebuilt cards, for anything that isn't a `BaseItemDto`. */
   cards?: CardData[];
   kind: CardKind;
+  /** Width the cards are drawn at, when it isn't the kind's own (items mode). */
+  cardWidth?: number;
   useEpisodePoster?: boolean;
+  /** Show a TV child's series name before its own name. */
+  showParentTitle?: boolean;
   selectedId?: string | null;
   /** Replaces the default navigation (items mode). */
   onPressItem?: (item: BaseItemDto) => void;
@@ -40,7 +44,9 @@ export function useItemCardBehavior({
   items,
   cards: providedCards,
   kind,
+  cardWidth,
   useEpisodePoster = false,
+  showParentTitle = false,
   selectedId,
   onPressItem,
   onPressId,
@@ -63,10 +69,21 @@ export function useItemCardBehavior({
       buildItemCards(items ?? [], {
         api,
         kind,
+        cardWidth,
         useEpisodePoster,
+        showParentTitle,
         selectedId,
       }),
-    [providedCards, items, api, kind, useEpisodePoster, selectedId],
+    [
+      providedCards,
+      items,
+      api,
+      kind,
+      cardWidth,
+      useEpisodePoster,
+      showParentTitle,
+      selectedId,
+    ],
   );
 
   const handlePress = useCallback(
