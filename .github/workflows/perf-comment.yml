@@ -75,6 +75,12 @@ jobs:
               core.notice("The run produced no comparison, nothing to post.");
               return;
             }
+            // unzip keeps symlinks and readFileSync follows them, so a link to
+            // /proc/self/environ would post this job's token.
+            if (!fs.lstatSync("reassure/comment.md").isFile()) {
+              core.setFailed("The report is not a regular file.");
+              return;
+            }
             // The PR wrote this file too, so it is posted as text only: capped
             // under the comment size limit, with mentions defused.
             const report = fs
@@ -89,7 +95,12 @@ jobs:
               repo: context.repo.repo,
               issue_number: number,
             });
-            const previous = comments.find((c) => c.body?.startsWith(marker));
+            // Anyone can post the marker, so only this workflow's own comment counts.
+            const previous = comments.find(
+              (c) =>
+                c.user?.login === "github-actions[bot]" &&
+                c.body?.startsWith(marker),
+            );
             if (previous) {
               await github.rest.issues.updateComment({
                 owner: context.repo.owner,
