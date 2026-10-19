@@ -1,6 +1,7 @@
 import "@/augmentations/number";
 import { act, screen } from "@testing-library/react-native";
-import { atom, getDefaultStore } from "jotai";
+import { atom, createStore, Provider as JotaiProvider } from "jotai";
+import { type ReactNode, useState } from "react";
 import { measureRenders } from "reassure";
 import DownloadsPage from "@/app/(auth)/(tabs)/(home)/downloads/index";
 import type { DownloadedItem } from "@/providers/Downloads/types";
@@ -22,8 +23,6 @@ jest.mock("@/providers/DownloadProvider", () => {
     }),
   };
 });
-
-const store = getDefaultStore();
 
 const download = (item: DownloadedItem["item"]): DownloadedItem => ({
   item,
@@ -50,18 +49,27 @@ const episodes = Array.from({ length: SERIES }, (_, series) =>
   ),
 ).flat();
 
-describe("Downloads Performance", () => {
-  beforeEach(() => {
-    store.set(mockDownloaded, [...movies, ...episodes]);
-  });
+let activeStore: ReturnType<typeof createStore>;
 
+const Wrapper = ({ children }: { children: ReactNode }) => {
+  const [store] = useState(() => {
+    const s = createStore();
+    s.set(mockDownloaded, [...movies, ...episodes]);
+    activeStore = s;
+    return s;
+  });
+  return <JotaiProvider store={store}>{children}</JotaiProvider>;
+};
+
+describe("Downloads Performance", () => {
   test("the downloads page renders its library, then one download is deleted", async () => {
     await measureRenders(<DownloadsPage />, {
+      wrapper: Wrapper,
       scenario: async () => {
         await screen.findAllByText("Movie 0");
         for (let remaining = movies.length - 1; remaining > 20; remaining--) {
           await act(async () => {
-            store.set(mockDownloaded, [
+            activeStore.set(mockDownloaded, [
               ...movies.slice(0, remaining),
               ...episodes,
             ]);
