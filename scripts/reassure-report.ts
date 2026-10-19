@@ -50,92 +50,115 @@ const isRealDurationChange = (entry: Entry) =>
   Math.abs(entry.durationDiff) >= MIN_DURATION_DIFF_MS &&
   Math.abs(entry.relativeDurationDiff) >= MIN_RELATIVE_DURATION_DIFF;
 
-const ms = (value: number) => `${value.toFixed(1)} ms`;
-const signed = (value: number, suffix: string) =>
-  `${value > 0 ? "+" : ""}${value.toFixed(1)}${suffix}`;
+const fixed = (value: number) => value.toFixed(1);
+const signed = (value: string, raw: number) => `${raw > 0 ? "+" : ""}${value}`;
+const percent = (ratio: number) => signed(`${Math.round(ratio * 100)}%`, ratio);
 const cell = (name: string) => name.replaceAll("|", "\\|");
 
-const durationRow = (entry: Entry, symbol: string) =>
-  `| ${cell(entry.name)} | ${ms(entry.baseline?.meanDuration ?? 0)} → ${ms(
+const byRelativeChange = (a: Entry, b: Entry) =>
+  Math.abs(b.relativeDurationDiff) - Math.abs(a.relativeDurationDiff);
+const byCountChange = (a: Entry, b: Entry) =>
+  Math.abs(b.countDiff) - Math.abs(a.countDiff);
+
+const DURATION_HEADER = [
+  "| Scenario | Before (ms) | After (ms) | Δ (ms) | Δ % |",
+  "| --- | ---: | ---: | ---: | ---: |",
+];
+const COUNT_HEADER = [
+  "| Scenario | Before | After | Δ |",
+  "| --- | ---: | ---: | ---: |",
+];
+const SINGLE_HEADER = ["| Scenario | Duration (ms) |", "| --- | ---: |"];
+
+const durationRow = (entry: Entry) =>
+  `| ${cell(entry.name)} | ${fixed(entry.baseline?.meanDuration ?? 0)} | ${fixed(
     entry.current?.meanDuration ?? 0,
-  )} (${signed(entry.durationDiff, " ms")}, ${signed(
-    entry.relativeDurationDiff * 100,
-    "%",
-  )}) ${symbol} |`;
+  )} | ${signed(fixed(entry.durationDiff), entry.durationDiff)} | ${percent(
+    entry.relativeDurationDiff,
+  )} |`;
 
-const countRow = (entry: Entry, symbol: string) =>
-  `| ${cell(entry.name)} | ${entry.baseline?.meanCount} → ${
+const countRow = (entry: Entry) =>
+  `| ${cell(entry.name)} | ${entry.baseline?.meanCount} | ${
     entry.current?.meanCount
-  } (${signed(entry.countDiff, "")}) ${symbol} |`;
+  } | ${signed(String(entry.countDiff), entry.countDiff)} |`;
 
-const section = (title: string, header: string, rows: string[]) =>
-  rows.length ? [`## ${title}`, "", header, "| --- | --- |", ...rows, ""] : [];
+const section = (title: string, header: string[], rows: string[]) =>
+  rows.length ? [`#### ${title}`, "", ...header, ...rows, ""] : [];
 
-const describe = (run?: { branch?: string; commitHash?: string }) =>
-  run?.branch
-    ? `${run.branch} (${run.commitHash?.slice(0, 8) ?? "unknown"})`
-    : "unknown";
+const sha = (run?: { commitHash?: string }) =>
+  `\`${run?.commitHash?.slice(0, 7) ?? "unknown"}\``;
+
+const plural = (count: number, word: string) =>
+  `${count} ${word}${count === 1 ? "" : "s"}`;
 
 export const buildReport = (output: ReassureOutput): string => {
   const real = output.significant.filter(isRealDurationChange);
-  const regressions = real.filter((entry) => entry.durationDiff > 0);
-  const improvements = real.filter((entry) => entry.durationDiff < 0);
-  const countUp = output.countChanged.filter((entry) => entry.countDiff > 0);
-  const countDown = output.countChanged.filter((entry) => entry.countDiff < 0);
+  const regressions = real
+    .filter((entry) => entry.durationDiff > 0)
+    .sort(byRelativeChange);
+  const improvements = real
+    .filter((entry) => entry.durationDiff < 0)
+    .sort(byRelativeChange);
+  const countUp = output.countChanged
+    .filter((entry) => entry.countDiff > 0)
+    .sort(byCountChange);
+  const countDown = output.countChanged
+    .filter((entry) => entry.countDiff < 0)
+    .sort(byCountChange);
   const noise =
     output.significant.length - real.length + output.meaningless.length;
 
   const findings = regressions.length + countUp.length;
   const verdict = findings
-    ? `🔴 ${findings} regression${findings === 1 ? "" : "s"}`
+    ? `🔴 ${plural(findings, "regression")}`
     : "✅ No regressions";
+  // Improvements need no action, so they stay folded away.
+  const credits = improvements.length + countDown.length;
 
   return [
-    "# Performance Comparison Report",
+    `### 🐢 Performance: ${verdict}`,
     "",
-    `- **Current**: ${describe(output.metadata?.current)}`,
-    `- **Baseline**: ${describe(output.metadata?.baseline)}`,
-    `- **Result**: ${verdict}`,
+    `${sha(output.metadata?.baseline)} → ${sha(output.metadata?.current)}`,
     "",
     ...section(
       "Duration regressions",
-      "| Scenario | Duration |",
-      regressions.map((entry) => durationRow(entry, "🔴")),
+      DURATION_HEADER,
+      regressions.map(durationRow),
     ),
-    ...section(
-      "More renders",
-      "| Scenario | Renders |",
-      countUp.map((entry) => countRow(entry, "🔴")),
-    ),
-    ...section(
-      "Duration improvements",
-      "| Scenario | Duration |",
-      improvements.map((entry) => durationRow(entry, "🟢")),
-    ),
-    ...section(
-      "Fewer renders",
-      "| Scenario | Renders |",
-      countDown.map((entry) => countRow(entry, "🟢")),
-    ),
+    ...section("More renders", COUNT_HEADER, countUp.map(countRow)),
     ...section(
       "Added scenarios",
-      "| Scenario | Duration |",
+      SINGLE_HEADER,
       output.added.map(
         (entry) =>
-          `| ${cell(entry.name)} | ${ms(entry.current?.meanDuration ?? 0)} |`,
+          `| ${cell(entry.name)} | ${fixed(entry.current?.meanDuration ?? 0)} |`,
       ),
     ),
     ...section(
       "Removed scenarios",
-      "| Scenario | Duration |",
+      SINGLE_HEADER,
       output.removed.map(
         (entry) =>
-          `| ${cell(entry.name)} | ${ms(entry.baseline?.meanDuration ?? 0)} |`,
+          `| ${cell(entry.name)} | ${fixed(entry.baseline?.meanDuration ?? 0)} |`,
       ),
     ),
-    `${noise} scenario${noise === 1 ? "" : "s"} changed by less than ${
-      MIN_DURATION_DIFF_MS
-    } ms or ${MIN_RELATIVE_DURATION_DIFF * 100}%, which is within noise. The full report is in the job summary.`,
+    ...(credits
+      ? [
+          `<details><summary>${plural(credits, "improvement")}</summary>`,
+          "",
+          ...section(
+            "Duration improvements",
+            DURATION_HEADER,
+            improvements.map(durationRow),
+          ),
+          ...section("Fewer renders", COUNT_HEADER, countDown.map(countRow)),
+          "</details>",
+          "",
+        ]
+      : []),
+    `${plural(noise, "scenario")} moved less than ${MIN_DURATION_DIFF_MS} ms or ${
+      MIN_RELATIVE_DURATION_DIFF * 100
+    }% (noise).`,
     "",
   ].join("\n");
 };

@@ -90,4 +90,45 @@ describe("buildReport", () => {
     );
     expect(report).not.toMatch(/redundant|initial/i);
   });
+
+  it("puts the unit in the header, not in every cell", () => {
+    const report = buildReport(
+      output({ significant: [entry("LibraryPage", 100, 130)] }),
+    );
+    expect(report).toContain("| LibraryPage | 100.0 | 130.0 | +30.0 | +30% |");
+  });
+
+  it("lists the largest change first", () => {
+    const report = buildReport(
+      output({
+        significant: [entry("Small", 20, 25), entry("Large", 20, 40)],
+      }),
+    );
+    expect(report.indexOf("Large")).toBeLessThan(report.indexOf("Small"));
+  });
+
+  it("folds improvements away and leaves regressions open", () => {
+    const report = buildReport(
+      output({
+        significant: [entry("Faster", 100, 50), entry("Slower", 100, 150)],
+      }),
+    );
+    const details = report.indexOf("<details>");
+    expect(report).toContain("<summary>1 improvement</summary>");
+    expect(report.indexOf("Slower")).toBeLessThan(details);
+    expect(report.indexOf("Faster")).toBeGreaterThan(details);
+  });
+
+  it("names the commits by short hash", () => {
+    const report = buildReport(
+      output({
+        metadata: {
+          baseline: { branch: "HEAD", commitHash: "504d3965aaaa" },
+          current: { branch: "HEAD", commitHash: "468d3317bbbb" },
+        },
+      }),
+    );
+    expect(report).toContain("`504d396` → `468d331`");
+    expect(report).not.toContain("HEAD");
+  });
 });

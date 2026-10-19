@@ -82,7 +82,8 @@ jobs:
               .slice(0, 60000)
               .replaceAll("@", "@\u200b");
             const marker = "<!-- reassure-performance -->";
-            const body = `${marker}\n${report}`;
+            const run = context.payload.workflow_run.html_url;
+            const body = `${marker}\n${report}\n[Full report in the job summary](${run})`;
             const comments = await github.paginate(github.rest.issues.listComments, {
               owner: context.repo.owner,
               repo: context.repo.repo,
