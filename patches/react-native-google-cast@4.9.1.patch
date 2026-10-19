@@ -1,124 +1,235 @@
+diff --git a/node_modules/react-native-google-cast/.bun-tag-d8abadf922581b52 b/.bun-tag-d8abadf922581b52
+new file mode 100644
+index 0000000000000000000000000000000000000000..e69de29bb2d1d6434b8b29ae775ad8c2e48c5391
 diff --git a/lib/commonjs/api/useCastDevice.js b/lib/commonjs/api/useCastDevice.js
-index 974a2f0fbfcb5e2d306be8172ae1a8e02c6a6673..b63eaf6e105ddbc8006b8cc3461e74b5acd5cc25 100644
+index 974a2f0fbfcb5e2d306be8172ae1a8e02c6a6673..a83f363a06ef7f3bf5e7eda3aa8893972000c427 100644
 --- a/lib/commonjs/api/useCastDevice.js
 +++ b/lib/commonjs/api/useCastDevice.js
-@@ -29,7 +29,7 @@ function useCastDevice(options) {
+@@ -29,7 +29,19 @@ function useCastDevice(options) {
    const [device, setDevice] = (0, _react.useState)(null);
    const session = (0, _useCastSession.default)(options);
    (0, _react.useEffect)(() => {
 -    if (!session) setDevice(null);else session.getCastDevice().then(setDevice);
-+    if (!session) setDevice(null);else session.getCastDevice().then(setDevice, () => setDevice(null));
++    if (!session) {
++      setDevice(null);
++      return;
++    }
++    let current = true;
++    session.getCastDevice().then(device => {
++      if (current) setDevice(device);
++    }, () => {
++      if (current) setDevice(null);
++    });
++    return () => {
++      current = false;
++    };
    }, [session]);
    return device;
  }
 diff --git a/lib/commonjs/api/useMediaStatus.js b/lib/commonjs/api/useMediaStatus.js
-index 50c8c4160af009bf3356e7d9241fb23b0b9abece..2f34fd5884e6da1f9695815737d12cc7bfca9a2a 100644
+index 50c8c4160af009bf3356e7d9241fb23b0b9abece..38516ca48bc0d04db4de122cc9480a59590ac01d 100644
 --- a/lib/commonjs/api/useMediaStatus.js
 +++ b/lib/commonjs/api/useMediaStatus.js
-@@ -23,7 +23,7 @@ function useMediaStatus() {
+@@ -23,9 +23,15 @@ function useMediaStatus() {
        setMediaStatus(null);
        return;
      }
 -    client.getMediaStatus().then(setMediaStatus);
-+    client.getMediaStatus().then(setMediaStatus, () => setMediaStatus(null));
++    let current = true;
++    client.getMediaStatus().then(status => {
++      if (current) setMediaStatus(status);
++    }, () => {
++      if (current) setMediaStatus(null);
++    });
      const subscription = client.onMediaStatusUpdated(setMediaStatus);
      return () => {
++      current = false;
        subscription.remove();
+     };
+   }, [client]);
 diff --git a/lib/commonjs/api/useStreamPosition.js b/lib/commonjs/api/useStreamPosition.js
-index aa0f530840ff546757659a55f69974179151aa6f..bf9d411d016a504a40b09345ccd9b24b2fa5f24c 100644
+index aa0f530840ff546757659a55f69974179151aa6f..7d32545a1f332d335dde6bdc9e978578723eb4d2 100644
 --- a/lib/commonjs/api/useStreamPosition.js
 +++ b/lib/commonjs/api/useStreamPosition.js
-@@ -21,7 +21,7 @@ function useStreamPosition(interval) {
+@@ -21,9 +21,15 @@ function useStreamPosition(interval) {
        setStreamPosition(null);
        return;
      }
 -    client.getStreamPosition().then(setStreamPosition);
-+    client.getStreamPosition().then(setStreamPosition, () => setStreamPosition(null));
++    let current = true;
++    client.getStreamPosition().then(position => {
++      if (current) setStreamPosition(position);
++    }, () => {
++      if (current) setStreamPosition(null);
++    });
      const subscription = client.onMediaProgressUpdated(setStreamPosition, interval);
      return () => {
++      current = false;
        subscription.remove();
+     };
+   }, [client, interval]);
 diff --git a/lib/module/api/useCastDevice.js b/lib/module/api/useCastDevice.js
-index a8b6042f4253af9036308b93b9cfa98945cca904..ae4560c51c24dc990a9e85df979dc1221d9c47d1 100644
+index a8b6042f4253af9036308b93b9cfa98945cca904..c43ef9318429e531ab226848498bff63aa8accf8 100644
 --- a/lib/module/api/useCastDevice.js
 +++ b/lib/module/api/useCastDevice.js
-@@ -23,7 +23,7 @@ export default function useCastDevice(options) {
+@@ -23,7 +23,19 @@ export default function useCastDevice(options) {
    const [device, setDevice] = useState(null);
    const session = useCastSession(options);
    useEffect(() => {
 -    if (!session) setDevice(null);else session.getCastDevice().then(setDevice);
-+    if (!session) setDevice(null);else session.getCastDevice().then(setDevice, () => setDevice(null));
++    if (!session) {
++      setDevice(null);
++      return;
++    }
++    let current = true;
++    session.getCastDevice().then(device => {
++      if (current) setDevice(device);
++    }, () => {
++      if (current) setDevice(null);
++    });
++    return () => {
++      current = false;
++    };
    }, [session]);
    return device;
  }
 diff --git a/lib/module/api/useMediaStatus.js b/lib/module/api/useMediaStatus.js
-index a128ef0e8ca0875b23c2b47d7a0d6f2c5424e5b2..7e1e897ae39339b070be754fd75131aa3e7907d1 100644
+index a128ef0e8ca0875b23c2b47d7a0d6f2c5424e5b2..a2496821df37ff821e13c5361fcff402c6f10499 100644
 --- a/lib/module/api/useMediaStatus.js
 +++ b/lib/module/api/useMediaStatus.js
-@@ -17,7 +17,7 @@ export default function useMediaStatus() {
+@@ -17,9 +17,15 @@ export default function useMediaStatus() {
        setMediaStatus(null);
        return;
      }
 -    client.getMediaStatus().then(setMediaStatus);
-+    client.getMediaStatus().then(setMediaStatus, () => setMediaStatus(null));
++    let current = true;
++    client.getMediaStatus().then(status => {
++      if (current) setMediaStatus(status);
++    }, () => {
++      if (current) setMediaStatus(null);
++    });
      const subscription = client.onMediaStatusUpdated(setMediaStatus);
      return () => {
++      current = false;
        subscription.remove();
+     };
+   }, [client]);
 diff --git a/lib/module/api/useStreamPosition.js b/lib/module/api/useStreamPosition.js
-index 3cd4270c450804d49460ef8824fe03f12b98632d..0579362336f9ac6bba4f3c0a304c205081a47dab 100644
+index 3cd4270c450804d49460ef8824fe03f12b98632d..6f2336c4ad81dfc1dee8ec9b3f0c713bc2181366 100644
 --- a/lib/module/api/useStreamPosition.js
 +++ b/lib/module/api/useStreamPosition.js
-@@ -15,7 +15,7 @@ export default function useStreamPosition(interval) {
+@@ -15,9 +15,15 @@ export default function useStreamPosition(interval) {
        setStreamPosition(null);
        return;
      }
 -    client.getStreamPosition().then(setStreamPosition);
-+    client.getStreamPosition().then(setStreamPosition, () => setStreamPosition(null));
++    let current = true;
++    client.getStreamPosition().then(position => {
++      if (current) setStreamPosition(position);
++    }, () => {
++      if (current) setStreamPosition(null);
++    });
      const subscription = client.onMediaProgressUpdated(setStreamPosition, interval);
      return () => {
++      current = false;
        subscription.remove();
+     };
+   }, [client, interval]);
 diff --git a/src/api/useCastDevice.ts b/src/api/useCastDevice.ts
-index 96baf166b92a1139a2901a12b17d73af7750a466..9fe6643ee9e13872f0b581094026ebac7fc35a47 100644
+index 96baf166b92a1139a2901a12b17d73af7750a466..1aeb14a60e144229ccbb30db1b26bc04903cf7cc 100644
 --- a/src/api/useCastDevice.ts
 +++ b/src/api/useCastDevice.ts
-@@ -27,8 +27,10 @@ export default function useCastDevice(
+@@ -27,8 +27,28 @@ export default function useCastDevice(
    const session = useCastSession(options)
  
    useEffect(() => {
-+    // The session can end before the native side answers (Android rejects
-+    // with "No session"): no device then, rather than an unhandled rejection.
-     if (!session) setDevice(null)
+-    if (!session) setDevice(null)
 -    else session.getCastDevice().then(setDevice)
-+    else session.getCastDevice().then(setDevice, () => setDevice(null))
++    if (!session) {
++      setDevice(null)
++      return
++    }
++
++    // The native side can answer after this effect was replaced by another
++    // session's, or reject because the session ended in the meantime
++    // (Android: "No session"). A late answer is dropped, a rejection leaves
++    // no device rather than an unhandled rejection.
++    let current = true
++    session.getCastDevice().then(
++      (device) => {
++        if (current) setDevice(device)
++      },
++      () => {
++        if (current) setDevice(null)
++      }
++    )
++
++    return () => {
++      current = false
++    }
    }, [session])
  
    return device
 diff --git a/src/api/useMediaStatus.ts b/src/api/useMediaStatus.ts
-index f5862e6ac3d1ff8a70a507b6f72cf77635be4309..53a6d08d8e94aa060e64b883b4852e08dd1c9c89 100644
+index f5862e6ac3d1ff8a70a507b6f72cf77635be4309..d9fcfe0febe3de9d613bccfd771eb36094747834 100644
 --- a/src/api/useMediaStatus.ts
 +++ b/src/api/useMediaStatus.ts
-@@ -20,7 +20,9 @@ export default function useMediaStatus() {
+@@ -20,11 +20,24 @@ export default function useMediaStatus() {
        return
      }
  
 -    client.getMediaStatus().then(setMediaStatus)
-+    // The session can end before the native side answers (Android rejects
-+    // with "No session"): no status then, rather than an unhandled rejection.
-+    client.getMediaStatus().then(setMediaStatus, () => setMediaStatus(null))
++    // The native side can answer after this effect was replaced by another
++    // session's, or reject because the session ended in the meantime
++    // (Android: "No session"). A late answer is dropped, a rejection leaves
++    // no status rather than an unhandled rejection.
++    let current = true
++    client.getMediaStatus().then(
++      (status) => {
++        if (current) setMediaStatus(status)
++      },
++      () => {
++        if (current) setMediaStatus(null)
++      }
++    )
  
      const subscription = client.onMediaStatusUpdated(setMediaStatus)
  
+     return () => {
++      current = false
+       subscription.remove()
+     }
+   }, [client])
 diff --git a/src/api/useStreamPosition.ts b/src/api/useStreamPosition.ts
-index 6c4ed10299e919db4d92bafc331b093538de9cdb..1553c13c8faa93a05418b95cb9f3286accd4ffed 100644
+index 6c4ed10299e919db4d92bafc331b093538de9cdb..2e91bfacf49930f7714a6008784c46bd3b0b3170 100644
 --- a/src/api/useStreamPosition.ts
 +++ b/src/api/useStreamPosition.ts
-@@ -17,7 +17,9 @@ export default function useStreamPosition(interval?: number) {
+@@ -17,7 +17,19 @@ export default function useStreamPosition(interval?: number) {
        return
      }
  
 -    client.getStreamPosition().then(setStreamPosition)
-+    // The session can end before the native side answers (Android rejects
-+    // with "No session"): no position then, rather than an unhandled rejection.
-+    client.getStreamPosition().then(setStreamPosition, () => setStreamPosition(null))
++    // The native side can answer after this effect was replaced by another
++    // session's, or reject because the session ended in the meantime
++    // (Android: "No session"). A late answer is dropped, a rejection leaves
++    // no position rather than an unhandled rejection.
++    let current = true
++    client.getStreamPosition().then(
++      (position) => {
++        if (current) setStreamPosition(position)
++      },
++      () => {
++        if (current) setStreamPosition(null)
++      }
++    )
  
      const subscription = client.onMediaProgressUpdated(
        setStreamPosition,
+@@ -25,6 +37,7 @@ export default function useStreamPosition(interval?: number) {
+     )
+ 
+     return () => {
++      current = false
+       subscription.remove()
+     }
+   }, [client, interval])
