@@ -1,0 +1,9 @@
+language js
+
+`fontSize: $size` where {
+  $size <: or {
+    r"^[0-9.]+$",
+    `scaleSize($_)`
+  },
+  register_diagnostic(span=$size, message="Never hardcode font sizes on TV. Use useScaledTVTypography() from @/constants/TVTypography.", severity="error")
+}

@@ -271,7 +271,7 @@ export const TVSearchPage: React.FC<TVSearchPageProps> = ({
                 backgroundColor: "#262626",
                 borderRadius: 12,
                 paddingHorizontal: 20,
-                fontSize: 28,
+                fontSize: typography.body,
                 color: "#fff",
               }}
               placeholder={t("search.search")}
