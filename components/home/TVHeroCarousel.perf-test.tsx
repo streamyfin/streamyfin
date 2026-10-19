@@ -30,11 +30,11 @@ describe("TVHeroCarousel Performance", () => {
             typeof node.props.onFocus === "function",
         );
 
-        // Move focus across all items, advancing past the 300ms debounce + 50ms crossfade
+        // Move focus across all items as the remote would, blurring the card it
+        // leaves, then advance past the 300ms debounce + 50ms crossfade
         for (let i = 0; i < pressables.length; i++) {
-          await act(async () => {
-            fireEvent(pressables[i], "focus");
-          });
+          if (i > 0) await fireEvent(pressables[i - 1], "blur");
+          await fireEvent(pressables[i], "focus");
           await act(async () => {
             jest.advanceTimersByTime(400);
           });

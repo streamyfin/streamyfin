@@ -153,9 +153,11 @@ describe("TV Home", () => {
       wrapper: QueryWrapper,
       scenario: async () => {
         await screen.findAllByText("LatestMovie 0");
-        await focusAlong(along("Resume", 3));
-        await focusAlong(along("LatestMovie", 4));
-        await focusAlong(along("LatestShow", 4));
+        await focusAlong([
+          ...along("Resume", 3),
+          ...along("LatestMovie", 4),
+          ...along("LatestShow", 4),
+        ]);
       },
     });
   });
@@ -167,8 +169,7 @@ describe("TV Home", () => {
       wrapper: QueryWrapper,
       scenario: async () => {
         await screen.findAllByText("Resume 0");
-        await focusAlong(along("Resume", 4));
-        await focusAlong(along("LatestMovie", 4));
+        await focusAlong([...along("Resume", 4), ...along("LatestMovie", 4)]);
       },
     });
   });
@@ -180,8 +181,7 @@ describe("TV Home", () => {
       wrapper: QueryWrapper,
       scenario: async () => {
         await screen.findAllByText("Resume 0");
-        await focusAlong(along("Resume", 4));
-        await focusAlong(along("LatestMovie", 4));
+        await focusAlong([...along("Resume", 4), ...along("LatestMovie", 4)]);
       },
     });
   });

@@ -25,17 +25,19 @@ const Wrapper = ({ children }: { children: ReactNode }) => {
   );
 };
 
-describe("Logs Performance", () => {
-  beforeEach(() => {
-    clearMmkv();
-    for (let i = 0; i < STORED_ENTRIES; i++) {
-      storeLogEntry("INFO", `Stored entry ${i}`, { index: i });
-    }
-  });
+const seedStorage = () => {
+  clearMmkv();
+  for (let i = 0; i < STORED_ENTRIES; i++) {
+    storeLogEntry("INFO", `Stored entry ${i}`, { index: i });
+  }
+};
 
+describe("Logs Performance", () => {
   test("the logs page re-renders as new entries arrive on each poll", async () => {
     await measureRenders(<LogsPage />, {
       wrapper: Wrapper,
+      // Each run appends entries, so every run starts from the same log.
+      beforeEach: seedStorage,
       scenario: async () => {
         await screen.findAllByText("Stored entry 0");
         for (let poll = 0; poll < POLLS; poll++) {

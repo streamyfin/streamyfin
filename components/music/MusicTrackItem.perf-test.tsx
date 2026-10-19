@@ -76,12 +76,14 @@ const sampleTracks = makeItems(TRACK_COUNT, "Track", "Audio");
 let capturedSetProgress: ((progress: number) => void) | undefined;
 
 const TestDriver = () => {
-  const { setProgress, setIsPlaying } = useMusicPlayer();
+  const { currentTrack, setProgress, setIsPlaying } = useMusicPlayer();
   capturedSetProgress = setProgress;
 
+  // The provider's queue restore sets isPlaying back to false, so play only
+  // once the restored track is in.
   useEffect(() => {
-    setIsPlaying(true);
-  }, [setIsPlaying]);
+    if (currentTrack) setIsPlaying(true);
+  }, [currentTrack, setIsPlaying]);
 
   return null;
 };
