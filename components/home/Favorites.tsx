@@ -1,4 +1,3 @@
-import type { Api } from "@jellyfin/sdk";
 import type { BaseItemKind } from "@jellyfin/sdk/lib/generated-client";
 import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
 import { t } from "i18next";
@@ -42,7 +41,10 @@ export const Favorites = () => {
       startIndex: number = 0,
       limit: number = 20,
     ) => {
-      const response = await getItemsApi(api as Api).getItems({
+      // Signing out clears the api and the query cache while this tab stays
+      // mounted, so its rows fetch once more with no session to ask.
+      if (!api || !user?.Id) return [];
+      const response = await getItemsApi(api).getItems({
         userId: user?.Id,
         sortBy: ["SeriesSortName", "SortName"],
         sortOrder: ["Ascending"],
