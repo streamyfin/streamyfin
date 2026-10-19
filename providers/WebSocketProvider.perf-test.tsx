@@ -1,4 +1,3 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, screen } from "@testing-library/react-native";
 import { getDefaultStore } from "jotai";
 import { useEffect, useState } from "react";
@@ -9,6 +8,7 @@ import {
   useWebSocketContext,
   WebSocketProvider,
 } from "@/providers/WebSocketProvider";
+import { QueryWrapper } from "@/test-utils/queryWrapper";
 
 // The device id comes from native randomness, which Jest has none of.
 jest.mock("expo-crypto", () => ({ randomUUID: () => "test-device" }));
@@ -47,11 +47,6 @@ const Listener = ({ index }: { index: number }) => {
   return <Text>{`Listener ${index}: ${count}`}</Text>;
 };
 
-const Wrapper = ({ children }: { children: React.ReactNode }) => {
-  const [client] = useState(() => new QueryClient());
-  return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
-};
-
 const originalWebSocket = globalThis.WebSocket;
 
 describe("WebSocketProvider Performance", () => {
@@ -78,7 +73,7 @@ describe("WebSocketProvider Performance", () => {
         ))}
       </WebSocketProvider>,
       {
-        wrapper: Wrapper,
+        wrapper: QueryWrapper,
         scenario: async () => {
           await screen.findByText("Listener 0: 0");
           await act(async () => {
