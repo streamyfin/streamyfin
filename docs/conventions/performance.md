@@ -44,17 +44,20 @@ Everything else is up to the scenario. Native modules only one feature uses, lik
 
 ## Writing a scenario
 
-`components/cards/CardRow.perf-test.tsx` is the simplest one to copy:
+`components/settings/AppearanceSettings.perf-test.tsx` is the simplest one to copy:
 
 ```tsx
 import { fireEvent, screen } from "@testing-library/react-native";
 import { measureRenders } from "reassure";
+import AppearancePage from "@/app/(auth)/(tabs)/(home)/settings/appearance/page";
 
-test("a CardRow re-renders when its parent updates", async () => {
-  await measureRenders(<ParentWithCardRow />, {
+test("toggling a setting re-renders the appearance page", async () => {
+  await measureRenders(<AppearancePage />, {
     scenario: async () => {
-      await screen.findByText("Latest Movies");
-      await fireEvent.press(screen.getByTestId("re-render-button"));
+      const switches = await screen.findAllByRole("switch");
+      for (const toggle of switches) {
+        await fireEvent(toggle, "valueChange", true);
+      }
     },
   });
 });
