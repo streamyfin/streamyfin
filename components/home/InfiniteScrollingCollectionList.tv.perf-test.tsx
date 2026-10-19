@@ -70,7 +70,9 @@ describe("TV Poster Row Performance", () => {
 
         await reachListEnd();
         await waitFor(() => expect(pagesFetched).toBe(2));
-        await act(async () => {});
+        await act(async () => {
+          await jest.advanceTimersByTimeAsync(0);
+        });
       },
     });
   });
