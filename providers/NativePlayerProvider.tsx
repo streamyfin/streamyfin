@@ -1011,6 +1011,21 @@ const NativePlayerProviderInner: React.FC<{
 
       const previous = sessionRef.current;
 
+      // The player this swap was meant for closed while the stream was
+      // negotiating (a close tap, the end of the stream). There is nothing
+      // left to swap into, and presenting instead would reopen a player that
+      // was just closed, or be refused on iOS while the old one is still
+      // fading out (Sentry REACT-NATIVE-BR). Same rule as the dismiss check
+      // after the stop report below, one round trip earlier.
+      if (options.replace && !previous) {
+        writeToLog(
+          "INFO",
+          "NativePlayer swap dropped: the player closed during negotiation",
+        );
+        releaseLiveStream(session);
+        return true;
+      }
+
       // Same-item swap: the search results stay valid on the new session, and
       // an ACTIVE client-side sidecar must survive the reload (mpv's loadfile
       // drops sub-added tracks; onLoad re-attaches it).
