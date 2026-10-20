@@ -735,7 +735,14 @@ class MPVLayerRenderer(
         }
     }
 
-    /** The playlist entry mpv is playing, or null once a newer load took it out of the playlist. */
+    /**
+     * The playlist entry mpv is playing, or null once a newer load took it out of the playlist.
+     *
+     * Read when the start event is handled, because this binding passes no event data. If the
+     * event thread is held up until mpv has already started a replacement, the read names the
+     * replacement, and the first positions of the file it replaced then count for it. Closing
+     * that needs the binding to pass the event's playlist_entry_id.
+     */
     private fun playingEntryId(): Long? {
         val playlist = mpv?.getPropertyString("playlist") ?: return null
         return try {
