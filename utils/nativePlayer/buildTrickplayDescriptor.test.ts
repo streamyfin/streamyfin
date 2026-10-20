@@ -5,8 +5,8 @@ jest.mock(
   "react-native-mmkv",
   () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
 );
-// The settings atoms reach the provider, which pulls in expo-router.
-jest.mock("@/providers/JellyfinProvider", () => {
+// The settings atoms reach the api atoms, which read react-native-device-info.
+jest.mock("@/utils/atoms/api", () => {
   const { atom } = jest.requireActual("jotai");
   return { apiAtom: atom(null), userAtom: atom(null) };
 });

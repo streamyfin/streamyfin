@@ -27,9 +27,9 @@ jest.mock(
 jest.mock("@/components/BitrateSelector", () => ({
   BITRATES: [{ key: "Max", value: undefined }],
 }));
-// JellyfinProvider drags in react-native-device-info (native at test time);
-// settings.ts only reads its atoms.
-jest.mock("@/providers/JellyfinProvider", () => ({
+// The api atoms read react-native-device-info (native at test time);
+// settings.ts only reads the atoms.
+jest.mock("@/utils/atoms/api", () => ({
   apiAtom: jest.requireActual("jotai").atom(null),
   userAtom: jest.requireActual("jotai").atom(null),
 }));
@@ -72,7 +72,7 @@ const {
   VideoPlayer,
 } = require("./settings") as typeof import("./settings");
 const { apiAtom } =
-  require("@/providers/JellyfinProvider") as typeof import("@/providers/JellyfinProvider");
+  require("@/utils/atoms/api") as typeof import("@/utils/atoms/api");
 
 /** The failure axios raises once the server has answered with `status`. */
 const answeredWith = (status: number) =>

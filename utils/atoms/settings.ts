@@ -21,7 +21,7 @@ import {
   type StillWatchingPreset,
 } from "@/constants/StillWatching";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
-import { apiAtom } from "@/providers/JellyfinProvider";
+import { apiAtom } from "@/utils/atoms/api";
 import { isExpectedError } from "@/utils/errors";
 import { logAndCaptureError, writeInfoLog } from "@/utils/log";
 import {
