@@ -13,7 +13,9 @@ import { AppLanguageSelector } from "@/components/settings/AppLanguageSelector";
 import { QuickConnect } from "@/components/settings/QuickConnect";
 import { StorageSettings } from "@/components/settings/StorageSettings";
 import { UserInfo } from "@/components/settings/UserInfo";
+import { NOTIFICATIONS_SETTINGS_ROUTE } from "@/constants/Notifications";
 import useRouter from "@/hooks/useAppRouter";
+import { useMyNotifications } from "@/hooks/useMyNotifications";
 import { useJellyfin, userAtom } from "@/providers/JellyfinProvider";
 import { useSyncPlay } from "@/providers/SyncPlayProvider";
 import { useSettings } from "@/utils/atoms/settings";
@@ -27,6 +29,8 @@ function SettingsMobile() {
   const { available: syncPlayAvailable } = useSyncPlay();
   const { settings, updateSettings } = useSettings();
   const insets = useSafeAreaInsets();
+  const { supported: notificationsSupported, mine: notifications } =
+    useMyNotifications();
   const [_user] = useAtom(userAtom);
   const { logout } = useJellyfin();
 
@@ -116,6 +120,14 @@ function SettingsMobile() {
               showArrow
               title={t("home.settings.audio_subtitles.title")}
             />
+            {/* Only once the server's plugin answered: an older one has no such screen. */}
+            {notificationsSupported && notifications !== undefined && (
+              <ListItem
+                onPress={() => router.push(NOTIFICATIONS_SETTINGS_ROUTE)}
+                showArrow
+                title={t("home.settings.notifications.title")}
+              />
+            )}
             <ListItem
               onPress={() => router.push("/settings/music/page")}
               showArrow

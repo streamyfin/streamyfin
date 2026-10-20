@@ -22,6 +22,10 @@ import { useTranslation } from "react-i18next";
 import { Platform } from "react-native";
 import { getDeviceNameSync } from "react-native-device-info";
 import { toast } from "sonner-native";
+import {
+  PUSH_DEVICE_PATH,
+  PUSH_REGISTRATION_TIMEOUT_MS,
+} from "@/constants/Notifications";
 import useRouter from "@/hooks/useAppRouter";
 import { useInterval } from "@/hooks/useInterval";
 import { SeerrApi, useSeerr } from "@/hooks/useSeerr";
@@ -47,6 +51,7 @@ import {
 } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
 import { onAppForeground } from "@/utils/onAppForeground";
+import { inRegistrationOrder } from "@/utils/pushRegistration";
 import {
   type AccountSecurityType,
   addAccountToServer,
@@ -728,13 +733,19 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
-      // Fire-and-forget: don't block logout on server cleanup
-      api
-        ?.delete(`/Streamyfin/device/${deviceId}`)
-        .then((_r) => writeInfoLog("Deleted expo push token for device"))
-        .catch((_e) =>
-          writeErrorLog("Failed to delete expo push token for device"),
-        );
+      // Not awaited, so sign out does not wait on the server, but in line behind
+      // a registration still on its way, which would otherwise bring the row back.
+      if (api) {
+        inRegistrationOrder(() =>
+          api.delete(`${PUSH_DEVICE_PATH}/${deviceId}`, {
+            timeout: PUSH_REGISTRATION_TIMEOUT_MS,
+          }),
+        )
+          .then((_r) => writeInfoLog("Deleted expo push token for device"))
+          .catch((_e) =>
+            writeErrorLog("Failed to delete expo push token for device"),
+          );
+      }
 
       await clearSessionState();
     },

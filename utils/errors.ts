@@ -150,7 +150,10 @@ const isHtmlPage = (response: AxiosResponse): boolean =>
   HTML_CONTENT_TYPE.test(String(response.headers?.["content-type"] ?? "")) ||
   isHtmlDocument(response.data);
 
-const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+/** A plain object, as parsed JSON gives: not an array, a class instance or null. */
+export const isPlainObject = (
+  value: unknown,
+): value is Record<string, unknown> =>
   typeof value === "object" &&
   value !== null &&
   Object.getPrototypeOf(value) === Object.prototype;
