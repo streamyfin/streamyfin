@@ -1,4 +1,5 @@
 import {
+  BaseItemKind,
   ItemSortBy,
   SortOrder,
 } from "@jellyfin/sdk/lib/generated-client/models";
@@ -516,20 +517,27 @@ const boundEntries = (values: string[]): string[] =>
     : values
   ).map((entry) => entry.trim());
 
+const lowerCased = (names: readonly string[]): ReadonlySet<string> =>
+  new Set(names.map((name) => name.toLowerCase()));
+
 // The names of an SDK enum, which the binder reads in any case.
 const enumNames = (values: Record<string, string>): ReadonlySet<string> =>
-  new Set(Object.values(values).map((name) => name.toLowerCase()));
+  lowerCased(Object.values(values));
 
 const SORT_FIELDS = enumNames(ItemSortBy);
 const SORT_ORDERS = enumNames(SortOrder);
+const ITEM_KINDS = enumNames(BaseItemKind);
 
 // An entry that names no value of the enum fails to convert, and the binder
-// drops it without a word: only the others reach the controller.
+// drops it without a word: only the others reach the controller, lowercased
+// here.
 const keptEnumEntries = (
   values: string[],
   names: ReadonlySet<string>,
-): number =>
-  boundEntries(values).filter((entry) => names.has(entry.toLowerCase())).length;
+): string[] =>
+  boundEntries(values)
+    .map((entry) => entry.toLowerCase())
+    .filter((entry) => names.has(entry));
 
 // A year the binder can convert to an Int32: digits with an optional sign,
 // within range.
@@ -555,21 +563,47 @@ const ITEMS_QUERY_ROUTE = /^(?:\/[A-Za-z][\w-]*)*\/Items(?:\/Filters)?$/;
 //   an ArgumentException, which the binder lets through
 // - more sort orders than sort fields, among the entries the binder keeps.
 //   Without a sort field, GetOrderBy returns before it reads a sort order.
-// This follows Jellyfin 10.11's CommaDelimitedCollectionModelBinder and
-// RequestHelpers.GetOrderBy: a drift from them would let a fault of the
-// app's pass for an id the server no longer has.
+// This follows Jellyfin's CommaDelimitedCollectionModelBinder and
+// RequestHelpers.GetOrderBy, alike from 10.10 to 12.2: a drift from them
+// would let a fault of the app's pass for an id the server no longer has.
 const carriesItemsQueryFault = (config: RequestQuery): boolean => {
   const years = boundEntries(queryValues(config, "years"));
   if (years.some((year) => !isInt32(year))) return true;
   const sortFields = keptEnumEntries(
     queryValues(config, "sortBy"),
     SORT_FIELDS,
-  );
+  ).length;
   const sortOrders = keptEnumEntries(
     queryValues(config, "sortOrder"),
     SORT_ORDERS,
-  );
+  ).length;
   return sortFields > 0 && sortOrders > sortFields;
+};
+
+// The item types that, asked for alone, keep Jellyfin 10.10 and 10.11 from
+// looking the parent up: GetItems drops the parentId of a request for box
+// sets, the legacy filters skip the lookup for box sets, playlists, trailers
+// or programs. An unknown parent then answers 200, so a 400 there is about
+// something else. Jellyfin 12 looks the parent up in more of these cases,
+// but its answer does not say which version sent it, so the rule follows
+// the versions that skip the lookup.
+const PARENT_SKIPPED_ON_ITEMS = lowerCased([BaseItemKind.BoxSet]);
+const PARENT_SKIPPED_ON_FILTERS = lowerCased([
+  BaseItemKind.BoxSet,
+  BaseItemKind.Playlist,
+  BaseItemKind.Trailer,
+  BaseItemKind.Program,
+]);
+
+const skipsParentLookup = (path: string, config: RequestQuery): boolean => {
+  const kinds = keptEnumEntries(
+    queryValues(config, "includeItemTypes"),
+    ITEM_KINDS,
+  );
+  const skipping = path.endsWith("/Filters")
+    ? PARENT_SKIPPED_ON_FILTERS
+    : PARENT_SKIPPED_ON_ITEMS;
+  return kinds.length === 1 && skipping.has(kinds[0]);
 };
 
 // Guid.Empty, written without dashes or with them. Jellyfin turns it away as
@@ -597,7 +631,9 @@ const namesParent = (id: string): boolean => {
  * parentId with a 400 and JELLYFIN_EXCEPTION_REASON. A parentId that is not
  * a GUID gets validation details instead and is still reported, as is the
  * same reason for a request that named no parent (none, a blank one, the
- * empty GUID) or that carries a fault of its own (carriesItemsQueryFault).
+ * empty GUID), one whose parent Jellyfin does not look up
+ * (skipsParentLookup), or one that carries a fault of its own
+ * (carriesItemsQueryFault).
  *
  * Every other 400 and 404 is still reported: a 4xx on one route is what an
  * app bug looks like (SERVER_WIDE_CLIENT_STATUSES in constants/Sentry.ts). A
@@ -614,6 +650,7 @@ export const isStaleIdError = (error: unknown): boolean => {
     typeof body === "string" &&
     body.trim() === JELLYFIN_EXCEPTION_REASON &&
     queryValues(error.config, "parentId").some(namesParent) &&
+    !skipsParentLookup(http.path, error.config) &&
     !carriesItemsQueryFault(error.config)
   );
 };

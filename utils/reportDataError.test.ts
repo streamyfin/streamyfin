@@ -396,6 +396,20 @@ describe("reportDataError for an id the server no longer has", () => {
       expect(mockCaptured).toHaveLength(1);
     });
 
+    // A collections library's grid. Jellyfin 10.10 and 10.11 do not look its
+    // parent up, so the 400 cannot be about the library.
+    test("the same 400 to a request for box sets alone", () => {
+      reportDataError(
+        "query",
+        ["library-items"],
+        unknownParent(
+          newServer(),
+          `parentId=${STALE}&includeItemTypes=BoxSet&sortBy=SortName`,
+        ),
+      );
+      expect(mockCaptured).toHaveLength(1);
+    });
+
     // "Guid can't be empty", in the same words: a fault of the request.
     test("the same 400 to a request whose parent is the empty GUID", () => {
       reportDataError(

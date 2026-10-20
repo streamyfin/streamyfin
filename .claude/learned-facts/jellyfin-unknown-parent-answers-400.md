@@ -8,13 +8,15 @@
 
 `GET /Items` and `GET /Items/Filters` with a `parentId` the server does not know answer `400`, `text/plain`, body `Error processing request.`: the ExceptionMiddleware's answer to the `ArgumentException: Invalid parent id` that `LibraryManager.GetParentItem` throws. Not a 404, so it reads like a request the app built wrong. Replayed against Jellyfin 10.10.7, 10.11.11 and 13.0.0, a known parentId never got that 400, across every sort, filter and library type; 12.2 answers an unknown one the same way.
 
-The same 400, in the same words, also answers faults of the request itself. They follow from how Jellyfin 10.11 binds the query (`CommaDelimitedCollectionModelBinder`) and reads the sort (`RequestHelpers.GetOrderBy`):
+The same 400, in the same words, also answers faults of the request itself. They follow from how Jellyfin binds the query (`CommaDelimitedCollectionModelBinder`) and reads the sort (`RequestHelpers.GetOrderBy`), alike from 10.10 to 12.2:
 
 - a `years` entry that is not an Int32 (`NaN`, `99999999999`): its converter throws an `ArgumentException` the binder lets through. A parameter sent once is split on commas, one sent more than once gives one entry per value, so `years=2019&years=2020,2021` is a fault.
 - more `sortOrder` entries than `sortBy` entries, among those the binder keeps: an entry that names no `ItemSortBy` or `SortOrder` value (read in any case) is dropped without a word. With no `sortBy` entry left, `GetOrderBy` never reads `sortOrder`.
 - the empty GUID as the `parentId` (`Guid can't be empty`).
 
 A 400 with validation details (`errors.parentId`) is a different case: a parentId that is not a GUID.
+
+Jellyfin does not always look the parent up. With `includeItemTypes` bound to a single type, 10.10 and 10.11 drop the `parentId` of `GET /Items` for `BoxSet`, and the legacy `GET /Items/Filters` skips the lookup for `BoxSet`, `Playlist`, `Trailer` or `Program`: an unknown parent then answers 200, so a 400 to such a request is about something else. 12.x looks the parent up first in `GetItems`, and its filters skip the lookup for `Trailer` and `Program` only, so there the same requests do get the 400. The answer does not say which version sent it, so `isStaleIdError` leaves all of them out: on 12.x, a collections library or a collections tab whose library is gone is reported (the library page asks for `BoxSet` alone in both).
 
 The neighbouring routes answer an unknown id their own way: `GET /Items/Latest` with 200 and nothing, `GET /Items/{id}` with 404. `GET /Shows/{id}/Episodes` (`"Series not found"`, `"No season exists with Id …"`) and `GET /Shows/{id}/Seasons` answer 404 for any id that is not a series or a season the user can see: one that is gone, but also an item of another kind (an episode's id, which is the app's bug) and one out of the user's reach. That 404 cannot tell them apart, so it stays reported.
 

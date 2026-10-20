@@ -1,3 +1,4 @@
+import type { CollectionType } from "@jellyfin/sdk/lib/generated-client/models";
 import {
   getFilterApi,
   getItemsApi,
@@ -6,6 +7,12 @@ import {
 import { AxiosError, type AxiosResponse } from "axios";
 import { FetchError } from "expo/src/winter/fetch/FetchErrors";
 import { makeApi } from "@/test-utils/jellyfinApi";
+import { buildLibraryItemsQuery } from "@/utils/library/libraryItemsQuery";
+import {
+  getLibraryTabFilters,
+  getLibraryTabQuery,
+  type LibraryTab,
+} from "@/utils/library/libraryTabs";
 import {
   describeHttpError,
   describeHttpResponse,
@@ -1304,6 +1311,62 @@ describe("isStaleIdError", () => {
       );
       expect(isStaleIdError(error)).toBe(false);
     });
+
+    // The grid's page as the library screen asks for it
+    // (app/(auth)/(tabs)/(libraries)/[libraryId].tsx, fetchItems). A
+    // collections library, and the collections tab of any library, ask for
+    // box sets alone, which Jellyfin 10.10 and 10.11 answer without looking
+    // the library up: a 400 there is not about the library.
+    test("a library's box sets are not, its own items are", async () => {
+      const page = (
+        library: { Type: "CollectionFolder"; CollectionType: CollectionType },
+        tab: LibraryTab,
+      ) =>
+        failure(
+          (api) => {
+            const query = buildLibraryItemsQuery({
+              userId: "u1",
+              libraryId: STALE,
+              collectionType: library.CollectionType,
+              sortBy: "SortName",
+              sortOrder: "Ascending",
+              filterBy: [],
+              genres: [],
+              years: [],
+              tags: [],
+            });
+            return getItemsApi(api).getItems({
+              userId: query.userId,
+              parentId: query.parentId,
+              recursive: query.recursive,
+              ...getLibraryTabFilters(tab, {
+                sortBy: query.sortBy,
+                sortOrder: query.sortOrder,
+                filters: query.filters,
+                genres: query.genres,
+                tags: query.tags,
+                years: query.years,
+              }),
+              ...getLibraryTabQuery(tab, library, false),
+              limit: 36,
+              startIndex: 0,
+            });
+          },
+          400,
+          REASON,
+        );
+      const collections = {
+        Type: "CollectionFolder",
+        CollectionType: "boxsets",
+      } as const;
+      const movies = {
+        Type: "CollectionFolder",
+        CollectionType: "movies",
+      } as const;
+      expect(isStaleIdError(await page(collections, "items"))).toBe(false);
+      expect(isStaleIdError(await page(movies, "collections"))).toBe(false);
+      expect(isStaleIdError(await page(movies, "items"))).toBe(true);
+    });
   });
 
   const itemsUrl = (query: string, path = "/Items") =>
@@ -1476,6 +1539,66 @@ describe("isStaleIdError", () => {
     expect(withSort("sortBy=NotAField&sortOrder=Ascending,Descending")).toBe(
       true,
     );
+  });
+
+  // Jellyfin 10.10 and 10.11 drop the parentId of GET /Items that asks for
+  // box sets alone, so an unknown one answers 200 there. Jellyfin 12 looks it
+  // up first, but the answer does not say which version sent it, so the rule
+  // follows the versions that never look.
+  test("box sets alone on /Items: the parent is not looked up", () => {
+    const withTypes = (query: string) =>
+      isStaleIdError(unknownParent(itemsUrl(`parentId=${STALE}&${query}`)));
+    expect(withTypes("includeItemTypes=BoxSet")).toBe(false);
+    expect(withTypes("IncludeItemTypes=boxset")).toBe(false);
+    // The binder drops a type it does not know, which leaves the box set
+    // alone, sent once or more than once.
+    expect(withTypes("includeItemTypes=BoxSet,NotAKind")).toBe(false);
+    expect(withTypes("includeItemTypes=NotAKind&includeItemTypes=BoxSet")).toBe(
+      false,
+    );
+  });
+
+  test("any other types on /Items: the parent is looked up", () => {
+    const withTypes = (query: string) =>
+      isStaleIdError(unknownParent(itemsUrl(`parentId=${STALE}&${query}`)));
+    expect(withTypes("includeItemTypes=BoxSet,Movie")).toBe(true);
+    expect(withTypes("includeItemTypes=BoxSet&includeItemTypes=BoxSet")).toBe(
+      true,
+    );
+    expect(withTypes("includeItemTypes=Movie")).toBe(true);
+    expect(withTypes("includeItemTypes=Playlist")).toBe(true);
+    expect(withTypes("includeItemTypes=NotAKind")).toBe(true);
+  });
+
+  // The legacy filters of Jellyfin 10.10 and 10.11 skip the lookup for one of
+  // these types alone and answer an unknown parent with empty filters.
+  // Jellyfin 12 only skips it for a trailer or a program.
+  test.each([
+    "includeItemTypes=BoxSet",
+    "includeItemTypes=Playlist",
+    "includeItemTypes=Trailer",
+    "includeItemTypes=Program",
+    "includeitemtypes=PLAYLIST",
+    "includeItemTypes=Trailer,NotAKind",
+  ])("%s on /Items/Filters: the parent is not looked up", (query) => {
+    expect(
+      isStaleIdError(
+        unknownParent(itemsUrl(`parentId=${STALE}&${query}`, "/Items/Filters")),
+      ),
+    ).toBe(false);
+  });
+
+  test("any other types on /Items/Filters: the parent is looked up", () => {
+    const withTypes = (query: string) =>
+      isStaleIdError(
+        unknownParent(itemsUrl(`parentId=${STALE}&${query}`, "/Items/Filters")),
+      );
+    expect(withTypes("includeItemTypes=Movie")).toBe(true);
+    expect(withTypes("includeItemTypes=Playlist,Trailer")).toBe(true);
+    expect(withTypes("includeItemTypes=Trailer&includeItemTypes=Program")).toBe(
+      true,
+    );
+    expect(withTypes("includeItemTypes=NotAKind")).toBe(true);
   });
 
   // Each one answers an unknown id some other way: a playlist's items with a
