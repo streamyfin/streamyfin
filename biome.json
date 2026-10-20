@@ -14,7 +14,8 @@
       "!e2e/syncplay/.state",
       "!e2e/syncplay/artifacts",
       "!docs/jellyfin-openapi-stable.json",
-      "!**/*.svg"
+      "!**/*.svg",
+      "!.reassure"
     ]
   },
   "linter": {
