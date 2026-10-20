@@ -1,9 +1,16 @@
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   baseRefCandidates,
+  changedScenarioFiles,
   currentCheckout,
   isScenarioFile,
 } from "./reassure-baseline";
@@ -76,5 +83,54 @@ describe("currentCheckout", () => {
     const head = git("rev-parse", "HEAD");
     git("switch", "-q", "--detach");
     expect(currentCheckout(repo)).toBe(head);
+  });
+});
+
+describe("changedScenarioFiles", () => {
+  let repo: string;
+  const git = (...args: string[]) =>
+    execFileSync(
+      "git",
+      ["-c", "user.name=t", "-c", "user.email=t@t", ...args],
+      { cwd: repo, encoding: "utf8" },
+    ).trim();
+
+  beforeEach(() => {
+    repo = mkdtempSync(join(tmpdir(), "reassure-changed-"));
+    git("init", "-q", "-b", "main");
+    mkdirSync(join(repo, "test-utils"));
+    // Long enough for git to see the move as a rename and not as add + delete.
+    writeFileSync(
+      join(repo, "test-utils/api.ts"),
+      "export const x = 1;\n".repeat(20),
+    );
+    git("add", ".");
+    git("commit", "-q", "-m", "base");
+    git("switch", "-q", "-c", "feature");
+  });
+
+  afterEach(() => rmSync(repo, { recursive: true, force: true }));
+
+  // `--diff-filter=AM` drops a rename, so a moved test double never reached the
+  // base and its scenarios imported a path that did not exist there.
+  it("includes a scenario file that was renamed", () => {
+    renameSync(
+      join(repo, "test-utils/api.ts"),
+      join(repo, "test-utils/jellyfinApi.ts"),
+    );
+    git("add", ".");
+    git("commit", "-q", "-m", "move");
+    expect(
+      changedScenarioFiles("main", git("rev-parse", "HEAD"), repo),
+    ).toEqual(["test-utils/jellyfinApi.ts"]);
+  });
+
+  it("is empty when no scenario file changed", () => {
+    writeFileSync(join(repo, "README.md"), "hi\n");
+    git("add", ".");
+    git("commit", "-q", "-m", "docs");
+    expect(
+      changedScenarioFiles("main", git("rev-parse", "HEAD"), repo),
+    ).toEqual([]);
   });
 });

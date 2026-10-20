@@ -66,6 +66,31 @@ export const currentCheckout = (cwd?: string) => {
   }
 };
 
+/**
+ * The scenario files this branch adds or changes. Rename detection is off so a
+ * moved file shows up as an addition at its new path: `--diff-filter=AM` would
+ * otherwise drop it as a rename, and the base would run without it.
+ */
+export const changedScenarioFiles = (
+  baseRef: string,
+  head: string,
+  cwd?: string,
+) =>
+  execFileSync(
+    "git",
+    [
+      "diff",
+      "--name-only",
+      "--no-renames",
+      "--diff-filter=AM",
+      `${baseRef}...${head}`,
+    ],
+    { cwd, encoding: "utf8" },
+  )
+    .trim()
+    .split("\n")
+    .filter(isScenarioFile);
+
 const resolveBaseRef = (explicit?: string) => {
   const remotes = git("remote").split("\n");
   const name =
@@ -101,14 +126,7 @@ const measureBase = (baseRef: string) => {
   }
   const origin = currentCheckout();
   const head = git("rev-parse", "HEAD");
-  const changed = git(
-    "diff",
-    "--name-only",
-    "--diff-filter=AM",
-    `${baseRef}...${head}`,
-  )
-    .split("\n")
-    .filter(isScenarioFile);
+  const changed = changedScenarioFiles(baseRef, head);
 
   try {
     git("switch", "--detach", baseRef);
@@ -140,7 +158,12 @@ const measureBase = (baseRef: string) => {
       origin === head ? "--detach" : origin,
       ...(origin === head ? [head] : []),
     );
-    run("bun", ["install", "--frozen-lockfile"]);
+    // Not thrown: that would hide the error this `finally` is cleaning up after.
+    // The PR is measured next without a reinstall, so a failure must be seen.
+    if (!run("bun", ["install", "--frozen-lockfile"])) {
+      console.error("::error::bun install failed while restoring this branch.");
+      process.exitCode = 1;
+    }
   }
 };
 
