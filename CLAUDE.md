@@ -33,6 +33,7 @@ Read the relevant one before writing code in that area.
 | --- | --- |
 | [docs/conventions/constants.md](docs/conventions/constants.md) | Adding a threshold, interval, ratio, storage key, or any value used twice |
 | [docs/conventions/contributing-flow.md](docs/conventions/contributing-flow.md) | Opening, describing, or reviewing a PR |
+| [docs/conventions/performance.md](docs/conventions/performance.md) | Claiming a change is faster, or writing a Reassure scenario |
 | [docs/conventions/testing.md](docs/conventions/testing.md) | Writing or changing any test, and before claiming a fix works |
 | [docs/conventions/tv.md](docs/conventions/tv.md) | Touching anything that renders on Apple TV or Android TV |
 
@@ -126,6 +127,8 @@ bun run lint                 # Biome with fixes
 bun run format               # Biome formatter
 bun run test:unit            # Jest, the whole suite
 bun run test:coverage        # Jest plus a coverage report in coverage/
+bun run perf                 # Reassure performance scenarios (*.perf-test.tsx)
+bun run perf:baseline        # Reassure baseline to compare `bun run perf` against
 bun run test                 # The full gate: typecheck, unit, lint, format, i18n, doctor
 
 # iOS specific
@@ -164,6 +167,7 @@ bun run ios:install-metal-toolchain   # Fixes "missing Metal Toolchain" build er
 | `test-utils/` | Shared test doubles: Jellyfin API, MMKV, the file system, custom headers, React Native, Reanimated |
 | `translations/` | i18n catalogues, `en.json` is the only source |
 | `scripts/` | Repo tooling run through bun |
+| `biome-plugins/` | Custom Biome (Grit) lint rules, wired up in `biome.json` |
 | `docs/` | Conventions and deep dives |
 | `e2e/` | Manual end to end fixtures that need Docker, never run in CI (a local Jellyfin for SyncPlay) |
 
@@ -231,6 +235,7 @@ PersistQueryClientProvider
 
 **Native modules** in `modules/`: `mpv-player` (the native player, iOS and Android),
 `exoplayer-player`, `background-downloader`, `glass-poster`, `hero-carousel`,
+`notification-settings-link` (the iOS Settings link to the Notifications screen),
 `system-volume`, `top-shelf-cache`, `tv-recommendations`, `tv-search`, `tv-user-profile`,
 `wifi-ssid`.
 
@@ -244,7 +249,7 @@ import { apiAtom } from "@/providers/JellyfinProvider";
 ## Coding standards
 
 - TypeScript everywhere. The only exceptions are the config files whose loaders cannot
-  parse TypeScript: `babel.config.js`, `metro.config.js`, `react-native.config.js`,
+  parse TypeScript: `babel.config.js`, `jest.perf.config.js`, `metro.config.js`, `react-native.config.js`,
   `tailwind.config.js`.
 - Functional components with hooks.
 - Biome formatting: two space indent, semicolons, LF endings.

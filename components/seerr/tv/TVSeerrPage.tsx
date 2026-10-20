@@ -141,7 +141,7 @@ const TVCastCard: React.FC<TVCastCardProps> = ({
         {person.character && (
           <Text
             style={{
-              fontSize: 14,
+              fontSize: typography.callout,
               color: focused
                 ? "rgba(255,255,255,0.7)"
                 : "rgba(255,255,255,0.5)",
