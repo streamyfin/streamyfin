@@ -137,7 +137,13 @@ A fix that is not purely visual applies to both phone and TV. When you change pl
 reporting, settings resolution or any other shared behaviour, carry it to the TV surface
 in the same PR, and say so in the description.
 
-The native player's episode shelf keeps artwork cards as its only focus targets.
+The native player's episode shelf has a separate season-selector row above its
+artwork cards when multiple seasons have playable episodes. It loads the series'
+episodes once and filters locally, so selecting a season does not change playback.
+Offline, only seasons with downloaded episodes appear. It opens on the playing
+episode's season; changing seasons keeps focus on the season selector, with the
+episode row reset for that season.
+
 The details below follow the focused episode (the playing episode on opening):
 title, localized numbering, runtime, air date, ratings, watched status and up to
 three lines of synopsis. The mobile native picker shows the full synopsis in its

@@ -132,6 +132,9 @@ export type NativePlayerEpisodeListItem = {
   itemId: string;
   title: string;
   indexNumber?: number;
+  /** Display grouping key, not a Jellyfin season id; also works offline. */
+  seasonKey?: string;
+  seasonName?: string;
   /** Full synopsis; native views decide how much fits on screen. */
   overview?: string;
   /** Localized numbering, runtime, air date, ratings and watched status. */
@@ -206,6 +209,7 @@ export type NativePlayerStrings = Partial<
     | "playNow"
     | "cancel"
     | "episodes"
+    | "season"
     | "speed"
     | "audio"
     | "subtitles"

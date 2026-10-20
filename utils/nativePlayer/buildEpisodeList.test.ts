@@ -29,12 +29,75 @@ const build = (episodes: BaseItemDto[], locale = "en-US") =>
   });
 
 describe("native episode list", () => {
+  test("groups episodes by season, including specials and downloaded metadata", () => {
+    const results = build([
+      {
+        Id: "s2e2",
+        ParentIndexNumber: 2,
+        IndexNumber: 2,
+        SeasonId: "server-2",
+      },
+      {
+        Id: "s0e1",
+        ParentIndexNumber: 0,
+        IndexNumber: 1,
+        SeasonName: "Specials",
+      },
+      { Id: "s2e1", ParentIndexNumber: 2, IndexNumber: 1 },
+      { Id: "s1e1", ParentIndexNumber: 1, IndexNumber: 1 },
+    ]);
+    expect(
+      results.map(({ itemId, seasonKey, seasonName }) => ({
+        itemId,
+        seasonKey,
+        seasonName,
+      })),
+    ).toEqual([
+      { itemId: "s0e1", seasonKey: "number:0", seasonName: "Specials" },
+      { itemId: "s1e1", seasonKey: "number:1", seasonName: "Season 1" },
+      { itemId: "s2e1", seasonKey: "number:2", seasonName: "Season 2" },
+      { itemId: "s2e2", seasonKey: "number:2", seasonName: "Season 2" },
+    ]);
+  });
+
+  test("keeps unnumbered seasons distinct and retains ungrouped episodes", () => {
+    const results = build([
+      { Id: "bonus", SeasonId: "bonus-season", SeasonName: "Bonus" },
+      { Id: "extra", SeasonId: "extra-season", SeasonName: "Extras" },
+      { Id: "unknown" },
+    ]);
+    expect(
+      results.map(({ seasonKey, seasonName }) => ({ seasonKey, seasonName })),
+    ).toEqual([
+      { seasonKey: "id:bonus-season", seasonName: "Bonus" },
+      { seasonKey: "id:extra-season", seasonName: "Extras" },
+      { seasonKey: "unknown", seasonName: "Other episodes" },
+    ]);
+  });
+
+  test("sorts without mutating source data and preserves the playing item across seasons", () => {
+    const episodes = [
+      { ...episode, ParentIndexNumber: 2 },
+      { Id: "s1", ParentIndexNumber: 1 },
+    ];
+    const results = build(episodes);
+    expect(episodes[0].Id).toBe(episode.Id);
+    expect(
+      results.map(({ itemId, isCurrent }) => ({ itemId, isCurrent })),
+    ).toEqual([
+      { itemId: "s1", isCurrent: false },
+      { itemId: episode.Id, isCurrent: true },
+    ]);
+  });
+
   test("includes the description and all available episode details", () => {
     expect(build([episode])).toEqual([
       {
         itemId: "episode-3",
         title: "The Journey",
         indexNumber: 3,
+        seasonKey: "number:2",
+        seasonName: "Season 2",
         overview: episode.Overview,
         details: "S2 E3 · 42m · Jan 15, 2025 · TV-14 · 8.5/10 · Unwatched",
         imageUrl: undefined,
@@ -68,8 +131,8 @@ describe("native episode list", () => {
       { ParentIndexNumber: 2, IndexNumber: null },
     ]);
     expect(results.map((result) => result.details)).toEqual([
-      "Episode 4",
       "Season 2",
+      "Episode 4",
     ]);
   });
 

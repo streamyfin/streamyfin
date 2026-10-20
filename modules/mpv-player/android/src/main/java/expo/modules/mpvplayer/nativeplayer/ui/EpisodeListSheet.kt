@@ -13,16 +13,20 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -41,6 +45,16 @@ fun EpisodeListSheet(
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val episodesState = rememberLazyListState()
+    val seasonsState = rememberLazyListState()
+    val seasons = viewModel.episodeSeasons
+    val selectedSeasonKey = viewModel.selectedEpisodeSeasonKey
+
+    LaunchedEffect(selectedSeasonKey) {
+        episodesState.scrollToItem(0)
+        val seasonIndex = seasons.indexOfFirst { it.key == selectedSeasonKey }
+        if (seasonIndex >= 0) seasonsState.scrollToItem(seasonIndex)
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -60,11 +74,38 @@ fun EpisodeListSheet(
                 modifier = Modifier.padding(bottom = 16.dp)
             )
 
+            if (seasons.size > 1) {
+                Text(
+                    text = viewModel.str("season", "Season"),
+                    color = Color.White.copy(alpha = 0.65f),
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium
+                )
+                LazyRow(
+                    state = seasonsState,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.padding(bottom = 12.dp)
+                ) {
+                    items(seasons, key = { it.key }) { season ->
+                        FilterChip(
+                            selected = season.key == selectedSeasonKey,
+                            onClick = { viewModel.selectEpisodeSeason(season.key) },
+                            label = {
+                                Text(
+                                    text = season.name.ifBlank { viewModel.str("season", "Season") }
+                                )
+                            }
+                        )
+                    }
+                }
+            }
+
             LazyColumn(
+                state = episodesState,
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                items(viewModel.episodeList) { episode ->
+                items(viewModel.visibleEpisodes, key = { it.itemId }) { episode ->
                     EpisodeRow(
                         episode = episode,
                         onClick = { viewModel.selectEpisode(episode.itemId) }

@@ -9,20 +9,35 @@ struct EpisodeListView: View {
 
 	var body: some View {
 		NavigationStack {
-			ScrollViewReader { proxy in
-				List(Array(viewModel.episodeList.enumerated()), id: \.element.itemId) { _, episode in
-					Button {
-						viewModel.selectEpisode(episode)
-					} label: {
-						row(for: episode)
+			VStack(spacing: 0) {
+				if viewModel.episodeSeasons.count > 1 {
+					Picker(
+						viewModel.str("season", "Season"),
+						selection: $viewModel.selectedEpisodeSeasonKey
+					) {
+						ForEach(viewModel.episodeSeasons) { season in
+							Text(season.name).tag(Optional(season.id))
+						}
 					}
-					.listRowBackground(episode.isCurrent ? Color.white.opacity(0.1) : Color.clear)
-					.id(episode.itemId)
+					.pickerStyle(.menu)
+					.tint(.white)
+					.padding(.horizontal)
+					.frame(maxWidth: .infinity, alignment: .leading)
 				}
-				.listStyle(.plain)
-				.onAppear {
-					if let current = viewModel.episodeList.first(where: { $0.isCurrent }) {
-						proxy.scrollTo(current.itemId, anchor: .center)
+				ScrollViewReader { proxy in
+					List(viewModel.visibleEpisodes, id: \.itemId) { episode in
+						Button {
+							viewModel.selectEpisode(episode)
+						} label: {
+							row(for: episode)
+						}
+						.listRowBackground(episode.isCurrent ? Color.white.opacity(0.1) : Color.clear)
+						.id(episode.itemId)
+					}
+					.listStyle(.plain)
+					.onAppear { scrollToEpisode(using: proxy) }
+					.onChange(of: viewModel.selectedEpisodeSeasonKey) { _ in
+						scrollToEpisode(using: proxy)
 					}
 				}
 			}
@@ -41,6 +56,13 @@ struct EpisodeListView: View {
 		}
 		.presentationDetents([.medium, .large])
 		.preferredColorScheme(.dark)
+	}
+
+	private func scrollToEpisode(using proxy: ScrollViewProxy) {
+		if let episode = viewModel.visibleEpisodes.first(where: { $0.isCurrent })
+			?? viewModel.visibleEpisodes.first {
+			proxy.scrollTo(episode.itemId, anchor: episode.isCurrent ? .center : .top)
+		}
 	}
 
 	private func row(for episode: EpisodeListItemRecord) -> some View {

@@ -105,6 +105,8 @@ struct EpisodeListItemRecord: Record {
 	@Field var itemId: String = ""
 	@Field var title: String = ""
 	@Field var indexNumber: Int?
+	@Field var seasonKey: String = ""
+	@Field var seasonName: String = ""
 	@Field var overview: String?
 	@Field var details: String?
 	@Field var imageUrl: String?
