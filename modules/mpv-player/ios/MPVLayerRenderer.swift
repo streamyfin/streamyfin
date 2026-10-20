@@ -125,8 +125,12 @@ final class MPVLayerRenderer {
     private var _isLoading: Bool = false
     private var _isReadyToSeek: Bool = false
     private var _isSeeking: Bool = false
-    /// Queue-confined identities waiting for mpv to emit MPV_EVENT_START_FILE.
-    private var pendingLoadGenerations: [UInt] = []
+    /// Queue-confined: loads whose file mpv has not started yet, oldest first.
+    /// The playlist entry mpv made for each comes with the loadfile reply,
+    /// ahead of its MPV_EVENT_START_FILE. A load replaced before mpv got to its
+    /// file never starts, so a start is matched by its entry, not by order.
+    private var pendingLoads: [(generation: UInt, entryId: Int64?)] = []
+    private var latestLoadGeneration: UInt = 0
     private var activeLoadGeneration: UInt = 0
     /// Position updates dropped while a load waits for its file; logged at START_FILE.
     private var skippedReplacedFileUpdates = 0
@@ -136,7 +140,7 @@ final class MPVLayerRenderer {
     /// cache load() seeded and away from the delegate: JS reports the first
     /// position after the swap at once, under the new item, and a stale one
     /// near the end of the old file marks the new item played.
-    private var isLoadPending: Bool { !pendingLoadGenerations.isEmpty }
+    private var isLoadPending: Bool { activeLoadGeneration != latestLoadGeneration }
 
     // Progress update throttling - CRITICAL for performance!
     // DO NOT REMOVE THIS THROTTLE - it is essential for battery life and CPU efficiency.
@@ -572,7 +576,8 @@ final class MPVLayerRenderer {
         }
 
         queue.async { [weak self] in
-            self?.pendingLoadGenerations.removeAll()
+            self?.pendingLoads.removeAll()
+            self?.latestLoadGeneration = 0
             self?.activeLoadGeneration = 0
             self?.skippedReplacedFileUpdates = 0
         }
@@ -725,9 +730,22 @@ final class MPVLayerRenderer {
                 self.disableSubtitles()
             }
             let target = url.isFileURL ? url.path : url.absoluteString
-            self.pendingLoadGenerations.append(loadGeneration)
-            self.command(handle, ["loadfile", target, "replace"])
+            self.pendingLoads.append((loadGeneration, nil))
+            self.latestLoadGeneration = loadGeneration
+            // Async like the stop above, so mpv runs the two in order. The
+            // reply, tagged with the generation, names the new playlist entry.
+            self.command(handle, ["loadfile", target, "replace"], replyUserdata: UInt64(loadGeneration))
         }
+    }
+
+    /// The `playlist_entry_id` field of a loadfile result.
+    private static func playlistEntryId(in result: mpv_node) -> Int64? {
+        guard result.format == MPV_FORMAT_NODE_MAP, let fields = result.u.list?.pointee else { return nil }
+        for index in 0..<Int(fields.num) where fields.keys[index].map({ String(cString: $0) }) == "playlist_entry_id" {
+            let value = fields.values[index]
+            return value.format == MPV_FORMAT_INT64 ? value.u.int64 : nil
+        }
+        return nil
     }
     
     func applyPreset(_ preset: PlayerPreset) {
@@ -837,10 +855,10 @@ final class MPVLayerRenderer {
         }
     }
     
-    private func command(_ handle: OpaquePointer, _ args: [String]) {
+    private func command(_ handle: OpaquePointer, _ args: [String], replyUserdata: UInt64 = 0) {
         guard !args.isEmpty else { return }
         _ = withCStringArray(args) { pointer in
-            mpv_command_async(handle, 0, pointer)
+            mpv_command_async(handle, replyUserdata, pointer)
         }
     }
     
@@ -897,9 +915,24 @@ final class MPVLayerRenderer {
     
     private func handleEvent(_ event: mpv_event) {
         switch event.event_id {
+        case MPV_EVENT_COMMAND_REPLY:
+            // Only loadfile is sent with a reply tag: its load generation.
+            guard event.reply_userdata != 0,
+                  let index = pendingLoads.firstIndex(where: { UInt64($0.generation) == event.reply_userdata })
+            else { break }
+            if event.error < 0 {
+                // mpv refused the file: nothing will start for this load.
+                pendingLoads.remove(at: index)
+            } else if let reply = event.data?.assumingMemoryBound(to: mpv_event_command.self).pointee {
+                pendingLoads[index].entryId = Self.playlistEntryId(in: reply.result)
+            }
+
         case MPV_EVENT_START_FILE:
-            if !pendingLoadGenerations.isEmpty {
-                activeLoadGeneration = pendingLoadGenerations.removeFirst()
+            if let entryId = event.data?.assumingMemoryBound(to: mpv_event_start_file.self).pointee.playlist_entry_id,
+               let index = pendingLoads.firstIndex(where: { $0.entryId == entryId }) {
+                activeLoadGeneration = pendingLoads[index].generation
+                // The loads queued before it were replaced before mpv got to their file.
+                pendingLoads.removeFirst(index + 1)
             }
             if !isLoadPending && skippedReplacedFileUpdates > 0 {
                 Logger.shared.log(

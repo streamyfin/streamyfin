@@ -4,23 +4,23 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class MpvLoadGenerationsTest {
-    private fun playing(): Pair<MpvLoadGenerations, Long> {
+    // A load as load() makes it: a generation, then the playlist entry loadfile created.
+    private fun MpvLoadGenerations.load(entryId: Long): Long = begin().also { queue(it, entryId) }
+
+    private fun playing(entryId: Long = 1): Pair<MpvLoadGenerations, Long> {
         val generations = MpvLoadGenerations()
-        val first = generations.begin()
-        generations.queue(first)
-        generations.onStartFile()
-        return generations to first
+        val generation = generations.load(entryId)
+        generations.onStartFile(entryId)
+        return generations to generation
     }
 
     @Test fun replacedFileValuesAreNotCurrentUntilTheNewFileStarts() {
         val (generations, first) = playing()
         assertEquals(first, generations.current)
 
-        val second = generations.begin()
+        val second = generations.load(entryId = 2)
         assertNull(generations.current)
-        generations.queue(second)
-        assertNull(generations.current)
-        generations.onStartFile()
+        generations.onStartFile(2)
         assertEquals(second, generations.current)
     }
 
@@ -42,22 +42,41 @@ class MpvLoadGenerationsTest {
         assertFalse(generations.isLatest(stamped))
     }
 
-    @Test fun twoLoadsBeforeAStartTakeTheirFilesInOrder() {
-        val generations = MpvLoadGenerations()
-        val first = generations.begin()
-        generations.queue(first)
-        val second = generations.begin()
-        generations.queue(second)
-        // mpv started the first file, but the second is already asked for.
-        generations.onStartFile()
+    @Test fun loadReplacedBeforeItsFileStartedDoesNotHoldTheNextOneBack() {
+        val (generations, _) = playing()
+        generations.load(entryId = 2)
+        val third = generations.load(entryId = 3)
+        // mpv dropped entry 2 for entry 3 before starting it: only 3 starts.
+        generations.onStartFile(3)
+        assertEquals(third, generations.current)
+
+        val fourth = generations.load(entryId = 4)
+        generations.onStartFile(4)
+        assertEquals(fourth, generations.current)
+    }
+
+    @Test fun olderFileStartingWhileANewerLoadWaitsIsNotCurrent() {
+        val (generations, _) = playing()
+        generations.load(entryId = 2)
+        val third = generations.load(entryId = 3)
+        generations.onStartFile(2)
         assertNull(generations.current)
-        generations.onStartFile()
+        generations.onStartFile(3)
+        assertEquals(third, generations.current)
+    }
+
+    @Test fun startThatBeatsTheLoadToItsEntryStillCounts() {
+        val (generations, _) = playing()
+        val second = generations.begin()
+        // The event thread saw mpv start entry 2 before load() recorded it.
+        generations.onStartFile(2)
+        generations.queue(second, 2)
         assertEquals(second, generations.current)
     }
 
-    @Test fun startWithNoLoadQueuedKeepsTheCurrentFile() {
+    @Test fun startOfAFileNoLongerInThePlaylistChangesNothing() {
         val (generations, first) = playing()
-        generations.onStartFile()
+        generations.onStartFile(null)
         assertEquals(first, generations.current)
     }
 
@@ -65,10 +84,9 @@ class MpvLoadGenerationsTest {
         val (generations, _) = playing()
         generations.reset()
         assertNull(generations.current)
-        val next = generations.begin()
-        generations.queue(next)
+        val next = generations.load(entryId = 2)
         assertNull(generations.current)
-        generations.onStartFile()
+        generations.onStartFile(2)
         assertEquals(next, generations.current)
     }
 }

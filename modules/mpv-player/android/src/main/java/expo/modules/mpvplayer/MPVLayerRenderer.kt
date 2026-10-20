@@ -18,6 +18,8 @@ import java.io.FileOutputStream
 import java.util.Locale
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicReference
+import org.json.JSONArray
+import org.json.JSONException
 
 internal fun normalizeVideoDimensions(width: Int, height: Int, rotation: Int): Pair<Int, Int> {
     val normalizedRotation = ((rotation % 360) + 360) % 360
@@ -724,8 +726,27 @@ class MPVLayerRenderer(
 
         // Load the file
         mpv?.let {
-            loadGenerations.queue(generation)
             it.command(arrayOf("loadfile", url, "replace"))
+            // loadfile left this file as the playlist's only entry; its
+            // MPV_EVENT_START_FILE is matched by that entry's id.
+            it.getPropertyInt("playlist/0/id")?.let { entryId ->
+                loadGenerations.queue(generation, entryId.toLong())
+            }
+        }
+    }
+
+    /** The playlist entry mpv is playing, or null once a newer load took it out of the playlist. */
+    private fun playingEntryId(): Long? {
+        val playlist = mpv?.getPropertyString("playlist") ?: return null
+        return try {
+            val entries = JSONArray(playlist)
+            (0 until entries.length())
+                .map { entries.getJSONObject(it) }
+                .firstOrNull { it.optBoolean("playing") }
+                ?.optLong("id")
+        } catch (e: JSONException) {
+            Log.w(TAG, "Unreadable playlist at start of file: ${e.message}")
+            null
         }
     }
 
@@ -1327,7 +1348,7 @@ class MPVLayerRenderer(
     override fun event(eventId: Int) {
         when (eventId) {
             MPVLib.MPV_EVENT_START_FILE -> {
-                loadGenerations.onStartFile()
+                loadGenerations.onStartFile(playingEntryId())
                 if (loadGenerations.current != null && skippedReplacedFileUpdates > 0) {
                     Log.i(TAG, "Skipped $skippedReplacedFileUpdates position update(s) from the file being replaced")
                     skippedReplacedFileUpdates = 0
@@ -1385,12 +1406,10 @@ class MPVLayerRenderer(
                 val generation = seekReportGeneration
                 val requestId = if (_isSeeking) activeSeekReportRequestId else null
                 val currentRequestId = seekReportRequestId
-                val clock = mpv?.getPropertyDouble("time-pos")
+                val clock = mpv?.getPropertyDouble("time-pos")?.takeIf { it.isFinite() && it >= 0 }
                 // A restart of the file being replaced (a seek just before a
                 // swap) does not give the new file's clock.
-                val position = if (clock != null && clock.isFinite() && clock >= 0 &&
-                    loadGenerations.ifCurrent { cachedPosition = clock } != null
-                ) clock else null
+                val position = clock?.takeIf { value -> loadGenerations.ifCurrent { cachedPosition = value } != null }
                 val duration = cachedDuration
                 val cache = cachedCacheSeconds
                 val wasLoading = _isLoading
