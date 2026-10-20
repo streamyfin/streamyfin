@@ -46,3 +46,12 @@ export const isJellyfinItem = (value: unknown): value is BaseItemDto =>
   value !== null &&
   !Array.isArray(value) &&
   typeof (value as { Id?: unknown }).Id === "string";
+
+/**
+ * refetchOnMount for a query whose data should be an item: a cached value
+ * that is not one is fetched again on mount even while it is still fresh,
+ * which refetchOnMount: true alone would leave until its staleTime runs out.
+ */
+export const refetchUnlessItem = (query: {
+  state: { data: unknown };
+}): boolean | "always" => (isJellyfinItem(query.state.data) ? true : "always");

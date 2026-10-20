@@ -1,4 +1,4 @@
-import { isBaseItemDto, isJellyfinItem } from "./jellyfin";
+import { isBaseItemDto, isJellyfinItem, refetchUnlessItem } from "./jellyfin";
 
 // What answers 200 in the server's place reaches these checks unchecked: a
 // proxy's sign-in page is a string (Sentry REACT-NATIVE-NY).
@@ -37,4 +37,21 @@ describe("isJellyfinItem", () => {
   ])("is false for %s", (_name, value) => {
     expect(isJellyfinItem(value)).toBe(false);
   });
+});
+
+describe("refetchUnlessItem", () => {
+  test("leaves a cached item to the usual staleTime", () => {
+    expect(refetchUnlessItem({ state: { data: { Id: "series-1" } } })).toBe(
+      true,
+    );
+  });
+
+  // A page answered in the server's place and saved by an earlier version
+  // would otherwise stay on screen, as no item, until it went stale.
+  test.each(NOT_ITEMS)(
+    "fetches again over %s, even while fresh",
+    (_name, data) => {
+      expect(refetchUnlessItem({ state: { data } })).toBe("always");
+    },
+  );
 });
