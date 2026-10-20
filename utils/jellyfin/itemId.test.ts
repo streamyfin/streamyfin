@@ -10,6 +10,19 @@ describe("isJellyfinId", () => {
     expect(isJellyfinId("f137a2dd-21bb-c1b9-9aa5-c0f6bf02a805")).toBe(true);
   });
 
+  // Jellyfin binds an id the way .NET's Guid.TryParse reads one: 12.2.0
+  // answers each of these with the library's items.
+  test("takes the dashed GUID in braces or in parentheses", () => {
+    expect(isJellyfinId("{f137a2dd-21bb-c1b9-9aa5-c0f6bf02a805}")).toBe(true);
+    expect(isJellyfinId("(F137A2DD-21BB-C1B9-9AA5-C0F6BF02A805)")).toBe(true);
+  });
+
+  test("takes an id with whitespace around it, which the server trims", () => {
+    expect(isJellyfinId(" f137a2dd21bbc1b99aa5c0f6bf02a805 ")).toBe(true);
+    expect(isJellyfinId("\tf137a2dd-21bb-c1b9-9aa5-c0f6bf02a805\n")).toBe(true);
+    expect(isJellyfinId(" {f137a2dd-21bb-c1b9-9aa5-c0f6bf02a805} ")).toBe(true);
+  });
+
   // Sentry REACT-NATIVE-EM and EN: the music notification opens the app with
   // trackplayer://notification.click, and the library route was handed its host.
   test("refuses the music notification's link", () => {
@@ -35,11 +48,31 @@ describe("isJellyfinId", () => {
   });
 
   test("refuses an id inside other text", () => {
-    expect(isJellyfinId(" f137a2dd21bbc1b99aa5c0f6bf02a805")).toBe(false);
-    expect(isJellyfinId("{f137a2dd-21bb-c1b9-9aa5-c0f6bf02a805}")).toBe(false);
     expect(isJellyfinId("f137a2dd21bbc1b99aa5c0f6bf02a805/Similar")).toBe(
       false,
     );
+    expect(isJellyfinId("f137a2dd21bbc1b99aa5c0f6bf02a805 x")).toBe(false);
+    expect(isJellyfinId("{{f137a2dd-21bb-c1b9-9aa5-c0f6bf02a805}}")).toBe(
+      false,
+    );
+  });
+
+  // The server answers these with a 400: only the dashed form is wrapped, and
+  // in a matching pair.
+  test("refuses brackets the server does not read", () => {
+    expect(isJellyfinId("{f137a2dd21bbc1b99aa5c0f6bf02a805}")).toBe(false);
+    expect(isJellyfinId("(f137a2dd-21bb-c1b9-9aa5-c0f6bf02a805}")).toBe(false);
+    expect(isJellyfinId("[f137a2dd-21bb-c1b9-9aa5-c0f6bf02a805]")).toBe(false);
+  });
+
+  // The server reads this hex literal form too, but nothing writes an id that
+  // way, so it is not taken.
+  test("refuses the hex literal form", () => {
+    expect(
+      isJellyfinId(
+        "{0xf137a2dd,0x21bb,0xc1b9,{0x9a,0xa5,0xc0,0xf6,0xbf,0x02,0xa8,0x05}}",
+      ),
+    ).toBe(false);
   });
 
   // A route param repeated in a url reaches the screen as an array, which the

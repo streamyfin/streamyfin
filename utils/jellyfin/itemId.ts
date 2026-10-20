@@ -1,14 +1,15 @@
-import { JELLYFIN_ID_PATTERN } from "@/constants/Jellyfin";
+import { JELLYFIN_ID_PARAMETER_PATTERN } from "@/constants/Jellyfin";
 
-const JELLYFIN_ID = new RegExp(`^(?:${JELLYFIN_ID_PATTERN})$`, "i");
+const JELLYFIN_ID = new RegExp(`^${JELLYFIN_ID_PARAMETER_PATTERN}$`, "i");
 
 /**
- * Whether a value can name a Jellyfin item. A request built on anything else
- * can only come back as a 400, so a caller holding a value that fails this has
- * nothing to ask the server for.
+ * Whether a value can name a Jellyfin item: an id in one of the forms the
+ * server reads, JELLYFIN_ID_PARAMETER_PATTERN, with or without whitespace
+ * around it, which the server ignores. The server answers what it cannot read
+ * with a 400, so a caller holding a value that fails this does not ask it.
  */
 export const isJellyfinId = (value: unknown): value is string =>
-  typeof value === "string" && JELLYFIN_ID.test(value);
+  typeof value === "string" && JELLYFIN_ID.test(value.trim());
 
 /**
  * What a value refused as an id looked like, for the log: its type and length,
