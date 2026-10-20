@@ -40,6 +40,13 @@ const lintedLines = (properties: string[]): number[] => {
       { cwd: ROOT, encoding: "utf8" },
     );
     const output = `${result.stdout}${result.stderr}`;
+    // A Biome that never ran reports nothing, which every allowed case would
+    // take as a pass.
+    if (result.error || !output.includes("Checked 1 file")) {
+      throw new Error(
+        `biome lint did not check the probe: ${result.error ?? output}`,
+      );
+    }
     return [...output.matchAll(/Probe\.tsx:(\d+):\d+ plugin/g)].map(
       (m) => Number(m[1]) - 1,
     );
