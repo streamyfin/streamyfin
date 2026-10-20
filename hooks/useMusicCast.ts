@@ -9,7 +9,7 @@ import CastContext, {
   useRemoteMediaClient,
 } from "react-native-google-cast";
 import { getAudioContentType } from "@/utils/jellyfin/audio/getAudioContentType";
-import { getAudioStreamUrl } from "@/utils/jellyfin/audio/getAudioStreamUrl";
+import { requestAudioStream } from "@/utils/jellyfin/audio/getAudioStreamUrl";
 import { logAndCaptureError } from "@/utils/log";
 
 interface UseMusicCastOptions {
@@ -69,16 +69,14 @@ export const useMusicCast = ({ api, userId }: UseMusicCastOptions) => {
         const queueToSend = queue.slice(0, 100);
         const queueItems = await Promise.all(
           queueToSend.map(async (track) => {
-            const streamResult = await getAudioStreamUrl(
+            // The request's own error, not a stand-in: logAndCaptureError
+            // keeps a server out of reach in the local log and groups a
+            // refusal by its route, which a message naming the track defeated.
+            const streamResult = await requestAudioStream(
               api,
               userId,
               track.Id!,
             );
-            if (!streamResult) {
-              throw new Error(
-                `Failed to get stream URL for track: ${track.Name}`,
-              );
-            }
 
             const contentType = getAudioContentType(
               streamResult.mediaSource?.Container,
