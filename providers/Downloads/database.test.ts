@@ -118,12 +118,14 @@ it.each([
 
 // A damaged entry used to cost nothing at load; the fix-up now reads every item, so it has to
 // step over one rather than stop the app from reading any download.
-it("loads a stored database with a damaged subtitle or episode entry", () => {
+it.each([
+  ["a null subtitle stream", (streams: unknown[]) => [null, ...streams]],
+  ["streams stored as an object", () => ({})],
+])("loads a stored database with %s or a null episode", (_label, damage) => {
   const movie = downloadedBefore(oldDocuments);
-  movie.mediaSource.MediaStreams = [
-    null as never,
-    ...(movie.mediaSource.MediaStreams ?? []),
-  ];
+  movie.mediaSource.MediaStreams = damage(
+    movie.mediaSource.MediaStreams ?? [],
+  ) as never;
   storage.set(
     "downloads.v2.json",
     JSON.stringify({

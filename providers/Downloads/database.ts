@@ -40,7 +40,8 @@ function withCurrentDocumentPaths(
       documents,
     );
   }
-  for (const stream of item.mediaSource?.MediaStreams ?? []) {
+  const streams = item.mediaSource?.MediaStreams;
+  for (const stream of Array.isArray(streams) ? streams : []) {
     if (typeof stream?.DeliveryUrl === "string") {
       stream.DeliveryUrl = rebaseOntoDocuments(stream.DeliveryUrl, documents);
     }
