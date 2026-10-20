@@ -1,3 +1,6 @@
+// pluginSettingsAtom reads the stored plugin settings with storage.get while
+// this module loads, and nothing else this file imports adds that method.
+import "@/augmentations/mmkv";
 import {
   type BaseItemKind,
   type CultureDto,

@@ -36,7 +36,7 @@ CI does the same thing on every PR that touches code the scenarios can reach (th
 - Fake timers, with `performance` left real. React reads its render durations from `performance.now`, so faking it would make every duration zero.
 - Stubs for native modules and libraries that don't run in Jest: FlashList's measurements, MMKV, Reanimated, safe area insets, the bottom sheet, device info, toasts and the app's own native modules (`@/modules`).
 - A recording router: `test-utils/expoRouter.ts` stands for `expo-router`, and its `router` holds the `push` and `replace` calls the real `useAppRouter` makes, so a scenario can assert them.
-- A `JellyfinProvider` whose `apiAtom` holds a `makeApi()` double from `test-utils/jellyfinApi.ts`, so you can answer API requests with `api.mock`.
+- `@/utils/atoms/api` and a `JellyfinProvider` that re-exports it, whose `apiAtom` holds a `makeApi()` double from `test-utils/jellyfinApi.ts`, so you can answer API requests with `api.mock`.
 
 The app's own components render for real: `ServerImage`, `GlassSurface`, `TouchableItemRouter`, `useAppRouter`, haptics and the item action sheet. Stubbing them would leave their cost out of every number. Only what reaches native code is stubbed.
 

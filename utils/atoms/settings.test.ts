@@ -1,6 +1,3 @@
-// The mocked JellyfinProvider is what loads this in the app: `storage.get`
-// and `storage.setAny`, which the plugin settings are read and written with.
-import "@/augmentations/mmkv";
 import { act, cleanup, renderHook } from "@testing-library/react-native";
 import { AxiosError, type AxiosResponse } from "axios";
 import { getDefaultStore } from "jotai";
@@ -355,6 +352,26 @@ describe("the still watching migration", () => {
       value: "short",
     });
     expect(settings && "maxAutoPlayEpisodeCount" in settings).toBe(false);
+  });
+});
+
+describe("loading the stored plugin settings", () => {
+  // settings.ts reads them while it is imported, through storage.get, which
+  // the MMKV augmentation adds. In the app, _layout loads it first; anything
+  // that imported settings.ts earlier started the admin's locks empty.
+  it("reads them when nothing loaded the MMKV augmentation first", () => {
+    const locks = { forwardSkipTime: { locked: true, value: 20 } };
+    jest.isolateModules(() => {
+      const { storage: fresh } =
+        require("@/utils/mmkv") as typeof import("@/utils/mmkv");
+      // A plain set: setAny comes from the augmentation this leaves out.
+      fresh.set(PLUGIN_SETTINGS_KEY, JSON.stringify(locks));
+      const { pluginSettingsAtom: loaded } =
+        require("./settings") as typeof import("./settings");
+      const { getDefaultStore: freshStore } =
+        require("jotai") as typeof import("jotai");
+      expect(freshStore().get(loaded)).toEqual(locks);
+    });
   });
 });
 
