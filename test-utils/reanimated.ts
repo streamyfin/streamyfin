@@ -1,4 +1,5 @@
-import { useRef } from "react";
+import { type ComponentType, useEffect, useRef } from "react";
+import { ScrollView, Text, View } from "react-native";
 
 /** Writes made from JS that the UI thread has not taken yet. */
 const heldWrites: (() => void)[] = [];
@@ -24,16 +25,29 @@ export const releaseSharedValueWrites = () => {
   for (const write of heldWrites.splice(0)) write();
 };
 
-const sharedValue = <Value>(initial: Value) => {
+const reactions = new Set<() => void>();
+let runningReactions = false;
+
+const triggerReanimatedReactions = () => {
+  if (runningReactions) return;
+  runningReactions = true;
+  try {
+    for (const r of [...reactions]) r();
+  } finally {
+    runningReactions = false;
+  }
+};
+
+export const makeSharedValue = <Value>(initial: Value) => {
   let held = initial;
+  const land = (next: Value) => {
+    const changed = !Object.is(held, next);
+    held = next;
+    if (changed) triggerReanimatedReactions();
+  };
   const write = (next: Value) => {
-    if (holding) {
-      heldWrites.push(() => {
-        held = next;
-      });
-    } else {
-      held = next;
-    }
+    if (holding) heldWrites.push(() => land(next));
+    else land(next);
   };
   return {
     get value() {
@@ -45,6 +59,13 @@ const sharedValue = <Value>(initial: Value) => {
     get: () => held,
     set: write,
   };
+};
+
+const Animated = {
+  View,
+  Text,
+  ScrollView,
+  createAnimatedComponent: (component: ComponentType) => component,
 };
 
 /**
@@ -64,13 +85,60 @@ const sharedValue = <Value>(initial: Value) => {
  * which needs the native worklets runtime.
  */
 export const reanimatedModule = {
+  default: Animated,
+  ...Animated,
   // A worklet asking for a function to run on the JS thread: here it is
   // already there.
   runOnJS:
     <Args extends unknown[]>(fn: (...args: Args) => void) =>
     (...args: Args) =>
       fn(...args),
-  useAnimatedReaction: () => {},
+  useAnimatedReaction: (
+    prepare: () => unknown,
+    react: (current: unknown, previous: unknown) => void,
+    deps: unknown[] = [],
+  ) => {
+    const prevRef = useRef<unknown>(undefined);
+    const prepareRef = useRef(prepare);
+    prepareRef.current = prepare;
+    const reactRef = useRef(react);
+    reactRef.current = react;
+
+    useEffect(() => {
+      const runner = () => {
+        const current = prepareRef.current();
+        reactRef.current(current, prevRef.current);
+        prevRef.current = current;
+      };
+      reactions.add(runner);
+      runner();
+      return () => {
+        reactions.delete(runner);
+      };
+    }, deps);
+  },
   useSharedValue: <Value>(initial: Value) =>
-    useRef(sharedValue(initial)).current,
+    useRef(makeSharedValue(initial)).current,
+  useAnimatedStyle: (updater: () => object) => updater(),
+  withTiming: (toValue: unknown) => toValue,
+  withDelay: (_delay: unknown, animation: unknown) => animation,
+  withRepeat: (animation: unknown) => animation,
+  cancelAnimation: () => {},
+  interpolate: (
+    value: number,
+    [inputStart, inputEnd]: number[],
+    [outputStart, outputEnd]: number[],
+  ) => {
+    const ratio = (value - inputStart) / (inputEnd - inputStart);
+    return (
+      outputStart + Math.min(Math.max(ratio, 0), 1) * (outputEnd - outputStart)
+    );
+  },
+  Easing: {
+    out: () => ({}),
+    cubic: {},
+    inOut: () => ({}),
+    ease: {},
+  },
+  Extrapolation: { CLAMP: "clamp" },
 };

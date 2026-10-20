@@ -23,6 +23,7 @@ import { OverviewText } from "@/components/OverviewText";
 import { ParallaxScrollView } from "@/components/ParallaxPage";
 import { PlatformDropdown } from "@/components/PlatformDropdown";
 import { SeerrRatings } from "@/components/Ratings";
+import { AwaitTitleButton } from "@/components/seerr/AwaitTitleButton";
 import Cast from "@/components/seerr/Cast";
 import DetailFacts from "@/components/seerr/DetailFacts";
 import RequestModal from "@/components/seerr/RequestModal";
@@ -428,6 +429,16 @@ const MobilePage: React.FC = () => {
                     )}
                   </View>
                 )
+              )}
+              {/* Kept mounted while the details refetch, as after a request: remounted, it
+                  would read the person's choices and titles again. */}
+              {!isLoading && (
+                <AwaitTitleButton
+                  details={details}
+                  mediaType={mediaType}
+                  seerrUserId={seerrUser?.id}
+                  className={jellyfinMediaId || offersRequest ? "mt-2" : "mt-4"}
+                />
               )}
               {canManageRequests && pendingRequest && (
                 <View className='flex flex-col mt-4' style={{ gap: 8 }}>
