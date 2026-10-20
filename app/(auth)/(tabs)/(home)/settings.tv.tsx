@@ -25,6 +25,7 @@ import {
   TVSettingsTextInput,
   TVSettingsToggle,
 } from "@/components/tv";
+import { PERMISSION_ASKED_KEY } from "@/constants/Notifications";
 import {
   STILL_WATCHING_PRESET_ORDER,
   type StillWatchingPreset,
@@ -266,7 +267,7 @@ export default function SettingsTV() {
                 "user",
                 "deviceId",
                 "previousServers",
-                "hasAskedForNotificationPermission",
+                PERMISSION_ASKED_KEY,
                 "hasShownIntro",
                 "multiAccountMigrated",
                 "selectedTVServer",
