@@ -1,4 +1,5 @@
 import { AUTHORIZATION_HEADER } from "@jellyfin/sdk";
+import { AxiosHeaders } from "axios";
 import { makeApi } from "@/test-utils/jellyfinApi";
 import "./api";
 
@@ -32,15 +33,30 @@ describe.each(["get", "post", "put", "delete"] as const)("api.%s", (method) => {
 
   test("still sends the session's authorization", async () => {
     const { api, headers } = await sent(method);
-    expect(headers[AUTHORIZATION_HEADER]).toBe(api.authorizationHeader);
+    expect(AxiosHeaders.from(headers).get(AUTHORIZATION_HEADER)).toBe(
+      api.authorizationHeader,
+    );
   });
 });
 
-test("a request cannot replace the session's authorization", async () => {
+// Header names are matched without case, and false asks axios to drop one:
+// axios merges a request's headers caselessly, the later key winning, and the
+// session's comes last.
+test.each([
+  [
+    "cannot replace the session's authorization",
+    { [AUTHORIZATION_HEADER]: "MediaBrowser Token=other" },
+  ],
+  [
+    "cannot replace it under a lower case name",
+    { authorization: "MediaBrowser Token=other" },
+  ],
+  ["cannot drop it with false", { authorization: false }],
+])("a request %s", async (_name, headers) => {
   const api = makeApi({ Items: [] });
-  await api.get("/Custom/Endpoint", {
-    headers: { [AUTHORIZATION_HEADER]: "MediaBrowser Token=other" },
-  });
+  await api.get("/Custom/Endpoint", { headers });
   const [request] = api.mock.history.get;
-  expect(request.headers?.[AUTHORIZATION_HEADER]).toBe(api.authorizationHeader);
+  expect(AxiosHeaders.from(request.headers).get(AUTHORIZATION_HEADER)).toBe(
+    api.authorizationHeader,
+  );
 });
