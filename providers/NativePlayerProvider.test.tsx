@@ -105,6 +105,8 @@ const mockNegotiation = {
   held: false,
   waiting: [] as Array<() => void>,
   count: 0,
+  /** Each stream negotiated from now on opens a live stream on the server. */
+  live: false,
 };
 
 jest.mock("@/utils/nativePlayer/buildNativePlayerConfig", () => ({
@@ -139,7 +141,12 @@ jest.mock("@/utils/nativePlayer/buildNativePlayerConfig", () => ({
         stream: {
           url,
           sessionId: playSessionId,
-          mediaSource: { Id: `source-${req.itemId}` },
+          mediaSource: {
+            Id: `source-${req.itemId}`,
+            ...(mockNegotiation.live && {
+              LiveStreamId: `live-${playSessionId}`,
+            }),
+          },
         },
         mediaSourceId: `source-${req.itemId}`,
         bitrateValue: req.bitrateValue,
@@ -201,13 +208,11 @@ jest.mock("react-native-edge-to-edge", () => ({ SystemBars: () => null }));
 jest.mock("@/packages/expo-screen-orientation", () => ({
   OrientationLock: { PORTRAIT_UP: 1, LANDSCAPE: 5 },
 }));
-jest.mock("@/providers/JellyfinProvider", () => {
-  const { atom } = jest.requireActual("jotai");
-  const { makeApi: make } = jest.requireActual("@/test-utils/jellyfinApi");
-  const mockApi = make();
-  mockApi.mock.onAny().reply(200, {});
-  return { apiAtom: atom(mockApi), userAtom: atom({ Id: "user-1" }), mockApi };
-});
+jest.mock(
+  "@/providers/JellyfinProvider",
+  () =>
+    jest.requireActual("@/test-utils/jellyfinProvider").jellyfinProviderModule,
+);
 jest.mock("@/providers/DownloadProvider", () => ({
   useDownload: () => mockDownloads,
 }));
@@ -217,9 +222,10 @@ jest.mock("@/providers/SyncPlayProvider", () => ({
 jest.mock("@/providers/WebSocketProvider", () => ({
   useWebSocketContext: () => mockSocket,
 }));
-jest.mock("@/hooks/useNetworkStatus", () => ({
-  useNetworkStatus: () => ({ isConnected: true }),
-}));
+jest.mock(
+  "@/hooks/useNetworkStatus",
+  () => jest.requireActual("@/test-utils/appProviders").networkStatusModule,
+);
 jest.mock("@/hooks/useOrientation", () => ({
   useOrientation: () => mockOrientation,
 }));
@@ -297,7 +303,8 @@ jest.mock("@/utils/syncplay/queueDisplay", () => ({
 
 const api: ReturnType<typeof makeApi> = jest.requireMock(
   "@/providers/JellyfinProvider",
-).mockApi;
+).apiAtom.init;
+api.mock.onAny().reply(200, {});
 const log: { logAndCaptureError: jest.Mock } = jest.requireMock("@/utils/log");
 
 const REPORTS: Record<string, string> = {
@@ -365,16 +372,18 @@ const releaseNegotiations = async () => {
 };
 
 /**
- * The player closing on its own (the close button, the end of the stream):
+ * The player closing on its own, by its close button unless told otherwise:
  * onDismiss goes out while the module still holds its session.
  */
-const startClosing = async () => {
+const startClosing = async (
+  reason: "closeButton" | "playbackEnded" = "closeButton",
+) => {
   if (mockNative.session) mockNative.session.closing = true;
   await act(async () =>
     mockNative.emit("onDismiss", {
       positionSec: 60,
       durationSec: 1800,
-      reason: "closeButton",
+      reason,
     }),
   );
   await settle();
@@ -384,6 +393,19 @@ const startClosing = async () => {
 const finishClosing = () => {
   mockNative.session = null;
 };
+
+/** Lets a play waiting for a closing player see it gone, in real time. */
+const waitForClosedPlayer = () =>
+  act(() => new Promise((resolve) => setTimeout(resolve, 150)));
+
+/** The live streams the app asked the server to close. */
+const closedLiveStreams = () =>
+  api.mock.history.post.flatMap((request) => {
+    const match = /\/LiveStreams\/Close\?liveStreamId=([^&]+)/.exec(
+      request.url ?? "",
+    );
+    return match ? [match[1]] : [];
+  });
 
 /**
  * Starts a request and lets it run up to whatever holds it. Wrapped: an async
@@ -408,6 +430,7 @@ beforeEach(() => {
   mockNegotiation.held = false;
   mockNegotiation.waiting = [];
   mockNegotiation.count = 0;
+  mockNegotiation.live = false;
   api.mock.resetHistory();
   log.logAndCaptureError.mockClear();
 });
@@ -495,6 +518,95 @@ describe("a swap the player closes under", () => {
       "start play-session-3",
     ]);
   });
+
+  // The swap's stream negotiated from the server: dropping it closes it.
+  test("a dropped swap closes the live stream it opened", async () => {
+    await mount();
+    await open("item-1");
+    mockNegotiation.live = true;
+    holdNegotiations();
+    const swap = await start(async () =>
+      mockNative.emit("onQualitySelected", {
+        bitrateValue: 4_000_000,
+        positionSec: 60,
+      }),
+    );
+
+    await startClosing();
+    await releaseNegotiations();
+    await act(async () => {
+      await swap.done;
+    });
+
+    expect(mockNative.loaded).toHaveLength(0);
+    expect(closedLiveStreams()).toEqual(["live-play-session-2"]);
+  });
+});
+
+// An episode change asked for in the last seconds, or a remote Play, races
+// the end of the stream: the player closes on its own while the next item
+// is negotiating. That item still plays, in a new player once the old one
+// is gone.
+describe("a swap whose stream ended under it", () => {
+  test("plays the next episode in a new player", async () => {
+    await mount();
+    await open("item-1");
+    holdNegotiations();
+    const swap = await start(async () =>
+      mockNative.emit("onNextEpisodeRequested", {
+        reason: "userTap",
+        positionSec: 1795,
+      }),
+    );
+
+    await startClosing("playbackEnded");
+    await releaseNegotiations();
+    // Not while the closing player still holds the module, which iOS
+    // refuses (Sentry REACT-NATIVE-BR).
+    expect(mockNative.presented).toHaveLength(1);
+
+    finishClosing();
+    await waitForClosedPlayer();
+    await act(async () => {
+      await swap.done;
+    });
+    await settle();
+
+    expect(mockNative.presented).toEqual([
+      "https://jellyfin.example.com/Videos/item-1/stream?PlaySessionId=play-session-1",
+      "https://jellyfin.example.com/Videos/item-2/stream?PlaySessionId=play-session-2",
+    ]);
+    expect(log.logAndCaptureError).not.toHaveBeenCalled();
+    expect(serverReports()).toEqual([
+      "start play-session-1",
+      "stop play-session-1",
+      "start play-session-2",
+    ]);
+  });
+
+  // The same item has nothing left to play once its stream has ended.
+  test("drops a quality change", async () => {
+    await mount();
+    await open("item-1");
+    holdNegotiations();
+    const swap = await start(async () =>
+      mockNative.emit("onQualitySelected", {
+        bitrateValue: 4_000_000,
+        positionSec: 1795,
+      }),
+    );
+
+    await startClosing("playbackEnded");
+    finishClosing();
+    await releaseNegotiations();
+    await act(async () => {
+      await swap.done;
+    });
+
+    expect(mockNative.presented).toHaveLength(1);
+    expect(mockNative.loaded).toHaveLength(0);
+    expect(log.logAndCaptureError).not.toHaveBeenCalled();
+  });
 });
 
 describe("a play while the player is up", () => {
@@ -545,4 +657,27 @@ describe("a play while the player is up", () => {
     // The first stream never took the player, so it never started.
     expect(serverReports()).toEqual(["start play-session-2"]);
   });
+});
+
+// The user closes the player and starts another item right away, or another
+// client sends Play: the request finds no session, but on iOS the module
+// still holds the closing one until its fade-out ends.
+test("a play waits for a player that is still closing", async () => {
+  await mount();
+  await open("item-1");
+  await startClosing();
+
+  const played = await start(() => play("item-3"));
+  await settle();
+  expect(mockNative.presented).toHaveLength(1);
+
+  finishClosing();
+  await waitForClosedPlayer();
+  await act(async () => {
+    await expect(played.done).resolves.toBe(true);
+  });
+  await settle();
+
+  expect(mockNative.presented).toHaveLength(2);
+  expect(log.logAndCaptureError).not.toHaveBeenCalled();
 });

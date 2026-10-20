@@ -30,6 +30,8 @@ import {
   updatePlaybackSpeedSettings,
 } from "@/components/video-player/controls/utils/playback-speed-settings";
 import {
+  NATIVE_PLAYER_CLOSE_POLL_MS,
+  NATIVE_PLAYER_CLOSE_WAIT_MS,
   NEXT_EPISODE_COUNTDOWN_MS,
   PROGRESS_REPORT_INTERVAL,
 } from "@/constants/Playback";
@@ -51,6 +53,7 @@ import {
   isNativePlayerPresented,
   isNativePlayerSyncPlayAvailable,
   loadNativePlayerStream,
+  type NativePlayerDismissReason,
   type NativePlayerEpisodeListItem,
   type NativePlayerNextEpisode,
   type NativePlayerSegment,
@@ -325,6 +328,23 @@ const mapSearchResults = (
     aiTranslated: r.aiTranslated,
   }));
 
+/**
+ * Waits, briefly, for a native player that is closing to be gone. On iOS the
+ * module keeps its session until the cross-dissolve of the closing player has
+ * ended, a few hundred ms after onDismiss tore the JS session down, and
+ * refuses a new player until then (Sentry REACT-NATIVE-BR). Android drops it
+ * within the pass that emits onDismiss. Past the wait the present goes ahead,
+ * and a refusal then is reported as before.
+ */
+const waitForClosingNativePlayer = async () => {
+  const deadline = Date.now() + NATIVE_PLAYER_CLOSE_WAIT_MS;
+  while (isNativePlayerPresented() && Date.now() < deadline) {
+    await new Promise((resolve) =>
+      setTimeout(resolve, NATIVE_PLAYER_CLOSE_POLL_MS),
+    );
+  }
+};
+
 export const NativePlayerProvider: React.FC<{
   children: React.ReactNode;
 }> = ({ children }) => {
@@ -440,6 +460,12 @@ const NativePlayerProviderInner: React.FC<{
   const [activeItem, setActiveItem] = useState<BaseItemDto | null>(null);
   const [isActive, setIsActive] = useState(false);
   const nativePipRef = useRef(false);
+  // How the last session's player closed, for a request that was meant to
+  // swap into it (beginSession).
+  const lastDismissalRef = useRef<{
+    session: NativeSession;
+    reason: NativePlayerDismissReason;
+  } | null>(null);
 
   useEffect(() => {
     if (isActive && syncPlay.enabled && isNativePlayerSyncPlayAvailable())
@@ -938,6 +964,8 @@ const NativePlayerProviderInner: React.FC<{
       if (!currentSettings) return false;
       syncBufferingReporter.reset();
       const token = ++playRequestTokenRef.current;
+      // The session a swap is meant for, as it was when it was asked for.
+      const requestedOver = sessionRef.current;
 
       const built = await buildNativePlayerConfig({
         api: apiRef.current,
@@ -1011,18 +1039,31 @@ const NativePlayerProviderInner: React.FC<{
 
       const previous = sessionRef.current;
 
-      // The player this swap was meant for closed while the stream was
-      // negotiating (a close tap, the end of the stream). There is nothing
-      // left to swap into, and presenting instead would reopen a player that
-      // was just closed, or be refused on iOS while the old one is still
-      // fading out (Sentry REACT-NATIVE-BR). Same rule as the dismiss check
-      // after the stop report below, one round trip earlier.
-      if (options.replace && !previous) {
+      // A swap whose player closed before the swap could happen. Closed
+      // because its stream ended, a request for another item (an episode
+      // picked in the last seconds, a remote Play) still plays, in a new
+      // player. Closed any other way (the close button, an error, the sleep
+      // timer) the request is dropped: presenting would reopen a player that
+      // was just closed, and iOS refuses it while that one still fades out
+      // (Sentry REACT-NATIVE-BR).
+      const continuesAfterStreamEnd = (closed: NativeSession | null) =>
+        closed !== null &&
+        lastDismissalRef.current?.session === closed &&
+        lastDismissalRef.current.reason === "playbackEnded" &&
+        closed.item.Id !== session.item.Id;
+      const dropSwap = () => {
         writeToLog(
           "INFO",
           "NativePlayer swap dropped: the player closed during negotiation",
         );
         releaseLiveStream(session);
+      };
+      if (
+        options.replace &&
+        !previous &&
+        !continuesAfterStreamEnd(requestedOver)
+      ) {
+        dropSwap();
         return true;
       }
 
@@ -1056,8 +1097,10 @@ const NativePlayerProviderInner: React.FC<{
             : false;
       }
 
+      // Into the player on screen (load), or into a new one (present).
+      let swapIn = !!(options.replace && previous);
       try {
-        if (options.replace && previous) {
+        if (swapIn && previous) {
           // Close the OLD server session only now that the new stream is
           // fully negotiated — a config-build failure above must leave the
           // old session playing and reportable.
@@ -1074,11 +1117,17 @@ const NativePlayerProviderInner: React.FC<{
           }
           // A dismiss landed during the round trip (teardownSession clears
           // sessionRef at once): there is no `previous` to swap out, and a
-          // load issued now would land on a dismissing session.
+          // load issued now would land on a dismissing session. The rule
+          // above decides between a new player and none.
           if (sessionRef.current !== previous) {
-            releaseLiveStream(session);
-            return true;
+            if (!continuesAfterStreamEnd(previous)) {
+              dropSwap();
+              return true;
+            }
+            swapIn = false;
           }
+        }
+        if (swapIn && previous) {
           if (syncRef.current.enabled) {
             previous.isReady = false;
             previous.isBuffering = true;
@@ -1087,6 +1136,16 @@ const NativePlayerProviderInner: React.FC<{
           sessionRef.current = session;
           await loadNativePlayerStream(built.config);
         } else {
+          // iOS refuses a new player while the one that closed is still
+          // fading out, after it has emitted onDismiss.
+          await waitForClosingNativePlayer();
+          if (
+            token !== playRequestTokenRef.current ||
+            options.isCurrent?.() === false
+          ) {
+            releaseLiveStream(session);
+            return false;
+          }
           // Lock orientation BEFORE presenting: expo-screen-orientation owns
           // the window orientation mask, and presenting a landscape-only VC
           // against a portrait-only mask crashes with
@@ -1111,7 +1170,7 @@ const NativePlayerProviderInner: React.FC<{
         }
         const outcome = resolveFailedPresentation({
           sessionIsCurrent: sessionRef.current === session,
-          swapped: !!(options.replace && previous),
+          swapped: swapIn,
           playerPresented: isNativePlayerPresented(),
         });
         if (outcome === "restore") {
@@ -1137,8 +1196,10 @@ const NativePlayerProviderInner: React.FC<{
           revalidateProgressCache();
           unlockOrientation();
         } else if (outcome === "unpresented") {
+          // Only a new player goes unpresented, with no session left behind:
+          // a request whose own player closed has none to restore.
           releaseLiveStream(session);
-          sessionRef.current = previous;
+          sessionRef.current = null;
           unlockOrientation();
         }
         // "closed": onDismiss or a newer request already moved sessionRef and
@@ -2184,6 +2245,7 @@ const NativePlayerProviderInner: React.FC<{
         const session = sessionRef.current;
         if (!session) return;
         nativePipRef.current = false;
+        lastDismissalRef.current = { session, reason: payload.reason };
         // Closing the player is not leaving the group: only Leave is.
         if (syncRef.current.enabled && payload.reason !== "programmatic")
           void syncRef.current.stopWatching().catch(() => {});
