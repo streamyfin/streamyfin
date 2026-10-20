@@ -1,7 +1,7 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { useSegments } from "expo-router";
 import { useAtomValue } from "jotai";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ItemActionSheetHost } from "@/components/common/ItemActionSheetHost";
 import {
   getItemNavigation,
@@ -66,7 +66,9 @@ export function useItemCardBehavior({
   // Read through a ref so a paged list growing `items` does not hand every
   // memoized Card a new press handler.
   const itemsRef = useRef(items);
-  itemsRef.current = items;
+  useLayoutEffect(() => {
+    itemsRef.current = items;
+  }, [items]);
 
   const cards = useMemo(
     () =>
