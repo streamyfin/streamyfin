@@ -193,3 +193,19 @@ it("leaves every stored path alone on Android", () => {
     require("@/test-utils/reactNative").stubReactNative({ OS: "ios" });
   }
 });
+
+// An entry with no item to describe it is not a download either: the lookups that index items
+// by their id would trip on it.
+it("finds a download stored next to an entry with no item", () => {
+  storage.set(
+    "downloads.v2.json",
+    JSON.stringify({
+      movies: { broken: {}, "movie-1": downloadedBefore(oldDocuments) },
+      series: {},
+      other: {},
+    }),
+  );
+  expect(database.getDownloadedItemById("movie-1")?.videoFilePath).toBe(
+    `${mockDocuments}some_movie_1999.mp4`,
+  );
+});

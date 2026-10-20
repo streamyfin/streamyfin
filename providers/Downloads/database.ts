@@ -55,19 +55,26 @@ function withCurrentDocumentPaths(
  * returns the database.
  */
 function withAllSections(db: Partial<DownloadsDatabase>): DownloadsDatabase {
-  const isItem = (entry: unknown) => !!entry && typeof entry === "object";
-  const keepItems = <T>(entries: Record<string, T> | undefined) =>
+  const isObject = (entry: unknown): entry is Record<string, unknown> =>
+    !!entry && typeof entry === "object";
+  // A download carries the item it describes; the lookups index it by that item's id.
+  const isDownload = (entry: unknown) =>
+    isObject(entry) && isObject(entry.item);
+  const keep = <T>(
+    entries: Record<string, T> | undefined,
+    test: (entry: unknown) => boolean,
+  ) =>
     Object.fromEntries(
-      Object.entries(entries ?? {}).filter(([, entry]) => isItem(entry)),
+      Object.entries(entries ?? {}).filter(([, entry]) => test(entry)),
     ) as Record<string, T>;
 
-  db.movies = keepItems(db.movies);
-  db.other = keepItems(db.other);
-  db.series = keepItems(db.series);
+  db.movies = keep(db.movies, isDownload);
+  db.other = keep(db.other, isDownload);
+  db.series = keep(db.series, isObject);
   for (const series of Object.values(db.series)) {
-    series.seasons = keepItems(series.seasons);
+    series.seasons = keep(series.seasons, isObject);
     for (const season of Object.values(series.seasons)) {
-      season.episodes = keepItems(season.episodes);
+      season.episodes = keep(season.episodes, isDownload);
     }
   }
   return db as DownloadsDatabase;
