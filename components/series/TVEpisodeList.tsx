@@ -5,7 +5,6 @@ import { TVHorizontalList } from "@/components/tv/TVHorizontalList";
 import { TVPosterCard } from "@/components/tv/TVPosterCard";
 import { TVPosterPill } from "@/components/tv/TVPosterPill";
 import { useEpisodeAirLabels } from "@/hooks/useEpisodeAirLabels";
-import { useSettings } from "@/utils/atoms/settings";
 
 interface TVEpisodeListProps {
   episodes: BaseItemDto[];
@@ -45,7 +44,6 @@ export const TVEpisodeList: React.FC<TVEpisodeListProps> = ({
   horizontalPadding,
 }) => {
   const { availabilityLabel } = useEpisodeAirLabels();
-  const { settings } = useSettings();
 
   const renderItem = useCallback(
     ({ item: episode, index }: { item: BaseItemDto; index: number }) => {
@@ -72,7 +70,10 @@ export const TVEpisodeList: React.FC<TVEpisodeListProps> = ({
           overlay={
             unavailable ? <TVPosterPill label={unavailable} /> : undefined
           }
-          preferEpisodeImage={settings?.useEpisodeImagesForNextUp}
+          // Each episode's own image, as on the phone's series and episode
+          // pages; the Next up setting is for the Next Up and Continue
+          // Watching rows.
+          preferEpisodeImage
         />
       );
     },

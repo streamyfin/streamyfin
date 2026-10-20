@@ -5,11 +5,6 @@ import { TVEpisodeList } from "./TVEpisodeList";
 jest.mock("react-i18next", () => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }));
-jest.mock("@/utils/atoms/settings", () => ({
-  useSettings: () => ({
-    settings: { useEpisodeImagesForNextUp: true },
-  }),
-}));
 jest.mock("@/constants/TVTypography", () => ({
   useScaledTVTypography: () => ({ heading: 1, callout: 1 }),
 }));
@@ -67,5 +62,21 @@ test("marks the episodes that have no file to play", async () => {
 
   expect(screen.getAllByText("item_card.missing")).toHaveLength(1);
   expect(screen.getAllByText("item_card.not_yet_aired")).toHaveLength(1);
-  expect(screen.getAllByText("episode-image-preferred")).toHaveLength(3);
+});
+
+// Every episode used to show the series' image (#1764). Each shows its own, as
+// on the phone, whatever the Next up setting picks for the home rows.
+test("shows each episode with its own image", async () => {
+  await render(
+    <TVEpisodeList
+      onEpisodePress={() => {}}
+      episodes={[
+        episode("Pilot", { LocationType: "FileSystem" }),
+        episode("Finale", { LocationType: "FileSystem" }),
+      ]}
+    />,
+  );
+
+  expect(screen.getAllByText("episode-image-preferred")).toHaveLength(2);
+  expect(screen.queryByText("series-image-preferred")).toBeNull();
 });
