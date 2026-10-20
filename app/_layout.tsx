@@ -42,7 +42,6 @@ import {
   BACKGROUND_FETCH_TASK_SESSIONS,
   registerBackgroundFetchAsyncSessions,
 } from "@/utils/background-tasks";
-import { getOrSetDeviceId } from "@/utils/device";
 import {
   LogProvider,
   writeErrorLog,
@@ -51,7 +50,6 @@ import {
 } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
 import { notificationRoute } from "@/utils/notificationRoute";
-import { pushRegistrationStep } from "@/utils/pushRegistration";
 import { invalidateQueriesWhenOnline } from "@/utils/query/networkAwareInvalidate";
 import {
   queryDehydrateOptions,
@@ -87,6 +85,7 @@ if (Platform.isTV) {
 import * as Sentry from "@sentry/react-native";
 import useRouter from "@/hooks/useAppRouter";
 import { useNativePlayerLogBridge } from "@/hooks/useNativePlayerLogBridge";
+import { usePushRegistration } from "@/hooks/usePushRegistration";
 import { userAtom } from "@/providers/JellyfinProvider";
 import { effectiveSettingsAtom, settingsAtom } from "@/utils/atoms/settings";
 import {
@@ -331,7 +330,6 @@ function Layout() {
   const { settings } = useSettings();
   const settingsLoaded = useAtomValue(settingsAtom) !== null;
   const [user] = useAtom(userAtom);
-  const [api] = useAtom(apiAtom);
   const _segments = useSegments();
   const router = useRouter();
 
@@ -340,12 +338,15 @@ function Layout() {
     enableTVMenuKeyInterception();
   }, []);
 
+  // What the app is shown in, and what the plugin writes this device's
+  // notifications in.
+  const language =
+    settings?.preferedLanguage ?? getLocales()[0].languageCode ?? "en";
+
   useEffect(() => {
     // Until the stored settings hydrate, `settings` holds the defaults, and
     // following them would move i18n off the stored language it started in.
     if (!settingsLoaded) return;
-    const language =
-      settings?.preferedLanguage ?? getLocales()[0].languageCode ?? "en";
     if (language === i18n.language) return;
     // A Jellyfin 12 server answers in the language of the request (track
     // names, for one), so what is cached is in the previous one. Screens that
@@ -355,7 +356,7 @@ function Layout() {
     void i18n
       .changeLanguage(language)
       .then(() => invalidateQueriesWhenOnline(queryClient, {}));
-  }, [settingsLoaded, settings?.preferedLanguage, i18n]);
+  }, [settingsLoaded, language, i18n]);
 
   useNotificationObserver();
   useNativePlayerLogBridge();
@@ -364,36 +365,7 @@ function Layout() {
   const notificationListener = useRef<EventSubscription>(null);
   const responseListener = useRef<EventSubscription>(null);
 
-  // Posted once per server, user and token. The api and the user object change
-  // identity on sign in, so without this the token went out twice within a second.
-  // Sign out clears the session, and the key with it, so the next sign in posts again.
-  const registeredPush = useRef<string | null>(null);
-
-  useEffect(() => {
-    if (Platform.isTV) return;
-
-    const step = pushRegistrationStep(
-      registeredPush.current,
-      api?.basePath,
-      user?.Id,
-      expoPushToken?.data,
-    );
-    registeredPush.current = step.key;
-    if (!step.post || !api || !user || !expoPushToken) return;
-
-    api
-      .post("/Streamyfin/device", {
-        token: expoPushToken.data,
-        deviceId: getOrSetDeviceId(),
-        userId: user.Id,
-      })
-      .catch((_) => {
-        // Forgotten only if nothing newer was posted meanwhile, so the next change
-        // of session or token posts again. No retry on its own, as before.
-        if (registeredPush.current === step.key) registeredPush.current = null;
-        writeErrorLog("Failed to push expo push token to plugin");
-      });
-  }, [api, expoPushToken, user]);
+  usePushRegistration(expoPushToken?.data, language);
 
   const registerNotifications = useCallback(async () => {
     if (Platform.OS === "android") {
