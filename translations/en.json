@@ -394,6 +394,7 @@
         "select_libraries_you_want_to_hide": "Select the libraries you want to hide from the Library tab and home page sections.",
         "disable_haptic_feedback": "Disable haptic feedback",
         "resume_dialog": "Ask to resume or start over",
+        "confirm_before_stopping_playback": "Confirm before stopping playback",
         "default_quality": "Default quality",
         "default_playback_speed": "Default playback speed",
         "auto_play_next_episode": "Auto-play next episode",

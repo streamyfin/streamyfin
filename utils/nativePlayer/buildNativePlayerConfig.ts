@@ -617,6 +617,7 @@ export async function buildNativePlayerConfig(params: {
       doubleTapToSeekEnabled: !Platform.isTV && settings.enableDoubleTapToSeek,
       // Server search needs connectivity; the OpenSubtitles fallback needs
       // the network either way — offline sessions hide the entry.
+      confirmExitEnabled: settings.confirmBeforeStoppingPlayback,
       subtitleSearchEnabled: !offline && !!api,
       subtitleSearchLanguages: COMMON_SUBTITLE_LANGUAGES.map((l) => ({
         code: l.code,

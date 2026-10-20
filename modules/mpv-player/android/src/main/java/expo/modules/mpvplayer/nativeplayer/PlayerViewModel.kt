@@ -1211,6 +1211,10 @@ class PlayerViewModel : PlayerEngine.Delegate {
     // MARK: - Exit Confirmation
     fun requestExitConfirmation() {
         cancelCountdown()
+        if (!uiOptions.confirmExitEnabled) {
+            confirmExit()
+            return
+        }
         showExitConfirmation = true
     }
 
