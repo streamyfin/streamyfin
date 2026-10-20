@@ -76,7 +76,9 @@ export const TVInput: React.FC<TVInputProps> = ({
           allowFontScaling={false}
           style={[
             {
-              height: scaleSize(64),
+              // A floor, not a fixed height: Android pads a TextInput inside
+              // its height, which cut the top off the larger text sizes.
+              minHeight: scaleSize(64),
               fontSize: typography.heading,
               color: "#FFFFFF",
               paddingHorizontal: scaleSize(20),
