@@ -46,6 +46,8 @@ export const MusicAlbumRowCard: React.FC<Props> = ({ album }) => {
       >
         {imageUrl ? (
           <Image
+            recyclingKey={album.Id}
+            transition={150}
             source={{ uri: imageUrl }}
             style={{ width: "100%", height: "100%" }}
             contentFit='cover'

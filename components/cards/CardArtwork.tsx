@@ -57,6 +57,8 @@ export const CardArtwork: React.FC<Props> = ({
       {card.imageUrl ? (
         <Image
           id={card.id}
+          recyclingKey={card.id}
+          transition={150}
           source={{ uri: card.imageUrl }}
           cachePolicy='memory-disk'
           contentFit='cover'

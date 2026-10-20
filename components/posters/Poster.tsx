@@ -29,7 +29,8 @@ const Poster: React.FC<PosterProps> = ({ id, url, blurhash }) => {
               }
             : null
         }
-        key={id}
+        recyclingKey={id}
+        transition={150}
         id={id!}
         source={
           url

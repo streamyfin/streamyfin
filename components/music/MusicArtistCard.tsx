@@ -47,6 +47,8 @@ export const MusicArtistCard: React.FC<Props> = ({ artist }) => {
       >
         {imageUrl ? (
           <Image
+            recyclingKey={artist.Id}
+            transition={150}
             source={{ uri: imageUrl }}
             style={{ width: "100%", height: "100%" }}
             contentFit='cover'
