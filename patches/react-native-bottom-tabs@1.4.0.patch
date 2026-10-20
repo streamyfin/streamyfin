@@ -1,3 +1,16 @@
+diff --git a/ios/TabView/LegacyTabView.swift b/ios/TabView/LegacyTabView.swift
+index 188ddfdeef97b0505983ed19feb723b93fcd4c40..dc3bf9e05c19d32d24ad5627a479e0bf152dd8ca 100644
+--- a/ios/TabView/LegacyTabView.swift
++++ b/ios/TabView/LegacyTabView.swift
+@@ -20,7 +20,7 @@ struct LegacyTabView: AnyTabView {
+   @ViewBuilder
+   var body: some View {
+     TabView(selection: $props.selectedPage) {
+-      ForEach(props.children) { child in
++      ForEach(props.renderedChildren) { child in
+         if let index = props.children.firstIndex(of: child) {
+           renderTabItem(at: index)
+         }
 diff --git a/ios/TabView/NewTabView.swift b/ios/TabView/NewTabView.swift
 index 2f18f210a37062fbf044aa26dae16b8a33773382..6b48ec51f65c7e8f29b5a17d2a7e067b6144b9fa 100644
 --- a/ios/TabView/NewTabView.swift

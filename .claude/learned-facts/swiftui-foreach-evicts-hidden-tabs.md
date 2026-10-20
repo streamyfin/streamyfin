@@ -24,7 +24,8 @@ erased element, `ForEachState.item(at:offset:)` rebuilds it, and
 is Sentry REACT-NATIVE-24.
 
 The patch feeds the `ForEach` only the tabs it renders (`renderedChildren`, the rule
-`filteredItems` already used), so every element is retained by its tab and never evicted. A tab
+`filteredItems` already used), in both tab views (`NewTabView` from iOS and tvOS 18,
+`LegacyTabView` below), so every element is retained by its tab and never evicted. A tab
 shown again becomes a new element, and SwiftUI builds it inside the update
 (`TVTabView.updateUIViewController` counts the list).
 

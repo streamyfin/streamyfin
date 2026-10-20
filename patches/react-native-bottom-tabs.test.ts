@@ -22,22 +22,21 @@ const tabViewSource = (file: string) =>
   );
 
 test("keeps hidden tabs out of the SwiftUI ForEach that builds the tab bar", () => {
-  const newTabView = tabViewSource("TabView/NewTabView.swift");
-  expect(newTabView).toContain("ForEach(props.renderedChildren)");
-  expect(newTabView).not.toContain("ForEach(props.children)");
+  // Both tab views: the new one from iOS and tvOS 18, the legacy one below.
+  for (const view of ["NewTabView", "LegacyTabView"]) {
+    const source = tabViewSource(`TabView/${view}.swift`);
+    expect(source).toContain("ForEach(props.renderedChildren)");
+    expect(source).not.toContain("ForEach(props.children)");
+  }
 
   // The getter itself, so a version that keeps the rule's text but returns
-  // every child fails too.
+  // every child, or keeps the hidden tabs and drops the others, fails too.
   const renderedChildren =
     tabViewSource("TabViewProps.swift").match(
       /var renderedChildren: \[IdentifiablePlatformView\] \{[\s\S]*?\n {2}\}/,
     )?.[0] ?? "";
   expect(renderedChildren).toContain(
-    "children.enumerated().compactMap { index, child in",
-  );
-  expect(renderedChildren).toContain(
     "guard let tabData = items[safe: index], !tabData.hidden || tabData.key == selectedPage else {",
   );
-  expect(renderedChildren).toContain("return nil");
-  expect(renderedChildren).toContain("return child");
+  expect(renderedChildren).toMatch(/else \{\s*return nil\s*\}\s*return child/);
 });
