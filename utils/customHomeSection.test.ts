@@ -127,6 +127,26 @@ describe("a custom endpoint section", () => {
     expect(api.mock.history.get).toHaveLength(0);
   });
 
+  // The request passes every parameter on, so one variant holding an id does
+  // not vouch for another that does not.
+  test("asks for nothing when any parentId among its parameters is not an id", async () => {
+    const api = homeServer();
+
+    await expect(
+      fetchPage(
+        api,
+        {
+          custom: {
+            endpoint: "/Items",
+            query: { parentId: LIBRARY_ID, ParentId: "Movies" },
+          },
+        },
+        6,
+      ),
+    ).resolves.toEqual([]);
+    expect(api.mock.history.get).toHaveLength(0);
+  });
+
   test("passes its parameters on as written when they hold an id", async () => {
     const api = homeServer();
 

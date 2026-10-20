@@ -17,29 +17,31 @@ import { writeToLog } from "@/utils/log";
 const loggedSections = new Set<string>();
 
 /**
- * The parentId a section sends, read in the order the request below picks its
- * payload: the items payload's, or one among a custom endpoint's parameters
- * under any case, the way Jellyfin binds it. A next up or latest section's is
- * never sent. A blank one is left out, as the request leaves it: the SDK and
- * axios drop a null, and Jellyfin binds an empty value as no library at all.
+ * The parentIds a section sends, read in the order the request below picks its
+ * payload: the items payload's, or every one among a custom endpoint's
+ * parameters under any case, the way Jellyfin binds it (the request passes
+ * them all on). A next up or latest section's is never sent. A blank one is
+ * left out, as the request leaves it: the SDK and axios drop a null, and
+ * Jellyfin binds an empty value as no library at all.
  */
-const sentParentId = (section: HomeSection): unknown => {
-  let value: unknown;
+const sentParentIds = (section: HomeSection): unknown[] => {
+  let values: unknown[] = [];
   if (section.items) {
-    value = section.items.parentId;
+    values = [section.items.parentId];
   } else if (!section.nextUp && !section.latest) {
     const query: unknown = section.custom?.query;
     if (query && typeof query === "object") {
-      const key = Object.keys(query).find(
-        (name) => name.toLowerCase() === "parentid",
-      );
-      if (key) value = (query as Record<string, unknown>)[key];
+      values = Object.entries(query)
+        .filter(([name]) => name.toLowerCase() === "parentid")
+        .map(([, value]) => value);
     }
   }
-  if (value === null || (typeof value === "string" && value.trim() === "")) {
-    return undefined;
-  }
-  return value;
+  return values.filter(
+    (value) =>
+      value !== undefined &&
+      value !== null &&
+      !(typeof value === "string" && value.trim() === ""),
+  );
 };
 
 /**
@@ -68,8 +70,8 @@ export const fetchCustomHomeSection = async (
   // answers it with a 400, so the section has nothing to show and nothing is
   // asked. An empty page also lets the phone home load the sections it holds
   // back until its first two have loaded.
-  const parentId = sentParentId(section);
-  if (parentId !== undefined && !isJellyfinId(parentId)) {
+  const parentId = sentParentIds(section).find((id) => !isJellyfinId(id));
+  if (parentId !== undefined) {
     const shape = describeValueShape(parentId);
     const logKey = `${index}|${shape}`;
     if (!loggedSections.has(logKey)) {
