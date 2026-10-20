@@ -57,27 +57,42 @@ let mockSeerrApi: SeerrApi;
 
 // A Seerr that answers 200 with what `body()` gives at the time, as the wire
 // carries it: axios parses it, and hands back a string it could not parse.
-const answering = (body: () => string) => {
+// The urls it was asked for go to `asked`.
+const answering = (body: () => string, asked: string[] = []) => {
   const api = new SeerrApi("https://seerr.example");
-  const adapter: AxiosAdapter = async (config) => ({
-    data: body(),
-    status: 200,
-    statusText: "OK",
-    headers: {},
-    config,
-  });
+  const adapter: AxiosAdapter = async (config) => {
+    asked.push(config.url ?? "");
+    return {
+      data: body(),
+      status: 200,
+      statusText: "OK",
+      headers: {},
+      config,
+    };
+  };
   api.axios.defaults.adapter = adapter;
   return api;
 };
 
-const slide = {
+const movieGenres = {
   id: 4,
   type: DiscoverSliderType.MOVIE_GENRES,
   order: 4,
   enabled: true,
   isBuiltIn: true,
 } as DiscoverSlider;
-const queryKey = ["seerr", "discover", slide.type, slide.id];
+const seriesGenres = {
+  ...movieGenres,
+  id: 7,
+  type: DiscoverSliderType.TV_GENRES,
+  order: 7,
+} as DiscoverSlider;
+const queryKeyOf = (slide: DiscoverSlider) => [
+  "seerr",
+  "discover",
+  slide.type,
+  slide.id,
+];
 
 const genres = JSON.stringify([
   { id: 28, name: "Action", backdrops: ["/action.jpg"] },
@@ -102,14 +117,18 @@ class Boundary extends React.Component<
   }
 }
 
-const renderRow = async (row: React.ReactElement, cached?: unknown) => {
+const renderRow = async (
+  row: React.ReactElement,
+  slide: DiscoverSlider,
+  cached?: unknown,
+) => {
   const client = new QueryClient({
     // No garbage collection timer nor retry: either keeps Jest from exiting.
     defaultOptions: {
       queries: { gcTime: Number.POSITIVE_INFINITY, retry: false },
     },
   });
-  if (cached !== undefined) client.setQueryData(queryKey, cached);
+  if (cached !== undefined) client.setQueryData(queryKeyOf(slide), cached);
   const errors: Error[] = [];
   await render(
     <QueryClientProvider client={client}>
@@ -124,17 +143,37 @@ const renderRow = async (row: React.ReactElement, cached?: unknown) => {
 // page, a server URL pointing at the web app) reaches the row as a string,
 // whose characters it read as genres and crashed on. Sentry REACT-NATIVE-WG
 // is that crash, right after a 200 from that route.
-describe.each([
-  ["on the phone", () => <GenreSlide slide={slide} />],
-  ["on the TV", () => <TVGenreSlide slide={slide} />],
-])("the genres row %s", (_platform, row) => {
+const ROWS = [
+  ["on the phone", (slide: DiscoverSlider) => <GenreSlide slide={slide} />],
+  ["on the TV", (slide: DiscoverSlider) => <TVGenreSlide slide={slide} />],
+] as const;
+// Each kind of row, with its heading and the route it reads.
+const KINDS = [
+  ["film", movieGenres, "search.movie_genres", "/discover/genreslider/movie"],
+  ["series", seriesGenres, "search.tv_genres", "/discover/genreslider/tv"],
+] as const;
+
+describe.each(
+  KINDS.flatMap(([kind, slide, heading, route]) =>
+    ROWS.map(
+      ([platform, row]) =>
+        [kind, platform, slide, heading, route, row] as const,
+    ),
+  ),
+)("the %s genres row %s", (_kind, _platform, slide, heading, route, row) => {
+  const queryKey = queryKeyOf(slide);
+
   test("shows the genres Seerr sends", async () => {
-    mockSeerrApi = answering(() => genres);
-    const { errors } = await renderRow(row());
+    const asked: string[] = [];
+    mockSeerrApi = answering(() => genres, asked);
+    const { errors } = await renderRow(row(slide), slide);
     expect(await screen.findByText("Drama")).toBeTruthy();
     expect(screen.getByText("Action")).toBeTruthy();
-    expect(screen.getByText("search.movie_genres")).toBeTruthy();
+    expect(screen.getByText(heading)).toBeTruthy();
     expect(errors).toEqual([]);
+    // From the route of its own kind.
+    expect(asked.length).toBeGreaterThan(0);
+    expect(asked.filter((url) => !url.endsWith(route))).toEqual([]);
   });
 
   // What the event shows: the row was up, and the answer to its refetch,
@@ -142,22 +181,22 @@ describe.each([
   test("goes away, without crashing, when a page answers its refetch", async () => {
     let body = genres;
     mockSeerrApi = answering(() => body);
-    const { client, errors } = await renderRow(row());
+    const { client, errors } = await renderRow(row(slide), slide);
     expect(await screen.findByText("Drama")).toBeTruthy();
 
     body = SIGN_IN_PAGE;
     await act(() => client.refetchQueries({ queryKey }));
     await waitFor(() => expect(screen.queryByText("Drama")).toBeNull());
     expect(errors).toEqual([]);
-    expect(screen.queryByText("search.movie_genres")).toBeNull();
+    expect(screen.queryByText(heading)).toBeNull();
   });
 
   // The query cache is kept on the device for a day, so a page stored by an
   // earlier version reaches the first render of this one.
   test("shows no row when what was cached is a page", async () => {
     mockSeerrApi = answering(() => SIGN_IN_PAGE);
-    const { errors } = await renderRow(row(), SIGN_IN_PAGE);
+    const { errors } = await renderRow(row(slide), slide, SIGN_IN_PAGE);
     expect(errors).toEqual([]);
-    expect(screen.queryByText("search.movie_genres")).toBeNull();
+    expect(screen.queryByText(heading)).toBeNull();
   });
 });
