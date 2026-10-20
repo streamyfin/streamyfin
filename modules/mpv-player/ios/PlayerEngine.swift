@@ -684,12 +684,19 @@ final class MPVPlayerEngine: NSObject {
 // MARK: - MPVLayerRendererDelegate
 
 extension MPVPlayerEngine: MPVLayerRendererDelegate {
-	func renderer(_: MPVLayerRenderer, didUpdatePosition position: Double, duration: Double, cacheSeconds: Double) {
+	func renderer(_: MPVLayerRenderer, didUpdatePosition position: Double, duration: Double, cacheSeconds: Double, loadGeneration: UInt) {
+		// Read before the latest loadVideo() reached mpv: the outgoing file's
+		// clock, which JS would report under the item that replaced it.
+		guard loadGeneration == self.loadGeneration else {
+			Logger.shared.log("Dropped a position update from the replaced file", type: "Info")
+			return
+		}
 		cachedPosition = position
 		cachedDuration = duration
 
 		DispatchQueue.main.async { [weak self] in
-			guard let self else { return }
+			// A loadVideo() can land between the two hops.
+			guard let self, loadGeneration == self.loadGeneration else { return }
 
 			if self.pipController?.isPictureInPictureActive == true {
 				self.pipController?.setCurrentTimeFromSeconds(position)

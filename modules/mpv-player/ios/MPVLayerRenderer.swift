@@ -13,7 +13,8 @@ enum HDRMode {
 }
 
 protocol MPVLayerRendererDelegate: AnyObject {
-    func renderer(_ renderer: MPVLayerRenderer, didUpdatePosition position: Double, duration: Double, cacheSeconds: Double)
+    /// `loadGeneration` names the load whose file produced the position.
+    func renderer(_ renderer: MPVLayerRenderer, didUpdatePosition position: Double, duration: Double, cacheSeconds: Double, loadGeneration: UInt)
     func renderer(_ renderer: MPVLayerRenderer, didChangePause isPaused: Bool)
     func renderer(_ renderer: MPVLayerRenderer, didChangeLoading isLoading: Bool)
     func renderer(_ renderer: MPVLayerRenderer, didBecomeReadyToSeek: Bool)
@@ -127,6 +128,15 @@ final class MPVLayerRenderer {
     /// Queue-confined identities waiting for mpv to emit MPV_EVENT_START_FILE.
     private var pendingLoadGenerations: [UInt] = []
     private var activeLoadGeneration: UInt = 0
+    /// Position updates dropped while a load waits for its file; logged at START_FILE.
+    private var skippedReplacedFileUpdates = 0
+
+    /// From load() until mpv starts that file, time-pos, duration and the
+    /// paused clock still describe the file being replaced. Kept out of the
+    /// cache load() seeded and away from the delegate: JS reports the first
+    /// position after the swap at once, under the new item, and a stale one
+    /// near the end of the old file marks the new item played.
+    private var isLoadPending: Bool { !pendingLoadGenerations.isEmpty }
 
     // Progress update throttling - CRITICAL for performance!
     // DO NOT REMOVE THIS THROTTLE - it is essential for battery life and CPU efficiency.
@@ -564,6 +574,7 @@ final class MPVLayerRenderer {
         queue.async { [weak self] in
             self?.pendingLoadGenerations.removeAll()
             self?.activeLoadGeneration = 0
+            self?.skippedReplacedFileUpdates = 0
         }
 
         // Clear wakeup callback first to stop event processing
@@ -890,6 +901,13 @@ final class MPVLayerRenderer {
             if !pendingLoadGenerations.isEmpty {
                 activeLoadGeneration = pendingLoadGenerations.removeFirst()
             }
+            if !isLoadPending && skippedReplacedFileUpdates > 0 {
+                Logger.shared.log(
+                    "Skipped \(skippedReplacedFileUpdates) position update(s) from the file being replaced",
+                    type: "Info"
+                )
+                skippedReplacedFileUpdates = 0
+            }
 
         case MPV_EVENT_FILE_LOADED:
             // Add external subtitles now that the file is loaded
@@ -1025,16 +1043,25 @@ final class MPVLayerRenderer {
         guard let handle = mpv else { return }
         switch name {
         case "duration":
+            guard !isLoadPending else {
+                skippedReplacedFileUpdates += 1
+                break
+            }
             var value = Double(0)
             let status = getProperty(handle: handle, name: name, format: MPV_FORMAT_DOUBLE, value: &value)
             if status >= 0 {
                 cachedDuration = value
+                let generation = activeLoadGeneration
                 DispatchQueue.main.async { [weak self] in
                     guard let self else { return }
-                    self.delegate?.renderer(self, didUpdatePosition: self.cachedPosition, duration: self.cachedDuration, cacheSeconds: self.cachedCacheSeconds)
+                    self.delegate?.renderer(self, didUpdatePosition: self.cachedPosition, duration: self.cachedDuration, cacheSeconds: self.cachedCacheSeconds, loadGeneration: generation)
                 }
             }
         case "time-pos":
+            guard !isLoadPending else {
+                skippedReplacedFileUpdates += 1
+                break
+            }
             var value = Double(0)
             let status = getProperty(handle: handle, name: name, format: MPV_FORMAT_DOUBLE, value: &value)
             if status >= 0 {
@@ -1044,9 +1071,10 @@ final class MPVLayerRenderer {
                 let shouldUpdate = isSeeking || (now - lastProgressUpdateTime >= 1.0)
                 if shouldUpdate {
                     lastProgressUpdateTime = now
+                    let generation = activeLoadGeneration
                     DispatchQueue.main.async { [weak self] in
                         guard let self else { return }
-                        self.delegate?.renderer(self, didUpdatePosition: self.cachedPosition, duration: self.cachedDuration, cacheSeconds: self.cachedCacheSeconds)
+                        self.delegate?.renderer(self, didUpdatePosition: self.cachedPosition, duration: self.cachedDuration, cacheSeconds: self.cachedCacheSeconds, loadGeneration: generation)
                     }
                 }
             }
@@ -1068,7 +1096,7 @@ final class MPVLayerRenderer {
                     // Capture mpv's physical clock before the immediate pause
                     // report, keeping both callbacks immutable and ordered.
                     var physicalPosition = Double(0)
-                    let positionStatus = newPaused
+                    let positionStatus = newPaused && !isLoadPending
                         ? getProperty(handle: handle, name: "time-pos", format: MPV_FORMAT_DOUBLE, value: &physicalPosition)
                         : -1
                     let pausedPosition: Double? = positionStatus >= 0
@@ -1076,10 +1104,11 @@ final class MPVLayerRenderer {
                         ? physicalPosition : nil
                     let duration = cachedDuration
                     let cacheSeconds = cachedCacheSeconds
+                    let generation = activeLoadGeneration
                     DispatchQueue.main.async { [weak self] in
                         guard let self else { return }
                         if let pausedPosition {
-                            self.delegate?.renderer(self, didUpdatePosition: pausedPosition, duration: duration, cacheSeconds: cacheSeconds)
+                            self.delegate?.renderer(self, didUpdatePosition: pausedPosition, duration: duration, cacheSeconds: cacheSeconds, loadGeneration: generation)
                         }
                         self.delegate?.renderer(self, didChangePause: newPaused)
                     }

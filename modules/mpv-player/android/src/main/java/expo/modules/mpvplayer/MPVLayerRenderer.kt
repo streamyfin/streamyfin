@@ -153,6 +153,10 @@ class MPVLayerRenderer(
     @Volatile private var seekReportGeneration = 0L
     @Volatile private var seekReportRequestId: Long? = null
     @Volatile private var activeSeekReportRequestId: Long? = null
+    // Which file the position values belong to; see MpvLoadGenerations.
+    private val loadGenerations = MpvLoadGenerations()
+    // Event thread: position updates dropped while a load waited for its file.
+    private var skippedReplacedFileUpdates = 0
     // libmpv can announce one EOF through both the property and END_FILE.
     private var didNotifyPlaybackEnd: Boolean = false
     
@@ -420,6 +424,7 @@ class MPVLayerRenderer(
         cachedPosition = 0.0
         cachedDuration = 0.0
         cachedCacheSeconds = 0.0
+        loadGenerations.reset()
 
         if (m == null) {
             activeToken?.let(MpvOwnership::release)
@@ -649,6 +654,7 @@ class MPVLayerRenderer(
     
     override fun load(config: VideoLoadConfig) {
         invalidateSeekReports()
+        val generation = loadGenerations.begin()
         val url = config.url
         currentUrl = url
         currentHeaders = config.headers
@@ -717,7 +723,10 @@ class MPVLayerRenderer(
         }
 
         // Load the file
-        mpv?.command(arrayOf("loadfile", url, "replace"))
+        mpv?.let {
+            loadGenerations.queue(generation)
+            it.command(arrayOf("loadfile", url, "replace"))
+        }
     }
 
     override fun reloadCurrentItem() {
@@ -1236,16 +1245,19 @@ class MPVLayerRenderer(
                     // time-pos notifications are throttled while playing, and
                     // seekTo's cache is optimistic. Read the physical clock so
                     // an immediate pause report includes the stopped frame.
+                    val generation = loadGenerations.current
                     val report = MpvPauseReport(
                         paused = value,
-                        position = if (value) mpv?.getPropertyDouble("time-pos") else null,
+                        position = if (value && generation != null) mpv?.getPropertyDouble("time-pos") else null,
                         duration = cachedDuration,
                         cacheSeconds = cachedCacheSeconds,
                     )
                     mainHandler.post {
                         report.deliver(
                             onProgress = { position, duration, cache ->
-                                delegate?.onPositionChanged(position, duration, cache)
+                                if (generation != null && loadGenerations.isLatest(generation)) {
+                                    delegate?.onPositionChanged(position, duration, cache)
+                                }
                             },
                             onPause = { paused -> delegate?.onPauseChanged(paused) },
                         )
@@ -1276,17 +1288,25 @@ class MPVLayerRenderer(
     override fun eventProperty(property: String, value: Double) {
         when (property) {
             "duration" -> {
-                cachedDuration = value
-                mainHandler.post { delegate?.onPositionChanged(cachedPosition, cachedDuration, cachedCacheSeconds) }
+                val generation = loadGenerations.ifCurrent { cachedDuration = value }
+                if (generation == null) {
+                    skippedReplacedFileUpdates++
+                    return
+                }
+                postPosition(generation)
             }
             "time-pos" -> {
-                cachedPosition = value
+                val generation = loadGenerations.ifCurrent { cachedPosition = value }
+                if (generation == null) {
+                    skippedReplacedFileUpdates++
+                    return
+                }
                 // Always update immediately when seeking, otherwise throttle to once per second
                 val now = System.currentTimeMillis()
                 val shouldUpdate = _isSeeking || (now - lastProgressUpdateTime >= 1000)
                 if (shouldUpdate) {
                     lastProgressUpdateTime = now
-                    mainHandler.post { delegate?.onPositionChanged(cachedPosition, cachedDuration, cachedCacheSeconds) }
+                    postPosition(generation)
                 }
             }
             "demuxer-cache-duration" -> {
@@ -1295,8 +1315,24 @@ class MPVLayerRenderer(
         }
     }
     
+    /** Reports the cached position, unless a load() landed since [generation] was current. */
+    private fun postPosition(generation: Long) {
+        mainHandler.post {
+            if (loadGenerations.isLatest(generation)) {
+                delegate?.onPositionChanged(cachedPosition, cachedDuration, cachedCacheSeconds)
+            }
+        }
+    }
+
     override fun event(eventId: Int) {
         when (eventId) {
+            MPVLib.MPV_EVENT_START_FILE -> {
+                loadGenerations.onStartFile()
+                if (loadGenerations.current != null && skippedReplacedFileUpdates > 0) {
+                    Log.i(TAG, "Skipped $skippedReplacedFileUpdates position update(s) from the file being replaced")
+                    skippedReplacedFileUpdates = 0
+                }
+            }
             MPVLib.MPV_EVENT_FILE_LOADED -> {
                 didNotifyPlaybackEnd = false
                 // Add external subtitles now that file is loaded
@@ -1349,8 +1385,12 @@ class MPVLayerRenderer(
                 val generation = seekReportGeneration
                 val requestId = if (_isSeeking) activeSeekReportRequestId else null
                 val currentRequestId = seekReportRequestId
-                val position = mpv?.getPropertyDouble("time-pos")
-                if (position != null && position.isFinite() && position >= 0) cachedPosition = position
+                val clock = mpv?.getPropertyDouble("time-pos")
+                // A restart of the file being replaced (a seek just before a
+                // swap) does not give the new file's clock.
+                val position = if (clock != null && clock.isFinite() && clock >= 0 &&
+                    loadGenerations.ifCurrent { cachedPosition = clock } != null
+                ) clock else null
                 val duration = cachedDuration
                 val cache = cachedCacheSeconds
                 val wasLoading = _isLoading
