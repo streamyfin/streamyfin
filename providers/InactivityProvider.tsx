@@ -1,3 +1,4 @@
+import { useAtomValue } from "jotai";
 import type React from "react";
 import {
   createContext,
@@ -8,7 +9,7 @@ import {
   useRef,
 } from "react";
 import { AppState, type AppStateStatus, Platform } from "react-native";
-import { useJellyfin } from "@/providers/JellyfinProvider";
+import { useJellyfin, userAtom } from "@/providers/JellyfinProvider";
 import { InactivityTimeout, useSettings } from "@/utils/atoms/settings";
 import { storage } from "@/utils/mmkv";
 
@@ -33,6 +34,7 @@ const InactivityContext = createContext<InactivityContextValue | undefined>(
  * - Resets timer on any focus change (via resetInactivityTimer)
  * - Pauses timer during video playback (via pauseInactivityTimer/resumeInactivityTimer)
  * - Handles app backgrounding: logs out immediately if timeout exceeded while away
+ * - Only counts while a user is signed in, from the sign-in on
  * - No-op on mobile platforms
  */
 export const InactivityProvider: React.FC<{ children: ReactNode }> = ({
@@ -40,12 +42,16 @@ export const InactivityProvider: React.FC<{ children: ReactNode }> = ({
 }) => {
   const { settings } = useSettings();
   const { logout } = useJellyfin();
+  // Only a signed-in user can be signed out. On the login screen the sign-out
+  // tore down the server the form was signing in to, and the next Log in
+  // threw "API not initialized" (REACT-NATIVE-104).
+  const signedIn = Boolean(useAtomValue(userAtom)?.Id);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
   const isPausedRef = useRef(false);
 
   const timeoutMs = settings.inactivityTimeout ?? InactivityTimeout.Disabled;
-  const isEnabled = Platform.isTV && timeoutMs > 0;
+  const isEnabled = Platform.isTV && timeoutMs > 0 && signedIn;
 
   const clearTimer = useCallback(() => {
     if (timerRef.current) {
@@ -101,6 +107,17 @@ export const InactivityProvider: React.FC<{ children: ReactNode }> = ({
     updateLastActivity();
     startTimer();
   }, [isEnabled, updateLastActivity, startTimer]);
+
+  // A sign-in starts the count afresh: the activity on record is from before
+  // it, on the login screen or in an earlier session. Declared before the
+  // effects that read it, so they see the new one. A session restored at
+  // launch keeps its record, which is how a TV left alone while the app was
+  // closed is signed out when it opens.
+  const wasSignedInRef = useRef(signedIn);
+  useEffect(() => {
+    if (signedIn && !wasSignedInRef.current) updateLastActivity();
+    wasSignedInRef.current = signedIn;
+  }, [signedIn, updateLastActivity]);
 
   // Handle app state changes (background/foreground)
   useEffect(() => {
