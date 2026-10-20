@@ -16,6 +16,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { Text } from "@/components/common/Text";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 import { scaleSize } from "@/utils/scaleSize";
 import { SEGMENT_SKIP_KEY, type SegmentTypeName } from "@/utils/segments";
 import { useTVFocusAnimation } from "./hooks/useTVFocusAnimation";
@@ -72,6 +73,7 @@ export const TVSkipSegmentCard: FC<TVSkipSegmentCardProps> = ({
   hasTVPreferredFocus = true,
   playButtonRef: downDestination,
 }) => {
+  const typography = useScaledTVTypography();
   const { t } = useTranslation();
   const { focused, handleFocus, handleBlur, animatedStyle } =
     useTVFocusAnimation({
@@ -129,7 +131,9 @@ export const TVSkipSegmentCard: FC<TVSkipSegmentCardProps> = ({
           ]}
         >
           <Ionicons name='play-forward' size={scaleSize(20)} color='#fff' />
-          <Text style={styles.label}>{labelText}</Text>
+          <Text style={[styles.label, { fontSize: typography.callout }]}>
+            {labelText}
+          </Text>
         </RNAnimated.View>
       </Pressable>
       {downDestination && (
@@ -158,7 +162,6 @@ const styles = StyleSheet.create({
     gap: scaleSize(8),
   },
   label: {
-    fontSize: scaleSize(20),
     color: "#fff",
     fontWeight: "600",
   },
