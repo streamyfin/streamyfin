@@ -40,6 +40,7 @@ cadence meant knowing both existed, and nothing would have failed if only one ha
 | `constants/Privacy.ts` | What stands in for a secret in anything the app writes out (log, Sentry) |
 | `constants/Music.ts` | Music player policy: the volume normalization modes, their default, and the gain ceiling |
 | `constants/Search.ts` | Library search: results asked for per section, the person types the People section leaves out, a studio page's size |
+| `constants/Inactivity.ts` | The TV inactivity sign-out's storage key for the last activity |
 | `constants/StillWatching.ts` | The "Still watching?" presets, jellyfin-web 12's episode counts and session minutes |
 | `constants/Sentry.ts` | Error reporting policy: which builds report, the per session dedupe cap, the failure storm window |
 | `constants/Jellyfin.ts` | The Jellyfin server itself: the product name that identifies one in its public system info, and how long that info is trusted |

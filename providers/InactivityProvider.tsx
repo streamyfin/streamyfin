@@ -9,11 +9,14 @@ import {
   useRef,
 } from "react";
 import { AppState, type AppStateStatus, Platform } from "react-native";
+import { INACTIVITY_LAST_ACTIVITY_STORAGE_KEY as INACTIVITY_LAST_ACTIVITY_KEY } from "@/constants/Inactivity";
 import { useJellyfin, userAtom } from "@/providers/JellyfinProvider";
-import { InactivityTimeout, useSettings } from "@/utils/atoms/settings";
+import {
+  InactivityTimeout,
+  settingsAtom,
+  useSettings,
+} from "@/utils/atoms/settings";
 import { storage } from "@/utils/mmkv";
-
-const INACTIVITY_LAST_ACTIVITY_KEY = "INACTIVITY_LAST_ACTIVITY";
 
 interface InactivityContextValue {
   resetInactivityTimer: () => void;
@@ -35,6 +38,7 @@ const InactivityContext = createContext<InactivityContextValue | undefined>(
  * - Pauses timer during video playback (via pauseInactivityTimer/resumeInactivityTimer)
  * - Handles app backgrounding: logs out immediately if timeout exceeded while away
  * - Only counts while a user is signed in, from the sign-in on
+ * - Measures a session restored at launch from its last activity
  * - No-op on mobile platforms
  */
 export const InactivityProvider: React.FC<{ children: ReactNode }> = ({
@@ -45,13 +49,22 @@ export const InactivityProvider: React.FC<{ children: ReactNode }> = ({
   // Only a signed-in user can be signed out. On the login screen the sign-out
   // tore down the server the form was signing in to, and the next Log in
   // threw "API not initialized" (REACT-NATIVE-104).
-  const signedIn = Boolean(useAtomValue(userAtom)?.Id);
+  const userId = useAtomValue(userAtom)?.Id;
+  // The local settings load after the first render; until then the timeout
+  // is not known, only a plugin lock restored with the session.
+  const settingsLoaded = useAtomValue(settingsAtom) !== null;
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
   const isPausedRef = useRef(false);
+  // The user whose activity the record holds.
+  const countedUserRef = useRef(userId);
+  // The session restored at launch keeps its record until the timeout is
+  // known, and is then measured from it once.
+  const launchCheckRef = useRef(Boolean(userId));
+  const wasEnabledRef = useRef(false);
 
   const timeoutMs = settings.inactivityTimeout ?? InactivityTimeout.Disabled;
-  const isEnabled = Platform.isTV && timeoutMs > 0 && signedIn;
+  const isEnabled = Platform.isTV && timeoutMs > 0 && Boolean(userId);
 
   const clearTimer = useCallback(() => {
     if (timerRef.current) {
@@ -85,7 +98,8 @@ export const InactivityProvider: React.FC<{ children: ReactNode }> = ({
   );
 
   const resetInactivityTimer = useCallback(() => {
-    if (!isEnabled || isPausedRef.current) return;
+    // Before the launch check, a focus would hide how long the TV was left.
+    if (!isEnabled || isPausedRef.current || launchCheckRef.current) return;
 
     updateLastActivity();
     startTimer();
@@ -101,23 +115,13 @@ export const InactivityProvider: React.FC<{ children: ReactNode }> = ({
   }, [isEnabled, clearTimer, updateLastActivity]);
 
   const resumeInactivityTimer = useCallback(() => {
+    // Whatever happened meanwhile, the video no longer holds the count.
+    isPausedRef.current = false;
     if (!isEnabled) return;
 
-    isPausedRef.current = false;
     updateLastActivity();
     startTimer();
   }, [isEnabled, updateLastActivity, startTimer]);
-
-  // A sign-in starts the count afresh: the activity on record is from before
-  // it, on the login screen or in an earlier session. Declared before the
-  // effects that read it, so they see the new one. A session restored at
-  // launch keeps its record, which is how a TV left alone while the app was
-  // closed is signed out when it opens.
-  const wasSignedInRef = useRef(signedIn);
-  useEffect(() => {
-    if (signedIn && !wasSignedInRef.current) updateLastActivity();
-    wasSignedInRef.current = signedIn;
-  }, [signedIn, updateLastActivity]);
 
   // Handle app state changes (background/foreground)
   useEffect(() => {
@@ -168,42 +172,77 @@ export const InactivityProvider: React.FC<{ children: ReactNode }> = ({
     };
   }, [isEnabled, timeoutMs, getLastActivity, startTimer, clearTimer, logout]);
 
-  // Initialize timer when enabled or timeout changes
+  // The one place that decides when a count starts, and arms the timer.
   useEffect(() => {
-    if (!isEnabled) {
+    if (!Platform.isTV) return;
+
+    if (!userId) {
+      // Signed out: nothing is counted until the next sign-in, and a video
+      // that was playing no longer holds the count.
+      countedUserRef.current = undefined;
+      launchCheckRef.current = false;
+      wasEnabledRef.current = false;
+      isPausedRef.current = false;
       clearTimer();
+      storage.remove(INACTIVITY_LAST_ACTIVITY_KEY);
       return;
     }
 
-    // Don't start timer if paused
+    if (userId !== countedUserRef.current) {
+      // A sign-in, or a switch to another user, starts a new count whatever
+      // the timeout is now: one set right after, by the plugin's lock or in
+      // Settings, is measured from here and not from an earlier session.
+      countedUserRef.current = userId;
+      launchCheckRef.current = false;
+      isPausedRef.current = false;
+      storage.set(INACTIVITY_LAST_ACTIVITY_KEY, Date.now());
+    }
+
+    if (!settingsLoaded) return;
+    const enabled = timeoutMs > 0;
+    const turnedOn = enabled && !wasEnabledRef.current;
+    wasEnabledRef.current = enabled;
+    const atLaunch = launchCheckRef.current;
+    launchCheckRef.current = false;
+
+    if (!enabled) {
+      clearTimer();
+      return;
+    }
     if (isPausedRef.current) return;
 
-    // Check if we should logout based on last activity
-    const lastActivity = getLastActivity();
-    const elapsed = Date.now() - lastActivity;
+    // Turned on during a session: counted from now, not from an activity
+    // recorded while it was off. At launch the record stands, which is how a
+    // TV left alone while the app was closed is signed out when it opens.
+    // Without a record (a first launch, or one a sign-out removed) the count
+    // starts now too, so a return to the foreground has a start to measure.
+    if (
+      (turnedOn && !atLaunch) ||
+      storage.getNumber(INACTIVITY_LAST_ACTIVITY_KEY) === undefined
+    ) {
+      storage.set(INACTIVITY_LAST_ACTIVITY_KEY, Date.now());
+    }
 
+    const elapsed = Date.now() - getLastActivity();
     if (elapsed >= timeoutMs) {
-      // Already timed out - logout
       logout();
       storage.remove(INACTIVITY_LAST_ACTIVITY_KEY);
-    } else {
-      // Start timer with remaining time
-      const remainingMs = timeoutMs - elapsed;
-      startTimer(remainingMs);
+      return;
     }
+    startTimer(timeoutMs - elapsed);
 
     return () => {
       clearTimer();
     };
-  }, [isEnabled, timeoutMs, getLastActivity, startTimer, clearTimer, logout]);
-
-  // Reset activity on initial mount when enabled
-  useEffect(() => {
-    if (isEnabled && !isPausedRef.current) {
-      updateLastActivity();
-      startTimer();
-    }
-  }, []);
+  }, [
+    userId,
+    settingsLoaded,
+    timeoutMs,
+    getLastActivity,
+    startTimer,
+    clearTimer,
+    logout,
+  ]);
 
   const contextValue: InactivityContextValue = {
     resetInactivityTimer,
