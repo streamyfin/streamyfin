@@ -1,4 +1,4 @@
-import { isAxiosError, isCancel } from "axios";
+import { type AxiosResponse, isAxiosError, isCancel } from "axios";
 
 /**
  * Marks errors that are user-facing outcomes rather than app defects — a
@@ -145,6 +145,11 @@ const isHtmlDocument = (body: unknown): boolean =>
   typeof body === "string" &&
   HTML_DOCUMENT_START.test(body.slice(0, HTML_SNIFF_CHARS));
 
+// Labelled as a page or starting as one, see isGatewayBlockError for why both.
+const isHtmlPage = (response: AxiosResponse): boolean =>
+  HTML_CONTENT_TYPE.test(String(response.headers?.["content-type"] ?? "")) ||
+  isHtmlDocument(response.data);
+
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" &&
   value !== null &&
@@ -189,22 +194,41 @@ const isCloudflareErrorDocument = (body: unknown): boolean =>
  */
 export const isGatewayBlockError = (error: unknown): boolean => {
   if (!isAxiosError(error) || error.response?.status !== 403) return false;
-  const contentType = error.response.headers?.["content-type"];
   return (
-    HTML_CONTENT_TYPE.test(String(contentType ?? "")) ||
-    isHtmlDocument(error.response.data) ||
-    isCloudflareErrorDocument(error.response.data)
+    isHtmlPage(error.response) || isCloudflareErrorDocument(error.response.data)
   );
+};
+
+/**
+ * True for a page that a gateway answered with in the server's place, under
+ * a success status: a captive portal on the user's network, or the sign-in
+ * page of a proxy whose session ran out, the redirect to it followed before
+ * the app sees the answer. The app asks its servers for data, never for a
+ * page, and the network the user is on is nothing it can act on.
+ *
+ * axios resolves every 2xx, so such an answer is only an error where a call
+ * site finds the body is not what the route returns and throws it with the
+ * response (utils/jellyfin/queryResult.ts). Any other body is left to be
+ * reported: an empty one, or JSON of another shape, can still be the app
+ * reading the wrong thing.
+ */
+export const isGatewayPageError = (error: unknown): boolean => {
+  if (!isAxiosError(error) || !error.response) return false;
+  const { status } = error.response;
+  return status >= 200 && status < 300 && isHtmlPage(error.response);
 };
 
 /**
  * True for a failure that comes from where the user is and what stands
  * between them and their server, rather than from the app: no answer, a
  * gateway that could not reach the server, or a gateway that refused the
- * request itself. Logged locally, never reported.
+ * request itself or answered it with a page of its own. Logged locally,
+ * never reported.
  */
 export const isEnvironmentError = (error: unknown): boolean =>
-  isConnectivityError(error) || isGatewayBlockError(error);
+  isConnectivityError(error) ||
+  isGatewayBlockError(error) ||
+  isGatewayPageError(error);
 
 export const isExpectedError = (error: unknown): boolean =>
   error !== null &&
