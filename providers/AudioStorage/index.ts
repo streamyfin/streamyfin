@@ -11,12 +11,16 @@
 import { EventEmitter } from "eventemitter3";
 import { Directory, File, Paths } from "expo-file-system";
 import type { EventSubscription } from "expo-modules-core";
+import { Platform } from "react-native";
 import type {
   DownloadCompleteEvent as BGDownloadCompleteEvent,
   DownloadErrorEvent as BGDownloadErrorEvent,
 } from "@/modules";
 import { BackgroundDownloader } from "@/modules";
-import { safeNamePart } from "@/providers/Downloads/utils";
+import {
+  rebaseOntoAppDirectory,
+  safeNamePart,
+} from "@/providers/Downloads/utils";
 import { storage } from "@/utils/mmkv";
 import type {
   AudioStorageIndex,
@@ -73,6 +77,33 @@ let _errorSubscription: EventSubscription | null = null;
 let listenersSetup = false;
 
 /**
+ * Points every stored track at the directory it is in now. The index keeps each path whole, and
+ * an iOS app update can move the app's container, which left downloaded music unplayable and
+ * its files on disk (#2252). Android's files directory never moves, so nothing changes there.
+ * Mutates and returns the index.
+ */
+function withCurrentContainerPaths(
+  index: AudioStorageIndex,
+): AudioStorageIndex {
+  if (Platform.OS !== "ios") return index;
+  const documents = Paths.document.uri;
+  // Downloads live in Documents and the look-ahead cache in Library/Caches. A path is only
+  // rebased onto the directory it was in, so trying both is safe.
+  const directories = [documents, Paths.cache.uri];
+  for (const track of Object.values(index.tracks ?? {})) {
+    if (typeof track?.localPath !== "string") continue;
+    for (const directory of directories) {
+      track.localPath = rebaseOntoAppDirectory(
+        track.localPath,
+        directory,
+        documents,
+      );
+    }
+  }
+  return index;
+}
+
+/**
  * Get the storage index from MMKV
  */
 function getStorageIndex(): AudioStorageIndex {
@@ -83,7 +114,7 @@ function getStorageIndex(): AudioStorageIndex {
   try {
     const data = storage.getString(AUDIO_STORAGE_INDEX_KEY);
     if (data) {
-      storageIndex = JSON.parse(data) as AudioStorageIndex;
+      storageIndex = withCurrentContainerPaths(JSON.parse(data));
       return storageIndex;
     }
   } catch {

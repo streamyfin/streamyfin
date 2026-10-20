@@ -4,10 +4,26 @@ jest.mock(
   "react-native-mmkv",
   () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
 );
-jest.mock(
-  "expo-file-system",
-  () => jest.requireActual("@/test-utils/fileSystem").fileSystemModule,
-);
+// The double's own directories, unless a spec puts Documents and Caches in an iOS container.
+const mockPaths: { document?: string; cache?: string } = {};
+jest.mock("expo-file-system", () => {
+  const { fileSystemModule } = jest.requireActual("@/test-utils/fileSystem");
+  return {
+    ...fileSystemModule,
+    Paths: {
+      get document() {
+        return mockPaths.document
+          ? new fileSystemModule.Directory(mockPaths.document)
+          : fileSystemModule.Paths.document;
+      },
+      get cache() {
+        return mockPaths.cache
+          ? new fileSystemModule.Directory(mockPaths.cache)
+          : fileSystemModule.Paths.cache;
+      },
+    },
+  };
+});
 const mockStartDownload = jest.fn(async (..._args: unknown[]) => 1);
 jest.mock("@/modules", () => ({
   BackgroundDownloader: {
@@ -94,4 +110,121 @@ describe("where a track is downloaded to", () => {
       );
     },
   );
+});
+
+// #2252 for music: an iOS update can move the app's container to a new UUID, and the index keeps
+// each track's path whole, so a downloaded album was gone after an update and its files stayed
+// on disk, still counted in the storage used.
+describe("a track stored before an iOS update moved the app's container", () => {
+  const container = (uuid: string) =>
+    `/var/mobile/Containers/Data/Application/${uuid}`;
+  const before = container("0A1B2C3D-0000-4000-8000-000000000001");
+  const now = container("9F8E7D6C-0000-4000-8000-000000000002");
+
+  // The index and its directories live in module state, so each case loads them, the store and
+  // the fake disk from a fresh module registry.
+  let audio: typeof import("./index");
+  let files: typeof fakeFiles;
+
+  const storeIndex = (tracks: Record<string, unknown>) =>
+    require("@/utils/mmkv").storage.set(
+      "audio_storage.v1.json",
+      JSON.stringify({ tracks, totalCacheSize: 1, totalPermanentSize: 1 }),
+    );
+  const track = (itemId: string, localPath: string, permanent: boolean) => ({
+    itemId,
+    localPath,
+    size: 1,
+    storedAt: 1,
+    permanent,
+  });
+
+  beforeEach(() => {
+    mockPaths.document = `file://${now}/Documents/`;
+    mockPaths.cache = `file://${now}/Library/Caches/`;
+    jest.resetModules();
+    audio = require("./index");
+    files = require("@/test-utils/fileSystem").fakeFiles;
+  });
+
+  afterEach(() => {
+    mockPaths.document = undefined;
+    mockPaths.cache = undefined;
+  });
+
+  it("plays a downloaded track from the current container", () => {
+    // Native reports the path it moved the file to, without file://, and that is what is stored.
+    storeIndex({
+      "track-1": track(
+        "track-1",
+        `${before}/Documents/streamyfin-audio/track-1.flac`,
+        true,
+      ),
+    });
+    files.add(`file://${now}/Documents/streamyfin-audio/track-1.flac`);
+
+    expect(audio.getLocalPath("track-1")).toBe(
+      `file://${now}/Documents/streamyfin-audio/track-1.flac`,
+    );
+    expect(audio.isPermanentlyDownloaded("track-1")).toBe(true);
+  });
+
+  it("keeps a cached track, which lives deeper in the container", () => {
+    storeIndex({
+      "track-2": track(
+        "track-2",
+        `${before}/Library/Caches/streamyfin-audio-cache/track-2.mp3`,
+        false,
+      ),
+    });
+    files.add(
+      `file://${now}/Library/Caches/streamyfin-audio-cache/track-2.mp3`,
+    );
+
+    // A cache entry whose file is missing is dropped from the index, so before the fix the
+    // track was forgotten, not only unplayable.
+    expect(audio.isCached("track-2")).toBe(true);
+    expect(audio.getStorageStats().cacheCount).toBe(1);
+  });
+
+  it("finds a track stored next to a damaged entry", () => {
+    storeIndex({
+      broken: null,
+      "no-path": { itemId: "no-path", permanent: true },
+      "track-1": track(
+        "track-1",
+        `${before}/Documents/streamyfin-audio/track-1.flac`,
+        true,
+      ),
+    });
+    files.add(`file://${now}/Documents/streamyfin-audio/track-1.flac`);
+
+    expect(audio.getLocalPath("track-1")).toBe(
+      `file://${now}/Documents/streamyfin-audio/track-1.flac`,
+    );
+  });
+
+  // Android's files directory never moves, so nothing stored there is rewritten, not even a
+  // path that names another app's directory.
+  it("leaves every stored path alone on Android", () => {
+    const { stubReactNative } = require("@/test-utils/reactNative");
+    stubReactNative({ OS: "android" });
+    const app = "/data/user/0/com.fredrikburmester.streamyfin";
+    mockPaths.document = `file://${app}/files/`;
+    mockPaths.cache = `file://${app}/cache/`;
+    try {
+      storeIndex({
+        "track-1": track(
+          "track-1",
+          "/data/user/0/com.other.app/files/streamyfin-audio/track-1.flac",
+          true,
+        ),
+      });
+      files.add(`file://${app}/files/streamyfin-audio/track-1.flac`);
+
+      expect(audio.getLocalPath("track-1")).toBeNull();
+    } finally {
+      stubReactNative({ OS: "ios" });
+    }
+  });
 });

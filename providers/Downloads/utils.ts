@@ -84,9 +84,9 @@ export function uriToFilePath(uri: string): string {
   return uri.replace(/^file:\/\//, "");
 }
 
-// The root, a directory of containers, a container and its Documents directory: a shorter
-// path has no sibling container to have moved from.
-const CONTAINER_PATH_MIN_SEGMENTS = 4;
+// The root, a directory of containers and a container: a shorter path has no sibling
+// container to have moved from.
+const CONTAINER_PATH_MIN_SEGMENTS = 3;
 
 /**
  * Moves a stored location inside Documents onto the Documents directory the app has now.
@@ -94,36 +94,62 @@ const CONTAINER_PATH_MIN_SEGMENTS = 4;
  * iOS puts the app's data in a container whose path holds a UUID, and an app update can move
  * it to a new one: the files come along, but a location stored as an absolute path or URI
  * still names the old container, and the player gets "No such file or directory" for a
- * download that is on disk. A location already under the current Documents, one outside
- * Documents altogether (a server URL), and every location on Android, where the directory
- * never moves, come back unchanged. The result keeps the stored form, URI or plain path.
+ * download that is on disk. A location already under the current Documents and one outside
+ * Documents altogether (a server URL) come back unchanged. The result keeps the stored form,
+ * URI or plain path. Callers skip Android, where the directory never moves: its layout of
+ * app directories would match another app's.
  */
 export function rebaseOntoDocuments(
   stored: string,
   documentsUri: string,
 ): string {
-  if (!stored.startsWith("file://") && !stored.startsWith("/")) return stored;
-  const documents = uriToFilePath(documentsUri).replace(/\/+$/, "");
-  const path = uriToFilePath(stored);
-  if (path === documents || path.startsWith(`${documents}/`)) return stored;
+  return rebaseOntoAppDirectory(stored, documentsUri, documentsUri);
+}
 
-  // Only a Documents directory in a sibling container is the old one: the same directory of
-  // containers as now (on iOS ".../Containers/Data/Application/"), then any UUID, then
-  // Documents. A "Documents" anywhere else (a user's own folder, a lookalike layout outside the
-  // app) is left alone. "/private/var" is the same directory as "/var" on iOS, so a path
-  // stored through either one matches.
-  const segments = documents.split("/");
-  if (segments.length < CONTAINER_PATH_MIN_SEGMENTS) return stored;
-  const containers = escapeRegExp(
-    withoutPrivate(segments.slice(0, -2).join("/")),
+/**
+ * Moves a stored location inside one of the app's directories onto that directory as the app
+ * has it now, as {@link rebaseOntoDocuments} does for Documents.
+ *
+ * `directoryUri` is the directory now, Documents or one deeper in the container such as
+ * Library/Caches. `documentsUri` locates the container: on iOS, Documents sits at its top.
+ */
+export function rebaseOntoAppDirectory(
+  stored: string,
+  directoryUri: string,
+  documentsUri: string,
+): string {
+  if (!stored.startsWith("file://") && !stored.startsWith("/")) return stored;
+  const directory = withoutTrailingSlashes(uriToFilePath(directoryUri));
+  const path = uriToFilePath(stored);
+  if (path === directory || path.startsWith(`${directory}/`)) return stored;
+
+  // Only the same directory in a sibling container is the old one: the same directory of
+  // containers as now (on iOS ".../Containers/Data/Application/"), then any UUID, then the
+  // directory's place in the container. A "Documents" anywhere else (a user's own folder, a
+  // lookalike layout outside the app) is left alone. "/private/var" is the same directory as
+  // "/var" on iOS, so a path stored through either one matches.
+  const documents = withoutTrailingSlashes(uriToFilePath(documentsUri));
+  const container = withoutPrivate(
+    documents.slice(0, documents.lastIndexOf("/")),
   );
-  const name = escapeRegExp(segments[segments.length - 1]);
+  const directoryInContainer = withoutPrivate(directory);
+  if (!directoryInContainer.startsWith(`${container}/`)) return stored;
+  const inContainer = directoryInContainer.slice(container.length + 1);
+  const segments = container.split("/");
+  if (segments.length < CONTAINER_PATH_MIN_SEGMENTS) return stored;
+  const containers = escapeRegExp(segments.slice(0, -1).join("/"));
   const inSibling = withoutPrivate(path);
-  const match = new RegExp(`^${containers}/[^/]+/${name}/`).exec(inSibling);
+  const match = new RegExp(
+    `^${containers}/[^/]+/${escapeRegExp(inContainer)}/`,
+  ).exec(inSibling);
   if (!match) return stored;
 
-  const rebased = `${documents}/${inSibling.slice(match[0].length)}`;
+  const rebased = `${directory}/${inSibling.slice(match[0].length)}`;
   return stored.startsWith("file://") ? filePathToUri(rebased) : rebased;
+}
+
+function withoutTrailingSlashes(path: string): string {
+  return path.replace(/\/+$/, "");
 }
 
 function withoutPrivate(path: string): string {
