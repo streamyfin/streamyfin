@@ -1,5 +1,6 @@
 import { View } from "react-native";
 import { Image } from "@/components/common/ServerImage";
+import { POSTER_IMAGE_TRANSITION_DURATION } from "@/constants/Values";
 
 type PosterProps = {
   id?: string | null;
@@ -30,7 +31,7 @@ const Poster: React.FC<PosterProps> = ({ id, url, blurhash }) => {
             : null
         }
         recyclingKey={id}
-        transition={150}
+        transition={POSTER_IMAGE_TRANSITION_DURATION}
         id={id!}
         source={
           url

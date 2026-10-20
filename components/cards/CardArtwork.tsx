@@ -3,6 +3,7 @@ import { View } from "react-native";
 import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { Colors } from "@/constants/Colors";
+import { POSTER_IMAGE_TRANSITION_DURATION } from "@/constants/Values";
 import type { CardData } from "./CardData";
 
 type Props = {
@@ -58,7 +59,7 @@ export const CardArtwork: React.FC<Props> = ({
         <Image
           id={card.id}
           recyclingKey={card.id}
-          transition={150}
+          transition={POSTER_IMAGE_TRANSITION_DURATION}
           source={{ uri: card.imageUrl }}
           cachePolicy='memory-disk'
           contentFit='cover'

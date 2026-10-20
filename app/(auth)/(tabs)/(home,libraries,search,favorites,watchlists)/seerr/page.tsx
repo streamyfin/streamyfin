@@ -31,7 +31,10 @@ import { TVSeerrPage } from "@/components/seerr/tv";
 import SeerrSeasons from "@/components/series/SeerrSeasons";
 import { ItemActions } from "@/components/series/SeriesActions";
 import { SeerrIssueColors, SheetColors } from "@/constants/Colors";
-import { POSTER_ASPECT_RATIO } from "@/constants/Values";
+import {
+  BACKGROUND_IMAGE_TRANSITION_DURATION,
+  POSTER_ASPECT_RATIO,
+} from "@/constants/Values";
 import useRouter from "@/hooks/useAppRouter";
 import { useDismissKeyboardOnLeave } from "@/hooks/useDismissKeyboardOnLeave";
 import { useSeerr } from "@/hooks/useSeerr";
@@ -280,7 +283,7 @@ const MobilePage: React.FC = () => {
             {result.backdropPath ? (
               <Image
                 cachePolicy={"memory-disk"}
-                transition={300}
+                transition={BACKGROUND_IMAGE_TRANSITION_DURATION}
                 style={{
                   width: "100%",
                   height: "100%",
@@ -338,7 +341,7 @@ const MobilePage: React.FC = () => {
                   // from an image, and the poster came out as a thin bar.
                   style={{ aspectRatio: POSTER_ASPECT_RATIO }}
                   cachePolicy={"memory-disk"}
-                  transition={300}
+                  transition={BACKGROUND_IMAGE_TRANSITION_DURATION}
                   source={{
                     uri: posterSrc,
                   }}
