@@ -7,11 +7,13 @@ import {
   compareTracksForMenu,
   getCastSubtitleUrl,
   getExternalSubtitleUrl,
+  getMpvAudioId,
   isExternalSubtitle,
   langEq,
   type PlayerSubtitleTrack,
   pickAutoSubtitleTrack,
   requiresStreamRestart,
+  resolveAudioSwitch,
   resolveSubtitleTrack,
   sameSubtitleTrack,
 } from "@/utils/jellyfin/subtitleUtils";
@@ -989,5 +991,54 @@ describe("sameSubtitleTrack", () => {
         { language: "pt-br", isForced: false },
       ),
     ).toBe(true);
+  });
+});
+
+describe("getMpvAudioId", () => {
+  // mpv numbers only the file's own audio tracks: the app never loads an
+  // external audio file, which Jellyfin lists ahead of them. Counting it
+  // made "2012" play its AC-3 track when TrueHD was selected.
+  it("skips external audio streams mpv never loads", () => {
+    const mediaSource = {
+      MediaStreams: [
+        { Type: "Audio", Index: 1, Codec: "eac3", IsExternal: true },
+        { Type: "Video", Index: 2, Codec: "hevc" },
+        { Type: "Audio", Index: 3, Codec: "truehd" },
+        { Type: "Audio", Index: 4, Codec: "ac3" },
+      ] as MediaStream[],
+    };
+    expect(getMpvAudioId(mediaSource, 3, false)).toBe(1);
+    expect(getMpvAudioId(mediaSource, 4, false)).toBe(2);
+    expect(getMpvAudioId(mediaSource, 1, false)).toBeUndefined();
+  });
+});
+
+describe("resolveAudioSwitch", () => {
+  const streams = [
+    { Type: "Audio", Index: 1, Codec: "eac3", IsExternal: true },
+    { Type: "Video", Index: 2, Codec: "hevc" },
+    { Type: "Audio", Index: 3, Codec: "truehd" },
+    { Type: "Audio", Index: 4, Codec: "ac3" },
+  ] as MediaStream[];
+
+  it("switches mpv's own track for an embedded stream played directly", () => {
+    expect(resolveAudioSwitch({ MediaStreams: streams }, 4)).toEqual({
+      reload: false,
+      mpvId: 2,
+    });
+  });
+
+  // The direct stream is the file alone: the server has to mux the external
+  // audio file in, as it does any track on a transcode.
+  it("reloads the stream for an external stream or on a transcode", () => {
+    expect(resolveAudioSwitch({ MediaStreams: streams }, 1)).toEqual({
+      reload: true,
+    });
+    expect(
+      resolveAudioSwitch(
+        { MediaStreams: streams, TranscodingUrl: "/master.m3u8" },
+        4,
+      ),
+    ).toEqual({ reload: true });
   });
 });
