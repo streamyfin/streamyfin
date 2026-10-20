@@ -56,6 +56,9 @@ const logStaleId = (
 ) => {
   const dedupeKey = [source, name ?? "?", http.method, http.path].join("|");
   if (loggedStaleIds.has(dedupeKey)) return;
+  // Past the cap a new key is logged without being remembered: the session
+  // loses the dedupe, not the lines, as MAX_SESSION_REPORT_KEYS sets for
+  // reports.
   if (loggedStaleIds.size < MAX_SESSION_REPORT_KEYS) {
     loggedStaleIds.add(dedupeKey);
   }
