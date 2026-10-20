@@ -30,12 +30,13 @@ jest.mock(
 
 import { onlineManager } from "@tanstack/react-query";
 import { AxiosError, type AxiosResponse } from "axios";
+import { clearMmkv } from "@/test-utils/mmkv";
 import {
   isErrorReported,
   markErrorReported,
   markExpectedError,
 } from "./errors";
-import { logAndCaptureError } from "./log";
+import { logAndCaptureError, readFromLog } from "./log";
 import { reportDataError, shouldReportDataError } from "./reportDataError";
 import { settleSeerrFailure } from "./seerr/errorReporting";
 
@@ -273,11 +274,12 @@ describe("reportDataError", () => {
 });
 
 // The cache is restored from disk for up to a day, so the app asks for ids an
-// earlier session saw. A library renamed or deleted has a new id or none, a
-// series identified again or removed is gone, and Jellyfin says so. None of
-// it is a bug of the app's; every other 400 and 404 still is.
+// earlier session saw. A library renamed or deleted has a new id or none, and
+// Jellyfin says so. That is not a bug of the app's; every other 400 and 404
+// still is.
 describe("reportDataError for an id the server no longer has", () => {
   const STALE = "5e1c0f9d2b7a4c38a6e2d4f1b3c5a7e9";
+  const OTHER_STALE = "9a8b7c6d5e4f40312a1b0c9d8e7f6a5b";
   const SEASON = "3fa85f64-5717-4562-b3fc-2c963f66afa6";
   const unknownParent = (server: string, query: string, path = "/Items") =>
     httpError(
@@ -307,22 +309,59 @@ describe("reportDataError for an id the server no longer has", () => {
     expect(mockCaptured).toHaveLength(0);
   });
 
-  // REACT-NATIVE-22 (episodes), 11 (AllEpisodes), 4W (seasons).
-  test.each([
-    [
-      "episodes",
-      `/Shows/${STALE}/Episodes?userId=u1&seasonId=${SEASON}`,
-      `No season exists with Id ${SEASON}`,
-    ],
-    ["AllEpisodes", `/Shows/${STALE}/Episodes?userId=u1`, "Series not found"],
-    ["seasons", `/Shows/${STALE}/Seasons`, { title: "Not Found", status: 404 }],
-  ])("a series that is gone is not reported (%s)", (key, path, body) => {
+  // Not reported, so the local log is all that is left of it: which query
+  // asked, on which route, once per session, and nothing that names the
+  // library or the server. The session's memory outlives a test, so these
+  // query names are this test's own.
+  test("is written to the local log once per query and route, without the id", () => {
+    clearMmkv();
+    const server = newServer();
     reportDataError(
       "query",
-      [key, STALE],
-      httpError(newServer(), path, 404, { server: "Kestrel" }, body),
+      ["stale-grid", STALE],
+      unknownParent(server, `parentId=${STALE}&limit=36`),
     );
-    expect(mockCaptured).toHaveLength(0);
+    // The same query and route again, for another server and another id.
+    reportDataError(
+      "query",
+      ["stale-grid", OTHER_STALE],
+      unknownParent(newServer(), `parentId=${OTHER_STALE}`),
+    );
+    reportDataError(
+      "query",
+      ["stale-count", STALE],
+      unknownParent(server, `parentId=${STALE}&limit=0`),
+    );
+    reportDataError(
+      "query",
+      ["stale-grid", STALE],
+      unknownParent(server, `parentId=${STALE}`, "/Items/Filters"),
+    );
+    // Reported, so not written here.
+    reportDataError(
+      "query",
+      ["stale-grid", STALE],
+      unknownParent(newServer(), `parentId=${STALE}&years=NaN`),
+    );
+
+    expect(mockCaptured).toHaveLength(1);
+    const entries = readFromLog();
+    const line = (key: string, route: string) => ({
+      level: "WARN",
+      message: "Asked for an id the server no longer has",
+      data: { source: "query", key, method: "GET", route, status: 400 },
+    });
+    expect(
+      entries.map(({ level, message, data }) => ({ level, message, data })),
+    ).toEqual([
+      line("stale-grid", "/Items"),
+      line("stale-count", "/Items"),
+      line("stale-grid", "/Items/Filters"),
+    ]);
+    const written = JSON.stringify(entries);
+    for (const secret of [STALE, OTHER_STALE, "example.com", "processing"]) {
+      expect(written).not.toContain(secret);
+    }
   });
 
   describe("what still is", () => {
@@ -353,6 +392,19 @@ describe("reportDataError for an id the server no longer has", () => {
         "query",
         ["library-items"],
         unknownParent(newServer(), "recursive=true"),
+      );
+      expect(mockCaptured).toHaveLength(1);
+    });
+
+    // "Guid can't be empty", in the same words: a fault of the request.
+    test("the same 400 to a request whose parent is the empty GUID", () => {
+      reportDataError(
+        "query",
+        ["library-items"],
+        unknownParent(
+          newServer(),
+          "parentId=00000000-0000-0000-0000-000000000000",
+        ),
       );
       expect(mockCaptured).toHaveLength(1);
     });
@@ -395,11 +447,27 @@ describe("reportDataError for an id the server no longer has", () => {
       expect(mockCaptured).toHaveLength(1);
     });
 
-    test("another status from the series routes", () => {
+    // REACT-NATIVE-22 (episodes), 11 (AllEpisodes), 4W (seasons). Jellyfin
+    // answers these for any id that is not a series or a season the user can
+    // see: one that is gone, but also the id of another kind of item, which
+    // is the app's bug, and one the user may not open.
+    test.each([
+      [
+        "episodes",
+        `/Shows/${STALE}/Episodes?userId=u1&seasonId=${SEASON}`,
+        `No season exists with Id ${SEASON}`,
+      ],
+      ["AllEpisodes", `/Shows/${STALE}/Episodes?userId=u1`, "Series not found"],
+      [
+        "seasons",
+        `/Shows/${STALE}/Seasons`,
+        { title: "Not Found", status: 404 },
+      ],
+    ])("a series' 404 (%s)", (key, path, body) => {
       reportDataError(
         "query",
-        ["episodes"],
-        httpError(newServer(), `/Shows/${STALE}/Episodes`, 500),
+        [key, STALE],
+        httpError(newServer(), path, 404, { server: "Kestrel" }, body),
       );
       expect(mockCaptured).toHaveLength(1);
     });
