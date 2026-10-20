@@ -15,8 +15,9 @@ package expo.modules.mpvplayer
  */
 internal class MpvLoadGenerations {
     private val lock = Any()
-    // Loads whose file mpv has not started yet, oldest first: entry id to generation.
-    private val pending = ArrayDeque<Pair<Long, Long>>()
+    // Loads whose file mpv has not started yet, oldest first: entry id (null
+    // when it could not be read) to generation.
+    private val pending = ArrayDeque<Pair<Long?, Long>>()
     // The entry mpv last started, for a start that beats load() to recording its entry.
     private var startedEntryId: Long? = null
     @Volatile private var requested = 0L
@@ -26,27 +27,31 @@ internal class MpvLoadGenerations {
     fun begin(): Long = synchronized(lock) { ++requested }
 
     /** Main thread, once loadfile has made the playlist entry of [generation]. */
-    fun queue(generation: Long, entryId: Long) {
+    fun queue(generation: Long, entryId: Long?) {
         synchronized(lock) {
             pending.addLast(entryId to generation)
-            if (entryId == startedEntryId) activate(entryId)
+            if (entryId != null && entryId == startedEntryId) activateAt(pending.lastIndex)
         }
     }
 
     /**
      * Event thread, at MPV_EVENT_START_FILE, with the entry mpv is playing:
-     * null once a newer load has taken it out of the playlist.
+     * null once a newer load has taken it out of the playlist. Returns whether
+     * a load became current.
      */
-    fun onStartFile(entryId: Long?) {
-        synchronized(lock) {
-            startedEntryId = entryId
-            if (entryId != null) activate(entryId)
-        }
+    fun onStartFile(entryId: Long?): Boolean = synchronized(lock) {
+        startedEntryId = entryId
+        if (entryId == null) return@synchronized false
+        // A load whose entry id could not be read falls back to order, so it
+        // still becomes current instead of holding every position back.
+        val index = pending.indexOfFirst { it.first == entryId }.takeIf { it >= 0 }
+            ?: pending.indexOfFirst { it.first == null }
+        if (index < 0) return@synchronized false
+        activateAt(index)
+        true
     }
 
-    private fun activate(entryId: Long) {
-        val index = pending.indexOfFirst { it.first == entryId }
-        if (index < 0) return
+    private fun activateAt(index: Int) {
         active = pending[index].second
         // The loads queued before it were replaced before mpv got to their file.
         repeat(index + 1) { pending.removeFirst() }

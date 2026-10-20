@@ -735,9 +735,9 @@ class MPVLayerRenderer(
             it.command(arrayOf("loadfile", url, "replace"))
             // loadfile left this file as the playlist's only entry; its
             // MPV_EVENT_START_FILE is matched by that entry's id.
-            it.getPropertyInt("playlist/0/id")?.let { entryId ->
-                loadGenerations.queue(generation, entryId.toLong())
-            }
+            val entryId = it.getPropertyInt("playlist/0/id")?.toLong()
+            if (entryId == null) Log.w(TAG, "No playlist entry id after loadfile; its start is matched by order")
+            loadGenerations.queue(generation, entryId)
         }
     }
 
@@ -1349,7 +1349,9 @@ class MPVLayerRenderer(
     override fun event(eventId: Int) {
         when (eventId) {
             MPVLib.MPV_EVENT_START_FILE -> {
-                loadGenerations.onStartFile(playingEntryId())
+                if (!loadGenerations.onStartFile(playingEntryId()) && loadGenerations.current == null) {
+                    Log.i(TAG, "A file started that no pending load names")
+                }
                 if (loadGenerations.current != null && skippedReplacedFileUpdates > 0) {
                     Log.i(TAG, "Skipped $skippedReplacedFileUpdates position update(s) from the file being replaced")
                     skippedReplacedFileUpdates = 0
@@ -1409,8 +1411,9 @@ class MPVLayerRenderer(
                 val currentRequestId = seekReportRequestId
                 val clock = mpv?.getPropertyDouble("time-pos")?.takeIf { it.isFinite() && it >= 0 }
                 // A restart of the file being replaced (a seek just before a
-                // swap) does not give the new file's clock.
-                val position = clock?.takeIf { value -> loadGenerations.ifCurrent { cachedPosition = value } != null }
+                // swap) does not give the new file's clock. ifCurrent writes
+                // the cache, under the lock begin() takes.
+                val position = if (clock != null && loadGenerations.ifCurrent { cachedPosition = clock } != null) clock else null
                 val duration = cachedDuration
                 val cache = cachedCacheSeconds
                 val wasLoading = _isLoading

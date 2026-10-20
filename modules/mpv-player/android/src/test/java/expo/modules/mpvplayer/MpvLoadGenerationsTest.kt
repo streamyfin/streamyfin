@@ -80,6 +80,30 @@ class MpvLoadGenerationsTest {
         assertEquals(first, generations.current)
     }
 
+    @Test fun loadWithoutAnEntryIdStillBecomesCurrentAtTheNextStart() {
+        val (generations, _) = playing()
+        val second = generations.begin()
+        // The entry id read after loadfile failed.
+        generations.queue(second, null)
+        assertNull(generations.current)
+        assertTrue(generations.onStartFile(7))
+        assertEquals(second, generations.current)
+    }
+
+    @Test fun startNamingAKnownLoadWinsOverOneWithoutAnEntryId() {
+        val (generations, _) = playing()
+        generations.queue(generations.begin(), null)
+        val third = generations.load(entryId = 3)
+        assertTrue(generations.onStartFile(3))
+        assertEquals(third, generations.current)
+    }
+
+    @Test fun startNamingNoPendingLoadChangesNothingAndSaysSo() {
+        val (generations, first) = playing()
+        assertFalse(generations.onStartFile(42))
+        assertEquals(first, generations.current)
+    }
+
     @Test fun nothingIsCurrentAfterTeardownUntilTheNextLoadStarts() {
         val (generations, _) = playing()
         generations.reset()

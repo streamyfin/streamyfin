@@ -750,7 +750,13 @@ final class MPVLayerRenderer {
             self.latestLoadGeneration = loadGeneration
             // Async like the stop above, so mpv runs the two in order. The
             // reply, tagged with the generation, names the new playlist entry.
-            self.command(handle, ["loadfile", target, "replace"], replyUserdata: UInt64(loadGeneration))
+            let status = self.command(handle, ["loadfile", target, "replace"], replyUserdata: UInt64(loadGeneration))
+            if status < 0 {
+                // No reply and no start will come for it; the old file's
+                // positions stay held back, as they belong to another item.
+                self.pendingLoads.removeAll { $0.generation == loadGeneration }
+                Logger.shared.log("loadfile was refused (\(status)), positions stay held back", type: "Error")
+            }
         }
     }
 
@@ -873,9 +879,10 @@ final class MPVLayerRenderer {
         }
     }
     
-    private func command(_ handle: OpaquePointer, _ args: [String], replyUserdata: UInt64 = 0) {
-        guard !args.isEmpty else { return }
-        _ = withCStringArray(args) { pointer in
+    @discardableResult
+    private func command(_ handle: OpaquePointer, _ args: [String], replyUserdata: UInt64 = 0) -> Int32 {
+        guard !args.isEmpty else { return -1 }
+        return withCStringArray(args) { pointer in
             mpv_command_async(handle, replyUserdata, pointer)
         }
     }
@@ -948,11 +955,16 @@ final class MPVLayerRenderer {
         case MPV_EVENT_VIDEO_RECONFIG:
             applySubtitleLayout()
         case MPV_EVENT_START_FILE:
-            if let entryId = event.data?.assumingMemoryBound(to: mpv_event_start_file.self).pointee.playlist_entry_id,
-               let index = pendingLoads.firstIndex(where: { $0.entryId == entryId }) {
+            let entryId = event.data?.assumingMemoryBound(to: mpv_event_start_file.self).pointee.playlist_entry_id
+            // A load whose reply named no entry falls back to order, so it
+            // still becomes current instead of holding every position back.
+            if let index = pendingLoads.firstIndex(where: { $0.entryId == entryId })
+                ?? pendingLoads.firstIndex(where: { $0.entryId == nil }) {
                 activeLoadGeneration = pendingLoads[index].generation
                 // The loads queued before it were replaced before mpv got to their file.
                 pendingLoads.removeFirst(index + 1)
+            } else if isLoadPending {
+                Logger.shared.log("A file started that no pending load names", type: "Warn")
             }
             if !isLoadPending && skippedReplacedFileUpdates > 0 {
                 Logger.shared.log(

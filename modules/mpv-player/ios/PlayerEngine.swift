@@ -63,6 +63,8 @@ final class MPVPlayerEngine: NSObject {
 	private var cachedPosition: Double = 0
 	private var cachedDuration: Double = 0
 	private var loadGeneration: UInt = 0
+	/// Main thread: positions of a replaced file dropped since the last current one.
+	private var droppedReplacedFileUpdates = 0
 	private(set) var intendedPlayState: Bool = false
 	private var _isZoomedToFill: Bool = false
 	private var isShutDown = false
@@ -688,8 +690,16 @@ extension MPVPlayerEngine: MPVLayerRendererDelegate {
 		// Read before the latest loadVideo() reached mpv: the outgoing file's
 		// clock, which JS would report under the item that replaced it.
 		guard loadGeneration == self.loadGeneration else {
-			Logger.shared.log("Dropped a position update from the replaced file", type: "Info")
+			droppedReplacedFileUpdates += 1
 			return
+		}
+		// One line per load, not per tick: the app log keeps 1000 entries.
+		if droppedReplacedFileUpdates > 0 {
+			Logger.shared.log(
+				"Dropped \(droppedReplacedFileUpdates) position update(s) from the replaced file",
+				type: "Info"
+			)
+			droppedReplacedFileUpdates = 0
 		}
 		cachedPosition = position
 		cachedDuration = duration

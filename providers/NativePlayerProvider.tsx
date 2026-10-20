@@ -1826,7 +1826,15 @@ const NativePlayerProviderInner: React.FC<{
         // An in-place swap can deliver the outgoing stream's onLoad late; in a
         // group it would report Ready for an item still loading, and solo its
         // progress would land on the new item.
-        if (!applyLoadEvent(session, payload)) return;
+        if (!applyLoadEvent(session, payload)) {
+          // Without the URLs: they carry the access token. A session that
+          // keeps waiting after this line never got its own load event.
+          writeToLog(
+            "INFO",
+            "NativePlayer ignored a load event for another stream",
+          );
+          return;
+        }
         if (session.localSubtitle?.active) {
           // The swap's loadfile dropped the sub-added sidecar — re-attach it
           // (selection re-applies on onTracksReady) and restore its menu
