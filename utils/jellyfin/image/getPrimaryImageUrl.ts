@@ -30,9 +30,10 @@ export const getPrimaryImageUrl = ({
   width?: number | null;
   height?: number | null;
 }) => {
-  // A server or proxy that answers with text where an item belongs hands the
-  // page a string, and isBaseItemDto's `in` throws on anything but an object.
-  if (!item || !api || typeof item !== "object") {
+  // Every URL below is built from the item's Id: without one there is no
+  // image to ask for, whatever was handed over (an answer that is not an
+  // item, restored from an older cache, is a string).
+  if (!api || !item?.Id) {
     return null;
   }
 

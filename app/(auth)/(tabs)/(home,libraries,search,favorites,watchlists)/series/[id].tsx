@@ -38,6 +38,7 @@ import {
 import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
 import { toImagePixels } from "@/utils/jellyfin/image/imagePixels";
+import { isJellyfinItem } from "@/utils/jellyfin/jellyfin";
 import { getUserItemData } from "@/utils/jellyfin/user-library/getUserItemData";
 import { storage } from "@/utils/mmkv";
 import { getSeriesPlaybackTarget } from "@/utils/seriesPlaybackTarget";
@@ -88,6 +89,9 @@ const page: React.FC = () => {
         itemId: seriesId,
       });
     },
+    // A cache saved by an earlier version can hold an answer that was not an
+    // item: read as none, until the refetch on mount brings the series.
+    select: (data) => (isJellyfinItem(data) ? data : null),
     staleTime: isOffline ? Infinity : 60 * 1000,
     refetchInterval: !isOffline && Platform.isTV ? 60 * 1000 : undefined,
     enabled: isOffline || (!!api && !!user?.Id),
