@@ -2,6 +2,7 @@ import { useAtomValue } from "jotai";
 import { useEffect, useRef } from "react";
 import { Platform } from "react-native";
 import {
+  NOTIFICATION_CAPABILITIES,
   PUSH_DEVICE_PATH,
   PUSH_REGISTRATION_TIMEOUT_MS,
 } from "@/constants/Notifications";
@@ -67,6 +68,7 @@ export const usePushRegistration = (
       token,
       language,
       posterServerUrl,
+      NOTIFICATION_CAPABILITIES,
     );
     latest.current = key;
     if (!key || !serverUrl || !api || !user?.Id || !token) {
@@ -84,6 +86,9 @@ export const usePushRegistration = (
       // it fetches the poster in them from.
       language,
       serverUrl: posterServerUrl,
+      // Which of our channels and buttons it shows, so the plugin adds no field it
+      // would hide the message for.
+      capabilities: NOTIFICATION_CAPABILITIES,
     };
 
     // Each post waits for the write before it to land: two in flight could land

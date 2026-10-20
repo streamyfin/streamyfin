@@ -49,6 +49,30 @@ describe("the poster's address in the key", () => {
   });
 });
 
+describe("what the device can show, in the key", () => {
+  // A build that starts showing channels or buttons registers again, or the plugin would
+  // keep sending it messages without them.
+  test("changes the key when it changes", () => {
+    const before = pushRegistrationKey(
+      "https://jf",
+      "u",
+      "t",
+      "en",
+      undefined,
+      {
+        channels: 0,
+        categories: 0,
+      },
+    );
+    const after = pushRegistrationKey("https://jf", "u", "t", "en", undefined, {
+      channels: 1,
+      categories: 1,
+    });
+
+    expect(before).not.toBe(after);
+  });
+});
+
 // A post still in flight could land after the sign out's delete and bring the row
 // of a signed out device back, so every write waits for the one before it.
 describe("the writes of this device's registration", () => {

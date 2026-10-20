@@ -21,6 +21,10 @@ import { GlobalModal } from "@/components/GlobalModal";
 import { PendingAccountSaveModal } from "@/components/PendingAccountSaveModal";
 import { SeerrAutoLogin } from "@/components/seerr/SeerrAutoLogin";
 import { SyncPlayPlaybackBridge } from "@/components/syncplay/SyncPlayPlaybackBridge";
+import {
+  NOTIFICATION_PERMISSIONS,
+  PERMISSION_ASKED_KEY,
+} from "@/constants/Notifications";
 import { enableTVMenuKeyInterception } from "@/hooks/useTVBackHandler";
 import i18n from "@/i18n";
 import { DownloadProvider } from "@/providers/DownloadProvider";
@@ -49,8 +53,12 @@ import {
   writeToLog,
 } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
-import { notificationRoute } from "@/utils/notificationRoute";
-import { invalidateQueriesWhenOnline } from "@/utils/query/networkAwareInvalidate";
+import { offerSettingsLinkOnce } from "@/utils/notificationPermissions";
+import {
+  isPlainTap,
+  notificationRoute,
+  responseRoute,
+} from "@/utils/notificationRoute";
 import {
   queryDehydrateOptions,
   withoutPersistedMutations,
@@ -83,8 +91,11 @@ if (Platform.isTV) {
 }
 
 import * as Sentry from "@sentry/react-native";
+import { useAppLanguage } from "@/hooks/useAppLanguage";
 import useRouter from "@/hooks/useAppRouter";
 import { useNativePlayerLogBridge } from "@/hooks/useNativePlayerLogBridge";
+import { useNotificationActions } from "@/hooks/useNotificationActions";
+import { useNotificationSettingsLink } from "@/hooks/useNotificationSettingsLink";
 import { usePushRegistration } from "@/hooks/usePushRegistration";
 import { userAtom } from "@/providers/JellyfinProvider";
 import { effectiveSettingsAtom, settingsAtom } from "@/utils/atoms/settings";
@@ -156,6 +167,10 @@ try {
   // configureCache is a no-op on some platforms/versions; safe to ignore.
 }
 
+/**
+ * Opens what a notification is about: one tapped while the app runs, and the one that opened
+ * it. A button opens nothing.
+ */
 function useNotificationObserver() {
   const router = useRouter();
 
@@ -170,12 +185,12 @@ function useNotificationObserver() {
     // plugin does not send, so opening a notification from a closed app landed on the
     // home screen.
     Notifications.getLastNotificationResponseAsync().then(
-      (response: { notification: any }) => {
-        if (!isMounted || !response?.notification) {
-          return;
-        }
-        const route = notificationRoute(
-          response.notification.request.content.data,
+      (response: { notification: any; actionIdentifier: string } | null) => {
+        if (!isMounted) return;
+        // A button is carried out by useNotificationActions, and opens nothing.
+        const route = responseRoute(
+          response,
+          Notifications.DEFAULT_ACTION_IDENTIFIER,
         );
         if (route) {
           router.push(route as never);
@@ -213,14 +228,17 @@ if (!Platform.isTV) {
   });
 }
 
+/**
+ * Asks for notifications once per install, and says whether they are allowed.
+ */
 const checkAndRequestPermissions = async () => {
   try {
-    const hasAskedBefore = storage.getString(
-      "hasAskedForNotificationPermission",
-    );
+    const hasAskedBefore = storage.getString(PERMISSION_ASKED_KEY);
     let granted = false;
     if (hasAskedBefore !== "true") {
-      const { status } = await Notifications.requestPermissionsAsync();
+      const { status } = await Notifications.requestPermissionsAsync(
+        NOTIFICATION_PERMISSIONS,
+      );
       granted = status === "granted";
       if (granted) {
         writeToLog("INFO", "Notification permissions granted.");
@@ -229,11 +247,14 @@ const checkAndRequestPermissions = async () => {
         writeToLog("ERROR", "Notification permissions denied.");
         console.log("Notification permissions denied.");
       }
-      storage.set("hasAskedForNotificationPermission", "true");
+      storage.set(PERMISSION_ASKED_KEY, "true");
     } else {
       // Already asked before, check current status
       const { status } = await Notifications.getPermissionsAsync();
       granted = status === "granted";
+      if (granted && Platform.OS === "ios") {
+        await offerSettingsLinkOnce(Notifications, storage);
+      }
       if (!granted) {
         writeToLog(
           "ERROR",
@@ -343,22 +364,11 @@ function Layout() {
   const language =
     settings?.preferedLanguage ?? getLocales()[0].languageCode ?? "en";
 
-  useEffect(() => {
-    // Until the stored settings hydrate, `settings` holds the defaults, and
-    // following them would move i18n off the stored language it started in.
-    if (!settingsLoaded) return;
-    if (language === i18n.language) return;
-    // A Jellyfin 12 server answers in the language of the request (track
-    // names, for one), so what is cached is in the previous one. Screens that
-    // stay mounted, in another tab for instance, would keep showing it.
-    // Only when online: offline the refetches would fail, and a query in the
-    // error state is dropped from the persisted cache offline mode reads.
-    void i18n
-      .changeLanguage(language)
-      .then(() => invalidateQueriesWhenOnline(queryClient, {}));
-  }, [settingsLoaded, language, i18n]);
+  useAppLanguage(language, settingsLoaded, queryClient, Notifications);
 
   useNotificationObserver();
+  useNotificationActions(queryClient);
+  useNotificationSettingsLink();
   useNativePlayerLogBridge();
 
   const [expoPushToken, setExpoPushToken] = useState<ExpoPushToken>();
@@ -432,6 +442,12 @@ function Layout() {
       responseListener.current =
         Notifications?.addNotificationResponseReceivedListener(
           (response: NotificationResponse) => {
+            // A button is carried out by useNotificationActions, and opens nothing.
+            if (
+              !isPlainTap(response, Notifications.DEFAULT_ACTION_IDENTIFIER)
+            ) {
+              return;
+            }
             // Currently the notifications supported by the plugin will send data for deep links.
             const { title, data } = response.notification.request.content;
             writeInfoLog(`Notification ${title} opened`, data);
