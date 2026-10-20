@@ -28,7 +28,8 @@ const GenreSlide: React.FC<SlideProps & ViewProps> = ({ slide, ...props }) => {
   const { data } = useSeerrGenreSliders(slide);
 
   return (
-    data && (
+    // No genres, no row, as on the TV: a heading over nothing reads as broken.
+    !!data?.length && (
       <Slide
         {...props}
         slide={slide}

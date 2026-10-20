@@ -1,5 +1,10 @@
 import { Permission } from "./permissions";
-import { discoverRows, loadDiscoverSliders, slidersOf } from "./sliders";
+import {
+  discoverRows,
+  genresOf,
+  loadDiscoverSliders,
+  slidersOf,
+} from "./sliders";
 import { type DiscoverSlider, DiscoverSliderType } from "./types";
 
 const slider = (
@@ -89,6 +94,31 @@ describe("slidersOf", () => {
   test("leaves out what is not a slider in a list", () => {
     const trending = slider(DiscoverSliderType.TRENDING, 0);
     expect(slidersOf([null, "slider", trending, 3])).toEqual([trending]);
+  });
+});
+
+// What the server sends for a genres row, which a page answering 200 in its
+// place is not (REACT-NATIVE-WG).
+describe("genresOf", () => {
+  const drama = { id: 18, name: "Drama", backdrops: [] };
+
+  test("keeps the genres of a list", () => {
+    expect(genresOf([drama])).toEqual([drama]);
+  });
+
+  test.each([
+    ["a page", "<!DOCTYPE html><html></html>"],
+    ["an empty body", ""],
+    ["an object", { message: "Not found" }],
+    ["nothing", undefined],
+    ["null", null],
+  ])("has no genres in %s", (_name, body) => {
+    expect(genresOf(body)).toEqual([]);
+  });
+
+  // The row keys its cards and opens a genre by the id.
+  test("leaves out what has no id in a list", () => {
+    expect(genresOf([null, "<", { name: "Drama" }, drama])).toEqual([drama]);
   });
 });
 
