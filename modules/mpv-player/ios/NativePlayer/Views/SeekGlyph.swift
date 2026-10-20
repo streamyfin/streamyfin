@@ -13,6 +13,15 @@ struct SeekGlyph: View {
 	let size: CGFloat
 	var weight: Font.Weight = .semibold
 
+	/// How far the digits sit below the circle's centre, as a share of the
+	/// glyph size. The tvOS row draws the glyph at 22 pt, where the iOS share
+	/// left the digits against the arrowhead, 2 px above Apple's.
+	#if os(tvOS)
+	private static let digitDrop: CGFloat = 0.12
+	#else
+	private static let digitDrop: CGFloat = 0.035
+	#endif
+
 	var body: some View {
 		if let symbol = numberedSeekSymbol(prefix: prefix, seconds: seconds) {
 			Image(systemName: symbol)
@@ -29,7 +38,7 @@ struct SeekGlyph: View {
 							.minimumScaleFactor(0.5)
 							.lineLimit(1)
 							.frame(width: size * 0.66)
-							.offset(y: size * 0.035)
+							.offset(y: size * Self.digitDrop)
 					}
 				}
 		}
