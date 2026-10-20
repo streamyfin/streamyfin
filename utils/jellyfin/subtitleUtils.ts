@@ -766,7 +766,8 @@ export const applyMpvSubtitleSelection = async (
  * @param mediaSource - The media source containing audio streams
  * @param jellyfinAudioIndex - The Jellyfin server-side audio index
  * @param isTranscoding - Whether the stream is being transcoded
- * @returns MPV track ID (1-based), or undefined if not found
+ * @returns MPV track ID (1-based), or undefined if not found, or for an
+ *   external stream, which a direct stream never carries
  */
 export const getMpvAudioId = (
   mediaSource: MediaSourceInfo | null | undefined,
@@ -793,6 +794,24 @@ export const getMpvAudioId = (
   // Find position in audio list (1-based for MPV)
   const position = allAudio.findIndex((a) => a.Index === jellyfinAudioIndex);
   return position >= 0 ? position + 1 : undefined;
+};
+
+/**
+ * How to switch to a Jellyfin audio stream while one plays: set mpv's own
+ * track when the stream carries it, or reload the stream when it does not. A
+ * transcoded stream carries only the track the server encoded, and a direct
+ * stream never carries an external audio file; the server muxes either in.
+ */
+export const resolveAudioSwitch = (
+  mediaSource: MediaSourceInfo | null | undefined,
+  jellyfinAudioIndex: number,
+): { reload: true } | { reload: false; mpvId: number } => {
+  const mpvId = getMpvAudioId(
+    mediaSource,
+    jellyfinAudioIndex,
+    Boolean(mediaSource?.TranscodingUrl),
+  );
+  return mpvId === undefined ? { reload: true } : { reload: false, mpvId };
 };
 
 /**

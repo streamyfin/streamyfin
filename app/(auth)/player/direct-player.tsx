@@ -95,6 +95,7 @@ import {
   getExternalSubtitleUrl,
   getMpvAudioId,
   isImageBasedSubtitle,
+  resolveAudioSwitch,
 } from "@/utils/jellyfin/subtitleUtils";
 import { logAndCaptureError, writeToLog } from "@/utils/log";
 import {
@@ -1042,9 +1043,10 @@ export default function DirectPlayerPage() {
       )
       .filter((u): u is string => !!u);
 
-    // Audio maps positionally (audio tracks aren't reordered or hidden like
-    // subtitles). The subtitle selection is applied later, once MPV's real track
-    // list is known — see applySubtitleSelection / onTracksReady.
+    // Audio maps by position among the file's own tracks (getMpvAudioId leaves
+    // out the external ones Jellyfin lists ahead of them). The subtitle
+    // selection is applied later, once MPV's real track list is known — see
+    // applySubtitleSelection / onTracksReady.
     const initialAudioId = getMpvAudioId(
       mediaSource,
       audioIndex,
@@ -1274,13 +1276,12 @@ export default function DirectPlayerPage() {
     async (index: number) => {
       setCurrentAudioIndex(index);
 
-      // Check if we're transcoding
-      const isTranscoding = Boolean(stream?.mediaSource?.TranscodingUrl);
-
       // A transcoded stream only carries the audio track the server encoded
-      // into it — switching requires re-negotiating the stream with the new
-      // index (like the mobile menu's replacePlayer), not an mpv aid change.
-      if (isTranscoding) {
+      // into it, and a direct stream never carries an external audio file —
+      // either needs the stream re-negotiated with the new index (like the
+      // mobile menu's replacePlayer), not an mpv aid change.
+      const target = resolveAudioSwitch(stream?.mediaSource, index);
+      if (target.reload) {
         const queryParams = new URLSearchParams({
           itemId: item?.Id ?? "",
           audioIndex: String(index),
@@ -1300,16 +1301,7 @@ export default function DirectPlayerPage() {
         return;
       }
 
-      // Convert Jellyfin index to MPV track ID
-      const mpvTrackId = getMpvAudioId(
-        stream?.mediaSource,
-        index,
-        isTranscoding,
-      );
-
-      if (mpvTrackId !== undefined) {
-        await videoRef.current?.setAudioTrack?.(mpvTrackId);
-      }
+      await videoRef.current?.setAudioTrack?.(target.mpvId);
     },
     [
       stream?.mediaSource,

@@ -13,6 +13,7 @@ import {
   type PlayerSubtitleTrack,
   pickAutoSubtitleTrack,
   requiresStreamRestart,
+  resolveAudioSwitch,
   resolveSubtitleTrack,
   sameSubtitleTrack,
 } from "@/utils/jellyfin/subtitleUtils";
@@ -1009,5 +1010,35 @@ describe("getMpvAudioId", () => {
     expect(getMpvAudioId(mediaSource, 3, false)).toBe(1);
     expect(getMpvAudioId(mediaSource, 4, false)).toBe(2);
     expect(getMpvAudioId(mediaSource, 1, false)).toBeUndefined();
+  });
+});
+
+describe("resolveAudioSwitch", () => {
+  const streams = [
+    { Type: "Audio", Index: 1, Codec: "eac3", IsExternal: true },
+    { Type: "Video", Index: 2, Codec: "hevc" },
+    { Type: "Audio", Index: 3, Codec: "truehd" },
+    { Type: "Audio", Index: 4, Codec: "ac3" },
+  ] as MediaStream[];
+
+  it("switches mpv's own track for an embedded stream played directly", () => {
+    expect(resolveAudioSwitch({ MediaStreams: streams }, 4)).toEqual({
+      reload: false,
+      mpvId: 2,
+    });
+  });
+
+  // The direct stream is the file alone: the server has to mux the external
+  // audio file in, as it does any track on a transcode.
+  it("reloads the stream for an external stream or on a transcode", () => {
+    expect(resolveAudioSwitch({ MediaStreams: streams }, 1)).toEqual({
+      reload: true,
+    });
+    expect(
+      resolveAudioSwitch(
+        { MediaStreams: streams, TranscodingUrl: "/master.m3u8" },
+        4,
+      ),
+    ).toEqual({ reload: true });
   });
 });

@@ -216,8 +216,9 @@ export const buildAudioMenu = (
       selected: stream.Index === selectedIndex,
       kind: "server" as const,
       language: stream.Language ?? undefined,
-      // A transcoded stream carries only the encoded track; any other choice
-      // has to be re-negotiated with the server.
-      requiresReload: isTranscoding,
+      // A transcoded stream carries only the encoded track, and a direct stream
+      // never carries an external audio file: either choice has to be
+      // re-negotiated with the server, which muxes the track in.
+      requiresReload: isTranscoding || stream.IsExternal === true,
     }));
 };
