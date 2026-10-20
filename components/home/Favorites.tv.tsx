@@ -32,6 +32,9 @@ export const Favorites = () => {
   const insets = useSafeAreaInsets();
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
+  // Signing out clears the api, the user and the query cache while this tab
+  // stays mounted: the rows wait for the next session instead of fetching.
+  const hasSession = !!api && !!user?.Id;
   const pageSize = 20;
   const [emptyState, setEmptyState] = useState<EmptyState>({
     Series: false,
@@ -48,9 +51,12 @@ export const Favorites = () => {
       startIndex: number = 0,
       limit: number = 20,
     ) => {
-      // Signing out clears the api and the query cache while this tab stays
-      // mounted, so its rows fetch once more with no session to ask.
-      if (!api || !user?.Id) return [];
+      // The rows are disabled without a session. Should a fetch get here
+      // anyway, throw: an empty page would be cached as a success and kept
+      // into the next session.
+      if (!api || !user?.Id) {
+        throw new Error("Favorites requested without a session");
+      }
       const response = await getItemsApi(api).getItems({
         userId: user?.Id,
         sortBy: ["SeriesSortName", "SortName"],
@@ -188,6 +194,7 @@ export const Favorites = () => {
           queryKey={["home", "favorites", "series"]}
           title={t("favorites.series")}
           hideIfEmpty
+          enabled={hasSession}
           pageSize={pageSize}
           isFirstSection
         />
@@ -196,6 +203,7 @@ export const Favorites = () => {
           queryKey={["home", "favorites", "movies"]}
           title={t("favorites.movies")}
           hideIfEmpty
+          enabled={hasSession}
           orientation='vertical'
           pageSize={pageSize}
         />
@@ -204,6 +212,7 @@ export const Favorites = () => {
           queryKey={["home", "favorites", "episodes"]}
           title={t("favorites.episodes")}
           hideIfEmpty
+          enabled={hasSession}
           pageSize={pageSize}
         />
         <InfiniteScrollingCollectionList
@@ -211,6 +220,7 @@ export const Favorites = () => {
           queryKey={["home", "favorites", "videos"]}
           title={t("favorites.videos")}
           hideIfEmpty
+          enabled={hasSession}
           pageSize={pageSize}
         />
         <InfiniteScrollingCollectionList
@@ -218,6 +228,7 @@ export const Favorites = () => {
           queryKey={["home", "favorites", "boxsets"]}
           title={t("favorites.boxsets")}
           hideIfEmpty
+          enabled={hasSession}
           pageSize={pageSize}
         />
         <InfiniteScrollingCollectionList
@@ -225,6 +236,7 @@ export const Favorites = () => {
           queryKey={["home", "favorites", "playlists"]}
           title={t("favorites.playlists")}
           hideIfEmpty
+          enabled={hasSession}
           pageSize={pageSize}
         />
       </View>
