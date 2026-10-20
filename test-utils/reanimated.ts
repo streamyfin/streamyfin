@@ -1,6 +1,15 @@
 import { type ComponentType, useEffect, useRef } from "react";
 import { ScrollView, Text, View } from "react-native";
 
+// Reanimated's interpolation module has no native code, so the double runs the
+// real one rather than a copy: past the range it extends unless told to clamp.
+const { Extrapolation, interpolate } = jest.requireActual<
+  Pick<
+    typeof import("react-native-reanimated"),
+    "Extrapolation" | "interpolate"
+  >
+>("react-native-reanimated/lib/module/interpolation");
+
 /** Writes made from JS that the UI thread has not taken yet. */
 const heldWrites: (() => void)[] = [];
 let holding = false;
@@ -124,21 +133,12 @@ export const reanimatedModule = {
   withDelay: (_delay: unknown, animation: unknown) => animation,
   withRepeat: (animation: unknown) => animation,
   cancelAnimation: () => {},
-  interpolate: (
-    value: number,
-    [inputStart, inputEnd]: number[],
-    [outputStart, outputEnd]: number[],
-  ) => {
-    const ratio = (value - inputStart) / (inputEnd - inputStart);
-    return (
-      outputStart + Math.min(Math.max(ratio, 0), 1) * (outputEnd - outputStart)
-    );
-  },
+  interpolate,
   Easing: {
     out: () => ({}),
     cubic: {},
     inOut: () => ({}),
     ease: {},
   },
-  Extrapolation: { CLAMP: "clamp" },
+  Extrapolation,
 };
