@@ -115,3 +115,79 @@ it.each([
     "movie-1",
   ]);
 });
+
+// A damaged entry used to cost nothing at load; the fix-up now reads every item, so it has to
+// step over one rather than stop the app from reading any download.
+it("loads a stored database with a damaged subtitle or episode entry", () => {
+  const movie = downloadedBefore(oldDocuments);
+  movie.mediaSource.MediaStreams = [
+    null as never,
+    ...(movie.mediaSource.MediaStreams ?? []),
+  ];
+  storage.set(
+    "downloads.v2.json",
+    JSON.stringify({
+      movies: { "movie-1": movie },
+      series: {
+        "series-1": {
+          seriesInfo: {},
+          seasons: { 1: { episodes: { 1: null } } },
+        },
+      },
+      other: {},
+    }),
+  );
+  expect(database.getDownloadedItemById("movie-1")?.videoFilePath).toBe(
+    `${mockDocuments}some_movie_1999.mp4`,
+  );
+});
+
+// The sections a stored database lacks are there for the next download too, not just for
+// reading the ones it has.
+it("adds an episode to a stored database that lacks its series", () => {
+  storage.set(
+    "downloads.v2.json",
+    JSON.stringify({ movies: { "movie-1": downloadedBefore(oldDocuments) } }),
+  );
+  const episode = {
+    ...downloadedBefore(mockDocuments),
+    item: {
+      Id: "episode-1",
+      Type: "Episode",
+      SeriesId: "series-1",
+      ParentIndexNumber: 1,
+      IndexNumber: 1,
+    },
+  } as unknown as DownloadedItem;
+
+  database.addDownloadedItem(episode);
+  expect(database.getDownloadedItemById("episode-1")).toBeDefined();
+  expect(database.removeDownloadedItem("movie-1")).toBeDefined();
+});
+
+// Android's files directory never moves, so nothing stored there is rewritten, not even a
+// path that names another app's directory.
+it("leaves every stored path alone on Android", () => {
+  require("@/test-utils/reactNative").stubReactNative({ OS: "android" });
+  const files = "file:///data/user/0/com.fredrikburmester.streamyfin/files/";
+  const other = "file:///data/user/0/com.other.app/files/some_movie_1999.mp4";
+  jest.requireMock("expo-file-system").Paths.document.uri = files;
+  storage.set(
+    "downloads.v2.json",
+    JSON.stringify({
+      movies: {
+        "movie-1": { ...downloadedBefore(files), videoFilePath: other },
+      },
+      series: {},
+      other: {},
+    }),
+  );
+  try {
+    expect(database.getDownloadedItemById("movie-1")?.videoFilePath).toBe(
+      other,
+    );
+  } finally {
+    jest.requireMock("expo-file-system").Paths.document.uri = mockDocuments;
+    require("@/test-utils/reactNative").stubReactNative({ OS: "ios" });
+  }
+});

@@ -1,5 +1,6 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { Paths } from "expo-file-system";
+import { Platform } from "react-native";
 import { storage } from "@/utils/mmkv";
 import type { DownloadedItem, DownloadsDatabase } from "./types";
 import { rebaseOntoDocuments } from "./utils";
@@ -22,39 +23,63 @@ let indexCacheVersion = -1;
  * Points every local file an item stores (the video, the trickplay sheets, the downloaded
  * subtitles) at the Documents directory the app has now. The locations are stored whole, and
  * an iOS app update can move the app's container, which left every download unplayable until
- * it was downloaded again (#2252). Mutates and returns the item.
+ * it was downloaded again (#2252). Android's files directory never moves, so nothing changes
+ * there. Mutates and returns the item.
  */
-function withCurrentDocumentPaths(item: DownloadedItem): DownloadedItem {
-  const documents = Paths.document.uri;
-  if (item.videoFilePath) {
+function withCurrentDocumentPaths(
+  item: DownloadedItem,
+  documents: string,
+): DownloadedItem {
+  if (Platform.OS !== "ios") return item;
+  if (typeof item.videoFilePath === "string") {
     item.videoFilePath = rebaseOntoDocuments(item.videoFilePath, documents);
   }
-  if (item.trickPlayData?.path) {
+  if (typeof item.trickPlayData?.path === "string") {
     item.trickPlayData.path = rebaseOntoDocuments(
       item.trickPlayData.path,
       documents,
     );
   }
   for (const stream of item.mediaSource?.MediaStreams ?? []) {
-    if (stream.DeliveryUrl) {
+    if (typeof stream?.DeliveryUrl === "string") {
       stream.DeliveryUrl = rebaseOntoDocuments(stream.DeliveryUrl, documents);
     }
   }
   return item;
 }
 
-// Runs on every stored database as it is loaded, so a section missing from an older or
-// damaged one must not stop the app from reading the downloads it does have.
+/**
+ * Fills in the sections an older or damaged stored database lacks, so every reader and writer
+ * below can rely on them, and drops the entries that are not downloads at all. Mutates and
+ * returns the database.
+ */
+function withAllSections(db: Partial<DownloadsDatabase>): DownloadsDatabase {
+  const isItem = (entry: unknown) => !!entry && typeof entry === "object";
+  const keepItems = <T>(entries: Record<string, T> | undefined) =>
+    Object.fromEntries(
+      Object.entries(entries ?? {}).filter(([, entry]) => isItem(entry)),
+    ) as Record<string, T>;
+
+  db.movies = keepItems(db.movies);
+  db.other = keepItems(db.other);
+  db.series = keepItems(db.series);
+  for (const series of Object.values(db.series)) {
+    series.seasons = keepItems(series.seasons);
+    for (const season of Object.values(series.seasons)) {
+      season.episodes = keepItems(season.episodes);
+    }
+  }
+  return db as DownloadsDatabase;
+}
+
 function forEachItem(
   db: DownloadsDatabase,
   visit: (item: DownloadedItem) => void,
 ): void {
-  for (const movie of Object.values(db.movies ?? {})) visit(movie);
-  for (const series of Object.values(db.series ?? {})) {
-    for (const season of Object.values(series?.seasons ?? {})) {
-      for (const episode of Object.values(season?.episodes ?? {})) {
-        visit(episode);
-      }
+  for (const movie of Object.values(db.movies)) visit(movie);
+  for (const series of Object.values(db.series)) {
+    for (const season of Object.values(series.seasons)) {
+      for (const episode of Object.values(season.episodes)) visit(episode);
     }
   }
   for (const item of Object.values(db.other ?? {})) visit(item);
@@ -76,8 +101,9 @@ export function getDownloadsDatabase(): DownloadsDatabase {
   // Parse from storage and cache the result
   const file = storage.getString(DOWNLOADS_DATABASE_KEY);
   if (file) {
-    const db = JSON.parse(file) as DownloadsDatabase;
-    forEachItem(db, withCurrentDocumentPaths);
+    const db = withAllSections(JSON.parse(file));
+    const documents = Paths.document.uri;
+    forEachItem(db, (item) => withCurrentDocumentPaths(item, documents));
     cachedDb = db;
     return cachedDb;
   }
@@ -160,7 +186,7 @@ export function addDownloadedItem(item: DownloadedItem): void {
   const db = getDownloadsDatabase();
   const baseItem = item.item;
   // A download that finishes after an update still carries the paths it was started with.
-  withCurrentDocumentPaths(item);
+  withCurrentDocumentPaths(item, Paths.document.uri);
 
   if (baseItem.Type === "Movie" && baseItem.Id) {
     db.movies[baseItem.Id] = item;

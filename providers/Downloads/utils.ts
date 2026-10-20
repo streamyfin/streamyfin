@@ -2,6 +2,7 @@ import type {
   BaseItemDto,
   MediaStream,
 } from "@jellyfin/sdk/lib/generated-client/models";
+import { escapeRegExp } from "lodash";
 import {
   DOWNLOAD_SUBTITLE_INFIX,
   DOWNLOAD_TRICKPLAY_DIR_SUFFIX,
@@ -83,6 +84,10 @@ export function uriToFilePath(uri: string): string {
   return uri.replace(/^file:\/\//, "");
 }
 
+// The root, a directory of containers, a container and its Documents directory: a shorter
+// path has no sibling container to have moved from.
+const CONTAINER_PATH_MIN_SEGMENTS = 4;
+
 /**
  * Moves a stored location inside Documents onto the Documents directory the app has now.
  *
@@ -108,7 +113,7 @@ export function rebaseOntoDocuments(
   // app) is left alone. "/private/var" is the same directory as "/var" on iOS, so a path
   // stored through either one matches.
   const segments = documents.split("/");
-  if (segments.length < 4) return stored;
+  if (segments.length < CONTAINER_PATH_MIN_SEGMENTS) return stored;
   const containers = escapeRegExp(
     withoutPrivate(segments.slice(0, -2).join("/")),
   );
@@ -123,10 +128,6 @@ export function rebaseOntoDocuments(
 
 function withoutPrivate(path: string): string {
   return path.replace(/^\/private(?=\/)/, "");
-}
-
-function escapeRegExp(text: string): string {
-  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 /**
