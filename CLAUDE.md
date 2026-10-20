@@ -167,6 +167,7 @@ bun run ios:install-metal-toolchain   # Fixes "missing Metal Toolchain" build er
 | `test-utils/` | Shared test doubles: Jellyfin API, MMKV, the file system, custom headers, React Native, Reanimated |
 | `translations/` | i18n catalogues, `en.json` is the only source |
 | `scripts/` | Repo tooling run through bun |
+| `biome-plugins/` | Custom Biome (Grit) lint rules, wired up in `biome.json` |
 | `docs/` | Conventions and deep dives |
 | `e2e/` | Manual end to end fixtures that need Docker, never run in CI (a local Jellyfin for SyncPlay) |
 

@@ -850,6 +850,7 @@ export default function SettingsTV() {
                 onToggle={(value) =>
                   updateSettings({ syncPlayIgnoreWait: value })
                 }
+                isFirst={!hasOtherAccounts}
               />
             </>
           )}
@@ -867,6 +868,7 @@ export default function SettingsTV() {
                   updateSettings({ inactivityTimeout: value }),
               })
             }
+            isFirst={!hasOtherAccounts && !syncPlayAvailable}
           />
 
           {/* Video Player Section */}
@@ -1485,7 +1487,6 @@ export default function SettingsTV() {
             label={t("home.settings.storage.clear_all_cache")}
             value=''
             onPress={handleClearCache}
-            isFirst
           />
 
           {/* User Section */}

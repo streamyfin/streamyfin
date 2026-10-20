@@ -8,6 +8,7 @@ import {
   type TextInputProps,
 } from "react-native";
 import { Text } from "@/components/common/Text";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 
 interface TVPinInputProps
   extends Omit<TextInputProps, "value" | "onChangeText" | "style"> {
@@ -34,6 +35,7 @@ const TVPinInputComponent = React.forwardRef<TVPinInputRef, TVPinInputProps>(
       ...rest
     } = props;
 
+    const typography = useScaledTVTypography();
     const inputRef = useRef<TextInput>(null);
     const [isFocused, setIsFocused] = useState(false);
     const scale = useRef(new Animated.Value(1)).current;
@@ -84,7 +86,11 @@ const TVPinInputComponent = React.forwardRef<TVPinInputRef, TVPinInputProps>(
             },
           ]}
         >
-          {label && <Text style={styles.label}>{label}</Text>}
+          {label && (
+            <Text style={[styles.label, { fontSize: typography.callout }]}>
+              {label}
+            </Text>
+          )}
           <TextInput
             ref={inputRef}
             value={value}
@@ -94,7 +100,7 @@ const TVPinInputComponent = React.forwardRef<TVPinInputRef, TVPinInputProps>(
             secureTextEntry
             placeholder={placeholder || `Enter ${length}-digit PIN`}
             placeholderTextColor='#6B7280'
-            style={styles.input}
+            style={[styles.input, { fontSize: typography.heading }]}
             onFocus={() => {
               setIsFocused(true);
               animateFocus(true);
@@ -125,17 +131,15 @@ const styles = StyleSheet.create({
     minWidth: 280,
   },
   label: {
-    fontSize: 14,
     color: "rgba(255,255,255,0.6)",
     marginBottom: 4,
     marginTop: 8,
   },
   input: {
-    fontSize: 24,
     color: "#fff",
     fontWeight: "500",
     textAlign: "center",
-    height: 56,
+    minHeight: 56,
     letterSpacing: 8,
   },
 });
