@@ -516,8 +516,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		videoWidth = config.stream.videoWidth
 		videoHeight = config.stream.videoHeight
 		// Skip times are persisted settings that arrive unvalidated; a
-		// non-finite value would trap in seekSymbol's Int() and poison
-		// seek targets.
+		// non-finite value would poison seek targets.
 		seekForwardSec = config.ui.seekForwardSec.isFinite ? max(1, config.ui.seekForwardSec) : 10
 		seekBackwardSec = config.ui.seekBackwardSec.isFinite ? max(1, config.ui.seekBackwardSec) : 10
 		hapticsEnabled = config.ui.hapticsEnabled
