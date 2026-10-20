@@ -19,7 +19,8 @@ func formatTime(_ seconds: Double) -> String {
 func seekCount(_ seconds: Double) -> Int? {
 	// Int(_: Double) traps on non-finite input; this runs in body, so a
 	// bad persisted skip-time setting must degrade, not crash.
-	guard let rounded = Int(exactly: seconds.rounded()), rounded >= 0 else { return nil }
+	// Negative before rounding: -0.4 rounds to -0, which would pass as 0.
+	guard seconds >= 0, let rounded = Int(exactly: seconds.rounded()) else { return nil }
 	return rounded
 }
 
