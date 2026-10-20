@@ -161,10 +161,27 @@ describe("sort options", () => {
     ).toEqual(keysOf(sortOptions));
   });
 
-  // Outside a playlist the same server key means something else (the last
-  // episode of a series) or nothing at all (a movie), so the label would lie.
-  test.each(["movies", "tvshows", "boxsets", undefined, null] as const)(
-    "keeps the playlist updated date out of a %s library",
+  test("offers the newest episode date in a tv show library", () => {
+    const options = sortOptionsFor("tvshows");
+
+    expect(
+      options.find((o) => o.key === SortByOption.DateLastContentAdded)?.value,
+    ).toBe("Date Episode Added");
+    // Sits right after the series' own added date, nothing else changes.
+    expect(keysOf(options).indexOf(SortByOption.DateLastContentAdded)).toBe(
+      keysOf(options).indexOf(SortByOption.DateCreated) + 1,
+    );
+    expect(
+      keysOf(options).filter(
+        (key) => key !== SortByOption.DateLastContentAdded,
+      ),
+    ).toEqual(keysOf(sortOptions));
+  });
+
+  // Outside a playlist or a series the same server key means nothing (a
+  // movie), so the label would lie.
+  test.each(["movies", "boxsets", undefined, null] as const)(
+    "keeps the container updated date out of a %s library",
     (collectionType) => {
       expect(keysOf(sortOptionsFor(collectionType))).not.toContain(
         SortByOption.DateLastContentAdded,
