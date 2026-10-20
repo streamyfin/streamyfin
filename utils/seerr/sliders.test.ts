@@ -116,9 +116,11 @@ describe("genresOf", () => {
     expect(genresOf(body)).toEqual([]);
   });
 
-  // The row keys its cards and opens a genre by the id.
-  test("leaves out what has no id in a list", () => {
-    expect(genresOf([null, "<", { name: "Drama" }, drama])).toEqual([drama]);
+  // The row keys its cards and opens a genre by the id, under its name.
+  test("leaves out what has no id or no name in a list", () => {
+    expect(genresOf([null, "<", { name: "Drama" }, { id: 18 }, drama])).toEqual(
+      [drama],
+    );
   });
 });
 
