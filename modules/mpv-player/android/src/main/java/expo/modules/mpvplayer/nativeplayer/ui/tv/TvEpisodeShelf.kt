@@ -22,12 +22,16 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -37,7 +41,7 @@ import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Border
 import androidx.tv.material3.Card
 import androidx.tv.material3.CardDefaults
-import androidx.tv.material3.Surface
+import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import expo.modules.mpvplayer.nativeplayer.EpisodeListItemRecord
 import expo.modules.mpvplayer.nativeplayer.PlayerViewModel
@@ -57,6 +61,9 @@ fun TvEpisodeShelf(
 
     val listState = rememberLazyListState()
     val nowPlayingFocusRequester = remember { FocusRequester() }
+    var focusedEpisodeId by remember(episodes) { mutableStateOf<String?>(null) }
+    val selectedEpisode = episodes.firstOrNull { it.itemId == focusedEpisodeId }
+        ?: episodes.getOrNull(nowPlayingIndex)
 
     LaunchedEffect(nowPlayingIndex) {
         if (episodes.isNotEmpty()) {
@@ -98,7 +105,7 @@ fun TvEpisodeShelf(
             LazyRow(
                 state = listState,
                 horizontalArrangement = Arrangement.spacedBy(24.dp),
-                contentPadding = PaddingValues(horizontal = TvMetrics.INSET_H)
+                contentPadding = PaddingValues(horizontal = TvMetrics.INSET_H, vertical = 12.dp)
             ) {
                 itemsIndexed(episodes, key = { _, item -> item.itemId }) { index, episode ->
                     val isNowPlaying = index == nowPlayingIndex
@@ -106,7 +113,41 @@ fun TvEpisodeShelf(
                         episode = episode,
                         nowPlayingText = viewModel.str("nowPlaying", "Now Playing"),
                         onClick = { viewModel.selectEpisode(episode.itemId) },
-                        modifier = if (isNowPlaying) Modifier.focusRequester(nowPlayingFocusRequester) else Modifier
+                        modifier = (if (isNowPlaying) Modifier.focusRequester(nowPlayingFocusRequester) else Modifier)
+                            .onFocusChanged { if (it.isFocused) focusedEpisodeId = episode.itemId }
+                    )
+                }
+            }
+
+            selectedEpisode?.let { episode ->
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = TvMetrics.INSET_H),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = episode.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = TvPalette.OnSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = episode.details.orEmpty(),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TvPalette.OnSurfaceDim,
+                        minLines = 2,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = episode.overview.orEmpty(),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = TvPalette.OnSurfaceDim,
+                        minLines = 3,
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
             }
