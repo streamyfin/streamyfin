@@ -178,8 +178,21 @@ describe("sort options", () => {
     ).toEqual(keysOf(sortOptions));
   });
 
-  // Outside a playlist or a series the same server key means nothing (a
-  // movie), so the label would lie.
+  test("names the series' own added date next to the episode one", () => {
+    const labelOf = (collectionType: "tvshows" | "playlists" | "movies") =>
+      sortOptionsFor(collectionType).find(
+        (o) => o.key === SortByOption.DateCreated,
+      )?.value;
+
+    // Right above "Date Episode Added", a bare "Date Added" reads as an
+    // episode date too.
+    expect(labelOf("tvshows")).toBe("Date Show Added");
+    expect(labelOf("playlists")).toBe("Date Added");
+    expect(labelOf("movies")).toBe("Date Added");
+  });
+
+  // Movies and box sets hold no series. An unknown type (a mixed library, or
+  // one not loaded yet) keeps the shared list until the per-type work of #1767.
   test.each(["movies", "boxsets", undefined, null] as const)(
     "keeps the container updated date out of a %s library",
     (collectionType) => {
@@ -191,6 +204,7 @@ describe("sort options", () => {
 
   test("hands back the same list on every call", () => {
     expect(sortOptionsFor("playlists")).toBe(sortOptionsFor("playlists"));
+    expect(sortOptionsFor("tvshows")).toBe(sortOptionsFor("tvshows"));
     expect(sortOptionsFor("movies")).toBe(sortOptionsFor(undefined));
   });
 });

@@ -79,15 +79,26 @@ export const sortOptions: SortOption[] = [
 // depends on the container. For a playlist it is the last time an item went in,
 // for a series the date of its newest episode. Each reading needs its own
 // label, so the option is offered only in those libraries, worded for each.
-const withDateLastContentAdded = (label: string): SortOption[] =>
+const withDateLastContentAdded = (
+  label: string,
+  dateCreatedLabel?: string,
+): SortOption[] =>
   sortOptions.flatMap((option) =>
     option.key === SortByOption.DateCreated
-      ? [option, { key: SortByOption.DateLastContentAdded, value: label }]
+      ? [
+          dateCreatedLabel ? { ...option, value: dateCreatedLabel } : option,
+          { key: SortByOption.DateLastContentAdded, value: label },
+        ]
       : [option],
   );
 
 const playlistSortOptions = withDateLastContentAdded("Date Playlist Updated");
-const tvShowSortOptions = withDateLastContentAdded("Date Episode Added");
+// Right above the episode date, the series' own date says whose it is, as in
+// jellyfin-web.
+const tvShowSortOptions = withDateLastContentAdded(
+  "Date Episode Added",
+  "Date Show Added",
+);
 
 /**
  * The sort options a library of this type offers. Every list is built once,
