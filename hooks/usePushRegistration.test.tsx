@@ -2,7 +2,10 @@ import type { Api } from "@jellyfin/sdk";
 import { act, renderHook } from "@testing-library/react-native";
 import { createStore, Provider as JotaiProvider } from "jotai";
 import type { ReactNode } from "react";
-import { PUSH_REGISTRATION_TIMEOUT_MS } from "@/constants/Notifications";
+import {
+  NOTIFICATION_CAPABILITIES,
+  PUSH_REGISTRATION_TIMEOUT_MS,
+} from "@/constants/Notifications";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { setJellyfinHeaders } from "@/test-utils/customHeaders";
 import { customHeadersVersionAtom } from "@/utils/customHeaders";
@@ -125,7 +128,7 @@ describe("usePushRegistration", () => {
     await answerNewestFirst();
   });
 
-  test("registers the token, the device, the user and the app's language", async () => {
+  test("registers the token, the device, the user, the app's language and what it can show", async () => {
     await renderRegistration();
 
     expect(requests).toHaveLength(1);
@@ -136,6 +139,7 @@ describe("usePushRegistration", () => {
       userId: "user-1",
       language: "en",
       serverUrl: REMOTE_URL,
+      capabilities: NOTIFICATION_CAPABILITIES,
     });
   });
 
