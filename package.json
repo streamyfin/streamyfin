@@ -143,7 +143,7 @@
     "openapi-typescript": "7.13.0",
     "reassure": "1.6.0",
     "tsx": "4.23.12",
-    "typescript": "6.0.3"
+    "typescript": "7.0.2"
   },
   "expo": {
     "doctor": {
