@@ -108,9 +108,9 @@ import {
   applyMpvSubtitleSelection,
   findSubtitleTrackIdentity,
   getExternalSubtitleUrl,
-  getMpvAudioId,
   isImageBasedSubtitle,
   pickAutoSubtitleTrack,
+  resolveAudioSwitch,
   type SubtitleSelectablePlayer,
 } from "@/utils/jellyfin/subtitleUtils";
 import { logAndCaptureError, writeErrorLog, writeToLog } from "@/utils/log";
@@ -1415,10 +1415,14 @@ const NativePlayerProviderInner: React.FC<{
       jellyfinIndex: number,
       positionSec: number,
     ) => {
-      const isTranscoding = Boolean(session.stream.mediaSource.TranscodingUrl);
-      // A transcoded stream only carries the encoded audio track — switching
-      // requires re-negotiating the stream (mirror of handleAudioIndexChange).
-      if (isTranscoding) {
+      // A track the stream does not carry (any other on a transcode, an
+      // external audio file on a direct stream) needs a re-negotiated stream
+      // (mirror of handleAudioIndexChange).
+      const target = resolveAudioSwitch(
+        session.stream.mediaSource,
+        jellyfinIndex,
+      );
+      if (target.reload) {
         await replaceStream(session, {
           audioIndex: jellyfinIndex,
           positionTicks: msToTicks(positionSec * 1000),
@@ -1426,14 +1430,7 @@ const NativePlayerProviderInner: React.FC<{
         return;
       }
       session.currentAudioIndex = jellyfinIndex;
-      const mpvId = getMpvAudioId(
-        session.stream.mediaSource,
-        jellyfinIndex,
-        isTranscoding,
-      );
-      if (mpvId !== undefined) {
-        await nativePlayerSetAudioTrack(mpvId);
-      }
+      await nativePlayerSetAudioTrack(target.mpvId);
       pushTrackMenus(session);
     },
     [replaceStream, pushTrackMenus],
