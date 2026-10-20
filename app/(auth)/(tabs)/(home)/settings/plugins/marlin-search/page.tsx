@@ -16,6 +16,7 @@ import { useIntegrationHeaders } from "@/hooks/useIntegrationHeaders";
 import { useNetworkAwareQueryClient } from "@/hooks/useNetworkAwareQueryClient";
 import { useServerUrlResolver } from "@/hooks/useServerUrlResolver";
 import { useSettings } from "@/utils/atoms/settings";
+import { streamystatsAnswersSearch } from "@/utils/searchEngine";
 import { reachabilityProbe } from "@/utils/serverUrl/probes/reachability";
 
 export default function MarlinSearchPage() {
@@ -34,7 +35,7 @@ export default function MarlinSearchPage() {
   const marlinUrlLocked = pluginSettings?.marlinServerUrl?.locked === true;
   // Effective (user/admin merged) URL, same source the search screen uses —
   // the raw plugin value misses a user-configured Streamystats.
-  const hasStreamystats = !!settings?.streamyStatsServerUrl;
+  const streamystatsSearch = streamystatsAnswersSearch(settings);
 
   const onSave = async (val: string) => {
     // Persist the canonical resolved URL when the server answers; keep the
@@ -89,9 +90,9 @@ export default function MarlinSearchPage() {
               "home.settings.plugins.marlin_search.enable_marlin_search",
             )}
             disabledByAdmin={searchEngineLocked}
-            // Streamystats owns the search engine while configured — block the
-            // row tap too, not just the Switch, so it can't force "Jellyfin".
-            disabled={hasStreamystats}
+            // While Streamystats answers the searches, the row tap is blocked too,
+            // not just the Switch, so it cannot force Jellyfin over it.
+            disabled={streamystatsSearch}
             onPress={() => {
               updateSettings({ searchEngine: "Jellyfin" });
               queryClient.invalidateQueries({ queryKey: ["search"] });
@@ -99,7 +100,7 @@ export default function MarlinSearchPage() {
           >
             <SettingSwitch
               value={settings.searchEngine === "Marlin"}
-              disabled={searchEngineLocked || hasStreamystats}
+              disabled={searchEngineLocked || streamystatsSearch}
               onValueChange={(val) => {
                 updateSettings({ searchEngine: val ? "Marlin" : "Jellyfin" });
                 queryClient.invalidateQueries({ queryKey: ["search"] });
