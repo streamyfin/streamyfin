@@ -6,6 +6,9 @@ import { Colors } from "@/constants/Colors";
 import { POSTER_IMAGE_TRANSITION_DURATION } from "@/constants/Values";
 import type { CardData } from "./CardData";
 
+/** What a card shows where its artwork goes: none, or one still loading. */
+const ARTWORK_PLACEHOLDER_COLOR = "#1a1a1a";
+
 type Props = {
   card: CardData;
   width: number;
@@ -53,6 +56,9 @@ export const CardArtwork: React.FC<Props> = ({
         overflow: "hidden",
         borderWidth: 0.5,
         borderColor: "rgba(255,255,255,0.12)",
+        // A reused cell drops the previous artwork, and the new one fades in
+        // over this rather than over the screen behind the card.
+        backgroundColor: ARTWORK_PLACEHOLDER_COLOR,
       }}
     >
       {card.imageUrl ? (
@@ -66,7 +72,7 @@ export const CardArtwork: React.FC<Props> = ({
           style={{ width: "100%", height: "100%" }}
         />
       ) : (
-        <View style={{ flex: 1, backgroundColor: "#1a1a1a" }} />
+        <View style={{ flex: 1, backgroundColor: ARTWORK_PLACEHOLDER_COLOR }} />
       )}
 
       {overlay}

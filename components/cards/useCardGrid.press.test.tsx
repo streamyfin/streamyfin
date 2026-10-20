@@ -95,9 +95,12 @@ describe("useCardGrid press handlers", () => {
     expect(onPressItem).toHaveBeenLastCalledWith(first[1]);
     expect(onLongPressItem).toHaveBeenLastCalledWith(first[1]);
 
-    // Page two arrives, and "a" comes back as a new object.
-    const renamed = movie("a", "Alpha");
-    const second = [renamed, first[1], movie("c", "Charlie")];
+    // Page two arrives, and "a" comes back refetched, now played.
+    const refetched: BaseItemDto = {
+      ...movie("a", "Alpha"),
+      UserData: { Played: true },
+    };
+    const second = [refetched, first[1], movie("c", "Charlie")];
     await view.rerender(
       <Grid
         items={second}
@@ -109,10 +112,13 @@ describe("useCardGrid press handlers", () => {
     await fireEvent.press(view.getByText("Alpha"));
     await fireEvent(view.getByText("Alpha"), "longPress");
     await fireEvent.press(view.getByText("Charlie"));
-    expect(onPressItem).toHaveBeenNthCalledWith(2, renamed);
-    expect(onLongPressItem).toHaveBeenNthCalledWith(2, renamed);
-    expect(onPressItem).toHaveBeenNthCalledWith(3, second[2]);
-    expect(onPressItem.mock.calls[1][0]).not.toBe(first[0]);
+    await fireEvent(view.getByText("Charlie"), "longPress");
+    // The very objects the grid holds now: a deep comparison would let a
+    // lookup in the first page's items pass.
+    expect(onPressItem.mock.calls[1][0]).toBe(refetched);
+    expect(onLongPressItem.mock.calls[1][0]).toBe(refetched);
+    expect(onPressItem.mock.calls[2][0]).toBe(second[2]);
+    expect(onLongPressItem.mock.calls[2][0]).toBe(second[2]);
   });
 
   test("keeps the same handlers when only the items change", async () => {
