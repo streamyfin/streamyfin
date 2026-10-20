@@ -176,6 +176,21 @@ describe.each(
     expect(asked.filter((url) => !url.endsWith(route))).toEqual([]);
   });
 
+  // The crash itself: the row's key extractor read `id` off an entry that
+  // had none.
+  test("leaves out an entry without an id, and shows the others", async () => {
+    mockSeerrApi = answering(() =>
+      JSON.stringify([
+        { name: "Unknown", backdrops: [] },
+        { id: 18, name: "Drama", backdrops: [] },
+      ]),
+    );
+    const { errors } = await renderRow(row(slide), slide);
+    expect(await screen.findByText("Drama")).toBeTruthy();
+    expect(screen.queryByText("Unknown")).toBeNull();
+    expect(errors).toEqual([]);
+  });
+
   // What the event shows: the row was up, and the answer to its refetch,
   // a 200, crashed it under way.
   test("goes away, without crashing, when a page answers its refetch", async () => {
