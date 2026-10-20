@@ -139,7 +139,7 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "500",
     textAlign: "center",
-    height: 56,
+    minHeight: 56,
     letterSpacing: 8,
   },
 });
