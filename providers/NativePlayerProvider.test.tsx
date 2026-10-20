@@ -304,7 +304,6 @@ jest.mock("@/utils/syncplay/queueDisplay", () => ({
 const api: ReturnType<typeof makeApi> = jest.requireMock(
   "@/providers/JellyfinProvider",
 ).apiAtom.init;
-api.mock.onAny().reply(200, {});
 const log: { logAndCaptureError: jest.Mock } = jest.requireMock("@/utils/log");
 
 const REPORTS: Record<string, string> = {
@@ -431,7 +430,8 @@ beforeEach(() => {
   mockNegotiation.waiting = [];
   mockNegotiation.count = 0;
   mockNegotiation.live = false;
-  api.mock.resetHistory();
+  api.mock.reset();
+  api.mock.onAny().reply(200, {});
   log.logAndCaptureError.mockClear();
 });
 
@@ -656,6 +656,77 @@ describe("a play while the player is up", () => {
     expect(mockNative.loaded).toHaveLength(1);
     // The first stream never took the player, so it never started.
     expect(serverReports()).toEqual(["start play-session-2"]);
+  });
+});
+
+// An episode picked in the player's list is fetched before it plays. The
+// player can close, and another item start, while that fetch is out.
+describe("an episode picked while its item is still being fetched", () => {
+  const ITEM_2 = { Id: "item-2", Name: "Episode 2", Type: "Episode" };
+
+  /** Holds the item fetch the episode list starts, until `answer()`. */
+  const holdItemFetch = () => {
+    let answer = () => {};
+    const held = new Promise<void>((resolve) => {
+      answer = resolve;
+    });
+    api.mock.resetHandlers();
+    api.mock.onGet(/\/Items\/item-2/).reply(async () => {
+      await held;
+      return [200, ITEM_2];
+    });
+    api.mock.onAny().reply(200, {});
+    return async () => {
+      await act(async () => answer());
+      await settle();
+    };
+  };
+
+  test("is not played into the next item's player", async () => {
+    await mount();
+    await open("item-1");
+    const answerFetch = holdItemFetch();
+    await act(async () =>
+      mockNative.emit("onEpisodeSelected", {
+        itemId: "item-2",
+        positionSec: 60,
+      }),
+    );
+
+    await startClosing();
+    finishClosing();
+    await open("item-3");
+    await answerFetch();
+
+    // Nothing loaded into item-3's player, and its session left running.
+    expect(mockNative.loaded).toHaveLength(0);
+    expect(serverReports()).toEqual([
+      "start play-session-1",
+      "stop play-session-1",
+      "start play-session-2",
+    ]);
+  });
+
+  test("still plays once the stream it was picked from has ended", async () => {
+    await mount();
+    await open("item-1");
+    const answerFetch = holdItemFetch();
+    await act(async () =>
+      mockNative.emit("onEpisodeSelected", {
+        itemId: "item-2",
+        positionSec: 1795,
+      }),
+    );
+
+    await startClosing("playbackEnded");
+    finishClosing();
+    await answerFetch();
+
+    expect(mockNative.presented).toEqual([
+      "https://jellyfin.example.com/Videos/item-1/stream?PlaySessionId=play-session-1",
+      "https://jellyfin.example.com/Videos/item-2/stream?PlaySessionId=play-session-2",
+    ]);
+    expect(log.logAndCaptureError).not.toHaveBeenCalled();
   });
 });
 

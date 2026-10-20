@@ -957,15 +957,29 @@ const NativePlayerProviderInner: React.FC<{
       options: {
         item?: BaseItemDto;
         replace: boolean;
+        /** The session a swap is for, when the caller holds it. */
+        over?: NativeSession;
         isCurrent?: () => boolean;
       },
     ): Promise<boolean> => {
       const currentSettings = settingsRef.current;
       if (!currentSettings) return false;
+      // Another session took the player before this swap got here (an episode
+      // picked while its item was still being fetched, the player closed and
+      // something else played): it is not this swap's to replace, nor to win
+      // the play request token from.
+      if (
+        options.over &&
+        sessionRef.current &&
+        sessionRef.current !== options.over
+      ) {
+        return true;
+      }
       syncBufferingReporter.reset();
       const token = ++playRequestTokenRef.current;
-      // The session a swap is meant for, as it was when it was asked for.
-      const requestedOver = sessionRef.current;
+      // The session a swap is meant for: the caller's, or the one on screen
+      // when it was asked for.
+      const requestedOver = options.over ?? sessionRef.current;
 
       const built = await buildNativePlayerConfig({
         api: apiRef.current,
@@ -1300,7 +1314,11 @@ const NativePlayerProviderInner: React.FC<{
         playbackPositionTicks:
           overrides.positionTicks ?? msToTicks(session.positionMs),
       };
-      return beginSession(req, { item: session.item, replace: true });
+      return beginSession(req, {
+        item: session.item,
+        replace: true,
+        over: session,
+      });
     },
     [beginSession],
   );
@@ -1344,6 +1362,7 @@ const NativePlayerProviderInner: React.FC<{
       await beginSession(req, {
         item: session.offline ? target : undefined,
         replace: true,
+        over: session,
       });
     },
     [beginSession],
