@@ -1,6 +1,7 @@
 import React, { useRef, useState } from "react";
 import { Animated, Easing, Pressable, View } from "react-native";
 import { Text } from "@/components/common/Text";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 import { scaleSize } from "@/utils/scaleSize";
 
 interface TVSaveAccountToggleProps {
@@ -18,6 +19,7 @@ export const TVSaveAccountToggle: React.FC<TVSaveAccountToggleProps> = ({
   hasTVPreferredFocus,
   disabled = false,
 }) => {
+  const typography = useScaledTVTypography();
   const [isFocused, setIsFocused] = useState(false);
   const scale = useRef(new Animated.Value(1)).current;
   const glowOpacity = useRef(new Animated.Value(0)).current;
@@ -85,7 +87,7 @@ export const TVSaveAccountToggle: React.FC<TVSaveAccountToggleProps> = ({
         >
           <Text
             style={{
-              fontSize: scaleSize(20),
+              fontSize: typography.callout,
               color: "#FFFFFF",
             }}
           >
