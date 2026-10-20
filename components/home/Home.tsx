@@ -1,8 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import type {
-  BaseItemDto,
-  BaseItemDtoQueryResult,
-} from "@jellyfin/sdk/lib/generated-client/models";
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import {
   getItemsApi,
   getSuggestionsApi,
@@ -50,6 +47,7 @@ import {
 } from "@/providers/JellyfinProvider";
 import { SortByOption, SortOrderOption } from "@/utils/atoms/filters";
 import { useSettings } from "@/utils/atoms/settings";
+import { fetchCustomHomeSection } from "@/utils/customHomeSection";
 import { eventBus } from "@/utils/eventBus";
 import { storage } from "@/utils/mmkv";
 
@@ -444,65 +442,14 @@ const HomeMobile = () => {
       ss.push({
         title: t(`${id}`),
         queryKey: ["home", "custom", String(index), section.title ?? null],
-        queryFn: async ({ pageParam = 0 }) => {
-          if (section.items) {
-            const response = await getItemsApi(api).getItems({
-              userId: user?.Id,
-              startIndex: pageParam,
-              limit: section.items?.limit || pageSize,
-              recursive: true,
-              includeItemTypes: section.items?.includeItemTypes,
-              sortBy: section.items?.sortBy,
-              sortOrder: section.items?.sortOrder,
-              filters: section.items?.filters,
-              parentId: section.items?.parentId,
-            });
-            return response.data.Items || [];
-          }
-          if (section.nextUp) {
-            const response = await getTvShowsApi(api).getNextUp({
-              userId: user?.Id,
-              startIndex: pageParam,
-              limit: section.nextUp?.limit || pageSize,
-              enableImageTypes: ["Primary", "Backdrop", "Thumb"],
-              enableResumable: section.nextUp?.enableResumable,
-              enableRewatching: section.nextUp?.enableRewatching,
-            });
-            return response.data.Items || [];
-          }
-          if (section.latest) {
-            // getLatestMedia doesn't support startIndex, so we fetch all and slice client-side
-            const allData =
-              (
-                await getUserLibraryApi(api).getLatestMedia({
-                  userId: user?.Id,
-                  includeItemTypes: section.latest?.includeItemTypes,
-                  limit: section.latest?.limit || 10,
-                  isPlayed: section.latest?.isPlayed,
-                  groupItems: section.latest?.groupItems,
-                })
-              ).data || [];
-
-            // Simulate pagination by slicing
-            return allData.slice(pageParam, pageParam + pageSize);
-          }
-          if (section.custom) {
-            const response = await api.get<BaseItemDtoQueryResult>(
-              section.custom.endpoint,
-              {
-                params: {
-                  ...(section.custom.query || {}),
-                  userId: user?.Id,
-                  startIndex: pageParam,
-                  limit: pageSize,
-                },
-                headers: section.custom.headers || {},
-              },
-            );
-            return response.data.Items || [];
-          }
-          return [];
-        },
+        queryFn: ({ pageParam = 0 }) =>
+          fetchCustomHomeSection(api, {
+            section,
+            index,
+            userId: user?.Id,
+            pageParam,
+            pageSize,
+          }),
         type: "InfiniteScrollingCollectionList",
         orientation: section?.orientation || "vertical",
         pageSize,
