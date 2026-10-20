@@ -11,6 +11,7 @@ import {
   isEnvironmentError,
   isErrorReported,
   isExpectedError,
+  isStaleIdError,
   markErrorReported,
 } from "./errors";
 import { admitHttpFailure } from "./httpFailureGate";
@@ -126,6 +127,8 @@ const reportedNativeFailures = new Set<string>();
  * - expected outcomes, aborted requests and the user's environment (no HTTP
  *   response, a gateway error, a gateway's own refusal) are never sent: an
  *   unreachable server is not an app bug
+ * - nor is an id the server no longer has, a library renamed or deleted or a
+ *   series removed (isStaleIdError)
  * - an error is sent once, however many layers catch and log it
  * - an HTTP failure is sent once per route and status per session, and one
  *   server failing on every route at once is one event (utils/httpFailureGate)
@@ -147,7 +150,8 @@ export const logAndCaptureError = (
   if (
     isExpectedError(error) ||
     isAbortLikeError(error) ||
-    isEnvironmentError(error)
+    isEnvironmentError(error) ||
+    isStaleIdError(error)
   ) {
     return;
   }

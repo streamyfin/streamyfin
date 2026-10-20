@@ -266,15 +266,17 @@ export const describeHttpError = (
   };
 };
 
+// Jellyfin's ExceptionMiddleware, for any exception outside development mode.
+// In development mode it sends the exception message instead, which can hold
+// a library path.
+const JELLYFIN_EXCEPTION_REASON = "Error processing request.";
+
 // The reasons a server gives in fixed words: the same sentence for every
 // user, so it says who answered and nothing about whom it answered. Only
 // these are quoted. A reason goes on the list once it is known to be fixed,
 // by the server's source and not by having seen it twice.
 const FIXED_RESPONSE_REASONS: ReadonlySet<string> = new Set([
-  // Jellyfin's ExceptionMiddleware, for any exception outside development
-  // mode. In development mode it sends the exception message instead, which
-  // can hold a library path.
-  "Error processing request.",
+  JELLYFIN_EXCEPTION_REASON,
 ]);
 
 // A top-level key that reads as a field name ("title", "traceId", "ray_id").
@@ -459,4 +461,107 @@ export const describeHttpResponse = (
     // Read against the content type as it came, not the cut of it.
     ...describeResponseBody(error.response.data, String(contentType ?? "")),
   };
+};
+
+type RequestQuery = { url?: string; params?: unknown } | undefined;
+
+// An escape that does not decode is kept as it came: this runs while an
+// error is being handled and must not throw.
+const decodeQueryPart = (part: string): string => {
+  try {
+    return decodeURIComponent(part.replace(/\+/g, " "));
+  } catch {
+    return part;
+  }
+};
+
+// What a request sent under one query parameter: from its url, where the SDK
+// writes it, and from the params axios appends. The name is matched in any
+// case, the way ASP.NET binds it.
+const queryValues = (config: RequestQuery, name: string): string[] => {
+  const wanted = name.toLowerCase();
+  const values: string[] = [];
+  const url = config?.url ?? "";
+  const start = url.indexOf("?");
+  const query = start === -1 ? "" : url.slice(start + 1).split("#")[0];
+  for (const pair of query.split("&")) {
+    const at = pair.indexOf("=");
+    const key = decodeQueryPart(at === -1 ? pair : pair.slice(0, at));
+    if (key.toLowerCase() !== wanted) continue;
+    values.push(at === -1 ? "" : decodeQueryPart(pair.slice(at + 1)));
+  }
+  const params = config?.params;
+  if (isPlainObject(params)) {
+    for (const [key, value] of Object.entries(params)) {
+      if (key.toLowerCase() !== wanted || value == null) continue;
+      for (const item of Array.isArray(value) ? value : [value]) {
+        values.push(String(item));
+      }
+    }
+  }
+  return values;
+};
+
+// A list as Jellyfin reads one: repeated parameters, or one comma separated
+// value ("SortName,ProductionYear").
+const listEntries = (values: string[]): string[] =>
+  values
+    .flatMap((value) => value.split(","))
+    .map((entry) => entry.trim())
+    .filter((entry) => entry !== "");
+
+// Routes as templateRequestPath writes them, under whatever base path the
+// server is published at ("/jellyfin"). Only route words may come before
+// them, which keeps "/Users/:id/Items" and "/Playlists/:id/Items" out.
+const ITEMS_QUERY_ROUTE = /^(?:\/[A-Za-z][\w-]*)*\/Items(?:\/Filters)?$/;
+const SERIES_CONTENT_ROUTE =
+  /^(?:\/[A-Za-z][\w-]*)*\/Shows\/:id\/(?:Episodes|Seasons)$/;
+
+const WHOLE_NUMBER = /^\d+$/;
+
+// GET /Items answers two faults of the request itself in the same words as
+// an unknown parent: a year that is not a whole number ("NaN"), and more sort
+// orders than sort fields. A request carrying either is the app's to hear
+// about, whatever its parent.
+const carriesItemsQueryFault = (config: RequestQuery): boolean =>
+  listEntries(queryValues(config, "years")).some(
+    (year) => !WHOLE_NUMBER.test(year),
+  ) ||
+  listEntries(queryValues(config, "sortOrder")).length >
+    listEntries(queryValues(config, "sortBy")).length;
+
+/**
+ * True for a request that named a record the server no longer has: a library
+ * renamed or deleted (its id follows its folder, so a rename is a new id), a
+ * series identified again or removed. The query cache is restored from disk
+ * for up to a day (app/_layout.tsx), so an id an earlier session saw is asked
+ * for again until a fresh list replaces it. That is the server's content
+ * moving, not a bug of the app's: logged locally, never reported.
+ *
+ * Only the answers that mean nothing else, as replayed against Jellyfin
+ * 10.10, 10.11 and 13:
+ * - GET /Items and GET /Items/Filters answer an unknown parentId with a 400
+ *   and JELLYFIN_EXCEPTION_REASON. A parentId that is not a GUID gets
+ *   validation details instead and is still reported, as is the same reason
+ *   for a request that named no parent or that carries a fault of its own
+ *   (carriesItemsQueryFault).
+ * - GET /Shows/{id}/Episodes and GET /Shows/{id}/Seasons answer 404 only when
+ *   the series, or the season asked for, is gone.
+ *
+ * Every other 400 and 404 is still reported: a 4xx on one route is what an
+ * app bug looks like (SERVER_WIDE_CLIENT_STATUSES in constants/Sentry.ts).
+ */
+export const isStaleIdError = (error: unknown): boolean => {
+  if (!isAxiosError(error)) return false;
+  const http = describeHttpError(error);
+  if (http?.method !== "GET") return false;
+  if (http.status === 404) return SERIES_CONTENT_ROUTE.test(http.path);
+  if (http.status !== 400 || !ITEMS_QUERY_ROUTE.test(http.path)) return false;
+  const body = error.response?.data;
+  return (
+    typeof body === "string" &&
+    body.trim() === JELLYFIN_EXCEPTION_REASON &&
+    queryValues(error.config, "parentId").some((id) => id !== "") &&
+    !carriesItemsQueryFault(error.config)
+  );
 };

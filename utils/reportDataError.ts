@@ -9,6 +9,7 @@ import {
   isEnvironmentError,
   isErrorReported,
   isExpectedError,
+  isStaleIdError,
   markErrorReported,
 } from "@/utils/errors";
 import { admitHttpFailure } from "@/utils/httpFailureGate";
@@ -18,11 +19,13 @@ import { admitHttpFailure } from "@/utils/httpFailureGate";
 // environment — no HTTP response, a gateway error or a gateway's own refusal,
 // axios or fetch — (an unreachable server is not an app bug), what a call site
 // marked as an expected outcome or already reported itself, and 401s (session
-// expiry has its own interceptor in JellyfinProvider).
+// expiry has its own interceptor in JellyfinProvider). So is an id the server
+// no longer has: a library renamed or deleted, a series removed.
 export const shouldReportDataError = (error: unknown): boolean => {
   if (!onlineManager.isOnline()) return false;
   if (isExpectedError(error) || isErrorReported(error)) return false;
   if (isAbortLikeError(error) || isEnvironmentError(error)) return false;
+  if (isStaleIdError(error)) return false;
   if (isAxiosError(error) && error.response?.status === 401) return false;
   return true;
 };

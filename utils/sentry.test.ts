@@ -483,6 +483,35 @@ describe("classifyOutgoingEvent — axios errors on the unhandledrejection path"
     expect(classifyOutgoingEvent(event, undefined)).toBe(event);
   });
 
+  // The rule of the explicit capture paths: a series removed, a library
+  // renamed, asked for again from an earlier session's cache.
+  test("an id the server no longer has is dropped, the item's 404 is not", () => {
+    const seriesGone = new AxiosError(
+      "Request failed with status code 404",
+      AxiosError.ERR_BAD_REQUEST,
+      {
+        method: "get",
+        url: "https://server/Shows/5e1c0f9d2b7a4c38a6e2d4f1b3c5a7e9/Episodes",
+        headers: {} as never,
+      },
+      {},
+      {
+        status: 404,
+        headers: {},
+        data: "Series not found",
+        config: {},
+      } as never,
+    );
+    expect(
+      classifyOutgoingEvent({} as never, { originalException: seriesGone }),
+    ).toBeNull();
+    expect(
+      classifyOutgoingEvent({} as never, {
+        originalException: axiosError(404),
+      }),
+    ).not.toBeNull();
+  });
+
   test("a Cloudflare tunnel that is down is dropped", () => {
     expect(
       classifyOutgoingEvent({} as never, {

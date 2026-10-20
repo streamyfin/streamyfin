@@ -272,6 +272,140 @@ describe("reportDataError", () => {
   });
 });
 
+// The cache is restored from disk for up to a day, so the app asks for ids an
+// earlier session saw. A library renamed or deleted has a new id or none, a
+// series identified again or removed is gone, and Jellyfin says so. None of
+// it is a bug of the app's; every other 400 and 404 still is.
+describe("reportDataError for an id the server no longer has", () => {
+  const STALE = "5e1c0f9d2b7a4c38a6e2d4f1b3c5a7e9";
+  const SEASON = "3fa85f64-5717-4562-b3fc-2c963f66afa6";
+  const unknownParent = (server: string, query: string, path = "/Items") =>
+    httpError(
+      server,
+      `${path}?userId=u1&${query}`,
+      400,
+      { "content-type": "text/plain", server: "Kestrel" },
+      "Error processing request.",
+    );
+
+  // REACT-NATIVE-6B (library-items), 3C (library-count), S8 (library-data).
+  test.each([
+    ["library-items", `parentId=${STALE}&sortBy=SortName&sortOrder=Ascending`],
+    ["library-count", `parentId=${STALE}&recursive=true&limit=0`],
+    ["library-data", `parentId=${STALE}&limit=12`],
+  ])("a library that is gone is not reported (%s)", (key, query) => {
+    reportDataError("query", [key, STALE], unknownParent(newServer(), query));
+    expect(mockCaptured).toHaveLength(0);
+  });
+
+  test("its filters are not reported either", () => {
+    reportDataError(
+      "query",
+      ["filters", "Genres", "genreFilter", STALE],
+      unknownParent(newServer(), `parentId=${STALE}`, "/Items/Filters"),
+    );
+    expect(mockCaptured).toHaveLength(0);
+  });
+
+  // REACT-NATIVE-22 (episodes), 11 (AllEpisodes), 4W (seasons).
+  test.each([
+    [
+      "episodes",
+      `/Shows/${STALE}/Episodes?userId=u1&seasonId=${SEASON}`,
+      `No season exists with Id ${SEASON}`,
+    ],
+    ["AllEpisodes", `/Shows/${STALE}/Episodes?userId=u1`, "Series not found"],
+    ["seasons", `/Shows/${STALE}/Seasons`, { title: "Not Found", status: 404 }],
+  ])("a series that is gone is not reported (%s)", (key, path, body) => {
+    reportDataError(
+      "query",
+      [key, STALE],
+      httpError(newServer(), path, 404, { server: "Kestrel" }, body),
+    );
+    expect(mockCaptured).toHaveLength(0);
+  });
+
+  describe("what still is", () => {
+    test("a parentId the server could not read", () => {
+      reportDataError(
+        "query",
+        ["library-items"],
+        httpError(
+          newServer(),
+          "/Items?parentId=abc",
+          400,
+          { "content-type": "application/problem+json", server: "Kestrel" },
+          {
+            title: "One or more validation errors occurred.",
+            status: 400,
+            errors: { parentId: ["The value 'abc' is not valid."] },
+          },
+        ),
+      );
+      expect(mockCaptured).toHaveLength(1);
+      expect(mockCaptured[0].contexts.http_response).toMatchObject({
+        errorFields: ["parentId"],
+      });
+    });
+
+    test("the same 400 to a request that named no parent", () => {
+      reportDataError(
+        "query",
+        ["library-items"],
+        unknownParent(newServer(), "recursive=true"),
+      );
+      expect(mockCaptured).toHaveLength(1);
+    });
+
+    test("the same 400 to a request that also sent a year that is no number", () => {
+      reportDataError(
+        "query",
+        ["library-items"],
+        unknownParent(newServer(), `parentId=${STALE}&years=NaN`),
+      );
+      expect(mockCaptured).toHaveLength(1);
+    });
+
+    test("the same 400 to a request with more sort orders than sort fields", () => {
+      reportDataError(
+        "query",
+        ["library-items"],
+        unknownParent(
+          newServer(),
+          `parentId=${STALE}&sortBy=SortName&sortOrder=Ascending&sortOrder=Descending`,
+        ),
+      );
+      expect(mockCaptured).toHaveLength(1);
+    });
+
+    test("the same 400 from another route", () => {
+      reportDataError(
+        "query",
+        ["home"],
+        unknownParent(newServer(), `parentId=${STALE}`, "/Items/Latest"),
+      );
+      expect(mockCaptured).toHaveLength(1);
+    });
+
+    test.each([
+      ["library", `/Items/${STALE}`],
+      ["nextUp", "/Shows/NextUp?userId=u1"],
+    ])("a 404 anywhere else (%s)", (key, path) => {
+      reportDataError("query", [key], httpError(newServer(), path, 404));
+      expect(mockCaptured).toHaveLength(1);
+    });
+
+    test("another status from the series routes", () => {
+      reportDataError(
+        "query",
+        ["episodes"],
+        httpError(newServer(), `/Shows/${STALE}/Episodes`, 500),
+      );
+      expect(mockCaptured).toHaveLength(1);
+    });
+  });
+});
+
 // Seerr errors pass the client's response interceptor first and are then
 // rethrown into React Query: the two used to disagree about what is worth
 // reporting, and to report the same failure once each.
