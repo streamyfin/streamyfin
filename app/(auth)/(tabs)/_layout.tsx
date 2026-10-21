@@ -26,7 +26,10 @@ import {
 import { settingsAtom, useSettings } from "@/utils/atoms/settings";
 import { eventBus } from "@/utils/eventBus";
 import { nativeTabsKey } from "@/utils/nativeTabsKey";
-import { isWatchlistsTabVisible } from "@/utils/watchlistSources";
+import {
+  isCustomLinksTabVisible,
+  isWatchlistsTabVisible,
+} from "@/utils/watchlistSources";
 
 // Music components are not available on tvOS (TrackPlayer not supported)
 const MiniPlayerBar = Platform.isTV
@@ -72,7 +75,7 @@ function TVTabLayout() {
           ? null
           : { key: "(watchlists)", label: t("watchlists.title") },
         { key: "(libraries)", label: t("tabs.library") },
-        !settings?.showCustomMenuLinks
+        !isCustomLinksTabVisible(settings)
           ? null
           : { key: "(custom-links)", label: t("tabs.custom_links") },
         { key: "(settings)", label: t("tabs.settings") },
@@ -243,7 +246,7 @@ export default function TabLayout() {
           name='(custom-links)'
           options={{
             title: t("tabs.custom_links"),
-            tabBarItemHidden: !settings?.showCustomMenuLinks,
+            tabBarItemHidden: !isCustomLinksTabVisible(settings),
             tabBarIcon:
               Platform.OS === "android"
                 ? (_e) => require("@/assets/icons/link.png")
