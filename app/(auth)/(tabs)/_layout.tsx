@@ -24,6 +24,7 @@ import {
 } from "@/hooks/useTVBackHandler";
 import { useSettings } from "@/utils/atoms/settings";
 import { eventBus } from "@/utils/eventBus";
+import { nativeTabsKey } from "@/utils/nativeTabsKey";
 import { isWatchlistsTabVisible } from "@/utils/watchlistSources";
 
 // Music components are not available on tvOS (TrackPlayer not supported)
@@ -155,6 +156,8 @@ export default function TabLayout() {
     <View style={{ flex: 1 }}>
       <SystemBars hidden={false} style='light' />
       <NativeTabs
+        // tvOS crashes when a tab appears on screen; spec: utils/nativeTabsKey.test.ts
+        key={nativeTabsKey(settings, Platform.isTV)}
         sidebarAdaptable={false}
         tabBarStyle={{
           backgroundColor: "#121212",
