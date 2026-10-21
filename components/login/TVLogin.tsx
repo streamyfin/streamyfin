@@ -8,6 +8,7 @@ import { Alert, View } from "react-native";
 import { useMMKVString } from "react-native-mmkv";
 import { toast } from "sonner-native";
 import { Text } from "@/components/common/Text";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 import { useTVMenuKeyInterception } from "@/hooks/useTVBackPress";
 import { apiAtom, useJellyfin, userAtom } from "@/providers/JellyfinProvider";
 import { selectedTVServerAtom } from "@/utils/atoms/selectedTVServer";
@@ -43,6 +44,7 @@ type TVLoginScreen =
   | "add-user";
 
 export const TVLogin: React.FC = () => {
+  const typography = useScaledTVTypography();
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
   const navigation = useNavigation();
@@ -637,7 +639,7 @@ export const TVLogin: React.FC = () => {
           >
             <Text
               style={{
-                fontSize: scaleSize(24),
+                fontSize: typography.heading,
                 fontWeight: "bold",
                 color: "#FFFFFF",
                 marginBottom: scaleSize(12),
@@ -647,7 +649,7 @@ export const TVLogin: React.FC = () => {
             </Text>
             <Text
               style={{
-                fontSize: scaleSize(16),
+                fontSize: typography.callout,
                 color: "#9CA3AF",
               }}
             >
