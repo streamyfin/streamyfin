@@ -11,6 +11,7 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner-native";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import {
+  findRefetchingItemQueries,
   patchCachedItemUserData,
   revertCachedItemUserData,
 } from "@/utils/patchCachedItem";
@@ -126,13 +127,31 @@ export const useUserDataToggle = ({
       await send(api, userId, itemId, next);
     },
     onMutate: async (next: boolean) => {
-      await queryClient.cancelQueries({ queryKey: ["item", item.Id] });
+      // Any query holding the item may be refetching it, and a refetch landing
+      // after the patch writes the old value back into every toggle reading
+      // it (SeasonPicker's season list goes stale after 60 ms). Cancel them
+      // all before patching; the interrupted ones are fetched again once the
+      // request settles.
+      const interrupted = item.Id
+        ? findRefetchingItemQueries(queryClient, item.Id)
+        : [];
+      await Promise.all([
+        queryClient.cancelQueries({ queryKey: ["item", item.Id] }),
+        queryClient.cancelQueries({
+          predicate: (query) => interrupted.includes(query),
+        }),
+      ]);
       const previousValue = value;
       const patches = item.Id
         ? patchCachedItemUserData(queryClient, item.Id, { [field]: next })
         : [];
       setValue(next);
-      return { previousValue, patches, userId: latest.current.userId };
+      return {
+        previousValue,
+        patches,
+        interrupted: interrupted.map((query) => query.queryKey),
+        userId: latest.current.userId,
+      };
     },
     onError: (_error, _next, context) => {
       // The item queries are not keyed by account, so a request that fails
@@ -147,11 +166,19 @@ export const useUserDataToggle = ({
       setValue(context?.previousValue);
       if (errorMessage) toast.error(errorMessage);
     },
-    onSettled: () => {
+    onSettled: (_data, _error, _next, context) => {
       inFlight.current = false;
       queryClient.invalidateQueries({ queryKey: ["item", item.Id] });
       for (const filters of invalidate) {
         queryClient.invalidateQueries(filters);
+      }
+      // Last, and without cancelling a refetch already started above, so a
+      // query both interrupted and refreshed anyway is fetched once.
+      for (const queryKey of context?.interrupted ?? []) {
+        queryClient.invalidateQueries(
+          { queryKey, exact: true },
+          { cancelRefetch: false },
+        );
       }
     },
   });

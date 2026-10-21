@@ -5,6 +5,7 @@ import {
   QueryObserver,
 } from "@tanstack/react-query";
 import {
+  findRefetchingItemQueries,
   patchCachedItemUserData,
   revertCachedItemUserData,
 } from "./patchCachedItem";
@@ -130,4 +131,19 @@ test("a row past its stale time still refetches when shown again", () => {
   patchCachedItemUserData(client, "s1", { Likes: false });
 
   expect(refetchesWhenShown(["home", "row"], staleTime)).toBe(true);
+});
+
+// What a toggle cancels before patching: a refetch landing afterwards would
+// write the old value back. An idle query has nothing to cancel.
+test("finds the queries holding the item that are fetching, and no others", () => {
+  const never = () => new Promise<never>(() => {});
+  client.setQueryData(["refetching"], [season(true)]);
+  client.setQueryData(["idle"], [season(true)]);
+  client.setQueryData(["other"], [{ Id: "s2", UserData: { Likes: true } }]);
+  void client.prefetchQuery({ queryKey: ["refetching"], queryFn: never });
+  void client.prefetchQuery({ queryKey: ["other"], queryFn: never });
+
+  expect(
+    findRefetchingItemQueries(client, "s1").map((query) => query.queryKey),
+  ).toEqual([["refetching"]]);
 });

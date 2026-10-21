@@ -96,6 +96,20 @@ const findCachedItemQueries = (
     .findAll({ predicate: (query) => holds(query.state.data, itemId, 0) });
 
 /**
+ * The cached queries holding the item that are fetching right now: one that
+ * lands after a patch writes the item's old values back. Only fetching
+ * queries have their data scanned, so this costs next to nothing.
+ */
+export const findRefetchingItemQueries = (
+  queryClient: QueryClient,
+  itemId: string,
+): Query[] =>
+  queryClient.getQueryCache().findAll({
+    predicate: (query) =>
+      query.state.fetchStatus !== "idle" && holds(query.state.data, itemId, 0),
+  });
+
+/**
  * A patch is not a fetch: only the patched field is new, the rest of the data
  * is as old as it was. Written as fresh data, it cleared an invalidated row's
  * mark (a similar-items row never goes stale by itself) and the row kept its

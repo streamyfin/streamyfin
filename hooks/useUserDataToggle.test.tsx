@@ -1,5 +1,6 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import {
+  type InvalidateQueryFilters,
   QueryClient,
   QueryClientProvider,
   useQuery,
@@ -32,13 +33,19 @@ const send = jest.fn(
     }),
 );
 
+/** Lets settled promises run their callbacks and React Query notify. */
+const flush = async () => {
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+};
+
 /** Settles one open request, then lets the mutation callbacks run. */
 const settle = (index: number, outcome: "succeed" | "fail") =>
   act(async () => {
     const request = requests[index];
     if (outcome === "succeed") request.succeed();
     else request.fail(new Error("server said no"));
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await flush();
   });
 
 // An infinite gcTime schedules no cleanup timer; a settled mutation's default
@@ -82,26 +89,53 @@ const season = (id: string, likes: boolean): BaseItemDto => ({
 
 /**
  * A Likes toggle for one season of the cached season list, read from the list
- * the way SeasonPicker hands its selected season to the bookmark.
+ * the way SeasonPicker hands its selected season to the bookmark. The list
+ * stays fresh unless given a fetch and a stale time.
  */
-const renderSeasonToggle = (client: QueryClient, index: number) =>
+const renderSeasonToggle = (
+  client: QueryClient,
+  index: number,
+  list: {
+    fetch?: () => Promise<BaseItemDto[]>;
+    staleTime?: number;
+    invalidate?: InvalidateQueryFilters[];
+  } = {},
+) =>
   renderHook(
     () => {
       const { data } = useQuery<BaseItemDto[]>({
         queryKey: ["seasons", "show"],
-        queryFn: async () => [],
-        staleTime: Infinity,
+        queryFn: list.fetch ?? (async () => []),
+        staleTime: list.staleTime ?? Infinity,
       });
       return useUserDataToggle({
         item: data![index],
         field: "Likes",
         stateAtom,
         send,
+        invalidate: list.invalidate,
         errorMessage: "failed",
       });
     },
     { wrapper: wrapperFor(client) },
   );
+
+/** Season list fetches that wait for the test to answer them, in order. */
+const pendingSeasonFetches = () => {
+  const answers: Array<(seasons: BaseItemDto[]) => void> = [];
+  const fetch = jest.fn(
+    () =>
+      new Promise<BaseItemDto[]>((resolve) => {
+        answers.push(resolve);
+      }),
+  );
+  const answer = (index: number, seasons: BaseItemDto[]) =>
+    act(async () => {
+      answers[index](seasons);
+      await flush();
+    });
+  return { fetch, answer };
+};
 
 beforeEach(() => {
   requests = [];
@@ -148,4 +182,62 @@ test("a failed toggle puts back only its own item in a shared list", async () =>
 
   expect(first.result.current.value).toBe(false);
   expect(second.result.current.value).toBe(true);
+});
+
+// SeasonPicker's season list goes stale after 60 ms, so a refetch is often in
+// flight when the season bookmark is tapped. Only the item's own query was
+// cancelled: the list refetch landed after the patch with the old Likes, and
+// the bookmark read from it flipped back while the server had the new value.
+test("a list refetch already in flight does not undo the toggle", async () => {
+  const client = newClient();
+  client.setQueryData(["seasons", "show"], [season("s1", false)]);
+  const seasons = pendingSeasonFetches();
+  const { result } = await renderSeasonToggle(client, 0, {
+    fetch: seasons.fetch,
+    staleTime: 0,
+  });
+  expect(seasons.fetch).toHaveBeenCalledTimes(1);
+
+  await act(async () => result.current.toggle());
+  // The server answers with the list as it was before the toggle.
+  await seasons.answer(0, [season("s1", false)]);
+
+  expect(result.current.value).toBe(true);
+});
+
+// Cancelling that refetch must not lose what it was bringing: the list is
+// fetched again once the server has the new value.
+test("fetches an interrupted list again once the toggle settles", async () => {
+  const client = newClient();
+  client.setQueryData(["seasons", "show"], [season("s1", false)]);
+  const seasons = pendingSeasonFetches();
+  const { result } = await renderSeasonToggle(client, 0, {
+    fetch: seasons.fetch,
+    staleTime: 0,
+  });
+
+  await act(async () => result.current.toggle());
+  await settle(0, "succeed");
+
+  expect(seasons.fetch).toHaveBeenCalledTimes(2);
+  await seasons.answer(1, [season("s1", true)]);
+  expect(result.current.value).toBe(true);
+});
+
+// The watchlist refreshes its home rows once a toggle settles anyway; a row it
+// also interrupted must not be fetched a second time for that.
+test("fetches an interrupted list once when the toggle refreshes it anyway", async () => {
+  const client = newClient();
+  client.setQueryData(["seasons", "show"], [season("s1", false)]);
+  const seasons = pendingSeasonFetches();
+  const { result } = await renderSeasonToggle(client, 0, {
+    fetch: seasons.fetch,
+    staleTime: 0,
+    invalidate: [{ queryKey: ["seasons"] }],
+  });
+
+  await act(async () => result.current.toggle());
+  await settle(0, "succeed");
+
+  expect(seasons.fetch).toHaveBeenCalledTimes(2);
 });
