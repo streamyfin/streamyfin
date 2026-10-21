@@ -25,6 +25,9 @@ export type ToggleStateAtom = PrimitiveAtom<Record<string, boolean>>;
 export const toggleStateKey = (userId: string, itemId: string) =>
   `${userId}:${itemId}`;
 
+/** One toggle request: the item it is for, and the value it sends. */
+type ToggleRequest = { itemId: string; next: boolean };
+
 interface Options {
   item: BaseItemDto;
   field: ToggleField;
@@ -93,82 +96,90 @@ export const useUserDataToggle = ({
 
   // Undefined forgets the entry, so the item's own value shows again: an item
   // never rated must read as unrated after its first toggle fails.
-  const setValue = useCallback(
-    (next: boolean | undefined) => {
-      if (!key) return;
+  const writeEntry = useCallback(
+    (entryKey: string, next: boolean | undefined) => {
+      if (!entryKey) return;
       setState((prev) => {
-        if (next !== undefined) return { ...prev, [key]: next };
-        if (!(key in prev)) return prev;
+        if (next !== undefined) return { ...prev, [entryKey]: next };
+        if (!(entryKey in prev)) return prev;
         const rest = { ...prev };
-        delete rest[key];
+        delete rest[entryKey];
         return rest;
       });
     },
-    [key, setState],
+    [setState],
   );
 
   // The mutation runs after renders that may have swapped the api or user.
-  const latest = useRef({ api, userId: user?.Id, itemId: item.Id });
+  const latest = useRef({ api, userId: user?.Id });
   useEffect(() => {
-    latest.current = { api, userId: user?.Id, itemId: item.Id };
-  }, [api, user?.Id, item.Id]);
+    latest.current = { api, userId: user?.Id };
+  }, [api, user?.Id]);
 
-  // Set the moment a toggle is sent and cleared once it settles. Unlike
+  // The items with a request sent and not settled yet. Unlike
   // `mutation.isPending`, which only changes after a re-render, it already
-  // reads true for a second tap landing before that render.
-  const inFlight = useRef(false);
+  // holds an item for a second tap landing before that render. Keyed by item:
+  // a host may hand this toggle the next item (the now-playing heart follows
+  // the queue) while the previous item's request is still open.
+  const inFlight = useRef(new Set<string>());
 
+  // Each request names its item and works from what it captured. A pending
+  // mutation takes the callbacks of every later render, so by the time it runs
+  // or settles they may close over the next item the host handed this toggle.
   const mutation = useMutation({
-    mutationFn: async (next: boolean) => {
-      const { api, userId, itemId } = latest.current;
+    mutationFn: async ({ itemId, next }: ToggleRequest) => {
+      const { api, userId } = latest.current;
       if (!api || !userId || !itemId) {
         throw new Error("Not signed in");
       }
       await send(api, userId, itemId, next);
     },
-    onMutate: async (next: boolean) => {
+    onMutate: async ({ itemId, next }: ToggleRequest) => {
+      const userId = store.get(userAtom)?.Id;
+      const entryKey = userId && itemId ? toggleStateKey(userId, itemId) : "";
+      const previousEntry = entryKey
+        ? store.get(stateAtom)[entryKey]
+        : undefined;
       // Any query holding the item may be refetching it, and a refetch landing
       // after the patch writes the old value back into every toggle reading
       // it (SeasonPicker's season list goes stale after 60 ms). Cancel them
       // all before patching; the interrupted ones are fetched again once the
       // request settles.
-      const interrupted = item.Id
-        ? findRefetchingItemQueries(queryClient, item.Id)
+      const interrupted = itemId
+        ? findRefetchingItemQueries(queryClient, itemId)
         : [];
       await Promise.all([
-        queryClient.cancelQueries({ queryKey: ["item", item.Id] }),
+        queryClient.cancelQueries({ queryKey: ["item", itemId] }),
         queryClient.cancelQueries({
           predicate: (query) => interrupted.includes(query),
         }),
       ]);
-      const previousValue = value;
-      const patches = item.Id
-        ? patchCachedItemUserData(queryClient, item.Id, { [field]: next })
+      const patches = itemId
+        ? patchCachedItemUserData(queryClient, itemId, { [field]: next })
         : [];
-      setValue(next);
+      writeEntry(entryKey, next);
       return {
-        previousValue,
+        entryKey,
+        previousEntry,
         patches,
         interrupted: interrupted.map((query) => query.queryKey),
-        userId: latest.current.userId,
+        userId,
       };
     },
-    onError: (_error, _next, context) => {
+    onError: (_error, { itemId }, context) => {
       // The item queries are not keyed by account, so a request that fails
       // after a logout or user switch must not write its rollback into the
       // next account's cache. Read the store, not `latest`: the page that sent
       // the request has usually unmounted by then, freezing the ref.
-      if (store.get(userAtom)?.Id !== context?.userId) return;
+      if (!context || store.get(userAtom)?.Id !== context.userId) return;
 
-      if (item.Id) {
-        revertCachedItemUserData(queryClient, item.Id, context?.patches ?? []);
-      }
-      setValue(context?.previousValue);
+      revertCachedItemUserData(queryClient, itemId, context.patches);
+      writeEntry(context.entryKey, context.previousEntry);
       if (errorMessage) toast.error(errorMessage);
     },
-    onSettled: (_data, _error, _next, context) => {
-      inFlight.current = false;
-      queryClient.invalidateQueries({ queryKey: ["item", item.Id] });
+    onSettled: (_data, _error, { itemId }, context) => {
+      inFlight.current.delete(itemId);
+      queryClient.invalidateQueries({ queryKey: ["item", itemId] });
       for (const filters of invalidate) {
         queryClient.invalidateQueries(filters);
       }
@@ -184,12 +195,13 @@ export const useUserDataToggle = ({
   });
 
   const toggle = useCallback(() => {
-    // Overlapping requests could land out of order and leave the server's
-    // value out of step with the UI.
-    if (inFlight.current) return;
-    inFlight.current = true;
-    mutation.mutate(!value);
-  }, [mutation, value]);
+    const itemId = item.Id ?? "";
+    // Overlapping requests for one item could land out of order and leave
+    // the server's value out of step with the UI.
+    if (inFlight.current.has(itemId)) return;
+    inFlight.current.add(itemId);
+    mutation.mutate({ itemId, next: !value });
+  }, [item.Id, mutation, value]);
 
   return { value, toggle, isPending: mutation.isPending, mutation };
 };

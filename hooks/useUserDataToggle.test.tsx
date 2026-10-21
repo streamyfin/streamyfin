@@ -241,3 +241,38 @@ test("fetches an interrupted list once when the toggle refreshes it anyway", asy
 
   expect(seasons.fetch).toHaveBeenCalledTimes(2);
 });
+
+const track = (id: string): BaseItemDto => ({
+  Id: id,
+  Type: "Audio",
+  UserData: { Likes: false },
+});
+
+// The now-playing heart and the track options sheet keep one toggle and hand
+// it the next track. A single in-flight flag for the whole hook dropped that
+// track's tap while the previous track's request was still open.
+test("takes the next item's tap while the previous item's request is open", async () => {
+  const view = await renderToggle(track("a"));
+  await act(async () => view.result.current.toggle());
+
+  await view.rerender({ item: track("b") });
+  await act(async () => view.result.current.toggle());
+
+  expect(requests.map((request) => request.itemId)).toEqual(["a", "b"]);
+});
+
+// The previous track's request settles while the toggle already shows the
+// next one: its rollback and its end belong to its own item.
+test("the previous item's failure leaves the next item's toggle alone", async () => {
+  const view = await renderToggle(track("a"));
+  await act(async () => view.result.current.toggle());
+  await view.rerender({ item: track("b") });
+  await act(async () => view.result.current.toggle());
+
+  await settle(0, "fail");
+
+  expect(view.result.current.value).toBe(true);
+  // The next track's own request is still open, so a second tap waits.
+  await act(async () => view.result.current.toggle());
+  expect(requests).toHaveLength(2);
+});
