@@ -627,6 +627,11 @@ final class NativePlayerViewController: UIViewController {
 		// asked "stop playback?" and said no is deliberately still watching.
 		viewModel.cancelCountdown()
 
+		guard viewModel.confirmExitEnabled else {
+			viewModel.close()
+			return
+		}
+
 		let message: String
 		if let itemTitle = viewModel.metadata?.title, !itemTitle.isEmpty {
 			let template = viewModel.str("stopPlayingTitle", "Stop playing \"%TITLE%\"?")

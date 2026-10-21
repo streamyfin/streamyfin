@@ -466,10 +466,11 @@ export type Settings = {
   autoLoginSeerr: boolean;
   useKefinTweaks: boolean;
   hiddenLibraries?: string[];
-  enableH265ForChromecast: boolean;
   /** "Still watching?" prompt, see constants/StillWatching.ts. */
   stillWatchingPreset: StillWatchingPreset;
   autoPlayNextEpisode: boolean;
+  /** TV only: ask "Stop playback?" when Back is pressed during playback. */
+  confirmBeforeStoppingPlayback: boolean;
   /** SyncPlay: join groups without being waited for. Per device. */
   syncPlayIgnoreWait: boolean;
   // Media segment skip preferences
@@ -660,9 +661,9 @@ export const defaultValues: Settings = {
   autoLoginSeerr: true,
   useKefinTweaks: false,
   hiddenLibraries: [],
-  enableH265ForChromecast: false,
   stillWatchingPreset: DEFAULT_STILL_WATCHING_PRESET,
   autoPlayNextEpisode: true,
+  confirmBeforeStoppingPlayback: false,
   syncPlayIgnoreWait: false,
   // Media segment skip defaults
   skipIntro: "ask",

@@ -945,6 +945,14 @@ export default function SettingsTV() {
             onToggle={(value) => updateSettings({ showResumeDialog: value })}
           />
 
+          <TVSettingsToggle
+            label={t("home.settings.other.confirm_before_stopping_playback")}
+            value={settings.confirmBeforeStoppingPlayback}
+            onToggle={(value) =>
+              updateSettings({ confirmBeforeStoppingPlayback: value })
+            }
+          />
+
           {/* Only the native TV players ask "Still watching?", and only
               instead of an autoplay */}
           {isNativeChromeActive(settings) && settings.autoPlayNextEpisode && (

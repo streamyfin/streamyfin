@@ -260,6 +260,8 @@ export type NativePlayerUIOptions = {
   pinchToZoomEnabled?: boolean;
   /** true enables double tap on the video halves to seek (settings.enableDoubleTapToSeek). */
   doubleTapToSeekEnabled?: boolean;
+  /** false skips the "Stop playback?" dialog on Back/Menu (settings.confirmBeforeStoppingPlayback). TV only. */
+  confirmExitEnabled?: boolean;
   /** Remote subtitle search entry in the subtitles menu (online only). */
   subtitleSearchEnabled?: boolean;
   /** ISO 639-2 codes + localized display names for the language picker. */
