@@ -10,6 +10,7 @@ import {
   holdSharedValueWrites,
   releaseSharedValueWrites,
 } from "@/test-utils/reanimated";
+import { writeToLog } from "@/utils/log";
 
 /** 19m 18s, the resume position of the item in the bug report. */
 const RESUME_TICKS = 11_580_000_000;
@@ -62,6 +63,7 @@ let mockSeekReaction:
 let mockTranscodingUrl: string | undefined;
 const mockSettings = {};
 const mockNoop = () => {};
+const mockPrune = jest.fn((_itemIds: string[]) => {});
 
 jest.mock("expo-router", () => ({
   useLocalSearchParams: () => mockParams,
@@ -136,7 +138,7 @@ jest.mock("@/hooks/useRevalidatePlaybackProgressCache", () => ({
 }));
 jest.mock("@/hooks/useWebsockets", () => ({ useWebSocket: () => {} }));
 jest.mock("@/hooks/useWatchlist", () => ({
-  usePruneWatchedFromWatchlist: () => mockNoop,
+  usePruneWatchedFromWatchlist: () => mockPrune,
 }));
 // Where an alternate version starts is covered by
 // getDefaultPlaySettings.test.ts; the version itself is not under test here.
@@ -331,6 +333,7 @@ describe("direct player stop report", () => {
     mockRouter.setParams.mockClear();
     mockRouter.replace.mockClear();
     mockReportProgress.mockClear();
+    mockPrune.mockClear();
     api.mock.reset();
     api.mock.onGet(/\/Items\/item-1/).reply(200, {
       Id: "item-1",
@@ -381,6 +384,52 @@ describe("direct player stop report", () => {
     await leavePlayer();
 
     expect(stopReports()[0].PositionTicks).toBe(RESUME_TICKS);
+  });
+
+  // The server decides at the stop report whether the item now counts as
+  // played, and the watchlist prune reads that back: it has to come after.
+  test("hands the item to the watchlist prune once the stop report went through", async () => {
+    let answerStop: () => void = () => {};
+    api.mock.onPost(/\/Sessions\/Playing/).reply((config) =>
+      config.url?.endsWith("/Stopped")
+        ? new Promise((resolve) => {
+            answerStop = () => resolve([204]);
+          })
+        : [204],
+    );
+    await openPlayer();
+    await tick(1200);
+    await leavePlayer();
+    expect(mockPrune).not.toHaveBeenCalled();
+
+    await act(async () => answerStop());
+
+    await waitFor(() => expect(mockPrune).toHaveBeenCalledWith(["item-1"]));
+  });
+
+  test("leaves the watchlist alone when the stop report fails", async () => {
+    (writeToLog as jest.Mock).mockClear();
+    api.mock
+      .onPost(/\/Sessions\/Playing/)
+      .reply((config) => (config.url?.endsWith("/Stopped") ? [500] : [204]));
+    await openPlayer();
+    await leavePlayer();
+    await waitFor(() =>
+      expect(writeToLog).toHaveBeenCalledWith(
+        "ERROR",
+        "reportPlaybackStopped failed",
+        expect.any(String),
+      ),
+    );
+
+    expect(mockPrune).not.toHaveBeenCalled();
+
+    // The page sends the stop report again as it unmounts. Let that one land
+    // here rather than in the next test's request history.
+    api.mock.onPost(/\/Sessions\/Playing/).reply(204);
+    await screen.unmount();
+    await waitFor(() => expect(stopReports()).toHaveLength(2));
+    api.mock.resetHistory();
   });
 
   // A progress report at 0 clears the resume point just like a stop at 0, and

@@ -66,3 +66,52 @@ test("takes the item the watchlist rates off it when a version of it is marked p
   expect(mockMarkPlayed).toHaveBeenCalledWith("m1-4k");
   expect(mockPrune).toHaveBeenCalledWith(["m1"]);
 });
+
+test("takes an item marked played off the watchlist once the server has it", async () => {
+  let markedOnServer: () => void = () => {};
+  mockMarkPlayed.mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        markedOnServer = resolve;
+      }),
+  );
+  const { result } = await renderHook(() => useMarkAsPlayed([movie]), {
+    wrapper,
+  });
+
+  let toggled: Promise<void> | undefined;
+  await act(async () => {
+    toggled = result.current(true);
+  });
+  // The prune reads the item back from the server, so it waits for the mark.
+  expect(mockMarkPlayed).toHaveBeenCalledWith("m1");
+  expect(mockPrune).not.toHaveBeenCalled();
+
+  await act(async () => {
+    markedOnServer();
+    await toggled;
+  });
+  expect(mockPrune).toHaveBeenCalledWith(["m1"]);
+});
+
+test("leaves the watchlist alone when the item is marked unplayed", async () => {
+  const { result } = await renderHook(() => useMarkAsPlayed([movie]), {
+    wrapper,
+  });
+
+  await act(() => result.current(false));
+
+  expect(mockMarkUnplayed).toHaveBeenCalledWith("m1");
+  expect(mockPrune).not.toHaveBeenCalled();
+});
+
+test("leaves the watchlist alone when marking the item played fails", async () => {
+  mockMarkPlayed.mockRejectedValue(new Error("server said no"));
+  const { result } = await renderHook(() => useMarkAsPlayed([movie]), {
+    wrapper,
+  });
+
+  await act(() => result.current(true));
+
+  expect(mockPrune).not.toHaveBeenCalled();
+});
