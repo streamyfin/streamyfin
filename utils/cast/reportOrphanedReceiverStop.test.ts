@@ -1,9 +1,6 @@
 import { setJellyfinHeaders } from "@/test-utils/customHeaders";
 import { makeApi } from "@/test-utils/jellyfinApi";
-import {
-  reportOrphanedReceiverStop,
-  toReceiverDeviceName,
-} from "./reportOrphanedReceiverStop";
+import { reportOrphanedReceiverStop } from "./reportOrphanedReceiverStop";
 
 jest.mock("@/utils/customHeaders", () =>
   jest.requireActual("@/test-utils/customHeaders").customHeadersModule(),
@@ -244,11 +241,5 @@ describe("reportOrphanedReceiverStop", () => {
     api.mock.onGet(/\/Sessions/).reply(200, [receiverSession()]);
 
     await expect(reportOrphanedReceiverStop(ended(api))).rejects.toThrow("401");
-  });
-});
-
-describe("toReceiverDeviceName", () => {
-  test("applies the receiver's own cleanup of the Cast device name", () => {
-    expect(toReceiverDeviceName('Salon (TV) — 55"')).toBe("Salon TV  55");
   });
 });

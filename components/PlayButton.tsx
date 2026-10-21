@@ -38,6 +38,7 @@ import { useSettings } from "@/utils/atoms/settings";
 import {
   castToJellyfinReceiver,
   currentReceiverName,
+  receiverNameFor,
 } from "@/utils/cast/jellyfinReceiver";
 import { castNotStartedMessage } from "@/utils/cast/receiverLoadErrorMessage";
 import { logAndCaptureError, writeErrorLog } from "@/utils/log";
@@ -171,7 +172,7 @@ export const PlayButton: React.FC<Props> = ({
                         userId: user.Id,
                         receiverName:
                           (await currentReceiverName()) ??
-                          castDevice?.friendlyName,
+                          receiverNameFor(castDevice),
                         maxBitrate: selectedOptions.bitrate?.value,
                       },
                       {

@@ -6,6 +6,10 @@ import GoogleCast, {
   type MediaStatus,
   type RemoteMediaClient,
 } from "react-native-google-cast";
+import {
+  RECEIVER_FALLBACK_ID_LENGTH,
+  RECEIVER_FALLBACK_NAME,
+} from "@/constants/Cast";
 
 /**
  * The official Jellyfin receiver (F007D354) speaks its own protocol over this
@@ -49,7 +53,10 @@ const slimItem = (item: BaseItemDto) => ({
 export interface JellyfinCastSession {
   api: Api;
   userId: string;
-  /** Device name shown in the Jellyfin dashboard; the receiver derives its DeviceId from it. */
+  /**
+   * Device name shown in the Jellyfin dashboard; the receiver derives its
+   * DeviceId from it. Build it with `receiverNameFor`.
+   */
   receiverName?: string;
   maxBitrate?: number;
 }
@@ -195,6 +202,49 @@ const getChannel = async (): Promise<CastChannel> => {
 };
 
 /**
+ * The receiver strips these characters from the name it is given before using
+ * it as its Jellyfin device name, so compare against the same cleanup.
+ */
+export const toReceiverDeviceName = (receiverName: string): string =>
+  receiverName.replace(/[^\w\s]/gi, "");
+
+/** The parts of a Cast device the receiver's Jellyfin device name comes from. */
+interface ReceiverDevice {
+  friendlyName?: string | null;
+  deviceId?: string | null;
+}
+
+/**
+ * The name to hand the receiver as `receiverName`. The receiver keeps only
+ * ASCII letters, digits, `_` and whitespace, then calls btoa() on what is left
+ * to make its DeviceId, so two kinds of Cast name break it:
+ * - whitespace above U+00FF (the ideographic space a Japanese keyboard types)
+ *   survives the cleanup and makes btoa() throw, and the receiver then drops
+ *   every message without a word back;
+ * - a name with no ASCII letter or digit ("Гостиная", "客厅电视") cleans to
+ *   nothing, and an empty DeviceId makes the server fold the TV into the
+ *   phone's own device.
+ * Any other name goes through unchanged, so the receiver names the TV as it
+ * does for jellyfin-web.
+ */
+export const receiverNameFor = (
+  device: ReceiverDevice | null | undefined,
+): string | undefined => {
+  if (!device) return undefined;
+
+  const name = (device.friendlyName ?? "").replace(/\s/g, (space) =>
+    space.charCodeAt(0) > 0xff ? " " : space,
+  );
+  if (toReceiverDeviceName(name).trim()) return name;
+
+  // The end of the id is the part that differs between devices.
+  const id = (device.deviceId ?? "")
+    .replace(/[^a-z0-9]/gi, "")
+    .slice(-RECEIVER_FALLBACK_ID_LENGTH);
+  return id ? `${RECEIVER_FALLBACK_NAME} ${id}` : RECEIVER_FALLBACK_NAME;
+};
+
+/**
  * The name the receiver takes as its Jellyfin device name, read at send time.
  * `useCastDevice()` resolves it a render late, and a cast fired on the render
  * the session connects would otherwise send nothing: the receiver would then
@@ -202,9 +252,8 @@ const getChannel = async (): Promise<CastChannel> => {
  */
 export const currentReceiverName = async (): Promise<string | undefined> => {
   const session = await GoogleCast.getSessionManager().getCurrentCastSession();
-  const device = await session?.getCastDevice();
 
-  return device?.friendlyName ?? undefined;
+  return receiverNameFor(await session?.getCastDevice());
 };
 
 export const sendJellyfinCastCommand = async (

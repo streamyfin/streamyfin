@@ -18,6 +18,7 @@ import {
   castToJellyfinReceiver,
   currentReceiverName,
   queueWindow,
+  receiverNameFor,
 } from "@/utils/cast/jellyfinReceiver";
 import { castNotStartedMessage } from "@/utils/cast/receiverLoadErrorMessage";
 import { logAndCaptureError, writeErrorLog } from "@/utils/log";
@@ -39,7 +40,7 @@ export const useMusicCast = ({ api, userId }: UseMusicCastOptions) => {
   const { t } = useTranslation();
   const client = useRemoteMediaClient();
   const castState = useCastState();
-  const castDeviceName = useCastDevice()?.friendlyName;
+  const castDeviceName = receiverNameFor(useCastDevice());
 
   const isConnected = castState === CastState.CONNECTED;
 

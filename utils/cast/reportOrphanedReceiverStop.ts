@@ -21,13 +21,6 @@ import { getJellyfinHeaders } from "@/utils/customHeaders";
  * behalf if the server still has it playing.
  */
 
-/**
- * The receiver strips these characters from the name it is given before using
- * it as its Jellyfin device name, so compare against the same cleanup.
- */
-export const toReceiverDeviceName = (friendlyName: string): string =>
-  friendlyName.replace(/[^\w\s]/gi, "");
-
 export interface EndedReceiverSession {
   api: Api;
   userId: string;

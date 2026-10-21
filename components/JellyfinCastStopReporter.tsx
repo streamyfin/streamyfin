@@ -6,9 +6,10 @@ import GoogleCast, {
 } from "react-native-google-cast";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import {
-  reportOrphanedReceiverStop,
+  receiverNameFor,
   toReceiverDeviceName,
-} from "@/utils/cast/reportOrphanedReceiverStop";
+} from "@/utils/cast/jellyfinReceiver";
+import { reportOrphanedReceiverStop } from "@/utils/cast/reportOrphanedReceiverStop";
 import { logAndCaptureError, writeInfoLog } from "@/utils/log";
 
 interface LastCast {
@@ -32,10 +33,10 @@ export function JellyfinCastStopReporter() {
   const lastCast = useRef<LastCast>({});
 
   useEffect(() => {
-    if (castDevice?.friendlyName) {
-      lastCast.current.deviceName = toReceiverDeviceName(
-        castDevice.friendlyName,
-      );
+    // The same name the cast handed the receiver, after the receiver's cleanup.
+    const receiverName = receiverNameFor(castDevice);
+    if (receiverName) {
+      lastCast.current.deviceName = toReceiverDeviceName(receiverName);
     }
   }, [castDevice]);
 

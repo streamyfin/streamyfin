@@ -5,8 +5,10 @@ import {
   JELLYFIN_CAST_NAMESPACE,
   playOnJellyfinReceiver,
   queueWindow,
+  receiverNameFor,
   sendJellyfinCastCommand,
   subscribeToJellyfinReceiverMessages,
+  toReceiverDeviceName,
   watchReceiverLoadErrors,
 } from "./jellyfinReceiver";
 
@@ -48,7 +50,10 @@ jest.mock("react-native-google-cast", () => ({
               getCastDevice: async () =>
                 mockFriendlyName === undefined
                   ? null
-                  : { friendlyName: mockFriendlyName },
+                  : {
+                      friendlyName: mockFriendlyName,
+                      deviceId: "4f0c2b9d8e7a6b5c4d3e2f1a0b9c8d7e",
+                    },
             },
     }),
   },
@@ -410,6 +415,72 @@ describe("currentReceiverName", () => {
     mockSessionId = "session-x";
     mockFriendlyName = undefined;
     expect(await currentReceiverName()).toBeUndefined();
+  });
+
+  test("gives a TV with no ASCII letter in its name one the receiver can use", async () => {
+    mockFriendlyName = "Гостиная";
+    expect(await currentReceiverName()).toBe("Chromecast 0b9c8d7e");
+  });
+});
+
+describe("receiverNameFor", () => {
+  const deviceId = "4f0c2b9d8e7a6b5c4d3e2f1a0b9c8d7e";
+
+  test("passes a name the receiver can take through unchanged", () => {
+    // The receiver then names the TV exactly as it does for jellyfin-web.
+    expect(receiverNameFor({ friendlyName: "Télé du salon", deviceId })).toBe(
+      "Télé du salon",
+    );
+    expect(
+      receiverNameFor({ friendlyName: 'Salon (TV) — 55"', deviceId }),
+    ).toBe('Salon (TV) — 55"');
+  });
+
+  test("swaps whitespace the receiver cannot encode for a plain space", () => {
+    expect(
+      receiverNameFor({ friendlyName: "Living\u3000Room\u202fTV", deviceId }),
+    ).toBe("Living Room TV");
+  });
+
+  test.each(["Гостиная", "客厅电视", "リビング\u3000テレビ", ""])(
+    "names a TV called %p after its Cast device id",
+    (friendlyName) => {
+      expect(receiverNameFor({ friendlyName, deviceId })).toBe(
+        "Chromecast 0b9c8d7e",
+      );
+    },
+  );
+
+  test("falls back to a plain name when the device has no id", () => {
+    expect(receiverNameFor({ friendlyName: "客厅电视" })).toBe("Chromecast");
+  });
+
+  test("is undefined with no device", () => {
+    expect(receiverNameFor(null)).toBeUndefined();
+    expect(receiverNameFor(undefined)).toBeUndefined();
+  });
+
+  test.each([
+    "Living Room TV",
+    "Télé du salon",
+    "リビング\u3000テレビ",
+    "Living\u3000Room",
+    "Гостиная",
+    "\u2003",
+  ])("leaves the receiver a non-empty name it can encode, from %p", (name) => {
+    // What the receiver does with the name before it calls btoa() on it.
+    const kept = toReceiverDeviceName(
+      receiverNameFor({ friendlyName: name, deviceId }) ?? "",
+    );
+
+    expect(kept.trim()).not.toBe("");
+    expect(() => btoa(kept)).not.toThrow();
+  });
+});
+
+describe("toReceiverDeviceName", () => {
+  test("applies the receiver's own cleanup of the Cast device name", () => {
+    expect(toReceiverDeviceName('Salon (TV) — 55"')).toBe("Salon TV  55");
   });
 });
 

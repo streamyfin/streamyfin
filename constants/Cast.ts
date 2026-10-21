@@ -6,6 +6,14 @@
 export const JELLYFIN_RECEIVER_CLIENT = "Chromecast";
 
 /**
+ * Name handed to the receiver for a TV whose Cast name it cannot take, followed
+ * by this many characters from the end of the Cast device id, so two such TVs
+ * do not share one DeviceId on the server.
+ */
+export const RECEIVER_FALLBACK_NAME = "Chromecast";
+export const RECEIVER_FALLBACK_ID_LENGTH = 8;
+
+/**
  * Most items handed to the receiver in one PlayNow message. Each one is only a
  * few ids, but a Cast message is capped at 64 KB, so a long music queue is sent
  * as a window of this size around the selected track.
