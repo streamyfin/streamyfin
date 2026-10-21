@@ -30,14 +30,16 @@ const merge = (current: UserData, userData: Partial<UserData>): UserData => {
 
 /**
  * Returns `value` with `userData` written into each copy of the item, and
- * notes in `found` the item's values from before, taken from the first copy.
+ * notes in `found` the item's values from before, taken from the first copy
+ * it changed. `found.previous` stays unset exactly when `value` is returned
+ * as it was.
  */
 const patch = (
   value: unknown,
   itemId: string,
   userData: Partial<UserData>,
   depth: number,
-  found: { previous?: Partial<UserData> },
+  found: { previous?: Partial<UserData> } = {},
 ): unknown => {
   if (depth > MAX_DEPTH) return value;
 
@@ -149,9 +151,8 @@ export const patchCachedItemUserData = (
   const patches: CachedItemPatch[] = [];
   for (const query of findCachedItemQueries(queryClient, itemId)) {
     const found: { previous?: Partial<UserData> } = {};
-    const data = query.state.data;
-    const next = patch(data, itemId, userData, 0, found);
-    if (next === data || !found.previous) continue;
+    const next = patch(query.state.data, itemId, userData, 0, found);
+    if (!found.previous) continue;
     patches.push([query.queryHash, found.previous]);
     writeKeepingFreshness(queryClient, query, next);
   }
@@ -172,7 +173,7 @@ export const revertCachedItemUserData = (
     const query = queryClient.getQueryCache().get(queryHash);
     if (!query) continue;
     const data = query.state.data;
-    const next = patch(data, itemId, previous, 0, {});
+    const next = patch(data, itemId, previous, 0);
     if (next !== data) writeKeepingFreshness(queryClient, query, next);
   }
 };
