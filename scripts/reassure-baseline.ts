@@ -8,8 +8,11 @@
  * doubles they share) are copied onto the base first, so both sides run the same
  * test and only the code under test differs.
  *
- * A scenario that needs code the PR introduces cannot run on the base. Its
- * failure is reported and the baseline of every other scenario is kept.
+ * A scenario that needs code the PR introduces cannot run on the base, and
+ * Reassure then keeps no baseline for any test of its file, which the report
+ * would list as added instead of compared. So when the copied scenarios do not
+ * all run, the base is measured again with its own scenarios, as it was before
+ * this script existed, and the run says so.
  *
  * The base is the argument if given. Without one it is the target branch of
  * this branch's open PR (what CI measures against), else `develop`, looked up on
@@ -19,7 +22,6 @@
  * Usage: bun scripts/reassure-baseline.ts [baseRef]
  */
 import { execFileSync, spawnSync } from "node:child_process";
-import { existsSync } from "node:fs";
 
 /** What gets copied onto the base: the scenarios and the doubles they share. */
 export const isScenarioFile = (file: string) =>
@@ -32,6 +34,10 @@ export const baseRefCandidates = (name: string, remotes: string[]) => [
     .map((remote) => `${remote}/${name}`),
   name,
 ];
+
+/** Whether `ref` already names a remote-tracking branch, like CI's `origin/develop`. */
+const isRemoteRef = (ref: string, remotes: string[]) =>
+  remotes.some((remote) => ref.startsWith(`${remote}/`));
 
 const git = (...args: string[]) =>
   execFileSync("git", args, { encoding: "utf8" }).trim();
@@ -67,29 +73,47 @@ export const currentCheckout = (cwd?: string) => {
 };
 
 /**
- * The scenario files this branch adds or changes. Rename detection is off so a
- * moved file shows up as an addition at its new path: `--diff-filter=AM` would
- * otherwise drop it as a rename, and the base would run without it.
+ * The scenario files this branch adds or changes (`copy`) and the ones it
+ * deletes (`remove`). Rename detection is off, so a moved file is an addition
+ * at its new path and a deletion at its old one: left on the base, the old
+ * file would run next to the copy under the same test names, and Reassure
+ * refuses a result file with duplicated names.
  */
 export const changedScenarioFiles = (
   baseRef: string,
   head: string,
   cwd?: string,
-) =>
-  execFileSync(
+) => {
+  const copy: string[] = [];
+  const remove: string[] = [];
+  const diff = execFileSync(
     "git",
     [
       "diff",
-      "--name-only",
+      "--name-status",
       "--no-renames",
-      "--diff-filter=AM",
+      "--diff-filter=AMD",
       `${baseRef}...${head}`,
     ],
     { cwd, encoding: "utf8" },
-  )
-    .trim()
-    .split("\n")
-    .filter(isScenarioFile);
+  ).trim();
+  for (const line of diff ? diff.split("\n") : []) {
+    const [status, file] = line.split("\t");
+    if (!isScenarioFile(file)) continue;
+    (status === "D" ? remove : copy).push(file);
+  }
+  return { copy, remove };
+};
+
+/**
+ * Whether a tracked file has changes. Untracked files are left out: switching
+ * to the base keeps them, and `git stash` would not take them anyway.
+ */
+export const hasTrackedChanges = (cwd?: string) =>
+  execFileSync("git", ["status", "--porcelain", "--untracked-files=no"], {
+    cwd,
+    encoding: "utf8",
+  }).trim() !== "";
 
 const resolveBaseRef = (explicit?: string) => {
   const remotes = git("remote").split("\n");
@@ -104,7 +128,12 @@ const resolveBaseRef = (explicit?: string) => {
       ".baseRefName",
     ]) ||
     "develop";
-  const candidates = explicit ? [explicit] : baseRefCandidates(name, remotes);
+  // A bare name, given or found, is looked up on the remotes first: the local
+  // branch of that name is often behind, or missing.
+  const candidates =
+    explicit && isRemoteRef(explicit, remotes)
+      ? [explicit]
+      : baseRefCandidates(name, remotes);
   for (const remote of remotes) {
     attempt("git", ["fetch", "-q", remote, name.replace(`${remote}/`, "")]);
   }
@@ -115,18 +144,33 @@ const resolveBaseRef = (explicit?: string) => {
   return found;
 };
 
+class Interrupted extends Error {}
+
 const run = (command: string, args: string[]) => {
-  const { status } = spawnSync(command, args, { stdio: "inherit" });
+  const { status, signal } = spawnSync(command, args, { stdio: "inherit" });
+  // Ctrl+C reaches the child as well. Stopping here lets `finally` put the
+  // branch back instead of leaving the clone on the base.
+  if (signal === "SIGINT" || signal === "SIGTERM") {
+    throw new Interrupted(`${command} was interrupted`);
+  }
   return status === 0;
 };
 
 const measureBase = (baseRef: string) => {
-  if (git("status", "--porcelain")) {
+  if (hasTrackedChanges()) {
     throw new Error("Commit or stash your changes before measuring the base.");
   }
   const origin = currentCheckout();
   const head = git("rev-parse", "HEAD");
-  const changed = changedScenarioFiles(baseRef, head);
+  const { copy, remove } = changedScenarioFiles(baseRef, head);
+  const fromBranch = copy.length + remove.length > 0;
+  const restoreBase = () => {
+    git("reset", "--hard");
+    if (copy.length > 0) git("clean", "-fdq", "--", ...copy);
+  };
+  // Without a listener, Ctrl+C would end this process before `finally` runs.
+  const ignoreInterrupt = () => {};
+  process.on("SIGINT", ignoreInterrupt);
 
   try {
     git("switch", "--detach", baseRef);
@@ -134,25 +178,31 @@ const measureBase = (baseRef: string) => {
     if (!run("bun", ["install", "--frozen-lockfile"])) {
       throw new Error(`bun install failed on ${baseRef}`);
     }
-    if (changed.length > 0) {
-      git("checkout", head, "--", ...changed);
+    if (fromBranch) {
+      if (copy.length > 0) git("checkout", head, "--", ...copy);
+      if (remove.length > 0) {
+        git("rm", "-q", "--ignore-unmatch", "--", ...remove);
+      }
       console.log(
-        `Measuring ${baseRef} with ${changed.length} scenario files from this branch.`,
+        `Measuring ${baseRef} with this branch's scenarios: ${copy.length} copied, ${remove.length} removed.`,
       );
     }
-    // Reassure appends each scenario's result as it finishes, so a scenario that
-    // cannot run on the base fails the command but leaves the others in place.
     if (!run("bun", ["run", "--if-present", "perf:baseline"])) {
-      if (!existsSync(".reassure/baseline.perf")) {
+      // Reassure writes its result file before Jest starts, so the file always
+      // exists; the exit status is what says a file could not run.
+      if (!fromBranch)
+        throw new Error(`No baseline was measured on ${baseRef}`);
+      console.warn(
+        "::warning::This branch's scenarios do not all run on the base, so the base is measured with its own scenarios.",
+      );
+      restoreBase();
+      if (!run("bun", ["run", "--if-present", "perf:baseline"])) {
         throw new Error(`No baseline was measured on ${baseRef}`);
       }
-      console.warn(
-        "::warning::Some scenarios could not run on the base and have no baseline.",
-      );
     }
   } finally {
-    git("reset", "--hard");
-    if (changed.length > 0) git("clean", "-fdq", "--", ...changed);
+    process.off("SIGINT", ignoreInterrupt);
+    restoreBase();
     git(
       "switch",
       origin === head ? "--detach" : origin,
@@ -170,5 +220,11 @@ const measureBase = (baseRef: string) => {
 if (require.main === module) {
   const baseRef = resolveBaseRef(process.argv[2]);
   console.log(`Measuring the base ${baseRef}.`);
-  measureBase(baseRef);
+  try {
+    measureBase(baseRef);
+  } catch (error) {
+    if (!(error instanceof Interrupted)) throw error;
+    console.error("Interrupted; this branch is checked out again.");
+    process.exitCode = 130;
+  }
 }

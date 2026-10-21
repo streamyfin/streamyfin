@@ -20,6 +20,7 @@ on:
       - "test-utils/**"
       - "**/*.perf-test.*"
       - "jest.perf.config.js"
+      - "scripts/reassure-*.ts"
       - "package.json"
       - "bun.lock"
       - ".github/workflows/perf*.yml"
