@@ -1,6 +1,7 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import {
   type InvalidateQueryFilters,
+  onlineManager,
   QueryClient,
   QueryClientProvider,
   useQuery,
@@ -134,10 +135,20 @@ const pendingSeasonFetches = () => {
       answers[index](seasons);
       await flush();
     });
-  return { fetch, answer };
+  /**
+   * Answers every fetch still waiting with what the server holds now. A fetch
+   * already answered, or cancelled, ignores it.
+   */
+  const answerWaiting = (seasons: BaseItemDto[]) =>
+    act(async () => {
+      for (const resolve of answers) resolve(seasons);
+      await flush();
+    });
+  return { fetch, answer, answerWaiting };
 };
 
 beforeEach(() => {
+  onlineManager.setOnline(true);
   requests = [];
   send.mockClear();
   stateAtom = atom<Record<string, boolean>>({});
@@ -222,6 +233,63 @@ test("fetches an interrupted list again once the toggle settles", async () => {
   expect(seasons.fetch).toHaveBeenCalledTimes(2);
   await seasons.answer(1, [season("s1", true)]);
   expect(result.current.value).toBe(true);
+});
+
+// The first season's toggle cancelled the list's refetch and fetched the list
+// again once its request settled. The second season, toggled before then,
+// found the list idle and left it alone: that refetch read the server before
+// the second rating was in, the old value came back into the list, and the
+// second bookmark flipped back while the server had the new value.
+test("a season toggled while another season's request is open keeps its value when that one settles", async () => {
+  const client = newClient();
+  client.setQueryData(
+    ["seasons", "show"],
+    [season("s1", true), season("s2", true)],
+  );
+  const seasons = pendingSeasonFetches();
+  const list = { fetch: seasons.fetch, staleTime: 0 };
+  const first = await renderSeasonToggle(client, 0, list);
+  const second = await renderSeasonToggle(client, 1, list);
+  expect(seasons.fetch).toHaveBeenCalledTimes(1);
+
+  await act(async () => first.result.current.toggle());
+  await act(async () => second.result.current.toggle());
+  await settle(0, "succeed");
+  // The server has the first season's value, not yet the second's.
+  await seasons.answerWaiting([season("s1", false), season("s2", true)]);
+  await settle(1, "succeed");
+  await seasons.answerWaiting([season("s1", false), season("s2", false)]);
+
+  expect(second.result.current.value).toBe(false);
+  expect(first.result.current.value).toBe(false);
+  // The interrupted list is still fetched again, once both requests are in.
+  expect(seasons.fetch).toHaveBeenCalledTimes(2);
+});
+
+// A toggle tapped offline waits for the network, and signing out drops it
+// from the cache unsent: it never settles, so it must not hold back the
+// refetches of the toggles after it.
+test("a request dropped while it waited for the network does not hold back the next toggle's refetch", async () => {
+  const client = newClient();
+  onlineManager.setOnline(false);
+  const dropped = await renderToggle(
+    { Id: "m1", Type: "Movie", UserData: { Likes: false } },
+    client,
+  );
+  await act(async () => dropped.result.current.toggle());
+  client.clear();
+  onlineManager.setOnline(true);
+
+  client.setQueryData(["seasons", "show"], [season("s1", false)]);
+  const seasons = pendingSeasonFetches();
+  const { result } = await renderSeasonToggle(client, 0, {
+    fetch: seasons.fetch,
+    staleTime: 0,
+  });
+  await act(async () => result.current.toggle());
+  await settle(0, "succeed");
+
+  expect(seasons.fetch).toHaveBeenCalledTimes(2);
 });
 
 // The watchlist refreshes its home rows once a toggle settles anyway; a row it

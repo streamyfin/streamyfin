@@ -2,6 +2,8 @@ import type { Api } from "@jellyfin/sdk";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import {
   type InvalidateQueryFilters,
+  type QueryClient,
+  type QueryKey,
   useMutation,
   useQueryClient,
 } from "@tanstack/react-query";
@@ -27,6 +29,16 @@ export const toggleStateKey = (userId: string, itemId: string) =>
 
 /** One toggle request: the item it is for, and the value it sends. */
 type ToggleRequest = { itemId: string; next: boolean };
+
+// Marks a toggle's request in the mutation cache. Not a mutationKey:
+// reportDataError groups failed requests by their key.
+const TOGGLE_META = { userDataToggle: true };
+
+/**
+ * Per query client, the queries settled toggles interrupted, by query hash,
+ * waiting for the last toggle in flight to settle.
+ */
+const interruptedWaiting = new WeakMap<QueryClient, Map<string, QueryKey>>();
 
 interface Options {
   item: BaseItemDto;
@@ -127,6 +139,7 @@ export const useUserDataToggle = ({
   // mutation takes the callbacks of every later render, so by the time it runs
   // or settles they may close over the next item the host handed this toggle.
   const mutation = useMutation({
+    meta: TOGGLE_META,
     mutationFn: async ({ itemId, next }: ToggleRequest) => {
       const { api, userId } = latest.current;
       if (!api || !userId || !itemId) {
@@ -144,7 +157,7 @@ export const useUserDataToggle = ({
       // after the patch writes the old value back into every toggle reading
       // it (SeasonPicker's season list goes stale after 60 ms). Cancel them
       // all before patching; the interrupted ones are fetched again once the
-      // request settles.
+      // last toggle in flight settles.
       const interrupted = itemId
         ? findRefetchingItemQueries(queryClient, itemId)
         : [];
@@ -162,7 +175,9 @@ export const useUserDataToggle = ({
         entryKey,
         previousEntry,
         patches,
-        interrupted: interrupted.map((query) => query.queryKey),
+        interrupted: interrupted.map(
+          (query) => [query.queryHash, query.queryKey] as const,
+        ),
         userId,
       };
     },
@@ -177,15 +192,35 @@ export const useUserDataToggle = ({
       writeEntry(context.entryKey, context.previousEntry);
       if (errorMessage) toast.error(errorMessage);
     },
-    onSettled: (_data, _error, { itemId }, context) => {
-      inFlight.current.delete(itemId);
-      queryClient.invalidateQueries({ queryKey: ["item", itemId] });
+    onSettled: (_data, _error, request, context) => {
+      inFlight.current.delete(request.itemId);
+      queryClient.invalidateQueries({ queryKey: ["item", request.itemId] });
       for (const filters of invalidate) {
         queryClient.invalidateQueries(filters);
       }
+      const waiting =
+        interruptedWaiting.get(queryClient) ?? new Map<string, QueryKey>();
+      for (const [queryHash, queryKey] of context?.interrupted ?? []) {
+        waiting.set(queryHash, queryKey);
+      }
+      // Another toggle in flight may have patched its item into the same
+      // queries: fetched now, they could read the server before that request
+      // lands, and its own settle would not fetch them again. The last toggle
+      // to settle fetches them all. Read the mutation cache rather than count:
+      // a request paused offline and dropped on logout never settles.
+      const othersInFlight = queryClient.isMutating({
+        predicate: (other) =>
+          other.options.meta === TOGGLE_META &&
+          other.state.variables !== request,
+      });
+      if (othersInFlight > 0) {
+        interruptedWaiting.set(queryClient, waiting);
+        return;
+      }
+      interruptedWaiting.delete(queryClient);
       // Last, and without cancelling a refetch already started above, so a
       // query both interrupted and refreshed anyway is fetched once.
-      for (const queryKey of context?.interrupted ?? []) {
+      for (const queryKey of waiting.values()) {
         queryClient.invalidateQueries(
           { queryKey, exact: true },
           { cancelRefetch: false },
