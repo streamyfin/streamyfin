@@ -60,10 +60,18 @@ export const buildLibraryItemsQuery = ({
     ? ITEM_TYPE_BY_COLLECTION[collectionType]
     : undefined;
 
+  // A show's own DatePlayed reads user data that playback never writes (it
+  // lands on the episodes), so a Shows library sorts by the series-level key,
+  // as jellyfin-web does. The saved preference keeps the DatePlayed name.
+  const serverSortBy: ItemSortBy =
+    collectionType === "tvshows" && sortBy === "DatePlayed"
+      ? "SeriesDatePlayed"
+      : sortBy;
+
   return {
     userId,
     parentId: libraryId,
-    sortBy: [sortBy, "SortName", "ProductionYear"],
+    sortBy: [serverSortBy, "SortName", "ProductionYear"],
     sortOrder: [sortOrder],
     filters: filterBy,
     // true is needed for merged versions

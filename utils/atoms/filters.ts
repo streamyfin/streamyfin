@@ -26,6 +26,11 @@ export enum SortByOption {
   Studio = "Studio",
   IndexNumber = "IndexNumber",
   Random = "Random",
+  // Valid server keys that no sort list offers yet; kept here so a saved or
+  // carried-over key of these names still type checks.
+  Album = "Album",
+  AlbumArtist = "AlbumArtist",
+  Artist = "Artist",
 }
 // These go to the server as they are, so each one is the SDK's own ItemFilter
 // constant: a name the server does not have no longer compiles.
@@ -49,7 +54,7 @@ export enum SortOrderOption {
   Descending = "Descending",
 }
 
-type SortOption = {
+export type SortOption = {
   key: SortByOption;
   value: string;
 };

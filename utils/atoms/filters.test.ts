@@ -202,6 +202,22 @@ describe("sort options", () => {
     },
   );
 
+  // Valid server keys that no screen offers yet.
+  test.each([
+    undefined,
+    "movies",
+    "tvshows",
+    "playlists",
+    "boxsets",
+    "music",
+  ] as const)("does not offer the music sorts in a %s library", (type) => {
+    const keys = keysOf(sortOptionsFor(type));
+
+    expect(keys).not.toContain(SortByOption.Album);
+    expect(keys).not.toContain(SortByOption.AlbumArtist);
+    expect(keys).not.toContain(SortByOption.Artist);
+  });
+
   test("hands back the same list on every call", () => {
     expect(sortOptionsFor("playlists")).toBe(sortOptionsFor("playlists"));
     expect(sortOptionsFor("tvshows")).toBe(sortOptionsFor("tvshows"));

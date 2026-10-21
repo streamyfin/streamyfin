@@ -77,4 +77,39 @@ describe("library items query", () => {
   ] as const)("a %s library can be queued: %s", (collectionType, expected) => {
     expect(isQueueableLibrary(collectionType)).toBe(expected);
   });
+
+  // Playback writes played state on the episodes, so a show's own DatePlayed
+  // never changes; the series-level key reads the episodes' dates.
+  test("sorts a Shows library by the series date played", () => {
+    expect(
+      buildLibraryItemsQuery({
+        ...horrorMovies,
+        collectionType: "tvshows",
+        sortBy: "DatePlayed",
+      }).sortBy,
+    ).toEqual(["SeriesDatePlayed", "SortName", "ProductionYear"]);
+  });
+
+  test.each(["movies", "boxsets", undefined] as const)(
+    "keeps DatePlayed in a %s library",
+    (collectionType) => {
+      expect(
+        buildLibraryItemsQuery({
+          ...horrorMovies,
+          collectionType,
+          sortBy: "DatePlayed",
+        }).sortBy,
+      ).toEqual(["DatePlayed", "SortName", "ProductionYear"]);
+    },
+  );
+
+  test("leaves every other Shows sort as it is", () => {
+    expect(
+      buildLibraryItemsQuery({
+        ...horrorMovies,
+        collectionType: "tvshows",
+        sortBy: "DateLastContentAdded",
+      }).sortBy,
+    ).toEqual(["DateLastContentAdded", "SortName", "ProductionYear"]);
+  });
 });
