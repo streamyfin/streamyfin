@@ -19,9 +19,15 @@ Xcode 27 build on the same iOS 27 device.
    the bar looks like "pressing Library opens Search". Fixed upstream in 1.5.0
    (callstack/react-native-bottom-tabs#602), which matches an item to its tab by identity
    (`tabs[i].viewController?.tabBarItem === item`), as our 1.4.0 patch did.
-2. `TabRole.search` no longer gets the detached trailing button, it sits inline at the end
-   of the bar with a label. The detached button is the new `TabRole.prominent` (iOS 27).
-   1.5.0 keeps `search` as `.search`, and its own `role: "prominent"` resolves to no role at
+2. A SwiftUI tab with `TabRole.search`, as `react-native-bottom-tabs` builds it, no longer
+   gets the detached trailing button: it sits inline at the end of the bar with a label. The
+   detached button is the new `TabRole.prominent` (iOS 27). UIKit has two other ways to give a
+   tab that treatment, neither used by the library: `UITabBarController.prominentTabIdentifier`
+   (iOS 27, not tvOS), and, while that is nil, a `UISearchTab` whose
+   `automaticallyActivatesSearch` is set gets it by default (`UITabBarController.h` in the
+   iOS 27 SDK). `.prominent` is a visual emphasis, not a search role: our search tab opens its
+   own JS screen, so nothing relies on the system's search integration, but a native
+   `.searchable` screen behind that tab would lose it. 1.5.0 keeps `search` as `.search`, and its own `role: "prominent"` resolves to no role at
    all when built with Xcode 26 or run below iOS 27, so asking for it from JS would take the
    search role away from every Xcode 26 build. The app keeps `role: "search"` and our patch
    maps it to `.prominent` on iOS 27 when compiled with Swift 6.4 or newer (Xcode 27), so an
