@@ -466,7 +466,6 @@ export type Settings = {
   autoLoginSeerr: boolean;
   useKefinTweaks: boolean;
   hiddenLibraries?: string[];
-  enableH265ForChromecast: boolean;
   /** "Still watching?" prompt, see constants/StillWatching.ts. */
   stillWatchingPreset: StillWatchingPreset;
   autoPlayNextEpisode: boolean;
@@ -660,7 +659,6 @@ export const defaultValues: Settings = {
   autoLoginSeerr: true,
   useKefinTweaks: false,
   hiddenLibraries: [],
-  enableH265ForChromecast: false,
   stillWatchingPreset: DEFAULT_STILL_WATCHING_PRESET,
   autoPlayNextEpisode: true,
   syncPlayIgnoreWait: false,
