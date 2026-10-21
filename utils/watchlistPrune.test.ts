@@ -35,11 +35,17 @@ const serve = (library: Library, failRatingFor: string[] = []) => {
     const parentId = query.get("parentId") ?? "";
     expect(query.get("recursive")).toBe("true");
     const likedOnly = query.getAll("filters").includes("Likes");
-    const items = Object.values(library).filter(
-      (item) =>
-        ancestorsOf(item, library).includes(parentId) &&
-        (!likedOnly || item.UserData?.Likes),
-    );
+    // Jellyfin fills a folder's RecursiveItemCount only when it is asked for.
+    const withCounts = query.getAll("fields").includes("RecursiveItemCount");
+    const items = Object.values(library)
+      .filter(
+        (item) =>
+          ancestorsOf(item, library).includes(parentId) &&
+          (!likedOnly || item.UserData?.Likes),
+      )
+      .map(({ RecursiveItemCount, ...item }) =>
+        withCounts ? { ...item, RecursiveItemCount } : item,
+      );
     return [200, { Items: items }];
   });
   api.mock.onPost(/\/UserItems\/[^/]+\/Rating/).reply((config) => {
@@ -312,12 +318,14 @@ const show = (seasonPlayed: boolean, seriesPlayed: boolean): Library => ({
     Type: "Season",
     IsFolder: true,
     SeriesId: "show",
+    RecursiveItemCount: 1,
     ...userData(seasonPlayed, true),
   },
   show: {
     Id: "show",
     Type: "Series",
     IsFolder: true,
+    RecursiveItemCount: 1,
     ...userData(seriesPlayed, true),
   },
 });
@@ -393,6 +401,32 @@ test("marking a collection played clears the watchlisted movies and shows in it"
   expect(more).toEqual([]);
   expect(query.get("parentId")).toBe("box");
   expect(query.getAll("filters")).toEqual(["Likes"]);
+});
+
+// Jellyfin reads a folder with nothing playable in it as played: no played
+// item against a total of zero. A show with no episode yet, in a collection
+// marked played, was unliked though nothing in it was watched.
+test("keeps a watchlisted show with nothing to play when its collection is marked played", async () => {
+  const { api, unliked } = serve({
+    box: {
+      Id: "box",
+      Type: "BoxSet",
+      IsFolder: true,
+      ...userData(true, false),
+    },
+    upcoming: {
+      Id: "upcoming",
+      Type: "Series",
+      IsFolder: true,
+      ParentId: "box",
+      RecursiveItemCount: 0,
+      ...userData(true, true),
+    },
+    m1: { Id: "m1", Type: "Movie", ParentId: "box", ...userData(true, true) },
+  });
+
+  await removeWatchedFromWatchlist(api, "u", ["box"]);
+  expect(unliked).toEqual(["m1"]);
 });
 
 test("marking a folder played clears the watchlisted items in its subfolders", async () => {

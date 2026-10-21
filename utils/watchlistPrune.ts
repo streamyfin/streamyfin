@@ -1,6 +1,7 @@
 import type { Api } from "@jellyfin/sdk";
 import {
   type BaseItemDto,
+  ItemFields,
   ItemFilter,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { getItemsApi, getUserLibraryApi } from "@jellyfin/sdk/lib/utils/api";
@@ -24,6 +25,14 @@ const isFinished = (item: BaseItemDto) =>
 
 const isWatchlistedAndFinished = (item: BaseItemDto) =>
   item.UserData?.Likes === true && isFinished(item);
+
+/**
+ * Jellyfin reads a folder with nothing playable in it (a show with no episode
+ * yet, only virtual ones) as played: no played item against a total of zero.
+ * Only a folder with items under it can have been watched.
+ */
+const hasPlayableItems = (item: BaseItemDto) =>
+  !item.IsFolder || (item.RecursiveItemCount ?? 0) > 0;
 
 /**
  * Whether the item's LastPlayedDate has moved since playback started. Both
@@ -164,8 +173,11 @@ export async function removeWatchedFromWatchlist(
           parentId: item.Id,
           recursive: true,
           filters: [ItemFilter.Likes],
+          fields: [ItemFields.RecursiveItemCount],
+          enableImages: false,
+          enableTotalRecordCount: false,
         });
-        candidates.push(...(data.Items ?? []));
+        candidates.push(...(data.Items ?? []).filter(hasPlayableItems));
       } catch {
         failed.add(item.Id);
       }
