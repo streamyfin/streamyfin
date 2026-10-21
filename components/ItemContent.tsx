@@ -210,7 +210,10 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
                     pointerEvents={isVersionPending ? "none" : "auto"}
                   />
                   <AddToFavorites item={item} />
-                  {settings.useKefinTweaks && (
+                  {/* The header renders outside the page's
+                      OfflineModeProvider, so the button cannot tell a
+                      download opened offline by itself. */}
+                  {settings.useKefinTweaks && !isOffline && (
                     <AddToKefinWatchlist item={item} />
                   )}
                   {settings.streamyStatsServerUrl &&
