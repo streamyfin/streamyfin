@@ -2,6 +2,7 @@ import type { Api } from "@jellyfin/sdk";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import {
   type InvalidateQueryFilters,
+  partialMatchKey,
   type QueryClient,
   type QueryKey,
   useMutation,
@@ -157,16 +158,18 @@ export const useUserDataToggle = ({
       // after the patch writes the old value back into every toggle reading
       // it (SeasonPicker's season list goes stale after 60 ms). Cancel them
       // all before patching; the interrupted ones are fetched again once the
-      // last toggle in flight settles.
+      // last toggle in flight settles. The item's own queries are cancelled
+      // whatever they hold: one on its first load has no copy yet for the
+      // scan to find, and every settle fetches them again anyway.
       const interrupted = itemId
         ? findRefetchingItemQueries(queryClient, itemId)
         : [];
-      await Promise.all([
-        queryClient.cancelQueries({ queryKey: ["item", itemId] }),
-        queryClient.cancelQueries({
-          predicate: (query) => interrupted.includes(query),
-        }),
-      ]);
+      const itemKey = ["item", itemId];
+      await queryClient.cancelQueries({
+        predicate: (query) =>
+          interrupted.includes(query) ||
+          partialMatchKey(query.queryKey, itemKey),
+      });
       const patches = itemId
         ? patchCachedItemUserData(queryClient, itemId, { [field]: next })
         : [];

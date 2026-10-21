@@ -121,31 +121,33 @@ const renderSeasonToggle = (
     { wrapper: wrapperFor(client) },
   );
 
-/** Season list fetches that wait for the test to answer them, in order. */
-const pendingSeasonFetches = () => {
-  const answers: Array<(seasons: BaseItemDto[]) => void> = [];
+/** Fetches that wait for the test to answer them, in order. */
+const pendingFetches = <T,>() => {
+  const answers: Array<(value: T) => void> = [];
   const fetch = jest.fn(
     () =>
-      new Promise<BaseItemDto[]>((resolve) => {
+      new Promise<T>((resolve) => {
         answers.push(resolve);
       }),
   );
-  const answer = (index: number, seasons: BaseItemDto[]) =>
+  const answer = (index: number, value: T) =>
     act(async () => {
-      answers[index](seasons);
+      answers[index](value);
       await flush();
     });
   /**
    * Answers every fetch still waiting with what the server holds now. A fetch
    * already answered, or cancelled, ignores it.
    */
-  const answerWaiting = (seasons: BaseItemDto[]) =>
+  const answerWaiting = (value: T) =>
     act(async () => {
-      for (const resolve of answers) resolve(seasons);
+      for (const resolve of answers) resolve(value);
       await flush();
     });
   return { fetch, answer, answerWaiting };
 };
+
+const pendingSeasonFetches = () => pendingFetches<BaseItemDto[]>();
 
 beforeEach(() => {
   onlineManager.setOnline(true);
@@ -308,6 +310,44 @@ test("fetches an interrupted list once when the toggle refreshes it anyway", asy
   await settle(0, "succeed");
 
   expect(seasons.fetch).toHaveBeenCalledTimes(2);
+});
+
+// A screen loading the item for the first time holds no copy of it yet, so
+// the scan for refetches to cancel cannot find that load. Landing after the
+// patch, it would bring the old value back to the bookmark reading it.
+test("the item's own first load does not undo the toggle", async () => {
+  const client = newClient();
+  const loads = pendingFetches<BaseItemDto>();
+  const page = await renderHook(
+    () => {
+      const { data } = useQuery<BaseItemDto>({
+        queryKey: ["item", "m1", "fields"],
+        queryFn: loads.fetch,
+      });
+      return useUserDataToggle({
+        item: data ?? { Id: "m1" },
+        field: "Likes",
+        stateAtom,
+        send,
+      });
+    },
+    { wrapper: wrapperFor(client) },
+  );
+  const card = await renderToggle(
+    { Id: "m1", Type: "Movie", UserData: { Likes: false } },
+    client,
+  );
+
+  await act(async () => card.result.current.toggle());
+  // The load was sent before the toggle, so it answers with the old value.
+  await loads.answerWaiting({ Id: "m1", UserData: { Likes: false } });
+  expect(page.result.current.value).toBe(true);
+
+  // Loaded again once the server has the new value.
+  await settle(0, "succeed");
+  await loads.answerWaiting({ Id: "m1", UserData: { Likes: true } });
+  expect(loads.fetch).toHaveBeenCalledTimes(2);
+  expect(page.result.current.value).toBe(true);
 });
 
 const track = (id: string): BaseItemDto => ({
