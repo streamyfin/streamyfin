@@ -132,8 +132,12 @@ const TVWatchlistCard: React.FC<TVWatchlistCardProps> = ({
               color={secondary}
             />
             <Text style={{ fontSize: typography.callout, color: secondary }}>
-              {itemCount}{" "}
-              {itemCount === 1 ? t("watchlists.item") : t("watchlists.items")}
+              {t(
+                itemCount === 1
+                  ? "watchlists.item_count"
+                  : "watchlists.items_count",
+                { count: itemCount },
+              )}
             </Text>
           </View>
           {watchlist.allowedItemType ? (
