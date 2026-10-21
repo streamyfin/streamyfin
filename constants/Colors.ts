@@ -12,6 +12,8 @@ export const Colors = {
   tabIconSelected: "#9333ea",
   // The LIVE badge of a Live TV program, on the cards and in the TV guide.
   live: "#EF4444",
+  // The icon of an empty state (nothing to list, nothing set up yet).
+  emptyStateIcon: "#4b5563",
 };
 
 /**

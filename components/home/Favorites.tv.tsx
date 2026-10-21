@@ -15,6 +15,7 @@ import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { InfiniteScrollingCollectionList } from "@/components/home/InfiniteScrollingCollectionList.tv";
 import { TVQueryErrorState } from "@/components/tv/TVQueryErrorState";
+import { Colors } from "@/constants/Colors";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import { TV_HORIZONTAL_PADDING, TV_TOP_PADDING } from "@/constants/Values";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
@@ -218,8 +219,8 @@ export const Favorites = ({
                 width: scaleSize(64),
                 height: scaleSize(64),
                 marginBottom: scaleSize(16),
-                // Grey as in the other empty states: no purple on TV.
-                tintColor: "#4b5563",
+                // Not the purple accent: TV screens do not use it.
+                tintColor: Colors.emptyStateIcon,
               }}
               contentFit='contain'
               source={heart}

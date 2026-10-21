@@ -24,6 +24,7 @@ import { HeaderIcon } from "@/components/common/HeaderIcon";
 import { Text } from "@/components/common/Text";
 import { getItemNavigation } from "@/components/common/TouchableItemRouter";
 import { TVPosterCard } from "@/components/tv/TVPosterCard";
+import { Colors } from "@/constants/Colors";
 import { useScaledTVPosterSizes } from "@/constants/TVPosterSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import { TV_HORIZONTAL_PADDING, TV_TOP_PADDING } from "@/constants/Values";
@@ -241,7 +242,7 @@ export default function WatchlistDetailScreen() {
   const EmptyComponent = useMemo(
     () => (
       <View className='flex-1 items-center justify-center px-8 py-16'>
-        <Ionicons name='film-outline' size={48} color='#4b5563' />
+        <Ionicons name='film-outline' size={48} color={Colors.emptyStateIcon} />
         <Text className='text-neutral-400 text-center mt-4'>
           {t("watchlists.empty_watchlist")}
         </Text>
@@ -355,7 +356,11 @@ export default function WatchlistDetailScreen() {
               paddingTop: 100,
             }}
           >
-            <Ionicons name='film-outline' size={48} color='#4b5563' />
+            <Ionicons
+              name='film-outline'
+              size={48}
+              color={Colors.emptyStateIcon}
+            />
             <Text
               style={{
                 fontSize: typography.body,

@@ -9,6 +9,7 @@ import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
 import { useTVFocusAnimation } from "@/components/tv/hooks/useTVFocusAnimation";
 import { TVQueryErrorState } from "@/components/tv/TVQueryErrorState";
+import { Colors } from "@/constants/Colors";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import { TV_HORIZONTAL_PADDING, TV_TOP_PADDING } from "@/constants/Values";
 import useRouter from "@/hooks/useAppRouter";
@@ -242,7 +243,11 @@ export const TVStreamystatsWatchlists: React.FC<
           paddingHorizontal: TV_HORIZONTAL_PADDING,
         }}
       >
-        <Ionicons name='list-outline' size={scaleSize(64)} color='#4b5563' />
+        <Ionicons
+          name='list-outline'
+          size={scaleSize(64)}
+          color={Colors.emptyStateIcon}
+        />
         <Text
           style={{
             fontSize: typography.heading,
