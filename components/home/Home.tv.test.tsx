@@ -4,6 +4,10 @@ import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import { getDefaultStore } from "jotai";
 import { useState } from "react";
 import { prefetchServerImage } from "@/components/common/ServerImage";
+import {
+  TV_BACKDROP_CROSSFADE_MS,
+  TV_BACKDROP_DEBOUNCE_MS,
+} from "@/constants/TVSizes";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import type { makeApi } from "@/test-utils/jellyfinApi";
 import { SortByOption, SortOrderOption } from "@/utils/atoms/filters";
@@ -138,16 +142,26 @@ jest.mock(
   () => jest.requireActual("@/test-utils/serverImage").serverImageModule,
 );
 
+// A plain child of Home: it renders exactly when Home does, which makes it
+// the test's measure of Home's own renders.
+let mockStreamystatsRenders = 0;
 jest.mock("@/components/home/StreamystatsRecommendations.tv", () => {
   const { View, Text } = jest.requireActual("react-native");
   return {
-    StreamystatsRecommendations: ({ title }: { title: string }) => (
-      <View testID='streamystats-recommendations'>
-        <Text>{title}</Text>
-      </View>
-    ),
+    StreamystatsRecommendations: ({ title }: { title: string }) => {
+      mockStreamystatsRenders++;
+      return (
+        <View testID='streamystats-recommendations'>
+          <Text>{title}</Text>
+        </View>
+      );
+    },
   };
 });
+
+// Past the backdrop debounce and its crossfade; the extra covers the prefetch
+// and the short wait before the fade starts.
+const PAST_BACKDROP = TV_BACKDROP_DEBOUNCE_MS + TV_BACKDROP_CROSSFADE_MS + 100;
 
 const api = getDefaultStore().get(apiAtom) as ReturnType<typeof makeApi>;
 
@@ -263,6 +277,20 @@ describe("Home.tv behaviours", () => {
 
     const preferredNodes = findNodesWithPreferredFocus(screen.toJSON());
     expect(preferredNodes).toHaveLength(1);
+    // And it is the first card of the first row, not any one card.
+    const testIds = (node: Node | string): string[] => {
+      if (!node || typeof node === "string") return [];
+      if (Array.isArray(node)) return node.flatMap(testIds);
+      const own =
+        typeof node.props?.testID === "string" ? [node.props.testID] : [];
+      return [
+        ...own,
+        ...(node.children ?? []).flatMap((c) => testIds(c as Node | string)),
+      ];
+    };
+    expect(testIds(preferredNodes[0]).join(" ")).toMatch(
+      /\/Items\/Resume-0\/Images\//,
+    );
   });
 
   test("press opens the item", async () => {
@@ -349,6 +377,61 @@ describe("Home.tv behaviours", () => {
         "home.settings.plugins.streamystats.recommended_movies",
       ),
     ).toBeTruthy();
+
+    // ... and below both recently added rows, not merely somewhere.
+    const texts = (node: unknown): string[] => {
+      if (typeof node === "string") return [node];
+      if (Array.isArray(node)) return node.flatMap(texts);
+      const children = (node as { children?: unknown[] } | null)?.children;
+      return children ? children.flatMap(texts) : [];
+    };
+    const order = texts(screen.toJSON());
+    const streamystats = order.indexOf(
+      "home.settings.plugins.streamystats.recommended_movies",
+    );
+    expect(streamystats).toBeGreaterThan(
+      order.indexOf("home.recently_added_in:Movies"),
+    );
+    expect(streamystats).toBeGreaterThan(
+      order.indexOf("home.recently_added_in:Shows"),
+    );
+  });
+
+  // The backdrop's focus state used to live in Home, so each focus move
+  // re-rendered the whole screen 300 ms later.
+  test("a focus move does not re-render the Home screen", async () => {
+    withSettings({
+      showHeroCarousel: false,
+      showHomeBackdrop: true,
+      streamyStatsMovieRecommendations: true,
+    });
+
+    await render(<Home />, { wrapper: Wrapper });
+    await screen.findByText(
+      "home.settings.plugins.streamystats.recommended_movies",
+    );
+    await act(async () => {
+      fireEvent(card("Resume-0"), "focus");
+    });
+    await act(async () => {
+      jest.advanceTimersByTime(PAST_BACKDROP);
+    });
+    const rendersBefore = mockStreamystatsRenders;
+
+    await act(async () => {
+      fireEvent(card("Resume-0"), "blur");
+      fireEvent(card("Resume-1"), "focus");
+    });
+    await act(async () => {
+      jest.advanceTimersByTime(PAST_BACKDROP);
+    });
+
+    expect(mockStreamystatsRenders).toBe(rendersBefore);
+    expect(prefetchServerImage).toHaveBeenCalledWith(
+      expect.stringContaining("/Items/Resume-1/Images/Backdrop"),
+      expect.anything(),
+      "disk",
+    );
   });
 
   test("useEpisodeImagesForNextUp preference requests episode primary image instead of parent thumb", async () => {
@@ -377,9 +460,8 @@ describe("Home.tv behaviours", () => {
     await act(async () => {
       fireEvent(card("Resume-0"), "focus");
     });
-    // Past the backdrop debounce and its crossfade.
     await act(async () => {
-      jest.advanceTimersByTime(1000);
+      jest.advanceTimersByTime(PAST_BACKDROP);
     });
     const before = { ...mockCardCommits };
 
@@ -388,7 +470,7 @@ describe("Home.tv behaviours", () => {
       fireEvent(card("Resume-1"), "focus");
     });
     await act(async () => {
-      jest.advanceTimersByTime(1000);
+      jest.advanceTimersByTime(PAST_BACKDROP);
     });
 
     const recommitted = Object.keys(mockCardCommits).filter(
@@ -406,7 +488,7 @@ describe("Home.tv behaviours", () => {
       fireEvent(card("Resume-0"), "focus");
     });
     await act(async () => {
-      jest.advanceTimersByTime(1000);
+      jest.advanceTimersByTime(PAST_BACKDROP);
     });
 
     expect(prefetchServerImage).toHaveBeenCalledWith(
@@ -431,7 +513,7 @@ describe("Home.tv behaviours", () => {
       await screen.findByText("LatestMovie 0");
       // The hero loads the backdrop of its own featured item.
       await act(async () => {
-        jest.advanceTimersByTime(1000);
+        jest.advanceTimersByTime(PAST_BACKDROP);
       });
       const loadsBefore = jest.mocked(prefetchServerImage).mock.calls.length;
 
@@ -439,7 +521,7 @@ describe("Home.tv behaviours", () => {
         fireEvent(card("LatestMovie-0"), "focus");
       });
       await act(async () => {
-        jest.advanceTimersByTime(1000);
+        jest.advanceTimersByTime(PAST_BACKDROP);
       });
 
       expect(jest.mocked(prefetchServerImage).mock.calls).toHaveLength(
