@@ -23,11 +23,22 @@ let mockConnectOnAdd = true;
 let mockSessionId: string | undefined = "session-1";
 let mockHoldAdd: Promise<void> | null = null;
 let mockFriendlyName: string | undefined = "Living Room TV";
+const mockSessionListeners: Record<string, (() => void)[]> = {};
+const mockListen = (event: string) => (handler: () => void) => {
+  mockSessionListeners[event] = [
+    ...(mockSessionListeners[event] ?? []),
+    handler,
+  ];
+  return { remove: () => {} };
+};
 
 jest.mock("react-native-google-cast", () => ({
   __esModule: true,
   default: {
     getSessionManager: () => ({
+      onSessionEnded: mockListen("ended"),
+      onSessionSuspended: mockListen("suspended"),
+      onSessionResumed: mockListen("resumed"),
       getCurrentCastSession: async () =>
         mockSessionId === undefined
           ? null
@@ -190,6 +201,25 @@ describe("receiver channel", () => {
     expect(mockChannels).toHaveLength(2);
     expect(previous.remove).toHaveBeenCalled();
   });
+
+  test.each(["ended", "suspended", "resumed"])(
+    "is opened again after a session %s event, with the same session id",
+    async (event) => {
+      // Rejoining a receiver that kept playing gives back the same session id,
+      // but the old channel was registered on the session object that is gone.
+      const session = { api: makeApi(), userId: "user-1" };
+
+      await sendJellyfinCastCommand("Pause", session);
+      const previous = lastChannel();
+      for (const handler of mockSessionListeners[event] ?? []) handler();
+      await sendJellyfinCastCommand("Unpause", session);
+
+      expect(mockChannels).toHaveLength(2);
+      expect(previous.remove).toHaveBeenCalled();
+      expect(previous.sendMessage).toHaveBeenCalledTimes(1);
+      expect(lastChannel().sendMessage).toHaveBeenCalledTimes(1);
+    },
+  );
 
   test("opens one channel for two commands sent at once", async () => {
     // Both would otherwise register on the session, with only the last one

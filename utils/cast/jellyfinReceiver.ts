@@ -107,9 +107,33 @@ const closeChannel = async (): Promise<void> => {
   await previous?.channel.remove().catch(() => {});
 };
 
+let releasesOnSessionChange = false;
+
+/**
+ * The channel only hears the receiver through the native session object it was
+ * registered on, and a session id does not identify that object: rejoining a
+ * receiver that kept playing gives the same id, and Android rebuilds the Cast
+ * client on a resume. Kept past those, the channel stops hearing the receiver
+ * (Android) or cannot send at all (iOS), so it is dropped and the next command
+ * opens a fresh one.
+ */
+const releaseChannelOnSessionChange = () => {
+  if (releasesOnSessionChange) return;
+  releasesOnSessionChange = true;
+
+  const sessionManager = GoogleCast.getSessionManager();
+  const release = () => {
+    void closeChannel();
+  };
+  sessionManager.onSessionEnded(release);
+  sessionManager.onSessionSuspended(release);
+  sessionManager.onSessionResumed(release);
+};
+
 const openChannel = async (
   sessionId: string | undefined,
 ): Promise<CastChannel> => {
+  releaseChannelOnSessionChange();
   await closeChannel();
   const channel = await CastChannel.add(JELLYFIN_CAST_NAMESPACE, (message) => {
     const parsed = parseReceiverMessage(message);
