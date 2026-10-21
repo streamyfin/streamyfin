@@ -12,11 +12,12 @@ import React, {
 } from "react";
 import { Animated, Easing, View } from "react-native";
 import { Image, prefetchServerImage } from "@/components/common/ServerImage";
+import {
+  TV_BACKDROP_CROSSFADE_MS,
+  TV_BACKDROP_DEBOUNCE_MS,
+} from "@/constants/TVSizes";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
-
-// Debounce delay in ms - prevents rapid backdrop changes when scrolling fast
-const BACKDROP_DEBOUNCE_MS = 300;
 
 export interface TVHomeBackdropRef {
   handleItemFocus: (item: BaseItemDto) => void;
@@ -42,7 +43,7 @@ export const TVHomeBackdrop = React.memo(
       }
       debounceTimerRef.current = setTimeout(() => {
         setFocusedItem(item);
-      }, BACKDROP_DEBOUNCE_MS);
+      }, TV_BACKDROP_DEBOUNCE_MS);
     }, []);
 
     useImperativeHandle(
@@ -73,8 +74,11 @@ export const TVHomeBackdrop = React.memo(
       });
     }, [api, focusedItem]);
 
-    // Crossfade animation for backdrop transitions
-    const [activeLayer, setActiveLayer] = useState<0 | 1>(0);
+    // Crossfade animation for backdrop transitions. The layer shown is flipped
+    // as soon as the next image is given to the other one, not when its fade
+    // ends: an image that arrives mid-fade then fades in over the layer fading
+    // out, instead of replacing the image still fading in.
+    const activeLayer = useRef<0 | 1>(0);
     const [layer0Url, setLayer0Url] = useState<string | null>(null);
     const [layer1Url, setLayer1Url] = useState<string | null>(null);
     const layer0Opacity = useRef(new Animated.Value(0)).current;
@@ -98,7 +102,8 @@ export const TVHomeBackdrop = React.memo(
         if (isCancelled) return;
 
         // Determine which layer to fade in
-        const incomingLayer = activeLayer === 0 ? 1 : 0;
+        const incomingLayer = activeLayer.current === 0 ? 1 : 0;
+        activeLayer.current = incomingLayer;
         const incomingOpacity =
           incomingLayer === 0 ? layer0Opacity : layer1Opacity;
         const outgoingOpacity =
@@ -120,21 +125,17 @@ export const TVHomeBackdrop = React.memo(
         Animated.parallel([
           Animated.timing(incomingOpacity, {
             toValue: 1,
-            duration: 500,
+            duration: TV_BACKDROP_CROSSFADE_MS,
             easing: Easing.inOut(Easing.quad),
             useNativeDriver: true,
           }),
           Animated.timing(outgoingOpacity, {
             toValue: 0,
-            duration: 500,
+            duration: TV_BACKDROP_CROSSFADE_MS,
             easing: Easing.inOut(Easing.quad),
             useNativeDriver: true,
           }),
-        ]).start(() => {
-          if (!isCancelled) {
-            setActiveLayer(incomingLayer);
-          }
-        });
+        ]).start();
       };
 
       performCrossfade();
