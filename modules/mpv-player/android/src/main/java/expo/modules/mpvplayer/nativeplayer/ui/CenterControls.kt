@@ -9,10 +9,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Forward10
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Replay10
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material3.CircularProgressIndicator
@@ -59,7 +57,7 @@ fun CenterControls(viewModel: PlayerViewModel, modifier: Modifier = Modifier) {
             }
         }
 
-        // Seek Backward (-10s)
+        // Seek Backward
         Box(
             modifier = Modifier
                 .size(52.dp)
@@ -71,10 +69,11 @@ fun CenterControls(viewModel: PlayerViewModel, modifier: Modifier = Modifier) {
                 },
             contentAlignment = Alignment.Center
         ) {
-            Icon(
-                imageVector = Icons.Default.Replay10,
-                contentDescription = "Seek Backward",
+            SeekIcon(
+                forward = false,
+                seconds = viewModel.uiOptions.seekBackwardSec,
                 tint = Color.White,
+                contentDescription = "Seek Backward",
                 modifier = Modifier.size(30.dp)
             )
         }
@@ -106,7 +105,7 @@ fun CenterControls(viewModel: PlayerViewModel, modifier: Modifier = Modifier) {
             }
         }
 
-        // Seek Forward (+10s)
+        // Seek Forward
         Box(
             modifier = Modifier
                 .size(52.dp)
@@ -118,10 +117,11 @@ fun CenterControls(viewModel: PlayerViewModel, modifier: Modifier = Modifier) {
                 },
             contentAlignment = Alignment.Center
         ) {
-            Icon(
-                imageVector = Icons.Default.Forward10,
-                contentDescription = "Seek Forward",
+            SeekIcon(
+                forward = true,
+                seconds = viewModel.uiOptions.seekForwardSec,
                 tint = Color.White,
+                contentDescription = "Seek Forward",
                 modifier = Modifier.size(30.dp)
             )
         }
