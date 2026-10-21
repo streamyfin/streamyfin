@@ -527,6 +527,7 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         p.repeatMode = if (config.loop) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
 
         val httpFactory = androidx.media3.datasource.DefaultHttpDataSource.Factory()
+            .setAllowCrossProtocolRedirects(true)
             .setDefaultRequestProperties(config.headers ?: emptyMap())
         val dataSourceFactory = DefaultDataSource.Factory(context, httpFactory)
 

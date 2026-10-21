@@ -413,6 +413,7 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
         val p = player ?: return
 
         val httpFactory = DefaultHttpDataSource.Factory()
+            .setAllowCrossProtocolRedirects(true)
             .setDefaultRequestProperties(config.headers ?: emptyMap())
         val dataSourceFactory = DefaultDataSource.Factory(context, httpFactory)
 
