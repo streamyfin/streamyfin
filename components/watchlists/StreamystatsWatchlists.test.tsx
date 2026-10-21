@@ -69,8 +69,10 @@ test("shows a retryable error, not the empty state, when loading fails", async (
 });
 
 // The count and its noun used to be two strings put side by side, which a
-// translation cannot reorder (#2171).
-test("counts each watchlist's items as one phrase", async () => {
+// translation cannot reorder (#2171). Choosing the key with count === 1 was
+// English's rule (French reads 0 as singular, Russian 21), so one key goes to
+// i18next, which picks the plural form.
+test("counts each watchlist's items as one plural phrase", async () => {
   const watchlist = {
     serverId: 1,
     userId: "me",
@@ -86,5 +88,5 @@ test("counts each watchlist's items as one phrase", async () => {
   await render(<StreamystatsWatchlists />);
 
   expect(screen.getByText("watchlists.item_count:1")).toBeTruthy();
-  expect(screen.getByText("watchlists.items_count:3")).toBeTruthy();
+  expect(screen.getByText("watchlists.item_count:3")).toBeTruthy();
 });

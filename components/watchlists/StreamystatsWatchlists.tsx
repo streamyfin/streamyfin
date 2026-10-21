@@ -65,12 +65,7 @@ const WatchlistCard: React.FC<WatchlistCardProps> = ({
         <View className='flex-row items-center gap-1'>
           <Ionicons name='film-outline' size={14} color='#9ca3af' />
           <Text className='text-neutral-400 text-sm'>
-            {t(
-              (watchlist.itemCount ?? 0) === 1
-                ? "watchlists.item_count"
-                : "watchlists.items_count",
-              { count: watchlist.itemCount ?? 0 },
-            )}
+            {t("watchlists.item_count", { count: watchlist.itemCount ?? 0 })}
           </Text>
         </View>
         {watchlist.allowedItemType && (

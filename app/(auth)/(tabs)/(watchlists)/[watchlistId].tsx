@@ -210,12 +210,7 @@ export default function WatchlistDetailScreen() {
             <View className='flex-row items-center gap-1'>
               <Ionicons name='film-outline' size={14} color='#9ca3af' />
               <Text className='text-neutral-400 text-sm'>
-                {t(
-                  (items?.length ?? 0) === 1
-                    ? "watchlists.item_count"
-                    : "watchlists.items_count",
-                  { count: items?.length ?? 0 },
-                )}
+                {t("watchlists.item_count", { count: items?.length ?? 0 })}
               </Text>
             </View>
             <View className='flex-row items-center gap-1'>
@@ -323,12 +318,7 @@ export default function WatchlistDetailScreen() {
             >
               <Ionicons name='film-outline' size={20} color='#9ca3af' />
               <Text style={{ fontSize: typography.callout, color: "#9CA3AF" }}>
-                {t(
-                  (items?.length ?? 0) === 1
-                    ? "watchlists.item_count"
-                    : "watchlists.items_count",
-                  { count: items?.length ?? 0 },
-                )}
+                {t("watchlists.item_count", { count: items?.length ?? 0 })}
               </Text>
             </View>
             <View
