@@ -161,18 +161,37 @@ export const useUserDataToggle = ({
       // last toggle in flight settles. The item's own queries are cancelled
       // whatever they hold: one on its first load has no copy yet for the
       // scan to find, and every settle fetches them again anyway.
-      const interrupted = itemId
+      const fetching = itemId
         ? findRefetchingItemQueries(queryClient, itemId)
         : [];
+      // A next or previous page on its way is let through: cancelled, it was
+      // dropped, and a grid that asks again only once its content grows (the
+      // TV collection grid) stopped paging. It lands with the pages as they
+      // were before the patch, so the patch is written into it again then.
+      const paging = fetching.filter(
+        (query) => query.state.fetchMeta?.fetchMore,
+      );
+      const interrupted = fetching.filter((query) => !paging.includes(query));
       const itemKey = ["item", itemId];
       await queryClient.cancelQueries({
         predicate: (query) =>
           interrupted.includes(query) ||
           partialMatchKey(query.queryKey, itemKey),
       });
+      const userData = { [field]: next };
       const patches = itemId
-        ? patchCachedItemUserData(queryClient, itemId, { [field]: next })
+        ? patchCachedItemUserData(queryClient, itemId, userData)
         : [];
+      const outcome = { failed: false };
+      for (const query of paging) {
+        void query.promise?.then(
+          () => {
+            if (outcome.failed) return;
+            patchCachedItemUserData(queryClient, itemId, userData, [query]);
+          },
+          () => {},
+        );
+      }
       writeEntry(entryKey, next);
       return {
         entryKey,
@@ -181,10 +200,14 @@ export const useUserDataToggle = ({
         interrupted: interrupted.map(
           (query) => [query.queryHash, query.queryKey] as const,
         ),
+        outcome,
         userId,
       };
     },
     onError: (_error, { itemId }, context) => {
+      // A page still on its way lands with the item as it was before the
+      // toggle, which is what the server kept: it is not patched again.
+      if (context) context.outcome.failed = true;
       // The item queries are not keyed by account, so a request that fails
       // after a logout or user switch must not write its rollback into the
       // next account's cache. Read the store, not `latest`: the page that sent

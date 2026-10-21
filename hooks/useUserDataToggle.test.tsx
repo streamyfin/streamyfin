@@ -4,6 +4,7 @@ import {
   onlineManager,
   QueryClient,
   QueryClientProvider,
+  useInfiniteQuery,
   useQuery,
 } from "@tanstack/react-query";
 import { act, renderHook } from "@testing-library/react-native";
@@ -348,6 +349,78 @@ test("the item's own first load does not undo the toggle", async () => {
   await loads.answerWaiting({ Id: "m1", UserData: { Likes: true } });
   expect(loads.fetch).toHaveBeenCalledTimes(2);
   expect(page.result.current.value).toBe(true);
+});
+
+/**
+ * A Likes toggle for the first item of a paged list, read from the list the
+ * way a grid card hands its item to the bookmark. Each page request waits for
+ * `fetchPages` to answer with every page, and keeps its own.
+ */
+const renderPagedToggle = (
+  client: QueryClient,
+  fetchPages: () => Promise<BaseItemDto[][]>,
+) =>
+  renderHook(
+    () => {
+      const list = useInfiniteQuery({
+        queryKey: ["collection"],
+        queryFn: async ({ pageParam }) => (await fetchPages())[pageParam],
+        initialPageParam: 0,
+        getNextPageParam: (_last: BaseItemDto[], pages: BaseItemDto[][]) =>
+          pages.length,
+        staleTime: Infinity,
+      });
+      const toggle = useUserDataToggle({
+        item: list.data?.pages[0][0] ?? {},
+        field: "Likes",
+        stateAtom,
+        send,
+        errorMessage: "failed",
+      });
+      return { list, toggle };
+    },
+    { wrapper: wrapperFor(client) },
+  );
+
+// The TV collection grid asks for its next page at its end, and asks again
+// only once its content grows. A toggle landing while that page was on its
+// way cancelled it, and the grid stopped paging until scrolled away and back.
+test("a page on its way when the toggle lands is still added, with the new value in the list", async () => {
+  const client = newClient();
+  const server = pendingFetches<BaseItemDto[][]>();
+  const { result } = await renderPagedToggle(client, server.fetch);
+  await server.answer(0, [[season("s1", false)]]);
+  await act(async () => {
+    void result.current.list.fetchNextPage();
+  });
+
+  await act(async () => result.current.toggle.toggle());
+  // Asked for before the toggle, the page lands with the list as it was.
+  await server.answerWaiting([[season("s1", false)], [season("s2", false)]]);
+
+  expect(result.current.list.data?.pages).toHaveLength(2);
+  expect(result.current.list.data?.pages[0][0].UserData?.Likes).toBe(true);
+  expect(result.current.toggle.value).toBe(true);
+});
+
+// What that page carries is the item as it was before the toggle, which is
+// what the server still has once the toggle failed.
+test("a page landing after the toggle failed leaves the item rolled back", async () => {
+  const client = newClient();
+  const server = pendingFetches<BaseItemDto[][]>();
+  const { result } = await renderPagedToggle(client, server.fetch);
+  await server.answer(0, [[season("s1", false)]]);
+  await act(async () => {
+    void result.current.list.fetchNextPage();
+  });
+
+  await act(async () => result.current.toggle.toggle());
+  await settle(0, "fail");
+  await server.answerWaiting([[season("s1", false)], [season("s2", false)]]);
+
+  expect(result.current.list.data?.pages).toHaveLength(2);
+  expect(result.current.list.data?.pages[0][0].UserData?.Likes).toBe(false);
+  expect(result.current.toggle.value).toBe(false);
 });
 
 const track = (id: string): BaseItemDto => ({

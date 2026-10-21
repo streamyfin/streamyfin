@@ -140,6 +140,8 @@ const writeKeepingFreshness = (
  * Only queries holding the item are written, each keeping how fresh it was;
  * unchanged branches keep their identity, so nothing else re-renders.
  *
+ * @param queries the queries to write, every query holding the item when
+ * omitted.
  * @returns each changed query with the item's values there from before, for
  * `revertCachedItemUserData`.
  */
@@ -147,9 +149,10 @@ export const patchCachedItemUserData = (
   queryClient: QueryClient,
   itemId: string,
   userData: Partial<UserData>,
+  queries: Query[] = findCachedItemQueries(queryClient, itemId),
 ): CachedItemPatch[] => {
   const patches: CachedItemPatch[] = [];
-  for (const query of findCachedItemQueries(queryClient, itemId)) {
+  for (const query of queries) {
     const found: { previous?: Partial<UserData> } = {};
     const next = patch(query.state.data, itemId, userData, 0, found);
     if (!found.previous) continue;
