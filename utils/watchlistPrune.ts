@@ -36,8 +36,9 @@ const hasPlayableItems = (item: BaseItemDto) =>
 
 /**
  * Whether the item's LastPlayedDate has moved since playback started. Both
- * values are the server's own serialization of that field, so a date that
- * did not move compares equal.
+ * values are the server's own serialization of that field, one read before
+ * the start report (see `lastPlayedDatesAtStart`) and one after the stop, so
+ * a date that did not move compares equal.
  */
 const movedSince = (item: BaseItemDto, lastPlayedAtStart: string | null) =>
   (item.UserData?.LastPlayedDate ?? null) !== lastPlayedAtStart;
@@ -45,9 +46,13 @@ const movedSince = (item: BaseItemDto, lastPlayedAtStart: string | null) =>
 /**
  * What a stop report hands `removeWatchedFromWatchlist` for the item it
  * closed: the LastPlayedDate the item had when playback started, null when it
- * had none. Nothing for an alternate version: Jellyfin 12 writes its playback
- * to the version's own UserData and copies only Played over to the item, so
- * the item's date never moves and the stop counts on Played alone.
+ * had none. `item` is the item as the server held it before the start report:
+ * the one the player fetched from the server, or for an item played from the
+ * downloads record, the one `fetchItemAtStart` read. Never the record's own,
+ * whose date the app writes. Nothing for an alternate version: Jellyfin 12
+ * writes its playback to the version's own UserData and copies only Played
+ * over to the item, so the item's date never moves and the stop counts on
+ * Played alone.
  */
 export const lastPlayedDatesAtStart = (
   item: BaseItemDto,
@@ -56,6 +61,39 @@ export const lastPlayedDatesAtStart = (
   item.Id && !isAlternateVersion(item.Id, item.MediaSources, mediaSourceId)
     ? new Map([[item.Id, item.UserData?.LastPlayedDate ?? null]])
     : undefined;
+
+/**
+ * A downloaded item as the server holds it, for `lastPlayedDatesAtStart`:
+ * the downloads record's item with the user data the server has for it. The
+ * record's own LastPlayedDate is the app's, stamped on the phone's clock at
+ * every local progress report (three fractional digits where the server
+ * writes up to seven), or a copy of the server's from the last sync that the
+ * server may have moved past since. Against the server's after the stop it
+ * reads as moved whatever the playback did. Read before the start report,
+ * which moves the date on 10.11.
+ *
+ * Resolves to null when the server does not answer. The player then leaves
+ * the watchlist alone after the stop: without a date the server wrote, a
+ * finished watch and a 12.2 rewatch left under 5% look the same, and a
+ * finished item left on the watchlist costs less than a wanted one taken off.
+ */
+export async function fetchItemAtStart(
+  api: Api,
+  userId: string,
+  item: BaseItemDto,
+  signal?: AbortSignal,
+): Promise<BaseItemDto | null> {
+  if (!item.Id) return null;
+  try {
+    const { data } = await getItemsApi(api).getItemUserData(
+      { itemId: item.Id, userId },
+      { signal },
+    );
+    return { ...item, UserData: data };
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Takes finished items off the KefinTweaks watchlist (Jellyfin's Likes rating).

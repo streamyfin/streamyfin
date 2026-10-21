@@ -1,6 +1,7 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { makeApi } from "@/test-utils/jellyfinApi";
 import {
+  fetchItemAtStart,
   lastPlayedDatesAtStart,
   removeWatchedFromWatchlist,
 } from "./watchlistPrune";
@@ -247,6 +248,92 @@ test.each(AFTER_STOP)(
     expect(unliked).toEqual(outcome === "leaves the watchlist" ? ["m1"] : []);
   },
 );
+
+/**
+ * A downloaded movie's LastPlayedDate as the downloads record holds it: the
+ * app wrote it on its own clock, with the three fractional digits of
+ * toISOString where Jellyfin writes up to seven.
+ */
+const RECORD_LAST_PLAYED = "2026-10-21T14:58:12.345Z";
+
+// A downloaded item is loaded from the downloads record, and its stop was
+// judged against the record's date. That date never equals what the server
+// holds after the stop, so a 12.2 rewatch left under 5% lost its entry. Read
+// from the server before the start report, a download reaches the verdict a
+// stream does.
+test.each(AFTER_STOP)(
+  "Jellyfin %s, played from a download: the movie %s",
+  async (_label, outcome, lastPlayedAtStart, afterStop) => {
+    const { api, unliked } = serve({
+      m1: {
+        Id: "m1",
+        Type: "Movie",
+        RunTimeTicks: RUNTIME_TICKS,
+        UserData: { ...afterStop, Likes: true },
+      },
+    });
+    // What the server held before the start report.
+    api.mock.onGet(/\/UserItems\/m1\/UserData/).reply(200, {
+      Played: lastPlayedAtStart !== null,
+      Likes: true,
+      PlaybackPositionTicks: 0,
+      LastPlayedDate: lastPlayedAtStart,
+    });
+    const recorded: BaseItemDto = {
+      Id: "m1",
+      Type: "Movie",
+      RunTimeTicks: RUNTIME_TICKS,
+      UserData: {
+        Played: true,
+        Likes: true,
+        LastPlayedDate: RECORD_LAST_PLAYED,
+      },
+    };
+
+    const itemAtStart = await fetchItemAtStart(api, "u", recorded);
+    expect(itemAtStart).not.toBeNull();
+    await removeWatchedFromWatchlist(
+      api,
+      "u",
+      ["m1"],
+      lastPlayedDatesAtStart(itemAtStart!, undefined),
+    );
+
+    expect(unliked).toEqual(outcome === "leaves the watchlist" ? ["m1"] : []);
+  },
+);
+
+test("reads a downloaded item's user data from the server and keeps the rest of the record", async () => {
+  const api = makeApi();
+  api.mock
+    .onGet(/\/UserItems\/m1\/UserData/)
+    .reply(200, { Played: true, LastPlayedDate: LAST_MONTH });
+  const recorded: BaseItemDto = {
+    Id: "m1",
+    MediaSources: [{ Id: "m1" }, { Id: "m1-4k" }],
+    UserData: { Played: true, LastPlayedDate: RECORD_LAST_PLAYED },
+  };
+
+  const itemAtStart = await fetchItemAtStart(api, "u", recorded);
+
+  expect(api.mock.history.get).toHaveLength(1);
+  expect(api.mock.history.get[0].url).toMatch(/\?userId=u$/);
+  expect(itemAtStart).toEqual({
+    ...recorded,
+    UserData: { Played: true, LastPlayedDate: LAST_MONTH },
+  });
+  // The record's media sources still tell an alternate version apart.
+  expect(lastPlayedDatesAtStart(itemAtStart!, "m1-4k")).toBeUndefined();
+});
+
+// With no date the server wrote to compare against, the players leave the
+// watchlist alone rather than guess.
+test("reads nothing for a downloaded item when the server does not answer", async () => {
+  const api = makeApi();
+  api.mock.onGet(/\/UserItems\/m1\/UserData/).reply(500);
+
+  await expect(fetchItemAtStart(api, "u", { Id: "m1" })).resolves.toBeNull();
+});
 
 // Marking an item played says nothing about a playback, so there is no date
 // to compare and the server's Played is the whole answer.

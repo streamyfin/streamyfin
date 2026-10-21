@@ -162,7 +162,10 @@ import {
 import { syncPlayLookupKey } from "@/utils/syncplay/queueItems";
 import { msToTicks, ticksToMs, ticksToSeconds } from "@/utils/time";
 import { useVideoSession } from "@/utils/videoSession";
-import { lastPlayedDatesAtStart } from "@/utils/watchlistPrune";
+import {
+  fetchItemAtStart,
+  lastPlayedDatesAtStart,
+} from "@/utils/watchlistPrune";
 
 const NEXT_EPISODE_COUNTDOWN_SECONDS = NEXT_EPISODE_COUNTDOWN_MS / 1000;
 
@@ -206,6 +209,15 @@ interface NativeSession extends NativePlayerSessionSeed {
    * but still loading moment.
    */
   committed: boolean;
+  /**
+   * The item as the server held it before the start report, which the stop
+   * report's watchlist prune is judged by (lastPlayedDatesAtStart): `item`
+   * when it came from the server. An offline session's item comes from the
+   * downloads record, whose LastPlayedDate the app writes itself, so the
+   * start report reads the server's first (fetchItemAtStart); null until
+   * then, and for good when that read is not made.
+   */
+  itemAtStart: BaseItemDto | null;
   lastProgressReportAt: number;
   /** Results of the last remote-subtitle search — download taps key into it. */
   subtitleSearchResults: SubtitleSearchResult[] | null;
@@ -646,13 +658,27 @@ const NativePlayerProviderInner: React.FC<{
         PositionTicks: session.startTicks,
       };
       const playstate = getPlaystateApi(currentApi);
+      // What the watchlist prune judges the stop by, so read only for it.
+      const readItemAtStart =
+        session.offline && settingsRef.current?.useKefinTweaks === true;
+      const userId = userRef.current?.Id;
       reportQueue
-        .enqueue(session, "start", playbackStartInfo, (info, signal) =>
-          playstate.reportPlaybackStart(
+        .enqueue(session, "start", playbackStartInfo, async (info, signal) => {
+          // In the start report's slot, ahead of it: 10.11 moves the date as
+          // playback starts.
+          if (readItemAtStart && userId) {
+            session.itemAtStart = await fetchItemAtStart(
+              currentApi,
+              userId,
+              session.item,
+              signal,
+            );
+          }
+          return playstate.reportPlaybackStart(
             { playbackStartInfo: info },
             { signal },
-          ),
-        )
+          );
+        })
         .catch((error) => {
           writeToLog(
             "ERROR",
@@ -726,13 +752,15 @@ const NativePlayerProviderInner: React.FC<{
             ),
         );
         // The server has now decided whether the item counts as played; a
-        // finished one leaves the KefinTweaks watchlist. The session's item
-        // was fetched before the start report: the dates the stop is judged
-        // by.
-        void pruneWatchedRef.current(
-          [session.item.Id],
-          lastPlayedDatesAtStart(session.item, session.mediaSourceId),
-        );
+        // finished one leaves the KefinTweaks watchlist, judged by the item
+        // as the server held it before the start report. With none, the
+        // watchlist is left alone (see fetchItemAtStart).
+        if (session.itemAtStart) {
+          void pruneWatchedRef.current(
+            [session.item.Id],
+            lastPlayedDatesAtStart(session.itemAtStart, session.mediaSourceId),
+          );
+        }
       } catch (error) {
         // Un-mark so a later teardown path can retry.
         if (session.reportedStopKey === stopKey) {
@@ -1001,6 +1029,7 @@ const NativePlayerProviderInner: React.FC<{
         reportedStopKey: null,
         awaitingLoad: true,
         committed: false,
+        itemAtStart: built.seed.offline ? null : built.seed.item,
         lastProgressReportAt: 0,
         subtitleSearchResults: null,
         subtitleSearchToken: 0,

@@ -63,7 +63,10 @@ let mockSeekReaction:
   | null = null;
 /** Set to have the server answer with a transcode instead of a direct stream. */
 let mockTranscodingUrl: string | undefined;
-const mockSettings = {};
+/** What the downloads database holds for the item the route opens. */
+let mockDownloadedItem: unknown;
+let mockIsConnected = true;
+const mockSettings: { useKefinTweaks?: boolean } = {};
 const mockNoop = () => {};
 const mockPrune = jest.fn((_itemIds: string[]) => {});
 
@@ -97,7 +100,7 @@ jest.mock("@/providers/JellyfinProvider", () => {
 jest.mock("@/providers/DownloadProvider", () => ({
   useDownload: () => ({
     getDownloadedItems: () => [],
-    getDownloadedItemById: () => undefined,
+    getDownloadedItemById: () => mockDownloadedItem,
   }),
 }));
 jest.mock("@/providers/InactivityProvider", () => ({
@@ -116,7 +119,7 @@ jest.mock("@/hooks/useAppRouter", () => ({
 }));
 jest.mock("@/hooks/useHaptic", () => ({ useHaptic: () => mockNoop }));
 jest.mock("@/hooks/useNetworkStatus", () => ({
-  useNetworkStatus: () => ({ isConnected: true }),
+  useNetworkStatus: () => ({ isConnected: mockIsConnected }),
 }));
 jest.mock("@/hooks/useOrientation", () => ({
   useOrientation: () => ({
@@ -245,6 +248,12 @@ const stopReports = () =>
     .filter((request) => request.url?.endsWith("/Sessions/Playing/Stopped"))
     .map((request) => JSON.parse(request.data));
 
+/** What the player asked the server about item-1's user data. */
+const userDataReads = () =>
+  api.mock.history.get.filter((request) =>
+    request.url?.includes("/UserItems/item-1/UserData"),
+  );
+
 const startReports = () =>
   api.mock.history.post.filter((request) =>
     request.url?.endsWith("/Sessions/Playing"),
@@ -319,6 +328,12 @@ const leavePlayer = async () => {
   });
   await waitFor(() => expect(stopReports()).toHaveLength(1));
 };
+
+/** Lets the requests already sent, and what waits on their answers, finish. */
+const settle = () =>
+  act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
 
 // The language the stream headers carry, the same for every test.
 beforeAll(() => i18next.init({ lng: "sv", resources: {} }));
@@ -425,6 +440,26 @@ describe("direct player stop report", () => {
     );
   });
 
+  // A streamed item comes from the server: what it was loaded with is what
+  // the stop is judged by, and nothing more is read before the start.
+  test("reads nothing more for a streamed item with KefinTweaks on", async () => {
+    mockSettings.useKefinTweaks = true;
+    try {
+      await openPlayer();
+      await leavePlayer();
+
+      await waitFor(() =>
+        expect(mockPrune).toHaveBeenCalledWith(
+          ["item-1"],
+          new Map([["item-1", LAST_PLAYED]]),
+        ),
+      );
+      expect(userDataReads()).toHaveLength(0);
+    } finally {
+      delete mockSettings.useKefinTweaks;
+    }
+  });
+
   test("leaves the watchlist alone when the stop report fails", async () => {
     (writeToLog as jest.Mock).mockClear();
     api.mock
@@ -448,6 +483,132 @@ describe("direct player stop report", () => {
     await screen.unmount();
     await waitFor(() => expect(stopReports()).toHaveLength(2));
     api.mock.resetHistory();
+  });
+
+  // A downloaded item is loaded from the downloads record, whose
+  // LastPlayedDate the app writes itself. The stop was judged against that
+  // date: compared with the server's it always read as moved, and a played,
+  // watchlisted download rewatched for 31 s on 12.2 lost its entry.
+  describe("of an item played from its download", () => {
+    /** The record's copy of the date: the app's clock, three digits. */
+    const RECORD_LAST_PLAYED = "2026-10-21T14:58:12.345Z";
+
+    beforeEach(() => {
+      mockParams.offline = "true";
+      mockDownloadedItem = {
+        item: {
+          Id: "item-1",
+          Type: "Episode",
+          RunTimeTicks: RUNTIME_TICKS,
+          UserData: {
+            Played: true,
+            PlaybackPositionTicks: 0,
+            LastPlayedDate: RECORD_LAST_PLAYED,
+          },
+        },
+        mediaSource: { Id: "source-1", MediaStreams: [] },
+        videoFilePath: "file:///downloads/item-1.mkv",
+        videoFileSize: 0,
+        userData: { audioStreamIndex: 0, subtitleStreamIndex: -1 },
+      };
+      mockSettings.useKefinTweaks = true;
+      api.mock.onGet(/\/UserItems\/item-1\/UserData/).reply(200, {
+        Played: true,
+        PlaybackPositionTicks: 0,
+        LastPlayedDate: LAST_PLAYED,
+      });
+    });
+
+    afterEach(() => {
+      mockParams.offline = "false";
+      mockDownloadedItem = undefined;
+      mockIsConnected = true;
+      delete mockSettings.useKefinTweaks;
+    });
+
+    test("hands the watchlist prune the date the server held, not the record's", async () => {
+      await openPlayer();
+      await leavePlayer();
+
+      await waitFor(() =>
+        expect(mockPrune).toHaveBeenCalledWith(
+          ["item-1"],
+          new Map([["item-1", LAST_PLAYED]]),
+        ),
+      );
+    });
+
+    // Jellyfin 10.11 moves the date as playback starts.
+    test("reads that date before it reports the start", async () => {
+      let answerRead: () => void = () => {};
+      api.mock.onGet(/\/UserItems\/item-1\/UserData/).reply(
+        () =>
+          new Promise((resolve) => {
+            answerRead = () =>
+              resolve([200, { Played: true, LastPlayedDate: LAST_PLAYED }]);
+          }),
+      );
+      await render(<DirectPlayerPage />);
+      await waitFor(() => expect(userDataReads()).toHaveLength(1));
+      await settle();
+      expect(startReports()).toHaveLength(0);
+
+      await act(async () => answerRead());
+
+      await waitFor(() => expect(startReports()).toHaveLength(1));
+    });
+
+    // The start report would land after the stop and reopen the session on
+    // the server, where 10.11 also marks a played item unplayed again.
+    test("does not report the start once the player was left during that read", async () => {
+      let answerRead: () => void = () => {};
+      api.mock.onGet(/\/UserItems\/item-1\/UserData/).reply(
+        () =>
+          new Promise((resolve) => {
+            answerRead = () =>
+              resolve([200, { Played: true, LastPlayedDate: LAST_PLAYED }]);
+          }),
+      );
+      await render(<DirectPlayerPage />);
+      await waitFor(() => expect(userDataReads()).toHaveLength(1));
+      await leavePlayer();
+
+      await act(async () => answerRead());
+      await settle();
+
+      expect(startReports()).toHaveLength(0);
+
+      // A stop without a start: keep it out of what the next test counts.
+      await screen.unmount();
+      api.mock.resetHistory();
+    });
+
+    test("leaves the watchlist alone when the server's date could not be read", async () => {
+      api.mock.onGet(/\/UserItems\/item-1\/UserData/).reply(500);
+      await openPlayer();
+      await leavePlayer();
+      await settle();
+
+      expect(mockPrune).not.toHaveBeenCalled();
+    });
+
+    // No start report went out, so nothing was read before one.
+    test("leaves the watchlist alone when playback started offline", async () => {
+      mockIsConnected = false;
+      await render(<DirectPlayerPage />);
+      await waitFor(() => expect(screen.getByTestId("mpv-view")).toBeTruthy());
+      mockIsConnected = true;
+      await screen.rerender(<DirectPlayerPage />);
+      await leavePlayer();
+      await settle();
+
+      expect(startReports()).toHaveLength(0);
+      expect(mockPrune).not.toHaveBeenCalled();
+
+      // A stop without a start: keep it out of what the next test counts.
+      await screen.unmount();
+      api.mock.resetHistory();
+    });
   });
 
   // A progress report at 0 clears the resume point just like a stop at 0, and

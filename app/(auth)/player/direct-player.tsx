@@ -114,7 +114,10 @@ import {
 } from "@/utils/subtitles/subtitleStyle";
 import { msToTicks, ticksToSeconds } from "@/utils/time";
 import { useVideoSession } from "@/utils/videoSession";
-import { lastPlayedDatesAtStart } from "@/utils/watchlistPrune";
+import {
+  fetchItemAtStart,
+  lastPlayedDatesAtStart,
+} from "@/utils/watchlistPrune";
 import { generateDeviceProfile } from "../../../utils/profiles/native";
 
 // Spec: utils/directPlayer/directPlayerPage.test.tsx. It cannot sit next to
@@ -493,6 +496,14 @@ export default function DirectPlayerPage() {
     isConnectedRef.current = isConnected;
   }, [isConnected]);
 
+  // A downloaded item as the server held it before its start report, read by
+  // that report for the watchlist prune (fetchItemAtStart). Kept with the
+  // stream it was read for, so a stop never takes another session's.
+  const itemAtStartRef = useRef<{
+    stream: Stream;
+    item: BaseItemDto | null;
+  } | null>(null);
+
   // The item the player is on as of the last commit. The MPV view holds the
   // callbacks it was last rendered with, and on an in-place switch those close
   // over the outgoing item for both the loaded item and the route param, so
@@ -674,9 +685,27 @@ export default function DirectPlayerPage() {
     // stop report is connectivity-based too, would otherwise close a session
     // it never opened, which the server's playback history then discards.
     if (!stream || !api || !isConnectedRef.current) return;
+    let cancelled = false;
     const reportPlaybackStart = async () => {
       const progressInfo = currentPlayStateInfo();
       if (progressInfo) {
+        // What the watchlist prune judges the stop by, so read only for it,
+        // and before the start report: 10.11 moves the date as playback
+        // starts.
+        if (downloadedItem && item && user?.Id && settings?.useKefinTweaks) {
+          const itemAtStart = await fetchItemAtStart(api, user.Id, item);
+          // The session was closed while the server answered (this effect
+          // re-ran, the player was left, or an in-place switch reported its
+          // stop a commit before re-running this): a start report now would
+          // reopen it on the server, with nothing left to close it.
+          if (
+            cancelled ||
+            isPlaybackStoppedRef.current ||
+            reportedStopKeyRef.current === (stream.sessionId || item.Id)
+          )
+            return;
+          itemAtStartRef.current = { stream, item: itemAtStart };
+        }
         await getPlaystateApi(api).reportPlaybackStart({
           playbackStartInfo: {
             ...progressInfo,
@@ -700,6 +729,9 @@ export default function DirectPlayerPage() {
         error instanceof Error ? error.message : String(error),
       );
     });
+    return () => {
+      cancelled = true;
+    };
     // startTicks is read, not depended on: it is rewritten into the URL every
     // 30s during playback, and re-running this would report a new playback
     // start each time.
@@ -749,12 +781,22 @@ export default function DirectPlayerPage() {
         },
       });
       // The server has now decided whether the item counts as played; a
-      // finished one leaves the KefinTweaks watchlist. `item` is as it was
-      // loaded, before the start report: the dates the stop is judged by.
-      void pruneWatchedFromWatchlist(
-        [item.Id],
-        lastPlayedDatesAtStart(item, mediaSourceId),
-      );
+      // finished one leaves the KefinTweaks watchlist, judged by the item as
+      // the server held it before the start report. That is `item` as it was
+      // loaded, unless it came from the downloads record: then it is what the
+      // start report read, and with no such read the watchlist is left alone
+      // (see fetchItemAtStart).
+      let itemAtStart: BaseItemDto | null = item;
+      if (downloadedItem) {
+        const read = itemAtStartRef.current;
+        itemAtStart = read?.stream === stream ? read.item : null;
+      }
+      if (itemAtStart) {
+        void pruneWatchedFromWatchlist(
+          [item.Id],
+          lastPlayedDatesAtStart(itemAtStart, mediaSourceId),
+        );
+      }
     } catch (error) {
       // Un-mark the session so a later teardown path can retry: e.g. a failed
       // report from a WebSocket remote-stop (player still mounted) must not
@@ -772,6 +814,7 @@ export default function DirectPlayerPage() {
   }, [
     api,
     item,
+    downloadedItem,
     mediaSourceId,
     stream,
     getSessionPositionTicks,
