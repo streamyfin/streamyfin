@@ -4,6 +4,7 @@ import { getSessionApi } from "@jellyfin/sdk/lib/utils/api/session-api";
 import {
   JELLYFIN_RECEIVER_CLIENT,
   RECEIVER_LIVENESS_WINDOW_MS,
+  RECEIVER_SESSION_WINDOW_SECONDS,
   RECEIVER_STOP_GRACE_MS,
 } from "@/constants/Cast";
 import { getJellyfinHeaders } from "@/utils/customHeaders";
@@ -63,7 +64,7 @@ const findPlayingReceiverSession = async ({
   signal,
 }: EndedReceiverSession): Promise<SessionInfoDto | undefined> => {
   const { data } = await getSessionApi(api).getSessions(
-    { activeWithinSeconds: 960 },
+    { activeWithinSeconds: RECEIVER_SESSION_WINDOW_SECONDS },
     { signal },
   );
 

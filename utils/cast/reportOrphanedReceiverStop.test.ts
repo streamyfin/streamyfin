@@ -109,6 +109,15 @@ describe("reportOrphanedReceiverStop", () => {
     expect(api.mock.history.get).toHaveLength(1);
   });
 
+  test("looks for the receiver over the window the dashboard lists", async () => {
+    const api = makeApi();
+    api.mock.onGet(/\/Sessions/).reply(200, [receiverSession()]);
+
+    await reportOrphanedReceiverStop(ended(api));
+
+    expect(api.mock.history.get[0].url).toContain("activeWithinSeconds=960");
+  });
+
   test("leaves a session alone when the receiver reported its own stop", async () => {
     const api = makeApi();
     api.mock

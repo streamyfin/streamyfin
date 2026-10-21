@@ -24,7 +24,6 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { RECEIVER_LOAD_TIMEOUT_MS } from "@/constants/Cast";
-import useRouter from "@/hooks/useAppRouter";
 import { useHaptic } from "@/hooks/useHaptic";
 import type { ThemeColors } from "@/hooks/useImageColorsReturn";
 import { usePlayMedia } from "@/hooks/usePlayMedia";
@@ -77,8 +76,6 @@ export const PlayButton: React.FC<Props> = ({
 
   // Use colors prop if provided, otherwise fallback to global atom
   const effectiveColors = colors || globalColorAtom;
-
-  const router = useRouter();
 
   const startWidth = useSharedValue(0);
   const targetWidth = useSharedValue(0);
@@ -220,10 +217,8 @@ export const PlayButton: React.FC<Props> = ({
       item,
       client,
       castDevice,
-      settings,
       api,
       user,
-      router,
       showActionSheetWithOptions,
       mediaStatus,
       selectedOptions,

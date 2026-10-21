@@ -1,3 +1,4 @@
+import { RECEIVER_CHANNEL_OPEN_ATTEMPTS } from "@/constants/Cast";
 import { makeApi } from "@/test-utils/jellyfinApi";
 import {
   castToJellyfinReceiver,
@@ -26,6 +27,7 @@ let mockConnectOnAdd = true;
 let mockSessionId: string | undefined = "session-1";
 let mockHoldAdd: Promise<void> | null = null;
 let mockFriendlyName: string | undefined = "Living Room TV";
+let mockRenewSessionOnAdd = false;
 const mockSessionListeners: Record<string, (() => void)[]> = {};
 const mockListen = (event: string) => (handler: () => void) => {
   mockSessionListeners[event] = [
@@ -68,6 +70,7 @@ jest.mock("react-native-google-cast", () => ({
     add: jest.fn(
       async (_namespace: string, onMessage: (m: unknown) => void) => {
         if (mockHoldAdd) await mockHoldAdd;
+        if (mockRenewSessionOnAdd) mockSessionId = `${mockSessionId}-renewed`;
         const channel: FakeChannel = {
           connected: mockConnectOnAdd,
           sendMessage: jest.fn(async () => {}),
@@ -94,6 +97,7 @@ beforeEach(() => {
   mockChannels = [];
   mockConnectOnAdd = true;
   mockHoldAdd = null;
+  mockRenewSessionOnAdd = false;
 });
 
 describe("playOnJellyfinReceiver", () => {
@@ -275,6 +279,18 @@ describe("receiver channel", () => {
     expect(mockChannels[0].sendMessage).not.toHaveBeenCalled();
     expect(mockChannels[0].remove).toHaveBeenCalled();
     expect(mockChannels[1].sendMessage).toHaveBeenCalledTimes(1);
+  });
+
+  test("gives up when the Cast session changes on every try", async () => {
+    mockRenewSessionOnAdd = true;
+
+    await expect(
+      sendJellyfinCastCommand("Pause", { api: makeApi(), userId: "user-1" }),
+    ).rejects.toThrow("the Cast session keeps changing");
+    expect(mockChannels).toHaveLength(RECEIVER_CHANNEL_OPEN_ATTEMPTS);
+    expect(
+      mockChannels.every((channel) => !channel.sendMessage.mock.calls.length),
+    ).toBe(true);
   });
 
   test("refuses to send when the channel does not connect", async () => {

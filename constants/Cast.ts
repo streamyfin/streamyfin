@@ -30,6 +30,21 @@ export const RECEIVER_MAX_QUEUE_ITEMS = 100;
 export const RECEIVER_LOAD_TIMEOUT_MS = 30_000;
 
 /**
+ * Tries at opening the receiver channel before a command gives up. A session
+ * that changes again on every try is a device the sender cannot hold on to,
+ * and giving up beats looping on it.
+ */
+export const RECEIVER_CHANNEL_OPEN_ATTEMPTS = 3;
+
+/**
+ * How far back, in seconds, the stop reporter looks for the receiver's
+ * session: the window jellyfin-web's dashboard lists sessions over. The server
+ * stops a playing session that has not checked in for 5 minutes, on a 5 minute
+ * timer, so one it still has playing was active well within it.
+ */
+export const RECEIVER_SESSION_WINDOW_SECONDS = 960;
+
+/**
  * After a Cast session ends on a connection loss, how long to leave the
  * receiver to report its own stop before checking on it.
  */

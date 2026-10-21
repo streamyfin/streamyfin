@@ -7,6 +7,7 @@ import GoogleCast, {
   type RemoteMediaClient,
 } from "react-native-google-cast";
 import {
+  RECEIVER_CHANNEL_OPEN_ATTEMPTS,
   RECEIVER_FALLBACK_ID_LENGTH,
   RECEIVER_FALLBACK_NAME,
 } from "@/constants/Cast";
@@ -166,14 +167,8 @@ const openChannel = async (
 
 let opening: Promise<CastChannel> | null = null;
 
-/**
- * A session that changes again on every try is a device the sender cannot hold
- * on to; giving up beats looping on it.
- */
-const MAX_CHANNEL_OPEN_ATTEMPTS = 3;
-
 const getChannel = async (): Promise<CastChannel> => {
-  for (let attempt = 0; attempt < MAX_CHANNEL_OPEN_ATTEMPTS; attempt++) {
+  for (let attempt = 0; attempt < RECEIVER_CHANNEL_OPEN_ATTEMPTS; attempt++) {
     const session =
       await GoogleCast.getSessionManager().getCurrentCastSession();
 
