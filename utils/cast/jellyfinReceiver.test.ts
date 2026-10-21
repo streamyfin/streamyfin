@@ -660,6 +660,62 @@ describe("castToJellyfinReceiver", () => {
     expect(await outcome).toEqual({ status: "timed_out" });
   });
 
+  /** Holds the next media status read until the test answers it. */
+  const holdMediaStatus = (client: ReturnType<typeof makeClient>) => {
+    let answer = () => {};
+    client.getMediaStatus.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          answer = () => resolve(null);
+        }),
+    );
+    return () => answer();
+  };
+
+  test.each([
+    ["the older one", true],
+    ["the newer one", false],
+  ])(
+    "sends only the newer of two casts started together, when %s reads its status first",
+    async (_, olderAnswersFirst) => {
+      // A double tap, or the music auto-cast overlapping a manual cast: both
+      // are still reading the media status when the second one starts.
+      const client = makeClient();
+      const answerFirst = holdMediaStatus(client);
+      const answerSecond = holdMediaStatus(client);
+      const first = castToJellyfinReceiver(
+        client as never,
+        session(),
+        { items: [movie] },
+        1_000,
+      );
+      const second = castToJellyfinReceiver(
+        client as never,
+        session(),
+        { items: [{ Id: "item-2", Type: "Movie" }] },
+        1_000,
+      );
+
+      const [answerEarly, answerLate] = olderAnswersFirst
+        ? [answerFirst, answerSecond]
+        : [answerSecond, answerFirst];
+      answerEarly();
+      await sent();
+      answerLate();
+      await sent();
+
+      expect(await settledWith(first)).toEqual({ status: "superseded" });
+      const playNows = mockChannels
+        .flatMap((channel) => channel.sendMessage.mock.calls)
+        .filter(([message]) => message.command === "PlayNow");
+      expect(playNows).toHaveLength(1);
+      expect(playNows[0][0].options.items[0].Id).toBe("item-2");
+
+      client.emit(status("buffering", "item-2", "session-b"));
+      expect(await second).toEqual({ status: "loaded" });
+    },
+  );
+
   test("settles an older cast as replaced when a newer one starts", async () => {
     const client = makeClient();
     const first = castToJellyfinReceiver(

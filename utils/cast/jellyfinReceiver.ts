@@ -398,6 +398,8 @@ const receiverMediaData = (
   status?.mediaInfo?.customData as ReceiverMediaData | undefined;
 
 let supersedeCurrentCast: (() => void) | null = null;
+/** Counts casts, so that one a newer cast overtook can tell. */
+let castCount = 0;
 
 /**
  * Casts and resolves once the receiver has a media session for the requested
@@ -414,6 +416,7 @@ export const castToJellyfinReceiver = async (
   request: JellyfinCastPlayRequest,
   timeoutMs: number,
 ): Promise<ReceiverLoadOutcome> => {
+  const cast = ++castCount;
   supersedeCurrentCast?.();
 
   const sent = toReceiverRequest(request);
@@ -423,6 +426,9 @@ export const castToJellyfinReceiver = async (
   const previous = receiverMediaData(
     await client.getMediaStatus().catch(() => null),
   );
+  // A cast started while this one read the media status owns the TV now:
+  // sending this one after it would replace it there.
+  if (cast !== castCount) return { status: "superseded" };
 
   return new Promise<ReceiverLoadOutcome>((resolve, reject) => {
     let settled = false;
