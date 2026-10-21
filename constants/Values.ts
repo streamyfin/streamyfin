@@ -24,7 +24,7 @@ export const POSTER_ASPECT_RATIO = 10 / 15;
 export const TV_HORIZONTAL_PADDING = 60;
 
 /**
- * Space above a TV tab's content, below the tab bar. Not scaled either: the
+ * Space above a TV page's content, below the tab bar. Not scaled either: the
  * Watchlists tab mixed this unscaled value with a scaled one depending on the
  * sources it showed, and moved by 50 dp on Android TV when they changed.
  */

@@ -11,14 +11,14 @@ import {
   useScaledTVSizes,
 } from "@/constants/TVSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
+import { TV_TOP_PADDING } from "@/constants/Values";
 import useRouter from "@/hooks/useAppRouter";
 import { useStudioItems } from "@/hooks/useStudioItems";
 import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
 import { scaleSize } from "@/utils/scaleSize";
 
-// The room every TV page leaves above and below its content, and under a
-// page's heading.
-const TOP_PADDING = 100;
+// The room every TV page leaves below its content, and under a page's
+// heading.
 const BOTTOM_PADDING = 60;
 const HEADING_GAP = 40;
 
@@ -54,7 +54,7 @@ export const TVStudioPage: React.FC<{ studioId: string }> = ({ studioId }) => {
       onLayout={(event) => setViewportHeight(event.nativeEvent.layout.height)}
       onContentSizeChange={(_width, height) => setContentHeight(height)}
       contentContainerStyle={{
-        paddingTop: insets.top + TOP_PADDING,
+        paddingTop: insets.top + TV_TOP_PADDING,
         paddingBottom: insets.bottom + BOTTOM_PADDING,
         paddingHorizontal: sizes.padding.horizontal,
       }}

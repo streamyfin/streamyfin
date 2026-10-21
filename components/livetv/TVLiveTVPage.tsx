@@ -11,10 +11,10 @@ import { TVLiveTVGuide } from "@/components/livetv/TVLiveTVGuide";
 import { TVLiveTVPlaceholder } from "@/components/livetv/TVLiveTVPlaceholder";
 import { TVTabButton } from "@/components/tv/TVTabButton";
 import { useScaledTVTypography } from "@/constants/TVTypography";
+import { TV_TOP_PADDING } from "@/constants/Values";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 
 const HORIZONTAL_PADDING = 60;
-const TOP_PADDING = 100;
 const SECTION_GAP = 24;
 
 type TabId =
@@ -221,7 +221,7 @@ export const TVLiveTVPage: React.FC = () => {
       {/* Header with Title and Tabs */}
       <View
         style={{
-          paddingTop: insets.top + TOP_PADDING,
+          paddingTop: insets.top + TV_TOP_PADDING,
           paddingHorizontal: insets.left + HORIZONTAL_PADDING,
           paddingBottom: 24,
         }}

@@ -26,7 +26,7 @@ import { getItemNavigation } from "@/components/common/TouchableItemRouter";
 import { TVPosterCard } from "@/components/tv/TVPosterCard";
 import { useScaledTVPosterSizes } from "@/constants/TVPosterSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
-import { TV_HORIZONTAL_PADDING } from "@/constants/Values";
+import { TV_HORIZONTAL_PADDING, TV_TOP_PADDING } from "@/constants/Values";
 import useRouter from "@/hooks/useAppRouter";
 import { useOrientation } from "@/hooks/useOrientation";
 import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
@@ -279,7 +279,7 @@ export default function WatchlistDetailScreen() {
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{
-          paddingTop: insets.top + 100,
+          paddingTop: insets.top + TV_TOP_PADDING,
           paddingBottom: insets.bottom + 60,
           paddingHorizontal: insets.left + TV_HORIZONTAL_PADDING,
         }}
