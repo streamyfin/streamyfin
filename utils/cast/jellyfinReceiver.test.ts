@@ -121,6 +121,42 @@ describe("playOnJellyfinReceiver", () => {
     });
   });
 
+  test("casts a live program through its channel, from the live edge", async () => {
+    // The receiver has no program-to-channel lookup: handed the program, it
+    // asks PlaybackInfo for an item with no media and the TV stays idle.
+    await playOnJellyfinReceiver(
+      { api: makeApi(), userId: "user-1" },
+      {
+        items: [
+          {
+            Id: "program-1",
+            Name: "Evening News",
+            Type: "Program",
+            ChannelId: "channel-1",
+            ChannelName: "News 24",
+          },
+        ],
+        startPositionTicks: 600_000_000,
+        mediaSourceId: "program-1",
+        audioStreamIndex: 1,
+        subtitleStreamIndex: 3,
+      },
+    );
+
+    const [message] = lastChannel().sendMessage.mock.calls[0];
+    expect(message.options).toEqual({
+      items: [
+        {
+          Id: "channel-1",
+          Name: "News 24",
+          Type: "TvChannel",
+          MediaType: "Video",
+          IsFolder: false,
+        },
+      ],
+    });
+  });
+
   test("leaves out the receiver name and bitrate when there are none", async () => {
     await sendJellyfinCastCommand("Stop", { api: makeApi(), userId: "user-1" });
 

@@ -198,11 +198,37 @@ export const sendJellyfinCastCommand = async (
   });
 };
 
+/**
+ * A guide program is not playable itself and the receiver has no lookup from a
+ * program to its channel, so it would ask PlaybackInfo for the program and
+ * fail. jellyfin-web plays the program's channel instead, live, with none of
+ * the program page's stream picks, and so does this.
+ */
+const toReceiverRequest = (
+  request: JellyfinCastPlayRequest,
+): JellyfinCastPlayRequest => {
+  const [first] = request.items;
+  if (request.items.length !== 1 || first?.Type !== "Program") return request;
+  if (!first.ChannelId) return request;
+
+  return {
+    items: [
+      {
+        Id: first.ChannelId,
+        Name: first.ChannelName ?? first.Name,
+        Type: "TvChannel",
+        MediaType: "Video",
+        IsFolder: false,
+      },
+    ],
+  };
+};
+
 export const playOnJellyfinReceiver = async (
   session: JellyfinCastSession,
   request: JellyfinCastPlayRequest,
 ): Promise<void> => {
-  const { items, ...rest } = request;
+  const { items, ...rest } = toReceiverRequest(request);
 
   await sendJellyfinCastCommand("PlayNow", session, {
     ...rest,
