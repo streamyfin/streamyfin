@@ -6,6 +6,7 @@ import {
   filterByAtom,
   filterOwnerAtom,
   genreFilterAtom,
+  officialRatingFilterAtom,
   type SortByOption,
   type SortOrderOption,
   sortByAtom,
@@ -17,6 +18,7 @@ import {
 
 export interface LibraryFilters {
   genres: string[];
+  officialRatings: string[];
   years: string[];
   tags: string[];
   audioLanguages: string[];
@@ -51,6 +53,7 @@ export const useLibraryFilters = (screenId: string): LibraryFilters | null => {
   const owner = useAtomValue(filterOwnerAtom);
   const setOwner = useSetAtom(filterOwnerAtom);
   const genres = useAtomValue(genreFilterAtom);
+  const officialRatings = useAtomValue(officialRatingFilterAtom);
   const years = useAtomValue(yearFilterAtom);
   const tags = useAtomValue(tagsFilterAtom);
   const audioLanguages = useAtomValue(audioLanguageFilterAtom);
@@ -62,6 +65,7 @@ export const useLibraryFilters = (screenId: string): LibraryFilters | null => {
   const shared = useMemo(
     () => ({
       genres,
+      officialRatings,
       years,
       tags,
       audioLanguages,
@@ -72,6 +76,7 @@ export const useLibraryFilters = (screenId: string): LibraryFilters | null => {
     }),
     [
       genres,
+      officialRatings,
       years,
       tags,
       audioLanguages,

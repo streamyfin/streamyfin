@@ -101,14 +101,20 @@ export const getLibraryTabQuery = (
 
 type FilterBarQuery = Pick<
   ItemsApiGetItemsRequest,
-  "sortBy" | "sortOrder" | "filters" | "genres" | "tags" | "years"
+  | "sortBy"
+  | "sortOrder"
+  | "filters"
+  | "genres"
+  | "officialRatings"
+  | "tags"
+  | "years"
 >;
 
 /** The filter bar belongs to the items tab, see `getLibraryTabFilters`. */
 export const libraryTabUsesFilterBar = (tab: LibraryTab) => tab === "items";
 
 /**
- * What the filter bar adds to a tab's request. Its genres, years and tags are
+ * What the filter bar adds to a tab's request. Its genres, official ratings, years and tags are
  * those of the library's own items and say nothing about a collection or a
  * playlist, so the bar is hidden on those tabs and none of it applies: with a
  * saved genre filter they would otherwise open empty. They are sorted by name.

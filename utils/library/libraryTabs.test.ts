@@ -132,6 +132,7 @@ describe("the filter bar", () => {
     sortBy: ["DateCreated" as const],
     sortOrder: ["Descending" as const],
     genres: ["Action"],
+    officialRatings: ["PG-13"],
     years: [1999],
   };
 
@@ -139,7 +140,7 @@ describe("the filter bar", () => {
     expect(getLibraryTabFilters("items", filterBar)).toEqual(filterBar);
   });
 
-  // The bar is hidden on these tabs and its genres are those of the movies:
+  // The bar is hidden on these tabs and its genres and ratings are those of the movies:
   // with a saved filter, a tab the count calls non-empty would open empty.
   test("is ignored by the collections and playlists tabs, sorted by name", () => {
     const byName = { sortBy: ["SortName"], sortOrder: ["Ascending"] };

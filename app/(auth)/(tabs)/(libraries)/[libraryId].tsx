@@ -86,6 +86,8 @@ import {
   getMultiFilterPreference,
   getSortByPreference,
   getSortOrderPreference,
+  officialRatingFilterAtom,
+  officialRatingPreferenceAtom,
   SortByOption,
   SortOrderOption,
   sortByAtom,
@@ -179,6 +181,9 @@ const Page = () => {
   const { width: screenWidth } = useWindowDimensions();
 
   const [selectedGenres, setSelectedGenres] = useAtom(genreFilterAtom);
+  const [selectedOfficialRatings, setSelectedOfficialRatings] = useAtom(
+    officialRatingFilterAtom,
+  );
   const [selectedYears, setSelectedYears] = useAtom(yearFilterAtom);
   const [selectedTags, setSelectedTags] = useAtom(tagsFilterAtom);
   const [selectedAudioLanguages, setSelectedAudioLanguages] = useAtom(
@@ -205,6 +210,9 @@ const Page = () => {
     sortOrderPreferenceAtom,
   );
   const [genrePreference, setGenrePreference] = useAtom(genrePreferenceAtom);
+  const [officialRatingPreference, setOfficialRatingPreference] = useAtom(
+    officialRatingPreferenceAtom,
+  );
   const [yearPreference, setYearPreference] = useAtom(yearPreferenceAtom);
   const [tagPreference, setTagPreference] = useAtom(tagPreferenceAtom);
   const [audioLanguagePreference, setAudioLanguagePreference] = useAtom(
@@ -281,6 +289,24 @@ const Page = () => {
     enabled: Platform.isTV && !!api && !!user?.Id && !!libraryId,
   });
 
+  const { data: tvOfficialRatingOptions } = useQuery({
+    queryKey: [
+      "filters",
+      "OfficialRatings",
+      "tvOfficialRatingFilter",
+      libraryId,
+    ],
+    queryFn: async () => {
+      if (!api) return [];
+      const response = await getFilterApi(api).getQueryFiltersLegacy({
+        userId: user?.Id,
+        parentId: libraryId,
+      });
+      return response.data.OfficialRatings || [];
+    },
+    enabled: Platform.isTV && !!api && !!user?.Id && !!libraryId,
+  });
+
   // The "See All" params describe how to open the screen, not a state to hold:
   // once applied, a reset (or any later run of this effect) has to be free to
   // move away from them, so they only win on the run that first sees them.
@@ -338,6 +364,9 @@ const Page = () => {
       // Genres / years / tags / languages have no URL params, only the
       // per-library memory.
       setSelectedGenres(getMultiFilterPreference(libraryId, genrePreference));
+      setSelectedOfficialRatings(
+        getMultiFilterPreference(libraryId, officialRatingPreference),
+      );
       setSelectedYears(getMultiFilterPreference(libraryId, yearPreference));
       setSelectedTags(getMultiFilterPreference(libraryId, tagPreference));
       setSelectedAudioLanguages(
@@ -358,11 +387,13 @@ const Page = () => {
       filterByPreference,
       _setFilterBy,
       genrePreference,
+      officialRatingPreference,
       yearPreference,
       tagPreference,
       audioLanguagePreference,
       subtitleLanguagePreference,
       setSelectedGenres,
+      setSelectedOfficialRatings,
       setSelectedYears,
       setSelectedTags,
       setSelectedAudioLanguages,
@@ -465,6 +496,19 @@ const Page = () => {
     [libraryId, setSubtitleLanguagePreference, setSelectedSubtitleLanguages],
   );
 
+  // Functional, like the language setters: the phone chip's sheet stays open
+  // across picks and keeps calling the setter of the render that opened it.
+  const setOfficialRatings = useCallback(
+    (ratings: string[]) => {
+      setOfficialRatingPreference((saved) => ({
+        ...saved,
+        [libraryId]: ratings,
+      }));
+      setSelectedOfficialRatings(ratings);
+    },
+    [libraryId, setOfficialRatingPreference, setSelectedOfficialRatings],
+  );
+
   const nrOfCols = useMemo(() => {
     if (Platform.isTV) {
       // TV uses flexWrap, so nrOfCols is just for mobile
@@ -553,6 +597,7 @@ const Page = () => {
     hasFilterBar && ownFilters
       ? [
           ownFilters.genres,
+          ownFilters.officialRatings,
           ownFilters.years,
           ownFilters.tags,
           ownFilters.audioLanguages,
@@ -625,6 +670,7 @@ const Page = () => {
         sortOrder: ownFilters.sortOrder[0],
         filterBy: ownFilters.filterBy as ItemFilter[],
         genres: ownFilters.genres,
+        officialRatings: ownFilters.officialRatings,
         years: ownFilters.years,
         tags: ownFilters.tags,
         audioLanguages: ownFilters.audioLanguages,
@@ -655,6 +701,7 @@ const Page = () => {
             sortOrder: itemsQuery.sortOrder,
             filters: itemsQuery.filters,
             genres: itemsQuery.genres,
+            officialRatings: itemsQuery.officialRatings,
             tags: itemsQuery.tags,
             years: itemsQuery.years,
           }),
@@ -963,6 +1010,31 @@ const Page = () => {
               />
             ),
           },
+          {
+            key: "officialRatings",
+            component: (
+              <FilterButton
+                className='mr-1'
+                id={libraryId}
+                queryKey='officialRatingFilter'
+                queryFn={async () => {
+                  if (!api) return null;
+                  const response = await getFilterApi(
+                    api,
+                  ).getQueryFiltersLegacy({
+                    userId: user?.Id,
+                    parentId: libraryId,
+                  });
+                  return response.data.OfficialRatings || [];
+                }}
+                set={setOfficialRatings}
+                values={selectedOfficialRatings}
+                title={t("library.filters.official_ratings")}
+                renderItemLabel={(item) => item.toString()}
+                multiple
+              />
+            ),
+          },
           ...languageFilterEntries.map((filter) => ({
             key: filter.key,
             component: (
@@ -1049,6 +1121,8 @@ const Page = () => {
       setYears,
       selectedTags,
       setTags,
+      selectedOfficialRatings,
+      setOfficialRatings,
       languageFilterEntries,
       sortBy,
       setSortBy,
@@ -1114,6 +1188,22 @@ const Page = () => {
       })),
     ],
     [tvTagOptions, selectedTags, t],
+  );
+
+  const tvOfficialRatingFilterOptions = useMemo(
+    (): TVOptionItem<string>[] => [
+      {
+        label: t("library.filters.all"),
+        value: "__all__",
+        selected: selectedOfficialRatings.length === 0,
+      },
+      ...(tvOfficialRatingOptions || []).map((rating) => ({
+        label: rating,
+        value: rating,
+        selected: selectedOfficialRatings.includes(rating),
+      })),
+    ],
+    [tvOfficialRatingOptions, selectedOfficialRatings, t],
   );
 
   const tvSortByOptions = useMemo(
@@ -1191,6 +1281,12 @@ const Page = () => {
       group("tags", t("library.filters.tags"), tvTagFilterOptions, (v) =>
         setTags(toggled(selectedTags, v)),
       ),
+      group(
+        "officialRatings",
+        t("library.filters.official_ratings"),
+        tvOfficialRatingFilterOptions,
+        (v) => setOfficialRatings(toggled(selectedOfficialRatings, v)),
+      ),
       ...languageFilterEntries.map((filter) =>
         group(
           filter.key,
@@ -1225,14 +1321,17 @@ const Page = () => {
     tvGenreFilterOptions,
     tvYearFilterOptions,
     tvTagFilterOptions,
+    tvOfficialRatingFilterOptions,
     tvFilterByOptions,
     languageFilterEntries,
     selectedGenres,
     selectedYears,
     selectedTags,
+    selectedOfficialRatings,
     setGenres,
     setYears,
     setTags,
+    setOfficialRatings,
     setFilter,
   ]);
 

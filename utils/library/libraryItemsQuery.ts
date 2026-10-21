@@ -21,6 +21,7 @@ export interface LibraryItemsFilter {
   sortOrder: SortOrder;
   filterBy: ItemFilter[];
   genres: string[];
+  officialRatings?: string[];
   years: string[];
   tags: string[];
   audioLanguages?: string[];
@@ -53,6 +54,7 @@ export const buildLibraryItemsQuery = ({
   sortOrder,
   filterBy,
   genres,
+  officialRatings,
   years,
   tags,
 }: LibraryItemsFilter): ItemsApiGetItemsRequest => {
@@ -69,6 +71,7 @@ export const buildLibraryItemsQuery = ({
     // true is needed for merged versions
     recursive: true,
     genres,
+    officialRatings,
     tags,
     years: years.map((year) => Number.parseInt(year, 10)),
     includeItemTypes: itemType ? [itemType] : undefined,

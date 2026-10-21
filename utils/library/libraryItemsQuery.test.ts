@@ -14,6 +14,7 @@ const horrorMovies: LibraryItemsFilter = {
   sortOrder: "Descending",
   filterBy: ["IsUnplayed"],
   genres: ["Horror"],
+  officialRatings: ["R", "NC-17"],
   years: ["1999"],
   tags: ["4K"],
 };
@@ -28,6 +29,7 @@ describe("library items query", () => {
       filters: ["IsUnplayed"],
       recursive: true,
       genres: ["Horror"],
+      officialRatings: ["R", "NC-17"],
       tags: ["4K"],
       years: [1999],
       includeItemTypes: ["Movie"],
@@ -47,6 +49,19 @@ describe("library items query", () => {
     });
   });
 
+  // Play All must not queue a title the ratings filter hides on screen.
+  test("Play All keeps the official ratings of the list on screen", () => {
+    const queue = buildLibraryQueueQuery(horrorMovies, { shuffle: false });
+
+    expect(queue.officialRatings).toEqual(["R", "NC-17"]);
+  });
+
+  test("leaves the ratings out of the request when none are selected", () => {
+    const { officialRatings: _ratings, ...noRatings } = horrorMovies;
+
+    expect(buildLibraryItemsQuery(noRatings).officialRatings).toBeUndefined();
+  });
+
   test("Shuffle asks the server for a random order of the same filtered list", () => {
     const queue = buildLibraryQueueQuery(horrorMovies, { shuffle: true });
 
@@ -56,6 +71,7 @@ describe("library items query", () => {
       parentId: "library-1",
       filters: ["IsUnplayed", "IsNotFolder"],
       genres: ["Horror"],
+      officialRatings: ["R", "NC-17"],
       years: [1999],
       tags: ["4K"],
       includeItemTypes: ["Movie"],
