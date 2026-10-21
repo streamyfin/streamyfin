@@ -1,9 +1,15 @@
 import type { Api } from "@jellyfin/sdk";
-import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
+import {
+  type BaseItemDto,
+  ItemFilter,
+} from "@jellyfin/sdk/lib/generated-client/models";
 import { getItemsApi, getUserLibraryApi } from "@jellyfin/sdk/lib/utils/api";
 
-const isContainer = (item: BaseItemDto) =>
-  item.Type === "Series" || item.Type === "Season";
+/**
+ * Marking a folder played marks every item under it on the server, whatever
+ * kind of folder it is: a show, a season, a collection, a library folder.
+ */
+const isContainer = (item: BaseItemDto) => item.IsFolder === true;
 
 /**
  * Whether the server counts the item as completed: played, with its resume
@@ -24,9 +30,9 @@ const isWatchlistedAndFinished = (item: BaseItemDto) =>
  * Call it after items were marked played or a playback stop was reported, with
  * the ids of those items. For each one it checks the item, then the season and
  * show above it (finishing the last episode finishes them too), and, when a
- * whole season or show was marked played, the watchlisted seasons and
- * episodes inside it. Anything watchlisted and now finished gets
- * `likes=false`.
+ * folder was marked played (a show, a season, a collection, a library folder),
+ * the watchlisted items anywhere under it. Anything watchlisted and now
+ * finished gets `likes=false`.
  *
  * Reads the server's state rather than trusting the caller's, and removes only
  * what the server now counts as completed: `Played` true and the resume
@@ -93,29 +99,34 @@ export async function removeWatchedFromWatchlist(
 
   const prune = async (itemId: string) => {
     const item = await getItem(itemId);
+    if (!item) return;
+
+    const candidates: BaseItemDto[] = [];
     // An unfinished item leaves its season and show unfinished as well.
-    if (!item || !isFinished(item)) return;
+    if (isFinished(item)) {
+      const parentIds = [
+        item.Type === "Episode" ? item.SeasonId : undefined,
+        item.Type === "Episode" || item.Type === "Season"
+          ? item.SeriesId
+          : undefined,
+      ].filter((id): id is string => !!id);
+      const parents = await Promise.all(parentIds.map(getItem));
+      candidates.push(
+        item,
+        ...parents.filter((parent): parent is BaseItemDto => !!parent),
+      );
+    }
 
-    const parentIds = [
-      item.Type === "Episode" ? item.SeasonId : undefined,
-      item.Type === "Episode" || item.Type === "Season"
-        ? item.SeriesId
-        : undefined,
-    ].filter((id): id is string => !!id);
-    const parents = await Promise.all(parentIds.map(getItem));
-    const candidates: BaseItemDto[] = [
-      item,
-      ...parents.filter((parent): parent is BaseItemDto => !!parent),
-    ];
-
+    // Not gated on the folder's own state: Jellyfin computes a show's or a
+    // collection's Played from its items, but a library keeps its own, and
+    // every item found is checked on its own below.
     if (isContainer(item) && item.Id) {
       try {
         const { data } = await getItemsApi(api).getItems({
           userId,
           parentId: item.Id,
           recursive: true,
-          filters: ["Likes"],
-          includeItemTypes: ["Season", "Episode"],
+          filters: [ItemFilter.Likes],
         });
         candidates.push(...(data.Items ?? []));
       } catch {

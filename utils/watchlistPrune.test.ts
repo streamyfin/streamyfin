@@ -4,10 +4,20 @@ import { removeWatchedFromWatchlist } from "./watchlistPrune";
 
 type Library = Record<string, BaseItemDto>;
 
+/** Every folder `item` sits under: its season, show and parent, and theirs. */
+const ancestorsOf = (item: BaseItemDto, library: Library): string[] =>
+  [item.SeasonId, item.SeriesId, item.ParentId]
+    .filter((id): id is string => !!id)
+    .flatMap((id) => [
+      id,
+      ...(library[id] ? ancestorsOf(library[id], library) : []),
+    ]);
+
 /**
- * A Jellyfin double serving `library` by id, the Likes-filtered children of a
- * parent for /Items, and recording every rating change it receives. Rating
- * changes for the ids in `failRatingFor` fail with a 500.
+ * A Jellyfin double serving `library` by id, everything under a parent for a
+ * recursive /Items (only what is liked when the Likes filter is asked for),
+ * and recording every rating change it receives. Rating changes for the ids in
+ * `failRatingFor` fail with a 500.
  */
 const serve = (library: Library, failRatingFor: string[] = []) => {
   const api = makeApi();
@@ -18,13 +28,14 @@ const serve = (library: Library, failRatingFor: string[] = []) => {
     return library[id] ? [200, library[id]] : [404];
   });
   api.mock.onGet(/\/Items(\?|$)/).reply((config) => {
-    const parentId = new URL(config.url ?? "", "https://x").searchParams.get(
-      "parentId",
-    );
+    const query = new URL(config.url ?? "", "https://x").searchParams;
+    const parentId = query.get("parentId") ?? "";
+    expect(query.get("recursive")).toBe("true");
+    const likedOnly = query.getAll("filters").includes("Likes");
     const items = Object.values(library).filter(
       (item) =>
-        (item.SeasonId === parentId || item.SeriesId === parentId) &&
-        item.UserData?.Likes,
+        ancestorsOf(item, library).includes(parentId) &&
+        (!likedOnly || item.UserData?.Likes),
     );
     return [200, { Items: items }];
   });
@@ -117,10 +128,16 @@ const show = (seasonPlayed: boolean, seriesPlayed: boolean): Library => ({
   s1: {
     Id: "s1",
     Type: "Season",
+    IsFolder: true,
     SeriesId: "show",
     ...userData(seasonPlayed, true),
   },
-  show: { Id: "show", Type: "Series", ...userData(seriesPlayed, true) },
+  show: {
+    Id: "show",
+    Type: "Series",
+    IsFolder: true,
+    ...userData(seriesPlayed, true),
+  },
 });
 
 test("finishing an episode mid-season removes only the episode", async () => {
@@ -160,6 +177,84 @@ test("marking a whole show played clears its watchlisted seasons and episodes", 
 
   await removeWatchedFromWatchlist(api, "u", ["show"]);
   expect(unliked.sort()).toEqual(["ep", "s1", "show"]);
+});
+
+/** The /Items requests a prune sent, as their query strings. */
+const childQueries = (api: ReturnType<typeof serve>["api"]) =>
+  api.mock.history.get
+    .filter((request) => request.url?.match(/\/Items(\?|$)/))
+    .map((request) => new URL(request.url ?? "", "https://x").searchParams);
+
+// The action sheet marks a collection or a folder played the way it marks a
+// show: the server marks every item under it. Only a show and a season had
+// their watchlisted items cleared.
+test("marking a collection played clears the watchlisted movies and shows in it", async () => {
+  const library: Library = {
+    ...show(true, true),
+    box: {
+      Id: "box",
+      Type: "BoxSet",
+      IsFolder: true,
+      ...userData(true, false),
+    },
+    m1: { Id: "m1", Type: "Movie", ParentId: "box", ...userData(true, true) },
+    m2: { Id: "m2", Type: "Movie", ParentId: "box", ...userData(true, false) },
+  };
+  library.show.ParentId = "box";
+  const { api, unliked } = serve(library);
+
+  await removeWatchedFromWatchlist(api, "u", ["box"]);
+
+  expect(unliked.sort()).toEqual(["ep", "m1", "s1", "show"]);
+  // One request, for what is on the watchlist only, not every item inside.
+  const [query, ...more] = childQueries(api);
+  expect(more).toEqual([]);
+  expect(query.get("parentId")).toBe("box");
+  expect(query.getAll("filters")).toEqual(["Likes"]);
+});
+
+test("marking a folder played clears the watchlisted items in its subfolders", async () => {
+  const { api, unliked } = serve({
+    home: {
+      Id: "home",
+      Type: "Folder",
+      IsFolder: true,
+      ...userData(true, false),
+    },
+    trip: {
+      Id: "trip",
+      Type: "Folder",
+      IsFolder: true,
+      ParentId: "home",
+      ...userData(true, false),
+    },
+    v1: { Id: "v1", Type: "Video", ParentId: "trip", ...userData(true, true) },
+  });
+
+  await removeWatchedFromWatchlist(api, "u", ["home"]);
+  expect(unliked).toEqual(["v1"]);
+});
+
+// Jellyfin computes a show's or a collection's Played from its items, but not
+// a library's: that one keeps its own, unset, however many items are marked.
+test("clears the watchlisted items of a library marked played, which never reads as played itself", async () => {
+  const { api, unliked } = serve({
+    movies: {
+      Id: "movies",
+      Type: "CollectionFolder",
+      IsFolder: true,
+      ...userData(false, false),
+    },
+    m1: {
+      Id: "m1",
+      Type: "Movie",
+      ParentId: "movies",
+      ...userData(true, true),
+    },
+  });
+
+  await removeWatchedFromWatchlist(api, "u", ["movies"]);
+  expect(unliked).toEqual(["m1"]);
 });
 
 test("removes each item once when several share a season", async () => {
