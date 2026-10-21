@@ -2,13 +2,13 @@
 
 **Date**: 2026-10-20
 **Category**: navigation
-**Key files**: `patches/react-native-bottom-tabs@1.4.0.patch`, `patches/react-native-bottom-tabs.test.ts`
+**Key files**: `patches/react-native-bottom-tabs@1.5.0.patch`, `patches/react-native-bottom-tabs.test.ts`
 
 ## Detail
 
-`react-native-bottom-tabs` builds the tab bar as `TabView { ForEach(children) { if !hidden { Tab } } }`.
-Before the patch, a hidden tab stayed a `ForEach` element that rendered nothing, so no tab
-retained it.
+`react-native-bottom-tabs` builds the tab bar as `TabView { ForEach(children) { if !hidden { Tab } } }`,
+in 1.4.0 and still in 1.5.0. Without the patch, a hidden tab stays a `ForEach` element that
+renders nothing, so no tab retains it.
 
 SwiftUI evicts such elements: with `ForEachEvictionInput.evictByDefault` (true in this app,
 it follows the SDK the app is linked against), an element that only the `ForEach` holds and
@@ -27,7 +27,8 @@ The patch feeds the `ForEach` only the tabs it renders (`renderedChildren`, the 
 `filteredItems` already used), in both tab views (`NewTabView` from iOS and tvOS 18,
 `LegacyTabView` below), so every element is retained by its tab and never evicted. A tab
 shown again becomes a new element, and SwiftUI builds it inside the update
-(`TVTabView.updateUIViewController` counts the list).
+(`TVTabView.updateUIViewController` counts the list). `patches/react-native-bottom-tabs.test.ts`
+fails if a version bump or a regenerated patch drops it.
 
 The tvOS 27 simulator runtime ships SwiftUICore with its symbols, so lldb breakpoints on
 `ForEachState.eraseItem`, `ForEachState.evictItems` and `TagIndexProjection.readUntil` show
