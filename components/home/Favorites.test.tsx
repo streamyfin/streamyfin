@@ -13,7 +13,7 @@ import { Favorites as TVFavorites } from "./Favorites.tv";
 interface RowProps {
   queryKey: QueryKey;
   onEmptyStateChange?: (isEmpty: boolean | null) => void;
-  onErrorChange?: (isError: boolean) => void;
+  onErrorChange?: (failed: boolean) => void;
 }
 
 const mockKeys: QueryKey[] = [];

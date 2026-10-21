@@ -53,10 +53,12 @@ interface Props extends ViewProps {
    */
   onEmptyStateChange?: (isEmpty: boolean | null) => void;
   /**
-   * Whether the last load failed. Emptiness reports null for a failure, which
-   * reads the same as still loading; this tells the two apart.
+   * Whether the row failed with nothing to show (see rowLoadState): a refetch
+   * that fails while items are on screen reports false. Emptiness reports null
+   * for such a failure, which reads the same as still loading; this tells the
+   * two apart.
    */
-  onErrorChange?: (isError: boolean) => void;
+  onErrorChange?: (failed: boolean) => void;
 }
 
 type Typography = ReturnType<typeof useScaledTVTypography>;
