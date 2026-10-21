@@ -1,5 +1,9 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+  QueryClient,
+  QueryClientProvider,
+  useQuery,
+} from "@tanstack/react-query";
 import { act, renderHook } from "@testing-library/react-native";
 import { atom, getDefaultStore } from "jotai";
 import type React from "react";
@@ -70,6 +74,35 @@ const renderToggle = (item: BaseItemDto, client = newClient()) =>
     { initialProps: { item }, wrapper: wrapperFor(client) },
   );
 
+const season = (id: string, likes: boolean): BaseItemDto => ({
+  Id: id,
+  Type: "Season",
+  UserData: { Likes: likes },
+});
+
+/**
+ * A Likes toggle for one season of the cached season list, read from the list
+ * the way SeasonPicker hands its selected season to the bookmark.
+ */
+const renderSeasonToggle = (client: QueryClient, index: number) =>
+  renderHook(
+    () => {
+      const { data } = useQuery<BaseItemDto[]>({
+        queryKey: ["seasons", "show"],
+        queryFn: async () => [],
+        staleTime: Infinity,
+      });
+      return useUserDataToggle({
+        item: data![index],
+        field: "Likes",
+        stateAtom,
+        send,
+        errorMessage: "failed",
+      });
+    },
+    { wrapper: wrapperFor(client) },
+  );
+
 beforeEach(() => {
   requests = [];
   send.mockClear();
@@ -93,4 +126,26 @@ test("a failed first rating leaves the item unrated, and the next tap adds it ag
   expect(result.current.value).toBeUndefined();
   await act(async () => result.current.toggle());
   expect(requests.map((request) => request.next)).toEqual([true, true]);
+});
+
+// Two seasons of one show share the season list. The first request failed
+// after the second toggle had been patched into that list, and restoring the
+// whole list as it was before the first toggle undid the second one too: its
+// bookmark went empty while the server had it.
+test("a failed toggle puts back only its own item in a shared list", async () => {
+  const client = newClient();
+  client.setQueryData(
+    ["seasons", "show"],
+    [season("s1", false), season("s2", false)],
+  );
+  const first = await renderSeasonToggle(client, 0);
+  const second = await renderSeasonToggle(client, 1);
+
+  await act(async () => first.result.current.toggle());
+  await act(async () => second.result.current.toggle());
+  await settle(1, "succeed");
+  await settle(0, "fail");
+
+  expect(first.result.current.value).toBe(false);
+  expect(second.result.current.value).toBe(true);
 });

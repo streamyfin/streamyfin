@@ -3,6 +3,9 @@ import type { Query, QueryClient, QueryKey } from "@tanstack/react-query";
 
 type UserData = NonNullable<BaseItemDto["UserData"]>;
 
+/** One query a patch changed, with the item's values there from before. */
+export type CachedItemPatch = [queryKey: QueryKey, previous: Partial<UserData>];
+
 // Item lists sit at most a few levels down: pages -> { Items } -> item.
 const MAX_DEPTH = 6;
 
@@ -12,18 +15,33 @@ const isPlainObject = (value: unknown): value is Record<string, unknown> => {
   return proto === Object.prototype || proto === null;
 };
 
+// An undefined value removes the field, so a rollback can put back a field the
+// item never had (Likes on an item never rated).
+const merge = (current: UserData, userData: Partial<UserData>): UserData => {
+  const merged: Record<string, unknown> = { ...current, ...userData };
+  for (const [key, v] of Object.entries(userData)) {
+    if (v === undefined) delete merged[key];
+  }
+  return merged as UserData;
+};
+
+/**
+ * Returns `value` with `userData` written into each copy of the item, and
+ * notes in `found` the item's values from before, taken from the first copy.
+ */
 const patch = (
   value: unknown,
   itemId: string,
   userData: Partial<UserData>,
   depth: number,
+  found: { previous?: Partial<UserData> },
 ): unknown => {
   if (depth > MAX_DEPTH) return value;
 
   if (Array.isArray(value)) {
     let changed = false;
     const next = value.map((entry) => {
-      const patched = patch(entry, itemId, userData, depth + 1);
+      const patched = patch(entry, itemId, userData, depth + 1, found);
       if (patched !== entry) changed = true;
       return patched;
     });
@@ -35,18 +53,18 @@ const patch = (
 
   if (value.Id === itemId) {
     const current = (value.UserData ?? {}) as UserData;
-    const differs = Object.entries(userData).some(
-      ([key, v]) => current[key as keyof UserData] !== v,
+    const keys = Object.keys(userData) as (keyof UserData)[];
+    if (keys.every((key) => current[key] === userData[key])) return value;
+    found.previous ??= Object.fromEntries(
+      keys.map((key) => [key, current[key]]),
     );
-    return differs
-      ? { ...value, UserData: { ...current, ...userData } }
-      : value;
+    return { ...value, UserData: merge(current, userData) };
   }
 
   let changed = false;
   const next: Record<string, unknown> = {};
   for (const [key, entry] of Object.entries(value)) {
-    const patched = patch(entry, itemId, userData, depth + 1);
+    const patched = patch(entry, itemId, userData, depth + 1, found);
     if (patched !== entry) changed = true;
     next[key] = patched;
   }
@@ -108,20 +126,41 @@ const writeKeepingFreshness = (
  * Only queries holding the item are written, each keeping how fresh it was;
  * unchanged branches keep their identity, so nothing else re-renders.
  *
- * @returns each changed query with its data from before, for a rollback.
+ * @returns each changed query with the item's values there from before, for
+ * `revertCachedItemUserData`.
  */
 export const patchCachedItemUserData = (
   queryClient: QueryClient,
   itemId: string,
   userData: Partial<UserData>,
-): Array<[QueryKey, unknown]> => {
-  const previous: Array<[QueryKey, unknown]> = [];
+): CachedItemPatch[] => {
+  const patches: CachedItemPatch[] = [];
   for (const query of findCachedItemQueries(queryClient, itemId)) {
+    const found: { previous?: Partial<UserData> } = {};
     const data = query.state.data;
-    const next = patch(data, itemId, userData, 0);
-    if (next === data) continue;
-    previous.push([query.queryKey, data]);
+    const next = patch(data, itemId, userData, 0, found);
+    if (next === data || !found.previous) continue;
+    patches.push([query.queryKey, found.previous]);
     writeKeepingFreshness(queryClient, query, next);
   }
-  return previous;
+  return patches;
+};
+
+/**
+ * Puts back what `patchCachedItemUserData` changed, field by field. Restoring
+ * whole queries also undid every other item changed in them meanwhile, such
+ * as a second season toggled while the first request was pending.
+ */
+export const revertCachedItemUserData = (
+  queryClient: QueryClient,
+  itemId: string,
+  patches: CachedItemPatch[],
+) => {
+  for (const [queryKey, previous] of patches) {
+    const query = queryClient.getQueryCache().find({ queryKey, exact: true });
+    if (!query) continue;
+    const data = query.state.data;
+    const next = patch(data, itemId, previous, 0, {});
+    if (next !== data) writeKeepingFreshness(queryClient, query, next);
+  }
 };

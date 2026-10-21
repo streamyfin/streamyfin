@@ -4,7 +4,10 @@ import {
   type QueryKey,
   QueryObserver,
 } from "@tanstack/react-query";
-import { patchCachedItemUserData } from "./patchCachedItem";
+import {
+  patchCachedItemUserData,
+  revertCachedItemUserData,
+} from "./patchCachedItem";
 
 const season = (likes: boolean): BaseItemDto => ({
   Id: "s1",
@@ -58,13 +61,39 @@ test("leaves queries without the item, or already up to date, untouched", () => 
   expect(client.getQueryData(["current"])).toBe(current);
 });
 
-test("returns what each changed query held, for a rollback", () => {
-  const before = [season(true)];
-  client.setQueryData(["seasons", "show"], before);
+// Restoring whole queries also undid every other item changed in them since.
+test("a rollback puts back only the item's field, and the rest of the list stays as it is now", () => {
+  const other: BaseItemDto = {
+    Id: "s2",
+    Type: "Season",
+    UserData: { Likes: false },
+  };
+  client.setQueryData(["seasons", "show"], [season(true), other]);
 
   const previous = patchCachedItemUserData(client, "s1", { Likes: false });
+  patchCachedItemUserData(client, "s2", { Likes: true });
+  revertCachedItemUserData(client, "s1", previous);
 
-  expect(previous).toEqual([[["seasons", "show"], before]]);
+  expect(
+    client
+      .getQueryData<BaseItemDto[]>(["seasons", "show"])
+      ?.map((item) => item.UserData?.Likes),
+  ).toEqual([true, true]);
+});
+
+// An item never rated carries no Likes; a rollback must not leave one behind.
+test("a rollback removes a field the item never had", () => {
+  client.setQueryData(["item", "m1"], {
+    Id: "m1",
+    UserData: { Played: false },
+  });
+
+  const previous = patchCachedItemUserData(client, "m1", { Likes: true });
+  revertCachedItemUserData(client, "m1", previous);
+
+  expect(
+    client.getQueryData<BaseItemDto>(["item", "m1"])?.UserData,
+  ).toStrictEqual({ Played: false });
 });
 
 /** Shows a cached row the way a screen mounts it; true when that refetches. */

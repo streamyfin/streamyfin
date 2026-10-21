@@ -10,7 +10,10 @@ import { selectAtom } from "jotai/utils";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner-native";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import { patchCachedItemUserData } from "@/utils/patchCachedItem";
+import {
+  patchCachedItemUserData,
+  revertCachedItemUserData,
+} from "@/utils/patchCachedItem";
 
 /** A boolean on the item's UserData that the user flips with one request. */
 export type ToggleField = "IsFavorite" | "Likes";
@@ -125,21 +128,21 @@ export const useUserDataToggle = ({
     onMutate: async (next: boolean) => {
       await queryClient.cancelQueries({ queryKey: ["item", item.Id] });
       const previousValue = value;
-      const previousQueries = item.Id
+      const patches = item.Id
         ? patchCachedItemUserData(queryClient, item.Id, { [field]: next })
         : [];
       setValue(next);
-      return { previousValue, previousQueries, userId: latest.current.userId };
+      return { previousValue, patches, userId: latest.current.userId };
     },
     onError: (_error, _next, context) => {
       // The item queries are not keyed by account, so a request that fails
-      // after a logout or user switch must not restore its snapshots into the
+      // after a logout or user switch must not write its rollback into the
       // next account's cache. Read the store, not `latest`: the page that sent
       // the request has usually unmounted by then, freezing the ref.
       if (store.get(userAtom)?.Id !== context?.userId) return;
 
-      for (const [queryKey, data] of context?.previousQueries ?? []) {
-        queryClient.setQueryData(queryKey, data);
+      if (item.Id) {
+        revertCachedItemUserData(queryClient, item.Id, context?.patches ?? []);
       }
       setValue(context?.previousValue);
       if (errorMessage) toast.error(errorMessage);
