@@ -178,7 +178,9 @@ bun run ios:install-metal-toolchain   # Fixes "missing Metal Toolchain" build er
 - Global state is Jotai atoms in `utils/atoms/`.
 - `settingsAtom` in `utils/atoms/settings.ts` holds app settings. A new setting must also
   be toggleable in the settings UI, mobile or TV depending on its scope, or it is dead.
-- `apiAtom` and `userAtom` in `providers/JellyfinProvider.tsx` hold auth state.
+- `apiAtom` and `userAtom` in `utils/atoms/api.ts` hold auth state. The provider
+  re-exports them, but code the provider imports, `utils/atoms/` among it, reads
+  them from `@/utils/atoms/api`: going through the provider is a require cycle.
 - Server state goes through React Query.
 
 **Jellyfin API**
@@ -244,7 +246,7 @@ PersistQueryClientProvider
 
 ```typescript
 import { useSettings } from "@/utils/atoms/settings";
-import { apiAtom } from "@/providers/JellyfinProvider";
+import { apiAtom } from "@/utils/atoms/api";
 ```
 
 ## Coding standards

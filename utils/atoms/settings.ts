@@ -1,3 +1,6 @@
+// pluginSettingsAtom reads the stored plugin settings with storage.get while
+// this module loads, and nothing else this file imports adds that method.
+import "@/augmentations/mmkv";
 import {
   type BaseItemKind,
   type CultureDto,
@@ -21,7 +24,7 @@ import {
   type StillWatchingPreset,
 } from "@/constants/StillWatching";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
-import { apiAtom } from "@/providers/JellyfinProvider";
+import { apiAtom } from "@/utils/atoms/api";
 import { isExpectedError } from "@/utils/errors";
 import { logAndCaptureError, writeInfoLog } from "@/utils/log";
 import {
