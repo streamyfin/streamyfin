@@ -853,8 +853,11 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                     it is there, otherwise the first button left in the row. */}
                 <TVFavoriteButton item={item} hasTVPreferredFocus={!playable} />
                 {settings.useKefinTweaks && <TVWatchlistButton item={item} />}
+                {/* The watchlist rates the item, whichever version the
+                    played toggle marks. */}
                 <TVPlayedButton
                   item={versionItem ?? item}
+                  watchlistItem={item}
                   disabled={isVersionPending}
                 />
                 <TVRefreshButton itemId={item.Id} />

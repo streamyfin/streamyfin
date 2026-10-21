@@ -201,9 +201,11 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
                     )}
 
                   {/* Until the selected version's own state is in, the
-                      toggle would mark the primary version instead. */}
+                      toggle would mark the primary version instead. The
+                      watchlist rates the item, whichever version is marked. */}
                   <PlayedStatus
                     items={[versionItem ?? item]}
+                    watchlistItems={[item]}
                     size='large'
                     pointerEvents={isVersionPending ? "none" : "auto"}
                   />
