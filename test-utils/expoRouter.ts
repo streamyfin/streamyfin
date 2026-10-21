@@ -34,6 +34,9 @@ export const expoRouterModule = {
   useFocusEffect: (callback: () => undefined | (() => void)) => {
     useEffect(() => callback?.(), [callback]);
   },
+  // A screen that sets its header options renders `Stack.Screen`; with no
+  // navigator above it there is no header to set them on.
+  Stack: { Screen: () => null },
 };
 
 /** `expo-router/react-navigation`, with no navigator, so no navigation context. */
