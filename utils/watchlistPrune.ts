@@ -180,10 +180,11 @@ export async function removeWatchedFromWatchlist(
     const item = await getItem(itemId);
     if (!item) return;
 
+    // Undefined when the caller passed no date for the item: Played decides.
+    const dateAtStart = lastPlayedAtStart?.get(itemId);
     const watched =
       isFinished(item) &&
-      (!lastPlayedAtStart?.has(itemId) ||
-        movedSince(item, lastPlayedAtStart.get(itemId) ?? null));
+      (dateAtStart === undefined || movedSince(item, dateAtStart));
 
     const candidates: BaseItemDto[] = [];
     // An unfinished item leaves its season and show unfinished as well.
