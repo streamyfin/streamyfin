@@ -8,6 +8,7 @@ import type {
   ParamListBase,
   TabNavigationState,
 } from "expo-router/react-navigation";
+import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Platform, View } from "react-native";
@@ -22,7 +23,7 @@ import {
   useTVHomeBackHandler,
   useTVTabRootBackHandler,
 } from "@/hooks/useTVBackHandler";
-import { useSettings } from "@/utils/atoms/settings";
+import { settingsAtom, useSettings } from "@/utils/atoms/settings";
 import { eventBus } from "@/utils/eventBus";
 import { nativeTabsKey } from "@/utils/nativeTabsKey";
 import { isWatchlistsTabVisible } from "@/utils/watchlistSources";
@@ -143,6 +144,7 @@ function TVTabLayout() {
 
 export default function TabLayout() {
   const { settings } = useSettings();
+  const settingsLoaded = useAtomValue(settingsAtom) !== null;
   const { t } = useTranslation();
 
   // Must be called before any conditional return (rules of hooks)
@@ -150,6 +152,14 @@ export default function TabLayout() {
 
   if (IS_ANDROID_TV) {
     return <TVTabLayout />;
+  }
+
+  // The tvOS tab bar is keyed by the optional tabs it shows (nativeTabsKey),
+  // and the stored settings are only read after the first commit: mounted on
+  // the defaults, it would be mounted again as they arrive, Home with it, at
+  // every launch. Spec: utils/tabLayout.test.tsx
+  if (Platform.isTV && !settingsLoaded) {
+    return null;
   }
 
   return (
