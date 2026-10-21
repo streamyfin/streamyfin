@@ -162,6 +162,7 @@ import {
 import { syncPlayLookupKey } from "@/utils/syncplay/queueItems";
 import { msToTicks, ticksToMs, ticksToSeconds } from "@/utils/time";
 import { useVideoSession } from "@/utils/videoSession";
+import { lastPlayedDatesAtStart } from "@/utils/watchlistPrune";
 
 const NEXT_EPISODE_COUNTDOWN_SECONDS = NEXT_EPISODE_COUNTDOWN_MS / 1000;
 
@@ -725,8 +726,13 @@ const NativePlayerProviderInner: React.FC<{
             ),
         );
         // The server has now decided whether the item counts as played; a
-        // finished one leaves the KefinTweaks watchlist.
-        void pruneWatchedRef.current([session.item.Id]);
+        // finished one leaves the KefinTweaks watchlist. The session's item
+        // was fetched before the start report: the dates the stop is judged
+        // by.
+        void pruneWatchedRef.current(
+          [session.item.Id],
+          lastPlayedDatesAtStart(session.item, session.mediaSourceId),
+        );
       } catch (error) {
         // Un-mark so a later teardown path can retry.
         if (session.reportedStopKey === stopKey) {

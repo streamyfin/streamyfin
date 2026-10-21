@@ -1,6 +1,9 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { makeApi } from "@/test-utils/jellyfinApi";
-import { removeWatchedFromWatchlist } from "./watchlistPrune";
+import {
+  lastPlayedDatesAtStart,
+  removeWatchedFromWatchlist,
+} from "./watchlistPrune";
 
 type Library = Record<string, BaseItemDto>;
 
@@ -90,8 +93,8 @@ test("leaves an unfinished movie on the watchlist", async () => {
 });
 
 // Jellyfin 12 no longer clears Played when a played item starts again
-// (jellyfin#15762). A played movie put back on the watchlist, played 31 s and
-// left, still read as finished and lost its entry right after the stop report.
+// (jellyfin#15762): a rewatch left part way still reads as played, and only
+// the resume point the server kept says it was not finished.
 test("leaves a played movie on the watchlist when a rewatch of it was left with a resume point", async () => {
   const { api, unliked } = serve({
     m1: {
@@ -106,6 +109,185 @@ test("leaves a played movie on the watchlist when a rewatch of it was left with 
     failed: [],
   });
   expect(unliked).toEqual([]);
+});
+
+/** A two hour movie, so 5% is six minutes in and 90% is 1 h 48 min. */
+const RUNTIME_TICKS = 72_000_000_000;
+const HALFWAY_TICKS = RUNTIME_TICKS / 2;
+/** When the movie was last watched, a month before this playback. */
+const LAST_MONTH = "2026-09-21T20:00:00.0000000Z";
+/** When this playback's start report and stop report reached the server. */
+const AT_START = "2026-10-21T15:00:00.0000000Z";
+const AT_STOP = "2026-10-21T15:00:31.0000000Z";
+
+type Outcome = "leaves the watchlist" | "stays on the watchlist";
+
+/**
+ * What the server returns for a watchlisted movie after a stop report, by
+ * version and outcome, and whether the movie leaves the watchlist. The player
+ * read the movie's LastPlayedDate before playback started (null: never
+ * played).
+ *
+ * 10.11.0: the start report clears Played and sets LastPlayedDate
+ * (SessionManager.OnPlaybackStart); progress and stop reports leave the date
+ * alone. 12.2: the start report sets the date for an unplayed item only and
+ * keeps Played; a progress or stop report sets it once playback completes or
+ * keeps a resume point. On both, a stop under the minimum resume percentage
+ * (5%) drops the position and leaves Played as it was, and one past the
+ * maximum (90%) marks the item played with its position reset
+ * (UserDataManager.UpdatePlayState).
+ */
+const AFTER_STOP: [
+  string,
+  Outcome,
+  string | null,
+  { Played: boolean; PlaybackPositionTicks: number; LastPlayedDate: string },
+][] = [
+  [
+    "10.11, a first watch finished",
+    "leaves the watchlist",
+    null,
+    { Played: true, PlaybackPositionTicks: 0, LastPlayedDate: AT_START },
+  ],
+  [
+    "10.11, a rewatch finished",
+    "leaves the watchlist",
+    LAST_MONTH,
+    { Played: true, PlaybackPositionTicks: 0, LastPlayedDate: AT_START },
+  ],
+  [
+    "10.11, a rewatch left under 5%",
+    "stays on the watchlist",
+    LAST_MONTH,
+    { Played: false, PlaybackPositionTicks: 0, LastPlayedDate: AT_START },
+  ],
+  [
+    "10.11, a rewatch left between 5% and 90%",
+    "stays on the watchlist",
+    LAST_MONTH,
+    {
+      Played: false,
+      PlaybackPositionTicks: HALFWAY_TICKS,
+      LastPlayedDate: AT_START,
+    },
+  ],
+  [
+    "12.2, a first watch finished",
+    "leaves the watchlist",
+    null,
+    { Played: true, PlaybackPositionTicks: 0, LastPlayedDate: AT_STOP },
+  ],
+  [
+    "12.2, a rewatch finished",
+    "leaves the watchlist",
+    LAST_MONTH,
+    { Played: true, PlaybackPositionTicks: 0, LastPlayedDate: AT_STOP },
+  ],
+  [
+    "12.2, a first watch left under 5%",
+    "stays on the watchlist",
+    null,
+    { Played: false, PlaybackPositionTicks: 0, LastPlayedDate: AT_START },
+  ],
+  [
+    "12.2, a first watch left between 5% and 90%",
+    "stays on the watchlist",
+    null,
+    {
+      Played: false,
+      PlaybackPositionTicks: HALFWAY_TICKS,
+      LastPlayedDate: AT_STOP,
+    },
+  ],
+  // The review of #2171: a played movie put back on the watchlist, played
+  // 31 s and left, lost its entry right after the stop report.
+  [
+    "12.2, a rewatch left under 5%",
+    "stays on the watchlist",
+    LAST_MONTH,
+    { Played: true, PlaybackPositionTicks: 0, LastPlayedDate: LAST_MONTH },
+  ],
+  [
+    "12.2, a rewatch left between 5% and 90%",
+    "stays on the watchlist",
+    LAST_MONTH,
+    {
+      Played: true,
+      PlaybackPositionTicks: HALFWAY_TICKS,
+      LastPlayedDate: AT_STOP,
+    },
+  ],
+];
+
+test.each(AFTER_STOP)(
+  "Jellyfin %s: the movie %s",
+  async (_label, outcome, lastPlayedAtStart, afterStop) => {
+    const { api, unliked } = serve({
+      m1: {
+        Id: "m1",
+        Type: "Movie",
+        RunTimeTicks: RUNTIME_TICKS,
+        UserData: { ...afterStop, Likes: true },
+      },
+    });
+
+    await removeWatchedFromWatchlist(
+      api,
+      "u",
+      ["m1"],
+      new Map([["m1", lastPlayedAtStart]]),
+    );
+
+    expect(unliked).toEqual(outcome === "leaves the watchlist" ? ["m1"] : []);
+  },
+);
+
+// Marking an item played says nothing about a playback, so there is no date
+// to compare and the server's Played is the whole answer.
+test("takes an item marked played off the watchlist whatever its LastPlayedDate", async () => {
+  const { api, unliked } = serve({
+    m1: {
+      Id: "m1",
+      Type: "Movie",
+      UserData: {
+        ...userData(true, true).UserData,
+        LastPlayedDate: LAST_MONTH,
+      },
+    },
+  });
+
+  await removeWatchedFromWatchlist(api, "u", ["m1"]);
+  expect(unliked).toEqual(["m1"]);
+});
+
+test("a stop report compares against the LastPlayedDate the item had when playback started", () => {
+  const movie: BaseItemDto = {
+    Id: "m1",
+    UserData: { LastPlayedDate: LAST_MONTH },
+  };
+
+  expect(lastPlayedDatesAtStart(movie, "m1")).toEqual(
+    new Map([["m1", LAST_MONTH]]),
+  );
+  expect(lastPlayedDatesAtStart({ Id: "m2" }, undefined)).toEqual(
+    new Map([["m2", null]]),
+  );
+});
+
+// Jellyfin 12 writes an alternate version's playback to the version's own
+// UserData and only copies Played over to the item, never the date: compared
+// against the item, a finished version would never leave the watchlist.
+test("a stop report of an alternate version leaves the date out", () => {
+  const movie: BaseItemDto = {
+    Id: "m1",
+    MediaSources: [{ Id: "m1" }, { Id: "m1-4k" }],
+    UserData: { LastPlayedDate: LAST_MONTH },
+  };
+
+  expect(lastPlayedDatesAtStart(movie, "m1-4k")).toBeUndefined();
+  expect(lastPlayedDatesAtStart(movie, "m1")).toEqual(
+    new Map([["m1", LAST_MONTH]]),
+  );
 });
 
 test("leaves a finished item alone when it was never watchlisted", async () => {

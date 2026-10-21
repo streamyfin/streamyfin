@@ -114,6 +114,7 @@ import {
 } from "@/utils/subtitles/subtitleStyle";
 import { msToTicks, ticksToSeconds } from "@/utils/time";
 import { useVideoSession } from "@/utils/videoSession";
+import { lastPlayedDatesAtStart } from "@/utils/watchlistPrune";
 import { generateDeviceProfile } from "../../../utils/profiles/native";
 
 // Spec: utils/directPlayer/directPlayerPage.test.tsx. It cannot sit next to
@@ -748,8 +749,12 @@ export default function DirectPlayerPage() {
         },
       });
       // The server has now decided whether the item counts as played; a
-      // finished one leaves the KefinTweaks watchlist.
-      void pruneWatchedFromWatchlist([item.Id]);
+      // finished one leaves the KefinTweaks watchlist. `item` is as it was
+      // loaded, before the start report: the dates the stop is judged by.
+      void pruneWatchedFromWatchlist(
+        [item.Id],
+        lastPlayedDatesAtStart(item, mediaSourceId),
+      );
     } catch (error) {
       // Un-mark the session so a later teardown path can retry: e.g. a failed
       // report from a WebSocket remote-stop (player still mounted) must not

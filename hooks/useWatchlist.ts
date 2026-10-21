@@ -88,9 +88,10 @@ export const useWatchlist = (
 
 /**
  * Returns a callback that takes finished items off the KefinTweaks watchlist:
- * pass the ids of items just marked played or just stopped playing. A no-op
- * unless KefinTweaks is on and the server is reachable. Housekeeping, so it
- * never throws: a failure is logged and the item simply stays watchlisted.
+ * pass the ids of items just marked played or just stopped playing, and for a
+ * stop report the dates from `lastPlayedDatesAtStart` as well. A no-op unless
+ * KefinTweaks is on and the server is reachable. Housekeeping, so it never
+ * throws: a failure is logged and the item simply stays watchlisted.
  */
 export const usePruneWatchedFromWatchlist = () => {
   const queryClient = useQueryClient();
@@ -105,7 +106,10 @@ export const usePruneWatchedFromWatchlist = () => {
     (settings?.useKefinTweaks ?? false) && !isOffline && isConnected;
 
   return useCallback(
-    async (itemIds: string[]) => {
+    async (
+      itemIds: string[],
+      lastPlayedAtStart?: ReadonlyMap<string, string | null>,
+    ) => {
       const userId = user?.Id;
       if (!enabled || !api || !userId || itemIds.length === 0) return;
 
@@ -114,6 +118,7 @@ export const usePruneWatchedFromWatchlist = () => {
           api,
           userId,
           itemIds,
+          lastPlayedAtStart,
         );
         if (failed.length > 0) {
           writeToLog(

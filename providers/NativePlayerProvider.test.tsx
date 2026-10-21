@@ -31,6 +31,8 @@ const mockPlaybackManager = {
   previousItem: null,
 };
 const mockStreamUrl = "https://jellyfin.example.com/Videos/item-1/stream.mkv";
+/** When item-1 was last played, as the config build fetched it. */
+const mockLastPlayed = "2026-09-21T20:00:00.0000000Z";
 
 jest.mock("@/modules/mpv-player", () => {
   const asyncNoop = async () => {};
@@ -75,7 +77,12 @@ jest.mock("@/modules/mpv-player", () => {
 jest.mock("@/utils/nativePlayer/buildNativePlayerConfig", () => ({
   buildNativePlayerConfig: async () => ({
     seed: {
-      item: { Id: "item-1", Type: "Movie", RunTimeTicks: 72_000_000_000 },
+      item: {
+        Id: "item-1",
+        Type: "Movie",
+        RunTimeTicks: 72_000_000_000,
+        UserData: { LastPlayedDate: mockLastPlayed },
+      },
       offline: false,
       downloadedItem: null,
       stream: {
@@ -245,7 +252,14 @@ test("hands the item to the watchlist prune once the stop report went through", 
 
   await act(async () => answerStop());
 
-  await waitFor(() => expect(mockPrune).toHaveBeenCalledWith(["item-1"]));
+  // The date the item had before playback started, see
+  // removeWatchedFromWatchlist.
+  await waitFor(() =>
+    expect(mockPrune).toHaveBeenCalledWith(
+      ["item-1"],
+      new Map([["item-1", mockLastPlayed]]),
+    ),
+  );
 });
 
 test("leaves the watchlist alone when the stop report fails", async () => {

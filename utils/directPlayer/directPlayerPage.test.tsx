@@ -16,6 +16,8 @@ import { writeToLog } from "@/utils/log";
 const RESUME_TICKS = 11_580_000_000;
 /** 5m, the resume position of the episode after it. */
 const NEXT_RESUME_TICKS = 3_000_000_000;
+/** When item-1 was last played, before the player opened. */
+const LAST_PLAYED = "2026-09-21T20:00:00.0000000Z";
 const RUNTIME_TICKS = 34_000_000_000;
 
 const mockParams = {
@@ -339,7 +341,10 @@ describe("direct player stop report", () => {
       Id: "item-1",
       Type: "Episode",
       RunTimeTicks: RUNTIME_TICKS,
-      UserData: { PlaybackPositionTicks: RESUME_TICKS },
+      UserData: {
+        PlaybackPositionTicks: RESUME_TICKS,
+        LastPlayedDate: LAST_PLAYED,
+      },
     });
     api.mock.onGet(/\/Items\/item-2/).reply(200, {
       Id: "item-2",
@@ -398,13 +403,26 @@ describe("direct player stop report", () => {
         : [204],
     );
     await openPlayer();
+    // Jellyfin 10.11 moves the date as playback starts: what the server says
+    // now is not what the stop has to be compared with.
+    api.mock.onGet(/\/Items\/item-1/).reply(200, {
+      Id: "item-1",
+      UserData: { LastPlayedDate: "2026-10-21T15:00:00.0000000Z" },
+    });
     await tick(1200);
     await leavePlayer();
     expect(mockPrune).not.toHaveBeenCalled();
 
     await act(async () => answerStop());
 
-    await waitFor(() => expect(mockPrune).toHaveBeenCalledWith(["item-1"]));
+    // The date the item had before playback started, see
+    // removeWatchedFromWatchlist.
+    await waitFor(() =>
+      expect(mockPrune).toHaveBeenCalledWith(
+        ["item-1"],
+        new Map([["item-1", LAST_PLAYED]]),
+      ),
+    );
   });
 
   test("leaves the watchlist alone when the stop report fails", async () => {

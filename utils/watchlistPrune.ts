@@ -4,6 +4,7 @@ import {
   ItemFilter,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { getItemsApi, getUserLibraryApi } from "@jellyfin/sdk/lib/utils/api";
+import { isAlternateVersion } from "@/utils/jellyfin/mediaSourceVersion";
 
 /**
  * Marking a folder played marks every item under it on the server, whatever
@@ -25,6 +26,29 @@ const isWatchlistedAndFinished = (item: BaseItemDto) =>
   item.UserData?.Likes === true && isFinished(item);
 
 /**
+ * Whether the item's LastPlayedDate has moved since playback started. Both
+ * values are the server's own serialization of that field, so a date that
+ * did not move compares equal.
+ */
+const movedSince = (item: BaseItemDto, lastPlayedAtStart: string | null) =>
+  (item.UserData?.LastPlayedDate ?? null) !== lastPlayedAtStart;
+
+/**
+ * What a stop report hands `removeWatchedFromWatchlist` for the item it
+ * closed: the LastPlayedDate the item had when playback started, null when it
+ * had none. Nothing for an alternate version: Jellyfin 12 writes its playback
+ * to the version's own UserData and copies only Played over to the item, so
+ * the item's date never moves and the stop counts on Played alone.
+ */
+export const lastPlayedDatesAtStart = (
+  item: BaseItemDto,
+  mediaSourceId: string | null | undefined,
+): ReadonlyMap<string, string | null> | undefined =>
+  item.Id && !isAlternateVersion(item.Id, item.MediaSources, mediaSourceId)
+    ? new Map([[item.Id, item.UserData?.LastPlayedDate ?? null]])
+    : undefined;
+
+/**
  * Takes finished items off the KefinTweaks watchlist (Jellyfin's Likes rating).
  *
  * Call it after items were marked played or a playback stop was reported, with
@@ -39,10 +63,17 @@ const isWatchlistedAndFinished = (item: BaseItemDto) =>
  * position reset to 0. On Jellyfin 10.11 starting a played item clears Played;
  * on 12 Played stays true through a rewatch, but an abandoned one keeps its
  * resume position while a finished one is reset to 0. Either way a stop report
- * for an episode abandoned halfway removes nothing. One case still reads as
- * completed on 12: a rewatch left before the server's minimum resume
- * percentage (5% by default), whose position the server drops without
- * touching Played.
+ * for an episode abandoned halfway removes nothing.
+ *
+ * A rewatch left under the minimum resume percentage (5% by default) has its
+ * position dropped with Played kept, so on 12 only the date tells it from a
+ * finished one. A stop report therefore passes `lastPlayedAtStart`, from
+ * `lastPlayedDatesAtStart`, and such an item counts only if its LastPlayedDate
+ * moved during the playback. 10.11 moves it at every start, where Played
+ * decides alone. 12.2 moves it at the start of an unplayed item, and when a
+ * progress or stop report completes the item or keeps a resume point. 12.0
+ * and 12.1 move it at every start without clearing Played, so there that
+ * rewatch still reads as finished.
  *
  * Each item, parent and rating update stands alone: one the server cannot
  * serve is reported in `failed` and the rest of the batch still goes through.
@@ -54,6 +85,7 @@ export async function removeWatchedFromWatchlist(
   api: Api,
   userId: string,
   itemIds: string[],
+  lastPlayedAtStart?: ReadonlyMap<string, string | null>,
 ): Promise<{ removed: string[]; failed: string[] }> {
   const userLibrary = getUserLibraryApi(api);
   const removed = new Set<string>();
@@ -101,9 +133,14 @@ export async function removeWatchedFromWatchlist(
     const item = await getItem(itemId);
     if (!item) return;
 
+    const watched =
+      isFinished(item) &&
+      (!lastPlayedAtStart?.has(itemId) ||
+        movedSince(item, lastPlayedAtStart.get(itemId) ?? null));
+
     const candidates: BaseItemDto[] = [];
     // An unfinished item leaves its season and show unfinished as well.
-    if (isFinished(item)) {
+    if (watched) {
       const parentIds = [
         item.Type === "Episode" ? item.SeasonId : undefined,
         item.Type === "Episode" || item.Type === "Season"
