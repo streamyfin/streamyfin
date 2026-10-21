@@ -87,10 +87,18 @@ export const useUserDataToggle = ({
     );
   }, [enabled, key, fromItem, setState]);
 
+  // Undefined forgets the entry, so the item's own value shows again: an item
+  // never rated must read as unrated after its first toggle fails.
   const setValue = useCallback(
     (next: boolean | undefined) => {
-      if (!key || next === undefined) return;
-      setState((prev) => ({ ...prev, [key]: next }));
+      if (!key) return;
+      setState((prev) => {
+        if (next !== undefined) return { ...prev, [key]: next };
+        if (!(key in prev)) return prev;
+        const rest = { ...prev };
+        delete rest[key];
+        return rest;
+      });
     },
     [key, setState],
   );
