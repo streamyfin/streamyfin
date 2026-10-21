@@ -133,6 +133,24 @@ test("a row past its stale time still refetches when shown again", () => {
   expect(refetchesWhenShown(["home", "row"], staleTime)).toBe(true);
 });
 
+// The persisted cache holds thousands of queries. Marking each written query
+// invalidated again through a key filter, and finding each query to roll back
+// by its key, walked all of them once per query.
+test("a patch walks the cache once and a rollback not at all, however many queries they write", async () => {
+  for (const key of ["row", "grid", "seasons"]) {
+    client.setQueryData([key], [season(true)]);
+  }
+  await client.invalidateQueries();
+  const walks = jest.spyOn(client.getQueryCache(), "getAll");
+
+  const previous = patchCachedItemUserData(client, "s1", { Likes: false });
+  expect(walks).toHaveBeenCalledTimes(1);
+
+  revertCachedItemUserData(client, "s1", previous);
+  expect(walks).toHaveBeenCalledTimes(1);
+  expect(client.getQueryState(["grid"])?.isInvalidated).toBe(true);
+});
+
 // What a toggle cancels before patching: a refetch landing afterwards would
 // write the old value back. An idle query has nothing to cancel.
 test("finds the queries holding the item that are fetching, and no others", () => {

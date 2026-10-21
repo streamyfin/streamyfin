@@ -1,10 +1,13 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import type { Query, QueryClient, QueryKey } from "@tanstack/react-query";
+import type { Query, QueryClient } from "@tanstack/react-query";
 
 type UserData = NonNullable<BaseItemDto["UserData"]>;
 
-/** One query a patch changed, with the item's values there from before. */
-export type CachedItemPatch = [queryKey: QueryKey, previous: Partial<UserData>];
+/**
+ * One query a patch changed, by its hash, with the item's values there from
+ * before.
+ */
+export type CachedItemPatch = [queryHash: string, previous: Partial<UserData>];
 
 // Item lists sit at most a few levels down: pages -> { Items } -> item.
 const MAX_DEPTH = 6;
@@ -122,13 +125,8 @@ const writeKeepingFreshness = (
 ) => {
   const { dataUpdatedAt, isInvalidated } = query.state;
   queryClient.setQueryData(query.queryKey, data, { updatedAt: dataUpdatedAt });
-  if (isInvalidated) {
-    queryClient.invalidateQueries({
-      queryKey: query.queryKey,
-      exact: true,
-      refetchType: "none",
-    });
-  }
+  // On the query itself: a key filter would walk the whole cache to find it.
+  if (isInvalidated) query.invalidate();
 };
 
 /**
@@ -154,7 +152,7 @@ export const patchCachedItemUserData = (
     const data = query.state.data;
     const next = patch(data, itemId, userData, 0, found);
     if (next === data || !found.previous) continue;
-    patches.push([query.queryKey, found.previous]);
+    patches.push([query.queryHash, found.previous]);
     writeKeepingFreshness(queryClient, query, next);
   }
   return patches;
@@ -170,8 +168,8 @@ export const revertCachedItemUserData = (
   itemId: string,
   patches: CachedItemPatch[],
 ) => {
-  for (const [queryKey, previous] of patches) {
-    const query = queryClient.getQueryCache().find({ queryKey, exact: true });
+  for (const [queryHash, previous] of patches) {
+    const query = queryClient.getQueryCache().get(queryHash);
     if (!query) continue;
     const data = query.state.data;
     const next = patch(data, itemId, previous, 0, {});
