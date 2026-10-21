@@ -50,8 +50,9 @@ const movedSince = (item: BaseItemDto, lastPlayedAtStart: string | null) =>
  * the one the player fetched from the server, or for an item played from the
  * downloads record, the one `fetchItemAtStart` read. Never the record's own,
  * whose date the app writes. Nothing for an alternate version: Jellyfin 12
- * writes its playback to the version's own UserData and copies only Played
- * over to the item, so the item's date never moves and the stop counts on
+ * writes its playback to the version's own UserData, which the player did not
+ * read before the start report (12.2 only shows the item the most recent
+ * version's date, through VersionResumeData.ApplyTo), so the stop counts on
  * Played alone.
  */
 export const lastPlayedDatesAtStart = (
