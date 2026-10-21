@@ -2,6 +2,7 @@ import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { act, render, screen } from "@testing-library/react-native";
 import { createRef } from "react";
 import { Animated } from "react-native";
+import { prefetchServerImage } from "@/components/common/ServerImage";
 import {
   TV_BACKDROP_CROSSFADE_MS,
   TV_BACKDROP_DEBOUNCE_MS,
@@ -101,5 +102,49 @@ describe("TVHomeBackdrop", () => {
     await focus(ref, "b");
 
     expect(layers()).toEqual(["b", "a"]);
+  });
+
+  // The layer used to flip when the image was given to it, 50 ms before the
+  // fade. With a slow prefetch, an image arriving in between went onto the
+  // layer on screen and replaced it at once.
+  it("puts a backdrop that arrives before the fade starts on the hidden layer", async () => {
+    const PREFETCH_MS = 300;
+    jest
+      .mocked(prefetchServerImage)
+      .mockImplementation(
+        () =>
+          new Promise((resolve) =>
+            setTimeout(() => resolve(true), PREFETCH_MS),
+          ),
+      );
+    const ref = createRef<TVHomeBackdropRef>();
+    await render(<TVHomeBackdrop ref={ref} />);
+    const advance = async (ms: number) => {
+      await act(async () => {
+        jest.advanceTimersByTime(ms);
+      });
+    };
+
+    // x is on screen, on layer 1.
+    await act(async () => {
+      ref.current?.handleItemFocus(item("x"));
+    });
+    await advance(TV_BACKDROP_DEBOUNCE_MS);
+    await advance(PREFETCH_MS);
+    await advance(60 + TV_BACKDROP_CROSSFADE_MS);
+    expect(layers()).toEqual([null, "x"]);
+
+    // a starts loading; b arrives once a is loaded but before its fade.
+    await act(async () => {
+      ref.current?.handleItemFocus(item("a"));
+    });
+    await advance(TV_BACKDROP_DEBOUNCE_MS + 10);
+    await act(async () => {
+      ref.current?.handleItemFocus(item("b"));
+    });
+    await advance(TV_BACKDROP_DEBOUNCE_MS);
+    await advance(PREFETCH_MS + 60);
+
+    expect(layers()).toEqual(["b", "x"]);
   });
 });

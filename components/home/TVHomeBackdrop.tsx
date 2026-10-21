@@ -75,9 +75,10 @@ export const TVHomeBackdrop = React.memo(
     }, [api, focusedItem]);
 
     // Crossfade animation for backdrop transitions. The layer shown is flipped
-    // as soon as the next image is given to the other one, not when its fade
-    // ends: an image that arrives mid-fade then fades in over the layer fading
-    // out, instead of replacing the image still fading in.
+    // when the fade starts, not when it ends: an image that arrives mid-fade
+    // then fades in over the layer fading out, instead of replacing the image
+    // still fading in. Flipped any earlier, an image arriving before the fade
+    // started would be put on the layer still on screen.
     const activeLayer = useRef<0 | 1>(0);
     const [layer0Url, setLayer0Url] = useState<string | null>(null);
     const [layer1Url, setLayer1Url] = useState<string | null>(null);
@@ -103,7 +104,6 @@ export const TVHomeBackdrop = React.memo(
 
         // Determine which layer to fade in
         const incomingLayer = activeLayer.current === 0 ? 1 : 0;
-        activeLayer.current = incomingLayer;
         const incomingOpacity =
           incomingLayer === 0 ? layer0Opacity : layer1Opacity;
         const outgoingOpacity =
@@ -122,6 +122,7 @@ export const TVHomeBackdrop = React.memo(
         if (isCancelled) return;
 
         // Crossfade: fade in the incoming layer, fade out the outgoing
+        activeLayer.current = incomingLayer;
         Animated.parallel([
           Animated.timing(incomingOpacity, {
             toValue: 1,
