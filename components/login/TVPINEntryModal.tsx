@@ -12,6 +12,7 @@ import {
   View,
 } from "react-native";
 import { Text } from "@/components/common/Text";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 import { scaleSize } from "@/utils/scaleSize";
 import { verifyAccountPIN } from "@/utils/secureCredentials";
 
@@ -33,6 +34,7 @@ const NumberPadButton: React.FC<{
   isBackspace?: boolean;
   disabled?: boolean;
 }> = ({ value, onPress, hasTVPreferredFocus, isBackspace, disabled }) => {
+  const typography = useScaledTVTypography();
   const [focused, setFocused] = useState(false);
   const scale = useRef(new Animated.Value(1)).current;
 
@@ -76,7 +78,10 @@ const NumberPadButton: React.FC<{
           />
         ) : (
           <Text
-            style={[styles.numberText, { color: focused ? "#000" : "#fff" }]}
+            style={[
+              styles.numberText,
+              { fontSize: typography.body, color: focused ? "#000" : "#fff" },
+            ]}
           >
             {value}
           </Text>
@@ -105,6 +110,7 @@ const ForgotPINLink: React.FC<{
   onPress: () => void;
   label: string;
 }> = ({ onPress, label }) => {
+  const typography = useScaledTVTypography();
   const [focused, setFocused] = useState(false);
   const scale = useRef(new Animated.Value(1)).current;
 
@@ -139,7 +145,7 @@ const ForgotPINLink: React.FC<{
       >
         <Text
           style={{
-            fontSize: scaleSize(16),
+            fontSize: typography.callout,
             color: focused ? "#fff" : "rgba(255,255,255,0.5)",
           }}
         >
@@ -159,6 +165,7 @@ export const TVPINEntryModal: React.FC<TVPINEntryModalProps> = ({
   userId,
   username,
 }) => {
+  const typography = useScaledTVTypography();
   const { t } = useTranslation();
   const [isReady, setIsReady] = useState(false);
   const [pinCode, setPinCode] = useState("");
@@ -294,8 +301,12 @@ export const TVPINEntryModal: React.FC<TVPINEntryModalProps> = ({
             style={styles.content}
           >
             {/* Header */}
-            <Text style={styles.title}>{t("pin.enter_pin")}</Text>
-            <Text style={styles.subtitle}>{username}</Text>
+            <Text style={[styles.title, { fontSize: typography.body }]}>
+              {t("pin.enter_pin")}
+            </Text>
+            <Text style={[styles.subtitle, { fontSize: typography.callout }]}>
+              {username}
+            </Text>
 
             {/* PIN Dots */}
             <Animated.View
@@ -426,14 +437,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   title: {
-    fontSize: scaleSize(28),
     fontWeight: "bold",
     color: "#fff",
     marginBottom: scaleSize(8),
     textAlign: "center",
   },
   subtitle: {
-    fontSize: scaleSize(18),
     color: "rgba(255,255,255,0.6)",
     marginBottom: scaleSize(32),
     textAlign: "center",
@@ -479,7 +488,6 @@ const styles = StyleSheet.create({
     height: scaleSize(72),
   },
   numberText: {
-    fontSize: scaleSize(28),
     fontWeight: "600",
   },
   forgotContainer: {

@@ -14,7 +14,8 @@
       "!e2e/syncplay/.state",
       "!e2e/syncplay/artifacts",
       "!docs/jellyfin-openapi-stable.json",
-      "!**/*.svg"
+      "!**/*.svg",
+      "!.reassure"
     ]
   },
   "linter": {
@@ -59,6 +60,17 @@
       "lineWidth": 80
     }
   },
+  "overrides": [
+    {
+      "includes": [
+        "**/TV*.tsx",
+        "**/*.tv.tsx",
+        "components/tv/**",
+        "components/seerr/tv/**"
+      ],
+      "plugins": ["./biome-plugins/tv-no-hardcoded-font-size.grit"]
+    }
+  ],
   "json": {
     "formatter": {
       "trailingCommas": "none"

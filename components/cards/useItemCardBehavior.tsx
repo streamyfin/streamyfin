@@ -1,7 +1,7 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { useSegments } from "expo-router";
 import { useAtomValue } from "jotai";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ItemActionSheetHost } from "@/components/common/ItemActionSheetHost";
 import {
   getItemNavigation,
@@ -63,6 +63,13 @@ export function useItemCardBehavior({
 
   const from = (segments as string[])[2] || "(home)";
 
+  // Read through a ref so a paged list growing `items` does not hand every
+  // memoized Card a new press handler.
+  const itemsRef = useRef(items);
+  useLayoutEffect(() => {
+    itemsRef.current = items;
+  }, [items]);
+
   const cards = useMemo(
     () =>
       providedCards ??
@@ -93,7 +100,7 @@ export function useItemCardBehavior({
         return;
       }
 
-      const item = items?.find((i) => i.Id === id);
+      const item = itemsRef.current?.find((i) => i.Id === id);
       if (!item) return;
 
       if (onPressItem) {
@@ -110,7 +117,7 @@ export function useItemCardBehavior({
 
       router.push(getItemNavigation(item, from) as any);
     },
-    [from, items, onPressId, onPressItem, router],
+    [from, onPressId, onPressItem, router],
   );
 
   const handleLongPress = useCallback(
@@ -120,7 +127,7 @@ export function useItemCardBehavior({
         return;
       }
 
-      const item = items?.find((i) => i.Id === id);
+      const item = itemsRef.current?.find((i) => i.Id === id);
       if (!item) return;
 
       if (onLongPressItem) {
@@ -130,7 +137,7 @@ export function useItemCardBehavior({
 
       setActionSheetItem(item);
     },
-    [items, onLongPressId, onLongPressItem],
+    [onLongPressId, onLongPressItem],
   );
 
   const closeActionSheet = useCallback(() => setActionSheetItem(null), []);

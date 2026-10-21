@@ -108,12 +108,13 @@ import {
   applyMpvSubtitleSelection,
   findSubtitleTrackIdentity,
   getExternalSubtitleUrl,
-  getMpvAudioId,
   isImageBasedSubtitle,
   pickAutoSubtitleTrack,
+  resolveAudioSwitch,
   type SubtitleSelectablePlayer,
 } from "@/utils/jellyfin/subtitleUtils";
 import { logAndCaptureError, writeErrorLog, writeToLog } from "@/utils/log";
+import { applyLoadEvent } from "@/utils/nativePlayer/applyLoadEvent";
 import { applyProgressTick } from "@/utils/nativePlayer/applyProgressTick";
 import {
   buildNativePlayerConfig,
@@ -132,7 +133,6 @@ import { resolveTeardownReport } from "@/utils/nativePlayer/resolveTeardownRepor
 import {
   buildNativeSyncPlayState,
   dispatchNativeSyncPlayAction,
-  isSameStreamUrl,
   type SyncPlayQueueDisplay,
 } from "@/utils/nativePlayer/syncPlay";
 import { NativeSyncPlayBufferingReporter } from "@/utils/nativePlayer/syncPlayBuffering";
@@ -1415,10 +1415,14 @@ const NativePlayerProviderInner: React.FC<{
       jellyfinIndex: number,
       positionSec: number,
     ) => {
-      const isTranscoding = Boolean(session.stream.mediaSource.TranscodingUrl);
-      // A transcoded stream only carries the encoded audio track — switching
-      // requires re-negotiating the stream (mirror of handleAudioIndexChange).
-      if (isTranscoding) {
+      // A track the stream does not carry (any other on a transcode, an
+      // external audio file on a direct stream) needs a re-negotiated stream
+      // (mirror of handleAudioIndexChange).
+      const target = resolveAudioSwitch(
+        session.stream.mediaSource,
+        jellyfinIndex,
+      );
+      if (target.reload) {
         await replaceStream(session, {
           audioIndex: jellyfinIndex,
           positionTicks: msToTicks(positionSec * 1000),
@@ -1426,14 +1430,7 @@ const NativePlayerProviderInner: React.FC<{
         return;
       }
       session.currentAudioIndex = jellyfinIndex;
-      const mpvId = getMpvAudioId(
-        session.stream.mediaSource,
-        jellyfinIndex,
-        isTranscoding,
-      );
-      if (mpvId !== undefined) {
-        await nativePlayerSetAudioTrack(mpvId);
-      }
+      await nativePlayerSetAudioTrack(target.mpvId);
       pushTrackMenus(session);
     },
     [replaceStream, pushTrackMenus],
@@ -1826,22 +1823,17 @@ const NativePlayerProviderInner: React.FC<{
       addNativePlayerListener("onLoad", (payload) => {
         const session = sessionRef.current;
         if (!session) return;
-        // An in-place swap can deliver the outgoing stream's onLoad late, and
-        // in a group that would report Ready for an item still loading. Solo
-        // playback keeps accepting any onLoad, as it always has: a URL this
-        // comparison got wrong would leave the session dead with no error.
-        if (
-          syncRef.current.enabled &&
-          !isSameStreamUrl(payload.url, session.stream.url)
-        )
+        // An in-place swap can deliver the outgoing stream's onLoad late; in a
+        // group it would report Ready for an item still loading, and solo its
+        // progress would land on the new item.
+        if (!applyLoadEvent(session, payload)) {
+          // Without the URLs: they carry the access token. A session that
+          // keeps waiting after this line never got its own load event.
+          writeToLog(
+            "INFO",
+            "NativePlayer ignored a load event for another stream",
+          );
           return;
-        // The engine has taken the new stream; events from here on belong to
-        // this session.
-        session.awaitingLoad = false;
-        // Mute only reaches us as a transition, so a player opened while the
-        // device is already muted would otherwise read as unmuted here.
-        if (typeof payload?.muted === "boolean") {
-          session.isMuted = payload.muted;
         }
         if (session.localSubtitle?.active) {
           // The swap's loadfile dropped the sub-added sidecar — re-attach it

@@ -1,6 +1,7 @@
 import { Api, AUTHORIZATION_HEADER } from "@jellyfin/sdk";
 import type { AxiosRequestConfig, AxiosResponse } from "axios";
-import type { StreamyfinPluginConfig } from "@/utils/atoms/settings";
+import type { PluginLockableSettings } from "@/utils/atoms/settings";
+import { readPluginSettings } from "@/utils/pluginSettingsSource";
 
 declare module "@jellyfin/sdk" {
   interface Api {
@@ -13,11 +14,16 @@ declare module "@jellyfin/sdk" {
       data: D,
       config?: AxiosRequestConfig<D>,
     ): Promise<AxiosResponse<T>>;
+    put<T, D = any>(
+      url: string,
+      data: D,
+      config?: AxiosRequestConfig<D>,
+    ): Promise<AxiosResponse<T>>;
     delete<T, D = any>(
       url: string,
       config?: AxiosRequestConfig<D>,
     ): Promise<AxiosResponse<T>>;
-    getStreamyfinPluginConfig(): Promise<AxiosResponse<StreamyfinPluginConfig>>;
+    getStreamyfinPluginSettings(): Promise<PluginLockableSettings | undefined>;
   }
 }
 
@@ -42,6 +48,17 @@ Api.prototype.post = function <T, D = any>(
   });
 };
 
+Api.prototype.put = function <T, D = any>(
+  url: string,
+  data: D,
+  config: AxiosRequestConfig<D>,
+): Promise<AxiosResponse<T>> {
+  return this.axiosInstance.put<T>(`${this.basePath}${url}`, data, {
+    ...(config || {}),
+    headers: { [AUTHORIZATION_HEADER]: this.authorizationHeader },
+  });
+};
+
 Api.prototype.delete = function <T, D = any>(
   url: string,
   config: AxiosRequestConfig<D>,
@@ -52,8 +69,8 @@ Api.prototype.delete = function <T, D = any>(
   });
 };
 
-Api.prototype.getStreamyfinPluginConfig = function (): Promise<
-  AxiosResponse<StreamyfinPluginConfig>
+Api.prototype.getStreamyfinPluginSettings = function (): Promise<
+  PluginLockableSettings | undefined
 > {
-  return this.get<StreamyfinPluginConfig>("/Streamyfin/config");
+  return readPluginSettings(this);
 };

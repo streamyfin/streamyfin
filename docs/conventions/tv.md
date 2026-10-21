@@ -59,6 +59,12 @@ Size TV text from `@/constants/TVTypography`. It is not a component: call the
 friends) to the shared `Text` component, the way `components/tv/TVPosterCard.tsx` does.
 Never hardcode font sizes on TV.
 
+`bun run check` enforces this through `biome-plugins/tv-no-hardcoded-font-size.grit`: a
+numeric `fontSize` or a `scaleSize(...)` one is an error in TV files (`TV*.tsx`,
+`*.tv.tsx`, `components/tv/`, `components/seerr/tv/`). `scaleSize` stays fine for spacing
+and icon sizes, since it only follows the viewport, not the user's text size setting.
+An emoji or icon glyph is not text; mark it with `biome-ignore lint/plugin: <reason>`.
+
 ## Spacing and focus scale
 
 Horizontal padding is `TV_HORIZONTAL_PADDING = 60` (the old `TV_SCALE_PADDING = 20` is
