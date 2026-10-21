@@ -2,7 +2,7 @@
 
 **Date**: 2026-10-05
 **Category**: navigation
-**Key files**: `patches/react-native-bottom-tabs@1.4.0.patch`, `app/(auth)/(tabs)/_layout.tsx`
+**Key files**: `app/(auth)/(tabs)/_layout.tsx` (the patch this fact described is gone since 1.5.0)
 
 ## Detail
 
@@ -16,16 +16,19 @@ Xcode 27 build on the same iOS 27 device.
    order. `react-native-bottom-tabs` 1.4.0 writes each item's title and icon from
    `filteredItems[indexOfItem]`, which shifts every label after the search tab by one and
    leaves the last item carrying the wrong tab's label. Selection itself is unaffected, so
-   the bar looks like "pressing Library opens Search". The patch matches an item to its tab
-   by identity (`tabs[i].viewController?.tabBarItem === item`).
+   the bar looks like "pressing Library opens Search". Fixed upstream in 1.5.0
+   (callstack/react-native-bottom-tabs#602), which matches an item to its tab by identity
+   (`tabs[i].viewController?.tabBarItem === item`).
 2. `TabRole.search` no longer gets the detached trailing button, it sits inline at the end
    of the bar with a label. The detached button is the new `TabRole.prominent` (iOS 27).
-   The patch maps the library's `search` role to `.prominent` on iOS 27 when compiled with
-   Swift 6.4 or newer, so an Xcode 26 build is untouched.
+   1.5.0 exposes `role: "prominent"`, but resolves it to no role at all when built with
+   Xcode 26 or run below iOS 27, and keeps `search` as `.search`. The app keeps
+   `role: "search"`: Xcode 26 builds (CI and EAS) still get the detached search button, and an
+   Xcode 27 build gets iOS 27's inline search tab with its label. Asking for `prominent` instead
+   would drop the search role from every Xcode 26 build.
 
-Upstream `main` (the unreleased 1.5.0) still indexes `tabBar.items` by position, and its
-`prominent` role resolves to no role at all on an older compiler. Bumping the dependency
-does not replace the patch until both are checked again.
+Until 1.5.0 the app carried a patch for both points, mapping `search` to `.prominent` on an
+Xcode 27 build to keep the detached button there.
 
 The whole thing reproduces without React Native: a bare SwiftUI `TabView` built with
 `swiftc` for the simulator, and the same binary restamped with
@@ -33,6 +36,7 @@ The whole thing reproduces without React Native: a bare SwiftUI `TabView` built 
 
 ## Symptom pattern
 
-Only local Xcode 27 builds: tab labels and icons do not match the screen they open, the
-highlighted tab is one to the left of the visible screen, and the detached search button
-is gone. The EAS build of the same commit is fine.
+Only Xcode 27 builds. On react-native-bottom-tabs 1.4.x, tab labels and icons do not match
+the screen they open and the highlighted tab is one to the left of the visible screen. From
+1.5.0 on, the only difference left is the search tab sitting inline with a label instead of
+the detached button, which is iOS 27's own layout for `TabRole.search`.
