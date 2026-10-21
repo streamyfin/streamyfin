@@ -77,28 +77,40 @@ export const sortOptions: SortOption[] = [
 
 // The server keeps DateLastContentAdded on containers only, and what it means
 // depends on the container. For a playlist it is the last time an item went in,
-// which is the one reading the label covers, so the option is offered in
-// playlist libraries and nowhere else.
-const playlistSortOptions: SortOption[] = sortOptions.flatMap((option) =>
-  option.key === SortByOption.DateCreated
-    ? [
-        option,
-        {
-          key: SortByOption.DateLastContentAdded,
-          value: "Date Playlist Updated",
-        },
-      ]
-    : [option],
+// for a series the date of its newest episode. Each reading needs its own
+// label, so the option is offered only in those libraries, worded for each.
+const withDateLastContentAdded = (
+  label: string,
+  dateCreatedLabel?: string,
+): SortOption[] =>
+  sortOptions.flatMap((option) =>
+    option.key === SortByOption.DateCreated
+      ? [
+          dateCreatedLabel ? { ...option, value: dateCreatedLabel } : option,
+          { key: SortByOption.DateLastContentAdded, value: label },
+        ]
+      : [option],
+  );
+
+const playlistSortOptions = withDateLastContentAdded("Date Playlist Updated");
+// Right above the episode date, the series' own date says whose it is, as in
+// jellyfin-web.
+const tvShowSortOptions = withDateLastContentAdded(
+  "Date Episode Added",
+  "Date Show Added",
 );
 
 /**
- * The sort options a library of this type offers. Both lists are built once,
+ * The sort options a library of this type offers. Every list is built once,
  * so the result is safe to use as a hook dependency.
  */
 export const sortOptionsFor = (
   collectionType: CollectionType | null | undefined,
-): SortOption[] =>
-  collectionType === "playlists" ? playlistSortOptions : sortOptions;
+): SortOption[] => {
+  if (collectionType === "playlists") return playlistSortOptions;
+  if (collectionType === "tvshows") return tvShowSortOptions;
+  return sortOptions;
+};
 
 export const useFilterOptions = () => {
   const { settings } = useSettings();

@@ -195,6 +195,17 @@ describe("buildAudioMenu", () => {
     expect(rows.every((r) => r.requiresReload)).toBe(true);
   });
 
+  // A direct stream is the file alone, so the server has to mux an external
+  // audio file in; marking it keeps a menu from checking a track mpv never had.
+  test("marks an external audio track as needing a re-process on a direct stream", () => {
+    const rows = buildAudioMenu([audio(1, { IsExternal: true }), audio(2)], {
+      isTranscoding: false,
+      originalLabel: "Original",
+    });
+    expect(rows.find((r) => r.index === 1)?.requiresReload).toBe(true);
+    expect(rows.find((r) => r.index === 2)?.requiresReload).toBe(false);
+  });
+
   test("offers only the downloaded track for a transcoded download", () => {
     // The other tracks are not in the file, so listing them would offer audio
     // that can never play.

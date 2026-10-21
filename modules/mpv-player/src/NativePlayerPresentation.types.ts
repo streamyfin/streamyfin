@@ -409,8 +409,15 @@ export type NativePlayerDismissPayload = {
 
 export type NativePlayerEvents = {
   onSyncPlayAction: (payload: NativePlayerSyncPlayAction) => void;
-  /** `muted` is the combined device-volume + player mute at load time. */
-  onLoad: (payload: { url: string; muted?: boolean }) => void;
+  /**
+   * `muted` is the combined device-volume + player mute at load time, and
+   * `isPlaying` the play state the engine was just given.
+   */
+  onLoad: (payload: {
+    url: string;
+    muted?: boolean;
+    isPlaying?: boolean;
+  }) => void;
   onProgress: (payload: NativePlayerProgressPayload) => void;
   onPlaybackStateChange: (payload: NativePlayerStateChangePayload) => void;
   onError: (payload: { error: string }) => void;

@@ -428,7 +428,7 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
       <Text
         style={{
           color: "#000000",
-          fontSize: scaleSize(14),
+          fontSize: typography.callout,
           fontWeight: "700",
         }}
       >

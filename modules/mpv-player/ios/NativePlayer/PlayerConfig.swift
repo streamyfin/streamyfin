@@ -240,7 +240,7 @@ extension StreamConfigRecord {
 	/// Convert to the engine's load config. Returns nil for an unparseable URL.
 	func toVideoLoadConfig() -> VideoLoadConfig? {
 		guard let videoURL = URL(string: url) else { return nil }
-		return VideoLoadConfig(
+		var config = VideoLoadConfig(
 			url: videoURL,
 			headers: headers,
 			externalSubtitles: externalSubtitles,
@@ -253,5 +253,7 @@ extension StreamConfigRecord {
 			demuxerMaxBytes: cacheConfig?.maxBytes,
 			demuxerMaxBackBytes: cacheConfig?.maxBackBytes
 		)
+		config.requestedURL = url
+		return config
 	}
 }
