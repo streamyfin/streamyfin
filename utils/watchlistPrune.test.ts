@@ -40,9 +40,17 @@ const serve = (library: Library, failRatingFor: string[] = []) => {
   return { api, unliked };
 };
 
-const userData = (played: boolean, likes: boolean) => ({
-  UserData: { Played: played, Likes: likes },
+/** The server sends the resume position with every item, 0 when there is none. */
+const userData = (played: boolean, likes: boolean, positionTicks = 0) => ({
+  UserData: {
+    Played: played,
+    Likes: likes,
+    PlaybackPositionTicks: positionTicks,
+  },
 });
+
+/** 31 s, where the rewatch in the review of #2171 was left. */
+const ABANDONED_AT_TICKS = 310_000_000;
 
 test("takes a finished, watchlisted movie off the watchlist", async () => {
   const { api, unliked } = serve({
@@ -61,6 +69,25 @@ test("takes a finished, watchlisted movie off the watchlist", async () => {
 test("leaves an unfinished movie on the watchlist", async () => {
   const { api, unliked } = serve({
     m1: { Id: "m1", Type: "Movie", ...userData(false, true) },
+  });
+
+  await expect(removeWatchedFromWatchlist(api, "u", ["m1"])).resolves.toEqual({
+    removed: [],
+    failed: [],
+  });
+  expect(unliked).toEqual([]);
+});
+
+// Jellyfin 12 no longer clears Played when a played item starts again
+// (jellyfin#15762). A played movie put back on the watchlist, played 31 s and
+// left, still read as finished and lost its entry right after the stop report.
+test("leaves a played movie on the watchlist when a rewatch of it was left with a resume point", async () => {
+  const { api, unliked } = serve({
+    m1: {
+      Id: "m1",
+      Type: "Movie",
+      ...userData(true, true, ABANDONED_AT_TICKS),
+    },
   });
 
   await expect(removeWatchedFromWatchlist(api, "u", ["m1"])).resolves.toEqual({
@@ -115,6 +142,17 @@ test("finishing a show's last episode removes the show too", async () => {
 
   await removeWatchedFromWatchlist(api, "u", ["ep"]);
   expect(unliked.sort()).toEqual(["ep", "s1", "show"]);
+});
+
+// Season and show are finished from before the rewatch, and on Jellyfin 12
+// stay that way through it: only the episode's resume point says it was left.
+test("an episode rewatch left with a resume point leaves its season and show on the watchlist", async () => {
+  const library = show(true, true);
+  library.ep.UserData = userData(true, true, ABANDONED_AT_TICKS).UserData;
+  const { api, unliked } = serve(library);
+
+  await removeWatchedFromWatchlist(api, "u", ["ep"]);
+  expect(unliked).toEqual([]);
 });
 
 test("marking a whole show played clears its watchlisted seasons and episodes", async () => {

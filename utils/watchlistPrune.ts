@@ -6,11 +6,17 @@ const isContainer = (item: BaseItemDto) =>
   item.Type === "Series" || item.Type === "Season";
 
 /**
- * Jellyfin computes `Played` for a season or show from its episodes: true once
- * every episode is played. That is exactly "finished" for the watchlist.
+ * Whether the server counts the item as completed: played, with its resume
+ * position reset. Played alone is not enough: Jellyfin 12 keeps it through a
+ * rewatch (jellyfin#15762), where 10.11 cleared it when playback started. A
+ * season or show has no position of its own, and Jellyfin computes its Played
+ * from its episodes: true once every episode is played.
  */
-const isWatchlistedAndWatched = (item: BaseItemDto) =>
-  item.UserData?.Likes === true && item.UserData?.Played === true;
+const isFinished = (item: BaseItemDto) =>
+  item.UserData?.Played === true && !item.UserData.PlaybackPositionTicks;
+
+const isWatchlistedAndFinished = (item: BaseItemDto) =>
+  item.UserData?.Likes === true && isFinished(item);
 
 /**
  * Takes finished items off the KefinTweaks watchlist (Jellyfin's Likes rating).
@@ -19,11 +25,18 @@ const isWatchlistedAndWatched = (item: BaseItemDto) =>
  * the ids of those items. For each one it checks the item, then the season and
  * show above it (finishing the last episode finishes them too), and, when a
  * whole season or show was marked played, the watchlisted seasons and
- * episodes inside it. Anything watchlisted and now fully played gets
+ * episodes inside it. Anything watchlisted and now finished gets
  * `likes=false`.
  *
- * Reads the server's state rather than trusting the caller's, so a stop report
- * for an episode abandoned halfway removes nothing.
+ * Reads the server's state rather than trusting the caller's, and removes only
+ * what the server now counts as completed: `Played` true and the resume
+ * position reset to 0. On Jellyfin 10.11 starting a played item clears Played;
+ * on 12 Played stays true through a rewatch, but an abandoned one keeps its
+ * resume position while a finished one is reset to 0. Either way a stop report
+ * for an episode abandoned halfway removes nothing. One case still reads as
+ * completed on 12: a rewatch left before the server's minimum resume
+ * percentage (5% by default), whose position the server drops without
+ * touching Played.
  *
  * Each item, parent and rating update stands alone: one the server cannot
  * serve is reported in `failed` and the rest of the batch still goes through.
@@ -81,7 +94,7 @@ export async function removeWatchedFromWatchlist(
   const prune = async (itemId: string) => {
     const item = await getItem(itemId);
     // An unfinished item leaves its season and show unfinished as well.
-    if (!item?.UserData?.Played) return;
+    if (!item || !isFinished(item)) return;
 
     const parentIds = [
       item.Type === "Episode" ? item.SeasonId : undefined,
@@ -112,7 +125,7 @@ export async function removeWatchedFromWatchlist(
 
     await Promise.all(
       candidates
-        .filter(isWatchlistedAndWatched)
+        .filter(isWatchlistedAndFinished)
         .map((candidate) => candidate.Id)
         .filter((id): id is string => !!id)
         .map(unlike),
