@@ -43,6 +43,10 @@ jest.mock(
     jest.requireActual("@/test-utils/jellyfinProvider").jellyfinProviderModule,
 );
 jest.mock(
+  "@/utils/atoms/api",
+  () => jest.requireActual("@/test-utils/jellyfinProvider").apiAtomsModule,
+);
+jest.mock(
   "expo-router",
   () => jest.requireActual("@/test-utils/expoRouter").expoRouterModule,
 );

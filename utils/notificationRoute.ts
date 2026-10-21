@@ -42,3 +42,29 @@ export const notificationRoute = (
     ? `/(auth)/(tabs)/(home)/series/${seriesId}`
     : `/(auth)/(tabs)/(home)/series/${seriesId}?seasonIndex=${seasonIndex}`;
 };
+
+type NotificationAnswer = {
+  actionIdentifier: string;
+  notification?: {
+    request: { content: { data?: Record<string, unknown> | null } };
+  } | null;
+};
+
+/**
+ * A plain tap on a notification rather than one of its buttons, which useNotificationActions
+ * carries out. The plain tap's identifier comes from expo-notifications, which TV builds
+ * leave out, so the caller passes it.
+ */
+export const isPlainTap = (
+  answer: NotificationAnswer | null | undefined,
+  plainTap: string,
+): boolean => answer?.actionIdentifier === plainTap;
+
+/** Where an answer to a notification takes the app: a button opens nothing. */
+export const responseRoute = (
+  answer: NotificationAnswer | null | undefined,
+  plainTap: string,
+): string | null =>
+  answer?.notification && isPlainTap(answer, plainTap)
+    ? notificationRoute(answer.notification.request.content.data)
+    : null;

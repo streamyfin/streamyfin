@@ -165,6 +165,7 @@ export const TVServerIcon = React.forwardRef<View, TVServerIconProps>(
             >
               <Text
                 style={{
+                  // biome-ignore lint/plugin: glyph, not text
                   fontSize: scaleSize(48),
                   fontWeight: "bold",
                   color: "#fff",

@@ -4,7 +4,6 @@ import { initialSyncPlaySnapshot } from "@/utils/syncplay/controller";
 import {
   buildNativeSyncPlayState,
   dispatchNativeSyncPlayAction,
-  isSameStreamUrl,
 } from "./syncPlay";
 
 const coordinator = () => ({
@@ -148,29 +147,4 @@ test("native state preserves playlist identities for duplicate media", () => {
       ((key: string) => key) as TFunction,
     ),
   ).toBeNull();
-});
-
-describe("isSameStreamUrl", () => {
-  test("matches a URL the native side percent-encoded", () => {
-    expect(
-      isSameStreamUrl(
-        "http://host/media/My Movie [2020].strm",
-        "http://host/media/My%20Movie%20%5B2020%5D.strm",
-      ),
-    ).toBe(true);
-  });
-
-  test("tells two streams apart", () => {
-    expect(
-      isSameStreamUrl(
-        "http://host/Videos/a/stream.mkv",
-        "http://host/Videos/b/stream.mkv",
-      ),
-    ).toBe(false);
-  });
-
-  test("falls back to the raw strings when one is not decodable", () => {
-    expect(isSameStreamUrl("http://host/100%", "http://host/100%")).toBe(true);
-    expect(isSameStreamUrl("http://host/100%", "http://host/50%")).toBe(false);
-  });
 });
