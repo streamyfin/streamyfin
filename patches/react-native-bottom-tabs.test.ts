@@ -30,14 +30,20 @@ test("keeps hidden tabs out of the SwiftUI ForEach that builds the tab bar", () 
     expect(source).not.toContain("ForEach(props.children)");
   }
 
-  // The getter itself, so a version that keeps the rule's text but returns
-  // every child, or keeps the hidden tabs and drops the others, fails too.
+  // The getter itself, so a version that returns every child, or keeps the
+  // hidden tabs and drops the others, fails too. It keeps the children of
+  // filteredItems rather than repeating its rule: the library matches the tab
+  // bar's items to filteredItems by position, so the two lists must not drift
+  // apart when a version bump changes that rule.
   const renderedChildren =
     tabViewSource("TabViewProps.swift").match(
       /var renderedChildren: \[IdentifiablePlatformView\] \{[\s\S]*?\n {2}\}/,
     )?.[0] ?? "";
   expect(renderedChildren).toContain(
-    "guard let tabData = items[safe: index], !tabData.hidden || tabData.key == selectedPage else {",
+    "let rendered = Set(filteredItems.map(\\.key))",
+  );
+  expect(renderedChildren).toContain(
+    "guard let key = items[safe: index]?.key, rendered.contains(key) else {",
   );
   expect(renderedChildren).toMatch(/else \{\s*return nil\s*\}\s*return child/);
 });

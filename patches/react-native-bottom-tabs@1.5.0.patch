@@ -25,7 +25,7 @@ index bc9e6eff24d9543d82ef9b50aaef1c695c85f7da..5578b5bc788ecf28b492c1aa38bca454
             let tabData = props.items[safe: index] {
            let isFocused = props.selectedPage == tabData.key
 diff --git a/ios/TabViewProps.swift b/ios/TabViewProps.swift
-index d3453f5700a300cb2fd3f310d7d13dd9fa35d88e..7213b4f24e550c316bb48f57a814d018b3226c18 100644
+index d3453f5700a300cb2fd3f310d7d13dd9fa35d88e..b51e861657970c868beb45428bb508c51074efb8 100644
 --- a/ios/TabViewProps.swift
 +++ b/ios/TabViewProps.swift
 @@ -36,6 +36,13 @@ public enum TabBarRole: String {
@@ -42,19 +42,21 @@ index d3453f5700a300cb2fd3f310d7d13dd9fa35d88e..7213b4f24e550c316bb48f57a814d018
        return .search
      case .prominent:
        #if compiler(>=6.4)
-@@ -119,4 +126,18 @@ class TabViewProps: ObservableObject {
+@@ -119,4 +126,20 @@ class TabViewProps: ObservableObject {
        !$0.hidden || $0.key == selectedPage
      }
    }
 +
-+  /// The children that render a tab, under the same rule as `filteredItems`.
++  /// The children that render a tab: those of `filteredItems`, taken from it rather than from a
++  /// copy of its rule, since the tab bar's items are matched to `filteredItems` by position.
 +  ///
 +  /// A hidden tab is left out of the `ForEach` instead of rendering nothing there: SwiftUI evicts a
 +  /// `ForEach` element that no tab retains, and a selection made by the tvOS focus engine walks the
 +  /// list outside a view update, where rebuilding that element traps.
 +  var renderedChildren: [IdentifiablePlatformView] {
-+    children.enumerated().compactMap { index, child in
-+      guard let tabData = items[safe: index], !tabData.hidden || tabData.key == selectedPage else {
++    let rendered = Set(filteredItems.map(\.key))
++    return children.enumerated().compactMap { index, child in
++      guard let key = items[safe: index]?.key, rendered.contains(key) else {
 +        return nil
 +      }
 +      return child
