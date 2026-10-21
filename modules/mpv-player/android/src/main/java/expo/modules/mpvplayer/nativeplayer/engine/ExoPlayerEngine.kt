@@ -36,7 +36,6 @@ import androidx.media3.exoplayer.audio.AudioCapabilities
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.datasource.DefaultDataSource
-import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.ui.CaptionStyleCompat
 import androidx.media3.ui.SubtitleView
 import expo.modules.mpvplayer.DeviceKind
@@ -412,9 +411,8 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
     private fun loadInternal(config: VideoLoadConfig) {
         val p = player ?: return
 
-        val httpFactory = DefaultHttpDataSource.Factory()
-            .setAllowCrossProtocolRedirects(true)
-            .setDefaultRequestProperties(config.headers ?: emptyMap())
+        // Follows a server's http to https redirect without handing its headers to another host.
+        val httpFactory = UpgradeRedirectDataSource.Factory(config.headers ?: emptyMap())
         val dataSourceFactory = DefaultDataSource.Factory(context, httpFactory)
 
         val mediaItem = buildMediaItem(config)
