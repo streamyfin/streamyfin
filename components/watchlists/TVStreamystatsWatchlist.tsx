@@ -10,14 +10,13 @@ import { Loader } from "@/components/Loader";
 import { useTVFocusAnimation } from "@/components/tv/hooks/useTVFocusAnimation";
 import { TVQueryErrorState } from "@/components/tv/TVQueryErrorState";
 import { useScaledTVTypography } from "@/constants/TVTypography";
-import { TV_HORIZONTAL_PADDING } from "@/constants/Values";
+import { TV_HORIZONTAL_PADDING, TV_TOP_PADDING } from "@/constants/Values";
 import useRouter from "@/hooks/useAppRouter";
 import { useWatchlistsQuery } from "@/hooks/useWatchlists";
 import { userAtom } from "@/providers/JellyfinProvider";
 import { scaleSize } from "@/utils/scaleSize";
 import type { StreamystatsWatchlist } from "@/utils/streamystats/types";
 
-const TOP_PADDING = scaleSize(100);
 const CARD_WIDTH = scaleSize(520);
 const CARD_HEIGHT = scaleSize(180);
 // Wide enough that a card scaled up on focus never touches its neighbour.
@@ -213,7 +212,7 @@ export const TVStreamystatsWatchlists: React.FC<
     ].filter((section) => section.items.length > 0);
   }, [watchlists, user?.Id, t]);
 
-  const topPadding = contentTopPadding ?? insets.top + TOP_PADDING;
+  const topPadding = contentTopPadding ?? insets.top + TV_TOP_PADDING;
 
   if (isLoading) {
     return (

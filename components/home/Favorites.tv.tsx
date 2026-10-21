@@ -17,11 +17,10 @@ import { InfiniteScrollingCollectionList } from "@/components/home/InfiniteScrol
 import { TVQueryErrorState } from "@/components/tv/TVQueryErrorState";
 import { Colors } from "@/constants/Colors";
 import { useScaledTVTypography } from "@/constants/TVTypography";
-import { TV_HORIZONTAL_PADDING } from "@/constants/Values";
+import { TV_HORIZONTAL_PADDING, TV_TOP_PADDING } from "@/constants/Values";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { scaleSize } from "@/utils/scaleSize";
 
-const TOP_PADDING = 100;
 const SECTION_GAP = 10;
 
 type FavoriteTypes =
@@ -64,7 +63,7 @@ export const Favorites = ({
   const [user] = useAtom(userAtom);
   const pageSize = 20;
 
-  const topPadding = contentTopPadding ?? insets.top + TOP_PADDING;
+  const topPadding = contentTopPadding ?? insets.top + TV_TOP_PADDING;
 
   const [emptyState, setEmptyState] = useState<EmptyState>({
     Series: null,

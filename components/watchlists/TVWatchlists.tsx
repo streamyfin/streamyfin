@@ -3,14 +3,11 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Favorites as TVFavorites } from "@/components/home/Favorites.tv";
 import { TVSegmentedControl } from "@/components/tv";
 import { TVStreamystatsWatchlists } from "@/components/watchlists/TVStreamystatsWatchlist";
-import { TV_HORIZONTAL_PADDING } from "@/constants/Values";
+import { TV_HORIZONTAL_PADDING, TV_TOP_PADDING } from "@/constants/Values";
 import {
   useWatchlistSource,
   useWatchlistSourceOptions,
 } from "@/hooks/useWatchlistSource";
-import { scaleSize } from "@/utils/scaleSize";
-
-const TV_TOP_PADDING = scaleSize(100);
 
 interface Props {
   streamystatsShown: boolean;
