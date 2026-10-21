@@ -1,6 +1,11 @@
 import type { Api } from "@jellyfin/sdk";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import GoogleCast, { CastChannel } from "react-native-google-cast";
+import GoogleCast, {
+  CastChannel,
+  MediaPlayerState,
+  type MediaStatus,
+  type RemoteMediaClient,
+} from "react-native-google-cast";
 
 /**
  * The official Jellyfin receiver (F007D354) speaks its own protocol over this
@@ -328,4 +333,96 @@ export const watchReceiverLoadErrors = (
   stopWatchingCurrentLoad = stop;
 
   return stop;
+};
+
+export type ReceiverLoadOutcome =
+  | { status: "loaded" }
+  | { status: "failed"; error: ReceiverLoadError; message: ReceiverMessage }
+  | { status: "timed_out" }
+  /** A newer cast replaced this one before it settled. */
+  | { status: "superseded" };
+
+/** The part of the receiver's media customData that tells its loads apart. */
+interface ReceiverMediaData {
+  itemId?: string;
+  playSessionId?: string;
+}
+
+const receiverMediaData = (
+  status: MediaStatus | null | undefined,
+): ReceiverMediaData | undefined =>
+  status?.mediaInfo?.customData as ReceiverMediaData | undefined;
+
+let supersedeCurrentCast: (() => void) | null = null;
+
+/**
+ * Casts and resolves once the receiver has a media session for the requested
+ * item, has sent a load error back, or has done neither within `timeoutMs`.
+ *
+ * Sending PlayNow only means the message left the phone. A receiver that
+ * cannot reach the server fails on its first request without a word back, and
+ * one that replaces playing media goes idle before loading the new item, which
+ * closes Android's expanded controls if they were opened on the send.
+ */
+export const castToJellyfinReceiver = async (
+  client: RemoteMediaClient,
+  session: JellyfinCastSession,
+  request: JellyfinCastPlayRequest,
+  timeoutMs: number,
+): Promise<ReceiverLoadOutcome> => {
+  supersedeCurrentCast?.();
+
+  const sent = toReceiverRequest(request);
+  const itemId = sent.items[sent.startIndex ?? 0]?.Id;
+  // Every load gets a new play session, which is what tells a recast of the
+  // item already on the TV from the media it replaces.
+  const previous = receiverMediaData(
+    await client.getMediaStatus().catch(() => null),
+  );
+
+  return new Promise<ReceiverLoadOutcome>((resolve, reject) => {
+    let settled = false;
+    let stopWatchingErrors = () => {};
+    let statusUpdates: { remove: () => void } | undefined;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    const settle = (finish: () => void) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      statusUpdates?.remove();
+      stopWatchingErrors();
+      if (supersedeCurrentCast === supersede) supersedeCurrentCast = null;
+      finish();
+    };
+    const supersede = () => settle(() => resolve({ status: "superseded" }));
+    supersedeCurrentCast = supersede;
+
+    stopWatchingErrors = watchReceiverLoadErrors(
+      (error, message) =>
+        settle(() => resolve({ status: "failed", error, message })),
+      timeoutMs,
+    );
+    statusUpdates = client.onMediaStatusUpdated((status) => {
+      const media = receiverMediaData(status);
+      if (!media?.itemId || media.itemId !== itemId) return;
+      if (
+        previous?.playSessionId &&
+        media.playSessionId === previous.playSessionId
+      ) {
+        return;
+      }
+      if (!status?.playerState || status.playerState === MediaPlayerState.IDLE)
+        return;
+      settle(() => resolve({ status: "loaded" }));
+    });
+    timer = setTimeout(
+      () => settle(() => resolve({ status: "timed_out" })),
+      timeoutMs,
+    );
+
+    playOnJellyfinReceiver(session, request).catch((error) =>
+      settle(() => reject(error)),
+    );
+  });
 };

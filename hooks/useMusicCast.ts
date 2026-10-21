@@ -11,16 +11,15 @@ import CastContext, {
   useRemoteMediaClient,
 } from "react-native-google-cast";
 import {
-  RECEIVER_ERROR_WINDOW_MS,
+  RECEIVER_LOAD_TIMEOUT_MS,
   RECEIVER_MAX_QUEUE_ITEMS,
 } from "@/constants/Cast";
 import {
+  castToJellyfinReceiver,
   currentReceiverName,
-  playOnJellyfinReceiver,
   queueWindow,
-  watchReceiverLoadErrors,
 } from "@/utils/cast/jellyfinReceiver";
-import { receiverLoadErrorMessage } from "@/utils/cast/receiverLoadErrorMessage";
+import { castNotStartedMessage } from "@/utils/cast/receiverLoadErrorMessage";
 import { logAndCaptureError, writeErrorLog } from "@/utils/log";
 
 interface UseMusicCastOptions {
@@ -45,8 +44,8 @@ export const useMusicCast = ({ api, userId }: UseMusicCastOptions) => {
   const isConnected = castState === CastState.CONNECTED;
 
   /**
-   * Cast a queue of tracks to Chromecast
-   * Uses native queue support for seamless track transitions
+   * Cast a queue of tracks to Chromecast. The receiver keeps the queue and
+   * moves through it on its own.
    */
   const castQueue = useCallback(
     async ({ queue, startIndex }: CastQueueOptions): Promise<boolean> => {
@@ -54,8 +53,6 @@ export const useMusicCast = ({ api, userId }: UseMusicCastOptions) => {
         console.warn("Cannot cast: missing client, api, or userId");
         return false;
       }
-
-      let stopWatchingErrors = () => {};
 
       try {
         // Check Play Services state (Android)
@@ -74,31 +71,28 @@ export const useMusicCast = ({ api, userId }: UseMusicCastOptions) => {
           RECEIVER_MAX_QUEUE_ITEMS,
         );
 
-        // The command resolves once sent; whether the receiver could load the
-        // tracks only comes back later, on its message channel.
-        stopWatchingErrors = watchReceiverLoadErrors((error, message) => {
-          writeErrorLog("Chromecast receiver error", message);
-          Alert.alert(
-            t("player.client_error"),
-            receiverLoadErrorMessage(t, error),
-          );
-        }, RECEIVER_ERROR_WINDOW_MS);
-
         // Auto-cast fires on the render the session connects, before the
         // device hook has resolved, so the name is read from the session.
         const receiverName = (await currentReceiverName()) ?? castDeviceName;
 
-        await playOnJellyfinReceiver(
+        const outcome = await castToJellyfinReceiver(
+          client,
           { api, userId, receiverName },
           queueToSend,
+          RECEIVER_LOAD_TIMEOUT_MS,
         );
 
-        // Show expanded controls
-        CastContext.showExpandedControls();
+        const notStarted = castNotStartedMessage(t, outcome);
+        if (notStarted) {
+          writeErrorLog("Chromecast did not start the music queue", outcome);
+          Alert.alert(t("player.client_error"), notStarted);
+          return false;
+        }
+        if (outcome.status !== "loaded") return false;
 
+        CastContext.showExpandedControls();
         return true;
       } catch (error) {
-        stopWatchingErrors();
         logAndCaptureError("Casting music queue failed", error);
         // The caller starts a cast and moves on, so nothing else would tell
         // the user the queue never reached the TV.

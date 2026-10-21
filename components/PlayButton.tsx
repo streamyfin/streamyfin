@@ -23,7 +23,7 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
-import { RECEIVER_ERROR_WINDOW_MS } from "@/constants/Cast";
+import { RECEIVER_LOAD_TIMEOUT_MS } from "@/constants/Cast";
 import useRouter from "@/hooks/useAppRouter";
 import { useHaptic } from "@/hooks/useHaptic";
 import type { ThemeColors } from "@/hooks/useImageColorsReturn";
@@ -36,11 +36,10 @@ import { useSyncPlay } from "@/providers/SyncPlayProvider";
 import { itemThemeColorAtom } from "@/utils/atoms/primaryColor";
 import { useSettings } from "@/utils/atoms/settings";
 import {
+  castToJellyfinReceiver,
   currentReceiverName,
-  playOnJellyfinReceiver,
-  watchReceiverLoadErrors,
 } from "@/utils/cast/jellyfinReceiver";
-import { receiverLoadErrorMessage } from "@/utils/cast/receiverLoadErrorMessage";
+import { castNotStartedMessage } from "@/utils/cast/receiverLoadErrorMessage";
 import { logAndCaptureError, writeErrorLog } from "@/utils/log";
 import type { PlayRequest } from "@/utils/nativePlayer/playRequest";
 import { formatDuration, runtimeTicksToMinutes } from "@/utils/time";
@@ -163,22 +162,10 @@ export const PlayButton: React.FC<Props> = ({
                   // session and makes the cast visible in the dashboard. No
                   // stream URL, device profile or sidecar subtitle track is
                   // built here any more -- the receiver handles all of it.
-                  // The receiver reports a failed load only on its message
-                  // channel; without a listener the TV just sits on its idle
-                  // screen and the phone shows nothing.
-                  const stopWatchingErrors = watchReceiverLoadErrors(
-                    (error, message) => {
-                      writeErrorLog("Chromecast receiver error", message);
-                      Alert.alert(
-                        t("player.client_error"),
-                        receiverLoadErrorMessage(t, error),
-                      );
-                    },
-                    RECEIVER_ERROR_WINDOW_MS,
-                  );
-
+                  if (!client) return;
                   try {
-                    await playOnJellyfinReceiver(
+                    const outcome = await castToJellyfinReceiver(
+                      client,
                       {
                         api,
                         userId: user.Id,
@@ -195,18 +182,25 @@ export const PlayButton: React.FC<Props> = ({
                         audioStreamIndex: selectedOptions.audioIndex,
                         subtitleStreamIndex: selectedOptions.subtitleIndex,
                       },
+                      RECEIVER_LOAD_TIMEOUT_MS,
                     );
 
-                    // state is already set when reopening current media, so skip it here.
-                    if (!isOpeningCurrentlyPlayingMedia) {
+                    const notStarted = castNotStartedMessage(t, outcome);
+                    if (notStarted) {
+                      writeErrorLog("Chromecast did not start", outcome);
+                      Alert.alert(t("player.client_error"), notStarted);
+                    } else if (
+                      outcome.status === "loaded" &&
+                      // state is already set when reopening current media, so skip it here.
+                      !isOpeningCurrentlyPlayingMedia
+                    ) {
                       CastContext.showExpandedControls();
                     }
                   } catch (e) {
-                    stopWatchingErrors();
                     logAndCaptureError("Chromecast playback failed", e);
                     Alert.alert(
                       t("player.client_error"),
-                      `${t("player.chromecast_playback_failed")}\n\n${String(e)}`,
+                      t("player.chromecast_playback_failed"),
                     );
                   }
                 }

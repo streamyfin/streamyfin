@@ -13,11 +13,13 @@ export const JELLYFIN_RECEIVER_CLIENT = "Chromecast";
 export const RECEIVER_MAX_QUEUE_ITEMS = 100;
 
 /**
- * How long after a cast starts the phone keeps listening for the receiver's own
- * error messages. The receiver only reports load problems (server unreachable,
- * no playable stream) this way, and they come within seconds of the command.
+ * How long a cast waits for the receiver to load the item before telling the
+ * user it did not start. A receiver that cannot reach the server fails on its
+ * first request without a word back, so this wait is the only sign of it. A
+ * receiver measures its bandwidth and runs PlaybackInfo before loading, which
+ * takes a few seconds on a home network.
  */
-export const RECEIVER_ERROR_WINDOW_MS = 30_000;
+export const RECEIVER_LOAD_TIMEOUT_MS = 30_000;
 
 /**
  * After a Cast session ends on a connection loss, how long to leave the
