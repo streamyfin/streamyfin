@@ -662,7 +662,7 @@ export const defaultValues: Settings = {
   enableH265ForChromecast: false,
   stillWatchingPreset: DEFAULT_STILL_WATCHING_PRESET,
   autoPlayNextEpisode: true,
-  confirmBeforeStoppingPlayback: true,
+  confirmBeforeStoppingPlayback: false,
   syncPlayIgnoreWait: false,
   // Media segment skip defaults
   skipIntro: "ask",

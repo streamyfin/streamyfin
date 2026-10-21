@@ -58,6 +58,7 @@ stubReactNative({ OS: "android", isTV: true });
 // Required after the platform is set, not imported: settings.ts reads
 // Platform once, when the module is evaluated.
 const {
+  defaultValues,
   effectiveSettingsAtom,
   getActivePlayerType,
   getActiveVideoPlayer,
@@ -760,5 +761,13 @@ describe("loading the settings", () => {
       openSubtitlesApiKey: "my-key",
     });
     expect(storage.get(PLUGIN_APPLIED_DEFAULTS_KEY)).toEqual({});
+  });
+});
+
+describe("the stop playback confirmation", () => {
+  test("is off until the user turns it on", () => {
+    // Jellyfin's Android TV app, Wholphin, Swiftfin and Plex all leave
+    // playback on Back without asking.
+    expect(defaultValues.confirmBeforeStoppingPlayback).toBe(false);
   });
 });
