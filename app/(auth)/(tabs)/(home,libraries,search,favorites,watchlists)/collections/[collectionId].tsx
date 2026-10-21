@@ -50,6 +50,7 @@ import {
   yearFilterAtom,
 } from "@/utils/atoms/filters";
 import type { TVOptionItem } from "@/utils/atoms/tvOptionModal";
+import { serverSortBy } from "@/utils/library/libraryItemsQuery";
 import { resolveSortKey } from "@/utils/library/sortOption";
 
 const TV_ITEM_GAP = 16;
@@ -214,7 +215,7 @@ const page: React.FC = () => {
         limit: Platform.isTV ? 36 : 18,
         startIndex: pageParam,
         // Set one ordering at a time. As collections do not work with correctly with multiple.
-        sortBy: [activeSortBy],
+        sortBy: [serverSortBy(activeSortBy, collection.CollectionType)],
         sortOrder: [sortOrder[0]],
         fields: [
           "ItemCounts",

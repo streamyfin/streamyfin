@@ -4,6 +4,7 @@ import {
   buildLibraryQueueQuery,
   isQueueableLibrary,
   type LibraryItemsFilter,
+  serverSortBy,
 } from "./libraryItemsQuery";
 
 const horrorMovies: LibraryItemsFilter = {
@@ -112,4 +113,18 @@ describe("library items query", () => {
       }).sortBy,
     ).toEqual(["DateLastContentAdded", "SortName", "ProductionYear"]);
   });
+
+  // The collections screen builds its own request, and a Shows view opens
+  // there: it needs the same series-level key as the library page.
+  test.each([
+    ["tvshows", "DatePlayed", "SeriesDatePlayed"],
+    ["tvshows", "DateLastContentAdded", "DateLastContentAdded"],
+    ["movies", "DatePlayed", "DatePlayed"],
+    [undefined, "DatePlayed", "DatePlayed"],
+  ] as const)(
+    "a %s view asks the server for %s as %s",
+    (collectionType, sortBy, expected) => {
+      expect(serverSortBy(sortBy, collectionType)).toBe(expected);
+    },
+  );
 });

@@ -41,6 +41,20 @@ export const ITEM_TYPE_BY_COLLECTION: Partial<
 };
 
 /**
+ * The key a selected sort goes to the server as. A show's own DatePlayed reads
+ * user data that playback never writes (it lands on the episodes), so a Shows
+ * library or view sorts by the series-level key, as jellyfin-web does. The
+ * saved preference keeps the DatePlayed name.
+ */
+export const serverSortBy = (
+  sortBy: ItemSortBy,
+  collectionType: CollectionType | null | undefined,
+): ItemSortBy =>
+  collectionType === "tvshows" && sortBy === "DatePlayed"
+    ? "SeriesDatePlayed"
+    : sortBy;
+
+/**
  * The part of the items request that decides which items a library page
  * lists and in what order. The grid and the play queue both start from it, so
  * Play All can never queue something the filters hide.
@@ -60,18 +74,14 @@ export const buildLibraryItemsQuery = ({
     ? ITEM_TYPE_BY_COLLECTION[collectionType]
     : undefined;
 
-  // A show's own DatePlayed reads user data that playback never writes (it
-  // lands on the episodes), so a Shows library sorts by the series-level key,
-  // as jellyfin-web does. The saved preference keeps the DatePlayed name.
-  const serverSortBy: ItemSortBy =
-    collectionType === "tvshows" && sortBy === "DatePlayed"
-      ? "SeriesDatePlayed"
-      : sortBy;
-
   return {
     userId,
     parentId: libraryId,
-    sortBy: [serverSortBy, "SortName", "ProductionYear"],
+    sortBy: [
+      serverSortBy(sortBy, collectionType),
+      "SortName",
+      "ProductionYear",
+    ],
     sortOrder: [sortOrder],
     filters: filterBy,
     // true is needed for merged versions
