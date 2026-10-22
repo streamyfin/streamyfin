@@ -46,6 +46,7 @@ import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { getItemNavigation } from "@/components/common/TouchableItemRouter";
 import { FilterButton } from "@/components/filters/FilterButton";
+import { OfficialRatingsFilterButton } from "@/components/filters/OfficialRatingsFilterButton";
 import { ResetFiltersButton } from "@/components/filters/ResetFiltersButton";
 import { Loader } from "@/components/Loader";
 import { AlphabetRail } from "@/components/library/AlphabetRail";
@@ -67,6 +68,7 @@ import { useLanguageFilters } from "@/hooks/useLanguageFilters";
 import { useLibraryFilters } from "@/hooks/useLibraryFilters";
 import { useLibraryPlayQueue } from "@/hooks/useLibraryPlayQueue";
 import { useLibraryTabs } from "@/hooks/useLibraryTabs";
+import { useOfficialRatingOptions } from "@/hooks/useOfficialRatingOptions";
 import { useOrientation } from "@/hooks/useOrientation";
 import { useRefreshLibraryOnFocus } from "@/hooks/useRefreshLibraryOnFocus";
 import { useServerVersion } from "@/hooks/useServerVersion";
@@ -120,7 +122,6 @@ import {
 import { supportsNameBounds } from "@/utils/jellyfin/serverVersion";
 import {
   buildLibraryItemsQuery,
-  getLibraryItemTypes,
   isQueueableLibrary,
   type LibraryItemsFilter,
   libraryLanguageOptions,
@@ -132,10 +133,7 @@ import {
   isLibraryTabCountQueryKey,
   libraryTabUsesFilterBar,
 } from "@/utils/library/libraryTabs";
-import {
-  fetchOfficialRatings,
-  withSelectedRatings,
-} from "@/utils/library/officialRatings";
+import { withSelectedRatings } from "@/utils/library/officialRatings";
 import { store } from "@/utils/store";
 
 /** Items per request of the grid; more load as the list is scrolled. */
@@ -539,30 +537,15 @@ const Page = () => {
   // Shared with the language filters above: one request for both.
   const serverVersion = useServerVersion();
 
-  // The ratings the chip and the TV sheet offer, asked for the kind of item
-  // the grid lists (see fetchOfficialRatings), so it waits for the library.
-  const ratingItemTypes = getLibraryItemTypes(library?.CollectionType);
-  const { data: officialRatingOptions } = useQuery({
-    // The user is part of it: the server only lists what that user may see.
-    queryKey: [
-      "filters",
-      "OfficialRatings",
-      libraryId,
-      ratingItemTypes,
-      user?.Id,
-    ],
-    queryFn: async () => {
-      if (!api) return [];
-      return fetchOfficialRatings(api, {
-        userId: user?.Id,
-        parentId: libraryId,
-        includeItemTypes: ratingItemTypes,
-      });
-    },
-    enabled: !!api && !!user?.Id && !!libraryId && !!library,
-  });
-  // A saved pick the server no longer lists still filters the grid, so it
-  // stays among the choices, where it can be taken back.
+  // The TV sheet's ratings; the phone chip reads the same query itself (see
+  // OfficialRatingsFilterButton). A saved pick the server no longer lists
+  // still filters the grid, so it stays among the choices, where it can be
+  // taken back.
+  const officialRatingOptions = useOfficialRatingOptions(
+    libraryId,
+    library?.CollectionType,
+    Platform.isTV && !!library,
+  );
   const officialRatings = useMemo(
     () =>
       withSelectedRatings(officialRatingOptions ?? [], selectedOfficialRatings),
@@ -1022,16 +1005,13 @@ const Page = () => {
           {
             key: "officialRatings",
             component: (
-              <FilterButton
-                className='mr-1'
-                id={libraryId}
-                queryKey='officialRatingFilter'
-                options={officialRatings}
+              <OfficialRatingsFilterButton
+                libraryId={libraryId}
+                collectionType={library?.CollectionType}
+                enabled={!!library}
                 set={setOfficialRatings}
                 values={selectedOfficialRatings}
                 title={t("library.filters.official_ratings")}
-                renderItemLabel={(item) => item.toString()}
-                multiple
               />
             ),
           },
@@ -1121,7 +1101,7 @@ const Page = () => {
       setYears,
       selectedTags,
       setTags,
-      officialRatings,
+      library,
       selectedOfficialRatings,
       setOfficialRatings,
       languageFilterEntries,
