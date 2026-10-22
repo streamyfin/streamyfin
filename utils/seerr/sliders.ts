@@ -1,7 +1,11 @@
 import { isPlainObject, sortBy } from "lodash";
 import type { SeerrApi } from "@/hooks/useSeerr";
 import { canSeeRecentlyAdded } from "./permissions";
-import { type DiscoverSlider, DiscoverSliderType } from "./types";
+import {
+  type DiscoverSlider,
+  DiscoverSliderType,
+  type GenreSliderItem,
+} from "./types";
 
 /** The rows of Seerr's Discover the app draws, the others being left out. */
 const DRAWN = new Set([
@@ -30,6 +34,23 @@ const DRAWN = new Set([
  */
 export const slidersOf = (body: unknown): DiscoverSlider[] =>
   Array.isArray(body) ? body.filter(isPlainObject) : [];
+
+/**
+ * The genres in what a server answered GET /discover/genreslider/{movie,tv}
+ * with, none when that is not a list of them: the same 200 that is not
+ * Seerr's as for the sliders (slidersOf). A genres row keys its cards and
+ * opens a genre by the id, under its name, so an entry without both, the
+ * keys Seerr always sends (utils/seerr/corrections.ts), is left out.
+ */
+export const genresOf = (body: unknown): GenreSliderItem[] =>
+  Array.isArray(body)
+    ? body.filter(
+        (item): item is GenreSliderItem =>
+          isPlainObject(item) &&
+          typeof item.id === "number" &&
+          typeof item.name === "string",
+      )
+    : [];
 
 /**
  * The server's sliders, for a query to resolve to: none without a client,
