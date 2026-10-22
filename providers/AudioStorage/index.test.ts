@@ -30,10 +30,15 @@ jest.mock("expo-file-system", () => {
   };
 });
 const mockStartDownload = jest.fn(async (..._args: unknown[]) => 1);
+// What native would call when a download finishes.
+let mockCompleteListener: ((event: unknown) => void) | undefined;
 jest.mock("@/modules", () => ({
   BackgroundDownloader: {
     startDownload: (...args: unknown[]) => mockStartDownload(...args),
-    addCompleteListener: () => ({ remove() {} }),
+    addCompleteListener: (listener: (event: unknown) => void) => {
+      mockCompleteListener = listener;
+      return { remove() {} };
+    },
     addErrorListener: () => ({ remove() {} }),
   },
 }));
@@ -212,6 +217,85 @@ describe("a track stored before an iOS update moved the app's container", () => 
     expect(audio.getLocalPath("track-1")).toBe(
       `file://${now}/Documents/streamyfin-audio/track-1.flac`,
     );
+  });
+
+  // Native reports a finished file without file://, and the app opens a stored track to delete it
+  // by that path as it is, so the fake disk holds these files as plain paths.
+  it("deletes a downloaded track from the current container, and saves the others' new paths", async () => {
+    storeIndex({
+      "track-1": track(
+        "track-1",
+        `${before}/Documents/streamyfin-audio/track-1.flac`,
+        true,
+      ),
+      "track-2": track(
+        "track-2",
+        `${before}/Documents/streamyfin-audio/track-2.flac`,
+        true,
+      ),
+    });
+    files.add(`${now}/Documents/streamyfin-audio/track-1.flac`);
+
+    await audio.deleteTrack("track-1");
+
+    expect(files.deleted()).toEqual([
+      `${now}/Documents/streamyfin-audio/track-1.flac`,
+    ]);
+    expect(storedIndex().tracks).toEqual({
+      "track-2": track(
+        "track-2",
+        `${now}/Documents/streamyfin-audio/track-2.flac`,
+        true,
+      ),
+    });
+  });
+
+  it("clears the look-ahead cache in the current container", async () => {
+    storeIndex({
+      "track-2": track(
+        "track-2",
+        `${before}/Library/Caches/streamyfin-audio-cache/track-2.mp3`,
+        false,
+      ),
+    });
+    files.add(`${now}/Library/Caches/streamyfin-audio-cache/track-2.mp3`);
+
+    await audio.clearCache();
+
+    expect(files.deleted()).toEqual([
+      `${now}/Library/Caches/streamyfin-audio-cache/track-2.mp3`,
+    ]);
+  });
+
+  it("evicts the oldest cached track from the current container", async () => {
+    const cached = (n: number) =>
+      `/Library/Caches/streamyfin-audio-cache/cached-${n}.mp3`;
+    // Ten cached tracks fill the cache; the oldest goes when an eleventh one arrives.
+    storeIndex(
+      Object.fromEntries(
+        Array.from({ length: 10 }, (_, i) => [
+          `cached-${i}`,
+          {
+            ...track(`cached-${i}`, `${before}${cached(i)}`, false),
+            storedAt: i,
+          },
+        ]),
+      ),
+    );
+    files.add(...Array.from({ length: 10 }, (_, i) => `${now}${cached(i)}`));
+
+    await audio.downloadTrack(
+      "cached-10",
+      "https://jellyfin.example/Audio/stream",
+      {
+        permanent: false,
+        container: "mp3",
+      },
+    );
+    mockCompleteListener?.({ taskId: 1, filePath: `${now}${cached(10)}` });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(files.deleted()).toEqual([`${now}${cached(0)}`]);
   });
 
   // A damaged entry broke every walk over the index: the storage stats threw on it, clearing the
