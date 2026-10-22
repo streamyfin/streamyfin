@@ -1,5 +1,5 @@
 import { makeApi } from "@/test-utils/jellyfinApi";
-import { fetchOfficialRatings } from "./officialRatings";
+import { fetchOfficialRatings, withSelectedRatings } from "./officialRatings";
 
 describe("the ratings a library can be filtered by", () => {
   // Without the item type the server also reports ratings that only seasons
@@ -44,5 +44,25 @@ describe("the ratings a library can be filtered by", () => {
         includeItemTypes: ["Movie"],
       }),
     ).resolves.toEqual([]);
+  });
+});
+
+describe("the rating choices", () => {
+  // A saved pick the server stopped listing (a title re-rated or deleted, or
+  // on Jellyfin 12 a rating the account's parental limit hides) still filters
+  // the grid, so it has to stay on screen to be taken back.
+  test("keep a saved rating the library no longer reports", () => {
+    expect(withSelectedRatings(["PG", "PG-13"], ["R", "PG"])).toEqual([
+      "PG",
+      "PG-13",
+      "R",
+    ]);
+  });
+
+  test("are the library's own when every pick is listed", () => {
+    const options = ["PG", "PG-13"];
+
+    expect(withSelectedRatings(options, ["PG"])).toBe(options);
+    expect(withSelectedRatings([], ["R"])).toEqual(["R"]);
   });
 });

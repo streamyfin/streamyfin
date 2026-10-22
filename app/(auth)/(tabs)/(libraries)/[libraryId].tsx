@@ -132,7 +132,10 @@ import {
   isLibraryTabCountQueryKey,
   libraryTabUsesFilterBar,
 } from "@/utils/library/libraryTabs";
-import { fetchOfficialRatings } from "@/utils/library/officialRatings";
+import {
+  fetchOfficialRatings,
+  withSelectedRatings,
+} from "@/utils/library/officialRatings";
 import { store } from "@/utils/store";
 
 /** Items per request of the grid; more load as the list is scrolled. */
@@ -558,6 +561,13 @@ const Page = () => {
     },
     enabled: !!api && !!user?.Id && !!libraryId && !!library,
   });
+  // A saved pick the server no longer lists still filters the grid, so it
+  // stays among the choices, where it can be taken back.
+  const officialRatings = useMemo(
+    () =>
+      withSelectedRatings(officialRatingOptions ?? [], selectedOfficialRatings),
+    [officialRatingOptions, selectedOfficialRatings],
+  );
 
   // Only a TV library has episodes still to air. `/Shows/Upcoming` answers for
   // any parent, with nothing.
@@ -1016,7 +1026,7 @@ const Page = () => {
                 className='mr-1'
                 id={libraryId}
                 queryKey='officialRatingFilter'
-                options={officialRatingOptions ?? []}
+                options={officialRatings}
                 set={setOfficialRatings}
                 values={selectedOfficialRatings}
                 title={t("library.filters.official_ratings")}
@@ -1111,7 +1121,7 @@ const Page = () => {
       setYears,
       selectedTags,
       setTags,
-      officialRatingOptions,
+      officialRatings,
       selectedOfficialRatings,
       setOfficialRatings,
       languageFilterEntries,
@@ -1188,13 +1198,13 @@ const Page = () => {
         value: "__all__",
         selected: selectedOfficialRatings.length === 0,
       },
-      ...(officialRatingOptions ?? []).map((rating) => ({
+      ...officialRatings.map((rating) => ({
         label: rating,
         value: rating,
         selected: selectedOfficialRatings.includes(rating),
       })),
     ],
-    [officialRatingOptions, selectedOfficialRatings, t],
+    [officialRatings, selectedOfficialRatings, t],
   );
 
   const tvSortByOptions = useMemo(

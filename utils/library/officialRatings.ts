@@ -21,3 +21,16 @@ export const fetchOfficialRatings = async (
   const response = await getFilterApi(api).getQueryFiltersLegacy(request);
   return response.data?.OfficialRatings ?? [];
 };
+
+/**
+ * The library's ratings plus any selected one it no longer reports, so a saved
+ * selection can always be seen and taken back, as the language filters do
+ * with withSelectedLanguages.
+ */
+export const withSelectedRatings = (
+  options: string[],
+  selected: string[],
+): string[] => {
+  const missing = selected.filter((rating) => !options.includes(rating));
+  return missing.length === 0 ? options : [...options, ...missing];
+};
