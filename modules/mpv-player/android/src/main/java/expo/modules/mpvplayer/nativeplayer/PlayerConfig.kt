@@ -159,6 +159,7 @@ class UIOptionsRecord : Record {
     @Field var holdToSpeedRate: Double = 2.0
     @Field var pinchToZoomEnabled: Boolean = true
     @Field var doubleTapToSeekEnabled: Boolean = false
+    @Field var confirmExitEnabled: Boolean = true
     @Field var subtitleSearchEnabled: Boolean = false
     @Field var subtitleSearchLanguages: List<SubtitleSearchLanguageRecord> = emptyList()
     @Field var subtitleSearchDefaultLanguage: String = "eng"

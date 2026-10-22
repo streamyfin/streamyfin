@@ -45,10 +45,10 @@ import {
   pendingAccountSaveAtom,
   userAtom,
 } from "@/providers/JellyfinProvider";
-import { SortByOption, SortOrderOption } from "@/utils/atoms/filters";
 import { useSettings } from "@/utils/atoms/settings";
 import { fetchCustomHomeSection } from "@/utils/customHomeSection";
 import { eventBus } from "@/utils/eventBus";
+import { recentlyAddedSeeAllParams } from "@/utils/library/seeAll";
 import { storage } from "@/utils/mmkv";
 
 // Conditionally load TV version
@@ -63,6 +63,7 @@ type InfiniteScrollingCollectionListSection = {
   pageSize?: number;
   priority?: 1 | 2; // 1 = high priority (loads first), 2 = low priority
   parentId?: string; // Library ID for "See All" navigation
+  collectionType?: BaseItemDto["CollectionType"]; // Decides the "See All" sort
   showParentTitle?: boolean;
 };
 
@@ -268,6 +269,7 @@ const HomeMobile = () => {
             type: "InfiniteScrollingCollectionList",
             pageSize: limit + 1,
             parentId: library.Id,
+            collectionType: library.CollectionType,
             showParentTitle: true,
           };
         },
@@ -629,8 +631,7 @@ const HomeMobile = () => {
                     pathname: "/(auth)/(tabs)/(libraries)/[libraryId]",
                     params: {
                       libraryId: section.parentId!,
-                      sortBy: SortByOption.DateCreated,
-                      sortOrder: SortOrderOption.Descending,
+                      ...recentlyAddedSeeAllParams(section.collectionType),
                     },
                   } as any);
                 }

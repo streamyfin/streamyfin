@@ -42,10 +42,16 @@ jest.mock("@/hooks/useAppRouter", () => ({
   __esModule: true,
   default: () => ({ push: () => {}, replace: () => {}, back: () => {} }),
 }));
-jest.mock("@/providers/JellyfinProvider", () => {
+// The settings read the session from utils/atoms/api and the page from the
+// provider: one pair of atoms serves both, and the real api module would load
+// react-native-device-info.
+jest.mock("@/utils/atoms/api", () => {
   const { atom } = jest.requireActual("jotai");
   return { apiAtom: atom(null), userAtom: atom({ Id: "user-1" }) };
 });
+jest.mock("@/providers/JellyfinProvider", () =>
+  jest.requireMock("@/utils/atoms/api"),
+);
 jest.mock("@/providers/GlobalModalProvider", () => ({
   useGlobalModal: () => ({ showModal: () => {}, hideModal: () => {} }),
 }));

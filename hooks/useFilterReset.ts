@@ -7,6 +7,8 @@ import {
   filterByAtom,
   genreFilterAtom,
   genrePreferenceAtom,
+  officialRatingFilterAtom,
+  officialRatingPreferenceAtom,
   SortByOption,
   SortOrderOption,
   sortByAtom,
@@ -28,12 +30,15 @@ import {
  * the reset (X) never reflected a changed sort.
  *
  * A reset clears the active filters AND the library's saved preferences (sort,
- * order, filterBy, genres, years, tags, audio and subtitle languages);
- * otherwise the stored preference resurfaces when the screen's mount effect
- * re-applies it on the next entry.
+ * order, filterBy, genres, official ratings, years, tags, audio and subtitle languages);
+ * otherwise the stored preference resurfaces when the screen's focus effect
+ * re-applies it the next time the screen gains focus.
  */
 export const useFilterReset = (libraryId: string) => {
   const [selectedGenres, setSelectedGenres] = useAtom(genreFilterAtom);
+  const [selectedOfficialRatings, setSelectedOfficialRatings] = useAtom(
+    officialRatingFilterAtom,
+  );
   const [selectedYears, setSelectedYears] = useAtom(yearFilterAtom);
   const [selectedTags, setSelectedTags] = useAtom(tagsFilterAtom);
   const [selectedAudioLanguages, setSelectedAudioLanguages] = useAtom(
@@ -49,6 +54,7 @@ export const useFilterReset = (libraryId: string) => {
   const [, setSortOrderPreference] = useAtom(sortOrderPreferenceAtom);
   const [, setFilterByPreference] = useAtom(FilterByPreferenceAtom);
   const [, setGenrePreference] = useAtom(genrePreferenceAtom);
+  const [, setOfficialRatingPreference] = useAtom(officialRatingPreferenceAtom);
   const [, setYearPreference] = useAtom(yearPreferenceAtom);
   const [, setTagPreference] = useAtom(tagPreferenceAtom);
   const [, setAudioLanguagePreference] = useAtom(audioLanguagePreferenceAtom);
@@ -60,6 +66,7 @@ export const useFilterReset = (libraryId: string) => {
   // fallback), so any other value counts as an active, resettable sort.
   const hasActiveFilters =
     selectedGenres.length > 0 ||
+    selectedOfficialRatings.length > 0 ||
     selectedYears.length > 0 ||
     selectedTags.length > 0 ||
     selectedAudioLanguages.length > 0 ||
@@ -70,6 +77,7 @@ export const useFilterReset = (libraryId: string) => {
 
   const resetAllFilters = useCallback(() => {
     setSelectedGenres([]);
+    setSelectedOfficialRatings([]);
     setSelectedYears([]);
     setSelectedTags([]);
     setSelectedAudioLanguages([]);
@@ -88,6 +96,7 @@ export const useFilterReset = (libraryId: string) => {
     setSortOrderPreference(forget);
     setFilterByPreference(forget);
     setGenrePreference(forget);
+    setOfficialRatingPreference(forget);
     setYearPreference(forget);
     setTagPreference(forget);
     setAudioLanguagePreference(forget);
@@ -95,6 +104,7 @@ export const useFilterReset = (libraryId: string) => {
   }, [
     libraryId,
     setSelectedGenres,
+    setSelectedOfficialRatings,
     setSelectedYears,
     setSelectedTags,
     setSelectedAudioLanguages,
@@ -106,6 +116,7 @@ export const useFilterReset = (libraryId: string) => {
     setSortOrderPreference,
     setFilterByPreference,
     setGenrePreference,
+    setOfficialRatingPreference,
     setYearPreference,
     setTagPreference,
     setAudioLanguagePreference,
