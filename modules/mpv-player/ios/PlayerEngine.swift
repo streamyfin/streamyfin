@@ -11,7 +11,7 @@ import UIKit
 /// event surfaces without any payload translation. All callbacks arrive on
 /// the main thread.
 protocol MPVPlayerEngineDelegate: AnyObject {
-	func engine(_ engine: MPVPlayerEngine, didLoad url: URL)
+	func engine(_ engine: MPVPlayerEngine, didLoad config: VideoLoadConfig)
 	func engine(_ engine: MPVPlayerEngine, didUpdateProgress position: Double, duration: Double, cacheSeconds: Double)
 	func engine(_ engine: MPVPlayerEngine, didChangePause isPaused: Bool)
 	func engine(_ engine: MPVPlayerEngine, didChangeLoading isLoading: Bool)
@@ -63,6 +63,8 @@ final class MPVPlayerEngine: NSObject {
 	private var cachedPosition: Double = 0
 	private var cachedDuration: Double = 0
 	private var loadGeneration: UInt = 0
+	/// Main thread: positions of a replaced file dropped since the last current one.
+	private var droppedReplacedFileUpdates = 0
 	private(set) var intendedPlayState: Bool = false
 	private var _isZoomedToFill: Bool = false
 	private var isShutDown = false
@@ -292,7 +294,7 @@ final class MPVPlayerEngine: NSObject {
 			pause()
 		}
 
-		delegate?.engine(self, didLoad: config.url)
+		delegate?.engine(self, didLoad: config)
 	}
 
 	// MARK: - Transport
@@ -684,12 +686,27 @@ final class MPVPlayerEngine: NSObject {
 // MARK: - MPVLayerRendererDelegate
 
 extension MPVPlayerEngine: MPVLayerRendererDelegate {
-	func renderer(_: MPVLayerRenderer, didUpdatePosition position: Double, duration: Double, cacheSeconds: Double) {
+	func renderer(_: MPVLayerRenderer, didUpdatePosition position: Double, duration: Double, cacheSeconds: Double, loadGeneration: UInt) {
+		// Read before the latest loadVideo() reached mpv: the outgoing file's
+		// clock, which JS would report under the item that replaced it.
+		guard loadGeneration == self.loadGeneration else {
+			droppedReplacedFileUpdates += 1
+			return
+		}
+		// One line per load, not per tick: the app log keeps 1000 entries.
+		if droppedReplacedFileUpdates > 0 {
+			Logger.shared.log(
+				"Dropped \(droppedReplacedFileUpdates) position update(s) from the replaced file",
+				type: "Info"
+			)
+			droppedReplacedFileUpdates = 0
+		}
 		cachedPosition = position
 		cachedDuration = duration
 
 		DispatchQueue.main.async { [weak self] in
-			guard let self else { return }
+			// A loadVideo() can land between the two hops.
+			guard let self, loadGeneration == self.loadGeneration else { return }
 
 			if self.pipController?.isPictureInPictureActive == true {
 				self.pipController?.setCurrentTimeFromSeconds(position)

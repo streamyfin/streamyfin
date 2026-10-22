@@ -1,3 +1,6 @@
+// pluginSettingsAtom reads the stored plugin settings with storage.get while
+// this module loads, and nothing else this file imports adds that method.
+import "@/augmentations/mmkv";
 import {
   type BaseItemKind,
   type CultureDto,
@@ -22,7 +25,7 @@ import {
   type StillWatchingPreset,
 } from "@/constants/StillWatching";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
-import { apiAtom } from "@/providers/JellyfinProvider";
+import { apiAtom } from "@/utils/atoms/api";
 import { isExpectedError } from "@/utils/errors";
 import { logAndCaptureError, writeInfoLog } from "@/utils/log";
 import {
@@ -480,10 +483,11 @@ export type Settings = {
   autoLoginSeerr: boolean;
   useKefinTweaks: boolean;
   hiddenLibraries?: string[];
-  enableH265ForChromecast: boolean;
   /** "Still watching?" prompt, see constants/StillWatching.ts. */
   stillWatchingPreset: StillWatchingPreset;
   autoPlayNextEpisode: boolean;
+  /** TV only: ask "Stop playback?" when Back is pressed during playback. */
+  confirmBeforeStoppingPlayback: boolean;
   /** SyncPlay: join groups without being waited for. Per device. */
   syncPlayIgnoreWait: boolean;
   // Media segment skip preferences
@@ -677,9 +681,9 @@ export const defaultValues: Settings = {
   autoLoginSeerr: true,
   useKefinTweaks: false,
   hiddenLibraries: [],
-  enableH265ForChromecast: false,
   stillWatchingPreset: DEFAULT_STILL_WATCHING_PRESET,
   autoPlayNextEpisode: true,
+  confirmBeforeStoppingPlayback: false,
   syncPlayIgnoreWait: false,
   // Media segment skip defaults
   skipIntro: "ask",
