@@ -1,6 +1,6 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { useQueryClient } from "@tanstack/react-query";
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert } from "react-native";
 import { usePlaybackManager } from "@/hooks/usePlaybackManager";
@@ -15,8 +15,30 @@ export const useTVItemActionModal = () => {
   const invalidatePlaybackProgressCache = useInvalidatePlaybackProgressCache();
   const pruneWatchedFromWatchlist = usePruneWatchedFromWatchlist();
 
+  // usePlaybackManager and useInvalidatePlaybackProgressCache return new
+  // functions on every render. Read through a ref, they leave showItemActions
+  // stable, so the memoized TV rows and cards it is passed to don't re-render
+  // with every render of the screen that owns it.
+  const latest = useRef({
+    markItemPlayed,
+    markItemUnplayed,
+    invalidatePlaybackProgressCache,
+  });
+  useEffect(() => {
+    latest.current = {
+      markItemPlayed,
+      markItemUnplayed,
+      invalidatePlaybackProgressCache,
+    };
+  });
+
   const showItemActions = useCallback(
     (item: BaseItemDto) => {
+      const {
+        markItemPlayed,
+        markItemUnplayed,
+        invalidatePlaybackProgressCache,
+      } = latest.current;
       const isPlayed = item.UserData?.Played ?? false;
       const itemTitle =
         item.Type === "Episode"
@@ -79,14 +101,7 @@ export const useTVItemActionModal = () => {
         },
       ]);
     },
-    [
-      t,
-      queryClient,
-      markItemPlayed,
-      markItemUnplayed,
-      invalidatePlaybackProgressCache,
-      pruneWatchedFromWatchlist,
-    ],
+    [t, queryClient, pruneWatchedFromWatchlist],
   );
 
   return { showItemActions };
