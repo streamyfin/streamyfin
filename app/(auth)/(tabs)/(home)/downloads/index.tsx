@@ -23,6 +23,7 @@ import { HeaderButton } from "@/components/common/HeaderButton";
 import { Text } from "@/components/common/Text";
 import ActiveDownloads from "@/components/downloads/ActiveDownloads";
 import { DownloadSize } from "@/components/downloads/DownloadSize";
+import { NextEpisodesNotice } from "@/components/downloads/NextEpisodesNotice";
 import useRouter from "@/hooks/useAppRouter";
 import { useConfirmDelete } from "@/hooks/useConfirmDelete";
 import { useDownload } from "@/providers/DownloadProvider";
@@ -290,6 +291,7 @@ export default function DownloadsPage() {
       >
         <View style={{ paddingTop: Platform.OS === "android" ? 17 : 0 }}>
           <View className='mb-4 flex flex-col space-y-4 px-4'>
+            <NextEpisodesNotice />
             <ActiveDownloads />
           </View>
 
