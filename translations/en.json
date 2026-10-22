@@ -818,6 +818,7 @@
       "filter_by": "Filter by",
       "sort_order": "Sort order",
       "tags": "Tags",
+      "official_ratings": "Official ratings",
       "audio_languages": "Audio languages",
       "subtitle_languages": "Subtitle languages",
       "selected_count": "{{count}} selected",

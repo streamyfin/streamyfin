@@ -99,24 +99,37 @@ export const getLibraryTabQuery = (
   };
 };
 
+// The part of an items request the filter bar decides.
+const FILTER_BAR_KEYS = [
+  "sortBy",
+  "sortOrder",
+  "filters",
+  "genres",
+  "officialRatings",
+  "tags",
+  "years",
+] as const satisfies readonly (keyof ItemsApiGetItemsRequest)[];
+
 type FilterBarQuery = Pick<
   ItemsApiGetItemsRequest,
-  "sortBy" | "sortOrder" | "filters" | "genres" | "tags" | "years"
+  (typeof FILTER_BAR_KEYS)[number]
 >;
 
 /** The filter bar belongs to the items tab, see `getLibraryTabFilters`. */
 export const libraryTabUsesFilterBar = (tab: LibraryTab) => tab === "items";
 
 /**
- * What the filter bar adds to a tab's request. Its genres, years and tags are
- * those of the library's own items and say nothing about a collection or a
- * playlist, so the bar is hidden on those tabs and none of it applies: with a
- * saved genre filter they would otherwise open empty. They are sorted by name.
+ * What the filter bar adds to a tab's request, taken from the request built
+ * for the bar (buildLibraryItemsQuery), so a new filter cannot be left behind.
+ * Its genres, official ratings, years and tags are those of the library's own
+ * items and say nothing about a collection or a playlist, so the bar is hidden
+ * on those tabs and none of it applies: with a saved genre filter they would
+ * otherwise open empty. They are sorted by name.
  */
 export const getLibraryTabFilters = (
   tab: LibraryTab,
   filterBar: FilterBarQuery,
 ): FilterBarQuery =>
   libraryTabUsesFilterBar(tab)
-    ? filterBar
+    ? Object.fromEntries(FILTER_BAR_KEYS.map((key) => [key, filterBar[key]]))
     : { sortBy: ["SortName"], sortOrder: ["Ascending"] };

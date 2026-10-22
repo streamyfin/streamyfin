@@ -22,6 +22,7 @@ export interface LibraryItemsFilter {
   sortOrder: SortOrder;
   filterBy: ItemFilter[];
   genres: string[];
+  officialRatings: string[];
   years: string[];
   tags: string[];
   audioLanguages?: string[];
@@ -41,6 +42,20 @@ export const ITEM_TYPE_BY_COLLECTION: Partial<
   homevideos: "Video",
   musicvideos: "MusicVideo",
   playlists: "Playlist",
+};
+
+/**
+ * The kinds of item a library page lists: the one its collection type names,
+ * or every kind when it names none. The rating choices are asked for the same
+ * kinds, so they only offer ratings the grid can match.
+ */
+export const getLibraryItemTypes = (
+  collectionType: CollectionType | null | undefined,
+): BaseItemKind[] | undefined => {
+  const itemType = collectionType
+    ? ITEM_TYPE_BY_COLLECTION[collectionType]
+    : undefined;
+  return itemType ? [itemType] : undefined;
 };
 
 /**
@@ -75,14 +90,11 @@ export const buildLibraryItemsQuery = ({
   sortOrder,
   filterBy,
   genres,
+  officialRatings,
   years,
   tags,
   serverVersion,
 }: LibraryItemsFilter): ItemsApiGetItemsRequest => {
-  const itemType = collectionType
-    ? ITEM_TYPE_BY_COLLECTION[collectionType]
-    : undefined;
-
   return {
     userId,
     parentId: libraryId,
@@ -96,9 +108,10 @@ export const buildLibraryItemsQuery = ({
     // true is needed for merged versions
     recursive: true,
     genres,
+    officialRatings,
     tags,
     years: years.map((year) => Number.parseInt(year, 10)),
-    includeItemTypes: itemType ? [itemType] : undefined,
+    includeItemTypes: getLibraryItemTypes(collectionType),
   };
 };
 

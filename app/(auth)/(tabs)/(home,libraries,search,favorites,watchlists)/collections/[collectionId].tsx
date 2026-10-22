@@ -40,6 +40,7 @@ import {
   audioLanguageFilterAtom,
   filterOwnerAtom,
   genreFilterAtom,
+  officialRatingFilterAtom,
   SortByOption,
   SortOrderOption,
   sortByAtom,
@@ -80,6 +81,9 @@ const page: React.FC = () => {
   const [selectedGenres, setSelectedGenres] = useAtom(genreFilterAtom);
   const [selectedYears, setSelectedYears] = useAtom(yearFilterAtom);
   const [selectedTags, setSelectedTags] = useAtom(tagsFilterAtom);
+  // Setter only: reading the atom would re-render this screen on every rating
+  // picked in a library.
+  const setSelectedOfficialRatings = useSetAtom(officialRatingFilterAtom);
   const [, setSelectedAudioLanguages] = useAtom(audioLanguageFilterAtom);
   const [, setSelectedSubtitleLanguages] = useAtom(subtitleLanguageFilterAtom);
   const [sortBy, setSortBy] = useAtom(sortByAtom);
@@ -162,6 +166,7 @@ const page: React.FC = () => {
       setSelectedYears([]);
       setSelectedTags([]);
       // Not offered here, but the shared reset button counts them as active.
+      setSelectedOfficialRatings([]);
       setSelectedAudioLanguages([]);
       setSelectedSubtitleLanguages([]);
       // The atoms are this collection's now: a library mounted underneath
@@ -186,6 +191,7 @@ const page: React.FC = () => {
       setSelectedGenres,
       setSelectedYears,
       setSelectedTags,
+      setSelectedOfficialRatings,
       setSelectedAudioLanguages,
       setSelectedSubtitleLanguages,
       setFilterOwner,
