@@ -126,6 +126,10 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
     // list on a playing MediaItem, so it is shadowed here.
     private var sideLoadedSubs: List<MediaItem.SubtitleConfiguration> = emptyList()
 
+    // The loaded stream's media source factory, for addSubtitleFile: the player's default one
+    // would reload the stream with neither its headers nor the http to https redirect.
+    private var mediaSourceFactory: DefaultMediaSourceFactory? = null
+
     // 1-based track ID mappings (matching MPV's contract), rebuilt on
     // onTracksChanged. Also cached in bridge-map form for the module layer's
     // off-main reads.
@@ -416,8 +420,9 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
         val dataSourceFactory = DefaultDataSource.Factory(context, httpFactory)
 
         val mediaItem = buildMediaItem(config)
-        val mediaSource = DefaultMediaSourceFactory(dataSourceFactory)
-            .createMediaSource(mediaItem)
+        val sourceFactory = DefaultMediaSourceFactory(dataSourceFactory)
+        mediaSourceFactory = sourceFactory
+        val mediaSource = sourceFactory.createMediaSource(mediaItem)
 
         // Prepare from the resume position directly — calling prepare() first
         // and seeking afterwards replays the opening seconds (C.TIME_UNSET
@@ -674,6 +679,7 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
 
     override fun addSubtitleFile(url: String, select: Boolean) = post {
         val p = player ?: return@post
+        val sourceFactory = mediaSourceFactory ?: return@post
         val mime = mimeTypeForSubtitleUrl(url) ?: return@post
         val currentMediaItem = p.currentMediaItem ?: return@post
         val newSubConfig = MediaItem.SubtitleConfiguration.Builder(Uri.parse(url))
@@ -694,7 +700,7 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
 
         val wasPlaying = p.isPlaying
         val pos = p.currentPosition
-        p.setMediaItem(rebuilt, pos)
+        p.setMediaSource(sourceFactory.createMediaSource(rebuilt), pos)
         p.prepare()
         if (wasPlaying) p.play()
 

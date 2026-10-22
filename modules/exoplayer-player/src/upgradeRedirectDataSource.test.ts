@@ -41,5 +41,8 @@ describe("the ExoPlayer HTTP source", () => {
       "UpgradeRedirectDataSource.Factory(config.headers ?: emptyMap(), config.url)",
     );
     expect(source).not.toContain("DefaultHttpDataSource");
+    // The player's default factory would reload the stream without its headers
+    // and without following an http to https redirect.
+    expect(source).not.toMatch(/\.setMediaItems?\(/);
   });
 });
