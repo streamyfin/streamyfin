@@ -2,6 +2,7 @@ import type {
   BaseItemDto,
   MediaStream,
 } from "@jellyfin/sdk/lib/generated-client/models";
+import { escapeRegExp } from "lodash";
 import {
   DOWNLOAD_SUBTITLE_INFIX,
   DOWNLOAD_TRICKPLAY_DIR_SUFFIX,
@@ -81,6 +82,52 @@ export function liveActivityPosterFileName(item: BaseItemDto): string {
  */
 export function uriToFilePath(uri: string): string {
   return uri.replace(/^file:\/\//, "");
+}
+
+// The root, a directory of containers, a container and its Documents directory: a shorter
+// path has no sibling container to have moved from.
+const CONTAINER_PATH_MIN_SEGMENTS = 4;
+
+/**
+ * Moves a stored location inside Documents onto the Documents directory the app has now.
+ *
+ * iOS puts the app's data in a container whose path holds a UUID, and an app update can move
+ * it to a new one: the files come along, but a location stored as an absolute path or URI
+ * still names the old container, and the player gets "No such file or directory" for a
+ * download that is on disk. A location already under the current Documents, one outside
+ * Documents altogether (a server URL), and every location on Android, where the directory
+ * never moves, come back unchanged. The result keeps the stored form, URI or plain path.
+ */
+export function rebaseOntoDocuments(
+  stored: string,
+  documentsUri: string,
+): string {
+  if (!stored.startsWith("file://") && !stored.startsWith("/")) return stored;
+  const documents = uriToFilePath(documentsUri).replace(/\/+$/, "");
+  const path = uriToFilePath(stored);
+  if (path === documents || path.startsWith(`${documents}/`)) return stored;
+
+  // Only a Documents directory in a sibling container is the old one: the same directory of
+  // containers as now (on iOS ".../Containers/Data/Application/"), then any UUID, then
+  // Documents. A "Documents" anywhere else (a user's own folder, a lookalike layout outside the
+  // app) is left alone. "/private/var" is the same directory as "/var" on iOS, so a path
+  // stored through either one matches.
+  const segments = documents.split("/");
+  if (segments.length < CONTAINER_PATH_MIN_SEGMENTS) return stored;
+  const containers = escapeRegExp(
+    withoutPrivate(segments.slice(0, -2).join("/")),
+  );
+  const name = escapeRegExp(segments[segments.length - 1]);
+  const inSibling = withoutPrivate(path);
+  const match = new RegExp(`^${containers}/[^/]+/${name}/`).exec(inSibling);
+  if (!match) return stored;
+
+  const rebased = `${documents}/${inSibling.slice(match[0].length)}`;
+  return stored.startsWith("file://") ? filePathToUri(rebased) : rebased;
+}
+
+function withoutPrivate(path: string): string {
+  return path.replace(/^\/private(?=\/)/, "");
 }
 
 /**

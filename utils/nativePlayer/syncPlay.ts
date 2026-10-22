@@ -80,21 +80,6 @@ export function buildNativeSyncPlayState(
   };
 }
 
-const decoded = (url: string) => {
-  try {
-    return decodeURI(url);
-  } catch {
-    return url;
-  }
-};
-
-/**
- * Whether a native onLoad names the stream JS asked for. iOS echoes the URL
- * through Foundation, which percent-encodes characters JS passed raw.
- */
-export const isSameStreamUrl = (a: string, b: string): boolean =>
-  a === b || decoded(a) === decoded(b);
-
 type Coordinator = ReturnType<typeof useSyncPlay>;
 
 /** Swift/Compose requests change the Jellyfin group; they never mutate a solo decoder. */

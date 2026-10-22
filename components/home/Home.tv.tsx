@@ -71,6 +71,7 @@ type InfiniteScrollingCollectionListSection = {
   orientation?: "horizontal" | "vertical";
   pageSize?: number;
   parentId?: string;
+  collectionType?: BaseItemDto["CollectionType"];
 };
 
 type Section = InfiniteScrollingCollectionListSection;
@@ -627,6 +628,7 @@ export const Home = () => {
       queryKey: string[],
       includeItemTypes: BaseItemKind[],
       parentId: string | undefined,
+      collectionType: BaseItemDto["CollectionType"],
       pageSize = 10,
     ): InfiniteScrollingCollectionListSection => ({
       title,
@@ -651,6 +653,7 @@ export const Home = () => {
       type: "InfiniteScrollingCollectionList",
       pageSize,
       parentId,
+      collectionType,
     }),
     [api, user?.Id],
   );
@@ -675,6 +678,7 @@ export const Home = () => {
         queryKey,
         includeItemTypes,
         c.Id,
+        c.CollectionType,
         10,
       );
     });
@@ -1172,6 +1176,7 @@ export const Home = () => {
                     isFirstSection={isFirstSection}
                     onItemFocus={handleItemFocus}
                     parentId={section.parentId}
+                    collectionType={section.collectionType}
                   />
                   {streamystatsSections}
                 </View>

@@ -1,12 +1,15 @@
-// The mocked JellyfinProvider is what loads this in the app: `storage.get`
-// and `storage.setAny`, which the plugin settings are read and written with.
-import "@/augmentations/mmkv";
 import { act, cleanup, renderHook } from "@testing-library/react-native";
 import { AxiosError, type AxiosResponse } from "axios";
 import { getDefaultStore } from "jotai";
 import { clearMmkv } from "@/test-utils/mmkv";
 import { stubReactNative } from "@/test-utils/reactNative";
+import { markExpectedError } from "@/utils/errors";
 import { storage } from "@/utils/mmkv";
+import {
+  type PluginSettingsReader,
+  RESOLVED_SETTINGS_PATH,
+  readPluginSettings,
+} from "@/utils/pluginSettingsSource";
 import {
   PLUGIN_APPLIED_DEFAULTS_KEY,
   PLUGIN_SETTINGS_KEY,
@@ -21,9 +24,9 @@ jest.mock(
 jest.mock("@/components/BitrateSelector", () => ({
   BITRATES: [{ key: "Max", value: undefined }],
 }));
-// JellyfinProvider drags in react-native-device-info (native at test time);
-// settings.ts only reads its atoms.
-jest.mock("@/providers/JellyfinProvider", () => ({
+// The api atoms read react-native-device-info (native at test time);
+// settings.ts only reads the atoms.
+jest.mock("@/utils/atoms/api", () => ({
   apiAtom: jest.requireActual("jotai").atom(null),
   userAtom: jest.requireActual("jotai").atom(null),
 }));
@@ -32,7 +35,7 @@ jest.mock("@/providers/JellyfinProvider", () => ({
 jest.mock("@/utils/log", () => ({
   writeToLog: () => undefined,
   logAndCaptureError: (...args: unknown[]) => mockLogAndCaptureError(...args),
-  writeInfoLog: () => undefined,
+  writeInfoLog: (...args: unknown[]) => mockWriteInfoLog(...args),
   writeErrorLog: () => undefined,
   writeDebugLog: () => undefined,
   readFromLog: () => [],
@@ -42,6 +45,7 @@ jest.mock("@/utils/log", () => ({
 }));
 
 const mockLogAndCaptureError = jest.fn();
+const mockWriteInfoLog = jest.fn();
 
 // Android TV: the only platform where ExoPlayer ships alongside a
 // native-player toggle, so the only place the engine/controls split is
@@ -51,6 +55,7 @@ stubReactNative({ OS: "android", isTV: true });
 // Required after the platform is set, not imported: settings.ts reads
 // Platform once, when the module is evaluated.
 const {
+  defaultValues,
   effectiveSettingsAtom,
   getActivePlayerType,
   getActiveVideoPlayer,
@@ -65,7 +70,7 @@ const {
   VideoPlayer,
 } = require("./settings") as typeof import("./settings");
 const { apiAtom } =
-  require("@/providers/JellyfinProvider") as typeof import("@/providers/JellyfinProvider");
+  require("@/utils/atoms/api") as typeof import("@/utils/atoms/api");
 
 /** The failure axios raises once the server has answered with `status`. */
 const answeredWith = (status: number) =>
@@ -86,6 +91,11 @@ const failuresThatSayNothing: Array<[string, Error]> = [
   ["the request never reaches the server", neverAnswered()],
   ["the server answers with an error of its own", answeredWith(503)],
   ["the answer cannot be read", new TypeError("not the plugin's config")],
+  // A portal's page or a proxy's error, refused by the transport.
+  [
+    "the answer is not the plugin's",
+    markExpectedError(new Error("not a settings map")),
+  ],
 ];
 
 describe("engine vs chrome resolution on Android TV", () => {
@@ -146,18 +156,15 @@ describe("fetchPluginSettings", () => {
   // under the app's names, whatever shape the plugin sent.
   test("hands back the plugin's settings under the app's names", async () => {
     const settings = await fetchPluginSettings({
-      getStreamyfinPluginConfig: async () => ({
-        data: {
-          settings: {
-            jellyseerrServerUrl: {
-              locked: true,
-              value: "http://seerr.example",
-            },
-            seerr: { apiKey: { locked: false, value: "a-key" } },
+      getStreamyfinPluginSettings: async () =>
+        ({
+          jellyseerrServerUrl: {
+            locked: true,
+            value: "http://seerr.example",
           },
-        },
-      }),
-    } as never);
+          seerr: { apiKey: { locked: false, value: "a-key" } },
+        }) as never,
+    });
 
     expect(settings?.seerrServerUrl).toEqual({
       locked: true,
@@ -168,25 +175,43 @@ describe("fetchPluginSettings", () => {
     expect(settings && "seerr" in settings).toBe(false);
   });
 
-  // A server without the plugin has no such route. That is an answer, and the
-  // only failure that says anything about the plugin.
+  // A server without the plugin serves neither route, which the transport
+  // answers with undefined (utils/pluginSettingsSource). That is an answer,
+  // and the only one that says anything about the plugin.
   test("gives nothing when the server has no plugin", async () => {
     const settings = await fetchPluginSettings({
-      getStreamyfinPluginConfig: async () => {
-        throw answeredWith(404);
-      },
-    } as never);
+      getStreamyfinPluginSettings: async () => undefined,
+    });
 
     expect(settings).toBeUndefined();
+  });
+
+  // The refresh runs at every foreground, and against a server without the
+  // plugin each one wrote "Got plugin settings" to the app log, with nothing.
+  test("logs the settings only when there are some", async () => {
+    mockWriteInfoLog.mockClear();
+
+    await fetchPluginSettings({
+      getStreamyfinPluginSettings: async () => undefined,
+    });
+    expect(mockWriteInfoLog).not.toHaveBeenCalled();
+
+    await fetchPluginSettings({
+      getStreamyfinPluginSettings: async () =>
+        ({ subtitleSize: { locked: true, value: 120 } }) as never,
+    });
+    expect(mockWriteInfoLog).toHaveBeenCalledWith("Got plugin settings", {
+      subtitleSize: { locked: true, value: 120 },
+    });
   });
 
   test.each(failuresThatSayNothing)("fails when %s", async (_case, failure) => {
     await expect(
       fetchPluginSettings({
-        getStreamyfinPluginConfig: async () => {
+        getStreamyfinPluginSettings: async () => {
           throw failure;
         },
-      } as never),
+      }),
     ).rejects.toBe(failure);
   });
 });
@@ -214,10 +239,8 @@ describe("the still watching migration", () => {
   // Dropping a locked value it cannot read would drop the admin's lock too.
   test("keeps a lock on a plugin cap it cannot read", async () => {
     const settings = await fetchPluginSettings({
-      getStreamyfinPluginConfig: async () => ({
-        data: {
-          settings: { maxAutoPlayEpisodeCount: { locked: true, value: null } },
-        },
+      getStreamyfinPluginSettings: async () => ({
+        maxAutoPlayEpisodeCount: { locked: true, value: null },
       }),
     } as never);
 
@@ -231,9 +254,7 @@ describe("the still watching migration", () => {
   test("reads an empty plugin preset as no choice", async () => {
     const fetchWith = (stillWatchingPreset: unknown) =>
       fetchPluginSettings({
-        getStreamyfinPluginConfig: async () => ({
-          data: { settings: { stillWatchingPreset } },
-        }),
+        getStreamyfinPluginSettings: async () => ({ stillWatchingPreset }),
       } as never);
 
     expect(
@@ -288,13 +309,9 @@ describe("the still watching migration", () => {
   // An admin's lock on the new name stands, even with an empty value.
   test("an empty locked preset keeps its lock over a free old cap", async () => {
     const settings = await fetchPluginSettings({
-      getStreamyfinPluginConfig: async () => ({
-        data: {
-          settings: {
-            maxAutoPlayEpisodeCount: { locked: false, value: 5 },
-            stillWatchingPreset: { locked: true, value: null },
-          },
-        },
+      getStreamyfinPluginSettings: async () => ({
+        maxAutoPlayEpisodeCount: { locked: false, value: 5 },
+        stillWatchingPreset: { locked: true, value: null },
       }),
     } as never);
 
@@ -326,10 +343,8 @@ describe("the still watching migration", () => {
   // An admin who pinned the old cap must keep the prompt pinned.
   test("keeps the plugin's lock on the episode cap", async () => {
     const settings = await fetchPluginSettings({
-      getStreamyfinPluginConfig: async () => ({
-        data: {
-          settings: { maxAutoPlayEpisodeCount: { locked: true, value: 2 } },
-        },
+      getStreamyfinPluginSettings: async () => ({
+        maxAutoPlayEpisodeCount: { locked: true, value: 2 },
       }),
     } as never);
 
@@ -341,14 +356,34 @@ describe("the still watching migration", () => {
   });
 });
 
+describe("loading the stored plugin settings", () => {
+  // settings.ts reads them while it is imported, through storage.get, which
+  // the MMKV augmentation adds. In the app, _layout loads it first; anything
+  // that imported settings.ts earlier started the admin's locks empty.
+  it("reads them when nothing loaded the MMKV augmentation first", () => {
+    const locks = { forwardSkipTime: { locked: true, value: 20 } };
+    jest.isolateModules(() => {
+      const { storage: fresh } =
+        require("@/utils/mmkv") as typeof import("@/utils/mmkv");
+      // A plain set: setAny comes from the augmentation this leaves out.
+      fresh.set(PLUGIN_SETTINGS_KEY, JSON.stringify(locks));
+      const { pluginSettingsAtom: loaded } =
+        require("./settings") as typeof import("./settings");
+      const { getDefaultStore: freshStore } =
+        require("jotai") as typeof import("jotai");
+      expect(freshStore().get(loaded)).toEqual(locks);
+    });
+  });
+});
+
 describe("refreshing the plugin settings", () => {
   const stored = {
     showCustomMenuLinks: { locked: true, value: true },
   } as never;
   const store = getDefaultStore();
 
-  const refreshAgainst = async (getStreamyfinPluginConfig: () => unknown) => {
-    store.set(apiAtom, { getStreamyfinPluginConfig } as never);
+  const refreshAgainst = async (getStreamyfinPluginSettings: () => unknown) => {
+    store.set(apiAtom, { getStreamyfinPluginSettings } as never);
     const { result } = await renderHook(() => useSettings());
     let refreshed: unknown;
     await act(async () => {
@@ -407,10 +442,42 @@ describe("refreshing the plugin settings", () => {
     );
   });
 
+  // Something in front of the server can answer in its place with a 200 of
+  // its own, a captive portal's login page or a JSON error. That is the
+  // user's network, like an unreachable server: what is stored stands, and
+  // nothing is reported, on a refresh that runs at every foreground. The last
+  // case is the route every published plugin takes: the resolved one missing,
+  // and the error in place of the stored configuration.
+  test.each([
+    ["a login page", "<html><body>Sign in to the Wi-Fi</body></html>", false],
+    ["a JSON error", { error: "Sign in" }, false],
+    ["a JSON error past a missing resolved route", { error: "Sign in" }, true],
+  ])(
+    "keeps what is stored and reports nothing when %s answers",
+    async (_case, answer, resolvedMissing) => {
+      const inFront: PluginSettingsReader = {
+        basePath: `https://in-front-${_case.length}.example`,
+        get: async <T>(url: string) => {
+          if (resolvedMissing && url === RESOLVED_SETTINGS_PATH) {
+            throw Object.assign(new Error("HTTP 404"), {
+              response: { status: 404 },
+            });
+          }
+          return { data: answer as T };
+        },
+      };
+
+      const refreshed = await refreshAgainst(() => readPluginSettings(inFront));
+
+      expect(refreshed).toBeUndefined();
+      expect(store.get(pluginSettingsAtom)).toEqual(stored);
+      expect(storage.get(PLUGIN_SETTINGS_KEY)).toEqual(stored);
+      expect(mockLogAndCaptureError).not.toHaveBeenCalled();
+    },
+  );
+
   test("forgets what is stored when the server has no plugin", async () => {
-    await refreshAgainst(async () => {
-      throw answeredWith(404);
-    });
+    await refreshAgainst(async () => undefined);
 
     expect(store.get(pluginSettingsAtom)).toBeUndefined();
     expect(storage.get(PLUGIN_SETTINGS_KEY)).toBeUndefined();
@@ -422,17 +489,17 @@ describe("refreshing the plugin settings", () => {
   // sign-in, and on a TV account switch the previous user's, which handed the
   // new user the settings the server resolved for the one before.
   test("asks with the api set last, not the one it was rendered with", async () => {
-    const previous = jest.fn(async () => ({ data: { settings: stored } }));
+    const previous = jest.fn(async () => stored);
     const sent = { showCustomMenuLinks: { locked: false, value: false } };
-    const current = jest.fn(async () => ({ data: { settings: sent } }));
+    const current = jest.fn(async () => sent);
 
-    store.set(apiAtom, { getStreamyfinPluginConfig: previous } as never);
+    store.set(apiAtom, { getStreamyfinPluginSettings: previous } as never);
     const { result } = await renderHook(() => useSettings());
     const refresh = result.current.refreshStreamyfinPluginSettings;
 
     let refreshed: unknown;
     await act(async () => {
-      store.set(apiAtom, { getStreamyfinPluginConfig: current } as never);
+      store.set(apiAtom, { getStreamyfinPluginSettings: current } as never);
       refreshed = await refresh();
     });
 
@@ -452,18 +519,14 @@ describe("refreshing the plugin settings", () => {
           answer = resolve;
         }),
     );
-    store.set(apiAtom, { getStreamyfinPluginConfig: asked } as never);
+    store.set(apiAtom, { getStreamyfinPluginSettings: asked } as never);
     const { result } = await renderHook(() => useSettings());
 
     let refreshed: unknown = "not settled";
     await act(async () => {
       const pending = result.current.refreshStreamyfinPluginSettings();
       store.set(apiAtom, null);
-      answer({
-        data: {
-          settings: { showCustomMenuLinks: { locked: false, value: false } },
-        },
-      });
+      answer({ showCustomMenuLinks: { locked: false, value: false } });
       refreshed = await pending;
     });
 
@@ -485,7 +548,7 @@ describe("refreshing the plugin settings", () => {
     );
     store.set(apiAtom, {
       accessToken: "alice",
-      getStreamyfinPluginConfig: asked,
+      getStreamyfinPluginSettings: asked,
     } as never);
     const { result } = await renderHook(() => useSettings());
 
@@ -494,13 +557,9 @@ describe("refreshing the plugin settings", () => {
       const pending = result.current.refreshStreamyfinPluginSettings();
       store.set(apiAtom, {
         accessToken: "bob",
-        getStreamyfinPluginConfig: asked,
+        getStreamyfinPluginSettings: asked,
       } as never);
-      answer({
-        data: {
-          settings: { showCustomMenuLinks: { locked: false, value: false } },
-        },
-      });
+      answer({ showCustomMenuLinks: { locked: false, value: false } });
       refreshed = await pending;
     });
 
@@ -521,7 +580,10 @@ describe("refreshing the plugin settings", () => {
           answer = resolve;
         }),
     );
-    const launched = { accessToken: "alice", getStreamyfinPluginConfig: asked };
+    const launched = {
+      accessToken: "alice",
+      getStreamyfinPluginSettings: asked,
+    };
     store.set(apiAtom, launched as never);
     const { result } = await renderHook(() => useSettings());
 
@@ -530,7 +592,7 @@ describe("refreshing the plugin settings", () => {
       const pending = result.current.refreshStreamyfinPluginSettings();
       await Promise.resolve();
       store.set(apiAtom, { ...launched } as never);
-      answer({ data: { settings: sent } });
+      answer(sent);
       refreshed = await pending;
     });
 
@@ -603,7 +665,7 @@ describe("refreshing the plugin settings", () => {
     async (_case, failure) => {
       store.set(apiAtom, {
         accessToken: "bob",
-        getStreamyfinPluginConfig: async () => {
+        getStreamyfinPluginSettings: async () => {
           throw failure;
         },
       } as never);
@@ -626,7 +688,7 @@ describe("refreshing the plugin settings", () => {
     let fail: (error: Error) => void = () => {};
     store.set(apiAtom, {
       accessToken: "bob",
-      getStreamyfinPluginConfig: () =>
+      getStreamyfinPluginSettings: () =>
         new Promise((_, reject) => {
           fail = reject;
         }),
@@ -639,7 +701,7 @@ describe("refreshing the plugin settings", () => {
       });
       store.set(apiAtom, {
         accessToken: "carol",
-        getStreamyfinPluginConfig: async () => ({}),
+        getStreamyfinPluginSettings: async () => undefined,
       } as never);
       fail(new TypeError("too late"));
       await pending;
@@ -650,9 +712,7 @@ describe("refreshing the plugin settings", () => {
 
   test("takes what the server sends", async () => {
     const sent = { showCustomMenuLinks: { locked: false, value: false } };
-    const refreshed = await refreshAgainst(async () => ({
-      data: { settings: sent },
-    }));
+    const refreshed = await refreshAgainst(async () => sent);
 
     expect(refreshed).toEqual(sent);
     expect(store.get(pluginSettingsAtom)).toEqual(sent);
@@ -673,9 +733,7 @@ describe("refreshing the plugin settings", () => {
 
     try {
       await refreshAgainst(async () => ({
-        data: {
-          settings: { maxAutoPlayEpisodeCount: { locked: false, value: 3 } },
-        },
+        maxAutoPlayEpisodeCount: { locked: false, value: 3 },
       }));
 
       expect(store.get(settingsAtom)?.stillWatchingPreset).toBe("disabled");
@@ -720,5 +778,13 @@ describe("loading the settings", () => {
       openSubtitlesApiKey: "my-key",
     });
     expect(storage.get(PLUGIN_APPLIED_DEFAULTS_KEY)).toEqual({});
+  });
+});
+
+describe("the stop playback confirmation", () => {
+  test("is off until the user turns it on", () => {
+    // Jellyfin's Android TV app, Wholphin, Swiftfin and Plex all leave
+    // playback on Back without asking.
+    expect(defaultValues.confirmBeforeStoppingPlayback).toBe(false);
   });
 });

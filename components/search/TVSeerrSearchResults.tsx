@@ -272,6 +272,7 @@ export const TVSeerrSearchResults: React.FC<TVSeerrSearchResultsProps> = ({
   onPersonPress,
 }) => {
   const { t } = useTranslation();
+  const typography = useScaledTVTypography();
 
   if (loading) {
     return null;
@@ -282,7 +283,7 @@ export const TVSeerrSearchResults: React.FC<TVSeerrSearchResultsProps> = ({
       <View style={{ alignItems: "center", paddingTop: 40 }}>
         <Text
           style={{
-            fontSize: 24,
+            fontSize: typography.heading,
             fontWeight: "bold",
             color: "#FFFFFF",
             marginBottom: 8,
@@ -290,7 +291,12 @@ export const TVSeerrSearchResults: React.FC<TVSeerrSearchResultsProps> = ({
         >
           {t("search.no_results_found_for")}
         </Text>
-        <Text style={{ fontSize: 18, color: "rgba(255,255,255,0.6)" }}>
+        <Text
+          style={{
+            fontSize: typography.callout,
+            color: "rgba(255,255,255,0.6)",
+          }}
+        >
           "{searchQuery}"
         </Text>
       </View>

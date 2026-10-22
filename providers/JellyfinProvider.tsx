@@ -22,9 +22,14 @@ import { useTranslation } from "react-i18next";
 import { Platform } from "react-native";
 import { getDeviceNameSync } from "react-native-device-info";
 import { toast } from "sonner-native";
+import {
+  PUSH_DEVICE_PATH,
+  PUSH_REGISTRATION_TIMEOUT_MS,
+} from "@/constants/Notifications";
 import useRouter from "@/hooks/useAppRouter";
 import { useInterval } from "@/hooks/useInterval";
 import { SeerrApi, useSeerr } from "@/hooks/useSeerr";
+import { apiAtom, userAtom } from "@/utils/atoms/api";
 import { settingsAtom, useSettings } from "@/utils/atoms/settings";
 import {
   getIntegrationHeaders,
@@ -47,6 +52,7 @@ import {
 } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
 import { onAppForeground } from "@/utils/onAppForeground";
+import { inRegistrationOrder } from "@/utils/pushRegistration";
 import {
   type AccountSecurityType,
   addAccountToServer,
@@ -93,49 +99,8 @@ const describeRequestError = (error: unknown): string => {
     : String(error);
 };
 
-const initialApi = (() => {
-  try {
-    const token = storage.getString("token") || null;
-    const serverUrl = storage.getString("serverUrl") || null;
-    if (serverUrl && token) {
-      const id = getOrSetDeviceId();
-      const deviceName = getDeviceNameSync();
-      const jellyfinInstance = new Jellyfin({
-        clientInfo: { name: "Streamyfin", version: APP_VERSION },
-        deviceInfo: {
-          name: deviceName,
-          id,
-        },
-      });
-      return createApiWithCustomHeaders(jellyfinInstance, serverUrl, token);
-    }
-  } catch (e) {
-    console.error("Failed to initialize API synchronously:", e);
-  }
-  return null;
-})();
-
-const initialUser = (() => {
-  try {
-    // Only return a stored user if we also have a token. Otherwise the
-    // user atom would be populated while the api atom is null (e.g. after
-    // a logout that left stale user JSON in storage), which causes
-    // useProtectedRoute to keep us inside the (auth) group instead of
-    // redirecting to /login.
-    const token = storage.getString("token");
-    if (!token) return null;
-    const userStr = storage.getString("user");
-    if (userStr) {
-      return JSON.parse(userStr) as UserDto;
-    }
-  } catch (e) {
-    console.error("Failed to parse initial user synchronously:", e);
-  }
-  return null;
-})();
-
-export const apiAtom = atom<Api | null>(initialApi);
-export const userAtom = atom<UserDto | null>(initialUser);
+// Re-exported so the many importers of the atoms from here keep working.
+export { apiAtom, userAtom };
 export const wsAtom = atom<WebSocket | null>(null);
 export const cacheVersionAtom = atom<number>(0);
 // Set by a login flow that wants the account saved: the protection picker
@@ -728,13 +693,19 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
-      // Fire-and-forget: don't block logout on server cleanup
-      api
-        ?.delete(`/Streamyfin/device/${deviceId}`)
-        .then((_r) => writeInfoLog("Deleted expo push token for device"))
-        .catch((_e) =>
-          writeErrorLog("Failed to delete expo push token for device"),
-        );
+      // Not awaited, so sign out does not wait on the server, but in line behind
+      // a registration still on its way, which would otherwise bring the row back.
+      if (api) {
+        inRegistrationOrder(() =>
+          api.delete(`${PUSH_DEVICE_PATH}/${deviceId}`, {
+            timeout: PUSH_REGISTRATION_TIMEOUT_MS,
+          }),
+        )
+          .then((_r) => writeInfoLog("Deleted expo push token for device"))
+          .catch((_e) =>
+            writeErrorLog("Failed to delete expo push token for device"),
+          );
+      }
 
       await clearSessionState();
     },
