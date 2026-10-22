@@ -214,6 +214,47 @@ describe("a track stored before an iOS update moved the app's container", () => 
     );
   });
 
+  // A damaged entry broke every walk over the index: the storage stats threw on it, clearing the
+  // cache rejected, and a path-less one turned the size of the downloads into NaN.
+  it("drops a damaged entry when the index loads", async () => {
+    storeIndex({
+      broken: null,
+      "no-path": { itemId: "no-path", permanent: true },
+      "track-1": track(
+        "track-1",
+        `${before}/Documents/streamyfin-audio/track-1.flac`,
+        true,
+      ),
+    });
+    files.add(`file://${now}/Documents/streamyfin-audio/track-1.flac`);
+
+    expect(audio.getLocalPath("no-path")).toBeNull();
+    expect(audio.getStorageStats()).toEqual({
+      cacheCount: 0,
+      cacheSize: 1,
+      permanentCount: 1,
+      permanentSize: 1,
+    });
+    await expect(audio.clearCache()).resolves.toBeUndefined();
+    expect(Object.keys(storedIndex().tracks)).toEqual(["track-1"]);
+  });
+
+  // A size that is not a number turned every total it was added to or taken from into NaN.
+  it("counts a track with no size as empty", async () => {
+    storeIndex({
+      "track-2": {
+        itemId: "track-2",
+        localPath: `${before}/Library/Caches/streamyfin-audio-cache/track-2.mp3`,
+        storedAt: 1,
+        permanent: false,
+      },
+    });
+
+    // The file is gone, so the entry leaves the index and its size leaves the total.
+    expect(audio.isCached("track-2")).toBe(false);
+    expect(audio.getStorageStats().cacheSize).toBe(1);
+  });
+
   // The index used to come back empty when the current directories could not be read, and the
   // next write saved that over every track.
   it("keeps the index as stored when the app's directories cannot be read", async () => {

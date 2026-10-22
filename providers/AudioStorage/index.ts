@@ -88,8 +88,7 @@ function withCurrentContainerPaths(
   // Downloads live in Documents and the look-ahead cache in Library/Caches. A path is only
   // rebased onto the directory it was in, so trying both is safe.
   const directories = [documents, Paths.cache.uri];
-  for (const track of Object.values(index.tracks ?? {})) {
-    if (typeof track?.localPath !== "string") continue;
+  for (const track of Object.values(index.tracks)) {
     for (const directory of directories) {
       track.localPath = rebaseOntoAppDirectory(
         track.localPath,
@@ -101,6 +100,39 @@ function withCurrentContainerPaths(
   return index;
 }
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  !!value && typeof value === "object";
+
+// Every reader opens a track by its path.
+const hasPath = (track: unknown): track is StoredTrackInfo =>
+  isRecord(track) && typeof track.localPath === "string";
+
+const finiteOrZero = (value: unknown) =>
+  typeof value === "number" && Number.isFinite(value) ? value : 0;
+
+/**
+ * The index as stored, without the entries that are not tracks and with the numbers an older or
+ * damaged one lacks, so every walk over it below can rely on them, as the downloads database
+ * does with its own sections. A size that is not a number counts as 0 rather than turning the
+ * totals into NaN.
+ */
+function toStorageIndex(stored: Record<string, unknown>): AudioStorageIndex {
+  const tracks: Record<string, StoredTrackInfo> = {};
+  for (const [itemId, track] of Object.entries(
+    isRecord(stored.tracks) ? stored.tracks : {},
+  )) {
+    if (hasPath(track)) {
+      tracks[itemId] = { ...track, size: finiteOrZero(track.size) };
+    }
+  }
+  return {
+    ...stored,
+    tracks,
+    totalCacheSize: finiteOrZero(stored.totalCacheSize),
+    totalPermanentSize: finiteOrZero(stored.totalPermanentSize),
+  };
+}
+
 /**
  * Get the storage index from MMKV
  */
@@ -109,16 +141,17 @@ function getStorageIndex(): AudioStorageIndex {
     return storageIndex;
   }
 
+  let stored: unknown;
   try {
     const data = storage.getString(AUDIO_STORAGE_INDEX_KEY);
     if (data) {
-      storageIndex = JSON.parse(data) as AudioStorageIndex;
+      stored = JSON.parse(data);
     }
   } catch {
     // Ignore parse errors
   }
 
-  if (!storageIndex) {
+  if (!isRecord(stored)) {
     storageIndex = {
       tracks: {},
       totalCacheSize: 0,
@@ -127,6 +160,7 @@ function getStorageIndex(): AudioStorageIndex {
     return storageIndex;
   }
 
+  storageIndex = toStorageIndex(stored);
   try {
     withCurrentContainerPaths(storageIndex);
   } catch {
