@@ -77,7 +77,9 @@ const page: React.FC = () => {
   const [selectedGenres, setSelectedGenres] = useAtom(genreFilterAtom);
   const [selectedYears, setSelectedYears] = useAtom(yearFilterAtom);
   const [selectedTags, setSelectedTags] = useAtom(tagsFilterAtom);
-  const [, setSelectedOfficialRatings] = useAtom(officialRatingFilterAtom);
+  // Setter only: reading the atom would re-render this screen on every rating
+  // picked in a library.
+  const setSelectedOfficialRatings = useSetAtom(officialRatingFilterAtom);
   const [, setSelectedAudioLanguages] = useAtom(audioLanguageFilterAtom);
   const [, setSelectedSubtitleLanguages] = useAtom(subtitleLanguageFilterAtom);
   const [sortBy, setSortBy] = useAtom(sortByAtom);
