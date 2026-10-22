@@ -1,0 +1,65 @@
+diff --git a/ios/TabView/LegacyTabView.swift b/ios/TabView/LegacyTabView.swift
+index 188ddfdeef97b0505983ed19feb723b93fcd4c40..dc3bf9e05c19d32d24ad5627a479e0bf152dd8ca 100644
+--- a/ios/TabView/LegacyTabView.swift
++++ b/ios/TabView/LegacyTabView.swift
+@@ -20,7 +20,7 @@ struct LegacyTabView: AnyTabView {
+   @ViewBuilder
+   var body: some View {
+     TabView(selection: $props.selectedPage) {
+-      ForEach(props.children) { child in
++      ForEach(props.renderedChildren) { child in
+         if let index = props.children.firstIndex(of: child) {
+           renderTabItem(at: index)
+         }
+diff --git a/ios/TabView/NewTabView.swift b/ios/TabView/NewTabView.swift
+index bc9e6eff24d9543d82ef9b50aaef1c695c85f7da..5578b5bc788ecf28b492c1aa38bca454f4b16af8 100644
+--- a/ios/TabView/NewTabView.swift
++++ b/ios/TabView/NewTabView.swift
+@@ -22,7 +22,7 @@ struct NewTabView: AnyTabView {
+   @ViewBuilder
+   var body: some View {
+     TabView(selection: $props.selectedPage) {
+-      ForEach(props.children) { child in
++      ForEach(props.renderedChildren) { child in
+         if let index = props.children.firstIndex(of: child),
+            let tabData = props.items[safe: index] {
+           let isFocused = props.selectedPage == tabData.key
+diff --git a/ios/TabViewProps.swift b/ios/TabViewProps.swift
+index d3453f5700a300cb2fd3f310d7d13dd9fa35d88e..b51e861657970c868beb45428bb508c51074efb8 100644
+--- a/ios/TabViewProps.swift
++++ b/ios/TabViewProps.swift
+@@ -36,6 +36,13 @@ public enum TabBarRole: String {
+   func convert() -> TabRole? {
+     switch self {
+     case .search:
++      #if compiler(>=6.4) && os(iOS)
++        // An app linked against the iOS 27 SDK gets its search tab inline, at the end of the bar.
++        // The detached trailing button a search tab had on iOS 26 is the prominent role there.
++        if #available(iOS 27, *) {
++          return .prominent
++        }
++      #endif
+       return .search
+     case .prominent:
+       #if compiler(>=6.4)
+@@ -119,4 +126,20 @@ class TabViewProps: ObservableObject {
+       !$0.hidden || $0.key == selectedPage
+     }
+   }
++
++  /// The children that render a tab: those of `filteredItems`, taken from it rather than from a
++  /// copy of its rule, since the tab bar's items are matched to `filteredItems` by position.
++  ///
++  /// A hidden tab is left out of the `ForEach` instead of rendering nothing there: SwiftUI evicts a
++  /// `ForEach` element that no tab retains, and a selection made by the tvOS focus engine walks the
++  /// list outside a view update, where rebuilding that element traps.
++  var renderedChildren: [IdentifiablePlatformView] {
++    let rendered = Set(filteredItems.map(\.key))
++    return children.enumerated().compactMap { index, child in
++      guard let key = items[safe: index]?.key, rendered.contains(key) else {
++        return nil
++      }
++      return child
++    }
++  }
+ }

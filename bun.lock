@@ -5,7 +5,7 @@
     "": {
       "name": "streamyfin",
       "dependencies": {
-        "@bottom-tabs/react-navigation": "1.4.0",
+        "@bottom-tabs/react-navigation": "1.5.0",
         "@douglowder/expo-av-route-picker-view": "^0.0.5",
         "@expo/metro-runtime": "~57.0.16",
         "@expo/react-native-action-sheet": "^4.1.1",
@@ -62,7 +62,7 @@
         "react-i18next": "17.0.15",
         "react-native": "npm:react-native-tvos@0.86.0-2",
         "react-native-awesome-slider": "^2.9.0",
-        "react-native-bottom-tabs": "1.4.0",
+        "react-native-bottom-tabs": "1.5.0",
         "react-native-circular-progress": "^1.4.1",
         "react-native-collapsible": "^1.6.2",
         "react-native-country-flag": "^2.0.2",
@@ -123,7 +123,7 @@
   "patchedDependencies": {
     "react-native-udp@4.1.7": "patches/react-native-udp@4.1.7.patch",
     "react-native-track-player@github:lovegaoshi/react-native-track-player#d2baf9a": "patches/react-native-track-player@4.1.1.patch",
-    "react-native-bottom-tabs@1.4.0": "patches/react-native-bottom-tabs@1.4.0.patch",
+    "react-native-bottom-tabs@1.5.0": "patches/react-native-bottom-tabs@1.5.0.patch",
   },
   "overrides": {
     "uuid": "11.1.1",
@@ -321,7 +321,7 @@
 
     "@biomejs/cli-win32-x64": ["@biomejs/cli-win32-x64@2.5.15", "", { "os": "win32", "cpu": "x64" }, "sha512-yAzh4UqEImV6Hcy0zjUqNfJAsUhoD64FBQCdTG8Md/Z2wQeVP/ZmJ3XRYAs1g8J9fjTFyl2fCtc5FB5til47+g=="],
 
-    "@bottom-tabs/react-navigation": ["@bottom-tabs/react-navigation@1.4.0", "", { "dependencies": { "color": "^5.0.0" }, "peerDependencies": { "@react-navigation/native": ">=7", "react": "*", "react-native": "*", "react-native-bottom-tabs": "*" } }, "sha512-EeOCrecZ4YiVmFASKtoLyQFFFBjbmkV6FBD4Oxyjs9aSexuX4jYbC8yapfnevqyMnYINz0qYTvpUEILciNL+nQ=="],
+    "@bottom-tabs/react-navigation": ["@bottom-tabs/react-navigation@1.5.0", "", { "dependencies": { "color": "^5.0.0" }, "peerDependencies": { "@react-navigation/native": ">=7", "react": "*", "react-native": "*", "react-native-bottom-tabs": "*" } }, "sha512-Sj2tgoTjjTpNZkHNkrE9aDocCmAuYtAHXB4Qz/HUN5yjvklbeBaPE4feI5WPfmiZCVsxHQOjbBRFDM25yf8PhA=="],
 
     "@callstack/reassure-cli": ["@callstack/reassure-cli@1.6.0", "", { "dependencies": { "@callstack/reassure-compare": "1.6.0", "@callstack/reassure-logger": "1.6.0", "chalk": "4.1.2", "simple-git": "^3.36.0", "yargs": "^17.7.2" }, "bin": { "reassure": "lib/commonjs/bin.js" } }, "sha512-GO32KZ295S4s2IBrfr4obQO7S4g/cAHtaFXCBHwfV7U2gyjGsFRM/4h1c4haxBbeky852TnEsZCPkudhs9F+zQ=="],
 
@@ -1859,7 +1859,7 @@
 
     "react-native-awesome-slider": ["react-native-awesome-slider@2.9.0", "", { "peerDependencies": { "react": "*", "react-native": "*", "react-native-gesture-handler": ">=2.0.0", "react-native-reanimated": ">=3.0.0" } }, "sha512-sc5qgX4YtM6IxjtosjgQLdsal120MvU+YWs0F2MdgQWijps22AXLDCUoBnZZ8vxVhVyJ2WnnIPrmtVBvVJjSuQ=="],
 
-    "react-native-bottom-tabs": ["react-native-bottom-tabs@1.4.0", "", { "dependencies": { "react-freeze": "^1.0.0", "sf-symbols-typescript": "^2.0.0", "use-latest-callback": "^0.2.1" }, "peerDependencies": { "react": "*", "react-native": "*" } }, "sha512-XGuKHGU2FH1j/Ii7HzFE0+6ejiLs4mrcBRQRJff2g94hRjDZnx+trB+cOFG6z1BHGPLv6CD833S0m+nQuZB9nA=="],
+    "react-native-bottom-tabs": ["react-native-bottom-tabs@1.5.0", "", { "dependencies": { "react-freeze": "^1.0.0", "sf-symbols-typescript": "^2.0.0", "use-latest-callback": "^0.2.1" }, "peerDependencies": { "react": "*", "react-native": "*" } }, "sha512-C1xvZD5aon6YgmG5W+diZTAWENg8ncMUU3Y8+NJ31G2dy9DkpUwWkzIwwPk2nyDMcMoxnuyMcyQS2QUHyPK+sw=="],
 
     "react-native-circular-progress": ["react-native-circular-progress@1.4.1", "", { "dependencies": { "prop-types": "^15.8.1" }, "peerDependencies": { "react": ">=16.0.0", "react-native": ">=0.50.0", "react-native-svg": ">=7.0.0" } }, "sha512-HEzvI0WPuWvsCgWE3Ff2HBTMgAEQB2GvTFw0KHyD/t1STAlDDRiolu0mEGhVvihKR3jJu3v3V4qzvSklY/7XzQ=="],
 
