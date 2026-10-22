@@ -675,8 +675,9 @@ const Page = () => {
         tags: ownFilters.tags,
         audioLanguages: ownFilters.audioLanguages,
         subtitleLanguages: ownFilters.subtitleLanguages,
+        serverVersion,
       },
-    [user?.Id, libraryId, library?.CollectionType, ownFilters],
+    [user?.Id, libraryId, library?.CollectionType, ownFilters, serverVersion],
   );
 
   const fetchItems = useCallback(
@@ -723,6 +724,8 @@ const Page = () => {
         activeTab,
         ...filterKey,
         jumpParams,
+        // Which sort key goes to the server can depend on its version.
+        serverVersion,
       ],
       queryFn: fetchItems,
       // A jump moves within the list already on screen, so that list stays up

@@ -49,7 +49,7 @@ export enum SortOrderOption {
   Descending = "Descending",
 }
 
-type SortOption = {
+export type SortOption = {
   key: SortByOption;
   value: string;
 };

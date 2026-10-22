@@ -7,6 +7,7 @@ import {
   getLibraryItemTypes,
   isQueueableLibrary,
   type LibraryItemsFilter,
+  serverSortBy,
 } from "./libraryItemsQuery";
 
 const horrorMovies: LibraryItemsFilter = {
@@ -118,4 +119,38 @@ describe("library items query", () => {
   ] as const)("a %s library can be queued: %s", (collectionType, expected) => {
     expect(isQueueableLibrary(collectionType)).toBe(expected);
   });
+
+  // Playback writes played state on the episodes, so a show's own DatePlayed
+  // never changes; the series-level key reads the episodes' dates.
+  test("sorts a Shows library by the series date played", () => {
+    expect(
+      buildLibraryItemsQuery({
+        ...horrorMovies,
+        collectionType: "tvshows",
+        sortBy: "DatePlayed",
+        serverVersion: "12.2.0",
+      }).sortBy,
+    ).toEqual(["SeriesDatePlayed", "SortName", "ProductionYear"]);
+  });
+
+  // The library page and the collections screen both send their sort through
+  // serverSortBy: only Date Played in a Shows library or view changes, and
+  // only on a server that sorts by the series key quickly (not 10.11).
+  test.each([
+    ["tvshows", "DatePlayed", "12.2.0", "SeriesDatePlayed"],
+    ["tvshows", "DatePlayed", "10.10.7", "SeriesDatePlayed"],
+    ["tvshows", "DatePlayed", "10.11.6", "DatePlayed"],
+    ["tvshows", "DatePlayed", undefined, "DatePlayed"],
+    ["tvshows", "DateLastContentAdded", "12.2.0", "DateLastContentAdded"],
+    ["movies", "DatePlayed", "12.2.0", "DatePlayed"],
+    ["boxsets", "DatePlayed", "12.2.0", "DatePlayed"],
+    [undefined, "DatePlayed", "12.2.0", "DatePlayed"],
+  ] as const)(
+    "a %s view asks a %s sort of a %s server as %s",
+    (collectionType, sortBy, serverVersion, expected) => {
+      expect(serverSortBy(sortBy, collectionType, serverVersion)).toBe(
+        expected,
+      );
+    },
+  );
 });
