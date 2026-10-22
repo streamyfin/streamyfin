@@ -15,6 +15,19 @@ class StreamHeaderScopeTest {
         assertTrue(scope.covers("http://JF.example:8096/Videos/abc/Subtitles/3/Stream.srt"))
     }
 
+    // java.net.URI has no host for a name with an underscore, a Docker service or a LAN name.
+    @Test fun aHostNameWithAnUnderscoreGetsThem() {
+        val docker = StreamHeaderScope("http://jf_box:8096/Videos/abc/stream")
+        assertTrue(docker.covers("http://jf_box:8096/Videos/abc/main.m3u8"))
+        assertTrue(docker.covers("https://jf_box:8096/Videos/abc/stream"))
+        assertFalse(docker.covers("http://jf_box:8920/Videos/abc/stream"))
+        assertFalse(docker.covers("http://other_box:8096/Videos/abc/stream"))
+        assertEquals(
+            "https://jf_box:8920/Videos/abc/stream",
+            StreamHeaderScope.upgradeTarget("http://jf_box:8096/Videos/abc/stream", 307, "https://jf_box:8920/Videos/abc/stream"),
+        )
+    }
+
     @Test fun anotherHostOrPortGetsNone() {
         assertFalse(scope.covers("https://cdn.example/hls/main.m3u8"))
         assertFalse(scope.covers("http://jf.example:8920/Videos/abc/stream"))

@@ -31,13 +31,27 @@ internal class StreamHeaderScope(streamUrl: String) {
         val stream = stream ?: return false
         val target = parse(url) ?: return false
         if (!target.host.equals(stream.host, ignoreCase = true)) return false
-        if (portOf(target) != portOf(stream)) return false
+        if (target.port != stream.port) return false
         return target.scheme.equals(stream.scheme, ignoreCase = true) ||
-            (isHttp(stream) && target.scheme.equals("https", ignoreCase = true))
+            (stream.isHttp && target.scheme.equals("https", ignoreCase = true))
+    }
+
+    /** A URL's scheme, host and port, a scheme's default port counting as none. */
+    private class Address(val scheme: String, val host: String, port: Int) {
+        val isHttp = scheme.equals("http", ignoreCase = true)
+        val port = when {
+            port == 80 && isHttp -> -1
+            port == 443 && scheme.equals("https", ignoreCase = true) -> -1
+            else -> port
+        }
     }
 
     companion object {
         private val REDIRECT_CODES = setOf(300, 301, 302, 303, 307, 308)
+
+        // An authority java.net.URI reads as registry-based, as it does a host name with an
+        // underscore (a Docker service, a LAN name): optional user info, the host, a port.
+        private val AUTHORITY = Regex("""^(?:[^@/]*@)?([A-Za-z0-9._~-]+|\[[0-9A-Fa-f:.]+])(?::(\d+))?$""")
 
         /**
          * Where a redirect from [from] to [location] leads when it is the one HttpURLConnection
@@ -45,29 +59,33 @@ internal class StreamHeaderScope(streamUrl: String) {
          */
         fun upgradeTarget(from: String, responseCode: Int, location: String?): String? {
             if (responseCode !in REDIRECT_CODES || location == null) return null
-            val source = parse(from) ?: return null
+            val sourceUri = toUri(from) ?: return null
+            val source = addressOf(sourceUri) ?: return null
             // A relative or scheme-relative location keeps the protocol: not an upgrade.
-            val target = try {
-                source.resolve(location.trim())
+            val targetUri = try {
+                sourceUri.resolve(location.trim())
             } catch (e: IllegalArgumentException) {
                 return null
             }
-            if (!isHttp(source) || !target.scheme.equals("https", ignoreCase = true)) return null
-            return if (target.host.isNullOrEmpty()) null else target.toString()
+            val target = addressOf(targetUri) ?: return null
+            if (!source.isHttp || !target.scheme.equals("https", ignoreCase = true)) return null
+            return targetUri.toString()
         }
 
-        private fun parse(url: String): URI? = try {
-            URI(url).takeIf { it.scheme != null && !it.host.isNullOrEmpty() }
+        private fun parse(url: String): Address? = toUri(url)?.let(::addressOf)
+
+        private fun toUri(url: String): URI? = try {
+            URI(url)
         } catch (e: URISyntaxException) {
             null
         }
 
-        private fun isHttp(uri: URI) = uri.scheme.equals("http", ignoreCase = true)
-
-        private fun portOf(uri: URI): Int = when {
-            uri.port == 80 && isHttp(uri) -> -1
-            uri.port == 443 && uri.scheme.equals("https", ignoreCase = true) -> -1
-            else -> uri.port
+        private fun addressOf(uri: URI): Address? {
+            val scheme = uri.scheme ?: return null
+            if (!uri.host.isNullOrEmpty()) return Address(scheme, uri.host, uri.port)
+            val authority = AUTHORITY.matchEntire(uri.rawAuthority ?: return null) ?: return null
+            val port = authority.groupValues[2].toIntOrNull() ?: -1
+            return Address(scheme, authority.groupValues[1], port)
         }
     }
 }
