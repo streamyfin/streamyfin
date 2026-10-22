@@ -113,6 +113,7 @@ export const TVSearchSection: React.FC<TVSearchSectionProps> = ({
                       backgroundColor: "#262626",
                     }}
                   >
+                    {/* biome-ignore lint/plugin: emoji glyph, not text */}
                     <Text style={{ fontSize: 48 }}>👤</Text>
                   </View>
                 )}
@@ -179,6 +180,7 @@ export const TVSearchSection: React.FC<TVSearchSectionProps> = ({
                       backgroundColor: "#262626",
                     }}
                   >
+                    {/* biome-ignore lint/plugin: emoji glyph, not text */}
                     <Text style={{ fontSize: 64 }}>{icon}</Text>
                   </View>
                 )}

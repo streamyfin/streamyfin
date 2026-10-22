@@ -1,16 +1,27 @@
 import type { Api } from "@jellyfin/sdk";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
+import { Alert } from "react-native";
 import CastContext, {
   CastState,
-  MediaStreamType,
   PlayServicesState,
+  useCastDevice,
   useCastState,
   useRemoteMediaClient,
 } from "react-native-google-cast";
-import { getAudioContentType } from "@/utils/jellyfin/audio/getAudioContentType";
-import { getAudioStreamUrl } from "@/utils/jellyfin/audio/getAudioStreamUrl";
-import { logAndCaptureError } from "@/utils/log";
+import {
+  RECEIVER_LOAD_TIMEOUT_MS,
+  RECEIVER_MAX_QUEUE_ITEMS,
+} from "@/constants/Cast";
+import {
+  castToJellyfinReceiver,
+  currentReceiverName,
+  queueWindow,
+  receiverNameFor,
+} from "@/utils/cast/jellyfinReceiver";
+import { castNotStartedMessage } from "@/utils/cast/receiverLoadErrorMessage";
+import { logAndCaptureError, writeErrorLog } from "@/utils/log";
 
 interface UseMusicCastOptions {
   api: Api | null;
@@ -26,29 +37,16 @@ interface CastQueueOptions {
  * Hook for casting music to Chromecast with full queue support
  */
 export const useMusicCast = ({ api, userId }: UseMusicCastOptions) => {
+  const { t } = useTranslation();
   const client = useRemoteMediaClient();
   const castState = useCastState();
+  const castDeviceName = receiverNameFor(useCastDevice());
 
   const isConnected = castState === CastState.CONNECTED;
 
   /**
-   * Get album art URL for a track
-   */
-  const getAlbumArtUrl = useCallback(
-    (track: BaseItemDto): string | undefined => {
-      if (!api) return undefined;
-      const albumId = track.AlbumId || track.ParentId;
-      if (albumId) {
-        return `${api.basePath}/Items/${albumId}/Images/Primary?maxHeight=600&maxWidth=600`;
-      }
-      return `${api.basePath}/Items/${track.Id}/Images/Primary?maxHeight=600&maxWidth=600`;
-    },
-    [api],
-  );
-
-  /**
-   * Cast a queue of tracks to Chromecast
-   * Uses native queue support for seamless track transitions
+   * Cast a queue of tracks to Chromecast. The receiver keeps the queue and
+   * moves through it on its own.
    */
   const castQueue = useCallback(
     async ({ queue, startIndex }: CastQueueOptions): Promise<boolean> => {
@@ -65,73 +63,48 @@ export const useMusicCast = ({ api, userId }: UseMusicCastOptions) => {
           return false;
         }
 
-        // Build queue items - limit to 100 tracks due to Cast SDK message size limit
-        const queueToSend = queue.slice(0, 100);
-        const queueItems = await Promise.all(
-          queueToSend.map(async (track) => {
-            const streamResult = await getAudioStreamUrl(
-              api,
-              userId,
-              track.Id!,
-            );
-            if (!streamResult) {
-              throw new Error(
-                `Failed to get stream URL for track: ${track.Name}`,
-              );
-            }
-
-            const contentType = getAudioContentType(
-              streamResult.mediaSource?.Container,
-            );
-
-            // Calculate stream duration in seconds from runtime ticks
-            const streamDurationSeconds = track.RunTimeTicks
-              ? track.RunTimeTicks / 10000000
-              : undefined;
-
-            return {
-              mediaInfo: {
-                contentId: track.Id,
-                contentUrl: streamResult.url,
-                contentType,
-                streamType: MediaStreamType.BUFFERED,
-                streamDuration: streamDurationSeconds,
-                metadata: {
-                  type: "musicTrack" as const,
-                  title: track.Name || "Unknown Track",
-                  artist: track.AlbumArtist || track.Artists?.join(", ") || "",
-                  albumName: track.Album || "",
-                  images: getAlbumArtUrl(track)
-                    ? [{ url: getAlbumArtUrl(track)! }]
-                    : [],
-                },
-              },
-              autoplay: true,
-              preloadTime: 10, // Preload 10 seconds before track ends
-            };
-          }),
+        // The receiver reloads each track from the server itself, so the
+        // queue is sent as bare item ids; the item cap still guards the 64 KB
+        // Cast message limit.
+        const queueToSend = queueWindow(
+          queue,
+          startIndex,
+          RECEIVER_MAX_QUEUE_ITEMS,
         );
 
-        // Load media with queue
-        await client.loadMedia({
-          queueData: {
-            items: queueItems,
-            startIndex: Math.min(startIndex, queueItems.length - 1),
-          },
-        });
+        // Auto-cast fires on the render the session connects, before the
+        // device hook has resolved, so the name is read from the session.
+        const receiverName = (await currentReceiverName()) ?? castDeviceName;
 
-        // Show expanded controls
+        const outcome = await castToJellyfinReceiver(
+          client,
+          { api, userId, receiverName },
+          queueToSend,
+          RECEIVER_LOAD_TIMEOUT_MS,
+        );
+
+        const notStarted = castNotStartedMessage(t, outcome);
+        if (notStarted) {
+          writeErrorLog("Chromecast did not start the music queue", outcome);
+          Alert.alert(t("player.client_error"), notStarted);
+          return false;
+        }
+        if (outcome.status !== "loaded") return false;
+
         CastContext.showExpandedControls();
-
         return true;
       } catch (error) {
-        // Returning false gives the caller no user feedback either, so this
-        // is the only trace that casting failed.
         logAndCaptureError("Casting music queue failed", error);
+        // The caller starts a cast and moves on, so nothing else would tell
+        // the user the queue never reached the TV.
+        Alert.alert(
+          t("player.client_error"),
+          t("player.chromecast_playback_failed"),
+        );
         return false;
       }
     },
-    [client, api, userId, getAlbumArtUrl],
+    [client, api, userId, castDeviceName, t],
   );
 
   /**
