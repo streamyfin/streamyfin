@@ -119,7 +119,9 @@ function toStorageIndex(stored: Record<string, unknown>): AudioStorageIndex {
     isRecord(stored.tracks) ? stored.tracks : {},
   )) {
     if (hasPath(track)) {
-      tracks[itemId] = { ...track, size: sizeOrZero(track.size) };
+      // Keyed by the index key: deleting goes by the entry's own id, which an
+      // older or damaged entry can lack or get wrong.
+      tracks[itemId] = { ...track, itemId, size: sizeOrZero(track.size) };
     }
   }
   let totalCacheSize = 0;

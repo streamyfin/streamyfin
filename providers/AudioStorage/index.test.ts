@@ -370,6 +370,31 @@ describe("a track stored before an iOS update moved the app's container", () => 
     });
   });
 
+  // Eviction and clearing the cache delete an entry by the id it carries, so an
+  // entry whose own id is missing or names another track has to be keyed by
+  // the index key, or it stays behind while another track's entry goes.
+  it("names each track by its index key", async () => {
+    storeIndex({
+      "track-1": {
+        ...track(
+          "track-1",
+          `${now}/Library/Caches/streamyfin-audio-cache/track-1.mp3`,
+          false,
+        ),
+        itemId: "track-2",
+      },
+      "track-2": track(
+        "track-2",
+        `${now}/Library/Caches/streamyfin-audio-cache/track-2.mp3`,
+        false,
+      ),
+    });
+
+    await audio.clearCache();
+
+    expect(storedIndex().tracks).toEqual({});
+  });
+
   // A negative size would take bytes off the totals that other tracks fill.
   it("counts a negative size as empty", () => {
     storeIndex({
