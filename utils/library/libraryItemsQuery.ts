@@ -21,7 +21,7 @@ export interface LibraryItemsFilter {
   sortOrder: SortOrder;
   filterBy: ItemFilter[];
   genres: string[];
-  officialRatings?: string[];
+  officialRatings: string[];
   years: string[];
   tags: string[];
   audioLanguages?: string[];
