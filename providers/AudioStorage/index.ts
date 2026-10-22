@@ -11,12 +11,14 @@
 import { EventEmitter } from "eventemitter3";
 import { Directory, File, Paths } from "expo-file-system";
 import type { EventSubscription } from "expo-modules-core";
+import { Platform } from "react-native";
+import { AUDIO_STORAGE_INDEX_KEY } from "@/constants/Music";
 import type {
   DownloadCompleteEvent as BGDownloadCompleteEvent,
   DownloadErrorEvent as BGDownloadErrorEvent,
 } from "@/modules";
 import { BackgroundDownloader } from "@/modules";
-import { safeNamePart } from "@/providers/Downloads/utils";
+import { appDirectoryRebaser, safeNamePart } from "@/providers/Downloads/utils";
 import { storage } from "@/utils/mmkv";
 import type {
   AudioStorageIndex,
@@ -25,9 +27,6 @@ import type {
   DownloadOptions,
   StoredTrackInfo,
 } from "./types";
-
-// Storage keys
-const AUDIO_STORAGE_INDEX_KEY = "audio_storage.v1.json";
 
 // Directory names
 const AUDIO_CACHE_DIR = "streamyfin-audio-cache";
@@ -73,6 +72,68 @@ let _errorSubscription: EventSubscription | null = null;
 let listenersSetup = false;
 
 /**
+ * Points every stored track at the directory it is in now. The index keeps each path whole, and
+ * an iOS app update can move the app's container, which left downloaded music unplayable and
+ * its files on disk (#2252). Android's files directory never moves, so nothing changes there.
+ * Mutates and returns the index.
+ */
+function withCurrentContainerPaths(
+  index: AudioStorageIndex,
+): AudioStorageIndex {
+  if (Platform.OS !== "ios") return index;
+  const documents = Paths.document.uri;
+  // Downloads live in Documents and the look-ahead cache in Library/Caches. A path is only
+  // rebased onto the directory it was in, so trying both is safe.
+  const rebasers = [documents, Paths.cache.uri].map((directory) =>
+    appDirectoryRebaser(directory, documents),
+  );
+  for (const track of Object.values(index.tracks)) {
+    for (const rebase of rebasers) {
+      track.localPath = rebase(track.localPath);
+    }
+  }
+  return index;
+}
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  !!value && typeof value === "object";
+
+// Every reader opens a track by its path.
+const hasPath = (track: unknown): track is StoredTrackInfo =>
+  isRecord(track) && typeof track.localPath === "string";
+
+// A size is a count of bytes: anything else, negative included, counts as 0.
+const sizeOrZero = (value: unknown) =>
+  typeof value === "number" && Number.isFinite(value) && value > 0 ? value : 0;
+
+/**
+ * The index as stored, without the entries that are not tracks and with the numbers an older or
+ * damaged one lacks, so every walk over it below can rely on them, as the downloads database
+ * does with its own sections. A size that is not a number counts as 0 rather than turning the
+ * totals into NaN, and the totals are summed again from the tracks kept: the stored ones can
+ * count dropped entries, and eviction compares the cache total with the limit.
+ */
+function toStorageIndex(stored: Record<string, unknown>): AudioStorageIndex {
+  const tracks: Record<string, StoredTrackInfo> = {};
+  for (const [itemId, track] of Object.entries(
+    isRecord(stored.tracks) ? stored.tracks : {},
+  )) {
+    if (hasPath(track)) {
+      // Keyed by the index key: deleting goes by the entry's own id, which an
+      // older or damaged entry can lack or get wrong.
+      tracks[itemId] = { ...track, itemId, size: sizeOrZero(track.size) };
+    }
+  }
+  let totalCacheSize = 0;
+  let totalPermanentSize = 0;
+  for (const track of Object.values(tracks)) {
+    if (track.permanent) totalPermanentSize += track.size;
+    else totalCacheSize += track.size;
+  }
+  return { ...stored, tracks, totalCacheSize, totalPermanentSize };
+}
+
+/**
  * Get the storage index from MMKV
  */
 function getStorageIndex(): AudioStorageIndex {
@@ -80,21 +141,32 @@ function getStorageIndex(): AudioStorageIndex {
     return storageIndex;
   }
 
+  let stored: unknown;
   try {
     const data = storage.getString(AUDIO_STORAGE_INDEX_KEY);
     if (data) {
-      storageIndex = JSON.parse(data) as AudioStorageIndex;
-      return storageIndex;
+      stored = JSON.parse(data);
     }
   } catch {
     // Ignore parse errors
   }
 
-  storageIndex = {
-    tracks: {},
-    totalCacheSize: 0,
-    totalPermanentSize: 0,
-  };
+  if (!isRecord(stored)) {
+    storageIndex = {
+      tracks: {},
+      totalCacheSize: 0,
+      totalPermanentSize: 0,
+    };
+    return storageIndex;
+  }
+
+  storageIndex = toStorageIndex(stored);
+  try {
+    withCurrentContainerPaths(storageIndex);
+  } catch {
+    // The paths stay as stored. An empty index here would be saved over every track by the
+    // next write.
+  }
   return storageIndex;
 }
 
