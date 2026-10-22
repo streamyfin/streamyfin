@@ -148,6 +148,7 @@ describe("the per type sets", () => {
       SortByOption.DateCreated,
       SortByOption.OfficialRating,
       SortByOption.ProductionYear,
+      SortByOption.PremiereDate,
     ]);
     expect(keysOf("homevideos")).toEqual(keysOf("musicvideos"));
     expect(keysOf("homevideos")).toContain(SortByOption.Runtime);
@@ -155,6 +156,17 @@ describe("the per type sets", () => {
       SortByOption.DateLastContentAdded,
     );
   });
+
+  // The collections screen writes PremiereDate as the default sort of a box
+  // set or playlist with no DisplayOrder of its own.
+  test.each(["boxsets", "playlists"] as const)(
+    "%s keep the collections screen's default sort",
+    (kind) => {
+      expect(
+        resolveSortKey(SortByOption.PremiereDate, sortOptionsFor(kind)),
+      ).toBe(SortByOption.PremiereDate);
+    },
+  );
 
   test("a mixed library gets the web list, container date included", () => {
     expect(keysOf("mixed")).toContain(SortByOption.DateLastContentAdded);
