@@ -34,7 +34,7 @@ interface Options {
 interface Attempt {
   api: Api;
   timer?: ReturnType<typeof setTimeout>;
-  /** When the server stops honouring the code, retried failures included. */
+  /** When the server stops honouring the code. */
   endsAt?: number;
   /** A failure that is not an HTTP answer was logged; once is enough. */
   reported?: boolean;
@@ -134,24 +134,26 @@ export function useQuickConnect({ api, headers, onAuthenticated }: Options) {
             error: error instanceof Error ? error.message : String(error),
           });
         }
-        // Network errors and temporary server failures leave the code valid,
-        // until the server would have dropped it anyway.
-        if (Date.now() >= (attempt.endsAt ?? 0)) {
-          cancelAttempt();
-          setStatus("expired");
-          return false;
-        }
+        // Network errors and temporary server failures leave the code valid.
+        return true;
+      };
+
+      // The server drops the code at the end of its lifetime: rather than ask
+      // again then, the attempt ends as expired, whatever kept it going.
+      const expireIfOver = () => {
+        if (Date.now() < (attempt.endsAt ?? 0)) return false;
+        cancelAttempt();
+        setStatus("expired");
         return true;
       };
 
       // Schedule after the previous request settles: a slow response must not
       // overlap another request or exchange the same secret more than once.
       const retry = (step: () => Promise<void>) => {
-        if (isCurrent(attempt)) {
-          attempt.timer = setTimeout(() => {
-            void step();
-          }, QUICK_CONNECT_POLL_INTERVAL_MS);
-        }
+        if (!isCurrent(attempt) || expireIfOver()) return;
+        attempt.timer = setTimeout(() => {
+          if (isCurrent(attempt) && !expireIfOver()) void step();
+        }, QUICK_CONNECT_POLL_INTERVAL_MS);
       };
 
       const authenticate = async () => {

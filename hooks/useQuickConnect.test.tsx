@@ -319,6 +319,47 @@ describe("useQuickConnect", () => {
     },
   );
 
+  // The server drops an unapproved code at the end of its lifetime anyway.
+  test("ends a code still waiting for approval once its lifetime is over", async () => {
+    const { result, api } = await renderQuickConnect();
+    await initiate(result);
+
+    await advance(QUICK_CONNECT_CODE_LIFETIME_MS - 2000);
+    expect(result.current.quickConnectStatus).toBe("waiting");
+    await advance(3000);
+    expect(result.current.quickConnectStatus).toBe("expired");
+    const polls = api.mock.history.get.length;
+    await advance(5000);
+
+    expect(api.mock.history.get).toHaveLength(polls);
+  });
+
+  // An approval read just before the end still signs in: the server answered
+  // that poll while it knew the code.
+  test("signs in with an approval whose answer lands after the lifetime", async () => {
+    const pending = deferred<[number, { Authenticated: boolean }]>();
+    const { result, api, onAuthenticated } = await renderQuickConnect();
+    let approved = false;
+    api.mock.resetHandlers();
+    api.mock.onPost(INITIATE).reply(200, code);
+    api.mock
+      .onGet(CONNECT)
+      .reply(() =>
+        approved ? pending.promise : [200, { Authenticated: false }],
+      );
+    api.mock.onPost(AUTHENTICATE).reply(200, authentication);
+    await initiate(result);
+    await advance(QUICK_CONNECT_CODE_LIFETIME_MS - 1500);
+    approved = true;
+    await advance(1000);
+
+    await advance(2000);
+    await act(async () => pending.resolve([200, { Authenticated: true }]));
+
+    expect(onAuthenticated).toHaveBeenCalledTimes(1);
+    expect(result.current.quickConnectStatus).toBe("signed-in");
+  });
+
   // Retried silently every second, a programming error left no trace for a
   // "Quick Connect never finishes" report.
   test("logs once a failure that is not an HTTP answer, and keeps polling", async () => {
