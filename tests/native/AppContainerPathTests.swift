@@ -37,6 +37,11 @@ enum AppContainerPathTests {
         ] {
             expect(stored, stored)
         }
+        // A place that climbs out of the container through ".." stays as stored, and one that
+        // only passes through a sibling folder still lands in the container.
+        expect("\(old)/Documents/../../../../outside/a.mp4", "\(old)/Documents/../../../../outside/a.mp4")
+        expect("\(old)/Documents/x/../a.mp4", "\(now)/Documents/a.mp4")
+
         // A Documents directory with no directory of containers above it has no sibling to match.
         expect("/x/Documents/a.mp4", "/x/Documents/a.mp4",
                documents: URL(fileURLWithPath: "/Documents", isDirectory: true))

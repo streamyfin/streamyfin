@@ -27,7 +27,11 @@ enum AppContainerPath {
     guard let slash = inContainers.firstIndex(of: "/") else { return path }
     let place = inContainers[inContainers.index(after: slash)...]
     guard slash != inContainers.startIndex, !place.isEmpty else { return path }
-    return container + "/" + place
+    // A place with ".." in it could lead out of the container: only a destination that stays in
+    // it moves.
+    let moved = URL(fileURLWithPath: container + "/" + place).standardizedFileURL.path
+    guard moved.hasPrefix(container + "/") else { return path }
+    return moved
   }
 
   private static let minimumContainerComponents = 3
