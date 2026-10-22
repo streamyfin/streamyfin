@@ -80,7 +80,9 @@ Three rules keep mocks from becoming the thing that breaks:
 - `mmkvModule` stands for `react-native-mmkv`, backed by one map per spec file;
   `clearMmkv()` empties it between tests.
 - `secureStoreModule` stands for `expo-secure-store`, the same way; `clearSecureStore()`
-  empties it, and `secureStoreValues` seeds or reads it back.
+  empties it, and `secureStoreValues` seeds or reads it back. `lockSecureStore()` locks the
+  phone: a read then throws, as the Keychain's does, unless the item was created as readable
+  after the first unlock.
 - `fileSystemModule` stands for `expo-file-system` in specs that delete or download files: a
   path exists once `fakeFiles.add()` puts it there, or a download lands on it, and until
   something deletes it. `fakeFiles.clear()` empties the disk, `fakeFiles.remaining()`,

@@ -18,7 +18,6 @@
     "password_placeholder": "Passwuert",
     "login_button": "Umellen",
     "quick_connect": "Quick Connect",
-    "enter_code_to_login": "Gëff de Code {{code}} an, fir dech unzemellen",
     "quick_connect_instructions": "Gëff dëse Code op engem ugemellten Apparat un. Du gëss automatesch ugemellt.",
     "tap_code_to_copy": "Tipp op de Code, fir en ze kopéieren",
     "code_copied": "Code kopéiert",
@@ -226,8 +225,8 @@
         "enter_the_quick_connect_code": "Quick Connect-Code aginn …",
         "success": "Erfollegräich verbonn",
         "quick_connect_authorized": "Quick Connect autoriséiert",
-        "error": "Feeler",
         "invalid_code": "Ongëltege Code",
+        "disabled": "Quick Connect is turned off on this server. An administrator can turn it on in the server's dashboard.",
         "authorize": "Autoriséieren",
         "paste_code": "Code asetzen"
       },
@@ -610,6 +609,7 @@
         "all_files_deleted": "All Downloaden geläscht",
         "files_deleted_by_type": "{{count}} {{type}} geläscht",
         "could_not_get_download_url_for_item": "Download-URL fir {{itemName}} konnt net geluede ginn",
+        "no_media_source_to_download": "Dëst Element konnt net erofgeluede ginn",
         "file_deleted": "{{item}} geläscht"
       }
     }
@@ -727,7 +727,8 @@
     "noData": "Elementer, déi s du als Favoritte markéiers, ginn hei ugewisen."
   },
   "custom_links": {
-    "no_links": "Keng Linken"
+    "no_links": "Keng Linken",
+    "could_not_open_link": "Link konnt net opgemaach ginn"
   },
   "player": {
     "live": "LIVE",
@@ -1175,9 +1176,7 @@
     "title": "Mam TV koppelen",
     "align_qr": "De QR-Code am Kader ausriichten",
     "enter_code_manually": "Code manuell aginn",
-    "pairing_enter_credentials": "Umelldate fir TV aginn",
     "pairing_code_label": "Koppelungscode",
-    "server": "Server",
     "authorize_button": "Autoriséieren",
     "authorizing": "Authoriséieren …",
     "scan_again": "Erëm scannen",
@@ -1186,18 +1185,24 @@
     "pairing_tv_connecting": "D'Televisioun verbënnt sech mat dengem Kont",
     "error_title": "Autoriséierung feelgeschloen",
     "error_invalid_qr": "Ongëltege QR-Code. Wgl. scann den TV-Kopplelungscode.",
+    "error_old_tv": "This TV runs an older version of Streamyfin. Update it, then try again.",
+    "error_code_not_waiting": "This code is not waiting on {{server}}. Check that the TV uses the same server as this phone, then start Quick Connect again on the TV.",
+    "error_quick_connect_disabled": "Quick Connect is turned off on {{server}}. An administrator can turn it on in the server's dashboard.",
+    "error_other_server": "This TV is connecting to another server, {{server}}. Sign in to that server in this app, then scan again.",
     "error_generic": "Eppes ass schifgelaf. Wgl. probéier et erëm.",
     "error_permission_denied": "Kameraberechtegung erfuerderlech fir QR-Coden ze scannen.",
     "login_as": "Als {{username}} umellen?",
     "on_server": "op {{server}}",
-    "use_different_user": "Verwenn en anere Benotzer",
     "open_settings": "Astellungen opmaachen"
   },
   "pairing": {
     "pair_with_phone": "Mat Telefon koppelen",
     "pair_with_phone_title": "Um TV umellen",
-    "waiting_for_phone": "Waarden op Telefon …",
-    "scan_with_phone": "Scann mat der Streamyfin-App op dengem Telefon",
+    "scan_quick_connect": "Scan the QR code with the Streamyfin app or your phone's camera.",
+    "code_expired": "This code has expired.",
+    "get_new_code": "Get a new code",
+    "scan_with_app": "Scan the QR code with the Streamyfin app on your phone.",
+    "account_that_approves": "The account that approves the code",
     "logging_in": "Umellen …",
     "logging_in_description": "Verbënnt mat dengem Server"
   },

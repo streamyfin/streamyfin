@@ -18,7 +18,6 @@
     "password_placeholder": "비밀번호",
     "login_button": "로그인",
     "quick_connect": "퀵 커넥트",
-    "enter_code_to_login": "로그인 하기 위해 코드{{code}}를 입력하세요",
     "quick_connect_instructions": "로그인한 기기에서 이 코드를 입력하세요. 자동으로 로그인됩니다.",
     "tap_code_to_copy": "코드를 눌러 복사하세요",
     "code_copied": "코드가 복사되었습니다",
@@ -226,8 +225,8 @@
         "enter_the_quick_connect_code": "퀵 커넥트 코드 입력...",
         "success": "성공",
         "quick_connect_authorized": "퀵 커넥트 승인되었습니다",
-        "error": "오류",
         "invalid_code": "잘못된 코드입니다",
+        "disabled": "Quick Connect is turned off on this server. An administrator can turn it on in the server's dashboard.",
         "authorize": "승인",
         "paste_code": "코드 붙여넣기"
       },
@@ -610,6 +609,7 @@
         "all_files_deleted": "모든 다운로드 삭제 완료",
         "files_deleted_by_type": "{{count}}개의 {{type}}이(가) 삭제되었습니다",
         "could_not_get_download_url_for_item": "{{itemName}}의 다운로드 URL을 가져오지 못했습니다",
+        "no_media_source_to_download": "This item cannot be downloaded",
         "file_deleted": "{{item}} 이(가) 삭제되었습니다"
       }
     }
@@ -727,7 +727,8 @@
     "noData": "즐겨찾기로 표시한 항목이 여기에 표시됩니다."
   },
   "custom_links": {
-    "no_links": "링크 없음"
+    "no_links": "링크 없음",
+    "could_not_open_link": "Could not open this link"
   },
   "player": {
     "live": "라이브",
@@ -1175,9 +1176,7 @@
     "title": "TV와 페어링",
     "align_qr": "QR 코드를 프레임 안에 맞춰주세요",
     "enter_code_manually": "코드 직접 입력",
-    "pairing_enter_credentials": "TV 로그인 정보 입력",
     "pairing_code_label": "페어링 코드",
-    "server": "서버",
     "authorize_button": "승인",
     "authorizing": "승인 중...",
     "scan_again": "다시 스캔",
@@ -1186,18 +1185,24 @@
     "pairing_tv_connecting": "TV가 계정에 연결 중입니다",
     "error_title": "인증에 실패했습니다",
     "error_invalid_qr": "잘못된 QR 코드입니다. TV 페어링 코드를 스캔하세요.",
+    "error_old_tv": "This TV runs an older version of Streamyfin. Update it, then try again.",
+    "error_code_not_waiting": "This code is not waiting on {{server}}. Check that the TV uses the same server as this phone, then start Quick Connect again on the TV.",
+    "error_quick_connect_disabled": "Quick Connect is turned off on {{server}}. An administrator can turn it on in the server's dashboard.",
+    "error_other_server": "This TV is connecting to another server, {{server}}. Sign in to that server in this app, then scan again.",
     "error_generic": "문제가 발생했습니다. 다시 시도하세요.",
     "error_permission_denied": "QR 코드를 스캔하려면 카메라 권한이 필요합니다.",
     "login_as": "{{username}} 계정으로 로그인하시겠습니까?",
     "on_server": "{{server}} 서버에서",
-    "use_different_user": "다른 사용자 사용",
     "open_settings": "설정 열기"
   },
   "pairing": {
     "pair_with_phone": "휴대폰과 페어링",
     "pair_with_phone_title": "TV에서 로그인",
-    "waiting_for_phone": "휴대폰 연결 대기 중...",
-    "scan_with_phone": "휴대폰의 Streamyfin 앱으로 스캔하세요",
+    "scan_quick_connect": "Scan the QR code with the Streamyfin app or your phone's camera.",
+    "code_expired": "This code has expired.",
+    "get_new_code": "Get a new code",
+    "scan_with_app": "Scan the QR code with the Streamyfin app on your phone.",
+    "account_that_approves": "The account that approves the code",
     "logging_in": "로그인 중...",
     "logging_in_description": "서버에 연결 중"
   },

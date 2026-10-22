@@ -18,7 +18,6 @@
     "password_placeholder": "Пароль",
     "login_button": "Войти",
     "quick_connect": "Быстрое подключение",
-    "enter_code_to_login": "Введите код {{code}} чтобы войти",
     "quick_connect_instructions": "Введите этот код на устройстве, на котором вы уже вошли в аккаунт. Вход будет выполнен автоматически.",
     "tap_code_to_copy": "Нажмите на код, чтобы скопировать",
     "code_copied": "Код скопирован",
@@ -226,8 +225,8 @@
         "enter_the_quick_connect_code": "Введите код для быстрого подключения...",
         "success": "Успех",
         "quick_connect_authorized": "Быстрое подключение авторизовано",
-        "error": "Ошибка",
         "invalid_code": "Неверный код",
+        "disabled": "Quick Connect is turned off on this server. An administrator can turn it on in the server's dashboard.",
         "authorize": "Авторизовать",
         "paste_code": "Вставить код"
       },
@@ -610,6 +609,7 @@
         "all_files_deleted": "Все загрузки удалены",
         "files_deleted_by_type": "{{type}}: удалено {{count}}",
         "could_not_get_download_url_for_item": "Не удалось получить URL для загрузки {{itemName}}",
+        "no_media_source_to_download": "This item cannot be downloaded",
         "file_deleted": "Удалено: {{item}}"
       }
     }
@@ -727,7 +727,8 @@
     "noData": "Элементы, которые вы отмечаете как избранные, отображаются здесь."
   },
   "custom_links": {
-    "no_links": "Нет ссылок"
+    "no_links": "Нет ссылок",
+    "could_not_open_link": "Could not open this link"
   },
   "player": {
     "live": "ПРЯМОЙ ЭФИР",
@@ -1175,9 +1176,7 @@
     "title": "Привязать к телевизору",
     "align_qr": "Совместите QR-код с рамкой",
     "enter_code_manually": "Ввести код вручную",
-    "pairing_enter_credentials": "Введите данные телевизора",
     "pairing_code_label": "Код подключения",
-    "server": "Сервер",
     "authorize_button": "Войти",
     "authorizing": "Вход...",
     "scan_again": "Сканировать ещё раз",
@@ -1186,18 +1185,24 @@
     "pairing_tv_connecting": "Телевизор подключается к Вашей учётной записи",
     "error_title": "Ошибка авторизации",
     "error_invalid_qr": "Неверный QR-код, отсканируйте код подключения телевизора.",
+    "error_old_tv": "This TV runs an older version of Streamyfin. Update it, then try again.",
+    "error_code_not_waiting": "This code is not waiting on {{server}}. Check that the TV uses the same server as this phone, then start Quick Connect again on the TV.",
+    "error_quick_connect_disabled": "Quick Connect is turned off on {{server}}. An administrator can turn it on in the server's dashboard.",
+    "error_other_server": "This TV is connecting to another server, {{server}}. Sign in to that server in this app, then scan again.",
     "error_generic": "Что-то пошло не так, попробуйте снова.",
     "error_permission_denied": "Разрешите использование камеры для сканирования QR-кода.",
     "login_as": "Войти как {{username}}?",
     "on_server": "на {{server}}",
-    "use_different_user": "Войти как другой пользователь",
     "open_settings": "Открыть параметры"
   },
   "pairing": {
     "pair_with_phone": "Подключить телефон",
     "pair_with_phone_title": "Вход на ТВ",
-    "waiting_for_phone": "Ожидание подключения телефона...",
-    "scan_with_phone": "Отсканируйте через приложение Stremyfin на телефоне",
+    "scan_quick_connect": "Scan the QR code with the Streamyfin app or your phone's camera.",
+    "code_expired": "This code has expired.",
+    "get_new_code": "Get a new code",
+    "scan_with_app": "Scan the QR code with the Streamyfin app on your phone.",
+    "account_that_approves": "The account that approves the code",
     "logging_in": "Подключение...",
     "logging_in_description": "Подключение к Вашему серверу"
   },

@@ -18,7 +18,6 @@
     "password_placeholder": "密碼",
     "login_button": "登入",
     "quick_connect": "快速連接",
-    "enter_code_to_login": "輸入代碼 {{code}} 以登入",
     "quick_connect_instructions": "在已登入的裝置上輸入此代碼，即可自動登入。",
     "tap_code_to_copy": "點選代碼即可複製",
     "code_copied": "代碼已複製",
@@ -226,8 +225,8 @@
         "enter_the_quick_connect_code": "輸入快速連接代碼...",
         "success": "成功",
         "quick_connect_authorized": "已授權 Quick Connect",
-        "error": "錯誤",
         "invalid_code": "無效代碼",
+        "disabled": "Quick Connect is turned off on this server. An administrator can turn it on in the server's dashboard.",
         "authorize": "授權",
         "paste_code": "貼上代碼"
       },
@@ -610,6 +609,7 @@
         "all_files_deleted": "已成功刪除所有下載",
         "files_deleted_by_type": "已刪除 {{count}} 個{{type}}",
         "could_not_get_download_url_for_item": "無法取得 {{itemName}} 的下載網址",
+        "no_media_source_to_download": "This item cannot be downloaded",
         "file_deleted": "已刪除 {{item}}"
       }
     }
@@ -727,7 +727,8 @@
     "noData": "將項目標記為收藏，它們將顯示在此處以便快速訪問。"
   },
   "custom_links": {
-    "no_links": "無鏈接"
+    "no_links": "無鏈接",
+    "could_not_open_link": "Could not open this link"
   },
   "player": {
     "live": "直播",
@@ -1175,9 +1176,7 @@
     "title": "與電視配對",
     "align_qr": "將 QR code 對準框內",
     "enter_code_manually": "手動輸入代碼",
-    "pairing_enter_credentials": "輸入電視端的登入資訊",
     "pairing_code_label": "配對碼",
-    "server": "伺服器",
     "authorize_button": "授權",
     "authorizing": "授權中...",
     "scan_again": "重新掃描",
@@ -1186,18 +1185,24 @@
     "pairing_tv_connecting": "電視正在連線到您的帳戶",
     "error_title": "授權失敗",
     "error_invalid_qr": "QR code 無效。請掃描電視上的配對碼。",
+    "error_old_tv": "This TV runs an older version of Streamyfin. Update it, then try again.",
+    "error_code_not_waiting": "This code is not waiting on {{server}}. Check that the TV uses the same server as this phone, then start Quick Connect again on the TV.",
+    "error_quick_connect_disabled": "Quick Connect is turned off on {{server}}. An administrator can turn it on in the server's dashboard.",
+    "error_other_server": "This TV is connecting to another server, {{server}}. Sign in to that server in this app, then scan again.",
     "error_generic": "發生問題，請重試。",
     "error_permission_denied": "掃描 QR code 需要相機權限。",
     "login_as": "以 {{username}} 身分登入？",
     "on_server": "在 {{server}} 上",
-    "use_different_user": "使用其他使用者",
     "open_settings": "開啟設定"
   },
   "pairing": {
     "pair_with_phone": "與手機配對",
     "pair_with_phone_title": "在電視上登入",
-    "waiting_for_phone": "等待手機...",
-    "scan_with_phone": "用手機上的 Streamyfin 應用程式掃描",
+    "scan_quick_connect": "Scan the QR code with the Streamyfin app or your phone's camera.",
+    "code_expired": "This code has expired.",
+    "get_new_code": "Get a new code",
+    "scan_with_app": "Scan the QR code with the Streamyfin app on your phone.",
+    "account_that_approves": "The account that approves the code",
     "logging_in": "登入中...",
     "logging_in_description": "正在連線到您的伺服器"
   },

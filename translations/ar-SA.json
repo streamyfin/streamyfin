@@ -18,7 +18,6 @@
     "password_placeholder": "كلمة المرور",
     "login_button": "تسجيل الدخول",
     "quick_connect": "الدخول السريع",
-    "enter_code_to_login": "أدخل الرمز {{code}} لتسجيل الدخول",
     "quick_connect_instructions": "أدخل هذا الرمز على جهاز مسجّل الدخول بالفعل. سيتم تسجيل دخولك تلقائيًا.",
     "tap_code_to_copy": "اضغط على الرمز لنسخه",
     "code_copied": "تم نسخ الرمز",
@@ -226,8 +225,8 @@
         "enter_the_quick_connect_code": "أدخل رمز الدخول السريع...",
         "success": "نجاح",
         "quick_connect_authorized": "تم تفويض الدخول السريع",
-        "error": "خطأ",
         "invalid_code": "رمز غير صالح",
+        "disabled": "Quick Connect is turned off on this server. An administrator can turn it on in the server's dashboard.",
         "authorize": "تفويض",
         "paste_code": "لصق الرمز"
       },
@@ -610,6 +609,7 @@
         "all_files_deleted": "تم حذف جميع التنزيلات بنجاح",
         "files_deleted_by_type": "تم حذف {{type}} ({{count}})",
         "could_not_get_download_url_for_item": "تعذر الحصول على عنوان URL للتنزيل لـ{{itemName}}",
+        "no_media_source_to_download": "This item cannot be downloaded",
         "file_deleted": "تم حذف {{item}}"
       }
     }
@@ -727,7 +727,8 @@
     "noData": "العناصر التي تضيفها إلى المفضلة تظهر هنا."
   },
   "custom_links": {
-    "no_links": "لا توجد روابط"
+    "no_links": "لا توجد روابط",
+    "could_not_open_link": "Could not open this link"
   },
   "player": {
     "live": "مباشر",
@@ -1175,9 +1176,7 @@
     "title": "الاقتران بالتلفاز",
     "align_qr": "ضع رمز QR داخل الإطار",
     "enter_code_manually": "إدخال الرمز يدويًا",
-    "pairing_enter_credentials": "أدخل بيانات الاعتماد للتلفاز",
     "pairing_code_label": "رمز الاقتران",
-    "server": "الخادم",
     "authorize_button": "تفويض",
     "authorizing": "جارٍ التفويض...",
     "scan_again": "إعادة المسح",
@@ -1186,18 +1185,24 @@
     "pairing_tv_connecting": "التلفاز يتصل بحسابك",
     "error_title": "فشل التفويض",
     "error_invalid_qr": "رمز QR غير صالح. امسح رمز الاقتران الظاهر على التلفاز.",
+    "error_old_tv": "This TV runs an older version of Streamyfin. Update it, then try again.",
+    "error_code_not_waiting": "This code is not waiting on {{server}}. Check that the TV uses the same server as this phone, then start Quick Connect again on the TV.",
+    "error_quick_connect_disabled": "Quick Connect is turned off on {{server}}. An administrator can turn it on in the server's dashboard.",
+    "error_other_server": "This TV is connecting to another server, {{server}}. Sign in to that server in this app, then scan again.",
     "error_generic": "حدث خطأ ما. حاول مرة أخرى.",
     "error_permission_denied": "يلزم إذن الكاميرا لمسح رموز QR.",
     "login_as": "تسجيل الدخول باسم {{username}}؟",
     "on_server": "على {{server}}",
-    "use_different_user": "استخدام مستخدم آخر",
     "open_settings": "فتح الإعدادات"
   },
   "pairing": {
     "pair_with_phone": "الاقتران بالهاتف",
     "pair_with_phone_title": "تسجيل الدخول على التلفاز",
-    "waiting_for_phone": "في انتظار الهاتف...",
-    "scan_with_phone": "امسح باستخدام تطبيق Streamyfin على هاتفك",
+    "scan_quick_connect": "Scan the QR code with the Streamyfin app or your phone's camera.",
+    "code_expired": "This code has expired.",
+    "get_new_code": "Get a new code",
+    "scan_with_app": "Scan the QR code with the Streamyfin app on your phone.",
+    "account_that_approves": "The account that approves the code",
     "logging_in": "جارٍ تسجيل الدخول...",
     "logging_in_description": "جارٍ الاتصال بخادمك"
   },

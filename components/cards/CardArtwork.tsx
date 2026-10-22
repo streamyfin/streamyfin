@@ -1,8 +1,13 @@
+import { useTranslation } from "react-i18next";
 import { View } from "react-native";
 import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { Colors } from "@/constants/Colors";
+import { POSTER_IMAGE_TRANSITION_DURATION } from "@/constants/Values";
 import type { CardData } from "./CardData";
+
+/** What a card shows where its artwork goes: none, or one still loading. */
+const ARTWORK_PLACEHOLDER_COLOR = "#1a1a1a";
 
 type Props = {
   card: CardData;
@@ -33,11 +38,14 @@ export const CardArtwork: React.FC<Props> = ({
   edgeProgress = false,
   overlay,
 }) => {
+  const { t } = useTranslation();
   const progress = Math.min(Math.max(card.progress ?? 0, 0), 1);
   const unplayed = card.unplayedCount ?? 0;
-  const badgeLabel =
-    card.badgeLabel ??
-    (unplayed > 0 ? (unplayed >= 1000 ? "1k+" : `${unplayed}`) : null);
+  // A live program has no unplayed count to show, so LIVE takes the corner.
+  const badgeLabel = card.live
+    ? t("player.live")
+    : (card.badgeLabel ??
+      (unplayed > 0 ? (unplayed >= 1000 ? "1k+" : `${unplayed}`) : null));
 
   return (
     <View
@@ -48,18 +56,23 @@ export const CardArtwork: React.FC<Props> = ({
         overflow: "hidden",
         borderWidth: 0.5,
         borderColor: "rgba(255,255,255,0.12)",
+        // A reused cell drops the previous artwork, and the new one fades in
+        // over this rather than over the screen behind the card.
+        backgroundColor: ARTWORK_PLACEHOLDER_COLOR,
       }}
     >
       {card.imageUrl ? (
         <Image
           id={card.id}
+          recyclingKey={card.id}
+          transition={POSTER_IMAGE_TRANSITION_DURATION}
           source={{ uri: card.imageUrl }}
           cachePolicy='memory-disk'
           contentFit='cover'
           style={{ width: "100%", height: "100%" }}
         />
       ) : (
-        <View style={{ flex: 1, backgroundColor: "#1a1a1a" }} />
+        <View style={{ flex: 1, backgroundColor: ARTWORK_PLACEHOLDER_COLOR }} />
       )}
 
       {overlay}
@@ -97,7 +110,7 @@ export const CardArtwork: React.FC<Props> = ({
             borderRadius: 10,
             alignItems: "center",
             justifyContent: "center",
-            backgroundColor: Colors.primary,
+            backgroundColor: card.live ? Colors.live : Colors.primary,
           }}
         >
           <Text style={{ fontSize: 11, fontWeight: "700" }}>{badgeLabel}</Text>

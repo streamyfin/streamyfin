@@ -21,14 +21,28 @@ export type NormalizePluginValue = (
 export const hasMeaningfulSettingValue = (value: unknown): boolean =>
   value !== undefined && value !== null && value !== "";
 
+// Settings whose values are secrets. They must never reach the app log, which
+// users read in-app and paste into bug reports.
+export const SENSITIVE_SETTING_KEYS: ReadonlySet<keyof Settings> = new Set([
+  "seerrApiKey",
+  "openSubtitlesApiKey",
+] as const);
+
 /**
  * Settings an unlocked plugin default must never seed. Crash-report consent
  * can only change by explicit user action (or an admin lock): the intro sheet
  * is the opt-out surface and it is available before the first plugin sync
  * happens at login, so a deferred seed would silently re-enable reporting
  * over the user's explicit opt-out.
+ *
+ * Nor the secrets: the settings belong to the device, so a seeded key stayed
+ * for every account signed in after the one it was served to. They apply at
+ * read time instead, while the plugin serves them to whoever is signed in.
  */
-const NEVER_SEED_KEYS: ReadonlySet<keyof Settings> = new Set(["sentryEnabled"]);
+const NEVER_SEED_KEYS: ReadonlySet<keyof Settings> = new Set([
+  "sentryEnabled",
+  ...SENSITIVE_SETTING_KEYS,
+]);
 
 /**
  * Effective settings, in precedence order:
@@ -111,45 +125,40 @@ export const pendingPluginDefaults = (
 };
 
 /**
- * The overlay a plugin refresh should write, computed against the user's
- * CURRENT settings, plus the applied-defaults record to persist (null when no
- * seed happened, so a streamystats-only refresh leaves the record alone and
- * the seed decision is retried on the next one).
+ * The overlay a plugin refresh should write, and the applied-defaults record
+ * to persist with it, or null when there is nothing to seed.
  *
- * The refresh runs while the user can be changing settings — the intro sheet
- * is up during first-run login — so the caller must evaluate this inside the
- * settings write rather than merging against a render-time snapshot. Building
+ * The refresh runs while the user can be changing settings (the intro sheet
+ * is up during first-run login), so the caller merges this into the settings
+ * inside the settings write rather than into a render-time snapshot. Building
  * the merge from the snapshot instead resurrected whatever the user had just
  * overwritten when the refresh's fetch resolved after their toggle.
  */
 export const pluginRefreshOverlay = (
-  current: Partial<Settings>,
   plugin: PluginLockableSettings | undefined,
   recorded: AppliedPluginDefaults,
   normalize: NormalizePluginValue,
 ): {
   overlay: Partial<Settings>;
-  applied: AppliedPluginDefaults | null;
+  applied: AppliedPluginDefaults;
 } | null => {
+  // Only what the admin declared is applied. An admin who wants to impose a
+  // search engine declares searchEngine, locked to impose it or unlocked to
+  // propose it, like any other setting: inferring it from a Streamystats
+  // address took the choice away without saying so.
+  //
   // A record an earlier build wrote names Seerr's settings as Jellyseerr's:
   // read under the old names, a default applied then would be applied again.
   const applied = { ...recorded } as Record<string, unknown>;
   renameLegacySeerrSettings(applied);
 
   const pending = pendingPluginDefaults(plugin, applied, normalize);
-  const enableStreamystats =
-    !!plugin?.streamyStatsServerUrl?.value &&
-    current.searchEngine !== "Streamystats";
-  if (Object.keys(pending).length === 0 && !enableStreamystats) {
+  if (Object.keys(pending).length === 0) {
     return null;
   }
   return {
-    overlay: {
-      ...pending,
-      ...(enableStreamystats ? { searchEngine: "Streamystats" } : {}),
-    },
-    applied:
-      Object.keys(pending).length > 0 ? { ...applied, ...pending } : null,
+    overlay: pending,
+    applied: { ...applied, ...pending },
   };
 };
 
@@ -229,4 +238,31 @@ export const readIntegrationBlocks = (
   }
 
   return read as PluginLockableSettings;
+};
+
+/**
+ * Drops the secrets an earlier build seeded into the user's settings, and
+ * their entries in the record of what was seeded, since none is seeded now.
+ *
+ * A copy that still matches the record came from the plugin and was never
+ * changed; one that differs is the user's own and stays. True if it changed
+ * either.
+ */
+export const dropSeededSecrets = (
+  stored: Record<string, unknown>,
+  applied: Record<string, unknown>,
+): boolean => {
+  let changed = false;
+  for (const key of SENSITIVE_SETTING_KEYS) {
+    if (!(key in applied)) continue;
+    if (
+      key in stored &&
+      JSON.stringify(stored[key]) === JSON.stringify(applied[key])
+    ) {
+      delete stored[key];
+    }
+    delete applied[key];
+    changed = true;
+  }
+  return changed;
 };

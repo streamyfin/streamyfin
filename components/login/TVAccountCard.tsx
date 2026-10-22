@@ -3,6 +3,7 @@ import React, { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Animated, Easing, Pressable, View } from "react-native";
 import { Text } from "@/components/common/Text";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 import { scaleSize } from "@/utils/scaleSize";
 import type { SavedServerAccount } from "@/utils/secureCredentials";
 
@@ -19,6 +20,7 @@ export const TVAccountCard: React.FC<TVAccountCardProps> = ({
   onLongPress,
   hasTVPreferredFocus,
 }) => {
+  const typography = useScaledTVTypography();
   const { t } = useTranslation();
   const [isFocused, setIsFocused] = useState(false);
   const scale = useRef(new Animated.Value(1)).current;
@@ -124,7 +126,7 @@ export const TVAccountCard: React.FC<TVAccountCardProps> = ({
           <View style={{ flex: 1 }}>
             <Text
               style={{
-                fontSize: scaleSize(22),
+                fontSize: typography.heading,
                 fontWeight: "600",
                 color: "#FFFFFF",
               }}
@@ -133,7 +135,7 @@ export const TVAccountCard: React.FC<TVAccountCardProps> = ({
             </Text>
             <Text
               style={{
-                fontSize: scaleSize(16),
+                fontSize: typography.callout,
                 color: "#9CA3AF",
                 marginTop: scaleSize(4),
               }}

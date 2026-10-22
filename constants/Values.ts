@@ -21,3 +21,20 @@ export const SEARCH_TAB_ROW_HEIGHT = 40;
 
 /** Room for the sort button's host, beside the tabs. */
 export const SEARCH_SORT_BUTTON_WIDTH = 50;
+
+/**
+ * MMKV key for the collection type and server of each hidden singleton view
+ * (Live TV, Collections, Playlists), which is what carries a hidden view over
+ * when Jellyfin 12 changes its id.
+ */
+export const HIDDEN_LIBRARY_ORIGINS_STORAGE_KEY = "hiddenLibraryOrigins";
+
+/**
+ * Duration of the transition animation for poster cards, in milliseconds.
+ */
+export const POSTER_IMAGE_TRANSITION_DURATION = 150;
+
+/**
+ * Duration of the transition animation for background images, in milliseconds.
+ */
+export const BACKGROUND_IMAGE_TRANSITION_DURATION = 300;

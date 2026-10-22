@@ -1,4 +1,7 @@
-import { ItemFilter } from "@jellyfin/sdk/lib/generated-client/models";
+import {
+  ItemFilter,
+  ItemSortBy,
+} from "@jellyfin/sdk/lib/generated-client/models";
 import { renderHook } from "@testing-library/react-native";
 import { createStore } from "jotai";
 import { clearMmkv } from "@/test-utils/mmkv";
@@ -6,6 +9,9 @@ import { storage } from "@/utils/mmkv";
 import {
   FilterByPreferenceAtom,
   getFilterByPreference,
+  SortByOption,
+  sortOptions,
+  sortOptionsFor,
   useFilterOptions,
 } from "./filters";
 
@@ -113,5 +119,101 @@ describe("the saved filter of a library", () => {
     storage.set(STORAGE_KEY, "null");
 
     expect(readSavedPreferences()).toEqual({});
+  });
+});
+
+const keysOf = (options: { key: SortByOption }[]) =>
+  options.map((option) => option.key);
+
+describe("sort options", () => {
+  // The library screens send the chosen option to GET /Items as it is, so an
+  // option the server does not know is a request it rejects.
+  test("every option but the app's own Default is a server sort key", () => {
+    const serverKeys: string[] = Object.values(ItemSortBy);
+
+    for (const key of Object.values(SortByOption)) {
+      if (key === SortByOption.Default) continue;
+      expect(serverKeys).toContain(key);
+    }
+  });
+
+  test("offers sorting by index number in every library", () => {
+    expect(keysOf(sortOptionsFor("movies"))).toContain(
+      SortByOption.IndexNumber,
+    );
+    expect(keysOf(sortOptionsFor("books"))).toContain(SortByOption.IndexNumber);
+    expect(keysOf(sortOptionsFor(undefined))).toContain(
+      SortByOption.IndexNumber,
+    );
+  });
+
+  test("offers the playlist updated date in a playlist library", () => {
+    const options = sortOptionsFor("playlists");
+
+    expect(
+      options.find((o) => o.key === SortByOption.DateLastContentAdded)?.value,
+    ).toBe("Date Playlist Updated");
+    // Nothing else changes: the rest of the list is the shared one.
+    expect(
+      keysOf(options).filter(
+        (key) => key !== SortByOption.DateLastContentAdded,
+      ),
+    ).toEqual(keysOf(sortOptions));
+  });
+
+  test("offers the newest episode date in a tv show library", () => {
+    const options = sortOptionsFor("tvshows");
+
+    expect(
+      options.find((o) => o.key === SortByOption.DateLastContentAdded)?.value,
+    ).toBe("Date Episode Added");
+    // Sits right after the series' own added date, nothing else changes.
+    expect(keysOf(options).indexOf(SortByOption.DateLastContentAdded)).toBe(
+      keysOf(options).indexOf(SortByOption.DateCreated) + 1,
+    );
+    expect(
+      keysOf(options).filter(
+        (key) => key !== SortByOption.DateLastContentAdded,
+      ),
+    ).toEqual(keysOf(sortOptions));
+  });
+
+  test("names the series' own added date next to the episode one", () => {
+    const labelOf = (collectionType: "tvshows" | "playlists" | "movies") =>
+      sortOptionsFor(collectionType).find(
+        (o) => o.key === SortByOption.DateCreated,
+      )?.value;
+
+    // Right above "Date Episode Added", a bare "Date Added" reads as an
+    // episode date too.
+    expect(labelOf("tvshows")).toBe("Date Show Added");
+    expect(labelOf("playlists")).toBe("Date Added");
+    expect(labelOf("movies")).toBe("Date Added");
+  });
+
+  // Movies and box sets hold no series. An unknown type (a mixed library, or
+  // one not loaded yet) keeps the shared list until the per-type work of #1767.
+  test.each(["movies", "boxsets", undefined, null] as const)(
+    "keeps the container updated date out of a %s library",
+    (collectionType) => {
+      expect(keysOf(sortOptionsFor(collectionType))).not.toContain(
+        SortByOption.DateLastContentAdded,
+      );
+    },
+  );
+
+  // The library page accepts a sortBy from its URL when it is a SortByOption
+  // value, so the enum holds only keys a sort list can offer: the music keys
+  // come with the music sort list.
+  test("has no music sort keys before a list offers them", () => {
+    expect(Object.values(SortByOption)).not.toContain("Album");
+    expect(Object.values(SortByOption)).not.toContain("AlbumArtist");
+    expect(Object.values(SortByOption)).not.toContain("Artist");
+  });
+
+  test("hands back the same list on every call", () => {
+    expect(sortOptionsFor("playlists")).toBe(sortOptionsFor("playlists"));
+    expect(sortOptionsFor("tvshows")).toBe(sortOptionsFor("tvshows"));
+    expect(sortOptionsFor("movies")).toBe(sortOptionsFor(undefined));
   });
 });

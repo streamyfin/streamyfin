@@ -33,11 +33,14 @@ import { StreamystatsRecommendations } from "@/components/home/StreamystatsRecom
 import { TVHeroCarousel } from "@/components/home/TVHeroCarousel";
 import { Loader } from "@/components/Loader";
 import { useScaledTVTypography } from "@/constants/TVTypography";
+import { UPCOMING_HOME_PAGE_SIZE } from "@/constants/Upcoming";
 import useRouter from "@/hooks/useAppRouter";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { useRefreshLibraryOnFocus } from "@/hooks/useRefreshLibraryOnFocus";
+import { useRemapHiddenLibraries } from "@/hooks/useRemapHiddenLibraries";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
 import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
+import { fetchUpcomingEpisodes } from "@/hooks/useUpcomingEpisodes";
 import {
   apiAtom,
   cacheVersionAtom,
@@ -61,6 +64,7 @@ type InfiniteScrollingCollectionListSection = {
   orientation?: "horizontal" | "vertical";
   pageSize?: number;
   parentId?: string;
+  collectionType?: BaseItemDto["CollectionType"];
 };
 
 type Section = InfiniteScrollingCollectionListSection;
@@ -219,6 +223,7 @@ export const Home = () => {
     staleTime: 60 * 1000,
     refetchInterval: 60 * 1000,
   });
+  useRemapHiddenLibraries(data, user?.Id);
 
   // Fetch hero items (Continue Watching + Next Up combined)
   const { data: heroItems } = useQuery({
@@ -304,6 +309,7 @@ export const Home = () => {
       queryKey: string[],
       includeItemTypes: BaseItemKind[],
       parentId: string | undefined,
+      collectionType: BaseItemDto["CollectionType"],
       pageSize = 10,
     ): InfiniteScrollingCollectionListSection => ({
       title,
@@ -328,6 +334,7 @@ export const Home = () => {
       type: "InfiniteScrollingCollectionList",
       pageSize,
       parentId,
+      collectionType,
     }),
     [api, user?.Id],
   );
@@ -352,6 +359,7 @@ export const Home = () => {
         queryKey,
         includeItemTypes,
         c.Id,
+        c.CollectionType,
         10,
       );
     });
@@ -447,8 +455,29 @@ export const Home = () => {
           },
         ];
 
+    // After Continue watching and Next up: the hero stands in for those two,
+    // and the rows it replaces are dropped by position.
+    const upcomingSections: Section[] = settings.showUpcomingOnHome
+      ? [
+          {
+            title: t("upcoming.title"),
+            queryKey: ["home", "upcoming", user.Id],
+            queryFn: ({ pageParam = 0 }) =>
+              fetchUpcomingEpisodes(api, {
+                userId: user.Id!,
+                startIndex: pageParam,
+                limit: UPCOMING_HOME_PAGE_SIZE,
+              }),
+            type: "InfiniteScrollingCollectionList",
+            orientation: "horizontal",
+            pageSize: UPCOMING_HOME_PAGE_SIZE,
+          },
+        ]
+      : [];
+
     const ss: Section[] = [
       ...firstSections,
+      ...upcomingSections,
       ...latestMediaViews,
       ...(!settings?.streamyStatsMovieRecommendations
         ? [
@@ -481,6 +510,7 @@ export const Home = () => {
     createCollectionConfig,
     settings?.streamyStatsMovieRecommendations,
     settings.mergeNextUpAndContinueWatching,
+    settings.showUpcomingOnHome,
   ]);
 
   const customSections = useMemo(() => {
@@ -827,6 +857,7 @@ export const Home = () => {
                     isFirstSection={isFirstSection}
                     onItemFocus={handleItemFocus}
                     parentId={section.parentId}
+                    collectionType={section.collectionType}
                   />
                   {streamystatsSections}
                 </View>

@@ -18,7 +18,6 @@
     "password_placeholder": "パスワード",
     "login_button": "ログイン",
     "quick_connect": "クイックコネクト",
-    "enter_code_to_login": "ログインするにはコード {{code}} を入力してください",
     "quick_connect_instructions": "ログイン済みのデバイスでこのコードを入力すると、自動的にログインされます。",
     "tap_code_to_copy": "コードをタップしてコピー",
     "code_copied": "コードをコピーしました",
@@ -226,8 +225,8 @@
         "enter_the_quick_connect_code": "クイックコネクトコードを入力...",
         "success": "成功しました",
         "quick_connect_authorized": "クイックコネクトが承認されました",
-        "error": "エラー",
         "invalid_code": "無効なコードです",
+        "disabled": "Quick Connect is turned off on this server. An administrator can turn it on in the server's dashboard.",
         "authorize": "承認",
         "paste_code": "コードを貼り付け"
       },
@@ -610,6 +609,7 @@
         "all_files_deleted": "すべてのダウンロードを削除しました",
         "files_deleted_by_type": "{{type}} を {{count}} 件削除しました",
         "could_not_get_download_url_for_item": "{{itemName}} のダウンロードURLを取得できませんでした",
+        "no_media_source_to_download": "This item cannot be downloaded",
         "file_deleted": "{{item}} を削除しました"
       }
     }
@@ -727,7 +727,8 @@
     "noData": "お気に入りとしてマークしたアイテムは、ここに表示されます。"
   },
   "custom_links": {
-    "no_links": "リンクがありません"
+    "no_links": "リンクがありません",
+    "could_not_open_link": "Could not open this link"
   },
   "player": {
     "live": "ライブ",
@@ -1175,9 +1176,7 @@
     "title": "テレビとペアリング",
     "align_qr": "QRコードを枠内に合わせてください",
     "enter_code_manually": "コードを手動で入力",
-    "pairing_enter_credentials": "テレビ用のログイン情報を入力",
     "pairing_code_label": "ペアリングコード",
-    "server": "サーバー",
     "authorize_button": "許可",
     "authorizing": "許可中...",
     "scan_again": "もう一度スキャン",
@@ -1186,18 +1185,24 @@
     "pairing_tv_connecting": "テレビがアカウントに接続しています",
     "error_title": "許可に失敗しました",
     "error_invalid_qr": "QRコードが無効です。テレビのペアリングコードをスキャンしてください。",
+    "error_old_tv": "This TV runs an older version of Streamyfin. Update it, then try again.",
+    "error_code_not_waiting": "This code is not waiting on {{server}}. Check that the TV uses the same server as this phone, then start Quick Connect again on the TV.",
+    "error_quick_connect_disabled": "Quick Connect is turned off on {{server}}. An administrator can turn it on in the server's dashboard.",
+    "error_other_server": "This TV is connecting to another server, {{server}}. Sign in to that server in this app, then scan again.",
     "error_generic": "問題が発生しました。もう一度お試しください。",
     "error_permission_denied": "QRコードをスキャンするにはカメラの許可が必要です。",
     "login_as": "{{username}} としてログインしますか？",
     "on_server": "{{server}} で",
-    "use_different_user": "別のユーザーを使用",
     "open_settings": "設定を開く"
   },
   "pairing": {
     "pair_with_phone": "スマートフォンとペアリング",
     "pair_with_phone_title": "テレビでログイン",
-    "waiting_for_phone": "スマートフォンを待っています...",
-    "scan_with_phone": "スマートフォンのStreamyfinアプリでスキャンしてください",
+    "scan_quick_connect": "Scan the QR code with the Streamyfin app or your phone's camera.",
+    "code_expired": "This code has expired.",
+    "get_new_code": "Get a new code",
+    "scan_with_app": "Scan the QR code with the Streamyfin app on your phone.",
+    "account_that_approves": "The account that approves the code",
     "logging_in": "ログイン中...",
     "logging_in_description": "サーバーに接続しています"
   },

@@ -22,28 +22,6 @@ class MPVNowPlayingManager {
     
     private init() {}
     
-    // MARK: - Audio Session
-    
-    func activateAudioSession() {
-        do {
-            let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.playback, mode: .moviePlayback)
-            try session.setActive(true)
-            print("[NowPlaying] Audio session activated")
-        } catch {
-            print("[NowPlaying] Audio session error: \(error)")
-        }
-    }
-    
-    func deactivateAudioSession() {
-        do {
-            try AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
-            print("[NowPlaying] Audio session deactivated")
-        } catch {
-            print("[NowPlaying] Deactivation error: \(error)")
-        }
-    }
-    
     // MARK: - Remote Commands
     
     func setupRemoteCommands(

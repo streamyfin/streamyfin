@@ -1,5 +1,6 @@
 import type { PluginLockableSettings, Settings } from "./settings";
 import {
+  dropSeededSecrets,
   pendingPluginDefaults,
   pluginRefreshOverlay,
   readIntegrationBlocks,
@@ -193,16 +194,23 @@ describe("pendingPluginDefaults", () => {
     );
     expect(pending).toEqual({});
   });
+
+  // Seeded, a key lands in the settings, which belong to the device and
+  // outlive the account it was served to. It applies at read time instead,
+  // for as long as the plugin serves it to whoever is signed in.
+  test.each(["seerrApiKey", "openSubtitlesApiKey"])("never seeds %s", (key) => {
+    const pending = pendingPluginDefaults(
+      plugin({ [key]: { locked: false, value: "a-key" } }),
+      {},
+      identity,
+    );
+    expect(pending).toEqual({});
+  });
 });
 
 describe("pluginRefreshOverlay", () => {
-  test("computes the overlay against the settings passed in", () => {
-    // The caller must pass the atom's value at write time. The refresh runs
-    // while the user can be toggling (the intro sheet is up during login),
-    // and the old merge from a render-time snapshot resurrected the value
-    // the user had just overwritten.
+  test("writes the defaults the admin declared and records them", () => {
     const result = pluginRefreshOverlay(
-      { sentryEnabled: false } as Partial<Settings>,
       plugin({
         sentryEnabled: { locked: false, value: true },
         forwardSkipTime: { locked: false, value: 45 },
@@ -229,7 +237,6 @@ describe("pluginRefreshOverlay", () => {
 
     expect(
       pluginRefreshOverlay(
-        { seerrServerUrl: "http://mine.example", autoLoginSeerr: false },
         plugin({
           seerrServerUrl: { locked: false, value: "http://seerr.example" },
           autoLoginSeerr: { locked: false, value: true },
@@ -241,7 +248,6 @@ describe("pluginRefreshOverlay", () => {
 
     expect(
       pluginRefreshOverlay(
-        {} as Partial<Settings>,
         plugin({
           seerrServerUrl: { locked: false, value: "http://seerr.example" },
           forwardSkipTime: { locked: false, value: 45 },
@@ -257,21 +263,15 @@ describe("pluginRefreshOverlay", () => {
   });
 
   test("returns null when there is nothing to write", () => {
-    const result = pluginRefreshOverlay(
-      {} as Partial<Settings>,
-      undefined,
-      {},
-      identity,
-    );
+    const result = pluginRefreshOverlay(undefined, {}, identity);
     expect(result).toBeNull();
   });
 
-  test("a streamystats-only refresh leaves the applied record untouched", () => {
-    // Recording applied defaults for a write that seeded nothing would mark
-    // pending defaults as done without ever writing them. The URL here is
-    // already applied, so the only outstanding write is the search engine.
+  // The search engine is a lockable setting like any other: an admin who
+  // wants Streamystats search declares it. Inferring it from the address
+  // turned the user's choice back on at every refresh, without saying so.
+  test("a Streamystats address alone does not turn Streamystats search on", () => {
     const result = pluginRefreshOverlay(
-      { searchEngine: "Jellyfin" } as Partial<Settings>,
       plugin({
         streamyStatsServerUrl: {
           locked: false,
@@ -281,10 +281,7 @@ describe("pluginRefreshOverlay", () => {
       { streamyStatsServerUrl: "https://stats.example" },
       identity,
     );
-    expect(result).toEqual({
-      overlay: { searchEngine: "Streamystats" },
-      applied: null,
-    });
+    expect(result).toBeNull();
   });
 });
 
@@ -415,5 +412,43 @@ describe("renameLegacySeerrSettings", () => {
 
   test("says when there was nothing to carry", () => {
     expect(renameLegacySeerrSettings({ seerrApiKey: "a-key" })).toBe(false);
+  });
+});
+
+describe("dropSeededSecrets", () => {
+  // An earlier build seeded the keys, and the copy stayed for every account
+  // signed in after the one it was served to.
+  test("drops a key the plugin seeded and the user never changed", () => {
+    const stored: Record<string, unknown> = {
+      seerrServerUrl: "http://seerr.example",
+      seerrApiKey: "admin-key",
+      openSubtitlesApiKey: "subtitles-key",
+    };
+    const applied: Record<string, unknown> = {
+      seerrServerUrl: "http://seerr.example",
+      seerrApiKey: "admin-key",
+      openSubtitlesApiKey: "subtitles-key",
+    };
+
+    expect(dropSeededSecrets(stored, applied)).toBe(true);
+
+    expect(stored).toEqual({ seerrServerUrl: "http://seerr.example" });
+    expect(applied).toEqual({ seerrServerUrl: "http://seerr.example" });
+  });
+
+  test("keeps a key the user typed", () => {
+    const stored: Record<string, unknown> = { seerrApiKey: "my-key" };
+    const applied: Record<string, unknown> = { seerrApiKey: "admin-key" };
+
+    expect(dropSeededSecrets(stored, applied)).toBe(true);
+
+    expect(stored).toEqual({ seerrApiKey: "my-key" });
+    expect(applied).toEqual({});
+  });
+
+  test("says when there was nothing to drop", () => {
+    expect(
+      dropSeededSecrets({ seerrServerUrl: "http://seerr.example" }, {}),
+    ).toBe(false);
   });
 });

@@ -86,6 +86,7 @@ export const customHeadersModule = () => ({
   getIntegrationHeaders: () => ({}),
   getIntegrationHeaderConfig: () => undefined,
   updateIntegrationHeaderConfig: () => {},
+  makeIntegrationHeadersReadableWhileLocked: () => {},
   resolveIntegrationHeaders: () => ({}),
   INTEGRATION_CONFIG_KEY_PREFIX: "custom_headers_config_",
 

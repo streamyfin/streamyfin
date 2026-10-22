@@ -18,7 +18,6 @@
     "password_placeholder": "Salasana",
     "login_button": "Kirjaudu sisään",
     "quick_connect": "Pikayhdistys",
-    "enter_code_to_login": "Syötä koodi {{code}} kirjautuaksesi",
     "quick_connect_instructions": "Syötä tämä koodi laitteeseen, jolla olet jo kirjautunut sisään. Sinut kirjataan sisään automaattisesti.",
     "tap_code_to_copy": "Napauta koodia kopioidaksesi sen",
     "code_copied": "Koodi kopioitu",
@@ -226,8 +225,8 @@
         "enter_the_quick_connect_code": "Syötä nopean yhteyden koodi...",
         "success": "Onnistui",
         "quick_connect_authorized": "Pikayhdistys valtuutettu",
-        "error": "Virhe",
         "invalid_code": "Virheellinen koodi",
+        "disabled": "Quick Connect is turned off on this server. An administrator can turn it on in the server's dashboard.",
         "authorize": "Valtuuta",
         "paste_code": "Liitä koodi"
       },
@@ -610,6 +609,7 @@
         "all_files_deleted": "Kaikki lataukset poistettu onnistuneesti",
         "files_deleted_by_type": "{{count}} {{type}} poistettu",
         "could_not_get_download_url_for_item": "Latauksen URL-osoitetta ei voitu ladata {{itemName}}",
+        "no_media_source_to_download": "This item cannot be downloaded",
         "file_deleted": "{{item}} poistettu"
       }
     }
@@ -727,7 +727,8 @@
     "noData": "Suosikeiksi merkitsemäsi kohteet näkyvät täällä."
   },
   "custom_links": {
-    "no_links": "Ei Linkkejä"
+    "no_links": "Ei Linkkejä",
+    "could_not_open_link": "Could not open this link"
   },
   "player": {
     "live": "SUORA",
@@ -1175,9 +1176,7 @@
     "title": "Pariliitos television kanssa",
     "align_qr": "Aseta QR-koodi kehyksen sisään",
     "enter_code_manually": "Syötä koodi käsin",
-    "pairing_enter_credentials": "Anna television kirjautumistiedot",
     "pairing_code_label": "Pariliitoskoodi",
-    "server": "Palvelin",
     "authorize_button": "Valtuuta",
     "authorizing": "Valtuutetaan...",
     "scan_again": "Skannaa uudelleen",
@@ -1186,18 +1185,24 @@
     "pairing_tv_connecting": "Televisio yhdistää tiliisi",
     "error_title": "Valtuutus epäonnistui",
     "error_invalid_qr": "Virheellinen QR-koodi. Skannaa television pariliitoskoodi.",
+    "error_old_tv": "This TV runs an older version of Streamyfin. Update it, then try again.",
+    "error_code_not_waiting": "This code is not waiting on {{server}}. Check that the TV uses the same server as this phone, then start Quick Connect again on the TV.",
+    "error_quick_connect_disabled": "Quick Connect is turned off on {{server}}. An administrator can turn it on in the server's dashboard.",
+    "error_other_server": "This TV is connecting to another server, {{server}}. Sign in to that server in this app, then scan again.",
     "error_generic": "Jokin meni pieleen. Yritä uudelleen.",
     "error_permission_denied": "QR-koodien skannaus vaatii kameran käyttöoikeuden.",
     "login_as": "Kirjaudutaanko käyttäjänä {{username}}?",
     "on_server": "palvelimella {{server}}",
-    "use_different_user": "Käytä toista käyttäjää",
     "open_settings": "Avaa asetukset"
   },
   "pairing": {
     "pair_with_phone": "Pariliitos puhelimen kanssa",
     "pair_with_phone_title": "Kirjaudu televisiossa",
-    "waiting_for_phone": "Odotetaan puhelinta...",
-    "scan_with_phone": "Skannaa puhelimesi Streamyfin-sovelluksella",
+    "scan_quick_connect": "Scan the QR code with the Streamyfin app or your phone's camera.",
+    "code_expired": "This code has expired.",
+    "get_new_code": "Get a new code",
+    "scan_with_app": "Scan the QR code with the Streamyfin app on your phone.",
+    "account_that_approves": "The account that approves the code",
     "logging_in": "Kirjaudutaan...",
     "logging_in_description": "Yhdistetään palvelimeesi"
   },

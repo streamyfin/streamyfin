@@ -18,7 +18,6 @@
     "password_placeholder": "Wachtwoord",
     "login_button": "Aanmelden",
     "quick_connect": "Snel Verbinden",
-    "enter_code_to_login": "Vul code {{code}} in om aan te melden",
     "quick_connect_instructions": "Vul deze code in op een apparaat waarop je al bent aangemeld. Je wordt automatisch aangemeld.",
     "tap_code_to_copy": "Tik op de code om deze te kopiëren",
     "code_copied": "Code gekopieerd",
@@ -226,8 +225,8 @@
         "enter_the_quick_connect_code": "Vul de Snel Verbinden code in...",
         "success": "Succes",
         "quick_connect_authorized": "Snel Verbinden toegestaan",
-        "error": "Fout",
         "invalid_code": "Ongeldige code",
+        "disabled": "Quick Connect is turned off on this server. An administrator can turn it on in the server's dashboard.",
         "authorize": "Toestaan",
         "paste_code": "Code plakken"
       },
@@ -610,6 +609,7 @@
         "all_files_deleted": "Alle Bestanden Succesvol Gedownload",
         "files_deleted_by_type": "{{count}} {{type}} verwijderd",
         "could_not_get_download_url_for_item": "Kan download-URL voor {{itemName}} niet ophalen",
+        "no_media_source_to_download": "This item cannot be downloaded",
         "file_deleted": "{{item}} verwijderd"
       }
     }
@@ -727,7 +727,8 @@
     "noData": "Items die je als favoriet markeert, verschijnen hier."
   },
   "custom_links": {
-    "no_links": "Geen links"
+    "no_links": "Geen links",
+    "could_not_open_link": "Could not open this link"
   },
   "player": {
     "live": "LIVE",
@@ -1175,9 +1176,7 @@
     "title": "Koppelen met tv",
     "align_qr": "Plaats de QR-code binnen het kader",
     "enter_code_manually": "Code handmatig invoeren",
-    "pairing_enter_credentials": "Voer inloggegevens voor de tv in",
     "pairing_code_label": "Koppelcode",
-    "server": "Server",
     "authorize_button": "Toestaan",
     "authorizing": "Bezig met toestaan...",
     "scan_again": "Opnieuw scannen",
@@ -1186,18 +1185,24 @@
     "pairing_tv_connecting": "De tv maakt verbinding met je account",
     "error_title": "Autorisatie mislukt",
     "error_invalid_qr": "Ongeldige QR-code. Scan de koppelcode op de tv.",
+    "error_old_tv": "This TV runs an older version of Streamyfin. Update it, then try again.",
+    "error_code_not_waiting": "This code is not waiting on {{server}}. Check that the TV uses the same server as this phone, then start Quick Connect again on the TV.",
+    "error_quick_connect_disabled": "Quick Connect is turned off on {{server}}. An administrator can turn it on in the server's dashboard.",
+    "error_other_server": "This TV is connecting to another server, {{server}}. Sign in to that server in this app, then scan again.",
     "error_generic": "Er is iets misgegaan. Probeer het opnieuw.",
     "error_permission_denied": "Toegang tot de camera is vereist om QR-codes te scannen.",
     "login_as": "Inloggen als {{username}}?",
     "on_server": "op {{server}}",
-    "use_different_user": "Een andere gebruiker gebruiken",
     "open_settings": "Instellingen openen"
   },
   "pairing": {
     "pair_with_phone": "Koppelen met telefoon",
     "pair_with_phone_title": "Inloggen op tv",
-    "waiting_for_phone": "Wachten op telefoon...",
-    "scan_with_phone": "Scan met de Streamyfin-app op je telefoon",
+    "scan_quick_connect": "Scan the QR code with the Streamyfin app or your phone's camera.",
+    "code_expired": "This code has expired.",
+    "get_new_code": "Get a new code",
+    "scan_with_app": "Scan the QR code with the Streamyfin app on your phone.",
+    "account_that_approves": "The account that approves the code",
     "logging_in": "Bezig met inloggen...",
     "logging_in_description": "Verbinding maken met je server"
   },

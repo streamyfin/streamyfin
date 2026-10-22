@@ -164,6 +164,7 @@ struct UIOptionsRecord: Record {
 	@Field var holdToSpeedRate: Double = 2.0
 	@Field var pinchToZoomEnabled: Bool = true
 	@Field var doubleTapToSeekEnabled: Bool = false
+	@Field var confirmExitEnabled: Bool = true
 	/// Remote subtitle search (online sessions with an API only).
 	@Field var subtitleSearchEnabled: Bool = false
 	@Field var subtitleSearchLanguages: [SubtitleSearchLanguageRecord] = []
@@ -180,7 +181,43 @@ struct UIOptionsRecord: Record {
 	@Field var strings: [String: String] = [:]
 }
 
+struct SyncPlayPlaylistItemRecord: Record {
+	@Field var itemId: String = ""
+	@Field var playlistItemId: String = ""
+	@Field var title: String = ""
+	@Field var subtitle: String?
+	/// Poster, loaded with the config's image headers.
+	@Field var imageUrl: String?
+}
+
+struct SyncPlayStateRecord: Record {
+	@Field var groupId: String = ""
+	@Field var groupName: String = ""
+	@Field var status: String = ""
+	@Field var connected: Bool = false
+	@Field var busy: Bool = false
+	@Field var error: String?
+	@Field var playlist: [SyncPlayPlaylistItemRecord] = []
+	@Field var currentPlaylistItemId: String?
+	@Field var repeatMode: String = "RepeatNone"
+	@Field var shuffleMode: String = "Sorted"
+	@Field var ignoreWait: Bool = false
+	@Field var hasNext: Bool = false
+	@Field var hasPrevious: Bool = false
+	@Field var strings: [String: String] = [:]
+}
+
+struct SyncPlayCommandRecord: Record {
+	@Field var commandId: String = ""
+	@Field var groupId: String = ""
+	@Field var playlistItemId: String = ""
+	@Field var command: String = ""
+	@Field var executeAtMs: Double = 0
+	@Field var positionSec: Double = 0
+}
+
 struct PlayerPresentConfigRecord: Record {
+	@Field var syncPlay: SyncPlayStateRecord?
 	@Field var stream: StreamConfigRecord = StreamConfigRecord()
 	@Field var metadata: MetadataRecord?
 	/// Custom proxy auth headers for the thumbnails the player loads itself
@@ -204,7 +241,7 @@ extension StreamConfigRecord {
 	/// Convert to the engine's load config. Returns nil for an unparseable URL.
 	func toVideoLoadConfig() -> VideoLoadConfig? {
 		guard let videoURL = URL(string: url) else { return nil }
-		return VideoLoadConfig(
+		var config = VideoLoadConfig(
 			url: videoURL,
 			headers: headers,
 			externalSubtitles: externalSubtitles,
@@ -217,5 +254,7 @@ extension StreamConfigRecord {
 			demuxerMaxBytes: cacheConfig?.maxBytes,
 			demuxerMaxBackBytes: cacheConfig?.maxBackBytes
 		)
+		config.requestedURL = url
+		return config
 	}
 }

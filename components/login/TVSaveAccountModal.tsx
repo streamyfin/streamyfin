@@ -14,6 +14,7 @@ import {
 import { Text } from "@/components/common/Text";
 import { TVPinInput, type TVPinInputRef } from "@/components/inputs/TVPinInput";
 import { TVOptionCard, useTVFocusAnimation } from "@/components/tv";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 import { scaleSize } from "@/utils/scaleSize";
 import type { AccountSecurityType } from "@/utils/secureCredentials";
 
@@ -22,6 +23,11 @@ interface TVSaveAccountModalProps {
   onClose: () => void;
   onSave: (securityType: AccountSecurityType, pinCode?: string) => void;
   username: string;
+  /**
+   * Off when no password is known to work for the account, as after a Quick
+   * Connect sign-in: an account that signs in through single sign-on has none.
+   */
+  allowPassword?: boolean;
 }
 
 interface SecurityOption {
@@ -59,6 +65,7 @@ const TVSaveButton: React.FC<{
   disabled?: boolean;
   hasTVPreferredFocus?: boolean;
 }> = ({ onPress, label, disabled = false, hasTVPreferredFocus = false }) => {
+  const typography = useScaledTVTypography();
   const { focused, handleFocus, handleBlur, animatedStyle } =
     useTVFocusAnimation({ scaleAmount: 1.05, duration: 120 });
 
@@ -97,7 +104,7 @@ const TVSaveButton: React.FC<{
         />
         <Text
           style={{
-            fontSize: scaleSize(16),
+            fontSize: typography.callout,
             color: focused ? "#000" : "#fff",
             fontWeight: "600",
           }}
@@ -115,6 +122,7 @@ const TVBackButton: React.FC<{
   label: string;
   hasTVPreferredFocus?: boolean;
 }> = ({ onPress, label, hasTVPreferredFocus = false }) => {
+  const typography = useScaledTVTypography();
   const { focused, handleFocus, handleBlur, animatedStyle } =
     useTVFocusAnimation({ scaleAmount: 1.05, duration: 120 });
 
@@ -146,7 +154,7 @@ const TVBackButton: React.FC<{
         />
         <Text
           style={{
-            fontSize: scaleSize(16),
+            fontSize: typography.callout,
             color: focused ? "#000" : "rgba(255,255,255,0.8)",
             fontWeight: "500",
           }}
@@ -163,7 +171,9 @@ export const TVSaveAccountModal: React.FC<TVSaveAccountModalProps> = ({
   onClose,
   onSave,
   username,
+  allowPassword = true,
 }) => {
+  const typography = useScaledTVTypography();
   const { t } = useTranslation();
   const [isReady, setIsReady] = useState(false);
   const [step, setStep] = useState<"select" | "pin">("select");
@@ -290,14 +300,23 @@ export const TVSaveAccountModal: React.FC<TVSaveAccountModalProps> = ({
           >
             {/* Header */}
             <View style={styles.header}>
-              <Text style={styles.title}>{t("save_account.title")}</Text>
-              <Text style={styles.subtitle}>{username}</Text>
+              <Text style={[styles.title, { fontSize: typography.body }]}>
+                {t("save_account.title")}
+              </Text>
+              <Text style={[styles.subtitle, { fontSize: typography.callout }]}>
+                {username}
+              </Text>
             </View>
 
             {step === "select" ? (
               // Security selection step
               <>
-                <Text style={styles.sectionTitle}>
+                <Text
+                  style={[
+                    styles.sectionTitle,
+                    { fontSize: typography.callout },
+                  ]}
+                >
                   {t("save_account.security_option")}
                 </Text>
                 {isReady && (
@@ -307,7 +326,9 @@ export const TVSaveAccountModal: React.FC<TVSaveAccountModalProps> = ({
                     style={styles.scrollView}
                     contentContainerStyle={styles.scrollContent}
                   >
-                    {SECURITY_OPTIONS.map((option, index) => (
+                    {SECURITY_OPTIONS.filter(
+                      (option) => allowPassword || option.type !== "password",
+                    ).map((option, index) => (
                       <TVOptionCard
                         key={option.type}
                         ref={index === 0 ? setFirstCardRef : undefined}
@@ -326,7 +347,14 @@ export const TVSaveAccountModal: React.FC<TVSaveAccountModalProps> = ({
             ) : (
               // PIN entry step
               <>
-                <Text style={styles.sectionTitle}>{t("pin.setup_pin")}</Text>
+                <Text
+                  style={[
+                    styles.sectionTitle,
+                    { fontSize: typography.callout },
+                  ]}
+                >
+                  {t("pin.setup_pin")}
+                </Text>
                 <View style={styles.pinContainer}>
                   <TVPinInput
                     ref={pinInputRef}
@@ -338,7 +366,16 @@ export const TVSaveAccountModal: React.FC<TVSaveAccountModalProps> = ({
                     length={4}
                     autoFocus
                   />
-                  {pinError && <Text style={styles.errorText}>{pinError}</Text>}
+                  {pinError && (
+                    <Text
+                      style={[
+                        styles.errorText,
+                        { fontSize: typography.callout },
+                      ]}
+                    >
+                      {pinError}
+                    </Text>
+                  )}
                 </View>
 
                 {isReady && (
@@ -393,17 +430,14 @@ const styles = StyleSheet.create({
     marginBottom: scaleSize(20),
   },
   title: {
-    fontSize: scaleSize(28),
     fontWeight: "bold",
     color: "#fff",
     marginBottom: scaleSize(4),
   },
   subtitle: {
-    fontSize: scaleSize(16),
     color: "rgba(255,255,255,0.6)",
   },
   sectionTitle: {
-    fontSize: scaleSize(16),
     fontWeight: "500",
     color: "rgba(255,255,255,0.6)",
     marginBottom: scaleSize(16),
@@ -433,7 +467,6 @@ const styles = StyleSheet.create({
   },
   errorText: {
     color: "#ef4444",
-    fontSize: scaleSize(14),
     marginTop: scaleSize(12),
     textAlign: "center",
   },

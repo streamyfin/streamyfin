@@ -7,10 +7,7 @@ import { Text } from "@/components/common/Text";
 import useRouter from "@/hooks/useAppRouter";
 
 export interface ContinueWatchingOverlayProps {
-  goToNextItem: (options: {
-    isAutoPlay: boolean;
-    resetWatchCount: boolean;
-  }) => void;
+  goToNextItem: (options: { isAutoPlay: boolean }) => void;
 }
 
 const ContinueWatchingOverlay: React.FC<ContinueWatchingOverlayProps> = ({
@@ -37,7 +34,7 @@ const ContinueWatchingOverlay: React.FC<ContinueWatchingOverlayProps> = ({
       </Text>
       <Button
         onPress={() => {
-          goToNextItem({ isAutoPlay: false, resetWatchCount: true });
+          goToNextItem({ isAutoPlay: false });
         }}
         color={"purple"}
         className='my-4 w-2/3'

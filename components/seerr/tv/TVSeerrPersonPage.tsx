@@ -8,12 +8,14 @@ import { Text } from "@/components/common/Text";
 import { TVSeerrPosterCard } from "@/components/tv/TVSeerrPosterCard";
 import {
   SEERR_TV_BIOGRAPHY_LINES,
-  SEERR_TV_LOAD_MORE_DISTANCE,
   SEERR_TV_PERSON_PHOTO,
   SEERR_TV_PERSON_ROLES_STEP,
   SEERR_TV_ROW_CARD_GAP,
 } from "@/constants/Seerr";
-import { useScaledTVSizes } from "@/constants/TVSizes";
+import {
+  TV_GRID_LOAD_MORE_DISTANCE,
+  useScaledTVSizes,
+} from "@/constants/TVSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import { useSeerr } from "@/hooks/useSeerr";
@@ -57,7 +59,7 @@ export const TVSeerrPersonPage: React.FC<{ personId: string }> = ({
         if (
           shown < roles.length &&
           layoutMeasurement.height + contentOffset.y >=
-            contentSize.height - scaleSize(SEERR_TV_LOAD_MORE_DISTANCE)
+            contentSize.height - scaleSize(TV_GRID_LOAD_MORE_DISTANCE)
         )
           setShown((count) => count + SEERR_TV_PERSON_ROLES_STEP);
       }}

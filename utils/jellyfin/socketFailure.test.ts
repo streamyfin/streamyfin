@@ -12,7 +12,7 @@ jest.mock("@/utils/log", () => ({
 import {
   createSocketFailureRecorder,
   describeSocketFailure,
-  reportSocketGiveUp,
+  reportSocketFastRetriesExhausted,
 } from "./socketFailure";
 
 beforeEach(() => {
@@ -181,9 +181,12 @@ describe("createSocketFailureRecorder — where the reason arrives", () => {
   });
 });
 
-describe("reportSocketGiveUp", () => {
+describe("reportSocketFastRetriesExhausted", () => {
   test("a proxy that refuses the upgrade stays in the local log", () => {
-    reportSocketGiveUp({ cause: "handshake-http-404", environment: true });
+    reportSocketFastRetriesExhausted({
+      cause: "handshake-http-404",
+      environment: true,
+    });
     expect(mockReported).toHaveLength(0);
     expect(mockLogged).toEqual([
       [
@@ -195,9 +198,12 @@ describe("reportSocketGiveUp", () => {
   });
 
   test("anything else is reported under its cause", () => {
-    reportSocketGiveUp({ cause: "tls", environment: false });
+    reportSocketFastRetriesExhausted({ cause: "tls", environment: false });
     expect(mockReported).toEqual([
-      ["WebSocket gave up reconnecting while server is reachable", "tls"],
+      [
+        "WebSocket fast reconnects exhausted while server is reachable; slow retries continue",
+        "tls",
+      ],
     ]);
     expect(mockLogged).toHaveLength(0);
   });

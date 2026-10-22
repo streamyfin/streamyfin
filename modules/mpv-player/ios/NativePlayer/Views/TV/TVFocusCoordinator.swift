@@ -21,6 +21,7 @@ enum TVFocusZone: Hashable {
 	case chrome
 	case shelf
 	case subtitleSearch
+	case syncPlay
 	case stillWatching
 }
 

@@ -18,7 +18,6 @@
     "password_placeholder": "รหัสผ่าน",
     "login_button": "เข้าสู่ระบบ",
     "quick_connect": "Quick Connect",
-    "enter_code_to_login": "ใส่รหัส {{code}} เพื่อเข้าสู่ระบบ",
     "quick_connect_instructions": "ป้อนรหัสนี้บนอุปกรณ์ที่เข้าสู่ระบบอยู่แล้ว ระบบจะเข้าสู่ระบบให้คุณโดยอัตโนมัติ.",
     "tap_code_to_copy": "แตะที่รหัสเพื่อคัดลอก",
     "code_copied": "คัดลอกรหัสแล้ว",
@@ -226,8 +225,8 @@
         "enter_the_quick_connect_code": "ใส่รหัส Quick Connect...",
         "success": "สำเร็จ",
         "quick_connect_authorized": "อนุญาต Quick Connect แล้ว",
-        "error": "ข้อผิดพลาด",
         "invalid_code": "รหัสไม่ถูกต้อง",
+        "disabled": "Quick Connect is turned off on this server. An administrator can turn it on in the server's dashboard.",
         "authorize": "อนุญาต",
         "paste_code": "วางรหัส"
       },
@@ -610,6 +609,7 @@
         "all_files_deleted": "ลบรายการดาวน์โหลดทั้งหมดเรียบร้อยแล้ว",
         "files_deleted_by_type": "ลบ {{type}} แล้ว {{count}} รายการ",
         "could_not_get_download_url_for_item": "ไม่สามารถรับ URL ดาวน์โหลดสำหรับ {{itemName}} ได้",
+        "no_media_source_to_download": "This item cannot be downloaded",
         "file_deleted": "ลบ {{item}} แล้ว"
       }
     }
@@ -727,7 +727,8 @@
     "noData": "สิ่งที่คุณทำเครื่องหมายเป็นรายการโปรดจะแสดงที่นี่."
   },
   "custom_links": {
-    "no_links": "ไม่มีลิงก์"
+    "no_links": "ไม่มีลิงก์",
+    "could_not_open_link": "Could not open this link"
   },
   "player": {
     "live": "สด",
@@ -1175,9 +1176,7 @@
     "title": "จับคู่กับทีวี",
     "align_qr": "จัดโค้ด QR ให้อยู่ในกรอบ",
     "enter_code_manually": "ใส่รหัสด้วยตนเอง",
-    "pairing_enter_credentials": "ใส่ข้อมูลเข้าสู่ระบบสำหรับทีวี",
     "pairing_code_label": "รหัสจับคู่",
-    "server": "เซิร์ฟเวอร์",
     "authorize_button": "อนุญาต",
     "authorizing": "กำลังอนุญาต...",
     "scan_again": "สแกนอีกครั้ง",
@@ -1186,18 +1185,24 @@
     "pairing_tv_connecting": "ทีวีกำลังเชื่อมต่อกับบัญชีของคุณ",
     "error_title": "การอนุญาตล้มเหลว",
     "error_invalid_qr": "โค้ด QR ไม่ถูกต้อง กรุณาสแกนรหัสจับคู่จากทีวี",
+    "error_old_tv": "This TV runs an older version of Streamyfin. Update it, then try again.",
+    "error_code_not_waiting": "This code is not waiting on {{server}}. Check that the TV uses the same server as this phone, then start Quick Connect again on the TV.",
+    "error_quick_connect_disabled": "Quick Connect is turned off on {{server}}. An administrator can turn it on in the server's dashboard.",
+    "error_other_server": "This TV is connecting to another server, {{server}}. Sign in to that server in this app, then scan again.",
     "error_generic": "เกิดข้อผิดพลาดบางอย่าง กรุณาลองใหม่",
     "error_permission_denied": "ต้องอนุญาตให้เข้าถึงกล้องเพื่อสแกนโค้ด QR",
     "login_as": "เข้าสู่ระบบเป็น {{username}} หรือไม่?",
     "on_server": "บน {{server}}",
-    "use_different_user": "ใช้ผู้ใช้อื่น",
     "open_settings": "เปิดการตั้งค่า"
   },
   "pairing": {
     "pair_with_phone": "จับคู่กับโทรศัพท์",
     "pair_with_phone_title": "เข้าสู่ระบบบนทีวี",
-    "waiting_for_phone": "กำลังรอโทรศัพท์...",
-    "scan_with_phone": "สแกนด้วยแอป Streamyfin บนโทรศัพท์ของคุณ",
+    "scan_quick_connect": "Scan the QR code with the Streamyfin app or your phone's camera.",
+    "code_expired": "This code has expired.",
+    "get_new_code": "Get a new code",
+    "scan_with_app": "Scan the QR code with the Streamyfin app on your phone.",
+    "account_that_approves": "The account that approves the code",
     "logging_in": "กำลังเข้าสู่ระบบ...",
     "logging_in_description": "กำลังเชื่อมต่อกับเซิร์ฟเวอร์ของคุณ"
   },

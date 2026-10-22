@@ -48,6 +48,9 @@ jest.mock("../DownloadItem", () => ({
   DownloadSingleItem: () => null,
 }));
 jest.mock("../PlayedStatus", () => ({ PlayedStatus: () => null }));
+jest.mock("@/components/syncplay/SyncPlayQueueButton", () => ({
+  SyncPlayQueueButton: () => null,
+}));
 jest.mock("../PlatformDropdown", () => ({
   PlatformDropdown: ({ trigger }: { trigger: React.ReactNode }) => trigger,
 }));

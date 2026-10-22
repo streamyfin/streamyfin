@@ -15,6 +15,11 @@ interface ModalOptions {
   enableDynamicSizing?: boolean;
   snapPoints?: (string | number)[];
   enablePanDownToClose?: boolean;
+  /**
+   * Off for content that has drags of its own (a reorderable list): the sheet
+   * then moves by its handle only, and scrolling stays with the content.
+   */
+  enableContentPanningGesture?: boolean;
   backgroundStyle?: object;
   handleIndicatorStyle?: object;
 }

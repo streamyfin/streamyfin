@@ -14,13 +14,13 @@
 ---
 
 <p align="center">
-  <img src="./assets/images/screenshots/screenshot1.png" width="20%" alt="Movie page for The Lord of the Rings: The Fellowship of the Ring, with its play button and media details">
+  <img src="./assets/images/screenshots/01-home.png" width="20%" alt="Home screen with the hero carousel showing Dune: Part Two, and the Continue watching and Next up rows">
   &nbsp;
-  <img src="./assets/images/screenshots/screenshot3.png" width="20%" alt="Movie page for Wonka with the bitrate menu open">
+  <img src="./assets/images/screenshots/02-library.png" width="20%" alt="Library tab listing the server's libraries: movies, series, collections, music and playlists">
   &nbsp;
-  <img src="./assets/images/screenshots/screenshot2.png" width="20%" alt="Downloads screen with a movie downloading">
+  <img src="./assets/images/screenshots/03-media-details.png" width="20%" alt="Movie page for Top Gun: Maverick with ratings, a resume button and the video details">
   &nbsp;
-  <img src="./assets/images/seerr.png" width="21%" alt="Seerr page for Family Guy, with the request button and a request button on each season">
+  <img src="./assets/images/screenshots/06-request-media.png" width="20%" alt="Seerr page for Insidious: Out of the Further with the Request button and release details">
 </p>
 
 

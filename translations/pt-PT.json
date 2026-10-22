@@ -18,7 +18,6 @@
     "password_placeholder": "Palavra-passe",
     "login_button": "Iniciar sessão",
     "quick_connect": "Ligação Rápida",
-    "enter_code_to_login": "Introduza o código {{code}} para iniciar sessão",
     "quick_connect_instructions": "Introduz este código num dispositivo em que já tenhas sessão iniciada. A tua sessão será iniciada automaticamente.",
     "tap_code_to_copy": "Toca no código para o copiar.",
     "code_copied": "Código copiado",
@@ -226,8 +225,8 @@
         "enter_the_quick_connect_code": "Introduza o código do Quick Connect...",
         "success": "Sucesso",
         "quick_connect_authorized": "Quick Connect autorizado",
-        "error": "ERRO",
         "invalid_code": "Código inválido",
+        "disabled": "Quick Connect is turned off on this server. An administrator can turn it on in the server's dashboard.",
         "authorize": "Autorizar",
         "paste_code": "Colar código"
       },
@@ -610,6 +609,7 @@
         "all_files_deleted": "Todas as transferências foram eliminadas",
         "files_deleted_by_type": "{{count}} {{type}} eliminados",
         "could_not_get_download_url_for_item": "Não foi possível obter o URL de download para {{itemName}}",
+        "no_media_source_to_download": "This item cannot be downloaded",
         "file_deleted": "{{item}} eliminado"
       }
     }
@@ -727,7 +727,8 @@
     "noData": "Os itens que marcar como favoritos aparecem aqui."
   },
   "custom_links": {
-    "no_links": "Sem links"
+    "no_links": "Sem links",
+    "could_not_open_link": "Could not open this link"
   },
   "player": {
     "live": "EM DIRETO",
@@ -1175,9 +1176,7 @@
     "title": "Emparelhar com a TV",
     "align_qr": "Alinhe o código QR dentro do enquadramento",
     "enter_code_manually": "Introduzir o código manualmente",
-    "pairing_enter_credentials": "Introduza as credenciais para a TV",
     "pairing_code_label": "Código de emparelhamento",
-    "server": "Servidor",
     "authorize_button": "Autorizar",
     "authorizing": "A autorizar...",
     "scan_again": "Ler novamente",
@@ -1186,18 +1185,24 @@
     "pairing_tv_connecting": "A TV está a ligar-se à sua conta",
     "error_title": "A autorização falhou",
     "error_invalid_qr": "Código QR inválido. Leia o código de emparelhamento da TV.",
+    "error_old_tv": "This TV runs an older version of Streamyfin. Update it, then try again.",
+    "error_code_not_waiting": "This code is not waiting on {{server}}. Check that the TV uses the same server as this phone, then start Quick Connect again on the TV.",
+    "error_quick_connect_disabled": "Quick Connect is turned off on {{server}}. An administrator can turn it on in the server's dashboard.",
+    "error_other_server": "This TV is connecting to another server, {{server}}. Sign in to that server in this app, then scan again.",
     "error_generic": "Algo correu mal. Tente novamente.",
     "error_permission_denied": "É necessária permissão de câmara para ler códigos QR.",
     "login_as": "Iniciar sessão como {{username}}?",
     "on_server": "em {{server}}",
-    "use_different_user": "Usar outro utilizador",
     "open_settings": "Abrir definições"
   },
   "pairing": {
     "pair_with_phone": "Emparelhar com o telemóvel",
     "pair_with_phone_title": "Iniciar sessão na TV",
-    "waiting_for_phone": "A aguardar pelo telemóvel...",
-    "scan_with_phone": "Leia com a aplicação Streamyfin no seu telemóvel",
+    "scan_quick_connect": "Scan the QR code with the Streamyfin app or your phone's camera.",
+    "code_expired": "This code has expired.",
+    "get_new_code": "Get a new code",
+    "scan_with_app": "Scan the QR code with the Streamyfin app on your phone.",
+    "account_that_approves": "The account that approves the code",
     "logging_in": "A iniciar sessão...",
     "logging_in_description": "A ligar ao seu servidor"
   },

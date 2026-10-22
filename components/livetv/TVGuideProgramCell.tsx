@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { Animated, Pressable, StyleSheet, View } from "react-native";
 import { Text } from "@/components/common/Text";
 import { useTVFocusAnimation } from "@/components/tv/hooks/useTVFocusAnimation";
+import { Colors } from "@/constants/Colors";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 
 interface TVGuideProgramCellProps {
@@ -129,7 +130,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 6,
     right: 6,
-    backgroundColor: "#EF4444",
+    backgroundColor: Colors.live,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,

@@ -253,7 +253,13 @@ const PlatformDropdownComponent = ({
         <View pointerEvents='none' aria-hidden style={{ opacity: 0 }}>
           {trigger}
         </View>
-        <Host style={[StyleSheet.absoluteFill, expoUIConfig?.hostStyle as any]}>
+        <Host
+          style={[StyleSheet.absoluteFill, expoUIConfig?.hostStyle as any]}
+          // SwiftUI would otherwise keep the Menu clear of the keyboard, and
+          // in a Host this small that leaves it nothing to be tapped on: a
+          // dropdown next to a focused input drew and never opened.
+          ignoreSafeArea='keyboard'
+        >
           <Menu label={trigger}>
             {groups.flatMap((group, groupIndex) => {
               // Check if this group has radio options

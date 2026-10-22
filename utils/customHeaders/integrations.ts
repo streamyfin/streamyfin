@@ -5,6 +5,7 @@ import { normalizeCustomHeaders } from "./normalize";
 import {
   bumpCustomHeadersVersion,
   deleteSecureCustomHeaderValues,
+  recreateLegacySecureValues,
   resolveCustomHeaderValues,
   secureCustomHeaderMetadata,
 } from "./secureValues";
@@ -111,6 +112,39 @@ export function getIntegrationHeaderConfig(
     source: config.source,
     customHeaders: resolveCustomHeaderValues(config.customHeaders),
   };
+}
+
+const INTEGRATION_KEYS: IntegrationKey[] = ["seerr", "streamystats", "marlin"];
+
+/**
+ * Moves the header values an earlier build stored to items that can be read
+ * while the phone is locked: see `recreateLegacySecureValues`. Run at startup.
+ *
+ * Seerr's headers still filed under their old name are left to
+ * `moveLegacySeerrHeaders`, which stores them as new items anyway.
+ */
+export function makeIntegrationHeadersReadableWhileLocked(): void {
+  try {
+    for (const integrationKey of INTEGRATION_KEYS) {
+      const stored = storage.getString(configStorageKey(integrationKey));
+      if (stored === undefined) continue;
+
+      const config = parseHeaderConfig(stored);
+      const moved = recreateLegacySecureValues(
+        `integration:${integrationKey}`,
+        config.customHeaders,
+      );
+      if (!moved) continue;
+
+      storage.set(
+        configStorageKey(integrationKey),
+        JSON.stringify({ source: config.source, customHeaders: moved.headers }),
+      );
+      deleteSecureCustomHeaderValues(moved.replaced);
+    }
+  } catch (error) {
+    logAndCaptureError("Moving the integration header values failed", error);
+  }
 }
 
 /**
