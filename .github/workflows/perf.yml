@@ -43,7 +43,10 @@ jobs:
       - name: 🛒 Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          # No ref: on a PR this is its merge into the base, what would land.
+          # The head alone of a branch cut before the scenarios has neither
+          # them nor the perf script, and `bun run perf` then starts the
+          # system's perf binary, which fails.
           fetch-depth: 0
           # The steps below run PR code, which has no use for the token.
           persist-credentials: false
