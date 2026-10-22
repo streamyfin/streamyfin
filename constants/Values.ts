@@ -14,6 +14,16 @@ export const SHEET_MAX_HEIGHT_RATIO = 0.85;
 export const POSTER_ASPECT_RATIO = 10 / 15;
 
 /**
+ * How far a TV page's content sits in from the screen edges. Deliberately not
+ * scaled: `scaleSize` halves it on a 960-wide Android TV, which left a page
+ * built with it out of line with its neighbours. Not `TVPadding.horizontal`
+ * either, which follows the native search bar's inset. Kept here rather than
+ * in `TVSizes.ts`, which reads the settings atom: a plain number should not
+ * pull that into every page that imports it.
+ */
+export const TV_HORIZONTAL_PADDING = 60;
+
+/**
  * MMKV key for the collection type and server of each hidden singleton view
  * (Live TV, Collections, Playlists), which is what carries a hidden view over
  * when Jellyfin 12 changes its id.

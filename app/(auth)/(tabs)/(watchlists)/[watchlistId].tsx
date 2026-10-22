@@ -26,6 +26,7 @@ import { getItemNavigation } from "@/components/common/TouchableItemRouter";
 import { TVPosterCard } from "@/components/tv/TVPosterCard";
 import { useScaledTVPosterSizes } from "@/constants/TVPosterSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
+import { TV_HORIZONTAL_PADDING } from "@/constants/Values";
 import useRouter from "@/hooks/useAppRouter";
 import { useOrientation } from "@/hooks/useOrientation";
 import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
@@ -40,7 +41,6 @@ import {
 import { userAtom } from "@/providers/JellyfinProvider";
 
 const TV_ITEM_GAP = 20;
-const TV_HORIZONTAL_PADDING = 60;
 
 export default function WatchlistDetailScreen() {
   const typography = useScaledTVTypography();

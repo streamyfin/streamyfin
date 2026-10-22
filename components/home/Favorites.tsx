@@ -1,12 +1,17 @@
 import type { Api } from "@jellyfin/sdk";
-import type { BaseItemKind } from "@jellyfin/sdk/lib/generated-client";
+import type {
+  BaseItemKind,
+  ItemFilter,
+} from "@jellyfin/sdk/lib/generated-client";
 import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
+import { useQueryClient } from "@tanstack/react-query";
 import { t } from "i18next";
 import { useAtom } from "jotai";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { Text, View } from "react-native";
 // PNG ASSET
 import heart from "@/assets/icons/heart.fill.png";
+import { QueryErrorState } from "@/components/common/QueryErrorState";
 import { Image } from "@/components/common/ServerImage";
 import { Colors } from "@/constants/Colors";
 import useRouter from "@/hooks/useAppRouter";
@@ -15,25 +20,48 @@ import { InfiniteScrollingCollectionList } from "./InfiniteScrollingCollectionLi
 
 type FavoriteTypes =
   | "Series"
+  | "Season"
   | "Movie"
   | "Episode"
   | "Video"
   | "BoxSet"
   | "Playlist";
-type EmptyState = Record<FavoriteTypes, boolean>;
+// null is used to avoid flashing when swapping between favorites and watchlist
+type EmptyState = Record<FavoriteTypes, boolean | null>;
 
-export const Favorites = () => {
+interface FavoritesProps {
+  /** Jellyfin item filter. "IsFavorite" (default) or "Likes" for the watchlist view. */
+  filter?: ItemFilter;
+  /** Query key segment used to keep favorites/watchlist caches separate. */
+  queryKeyBase?: string;
+  emptyTitleKey?: string;
+  emptyTextKey?: string;
+  /** Namespace for the see-all page headers ("favorites" or "kefintweaksWatchlist"). */
+  seeAllNamespace?: "kefintweaksWatchlist" | "favorites";
+  /** Route the "See all" screen lives at; defaults to the favorites tab. */
+  seeAllPathname?: string;
+}
+
+export const Favorites = ({
+  filter = "IsFavorite",
+  queryKeyBase = "favorites",
+  emptyTitleKey = "favorites.noDataTitle",
+  emptyTextKey = "favorites.noData",
+  seeAllNamespace = "favorites",
+  seeAllPathname = "/(auth)/(tabs)/(favorites)/see-all",
+}: FavoritesProps = {}) => {
   const router = useRouter();
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
   const pageSize = 20;
   const [emptyState, setEmptyState] = useState<EmptyState>({
-    Series: false,
-    Movie: false,
-    Episode: false,
-    Video: false,
-    BoxSet: false,
-    Playlist: false,
+    Series: null,
+    Season: null,
+    Movie: null,
+    Episode: null,
+    Video: null,
+    BoxSet: null,
+    Playlist: null,
   });
 
   const fetchFavoritesByType = useCallback(
@@ -46,7 +74,7 @@ export const Favorites = () => {
         userId: user?.Id,
         sortBy: ["SeriesSortName", "SortName"],
         sortOrder: ["Ascending"],
-        filters: ["IsFavorite"],
+        filters: [filter],
         recursive: true,
         fields: ["PrimaryImageAspectRatio"],
         collapseBoxSetItems: false,
@@ -56,45 +84,67 @@ export const Favorites = () => {
         limit: limit,
         includeItemTypes: [itemType],
       });
-      const items = response.data.Items || [];
-
-      // Update empty state for this specific type only for the first page
-      if (startIndex === 0) {
-        setEmptyState((prev) => ({
-          ...prev,
-          [itemType as FavoriteTypes]: items.length === 0,
-        }));
-      }
-
-      return items;
+      return response.data.Items || [];
     },
-    [api, user],
+    [api, user, filter],
   );
 
-  // Reset empty state when component mounts or dependencies change
-  useEffect(() => {
-    setEmptyState({
-      Series: false,
-      Movie: false,
-      Episode: false,
-      Video: false,
-      BoxSet: false,
-      Playlist: false,
-    });
-  }, [api, user]);
+  // Emptiness is reported by each list once its query settles (incl. cache
+  // hits), so it stays correct where a queryFn side effect would go stale.
+  const setTypeEmpty = useCallback(
+    (type: FavoriteTypes, isEmpty: boolean | null) =>
+      setEmptyState((prev) =>
+        prev[type] === isEmpty ? prev : { ...prev, [type]: isEmpty },
+      ),
+    [],
+  );
 
-  // Check if all categories that have been loaded are empty
+  // Show the empty message only once every category has settled AND is empty.
+  // A `null` (still loading) keeps it hidden, so switching favorites/watchlist
+  // (props swap in place, no remount) never flashes a stale empty state.
   const areAllEmpty = () => {
-    const loadedCategories = Object.values(emptyState);
+    const categories = Object.values(emptyState);
     return (
-      loadedCategories.length > 0 &&
-      loadedCategories.every((isEmpty) => isEmpty)
+      categories.length > 0 && categories.every((isEmpty) => isEmpty === true)
     );
   };
+
+  // Whether each category's last load failed. A failure reports null
+  // emptiness, the same as loading, so it needs its own record.
+  const [failedState, setFailedState] = useState<
+    Partial<Record<FavoriteTypes, boolean>>
+  >({});
+  const setTypeFailed = useCallback(
+    (type: FavoriteTypes, isError: boolean) =>
+      setFailedState((prev) =>
+        prev[type] === isError ? prev : { ...prev, [type]: isError },
+      ),
+    [],
+  );
+
+  // Every category settled without items and at least one failed: each row
+  // hides itself, so without this the screen would be blank, with nothing to
+  // explain it or to retry.
+  const types = Object.keys(emptyState) as FavoriteTypes[];
+  const allFailedOrEmpty =
+    types.some((type) => failedState[type]) &&
+    types.every((type) => failedState[type] || emptyState[type] === true);
+
+  const queryClient = useQueryClient();
+  const retry = useCallback(() => {
+    queryClient.refetchQueries({
+      queryKey: ["home", queryKeyBase, user?.Id],
+    });
+  }, [queryClient, queryKeyBase, user?.Id]);
 
   const fetchFavoriteSeries = useCallback(
     ({ pageParam }: { pageParam: number }) =>
       fetchFavoritesByType("Series", pageParam, pageSize),
+    [fetchFavoritesByType, pageSize],
+  );
+  const fetchFavoriteSeasons = useCallback(
+    ({ pageParam }: { pageParam: number }) =>
+      fetchFavoritesByType("Season", pageParam, pageSize),
     [fetchFavoritesByType, pageSize],
   );
   const fetchFavoriteMovies = useCallback(
@@ -123,50 +173,30 @@ export const Favorites = () => {
     [fetchFavoritesByType, pageSize],
   );
 
-  const handleSeeAllSeries = useCallback(() => {
-    router.push({
-      pathname: "/(auth)/(tabs)/(favorites)/see-all",
-      params: { type: "Series", title: t("favorites.series") },
-    } as any);
-  }, [router]);
-
-  const handleSeeAllMovies = useCallback(() => {
-    router.push({
-      pathname: "/(auth)/(tabs)/(favorites)/see-all",
-      params: { type: "Movie", title: t("favorites.movies") },
-    } as any);
-  }, [router]);
-
-  const handleSeeAllEpisodes = useCallback(() => {
-    router.push({
-      pathname: "/(auth)/(tabs)/(favorites)/see-all",
-      params: { type: "Episode", title: t("favorites.episodes") },
-    } as any);
-  }, [router]);
-
-  const handleSeeAllVideos = useCallback(() => {
-    router.push({
-      pathname: "/(auth)/(tabs)/(favorites)/see-all",
-      params: { type: "Video", title: t("favorites.videos") },
-    } as any);
-  }, [router]);
-
-  const handleSeeAllBoxsets = useCallback(() => {
-    router.push({
-      pathname: "/(auth)/(tabs)/(favorites)/see-all",
-      params: { type: "BoxSet", title: t("favorites.boxsets") },
-    } as any);
-  }, [router]);
-
-  const handleSeeAllPlaylists = useCallback(() => {
-    router.push({
-      pathname: "/(auth)/(tabs)/(favorites)/see-all",
-      params: { type: "Playlist", title: t("favorites.playlists") },
-    } as any);
-  }, [router]);
+  // Navigate to the shared see-all screen. `name` is the capitalized type
+  // suffix of the see-all header key (e.g. "Series" -> "seeAllSeries").
+  // The namespace is branched explicitly so each t() call has a static prefix
+  // (favorites.seeAll* / kefintweaksWatchlist.seeAll*) that the i18n usage
+  // checker can detect — see scripts/check-i18n-keys.ts. The `as any` is
+  // needed because the route's custom params aren't part of expo-router's
+  // typed Href.
+  const seeAll = useCallback(
+    (type: FavoriteTypes, name: string) => {
+      const title =
+        seeAllNamespace === "kefintweaksWatchlist"
+          ? t(`kefintweaksWatchlist.seeAll${name}`)
+          : t(`favorites.seeAll${name}`);
+      router.push({
+        pathname: seeAllPathname,
+        params: { type, title, filter },
+      } as any);
+    },
+    [router, filter, seeAllNamespace, seeAllPathname],
+  );
 
   return (
     <View className='flex flex-co gap-y-4'>
+      {allFailedOrEmpty && <QueryErrorState onRetry={retry} />}
       {areAllEmpty() && (
         <View className='flex-1 items-center justify-center py-12'>
           <Image
@@ -176,61 +206,88 @@ export const Favorites = () => {
             source={heart}
           />
           <Text className='text-xl font-semibold text-white mb-2'>
-            {t("favorites.noDataTitle")}
+            {t(emptyTitleKey)}
           </Text>
           <Text className='text-base text-white/70 text-center max-w-xs px-4'>
-            {t("favorites.noData")}
+            {t(emptyTextKey)}
           </Text>
         </View>
       )}
+      {/* Keyed by account: the cache outlives a user switch and is persisted,
+          so a key without the id opens on the previous account's rows. */}
       <InfiniteScrollingCollectionList
         queryFn={fetchFavoriteSeries}
-        queryKey={["home", "favorites", "series"]}
+        queryKey={["home", queryKeyBase, user?.Id, "series"]}
         title={t("favorites.series")}
         hideIfEmpty
         pageSize={pageSize}
-        onPressSeeAll={handleSeeAllSeries}
+        onEmptyStateChange={(isEmpty) => setTypeEmpty("Series", isEmpty)}
+        onErrorChange={(isError) => setTypeFailed("Series", isError)}
+        onPressSeeAll={() => seeAll("Series", "Series")}
       />
       <InfiniteScrollingCollectionList
+        queryFn={fetchFavoriteSeasons}
+        queryKey={["home", queryKeyBase, user?.Id, "seasons"]}
+        title={t("favorites.seasons")}
+        hideIfEmpty
+        orientation='vertical'
+        showParentTitle
+        pageSize={pageSize}
+        onEmptyStateChange={(isEmpty) => setTypeEmpty("Season", isEmpty)}
+        onErrorChange={(isError) => setTypeFailed("Season", isError)}
+        onPressSeeAll={() => seeAll("Season", "Seasons")}
+      />
+
+      <InfiniteScrollingCollectionList
         queryFn={fetchFavoriteMovies}
-        queryKey={["home", "favorites", "movies"]}
+        queryKey={["home", queryKeyBase, user?.Id, "movies"]}
         title={t("favorites.movies")}
         hideIfEmpty
         orientation='vertical'
         pageSize={pageSize}
-        onPressSeeAll={handleSeeAllMovies}
+        onEmptyStateChange={(isEmpty) => setTypeEmpty("Movie", isEmpty)}
+        onErrorChange={(isError) => setTypeFailed("Movie", isError)}
+        onPressSeeAll={() => seeAll("Movie", "Movies")}
       />
       <InfiniteScrollingCollectionList
         queryFn={fetchFavoriteEpisodes}
-        queryKey={["home", "favorites", "episodes"]}
+        queryKey={["home", queryKeyBase, user?.Id, "episodes"]}
         title={t("favorites.episodes")}
         hideIfEmpty
         pageSize={pageSize}
-        onPressSeeAll={handleSeeAllEpisodes}
+        onEmptyStateChange={(isEmpty) => setTypeEmpty("Episode", isEmpty)}
+        onErrorChange={(isError) => setTypeFailed("Episode", isError)}
+        onPressSeeAll={() => seeAll("Episode", "Episodes")}
       />
       <InfiniteScrollingCollectionList
         queryFn={fetchFavoriteVideos}
-        queryKey={["home", "favorites", "videos"]}
+        queryKey={["home", queryKeyBase, user?.Id, "videos"]}
         title={t("favorites.videos")}
         hideIfEmpty
         pageSize={pageSize}
-        onPressSeeAll={handleSeeAllVideos}
+        onEmptyStateChange={(isEmpty) => setTypeEmpty("Video", isEmpty)}
+        onErrorChange={(isError) => setTypeFailed("Video", isError)}
+        onPressSeeAll={() => seeAll("Video", "Videos")}
       />
       <InfiniteScrollingCollectionList
         queryFn={fetchFavoriteBoxsets}
-        queryKey={["home", "favorites", "boxsets"]}
+        queryKey={["home", queryKeyBase, user?.Id, "boxsets"]}
         title={t("favorites.boxsets")}
         hideIfEmpty
         pageSize={pageSize}
-        onPressSeeAll={handleSeeAllBoxsets}
+        onEmptyStateChange={(isEmpty) => setTypeEmpty("BoxSet", isEmpty)}
+        onErrorChange={(isError) => setTypeFailed("BoxSet", isError)}
+        onPressSeeAll={() => seeAll("BoxSet", "Boxsets")}
       />
       <InfiniteScrollingCollectionList
         queryFn={fetchFavoritePlaylists}
-        queryKey={["home", "favorites", "playlists"]}
+        queryKey={["home", queryKeyBase, user?.Id, "playlists"]}
         title={t("favorites.playlists")}
         hideIfEmpty
         pageSize={pageSize}
-        onPressSeeAll={handleSeeAllPlaylists}
+        onEmptyStateChange={(isEmpty) => setTypeEmpty("Playlist", isEmpty)}
+        onErrorChange={(isError) => setTypeFailed("Playlist", isError)}
+        onPressSeeAll={() => seeAll("Playlist", "Playlists")}
       />
     </View>
   );

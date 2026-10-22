@@ -60,7 +60,7 @@ import { TVFocusablePoster } from "@/components/tv";
 import { TVPosterCard } from "@/components/tv/TVPosterCard";
 import { useScaledTVPosterSizes } from "@/constants/TVPosterSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
-import { TAB_HEIGHT } from "@/constants/Values";
+import { TAB_HEIGHT, TV_HORIZONTAL_PADDING } from "@/constants/Values";
 import useRouter from "@/hooks/useAppRouter";
 import { useFilterReset } from "@/hooks/useFilterReset";
 import { useLanguageFilters } from "@/hooks/useLanguageFilters";
@@ -134,7 +134,6 @@ import { store } from "@/utils/store";
 /** Items per request of the grid; more load as the list is scrolled. */
 const PAGE_SIZE = 36;
 const TV_ITEM_GAP = 20;
-const TV_HORIZONTAL_PADDING = 60;
 const _TV_SCALE_PADDING = 20;
 const TV_PLAYLIST_SQUARE_SIZE = 180;
 const OUTGOING_LIST_OPACITY = 0.4;

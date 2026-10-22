@@ -7,6 +7,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Platform, useWindowDimensions, View } from "react-native";
 import { AddToFavorites } from "@/components/AddToFavorites";
+import { AddToKefinWatchlist } from "@/components/AddToKefinWatchlist";
 import {
   HeaderButton,
   HeaderButtonGroup,
@@ -31,6 +32,7 @@ import { playableQueueItems, useShuffleQueue } from "@/hooks/useShuffleQueue";
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { OfflineModeProvider } from "@/providers/OfflineModeProvider";
+import { useSettings } from "@/utils/atoms/settings";
 import {
   buildOfflineSeriesFromEpisodes,
   getDownloadedEpisodesForSeries,
@@ -71,6 +73,7 @@ const page: React.FC = () => {
 
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
+  const { settings } = useSettings();
   const { getDownloadedItems, downloadedItems } = useDownload();
   const { startShuffle } = useShuffleQueue();
 
@@ -220,6 +223,7 @@ const page: React.FC = () => {
               <SyncPlayButton items={allEpisodes} title={item.Name} />
             )}
             <AddToFavorites item={item} />
+            {settings?.useKefinTweaks && <AddToKefinWatchlist item={item} />}
             {!Platform.isTV && (
               <DownloadItems
                 size='large'
@@ -236,7 +240,14 @@ const page: React.FC = () => {
           </HeaderButtonGroup>
         ) : null,
     });
-  }, [allEpisodes, isLoading, item, isOffline, startShuffle]);
+  }, [
+    allEpisodes,
+    isLoading,
+    item,
+    isOffline,
+    startShuffle,
+    settings?.useKefinTweaks,
+  ]);
 
   // For offline mode, we can show the page even without backdropUrl
   if (!item || (!isOffline && !backdropUrl)) return null;
