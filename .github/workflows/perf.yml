@@ -20,6 +20,7 @@ on:
       - "test-utils/**"
       - "**/*.perf-test.*"
       - "jest.perf.config.js"
+      - "scripts/reassure-*.ts"
       - "package.json"
       - "bun.lock"
       - ".github/workflows/perf*.yml"
@@ -63,17 +64,12 @@ jobs:
             ${{ runner.os }}-${{ runner.arch }}-bun-
 
       - name: 📏 Measure the base
-        run: |
-          HEAD_SHA=$(git rev-parse HEAD)
-          git switch --detach "origin/$BASE_REF"
-          bun install --frozen-lockfile
-          bun run --if-present perf:baseline
-          git switch --detach "$HEAD_SHA"
+        # Measured with this PR's scenarios, so one the PR adds or changes has a
+        # baseline too. The script switches to the base and back.
+        run: bun scripts/reassure-baseline.ts "origin/$BASE_REF"
 
       - name: 📏 Measure the PR
-        run: |
-          bun install --frozen-lockfile
-          bun run perf
+        run: bun run perf
 
       - name: 📝 Job summary
         if: always()
