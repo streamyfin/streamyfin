@@ -9,15 +9,15 @@ import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
 import { useTVFocusAnimation } from "@/components/tv/hooks/useTVFocusAnimation";
 import { TVQueryErrorState } from "@/components/tv/TVQueryErrorState";
+import { Colors } from "@/constants/Colors";
 import { useScaledTVTypography } from "@/constants/TVTypography";
-import { TV_HORIZONTAL_PADDING } from "@/constants/Values";
+import { TV_HORIZONTAL_PADDING, TV_TOP_PADDING } from "@/constants/Values";
 import useRouter from "@/hooks/useAppRouter";
 import { useWatchlistsQuery } from "@/hooks/useWatchlists";
 import { userAtom } from "@/providers/JellyfinProvider";
 import { scaleSize } from "@/utils/scaleSize";
 import type { StreamystatsWatchlist } from "@/utils/streamystats/types";
 
-const TOP_PADDING = scaleSize(100);
 const CARD_WIDTH = scaleSize(520);
 const CARD_HEIGHT = scaleSize(180);
 // Wide enough that a card scaled up on focus never touches its neighbour.
@@ -132,8 +132,7 @@ const TVWatchlistCard: React.FC<TVWatchlistCardProps> = ({
               color={secondary}
             />
             <Text style={{ fontSize: typography.callout, color: secondary }}>
-              {itemCount}{" "}
-              {itemCount === 1 ? t("watchlists.item") : t("watchlists.items")}
+              {t("watchlists.item_count", { count: itemCount })}
             </Text>
           </View>
           {watchlist.allowedItemType ? (
@@ -209,7 +208,7 @@ export const TVStreamystatsWatchlists: React.FC<
     ].filter((section) => section.items.length > 0);
   }, [watchlists, user?.Id, t]);
 
-  const topPadding = contentTopPadding ?? insets.top + TOP_PADDING;
+  const topPadding = contentTopPadding ?? insets.top + TV_TOP_PADDING;
 
   if (isLoading) {
     return (
@@ -244,7 +243,11 @@ export const TVStreamystatsWatchlists: React.FC<
           paddingHorizontal: TV_HORIZONTAL_PADDING,
         }}
       >
-        <Ionicons name='list-outline' size={scaleSize(64)} color='#4b5563' />
+        <Ionicons
+          name='list-outline'
+          size={scaleSize(64)}
+          color={Colors.emptyStateIcon}
+        />
         <Text
           style={{
             fontSize: typography.heading,

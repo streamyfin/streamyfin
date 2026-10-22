@@ -24,9 +24,10 @@ import { HeaderIcon } from "@/components/common/HeaderIcon";
 import { Text } from "@/components/common/Text";
 import { getItemNavigation } from "@/components/common/TouchableItemRouter";
 import { TVPosterCard } from "@/components/tv/TVPosterCard";
+import { Colors } from "@/constants/Colors";
 import { useScaledTVPosterSizes } from "@/constants/TVPosterSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
-import { TV_HORIZONTAL_PADDING } from "@/constants/Values";
+import { TV_HORIZONTAL_PADDING, TV_TOP_PADDING } from "@/constants/Values";
 import useRouter from "@/hooks/useAppRouter";
 import { useOrientation } from "@/hooks/useOrientation";
 import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
@@ -210,10 +211,7 @@ export default function WatchlistDetailScreen() {
             <View className='flex-row items-center gap-1'>
               <Ionicons name='film-outline' size={14} color='#9ca3af' />
               <Text className='text-neutral-400 text-sm'>
-                {items?.length ?? 0}{" "}
-                {(items?.length ?? 0) === 1
-                  ? t("watchlists.item")
-                  : t("watchlists.items")}
+                {t("watchlists.item_count", { count: items?.length ?? 0 })}
               </Text>
             </View>
             <View className='flex-row items-center gap-1'>
@@ -244,7 +242,7 @@ export default function WatchlistDetailScreen() {
   const EmptyComponent = useMemo(
     () => (
       <View className='flex-1 items-center justify-center px-8 py-16'>
-        <Ionicons name='film-outline' size={48} color='#4b5563' />
+        <Ionicons name='film-outline' size={48} color={Colors.emptyStateIcon} />
         <Text className='text-neutral-400 text-center mt-4'>
           {t("watchlists.empty_watchlist")}
         </Text>
@@ -282,7 +280,7 @@ export default function WatchlistDetailScreen() {
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{
-          paddingTop: insets.top + 100,
+          paddingTop: insets.top + TV_TOP_PADDING,
           paddingBottom: insets.bottom + 60,
           paddingHorizontal: insets.left + TV_HORIZONTAL_PADDING,
         }}
@@ -321,10 +319,7 @@ export default function WatchlistDetailScreen() {
             >
               <Ionicons name='film-outline' size={20} color='#9ca3af' />
               <Text style={{ fontSize: typography.callout, color: "#9CA3AF" }}>
-                {items?.length ?? 0}{" "}
-                {(items?.length ?? 0) === 1
-                  ? t("watchlists.item")
-                  : t("watchlists.items")}
+                {t("watchlists.item_count", { count: items?.length ?? 0 })}
               </Text>
             </View>
             <View
@@ -361,7 +356,11 @@ export default function WatchlistDetailScreen() {
               paddingTop: 100,
             }}
           >
-            <Ionicons name='film-outline' size={48} color='#4b5563' />
+            <Ionicons
+              name='film-outline'
+              size={48}
+              color={Colors.emptyStateIcon}
+            />
             <Text
               style={{
                 fontSize: typography.body,

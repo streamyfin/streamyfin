@@ -1,6 +1,7 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import type { FC } from "react";
 import { useCallback, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { View, type ViewProps } from "react-native";
 import { HeaderIcon } from "@/components/common/HeaderIcon";
 import { RoundButton } from "@/components/RoundButton";
@@ -18,6 +19,7 @@ interface Props extends ViewProps {
 }
 
 export const AddToWatchlist: FC<Props> = ({ item, ...props }) => {
+  const { t } = useTranslation();
   const streamystatsEnabled = useStreamystatsEnabled();
   const sheetRef = useRef<WatchlistSheetRef>(null);
 
@@ -33,7 +35,12 @@ export const AddToWatchlist: FC<Props> = ({ item, ...props }) => {
 
   return (
     <View {...props}>
-      <RoundButton size='large' onPress={handlePress}>
+      <RoundButton
+        size='large'
+        onPress={handlePress}
+        accessibilityRole='button'
+        accessibilityLabel={t("watchlists.streamystats_button")}
+      >
         <HeaderIcon name={isInAnyWatchlist ? "watchlisted" : "watchlist"} />
       </RoundButton>
       <WatchlistSheet ref={sheetRef} />

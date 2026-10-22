@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { Alert } from "react-native";
 import { usePlaybackManager } from "@/hooks/usePlaybackManager";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
+import { usePruneWatchedFromWatchlist } from "@/hooks/useWatchlist";
 import { logAndCaptureError } from "@/utils/log";
 
 export const useTVItemActionModal = () => {
@@ -12,6 +13,7 @@ export const useTVItemActionModal = () => {
   const queryClient = useQueryClient();
   const { markItemPlayed, markItemUnplayed } = usePlaybackManager();
   const invalidatePlaybackProgressCache = useInvalidatePlaybackProgressCache();
+  const pruneWatchedFromWatchlist = usePruneWatchedFromWatchlist();
 
   // usePlaybackManager and useInvalidatePlaybackProgressCache return new
   // functions on every render. Read through a ref, they leave showItemActions
@@ -74,6 +76,9 @@ export const useTVItemActionModal = () => {
             try {
               if (!isPlayed) {
                 await markItemPlayed(item.Id);
+                // Watched means done with it, as with the played toggle: drop
+                // it, and any season or show it finished, from the watchlist.
+                void pruneWatchedFromWatchlist([item.Id]);
               } else {
                 await markItemUnplayed(item.Id);
               }
@@ -96,7 +101,7 @@ export const useTVItemActionModal = () => {
         },
       ]);
     },
-    [t, queryClient],
+    [t, queryClient, pruneWatchedFromWatchlist],
   );
 
   return { showItemActions };

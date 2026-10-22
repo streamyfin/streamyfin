@@ -8,6 +8,7 @@ import type {
   ParamListBase,
   TabNavigationState,
 } from "expo-router/react-navigation";
+import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Platform, View } from "react-native";
@@ -22,9 +23,13 @@ import {
   useTVHomeBackHandler,
   useTVTabRootBackHandler,
 } from "@/hooks/useTVBackHandler";
-import { useSettings } from "@/utils/atoms/settings";
+import { settingsAtom, useSettings } from "@/utils/atoms/settings";
 import { eventBus } from "@/utils/eventBus";
-import { isWatchlistsTabVisible } from "@/utils/watchlistSources";
+import { nativeTabsKey } from "@/utils/nativeTabsKey";
+import {
+  isCustomLinksTabVisible,
+  isWatchlistsTabVisible,
+} from "@/utils/watchlistSources";
 
 // Music components are not available on tvOS (TrackPlayer not supported)
 const MiniPlayerBar = Platform.isTV
@@ -70,7 +75,7 @@ function TVTabLayout() {
           ? null
           : { key: "(watchlists)", label: t("watchlists.title") },
         { key: "(libraries)", label: t("tabs.library") },
-        !settings?.showCustomMenuLinks
+        !isCustomLinksTabVisible(settings)
           ? null
           : { key: "(custom-links)", label: t("tabs.custom_links") },
         { key: "(settings)", label: t("tabs.settings") },
@@ -142,6 +147,7 @@ function TVTabLayout() {
 
 export default function TabLayout() {
   const { settings } = useSettings();
+  const settingsLoaded = useAtomValue(settingsAtom) !== null;
   const { t } = useTranslation();
 
   // Must be called before any conditional return (rules of hooks)
@@ -151,10 +157,20 @@ export default function TabLayout() {
     return <TVTabLayout />;
   }
 
+  // The tvOS tab bar is keyed by the optional tabs it shows (nativeTabsKey),
+  // and the stored settings are only read after the first commit: mounted on
+  // the defaults, it would be mounted again as they arrive, Home with it, at
+  // every launch. Spec: utils/tabLayout.test.tsx
+  if (Platform.isTV && !settingsLoaded) {
+    return null;
+  }
+
   return (
     <View style={{ flex: 1 }}>
       <SystemBars hidden={false} style='light' />
       <NativeTabs
+        // tvOS crashes when a tab appears on screen; spec: utils/nativeTabsKey.test.ts
+        key={nativeTabsKey(settings, Platform.isTV)}
         sidebarAdaptable={false}
         tabBarStyle={{
           backgroundColor: "#121212",
@@ -230,7 +246,7 @@ export default function TabLayout() {
           name='(custom-links)'
           options={{
             title: t("tabs.custom_links"),
-            tabBarItemHidden: !settings?.showCustomMenuLinks,
+            tabBarItemHidden: !isCustomLinksTabVisible(settings),
             tabBarIcon:
               Platform.OS === "android"
                 ? (_e) => require("@/assets/icons/link.png")

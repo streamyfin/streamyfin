@@ -51,6 +51,7 @@ Navigation:
 - `introsheet-rendering-location` | IntroSheet in IntroSheetProvider affects native bottom tabs via nav state hooks
 - `intro-modal-trigger-location` | Trigger in Home.tsx, not tabs _layout.tsx
 - `expo-router-top-tabs-runtime-peers` | js-top-tabs requires react-native-tab-view (+ pager-view) at runtime; no import shows it, removing them crashes on launch
+- `tvos-tab-inserted-on-screen-crashes` | showing a hidden tab on the tvOS tab bar throws UIViewControllerHierarchyInconsistency; the bar is remounted per set of optional tabs (nativeTabsKey), so a new optional tab must add its rule to that key
 - `ios27-sdk-tab-bar-items-display-order` | linked against the iOS 27 SDK, UITabBar.items is in display order (search last) and the detached button is TabRole.prominent; patched in react-native-bottom-tabs
 
 UI and headers:

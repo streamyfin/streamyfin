@@ -7,15 +7,21 @@ import { TVButton } from "./TVButton";
 
 export interface TVPlayedButtonProps {
   item: BaseItemDto;
+  /** What the watchlist rates, when not `item`: see `useMarkAsPlayed`. */
+  watchlistItem?: BaseItemDto;
   disabled?: boolean;
 }
 
 export const TVPlayedButton: React.FC<TVPlayedButtonProps> = ({
   item,
+  watchlistItem,
   disabled,
 }) => {
   const isPlayed = item.UserData?.Played ?? false;
-  const toggle = useMarkAsPlayed([item]);
+  const toggle = useMarkAsPlayed(
+    [item],
+    watchlistItem ? [watchlistItem] : undefined,
+  );
 
   return (
     <TVButton

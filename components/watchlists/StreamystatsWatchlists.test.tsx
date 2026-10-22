@@ -24,11 +24,22 @@ jest.mock("@/hooks/useAppRouter", () => ({
   __esModule: true,
   default: () => ({ push: jest.fn() }),
 }));
-// Only the empty and error states are under test; neither renders the list.
-jest.mock("@shopify/flash-list", () => ({ FlashList: () => null }));
+// Renders every row at once: no layout to measure here.
+jest.mock("@shopify/flash-list", () => ({
+  FlashList: ({
+    data,
+    renderItem,
+  }: {
+    data: unknown[];
+    renderItem: (info: { item: unknown; index: number }) => unknown;
+  }) => data.map((item, index) => renderItem({ item, index })),
+}));
 jest.mock("@/hooks/useHaptic", () => ({ useHaptic: () => () => {} }));
 jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
+  useTranslation: () => ({
+    t: (key: string, options?: { count?: number }) =>
+      options?.count === undefined ? key : `${key}:${options.count}`,
+  }),
 }));
 
 beforeEach(() => {
@@ -55,4 +66,27 @@ test("shows a retryable error, not the empty state, when loading fails", async (
 
   await fireEvent.press(screen.getByText("home.retry"));
   expect(mockRefetch).toHaveBeenCalledTimes(1);
+});
+
+// The count and its noun used to be two strings put side by side, which a
+// translation cannot reorder (#2171). Choosing the key with count === 1 was
+// English's rule (French reads 0 as singular, Russian 21), so one key goes to
+// i18next, which picks the plural form.
+test("counts each watchlist's items as one plural phrase", async () => {
+  const watchlist = {
+    serverId: 1,
+    userId: "me",
+    isPublic: false,
+    isPromoted: false,
+    createdAt: "",
+    updatedAt: "",
+  };
+  mockQuery.data = [
+    { ...watchlist, id: 1, name: "One", itemCount: 1 },
+    { ...watchlist, id: 2, name: "Three", itemCount: 3 },
+  ];
+  await render(<StreamystatsWatchlists />);
+
+  expect(screen.getByText("watchlists.item_count:1")).toBeTruthy();
+  expect(screen.getByText("watchlists.item_count:3")).toBeTruthy();
 });

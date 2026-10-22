@@ -1,5 +1,6 @@
 import {
   getWatchlistSources,
+  isCustomLinksTabVisible,
   isWatchlistsTabVisible,
   resolveActiveWatchlistSource,
 } from "./watchlistSources";
@@ -41,6 +42,15 @@ describe("isWatchlistsTabVisible", () => {
         hideWatchlistsTab: true,
       }),
     ).toBe(false);
+  });
+});
+
+describe("isCustomLinksTabVisible", () => {
+  test("shows the tab only when the custom links are turned on", () => {
+    expect(isCustomLinksTabVisible({ showCustomMenuLinks: true })).toBe(true);
+    expect(isCustomLinksTabVisible({ showCustomMenuLinks: false })).toBe(false);
+    expect(isCustomLinksTabVisible({})).toBe(false);
+    expect(isCustomLinksTabVisible(undefined)).toBe(false);
   });
 });
 

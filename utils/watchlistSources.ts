@@ -34,6 +34,17 @@ export function isWatchlistsTabVisible(
 }
 
 /**
+ * The custom links tab, the other tab the settings can hide. It is decided
+ * here with the Watchlists one so the tab bar and its tvOS key
+ * (nativeTabsKey) cannot disagree on which tabs are shown.
+ */
+export function isCustomLinksTabVisible(
+  settings: Partial<Pick<Settings, "showCustomMenuLinks">> | undefined,
+): boolean {
+  return Boolean(settings?.showCustomMenuLinks);
+}
+
+/**
  * The source the tab shows. With both enabled the user's choice wins; with one,
  * that one wins whatever was chosen before, so turning a source off in settings
  * never leaves the tab on a view that is gone.

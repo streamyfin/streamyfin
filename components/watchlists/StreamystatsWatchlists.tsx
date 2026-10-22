@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button } from "@/components/Button";
 import { QueryErrorState } from "@/components/common/QueryErrorState";
 import { Text } from "@/components/common/Text";
+import { Colors } from "@/constants/Colors";
 import useRouter from "@/hooks/useAppRouter";
 import {
   useStreamystatsEnabled,
@@ -65,10 +66,7 @@ const WatchlistCard: React.FC<WatchlistCardProps> = ({
         <View className='flex-row items-center gap-1'>
           <Ionicons name='film-outline' size={14} color='#9ca3af' />
           <Text className='text-neutral-400 text-sm'>
-            {watchlist.itemCount ?? 0}{" "}
-            {(watchlist.itemCount ?? 0) === 1
-              ? t("watchlists.item")
-              : t("watchlists.items")}
+            {t("watchlists.item_count", { count: watchlist.itemCount ?? 0 })}
           </Text>
         </View>
         {watchlist.allowedItemType && (
@@ -88,7 +86,7 @@ const EmptyState: React.FC = () => {
 
   return (
     <View className='flex-1 items-center justify-center px-8'>
-      <Ionicons name='list-outline' size={64} color='#4b5563' />
+      <Ionicons name='list-outline' size={64} color={Colors.emptyStateIcon} />
       <Text className='text-xl font-semibold mt-4 text-center'>
         {t("watchlists.empty_title")}
       </Text>
@@ -105,7 +103,11 @@ const NotConfiguredState: React.FC = () => {
 
   return (
     <View className='flex-1 items-center justify-center px-8'>
-      <Ionicons name='settings-outline' size={64} color='#4b5563' />
+      <Ionicons
+        name='settings-outline'
+        size={64}
+        color={Colors.emptyStateIcon}
+      />
       <Text className='text-xl font-semibold mt-4 text-center'>
         {t("watchlists.not_configured_title")}
       </Text>

@@ -109,15 +109,15 @@ export const Favorites = ({
     );
   };
 
-  // Whether each category's last load failed. A failure reports null
-  // emptiness, the same as loading, so it needs its own record.
+  // Whether each category failed with nothing to show. Such a failure reports
+  // null emptiness, the same as loading, so it needs its own record.
   const [failedState, setFailedState] = useState<
     Partial<Record<FavoriteTypes, boolean>>
   >({});
   const setTypeFailed = useCallback(
-    (type: FavoriteTypes, isError: boolean) =>
+    (type: FavoriteTypes, failed: boolean) =>
       setFailedState((prev) =>
-        prev[type] === isError ? prev : { ...prev, [type]: isError },
+        prev[type] === failed ? prev : { ...prev, [type]: failed },
       ),
     [],
   );
@@ -222,7 +222,7 @@ export const Favorites = ({
         hideIfEmpty
         pageSize={pageSize}
         onEmptyStateChange={(isEmpty) => setTypeEmpty("Series", isEmpty)}
-        onErrorChange={(isError) => setTypeFailed("Series", isError)}
+        onErrorChange={(failed) => setTypeFailed("Series", failed)}
         onPressSeeAll={() => seeAll("Series", "Series")}
       />
       <InfiniteScrollingCollectionList
@@ -234,7 +234,7 @@ export const Favorites = ({
         showParentTitle
         pageSize={pageSize}
         onEmptyStateChange={(isEmpty) => setTypeEmpty("Season", isEmpty)}
-        onErrorChange={(isError) => setTypeFailed("Season", isError)}
+        onErrorChange={(failed) => setTypeFailed("Season", failed)}
         onPressSeeAll={() => seeAll("Season", "Seasons")}
       />
 
@@ -246,7 +246,7 @@ export const Favorites = ({
         orientation='vertical'
         pageSize={pageSize}
         onEmptyStateChange={(isEmpty) => setTypeEmpty("Movie", isEmpty)}
-        onErrorChange={(isError) => setTypeFailed("Movie", isError)}
+        onErrorChange={(failed) => setTypeFailed("Movie", failed)}
         onPressSeeAll={() => seeAll("Movie", "Movies")}
       />
       <InfiniteScrollingCollectionList
@@ -256,7 +256,7 @@ export const Favorites = ({
         hideIfEmpty
         pageSize={pageSize}
         onEmptyStateChange={(isEmpty) => setTypeEmpty("Episode", isEmpty)}
-        onErrorChange={(isError) => setTypeFailed("Episode", isError)}
+        onErrorChange={(failed) => setTypeFailed("Episode", failed)}
         onPressSeeAll={() => seeAll("Episode", "Episodes")}
       />
       <InfiniteScrollingCollectionList
@@ -266,7 +266,7 @@ export const Favorites = ({
         hideIfEmpty
         pageSize={pageSize}
         onEmptyStateChange={(isEmpty) => setTypeEmpty("Video", isEmpty)}
-        onErrorChange={(isError) => setTypeFailed("Video", isError)}
+        onErrorChange={(failed) => setTypeFailed("Video", failed)}
         onPressSeeAll={() => seeAll("Video", "Videos")}
       />
       <InfiniteScrollingCollectionList
@@ -276,7 +276,7 @@ export const Favorites = ({
         hideIfEmpty
         pageSize={pageSize}
         onEmptyStateChange={(isEmpty) => setTypeEmpty("BoxSet", isEmpty)}
-        onErrorChange={(isError) => setTypeFailed("BoxSet", isError)}
+        onErrorChange={(failed) => setTypeFailed("BoxSet", failed)}
         onPressSeeAll={() => seeAll("BoxSet", "Boxsets")}
       />
       <InfiniteScrollingCollectionList
@@ -286,7 +286,7 @@ export const Favorites = ({
         hideIfEmpty
         pageSize={pageSize}
         onEmptyStateChange={(isEmpty) => setTypeEmpty("Playlist", isEmpty)}
-        onErrorChange={(isError) => setTypeFailed("Playlist", isError)}
+        onErrorChange={(failed) => setTypeFailed("Playlist", failed)}
         onPressSeeAll={() => seeAll("Playlist", "Playlists")}
       />
     </View>

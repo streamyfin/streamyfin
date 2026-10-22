@@ -8,6 +8,7 @@ import { Text } from "@/components/common/Text";
 import { TVDiscover } from "@/components/seerr/discover/TVDiscover";
 import { useScaledTVSizes } from "@/constants/TVSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
+import { TV_TOP_PADDING } from "@/constants/Values";
 import { TvSearchView } from "@/modules/tv-search";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
@@ -22,7 +23,6 @@ import { TVSearchSection } from "./TVSearchSection";
 import { TVSearchTabBadges } from "./TVSearchTabBadges";
 import { TVSeerrSearchResults } from "./TVSeerrSearchResults";
 
-const TOP_PADDING = 100;
 // Height of the native search bar itself. The tvOS grid keyboard presents as
 // its own overlay when the field is focused, so we only reserve the bar height
 // here — not the whole keyboard. Tunable once seen on device.
@@ -237,7 +237,7 @@ export const TVSearchPage: React.FC<TVSearchPageProps> = ({
       {/* Sticky header: search field stays pinned while results scroll below. */}
       <View
         style={{
-          paddingTop: insets.top + TOP_PADDING,
+          paddingTop: insets.top + TV_TOP_PADDING,
         }}
       >
         {/* Search bar: native tvOS SwiftUI `.searchable` on Apple TV, standard

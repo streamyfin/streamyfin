@@ -9,6 +9,7 @@ import { useTranslation } from "react-i18next";
 import type { ViewProps } from "react-native";
 import { CardRow } from "@/components/cards/CardRow";
 import { useSettings } from "@/utils/atoms/settings";
+import { rowLoadState } from "@/utils/query/rowLoadState";
 
 interface Props extends ViewProps {
   title?: string | null;
@@ -31,10 +32,12 @@ interface Props extends ViewProps {
    */
   onEmptyStateChange?: (isEmpty: boolean | null) => void;
   /**
-   * Whether the last load failed. Emptiness reports null for a failure, which
-   * reads the same as still loading; this tells the two apart.
+   * Whether the row failed with nothing to show (see rowLoadState): a refetch
+   * that fails while items are on screen reports false. Emptiness reports null
+   * for such a failure, which reads the same as still loading; this tells the
+   * two apart.
    */
-  onErrorChange?: (isError: boolean) => void;
+  onErrorChange?: (failed: boolean) => void;
 }
 
 export const InfiniteScrollingCollectionList: React.FC<Props> = ({
@@ -59,6 +62,7 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
     data,
     isLoading,
     isError,
+    isPending,
     isFetchingNextPage,
     hasNextPage,
     fetchNextPage,
@@ -111,22 +115,25 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
     return deduped;
   }, [data]);
 
-  // Report emptiness on every settle (incl. cache hits). Errors report null
-  // (unknown) so a failed fetch never reads as "no content". Callback held in
-  // a ref so an inline parent callback doesn't retrigger the effect each render.
+  // Report emptiness and failure on every settle (incl. cache hits); see
+  // rowLoadState for when each one counts. Callbacks held in refs so an inline
+  // parent callback doesn't retrigger the effects each render.
+  const { isEmpty, failed } = rowLoadState({
+    isPending,
+    isError,
+    itemCount: allItems.length,
+  });
   const onEmptyStateChangeRef = useRef(onEmptyStateChange);
   onEmptyStateChangeRef.current = onEmptyStateChange;
   useEffect(() => {
-    onEmptyStateChangeRef.current?.(
-      isLoading || isError ? null : allItems.length === 0,
-    );
-  }, [isLoading, isError, allItems.length]);
+    onEmptyStateChangeRef.current?.(isEmpty);
+  }, [isEmpty]);
 
   const onErrorChangeRef = useRef(onErrorChange);
   onErrorChangeRef.current = onErrorChange;
   useEffect(() => {
-    onErrorChangeRef.current?.(isError);
-  }, [isError]);
+    onErrorChangeRef.current?.(failed);
+  }, [failed]);
 
   if (disabled || !title) return null;
 

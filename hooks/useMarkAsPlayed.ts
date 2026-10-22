@@ -7,7 +7,19 @@ import { usePlaybackManager } from "./usePlaybackManager";
 import { useInvalidatePlaybackProgressCache } from "./useRevalidatePlaybackProgressCache";
 import { usePruneWatchedFromWatchlist } from "./useWatchlist";
 
-export const useMarkAsPlayed = (items: BaseItemDto[]) => {
+/**
+ * Marks `items` played or unplayed, optimistically.
+ *
+ * `watchlistItems` are the items whose watchlist entry marking them played
+ * settles, when those are not `items`: with an alternate version selected, an
+ * item page marks the version (Jellyfin 12 keeps UserData per version), but
+ * the watchlist button rates the page's own item. Jellyfin marks every version
+ * played along with the one it is given, so that item reads as finished too.
+ */
+export const useMarkAsPlayed = (
+  items: BaseItemDto[],
+  watchlistItems: BaseItemDto[] = items,
+) => {
   const queryClient = useQueryClient();
   const lightHapticFeedback = useHaptic("light");
   const { markItemPlayed, markItemUnplayed } = usePlaybackManager();
@@ -55,7 +67,11 @@ export const useMarkAsPlayed = (items: BaseItemDto[]) => {
         );
         // Watched means done with it: drop it, and any season or show it
         // finished, from the KefinTweaks watchlist.
-        if (played) void pruneWatchedFromWatchlist(itemIds);
+        if (played) {
+          void pruneWatchedFromWatchlist(
+            watchlistItems.map((item) => item.Id).filter(Boolean) as string[],
+          );
+        }
       } catch (error) {
         // The optimistic update is rolled back, so without a report this
         // user action fails with zero trace anywhere.
@@ -83,6 +99,7 @@ export const useMarkAsPlayed = (items: BaseItemDto[]) => {
       markItemUnplayed,
       pruneWatchedFromWatchlist,
       queryClient,
+      watchlistItems,
     ],
   );
 

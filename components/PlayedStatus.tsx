@@ -9,12 +9,18 @@ import { RoundButton } from "./RoundButton";
 
 interface Props extends ViewProps {
   items: BaseItemDto[];
+  /** What the watchlist rates, when not `items`: see `useMarkAsPlayed`. */
+  watchlistItems?: BaseItemDto[];
   size?: "default" | "large";
 }
 
-export const PlayedStatus: React.FC<Props> = ({ items, ...props }) => {
+export const PlayedStatus: React.FC<Props> = ({
+  items,
+  watchlistItems,
+  ...props
+}) => {
   const allPlayed = items.every((item) => item.UserData?.Played);
-  const toggle = useMarkAsPlayed(items);
+  const toggle = useMarkAsPlayed(items, watchlistItems);
 
   const handlePress = useCallback(() => {
     void toggle(!allPlayed);

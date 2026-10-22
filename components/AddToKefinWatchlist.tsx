@@ -1,5 +1,6 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import type { FC } from "react";
+import { useTranslation } from "react-i18next";
 import { View, type ViewProps } from "react-native";
 import { HeaderIcon } from "@/components/common/HeaderIcon";
 import { RoundButton } from "@/components/RoundButton";
@@ -22,6 +23,7 @@ export const AddToKefinWatchlist: FC<Props> = ({
   size = "large",
   ...props
 }) => {
+  const { t } = useTranslation();
   const { isWatchlisted, toggleWatchlist, isPending } = useWatchlist(item);
   const isOffline = useOfflineMode();
 
@@ -30,7 +32,19 @@ export const AddToKefinWatchlist: FC<Props> = ({
 
   return (
     <View {...props}>
-      <RoundButton size={size} onPress={toggleWatchlist} disabled={isPending}>
+      {/* Named after its source: with Streamystats on as well, the header
+          shows a second bookmark next to this one. */}
+      <RoundButton
+        size={size}
+        onPress={toggleWatchlist}
+        disabled={isPending}
+        accessibilityRole='button'
+        accessibilityLabel={t(
+          isWatchlisted
+            ? "kefintweaksWatchlist.remove_button"
+            : "kefintweaksWatchlist.add_button",
+        )}
+      >
         <HeaderIcon
           name={isWatchlisted ? "watchlisted" : "watchlist"}
           tintColor={isWatchlisted ? Colors.primary : "white"}

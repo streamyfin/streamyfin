@@ -8,14 +8,15 @@ import { usePruneWatchedFromWatchlist, useWatchlist } from "./useWatchlist";
 
 const mockRemove = jest.fn<
   Promise<{ removed: string[]; failed: string[] }>,
-  [unknown, string, string[]]
+  [unknown, string, string[], ReadonlyMap<string, string | null>?]
 >();
 const mockSettings = { useKefinTweaks: true };
 const mockConnection = { isOffline: false, isConnected: true };
 
 jest.mock("@/utils/watchlistPrune", () => ({
-  removeWatchedFromWatchlist: (...args: [unknown, string, string[]]) =>
-    mockRemove(...args),
+  removeWatchedFromWatchlist: (
+    ...args: [unknown, string, string[], ReadonlyMap<string, string | null>?]
+  ) => mockRemove(...args),
 }));
 const mockRate = jest.fn<Promise<unknown>, [unknown]>();
 jest.mock("@jellyfin/sdk/lib/utils/api", () => ({
@@ -114,8 +115,31 @@ test("unfills a mounted bookmark for an item it removed", async () => {
 
   await act(() => result.current.prune(["m1"]));
 
-  expect(mockRemove).toHaveBeenCalledWith(expect.anything(), "u", ["m1"]);
+  // Marked played, not stopped: no start dates to judge the item by.
+  expect(mockRemove).toHaveBeenCalledWith(
+    expect.anything(),
+    "u",
+    ["m1"],
+    undefined,
+  );
   expect(result.current.toggle.isWatchlisted).toBe(false);
+});
+
+// A stop report only counts a finished item whose LastPlayedDate moved, so
+// the date the player started from has to reach the prune.
+test("hands a stop report's start dates on to the prune", async () => {
+  mockRemove.mockResolvedValue({ removed: [], failed: [] });
+  const { result } = await renderBoth();
+  const startedFrom = new Map([["m1", "2026-09-21T20:00:00.0000000Z"]]);
+
+  await act(() => result.current.prune(["m1"], startedFrom));
+
+  expect(mockRemove).toHaveBeenCalledWith(
+    expect.anything(),
+    "u",
+    ["m1"],
+    startedFrom,
+  );
 });
 
 test("swallows a failure so playback teardown is never interrupted", async () => {

@@ -276,7 +276,8 @@ export default function StreamystatsPage() {
             />
           </ListItem>
           <ListItem
-            title={t("home.settings.plugins.streamystats.hide_watchlists_tab")}
+            // Hides the Streamystats side only: KefinTweaks keeps the tab.
+            title={t("home.settings.plugins.streamystats.hide_watchlists")}
             disabledByAdmin={hideWatchlistsTabLocked}
           >
             <SettingSwitch
