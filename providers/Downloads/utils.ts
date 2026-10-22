@@ -118,10 +118,18 @@ export function rebaseOntoAppDirectory(
   directoryUri: string,
   documentsUri: string,
 ): string {
-  if (!stored.startsWith("file://") && !stored.startsWith("/")) return stored;
+  return appDirectoryRebaser(directoryUri, documentsUri)(stored);
+}
+
+/**
+ * {@link rebaseOntoAppDirectory} for one directory, with what only depends on the directory
+ * worked out once, for a caller that rebases many locations onto it.
+ */
+export function appDirectoryRebaser(
+  directoryUri: string,
+  documentsUri: string,
+): (stored: string) => string {
   const directory = withoutTrailingSlashes(uriToFilePath(directoryUri));
-  const path = uriToFilePath(stored);
-  if (path === directory || path.startsWith(`${directory}/`)) return stored;
 
   // Only the same directory in a sibling container is the old one: the same directory of
   // containers as now (on iOS ".../Containers/Data/Application/"), then any UUID, then the
@@ -133,19 +141,32 @@ export function rebaseOntoAppDirectory(
     documents.slice(0, documents.lastIndexOf("/")),
   );
   const directoryInContainer = withoutPrivate(directory);
-  if (!directoryInContainer.startsWith(`${container}/`)) return stored;
-  const inContainer = directoryInContainer.slice(container.length + 1);
   const segments = container.split("/");
-  if (segments.length < CONTAINER_PATH_MIN_SEGMENTS) return stored;
-  const containers = escapeRegExp(segments.slice(0, -1).join("/"));
-  const inSibling = withoutPrivate(path);
-  const match = new RegExp(
-    `^${containers}/[^/]+/${escapeRegExp(inContainer)}/`,
-  ).exec(inSibling);
-  if (!match) return stored;
+  // Null when the directory is not in the container, or the container has no sibling to have
+  // moved from: then nothing outside the directory moves.
+  const inSiblingDirectory =
+    directoryInContainer.startsWith(`${container}/`) &&
+    segments.length >= CONTAINER_PATH_MIN_SEGMENTS
+      ? new RegExp(
+          `^${escapeRegExp(segments.slice(0, -1).join("/"))}/[^/]+/${escapeRegExp(
+            directoryInContainer.slice(container.length + 1),
+          )}/`,
+        )
+      : null;
 
-  const rebased = `${directory}/${inSibling.slice(match[0].length)}`;
-  return stored.startsWith("file://") ? filePathToUri(rebased) : rebased;
+  return (stored) => {
+    if (!stored.startsWith("file://") && !stored.startsWith("/")) return stored;
+    const path = uriToFilePath(stored);
+    if (path === directory || path.startsWith(`${directory}/`)) return stored;
+    if (!inSiblingDirectory) return stored;
+
+    const inSibling = withoutPrivate(path);
+    const match = inSiblingDirectory.exec(inSibling);
+    if (!match) return stored;
+
+    const rebased = `${directory}/${inSibling.slice(match[0].length)}`;
+    return stored.startsWith("file://") ? filePathToUri(rebased) : rebased;
+  };
 }
 
 function withoutTrailingSlashes(path: string): string {

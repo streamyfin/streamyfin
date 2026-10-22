@@ -18,10 +18,7 @@ import type {
   DownloadErrorEvent as BGDownloadErrorEvent,
 } from "@/modules";
 import { BackgroundDownloader } from "@/modules";
-import {
-  rebaseOntoAppDirectory,
-  safeNamePart,
-} from "@/providers/Downloads/utils";
+import { appDirectoryRebaser, safeNamePart } from "@/providers/Downloads/utils";
 import { storage } from "@/utils/mmkv";
 import type {
   AudioStorageIndex,
@@ -87,14 +84,12 @@ function withCurrentContainerPaths(
   const documents = Paths.document.uri;
   // Downloads live in Documents and the look-ahead cache in Library/Caches. A path is only
   // rebased onto the directory it was in, so trying both is safe.
-  const directories = [documents, Paths.cache.uri];
+  const rebasers = [documents, Paths.cache.uri].map((directory) =>
+    appDirectoryRebaser(directory, documents),
+  );
   for (const track of Object.values(index.tracks)) {
-    for (const directory of directories) {
-      track.localPath = rebaseOntoAppDirectory(
-        track.localPath,
-        directory,
-        documents,
-      );
+    for (const rebase of rebasers) {
+      track.localPath = rebase(track.localPath);
     }
   }
   return index;
