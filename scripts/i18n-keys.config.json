@@ -59,6 +59,8 @@
     "seerr.quota.season_limit_total_one",
     "seerr.quota.season_limit_total_other",
     "seerr.request_card_seasons_one",
-    "seerr.request_card_seasons_other"
+    "seerr.request_card_seasons_other",
+    "music.song_count_one",
+    "music.song_count_other"
   ]
 }
