@@ -435,7 +435,7 @@ export default function SearchPage() {
   });
 
   // Always Jellyfin: neither Marlin nor Streamystats indexes studios.
-  const { data: studios, isFetching: l13 } = useQuery({
+  const { data: studiosFound, isFetching: l13 } = useQuery({
     queryKey: ["search", "studios", debouncedSearch],
     queryFn: ({ signal }) =>
       searchStudios({
@@ -499,6 +499,7 @@ export default function SearchPage() {
     episodes,
     collections,
     actors,
+    studios,
     artists,
     albums,
     songs,
@@ -512,6 +513,7 @@ export default function SearchPage() {
       episodes: sorted(episodesFound),
       collections: sorted(collectionsFound),
       actors: sorted(actorsFound),
+      studios: sorted(studiosFound),
       artists: sorted(artistsFound),
       albums: sorted(albumsFound),
       songs: sorted(songsFound),
@@ -523,6 +525,7 @@ export default function SearchPage() {
     episodesFound,
     collectionsFound,
     actorsFound,
+    studiosFound,
     artistsFound,
     albumsFound,
     songsFound,
