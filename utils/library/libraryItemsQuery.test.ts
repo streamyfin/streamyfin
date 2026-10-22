@@ -91,35 +91,13 @@ describe("library items query", () => {
     ).toEqual(["SeriesDatePlayed", "SortName", "ProductionYear"]);
   });
 
-  test.each(["movies", "boxsets", undefined] as const)(
-    "keeps DatePlayed in a %s library",
-    (collectionType) => {
-      expect(
-        buildLibraryItemsQuery({
-          ...horrorMovies,
-          collectionType,
-          sortBy: "DatePlayed",
-        }).sortBy,
-      ).toEqual(["DatePlayed", "SortName", "ProductionYear"]);
-    },
-  );
-
-  test("leaves every other Shows sort as it is", () => {
-    expect(
-      buildLibraryItemsQuery({
-        ...horrorMovies,
-        collectionType: "tvshows",
-        sortBy: "DateLastContentAdded",
-      }).sortBy,
-    ).toEqual(["DateLastContentAdded", "SortName", "ProductionYear"]);
-  });
-
-  // The collections screen builds its own request, and a Shows view opens
-  // there: it needs the same series-level key as the library page.
+  // The library page and the collections screen both send their sort through
+  // serverSortBy: only Date Played in a Shows library or view changes.
   test.each([
     ["tvshows", "DatePlayed", "SeriesDatePlayed"],
     ["tvshows", "DateLastContentAdded", "DateLastContentAdded"],
     ["movies", "DatePlayed", "DatePlayed"],
+    ["boxsets", "DatePlayed", "DatePlayed"],
     [undefined, "DatePlayed", "DatePlayed"],
   ] as const)(
     "a %s view asks the server for %s as %s",

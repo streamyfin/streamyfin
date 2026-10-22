@@ -102,6 +102,8 @@ const page: React.FC = () => {
   // A box set has no collection type, a view of a Shows library does. The sort
   // atoms are shared between screens, so a key picked elsewhere can be missing
   // from this list; it then shows and sorts as Name, not as an empty label.
+  // Covered by utils/library/sortOption.test.ts; the server key the request
+  // sends (serverSortBy) by utils/library/libraryItemsQuery.test.ts.
   const sortOptions = sortOptionsFor(collection?.CollectionType);
   const activeSortBy = resolveSortKey(sortBy[0], sortOptions);
   const activeSortByValues = useMemo(() => [activeSortBy], [activeSortBy]);
