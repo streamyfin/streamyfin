@@ -31,3 +31,6 @@ export const MUSIC_PLAY_QUEUE_MAX_ITEMS = 500;
 /** Storage key: whether a music folder's Play all and Shuffle reach into its subfolders. */
 export const MUSIC_FOLDER_INCLUDE_SUBFOLDERS_KEY =
   "music_folder_include_subfolders";
+
+/** MMKV key of the index of stored tracks: user downloads and the look-ahead cache. */
+export const AUDIO_STORAGE_INDEX_KEY = "audio_storage.v1.json";

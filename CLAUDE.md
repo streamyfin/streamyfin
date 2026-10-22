@@ -81,6 +81,7 @@ Native modules:
 - `foreground-service-start-must-be-answered` | every startForegroundService() needs startForeground() first in onStartCommand, unconditionally; a refused call still answers it, a skipped one kills the process
 - `keychain-accessibility-set-at-creation` | a SecureStore item keeps the accessibility it was created with, `setItem` over it changes only the data; a default item throws on read when iOS launches the app on a locked phone
 - `track-player-queue-is-not-the-app-queue` | the native music queue only holds the tracks loaded so far, so a state queue index does not address it; on iOS `add` past the end rejects with the same message as `skip`
+- `android-js-timers-pause-in-background` | Delayed timers don't fire while the Android app is paused (incl. under the Cast expanded controls); zero-delay ones and fetch still do
 
 TV platform:
 - `tv-modals-must-use-navigation-pattern` | Use atom+router.push(), never overlay/absolute modals
@@ -165,7 +166,7 @@ bun run ios:install-metal-toolchain   # Fixes "missing Metal Toolchain" build er
 | `patches/` | Patch package overrides |
 | `augmentations/` | Type augmentations |
 | `test-utils/` | Shared test doubles: Jellyfin API, MMKV, the file system, custom headers, React Native, Reanimated |
-| `tests/native/` | Standalone native geometry checks and subtitle playback fixtures |
+| `tests/native/` | Standalone native checks (subtitle geometry, app container paths), each run by its script in `scripts/ios/`, and subtitle playback fixtures |
 | `translations/` | i18n catalogues, `en.json` is the only source |
 | `scripts/` | Repo tooling run through bun |
 | `biome-plugins/` | Custom Biome (Grit) lint rules, wired up in `biome.json` |
@@ -178,7 +179,9 @@ bun run ios:install-metal-toolchain   # Fixes "missing Metal Toolchain" build er
 - Global state is Jotai atoms in `utils/atoms/`.
 - `settingsAtom` in `utils/atoms/settings.ts` holds app settings. A new setting must also
   be toggleable in the settings UI, mobile or TV depending on its scope, or it is dead.
-- `apiAtom` and `userAtom` in `providers/JellyfinProvider.tsx` hold auth state.
+- `apiAtom` and `userAtom` in `utils/atoms/api.ts` hold auth state. The provider
+  re-exports them, but code the provider imports, `utils/atoms/` among it, reads
+  them from `@/utils/atoms/api`: going through the provider is a require cycle.
 - Server state goes through React Query.
 
 **Jellyfin API**
@@ -244,7 +247,7 @@ PersistQueryClientProvider
 
 ```typescript
 import { useSettings } from "@/utils/atoms/settings";
-import { apiAtom } from "@/providers/JellyfinProvider";
+import { apiAtom } from "@/utils/atoms/api";
 ```
 
 ## Coding standards

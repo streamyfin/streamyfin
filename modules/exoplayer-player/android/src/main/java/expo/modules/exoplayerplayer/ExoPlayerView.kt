@@ -120,6 +120,10 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     // side-loaded subs when addSubtitleFile rebuilds the MediaItem.
     private var sideLoadedSubs: List<MediaItem.SubtitleConfiguration> = emptyList()
 
+    // The loaded stream's media source factory, for addSubtitleFile: the player's default one
+    // would reload the stream with neither its headers nor the http to https redirect.
+    private var mediaSourceFactory: DefaultMediaSourceFactory? = null
+
     // 1-based track ID mappings (matching MPV's contract).
     // Each list is rebuilt on Tracks changed.
     private var subtitleTrackList: List<TrackEntry> = emptyList()
@@ -526,14 +530,15 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         val p = player ?: return
         p.repeatMode = if (config.loop) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
 
-        val httpFactory = androidx.media3.datasource.DefaultHttpDataSource.Factory()
-            .setDefaultRequestProperties(config.headers ?: emptyMap())
+        // The headers go only to the stream's host and port; an http to https redirect is followed.
+        val httpFactory = UpgradeRedirectDataSource.Factory(config.headers ?: emptyMap(), config.url)
         val dataSourceFactory = DefaultDataSource.Factory(context, httpFactory)
 
         val mediaItem = buildMediaItem(config)
 
-        val mediaSource = DefaultMediaSourceFactory(dataSourceFactory)
-            .createMediaSource(mediaItem)
+        val sourceFactory = DefaultMediaSourceFactory(dataSourceFactory)
+        mediaSourceFactory = sourceFactory
+        val mediaSource = sourceFactory.createMediaSource(mediaItem)
 
         // Resolve the resume position once and hand it to setMediaSource() so
         // ExoPlayer prepares from that position directly. Calling prepare()
@@ -853,6 +858,7 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
 
     fun addSubtitleFile(url: String, select: Boolean) {
         val p = player ?: return
+        val sourceFactory = mediaSourceFactory ?: return
         val mime = mimeTypeForSubtitleUrl(url) ?: return
         val currentMediaItem = p.currentMediaItem ?: return
         val newSubConfig = MediaItem.SubtitleConfiguration.Builder(Uri.parse(url))
@@ -873,7 +879,7 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
 
         val wasPlaying = p.isPlaying
         val pos = p.currentPosition
-        p.setMediaItem(rebuilt, pos)
+        p.setMediaSource(sourceFactory.createMediaSource(rebuilt), pos)
         p.prepare()
         if (wasPlaying) p.play()
 

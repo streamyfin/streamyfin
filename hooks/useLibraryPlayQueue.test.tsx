@@ -79,6 +79,7 @@ const horrorMovies: LibraryItemsFilter = {
   sortOrder: "Ascending",
   filterBy: [],
   genres: ["Horror"],
+  officialRatings: ["R"],
   years: [],
   tags: [],
 };
@@ -144,6 +145,7 @@ describe("library Play All and Shuffle", () => {
     const request = new URL(api.mock.history.get[0].url ?? "").searchParams;
     expect(request.getAll("sortBy")).toEqual(["Random"]);
     expect(request.getAll("genres")).toEqual(["Horror"]);
+    expect(request.getAll("officialRatings")).toEqual(["R"]);
     expect(request.getAll("includeItemTypes")).toEqual(["Movie"]);
     expect(request.get("parentId")).toBe("library-1");
     expect(request.get("limit")).toBe(String(PLAY_QUEUE_MAX_ITEMS));

@@ -1,6 +1,3 @@
-// The mocked JellyfinProvider is what loads this in the app: `storage.get`
-// and `storage.setAny`, which the plugin settings are read and written with.
-import "@/augmentations/mmkv";
 import { act, cleanup, renderHook } from "@testing-library/react-native";
 import { AxiosError, type AxiosResponse } from "axios";
 import { getDefaultStore } from "jotai";
@@ -27,9 +24,9 @@ jest.mock(
 jest.mock("@/components/BitrateSelector", () => ({
   BITRATES: [{ key: "Max", value: undefined }],
 }));
-// JellyfinProvider drags in react-native-device-info (native at test time);
-// settings.ts only reads its atoms.
-jest.mock("@/providers/JellyfinProvider", () => ({
+// The api atoms read react-native-device-info (native at test time);
+// settings.ts only reads the atoms.
+jest.mock("@/utils/atoms/api", () => ({
   apiAtom: jest.requireActual("jotai").atom(null),
   userAtom: jest.requireActual("jotai").atom(null),
 }));
@@ -58,6 +55,7 @@ stubReactNative({ OS: "android", isTV: true });
 // Required after the platform is set, not imported: settings.ts reads
 // Platform once, when the module is evaluated.
 const {
+  defaultValues,
   effectiveSettingsAtom,
   getActivePlayerType,
   getActiveVideoPlayer,
@@ -72,7 +70,7 @@ const {
   VideoPlayer,
 } = require("./settings") as typeof import("./settings");
 const { apiAtom } =
-  require("@/providers/JellyfinProvider") as typeof import("@/providers/JellyfinProvider");
+  require("@/utils/atoms/api") as typeof import("@/utils/atoms/api");
 
 /** The failure axios raises once the server has answered with `status`. */
 const answeredWith = (status: number) =>
@@ -355,6 +353,26 @@ describe("the still watching migration", () => {
       value: "short",
     });
     expect(settings && "maxAutoPlayEpisodeCount" in settings).toBe(false);
+  });
+});
+
+describe("loading the stored plugin settings", () => {
+  // settings.ts reads them while it is imported, through storage.get, which
+  // the MMKV augmentation adds. In the app, _layout loads it first; anything
+  // that imported settings.ts earlier started the admin's locks empty.
+  it("reads them when nothing loaded the MMKV augmentation first", () => {
+    const locks = { forwardSkipTime: { locked: true, value: 20 } };
+    jest.isolateModules(() => {
+      const { storage: fresh } =
+        require("@/utils/mmkv") as typeof import("@/utils/mmkv");
+      // A plain set: setAny comes from the augmentation this leaves out.
+      fresh.set(PLUGIN_SETTINGS_KEY, JSON.stringify(locks));
+      const { pluginSettingsAtom: loaded } =
+        require("./settings") as typeof import("./settings");
+      const { getDefaultStore: freshStore } =
+        require("jotai") as typeof import("jotai");
+      expect(freshStore().get(loaded)).toEqual(locks);
+    });
   });
 });
 
@@ -760,5 +778,13 @@ describe("loading the settings", () => {
       openSubtitlesApiKey: "my-key",
     });
     expect(storage.get(PLUGIN_APPLIED_DEFAULTS_KEY)).toEqual({});
+  });
+});
+
+describe("the stop playback confirmation", () => {
+  test("is off until the user turns it on", () => {
+    // Jellyfin's Android TV app, Wholphin, Swiftfin and Plex all leave
+    // playback on Back without asking.
+    expect(defaultValues.confirmBeforeStoppingPlayback).toBe(false);
   });
 });

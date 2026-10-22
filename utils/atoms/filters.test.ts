@@ -9,6 +9,7 @@ import { storage } from "@/utils/mmkv";
 import {
   FilterByPreferenceAtom,
   getFilterByPreference,
+  officialRatingPreferenceAtom,
   SortByOption,
   sortOptions,
   sortOptionsFor,
@@ -161,10 +162,40 @@ describe("sort options", () => {
     ).toEqual(keysOf(sortOptions));
   });
 
-  // Outside a playlist the same server key means something else (the last
-  // episode of a series) or nothing at all (a movie), so the label would lie.
-  test.each(["movies", "tvshows", "boxsets", undefined, null] as const)(
-    "keeps the playlist updated date out of a %s library",
+  test("offers the newest episode date in a tv show library", () => {
+    const options = sortOptionsFor("tvshows");
+
+    expect(
+      options.find((o) => o.key === SortByOption.DateLastContentAdded)?.value,
+    ).toBe("Date Episode Added");
+    // Sits right after the series' own added date, nothing else changes.
+    expect(keysOf(options).indexOf(SortByOption.DateLastContentAdded)).toBe(
+      keysOf(options).indexOf(SortByOption.DateCreated) + 1,
+    );
+    expect(
+      keysOf(options).filter(
+        (key) => key !== SortByOption.DateLastContentAdded,
+      ),
+    ).toEqual(keysOf(sortOptions));
+  });
+
+  test("names the series' own added date next to the episode one", () => {
+    const labelOf = (collectionType: "tvshows" | "playlists" | "movies") =>
+      sortOptionsFor(collectionType).find(
+        (o) => o.key === SortByOption.DateCreated,
+      )?.value;
+
+    // Right above "Date Episode Added", a bare "Date Added" reads as an
+    // episode date too.
+    expect(labelOf("tvshows")).toBe("Date Show Added");
+    expect(labelOf("playlists")).toBe("Date Added");
+    expect(labelOf("movies")).toBe("Date Added");
+  });
+
+  // Movies and box sets hold no series. An unknown type (a mixed library, or
+  // one not loaded yet) keeps the shared list until the per-type work of #1767.
+  test.each(["movies", "boxsets", undefined, null] as const)(
+    "keeps the container updated date out of a %s library",
     (collectionType) => {
       expect(keysOf(sortOptionsFor(collectionType))).not.toContain(
         SortByOption.DateLastContentAdded,
@@ -172,8 +203,36 @@ describe("sort options", () => {
     },
   );
 
+  // The library page accepts a sortBy from its URL when it is a SortByOption
+  // value, so the enum holds only keys a sort list can offer: the music keys
+  // come with the music sort list.
+  test("has no music sort keys before a list offers them", () => {
+    expect(Object.values(SortByOption)).not.toContain("Album");
+    expect(Object.values(SortByOption)).not.toContain("AlbumArtist");
+    expect(Object.values(SortByOption)).not.toContain("Artist");
+  });
+
   test("hands back the same list on every call", () => {
     expect(sortOptionsFor("playlists")).toBe(sortOptionsFor("playlists"));
+    expect(sortOptionsFor("tvshows")).toBe(sortOptionsFor("tvshows"));
     expect(sortOptionsFor("movies")).toBe(sortOptionsFor(undefined));
+  });
+});
+
+describe("the saved official ratings of a library", () => {
+  test("round-trip through storage under their own key", () => {
+    const writer = createStore();
+    writer.sub(officialRatingPreferenceAtom, () => undefined);
+    writer.set(officialRatingPreferenceAtom, { movies: ["PG-13", "R"] });
+
+    const reader = createStore();
+    reader.sub(officialRatingPreferenceAtom, () => undefined);
+
+    expect(reader.get(officialRatingPreferenceAtom)).toEqual({
+      movies: ["PG-13", "R"],
+    });
+    expect(storage.getString("officialRatingPreference")).toBe(
+      JSON.stringify({ movies: ["PG-13", "R"] }),
+    );
   });
 });
