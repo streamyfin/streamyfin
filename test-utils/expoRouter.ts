@@ -21,6 +21,9 @@ export const router = {
  * and overrides `useLocalSearchParams`.
  */
 export const expoRouterModule = {
+  // A screen sets its header through Stack.Screen; with no navigator there is
+  // no header to set.
+  Stack: { Screen: () => null },
   useRouter: () => router,
   useSegments: () => ["(auth)", "(tabs)"],
   useNavigation: () => ({
