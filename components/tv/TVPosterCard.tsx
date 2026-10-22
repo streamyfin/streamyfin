@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { useAtomValue } from "jotai";
-import React, { useMemo, useRef, useState } from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Animated,
@@ -54,11 +54,13 @@ export interface TVPosterCardProps {
   /** Show a play button overlay */
   showPlayButton?: boolean;
 
-  // Handlers
-  onPress: () => void;
-  onLongPress?: () => void;
-  onFocus?: () => void;
-  onBlur?: () => void;
+  // Handlers. Each is called with the card's item, so a list can give every
+  // card the same function instead of a new closure per card, which would
+  // re-render the memoized card on every render of its row.
+  onPress: ((item: BaseItemDto) => void) | (() => void);
+  onLongPress?: ((item: BaseItemDto) => void) | (() => void);
+  onFocus?: ((item: BaseItemDto) => void) | (() => void);
+  onBlur?: ((item: BaseItemDto) => void) | (() => void);
 
   /** Setter function for the ref (for focus guide destinations) */
   refSetter?: (ref: View | null) => void;
@@ -101,7 +103,7 @@ export interface TVPosterCardProps {
  * - Smart subtitle text based on item type
  * - "Now Playing" badge for current items
  */
-export const TVPosterCard: React.FC<TVPosterCardProps> = ({
+const TVPosterCardComponent: React.FC<TVPosterCardProps> = ({
   item,
   orientation = "vertical",
   showText = true,
@@ -232,13 +234,41 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
   const useGlass = isGlassEffectAvailable();
 
   // Focus animation
-  const animateTo = (value: number) =>
-    Animated.timing(scale, {
-      toValue: value,
-      duration: 150,
-      easing: Easing.out(Easing.quad),
-      useNativeDriver: true,
-    }).start();
+  const animateTo = useCallback(
+    (value: number) =>
+      Animated.timing(scale, {
+        toValue: value,
+        duration: 150,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: true,
+      }).start(),
+    [scale],
+  );
+
+  const handlePress = useCallback(() => {
+    onPress(item);
+  }, [onPress, item]);
+
+  const handleLongPress = useCallback(() => {
+    onLongPress?.(item);
+  }, [onLongPress, item]);
+
+  const handleFocus = useCallback(() => {
+    setFocused(true);
+    // Only animate scale when not using glass effect (glass handles its own focus visual)
+    if (!useGlass) {
+      animateTo(scaleAmount);
+    }
+    onFocusProp?.(item);
+  }, [animateTo, onFocusProp, item, scaleAmount, useGlass]);
+
+  const handleBlur = useCallback(() => {
+    setFocused(false);
+    if (!useGlass) {
+      animateTo(1);
+    }
+    onBlurProp?.(item);
+  }, [animateTo, onBlurProp, item, useGlass]);
 
   const shadowColor = glowColor === "white" ? "#ffffff" : "#a855f7";
 
@@ -625,23 +655,10 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
     >
       <Pressable
         ref={refSetter}
-        onPress={onPress}
-        onLongPress={onLongPress}
-        onFocus={() => {
-          setFocused(true);
-          // Only animate scale when not using glass effect (glass handles its own focus visual)
-          if (!useGlass) {
-            animateTo(scaleAmount);
-          }
-          onFocusProp?.();
-        }}
-        onBlur={() => {
-          setFocused(false);
-          if (!useGlass) {
-            animateTo(1);
-          }
-          onBlurProp?.();
-        }}
+        onPress={handlePress}
+        onLongPress={onLongPress ? handleLongPress : undefined}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
         hasTVPreferredFocus={hasTVPreferredFocus && !disabled}
         disabled={disabled && !focusableWhenDisabled}
         focusable={!disabled || focusableWhenDisabled}
@@ -682,3 +699,7 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
     </View>
   );
 };
+
+export const TVPosterCard: React.FC<TVPosterCardProps> = React.memo(
+  TVPosterCardComponent,
+);

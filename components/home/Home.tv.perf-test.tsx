@@ -2,6 +2,7 @@ import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { act, fireEvent, screen } from "@testing-library/react-native";
 import { getDefaultStore } from "jotai";
 import { measureRenders } from "reassure";
+import { TV_BACKDROP_DEBOUNCE_MS } from "@/constants/TVSizes";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import type { makeApi } from "@/test-utils/jellyfinApi";
 import { QueryWrapper } from "@/test-utils/queryWrapper";
@@ -70,7 +71,6 @@ jest.mock(
 const api = getDefaultStore().get(apiAtom) as ReturnType<typeof makeApi>;
 
 const ROW_LENGTH = 10;
-const BACKDROP_DEBOUNCE_MS = 300;
 
 const items = (prefix: string, type: "Movie" | "Episode"): BaseItemDto[] =>
   Array.from({ length: ROW_LENGTH }, (_, index) => ({
@@ -123,7 +123,7 @@ const focusAlong = async (cards: (() => Card)[]) => {
     if (previous) await fireEvent(previous, "blur");
     await fireEvent(next, "focus");
     await act(async () => {
-      jest.advanceTimersByTime(BACKDROP_DEBOUNCE_MS);
+      jest.advanceTimersByTime(TV_BACKDROP_DEBOUNCE_MS);
     });
     previous = next;
   }

@@ -5,6 +5,7 @@ import type {
 import {
   generateFilename,
   liveActivityPosterFileName,
+  rebaseOntoAppDirectory,
   rebaseOntoDocuments,
   subtitleFileName,
   trickplayDirName,
@@ -221,6 +222,75 @@ describe("a stored location after the app's container moved", () => {
     const files = "file:///data/user/0/com.fredrikburmester.streamyfin/files/";
     expect(rebaseOntoDocuments(`${files}movie_1999.mp4`, files)).toBe(
       `${files}movie_1999.mp4`,
+    );
+  });
+});
+
+// The look-ahead music cache lives in Library/Caches, two levels into the container, and moves
+// with it just as Documents does.
+describe("a stored location in a deeper directory of the app's container", () => {
+  const container = (uuid: string) =>
+    `/var/mobile/Containers/Data/Application/${uuid}`;
+  const before = container("0A1B2C3D-0000-4000-8000-000000000001");
+  const now = container("9F8E7D6C-0000-4000-8000-000000000002");
+  const documents = `file://${now}/Documents/`;
+  const caches = `file://${now}/Library/Caches/`;
+
+  test.each([
+    [
+      "a cached track stored as a plain path",
+      `${before}/Library/Caches/streamyfin-audio-cache/t.mp3`,
+      `${now}/Library/Caches/streamyfin-audio-cache/t.mp3`,
+    ],
+    [
+      "a cached track stored as a URI",
+      `file://${before}/Library/Caches/streamyfin-audio-cache/t.mp3`,
+      `file://${now}/Library/Caches/streamyfin-audio-cache/t.mp3`,
+    ],
+    [
+      "a path that names the container through /private",
+      `/private${before}/Library/Caches/t.mp3`,
+      `${now}/Library/Caches/t.mp3`,
+    ],
+  ])("follows the container for %s", (_label, stored, expected) => {
+    expect(rebaseOntoAppDirectory(stored, caches, documents)).toBe(expected);
+  });
+
+  test.each([
+    ["one already in the current container", `${now}/Library/Caches/t.mp3`],
+    // Each directory only takes what was in it: Documents is rebased by its own call.
+    [
+      "a file in another directory of the old container",
+      `${before}/Documents/streamyfin-audio/t.flac`,
+    ],
+    [
+      "a directory of the same name elsewhere in the old container",
+      `${before}/Caches/t.mp3`,
+    ],
+    [
+      "a Library/Caches outside the app's containers",
+      "/Users/x/Library/Caches/t.mp3",
+    ],
+  ])("leaves %s alone", (_label, stored) => {
+    expect(rebaseOntoAppDirectory(stored, caches, documents)).toBe(stored);
+  });
+
+  // The directory has to be in the container Documents locates, or there is no place in a
+  // sibling container to look for it.
+  it("leaves every location alone for a directory outside the container", () => {
+    const stored = `${before}/Library/Caches/t.mp3`;
+    expect(
+      rebaseOntoAppDirectory(stored, "file:///tmp/elsewhere/", documents),
+    ).toBe(stored);
+  });
+
+  it("is rebaseOntoDocuments for Documents itself", () => {
+    const stored = `${before}/Documents/show_s01e01.mp4`;
+    expect(rebaseOntoAppDirectory(stored, documents, documents)).toBe(
+      rebaseOntoDocuments(stored, documents),
+    );
+    expect(rebaseOntoDocuments(stored, documents)).toBe(
+      `${now}/Documents/show_s01e01.mp4`,
     );
   });
 });
