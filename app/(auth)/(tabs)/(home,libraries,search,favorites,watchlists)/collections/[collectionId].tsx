@@ -44,7 +44,6 @@ import {
   SortByOption,
   SortOrderOption,
   sortByAtom,
-  sortOptionsFor,
   sortOrderAtom,
   sortOrderOptions,
   subtitleLanguageFilterAtom,
@@ -52,6 +51,10 @@ import {
   yearFilterAtom,
 } from "@/utils/atoms/filters";
 import type { TVOptionItem } from "@/utils/atoms/tvOptionModal";
+import {
+  libraryKindFor,
+  sortOptionsFor,
+} from "@/utils/library/libraryFilterSets";
 import { serverSortBy } from "@/utils/library/libraryItemsQuery";
 import { resolveSortKey } from "@/utils/library/sortOption";
 
@@ -110,7 +113,8 @@ const page: React.FC = () => {
   // from this list; it then shows and sorts as Name, not as an empty label.
   // Covered by utils/library/sortOption.test.ts; the server key the request
   // sends (serverSortBy) by utils/library/libraryItemsQuery.test.ts.
-  const sortOptions = sortOptionsFor(collection?.CollectionType);
+  const kind = libraryKindFor(collection);
+  const sortOptions = sortOptionsFor(kind);
   const activeSortBy = resolveSortKey(sortBy[0], sortOptions);
   const activeSortByValues = useMemo(() => [activeSortBy], [activeSortBy]);
 
@@ -358,7 +362,9 @@ const page: React.FC = () => {
         data={[
           {
             key: "reset",
-            component: <ResetFiltersButton libraryId={collectionId} />,
+            component: (
+              <ResetFiltersButton libraryId={collectionId} kind={kind} />
+            ),
           },
           {
             key: "genre",
@@ -438,7 +444,7 @@ const page: React.FC = () => {
               <FilterButton
                 className='mr-1'
                 id={collectionId}
-                queryKey={`sortBy:${collection?.CollectionType ?? ""}`}
+                queryKey={`sortBy:${kind}`}
                 queryFn={async () => sortOptions.map((s) => s.key)}
                 set={setSortBy}
                 values={activeSortByValues}
