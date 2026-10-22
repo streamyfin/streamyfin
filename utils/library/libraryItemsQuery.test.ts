@@ -1,4 +1,6 @@
+import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
 import { PLAY_QUEUE_MAX_ITEMS } from "@/constants/Playback";
+import { makeApi } from "@/test-utils/jellyfinApi";
 import {
   buildLibraryItemsQuery,
   buildLibraryQueueQuery,
@@ -56,10 +58,18 @@ describe("library items query", () => {
     expect(queue.officialRatings).toEqual(["R", "NC-17"]);
   });
 
-  test("leaves the ratings out of the request when none are selected", () => {
-    const { officialRatings: _ratings, ...noRatings } = horrorMovies;
+  // The screen passes an empty list when nothing is picked: the request that
+  // leaves the SDK must not carry the parameter at all.
+  test("leaves the ratings out of the request when none are selected", async () => {
+    const api = makeApi({ Items: [] });
 
-    expect(buildLibraryItemsQuery(noRatings).officialRatings).toBeUndefined();
+    await getItemsApi(api).getItems(
+      buildLibraryItemsQuery({ ...horrorMovies, officialRatings: [] }),
+    );
+
+    const url = new URL(api.mock.history.get[0].url ?? "");
+    expect(url.searchParams.has("officialRatings")).toBe(false);
+    expect(url.searchParams.getAll("genres")).toEqual(["Horror"]);
   });
 
   test("Shuffle asks the server for a random order of the same filtered list", () => {
