@@ -9,6 +9,7 @@ import type {
 import type { RawAxiosRequestConfig } from "axios";
 import { PLAY_QUEUE_MAX_ITEMS } from "@/constants/Playback";
 import { languageFilterRequestOptions } from "@/utils/jellyfin/languageFilters";
+import { sortsSeriesDatePlayedQuickly } from "@/utils/jellyfin/serverVersion";
 
 type CollectionType = BaseItemDto["CollectionType"];
 
@@ -25,6 +26,8 @@ export interface LibraryItemsFilter {
   tags: string[];
   audioLanguages?: string[];
   subtitleLanguages?: string[];
+  /** The Jellyfin server's version, for the keys only some versions handle well. */
+  serverVersion?: string | null;
 }
 
 // Only one kind of item per library, when the library names one: the
@@ -43,14 +46,19 @@ export const ITEM_TYPE_BY_COLLECTION: Partial<
 /**
  * The key a selected sort goes to the server as. A show's own DatePlayed reads
  * user data that playback never writes (it lands on the episodes), so a Shows
- * library or view sorts by the series-level key, as jellyfin-web does. The
- * saved preference keeps the DatePlayed name.
+ * library or view sorts by the series-level key, as jellyfin-web does, on the
+ * servers that answer it quickly: on 10.11 it can take a minute, where the
+ * plain key answers at once, in name order. The saved preference keeps the
+ * DatePlayed name.
  */
 export const serverSortBy = (
   sortBy: ItemSortBy,
   collectionType: CollectionType | null | undefined,
+  serverVersion?: string | null,
 ): ItemSortBy =>
-  collectionType === "tvshows" && sortBy === "DatePlayed"
+  collectionType === "tvshows" &&
+  sortBy === "DatePlayed" &&
+  sortsSeriesDatePlayedQuickly(serverVersion)
     ? "SeriesDatePlayed"
     : sortBy;
 
@@ -69,6 +77,7 @@ export const buildLibraryItemsQuery = ({
   genres,
   years,
   tags,
+  serverVersion,
 }: LibraryItemsFilter): ItemsApiGetItemsRequest => {
   const itemType = collectionType
     ? ITEM_TYPE_BY_COLLECTION[collectionType]
@@ -78,7 +87,7 @@ export const buildLibraryItemsQuery = ({
     userId,
     parentId: libraryId,
     sortBy: [
-      serverSortBy(sortBy, collectionType),
+      serverSortBy(sortBy, collectionType, serverVersion),
       "SortName",
       "ProductionYear",
     ],

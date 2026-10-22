@@ -31,6 +31,7 @@ import { TVFilterButton } from "@/components/tv";
 import { TVPosterCard } from "@/components/tv/TVPosterCard";
 import { useScaledTVPosterSizes } from "@/constants/TVPosterSizes";
 import useRouter from "@/hooks/useAppRouter";
+import { useServerVersion } from "@/hooks/useServerVersion";
 import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
 import { useTVOptionModal } from "@/hooks/useTVOptionModal";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
@@ -63,6 +64,7 @@ const page: React.FC = () => {
   const posterSizes = useScaledTVPosterSizes();
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
+  const serverVersion = useServerVersion();
   const navigation = useNavigation();
   const router = useRouter();
   const { showOptions } = useTVOptionModal();
@@ -217,7 +219,9 @@ const page: React.FC = () => {
         limit: Platform.isTV ? 36 : 18,
         startIndex: pageParam,
         // Set one ordering at a time. As collections do not work with correctly with multiple.
-        sortBy: [serverSortBy(activeSortBy, collection.CollectionType)],
+        sortBy: [
+          serverSortBy(activeSortBy, collection.CollectionType, serverVersion),
+        ],
         sortOrder: [sortOrder[0]],
         fields: [
           "ItemCounts",
@@ -245,6 +249,7 @@ const page: React.FC = () => {
       selectedTags,
       activeSortBy,
       sortOrder,
+      serverVersion,
     ],
   );
 
@@ -257,6 +262,8 @@ const page: React.FC = () => {
       selectedTags,
       activeSortBy,
       sortOrder,
+      // Which sort key goes to the server can depend on its version.
+      serverVersion,
     ],
     queryFn: fetchItems,
     getNextPageParam: (lastPage, pages) => {
