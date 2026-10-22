@@ -5,6 +5,7 @@ import type {
 import {
   generateFilename,
   liveActivityPosterFileName,
+  rebaseOntoDocuments,
   subtitleFileName,
   trickplayDirName,
 } from "./utils";
@@ -150,5 +151,76 @@ describe("names built from values the server chooses", () => {
     for (const name of names) {
       expect(name).toMatch(/^[\w-]+(\.[\w-]+)?$/);
     }
+  });
+});
+
+// iOS can move the app's container to a new UUID on an update, and the stored locations of
+// downloads still named the old one, so nothing downloaded before an update would play (#2252).
+describe("a stored location after the app's container moved", () => {
+  const before =
+    "file:///var/mobile/Containers/Data/Application/0A1B2C3D-0000-4000-8000-000000000001/Documents";
+  const now =
+    "file:///var/mobile/Containers/Data/Application/9F8E7D6C-0000-4000-8000-000000000002/Documents/";
+
+  test.each([
+    ["a video URI", `${before}/show_s01e01.mp4`, `${now}show_s01e01.mp4`],
+    [
+      "a video stored as a plain path",
+      `${before.replace("file://", "")}/show_s01e01.mp4`,
+      `${now.replace("file://", "")}show_s01e01.mp4`,
+    ],
+    [
+      "a trickplay directory",
+      `${before}/show_s01e01_trickplay/`,
+      `${now}show_s01e01_trickplay/`,
+    ],
+    [
+      "a URI that names the container through /private",
+      `file:///private${before.replace("file://", "")}/show_s01e01.mp4`,
+      `${now}show_s01e01.mp4`,
+    ],
+    [
+      "a path that names the container through /private",
+      `/private${before.replace("file://", "")}/show_s01e01.mp4`,
+      `${now.replace("file://", "")}show_s01e01.mp4`,
+    ],
+    [
+      "a file in a folder that is also called Documents",
+      `${before}/Documents/show_s01e01.mp4`,
+      `${now}Documents/show_s01e01.mp4`,
+    ],
+  ])("follows the container for %s", (_label, stored, expected) => {
+    expect(rebaseOntoDocuments(stored, now)).toBe(expected);
+  });
+
+  test.each([
+    ["one already in the current container", `${now}show_s01e01.mp4`],
+    [
+      "a server URL",
+      "https://jellyfin.example/Videos/1/Subtitles/2/Stream.srt",
+    ],
+    ["a file outside Documents", "file:///var/mobile/Library/Caches/x.jpg"],
+    // Only the app container's Documents is the old one, not any folder of that name.
+    ["a Documents folder outside the app", "file:///Users/x/Documents/x.mp4"],
+    [
+      "a Documents folder elsewhere in the container",
+      "file:///var/mobile/Containers/Shared/AppGroup/Documents/x.mp4",
+    ],
+    // The same layout as a container, but not under the app's containers.
+    [
+      "a lookalike container outside the app",
+      "file:///Users/x/Application/old/Documents/clip.mp4",
+    ],
+    ["an empty string", ""],
+  ])("leaves %s alone", (_label, stored) => {
+    expect(rebaseOntoDocuments(stored, now)).toBe(stored);
+  });
+
+  // Android's files directory does not move, so its locations are already current.
+  it("leaves an Android location alone", () => {
+    const files = "file:///data/user/0/com.fredrikburmester.streamyfin/files/";
+    expect(rebaseOntoDocuments(`${files}movie_1999.mp4`, files)).toBe(
+      `${files}movie_1999.mp4`,
+    );
   });
 });

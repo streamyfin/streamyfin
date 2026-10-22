@@ -615,6 +615,7 @@ export async function buildNativePlayerConfig(params: {
       holdToSpeedRate: settings.holdToSpeedRate,
       pinchToZoomEnabled: !Platform.isTV && settings.enablePinchToZoom,
       doubleTapToSeekEnabled: !Platform.isTV && settings.enableDoubleTapToSeek,
+      confirmExitEnabled: settings.confirmBeforeStoppingPlayback,
       // Server search needs connectivity; the OpenSubtitles fallback needs
       // the network either way — offline sessions hide the entry.
       subtitleSearchEnabled: !offline && !!api,
