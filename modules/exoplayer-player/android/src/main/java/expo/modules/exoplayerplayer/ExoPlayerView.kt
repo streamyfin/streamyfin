@@ -526,8 +526,8 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         val p = player ?: return
         p.repeatMode = if (config.loop) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
 
-        // Follows a server's http to https redirect without handing its headers to another host.
-        val httpFactory = UpgradeRedirectDataSource.Factory(config.headers ?: emptyMap())
+        // The headers go only to the stream's host and port; an http to https redirect is followed.
+        val httpFactory = UpgradeRedirectDataSource.Factory(config.headers ?: emptyMap(), config.url)
         val dataSourceFactory = DefaultDataSource.Factory(context, httpFactory)
 
         val mediaItem = buildMediaItem(config)

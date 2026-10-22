@@ -411,8 +411,8 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
     private fun loadInternal(config: VideoLoadConfig) {
         val p = player ?: return
 
-        // Follows a server's http to https redirect without handing its headers to another host.
-        val httpFactory = UpgradeRedirectDataSource.Factory(config.headers ?: emptyMap())
+        // The headers go only to the stream's host and port; an http to https redirect is followed.
+        val httpFactory = UpgradeRedirectDataSource.Factory(config.headers ?: emptyMap(), config.url)
         val dataSourceFactory = DefaultDataSource.Factory(context, httpFactory)
 
         val mediaItem = buildMediaItem(config)

@@ -8,45 +8,78 @@ import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.datasource.HttpDataSource
 import androidx.media3.datasource.TransferListener
+import java.io.IOException
 import java.net.URI
+import java.net.URISyntaxException
+
+/*
+ * Kept identical to its twin in the other player module (exoplayer-player and mpv-player);
+ * modules/exoplayer-player/src/upgradeRedirectDataSource.test.ts fails when they differ.
+ */
 
 /**
- * The one redirect HttpURLConnection never follows by itself: from http to https. Media3 can
- * follow it (setAllowCrossProtocolRedirects), but then it follows every redirect itself and sends
- * each hop the stream's headers, the Jellyfin token included, whatever the host and even over
- * plain http. Here the stream's headers go on to the https address only on the same host.
- *
- * Kept identical to its twin in the mpv-player module (ExoPlayerEngine).
+ * Which requests carry a stream's headers (the Jellyfin token, custom proxy headers): those to
+ * the stream's own host and port, as the app scopes custom headers (docs/custom-headers.md). A
+ * scheme's default port counts as no port, so http://host and https://host are the same server,
+ * and once the stream is on https the headers never go out over plain http. An HLS child
+ * playlist, a segment or a subtitle on another host gets none, whatever sent the player there.
  */
-internal object UpgradeRedirects {
-    data class Hop(val target: String, val keepHeaders: Boolean)
+internal class StreamHeaderScope(streamUrl: String) {
+    private val stream = parse(streamUrl)
 
-    private val REDIRECT_CODES = setOf(300, 301, 302, 303, 307, 308)
+    fun covers(url: String): Boolean {
+        val stream = stream ?: return false
+        val target = parse(url) ?: return false
+        if (!target.host.equals(stream.host, ignoreCase = true)) return false
+        if (portOf(target) != portOf(stream)) return false
+        return target.scheme.equals(stream.scheme, ignoreCase = true) ||
+            (isHttp(stream) && target.scheme.equals("https", ignoreCase = true))
+    }
 
-    /** Where a response to [from] sends the request when it is an upgrade, or null. */
-    fun next(from: String, responseCode: Int, location: String?): Hop? {
-        if (responseCode !in REDIRECT_CODES || location == null) return null
-        return try {
-            val source = URI(from)
-            val target = source.resolve(location.trim())
+    companion object {
+        private val REDIRECT_CODES = setOf(300, 301, 302, 303, 307, 308)
+
+        /**
+         * Where a redirect from [from] to [location] leads when it is the one HttpURLConnection
+         * never follows by itself, from http to https; null for any other response.
+         */
+        fun upgradeTarget(from: String, responseCode: Int, location: String?): String? {
+            if (responseCode !in REDIRECT_CODES || location == null) return null
+            val source = parse(from) ?: return null
             // A relative or scheme-relative location keeps the protocol: not an upgrade.
-            if (!source.scheme.equals("http", ignoreCase = true)) return null
-            if (!target.scheme.equals("https", ignoreCase = true) || target.host.isNullOrEmpty()) return null
-            Hop(target.toString(), keepHeaders = target.host.equals(source.host, ignoreCase = true))
-        } catch (e: IllegalArgumentException) {
+            val target = try {
+                source.resolve(location.trim())
+            } catch (e: IllegalArgumentException) {
+                return null
+            }
+            if (!isHttp(source) || !target.scheme.equals("https", ignoreCase = true)) return null
+            return if (target.host.isNullOrEmpty()) null else target.toString()
+        }
+
+        private fun parse(url: String): URI? = try {
+            URI(url).takeIf { it.scheme != null && !it.host.isNullOrEmpty() }
+        } catch (e: URISyntaxException) {
             null
-        } catch (e: java.net.URISyntaxException) {
-            null
+        }
+
+        private fun isHttp(uri: URI) = uri.scheme.equals("http", ignoreCase = true)
+
+        private fun portOf(uri: URI): Int = when {
+            uri.port == 80 && isHttp(uri) -> -1
+            uri.port == 443 && uri.scheme.equals("https", ignoreCase = true) -> -1
+            else -> uri.port
         }
     }
 }
 
 /**
- * An HTTP source that follows an http to https redirect as UpgradeRedirects decides. Everything
- * else is DefaultHttpDataSource's own behaviour: HttpURLConnection follows the redirects that keep
- * the protocol, and drops Authorization when one of them changes origin.
+ * The HTTP source of both ExoPlayer paths. Each request goes out with the stream's headers only
+ * when StreamHeaderScope covers its address, and an http to https redirect is followed here,
+ * since HttpURLConnection refuses it. Other redirects stay with HttpURLConnection, which drops
+ * Authorization when one changes origin, and a redirect from https to http still fails.
  */
-internal class UpgradeRedirectDataSource private constructor(
+internal class UpgradeRedirectDataSource internal constructor(
+    private val scope: StreamHeaderScope,
     private val withHeaders: DataSource,
     private val withoutHeaders: DataSource,
 ) : DataSource {
@@ -58,20 +91,30 @@ internal class UpgradeRedirectDataSource private constructor(
     }
 
     override fun open(dataSpec: DataSpec): Long {
-        current = withHeaders
+        val first = sourceFor(dataSpec.uri.toString())
+        current = first
         try {
-            return withHeaders.open(dataSpec)
-        } catch (e: HttpDataSource.InvalidResponseCodeException) {
-            val location = e.headerFields.entries
+            return first.open(dataSpec)
+        } catch (redirect: HttpDataSource.InvalidResponseCodeException) {
+            val location = redirect.headerFields.entries
                 .firstOrNull { it.key?.equals("Location", ignoreCase = true) == true }
                 ?.value?.firstOrNull()
-            val hop = UpgradeRedirects.next(dataSpec.uri.toString(), e.responseCode, location) ?: throw e
-            withHeaders.close()
-            val source = if (hop.keepHeaders) withHeaders else withoutHeaders
-            current = source
-            return source.open(dataSpec.withUri(Uri.parse(hop.target)))
+            val target = StreamHeaderScope.upgradeTarget(dataSpec.uri.toString(), redirect.responseCode, location)
+                ?: throw redirect
+            first.close()
+            val next = sourceFor(target)
+            current = next
+            try {
+                return next.open(dataSpec.withUri(Uri.parse(target)))
+            } catch (hop: IOException) {
+                // The hop's own failure, with the redirect that led to it.
+                hop.addSuppressed(redirect)
+                throw hop
+            }
         }
     }
+
+    private fun sourceFor(url: String) = if (scope.covers(url)) withHeaders else withoutHeaders
 
     override fun read(buffer: ByteArray, offset: Int, length: Int): Int =
         checkNotNull(current).read(buffer, offset, length)
@@ -85,8 +128,12 @@ internal class UpgradeRedirectDataSource private constructor(
         current = null
     }
 
-    class Factory(private val headers: Map<String, String>) : DataSource.Factory {
+    /** [streamUrl] is the address the player loads; its host and port decide where [headers] go. */
+    class Factory(private val headers: Map<String, String>, streamUrl: String) : DataSource.Factory {
+        private val scope = StreamHeaderScope(streamUrl)
+
         override fun createDataSource(): DataSource = UpgradeRedirectDataSource(
+            scope,
             DefaultHttpDataSource.Factory().setDefaultRequestProperties(headers).createDataSource(),
             DefaultHttpDataSource.Factory().createDataSource(),
         )
