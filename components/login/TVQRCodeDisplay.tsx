@@ -18,6 +18,8 @@ interface TVQRCodeDisplayProps {
   code: string;
   /** The server's id, for the phone to tell a TV on another server apart. */
   serverId?: string;
+  /** The server's name, for the turned-off message; its address without one. */
+  serverName?: string;
   status: QuickConnectStatus;
   /** Asks the server for a new code once this one has expired. */
   onNewCode: () => void;
@@ -33,6 +35,7 @@ export const TVQRCodeDisplay: React.FC<TVQRCodeDisplayProps> = ({
   serverUrl,
   code,
   serverId,
+  serverName,
   status,
   onNewCode,
   onBack,
@@ -40,16 +43,17 @@ export const TVQRCodeDisplay: React.FC<TVQRCodeDisplayProps> = ({
   const typography = useScaledTVTypography();
 
   // The server drops the request after its lifetime; a new code restarts it.
+  // Counted from when the code is shown, whatever the polling is doing: a
+  // stopped attempt must not leave a dead code up for good.
   const [expired, setExpired] = useState(false);
   useEffect(() => {
-    if (status !== "waiting") return;
     setExpired(false);
     const timer = setTimeout(
       () => setExpired(true),
       QUICK_CONNECT_CODE_LIFETIME_MS,
     );
     return () => clearTimeout(timer);
-  }, [code, status]);
+  }, [code]);
   useEffect(() => {
     if (status === "expired") setExpired(true);
   }, [status]);
@@ -120,7 +124,7 @@ export const TVQRCodeDisplay: React.FC<TVQRCodeDisplayProps> = ({
               >
                 {disabled
                   ? t("companion_login.error_quick_connect_disabled", {
-                      server: serverUrl,
+                      server: serverName || serverUrl,
                     })
                   : t("common.loading")}
               </Text>

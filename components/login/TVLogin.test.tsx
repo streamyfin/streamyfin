@@ -26,7 +26,11 @@ const mockJellyfin = {
     if (code) mockJellyfin.quickConnectStatus = "waiting";
     return code;
   },
-  stopQuickConnectPolling: () => mockStopQuickConnectPolling(),
+  // As the provider does: stopping resets the status.
+  stopQuickConnectPolling: () => {
+    mockJellyfin.quickConnectStatus = "idle";
+    mockStopQuickConnectPolling();
+  },
   loginWithSavedCredential: jest.fn(),
   loginWithPassword: jest.fn(),
   saveCurrentAccount: (options: unknown) => mockSaveCurrentAccount(options),
@@ -233,6 +237,24 @@ describe("TVLogin", () => {
     });
     expect(screen.getByText("654321")).toBeTruthy();
     expect(screen.queryByText("pairing.code_expired")).toBeNull();
+  });
+
+  // The provider stops a code when the server changes under it, and a stalled
+  // request leaves the status where it was: the code must still run out.
+  test("expires a code left up once its polling has stopped", async () => {
+    jest.useFakeTimers();
+    const view = await render(<TVLogin />);
+    await startQuickConnect();
+
+    mockJellyfin.quickConnectStatus = "idle";
+    await view.rerender(<TVLogin />);
+    expect(screen.getByText("123456")).toBeTruthy();
+    await act(async () => {
+      jest.advanceTimersByTime(QUICK_CONNECT_CODE_LIFETIME_MS);
+    });
+
+    expect(screen.getByText("pairing.code_expired")).toBeTruthy();
+    expect(screen.queryByText("123456")).toBeNull();
   });
 
   test("replaces a waiting code when Quick Connect is turned off", async () => {

@@ -612,6 +612,7 @@ export const TVLogin: React.FC = () => {
             serverUrl={api.basePath}
             code={quickConnectCode}
             serverId={quickConnectServerId}
+            serverName={serverName}
             status={quickConnectStatus}
             onNewCode={() => {
               if (startingRef.current) return;
