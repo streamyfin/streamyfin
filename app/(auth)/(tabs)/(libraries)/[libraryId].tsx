@@ -1195,7 +1195,7 @@ const Page = () => {
     (): TVOptionItem<string>[] => [
       {
         label: t("library.filters.all"),
-        value: "__all__",
+        value: ALL_OPTION,
         selected: selectedOfficialRatings.length === 0,
       },
       ...officialRatings.map((rating) => ({
