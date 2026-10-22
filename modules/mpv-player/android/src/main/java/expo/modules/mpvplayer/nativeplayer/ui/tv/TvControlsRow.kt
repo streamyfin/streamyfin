@@ -13,15 +13,10 @@ import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.ClosedCaption
 import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.FastRewind
-import androidx.compose.material.icons.filled.Forward10
-import androidx.compose.material.icons.filled.Forward30
 import androidx.compose.material.icons.filled.FormatListBulleted
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Replay
-import androidx.compose.material.icons.filled.Replay10
-import androidx.compose.material.icons.filled.Replay30
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.Speed
@@ -33,6 +28,7 @@ import androidx.compose.material.icons.filled.VolumeUp
 // content color through the TV library's LocalContentColor, which the mobile
 // Icon never reads (it defaults to black).
 import androidx.tv.material3.Icon
+import androidx.tv.material3.LocalContentColor
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -58,6 +54,7 @@ import androidx.tv.material3.IconButtonDefaults
 import androidx.tv.material3.Text
 import expo.modules.mpvplayer.nativeplayer.PlayerViewModel
 import expo.modules.mpvplayer.nativeplayer.TvMenuScreen
+import expo.modules.mpvplayer.nativeplayer.ui.SeekIcon
 import kotlinx.coroutines.delay
 
 enum class TvControl {
@@ -166,19 +163,20 @@ fun TvControlsRow(
             )
         }
 
-        val skipBackIcon = when (viewModel.uiOptions.seekBackwardSec.toInt()) {
-            10 -> Icons.Filled.Replay10
-            30 -> Icons.Filled.Replay30
-            else -> Icons.Filled.Replay
-        }
         TvIconButton(
             control = TvControl.SKIP_BACK,
-            icon = skipBackIcon,
-            contentDescription = "Skip Back",
             focusRequester = focusRequesters.getValue(TvControl.SKIP_BACK),
             onFocused = onControlFocused,
             onClick = { viewModel.seekBy(-viewModel.uiOptions.seekBackwardSec) }
-        )
+        ) {
+            SeekIcon(
+                forward = false,
+                seconds = viewModel.uiOptions.seekBackwardSec,
+                tint = LocalContentColor.current,
+                contentDescription = "Skip Back",
+                modifier = Modifier.size(TvMetrics.ICON_SIZE)
+            )
+        }
 
         if (hasChapters) {
             TvIconButton(
@@ -211,19 +209,20 @@ fun TvControlsRow(
             )
         }
 
-        val skipForwardIcon = when (viewModel.uiOptions.seekForwardSec.toInt()) {
-            10 -> Icons.Filled.Forward10
-            30 -> Icons.Filled.Forward30
-            else -> Icons.Filled.FastForward
-        }
         TvIconButton(
             control = TvControl.SKIP_FORWARD,
-            icon = skipForwardIcon,
-            contentDescription = "Skip Forward",
             focusRequester = focusRequesters.getValue(TvControl.SKIP_FORWARD),
             onFocused = onControlFocused,
             onClick = { viewModel.seekBy(viewModel.uiOptions.seekForwardSec) }
-        )
+        ) {
+            SeekIcon(
+                forward = true,
+                seconds = viewModel.uiOptions.seekForwardSec,
+                tint = LocalContentColor.current,
+                contentDescription = "Skip Forward",
+                modifier = Modifier.size(TvMetrics.ICON_SIZE)
+            )
+        }
 
         if (showNext) {
             TvIconButton(
@@ -385,6 +384,25 @@ private fun TvIconButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    TvIconButton(control, focusRequester, onFocused, onClick, modifier) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            modifier = Modifier.size(TvMetrics.ICON_SIZE)
+        )
+    }
+}
+
+/** The round control with any glyph; the content reads its focus colour from LocalContentColor. */
+@Composable
+private fun TvIconButton(
+    control: TvControl,
+    focusRequester: FocusRequester,
+    onFocused: (TvControl) -> Unit,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
     var isFocused by remember { mutableStateOf(false) }
     IconButton(
         onClick = onClick,
@@ -409,10 +427,6 @@ private fun TvIconButton(
             focusedContentColor = TvPalette.OnFocus
         )
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = contentDescription,
-            modifier = Modifier.size(TvMetrics.ICON_SIZE)
-        )
+        content()
     }
 }
