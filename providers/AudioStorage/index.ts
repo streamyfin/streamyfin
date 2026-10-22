@@ -109,7 +109,8 @@ const finiteOrZero = (value: unknown) =>
  * The index as stored, without the entries that are not tracks and with the numbers an older or
  * damaged one lacks, so every walk over it below can rely on them, as the downloads database
  * does with its own sections. A size that is not a number counts as 0 rather than turning the
- * totals into NaN.
+ * totals into NaN, and the totals are summed again from the tracks kept: the stored ones can
+ * count dropped entries, and eviction compares the cache total with the limit.
  */
 function toStorageIndex(stored: Record<string, unknown>): AudioStorageIndex {
   const tracks: Record<string, StoredTrackInfo> = {};
@@ -120,12 +121,13 @@ function toStorageIndex(stored: Record<string, unknown>): AudioStorageIndex {
       tracks[itemId] = { ...track, size: finiteOrZero(track.size) };
     }
   }
-  return {
-    ...stored,
-    tracks,
-    totalCacheSize: finiteOrZero(stored.totalCacheSize),
-    totalPermanentSize: finiteOrZero(stored.totalPermanentSize),
-  };
+  let totalCacheSize = 0;
+  let totalPermanentSize = 0;
+  for (const track of Object.values(tracks)) {
+    if (track.permanent) totalPermanentSize += track.size;
+    else totalCacheSize += track.size;
+  }
+  return { ...stored, tracks, totalCacheSize, totalPermanentSize };
 }
 
 /**

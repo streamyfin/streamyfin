@@ -136,10 +136,13 @@ describe("a track stored before an iOS update moved the app's container", () => 
   let audio: typeof import("./index");
   let files: typeof fakeFiles;
 
-  const storeIndex = (tracks: Record<string, unknown>) =>
+  const storeIndex = (
+    tracks: Record<string, unknown>,
+    totals = { totalCacheSize: 1, totalPermanentSize: 1 },
+  ) =>
     require("@/utils/mmkv").storage.set(
       AUDIO_STORAGE_INDEX_KEY,
-      JSON.stringify({ tracks, totalCacheSize: 1, totalPermanentSize: 1 }),
+      JSON.stringify({ tracks, ...totals }),
     );
   const storedIndex = () =>
     JSON.parse(
@@ -315,7 +318,7 @@ describe("a track stored before an iOS update moved the app's container", () => 
     expect(audio.getLocalPath("no-path")).toBeNull();
     expect(audio.getStorageStats()).toEqual({
       cacheCount: 0,
-      cacheSize: 1,
+      cacheSize: 0,
       permanentCount: 1,
       permanentSize: 1,
     });
@@ -336,7 +339,35 @@ describe("a track stored before an iOS update moved the app's container", () => 
 
     // The file is gone, so the entry leaves the index and its size leaves the total.
     expect(audio.isCached("track-2")).toBe(false);
-    expect(audio.getStorageStats().cacheSize).toBe(1);
+    expect(audio.getStorageStats().cacheSize).toBe(0);
+  });
+
+  // The stored totals can count entries the load drops, or sizes it zeroes, and eviction
+  // compares the cache total with the limit: a stale one evicted tracks that fit.
+  it("works the totals out from the tracks it keeps", () => {
+    storeIndex(
+      {
+        broken: null,
+        "track-1": track(
+          "track-1",
+          `${now}/Documents/streamyfin-audio/track-1.flac`,
+          true,
+        ),
+        "track-2": track(
+          "track-2",
+          `${now}/Library/Caches/streamyfin-audio-cache/track-2.mp3`,
+          false,
+        ),
+      },
+      { totalCacheSize: 5_000_000_000, totalPermanentSize: 7 },
+    );
+
+    expect(audio.getStorageStats()).toEqual({
+      cacheCount: 1,
+      cacheSize: 1,
+      permanentCount: 1,
+      permanentSize: 1,
+    });
   });
 
   // The index used to come back empty when the current directories could not be read, and the
