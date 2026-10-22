@@ -202,20 +202,13 @@ describe("sort options", () => {
     },
   );
 
-  // Valid server keys that no screen offers yet.
-  test.each([
-    undefined,
-    "movies",
-    "tvshows",
-    "playlists",
-    "boxsets",
-    "music",
-  ] as const)("does not offer the music sorts in a %s library", (type) => {
-    const keys = keysOf(sortOptionsFor(type));
-
-    expect(keys).not.toContain(SortByOption.Album);
-    expect(keys).not.toContain(SortByOption.AlbumArtist);
-    expect(keys).not.toContain(SortByOption.Artist);
+  // The library page accepts a sortBy from its URL when it is a SortByOption
+  // value, so the enum holds only keys a sort list can offer: the music keys
+  // come with the music sort list.
+  test("has no music sort keys before a list offers them", () => {
+    expect(Object.values(SortByOption)).not.toContain("Album");
+    expect(Object.values(SortByOption)).not.toContain("AlbumArtist");
+    expect(Object.values(SortByOption)).not.toContain("Artist");
   });
 
   test("hands back the same list on every call", () => {
