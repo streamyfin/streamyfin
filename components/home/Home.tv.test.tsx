@@ -57,6 +57,24 @@ jest.mock("@/components/tv/TVPosterCard", () => {
 
 jest.mock("@/utils/atoms/settings", () => ({
   TVTypographyScale: { Default: "default" },
+  // Home reads the Top Shelf presets to fill its cache; the real enums' values.
+  AppleTVTopShelfLayout: {
+    Sectioned: "sectioned",
+    Inset: "inset",
+    Carousel: "carousel",
+  },
+  AppleTVTopShelfContent: {
+    ContinueAndNextUp: "continueAndNextUp",
+    ContinueWatching: "continueWatching",
+    NextUp: "nextUp",
+    RecentlyAdded: "recentlyAdded",
+    Recommendations: "recommendations",
+  },
+  AppleTVTopShelfRecommendationsType: {
+    Movies: "Movie",
+    Series: "Series",
+    All: "all",
+  },
   useSettings: () => ({
     settings: mockSettings,
     updateSettings: () => {},

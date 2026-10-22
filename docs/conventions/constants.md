@@ -48,6 +48,7 @@ cadence meant knowing both existed, and nothing would have failed if only one ha
 | `constants/Recommendations.ts` | Similar item rows: how many items a detail page asks the server for, and for which kinds of item |
 | `constants/Notifications.ts` | Push notifications: the plugin route a device registers at and is deleted from on sign out |
 | `constants/QuickConnect.ts` | Quick Connect: how long a code the TV shows stays valid |
+| `constants/MediaQuality.ts` | Quality-badge thresholds and label tokens for the TV Top Shelf (4K width cutoff, HDR/Atmos/CC labels, badge order and cap) |
 | `constants/Cast.ts` | Official Jellyfin Cast receiver: its session client name, the name it gets for a TV whose own name it cannot take, how long a cast waits for the TV to start, how many times its channel is tried, and the window and waits used to tell a stopped receiver from a live one |
 
 Add a new domain file when a group grows its own identity (playback, downloads,

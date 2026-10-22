@@ -1,0 +1,5 @@
+/* Label for the Top Shelf carousel's cast named attribute (e.g. "Starring Actor One, Actor Two"). */
+"topshelf.starring" = "Starring";
+
+/* Label for the Top Shelf carousel's director named attribute (e.g. "Director Jane Doe"). */
+"topshelf.director" = "Director";
