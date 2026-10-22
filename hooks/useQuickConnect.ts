@@ -2,7 +2,12 @@ import type { Api } from "@jellyfin/sdk";
 import type { UserDto } from "@jellyfin/sdk/lib/generated-client/models";
 import axios from "axios";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { QUICK_CONNECT_POLL_INTERVAL_MS } from "@/constants/QuickConnect";
+import {
+  QUICK_CONNECT_CODE_LIFETIME_MS,
+  QUICK_CONNECT_POLL_INTERVAL_MS,
+  QUICK_CONNECT_REQUEST_TIMEOUT_MS,
+} from "@/constants/QuickConnect";
+import { writeErrorLog } from "@/utils/log";
 
 export type QuickConnectStatus =
   | "idle"
@@ -29,7 +34,30 @@ interface Options {
 interface Attempt {
   api: Api;
   timer?: ReturnType<typeof setTimeout>;
+  /** When the server stops honouring the code, retried failures included. */
+  endsAt?: number;
+  /** A failure that is not an HTTP answer was logged; once is enough. */
+  reported?: boolean;
 }
+
+/**
+ * What an HTTP answer means for the code: 400 and 404, the server no longer
+ * knows it; 401, Quick Connect is turned off. Anything else may pass.
+ */
+const outcomeOf = (error: unknown): QuickConnectStatus | undefined => {
+  const status = axios.isAxiosError(error) ? error.response?.status : undefined;
+  if (status === 401) return "disabled";
+  if (status === 400 || status === 404) return "expired";
+  return undefined;
+};
+
+/** A sign-in answer the session can be built from. */
+const isAuthenticationResult = (data: unknown): data is AuthenticationResult =>
+  typeof data === "object" &&
+  data !== null &&
+  typeof (data as AuthenticationResult).AccessToken === "string" &&
+  (data as AuthenticationResult).AccessToken.length > 0 &&
+  typeof (data as AuthenticationResult).User?.Id === "string";
 
 /** One code owns its polling and authentication, even across late responses. */
 export function useQuickConnect({ api, headers, onAuthenticated }: Options) {
@@ -74,7 +102,7 @@ export function useQuickConnect({ api, headers, onAuthenticated }: Options) {
       const response = await api.axiosInstance.post(
         `${api.basePath}/QuickConnect/Initiate`,
         null,
-        { headers },
+        { headers, timeout: QUICK_CONNECT_REQUEST_TIMEOUT_MS },
       );
       if (!isCurrent(attempt)) return;
       const { Code, Secret } = response.data;
@@ -87,13 +115,79 @@ export function useQuickConnect({ api, headers, onAuthenticated }: Options) {
       ) {
         throw new Error("Failed to initiate quick connect");
       }
+      attempt.endsAt = Date.now() + QUICK_CONNECT_CODE_LIFETIME_MS;
       setStatus("waiting");
 
-      const schedule = () => {
+      // Ends the attempt on an answer that decides the code's fate, and
+      // otherwise says whether to try again.
+      const settle = (error: unknown) => {
+        const outcome = outcomeOf(error);
+        if (outcome) {
+          cancelAttempt();
+          setStatus(outcome);
+          return false;
+        }
+        // Not an HTTP answer at all, so possibly a bug rather than a network.
+        if (!axios.isAxiosError(error) && !attempt.reported) {
+          attempt.reported = true;
+          writeErrorLog("Quick Connect request failed", {
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+        // Network errors and temporary server failures leave the code valid,
+        // until the server would have dropped it anyway.
+        if (Date.now() >= (attempt.endsAt ?? 0)) {
+          cancelAttempt();
+          setStatus("expired");
+          return false;
+        }
+        return true;
+      };
+
+      // Schedule after the previous request settles: a slow response must not
+      // overlap another request or exchange the same secret more than once.
+      const retry = (step: () => Promise<void>) => {
         if (isCurrent(attempt)) {
           attempt.timer = setTimeout(() => {
-            void poll();
+            void step();
           }, QUICK_CONNECT_POLL_INTERVAL_MS);
+        }
+      };
+
+      const authenticate = async () => {
+        if (!isCurrent(attempt)) return;
+        try {
+          const authResponse = await api.axiosInstance.post(
+            `${api.basePath}/Users/AuthenticateWithQuickConnect`,
+            { secret: Secret },
+            { headers, timeout: QUICK_CONNECT_REQUEST_TIMEOUT_MS },
+          );
+          if (!isCurrent(attempt)) return;
+          // Not a session, a proxy's own page for one: asking again would get
+          // the same answer.
+          if (!isAuthenticationResult(authResponse.data)) {
+            cancelAttempt();
+            setStatus("expired");
+            writeErrorLog("Quick Connect sign-in answered without a session");
+            return;
+          }
+
+          // Committing replaces the API and unmounts the login screen. End
+          // this attempt first so that cleanup cannot undo the signed-in state
+          // or make a slow plugin refresh authenticate the same code twice.
+          cancelAttempt();
+          setStatus("signed-in");
+          try {
+            await onAuthenticatedRef.current(authResponse.data, api);
+          } catch {
+            // Never retry an already committed session or log its credentials.
+            writeErrorLog("Failed to finish Quick Connect sign-in");
+          }
+        } catch (error) {
+          if (!isCurrent(attempt)) return;
+          // The server approved the code: try the sign-in itself again, without
+          // going back to the code or through Connect.
+          if (settle(error)) retry(authenticate);
         }
       };
 
@@ -102,50 +196,22 @@ export function useQuickConnect({ api, headers, onAuthenticated }: Options) {
         try {
           const pollResponse = await api.axiosInstance.get(
             `${api.basePath}/QuickConnect/Connect?Secret=${encodeURIComponent(Secret)}`,
+            { timeout: QUICK_CONNECT_REQUEST_TIMEOUT_MS },
           );
           if (!isCurrent(attempt)) return;
           if (pollResponse.status === 200 && pollResponse.data.Authenticated) {
             setStatus("authenticating");
-            const authResponse = await api.axiosInstance.post(
-              `${api.basePath}/Users/AuthenticateWithQuickConnect`,
-              { secret: Secret },
-              { headers },
-            );
-            if (!isCurrent(attempt)) return;
-
-            // Committing replaces the API and unmounts the login screen. End
-            // this attempt first so that cleanup cannot undo the signed-in state
-            // or make a slow plugin refresh authenticate the same code twice.
-            cancelAttempt();
-            setStatus("signed-in");
-            try {
-              await onAuthenticatedRef.current(authResponse.data, api);
-            } catch {
-              // Never retry an already committed session or log its credentials.
-              console.error("Failed to finish Quick Connect sign-in");
-            }
+            await authenticate();
             return;
           }
         } catch (error) {
           if (!isCurrent(attempt)) return;
-          const status = axios.isAxiosError(error)
-            ? error.response?.status
-            : undefined;
-          if (status === 400 || status === 404 || status === 401) {
-            cancelAttempt();
-            setStatus(status === 401 ? "disabled" : "expired");
-            return;
-          }
-          // Network errors and temporary server failures leave the code valid.
-          // A timer-driven request must not reject into the event loop.
-          setStatus("waiting");
+          if (!settle(error)) return;
         }
-        // Schedule after the previous request settles: a slow response must not
-        // overlap another poll or exchange the same secret more than once.
-        schedule();
+        retry(poll);
       };
 
-      schedule();
+      retry(poll);
       return Code;
     } catch (error) {
       // Back, another server, or a replacement code also invalidates failures.

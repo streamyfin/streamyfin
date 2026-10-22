@@ -1,6 +1,13 @@
 import { act, cleanup, renderHook } from "@testing-library/react-native";
+import {
+  QUICK_CONNECT_CODE_LIFETIME_MS,
+  QUICK_CONNECT_REQUEST_TIMEOUT_MS,
+} from "@/constants/QuickConnect";
 import { makeApi } from "@/test-utils/jellyfinApi";
+import { writeErrorLog } from "@/utils/log";
 import { useQuickConnect } from "./useQuickConnect";
+
+jest.mock("@/utils/log", () => ({ writeErrorLog: jest.fn() }));
 
 const INITIATE = /\/QuickConnect\/Initiate$/;
 const CONNECT = /\/QuickConnect\/Connect(?:\?|$)/;
@@ -57,6 +64,7 @@ const advance = async (milliseconds = 1000) => {
 
 beforeEach(() => {
   jest.useFakeTimers();
+  jest.mocked(writeErrorLog).mockClear();
 });
 
 afterEach(async () => {
@@ -215,12 +223,38 @@ describe("useQuickConnect", () => {
     expect(api.mock.history.post).toHaveLength(1);
   });
 
-  test("retries authentication after a transient failure", async () => {
+  // Going back to waiting showed the approved code again between attempts, and
+  // asked Connect again for an answer the server had already given.
+  test("keeps signing in an approved code through transient failures", async () => {
     const { result, api, onAuthenticated } = await renderQuickConnect();
     api.mock.resetHandlers();
     api.mock.onPost(INITIATE).reply(200, code);
     api.mock.onGet(CONNECT).reply(200, { Authenticated: true });
     api.mock.onPost(AUTHENTICATE).networkErrorOnce();
+    api.mock.onPost(AUTHENTICATE).replyOnce(503);
+    api.mock.onPost(AUTHENTICATE).reply(200, authentication);
+    await initiate(result);
+
+    await advance();
+    expect(result.current.quickConnectStatus).toBe("authenticating");
+    await advance();
+    expect(result.current.quickConnectStatus).toBe("authenticating");
+    await advance();
+
+    expect(result.current.quickConnectStatus).toBe("signed-in");
+    expect(onAuthenticated).toHaveBeenCalledTimes(1);
+    expect(api.mock.history.get).toHaveLength(1);
+    expect(api.mock.history.post).toHaveLength(4);
+  });
+
+  // React Native's Android client waits forever by default: one request that
+  // never settles stopped the polling, and an approval was never seen.
+  test("gives each request a time limit and retries a poll that runs out of it", async () => {
+    const { result, api, onAuthenticated } = await renderQuickConnect();
+    api.mock.resetHandlers();
+    api.mock.onPost(INITIATE).reply(200, code);
+    api.mock.onGet(CONNECT).timeoutOnce();
+    api.mock.onGet(CONNECT).reply(200, { Authenticated: true });
     api.mock.onPost(AUTHENTICATE).reply(200, authentication);
     await initiate(result);
 
@@ -228,9 +262,79 @@ describe("useQuickConnect", () => {
     expect(result.current.quickConnectStatus).toBe("waiting");
     await advance();
 
-    expect(result.current.quickConnectStatus).toBe("signed-in");
     expect(onAuthenticated).toHaveBeenCalledTimes(1);
-    expect(api.mock.history.post).toHaveLength(3);
+    const requests = [...api.mock.history.post, ...api.mock.history.get];
+    expect(requests).toHaveLength(4);
+    for (const request of requests) {
+      expect(request.timeout).toBe(QUICK_CONNECT_REQUEST_TIMEOUT_MS);
+    }
+  });
+
+  // A proxy that guards /Users but not /QuickConnect answers with its own page.
+  test("does not sign in with an answer that carries no session", async () => {
+    const { result, api, onAuthenticated } = await renderQuickConnect();
+    api.mock.onGet(CONNECT).reply(200, { Authenticated: true });
+    api.mock.onPost(AUTHENTICATE).reply(200, "<html>Sign in</html>");
+    await initiate(result);
+
+    await advance();
+    expect(onAuthenticated).not.toHaveBeenCalled();
+    expect(result.current.quickConnectStatus).toBe("expired");
+    expect(writeErrorLog).toHaveBeenCalledTimes(1);
+    await advance(5000);
+
+    expect(api.mock.history.post).toHaveLength(2);
+  });
+
+  // Without an end, a stalled or failing request kept the code, or the signing
+  // in message, up for as long as the screen stayed open.
+  test.each(["poll", "authenticate"] as const)(
+    "ends a code whose %s keeps failing once its lifetime is over",
+    async (stage) => {
+      const { result, api, onAuthenticated } = await renderQuickConnect();
+      api.mock.resetHandlers();
+      api.mock.onPost(INITIATE).reply(200, code);
+      if (stage === "poll") {
+        api.mock.onGet(CONNECT).networkError();
+      } else {
+        api.mock.onGet(CONNECT).reply(200, { Authenticated: true });
+        api.mock.onPost(AUTHENTICATE).networkError();
+      }
+      await initiate(result);
+
+      await advance(QUICK_CONNECT_CODE_LIFETIME_MS - 2000);
+      expect(result.current.quickConnectStatus).toBe(
+        stage === "poll" ? "waiting" : "authenticating",
+      );
+      await advance(3000);
+      expect(result.current.quickConnectStatus).toBe("expired");
+      const requests =
+        api.mock.history.get.length + api.mock.history.post.length;
+      await advance(5000);
+
+      expect(api.mock.history.get.length + api.mock.history.post.length).toBe(
+        requests,
+      );
+      expect(onAuthenticated).not.toHaveBeenCalled();
+    },
+  );
+
+  // Retried silently every second, a programming error left no trace for a
+  // "Quick Connect never finishes" report.
+  test("logs once a failure that is not an HTTP answer, and keeps polling", async () => {
+    const { result, api } = await renderQuickConnect();
+    api.mock.resetHandlers();
+    api.mock.onPost(INITIATE).reply(200, code);
+    api.mock.onGet(CONNECT).reply(() => {
+      throw new TypeError("Cannot read properties of null");
+    });
+    await initiate(result);
+
+    await advance(3000);
+
+    expect(api.mock.history.get).toHaveLength(3);
+    expect(result.current.quickConnectStatus).toBe("waiting");
+    expect(writeErrorLog).toHaveBeenCalledTimes(1);
   });
 
   test("does not overlap polls while a server response is slow", async () => {
