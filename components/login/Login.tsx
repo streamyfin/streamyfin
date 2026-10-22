@@ -1,9 +1,10 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import axios from "axios";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useNavigation } from "expo-router";
 import { t } from "i18next";
 import { useAtomValue, useSetAtom } from "jotai";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Alert,
   Keyboard,
@@ -278,19 +279,47 @@ export const Login: React.FC = () => {
     [setServer],
   );
 
+  // One start at a time, and only the latest counts, as on TV: closing the
+  // sheet while a new code is on its way leaves that start behind.
+  const startingRef = useRef(false);
+  const startRef = useRef(0);
+
   const handleQuickConnect = async () => {
+    if (startingRef.current) return;
+    startingRef.current = true;
+    const start = ++startRef.current;
     try {
       const code = await initiateQuickConnect();
+      // Nobody sees a code asked for from a sheet closed since.
+      if (start !== startRef.current) {
+        stopQuickConnectPolling();
+        return;
+      }
       if (code) {
         setQuickConnectActive(true);
         setQuickConnectCode(code);
       }
-    } catch (_error) {
+    } catch (error) {
+      if (start !== startRef.current) return;
+      // Jellyfin refuses to start one with a 401 while it is turned off.
       Alert.alert(
         t("login.error_title"),
-        t("login.failed_to_initiate_quick_connect"),
+        axios.isAxiosError(error) && error.response?.status === 401
+          ? t("companion_login.error_quick_connect_disabled", {
+              server: serverName || api?.basePath,
+            })
+          : t("login.failed_to_initiate_quick_connect"),
       );
+    } finally {
+      startingRef.current = false;
     }
+  };
+
+  // Closing a code leaves its polling running, so it can still be approved
+  // from another device; closing while a new one is on its way drops that one.
+  const closeQuickConnectSheet = () => {
+    if (startingRef.current) startRef.current++;
+    setQuickConnectCode(null);
   };
 
   return (
@@ -497,7 +526,7 @@ export const Login: React.FC = () => {
         status={quickConnectStatus}
         serverName={serverName || api?.basePath || ""}
         onNewCode={handleQuickConnect}
-        onClose={() => setQuickConnectCode(null)}
+        onClose={closeQuickConnectSheet}
       />
     </SafeAreaView>
   );

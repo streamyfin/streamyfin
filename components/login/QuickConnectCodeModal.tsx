@@ -161,7 +161,7 @@ export const QuickConnectCodeModal: React.FC<Props> = ({
                   : t("pairing.code_expired")}
             </Text>
           )}
-          {expired && !disabled && !signingIn && (
+          {expired && (
             <Button className='mb-3' color='purple' onPress={onNewCode}>
               {t("pairing.get_new_code")}
             </Button>
