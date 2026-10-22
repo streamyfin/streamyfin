@@ -5,19 +5,23 @@ jest.mock(
   "react-native-mmkv",
   () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
 );
-// The double's own directories, unless a spec puts Documents and Caches in an iOS container.
-const mockPaths: { document?: string; cache?: string } = {};
+// The double's own directories, unless a spec puts Documents and Caches in an iOS container or
+// makes them unreadable.
+const mockPaths: { document?: string; cache?: string; unreadable?: boolean } =
+  {};
 jest.mock("expo-file-system", () => {
   const { fileSystemModule } = jest.requireActual("@/test-utils/fileSystem");
   return {
     ...fileSystemModule,
     Paths: {
       get document() {
+        if (mockPaths.unreadable) throw new Error("Documents is unreadable");
         return mockPaths.document
           ? new fileSystemModule.Directory(mockPaths.document)
           : fileSystemModule.Paths.document;
       },
       get cache() {
+        if (mockPaths.unreadable) throw new Error("Caches is unreadable");
         return mockPaths.cache
           ? new fileSystemModule.Directory(mockPaths.cache)
           : fileSystemModule.Paths.cache;
@@ -132,6 +136,10 @@ describe("a track stored before an iOS update moved the app's container", () => 
       AUDIO_STORAGE_INDEX_KEY,
       JSON.stringify({ tracks, totalCacheSize: 1, totalPermanentSize: 1 }),
     );
+  const storedIndex = () =>
+    JSON.parse(
+      require("@/utils/mmkv").storage.getString(AUDIO_STORAGE_INDEX_KEY),
+    );
   const track = (itemId: string, localPath: string, permanent: boolean) => ({
     itemId,
     localPath,
@@ -151,6 +159,7 @@ describe("a track stored before an iOS update moved the app's container", () => 
   afterEach(() => {
     mockPaths.document = undefined;
     mockPaths.cache = undefined;
+    mockPaths.unreadable = false;
   });
 
   it("plays a downloaded track from the current container", () => {
@@ -203,6 +212,20 @@ describe("a track stored before an iOS update moved the app's container", () => 
     expect(audio.getLocalPath("track-1")).toBe(
       `file://${now}/Documents/streamyfin-audio/track-1.flac`,
     );
+  });
+
+  // The index used to come back empty when the current directories could not be read, and the
+  // next write saved that over every track.
+  it("keeps the index as stored when the app's directories cannot be read", async () => {
+    const stored = `${before}/Documents/streamyfin-audio/track-1.flac`;
+    storeIndex({ "track-1": track("track-1", stored, true) });
+    mockPaths.unreadable = true;
+
+    await audio.clearCache();
+
+    expect(storedIndex().tracks["track-1"]).toMatchObject({
+      localPath: stored,
+    });
   });
 
   // Android's files directory never moves, so nothing stored there is rewritten, not even a

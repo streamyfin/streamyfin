@@ -112,18 +112,27 @@ function getStorageIndex(): AudioStorageIndex {
   try {
     const data = storage.getString(AUDIO_STORAGE_INDEX_KEY);
     if (data) {
-      storageIndex = withCurrentContainerPaths(JSON.parse(data));
-      return storageIndex;
+      storageIndex = JSON.parse(data) as AudioStorageIndex;
     }
   } catch {
     // Ignore parse errors
   }
 
-  storageIndex = {
-    tracks: {},
-    totalCacheSize: 0,
-    totalPermanentSize: 0,
-  };
+  if (!storageIndex) {
+    storageIndex = {
+      tracks: {},
+      totalCacheSize: 0,
+      totalPermanentSize: 0,
+    };
+    return storageIndex;
+  }
+
+  try {
+    withCurrentContainerPaths(storageIndex);
+  } catch {
+    // The paths stay as stored. An empty index here would be saved over every track by the
+    // next write.
+  }
   return storageIndex;
 }
 
