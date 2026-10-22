@@ -4,6 +4,7 @@ import { makeApi } from "@/test-utils/jellyfinApi";
 import {
   buildLibraryItemsQuery,
   buildLibraryQueueQuery,
+  getLibraryItemTypes,
   isQueueableLibrary,
   type LibraryItemsFilter,
 } from "./libraryItemsQuery";
@@ -22,6 +23,20 @@ const horrorMovies: LibraryItemsFilter = {
 };
 
 describe("library items query", () => {
+  // The grid and the rating choices ask for the same kind of item.
+  test.each([
+    ["movies", ["Movie"]],
+    ["tvshows", ["Series"]],
+    ["boxsets", ["BoxSet"]],
+    [undefined, undefined],
+  ] as const)("a %s library lists %s", (collectionType, expected) => {
+    expect(getLibraryItemTypes(collectionType)).toEqual(expected);
+    expect(
+      buildLibraryItemsQuery({ ...horrorMovies, collectionType })
+        .includeItemTypes,
+    ).toEqual(expected);
+  });
+
   test("lists only the kind of item the library is for, with the filters applied", () => {
     expect(buildLibraryItemsQuery(horrorMovies)).toEqual({
       userId: "user-1",

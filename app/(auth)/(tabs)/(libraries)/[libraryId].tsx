@@ -120,6 +120,7 @@ import {
 import { supportsNameBounds } from "@/utils/jellyfin/serverVersion";
 import {
   buildLibraryItemsQuery,
+  getLibraryItemTypes,
   isQueueableLibrary,
   type LibraryItemsFilter,
   libraryLanguageOptions,
@@ -131,6 +132,7 @@ import {
   isLibraryTabCountQueryKey,
   libraryTabUsesFilterBar,
 } from "@/utils/library/libraryTabs";
+import { fetchOfficialRatings } from "@/utils/library/officialRatings";
 import { store } from "@/utils/store";
 
 /** Items per request of the grid; more load as the list is scrolled. */
@@ -285,24 +287,6 @@ const Page = () => {
         parentId: libraryId,
       });
       return response.data.Tags || [];
-    },
-    enabled: Platform.isTV && !!api && !!user?.Id && !!libraryId,
-  });
-
-  const { data: tvOfficialRatingOptions } = useQuery({
-    queryKey: [
-      "filters",
-      "OfficialRatings",
-      "tvOfficialRatingFilter",
-      libraryId,
-    ],
-    queryFn: async () => {
-      if (!api) return [];
-      const response = await getFilterApi(api).getQueryFiltersLegacy({
-        userId: user?.Id,
-        parentId: libraryId,
-      });
-      return response.data.OfficialRatings || [];
     },
     enabled: Platform.isTV && !!api && !!user?.Id && !!libraryId,
   });
@@ -551,6 +535,29 @@ const Page = () => {
   const languageFilters = useLanguageFilters(library);
   // Shared with the language filters above: one request for both.
   const serverVersion = useServerVersion();
+
+  // The ratings the chip and the TV sheet offer, asked for the kind of item
+  // the grid lists (see fetchOfficialRatings), so it waits for the library.
+  const ratingItemTypes = getLibraryItemTypes(library?.CollectionType);
+  const { data: officialRatingOptions } = useQuery({
+    // The user is part of it: the server only lists what that user may see.
+    queryKey: [
+      "filters",
+      "OfficialRatings",
+      libraryId,
+      ratingItemTypes,
+      user?.Id,
+    ],
+    queryFn: async () => {
+      if (!api) return [];
+      return fetchOfficialRatings(api, {
+        userId: user?.Id,
+        parentId: libraryId,
+        includeItemTypes: ratingItemTypes,
+      });
+    },
+    enabled: !!api && !!user?.Id && !!libraryId && !!library,
+  });
 
   // Only a TV library has episodes still to air. `/Shows/Upcoming` answers for
   // any parent, with nothing.
@@ -1009,16 +1016,7 @@ const Page = () => {
                 className='mr-1'
                 id={libraryId}
                 queryKey='officialRatingFilter'
-                queryFn={async () => {
-                  if (!api) return null;
-                  const response = await getFilterApi(
-                    api,
-                  ).getQueryFiltersLegacy({
-                    userId: user?.Id,
-                    parentId: libraryId,
-                  });
-                  return response.data.OfficialRatings || [];
-                }}
+                options={officialRatingOptions ?? []}
                 set={setOfficialRatings}
                 values={selectedOfficialRatings}
                 title={t("library.filters.official_ratings")}
@@ -1113,6 +1111,7 @@ const Page = () => {
       setYears,
       selectedTags,
       setTags,
+      officialRatingOptions,
       selectedOfficialRatings,
       setOfficialRatings,
       languageFilterEntries,
@@ -1189,13 +1188,13 @@ const Page = () => {
         value: "__all__",
         selected: selectedOfficialRatings.length === 0,
       },
-      ...(tvOfficialRatingOptions || []).map((rating) => ({
+      ...(officialRatingOptions ?? []).map((rating) => ({
         label: rating,
         value: rating,
         selected: selectedOfficialRatings.includes(rating),
       })),
     ],
-    [tvOfficialRatingOptions, selectedOfficialRatings, t],
+    [officialRatingOptions, selectedOfficialRatings, t],
   );
 
   const tvSortByOptions = useMemo(

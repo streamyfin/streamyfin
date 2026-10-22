@@ -42,6 +42,20 @@ export const ITEM_TYPE_BY_COLLECTION: Partial<
 };
 
 /**
+ * The kinds of item a library page lists: the one its collection type names,
+ * or every kind when it names none. The rating choices are asked for the same
+ * kinds, so they only offer ratings the grid can match.
+ */
+export const getLibraryItemTypes = (
+  collectionType: CollectionType | null | undefined,
+): BaseItemKind[] | undefined => {
+  const itemType = collectionType
+    ? ITEM_TYPE_BY_COLLECTION[collectionType]
+    : undefined;
+  return itemType ? [itemType] : undefined;
+};
+
+/**
  * The part of the items request that decides which items a library page
  * lists and in what order. The grid and the play queue both start from it, so
  * Play All can never queue something the filters hide.
@@ -58,10 +72,6 @@ export const buildLibraryItemsQuery = ({
   years,
   tags,
 }: LibraryItemsFilter): ItemsApiGetItemsRequest => {
-  const itemType = collectionType
-    ? ITEM_TYPE_BY_COLLECTION[collectionType]
-    : undefined;
-
   return {
     userId,
     parentId: libraryId,
@@ -74,7 +84,7 @@ export const buildLibraryItemsQuery = ({
     officialRatings,
     tags,
     years: years.map((year) => Number.parseInt(year, 10)),
-    includeItemTypes: itemType ? [itemType] : undefined,
+    includeItemTypes: getLibraryItemTypes(collectionType),
   };
 };
 
