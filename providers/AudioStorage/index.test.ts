@@ -370,6 +370,27 @@ describe("a track stored before an iOS update moved the app's container", () => 
     });
   });
 
+  // A negative size would take bytes off the totals that other tracks fill.
+  it("counts a negative size as empty", () => {
+    storeIndex({
+      "track-1": {
+        ...track(
+          "track-1",
+          `${now}/Library/Caches/streamyfin-audio-cache/track-1.mp3`,
+          false,
+        ),
+        size: -500,
+      },
+      "track-2": track(
+        "track-2",
+        `${now}/Library/Caches/streamyfin-audio-cache/track-2.mp3`,
+        false,
+      ),
+    });
+
+    expect(audio.getStorageStats().cacheSize).toBe(1);
+  });
+
   // The index used to come back empty when the current directories could not be read, and the
   // next write saved that over every track.
   it("keeps the index as stored when the app's directories cannot be read", async () => {

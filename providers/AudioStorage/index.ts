@@ -102,8 +102,9 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 const hasPath = (track: unknown): track is StoredTrackInfo =>
   isRecord(track) && typeof track.localPath === "string";
 
-const finiteOrZero = (value: unknown) =>
-  typeof value === "number" && Number.isFinite(value) ? value : 0;
+// A size is a count of bytes: anything else, negative included, counts as 0.
+const sizeOrZero = (value: unknown) =>
+  typeof value === "number" && Number.isFinite(value) && value > 0 ? value : 0;
 
 /**
  * The index as stored, without the entries that are not tracks and with the numbers an older or
@@ -118,7 +119,7 @@ function toStorageIndex(stored: Record<string, unknown>): AudioStorageIndex {
     isRecord(stored.tracks) ? stored.tracks : {},
   )) {
     if (hasPath(track)) {
-      tracks[itemId] = { ...track, size: finiteOrZero(track.size) };
+      tracks[itemId] = { ...track, size: sizeOrZero(track.size) };
     }
   }
   let totalCacheSize = 0;
