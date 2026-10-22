@@ -103,6 +103,8 @@ class EpisodeListItemRecord : Record {
     @Field var itemId: String = ""
     @Field var title: String = ""
     @Field var indexNumber: Int? = null
+    @Field var overview: String? = null
+    @Field var details: String? = null
     @Field var imageUrl: String? = null
     @Field var progressPercent: Double = 0.0
     @Field var isCurrent: Boolean = false
