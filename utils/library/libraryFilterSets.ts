@@ -105,7 +105,9 @@ const UNTYPED: LibraryFilterSet = {
 // The lists follow jellyfin-web's sort and filter buttons. Its production
 // year sort already falls back to the premiere date, so that option is not
 // offered on its own, and Studio, Start Date, Air Time and Index Number are
-// not offered for these kinds at all.
+// not offered for these kinds at all. The exception is the box set and
+// playlist lists: the collections screen defaults its sort to the premiere
+// date, and a default the list lacks would resolve to Name.
 const SETS: Record<LibraryKind, LibraryFilterSet> = {
   movies: {
     sort: [
@@ -153,6 +155,7 @@ const SETS: Record<LibraryKind, LibraryFilterSet> = {
       S.DateCreated,
       S.OfficialRating,
       S.ProductionYear,
+      S.PremiereDate,
     ],
     groups: BASE_GROUPS,
     filterBy: FILTER_BY,
@@ -165,6 +168,7 @@ const SETS: Record<LibraryKind, LibraryFilterSet> = {
       S.DateCreated,
       S.DateLastContentAdded,
       S.ProductionYear,
+      S.PremiereDate,
       S.Runtime,
     ],
     sortLabels: { [S.DateLastContentAdded]: "Date Playlist Updated" },
