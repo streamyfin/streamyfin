@@ -23,8 +23,8 @@ import { useScaledTVSizes } from "@/constants/TVSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
-import { SortByOption, SortOrderOption } from "@/utils/atoms/filters";
 import { useSettings } from "@/utils/atoms/settings";
+import { recentlyAddedSeeAllParams } from "@/utils/library/seeAll";
 import { scaleSize } from "@/utils/scaleSize";
 
 // Extra padding to accommodate scale animation (1.05x) and glow shadow
@@ -44,6 +44,7 @@ interface Props extends ViewProps {
   isFirstSection?: boolean;
   onItemFocus?: (item: BaseItemDto) => void;
   parentId?: string;
+  collectionType?: BaseItemDto["CollectionType"];
 }
 
 type Typography = ReturnType<typeof useScaledTVTypography>;
@@ -126,6 +127,7 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
   isFirstSection = false,
   onItemFocus,
   parentId,
+  collectionType,
   ...props
 }) => {
   const typography = useScaledTVTypography();
@@ -214,12 +216,11 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
       pathname: "/[libraryId]",
       params: {
         libraryId: parentId,
-        sortBy: SortByOption.DateCreated,
-        sortOrder: SortOrderOption.Descending,
+        ...recentlyAddedSeeAllParams(collectionType),
         fromSeeAll: "true",
       },
     } as any);
-  }, [router, parentId]);
+  }, [router, parentId, collectionType]);
 
   const renderItem = useCallback(
     ({ item, index }: { item: BaseItemDto; index: number }) => {
