@@ -53,6 +53,22 @@ describe("templateRequestPath", () => {
     );
   });
 
+  // The server also reads a dashed GUID in braces or in parentheses, which
+  // isJellyfinId takes. Paths are templated as they always were, so these
+  // stay parameters and no grouping key moves.
+  test("leaves a GUID in braces or in parentheses a parameter", () => {
+    expect(
+      templateRequestPath(
+        "https://host/Items/{f137a2dd-21bb-c1b9-9aa5-c0f6bf02a805}",
+      ),
+    ).toBe("/Items/:param");
+    expect(
+      templateRequestPath(
+        "https://host/Items/(f137a2dd-21bb-c1b9-9aa5-c0f6bf02a805)/Similar",
+      ),
+    ).toBe("/Items/:param/Similar");
+  });
+
   test("replaces free-text segments with :param", () => {
     expect(templateRequestPath("https://host/Persons/Tom%20Hanks")).toBe(
       "/Persons/:param",
