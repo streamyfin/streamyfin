@@ -31,8 +31,8 @@ import {
  *
  * A reset clears the active filters AND the library's saved preferences (sort,
  * order, filterBy, genres, official ratings, years, tags, audio and subtitle languages);
- * otherwise the stored preference resurfaces when the screen's mount effect
- * re-applies it on the next entry.
+ * otherwise the stored preference resurfaces when the screen's focus effect
+ * re-applies it the next time the screen gains focus.
  */
 export const useFilterReset = (libraryId: string) => {
   const [selectedGenres, setSelectedGenres] = useAtom(genreFilterAtom);

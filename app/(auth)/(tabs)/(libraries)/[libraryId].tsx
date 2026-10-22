@@ -348,7 +348,7 @@ const Page = () => {
         _setFilterBy(fp ? [fp] : []);
       }
 
-      // Genres / years / tags / languages have no URL params, only the
+      // Genres / ratings / years / tags / languages have no URL params, only the
       // per-library memory.
       setSelectedGenres(getMultiFilterPreference(libraryId, genrePreference));
       setSelectedOfficialRatings(

@@ -168,7 +168,7 @@ export const sortOrderAtom = atom<SortOrderOption[]>([
 ]);
 export const filterByAtom = atom<FilterByOption[]>([]);
 
-// The seven atoms above are shared by every library and collection screen, and
+// The filter atoms above are shared by every library and collection screen, and
 // the stack keeps several of those mounted at once. This names the screen
 // whose selection they hold right now: a screen writes its id here together
 // with its filters, and reads them back through useLibraryFilters, which hands
