@@ -8,40 +8,55 @@ import { useTVItemActionModal } from "./useTVItemActionModal";
 const mockMarkPlayed = jest.fn<Promise<void>, [string]>();
 const mockMarkUnplayed = jest.fn<Promise<void>, [string]>();
 const mockPrune = jest.fn<Promise<void>, [string[]]>();
+// usePlaybackManager and useInvalidatePlaybackProgressCache hand out new
+// functions on every render, as the real ones do; each render's are kept to
+// tell them apart.
+const mockMarkPlayedByRender: jest.Mock[] = [];
+const mockInvalidateByRender: jest.Mock[] = [];
 
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
+jest.mock("react-i18next", () => {
+  const t = (key: string) => key;
+  return { useTranslation: () => ({ t }) };
+});
 jest.mock("@/hooks/usePlaybackManager", () => ({
-  usePlaybackManager: () => ({
-    markItemPlayed: (id: string) => mockMarkPlayed(id),
-    markItemUnplayed: (id: string) => mockMarkUnplayed(id),
-  }),
+  usePlaybackManager: () => {
+    const markItemPlayed = jest.fn((id: string) => mockMarkPlayed(id));
+    mockMarkPlayedByRender.push(markItemPlayed);
+    return {
+      markItemPlayed,
+      markItemUnplayed: (id: string) => mockMarkUnplayed(id),
+    };
+  },
 }));
 jest.mock("@/hooks/useRevalidatePlaybackProgressCache", () => ({
-  useInvalidatePlaybackProgressCache: () => async () => {},
+  useInvalidatePlaybackProgressCache: () => {
+    const invalidate = jest.fn(async () => {});
+    mockInvalidateByRender.push(invalidate);
+    return invalidate;
+  },
 }));
+// The real hook hands out one function until its inputs change.
 jest.mock("@/hooks/useWatchlist", () => ({
-  usePruneWatchedFromWatchlist: () => (ids: string[]) => mockPrune(ids),
+  usePruneWatchedFromWatchlist: () => mockPrune,
 }));
 jest.mock("@/utils/log", () => ({ logAndCaptureError: jest.fn() }));
 
-// An infinite gcTime schedules no cleanup timer that would keep Jest running.
-const wrapper = ({ children }: { children: React.ReactNode }) => (
-  <QueryClientProvider
-    client={
-      new QueryClient({ defaultOptions: { queries: { gcTime: Infinity } } })
-    }
-  >
-    {children}
-  </QueryClientProvider>
-);
+// One client per test, kept across its renders. An infinite gcTime schedules
+// no cleanup timer that would keep Jest running.
+const makeWrapper = () => {
+  const client = new QueryClient({
+    defaultOptions: { queries: { gcTime: Infinity } },
+  });
+  return ({ children }: { children: React.ReactNode }) => (
+    <QueryClientProvider client={client}>{children}</QueryClientProvider>
+  );
+};
 
 /** Opens the long-press menu for `item` and returns its played action. */
 const openMenu = async (item: BaseItemDto) => {
   const alert = jest.spyOn(Alert, "alert").mockImplementation(() => {});
   const { result } = await renderHook(() => useTVItemActionModal(), {
-    wrapper,
+    wrapper: makeWrapper(),
   });
   await act(async () => result.current.showItemActions(item));
   const buttons = alert.mock.calls[0][2] as AlertButton[];
@@ -60,6 +75,39 @@ beforeEach(() => {
   mockMarkPlayed.mockReset().mockResolvedValue();
   mockMarkUnplayed.mockReset().mockResolvedValue();
   mockPrune.mockReset().mockResolvedValue();
+  mockMarkPlayedByRender.length = 0;
+  mockInvalidateByRender.length = 0;
+});
+
+// The TV rows, cards and hero are memoized and take this callback as a prop:
+// a new one on every render re-rendered all of them.
+test("keeps showItemActions stable across renders", async () => {
+  const { result, rerender } = await renderHook(() => useTVItemActionModal(), {
+    wrapper: makeWrapper(),
+  });
+  const first = result.current.showItemActions;
+  await rerender({});
+  await rerender({});
+  expect(result.current.showItemActions).toBe(first);
+});
+
+test("marks the item played with the functions of the latest render", async () => {
+  const alert = jest.spyOn(Alert, "alert").mockImplementation(() => {});
+  const { result, rerender } = await renderHook(() => useTVItemActionModal(), {
+    wrapper: makeWrapper(),
+  });
+  await rerender({});
+
+  await act(async () => result.current.showItemActions(movie(false)));
+  const markWatched = (alert.mock.calls[0][2] as AlertButton[])[1];
+  await act(async () => {
+    await markWatched.onPress?.();
+  });
+
+  expect(mockMarkPlayedByRender[0]).not.toHaveBeenCalled();
+  expect(mockMarkPlayedByRender.at(-1)).toHaveBeenCalledWith("m1");
+  expect(mockInvalidateByRender[0]).not.toHaveBeenCalled();
+  expect(mockInvalidateByRender.at(-1)).toHaveBeenCalled();
 });
 
 // Review of #2171: on Android TV and Apple TV the server ended with
