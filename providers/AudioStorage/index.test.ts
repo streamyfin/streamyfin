@@ -1,3 +1,4 @@
+import { AUDIO_STORAGE_INDEX_KEY } from "@/constants/Music";
 import { fakeFiles } from "@/test-utils/fileSystem";
 
 jest.mock(
@@ -128,7 +129,7 @@ describe("a track stored before an iOS update moved the app's container", () => 
 
   const storeIndex = (tracks: Record<string, unknown>) =>
     require("@/utils/mmkv").storage.set(
-      "audio_storage.v1.json",
+      AUDIO_STORAGE_INDEX_KEY,
       JSON.stringify({ tracks, totalCacheSize: 1, totalPermanentSize: 1 }),
     );
   const track = (itemId: string, localPath: string, permanent: boolean) => ({

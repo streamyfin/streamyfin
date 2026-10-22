@@ -12,6 +12,7 @@ import { EventEmitter } from "eventemitter3";
 import { Directory, File, Paths } from "expo-file-system";
 import type { EventSubscription } from "expo-modules-core";
 import { Platform } from "react-native";
+import { AUDIO_STORAGE_INDEX_KEY } from "@/constants/Music";
 import type {
   DownloadCompleteEvent as BGDownloadCompleteEvent,
   DownloadErrorEvent as BGDownloadErrorEvent,
@@ -29,9 +30,6 @@ import type {
   DownloadOptions,
   StoredTrackInfo,
 } from "./types";
-
-// Storage keys
-const AUDIO_STORAGE_INDEX_KEY = "audio_storage.v1.json";
 
 // Directory names
 const AUDIO_CACHE_DIR = "streamyfin-audio-cache";
