@@ -11,15 +11,21 @@ bun run perf:baseline   # measure a baseline
 bun run perf            # measure the current code, and compare it to the baseline
 ```
 
-To compare your branch against `develop`:
+To compare your branch against the branch its PR targets, commit your changes and run:
 
-1. Commit or stash your changes, then switch to `develop` and run `bun i`.
-2. Run `bun run perf:baseline`.
-3. Switch back to your branch, run `bun i` again if `bun.lock` changed, then run `bun run perf`.
+```bash
+bun run perf:baseline:branch              # the open PR's target, else upstream/develop; then switches back
+bun run perf:baseline:branch <base-ref>   # a base of your choosing, for example a PR stacked on another branch
+bun run perf
+```
 
-The comparison is written to `.reassure/output.md`. The `.reassure/` folder is gitignored, so the baseline survives switching branches.
+The target comes from `gh pr view`, the same fact CI uses. Without a PR it falls back to `develop`, looked up on `upstream` before `origin`. A branch stacked on another one should name its parent, so the parent's gains don't count as yours. The script prints the base it chose.
 
-CI does the same thing on every PR that touches code the scenarios can reach (the `paths` filter in `perf.yml`), measuring the PR's own base branch as the baseline, so a PR stacked on another one is compared against that one rather than `develop`. It posts the result as a comment on the PR (`perf.yml`, `perf-comment.yml`). The comment is a report, not a gate: a regression won't fail the build. The comment is not Reassure's own report: `scripts/reassure-report.ts` rebuilds it from `.reassure/output.json`, because Reassure puts a 🔴 on any 5% change however small in milliseconds, and on every render issue. In the comment a 🔴 means a duration regression of at least 1 ms and 10%, or a render count that went up. Render issues and smaller changes are left out; the full Reassure report is in the job summary and in `.reassure/output.md` locally. If your PR shows one, look into it, and either fix it or explain in the PR why it's expected.
+The baseline is measured with the scenario files and `test-utils/` doubles your branch added or changed copied onto the base, so a new scenario has a baseline in the same PR that adds it, and a changed one is compared as the same test. A scenario that needs code only your branch has can't run on the base; it is reported and left without a baseline.
+
+The comparison is written to `.reassure/output.md`. The `.reassure/` folder is gitignored.
+
+CI does the same on every PR that touches code the scenarios can reach (the `paths` filter in `perf.yml`), measuring the PR's own base branch as the baseline, so a PR stacked on another one is compared against that one rather than `develop`. It posts the result as a comment on the PR (`perf.yml`, `perf-comment.yml`). The comment is a report, not a gate: a regression won't fail the build. The comment is not Reassure's own report: `scripts/reassure-report.ts` rebuilds it from `.reassure/output.json`, because Reassure puts a 🔴 on any 5% change however small in milliseconds, and on every render issue. In the comment a 🔴 means a duration regression of at least 1 ms and 10%, or a render count that went up. Render issues and smaller changes are left out; the full Reassure report is in the job summary and in `.reassure/output.md` locally. If your PR shows one, look into it, and either fix it or explain in the PR why it's expected.
 
 ## Where the files go
 
