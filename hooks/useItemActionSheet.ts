@@ -1,10 +1,10 @@
-import { useActionSheet } from "@expo/react-native-action-sheet";
 import type {
   BaseItemDto,
   BaseItemKind,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
+import { useActionSheet } from "@/hooks/useActionSheet";
 import { useFavorite } from "@/hooks/useFavorite";
 import { useMarkAsPlayed } from "@/hooks/useMarkAsPlayed";
 import { useDownload } from "@/providers/DownloadProvider";

@@ -1,11 +1,13 @@
 import { Ionicons } from "@expo/vector-icons";
-import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Keyboard, TouchableOpacity, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button } from "@/components/Button";
+import {
+  SheetScrollView,
+  useSheetContentPadding,
+} from "@/components/common/SheetContent";
 import { Text } from "@/components/common/Text";
 import {
   type CustomHeader,
@@ -44,7 +46,7 @@ export function CustomHeaderSheet({
   onClose,
 }: CustomHeaderSheetProps): React.ReactElement {
   const { t } = useTranslation();
-  const insets = useSafeAreaInsets();
+  const padding = useSheetContentPadding();
 
   const [headers, setHeaders] = useState<CustomHeader[]>(initialHeaders);
   const [showPresets, setShowPresets] = useState(false);
@@ -93,11 +95,9 @@ export function CustomHeaderSheet({
   };
 
   return (
-    <BottomSheetScrollView
+    <SheetScrollView
       contentContainerStyle={{
-        paddingHorizontal: 16,
-        paddingTop: 8,
-        paddingBottom: insets.bottom + 16 + keyboardHeight,
+        paddingBottom: padding.paddingBottom + keyboardHeight,
         gap: 12,
       }}
     >
@@ -152,6 +152,6 @@ export function CustomHeaderSheet({
           <Button onPress={onClose}>{t("custom_headers.done")}</Button>
         </>
       )}
-    </BottomSheetScrollView>
+    </SheetScrollView>
   );
 }

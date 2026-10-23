@@ -1,6 +1,4 @@
-import { useActionSheet } from "@expo/react-native-action-sheet";
 import { Feather, Ionicons } from "@expo/vector-icons";
-import { BottomSheetView } from "@gorhom/bottom-sheet";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { useAtom, useAtomValue } from "jotai";
 import { useCallback, useEffect } from "react";
@@ -23,7 +21,9 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
+import { SheetView } from "@/components/common/SheetContent";
 import { RECEIVER_LOAD_TIMEOUT_MS } from "@/constants/Cast";
+import { useActionSheet } from "@/hooks/useActionSheet";
 import { useHaptic } from "@/hooks/useHaptic";
 import type { ThemeColors } from "@/hooks/useImageColorsReturn";
 import { usePlayMedia } from "@/hooks/usePlayMedia";
@@ -255,8 +255,8 @@ export const PlayButton: React.FC<Props> = ({
         if (Platform.OS === "android") {
           // Show bottom sheet for Android
           showModal(
-            <BottomSheetView>
-              <View className='px-4 mt-4 mb-12'>
+            <SheetView>
+              <View>
                 <View className='pb-6'>
                   <Text className='text-2xl font-bold mb-2'>
                     {t("player.downloaded_file_title")}
@@ -298,11 +298,8 @@ export const PlayButton: React.FC<Props> = ({
                   </Button>
                 </View>
               </View>
-            </BottomSheetView>,
-            {
-              snapPoints: ["35%"],
-              enablePanDownToClose: true,
-            },
+            </SheetView>,
+            { enablePanDownToClose: true },
           );
         } else {
           // Show alert for iOS
