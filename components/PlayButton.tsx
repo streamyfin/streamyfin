@@ -95,11 +95,13 @@ export const PlayButton: React.FC<Props> = ({
   const choosePlayerAndPlay = useCallback(
     async (playRequest: PlayRequest, askPlayer: boolean) => {
       if (!item) return;
+      // The version being played, for the subtitles another app is handed.
+      const playOptions = { item, mediaSource: selectedOptions.mediaSource };
 
       // A downloaded file plays from this device, so only a stream is cast.
       const canCast = !!client && !playRequest.offline;
       if (!canCast && !askPlayer) {
-        await playMedia(playRequest, { item });
+        await playMedia(playRequest, playOptions);
         return;
       }
 
@@ -219,16 +221,19 @@ export const PlayButton: React.FC<Props> = ({
               break;
             case "device":
               await playMedia(playRequest, {
-                item,
+                ...playOptions,
                 externalPlayer: askPlayer ? false : undefined,
               });
               break;
             case "otherApp":
-              await playMedia(playRequest, { item, externalPlayer: true });
+              await playMedia(playRequest, {
+                ...playOptions,
+                externalPlayer: true,
+              });
               break;
             case "chooseApp":
               await playMedia(playRequest, {
-                item,
+                ...playOptions,
                 externalPlayer: true,
                 chooseApp: true,
               });

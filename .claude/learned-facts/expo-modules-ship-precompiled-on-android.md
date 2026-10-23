@@ -6,7 +6,7 @@
 
 ## Detail
 
-Since SDK 57 most `expo-*` packages carry a prebuilt AAR in
+On SDK 57 (seen there; when it started was not checked) `expo-*` packages carry a prebuilt AAR in
 `node_modules/<pkg>/local-maven-repo/`, declared as `android.publication` in
 their `expo-module.config.json`. Autolinking links that AAR instead of
 compiling `android/src`. A `bun patch` of the Kotlin sources applies cleanly,

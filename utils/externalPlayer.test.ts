@@ -3,6 +3,8 @@ import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import type { ExternalPlayerMode } from "@/constants/ExternalPlayer";
 import {
   buildExternalPlayerLaunchParams,
+  buildExternalPlayerSubtitleExtras,
+  getExternalPlayerSubtitles,
   getExternalPlayerUri,
   isExternalPlayerEnabled,
   readExternalPlayerResult,
@@ -10,7 +12,7 @@ import {
 } from "./externalPlayer";
 
 const mockExisting = new Set<string>();
-let mockDownloaded: Record<string, { videoFilePath: string }> = {};
+let mockDownloaded: Record<string, Record<string, unknown>> = {};
 
 jest.mock("expo-file-system", () => ({
   File: class {
@@ -123,6 +125,128 @@ describe("getExternalPlayerUri", () => {
 
   it("has nothing to hand over online without a signed in api", () => {
     expect(getExternalPlayerUri(null, online)).toBeNull();
+  });
+});
+
+describe("getExternalPlayerSubtitles", () => {
+  const api = {
+    basePath: "https://jf.example",
+    accessToken: "token",
+  } as Api;
+  const srt = (source: string, index: number) =>
+    `https://jf.example/Videos/item-1/${source}/Subtitles/${index}/Stream.srt?ApiKey=token`;
+  const item: BaseItemDto = {
+    MediaSources: [
+      {
+        Id: "source-1",
+        DefaultSubtitleStreamIndex: 3,
+        MediaStreams: [
+          { Type: "Video", Index: 0 },
+          { Type: "Subtitle", Index: 2, IsTextSubtitleStream: true },
+          { Type: "Subtitle", Index: 3, IsTextSubtitleStream: true },
+          { Type: "Subtitle", Index: 4, IsTextSubtitleStream: false },
+          // No index, so no route to ask the server for it by.
+          { Type: "Subtitle", IsTextSubtitleStream: true },
+        ],
+      },
+      {
+        Id: "source-2",
+        MediaStreams: [
+          { Type: "Subtitle", Index: 5, IsTextSubtitleStream: true },
+        ],
+      },
+    ],
+  };
+
+  beforeEach(() => {
+    mockExisting.clear();
+    mockDownloaded = {};
+  });
+
+  // A Chromecast shows no subtitle from inside the file: BubbleUPnP needs them
+  // all as files, embedded ones included. Image subtitles cannot be text.
+  it("hands over every text subtitle of a stream as SRT, the picked one first", () => {
+    expect(
+      getExternalPlayerSubtitles(api, { ...online, subtitleIndex: 3 }, item),
+    ).toEqual({
+      uris: [srt("source-1", 3), srt("source-1", 2)],
+      selected: srt("source-1", 3),
+    });
+  });
+
+  it("selects the source's default when nothing was picked", () => {
+    expect(getExternalPlayerSubtitles(api, online, item).selected).toBe(
+      srt("source-1", 3),
+    );
+  });
+
+  it("selects none, but still hands them over, when subtitles are off", () => {
+    expect(
+      getExternalPlayerSubtitles(api, { ...online, subtitleIndex: -1 }, item),
+    ).toEqual({ uris: [srt("source-1", 2), srt("source-1", 3)] });
+  });
+
+  // An item page loads MediaSources apart from the item it plays.
+  it("takes the subtitles of the media source it is given over the item's", () => {
+    expect(
+      getExternalPlayerSubtitles(api, online, {}, item.MediaSources![1]).uris,
+    ).toEqual([srt("source-2", 5)]);
+  });
+
+  it("takes the subtitles of the version being played", () => {
+    expect(
+      getExternalPlayerSubtitles(
+        api,
+        { ...online, mediaSourceId: "source-2" },
+        item,
+      ).uris,
+    ).toEqual([srt("source-2", 5)]);
+  });
+
+  it("hands over the subtitle files saved with a download", () => {
+    mockDownloaded["item-1"] = {
+      userData: { subtitleStreamIndex: 1 },
+      mediaSource: {
+        MediaStreams: [
+          { Type: "Subtitle", Index: 0, DeliveryUrl: "file:///docs/a.srt" },
+          { Type: "Subtitle", Index: 1, DeliveryUrl: "file:///docs/b.srt" },
+          // Never saved: the server's URL, which is useless offline.
+          { Type: "Subtitle", Index: 2, DeliveryUrl: "/Videos/item-1/sub" },
+          // Saved, then deleted.
+          { Type: "Subtitle", Index: 3, DeliveryUrl: "file:///docs/d.srt" },
+        ],
+      },
+    };
+    mockExisting.add("file:///docs/a.srt");
+    mockExisting.add("file:///docs/b.srt");
+
+    expect(getExternalPlayerSubtitles(api, offline, item)).toEqual({
+      uris: ["content://provider/docs/b.srt", "content://provider/docs/a.srt"],
+      selected: "content://provider/docs/b.srt",
+    });
+  });
+
+  it("has none without a signed in api or a known source", () => {
+    expect(getExternalPlayerSubtitles(null, online, item).uris).toEqual([]);
+    expect(getExternalPlayerSubtitles(api, online, {}).uris).toEqual([]);
+  });
+});
+
+describe("buildExternalPlayerSubtitleExtras", () => {
+  it("lists every subtitle and enables the selected one", () => {
+    expect(
+      buildExternalPlayerSubtitleExtras({ uris: ["a", "b"], selected: "a" }),
+    ).toEqual({ subs: ["a", "b"], "subs.enable": ["a"] });
+  });
+
+  it("enables none when subtitles are off", () => {
+    expect(buildExternalPlayerSubtitleExtras({ uris: ["a"] })).toEqual({
+      subs: ["a"],
+    });
+  });
+
+  it("sends nothing without subtitles", () => {
+    expect(buildExternalPlayerSubtitleExtras({ uris: [] })).toBeUndefined();
   });
 });
 
