@@ -1,0 +1,64 @@
+diff --git a/android/src/main/java/expo/modules/intentlauncher/IntentLauncherModule.kt b/android/src/main/java/expo/modules/intentlauncher/IntentLauncherModule.kt
+index 2a85454974457eb6bd01714687959b2cad08697c..17e959fa95c1219e32dfbca169653d37fb551f92 100644
+--- a/android/src/main/java/expo/modules/intentlauncher/IntentLauncherModule.kt
++++ b/android/src/main/java/expo/modules/intentlauncher/IntentLauncherModule.kt
+@@ -84,9 +84,12 @@ class IntentLauncherModule : Module() {
+       }
+       params.flags?.let { intent.addFlags(it) }
+       params.category?.let { intent.addCategory(it) }
++      // The chooser ignores the default app set for this intent, and carries the
++      // intent's URI grant over to the app picked in it.
++      val launched = params.chooserTitle?.let { Intent.createChooser(intent, it) } ?: intent
+ 
+       try {
+-        appContext.throwingActivity.startActivityForResult(intent, REQUEST_CODE)
++        appContext.throwingActivity.startActivityForResult(launched, REQUEST_CODE)
+         pendingPromise = promise
+       } catch (e: Throwable) {
+         promise.reject(e.toCodedException())
+diff --git a/android/src/main/java/expo/modules/intentlauncher/IntentLauncherParams.kt b/android/src/main/java/expo/modules/intentlauncher/IntentLauncherParams.kt
+index 303c5fc2dc57502d7e0a22cb15202774385c2808..63f4595c9bce1b3b0fd83b34b3771ac5829d3b5a 100644
+--- a/android/src/main/java/expo/modules/intentlauncher/IntentLauncherParams.kt
++++ b/android/src/main/java/expo/modules/intentlauncher/IntentLauncherParams.kt
+@@ -25,5 +25,8 @@ data class IntentLauncherParams(
+   val packageName: String?,
+ 
+   @Field
+-  val className: String?
++  val className: String?,
++
++  @Field
++  val chooserTitle: String?
+ ) : Record
+diff --git a/build/IntentLauncher.d.ts b/build/IntentLauncher.d.ts
+index df467ad52f1e312b0aa51c103bc8e6dd89d412b0..99acf49d7adad253bfa9c59fe00f124ee0a8c8f6 100644
+--- a/build/IntentLauncher.d.ts
++++ b/build/IntentLauncher.d.ts
+@@ -256,6 +256,11 @@ export interface IntentLauncherParams {
+      * Class name of the ComponentName.
+      */
+     className?: string;
++    /**
++     * When set, starts the intent through the system chooser with this title, so the user picks
++     * the app even when a default is set. See [`Intent.createChooser`](https://developer.android.com/reference/android/content/Intent#createChooser(android.content.Intent,%20java.lang.CharSequence)).
++     */
++    chooserTitle?: string;
+ }
+ export interface IntentLauncherResult {
+     /**
+diff --git a/src/IntentLauncher.ts b/src/IntentLauncher.ts
+index 62715eb8866fecc219f30e4e57adaa8ea810cebc..5d147869bd8af71c24ae9af15f791b500a29e228 100644
+--- a/src/IntentLauncher.ts
++++ b/src/IntentLauncher.ts
+@@ -263,6 +263,11 @@ export interface IntentLauncherParams {
+    * Class name of the ComponentName.
+    */
+   className?: string;
++  /**
++   * When set, starts the intent through the system chooser with this title, so the user picks
++   * the app even when a default is set. See [`Intent.createChooser`](https://developer.android.com/reference/android/content/Intent#createChooser(android.content.Intent,%20java.lang.CharSequence)).
++   */
++  chooserTitle?: string;
+ }
+ 
+ // @needsAudit

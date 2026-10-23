@@ -261,7 +261,9 @@
         "mode_downloads": "Downloaded items",
         "mode_all": "All items",
         "note": "Plays in another player app on this device. Watch progress is only saved when that app reports it back. Live TV and SyncPlay always play in Streamyfin.",
-        "open_failed": "Couldn't open another app to play this. Playing it in Streamyfin instead."
+        "open_failed": "Couldn't open another app to play this. Playing it in Streamyfin instead.",
+        "choose_app_hint": "Long-press the play button to choose the app, even if you have a default one.",
+        "chooser_title": "Play with"
       },
       "buffer": {
         "title": "Buffer settings",

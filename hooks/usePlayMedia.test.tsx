@@ -59,10 +59,14 @@ jest.mock("react-i18next", () => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }));
 
-const play = async (item: BaseItemDto, offline = false) => {
+const play = async (
+  item: BaseItemDto,
+  offline = false,
+  options?: { chooseApp?: boolean },
+) => {
   const { result } = await renderHook(() => usePlayMedia());
   await act(async () => {
-    await result.current({ itemId: item.Id!, offline }, { item });
+    await result.current({ itemId: item.Id!, offline }, { item, ...options });
   });
 };
 
@@ -208,9 +212,32 @@ describe("usePlayMedia", () => {
       expect(mockPlayExternally).toHaveBeenCalledWith(
         { itemId: "movie-1", offline: true },
         movie,
+        expect.not.objectContaining({ chooseApp: true }),
       );
       expect(mockPresentFromRequest).not.toHaveBeenCalled();
       expect(mockPush).not.toHaveBeenCalled();
+    });
+
+    test("asks which app plays it when the caller wants to choose", async () => {
+      mockExternalPlayerMode = "all";
+
+      await play(movie, false, { chooseApp: true });
+
+      expect(mockPlayExternally).toHaveBeenCalledWith(
+        { itemId: "movie-1", offline: false },
+        movie,
+        expect.objectContaining({ chooseApp: true }),
+      );
+    });
+
+    // The long press that asks for the app must still play when nothing goes out.
+    test("plays in the app as usual when asked to choose but nothing goes out", async () => {
+      mockExternalPlayerMode = "downloads";
+
+      await play(movie, false, { chooseApp: true });
+
+      expect(mockPlayExternally).not.toHaveBeenCalled();
+      expect(mockPush).toHaveBeenCalled();
     });
 
     test("keeps an online item in the app when only downloads go out", async () => {
