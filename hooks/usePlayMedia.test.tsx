@@ -11,6 +11,13 @@ let mockSyncPlayEnabled = false;
 const mockSyncPlayItems = jest.fn();
 const mockSyncPlaylistItem = jest.fn();
 let mockSyncPlaylist: { ItemId: string; PlaylistItemId: string }[] = [];
+let mockExternalPlayerSupported = true;
+let mockExternalPlayerMode = "off";
+const mockPlayExternally = jest.fn();
+
+jest.mock("@/hooks/useExternalPlayer", () => ({
+  useExternalPlayer: () => mockPlayExternally,
+}));
 
 jest.mock("@/providers/SyncPlayProvider", () => ({
   useSyncPlay: () => ({
@@ -32,23 +39,30 @@ jest.mock("@/providers/NativePlayerProvider", () => ({
   useNativePlayer: () => ({ presentFromRequest: mockPresentFromRequest }),
 }));
 jest.mock("@/utils/atoms/settings", () => ({
+  get isExternalPlayerSupported() {
+    return mockExternalPlayerSupported;
+  },
   isNativeChromeActive: () => mockNativeChromeActive,
   useSettings: () => ({
-    settings: {},
+    settings: { externalPlayerMode: mockExternalPlayerMode },
   }),
 }));
 jest.mock("@/utils/stillWatching", () => ({
   resetStillWatchingSession: () => mockResetStillWatchingSession(),
 }));
 jest.mock("@/utils/log", () => ({ writeErrorLog: jest.fn() }));
+jest.mock(
+  "react-native-mmkv",
+  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
+);
 jest.mock("react-i18next", () => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }));
 
-const play = async (item: BaseItemDto) => {
+const play = async (item: BaseItemDto, offline = false) => {
   const { result } = await renderHook(() => usePlayMedia());
   await act(async () => {
-    await result.current({ itemId: item.Id!, offline: false }, { item });
+    await result.current({ itemId: item.Id!, offline }, { item });
   });
 };
 
@@ -64,6 +78,9 @@ describe("usePlayMedia", () => {
     mockSyncPlayItems.mockReset().mockResolvedValue(undefined);
     mockSyncPlaylistItem.mockReset().mockResolvedValue(undefined);
     mockSyncPlaylist = [];
+    mockExternalPlayerSupported = true;
+    mockExternalPlayerMode = "off";
+    mockPlayExternally.mockReset().mockResolvedValue(true);
     alert = jest.spyOn(Alert, "alert").mockImplementation(() => {});
   });
 
@@ -177,5 +194,75 @@ describe("usePlayMedia", () => {
 
     expect(mockPresentFromRequest).not.toHaveBeenCalled();
     expect(mockPush).not.toHaveBeenCalled();
+  });
+
+  describe("external player", () => {
+    const movie: BaseItemDto = { Id: "movie-1", Type: "Movie" };
+
+    test("plays a downloaded item in the other app", async () => {
+      mockExternalPlayerMode = "downloads";
+      mockNativeChromeActive = true;
+
+      await play(movie, true);
+
+      expect(mockPlayExternally).toHaveBeenCalledWith(
+        { itemId: "movie-1", offline: true },
+        movie,
+      );
+      expect(mockPresentFromRequest).not.toHaveBeenCalled();
+      expect(mockPush).not.toHaveBeenCalled();
+    });
+
+    test("keeps an online item in the app when only downloads go out", async () => {
+      mockExternalPlayerMode = "downloads";
+
+      await play(movie);
+
+      expect(mockPlayExternally).not.toHaveBeenCalled();
+      expect(mockPush).toHaveBeenCalled();
+    });
+
+    test("plays an online item in the other app when all items go out", async () => {
+      mockExternalPlayerMode = "all";
+
+      await play(movie);
+
+      expect(mockPlayExternally).toHaveBeenCalled();
+      expect(mockPush).not.toHaveBeenCalled();
+    });
+
+    test("plays in the app, and says so, when no other app could be opened", async () => {
+      mockExternalPlayerMode = "all";
+      mockPlayExternally.mockResolvedValue(false);
+
+      await play(movie);
+
+      expect(alert).toHaveBeenCalledWith(
+        "player.error",
+        "home.settings.external_player.open_failed",
+      );
+      expect(mockPush).toHaveBeenCalled();
+    });
+
+    // The plugin can push the setting to a platform that has no handoff.
+    test("ignores the setting where media cannot be handed to another app", async () => {
+      mockExternalPlayerSupported = false;
+      mockExternalPlayerMode = "all";
+
+      await play(movie);
+
+      expect(mockPlayExternally).not.toHaveBeenCalled();
+      expect(mockPush).toHaveBeenCalled();
+    });
+
+    test("leaves a SyncPlay group's playback to the group", async () => {
+      mockExternalPlayerMode = "all";
+      mockSyncPlayEnabled = true;
+
+      await play(movie);
+
+      expect(mockPlayExternally).not.toHaveBeenCalled();
+      expect(mockSyncPlayItems).toHaveBeenCalled();
+    });
   });
 });

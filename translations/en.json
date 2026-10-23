@@ -254,6 +254,15 @@
         "native_tv_note": "Use the new fully-native Apple TV player. Turn it off to fall back to the previous player if you run into playback issues.",
         "native_android_tv_note": "Use the new fully-native Android TV player with the same MPV or ExoPlayer engine you selected above. Turn it off to fall back to the previous player if you run into playback issues."
       },
+      "external_player": {
+        "title": "External player",
+        "mode": "Play in another app",
+        "mode_off": "Off",
+        "mode_downloads": "Downloaded items",
+        "mode_all": "All items",
+        "note": "Plays in another player app on this device. Watch progress is only saved when that app reports it back. Live TV and SyncPlay always play in Streamyfin.",
+        "open_failed": "Couldn't open another app to play this. Playing it in Streamyfin instead."
+      },
       "buffer": {
         "title": "Buffer settings",
         "cache_mode": "Cache mode",
