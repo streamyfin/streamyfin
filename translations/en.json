@@ -261,7 +261,7 @@
         "mode_ask_on_long_press": "Ask on long press",
         "mode_ask": "Ask every time",
         "mode_external": "External player",
-        "note": "Watch progress is only saved if the other app reports it. Live TV and SyncPlay stay in Streamyfin.",
+        "note": "Watch progress is only saved if the other app reports it. Live TV and SyncPlay stay in Streamyfin. Streamed videos open with your sign-in, so pick apps you trust.",
         "open_failed": "Couldn't open another app to play this. Playing it in Streamyfin instead.",
         "chooser_title": "Play with"
       },
