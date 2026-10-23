@@ -10,9 +10,8 @@ export const POSTER_CAROUSEL_HEIGHT = 220;
 // which is what tells the user the sheet is a layer and not a new screen.
 export const SHEET_MAX_HEIGHT_RATIO = 0.85;
 
-// Space around a bottom sheet's content, on top of the safe area insets.
+// Bottom sheet content padding, on top of the safe area insets.
 export const SHEET_PADDING = 16;
-// Space between the sheet's handle and its content.
 export const SHEET_PADDING_TOP = 8;
 
 /** A poster's width over its height, as TMDB's artwork is cut. */
