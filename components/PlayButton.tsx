@@ -40,6 +40,7 @@ import {
   receiverNameFor,
 } from "@/utils/cast/jellyfinReceiver";
 import { castNotStartedMessage } from "@/utils/cast/receiverLoadErrorMessage";
+import { shouldUseExternalPlayer } from "@/utils/externalPlayer";
 import { logAndCaptureError, writeErrorLog } from "@/utils/log";
 import type { PlayRequest } from "@/utils/nativePlayer/playRequest";
 import { formatDuration, runtimeTicksToMinutes } from "@/utils/time";
@@ -446,15 +447,19 @@ export const PlayButton: React.FC<Props> = ({
   );
 
   // "ask" asks on every tap. "askOnLongPress" and "external" ask on a long
-  // press, for "external" the way back to Streamyfin and the chooser. Left
-  // unset otherwise, so a long press plays as a tap.
+  // press, for "external" the way back to Streamyfin and the chooser. Never
+  // for what cannot go to another app (Live TV, a SyncPlay group): a long
+  // press then plays as a tap.
   const externalPlayerMode = isExternalPlayerSupported
     ? settings.externalPlayerMode
     : "off";
-  const askPlayerOnTap = externalPlayerMode === "ask";
+  const canAskPlayer =
+    !inSyncPlayGroup && shouldUseExternalPlayer(externalPlayerMode, item, true);
+  const askPlayerOnTap = canAskPlayer && externalPlayerMode === "ask";
   const askPlayerOnLongPress =
-    externalPlayerMode === "askOnLongPress" ||
-    externalPlayerMode === "external";
+    canAskPlayer &&
+    (externalPlayerMode === "askOnLongPress" ||
+      externalPlayerMode === "external");
 
   const derivedTargetWidth = useDerivedValue(() => {
     if (!item?.RunTimeTicks) return 0;
