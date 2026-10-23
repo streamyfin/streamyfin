@@ -3,10 +3,7 @@ import type { ComponentProps } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { SHEET_PADDING, SHEET_PADDING_TOP } from "@/constants/Values";
 
-/**
- * Padding for the content of a bottom sheet. The app draws edge to edge, so a
- * sheet reaches under the Android navigation bar and the iOS home indicator.
- */
+/** Sheet content padding that keeps clear of the navigation bar. */
 export const useSheetContentPadding = () => {
   const insets = useSafeAreaInsets();
   return {
@@ -17,6 +14,7 @@ export const useSheetContentPadding = () => {
   };
 };
 
+/** BottomSheetView with the sheet content padding. */
 export const SheetView = ({
   style,
   ...props
@@ -25,6 +23,7 @@ export const SheetView = ({
   return <BottomSheetView style={[padding, style]} {...props} />;
 };
 
+/** BottomSheetScrollView with the sheet content padding. */
 export const SheetScrollView = ({
   contentContainerStyle,
   ...props

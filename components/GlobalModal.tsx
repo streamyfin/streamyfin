@@ -16,9 +16,6 @@ import { useGlobalModal } from "@/providers/GlobalModalProvider";
  *
  * Place this component at the root level of your app (in _layout.tsx)
  * after BottomSheetModalProvider.
- *
- * Wrap the content in SheetView or SheetScrollView from
- * components/common/SheetContent, which keep it clear of the screen edges.
  */
 export const GlobalModal = () => {
   const { hideModal, modalState, modalRef, isVisible } = useGlobalModal();

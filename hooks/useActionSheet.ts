@@ -5,11 +5,7 @@ import {
 import { useCallback } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-/**
- * useActionSheet from @expo/react-native-action-sheet, kept above the Android
- * navigation bar: the library draws its own sheet there and ignores the safe
- * area. iOS shows the system sheet, which ignores containerStyle.
- */
+/** The library's hook, padded above the Android navigation bar it ignores. */
 export const useActionSheet = (): ActionSheetProps => {
   const { showActionSheetWithOptions } = useLibraryActionSheet();
   const { bottom } = useSafeAreaInsets();
