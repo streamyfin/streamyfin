@@ -256,14 +256,14 @@ describe("buildExternalPlayerLaunchParams", () => {
     UserData: { PlaybackPositionTicks: 600_000_000 },
   };
 
-  it("asks for the position back and names the video", () => {
+  it("asks for the position back, names the video and hides the link", () => {
     expect(buildExternalPlayerLaunchParams(online, item)).toEqual({
       return_result: true,
+      secure_uri: true,
       position: 60_000,
       title: "A Movie",
     });
   });
-
   it("starts at the requested position over the stored one", () => {
     expect(
       buildExternalPlayerLaunchParams(

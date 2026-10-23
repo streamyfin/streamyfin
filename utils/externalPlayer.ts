@@ -161,7 +161,11 @@ export const buildExternalPlayerLaunchParams = (
   req: PlayRequest,
   item?: BaseItemDto | null,
 ): Record<string, unknown> => {
-  const params: Record<string, unknown> = { return_result: true };
+  // secure_uri: a streamed link carries the session token; keep it out of view.
+  const params: Record<string, unknown> = {
+    return_result: true,
+    secure_uri: true,
+  };
   const positionMs = ticksToMs(
     req.playbackPositionTicks ?? item?.UserData?.PlaybackPositionTicks ?? 0,
   );
