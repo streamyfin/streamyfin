@@ -8,6 +8,7 @@ import { tvSyncPlayModalAtom } from "@/utils/atoms/tvSyncPlayModal";
 import { store } from "@/utils/store";
 import type { SyncPlaySeed } from "@/utils/syncplay/types";
 
+/** The SyncPlay panel, scrollable inside the sheet. */
 function SyncPlaySheetContent({
   seed,
   onClose,
