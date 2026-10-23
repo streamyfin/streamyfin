@@ -8,25 +8,28 @@ import type { PlayRequest } from "@/utils/nativePlayer/playRequest";
 import { msToTicks, ticksToMs } from "@/utils/time";
 
 /**
- * Whether some items go to another app. A mode this build does not know (the
- * plugin can push one) plays as off.
+ * Whether video can go to another app at all. A mode this build does not know
+ * (the plugin can push one) plays as off.
  */
 export const isExternalPlayerEnabled = (
   mode: ExternalPlayerMode | undefined,
-): boolean => mode === "downloads" || mode === "all";
+): boolean =>
+  mode === "askOnLongPress" || mode === "ask" || mode === "external";
 
 /**
- * Whether this play request goes to another app. Live TV never does: the
- * in-app route opens the server's live stream and has to close it again.
+ * Whether this play goes to another app: where the user picked when asked,
+ * otherwise where a tap goes (asking is the play button's sheet, so without a
+ * pick both asking modes play in Streamyfin). Live TV never does: the in-app
+ * route opens the server's live stream and has to close it again.
  */
 export const shouldUseExternalPlayer = (
   mode: ExternalPlayerMode | undefined,
-  req: PlayRequest,
   item?: BaseItemDto | null,
+  picked?: boolean,
 ): boolean => {
   if (!isExternalPlayerEnabled(mode)) return false;
   if (item?.Type === "Program" || item?.Type === "TvChannel") return false;
-  return mode === "all" || req.offline;
+  return picked ?? mode === "external";
 };
 
 /**

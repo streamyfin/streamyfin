@@ -62,7 +62,7 @@ jest.mock("react-i18next", () => ({
 const play = async (
   item: BaseItemDto,
   offline = false,
-  options?: { chooseApp?: boolean },
+  options?: { chooseApp?: boolean; externalPlayer?: boolean },
 ) => {
   const { result } = await renderHook(() => usePlayMedia());
   await act(async () => {
@@ -203,63 +203,63 @@ describe("usePlayMedia", () => {
   describe("external player", () => {
     const movie: BaseItemDto = { Id: "movie-1", Type: "Movie" };
 
-    test("plays a downloaded item in the other app", async () => {
-      mockExternalPlayerMode = "downloads";
+    test("plays every tap in the other app, downloaded or streamed", async () => {
+      mockExternalPlayerMode = "external";
       mockNativeChromeActive = true;
 
       await play(movie, true);
+      await play(movie, false);
 
-      expect(mockPlayExternally).toHaveBeenCalledWith(
+      expect(mockPlayExternally).toHaveBeenNthCalledWith(
+        1,
         { itemId: "movie-1", offline: true },
         movie,
         expect.not.objectContaining({ chooseApp: true }),
+      );
+      expect(mockPlayExternally).toHaveBeenNthCalledWith(
+        2,
+        { itemId: "movie-1", offline: false },
+        movie,
+        expect.anything(),
       );
       expect(mockPresentFromRequest).not.toHaveBeenCalled();
       expect(mockPush).not.toHaveBeenCalled();
     });
 
-    test("asks which app plays it when the caller wants to choose", async () => {
-      mockExternalPlayerMode = "all";
+    // Asking is the play button's sheet; a play without a pick stays in the app.
+    test("plays in the app when the ask mode gets no pick", async () => {
+      mockExternalPlayerMode = "ask";
 
-      await play(movie, false, { chooseApp: true });
+      await play(movie);
+
+      expect(mockPlayExternally).not.toHaveBeenCalled();
+      expect(mockPush).toHaveBeenCalled();
+    });
+
+    test("plays in the other app when the user picked it", async () => {
+      mockExternalPlayerMode = "ask";
+
+      await play(movie, false, { externalPlayer: true, chooseApp: true });
 
       expect(mockPlayExternally).toHaveBeenCalledWith(
         { itemId: "movie-1", offline: false },
         movie,
         expect.objectContaining({ chooseApp: true }),
       );
-    });
-
-    // The long press that asks for the app must still play when nothing goes out.
-    test("plays in the app as usual when asked to choose but nothing goes out", async () => {
-      mockExternalPlayerMode = "downloads";
-
-      await play(movie, false, { chooseApp: true });
-
-      expect(mockPlayExternally).not.toHaveBeenCalled();
-      expect(mockPush).toHaveBeenCalled();
-    });
-
-    test("keeps an online item in the app when only downloads go out", async () => {
-      mockExternalPlayerMode = "downloads";
-
-      await play(movie);
-
-      expect(mockPlayExternally).not.toHaveBeenCalled();
-      expect(mockPush).toHaveBeenCalled();
-    });
-
-    test("plays an online item in the other app when all items go out", async () => {
-      mockExternalPlayerMode = "all";
-
-      await play(movie);
-
-      expect(mockPlayExternally).toHaveBeenCalled();
       expect(mockPush).not.toHaveBeenCalled();
     });
 
+    test("plays in the app when the user picked this device", async () => {
+      mockExternalPlayerMode = "external";
+
+      await play(movie, false, { externalPlayer: false });
+
+      expect(mockPlayExternally).not.toHaveBeenCalled();
+      expect(mockPush).toHaveBeenCalled();
+    });
+
     test("plays in the app, and says so, when no other app could be opened", async () => {
-      mockExternalPlayerMode = "all";
+      mockExternalPlayerMode = "external";
       mockPlayExternally.mockResolvedValue(false);
 
       await play(movie);
@@ -274,7 +274,7 @@ describe("usePlayMedia", () => {
     // The plugin can push the setting to a platform that has no handoff.
     test("ignores the setting where media cannot be handed to another app", async () => {
       mockExternalPlayerSupported = false;
-      mockExternalPlayerMode = "all";
+      mockExternalPlayerMode = "external";
 
       await play(movie);
 
@@ -283,7 +283,7 @@ describe("usePlayMedia", () => {
     });
 
     test("leaves a SyncPlay group's playback to the group", async () => {
-      mockExternalPlayerMode = "all";
+      mockExternalPlayerMode = "external";
       mockSyncPlayEnabled = true;
 
       await play(movie);

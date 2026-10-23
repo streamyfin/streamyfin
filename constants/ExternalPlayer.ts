@@ -1,9 +1,15 @@
 /**
- * Which items play in another player app on the device instead of
- * Streamyfin's own. `downloads` hands over downloaded files only; `all` also
- * hands over online items, as a direct stream of the original file.
+ * Where a tap on the play button sends video. `ask` shows a sheet with
+ * Streamyfin, the other player app and the system chooser; `askOnLongPress`
+ * plays a tap in Streamyfin and shows that sheet on a long press; `external`
+ * goes straight to the other app and also leaves the sheet to a long press.
  */
-export const EXTERNAL_PLAYER_MODES = ["off", "downloads", "all"] as const;
+export const EXTERNAL_PLAYER_MODES = [
+  "off",
+  "askOnLongPress",
+  "ask",
+  "external",
+] as const;
 export type ExternalPlayerMode = (typeof EXTERNAL_PLAYER_MODES)[number];
 
 /** Off, so every install keeps playing in Streamyfin until someone opts in. */

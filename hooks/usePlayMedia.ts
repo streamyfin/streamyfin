@@ -38,6 +38,11 @@ interface PlayMediaOptions extends ExternalPlayerOptions {
    * refuse an item that has nothing to play before a player is opened.
    */
   item?: BaseItemDto | null;
+  /**
+   * Another app (true) or Streamyfin (false), as the user picked in the play
+   * button's sheet. Unset, settings.externalPlayerMode decides.
+   */
+  externalPlayer?: boolean;
 }
 
 /**
@@ -110,7 +115,11 @@ export const usePlayMedia = () => {
 
       if (
         isExternalPlayerSupported &&
-        shouldUseExternalPlayer(settings.externalPlayerMode, req, options?.item)
+        shouldUseExternalPlayer(
+          settings.externalPlayerMode,
+          options?.item,
+          options?.externalPlayer,
+        )
       ) {
         if (await playExternally(req, options?.item, options)) return;
         // Same rule as the native path: a broken handoff must not block playback.
