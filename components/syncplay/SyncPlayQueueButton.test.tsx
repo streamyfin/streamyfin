@@ -15,7 +15,7 @@ jest.mock("react-i18next", () => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }));
 jest.mock("@expo/vector-icons", () => ({ MaterialCommunityIcons: () => null }));
-jest.mock("@expo/react-native-action-sheet", () => ({
+jest.mock("@/hooks/useActionSheet", () => ({
   useActionSheet: () => ({
     showActionSheetWithOptions: (
       _options: unknown,
