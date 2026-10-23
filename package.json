@@ -171,6 +171,13 @@
         "react-native-svg",
         "@sentry/react-native"
       ]
+    },
+    "autolinking": {
+      "android": {
+        "buildFromSource": [
+          "expo-intent-launcher"
+        ]
+      }
     }
   },
   "private": true,
@@ -189,7 +196,8 @@
   "patchedDependencies": {
     "react-native-udp@4.1.7": "patches/react-native-udp@4.1.7.patch",
     "react-native-track-player@github:lovegaoshi/react-native-track-player#d2baf9a": "patches/react-native-track-player@4.1.1.patch",
-    "react-native-bottom-tabs@1.4.0": "patches/react-native-bottom-tabs@1.4.0.patch"
+    "react-native-bottom-tabs@1.4.0": "patches/react-native-bottom-tabs@1.4.0.patch",
+    "expo-intent-launcher@57.0.1": "patches/expo-intent-launcher@57.0.1.patch"
   },
   "jest": {
     "preset": "jest-expo",

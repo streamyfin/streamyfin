@@ -4,7 +4,10 @@ import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert } from "react-native";
 import useRouter from "@/hooks/useAppRouter";
-import { useExternalPlayer } from "@/hooks/useExternalPlayer";
+import {
+  type ExternalPlayerOptions,
+  useExternalPlayer,
+} from "@/hooks/useExternalPlayer";
 import { isNativePlayerPresented } from "@/modules/mpv-player";
 import { useNativePlayer } from "@/providers/NativePlayerProvider";
 import { useSyncPlay } from "@/providers/SyncPlayProvider";
@@ -23,7 +26,8 @@ import {
 } from "@/utils/nativePlayer/playRequest";
 import { resetStillWatchingSession } from "@/utils/stillWatching";
 
-interface PlayMediaOptions {
+/** `chooseApp` only applies when the request goes to another player app. */
+interface PlayMediaOptions extends ExternalPlayerOptions {
   /** Shuffle sets the queue right before playing — don't clear it. */
   preserveShuffleQueue?: boolean;
   /** Complete ordered video queue; the requested item selects its start index. */
@@ -108,7 +112,7 @@ export const usePlayMedia = () => {
         isExternalPlayerSupported &&
         shouldUseExternalPlayer(settings.externalPlayerMode, req, options?.item)
       ) {
-        if (await playExternally(req, options?.item)) return;
+        if (await playExternally(req, options?.item, options)) return;
         // Same rule as the native path: a broken handoff must not block playback.
         Alert.alert(
           t("player.error"),

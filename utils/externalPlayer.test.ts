@@ -1,8 +1,10 @@
 import type { Api } from "@jellyfin/sdk";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
+import type { ExternalPlayerMode } from "@/constants/ExternalPlayer";
 import {
   buildExternalPlayerLaunchParams,
   getExternalPlayerUri,
+  isExternalPlayerEnabled,
   readExternalPlayerResult,
   shouldUseExternalPlayer,
 } from "./externalPlayer";
@@ -30,6 +32,19 @@ jest.mock("@/providers/Downloads/database", () => ({
 
 const online = { itemId: "item-1", offline: false };
 const offline = { itemId: "item-1", offline: true };
+
+describe("isExternalPlayerEnabled", () => {
+  it.each([
+    ["off", false],
+    ["downloads", true],
+    ["all", true],
+    // The plugin can push a mode this build does not know.
+    ["picture-in-picture", false],
+    [undefined, false],
+  ])("is %s -> %s", (mode, expected) => {
+    expect(isExternalPlayerEnabled(mode as ExternalPlayerMode)).toBe(expected);
+  });
+});
 
 describe("shouldUseExternalPlayer", () => {
   it.each([

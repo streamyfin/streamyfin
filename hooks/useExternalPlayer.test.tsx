@@ -1,5 +1,8 @@
 import { act, renderHook } from "@testing-library/react-native";
-import { useExternalPlayer } from "./useExternalPlayer";
+import {
+  type ExternalPlayerOptions,
+  useExternalPlayer,
+} from "./useExternalPlayer";
 
 const mockStartActivity = jest.fn();
 const mockSaveLocal = jest.fn();
@@ -38,15 +41,25 @@ jest.mock(
   "react-native-mmkv",
   () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
 );
+jest.mock("react-i18next", () => ({
+  useTranslation: () => ({ t: (key: string) => key }),
+}));
 
 const req = { itemId: "movie-1", offline: true, mediaSourceId: "source-1" };
 
-const playReturning = async (extra?: object) => {
+const playReturning = async (
+  extra?: object,
+  options?: ExternalPlayerOptions,
+) => {
   mockStartActivity.mockResolvedValue({ resultCode: -1, extra });
   const { result } = await renderHook(() => useExternalPlayer());
   let opened: boolean | undefined;
   await act(async () => {
-    opened = await result.current(req, { Id: "movie-1", Name: "A Movie" });
+    opened = await result.current(
+      req,
+      { Id: "movie-1", Name: "A Movie" },
+      options,
+    );
   });
   return opened;
 };
@@ -70,8 +83,31 @@ describe("useExternalPlayer", () => {
         data: "content://provider/movie.mkv",
         type: "video/*",
         flags: 1,
+        chooserTitle: undefined,
       }),
     );
+  });
+
+  // Android skips its own dialog once the user set a default app.
+  test("asks which app plays it through the chooser when asked to", async () => {
+    await playReturning(undefined, { chooseApp: true });
+
+    expect(mockStartActivity).toHaveBeenCalledWith(
+      "android.intent.action.VIEW",
+      expect.objectContaining({
+        data: "content://provider/movie.mkv",
+        chooserTitle: "home.settings.external_player.chooser_title",
+      }),
+    );
+  });
+
+  test("reads the position back from an app picked in the chooser", async () => {
+    await playReturning({ position: 90_000 }, { chooseApp: true });
+
+    expect(mockSaveLocal).toHaveBeenCalledWith({
+      ItemId: "movie-1",
+      PositionTicks: 900_000_000,
+    });
   });
 
   test("reports where the other app stopped, locally and to the server", async () => {

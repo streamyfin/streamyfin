@@ -8,18 +8,25 @@ import type { PlayRequest } from "@/utils/nativePlayer/playRequest";
 import { msToTicks, ticksToMs } from "@/utils/time";
 
 /**
+ * Whether some items go to another app. A mode this build does not know (the
+ * plugin can push one) plays as off.
+ */
+export const isExternalPlayerEnabled = (
+  mode: ExternalPlayerMode | undefined,
+): boolean => mode === "downloads" || mode === "all";
+
+/**
  * Whether this play request goes to another app. Live TV never does: the
- * in-app route opens the server's live stream and has to close it again. A
- * mode this build does not know (the plugin can push one) plays as off.
+ * in-app route opens the server's live stream and has to close it again.
  */
 export const shouldUseExternalPlayer = (
   mode: ExternalPlayerMode | undefined,
   req: PlayRequest,
   item?: BaseItemDto | null,
 ): boolean => {
+  if (!isExternalPlayerEnabled(mode)) return false;
   if (item?.Type === "Program" || item?.Type === "TvChannel") return false;
-  if (mode === "all") return true;
-  return mode === "downloads" && req.offline;
+  return mode === "all" || req.offline;
 };
 
 /**
