@@ -54,17 +54,18 @@ export const useExternalPlayer = () => {
       item?: BaseItemDto | null,
       options?: ExternalPlayerOptions,
     ): Promise<boolean> => {
-      const uri = getExternalPlayerUri(api, req);
-      if (!uri) return false;
-      const subtitles = getExternalPlayerSubtitles(
-        api,
-        req,
-        item,
-        options?.mediaSource,
-      );
-
       let extra: object | undefined;
+      // Preparing reads the download record too: a damaged one must count as
+      // nothing opened, so the caller still plays it in the app.
       try {
+        const uri = getExternalPlayerUri(api, req);
+        if (!uri) return false;
+        const subtitles = getExternalPlayerSubtitles(
+          api,
+          req,
+          item,
+          options?.mediaSource,
+        );
         ({ extra } = await startActivityAsync(ACTION_VIEW, {
           data: uri,
           type: "video/*",

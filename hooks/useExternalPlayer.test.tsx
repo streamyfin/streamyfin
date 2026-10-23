@@ -10,6 +10,7 @@ const mockMarkPlayed = jest.fn();
 const mockReportStopped = jest.fn();
 let mockUri: string | null = "content://provider/movie.mkv";
 let mockSubtitles: { uris: string[]; selected?: string } = { uris: [] };
+let mockSubtitlesError: Error | null = null;
 let mockConnected = true;
 const mockApi = { basePath: "https://jf.example", accessToken: "token" };
 
@@ -36,7 +37,10 @@ jest.mock("@jellyfin/sdk/lib/utils/api", () => ({
 jest.mock("@/utils/externalPlayer", () => ({
   ...jest.requireActual("@/utils/externalPlayer"),
   getExternalPlayerUri: () => mockUri,
-  getExternalPlayerSubtitles: () => mockSubtitles,
+  getExternalPlayerSubtitles: () => {
+    if (mockSubtitlesError) throw mockSubtitlesError;
+    return mockSubtitles;
+  },
 }));
 jest.mock("@/utils/log", () => ({ writeErrorLog: jest.fn() }));
 jest.mock(
@@ -74,6 +78,7 @@ describe("useExternalPlayer", () => {
     mockReportStopped.mockReset().mockResolvedValue(undefined);
     mockUri = "content://provider/movie.mkv";
     mockSubtitles = { uris: [] };
+    mockSubtitlesError = null;
     mockConnected = true;
   });
 
@@ -183,6 +188,15 @@ describe("useExternalPlayer", () => {
     });
 
     expect(opened).toBe(false);
+  });
+
+  // A damaged download record must not leave the user with nothing playing:
+  // the caller falls back to the in-app player on false, not on a throw.
+  test("says it could not open anything when the handoff cannot be prepared", async () => {
+    mockSubtitlesError = new TypeError("Cannot read properties of undefined");
+
+    expect(await playReturning()).toBe(false);
+    expect(mockStartActivity).not.toHaveBeenCalled();
   });
 
   test("says it could not open anything when there is no file to hand over", async () => {
