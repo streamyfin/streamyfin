@@ -36,10 +36,11 @@ const offline = { itemId: "item-1", offline: true };
 describe("isExternalPlayerEnabled", () => {
   it.each([
     ["off", false],
-    ["downloads", true],
-    ["all", true],
-    // The plugin can push a mode this build does not know.
-    ["picture-in-picture", false],
+    ["askOnLongPress", true],
+    ["ask", true],
+    ["external", true],
+    // The plugin can push a mode this build does not know, or an older one.
+    ["all", false],
     [undefined, false],
   ])("is %s -> %s", (mode, expected) => {
     expect(isExternalPlayerEnabled(mode as ExternalPlayerMode)).toBe(expected);
@@ -47,29 +48,37 @@ describe("isExternalPlayerEnabled", () => {
 });
 
 describe("shouldUseExternalPlayer", () => {
+  const movie = { Type: "Movie" } as const;
+
   it.each([
-    ["off", "an online", online, false],
-    ["off", "a downloaded", offline, false],
-    ["downloads", "an online", online, false],
-    ["downloads", "a downloaded", offline, true],
-    ["all", "an online", online, true],
-    ["all", "a downloaded", offline, true],
-  ] as const)("mode %s, %s item: external %p", (mode, _, req, expected) => {
-    expect(shouldUseExternalPlayer(mode, req)).toBe(expected);
+    ["off", undefined, false],
+    ["askOnLongPress", undefined, false],
+    ["ask", undefined, false],
+    ["external", undefined, true],
+    ["askOnLongPress", true, true],
+    ["ask", true, true],
+    ["external", false, false],
+  ] as const)("mode %s, picked %p: external %p", (mode, picked, expected) => {
+    expect(shouldUseExternalPlayer(mode, movie, picked)).toBe(expected);
+  });
+
+  // The sheet only offers another app while one is on; the setting wins.
+  it("keeps a pick of another app in Streamyfin while the setting is off", () => {
+    expect(shouldUseExternalPlayer("off", movie, true)).toBe(false);
   });
 
   it("keeps Live TV in the app, which has to close the live stream", () => {
-    expect(shouldUseExternalPlayer("all", online, { Type: "TvChannel" })).toBe(
+    expect(shouldUseExternalPlayer("external", { Type: "TvChannel" })).toBe(
       false,
     );
-    expect(shouldUseExternalPlayer("all", online, { Type: "Program" })).toBe(
+    expect(shouldUseExternalPlayer("external", { Type: "Program" }, true)).toBe(
       false,
     );
   });
 
   it("plays a mode it does not know, or none, in the app", () => {
-    expect(shouldUseExternalPlayer(undefined, offline)).toBe(false);
-    expect(shouldUseExternalPlayer("bogus" as never, offline)).toBe(false);
+    expect(shouldUseExternalPlayer(undefined, movie)).toBe(false);
+    expect(shouldUseExternalPlayer("bogus" as never, movie)).toBe(false);
   });
 });
 

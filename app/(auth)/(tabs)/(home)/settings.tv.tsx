@@ -773,10 +773,11 @@ export default function SettingsTV() {
     return option?.label || "MPV";
   }, [videoPlayerOptions]);
 
-  // TV has no downloads, so "downloads" is not offered and plays as off.
+  // The TV item page has no sheet to ask with, and a remote no long press, so
+  // neither asking mode is offered and both play as off.
   const externalPlayerOptions: TVOptionItem<ExternalPlayerMode>[] = useMemo(
     () =>
-      (["off", "all"] as const).map((mode) => ({
+      (["off", "external"] as const).map((mode) => ({
         label: t(EXTERNAL_PLAYER_MODE_LABEL_KEYS[mode]),
         value: mode,
         selected: mode === settings.externalPlayerMode,

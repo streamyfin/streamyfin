@@ -47,8 +47,7 @@ export const ExternalPlayerSettings: React.FC<ViewProps> = ({ ...props }) => {
       title={t("home.settings.external_player.title")}
       description={
         <Text className='text-[#8E8D91] text-xs'>
-          {t("home.settings.external_player.note")}{" "}
-          {t("home.settings.external_player.choose_app_hint")}
+          {t("home.settings.external_player.note")}
         </Text>
       }
       {...props}

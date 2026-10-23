@@ -6,6 +6,7 @@ export const EXTERNAL_PLAYER_MODE_LABEL_KEYS: Record<
   string
 > = {
   off: "home.settings.external_player.mode_off",
-  downloads: "home.settings.external_player.mode_downloads",
-  all: "home.settings.external_player.mode_all",
+  askOnLongPress: "home.settings.external_player.mode_ask_on_long_press",
+  ask: "home.settings.external_player.mode_ask",
+  external: "home.settings.external_player.mode_external",
 };
