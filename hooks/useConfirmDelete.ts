@@ -1,7 +1,7 @@
-import { useActionSheet } from "@expo/react-native-action-sheet";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, Platform } from "react-native";
+import { useActionSheet } from "@/hooks/useActionSheet";
 
 interface ConfirmDeleteOptions {
   /** Heading for the prompt, usually the name of what is being deleted. */
