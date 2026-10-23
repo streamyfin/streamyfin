@@ -69,7 +69,7 @@ export interface ExternalPlayerSubtitles {
 }
 
 interface SubtitleFile {
-  index: number;
+  index?: number;
   uri: string;
 }
 
@@ -120,7 +120,7 @@ const downloadedSubtitles = (
       return [];
     }
     const file = new File(s.DeliveryUrl);
-    return file.exists ? [{ index: s.Index ?? -1, uri: file.contentUri }] : [];
+    return file.exists ? [{ index: s.Index, uri: file.contentUri }] : [];
   });
   return { files, defaultIndex: downloaded?.userData?.subtitleStreamIndex };
 };
@@ -140,7 +140,10 @@ export const getExternalPlayerSubtitles = (
     ? downloadedSubtitles(req)
     : streamedSubtitles(api, req, item, mediaSource);
   const selectedIndex = req.subtitleIndex ?? defaultIndex;
-  const selected = files.find((f) => f.index === selectedIndex)?.uri;
+  const selected =
+    selectedIndex == null
+      ? undefined
+      : files.find((f) => f.index === selectedIndex)?.uri;
   return {
     uris: [
       ...(selected ? [selected] : []),
