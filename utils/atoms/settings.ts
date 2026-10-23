@@ -15,6 +15,10 @@ import { useCallback, useEffect } from "react";
 import { Platform } from "react-native";
 import { BITRATES, type Bitrate } from "@/components/BitrateSelector";
 import {
+  DEFAULT_EXTERNAL_PLAYER_MODE,
+  type ExternalPlayerMode,
+} from "@/constants/ExternalPlayer";
+import {
   DEFAULT_MUSIC_NORMALIZATION_MODE,
   type MusicNormalizationMode,
 } from "@/constants/Music";
@@ -254,6 +258,13 @@ export const isNativePlayerSupportedAndroidTV =
   Platform.OS === "android" && Boolean(Platform.isTV);
 
 /**
+ * Whether this platform can hand media to another player app. Each platform
+ * needs its own way to do that; Android, phone and TV, is the one that has it
+ * so far.
+ */
+export const isExternalPlayerSupported = Platform.OS === "android";
+
+/**
  * The DECODING ENGINE for the current settings — never `Native`. MPV is the
  * universal default; ExoPlayer is an opt-in alternative on Android TV. The
  * engine axis is independent of the controls axis: the fully-native chrome
@@ -414,6 +425,8 @@ export type Settings = {
   searchEngine: "Marlin" | "Jellyfin" | "Streamystats";
   /** Video player backend. Defaults to MPV when unset (see getActiveVideoPlayer). */
   videoPlayer?: VideoPlayer;
+  /** Which items play in another app instead, see constants/ExternalPlayer.ts. Per device. */
+  externalPlayerMode: ExternalPlayerMode;
   marlinServerUrl?: string;
   streamyStatsServerUrl?: string;
   streamyStatsMovieRecommendations?: boolean;
@@ -617,6 +630,7 @@ export const defaultValues: Settings = {
   searchEngine: "Jellyfin",
   // videoPlayer intentionally undefined — resolved at runtime via
   // getActiveVideoPlayer() so existing installs are unaffected.
+  externalPlayerMode: DEFAULT_EXTERNAL_PLAYER_MODE,
   marlinServerUrl: "",
   streamyStatsServerUrl: "",
   streamyStatsMovieRecommendations: false,

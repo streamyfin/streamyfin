@@ -4,11 +4,17 @@ import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert } from "react-native";
 import useRouter from "@/hooks/useAppRouter";
+import { useExternalPlayer } from "@/hooks/useExternalPlayer";
 import { isNativePlayerPresented } from "@/modules/mpv-player";
 import { useNativePlayer } from "@/providers/NativePlayerProvider";
 import { useSyncPlay } from "@/providers/SyncPlayProvider";
-import { isNativeChromeActive, useSettings } from "@/utils/atoms/settings";
+import {
+  isExternalPlayerSupported,
+  isNativeChromeActive,
+  useSettings,
+} from "@/utils/atoms/settings";
 import { shuffleQueueAtom } from "@/utils/atoms/shuffleQueue";
+import { shouldUseExternalPlayer } from "@/utils/externalPlayer";
 import { isPlayableItem } from "@/utils/jellyfin/media/isPlayableItem";
 import { writeErrorLog } from "@/utils/log";
 import {
@@ -32,7 +38,8 @@ interface PlayMediaOptions {
 
 /**
  * Single entry point for starting video playback on mobile and TV. Routes to
- * the presented native player (isNativeChromeActive) or the JS player route;
+ * another player app (settings.externalPlayerMode), the presented
+ * native player (isNativeChromeActive) or the JS player route;
  * any native decline (unsupported platform, Live TV, config/present failure)
  * falls through to the route, so a broken native path can never block
  * playback. The engine — selected via settings.videoPlayer — travels inside
@@ -44,6 +51,7 @@ export const usePlayMedia = () => {
   const setShuffleQueue = useSetAtom(shuffleQueueAtom);
   const { presentFromRequest } = useNativePlayer();
   const syncPlay = useSyncPlay();
+  const playExternally = useExternalPlayer();
   const { t } = useTranslation();
 
   return useCallback(
@@ -96,6 +104,18 @@ export const usePlayMedia = () => {
         setShuffleQueue(null);
       }
 
+      if (
+        isExternalPlayerSupported &&
+        shouldUseExternalPlayer(settings.externalPlayerMode, req, options?.item)
+      ) {
+        if (await playExternally(req, options?.item)) return;
+        // Same rule as the native path: a broken handoff must not block playback.
+        Alert.alert(
+          t("player.error"),
+          t("home.settings.external_player.open_failed"),
+        );
+      }
+
       const isLiveTv =
         options?.item?.Type === "Program" ||
         options?.item?.Type === "TvChannel";
@@ -119,6 +139,14 @@ export const usePlayMedia = () => {
 
       router.push(`/player/direct-player?${toDirectPlayerQuery(req)}`);
     },
-    [router, settings, setShuffleQueue, presentFromRequest, syncPlay, t],
+    [
+      router,
+      settings,
+      setShuffleQueue,
+      presentFromRequest,
+      playExternally,
+      syncPlay,
+      t,
+    ],
   );
 };
