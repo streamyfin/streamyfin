@@ -225,7 +225,8 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
               ? positionTicks
               : 0,
           },
-          { item },
+          // The version, for the subtitles an external player is handed.
+          { item, mediaSource: selectedOptions.mediaSource },
         );
       },
       [item, selectedOptions, isOffline, playMedia],
