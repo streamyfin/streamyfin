@@ -26,7 +26,7 @@ import {
 } from "@/utils/nativePlayer/playRequest";
 import { resetStillWatchingSession } from "@/utils/stillWatching";
 
-/** `chooseApp` only applies when the request goes to another player app. */
+/** The ExternalPlayerOptions only apply when the request goes to another app. */
 interface PlayMediaOptions extends ExternalPlayerOptions {
   /** Shuffle sets the queue right before playing — don't clear it. */
   preserveShuffleQueue?: boolean;

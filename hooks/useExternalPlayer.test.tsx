@@ -9,6 +9,7 @@ const mockSaveLocal = jest.fn();
 const mockMarkPlayed = jest.fn();
 const mockReportStopped = jest.fn();
 let mockUri: string | null = "content://provider/movie.mkv";
+let mockSubtitles: { uris: string[]; selected?: string } = { uris: [] };
 let mockConnected = true;
 const mockApi = { basePath: "https://jf.example", accessToken: "token" };
 
@@ -35,6 +36,7 @@ jest.mock("@jellyfin/sdk/lib/utils/api", () => ({
 jest.mock("@/utils/externalPlayer", () => ({
   ...jest.requireActual("@/utils/externalPlayer"),
   getExternalPlayerUri: () => mockUri,
+  getExternalPlayerSubtitles: () => mockSubtitles,
 }));
 jest.mock("@/utils/log", () => ({ writeErrorLog: jest.fn() }));
 jest.mock(
@@ -71,6 +73,7 @@ describe("useExternalPlayer", () => {
     mockMarkPlayed.mockReset().mockResolvedValue(undefined);
     mockReportStopped.mockReset().mockResolvedValue(undefined);
     mockUri = "content://provider/movie.mkv";
+    mockSubtitles = { uris: [] };
     mockConnected = true;
   });
 
@@ -84,6 +87,26 @@ describe("useExternalPlayer", () => {
         type: "video/*",
         flags: 1,
         chooserTitle: undefined,
+      }),
+    );
+  });
+
+  // The MX Player API's URI list, which mpv, Just Player and BubbleUPnP read.
+  test("hands the subtitles over as the MX Player API's list", async () => {
+    mockSubtitles = {
+      uris: ["content://provider/b.srt", "content://provider/a.srt"],
+      selected: "content://provider/b.srt",
+    };
+
+    await playReturning();
+
+    expect(mockStartActivity).toHaveBeenCalledWith(
+      "android.intent.action.VIEW",
+      expect.objectContaining({
+        uriArrayExtras: {
+          subs: ["content://provider/b.srt", "content://provider/a.srt"],
+          "subs.enable": ["content://provider/b.srt"],
+        },
       }),
     );
   });

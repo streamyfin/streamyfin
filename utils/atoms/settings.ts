@@ -425,7 +425,7 @@ export type Settings = {
   searchEngine: "Marlin" | "Jellyfin" | "Streamystats";
   /** Video player backend. Defaults to MPV when unset (see getActiveVideoPlayer). */
   videoPlayer?: VideoPlayer;
-  /** Which items play in another app instead, see constants/ExternalPlayer.ts. Per device. */
+  /** Where a tap on play sends video, see constants/ExternalPlayer.ts. Per device. */
   externalPlayerMode: ExternalPlayerMode;
   marlinServerUrl?: string;
   streamyStatsServerUrl?: string;

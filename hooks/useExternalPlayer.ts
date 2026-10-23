@@ -1,4 +1,7 @@
-import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
+import type {
+  BaseItemDto,
+  MediaSourceInfo,
+} from "@jellyfin/sdk/lib/generated-client";
 import { getPlaystateApi } from "@jellyfin/sdk/lib/utils/api";
 import { startActivityAsync } from "expo-intent-launcher";
 import { useAtomValue } from "jotai";
@@ -9,6 +12,8 @@ import { usePlaybackManager } from "@/hooks/usePlaybackManager";
 import { apiAtom } from "@/utils/atoms/api";
 import {
   buildExternalPlayerLaunchParams,
+  buildExternalPlayerSubtitleExtras,
+  getExternalPlayerSubtitles,
   getExternalPlayerUri,
   readExternalPlayerResult,
 } from "@/utils/externalPlayer";
@@ -21,6 +26,11 @@ const FLAG_GRANT_READ_URI_PERMISSION = 1;
 export interface ExternalPlayerOptions {
   /** Ask which app plays it, even when the user set a default one. */
   chooseApp?: boolean;
+  /**
+   * The version being played, for its subtitles. An item page loads the
+   * item's MediaSources apart from the item, so they are not on it.
+   */
+  mediaSource?: MediaSourceInfo | null;
 }
 
 /**
@@ -46,6 +56,12 @@ export const useExternalPlayer = () => {
     ): Promise<boolean> => {
       const uri = getExternalPlayerUri(api, req);
       if (!uri) return false;
+      const subtitles = getExternalPlayerSubtitles(
+        api,
+        req,
+        item,
+        options?.mediaSource,
+      );
 
       let extra: object | undefined;
       try {
@@ -54,6 +70,7 @@ export const useExternalPlayer = () => {
           type: "video/*",
           flags: FLAG_GRANT_READ_URI_PERMISSION,
           extra: buildExternalPlayerLaunchParams(req, item),
+          uriArrayExtras: buildExternalPlayerSubtitleExtras(subtitles),
           chooserTitle: options?.chooseApp
             ? t("home.settings.external_player.chooser_title")
             : undefined,
