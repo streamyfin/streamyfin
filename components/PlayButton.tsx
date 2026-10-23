@@ -127,7 +127,6 @@ export const PlayButton: React.FC<Props> = ({
           cancelButtonIndex: choices.length - 1,
         },
         async (selectedIndex: number | undefined) => {
-          if (!api) return;
           const currentTitle = mediaStatus?.mediaInfo?.metadata?.title;
           const isOpeningCurrentlyPlayingMedia =
             currentTitle && currentTitle === item?.Name;
