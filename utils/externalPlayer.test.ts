@@ -226,6 +226,22 @@ describe("getExternalPlayerSubtitles", () => {
     });
   });
 
+  it("turns no subtitle on when they are off and one has no index", () => {
+    mockDownloaded["item-1"] = {
+      mediaSource: {
+        MediaStreams: [{ Type: "Subtitle", DeliveryUrl: "file:///docs/a.srt" }],
+      },
+    };
+    mockExisting.add("file:///docs/a.srt");
+
+    expect(
+      getExternalPlayerSubtitles(api, { ...offline, subtitleIndex: -1 }, item),
+    ).toEqual({ uris: ["content://provider/docs/a.srt"] });
+    expect(getExternalPlayerSubtitles(api, offline, item).selected).toBe(
+      undefined,
+    );
+  });
+
   it("has none without a signed in api or a known source", () => {
     expect(getExternalPlayerSubtitles(null, online, item).uris).toEqual([]);
     expect(getExternalPlayerSubtitles(api, online, {}).uris).toEqual([]);
