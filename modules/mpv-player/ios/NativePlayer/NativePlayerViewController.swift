@@ -377,6 +377,10 @@ final class NativePlayerViewController: UIViewController {
 		// The arrows repeat while held, so holding one keeps seeking. The space
 		// bar is not a key command: a command repeats too and a held space bar
 		// would flip play and pause, a press fires once.
+		// With an overlay up the commands are withdrawn: a command with priority
+		// swallows the arrow before the focus system sees it, and the overlays
+		// are navigated with Full Keyboard Access.
+		guard keyboardInputAllowed else { return [] }
 		let commands = [
 			UIKeyCommand(input: UIKeyCommand.inputLeftArrow, modifierFlags: [], action: #selector(handleLeftArrowKey)),
 			UIKeyCommand(input: UIKeyCommand.inputRightArrow, modifierFlags: [], action: #selector(handleRightArrowKey)),
@@ -386,11 +390,12 @@ final class NativePlayerViewController: UIViewController {
 	}
 
 	override func pressesBegan(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
-		guard presses.contains(where: { $0.key?.keyCode == .keyboardSpacebar }) else {
+		// Anything not ours goes up the chain, space included while an overlay
+		// is up, so it can still activate the focused button there.
+		guard presses.contains(where: { $0.key?.keyCode == .keyboardSpacebar }), keyboardInputAllowed else {
 			super.pressesBegan(presses, with: event)
 			return
 		}
-		guard keyboardInputAllowed else { return }
 		viewModel.showControls()
 		viewModel.togglePlayPause()
 	}
