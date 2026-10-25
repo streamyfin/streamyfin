@@ -390,7 +390,9 @@ final class NativePlayerViewController: UIViewController {
 			super.pressesBegan(presses, with: event)
 			return
 		}
-		if keyboardInputAllowed { viewModel.togglePlayPause() }
+		guard keyboardInputAllowed else { return }
+		viewModel.showControls()
+		viewModel.togglePlayPause()
 	}
 
 	/// The prompts and the lock mode own the input, same as the touch controls:
@@ -401,11 +403,13 @@ final class NativePlayerViewController: UIViewController {
 
 	@objc private func handleLeftArrowKey() {
 		guard keyboardInputAllowed else { return }
+		viewModel.showControls()
 		viewModel.seekBackward()
 	}
 
 	@objc private func handleRightArrowKey() {
 		guard keyboardInputAllowed else { return }
+		viewModel.showControls()
 		viewModel.seekForward()
 	}
 	#endif
