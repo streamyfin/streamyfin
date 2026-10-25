@@ -6,4 +6,4 @@
 
 ## Detail
 
-On iPhone and iPad the native player is the default (`isNativeChromeActive`, an unset `videoPlayer`). It is presented as its own view controller with SwiftUI controls, so `Controls.tsx` never mounts and anything wired there, hooks like `useKeyEventListener` included, does nothing in the default player. Input that must work in both players needs a native counterpart: the hardware keyboard (space, arrows) is a `UIKeyCommand` set in `NativePlayerViewController`, which claims first responder in `viewDidAppear`.
+On iPhone and iPad the native player is the default (`isNativeChromeActive`, an unset `videoPlayer`). It is presented as its own view controller with SwiftUI controls, so `Controls.tsx` never mounts and anything wired there, hooks like `useKeyEventListener` included, does nothing in the default player. Input that must work in both players needs a native counterpart: the hardware keyboard is handled in `NativePlayerViewController`, which claims first responder in `viewDidAppear`: the arrows are `UIKeyCommand`s (they repeat while held), space is handled in `pressesBegan` (a held key toggles once).
