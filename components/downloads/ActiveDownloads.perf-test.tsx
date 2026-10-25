@@ -11,6 +11,11 @@ import type { JobStatus } from "@/providers/Downloads/types";
 import { makeItems } from "@/test-utils/baseItems";
 import { usePerfQueryClient } from "@/test-utils/queryWrapper";
 
+// DownloadProvider watches the network for the next episodes check.
+jest.mock("@react-native-community/netinfo", () =>
+  jest.requireActual("@react-native-community/netinfo/jest/netinfo-mock.js"),
+);
+
 const makeJob = (id: string, progress = 0): JobStatus => ({
   id,
   itemId: id,
