@@ -128,7 +128,7 @@
     "@react-native-community/cli": "20.2.0",
     "@react-native-tvos/config-tv": "0.1.6",
     "@testing-library/react-native": "14.0.1",
-    "@types/bun": "1.4.2",
+    "@types/bun": "1.4.4",
     "@types/jest": "29.5.14",
     "@types/lodash": "4.17.25",
     "@types/node": "26.6.4",
