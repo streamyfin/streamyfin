@@ -59,9 +59,12 @@ const controls = (source: string): Control[] =>
     }
     const tag = source.slice(start, end);
     return {
-      keys: [...tag.matchAll(/updateSettings\(\{\s*(\w+)/g)].map(
-        (write) => write[1],
-      ),
+      // The audio and subtitle choices write through updateMediaSettings.
+      keys: [
+        ...tag.matchAll(
+          /\b(?:updateSettings|updateMediaSettings)\(\{\s*(\w+)/g,
+        ),
+      ].map((write) => write[1]),
       lock: tag.match(/disabledByAdmin=\{([^}]*)\}/)?.[1],
     };
   });
