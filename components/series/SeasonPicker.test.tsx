@@ -48,6 +48,13 @@ jest.mock("../DownloadItem", () => ({
   DownloadSingleItem: () => null,
 }));
 jest.mock("../PlayedStatus", () => ({ PlayedStatus: () => null }));
+jest.mock("../AddToKefinWatchlist", () => ({
+  AddToKefinWatchlist: () => null,
+}));
+// The real settings atom loads MMKV, whose native module Jest cannot load.
+jest.mock("@/utils/atoms/settings", () => ({
+  useSettings: () => ({ settings: {} }),
+}));
 jest.mock("@/components/syncplay/SyncPlayQueueButton", () => ({
   SyncPlayQueueButton: () => null,
 }));

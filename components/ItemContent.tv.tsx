@@ -43,6 +43,7 @@ import {
   TVRefreshButton,
   TVSeriesNavigation,
   TVTechnicalDetails,
+  TVWatchlistButton,
 } from "@/components/tv";
 import type { Track } from "@/components/video-player/controls/types";
 import { useScaledTVTypography } from "@/constants/TVTypography";
@@ -851,6 +852,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                 {/* Exactly one element asks for the initial focus: Play when
                     it is there, otherwise the first button left in the row. */}
                 <TVFavoriteButton item={item} hasTVPreferredFocus={!playable} />
+                {settings.useKefinTweaks && <TVWatchlistButton item={item} />}
                 <TVPlayedButton
                   item={versionItem ?? item}
                   disabled={isVersionPending}
