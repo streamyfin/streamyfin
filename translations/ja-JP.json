@@ -163,6 +163,8 @@
         "download_live_activity_hint": "ロック画面とDynamic Islandにダウンロードの進行状況を表示します。",
         "merge_next_up_continue_watching": "「続きを見る」と「次はこちら」を統合",
         "merge_next_up_continue_watching_hint": "「続きを見る」と「次はこちら」をホームの1行にまとめます。",
+        "show_upcoming_on_home": "ホームに放送予定のエピソードを表示",
+        "show_upcoming_on_home_hint": "テレビ番組ライブラリでまもなく放送されるエピソードの行をホームに追加します。",
         "use_episode_images_next_up": "「次はこちら」と「続きを見る」でエピソード画像を使用",
         "use_episode_images_next_up_hint": "「次はこちら」と「続きを見る」の行に、シリーズ画像ではなく各エピソードのサムネイルを表示します。",
         "hide_remote_session_button": "リモートセッションボタンを隠す",
@@ -225,8 +227,11 @@
         "enter_the_quick_connect_code": "クイックコネクトコードを入力...",
         "success": "成功しました",
         "quick_connect_authorized": "クイックコネクトが承認されました",
+        "quick_connect_authorized_for": "{{username}} のクイックコネクトを承認しました",
+        "user": "ユーザー",
+        "selected_user_unavailable": "選択したユーザーは利用できなくなりました",
         "invalid_code": "無効なコードです",
-        "disabled": "Quick Connect is turned off on this server. An administrator can turn it on in the server's dashboard.",
+        "disabled": "このサーバーではクイックコネクトが無効になっています。管理者がサーバーのダッシュボードで有効にできます。",
         "authorize": "承認",
         "paste_code": "コードを貼り付け"
       },
@@ -389,10 +394,18 @@
         "select_libraries_you_want_to_hide": "ライブラリタブとホームページセクションから非表示にするライブラリを選択します。",
         "disable_haptic_feedback": "触覚フィードバックを無効にする",
         "resume_dialog": "続きから再生するか最初から再生するかを確認",
+        "confirm_before_stopping_playback": "再生を停止する前に確認する",
         "default_quality": "デフォルトの品質",
         "default_playback_speed": "デフォルトの再生速度",
         "auto_play_next_episode": "次のエピソードを自動再生",
-        "max_auto_play_episode_count": "自動再生エピソードの最大数",
+        "still_watching": "「まだご覧になっていますか？」と確認する",
+        "still_watching_hint": "長時間の視聴後、次のエピソードを自動再生する前に、まだ誰かが見ているか確認します。",
+        "still_watching_presets": {
+          "short": "短い",
+          "default": "デフォルト",
+          "long": "長い",
+          "veryLong": "とても長い"
+        },
         "segment_skip_settings": "セグメントスキップの設定",
         "segment_skip_settings_description": "イントロ、エンドロールなどのセグメントをスキップする動作を設定します",
         "skip_intro": "イントロをスキップ",
@@ -415,6 +428,11 @@
         "playback_title": "再生",
         "playback_description": "音楽の再生方法を設定します。",
         "prefer_downloaded": "ダウンロード済みの曲を優先",
+        "normalization": "音量の正規化",
+        "normalization_hint": "曲をそろった音量で再生します。",
+        "normalization_off": "オフ",
+        "normalization_track": "トラック",
+        "normalization_album": "アルバム",
         "caching_title": "キャッシュ",
         "caching_description": "再生キューの曲を事前にキャッシュしておきます。サイズの上限に達すると、古いものから削除されます。",
         "lookahead_enabled": "先読みキャッシュを有効にする",
@@ -553,13 +571,93 @@
           "4_hours": "4時間",
           "24_hours": "24時間"
         }
+      },
+      "notifications": {
+        "title": "通知",
+        "save_failed": "通知の設定を保存できませんでした。もう一度お試しください。",
+        "channels": {
+          "new_content": "サーバーの新着",
+          "requests": "あなたのリクエスト",
+          "account": "あなたのアカウント",
+          "server_alerts": "サーバーのアラート"
+        },
+        "actions": {
+          "pause": "8 時間一時停止",
+          "mute_show": "この番組の通知をオフ",
+          "paused": "通知を 8 時間一時停止しました",
+          "muted": "この番組の通知をオフにしました"
+        },
+        "unsupported": "サーバーの Streamyfin プラグインは、まだ通知の設定に対応していません。",
+        "load_failed": "通知の設定を読み込めませんでした。",
+        "try_again": "もう一度試す",
+        "events": {
+          "item_added": "新しい映画とエピソード",
+          "seerr_requests": "あなたのリクエスト",
+          "seerr_requests_help": "承認、却下、または視聴可能",
+          "awaited_title": "待っている作品が届いた",
+          "awaited_title_help": "Seerr のページで通知を依頼した作品",
+          "user_locked_out": "アカウントがロックされた",
+          "seerr_pending": "新しいリクエスト",
+          "seerr_pending_help": "承認待ち、自動承認、または失敗",
+          "session_started": "誰かがサインインした",
+          "playback_started": "誰かが再生を始めた",
+          "sign_in_failed": "サインインに失敗した",
+          "task_failed": "スケジュールされたタスクが失敗した",
+          "plugin_changed": "プラグインが変更された",
+          "plugin_changed_help": "インストール、更新、または削除"
+        },
+        "groups": {
+          "new": "サーバーの新着",
+          "follow": "フォロー中の番組",
+          "muted": "通知をオフにした番組",
+          "yours": "あなたのリクエストとアカウント",
+          "awaited": "待っている作品",
+          "server": "サーバーのアラート"
+        },
+        "libraries_footer": "これらのライブラリの新しい映画とエピソード。",
+        "follow": {
+          "favorites": "お気に入りの番組",
+          "favorites_help": "お気に入りに登録した番組の新しいエピソード",
+          "started": "見始めた番組",
+          "started_help": "見始めた番組の新しいエピソード",
+          "footer": "新しい映画とエピソードをオフにしていても届きます。"
+        },
+        "muted": {
+          "turn_back_on": "再びオンにする"
+        },
+        "awaited": {
+          "stop": "待つのをやめる",
+          "arrived": "到着済み。一時停止が終わったらお知らせします"
+        },
+        "pause": {
+          "title": "通知を一時停止",
+          "off": "しない",
+          "one_hour": "1 時間",
+          "eight_hours": "8 時間",
+          "one_day": "24 時間",
+          "until_on": "再びオンにするまで",
+          "until": "{{when}} まで"
+        },
+        "blocked": {
+          "title": "Streamyfin の通知がオフになっています",
+          "body": "下で何を選んでも、スマートフォンが通知をブロックします。",
+          "open": "設定を開く"
+        },
+        "sound": {
+          "title": "サウンドとバイブレーション",
+          "help": "通知の種類ごとに Android の設定で変更できます"
+        },
+        "account_footer": "これらの設定は、すべてのデバイスでアカウントに引き継がれます。"
       }
     },
     "sessions": {
       "title": "セッション",
       "no_active_sessions": "アクティブなセッションはありません",
       "select_session": "セッションを選択",
-      "now_playing": "再生中:"
+      "now_playing": "再生中:",
+      "repeat_off": "リピートオフ",
+      "repeat_all": "すべてリピート",
+      "repeat_one": "1 件リピート"
     },
     "downloads": {
       "downloads_title": "ダウンロード",
@@ -609,7 +707,7 @@
         "all_files_deleted": "すべてのダウンロードを削除しました",
         "files_deleted_by_type": "{{type}} を {{count}} 件削除しました",
         "could_not_get_download_url_for_item": "{{itemName}} のダウンロードURLを取得できませんでした",
-        "no_media_source_to_download": "This item cannot be downloaded",
+        "no_media_source_to_download": "このアイテムはダウンロードできません",
         "file_deleted": "{{item}} を削除しました"
       }
     }
@@ -625,6 +723,7 @@
     "mark_as_not_played": "未再生にする",
     "none": "なし",
     "track": "トラック",
+    "original_audio": "オリジナル",
     "cancel": "キャンセル",
     "stop": "停止",
     "open_menu": "メニューを開く",
@@ -685,6 +784,15 @@
   "library": {
     "no_results": "検索結果はありません",
     "no_libraries_found": "ライブラリが見つかりません",
+    "jump_to_letter": "文字へジャンプ",
+    "sort": "並べ替え",
+    "letters": "A–Z",
+    "tabs": {
+      "items": "アイテム",
+      "collections": "コレクション",
+      "playlists": "プレイリスト"
+    },
+    "play_all": "すべて再生",
     "item_types": {
       "movies": "映画",
       "series": "シリーズ",
@@ -710,11 +818,24 @@
       "filter_by": "絞り込み",
       "sort_order": "ソート順",
       "tags": "タグ",
+      "official_ratings": "年齢区分",
+      "audio_languages": "音声言語",
+      "subtitle_languages": "字幕言語",
+      "selected_count": "{{count}} 件選択",
       "all": "すべて",
+      "title": "フィルター",
+      "title_count": "フィルター · {{count}}",
       "reset": "リセット",
       "asc": "昇順",
       "desc": "降順"
     }
+  },
+  "upcoming": {
+    "title": "放送予定",
+    "no_episodes": "放送予定のエピソードはありません",
+    "yesterday": "昨日",
+    "today": "今日",
+    "tomorrow": "明日"
   },
   "favorites": {
     "series": "シリーズ",
@@ -728,7 +849,7 @@
   },
   "custom_links": {
     "no_links": "リンクがありません",
-    "could_not_open_link": "Could not open this link"
+    "could_not_open_link": "このリンクを開けませんでした"
   },
   "player": {
     "live": "ライブ",
@@ -757,6 +878,9 @@
       "buffer_seconds": "バッファ: {{seconds}}s",
       "vo": "VO:",
       "dropped_frames": "ドロップ: {{count}}フレーム",
+      "transcode_progress": "トランスコード済み: {{percent}}%",
+      "transcode_speed": "トランスコード速度: {{fps}} fps",
+      "transcode_hardware": "ハードウェアアクセラレーション: {{type}}",
       "loading": "読み込み中..."
     },
     "mpv_player_title": "MPVプレーヤー",
@@ -771,8 +895,11 @@
     "client_error": "クライアントエラー",
     "could_not_create_stream_for_chromecast": "Chromecastのストリームを作成できませんでした",
     "chromecast_playback_failed": "Chromecastでこのストリームを再生できませんでした",
-    "message_from_server": "サーバーからのメッセージ",
+    "chromecast_server_unreachable": "Chromecast が Jellyfin サーバーに接続できませんでした",
+    "chromecast_did_not_start": "Chromecast で再生が始まりませんでした。Jellyfin サーバーに接続できるか確認してください。",
+    "message_from_server": "サーバーからのメッセージ: {{message}}",
     "next_episode": "次のエピソード",
+    "up_next": "次に再生",
     "continue_watching": "視聴を続ける",
     "go_back": "戻る",
     "downloaded_file_title": "このファイルはダウンロード済みです",
@@ -844,10 +971,13 @@
     "view_season": "シーズンを見る",
     "select_season": "シーズンを選択",
     "no_episodes_for_this_season": "このシーズンのエピソードはありません",
+    "missing": "欠落",
+    "not_yet_aired": "未放送",
     "overview": "ストーリー",
     "more_with": "{{name}}の他の作品",
     "similar_items": "類似アイテム",
     "no_similar_items_found": "類似のアイテムは見つかりませんでした",
+    "collections": "コレクション",
     "video": "映像",
     "more_details": "さらに詳細を表示",
     "media_options": "メディアオプション",
@@ -861,8 +991,46 @@
     "show_more": "もっと見る",
     "show_less": "少なく表示",
     "left": "残り",
-    "director": "監督",
     "cast": "キャスト",
+    "credits": {
+      "Director_one": "監督",
+      "Director_other": "監督",
+      "Writer_one": "脚本",
+      "Writer_other": "脚本",
+      "Creator_one": "原作者",
+      "Creator_other": "原作者",
+      "Author_one": "著者",
+      "Author_other": "著者",
+      "Narrator_one": "ナレーター",
+      "Narrator_other": "ナレーター"
+    },
+    "person_kind": {
+      "Actor": "俳優",
+      "Director": "監督",
+      "Composer": "作曲",
+      "Writer": "脚本",
+      "GuestStar": "ゲスト出演",
+      "Producer": "プロデューサー",
+      "Conductor": "指揮",
+      "Lyricist": "作詞",
+      "Arranger": "編曲",
+      "Engineer": "レコーディングエンジニア",
+      "Mixer": "ミキシングエンジニア",
+      "Remixer": "リミキサー",
+      "Creator": "原作者",
+      "Artist": "アーティスト",
+      "AlbumArtist": "アルバムアーティスト",
+      "Author": "著者",
+      "Illustrator": "イラストレーター",
+      "Penciller": "作画",
+      "Inker": "ペン入れ",
+      "Colorist": "彩色",
+      "Letterer": "写植",
+      "CoverArtist": "表紙イラスト",
+      "Editor": "編集",
+      "Translator": "翻訳",
+      "Narrator": "ナレーター"
+    },
     "technical_details": "技術情報",
     "appeared_in": "出演作品",
     "movies": "映画",
@@ -909,6 +1077,14 @@
     }
   },
   "seerr": {
+    "awaited": {
+      "notify_me": "届いたら通知する",
+      "waiting": "届いたらお知らせします",
+      "stop_hint": "この作品を待つのをやめます",
+      "already_here": "この作品はすでにサーバーにあります",
+      "too_many": "待てる作品の上限に達しています",
+      "failed": "待っている作品を変更できませんでした"
+    },
     "cancel": "キャンセル",
     "whats_wrong": "どうしましたか？",
     "issue_type": "問題の種類",
@@ -1185,10 +1361,10 @@
     "pairing_tv_connecting": "テレビがアカウントに接続しています",
     "error_title": "許可に失敗しました",
     "error_invalid_qr": "QRコードが無効です。テレビのペアリングコードをスキャンしてください。",
-    "error_old_tv": "This TV runs an older version of Streamyfin. Update it, then try again.",
-    "error_code_not_waiting": "This code is not waiting on {{server}}. Check that the TV uses the same server as this phone, then start Quick Connect again on the TV.",
-    "error_quick_connect_disabled": "Quick Connect is turned off on {{server}}. An administrator can turn it on in the server's dashboard.",
-    "error_other_server": "This TV is connecting to another server, {{server}}. Sign in to that server in this app, then scan again.",
+    "error_old_tv": "このテレビでは古いバージョンの Streamyfin が動作しています。アップデートしてから、もう一度お試しください。",
+    "error_code_not_waiting": "このコードは {{server}} で待機していません。テレビがこのスマートフォンと同じサーバーを使っているか確認してから、テレビでクイックコネクトをもう一度開始してください。",
+    "error_quick_connect_disabled": "{{server}} ではクイックコネクトが無効になっています。管理者がサーバーのダッシュボードで有効にできます。",
+    "error_other_server": "このテレビは別のサーバー ({{server}}) に接続しています。このアプリでそのサーバーにサインインしてから、もう一度スキャンしてください。",
     "error_generic": "問題が発生しました。もう一度お試しください。",
     "error_permission_denied": "QRコードをスキャンするにはカメラの許可が必要です。",
     "login_as": "{{username}} としてログインしますか？",
@@ -1198,11 +1374,11 @@
   "pairing": {
     "pair_with_phone": "スマートフォンとペアリング",
     "pair_with_phone_title": "テレビでログイン",
-    "scan_quick_connect": "Scan the QR code with the Streamyfin app or your phone's camera.",
-    "code_expired": "This code has expired.",
-    "get_new_code": "Get a new code",
-    "scan_with_app": "Scan the QR code with the Streamyfin app on your phone.",
-    "account_that_approves": "The account that approves the code",
+    "scan_quick_connect": "Streamyfin アプリまたはスマートフォンのカメラで QR コードをスキャンしてください。",
+    "code_expired": "このコードは有効期限が切れています。",
+    "get_new_code": "新しいコードを取得",
+    "scan_with_app": "スマートフォンの Streamyfin アプリで QR コードをスキャンしてください。",
+    "account_that_approves": "コードを承認するアカウント",
     "logging_in": "ログイン中...",
     "logging_in_description": "サーバーに接続しています"
   },
@@ -1234,5 +1410,82 @@
     "header_count_one": "ヘッダー{{count}}件",
     "header_count_other": "ヘッダー{{count}}件",
     "header_count": "ヘッダー{{count}}件"
+  },
+  "syncplay": {
+    "pause": "一時停止",
+    "play": "再生",
+    "online_video_only": "SyncPlay はオンラインの動画にのみ対応しています。ダウンロードした動画を見るかキャストするには、グループを退出してください。",
+    "title": "SyncPlay",
+    "watch": "視聴",
+    "new_group": "新しいグループ",
+    "new_group_queues": "{{title}} をキューに追加 · 動画 {{count}} 本",
+    "new_group_queues_one": "{{title}} をキューに追加",
+    "new_group_queues_other": "{{title}} をキューに追加 · 動画 {{count}} 本",
+    "groups_on_server": "このサーバーのグループ",
+    "join": "参加",
+    "play_for_everyone": "全員に再生",
+    "stop_for_everyone": "全員の再生を停止",
+    "back_to_group": "{{name}} に戻る",
+    "how_to_play": "グループ内では、どの動画で再生を押しても全員に再生されます。",
+    "play_next": "次に再生",
+    "add_to_queue": "再生キューに追加",
+    "added_to_queue": "グループの再生キューに追加しました",
+    "default_group_name": "{{name}} のグループ",
+    "switch_group": "別のグループに切り替え",
+    "ignore_wait_setting_hint": "参加したグループは、このデバイスを待たずに開始・再開します。参加するたびに適用されます。プレーヤーでいつでも変更できます。",
+    "description": "同じ Jellyfin サーバーを使う友だちと同期して視聴できます。",
+    "current_group": "あなたのグループ",
+    "available_groups": "参加できるグループ",
+    "leave": "グループを退出",
+    "refresh": "再読み込み",
+    "retry": "再試行",
+    "no_groups": "他のグループはまだありません。グループを作成して友だちを招待しましょう。",
+    "no_participants": "参加者を待っています",
+    "unavailable": "このアカウントでは SyncPlay を利用できません。サーバー管理者に有効化を依頼してください。",
+    "disconnected": "SyncPlay を使うにはサーバーに接続してください。接続が戻るとグループを利用できます。",
+    "reconnecting": "再接続中…",
+    "error": "SyncPlay はリクエストを完了できませんでした",
+    "states": {
+      "Idle": "視聴の準備完了",
+      "Waiting": "全員を待っています",
+      "Paused": "一時停止中",
+      "Playing": "再生中"
+    },
+    "errors": {
+      "disconnected": "サーバーとの接続が切れました。再接続して一緒に視聴を続けてください。",
+      "request_failed": "リクエストに失敗しました。もう一度お試しください。",
+      "create_denied": "このアカウントには SyncPlay グループを作成する権限がありません。",
+      "join_denied": "このアカウントにはこのグループに参加する権限がありません。",
+      "group_missing": "このグループは利用できなくなりました。グループ一覧を再読み込みしてください。",
+      "library_denied": "このアカウントはグループが選んだ動画にアクセスできません。",
+      "disabled": "このアカウントでは SyncPlay が無効になっています。",
+      "playback_failed": "グループの動画を再生できませんでした。別の動画を選ぶか、もう一度お試しください。",
+      "invalid_name": "グループ名を入力してください。",
+      "timeout": "サーバーが時間内に応答しませんでした。もう一度お試しください。"
+    },
+    "queue": "共有キュー",
+    "playback_options": "再生オプション",
+    "repeat": "リピート",
+    "repeat_modes": {
+      "RepeatNone": "オフ",
+      "RepeatAll": "すべての動画",
+      "RepeatOne": "1 本の動画"
+    },
+    "shuffle": "シャッフル",
+    "ignore_wait": "このデバイスを待たない",
+    "ignore_wait_hint": "このデバイスの準備ができるのを待たずに、グループが開始・再開できます。この設定は現在のセッションにのみ適用されます。",
+    "on": "オン",
+    "off": "オフ",
+    "empty_queue": "キューは空です。下で動画を追加するか、ライブラリから再生してください。",
+    "unavailable_video": "利用できない動画",
+    "now_playing": "現在の動画",
+    "move_up": "上へ移動",
+    "move_down": "下へ移動",
+    "remove": "削除",
+    "clear_upcoming": "現在の動画だけを残す",
+    "clear_all": "キューを空にして停止",
+    "play_now": "今すぐ再生",
+    "refresh_group": "グループを再読み込み",
+    "close": "閉じる"
   }
 }

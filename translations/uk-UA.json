@@ -140,7 +140,7 @@
     },
     "settings": {
       "settings_title": "Параметри",
-      "disabled_by_admin": "Disabled by admin",
+      "disabled_by_admin": "Вимкнено адміністратором",
       "log_out_button": "Вихід",
       "switch_user": {
         "title": "Змінити користувача",
@@ -163,6 +163,8 @@
         "download_live_activity_hint": "Показувати перебіг завантаження на екрані блокування та в Dynamic Island.",
         "merge_next_up_continue_watching": "Об'єднати «Продовжити перегляд» і «Наступне»",
         "merge_next_up_continue_watching_hint": "Об'єднує «Продовжити перегляд» і «Наступне» в один рядок на головній.",
+        "show_upcoming_on_home": "Найближчі епізоди на головній",
+        "show_upcoming_on_home_hint": "Додає на головну рядок з епізодами, які незабаром вийдуть у ваших медіатеках серіалів.",
         "use_episode_images_next_up": "Використовувати зображення епізодів у «Наступне» та «Продовжити перегляд»",
         "use_episode_images_next_up_hint": "Показує власну мініатюру кожного епізоду в рядках «Наступне» та «Продовжити перегляд» замість зображення серіалу.",
         "hide_remote_session_button": "Приховати кнопку віддалених сеансів",
@@ -225,8 +227,11 @@
         "enter_the_quick_connect_code": "Введіть код для швидкого зʼєднання...",
         "success": "Успіх",
         "quick_connect_authorized": "Швидке Зʼєднання авторизовано",
+        "quick_connect_authorized_for": "Швидке зʼєднання дозволено для {{username}}",
+        "user": "Користувач",
+        "selected_user_unavailable": "Вибраний користувач більше недоступний",
         "invalid_code": "Не правильний код",
-        "disabled": "Quick Connect is turned off on this server. An administrator can turn it on in the server's dashboard.",
+        "disabled": "Швидке зʼєднання вимкнено на цьому сервері. Адміністратор може увімкнути його в панелі керування сервера.",
         "authorize": "Авторизувати",
         "paste_code": "Вставити код"
       },
@@ -389,10 +394,18 @@
         "select_libraries_you_want_to_hide": "Виберіть медіатеки, що бажаєте приховати з вкладки Медіатека і з секції на головній сторінці.",
         "disable_haptic_feedback": "Вимкнути тактильний зворотний зв'язок",
         "resume_dialog": "Запитувати, продовжити чи почати спочатку",
+        "confirm_before_stopping_playback": "Підтверджувати зупинку відтворення",
         "default_quality": "Якість за замовченням",
         "default_playback_speed": "Швидкість за замовчуванням",
         "auto_play_next_episode": "Автовідтворення наступного епізоду",
-        "max_auto_play_episode_count": "Максимум епізодів автовідтворення",
+        "still_watching": "Питати «Ви все ще дивитесь?»",
+        "still_watching_hint": "Після тривалого перегляду перевіряє, чи хтось ще дивиться, перш ніж автоматично ввімкнути наступний епізод.",
+        "still_watching_presets": {
+          "short": "Коротко",
+          "default": "За замовчуванням",
+          "long": "Довго",
+          "veryLong": "Дуже довго"
+        },
         "segment_skip_settings": "Пропуск сегментів",
         "segment_skip_settings_description": "Налаштуйте пропуск заставок, титрів та інших сегментів",
         "skip_intro": "Пропуск заставки",
@@ -415,6 +428,11 @@
         "playback_title": "Відтворення",
         "playback_description": "Налаштуйте, як відтворюється музика.",
         "prefer_downloaded": "Віддавати перевагу завантаженим пісням",
+        "normalization": "Нормалізація гучності",
+        "normalization_hint": "Відтворює пісні з вирівняною гучністю.",
+        "normalization_off": "Вимк.",
+        "normalization_track": "Доріжка",
+        "normalization_album": "Альбом",
         "caching_title": "Кешування",
         "caching_description": "Наступні пісні з черги зберігаються заздалегідь. Найстаріші з них видаляються після досягнення ліміту розміру.",
         "lookahead_enabled": "Увімкнути попереднє кешування",
@@ -553,13 +571,93 @@
           "4_hours": "4 години",
           "24_hours": "24 години"
         }
+      },
+      "notifications": {
+        "title": "Сповіщення",
+        "save_failed": "Не вдалося зберегти налаштування сповіщень. Спробуйте ще раз.",
+        "channels": {
+          "new_content": "Нове на сервері",
+          "requests": "Ваші запити",
+          "account": "Ваш акаунт",
+          "server_alerts": "Попередження сервера"
+        },
+        "actions": {
+          "pause": "Призупинити на 8 годин",
+          "mute_show": "Вимкнути для цього серіалу",
+          "paused": "Сповіщення призупинено на 8 годин",
+          "muted": "Сповіщення для цього серіалу вимкнено"
+        },
+        "unsupported": "Плагін Streamyfin на вашому сервері ще не підтримує налаштування сповіщень.",
+        "load_failed": "Не вдалося завантажити налаштування сповіщень.",
+        "try_again": "Спробувати ще раз",
+        "events": {
+          "item_added": "Нові фільми та епізоди",
+          "seerr_requests": "Ваші запити",
+          "seerr_requests_help": "Схвалені, відхилені або доступні",
+          "awaited_title": "Зʼявився тайтл, на який ви чекаєте",
+          "awaited_title_help": "Той, про який ви просили повідомити на його сторінці в Seerr",
+          "user_locked_out": "Ваш акаунт заблоковано",
+          "seerr_pending": "Нові запити",
+          "seerr_pending_help": "Очікують схвалення, схвалені автоматично або з помилкою",
+          "session_started": "Хтось входить у систему",
+          "playback_started": "Хтось починає відтворення",
+          "sign_in_failed": "Не вдається вхід",
+          "task_failed": "Не вдається запланована задача",
+          "plugin_changed": "Плагін змінено",
+          "plugin_changed_help": "Встановлено, оновлено або видалено"
+        },
+        "groups": {
+          "new": "Нове на сервері",
+          "follow": "Серіали, які ви відстежуєте",
+          "muted": "Вимкнені серіали",
+          "yours": "Ваші запити та акаунт",
+          "awaited": "Тайтли, на які ви чекаєте",
+          "server": "Попередження сервера"
+        },
+        "libraries_footer": "Нові фільми та епізоди з цих медіатек.",
+        "follow": {
+          "favorites": "Улюблені серіали",
+          "favorites_help": "Новий епізод серіалу, позначеного як улюблений",
+          "started": "Розпочаті серіали",
+          "started_help": "Новий епізод серіалу, який ви почали дивитися",
+          "footer": "Ці сповіщення надходять, навіть якщо нові фільми та епізоди вимкнено."
+        },
+        "muted": {
+          "turn_back_on": "Увімкнути знову"
+        },
+        "awaited": {
+          "stop": "Більше не чекати",
+          "arrived": "Вже тут, ви отримаєте сповіщення після завершення паузи"
+        },
+        "pause": {
+          "title": "Призупинити сповіщення",
+          "off": "Ні",
+          "one_hour": "1 година",
+          "eight_hours": "8 годин",
+          "one_day": "24 години",
+          "until_on": "Доки я їх не ввімкну",
+          "until": "До {{when}}"
+        },
+        "blocked": {
+          "title": "Сповіщення Streamyfin вимкнено",
+          "body": "Ваш телефон блокує їх, хоч би що ви вибрали нижче.",
+          "open": "Відкрити налаштування"
+        },
+        "sound": {
+          "title": "Звук і вібрація",
+          "help": "Для кожного типу сповіщень, у налаштуваннях Android"
+        },
+        "account_footer": "Ці налаштування діють для вашого акаунта на всіх пристроях."
       }
     },
     "sessions": {
       "title": "Сесії",
       "no_active_sessions": "Нема активних сесій",
       "select_session": "Вибрати сесію",
-      "now_playing": "Зараз грає:"
+      "now_playing": "Зараз грає:",
+      "repeat_off": "Повтор вимкнено",
+      "repeat_all": "Повторювати все",
+      "repeat_one": "Повторювати одне"
     },
     "downloads": {
       "downloads_title": "Завантаження",
@@ -609,7 +707,7 @@
         "all_files_deleted": "Усі завантаження успішно видалено",
         "files_deleted_by_type": "{{type}}: видалено {{count}}",
         "could_not_get_download_url_for_item": "Не вдалося отримати URL-адресу для завантаження {{itemName}}",
-        "no_media_source_to_download": "This item cannot be downloaded",
+        "no_media_source_to_download": "Цей елемент неможливо завантажити",
         "file_deleted": "{{item}} видалено"
       }
     }
@@ -625,6 +723,7 @@
     "mark_as_not_played": "Позначити як непереглянуте",
     "none": "Немає",
     "track": "Доріжка",
+    "original_audio": "Оригінальне",
     "cancel": "Скасувати",
     "stop": "Стоп",
     "open_menu": "Відкрити меню",
@@ -685,6 +784,15 @@
   "library": {
     "no_results": "Без результатів",
     "no_libraries_found": "Не знайдено медіатек",
+    "jump_to_letter": "Перейти до літери",
+    "sort": "Сортування",
+    "letters": "A–Z",
+    "tabs": {
+      "items": "Елементи",
+      "collections": "Колекції",
+      "playlists": "Плейлисти"
+    },
+    "play_all": "Відтворити все",
     "item_types": {
       "movies": "фільми",
       "series": "серіали",
@@ -710,11 +818,24 @@
       "filter_by": "Фільтрувати за",
       "sort_order": "Порядок сортування",
       "tags": "Теги",
+      "official_ratings": "Вікові рейтинги",
+      "audio_languages": "Мови аудіо",
+      "subtitle_languages": "Мови субтитрів",
+      "selected_count": "Вибрано: {{count}}",
       "all": "Усе",
+      "title": "Фільтри",
+      "title_count": "Фільтри · {{count}}",
       "reset": "Скинути",
       "asc": "За зростанням",
       "desc": "За спаданням"
     }
+  },
+  "upcoming": {
+    "title": "Незабаром",
+    "no_episodes": "Немає найближчих епізодів",
+    "yesterday": "Учора",
+    "today": "Сьогодні",
+    "tomorrow": "Завтра"
   },
   "favorites": {
     "series": "Серіали",
@@ -728,7 +849,7 @@
   },
   "custom_links": {
     "no_links": "Немає посилань",
-    "could_not_open_link": "Could not open this link"
+    "could_not_open_link": "Не вдалося відкрити посилання"
   },
   "player": {
     "live": "НАЖИВО",
@@ -757,6 +878,9 @@
       "buffer_seconds": "Буфер: {{seconds}}s",
       "vo": "VO:",
       "dropped_frames": "Пропущено кадрів: {{count}}",
+      "transcode_progress": "Транскодовано: {{percent}}%",
+      "transcode_speed": "Швидкість транскодування: {{fps}} к/с",
+      "transcode_hardware": "Апаратне прискорення: {{type}}",
       "loading": "Завантаження..."
     },
     "mpv_player_title": "Плеєр MPV",
@@ -771,8 +895,11 @@
     "client_error": "Помилка клієнту",
     "could_not_create_stream_for_chromecast": "Не вдалося створити потік для Chromecast",
     "chromecast_playback_failed": "Chromecast не зміг відтворити цей потік",
+    "chromecast_server_unreachable": "Chromecast не вдалося підключитися до вашого сервера Jellyfin",
+    "chromecast_did_not_start": "Chromecast не почав відтворення. Переконайтеся, що він може підключитися до вашого сервера Jellyfin.",
     "message_from_server": "Повідомлення від серверу: {{message}}",
     "next_episode": "Наступний Епізод",
+    "up_next": "Далі",
     "continue_watching": "Продовжити перегляд",
     "go_back": "Назад",
     "downloaded_file_title": "Цей файл уже завантажено",
@@ -844,10 +971,13 @@
     "view_season": "Переглянути сезон",
     "select_season": "Обрати сезон",
     "no_episodes_for_this_season": "У цьому сезоні немає епізодів",
+    "missing": "Відсутній",
+    "not_yet_aired": "Ще не вийшов",
     "overview": "Огляд",
     "more_with": "Більше з {{name}}",
     "similar_items": "Схожі елементи",
     "no_similar_items_found": "Не знайдено схожих елементів",
+    "collections": "Колекції",
     "video": "Відео",
     "more_details": "Більше деталей",
     "media_options": "Параметри медіа",
@@ -861,8 +991,46 @@
     "show_more": "Показати більше",
     "show_less": "Показати менше",
     "left": "залишилось",
-    "director": "Режисер",
     "cast": "Актори",
+    "credits": {
+      "Director_one": "Режисер",
+      "Director_other": "Режисери",
+      "Writer_one": "Сценарист",
+      "Writer_other": "Сценаристи",
+      "Creator_one": "Творець",
+      "Creator_other": "Творці",
+      "Author_one": "Автор",
+      "Author_other": "Автори",
+      "Narrator_one": "Оповідач",
+      "Narrator_other": "Оповідачі"
+    },
+    "person_kind": {
+      "Actor": "Актор",
+      "Director": "Режисер",
+      "Composer": "Композитор",
+      "Writer": "Сценарист",
+      "GuestStar": "Запрошена зірка",
+      "Producer": "Продюсер",
+      "Conductor": "Диригент",
+      "Lyricist": "Автор тексту",
+      "Arranger": "Аранжувальник",
+      "Engineer": "Звукоінженер",
+      "Mixer": "Звукорежисер зведення",
+      "Remixer": "Реміксер",
+      "Creator": "Творець",
+      "Artist": "Виконавець",
+      "AlbumArtist": "Виконавець альбому",
+      "Author": "Автор",
+      "Illustrator": "Ілюстратор",
+      "Penciller": "Художник-олівцевик",
+      "Inker": "Контурник",
+      "Colorist": "Колорист",
+      "Letterer": "Леттерер",
+      "CoverArtist": "Художник обкладинки",
+      "Editor": "Редактор",
+      "Translator": "Перекладач",
+      "Narrator": "Оповідач"
+    },
     "technical_details": "Технічні дані",
     "appeared_in": "Зʼявлявся у",
     "movies": "Фільми",
@@ -909,6 +1077,14 @@
     }
   },
   "seerr": {
+    "awaited": {
+      "notify_me": "Повідомити, коли зʼявиться",
+      "waiting": "Ви отримаєте сповіщення",
+      "stop_hint": "Припиняє очікування цього тайтлу",
+      "already_here": "Цей тайтл уже є на сервері",
+      "too_many": "Ви вже чекаєте максимальну кількість тайтлів",
+      "failed": "Не вдалося змінити тайтли, на які ви чекаєте"
+    },
     "cancel": "Скасувати",
     "whats_wrong": "Що не так?",
     "issue_type": "Тип проблеми",
@@ -1185,10 +1361,10 @@
     "pairing_tv_connecting": "Телевізор підключається до вашого облікового запису",
     "error_title": "Авторизація не вдалася",
     "error_invalid_qr": "Недійсний QR-код. Відскануйте код підключення з телевізора.",
-    "error_old_tv": "This TV runs an older version of Streamyfin. Update it, then try again.",
-    "error_code_not_waiting": "This code is not waiting on {{server}}. Check that the TV uses the same server as this phone, then start Quick Connect again on the TV.",
-    "error_quick_connect_disabled": "Quick Connect is turned off on {{server}}. An administrator can turn it on in the server's dashboard.",
-    "error_other_server": "This TV is connecting to another server, {{server}}. Sign in to that server in this app, then scan again.",
+    "error_old_tv": "На цьому телевізорі встановлено стару версію Streamyfin. Оновіть її та спробуйте ще раз.",
+    "error_code_not_waiting": "Цей код не очікує підтвердження на {{server}}. Переконайтеся, що телевізор використовує той самий сервер, що й цей телефон, і знову запустіть швидке зʼєднання на телевізорі.",
+    "error_quick_connect_disabled": "Швидке зʼєднання вимкнено на {{server}}. Адміністратор може увімкнути його в панелі керування сервера.",
+    "error_other_server": "Цей телевізор підключається до іншого сервера: {{server}}. Увійдіть на цей сервер у застосунку та відскануйте код знову.",
     "error_generic": "Щось пішло не так. Спробуйте ще раз.",
     "error_permission_denied": "Для сканування QR-кодів потрібен доступ до камери.",
     "login_as": "Увійти як {{username}}?",
@@ -1198,11 +1374,11 @@
   "pairing": {
     "pair_with_phone": "Підключити телефон",
     "pair_with_phone_title": "Увійти на ТБ",
-    "scan_quick_connect": "Scan the QR code with the Streamyfin app or your phone's camera.",
-    "code_expired": "This code has expired.",
-    "get_new_code": "Get a new code",
-    "scan_with_app": "Scan the QR code with the Streamyfin app on your phone.",
-    "account_that_approves": "The account that approves the code",
+    "scan_quick_connect": "Відскануйте QR-код застосунком Streamyfin або камерою телефона.",
+    "code_expired": "Термін дії цього коду минув.",
+    "get_new_code": "Отримати новий код",
+    "scan_with_app": "Відскануйте QR-код застосунком Streamyfin на телефоні.",
+    "account_that_approves": "Акаунт, який підтверджує код",
     "logging_in": "Вхід...",
     "logging_in_description": "Підключення до вашого сервера"
   },
@@ -1234,5 +1410,82 @@
     "header_count_one": "{{count}} заголовок",
     "header_count_other": "Заголовків: {{count}}",
     "header_count": "Заголовків: {{count}}"
+  },
+  "syncplay": {
+    "pause": "Пауза",
+    "play": "Відтворити",
+    "online_video_only": "SyncPlay підтримує лише онлайн-відео. Покиньте групу, щоб дивитися завантажені відео або транслювати через Cast.",
+    "title": "SyncPlay",
+    "watch": "Дивитися",
+    "new_group": "Нова група",
+    "new_group_queues": "Додасть у чергу «{{title}}» · {{count}} відео",
+    "new_group_queues_one": "Додасть у чергу «{{title}}»",
+    "new_group_queues_other": "Додасть у чергу «{{title}}» · {{count}} відео",
+    "groups_on_server": "Групи на цьому сервері",
+    "join": "Приєднатися",
+    "play_for_everyone": "Відтворити для всіх",
+    "stop_for_everyone": "Зупинити для всіх",
+    "back_to_group": "Назад до {{name}}",
+    "how_to_play": "У групі натискання «Відтворити» на будь-якому відео вмикає його для всіх.",
+    "play_next": "Відтворити наступним",
+    "add_to_queue": "Додати до черги",
+    "added_to_queue": "Додано до черги групи",
+    "default_group_name": "Група {{name}}",
+    "switch_group": "Перейти до іншої групи",
+    "ignore_wait_setting_hint": "Групи, до яких ви приєднуєтеся, запускаються та відновлюються без очікування цього пристрою. Застосовується під час кожного приєднання; це можна змінити в плеєрі.",
+    "description": "Дивіться синхронно з друзями, які користуються Jellyfin на тому самому сервері.",
+    "current_group": "Ваша група",
+    "available_groups": "Доступні групи",
+    "leave": "Покинути групу",
+    "refresh": "Оновити",
+    "retry": "Повторити",
+    "no_groups": "Інших груп поки немає. Створіть групу та запросіть друзів.",
+    "no_participants": "Очікування учасників",
+    "unavailable": "SyncPlay недоступний для цього акаунта. Попросіть адміністратора сервера увімкнути його.",
+    "disconnected": "Підключіться до сервера, щоб користуватися SyncPlay. Групи стануть доступні, коли зʼєднання відновиться.",
+    "reconnecting": "Повторне підключення…",
+    "error": "SyncPlay не вдалося виконати запит",
+    "states": {
+      "Idle": "Готово до перегляду",
+      "Waiting": "Очікування всіх",
+      "Paused": "На паузі",
+      "Playing": "Відтворюється"
+    },
+    "errors": {
+      "disconnected": "Зʼєднання з сервером втрачено. Підключіться знову, щоб продовжити спільний перегляд.",
+      "request_failed": "Запит не виконано. Спробуйте ще раз.",
+      "create_denied": "Цей акаунт не має дозволу створювати групи SyncPlay.",
+      "join_denied": "Цей акаунт не має дозволу приєднуватися до цієї групи.",
+      "group_missing": "Ця група більше недоступна. Оновіть список груп.",
+      "library_denied": "Цей акаунт не має доступу до відео, вибраного групою.",
+      "disabled": "SyncPlay вимкнено для цього акаунта.",
+      "playback_failed": "Не вдалося відтворити відео групи. Виберіть інше відео або спробуйте ще раз.",
+      "invalid_name": "Введіть назву групи.",
+      "timeout": "Сервер не відповів вчасно. Спробуйте ще раз."
+    },
+    "queue": "Спільна черга",
+    "playback_options": "Параметри відтворення",
+    "repeat": "Повтор",
+    "repeat_modes": {
+      "RepeatNone": "Вимк.",
+      "RepeatAll": "Усі відео",
+      "RepeatOne": "Одне відео"
+    },
+    "shuffle": "Перемішати",
+    "ignore_wait": "Не чекати цей пристрій",
+    "ignore_wait_hint": "Група може почати або продовжити перегляд, не чекаючи, доки цей пристрій буде готовий. Налаштування діє лише в поточному сеансі.",
+    "on": "Увімк.",
+    "off": "Вимк.",
+    "empty_queue": "Черга порожня. Додайте відео нижче або ввімкніть щось із медіатеки.",
+    "unavailable_video": "Відео недоступне",
+    "now_playing": "Поточне відео",
+    "move_up": "Перемістити вгору",
+    "move_down": "Перемістити вниз",
+    "remove": "Прибрати",
+    "clear_upcoming": "Залишити лише поточне відео",
+    "clear_all": "Очистити чергу та зупинити",
+    "play_now": "Відтворити зараз",
+    "refresh_group": "Оновити групу",
+    "close": "Закрити"
   }
 }
