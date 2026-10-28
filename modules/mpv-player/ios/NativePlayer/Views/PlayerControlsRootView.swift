@@ -353,8 +353,9 @@ struct PlayerControlsRootView: View {
 						dragAxis = .vertical
 						dragOnLeftHalf = value.startLocation.x < size.width / 2
 						if dragOnLeftHalf {
-							dragStartLevel = viewModel.brightnessController.brightness
+							// First: starting the interaction reads the screen's brightness.
 							viewModel.brightnessController.isUserInteracting = true
+							dragStartLevel = viewModel.brightnessController.brightness
 						} else {
 							dragStartLevel = viewModel.volumeController.volume
 							viewModel.volumeController.isUserInteracting = true
