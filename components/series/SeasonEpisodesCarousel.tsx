@@ -13,6 +13,7 @@ import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { getDownloadedEpisodesBySeasonId } from "@/utils/downloads/offline-series";
+import { queryResultItems } from "@/utils/jellyfin/queryResult";
 
 interface Props {
   item?: BaseItemDto | null;
@@ -61,7 +62,9 @@ export const SeasonEpisodesCarousel: React.FC<Props> = ({
           "Overview",
         ],
       });
-      return response.data.Items as BaseItemDto[];
+      // An answer without the list (a proxy's page, an empty body) fails the
+      // query rather than emptying it: a refetch keeps the episodes shown.
+      return queryResultItems(response);
     },
     enabled: !!seasonId && (isOffline || (!!api && !!user?.Id)),
   });
