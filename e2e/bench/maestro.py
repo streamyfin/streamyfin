@@ -3,15 +3,33 @@
 from __future__ import annotations
 
 import argparse
+import os
 import shutil
 import subprocess
 import sys
 from pathlib import Path
 
 
+JDK_CANDIDATES = (
+    Path("/opt/homebrew/opt/openjdk@17"),
+    Path("/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home"),
+    Path("/Applications/Android Studio.app/Contents/jbr/Contents/Home"),
+)
+
+
 def maestro_path() -> Path:
     found = shutil.which("maestro")
     return Path(found) if found else Path.home() / ".maestro" / "bin" / "maestro"
+
+
+def resolve_java_home(env: dict[str, str], candidates: list[Path] | tuple[Path, ...] = JDK_CANDIDATES) -> str | None:
+    """Maestro runs on the JVM; a JDK installed by Homebrew or Android Studio is invisible to java_home."""
+    if env.get("JAVA_HOME"):
+        return env["JAVA_HOME"]
+    for candidate in candidates:
+        if (Path(candidate) / "bin" / "java").exists():
+            return str(candidate)
+    return None
 
 
 def build_command(flow: Path, device: str | None, env: dict[str, str], maestro: Path | None = None) -> list[str]:
@@ -33,8 +51,12 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     env = dict(entry.split("=", 1) for entry in args.env)
     command = build_command(args.flow, args.device, env)
+    process_env = dict(os.environ)
+    java_home = resolve_java_home(process_env)
+    if java_home:
+        process_env["JAVA_HOME"] = java_home
     print("$", " ".join(command))
-    return subprocess.run(command, check=False).returncode
+    return subprocess.run(command, check=False, env=process_env).returncode
 
 
 if __name__ == "__main__":

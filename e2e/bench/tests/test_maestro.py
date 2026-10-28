@@ -1,7 +1,7 @@
 import unittest
 from pathlib import Path
 
-from bench.maestro import build_command, maestro_path
+from bench.maestro import build_command, maestro_path, resolve_java_home
 
 
 class BuildCommandTests(unittest.TestCase):
@@ -20,6 +20,26 @@ class BuildCommandTests(unittest.TestCase):
 
     def test_default_maestro_path_is_the_user_install(self):
         self.assertEqual(maestro_path(), Path.home() / ".maestro" / "bin" / "maestro")
+
+
+class JavaHomeTests(unittest.TestCase):
+    # Maestro is a JVM program; on a Mac whose JDK comes from Homebrew or Android Studio,
+    # java_home does not know it and Maestro dies with "Unable to locate a Java Runtime".
+    def test_keeps_an_explicit_java_home(self):
+        self.assertEqual(resolve_java_home({"JAVA_HOME": "/custom/jdk"}, candidates=[]), "/custom/jdk")
+
+    def test_falls_back_to_the_first_existing_candidate(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            jdk = Path(tmp) / "jdk"
+            (jdk / "bin").mkdir(parents=True)
+            (jdk / "bin" / "java").touch()
+            found = resolve_java_home({}, candidates=[Path(tmp) / "missing", jdk])
+        self.assertEqual(found, str(jdk))
+
+    def test_returns_none_without_any_jdk(self):
+        self.assertIsNone(resolve_java_home({}, candidates=[Path("/nonexistent/jdk")]))
 
 
 if __name__ == "__main__":
