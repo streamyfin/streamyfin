@@ -64,12 +64,15 @@ export function SyncPlayQueue({
       setDragged(next);
       void sync
         .movePlaylistItem(moved.PlaylistItemId, to)
-        // A refused move sends no queue update to put the row back.
+        // A refused move sends no queue update to put the row back. A copy
+        // rather than null: a refusal that lands before the move rendered
+        // would leave the rows unchanged, and the list would keep showing
+        // the dropped order.
         .catch(() =>
-          setDragged((current) => (current === next ? null : current)),
+          setDragged((current) => (current === next ? [...playlist] : current)),
         );
     },
-    [entries, sync.movePlaylistItem],
+    [entries, playlist, sync.movePlaylistItem],
   );
 
   if (!group) return null;
