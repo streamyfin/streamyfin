@@ -163,6 +163,8 @@
         "download_live_activity_hint": "Vis nedlastingsfremdrift på låseskjermen og i Dynamic Island.",
         "merge_next_up_continue_watching": "Slå sammen Fortsett å se og Neste",
         "merge_next_up_continue_watching_hint": "Slår sammen Fortsett å se og Neste til én rad på hjemmesiden.",
+        "show_upcoming_on_home": "Kommende episoder på startsiden",
+        "show_upcoming_on_home_hint": "Legger til en rad på startsiden med episodene som snart sendes i TV-bibliotekene dine.",
         "use_episode_images_next_up": "Bruk episodebilder for Neste og Fortsett å se",
         "use_episode_images_next_up_hint": "Viser hver episodes eget miniatyrbilde i radene Neste og Fortsett å se i stedet for seriebildet.",
         "hide_remote_session_button": "Skjul knapp for eksterne økter",
@@ -225,8 +227,11 @@
         "enter_the_quick_connect_code": "Skriv inn hurtig-tilkobling kode...",
         "success": "Vellykket",
         "quick_connect_authorized": "Hurtig tilkobling autorisert",
+        "quick_connect_authorized_for": "Hurtigkobling autorisert for {{username}}",
+        "user": "Bruker",
+        "selected_user_unavailable": "Den valgte brukeren er ikke lenger tilgjengelig",
         "invalid_code": "Ugyldig kode",
-        "disabled": "Quick Connect is turned off on this server. An administrator can turn it on in the server's dashboard.",
+        "disabled": "Hurtigkobling er slått av på denne serveren. En administrator kan slå den på i serverens kontrollpanel.",
         "authorize": "Autoriser",
         "paste_code": "Lim inn kode"
       },
@@ -389,10 +394,18 @@
         "select_libraries_you_want_to_hide": "Velg bibliotekene du vil skjule fra Bibliotek-fanen og seksjonene på hjemmesiden.",
         "disable_haptic_feedback": "Deaktiver Haptisk tilbakemelding",
         "resume_dialog": "Spør om du vil fortsette eller starte på nytt",
+        "confirm_before_stopping_playback": "Bekreft før avspillingen stoppes",
         "default_quality": "Standard kvalitet",
         "default_playback_speed": "Standard avspillingshastighet",
         "auto_play_next_episode": "Spill av neste episode automatisk",
-        "max_auto_play_episode_count": "Maks automatisk avspilling Episode Telling",
+        "still_watching": "Spør «Ser du fortsatt?»",
+        "still_watching_hint": "Sjekker etter en lang økt at noen fortsatt ser på før neste episode spilles av automatisk.",
+        "still_watching_presets": {
+          "short": "Kort",
+          "default": "Standard",
+          "long": "Lang",
+          "veryLong": "Veldig lang"
+        },
         "segment_skip_settings": "Hopp over segmenter",
         "segment_skip_settings_description": "Angi hvordan intro, outro og andre segmenter hoppes over",
         "skip_intro": "Hopp over intro",
@@ -415,6 +428,11 @@
         "playback_title": "Avspilling",
         "playback_description": "Still inn hvordan musikk spilles av.",
         "prefer_downloaded": "Foretrekk nedlastede sanger",
+        "normalization": "Volumnormalisering",
+        "normalization_hint": "Spiller av sanger med utjevnet lydstyrke.",
+        "normalization_off": "Av",
+        "normalization_track": "Spor",
+        "normalization_album": "Album",
         "caching_title": "Mellomlagring",
         "caching_description": "Lagre kommende sanger i køen på forhånd. De eldste fjernes når størrelsesgrensen er nådd.",
         "lookahead_enabled": "Aktiver forhåndsbufring",
@@ -553,13 +571,93 @@
           "4_hours": "4 timer",
           "24_hours": "24 timer"
         }
+      },
+      "notifications": {
+        "title": "Varsler",
+        "save_failed": "Kunne ikke lagre varselvalgene dine. Prøv igjen.",
+        "channels": {
+          "new_content": "Nytt på serveren",
+          "requests": "Forespørslene dine",
+          "account": "Kontoen din",
+          "server_alerts": "Servervarsler"
+        },
+        "actions": {
+          "pause": "Sett på pause i 8 timer",
+          "mute_show": "Slå av for denne serien",
+          "paused": "Varsler satt på pause i 8 timer",
+          "muted": "Varsler for denne serien slått av"
+        },
+        "unsupported": "Streamyfin-utvidelsen på serveren din tilbyr ikke varselvalg ennå.",
+        "load_failed": "Kunne ikke laste inn varselvalgene dine.",
+        "try_again": "Prøv igjen",
+        "events": {
+          "item_added": "Nye filmer og episoder",
+          "seerr_requests": "Forespørslene dine",
+          "seerr_requests_help": "Godkjent, avslått eller tilgjengelig",
+          "awaited_title": "En tittel du venter på, kommer",
+          "awaited_title_help": "En du ba om å bli varslet om fra Seerr-siden dens",
+          "user_locked_out": "Kontoen din blir låst",
+          "seerr_pending": "Nye forespørsler",
+          "seerr_pending_help": "Venter på godkjenning, godkjent automatisk eller mislyktes",
+          "session_started": "Noen logger inn",
+          "playback_started": "Noen starter en avspilling",
+          "sign_in_failed": "En innlogging mislykkes",
+          "task_failed": "En planlagt oppgave mislykkes",
+          "plugin_changed": "En utvidelse endres",
+          "plugin_changed_help": "Installert, oppdatert eller fjernet"
+        },
+        "groups": {
+          "new": "Nytt på serveren",
+          "follow": "Serier du følger",
+          "muted": "Serier slått av",
+          "yours": "Forespørslene og kontoen din",
+          "awaited": "Titler du venter på",
+          "server": "Servervarsler"
+        },
+        "libraries_footer": "Nye filmer og episoder fra disse bibliotekene.",
+        "follow": {
+          "favorites": "Favorittseriene dine",
+          "favorites_help": "En ny episode av en serie du har merket som favoritt",
+          "started": "Serier du har begynt på",
+          "started_help": "En ny episode av en serie du har begynt å se",
+          "footer": "Disse kommer selv om nye filmer og episoder er slått av."
+        },
+        "muted": {
+          "turn_back_on": "Slå på igjen"
+        },
+        "awaited": {
+          "stop": "Slutt å vente",
+          "arrived": "Allerede her, du blir varslet når pausen din er over"
+        },
+        "pause": {
+          "title": "Sett varsler på pause",
+          "off": "Av",
+          "one_hour": "1 time",
+          "eight_hours": "8 timer",
+          "one_day": "24 timer",
+          "until_on": "Til jeg slår dem på igjen",
+          "until": "Til {{when}}"
+        },
+        "blocked": {
+          "title": "Varsler er slått av for Streamyfin",
+          "body": "Telefonen din blokkerer dem, uansett hva du velger nedenfor.",
+          "open": "Åpne innstillinger"
+        },
+        "sound": {
+          "title": "Lyd og vibrasjon",
+          "help": "For hver type varsel, i Android-innstillingene"
+        },
+        "account_footer": "Disse valgene følger kontoen din på alle enheter."
       }
     },
     "sessions": {
       "title": "Økter",
       "no_active_sessions": "Ingen aktive økter",
       "select_session": "Velg økt",
-      "now_playing": "Spiller nå:"
+      "now_playing": "Spiller nå:",
+      "repeat_off": "Gjentakelse av",
+      "repeat_all": "Gjenta alle",
+      "repeat_one": "Gjenta én"
     },
     "downloads": {
       "downloads_title": "Nedlastinger",
@@ -609,7 +707,7 @@
         "all_files_deleted": "Alle nedlastinger er slettet",
         "files_deleted_by_type": "{{count}} {{type}} slettet",
         "could_not_get_download_url_for_item": "Kunne ikke hente nedlastings-URL for {{itemName}}",
-        "no_media_source_to_download": "This item cannot be downloaded",
+        "no_media_source_to_download": "Dette elementet kan ikke lastes ned",
         "file_deleted": "{{item}} slettet"
       }
     }
@@ -625,6 +723,7 @@
     "mark_as_not_played": "Merk som ikke spilt",
     "none": "Ingen",
     "track": "Spor",
+    "original_audio": "Original",
     "cancel": "Avbryt",
     "stop": "Stopp",
     "open_menu": "Åpne meny",
@@ -685,6 +784,15 @@
   "library": {
     "no_results": "Ingen treff",
     "no_libraries_found": "Ingen biblioteker funnet",
+    "jump_to_letter": "Gå til bokstav",
+    "sort": "Sorter",
+    "letters": "A–Z",
+    "tabs": {
+      "items": "Elementer",
+      "collections": "Samlinger",
+      "playlists": "Spillelister"
+    },
+    "play_all": "Spill av alle",
     "item_types": {
       "movies": "Filmer",
       "series": "Serier",
@@ -710,11 +818,24 @@
       "filter_by": "Filtrer etter",
       "sort_order": "Sorter etter",
       "tags": "Tagger",
+      "official_ratings": "Aldersgrenser",
+      "audio_languages": "Lydspråk",
+      "subtitle_languages": "Tekstingsspråk",
+      "selected_count": "{{count}} valgt",
       "all": "Alle",
+      "title": "Filtre",
+      "title_count": "Filtre · {{count}}",
       "reset": "Nullstill",
       "asc": "Stigende",
       "desc": "Synkende"
     }
+  },
+  "upcoming": {
+    "title": "Kommende",
+    "no_episodes": "Ingen kommende episoder",
+    "yesterday": "I går",
+    "today": "I dag",
+    "tomorrow": "I morgen"
   },
   "favorites": {
     "series": "Serier",
@@ -728,7 +849,7 @@
   },
   "custom_links": {
     "no_links": "Ingen lenke",
-    "could_not_open_link": "Could not open this link"
+    "could_not_open_link": "Kunne ikke åpne denne lenken"
   },
   "player": {
     "live": "DIREKTE",
@@ -757,6 +878,9 @@
       "buffer_seconds": "Buffer: {{seconds}}s",
       "vo": "VO:",
       "dropped_frames": "Droppet: {{count}} bilder",
+      "transcode_progress": "Transkodet: {{percent}} %",
+      "transcode_speed": "Transkodingshastighet: {{fps}} fps",
+      "transcode_hardware": "Maskinvareakselerasjon: {{type}}",
       "loading": "Laster..."
     },
     "mpv_player_title": "MPV-spiller",
@@ -771,8 +895,11 @@
     "client_error": "Klientfeil",
     "could_not_create_stream_for_chromecast": "Kan ikke opprette en strøm for Chromecast",
     "chromecast_playback_failed": "Chromecast kunne ikke spille av denne strømmen",
+    "chromecast_server_unreachable": "Chromecast kunne ikke nå Jellyfin-serveren din",
+    "chromecast_did_not_start": "Chromecasten startet ikke avspillingen. Sørg for at den kan nå Jellyfin-serveren din.",
     "message_from_server": "Melding fra tjener: {{message}}",
     "next_episode": "Neste Episode",
+    "up_next": "Neste opp",
     "continue_watching": "Fortsett å se",
     "go_back": "Gå tilbake",
     "downloaded_file_title": "Du har allerede lastet ned denne filen",
@@ -844,10 +971,13 @@
     "view_season": "Vis sesong",
     "select_season": "Velg sesong",
     "no_episodes_for_this_season": "Ingen episoder for denne sesongen",
+    "missing": "Mangler",
+    "not_yet_aired": "Ikke sendt ennå",
     "overview": "Oversikt",
     "more_with": "Mer med {{name}}",
     "similar_items": "Lignende artikler",
     "no_similar_items_found": "Ingen lignende artikler funnet",
+    "collections": "Samlinger",
     "video": "Video",
     "more_details": "Flere detaljer",
     "media_options": "Mediealternativer",
@@ -861,8 +991,46 @@
     "show_more": "Vis mer",
     "show_less": "Vis mindre",
     "left": "igjen",
-    "director": "Regissør",
     "cast": "Skuespillere",
+    "credits": {
+      "Director_one": "Regi",
+      "Director_other": "Regi",
+      "Writer_one": "Manus",
+      "Writer_other": "Manus",
+      "Creator_one": "Skaper",
+      "Creator_other": "Skapere",
+      "Author_one": "Forfatter",
+      "Author_other": "Forfattere",
+      "Narrator_one": "Oppleser",
+      "Narrator_other": "Opplesere"
+    },
+    "person_kind": {
+      "Actor": "Skuespiller",
+      "Director": "Regissør",
+      "Composer": "Komponist",
+      "Writer": "Manusforfatter",
+      "GuestStar": "Gjesteskuespiller",
+      "Producer": "Produsent",
+      "Conductor": "Dirigent",
+      "Lyricist": "Tekstforfatter",
+      "Arranger": "Arrangør",
+      "Engineer": "Lydtekniker",
+      "Mixer": "Mikser",
+      "Remixer": "Remikser",
+      "Creator": "Skaper",
+      "Artist": "Artist",
+      "AlbumArtist": "Albumartist",
+      "Author": "Forfatter",
+      "Illustrator": "Illustratør",
+      "Penciller": "Tegner",
+      "Inker": "Tusjtegner",
+      "Colorist": "Fargelegger",
+      "Letterer": "Tekster",
+      "CoverArtist": "Coverkunstner",
+      "Editor": "Redaktør",
+      "Translator": "Oversetter",
+      "Narrator": "Oppleser"
+    },
     "technical_details": "Tekniske detaljer",
     "appeared_in": "Ble brukt i",
     "movies": "Filmer",
@@ -909,6 +1077,14 @@
     }
   },
   "seerr": {
+    "awaited": {
+      "notify_me": "Varsle meg når den kommer",
+      "waiting": "Du blir varslet",
+      "stop_hint": "Slutter å vente på denne tittelen",
+      "already_here": "Denne tittelen er allerede på serveren",
+      "too_many": "Du venter allerede på så mange titler som mulig",
+      "failed": "Kunne ikke endre titlene du venter på"
+    },
     "cancel": "Avbryt",
     "whats_wrong": "Hva er galt?",
     "issue_type": "Type problem",
@@ -1185,10 +1361,10 @@
     "pairing_tv_connecting": "TV-en kobler seg til kontoen din",
     "error_title": "Autorisering mislyktes",
     "error_invalid_qr": "Ugyldig QR-kode. Skann tilkoblingskoden på TV-en.",
-    "error_old_tv": "This TV runs an older version of Streamyfin. Update it, then try again.",
-    "error_code_not_waiting": "This code is not waiting on {{server}}. Check that the TV uses the same server as this phone, then start Quick Connect again on the TV.",
-    "error_quick_connect_disabled": "Quick Connect is turned off on {{server}}. An administrator can turn it on in the server's dashboard.",
-    "error_other_server": "This TV is connecting to another server, {{server}}. Sign in to that server in this app, then scan again.",
+    "error_old_tv": "Denne TV-en kjører en eldre versjon av Streamyfin. Oppdater den og prøv igjen.",
+    "error_code_not_waiting": "Denne koden venter ikke på {{server}}. Sjekk at TV-en bruker samme server som denne telefonen, og start deretter hurtigkobling på nytt på TV-en.",
+    "error_quick_connect_disabled": "Hurtigkobling er slått av på {{server}}. En administrator kan slå den på i serverens kontrollpanel.",
+    "error_other_server": "Denne TV-en kobler til en annen server, {{server}}. Logg inn på den serveren i denne appen, og skann deretter på nytt.",
     "error_generic": "Noe gikk galt. Prøv igjen.",
     "error_permission_denied": "Kameratilgang kreves for å skanne QR-koder.",
     "login_as": "Logge inn som {{username}}?",
@@ -1198,11 +1374,11 @@
   "pairing": {
     "pair_with_phone": "Koble til telefon",
     "pair_with_phone_title": "Logg inn på TV",
-    "scan_quick_connect": "Scan the QR code with the Streamyfin app or your phone's camera.",
-    "code_expired": "This code has expired.",
-    "get_new_code": "Get a new code",
-    "scan_with_app": "Scan the QR code with the Streamyfin app on your phone.",
-    "account_that_approves": "The account that approves the code",
+    "scan_quick_connect": "Skann QR-koden med Streamyfin-appen eller kameraet på telefonen din.",
+    "code_expired": "Denne koden har utløpt.",
+    "get_new_code": "Hent en ny kode",
+    "scan_with_app": "Skann QR-koden med Streamyfin-appen på telefonen din.",
+    "account_that_approves": "Kontoen som godkjenner koden",
     "logging_in": "Logger inn...",
     "logging_in_description": "Kobler til serveren din"
   },
@@ -1234,5 +1410,82 @@
     "header_count_one": "{{count}} header",
     "header_count_other": "{{count}} headere",
     "header_count": "{{count}} headere"
+  },
+  "syncplay": {
+    "pause": "Pause",
+    "play": "Spill av",
+    "online_video_only": "SyncPlay støtter bare nettvideoer. Forlat gruppen for å se nedlastede videoer eller caste.",
+    "title": "SyncPlay",
+    "watch": "Se",
+    "new_group": "Ny gruppe",
+    "new_group_queues": "Setter {{title}} i kø · {{count}} videoer",
+    "new_group_queues_one": "Setter {{title}} i kø",
+    "new_group_queues_other": "Setter {{title}} i kø · {{count}} videoer",
+    "groups_on_server": "Grupper på denne serveren",
+    "join": "Bli med",
+    "play_for_everyone": "Spill av for alle",
+    "stop_for_everyone": "Stopp for alle",
+    "back_to_group": "Tilbake til {{name}}",
+    "how_to_play": "I en gruppe spilles en video av for alle når du trykker på Spill av.",
+    "play_next": "Spill av neste",
+    "add_to_queue": "Legg til i kø",
+    "added_to_queue": "Lagt til i gruppens kø",
+    "default_group_name": "{{name}}s gruppe",
+    "switch_group": "Bytt til en annen gruppe",
+    "ignore_wait_setting_hint": "Grupper du blir med i, starter og fortsetter uten å vente på denne enheten. Gjelder hver gang du blir med; du kan fortsatt endre det i avspilleren.",
+    "description": "Se synkronisert med venner som bruker Jellyfin på samme server.",
+    "current_group": "Gruppen din",
+    "available_groups": "Tilgjengelige grupper",
+    "leave": "Forlat gruppe",
+    "refresh": "Oppdater",
+    "retry": "Prøv igjen",
+    "no_groups": "Ingen andre grupper ennå. Opprett en gruppe og inviter venner til å bli med.",
+    "no_participants": "Venter på deltakere",
+    "unavailable": "SyncPlay er ikke tilgjengelig for denne kontoen. Be serveradministratoren din om å aktivere det.",
+    "disconnected": "Koble til serveren din for å bruke SyncPlay. Gruppene blir tilgjengelige når tilkoblingen er tilbake.",
+    "reconnecting": "Kobler til på nytt…",
+    "error": "SyncPlay kunne ikke fullføre forespørselen",
+    "states": {
+      "Idle": "Klar til å se",
+      "Waiting": "Venter på alle",
+      "Paused": "Satt på pause",
+      "Playing": "Spiller av"
+    },
+    "errors": {
+      "disconnected": "Tilkoblingen til serveren ble brutt. Koble til igjen for å fortsette å se sammen.",
+      "request_failed": "Forespørselen mislyktes. Prøv igjen.",
+      "create_denied": "Denne kontoen har ikke tillatelse til å opprette SyncPlay-grupper.",
+      "join_denied": "Denne kontoen har ikke tillatelse til å bli med i denne gruppen.",
+      "group_missing": "Denne gruppen er ikke lenger tilgjengelig. Oppdater gruppelisten.",
+      "library_denied": "Denne kontoen har ikke tilgang til videoen gruppen har valgt.",
+      "disabled": "SyncPlay er deaktivert for denne kontoen.",
+      "playback_failed": "Gruppens video kunne ikke spilles av. Velg en annen video eller prøv igjen.",
+      "invalid_name": "Skriv inn et gruppenavn.",
+      "timeout": "Serveren svarte ikke i tide. Prøv igjen."
+    },
+    "queue": "Delt kø",
+    "playback_options": "Avspillingsalternativer",
+    "repeat": "Gjenta",
+    "repeat_modes": {
+      "RepeatNone": "Av",
+      "RepeatAll": "Alle videoer",
+      "RepeatOne": "Én video"
+    },
+    "shuffle": "Tilfeldig",
+    "ignore_wait": "Ikke vent på denne enheten",
+    "ignore_wait_hint": "Gruppen kan starte eller fortsette uten å vente på at denne enheten er klar. Innstillingen gjelder bare den nåværende økten din.",
+    "on": "På",
+    "off": "Av",
+    "empty_queue": "Køen er tom. Legg til en video nedenfor eller spill av en fra biblioteket ditt.",
+    "unavailable_video": "Videoen er ikke tilgjengelig",
+    "now_playing": "Gjeldende video",
+    "move_up": "Flytt opp",
+    "move_down": "Flytt ned",
+    "remove": "Fjern",
+    "clear_upcoming": "Behold bare gjeldende video",
+    "clear_all": "Tøm køen og stopp",
+    "play_now": "Spill av nå",
+    "refresh_group": "Oppdater gruppe",
+    "close": "Lukk"
   }
 }
