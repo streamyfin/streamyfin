@@ -56,6 +56,30 @@ describe("getStreamUrl", () => {
     expect(url.searchParams.get("playSessionId")).toBe("session-1");
   });
 
+  // The TV channel grid opens a channel itself, not one of its programs, so
+  // its stream is opened by the general PlaybackInfo request.
+  test("a channel opened directly carries its opened live stream too", async () => {
+    const api = makeApi();
+    api.mock.onPost(/\/Items\/channel-1\/PlaybackInfo/).reply(200, {
+      PlaySessionId: "session-1",
+      MediaSources: [
+        { Id: "native-1", Container: "ts", LiveStreamId: "live-1" },
+      ],
+    });
+
+    const result = await getStreamUrl({
+      api,
+      item: { Id: "channel-1", Type: "TvChannel" },
+      userId: "user-1",
+      startTimeTicks: 0,
+      deviceProfile: {},
+    });
+
+    const url = new URL(result!.url!);
+    expect(url.pathname).toBe("/Videos/channel-1/stream");
+    expect(url.searchParams.get("liveStreamId")).toBe("live-1");
+  });
+
   // REACT-NATIVE-54 / REACT-NATIVE-5H: Jellyfin answers PlaybackInfo with a
   // 400 for an item that has no stream. Seen in production for a Book opened
   // from a home row (Android) and for a Season opened on Apple TV, each one

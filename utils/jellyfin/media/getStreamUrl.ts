@@ -270,6 +270,7 @@ export const getStreamUrl = async ({
     maxStreamingBitrate,
     userId,
     playSessionId: playSessionId || undefined,
+    liveStreamId: mediaSource.LiveStreamId,
   });
 
   return {
