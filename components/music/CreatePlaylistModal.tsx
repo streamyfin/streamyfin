@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
 import { useCreatePlaylist } from "@/hooks/usePlaylistMutations";
+import { useSheetOpenState } from "@/hooks/useSheetOpenState";
 
 interface Props {
   open: boolean;
@@ -41,13 +42,9 @@ export const CreatePlaylistModal: React.FC<Props> = ({
   const snapPoints = useMemo(() => ["40%"], []);
 
   useEffect(() => {
-    if (open) {
-      setName("");
-      bottomSheetModalRef.current?.present();
-    } else {
-      bottomSheetModalRef.current?.dismiss();
-    }
+    if (open) setName("");
   }, [open]);
+  const handleDismissed = useSheetOpenState(bottomSheetModalRef, open);
 
   const handleSheetChanges = useCallback(
     (index: number) => {
@@ -89,6 +86,7 @@ export const CreatePlaylistModal: React.FC<Props> = ({
   return (
     <BottomSheetModal
       ref={bottomSheetModalRef}
+      onDismiss={handleDismissed}
       index={0}
       snapPoints={snapPoints}
       onChange={handleSheetChanges}

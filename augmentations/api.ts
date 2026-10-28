@@ -1,7 +1,8 @@
 import { Api } from "@jellyfin/sdk";
 import { AUTHORIZATION_HEADER } from "@jellyfin/sdk/lib/constants";
 import axios, { type AxiosRequestConfig, type AxiosResponse } from "axios";
-import type { StreamyfinPluginConfig } from "@/utils/atoms/settings";
+import type { PluginLockableSettings } from "@/utils/atoms/settings";
+import { readPluginSettings } from "@/utils/pluginSettingsSource";
 
 declare module "@jellyfin/sdk" {
   interface Api {
@@ -17,11 +18,17 @@ declare module "@jellyfin/sdk" {
       config?: AxiosRequestConfig<D>,
     ): Promise<AxiosResponse<T>>;
     /** For plugin routes not represented by the Jellyfin SDK. */
+    pluginPut<T, D = unknown>(
+      url: string,
+      data: D,
+      config?: AxiosRequestConfig<D>,
+    ): Promise<AxiosResponse<T>>;
+    /** For plugin routes not represented by the Jellyfin SDK. */
     pluginDelete<T, D = unknown>(
       url: string,
       config?: AxiosRequestConfig<D>,
     ): Promise<AxiosResponse<T>>;
-    getStreamyfinPluginConfig(): Promise<AxiosResponse<StreamyfinPluginConfig>>;
+    getStreamyfinPluginSettings(): Promise<PluginLockableSettings | undefined>;
   }
 }
 
@@ -52,6 +59,18 @@ Api.prototype.pluginPost = function <T, D = unknown>(
   );
 };
 
+Api.prototype.pluginPut = function <T, D = unknown>(
+  url: string,
+  data: D,
+  config: AxiosRequestConfig<D> = {},
+): Promise<AxiosResponse<T>> {
+  return this.axiosInstance.put<T>(
+    `${this.basePath}${url}`,
+    data,
+    pluginOptions(this, config),
+  );
+};
+
 Api.prototype.pluginDelete = function <T, D = unknown>(
   url: string,
   config: AxiosRequestConfig<D> = {},
@@ -62,8 +81,8 @@ Api.prototype.pluginDelete = function <T, D = unknown>(
   );
 };
 
-Api.prototype.getStreamyfinPluginConfig = function (): Promise<
-  AxiosResponse<StreamyfinPluginConfig>
+Api.prototype.getStreamyfinPluginSettings = function (): Promise<
+  PluginLockableSettings | undefined
 > {
-  return this.pluginGet<StreamyfinPluginConfig>("/Streamyfin/config");
+  return readPluginSettings(this);
 };

@@ -519,6 +519,11 @@ public class BackgroundDownloaderModule: Module {
         "taskId": taskId,
         "error": "Download task info not found"
       ])
+      // A cancel that removed the task info before this callback ran is the usual way here. The
+      // transfer finished, so no cancellation error follows for handleErrorLocked to advance the
+      // queue from; without this the downloads queued behind it would wait for the next launch.
+      lastProgressTime.removeValue(forKey: taskId)
+      processNextInQueueSafelyLocked()
       return
     }
 
@@ -555,11 +560,13 @@ public class BackgroundDownloaderModule: Module {
 
     do {
       let destinationURL: URL
+      let documentsDir = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first!
 
       if let customPath = taskInfo.destinationPath {
-        destinationURL = URL(fileURLWithPath: customPath)
+        // Stored when the download was queued, possibly before an update moved the container.
+        destinationURL = URL(
+          fileURLWithPath: AppContainerPath.current(customPath, documents: documentsDir))
       } else {
-        let documentsDir = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first!
         let filename = downloadTask.response?.suggestedFilename
           ?? downloadTask.originalRequest?.url?.lastPathComponent
           ?? "download_\(taskId)"

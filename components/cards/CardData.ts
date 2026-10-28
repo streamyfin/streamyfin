@@ -1,8 +1,14 @@
 import type { Api } from "@jellyfin/sdk";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { getItemProgressPercentage } from "@/components/common/ProgressBar";
+import {
+  CARD_IMAGE_WIDTH_STEP_PX,
+  MAX_CARD_IMAGE_WIDTH_PX,
+} from "@/constants/Images";
 import { getPortraitImageUrl } from "@/utils/jellyfin/image/getPortraitImageUrl";
 import { getWideImageUrl } from "@/utils/jellyfin/image/getWideImageUrl";
+import { toImagePixels } from "@/utils/jellyfin/image/imagePixels";
+import { isLiveBroadcast } from "@/utils/jellyfin/media/isLiveBroadcast";
 
 /** One card. Everything is prebuilt here; the card view is presentational. */
 export type CardData = {
@@ -28,6 +34,8 @@ export type CardData = {
    * something is a slot the screen fills in.
    */
   detail?: string | null;
+  /** A Live TV program broadcast live — draws the LIVE pill in the corner. */
+  live?: boolean;
   /** Faded back because another card in the row is the current one. */
   dimmed?: boolean;
   /**
@@ -113,6 +121,18 @@ export const cardRowHeight = (kind: CardKind) => {
 };
 
 /**
+ * Pixel width to request artwork at for a card this many layout points wide:
+ * what the screen draws, rounded up to the next step so cards of nearly the
+ * same width share one image.
+ */
+const cardImageWidth = (cardWidth: number) =>
+  Math.min(
+    Math.ceil(toImagePixels(cardWidth) / CARD_IMAGE_WIDTH_STEP_PX) *
+      CARD_IMAGE_WIDTH_STEP_PX,
+    MAX_CARD_IMAGE_WIDTH_PX,
+  );
+
+/**
  * The second line under a title: which episode this is, or when it came out.
  * Exported so anything building cards outside `buildItemCards` — the offline
  * downloads, say — labels an item the same way.
@@ -195,6 +215,11 @@ const latestCardText = (item: BaseItemDto) => {
 type BuildOptions = {
   api?: Api | null;
   kind: CardKind;
+  /**
+   * Width the cards are drawn at, in layout points, which sizes the artwork
+   * request. Defaults to the kind's own width; a grid passes its column width.
+   */
+  cardWidth?: number;
   /** Prefer the episode's own still over the series thumbnail. */
   useEpisodePoster?: boolean;
   /** Show a TV child's series name before its own name, as Jellyfin Web does. */
@@ -212,12 +237,17 @@ export function buildItemCards(
   {
     api,
     kind,
+    cardWidth,
     useEpisodePoster = false,
     showParentTitle = false,
     selectedId,
   }: BuildOptions,
 ): CardData[] {
   if (!api) return [];
+
+  const layout = CARD_LAYOUTS[kind];
+  const imageWidth = cardImageWidth(cardWidth ?? layout.cardWidth);
+  const imageHeight = Math.round(imageWidth / layout.aspectRatio);
 
   return items.flatMap((item) => {
     if (!item.Id) return [];
@@ -231,8 +261,14 @@ export function buildItemCards(
     const unplayed = item.UserData?.UnplayedItemCount ?? 0;
     const imageUrl =
       kind === "portrait"
-        ? getPortraitImageUrl({ api, item })
-        : getWideImageUrl({ api, item, useEpisodePoster });
+        ? getPortraitImageUrl({ api, item, width: imageWidth })
+        : getWideImageUrl({
+            api,
+            item,
+            useEpisodePoster,
+            fillWidth: imageWidth,
+            fillHeight: imageHeight,
+          });
 
     const progress = itemProgressFraction(item);
     // Strict === false: items without UserData (unknown state) get no dot.
@@ -253,6 +289,7 @@ export function buildItemCards(
         progress,
         unwatched,
         unplayedCount,
+        live: isLiveBroadcast(item),
         dimmed,
         aspectRatio,
       },

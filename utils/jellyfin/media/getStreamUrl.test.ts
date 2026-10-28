@@ -7,6 +7,7 @@ jest.mock("expo", () => ({
 }));
 
 import { bodyContaining, makeApi } from "@/test-utils/jellyfinApi";
+import { isExpectedError } from "@/utils/errors";
 import { getDownloadStreamUrl, getStreamUrl } from "./getStreamUrl";
 
 describe("getStreamUrl", () => {
@@ -31,6 +32,32 @@ describe("getStreamUrl", () => {
     expect(url.searchParams.get("container")).toBe("mkv");
     expect(url.searchParams.get("ApiKey")).toBe("SECRET_TOKEN");
   });
+
+  // REACT-NATIVE-54 / REACT-NATIVE-5H: Jellyfin answers PlaybackInfo with a
+  // 400 for an item that has no stream. Seen in production for a Book opened
+  // from a home row (Android) and for a Season opened on Apple TV, each one
+  // a Sentry event although nothing in the app had failed.
+  test.each(["Book", "Season"] as const)(
+    "refuses a %s as an expected outcome, without asking the server",
+    async (type) => {
+      const api = makeApi();
+      api.mock
+        .onPost("https://jellyfin.example.com/Items/item-1/PlaybackInfo")
+        .reply(400);
+
+      const error = await getStreamUrl({
+        api,
+        item: { Id: "item-1", Type: type },
+        userId: "user-1",
+        startTimeTicks: 0,
+        deviceProfile: {},
+      }).catch((e: unknown) => e);
+
+      expect(error).toBeInstanceOf(Error);
+      expect(isExpectedError(error)).toBe(true);
+      expect(api.mock.history.post).toHaveLength(0);
+    },
+  );
 });
 
 describe("getDownloadStreamUrl", () => {

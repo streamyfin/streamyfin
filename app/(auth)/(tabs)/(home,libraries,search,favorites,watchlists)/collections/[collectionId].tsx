@@ -11,7 +11,7 @@ import {
   useLocalSearchParams,
   useNavigation,
 } from "expo-router";
-import { useAtom } from "jotai";
+import { useAtom, useSetAtom } from "jotai";
 import type React from "react";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -27,22 +27,29 @@ import { TVFilterButton } from "@/components/tv";
 import { TVPosterCard } from "@/components/tv/TVPosterCard";
 import { useScaledTVPosterSizes } from "@/constants/TVPosterSizes";
 import useRouter from "@/hooks/useAppRouter";
+import { useServerVersion } from "@/hooks/useServerVersion";
 import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
 import { useTVOptionModal } from "@/hooks/useTVOptionModal";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import {
+  audioLanguageFilterAtom,
+  filterOwnerAtom,
   genreFilterAtom,
+  officialRatingFilterAtom,
   SortByOption,
   SortOrderOption,
   sortByAtom,
-  sortOptions,
+  sortOptionsFor,
   sortOrderAtom,
   sortOrderOptions,
+  subtitleLanguageFilterAtom,
   tagsFilterAtom,
   yearFilterAtom,
 } from "@/utils/atoms/filters";
 import type { TVOptionItem } from "@/utils/atoms/tvOptionModal";
+import { serverSortBy } from "@/utils/library/libraryItemsQuery";
+import { resolveSortKey } from "@/utils/library/sortOption";
 
 const TV_ITEM_GAP = 16;
 const TV_SCALE_PADDING = 20;
@@ -54,6 +61,7 @@ const page: React.FC = () => {
   const posterSizes = useScaledTVPosterSizes();
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
+  const serverVersion = useServerVersion();
   const navigation = useNavigation();
   const router = useRouter();
   const { showOptions } = useTVOptionModal();
@@ -69,8 +77,14 @@ const page: React.FC = () => {
   const [selectedGenres, setSelectedGenres] = useAtom(genreFilterAtom);
   const [selectedYears, setSelectedYears] = useAtom(yearFilterAtom);
   const [selectedTags, setSelectedTags] = useAtom(tagsFilterAtom);
+  // Setter only: reading the atom would re-render this screen on every rating
+  // picked in a library.
+  const setSelectedOfficialRatings = useSetAtom(officialRatingFilterAtom);
+  const [, setSelectedAudioLanguages] = useAtom(audioLanguageFilterAtom);
+  const [, setSelectedSubtitleLanguages] = useAtom(subtitleLanguageFilterAtom);
   const [sortBy, setSortBy] = useAtom(sortByAtom);
   const [sortOrder, setSortOrder] = useAtom(sortOrderAtom);
+  const setFilterOwner = useSetAtom(filterOwnerAtom);
 
   const { data: collection, isLoading: isCollectionLoading } = useQuery({
     queryKey: ["collection", collectionId],
@@ -86,6 +100,15 @@ const page: React.FC = () => {
     enabled: !!api && !!user?.Id && !!collectionId,
     staleTime: 60 * 1000,
   });
+
+  // A box set has no collection type, a view of a Shows library does. The sort
+  // atoms are shared between screens, so a key picked elsewhere can be missing
+  // from this list; it then shows and sorts as Name, not as an empty label.
+  // Covered by utils/library/sortOption.test.ts; the server key the request
+  // sends (serverSortBy) by utils/library/libraryItemsQuery.test.ts.
+  const sortOptions = sortOptionsFor(collection?.CollectionType);
+  const activeSortBy = resolveSortKey(sortBy[0], sortOptions);
+  const activeSortByValues = useMemo(() => [activeSortBy], [activeSortBy]);
 
   // TV Filter queries
   const { data: tvGenreOptions } = useQuery({
@@ -138,6 +161,13 @@ const page: React.FC = () => {
       setSelectedGenres([]);
       setSelectedYears([]);
       setSelectedTags([]);
+      // Not offered here, but the shared reset button counts them as active.
+      setSelectedOfficialRatings([]);
+      setSelectedAudioLanguages([]);
+      setSelectedSubtitleLanguages([]);
+      // The atoms are this collection's now: a library mounted underneath
+      // keeps its own selection instead of following this one.
+      setFilterOwner(collectionId);
 
       if (!collection) return;
 
@@ -157,6 +187,11 @@ const page: React.FC = () => {
       setSelectedGenres,
       setSelectedYears,
       setSelectedTags,
+      setSelectedOfficialRatings,
+      setSelectedAudioLanguages,
+      setSelectedSubtitleLanguages,
+      setFilterOwner,
+      collectionId,
     ]),
   );
 
@@ -186,7 +221,9 @@ const page: React.FC = () => {
         limit: Platform.isTV ? 36 : 18,
         startIndex: pageParam,
         // Set one ordering at a time. As collections do not work with correctly with multiple.
-        sortBy: [sortBy[0]],
+        sortBy: [
+          serverSortBy(activeSortBy, collection.CollectionType, serverVersion),
+        ],
         sortOrder: [sortOrder[0]],
         fields: [
           "ItemCounts",
@@ -195,7 +232,7 @@ const page: React.FC = () => {
           "MediaSourceCount",
         ],
         // true is needed for merged versions
-        recursive: true,
+        recursive: collection.Type !== "BoxSet",
         genres: selectedGenres,
         tags: selectedTags,
         years: selectedYears.map((year) => Number.parseInt(year, 10)),
@@ -212,8 +249,9 @@ const page: React.FC = () => {
       selectedGenres,
       selectedYears,
       selectedTags,
-      sortBy,
+      activeSortBy,
       sortOrder,
+      serverVersion,
     ],
   );
 
@@ -224,8 +262,10 @@ const page: React.FC = () => {
       selectedGenres,
       selectedYears,
       selectedTags,
-      sortBy,
+      activeSortBy,
       sortOrder,
+      // Which sort key goes to the server can depend on its version.
+      serverVersion,
     ],
     queryFn: fetchItems,
     getNextPageParam: (lastPage, pages) => {
@@ -394,10 +434,10 @@ const page: React.FC = () => {
               <FilterButton
                 className='mr-1'
                 id={collectionId}
-                queryKey='sortBy'
+                queryKey={`sortBy:${collection?.CollectionType ?? ""}`}
                 queryFn={async () => sortOptions.map((s) => s.key)}
                 set={setSortBy}
-                values={sortBy}
+                values={activeSortByValues}
                 title={t("library.filters.sort_by")}
                 renderItemLabel={(item) =>
                   sortOptions.find((i) => i.key === item)?.value || ""
@@ -439,6 +479,8 @@ const page: React.FC = () => {
       setSelectedTags,
       sortBy,
       setSortBy,
+      sortOptions,
+      activeSortByValues,
       sortOrder,
       setSortOrder,
     ],
@@ -498,9 +540,9 @@ const page: React.FC = () => {
       sortOptions.map((option) => ({
         label: option.value,
         value: option.key,
-        selected: sortBy[0] === option.key,
+        selected: activeSortBy === option.key,
       })),
-    [sortBy],
+    [sortOptions, activeSortBy],
   );
 
   const tvSortOrderOptions = useMemo(
@@ -700,7 +742,7 @@ const page: React.FC = () => {
         />
         <TVFilterButton
           label={t("library.filters.sort_by")}
-          value={sortOptions.find((o) => o.key === sortBy[0])?.value || ""}
+          value={sortOptions.find((o) => o.key === activeSortBy)?.value || ""}
           onPress={handleShowSortByFilter}
         />
         <TVFilterButton

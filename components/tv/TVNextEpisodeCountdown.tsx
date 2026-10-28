@@ -152,6 +152,10 @@ export const TVNextEpisodeCountdown: FC<TVNextEpisodeCountdownProps> = ({
 
   if (!show) return null;
 
+  // A play queue can line up a movie, which has neither a series nor an
+  // episode number to show.
+  const isEpisode = nextItem.Type === "Episode";
+
   return (
     <Animated.View
       style={[styles.container, containerAnimatedStyle]}
@@ -177,16 +181,20 @@ export const TVNextEpisodeCountdown: FC<TVNextEpisodeCountdownProps> = ({
               )}
 
               <View style={styles.content}>
-                <Text style={styles.label}>{t("player.next_episode")}</Text>
+                <Text style={styles.label}>
+                  {t(isEpisode ? "player.next_episode" : "player.up_next")}
+                </Text>
 
                 <Text style={styles.seriesName} numberOfLines={1}>
-                  {nextItem.SeriesName}
+                  {isEpisode ? nextItem.SeriesName : nextItem.Name}
                 </Text>
 
-                <Text style={styles.episodeInfo} numberOfLines={1}>
-                  S{nextItem.ParentIndexNumber}E{nextItem.IndexNumber} -{" "}
-                  {nextItem.Name}
-                </Text>
+                {isEpisode && (
+                  <Text style={styles.episodeInfo} numberOfLines={1}>
+                    S{nextItem.ParentIndexNumber}E{nextItem.IndexNumber} -{" "}
+                    {nextItem.Name}
+                  </Text>
+                )}
 
                 <View style={styles.progressContainer}>
                   <Animated.View style={[styles.progressBar, progressStyle]} />

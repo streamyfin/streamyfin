@@ -10,6 +10,7 @@ import {
   nestedTabPageScreenOptions,
   stackScreenOptions,
 } from "@/components/stacks/NestedTabPageStack";
+import { SyncPlayButton } from "@/components/syncplay/SyncPlayButton";
 import { Colors } from "@/constants/Colors";
 import useRouter from "@/hooks/useAppRouter";
 
@@ -61,6 +62,7 @@ export default function IndexLayout() {
             Platform.isTV ? null : (
               <HeaderButtonGroup>
                 <Chromecast.Chromecast />
+                <SyncPlayButton />
                 {user?.Policy?.IsAdministrator && <SessionsButton />}
                 <SettingsButton />
               </HeaderButtonGroup>
@@ -187,9 +189,9 @@ export default function IndexLayout() {
         }}
       />
       <Stack.Screen
-        name='settings/plugins/jellyseerr/page'
+        name='settings/plugins/seerr/page'
         options={{
-          title: "Jellyseerr",
+          title: "Seerr",
           headerShown: !Platform.isTV,
           headerBlurEffect: "none",
           headerTransparent: Platform.OS === "ios",
@@ -240,6 +242,16 @@ export default function IndexLayout() {
         name='settings/network/page'
         options={{
           title: t("home.settings.network.title"),
+          headerShown: !Platform.isTV,
+          headerBlurEffect: "none",
+          headerTransparent: Platform.OS === "ios",
+          headerShadowVisible: false,
+        }}
+      />
+      <Stack.Screen
+        name='settings/notifications/page'
+        options={{
+          title: t("home.settings.notifications.title"),
           headerShown: !Platform.isTV,
           headerBlurEffect: "none",
           headerTransparent: Platform.OS === "ios",

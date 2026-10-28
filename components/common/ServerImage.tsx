@@ -58,7 +58,7 @@ export async function prefetchServerImage(
  * TMDB artwork, bundled assets, data URIs — are passed through untouched.
  *
  * Import this instead of `expo-image` for anything loaded from the Jellyfin or
- * Jellyseerr server; the props are expo-image's and its statics are carried
+ * Seerr server; the props are expo-image's and its statics are carried
  * over, so only the import changes:
  *
  *     import { Image } from "@/components/common/ServerImage";

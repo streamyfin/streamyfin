@@ -11,14 +11,25 @@ import {
   useRef,
   useState,
 } from "react";
-import { AppState, type AppStateStatus } from "react-native";
+import { useTranslation } from "react-i18next";
+import { AppState, type AppStateStatus, Platform } from "react-native";
 import { useNetworkAwareQueryClient } from "@/hooks/useNetworkAwareQueryClient";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { useNetworkStatus } from "@/providers/NetworkStatusProvider";
 import { getJellyfinHeaders, hasHeaders } from "@/utils/customHeaders";
 import { getOrSetDeviceId } from "@/utils/device";
 import { describeHttpResponse } from "@/utils/errors";
+import {
+  getAcceptLanguage,
+  withAcceptLanguage,
+} from "@/utils/jellyfin/acceptLanguage";
 import { getWebSocketUrl } from "@/utils/jellyfin/getWebSocketUrl";
+import { supportedCommands } from "@/utils/jellyfin/playbackModes";
+import {
+  createSocketFailureRecorder,
+  reportSocketFastRetriesExhausted,
+} from "@/utils/jellyfin/socketFailure";
+import { SocketLifecycle } from "@/utils/jellyfin/socketLifecycle";
 import { logAndCaptureError, writeErrorLog } from "@/utils/log";
 
 // Query keys that depend on the set of library items and should be refreshed
@@ -83,6 +94,8 @@ interface WebSocketContextType {
   ) => () => void;
   sendMessage: (message: any) => void;
   clearLastMessage: () => void;
+  /** Native playback owns whether backgrounding leaves its SyncPlay group. */
+  retainInBackground: () => () => void;
 }
 
 const WebSocketContext = createContext<WebSocketContextType | null>(null);
@@ -98,14 +111,25 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
   const api = useAtomValue(apiAtom);
   const { isConnected: isNetworkConnected, serverConnected } =
     useNetworkStatus();
-  // The give-up report fires at most once per session: after the first
-  // exhaustion the attempt counter stays maxed, so every later foreground/
-  // network flip would re-trigger it.
-  const reportedSocketGiveUpRef = useRef(false);
+  // Report a failed fast retry window once; recovery keeps retrying slowly.
+  const reportedSocketRetryExhaustionRef = useRef(false);
+  // The server localizes what it sends over the socket from the language of
+  // the handshake, so a new language needs a new socket. useTranslation is
+  // what re-renders this provider when the language changes.
+  useTranslation();
+  const acceptLanguage = getAcceptLanguage();
   const serverConnectedRef = useRef(serverConnected);
   serverConnectedRef.current = serverConnected;
+  const previousServerConnectedRef = useRef(serverConnected);
   const [ws, setWs] = useState<WebSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
+  const [socketLifecycle] = useState(
+    () =>
+      new SocketLifecycle(
+        () => AppState.currentState,
+        () => setIsConnected(false),
+      ),
+  );
   const [lastMessage, setLastMessage] = useState<WebSocketMessage | null>(null);
   const queryClient = useNetworkAwareQueryClient();
   const deviceId = useMemo(() => {
@@ -118,12 +142,6 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
   const userDataChangeDebounceRef = useRef<ReturnType<
     typeof setTimeout
   > | null>(null);
-  // Handle for the onerror backoff timer. Tracked so a reconnect triggered by
-  // another path (foreground, network reconnect, effect re-run) can cancel a
-  // pending one — an untracked timer would later open a second socket.
-  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
-    null,
-  );
 
   // Pub/sub registry: messageType -> set of handlers. Stored in a ref so
   // subscribing/dispatching never triggers a re-render.
@@ -179,85 +197,115 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
     // Cancel any reconnect queued by a previous onerror before opening a new
     // socket, so we never end up with two live sockets — each would double the
     // message fan-out and double-invalidate queries.
-    if (reconnectTimeoutRef.current) {
-      clearTimeout(reconnectTimeoutRef.current);
-      reconnectTimeoutRef.current = null;
-    }
+    socketLifecycle.cancelReconnect();
 
-    if (!deviceId || !api?.accessToken || !isNetworkConnected) {
+    if (
+      !deviceId ||
+      !api?.accessToken ||
+      !isNetworkConnected ||
+      !socketLifecycle.canConnect()
+    ) {
       return;
     }
 
     const url = getWebSocketUrl(api.basePath, api.accessToken, deviceId);
+    // Not an http(s) base path: go without live updates rather than throw out
+    // of this effect, which would unmount every provider below the root. The
+    // address stays out of the message, which becomes a Sentry breadcrumb.
+    if (!url) {
+      writeErrorLog("WebSocket: server address is not an http(s) URL");
+      return;
+    }
 
     // React Native's WebSocket takes request headers as a third argument (the
     // DOM typings don't know about it), so a server behind an access gateway
     // can complete the upgrade handshake.
-    const customHeaders = getJellyfinHeaders(api.basePath);
-    const newWebSocket = hasHeaders(customHeaders)
+    const headers = withAcceptLanguage(
+      getJellyfinHeaders(api.basePath),
+      acceptLanguage,
+    );
+    const newWebSocket = hasHeaders(headers)
       ? new (WebSocket as unknown as RNWebSocketConstructor)(url, undefined, {
-          headers: customHeaders,
+          headers,
         })
       : new WebSocket(url);
+    socketLifecycle.setSocket(newWebSocket);
     let keepAliveInterval: ReturnType<typeof setInterval> | null = null;
 
-    const maxReconnectAttempts = 5;
-    const reconnectDelay = 10000;
+    const fastReconnectAttempts = 5;
+    const fastReconnectDelay = 10000;
+    const slowReconnectDelay = 60000;
 
     newWebSocket.onopen = () => {
+      if (!socketLifecycle.isCurrent(newWebSocket)) return;
       setIsConnected(true);
       reconnectAttemptsRef.current = 0;
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current);
-        reconnectTimeoutRef.current = null;
-      }
+      socketLifecycle.cancelReconnect();
       keepAliveInterval = setInterval(() => {
-        if (newWebSocket.readyState === WebSocket.OPEN) {
-          newWebSocket.send(JSON.stringify({ MessageType: "KeepAlive" }));
-        }
+        socketLifecycle.sendKeepAlive(newWebSocket);
       }, 30000);
     };
 
-    newWebSocket.onerror = () => {
-      // Don't log errors - this is expected when offline or server unreachable
-      setIsConnected(false);
+    const failure = createSocketFailureRecorder();
 
-      // Replace any still-pending reconnect so only one is ever queued; the
-      // previously untracked handle could leak and open a second socket.
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current);
-      }
-      if (reconnectAttemptsRef.current < maxReconnectAttempts) {
-        reconnectAttemptsRef.current++;
-        reconnectTimeoutRef.current = setTimeout(() => {
-          reconnectTimeoutRef.current = null;
-          connectWebSocket();
-        }, reconnectDelay);
-      } else if (
+    const scheduleReconnect = () => {
+      if (
+        !socketLifecycle.isCurrent(newWebSocket) ||
+        socketLifecycle.hasPendingReconnect()
+      )
+        return;
+      const fastRetriesExhausted =
+        reconnectAttemptsRef.current >= fastReconnectAttempts;
+      if (
+        fastRetriesExhausted &&
         serverConnectedRef.current === true &&
-        !reportedSocketGiveUpRef.current
+        !reportedSocketRetryExhaustionRef.current
       ) {
-        // All retries burned while the SERVER is reachable (a real probe,
-        // not just device connectivity): the server itself is rejecting the
-        // socket, which silently kills remote control and live updates
-        // until the next app foreground.
-        reportedSocketGiveUpRef.current = true;
-        logAndCaptureError(
-          "WebSocket gave up reconnecting while server is reachable",
-          null,
-        );
+        // The close event following an error supplies the failure reason.
+        // Keep proxy refusals out of reports, and continue capped slow retries.
+        reportedSocketRetryExhaustionRef.current = true;
+        setTimeout(() => {
+          if (socketLifecycle.isCurrent(newWebSocket))
+            reportSocketFastRetriesExhausted(failure.describe());
+        }, 0);
       }
+      if (
+        socketLifecycle.scheduleReconnect(
+          newWebSocket,
+          fastRetriesExhausted ? slowReconnectDelay : fastReconnectDelay,
+          connectWebSocket,
+        )
+      )
+        reconnectAttemptsRef.current = Math.min(
+          fastReconnectAttempts,
+          reconnectAttemptsRef.current + 1,
+        );
     };
 
-    newWebSocket.onclose = () => {
+    newWebSocket.onerror = (event) => {
+      if (!socketLifecycle.isCurrent(newWebSocket)) return;
+      // Don't log errors - this is expected when offline or server unreachable
+      setIsConnected(false);
+      failure.error(event);
+      scheduleReconnect();
+    };
+
+    newWebSocket.onclose = (event) => {
       if (keepAliveInterval) {
         clearInterval(keepAliveInterval);
       }
+      if (!socketLifecycle.isCurrent(newWebSocket)) return;
       setIsConnected(false);
+      failure.close(event);
+      scheduleReconnect();
     };
     newWebSocket.onmessage = (e) => {
+      if (!socketLifecycle.isCurrent(newWebSocket)) return;
       try {
         const message = JSON.parse(e.data);
+        // Native PiP/backgrounding can suspend JS interval timers. Respond
+        // in the message handler rather than wait for the next heartbeat.
+        socketLifecycle.respondToKeepAlive(newWebSocket, message.MessageType);
         // Legacy single-slot state, still consumed by useWebsockets.
         setLastMessage(message);
         // Pub/sub: deliver to every subscriber without coalescing.
@@ -272,13 +320,16 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
       if (keepAliveInterval) {
         clearInterval(keepAliveInterval);
       }
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current);
-        reconnectTimeoutRef.current = null;
-      }
-      newWebSocket.close();
+      socketLifecycle.closeSocket(newWebSocket);
     };
-  }, [api, deviceId, isNetworkConnected, dispatchMessage]);
+  }, [
+    api,
+    deviceId,
+    isNetworkConnected,
+    dispatchMessage,
+    socketLifecycle,
+    acceptLanguage,
+  ]);
 
   const handleLibraryChanged = useCallback(
     (data: any) => {
@@ -352,11 +403,9 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
       if (userDataChangeDebounceRef.current) {
         clearTimeout(userDataChangeDebounceRef.current);
       }
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current);
-      }
+      socketLifecycle.cancelReconnect();
     };
-  }, []);
+  }, [socketLifecycle]);
 
   // The server-initiated "Play me this item" command is handled by
   // NativePlayerProvider (mounted below this provider): it presents the
@@ -364,8 +413,29 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
 
   useEffect(() => {
     const cleanup = connectWebSocket();
-    return cleanup;
-  }, [connectWebSocket]);
+    return () => {
+      cleanup?.();
+      // A foreground/error reconnect may have replaced the initial socket.
+      // Session/network teardown must close the current one even with a lease.
+      socketLifecycle.close();
+      setIsConnected(false);
+    };
+  }, [connectWebSocket, socketLifecycle]);
+
+  // Home's Retry proves that an unreachable server has recovered. Restart
+  // the fast retry window immediately, without replacing a healthy socket.
+  useEffect(() => {
+    const previous = previousServerConnectedRef.current;
+    previousServerConnectedRef.current = serverConnected;
+    if (
+      previous === false &&
+      serverConnected === true &&
+      socketLifecycle.canConnect()
+    ) {
+      reconnectAttemptsRef.current = 0;
+      connectWebSocket();
+    }
+  }, [serverConnected, connectWebSocket, socketLifecycle]);
 
   useEffect(() => {
     if (!deviceId || !api?.accessToken || !isNetworkConnected) {
@@ -381,7 +451,7 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
             IconUrl:
               "https://raw.githubusercontent.com/streamyfin/streamyfin/refs/heads/develop/assets/images/streamyfin-client-badge.png",
             PlayableMediaTypes: ["Audio", "Video"],
-            SupportedCommands: ["Play"],
+            SupportedCommands: supportedCommands(Platform.isTV),
             SupportsMediaControl: true,
             SupportsPersistentIdentifier: true,
           },
@@ -390,10 +460,12 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
         // Connectivity failures are filtered centrally; 401 is routine
         // session expiry (the auth interceptor handles it). What remains is
         // a server rejection that silently breaks remote control — and the
-        // response's content type, Server header and plain-text reason are
-        // what tell Jellyfin's own "Session not found" apart from a proxy
+        // response's content type, Server header and the kind of body it
+        // came with are what tell Jellyfin's own refusal apart from a proxy
         // that blocks the POST, or turns it into a GET via an http→https
-        // redirect (405).
+        // redirect (405). The body itself is not sent: describeHttpResponse
+        // only quotes a reason it knows to be fixed words, and cuts the two
+        // headers down to the product and the media type they name.
         if (isAxiosError(error) && error.response?.status === 401) return;
         if (isAxiosError(error) && error.response?.status === 404) {
           // Jellyfin's own ExceptionMiddleware answers 404 ("Error processing
@@ -407,11 +479,8 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
           );
           return;
         }
-        logAndCaptureError(
-          "Posting session capabilities failed",
-          error,
-          describeHttpResponse(error),
-        );
+        // logAndCaptureError describes the response on the event itself.
+        logAndCaptureError("Posting session capabilities failed", error);
       }
     };
 
@@ -420,13 +489,7 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
 
   useEffect(() => {
     const handleAppStateChange = (state: AppStateStatus) => {
-      if (state === "background" || state === "inactive") {
-        console.log("App moving to background, closing WebSocket...");
-        ws?.close();
-      } else if (state === "active") {
-        console.log("App coming to foreground, reconnecting WebSocket...");
-        connectWebSocket();
-      }
+      if (socketLifecycle.onAppState(state)) connectWebSocket();
     };
 
     const subscription = AppState.addEventListener(
@@ -436,9 +499,8 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
 
     return () => {
       subscription.remove();
-      ws?.close();
     };
-  }, [ws, connectWebSocket]);
+  }, [socketLifecycle, connectWebSocket]);
   const sendMessage = useCallback(
     (message: any) => {
       if (ws && isConnected) {
@@ -460,6 +522,7 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
         subscribe,
         sendMessage,
         clearLastMessage,
+        retainInBackground: socketLifecycle.retainInBackground,
       }}
     >
       {children}

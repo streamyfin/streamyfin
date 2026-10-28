@@ -8,23 +8,27 @@ import { getPrimaryImageUrl } from "./getPrimaryImageUrl";
  *
  * An episode has no poster of its own, so it borrows its series' primary
  * image — that is what a vertical row of episodes is expected to show.
+ *
+ * @param width - The image width in physical pixels, not layout points:
+ *   convert with `toImagePixels`.
  */
 export const getPortraitImageUrl = ({
   api,
   item,
-  width = 300,
+  width,
 }: {
   api?: Api | null;
   item?: BaseItemDto | null;
-  width?: number;
+  width: number;
 }): string | undefined => {
   if (!api || !item) return undefined;
 
   if (item.Type === "Episode" && item.SeriesId) {
+    // The same request the series' own card makes, so the two share one image.
     return getImageApi(api).getItemImageUrlById(item.SeriesId, "Primary", {
-      fillHeight: 389,
+      fillWidth: width,
       quality: 80,
-      tag: String(item.SeriesPrimaryImageTag),
+      tag: item.SeriesPrimaryImageTag ?? undefined,
     });
   }
 

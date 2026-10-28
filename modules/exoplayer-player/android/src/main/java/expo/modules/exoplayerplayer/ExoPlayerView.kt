@@ -19,6 +19,8 @@ import androidx.media3.common.C
 import androidx.media3.common.ColorInfo
 import androidx.media3.common.Format
 import androidx.media3.common.MediaItem
+import androidx.media3.common.MimeTypes
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.text.Cue
 import androidx.media3.common.text.CueGroup
 import androidx.media3.common.PlaybackParameters
@@ -27,6 +29,7 @@ import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.common.Tracks
 import androidx.media3.common.VideoSize
 import androidx.media3.exoplayer.DefaultLoadControl
+import androidx.media3.exoplayer.ExoPlaybackException
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
@@ -98,6 +101,8 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     private val subtitleView: SubtitleView?
 
     private var currentUrl: String? = null
+    // The item an audio renderer failure was already retried for.
+    private var audioRecoveryAttemptedForUrl: String? = null
     private var currentLoop: Boolean = false
     private var pendingConfig: VideoLoadConfig? = null
     private var tracksReadyFired: Boolean = false
@@ -114,6 +119,10 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     // list on a playing MediaItem, so we shadow it here to preserve prior
     // side-loaded subs when addSubtitleFile rebuilds the MediaItem.
     private var sideLoadedSubs: List<MediaItem.SubtitleConfiguration> = emptyList()
+
+    // The loaded stream's media source factory, for addSubtitleFile: the player's default one
+    // would reload the stream with neither its headers nor the http to https redirect.
+    private var mediaSourceFactory: DefaultMediaSourceFactory? = null
 
     // 1-based track ID mappings (matching MPV's contract).
     // Each list is rebuilt on Tracks changed.
@@ -239,13 +248,14 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
             onPlaybackStateChange(mapOf("isPaused" to !playWhenReady))
         }
 
-        override fun onPlayerErrorChanged(error: androidx.media3.common.PlaybackException?) {
+        override fun onPlayerErrorChanged(error: PlaybackException?) {
             // Fires with null when a previous error is cleared (e.g. a new
             // prepare() from addSubtitleFile or a retry) — not an actual
             // error. Sending "Unknown playback error" in that window would
             // report a failure to JS while playback is recovering.
             if (error == null) return
-            val message = error.message ?: "Unknown playback error"
+            if (recoverFromAudioRendererError(error)) return
+            val message = describePlaybackError(error)
             Log.e(TAG, "Player error: $message", error)
             onError(mapOf("error" to message))
         }
@@ -325,6 +335,44 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         playerView.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
             updateVideoSurfaceLayout()
         }
+    }
+
+    /**
+     * Prepares the item again, once, after an audio renderer failed.
+     *
+     * A bitstream track (AC3, E-AC3) is mapped to the passthrough renderer
+     * while the HDMI sink accepts it, and nothing maps it anew when the sink
+     * stops doing so (the TV or receiver is switched off or to another
+     * input, a Bluetooth headset connects): the renderer then fails on a
+     * format it reports as unsupported. Preparing again maps the track with
+     * the capabilities as they are now, which puts it on the software decoder.
+     *
+     * Once per item, so a track nothing can decode still ends in the error
+     * it is. Inferred from REACT-NATIVE-8A; not reproduced on a device.
+     */
+    private fun recoverFromAudioRendererError(error: PlaybackException): Boolean {
+        val p = player ?: return false
+        val rendererError = error as? ExoPlaybackException ?: return false
+        if (rendererError.type != ExoPlaybackException.TYPE_RENDERER) return false
+        val mimeType = rendererError.rendererFormat?.sampleMimeType ?: return false
+        if (!MimeTypes.isAudio(mimeType)) return false
+        val url = currentUrl ?: return false
+        if (audioRecoveryAttemptedForUrl == url) return false
+        audioRecoveryAttemptedForUrl = url
+        Log.w(TAG, "Audio renderer failed (${error.errorCodeName}), preparing again", error)
+        p.prepare()
+        return true
+    }
+
+    /**
+     * The error as it is reported: Media3's message, the name of its error
+     * code and the class of what caused it. The message alone reads the same
+     * for a sink that went away and for a decoder that was never there.
+     */
+    private fun describePlaybackError(error: PlaybackException): String {
+        val message = error.message ?: "Unknown playback error"
+        val cause = error.cause?.javaClass?.simpleName
+        return listOfNotNull(message, error.errorCodeName, cause).joinToString(" | ")
     }
 
     // MARK: - Video Loading
@@ -482,14 +530,15 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         val p = player ?: return
         p.repeatMode = if (config.loop) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
 
-        val httpFactory = androidx.media3.datasource.DefaultHttpDataSource.Factory()
-            .setDefaultRequestProperties(config.headers ?: emptyMap())
+        // The headers go only to the stream's host and port; an http to https redirect is followed.
+        val httpFactory = UpgradeRedirectDataSource.Factory(config.headers ?: emptyMap(), config.url)
         val dataSourceFactory = DefaultDataSource.Factory(context, httpFactory)
 
         val mediaItem = buildMediaItem(config)
 
-        val mediaSource = DefaultMediaSourceFactory(dataSourceFactory)
-            .createMediaSource(mediaItem)
+        val sourceFactory = DefaultMediaSourceFactory(dataSourceFactory)
+        mediaSourceFactory = sourceFactory
+        val mediaSource = sourceFactory.createMediaSource(mediaItem)
 
         // Resolve the resume position once and hand it to setMediaSource() so
         // ExoPlayer prepares from that position directly. Calling prepare()
@@ -809,6 +858,7 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
 
     fun addSubtitleFile(url: String, select: Boolean) {
         val p = player ?: return
+        val sourceFactory = mediaSourceFactory ?: return
         val mime = mimeTypeForSubtitleUrl(url) ?: return
         val currentMediaItem = p.currentMediaItem ?: return
         val newSubConfig = MediaItem.SubtitleConfiguration.Builder(Uri.parse(url))
@@ -829,7 +879,7 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
 
         val wasPlaying = p.isPlaying
         val pos = p.currentPosition
-        p.setMediaItem(rebuilt, pos)
+        p.setMediaSource(sourceFactory.createMediaSource(rebuilt), pos)
         p.prepare()
         if (wasPlaying) p.play()
 

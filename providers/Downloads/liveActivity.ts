@@ -7,6 +7,7 @@ import { BackgroundDownloader } from "@/modules";
 import type { DownloadActivityMetadata } from "@/modules/background-downloader";
 import { optionsWithOptionalHeaders } from "@/utils/customHeaders";
 import { getItemImage } from "@/utils/getItemImage";
+import { liveActivityPosterFileName } from "./utils";
 
 /**
  * Builds the payload for the iOS download Live Activity.
@@ -102,7 +103,7 @@ async function stagePoster(
       }
     }
 
-    const fileName = `${item.Id}.jpg`;
+    const fileName = liveActivityPosterFileName(item);
     await File.downloadFileAsync(
       image.uri as string,
       new File(directory, fileName),

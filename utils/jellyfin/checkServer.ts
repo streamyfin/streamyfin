@@ -1,5 +1,7 @@
-import { SystemApi } from "@jellyfin/sdk/lib/generated-client/api/system-api";
-import axios, { type AxiosRequestConfig } from "axios";
+import type { PublicSystemInfo } from "@jellyfin/sdk/lib/generated-client";
+import { escapeRegExp } from "lodash";
+import { JELLYFIN_PRODUCT_NAME } from "@/constants/Jellyfin";
+import { REDACTED_SERVER } from "@/constants/Sentry";
 import {
   type CustomHeader,
   normalizeCustomHeaders,
@@ -10,7 +12,7 @@ import {
   getServerCustomHeaders,
   updateServerCustomHeaders,
 } from "@/utils/secureCredentials";
-import { isJellyfinServerInfo } from "@/utils/serverUrl/probes/jellyfin";
+import { stripLegacyRoutePrefix } from "@/utils/serverUrl/legacyRoutePrefix";
 
 /** Thrown when the server answered but is older than Streamyfin supports. */
 export class ServerTooOldError extends Error {
@@ -24,11 +26,13 @@ export interface CheckedServer {
   /** The URL that answered, including the protocol that worked. */
   url: string;
   name: string;
+  /** The server's own id, which stays the same whatever address reaches it. */
+  id?: string;
 }
 
 /** LAN probes either answer near-instantly or never; don't let one candidate
  * hang the whole check. */
-const PROBE_TIMEOUT_MS = 10_000;
+export const PROBE_TIMEOUT_MS = 10_000;
 
 /** Streamyfin needs 10.10 or newer. Anything unparseable is given the benefit
  * of the doubt — a server that answers but reports an odd version string must
@@ -37,6 +41,47 @@ function isSupportedVersion(version?: string | null): boolean {
   const [major, minor] = (version ?? "").split(".").map(Number);
   if (!Number.isFinite(major) || !Number.isFinite(minor)) return true;
   return major > 10 || (major === 10 && minor >= 10);
+}
+
+const errorText = (error: unknown): string =>
+  error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+
+/**
+ * The host in an address whose scheme is already off, read the way the
+ * probe's URL is built from it: what precedes the path, less any credentials
+ * in front and the port behind, and without the brackets of an IPv6 address.
+ *
+ * Not parseServerInput: that one reads the address for the server URL field,
+ * takes `admin@host` for the host and gives up on `user:password@host`, and
+ * where the two readings differ the host is not found and stays in the log.
+ */
+const hostNameOf = (host: string): string => {
+  const authority = host.split(/[/\\?#]/)[0];
+  return authority
+    .slice(authority.lastIndexOf("@") + 1)
+    .replace(/:\d*$/, "")
+    .replace(/^\[|\]$/g, "");
+};
+
+/**
+ * What a failed probe says for itself, fit to be a log message.
+ *
+ * A log message is mirrored into Sentry as a breadcrumb, and the scrubber on
+ * the way there (utils/sentry.ts) knows a host by its scheme or as an IPv4
+ * address and by nothing else. A platform's network error names the host in
+ * words of its own ('Unable to resolve host "…"', "pretending to be “…”"),
+ * so the name is taken out here, where it is known. Only the first line is
+ * kept: a certificate error goes on to list the names the certificate is
+ * for, which are the same server's.
+ *
+ * @param host The address as it is probed, without its scheme.
+ */
+function describeProbeFailure(error: unknown, host: string): string {
+  const detail = errorText(error).split("\n")[0];
+  const hostName = hostNameOf(host);
+  return hostName
+    ? detail.replace(new RegExp(escapeRegExp(hostName), "gi"), REDACTED_SERVER)
+    : detail;
 }
 
 /**
@@ -62,42 +107,50 @@ export async function checkJellyfinServer(
   const typedScheme = /^(https?):\/\//i.exec(trimmed)?.[1]?.toLowerCase();
   const host = trimmed.replace(/^https?:\/\//i, "");
   const protocols = typedScheme ? [typedScheme] : ["https", "http"];
+  // Jellyfin 12 no longer answers under /emby or /mediabrowser, and older
+  // servers answer at the root as well, so the root goes first. The address
+  // as typed stays a fallback, for a proxy that serves Jellyfin there.
+  const rootHost = stripLegacyRoutePrefix(host);
+  const hosts = rootHost === host ? [host] : [rootHost, host];
+  const candidates = protocols.flatMap((protocol) =>
+    hosts.map((candidate) => ({
+      url: `${protocol}://${candidate}`,
+      typedUrl: `${protocol}://${host}`,
+    })),
+  );
+  // The address goes with the entry as data, which stays in the log on the
+  // device, and not into the message, which is also a Sentry breadcrumb: an
+  // address typed without a scheme reads there as it was typed.
+  const typed = { address: trimmed };
   writeInfoLog(
-    `Server check: input "${input}" -> probing host "${host}" via ${protocols.join(
-      ", ",
-    )} (custom headers: ${
+    `Server check: probing via ${protocols.join(", ")} (custom headers: ${
       customHeaders === undefined ? "saved" : customHeaders.length
     })`,
+    typed,
   );
 
-  for (const protocol of protocols) {
-    const url = `${protocol}://${host}`;
+  for (const { url, typedUrl } of candidates) {
+    const isRoot = url !== typedUrl;
     // A dead HTTPS port on a LAN IP can leave the connection hanging instead
     // of refusing it, which would block the http fallback forever.
     const abort = new AbortController();
     const timeout = setTimeout(() => abort.abort(), probeTimeoutMs);
     try {
-      const headers = normalizeCustomHeaders(
-        customHeaders ?? getServerCustomHeaders(url),
-      );
-      // Public probes have no device/session yet. Use the generated SDK API
-      // directly rather than inventing authentication metadata for a candidate.
-      const systemApi = new SystemApi(
-        undefined,
-        url.replace(/\/+$/, ""),
-        axios.create(),
-      );
-      const response = await systemApi.getPublicSystemInfo(
+      // The root has no saved headers of its own yet: it borrows those of
+      // the address as typed, and keeps them once they get through.
+      const saved = customHeaders ?? getServerCustomHeaders(url);
+      const borrowed =
+        customHeaders === undefined && isRoot && saved.length === 0;
+      const sentHeaders = borrowed ? getServerCustomHeaders(typedUrl) : saved;
+      const headers = normalizeCustomHeaders(sentHeaders);
+      const response = await fetch(
+        `${url}/System/Info/Public`,
         optionsWithOptionalHeaders(
-          {
-            signal: abort.signal,
-            timeout: probeTimeoutMs,
-            validateStatus: () => true,
-          } satisfies AxiosRequestConfig,
+          { mode: "cors" as const, signal: abort.signal },
           headers,
         ),
       );
-      if (response.status < 200 || response.status >= 300) {
+      if (!response.ok) {
         // WARN, not ERROR: probe failures are routine (http probe against an
         // https-only server, typos, offline) and must not become Sentry
         // events — they stay in the local log and breadcrumb trail.
@@ -108,35 +161,46 @@ export async function checkJellyfinServer(
         continue;
       }
 
-      const data = response.data;
-      if (!isJellyfinServerInfo(data)) {
-        writeToLog(
-          "WARN",
-          `Server check: ${url} answered HTTP ${response.status} without Jellyfin identity`,
-        );
+      const data = (await response.json()) as PublicSystemInfo;
+      const supported = isSupportedVersion(data.Version);
+      // The root is a guess, and what answers there can be another service
+      // than the one typed. What it calls itself goes with the entry as
+      // data, out of the breadcrumb, like the server name below.
+      if (
+        isRoot &&
+        (data.ProductName !== JELLYFIN_PRODUCT_NAME || !supported)
+      ) {
+        writeToLog("WARN", `Server check: ${url} is not the server typed`, {
+          product: data.ProductName,
+          version: data.Version,
+        });
         continue;
       }
-      if (!isSupportedVersion(data.Version)) throw new ServerTooOldError();
+      if (!supported) throw new ServerTooOldError();
 
       // Only persist the headers once they are known to reach the server.
       if (customHeaders !== undefined) {
         updateServerCustomHeaders(url, customHeaders);
+      } else if (borrowed && sentHeaders.length > 0) {
+        updateServerCustomHeaders(url, sentHeaders);
       }
-      writeInfoLog(
-        `Server check: ${url} OK — "${data.ServerName}" v${data.Version}`,
-      );
-      return { url, name: data.ServerName || "" };
+      // The name is the admin's to choose, and is often the host again.
+      writeInfoLog(`Server check: ${url} OK — v${data.Version}`, {
+        name: data.ServerName,
+      });
+      return { url, name: data.ServerName || "", id: data.Id ?? undefined };
     } catch (e) {
       if (e instanceof ServerTooOldError) throw e;
+      // The error as it came goes with the entry as data: the lines cut
+      // from the message are what a user fixing their certificate reads.
       writeToLog(
         "WARN",
         `Server check: ${url} failed — ${
           abort.signal.aborted
             ? `timed out after ${probeTimeoutMs}ms`
-            : e instanceof Error
-              ? `${e.name}: ${e.message}`
-              : String(e)
+            : describeProbeFailure(e, host)
         }`,
+        { error: errorText(e) },
       );
     } finally {
       clearTimeout(timeout);
@@ -145,6 +209,6 @@ export async function checkJellyfinServer(
 
   // Environmental (wrong address, server down), not an app defect — local
   // log only.
-  writeToLog("WARN", `Server check: no protocol worked for "${host}"`);
+  writeToLog("WARN", "Server check: no protocol worked", typed);
   return undefined;
 }

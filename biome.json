@@ -1,5 +1,5 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.5.12/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.5.15/schema.json",
   "files": {
     "includes": [
       "**/*",
@@ -7,12 +7,15 @@
       "!ios",
       "!android",
       "!Streamyfin.app",
-      "!utils/jellyseerr",
+      "!utils/seerr/generated",
       "!expo-env.d.ts",
       "!modules/**/android/build",
       "!.expo",
+      "!e2e/syncplay/.state",
+      "!e2e/syncplay/artifacts",
       "!docs/jellyfin-openapi-stable.json",
-      "!**/*.svg"
+      "!**/*.svg",
+      "!.reassure"
     ]
   },
   "linter": {
@@ -57,6 +60,17 @@
       "lineWidth": 80
     }
   },
+  "overrides": [
+    {
+      "includes": [
+        "**/TV*.tsx",
+        "**/*.tv.tsx",
+        "components/tv/**",
+        "components/seerr/tv/**"
+      ],
+      "plugins": ["./biome-plugins/tv-no-hardcoded-font-size.grit"]
+    }
+  ],
   "json": {
     "formatter": {
       "trailingCommas": "none"

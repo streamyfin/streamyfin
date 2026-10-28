@@ -1,10 +1,10 @@
 import { SystemApi } from "@jellyfin/sdk/lib/generated-client/api/system-api";
 import type { PublicSystemInfo } from "@jellyfin/sdk/lib/generated-client/models";
 import axios from "axios";
+import { JELLYFIN_PRODUCT_NAME } from "@/constants/Jellyfin";
 import type { ServerProbe } from "../types";
 
-/** Public, unauthenticated Jellyfin endpoint; `ProductName` confirms the service. */
-const PRODUCT_NAME = "Jellyfin Server";
+// Public, unauthenticated Jellyfin endpoint; `ProductName` confirms the service.
 
 /** Checks that public system information identifies a Jellyfin server. */
 export const isJellyfinServerInfo = (data: unknown): data is PublicSystemInfo =>
@@ -12,7 +12,7 @@ export const isJellyfinServerInfo = (data: unknown): data is PublicSystemInfo =>
   data !== null &&
   !Array.isArray(data) &&
   "ProductName" in data &&
-  data.ProductName === PRODUCT_NAME;
+  data.ProductName === JELLYFIN_PRODUCT_NAME;
 
 export const jellyfinProbe: ServerProbe = async (url, signal, headers) => {
   try {

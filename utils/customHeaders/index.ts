@@ -1,6 +1,7 @@
 export {
   getIntegrationHeaderConfig,
   INTEGRATION_CONFIG_KEY_PREFIX,
+  makeIntegrationHeadersReadableWhileLocked,
   resolveIntegrationHeaders,
   updateIntegrationHeaderConfig,
 } from "./integrations";

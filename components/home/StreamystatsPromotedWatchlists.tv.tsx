@@ -119,9 +119,9 @@ const WatchlistSection: React.FC<WatchlistSectionProps> = ({
           <TVPosterCard
             item={item}
             orientation='vertical'
-            onPress={() => handleItemPress(item)}
-            onLongPress={() => showItemActions(item)}
-            onFocus={() => onItemFocus?.(item)}
+            onPress={handleItemPress}
+            onLongPress={showItemActions}
+            onFocus={onItemFocus}
             width={posterSizes.poster}
           />
         </View>

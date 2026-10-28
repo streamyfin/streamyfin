@@ -1,18 +1,23 @@
 import type { Api } from "@jellyfin/sdk";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { getImageApi } from "@jellyfin/sdk/lib/utils/api";
+import { LOGO_HEIGHT, MAX_LOGO_HEIGHT_PX } from "@/constants/Images";
+import { toImagePixels } from "./imagePixels";
 
 /**
- * Retrieves the primary image URL for a given item.
+ * Retrieves the logo image URL for a given item. An episode has no logo of
+ * its own and gets its series' logo.
  *
  * @param api - The Jellyfin API instance.
- * @param item - The media item to retrieve the backdrop image URL for.
- * @param quality - The desired image quality (default: 10).
+ * @param item - The media item to retrieve the logo image URL for.
+ * @param height - The image height in physical pixels, not layout points:
+ *   convert with `toImagePixels`. Defaults to the detail page logo slot on
+ *   this screen.
  */
 export const getLogoImageUrlById = ({
   api,
   item,
-  height = 130,
+  height = toImagePixels(LOGO_HEIGHT),
 }: {
   api?: Api | null;
   item?: BaseItemDto | null;
@@ -22,6 +27,13 @@ export const getLogoImageUrlById = ({
     return null;
   }
 
+  const logo = (itemId: string, tag: string) =>
+    getImageApi(api).getItemImageUrlById(itemId, "Logo", {
+      quality: 90,
+      fillHeight: Math.min(Math.round(height), MAX_LOGO_HEIGHT_PX),
+      tag,
+    });
+
   if (item.Type === "Episode") {
     const imageTag = item.ParentLogoImageTag;
     const parentId = item.ParentLogoItemId;
@@ -30,20 +42,12 @@ export const getLogoImageUrlById = ({
       return null;
     }
 
-    return getImageApi(api).getItemImageUrlById(parentId, "Logo", {
-      quality: 90,
-      fillHeight: height,
-      tag: imageTag,
-    });
+    return logo(parentId, imageTag);
   }
 
   const imageTag = item.ImageTags?.Logo;
 
-  if (!imageTag) return null;
+  if (!item.Id || !imageTag) return null;
 
-  return getImageApi(api).getItemImageUrlById(item.Id!, "Logo", {
-    quality: 90,
-    fillHeight: height,
-    tag: imageTag,
-  });
+  return logo(item.Id, imageTag);
 };

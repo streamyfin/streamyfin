@@ -202,12 +202,7 @@ function runTypeCheck(): { ok: boolean } {
       return { ok: false };
     }
 
-    // Filter out jellyseerr utils errors - this is a third-party git submodule
-    // that generates a large volume of known type errors
-    const filteredLines = errorOutput.split("\n").filter((line) => {
-      const trimmedLine = line.trim();
-      return trimmedLine && !trimmedLine.includes("utils/jellyseerr");
-    });
+    const filteredLines = errorOutput.split("\n").filter((line) => line.trim());
 
     if (filteredLines.length > 0) {
       // Count TypeScript error occurrences (TS####)
@@ -253,7 +248,7 @@ function runTypeCheck(): { ok: boolean } {
     }
 
     log(
-      `✅ ${colors.bold}TypeScript check passed${colors.reset} ${colors.gray}(jellyseerr utils errors ignored)${colors.reset}`,
+      `✅ ${colors.bold}TypeScript check passed${colors.reset}`,
       colors.green,
     );
     return { ok: true };

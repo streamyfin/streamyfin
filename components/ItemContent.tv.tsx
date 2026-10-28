@@ -27,11 +27,14 @@ import { Text } from "@/components/common/Text";
 import { getItemNavigation } from "@/components/common/TouchableItemRouter";
 import { GenreTags } from "@/components/GenreTags";
 import { TVEpisodeList } from "@/components/series/TVEpisodeList";
+import { TVSyncPlayButton } from "@/components/syncplay/TVSyncPlayButton";
+import { TVSimilarItems } from "@/components/TVSimilarItems";
 import {
   TVBackdrop,
   TVButton,
   TVCastCrewText,
   TVCastSection,
+  TVCollectionsSection,
   TVFavoriteButton,
   TVMetadataBadges,
   TVOptionButton,
@@ -46,19 +49,25 @@ import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
 import { useImageColorsReturn } from "@/hooks/useImageColorsReturn";
+import { useItemCollections } from "@/hooks/useItemCollections";
 import { usePlayMedia } from "@/hooks/usePlayMedia";
 import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
 import { useTVOptionModal } from "@/hooks/useTVOptionModal";
 import { useTVSubtitleModal } from "@/hooks/useTVSubtitleModal";
 import { useTVThemeMusic } from "@/hooks/useTVThemeMusic";
+import { useVersionItemState } from "@/hooks/useVersionItem";
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
+import { useSyncPlay } from "@/providers/SyncPlayProvider";
 import { getSubtitlesForItem } from "@/utils/atoms/downloadedSubtitles";
 import { useSettings } from "@/utils/atoms/settings";
 import type { TVOptionItem } from "@/utils/atoms/tvOptionModal";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
 import { getPrimaryImageUrlById } from "@/utils/jellyfin/image/getPrimaryImageUrlById";
+import { isPlayableItem } from "@/utils/jellyfin/media/isPlayableItem";
+import { getPlayingRunTimeTicks } from "@/utils/jellyfin/mediaSourceVersion";
+import { streamLanguageName } from "@/utils/jellyfin/trackLabel";
 import { scaleSize } from "@/utils/scaleSize";
 import { rememberSeriesTrackFromRow } from "@/utils/seriesTrackMemory";
 import { SUBTITLES_OFF } from "@/utils/subtitles/subtitleIndex";
@@ -70,6 +79,10 @@ import {
 import { formatDuration, runtimeTicksToMinutes } from "@/utils/time";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
+
+// One array for "no collections", so the memoized section is not handed a new
+// one on every render.
+const EMPTY_COLLECTIONS: BaseItemDto[] = [];
 
 export type SelectedOptions = {
   bitrate: Bitrate;
@@ -91,6 +104,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
     const [api] = useAtom(apiAtom);
     const [user] = useAtom(userAtom);
     const isOffline = useOfflineMode();
+    const { enabled: inSyncPlayGroup } = useSyncPlay();
     const { getDownloadedItemById } = useDownload();
     // A download pins the tracks it was pulled with, and only the record knows
     // them: resolving against the server media source hands back an index for a
@@ -136,9 +150,29 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
         item?.Type === "Episode",
     });
 
+    // Collections the item belongs to. A downloaded item has no server to
+    // ask, and a Program is not a library item.
+    const { data: collections = EMPTY_COLLECTIONS } = useItemCollections(
+      item?.Id,
+      !isOffline && item?.Type !== "Program",
+    );
+
     const [selectedOptions, setSelectedOptions] = useState<
       SelectedOptions | undefined
     >(undefined);
+
+    // On Jellyfin 12 each version keeps its own resume point and played
+    // state, so those read the selected version's UserData.
+    const { versionItem, isPending: isVersionPending } = useVersionItemState(
+      item,
+      itemWithSources?.MediaSources,
+      selectedOptions?.mediaSource?.Id,
+    );
+    const userData = versionItem?.UserData;
+    // A version's resume point is against its own runtime.
+    const runTimeTicks = item
+      ? getPlayingRunTimeTicks(item, versionItem)
+      : undefined;
 
     const {
       defaultAudioIndex,
@@ -198,17 +232,17 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
     );
 
     const handlePlay = () => {
-      if (!item || !selectedOptions) return;
+      // While the selected version's own resume point is on its way, the one
+      // in hand is the primary version's. The press is dropped rather than
+      // the button disabled, which would hand its focus to a neighbour.
+      if (!item || !selectedOptions || isVersionPending) return;
 
-      const hasPlaybackProgress =
-        (item.UserData?.PlaybackPositionTicks ?? 0) > 0;
+      const hasPlaybackProgress = (userData?.PlaybackPositionTicks ?? 0) > 0;
 
       // With the resume dialog turned off in settings, an in-progress item
       // resumes right away instead of asking resume-or-restart.
       if (hasPlaybackProgress && !settings.showResumeDialog) {
-        navigateToPlayer(
-          item.UserData?.PlaybackPositionTicks?.toString() ?? "0",
-        );
+        navigateToPlayer(userData?.PlaybackPositionTicks?.toString() ?? "0");
         return;
       }
 
@@ -227,11 +261,11 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
             },
             {
               text: t("item_card.continue_from", {
-                time: formatDuration(item.UserData?.PlaybackPositionTicks),
+                time: formatDuration(userData?.PlaybackPositionTicks),
               }),
               onPress: () =>
                 navigateToPlayer(
-                  item.UserData?.PlaybackPositionTicks?.toString() ?? "0",
+                  userData?.PlaybackPositionTicks?.toString() ?? "0",
                 ),
               isPreferred: true,
             },
@@ -256,7 +290,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
     /** Existing label format on this screen; kept so the menus read the same. */
     const tvTrackLabel = useCallback(
       (s: MediaStream) =>
-        s.DisplayTitle || `${s.Language || "Unknown"} (${s.Codec})`,
+        s.DisplayTitle || `${streamLanguageName(s) || "Unknown"} (${s.Codec})`,
       [],
     );
 
@@ -286,8 +320,14 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
           selectedIndex: selectedOptions?.audioIndex,
           isTranscoding: Boolean(selectedOptions?.mediaSource?.TranscodingUrl),
           formatLabel: tvTrackLabel,
+          originalLabel: t("common.original_audio"),
         }),
-      [selectedOptions?.mediaSource, selectedOptions?.audioIndex, tvTrackLabel],
+      [
+        selectedOptions?.mediaSource,
+        selectedOptions?.audioIndex,
+        tvTrackLabel,
+        t,
+      ],
     );
 
     const subtitleRows = useMemo(
@@ -519,19 +559,13 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
 
     // Format year and duration
     const year = item?.ProductionYear;
-    const duration = item?.RunTimeTicks
-      ? runtimeTicksToMinutes(item.RunTimeTicks)
-      : null;
-    const hasProgress = (item?.UserData?.PlaybackPositionTicks ?? 0) > 0;
+    const duration = runTimeTicks ? runtimeTicksToMinutes(runTimeTicks) : null;
+    const hasProgress = (userData?.PlaybackPositionTicks ?? 0) > 0;
     const remainingTime = hasProgress
       ? runtimeTicksToMinutes(
-          (item?.RunTimeTicks || 0) -
-            (item?.UserData?.PlaybackPositionTicks || 0),
+          (runTimeTicks || 0) - (userData?.PlaybackPositionTicks || 0),
         )
       : null;
-
-    // Get director
-    const director = item?.People?.find((p) => p.Type === "Director");
 
     // Get cast (first 3 for text display)
     const cast = item?.People?.filter((p) => p.Type === "Actor")?.slice(0, 3);
@@ -589,7 +623,9 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
     // Navigation handlers
     const handleActorPress = useCallback(
       (personId: string) => {
-        router.push(`/(auth)/persons/${personId}`);
+        // The id comes from the server: encoded, it stays one path segment
+        // whatever it contains.
+        router.push(`/(auth)/persons/${encodeURIComponent(personId)}`);
       },
       [router],
     );
@@ -616,7 +652,17 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
       [router],
     );
 
+    const handleCollectionPress = useCallback(
+      (collection: BaseItemDto) => {
+        if (!collection.Id) return;
+        router.push(getItemNavigation(collection, "(home)") as any);
+      },
+      [router],
+    );
+
     if (!item || !selectedOptions) return null;
+
+    const playable = isPlayableItem(item);
 
     return (
       <View
@@ -745,6 +791,21 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                 </BlurView>
               )}
 
+              {/* A Season, a Book or a folder can land on this page but has
+                  no stream: say so rather than offer a Play button and
+                  playback options that cannot work. */}
+              {!playable && (
+                <Text
+                  style={{
+                    fontSize: typography.callout,
+                    color: "#E5E7EB",
+                    marginBottom: scaleSize(20),
+                  }}
+                >
+                  {t("player.unsupported_item_type")}
+                </Text>
+              )}
+
               {/* Action buttons */}
               <View
                 style={{
@@ -753,130 +814,150 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                   marginBottom: scaleSize(20),
                 }}
               >
-                <TVButton
-                  onPress={handlePlay}
-                  hasTVPreferredFocus
-                  variant='primary'
-                >
-                  <Ionicons
-                    name='play'
-                    size={scaleSize(28)}
-                    color='#000000'
-                    style={{ marginRight: scaleSize(10) }}
-                  />
-                  <Text
-                    style={{
-                      fontSize: typography.callout,
-                      fontWeight: "bold",
-                      color: "#000000",
-                    }}
+                {playable && (
+                  <TVButton
+                    onPress={handlePlay}
+                    hasTVPreferredFocus
+                    variant='primary'
                   >
-                    {hasProgress
-                      ? `${remainingTime} ${t("item_card.left")}`
-                      : t("common.play")}
-                  </Text>
-                </TVButton>
-                <TVFavoriteButton item={item} />
-                <TVPlayedButton item={item} />
+                    <Ionicons
+                      name='play'
+                      size={scaleSize(28)}
+                      color='#000000'
+                      style={{ marginRight: scaleSize(10) }}
+                    />
+                    <Text
+                      style={{
+                        fontSize: typography.callout,
+                        fontWeight: "bold",
+                        color: "#000000",
+                      }}
+                    >
+                      {hasProgress
+                        ? `${remainingTime} ${t("item_card.left")}`
+                        : t("common.play")}
+                    </Text>
+                    {/* In a group this button plays for everyone in it. */}
+                    {inSyncPlayGroup && !isOffline && (
+                      <Ionicons
+                        name='people'
+                        size={scaleSize(26)}
+                        color='#000000'
+                        style={{ marginLeft: scaleSize(10) }}
+                      />
+                    )}
+                  </TVButton>
+                )}
+                {/* Exactly one element asks for the initial focus: Play when
+                    it is there, otherwise the first button left in the row. */}
+                <TVFavoriteButton item={item} hasTVPreferredFocus={!playable} />
+                <TVPlayedButton
+                  item={versionItem ?? item}
+                  disabled={isVersionPending}
+                />
                 <TVRefreshButton itemId={item.Id} />
+                {!isOffline && item.Type !== "Program" && (
+                  <TVSyncPlayButton items={[item]} title={item.Name} />
+                )}
               </View>
 
               {/* Playback options */}
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  flexWrap: "wrap",
-                  rowGap: scaleSize(12),
-                  gap: scaleSize(12),
-                  marginBottom: scaleSize(20),
-                }}
-              >
-                {/* Quality selector */}
-                <TVOptionButton
-                  label={t("item_card.quality")}
-                  value={selectedQualityLabel}
-                  maxWidth={scaleSize(200)}
-                  onPress={() =>
-                    showOptions({
-                      title: t("item_card.quality"),
-                      options: qualityOptions,
-                      onSelect: handleQualityChange,
-                    })
-                  }
-                />
-
-                {/* Media source selector (only if multiple sources) */}
-                {mediaSources.length > 1 && (
+              {playable && (
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    flexWrap: "wrap",
+                    rowGap: scaleSize(12),
+                    gap: scaleSize(12),
+                    marginBottom: scaleSize(20),
+                  }}
+                >
+                  {/* Quality selector */}
                   <TVOptionButton
-                    label={t("item_card.video")}
-                    value={selectedMediaSourceLabel}
-                    maxWidth={scaleSize(280)}
+                    label={t("item_card.quality")}
+                    value={selectedQualityLabel}
+                    maxWidth={scaleSize(200)}
                     onPress={() =>
                       showOptions({
-                        title: t("item_card.video"),
-                        options: mediaSourceOptions,
-                        onSelect: handleMediaSourceChange,
+                        title: t("item_card.quality"),
+                        options: qualityOptions,
+                        onSelect: handleQualityChange,
                       })
                     }
                   />
-                )}
 
-                {/* Audio selector */}
-                {audioRows.length > 0 && (
-                  <TVOptionButton
-                    label={t("item_card.audio")}
-                    value={selectedAudioLabel}
-                    maxWidth={scaleSize(280)}
-                    onPress={() =>
-                      showOptions({
-                        title: t("item_card.audio"),
-                        options: audioOptions,
-                        onSelect: handleAudioChange,
-                      })
-                    }
-                  />
-                )}
+                  {/* Media source selector (only if multiple sources) */}
+                  {mediaSources.length > 1 && (
+                    <TVOptionButton
+                      label={t("item_card.video")}
+                      value={selectedMediaSourceLabel}
+                      maxWidth={scaleSize(280)}
+                      onPress={() =>
+                        showOptions({
+                          title: t("item_card.video"),
+                          options: mediaSourceOptions,
+                          onSelect: handleMediaSourceChange,
+                        })
+                      }
+                    />
+                  )}
 
-                {/* Subtitle selector */}
-                {(subtitleRows.some((row) => row.kind === "server") ||
-                  selectedOptions?.subtitleIndex !== undefined) && (
-                  <TVOptionButton
-                    label={t("item_card.subtitles.label")}
-                    value={selectedSubtitleLabel}
-                    maxWidth={scaleSize(280)}
-                    onPress={() =>
-                      showSubtitleModal({
-                        item,
-                        mediaSourceId: selectedOptions?.mediaSource?.Id,
-                        subtitleTracks: subtitleTracksForModal,
-                        currentSubtitleIndex:
-                          selectedOptions?.subtitleIndex ?? -1,
-                        // The modal owns its own "None" row, so hand the
-                        // builder's off row back rather than a bare -1.
-                        onDisableSubtitles: () => {
-                          const offRow = subtitleRows.find(
-                            (row) => row.kind === "off",
-                          );
-                          if (offRow) handleSubtitleChange(offRow);
-                        },
-                        onServerSubtitleDownloaded:
-                          handleServerSubtitleDownloaded,
-                        onLocalSubtitleDownloaded:
-                          handleLocalSubtitleDownloaded,
-                        refreshSubtitleTracks,
-                      })
-                    }
-                  />
-                )}
-              </View>
+                  {/* Audio selector */}
+                  {audioRows.length > 0 && (
+                    <TVOptionButton
+                      label={t("item_card.audio")}
+                      value={selectedAudioLabel}
+                      maxWidth={scaleSize(280)}
+                      onPress={() =>
+                        showOptions({
+                          title: t("item_card.audio"),
+                          options: audioOptions,
+                          onSelect: handleAudioChange,
+                        })
+                      }
+                    />
+                  )}
+
+                  {/* Subtitle selector */}
+                  {(subtitleRows.some((row) => row.kind === "server") ||
+                    selectedOptions?.subtitleIndex !== undefined) && (
+                    <TVOptionButton
+                      label={t("item_card.subtitles.label")}
+                      value={selectedSubtitleLabel}
+                      maxWidth={scaleSize(280)}
+                      onPress={() =>
+                        showSubtitleModal({
+                          item,
+                          mediaSourceId: selectedOptions?.mediaSource?.Id,
+                          subtitleTracks: subtitleTracksForModal,
+                          currentSubtitleIndex:
+                            selectedOptions?.subtitleIndex ?? -1,
+                          // The modal owns its own "None" row, so hand the
+                          // builder's off row back rather than a bare -1.
+                          onDisableSubtitles: () => {
+                            const offRow = subtitleRows.find(
+                              (row) => row.kind === "off",
+                            );
+                            if (offRow) handleSubtitleChange(offRow);
+                          },
+                          onServerSubtitleDownloaded:
+                            handleServerSubtitleDownloaded,
+                          onLocalSubtitleDownloaded:
+                            handleLocalSubtitleDownloaded,
+                          refreshSubtitleTracks,
+                        })
+                      }
+                    />
+                  )}
+                </View>
+              )}
 
               {/* Progress bar (if partially watched) */}
-              {hasProgress && item.RunTimeTicks != null && (
+              {hasProgress && !!runTimeTicks && (
                 <TVProgressBar
                   progress={
-                    (item.UserData?.PlaybackPositionTicks || 0) /
-                    item.RunTimeTicks
+                    (userData?.PlaybackPositionTicks || 0) / runTimeTicks
                   }
                   fillColor='#FFFFFF'
                 />
@@ -976,9 +1057,21 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
               />
             )}
 
-            {/* Cast & Crew (text version - director, etc.) */}
+            {/* Collections the item belongs to (Jellyfin 12 and newer).
+                Gated here as well as in the query: a disabled query still
+                hands back what it cached while online. */}
+            {!isOffline && (
+              <TVCollectionsSection
+                collections={collections}
+                onCollectionPress={handleCollectionPress}
+                horizontalPadding={insets.left + scaleSize(80)}
+              />
+            )}
+
+            {/* Cast & Crew (credits lines - directors, writers, etc.) */}
             <TVCastCrewText
-              director={director}
+              people={item.People}
+              onPersonPress={isOffline ? undefined : handleActorPress}
               cast={cast}
               hideCast={showVisualCast}
             />
@@ -990,6 +1083,15 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                   mediaStreams={selectedOptions.mediaSource.MediaStreams}
                 />
               )}
+
+            {/* Similar items - last, as on the phone. Only a movie or a
+                series has any, and the row draws nothing otherwise. */}
+            {!isOffline && (
+              <TVSimilarItems
+                item={item}
+                horizontalPadding={insets.left + scaleSize(80)}
+              />
+            )}
           </View>
         </ScrollView>
       </View>

@@ -3,12 +3,19 @@ import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { getImageApi } from "@jellyfin/sdk/lib/utils/api";
 import type { ImageSource } from "expo-image";
 import { getJellyfinHeadersForUrl } from "@/utils/customHeaders";
+import { fillHeightImageParams } from "@/utils/jellyfin/image/imagePixels";
 
 interface Props {
   item: BaseItemDto;
   api: Api;
   quality?: number;
+  /** Image width in physical pixels, not layout points. */
   width?: number;
+  /**
+   * Height of the box the image has to cover, in physical pixels. With it the
+   * request becomes "cover a `width` by `height` box" instead of a fixed width.
+   */
+  height?: number;
   variant?:
     | "Primary"
     | "Backdrop"
@@ -27,9 +34,14 @@ export const getItemImage = ({
   variant = "Primary",
   quality = 90,
   width = 1000,
+  height,
 }: Props) => {
   if (!api) return null;
   const images = getImageApi(api);
+
+  const size = height
+    ? { fillWidth: Math.round(width), ...fillHeightImageParams(height) }
+    : { width };
 
   let tag: string | null | undefined;
   let blurhash: string | undefined;
@@ -48,7 +60,7 @@ export const getItemImage = ({
             {
               quality,
               tag,
-              width,
+              ...size,
               imageIndex: 0,
             },
           ),
@@ -64,7 +76,7 @@ export const getItemImage = ({
         uri: images.getItemImageUrlById(item.Id!, "Backdrop", {
           quality,
           tag,
-          width,
+          ...size,
           imageIndex: 0,
         }),
         blurhash,
@@ -79,7 +91,7 @@ export const getItemImage = ({
         uri: images.getItemImageUrlById(item.Id!, "Primary", {
           quality,
           tag,
-          width,
+          ...size,
         }),
         blurhash,
       };
@@ -93,7 +105,7 @@ export const getItemImage = ({
         uri: images.getItemImageUrlById(item.Id!, "Backdrop", {
           quality,
           tag,
-          width,
+          ...size,
         }),
         blurhash,
       };
@@ -104,7 +116,7 @@ export const getItemImage = ({
         uri: images.getItemImageUrlById(item.Id!, "Primary", {
           quality,
           tag: String(tag),
-          width,
+          ...size,
         }),
       };
       break;

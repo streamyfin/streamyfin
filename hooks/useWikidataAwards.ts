@@ -72,8 +72,7 @@ async function fetchWithTimeout(
     const response = await fetch(url, {
       headers: {
         Accept: "application/sparql-results+json",
-        // Browsers refuse to set User-Agent, so Wikimedia reads this instead.
-        "Api-User-Agent": USER_AGENT,
+        "User-Agent": USER_AGENT,
       },
       signal: controller.signal,
     });

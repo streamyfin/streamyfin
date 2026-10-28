@@ -12,15 +12,19 @@ import {
   QueryClient,
 } from "@tanstack/react-query";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
-import { isAxiosError } from "axios";
 import * as BackgroundTask from "expo-background-task";
 import * as Device from "expo-device";
 import { Image } from "expo-image";
 import { DarkTheme, ThemeProvider } from "expo-router/react-navigation";
 import { Platform } from "react-native";
 import { GlobalModal } from "@/components/GlobalModal";
-import { JellyseerrAutoLogin } from "@/components/jellyseerr/JellyseerrAutoLogin";
 import { PendingAccountSaveModal } from "@/components/PendingAccountSaveModal";
+import { SeerrAutoLogin } from "@/components/seerr/SeerrAutoLogin";
+import { SyncPlayPlaybackBridge } from "@/components/syncplay/SyncPlayPlaybackBridge";
+import {
+  NOTIFICATION_PERMISSIONS,
+  PERMISSION_ASKED_KEY,
+} from "@/constants/Notifications";
 import { enableTVMenuKeyInterception } from "@/hooks/useTVBackHandler";
 import i18n from "@/i18n";
 import { DownloadProvider } from "@/providers/DownloadProvider";
@@ -33,6 +37,7 @@ import { NativePlayerProvider } from "@/providers/NativePlayerProvider";
 import { NetworkStatusProvider } from "@/providers/NetworkStatusProvider";
 import { PlaySettingsProvider } from "@/providers/PlaySettingsProvider";
 import { ServerUrlProvider } from "@/providers/ServerUrlProvider";
+import { SyncPlayProvider } from "@/providers/SyncPlayProvider";
 import { WebSocketProvider } from "@/providers/WebSocketProvider";
 import { WifiSsidProvider } from "@/providers/WifiSsidProvider";
 import { useSettings } from "@/utils/atoms/settings";
@@ -41,14 +46,6 @@ import {
   BACKGROUND_FETCH_TASK_SESSIONS,
   registerBackgroundFetchAsyncSessions,
 } from "@/utils/background-tasks";
-import { getOrSetDeviceId } from "@/utils/device";
-import {
-  describeHttpError,
-  isAbortLikeError,
-  isConnectivityError,
-  isErrorReported,
-  isExpectedError,
-} from "@/utils/errors";
 import {
   LogProvider,
   writeErrorLog,
@@ -56,10 +53,22 @@ import {
   writeToLog,
 } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
-import { notificationRoute } from "@/utils/notificationRoute";
-import { pushRegistrationStep } from "@/utils/pushRegistration";
+import { offerSettingsLinkOnce } from "@/utils/notificationPermissions";
+import {
+  isPlainTap,
+  notificationRoute,
+  responseRoute,
+} from "@/utils/notificationRoute";
+import {
+  queryDehydrateOptions,
+  withoutPersistedMutations,
+} from "@/utils/queryPersistence";
+import { reportDataError } from "@/utils/reportDataError";
 
 const Notifications = !Platform.isTV ? require("expo-notifications") : null;
+const JellyfinCastStopReporter = Platform.isTV
+  ? null
+  : require("@/components/JellyfinCastStopReporter").JellyfinCastStopReporter;
 
 import { getSessionApi } from "@jellyfin/sdk/lib/utils/api/session-api";
 import { getLocales } from "expo-localization";
@@ -72,7 +81,7 @@ import type { ExpoPushToken } from "expo-notifications/build/Tokens.types";
 import { Stack, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import * as TaskManager from "expo-task-manager";
-import { Provider as JotaiProvider, useAtom } from "jotai";
+import { Provider as JotaiProvider, useAtom, useAtomValue } from "jotai";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { I18nextProvider } from "react-i18next";
 import { Appearance, LogBox } from "react-native";
@@ -85,8 +94,12 @@ if (Platform.isTV) {
 }
 
 import * as Sentry from "@sentry/react-native";
+import { useAppLanguage } from "@/hooks/useAppLanguage";
 import useRouter from "@/hooks/useAppRouter";
 import { useNativePlayerLogBridge } from "@/hooks/useNativePlayerLogBridge";
+import { useNotificationActions } from "@/hooks/useNotificationActions";
+import { useNotificationSettingsLink } from "@/hooks/useNotificationSettingsLink";
+import { usePushRegistration } from "@/hooks/usePushRegistration";
 import { userAtom } from "@/providers/JellyfinProvider";
 import { effectiveSettingsAtom, settingsAtom } from "@/utils/atoms/settings";
 import {
@@ -157,6 +170,10 @@ try {
   // configureCache is a no-op on some platforms/versions; safe to ignore.
 }
 
+/**
+ * Opens what a notification is about: one tapped while the app runs, and the one that opened
+ * it. A button opens nothing.
+ */
 function useNotificationObserver() {
   const router = useRouter();
 
@@ -171,12 +188,12 @@ function useNotificationObserver() {
     // plugin does not send, so opening a notification from a closed app landed on the
     // home screen.
     Notifications.getLastNotificationResponseAsync().then(
-      (response: { notification: any }) => {
-        if (!isMounted || !response?.notification) {
-          return;
-        }
-        const route = notificationRoute(
-          response.notification.request.content.data,
+      (response: { notification: any; actionIdentifier: string } | null) => {
+        if (!isMounted) return;
+        // A button is carried out by useNotificationActions, and opens nothing.
+        const route = responseRoute(
+          response,
+          Notifications.DEFAULT_ACTION_IDENTIFIER,
         );
         if (route) {
           router.push(route as never);
@@ -214,14 +231,17 @@ if (!Platform.isTV) {
   });
 }
 
+/**
+ * Asks for notifications once per install, and says whether they are allowed.
+ */
 const checkAndRequestPermissions = async () => {
   try {
-    const hasAskedBefore = storage.getString(
-      "hasAskedForNotificationPermission",
-    );
+    const hasAskedBefore = storage.getString(PERMISSION_ASKED_KEY);
     let granted = false;
     if (hasAskedBefore !== "true") {
-      const { status } = await Notifications.requestPermissionsAsync();
+      const { status } = await Notifications.requestPermissionsAsync(
+        NOTIFICATION_PERMISSIONS,
+      );
       granted = status === "granted";
       if (granted) {
         writeToLog("INFO", "Notification permissions granted.");
@@ -230,11 +250,14 @@ const checkAndRequestPermissions = async () => {
         writeToLog("ERROR", "Notification permissions denied.");
         console.log("Notification permissions denied.");
       }
-      storage.set("hasAskedForNotificationPermission", "true");
+      storage.set(PERMISSION_ASKED_KEY, "true");
     } else {
       // Already asked before, check current status
       const { status } = await Notifications.getPermissionsAsync();
       granted = status === "granted";
+      if (granted && Platform.OS === "ios") {
+        await offerSettingsLinkOnce(Notifications, storage);
+      }
       if (!granted) {
         writeToLog(
           "ERROR",
@@ -285,72 +308,9 @@ onlineManager.setEventListener((setOnline) => {
   });
 });
 
-// Every React Query failure funnels through here instead of needing per-call
-// handlers. Skipped: anything while offline, aborted requests, connectivity
-// failures — no HTTP response or a gateway error, axios or fetch — (an
-// unreachable server is the user's environment, not an app bug), and 401s
-// (session expiry has its own interceptor in JellyfinProvider).
-const shouldReportDataError = (error: unknown): boolean => {
-  if (!onlineManager.isOnline()) return false;
-  if (isExpectedError(error) || isErrorReported(error)) return false;
-  if (isAbortLikeError(error) || isConnectivityError(error)) return false;
-  if (isAxiosError(error) && error.response?.status === 401) return false;
-  return true;
-};
-
-// A persistently failing query refetches on every mount (staleTime 0), and
-// Sentry's Dedupe integration only drops an event identical to the
-// immediately-previous one — two alternating failing queries defeat it. One
-// report per (source, key, route, status) per session is enough.
-const reportedDataErrors = new Set<string>();
-
-const reportDataError = (
-  source: "query" | "mutation",
-  key: readonly unknown[] | undefined,
-  error: unknown,
-) => {
-  if (!shouldReportDataError(error)) return;
-  // Only the key's first element (the query's name) is used — later
-  // elements can carry search text or item titles, and the name alone
-  // already says which data path failed.
-  const name = typeof key?.[0] === "string" ? key[0] : undefined;
-  const http = describeHttpError(error);
-  // A 404 from a Streamystats endpoint is a server that predates the route
-  // (recommendations, watchlists) — feature-unsupported, not an app bug, and
-  // the UI already renders nothing for it.
-  if (name === "streamystats" && http?.status === 404) return;
-  const dedupeKey = [
-    source,
-    name ?? "?",
-    http ? `${http.method} ${http.path} ${http.status}` : "no-http",
-    error instanceof Error ? error.name : typeof error,
-  ].join("|");
-  if (reportedDataErrors.has(dedupeKey)) return;
-  if (reportedDataErrors.size < 200) reportedDataErrors.add(dedupeKey);
-  Sentry.withScope((scope) => {
-    scope.setContext("data_layer", {
-      source,
-      key: name,
-      keyLength: key?.length,
-    });
-    if (http) {
-      // An AxiosError's stack has no app frames (it is built inside axios),
-      // so left to Sentry every HTTP failure in the app lands in ONE issue.
-      // Group by the query that failed, its route and the status instead.
-      scope.setContext("http", http);
-      scope.setFingerprint([
-        "data-layer",
-        source,
-        name ?? "?",
-        http.method,
-        http.path,
-        String(http.status),
-      ]);
-    }
-    Sentry.captureException(error);
-  });
-};
-
+// Every React Query failure funnels through reportDataError instead of
+// needing per-call handlers; what it skips and why is in
+// utils/reportDataError.ts.
 const queryClient = new QueryClient({
   queryCache: new QueryCache({
     onError: (error, query) => reportDataError("query", query.queryKey, error),
@@ -378,19 +338,22 @@ const queryClient = new QueryClient({
   },
 });
 
-// Create MMKV-based persister for offline support
-const mmkvPersister = createSyncStoragePersister({
-  storage: {
-    getItem: (key) => storage.getString(key) ?? null,
-    setItem: (key, value) => storage.set(key, value),
-    removeItem: (key) => storage.remove(key),
-  },
-});
+// Create MMKV-based persister for offline support. What it writes and what it
+// restores is in utils/queryPersistence.ts.
+const mmkvPersister = withoutPersistedMutations(
+  createSyncStoragePersister({
+    storage: {
+      getItem: (key) => storage.getString(key) ?? null,
+      setItem: (key, value) => storage.set(key, value),
+      removeItem: (key) => storage.remove(key),
+    },
+  }),
+);
 
 function Layout() {
   const { settings } = useSettings();
+  const settingsLoaded = useAtomValue(settingsAtom) !== null;
   const [user] = useAtom(userAtom);
-  const [api] = useAtom(apiAtom);
   const _segments = useSegments();
   const router = useRouter();
 
@@ -399,49 +362,23 @@ function Layout() {
     enableTVMenuKeyInterception();
   }, []);
 
-  useEffect(() => {
-    i18n.changeLanguage(
-      settings?.preferedLanguage ?? getLocales()[0].languageCode ?? "en",
-    );
-  }, [settings?.preferedLanguage, i18n]);
+  // What the app is shown in, and what the plugin writes this device's
+  // notifications in.
+  const language =
+    settings?.preferedLanguage ?? getLocales()[0].languageCode ?? "en";
+
+  useAppLanguage(language, settingsLoaded, queryClient, Notifications);
 
   useNotificationObserver();
+  useNotificationActions(queryClient);
+  useNotificationSettingsLink();
   useNativePlayerLogBridge();
 
   const [expoPushToken, setExpoPushToken] = useState<ExpoPushToken>();
   const notificationListener = useRef<EventSubscription>(null);
   const responseListener = useRef<EventSubscription>(null);
 
-  // Posted once per server, user and token. The api and the user object change
-  // identity on sign in, so without this the token went out twice within a second.
-  // Sign out clears the session, and the key with it, so the next sign in posts again.
-  const registeredPush = useRef<string | null>(null);
-
-  useEffect(() => {
-    if (Platform.isTV) return;
-
-    const step = pushRegistrationStep(
-      registeredPush.current,
-      api?.basePath,
-      user?.Id,
-      expoPushToken?.data,
-    );
-    registeredPush.current = step.key;
-    if (!step.post || !api || !user || !expoPushToken) return;
-
-    api
-      .pluginPost("/Streamyfin/device", {
-        token: expoPushToken.data,
-        deviceId: getOrSetDeviceId(),
-        userId: user.Id,
-      })
-      .catch((_) => {
-        // Forgotten only if nothing newer was posted meanwhile, so the next change
-        // of session or token posts again. No retry on its own, as before.
-        if (registeredPush.current === step.key) registeredPush.current = null;
-        writeErrorLog("Failed to push expo push token to plugin");
-      });
-  }, [api, expoPushToken, user]);
+  usePushRegistration(expoPushToken?.data, language);
 
   const registerNotifications = useCallback(async () => {
     if (Platform.OS === "android") {
@@ -508,6 +445,12 @@ function Layout() {
       responseListener.current =
         Notifications?.addNotificationResponseReceivedListener(
           (response: NotificationResponse) => {
+            // A button is carried out by useNotificationActions, and opens nothing.
+            if (
+              !isPlainTap(response, Notifications.DEFAULT_ACTION_IDENTIFIER)
+            ) {
+              return;
+            }
             // Currently the notifications supported by the plugin will send data for deep links.
             const { title, data } = response.notification.request.content;
             writeInfoLog(`Notification ${title} opened`, data);
@@ -534,13 +477,7 @@ function Layout() {
       persistOptions={{
         persister: mmkvPersister,
         maxAge: 1000 * 60 * 60 * 24, // 24 hours max cache age
-        dehydrateOptions: {
-          shouldDehydrateQuery: (query) => {
-            return (
-              query.state.status === "success" && query.options.gcTime !== 0
-            );
-          },
-        },
+        dehydrateOptions: queryDehydrateOptions,
       }}
     >
       <JellyfinProvider>
@@ -551,140 +488,173 @@ function Layout() {
                 <PlaySettingsProvider>
                   <LogProvider>
                     <WebSocketProvider>
-                      <DownloadProvider>
-                        <NativePlayerProvider>
-                          <MusicPlayerProvider>
-                            <GlobalModalProvider>
-                              <BottomSheetModalProvider>
-                                <IntroSheetProvider>
-                                  <ThemeProvider value={DarkTheme}>
-                                    <SystemBars style='light' hidden={false} />
-                                    <Stack initialRouteName='(auth)/(tabs)'>
-                                      <Stack.Screen
-                                        name='(auth)/(tabs)'
-                                        options={{
-                                          headerShown: false,
-                                          title: "",
-                                          header: () => null,
-                                        }}
+                      <SyncPlayProvider>
+                        <DownloadProvider>
+                          <NativePlayerProvider>
+                            <SyncPlayPlaybackBridge />
+                            <MusicPlayerProvider>
+                              <GlobalModalProvider>
+                                <BottomSheetModalProvider>
+                                  <IntroSheetProvider>
+                                    <ThemeProvider value={DarkTheme}>
+                                      <SystemBars
+                                        style='light'
+                                        hidden={false}
                                       />
-                                      <Stack.Screen
-                                        name='(auth)/player'
-                                        options={{
-                                          headerShown: false,
-                                          title: "",
-                                          header: () => null,
+                                      {JellyfinCastStopReporter && (
+                                        <JellyfinCastStopReporter />
+                                      )}
+                                      <Stack initialRouteName='(auth)/(tabs)'>
+                                        <Stack.Screen
+                                          name='(auth)/(tabs)'
+                                          options={{
+                                            headerShown: false,
+                                            title: "",
+                                            header: () => null,
+                                          }}
+                                        />
+                                        <Stack.Screen
+                                          name='(auth)/player'
+                                          options={{
+                                            headerShown: false,
+                                            title: "",
+                                            header: () => null,
+                                          }}
+                                        />
+                                        <Stack.Screen
+                                          name='(auth)/now-playing'
+                                          options={{
+                                            headerShown: false,
+                                            presentation: "modal",
+                                            gestureEnabled: true,
+                                          }}
+                                        />
+                                        <Stack.Screen
+                                          name='login'
+                                          options={{
+                                            headerShown: true,
+                                            title: "",
+                                            headerTransparent:
+                                              Platform.OS === "ios",
+                                          }}
+                                        />
+                                        <Stack.Screen name='+not-found' />
+                                        <Stack.Screen
+                                          name='(auth)/tv-syncplay-modal'
+                                          options={{
+                                            headerShown: false,
+                                            presentation: "transparentModal",
+                                            animation: "fade",
+                                          }}
+                                        />
+                                        <Stack.Screen
+                                          name='(auth)/tv-option-modal'
+                                          options={{
+                                            headerShown: false,
+                                            presentation: "transparentModal",
+                                            animation: "fade",
+                                          }}
+                                        />
+                                        <Stack.Screen
+                                          name='(auth)/tv-library-sheet-modal'
+                                          options={{
+                                            headerShown: false,
+                                            presentation: "transparentModal",
+                                            animation: "fade",
+                                          }}
+                                        />
+                                        <Stack.Screen
+                                          name='(auth)/tv-subtitle-modal'
+                                          options={{
+                                            headerShown: false,
+                                            presentation: "transparentModal",
+                                            animation: "fade",
+                                          }}
+                                        />
+                                        <Stack.Screen
+                                          name='(auth)/tv-request-modal'
+                                          options={{
+                                            headerShown: false,
+                                            presentation: "transparentModal",
+                                            animation: "fade",
+                                          }}
+                                        />
+                                        <Stack.Screen
+                                          name='(auth)/tv-season-select-modal'
+                                          options={{
+                                            headerShown: false,
+                                            presentation: "transparentModal",
+                                            animation: "fade",
+                                          }}
+                                        />
+                                        <Stack.Screen
+                                          name='(auth)/tv-issue-modal'
+                                          options={{
+                                            headerShown: false,
+                                            presentation: "transparentModal",
+                                            animation: "fade",
+                                          }}
+                                        />
+                                        <Stack.Screen
+                                          name='(auth)/tv-series-season-modal'
+                                          options={{
+                                            headerShown: false,
+                                            presentation: "transparentModal",
+                                            animation: "fade",
+                                          }}
+                                        />
+                                        <Stack.Screen
+                                          name='tv-account-action-modal'
+                                          options={{
+                                            headerShown: false,
+                                            presentation: "transparentModal",
+                                            animation: "fade",
+                                          }}
+                                        />
+                                        <Stack.Screen
+                                          name='tv-account-select-modal'
+                                          options={{
+                                            headerShown: false,
+                                            presentation: "transparentModal",
+                                            animation: "fade",
+                                          }}
+                                        />
+                                        <Stack.Screen
+                                          name='(auth)/tv-user-switch-modal'
+                                          options={{
+                                            headerShown: false,
+                                            presentation: "transparentModal",
+                                            animation: "fade",
+                                          }}
+                                        />
+                                      </Stack>
+                                      <Toaster
+                                        duration={4000}
+                                        toastOptions={{
+                                          style: {
+                                            backgroundColor: "#262626",
+                                            borderColor: "#363639",
+                                            borderWidth: 1,
+                                          },
+                                          titleStyle: {
+                                            color: "white",
+                                          },
                                         }}
+                                        closeButton
                                       />
-                                      <Stack.Screen
-                                        name='(auth)/now-playing'
-                                        options={{
-                                          headerShown: false,
-                                          presentation: "modal",
-                                          gestureEnabled: true,
-                                        }}
-                                      />
-                                      <Stack.Screen
-                                        name='login'
-                                        options={{
-                                          headerShown: true,
-                                          title: "",
-                                          headerTransparent:
-                                            Platform.OS === "ios",
-                                        }}
-                                      />
-                                      <Stack.Screen name='+not-found' />
-                                      <Stack.Screen
-                                        name='(auth)/tv-option-modal'
-                                        options={{
-                                          headerShown: false,
-                                          presentation: "transparentModal",
-                                          animation: "fade",
-                                        }}
-                                      />
-                                      <Stack.Screen
-                                        name='(auth)/tv-subtitle-modal'
-                                        options={{
-                                          headerShown: false,
-                                          presentation: "transparentModal",
-                                          animation: "fade",
-                                        }}
-                                      />
-                                      <Stack.Screen
-                                        name='(auth)/tv-request-modal'
-                                        options={{
-                                          headerShown: false,
-                                          presentation: "transparentModal",
-                                          animation: "fade",
-                                        }}
-                                      />
-                                      <Stack.Screen
-                                        name='(auth)/tv-season-select-modal'
-                                        options={{
-                                          headerShown: false,
-                                          presentation: "transparentModal",
-                                          animation: "fade",
-                                        }}
-                                      />
-                                      <Stack.Screen
-                                        name='(auth)/tv-series-season-modal'
-                                        options={{
-                                          headerShown: false,
-                                          presentation: "transparentModal",
-                                          animation: "fade",
-                                        }}
-                                      />
-                                      <Stack.Screen
-                                        name='tv-account-action-modal'
-                                        options={{
-                                          headerShown: false,
-                                          presentation: "transparentModal",
-                                          animation: "fade",
-                                        }}
-                                      />
-                                      <Stack.Screen
-                                        name='tv-account-select-modal'
-                                        options={{
-                                          headerShown: false,
-                                          presentation: "transparentModal",
-                                          animation: "fade",
-                                        }}
-                                      />
-                                      <Stack.Screen
-                                        name='(auth)/tv-user-switch-modal'
-                                        options={{
-                                          headerShown: false,
-                                          presentation: "transparentModal",
-                                          animation: "fade",
-                                        }}
-                                      />
-                                    </Stack>
-                                    <Toaster
-                                      duration={4000}
-                                      toastOptions={{
-                                        style: {
-                                          backgroundColor: "#262626",
-                                          borderColor: "#363639",
-                                          borderWidth: 1,
-                                        },
-                                        titleStyle: {
-                                          color: "white",
-                                        },
-                                      }}
-                                      closeButton
-                                    />
-                                    {!Platform.isTV && <GlobalModal />}
-                                    {!Platform.isTV && (
-                                      <PendingAccountSaveModal />
-                                    )}
-                                    <JellyseerrAutoLogin />
-                                  </ThemeProvider>
-                                </IntroSheetProvider>
-                              </BottomSheetModalProvider>
-                            </GlobalModalProvider>
-                          </MusicPlayerProvider>
-                        </NativePlayerProvider>
-                      </DownloadProvider>
+                                      {!Platform.isTV && <GlobalModal />}
+                                      {!Platform.isTV && (
+                                        <PendingAccountSaveModal />
+                                      )}
+                                      <SeerrAutoLogin />
+                                    </ThemeProvider>
+                                  </IntroSheetProvider>
+                                </BottomSheetModalProvider>
+                              </GlobalModalProvider>
+                            </MusicPlayerProvider>
+                          </NativePlayerProvider>
+                        </DownloadProvider>
+                      </SyncPlayProvider>
                     </WebSocketProvider>
                   </LogProvider>
                 </PlaySettingsProvider>

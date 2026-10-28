@@ -1,0 +1,18 @@
+{
+  "route": "GET /user/{userId}/quota",
+  "status": 200,
+  "shape": {
+    "movie": {
+      "days": "number",
+      "limit": "number",
+      "restricted": "boolean",
+      "used": "number"
+    },
+    "tv": {
+      "days": "number",
+      "limit": "number",
+      "restricted": "boolean",
+      "used": "number"
+    }
+  }
+}

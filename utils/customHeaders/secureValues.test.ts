@@ -1,21 +1,21 @@
-const mockSecureStoreValues = new Map<string, string>();
-
-jest.mock("expo-secure-store", () => ({
-  getItem: (key: string) => mockSecureStoreValues.get(key) ?? null,
-  setItem: (key: string, value: string) => {
-    mockSecureStoreValues.set(key, value);
-  },
-  deleteItemAsync: async (key: string) => {
-    mockSecureStoreValues.delete(key);
-  },
-}));
-
+import * as SecureStore from "expo-secure-store";
+import { stubReactNative } from "@/test-utils/reactNative";
 import {
+  clearSecureStore,
+  lockSecureStore,
+  secureStoreValues,
+} from "@/test-utils/secureStore";
+import {
+  recreateLegacySecureValues,
   resolveCustomHeaderValues,
   secureCustomHeaderMetadata,
 } from "./secureValues";
-
 import type { CustomHeader } from "./types";
+
+jest.mock(
+  "expo-secure-store",
+  () => jest.requireActual("@/test-utils/secureStore").secureStoreModule,
+);
 
 const header = (
   key: string,
@@ -25,7 +25,7 @@ const header = (
 
 describe("secureCustomHeaderMetadata", () => {
   beforeEach(() => {
-    mockSecureStoreValues.clear();
+    clearSecureStore();
   });
 
   test("keeps values out of the persisted metadata", () => {
@@ -35,7 +35,7 @@ describe("secureCustomHeaderMetadata", () => {
 
     expect(metadata[0]?.value).toBe("");
     expect(metadata[0]?.secureValueKey).toBeTruthy();
-    expect(mockSecureStoreValues.get(metadata[0]!.secureValueKey!)).toBe(
+    expect(secureStoreValues.get(metadata[0]!.secureValueKey!)).toBe(
       "id-value",
     );
     expect(resolveCustomHeaderValues(metadata)[0]?.value).toBe("id-value");
@@ -55,7 +55,7 @@ describe("secureCustomHeaderMetadata", () => {
       [stored!],
     );
 
-    expect(mockSecureStoreValues.get(edited[0]!.secureValueKey!)).toBe(
+    expect(secureStoreValues.get(edited[0]!.secureValueKey!)).toBe(
       "new-secret",
     );
     expect(resolveCustomHeaderValues(edited)[0]?.value).toBe("new-secret");
@@ -73,10 +73,8 @@ describe("secureCustomHeaderMetadata", () => {
     const kept = resolveCustomHeaderValues([original[1]!]);
     secureCustomHeaderMetadata(scope, kept, original);
 
-    expect(mockSecureStoreValues.has(removedKey)).toBe(false);
-    expect(mockSecureStoreValues.get(original[1]!.secureValueKey!)).toBe(
-      "kept",
-    );
+    expect(secureStoreValues.has(removedKey)).toBe(false);
+    expect(secureStoreValues.get(original[1]!.secureValueKey!)).toBe("kept");
   });
 
   test("does not assign a generated key that collides with a retained row", () => {
@@ -99,10 +97,10 @@ describe("secureCustomHeaderMetadata", () => {
 
     expect(metadata[0]?.secureValueKey).toBe(retainedKey);
     expect(new Set(secureValueKeys).size).toBe(secureValueKeys.length);
-    expect(mockSecureStoreValues.get(metadata[0]!.secureValueKey!)).toBe(
+    expect(secureStoreValues.get(metadata[0]!.secureValueKey!)).toBe(
       "retained-new-value",
     );
-    expect(mockSecureStoreValues.get(metadata[1]!.secureValueKey!)).toBe(
+    expect(secureStoreValues.get(metadata[1]!.secureValueKey!)).toBe(
       "new-secret",
     );
   });
@@ -120,8 +118,8 @@ describe("secureCustomHeaderMetadata", () => {
     );
 
     expect(secondMetadata[0]?.secureValueKey).not.toBe(copiedKey);
-    expect(mockSecureStoreValues.get(copiedKey!)).toBe("first-secret");
-    expect(mockSecureStoreValues.get(secondMetadata[0]!.secureValueKey!)).toBe(
+    expect(secureStoreValues.get(copiedKey!)).toBe("first-secret");
+    expect(secureStoreValues.get(secondMetadata[0]!.secureValueKey!)).toBe(
       "second-secret",
     );
   });
@@ -131,7 +129,7 @@ describe("secureCustomHeaderMetadata", () => {
       header("CF-Access-Client-Id", "id-value"),
     ]);
 
-    expect(mockSecureStoreValues.get(metadata[0]!.secureValueKey!)).toBe(
+    expect(secureStoreValues.get(metadata[0]!.secureValueKey!)).toBe(
       "id-value",
     );
   });
@@ -147,9 +145,175 @@ describe("secureCustomHeaderMetadata", () => {
     ]);
 
     expect(shorterScopeMetadata[0]?.secureValueKey).not.toBe(overlappingKey);
-    expect(mockSecureStoreValues.get(overlappingKey!)).toBe("longer-secret");
+    expect(secureStoreValues.get(overlappingKey!)).toBe("longer-secret");
     expect(
-      mockSecureStoreValues.get(shorterScopeMetadata[0]!.secureValueKey!),
+      secureStoreValues.get(shorterScopeMetadata[0]!.secureValueKey!),
     ).toBe("shorter-secret");
+  });
+});
+
+// iOS can launch the app in the background while the phone is locked. The
+// Keychain then refuses every item stored as readable only when unlocked, the
+// default, and the read throws in the middle of a render (Sentry
+// REACT-NATIVE-16, REACT-NATIVE-AA).
+describe("a header value on a locked phone", () => {
+  const scope = "server:https://example.test";
+
+  /** The key a build from before the fix gave the scope's row `index`. */
+  const legacyKey = (index: number, ofScope = scope) =>
+    `custom_header_value_${btoa(ofScope).replace(/=+$/, "")}_${index}`;
+
+  /** A row whose value an earlier build stored, readable only when unlocked. */
+  const storedByAnEarlierBuild = (name: string, value: string, index = 0) => {
+    secureStoreValues.set(legacyKey(index), value);
+    return header(name, "", legacyKey(index));
+  };
+
+  beforeEach(() => {
+    clearSecureStore();
+    stubReactNative();
+  });
+
+  test("can be read when this build stored it", () => {
+    const metadata = secureCustomHeaderMetadata(scope, [
+      header("CF-Access-Client-Secret", "secret"),
+    ]);
+    lockSecureStore();
+
+    expect(resolveCustomHeaderValues(metadata)[0]?.value).toBe("secret");
+  });
+
+  // Saving over an item keeps the accessibility it was created with, so the
+  // value has to become a new item. That is the move's job, with its
+  // read-back; a save keeps writing to the key the row already has.
+  test("keeps its key when a row from an earlier build is saved again", () => {
+    const row = storedByAnEarlierBuild("CF-Access-Client-Secret", "old");
+
+    const [saved] = secureCustomHeaderMetadata(
+      scope,
+      [{ ...row, value: "new" }],
+      [row],
+    );
+
+    expect(saved?.secureValueKey).toBe(legacyKey(0));
+    expect(secureStoreValues.get(legacyKey(0))).toBe("new");
+  });
+
+  describe("moved off what an earlier build stored", () => {
+    test("can be read, under a new key", () => {
+      const row = storedByAnEarlierBuild("CF-Access-Client-Secret", "secret");
+
+      const moved = recreateLegacySecureValues(scope, [row]);
+
+      expect(moved?.replaced).toEqual([row]);
+      expect(moved?.headers[0]?.secureValueKey).not.toBe(legacyKey(0));
+      lockSecureStore();
+      expect(resolveCustomHeaderValues(moved?.headers ?? [])).toEqual([
+        { ...row, value: "secret", secureValueKey: expect.any(String) },
+      ]);
+    });
+
+    // The caller drops the old item, and only once the rows that point at the
+    // new one are saved: until then it is the copy the stored rows refer to.
+    test("leaves the old item where it is", () => {
+      const row = storedByAnEarlierBuild("CF-Access-Client-Secret", "secret");
+
+      recreateLegacySecureValues(scope, [row]);
+
+      expect(secureStoreValues.get(legacyKey(0))).toBe("secret");
+    });
+
+    test("has nothing to do the second time", () => {
+      const row = storedByAnEarlierBuild("CF-Access-Client-Secret", "secret");
+      const moved = recreateLegacySecureValues(scope, [row]);
+
+      expect(recreateLegacySecureValues(scope, moved?.headers ?? [])).toBe(
+        null,
+      );
+    });
+
+    test("does not take a key another row of the scope holds", () => {
+      const [current] = secureCustomHeaderMetadata(scope, [
+        header("CF-Access-Client-Id", "id"),
+      ]);
+      const row = storedByAnEarlierBuild("CF-Access-Client-Secret", "secret");
+
+      const moved = recreateLegacySecureValues(scope, [current!, row]);
+
+      expect(resolveCustomHeaderValues(moved?.headers ?? [])).toEqual([
+        expect.objectContaining({ value: "id" }),
+        expect.objectContaining({ value: "secret" }),
+      ]);
+    });
+
+    test("stays where it is while the phone is locked, and moves later", () => {
+      const row = storedByAnEarlierBuild("CF-Access-Client-Secret", "secret");
+      lockSecureStore();
+
+      expect(recreateLegacySecureValues(scope, [row])).toBe(null);
+      expect(secureStoreValues.get(legacyKey(0))).toBe("secret");
+
+      lockSecureStore(false);
+
+      expect(recreateLegacySecureValues(scope, [row])?.replaced).toEqual([row]);
+    });
+
+    test("stays where it is when the new item does not read back", () => {
+      const row = storedByAnEarlierBuild("CF-Access-Client-Secret", "secret");
+      const write = jest
+        .spyOn(SecureStore, "setItem")
+        .mockImplementationOnce(() => undefined);
+
+      expect(recreateLegacySecureValues(scope, [row])).toBe(null);
+
+      write.mockRestore();
+    });
+
+    test("moves the rows it can and keeps the one it cannot", () => {
+      const first = storedByAnEarlierBuild("CF-Access-Client-Id", "id", 0);
+      const second = storedByAnEarlierBuild("CF-Access-Client-Secret", "s", 1);
+      const write = jest
+        .spyOn(SecureStore, "setItem")
+        .mockImplementationOnce(() => {
+          throw new Error("The Keychain refused the write");
+        });
+
+      const moved = recreateLegacySecureValues(scope, [first, second]);
+
+      write.mockRestore();
+      expect(moved?.replaced).toEqual([second]);
+      expect(moved?.headers[0]).toBe(first);
+      expect(resolveCustomHeaderValues(moved?.headers ?? [])).toEqual([
+        expect.objectContaining({ value: "id" }),
+        expect.objectContaining({ value: "s" }),
+      ]);
+    });
+
+    // The accessibility is the iOS Keychain's. On Android there is nothing
+    // to gain from storing a secret a second time.
+    test("is left alone on Android", () => {
+      const row = storedByAnEarlierBuild("CF-Access-Client-Secret", "secret");
+      stubReactNative({ OS: "android" });
+
+      expect(recreateLegacySecureValues(scope, [row])).toBe(null);
+      expect([...secureStoreValues.keys()]).toEqual([legacyKey(0)]);
+    });
+
+    // The rows are whatever an older build left in storage.
+    test("steps over a row it cannot make sense of", () => {
+      const row = storedByAnEarlierBuild("CF-Access-Client-Secret", "secret");
+      const junk = null as unknown as CustomHeader;
+
+      const moved = recreateLegacySecureValues(scope, [junk, row]);
+
+      expect(moved?.headers[0]).toBe(junk);
+      expect(moved?.replaced).toEqual([row]);
+    });
+
+    test("leaves a row with nothing stored behind it alone", () => {
+      const row = header("CF-Access-Client-Secret", "", legacyKey(0));
+
+      expect(recreateLegacySecureValues(scope, [row])).toBe(null);
+    });
   });
 });

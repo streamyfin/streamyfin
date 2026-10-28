@@ -11,6 +11,7 @@ import { useTranslation } from "react-i18next";
 import { ActivityIndicator, Platform, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHaptic } from "@/hooks/useHaptic";
+import { useSheetOpenState } from "@/hooks/useSheetOpenState";
 import { Button } from "./Button";
 import { Text } from "./common/Text";
 
@@ -43,13 +44,11 @@ export const PasswordEntryModal: React.FC<PasswordEntryModalProps> = ({
 
   useEffect(() => {
     if (visible) {
-      bottomSheetModalRef.current?.present();
       setPassword("");
       setError(null);
-    } else {
-      bottomSheetModalRef.current?.dismiss();
     }
   }, [visible]);
+  const handleDismissed = useSheetOpenState(bottomSheetModalRef, visible);
 
   const handleSheetChanges = useCallback(
     (index: number) => {
@@ -96,6 +95,7 @@ export const PasswordEntryModal: React.FC<PasswordEntryModalProps> = ({
   return (
     <BottomSheetModal
       ref={bottomSheetModalRef}
+      onDismiss={handleDismissed}
       snapPoints={snapPoints}
       onChange={handleSheetChanges}
       handleIndicatorStyle={{ backgroundColor: "white" }}

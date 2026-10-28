@@ -215,6 +215,79 @@ describe("downloadSubtitles", () => {
   });
 });
 
+// The subtitle codec and, for item types other than Movie and Episode, the item id end up in the
+// names of what a download writes, and both are the server's to choose. A separator or a
+// parent-directory segment in one used to steer the write out of Documents or onto another file.
+describe("names built from values the server chooses", () => {
+  test.each([
+    ["a path separator", "srt/../x", "some_movie__subtitle_3.srt____x"],
+    ["a parent-directory segment", "..", "some_movie__subtitle_3.__"],
+  ])(
+    "writes a subtitle whose Codec is %s to a plain file in Documents",
+    async (_label, codec, name) => {
+      const mediaSource: MediaSourceInfo = {
+        MediaStreams: [
+          {
+            Type: "Subtitle",
+            DeliveryMethod: "External",
+            DeliveryUrl: "/Videos/item-1/subs/3/Stream.srt",
+            Index: 3,
+            Codec: codec,
+          },
+        ],
+      };
+
+      const result = await downloadSubtitles(mediaSource, trickplayItem, api);
+
+      expect(downloads.map((download) => download.destination)).toEqual([
+        `file:///documents/${name}`,
+      ]);
+      expect(result.MediaStreams?.[0].DeliveryUrl).toBe(
+        `file:///documents/${name}`,
+      );
+    },
+  );
+
+  describe("an item that is neither a movie nor an episode, whose id has a separator", () => {
+    const hostileItem: BaseItemDto = {
+      ...trickplayItem,
+      Id: "../escape",
+      Type: "Video",
+      Trickplay: { "../escape": trickplayItem.Trickplay?.["item-1"] ?? {} },
+    };
+
+    test("keeps its trickplay sheets in a folder directly under Documents", async () => {
+      await downloadTrickplayImages(hostileItem, api);
+
+      expect(downloads.map((download) => download.destination)).toEqual(
+        [0, 1, 2, 3].map(
+          (index) => `file:///documents/___escape_trickplay/${index}.jpg`,
+        ),
+      );
+    });
+
+    test("keeps its subtitles in Documents", async () => {
+      const mediaSource: MediaSourceInfo = {
+        MediaStreams: [
+          {
+            Type: "Subtitle",
+            DeliveryMethod: "External",
+            DeliveryUrl: "/Videos/x/subs/2/Stream.srt",
+            Index: 2,
+            Codec: "srt",
+          },
+        ],
+      };
+
+      await downloadSubtitles(mediaSource, hostileItem, api);
+
+      expect(downloads.map((download) => download.destination)).toEqual([
+        "file:///documents/___escape_subtitle_2.srt",
+      ]);
+    });
+  });
+});
+
 describe("downloadAdditionalAssets", () => {
   test("downloads external subtitles for a transcoded media source", async () => {
     const mediaSource: MediaSourceInfo = {
@@ -254,5 +327,32 @@ describe("downloadAdditionalAssets", () => {
     expect(result.updatedMediaSource.MediaStreams?.[0].DeliveryUrl).toBe(
       "file:///documents/item-2_subtitle_2.srt",
     );
+  });
+
+  test("downloads the trickplay sheets of the version being downloaded", async () => {
+    // Trickplay is keyed by media source ID: an alternate version's sheets
+    // are its own, and the offline player reads that version's entry.
+    const item: BaseItemDto = {
+      ...trickplayItem,
+      Trickplay: {
+        ...trickplayItem.Trickplay,
+        alt: { "480": { ...trickplayItem.Trickplay?.["item-1"]?.["320"] } },
+      },
+    };
+
+    await downloadAdditionalAssets({
+      item,
+      mediaSource: { Id: "alt" },
+      api,
+      saveImageFn: async () => {},
+      saveSeriesImageFn: async () => {},
+    });
+
+    expect(downloads.map((download) => download.url)).toContain(
+      "https://jellyfin.example.com/Videos/item-1/Trickplay/480/0.jpg?ApiKey=SECRET_TOKEN&MediaSourceId=alt",
+    );
+    expect(
+      downloads.some((download) => download.url.includes("/Trickplay/320/")),
+    ).toBe(false);
   });
 });

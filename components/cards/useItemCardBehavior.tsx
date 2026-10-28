@@ -1,7 +1,7 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { useSegments } from "expo-router";
 import { useAtomValue } from "jotai";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ItemActionSheetHost } from "@/components/common/ItemActionSheetHost";
 import {
   getItemNavigation,
@@ -17,6 +17,8 @@ type Options = {
   /** Prebuilt cards, for anything that isn't a `BaseItemDto`. */
   cards?: CardData[];
   kind: CardKind;
+  /** Width the cards are drawn at, when it isn't the kind's own (items mode). */
+  cardWidth?: number;
   useEpisodePoster?: boolean;
   /** Show a TV child's series name before its own name. */
   showParentTitle?: boolean;
@@ -42,6 +44,7 @@ export function useItemCardBehavior({
   items,
   cards: providedCards,
   kind,
+  cardWidth,
   useEpisodePoster = false,
   showParentTitle = false,
   selectedId,
@@ -60,12 +63,20 @@ export function useItemCardBehavior({
 
   const from = (segments as string[])[2] || "(home)";
 
+  // Read through a ref so a paged list growing `items` does not hand every
+  // memoized Card a new press handler.
+  const itemsRef = useRef(items);
+  useLayoutEffect(() => {
+    itemsRef.current = items;
+  }, [items]);
+
   const cards = useMemo(
     () =>
       providedCards ??
       buildItemCards(items ?? [], {
         api,
         kind,
+        cardWidth,
         useEpisodePoster,
         showParentTitle,
         selectedId,
@@ -75,6 +86,7 @@ export function useItemCardBehavior({
       items,
       api,
       kind,
+      cardWidth,
       useEpisodePoster,
       showParentTitle,
       selectedId,
@@ -88,7 +100,7 @@ export function useItemCardBehavior({
         return;
       }
 
-      const item = items?.find((i) => i.Id === id);
+      const item = itemsRef.current?.find((i) => i.Id === id);
       if (!item) return;
 
       if (onPressItem) {
@@ -105,7 +117,7 @@ export function useItemCardBehavior({
 
       router.push(getItemNavigation(item, from) as any);
     },
-    [from, items, onPressId, onPressItem, router],
+    [from, onPressId, onPressItem, router],
   );
 
   const handleLongPress = useCallback(
@@ -115,7 +127,7 @@ export function useItemCardBehavior({
         return;
       }
 
-      const item = items?.find((i) => i.Id === id);
+      const item = itemsRef.current?.find((i) => i.Id === id);
       if (!item) return;
 
       if (onLongPressItem) {
@@ -125,7 +137,7 @@ export function useItemCardBehavior({
 
       setActionSheetItem(item);
     },
-    [items, onLongPressId, onLongPressItem],
+    [onLongPressId, onLongPressItem],
   );
 
   const closeActionSheet = useCallback(() => setActionSheetItem(null), []);

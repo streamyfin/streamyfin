@@ -5,11 +5,12 @@ import {
   BottomSheetModal,
   BottomSheetView,
 } from "@gorhom/bottom-sheet";
-import React, { useCallback, useEffect, useMemo, useRef } from "react";
+import React, { useCallback, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
+import { useSheetOpenState } from "@/hooks/useSheetOpenState";
 
 export type PlaylistSortOption = "SortName" | "DateCreated";
 
@@ -49,10 +50,7 @@ export const PlaylistSortSheet: React.FC<Props> = ({
 
   const snapPoints = useMemo(() => ["40%"], []);
 
-  useEffect(() => {
-    if (open) bottomSheetModalRef.current?.present();
-    else bottomSheetModalRef.current?.dismiss();
-  }, [open]);
+  const handleDismissed = useSheetOpenState(bottomSheetModalRef, open);
 
   const handleSheetChanges = useCallback(
     (index: number) => {
@@ -96,6 +94,7 @@ export const PlaylistSortSheet: React.FC<Props> = ({
   return (
     <BottomSheetModal
       ref={bottomSheetModalRef}
+      onDismiss={handleDismissed}
       index={0}
       snapPoints={snapPoints}
       onChange={handleSheetChanges}

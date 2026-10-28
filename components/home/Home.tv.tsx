@@ -11,39 +11,37 @@ import {
   getUserViewApi,
 } from "@jellyfin/sdk/lib/utils/api";
 import { type QueryFunction, useQuery } from "@tanstack/react-query";
-import { LinearGradient } from "expo-linear-gradient";
 import { useAtomValue } from "jotai";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  ActivityIndicator,
-  Animated,
-  Easing,
-  ScrollView,
-  View,
-} from "react-native";
+import { ActivityIndicator, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button } from "@/components/Button";
-import { Image, prefetchServerImage } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { InfiniteScrollingCollectionList } from "@/components/home/InfiniteScrollingCollectionList.tv";
 import { StreamystatsPromotedWatchlists } from "@/components/home/StreamystatsPromotedWatchlists.tv";
 import { StreamystatsRecommendations } from "@/components/home/StreamystatsRecommendations.tv";
 import { TVHeroCarousel } from "@/components/home/TVHeroCarousel";
+import {
+  TVHomeBackdrop,
+  type TVHomeBackdropRef,
+} from "@/components/home/TVHomeBackdrop";
 import { Loader } from "@/components/Loader";
 import { useScaledTVTypography } from "@/constants/TVTypography";
+import { UPCOMING_HOME_PAGE_SIZE } from "@/constants/Upcoming";
 import useRouter from "@/hooks/useAppRouter";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { useRefreshLibraryOnFocus } from "@/hooks/useRefreshLibraryOnFocus";
+import { useRemapHiddenLibraries } from "@/hooks/useRemapHiddenLibraries";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
 import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
+import { fetchUpcomingEpisodes } from "@/hooks/useUpcomingEpisodes";
 import {
   apiAtom,
   cacheVersionAtom,
   userAtom,
 } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
-import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
 import { scaleSize } from "@/utils/scaleSize";
 import { updateTVDiscovery } from "@/utils/tvDiscovery/sync";
 
@@ -60,12 +58,10 @@ type InfiniteScrollingCollectionListSection = {
   orientation?: "horizontal" | "vertical";
   pageSize?: number;
   parentId?: string;
+  collectionType?: BaseItemDto["CollectionType"];
 };
 
 type Section = InfiniteScrollingCollectionListSection;
-
-// Debounce delay in ms - prevents rapid backdrop changes when scrolling fast
-const BACKDROP_DEBOUNCE_MS = 300;
 
 export const Home = () => {
   const typography = useScaledTVTypography();
@@ -90,113 +86,6 @@ export const Home = () => {
   // (primary path is the LibraryChanged WebSocket event).
   useRefreshLibraryOnFocus();
 
-  // Dynamic backdrop state with debounce
-  const [focusedItem, setFocusedItem] = useState<BaseItemDto | null>(null);
-  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Handle item focus with debounce
-  const handleItemFocus = useCallback((item: BaseItemDto) => {
-    // Clear any pending debounce timer
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-    }
-    // Set new timer to update focused item after debounce delay
-    debounceTimerRef.current = setTimeout(() => {
-      setFocusedItem(item);
-    }, BACKDROP_DEBOUNCE_MS);
-  }, []);
-
-  // Cleanup debounce timer on unmount
-  useEffect(() => {
-    return () => {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
-    };
-  }, []);
-
-  // Get backdrop URL from focused item (only if setting is enabled)
-  const backdropUrl = useMemo(() => {
-    if (!settings.showHomeBackdrop || !focusedItem) return null;
-    return getBackdropUrl({
-      api,
-      item: focusedItem,
-      quality: 90,
-      width: 1920,
-    });
-  }, [api, focusedItem, settings.showHomeBackdrop]);
-
-  // Crossfade animation for backdrop transitions
-  const [activeLayer, setActiveLayer] = useState<0 | 1>(0);
-  const [layer0Url, setLayer0Url] = useState<string | null>(null);
-  const [layer1Url, setLayer1Url] = useState<string | null>(null);
-  const layer0Opacity = useRef(new Animated.Value(0)).current;
-  const layer1Opacity = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    if (!backdropUrl) return;
-
-    let isCancelled = false;
-
-    const performCrossfade = async () => {
-      // Prefetch to disk only - the full-size 1920x1080 backdrop (~8MB
-      // decoded ARGB) is too large to pin in the memory cache on every
-      // focus change. Disk cache is fast enough for a 500ms crossfade.
-      try {
-        await prefetchServerImage(backdropUrl, api?.basePath, "disk");
-      } catch {
-        // Continue even if prefetch fails
-      }
-
-      if (isCancelled) return;
-
-      // Determine which layer to fade in
-      const incomingLayer = activeLayer === 0 ? 1 : 0;
-      const incomingOpacity =
-        incomingLayer === 0 ? layer0Opacity : layer1Opacity;
-      const outgoingOpacity =
-        incomingLayer === 0 ? layer1Opacity : layer0Opacity;
-
-      // Set the new URL on the incoming layer
-      if (incomingLayer === 0) {
-        setLayer0Url(backdropUrl);
-      } else {
-        setLayer1Url(backdropUrl);
-      }
-
-      // Small delay to ensure image component has the new URL
-      await new Promise((resolve) => setTimeout(resolve, 50));
-
-      if (isCancelled) return;
-
-      // Crossfade: fade in the incoming layer, fade out the outgoing
-      Animated.parallel([
-        Animated.timing(incomingOpacity, {
-          toValue: 1,
-          duration: 500,
-          easing: Easing.inOut(Easing.quad),
-          useNativeDriver: true,
-        }),
-        Animated.timing(outgoingOpacity, {
-          toValue: 0,
-          duration: 500,
-          easing: Easing.inOut(Easing.quad),
-          useNativeDriver: true,
-        }),
-      ]).start(() => {
-        if (!isCancelled) {
-          setActiveLayer(incomingLayer);
-        }
-      });
-    };
-
-    performCrossfade();
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [backdropUrl, api?.basePath]);
-
   const {
     data,
     isError: e1,
@@ -218,6 +107,7 @@ export const Home = () => {
     staleTime: 60 * 1000,
     refetchInterval: 60 * 1000,
   });
+  useRemapHiddenLibraries(data, user?.Id);
 
   // Fetch hero items (Continue Watching + Next Up combined)
   const { data: heroItems } = useQuery({
@@ -303,6 +193,7 @@ export const Home = () => {
       queryKey: string[],
       includeItemTypes: BaseItemKind[],
       parentId: string | undefined,
+      collectionType: BaseItemDto["CollectionType"],
       pageSize = 10,
     ): InfiniteScrollingCollectionListSection => ({
       title,
@@ -327,6 +218,7 @@ export const Home = () => {
       type: "InfiniteScrollingCollectionList",
       pageSize,
       parentId,
+      collectionType,
     }),
     [api, user?.Id],
   );
@@ -351,6 +243,7 @@ export const Home = () => {
         queryKey,
         includeItemTypes,
         c.Id,
+        c.CollectionType,
         10,
       );
     });
@@ -446,8 +339,29 @@ export const Home = () => {
           },
         ];
 
+    // After Continue watching and Next up: the hero stands in for those two,
+    // and the rows it replaces are dropped by position.
+    const upcomingSections: Section[] = settings.showUpcomingOnHome
+      ? [
+          {
+            title: t("upcoming.title"),
+            queryKey: ["home", "upcoming", user.Id],
+            queryFn: ({ pageParam = 0 }) =>
+              fetchUpcomingEpisodes(api, {
+                userId: user.Id!,
+                startIndex: pageParam,
+                limit: UPCOMING_HOME_PAGE_SIZE,
+              }),
+            type: "InfiniteScrollingCollectionList",
+            orientation: "horizontal",
+            pageSize: UPCOMING_HOME_PAGE_SIZE,
+          },
+        ]
+      : [];
+
     const ss: Section[] = [
       ...firstSections,
+      ...upcomingSections,
       ...latestMediaViews,
       ...(!settings?.streamyStatsMovieRecommendations
         ? [
@@ -480,6 +394,7 @@ export const Home = () => {
     createCollectionConfig,
     settings?.streamyStatsMovieRecommendations,
     settings.mergeNextUpAndContinueWatching,
+    settings.showUpcomingOnHome,
   ]);
 
   const customSections = useMemo(() => {
@@ -573,6 +488,16 @@ export const Home = () => {
     const sectionsToSkip = settings.mergeNextUpAndContinueWatching ? 1 : 2;
     return sections.slice(sectionsToSkip);
   }, [sections, showHero, settings.mergeNextUpAndContinueWatching]);
+
+  // The backdrop holds the focused item, so a focus move re-renders it and
+  // nothing else here. With the hero shown or the backdrop off, the rows get
+  // no focus handler at all and a focus move does no backdrop work.
+  const isBackdropVisible = Boolean(!showHero && settings.showHomeBackdrop);
+  const backdropRef = useRef<TVHomeBackdropRef>(null);
+  const handleItemFocus = useCallback((item: BaseItemDto) => {
+    backdropRef.current?.handleItemFocus(item);
+  }, []);
+  const onItemFocus = isBackdropVisible ? handleItemFocus : undefined;
 
   if (!isConnected || serverConnected !== true) {
     let title = "";
@@ -683,64 +608,7 @@ export const Home = () => {
   return (
     <View key={cacheVersion} style={{ flex: 1, backgroundColor: "#000000" }}>
       {/* Dynamic backdrop with crossfade - only shown when hero is disabled */}
-      {!showHero && settings.showHomeBackdrop && (
-        <View
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-          }}
-        >
-          {/* Layer 0 */}
-          <Animated.View
-            style={{
-              position: "absolute",
-              width: "100%",
-              height: "100%",
-              opacity: layer0Opacity,
-            }}
-          >
-            {layer0Url && (
-              <Image
-                source={{ uri: layer0Url }}
-                style={{ width: "100%", height: "100%" }}
-                contentFit='cover'
-              />
-            )}
-          </Animated.View>
-          {/* Layer 1 */}
-          <Animated.View
-            style={{
-              position: "absolute",
-              width: "100%",
-              height: "100%",
-              opacity: layer1Opacity,
-            }}
-          >
-            {layer1Url && (
-              <Image
-                source={{ uri: layer1Url }}
-                style={{ width: "100%", height: "100%" }}
-                contentFit='cover'
-              />
-            )}
-          </Animated.View>
-          {/* Gradient overlays for readability */}
-          <LinearGradient
-            colors={["rgba(0,0,0,0.3)", "rgba(0,0,0,0.7)", "rgba(0,0,0,0.95)"]}
-            locations={[0, 0.4, 1]}
-            style={{
-              position: "absolute",
-              left: 0,
-              right: 0,
-              bottom: 0,
-              height: "100%",
-            }}
-          />
-        </View>
-      )}
+      {isBackdropVisible && <TVHomeBackdrop ref={backdropRef} />}
 
       <ScrollView
         ref={scrollRef}
@@ -753,11 +621,7 @@ export const Home = () => {
       >
         {/* Hero Carousel - Apple TV+ style featured content */}
         {showHero && heroItems && (
-          <TVHeroCarousel
-            items={heroItems}
-            onItemFocus={handleItemFocus}
-            onItemLongPress={showItemActions}
-          />
+          <TVHeroCarousel items={heroItems} onItemLongPress={showItemActions} />
         )}
 
         <View
@@ -790,7 +654,7 @@ export const Home = () => {
                         "home.settings.plugins.streamystats.recommended_movies",
                       )}
                       type='Movie'
-                      onItemFocus={handleItemFocus}
+                      onItemFocus={onItemFocus}
                     />
                   )}
                   {settings.streamyStatsSeriesRecommendations && (
@@ -799,13 +663,11 @@ export const Home = () => {
                         "home.settings.plugins.streamystats.recommended_series",
                       )}
                       type='Series'
-                      onItemFocus={handleItemFocus}
+                      onItemFocus={onItemFocus}
                     />
                   )}
                   {settings.streamyStatsPromotedWatchlists && (
-                    <StreamystatsPromotedWatchlists
-                      onItemFocus={handleItemFocus}
-                    />
+                    <StreamystatsPromotedWatchlists onItemFocus={onItemFocus} />
                   )}
                 </View>
               ) : null;
@@ -824,8 +686,9 @@ export const Home = () => {
                     hideIfEmpty
                     pageSize={section.pageSize}
                     isFirstSection={isFirstSection}
-                    onItemFocus={handleItemFocus}
+                    onItemFocus={onItemFocus}
                     parentId={section.parentId}
+                    collectionType={section.collectionType}
                   />
                   {streamystatsSections}
                 </View>

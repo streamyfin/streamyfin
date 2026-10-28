@@ -9,3 +9,23 @@ export const POSTER_CAROUSEL_HEIGHT = 220;
 // the window height. The ceiling keeps the page visible behind a long list,
 // which is what tells the user the sheet is a layer and not a new screen.
 export const SHEET_MAX_HEIGHT_RATIO = 0.85;
+
+/** A poster's width over its height, as TMDB's artwork is cut. */
+export const POSTER_ASPECT_RATIO = 10 / 15;
+
+/**
+ * MMKV key for the collection type and server of each hidden singleton view
+ * (Live TV, Collections, Playlists), which is what carries a hidden view over
+ * when Jellyfin 12 changes its id.
+ */
+export const HIDDEN_LIBRARY_ORIGINS_STORAGE_KEY = "hiddenLibraryOrigins";
+
+/**
+ * Duration of the transition animation for poster cards, in milliseconds.
+ */
+export const POSTER_IMAGE_TRANSITION_DURATION = 150;
+
+/**
+ * Duration of the transition animation for background images, in milliseconds.
+ */
+export const BACKGROUND_IMAGE_TRANSITION_DURATION = 300;

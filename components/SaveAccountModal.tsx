@@ -10,6 +10,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Platform, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { DismissKeyboardArea } from "@/components/common/DismissKeyboardArea";
 import type { AccountSecurityType } from "@/utils/secureCredentials";
 import { Button } from "./Button";
 import { Text } from "./common/Text";
@@ -162,7 +163,7 @@ export const SaveAccountModal: React.FC<SaveAccountModalProps> = ({
           paddingBottom: Math.max(16, insets.bottom),
         }}
       >
-        <View className='flex-1'>
+        <DismissKeyboardArea style={{ flex: 1 }}>
           {/* Header */}
           <View className='mb-4'>
             <Text className='font-bold text-2xl text-neutral-100'>
@@ -251,7 +252,7 @@ export const SaveAccountModal: React.FC<SaveAccountModalProps> = ({
               {t("save_account.save_button")}
             </Button>
           </View>
-        </View>
+        </DismissKeyboardArea>
       </BottomSheetView>
     </BottomSheetModal>
   );

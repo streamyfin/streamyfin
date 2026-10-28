@@ -29,6 +29,22 @@ export const TVPosterSizes = {
 } as const;
 
 /**
+ * How close to the end of a TV grid that grows as it is scrolled, in points
+ * at 1080p, the next page is asked for.
+ */
+export const TV_GRID_LOAD_MORE_DISTANCE = 600;
+
+/**
+ * How long, in milliseconds, focus rests on a TV Home item before the backdrop
+ * and the hero switch to its art, so moving along a row does not load the art
+ * of every card it crosses.
+ */
+export const TV_BACKDROP_DEBOUNCE_MS = 300;
+
+/** How long the TV Home backdrop takes to crossfade to the next item's art. */
+export const TV_BACKDROP_CROSSFADE_MS = 500;
+
+/**
  * Base gap/spacing values in pixels.
  */
 export const TVGaps = {

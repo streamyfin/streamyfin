@@ -159,6 +159,7 @@ class UIOptionsRecord : Record {
     @Field var holdToSpeedRate: Double = 2.0
     @Field var pinchToZoomEnabled: Boolean = true
     @Field var doubleTapToSeekEnabled: Boolean = false
+    @Field var confirmExitEnabled: Boolean = true
     @Field var subtitleSearchEnabled: Boolean = false
     @Field var subtitleSearchLanguages: List<SubtitleSearchLanguageRecord> = emptyList()
     @Field var subtitleSearchDefaultLanguage: String = "eng"
@@ -176,6 +177,7 @@ class PlayerPresentConfigRecord : Record {
     @Field var tracks: TrackMenusRecord? = null
     @Field var subtitleStyle: SubtitleStyleRecord? = null
     @Field var ui: UIOptionsRecord = UIOptionsRecord()
+    @Field var syncPlay: SyncPlayStateRecord? = null
     // Which engine decodes the stream: "mpv" (default) or "exoplayer".
     // Ignored on iOS — its chrome always runs mpv.
     @Field var engine: String? = null

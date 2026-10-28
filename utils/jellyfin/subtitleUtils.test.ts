@@ -6,11 +6,15 @@ import {
   applyMpvSubtitleSelection,
   compareTracksForMenu,
   getExternalSubtitleUrl,
+  getMpvAudioId,
   isExternalSubtitle,
+  langEq,
   type PlayerSubtitleTrack,
   pickAutoSubtitleTrack,
   requiresStreamRestart,
+  resolveAudioSwitch,
   resolveSubtitleTrack,
+  sameSubtitleTrack,
 } from "@/utils/jellyfin/subtitleUtils";
 
 // String-enum values as typed literals — avoids a runtime SDK import (see subtitleUtils.ts).
@@ -431,7 +435,7 @@ describe("resolveSubtitleTrack — language tag variants (ISO 639-1 / 639-2 B-T 
     });
   });
 
-  test("IETF tags reduce to their primary subtag", () => {
+  test("a regional IETF tag matches the bare code of its language", () => {
     const streams = [emb(0, { Language: "eng" }), emb(1, { Language: "spa" })];
     const player = [
       track({ id: 1, language: "en-US" }),
@@ -448,6 +452,200 @@ describe("resolveSubtitleTrack — language tag variants (ISO 639-1 / 639-2 B-T 
       track({ id: 2, language: "ger" }),
     ];
     expect(resolve(streams, 0, player)).toEqual({ kind: "select", trackId: 2 });
+  });
+});
+
+describe("langEq — region and script variants", () => {
+  // Regression: tags were cut down to their primary subtag before comparing, so
+  // two variants of one language counted as the same language.
+  test.each([
+    ["pt-BR", "pt-PT"],
+    ["zh-Hans", "zh-Hant"],
+    ["zh-CN", "zh-TW"],
+    ["zh-Hans", "zh-TW"],
+    ["es-419", "es-ES"],
+    ["sr-Latn", "sr-Cyrl"],
+  ])("%s and %s are different", (a, b) => {
+    expect(langEq(a, b)).toBe(false);
+    expect(langEq(b, a)).toBe(false);
+  });
+
+  // A bare code says nothing about the variant, so it has to keep matching all
+  // of them: the server reports the legacy 639-2 tag ("por") for a track mpv
+  // reads as "pt-BR" from the same file's LanguageIETF element.
+  test.each([
+    ["pt-BR", "por"],
+    ["en-US", "eng"],
+    ["zh-Hant", "chi"],
+    ["zh-Hans", "zho"],
+    ["sr-Latn", "sr-RS"],
+  ])("%s still matches %s, which leaves the variant open", (a, b) => {
+    expect(langEq(a, b)).toBe(true);
+    expect(langEq(b, a)).toBe(true);
+  });
+
+  test.each([
+    ["PT-br", "pt-BR"],
+    ["pt_BR", "pt-BR"],
+    ["zh-Hans-CN", "zh-CN"],
+    ["zh-TW", "zh-Hant"],
+    ["zh-cmn-Hant", "zh-Hant"],
+    ["en-US-x-sdh", "en-US"],
+  ])("%s and %s are two spellings of one variant", (a, b) => {
+    expect(langEq(a, b)).toBe(true);
+  });
+
+  test("a missing tag never matches", () => {
+    expect(langEq("pt-BR", null)).toBe(false);
+    expect(langEq(undefined, "pt-BR")).toBe(false);
+    expect(langEq("", "")).toBe(false);
+  });
+});
+
+describe("langEq — variant subtags", () => {
+  // Regression: variant subtags were dropped while parsing, so two orthographies
+  // or dialects of one language counted as the same track.
+  test.each([
+    ["de-1901", "de-1996"],
+    ["el-monoton", "el-polyton"],
+    ["sr-Latn-ekavsk", "sr-Latn-ijekavsk"],
+    ["zh-Latn-pinyin", "zh-Latn-wadegile"],
+    ["de-CH-1901", "de-CH-1996"],
+  ])("%s and %s are different", (a, b) => {
+    expect(langEq(a, b)).toBe(false);
+    expect(langEq(b, a)).toBe(false);
+  });
+
+  // Same rule as script and region: a tag that names no variant leaves it open.
+  // A tag naming fewer variants is the wider one, so it still covers the
+  // narrower ("sl-rozaj" is Resian, "sl-rozaj-biske" one dialect of it).
+  test.each([
+    ["ca-valencia", "cat"],
+    ["ca-valencia", "ca-ES"],
+    ["de-CH-1901", "de-CH"],
+    ["sl-rozaj", "sl-rozaj-biske"],
+  ])("%s still matches %s, which leaves the variant open", (a, b) => {
+    expect(langEq(a, b)).toBe(true);
+    expect(langEq(b, a)).toBe(true);
+  });
+
+  test.each([
+    ["CA-Valencia", "ca_valencia"],
+    ["ca-ES-valencia", "ca-valencia"],
+    ["de-1996-u-co-phonebk", "de-1996"],
+    ["sl-rozaj-biske", "sl-biske-rozaj"],
+  ])("%s and %s are two spellings of one variant", (a, b) => {
+    expect(langEq(a, b)).toBe(true);
+  });
+
+  test("a private-use subtag is not read as a variant", () => {
+    // "forced" and "commentary" have the shape of a variant, but after "x" they
+    // are free text and say nothing about the language.
+    expect(langEq("en-US-x-forced", "en-US-x-commentary")).toBe(true);
+  });
+});
+
+describe("resolveSubtitleTrack — several variants of one language", () => {
+  test("tells two orthographies of one language apart", () => {
+    const streams = [emb(0, { Language: "de-1996" })];
+    const player = [
+      track({ id: 1, language: "de-1901" }),
+      track({ id: 2, language: "de-1996" }),
+    ];
+    expect(resolve(streams, 0, player)).toEqual({ kind: "select", trackId: 2 });
+  });
+
+  test("a track carrying the variant asked for beats one that names none", () => {
+    const streams = [emb(0, { Language: "ca-valencia" })];
+    const player = [
+      track({ id: 1, language: "ca" }),
+      track({ id: 2, language: "ca-valencia" }),
+    ];
+    expect(resolve(streams, 0, player)).toEqual({ kind: "select", trackId: 2 });
+  });
+
+  test("picks the variant asked for when the player also carries one the server hides", () => {
+    // The library hides the European track, so it is gone from MediaStreams but
+    // still in the file. With both reduced to "pt" the group ordinal picked the
+    // first Portuguese track in the container, which is the wrong one.
+    const streams = [emb(0, { Language: "pt-BR" })];
+    const player = [
+      track({ id: 1, language: "pt-PT" }),
+      track({ id: 2, language: "pt-BR" }),
+    ];
+    expect(resolve(streams, 0, player)).toEqual({ kind: "select", trackId: 2 });
+  });
+
+  test("tells Simplified from Traditional Chinese whichever way they are spelled", () => {
+    const streams = [
+      emb(0, { Language: "zh-Hant" }),
+      emb(1, { Language: "zh-Hans" }),
+    ];
+    const player = [
+      track({ id: 1, language: "zh-CN" }),
+      track({ id: 2, language: "zh-TW" }),
+    ];
+    expect(resolve(streams, 0, player)).toEqual({ kind: "select", trackId: 2 });
+    expect(resolve(streams, 1, player)).toEqual({ kind: "select", trackId: 1 });
+  });
+
+  test("a track tagged exactly like the stream beats one that only shares the language", () => {
+    // "por" is compatible with both player tracks, "pt-BR" with both as well:
+    // without preferring the exact tag this falls through to the ordinal, and
+    // the player lists them the other way round.
+    const streams = [
+      emb(0, { Language: "pt-BR" }),
+      emb(1, { Language: "por" }),
+    ];
+    const player = [
+      track({ id: 1, language: "por" }),
+      track({ id: 2, language: "pt-BR" }),
+    ];
+    expect(resolve(streams, 0, player)).toEqual({ kind: "select", trackId: 2 });
+    expect(resolve(streams, 1, player)).toEqual({ kind: "select", trackId: 1 });
+  });
+
+  test("duplicates of one variant keep their own ordinal, not the language's", () => {
+    const streams = [
+      emb(0, { Language: "por" }),
+      emb(1, { Language: "pt-BR" }),
+      emb(2, { Language: "pt-BR" }),
+    ];
+    const player = [
+      track({ id: 1, language: "por" }),
+      track({ id: 2, language: "pt-BR" }),
+      track({ id: 3, language: "pt-BR" }),
+    ];
+    expect(resolve(streams, 0, player)).toEqual({ kind: "select", trackId: 1 });
+    expect(resolve(streams, 1, player)).toEqual({ kind: "select", trackId: 2 });
+    expect(resolve(streams, 2, player)).toEqual({ kind: "select", trackId: 3 });
+  });
+
+  test("a server that only reports the bare code still resolves by position", () => {
+    const streams = [emb(0, { Language: "por" }), emb(1, { Language: "por" })];
+    const player = [
+      track({ id: 1, language: "pt-PT" }),
+      track({ id: 2, language: "pt-BR" }),
+    ];
+    expect(resolve(streams, 0, player)).toEqual({ kind: "select", trackId: 1 });
+    expect(resolve(streams, 1, player)).toEqual({ kind: "select", trackId: 2 });
+  });
+
+  test("a variant the player reports for none of its tracks keeps the position among the bare ones", () => {
+    // The stream that carries a variant competes for the same player tracks as
+    // the bare ones, so it still counts towards their ordinal.
+    const streams = [
+      emb(0, { Language: "pt-BR" }),
+      emb(1, { Language: "por" }),
+      emb(2, { Language: "por" }),
+    ];
+    const player = [
+      track({ id: 1, language: "por" }),
+      track({ id: 2, language: "por" }),
+      track({ id: 3, language: "por" }),
+    ];
+    expect(resolve(streams, 1, player)).toEqual({ kind: "select", trackId: 2 });
+    expect(resolve(streams, 2, player)).toEqual({ kind: "select", trackId: 3 });
   });
 });
 
@@ -637,6 +835,68 @@ describe("pickAutoSubtitleTrack", () => {
     ).toMatchObject({ index: null, reason: "none" });
   });
 
+  test("picks the variant asked for, not the first track of that language", () => {
+    expect(
+      pickAutoSubtitleTrack({
+        ...base,
+        subtitleStreams: [
+          emb(0, { Language: "pt-PT" }),
+          emb(1, { Language: "pt-BR" }),
+        ],
+        preferredLanguage: "pt-BR",
+        audioLanguage: "eng",
+      }),
+    ).toMatchObject({ index: 1, reason: null });
+  });
+
+  test("matches the variant of the audio that is playing", () => {
+    expect(
+      pickAutoSubtitleTrack({
+        ...base,
+        subtitleStreams: [
+          emb(0, { Language: "zh-Hans" }),
+          emb(1, { Language: "zh-Hant" }),
+        ],
+        preferredLanguage: "fra",
+        audioLanguage: "zh-TW",
+      }),
+    ).toMatchObject({ index: 1, reason: null });
+  });
+
+  test("prefers the track tagged exactly as asked over one that only shares the language", () => {
+    const subtitleStreams = [
+      emb(0, { Language: "pt-BR" }),
+      emb(1, { Language: "por" }),
+    ];
+    expect(
+      pickAutoSubtitleTrack({
+        ...base,
+        subtitleStreams,
+        preferredLanguage: "por",
+      }),
+    ).toMatchObject({ index: 1, reason: null });
+    expect(
+      pickAutoSubtitleTrack({
+        ...base,
+        subtitleStreams: [...subtitleStreams].reverse(),
+        preferredLanguage: "pt-BR",
+      }),
+    ).toMatchObject({ index: 0, reason: null });
+  });
+
+  test("a bare preference still accepts a track that names a variant", () => {
+    expect(
+      pickAutoSubtitleTrack({
+        ...base,
+        subtitleStreams: [
+          emb(0, { Language: "eng" }),
+          emb(1, { Language: "pt-BR" }),
+        ],
+        preferredLanguage: "por",
+      }),
+    ).toMatchObject({ index: 1, reason: null });
+  });
+
   test("returns the identity of the picked track, not just its index", () => {
     expect(
       pickAutoSubtitleTrack({
@@ -654,5 +914,83 @@ describe("pickAutoSubtitleTrack", () => {
       track: { language: "fra", isForced: false },
       reason: null,
     });
+  });
+});
+
+describe("sameSubtitleTrack", () => {
+  test("another variant of the language is not the carried-over track", () => {
+    expect(
+      sameSubtitleTrack(
+        { language: "pt-BR", isForced: false },
+        { language: "pt-PT", isForced: false },
+      ),
+    ).toBe(false);
+  });
+
+  test("another orthography of the language is not the carried-over track", () => {
+    expect(
+      sameSubtitleTrack(
+        { language: "sr-Latn-ekavsk", isForced: false },
+        { language: "sr-Latn-ijekavsk", isForced: false },
+      ),
+    ).toBe(false);
+  });
+
+  test("the same variant is, however the tag is spelled", () => {
+    expect(
+      sameSubtitleTrack(
+        { language: "pt-BR", isForced: false },
+        { language: "pt-br", isForced: false },
+      ),
+    ).toBe(true);
+  });
+});
+
+describe("getMpvAudioId", () => {
+  // mpv numbers only the file's own audio tracks: the app never loads an
+  // external audio file, which Jellyfin lists ahead of them. Counting it
+  // made "2012" play its AC-3 track when TrueHD was selected.
+  it("skips external audio streams mpv never loads", () => {
+    const mediaSource = {
+      MediaStreams: [
+        { Type: "Audio", Index: 1, Codec: "eac3", IsExternal: true },
+        { Type: "Video", Index: 2, Codec: "hevc" },
+        { Type: "Audio", Index: 3, Codec: "truehd" },
+        { Type: "Audio", Index: 4, Codec: "ac3" },
+      ] as MediaStream[],
+    };
+    expect(getMpvAudioId(mediaSource, 3, false)).toBe(1);
+    expect(getMpvAudioId(mediaSource, 4, false)).toBe(2);
+    expect(getMpvAudioId(mediaSource, 1, false)).toBeUndefined();
+  });
+});
+
+describe("resolveAudioSwitch", () => {
+  const streams = [
+    { Type: "Audio", Index: 1, Codec: "eac3", IsExternal: true },
+    { Type: "Video", Index: 2, Codec: "hevc" },
+    { Type: "Audio", Index: 3, Codec: "truehd" },
+    { Type: "Audio", Index: 4, Codec: "ac3" },
+  ] as MediaStream[];
+
+  it("switches mpv's own track for an embedded stream played directly", () => {
+    expect(resolveAudioSwitch({ MediaStreams: streams }, 4)).toEqual({
+      reload: false,
+      mpvId: 2,
+    });
+  });
+
+  // The direct stream is the file alone: the server has to mux the external
+  // audio file in, as it does any track on a transcode.
+  it("reloads the stream for an external stream or on a transcode", () => {
+    expect(resolveAudioSwitch({ MediaStreams: streams }, 1)).toEqual({
+      reload: true,
+    });
+    expect(
+      resolveAudioSwitch(
+        { MediaStreams: streams, TranscodingUrl: "/master.m3u8" },
+        4,
+      ),
+    ).toEqual({ reload: true });
   });
 });

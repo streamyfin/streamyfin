@@ -24,7 +24,7 @@ import { TVSettingsOptionButton } from "./TVSettingsOptionButton";
 import { TVSettingsRow } from "./TVSettingsRow";
 
 const INTEGRATIONS: { key: IntegrationKey; label: string }[] = [
-  { key: "jellyseerr", label: "Jellyseerr" },
+  { key: "seerr", label: "Seerr" },
   { key: "streamystats", label: "Streamystats" },
   { key: "marlin", label: "Marlin Search" },
 ];

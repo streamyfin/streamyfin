@@ -1,7 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { useAtomValue } from "jotai";
-import React, { useMemo, useRef, useState } from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Animated,
   Easing,
@@ -16,6 +17,7 @@ import {
   UnplayedCountBadge,
   WatchedIndicator,
 } from "@/components/WatchedIndicator";
+import { Colors } from "@/constants/Colors";
 import { useScaledTVPosterSizes } from "@/constants/TVPosterSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import {
@@ -24,6 +26,7 @@ import {
 } from "@/modules/glass-poster";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
+import { isLiveBroadcast } from "@/utils/jellyfin/media/isLiveBroadcast";
 import { scaleSize } from "@/utils/scaleSize";
 import { runtimeTicksToMinutes } from "@/utils/time";
 
@@ -51,11 +54,13 @@ export interface TVPosterCardProps {
   /** Show a play button overlay */
   showPlayButton?: boolean;
 
-  // Handlers
-  onPress: () => void;
-  onLongPress?: () => void;
-  onFocus?: () => void;
-  onBlur?: () => void;
+  // Handlers. Each is called with the card's item, so a list can give every
+  // card the same function instead of a new closure per card, which would
+  // re-render the memoized card on every render of its row.
+  onPress: ((item: BaseItemDto) => void) | (() => void);
+  onLongPress?: ((item: BaseItemDto) => void) | (() => void);
+  onFocus?: ((item: BaseItemDto) => void) | (() => void);
+  onBlur?: ((item: BaseItemDto) => void) | (() => void);
 
   /** Setter function for the ref (for focus guide destinations) */
   refSetter?: (ref: View | null) => void;
@@ -77,6 +82,12 @@ export interface TVPosterCardProps {
 
   /** For horizontal episodes, prefer the episode's own image over the series thumb */
   preferEpisodeImage?: boolean;
+
+  /** Drawn over the poster, such as Seerr's badges. */
+  overlay?: React.ReactNode;
+
+  /** Lines a film's or a series' name may take under the poster (default 3). */
+  titleLines?: number;
 }
 
 /**
@@ -92,7 +103,7 @@ export interface TVPosterCardProps {
  * - Smart subtitle text based on item type
  * - "Now Playing" badge for current items
  */
-export const TVPosterCard: React.FC<TVPosterCardProps> = ({
+const TVPosterCardComponent: React.FC<TVPosterCardProps> = ({
   item,
   orientation = "vertical",
   showText = true,
@@ -115,10 +126,13 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
   scaleAmount = 1.05,
   imageUrlGetter,
   preferEpisodeImage = false,
+  overlay,
+  titleLines = 3,
 }) => {
   const api = useAtomValue(apiAtom);
   const posterSizes = useScaledTVPosterSizes();
   const typography = useScaledTVTypography();
+  const { t } = useTranslation();
 
   const [focused, setFocused] = useState(false);
   const scale = useRef(new Animated.Value(1)).current;
@@ -220,13 +234,41 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
   const useGlass = isGlassEffectAvailable();
 
   // Focus animation
-  const animateTo = (value: number) =>
-    Animated.timing(scale, {
-      toValue: value,
-      duration: 150,
-      easing: Easing.out(Easing.quad),
-      useNativeDriver: true,
-    }).start();
+  const animateTo = useCallback(
+    (value: number) =>
+      Animated.timing(scale, {
+        toValue: value,
+        duration: 150,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: true,
+      }).start(),
+    [scale],
+  );
+
+  const handlePress = useCallback(() => {
+    onPress(item);
+  }, [onPress, item]);
+
+  const handleLongPress = useCallback(() => {
+    onLongPress?.(item);
+  }, [onLongPress, item]);
+
+  const handleFocus = useCallback(() => {
+    setFocused(true);
+    // Only animate scale when not using glass effect (glass handles its own focus visual)
+    if (!useGlass) {
+      animateTo(scaleAmount);
+    }
+    onFocusProp?.(item);
+  }, [animateTo, onFocusProp, item, scaleAmount, useGlass]);
+
+  const handleBlur = useCallback(() => {
+    setFocused(false);
+    if (!useGlass) {
+      animateTo(1);
+    }
+    onBlurProp?.(item);
+  }, [animateTo, onBlurProp, item, useGlass]);
 
   const shadowColor = glowColor === "white" ? "#ffffff" : "#a855f7";
 
@@ -401,11 +443,38 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
       <Text
         style={{
           color: "#000000",
-          fontSize: scaleSize(14),
+          fontSize: typography.callout,
           fontWeight: "700",
         }}
       >
         Now Playing
+      </Text>
+    </View>
+  ) : null;
+
+  // A Live TV program broadcast live. Top right, where the watched state of
+  // library items sits: a program has none.
+  const LiveBadge = isLiveBroadcast(item) ? (
+    <View
+      style={{
+        position: "absolute",
+        top: scaleSize(12),
+        right: scaleSize(12),
+        backgroundColor: Colors.live,
+        borderRadius: scaleSize(8),
+        paddingHorizontal: scaleSize(12),
+        paddingVertical: scaleSize(6),
+        zIndex: 10,
+      }}
+    >
+      <Text
+        style={{
+          color: "#FFFFFF",
+          fontSize: typography.callout,
+          fontWeight: "700",
+        }}
+      >
+        {t("player.live")}
       </Text>
     </View>
   ) : null;
@@ -441,7 +510,12 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
             borderWidth: scaleSize(2),
             borderColor: focused ? "#FFFFFF" : "transparent",
           }}
-        />
+        >
+          {overlay}
+          {/* Here most of all: without artwork the badge is what says what
+              the card is. */}
+          {LiveBadge}
+        </View>
       );
     }
 
@@ -461,6 +535,8 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
           />
           {PlayButtonOverlay}
           {NowPlayingBadge}
+          {LiveBadge}
+          {overlay}
           {/*
             The glass view draws the watched checkmark natively but cannot show
             an unplayed-episode count, so render it as an RN overlay on top.
@@ -499,6 +575,8 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
         />
         {PlayButtonOverlay}
         {NowPlayingBadge}
+        {LiveBadge}
+        {overlay}
         {showWatchedIndicator && <WatchedIndicator item={item} />}
         <ProgressBar item={item} />
       </View>
@@ -548,7 +626,7 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
     // Default: show name
     return (
       <Text
-        numberOfLines={3}
+        numberOfLines={titleLines}
         style={{
           fontSize: typography.callout,
           color: "#FFFFFF",
@@ -577,23 +655,10 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
     >
       <Pressable
         ref={refSetter}
-        onPress={onPress}
-        onLongPress={onLongPress}
-        onFocus={() => {
-          setFocused(true);
-          // Only animate scale when not using glass effect (glass handles its own focus visual)
-          if (!useGlass) {
-            animateTo(scaleAmount);
-          }
-          onFocusProp?.();
-        }}
-        onBlur={() => {
-          setFocused(false);
-          if (!useGlass) {
-            animateTo(1);
-          }
-          onBlurProp?.();
-        }}
+        onPress={handlePress}
+        onLongPress={onLongPress ? handleLongPress : undefined}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
         hasTVPreferredFocus={hasTVPreferredFocus && !disabled}
         disabled={disabled && !focusableWhenDisabled}
         focusable={!disabled || focusableWhenDisabled}
@@ -634,3 +699,7 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
     </View>
   );
 };
+
+export const TVPosterCard: React.FC<TVPosterCardProps> = React.memo(
+  TVPosterCardComponent,
+);
