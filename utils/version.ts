@@ -59,11 +59,15 @@ export function getVersionInfo(): VersionInfo {
   const version = read(() => Application.nativeApplicationVersion);
   const build = read(() => Application.nativeBuildVersion);
   const meta = (read(() => Constants.expoConfig?.extra?.build) ??
-    {}) as BuildMeta;
-  const commit = meta.commit ?? null;
-  const branch = meta.branch ?? null;
-  const profile = meta.profile ?? null;
-  const runNumber = meta.runNumber ?? null;
+    {}) as Partial<Record<keyof BuildMeta, unknown>>;
+  // Expo serializes a null in the app config as an empty object, so a field
+  // app.config.ts left at null for a local build arrives here as `{}`.
+  const text = (value: unknown) =>
+    typeof value === "string" && value !== "" ? value : null;
+  const commit = text(meta.commit);
+  const branch = text(meta.branch);
+  const profile = text(meta.profile);
+  const runNumber = text(meta.runNumber);
   const isDev = __DEV__ === true;
   const isProduction =
     typeof profile === "string" && profile.startsWith("production");
