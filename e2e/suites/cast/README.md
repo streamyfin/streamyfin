@@ -25,4 +25,7 @@ case the run has already measured.
 ## Flows (tier 1)
 
 Maestro flows for simulators and emulators live in `flows/`. They need a build that embeds
-the JS bundle (the release APK on Android); see `e2e/README.md`.
+the JS bundle (the release APK on Android); see `e2e/README.md`. On a fresh emulator the
+build only assembles it: `bun run build:android:local`, then
+`adb install -r android/app/build/outputs/apk/release/app-release.apk`, then
+`bun run e2e:smoke` (or `make e2e`, which checks that a device is running first).

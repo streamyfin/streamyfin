@@ -48,10 +48,11 @@ def load_cases(path: Path = CASES_PATH, ids: list[str] | None = None) -> list[di
     return [by_id[identifier] for identifier in ids]
 
 
-def evaluate(case: dict, target_kind: str, samples: list[MediaSample], session: SessionView | None, bus: list[BusMessage]) -> Row:
+def evaluate(case: dict, target_kind: str, samples: list[MediaSample], session: SessionView | None, bus: list[BusMessage], missing_item: bool = False) -> Row:
     expected = (case.get("expect") or {}).get(target_kind)
-    if not samples:
-        return Row(case["id"], expected, None, None, None, None, [], ["no item or no sample"], "skipped")
+    # Only an item the server does not have is skipped; a play that timed out is a failure with its evidence.
+    if missing_item:
+        return Row(case["id"], expected, None, None, None, None, [], ["no item on the server"], "skipped")
     errors = [f"{m.type}: {m.message or ''}".rstrip(": ") for m in bus if m.type in ERROR_TYPES]
     playing = [s for s in samples if s.player_state == PLAYING]
     observed_server = session.play_method if session else None
@@ -75,7 +76,7 @@ def run(cases: list[dict], target_kind: str, driver, watch_seconds: float = 20.0
     for case in cases:
         item = driver.resolve(case)
         if item is None:
-            rows.append(evaluate(case, target_kind, [], None, []))
+            rows.append(evaluate(case, target_kind, [], None, [], missing_item=True))
             continue
         started = time.monotonic()
         samples: list[MediaSample] = []
@@ -85,9 +86,12 @@ def run(cases: list[dict], target_kind: str, driver, watch_seconds: float = 20.0
         except SenderTimeout as timeout:
             timeout_error = str(timeout)
         finally:
-            session = driver.server_view(item)
-            bus = driver.bus_since_play()
-            driver.stop()
+            # The receiver is stopped even when the server cannot be read, or the case keeps playing on the TV.
+            try:
+                session = driver.server_view(item)
+                bus = driver.bus_since_play()
+            finally:
+                driver.stop()
         row = evaluate(case, target_kind, samples, session, bus)
         if timeout_error:
             row.errors.append(timeout_error)
@@ -207,11 +211,14 @@ def main(argv: list[str] | None = None) -> int:
         report.add("bus", **summarize_bus(controller.bus))
         cast.disconnect(timeout=5)
     finally:
-        client.logout(session)
-        paths = report.save()
-        if args.keep:
-            report.keep(args.keep, config.keep_dir)
-        print(f"report: {paths.markdown}")
+        # The rows are saved before the sign-out, which must not cost the run its report.
+        try:
+            paths = report.save()
+            if args.keep:
+                report.keep(args.keep, config.keep_dir)
+            print(f"report: {paths.markdown}")
+        finally:
+            client.logout(session)
     return 1 if any(r.verdict == "ko" for r in rows) else 0
 
 

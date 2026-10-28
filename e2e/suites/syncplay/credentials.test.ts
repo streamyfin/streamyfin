@@ -1,4 +1,4 @@
-import { resolveCredentials } from "./credentials";
+import { assertCanManageUsers, resolveCredentials } from "./credentials";
 
 const localCredentials = (url: string) =>
   JSON.stringify({
@@ -31,6 +31,31 @@ const reader = (contents: Record<string, string>) => async (path: string) => {
   if (!match) throw new Error(`no such file ${path}`);
   return match[1];
 };
+
+describe("assertCanManageUsers", () => {
+  test("accepts an administrator", () => {
+    expect(() =>
+      assertCanManageUsers(
+        { Policy: { IsAdministrator: true } },
+        "syncplay-host",
+      ),
+    ).not.toThrow();
+  });
+
+  test("names the profile that lacks the permission", () => {
+    expect(() =>
+      assertCanManageUsers(
+        { Policy: { IsAdministrator: false } },
+        "syncplay-host",
+      ),
+    ).toThrow(
+      'the "syncplay-host" account must be an administrator: the harness creates and deletes a restricted account with it',
+    );
+    expect(() => assertCanManageUsers({}, "syncplay-host")).toThrow(
+      "syncplay-host",
+    );
+  });
+});
 
 describe("resolveCredentials", () => {
   test("uses the throwaway server by default and refuses a remote host", async () => {

@@ -4,7 +4,8 @@ from pathlib import Path
 from unittest import mock
 
 from bench.config import CastTarget
-from bench.devices import Device, adb_path, chromecasts, parse_adb_devices, parse_avds, parse_devicectl, parse_simctl
+from bench.config import BenchConfigError
+from bench.devices import Device, adb_path, chromecasts, configured_targets, parse_adb_devices, parse_avds, parse_devicectl, parse_simctl
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
 
@@ -89,6 +90,26 @@ class ChromecastTests(unittest.TestCase):
         self.assertEqual(device.state, "reachable")
         self.assertIn("Backdrop", device.name)
 
+
+class ChromecastSetupTests(unittest.TestCase):
+    def test_missing_pychromecast_is_its_own_state(self):
+        target = CastTarget(name="Salon", host="192.0.2.10", kind="chromecast-gen3")
+        with mock.patch("bench.devices._connect_chromecast", side_effect=ImportError("No module named 'pychromecast'")):
+            [device] = chromecasts([target])
+        self.assertEqual(device.state, "unavailable")
+        self.assertEqual(device.name, "Salon (pychromecast not installed)")
+
+    def test_configured_targets_are_empty_without_a_configuration(self):
+        import io
+        from contextlib import redirect_stderr
+
+        def missing():
+            raise BenchConfigError("no bench configuration at e2e/bench/config.local.json")
+
+        errors = io.StringIO()
+        with redirect_stderr(errors):
+            self.assertEqual(configured_targets(load=missing), [])
+        self.assertIn("Cast targets are skipped", errors.getvalue())
 
 if __name__ == "__main__":
     unittest.main()

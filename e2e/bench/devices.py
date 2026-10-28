@@ -143,9 +143,23 @@ def chromecasts(targets: list[CastTarget], timeout: float = 5.0) -> list[Device]
             # Connecting by address skips discovery, so the friendly name may be unknown.
             name = info.get("friendly_name") or target.name
             devices.append(Device(kind="chromecast", id=target.host, name=f"{name} ({info['app']})", state="reachable", platform="cast"))
+        except ImportError:
+            # A missing package is a setup problem, not a TV that does not answer.
+            devices.append(Device(kind="chromecast", id=target.host, name=f"{target.name} (pychromecast not installed)", state="unavailable", platform="cast"))
         except Exception:  # noqa: BLE001 - an unreachable target is a result, not a crash
             devices.append(Device(kind="chromecast", id=target.host, name=target.name, state="unreachable", platform="cast"))
     return devices
+
+
+def configured_targets(load=None) -> list[CastTarget]:
+    """The Cast targets of the bench configuration; none, with a note, while there is no configuration yet."""
+    from bench.config import BenchConfigError, load_config
+
+    try:
+        return (load or load_config)().targets.chromecasts
+    except BenchConfigError as error:
+        print(f"devices: {error}; Cast targets are skipped", file=sys.stderr)
+        return []
 
 
 def inventory(targets: list[CastTarget], cast_timeout: float = 5.0) -> list[Device]:
@@ -165,10 +179,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--cast-timeout", type=float, default=5.0)
     args = parser.parse_args(argv)
 
-    from bench.config import load_config
-
-    config = load_config()
-    devices = inventory(config.targets.chromecasts, cast_timeout=args.cast_timeout)
+    devices = inventory(configured_targets(), cast_timeout=args.cast_timeout)
     if args.json:
         print(json.dumps([asdict(d) for d in devices], indent=2))
     else:

@@ -23,9 +23,9 @@ SECRET_PATTERNS = (
 def redact_text(text: str, extra: list[str] | tuple[str, ...] = ()) -> str:
     for pattern in SECRET_PATTERNS:
         text = pattern.sub(lambda match: match.group(1) + MASK, text)
-    for host in extra:
-        if host:
-            text = text.replace(host, MASK)
+    # Longest first: a configured suffix masked before the full host would leave its labels behind.
+    for host in sorted({entry for entry in extra if entry}, key=len, reverse=True):
+        text = text.replace(host, MASK)
     return text
 
 
