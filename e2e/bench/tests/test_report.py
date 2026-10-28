@@ -49,9 +49,10 @@ class ReportTests(unittest.TestCase):
             report.save(Path(tmp) / "reports")
             kept = report.keep("projet-0", Path(tmp) / "keep")
             files = sorted(p.name for p in (Path(tmp) / "keep" / "projet-0").iterdir())
+            kept_text = kept.read_text()
         self.assertEqual(kept.suffix, ".md")
         self.assertTrue(all(name.endswith(".md") for name in files))
-        self.assertNotIn("beta.example.test", kept.read_text())
+        self.assertNotIn("beta.example.test", kept_text)
         self.assertTrue(re.match(r"proof-\d{4}\.md", kept.name))
 
     def test_save_before_add_still_writes_a_header(self):

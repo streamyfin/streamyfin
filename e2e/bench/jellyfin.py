@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import uuid
 from dataclasses import dataclass
 from typing import Any
 from urllib.error import HTTPError
@@ -12,7 +13,7 @@ from urllib.request import Request, urlopen
 from bench.config import Account
 
 CLIENT_NAME = "Streamyfin E2E bench"
-DEVICE_ID = "streamyfin-e2e-bench"
+DEVICE_ID_PREFIX = "streamyfin-e2e-bench"
 CLIENT_VERSION = "1.0"
 USER_AGENT = "Streamyfin-E2E-bench/1.0"
 
@@ -31,10 +32,12 @@ class AuthSession:
 
 
 class JellyfinClient:
-    def __init__(self, url: str, client_name: str = CLIENT_NAME, device_id: str = DEVICE_ID, timeout: float = 30.0):
+    def __init__(self, url: str, client_name: str = CLIENT_NAME, device_id: str | None = None, timeout: float = 30.0):
         self.url = url.rstrip("/")
         self.client_name = client_name
-        self.device_id = device_id
+        # One device id per client: Jellyfin revokes the previous token of a (user, device) pair
+        # on sign-in, so two bench processes sharing an id would log each other out.
+        self.device_id = device_id or f"{DEVICE_ID_PREFIX}-{uuid.uuid4().hex[:8]}"
         self.timeout = timeout
 
     def _authorization(self, token: str | None) -> str:
@@ -73,6 +76,10 @@ class JellyfinClient:
     def authenticate(self, account: Account) -> AuthSession:
         result = self.post("/Users/AuthenticateByName", {"Username": account.username, "Pw": account.password})
         return AuthSession(token=result["AccessToken"], user_id=result["User"]["Id"])
+
+    def logout(self, session: AuthSession) -> None:
+        """Revoke the token so bench runs do not pile up devices on the server."""
+        self.post("/Sessions/Logout", token=session.token)
 
     def find_item(self, session: AuthSession, query: str, include_types: tuple[str, ...] = ("Movie",)) -> dict | None:
         """Find a test library item by lab code (kept in its Tags) or by name prefix."""

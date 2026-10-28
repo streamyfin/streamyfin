@@ -139,8 +139,11 @@ def main(argv: list[str] | None = None) -> int:
     server = config.servers[args.server]
     client = JellyfinClient(server.url)
     session = client.authenticate(server.accounts[args.profile])
-    views = snapshot(client.sessions(session.token), device=args.device)
-    groups = client.get("/SyncPlay/List", token=session.token) if args.expect_members is not None else None
+    try:
+        views = snapshot(client.sessions(session.token), device=args.device)
+        groups = client.get("/SyncPlay/List", token=session.token) if args.expect_members is not None else None
+    finally:
+        client.logout(session)
     failures = check(
         views,
         expect_item=args.expect_item,

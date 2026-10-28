@@ -43,8 +43,23 @@ class JellyfinClientTests(unittest.TestCase):
             self.client.get("/System/Info/Public")
         header = requests[0].get_header("Authorization")
         self.assertIn('Client="Streamyfin E2E bench"', header)
-        self.assertIn('DeviceId="streamyfin-e2e-bench"', header)
+        self.assertIn('DeviceId="streamyfin-e2e-bench', header)
         self.assertIn("Version=", header)
+
+    def test_device_id_is_unique_per_client(self):
+        # Jellyfin revokes the previous token of a (user, device id) pair on a new sign-in:
+        # two bench processes sharing one device id would log each other out.
+        other = JellyfinClient("http://server.example.test:8096")
+        self.assertNotEqual(self.client.device_id, other.device_id)
+        self.assertTrue(self.client.device_id.startswith("streamyfin-e2e-bench-"))
+
+    def test_logout_posts_to_sessions_logout(self):
+        patcher, requests = patched([None])
+        with patcher:
+            self.client.logout(AuthSession("tok", "user-1"))
+        self.assertTrue(requests[0].full_url.endswith("/Sessions/Logout"))
+        self.assertEqual(requests[0].get_method(), "POST")
+        self.assertEqual(requests[0].get_header("X-emby-token"), "tok")
         self.assertEqual(requests[0].full_url, "http://server.example.test:8096/System/Info/Public")
 
     def test_user_agent_is_the_bench_not_urllib(self):
