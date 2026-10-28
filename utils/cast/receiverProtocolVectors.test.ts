@@ -31,7 +31,6 @@ jest.mock("react-native-google-cast", () =>
   require("@/test-utils/googleCast").castDoubleModule(() => mockCast),
 );
 
-// biome-ignore lint/suspicious/noExplicitAny: the vectors are untyped JSON by design
 type Vector = any;
 
 const vectors = (file: string): Vector =>

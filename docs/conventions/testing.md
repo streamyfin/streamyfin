@@ -126,3 +126,12 @@ Query by what the user perceives (text, accessibility label, role) before reachi
 `bun run test:unit` has to be green, and so does the file you touched when it runs alone.
 A test that passes on its own but fails in the suite is a test that shares state with its
 neighbours, and it will fail in CI on someone else's PR rather than on yours.
+
+## End-to-end
+
+Unit tests prove the code in isolation; the end-to-end bench under `e2e/` proves the
+system against the real test server and real playback targets. Three tiers: unit tests of
+the bench itself and the shared receiver protocol vectors (always in CI), Maestro flows on
+emulators and simulators (in CI on pull requests that touch cast code), and real devices
+driven from a developer machine. `e2e/README.md` has the commands, the private
+configuration rules and where the evidence goes.

@@ -11,8 +11,11 @@
       "!expo-env.d.ts",
       "!modules/**/android/build",
       "!.expo",
-      "!e2e/syncplay/.state",
-      "!e2e/syncplay/artifacts",
+      "!e2e/.venv",
+      "!e2e/reports",
+      "!e2e/**/__pycache__",
+      "!e2e/suites/syncplay/.state",
+      "!e2e/suites/syncplay/artifacts",
       "!docs/jellyfin-openapi-stable.json",
       "!**/*.svg",
       "!.reassure"

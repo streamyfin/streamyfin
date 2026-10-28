@@ -171,7 +171,7 @@ bun run ios:install-metal-toolchain   # Fixes "missing Metal Toolchain" build er
 | `scripts/` | Repo tooling run through bun |
 | `biome-plugins/` | Custom Biome (Grit) lint rules, wired up in `biome.json` |
 | `docs/` | Conventions and deep dives |
-| `e2e/` | Manual end to end fixtures that need Docker, never run in CI (a local Jellyfin for SyncPlay) |
+| `e2e/` | End-to-end bench and suites (test server, devices, Cast sender, Maestro flows), see `e2e/README.md` |
 
 ## Key patterns
 
