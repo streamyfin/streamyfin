@@ -26,7 +26,12 @@ import {
   type ViewProps,
   type ViewStyle,
 } from "react-native";
-import { Pressable, type PressableProps } from "react-native-gesture-handler";
+// Gesture Handler 3 renamed its 2.x Pressable to LegacyPressable. The header
+// buttons keep it: the macOS Catalyst fix relies on its native press handling.
+import {
+  LegacyPressable as Pressable,
+  type LegacyPressableProps as PressableProps,
+} from "react-native-gesture-handler";
 
 /**
  * Render every header icon at this size. Icon fonts share a common em square,
