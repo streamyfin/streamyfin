@@ -1,5 +1,5 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
-import { useSetAtom } from "jotai";
+import { useAtomValue, useSetAtom } from "jotai";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert } from "react-native";
@@ -11,6 +11,7 @@ import {
 import { isNativePlayerPresented } from "@/modules/mpv-player";
 import { useNativePlayer } from "@/providers/NativePlayerProvider";
 import { useSyncPlay } from "@/providers/SyncPlayProvider";
+import { apiAtom, userAtom } from "@/utils/atoms/api";
 import {
   isExternalPlayerSupported,
   isNativeChromeActive,
@@ -19,6 +20,7 @@ import {
 import { shuffleQueueAtom } from "@/utils/atoms/shuffleQueue";
 import { shouldUseExternalPlayer } from "@/utils/externalPlayer";
 import { isPlayableItem } from "@/utils/jellyfin/media/isPlayableItem";
+import { getUserItemData } from "@/utils/jellyfin/user-library/getUserItemData";
 import { writeErrorLog } from "@/utils/log";
 import {
   type PlayRequest,
@@ -56,6 +58,8 @@ interface PlayMediaOptions extends ExternalPlayerOptions {
  */
 export const usePlayMedia = () => {
   const router = useRouter();
+  const api = useAtomValue(apiAtom);
+  const user = useAtomValue(userAtom);
   const { settings } = useSettings();
   const setShuffleQueue = useSetAtom(shuffleQueueAtom);
   const { presentFromRequest } = useNativePlayer();
@@ -113,15 +117,42 @@ export const usePlayMedia = () => {
         setShuffleQueue(null);
       }
 
-      if (
+      const checkExternal = (candidate?: BaseItemDto | null) =>
         isExternalPlayerSupported &&
         shouldUseExternalPlayer(
           settings.externalPlayerMode,
-          options?.item,
+          candidate,
           options?.externalPlayer,
-        )
-      ) {
-        if (await playExternally(req, options?.item, options)) return;
+        );
+
+      // An id alone gives the other app no title or resume position, and hides
+      // Live TV from the check: fetch the item, as the in-app players do. A
+      // download always carries its item. The in-app players fetch their own.
+      let item = options?.item;
+      if (!item && !req.offline && checkExternal(item)) {
+        item = await getUserItemData({
+          api,
+          userId: user?.Id,
+          itemId: req.itemId,
+        }).catch((error) => {
+          writeErrorLog(
+            "Item for the external player could not be fetched",
+            error instanceof Error ? error.message : String(error),
+          );
+          return null;
+        });
+        // The server did not answer, don't allow a fallback to the local player when external player is requested.
+        if (!item) {
+          Alert.alert(
+            t("player.error"),
+            t("player.an_error_occurred_while_playing_the_video"),
+          );
+          return;
+        }
+      }
+
+      if (checkExternal(item)) {
+        if (await playExternally(req, item, options)) return;
         // Same rule as the native path: a broken handoff must not block playback.
         Alert.alert(
           t("player.error"),
@@ -129,9 +160,7 @@ export const usePlayMedia = () => {
         );
       }
 
-      const isLiveTv =
-        options?.item?.Type === "Program" ||
-        options?.item?.Type === "TvChannel";
+      const isLiveTv = item?.Type === "Program" || item?.Type === "TvChannel";
       if (
         isNativeChromeActive(settings) &&
         !isLiveTv &&
@@ -154,6 +183,8 @@ export const usePlayMedia = () => {
     },
     [
       router,
+      api,
+      user?.Id,
       settings,
       setShuffleQueue,
       presentFromRequest,
