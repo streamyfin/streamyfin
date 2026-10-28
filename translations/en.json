@@ -7,7 +7,6 @@
     "invalid_url": "Enter a valid address"
   },
   "login": {
-    "username_required": "Username is required",
     "error_title": "Error",
     "login_title": "Log in",
     "login_to_title": "Log in to",
