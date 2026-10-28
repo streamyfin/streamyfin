@@ -7,35 +7,14 @@ buildscript {
   }
 }
 
-apply plugin: 'com.android.library'
+apply plugin: 'expo-module-gradle-plugin'
 apply plugin: 'org.jetbrains.kotlin.plugin.compose'
 
 group = 'expo.modules.herocarousel'
 version = '1.0.0'
 
-def expoModulesCorePlugin = new File(project(":expo-modules-core").projectDir.absolutePath, "ExpoModulesCorePlugin.gradle")
-apply from: expoModulesCorePlugin
-applyKotlinExpoModulesCorePlugin()
-useCoreDependencies()
-useExpoPublishing()
-
-// If you want to use the managed Android SDK versions from expo-modules-core, set this to true.
-def useManagedAndroidSdkVersions = false
-if (useManagedAndroidSdkVersions) {
-  useDefaultAndroidSdkVersions()
-} else {
-  buildscript {
-    ext.safeExtGet = { prop, fallback ->
-      rootProject.ext.has(prop) ? rootProject.ext.get(prop) : fallback
-    }
-  }
-  project.android {
-    compileSdkVersion safeExtGet("compileSdkVersion", 36)
-    defaultConfig {
-      minSdkVersion safeExtGet("minSdkVersion", 26)
-      targetSdkVersion safeExtGet("targetSdkVersion", 36)
-    }
-  }
+expoModule {
+  canBePublished false
 }
 
 android {
@@ -46,9 +25,6 @@ android {
   }
   buildFeatures {
     compose true
-  }
-  lintOptions {
-    abortOnError false
   }
 }
 
