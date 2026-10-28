@@ -33,6 +33,7 @@ const getPlaybackUrl = (
     maxStreamingBitrate?: number;
     userId: string;
     playSessionId?: string | null;
+    liveStreamId?: string | null;
   },
 ): string => {
   let transcodeUrl = mediaSource?.TranscodingUrl;
@@ -82,6 +83,10 @@ const getPlaybackUrl = (
   // Add additional parameters if provided
   if (params.playSessionId) {
     streamParams.append("playSessionId", params.playSessionId);
+  }
+  // Without it Jellyfin doesn't use the opened live stream and answers 400.
+  if (params.liveStreamId) {
+    streamParams.append("liveStreamId", params.liveStreamId);
   }
 
   const directPlayUrl = `${api.basePath}/Videos/${itemId}/stream?${streamParams.toString()}`;
@@ -202,6 +207,8 @@ export const getStreamUrl = async ({
       startTimeTicks: 0,
       maxStreamingBitrate,
       userId,
+      playSessionId: sessionId,
+      liveStreamId: mediaSource.LiveStreamId,
     });
 
     return {
@@ -263,6 +270,7 @@ export const getStreamUrl = async ({
     maxStreamingBitrate,
     userId,
     playSessionId: playSessionId || undefined,
+    liveStreamId: mediaSource.LiveStreamId,
   });
 
   return {
