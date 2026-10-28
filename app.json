@@ -171,6 +171,7 @@
       ["./plugins/with-runtime-framework-headers.ts"],
       ["./plugins/withChangeNativeAndroidTextToWhite.ts"],
       ["./plugins/withAndroidAlertColors.ts"],
+      ["./plugins/withAndroidPictureInPicture.ts"],
       ["./plugins/withTrustLocalCerts.ts"],
       ["./plugins/withGradleProperties.ts"],
       ["./plugins/withTVOSAppIcon.ts"],

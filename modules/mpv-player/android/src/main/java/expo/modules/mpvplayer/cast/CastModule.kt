@@ -221,10 +221,13 @@ class CastModule : Module() {
 
     // Main thread only: the SDK checks it, and the caches are written here alone.
     private fun ensureContext(): CastContext? {
-        if (!CastSupport.isAvailable(context)) return null
+        // Posted to the main looper from several places: a React context cleared in
+        // between is "nothing to do", not an exception on the looper.
+        val reactContext = appContext.reactContext ?: return null
+        if (!CastSupport.isAvailable(reactContext)) return null
         castContext?.let { return it }
         val cast = try {
-            CastContext.getSharedInstance(context.applicationContext)
+            CastContext.getSharedInstance(reactContext.applicationContext)
         } catch (error: RuntimeException) {
             // Every Cast call then does nothing; the reason has to be somewhere.
             Log.w(TAG, "Cast context could not be initialized", error)
@@ -275,9 +278,14 @@ class CastModule : Module() {
         stopDiscovery()
         detachMedia()
         castContext?.let { cast ->
+            // The channel callbacks hold this instance too; a live session would keep calling it.
+            cast.sessionManager.currentCastSession?.let { session ->
+                channels.forEach { namespace -> runCatching { session.removeMessageReceivedCallbacks(namespace) } }
+            }
             cast.removeCastStateListener(stateListener)
             cast.sessionManager.removeSessionManagerListener(sessionListener, CastSession::class.java)
         }
+        channels.clear()
         castContext = null
     }
 
