@@ -29,6 +29,11 @@ import expo.modules.kotlin.modules.ModuleDefinition
  * the listeners keep current, so a screen can read them from the JS thread.
  */
 class CastModule : Module() {
+    // Expo drops the module's app context right after OnDestroy, and reading it then throws:
+    // a callback still queued on the main looper has to know it is late.
+    @Volatile
+    private var destroyed = false
+
     private val context: Context
         get() = appContext.reactContext ?: throw Exceptions.ReactContextLost()
 
@@ -105,6 +110,8 @@ class CastModule : Module() {
         // CastContext and MediaRouter outlive the module: after a JS reload the old instance
         // would keep feeding events to a dead app context.
         OnDestroy {
+            destroyed = true
+            mainHandler.removeCallbacksAndMessages(null)
             mainHandler.post { release() }
         }
 
@@ -221,8 +228,9 @@ class CastModule : Module() {
 
     // Main thread only: the SDK checks it, and the caches are written here alone.
     private fun ensureContext(): CastContext? {
-        // Posted to the main looper from several places: a React context cleared in
-        // between is "nothing to do", not an exception on the looper.
+        // Posted to the main looper from several places: a module destroyed or a React
+        // context cleared in between is "nothing to do", not an exception on the looper.
+        if (destroyed) return null
         val reactContext = appContext.reactContext ?: return null
         if (!CastSupport.isAvailable(reactContext)) return null
         castContext?.let { return it }
