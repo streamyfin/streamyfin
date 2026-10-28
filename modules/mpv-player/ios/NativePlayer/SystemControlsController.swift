@@ -1,6 +1,7 @@
 #if os(iOS)
 import AVFoundation
 import Combine
+import ExpoModulesCore
 import MediaPlayer
 import UIKit
 
@@ -68,7 +69,9 @@ final class SystemVolumeController: NSObject, ObservableObject {
 /// (Control Center, auto-brightness) surface through the system notification
 /// so the slider stays in sync.
 final class SystemBrightnessController: ObservableObject {
-	@Published var brightness: Double = Double(UIScreen.main.brightness)
+	// The player only exists inside a scene; mid-way is a placeholder for the
+	// moment none is connected yet.
+	@Published var brightness: Double = SystemBrightnessController.screenBrightness ?? 0.5
 
 	var isUserInteracting = false
 
@@ -80,21 +83,32 @@ final class SystemBrightnessController: ObservableObject {
 			object: nil,
 			queue: .main
 		) { [weak self] _ in
-			guard let self, !self.isUserInteracting else { return }
-			self.brightness = Double(UIScreen.main.brightness)
+			guard let self, !self.isUserInteracting,
+				let brightness = SystemBrightnessController.screenBrightness
+			else { return }
+			self.brightness = brightness
 		}
 	}
 
 	func setBrightness(_ value: Double) {
 		let clamped = min(max(value, 0), 1)
 		brightness = clamped
-		UIScreen.main.brightness = CGFloat(clamped)
+		SystemBrightnessController.screen?.brightness = CGFloat(clamped)
 	}
 
 	deinit {
 		if let observer {
 			NotificationCenter.default.removeObserver(observer)
 		}
+	}
+
+	/// The screen the player's scene is on, rather than `UIScreen.main`.
+	private static var screen: UIScreen? {
+		SceneGeometry.windowScene()?.screen
+	}
+
+	private static var screenBrightness: Double? {
+		screen.map { Double($0.brightness) }
 	}
 }
 #endif
