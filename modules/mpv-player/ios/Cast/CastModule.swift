@@ -142,6 +142,9 @@ public class CastModule: Module {
     if let session = context.sessionManager.currentCastSession {
       observe(session)
       updateSession(session)
+      // A session resumed by the SDK before JS listened (a relaunch) is announced like a
+      // resume, or the hooks would never see it.
+      emitSession("resumed", session, error: nil)
     }
   }
 

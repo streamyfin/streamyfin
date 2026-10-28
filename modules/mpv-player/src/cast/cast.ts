@@ -70,7 +70,9 @@ const subscribe = <K extends EventName>(
   event: K,
   listener: Listener<K>,
 ): CastSubscription => {
-  const module = native();
+  // The module itself, not native(): a subscription made while Cast is
+  // unavailable (Play Services updating) has to hear the events once it is.
+  const module = CastNative;
   if (!module) return { remove() {} };
 
   const set = listeners[event] as Set<Listener<K>>;
@@ -166,13 +168,23 @@ export const addCastChannel = async (
 };
 
 /** The client of a session: media status and transport, nothing about discovery. */
-export const castClientFor = (session: CastSessionInfo): CastClient => ({
-  sessionId: session.id,
-  getMediaStatus: () => native()?.getMediaStatus() ?? Promise.resolve(null),
-  onMediaStatusUpdated: (listener) => onCastMediaStatusChanged(listener),
-  play: () => native()?.play() ?? Promise.resolve(),
-  pause: () => native()?.pause() ?? Promise.resolve(),
-  stop: () => native()?.stop() ?? Promise.resolve(),
-  seek: (positionSeconds) =>
-    native()?.seek(positionSeconds) ?? Promise.resolve(),
-});
+export const castClientFor = (session: CastSessionInfo): CastClient => {
+  // The native transport acts on whatever session is current: a client kept
+  // across an await must not drive the next TV, as the library's client, bound
+  // to one remote media client, never did.
+  const own = (): CastNativeModule | null =>
+    currentCastSession()?.id === session.id ? native() : null;
+  return {
+    sessionId: session.id,
+    getMediaStatus: () => own()?.getMediaStatus() ?? Promise.resolve(null),
+    onMediaStatusUpdated: (listener) =>
+      onCastMediaStatusChanged((status) => {
+        if (own()) listener(status);
+      }),
+    play: () => own()?.play() ?? Promise.resolve(),
+    pause: () => own()?.pause() ?? Promise.resolve(),
+    stop: () => own()?.stop() ?? Promise.resolve(),
+    seek: (positionSeconds) =>
+      own()?.seek(positionSeconds) ?? Promise.resolve(),
+  };
+};

@@ -58,9 +58,12 @@ test("every call is a no-op when the module says it is unavailable", async () =>
   );
   expect(mockCast.channels).toHaveLength(0);
 
+  // The listener still reaches the module: it emits nothing while unavailable
+  // and starts to once Play Services are back, without a new subscription.
   const subscription = onCastSessionEvent(() => {});
-  expect(mockCast.listeners.onSessionEvent).toHaveLength(0);
+  expect(mockCast.listeners.onSessionEvent).toHaveLength(1);
   subscription.remove();
+  expect(mockCast.listeners.onSessionEvent).toHaveLength(0);
 });
 
 test("addCastChannel registers the receiver listener for its namespace only", async () => {
@@ -208,4 +211,38 @@ test("a message sent while the channel opens reaches its listener", async () => 
   await pending;
 
   expect(seen).toEqual(["early"]);
+});
+
+test("a subscription made while Cast is unavailable hears events once it is", () => {
+  mockCast.available = false;
+  const seen: string[] = [];
+  const subscription = onCastSessionEvent(({ event }) => seen.push(event));
+
+  // Play Services finished updating: the module is the same, only its answer changed.
+  mockCast.available = true;
+  emitCastEvent(mockCast, "onSessionEvent", {
+    event: "started",
+    sessionId: "session-1",
+    error: null,
+  });
+  subscription.remove();
+
+  expect(seen).toEqual(["started"]);
+});
+
+test("a client drives its own session only", async () => {
+  const native = jest.requireMock(
+    "@/modules/mpv-player/src/cast/CastModule",
+  ).CastNative;
+  native.pause.mockClear();
+  const client = castClientFor(mockCast.session!);
+
+  await client.pause();
+  expect(native.pause).toHaveBeenCalledTimes(1);
+
+  // The TV changed under a client captured across an await.
+  mockCast.session = { id: "session-2", device: castDoubleDevice() };
+  await client.pause();
+  await expect(client.getMediaStatus()).resolves.toBeNull();
+  expect(native.pause).toHaveBeenCalledTimes(1);
 });

@@ -14,7 +14,6 @@ enum CastContextBootstrap {
     // A stop from this phone closes the receiver app too, as Android does; the stop reporter
     // relies on it to tell a user's stop from a lost connection.
     options.stopReceiverApplicationWhenEndingSession = true
-    options.physicalVolumeButtonsWillControlDeviceVolume = true
     options.startDiscoveryAfterFirstTapOnCastButton = true
     options.suspendSessionsWhenBackgrounded = true
     GCKCastContext.setSharedInstanceWith(options)

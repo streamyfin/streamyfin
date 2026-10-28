@@ -82,7 +82,7 @@ Native modules:
 - `keychain-accessibility-set-at-creation` | a SecureStore item keeps the accessibility it was created with, `setItem` over it changes only the data; a default item throws on read when iOS launches the app on a locked phone
 - `track-player-queue-is-not-the-app-queue` | the native music queue only holds the tracks loaded so far, so a state queue index does not address it; on iOS `add` past the end rejects with the same message as `skip`
 - `android-js-timers-pause-in-background` | Delayed timers don't fire while the Android app is paused (incl. under the Cast expanded controls); zero-delay ones and fetch still do
-- `cast-discovery-needs-no-mounted-button` | Android Cast discovery is a MediaRouter callback with CALLBACK_FLAG_REQUEST_DISCOVERY in the module; no hidden MediaRouteButton, which the library needed
+- `cast-discovery-needs-no-mounted-button` | Android Cast discovery is a MediaRouter callback in the module with CALLBACK_FLAG_REQUEST_DISCOVERY and CALLBACK_FLAG_PERFORM_ACTIVE_SCAN, paused in the background; no hidden MediaRouteButton, which the library needed
 - `sdk-expanded-controller-cast-button-is-ours` | the SDK's ExpandedControllerActivity has an empty toolbar; the Cast button (the only "Stop casting" there) is a menu the subclass inflates and wires with CastButtonFactory
 
 TV platform:
@@ -167,8 +167,8 @@ bun run ios:install-metal-toolchain   # Fixes "missing Metal Toolchain" build er
 | `plugins/` | Expo config plugins |
 | `patches/` | Patch package overrides |
 | `augmentations/` | Type augmentations |
-| `test-utils/` | Shared test doubles: Jellyfin API, MMKV, the file system, custom headers, React Native, Reanimated |
-| `tests/native/` | Standalone native checks (subtitle geometry, app container paths), each run by its script in `scripts/ios/`, and subtitle playback fixtures |
+| `test-utils/` | Shared test doubles: Jellyfin API, MMKV, the file system, custom headers, React Native, Reanimated, the Cast module |
+| `tests/native/` | Standalone native checks (subtitle geometry, app container paths, the Cast mapping), each run by its script in `scripts/ios/`, and subtitle playback fixtures |
 | `translations/` | i18n catalogues, `en.json` is the only source |
 | `scripts/` | Repo tooling run through bun |
 | `biome-plugins/` | Custom Biome (Grit) lint rules, wired up in `biome.json` |

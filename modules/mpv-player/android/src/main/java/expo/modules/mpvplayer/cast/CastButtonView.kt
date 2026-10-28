@@ -28,8 +28,11 @@ class CastButtonView(context: Context, appContext: AppContext) : ExpoView(contex
 
     fun setTintColor(color: String?) {
         if (color == null) return
-        // The indicator drawable comes from the MediaRouter theme; tinting a fresh copy keeps the theme's one intact.
-        val attributes = themedContext.obtainStyledAttributes(
+        // The indicator drawable comes from the MediaRouter theme, the only one that defines
+        // mediaRouteButtonStyle (an AppCompat theme resolves nothing here); tinting a fresh
+        // copy keeps the theme's one intact.
+        val routerContext = ContextThemeWrapper(context, androidx.mediarouter.R.style.Theme_MediaRouter)
+        val attributes = routerContext.obtainStyledAttributes(
             null,
             androidx.mediarouter.R.styleable.MediaRouteButton,
             androidx.mediarouter.R.attr.mediaRouteButtonStyle,

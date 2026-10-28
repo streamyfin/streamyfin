@@ -39,15 +39,29 @@ export const useCastSession = (): CastSessionInfo | null => {
   );
 
   useEffect(() => {
-    setSession(currentCastSession());
-    const subscription = onCastSessionEvent(({ event }) => {
+    // The native side builds a new object per read: the same session id keeps
+    // the object the consumers already hold, so a client is made once per session.
+    const read = () =>
+      setSession((previous) => {
+        const next = currentCastSession();
+        return previous && next && previous.id === next.id ? previous : next;
+      });
+    read();
+    const sessionEvents = onCastSessionEvent(({ event }) => {
       if (event === "started" || event === "resumed") {
-        setSession(currentCastSession());
+        read();
       } else if (event === "suspended" || event === "ended") {
         setSession(null);
       }
     });
-    return () => subscription.remove();
+    // A session the SDK resumed before JS listened only shows in the state.
+    const stateEvents = onCastStateChanged((state) => {
+      if (state === "connected") read();
+    });
+    return () => {
+      sessionEvents.remove();
+      stateEvents.remove();
+    };
   }, []);
 
   return session;

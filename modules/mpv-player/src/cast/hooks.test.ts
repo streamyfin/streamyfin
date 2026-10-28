@@ -140,3 +140,38 @@ test("useCastMediaStatus follows onMediaStatusChanged and resets without session
   await sessionEvent("ended", "session-1");
   expect(view.result.current).toBeNull();
 });
+
+test("useCastSession picks up a session announced by the cast state alone", async () => {
+  mockCast.session = null;
+  const view = await renderHook(useCastSession);
+  expect(view.result.current).toBeNull();
+
+  // The SDK resumed a session before JS listened: no session event, only the state.
+  mockCast.session = { id: "session-1", device: castDoubleDevice() };
+  await act(() =>
+    emitCastEvent(mockCast, "onCastStateChanged", { state: "connected" }),
+  );
+  expect(view.result.current?.id).toBe("session-1");
+});
+
+test("useCastSession keeps its object while the session id stays the same", async () => {
+  const view = await renderHook(useCastSession);
+  const first = view.result.current;
+  expect(first?.id).toBe("session-1");
+
+  await sessionEvent("resumed", "session-1");
+  expect(view.result.current).toBe(first);
+});
+
+test("useCastMediaStatus reads the status once on mount", async () => {
+  const native = jest.requireMock(
+    "@/modules/mpv-player/src/cast/CastModule",
+  ).CastNative;
+  native.getMediaStatus.mockClear();
+  mockCast.mediaStatus = status("playing");
+
+  const view = await renderHook(useCastMediaStatus);
+  await act(async () => {});
+  expect(view.result.current).toEqual(status("playing"));
+  expect(native.getMediaStatus).toHaveBeenCalledTimes(1);
+});

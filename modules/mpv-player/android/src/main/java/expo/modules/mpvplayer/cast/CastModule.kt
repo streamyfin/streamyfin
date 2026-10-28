@@ -38,9 +38,15 @@ class CastModule : Module() {
         get() = appContext.reactContext ?: throw Exceptions.ReactContextLost()
 
     private val mainHandler = Handler(Looper.getMainLooper())
+    // Written on the main thread, read by the synchronous getters from the JS thread: volatile
+    // keeps a read right after an update from answering the previous value.
+    @Volatile
     private var castContext: CastContext? = null
+    @Volatile
     private var cachedState: String? = null
+    @Volatile
     private var cachedDevices: List<Map<String, Any?>> = emptyList()
+    @Volatile
     private var cachedSession: Map<String, Any?>? = null
     private var routerCallback: MediaRouter.Callback? = null
     // The router the callback went to: OnDestroy runs once the React context may be gone, and the
@@ -162,7 +168,9 @@ class CastModule : Module() {
         AsyncFunction("showCastDialog") {
             val activity = appContext.currentActivity ?: return@AsyncFunction false
             val cast = ensureContext() ?: return@AsyncFunction false
-            if (cast.sessionManager.currentCastSession?.isConnected == true) {
+            // A suspended or connecting session still owns the route: the controller dialog is
+            // the one with "Stop casting", the chooser would list the same TV as a no-op.
+            if (cast.sessionManager.currentSession != null) {
                 MediaRouteControllerDialog(activity).show()
             } else {
                 val selector = cast.mergedSelector ?: return@AsyncFunction false
@@ -248,6 +256,9 @@ class CastModule : Module() {
         cast.sessionManager.currentCastSession?.let { session ->
             attachMedia(session)
             updateSession(session)
+            // A session that was there before JS listened (a reload, the SDK's own reconnection)
+            // is announced like a resume, or the hooks would never see it.
+            emitSession("resumed", session, null)
         }
         return cast
     }

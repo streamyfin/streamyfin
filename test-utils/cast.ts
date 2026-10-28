@@ -175,7 +175,11 @@ export const castDoubleModule = (state: () => CastDoubleState) => ({
     state().discoveryCalls += 1;
   }),
   stopDiscovery: jest.fn(async () => {}),
-  getCurrentSession: jest.fn(() => state().session),
+  // A fresh object per call, as the native bridge hands one over.
+  getCurrentSession: jest.fn(() => {
+    const session = state().session;
+    return session ? { ...session } : null;
+  }),
   showCastDialog: jest.fn(async () => {
     state().dialogs.push("cast");
     return true;
