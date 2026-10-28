@@ -146,9 +146,12 @@ class CastDriver:
         return samples
 
     def server_view(self, item: dict) -> SessionView | None:
+        from bench.sender import to_receiver_device_name
         from bench.sessions import snapshot
 
-        views = [v for v in snapshot(self.client.sessions(self.session.token), device=self.receiver_name) if v.item_id == item.get("Id")]
+        # The receiver registers with the server under the cleaned-up name, not the one sent.
+        device = to_receiver_device_name(self.receiver_name)
+        views = [v for v in snapshot(self.client.sessions(self.session.token), device=device) if v.item_id == item.get("Id")]
         return views[0] if views else None
 
     def bus_since(self, started: float) -> list[BusMessage]:

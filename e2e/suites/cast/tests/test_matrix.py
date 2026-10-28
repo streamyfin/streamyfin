@@ -3,7 +3,7 @@ from pathlib import Path
 
 from bench.sender import BusMessage, MediaSample, SenderTimeout
 from bench.sessions import SessionView
-from suites.cast.matrix import Row, evaluate, load_cases, run, to_markdown
+from suites.cast.matrix import CastDriver, Row, evaluate, load_cases, run, to_markdown
 
 CASES = Path(__file__).resolve().parents[3] / "fixtures" / "media.json"
 
@@ -95,6 +95,26 @@ class FakeDriver:
 
     def stop(self):
         self.stops += 1
+
+
+class FakeClient:
+    def __init__(self, sessions):
+        self._sessions = sessions
+
+    def sessions(self, token):
+        return self._sessions
+
+
+class ServerViewTests(unittest.TestCase):
+    def test_server_view_matches_the_receiver_device_name_as_jellyfin_records_it(self):
+        # The receiver strips punctuation from the name it is given before registering with
+        # the server: "Salon - Chromecast" becomes "Salon  Chromecast" in the sessions list.
+        sessions = [{"Id": "s1", "DeviceName": "Salon  Chromecast", "Client": "Chromecast", "NowPlayingItem": {"Id": "id-V01"}, "PlayState": {"PlayMethod": "Transcode"}, "TranscodingInfo": {"TranscodeReasons": ["ContainerNotSupported"]}}]
+        driver = CastDriver(FakeClient(sessions), session=type("S", (), {"token": "t", "user_id": "u"})(), cast=None, controller=None, receiver_name="Salon - Chromecast", server_url="http://x", watch_seconds=1)
+        found = driver.server_view({"Id": "id-V01"})
+        self.assertIsNotNone(found)
+        self.assertEqual(found.play_method, "Transcode")
+        self.assertEqual(found.transcoding_reasons, ["ContainerNotSupported"])
 
 
 class RunTests(unittest.TestCase):
