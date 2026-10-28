@@ -596,7 +596,7 @@
           "seerr_requests_help": "Approuvées, refusées ou disponibles",
           "awaited_title": "Un titre que vous attendez arrive",
           "awaited_title_help": "Un titre dont vous avez demandé à être prévenu depuis sa page Seerr",
-          "user_locked_out": "Votre compte est verrouillé",
+          "user_locked_out": "Verrouillage de votre compte",
           "seerr_pending": "Nouvelles demandes",
           "seerr_pending_help": "En attente d'approbation, approuvées automatiquement ou en échec",
           "session_started": "Quelqu'un se connecte",
