@@ -1,11 +1,12 @@
 import { Platform, View } from "react-native";
+import { FixedOrderMenu } from "@/components/common/FixedOrderMenu";
 import { FilterButton } from "@/components/filters/FilterButton";
 import { SeerrSearchSort } from "@/components/seerr/SeerrIndexPage";
 
 // @expo/ui's SwiftUI native module (ExpoUI) does not exist in tvOS builds.
 // A static top-level import crashes the route tree on tvOS at module load.
 // Load it lazily and only off-TV; TV never renders this component.
-const { Button, Host, Menu } = Platform.isTV
+const { Button, Host } = Platform.isTV
   ? ({} as typeof import("@expo/ui/swift-ui"))
   : require("@expo/ui/swift-ui");
 const { buttonStyle, labelStyle } = Platform.isTV
@@ -49,7 +50,7 @@ export const DiscoverFilters: React.FC<DiscoverFiltersProps> = ({
           marginLeft: "auto",
         }}
       >
-        <Menu
+        <FixedOrderMenu
           label={
             // A label, then only its icon shown: @expo/ui draws systemImage
             // only when there is a label, and the button was an empty pill.
@@ -60,7 +61,7 @@ export const DiscoverFilters: React.FC<DiscoverFiltersProps> = ({
             />
           }
         >
-          <Menu
+          <FixedOrderMenu
             label={`${t("library.filters.sort_by")}: ${t(
               `home.settings.plugins.seerr.order_by.${seerrOrderBy}`,
             )}`}
@@ -79,8 +80,8 @@ export const DiscoverFilters: React.FC<DiscoverFiltersProps> = ({
                 />
               );
             })}
-          </Menu>
-          <Menu
+          </FixedOrderMenu>
+          <FixedOrderMenu
             label={`${t("library.filters.sort_order")}: ${t(
               `library.filters.${seerrSortOrder}`,
             )}`}
@@ -96,8 +97,8 @@ export const DiscoverFilters: React.FC<DiscoverFiltersProps> = ({
                 />
               );
             })}
-          </Menu>
-        </Menu>
+          </FixedOrderMenu>
+        </FixedOrderMenu>
       </Host>
     );
   }

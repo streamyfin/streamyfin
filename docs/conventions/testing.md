@@ -96,6 +96,9 @@ Three rules keep mocks from becoming the thing that breaks:
   Node lacks, built on timers so fake timers drive it. Jest loads it through `setupFiles`.
   `pendingIdleCallbacks()` counts the ones still waiting, which is how a spec proves an
   unmounted component cancelled its own.
+- `swiftUiModule` stands for `@expo/ui/swift-ui`: the SwiftUI views become plain views and
+  each `Menu` keeps the modifiers it was given, which `renderedMenuModifiers(screen)` reads
+  back. Leave `@expo/ui/swift-ui/modifiers` real, it is plain JavaScript and loads in Jest.
 - `tsxRequireHook` stands for `tsx/cjs` in every spec, wired once through
   `moduleNameMapper` instead of per spec. A require hook registered from a spec lands on
   the Jest worker's own loader and breaks whichever spec that worker loads next.
