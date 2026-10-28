@@ -6,7 +6,6 @@ import type * as SharingType from "expo-sharing";
 import { useCallback, useEffect, useId, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Platform, ScrollView, TouchableOpacity, View } from "react-native";
-import Collapsible from "react-native-collapsible";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { toast } from "sonner-native";
 import { HeaderButton } from "@/components/common/HeaderButton";
@@ -20,6 +19,8 @@ const Sharing = Platform.isTV
   ? null
   : (require("expo-sharing") as typeof SharingType);
 
+// Spec: utils/logsPage.test.tsx. It cannot sit next to this file, Expo Router
+// turns everything under app/ into a route.
 export default function Page() {
   const navigation = useNavigation();
   const { logs } = useLog();
@@ -177,31 +178,30 @@ export default function Page() {
               )}
             </TouchableOpacity>
 
-            {log.data && (
-              <Collapsible collapsed={!state[log.timestamp]}>
-                <View className='mt-2 flex flex-col space-y-2'>
-                  <ScrollView
-                    className='rounded-xl'
-                    style={codeBlockStyle}
-                    nestedScrollEnabled
+            {/* Mounted only while open: a closed row skips stringifying its payload. */}
+            {log.data && state[log.timestamp] && (
+              <View className='mt-2 flex flex-col space-y-2'>
+                <ScrollView
+                  className='rounded-xl'
+                  style={codeBlockStyle}
+                  nestedScrollEnabled
+                >
+                  {/* Only the raw payload is selectable (per request); the
+                      header/message stay tap-to-toggle. */}
+                  <Text selectable>{JSON.stringify(log.data, null, 2)}</Text>
+                </ScrollView>
+                {!Platform.isTV && (
+                  <TouchableOpacity
+                    onPress={() => copyLog(log)}
+                    className='flex flex-row items-center self-end px-2 py-1'
                   >
-                    {/* Only the raw payload is selectable (per request); the
-                        header/message stay tap-to-toggle. */}
-                    <Text selectable>{JSON.stringify(log.data, null, 2)}</Text>
-                  </ScrollView>
-                  {!Platform.isTV && (
-                    <TouchableOpacity
-                      onPress={() => copyLog(log)}
-                      className='flex flex-row items-center self-end px-2 py-1'
-                    >
-                      <Ionicons name='copy-outline' size={16} color='white' />
-                      <Text className='text-xs ml-1'>
-                        {t("home.settings.logs.copy")}
-                      </Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              </Collapsible>
+                    <Ionicons name='copy-outline' size={16} color='white' />
+                    <Text className='text-xs ml-1'>
+                      {t("home.settings.logs.copy")}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
             )}
           </View>
         ))}
