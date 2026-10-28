@@ -1,8 +1,8 @@
 import type { Api } from "@jellyfin/sdk";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { getImageApi } from "@jellyfin/sdk/lib/utils/api";
 import { LOGO_HEIGHT, MAX_LOGO_HEIGHT_PX } from "@/constants/Images";
 import { toImagePixels } from "./imagePixels";
+import { itemImageUrl } from "./itemImageUrl";
 
 /**
  * Retrieves the logo image URL for a given item. An episode has no logo of
@@ -28,7 +28,7 @@ export const getLogoImageUrlById = ({
   }
 
   const logo = (itemId: string, tag: string) =>
-    getImageApi(api).getItemImageUrlById(itemId, "Logo", {
+    itemImageUrl(api, itemId, "Logo", {
       quality: 90,
       fillHeight: Math.min(Math.round(height), MAX_LOGO_HEIGHT_PX),
       tag,

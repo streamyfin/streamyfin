@@ -1,9 +1,9 @@
 import type { Api } from "@jellyfin/sdk";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { getImageApi } from "@jellyfin/sdk/lib/utils/api";
 import type { ImageSource } from "expo-image";
 import { getJellyfinHeadersForUrl } from "@/utils/customHeaders";
 import { fillHeightImageParams } from "@/utils/jellyfin/image/imagePixels";
+import { itemImageUrl } from "@/utils/jellyfin/image/itemImageUrl";
 
 interface Props {
   item: BaseItemDto;
@@ -37,7 +37,6 @@ export const getItemImage = ({
   height,
 }: Props) => {
   if (!api) return null;
-  const images = getImageApi(api);
 
   const size = height
     ? { fillWidth: Math.round(width), ...fillHeightImageParams(height) }
@@ -54,16 +53,12 @@ export const getItemImage = ({
         if (!tag) break;
         blurhash = item.ImageBlurHashes?.Backdrop?.[tag] ?? undefined;
         src = {
-          uri: images.getItemImageUrlById(
-            item.ParentBackdropItemId!,
-            "Backdrop",
-            {
-              quality,
-              tag,
-              ...size,
-              imageIndex: 0,
-            },
-          ),
+          uri: itemImageUrl(api, item.ParentBackdropItemId!, "Backdrop", {
+            quality,
+            tag,
+            ...size,
+            imageIndex: 0,
+          }),
           blurhash,
         };
         break;
@@ -73,7 +68,7 @@ export const getItemImage = ({
       if (!tag) break;
       blurhash = item.ImageBlurHashes?.Backdrop?.[tag] ?? undefined;
       src = {
-        uri: images.getItemImageUrlById(item.Id!, "Backdrop", {
+        uri: itemImageUrl(api, item.Id!, "Backdrop", {
           quality,
           tag,
           ...size,
@@ -88,7 +83,7 @@ export const getItemImage = ({
       blurhash = item.ImageBlurHashes?.Primary?.[tag] ?? undefined;
 
       src = {
-        uri: images.getItemImageUrlById(item.Id!, "Primary", {
+        uri: itemImageUrl(api, item.Id!, "Primary", {
           quality,
           tag,
           ...size,
@@ -102,7 +97,7 @@ export const getItemImage = ({
       blurhash = item.ImageBlurHashes?.Thumb?.[tag] ?? undefined;
 
       src = {
-        uri: images.getItemImageUrlById(item.Id!, "Backdrop", {
+        uri: itemImageUrl(api, item.Id!, "Backdrop", {
           quality,
           tag,
           ...size,
@@ -113,7 +108,7 @@ export const getItemImage = ({
     default:
       tag = item.ImageTags?.Primary;
       src = {
-        uri: images.getItemImageUrlById(item.Id!, "Primary", {
+        uri: itemImageUrl(api, item.Id!, "Primary", {
           quality,
           tag: String(tag),
           ...size,

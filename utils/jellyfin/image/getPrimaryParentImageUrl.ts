@@ -1,6 +1,6 @@
 import type { Api } from "@jellyfin/sdk";
 import { type BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { getImageApi } from "@jellyfin/sdk/lib/utils/api";
+import { itemImageUrl } from "./itemImageUrl";
 
 /**
  * Retrieves the primary image URL for a given item.
@@ -27,7 +27,7 @@ export const getPrimaryParentImageUrl = ({
   const parentId = item.ParentId;
   const primaryTag = item.ParentPrimaryImageTag?.[0];
 
-  return getImageApi(api).getItemImageUrlById(parentId!, "Primary", {
+  return itemImageUrl(api, parentId!, "Primary", {
     fillWidth: width || 500,
     quality: quality || 80,
     tag: primaryTag || "",
