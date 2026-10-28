@@ -85,14 +85,14 @@ export const withFollow = (
 
 /** Reads the person's choices, as the plugin describes them. */
 export const getMyNotifications = async (api: Api): Promise<MyNotifications> =>
-  (await api.get<MyNotifications>(MY_NOTIFICATIONS_PATH)).data;
+  (await api.pluginGet<MyNotifications>(MY_NOTIFICATIONS_PATH)).data;
 
 /** Replaces the choices the screen edits, and answers with all of them. */
 export const setMyNotifications = async (
   api: Api,
   update: MyNotificationsUpdate,
 ): Promise<MyNotifications> =>
-  (await api.put<MyNotifications>(MY_NOTIFICATIONS_PATH, update)).data;
+  (await api.pluginPut<MyNotifications>(MY_NOTIFICATIONS_PATH, update)).data;
 
 /** Pauses every notification for some hours, or until turned back on with `null`. */
 export const pauseNotifications = async (
@@ -100,14 +100,15 @@ export const pauseNotifications = async (
   hours: number | null,
 ): Promise<MyNotifications> =>
   (
-    await api.post<MyNotifications>(`${MY_NOTIFICATIONS_PATH}/pause`, {
+    await api.pluginPost<MyNotifications>(`${MY_NOTIFICATIONS_PATH}/pause`, {
       hours,
     })
   ).data;
 
 /** Lifts the pause. */
 export const resumeNotifications = async (api: Api): Promise<MyNotifications> =>
-  (await api.delete<MyNotifications>(`${MY_NOTIFICATIONS_PATH}/pause`)).data;
+  (await api.pluginDelete<MyNotifications>(`${MY_NOTIFICATIONS_PATH}/pause`))
+    .data;
 
 // The show's route, with its id as one part of the path whatever it holds.
 const showMutePath = (seriesId: string): string =>
@@ -118,11 +119,12 @@ export const muteShow = async (
   api: Api,
   seriesId: string,
 ): Promise<MyNotifications> =>
-  (await api.post<MyNotifications>(showMutePath(seriesId), undefined)).data;
+  (await api.pluginPost<MyNotifications>(showMutePath(seriesId), undefined))
+    .data;
 
 /** Turns a show turned off back on. */
 export const unmuteShow = async (
   api: Api,
   seriesId: string,
 ): Promise<MyNotifications> =>
-  (await api.delete<MyNotifications>(showMutePath(seriesId))).data;
+  (await api.pluginDelete<MyNotifications>(showMutePath(seriesId))).data;

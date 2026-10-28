@@ -44,7 +44,7 @@ export const LEGACY_CONFIG_PATH = "/Streamyfin/config";
 export interface PluginSettingsReader {
   /** The server's address, which what one server lacks is remembered by. */
   basePath: string;
-  get<T>(
+  pluginGet<T>(
     url: string,
   ): Promise<{ data: T; status?: number; headers?: Record<string, unknown> }>;
 }
@@ -152,7 +152,7 @@ export const readPluginSettings = async (
     (withoutResolvedRoute.get(api.basePath) ?? 0) <= Date.now();
   if (asksResolved) {
     try {
-      const answer = await api.get<unknown>(RESOLVED_SETTINGS_PATH);
+      const answer = await api.pluginGet<unknown>(RESOLVED_SETTINGS_PATH);
       const map = settingsMapOf(answer.data);
       if (!map) {
         throw notThePluginsAnswer(
@@ -173,7 +173,7 @@ export const readPluginSettings = async (
   }
 
   try {
-    const answer = await api.get<unknown>(LEGACY_CONFIG_PATH);
+    const answer = await api.pluginGet<unknown>(LEGACY_CONFIG_PATH);
     // The plugin is older once its own configuration answers, which a 404
     // alone did not say: a proxy answers 404 for everything while the server
     // restarts, and something else can answer 200 in the plugin's place.

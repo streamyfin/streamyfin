@@ -1,5 +1,5 @@
 import type { BaseItemKind } from "@jellyfin/sdk/lib/generated-client";
-import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
+import { getLibraryApi } from "@jellyfin/sdk/lib/utils/api";
 import { useAtom } from "jotai";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -57,7 +57,7 @@ export const Favorites = () => {
       if (!api || !user?.Id) {
         throw new Error("Favorites requested without a session");
       }
-      const response = await getItemsApi(api).getItems({
+      const response = await getLibraryApi(api).getItems({
         userId: user?.Id,
         sortBy: ["SeriesSortName", "SortName"],
         sortOrder: ["Ascending"],

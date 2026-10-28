@@ -1,4 +1,4 @@
-import type { ItemsApiGetItemsRequest } from "@jellyfin/sdk/lib/generated-client/api/items-api";
+import type { LibraryApiGetItemsRequest } from "@jellyfin/sdk/lib/generated-client/api/library-api";
 import type {
   BaseItemDto,
   BaseItemKind,
@@ -108,10 +108,10 @@ const FILTER_BAR_KEYS = [
   "officialRatings",
   "tags",
   "years",
-] as const satisfies readonly (keyof ItemsApiGetItemsRequest)[];
+] as const satisfies readonly (keyof LibraryApiGetItemsRequest)[];
 
 type FilterBarQuery = Pick<
-  ItemsApiGetItemsRequest,
+  LibraryApiGetItemsRequest,
   (typeof FILTER_BAR_KEYS)[number]
 >;
 

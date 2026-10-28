@@ -16,7 +16,7 @@ const mockAuthorize = jest.fn(
 );
 const mockEnabled = jest.fn(async () => ({ data: true }));
 jest.mock("@jellyfin/sdk/lib/utils/api", () => ({
-  getQuickConnectApi: () => ({
+  getAuthenticationApi: () => ({
     authorizeQuickConnect: (params: { code: string; userId?: string }) =>
       mockAuthorize(params),
     getQuickConnectEnabled: () => mockEnabled(),

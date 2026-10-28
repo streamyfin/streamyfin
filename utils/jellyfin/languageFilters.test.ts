@@ -1,4 +1,4 @@
-import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
+import { getLibraryApi } from "@jellyfin/sdk/lib/utils/api";
 import { makeApi } from "@/test-utils/jellyfinApi";
 import {
   fetchLanguageFilters,
@@ -112,7 +112,7 @@ describe("the selected languages on an items request", () => {
   test("reach the server as comma delimited query parameters", async () => {
     const api = makeApi({ Items: [] });
 
-    await getItemsApi(api).getItems(
+    await getLibraryApi(api).getItems(
       { parentId: "movies", genres: ["Drama"] },
       languageFilterRequestOptions({
         audioLanguages: ["eng", "swe"],
@@ -135,7 +135,7 @@ describe("the selected languages on an items request", () => {
       subtitleLanguages: [],
     });
 
-    await getItemsApi(api).getItems({ parentId: "movies" }, options);
+    await getLibraryApi(api).getItems({ parentId: "movies" }, options);
 
     expect(options).toBeUndefined();
     expect(sentQuery(api).has("audioLanguages")).toBe(false);

@@ -2,7 +2,8 @@ import type { Api } from "@jellyfin/sdk";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import type { ImageSource } from "expo-image";
 import { getJellyfinHeadersForUrl } from "@/utils/customHeaders";
-import { fillHeightParams } from "@/utils/jellyfin/image/imagePixels";
+import { fillHeightImageParams } from "@/utils/jellyfin/image/imagePixels";
+import { itemImageUrl } from "@/utils/jellyfin/image/itemImageUrl";
 
 interface Props {
   item: BaseItemDto;
@@ -38,14 +39,11 @@ export const getItemImage = ({
   if (!api) return null;
 
   const size = height
-    ? new URLSearchParams({
-        fillWidth: String(Math.round(width)),
-        ...fillHeightParams(height),
-      }).toString()
-    : `width=${width}`;
+    ? { fillWidth: Math.round(width), ...fillHeightImageParams(height) }
+    : { width };
 
   let tag: string | null | undefined;
-  let blurhash: string | null | undefined;
+  let blurhash: string | undefined;
   let src: ImageSource | null = null;
 
   switch (variant) {
@@ -53,9 +51,14 @@ export const getItemImage = ({
       if (item.Type === "Episode") {
         tag = item.ParentBackdropImageTags?.[0];
         if (!tag) break;
-        blurhash = item.ImageBlurHashes?.Backdrop?.[tag];
+        blurhash = item.ImageBlurHashes?.Backdrop?.[tag] ?? undefined;
         src = {
-          uri: `${api.basePath}/Items/${item.ParentBackdropItemId}/Images/Backdrop/0?quality=${quality}&tag=${tag}&${size}`,
+          uri: itemImageUrl(api, item.ParentBackdropItemId!, "Backdrop", {
+            quality,
+            tag,
+            ...size,
+            imageIndex: 0,
+          }),
           blurhash,
         };
         break;
@@ -63,36 +66,53 @@ export const getItemImage = ({
 
       tag = item.BackdropImageTags?.[0];
       if (!tag) break;
-      blurhash = item.ImageBlurHashes?.Backdrop?.[tag];
+      blurhash = item.ImageBlurHashes?.Backdrop?.[tag] ?? undefined;
       src = {
-        uri: `${api.basePath}/Items/${item.Id}/Images/Backdrop/0?quality=${quality}&tag=${tag}&${size}`,
+        uri: itemImageUrl(api, item.Id!, "Backdrop", {
+          quality,
+          tag,
+          ...size,
+          imageIndex: 0,
+        }),
         blurhash,
       };
       break;
     case "Primary":
       tag = item.ImageTags?.Primary;
       if (!tag) break;
-      blurhash = item.ImageBlurHashes?.Primary?.[tag];
+      blurhash = item.ImageBlurHashes?.Primary?.[tag] ?? undefined;
 
       src = {
-        uri: `${api.basePath}/Items/${item.Id}/Images/Primary?quality=${quality}&tag=${tag}&${size}`,
+        uri: itemImageUrl(api, item.Id!, "Primary", {
+          quality,
+          tag,
+          ...size,
+        }),
         blurhash,
       };
       break;
     case "Thumb":
       tag = item.ImageTags?.Thumb;
       if (!tag) break;
-      blurhash = item.ImageBlurHashes?.Thumb?.[tag];
+      blurhash = item.ImageBlurHashes?.Thumb?.[tag] ?? undefined;
 
       src = {
-        uri: `${api.basePath}/Items/${item.Id}/Images/Backdrop?quality=${quality}&tag=${tag}&${size}`,
+        uri: itemImageUrl(api, item.Id!, "Backdrop", {
+          quality,
+          tag,
+          ...size,
+        }),
         blurhash,
       };
       break;
     default:
       tag = item.ImageTags?.Primary;
       src = {
-        uri: `${api.basePath}/Items/${item.Id}/Images/Primary?quality=${quality}&tag=${tag}&${size}`,
+        uri: itemImageUrl(api, item.Id!, "Primary", {
+          quality,
+          tag: String(tag),
+          ...size,
+        }),
       };
       break;
   }

@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
+import { getLibraryApi } from "@jellyfin/sdk/lib/utils/api";
 import { FlashList } from "@shopify/flash-list";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useLocalSearchParams } from "expo-router";
@@ -74,7 +74,7 @@ export default function PlaylistsScreen() {
   } = useInfiniteQuery({
     queryKey: ["music-playlists", libraryId, user?.Id, sortBy, sortOrder],
     queryFn: async ({ pageParam = 0 }) => {
-      const response = await getItemsApi(api!).getItems({
+      const response = await getLibraryApi(api!).getItems({
         userId: user?.Id,
         includeItemTypes: ["Playlist"],
         sortBy: [sortBy],

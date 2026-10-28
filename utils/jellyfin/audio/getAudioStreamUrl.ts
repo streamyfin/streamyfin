@@ -1,5 +1,8 @@
 import type { Api } from "@jellyfin/sdk";
-import type { MediaSourceInfo } from "@jellyfin/sdk/lib/generated-client/models";
+import type {
+  MediaSourceInfo,
+  PlaybackInfoDto,
+} from "@jellyfin/sdk/lib/generated-client/models";
 import { getMediaInfoApi } from "@jellyfin/sdk/lib/utils/api";
 import trackPlayerProfile from "../../profiles/trackplayer";
 
@@ -20,19 +23,18 @@ export const getAudioStreamUrl = async (
   itemId: string,
 ): Promise<AudioStreamResult | null> => {
   try {
-    const res = await getMediaInfoApi(api).getPlaybackInfo(
-      { itemId },
-      {
-        method: "POST",
-        data: {
-          userId,
-          deviceProfile: trackPlayerProfile,
-          startTimeTicks: 0,
-          isPlayback: true,
-          autoOpenLiveStream: true,
-        },
-      },
-    );
+    // Preserve the legacy flag omitted from both SDK request and DTO types.
+    const playbackInfoDto: PlaybackInfoDto & { isPlayback: boolean } = {
+      UserId: userId,
+      DeviceProfile: trackPlayerProfile,
+      StartTimeTicks: 0,
+      isPlayback: true,
+      AutoOpenLiveStream: true,
+    };
+    const res = await getMediaInfoApi(api).getPostedPlaybackInfo({
+      itemId,
+      playbackInfoDto,
+    });
 
     const sessionId = res.data.PlaySessionId || null;
     const mediaSource = res.data.MediaSources?.[0] || null;
@@ -57,7 +59,8 @@ export const getAudioStreamUrl = async (
     });
 
     return {
-      url: `${api.basePath}/Audio/${itemId}/stream?${streamParams.toString()}`,
+      // The SDK audio endpoints fetch files rather than return native-player URLs.
+      url: api.getUri(`/Audio/${itemId}/stream`, streamParams),
       sessionId,
       mediaSource,
       isTranscoding: false,

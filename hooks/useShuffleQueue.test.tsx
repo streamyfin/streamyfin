@@ -43,7 +43,7 @@ describe("useShuffleQueue", () => {
     const second: BaseItemDto = {
       Id: "episode-2",
       Type: "Episode",
-      UserData: { PlaybackPositionTicks: 40_000_000 },
+      UserData: { Key: "", PlaybackPositionTicks: 40_000_000 },
     };
     const { result } = await renderHook(() => useShuffleQueue());
     await act(async () => {

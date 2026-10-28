@@ -457,7 +457,7 @@ describe("refreshing the plugin settings", () => {
     async (_case, answer, resolvedMissing) => {
       const inFront: PluginSettingsReader = {
         basePath: `https://in-front-${_case.length}.example`,
-        get: async <T>(url: string) => {
+        pluginGet: async <T>(url: string) => {
           if (resolvedMissing && url === RESOLVED_SETTINGS_PATH) {
             throw Object.assign(new Error("HTTP 404"), {
               response: { status: 404 },

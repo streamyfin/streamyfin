@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
+import { getLibraryApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import { useAtom } from "jotai";
 import { useMemo } from "react";
@@ -35,7 +35,7 @@ export const NextItemButton: React.FC<Props> = ({
       )
         return null;
 
-      const response = await getItemsApi(api).getItems({
+      const response = await getLibraryApi(api).getItems({
         parentId: item?.ParentId,
         limit: 1,
         startIndex: type === "next" ? item.IndexNumber : item.IndexNumber - 2,

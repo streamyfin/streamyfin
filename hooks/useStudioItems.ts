@@ -1,5 +1,5 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { getUserLibraryApi } from "@jellyfin/sdk/lib/utils/api";
+import { getLibraryApi } from "@jellyfin/sdk/lib/utils/api";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
 import { useCallback, useMemo } from "react";
@@ -25,7 +25,7 @@ export const useStudioItems = (studioId: string) => {
     queryKey: ["studio", studioId, user?.Id],
     queryFn: async ({ signal }) => {
       if (!api) return null;
-      const response = await getUserLibraryApi(api).getItem(
+      const response = await getLibraryApi(api).getItem(
         { itemId: studioId, userId: user?.Id },
         { signal },
       );

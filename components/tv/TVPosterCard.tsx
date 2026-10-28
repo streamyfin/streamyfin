@@ -562,7 +562,7 @@ const TVPosterCardComponent: React.FC<TVPosterCardProps> = ({
         }}
       >
         <Image
-          placeholder={{ blurhash }}
+          placeholder={{ blurhash: blurhash ?? undefined }}
           key={item.Id}
           source={{ uri: imageUrl }}
           recyclingKey={item.Id}

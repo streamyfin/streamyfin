@@ -98,7 +98,7 @@ export const usePushRegistration = (
       if (latest.current !== key || sent.current === key) return;
       sent.current = key;
       try {
-        await api.post(PUSH_DEVICE_PATH, registration, {
+        await api.pluginPost(PUSH_DEVICE_PATH, registration, {
           timeout: PUSH_REGISTRATION_TIMEOUT_MS,
         });
       } catch {

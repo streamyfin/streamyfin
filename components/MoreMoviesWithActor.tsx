@@ -1,5 +1,5 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
+import { getLibraryApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import { useAtom } from "jotai";
 import type React from "react";
@@ -28,7 +28,7 @@ export const MoreMoviesWithActor: React.FC<Props> = ({
     queryKey: ["actor", "movies", actorId, currentItem.Id],
     queryFn: async () => {
       if (!api || !user?.Id) return [];
-      const response = await getItemsApi(api).getItems({
+      const response = await getLibraryApi(api).getItems({
         userId: user.Id,
         personIds: [actorId],
         limit: 20,

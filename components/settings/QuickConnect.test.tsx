@@ -24,7 +24,7 @@ const mockGetPublicSystemInfo = jest.fn<
 >();
 // The three calls that reach a server.
 jest.mock("@jellyfin/sdk/lib/utils/api", () => ({
-  getQuickConnectApi: () => ({
+  getAuthenticationApi: () => ({
     authorizeQuickConnect: (
       params: { code: string },
       options?: { signal?: AbortSignal },

@@ -1,4 +1,4 @@
-import { AUTHORIZATION_HEADER } from "@jellyfin/sdk";
+import { AUTHORIZATION_HEADER } from "@jellyfin/sdk/lib/constants";
 import { AxiosHeaders } from "axios";
 import { makeApi } from "@/test-utils/jellyfinApi";
 import "./api";
@@ -14,30 +14,40 @@ jest.mock(
 // endpoint, and goes through these helpers (fetchCustomHomeSection).
 const OWN_HEADERS = { "X-Section": "on-deck" };
 
-const sent = async (method: "get" | "post" | "put" | "delete") => {
+const verbs = {
+  get: "pluginGet",
+  post: "pluginPost",
+  put: "pluginPut",
+  delete: "pluginDelete",
+} as const;
+
+const sent = async (method: keyof typeof verbs) => {
   const api = makeApi({ Items: [] });
   if (method === "post" || method === "put") {
-    await api[method]("/Custom/Endpoint", {}, { headers: OWN_HEADERS });
+    await api[verbs[method]]("/Custom/Endpoint", {}, { headers: OWN_HEADERS });
   } else {
-    await api[method]("/Custom/Endpoint", { headers: OWN_HEADERS });
+    await api[verbs[method]]("/Custom/Endpoint", { headers: OWN_HEADERS });
   }
   const [request] = api.mock.history[method];
   return { api, headers: request.headers ?? {} };
 };
 
-describe.each(["get", "post", "put", "delete"] as const)("api.%s", (method) => {
-  test("sends the headers the request was given", async () => {
-    const { headers } = await sent(method);
-    expect(headers["X-Section"]).toBe("on-deck");
-  });
+describe.each(["get", "post", "put", "delete"] as const)(
+  "api.plugin %s",
+  (method) => {
+    test("sends the headers the request was given", async () => {
+      const { headers } = await sent(method);
+      expect(headers["X-Section"]).toBe("on-deck");
+    });
 
-  test("still sends the session's authorization", async () => {
-    const { api, headers } = await sent(method);
-    expect(AxiosHeaders.from(headers).get(AUTHORIZATION_HEADER)).toBe(
-      api.authorizationHeader,
-    );
-  });
-});
+    test("still sends the session's authorization", async () => {
+      const { api, headers } = await sent(method);
+      expect(AxiosHeaders.from(headers).get(AUTHORIZATION_HEADER)).toBe(
+        api.authorizationHeader,
+      );
+    });
+  },
+);
 
 // Header names are matched without case, and false asks axios to drop one:
 // axios merges a request's headers caselessly, the later key winning, and the
@@ -54,7 +64,7 @@ test.each([
   ["cannot drop it with false", { authorization: false }],
 ])("a request %s", async (_name, headers) => {
   const api = makeApi({ Items: [] });
-  await api.get("/Custom/Endpoint", { headers });
+  await api.pluginGet("/Custom/Endpoint", { headers });
   const [request] = api.mock.history.get;
   expect(AxiosHeaders.from(request.headers).get(AUTHORIZATION_HEADER)).toBe(
     api.authorizationHeader,

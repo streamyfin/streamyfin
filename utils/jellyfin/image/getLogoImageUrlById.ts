@@ -2,6 +2,7 @@ import type { Api } from "@jellyfin/sdk";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { LOGO_HEIGHT, MAX_LOGO_HEIGHT_PX } from "@/constants/Images";
 import { toImagePixels } from "./imagePixels";
+import { itemImageUrl } from "./itemImageUrl";
 
 /**
  * Retrieves the logo image URL for a given item. An episode has no logo of
@@ -26,13 +27,12 @@ export const getLogoImageUrlById = ({
     return null;
   }
 
-  const params = new URLSearchParams();
-
-  params.append("quality", "90");
-  params.append(
-    "fillHeight",
-    Math.min(Math.round(height), MAX_LOGO_HEIGHT_PX).toString(),
-  );
+  const logo = (itemId: string, tag: string) =>
+    itemImageUrl(api, itemId, "Logo", {
+      quality: 90,
+      fillHeight: Math.min(Math.round(height), MAX_LOGO_HEIGHT_PX),
+      tag,
+    });
 
   if (item.Type === "Episode") {
     const imageTag = item.ParentLogoImageTag;
@@ -42,16 +42,12 @@ export const getLogoImageUrlById = ({
       return null;
     }
 
-    params.append("tag", imageTag);
-
-    return `${api.basePath}/Items/${parentId}/Images/Logo?${params.toString()}`;
+    return logo(parentId, imageTag);
   }
 
   const imageTag = item.ImageTags?.Logo;
 
-  if (!imageTag) return null;
+  if (!item.Id || !imageTag) return null;
 
-  params.append("tag", imageTag);
-
-  return `${api.basePath}/Items/${item.Id}/Images/Logo?${params.toString()}`;
+  return logo(item.Id, imageTag);
 };
