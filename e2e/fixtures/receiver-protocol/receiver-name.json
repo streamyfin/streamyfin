@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "receiverNameFor": [
+    {
+      "name": "an ASCII name goes through unchanged",
+      "input": {
+        "friendlyName": "Living Room TV",
+        "deviceId": "4f0c2b9d8e7a6b5c4d3e2f1a0b9c8d7e"
+      },
+      "expected": "Living Room TV"
+    },
+    {
+      "name": "an ideographic space becomes a plain space",
+      "input": {
+        "friendlyName": "Salon　TV",
+        "deviceId": "4f0c2b9d8e7a6b5c4d3e2f1a0b9c8d7e"
+      },
+      "expected": "Salon TV"
+    },
+    {
+      "name": "a name without an ASCII letter falls back to the id tail",
+      "input": {
+        "friendlyName": "客厅电视",
+        "deviceId": "4f0c2b9d8e7a6b5c4d3e2f1a0b9c8d7e"
+      },
+      "expected": "Chromecast 0b9c8d7e"
+    },
+    {
+      "name": "punctuation in the id is not part of the tail",
+      "input": { "friendlyName": "Гостиная", "deviceId": "ab-cd-12" },
+      "expected": "Chromecast abcd12"
+    },
+    {
+      "name": "no usable name and no id gives the plain fallback",
+      "input": { "friendlyName": "Гостиная", "deviceId": null },
+      "expected": "Chromecast"
+    },
+    {
+      "name": "no device gives nothing",
+      "input": null,
+      "expected": null
+    }
+  ],
+  "toReceiverDeviceName": [
+    {
+      "name": "punctuation is stripped",
+      "input": "Living Room TV!",
+      "expected": "Living Room TV"
+    },
+    {
+      "name": "accented letters are stripped like the receiver does",
+      "input": "Café TV",
+      "expected": "Caf TV"
+    },
+    {
+      "name": "unicode whitespace survives the cleanup",
+      "input": "Salon　TV",
+      "expected": "Salon　TV"
+    },
+    {
+      "name": "underscore and digits stay",
+      "input": "TV_2 (salon)",
+      "expected": "TV_2 salon"
+    }
+  ]
+}

@@ -1,0 +1,170 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "name": "movie with every option",
+      "session": {
+        "basePath": "https://jellyfin.example.test",
+        "accessToken": "tok-123",
+        "userId": "user-1",
+        "receiverName": "Living Room TV",
+        "maxBitrate": 8000000
+      },
+      "command": "PlayNow",
+      "request": {
+        "items": [
+          {
+            "Id": "item-1",
+            "Name": "A film",
+            "Type": "Movie",
+            "MediaType": "Video",
+            "IsFolder": false,
+            "Overview": "dropped by the sender",
+            "RunTimeTicks": 60000000000
+          }
+        ],
+        "startIndex": 0,
+        "startPositionTicks": 150000000,
+        "mediaSourceId": "ms-1",
+        "audioStreamIndex": 1,
+        "subtitleStreamIndex": 3
+      },
+      "expected": {
+        "command": "PlayNow",
+        "serverAddress": "https://jellyfin.example.test",
+        "accessToken": "tok-123",
+        "userId": "user-1",
+        "receiverName": "Living Room TV",
+        "maxBitrate": 8000000,
+        "options": {
+          "startIndex": 0,
+          "startPositionTicks": 150000000,
+          "mediaSourceId": "ms-1",
+          "audioStreamIndex": 1,
+          "subtitleStreamIndex": 3,
+          "items": [
+            {
+              "Id": "item-1",
+              "Name": "A film",
+              "Type": "Movie",
+              "MediaType": "Video",
+              "IsFolder": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "no receiver name and no bitrate",
+      "session": {
+        "basePath": "https://jellyfin.example.test",
+        "accessToken": "tok-123",
+        "userId": "user-1"
+      },
+      "command": "PlayNow",
+      "request": {
+        "items": [
+          {
+            "Id": "item-2",
+            "Name": "Episode",
+            "Type": "Episode",
+            "MediaType": "Video"
+          }
+        ]
+      },
+      "expected": {
+        "command": "PlayNow",
+        "serverAddress": "https://jellyfin.example.test",
+        "accessToken": "tok-123",
+        "userId": "user-1",
+        "options": {
+          "items": [
+            {
+              "Id": "item-2",
+              "Name": "Episode",
+              "Type": "Episode",
+              "MediaType": "Video",
+              "IsFolder": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "a guide program plays its channel live",
+      "session": {
+        "basePath": "https://jellyfin.example.test",
+        "accessToken": "tok-123",
+        "userId": "user-1",
+        "receiverName": "Living Room TV"
+      },
+      "command": "PlayNow",
+      "request": {
+        "items": [
+          {
+            "Id": "program-1",
+            "Name": "Evening news",
+            "Type": "Program",
+            "ChannelId": "channel-1",
+            "ChannelName": "1 Films libres"
+          }
+        ],
+        "startPositionTicks": 150000000
+      },
+      "expected": {
+        "command": "PlayNow",
+        "serverAddress": "https://jellyfin.example.test",
+        "accessToken": "tok-123",
+        "userId": "user-1",
+        "receiverName": "Living Room TV",
+        "options": {
+          "items": [
+            {
+              "Id": "channel-1",
+              "Name": "1 Films libres",
+              "Type": "TvChannel",
+              "MediaType": "Video",
+              "IsFolder": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "a plain command carries the server on every message",
+      "session": {
+        "basePath": "https://jellyfin.example.test",
+        "accessToken": "tok-123",
+        "userId": "user-1",
+        "receiverName": "Living Room TV"
+      },
+      "command": "Pause",
+      "options": {},
+      "expected": {
+        "command": "Pause",
+        "serverAddress": "https://jellyfin.example.test",
+        "accessToken": "tok-123",
+        "userId": "user-1",
+        "receiverName": "Living Room TV",
+        "options": {}
+      }
+    },
+    {
+      "name": "seek carries its position in the options",
+      "session": {
+        "basePath": "https://jellyfin.example.test",
+        "accessToken": "tok-123",
+        "userId": "user-1"
+      },
+      "command": "Seek",
+      "options": { "position": 125 },
+      "expected": {
+        "command": "Seek",
+        "serverAddress": "https://jellyfin.example.test",
+        "accessToken": "tok-123",
+        "userId": "user-1",
+        "options": { "position": 125 }
+      }
+    }
+  ]
+}

@@ -392,6 +392,58 @@ interface ReceiverMediaData {
   playSessionId?: string;
 }
 
+/** What the receiver puts in its media customData, read with every field optional. */
+export interface ReceiverCustomData {
+  itemId: string | null;
+  playSessionId: string | null;
+  audioStreamIndex: number | null;
+  subtitleStreamIndex: number | null;
+  mediaSourceId: string | null;
+  playMethod: string | null;
+  runtimeTicks: number | null;
+  startPositionTicks: number | null;
+  canSeek: boolean | null;
+  liveStreamId: string | null;
+}
+
+const stringOrNull = (value: unknown): string | null =>
+  typeof value === "string" ? value : null;
+const numberOrNull = (value: unknown): number | null => {
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  if (typeof value === "string" && value.trim() !== "") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+};
+
+/**
+ * Reads the receiver's media customData. The receiver writes numbers as
+ * numbers, but a value forwarded through a native bridge may arrive as a
+ * string, so numeric fields are parsed rather than typed.
+ */
+export const parseReceiverCustomData = (
+  customData: unknown,
+): ReceiverCustomData => {
+  const data =
+    typeof customData === "object" && customData !== null
+      ? (customData as Record<string, unknown>)
+      : {};
+
+  return {
+    itemId: stringOrNull(data.itemId),
+    playSessionId: stringOrNull(data.playSessionId),
+    audioStreamIndex: numberOrNull(data.audioStreamIndex),
+    subtitleStreamIndex: numberOrNull(data.subtitleStreamIndex),
+    mediaSourceId: stringOrNull(data.mediaSourceId),
+    playMethod: stringOrNull(data.playMethod),
+    runtimeTicks: numberOrNull(data.runtimeTicks),
+    startPositionTicks: numberOrNull(data.startPositionTicks),
+    canSeek: typeof data.canSeek === "boolean" ? data.canSeek : null,
+    liveStreamId: stringOrNull(data.liveStreamId),
+  };
+};
+
 const receiverMediaData = (
   status: MediaStatus | null | undefined,
 ): ReceiverMediaData | undefined =>
