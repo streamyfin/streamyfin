@@ -1,0 +1,281 @@
+package expo.modules.mpvplayer.cast
+
+import android.content.Context
+import android.content.Intent
+import android.os.Handler
+import android.os.Looper
+import androidx.mediarouter.app.MediaRouteChooserDialog
+import androidx.mediarouter.app.MediaRouteControllerDialog
+import androidx.mediarouter.media.MediaRouter
+import com.google.android.gms.cast.CastDevice
+import com.google.android.gms.cast.MediaSeekOptions
+import com.google.android.gms.cast.framework.CastContext
+import com.google.android.gms.cast.framework.CastSession
+import com.google.android.gms.cast.framework.SessionManagerListener
+import com.google.android.gms.cast.framework.media.RemoteMediaClient
+import com.google.android.gms.common.GoogleApiAvailability
+import expo.modules.kotlin.Promise
+import expo.modules.kotlin.exception.Exceptions
+import expo.modules.kotlin.functions.Queues
+import expo.modules.kotlin.modules.Module
+import expo.modules.kotlin.modules.ModuleDefinition
+
+/**
+ * The Cast SDK, owned by the module: context, discovery, session, custom channels and the
+ * media status, published to JS as the events and records of Cast.types.ts. Every SDK call
+ * runs on the main thread (the SDK asserts it); the synchronous getters answer from caches
+ * the listeners keep current, so a screen can read them from the JS thread.
+ */
+class CastModule : Module() {
+    private val context: Context
+        get() = appContext.reactContext ?: throw Exceptions.ReactContextLost()
+
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private var castContext: CastContext? = null
+    private var cachedState: String? = null
+    private var cachedDevices: List<Map<String, Any?>> = emptyList()
+    private var cachedSession: Map<String, Any?>? = null
+    private var routerCallback: MediaRouter.Callback? = null
+    private var mediaClient: RemoteMediaClient? = null
+    private val channels = mutableSetOf<String>()
+
+    private val mediaCallback = object : RemoteMediaClient.Callback() {
+        override fun onStatusUpdated() {
+            sendEvent("onMediaStatusChanged", mapOf("status" to CastRecords.mediaStatus(mediaClient?.mediaStatus)))
+        }
+    }
+
+    private val sessionListener = object : SessionManagerListener<CastSession> {
+        override fun onSessionStarting(session: CastSession) = emitSession("starting", session, null)
+
+        override fun onSessionStarted(session: CastSession, sessionId: String) {
+            attachMedia(session)
+            updateSession(session)
+            emitSession("started", session, null)
+        }
+
+        override fun onSessionStartFailed(session: CastSession, error: Int) =
+            emitSession("startFailed", session, CastMapping.sessionEndError(error))
+
+        override fun onSessionSuspended(session: CastSession, reason: Int) {
+            detachMedia()
+            emitSession("suspended", session, null)
+        }
+
+        override fun onSessionResuming(session: CastSession, sessionId: String) = emitSession("resuming", session, null)
+
+        override fun onSessionResumed(session: CastSession, wasSuspended: Boolean) {
+            attachMedia(session)
+            updateSession(session)
+            emitSession("resumed", session, null)
+        }
+
+        override fun onSessionResumeFailed(session: CastSession, error: Int) =
+            emitSession("startFailed", session, CastMapping.sessionEndError(error))
+
+        override fun onSessionEnding(session: CastSession) = emitSession("ending", session, null)
+
+        override fun onSessionEnded(session: CastSession, error: Int) {
+            detachMedia()
+            // The channels died with the session; the JS side opens new ones on the next command.
+            channels.clear()
+            updateSession(null)
+            emitSession("ended", session, CastMapping.sessionEndError(error))
+        }
+    }
+
+    override fun definition() = ModuleDefinition {
+        Name("StreamyfinCast")
+
+        Events("onCastStateChanged", "onDevicesChanged", "onSessionEvent", "onMediaStatusChanged", "onReceiverMessage")
+
+        OnStartObserving {
+            mainHandler.post { ensureContext() }
+        }
+
+        Function("isAvailable") { CastSupport.isAvailable(context) }
+
+        Function("getCastState") {
+            if (castContext == null) mainHandler.post { ensureContext() }
+            cachedState
+        }
+
+        Function("getPlayServicesState") { CastMapping.playServicesStateName(CastSupport.playServicesState(context)) }
+
+        AsyncFunction("showPlayServicesErrorDialog") { _: String ->
+            val activity = appContext.currentActivity ?: return@AsyncFunction Unit
+            val code = CastSupport.playServicesState(context)
+            GoogleApiAvailability.getInstance().getErrorDialog(activity, code, 0)?.show()
+            Unit
+        }.runOnQueue(Queues.MAIN)
+
+        Function("getDevices") { cachedDevices }
+
+        AsyncFunction("startDiscovery") {
+            ensureContext()?.let { cast -> startDiscovery(cast) }
+            Unit
+        }.runOnQueue(Queues.MAIN)
+
+        AsyncFunction("stopDiscovery") {
+            stopDiscovery()
+            Unit
+        }.runOnQueue(Queues.MAIN)
+
+        Function("getCurrentSession") {
+            if (castContext == null) mainHandler.post { ensureContext() }
+            cachedSession
+        }
+
+        AsyncFunction("showCastDialog") {
+            val activity = appContext.currentActivity ?: return@AsyncFunction false
+            val cast = ensureContext() ?: return@AsyncFunction false
+            if (cast.sessionManager.currentCastSession?.isConnected == true) {
+                MediaRouteControllerDialog(activity).show()
+            } else {
+                val selector = cast.mergedSelector ?: return@AsyncFunction false
+                MediaRouteChooserDialog(activity).apply { routeSelector = selector }.show()
+            }
+            true
+        }.runOnQueue(Queues.MAIN)
+
+        AsyncFunction("showExpandedControls") {
+            if (ensureContext() == null) return@AsyncFunction false
+            val intent = Intent(context, CastExpandedControllerActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            context.startActivity(intent)
+            true
+        }.runOnQueue(Queues.MAIN)
+
+        AsyncFunction("addChannel") { namespace: String ->
+            val session = currentSession() ?: return@AsyncFunction mapOf("namespace" to namespace, "connected" to false)
+            if (channels.add(namespace)) {
+                session.setMessageReceivedCallbacks(namespace) { _: CastDevice, received: String, message: String ->
+                    sendEvent("onReceiverMessage", mapOf("namespace" to received, "message" to message))
+                }
+            }
+            mapOf("namespace" to namespace, "connected" to session.isConnected)
+        }.runOnQueue(Queues.MAIN)
+
+        AsyncFunction("removeChannel") { namespace: String ->
+            if (channels.remove(namespace)) {
+                // The session may be gone already; its callbacks went with it.
+                runCatching { currentSession()?.removeMessageReceivedCallbacks(namespace) }
+            }
+            Unit
+        }.runOnQueue(Queues.MAIN)
+
+        AsyncFunction("sendMessage") { namespace: String, message: String, promise: Promise ->
+            val session = currentSession()
+            if (session == null) {
+                promise.reject("ERR_CAST_NO_SESSION", "No Cast session to send on", null)
+                return@AsyncFunction
+            }
+            session.sendMessage(namespace, message).setResultCallback { status ->
+                if (status.isSuccess) promise.resolve(null)
+                else promise.reject("ERR_CAST_SEND", status.statusMessage ?: "The receiver did not take the message", null)
+            }
+        }.runOnQueue(Queues.MAIN)
+
+        AsyncFunction("getMediaStatus") {
+            CastRecords.mediaStatus(currentSession()?.remoteMediaClient?.mediaStatus)
+        }.runOnQueue(Queues.MAIN)
+
+        AsyncFunction("play") { currentSession()?.remoteMediaClient?.play(); Unit }.runOnQueue(Queues.MAIN)
+        AsyncFunction("pause") { currentSession()?.remoteMediaClient?.pause(); Unit }.runOnQueue(Queues.MAIN)
+        AsyncFunction("stop") { currentSession()?.remoteMediaClient?.stop(); Unit }.runOnQueue(Queues.MAIN)
+        AsyncFunction("seek") { positionSeconds: Double ->
+            val options = MediaSeekOptions.Builder().setPosition((positionSeconds * 1000).toLong()).build()
+            currentSession()?.remoteMediaClient?.seek(options)
+            Unit
+        }.runOnQueue(Queues.MAIN)
+
+        View(CastButtonView::class) {
+            Prop("tintColor") { view: CastButtonView, color: String? -> view.setTintColor(color) }
+        }
+    }
+
+    // Main thread only: the SDK checks it, and the caches are written here alone.
+    private fun ensureContext(): CastContext? {
+        if (!CastSupport.isAvailable(context)) return null
+        castContext?.let { return it }
+        val cast = try {
+            CastContext.getSharedInstance(context.applicationContext)
+        } catch (error: RuntimeException) {
+            return null
+        }
+        castContext = cast
+        cast.addCastStateListener { state -> updateState(state) }
+        updateState(cast.castState)
+        cast.sessionManager.addSessionManagerListener(sessionListener, CastSession::class.java)
+        cast.sessionManager.currentCastSession?.let { session ->
+            attachMedia(session)
+            updateSession(session)
+        }
+        return cast
+    }
+
+    private fun currentSession(): CastSession? = ensureContext()?.sessionManager?.currentCastSession
+
+    private fun updateState(state: Int) {
+        val name = CastMapping.castStateName(state) ?: return
+        if (name == cachedState) return
+        cachedState = name
+        sendEvent("onCastStateChanged", mapOf("state" to name))
+    }
+
+    private fun updateSession(session: CastSession?) {
+        cachedSession = CastRecords.session(session)
+    }
+
+    private fun emitSession(event: String, session: CastSession, error: String?) {
+        sendEvent("onSessionEvent", mapOf("event" to event, "sessionId" to session.sessionId, "error" to error))
+    }
+
+    private fun attachMedia(session: CastSession) {
+        val client = session.remoteMediaClient ?: return
+        if (client === mediaClient) return
+        detachMedia()
+        client.registerCallback(mediaCallback)
+        mediaClient = client
+    }
+
+    private fun detachMedia() {
+        mediaClient?.unregisterCallback(mediaCallback)
+        mediaClient = null
+    }
+
+    private fun startDiscovery(cast: CastContext) {
+        if (routerCallback != null) return
+        val selector = cast.mergedSelector ?: return
+        val router = MediaRouter.getInstance(context.applicationContext)
+        val callback = object : MediaRouter.Callback() {
+            override fun onRouteAdded(router: MediaRouter, route: MediaRouter.RouteInfo) = updateDevices(router, cast)
+            override fun onRouteRemoved(router: MediaRouter, route: MediaRouter.RouteInfo) = updateDevices(router, cast)
+            override fun onRouteChanged(router: MediaRouter, route: MediaRouter.RouteInfo) = updateDevices(router, cast)
+        }
+        // Active scan finds the receivers a passive one misses; the library needed a mounted button for this.
+        router.addCallback(
+            selector,
+            callback,
+            MediaRouter.CALLBACK_FLAG_REQUEST_DISCOVERY or MediaRouter.CALLBACK_FLAG_PERFORM_ACTIVE_SCAN,
+        )
+        routerCallback = callback
+        updateDevices(router, cast)
+    }
+
+    private fun stopDiscovery() {
+        val callback = routerCallback ?: return
+        MediaRouter.getInstance(context.applicationContext).removeCallback(callback)
+        routerCallback = null
+    }
+
+    private fun updateDevices(router: MediaRouter, cast: CastContext) {
+        val selector = cast.mergedSelector ?: return
+        val devices = router.routes
+            .filter { route -> !route.isDefault && route.matchesSelector(selector) }
+            .mapNotNull { route -> CastDevice.getFromBundle(route.extras) }
+            .mapNotNull { device -> CastRecords.device(device) }
+        if (devices == cachedDevices) return
+        cachedDevices = devices
+        sendEvent("onDevicesChanged", mapOf("devices" to devices))
+    }
+}
