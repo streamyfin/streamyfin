@@ -73,7 +73,17 @@ final class SystemBrightnessController: ObservableObject {
 	// moment none is connected yet.
 	@Published var brightness: Double = SystemBrightnessController.screenBrightness ?? 0.5
 
-	var isUserInteracting = false
+	/// Set when a drag starts, which reads the screen first: the scene can move
+	/// to another screen (iOS 27 resizes apps and moves them between displays)
+	/// with neither screen's brightness changing, so no notification says so.
+	var isUserInteracting = false {
+		didSet {
+			guard isUserInteracting, !oldValue,
+				let brightness = SystemBrightnessController.screenBrightness
+			else { return }
+			self.brightness = brightness
+		}
+	}
 
 	private var observer: NSObjectProtocol?
 
