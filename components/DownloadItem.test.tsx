@@ -200,6 +200,25 @@ describe("DownloadSingleItem", () => {
     );
     expect(mockStartBackgroundDownload).toHaveBeenCalledTimes(1);
   });
+
+  // The sheet asked for the bitrates lowest first, to be read bottom up in an
+  // iOS menu that reversed them. Menus keep their order now, so Max came last.
+  test("lists the bitrates from Max down", async () => {
+    await render(<DownloadSingleItem item={MOVIE} />);
+
+    const bitrates = screen
+      .getAllByText(/^(Max|\d+ [MK]b\/s)$/)
+      .map((option) => option.props.children);
+    expect(bitrates).toEqual([
+      "Max",
+      "8 Mb/s",
+      "4 Mb/s",
+      "2 Mb/s",
+      "1 Mb/s",
+      "500 Kb/s",
+      "250 Kb/s",
+    ]);
+  });
 });
 
 describe("DownloadItems, sending one episode of a season", () => {
