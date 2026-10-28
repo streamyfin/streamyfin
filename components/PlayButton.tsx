@@ -21,7 +21,6 @@ import { useHaptic } from "@/hooks/useHaptic";
 import type { ThemeColors } from "@/hooks/useImageColorsReturn";
 import { usePlayMedia } from "@/hooks/usePlayMedia";
 import {
-  CastButton,
   PlayServicesState,
   playServicesState,
   showExpandedControls,
@@ -520,9 +519,8 @@ export const PlayButton: React.FC<Props> = ({
             <Ionicons name='play-circle' size={24} />
           </Animated.Text>
           {client && (
-            <Animated.Text style={animatedTextStyle}>
+            <Animated.Text testID='play-button-cast' style={animatedTextStyle}>
               <Feather name='cast' size={22} />
-              <CastButton tintColor='transparent' />
             </Animated.Text>
           )}
           {/* In a group this button plays for everyone in it. Downloads

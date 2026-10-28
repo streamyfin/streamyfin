@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import {
   showCastDialog,
   showExpandedControls,
@@ -16,6 +17,7 @@ type Props = Omit<HeaderButtonProps, "onPress" | "children">;
  * this component must not carry margins of its own.
  */
 export function Chromecast(props: Props) {
+  const { t } = useTranslation();
   const mediaStatus = useCastMediaStatus();
 
   useEffect(() => {
@@ -29,6 +31,8 @@ export function Chromecast(props: Props) {
 
   return (
     <HeaderButton
+      accessibilityRole='button'
+      accessibilityLabel={t("accessibility.cast_button")}
       onPress={() => {
         if (mediaStatus?.currentItemId) showExpandedControls();
         else showCastDialog();

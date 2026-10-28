@@ -83,6 +83,7 @@ Native modules:
 - `track-player-queue-is-not-the-app-queue` | the native music queue only holds the tracks loaded so far, so a state queue index does not address it; on iOS `add` past the end rejects with the same message as `skip`
 - `android-js-timers-pause-in-background` | Delayed timers don't fire while the Android app is paused (incl. under the Cast expanded controls); zero-delay ones and fetch still do
 - `cast-discovery-needs-no-mounted-button` | Android Cast discovery is a MediaRouter callback with CALLBACK_FLAG_REQUEST_DISCOVERY in the module; no hidden MediaRouteButton, which the library needed
+- `sdk-expanded-controller-cast-button-is-ours` | the SDK's ExpandedControllerActivity has an empty toolbar; the Cast button (the only "Stop casting" there) is a menu the subclass inflates and wires with CastButtonFactory
 
 TV platform:
 - `tv-modals-must-use-navigation-pattern` | Use atom+router.push(), never overlay/absolute modals

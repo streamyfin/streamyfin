@@ -29,3 +29,17 @@ the JS bundle (the release APK on Android); see `e2e/README.md`. On a fresh emul
 build only assembles it: `bun run build:android:local`, then
 `adb install -r android/app/build/outputs/apk/release/app-release.apk`, then
 `bun run e2e:smoke` (or `make e2e`, which checks that a device is running first).
+
+`flows/cast-item-on-receiver.yml` goes further than the smoke flow: from a signed-in app on
+the phone emulator it finds an item by name, connects to a receiver through the header Cast
+button, plays the item on it, then stops casting from the SDK's expanded controls. It needs
+the emulator (so the Mac) on the receiver's network, and two variables:
+
+```sh
+python3 e2e/bench/maestro.py --flow e2e/suites/cast/flows/cast-item-on-receiver.yml --device emulator-5554 \
+  --env "ITEM_NAME=H.264 Baseline 480p" --env "CAST_NAME=Living room"
+```
+
+Its taps by position are laid out for the bench's 1080x2400 phone emulator. What the server
+recorded for the receiver during the flow is read with `e2e/bench/sessions.py`, as for the
+matrix.
