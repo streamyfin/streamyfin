@@ -25,7 +25,9 @@
       "label": "Jellyfin 10.11, private network only",
       "accounts": {
         "test": { "username": "test", "password": "replace-me" },
-        "standard": { "username": "standard", "password": "replace-me" }
+        "standard": { "username": "standard", "password": "replace-me" },
+        "syncplay-host": { "username": "test", "password": "replace-me" },
+        "syncplay-guest": { "username": "standard", "password": "replace-me" }
       }
     }
   },
