@@ -12,11 +12,15 @@ import {
 } from "react-native";
 import { Text } from "@/components/common/Text";
 import { TVUserCard } from "@/components/tv/TVUserCard";
+import { TVSheetTiming } from "@/constants/TVSheet";
 import useRouter from "@/hooks/useAppRouter";
 import { tvUserSwitchModalAtom } from "@/utils/atoms/tvUserSwitchModal";
 import type { SavedServerAccount } from "@/utils/secureCredentials";
 import { store } from "@/utils/store";
+import { createSubmission } from "@/utils/submission";
 
+// Spec: hooks/useTVUserSwitchModal.test.tsx. It cannot sit next to this file,
+// Expo Router turns everything under app/ into a route.
 export default function TVUserSwitchModalPage() {
   const { t } = useTranslation();
   const router = useRouter();
@@ -27,48 +31,58 @@ export default function TVUserSwitchModalPage() {
 
   const overlayOpacity = useRef(new Animated.Value(0)).current;
   const sheetTranslateY = useRef(new Animated.Value(200)).current;
+  // Android TV can deliver one remote select twice in the same JS batch
+  // (react-native-tvos#110/#138, see useAppRouter): the sheet closes once, or
+  // the second router.back() pops the screen under it as well.
+  const submission = useRef(createSubmission()).current;
 
   // Animate in on mount and cleanup atom on unmount
   useEffect(() => {
+    submission.show();
     overlayOpacity.setValue(0);
     sheetTranslateY.setValue(200);
 
     Animated.parallel([
       Animated.timing(overlayOpacity, {
         toValue: 1,
-        duration: 250,
+        duration: TVSheetTiming.fadeInMs,
         easing: Easing.out(Easing.quad),
         useNativeDriver: true,
       }),
       Animated.timing(sheetTranslateY, {
         toValue: 0,
-        duration: 300,
+        duration: TVSheetTiming.slideInMs,
         easing: Easing.out(Easing.cubic),
         useNativeDriver: true,
       }),
     ]).start();
 
     // Delay focus setup to allow layout
-    const timer = setTimeout(() => setIsReady(true), 100);
+    const timer = setTimeout(
+      () => setIsReady(true),
+      TVSheetTiming.contentDelayMs,
+    );
     return () => {
       clearTimeout(timer);
+      submission.dismiss();
       // Clear the atom on unmount to prevent stale callbacks from being retained
       store.set(tvUserSwitchModalAtom, null);
     };
-  }, [overlayOpacity, sheetTranslateY]);
+  }, [overlayOpacity, sheetTranslateY, submission]);
 
   // Request focus on the first card when ready
   useEffect(() => {
     if (isReady && firstCardRef.current) {
       const timer = setTimeout(() => {
         (firstCardRef.current as any)?.requestTVFocus?.();
-      }, 50);
+      }, TVSheetTiming.focusDelayMs);
       return () => clearTimeout(timer);
     }
   }, [isReady]);
 
   const handleSelect = (account: SavedServerAccount) => {
-    modalState?.onAccountSelect(account);
+    if (!modalState || !submission.dismiss()) return;
+    modalState.onAccountSelect(account);
     store.set(tvUserSwitchModalAtom, null);
     router.back();
   };
