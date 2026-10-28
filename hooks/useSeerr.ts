@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import axios, { type AxiosError, type AxiosInstance } from "axios";
 import { atom, useAtomValue } from "jotai";
 import { useAtom } from "jotai/index";
-import { inRange } from "lodash";
+import inRange from "lodash/inRange";
 import { Image } from "react-native";
 import {
   SEERR_COOKIES_STORAGE_KEY,
