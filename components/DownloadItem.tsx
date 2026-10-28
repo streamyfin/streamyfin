@@ -454,7 +454,6 @@ export const DownloadItems: React.FC<DownloadProps> = ({
             <View className='flex flex-col space-y-2 w-full'>
               <View className='items-start'>
                 <BitrateSelector
-                  inverted
                   onChange={(val) =>
                     setSelectedOptions(
                       (prev) => prev && { ...prev, bitrate: val },
