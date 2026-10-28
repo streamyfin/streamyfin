@@ -18,6 +18,10 @@ class RedactTests(unittest.TestCase):
             self.assertNotIn(secret, result)
         self.assertIn("[masqué]", result)
 
+    def test_masks_the_longer_host_whatever_the_configured_order(self):
+        result = redact_text("beta.example.test and example.test", ["example.test", "beta.example.test"])
+        self.assertEqual(result, "[masqué] and [masqué]")
+
     def test_leaves_ordinary_text_alone(self):
         self.assertEqual(redact_text("playMethod DirectPlay at 12.5 s", []), "playMethod DirectPlay at 12.5 s")
 

@@ -13,7 +13,9 @@ Two ways to run it:
   `E2E_BENCH_SERVER` (`beta1011` by default) and its `syncplay-host` / `syncplay-guest`
   accounts, and resolves the media by lab code (`E2E_SYNCPLAY_ITEMS`, default
   `V01,V03,V06`). Each run uses its own device sessions, a temporary group and a restricted
-  account it deletes afterwards, so it leaves nothing behind.
+  account it deletes afterwards, so it leaves nothing behind. `syncplay-host` must be an
+  administrator: creating and deleting that restricted account needs it, and the harness
+  checks the permission before any step runs.
 - **Throwaway server (CI and destructive rounds).** `python3 e2e/suites/syncplay/setup.py`
   starts the official `jellyfin/jellyfin:10.11.11` image on the host loopback only, finishes
   onboarding, creates two SyncPlay enabled users and scans three generated two minute clips.

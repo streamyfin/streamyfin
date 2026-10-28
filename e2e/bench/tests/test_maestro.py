@@ -1,7 +1,7 @@
 import unittest
 from pathlib import Path
 
-from bench.maestro import build_command, maestro_path, resolve_java_home
+from bench.maestro import build_command, describe_command, maestro_path, resolve_java_home, run_flow
 
 
 class BuildCommandTests(unittest.TestCase):
@@ -25,6 +25,23 @@ class BuildCommandTests(unittest.TestCase):
             self.assertEqual(maestro_path(), Path.home() / ".maestro" / "bin" / "maestro")
         with mock.patch("bench.maestro.shutil.which", return_value="/usr/local/bin/maestro"):
             self.assertEqual(maestro_path(), Path("/usr/local/bin/maestro"))
+
+
+class RunTests(unittest.TestCase):
+    # A flow can take its credentials through -e; the echoed command must not spell them out.
+    def test_describe_command_masks_every_environment_value(self):
+        command = ["/opt/maestro", "test", "-e", "PASSWORD=hunter2", "-e", "SERVER_URL=http://x", "flow.yml"]
+        self.assertEqual(describe_command(command), "/opt/maestro test -e PASSWORD=[masqué] -e SERVER_URL=[masqué] flow.yml")
+
+    def test_run_flow_returns_124_when_maestro_stalls(self):
+        import os
+
+        self.assertEqual(run_flow(["sleep", "5"], dict(os.environ), timeout=0.2), 124)
+
+    def test_run_flow_returns_the_process_code(self):
+        import os
+
+        self.assertEqual(run_flow(["true"], dict(os.environ), timeout=5), 0)
 
 
 class JavaHomeTests(unittest.TestCase):

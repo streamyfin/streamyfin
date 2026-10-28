@@ -68,8 +68,20 @@ class EvaluateTests(unittest.TestCase):
         self.assertTrue(any("never" in error for error in row.errors))
         self.assertIsNone(row.startup_seconds)
 
-    def test_evaluate_skipped_when_item_missing(self):
+    def test_evaluate_ko_on_timeout_keeps_the_receiver_error(self):
+        bus = [BusMessage(type="playbackerror", message="Could not start")]
+        row = evaluate(case(), "chromecast-gen3", [], None, bus)
+        self.assertEqual(row.verdict, "ko")
+        self.assertIn("playbackerror: Could not start", row.errors)
+        self.assertIn("playback never started", row.errors)
+
+    def test_evaluate_ko_on_timeout_without_bus_or_session(self):
         row = evaluate(case(), "chromecast-gen3", [], None, [])
+        self.assertEqual(row.verdict, "ko")
+        self.assertEqual(row.errors, ["playback never started"])
+
+    def test_evaluate_skipped_when_item_missing(self):
+        row = evaluate(case(), "chromecast-gen3", [], None, [], missing_item=True)
         self.assertEqual(row.verdict, "skipped")
 
     def test_evaluate_without_expectation_for_the_target_is_informational(self):
@@ -138,6 +150,31 @@ class RunTests(unittest.TestCase):
         self.assertIn("| V01 | DirectPlay | DirectPlay | DirectPlay | ContainerNotSupported | 1.2 | 18.0 |  | ok |", table)
         self.assertTrue(table.startswith("| cas | attendu |"))
 
+
+class RunRobustnessTests(unittest.TestCase):
+    def test_run_stops_the_receiver_even_when_observation_fails(self):
+        class Driver:
+            stopped = 0
+
+            def resolve(self, case):
+                return {"Id": "1"}
+
+            def play(self, item, case):
+                return []
+
+            def server_view(self, item):
+                raise OSError("server away")
+
+            def bus_since_play(self):
+                return []
+
+            def stop(self):
+                self.stopped += 1
+
+        driver = Driver()
+        with self.assertRaises(OSError):
+            run([case(id="V01")], "chromecast-gen3", driver)
+        self.assertEqual(driver.stopped, 1)
 
 if __name__ == "__main__":
     unittest.main()

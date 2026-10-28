@@ -131,7 +131,7 @@ neighbours, and it will fail in CI on someone else's PR rather than on yours.
 
 Unit tests prove the code in isolation; the end-to-end bench under `e2e/` proves the
 system against the real test server and real playback targets. Three tiers: unit tests of
-the bench itself and the shared receiver protocol vectors (always in CI), Maestro flows on
-emulators and simulators (in CI on pull requests that touch cast code), and real devices
-driven from a developer machine. `e2e/README.md` has the commands, the private
+the bench itself and the shared receiver protocol vectors (`bun run test:unit` and
+`bun run e2e:bench:test`), Maestro flows on emulators and simulators (`bun run e2e:smoke`),
+and real devices driven from a developer machine. `e2e/README.md` has the commands, the private
 configuration rules and where the evidence goes.

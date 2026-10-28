@@ -28,6 +28,7 @@ import type {
   SyncPlaySnapshot,
 } from "../../../utils/syncplay/types";
 import {
+  assertCanManageUsers,
   resolveCredentials,
   type SyncPlayAccount,
   type SyncPlayItem,
@@ -280,6 +281,10 @@ try {
   const host = await client(credentials.host, "host");
   const guest = await client(credentials.guest, "guest");
   if (credentials.source === "bench") {
+    assertCanManageUsers(
+      (await getUserApi(host.api).getCurrentUser()).data,
+      "syncplay-host",
+    );
     serverVersion =
       (await getSystemApi(host.api).getPublicSystemInfo()).data.Version ??
       serverVersion;

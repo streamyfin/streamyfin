@@ -319,13 +319,16 @@ def main(argv: list[str] | None = None) -> int:
         journal.note("final", state=final.player_state, time=round(final.current_time, 1), custom_data=final.custom_data, bus=summarize_bus(controller.bus))
         cast.disconnect(timeout=5)
     finally:
-        client.logout(session)
-        for step in journal.steps:
-            report.add(step["step"], **{k: v for k, v in step.items() if k != "step"})
-        paths = report.save()
-        if args.keep:
-            report.keep(args.keep, config.keep_dir)
-        print(f"report: {paths.markdown}")
+        # The evidence is written whatever the logout does: a failed sign-out must not cost the run its journal.
+        try:
+            client.logout(session)
+        finally:
+            for step in journal.steps:
+                report.add(step["step"], **{k: v for k, v in step.items() if k != "step"})
+            paths = report.save()
+            if args.keep:
+                report.keep(args.keep, config.keep_dir)
+            print(f"report: {paths.markdown}")
     return exit_code
 
 

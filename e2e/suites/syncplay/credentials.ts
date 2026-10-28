@@ -117,6 +117,21 @@ const fromLocal = async (
   };
 };
 
+/**
+ * The harness creates a restricted account with the host and deletes it at the end,
+ * which Jellyfin only allows an administrator to do; a plain account fails late, on
+ * `POST /Users/New`, after the group steps already ran.
+ */
+export const assertCanManageUsers = (
+  user: { Policy?: { IsAdministrator?: boolean | null } | null },
+  profile: string,
+): void => {
+  if (user.Policy?.IsAdministrator) return;
+  throw new Error(
+    `the "${profile}" account must be an administrator: the harness creates and deletes a restricted account with it`,
+  );
+};
+
 export const resolveCredentials = (
   env: Env,
   readFile: ReadFile,
