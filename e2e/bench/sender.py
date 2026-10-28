@@ -151,6 +151,18 @@ class BusCollector:
         return parsed
 
 
+ACTIVE_STATES = frozenset({"PLAYING", "BUFFERING", "PAUSED"})
+
+
+def should_sign_out(action: str, final_state: str | None) -> bool:
+    """The receiver keeps the sender's token for its own requests; a sign-out while it still
+    plays would break its progress reports and its transcoded stream. Only a stop, or a receiver
+    that is not playing, lets the run revoke the token."""
+    if action == "stop":
+        return True
+    return final_state not in ACTIVE_STATES
+
+
 def summarize_bus(bus: list[BusMessage]) -> dict:
     """Counts per message type, the last progress report, and every error: what a proof needs."""
     counts: dict[str, int] = {}
@@ -269,6 +281,7 @@ def main(argv: list[str] | None = None) -> int:
     report = Report(f"sender-{args.action}", redact=config.redact + [session.token])
     receiver_name = receiver_name_for({"friendlyName": target.name, "deviceId": None})
     exit_code = 0
+    final_state: str | None = None
     try:
         cast = connect(target)
         journal.note("connected", target=target.name, app=cast.app_display_name)
@@ -316,12 +329,16 @@ def main(argv: list[str] | None = None) -> int:
             send({"identify": "Identify", "pause": "Pause", "unpause": "Unpause", "stop": "Stop"}[args.action])
         time.sleep(2)
         final = refresh_status(cast)
+        final_state = final.player_state
         journal.note("final", state=final.player_state, time=round(final.current_time, 1), custom_data=final.custom_data, bus=summarize_bus(controller.bus))
         cast.disconnect(timeout=5)
     finally:
-        # The evidence is written whatever the logout does: a failed sign-out must not cost the run its journal.
+        # The evidence is written whatever the sign-out does: a failed one must not cost the run its journal.
         try:
-            client.logout(session)
+            if should_sign_out(args.action, final_state):
+                client.logout(session)
+            else:
+                journal.note("token kept", reason=f"receiver still {final_state}; run the stop action to revoke it")
         finally:
             for step in journal.steps:
                 report.add(step["step"], **{k: v for k, v in step.items() if k != "step"})

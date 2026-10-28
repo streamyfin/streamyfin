@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from bench.sender import (
+    should_sign_out,
     BusCollector,
     BusMessage,
     SenderTimeout,
@@ -90,6 +91,17 @@ class FakeCast:
 
 
 class WatchTests(unittest.TestCase):
+    # The receiver keeps the token of the last message for its own requests (progress,
+    # transcoded segments); a sign-out while it still plays would cut them off.
+    def test_sign_out_waits_for_the_receiver_to_stop(self):
+        self.assertFalse(should_sign_out("play-now", "PLAYING"))
+        self.assertFalse(should_sign_out("pause", "PAUSED"))
+        self.assertFalse(should_sign_out("seek", "BUFFERING"))
+        self.assertTrue(should_sign_out("stop", "IDLE"))
+        self.assertTrue(should_sign_out("play-now", "IDLE"))
+        self.assertTrue(should_sign_out("status", None))
+        self.assertTrue(should_sign_out("stop", "PLAYING"))
+
     def test_watch_raises_named_timeout_when_never_playing(self):
         cast = FakeCast([("IDLE", 0.0, {})])
         with self.assertRaises(SenderTimeout) as caught:
