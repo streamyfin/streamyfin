@@ -14,9 +14,17 @@ let mockSyncPlaylist: { ItemId: string; PlaylistItemId: string }[] = [];
 let mockExternalPlayerSupported = true;
 let mockExternalPlayerMode = "off";
 const mockPlayExternally = jest.fn();
+const mockGetUserItemData = jest.fn();
 
 jest.mock("@/hooks/useExternalPlayer", () => ({
   useExternalPlayer: () => mockPlayExternally,
+}));
+jest.mock("@/utils/atoms/api", () => {
+  const { atom } = jest.requireActual("jotai");
+  return { apiAtom: atom({}), userAtom: atom({ Id: "user-1" }) };
+});
+jest.mock("@/utils/jellyfin/user-library/getUserItemData", () => ({
+  getUserItemData: (...args: unknown[]) => mockGetUserItemData(...args),
 }));
 
 jest.mock("@/providers/SyncPlayProvider", () => ({
@@ -85,6 +93,7 @@ describe("usePlayMedia", () => {
     mockExternalPlayerSupported = true;
     mockExternalPlayerMode = "off";
     mockPlayExternally.mockReset().mockResolvedValue(true);
+    mockGetUserItemData.mockReset();
     alert = jest.spyOn(Alert, "alert").mockImplementation(() => {});
   });
 
@@ -224,6 +233,83 @@ describe("usePlayMedia", () => {
       );
       expect(mockPresentFromRequest).not.toHaveBeenCalled();
       expect(mockPush).not.toHaveBeenCalled();
+      expect(mockGetUserItemData).not.toHaveBeenCalled();
+    });
+
+    describe("a request with only an id", () => {
+      // A top shelf or Android TV home screen tile whose item lookup timed out.
+      const playId = async () => {
+        const { result } = await renderHook(() => usePlayMedia());
+        await act(async () => {
+          await result.current(
+            { itemId: "movie-1", offline: false },
+            { item: null },
+          );
+        });
+      };
+
+      // The other app got no title and started a half watched movie at 0.
+      test("fetches the item, so the other app gets its title and position", async () => {
+        mockExternalPlayerMode = "external";
+        const fetched: BaseItemDto = {
+          Id: "movie-1",
+          Type: "Movie",
+          Name: "Movie",
+          UserData: { PlaybackPositionTicks: 600_000_000 },
+        };
+        mockGetUserItemData.mockResolvedValue(fetched);
+
+        await playId();
+
+        expect(mockGetUserItemData).toHaveBeenCalledWith(
+          expect.objectContaining({ itemId: "movie-1", userId: "user-1" }),
+        );
+        expect(mockPlayExternally).toHaveBeenCalledWith(
+          { itemId: "movie-1", offline: false },
+          fetched,
+          expect.anything(),
+        );
+        expect(mockPush).not.toHaveBeenCalled();
+      });
+
+      // Live TV goes to the JS route, which owns the live stream's lifecycle.
+      test("plays Live TV on the JS route once the fetch shows it", async () => {
+        mockExternalPlayerMode = "external";
+        mockNativeChromeActive = true;
+        mockGetUserItemData.mockResolvedValue({
+          Id: "movie-1",
+          Type: "TvChannel",
+        });
+
+        await playId();
+
+        expect(mockPlayExternally).not.toHaveBeenCalled();
+        expect(mockPresentFromRequest).not.toHaveBeenCalled();
+        expect(mockPush).toHaveBeenCalled();
+      });
+
+      test("says so, and plays nowhere, when the fetch fails", async () => {
+        mockExternalPlayerMode = "external";
+        mockNativeChromeActive = true;
+        mockGetUserItemData.mockRejectedValue(new Error("timeout"));
+
+        await playId();
+
+        expect(alert).toHaveBeenCalledWith(
+          "player.error",
+          "player.an_error_occurred_while_playing_the_video",
+        );
+        expect(mockPlayExternally).not.toHaveBeenCalled();
+        expect(mockPresentFromRequest).not.toHaveBeenCalled();
+        expect(mockPush).not.toHaveBeenCalled();
+      });
+
+      test("fetches nothing when it plays in the app anyway", async () => {
+        await playId();
+
+        expect(mockGetUserItemData).not.toHaveBeenCalled();
+        expect(mockPush).toHaveBeenCalled();
+      });
     });
 
     // Asking is the play button's sheet; a play without a pick stays in the app.
