@@ -5,7 +5,6 @@ import {
   Animated,
   Easing,
   FlatList,
-  InteractionManager,
   ScrollView,
   StyleSheet,
   TVFocusGuideView,
@@ -18,6 +17,7 @@ import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import { useTVBackPress } from "@/hooks/useTVBackPress";
 import { tvOptionModalAtom } from "@/utils/atoms/tvOptionModal";
+import { deferToMicrotask } from "@/utils/deferToMicrotask";
 import { scaleSize } from "@/utils/scaleSize";
 import { store } from "@/utils/store";
 import { createSubmission } from "@/utils/submission";
@@ -107,7 +107,7 @@ export default function TVOptionModal() {
       const { onSelect } = modalState;
       store.set(tvOptionModalAtom, null);
       router.back();
-      InteractionManager.runAfterInteractions(() => onSelect(value));
+      deferToMicrotask(() => onSelect(value));
       return;
     }
     // State-only callers (detail page, library filters, settings): run before
