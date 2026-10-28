@@ -112,12 +112,24 @@ jobs:
         run: bun run build:android:local
 
       - name: 🧰 Install Maestro
+        env:
+          # The version proven on the bench; bump it on purpose, with a real run.
+          MAESTRO_VERSION: "2.8.0"
         run: |
           curl -fsSL https://get.maestro.mobile.dev | bash
           echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
 
+      - name: 🧰 Enable KVM for the emulator
+        # Linux runners expose /dev/kvm to root only; without this the emulator runs unaccelerated and misses its boot timeout.
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
       - name: 📱 Run the smoke flow on the emulator
         id: maestro-run
+        # The failure is kept for the retry step below, which fails the job for real.
+        continue-on-error: true
         uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
         with:
           api-level: 34

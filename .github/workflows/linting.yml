@@ -85,6 +85,7 @@ jobs:
           - "typecheck"
           - "i18n:check"
           - "test:unit"
+          - "e2e:bench:test"
 
     steps:
       - name: "📥 Checkout PR code"
