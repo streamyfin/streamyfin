@@ -41,6 +41,8 @@ jobs:
               - 'components/Chromecast.tsx'
               - 'components/cast/**'
               - 'hooks/useMusicCast.ts'
+              - 'app.config.ts'
+              - 'plugins/withCast*.ts'
               - 'e2e/**'
               - '.github/workflows/e2e-tier1-android.yml'
 
