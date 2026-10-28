@@ -169,9 +169,9 @@ export const StreamystatsRecommendations: React.FC<Props> = ({
           <TVPosterCard
             item={item}
             orientation='vertical'
-            onPress={() => handleItemPress(item)}
-            onLongPress={() => showItemActions(item)}
-            onFocus={() => onItemFocus?.(item)}
+            onPress={handleItemPress}
+            onLongPress={showItemActions}
+            onFocus={onItemFocus}
             width={sizes.posters.poster}
           />
         </View>

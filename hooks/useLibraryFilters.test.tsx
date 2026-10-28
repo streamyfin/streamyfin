@@ -6,6 +6,7 @@ import {
   filterByAtom,
   filterOwnerAtom,
   genreFilterAtom,
+  officialRatingFilterAtom,
   SortByOption,
   SortOrderOption,
   sortByAtom,
@@ -44,11 +45,13 @@ const claim = (
   screenId: string,
   selection: {
     years?: string[];
+    officialRatings?: string[];
     audioLanguages?: string[];
     sortBy?: SortByOption;
   } = {},
 ) => {
   store.set(genreFilterAtom, []);
+  store.set(officialRatingFilterAtom, selection.officialRatings ?? []);
   store.set(yearFilterAtom, selection.years ?? []);
   store.set(tagsFilterAtom, []);
   store.set(audioLanguageFilterAtom, selection.audioLanguages ?? []);
@@ -89,6 +92,7 @@ describe("the filters a library screen queries with", () => {
 
     expect(result.current).toEqual({
       genres: [],
+      officialRatings: [],
       years: [],
       tags: [],
       audioLanguages: [],
@@ -121,6 +125,18 @@ describe("the filters a library screen queries with", () => {
 
     expect(result.current).toBe(own);
     expect(result.current?.years).toEqual(["2019"]);
+  });
+
+  // Ratings live in a shared atom like the rest: a library that followed it
+  // would query again with the ratings another one picked.
+  test("keeps its own official ratings when another screen picks one", async () => {
+    const store = createStore();
+    const { result } = await renderFilters(store, MOVIES);
+    await act(async () => claim(store, MOVIES, { officialRatings: ["PG"] }));
+
+    await act(async () => claim(store, SHOWS, { officialRatings: ["TV-MA"] }));
+
+    expect(result.current?.officialRatings).toEqual(["PG"]);
   });
 
   // The language filters live in shared atoms like the rest: a library that

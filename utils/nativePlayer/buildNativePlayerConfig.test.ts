@@ -135,3 +135,37 @@ describe("the native player's stream headers", () => {
     ).toBeUndefined();
   });
 });
+
+describe("the native player's exit confirmation", () => {
+  const confirmExit = async (confirmBeforeStoppingPlayback: boolean) => {
+    jest.mocked(getStreamUrl).mockResolvedValue({
+      url: `${SERVER}/Videos/1/stream.mkv`,
+      sessionId: "session-1",
+      mediaSource: { Id: "source-1", MediaStreams: [] },
+    } as Awaited<ReturnType<typeof getStreamUrl>>);
+
+    const built = await buildNativePlayerConfig({
+      api,
+      userId: "user-1",
+      settings: {
+        playbackSpeedPerShow: {},
+        playbackSpeedPerMedia: {},
+        confirmBeforeStoppingPlayback,
+      } as Settings,
+      req: { itemId: "item-1", offline: false },
+      getDownloadedItemById: () => undefined,
+      strings: {} as NativePlayerStrings,
+      originalLabel: "Original",
+      item,
+    });
+    return built?.config.ui?.confirmExitEnabled;
+  };
+
+  test("is asked for while the setting is on", async () => {
+    expect(await confirmExit(true)).toBe(true);
+  });
+
+  test("is skipped once the setting is off", async () => {
+    expect(await confirmExit(false)).toBe(false);
+  });
+});

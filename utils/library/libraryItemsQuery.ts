@@ -9,6 +9,7 @@ import type {
 import type { RawAxiosRequestConfig } from "axios";
 import { PLAY_QUEUE_MAX_ITEMS } from "@/constants/Playback";
 import { languageFilterRequestOptions } from "@/utils/jellyfin/languageFilters";
+import { sortsSeriesDatePlayedQuickly } from "@/utils/jellyfin/serverVersion";
 
 type CollectionType = BaseItemDto["CollectionType"];
 
@@ -21,10 +22,13 @@ export interface LibraryItemsFilter {
   sortOrder: SortOrder;
   filterBy: ItemFilter[];
   genres: string[];
+  officialRatings: string[];
   years: string[];
   tags: string[];
   audioLanguages?: string[];
   subtitleLanguages?: string[];
+  /** The Jellyfin server's version, for the keys only some versions handle well. */
+  serverVersion?: string | null;
 }
 
 // Only one kind of item per library, when the library names one: the
@@ -41,6 +45,39 @@ export const ITEM_TYPE_BY_COLLECTION: Partial<
 };
 
 /**
+ * The kinds of item a library page lists: the one its collection type names,
+ * or every kind when it names none. The rating choices are asked for the same
+ * kinds, so they only offer ratings the grid can match.
+ */
+export const getLibraryItemTypes = (
+  collectionType: CollectionType | null | undefined,
+): BaseItemKind[] | undefined => {
+  const itemType = collectionType
+    ? ITEM_TYPE_BY_COLLECTION[collectionType]
+    : undefined;
+  return itemType ? [itemType] : undefined;
+};
+
+/**
+ * The key a selected sort goes to the server as. A show's own DatePlayed reads
+ * user data that playback never writes (it lands on the episodes), so a Shows
+ * library or view sorts by the series-level key, as jellyfin-web does, on the
+ * servers that answer it quickly: on 10.11 it can take a minute, where the
+ * plain key answers at once, in name order. The saved preference keeps the
+ * DatePlayed name.
+ */
+export const serverSortBy = (
+  sortBy: ItemSortBy,
+  collectionType: CollectionType | null | undefined,
+  serverVersion?: string | null,
+): ItemSortBy =>
+  collectionType === "tvshows" &&
+  sortBy === "DatePlayed" &&
+  sortsSeriesDatePlayedQuickly(serverVersion)
+    ? "SeriesDatePlayed"
+    : sortBy;
+
+/**
  * The part of the items request that decides which items a library page
  * lists and in what order. The grid and the play queue both start from it, so
  * Play All can never queue something the filters hide.
@@ -53,25 +90,28 @@ export const buildLibraryItemsQuery = ({
   sortOrder,
   filterBy,
   genres,
+  officialRatings,
   years,
   tags,
+  serverVersion,
 }: LibraryItemsFilter): ItemsApiGetItemsRequest => {
-  const itemType = collectionType
-    ? ITEM_TYPE_BY_COLLECTION[collectionType]
-    : undefined;
-
   return {
     userId,
     parentId: libraryId,
-    sortBy: [sortBy, "SortName", "ProductionYear"],
+    sortBy: [
+      serverSortBy(sortBy, collectionType, serverVersion),
+      "SortName",
+      "ProductionYear",
+    ],
     sortOrder: [sortOrder],
     filters: filterBy,
     // true is needed for merged versions
     recursive: true,
     genres,
+    officialRatings,
     tags,
     years: years.map((year) => Number.parseInt(year, 10)),
-    includeItemTypes: itemType ? [itemType] : undefined,
+    includeItemTypes: getLibraryItemTypes(collectionType),
   };
 };
 

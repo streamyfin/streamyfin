@@ -49,7 +49,7 @@ export enum SortOrderOption {
   Descending = "Descending",
 }
 
-type SortOption = {
+export type SortOption = {
   key: SortByOption;
   value: string;
 };
@@ -77,28 +77,40 @@ export const sortOptions: SortOption[] = [
 
 // The server keeps DateLastContentAdded on containers only, and what it means
 // depends on the container. For a playlist it is the last time an item went in,
-// which is the one reading the label covers, so the option is offered in
-// playlist libraries and nowhere else.
-const playlistSortOptions: SortOption[] = sortOptions.flatMap((option) =>
-  option.key === SortByOption.DateCreated
-    ? [
-        option,
-        {
-          key: SortByOption.DateLastContentAdded,
-          value: "Date Playlist Updated",
-        },
-      ]
-    : [option],
+// for a series the date of its newest episode. Each reading needs its own
+// label, so the option is offered only in those libraries, worded for each.
+const withDateLastContentAdded = (
+  label: string,
+  dateCreatedLabel?: string,
+): SortOption[] =>
+  sortOptions.flatMap((option) =>
+    option.key === SortByOption.DateCreated
+      ? [
+          dateCreatedLabel ? { ...option, value: dateCreatedLabel } : option,
+          { key: SortByOption.DateLastContentAdded, value: label },
+        ]
+      : [option],
+  );
+
+const playlistSortOptions = withDateLastContentAdded("Date Playlist Updated");
+// Right above the episode date, the series' own date says whose it is, as in
+// jellyfin-web.
+const tvShowSortOptions = withDateLastContentAdded(
+  "Date Episode Added",
+  "Date Show Added",
 );
 
 /**
- * The sort options a library of this type offers. Both lists are built once,
+ * The sort options a library of this type offers. Every list is built once,
  * so the result is safe to use as a hook dependency.
  */
 export const sortOptionsFor = (
   collectionType: CollectionType | null | undefined,
-): SortOption[] =>
-  collectionType === "playlists" ? playlistSortOptions : sortOptions;
+): SortOption[] => {
+  if (collectionType === "playlists") return playlistSortOptions;
+  if (collectionType === "tvshows") return tvShowSortOptions;
+  return sortOptions;
+};
 
 export const useFilterOptions = () => {
   const { settings } = useSettings();
@@ -143,6 +155,8 @@ export const sortOrderOptions: {
 ];
 
 export const genreFilterAtom = atom<string[]>([]);
+// Ratings as the server spells them ("PG-13", "TV-MA"), not a normalized scale.
+export const officialRatingFilterAtom = atom<string[]>([]);
 export const tagsFilterAtom = atom<string[]>([]);
 export const yearFilterAtom = atom<string[]>([]);
 // Language tags as Filters2 reports them, not display names (Jellyfin 12+).
@@ -154,7 +168,7 @@ export const sortOrderAtom = atom<SortOrderOption[]>([
 ]);
 export const filterByAtom = atom<FilterByOption[]>([]);
 
-// The six atoms above are shared by every library and collection screen, and
+// The filter atoms above are shared by every library and collection screen, and
 // the stack keeps several of those mounted at once. This names the screen
 // whose selection they hold right now: a screen writes its id here together
 // with its filters, and reads them back through useLibraryFilters, which hands
@@ -173,7 +187,7 @@ export interface FilterPreference {
   [libraryId: string]: FilterByOption;
 }
 
-// Genres, years, tags and the two language filters are multi-select, so each
+// Genres, official ratings, years, tags and the two language filters are multi-select, so each
 // library remembers a list.
 export interface MultiFilterPreference {
   [libraryId: string]: string[];
@@ -247,6 +261,13 @@ export const genrePreferenceAtom = atomWithStorage<MultiFilterPreference>(
   defaultMultiFilterPreference,
   mmkvStorage<MultiFilterPreference>(),
 );
+
+export const officialRatingPreferenceAtom =
+  atomWithStorage<MultiFilterPreference>(
+    "officialRatingPreference",
+    defaultMultiFilterPreference,
+    mmkvStorage<MultiFilterPreference>(),
+  );
 
 export const yearPreferenceAtom = atomWithStorage<MultiFilterPreference>(
   "yearPreference",
