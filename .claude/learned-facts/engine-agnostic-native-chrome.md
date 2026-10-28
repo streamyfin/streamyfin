@@ -22,3 +22,16 @@ that picks the Jellyfin device profile. Consequences:
 - mpv-only engine calls (volume boost, dialogue boost, mono downmix,
   audio/subtitle delay, alignX, assOverride) are interface no-ops on Exo; the
   chrome hides those rows via PlayerViewModel.isMpvEngine.
+- `PlayerEngine` is the union of three faces (2026-10-28): `TransportEngine`
+  (playback, seeking, speed, tracks, state, the delegate), `RenderingEngine`
+  (surface, subtitle rendering, zoom, technical info, video size) and
+  `QueueEngine` (current item, next, previous, enqueue, the target's volume;
+  defaults for the local engines). iOS has the same three protocols in
+  `PlayerEngineProtocols.swift`, with `PlayerEngine = TransportEngine &
+  RenderingEngine & QueueEngine` and the delegate typed on the transport face.
+  A remote engine (Cast, later Play On and AirPlay) implements transport and
+  queue only, so the chrome in remote mode reaches rendering members through a
+  cast (`engine as? RenderingEngine`) and treats their absence as "none", as the
+  iOS view model already does for picture in picture.
+- A Swift file added to the module joins the Pods target only after the pods
+  are installed again; until then xcodebuild fails on the types it declares.
