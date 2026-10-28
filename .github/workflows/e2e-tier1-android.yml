@@ -75,7 +75,7 @@ jobs:
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           # renovate: datasource=npm depName=bun
-          bun-version: "1.4.2"
+          bun-version: "1.4.4"
 
       - name: ☕ Set up JDK 17
         uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
