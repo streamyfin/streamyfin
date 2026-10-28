@@ -1,3 +1,4 @@
+import type { Api } from "@jellyfin/sdk";
 import { screen } from "@testing-library/react-native";
 import { getDefaultStore } from "jotai";
 import { measureRenders } from "reassure";
@@ -32,7 +33,8 @@ jest.mock("@/utils/streamystats/api", () => ({
 
 describe("Watchlists Performance", () => {
   beforeEach(() => {
-    Object.assign(getDefaultStore().get(apiAtom) as object, {
+    // SDK 1.0 Api fields are read only: they change through update().
+    (getDefaultStore().get(apiAtom) as Api).update({
       accessToken: "test-token",
     });
   });
