@@ -4,7 +4,7 @@ from pathlib import Path
 from unittest import mock
 
 from bench.config import CastTarget
-from bench.devices import Device, adb_path, chromecasts, parse_adb_devices, parse_avds, parse_simctl
+from bench.devices import Device, adb_path, chromecasts, parse_adb_devices, parse_avds, parse_devicectl, parse_simctl
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
 
@@ -42,6 +42,21 @@ class SimulatorTests(unittest.TestCase):
         self.assertEqual(booted[0].kind, "ios-simulator")
 
 
+class DevicectlTests(unittest.TestCase):
+    def test_parse_devicectl_keeps_physical_devices_only(self):
+        # devicectl lists simulators too (reality "simulated"); the inventory already has them from simctl.
+        payload = {
+            "result": {
+                "devices": [
+                    {"identifier": "SIM-1", "hardwareProperties": {"platform": "iOS", "reality": "simulated"}, "deviceProperties": {"name": "iPhone 17 Pro"}, "connectionProperties": {"tunnelState": "disconnected"}},
+                    {"identifier": "PHY-1", "hardwareProperties": {"platform": "iOS", "reality": "physical", "marketingName": "iPhone 15"}, "deviceProperties": {"name": "My iPhone"}, "connectionProperties": {"tunnelState": "connected"}},
+                ]
+            }
+        }
+        devices = parse_devicectl(payload)
+        self.assertEqual(devices, [Device(kind="ios-device", id="PHY-1", name="My iPhone", state="connected", platform="ios")])
+
+
 class ScriptTests(unittest.TestCase):
     def test_runs_as_a_script_from_the_repository_root(self):
         import subprocess
@@ -59,6 +74,13 @@ class ChromecastTests(unittest.TestCase):
         with mock.patch("bench.devices._connect_chromecast", side_effect=OSError("no route")):
             [device] = chromecasts([target], timeout=0.1)
         self.assertEqual(device, Device(kind="chromecast", id="192.0.2.10", name="Salon", state="unreachable", platform="cast"))
+
+    def test_chromecast_reachable_without_friendly_name_uses_the_configured_name(self):
+        # Connecting by address skips discovery, so the SDK may not know the friendly name.
+        target = CastTarget(name="Salon", host="192.0.2.10", kind="chromecast-gen3")
+        with mock.patch("bench.devices._connect_chromecast", return_value={"friendly_name": None, "app": "Backdrop"}):
+            [device] = chromecasts([target], timeout=0.1)
+        self.assertEqual(device.name, "Salon (Backdrop)")
 
     def test_chromecast_reachable_reports_the_receiver_status(self):
         target = CastTarget(name="Salon", host="192.0.2.10", kind="chromecast-gen3")

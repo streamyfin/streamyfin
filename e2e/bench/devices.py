@@ -101,10 +101,17 @@ def ios_devices() -> list[Device]:
             payload = json.loads(Path(output.name).read_text() or "{}")
         except (OSError, ValueError, subprocess.SubprocessError):
             return []
+    return parse_devicectl(payload)
+
+
+def parse_devicectl(payload: dict) -> list[Device]:
     devices = []
     for entry in payload.get("result", {}).get("devices", []):
         properties = entry.get("deviceProperties", {})
         hardware = entry.get("hardwareProperties", {})
+        # devicectl also lists simulators; simctl already covers those.
+        if hardware.get("reality") != "physical":
+            continue
         devices.append(
             Device(
                 kind="ios-device",
@@ -133,7 +140,9 @@ def chromecasts(targets: list[CastTarget], timeout: float = 5.0) -> list[Device]
     for target in targets:
         try:
             info = _connect_chromecast(target.host, timeout)
-            devices.append(Device(kind="chromecast", id=target.host, name=f"{info['friendly_name']} ({info['app']})", state="reachable", platform="cast"))
+            # Connecting by address skips discovery, so the friendly name may be unknown.
+            name = info.get("friendly_name") or target.name
+            devices.append(Device(kind="chromecast", id=target.host, name=f"{name} ({info['app']})", state="reachable", platform="cast"))
         except Exception:  # noqa: BLE001 - an unreachable target is a result, not a crash
             devices.append(Device(kind="chromecast", id=target.host, name=target.name, state="unreachable", platform="cast"))
     return devices
