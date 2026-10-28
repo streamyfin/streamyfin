@@ -52,6 +52,7 @@ struct VideoLoadConfig {
 	}
 }
 
+/// HDR mode detected from video properties
 enum HDRMode {
 	case sdr
 	case hdr10
