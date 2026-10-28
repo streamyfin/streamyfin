@@ -15,9 +15,13 @@ import {
   sortByAtom,
 } from "@/utils/atoms/filters";
 
+// The page asks the server nothing for a library id that is not a Jellyfin
+// id, so the scenario's library has a real one.
+const mockLibraryId = "f137a2dd21bbc1b99aa5c0f6bf02a805";
+
 jest.mock("expo-router", () => ({
   ...jest.requireActual("@/test-utils/expoRouter").expoRouterModule,
-  useLocalSearchParams: () => ({ libraryId: "movies-1" }),
+  useLocalSearchParams: () => ({ libraryId: mockLibraryId }),
 }));
 // Reach the player and other screens; nothing this scenario measures.
 jest.mock("@/hooks/useLibraryPlayQueue", () => ({
@@ -53,13 +57,13 @@ const api = getDefaultStore().get(apiAtom) as ReturnType<typeof makeApi>;
 const stubServer = () => {
   api.mock.reset();
   api.mock.onGet(/\/System\/Info\/Public/).reply(200, { Version: "10.9.0" });
-  api.mock.onGet(/\/Items\/movies-1/).reply(200, {
-    Id: "movies-1",
+  api.mock.onGet(new RegExp(`/Items/${mockLibraryId}`)).reply(200, {
+    Id: mockLibraryId,
     Name: "Movies",
     CollectionType: "movies",
   });
-  api.mock.onGet(/\/Users\/.*\/Items\/movies-1/).reply(200, {
-    Id: "movies-1",
+  api.mock.onGet(new RegExp(`/Users/.*/Items/${mockLibraryId}`)).reply(200, {
+    Id: mockLibraryId,
     Name: "Movies",
     CollectionType: "movies",
   });

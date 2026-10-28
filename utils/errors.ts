@@ -1,4 +1,5 @@
 import { isAxiosError, isCancel } from "axios";
+import { JELLYFIN_ID_PATTERN } from "@/constants/Jellyfin";
 
 /**
  * Marks errors that are user-facing outcomes rather than app defects — a
@@ -216,8 +217,7 @@ export const isExpectedError = (error: unknown): boolean =>
 
 // Path segments that identify a record rather than name a route: GUIDs (with
 // or without dashes), hex hashes and bare numbers.
-const ID_SEGMENT =
-  /^(?:[0-9a-f]{32}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|\d+)$/i;
+const ID_SEGMENT = new RegExp(`^(?:${JELLYFIN_ID_PATTERN}|\\d+)$`, "i");
 // Anything else that isn't a plain route word (URL-encoded names, search
 // text, filenames) is a parameter too.
 const ROUTE_WORD = /^[A-Za-z][A-Za-z0-9_-]*$/;
