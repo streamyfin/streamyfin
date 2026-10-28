@@ -174,7 +174,6 @@
       ["./plugins/withAndroidManifest.ts"],
       ["./plugins/withTrustLocalCerts.ts"],
       ["./plugins/withGradleProperties.ts"],
-      ["./plugins/withCastFrameworkVersion.ts"],
       ["./plugins/withTVOSAppIcon.ts"],
       ["./plugins/withTVOSTopShelf.ts"],
       ["./plugins/withDownloadLiveActivity.ts"],
