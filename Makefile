@@ -1,6 +1,5 @@
 e2e:
-	maestro start-device --platform android
-	maestro test login.yaml
+	python3 e2e/bench/maestro.py --flow e2e/suites/cast/flows/smoke-launch.yml
 
 e2e-setup:
-curl -fsSL "https://get.maestro.mobile.dev" | bash
+	curl -fsSL "https://get.maestro.mobile.dev" | bash
