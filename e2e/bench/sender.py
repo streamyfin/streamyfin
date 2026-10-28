@@ -12,6 +12,7 @@ import argparse
 import json
 import re
 import sys
+import threading
 import time
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
@@ -101,6 +102,14 @@ def sample(cast: Any) -> MediaSample:
     )
 
 
+def refresh_status(cast: Any, timeout: float = 5.0) -> MediaSample:
+    """Asks the receiver for its media status and waits for the answer before sampling."""
+    answered = threading.Event()
+    cast.media_controller.update_status(callback_function=lambda *_: answered.set())
+    answered.wait(timeout)
+    return sample(cast)
+
+
 def wait_for(cast: Any, predicate: Callable[[MediaSample], bool], timeout: float, what: str, every: float = 0.5) -> MediaSample:
     deadline = time.monotonic() + timeout
     while True:
@@ -110,20 +119,23 @@ def wait_for(cast: Any, predicate: Callable[[MediaSample], bool], timeout: float
         if time.monotonic() >= deadline:
             raise SenderTimeout(what)
         time.sleep(every)
-        cast.media_controller.update_status()
+        refresh_status(cast, timeout=every)
 
 
 def wait_for_playing(cast: Any, timeout: float = 45.0, every: float = 0.5) -> MediaSample:
     return wait_for(cast, lambda s: s.player_state == PLAYER_STATE_PLAYING, timeout, "playing", every)
 
 
-def watch(cast: Any, seconds: float, every: float = 2.0) -> list[MediaSample]:
-    samples = [sample(cast)]
+def watch(cast: Any, seconds: float, every: float = 2.0, on_sample: Callable[[MediaSample], None] | None = None) -> list[MediaSample]:
+    samples = [refresh_status(cast, timeout=every)]
+    if on_sample:
+        on_sample(samples[0])
     deadline = time.monotonic() + seconds
     while time.monotonic() < deadline:
         time.sleep(every)
-        cast.media_controller.update_status()
-        samples.append(sample(cast))
+        samples.append(refresh_status(cast, timeout=every))
+        if on_sample:
+            on_sample(samples[-1])
     return samples
 
 
@@ -137,6 +149,26 @@ class BusCollector:
         parsed = parse_bus_message(payload_utf8)
         self.bus.append(parsed)
         return parsed
+
+
+def summarize_bus(bus: list[BusMessage]) -> dict:
+    """Counts per message type, the last progress report, and every error: what a proof needs."""
+    counts: dict[str, int] = {}
+    last_progress = None
+    errors = []
+    for message in bus:
+        counts[message.type] = counts.get(message.type, 0) + 1
+        if message.type == "playbackprogress" and isinstance(message.data, dict):
+            state = message.data.get("PlayState") or {}
+            ticks = state.get("PositionTicks")
+            last_progress = {
+                "positionSeconds": ticks / TICKS_PER_SECOND if ticks is not None else None,
+                "playMethod": state.get("PlayMethod"),
+                "isPaused": state.get("IsPaused"),
+            }
+        if message.type in ("playbackerror", "connectionerror", "error"):
+            errors.append(f"{message.type}: {message.message or ''}".rstrip(": "))
+    return {"counts": counts, "lastProgress": last_progress, "errors": errors}
 
 
 def receiver_controller_class():
@@ -176,9 +208,11 @@ def launch(cast, timeout: float = 20.0) -> None:
         time.sleep(0.5)
 
 
-def attach(cast):
+def attach(cast, timeout: float = 10.0):
+    """Registers the receiver channel on a running app and waits until both channels are usable."""
     controller = receiver_controller_class()()
     cast.register_handler(controller)
+    cast.media_controller.block_until_active(timeout=timeout)
     return controller
 
 
@@ -251,15 +285,19 @@ def main(argv: list[str] | None = None) -> int:
                 return 2
             journal.note("item", found=True, id=item["Id"], name=item["Name"])
             options = {"items": [slim_item(item)], "startIndex": 0, "startPositionTicks": int(args.start_seconds * TICKS_PER_SECOND)}
+            sent_at = time.monotonic()
             send("PlayNow", options, args.max_bitrate)
             try:
                 first = wait_for_playing(cast)
-                journal.note("playing", after_seconds=round(first.at, 1), custom_data=first.custom_data)
+                journal.note("playing", after_seconds=round(first.at - sent_at, 1), custom_data=first.custom_data)
             except SenderTimeout as timeout:
-                journal.note("timeout", what=timeout.what, bus=[asdict(m) for m in controller.bus])
+                journal.note("timeout", what=timeout.what, bus=summarize_bus(controller.bus))
                 exit_code = 1
-            for item_sample in watch(cast, args.watch):
+
+            def note_sample(item_sample: MediaSample) -> None:
                 journal.note("sample", state=item_sample.player_state, time=round(item_sample.current_time, 1), play_method=item_sample.custom_data.get("playMethod"))
+
+            watch(cast, args.watch, on_sample=note_sample)
         elif args.action == "seek":
             send("Seek", {"position": args.seconds})
         elif args.action == "subtitle":
@@ -267,14 +305,12 @@ def main(argv: list[str] | None = None) -> int:
         elif args.action == "audio":
             send("SetAudioStreamIndex", {"index": args.index})
         elif args.action == "status":
-            cast.media_controller.update_status()
-            time.sleep(1)
+            pass
         else:
             send({"identify": "Identify", "pause": "Pause", "unpause": "Unpause", "stop": "Stop"}[args.action])
         time.sleep(2)
-        cast.media_controller.update_status()
-        time.sleep(1)
-        journal.note("final", **asdict(sample(cast)), bus=[asdict(m) for m in controller.bus])
+        final = refresh_status(cast)
+        journal.note("final", state=final.player_state, time=round(final.current_time, 1), custom_data=final.custom_data, bus=summarize_bus(controller.bus))
         cast.disconnect(timeout=5)
     finally:
         client.logout(session)

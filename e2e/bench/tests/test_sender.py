@@ -11,6 +11,8 @@ from bench.sender import (
     build_message,
     parse_bus_message,
     receiver_name_for,
+    refresh_status,
+    summarize_bus,
     to_receiver_device_name,
     wait_for_playing,
     watch,
@@ -73,11 +75,13 @@ class FakeMediaController:
         self.status = FakeStatus(*self.states[0])
         self.updates = 0
 
-    def update_status(self):
+    def update_status(self, callback_function=None):
         self.updates += 1
         if len(self.states) > 1:
             self.states.pop(0)
         self.status = FakeStatus(*self.states[0])
+        if callback_function:
+            callback_function(True, None)
 
 
 class FakeCast:
@@ -102,11 +106,19 @@ class WatchTests(unittest.TestCase):
     def test_watch_samples_the_media_status(self):
         cast = FakeCast([("PLAYING", 1.0, {}), ("PLAYING", 2.0, {}), ("PLAYING", 3.0, {})])
         started = time.monotonic()
-        samples = watch(cast, seconds=0.1, every=0.03)
+        seen = []
+        samples = watch(cast, seconds=0.1, every=0.03, on_sample=seen.append)
         self.assertGreaterEqual(len(samples), 2)
+        self.assertEqual(seen, samples)
         self.assertTrue(all(s.player_state == "PLAYING" for s in samples))
         self.assertLess(time.monotonic() - started, 1.0)
         self.assertGreater(samples[-1].at, samples[0].at)
+        self.assertGreaterEqual(cast.media_controller.updates, 2)
+
+    def test_refresh_status_waits_for_the_receiver_answer(self):
+        cast = FakeCast([("PAUSED", 4.0, {"playMethod": "DirectPlay"})])
+        self.assertEqual(refresh_status(cast, timeout=0.5).player_state, "PAUSED")
+        self.assertEqual(cast.media_controller.updates, 1)
 
 
 class BusCollectorTests(unittest.TestCase):
@@ -115,6 +127,19 @@ class BusCollectorTests(unittest.TestCase):
         collector.collect('{"type":"playbackstart","message":""}')
         collector.collect("garbage")
         self.assertEqual([m.type for m in collector.bus], ["playbackstart", "invalid"])
+
+    def test_summarize_bus_counts_types_and_keeps_the_last_progress(self):
+        # The receiver reports progress several times a second with the whole item inside:
+        # a proof needs counts and the last position, not hundreds of copies of the item.
+        collector = BusCollector()
+        collector.collect('{"type":"playbackstart","message":""}')
+        collector.collect('{"type":"playbackprogress","data":{"PlayState":{"PositionTicks":10000000,"PlayMethod":"Transcode","IsPaused":false},"NowPlayingItem":{"Name":"x"}}}')
+        collector.collect('{"type":"playbackprogress","data":{"PlayState":{"PositionTicks":30000000,"PlayMethod":"Transcode","IsPaused":true},"NowPlayingItem":{"Name":"x"}}}')
+        collector.collect('{"type":"playbackerror","message":"boom"}')
+        summary = summarize_bus(collector.bus)
+        self.assertEqual(summary["counts"], {"playbackstart": 1, "playbackprogress": 2, "playbackerror": 1})
+        self.assertEqual(summary["lastProgress"], {"positionSeconds": 3.0, "playMethod": "Transcode", "isPaused": True})
+        self.assertEqual(summary["errors"], ["playbackerror: boom"])
 
 
 if __name__ == "__main__":
