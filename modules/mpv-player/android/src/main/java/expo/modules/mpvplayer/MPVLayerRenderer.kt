@@ -12,6 +12,7 @@ import android.view.SurfaceView
 import android.view.View
 import expo.modules.mpvplayer.nativeplayer.MpvOwnership
 import expo.modules.mpvplayer.nativeplayer.engine.PlayerEngine
+import expo.modules.mpvplayer.nativeplayer.engine.TransportEngine
 import expo.modules.mpvplayer.nativeplayer.engine.VideoLoadConfig
 import java.io.File
 import java.io.FileOutputStream
@@ -100,7 +101,7 @@ class MPVLayerRenderer(
             fingerprint.contains("emulator", ignoreCase = true)
     }
 
-    override var delegate: PlayerEngine.Delegate? = null
+    override var delegate: TransportEngine.Delegate? = null
     
     private val mainHandler = Handler(Looper.getMainLooper())
 
