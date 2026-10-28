@@ -40,6 +40,7 @@
         "expo-glass-effect": "~57.0.4",
         "expo-haptics": "~57.0.3",
         "expo-image": "~57.0.5",
+        "expo-intent-launcher": "~57.0.1",
         "expo-key-event": "^1.9.0",
         "expo-linear-gradient": "~57.0.2",
         "expo-linking": "~57.0.11",
@@ -122,6 +123,7 @@
   ],
   "patchedDependencies": {
     "react-native-google-cast@4.9.1": "patches/react-native-google-cast@4.9.1.patch",
+    "expo-intent-launcher@57.0.1": "patches/expo-intent-launcher@57.0.1.patch",
     "react-native-udp@4.1.7": "patches/react-native-udp@4.1.7.patch",
     "react-native-track-player@github:lovegaoshi/react-native-track-player#d2baf9a": "patches/react-native-track-player@4.1.1.patch",
     "react-native-bottom-tabs@1.4.0": "patches/react-native-bottom-tabs@1.4.0.patch",
@@ -1215,6 +1217,8 @@
     "expo-haptics": ["expo-haptics@57.0.3", "", { "peerDependencies": { "expo": "*" } }, "sha512-qucUXtwtJdtECKSQK5D6TQBc/0SxKj7s5wQ4mrfSxhZsHrS9a4rcxINl/gbruMaY9spTXStco32ST4pV0vXmxw=="],
 
     "expo-image": ["expo-image@57.0.5", "", { "dependencies": { "sf-symbols-typescript": "^2.2.0" }, "peerDependencies": { "expo": "*", "react": "*", "react-native": "*", "react-native-web": "*" }, "optionalPeers": ["react-native-web"] }, "sha512-jOm5lofaIKXhQ7i0Hz3I5JuNULw/aghmpIPZXddwQcEtw8+wUhlozq3M7LbsOrcsBEapcG4jFs85DsfuFoz1tQ=="],
+
+    "expo-intent-launcher": ["expo-intent-launcher@57.0.1", "", { "peerDependencies": { "expo": "*" } }, "sha512-BYiPEOUeW3AkW/uxEESbS2UBw9LasJ8Heb6A8kF9Ueh6pqrXQHMNJFHzfrOP8qZfv9G2e8CTzrtzpN5p0vH5fA=="],
 
     "expo-json-utils": ["expo-json-utils@57.0.2", "", {}, "sha512-9kYZECLKE3pYZQs+kt3+ggY83Lfryog9/UEo3HJKGcHUZeKKtlFBIPFjI4LzREubsvjP7AsvG0FdEX9EquIoAQ=="],
 

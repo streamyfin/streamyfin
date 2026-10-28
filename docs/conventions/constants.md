@@ -39,6 +39,7 @@ cadence meant knowing both existed, and nothing would have failed if only one ha
 | `constants/Logs.ts` | App log storage key and how many entries it keeps |
 | `constants/Privacy.ts` | What stands in for a secret in anything the app writes out (log, Sentry) |
 | `constants/Music.ts` | Music player policy: the volume normalization modes, their default, and the gain ceiling; the storage key of the stored tracks index |
+| `constants/ExternalPlayer.ts` | When video opens in another app instead of Streamyfin's player, and the default |
 | `constants/Search.ts` | Library search: results asked for per section, the person types the People section leaves out, a studio page's size |
 | `constants/StillWatching.ts` | The "Still watching?" presets, jellyfin-web 12's episode counts and session minutes |
 | `constants/Sentry.ts` | Error reporting policy: which builds report, the per session dedupe cap, the failure storm window |
