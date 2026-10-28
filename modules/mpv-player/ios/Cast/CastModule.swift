@@ -105,17 +105,19 @@ public class CastModule: Module {
       }
     }.runOnQueue(.main)
 
-    AsyncFunction("getMediaStatus") { () -> [String: Any?]? in
-      CastRecords.mediaStatus(self.currentSession()?.remoteMediaClient?.mediaStatus)
+    // Each transport call names the session JS meant it for: the current one may have
+    // changed between the JS check and this main-queue run.
+    AsyncFunction("getMediaStatus") { (sessionId: String?) -> [String: Any?]? in
+      CastRecords.mediaStatus(self.ownSession(sessionId)?.remoteMediaClient?.mediaStatus)
     }.runOnQueue(.main)
 
-    AsyncFunction("play") { self.currentSession()?.remoteMediaClient?.play() }.runOnQueue(.main)
-    AsyncFunction("pause") { self.currentSession()?.remoteMediaClient?.pause() }.runOnQueue(.main)
-    AsyncFunction("stop") { self.currentSession()?.remoteMediaClient?.stop() }.runOnQueue(.main)
-    AsyncFunction("seek") { (positionSeconds: Double) in
+    AsyncFunction("play") { (sessionId: String?) in self.ownSession(sessionId)?.remoteMediaClient?.play() }.runOnQueue(.main)
+    AsyncFunction("pause") { (sessionId: String?) in self.ownSession(sessionId)?.remoteMediaClient?.pause() }.runOnQueue(.main)
+    AsyncFunction("stop") { (sessionId: String?) in self.ownSession(sessionId)?.remoteMediaClient?.stop() }.runOnQueue(.main)
+    AsyncFunction("seek") { (positionSeconds: Double, sessionId: String?) in
       let options = GCKMediaSeekOptions()
       options.interval = positionSeconds
-      self.currentSession()?.remoteMediaClient?.seek(with: options)
+      self.ownSession(sessionId)?.remoteMediaClient?.seek(with: options)
     }.runOnQueue(.main)
 
     View(CastButtonView.self) {
@@ -151,6 +153,12 @@ public class CastModule: Module {
   private func currentSession() -> GCKCastSession? {
     ensureListening()
     return GCKCastContext.sharedInstance().sessionManager.currentCastSession
+  }
+
+  private func ownSession(_ sessionId: String?) -> GCKCastSession? {
+    guard let session = currentSession() else { return nil }
+    if let sessionId, session.sessionID != sessionId { return nil }
+    return session
   }
 
   fileprivate func updateState(_ rawValue: Int) {

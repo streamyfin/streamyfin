@@ -25,11 +25,12 @@ export declare class CastNativeModule extends NativeModule<CastNativeEvents> {
   ): Promise<{ namespace: string; connected: boolean }>;
   removeChannel(namespace: string): Promise<void>;
   sendMessage(namespace: string, message: string): Promise<void>;
-  getMediaStatus(): Promise<CastMediaStatus | null>;
-  play(): Promise<void>;
-  pause(): Promise<void>;
-  stop(): Promise<void>;
-  seek(positionSeconds: number): Promise<void>;
+  /** Transport calls name the session they were meant for; another current session ignores them. */
+  getMediaStatus(sessionId?: string): Promise<CastMediaStatus | null>;
+  play(sessionId?: string): Promise<void>;
+  pause(sessionId?: string): Promise<void>;
+  stop(sessionId?: string): Promise<void>;
+  seek(positionSeconds: number, sessionId?: string): Promise<void>;
 }
 
 // The Cast support ships with the module on every platform it is built for

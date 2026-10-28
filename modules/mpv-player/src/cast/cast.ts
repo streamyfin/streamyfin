@@ -176,15 +176,16 @@ export const castClientFor = (session: CastSessionInfo): CastClient => {
     currentCastSession()?.id === session.id ? native() : null;
   return {
     sessionId: session.id,
-    getMediaStatus: () => own()?.getMediaStatus() ?? Promise.resolve(null),
+    getMediaStatus: () =>
+      own()?.getMediaStatus(session.id) ?? Promise.resolve(null),
     onMediaStatusUpdated: (listener) =>
       onCastMediaStatusChanged((status) => {
         if (own()) listener(status);
       }),
-    play: () => own()?.play() ?? Promise.resolve(),
-    pause: () => own()?.pause() ?? Promise.resolve(),
-    stop: () => own()?.stop() ?? Promise.resolve(),
+    play: () => own()?.play(session.id) ?? Promise.resolve(),
+    pause: () => own()?.pause(session.id) ?? Promise.resolve(),
+    stop: () => own()?.stop(session.id) ?? Promise.resolve(),
     seek: (positionSeconds) =>
-      own()?.seek(positionSeconds) ?? Promise.resolve(),
+      own()?.seek(positionSeconds, session.id) ?? Promise.resolve(),
   };
 };

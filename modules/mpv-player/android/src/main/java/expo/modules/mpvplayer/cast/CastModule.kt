@@ -216,16 +216,18 @@ class CastModule : Module() {
             }
         }.runOnQueue(Queues.MAIN)
 
-        AsyncFunction("getMediaStatus") {
-            CastRecords.mediaStatus(currentSession()?.remoteMediaClient?.mediaStatus)
+        // Each transport call names the session JS meant it for: the current one may have
+        // changed between the JS check and this main-queue run.
+        AsyncFunction("getMediaStatus") { sessionId: String? ->
+            CastRecords.mediaStatus(ownSession(sessionId)?.remoteMediaClient?.mediaStatus)
         }.runOnQueue(Queues.MAIN)
 
-        AsyncFunction("play") { currentSession()?.remoteMediaClient?.play(); Unit }.runOnQueue(Queues.MAIN)
-        AsyncFunction("pause") { currentSession()?.remoteMediaClient?.pause(); Unit }.runOnQueue(Queues.MAIN)
-        AsyncFunction("stop") { currentSession()?.remoteMediaClient?.stop(); Unit }.runOnQueue(Queues.MAIN)
-        AsyncFunction("seek") { positionSeconds: Double ->
+        AsyncFunction("play") { sessionId: String? -> ownSession(sessionId)?.remoteMediaClient?.play(); Unit }.runOnQueue(Queues.MAIN)
+        AsyncFunction("pause") { sessionId: String? -> ownSession(sessionId)?.remoteMediaClient?.pause(); Unit }.runOnQueue(Queues.MAIN)
+        AsyncFunction("stop") { sessionId: String? -> ownSession(sessionId)?.remoteMediaClient?.stop(); Unit }.runOnQueue(Queues.MAIN)
+        AsyncFunction("seek") { positionSeconds: Double, sessionId: String? ->
             val options = MediaSeekOptions.Builder().setPosition((positionSeconds * 1000).toLong()).build()
-            currentSession()?.remoteMediaClient?.seek(options)
+            ownSession(sessionId)?.remoteMediaClient?.seek(options)
             Unit
         }.runOnQueue(Queues.MAIN)
 
@@ -264,6 +266,11 @@ class CastModule : Module() {
     }
 
     private fun currentSession(): CastSession? = ensureContext()?.sessionManager?.currentCastSession
+
+    private fun ownSession(sessionId: String?): CastSession? {
+        val session = currentSession() ?: return null
+        return if (sessionId == null || session.sessionId == sessionId) session else null
+    }
 
     private fun updateState(state: Int) {
         val name = CastMapping.castStateName(state) ?: return

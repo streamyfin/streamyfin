@@ -46,7 +46,6 @@ export const useCastSession = (): CastSessionInfo | null => {
         const next = currentCastSession();
         return previous && next && previous.id === next.id ? previous : next;
       });
-    read();
     const sessionEvents = onCastSessionEvent(({ event }) => {
       if (event === "started" || event === "resumed") {
         read();
@@ -58,6 +57,8 @@ export const useCastSession = (): CastSessionInfo | null => {
     const stateEvents = onCastStateChanged((state) => {
       if (state === "connected") read();
     });
+    // Listeners first, then the read: a bootstrap finishing in between would be missed.
+    read();
     return () => {
       sessionEvents.remove();
       stateEvents.remove();

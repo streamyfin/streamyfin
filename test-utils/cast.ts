@@ -216,11 +216,14 @@ export const castDoubleModule = (state: () => CastDoubleState) => ({
     current.sent.push({ namespace, message });
     openChannel(current, namespace)?.sent.push(message);
   }),
-  getMediaStatus: jest.fn(async () => state().mediaStatus),
-  play: jest.fn(async () => {}),
-  pause: jest.fn(async () => {}),
-  stop: jest.fn(async () => {}),
-  seek: jest.fn(async (_positionSeconds: number) => {}),
+  // The native side acts only on the session a transport call names.
+  getMediaStatus: jest.fn(async (sessionId?: string) =>
+    sessionId && state().session?.id !== sessionId ? null : state().mediaStatus,
+  ),
+  play: jest.fn(async (_sessionId?: string) => {}),
+  pause: jest.fn(async (_sessionId?: string) => {}),
+  stop: jest.fn(async (_sessionId?: string) => {}),
+  seek: jest.fn(async (_positionSeconds: number, _sessionId?: string) => {}),
   addListener: jest.fn(
     <K extends keyof CastNativeEvents>(
       event: K,
