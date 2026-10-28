@@ -163,6 +163,8 @@
         "download_live_activity_hint": "Zobrazí průběh stahování na uzamčené obrazovce a v Dynamic Island.",
         "merge_next_up_continue_watching": "Sloučit Pokračovat ve sledování a Další v pořadí",
         "merge_next_up_continue_watching_hint": "Sloučí Pokračovat ve sledování a Další v pořadí do jediného řádku na domovské obrazovce.",
+        "show_upcoming_on_home": "Nadcházející epizody na úvodní stránce",
+        "show_upcoming_on_home_hint": "Přidá na úvodní stránku řádek s epizodami, které se brzy začnou vysílat ve vašich knihovnách seriálů.",
         "use_episode_images_next_up": "Používat obrázky epizod v Další v pořadí a Pokračovat ve sledování",
         "use_episode_images_next_up_hint": "V řádcích Další v pořadí a Pokračovat ve sledování zobrazí náhled každé epizody místo obrázku seriálu.",
         "hide_remote_session_button": "Skrýt tlačítko vzdálených relací",
@@ -225,8 +227,11 @@
         "enter_the_quick_connect_code": "Zadejte kód rychlého připojení...",
         "success": "Úspěšně",
         "quick_connect_authorized": "Oprávněné Rychlé připojení",
+        "quick_connect_authorized_for": "Rychlé připojení autorizováno pro {{username}}",
+        "user": "Uživatel",
+        "selected_user_unavailable": "Vybraný uživatel již není dostupný",
         "invalid_code": "Neplatný kód",
-        "disabled": "Quick Connect is turned off on this server. An administrator can turn it on in the server's dashboard.",
+        "disabled": "Rychlé připojení je na tomto serveru vypnuté. Správce ho může zapnout v ovládacím panelu serveru.",
         "authorize": "Autorizovat",
         "paste_code": "Vložit kód"
       },
@@ -389,10 +394,18 @@
         "select_libraries_you_want_to_hide": "Vyberte knihovny, které chcete skrýt v záložce Knihovna a v sekcích domovské stránky.",
         "disable_haptic_feedback": "Zakázat Haptickou zpětnou vazbu",
         "resume_dialog": "Zeptat se, zda pokračovat nebo začít znovu",
+        "confirm_before_stopping_playback": "Potvrdit před zastavením přehrávání",
         "default_quality": "Výchozí kvalita",
         "default_playback_speed": "Výchozí rychlost přehrávání",
         "auto_play_next_episode": "Automaticky přehrát další epizodu",
-        "max_auto_play_episode_count": "Maximální počet automatických přehrávání epizod",
+        "still_watching": "Zeptat se „Ještě se díváte?“",
+        "still_watching_hint": "Před automatickým přehráním další epizody po dlouhém sledování ověří, že se ještě někdo dívá.",
+        "still_watching_presets": {
+          "short": "Krátký",
+          "default": "Výchozí",
+          "long": "Dlouhý",
+          "veryLong": "Velmi dlouhý"
+        },
         "segment_skip_settings": "Nastavení přeskakování segmentů",
         "segment_skip_settings_description": "Nastavte, jak přeskakovat úvody, závěrečné titulky a další segmenty",
         "skip_intro": "Přeskočit úvod",
@@ -415,6 +428,11 @@
         "playback_title": "Přehrávání",
         "playback_description": "Nastavte, jak se hudba přehrává.",
         "prefer_downloaded": "Upřednostňovat stažené skladby",
+        "normalization": "Normalizace hlasitosti",
+        "normalization_hint": "Přehrává skladby s vyrovnanou hlasitostí.",
+        "normalization_off": "Vypnuto",
+        "normalization_track": "Stopa",
+        "normalization_album": "Album",
         "caching_title": "Mezipaměť",
         "caching_description": "Nadcházející skladby z fronty se ukládají předem. Nejstarší z nich se odstraní po dosažení limitu velikosti.",
         "lookahead_enabled": "Zapnout přednačítání",
@@ -553,13 +571,93 @@
           "4_hours": "4 hodiny",
           "24_hours": "24 hodin"
         }
+      },
+      "notifications": {
+        "title": "Oznámení",
+        "save_failed": "Vaše volby oznámení se nepodařilo uložit. Zkuste to znovu.",
+        "channels": {
+          "new_content": "Novinky na serveru",
+          "requests": "Vaše požadavky",
+          "account": "Váš účet",
+          "server_alerts": "Upozornění serveru"
+        },
+        "actions": {
+          "pause": "Pozastavit na 8 hodin",
+          "mute_show": "Vypnout pro tento seriál",
+          "paused": "Oznámení pozastavena na 8 hodin",
+          "muted": "Oznámení pro tento seriál vypnuta"
+        },
+        "unsupported": "Plugin Streamyfin na vašem serveru zatím nenabízí volby oznámení.",
+        "load_failed": "Vaše volby oznámení se nepodařilo načíst.",
+        "try_again": "Zkusit znovu",
+        "events": {
+          "item_added": "Nové filmy a epizody",
+          "seerr_requests": "Vaše požadavky",
+          "seerr_requests_help": "Schváleno, zamítnuto nebo dostupné",
+          "awaited_title": "Dorazí titul, na který čekáte",
+          "awaited_title_help": "Titul, o kterém jste chtěli dostat zprávu z jeho stránky v Seerr",
+          "user_locked_out": "Váš účet je zablokován",
+          "seerr_pending": "Nové požadavky",
+          "seerr_pending_help": "Čeká na schválení, schváleno automaticky nebo selhalo",
+          "session_started": "Někdo se přihlásí",
+          "playback_started": "Někdo začne přehrávat",
+          "sign_in_failed": "Přihlášení selže",
+          "task_failed": "Naplánovaná úloha selže",
+          "plugin_changed": "Plugin se změní",
+          "plugin_changed_help": "Nainstalován, aktualizován nebo odebrán"
+        },
+        "groups": {
+          "new": "Novinky na serveru",
+          "follow": "Seriály, které sledujete",
+          "muted": "Vypnuté seriály",
+          "yours": "Vaše požadavky a účet",
+          "awaited": "Tituly, na které čekáte",
+          "server": "Upozornění serveru"
+        },
+        "libraries_footer": "Nové filmy a epizody z těchto knihoven.",
+        "follow": {
+          "favorites": "Vaše oblíbené seriály",
+          "favorites_help": "Nová epizoda seriálu, který jste označili jako oblíbený",
+          "started": "Rozkoukané seriály",
+          "started_help": "Nová epizoda seriálu, který jste začali sledovat",
+          "footer": "Tato oznámení přicházejí, i když jsou nové filmy a epizody vypnuté."
+        },
+        "muted": {
+          "turn_back_on": "Znovu zapnout"
+        },
+        "awaited": {
+          "stop": "Přestat čekat",
+          "arrived": "Už je tady, dáme vám vědět, až pauza skončí"
+        },
+        "pause": {
+          "title": "Pozastavit oznámení",
+          "off": "Ne",
+          "one_hour": "1 hodina",
+          "eight_hours": "8 hodin",
+          "one_day": "24 hodin",
+          "until_on": "Dokud je znovu nezapnu",
+          "until": "Do {{when}}"
+        },
+        "blocked": {
+          "title": "Oznámení jsou pro Streamyfin vypnutá",
+          "body": "Váš telefon je blokuje, ať níže zvolíte cokoli.",
+          "open": "Otevřít nastavení"
+        },
+        "sound": {
+          "title": "Zvuk a vibrace",
+          "help": "Pro každý typ oznámení v nastavení Androidu"
+        },
+        "account_footer": "Tyto volby platí pro váš účet na všech zařízeních."
       }
     },
     "sessions": {
       "title": "Relace",
       "no_active_sessions": "Žádné aktivní relace",
       "select_session": "Vybrat relaci",
-      "now_playing": "Přehrává se:"
+      "now_playing": "Přehrává se:",
+      "repeat_off": "Opakování vypnuto",
+      "repeat_all": "Opakovat vše",
+      "repeat_one": "Opakovat jednu"
     },
     "downloads": {
       "downloads_title": "Stahování",
@@ -609,7 +707,7 @@
         "all_files_deleted": "Všechna stažená data byla smazána",
         "files_deleted_by_type": "{{type}}: smazáno {{count}}",
         "could_not_get_download_url_for_item": "Nelze získat URL pro stažení {{itemName}}",
-        "no_media_source_to_download": "This item cannot be downloaded",
+        "no_media_source_to_download": "Tuto položku nelze stáhnout",
         "file_deleted": "{{item}} smazán"
       }
     }
@@ -625,6 +723,7 @@
     "mark_as_not_played": "Označit jako nepřehrané",
     "none": "Žádné",
     "track": "Stopa",
+    "original_audio": "Původní",
     "cancel": "Zrušit",
     "stop": "Zastavit",
     "open_menu": "Otevřít nabídku",
@@ -685,6 +784,15 @@
   "library": {
     "no_results": "Žádné výsledky",
     "no_libraries_found": "Nebyly nalezeny žádné knihovny",
+    "jump_to_letter": "Přejít na písmeno",
+    "sort": "Řadit",
+    "letters": "A–Z",
+    "tabs": {
+      "items": "Položky",
+      "collections": "Sbírky",
+      "playlists": "Playlisty"
+    },
+    "play_all": "Přehrát vše",
     "item_types": {
       "movies": "Filmy",
       "series": "Série",
@@ -710,11 +818,24 @@
       "filter_by": "Filtrovat podle",
       "sort_order": "Řazení",
       "tags": "Štítky",
+      "official_ratings": "Věková omezení",
+      "audio_languages": "Jazyky zvuku",
+      "subtitle_languages": "Jazyky titulků",
+      "selected_count": "Vybráno: {{count}}",
       "all": "Vše",
+      "title": "Filtry",
+      "title_count": "Filtry · {{count}}",
       "reset": "Obnovit",
       "asc": "Vzestupně",
       "desc": "Sestupně"
     }
+  },
+  "upcoming": {
+    "title": "Nadcházející",
+    "no_episodes": "Žádné nadcházející epizody",
+    "yesterday": "Včera",
+    "today": "Dnes",
+    "tomorrow": "Zítra"
   },
   "favorites": {
     "series": "Série",
@@ -728,7 +849,7 @@
   },
   "custom_links": {
     "no_links": "Žádné odkazy",
-    "could_not_open_link": "Could not open this link"
+    "could_not_open_link": "Tento odkaz nelze otevřít"
   },
   "player": {
     "live": "ŽIVĚ",
@@ -757,6 +878,9 @@
       "buffer_seconds": "Buffer: {{seconds}}s",
       "vo": "VO:",
       "dropped_frames": "Zahozeno snímků: {{count}}",
+      "transcode_progress": "Překódováno: {{percent}} %",
+      "transcode_speed": "Rychlost překódování: {{fps}} fps",
+      "transcode_hardware": "Hardwarová akcelerace: {{type}}",
       "loading": "Načítání..."
     },
     "mpv_player_title": "Přehrávač MPV",
@@ -771,8 +895,11 @@
     "client_error": "Chyba klienta",
     "could_not_create_stream_for_chromecast": "Nelze vytvořit stream pro Chromecast",
     "chromecast_playback_failed": "Chromecast nemohl přehrát tento stream",
+    "chromecast_server_unreachable": "Chromecast se nemohl spojit s vaším serverem Jellyfin",
+    "chromecast_did_not_start": "Chromecast nezačal přehrávat. Ověřte, že se může spojit s vaším serverem Jellyfin.",
     "message_from_server": "Zpráva od serveru: {{message}}",
     "next_episode": "Další epizoda",
+    "up_next": "Další na řadě",
     "continue_watching": "Pokračovat ve sledování",
     "go_back": "Zpět",
     "downloaded_file_title": "Tento soubor už máte stažený",
@@ -844,10 +971,13 @@
     "view_season": "Zobrazit sérii",
     "select_season": "Vybrat sérii",
     "no_episodes_for_this_season": "Žádné epizody pro tuto sezónu",
+    "missing": "Chybí",
+    "not_yet_aired": "Zatím neodvysíláno",
     "overview": "Přehled",
     "more_with": "Více s {{name}}",
     "similar_items": "Podobné položky",
     "no_similar_items_found": "Nebyly nalezeny žádné podobné položky",
+    "collections": "Sbírky",
     "video": "Video",
     "more_details": "Další podrobnosti",
     "media_options": "Možnosti média",
@@ -861,8 +991,46 @@
     "show_more": "Zobrazit více",
     "show_less": "Zobrazit méně",
     "left": "zbývá",
-    "director": "Režie",
     "cast": "Obsazení",
+    "credits": {
+      "Director_one": "Režie",
+      "Director_other": "Režie",
+      "Writer_one": "Scénář",
+      "Writer_other": "Scénář",
+      "Creator_one": "Tvůrce",
+      "Creator_other": "Tvůrci",
+      "Author_one": "Autor",
+      "Author_other": "Autoři",
+      "Narrator_one": "Vypravěč",
+      "Narrator_other": "Vypravěči"
+    },
+    "person_kind": {
+      "Actor": "Herec",
+      "Director": "Režisér",
+      "Composer": "Skladatel",
+      "Writer": "Scenárista",
+      "GuestStar": "Hostující hvězda",
+      "Producer": "Producent",
+      "Conductor": "Dirigent",
+      "Lyricist": "Textař",
+      "Arranger": "Aranžér",
+      "Engineer": "Zvukový inženýr",
+      "Mixer": "Mistr zvuku",
+      "Remixer": "Remixér",
+      "Creator": "Tvůrce",
+      "Artist": "Interpret",
+      "AlbumArtist": "Interpret alba",
+      "Author": "Autor",
+      "Illustrator": "Ilustrátor",
+      "Penciller": "Kreslíř",
+      "Inker": "Inkér",
+      "Colorist": "Kolorista",
+      "Letterer": "Letterer",
+      "CoverArtist": "Autor obálky",
+      "Editor": "Redaktor",
+      "Translator": "Překladatel",
+      "Narrator": "Vypravěč"
+    },
     "technical_details": "Technické podrobnosti",
     "appeared_in": "Zobrazeno v",
     "movies": "Filmy",
@@ -909,6 +1077,14 @@
     }
   },
   "seerr": {
+    "awaited": {
+      "notify_me": "Upozornit, až bude k dispozici",
+      "waiting": "Dostanete upozornění",
+      "stop_hint": "Přestane čekat na tento titul",
+      "already_here": "Tento titul už na serveru je",
+      "too_many": "Už čekáte na maximální počet titulů",
+      "failed": "Tituly, na které čekáte, se nepodařilo změnit"
+    },
     "cancel": "Zrušit",
     "whats_wrong": "Co je špatně?",
     "issue_type": "Typ problému",
@@ -1185,10 +1361,10 @@
     "pairing_tv_connecting": "Televize se připojuje k vašemu účtu",
     "error_title": "Autorizace selhala",
     "error_invalid_qr": "Neplatný QR kód. Naskenujte párovací kód z televize.",
-    "error_old_tv": "This TV runs an older version of Streamyfin. Update it, then try again.",
-    "error_code_not_waiting": "This code is not waiting on {{server}}. Check that the TV uses the same server as this phone, then start Quick Connect again on the TV.",
-    "error_quick_connect_disabled": "Quick Connect is turned off on {{server}}. An administrator can turn it on in the server's dashboard.",
-    "error_other_server": "This TV is connecting to another server, {{server}}. Sign in to that server in this app, then scan again.",
+    "error_old_tv": "Tato televize používá starší verzi Streamyfinu. Aktualizujte ji a zkuste to znovu.",
+    "error_code_not_waiting": "Tento kód na {{server}} nečeká. Ověřte, že televize používá stejný server jako tento telefon, a pak na televizi znovu spusťte rychlé připojení.",
+    "error_quick_connect_disabled": "Rychlé připojení je na {{server}} vypnuté. Správce ho může zapnout v ovládacím panelu serveru.",
+    "error_other_server": "Tato televize se připojuje k jinému serveru, {{server}}. Přihlaste se k tomuto serveru v této aplikaci a pak naskenujte kód znovu.",
     "error_generic": "Něco se pokazilo. Zkuste to znovu.",
     "error_permission_denied": "Ke skenování QR kódů je potřeba oprávnění k fotoaparátu.",
     "login_as": "Přihlásit se jako {{username}}?",
@@ -1198,11 +1374,11 @@
   "pairing": {
     "pair_with_phone": "Spárovat s telefonem",
     "pair_with_phone_title": "Přihlášení na televizi",
-    "scan_quick_connect": "Scan the QR code with the Streamyfin app or your phone's camera.",
-    "code_expired": "This code has expired.",
-    "get_new_code": "Get a new code",
-    "scan_with_app": "Scan the QR code with the Streamyfin app on your phone.",
-    "account_that_approves": "The account that approves the code",
+    "scan_quick_connect": "Naskenujte QR kód aplikací Streamyfin nebo fotoaparátem telefonu.",
+    "code_expired": "Platnost tohoto kódu vypršela.",
+    "get_new_code": "Získat nový kód",
+    "scan_with_app": "Naskenujte QR kód aplikací Streamyfin v telefonu.",
+    "account_that_approves": "Účet, který kód schválí",
     "logging_in": "Přihlašování...",
     "logging_in_description": "Připojování k vašemu serveru"
   },
@@ -1234,5 +1410,82 @@
     "header_count_one": "{{count}} hlavička",
     "header_count_other": "Hlaviček: {{count}}",
     "header_count": "Hlaviček: {{count}}"
+  },
+  "syncplay": {
+    "pause": "Pozastavit",
+    "play": "Přehrát",
+    "online_video_only": "SyncPlay podporuje jen online videa. Opusťte skupinu, chcete-li sledovat stažená videa nebo je přenášet přes Cast.",
+    "title": "SyncPlay",
+    "watch": "Sledovat",
+    "new_group": "Nová skupina",
+    "new_group_queues": "Zařadí {{title}} do fronty · počet videí: {{count}}",
+    "new_group_queues_one": "Zařadí {{title}} do fronty",
+    "new_group_queues_other": "Zařadí {{title}} do fronty · počet videí: {{count}}",
+    "groups_on_server": "Skupiny na tomto serveru",
+    "join": "Připojit se",
+    "play_for_everyone": "Přehrát pro všechny",
+    "stop_for_everyone": "Zastavit pro všechny",
+    "back_to_group": "Zpět do skupiny {{name}}",
+    "how_to_play": "Ve skupině se video po stisknutí Přehrát přehraje všem.",
+    "play_next": "Přehrát jako další",
+    "add_to_queue": "Přidat do fronty",
+    "added_to_queue": "Přidáno do fronty skupiny",
+    "default_group_name": "Skupina uživatele {{name}}",
+    "switch_group": "Přepnout na jinou skupinu",
+    "ignore_wait_setting_hint": "Skupiny, ke kterým se připojíte, se spouštějí a pokračují bez čekání na toto zařízení. Platí při každém připojení; v přehrávači to stále můžete změnit.",
+    "description": "Sledujte synchronně s přáteli, kteří používají Jellyfin na stejném serveru.",
+    "current_group": "Vaše skupina",
+    "available_groups": "Dostupné skupiny",
+    "leave": "Opustit skupinu",
+    "refresh": "Obnovit",
+    "retry": "Zkusit znovu",
+    "no_groups": "Zatím žádné další skupiny. Vytvořte skupinu a pozvěte přátele.",
+    "no_participants": "Čeká se na účastníky",
+    "unavailable": "SyncPlay není pro tento účet dostupný. Požádejte správce serveru, aby ho povolil.",
+    "disconnected": "Pro použití SyncPlay se připojte k serveru. Skupiny budou dostupné, až se připojení obnoví.",
+    "reconnecting": "Opětovné připojování…",
+    "error": "SyncPlay nemohl dokončit požadavek",
+    "states": {
+      "Idle": "Připraveno ke sledování",
+      "Waiting": "Čeká se na všechny",
+      "Paused": "Pozastaveno",
+      "Playing": "Přehrává se"
+    },
+    "errors": {
+      "disconnected": "Připojení k serveru bylo ztraceno. Připojte se znovu a pokračujte ve společném sledování.",
+      "request_failed": "Požadavek selhal. Zkuste to znovu.",
+      "create_denied": "Tento účet nemá oprávnění vytvářet skupiny SyncPlay.",
+      "join_denied": "Tento účet nemá oprávnění připojit se k této skupině.",
+      "group_missing": "Tato skupina již není dostupná. Obnovte seznam skupin.",
+      "library_denied": "Tento účet nemá přístup k videu, které skupina vybrala.",
+      "disabled": "SyncPlay je pro tento účet vypnutý.",
+      "playback_failed": "Video skupiny se nepodařilo přehrát. Vyberte jiné video nebo to zkuste znovu.",
+      "invalid_name": "Zadejte název skupiny.",
+      "timeout": "Server neodpověděl včas. Zkuste to znovu."
+    },
+    "queue": "Sdílená fronta",
+    "playback_options": "Možnosti přehrávání",
+    "repeat": "Opakovat",
+    "repeat_modes": {
+      "RepeatNone": "Vypnuto",
+      "RepeatAll": "Všechna videa",
+      "RepeatOne": "Jedno video"
+    },
+    "shuffle": "Náhodně",
+    "ignore_wait": "Nečekat na toto zařízení",
+    "ignore_wait_hint": "Skupina může začít nebo pokračovat, aniž by čekala, až bude toto zařízení připraveno. Toto nastavení platí jen pro vaši aktuální relaci.",
+    "on": "Zapnuto",
+    "off": "Vypnuto",
+    "empty_queue": "Fronta je prázdná. Přidejte video níže nebo nějaké přehrajte z knihovny.",
+    "unavailable_video": "Video není dostupné",
+    "now_playing": "Aktuální video",
+    "move_up": "Posunout nahoru",
+    "move_down": "Posunout dolů",
+    "remove": "Odebrat",
+    "clear_upcoming": "Ponechat jen aktuální video",
+    "clear_all": "Vyprázdnit frontu a zastavit",
+    "play_now": "Přehrát nyní",
+    "refresh_group": "Obnovit skupinu",
+    "close": "Zavřít"
   }
 }

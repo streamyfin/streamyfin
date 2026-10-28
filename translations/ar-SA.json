@@ -163,6 +163,8 @@
         "download_live_activity_hint": "إظهار تقدم التنزيل على شاشة القفل وفي Dynamic Island.",
         "merge_next_up_continue_watching": "دمج تابع المشاهدة والتالي",
         "merge_next_up_continue_watching_hint": "يدمج «متابعة المشاهدة» و«التالي» في صف واحد على الشاشة الرئيسية.",
+        "show_upcoming_on_home": "الحلقات القادمة في الصفحة الرئيسية",
+        "show_upcoming_on_home_hint": "يضيف إلى الصفحة الرئيسية صفًا بالحلقات التي ستُعرض قريبًا في مكتبات المسلسلات لديك.",
         "use_episode_images_next_up": "استخدام صور الحلقات في «التالي» و«متابعة المشاهدة»",
         "use_episode_images_next_up_hint": "يعرض الصورة المصغّرة الخاصة بكل حلقة في صفَّي «التالي» و«متابعة المشاهدة» بدلًا من صورة المسلسل.",
         "hide_remote_session_button": "إخفاء زر جلسة البث عن بُعد",
@@ -225,8 +227,11 @@
         "enter_the_quick_connect_code": "أدخل رمز الدخول السريع...",
         "success": "نجاح",
         "quick_connect_authorized": "تم تفويض الدخول السريع",
+        "quick_connect_authorized_for": "تم تفويض الدخول السريع لـ {{username}}",
+        "user": "المستخدم",
+        "selected_user_unavailable": "المستخدم المحدد لم يعد متاحًا",
         "invalid_code": "رمز غير صالح",
-        "disabled": "Quick Connect is turned off on this server. An administrator can turn it on in the server's dashboard.",
+        "disabled": "الدخول السريع متوقف على هذا الخادم. يمكن للمسؤول تشغيله من لوحة تحكم الخادم.",
         "authorize": "تفويض",
         "paste_code": "لصق الرمز"
       },
@@ -389,10 +394,18 @@
         "select_libraries_you_want_to_hide": "اختر المكتبات التي تريد إخفاءها من تبويب المكتبة وأقسام الصفحة الرئيسية.",
         "disable_haptic_feedback": "تعطيل ردود الفعل اللمسية",
         "resume_dialog": "السؤال عن المتابعة أو البدء من جديد",
+        "confirm_before_stopping_playback": "التأكيد قبل إيقاف التشغيل",
         "default_quality": "الجودة الافتراضية",
         "default_playback_speed": "سرعة التشغيل الافتراضية",
         "auto_play_next_episode": "تشغيل الحلقة التالية تلقائياً",
-        "max_auto_play_episode_count": "الحد الأقصى لعدد الحلقات التي يتم تشغيلها تلقائيًا",
+        "still_watching": "اسأل \"هل ما زلت تشاهد؟\"",
+        "still_watching_hint": "قبل التشغيل التلقائي للحلقة التالية بعد جلسة طويلة، يتحقق من أن أحدًا ما زال يشاهد.",
+        "still_watching_presets": {
+          "short": "قصير",
+          "default": "افتراضي",
+          "long": "طويل",
+          "veryLong": "طويل جدًا"
+        },
         "segment_skip_settings": "إعدادات تخطي المقاطع",
         "segment_skip_settings_description": "اضبط طريقة تخطي المقدمات وشارات النهاية والمقاطع الأخرى",
         "skip_intro": "تخطي المقدمة",
@@ -415,6 +428,11 @@
         "playback_title": "التشغيل",
         "playback_description": "ضبط كيفية تشغيل الموسيقى.",
         "prefer_downloaded": "تفضيل الأغاني التي تم تنزيلها",
+        "normalization": "توحيد مستوى الصوت",
+        "normalization_hint": "يشغّل الأغاني بمستوى صوت متساوٍ.",
+        "normalization_off": "متوقف",
+        "normalization_track": "أغنية",
+        "normalization_album": "ألبوم",
         "caching_title": "التخزين المؤقت",
         "caching_description": "تخزين أغاني قائمة الانتظار القادمة مسبقًا. تتم إزالة الأقدم عند الوصول إلى حد الحجم.",
         "lookahead_enabled": "تفعيل التخزين المؤقت الاستباقي",
@@ -553,13 +571,93 @@
           "4_hours": "4 ساعات",
           "24_hours": "24 ساعة"
         }
+      },
+      "notifications": {
+        "title": "الإشعارات",
+        "save_failed": "تعذّر حفظ اختيارات الإشعارات. حاول مرة أخرى.",
+        "channels": {
+          "new_content": "الجديد على الخادم",
+          "requests": "طلباتك",
+          "account": "حسابك",
+          "server_alerts": "تنبيهات الخادم"
+        },
+        "actions": {
+          "pause": "إيقاف مؤقت لمدة 8 ساعات",
+          "mute_show": "إيقاف لهذا المسلسل",
+          "paused": "تم إيقاف الإشعارات مؤقتًا لمدة 8 ساعات",
+          "muted": "تم إيقاف إشعارات هذا المسلسل"
+        },
+        "unsupported": "إضافة Streamyfin على خادمك لا توفّر اختيارات الإشعارات بعد.",
+        "load_failed": "تعذّر تحميل اختيارات الإشعارات.",
+        "try_again": "حاول مرة أخرى",
+        "events": {
+          "item_added": "أفلام وحلقات جديدة",
+          "seerr_requests": "طلباتك",
+          "seerr_requests_help": "تمت الموافقة عليها أو رُفضت أو أصبحت متاحة",
+          "awaited_title": "وصول عنوان تنتظره",
+          "awaited_title_help": "عنوان طلبت إعلامك به من صفحته في Seerr",
+          "user_locked_out": "قفل حسابك",
+          "seerr_pending": "طلبات جديدة",
+          "seerr_pending_help": "بانتظار الموافقة أو تمت الموافقة تلقائيًا أو فشلت",
+          "session_started": "تسجيل دخول أحدهم",
+          "playback_started": "بدء أحدهم التشغيل",
+          "sign_in_failed": "فشل تسجيل دخول",
+          "task_failed": "فشل مهمة مجدولة",
+          "plugin_changed": "تغيّر إضافة",
+          "plugin_changed_help": "تم التثبيت أو التحديث أو الإزالة"
+        },
+        "groups": {
+          "new": "الجديد على الخادم",
+          "follow": "المسلسلات التي تتابعها",
+          "muted": "المسلسلات الموقوفة",
+          "yours": "طلباتك وحسابك",
+          "awaited": "العناوين التي تنتظرها",
+          "server": "تنبيهات الخادم"
+        },
+        "libraries_footer": "أفلام وحلقات جديدة من هذه المكتبات.",
+        "follow": {
+          "favorites": "مسلسلاتك المفضلة",
+          "favorites_help": "حلقة جديدة من مسلسل وضعت عليه علامة مفضل",
+          "started": "المسلسلات التي بدأتها",
+          "started_help": "حلقة جديدة من مسلسل بدأت مشاهدته",
+          "footer": "تصل هذه حتى عند إيقاف الأفلام والحلقات الجديدة."
+        },
+        "muted": {
+          "turn_back_on": "إعادة التشغيل"
+        },
+        "awaited": {
+          "stop": "التوقف عن الانتظار",
+          "arrived": "موجود بالفعل، سيتم إعلامك عند انتهاء الإيقاف المؤقت"
+        },
+        "pause": {
+          "title": "إيقاف الإشعارات مؤقتًا",
+          "off": "لا",
+          "one_hour": "ساعة واحدة",
+          "eight_hours": "8 ساعات",
+          "one_day": "24 ساعة",
+          "until_on": "حتى أعيد تشغيلها",
+          "until": "حتى {{when}}"
+        },
+        "blocked": {
+          "title": "الإشعارات متوقفة لتطبيق Streamyfin",
+          "body": "هاتفك يحظرها، مهما اخترت أدناه.",
+          "open": "فتح الإعدادات"
+        },
+        "sound": {
+          "title": "الصوت والاهتزاز",
+          "help": "لكل نوع من الإشعارات، في إعدادات Android"
+        },
+        "account_footer": "تتبع هذه الاختيارات حسابك على كل الأجهزة."
       }
     },
     "sessions": {
       "title": "الجلسات",
       "no_active_sessions": "لا توجد جلسات نشطة",
       "select_session": "اختيار الجلسة",
-      "now_playing": "قيد التشغيل الآن:"
+      "now_playing": "قيد التشغيل الآن:",
+      "repeat_off": "التكرار متوقف",
+      "repeat_all": "تكرار الكل",
+      "repeat_one": "تكرار واحد"
     },
     "downloads": {
       "downloads_title": "التنزيلات",
@@ -609,7 +707,7 @@
         "all_files_deleted": "تم حذف جميع التنزيلات بنجاح",
         "files_deleted_by_type": "تم حذف {{type}} ({{count}})",
         "could_not_get_download_url_for_item": "تعذر الحصول على عنوان URL للتنزيل لـ{{itemName}}",
-        "no_media_source_to_download": "This item cannot be downloaded",
+        "no_media_source_to_download": "لا يمكن تنزيل هذا العنصر",
         "file_deleted": "تم حذف {{item}}"
       }
     }
@@ -625,6 +723,7 @@
     "mark_as_not_played": "تحديد كغير مشاهَد",
     "none": "لا شيء",
     "track": "أغنية",
+    "original_audio": "الأصلية",
     "cancel": "إلغاء",
     "stop": "إيقاف",
     "open_menu": "فتح القائمة",
@@ -685,6 +784,15 @@
   "library": {
     "no_results": "لا توجد نتائج",
     "no_libraries_found": "لم يتم العثور على مكتبات",
+    "jump_to_letter": "الانتقال إلى حرف",
+    "sort": "ترتيب",
+    "letters": "A–Z",
+    "tabs": {
+      "items": "العناصر",
+      "collections": "المجموعات",
+      "playlists": "قوائم التشغيل"
+    },
+    "play_all": "تشغيل الكل",
     "item_types": {
       "movies": "أفلام",
       "series": "مسلسلات",
@@ -710,11 +818,24 @@
       "filter_by": "تصفية حسب",
       "sort_order": "اتجاه الترتيب",
       "tags": "الوسوم",
+      "official_ratings": "التصنيفات العمرية",
+      "audio_languages": "لغات الصوت",
+      "subtitle_languages": "لغات الترجمة",
+      "selected_count": "المحدد: {{count}}",
       "all": "الكل",
+      "title": "الفلاتر",
+      "title_count": "الفلاتر · {{count}}",
       "reset": "إعادة تعيين",
       "asc": "تصاعدي",
       "desc": "تنازلي"
     }
+  },
+  "upcoming": {
+    "title": "قريبًا",
+    "no_episodes": "لا توجد حلقات قادمة",
+    "yesterday": "أمس",
+    "today": "اليوم",
+    "tomorrow": "غدًا"
   },
   "favorites": {
     "series": "مسلسلات",
@@ -728,7 +849,7 @@
   },
   "custom_links": {
     "no_links": "لا توجد روابط",
-    "could_not_open_link": "Could not open this link"
+    "could_not_open_link": "تعذّر فتح هذا الرابط"
   },
   "player": {
     "live": "مباشر",
@@ -757,6 +878,9 @@
       "buffer_seconds": "التخزين المؤقت: {{seconds}}ث",
       "vo": "VO:",
       "dropped_frames": "الإطارات المُسقطة: {{count}}",
+      "transcode_progress": "تمت إعادة الترميز: {{percent}}%",
+      "transcode_speed": "سرعة إعادة الترميز: {{fps}} fps",
+      "transcode_hardware": "تسريع العتاد: {{type}}",
       "loading": "جار التحميل..."
     },
     "mpv_player_title": "مشغّل MPV",
@@ -771,8 +895,11 @@
     "client_error": "خطأ في المشغّل",
     "could_not_create_stream_for_chromecast": "تعذر إنشاء بث لـChromecast",
     "chromecast_playback_failed": "تعذّر على Chromecast تشغيل هذا البث",
+    "chromecast_server_unreachable": "تعذّر على Chromecast الوصول إلى خادم Jellyfin الخاص بك",
+    "chromecast_did_not_start": "لم يبدأ Chromecast التشغيل. تأكد من أنه يستطيع الوصول إلى خادم Jellyfin الخاص بك.",
     "message_from_server": "رسالة من الخادم: {{message}}",
     "next_episode": "الحلقة التالية",
+    "up_next": "التالي",
     "continue_watching": "متابعة المشاهدة",
     "go_back": "رجوع",
     "downloaded_file_title": "تم تنزيل هذا الملف",
@@ -844,10 +971,13 @@
     "view_season": "عرض الموسم",
     "select_season": "اختيار الموسم",
     "no_episodes_for_this_season": "لا توجد حلقات لهذا الموسم",
+    "missing": "مفقود",
+    "not_yet_aired": "لم يُعرض بعد",
     "overview": "نظرة عامة",
     "more_with": "المزيد مع {{name}}",
     "similar_items": "عناصر مشابهة",
     "no_similar_items_found": "لم يتم العثور على عناصر مشابهة",
+    "collections": "المجموعات",
     "video": "فيديو",
     "more_details": "المزيد من التفاصيل",
     "media_options": "خيارات الوسائط",
@@ -861,8 +991,46 @@
     "show_more": "عرض المزيد",
     "show_less": "عرض أقل",
     "left": "متبقٍ",
-    "director": "المخرج",
     "cast": "طاقم العمل",
+    "credits": {
+      "Director_one": "المخرج",
+      "Director_other": "المخرجون",
+      "Writer_one": "الكاتب",
+      "Writer_other": "الكتّاب",
+      "Creator_one": "المبتكر",
+      "Creator_other": "المبتكرون",
+      "Author_one": "المؤلف",
+      "Author_other": "المؤلفون",
+      "Narrator_one": "الراوي",
+      "Narrator_other": "الرواة"
+    },
+    "person_kind": {
+      "Actor": "ممثل",
+      "Director": "مخرج",
+      "Composer": "ملحن",
+      "Writer": "كاتب سيناريو",
+      "GuestStar": "ضيف شرف",
+      "Producer": "منتج",
+      "Conductor": "قائد الأوركسترا",
+      "Lyricist": "كاتب الكلمات",
+      "Arranger": "موزّع موسيقي",
+      "Engineer": "مهندس الصوت",
+      "Mixer": "مهندس المزج",
+      "Remixer": "معيد المزج",
+      "Creator": "المبتكر",
+      "Artist": "فنان",
+      "AlbumArtist": "فنان الألبوم",
+      "Author": "مؤلف",
+      "Illustrator": "رسّام",
+      "Penciller": "رسّام بالقلم",
+      "Inker": "المحبّر",
+      "Colorist": "الملوّن",
+      "Letterer": "كاتب الحروف",
+      "CoverArtist": "فنان الغلاف",
+      "Editor": "المحرر",
+      "Translator": "مترجم",
+      "Narrator": "الراوي"
+    },
     "technical_details": "التفاصيل التقنية",
     "appeared_in": "ظهر في",
     "movies": "الأفلام",
@@ -909,6 +1077,14 @@
     }
   },
   "seerr": {
+    "awaited": {
+      "notify_me": "أعلمني عند وصوله",
+      "waiting": "سيتم إعلامك",
+      "stop_hint": "يتوقف عن انتظار هذا العنوان",
+      "already_here": "هذا العنوان موجود بالفعل على الخادم",
+      "too_many": "أنت تنتظر بالفعل أقصى عدد ممكن من العناوين",
+      "failed": "تعذّر تغيير العناوين التي تنتظرها"
+    },
     "cancel": "إلغاء",
     "whats_wrong": "ما المشكلة؟",
     "issue_type": "نوع المشكلة",
@@ -1185,10 +1361,10 @@
     "pairing_tv_connecting": "التلفاز يتصل بحسابك",
     "error_title": "فشل التفويض",
     "error_invalid_qr": "رمز QR غير صالح. امسح رمز الاقتران الظاهر على التلفاز.",
-    "error_old_tv": "This TV runs an older version of Streamyfin. Update it, then try again.",
-    "error_code_not_waiting": "This code is not waiting on {{server}}. Check that the TV uses the same server as this phone, then start Quick Connect again on the TV.",
-    "error_quick_connect_disabled": "Quick Connect is turned off on {{server}}. An administrator can turn it on in the server's dashboard.",
-    "error_other_server": "This TV is connecting to another server, {{server}}. Sign in to that server in this app, then scan again.",
+    "error_old_tv": "يعمل هذا التلفاز بإصدار أقدم من Streamyfin. حدّثه ثم حاول مرة أخرى.",
+    "error_code_not_waiting": "هذا الرمز ليس قيد الانتظار على {{server}}. تأكد من أن التلفاز يستخدم الخادم نفسه الذي يستخدمه هذا الهاتف، ثم ابدأ الدخول السريع من جديد على التلفاز.",
+    "error_quick_connect_disabled": "الدخول السريع متوقف على {{server}}. يمكن للمسؤول تشغيله من لوحة تحكم الخادم.",
+    "error_other_server": "هذا التلفاز يتصل بخادم آخر هو {{server}}. سجّل الدخول إلى ذلك الخادم في هذا التطبيق، ثم امسح الرمز مرة أخرى.",
     "error_generic": "حدث خطأ ما. حاول مرة أخرى.",
     "error_permission_denied": "يلزم إذن الكاميرا لمسح رموز QR.",
     "login_as": "تسجيل الدخول باسم {{username}}؟",
@@ -1198,11 +1374,11 @@
   "pairing": {
     "pair_with_phone": "الاقتران بالهاتف",
     "pair_with_phone_title": "تسجيل الدخول على التلفاز",
-    "scan_quick_connect": "Scan the QR code with the Streamyfin app or your phone's camera.",
-    "code_expired": "This code has expired.",
-    "get_new_code": "Get a new code",
-    "scan_with_app": "Scan the QR code with the Streamyfin app on your phone.",
-    "account_that_approves": "The account that approves the code",
+    "scan_quick_connect": "امسح رمز QR باستخدام تطبيق Streamyfin أو كاميرا هاتفك.",
+    "code_expired": "انتهت صلاحية هذا الرمز.",
+    "get_new_code": "الحصول على رمز جديد",
+    "scan_with_app": "امسح رمز QR باستخدام تطبيق Streamyfin على هاتفك.",
+    "account_that_approves": "الحساب الذي يوافق على الرمز",
     "logging_in": "جارٍ تسجيل الدخول...",
     "logging_in_description": "جارٍ الاتصال بخادمك"
   },
@@ -1234,5 +1410,82 @@
     "header_count_one": "{{count}} ترويسة",
     "header_count_other": "الترويسات: {{count}}",
     "header_count": "الترويسات: {{count}}"
+  },
+  "syncplay": {
+    "pause": "إيقاف مؤقت",
+    "play": "تشغيل",
+    "online_video_only": "يدعم SyncPlay مقاطع الفيديو عبر الإنترنت فقط. غادر المجموعة لمشاهدة مقاطع الفيديو المنزّلة أو بثها عبر Cast.",
+    "title": "SyncPlay",
+    "watch": "مشاهدة",
+    "new_group": "مجموعة جديدة",
+    "new_group_queues": "يضيف {{title}} إلى قائمة الانتظار · عدد الفيديوهات: {{count}}",
+    "new_group_queues_one": "يضيف {{title}} إلى قائمة الانتظار",
+    "new_group_queues_other": "يضيف {{title}} إلى قائمة الانتظار · عدد الفيديوهات: {{count}}",
+    "groups_on_server": "المجموعات على هذا الخادم",
+    "join": "انضمام",
+    "play_for_everyone": "تشغيل للجميع",
+    "stop_for_everyone": "إيقاف للجميع",
+    "back_to_group": "العودة إلى {{name}}",
+    "how_to_play": "في المجموعة، الضغط على تشغيل في أي فيديو يشغّله للجميع.",
+    "play_next": "تشغيل التالي",
+    "add_to_queue": "إضافة إلى قائمة الانتظار",
+    "added_to_queue": "تمت الإضافة إلى قائمة انتظار المجموعة",
+    "default_group_name": "مجموعة {{name}}",
+    "switch_group": "التبديل إلى مجموعة أخرى",
+    "ignore_wait_setting_hint": "المجموعات التي تنضم إليها تبدأ وتستأنف دون انتظار هذا الجهاز. يُطبّق في كل مرة تنضم فيها، ويمكنك تغييره من المشغّل.",
+    "description": "شاهد بالتزامن مع أصدقاء يستخدمون Jellyfin على الخادم نفسه.",
+    "current_group": "مجموعتك",
+    "available_groups": "المجموعات المتاحة",
+    "leave": "مغادرة المجموعة",
+    "refresh": "تحديث",
+    "retry": "إعادة المحاولة",
+    "no_groups": "لا توجد مجموعات أخرى بعد. أنشئ مجموعة وادعُ أصدقاءك للانضمام.",
+    "no_participants": "بانتظار المشاركين",
+    "unavailable": "SyncPlay غير متاح لهذا الحساب. اطلب من مسؤول الخادم تفعيله.",
+    "disconnected": "اتصل بخادمك لاستخدام SyncPlay. ستتوفر المجموعات عند عودة الاتصال.",
+    "reconnecting": "جارٍ إعادة الاتصال…",
+    "error": "تعذّر على SyncPlay إكمال الطلب",
+    "states": {
+      "Idle": "جاهز للمشاهدة",
+      "Waiting": "بانتظار الجميع",
+      "Paused": "متوقف مؤقتًا",
+      "Playing": "قيد التشغيل"
+    },
+    "errors": {
+      "disconnected": "انقطع الاتصال بالخادم. أعد الاتصال لمواصلة المشاهدة معًا.",
+      "request_failed": "فشل الطلب. حاول مرة أخرى.",
+      "create_denied": "ليس لهذا الحساب إذن بإنشاء مجموعات SyncPlay.",
+      "join_denied": "ليس لهذا الحساب إذن بالانضمام إلى هذه المجموعة.",
+      "group_missing": "هذه المجموعة لم تعد متاحة. حدّث قائمة المجموعات.",
+      "library_denied": "ليس لهذا الحساب وصول إلى الفيديو الذي اختارته المجموعة.",
+      "disabled": "SyncPlay معطّل لهذا الحساب.",
+      "playback_failed": "تعذّر تشغيل فيديو المجموعة. اختر فيديو آخر أو حاول مرة أخرى.",
+      "invalid_name": "أدخل اسمًا للمجموعة.",
+      "timeout": "لم يستجب الخادم في الوقت المناسب. حاول مرة أخرى."
+    },
+    "queue": "قائمة انتظار مشتركة",
+    "playback_options": "خيارات التشغيل",
+    "repeat": "تكرار",
+    "repeat_modes": {
+      "RepeatNone": "متوقف",
+      "RepeatAll": "كل الفيديوهات",
+      "RepeatOne": "فيديو واحد"
+    },
+    "shuffle": "ترتيب عشوائي",
+    "ignore_wait": "عدم انتظار هذا الجهاز",
+    "ignore_wait_hint": "يمكن للمجموعة أن تبدأ أو تستأنف دون انتظار جاهزية هذا الجهاز. ينطبق هذا الإعداد على جلستك الحالية فقط.",
+    "on": "تشغيل",
+    "off": "إيقاف",
+    "empty_queue": "قائمة الانتظار فارغة. أضف فيديو أدناه أو شغّل فيديو من مكتبتك.",
+    "unavailable_video": "الفيديو غير متاح",
+    "now_playing": "الفيديو الحالي",
+    "move_up": "نقل لأعلى",
+    "move_down": "نقل لأسفل",
+    "remove": "إزالة",
+    "clear_upcoming": "الاحتفاظ بالفيديو الحالي فقط",
+    "clear_all": "مسح قائمة الانتظار والإيقاف",
+    "play_now": "تشغيل الآن",
+    "refresh_group": "تحديث المجموعة",
+    "close": "إغلاق"
   }
 }

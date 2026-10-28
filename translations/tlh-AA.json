@@ -163,6 +163,8 @@
         "download_live_activity_hint": "So'wI' HaStaDaq 'ej Dynamic IslandDaq Suq mIw 'ang.",
         "merge_next_up_continue_watching": "«yItaH» «veb» je yImuv",
         "merge_next_up_continue_watching_hint": "juHDaq wa' tlhegh moj «yItaH» «veb» je.",
+        "show_upcoming_on_home": "juHDaq HemHom pIq",
+        "show_upcoming_on_home_hint": "juHDaq tlhegh chel; TV De'wI' bomDaq HemHom pIq 'ang.",
         "use_episode_images_next_up": "«veb» «yItaH» je lutHom mIllogh yIlo'",
         "use_episode_images_next_up_hint": "lut mIllogh lo'be'; Hoch lutHom mIllogh 'ang.",
         "hide_remote_session_button": "Hop poH ngoQwI' yISo'",
@@ -225,8 +227,11 @@
         "enter_the_quick_connect_code": "parmaq ngoQ De' yI'el...",
         "success": "Qapla'",
         "quick_connect_authorized": "parmaq ngoQ je'laH",
+        "quick_connect_authorized_for": "{{username}}vaD parmaq ngoQ je'lu'",
+        "user": "lo'wI'",
+        "selected_user_unavailable": "lo'wI' wIvlu'bogh tu'laHbe'lu'",
         "invalid_code": "De' law'be'",
-        "disabled": "Quick Connect is turned off on this server. An administrator can turn it on in the server's dashboard.",
+        "disabled": "ServervamDaq parmaq ngoQ Qotlhlu'. ServerDaq SeHlaw HoSghajmoHlaH loHwI'.",
         "authorize": "yIje'",
         "paste_code": "ngoq yIlan"
       },
@@ -389,10 +394,18 @@
         "select_libraries_you_want_to_hide": "De'wI' bom Danej QIj yIwIv.",
         "disable_haptic_feedback": "Qub quvHa' yIQIj",
         "resume_dialog": "yItaH pagh yItagh: yIghel",
+        "confirm_before_stopping_playback": "chu' mevpa' yIHar",
         "default_quality": "wa' luj",
         "default_playback_speed": "motlh nom",
         "auto_play_next_episode": "lutHom veb SIbI' yIchu'",
-        "max_auto_play_episode_count": "lutHom SIbI' chu' tIn law'",
+        "still_watching": "\"DabejtaH'a'?\" yIghel",
+        "still_watching_hint": "poH nI' bej, HemHom veb SIbI' chu'pa', bejtaH vay' 'e' nuD.",
+        "still_watching_presets": {
+          "short": "run",
+          "default": "motlh",
+          "long": "tIq",
+          "veryLong": "tIq law'"
+        },
         "segment_skip_settings": "'ay' juSmeH men",
         "segment_skip_settings_description": "tagh, rIn De', latlh 'ay'mey je juSmeH mIw yIcher",
         "skip_intro": "tagh yIjuS",
@@ -415,6 +428,11 @@
         "playback_title": "chu'",
         "playback_description": "QoQ chu'meH mIw yIcher.",
         "prefer_downloaded": "bom Suqta' yIwIv",
+        "normalization": "wab HoS rap",
+        "normalization_hint": "wab HoS rap lo'taHvIS bom chu'.",
+        "normalization_off": "Qotlhlu'",
+        "normalization_track": "tlhegh",
+        "normalization_album": "bom ghom",
         "caching_title": "qawHaq",
         "caching_description": "tlheghDaq bom veb SIbI' yIpol.",
         "lookahead_enabled": "nIteb polmeH yIchu'",
@@ -553,13 +571,93 @@
           "4_hours": "loS rep",
           "24_hours": "cha'maH loS rep"
         }
+      },
+      "notifications": {
+        "title": "QInmey",
+        "save_failed": "QIn wIvmeyllIj pollaHbe'. yInIDqa'.",
+        "channels": {
+          "new_content": "ServerDaq chu'",
+          "requests": "poQmeylIj",
+          "account": "laHlIj",
+          "server_alerts": "Server ghuHmoHmey"
+        },
+        "actions": {
+          "pause": "rep 8 yImev",
+          "mute_show": "lutvamvaD yIQotlh",
+          "paused": "rep 8 QInmey mevlu'",
+          "muted": "lutvamvaD QInmey Qotlhlu'"
+        },
+        "unsupported": "ServerlIj Streamyfin mIwHom QIn wIvmey nob ghaH.",
+        "load_failed": "QIn wIvmeylIj luSuqlaHbe'.",
+        "try_again": "yInIDqa'",
+        "events": {
+          "item_added": "Hargh chu' 'ej HemHom chu'",
+          "seerr_requests": "poQmeylIj",
+          "seerr_requests_help": "chaw'lu', lajQo'lu' pagh tu'lu'",
+          "awaited_title": "pong DaloSbogh paw",
+          "awaited_title_help": "Seerr ghItlhDaq Daja'meH DapoQta'bogh pong",
+          "user_locked_out": "laHlIj ngaQmoHlu'",
+          "seerr_pending": "poQmey chu'",
+          "seerr_pending_help": "chaw' loS, SIbI' chaw'lu' pagh Qapbe'",
+          "session_started": "'el vay'",
+          "playback_started": "chu' vay'",
+          "sign_in_failed": "'elbe'",
+          "task_failed": "Qu' nab Qapbe'",
+          "plugin_changed": "mIwHom choH",
+          "plugin_changed_help": "jomlu', chu'qa'lu' pagh teqlu'"
+        },
+        "groups": {
+          "new": "ServerDaq chu'",
+          "follow": "lutmey Datlha'bogh",
+          "muted": "lutmey Qotlhlu'pu'bogh",
+          "yours": "poQmeylIj 'ej laHlIj",
+          "awaited": "pongmey DaloSbogh",
+          "server": "Server ghuHmoHmey"
+        },
+        "libraries_footer": "De'wI' bommeyvamvo' Hargh chu' 'ej HemHom chu'.",
+        "follow": {
+          "favorites": "lutmey Daparbe'bogh",
+          "favorites_help": "lut DawIvbogh HemHom chu'",
+          "started": "lutmey Datagh'pu'bogh",
+          "started_help": "lut Dabej Datagh'pu'bogh HemHom chu'",
+          "footer": "Hargh chu' 'ej HemHom chu' Qotlhlu'DI' je paw QInmeyvam."
+        },
+        "muted": {
+          "turn_back_on": "yIchu'qa'"
+        },
+        "awaited": {
+          "stop": "loS yImev",
+          "arrived": "naDev paw. mevlI' Qav, ja'lu'."
+        },
+        "pause": {
+          "title": "QInmey yImev",
+          "off": "ghobe'",
+          "one_hour": "1 rep",
+          "eight_hours": "8 rep",
+          "one_day": "24 rep",
+          "until_on": "vIchu'qa'pa'",
+          "until": "{{when}} ret"
+        },
+        "blocked": {
+          "title": "StreamyfinvaD QInmey Qotlhlu'",
+          "body": "QInmey bot ghogh HablI'lIj. bIngDaq nuq DawIv 'e' qay'be'.",
+          "open": "men yIpoSmoH"
+        },
+        "sound": {
+          "title": "wab 'ej QIt",
+          "help": "QIn Segh Hoch, Android menDaq"
+        },
+        "account_footer": "De'wI' Hoch laHlIj tlha' wIvmeyvam."
       }
     },
     "sessions": {
       "title": "tlholrap",
       "no_active_sessions": "tlholrap pagh chu'",
       "select_session": "tlholrap yIwIv",
-      "now_playing": "DaH tlhol:"
+      "now_playing": "DaH tlhol:",
+      "repeat_off": "nIDqa' Qotlhlu'",
+      "repeat_all": "Hoch yInIDqa'",
+      "repeat_one": "wa' yInIDqa'"
     },
     "downloads": {
       "downloads_title": "Qaw' Doch",
@@ -609,7 +707,7 @@
         "all_files_deleted": "Hoch Doch Suqta' Qaw'ta'",
         "files_deleted_by_type": "{{count}} {{type}} Qaw'ta'",
         "could_not_get_download_url_for_item": "{{itemName}} Daq SuqlaHbe'",
-        "no_media_source_to_download": "This item cannot be downloaded",
+        "no_media_source_to_download": "Dochvam SuqlaHbe'lu'",
         "file_deleted": "{{item}} Qaw'ta'"
       }
     }
@@ -625,6 +723,7 @@
     "mark_as_not_played": "chu'be'lu' 'e' yI'ang",
     "none": "pagh",
     "track": "tlhegh",
+    "original_audio": "wa'DIch",
     "cancel": "qIl",
     "stop": "yImev",
     "open_menu": "tetlh yIpoSmoH",
@@ -685,6 +784,15 @@
   "library": {
     "no_results": "Doch pagh tu'",
     "no_libraries_found": "De'wI' bom pagh tu'",
+    "jump_to_letter": "ngutlhDaq yISup",
+    "sort": "yIwIv",
+    "letters": "A–Z",
+    "tabs": {
+      "items": "Dochmey",
+      "collections": "bom ghommey",
+      "playlists": "tlhegh tetlhmey"
+    },
+    "play_all": "Hoch yIchu'",
     "item_types": {
       "movies": "DIS",
       "series": "Hem",
@@ -710,11 +818,24 @@
       "filter_by": "yIwav",
       "sort_order": "wIv mIw",
       "tags": "De'Hom",
+      "official_ratings": "ben patlhmey",
+      "audio_languages": "QoQ Holmey",
+      "subtitle_languages": "De' chu' Holmey",
+      "selected_count": "wIvlu': {{count}}",
       "all": "Hoch",
+      "title": "wavmey",
+      "title_count": "wavmey · {{count}}",
       "reset": "yIchu'qa'",
       "asc": "toS",
       "desc": "ghIr"
     }
+  },
+  "upcoming": {
+    "title": "pIq",
+    "no_episodes": "HemHom pIq tu'lu'be'",
+    "yesterday": "wa'Hu'",
+    "today": "DaHjaj",
+    "tomorrow": "wa'leS"
   },
   "favorites": {
     "series": "Hem",
@@ -728,7 +849,7 @@
   },
   "custom_links": {
     "no_links": "ret pagh",
-    "could_not_open_link": "Could not open this link"
+    "could_not_open_link": "rarvam poSmoHlaHbe'lu'"
   },
   "player": {
     "live": "DaH",
@@ -757,6 +878,9 @@
       "buffer_seconds": "Buffer: {{seconds}}s",
       "vo": "VO:",
       "dropped_frames": "chIlta': {{count}} mIllogh",
+      "transcode_progress": "choHta': {{percent}}%",
+      "transcode_speed": "choH Do: {{fps}} fps",
+      "transcode_hardware": "jan Do: {{type}}",
       "loading": "polI'..."
     },
     "mpv_player_title": "MPV chu'wI'",
@@ -771,8 +895,11 @@
     "client_error": "lut 'el ghIq",
     "could_not_create_stream_for_chromecast": "Chromecast tlhol ret qonlaHbe'",
     "chromecast_playback_failed": "tlhol retvam chu'laHbe' Chromecast",
+    "chromecast_server_unreachable": "Jellyfin ServerlIj ghoSlaHbe' Chromecast",
+    "chromecast_did_not_start": "chu'be' Chromecast. Jellyfin ServerlIj ghoSlaH 'e' yInuD.",
     "message_from_server": "Ho'Do' veS jach: {{message}}",
     "next_episode": "wej HemHom",
+    "up_next": "veb",
     "continue_watching": "tlhol yIHaDqa'",
     "go_back": "yIchegh",
     "downloaded_file_title": "teywI'vam Suqta'",
@@ -844,10 +971,13 @@
     "view_season": "poH yIbej",
     "select_season": "poH yIwIv",
     "no_episodes_for_this_season": "muvvam HemHom pagh",
+    "missing": "Hutlh",
+    "not_yet_aired": "wej much",
     "overview": "Hoch Sov",
     "more_with": "{{name}} latlh",
     "similar_items": "Doch rur",
     "no_similar_items_found": "Doch rur pagh tu'",
+    "collections": "bom ghommey",
     "video": "mu'tlhegh",
     "more_details": "latlh De'",
     "media_options": "Doch wIv",
@@ -861,8 +991,46 @@
     "show_more": "latlh yIHoch",
     "show_less": "Hom yIHoch",
     "left": "ratlh",
-    "director": "DevwI'",
     "cast": "DawI'pu'",
+    "credits": {
+      "Director_one": "DevwI'",
+      "Director_other": "DevwI'pu'",
+      "Writer_one": "ghItlhwI'",
+      "Writer_other": "ghItlhwI'pu'",
+      "Creator_one": "chenmoHwI'",
+      "Creator_other": "chenmoHwI'pu'",
+      "Author_one": "ghItlhwI'",
+      "Author_other": "ghItlhwI'pu'",
+      "Narrator_one": "lut ja'wI'",
+      "Narrator_other": "lut ja'wI'pu'"
+    },
+    "person_kind": {
+      "Actor": "DawI'",
+      "Director": "DevwI'",
+      "Composer": "QoQ qonwI'",
+      "Writer": "ghItlhwI'",
+      "GuestStar": "Sovbe'bogh DawI'",
+      "Producer": "ngoqwI'",
+      "Conductor": "QoQ DevwI'",
+      "Lyricist": "bom mu' ghItlhwI'",
+      "Arranger": "QoQ HevwI'",
+      "Engineer": "wab jonwI'",
+      "Mixer": "wab DuDwI'",
+      "Remixer": "bom DuDqa'wI'",
+      "Creator": "chenmoHwI'",
+      "Artist": "mIghwI'",
+      "AlbumArtist": "bom ghom mIghwI'",
+      "Author": "ghItlhwI'",
+      "Illustrator": "mIllogh qonwI'",
+      "Penciller": "ghItlhwI' naQ",
+      "Inker": "ngutlh rItwI'",
+      "Colorist": "rItwI'",
+      "Letterer": "ngutlh ghItlhwI'",
+      "CoverArtist": "Dech mIllogh qonwI'",
+      "Editor": "choHwI'",
+      "Translator": "mughwI'",
+      "Narrator": "lut ja'wI'"
+    },
     "technical_details": "Qapmey De'",
     "appeared_in": "tlholvam",
     "movies": "DIS",
@@ -909,6 +1077,14 @@
     }
   },
   "seerr": {
+    "awaited": {
+      "notify_me": "pawDI' jIja'",
+      "waiting": "ja'lu'",
+      "stop_hint": "pongvam loS mev",
+      "already_here": "ServerDaq tu'lu' pongvam",
+      "too_many": "pongmey law'qu' DaloS",
+      "failed": "pongmey DaloSbogh DachoHlaHbe'"
+    },
     "cancel": "qIl",
     "whats_wrong": "nuq qaS?",
     "issue_type": "ghIq Segh",
@@ -1185,10 +1361,10 @@
     "pairing_tv_connecting": "laHlIjDaq rarlI' TV",
     "error_title": "chaw' luj",
     "error_invalid_qr": "QR ngoq lughbe'. TV rar ngoq yIlaD.",
-    "error_old_tv": "This TV runs an older version of Streamyfin. Update it, then try again.",
-    "error_code_not_waiting": "This code is not waiting on {{server}}. Check that the TV uses the same server as this phone, then start Quick Connect again on the TV.",
-    "error_quick_connect_disabled": "Quick Connect is turned off on {{server}}. An administrator can turn it on in the server's dashboard.",
-    "error_other_server": "This TV is connecting to another server, {{server}}. Sign in to that server in this app, then scan again.",
+    "error_old_tv": "TVvamDaq Streamyfin ngo' qul. yIchu'qa' 'ej yInIDqa'.",
+    "error_code_not_waiting": "{{server}}Daq loSbe' ngoqvam. Serverwa' lo' TV 'ej ghoghHablI'vam 'e' yInuD, ghIq TVDaq parmaq ngoQ yItaghqa'.",
+    "error_quick_connect_disabled": "{{server}}Daq parmaq ngoQ Qotlhlu'. ServerDaq SeHlaw HoSghajmoHlaH loHwI'.",
+    "error_other_server": "latlh Server {{server}} rar TVvam. ghunvamDaq Servervetlh yI'el, ghIq yIlaDqa'.",
     "error_generic": "Qagh qaS. yInIDqa'.",
     "error_permission_denied": "QR ngoq DalaDmeH mIllogh laH poQlu'.",
     "login_as": "{{username}} 'oS 'el'a'?",
@@ -1198,11 +1374,11 @@
   "pairing": {
     "pair_with_phone": "De'wI' yIrar",
     "pair_with_phone_title": "TVDaq yI'el",
-    "scan_quick_connect": "Scan the QR code with the Streamyfin app or your phone's camera.",
-    "code_expired": "This code has expired.",
-    "get_new_code": "Get a new code",
-    "scan_with_app": "Scan the QR code with the Streamyfin app on your phone.",
-    "account_that_approves": "The account that approves the code",
+    "scan_quick_connect": "Streamyfin ghun pagh ghoghHablI' mInDu' lo'taHvIS QR ngoq yIlaD.",
+    "code_expired": "ngoqvam poH Dor.",
+    "get_new_code": "ngoq chu' yISuq",
+    "scan_with_app": "ghoghHablI'lIjDaq Streamyfin ghun lo'taHvIS QR ngoq yIlaD.",
+    "account_that_approves": "ngoq chaw'bogh laH",
     "logging_in": "'ellI'...",
     "logging_in_description": "ServerlIjDaq rarlI'"
   },
@@ -1234,5 +1410,82 @@
     "header_count_one": "{{count}} nach De'",
     "header_count_other": "{{count}} nach De'",
     "header_count": "{{count}} nach De'"
+  },
+  "syncplay": {
+    "pause": "yImev",
+    "play": "chu'",
+    "online_video_only": "mu'tlhegh De'wI' ghom neH lo' SyncPlay. mu'tlhegh Suqlu'pu'bogh Dabejmeh pagh Cast Dalo'meH ghom yImej.",
+    "title": "SyncPlay",
+    "watch": "yIbej",
+    "new_group": "ghom chu'",
+    "new_group_queues": "{{title}} tlheghDaq chel · {{count}} mu'tlhegh",
+    "new_group_queues_one": "{{title}} tlheghDaq chel",
+    "new_group_queues_other": "{{title}} tlheghDaq chel · {{count}} mu'tlhegh",
+    "groups_on_server": "ServervamDaq ghommey",
+    "join": "yImuv",
+    "play_for_everyone": "Hoch-vaD yIchu'",
+    "stop_for_everyone": "Hoch-vaD yImev",
+    "back_to_group": "{{name}}Daq yIchegh",
+    "how_to_play": "ghomDaq, mu'tlhegh Hoch chu'DI' Hoch-vaD chu'lu'.",
+    "play_next": "veb yIchu'",
+    "add_to_queue": "tlheghDaq yIchel",
+    "added_to_queue": "ghom tlheghDaq chellu'",
+    "default_group_name": "{{name}} ghom",
+    "switch_group": "latlh ghomDaq yIghoS",
+    "ignore_wait_setting_hint": "ghommey Damuvbogh taghlu' 'ej taghqa'lu', De'wI'vam loSbe'lu'. muvDI' Hoch lo'lu'; chu'wI'Daq choHlaH.",
+    "description": "juppu' Serverwa'Daq Jellyfin lo'bogh tlhej rap DaH bej.",
+    "current_group": "ghomlIj",
+    "available_groups": "ghommey tu'lu'bogh",
+    "leave": "ghom yImej",
+    "refresh": "yIchu'qa'",
+    "retry": "yInIDqa'",
+    "no_groups": "latlh ghom tu'lu'be'. ghom yIchenmoH 'ej juppu' yIrI'.",
+    "no_participants": "muvwI'pu' loS",
+    "unavailable": "laHvamvaD SyncPlay tu'lu'be'. Server loHwI' yItlhob.",
+    "disconnected": "SyncPlay Dalo'meH ServerlIj yIrar. rarlu'qa'DI' ghommey tu'lu'.",
+    "reconnecting": "rarqa'lI'…",
+    "error": "poQ ta'laHbe' SyncPlay",
+    "states": {
+      "Idle": "bejmeH ghuHlu'",
+      "Waiting": "Hoch loS",
+      "Paused": "mevlu'",
+      "Playing": "chu'lI'"
+    },
+    "errors": {
+      "disconnected": "Server rar chIlqu'. tlhej Dabejqa'meH yIrarqa'.",
+      "request_failed": "poQ Qapbe'. yInIDqa'.",
+      "create_denied": "SyncPlay ghommey chenmoHmeH laHvamvaD chaw' tu'lu'be'.",
+      "join_denied": "ghomvam muvmeH laHvamvaD chaw' tu'lu'be'.",
+      "group_missing": "ghomvam tu'lu'be'. ghom tetlh yIchu'qa'.",
+      "library_denied": "ghom mu'tlhegh wIvbogh lo'laHbe' laHvam.",
+      "disabled": "laHvamvaD SyncPlay Qotlhlu'.",
+      "playback_failed": "ghom mu'tlhegh chu'laHbe'lu'. latlh mu'tlhegh yIwIv pagh yInIDqa'.",
+      "invalid_name": "ghom pong yIghItlh.",
+      "timeout": "poHDaq jangbe' Server. yInIDqa'."
+    },
+    "queue": "tlhegh ghom",
+    "playback_options": "chu' wIv",
+    "repeat": "yInIDqa'",
+    "repeat_modes": {
+      "RepeatNone": "Qotlhlu'",
+      "RepeatAll": "Hoch mu'tlhegh",
+      "RepeatOne": "wa' mu'tlhegh"
+    },
+    "shuffle": "yIloQ",
+    "ignore_wait": "De'wI'vam yIloSQo'",
+    "ignore_wait_hint": "De'wI'vam ghuHpa' taghlaH pagh taghqa'laH ghom. DaH mIw neH lo'lu' SeHlawvam.",
+    "on": "chu'lu'",
+    "off": "Qotlhlu'",
+    "empty_queue": "tlhegh chIm. bIngDaq mu'tlhegh yIchel pagh De'wI' bomlIjvo' wa' yIchu'.",
+    "unavailable_video": "mu'tlhegh tu'lu'be'",
+    "now_playing": "DaH mu'tlhegh",
+    "move_up": "Dung yIvIH",
+    "move_down": "bIng yIvIH",
+    "remove": "teq",
+    "clear_upcoming": "DaH mu'tlhegh neH yIpol",
+    "clear_all": "tlhegh yIteq 'ej yImev",
+    "play_now": "DaH yIchu'",
+    "refresh_group": "ghom yIchu'qa'",
+    "close": "SoQmoH"
   }
 }

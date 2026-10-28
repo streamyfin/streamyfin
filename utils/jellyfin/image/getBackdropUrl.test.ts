@@ -66,6 +66,15 @@ describe("getBackdropUrl", () => {
       maxHeight: "1920",
     });
   });
+
+  // REACT-NATIVE-NY: the series page got a text answer where it expected an
+  // item, and building its header image threw "right operand of 'in' is not
+  // an object", taking the page down.
+  test("gives no image, without throwing, for an answer that is not an item", () => {
+    const notAnItem = "<!doctype html>" as unknown as BaseItemDto;
+
+    expect(getBackdropUrl({ api, item: notAnItem, width: 1179 })).toBeNull();
+  });
 });
 
 describe("getParentBackdropImageUrl", () => {
