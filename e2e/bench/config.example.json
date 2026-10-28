@@ -1,0 +1,39 @@
+{
+  "servers": {
+    "beta13": {
+      "url": "https://jellyfin-13.example.test",
+      "label": "Jellyfin 13 nightly, reachable by cast targets",
+      "accounts": {
+        "test": { "username": "test", "password": "replace-me" },
+        "standard": { "username": "standard", "password": "replace-me" },
+        "mobile": { "username": "mobile", "password": "replace-me" },
+        "direct": { "username": "direct", "password": "replace-me" }
+      }
+    },
+    "beta12": {
+      "url": "http://beta.example.test:8122",
+      "label": "Jellyfin 12 (latest)",
+      "accounts": {
+        "test": { "username": "test", "password": "replace-me" },
+        "standard": { "username": "standard", "password": "replace-me" },
+        "mobile": { "username": "mobile", "password": "replace-me" },
+        "direct": { "username": "direct", "password": "replace-me" }
+      }
+    },
+    "beta1011": {
+      "url": "http://beta.example.test:8110",
+      "label": "Jellyfin 10.11, private network only",
+      "accounts": {
+        "test": { "username": "test", "password": "replace-me" },
+        "standard": { "username": "standard", "password": "replace-me" }
+      }
+    }
+  },
+  "targets": {
+    "chromecasts": [
+      { "name": "Living room", "host": "192.0.2.10", "kind": "chromecast-gen3" }
+    ]
+  },
+  "keep_dir": "~/.claude-tmp/streamyfin/keep/chromecast/preuves",
+  "redact": ["example.test"]
+}

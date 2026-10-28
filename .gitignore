@@ -91,3 +91,11 @@ google-service-account.json
 
 # Reassure measurements
 .reassure/
+
+# End-to-end bench (private configuration, run output, local virtualenv)
+e2e/.venv/
+e2e/reports/
+e2e/bench/config.local.json
+e2e/suites/syncplay/.state/
+e2e/suites/syncplay/artifacts/
+e2e/**/__pycache__/
