@@ -45,6 +45,7 @@ class JellyfinClientTests(unittest.TestCase):
         self.assertIn('Client="Streamyfin E2E bench"', header)
         self.assertIn('DeviceId="streamyfin-e2e-bench', header)
         self.assertIn("Version=", header)
+        self.assertEqual(requests[0].full_url, "http://server.example.test:8096/System/Info/Public")
 
     def test_device_id_is_unique_per_client(self):
         # Jellyfin revokes the previous token of a (user, device id) pair on a new sign-in:
@@ -60,7 +61,6 @@ class JellyfinClientTests(unittest.TestCase):
         self.assertTrue(requests[0].full_url.endswith("/Sessions/Logout"))
         self.assertEqual(requests[0].get_method(), "POST")
         self.assertEqual(requests[0].get_header("X-emby-token"), "tok")
-        self.assertEqual(requests[0].full_url, "http://server.example.test:8096/System/Info/Public")
 
     def test_user_agent_is_the_bench_not_urllib(self):
         # Cloudflare's browser integrity check answers 403 to Python-urllib/3.x.
