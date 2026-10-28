@@ -98,7 +98,7 @@
     "react-native-collapsible": "^1.6.2",
     "react-native-country-flag": "^2.0.2",
     "react-native-device-info": "^15.0.2",
-    "react-native-draggable-flatlist": "^4.0.3",
+    "react-native-drax": "1.1.0",
     "react-native-edge-to-edge": "1.8.1",
     "react-native-gesture-handler": "3.4.0",
     "react-native-google-cast": "^4.9.1",
@@ -190,7 +190,8 @@
     "react-native-udp@4.1.7": "patches/react-native-udp@4.1.7.patch",
     "react-native-track-player@github:lovegaoshi/react-native-track-player#d2baf9a": "patches/react-native-track-player@4.1.1.patch",
     "react-native-bottom-tabs@1.4.0": "patches/react-native-bottom-tabs@1.4.0.patch",
-    "react-native-google-cast@4.9.1": "patches/react-native-google-cast@4.9.1.patch"
+    "react-native-google-cast@4.9.1": "patches/react-native-google-cast@4.9.1.patch",
+    "react-native-drax@1.1.0": "patches/react-native-drax@1.1.0.patch"
   },
   "jest": {
     "preset": "jest-expo",
