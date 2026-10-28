@@ -100,7 +100,7 @@
     "react-native-device-info": "^15.0.2",
     "react-native-draggable-flatlist": "^4.0.3",
     "react-native-edge-to-edge": "1.8.1",
-    "react-native-gesture-handler": "~2.32.0",
+    "react-native-gesture-handler": "3.4.0",
     "react-native-google-cast": "^4.9.1",
     "react-native-image-colors": "2.6.0",
     "react-native-mmkv": "4.3.2",
@@ -168,7 +168,8 @@
         "react-native-pager-view",
         "react-native-safe-area-context",
         "react-native-svg",
-        "@sentry/react-native"
+        "@sentry/react-native",
+        "react-native-gesture-handler"
       ]
     }
   },
@@ -195,7 +196,8 @@
     "preset": "jest-expo",
     "globalSetup": "<rootDir>/test-utils/timeZone.ts",
     "setupFiles": [
-      "<rootDir>/test-utils/idleCallback.ts"
+      "<rootDir>/test-utils/idleCallback.ts",
+      "./node_modules/react-native-gesture-handler/jestSetup.js"
     ],
     "moduleNameMapper": {
       "^tsx/cjs$": "<rootDir>/test-utils/tsxRequireHook.ts"
