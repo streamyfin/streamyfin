@@ -1,7 +1,6 @@
 package expo.modules.mpvplayer.cast
 
 import android.content.Context
-import android.graphics.Color
 import android.view.ContextThemeWrapper
 import android.view.ViewGroup
 import androidx.core.graphics.drawable.DrawableCompat
@@ -39,7 +38,7 @@ class CastButtonView(context: Context, appContext: AppContext) : ExpoView(contex
         val drawable = attributes.getDrawable(androidx.mediarouter.R.styleable.MediaRouteButton_externalRouteEnabledDrawable)
         attributes.recycle()
         val tinted = DrawableCompat.wrap(drawable ?: return).mutate()
-        DrawableCompat.setTint(tinted, Color.parseColor(color))
+        DrawableCompat.setTint(tinted, CastColors.parseCssColor(color) ?: return)
         button.setRemoteIndicatorDrawable(tinted)
     }
 }

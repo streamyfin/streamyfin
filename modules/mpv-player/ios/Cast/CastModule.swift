@@ -9,10 +9,19 @@ import GoogleCast
 public class CastModule: Module {
   private var listener: CastListener?
   private var channels: [String: GCKGenericChannel] = [:]
+  // The caches are written on the main thread and read by the synchronous getters from
+  // the JS thread; Swift collections are not safe to read while they are replaced.
+  private let cacheLock = NSLock()
   private var cachedState: String?
   private var cachedDevices: [[String: Any?]] = []
   private var cachedSession: [String: Any?]?
   private var observedClient: GCKRemoteMediaClient?
+
+  private func cached<T>(_ read: () -> T) -> T {
+    cacheLock.lock()
+    defer { cacheLock.unlock() }
+    return read()
+  }
 
   public func definition() -> ModuleDefinition {
     Name("StreamyfinCast")
@@ -27,7 +36,7 @@ public class CastModule: Module {
 
     Function("getCastState") { () -> String? in
       if self.listener == nil { DispatchQueue.main.async { self.ensureListening() } }
-      return self.cachedState
+      return self.cached { self.cachedState }
     }
 
     // Play Services are an Android thing; the screens treat "nothing to report" as fine.
@@ -35,7 +44,7 @@ public class CastModule: Module {
 
     AsyncFunction("showPlayServicesErrorDialog") { (_: String) in }
 
-    Function("getDevices") { self.cachedDevices }
+    Function("getDevices") { self.cached { self.cachedDevices } }
 
     AsyncFunction("startDiscovery") {
       self.ensureListening()
@@ -48,7 +57,7 @@ public class CastModule: Module {
 
     Function("getCurrentSession") { () -> [String: Any?]? in
       if self.listener == nil { DispatchQueue.main.async { self.ensureListening() } }
-      return self.cachedSession
+      return self.cached { self.cachedSession }
     }
 
     AsyncFunction("showCastDialog") { () -> Bool in
@@ -142,20 +151,21 @@ public class CastModule: Module {
   }
 
   fileprivate func updateState(_ rawValue: Int) {
-    guard let name = CastMapping.castStateName(rawValue), name != cachedState else { return }
-    cachedState = name
+    guard let name = CastMapping.castStateName(rawValue), name != cached({ cachedState }) else { return }
+    cached { cachedState = name }
     sendEvent("onCastStateChanged", ["state": name])
   }
 
   fileprivate func updateDevices() {
     let manager = GCKCastContext.sharedInstance().discoveryManager
     let devices = (0..<manager.deviceCount).compactMap { CastRecords.device(manager.device(at: $0)) }
-    cachedDevices = devices
+    cached { cachedDevices = devices }
     sendEvent("onDevicesChanged", ["devices": devices])
   }
 
   fileprivate func updateSession(_ session: GCKCastSession?) {
-    cachedSession = CastRecords.session(session)
+    let record = CastRecords.session(session)
+    cached { cachedSession = record }
   }
 
   fileprivate func emitSession(_ event: String, _ session: GCKSession, error: Error?) {

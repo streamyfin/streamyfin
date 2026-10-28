@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import androidx.mediarouter.app.MediaRouteChooserDialog
 import androidx.mediarouter.app.MediaRouteControllerDialog
 import androidx.mediarouter.media.MediaRouter
@@ -11,6 +12,7 @@ import com.google.android.gms.cast.CastDevice
 import com.google.android.gms.cast.MediaSeekOptions
 import com.google.android.gms.cast.framework.CastContext
 import com.google.android.gms.cast.framework.CastSession
+import com.google.android.gms.cast.framework.CastStateListener
 import com.google.android.gms.cast.framework.SessionManagerListener
 import com.google.android.gms.cast.framework.media.RemoteMediaClient
 import com.google.android.gms.common.GoogleApiAvailability
@@ -36,8 +38,12 @@ class CastModule : Module() {
     private var cachedDevices: List<Map<String, Any?>> = emptyList()
     private var cachedSession: Map<String, Any?>? = null
     private var routerCallback: MediaRouter.Callback? = null
+    // JS asked for discovery; it pauses while the app is in the background and resumes with it.
+    private var discoveryWanted = false
     private var mediaClient: RemoteMediaClient? = null
     private val channels = mutableSetOf<String>()
+
+    private val stateListener = CastStateListener { state -> updateState(state) }
 
     private val mediaCallback = object : RemoteMediaClient.Callback() {
         override fun onStatusUpdated() {
@@ -93,6 +99,21 @@ class CastModule : Module() {
             mainHandler.post { ensureContext() }
         }
 
+        // CastContext and MediaRouter outlive the module: after a JS reload the old instance
+        // would keep feeding events to a dead app context.
+        OnDestroy {
+            mainHandler.post { release() }
+        }
+
+        // An active scan costs battery; the SDK's own button paused it while off screen.
+        OnActivityEntersBackground {
+            mainHandler.post { stopDiscovery() }
+        }
+
+        OnActivityEntersForeground {
+            mainHandler.post { if (discoveryWanted) ensureContext()?.let { cast -> startDiscovery(cast) } }
+        }
+
         Function("isAvailable") { CastSupport.isAvailable(context) }
 
         Function("getCastState") {
@@ -112,11 +133,13 @@ class CastModule : Module() {
         Function("getDevices") { cachedDevices }
 
         AsyncFunction("startDiscovery") {
+            discoveryWanted = true
             ensureContext()?.let { cast -> startDiscovery(cast) }
             Unit
         }.runOnQueue(Queues.MAIN)
 
         AsyncFunction("stopDiscovery") {
+            discoveryWanted = false
             stopDiscovery()
             Unit
         }.runOnQueue(Queues.MAIN)
@@ -200,10 +223,12 @@ class CastModule : Module() {
         val cast = try {
             CastContext.getSharedInstance(context.applicationContext)
         } catch (error: RuntimeException) {
+            // Every Cast call then does nothing; the reason has to be somewhere.
+            Log.w(TAG, "Cast context could not be initialized", error)
             return null
         }
         castContext = cast
-        cast.addCastStateListener { state -> updateState(state) }
+        cast.addCastStateListener(stateListener)
         updateState(cast.castState)
         cast.sessionManager.addSessionManagerListener(sessionListener, CastSession::class.java)
         cast.sessionManager.currentCastSession?.let { session ->
@@ -241,6 +266,20 @@ class CastModule : Module() {
     private fun detachMedia() {
         mediaClient?.unregisterCallback(mediaCallback)
         mediaClient = null
+    }
+
+    private fun release() {
+        stopDiscovery()
+        detachMedia()
+        castContext?.let { cast ->
+            cast.removeCastStateListener(stateListener)
+            cast.sessionManager.removeSessionManagerListener(sessionListener, CastSession::class.java)
+        }
+        castContext = null
+    }
+
+    private companion object {
+        const val TAG = "StreamyfinCast"
     }
 
     private fun startDiscovery(cast: CastContext) {

@@ -108,7 +108,9 @@ export const onCastDevicesChanged = (
 
 export const onCastSessionEvent = (
   listener: (payload: CastSessionEventPayload) => void,
-): CastSubscription => subscribe("onSessionEvent", listener);
+): CastSubscription =>
+  // Wrapped like the others: the set would merge two subscriptions of one function.
+  subscribe("onSessionEvent", (payload) => listener(payload));
 
 export const onCastMediaStatusChanged = (
   listener: (status: CastMediaStatus | null) => void,
@@ -135,10 +137,18 @@ export const addCastChannel = async (
     };
   }
 
-  const info = await module.addChannel(namespace);
+  // The receiver can answer the moment the namespace opens natively, before
+  // addChannel has returned to JS: the listener has to be there first.
   const subscription = subscribe("onReceiverMessage", (payload) => {
     if (payload.namespace === namespace) onMessage(payload.message);
   });
+  let info: { namespace: string; connected: boolean };
+  try {
+    info = await module.addChannel(namespace);
+  } catch (error) {
+    subscription.remove();
+    throw error;
+  }
 
   return {
     namespace,

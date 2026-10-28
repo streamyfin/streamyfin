@@ -65,7 +65,9 @@ test("every call is a no-op when the module says it is unavailable", async () =>
 
 test("addCastChannel registers the receiver listener for its namespace only", async () => {
   const received: unknown[] = [];
-  await addCastChannel(NAMESPACE, (message) => received.push(message));
+  const channel = await addCastChannel(NAMESPACE, (message) =>
+    received.push(message),
+  );
 
   emitCastEvent(mockCast, "onReceiverMessage", {
     namespace: "urn:x-cast:other",
@@ -78,6 +80,7 @@ test("addCastChannel registers the receiver listener for its namespace only", as
 
   // The raw string reaches the listener; parsing is the receiver module's job.
   expect(received).toEqual(['{"type":"playbackstart"}']);
+  await channel.remove();
 });
 
 test("a channel's remove drops its listener and the native channel", async () => {
@@ -107,6 +110,7 @@ test("sendMessage stringifies an object once and sends a string as is", async ()
     { namespace: NAMESPACE, message: '{"command":"Pause","options":{}}' },
     { namespace: NAMESPACE, message: "raw" },
   ]);
+  await channel.remove();
 });
 
 test("castClientFor reads and follows the media status of its session", async () => {
@@ -135,6 +139,7 @@ test("opens the channel on a session that was resumed before any listener", asyn
   expect(mockCast.channels).toMatchObject([
     { namespace: NAMESPACE, connected: true },
   ]);
+  await channel.remove();
 });
 
 test("listeners share one native subscription per event and release it with the last remove", () => {
@@ -150,8 +155,10 @@ test("listeners share one native subscription per event and release it with the 
 
 test("a session event reaches every listener with its payload", () => {
   const seen: string[] = [];
-  onCastSessionEvent(({ event, error }) => seen.push(`${event}:${error}`));
-  onCastSessionEvent(({ event }) => seen.push(event));
+  const first = onCastSessionEvent(({ event, error }) =>
+    seen.push(`${event}:${error}`),
+  );
+  const second = onCastSessionEvent(({ event }) => seen.push(event));
 
   emitCastEvent(mockCast, "onSessionEvent", {
     event: "ended",
@@ -160,4 +167,45 @@ test("a session event reaches every listener with its payload", () => {
   });
 
   expect(seen).toEqual(["ended:null", "ended"]);
+  first.remove();
+  second.remove();
+});
+
+test("two subscriptions of the same function stay independent", () => {
+  const seen: string[] = [];
+  const listener = ({ event }: { event: string }) => seen.push(event);
+  const first = onCastSessionEvent(listener);
+  const second = onCastSessionEvent(listener);
+
+  first.remove();
+  emitCastEvent(mockCast, "onSessionEvent", {
+    event: "started",
+    sessionId: "session-1",
+    error: null,
+  });
+  second.remove();
+
+  // The second subscription is still there: the event reaches it once.
+  expect(seen).toEqual(["started"]);
+});
+
+test("a message sent while the channel opens reaches its listener", async () => {
+  mockCast.session = { id: "session-1", device: castDoubleDevice() };
+  let release: () => void = () => {};
+  mockCast.holdAdd = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const seen: unknown[] = [];
+
+  const pending = addCastChannel(NAMESPACE, (message) => seen.push(message));
+  // The receiver answers as soon as the namespace opens, before the native
+  // addChannel has returned to JS.
+  emitCastEvent(mockCast, "onReceiverMessage", {
+    namespace: NAMESPACE,
+    message: "early",
+  });
+  release();
+  await pending;
+
+  expect(seen).toEqual(["early"]);
 });
