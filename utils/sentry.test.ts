@@ -483,6 +483,42 @@ describe("classifyOutgoingEvent — axios errors on the unhandledrejection path"
     expect(classifyOutgoingEvent(event, undefined)).toBe(event);
   });
 
+  // The rule of the explicit capture paths: a library renamed, asked for
+  // again from an earlier session's cache.
+  test("an id the server no longer has is dropped, a series' 404 is not", () => {
+    const answered = (path: string, status: number, data: string): AxiosError =>
+      new AxiosError(
+        `Request failed with status code ${status}`,
+        AxiosError.ERR_BAD_REQUEST,
+        { method: "get", url: `https://server${path}`, headers: {} as never },
+        {},
+        { status, headers: {}, data, config: {} } as never,
+      );
+    const libraryGone = answered(
+      "/Items?userId=u1&parentId=5e1c0f9d2b7a4c38a6e2d4f1b3c5a7e9",
+      400,
+      "Error processing request.",
+    );
+    // Jellyfin also sends it for an id that is not a series, an episode's
+    // passed by mistake among them, so it is no proof of anything gone.
+    const seriesNotFound = answered(
+      "/Shows/5e1c0f9d2b7a4c38a6e2d4f1b3c5a7e9/Episodes?userId=u1",
+      404,
+      "Series not found",
+    );
+    expect(
+      classifyOutgoingEvent({} as never, { originalException: libraryGone }),
+    ).toBeNull();
+    expect(
+      classifyOutgoingEvent({} as never, { originalException: seriesNotFound }),
+    ).not.toBeNull();
+    expect(
+      classifyOutgoingEvent({} as never, {
+        originalException: axiosError(404),
+      }),
+    ).not.toBeNull();
+  });
+
   test("a Cloudflare tunnel that is down is dropped", () => {
     expect(
       classifyOutgoingEvent({} as never, {

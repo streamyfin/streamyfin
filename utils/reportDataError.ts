@@ -5,24 +5,30 @@ import { MAX_SESSION_REPORT_KEYS } from "@/constants/Sentry";
 import {
   describeHttpError,
   describeHttpResponse,
+  type HttpErrorDescription,
   isAbortLikeError,
   isEnvironmentError,
   isErrorReported,
   isExpectedError,
+  isStaleIdError,
   markErrorReported,
 } from "@/utils/errors";
 import { admitHttpFailure } from "@/utils/httpFailureGate";
+import { writeToLog } from "@/utils/log";
 
 // Every React Query failure funnels through here instead of needing per-call
 // handlers. Skipped: anything while offline, aborted requests, the user's
 // environment — no HTTP response, a gateway error or a gateway's own refusal,
 // axios or fetch — (an unreachable server is not an app bug), what a call site
 // marked as an expected outcome or already reported itself, and 401s (session
-// expiry has its own interceptor in JellyfinProvider).
+// expiry has its own interceptor in JellyfinProvider). So is an id the server
+// no longer has, a library renamed or deleted, which reportDataError writes
+// to the local log instead.
 export const shouldReportDataError = (error: unknown): boolean => {
   if (!onlineManager.isOnline()) return false;
   if (isExpectedError(error) || isErrorReported(error)) return false;
   if (isAbortLikeError(error) || isEnvironmentError(error)) return false;
+  if (isStaleIdError(error)) return false;
   if (isAxiosError(error) && error.response?.status === 401) return false;
   return true;
 };
@@ -35,18 +41,53 @@ export const shouldReportDataError = (error: unknown): boolean => {
 // key, error name) per session.
 const reportedDataErrors = new Set<string>();
 
+// A library renamed while the app was closed fails every query built from the
+// cached list, on every screen that mounts one, so the log says it once per
+// session per (source, query, method, route).
+const loggedStaleIds = new Set<string>();
+
+// The log can be exported and attached to a public issue, so the line names
+// the query and gives the request's route as templated and its status: never
+// the url, the id or the body.
+const logStaleId = (
+  source: "query" | "mutation",
+  name: string | undefined,
+  http: HttpErrorDescription,
+) => {
+  const dedupeKey = [source, name ?? "?", http.method, http.path].join("|");
+  if (loggedStaleIds.has(dedupeKey)) return;
+  // Past the cap a new key is logged without being remembered: the session
+  // loses the dedupe, not the lines, as MAX_SESSION_REPORT_KEYS sets for
+  // reports.
+  if (loggedStaleIds.size < MAX_SESSION_REPORT_KEYS) {
+    loggedStaleIds.add(dedupeKey);
+  }
+  writeToLog("WARN", "Asked for an id the server no longer has", {
+    source,
+    key: name,
+    method: http.method,
+    route: http.path,
+    status: http.status,
+  });
+};
+
 /** The QueryCache and MutationCache `onError` of the app's query client. */
 export const reportDataError = (
   source: "query" | "mutation",
   key: readonly unknown[] | undefined,
   error: unknown,
 ) => {
-  if (!shouldReportDataError(error)) return;
   // Only the key's first element (the query's name) is used — later
   // elements can carry search text or item titles, and the name alone
   // already says which data path failed.
   const name = typeof key?.[0] === "string" ? key[0] : undefined;
   const http = describeHttpError(error);
+  // Never reported (isStaleIdError), but not left without a trace either.
+  if (http && isStaleIdError(error)) {
+    logStaleId(source, name, http);
+    return;
+  }
+  if (!shouldReportDataError(error)) return;
   // A 404 from a Streamystats endpoint is a server that predates the route
   // (recommendations, watchlists) — feature-unsupported, not an app bug, and
   // the UI already renders nothing for it.

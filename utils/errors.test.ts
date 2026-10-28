@@ -1,5 +1,18 @@
+import type { CollectionType } from "@jellyfin/sdk/lib/generated-client/models";
+import {
+  getFilterApi,
+  getItemsApi,
+  getTvShowsApi,
+} from "@jellyfin/sdk/lib/utils/api";
 import { AxiosError, type AxiosResponse } from "axios";
 import { FetchError } from "expo/src/winter/fetch/FetchErrors";
+import { makeApi } from "@/test-utils/jellyfinApi";
+import { buildLibraryItemsQuery } from "@/utils/library/libraryItemsQuery";
+import {
+  getLibraryTabFilters,
+  getLibraryTabQuery,
+  type LibraryTab,
+} from "@/utils/library/libraryTabs";
 import {
   describeHttpError,
   describeHttpResponse,
@@ -8,6 +21,7 @@ import {
   isEnvironmentError,
   isGatewayBlockError,
   isGatewayStatus,
+  isStaleIdError,
   templateRequestPath,
 } from "./errors";
 
@@ -16,11 +30,13 @@ const httpError = (
   {
     method = "get",
     url = "https://jellyfin.example.com/Items",
+    params,
     headers = {},
     data,
   }: {
     method?: string;
     url?: string;
+    params?: Record<string, unknown>;
     headers?: Record<string, unknown>;
     data?: unknown;
   } = {},
@@ -28,7 +44,7 @@ const httpError = (
   new AxiosError(
     status ? `Request failed with status code ${status}` : "Network Error",
     status ? AxiosError.ERR_BAD_RESPONSE : AxiosError.ERR_NETWORK,
-    { method, url, headers: {} as never },
+    { method, url, params, headers: {} as never },
     {},
     status
       ? ({ status, headers, data, config: {} } as unknown as AxiosResponse)
@@ -1108,5 +1124,548 @@ describe("describeHttpResponse", () => {
   test("is undefined without a response", () => {
     expect(describeHttpResponse(httpError(undefined))).toBeUndefined();
     expect(describeHttpResponse(new Error("boom"))).toBeUndefined();
+  });
+});
+
+// REACT-NATIVE-6B, 3C and S8. The app restores its query cache from disk for
+// up to a day, so it keeps asking for ids an earlier session saw: a library
+// renamed or deleted has a new id or none. Replayed against Jellyfin 10.10.7,
+// 10.11.11 and 13.0.0, the answer means that once the request's own faults,
+// answered in the same words, are ruled out.
+describe("isStaleIdError", () => {
+  const STALE = "5e1c0f9d2b7a4c38a6e2d4f1b3c5a7e9";
+  const SEASON = "3fa85f64-5717-4562-b3fc-2c963f66afa6";
+  const EMPTY_GUID = "00000000-0000-0000-0000-000000000000";
+  const REASON = "Error processing request.";
+  const TEXT = {
+    "content-type": "text/plain; charset=utf-8",
+    server: "Kestrel",
+  };
+  const JSON_BODY = { "content-type": "application/json; charset=utf-8" };
+  const PROBLEM = { "content-type": "application/problem+json; charset=utf-8" };
+
+  // Sent through the SDK the way the app sends it, so the rule reads the url
+  // the SDK writes and not one written for the test.
+  const failure = async (
+    send: (api: ReturnType<typeof makeApi>) => Promise<unknown>,
+    status: number,
+    data: unknown,
+    headers: Record<string, string> = TEXT,
+  ): Promise<unknown> => {
+    const api = makeApi();
+    api.mock.onAny().reply(status, data, headers);
+    try {
+      await send(api);
+    } catch (error) {
+      return error;
+    }
+    throw new Error("the request did not fail");
+  };
+
+  describe("as the app asks", () => {
+    test("a library that is gone: its items and its filters", async () => {
+      // The library page's request, with a sort and a year picked.
+      const items = await failure(
+        (api) =>
+          getItemsApi(api).getItems({
+            userId: "u1",
+            parentId: STALE,
+            recursive: true,
+            sortBy: ["SortName", "SortName", "ProductionYear"],
+            sortOrder: ["Ascending"],
+            years: [2019, 2020],
+            limit: 36,
+          }),
+        400,
+        REASON,
+      );
+      // A library card's count.
+      const count = await failure(
+        (api) =>
+          getItemsApi(api).getItems({
+            userId: "u1",
+            parentId: STALE,
+            recursive: true,
+            limit: 0,
+          }),
+        400,
+        REASON,
+      );
+      const filters = await failure(
+        (api) =>
+          getFilterApi(api).getQueryFiltersLegacy({
+            userId: "u1",
+            parentId: STALE,
+          }),
+        400,
+        REASON,
+      );
+      expect(isStaleIdError(items)).toBe(true);
+      expect(isStaleIdError(count)).toBe(true);
+      expect(isStaleIdError(filters)).toBe(true);
+    });
+
+    // REACT-NATIVE-22, 11 and 4W stay reported. Jellyfin answers these 404s
+    // whenever the id is not a series (or a season) the user can see: one
+    // that is gone, but also an item of another kind, which is the app's bug
+    // (the series page opened with an episode's id), and one the user may not
+    // open. A proxy's own 404 page read the same. The 404 alone cannot tell
+    // them apart.
+    test("a series' 404 is not: Jellyfin sends it for an id of another kind too", async () => {
+      const allEpisodes = await failure(
+        (api) =>
+          getTvShowsApi(api).getEpisodes({ seriesId: STALE, userId: "u1" }),
+        404,
+        "Series not found",
+        JSON_BODY,
+      );
+      // A season the series no longer has.
+      const seasonEpisodes = await failure(
+        (api) =>
+          getTvShowsApi(api).getEpisodes({
+            seriesId: STALE,
+            userId: "u1",
+            seasonId: SEASON,
+          }),
+        404,
+        `No season exists with Id ${SEASON}`,
+        JSON_BODY,
+      );
+      // The season picker's own request.
+      const seasons = await failure(
+        (api) =>
+          api.axiosInstance.get(`${api.basePath}/Shows/${STALE}/Seasons`, {
+            params: { userId: "u1", itemId: STALE },
+          }),
+        404,
+        { title: "Not Found", status: 404 },
+        PROBLEM,
+      );
+      expect(isStaleIdError(allEpisodes)).toBe(false);
+      expect(isStaleIdError(seasonEpisodes)).toBe(false);
+      expect(isStaleIdError(seasons)).toBe(false);
+    });
+
+    test("the same answer to a request that named no parent is not", async () => {
+      const error = await failure(
+        (api) => getItemsApi(api).getItems({ userId: "u1", recursive: true }),
+        400,
+        REASON,
+      );
+      expect(isStaleIdError(error)).toBe(false);
+    });
+
+    // A parentId that is not a GUID is turned away before any lookup, with
+    // validation details: that one is the app's to hear about.
+    test("a parentId the server could not read is not", async () => {
+      const error = await failure(
+        (api) => getItemsApi(api).getItems({ userId: "u1", parentId: "abc" }),
+        400,
+        {
+          title: "One or more validation errors occurred.",
+          status: 400,
+          errors: { parentId: ["The value 'abc' is not valid."] },
+        },
+        PROBLEM,
+      );
+      expect(isStaleIdError(error)).toBe(false);
+    });
+
+    // The two other requests Jellyfin answers in the same words, both of them
+    // the app's doing whatever the parent.
+    test("a request that also sent what Jellyfin rejects that way is not", async () => {
+      const nanYear = await failure(
+        (api) =>
+          getItemsApi(api).getItems({
+            userId: "u1",
+            parentId: STALE,
+            years: [Number.NaN],
+          }),
+        400,
+        REASON,
+      );
+      const extraSortOrder = await failure(
+        (api) =>
+          getItemsApi(api).getItems({
+            userId: "u1",
+            parentId: STALE,
+            sortBy: ["SortName"],
+            sortOrder: ["Ascending", "Descending"],
+          }),
+        400,
+        REASON,
+      );
+      expect(isStaleIdError(nanYear)).toBe(false);
+      expect(isStaleIdError(extraSortOrder)).toBe(false);
+    });
+
+    // Jellyfin turns the empty GUID away before any lookup ("Guid can't be
+    // empty"), in the same words: a request that names no record cannot have
+    // named one that is gone.
+    test("the empty GUID as a parent is not", async () => {
+      const error = await failure(
+        (api) =>
+          getItemsApi(api).getItems({ userId: "u1", parentId: EMPTY_GUID }),
+        400,
+        REASON,
+      );
+      expect(isStaleIdError(error)).toBe(false);
+    });
+
+    // The grid's page as the library screen asks for it
+    // (app/(auth)/(tabs)/(libraries)/[libraryId].tsx, fetchItems). A
+    // collections library, and the collections tab of any library, ask for
+    // box sets alone, which Jellyfin 10.10 and 10.11 answer without looking
+    // the library up: a 400 there is not about the library.
+    test("a library's box sets are not, its own items are", async () => {
+      const page = (
+        library: { Type: "CollectionFolder"; CollectionType: CollectionType },
+        tab: LibraryTab,
+      ) =>
+        failure(
+          (api) => {
+            const query = buildLibraryItemsQuery({
+              userId: "u1",
+              libraryId: STALE,
+              collectionType: library.CollectionType,
+              sortBy: "SortName",
+              sortOrder: "Ascending",
+              filterBy: [],
+              genres: [],
+              years: [],
+              tags: [],
+            });
+            return getItemsApi(api).getItems({
+              userId: query.userId,
+              parentId: query.parentId,
+              recursive: query.recursive,
+              ...getLibraryTabFilters(tab, {
+                sortBy: query.sortBy,
+                sortOrder: query.sortOrder,
+                filters: query.filters,
+                genres: query.genres,
+                tags: query.tags,
+                years: query.years,
+              }),
+              ...getLibraryTabQuery(tab, library, false),
+              limit: 36,
+              startIndex: 0,
+            });
+          },
+          400,
+          REASON,
+        );
+      const collections = {
+        Type: "CollectionFolder",
+        CollectionType: "boxsets",
+      } as const;
+      const movies = {
+        Type: "CollectionFolder",
+        CollectionType: "movies",
+      } as const;
+      expect(isStaleIdError(await page(collections, "items"))).toBe(false);
+      expect(isStaleIdError(await page(movies, "collections"))).toBe(false);
+      expect(isStaleIdError(await page(movies, "items"))).toBe(true);
+    });
+  });
+
+  const itemsUrl = (query: string, path = "/Items") =>
+    `https://jellyfin.example.com${path}?userId=u1&${query}`;
+  const unknownParent = (url: string, extra: Record<string, unknown> = {}) =>
+    httpError(400, { url, headers: TEXT, data: REASON, ...extra });
+
+  test("a server published under a base path", () => {
+    expect(
+      isStaleIdError(
+        unknownParent(
+          `https://example.com/jellyfin/Items?parentId=${STALE}&userId=u1`,
+        ),
+      ),
+    ).toBe(true);
+  });
+
+  // ASP.NET binds a query parameter whatever its case.
+  test("the parentId is read in any case, from the url or from params", () => {
+    expect(isStaleIdError(unknownParent(itemsUrl(`ParentId=${STALE}`)))).toBe(
+      true,
+    );
+    expect(isStaleIdError(unknownParent(itemsUrl(`parentid=${STALE}`)))).toBe(
+      true,
+    );
+    expect(
+      isStaleIdError(
+        unknownParent(itemsUrl("recursive=true"), {
+          params: { parentId: STALE },
+        }),
+      ),
+    ).toBe(true);
+  });
+
+  // ASP.NET binds a blank parentId as no parent at all.
+  test("an empty parentId names no parent", () => {
+    expect(isStaleIdError(unknownParent(itemsUrl("parentId=")))).toBe(false);
+    expect(isStaleIdError(unknownParent(itemsUrl("parentId")))).toBe(false);
+    expect(isStaleIdError(unknownParent(itemsUrl("parentId=%20+")))).toBe(
+      false,
+    );
+  });
+
+  // "Guid can't be empty": a fault of the request, in the same words.
+  test("the empty GUID names no parent, whichever way it is written", () => {
+    expect(
+      isStaleIdError(unknownParent(itemsUrl(`parentId=${EMPTY_GUID}`))),
+    ).toBe(false);
+    expect(
+      isStaleIdError(
+        unknownParent(itemsUrl(`ParentId=${EMPTY_GUID.replace(/-/g, "")}`)),
+      ),
+    ).toBe(false);
+    expect(
+      isStaleIdError(unknownParent(itemsUrl(`parentid=+${EMPTY_GUID}+`))),
+    ).toBe(false);
+    expect(
+      isStaleIdError(
+        unknownParent(itemsUrl("recursive=true"), {
+          params: { parentId: EMPTY_GUID },
+        }),
+      ),
+    ).toBe(false);
+    // The GUID one past it is a record like any other.
+    expect(
+      isStaleIdError(
+        unknownParent(
+          itemsUrl("parentId=00000000-0000-0000-0000-000000000001"),
+        ),
+      ),
+    ).toBe(true);
+  });
+
+  test("the reason is Jellyfin's, word for word", () => {
+    const withBody = (data: unknown) =>
+      isStaleIdError(
+        httpError(400, {
+          url: itemsUrl(`parentId=${STALE}`),
+          headers: TEXT,
+          data,
+        }),
+      );
+    expect(withBody(`${REASON}\n`)).toBe(true);
+    expect(withBody("Error processing request")).toBe(false);
+    expect(withBody("Invalid parent id")).toBe(false);
+    expect(withBody("")).toBe(false);
+    expect(withBody(undefined)).toBe(false);
+    expect(withBody({ message: REASON })).toBe(false);
+    expect(withBody(`<!DOCTYPE html><html><body>${REASON}`)).toBe(false);
+  });
+
+  // The year is bound as an Int32, whose converter throws an ArgumentException
+  // the binder lets through: the same 400, whatever the parent.
+  test("a year that is not an Int32 keeps it the app's fault", () => {
+    const withYears = (years: string) =>
+      isStaleIdError(
+        unknownParent(itemsUrl(`parentId=${STALE}&years=${years}`)),
+      );
+    expect(withYears("NaN")).toBe(false);
+    expect(withYears("2019,abc")).toBe(false);
+    expect(withYears("2019.5")).toBe(false);
+    expect(withYears("99999999999")).toBe(false);
+    expect(withYears("2147483648")).toBe(false);
+    expect(withYears("-2147483649")).toBe(false);
+    expect(withYears("2019,2020")).toBe(true);
+    expect(withYears("2147483647")).toBe(true);
+    expect(withYears("-2147483648")).toBe(true);
+    expect(withYears("%2B2019")).toBe(true);
+  });
+
+  // CommaDelimitedCollectionModelBinder splits a parameter on commas only
+  // when it comes once. Sent more than once, each value is one entry, which
+  // an Int32 does not read with a comma in it.
+  test("a parameter sent more than once is not split on commas", () => {
+    const withQuery = (query: string) =>
+      isStaleIdError(unknownParent(itemsUrl(`parentId=${STALE}&${query}`)));
+    expect(withQuery("years=2019&years=2020,2021")).toBe(false);
+    expect(withQuery("Years=2019&years=2020,2021")).toBe(false);
+    expect(withQuery("years=2019&years=2020")).toBe(true);
+    // A value sent once loses its empty pieces; an empty value sent among
+    // others is an entry of its own, and no Int32.
+    expect(withQuery("years=2019,,2020")).toBe(true);
+    expect(withQuery("years=&years=2019")).toBe(false);
+  });
+
+  test("more sort orders than sort fields keep it the app's fault", () => {
+    expect(
+      isStaleIdError(
+        unknownParent(
+          itemsUrl(
+            `parentId=${STALE}&sortBy=SortName&sortOrder=Ascending,Descending`,
+          ),
+        ),
+      ),
+    ).toBe(false);
+    expect(
+      isStaleIdError(
+        unknownParent(
+          itemsUrl(
+            `parentId=${STALE}&sortBy=SortName,ProductionYear&sortOrder=Ascending`,
+          ),
+        ),
+      ),
+    ).toBe(true);
+  });
+
+  // The binder drops a value that names no sort field or order without a
+  // word, so only the ones it keeps are counted. It reads them in any case.
+  test("only the sort fields and orders Jellyfin knows count", () => {
+    const withSort = (query: string) =>
+      isStaleIdError(unknownParent(itemsUrl(`parentId=${STALE}&${query}`)));
+    expect(
+      withSort("sortBy=SortName,NotAField&sortOrder=Ascending,Descending"),
+    ).toBe(false);
+    expect(withSort("sortBy=SortName&sortOrder=Ascending,Sideways")).toBe(true);
+    expect(withSort("sortBy=sortname&sortOrder=ascending,DESCENDING")).toBe(
+      false,
+    );
+    expect(
+      withSort("sortBy=sortname,PRODUCTIONYEAR&sortOrder=ascending,DESCENDING"),
+    ).toBe(true);
+  });
+
+  // RequestHelpers.GetOrderBy returns before it reads a single sort order
+  // when there is no sort field to pair it with.
+  test("sort orders without a sort field are not a fault", () => {
+    const withSort = (query: string) =>
+      isStaleIdError(unknownParent(itemsUrl(`parentId=${STALE}&${query}`)));
+    expect(withSort("sortOrder=Ascending,Descending")).toBe(true);
+    expect(withSort("sortBy=NotAField&sortOrder=Ascending,Descending")).toBe(
+      true,
+    );
+  });
+
+  // Jellyfin 10.10 and 10.11 drop the parentId of GET /Items that asks for
+  // box sets alone, so an unknown one answers 200 there. Jellyfin 12 looks it
+  // up first, but the answer does not say which version sent it, so the rule
+  // follows the versions that never look.
+  test("box sets alone on /Items: the parent is not looked up", () => {
+    const withTypes = (query: string) =>
+      isStaleIdError(unknownParent(itemsUrl(`parentId=${STALE}&${query}`)));
+    expect(withTypes("includeItemTypes=BoxSet")).toBe(false);
+    expect(withTypes("IncludeItemTypes=boxset")).toBe(false);
+    // The binder drops a type it does not know, which leaves the box set
+    // alone, sent once or more than once.
+    expect(withTypes("includeItemTypes=BoxSet,NotAKind")).toBe(false);
+    expect(withTypes("includeItemTypes=NotAKind&includeItemTypes=BoxSet")).toBe(
+      false,
+    );
+  });
+
+  test("any other types on /Items: the parent is looked up", () => {
+    const withTypes = (query: string) =>
+      isStaleIdError(unknownParent(itemsUrl(`parentId=${STALE}&${query}`)));
+    expect(withTypes("includeItemTypes=BoxSet,Movie")).toBe(true);
+    expect(withTypes("includeItemTypes=BoxSet&includeItemTypes=BoxSet")).toBe(
+      true,
+    );
+    expect(withTypes("includeItemTypes=Movie")).toBe(true);
+    expect(withTypes("includeItemTypes=Playlist")).toBe(true);
+    expect(withTypes("includeItemTypes=NotAKind")).toBe(true);
+  });
+
+  // The legacy filters of Jellyfin 10.10 and 10.11 skip the lookup for one of
+  // these types alone and answer an unknown parent with empty filters.
+  // Jellyfin 12 only skips it for a trailer or a program.
+  test.each([
+    "includeItemTypes=BoxSet",
+    "includeItemTypes=Playlist",
+    "includeItemTypes=Trailer",
+    "includeItemTypes=Program",
+    "includeitemtypes=PLAYLIST",
+    "includeItemTypes=Trailer,NotAKind",
+  ])("%s on /Items/Filters: the parent is not looked up", (query) => {
+    expect(
+      isStaleIdError(
+        unknownParent(itemsUrl(`parentId=${STALE}&${query}`, "/Items/Filters")),
+      ),
+    ).toBe(false);
+  });
+
+  test("any other types on /Items/Filters: the parent is looked up", () => {
+    const withTypes = (query: string) =>
+      isStaleIdError(
+        unknownParent(itemsUrl(`parentId=${STALE}&${query}`, "/Items/Filters")),
+      );
+    expect(withTypes("includeItemTypes=Movie")).toBe(true);
+    expect(withTypes("includeItemTypes=Playlist,Trailer")).toBe(true);
+    expect(withTypes("includeItemTypes=Trailer&includeItemTypes=Program")).toBe(
+      true,
+    );
+    expect(withTypes("includeItemTypes=NotAKind")).toBe(true);
+  });
+
+  // Each one answers an unknown id some other way: a playlist's items with a
+  // 404, the latest items and the newer filters with a 200.
+  test.each([
+    ["a playlist's items", `/Playlists/${STALE}/Items`],
+    ["the latest items", "/Items/Latest"],
+    ["the newer filters", "/Items/Filters2"],
+  ])("the same 400 from %s is not", (_name, path) => {
+    expect(
+      isStaleIdError(unknownParent(itemsUrl(`parentId=${STALE}`, path))),
+    ).toBe(false);
+  });
+
+  // /Users/{userId}/Items hands its query to GetItems and answers an unknown
+  // parent the same way. It is left out because the app never sends it a
+  // parentId, not because its answer would mean something else.
+  test("the legacy items route is left out: the app sends it no parentId", () => {
+    expect(
+      isStaleIdError(
+        unknownParent(itemsUrl(`parentId=${STALE}`, `/Users/${SEASON}/Items`)),
+      ),
+    ).toBe(false);
+  });
+
+  test.each([
+    ["the item itself", `/Items/${STALE}`],
+    ["the next episodes", "/Shows/NextUp"],
+    ["an item's similar items", `/Items/${STALE}/Similar`],
+    ["a series without its id", "/Shows/undefined/Episodes"],
+  ])("a 404 on %s is not", (_name, path) => {
+    expect(
+      isStaleIdError(
+        httpError(404, { url: `https://jellyfin.example.com${path}` }),
+      ),
+    ).toBe(false);
+  });
+
+  test("another method or status on the same routes is not", () => {
+    const itemsWithParent = itemsUrl(`parentId=${STALE}`);
+    expect(
+      isStaleIdError(
+        httpError(400, {
+          method: "post",
+          url: itemsWithParent,
+          headers: TEXT,
+          data: REASON,
+        }),
+      ),
+    ).toBe(false);
+    for (const status of [404, 500]) {
+      expect(
+        isStaleIdError(
+          httpError(status, {
+            url: itemsWithParent,
+            headers: TEXT,
+            data: REASON,
+          }),
+        ),
+      ).toBe(false);
+    }
+  });
+
+  test("is false for anything that is not an HTTP answer", () => {
+    expect(isStaleIdError(httpError(undefined))).toBe(false);
+    expect(isStaleIdError(new Error(REASON))).toBe(false);
+    expect(isStaleIdError(REASON)).toBe(false);
+    expect(isStaleIdError(null)).toBe(false);
   });
 });
