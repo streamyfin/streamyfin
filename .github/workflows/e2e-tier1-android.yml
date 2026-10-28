@@ -1,8 +1,9 @@
 name: 🎯 E2E tier 1 (Android)
 
-# Maestro flows on an Android emulator against a debug build. Cast discovery does not work
-# on emulators, so the cast flows drive fake engines; this workflow only runs on pull
-# requests that touch cast code or the bench itself.
+# Maestro flows on an Android emulator against a release build, the only variant that embeds
+# the JS bundle (a debug build is an Expo dev client that waits for Metro). Cast discovery
+# does not work on emulators, so the cast flows will drive fake engines switched on at build
+# time; this workflow only runs on pull requests that touch cast code or the bench itself.
 
 on:
   pull_request:
@@ -104,9 +105,11 @@ jobs:
       - name: 🛠️ Generate project files
         run: bun run prebuild
 
-      - name: 🚀 Build the debug APK
-        working-directory: android
-        run: ./gradlew assembleDebug --no-daemon
+      - name: 🚀 Build the APK
+        env:
+          EXPO_TV: 0
+          NODE_ENV: production
+        run: bun run build:android:local
 
       - name: 🧰 Install Maestro
         run: |
@@ -123,7 +126,7 @@ jobs:
           emulator-boot-timeout: 900
           disable-animations: true
           script: |
-            adb install -r android/app/build/outputs/apk/debug/app-debug.apk
+            adb install -r android/app/build/outputs/apk/release/app-release.apk
             maestro test e2e/suites/cast/flows/smoke-launch.yml
 
       - name: 📱 Retry the smoke flow once
@@ -137,7 +140,7 @@ jobs:
           emulator-boot-timeout: 900
           disable-animations: true
           script: |
-            adb install -r android/app/build/outputs/apk/debug/app-debug.apk
+            adb install -r android/app/build/outputs/apk/release/app-release.apk
             maestro test e2e/suites/cast/flows/smoke-launch.yml
 
       - name: 📤 Upload Maestro artifacts
