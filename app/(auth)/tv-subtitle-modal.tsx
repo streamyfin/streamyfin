@@ -13,7 +13,6 @@ import {
   ActivityIndicator,
   Animated,
   Easing,
-  InteractionManager,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -33,6 +32,7 @@ import {
 import { useTVBackPress } from "@/hooks/useTVBackPress";
 import { useSettings } from "@/utils/atoms/settings";
 import { tvSubtitleModalAtom } from "@/utils/atoms/tvSubtitleModal";
+import { deferToMicrotask } from "@/utils/deferToMicrotask";
 import { subtitleSearchErrorMessage } from "@/utils/jellyfin/subtitleSearchAccess";
 import { COMMON_SUBTITLE_LANGUAGES } from "@/utils/opensubtitles/api";
 import { scaleSize } from "@/utils/scaleSize";
@@ -683,7 +683,7 @@ export default function TVSubtitleModal() {
         // active route targets the MODAL and is swallowed. Close FIRST, apply
         // after dismissal.
         close();
-        InteractionManager.runAfterInteractions(() => option.setTrack?.());
+        deferToMicrotask(() => option.setTrack?.());
         return;
       }
       // Detail page: setTrack only updates state. Run it BEFORE closing so the
