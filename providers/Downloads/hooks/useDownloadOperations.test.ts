@@ -348,6 +348,25 @@ describe("startBackgroundDownload", () => {
     return failure;
   };
 
+  // A release build's console goes to logcat, where a log copied into an issue would hand out the
+  // session's token with the download URL.
+  it("logs the download URL without its ApiKey", async () => {
+    const { operations } = await renderOperations();
+
+    await act(async () => {
+      await operations.startBackgroundDownload(
+        "/Items/item-1/Download?ApiKey=SECRET_TOKEN",
+        item,
+        mediaSource,
+        maxBitrate,
+      );
+    });
+
+    const logged = jest.mocked(console.log).mock.calls.flat().join(" ");
+    expect(logged).toContain("https://jellyfin.example/Items/item-1/Download");
+    expect(logged).not.toContain("SECRET_TOKEN");
+  });
+
   it("removes what it wrote when native refuses the download", async () => {
     mockDownloader.enqueueDownload.mockRejectedValue(new Error("no session"));
 

@@ -15,6 +15,7 @@ import { getOrSetDeviceId } from "@/utils/device";
 import useDownloadHelper from "@/utils/download";
 import { estimateDownloadActivitySize } from "@/utils/downloadSize";
 import { logAndCaptureError } from "@/utils/log";
+import { redactCredentials } from "@/utils/redactCredentials";
 import { downloadAdditionalAssets } from "../additionalDownloads";
 import {
   clearAllDownloadedItems,
@@ -131,7 +132,7 @@ export function useDownloadOperations({
           const basePath = api.basePath || "";
           downloadUrl = `${basePath}${url}`;
           console.log(
-            `[DOWNLOAD] Converted relative URL to absolute: ${downloadUrl}`,
+            `[DOWNLOAD] Converted relative URL to absolute: ${redactCredentials(downloadUrl)}`,
           );
         }
 
@@ -184,7 +185,9 @@ export function useDownloadOperations({
         const destinationPath = uriToFilePath(videoFile.uri);
 
         console.log(`[DOWNLOAD] Starting video: ${item.Name}`);
-        console.log(`[DOWNLOAD] Download URL: ${downloadUrl}`);
+        console.log(
+          `[DOWNLOAD] Download URL: ${redactCredentials(downloadUrl)}`,
+        );
 
         // Download metadata for native: drives the iOS Live Activity, and its itemId is echoed
         // back in every download event on both platforms — it is how events find their way back
