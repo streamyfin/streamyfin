@@ -33,6 +33,8 @@ describe("getStreamUrl", () => {
     expect(url.searchParams.get("ApiKey")).toBe("SECRET_TOKEN");
   });
 
+  // #1693: Live TV loaded forever. Without the opened live stream's id,
+  // Jellyfin answers the direct play request with a 400.
   test("live TV direct play URL carries the opened live stream", async () => {
     const api = makeApi();
     api.mock.onPost(/\/Items\/channel-1\/PlaybackInfo/).reply(200, {
@@ -56,8 +58,9 @@ describe("getStreamUrl", () => {
     expect(url.searchParams.get("playSessionId")).toBe("session-1");
   });
 
-  // The TV channel grid opens a channel itself, not one of its programs, so
-  // its stream is opened by the general PlaybackInfo request.
+  // #1693 again, from the TV channel grid: it opens a channel itself, not one
+  // of its programs, so its stream is opened by the general PlaybackInfo
+  // request.
   test("a channel opened directly carries its opened live stream too", async () => {
     const api = makeApi();
     api.mock.onPost(/\/Items\/channel-1\/PlaybackInfo/).reply(200, {
