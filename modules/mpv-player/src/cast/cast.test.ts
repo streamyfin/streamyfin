@@ -132,7 +132,7 @@ test("opens the channel on a session that was resumed before any listener", asyn
   const channel = await addCastChannel(NAMESPACE, () => {});
 
   expect(channel.connected).toBe(true);
-  expect(mockCast.channels).toEqual([
+  expect(mockCast.channels).toMatchObject([
     { namespace: NAMESPACE, connected: true },
   ]);
 });

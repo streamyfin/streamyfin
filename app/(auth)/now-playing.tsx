@@ -23,7 +23,6 @@ import {
   View,
 } from "react-native";
 import { Slider } from "react-native-awesome-slider";
-import { CastButton, CastState } from "react-native-google-cast";
 import { useSharedValue } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import TextTicker from "react-native-text-ticker";
@@ -41,6 +40,11 @@ import { TrackOptionsSheet } from "@/components/music/TrackOptionsSheet";
 import useRouter from "@/hooks/useAppRouter";
 import { useFavorite } from "@/hooks/useFavorite";
 import { useMusicCast } from "@/hooks/useMusicCast";
+import {
+  CastButton,
+  CastState,
+  type CastStateValue,
+} from "@/modules/mpv-player/src/cast";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import {
   type RepeatMode,
@@ -134,7 +138,7 @@ export default function NowPlayingScreen() {
   }, [duration, sliderMax]);
 
   // Auto-cast queue when Chromecast becomes connected and pause local playback
-  const prevCastState = useRef<CastState | null | undefined>(null);
+  const prevCastState = useRef<CastStateValue | null | undefined>(null);
   useEffect(() => {
     if (
       castState === CastState.CONNECTED &&
@@ -692,10 +696,10 @@ const PlayerView: React.FC<PlayerViewProps> = ({
           )}
           {/* Chromecast */}
           <CastButton
+            tintColor={isCastConnected ? "#9334E9" : "#666"}
             style={{
               width: 24,
               height: 24,
-              tintColor: isCastConnected ? "#9334E9" : "#666",
               transform: [{ translateY: 1 }],
             }}
           />

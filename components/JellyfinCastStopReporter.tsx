@@ -1,9 +1,10 @@
 import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useRef } from "react";
-import GoogleCast, {
+import {
+  onCastSessionEvent,
   useCastDevice,
-  useMediaStatus,
-} from "react-native-google-cast";
+  useCastMediaStatus,
+} from "@/modules/mpv-player/src/cast";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import {
   receiverNameFor,
@@ -26,7 +27,7 @@ export function JellyfinCastStopReporter() {
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
   const castDevice = useCastDevice();
-  const mediaStatus = useMediaStatus();
+  const mediaStatus = useCastMediaStatus();
 
   // The device and media status are already gone by the time the session has
   // ended, so the last values seen are kept for then.
@@ -66,15 +67,15 @@ export function JellyfinCastStopReporter() {
   );
 
   useEffect(() => {
-    const sessionManager = GoogleCast.getSessionManager();
+    const subscription = onCastSessionEvent(({ event, error }) => {
+      // A new cast on the same TV must not be stopped by a check left over from
+      // the previous session.
+      if (event === "starting") {
+        cancelPendingReport();
+        return;
+      }
+      if (event !== "ended") return;
 
-    // A new cast on the same TV must not be stopped by a check left over from
-    // the previous session.
-    const starting = sessionManager.onSessionStarting(() =>
-      cancelPendingReport(),
-    );
-
-    const ending = sessionManager.onSessionEnded((_session, error) => {
       const last = lastCast.current;
       lastCast.current = {};
       cancelPendingReport();
@@ -117,10 +118,7 @@ export function JellyfinCastStopReporter() {
         });
     });
 
-    return () => {
-      starting.remove();
-      ending.remove();
-    };
+    return () => subscription.remove();
   }, [api, user, cancelPendingReport]);
 
   return null;

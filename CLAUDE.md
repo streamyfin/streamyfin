@@ -82,6 +82,7 @@ Native modules:
 - `keychain-accessibility-set-at-creation` | a SecureStore item keeps the accessibility it was created with, `setItem` over it changes only the data; a default item throws on read when iOS launches the app on a locked phone
 - `track-player-queue-is-not-the-app-queue` | the native music queue only holds the tracks loaded so far, so a state queue index does not address it; on iOS `add` past the end rejects with the same message as `skip`
 - `android-js-timers-pause-in-background` | Delayed timers don't fire while the Android app is paused (incl. under the Cast expanded controls); zero-delay ones and fetch still do
+- `cast-discovery-needs-no-mounted-button` | Android Cast discovery is a MediaRouter callback with CALLBACK_FLAG_REQUEST_DISCOVERY in the module; no hidden MediaRouteButton, which the library needed
 
 TV platform:
 - `tv-modals-must-use-navigation-pattern` | Use atom+router.push(), never overlay/absolute modals
@@ -237,7 +238,7 @@ PersistQueryClientProvider
 
 `JotaiProvider` and `ActionSheetProvider` wrap the tree higher up, at the root layout.
 
-**Native modules** in `modules/`: `mpv-player` (the native player, iOS and Android),
+**Native modules** in `modules/`: `mpv-player` (the native player and the Cast support, iOS and Android),
 `exoplayer-player`, `background-downloader`, `glass-poster`, `hero-carousel`,
 `notification-settings-link` (the iOS Settings link to the Notifications screen),
 `system-volume`, `top-shelf-cache`, `tv-recommendations`, `tv-search`, `tv-user-profile`,

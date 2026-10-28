@@ -9,21 +9,26 @@
  *
  *   jest.mock("@/modules/mpv-player/src/cast/CastModule", () => ({
  *     __esModule: true,
- *     CastNative: require("@/test-utils/cast").castDoubleModule(() => state),
+ *     CastNative: require("@/test-utils/cast").castDoubleModule(() => mockCast),
  *   }));
  */
 import type {
   CastDevice,
   CastMediaStatus,
   CastNativeEvents,
+  CastSessionEvent,
   CastSessionInfo,
   CastStateValue,
   PlayServicesStateValue,
 } from "@/modules/mpv-player/src/cast/Cast.types";
 
+/** One channel `addChannel` created; a send goes to the latest open one of its namespace. */
 export interface CastDoubleChannel {
   namespace: string;
   connected: boolean;
+  /** Messages sent on this channel, as the strings the native side receives. */
+  sent: string[];
+  removed: boolean;
 }
 
 export interface CastDoubleState {
@@ -85,8 +90,44 @@ export const createCastDoubleState = (): CastDoubleState => ({
   },
 });
 
+/** Moves the double onto a session; the device stays unless given (null for a session without one). */
+export const setCastSession = (
+  state: CastDoubleState,
+  id: string | null,
+  device?: CastDevice | null,
+): void => {
+  state.session =
+    id === null
+      ? null
+      : {
+          id,
+          device:
+            device === undefined
+              ? (state.session?.device ?? castDoubleDevice())
+              : device,
+        };
+};
+
 export const lastCastChannel = (state: CastDoubleState): CastDoubleChannel =>
   state.channels[state.channels.length - 1];
+
+const openChannel = (
+  state: CastDoubleState,
+  namespace: string,
+): CastDoubleChannel | undefined =>
+  [...state.channels]
+    .reverse()
+    .find((channel) => channel.namespace === namespace && !channel.removed);
+
+/** What was sent on a channel, parsed back; a message that is not JSON stays a string. */
+export const sentOn = (channel: CastDoubleChannel): unknown[] =>
+  channel.sent.map((message) => {
+    try {
+      return JSON.parse(message) as unknown;
+    } catch {
+      return message;
+    }
+  });
 
 /** Fires every listener registered for a native event, as the module would. */
 export const emitCastEvent = <K extends keyof CastNativeEvents>(
@@ -98,6 +139,29 @@ export const emitCastEvent = <K extends keyof CastNativeEvents>(
     (listener as (value: typeof payload) => void)(payload);
   }
 };
+
+/** A session event for the current session, as the native listeners report it. */
+export const emitCastSessionEvent = (
+  state: CastDoubleState,
+  event: CastSessionEvent,
+  error: string | null = null,
+): void =>
+  emitCastEvent(state, "onSessionEvent", {
+    event,
+    sessionId: state.session?.id ?? null,
+    error,
+  });
+
+/** A receiver message on a channel's namespace; the native side only ever hands over strings. */
+export const receiveOnChannel = (
+  state: CastDoubleState,
+  channel: CastDoubleChannel,
+  message: string | Record<string, unknown>,
+): void =>
+  emitCastEvent(state, "onReceiverMessage", {
+    namespace: channel.namespace,
+    message: typeof message === "string" ? message : JSON.stringify(message),
+  });
 
 export const castDoubleModule = (state: () => CastDoubleState) => ({
   isAvailable: jest.fn(() => state().available),
@@ -129,15 +193,24 @@ export const castDoubleModule = (state: () => CastDoubleState) => ({
         id: `${current.session.id}-renewed`,
       };
     }
-    const channel = { namespace, connected: current.connectOnAdd };
-    current.channels.push(channel);
-    return channel;
+    current.channels.push({
+      namespace,
+      connected: current.connectOnAdd,
+      sent: [],
+      removed: false,
+    });
+    return { namespace, connected: current.connectOnAdd };
   }),
   removeChannel: jest.fn(async (namespace: string) => {
-    state().removed.push(namespace);
+    const current = state();
+    const channel = openChannel(current, namespace);
+    if (channel) channel.removed = true;
+    current.removed.push(namespace);
   }),
   sendMessage: jest.fn(async (namespace: string, message: string) => {
-    state().sent.push({ namespace, message });
+    const current = state();
+    current.sent.push({ namespace, message });
+    openChannel(current, namespace)?.sent.push(message);
   }),
   getMediaStatus: jest.fn(async () => state().mediaStatus),
   play: jest.fn(async () => {}),
