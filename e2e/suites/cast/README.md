@@ -24,5 +24,5 @@ case the run has already measured.
 
 ## Flows (tier 1)
 
-Maestro flows for simulators and emulators live in `flows/`. They need a debug build of the
-app; see `e2e/README.md`.
+Maestro flows for simulators and emulators live in `flows/`. They need a build that embeds
+the JS bundle (the release APK on Android); see `e2e/README.md`.

@@ -18,10 +18,11 @@ server log, the session the server records, the receiver on the TV.
 - **Tier 0, unit.** Jest (`bun run test:unit`, which includes the shared protocol
   vectors), the bench's own tests (`bun run e2e:bench:test`, that is
   `python3 -m unittest discover -s e2e -t e2e`), and the native module tests
-  (`.github/workflows/native-tests.yml`, on changes under `modules/`).
-- **Tier 1, simulators and emulators.** Maestro flows against a debug build
-  (`bun run e2e:smoke`, or `python3 e2e/bench/maestro.py --flow <flow> --device <id>`).
-  In CI only on pull requests that touch cast code (`.github/workflows/e2e-tier1-android.yml`).
+  (`./gradlew :mpv-player:testDebugUnitTest` in a prebuilt `android/`).
+- **Tier 1, simulators and emulators.** Maestro flows against a build that embeds the JS
+  bundle, which on Android is the release APK (`bun run build:android:local`); a debug build
+  is an Expo dev client waiting for Metro. Run `bun run e2e:smoke`, or
+  `python3 e2e/bench/maestro.py --flow <flow> --device <id>`.
 - **Tier 2, real devices.** Driven from a developer machine against the test server:
   Chromecast, Google TV, Apple TV, phones and tablets. The Python sender talks to the
   Jellyfin receiver directly, so the receiver and the server can be tested without the
