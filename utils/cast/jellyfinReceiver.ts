@@ -446,8 +446,14 @@ export const parseReceiverCustomData = (
 
 const receiverMediaData = (
   status: MediaStatus | null | undefined,
-): ReceiverMediaData | undefined =>
-  status?.mediaInfo?.customData as ReceiverMediaData | undefined;
+): ReceiverMediaData | undefined => {
+  if (!status?.mediaInfo?.customData) return undefined;
+  const data = parseReceiverCustomData(status.mediaInfo.customData);
+  return {
+    itemId: data.itemId ?? undefined,
+    playSessionId: data.playSessionId ?? undefined,
+  };
+};
 
 let supersedeCurrentCast: (() => void) | null = null;
 /** Counts casts, so that one a newer cast overtook can tell. */
