@@ -170,4 +170,8 @@ def main(argv: list[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
+    # Run as `python3 e2e/bench/sessions.py`: put `e2e/` on the path so `bench.*` imports work.
+    from pathlib import Path
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
     sys.exit(main())

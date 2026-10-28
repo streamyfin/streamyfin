@@ -51,6 +51,20 @@ class SnapshotTests(unittest.TestCase):
         self.assertIsNone(result.position_seconds)
 
 
+class ScriptTests(unittest.TestCase):
+    def test_runs_as_a_script_from_the_repository_root(self):
+        import os
+        import subprocess
+        import sys
+        from pathlib import Path
+
+        script = Path(__file__).resolve().parents[1] / "sessions.py"
+        env = {**os.environ, "E2E_BENCH_CONFIG": "/nonexistent/bench.json"}
+        result = subprocess.run([sys.executable, str(script), "--server", "beta13"], capture_output=True, text=True, env=env)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("bench configuration not found", result.stderr)
+
+
 class CheckTests(unittest.TestCase):
     def test_check_reports_wrong_item(self):
         failures = check([view(item_id="item-b")], expect_item="item-a")
