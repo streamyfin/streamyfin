@@ -1,4 +1,4 @@
-import { debounce } from "lodash";
+import debounce from "lodash/debounce";
 import { useCallback, useRef, useState } from "react";
 import type { SharedValue } from "react-native-reanimated";
 import { msToTicks, ticksToSeconds } from "@/utils/time";

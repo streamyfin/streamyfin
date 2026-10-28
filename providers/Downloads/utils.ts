@@ -2,7 +2,7 @@ import type {
   BaseItemDto,
   MediaStream,
 } from "@jellyfin/sdk/lib/generated-client/models";
-import { escapeRegExp } from "lodash";
+import escapeRegExp from "lodash/escapeRegExp";
 import {
   DOWNLOAD_SUBTITLE_INFIX,
   DOWNLOAD_TRICKPLAY_DIR_SUFFIX,

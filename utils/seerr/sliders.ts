@@ -1,4 +1,5 @@
-import { isPlainObject, sortBy } from "lodash";
+import isPlainObject from "lodash/isPlainObject";
+import sortBy from "lodash/sortBy";
 import type { SeerrApi } from "@/hooks/useSeerr";
 import { canSeeRecentlyAdded } from "./permissions";
 import { type DiscoverSlider, DiscoverSliderType } from "./types";

@@ -94,9 +94,6 @@
     "react-native": "npm:react-native-tvos@0.86.3-0",
     "react-native-awesome-slider": "^2.9.0",
     "react-native-bottom-tabs": "1.4.0",
-    "react-native-circular-progress": "^1.4.1",
-    "react-native-collapsible": "^1.6.2",
-    "react-native-country-flag": "^2.0.2",
     "react-native-device-info": "^15.0.2",
     "react-native-drax": "1.1.0",
     "react-native-edge-to-edge": "1.8.2",
@@ -119,13 +116,11 @@
     "react-native-volume-manager": "^2.0.8",
     "react-native-worklets": "0.13.0",
     "sonner-native": "0.27.0",
-    "tailwindcss": "3.3.2",
-    "zod": "4.4.3"
+    "tailwindcss": "3.3.2"
   },
   "devDependencies": {
     "@babel/core": "7.29.7",
     "@biomejs/biome": "2.6.3",
-    "@react-native-community/cli": "20.2.0",
     "@react-native-tvos/config-tv": "0.1.7",
     "@testing-library/react-native": "14.1.0",
     "@types/bun": "1.4.4",
