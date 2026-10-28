@@ -106,6 +106,11 @@ class JellyfinClientTests(unittest.TestCase):
         self.assertEqual(found["Id"], "b")
         self.assertIn("Tags", requests[0].full_url)
 
+    def test_find_item_does_not_take_a_longer_code_as_a_name_prefix(self):
+        patcher, _ = patched([{"Items": [{"Id": "x", "Name": "V010 · something else", "Tags": ["V010"]}]}, {"Items": []}])
+        with patcher:
+            self.assertIsNone(self.client.find_item(AuthSession("tok", "user-1"), "V01"))
+
     def test_find_item_falls_back_to_the_tags_filter(self):
         # Jellyfin 10.11 does not match SearchTerm against tags; the Tags filter does.
         patcher, requests = patched([{"Items": []}, {"Items": [{"Id": "b", "Name": "H.264 8 bits 1080p", "Tags": ["V01"]}]}])

@@ -43,11 +43,18 @@ class EvaluateTests(unittest.TestCase):
         self.assertEqual(row.startup_seconds, 1.0)
         self.assertEqual(row.advanced_seconds, 8.0)
 
+    def test_evaluate_ok_when_transcode_is_expected_and_the_server_gives_its_reasons(self):
+        # Transcoding reasons explain an expected transcode; they must not turn the row red.
+        row = evaluate(case(expect={"chromecast-gen3": "Transcode"}), "chromecast-gen3", samples([("PLAYING", 1, {"playMethod": "Transcode"}), ("PLAYING", 9, {"playMethod": "Transcode"})]), view("Transcode", ["VideoCodecNotSupported"]), [])
+        self.assertEqual(row.verdict, "ok")
+        self.assertEqual(row.reasons, ["VideoCodecNotSupported"])
+
     def test_evaluate_ko_on_play_method_mismatch(self):
         row = evaluate(case(), "chromecast-gen3", samples([("PLAYING", 1, {"playMethod": "Transcode"}), ("PLAYING", 9, {"playMethod": "Transcode"})]), view("Transcode", ["VideoCodecNotSupported"]), [])
         self.assertEqual(row.verdict, "ko")
         self.assertIn("expected DirectPlay", " ".join(row.errors))
-        self.assertIn("VideoCodecNotSupported", " ".join(row.errors))
+        self.assertIn("server says Transcode", " ".join(row.errors))
+        self.assertEqual(row.reasons, ["VideoCodecNotSupported"])
 
     def test_evaluate_reports_receiver_error_from_bus(self):
         bus = [BusMessage(type="playbackerror", message="Unable to load media")]
@@ -90,7 +97,7 @@ class FakeDriver:
     def server_view(self, item):
         return view()
 
-    def bus_since(self, start):
+    def bus_since_play(self):
         return []
 
     def stop(self):
@@ -126,9 +133,9 @@ class RunTests(unittest.TestCase):
         self.assertIn("timed out waiting for playing", " ".join(rows[1].errors))
 
     def test_markdown_table_has_one_line_per_case(self):
-        rows = [Row(case_id="V01", expected="DirectPlay", observed_custom="DirectPlay", observed_server="DirectPlay", startup_seconds=1.2, advanced_seconds=18.0, errors=[], verdict="ok")]
+        rows = [Row(case_id="V01", expected="DirectPlay", observed_custom="DirectPlay", observed_server="DirectPlay", startup_seconds=1.2, advanced_seconds=18.0, reasons=["ContainerNotSupported"], errors=[], verdict="ok")]
         table = to_markdown(rows)
-        self.assertIn("| V01 | DirectPlay | DirectPlay | DirectPlay | 1.2 | 18.0 |  | ok |", table)
+        self.assertIn("| V01 | DirectPlay | DirectPlay | DirectPlay | ContainerNotSupported | 1.2 | 18.0 |  | ok |", table)
         self.assertTrue(table.startswith("| cas | attendu |"))
 
 

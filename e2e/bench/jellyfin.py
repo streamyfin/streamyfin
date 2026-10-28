@@ -109,8 +109,9 @@ class JellyfinClient:
 
 
 def _match(items: list[dict], code: str, query: str) -> dict | None:
+    # A bare code only matches its tag: "V01" must not pick "V010 · something" by name.
     for item in items:
-        if code in item.get("Tags", []) or item.get("Name", "").startswith(query):
+        if code in item.get("Tags", []) or (query != code and item.get("Name", "").startswith(query)):
             return item
     return None
 

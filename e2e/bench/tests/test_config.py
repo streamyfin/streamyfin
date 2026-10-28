@@ -49,6 +49,27 @@ class LoadConfigTests(unittest.TestCase):
         self.assertNotIn("hunter2-secret", str(account))
         self.assertIn("alice", repr(account))
 
+    def test_redact_includes_every_server_host_and_target_address(self):
+        # A report must never depend on someone remembering to list a private host by hand.
+        config = load_config(EXAMPLE)
+        self.assertIn("jellyfin-13.example.test", config.redact)
+        self.assertIn("beta.example.test", config.redact)
+        self.assertIn("192.0.2.10", config.redact)
+        self.assertIn("example.test", config.redact)
+
+    def test_unknown_server_profile_and_target_are_named(self):
+        config = load_config(EXAMPLE)
+        with self.assertRaises(BenchConfigError) as caught:
+            config.server("nope")
+        self.assertIn("beta13", str(caught.exception))
+        with self.assertRaises(BenchConfigError) as caught:
+            config.server("beta13").account("nobody")
+        self.assertIn("standard", str(caught.exception))
+        with self.assertRaises(BenchConfigError) as caught:
+            config.chromecast("Garage")
+        self.assertIn("Living room", str(caught.exception))
+        self.assertEqual(config.chromecast("Living room").kind, "chromecast-gen3")
+
     def test_environment_variable_selects_the_file(self):
         with mock.patch.dict(os.environ, {"E2E_BENCH_CONFIG": str(EXAMPLE)}):
             config = load_config()

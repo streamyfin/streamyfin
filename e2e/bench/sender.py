@@ -251,15 +251,20 @@ def main(argv: list[str] | None = None) -> int:
         track.add_argument("--index", type=int, required=True)
     args = parser.parse_args(argv)
 
-    from bench.config import load_config
+    from bench.config import BenchConfigError, load_config
     from bench.jellyfin import JellyfinClient
     from bench.report import Report
 
-    config = load_config()
-    server = config.servers[args.server]
-    target = next(t for t in config.targets.chromecasts if t.name == args.target)
+    try:
+        config = load_config()
+        server = config.server(args.server)
+        target = config.chromecast(args.target)
+        account = server.account(args.profile)
+    except BenchConfigError as error:
+        print(f"sender: {error}", file=sys.stderr)
+        return 2
     client = JellyfinClient(server.url)
-    session = client.authenticate(server.accounts[args.profile])
+    session = client.authenticate(account)
     journal = Journal()
     report = Report(f"sender-{args.action}", redact=config.redact + [session.token])
     receiver_name = receiver_name_for({"friendlyName": target.name, "deviceId": None})
@@ -293,11 +298,12 @@ def main(argv: list[str] | None = None) -> int:
             except SenderTimeout as timeout:
                 journal.note("timeout", what=timeout.what, bus=summarize_bus(controller.bus))
                 exit_code = 1
+            else:
 
-            def note_sample(item_sample: MediaSample) -> None:
-                journal.note("sample", state=item_sample.player_state, time=round(item_sample.current_time, 1), play_method=item_sample.custom_data.get("playMethod"))
+                def note_sample(item_sample: MediaSample) -> None:
+                    journal.note("sample", state=item_sample.player_state, time=round(item_sample.current_time, 1), play_method=item_sample.custom_data.get("playMethod"))
 
-            watch(cast, args.watch, on_sample=note_sample)
+                watch(cast, args.watch, on_sample=note_sample)
         elif args.action == "seek":
             send("Seek", {"position": args.seconds})
         elif args.action == "subtitle":

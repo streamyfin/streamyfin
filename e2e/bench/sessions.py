@@ -131,14 +131,19 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--keep", help="Copy the report to the keep directory under this subject")
     args = parser.parse_args(argv)
 
-    from bench.config import load_config
+    from bench.config import BenchConfigError, load_config
     from bench.jellyfin import JellyfinClient
     from bench.report import Report
 
-    config = load_config()
-    server = config.servers[args.server]
+    try:
+        config = load_config()
+        server = config.server(args.server)
+        account = server.account(args.profile)
+    except BenchConfigError as error:
+        print(f"sessions: {error}", file=sys.stderr)
+        return 2
     client = JellyfinClient(server.url)
-    session = client.authenticate(server.accounts[args.profile])
+    session = client.authenticate(account)
     try:
         views = snapshot(client.sessions(session.token), device=args.device)
         groups = client.get("/SyncPlay/List", token=session.token) if args.expect_members is not None else None

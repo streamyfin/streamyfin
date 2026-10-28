@@ -32,6 +32,7 @@ class Row:
     observed_server: str | None
     startup_seconds: float | None
     advanced_seconds: float | None
+    reasons: list[str] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
     verdict: str = "ko"
 
@@ -50,22 +51,23 @@ def load_cases(path: Path = CASES_PATH, ids: list[str] | None = None) -> list[di
 def evaluate(case: dict, target_kind: str, samples: list[MediaSample], session: SessionView | None, bus: list[BusMessage]) -> Row:
     expected = (case.get("expect") or {}).get(target_kind)
     if not samples:
-        return Row(case["id"], expected, None, None, None, None, ["no item or no sample"], "skipped")
+        return Row(case["id"], expected, None, None, None, None, [], ["no item or no sample"], "skipped")
     errors = [f"{m.type}: {m.message or ''}".rstrip(": ") for m in bus if m.type in ERROR_TYPES]
     playing = [s for s in samples if s.player_state == PLAYING]
     observed_server = session.play_method if session else None
-    reasons = session.transcoding_reasons if session else []
+    # Transcoding reasons explain the server's choice; they are information, not a failure.
+    reasons = list(session.transcoding_reasons) if session else []
     if not playing:
         errors.append("playback never started")
-        return Row(case["id"], expected, None, observed_server, None, None, errors, "ko")
+        return Row(case["id"], expected, None, observed_server, None, None, reasons, errors, "ko")
     startup = playing[0].at - samples[0].at
     advanced = playing[-1].current_time - playing[0].current_time
     observed_custom = playing[-1].custom_data.get("playMethod")
     if expected and observed_custom != expected:
         errors.append(f"expected {expected}, receiver says {observed_custom}")
-    if (expected and observed_server and observed_server != expected) or reasons:
-        errors.append(f"server: {observed_server}, reasons {', '.join(reasons) or 'none'}")
-    return Row(case["id"], expected, observed_custom, observed_server, round(startup, 1), round(advanced, 1), errors, "ok" if not errors else "ko")
+    if expected and observed_server and observed_server != expected:
+        errors.append(f"server says {observed_server}")
+    return Row(case["id"], expected, observed_custom, observed_server, round(startup, 1), round(advanced, 1), reasons, errors, "ok" if not errors else "ko")
 
 
 def run(cases: list[dict], target_kind: str, driver, watch_seconds: float = 20.0) -> list[Row]:
@@ -84,7 +86,7 @@ def run(cases: list[dict], target_kind: str, driver, watch_seconds: float = 20.0
             timeout_error = str(timeout)
         finally:
             session = driver.server_view(item)
-            bus = driver.bus_since(started)
+            bus = driver.bus_since_play()
             driver.stop()
         row = evaluate(case, target_kind, samples, session, bus)
         if timeout_error:
@@ -98,10 +100,10 @@ def to_markdown(rows: list[Row]) -> str:
     def number(value: float | None) -> str:
         return "" if value is None else f"{value:.1f}"
 
-    lines = ["| cas | attendu | customData | serveur | démarrage s | avancé s | erreurs | verdict |", "| --- | --- | --- | --- | --- | --- | --- | --- |"]
+    lines = ["| cas | attendu | customData | serveur | raisons | démarrage s | avancé s | erreurs | verdict |", "| --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
     for row in rows:
         lines.append(
-            f"| {row.case_id} | {row.expected or ''} | {row.observed_custom or ''} | {row.observed_server or ''} | "
+            f"| {row.case_id} | {row.expected or ''} | {row.observed_custom or ''} | {row.observed_server or ''} | {', '.join(row.reasons)} | "
             f"{number(row.startup_seconds)} | {number(row.advanced_seconds)} | {'; '.join(row.errors)} | {row.verdict} |"
         )
     return "\n".join(lines)
@@ -154,7 +156,7 @@ class CastDriver:
         views = [v for v in snapshot(self.client.sessions(self.session.token), device=device) if v.item_id == item.get("Id")]
         return views[0] if views else None
 
-    def bus_since(self, started: float) -> list[BusMessage]:
+    def bus_since_play(self) -> list[BusMessage]:
         return list(self.controller.bus[self.bus_start :])
 
     def stop(self) -> None:
@@ -174,16 +176,21 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     from bench import sender
-    from bench.config import load_config
+    from bench.config import BenchConfigError, load_config
     from bench.jellyfin import JellyfinClient
     from bench.report import Report
 
-    config = load_config()
-    server = config.servers[args.server]
-    target = next(t for t in config.targets.chromecasts if t.name == args.target)
-    cases = load_cases(ids=args.cases.split(",") if args.cases else None)
+    try:
+        config = load_config()
+        server = config.server(args.server)
+        target = config.chromecast(args.target)
+        account = server.account(args.profile)
+        cases = load_cases(ids=args.cases.split(",") if args.cases else None)
+    except (BenchConfigError, ValueError) as error:
+        print(f"matrix: {error}", file=sys.stderr)
+        return 2
     client = JellyfinClient(server.url)
-    session = client.authenticate(server.accounts[args.profile])
+    session = client.authenticate(account)
     report = Report("matrix", redact=config.redact + [session.token])
     try:
         cast = sender.connect(target)

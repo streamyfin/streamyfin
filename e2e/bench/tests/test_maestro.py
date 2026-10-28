@@ -19,7 +19,12 @@ class BuildCommandTests(unittest.TestCase):
         )
 
     def test_default_maestro_path_is_the_user_install(self):
-        self.assertEqual(maestro_path(), Path.home() / ".maestro" / "bin" / "maestro")
+        from unittest import mock
+
+        with mock.patch("bench.maestro.shutil.which", return_value=None):
+            self.assertEqual(maestro_path(), Path.home() / ".maestro" / "bin" / "maestro")
+        with mock.patch("bench.maestro.shutil.which", return_value="/usr/local/bin/maestro"):
+            self.assertEqual(maestro_path(), Path("/usr/local/bin/maestro"))
 
 
 class JavaHomeTests(unittest.TestCase):

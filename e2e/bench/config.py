@@ -11,6 +11,7 @@ import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 BENCH_DIR = Path(__file__).resolve().parent
 EXAMPLE_PATH = BENCH_DIR / "config.example.json"
@@ -41,6 +42,11 @@ class Server:
     label: str
     accounts: dict[str, Account]
 
+    def account(self, profile: str) -> Account:
+        if profile not in self.accounts:
+            raise BenchConfigError(f"server {self.name} has no account profile {profile!r}; known: {', '.join(sorted(self.accounts))}")
+        return self.accounts[profile]
+
 
 @dataclass
 class CastTarget:
@@ -60,6 +66,18 @@ class BenchConfig:
     targets: Targets
     keep_dir: Path
     redact: list[str]
+
+    def server(self, name: str) -> Server:
+        if name not in self.servers:
+            raise BenchConfigError(f"no server {name!r} in the bench configuration; known: {', '.join(self.servers)}")
+        return self.servers[name]
+
+    def chromecast(self, name: str) -> CastTarget:
+        for target in self.targets.chromecasts:
+            if target.name == name:
+                return target
+        known = ", ".join(t.name for t in self.targets.chromecasts) or "none"
+        raise BenchConfigError(f"no cast target {name!r} in the bench configuration; known: {known}")
 
 
 def _require(node: Any, key: str, path: str, file: Path, expected: type = str) -> Any:
@@ -126,5 +144,15 @@ def load_config(path: Path | None = None) -> BenchConfig:
     servers = _parse_servers(_require(raw, "servers", "", file, dict), file)
     targets = _parse_targets(_require(raw, "targets", "", file, dict), file)
     keep_dir = Path(_require(raw, "keep_dir", "", file)).expanduser()
-    redact = [str(entry) for entry in raw.get("redact", [])]
-    return BenchConfig(servers=servers, targets=targets, keep_dir=keep_dir, redact=redact)
+    return BenchConfig(servers=servers, targets=targets, keep_dir=keep_dir, redact=_redaction_list(raw, servers, targets))
+
+
+def _redaction_list(raw: dict, servers: dict[str, Server], targets: Targets) -> list[str]:
+    """Every private host of the configuration, so reports mask them without anyone listing them."""
+    entries = [str(entry) for entry in raw.get("redact", [])]
+    for server in servers.values():
+        host = urlparse(server.url).hostname
+        if host:
+            entries.append(host)
+    entries.extend(target.host for target in targets.chromecasts)
+    return list(dict.fromkeys(entry for entry in entries if entry))
