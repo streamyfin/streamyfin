@@ -130,7 +130,7 @@
     "@testing-library/react-native": "14.0.1",
     "@types/bun": "1.4.4",
     "@types/jest": "29.5.14",
-    "@types/lodash": "4.17.25",
+    "@types/lodash": "4.17.27",
     "@types/node": "26.6.5",
     "@types/react": "19.2.17",
     "axios-mock-adapter": "2.1.0",
