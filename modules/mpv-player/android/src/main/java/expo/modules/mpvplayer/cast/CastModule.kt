@@ -38,6 +38,9 @@ class CastModule : Module() {
     private var cachedDevices: List<Map<String, Any?>> = emptyList()
     private var cachedSession: Map<String, Any?>? = null
     private var routerCallback: MediaRouter.Callback? = null
+    // The router the callback went to: OnDestroy runs once the React context may be gone, and the
+    // context getter would throw on the main looper instead of letting the callback go.
+    private var registeredRouter: MediaRouter? = null
     // JS asked for discovery; it pauses while the app is in the background and resumes with it.
     private var discoveryWanted = false
     private var mediaClient: RemoteMediaClient? = null
@@ -298,13 +301,15 @@ class CastModule : Module() {
             MediaRouter.CALLBACK_FLAG_REQUEST_DISCOVERY or MediaRouter.CALLBACK_FLAG_PERFORM_ACTIVE_SCAN,
         )
         routerCallback = callback
+        registeredRouter = router
         updateDevices(router, cast)
     }
 
     private fun stopDiscovery() {
         val callback = routerCallback ?: return
-        MediaRouter.getInstance(context.applicationContext).removeCallback(callback)
+        registeredRouter?.removeCallback(callback)
         routerCallback = null
+        registeredRouter = null
     }
 
     private fun updateDevices(router: MediaRouter, cast: CastContext) {
