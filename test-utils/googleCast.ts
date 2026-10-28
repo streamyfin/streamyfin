@@ -46,12 +46,13 @@ export const createCastDoubleState = (): CastDoubleState => ({
 export const lastCastChannel = (state: CastDoubleState): FakeCastChannel =>
   state.channels[state.channels.length - 1];
 
-/** Fires every listener registered for a session event. */
+/** Fires every listener registered for a session event; an unknown name fires nothing. */
 export const fireCastSessionEvent = (
   state: CastDoubleState,
-  event: CastSessionEvent,
+  event: CastSessionEvent | string,
 ): void => {
-  for (const handler of state.sessionListeners[event]) handler();
+  for (const handler of state.sessionListeners[event as CastSessionEvent] ?? [])
+    handler();
 };
 
 export const castDoubleModule = (state: () => CastDoubleState) => {
