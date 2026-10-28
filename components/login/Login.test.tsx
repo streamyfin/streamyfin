@@ -69,13 +69,29 @@ const MockCodeModal = (props: CodeModalProps) => {
     </>
   ) : null;
 };
+type ButtonProps = {
+  children: React.ReactNode;
+  onPress?: () => void;
+  disabled?: boolean;
+  loading?: boolean;
+};
 jest.mock("@/components/Button", () => ({
-  Button: ({ children }: { children: React.ReactNode }) => {
-    const { Text } = jest.requireActual("react-native");
-    return <Text>{children}</Text>;
+  // Presses are dropped while disabled or loading, as the real Button does.
+  Button: ({ children, onPress, disabled, loading }: ButtonProps) => {
+    const { Pressable, Text } = jest.requireActual("react-native");
+    return (
+      <Pressable onPress={() => !disabled && !loading && onPress?.()}>
+        <Text>{children}</Text>
+      </Pressable>
+    );
   },
 }));
-jest.mock("@/components/common/Input", () => ({ Input: () => null }));
+jest.mock("@/components/common/Input", () => ({
+  Input: (props: object) => {
+    const { TextInput } = jest.requireActual("react-native");
+    return <TextInput {...props} />;
+  },
+}));
 jest.mock("@/components/JellyfinServerDiscovery", () => ({
   __esModule: true,
   default: () => null,
@@ -202,5 +218,49 @@ describe("Login Quick Connect", () => {
       "companion_login.error_quick_connect_disabled",
     );
     alert.mockRestore();
+  });
+});
+
+describe("Login with a password", () => {
+  beforeEach(() => {
+    mockJellyfin.login.mockClear();
+    getDefaultStore().set(userAtom as never, null as never);
+  });
+
+  test("signs in only once a username is typed", async () => {
+    await render(<Login />);
+
+    await fireEvent.press(screen.getByText("login.login_button"));
+    expect(mockJellyfin.login).not.toHaveBeenCalled();
+
+    await fireEvent.changeText(
+      screen.getByPlaceholderText("login.username_placeholder"),
+      "alice",
+    );
+    await fireEvent.changeText(
+      screen.getByPlaceholderText("login.password_placeholder"),
+      "secret",
+    );
+    await act(async () => {
+      await fireEvent.press(screen.getByText("login.login_button"));
+    });
+
+    expect(mockJellyfin.login).toHaveBeenCalledTimes(1);
+    expect(mockJellyfin.login.mock.calls[0].slice(0, 2)).toEqual([
+      "alice",
+      "secret",
+    ]);
+  });
+
+  test("does not sign in with a username made of spaces", async () => {
+    await render(<Login />);
+
+    await fireEvent.changeText(
+      screen.getByPlaceholderText("login.username_placeholder"),
+      "   ",
+    );
+    await fireEvent.press(screen.getByText("login.login_button"));
+
+    expect(mockJellyfin.login).not.toHaveBeenCalled();
   });
 });

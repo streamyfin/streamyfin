@@ -1,5 +1,5 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { uniqBy } from "lodash";
+import uniqBy from "lodash/uniqBy";
 import React, { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { TVSeerrRow } from "@/components/seerr/discover/TVSeerrRow";

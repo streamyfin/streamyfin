@@ -1,5 +1,5 @@
 import { LinearGradient } from "expo-linear-gradient";
-import { isEqual } from "lodash";
+import isEqual from "lodash/isEqual";
 import { memo, useCallback } from "react";
 import { TouchableOpacity, View } from "react-native";
 import { Text } from "@/components/common/Text";

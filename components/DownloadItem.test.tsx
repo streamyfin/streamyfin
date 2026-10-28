@@ -8,10 +8,11 @@ import type { OptionGroup } from "./PlatformDropdown";
 
 const mockStartBackgroundDownload = jest.fn();
 let mockDownloadedItems: { item: BaseItemDto }[] = [];
+let mockProcesses: { item: BaseItemDto; progress: number }[] = [];
 
 jest.mock("@/providers/DownloadProvider", () => ({
   useDownload: () => ({
-    processes: [],
+    processes: mockProcesses,
     downloadedItems: mockDownloadedItems,
     startBackgroundDownload: mockStartBackgroundDownload,
   }),
@@ -69,6 +70,12 @@ jest.mock("@gorhom/bottom-sheet", () => {
   };
 });
 jest.mock("@/components/common/HeaderIcon", () => ({ HeaderIcon: () => null }));
+// The real module needs the native worklets runtime. The double lets the ring
+// render for real, with its animation landing at once.
+jest.mock("react-native-reanimated", () => ({
+  ...jest.requireActual("@/test-utils/reanimated").reanimatedModule,
+  __esModule: true,
+}));
 // Lists the options instead of a menu to open, so a spec can see what a
 // selector offers and pick from it.
 jest.mock("./PlatformDropdown", () => {
@@ -124,6 +131,20 @@ const episode = (number: number): BaseItemDto => ({
   ],
 });
 
+type HostView = NonNullable<ReturnType<typeof screen.toJSON>>;
+
+/** The native views of a type in what is on screen, in drawing order. */
+const hostViews = (type: string) => {
+  const found: HostView[] = [];
+  const visit = (node: HostView | string | null) => {
+    if (!node || typeof node === "string") return;
+    if (node.type === type) found.push(node);
+    node.children?.forEach(visit);
+  };
+  visit(screen.toJSON());
+  return found;
+};
+
 const renderSeasonDownload = (items: BaseItemDto[]) =>
   render(
     <DownloadItems
@@ -148,6 +169,7 @@ beforeEach(() => {
   // Resetting every mock instead would also wipe the ones jest-expo sets up.
   jest.mocked(getDownloadStreamUrl).mockReset();
   mockDownloadedItems = [];
+  mockProcesses = [];
 });
 
 afterEach(() => {
@@ -199,6 +221,20 @@ describe("DownloadSingleItem", () => {
       expect.objectContaining({ mediaSourceId: "source-1" }),
     );
     expect(mockStartBackgroundDownload).toHaveBeenCalledTimes(1);
+  });
+
+  test("draws the ring of a download in progress filled to its progress", async () => {
+    mockProcesses = [{ item: MOVIE, progress: 40 }];
+    await render(<DownloadSingleItem item={MOVIE} />);
+
+    const [track, ring] = hostViews("RNSVGCircle");
+    const circumference = 2 * Math.PI * Number(ring.props.r);
+    expect(ring.props.strokeDashoffset).toBeCloseTo(circumference * 0.6);
+    expect(track.props.strokeDashoffset).toBeUndefined();
+    // Turned a quarter back, so the ring starts filling from the top.
+    expect(hostViews("RNSVGSvgView")[0].props.transform).toEqual([
+      { rotate: "-90deg" },
+    ]);
   });
 });
 

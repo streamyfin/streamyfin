@@ -15,7 +15,6 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { z } from "zod";
 import { Button } from "@/components/Button";
 import { HeaderButton } from "@/components/common/HeaderButton";
 import { HeaderIcon } from "@/components/common/HeaderIcon";
@@ -39,10 +38,6 @@ import {
   ServerTooOldError,
 } from "@/utils/jellyfin/checkServer";
 import type { SavedServer } from "@/utils/secureCredentials";
-
-const CredentialsSchema = z.object({
-  username: z.string().min(1, t("login.username_required")),
-});
 
 export const Login: React.FC = () => {
   const api = useAtomValue(apiAtom);
@@ -192,8 +187,8 @@ export const Login: React.FC = () => {
   const handleLogin = async () => {
     Keyboard.dismiss();
 
-    const result = CredentialsSchema.safeParse(credentials);
-    if (!result.success) return;
+    // The button is already disabled without a username.
+    if (!credentials.username.trim()) return;
 
     const ok = await performLogin(credentials.username, credentials.password);
     // The protection picker shows AFTER a successful login (global modal) —

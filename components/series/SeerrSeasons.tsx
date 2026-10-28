@@ -8,7 +8,7 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { useHeaderHeight } from "expo-router/react-navigation";
 import { t } from "i18next";
-import { orderBy } from "lodash";
+import orderBy from "lodash/orderBy";
 import type React from "react";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { TouchableOpacity, View } from "react-native";
