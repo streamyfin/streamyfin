@@ -58,6 +58,8 @@ const ChannelLabel: React.FC<{
   </View>
 );
 
+const HOUR_MS = 60 * 60 * 1000;
+
 const getGuideWindow = () => {
   const now = new Date();
   now.setMinutes(0, 0, 0);
@@ -66,7 +68,7 @@ const getGuideWindow = () => {
   endOfDayTime.setHours(23, 59, 59, 999);
 
   const hoursUntilEndOfDay = Math.ceil(
-    (endOfDayTime.getTime() - now.getTime()) / (60 * 60 * 1000),
+    (endOfDayTime.getTime() - now.getTime()) / HOUR_MS,
   );
 
   return {
@@ -107,7 +109,7 @@ export const TVLiveTVGuide: React.FC = () => {
       const now = new Date();
       // The guide can stay open for hours: move the window along with the
       // hour, which also loads that window's programs.
-      if (now.getTime() - baseTime.getTime() >= 60 * 60 * 1000) {
+      if (now.getTime() - baseTime.getTime() >= HOUR_MS) {
         setGuideWindow(getGuideWindow());
         return;
       }
