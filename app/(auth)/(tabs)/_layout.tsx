@@ -54,7 +54,7 @@ export const NativeTabs = withLayoutContext<
 
 const IS_ANDROID_TV = Platform.isTV && Platform.OS === "android";
 
-function TVTabLayout() {
+function TVTabLayout({ hasLiveTV }: { hasLiveTV: boolean }) {
   const { settings } = useSettings();
   const { t } = useTranslation();
   const segments = useSegments();
@@ -69,6 +69,9 @@ function TVTabLayout() {
         { key: "(home)", label: t("tabs.home") },
         { key: "(search)", label: t("tabs.search") },
         { key: "(favorites)", label: t("tabs.favorites") },
+        hasLiveTV && settings?.showLiveTvTab
+          ? { key: "(livetv)", label: t("live_tv.title") }
+          : null,
         !settings?.streamyStatsServerUrl || settings?.hideWatchlistsTab
           ? null
           : { key: "(watchlists)", label: t("watchlists.title") },
@@ -79,6 +82,8 @@ function TVTabLayout() {
         { key: "(settings)", label: t("tabs.settings") },
       ].filter((tab): tab is TVNavBarTab => tab !== null),
     [
+      hasLiveTV,
+      settings?.showLiveTvTab,
       settings?.streamyStatsServerUrl,
       settings?.hideWatchlistsTab,
       settings?.showCustomMenuLinks,
@@ -169,7 +174,7 @@ export default function TabLayout() {
   useTVHomeBackHandler();
 
   if (IS_ANDROID_TV) {
-    return <TVTabLayout />;
+    return <TVTabLayout hasLiveTV={hasLiveTV} />;
   }
 
   return (
