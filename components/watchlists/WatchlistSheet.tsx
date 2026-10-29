@@ -171,7 +171,7 @@ const WatchlistSheetContent: React.FC<WatchlistSheetContentProps> = ({
 
   const handleCreateNew = useCallback(() => {
     onClose();
-    router.push("/(auth)/(tabs)/(watchlists)/create");
+    router.push("/watchlists/create");
   }, [onClose, router]);
 
   const isItemCompatible = useCallback(

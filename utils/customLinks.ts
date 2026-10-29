@@ -1,3 +1,20 @@
+/** One of the `menuLinks` the server's admin lists in the web config. */
+export interface MenuLink {
+  name: string;
+  url: string;
+  icon: string;
+}
+
+/**
+ * Whether a `menuLinks` entry can be drawn as a row. The config is JSON the
+ * admin edits by hand: an entry without a name has nothing to show. The
+ * address is checked when the link is opened.
+ */
+export const isMenuLink = (value: unknown): value is MenuLink =>
+  typeof value === "object" &&
+  value !== null &&
+  typeof (value as { name?: unknown }).name === "string";
+
 /** What a custom link can be handed to. Both reject when they cannot open it. */
 export interface CustomLinkOpeners {
   /** The in-app browser, which on iOS only takes http and https. */
