@@ -7,10 +7,10 @@ import {
   Image,
   Pressable,
   Animated as RNAnimated,
-  type View as RNView,
   StyleSheet,
   TVFocusGuideView,
   View,
+  type ViewInstance,
 } from "react-native";
 import Animated, {
   cancelAnimation,
@@ -37,11 +37,11 @@ export interface TVNextEpisodeCountdownProps {
   /** Whether controls are visible - affects card position */
   controlsVisible?: boolean;
   /** Callback ref setter for focus guide destination pattern */
-  refSetter?: (ref: RNView | null) => void;
+  refSetter?: (ref: ViewInstance | null) => void;
   /** Whether this component should receive initial focus */
   hasTVPreferredFocus?: boolean;
   /** Destination used when moving down from this card */
-  playButtonRef?: RNView | null;
+  playButtonRef?: ViewInstance | null;
 }
 
 // Position constants — kept in sync with TVSkipSegmentCard (the two are

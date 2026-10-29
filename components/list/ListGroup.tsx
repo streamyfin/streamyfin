@@ -35,7 +35,7 @@ export const ListGroup: React.FC<PropsWithChildren<Props>> = ({
         {Children.map(childrenArray, (child, index) => {
           if (isValidElement<{ style?: ViewStyle }>(child)) {
             return cloneElement(child as any, {
-              style: StyleSheet.compose(
+              style: StyleSheet.compose<ViewStyle, ViewStyle, ViewStyle>(
                 child.props.style,
                 index < childrenArray.length - 1
                   ? styles.borderBottom
