@@ -59,7 +59,7 @@ export const TVGuideChannelRow: React.FC<TVGuideChannelRowProps> = ({
 
   // Calculate program cells with positions (absolute positioning)
   const programCells = useMemo(() => {
-    return filteredPrograms.map((program) => {
+    const cells = filteredPrograms.map((program) => {
       if (!program.StartDate || !program.EndDate) {
         return { program, width: minProgramWidth, left: 0 };
       }
@@ -89,6 +89,13 @@ export const TVGuideChannelRow: React.FC<TVGuideChannelRowProps> = ({
         width,
         left,
       };
+    });
+    // The minimum width would push a short program over the next one: a cell
+    // ends where the next program starts.
+    return cells.map((cell, index) => {
+      const next = cells[index + 1];
+      if (!next || cell.left + cell.width + 4 <= next.left) return cell;
+      return { ...cell, width: Math.max(next.left - cell.left - 4, 0) };
     });
   }, [filteredPrograms, baseTime, pixelsPerHour, minProgramWidth, hoursToShow]);
 

@@ -58,6 +58,24 @@ const ChannelLabel: React.FC<{
   </View>
 );
 
+const getGuideWindow = () => {
+  const now = new Date();
+  now.setMinutes(0, 0, 0);
+
+  const endOfDayTime = new Date(now);
+  endOfDayTime.setHours(23, 59, 59, 999);
+
+  const hoursUntilEndOfDay = Math.ceil(
+    (endOfDayTime.getTime() - now.getTime()) / (60 * 60 * 1000),
+  );
+
+  return {
+    baseTime: now,
+    endOfDay: endOfDayTime,
+    hoursToShow: Math.max(hoursUntilEndOfDay, 1), // At least 1 hour
+  };
+};
+
 export const TVLiveTVGuide: React.FC = () => {
   const { t } = useTranslation();
   const typography = useScaledTVTypography();
@@ -77,23 +95,8 @@ export const TVLiveTVGuide: React.FC = () => {
   const [prevButtonRef, setPrevButtonRef] = useState<View | null>(null);
 
   // Base time - start of current hour, end time - end of day
-  const [{ baseTime, endOfDay, hoursToShow }] = useState(() => {
-    const now = new Date();
-    now.setMinutes(0, 0, 0);
-
-    const endOfDayTime = new Date(now);
-    endOfDayTime.setHours(23, 59, 59, 999);
-
-    const hoursUntilEndOfDay = Math.ceil(
-      (endOfDayTime.getTime() - now.getTime()) / (60 * 60 * 1000),
-    );
-
-    return {
-      baseTime: now,
-      endOfDay: endOfDayTime,
-      hoursToShow: Math.max(hoursUntilEndOfDay, 1), // At least 1 hour
-    };
-  });
+  const [{ baseTime, endOfDay, hoursToShow }, setGuideWindow] =
+    useState(getGuideWindow);
 
   // Current time indicator position (relative to program grid start)
   const [currentTimeOffset, setCurrentTimeOffset] = useState(0);
@@ -102,6 +105,12 @@ export const TVLiveTVGuide: React.FC = () => {
   useEffect(() => {
     const updateCurrentTime = () => {
       const now = new Date();
+      // The guide can stay open for hours: move the window along with the
+      // hour, which also loads that window's programs.
+      if (now.getTime() - baseTime.getTime() >= 60 * 60 * 1000) {
+        setGuideWindow(getGuideWindow());
+        return;
+      }
       const diffMinutes = (now.getTime() - baseTime.getTime()) / 60000;
       const offset = (diffMinutes / 60) * PIXELS_PER_HOUR;
       setCurrentTimeOffset(offset);
