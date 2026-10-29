@@ -1,3 +1,4 @@
+import type { ImageTransition } from "expo-image";
 import { Platform } from "react-native";
 
 export const TAB_HEIGHT = Platform.OS === "android" ? 58 : 74;
@@ -29,3 +30,16 @@ export const POSTER_IMAGE_TRANSITION_DURATION = 150;
  * Duration of the transition animation for background images, in milliseconds.
  */
 export const BACKGROUND_IMAGE_TRANSITION_DURATION = 300;
+
+// The fade plays when an image arrives from the network. One already cached
+// shows at once, so a page opened again or a card scrolled back into view does
+// not fade in a second time.
+export const POSTER_IMAGE_TRANSITION: ImageTransition = {
+  duration: POSTER_IMAGE_TRANSITION_DURATION,
+  skipOnCacheHit: "all",
+};
+
+export const BACKGROUND_IMAGE_TRANSITION: ImageTransition = {
+  duration: BACKGROUND_IMAGE_TRANSITION_DURATION,
+  skipOnCacheHit: "all",
+};

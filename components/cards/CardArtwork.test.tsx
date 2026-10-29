@@ -42,6 +42,16 @@ test("keys its image to the card, so a reused cell drops the old artwork", async
   expect(mockImageProps.at(-1)?.recyclingKey).toBe("card-2");
 });
 
+// A card scrolled back into view, or on a page opened again, has its artwork
+// in the cache: it shows at once instead of fading in a second time.
+test("fades its artwork in only when it is not cached yet", async () => {
+  await renderArtwork({ imageUrl: "http://server/a.jpg" });
+
+  expect(mockImageProps.at(-1)?.transition).toEqual(
+    expect.objectContaining({ skipOnCacheHit: "all" }),
+  );
+});
+
 describe("CardArtwork corner badge", () => {
   test("shows LIVE on a live program", async () => {
     await renderArtwork({ live: true });
