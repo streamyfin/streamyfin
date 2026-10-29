@@ -107,8 +107,9 @@ final class NativePlayerSession {
 			promise.resolve()
 		}
 		#else
-		let scene = presenter.view.window?.windowScene
-		guard waitingForLandscape, let scene, !scene.interfaceOrientation.isLandscape else {
+		guard waitingForLandscape, presenter.view.window?.windowScene != nil,
+			!SceneGeometry.interfaceOrientation(for: presenter.view).isLandscape
+		else {
 			presenter.present(vc, animated: true) {
 				promise.resolve()
 			}
@@ -119,7 +120,7 @@ final class NativePlayerSession {
 		// landscape mask then rotates as part of the presentation, as before).
 		var attemptsLeft = 45
 		func poll() {
-			if scene.interfaceOrientation.isLandscape || attemptsLeft <= 0 {
+			if SceneGeometry.interfaceOrientation(for: presenter.view).isLandscape || attemptsLeft <= 0 {
 				// interfaceOrientation flips at the START of the rotation
 				// animation — the beat lets the animation land first.
 				DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
@@ -213,11 +214,7 @@ final class NativePlayerSession {
 			return fromContext
 		}
 		// Fallback: walk the key window's presented chain.
-		let keyWindow = UIApplication.shared.connectedScenes
-			.compactMap { $0 as? UIWindowScene }
-			.flatMap { $0.windows }
-			.first { $0.isKeyWindow }
-		var top = keyWindow?.rootViewController
+		var top = SceneGeometry.keyWindow()?.rootViewController
 		while let presented = top?.presentedViewController, !presented.isBeingDismissed {
 			top = presented
 		}
