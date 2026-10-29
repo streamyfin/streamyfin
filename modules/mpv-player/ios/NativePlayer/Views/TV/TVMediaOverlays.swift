@@ -149,7 +149,7 @@ struct TVStillWatchingCard: View {
 	}
 }
 
-/// Horizontal episode shelf (bottom third). Focusable cards; Select fires
+/// Horizontal episode shelf with details for the focused card. Select fires
 /// the existing onEpisodeSelected intent via viewModel.selectEpisode. The
 /// card of the CURRENTLY PLAYING episode owns default focus — the engine
 /// scrolls it into view on its first pick (the coordinator only points
@@ -170,6 +170,12 @@ struct TVEpisodeShelf: View {
 		viewModel.episodeList.firstIndex { $0.isCurrent } ?? 0
 	}
 
+	private var selectedEpisode: EpisodeListItemRecord? {
+		let index = focusedEpisode ?? defaultFocusIndex
+		guard viewModel.episodeList.indices.contains(index) else { return nil }
+		return viewModel.episodeList[index]
+	}
+
 	var body: some View {
 		VStack(alignment: .leading, spacing: 16) {
 			Text(viewModel.str("episodes", "Episodes"))
@@ -188,6 +194,24 @@ struct TVEpisodeShelf: View {
 				}
 				.padding(.horizontal, TVChromeMetrics.insetH)
 				.padding(.vertical, 30)
+			}
+			if let episode = selectedEpisode {
+				VStack(alignment: .leading, spacing: 8) {
+					Text(episode.title)
+						.font(.headline)
+						.foregroundStyle(.white)
+						.lineLimit(1, reservesSpace: true)
+					Text(episode.details ?? "")
+						.font(.caption)
+						.foregroundStyle(.white.opacity(0.65))
+						.lineLimit(2, reservesSpace: true)
+					Text(episode.overview ?? "")
+						.font(.callout)
+						.foregroundStyle(.white.opacity(0.85))
+						.lineLimit(3, reservesSpace: true)
+				}
+				.frame(maxWidth: .infinity, alignment: .leading)
+				.padding(.horizontal, TVChromeMetrics.insetH)
 			}
 		}
 		// Grouping AFTER defaultFocus — see the note in TVControlsRow.
@@ -226,13 +250,9 @@ struct TVEpisodeShelf: View {
 			gate: $focusGate, target: { defaultFocusIndex })
 	}
 
-	/// Everything lives INSIDE the card - title and progress overlay the
-	/// artwork rather than sitting under it, which is how the TV app's
-	/// in-player episode shelf is built. `.card` is what carries the tvOS
-	/// focus float (the layer tilts toward your thumb and a specular
-	/// highlight tracks across it); it wraps whatever it is given, and here
-	/// what it is given is the whole card, so there is nothing left over for
-	/// it to draw a platter around.
+	/// Title and progress overlay the artwork so `.card` carries the tvOS
+	/// focus float. The longer details stay outside the button and do not
+	/// gain a focus platter.
 	private func episodeCard(_ episode: EpisodeListItemRecord, index: Int) -> some View {
 		Button {
 			viewModel.selectEpisode(episode)

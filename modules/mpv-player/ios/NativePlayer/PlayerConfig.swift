@@ -105,6 +105,8 @@ struct EpisodeListItemRecord: Record {
 	@Field var itemId: String = ""
 	@Field var title: String = ""
 	@Field var indexNumber: Int?
+	@Field var overview: String?
+	@Field var details: String?
 	@Field var imageUrl: String?
 	/// 0-100; used to render a watched-progress bar under the thumbnail.
 	@Field var progressPercent: Double = 0
