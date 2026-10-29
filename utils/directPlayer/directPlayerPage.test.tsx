@@ -65,6 +65,13 @@ let mockSeekReaction:
 let mockTranscodingUrl: string | undefined;
 const mockSettings = {};
 const mockNoop = () => {};
+/** The volume commands the page handed the session socket. */
+let mockSocketCommands: {
+  volumeUp?: () => Promise<void>;
+  volumeDown?: () => Promise<void>;
+} = {};
+/** What the page did with the device volume: reads and writes, in order. */
+const mockVolumeCalls: string[] = [];
 
 jest.mock("expo-router", () => ({
   useLocalSearchParams: () => mockParams,
@@ -82,7 +89,6 @@ jest.mock("react-native-reanimated", () => ({
     mockSeekReaction = react;
   },
 }));
-jest.mock("react-native-volume-manager", () => ({}));
 jest.mock(
   "react-native-mmkv",
   () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
@@ -140,7 +146,25 @@ jest.mock("@/hooks/usePlaybackSpeed", () => ({
 jest.mock("@/hooks/useRevalidatePlaybackProgressCache", () => ({
   useInvalidatePlaybackProgressCache: () => mockNoop,
 }));
-jest.mock("@/hooks/useWebsockets", () => ({ useWebSocket: () => {} }));
+jest.mock("@/hooks/useWebsockets", () => ({
+  useWebSocket: (commands: typeof mockSocketCommands) => {
+    mockSocketCommands = commands;
+  },
+}));
+jest.mock("@/modules/system-volume", () => ({
+  ...jest.requireActual("@/modules/system-volume"),
+  getSystemVolume: () => {
+    mockVolumeCalls.push("sync read");
+    return 0.4;
+  },
+  getSystemVolumeAsync: async () => {
+    mockVolumeCalls.push("async read");
+    return 0.4;
+  },
+  setSystemVolume: (volume: number) => {
+    mockVolumeCalls.push(`set ${volume.toFixed(2)}`);
+  },
+}));
 // Where an alternate version starts is covered by
 // getDefaultPlaySettings.test.ts; the version itself is not under test here.
 jest.mock("@/hooks/useServerVersion", () => ({
@@ -670,5 +694,34 @@ describe("direct player stop report", () => {
     } finally {
       mockParams.playbackPosition = String(RESUME_TICKS);
     }
+  });
+
+  // The synchronous read is a round trip to the audio server on iOS, which
+  // can hold the JS thread for seconds in the middle of playback.
+  test("reads the volume off the JS thread for a remote volume step", async () => {
+    await openPlayer();
+    mockVolumeCalls.length = 0;
+
+    await act(async () => {
+      await mockSocketCommands.volumeDown?.();
+    });
+
+    expect(mockVolumeCalls).toEqual(["async read", "set 0.30"]);
+  });
+
+  // Two commands sent back to back both read the volume before the first one
+  // landed, and the second one added nothing.
+  test("makes two steps of two volume commands sent back to back", async () => {
+    await openPlayer();
+    mockVolumeCalls.length = 0;
+
+    await act(async () => {
+      await Promise.all([
+        mockSocketCommands.volumeUp?.(),
+        mockSocketCommands.volumeUp?.(),
+      ]);
+    });
+
+    expect(mockVolumeCalls).toEqual(["async read", "set 0.50", "set 0.60"]);
   });
 });
