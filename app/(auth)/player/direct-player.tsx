@@ -170,6 +170,7 @@ export default function DirectPlayerPage() {
   const [isVideoLoaded, setIsVideoLoaded] = useState(false);
   const [tracksReady, setTracksReady] = useState(false);
   const [hasPlaybackStarted, setHasPlaybackStarted] = useState(false);
+  const hasPlaybackStartedRef = useRef(false);
   const [currentPlaybackSpeed, setCurrentPlaybackSpeed] = useState(1.0);
   const [showTechnicalInfo, setShowTechnicalInfo] = useState(false);
 
@@ -465,6 +466,7 @@ export default function DirectPlayerPage() {
   }
 
   const [stream, setStream] = useState<Stream | null>(null);
+  const isLiveStream = !!stream?.mediaSource?.LiveStreamId;
   const [streamStatus, setStreamStatus] = useState({
     isLoading: true,
     isError: false,
@@ -1233,6 +1235,7 @@ export default function DirectPlayerPage() {
         setPlaying(true);
         setIsBuffering(false);
         setHasPlaybackStarted(true);
+        hasPlaybackStartedRef.current = true;
         // Pause inactivity timer during playback (TV only)
         pauseInactivityTimer();
         await activateKeepAwakeAsync();
@@ -1248,10 +1251,14 @@ export default function DirectPlayerPage() {
       }
 
       if (isLoading !== undefined) {
-        setIsBuffering(isLoading);
+        // Live streams fire isLoading during HLS segment fetches, which would
+        // bring the spinner back while playing, so ignore it once they run.
+        if (!isLoading || !(isLiveStream && hasPlaybackStartedRef.current)) {
+          setIsBuffering(isLoading);
+        }
       }
     },
-    [setPlaying, pauseInactivityTimer, resumeInactivityTimer],
+    [setPlaying, pauseInactivityTimer, resumeInactivityTimer, isLiveStream],
   );
 
   const _onPictureInPictureChange = useCallback(

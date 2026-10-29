@@ -1,64 +1,92 @@
 import { View } from "react-native";
-import {
-  LIVE_TV_GUIDE_HOUR_MS,
-  LIVE_TV_GUIDE_HOUR_WIDTH,
-} from "@/constants/LiveTVGuide";
 import { Text } from "../common/Text";
+import {
+  EPG_BORDER_WIDTH,
+  EPG_CARD_BG_LIVE,
+  EPG_PX_PER_HOUR,
+  EPG_SUBTLE_COLOR,
+  EPG_TEXT_COLOR_PRIMARY,
+  EPG_TEXT_COLOR_SECONDARY,
+} from "./constants";
 
-/** The guide's hours, from `startTime` to midnight. */
+const LABEL_WIDTH = 56;
+const TICK_HEIGHT_FULL = 5;
+const TICK_HEIGHT_HALF = 3;
+
+const formatTime = (date: Date) =>
+  date.toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+
+// The page's reference time: the header, the rows and the program queries
+// must agree on it, and it moves on every :15 and :45.
 export const HourHeader = ({
   height,
-  startTime,
+  referenceTime,
 }: {
   height: number;
-  /** The first hour shown, the same the channel rows count from. */
-  startTime: number;
+  referenceTime: Date;
 }) => {
-  const hours = guideHours(startTime);
+  const totalWidth = 24 * EPG_PX_PER_HOUR;
+
+  const labels: { time: Date; x: number }[] = [];
+  for (let i = 0; i <= 48; i++) {
+    const t = new Date(referenceTime.getTime() + i * 30 * 60 * 1000);
+    labels.push({ time: t, x: (i * EPG_PX_PER_HOUR) / 2 });
+  }
 
   return (
     <View
-      className='flex flex-row'
       style={{
+        width: totalWidth,
         height,
+        backgroundColor: EPG_CARD_BG_LIVE,
+        borderBottomWidth: EPG_BORDER_WIDTH,
+        borderBottomColor: EPG_SUBTLE_COLOR,
       }}
     >
-      {hours.map((hour, index) => (
-        <HourCell key={index} hour={hour} />
-      ))}
+      {labels.map(({ time, x }, index) => {
+        const isFullHour = time.getMinutes() === 0;
+        return (
+          <View
+            key={x}
+            style={{
+              position: "absolute",
+              left: Math.max(0, x - LABEL_WIDTH / 2),
+              top: 0,
+              bottom: 0,
+              width: LABEL_WIDTH,
+              alignItems: index === 0 ? "flex-start" : "center",
+              justifyContent: "center",
+            }}
+          >
+            <Text
+              style={{
+                fontSize: isFullHour ? 12 : 11,
+                color: isFullHour
+                  ? EPG_TEXT_COLOR_PRIMARY
+                  : EPG_TEXT_COLOR_SECONDARY,
+              }}
+            >
+              {index === 0
+                ? `:${String(time.getMinutes()).padStart(2, "0")}`
+                : formatTime(time)}
+            </Text>
+            {/* Tick mark at bottom */}
+            <View
+              style={{
+                position: "absolute",
+                bottom: 0,
+                width: EPG_BORDER_WIDTH,
+                height: isFullHour ? TICK_HEIGHT_FULL : TICK_HEIGHT_HALF,
+                backgroundColor: EPG_SUBTLE_COLOR,
+              }}
+            />
+          </View>
+        );
+      })}
     </View>
   );
-};
-
-const HourCell = ({ hour }: { hour: Date }) => (
-  <View
-    style={{ width: LIVE_TV_GUIDE_HOUR_WIDTH }}
-    className='flex items-center justify-center bg-neutral-800'
-  >
-    <Text className='text-xs text-gray-600'>
-      {hour.toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      })}
-    </Text>
-  </View>
-);
-
-/**
- * The guide's hours from `startTime` to the next local midnight, one elapsed
- * hour apart, as the rows place programs. Stepping the local hour instead, a
- * spring-forward day showed 3:00 twice and the header ran an hour off them.
- */
-export const guideHours = (startTime: number): Date[] => {
-  const midnight = new Date(startTime);
-  midnight.setHours(24, 0, 0, 0);
-  const hours: Date[] = [];
-  for (
-    let time = startTime;
-    time < midnight.getTime();
-    time += LIVE_TV_GUIDE_HOUR_MS
-  ) {
-    hours.push(new Date(time));
-  }
-  return hours;
 };
