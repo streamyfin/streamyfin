@@ -1,7 +1,4 @@
-import {
-  type CollectionType,
-  ItemFilter,
-} from "@jellyfin/sdk/lib/generated-client/models";
+import { ItemFilter } from "@jellyfin/sdk/lib/generated-client/models";
 import { atom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
 import { useMemo } from "react";
@@ -75,75 +72,28 @@ export const sortOptions: SortOption[] = [
   { key: SortByOption.Random, value: "Random" },
 ];
 
-// The server keeps DateLastContentAdded on containers only, and what it means
-// depends on the container. For a playlist it is the last time an item went in,
-// for a series the date of its newest episode. Each reading needs its own
-// label, so the option is offered only in those libraries, worded for each.
-const withDateLastContentAdded = (
-  label: string,
-  dateCreatedLabel?: string,
-): SortOption[] =>
-  sortOptions.flatMap((option) =>
-    option.key === SortByOption.DateCreated
-      ? [
-          dateCreatedLabel ? { ...option, value: dateCreatedLabel } : option,
-          { key: SortByOption.DateLastContentAdded, value: label },
-        ]
-      : [option],
-  );
-
-const playlistSortOptions = withDateLastContentAdded("Date Playlist Updated");
-// Right above the episode date, the series' own date says whose it is, as in
-// jellyfin-web.
-const tvShowSortOptions = withDateLastContentAdded(
-  "Date Episode Added",
-  "Date Show Added",
-);
-
 /**
- * The sort options a library of this type offers. Every list is built once,
- * so the result is safe to use as a hook dependency.
+ * The filter by choices. `allowed` is the kind's own list (filterByOptionsFor,
+ * kept out of this file so the table can import the atoms without a cycle).
  */
-export const sortOptionsFor = (
-  collectionType: CollectionType | null | undefined,
-): SortOption[] => {
-  if (collectionType === "playlists") return playlistSortOptions;
-  if (collectionType === "tvshows") return tvShowSortOptions;
-  return sortOptions;
-};
-
-export const useFilterOptions = () => {
+export const useFilterOptions = (allowed?: readonly FilterByOption[]) => {
   const { settings } = useSettings();
   // Memoized so the array identity stays stable across renders: a fresh array
   // every render invalidates the library screen's ListHeaderComponent callback,
   // which rebuilds the whole filter bar on any unrelated re-render.
   // We only show the watchlist option if someone has ticked that setting.
-  return useMemo(
-    (): { key: FilterByOption; value: string }[] =>
-      settings?.useKefinTweaks
-        ? [
-            {
-              key: FilterByOption.IsFavoriteOrLikes,
-              value: "Is Favorite Or Liked",
-            },
-            { key: FilterByOption.IsUnplayed, value: "Is Unplayed" },
-            { key: FilterByOption.IsPlayed, value: "Is Played" },
-            { key: FilterByOption.IsFavorite, value: "Is Favorite" },
-            { key: FilterByOption.IsResumable, value: "Is Resumable" },
-            { key: FilterByOption.Likes, value: "Watchlist" },
-          ]
-        : [
-            {
-              key: FilterByOption.IsFavoriteOrLikes,
-              value: "Is Favorite Or Liked",
-            },
-            { key: FilterByOption.IsUnplayed, value: "Is Unplayed" },
-            { key: FilterByOption.IsPlayed, value: "Is Played" },
-            { key: FilterByOption.IsFavorite, value: "Is Favorite" },
-            { key: FilterByOption.IsResumable, value: "Is Resumable" },
-          ],
-    [settings?.useKefinTweaks],
-  );
+  return useMemo((): { key: FilterByOption; value: string }[] => {
+    const base = [
+      { key: FilterByOption.IsFavoriteOrLikes, value: "Is Favorite Or Liked" },
+      { key: FilterByOption.IsUnplayed, value: "Is Unplayed" },
+      { key: FilterByOption.IsPlayed, value: "Is Played" },
+      { key: FilterByOption.IsFavorite, value: "Is Favorite" },
+      { key: FilterByOption.IsResumable, value: "Is Resumable" },
+    ].filter((option) => !allowed || allowed.includes(option.key));
+    return settings?.useKefinTweaks
+      ? [...base, { key: FilterByOption.Likes, value: "Watchlist" }]
+      : base;
+  }, [settings?.useKefinTweaks, allowed]);
 };
 
 export const sortOrderOptions: {
