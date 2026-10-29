@@ -33,7 +33,6 @@ jest.mock("@expo/ui/swift-ui", () => {
     ),
   };
 });
-jest.mock("@expo/ui/swift-ui/modifiers", () => ({ disabled: jest.fn() }));
 jest.mock("@gorhom/bottom-sheet", () =>
   jest.requireActual("@gorhom/bottom-sheet/mock"),
 );
