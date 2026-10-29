@@ -67,7 +67,7 @@
         "react-native-collapsible": "^1.6.2",
         "react-native-country-flag": "^2.0.2",
         "react-native-device-info": "^15.0.2",
-        "react-native-draggable-flatlist": "^4.0.3",
+        "react-native-drax": "1.1.0",
         "react-native-edge-to-edge": "1.8.1",
         "react-native-gesture-handler": "3.4.0",
         "react-native-google-cast": "^4.9.1",
@@ -122,8 +122,9 @@
   ],
   "patchedDependencies": {
     "react-native-google-cast@4.9.1": "patches/react-native-google-cast@4.9.1.patch",
-    "react-native-udp@4.1.7": "patches/react-native-udp@4.1.7.patch",
     "react-native-track-player@github:lovegaoshi/react-native-track-player#d2baf9a": "patches/react-native-track-player@4.1.1.patch",
+    "react-native-udp@4.1.7": "patches/react-native-udp@4.1.7.patch",
+    "react-native-drax@1.1.0": "patches/react-native-drax@1.1.0.patch",
     "react-native-bottom-tabs@1.4.0": "patches/react-native-bottom-tabs@1.4.0.patch",
   },
   "overrides": {
@@ -1866,9 +1867,9 @@
 
     "react-native-device-info": ["react-native-device-info@15.0.2", "", { "peerDependencies": { "react-native": "*" } }, "sha512-dd71eXG2l3Cwp66IvKNadMTB8fhU3PEjyVddI97sYan+D4bgIAUmgGDhbSOFvHcGavksb2U17kiQYaDiK2WK2g=="],
 
-    "react-native-draggable-flatlist": ["react-native-draggable-flatlist@4.0.3", "", { "dependencies": { "@babel/preset-typescript": "^7.17.12" }, "peerDependencies": { "react-native": ">=0.64.0", "react-native-gesture-handler": ">=2.0.0", "react-native-reanimated": ">=2.8.0" } }, "sha512-2F4x5BFieWdGq9SetD2nSAR7s7oQCSgNllYgERRXXtNfSOuAGAVbDb/3H3lP0y5f7rEyNwabKorZAD/SyyNbDw=="],
-
     "react-native-drawer-layout": ["react-native-drawer-layout@4.2.11", "", { "dependencies": { "color": "^4.2.3", "use-latest-callback": "^0.2.4" }, "peerDependencies": { "react": ">= 18.2.0", "react-native": "*", "react-native-gesture-handler": ">= 2.0.0", "react-native-reanimated": ">= 2.0.0" } }, "sha512-Aua+LAZJ6L3v7ESHsNtxN2sO+hFQKsSz3EDKOLIpWni6PdQEJGFT0Mc2UnEsvFdfV743aHfODTAaHxsJ2D0uFw=="],
+
+    "react-native-drax": ["react-native-drax@1.1.0", "", { "peerDependencies": { "react": ">=18.0.0", "react-native": ">=0.68.0", "react-native-gesture-handler": ">=2.0.0", "react-native-reanimated": "^4.0.0" } }, "sha512-MBAmlMZe/sSCwq2EXdxH8Dc2Gy9y+tvRJn/EWPtAsEoRkIVWeCFg8+7q7ABkmIDLwHGobuIRVC5M6OL6+2ldgQ=="],
 
     "react-native-edge-to-edge": ["react-native-edge-to-edge@1.8.1", "", { "peerDependencies": { "react": "*", "react-native": "*" } }, "sha512-bhvsKqeX9PGkY9wBUk9vni/tJNJdKtLPbs/j3e/3CdV4JmUWfTXYYoL+4Hc8Wmej+5eJxkc8KOFa454ruFWBCA=="],
 
