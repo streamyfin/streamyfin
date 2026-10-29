@@ -45,6 +45,15 @@ export const AppearanceSettings: React.FC = () => {
             }
           />
         </ListItem>
+        <ListItem
+          title={t("home.settings.appearance.show_live_tv_tab")}
+          subtitle={t("home.settings.appearance.show_live_tv_tab_hint")}
+        >
+          <SettingSwitch
+            value={settings.showLiveTvTab}
+            onValueChange={(value) => updateSettings({ showLiveTvTab: value })}
+          />
+        </ListItem>
         {/* The switch tracks the native view rather than a platform: it is
             the only way back once the carousel's own menu turns it off, so it
             has to be offered wherever the carousel can render. */}

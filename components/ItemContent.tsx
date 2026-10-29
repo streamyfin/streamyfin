@@ -71,12 +71,14 @@ interface ItemContentProps {
   item?: BaseItemDto | null;
   itemWithSources?: BaseItemDto | null;
   isLoading?: boolean;
+  channelForFavorite?: BaseItemDto | null;
 }
 
 // Mobile-specific implementation
 const ItemContentMobile: React.FC<ItemContentProps> = ({
   item,
   itemWithSources,
+  channelForFavorite,
 }) => {
   const [api] = useAtom(apiAtom);
   const { t } = useTranslation();
@@ -172,6 +174,14 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
     downloadedTracks,
   ]);
 
+  // Jellyfin returns "TvChannel" or "LiveTvChannel" depending on the endpoint
+  const isLiveTvChannel =
+    item?.Type === "TvChannel" || item?.Type === "LiveTvChannel";
+  const isLiveTv = isLiveTvChannel || item?.Type === "Program";
+  // A program's favorite is its channel's: no button until the channel loads,
+  // or a tap would mark the program.
+  const favoriteItem = item?.Type === "Program" ? channelForFavorite : item;
+
   useEffect(() => {
     if (!Platform.isTV && itemWithSources) {
       navigation.setOptions({
@@ -181,10 +191,11 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
               <Chromecast.Chromecast />
               {/* A group plays from the server: a downloaded copy has
                   nothing to start one with. */}
-              {item.Type !== "Program" && !isOffline && (
+              {!isLiveTv && !isOffline && (
                 <SyncPlayButton items={[item]} title={item.Name} />
               )}
-              {item.Type !== "Program" && (
+              {favoriteItem && <AddToFavorites item={favoriteItem} />}
+              {!isLiveTv && (
                 <>
                   {!Platform.isTV && (
                     <DownloadSingleItem item={itemWithSources} size='large' />
@@ -206,7 +217,6 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
                     size='large'
                     pointerEvents={isVersionPending ? "none" : "auto"}
                   />
-                  <AddToFavorites item={item} />
                   {settings.streamyStatsServerUrl &&
                     !settings.hideWatchlistsTab && (
                       <AddToWatchlist item={item} />
@@ -225,6 +235,8 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
     user,
     itemWithSources,
     isOffline,
+    isLiveTv,
+    favoriteItem,
     settings.hideRemoteSessionButton,
     settings.streamyStatsServerUrl,
     settings.hideWatchlistsTab,
@@ -254,18 +266,20 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
         headerHeight={headerHeight}
         headerImage={
           <View style={[{ flex: 1 }]}>
-            <ItemImage
-              variant={
-                item.Type === "Movie" && logoUrl ? "Backdrop" : "Primary"
-              }
-              item={item}
-              width={toImagePixels(windowWidth)}
-              height={toImagePixels(headerImageHeight)}
-              style={{
-                width: "100%",
-                height: "100%",
-              }}
-            />
+            {!isLiveTvChannel && (
+              <ItemImage
+                variant={
+                  item.Type === "Movie" && logoUrl ? "Backdrop" : "Primary"
+                }
+                item={item}
+                width={toImagePixels(windowWidth)}
+                height={toImagePixels(headerImageHeight)}
+                style={{
+                  width: "100%",
+                  height: "100%",
+                }}
+              />
+            )}
           </View>
         }
         logo={
@@ -342,7 +356,7 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
 
           <ItemCredits people={item.People} className='px-4 mb-4' />
 
-          {item.Type !== "Program" && (
+          {!isLiveTv && (
             <>
               {item.Type === "Episode" && !isOffline && (
                 <CurrentSeries item={item} className='mb-2' />

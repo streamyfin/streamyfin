@@ -230,6 +230,16 @@ export default function IndexLayout() {
           headerShadowVisible: false,
         }}
       />
+      <Stack.Screen
+        name='livetv'
+        options={{
+          title: t("live_tv.title"),
+          headerShown: !Platform.isTV,
+          headerBlurEffect: "none",
+          headerTransparent: false,
+          headerShadowVisible: false,
+        }}
+      />
     </Stack>
   );
 }
