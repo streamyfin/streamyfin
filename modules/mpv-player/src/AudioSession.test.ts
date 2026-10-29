@@ -74,7 +74,7 @@ describe("iOS audio session", () => {
     );
 
     expect(helper).toMatch(
-      /^[^\n]*\{\s*guard !isShutDown else \{ return \}\s*audioSession\.activate\(completion: completion\)\s*$/,
+      /^[^\n]*\{\s*guard !isShutDown else \{ return \}\s*audioSession\.activate\(spatialAudio: renderer\?\.isPlayingSpatialAudio \?\? false, completion: completion\)\s*$/,
     );
   });
 
