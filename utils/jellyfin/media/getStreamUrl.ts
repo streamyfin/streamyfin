@@ -7,6 +7,7 @@ import type {
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { BaseItemKind } from "@jellyfin/sdk/lib/generated-client/models/base-item-kind";
 import { getLibraryApi, getMediaInfoApi } from "@jellyfin/sdk/lib/utils/api";
+import { redactCredentials } from "@/utils/redactCredentials";
 import { markExpectedError } from "../../errors";
 import { generateDownloadProfile } from "../../profiles/download";
 import type { AudioTranscodeModeType } from "../../profiles/native";
@@ -57,7 +58,7 @@ const getPlaybackUrl = (
       );
     }
 
-    console.log("Video is being transcoded:", transcodeUrl);
+    console.log("Video is being transcoded:", redactCredentials(transcodeUrl));
     return `${api.basePath}${transcodeUrl}`;
   }
 
@@ -68,7 +69,10 @@ const getPlaybackUrl = (
     mediaSource?.Protocol === "Http" &&
     mediaSource?.Path
   ) {
-    console.log("Video is remote stream, using direct Path:", mediaSource.Path);
+    console.log(
+      "Video is remote stream, using direct Path:",
+      redactCredentials(mediaSource.Path),
+    );
     return mediaSource.Path;
   }
 
@@ -102,7 +106,10 @@ const getPlaybackUrl = (
   // the negotiated resume, stream-selection and authentication parameters.
   const directPlayUrl = api.getUri(`/Videos/${itemId}/stream`, streamParams);
 
-  console.log("Video is being direct played:", directPlayUrl);
+  console.log(
+    "Video is being direct played:",
+    redactCredentials(directPlayUrl),
+  );
   return directPlayUrl;
 };
 

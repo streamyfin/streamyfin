@@ -147,6 +147,13 @@
     "typescript": "6.0.3"
   },
   "expo": {
+    "autolinking": {
+      "android": {
+        "buildFromSource": [
+          "expo-image"
+        ]
+      }
+    },
     "doctor": {
       "reactNativeDirectoryCheck": {
         "exclude": [

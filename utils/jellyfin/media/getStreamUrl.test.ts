@@ -33,6 +33,32 @@ describe("getStreamUrl", () => {
     expect(url.searchParams.get("ApiKey")).toBe("SECRET_TOKEN");
   });
 
+  // A release build's console goes to logcat, where a user copying their logs
+  // into an issue would hand out the session's token with the stream URL.
+  test("logs the stream URL without its ApiKey", async () => {
+    const log = jest.spyOn(console, "log").mockImplementation(() => {});
+    const api = makeApi();
+    api.mock
+      .onPost("https://jellyfin.example.com/Items/item-1/PlaybackInfo")
+      .reply(200, {
+        PlaySessionId: "session-1",
+        MediaSources: [{ Id: "media-1", Container: "mkv" }],
+      });
+
+    await getStreamUrl({
+      api,
+      item: { Id: "item-1", Type: "Movie" },
+      userId: "user-1",
+      startTimeTicks: 0,
+      deviceProfile: {},
+    });
+
+    const logged = log.mock.calls.flat().join(" ");
+    log.mockRestore();
+    expect(logged).toContain("/Videos/item-1/stream");
+    expect(logged).not.toContain("SECRET_TOKEN");
+  });
+
   // #1693: Live TV loaded forever. Without the opened live stream's id,
   // Jellyfin answers the direct play request with a 400.
   test("live TV direct play URL carries the opened live stream", async () => {

@@ -10,6 +10,7 @@ import type { Bitrate } from "@/components/BitrateSelector";
 import { getActivePlayerType, settingsAtom } from "@/utils/atoms/settings";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import { logAndCaptureError } from "@/utils/log";
+import { redactCredentials } from "@/utils/redactCredentials";
 import { generateDeviceProfile } from "../utils/profiles/native";
 import { apiAtom, userAtom } from "./JellyfinProvider";
 
@@ -99,7 +100,8 @@ export const PlaySettingsProvider: React.FC<{ children: React.ReactNode }> = ({
         });
 
         console.log("getStreamUrl ~");
-        console.log(`${data?.url?.slice(0, 100)}...${data?.url?.slice(-50)}`);
+        const logged = redactCredentials(data?.url ?? "");
+        console.log(`${logged.slice(0, 100)}...${logged.slice(-50)}`);
 
         _setPlaySettings(newSettings);
         if (data?.url) setPlayUrl(data.url);
