@@ -41,7 +41,7 @@ export const InactivityProvider: React.FC<{ children: ReactNode }> = ({
   const { settings } = useSettings();
   const { logout } = useJellyfin();
   const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const appStateRef = useRef<AppStateStatus>(AppState.currentState);
+  const appStateRef = useRef<string | null | undefined>(AppState.currentState);
   const isPausedRef = useRef(false);
 
   const timeoutMs = settings.inactivityTimeout ?? InactivityTimeout.Disabled;

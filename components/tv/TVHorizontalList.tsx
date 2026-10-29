@@ -1,5 +1,10 @@
 import React, { useCallback } from "react";
-import { FlatList, ScrollView, View } from "react-native";
+import {
+  FlatList,
+  ScrollView,
+  type ScrollViewInstance,
+  View,
+} from "react-native";
 import { Text } from "@/components/common/Text";
 import { useScaledTVSizes } from "@/constants/TVSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
@@ -21,9 +26,9 @@ interface TVHorizontalListProps<T> {
   /** Called when end is reached (only for FlatList) */
   onEndReached?: () => void;
   /** Ref for the scroll view */
-  scrollViewRef?: React.RefObject<ScrollView | FlatList<T> | null>;
+  scrollViewRef?: React.RefObject<ScrollViewInstance | FlatList<T> | null>;
   /** Footer component (only for FlatList) */
-  ListFooterComponent?: React.ReactElement | null;
+  ListFooterComponent?: React.ReactElement;
   /** Whether this is the first section (for initial focus) */
   isFirstSection?: boolean;
   /** Loading state */
@@ -198,7 +203,7 @@ export function TVHorizontalList<T>({
         />
       ) : (
         <ScrollView
-          ref={scrollViewRef as React.RefObject<ScrollView>}
+          ref={scrollViewRef as React.RefObject<ScrollViewInstance>}
           horizontal
           showsHorizontalScrollIndicator={false}
           style={listStyle}

@@ -19,6 +19,7 @@ import {
   Platform,
   RefreshControl,
   ScrollView,
+  type ScrollViewInstance,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -86,7 +87,7 @@ const HomeMobile = () => {
   const [loading, setLoading] = useState(false);
   const { settings, refreshStreamyfinPluginSettings } = useSettings();
   const navigation = useNavigation();
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
   const { downloadedItems, cleanCacheDirectory } = useDownload();
   const prevIsConnected = useRef<boolean | null>(false);
   const {

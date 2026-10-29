@@ -9,6 +9,7 @@ import {
   Pressable,
   StyleSheet,
   TextInput,
+  type TextInputInstance,
   TVFocusGuideView,
   View,
 } from "react-native";
@@ -109,7 +110,7 @@ const TVPasswordInput: React.FC<{
   const typography = useScaledTVTypography();
   const { focused, handleFocus, handleBlur, animatedStyle } =
     useTVFocusAnimation({ scaleAmount: 1.02, duration: 120 });
-  const inputRef = useRef<TextInput>(null);
+  const inputRef = useRef<TextInputInstance>(null);
 
   return (
     <Pressable

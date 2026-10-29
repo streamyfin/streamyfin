@@ -8,6 +8,7 @@ import {
   StyleSheet,
   TVFocusGuideView,
   View,
+  type ViewInstance,
 } from "react-native";
 import { Text } from "@/components/common/Text";
 import { TVOptionCard } from "@/components/tv/TVOptionCard";
@@ -18,6 +19,7 @@ import type {
   TVLibrarySheetState,
 } from "@/utils/atoms/tvLibrarySheet";
 import type { TVLibrarySheetPlacement } from "@/utils/library/librarySheet";
+import { requestTVFocus } from "@/utils/requestTVFocus";
 import { scaleSize } from "@/utils/scaleSize";
 
 const SLIDE_DISTANCE = 200;
@@ -99,12 +101,9 @@ export const TVLibrarySheet: React.FC<Props> = ({
 
   // The card the focus belongs on is asked for it by hand as well: a list
   // that swaps its content does not get its preferred focus honoured twice.
-  const focusRef = useRef<View>(null);
+  const focusRef = useRef<ViewInstance>(null);
   useEffect(() => {
-    const timer = setTimeout(
-      () => (focusRef.current as any)?.requestTVFocus?.(),
-      150,
-    );
+    const timer = setTimeout(() => requestTVFocus(focusRef.current), 150);
     return () => clearTimeout(timer);
   }, [level.group]);
 

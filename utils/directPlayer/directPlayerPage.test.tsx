@@ -26,13 +26,16 @@ const mockParams = {
   offline: "false",
   playbackPosition: String(RESUME_TICKS),
 };
-const mockListeners: Record<string, () => void> = {};
-const mockNavigation = {
-  addListener: (event: string, listener: () => void) => {
-    mockListeners[event] = listener;
-    return () => delete mockListeners[event];
-  },
+type MockRemoval = (options: {
+  data: { action: { type: string } };
+  repeat: () => void;
+}) => void;
+// What the page last passed to usePreventRemove: whether it holds a removal,
+// and what it does with one.
+let mockPreventRemove: { held: boolean; onRemove?: MockRemoval } = {
+  held: false,
 };
+const mockRepeat = jest.fn();
 const mockRouter = { setParams: jest.fn(), replace: jest.fn() };
 const mockReportProgress = jest.fn(async (_info: unknown) => {});
 const mockPlayer = {
@@ -65,7 +68,10 @@ const mockNoop = () => {};
 
 jest.mock("expo-router", () => ({
   useLocalSearchParams: () => mockParams,
-  useNavigation: () => mockNavigation,
+  usePreventRemove: (held: boolean, onRemove?: MockRemoval) => {
+    mockPreventRemove = { held, onRemove };
+    return () => {};
+  },
 }));
 jest.mock("react-i18next", () => ({
   useTranslation: () => ({ t: (key: string) => key }),
@@ -305,11 +311,23 @@ const pileUp = async (positions: number[], at = Date.now()) => {
   }
 };
 
-/** Hardware back, the header button and a swipe all arrive as beforeRemove. */
-const leavePlayer = async () => {
+/**
+ * Hardware back, the header button and a swipe all arrive as a removal, which
+ * the page holds through usePreventRemove until it has stopped.
+ */
+const removePlayer = async () => {
   await act(async () => {
-    mockListeners.beforeRemove?.();
+    if (mockPreventRemove.held) {
+      mockPreventRemove.onRemove?.({
+        data: { action: { type: "GO_BACK" } },
+        repeat: mockRepeat,
+      });
+    }
   });
+};
+
+const leavePlayer = async () => {
+  await removePlayer();
   await waitFor(() => expect(stopReports()).toHaveLength(1));
 };
 
@@ -328,6 +346,9 @@ describe("direct player stop report", () => {
     mockRouter.setParams.mockClear();
     mockRouter.replace.mockClear();
     mockReportProgress.mockClear();
+    mockPlayer.destroy.mockClear();
+    mockRepeat.mockClear();
+    mockPreventRemove = { held: false };
     api.mock.reset();
     api.mock.onGet(/\/Items\/item-1/).reply(200, {
       Id: "item-1",
@@ -367,6 +388,20 @@ describe("direct player stop report", () => {
       PlaySessionId: "session-item-1",
       PositionTicks: RESUME_TICKS,
     });
+  });
+
+  // Expo Router 58 has no beforeRemove: the page holds the removal, stops, and
+  // only then lets it through, so the old decoder is gone before the next
+  // screen mounts.
+  test("destroys the player before letting the removal through, and holds no later one", async () => {
+    await openPlayer();
+    await leavePlayer();
+
+    expect(mockRepeat).toHaveBeenCalledTimes(1);
+    expect(mockPlayer.destroy.mock.invocationCallOrder[0]).toBeLessThan(
+      mockRepeat.mock.invocationCallOrder[0],
+    );
+    expect(mockPreventRemove.held).toBe(false);
   });
 
   // The view ticks as soon as the duration is known. Before the renderer
@@ -507,9 +542,7 @@ describe("direct player stop report", () => {
       ]);
 
       await tick(0);
-      await act(async () => {
-        mockListeners.beforeRemove?.();
-      });
+      await removePlayer();
       await waitFor(() => expect(stopReports()).toHaveLength(2));
 
       expect(stopReports()[1]).toMatchObject({

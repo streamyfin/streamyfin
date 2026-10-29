@@ -15,7 +15,6 @@ import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client
 import * as BackgroundTask from "expo-background-task";
 import * as Device from "expo-device";
 import { Image } from "expo-image";
-import { DarkTheme, ThemeProvider } from "expo-router/react-navigation";
 import { Platform } from "react-native";
 import { GlobalModal } from "@/components/GlobalModal";
 import { PendingAccountSaveModal } from "@/components/PendingAccountSaveModal";
@@ -78,7 +77,7 @@ import type {
   NotificationResponse,
 } from "expo-notifications/build/Notifications.types";
 import type { ExpoPushToken } from "expo-notifications/build/Tokens.types";
-import { Stack, useSegments } from "expo-router";
+import { DarkTheme, Stack, ThemeProvider, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import * as TaskManager from "expo-task-manager";
 import { Provider as JotaiProvider, useAtom, useAtomValue } from "jotai";
@@ -113,6 +112,10 @@ import {
   ReanimatedLogLevel,
 } from "react-native-reanimated";
 import { Toaster } from "sonner-native";
+
+// Back from a deep link lands on the tabs. Expo Router 58 dropped the
+// navigator's initialRouteName prop in favour of the layout's anchor.
+export const unstable_settings = { anchor: "(auth)/(tabs)" };
 
 // Disable strict mode warnings for reading shared values during render
 configureReanimatedLogger({
@@ -504,7 +507,7 @@ function Layout() {
                                       {JellyfinCastStopReporter && (
                                         <JellyfinCastStopReporter />
                                       )}
-                                      <Stack initialRouteName='(auth)/(tabs)'>
+                                      <Stack>
                                         <Stack.Screen
                                           name='(auth)/(tabs)'
                                           options={{

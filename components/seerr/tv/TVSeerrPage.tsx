@@ -12,6 +12,7 @@ import {
   ScrollView,
   TVFocusGuideView,
   View,
+  type ViewInstance,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { toast } from "sonner-native";
@@ -60,7 +61,7 @@ interface TVCastCardProps {
   };
   imageProxy: (path: string, size?: string) => string;
   onPress: () => void;
-  refSetter?: (ref: View | null) => void;
+  refSetter?: (ref: ViewInstance | null) => void;
 }
 
 const TVCastCard: React.FC<TVCastCardProps> = ({
@@ -193,11 +194,12 @@ export const TVSeerrPage: React.FC = () => {
   const { showIssueModal } = useTVIssueModal();
 
   // Refs for TVFocusGuideView destinations (useState triggers re-render when set)
-  const [playButtonRef, setPlayButtonRef] = useState<View | null>(null);
-  const [firstCastCardRef, setFirstCastCardRef] = useState<View | null>(null);
-  const [firstSeasonCardRef, setFirstSeasonCardRef] = useState<View | null>(
+  const [playButtonRef, setPlayButtonRef] = useState<ViewInstance | null>(null);
+  const [firstCastCardRef, setFirstCastCardRef] = useState<ViewInstance | null>(
     null,
   );
+  const [firstSeasonCardRef, setFirstSeasonCardRef] =
+    useState<ViewInstance | null>(null);
 
   const {
     data: details,

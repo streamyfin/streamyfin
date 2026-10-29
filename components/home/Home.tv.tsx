@@ -14,7 +14,12 @@ import { type QueryFunction, useQuery } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { ActivityIndicator, ScrollView, View } from "react-native";
+import {
+  ActivityIndicator,
+  ScrollView,
+  type ScrollViewInstance,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
@@ -72,7 +77,7 @@ export const Home = () => {
   const cacheVersion = useAtomValue(cacheVersionAtom);
   const insets = useSafeAreaInsets();
   const { settings } = useSettings();
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
   const {
     isConnected,
     serverConnected,

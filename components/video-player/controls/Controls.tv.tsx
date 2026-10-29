@@ -19,6 +19,7 @@ import {
   TVFocusGuideView,
   useWindowDimensions,
   View,
+  type ViewInstance,
 } from "react-native";
 import Animated, {
   Easing,
@@ -60,6 +61,7 @@ import {
 } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { getPlayingRunTimeTicks } from "@/utils/jellyfin/mediaSourceVersion";
 import { streamLanguageName } from "@/utils/jellyfin/trackLabel";
+import { requestTVFocus } from "@/utils/requestTVFocus";
 import { useSegments } from "@/utils/segments";
 import { rememberSeriesTrackFromRow } from "@/utils/seriesTrackMemory";
 import { SUBTITLES_OFF } from "@/utils/subtitles/subtitleIndex";
@@ -304,10 +306,16 @@ export const Controls: FC<Props> = ({
 
   // State for progress bar focus and focus guide refs
   const [isProgressBarFocused, setIsProgressBarFocused] = useState(false);
-  const [playButtonRef, setPlayButtonRef] = useState<View | null>(null);
-  const [progressBarRef, setProgressBarRef] = useState<View | null>(null);
-  const [skipSegmentRef, setSkipSegmentRef] = useState<View | null>(null);
-  const [nextEpisodeRef, setNextEpisodeRef] = useState<View | null>(null);
+  const [playButtonRef, setPlayButtonRef] = useState<ViewInstance | null>(null);
+  const [progressBarRef, setProgressBarRef] = useState<ViewInstance | null>(
+    null,
+  );
+  const [skipSegmentRef, setSkipSegmentRef] = useState<ViewInstance | null>(
+    null,
+  );
+  const [nextEpisodeRef, setNextEpisodeRef] = useState<ViewInstance | null>(
+    null,
+  );
 
   // Minimal seek bar state (shows only progress bar when seeking while controls hidden)
   const [showMinimalSeekBar, setShowMinimalSeekBar] = useState(false);
@@ -317,7 +325,7 @@ export const Controls: FC<Props> = ({
   );
 
   // Ref for the invisible focus-stealing overlay (prevents hidden buttons from receiving select events)
-  const focusOverlayRef = useRef<View>(null);
+  const focusOverlayRef = useRef<ViewInstance>(null);
 
   // The row travels as the option value (same shape the TV item page uses) so
   // the selection handler can persist the pick without re-deriving its language
@@ -1091,7 +1099,7 @@ export const Controls: FC<Props> = ({
       let raf = 0;
       let attempts = 0;
       const tryFocus = () => {
-        focusOverlayRef.current?.requestTVFocus();
+        requestTVFocus(focusOverlayRef.current);
         attempts += 1;
         // ~5 frames of retries; harmless since nothing else is focusable
         // while the controls are hidden.
@@ -1126,7 +1134,7 @@ export const Controls: FC<Props> = ({
       let raf = 0;
       let attempts = 0;
       const tryFocus = () => {
-        playButtonRef.requestTVFocus();
+        requestTVFocus(playButtonRef);
         attempts += 1;
         if (attempts < 5) {
           raf = requestAnimationFrame(tryFocus);
