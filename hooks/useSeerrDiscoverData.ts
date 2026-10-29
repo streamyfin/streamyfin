@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Endpoints, useSeerr } from "@/hooks/useSeerr";
 import { canSeeRecentlyAdded } from "@/utils/seerr/permissions";
+import { genresOf } from "@/utils/seerr/sliders";
 import {
   type DiscoverSlider,
   DiscoverSliderType,
@@ -68,6 +69,9 @@ export const useSeerrGenreSliders = (slide: DiscoverSlider) => {
           ? Endpoints.MOVIE
           : Endpoints.TV,
       ),
+    // Read through genresOf once more: the answer is kept on the device for a
+    // day, so one stored before the client checked it still gets here.
+    select: genresOf,
     enabled: !!seerrApi,
   });
 };
