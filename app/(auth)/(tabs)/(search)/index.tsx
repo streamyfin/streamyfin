@@ -26,6 +26,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CardRow } from "@/components/cards/CardRow";
+import { ItemImage } from "@/components/common/ItemImage";
 import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import {
@@ -534,6 +535,19 @@ export default function SearchPage() {
     librarySortOrder,
   ]);
 
+  const { data: livetvChannels, isFetching: l14 } = useQuery({
+    queryKey: ["search", "livetv-channels", debouncedSearch],
+    queryFn: ({ signal }) =>
+      jellyfinSearchFn({
+        query: debouncedSearch,
+        types: ["LiveTvChannel"] as BaseItemKind[],
+        signal,
+      }),
+    // TVSearchPage has no channel row.
+    enabled:
+      !Platform.isTV && searchType === "Library" && debouncedSearch.length > 0,
+  });
+
   const noResults = useMemo(() => {
     return !(
       movies?.length ||
@@ -545,7 +559,8 @@ export default function SearchPage() {
       artists?.length ||
       albums?.length ||
       songs?.length ||
-      playlists?.length
+      playlists?.length ||
+      livetvChannels?.length
     );
   }, [
     episodes,
@@ -558,11 +573,12 @@ export default function SearchPage() {
     albums,
     songs,
     playlists,
+    livetvChannels,
   ]);
 
   const loading = useMemo(() => {
-    return l1 || l2 || l3 || l7 || l8 || l9 || l10 || l11 || l12 || l13;
-  }, [l1, l2, l3, l7, l8, l9, l10, l11, l12, l13]);
+    return l1 || l2 || l3 || l7 || l8 || l9 || l10 || l11 || l12 || l13 || l14;
+  }, [l1, l2, l3, l7, l8, l9, l10, l11, l12, l13, l14]);
 
   // TV item press handler
   const handleItemPress = useCallback(
@@ -1015,6 +1031,36 @@ export default function SearchPage() {
                   </TouchableItemRouter>
                 );
               }}
+            />
+            <SearchItemWrapper
+              items={livetvChannels}
+              header={t("live_tv.title")}
+              renderItem={(item: BaseItemDto) => (
+                <TouchableItemRouter
+                  key={item.Id}
+                  item={item}
+                  className='flex flex-col w-24 mr-2'
+                >
+                  <View
+                    style={{
+                      width: 84,
+                      height: 84,
+                      borderRadius: 8,
+                      overflow: "hidden",
+                      backgroundColor: "#1a1a1a",
+                    }}
+                  >
+                    <ItemImage
+                      style={{ width: "100%", height: "100%" }}
+                      contentFit='contain'
+                      item={item}
+                    />
+                  </View>
+                  <Text numberOfLines={2} className='mt-2 text-xs'>
+                    {item.Name}
+                  </Text>
+                </TouchableItemRouter>
+              )}
             />
             <SearchItemWrapper
               items={playlists}

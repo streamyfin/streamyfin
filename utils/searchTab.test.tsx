@@ -12,6 +12,7 @@ jest.mock("expo-router", () => ({
   Stack: () => null,
   useSegments: () => ["(auth)", "(tabs)", "(home)"],
 }));
+jest.mock("@/hooks/useShowsLiveTV", () => ({ useShowsLiveTV: () => false }));
 jest.mock("@/utils/atoms/settings", () => ({
   useSettings: () => ({ settings: {} }),
 }));

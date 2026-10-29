@@ -223,14 +223,14 @@ bun run ios:install-metal-toolchain   # Fixes "missing Metal Toolchain" build er
 **Navigation**
 - File based routing under `app/`.
 - Tab groups: `(home)`, `(search)`, `(libraries)`, `(more)`, `(tv-favorites)`,
-  `(tv-watchlists)`, `(tv-settings)`. The phone bar shows Home, Search, Library and
-  More, a menu for what it has no room for: favorites, watchlists, custom links,
-  sessions and settings. Downloads stay a button in Home's header. The TV bar has room
-  for every section, so favorites, watchlists and settings stay tabs there, in the
-  `(tv-*)` groups, and More is hidden (`utils/tvTabs.ts`). Routes shared by several
-  tabs live in the combined group
-  `(home,libraries,search,more,tv-favorites,tv-watchlists)`. No tab group may sort
-  before `(home)`, see `shared-route-from-outside-tabs-lands-in-first-group`.
+  `(tv-livetv)`, `(tv-watchlists)`, `(tv-settings)`. The phone bar shows Home, Search,
+  Library and More, a menu for what it has no room for: favorites, Live TV, watchlists,
+  custom links, sessions and settings. Downloads stay a button in Home's header. The TV
+  bar has room for every section, so favorites, Live TV, watchlists and settings stay
+  tabs there, in the `(tv-*)` groups, and More is hidden (`utils/tvTabs.ts`). Routes
+  shared by several tabs live in the combined group
+  `(home,libraries,search,more,tv-favorites,tv-watchlists)`. No tab group may sort before
+  `(home)`, see `shared-route-from-outside-tabs-lands-in-first-group`.
 - **IMPORTANT**: use `useAppRouter` from `@/hooks/useAppRouter`, never `useRouter` or the
   static `router` from `expo-router`. The wrapper preserves offline mode across
   navigation.

@@ -9,6 +9,7 @@ import type { TVNavBarTab } from "@/components/tv/TVNavBar";
 import { TVNavBar } from "@/components/tv/TVNavBar";
 import { Colors } from "@/constants/Colors";
 import useRouter from "@/hooks/useAppRouter";
+import { useShowsLiveTV } from "@/hooks/useShowsLiveTV";
 import {
   isAtTabRoot,
   isTabRoute,
@@ -58,18 +59,23 @@ function TVTabLayout() {
   const atTabRoot = isAtTabRoot(segments);
   const { settings } = useSettings();
   const watchlists = showsWatchlists(settings);
+  const liveTV = useShowsLiveTV();
 
   const tabs: TVNavBarTab[] = useMemo(() => {
     const labels: Record<TVTabGroup, string> = {
       "(home)": t("tabs.home"),
       "(search)": t("tabs.search"),
       "(tv-favorites)": t("tabs.favorites"),
+      "(tv-livetv)": t("live_tv.title"),
       "(tv-watchlists)": t("watchlists.title"),
       "(libraries)": t("tabs.library"),
       "(tv-settings)": t("tabs.settings"),
     };
-    return tvTabGroups(watchlists).map((key) => ({ key, label: labels[key] }));
-  }, [t, watchlists]);
+    return tvTabGroups({ watchlists, liveTV }).map((key) => ({
+      key,
+      label: labels[key],
+    }));
+  }, [t, watchlists, liveTV]);
 
   const activeTabKey = currentTab ?? "(home)";
 
@@ -90,9 +96,9 @@ function TVTabLayout() {
   }, [router]);
   useTVTabRootBackHandler(navigateHome, atTabRoot, currentTab);
 
-  // A settings refresh can take Watchlists out of the bar while it is open;
-  // tvOS's native tabs handle that themselves, this JS bar does not.
-  const tabGone = isTVTabGone(currentTab, watchlists);
+  // A settings refresh can take Watchlists or Live TV out of the bar while it
+  // is open; tvOS's native tabs handle that themselves, this JS bar does not.
+  const tabGone = isTVTabGone(currentTab, { watchlists, liveTV });
   useEffect(() => {
     if (tabGone) navigateHome();
   }, [tabGone, navigateHome]);
@@ -125,6 +131,7 @@ export default function TabLayout() {
   useTVHomeBackHandler();
   const { settings } = useSettings();
   const watchlists = showsWatchlists(settings);
+  const liveTV = useShowsLiveTV();
 
   // "/" lands on this group's index route, and native tabs render only their
   // tabs: the app launched on a black screen. Send it to Home from here.
@@ -189,6 +196,16 @@ export default function TabLayout() {
             {t("tabs.favorites")}
           </NativeTabs.Trigger.Label>
           <NativeTabs.Trigger.Icon sf='heart.fill' />
+        </NativeTabs.Trigger>
+        <NativeTabs.Trigger
+          name='(tv-livetv)'
+          hidden={!Platform.isTV || !liveTV}
+          disablePopToTop
+        >
+          <NativeTabs.Trigger.Label>
+            {t("live_tv.title")}
+          </NativeTabs.Trigger.Label>
+          <NativeTabs.Trigger.Icon sf='tv.fill' />
         </NativeTabs.Trigger>
         <NativeTabs.Trigger
           name='(tv-watchlists)'
