@@ -1,6 +1,6 @@
 import { act, fireEvent, screen } from "@testing-library/react-native";
 import { measureRenders } from "reassure";
-import AppearancePage from "@/app/(auth)/(tabs)/(home)/settings/appearance/page";
+import AppearancePage from "@/app/(auth)/(tabs)/(more)/settings/appearance/page";
 
 describe("Settings Performance", () => {
   test("toggling a setting re-renders the appearance page", async () => {

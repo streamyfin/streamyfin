@@ -2,7 +2,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { act, screen } from "@testing-library/react-native";
 import { type ReactNode } from "react";
 import { measureRenders } from "reassure";
-import LogsPage from "@/app/(auth)/(tabs)/(home)/settings/logs/page";
+import LogsPage from "@/app/(auth)/(tabs)/(more)/settings/logs/page";
 import { clearMmkv } from "@/test-utils/mmkv";
 import { usePerfQueryClient } from "@/test-utils/queryWrapper";
 import { LogProvider } from "@/utils/log";
