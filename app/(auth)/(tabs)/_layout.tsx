@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Platform, View } from "react-native";
 import { SystemBars } from "react-native-edge-to-edge";
+import { RouteErrorBoundary } from "@/components/RouteErrorBoundary";
 import type { TVNavBarTab } from "@/components/tv/TVNavBar";
 import { TVNavBar } from "@/components/tv/TVNavBar";
 import { Colors } from "@/constants/Colors";
@@ -31,15 +32,20 @@ const MusicPlaybackEngine = Platform.isTV
   ? () => null
   : require("@/components/music/MusicPlaybackEngine").MusicPlaybackEngine;
 
-// Catches render crashes inside the tab navigator before they bubble to the
-// root boundary. The fallback replaces the whole navigator (tab bar
-// included) and retry remounts it fresh, discarding navigation state — but
-// the session, providers, and root layout survive.
-export { RouteErrorBoundary as ErrorBoundary } from "@/components/RouteErrorBoundary";
+// Catches a crash in this layout or a nested one before it reaches the root
+// boundary. The fallback replaces the whole navigator, tab bar included, and
+// retry remounts it fresh; the session, providers and root layout survive.
+export { RouteErrorBoundary as ErrorBoundary };
 
-// Both navigators below open on (home); Expo Router 58 reads the initial
-// route from the layout's anchor rather than an initialRouteName prop.
-export const unstable_settings = { anchor: "(home)" };
+export const unstable_settings = {
+  // Both navigators below open on (home); Expo Router 58 reads the initial
+  // route from the layout's anchor rather than an initialRouteName prop.
+  anchor: "(home)",
+  // A screen that crashes shows the fallback in its own place: the tab bar
+  // and the other tabs stay, and retry renders only that screen again.
+  // Covered by components/RouteErrorBoundary.test.tsx.
+  screenErrorBoundary: RouteErrorBoundary,
+};
 
 const IS_ANDROID_TV = Platform.isTV && Platform.OS === "android";
 
