@@ -1,5 +1,6 @@
-// Imported from expo-router's bundled copy, NOT "@react-navigation/*": as of
-// SDK 56 expo-router's Metro check rejects direct @react-navigation imports.
+// Imported from expo-router's bundled copy, NOT "@react-navigation/*": since
+// SDK 58 Expo CLI no longer points those imports at it, so a direct one loads
+// a second copy whose contexts the router never provides.
 import { useRouter } from "expo-router";
 import { NavigationContext } from "expo-router/react-navigation";
 import { useCallback, useContext, useEffect, useMemo, useRef } from "react";

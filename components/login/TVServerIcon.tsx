@@ -1,6 +1,6 @@
 import { LinearGradient } from "expo-linear-gradient";
 import React, { useMemo } from "react";
-import { Animated, Pressable, View } from "react-native";
+import { Animated, Pressable, View, type ViewInstance } from "react-native";
 import { Text } from "@/components/common/Text";
 import { useTVFocusAnimation } from "@/components/tv/hooks/useTVFocusAnimation";
 import { useScaledTVTypography } from "@/constants/TVTypography";
@@ -88,7 +88,7 @@ export interface TVServerIconProps {
   disabled?: boolean;
 }
 
-export const TVServerIcon = React.forwardRef<View, TVServerIconProps>(
+export const TVServerIcon = React.forwardRef<ViewInstance, TVServerIconProps>(
   (
     {
       name,

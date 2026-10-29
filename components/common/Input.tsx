@@ -7,6 +7,7 @@ import {
   Platform,
   Pressable,
   TextInput,
+  type TextInputInstance,
   type TextInputProps,
   View,
 } from "react-native";
@@ -18,7 +19,7 @@ interface InputProps extends TextInputProps {
 
 export function Input(props: InputProps) {
   const { style, extraClassName = "", ...otherProps } = props;
-  const inputRef = useRef<TextInput>(null);
+  const inputRef = useRef<TextInputInstance>(null);
   const [isFocused, setIsFocused] = useState(false);
   const scale = useRef(new Animated.Value(1)).current;
   // TV-only: scales the input font with the tvTypographyScale setting.

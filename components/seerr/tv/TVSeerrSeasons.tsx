@@ -5,7 +5,7 @@ import orderBy from "lodash/orderBy";
 import type React from "react";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FlatList, ScrollView, View } from "react-native";
+import { FlatList, ScrollView, View, type ViewInstance } from "react-native";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
 import { SeerrRequestIcon } from "@/components/seerr/SeerrRequestIcon";
@@ -94,7 +94,7 @@ export const TVSeerrSeasons: React.FC<{
   offersRequest: boolean;
   onRequestSeason: (seasonNumber: number) => void;
   /** The first season's card, for the focus coming back up from the cast. */
-  firstCardRef?: (ref: View | null) => void;
+  firstCardRef?: (ref: ViewInstance | null) => void;
 }> = ({ details, offersRequest, onRequestSeason, firstCardRef }) => {
   const { t } = useTranslation();
   const typography = useScaledTVTypography();

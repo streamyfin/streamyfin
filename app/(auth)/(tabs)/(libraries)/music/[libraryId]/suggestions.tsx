@@ -2,8 +2,6 @@ import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { getLibraryApi } from "@jellyfin/sdk/lib/utils/api";
 import { FlashList } from "@shopify/flash-list";
 import { useQuery } from "@tanstack/react-query";
-import { useLocalSearchParams } from "expo-router";
-import { useRoute } from "expo-router/react-navigation";
 import { useAtom } from "jotai";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -14,6 +12,7 @@ import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
 import { CreatePlaylistModal } from "@/components/music/CreatePlaylistModal";
 import { MusicAlbumCard } from "@/components/music/MusicAlbumCard";
+import { useMusicLibraryId } from "@/components/music/MusicLibraryContext";
 import { MusicTrackItem } from "@/components/music/MusicTrackItem";
 import { PlaylistPickerSheet } from "@/components/music/PlaylistPickerSheet";
 import { TrackOptionsSheet } from "@/components/music/TrackOptionsSheet";
@@ -21,12 +20,7 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { writeDebugLog } from "@/utils/log";
 
 export default function SuggestionsScreen() {
-  const localParams = useLocalSearchParams<{ libraryId?: string | string[] }>();
-  const route = useRoute<any>();
-  const libraryId =
-    (Array.isArray(localParams.libraryId)
-      ? localParams.libraryId[0]
-      : localParams.libraryId) ?? route?.params?.libraryId;
+  const libraryId = useMusicLibraryId();
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
   const insets = useSafeAreaInsets();
@@ -54,8 +48,6 @@ export default function SuggestionsScreen() {
 
   writeDebugLog("Music suggestions params", {
     libraryId,
-    localParams,
-    routeParams: route?.params,
     isReady,
   });
 

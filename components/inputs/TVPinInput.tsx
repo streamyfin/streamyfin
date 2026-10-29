@@ -5,6 +5,7 @@ import {
   Pressable,
   StyleSheet,
   TextInput,
+  type TextInputInstance,
   type TextInputProps,
 } from "react-native";
 import { Text } from "@/components/common/Text";
@@ -36,7 +37,7 @@ const TVPinInputComponent = React.forwardRef<TVPinInputRef, TVPinInputProps>(
     } = props;
 
     const typography = useScaledTVTypography();
-    const inputRef = useRef<TextInput>(null);
+    const inputRef = useRef<TextInputInstance>(null);
     const [isFocused, setIsFocused] = useState(false);
     const scale = useRef(new Animated.Value(1)).current;
 

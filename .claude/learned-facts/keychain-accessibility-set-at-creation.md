@@ -19,6 +19,10 @@ duplicate, and `update` writes `kSecValueData` and nothing else: the item keeps
 the accessibility it was created with. Changing it means creating a new item,
 which is why the header values are moved to new keys rather than saved again.
 
+expo-secure-store 58.0.0 changed that (expo/expo#49128): `update` now writes the
+requested `kSecAttrAccessible` too when `keychainAccessible` is passed. The move to
+new keys stays, for the items an older build created with the default.
+
 Lookups do not include the accessibility, so an item is found whatever it was
 stored with, and nothing in the API says which one that was. The key prefix
 carries that instead.

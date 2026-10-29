@@ -10,6 +10,7 @@ import {
   StyleSheet,
   TVFocusGuideView,
   View,
+  type ViewInstance,
 } from "react-native";
 import { Text } from "@/components/common/Text";
 import { TVPinInput, type TVPinInputRef } from "@/components/inputs/TVPinInput";
@@ -183,7 +184,7 @@ export const TVSaveAccountModal: React.FC<TVSaveAccountModalProps> = ({
   const pinInputRef = useRef<TVPinInputRef>(null);
 
   // Use useState for focus tracking (per TV focus guide)
-  const [firstCardRef, setFirstCardRef] = useState<View | null>(null);
+  const [firstCardRef, setFirstCardRef] = useState<ViewInstance | null>(null);
 
   const overlayOpacity = useRef(new Animated.Value(0)).current;
   const sheetTranslateY = useRef(new Animated.Value(200)).current;

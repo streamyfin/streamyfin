@@ -580,7 +580,12 @@ const Page = () => {
     if (state?.routes && state.routes.length > 1) {
       didCollapseRef.current = true;
       const top = state.routes[state.routes.length - 1];
-      navigation.reset({ index: 0, routes: [top] } as any);
+      // Expo Router 58 resets to a complete state only: keep the stack's own.
+      navigation.reset({
+        ...state,
+        index: 0,
+        routes: [top],
+      } as Parameters<typeof navigation.reset>[0]);
     }
   }, [navigation, fromSeeAll]);
 

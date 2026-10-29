@@ -1,8 +1,6 @@
 import { getArtistApi } from "@jellyfin/sdk/lib/utils/api";
 import { FlashList } from "@shopify/flash-list";
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { useLocalSearchParams } from "expo-router";
-import { useRoute } from "expo-router/react-navigation";
 import { useAtom } from "jotai";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -11,18 +9,14 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
 import { MusicArtistCard } from "@/components/music/MusicArtistCard";
+import { useMusicLibraryId } from "@/components/music/MusicLibraryContext";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 
 // Web uses Limit=100
 const ITEMS_PER_PAGE = 100;
 
 export default function ArtistsScreen() {
-  const localParams = useLocalSearchParams<{ libraryId?: string | string[] }>();
-  const route = useRoute<any>();
-  const libraryId =
-    (Array.isArray(localParams.libraryId)
-      ? localParams.libraryId[0]
-      : localParams.libraryId) ?? route?.params?.libraryId;
+  const libraryId = useMusicLibraryId();
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
   const insets = useSafeAreaInsets();
@@ -136,7 +130,9 @@ export default function ArtistsScreen() {
         refreshControl={
           <RefreshControl
             refreshing={false}
-            onRefresh={refetch}
+            onRefresh={() => {
+              refetch();
+            }}
             tintColor='#9334E9'
           />
         }

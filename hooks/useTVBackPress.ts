@@ -1,7 +1,7 @@
 import { type DependencyList, useEffect } from "react";
 import { BackHandler, Platform } from "react-native";
 
-type TVBackPressHandler = () => boolean | null | undefined;
+type TVBackPressHandler = () => boolean | undefined;
 
 let TVEventControl: {
   enableTVMenuKey: () => void;

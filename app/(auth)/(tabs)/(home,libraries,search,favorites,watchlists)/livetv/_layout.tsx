@@ -1,23 +1,10 @@
-import { Slot, Stack, withLayoutContext } from "expo-router";
-import {
-  createMaterialTopTabNavigator,
-  MaterialTopTabNavigationEventMap,
-  MaterialTopTabNavigationOptions,
-} from "expo-router/js-top-tabs";
-import type {
-  ParamListBase,
-  TabNavigationState,
-} from "expo-router/react-navigation";
+import { Slot, Stack } from "expo-router";
+import TopTabs from "expo-router/js-top-tabs";
 import { Platform } from "react-native";
 
-const { Navigator } = createMaterialTopTabNavigator();
-
-export const Tab = withLayoutContext<
-  MaterialTopTabNavigationOptions,
-  typeof Navigator,
-  TabNavigationState<ParamListBase>,
-  MaterialTopTabNavigationEventMap
->(Navigator);
+// Opens on Programs. Expo Router 58 dropped initialRouteName; without an
+// anchor the tabs open on the first route by name, Channels.
+export const unstable_settings = { anchor: "programs" };
 
 const Layout = () => {
   // On TV, skip the Material Top Tab Navigator and render children directly
@@ -34,8 +21,7 @@ const Layout = () => {
   return (
     <>
       <Stack.Screen options={{ title: "Live TV" }} />
-      <Tab
-        initialRouteName='programs'
+      <TopTabs
         keyboardDismissMode='none'
         screenOptions={{
           tabBarBounces: true,
@@ -51,11 +37,11 @@ const Layout = () => {
           tabBarScrollEnabled: true,
         }}
       >
-        <Tab.Screen name='programs' />
-        <Tab.Screen name='guide' />
-        <Tab.Screen name='channels' />
-        <Tab.Screen name='recordings' />
-      </Tab>
+        <TopTabs.Screen name='programs' />
+        <TopTabs.Screen name='guide' />
+        <TopTabs.Screen name='channels' />
+        <TopTabs.Screen name='recordings' />
+      </TopTabs>
     </>
   );
 };

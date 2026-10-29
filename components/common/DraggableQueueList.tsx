@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { FlashList, type FlashListRef } from "@shopify/flash-list";
 import type React from "react";
 import { useCallback, useMemo, useRef } from "react";
-import { TouchableOpacity, View } from "react-native";
+import { TouchableOpacity, View, type ViewInstance } from "react-native";
 import {
   DraxHandle,
   DraxProvider,
@@ -114,7 +114,7 @@ export const DraggableQueueList: React.FC<Props> = ({
   onDragActiveChange,
 }) => {
   const listRef = useRef<FlashListRef<QueueRow>>(null);
-  const columnRef = useRef<View>(null);
+  const columnRef = useRef<ViewInstance>(null);
   const draggingRef = useRef(false);
 
   // Reported once per drag, from whichever end drax calls first.

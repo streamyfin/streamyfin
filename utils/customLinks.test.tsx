@@ -76,7 +76,7 @@ describe("custom links", () => {
         "FunctionCallException: Calling the 'openBrowserAsync' function has failed",
       );
     });
-    openURL = jest.spyOn(Linking, "openURL").mockResolvedValue(true);
+    openURL = jest.spyOn(Linking, "openURL").mockResolvedValue(undefined);
   });
 
   afterEach(() => {
