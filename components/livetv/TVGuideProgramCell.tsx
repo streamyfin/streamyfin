@@ -5,28 +5,35 @@ import { Animated, Pressable, StyleSheet, View } from "react-native";
 import { Text } from "@/components/common/Text";
 import { useTVFocusAnimation } from "@/components/tv/hooks/useTVFocusAnimation";
 import { Colors } from "@/constants/Colors";
+import {
+  TV_GUIDE_FOCUSED_MIN_CELL_WIDTH,
+  TV_GUIDE_LIVE_BADGE_MIN_CELL_WIDTH,
+  TV_GUIDE_TEXT_MIN_CELL_WIDTH,
+} from "@/constants/TVSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
-
-const LIVE_BADGE_MIN_CELL_WIDTH = 160;
-// Narrower cells only fit fragments of letters; the name shows on focus.
-const TEXT_MIN_CELL_WIDTH = 75;
 
 interface TVGuideProgramCellProps {
   program: BaseItemDto;
+  /** Position in the row; the cell is absolutely placed so it can raise itself. */
+  left: number;
   width: number;
   isCurrentlyAiring: boolean;
   onPress: () => void;
   disabled?: boolean;
   refSetter?: (ref: View | null) => void;
+  /** Room from the cell's start to the end of the row, for a focused cell to grow into. */
+  roomToRowEnd: number;
 }
 
 export const TVGuideProgramCell: React.FC<TVGuideProgramCellProps> = ({
   program,
+  left,
   width,
   isCurrentlyAiring,
   onPress,
   disabled = false,
   refSetter,
+  roomToRowEnd,
 }) => {
   const { t } = useTranslation();
   const typography = useScaledTVTypography();
@@ -34,6 +41,13 @@ export const TVGuideProgramCell: React.FC<TVGuideProgramCellProps> = ({
     scaleAmount: 1,
     duration: 120,
   });
+
+  // A focused cell is drawn wider than its slot, over the programs after it,
+  // so a short program can be read. Only the drawing grows: the focusable
+  // frame keeps the slot, so moving focus still visits every program.
+  const displayWidth = focused
+    ? Math.min(Math.max(width, TV_GUIDE_FOCUSED_MIN_CELL_WIDTH), roomToRowEnd)
+    : width;
 
   const formatTime = (date: string | null | undefined) => {
     if (!date) return "";
@@ -46,83 +60,93 @@ export const TVGuideProgramCell: React.FC<TVGuideProgramCellProps> = ({
   };
 
   return (
-    <Pressable
-      ref={refSetter}
-      onPress={onPress}
-      onFocus={handleFocus}
-      onBlur={handleBlur}
-      disabled={disabled}
-      focusable={!disabled}
-      style={{ width }}
-    >
-      <Animated.View
-        style={[
-          styles.container,
-          {
-            backgroundColor: focused
-              ? "#FFFFFF"
-              : isCurrentlyAiring
-                ? "rgba(255, 255, 255, 0.15)"
-                : "rgba(255, 255, 255, 0.08)",
-            borderColor: focused ? "#FFFFFF" : "rgba(255, 255, 255, 0.1)",
-          },
-          focused && styles.focusedShadow,
-        ]}
+    <View style={[styles.wrapper, { left, width }]}>
+      <Pressable
+        ref={refSetter}
+        onPress={onPress}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
+        disabled={disabled}
+        focusable={!disabled}
+        style={{ width }}
       >
-        {width >= TEXT_MIN_CELL_WIDTH && (
-          <>
-            {/* Program name */}
-            <Text
-              numberOfLines={2}
-              style={[
-                styles.programName,
-                {
-                  fontSize: typography.callout,
-                  color: focused ? "#000000" : "#FFFFFF",
-                },
-              ]}
-            >
-              {program.Name}
-            </Text>
-
-            {/* LIVE badge and time range. The badge sits in the row rather than
-            over the title, and only where there is room for it. */}
-            <View style={styles.timeRow}>
-              {isCurrentlyAiring && width >= LIVE_BADGE_MIN_CELL_WIDTH && (
-                <View style={styles.liveBadge}>
-                  <Text
-                    style={[
-                      styles.liveBadgeText,
-                      { fontSize: typography.callout },
-                    ]}
-                  >
-                    {t("player.live")}
-                  </Text>
-                </View>
-              )}
+        <Animated.View
+          style={[
+            styles.container,
+            {
+              backgroundColor: focused
+                ? "#FFFFFF"
+                : isCurrentlyAiring
+                  ? "rgba(255, 255, 255, 0.15)"
+                  : "rgba(255, 255, 255, 0.08)",
+              borderColor: focused ? "#FFFFFF" : "rgba(255, 255, 255, 0.1)",
+            },
+            focused && styles.focusedShadow,
+            { width: displayWidth },
+          ]}
+        >
+          {displayWidth >= TV_GUIDE_TEXT_MIN_CELL_WIDTH && (
+            <>
+              {/* Program name */}
               <Text
-                numberOfLines={1}
+                numberOfLines={2}
                 style={[
-                  styles.timeText,
+                  styles.programName,
                   {
                     fontSize: typography.callout,
-                    color: focused
-                      ? "rgba(0, 0, 0, 0.6)"
-                      : "rgba(255, 255, 255, 0.5)",
+                    color: focused ? "#000000" : "#FFFFFF",
                   },
                 ]}
               >
-                {formatTime(program.StartDate)} - {formatTime(program.EndDate)}
+                {program.Name}
               </Text>
-            </View>
-          </>
-        )}
-      </Animated.View>
-    </Pressable>
+
+              {/* LIVE badge and time range. The badge sits in the row rather than
+            over the title, and only where there is room for it. */}
+              <View style={styles.timeRow}>
+                {isCurrentlyAiring &&
+                  displayWidth >= TV_GUIDE_LIVE_BADGE_MIN_CELL_WIDTH && (
+                    <View style={styles.liveBadge}>
+                      <Text
+                        style={[
+                          styles.liveBadgeText,
+                          { fontSize: typography.callout },
+                        ]}
+                      >
+                        {t("player.live")}
+                      </Text>
+                    </View>
+                  )}
+                <Text
+                  numberOfLines={1}
+                  style={[
+                    styles.timeText,
+                    {
+                      fontSize: typography.callout,
+                      color: focused
+                        ? "rgba(0, 0, 0, 0.6)"
+                        : "rgba(255, 255, 255, 0.5)",
+                    },
+                  ]}
+                >
+                  {formatTime(program.StartDate)} -{" "}
+                  {formatTime(program.EndDate)}
+                </Text>
+              </View>
+            </>
+          )}
+        </Animated.View>
+      </Pressable>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
+  wrapper: {
+    position: "absolute",
+    top: 4,
+    bottom: 4,
+  },
   container: {
     height: 70,
     borderRadius: 8,

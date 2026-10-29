@@ -44,6 +44,21 @@ export const TV_BACKDROP_DEBOUNCE_MS = 300;
 /** How long the TV Home backdrop takes to crossfade to the next item's art. */
 export const TV_BACKDROP_CROSSFADE_MS = 500;
 
+/** How wide, in points at 1080p, a TV guide cell must be to show the LIVE badge. */
+export const TV_GUIDE_LIVE_BADGE_MIN_CELL_WIDTH = 160;
+
+/**
+ * How wide, in points at 1080p, a TV guide cell must be to show the program's
+ * name and time. Narrower cells only fit fragments of letters.
+ */
+export const TV_GUIDE_TEXT_MIN_CELL_WIDTH = 75;
+
+/**
+ * How wide, in points at 1080p, a focused TV guide cell is drawn at least, over
+ * its neighbours, so a short program shows its name, time and LIVE badge.
+ */
+export const TV_GUIDE_FOCUSED_MIN_CELL_WIDTH = 220;
+
 /**
  * Base gap/spacing values in pixels.
  */
