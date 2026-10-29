@@ -199,7 +199,7 @@
       "^tsx/cjs$": "<rootDir>/test-utils/tsxRequireHook.ts"
     },
     "transformIgnorePatterns": [
-      "node_modules/(?!(.bun|(jest-)?react-native|@react-native(-community)?|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@sentry/.*|@jellyfin/sdk|@shopify/flash-list|native-base|react-native-svg))"
+      "node_modules/(?!(.bun|(jest-)?react-native|@react-native(-community)?|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@sentry/.*|@jellyfin/sdk|@shopify/flash-list|native-base|react-native-svg|standard-navigation))"
     ],
     "collectCoverageFrom": [
       "utils/**/*.{ts,tsx}",
