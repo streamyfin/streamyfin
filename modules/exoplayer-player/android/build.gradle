@@ -1,30 +1,10 @@
-apply plugin: 'com.android.library'
+apply plugin: 'expo-module-gradle-plugin'
 
 group = 'expo.modules.exoplayerplayer'
 version = '0.1.0'
 
-def expoModulesCorePlugin = new File(project(":expo-modules-core").projectDir.absolutePath, "ExpoModulesCorePlugin.gradle")
-apply from: expoModulesCorePlugin
-applyKotlinExpoModulesCorePlugin()
-useCoreDependencies()
-useExpoPublishing()
-
-def useManagedAndroidSdkVersions = false
-if (useManagedAndroidSdkVersions) {
-  useDefaultAndroidSdkVersions()
-} else {
-  buildscript {
-    ext.safeExtGet = { prop, fallback ->
-      rootProject.ext.has(prop) ? rootProject.ext.get(prop) : fallback
-    }
-  }
-  project.android {
-    compileSdkVersion safeExtGet("compileSdkVersion", 36)
-    defaultConfig {
-      minSdkVersion safeExtGet("minSdkVersion", 26)
-      targetSdkVersion safeExtGet("targetSdkVersion", 36)
-    }
-  }
+expoModule {
+  canBePublished false
 }
 
 android {
@@ -32,9 +12,6 @@ android {
   defaultConfig {
     versionCode 1
     versionName "0.1.0"
-  }
-  lintOptions {
-    abortOnError false
   }
 }
 
@@ -44,7 +21,7 @@ dependencies {
   // versions on the classpath and duplicate-class errors. The
   // DASH/SmoothStreaming/RTSP artifacts that RNTP pulls in are excluded
   // globally via plugins/withExcludeMedia3Dash.js.
-  def media3Version = safeExtGet('media3Version', '1.10.1')
+  def media3Version = rootProject.ext.has('media3Version') ? rootProject.ext.get('media3Version') : '1.10.1'
   implementation "androidx.media3:media3-exoplayer:${media3Version}"
   implementation "androidx.media3:media3-exoplayer-hls:${media3Version}"
   implementation "androidx.media3:media3-ui:${media3Version}"
