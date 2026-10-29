@@ -7,7 +7,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import { useLocalSearchParams, useNavigation, useSegments } from "expo-router";
 import { useAtom } from "jotai";
-import { orderBy } from "lodash";
+import orderBy from "lodash/orderBy";
 import {
   useCallback,
   useEffect,

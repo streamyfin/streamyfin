@@ -1,7 +1,7 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { useQuery } from "@tanstack/react-query";
-import { orderBy } from "lodash";
+import orderBy from "lodash/orderBy";
 import type React from "react";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";

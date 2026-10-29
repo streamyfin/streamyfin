@@ -1,4 +1,5 @@
-import { orderBy, uniqBy } from "lodash";
+import orderBy from "lodash/orderBy";
+import uniqBy from "lodash/uniqBy";
 import { formatSeerrDate } from "./dates";
 import type { PersonCreditCast, PersonDetails } from "./types";
 

@@ -381,15 +381,13 @@ export const DownloadItems: React.FC<DownloadProps> = ({
       return progress === 0 ? (
         <Loader />
       ) : (
-        <View className='-rotate-45'>
-          <ProgressCircle
-            size={PROGRESS_RING_SIZE}
-            fill={progress}
-            width={PROGRESS_RING_WIDTH}
-            tintColor={Colors.primary}
-            backgroundColor='white'
-          />
-        </View>
+        <ProgressCircle
+          size={PROGRESS_RING_SIZE}
+          fill={progress}
+          width={PROGRESS_RING_WIDTH}
+          tintColor={Colors.primary}
+          backgroundColor='white'
+        />
       );
     }
 

@@ -10,7 +10,7 @@ import {
   getPersonApi,
   getStudioApi,
 } from "@jellyfin/sdk/lib/utils/api";
-import { sortBy } from "lodash";
+import sortBy from "lodash/sortBy";
 import {
   SEARCH_EXCLUDED_PERSON_TYPES,
   SEARCH_PEOPLE_FETCH_LIMIT,

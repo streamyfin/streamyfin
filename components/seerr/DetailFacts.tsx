@@ -1,11 +1,11 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { uniqBy } from "lodash";
+import uniqBy from "lodash/uniqBy";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { View, type ViewProps } from "react-native";
-import CountryFlag from "react-native-country-flag";
 import { Text } from "@/components/common/Text";
 import { useSeerr } from "@/hooks/useSeerr";
+import { countryFlagEmoji } from "@/utils/seerr/countryFlag";
 import { ANIME_KEYWORD_ID } from "@/utils/seerr/data";
 import { formatSeerrDate, seerrLocaleTag } from "@/utils/seerr/dates";
 import type { MovieDetails, TvDetails } from "@/utils/seerr/types";
@@ -177,18 +177,19 @@ const DetailFacts: React.FC<
           <Fact title={t("seerr.original_language")} fact={spokenLanguage} />
           <Facts
             title={t("seerr.production_country")}
-            facts={details?.productionCountries?.map((n, idx) => (
-              <View
-                key={idx}
-                className='flex flex-row items-center'
-                style={{ gap: 8 }}
-              >
-                {n.iso_3166_1 ? (
-                  <CountryFlag isoCode={n.iso_3166_1} size={10} />
-                ) : null}
-                <Text>{n.name}</Text>
-              </View>
-            ))}
+            facts={details?.productionCountries?.map((n, idx) => {
+              const flag = n.iso_3166_1 ? countryFlagEmoji(n.iso_3166_1) : null;
+              return (
+                <View
+                  key={idx}
+                  className='flex flex-row items-center'
+                  style={{ gap: 8 }}
+                >
+                  {flag ? <Text>{flag}</Text> : null}
+                  <Text>{n.name}</Text>
+                </View>
+              );
+            })}
           />
           <Facts
             title={t("seerr.studios")}

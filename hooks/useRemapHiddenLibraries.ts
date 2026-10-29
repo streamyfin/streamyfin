@@ -1,6 +1,6 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { useAtomValue } from "jotai";
-import { isEqual } from "lodash";
+import isEqual from "lodash/isEqual";
 import { useEffect } from "react";
 import { HIDDEN_LIBRARY_ORIGINS_STORAGE_KEY } from "@/constants/Values";
 import { settingsAtom, useSettings } from "@/utils/atoms/settings";
