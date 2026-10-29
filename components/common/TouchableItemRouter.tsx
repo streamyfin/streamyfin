@@ -190,8 +190,9 @@ export const TouchableItemRouter: React.FC<PropsWithChildren<Props>> = ({
     from === "(home)" ||
     from === "(search)" ||
     from === "(libraries)" ||
-    from === "(favorites)" ||
-    from === "(watchlists)"
+    from === "(more)" ||
+    from === "(tv-favorites)" ||
+    from === "(tv-watchlists)"
   )
     return (
       <TouchableOpacity

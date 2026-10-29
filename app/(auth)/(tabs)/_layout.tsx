@@ -16,6 +16,12 @@ import {
 } from "@/hooks/useTVBackHandler";
 import { useSettings } from "@/utils/atoms/settings";
 import { eventBus } from "@/utils/eventBus";
+import {
+  isTVTabGone,
+  showsWatchlists,
+  type TVTabGroup,
+  tvTabGroups,
+} from "@/utils/tvTabs";
 
 // Music components are not available on tvOS (TrackPlayer not supported)
 const MiniPlayerBar = Platform.isTV
@@ -38,43 +44,28 @@ export const unstable_settings = { anchor: "(home)" };
 const IS_ANDROID_TV = Platform.isTV && Platform.OS === "android";
 
 function TVTabLayout() {
-  const { settings } = useSettings();
   const { t } = useTranslation();
   const segments = useSegments();
   const router = useRouter();
 
   const currentTab = segments.find(isTabRoute);
   const atTabRoot = isAtTabRoot(segments);
+  const { settings } = useSettings();
+  const watchlists = showsWatchlists(settings);
 
-  const tabs: TVNavBarTab[] = useMemo(
-    () =>
-      [
-        { key: "(home)", label: t("tabs.home") },
-        { key: "(search)", label: t("tabs.search") },
-        { key: "(favorites)", label: t("tabs.favorites") },
-        !settings?.streamyStatsServerUrl || settings?.hideWatchlistsTab
-          ? null
-          : { key: "(watchlists)", label: t("watchlists.title") },
-        { key: "(libraries)", label: t("tabs.library") },
-        !settings?.showCustomMenuLinks
-          ? null
-          : { key: "(custom-links)", label: t("tabs.custom_links") },
-        { key: "(settings)", label: t("tabs.settings") },
-      ].filter((tab): tab is TVNavBarTab => tab !== null),
-    [
-      settings?.streamyStatsServerUrl,
-      settings?.hideWatchlistsTab,
-      settings?.showCustomMenuLinks,
-      t,
-    ],
-  );
+  const tabs: TVNavBarTab[] = useMemo(() => {
+    const labels: Record<TVTabGroup, string> = {
+      "(home)": t("tabs.home"),
+      "(search)": t("tabs.search"),
+      "(tv-favorites)": t("tabs.favorites"),
+      "(tv-watchlists)": t("watchlists.title"),
+      "(libraries)": t("tabs.library"),
+      "(tv-settings)": t("tabs.settings"),
+    };
+    return tvTabGroups(watchlists).map((key) => ({ key, label: labels[key] }));
+  }, [t, watchlists]);
 
   const activeTabKey = currentTab ?? "(home)";
-
-  const visibleKeys = useMemo(
-    () => new Set(tabs.map((tab) => tab.key)),
-    [tabs],
-  );
 
   const handleTabChange = useCallback(
     (key: string) => {
@@ -93,12 +84,12 @@ function TVTabLayout() {
   }, [router]);
   useTVTabRootBackHandler(navigateHome, atTabRoot, currentTab);
 
-  // If current tab is no longer visible (setting changed), navigate to home
+  // A settings refresh can take Watchlists out of the bar while it is open;
+  // tvOS's native tabs handle that themselves, this JS bar does not.
+  const tabGone = isTVTabGone(currentTab, watchlists);
   useEffect(() => {
-    if (!visibleKeys.has(activeTabKey) && activeTabKey !== "(home)") {
-      router.replace("/(auth)/(tabs)/(home)");
-    }
-  }, [visibleKeys, activeTabKey, router]);
+    if (tabGone) navigateHome();
+  }, [tabGone, navigateHome]);
 
   return (
     <View style={{ flex: 1 }}>
@@ -121,12 +112,13 @@ function TVTabLayout() {
 }
 
 export default function TabLayout() {
-  const { settings } = useSettings();
   const { t } = useTranslation();
   const segments = useSegments();
 
   // Must be called before any conditional return (rules of hooks)
   useTVHomeBackHandler();
+  const { settings } = useSettings();
+  const watchlists = showsWatchlists(settings);
 
   // "/" lands on this group's index route, and native tabs render only their
   // tabs: the app launched on a black screen. Send it to Home from here.
@@ -172,28 +164,30 @@ export default function TabLayout() {
             src={require("@/assets/icons/magnifyingglass.png")}
           />
         </NativeTabs.Trigger>
-        <NativeTabs.Trigger name='(favorites)'>
+        {/* The TV bar keeps every section as a tab (utils/tvTabs.ts).
+            tvOS reports focus coming back to the selected tab as a repeated
+            selection, which pops the tab to its root: a page with nothing to
+            focus yet, such as a watchlist while it loads, sends focus there at
+            once and closed before it showed. */}
+        <NativeTabs.Trigger
+          name='(tv-favorites)'
+          hidden={!Platform.isTV}
+          disablePopToTop
+        >
           <NativeTabs.Trigger.Label>
             {t("tabs.favorites")}
           </NativeTabs.Trigger.Label>
-          <NativeTabs.Trigger.Icon
-            sf='heart.fill'
-            src={require("@/assets/icons/heart.fill.png")}
-          />
+          <NativeTabs.Trigger.Icon sf='heart.fill' />
         </NativeTabs.Trigger>
         <NativeTabs.Trigger
-          name='(watchlists)'
-          hidden={
-            !settings?.streamyStatsServerUrl || settings?.hideWatchlistsTab
-          }
+          name='(tv-watchlists)'
+          hidden={!Platform.isTV || !watchlists}
+          disablePopToTop
         >
           <NativeTabs.Trigger.Label>
             {t("watchlists.title")}
           </NativeTabs.Trigger.Label>
-          <NativeTabs.Trigger.Icon
-            sf='list.star'
-            src={require("@/assets/icons/list.star.png")}
-          />
+          <NativeTabs.Trigger.Icon sf='list.star' />
         </NativeTabs.Trigger>
         <NativeTabs.Trigger name='(libraries)'>
           <NativeTabs.Trigger.Label>
@@ -204,26 +198,24 @@ export default function TabLayout() {
             src={require("@/assets/icons/rectangle.stack.fill.png")}
           />
         </NativeTabs.Trigger>
-        <NativeTabs.Trigger
-          name='(custom-links)'
-          hidden={!settings?.showCustomMenuLinks}
-        >
-          <NativeTabs.Trigger.Label>
-            {t("tabs.custom_links")}
-          </NativeTabs.Trigger.Label>
+        {/* Favorites, watchlists, downloads, custom links, sessions and
+            settings: the phone bar keeps four tabs, the rest is in this menu. */}
+        <NativeTabs.Trigger name='(more)' hidden={Platform.isTV}>
+          <NativeTabs.Trigger.Label>{t("tabs.more")}</NativeTabs.Trigger.Label>
           <NativeTabs.Trigger.Icon
-            sf='link'
-            src={require("@/assets/icons/link.png")}
+            sf='ellipsis'
+            src={require("@/assets/icons/ellipsis.png")}
           />
         </NativeTabs.Trigger>
-        <NativeTabs.Trigger name='(settings)' hidden={!Platform.isTV}>
+        <NativeTabs.Trigger
+          name='(tv-settings)'
+          hidden={!Platform.isTV}
+          disablePopToTop
+        >
           <NativeTabs.Trigger.Label>
             {t("tabs.settings")}
           </NativeTabs.Trigger.Label>
-          <NativeTabs.Trigger.Icon
-            sf='gearshape.fill'
-            src={require("@/assets/icons/gearshape.fill.png")}
-          />
+          <NativeTabs.Trigger.Icon sf='gearshape.fill' />
         </NativeTabs.Trigger>
       </NativeTabs>
       <MiniPlayerBar />

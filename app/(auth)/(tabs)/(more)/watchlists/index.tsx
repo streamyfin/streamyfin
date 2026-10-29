@@ -114,11 +114,7 @@ const NotConfiguredState: React.FC = () => {
         {t("watchlists.not_configured_description")}
       </Text>
       <Button
-        onPress={() =>
-          router.push(
-            "/(auth)/(tabs)/(home)/settings/plugins/streamystats/page",
-          )
-        }
+        onPress={() => router.push("/settings/plugins/streamystats/page")}
         className='px-6'
       >
         <Text className='font-semibold'>{t("watchlists.go_to_settings")}</Text>
@@ -143,12 +139,12 @@ export default function WatchlistsScreen() {
   }, [refetch]);
 
   const handleCreatePress = useCallback(() => {
-    router.push("/(auth)/(tabs)/(watchlists)/create");
+    router.push("/watchlists/create");
   }, [router]);
 
   const handleWatchlistPress = useCallback(
     (watchlistId: number) => {
-      router.push(`/(auth)/(tabs)/(watchlists)/${watchlistId}`);
+      router.push(`/watchlists/${watchlistId}`);
     },
     [router],
   );

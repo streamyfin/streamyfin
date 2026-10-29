@@ -1,15 +1,27 @@
 import {
+  QueryCache,
+  QueryClient,
+  QueryClientProvider,
+} from "@tanstack/react-query";
+import {
   fireEvent,
   render,
+  renderHook,
   screen,
   waitFor,
 } from "@testing-library/react-native";
-import { Linking, Platform } from "react-native";
-import CustomLinksPage, {
-  type MenuLink,
-} from "@/app/(auth)/(tabs)/(custom-links)/index";
+import { AxiosError, type AxiosResponse } from "axios";
+import type { ReactNode } from "react";
+import { Linking } from "react-native";
+import { CustomLinksGroup } from "@/components/more/CustomLinksGroup";
+import { useMenuLinks } from "@/hooks/useMenuLinks";
+import { QueryWrapper } from "@/test-utils/queryWrapper";
+import { isMenuLink, type MenuLink } from "@/utils/customLinks";
 
 const mockMenuLinks = jest.fn<MenuLink[], []>();
+const mockGetConfig = jest.fn(async (_url: string) => ({
+  data: { menuLinks: mockMenuLinks() },
+}));
 const mockOpenBrowser = jest.fn<Promise<{ type: string }>, [string]>();
 const mockToastError = jest.fn();
 
@@ -19,13 +31,10 @@ jest.mock("react-i18next", () => ({
 jest.mock("sonner-native", () => ({
   toast: { error: (message: string) => mockToastError(message) },
 }));
-jest.mock("react-native-safe-area-context", () => ({
-  useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
-}));
 jest.mock("expo-web-browser", () => ({
   openBrowserAsync: (url: string) => mockOpenBrowser(url),
 }));
-// The provider's module graph is the whole app. The screen only reads the
+// The provider's module graph is the whole app. The menu only reads the
 // links out of the server's web config.
 jest.mock("@/providers/JellyfinProvider", () => {
   const { atom } = jest.requireActual("jotai");
@@ -33,7 +42,7 @@ jest.mock("@/providers/JellyfinProvider", () => {
     apiAtom: atom({
       basePath: "https://jellyfin.example.com",
       axiosInstance: {
-        get: async () => ({ data: { menuLinks: mockMenuLinks() } }),
+        get: (url: string) => mockGetConfig(url),
       },
     }),
   };
@@ -43,14 +52,14 @@ const NOT_OPENED = "custom_links.could_not_open_link";
 const COLD_START_TIMEOUT_MS = 60_000;
 
 /**
- * Renders the screen with one link and taps it. The address is whatever the
- * server's config holds, which nothing has checked to be a string.
+ * Renders the menu's links with one link and taps it. The address is whatever
+ * the server's config holds, which nothing has checked to be a string.
  */
 const tapLink = async (url: unknown) => {
   mockMenuLinks.mockReturnValue([
     { name: "My link", url, icon: "link" } as MenuLink,
   ]);
-  await render(<CustomLinksPage />);
+  await render(<CustomLinksGroup />, { wrapper: QueryWrapper });
   await fireEvent.press(await screen.findByText("My link"));
 };
 
@@ -61,8 +70,8 @@ describe("custom links", () => {
   // gone past the 5 s a test gets on a cold cache. See LocalNetworkSettings.
   beforeAll(async () => {
     mockMenuLinks.mockReturnValue([]);
-    const view = await render(<CustomLinksPage />);
-    await screen.findByText("custom_links.no_links");
+    const view = await render(<CustomLinksGroup />, { wrapper: QueryWrapper });
+    await waitFor(() => expect(mockMenuLinks).toHaveBeenCalled());
     await view.unmount();
   }, COLD_START_TIMEOUT_MS);
 
@@ -179,19 +188,33 @@ describe("custom links", () => {
     );
   });
 
-  // TV has no browser to hand a link to, and the screen does not even load
-  // the in-app one there. A tap stays quiet instead of blaming the link.
-  it("opens nothing on TV", async () => {
-    const isTV = jest.spyOn(Platform, "isTV", "get").mockReturnValue(true);
+  // A server whose admin listed none shows no Custom links group at all.
+  it("shows nothing when the server lists no links", async () => {
+    mockMenuLinks.mockReturnValue([]);
+    const view = await render(<CustomLinksGroup />, { wrapper: QueryWrapper });
 
-    await tapLink("https://example.com/status");
-    // Let a handler that got past the guard reach its openers.
+    await waitFor(() => expect(mockMenuLinks).toHaveBeenCalled());
+    // Let the answer reach the group before looking for its title.
     await new Promise((resolve) => setImmediate(resolve));
-    isTV.mockRestore();
+    expect(screen.queryByText("tabs.custom_links")).toBeNull();
+    await view.unmount();
+  });
 
-    expect(mockOpenBrowser).not.toHaveBeenCalled();
-    expect(openURL).not.toHaveBeenCalled();
-    expect(mockToastError).not.toHaveBeenCalled();
+  // The config is JSON the admin edits by hand: an entry that is not an
+  // object, or has no name to show, has no row to draw. Reading its name
+  // threw while the More screen rendered.
+  it("draws a row for each named link and skips the rest", async () => {
+    // What the server's JSON can hold, whatever the type says.
+    mockMenuLinks.mockReturnValue([
+      null,
+      "https://example.com",
+      { url: "https://example.com/unnamed" },
+      { name: "Status", url: "https://example.com/status", icon: "link" },
+    ] as unknown as MenuLink[]);
+    const view = await render(<CustomLinksGroup />, { wrapper: QueryWrapper });
+
+    expect(await screen.findByText("Status")).toBeTruthy();
+    await view.unmount();
   });
 
   it("ignores the spaces around an address", async () => {
@@ -203,5 +226,89 @@ describe("custom links", () => {
       ),
     );
     expect(mockToastError).not.toHaveBeenCalled();
+  });
+});
+
+describe("isMenuLink", () => {
+  it("keeps an entry with a name to show", () => {
+    expect(isMenuLink({ name: "Status", url: "https://example.com" })).toBe(
+      true,
+    );
+    // The address is checked when the link is opened, not here.
+    expect(isMenuLink({ name: "Status" })).toBe(true);
+  });
+
+  it("drops what has no name to show", () => {
+    for (const entry of [
+      null,
+      undefined,
+      "https://example.com",
+      { url: "https://example.com" },
+      { name: 3, url: "https://example.com" },
+    ]) {
+      expect(isMenuLink(entry)).toBe(false);
+    }
+  });
+});
+
+describe("useMenuLinks", () => {
+  const httpError = (status: number) =>
+    new AxiosError(
+      `Request failed with status code ${status}`,
+      "ERR_BAD_REQUEST",
+      undefined,
+      undefined,
+      { status, data: "", headers: {}, config: {} } as AxiosResponse,
+    );
+
+  /** The app's retry policy and error reporting, with no delay between tries. */
+  const renderMenuLinks = (onError: jest.Mock) => {
+    const client = new QueryClient({
+      queryCache: new QueryCache({ onError }),
+      defaultOptions: {
+        queries: {
+          retry: (failureCount) => failureCount < 3,
+          retryDelay: 0,
+          // No garbage collection timer left behind to keep the worker alive.
+          gcTime: Number.POSITIVE_INFINITY,
+        },
+      },
+    });
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    );
+    return renderHook(() => useMenuLinks(), { wrapper });
+  };
+
+  beforeEach(() => {
+    mockGetConfig.mockReset().mockImplementation(async () => ({
+      data: { menuLinks: mockMenuLinks() },
+    }));
+  });
+
+  // A server with its web client turned off (hostwebclient=false) has no
+  // config.json. The request was retried three times and each opening of
+  // More sent a Sentry event; the custom links page it replaced caught it.
+  it("gives no links, once and without an error, when the server has no web config", async () => {
+    mockGetConfig.mockRejectedValue(httpError(404));
+    const onError = jest.fn();
+
+    const { result } = await renderMenuLinks(onError);
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data).toEqual([]);
+    expect(mockGetConfig).toHaveBeenCalledTimes(1);
+    expect(onError).not.toHaveBeenCalled();
+  });
+
+  it("still fails on any other error", async () => {
+    mockGetConfig.mockRejectedValue(httpError(500));
+    const onError = jest.fn();
+
+    const { result } = await renderMenuLinks(onError);
+
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(mockGetConfig).toHaveBeenCalledTimes(4);
+    expect(onError).toHaveBeenCalledTimes(1);
   });
 });

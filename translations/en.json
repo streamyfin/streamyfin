@@ -497,7 +497,7 @@
           "enable_movie_recommendations": "Movie recommendations",
           "enable_series_recommendations": "Series recommendations",
           "enable_promoted_watchlists": "Promoted watchlists",
-          "hide_watchlists_tab": "Hide watchlists tab",
+          "hide_watchlists_tab": "Hide watchlists in the More menu",
           "home_sections_hint": "Show personalized recommendations and promoted watchlists from Streamystats on the home page.",
           "recommended_movies": "Recommended movies",
           "recommended_series": "Recommended series",
@@ -847,7 +847,6 @@
     "noData": "Items you mark as favorites show up here."
   },
   "custom_links": {
-    "no_links": "No links",
     "could_not_open_link": "Could not open this link"
   },
   "player": {
@@ -1219,7 +1218,11 @@
     "library": "Library",
     "custom_links": "Custom links",
     "favorites": "Favorites",
-    "settings": "Settings"
+    "settings": "Settings",
+    "more": "More"
+  },
+  "more": {
+    "your_media": "Your media"
   },
   "music": {
     "title": "Music",

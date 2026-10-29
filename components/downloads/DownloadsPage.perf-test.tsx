@@ -3,7 +3,7 @@ import { act, screen } from "@testing-library/react-native";
 import { atom, createStore, Provider as JotaiProvider } from "jotai";
 import { type ReactNode, useState } from "react";
 import { measureRenders } from "reassure";
-import DownloadsPage from "@/app/(auth)/(tabs)/(home)/downloads/index";
+import DownloadsPage from "@/app/(auth)/(tabs)/(home,more)/downloads/index";
 import type { DownloadedItem } from "@/providers/Downloads/types";
 import { makeItems } from "@/test-utils/baseItems";
 

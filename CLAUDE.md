@@ -51,6 +51,7 @@ Navigation:
 - `introsheet-rendering-location` | IntroSheet in IntroSheetProvider affects native bottom tabs via nav state hooks
 - `intro-modal-trigger-location` | Trigger in Home.tsx, not tabs _layout.tsx
 - `expo-router-top-tabs-runtime-peers` | js-top-tabs requires react-native-tab-view (+ pager-view) at runtime; no import shows it, removing them crashes on launch
+- `shared-route-from-outside-tabs-lands-in-first-group` | a shared route pushed from outside the tabs opens in the alphabetically first tab group; keep `(home)` first
 - `foreign-link-lands-on-library-route` | the library route is /[libraryId], so an unknown one-word link opens it with that word as the id; the music notification's trackplayer://notification.click did, and app/+native-intent.ts drops it
 
 UI and headers:
@@ -204,9 +205,15 @@ bun run ios:install-metal-toolchain   # Fixes "missing Metal Toolchain" build er
 
 **Navigation**
 - File based routing under `app/`.
-- Tab groups: `(home)`, `(search)`, `(favorites)`, `(libraries)`, `(watchlists)`,
-  `(custom-links)`, `(settings)`. Routes shared by several tabs live in the combined
-  group `(home,libraries,search,favorites,watchlists)`.
+- Tab groups: `(home)`, `(search)`, `(libraries)`, `(more)`, `(tv-favorites)`,
+  `(tv-watchlists)`, `(tv-settings)`. The phone bar shows Home, Search, Library and
+  More, a menu for what it has no room for: favorites, watchlists, downloads, custom
+  links, sessions and settings. The TV bar has room for every section, so favorites,
+  watchlists and settings stay tabs there, in the `(tv-*)` groups, and More is hidden
+  (`utils/tvTabs.ts`). Routes shared by several tabs live in the combined group
+  `(home,libraries,search,more,tv-favorites,tv-watchlists)`, the downloads page in
+  `(home,more)`. No tab group may sort before `(home)`, see
+  `shared-route-from-outside-tabs-lands-in-first-group`.
 - **IMPORTANT**: use `useAppRouter` from `@/hooks/useAppRouter`, never `useRouter` or the
   static `router` from `expo-router`. The wrapper preserves offline mode across
   navigation.

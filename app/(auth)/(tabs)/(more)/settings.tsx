@@ -96,7 +96,7 @@ function SettingsMobile() {
           <ListGroup title={t("pairing.pair_with_phone_title")}>
             <ListItem
               onPress={() =>
-                router.push("/(auth)/(tabs)/(home)/companion-login")
+                router.push("/(auth)/(tabs)/(more)/companion-login")
               }
               title={t("pairing.pair_with_phone")}
               textColor='blue'
