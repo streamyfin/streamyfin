@@ -4,11 +4,12 @@ import { useEffect, useRef } from "react";
 import { Platform, StyleSheet, View } from "react-native";
 import { Slider } from "react-native-awesome-slider";
 import { useSharedValue } from "react-native-reanimated";
-import type { VolumeResult } from "react-native-volume-manager";
-
-const VolumeManager = Platform.isTV
-  ? null
-  : require("react-native-volume-manager");
+import {
+  addSystemVolumeListener,
+  getSystemVolumeAsync,
+  hideSystemVolumeIndicator,
+  setSystemVolume,
+} from "@/modules/system-volume";
 
 interface AudioSliderProps {
   setVisibility: (show: boolean) => void;
@@ -21,42 +22,33 @@ const AudioSlider: React.FC<AudioSliderProps> = ({ setVisibility }) => {
   const min = useSharedValue<number>(0); // Explicitly type as number
   const max = useSharedValue<number>(100); // Explicitly type as number
   const isUserInteracting = useRef(false);
+  // Set once the system reported a volume: the first read, which can take
+  // seconds on iOS, must not overwrite it.
+  const volumeReported = useRef(false);
 
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null); // Use a ref to store the timeout ID
 
   useEffect(() => {
     if (isTv) return;
-    const fetchInitialVolume = async () => {
-      try {
-        const { volume: initialVolume } = await VolumeManager.getVolume();
-        volume.value = initialVolume * 100;
-      } catch (error) {
-        console.error("Error fetching initial volume:", error);
+    let active = true;
+    getSystemVolumeAsync().then((current) => {
+      if (active && !volumeReported.current && !isUserInteracting.current) {
+        volume.value = current * 100;
       }
-    };
-    fetchInitialVolume();
+    });
 
-    // Disable the native volume UI when the component mounts
-    VolumeManager.showNativeVolumeUI({ enabled: false });
-
+    // This slider is the volume indicator while it is on screen.
+    const releaseIndicator = hideSystemVolumeIndicator();
     return () => {
-      // Re-enable the native volume UI when the component unmounts
-      VolumeManager.showNativeVolumeUI({ enabled: true });
+      active = false;
+      releaseIndicator();
     };
   }, [isTv, volume]);
 
-  const handleValueChange = async (value: number) => {
+  const handleValueChange = (value: number) => {
     isUserInteracting.current = true;
     volume.value = value;
-
-    try {
-      await VolumeManager.setVolume(value / 100);
-    } catch (error) {
-      console.error("Error setting volume:", error);
-    }
-
-    // Re-call showNativeVolumeUI to ensure the setting is applied on iOS
-    VolumeManager.showNativeVolumeUI({ enabled: false });
+    setSystemVolume(value / 100);
 
     // Reset interaction flag after a delay
     setTimeout(() => {
@@ -66,29 +58,28 @@ const AudioSlider: React.FC<AudioSliderProps> = ({ setVisibility }) => {
 
   useEffect(() => {
     if (isTv) return;
-    const _volumeListener = VolumeManager.addVolumeListener(
-      (result: VolumeResult) => {
-        // Only update if user is not currently interacting with the slider
-        if (!isUserInteracting.current) {
-          volume.value = result.volume * 100;
-        }
+    const subscription = addSystemVolumeListener(({ volume: systemVolume }) => {
+      volumeReported.current = true;
+      // Only update if user is not currently interacting with the slider
+      if (!isUserInteracting.current) {
+        volume.value = systemVolume * 100;
+      }
 
-        setVisibility(true);
+      setVisibility(true);
 
-        // Clear any existing timeout
-        if (timeoutRef.current) {
-          clearTimeout(timeoutRef.current);
-        }
+      // Clear any existing timeout
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
 
-        // Set a new timeout to hide the visibility after 2 seconds
-        timeoutRef.current = setTimeout(() => {
-          setVisibility(false);
-        }, 1000);
-      },
-    );
+      // Set a new timeout to hide the visibility after 2 seconds
+      timeoutRef.current = setTimeout(() => {
+        setVisibility(false);
+      }, 1000);
+    });
 
     return () => {
-      // volumeListener.remove();
+      subscription.remove();
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }
