@@ -7,7 +7,13 @@ import {
   QueryClient,
   QueryClientProvider,
 } from "@tanstack/react-query";
-import { act, render, screen, waitFor } from "@testing-library/react-native";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react-native";
 import { createStore, Provider as JotaiProvider } from "jotai";
 import LiveTvGuidePage from "@/app/(auth)/(tabs)/(home,libraries,search,favorites,watchlists)/livetv/guide";
 import { apiAtom } from "@/providers/JellyfinProvider";
@@ -27,6 +33,26 @@ jest.mock("react-i18next", () => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }));
 jest.mock("@/components/common/ItemImage", () => ({ ItemImage: () => null }));
+jest.mock("@/components/common/TouchableItemRouter", () => ({
+  itemRouter: jest.fn(),
+}));
+// The guide tracks its scroll position in shared values.
+jest.mock("react-native-reanimated", () => ({
+  ...jest.requireActual("@/test-utils/reanimated").reanimatedModule,
+  __esModule: true,
+}));
+jest.mock("expo-router", () => ({
+  useFocusEffect: (effect: () => undefined | (() => void)) =>
+    jest.requireActual("react").useEffect(effect, []),
+  useSegments: () => [],
+}));
+jest.mock("@/hooks/useAppRouter", () => () => ({ push: jest.fn() }));
+jest.mock("@/hooks/useFavorite", () => ({
+  useFavorite: () => ({ isFavorite: false, toggleFavorite: jest.fn() }),
+}));
+jest.mock("@/components/livetv/ChannelFavoriteSheet", () => ({
+  useChannelFavoriteSheet: () => jest.fn(),
+}));
 // The row layout is not what is under test; a channel shows up as the names
 // of its programs.
 jest.mock("@/components/livetv/LiveTVGuideRow", () => ({
@@ -100,7 +126,10 @@ describe("LiveTvGuidePage", () => {
   test("loads the programs of restored channels only once the api is there", async () => {
     const api = guideApi();
     const { store, errors } = await renderGuide((client) =>
-      client.setQueryData(["livetv", "channels", 1], CHANNELS),
+      client.setQueryData(["livetv", "guide", "channels", "user-1"], {
+        pages: [CHANNELS],
+        pageParams: [0],
+      }),
     );
 
     expect(errors).toEqual([]);
@@ -126,5 +155,40 @@ describe("LiveTvGuidePage", () => {
       ChannelIds: ["channel-1"],
     });
     expect(errors).toEqual([]);
+  });
+
+  test("offers a retry when the channels fail to load", async () => {
+    const api = makeApi();
+    api.mock.onGet(/\/LiveTv\/Channels\?/).replyOnce(500);
+    api.mock.onGet(/\/LiveTv\/Channels\?/).reply(200, CHANNELS);
+    api.mock.onPost(/\/LiveTv\/Programs$/).reply(200, PROGRAMS);
+    const { store } = await renderGuide();
+
+    await act(async () => store.set(apiAtom, api));
+
+    await waitFor(() =>
+      expect(screen.getByText("live_tv.channels_load_failed")).toBeTruthy(),
+    );
+    expect(screen.queryByText("live_tv.no_channels")).toBeNull();
+
+    await fireEvent.press(screen.getByText("home.retry"));
+
+    await waitFor(() => expect(screen.getByText("Evening News")).toBeTruthy());
+  });
+
+  test("says so when the server has no channels", async () => {
+    const api = makeApi();
+    api.mock
+      .onGet(/\/LiveTv\/Channels\?/)
+      .reply(200, { Items: [], TotalRecordCount: 0 });
+    const { store } = await renderGuide();
+
+    expect(screen.queryByText("live_tv.no_channels")).toBeNull();
+
+    await act(async () => store.set(apiAtom, api));
+
+    await waitFor(() =>
+      expect(screen.getByText("live_tv.no_channels")).toBeTruthy(),
+    );
   });
 });

@@ -3,11 +3,14 @@ import {
   type NativeBottomTabNavigationEventMap,
   type NativeBottomTabNavigationOptions,
 } from "@bottom-tabs/react-navigation";
+import { getUserViewApi } from "@jellyfin/sdk/lib/utils/api";
+import { useQuery } from "@tanstack/react-query";
 import { Stack, useSegments, withLayoutContext } from "expo-router";
 import type {
   ParamListBase,
   TabNavigationState,
 } from "expo-router/react-navigation";
+import { useAtom } from "jotai";
 import { useCallback, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Platform, View } from "react-native";
@@ -22,6 +25,7 @@ import {
   useTVHomeBackHandler,
   useTVTabRootBackHandler,
 } from "@/hooks/useTVBackHandler";
+import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { eventBus } from "@/utils/eventBus";
 
@@ -141,6 +145,25 @@ function TVTabLayout() {
 export default function TabLayout() {
   const { settings } = useSettings();
   const { t } = useTranslation();
+  const [api] = useAtom(apiAtom);
+  const [user] = useAtom(userAtom);
+
+  const { data: userViews } = useQuery({
+    queryKey: ["user-views", user?.Id],
+    queryFn: async () => {
+      const response = await getUserViewApi(api!).getUserViews({
+        userId: user?.Id,
+      });
+      return response.data.Items || [];
+    },
+    enabled: !!api && !!user?.Id,
+    staleTime: 60 * 1000,
+  });
+
+  const hasLiveTV = useMemo(
+    () => userViews?.some((l) => l.CollectionType === "livetv") ?? false,
+    [userViews],
+  );
 
   // Must be called before any conditional return (rules of hooks)
   useTVHomeBackHandler();
@@ -201,6 +224,17 @@ export default function TabLayout() {
               Platform.OS === "android"
                 ? (_e) => require("@/assets/icons/heart.fill.png")
                 : (_e) => ({ sfSymbol: "heart.fill" }),
+          }}
+        />
+        <NativeTabs.Screen
+          name='(livetv)'
+          options={{
+            title: t("live_tv.title"),
+            tabBarItemHidden: !hasLiveTV || !settings?.showLiveTvTab,
+            tabBarIcon:
+              Platform.OS === "android"
+                ? (_e) => require("@/assets/icons/tv.png")
+                : (_e) => ({ sfSymbol: "tv.fill" }),
           }}
         />
         <NativeTabs.Screen

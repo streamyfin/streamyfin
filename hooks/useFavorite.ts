@@ -1,7 +1,8 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { getUserDataApi } from "@jellyfin/sdk/lib/utils/api";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { atom, useAtom } from "jotai";
+import { atom, useAtom, useAtomValue, useSetAtom } from "jotai";
+import { selectAtom } from "jotai/utils";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 
@@ -13,22 +14,31 @@ export const useFavorite = (item: BaseItemDto) => {
   const queryClient = useQueryClient();
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
-  const [favorites, setFavorites] = useAtom(favoritesAtom);
+  const setFavorites = useSetAtom(favoritesAtom);
 
   const itemId = item.Id ?? "";
 
+  // Subscribes to this item only, so a write for another item, as every
+  // mounting row of a list does, doesn't re-render it.
+  const sharedIsFavorite = useAtomValue(
+    useMemo(
+      () => selectAtom(favoritesAtom, (favorites) => favorites[itemId]),
+      [itemId],
+    ),
+  );
+
   // Get current favorite status from shared state, falling back to item data
   const isFavorite = itemId
-    ? (favorites[itemId] ?? item.UserData?.IsFavorite)
+    ? (sharedIsFavorite ?? item.UserData?.IsFavorite)
     : item.UserData?.IsFavorite;
 
   // Update shared state when item data changes
   useEffect(() => {
-    if (itemId && item.UserData?.IsFavorite !== undefined) {
-      setFavorites((prev) => ({
-        ...prev,
-        [itemId]: item.UserData!.IsFavorite!,
-      }));
+    const value = item.UserData?.IsFavorite;
+    if (itemId && value !== undefined) {
+      setFavorites((prev) =>
+        prev[itemId] === value ? prev : { ...prev, [itemId]: value },
+      );
     }
   }, [itemId, item.UserData?.IsFavorite, setFavorites]);
 
@@ -130,6 +140,12 @@ export const useFavorite = (item: BaseItemDto) => {
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: itemQueryKeyPrefix });
       queryClient.invalidateQueries({ queryKey: ["home", "favorites"] });
+      if (
+        itemRef.current.Type === "TvChannel" ||
+        itemRef.current.Type === "LiveTvChannel"
+      ) {
+        queryClient.invalidateQueries({ queryKey: ["livetv"] });
+      }
     },
   });
 

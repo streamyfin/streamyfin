@@ -205,7 +205,7 @@ bun run ios:install-metal-toolchain   # Fixes "missing Metal Toolchain" build er
 
 **Navigation**
 - File based routing under `app/`.
-- Tab groups: `(home)`, `(search)`, `(favorites)`, `(libraries)`, `(watchlists)`,
+- Tab groups: `(home)`, `(search)`, `(favorites)`, `(libraries)`, `(livetv)`, `(watchlists)`,
   `(custom-links)`, `(settings)`. Routes shared by several tabs live in the combined
   group `(home,libraries,search,favorites,watchlists)`.
 - **IMPORTANT**: use `useAppRouter` from `@/hooks/useAppRouter`, never `useRouter` or the
