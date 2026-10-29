@@ -45,8 +45,10 @@ export const TVGuideProgramCell: React.FC<TVGuideProgramCellProps> = ({
   // A focused cell is drawn wider than its slot, over the programs after it,
   // so a short program can be read. Only the drawing grows: the focusable
   // frame keeps the slot, so moving focus still visits every program.
+  // It never draws narrower than its slot: at the end of the row the slot can
+  // already be wider than the room left.
   const displayWidth = focused
-    ? Math.min(Math.max(width, TV_GUIDE_FOCUSED_MIN_CELL_WIDTH), roomToRowEnd)
+    ? Math.max(width, Math.min(TV_GUIDE_FOCUSED_MIN_CELL_WIDTH, roomToRowEnd))
     : width;
 
   const formatTime = (date: string | null | undefined) => {
