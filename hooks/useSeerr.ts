@@ -74,9 +74,12 @@ interface SearchResults {
 // changed name twice (overseerr_ up to Jellyseerr 2.3, jellyseerr_ up to 2.7,
 // seerr_ since Seerr 3), and a name it does not know answers with its HTML
 // page, a broken image.
-const POSTER_PLACEHOLDER = Image.resolveAssetSource(
-  require("@/assets/images/seerr-poster-placeholder.png"),
-).uri;
+// resolveAssetSource only answers undefined for a source it cannot read, and
+// a bundled require() always resolves.
+const POSTER_PLACEHOLDER =
+  Image.resolveAssetSource(
+    require("@/assets/images/seerr-poster-placeholder.png"),
+  )?.uri ?? "";
 
 export const clearSeerrStorageData = () => {
   storage.remove(SEERR_USER_STORAGE_KEY);

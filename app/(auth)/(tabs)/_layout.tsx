@@ -1,13 +1,5 @@
-import {
-  createNativeBottomTabNavigator,
-  type NativeBottomTabNavigationEventMap,
-  type NativeBottomTabNavigationOptions,
-} from "@bottom-tabs/react-navigation";
-import { Stack, useSegments, withLayoutContext } from "expo-router";
-import type {
-  ParamListBase,
-  TabNavigationState,
-} from "expo-router/react-navigation";
+import { Redirect, Stack, useSegments } from "expo-router";
+import { NativeTabs } from "expo-router/native-tabs";
 import { useCallback, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Platform, View } from "react-native";
@@ -39,14 +31,9 @@ const MusicPlaybackEngine = Platform.isTV
 // the session, providers, and root layout survive.
 export { RouteErrorBoundary as ErrorBoundary } from "@/components/RouteErrorBoundary";
 
-const { Navigator } = createNativeBottomTabNavigator();
-
-export const NativeTabs = withLayoutContext<
-  NativeBottomTabNavigationOptions,
-  typeof Navigator,
-  TabNavigationState<ParamListBase>,
-  NativeBottomTabNavigationEventMap
->(Navigator);
+// Both navigators below open on (home); Expo Router 58 reads the initial
+// route from the layout's anchor rather than an initialRouteName prop.
+export const unstable_settings = { anchor: "(home)" };
 
 const IS_ANDROID_TV = Platform.isTV && Platform.OS === "android";
 
@@ -116,12 +103,7 @@ function TVTabLayout() {
   return (
     <View style={{ flex: 1 }}>
       <SystemBars hidden={false} style='light' />
-      <Stack
-        screenOptions={{ headerShown: false, animation: "none" }}
-        initialRouteName='(home)'
-      >
-        <Stack.Screen name='index' redirect />
-      </Stack>
+      <Stack screenOptions={{ headerShown: false, animation: "none" }} />
       <TVNavBar
         tabs={tabs}
         activeTabKey={activeTabKey}
@@ -141,9 +123,16 @@ function TVTabLayout() {
 export default function TabLayout() {
   const { settings } = useSettings();
   const { t } = useTranslation();
+  const segments = useSegments();
 
   // Must be called before any conditional return (rules of hooks)
   useTVHomeBackHandler();
+
+  // "/" lands on this group's index route, and native tabs render only their
+  // tabs: the app launched on a black screen. Send it to Home from here.
+  if (segments.at(-1) === "(tabs)") {
+    return <Redirect href='/(auth)/(tabs)/(home)' />;
+  }
 
   if (IS_ANDROID_TV) {
     return <TVTabLayout />;
@@ -154,99 +143,88 @@ export default function TabLayout() {
       <SystemBars hidden={false} style='light' />
       <NativeTabs
         sidebarAdaptable={false}
-        tabBarStyle={{
-          backgroundColor: "#121212",
-        }}
-        tabBarActiveTintColor={Platform.isTV ? "#FFFFFF" : Colors.primary}
-        activeIndicatorColor={"#392c3b"}
-        scrollEdgeAppearance='default'
+        backgroundColor='#121212'
+        tintColor={Platform.isTV ? "#FFFFFF" : Colors.primary}
+        indicatorColor='#392c3b'
       >
-        <NativeTabs.Screen redirect name='index' />
-        <NativeTabs.Screen
-          listeners={(_e) => ({
-            tabPress: (_e) => {
-              eventBus.emit("scrollToTop");
-            },
-          })}
+        <NativeTabs.Trigger
           name='(home)'
-          options={{
-            title: t("tabs.home"),
-            tabBarIcon:
-              Platform.OS === "android"
-                ? (_e) => require("@/assets/icons/house.fill.png")
-                : (_e) => ({ sfSymbol: "house.fill" }),
-          }}
-        />
-        <NativeTabs.Screen
-          listeners={(_e) => ({
-            tabPress: (_e) => {
-              eventBus.emit("searchTabPressed");
-            },
-          })}
+          listeners={{ tabPress: () => eventBus.emit("scrollToTop") }}
+        >
+          <NativeTabs.Trigger.Label>{t("tabs.home")}</NativeTabs.Trigger.Label>
+          <NativeTabs.Trigger.Icon
+            sf='house.fill'
+            src={require("@/assets/icons/house.fill.png")}
+          />
+        </NativeTabs.Trigger>
+        <NativeTabs.Trigger
           name='(search)'
-          options={{
-            role: "search",
-            title: t("tabs.search"),
-            tabBarIcon:
-              Platform.OS === "android"
-                ? (_e) => require("@/assets/icons/magnifyingglass.png")
-                : (_e) => ({ sfSymbol: "magnifyingglass" }),
-          }}
-        />
-        <NativeTabs.Screen
-          name='(favorites)'
-          options={{
-            title: t("tabs.favorites"),
-            tabBarIcon:
-              Platform.OS === "android"
-                ? (_e) => require("@/assets/icons/heart.fill.png")
-                : (_e) => ({ sfSymbol: "heart.fill" }),
-          }}
-        />
-        <NativeTabs.Screen
+          // On tvOS the search role turns the tab into a bare magnifier; without
+          // it the tab keeps its label, as the TV bar always had.
+          role={Platform.isTV ? undefined : "search"}
+          listeners={{ tabPress: () => eventBus.emit("searchTabPressed") }}
+        >
+          <NativeTabs.Trigger.Label>
+            {t("tabs.search")}
+          </NativeTabs.Trigger.Label>
+          <NativeTabs.Trigger.Icon
+            sf='magnifyingglass'
+            src={require("@/assets/icons/magnifyingglass.png")}
+          />
+        </NativeTabs.Trigger>
+        <NativeTabs.Trigger name='(favorites)'>
+          <NativeTabs.Trigger.Label>
+            {t("tabs.favorites")}
+          </NativeTabs.Trigger.Label>
+          <NativeTabs.Trigger.Icon
+            sf='heart.fill'
+            src={require("@/assets/icons/heart.fill.png")}
+          />
+        </NativeTabs.Trigger>
+        <NativeTabs.Trigger
           name='(watchlists)'
-          options={{
-            title: t("watchlists.title"),
-            tabBarItemHidden:
-              !settings?.streamyStatsServerUrl || settings?.hideWatchlistsTab,
-            tabBarIcon:
-              Platform.OS === "android"
-                ? (_e) => require("@/assets/icons/list.star.png")
-                : (_e) => ({ sfSymbol: "list.star" }),
-          }}
-        />
-        <NativeTabs.Screen
-          name='(libraries)'
-          options={{
-            title: t("tabs.library"),
-            tabBarIcon:
-              Platform.OS === "android"
-                ? (_e) => require("@/assets/icons/rectangle.stack.fill.png")
-                : (_e) => ({ sfSymbol: "rectangle.stack.fill" }),
-          }}
-        />
-        <NativeTabs.Screen
+          hidden={
+            !settings?.streamyStatsServerUrl || settings?.hideWatchlistsTab
+          }
+        >
+          <NativeTabs.Trigger.Label>
+            {t("watchlists.title")}
+          </NativeTabs.Trigger.Label>
+          <NativeTabs.Trigger.Icon
+            sf='list.star'
+            src={require("@/assets/icons/list.star.png")}
+          />
+        </NativeTabs.Trigger>
+        <NativeTabs.Trigger name='(libraries)'>
+          <NativeTabs.Trigger.Label>
+            {t("tabs.library")}
+          </NativeTabs.Trigger.Label>
+          <NativeTabs.Trigger.Icon
+            sf='rectangle.stack.fill'
+            src={require("@/assets/icons/rectangle.stack.fill.png")}
+          />
+        </NativeTabs.Trigger>
+        <NativeTabs.Trigger
           name='(custom-links)'
-          options={{
-            title: t("tabs.custom_links"),
-            tabBarItemHidden: !settings?.showCustomMenuLinks,
-            tabBarIcon:
-              Platform.OS === "android"
-                ? (_e) => require("@/assets/icons/link.png")
-                : (_e) => ({ sfSymbol: "link" }),
-          }}
-        />
-        <NativeTabs.Screen
-          name='(settings)'
-          options={{
-            title: t("tabs.settings"),
-            tabBarItemHidden: !Platform.isTV,
-            tabBarIcon:
-              Platform.OS === "android"
-                ? (_e) => require("@/assets/icons/gearshape.fill.png")
-                : (_e) => ({ sfSymbol: "gearshape.fill" }),
-          }}
-        />
+          hidden={!settings?.showCustomMenuLinks}
+        >
+          <NativeTabs.Trigger.Label>
+            {t("tabs.custom_links")}
+          </NativeTabs.Trigger.Label>
+          <NativeTabs.Trigger.Icon
+            sf='link'
+            src={require("@/assets/icons/link.png")}
+          />
+        </NativeTabs.Trigger>
+        <NativeTabs.Trigger name='(settings)' hidden={!Platform.isTV}>
+          <NativeTabs.Trigger.Label>
+            {t("tabs.settings")}
+          </NativeTabs.Trigger.Label>
+          <NativeTabs.Trigger.Icon
+            sf='gearshape.fill'
+            src={require("@/assets/icons/gearshape.fill.png")}
+          />
+        </NativeTabs.Trigger>
       </NativeTabs>
       <MiniPlayerBar />
       <MusicPlaybackEngine />

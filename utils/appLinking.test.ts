@@ -60,12 +60,12 @@ const appLinking = () => {
   });
   if (!routes) throw new Error("No routes found in app/");
   // What the router store passes for this app, which sets none of them.
-  return getLinkingConfig(
-    routes,
-    context as never,
-    () => ({ segments: [] }) as never,
-    { metaOnly: true, skipGenerated: false, sitemap: true, notFound: true },
-  );
+  return getLinkingConfig(routes, context as never, {
+    metaOnly: true,
+    skipGenerated: false,
+    sitemap: true,
+    notFound: true,
+  });
 };
 
 type NavigationState = {

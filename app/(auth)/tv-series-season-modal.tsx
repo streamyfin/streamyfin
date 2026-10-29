@@ -9,6 +9,7 @@ import {
   StyleSheet,
   TVFocusGuideView,
   View,
+  type ViewInstance,
 } from "react-native";
 import { Text } from "@/components/common/Text";
 import { TVCancelButton, TVOptionCard } from "@/components/tv";
@@ -16,6 +17,7 @@ import { TVSheetTiming } from "@/constants/TVSheet";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import { tvSeriesSeasonModalAtom } from "@/utils/atoms/tvSeriesSeasonModal";
+import { requestTVFocus } from "@/utils/requestTVFocus";
 import { store } from "@/utils/store";
 import { createSubmission } from "@/utils/submission";
 
@@ -28,7 +30,7 @@ export default function TVSeriesSeasonModalPage() {
   const { t } = useTranslation();
 
   const [isReady, setIsReady] = useState(false);
-  const firstCardRef = useRef<View>(null);
+  const firstCardRef = useRef<ViewInstance>(null);
 
   const overlayOpacity = useRef(new Animated.Value(0)).current;
   const sheetTranslateY = useRef(new Animated.Value(200)).current;
@@ -40,7 +42,7 @@ export default function TVSeriesSeasonModalPage() {
   const initialSelectedIndex = useMemo(() => {
     if (!modalState?.seasons) return 0;
     const idx = modalState.seasons.findIndex((o) => o.selected);
-    return idx >= 0 ? idx : 0;
+    return Math.max(idx, 0);
   }, [modalState?.seasons]);
 
   // Animate in on mount
@@ -79,7 +81,7 @@ export default function TVSeriesSeasonModalPage() {
   useEffect(() => {
     if (isReady && firstCardRef.current) {
       const timer = setTimeout(() => {
-        (firstCardRef.current as any)?.requestTVFocus?.();
+        requestTVFocus(firstCardRef.current);
       }, TVSheetTiming.focusDelayMs);
       return () => clearTimeout(timer);
     }

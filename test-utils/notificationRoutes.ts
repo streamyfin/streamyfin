@@ -1,4 +1,3 @@
-import { mock } from "bun:test";
 import assert from "node:assert/strict";
 import { readdirSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -11,13 +10,6 @@ const routerRoot = join(
   dirname(require.resolve("expo-router/package.json")),
   "build",
 );
-const { validatePathConfig } = await import(
-  `${routerRoot}/react-navigation/core/validatePathConfig.js`
-);
-// The parser only needs this pure validator from the native entrypoint.
-mock.module(`${routerRoot}/react-navigation/native/index.js`, () => ({
-  validatePathConfig,
-}));
 const { getRoutes } = await import(`${routerRoot}/getRoutes.js`);
 const { getReactNavigationConfig } = await import(
   `${routerRoot}/getReactNavigationConfig.js`

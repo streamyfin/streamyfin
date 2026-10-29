@@ -99,6 +99,25 @@ test.each([
   },
 );
 
+// AGP 9 runs R8 in full mode, which drops the constructor of a class a library
+// keeps without naming its members. Room's database and the input merger of
+// every one-time WorkManager request are created by reflection: without them
+// WorkManager failed at startup, and every background task run failed.
+test.each([
+  ["phone", false],
+  ["TV", true],
+] as const)(
+  "keeps the constructors WorkManager creates by reflection in a %s release build",
+  (_, tv) => {
+    expect(extraProguardRules(tv)).toEqual(
+      expect.arrayContaining([
+        "-keep class * extends androidx.room.RoomDatabase { <init>(); }",
+        "-keep class * extends androidx.work.InputMerger { <init>(); }",
+      ]),
+    );
+  },
+);
+
 // Mods run in reverse order of registration. Registered after
 // react-native-google-cast, the edit ran before that plugin wrote the cast
 // options and found nothing to change, so iOS kept the TV playing again

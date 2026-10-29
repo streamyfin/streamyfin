@@ -1,5 +1,7 @@
-const Index = () => {
-  return null;
-};
+import { Redirect } from "expo-router";
 
-export default Index;
+// "/" matches this route. Native tabs never render it, the tabs layout
+// redirects instead; the Android TV stack does render it.
+export default function Index() {
+  return <Redirect href='/(auth)/(tabs)/(home)' />;
+}

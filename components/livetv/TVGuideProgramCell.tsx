@@ -1,7 +1,13 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { Animated, Pressable, StyleSheet, View } from "react-native";
+import {
+  Animated,
+  Pressable,
+  StyleSheet,
+  View,
+  type ViewInstance,
+} from "react-native";
 import { Text } from "@/components/common/Text";
 import { useTVFocusAnimation } from "@/components/tv/hooks/useTVFocusAnimation";
 import { Colors } from "@/constants/Colors";
@@ -13,7 +19,7 @@ interface TVGuideProgramCellProps {
   isCurrentlyAiring: boolean;
   onPress: () => void;
   disabled?: boolean;
-  refSetter?: (ref: View | null) => void;
+  refSetter?: (ref: ViewInstance | null) => void;
 }
 
 export const TVGuideProgramCell: React.FC<TVGuideProgramCellProps> = ({

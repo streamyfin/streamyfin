@@ -2,8 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { getLibraryApi } from "@jellyfin/sdk/lib/utils/api";
 import { FlashList } from "@shopify/flash-list";
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { useLocalSearchParams } from "expo-router";
-import { useNavigation, useRoute } from "expo-router/react-navigation";
+import { useNavigation } from "expo-router";
 import { useAtom } from "jotai";
 import { useCallback, useLayoutEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -14,6 +13,7 @@ import { HeaderIcon } from "@/components/common/HeaderIcon";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
 import { CreatePlaylistModal } from "@/components/music/CreatePlaylistModal";
+import { useMusicLibraryId } from "@/components/music/MusicLibraryContext";
 import { MusicPlaylistCard } from "@/components/music/MusicPlaylistCard";
 import {
   type PlaylistSortOption,
@@ -25,13 +25,8 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 const ITEMS_PER_PAGE = 40;
 
 export default function PlaylistsScreen() {
-  const localParams = useLocalSearchParams<{ libraryId?: string | string[] }>();
-  const route = useRoute<any>();
   const navigation = useNavigation();
-  const libraryId =
-    (Array.isArray(localParams.libraryId)
-      ? localParams.libraryId[0]
-      : localParams.libraryId) ?? route?.params?.libraryId;
+  const libraryId = useMusicLibraryId();
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
   const insets = useSafeAreaInsets();
@@ -181,7 +176,9 @@ export default function PlaylistsScreen() {
         refreshControl={
           <RefreshControl
             refreshing={false}
-            onRefresh={refetch}
+            onRefresh={() => {
+              refetch();
+            }}
             tintColor='#9334E9'
           />
         }

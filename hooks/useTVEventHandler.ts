@@ -1,7 +1,17 @@
-import type { HWEvent } from "react-native";
+import type { TVRemoteEvent } from "react-native";
 import { Platform } from "react-native";
 
-type UseTVEventHandler = (callback: (evt: HWEvent) => void) => void;
+/**
+ * A TV remote event. react-native-tvos 0.88 types `eventKeyAction` as a
+ * string, but both platforms send a number: -1 unknown, 0 down, 1 up
+ * (RCTTVNavigationEventNotificationConstants.mm on tvOS,
+ * ReactAndroidHWInputDeviceHelper on Android).
+ */
+export type TVRemoteKeyEvent = Omit<TVRemoteEvent, "eventKeyAction"> & {
+  eventKeyAction?: number;
+};
+
+type UseTVEventHandler = (callback: (evt: TVRemoteKeyEvent) => void) => void;
 
 let tvEventHandler: UseTVEventHandler = () => {};
 

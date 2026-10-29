@@ -15,9 +15,11 @@ import {
   NativeScrollEvent,
   NativeSyntheticEvent,
   ScrollView,
+  type ScrollViewInstance,
   StyleSheet,
   TVFocusGuideView,
   View,
+  type ViewInstance,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
@@ -69,12 +71,14 @@ export const TVLiveTVGuide: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
 
   // Scroll refs for synchronization
-  const channelListRef = useRef<ScrollView>(null);
-  const mainVerticalRef = useRef<ScrollView>(null);
+  const channelListRef = useRef<ScrollViewInstance>(null);
+  const mainVerticalRef = useRef<ScrollViewInstance>(null);
 
   // Focus guide refs for bidirectional navigation
-  const [firstProgramRef, setFirstProgramRef] = useState<View | null>(null);
-  const [prevButtonRef, setPrevButtonRef] = useState<View | null>(null);
+  const [firstProgramRef, setFirstProgramRef] = useState<ViewInstance | null>(
+    null,
+  );
+  const [prevButtonRef, setPrevButtonRef] = useState<ViewInstance | null>(null);
 
   // Base time - start of current hour, end time - end of day
   const [{ baseTime, endOfDay, hoursToShow }] = useState(() => {

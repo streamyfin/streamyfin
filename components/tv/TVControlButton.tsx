@@ -4,7 +4,7 @@ import {
   Pressable,
   Animated as RNAnimated,
   StyleSheet,
-  type View,
+  type ViewInstance,
 } from "react-native";
 import { scaleSize } from "@/utils/scaleSize";
 import { useTVFocusAnimation } from "./hooks/useTVFocusAnimation";
@@ -19,7 +19,7 @@ export interface TVControlButtonProps {
   size?: number;
   delayLongPress?: number;
   /** Callback ref setter for focus guide destination pattern */
-  refSetter?: (ref: View | null) => void;
+  refSetter?: (ref: ViewInstance | null) => void;
   /**
    * Whether this button can receive TV focus. Defaults to true.
    * Set to false while the controls are hidden so the native TV focus

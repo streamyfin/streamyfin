@@ -8,13 +8,14 @@ import {
   ScrollView,
   StyleSheet,
   TVFocusGuideView,
-  View,
+  type ViewInstance,
 } from "react-native";
 import { Text } from "@/components/common/Text";
 import { TVUserCard } from "@/components/tv/TVUserCard";
 import { TVSheetTiming } from "@/constants/TVSheet";
 import useRouter from "@/hooks/useAppRouter";
 import { tvUserSwitchModalAtom } from "@/utils/atoms/tvUserSwitchModal";
+import { requestTVFocus } from "@/utils/requestTVFocus";
 import type { SavedServerAccount } from "@/utils/secureCredentials";
 import { store } from "@/utils/store";
 import { createSubmission } from "@/utils/submission";
@@ -27,7 +28,7 @@ export default function TVUserSwitchModalPage() {
   const modalState = useAtomValue(tvUserSwitchModalAtom);
 
   const [isReady, setIsReady] = useState(false);
-  const firstCardRef = useRef<View>(null);
+  const firstCardRef = useRef<ViewInstance>(null);
 
   const overlayOpacity = useRef(new Animated.Value(0)).current;
   const sheetTranslateY = useRef(new Animated.Value(200)).current;
@@ -74,7 +75,7 @@ export default function TVUserSwitchModalPage() {
   useEffect(() => {
     if (isReady && firstCardRef.current) {
       const timer = setTimeout(() => {
-        (firstCardRef.current as any)?.requestTVFocus?.();
+        requestTVFocus(firstCardRef.current);
       }, TVSheetTiming.focusDelayMs);
       return () => clearTimeout(timer);
     }

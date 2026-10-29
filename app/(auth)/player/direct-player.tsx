@@ -13,7 +13,7 @@ import {
 } from "@jellyfin/sdk/lib/utils/api";
 import { File } from "expo-file-system";
 import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
-import { useLocalSearchParams, useNavigation } from "expo-router";
+import { useLocalSearchParams, usePreventRemove } from "expo-router";
 import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -122,7 +122,6 @@ export default function DirectPlayerPage() {
   const user = useAtomValue(userAtom);
   const api = useAtomValue(apiAtom);
   const { t } = useTranslation();
-  const navigation = useNavigation();
   const router = useRouter();
   const { settings, updateSettings } = useSettings();
   // Decides where a matched alternate version starts, see
@@ -817,16 +816,16 @@ export default function DirectPlayerPage() {
     };
   }, [itemId, item?.Id, stream?.sessionId, mediaSourceId]);
 
-  // Stop on navigation-away. Re-subscribing when the navigation object identity
-  // changes (e.g. after a setParams) no longer reports anything on its own.
-  useEffect(() => {
-    const beforeRemoveListener = navigation.addListener("beforeRemove", () =>
-      stopRef.current(),
-    );
-    return () => {
-      beforeRemoveListener();
-    };
-  }, [navigation]);
+  // Stop before the screen is removed, whichever way it is left: stop()
+  // destroys the decoder, which has to happen before the next screen mounts.
+  // Expo Router 58 removed `beforeRemove`, so the removal is held long enough
+  // to stop, then let through.
+  const [leaving, setLeaving] = useState(false);
+  usePreventRemove(!leaving, ({ repeat }) => {
+    stopRef.current();
+    setLeaving(true);
+    repeat();
+  });
 
   const currentPlayStateInfo = useCallback(():
     | PlaybackProgressInfo
@@ -1564,7 +1563,7 @@ export default function DirectPlayerPage() {
       // keeps the correct local sub.
       const locals = itemId ? getSubtitlesForItem(itemId) : [];
       const pos = locals.findIndex((s) => s.filePath === path);
-      setCurrentSubtitleIndex(localSubtitleIndex(pos >= 0 ? pos : 0));
+      setCurrentSubtitleIndex(localSubtitleIndex(Math.max(pos, 0)));
       await videoRef.current?.addSubtitleFile?.(path, true);
     },
     [itemId],
