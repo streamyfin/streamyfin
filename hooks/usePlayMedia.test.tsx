@@ -255,7 +255,7 @@ describe("usePlayMedia", () => {
           Id: "movie-1",
           Type: "Movie",
           Name: "Movie",
-          UserData: { PlaybackPositionTicks: 600_000_000 },
+          UserData: { Key: "", PlaybackPositionTicks: 600_000_000 },
         };
         mockGetUserItemData.mockResolvedValue(fetched);
 

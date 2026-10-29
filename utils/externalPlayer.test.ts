@@ -269,7 +269,7 @@ describe("buildExternalPlayerSubtitleExtras", () => {
 describe("buildExternalPlayerLaunchParams", () => {
   const item: BaseItemDto = {
     Name: "A Movie",
-    UserData: { PlaybackPositionTicks: 600_000_000 },
+    UserData: { Key: "", PlaybackPositionTicks: 600_000_000 },
   };
 
   it("asks for the position back, names the video and hides the link", () => {

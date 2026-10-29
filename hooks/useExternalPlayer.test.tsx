@@ -32,7 +32,7 @@ jest.mock("@/hooks/usePlaybackManager", () => ({
   }),
 }));
 jest.mock("@jellyfin/sdk/lib/utils/api", () => ({
-  getPlaystateApi: () => ({ reportPlaybackStopped: mockReportStopped }),
+  getSessionApi: () => ({ reportPlaybackStopped: mockReportStopped }),
 }));
 jest.mock("@/utils/externalPlayer", () => ({
   ...jest.requireActual("@/utils/externalPlayer"),

@@ -2,7 +2,7 @@ import type {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client";
-import { getPlaystateApi } from "@jellyfin/sdk/lib/utils/api";
+import { getSessionApi } from "@jellyfin/sdk/lib/utils/api";
 import { startActivityAsync } from "expo-intent-launcher";
 import { useAtomValue } from "jotai";
 import { useCallback } from "react";
@@ -98,7 +98,7 @@ export const useExternalPlayer = () => {
         // A stop report, not a progress one: the server only applies its
         // played threshold when a session stops.
         if (api && isConnected) {
-          await getPlaystateApi(api).reportPlaybackStopped({
+          await getSessionApi(api).reportPlaybackStopped({
             playbackStopInfo: {
               ItemId: req.itemId,
               MediaSourceId: req.mediaSourceId,
