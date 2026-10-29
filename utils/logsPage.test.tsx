@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
-import LogsPage from "@/app/(auth)/(tabs)/(home)/settings/logs/page";
+import LogsPage from "@/app/(auth)/(tabs)/(more)/settings/logs/page";
 
 const mockLogs = [
   {

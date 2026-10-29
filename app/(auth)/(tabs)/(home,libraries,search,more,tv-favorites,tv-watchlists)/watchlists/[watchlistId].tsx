@@ -99,9 +99,7 @@ export default function WatchlistDetailScreen() {
         ? () => (
             <HeaderButtonGroup>
               <HeaderButton
-                onPress={() =>
-                  router.push(`/(auth)/(tabs)/(watchlists)/edit/${watchlistId}`)
-                }
+                onPress={() => router.push(`/watchlists/edit/${watchlistId}`)}
               >
                 <HeaderIcon name='edit' />
               </HeaderButton>
@@ -169,7 +167,7 @@ export default function WatchlistDetailScreen() {
   const renderTVItem = useCallback(
     (item: BaseItemDto, index: number) => {
       const handlePress = () => {
-        const navigation = getItemNavigation(item, "(watchlists)");
+        const navigation = getItemNavigation(item, "(home)");
         router.push(navigation as any);
       };
 
