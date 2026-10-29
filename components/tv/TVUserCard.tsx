@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { Animated, Pressable, View } from "react-native";
+import { Animated, Pressable, View, type ViewInstance } from "react-native";
 import { Text } from "@/components/common/Text";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import { scaleSize } from "@/utils/scaleSize";
@@ -16,7 +16,7 @@ export interface TVUserCardProps {
   onPress: () => void;
 }
 
-export const TVUserCard = React.forwardRef<View, TVUserCardProps>(
+export const TVUserCard = React.forwardRef<ViewInstance, TVUserCardProps>(
   (
     {
       username,

@@ -18,6 +18,7 @@ import {
   StyleSheet,
   TVFocusGuideView,
   View,
+  type ViewInstance,
 } from "react-native";
 import { Text } from "@/components/common/Text";
 import { TVTabButton, useTVFocusAnimation } from "@/components/tv";
@@ -43,7 +44,7 @@ type TabType = "tracks" | "download" | "settings";
 
 // Track card for subtitle track selection
 const TVTrackCard = React.forwardRef<
-  View,
+  ViewInstance,
   {
     label: string;
     sublabel?: string;
@@ -116,7 +117,7 @@ const TVTrackCard = React.forwardRef<
 
 // Language selector card
 const LanguageCard = React.forwardRef<
-  View,
+  ViewInstance,
   {
     code: string;
     name: string;
@@ -186,7 +187,7 @@ const LanguageCard = React.forwardRef<
 
 // Subtitle result card
 const SubtitleResultCard = React.forwardRef<
-  View,
+  ViewInstance,
   {
     result: SubtitleSearchResult;
     hasTVPreferredFocus?: boolean;
@@ -556,7 +557,7 @@ export default function TVSubtitleModal() {
   const [hasSearchedThisSession, setHasSearchedThisSession] = useState(false);
   const [isReady, setIsReady] = useState(false);
   const [isTabContentReady, setIsTabContentReady] = useState(false);
-  const firstTrackRef = useRef<View>(null);
+  const firstTrackRef = useRef<ViewInstance>(null);
 
   const overlayOpacity = useRef(new Animated.Value(0)).current;
   const sheetTranslateY = useRef(new Animated.Value(300)).current;
