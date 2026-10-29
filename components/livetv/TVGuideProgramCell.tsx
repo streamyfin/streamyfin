@@ -7,6 +7,10 @@ import { useTVFocusAnimation } from "@/components/tv/hooks/useTVFocusAnimation";
 import { Colors } from "@/constants/Colors";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 
+const LIVE_BADGE_MIN_CELL_WIDTH = 160;
+// Narrower cells only fit fragments of letters; the name shows on focus.
+const TEXT_MIN_CELL_WIDTH = 75;
+
 interface TVGuideProgramCellProps {
   program: BaseItemDto;
   width: number;
@@ -65,46 +69,54 @@ export const TVGuideProgramCell: React.FC<TVGuideProgramCellProps> = ({
           focused && styles.focusedShadow,
         ]}
       >
-        {/* LIVE badge */}
-        {isCurrentlyAiring && (
-          <View style={styles.liveBadge}>
+        {width >= TEXT_MIN_CELL_WIDTH && (
+          <>
+            {/* Program name */}
             <Text
-              style={[styles.liveBadgeText, { fontSize: typography.callout }]}
+              numberOfLines={2}
+              style={[
+                styles.programName,
+                {
+                  fontSize: typography.callout,
+                  color: focused ? "#000000" : "#FFFFFF",
+                },
+              ]}
             >
-              {t("player.live")}
+              {program.Name}
             </Text>
-          </View>
+
+            {/* LIVE badge and time range. The badge sits in the row rather than
+            over the title, and only where there is room for it. */}
+            <View style={styles.timeRow}>
+              {isCurrentlyAiring && width >= LIVE_BADGE_MIN_CELL_WIDTH && (
+                <View style={styles.liveBadge}>
+                  <Text
+                    style={[
+                      styles.liveBadgeText,
+                      { fontSize: typography.callout },
+                    ]}
+                  >
+                    {t("player.live")}
+                  </Text>
+                </View>
+              )}
+              <Text
+                numberOfLines={1}
+                style={[
+                  styles.timeText,
+                  {
+                    fontSize: typography.callout,
+                    color: focused
+                      ? "rgba(0, 0, 0, 0.6)"
+                      : "rgba(255, 255, 255, 0.5)",
+                  },
+                ]}
+              >
+                {formatTime(program.StartDate)} - {formatTime(program.EndDate)}
+              </Text>
+            </View>
+          </>
         )}
-
-        {/* Program name */}
-        <Text
-          numberOfLines={2}
-          style={[
-            styles.programName,
-            {
-              fontSize: typography.callout,
-              color: focused ? "#000000" : "#FFFFFF",
-            },
-          ]}
-        >
-          {program.Name}
-        </Text>
-
-        {/* Time range */}
-        <Text
-          numberOfLines={1}
-          style={[
-            styles.timeText,
-            {
-              fontSize: typography.callout,
-              color: focused
-                ? "rgba(0, 0, 0, 0.6)"
-                : "rgba(255, 255, 255, 0.5)",
-            },
-          ]}
-        >
-          {formatTime(program.StartDate)} - {formatTime(program.EndDate)}
-        </Text>
       </Animated.View>
     </Pressable>
   );
@@ -126,16 +138,16 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.4,
     shadowRadius: 12,
   },
+  timeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
   liveBadge: {
-    position: "absolute",
-    top: 6,
-    right: 6,
     backgroundColor: Colors.live,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
-    zIndex: 10,
-    elevation: 10,
   },
   liveBadgeText: {
     color: "#FFFFFF",
@@ -146,6 +158,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   timeText: {
+    flexShrink: 1,
     fontWeight: "400",
   },
 });
