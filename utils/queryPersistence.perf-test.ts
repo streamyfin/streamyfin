@@ -17,35 +17,42 @@ const OVERVIEW =
     2,
   );
 
-const item = (id: string): BaseItemDto => ({
-  Id: id,
-  Name: `Title ${id}`,
-  ServerId: "server-1",
-  Type: "Movie",
-  Overview: OVERVIEW,
-  ProductionYear: 2019,
-  OfficialRating: "PG-13",
-  CommunityRating: 7.4,
-  RunTimeTicks: 72_000_000_000,
-  PremiereDate: "2019-06-14T00:00:00.0000000Z",
-  Genres: ["Action", "Thriller"],
-  PrimaryImageAspectRatio: 0.6666666666666666,
-  ImageTags: { Primary: `primary-${id}`, Thumb: `thumb-${id}` },
-  BackdropImageTags: [`backdrop-${id}`],
-  ImageBlurHashes: {
-    Primary: { [`primary-${id}`]: "dcF~XIofDhR*4mWBofs:M_ofxuWB%Mj[V@ay" },
-    Backdrop: { [`backdrop-${id}`]: "WDCZX?j[00ay~qofM{WBRjj[ofay-;ayt7j[" },
-  },
-  UserData: {
-    PlaybackPositionTicks: 0,
-    PlayCount: 0,
-    IsFavorite: false,
-    Played: false,
-    Key: id,
-  },
-  LocationType: "FileSystem",
-  MediaType: "Video",
-});
+// The cache holds what the API client parsed, and JSON.parse makes flat
+// strings. Strings built here with + or a template literal are V8 cons
+// strings, which the JSON.stringify fast path refuses until a garbage
+// collection swaps them for flat ones: the number would follow the GC timing.
+const fromResponse = <T>(value: T): T => JSON.parse(JSON.stringify(value));
+
+const item = (id: string): BaseItemDto =>
+  fromResponse<BaseItemDto>({
+    Id: id,
+    Name: `Title ${id}`,
+    ServerId: "server-1",
+    Type: "Movie",
+    Overview: OVERVIEW,
+    ProductionYear: 2019,
+    OfficialRating: "PG-13",
+    CommunityRating: 7.4,
+    RunTimeTicks: 72_000_000_000,
+    PremiereDate: "2019-06-14T00:00:00.0000000Z",
+    Genres: ["Action", "Thriller"],
+    PrimaryImageAspectRatio: 0.6666666666666666,
+    ImageTags: { Primary: `primary-${id}`, Thumb: `thumb-${id}` },
+    BackdropImageTags: [`backdrop-${id}`],
+    ImageBlurHashes: {
+      Primary: { [`primary-${id}`]: "dcF~XIofDhR*4mWBofs:M_ofxuWB%Mj[V@ay" },
+      Backdrop: { [`backdrop-${id}`]: "WDCZX?j[00ay~qofM{WBRjj[ofay-;ayt7j[" },
+    },
+    UserData: {
+      PlaybackPositionTicks: 0,
+      PlayCount: 0,
+      IsFavorite: false,
+      Played: false,
+      Key: id,
+    },
+    LocationType: "FileSystem",
+    MediaType: "Video",
+  });
 
 const items = (prefix: string, count: number) =>
   Array.from({ length: count }, (_, index) => item(`${prefix}-${index}`));
@@ -79,24 +86,29 @@ const sessionCache = () => {
   return client;
 };
 
-// One save takes well under a millisecond in Node, where timer noise alone
-// reads as a 10% change; ten per run gives the comparison something to hold.
-const SAVES_PER_RUN = 10;
+// One save takes a fraction of a millisecond in Node. Fifty make a run of 10 ms
+// or so, where the PR comment's 1 ms floor is a 10% change, not a 50% one.
+const SAVES_PER_RUN = 50;
 
-test("saving the query cache of a TV session ten times", async () => {
+test("saving the query cache of a TV session fifty times", async () => {
   const client = sessionCache();
 
   // What the persister does on each save: dehydrate with the app's rules,
   // then serialise for MMKV.
-  await measureFunction(() => {
-    for (let save = 0; save < SAVES_PER_RUN; save++) {
-      JSON.stringify({
-        buster: "",
-        timestamp: Date.now(),
-        clientState: dehydrate(client, queryDehydrateOptions),
-      });
-    }
-  });
+  await measureFunction(
+    () => {
+      for (let save = 0; save < SAVES_PER_RUN; save++) {
+        JSON.stringify({
+          buster: "",
+          timestamp: Date.now(),
+          clientState: dehydrate(client, queryDehydrateOptions),
+        });
+      }
+    },
+    // measureRenders collects garbage after each run and measureFunction does
+    // not, so a run would start on whatever heap the earlier spec files left.
+    { beforeEach: () => globalThis.gc?.() },
+  );
   // Its garbage collection timers would keep Jest from exiting.
   client.clear();
 });
