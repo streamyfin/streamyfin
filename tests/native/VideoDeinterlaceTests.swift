@@ -2,11 +2,13 @@ import Foundation
 
 @main
 enum VideoDeinterlaceTests {
+    typealias Plan = VideoDeinterlace.Plan
+
     static func expect(_ actual: Bool, _ expected: Bool, _ label: String) {
         precondition(actual == expected, "\(label): got \(actual), expected \(expected)")
     }
 
-    static func expect(_ actual: String, _ expected: String, _ label: String) {
+    static func expect(_ actual: Plan, _ expected: Plan, _ label: String) {
         precondition(actual == expected, "\(label): got \(actual), expected \(expected)")
     }
 
@@ -22,15 +24,37 @@ enum VideoDeinterlaceTests {
         expect(VideoDeinterlace.isEligible(height: 0), false, "no height")
         expect(VideoDeinterlace.isEligible(height: -1), false, "negative height")
 
-        // VideoToolbox switches to its copying variant for standard definition only.
-        expect(VideoDeinterlace.hwdec(forHeight: 480, configured: "videotoolbox"),
-               "videotoolbox-copy", "SD on VideoToolbox")
-        expect(VideoDeinterlace.hwdec(forHeight: 1080, configured: "videotoolbox"),
-               "videotoolbox", "HD keeps zero-copy")
-        // Software decoding (the simulator) is left alone, and so is a mode we do not know.
-        expect(VideoDeinterlace.hwdec(forHeight: 480, configured: "no"), "no", "software decoding")
-        expect(VideoDeinterlace.hwdec(forHeight: 480, configured: "videotoolbox-copy"),
-               "videotoolbox-copy", "already copying")
+        let vt = VideoDeinterlace.zeroCopyHwdec
+        let copy = VideoDeinterlace.copyHwdec
+
+        // Standard definition on VideoToolbox: filter on, and leave zero-copy for the copying mode.
+        expect(VideoDeinterlace.plan(height: 480, configured: vt, active: vt),
+               Plan(filterOn: true, hwdec: copy), "SD on VideoToolbox")
+        // Already copying: nothing more to do, so the switch cannot loop.
+        expect(VideoDeinterlace.plan(height: 480, configured: vt, active: copy),
+               Plan(filterOn: true, hwdec: nil), "SD already copying")
+        // VideoToolbox could not take the stream and mpv fell back to software (MPEG-2, some
+        // interlaced H.264): software frames reach the filter, so keep the decoder as it is.
+        expect(VideoDeinterlace.plan(height: 480, configured: vt, active: "no"),
+               Plan(filterOn: true, hwdec: nil), "SD fell back to software")
+        // The active decoder is not known yet: filter on, no decoder switch.
+        expect(VideoDeinterlace.plan(height: 480, configured: vt, active: nil),
+               Plan(filterOn: true, hwdec: nil), "SD decoder not known")
+
+        // Software decoding by configuration (the simulator): the filter still goes on.
+        expect(VideoDeinterlace.plan(height: 480, configured: "no", active: "no"),
+               Plan(filterOn: true, hwdec: nil), "SD software by configuration")
+        expect(VideoDeinterlace.plan(height: 1080, configured: "no", active: "no"),
+               Plan(filterOn: false, hwdec: nil), "HD software by configuration")
+
+        // Larger video stays zero-copy and gets no filter.
+        expect(VideoDeinterlace.plan(height: 1080, configured: vt, active: vt),
+               Plan(filterOn: false, hwdec: nil), "HD stays zero-copy")
+        expect(VideoDeinterlace.plan(height: 2160, configured: vt, active: vt),
+               Plan(filterOn: false, hwdec: nil), "4K stays zero-copy")
+        // Moving from a copying standard definition file to an HD one restores zero-copy.
+        expect(VideoDeinterlace.plan(height: 1080, configured: vt, active: copy),
+               Plan(filterOn: false, hwdec: vt), "HD after SD")
 
         print("VideoDeinterlaceTests passed")
     }

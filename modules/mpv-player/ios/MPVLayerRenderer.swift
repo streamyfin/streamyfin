@@ -131,6 +131,10 @@ final class MPVLayerRenderer {
     /// software-decode never gets silently promoted back to VideoToolbox.
     private var configuredHwdec = "videotoolbox"
 
+    /// Whether the deinterlacing filter is in mpv's `vf` chain. Only touched while
+    /// handling mpv events (see `updateDeinterlace`), which run on one queue.
+    private var isDeinterlaceFilterOn = false
+
     weak var delegate: MPVLayerRendererDelegate?
     
     // Thread-safe state for playback
@@ -277,28 +281,35 @@ final class MPVLayerRenderer {
     }
 
     /// Runs the deinterlacing filter for standard definition video only. The filter
-    /// needs software frames, so the decoder copies them out of VideoToolbox, which
-    /// is not worth it for anything larger (see `VideoDeinterlace`).
+    /// needs software frames, so VideoToolbox decodes in its copying mode for it,
+    /// which is not worth it for anything larger (see `VideoDeinterlace`).
     ///
-    /// Reads the decoder mode back instead of keeping a flag: the switch itself
-    /// reconfigures the video and lands here again, and a decoder reset restores
-    /// `configuredHwdec`, so the current mode is the only honest state to compare.
+    /// Compares against what mpv is doing now instead of keeping a record of what
+    /// was asked: the decoder switch reconfigures the video and lands here again,
+    /// and a decoder reset restores `configuredHwdec`. `hwdec-current` is the
+    /// decoder in use, which differs from `hwdec` when VideoToolbox could not take
+    /// a stream and mpv fell back to software. Setting `vf` rebuilds the filter
+    /// chain and reconfigures the video too, so it is only set when it changes.
     private func updateDeinterlace() {
         guard let handle = mpv else { return }
         var height: Int64 = 0
-        guard getProperty(handle: handle, name: "video-params/h", format: MPV_FORMAT_INT64, value: &height) >= 0,
-              let current = getStringProperty(handle: handle, name: "hwdec")
+        guard getProperty(handle: handle, name: "video-params/h", format: MPV_FORMAT_INT64, value: &height) >= 0
         else { return }
-        // Any other mode is a decoder reset falling back to software; leave it be.
-        guard current == configuredHwdec || current == VideoDeinterlace.copyHwdec else { return }
 
-        let wanted = VideoDeinterlace.hwdec(forHeight: Int(height), configured: configuredHwdec)
-        guard current != wanted else { return }
-
-        let filter = wanted == VideoDeinterlace.copyHwdec ? VideoDeinterlace.filter : ""
-        Logger.shared.log("Deinterlace \(filter.isEmpty ? "off" : "on") at \(height) lines (hwdec \(wanted))", type: "Info")
-        commandSync(handle, ["set", "vf", filter])
-        commandSync(handle, ["set", "hwdec", wanted])
+        let plan = VideoDeinterlace.plan(
+            height: Int(height),
+            configured: configuredHwdec,
+            active: getStringProperty(handle: handle, name: "hwdec-current")
+        )
+        if plan.filterOn != isDeinterlaceFilterOn {
+            isDeinterlaceFilterOn = plan.filterOn
+            Logger.shared.log("Deinterlace \(plan.filterOn ? "on" : "off") at \(height) lines", type: "Info")
+            commandSync(handle, ["set", "vf", plan.filterOn ? VideoDeinterlace.filter : ""])
+        }
+        if let hwdec = plan.hwdec {
+            Logger.shared.log("Deinterlace decoder \(hwdec) at \(height) lines", type: "Info")
+            commandSync(handle, ["set", "hwdec", hwdec])
+        }
     }
 
     #if os(iOS)
@@ -1071,6 +1082,11 @@ final class MPVLayerRenderer {
         case MPV_EVENT_PLAYBACK_RESTART:
             // Video playback has started/restarted (including after seek)
             isSeeking = false
+            #if os(iOS)
+            // The decoder in use may not be known yet at the first reconfigure.
+            // Safe to repeat: it only acts when the plan differs from what mpv runs.
+            updateDeinterlace()
+            #endif
             let generation = activeLoadGeneration
             DispatchQueue.main.async { [weak self] in
                 guard let self else { return }
