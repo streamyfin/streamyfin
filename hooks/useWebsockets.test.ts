@@ -1,4 +1,5 @@
 import { renderHook } from "@testing-library/react-native";
+import { stubReactNative } from "@/test-utils/reactNative";
 import { useWebSocket } from "./useWebsockets";
 
 let mockMessage: { MessageType: string; Data: unknown } | null = null;
@@ -30,6 +31,7 @@ const props = {
 beforeEach(() => {
   jest.clearAllMocks();
   mockMessage = null;
+  stubReactNative({ isTV: false });
 });
 
 test.each(["Pause", "Unpause", "Seek", "Stop"])(
@@ -62,4 +64,29 @@ test("ordinary Playstate seek reads the flat payload", async () => {
   };
   await renderHook(() => useWebSocket(props));
   expect(props.seekPlayback).toHaveBeenCalledWith(420000000);
+});
+
+describe("GoToSettings", () => {
+  test("opens the settings page in More on a phone", async () => {
+    mockMessage = {
+      MessageType: "GeneralCommand",
+      Data: { Name: "GoToSettings" },
+    };
+    await renderHook(() => useWebSocket(props));
+    expect(mockRouter.push).toHaveBeenCalledWith("/settings");
+  });
+
+  // TV has no More tab: Settings is a tab of its own there, and the settings
+  // page in More cannot be reached.
+  test("opens the Settings tab on TV", async () => {
+    stubReactNative({ isTV: true });
+    mockMessage = {
+      MessageType: "GeneralCommand",
+      Data: { Name: "GoToSettings" },
+    };
+    await renderHook(() => useWebSocket(props));
+    expect(mockRouter.push).toHaveBeenCalledWith(
+      "/(auth)/(tabs)/(tv-settings)",
+    );
+  });
 });
