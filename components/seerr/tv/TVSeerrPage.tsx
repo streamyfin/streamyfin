@@ -26,7 +26,7 @@ import { TVSeerrSeasons } from "@/components/seerr/tv/TVSeerrSeasons";
 import { TVButton } from "@/components/tv";
 import { useTVFocusAnimation } from "@/components/tv/hooks/useTVFocusAnimation";
 import { useScaledTVTypography } from "@/constants/TVTypography";
-import { BACKGROUND_IMAGE_TRANSITION_DURATION } from "@/constants/Values";
+import { BACKGROUND_IMAGE_TRANSITION } from "@/constants/Values";
 import useRouter from "@/hooks/useAppRouter";
 import { useSeerr } from "@/hooks/useSeerr";
 import { useSeerrRequestOffer } from "@/hooks/useSeerrRequestOffer";
@@ -451,7 +451,7 @@ export const TVSeerrPage: React.FC = () => {
             style={{ width: "100%", height: "100%" }}
             contentFit='cover'
             cachePolicy='memory-disk'
-            transition={BACKGROUND_IMAGE_TRANSITION_DURATION}
+            transition={BACKGROUND_IMAGE_TRANSITION}
           />
         ) : (
           <View style={{ flex: 1, backgroundColor: "#1a1a1a" }} />
