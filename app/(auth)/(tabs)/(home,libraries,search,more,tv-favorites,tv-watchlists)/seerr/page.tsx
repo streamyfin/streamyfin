@@ -34,7 +34,7 @@ import { ItemActions } from "@/components/series/SeriesActions";
 import { SeerrIssueColors, SheetColors } from "@/constants/Colors";
 import { SEERR_BACKDROP_SIZE } from "@/constants/Seerr";
 import {
-  BACKGROUND_IMAGE_TRANSITION_DURATION,
+  BACKGROUND_IMAGE_TRANSITION,
   POSTER_ASPECT_RATIO,
 } from "@/constants/Values";
 import useRouter from "@/hooks/useAppRouter";
@@ -285,7 +285,7 @@ const MobilePage: React.FC = () => {
             {result.backdropPath ? (
               <Image
                 cachePolicy={"memory-disk"}
-                transition={BACKGROUND_IMAGE_TRANSITION_DURATION}
+                transition={BACKGROUND_IMAGE_TRANSITION}
                 style={{
                   width: "100%",
                   height: "100%",
@@ -343,7 +343,7 @@ const MobilePage: React.FC = () => {
                   // from an image, and the poster came out as a thin bar.
                   style={{ aspectRatio: POSTER_ASPECT_RATIO }}
                   cachePolicy={"memory-disk"}
-                  transition={BACKGROUND_IMAGE_TRANSITION_DURATION}
+                  transition={BACKGROUND_IMAGE_TRANSITION}
                   source={{
                     uri: posterSrc,
                   }}
