@@ -276,6 +276,31 @@ final class MPVLayerRenderer {
         }
     }
 
+    /// Runs the deinterlacing filter for standard definition video only. The filter
+    /// needs software frames, so the decoder copies them out of VideoToolbox, which
+    /// is not worth it for anything larger (see `VideoDeinterlace`).
+    ///
+    /// Reads the decoder mode back instead of keeping a flag: the switch itself
+    /// reconfigures the video and lands here again, and a decoder reset restores
+    /// `configuredHwdec`, so the current mode is the only honest state to compare.
+    private func updateDeinterlace() {
+        guard let handle = mpv else { return }
+        var height: Int64 = 0
+        guard getProperty(handle: handle, name: "video-params/h", format: MPV_FORMAT_INT64, value: &height) >= 0,
+              let current = getStringProperty(handle: handle, name: "hwdec")
+        else { return }
+        // Any other mode is a decoder reset falling back to software; leave it be.
+        guard current == configuredHwdec || current == VideoDeinterlace.copyHwdec else { return }
+
+        let wanted = VideoDeinterlace.hwdec(forHeight: Int(height), configured: configuredHwdec)
+        guard current != wanted else { return }
+
+        let filter = wanted == VideoDeinterlace.copyHwdec ? VideoDeinterlace.filter : ""
+        Logger.shared.log("Deinterlace \(filter.isEmpty ? "off" : "on") at \(height) lines (hwdec \(wanted))", type: "Info")
+        commandSync(handle, ["set", "vf", filter])
+        commandSync(handle, ["set", "hwdec", wanted])
+    }
+
     #if os(iOS)
     /// SpringBoard can leave mpv's OSD stale even when video resumes.
     func restoreSubtitlesAfterForeground() {
@@ -954,6 +979,10 @@ final class MPVLayerRenderer {
 
         case MPV_EVENT_VIDEO_RECONFIG:
             applySubtitleLayout()
+            #if os(iOS)
+            // Not on tvOS until it has been tried there.
+            updateDeinterlace()
+            #endif
         case MPV_EVENT_START_FILE:
             let entryId = event.data?.assumingMemoryBound(to: mpv_event_start_file.self).pointee.playlist_entry_id
             // A load whose reply named no entry falls back to order, so it
