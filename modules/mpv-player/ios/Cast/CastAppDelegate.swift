@@ -17,8 +17,7 @@ enum CastContextBootstrap {
     options.startDiscoveryAfterFirstTapOnCastButton = true
     options.suspendSessionsWhenBackgrounded = true
     GCKCastContext.setSharedInstanceWith(options)
-    // The expanded controls are presented on request, not whenever a session starts.
-    GCKCastContext.sharedInstance().useDefaultExpandedMediaControls = false
+    GCKCastContext.sharedInstance().useDefaultExpandedMediaControls = CastMapping.useDefaultExpandedMediaControls
   }
 }
 
