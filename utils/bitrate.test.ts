@@ -3,6 +3,7 @@ import {
   AUTO_BITRATE,
   bitrateLabel,
   fromNativeQualityIndex,
+  liveTvBitrateRequest,
   MAX_BITRATE,
   parseBitrateParam,
   routeBitrateParam,
@@ -107,5 +108,27 @@ describe("bitrateLabel", () => {
   test("names the other qualities by their key", () => {
     expect(bitrateLabel(t, MAX_BITRATE)).toBe("Max");
     expect(bitrateLabel(t, EIGHT_MBPS)).toBe("8 Mb/s");
+  });
+});
+
+describe("liveTvBitrateRequest", () => {
+  const channel = { Type: "TvChannel" };
+  const program = { Type: "Program" };
+  const movie = { Type: "Movie" };
+
+  // The guide and the channel grid play Live TV without a cap: Auto never
+  // measures for it, and no quality given means the default, so Auto too.
+  test("plays live television without a cap under Auto or no quality", () => {
+    expect(liveTvBitrateRequest(channel, "auto")).toBe("max");
+    expect(liveTvBitrateRequest(program, undefined)).toBe("max");
+  });
+
+  test("keeps a bitrate picked by hand for live television", () => {
+    expect(liveTvBitrateRequest(channel, 4_000_000)).toBe(4_000_000);
+  });
+
+  test("leaves anything but live television as it is", () => {
+    expect(liveTvBitrateRequest(movie, "auto")).toBe("auto");
+    expect(liveTvBitrateRequest(undefined, undefined)).toBeUndefined();
   });
 });

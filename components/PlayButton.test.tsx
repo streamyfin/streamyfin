@@ -97,16 +97,25 @@ const MOVIE: BaseItemDto = {
   RunTimeTicks: 72_000_000_000,
 };
 const SOURCE: MediaSourceInfo = { Id: "source-1", MediaStreams: [] };
+const CHANNEL: BaseItemDto = {
+  Id: "channel-1",
+  Name: "Channel",
+  Type: "TvChannel",
+};
 
 const AUTO: Bitrate = { key: "Auto", value: undefined };
 const MAX: Bitrate = { key: "Max", value: undefined };
 const EIGHT_MBPS: Bitrate = { key: "8 Mb/s", value: 8_000_000 };
 
-const play = async (bitrate: Bitrate, choice: "Chromecast" | "Device") => {
+const play = async (
+  bitrate: Bitrate,
+  choice: "Chromecast" | "Device",
+  item: BaseItemDto = MOVIE,
+) => {
   mockChoice = choice === "Chromecast" ? 0 : 1;
   await render(
     <PlayButton
-      item={MOVIE}
+      item={item}
       selectedOptions={{
         bitrate,
         mediaSource: SOURCE,
@@ -166,6 +175,21 @@ describe("casting from the item page", () => {
     await play(AUTO, "Chromecast");
 
     expect(await castBitrate()).toBe(120_000_000);
+  });
+
+  // Live TV plays without a cap whatever the default quality: Auto never
+  // measures for it, a bitrate picked by hand still applies.
+  test("hands the receiver its own ceiling for live television under Auto", async () => {
+    await play(AUTO, "Chromecast", CHANNEL);
+
+    expect(await castBitrate()).toBe(120_000_000);
+    expect(mockDetectBitrate).not.toHaveBeenCalled();
+  });
+
+  test("hands the receiver a bitrate picked by hand for live television", async () => {
+    await play(EIGHT_MBPS, "Chromecast", CHANNEL);
+
+    expect(await castBitrate()).toBe(8_000_000);
   });
 });
 

@@ -37,6 +37,20 @@ export type BitrateRequest =
   | typeof AUTO_BITRATE_VALUE
   | typeof MAX_BITRATE_VALUE;
 
+/**
+ * Live TV plays without a cap unless a bitrate was picked by hand, as the
+ * guide and the channel grid do: Auto never measures for it, and a request
+ * with no quality stands for the default, Auto too.
+ */
+export const liveTvBitrateRequest = <T extends BitrateRequest | undefined>(
+  item: { Type?: string | null } | null | undefined,
+  request: T,
+): T | typeof MAX_BITRATE_VALUE =>
+  (item?.Type === "Program" || item?.Type === "TvChannel") &&
+  (request === undefined || request === AUTO_BITRATE_VALUE)
+    ? MAX_BITRATE_VALUE
+    : request;
+
 /** Told by its key: Auto has no bitrate of its own, and neither has Max. */
 export const isAutoBitrate = (bitrate?: Pick<Bitrate, "key"> | null) =>
   bitrate?.key === AUTO_BITRATE_KEY;
