@@ -11,11 +11,12 @@ Two ways to run it:
 - **Bench server (default for development).** Set `E2E_BENCH_CONFIG` to the bench
   configuration (see `e2e/README.md`); the harness takes the server named by
   `E2E_BENCH_SERVER` (`beta1011` by default) and its `syncplay-host` / `syncplay-guest`
-  accounts, and resolves the media by lab code (`E2E_SYNCPLAY_ITEMS`, default
-  `V01,V03,V06`). Each run uses its own device sessions, a temporary group and a restricted
-  account it deletes afterwards, so it leaves nothing behind. `syncplay-host` must be an
-  administrator: creating and deleting that restricted account needs it, and the harness
-  checks the permission before any step runs.
+  accounts, and resolves the media by lab code (`E2E_SYNCPLAY_ITEMS`, three distinct codes,
+  default `V01,V03,V06`). Each run uses its own device sessions, a temporary group and a
+  restricted account with a random password; at the end, Ctrl-C included, it signs every
+  client out and deletes that account, and reports as a failure whatever it could not clean
+  up. `syncplay-host` must be an administrator: creating and deleting that restricted account
+  needs it, and the harness checks the permission before any step runs.
 - **Throwaway server (CI and destructive rounds).** `python3 e2e/suites/syncplay/setup.py`
   starts the official `jellyfin/jellyfin:10.11.11` image on the host loopback only, finishes
   onboarding, creates two SyncPlay enabled users and scans three generated two minute clips.
@@ -62,7 +63,8 @@ Jellyfin extrapolates the position of a playing session once a second, so skew i
 trustworthy while paused. Compare playing positions on the actual frames. `--device` limits
 the assertions to named devices, `--expect-item` checks the media id, and `--expect-active 1`
 suits a single decoder, for example when testing a natural end of file without a second
-client ending the item first.
+client ending the item first. The minimum of active sessions only backs the item, pause, play
+method and skew assertions, so the `joined` round passes before anything plays.
 
 Jellyfin 10.11 pauses a playing group when a member reports buffering. Turning on ignore
 wait for that member releases the others, turning it off restores the barrier. See the

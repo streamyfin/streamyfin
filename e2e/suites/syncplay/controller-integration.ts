@@ -33,6 +33,7 @@ import {
   type SyncPlayAccount,
   type SyncPlayItem,
 } from "./credentials";
+import { cleanUp, interruptHandler, syncPlayEndpoint } from "./harness";
 
 const directory = import.meta.dir;
 const credentials = await resolveCredentials(
@@ -80,9 +81,24 @@ const endpoints = [
 let scenario = "connect";
 const clients: Client[] = [];
 let temporaryUserId: string | undefined;
+// Never the administrator's: the account outlives the run if its delete fails.
+const temporaryPassword = randomUUID();
 let admin: Api | undefined;
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+let cleaning: Promise<string[]> | undefined;
+const cleanUpOnce = () =>
+  (cleaning ??= (async () => {
+    for (const client of clients) client.dispose();
+    await sleep(150);
+    return cleanUp(clients, admin, temporaryUserId);
+  })());
+process.once(
+  "SIGINT",
+  interruptHandler(cleanUpOnce, (code) => process.exit(code)),
+);
+
 async function waitFor(
   predicate: () => boolean,
   message: string,
@@ -239,14 +255,12 @@ async function client(account: SyncPlayAccount, label: string) {
   });
   const api = jellyfin.createApi(credentials.url, undefined, axios.create());
   api.axiosInstance.interceptors.response.use((response) => {
-    const pathname = new URL(response.config.url!, credentials.url).pathname;
-    if (pathname.startsWith("/SyncPlay/")) {
+    const path = syncPlayEndpoint(response.config.url!, credentials.url);
+    if (path) {
       requests.push({
         client: label,
         method: response.config.method?.toUpperCase() ?? "GET",
-        path: /^\/SyncPlay\/[0-9a-f-]{32,36}$/i.test(pathname)
-          ? "/SyncPlay/{id}"
-          : pathname,
+        path,
         status: response.status,
         scenario,
       });
@@ -971,7 +985,7 @@ try {
   await step("restricted account cannot create or join group", async () => {
     const name = `syncplay-restricted-${run}`;
     const response = await getUserApi(host.api).createUserByName({
-      createUserByName: { Name: name, Password: credentials.host.password },
+      createUserByName: { Name: name, Password: temporaryPassword },
     });
     temporaryUserId = response.data.Id!;
     await getUserApi(host.api).updateUserPolicy({
@@ -979,7 +993,7 @@ try {
       userPolicy: { ...response.data.Policy, SyncPlayAccess: "None" },
     });
     const restricted = await client(
-      { name, password: credentials.host.password },
+      { name, password: temporaryPassword },
       "restricted",
     );
     let createStatus: number | undefined;
@@ -1042,12 +1056,11 @@ try {
     `FAIL ${error instanceof Error ? error.message : String(error)} ${http.config?.url ?? ""}\n`,
   );
 } finally {
-  for (const client of clients) client.dispose();
-  await sleep(150);
-  if (temporaryUserId && admin)
-    await getUserApi(admin)
-      .deleteUser({ userId: temporaryUserId })
-      .catch(() => {});
+  const cleanupFailures = await cleanUpOnce();
+  for (const failure of cleanupFailures) {
+    process.stderr.write(`FAIL cleanup ${failure}\n`);
+  }
+  if (cleanupFailures.length) process.exitCode = 1;
   await mkdir(join(directory, "artifacts"), { recursive: true });
   await writeFile(
     join(directory, "artifacts/controller-integration.json"),
@@ -1057,6 +1070,7 @@ try {
         serverVersion,
         checkedAt: new Date().toISOString(),
         results: records,
+        cleanupFailures,
         events: eventLog,
         requests,
         endpointCoverage: endpoints.map((path) => ({

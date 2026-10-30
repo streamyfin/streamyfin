@@ -144,12 +144,16 @@ def load_config(path: Path | None = None) -> BenchConfig:
     servers = _parse_servers(_require(raw, "servers", "", file, dict), file)
     targets = _parse_targets(_require(raw, "targets", "", file, dict), file)
     keep_dir = Path(_require(raw, "keep_dir", "", file)).expanduser()
-    return BenchConfig(servers=servers, targets=targets, keep_dir=keep_dir, redact=_redaction_list(raw, servers, targets))
+    return BenchConfig(servers=servers, targets=targets, keep_dir=keep_dir, redact=_redaction_list(raw, servers, targets, file))
 
 
-def _redaction_list(raw: dict, servers: dict[str, Server], targets: Targets) -> list[str]:
+def _redaction_list(raw: dict, servers: dict[str, Server], targets: Targets, file: Path) -> list[str]:
     """Every private host of the configuration, so reports mask them without anyone listing them."""
-    entries = [str(entry) for entry in raw.get("redact", [])]
+    listed = raw.get("redact", [])
+    # A bare string would be masked letter by letter, and null would fail far from the file.
+    if not isinstance(listed, list) or not all(isinstance(entry, str) for entry in listed):
+        raise BenchConfigError(f"{file}: field redact must be a list of strings")
+    entries = list(listed)
     for server in servers.values():
         host = urlparse(server.url).hostname
         if host:
