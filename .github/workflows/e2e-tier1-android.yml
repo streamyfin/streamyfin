@@ -154,6 +154,13 @@ jobs:
             adb install -r android/app/build/outputs/apk/release/app-release.apk
             python3 e2e/bench/maestro.py --flow e2e/suites/cast/flows/smoke-launch.yml --timeout 300
 
+      - name: 🧹 Stop a leftover emulator
+        # A first attempt cut by its timeout-minutes leaves the runner action no time to kill
+        # its emulator, and the retry would attach to that stale one on the same port.
+        if: steps.maestro-run.outcome == 'failure'
+        run: |
+          "$ANDROID_HOME/platform-tools/adb" -s emulator-5554 emu kill || true
+
       - name: 📱 Retry the smoke flow once
         # A cold emulator sometimes misses the first launch; the flow is idempotent.
         if: steps.maestro-run.outcome == 'failure'
