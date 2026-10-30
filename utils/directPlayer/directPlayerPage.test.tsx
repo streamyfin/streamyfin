@@ -60,6 +60,8 @@ let mockSeekReaction:
   | null = null;
 /** Set to have the server answer with a transcode instead of a direct stream. */
 let mockTranscodingUrl: string | undefined;
+/** The max streaming bitrate of each stream the page asked the server for. */
+const mockAskedBitrates: (number | undefined)[] = [];
 const mockSettings = {};
 const mockNoop = () => {};
 
@@ -155,15 +157,27 @@ jest.mock("@/utils/profiles/native", () => ({
   generateDeviceProfile: () => ({}),
 }));
 jest.mock("@/utils/jellyfin/media/getStreamUrl", () => ({
-  getStreamUrl: async ({ item }: { item: { Id: string } }) => ({
-    mediaSource: {
-      Id: "source-1",
-      MediaStreams: [],
-      TranscodingUrl: mockTranscodingUrl,
-    },
-    sessionId: `session-${item.Id}`,
-    url: `https://jellyfin.example.com/Videos/${item.Id}/stream.mkv`,
-  }),
+  getStreamUrl: async ({
+    item,
+    maxStreamingBitrate,
+  }: {
+    item: { Id: string };
+    maxStreamingBitrate?: number;
+  }) => {
+    mockAskedBitrates.push(maxStreamingBitrate);
+    return {
+      mediaSource: {
+        Id: "source-1",
+        MediaStreams: [],
+        TranscodingUrl: mockTranscodingUrl,
+      },
+      sessionId: `session-${item.Id}`,
+      url: `https://jellyfin.example.com/Videos/${item.Id}/stream.mkv`,
+    };
+  },
+}));
+jest.mock("@/utils/jellyfin/bitrateTest", () => ({
+  detectBitrate: async () => 12_000_000,
 }));
 jest.mock("@/utils/subtitles/subtitleStyle", () => ({
   applySubtitleStyle: async () => {},
@@ -637,5 +651,48 @@ describe("direct player stop report", () => {
     } finally {
       mockParams.playbackPosition = String(RESUME_TICKS);
     }
+  });
+});
+
+describe("direct player quality", () => {
+  beforeEach(() => {
+    jest.spyOn(console, "log").mockImplementation(() => {});
+    mockAskedBitrates.length = 0;
+    api.mock.reset();
+    api.mock.onGet(/\/Items\/item-1/).reply(200, {
+      Id: "item-1",
+      Type: "Movie",
+      RunTimeTicks: RUNTIME_TICKS,
+    });
+    api.mock.onPost(/\/Sessions\/Playing/).reply(204);
+  });
+
+  afterEach(async () => {
+    screen.unmount();
+    await waitFor(() => expect(stopReports()).toHaveLength(1));
+    mockParams.bitrateValue = "";
+    jest.restoreAllMocks();
+  });
+
+  test("asks the server for what Auto measures", async () => {
+    mockParams.bitrateValue = "auto";
+
+    await openPlayer();
+
+    expect(mockAskedBitrates).toEqual([12_000_000]);
+  });
+
+  test("asks for no cap under Max", async () => {
+    await openPlayer();
+
+    expect(mockAskedBitrates).toEqual([undefined]);
+  });
+
+  test("asks for a fixed quality as it is", async () => {
+    mockParams.bitrateValue = "8000000";
+
+    await openPlayer();
+
+    expect(mockAskedBitrates).toEqual([8_000_000]);
   });
 });

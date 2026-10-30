@@ -1,3 +1,5 @@
+import type { BitrateRequest } from "@/utils/bitrate";
+
 /**
  * A normalized "play this item" request for the upcoming native iOS player.
  * Mirrors the query parameters the direct player screen already accepts so
@@ -8,7 +10,8 @@ export interface PlayRequest {
   audioIndex?: number;
   subtitleIndex?: number;
   mediaSourceId?: string;
-  bitrateValue?: number;
+  /** Missing means no cap, Max. */
+  bitrateValue?: BitrateRequest;
   offline: boolean;
   playbackPositionTicks?: number;
 }

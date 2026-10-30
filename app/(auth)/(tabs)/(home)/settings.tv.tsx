@@ -10,6 +10,7 @@ import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, Platform, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { bitrateOptions } from "@/components/BitrateSelector";
 import { Text } from "@/components/common/Text";
 import { TVPasswordEntryModal } from "@/components/login/TVPasswordEntryModal";
 import { TVPINEntryModal } from "@/components/login/TVPINEntryModal";
@@ -57,6 +58,7 @@ import {
   useSettings,
   VideoPlayer,
 } from "@/utils/atoms/settings";
+import { bitrateLabel } from "@/utils/bitrate";
 import { INTEGRATION_CONFIG_KEY_PREFIX } from "@/utils/customHeaders";
 import { ORIGINAL_LANGUAGE } from "@/utils/jellyfin/serverVersion";
 import { storage } from "@/utils/mmkv";
@@ -937,6 +939,23 @@ export default function SettingsTV() {
               </Text>
             </>
           )}
+
+          <TVSettingsOptionButton
+            disabledByAdmin={pluginSettings?.defaultBitrate?.locked}
+            label={t("home.settings.other.default_quality")}
+            value={
+              settings.defaultBitrate
+                ? bitrateLabel(t, settings.defaultBitrate)
+                : ""
+            }
+            onPress={() =>
+              showOptions({
+                title: t("home.settings.other.default_quality"),
+                options: bitrateOptions(t, settings.defaultBitrate),
+                onSelect: (value) => updateSettings({ defaultBitrate: value }),
+              })
+            }
+          />
 
           <TVSettingsToggle
             disabledByAdmin={pluginSettings?.showResumeDialog?.locked}

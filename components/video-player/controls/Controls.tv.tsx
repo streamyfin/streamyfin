@@ -53,6 +53,12 @@ import { apiAtom } from "@/providers/JellyfinProvider";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import type { TVOptionItem } from "@/utils/atoms/tvOptionModal";
+import {
+  type BitrateRequest,
+  bitrateLabel,
+  parseBitrateParam,
+  toBitrateParam,
+} from "@/utils/bitrate";
 import { resolveStartTicks } from "@/utils/directPlayer/sessionPosition";
 import {
   getAdjacentStartTicks,
@@ -98,7 +104,7 @@ interface Props {
   subtitleIndex?: number;
   onAudioIndexChange?: (index: number) => void;
   onSubtitleIndexChange?: (index: number) => void;
-  onBitrateChange?: (bitrate: number | undefined) => void;
+  onBitrateChange?: (bitrate: BitrateRequest | undefined) => void;
   /** Combined device-volume and player mute state. */
   isMuted?: boolean;
   /** Toggles the player's own mute; omit to hide the control. */
@@ -348,19 +354,19 @@ export const Controls: FC<Props> = ({
   );
 
   // Quality options mirror the mobile menu: value is the max bitrate as a
-  // string, "" meaning Max (no limit) — same encoding as the bitrateValue
-  // route param, so selection matching is a plain string compare.
+  // string, "" meaning Max (no limit) and "auto" Auto — same encoding as the
+  // bitrateValue route param, so selection matching is a plain string compare.
   const bitrateOptions: TVOptionItem<string>[] = useMemo(() => {
     return BITRATES.map((bitrate) => ({
-      label: bitrate.key,
-      value: bitrate.value?.toString() ?? "",
-      selected: (bitrateValue ?? "") === (bitrate.value?.toString() ?? ""),
+      label: bitrateLabel(t, bitrate),
+      value: toBitrateParam(bitrate),
+      selected: (bitrateValue ?? "") === toBitrateParam(bitrate),
     }));
-  }, [bitrateValue]);
+  }, [bitrateValue, t]);
 
   const handleBitrateChange = useCallback(
     (value: string) => {
-      onBitrateChange?.(value ? Number.parseInt(value, 10) : undefined);
+      onBitrateChange?.(parseBitrateParam(value));
     },
     [onBitrateChange],
   );

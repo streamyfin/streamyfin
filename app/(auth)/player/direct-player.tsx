@@ -29,7 +29,6 @@ import {
   useAnimatedReaction,
   useSharedValue,
 } from "react-native-reanimated";
-import { BITRATES } from "@/components/BitrateSelector";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
 import { AutoSubtitleNotice } from "@/components/video-player/controls/AutoSubtitleNotice";
@@ -70,6 +69,7 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { OfflineModeProvider } from "@/providers/OfflineModeProvider";
 import { getSubtitlesForItem } from "@/utils/atoms/downloadedSubtitles";
 import { getActivePlayerType, useSettings } from "@/utils/atoms/settings";
+import { type BitrateRequest, parseBitrateParam } from "@/utils/bitrate";
 import { getJellyfinHeadersForUrl } from "@/utils/customHeaders";
 import {
   isPlaceholderTick,
@@ -83,6 +83,7 @@ import {
   getDefaultPlaySettings,
 } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
+import { resolveMaxStreamingBitrate } from "@/utils/jellyfin/maxStreamingBitrate";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import { isPlayableItem } from "@/utils/jellyfin/media/isPlayableItem";
 import {
@@ -244,9 +245,9 @@ export default function DirectPlayerPage() {
   const subtitleIndex = subtitleIndexStr
     ? Number.parseInt(subtitleIndexStr, 10)
     : -1;
-  const bitrateValue = bitrateValueStr
-    ? Number.parseInt(bitrateValueStr, 10)
-    : BITRATES[0].value;
+  // Auto stays Auto in the route, so every stream asked for, the next
+  // episode's included, is asked at what the connection measures then.
+  const bitrateValue = parseBitrateParam(bitrateValueStr);
 
   const [item, setItem] = useState<BaseItemDto | null>(null);
   const initialSeekDoneRef = useRef(false);
@@ -584,7 +585,10 @@ export default function DirectPlayerPage() {
             startTimeTicks: startTicks,
             userId: user.Id,
             audioStreamIndex: audioIndex,
-            maxStreamingBitrate: bitrateValue,
+            maxStreamingBitrate: await resolveMaxStreamingBitrate(
+              api,
+              bitrateValue,
+            ),
             mediaSourceId: mediaSourceId,
             subtitleStreamIndex: subtitleIndex,
             // Match the device profile to the player that will render the
@@ -1376,7 +1380,7 @@ export default function DirectPlayerPage() {
   // re-negotiating the stream with the server, so it goes through the same
   // player-replace path as track changes while transcoding.
   const handleBitrateChange = useCallback(
-    (bitrate: number | undefined) => {
+    (bitrate: BitrateRequest | undefined) => {
       replaceWithTrackSelection({ bitrateValue: bitrate?.toString() ?? "" });
     },
     [replaceWithTrackSelection],

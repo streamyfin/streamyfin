@@ -14,8 +14,10 @@ jest.mock("@/utils/customHeaders", () =>
 );
 
 // Track resolution belongs to the config build, not to the menus, and loading
-// it starts the logger (MMKV, and a Sentry timer that keeps Jest alive).
+// it starts the logger (MMKV, and a Sentry timer that keeps Jest alive). So
+// does the bitrate the stream is asked at.
 jest.mock("./resolveTrackIndexes", () => ({}));
+jest.mock("@/utils/jellyfin/maxStreamingBitrate", () => ({}));
 
 const menus = (streams: Jellyfin12MediaStream[]) =>
   buildTrackMenus({
@@ -26,6 +28,7 @@ const menus = (streams: Jellyfin12MediaStream[]) =>
     downloadedItem: null,
     offLabel: "None",
     originalLabel: "Original",
+    autoQualityLabel: "Auto",
   });
 
 describe("buildTrackMenus", () => {

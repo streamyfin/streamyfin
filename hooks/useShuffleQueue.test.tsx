@@ -4,6 +4,7 @@ import { useShuffleQueue } from "./useShuffleQueue";
 
 const mockPlayMedia = jest.fn();
 const mockSetShuffleQueue = jest.fn();
+let mockDefaultBitrate: { key: string; value?: number } | undefined;
 
 jest.mock("@/hooks/usePlayMedia", () => ({
   usePlayMedia: () => mockPlayMedia,
@@ -26,6 +27,7 @@ jest.mock("@/utils/jellyfin/getDefaultPlaySettings", () => ({
     mediaSource: { Id: "source" },
     audioIndex: 0,
     subtitleIndex: -1,
+    bitrate: mockDefaultBitrate,
   }),
 }));
 jest.mock("@/utils/shuffle", () => ({
@@ -83,5 +85,23 @@ describe("useShuffleQueue", () => {
 
     expect(mockPlayMedia).not.toHaveBeenCalled();
     expect(mockSetShuffleQueue).not.toHaveBeenCalled();
+  });
+
+  // Read as its value, Auto had none and the queue played without a cap.
+  test("starts the queue at the default quality, Auto included", async () => {
+    mockDefaultBitrate = { key: "Auto", value: undefined };
+    try {
+      const { result } = await renderHook(() => useShuffleQueue());
+      await act(async () => {
+        result.current.startQueue([{ Id: "episode-1", Type: "Episode" }]);
+      });
+
+      expect(mockPlayMedia).toHaveBeenCalledWith(
+        expect.objectContaining({ itemId: "episode-1", bitrateValue: "auto" }),
+        expect.anything(),
+      );
+    } finally {
+      mockDefaultBitrate = undefined;
+    }
   });
 });

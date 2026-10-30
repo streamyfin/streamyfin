@@ -25,6 +25,7 @@ import {
 } from "@/constants/StillWatching";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { apiAtom } from "@/utils/atoms/api";
+import { AUTO_BITRATE, MAX_BITRATE } from "@/utils/bitrate";
 import { isExpectedError } from "@/utils/errors";
 import { logAndCaptureError, writeInfoLog } from "@/utils/log";
 import {
@@ -185,6 +186,10 @@ const normalizePluginValue = (
       // (e.g. "8 Mb/s") that can't be derived from the raw value (e.g. 8000000).
       // Anything else falls back to a key of String(value).
       if (settingsKey === "defaultBitrate") {
+        // Jellyfin leaves a null out of the plugin's JSON, so its "no cap"
+        // comes without a value. That is Max, never Auto, which has no value
+        // either and comes first.
+        if (value === undefined || value === null) return MAX_BITRATE;
         const match = BITRATES.find(
           (b) => b.key === value || b.value === value,
         );
@@ -624,7 +629,7 @@ export const defaultValues: Settings = {
   streamyStatsPromotedWatchlists: false,
   downloadQuality: DownloadOptions[0],
   showDownloadLiveActivity: true,
-  defaultBitrate: BITRATES[0],
+  defaultBitrate: AUTO_BITRATE,
   libraryOptions: {
     display: "list",
     cardStyle: "detailed",

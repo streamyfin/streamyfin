@@ -499,3 +499,24 @@ describe("getAdjacentStartTicks", () => {
     );
   });
 });
+
+describe("the quality", () => {
+  const movie: BaseItemDto = { Id: "movie", Type: "Movie" };
+
+  // The player measures what Auto stands for; here it is only handed on.
+  test("is Auto, the default, before the settings are loaded", () => {
+    expect(getDefaultPlaySettings(movie, null).bitrate).toEqual({
+      key: "Auto",
+      value: undefined,
+    });
+  });
+
+  test("is the one the settings hold", () => {
+    const eight = { key: "8 Mb/s", value: 8_000_000 };
+
+    expect(
+      getDefaultPlaySettings(movie, { defaultBitrate: eight } as Settings)
+        .bitrate,
+    ).toBe(eight);
+  });
+});

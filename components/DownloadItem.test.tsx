@@ -8,6 +8,8 @@ import type { OptionGroup } from "./PlatformDropdown";
 
 const mockStartBackgroundDownload = jest.fn();
 let mockDownloadedItems: { item: BaseItemDto }[] = [];
+let mockSettings: { defaultBitrate?: { key: string; value?: number } } | null =
+  null;
 
 jest.mock("@/providers/DownloadProvider", () => ({
   useDownload: () => ({
@@ -31,7 +33,7 @@ jest.mock(
   () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
 );
 jest.mock("@/utils/atoms/settings", () => ({
-  useSettings: () => ({ settings: null }),
+  useSettings: () => ({ settings: mockSettings }),
 }));
 jest.mock("@/utils/jellyfin/media/getStreamUrl", () => ({
   getDownloadStreamUrl: jest.fn(),
@@ -148,6 +150,7 @@ beforeEach(() => {
   // Resetting every mock instead would also wipe the ones jest-expo sets up.
   jest.mocked(getDownloadStreamUrl).mockReset();
   mockDownloadedItems = [];
+  mockSettings = null;
 });
 
 afterEach(() => {
@@ -199,6 +202,56 @@ describe("DownloadSingleItem", () => {
       expect.objectContaining({ mediaSourceId: "source-1" }),
     );
     expect(mockStartBackgroundDownload).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("the quality of a download", () => {
+  beforeEach(() => {
+    jest.mocked(getDownloadStreamUrl).mockResolvedValue({
+      url: "http://server/download",
+      sessionId: null,
+      mediaSource: MEDIA_SOURCE,
+    });
+  });
+
+  // A file has no connection to adapt to: Auto downloads as Max does.
+  test("is Max, with no cap, when the default quality is Auto", async () => {
+    mockSettings = { defaultBitrate: { key: "Auto", value: undefined } };
+    await render(<DownloadSingleItem item={MOVIE} />);
+
+    await confirmDownload();
+
+    expect(getDownloadStreamUrl).toHaveBeenCalledWith(
+      expect.objectContaining({ maxStreamingBitrate: undefined }),
+    );
+    expect(mockStartBackgroundDownload).toHaveBeenCalledWith(
+      "http://server/download",
+      expect.objectContaining({ Id: "movie-1" }),
+      MEDIA_SOURCE,
+      { key: "Max", value: undefined },
+      undefined,
+      -1,
+    );
+  });
+
+  test("is not offered as Auto", async () => {
+    mockSettings = { defaultBitrate: { key: "Auto", value: undefined } };
+    await render(<DownloadSingleItem item={MOVIE} />);
+
+    expect(screen.queryByText("item_card.quality_auto")).toBeNull();
+    expect(screen.queryByText("Auto")).toBeNull();
+    expect(screen.getByText("Max")).toBeTruthy();
+  });
+
+  test("keeps a fixed default quality", async () => {
+    mockSettings = { defaultBitrate: { key: "4 Mb/s", value: 4_000_000 } };
+    await render(<DownloadSingleItem item={MOVIE} />);
+
+    await confirmDownload();
+
+    expect(getDownloadStreamUrl).toHaveBeenCalledWith(
+      expect.objectContaining({ maxStreamingBitrate: 4_000_000 }),
+    );
   });
 });
 

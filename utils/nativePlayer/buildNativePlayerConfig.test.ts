@@ -32,7 +32,14 @@ jest.mock("@/utils/atoms/settings", () => ({
   getActivePlayerType: () => "mpv",
 }));
 jest.mock("@/components/BitrateSelector", () => ({
-  BITRATES: [{ key: "Max", value: undefined }],
+  BITRATES: [
+    { key: "Auto", value: undefined },
+    { key: "Max", value: undefined },
+    { key: "8 Mb/s", value: 8_000_000 },
+  ],
+}));
+jest.mock("@/utils/jellyfin/bitrateTest", () => ({
+  detectBitrate: (api: unknown) => mockDetectBitrate(api),
 }));
 jest.mock("@/utils/profiles/native", () => ({
   generateDeviceProfile: () => ({}),
@@ -40,6 +47,8 @@ jest.mock("@/utils/profiles/native", () => ({
 jest.mock("@/utils/subtitles/subtitleStyle", () => ({
   buildSubtitleStyle: () => ({}),
 }));
+
+const mockDetectBitrate = jest.fn(async (_api: unknown) => 12_000_000);
 
 const SERVER = "https://jellyfin.example";
 const api = { basePath: SERVER, accessToken: "token" } as Api;
@@ -73,6 +82,7 @@ const streamHeaders = async (stream: {
     getDownloadedItemById: () => undefined,
     strings: {} as NativePlayerStrings,
     originalLabel: "Original",
+    autoQualityLabel: "Auto",
     item,
   });
   return built?.config.stream.headers;
@@ -156,6 +166,7 @@ describe("the native player's exit confirmation", () => {
       getDownloadedItemById: () => undefined,
       strings: {} as NativePlayerStrings,
       originalLabel: "Original",
+      autoQualityLabel: "Auto",
       item,
     });
     return built?.config.ui?.confirmExitEnabled;
@@ -167,5 +178,92 @@ describe("the native player's exit confirmation", () => {
 
   test("is skipped once the setting is off", async () => {
     expect(await confirmExit(false)).toBe(false);
+  });
+});
+
+describe("the native player's quality", () => {
+  const build = async (bitrateValue?: number | "auto") => {
+    jest.mocked(getStreamUrl).mockResolvedValue({
+      url: `${SERVER}/Videos/1/stream.mkv`,
+      sessionId: "session-1",
+      mediaSource: { Id: "source-1", MediaStreams: [] },
+    } as Awaited<ReturnType<typeof getStreamUrl>>);
+
+    return buildNativePlayerConfig({
+      api,
+      userId: "user-1",
+      settings: {
+        playbackSpeedPerShow: {},
+        playbackSpeedPerMedia: {},
+      } as Settings,
+      req: { itemId: "item-1", offline: false, bitrateValue },
+      getDownloadedItemById: () => undefined,
+      strings: {} as NativePlayerStrings,
+      originalLabel: "Original",
+      autoQualityLabel: "Automatique",
+      item,
+    });
+  };
+
+  const askedBitrate = () =>
+    jest.mocked(getStreamUrl).mock.calls.at(-1)?.[0].maxStreamingBitrate;
+
+  beforeEach(() => {
+    jest.mocked(getStreamUrl).mockClear();
+    mockDetectBitrate.mockClear();
+  });
+
+  test("asks the server for what Auto measures", async () => {
+    await build("auto");
+
+    expect(mockDetectBitrate).toHaveBeenCalledWith(api);
+    expect(askedBitrate()).toBe(12_000_000);
+  });
+
+  // Carried to the next episode and to every re-negotiation, where the
+  // detection is reused or, an hour on, run again.
+  test("stays Auto for the rest of the session", async () => {
+    const built = await build("auto");
+
+    expect(built?.seed.bitrateValue).toBe("auto");
+  });
+
+  test("lists Auto in its menu, picked, under its own entry", async () => {
+    const built = await build("auto");
+
+    expect(built?.config.tracks?.quality).toEqual([
+      expect.objectContaining({
+        label: "Automatique",
+        jellyfinIndex: -2,
+        selected: true,
+      }),
+      expect.objectContaining({
+        label: "Max",
+        jellyfinIndex: -1,
+        selected: false,
+      }),
+      expect.objectContaining({
+        label: "8 Mb/s",
+        jellyfinIndex: 8_000_000,
+        selected: false,
+      }),
+    ]);
+  });
+
+  test("asks for no cap under Max, without measuring", async () => {
+    const built = await build(undefined);
+
+    expect(mockDetectBitrate).not.toHaveBeenCalled();
+    expect(askedBitrate()).toBeUndefined();
+    expect(built?.config.tracks?.quality?.[1]).toEqual(
+      expect.objectContaining({ label: "Max", selected: true }),
+    );
+  });
+
+  test("asks for a fixed quality as it is", async () => {
+    await build(8_000_000);
+
+    expect(mockDetectBitrate).not.toHaveBeenCalled();
+    expect(askedBitrate()).toBe(8_000_000);
   });
 });

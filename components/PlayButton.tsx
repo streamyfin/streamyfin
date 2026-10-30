@@ -34,12 +34,14 @@ import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { useSyncPlay } from "@/providers/SyncPlayProvider";
 import { itemThemeColorAtom } from "@/utils/atoms/primaryColor";
 import { useSettings } from "@/utils/atoms/settings";
+import { toBitrateRequest } from "@/utils/bitrate";
 import {
   castToJellyfinReceiver,
   currentReceiverName,
   receiverNameFor,
 } from "@/utils/cast/jellyfinReceiver";
 import { castNotStartedMessage } from "@/utils/cast/receiverLoadErrorMessage";
+import { resolveMaxStreamingBitrate } from "@/utils/jellyfin/maxStreamingBitrate";
 import { logAndCaptureError, writeErrorLog } from "@/utils/log";
 import type { PlayRequest } from "@/utils/nativePlayer/playRequest";
 import { formatDuration, runtimeTicksToMinutes } from "@/utils/time";
@@ -97,7 +99,7 @@ export const PlayButton: React.FC<Props> = ({
         audioIndex: selectedOptions.audioIndex,
         subtitleIndex: selectedOptions.subtitleIndex,
         mediaSourceId: selectedOptions.mediaSource?.Id ?? undefined,
-        bitrateValue: selectedOptions.bitrate?.value,
+        bitrateValue: toBitrateRequest(selectedOptions.bitrate),
         offline: isOffline,
         playbackPositionTicks: positionTicks,
       };
@@ -170,7 +172,12 @@ export const PlayButton: React.FC<Props> = ({
                         receiverName:
                           (await currentReceiverName()) ??
                           receiverNameFor(castDevice),
-                        maxBitrate: selectedOptions.bitrate?.value,
+                        // The receiver negotiates the stream itself and knows
+                        // no Auto: it is handed the bitrate measured here.
+                        maxBitrate: await resolveMaxStreamingBitrate(
+                          api,
+                          playRequest.bitrateValue,
+                        ),
                       },
                       {
                         items: [item],

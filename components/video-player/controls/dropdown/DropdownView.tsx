@@ -29,6 +29,7 @@ import { PLAYBACK_SPEEDS } from "@/components/PlaybackSpeedSelector";
 import useRouter from "@/hooks/useAppRouter";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { useSettings } from "@/utils/atoms/settings";
+import { bitrateLabel, toBitrateParam } from "@/utils/bitrate";
 import { usePlayerContext } from "../contexts/PlayerContext";
 import { useVideoContext } from "../contexts/VideoContext";
 import { PlaybackSpeedScope } from "../utils/playback-speed-settings";
@@ -310,10 +311,10 @@ const DropdownView = ({
         options:
           BITRATES?.map((bitrate) => ({
             type: "radio" as const,
-            label: bitrate.key,
-            value: bitrate.value?.toString() ?? "",
-            selected: bitrateValue === (bitrate.value?.toString() ?? ""),
-            onPress: () => changeBitrate(bitrate.value?.toString() ?? ""),
+            label: bitrateLabel(t, bitrate),
+            value: toBitrateParam(bitrate),
+            selected: bitrateValue === toBitrateParam(bitrate),
+            onPress: () => changeBitrate(toBitrateParam(bitrate)),
           })) || [],
       });
     }

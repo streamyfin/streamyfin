@@ -98,6 +98,12 @@ import {
   resolveAutoSubtitleAction,
 } from "@/utils/autoSubtitleOnMute";
 import {
+  AUTO_BITRATE,
+  type BitrateRequest,
+  bitrateLabel,
+  fromNativeQualityIndex,
+} from "@/utils/bitrate";
+import {
   getAdjacentStartTicks,
   getDefaultPlaySettings,
 } from "@/utils/jellyfin/getDefaultPlaySettings";
@@ -949,6 +955,7 @@ const NativePlayerProviderInner: React.FC<{
         getDownloadedItemById: downloadUtils.getDownloadedItemById,
         strings: buildNativePlayerStrings(t),
         originalLabel: t("common.original_audio"),
+        autoQualityLabel: bitrateLabel(t, AUTO_BITRATE),
         item: options.item,
       }).catch((error) => {
         logAndCaptureError("NativePlayer config build failed", error, {
@@ -1208,7 +1215,7 @@ const NativePlayerProviderInner: React.FC<{
         subtitleIndex?: number;
         positionTicks?: number;
         /** New max bitrate; null = "Max" (no cap). Omit to keep the current. */
-        bitrateValue?: number | null;
+        bitrateValue?: BitrateRequest | null;
       },
     ): Promise<boolean> => {
       const req: PlayRequest = {
@@ -1358,6 +1365,7 @@ const NativePlayerProviderInner: React.FC<{
           downloadedItem: session.downloadedItem,
           offLabel: buildNativePlayerStrings(t).off ?? "None",
           originalLabel: t("common.original_audio"),
+          autoQualityLabel: bitrateLabel(t, AUTO_BITRATE),
           bitrateValue: session.bitrateValue,
           localSubtitle: session.localSubtitle
             ? {
@@ -2075,10 +2083,10 @@ const NativePlayerProviderInner: React.FC<{
       addNativePlayerListener("onQualitySelected", (payload) => {
         const session = sessionRef.current;
         if (!session || session.awaitingLoad || session.offline) return;
-        // -1 is the "Max" entry → no bitrate cap (undefined in the request).
-        const requested =
-          payload.bitrateValue === -1 ? null : payload.bitrateValue;
-        if ((requested ?? null) === (session.bitrateValue ?? null)) return;
+        // The "Max" entry is no bitrate cap (null here, undefined in the
+        // request), and "Auto" stays Auto, measured by the re-negotiation.
+        const requested = fromNativeQualityIndex(payload.bitrateValue) ?? null;
+        if (requested === (session.bitrateValue ?? null)) return;
         void replaceStream(session, {
           bitrateValue: requested,
           positionTicks: msToTicks(payload.positionSec * 1000),
