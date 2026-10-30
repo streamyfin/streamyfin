@@ -91,3 +91,17 @@ google-service-account.json
 
 # Reassure measurements
 .reassure/
+
+# End-to-end bench (private configuration, receiver tokens, run output, local virtualenv).
+# biome.json keeps the same paths out of Biome.
+e2e/.venv/
+e2e/reports/
+e2e/bench/config.local.json
+e2e/bench/receiver-tokens.local.json
+e2e/suites/syncplay/.state/
+e2e/suites/syncplay/artifacts/
+e2e/**/__pycache__/
+# Where the SyncPlay suite lived before: a checkout that ran it there keeps its server
+# state, config and logs out of git until the folder is deleted.
+e2e/syncplay/.state/
+e2e/syncplay/artifacts/

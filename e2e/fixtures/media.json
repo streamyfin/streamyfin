@@ -1,0 +1,149 @@
+{
+  "version": 1,
+  "notes": "Cases of the beta's test library used by the playback matrix. `match.code` is the lab tag, `match.channel` a Live TV channel name, `match.audioContainer` the container of a music track. `expect` is the play method expected per target kind; for a Cast kind it is what the receiver writes in its customData, DirectStream for a static stream or Transcode, never DirectPlay. The matrix judges direct against transcoded, the server's transcoding job deciding on its side; a mismatch is reported, never hidden.",
+  "cases": [
+    {
+      "id": "V01",
+      "kind": "video",
+      "match": { "code": "V01" },
+      "note": "H.264 High 8 bits 1080p, AAC stereo, MKV",
+      "expect": {
+        "chromecast-gen3": "Transcode",
+        "google-tv-streamer": "DirectStream",
+        "apple-tv": "DirectPlay"
+      }
+    },
+    {
+      "id": "V03",
+      "kind": "video",
+      "match": { "code": "V03" },
+      "note": "H.264 Baseline 480p, MP4",
+      "expect": {
+        "chromecast-gen3": "DirectStream",
+        "google-tv-streamer": "DirectStream",
+        "apple-tv": "DirectPlay"
+      }
+    },
+    {
+      "id": "V02",
+      "kind": "video",
+      "match": { "code": "V02" },
+      "note": "H.264 10 bits (Hi10P), no hardware decoder anywhere",
+      "expect": {
+        "chromecast-gen3": "Transcode",
+        "google-tv-streamer": "Transcode",
+        "apple-tv": "Transcode"
+      }
+    },
+    {
+      "id": "V06",
+      "kind": "video",
+      "match": { "code": "V06" },
+      "note": "HEVC 8 bits 1080p",
+      "expect": {
+        "chromecast-gen3": "Transcode",
+        "google-tv-streamer": "DirectStream",
+        "apple-tv": "DirectPlay"
+      }
+    },
+    {
+      "id": "V09",
+      "kind": "video",
+      "match": { "code": "V09" },
+      "note": "HEVC HDR10 2160p",
+      "expect": {
+        "chromecast-gen3": "Transcode",
+        "google-tv-streamer": "DirectStream",
+        "apple-tv": "DirectPlay"
+      }
+    },
+    {
+      "id": "V12",
+      "kind": "video",
+      "match": { "code": "V12" },
+      "note": "Dolby Vision profile 8.1",
+      "expect": {
+        "chromecast-gen3": "Transcode",
+        "google-tv-streamer": "DirectStream",
+        "apple-tv": "DirectPlay"
+      }
+    },
+    {
+      "id": "V14",
+      "kind": "video",
+      "match": { "code": "V14" },
+      "note": "AV1 8 bits 1080p",
+      "expect": {
+        "chromecast-gen3": "Transcode",
+        "google-tv-streamer": "DirectStream",
+        "apple-tv": "DirectPlay"
+      }
+    },
+    {
+      "id": "E10",
+      "kind": "video",
+      "match": { "code": "E10" },
+      "note": "H.264 1080p at 120 Mb/s",
+      "expect": {
+        "chromecast-gen3": "Transcode",
+        "google-tv-streamer": "DirectStream",
+        "apple-tv": "DirectPlay"
+      }
+    },
+    {
+      "id": "E11",
+      "kind": "video",
+      "match": { "code": "E11" },
+      "note": "H.264 1080p at 150 kb/s",
+      "expect": {
+        "chromecast-gen3": "DirectStream",
+        "google-tv-streamer": "DirectStream",
+        "apple-tv": "DirectPlay"
+      }
+    },
+    {
+      "id": "S01",
+      "kind": "subtitle",
+      "match": { "code": "S01" },
+      "note": "SRT text subtitles in twelve languages",
+      "expect": {
+        "chromecast-gen3": "DirectStream",
+        "google-tv-streamer": "DirectStream",
+        "apple-tv": "DirectPlay"
+      }
+    },
+    {
+      "id": "S08",
+      "kind": "subtitle",
+      "match": { "code": "S08" },
+      "note": "PGS image subtitles, burnt in by the server",
+      "expect": {
+        "chromecast-gen3": "Transcode",
+        "google-tv-streamer": "Transcode",
+        "apple-tv": "Transcode"
+      }
+    },
+    {
+      "id": "MUSIC-FLAC",
+      "kind": "audio",
+      "match": { "audioContainer": "flac" },
+      "note": "A FLAC track from the music library",
+      "expect": {
+        "chromecast-gen3": "DirectStream",
+        "google-tv-streamer": "DirectStream",
+        "apple-tv": "DirectPlay"
+      }
+    },
+    {
+      "id": "LIVE-1",
+      "kind": "livetv",
+      "match": { "channel": "1 Films libres" },
+      "note": "Tunarr channel, MPEG-TS over HDHomeRun emulation",
+      "expect": {
+        "chromecast-gen3": "Transcode",
+        "google-tv-streamer": "Transcode",
+        "apple-tv": "Transcode"
+      }
+    }
+  ]
+}

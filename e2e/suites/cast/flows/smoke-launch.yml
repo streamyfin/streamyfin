@@ -1,0 +1,13 @@
+# Tier 1 smoke flow: the app launches to its server screen. Proves the Maestro pipeline on
+# a fresh build before any cast flow exists. Needs a build that embeds the JS bundle (the
+# release APK): a debug build is an Expo dev client waiting for Metro. Run with
+# e2e/bench/maestro.py.
+appId: com.fredrikburmester.streamyfin
+---
+- launchApp:
+    clearState: true
+# A cold start on a CI emulator takes a while: the JS bundle loads before the first screen.
+- extendedWaitUntil:
+    visible: "Enter the URL to your Jellyfin server"
+    timeout: 60000
+- assertVisible: "Connect"
