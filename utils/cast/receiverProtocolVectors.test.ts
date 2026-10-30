@@ -21,8 +21,10 @@ import {
   parseReceiverCustomData,
   playOnJellyfinReceiver,
   queueWindow,
+  ReceiverContainerRefusedError,
   type ReceiverMessage,
   receiverNameFor,
+  receiverPositionInItem,
   sendJellyfinCastCommand,
   subscribeToJellyfinReceiverMessages,
   toReceiverDeviceName,
@@ -65,6 +67,9 @@ const sessionFrom = (raw: {
   ...(raw.maxBitrate ? { maxBitrate: raw.maxBitrate } : {}),
 });
 
+const sentMessages = () =>
+  mockCast.channels.flatMap((channel) => sentOn(channel));
+
 let session = 0;
 beforeEach(() => {
   session += 1;
@@ -77,6 +82,13 @@ describe("play-now.json", () => {
   const { cases } = vectors("play-now.json");
   test.each(table(cases))("%s", async (_name, vector) => {
     const castSession = sessionFrom(vector.session);
+    if (vector.expected.refused === "container") {
+      await expect(
+        playOnJellyfinReceiver(castSession, vector.request),
+      ).rejects.toThrow(ReceiverContainerRefusedError);
+      expect(sentMessages()).toEqual([]);
+      return;
+    }
     if (vector.request) {
       await playOnJellyfinReceiver(castSession, vector.request);
     } else {
@@ -142,11 +154,18 @@ describe("media-status-custom-data.json", () => {
   });
 });
 
+describe("media-position.json", () => {
+  const { cases } = vectors("media-position.json");
+  test.each(table(cases))("%s", (_name, vector) => {
+    const { currentTime, customData } = vector.input;
+    expect(
+      receiverPositionInItem(currentTime, parseReceiverCustomData(customData)),
+    ).toBe(vector.expected);
+  });
+});
+
 describe("load-outcomes.json", () => {
   const file = vectors("load-outcomes.json");
-  const request = {
-    items: [{ Id: file.request.itemId, Name: "Item" } as BaseItemDto],
-  };
   const statusOf = (data: Record<string, unknown>) => ({
     playerState: data.playerState,
     mediaInfo: { customData: { ...data, playerState: undefined } },
@@ -164,6 +183,7 @@ describe("load-outcomes.json", () => {
   };
 
   test.each(table(file.cases))("%s", async (_name, vector) => {
+    const request: { items: BaseItemDto[] } = vector.request ?? file.request;
     let listener: ((status: unknown) => void) | undefined;
     const client = {
       getMediaStatus: async () =>
@@ -179,11 +199,16 @@ describe("load-outcomes.json", () => {
       },
     } as unknown as CastClient;
     const castSession = sessionFrom(vectors("play-now.json").cases[1].session);
+    // A refused cast rejects at once: caught here, so that its events still
+    // play out before the outcome is read.
     const outcome = castToJellyfinReceiver(
       client,
       castSession,
       request,
       file.timeoutMs,
+    ).then(
+      (result) => ({ result, error: undefined }),
+      (error: unknown) => ({ result: undefined, error }),
     );
     await flush();
     for (const event of vector.events) {
@@ -205,8 +230,14 @@ describe("load-outcomes.json", () => {
       }
       await flush();
     }
-    const result = await outcome;
-    expect(result.status).toBe(vector.expected.status);
+    const { result, error } = await outcome;
+    if (vector.expected.refused === "container") {
+      expect(error).toBeInstanceOf(ReceiverContainerRefusedError);
+      expect(sentMessages()).toEqual([]);
+      return;
+    }
+    expect(error).toBeUndefined();
+    expect(result?.status).toBe(vector.expected.status);
     if (vector.expected.error) {
       expect((result as { error?: string }).error).toBe(vector.expected.error);
     }

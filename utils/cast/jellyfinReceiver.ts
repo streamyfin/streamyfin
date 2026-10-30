@@ -4,6 +4,7 @@ import {
   RECEIVER_CHANNEL_OPEN_ATTEMPTS,
   RECEIVER_FALLBACK_ID_LENGTH,
   RECEIVER_FALLBACK_NAME,
+  RECEIVER_UNCAPPED_BITRATE,
 } from "@/constants/Cast";
 import {
   addCastChannel,
@@ -24,10 +25,21 @@ import {
  */
 export const JELLYFIN_CAST_NAMESPACE = "urn:x-cast:com.connectsdk";
 
+/**
+ * The commands the receiver acts on. Its volume commands (Mute, Unmute,
+ * ToggleMute, SetVolume, VolumeUp, VolumeDown) are left out: the receiver only
+ * logs them, and its volume goes through the Cast session's own.
+ */
 export type JellyfinCastCommand =
   | "PlayNow"
+  // Appends to the receiver's queue exactly as PlayLast does, starts nothing
+  // when nothing plays, and gets no answer.
   | "PlayNext"
   | "PlayLast"
+  | "PlayPause"
+  | "NextTrack"
+  | "PreviousTrack"
+  // Its options.position is in seconds.
   | "Seek"
   | "Stop"
   | "Pause"
@@ -62,16 +74,27 @@ export interface JellyfinCastSession {
    * DeviceId from it. Build it with `receiverNameFor`.
    */
   receiverName?: string;
+  /**
+   * Bitrate cap in bit/s; none sends `RECEIVER_UNCAPPED_BITRATE`. Every
+   * message sets the cap the receiver's next loads use, so the commands that
+   * follow a cast carry the cap it was started with.
+   */
   maxBitrate?: number;
 }
 
 export interface JellyfinCastPlayRequest {
+  /**
+   * The media to play. A container among them is refused before anything is
+   * sent: see `ReceiverContainerRefusedError`.
+   */
   items: BaseItemDto[];
   startIndex?: number;
   startPositionTicks?: number;
   mediaSourceId?: string;
   audioStreamIndex?: number;
   subtitleStreamIndex?: number;
+  /** A live stream already open, passed on to the receiver's PlaybackInfo. */
+  liveStreamId?: string;
 }
 
 export type ReceiverMessage = Record<string, any> | string;
@@ -102,8 +125,8 @@ const parseReceiverMessage = (message: ReceiverMessage): ReceiverMessage => {
 
 /**
  * The receiver answers on the same channel it listens on, and that is the only
- * place it reports its own failures (a rejected message, an unreachable
- * server) -- without a listener those errors are lost and the cast just sits
+ * place it reports its own failures (a rejected message, a failed PlaybackInfo
+ * request) -- without a listener those errors are lost and the cast just sits
  * on the idle screen.
  */
 export const subscribeToJellyfinReceiverMessages = (
@@ -249,6 +272,20 @@ export const currentReceiverName = async (): Promise<string | undefined> => {
   return receiverNameFor(currentCastSession()?.device);
 };
 
+/**
+ * The receiver turns a Seek position into ticks without rounding it, and when
+ * it cannot seek in the stream it reloads it from there: a fraction of a
+ * second then becomes a StartTimeTicks that is not a whole number, which the
+ * server may reject. So the position goes out in whole seconds.
+ */
+const receiverOptions = (
+  command: JellyfinCastCommand,
+  options: Record<string, unknown>,
+): Record<string, unknown> =>
+  command === "Seek" && typeof options.position === "number"
+    ? { ...options, position: Math.round(options.position) }
+    : options;
+
 export const sendJellyfinCastCommand = async (
   command: JellyfinCastCommand,
   session: JellyfinCastSession,
@@ -258,14 +295,16 @@ export const sendJellyfinCastCommand = async (
 
   // The receiver rejects any message missing command/serverAddress/accessToken,
   // and it re-reads the server info on every message, so they all carry it.
+  // It also keeps the last cap it was given until its app closes, so every
+  // message states one: left out, the cap of an earlier cast would stay.
   await target.sendMessage({
     command,
     serverAddress: session.api.basePath,
     accessToken: session.api.accessToken,
     userId: session.userId,
     ...(session.receiverName ? { receiverName: session.receiverName } : {}),
-    ...(session.maxBitrate ? { maxBitrate: session.maxBitrate } : {}),
-    options,
+    maxBitrate: session.maxBitrate || RECEIVER_UNCAPPED_BITRATE,
+    options: receiverOptions(command, options),
   });
 };
 
@@ -295,10 +334,42 @@ const toReceiverRequest = (
   };
 };
 
+/**
+ * Handed one of these first, or any folder, the receiver plays children it
+ * picks itself (a playlist's entries, an artist's or a genre's tracks, the
+ * media under the folder) and drops the other items sent; one further down
+ * the queue goes to its PlaybackInfo as it is, and fails there.
+ */
+const CONTAINER_TYPES = new Set(["Playlist", "MusicArtist", "MusicGenre"]);
+
+const isContainer = (item: BaseItemDto): boolean =>
+  CONTAINER_TYPES.has(item.Type ?? "") || !!item.IsFolder;
+
+/**
+ * A request holding a container, refused before anything is sent. The
+ * receiver picks the child itself, and startIndex counts in its own list of
+ * them, so no item id tells that load from the media the TV already plays.
+ * Callers send the items to play instead, as music does with its tracks.
+ */
+export class ReceiverContainerRefusedError extends Error {
+  constructor(item: BaseItemDto) {
+    super(
+      `Cannot cast ${item.Type ?? "item"} ${item.Id}: the receiver plays a container through children it picks, so cast its items instead`,
+    );
+    this.name = "ReceiverContainerRefusedError";
+  }
+}
+
+const refuseContainers = (items: BaseItemDto[]): void => {
+  const container = items.find(isContainer);
+  if (container) throw new ReceiverContainerRefusedError(container);
+};
+
 export const playOnJellyfinReceiver = async (
   session: JellyfinCastSession,
   request: JellyfinCastPlayRequest,
 ): Promise<void> => {
+  refuseContainers(request.items);
   const { items, ...rest } = toReceiverRequest(request);
 
   await sendJellyfinCastCommand("PlayNow", session, {
@@ -327,14 +398,26 @@ export const queueWindow = <T>(
   };
 };
 
+/**
+ * What a load error the receiver sent back means:
+ * - `playback_info_failed`: a connectionerror, its PlaybackInfo request
+ *   failed (network, 401, 400, 500). It always comes before a playbackerror
+ *   NoCompatibleStream, which only says that request came back empty. A
+ *   server the receiver cannot reach at all fails an earlier request, and
+ *   that one sends nothing.
+ * - `playback_failed`: a playbackerror, carrying the PlaybackInfo error code
+ *   (NotAllowed, NoCompatibleStream, RateLimitExceeded).
+ * - `rejected`: an error, the receiver's answer to a message missing one of
+ *   the fields it requires.
+ */
 export type ReceiverLoadError =
-  | "server_unreachable"
+  | "playback_info_failed"
   | "playback_failed"
   | "rejected";
 
 const loadErrorOf = (message: ReceiverMessage): ReceiverLoadError | null => {
   const type = typeof message === "object" ? message?.type : undefined;
-  if (type === "connectionerror") return "server_unreachable";
+  if (type === "connectionerror") return "playback_info_failed";
   if (type === "playbackerror") return "playback_failed";
   if (type === "error") return "rejected";
   return null;
@@ -390,7 +473,11 @@ interface ReceiverMediaData {
   playSessionId?: string;
 }
 
-/** What the receiver puts in its media customData, read with every field optional. */
+/**
+ * What the receiver puts in its media customData. It writes the same keys on
+ * every load, but a status for media another sender loaded has none, so each
+ * field is read as optional.
+ */
 export interface ReceiverCustomData {
   itemId: string | null;
   playSessionId: string | null;
@@ -401,6 +488,13 @@ export interface ReceiverCustomData {
   runtimeTicks: number | null;
   startPositionTicks: number | null;
   canSeek: boolean | null;
+  /**
+   * Whether the receiver seeks in the stream itself. When it cannot, a Seek
+   * reloads the stream from the new position, and the status's currentTime
+   * counts from the position the stream was loaded at: see
+   * `receiverPositionInItem`.
+   */
+  canClientSeek: boolean | null;
   liveStreamId: string | null;
 }
 
@@ -438,9 +532,27 @@ export const parseReceiverCustomData = (
     runtimeTicks: numberOrNull(data.runtimeTicks),
     startPositionTicks: numberOrNull(data.startPositionTicks),
     canSeek: typeof data.canSeek === "boolean" ? data.canSeek : null,
+    canClientSeek:
+      typeof data.canClientSeek === "boolean" ? data.canClientSeek : null,
     liveStreamId: stringOrNull(data.liveStreamId),
   };
 };
+
+const TICKS_PER_SECOND = 10_000_000;
+
+/**
+ * Where the receiver is in the item, in seconds, from the currentTime of its
+ * media status (`streamPosition` on ours). A stream the receiver seeks in
+ * itself runs on the item's clock. One it cannot, transcoded music or live
+ * TV, runs from the position it was loaded at, so that start is added back.
+ */
+export const receiverPositionInItem = (
+  currentTime: number,
+  customData: ReceiverCustomData,
+): number =>
+  customData.canClientSeek === false
+    ? currentTime + (customData.startPositionTicks ?? 0) / TICKS_PER_SECOND
+    : currentTime;
 
 const receiverMediaData = (
   status: CastMediaStatus | null | undefined,
@@ -460,6 +572,7 @@ let castCount = 0;
 /**
  * Casts and resolves once the receiver has a media session for the requested
  * item, has sent a load error back, or has done neither within `timeoutMs`.
+ * A request holding a container is refused before anything is sent.
  *
  * Sending PlayNow only means the message left the phone. A receiver that
  * cannot reach the server fails on its first request without a word back, and
@@ -472,6 +585,9 @@ export const castToJellyfinReceiver = async (
   request: JellyfinCastPlayRequest,
   timeoutMs: number,
 ): Promise<ReceiverLoadOutcome> => {
+  // Refused before it counts as a cast: nothing reaches the TV, so the cast
+  // still loading there is not replaced.
+  refuseContainers(request.items);
   const cast = ++castCount;
   supersedeCurrentCast?.();
 
@@ -485,6 +601,22 @@ export const castToJellyfinReceiver = async (
   // A cast started while this one read the media status owns the TV now:
   // sending this one after it would replace it there.
   if (cast !== castCount) return { status: "superseded" };
+
+  const isThisLoad = (status: CastMediaStatus | null): boolean => {
+    const media = receiverMediaData(status);
+    if (!media || !status?.playerState) return false;
+    if (
+      previous?.playSessionId &&
+      media.playSessionId === previous.playSessionId
+    ) {
+      return false;
+    }
+    return (
+      !!itemId &&
+      media.itemId === itemId &&
+      status.playerState !== CastMediaPlayerState.IDLE
+    );
+  };
 
   return new Promise<ReceiverLoadOutcome>((resolve, reject) => {
     let settled = false;
@@ -510,20 +642,7 @@ export const castToJellyfinReceiver = async (
       timeoutMs,
     );
     statusUpdates = client.onMediaStatusUpdated((status) => {
-      const media = receiverMediaData(status);
-      if (!media?.itemId || media.itemId !== itemId) return;
-      if (
-        previous?.playSessionId &&
-        media.playSessionId === previous.playSessionId
-      ) {
-        return;
-      }
-      if (
-        !status?.playerState ||
-        status.playerState === CastMediaPlayerState.IDLE
-      )
-        return;
-      settle(() => resolve({ status: "loaded" }));
+      if (isThisLoad(status)) settle(() => resolve({ status: "loaded" }));
     });
     timer = setTimeout(
       () => settle(() => resolve({ status: "timed_out" })),

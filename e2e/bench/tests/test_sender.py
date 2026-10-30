@@ -32,9 +32,17 @@ def vector(name: str) -> dict:
     return json.loads((VECTORS / name).read_text())
 
 
+def bus_payload(case: dict) -> str:
+    # An object input is the message as the receiver builds it; pychromecast hands it over serialized.
+    return case["input"] if isinstance(case["input"], str) else json.dumps(case["input"])
+
+
 class SharedVectorTests(unittest.TestCase):
     def test_build_message_matches_shared_vector(self):
         for case in vector("play-now.json")["cases"]:
+            if "refused" in case["expected"]:
+                # No message is built for it: see the refusal test below.
+                continue
             session = case["session"]
             with self.subTest(case["name"]):
                 built = build_message(
@@ -42,12 +50,27 @@ class SharedVectorTests(unittest.TestCase):
                     session["basePath"],
                     session["accessToken"],
                     session["userId"],
-                    case["expected"]["options"],
+                    # A plain command's options go through the sender; PlayNow's are sent as given.
+                    case.get("options", case["expected"]["options"]),
                     receiver_name=session.get("receiverName"),
                     max_bitrate=session.get("maxBitrate"),
                 )
                 self.assertEqual(built, case["expected"])
                 self.assertEqual(list(built), list(case["expected"]))
+
+    def test_play_now_refuses_the_containers_the_shared_vector_refuses(self):
+        # A container anywhere in the request is refused before a message is built; any other item
+        # goes through.
+        for case in vector("play-now.json")["cases"]:
+            if case["command"] != "PlayNow":
+                continue
+            with self.subTest(case["name"]):
+                items = case["request"]["items"]
+                if case["expected"].get("refused") == "container":
+                    with self.assertRaises(sender.ContainerRefused):
+                        sender.play_now_options(items)
+                else:
+                    self.assertEqual(len(sender.play_now_options(items)["items"]), len(items))
 
     def test_receiver_name_matches_shared_vector(self):
         data = vector("receiver-name.json")
@@ -61,12 +84,24 @@ class SharedVectorTests(unittest.TestCase):
     def test_parse_bus_message_types(self):
         for case in vector("bus-messages.json")["cases"]:
             with self.subTest(case["name"]):
-                parsed = parse_bus_message(case["input"])
+                parsed = parse_bus_message(bus_payload(case))
                 if case["expected"].get("invalid"):
                     self.assertEqual(parsed, BusMessage(type="invalid", message=case["input"], data=None))
                 else:
                     expected = case["expected"]
                     self.assertEqual(parsed, BusMessage(type=expected["type"], message=expected.get("message"), data=expected.get("data")))
+
+    def test_summarize_bus_reads_the_position_of_every_status_message(self):
+        # Every status message carries the receiver's state, not only the progress reports: after a
+        # pause or a stop, the last position is the one that message gave.
+        for case in vector("bus-messages.json")["cases"]:
+            state = (case["expected"].get("data") or {}).get("PlayState")
+            if state is None:
+                continue
+            with self.subTest(case["name"]):
+                summary = summarize_bus([parse_bus_message(bus_payload(case))])
+                self.assertEqual(summary["lastProgress"]["positionSeconds"], state["PositionTicks"] / 10_000_000)
+                self.assertEqual(summary["lastProgress"]["isPaused"], state["IsPaused"])
 
 
 @dataclass
@@ -154,18 +189,18 @@ class WatchTests(unittest.TestCase):
             wait_for_playing(FakeCast([("PLAYING", 300.0, custom("item-1", "ps-0"))]), sender.Load("item-1", previous_session="ps-0"), timeout=0.2, every=0.05)
 
     def test_wait_for_playing_fails_at_once_on_a_receiver_error(self):
-        bus = [BusMessage(type="playbackerror", message="old failure"), BusMessage(type="playbackstart", message="")]
+        bus = [BusMessage(type="playbackerror", message="RateLimitExceeded"), BusMessage(type="playbackstart", data={"PlayState": {"PositionTicks": 0}})]
         cast = FakeCast([("IDLE", 0.0, {})])
         load = sender.Load("item-1", bus_start=len(bus))
-        bus.append(BusMessage(type="playbackerror", message="Unable to load media"))
+        bus.append(BusMessage(type="playbackerror", message="NotAllowed"))
         started = time.monotonic()
         with self.assertRaises(sender.LoadFailed) as caught:
             wait_for_playing(cast, load, bus, timeout=5.0, every=0.01)
         self.assertLess(time.monotonic() - started, 1.0)
-        self.assertEqual(str(caught.exception), "playbackerror: Unable to load media")
+        self.assertEqual(str(caught.exception), "playbackerror: NotAllowed")
 
     def test_an_error_before_the_send_does_not_fail_the_load(self):
-        bus = [BusMessage(type="connectionerror")]
+        bus = [BusMessage(type="connectionerror", message="")]
         cast = FakeCast([("BUFFERING", 0.0, custom("item-1", "ps-1")), ("PLAYING", 1.0, custom("item-1", "ps-1"))])
         sample = wait_for_playing(cast, sender.Load("item-1", bus_start=len(bus)), bus, timeout=1.0, every=0.01)
         self.assertEqual(sample.player_state, "PLAYING")
@@ -188,31 +223,82 @@ class WatchTests(unittest.TestCase):
         self.assertEqual(cast.media_controller.updates, 1)
 
 
+def status_message(kind: str, seconds: float, paused: bool = False, play_session: str = "ps-1") -> str:
+    state = {"PlaySessionId": play_session, "PositionTicks": round(seconds * 10_000_000), "PlayMethod": "Transcode", "IsPaused": paused}
+    return json.dumps({"data": {"PlayState": state, "NowPlayingItem": {"Id": "x"}}, "type": kind})
+
+
+def final_status(player_state: str, play_session: str | None = "ps-1") -> sender.MediaSample:
+    """The status the sender reads after an Identify."""
+    return sender.MediaSample(at=0.0, player_state=player_state, current_time=0.0, custom_data=custom("x", play_session) if play_session else {})
+
+
 class BusCollectorTests(unittest.TestCase):
     def test_collect_parses_and_keeps_every_message(self):
         collector = BusCollector()
-        collector.collect('{"type":"playbackstart","message":""}')
+        collector.collect(status_message("playbackstart", 0))
         collector.collect("garbage")
         self.assertEqual([m.type for m in collector.bus], ["playbackstart", "invalid"])
+        self.assertEqual(collector.bus[0].data["PlayState"]["PositionTicks"], 0)
 
-    def test_summarize_bus_counts_types_and_keeps_the_last_progress(self):
-        # The receiver reports progress several times a second with the whole item inside:
-        # a proof needs counts and the last position, not hundreds of copies of the item.
+    def test_summarize_bus_counts_types_and_keeps_the_last_position(self):
+        # The receiver reports its state several times a second with the whole item inside:
+        # a proof needs counts and the last position, not hundreds of copies of the item. The last
+        # one here is the pause, which is no progress report.
         collector = BusCollector()
-        collector.collect('{"type":"playbackstart","message":""}')
-        collector.collect('{"type":"playbackprogress","data":{"PlayState":{"PositionTicks":10000000,"PlayMethod":"Transcode","IsPaused":false},"NowPlayingItem":{"Name":"x"}}}')
-        collector.collect('{"type":"playbackprogress","data":{"PlayState":{"PositionTicks":30000000,"PlayMethod":"Transcode","IsPaused":true},"NowPlayingItem":{"Name":"x"}}}')
-        collector.collect('{"type":"playbackerror","message":"boom"}')
+        collector.collect(status_message("playbackstart", 0))
+        collector.collect(status_message("playbackprogress", 1))
+        collector.collect(status_message("playstatechange", 3, paused=True))
+        collector.collect('{"message":"NoCompatibleStream","type":"playbackerror"}')
         summary = summarize_bus(collector.bus)
-        self.assertEqual(summary["counts"], {"playbackstart": 1, "playbackprogress": 2, "playbackerror": 1})
+        self.assertEqual(summary["counts"], {"playbackstart": 1, "playbackprogress": 1, "playstatechange": 1, "playbackerror": 1})
         self.assertEqual(summary["lastProgress"], {"positionSeconds": 3.0, "playMethod": "Transcode", "isPaused": True})
-        self.assertEqual(summary["errors"], ["playbackerror: boom"])
+        self.assertEqual(summary["errors"], ["playbackerror: NoCompatibleStream"])
+        self.assertNotIn("identifyAnswered", summary)
+
+    def test_the_playbackstop_answering_identify_is_not_a_stop(self):
+        # A receiver that plays or pauses answers Identify with a playbackstop carrying its state, its
+        # play session among it, and plays on: only a playbackstop after that answer is a stop.
+        collector = BusCollector()
+        collector.collect(status_message("playbackprogress", 10))
+        identified_at = len(collector.bus)
+        collector.collect(status_message("playbackstop", 12))
+        collector.collect(status_message("playbackprogress", 13))
+        for final in (final_status("PLAYING"), final_status("PAUSED")):
+            with self.subTest(final.player_state):
+                summary = summarize_bus(collector.bus, identified_at, final)
+                self.assertEqual(summary["counts"], {"playbackprogress": 2})
+                self.assertTrue(summary["identifyAnswered"])
+                self.assertEqual(summary["lastProgress"]["positionSeconds"], 13.0)
+        collector.collect(status_message("playbackstop", 14))
+        self.assertEqual(summarize_bus(collector.bus, identified_at, final_status("PLAYING"))["counts"], {"playbackprogress": 2, "playbackstop": 1})
+
+    def test_a_playbackstop_of_media_no_longer_playing_is_a_stop(self):
+        # Playing when read, the media ended as the Identify left: the receiver's playbackstop is a
+        # real stop, and the Identify reached an idle receiver, which does not answer. Nor does the
+        # stop of a track the queue moved past answer for the next one.
+        collector = BusCollector()
+        collector.collect(status_message("playbackprogress", 10))
+        identified_at = len(collector.bus)
+        collector.collect(status_message("playbackstop", 12))
+        for final in (final_status("IDLE", None), final_status("PLAYING", "ps-2")):
+            with self.subTest(final.player_state):
+                summary = summarize_bus(collector.bus, identified_at, final)
+                self.assertEqual(summary["counts"], {"playbackprogress": 1, "playbackstop": 1})
+                self.assertFalse(summary["identifyAnswered"])
+
+    def test_an_identify_left_unanswered_says_so(self):
+        # Idle, the receiver shows its waiting screen and sends nothing back.
+        collector = BusCollector()
+        summary = summarize_bus(collector.bus, identified_at=0)
+        self.assertEqual(summary["counts"], {})
+        self.assertFalse(summary["identifyAnswered"])
 
 
 class LaunchTests(unittest.TestCase):
     def test_fresh_launch_restarts_a_running_receiver(self):
-        # The receiver keeps the device name and the bitrate cap of the first message it got: a
-        # measure on a receiver another sender started would run under that sender's settings.
+        # The receiver keeps the device name of the first message it got: a measure on a receiver
+        # another sender started would run under that sender's name.
         cast = FakeReceiver(app_id=RECEIVER_APP_ID)
         sender.launch(cast, fresh=True)
         self.assertEqual(cast.events, ["quit", "start"])
@@ -255,6 +341,22 @@ def sender_main(*args: str) -> int:
     return sender.main(["--server", "beta13", "--target", "Living room", *args])
 
 
+class BufferingUntilIdentify(FakeReceiver):
+    """A receiver still buffering whenever the sender reads its state, and playing by the time an
+    Identify reaches it."""
+
+    def update_status(self, callback_function=None) -> None:
+        if self.status.player_state != "BUFFERING":
+            super().update_status(callback_function)
+        elif callback_function:
+            callback_function(True, None)
+
+    def send(self, message: dict) -> None:
+        if message["command"] == "Identify" and self.status.player_state == "BUFFERING":
+            self.status.player_state = "PLAYING"
+        super().send(message)
+
+
 class SenderMainTests(unittest.TestCase):
     def test_an_interrupted_play_keeps_the_token_the_receiver_plays_with(self):
         server = FakeServer(items={"V01": V01})
@@ -289,6 +391,74 @@ class SenderMainTests(unittest.TestCase):
         self.assertEqual({m["accessToken"] for m in receiver.received}, {"tok1"})
         self.assertEqual(receiver.status.player_state, "PAUSED")
         self.assertEqual(server.live, ["tok1"])
+
+    def test_identify_while_playing_is_not_counted_as_a_stop(self):
+        # The receiver answers Identify with a playbackstop and plays on: the proof of an identify
+        # must not read as a receiver that stopped.
+        server = FakeServer(items={"V01": V01})
+        receiver = FakeReceiver()
+        with bench_run(server, receiver) as run:
+            sender_main("play-now", "--item", "V01", "--watch", "0")
+            self.assertEqual(sender_main("identify"), 0)
+            [report] = [path for path in run.reports(".json") if "identify" in path.name]
+            steps = json.loads(report.read_text())["steps"]
+        bus = next(step["data"]["bus"] for step in steps if step["step"] == "final")
+        self.assertEqual([message.type for message in receiver.bus], ["playbackstop"])
+        self.assertNotIn("playbackstop", bus["counts"])
+        self.assertTrue(bus["identifyAnswered"])
+        self.assertEqual(receiver.status.player_state, "PLAYING")
+
+    def test_identify_answered_after_its_state_was_read_is_not_counted_as_a_stop(self):
+        # The state read before the send can be out of date when the Identify arrives: still buffering
+        # when read, after a seek that reloads say, the receiver plays by then and answers it.
+        server = FakeServer()
+        receiver = BufferingUntilIdentify(status=FakeStatus("BUFFERING", 0.0, custom("item-1", "ps-1")))
+        with bench_run(server, receiver) as run:
+            self.assertEqual(sender_main("identify"), 0)
+            [report] = run.reports(".json")
+            steps = json.loads(report.read_text())["steps"]
+        bus = next(step["data"]["bus"] for step in steps if step["step"] == "final")
+        self.assertEqual([message.type for message in receiver.bus], ["playbackstop"])
+        self.assertNotIn("playbackstop", bus["counts"])
+        self.assertTrue(bus["identifyAnswered"])
+
+    def test_a_later_command_carries_the_cap_the_play_started_with(self):
+        # The receiver applies the cap of every message to the loads after it, and an audio change
+        # reloads the stream: sent uncapped, it lifted the cap the run was measuring under.
+        server = FakeServer(items={"V01": V01})
+        receiver = FakeReceiver()
+        with bench_run(server, receiver):
+            sender_main("play-now", "--item", "V01", "--watch", "0", "--max-bitrate", "3000000")
+            sender_main("audio", "--index", "2")
+        self.assertEqual([m["command"] for m in receiver.received], ["PlayNow", "SetAudioStreamIndex"])
+        self.assertEqual(receiver.received[-1]["maxBitrate"], 3000000)
+
+    def test_a_cap_a_later_command_asks_for_is_the_session_cap_from_then_on(self):
+        server = FakeServer(items={"V01": V01})
+        receiver = FakeReceiver()
+        with bench_run(server, receiver) as run:
+            sender_main("play-now", "--item", "V01", "--watch", "0", "--max-bitrate", "3000000")
+            sender_main("seek", "--seconds", "60", "--max-bitrate", "1500000")
+            sender_main("pause")
+            stored = json.loads((run.root / "receiver-tokens.local.json").read_text())
+            # A new play starts a session of its own, uncapped unless it asks for a cap.
+            sender_main("play-now", "--item", "V01", "--watch", "0")
+            sender_main("unpause")
+        self.assertEqual(
+            [(m["command"], m["maxBitrate"]) for m in receiver.received],
+            [("PlayNow", 3000000), ("Seek", 1500000), ("Pause", 1500000), ("PlayNow", 120000000), ("Unpause", 120000000)],
+        )
+        self.assertEqual(stored["beta13"]["test"]["Living room"], {"token": "tok1", "userId": "user-1", "maxBitrate": 1500000})
+
+    def test_a_container_is_refused_before_anything_is_sent(self):
+        server = FakeServer(items={"P01": {"Id": "playlist-1", "Name": "Road trip", "Type": "Playlist", "IsFolder": True}})
+        receiver = FakeReceiver()
+        with bench_run(server, receiver) as run:
+            self.assertEqual(sender_main("play-now", "--item", "P01"), 2)
+            report = run.report_text()
+        self.assertEqual(receiver.received, [])
+        self.assertEqual(server.live, [])
+        self.assertIn("cannot cast Playlist playlist-1", report)
 
     def test_status_does_not_keep_a_token_it_never_handed(self):
         server = FakeServer()

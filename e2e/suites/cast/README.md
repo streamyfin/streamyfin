@@ -30,9 +30,11 @@ all, on a server without the lab's tags for instance. The Markdown table lands i
 `e2e/reports/<date>/` and, with `--keep`, in the evidence folder of the configuration; the
 rows measured so far are saved whatever ends the run, Ctrl-C included.
 
-The receiver is restarted before the first case, since it keeps the name and the bitrate cap
-of the first sender that reached it, and it stops after every case, whatever happened, so the
-TV never keeps playing a case the run has already measured.
+The receiver is restarted before the first case, since it keeps the device name of the first
+sender that reached it, and it stops after every case, whatever happened, so the TV never
+keeps playing a case the run has already measured. Every message carries a bitrate cap, the
+uncapped 120 Mb/s the app sends when no cap is picked, so the receiver runs no bandwidth
+measurement of its own: a case that depends on the link, E10 say, plays under that cap.
 
 ## Flows (tier 1)
 

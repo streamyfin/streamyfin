@@ -2,37 +2,316 @@
   "version": 1,
   "cases": [
     {
-      "name": "playback start",
-      "input": "{\"type\":\"playbackstart\",\"message\":\"\"}",
-      "expected": { "type": "playbackstart", "message": "" }
-    },
-    {
-      "name": "playback stop carries the reporting data as a string",
-      "input": "{\"type\":\"playbackstop\",\"data\":\"{\\\"ItemId\\\":\\\"item-1\\\",\\\"PositionTicks\\\":100}\"}",
+      "name": "playback start carries the reporting data as a nested object, the position under PlayState",
+      "input": {
+        "data": {
+          "PlayState": {
+            "AudioStreamIndex": 1,
+            "CanSeek": true,
+            "IsMuted": false,
+            "IsPaused": false,
+            "ItemId": "item-1",
+            "MediaSourceId": "ms-1",
+            "PlayMethod": "Transcode",
+            "PlaySessionId": "ps-1",
+            "PositionTicks": 150000000,
+            "RepeatMode": "RepeatNone",
+            "SubtitleStreamIndex": 3,
+            "VolumeLevel": 0
+          },
+          "NowPlayingItem": {
+            "Id": "item-1",
+            "RunTimeTicks": 60000000000
+          }
+        },
+        "type": "playbackstart"
+      },
       "expected": {
-        "type": "playbackstop",
-        "data": "{\"ItemId\":\"item-1\",\"PositionTicks\":100}"
+        "data": {
+          "PlayState": {
+            "AudioStreamIndex": 1,
+            "CanSeek": true,
+            "IsMuted": false,
+            "IsPaused": false,
+            "ItemId": "item-1",
+            "MediaSourceId": "ms-1",
+            "PlayMethod": "Transcode",
+            "PlaySessionId": "ps-1",
+            "PositionTicks": 150000000,
+            "RepeatMode": "RepeatNone",
+            "SubtitleStreamIndex": 3,
+            "VolumeLevel": 0
+          },
+          "NowPlayingItem": {
+            "Id": "item-1",
+            "RunTimeTicks": 60000000000
+          }
+        },
+        "type": "playbackstart"
       }
     },
     {
-      "name": "connection error has no message",
-      "input": "{\"type\":\"connectionerror\"}",
-      "expected": { "type": "connectionerror" }
+      "name": "a progress report arrives from the native bridges as one JSON string, its data nested in it, not encoded twice",
+      "input": "{\"data\":{\"PlayState\":{\"AudioStreamIndex\":1,\"CanSeek\":true,\"IsMuted\":false,\"IsPaused\":false,\"ItemId\":\"item-1\",\"MediaSourceId\":\"ms-1\",\"PlayMethod\":\"Transcode\",\"PlaySessionId\":\"ps-1\",\"PositionTicks\":200000000,\"RepeatMode\":\"RepeatNone\",\"SubtitleStreamIndex\":3,\"VolumeLevel\":0},\"NowPlayingItem\":{\"Id\":\"item-1\",\"RunTimeTicks\":60000000000}},\"type\":\"playbackprogress\"}",
+      "expected": {
+        "data": {
+          "PlayState": {
+            "AudioStreamIndex": 1,
+            "CanSeek": true,
+            "IsMuted": false,
+            "IsPaused": false,
+            "ItemId": "item-1",
+            "MediaSourceId": "ms-1",
+            "PlayMethod": "Transcode",
+            "PlaySessionId": "ps-1",
+            "PositionTicks": 200000000,
+            "RepeatMode": "RepeatNone",
+            "SubtitleStreamIndex": 3,
+            "VolumeLevel": 0
+          },
+          "NowPlayingItem": {
+            "Id": "item-1",
+            "RunTimeTicks": 60000000000
+          }
+        },
+        "type": "playbackprogress"
+      }
     },
     {
-      "name": "playback error names the cause",
-      "input": "{\"type\":\"playbackerror\",\"message\":\"Unable to load media\"}",
-      "expected": { "type": "playbackerror", "message": "Unable to load media" }
+      "name": "a pause is a play state change with IsPaused set",
+      "input": {
+        "data": {
+          "PlayState": {
+            "AudioStreamIndex": 1,
+            "CanSeek": true,
+            "IsMuted": false,
+            "IsPaused": true,
+            "ItemId": "item-1",
+            "MediaSourceId": "ms-1",
+            "PlayMethod": "Transcode",
+            "PlaySessionId": "ps-1",
+            "PositionTicks": 250000000,
+            "RepeatMode": "RepeatNone",
+            "SubtitleStreamIndex": 3,
+            "VolumeLevel": 0
+          },
+          "NowPlayingItem": {
+            "Id": "item-1",
+            "RunTimeTicks": 60000000000
+          }
+        },
+        "type": "playstatechange"
+      },
+      "expected": {
+        "data": {
+          "PlayState": {
+            "AudioStreamIndex": 1,
+            "CanSeek": true,
+            "IsMuted": false,
+            "IsPaused": true,
+            "ItemId": "item-1",
+            "MediaSourceId": "ms-1",
+            "PlayMethod": "Transcode",
+            "PlaySessionId": "ps-1",
+            "PositionTicks": 250000000,
+            "RepeatMode": "RepeatNone",
+            "SubtitleStreamIndex": 3,
+            "VolumeLevel": 0
+          },
+          "NowPlayingItem": {
+            "Id": "item-1",
+            "RunTimeTicks": 60000000000
+          }
+        },
+        "type": "playstatechange"
+      }
     },
     {
-      "name": "a rejected message is a plain error",
-      "input": "{\"type\":\"error\",\"message\":\"invalid command\"}",
-      "expected": { "type": "error", "message": "invalid command" }
+      "name": "a volume change carries the Cast volume as VolumeLevel",
+      "input": {
+        "data": {
+          "PlayState": {
+            "AudioStreamIndex": 1,
+            "CanSeek": true,
+            "IsMuted": false,
+            "IsPaused": true,
+            "ItemId": "item-1",
+            "MediaSourceId": "ms-1",
+            "PlayMethod": "Transcode",
+            "PlaySessionId": "ps-1",
+            "PositionTicks": 250000000,
+            "RepeatMode": "RepeatNone",
+            "SubtitleStreamIndex": 3,
+            "VolumeLevel": 40
+          },
+          "NowPlayingItem": {
+            "Id": "item-1",
+            "RunTimeTicks": 60000000000
+          }
+        },
+        "type": "volumechange"
+      },
+      "expected": {
+        "data": {
+          "PlayState": {
+            "AudioStreamIndex": 1,
+            "CanSeek": true,
+            "IsMuted": false,
+            "IsPaused": true,
+            "ItemId": "item-1",
+            "MediaSourceId": "ms-1",
+            "PlayMethod": "Transcode",
+            "PlaySessionId": "ps-1",
+            "PositionTicks": 250000000,
+            "RepeatMode": "RepeatNone",
+            "SubtitleStreamIndex": 3,
+            "VolumeLevel": 40
+          },
+          "NowPlayingItem": {
+            "Id": "item-1",
+            "RunTimeTicks": 60000000000
+          }
+        },
+        "type": "volumechange"
+      }
+    },
+    {
+      "name": "a repeat mode change carries the new RepeatMode",
+      "input": {
+        "data": {
+          "PlayState": {
+            "AudioStreamIndex": 1,
+            "CanSeek": true,
+            "IsMuted": false,
+            "IsPaused": false,
+            "ItemId": "item-1",
+            "MediaSourceId": "ms-1",
+            "PlayMethod": "Transcode",
+            "PlaySessionId": "ps-1",
+            "PositionTicks": 300000000,
+            "RepeatMode": "RepeatAll",
+            "SubtitleStreamIndex": 3,
+            "VolumeLevel": 40
+          },
+          "NowPlayingItem": {
+            "Id": "item-1",
+            "RunTimeTicks": 60000000000
+          }
+        },
+        "type": "repeatmodechange"
+      },
+      "expected": {
+        "data": {
+          "PlayState": {
+            "AudioStreamIndex": 1,
+            "CanSeek": true,
+            "IsMuted": false,
+            "IsPaused": false,
+            "ItemId": "item-1",
+            "MediaSourceId": "ms-1",
+            "PlayMethod": "Transcode",
+            "PlaySessionId": "ps-1",
+            "PositionTicks": 300000000,
+            "RepeatMode": "RepeatAll",
+            "SubtitleStreamIndex": 3,
+            "VolumeLevel": 40
+          },
+          "NowPlayingItem": {
+            "Id": "item-1",
+            "RunTimeTicks": 60000000000
+          }
+        },
+        "type": "repeatmodechange"
+      }
+    },
+    {
+      "name": "playback stop carries the player's own position, not rounded",
+      "input": {
+        "data": {
+          "PlayState": {
+            "AudioStreamIndex": 1,
+            "CanSeek": true,
+            "IsMuted": false,
+            "IsPaused": false,
+            "ItemId": "item-1",
+            "MediaSourceId": "ms-1",
+            "PlayMethod": "Transcode",
+            "PlaySessionId": "ps-1",
+            "PositionTicks": 754621337.6,
+            "RepeatMode": "RepeatAll",
+            "SubtitleStreamIndex": 3,
+            "VolumeLevel": 40
+          },
+          "NowPlayingItem": {
+            "Id": "item-1",
+            "RunTimeTicks": 60000000000
+          }
+        },
+        "type": "playbackstop"
+      },
+      "expected": {
+        "data": {
+          "PlayState": {
+            "AudioStreamIndex": 1,
+            "CanSeek": true,
+            "IsMuted": false,
+            "IsPaused": false,
+            "ItemId": "item-1",
+            "MediaSourceId": "ms-1",
+            "PlayMethod": "Transcode",
+            "PlaySessionId": "ps-1",
+            "PositionTicks": 754621337.6,
+            "RepeatMode": "RepeatAll",
+            "SubtitleStreamIndex": 3,
+            "VolumeLevel": 40
+          },
+          "NowPlayingItem": {
+            "Id": "item-1",
+            "RunTimeTicks": 60000000000
+          }
+        },
+        "type": "playbackstop"
+      }
+    },
+    {
+      "name": "a connection error, its PlaybackInfo request failing, has an empty message",
+      "input": {
+        "message": "",
+        "type": "connectionerror"
+      },
+      "expected": {
+        "message": "",
+        "type": "connectionerror"
+      }
+    },
+    {
+      "name": "a playback error carries the PlaybackInfo error code: NotAllowed, NoCompatibleStream or RateLimitExceeded",
+      "input": {
+        "message": "NoCompatibleStream",
+        "type": "playbackerror"
+      },
+      "expected": {
+        "message": "NoCompatibleStream",
+        "type": "playbackerror"
+      }
+    },
+    {
+      "name": "a rejected message is an error with the receiver's fixed text",
+      "input": {
+        "message": "Missing one or more required params - command,options,userId,accessToken,serverAddress",
+        "type": "error"
+      },
+      "expected": {
+        "message": "Missing one or more required params - command,options,userId,accessToken,serverAddress",
+        "type": "error"
+      }
     },
     {
       "name": "something that is not JSON is passed on unparsed",
       "input": "not json at all",
-      "expected": { "invalid": true }
+      "expected": {
+        "invalid": true
+      }
     }
   ]
 }
