@@ -13,7 +13,9 @@ import {
   currentCastSession,
   isCastAvailable,
   onCastSessionEvent,
+  playServicesState,
   showCastDialog,
+  showPlayServicesErrorDialog,
 } from "./cast";
 
 let mockCast: CastDoubleState = createCastDoubleState();
@@ -64,6 +66,17 @@ test("every call is a no-op when the module says it is unavailable", async () =>
   expect(mockCast.listeners.onSessionEvent).toHaveLength(1);
   subscription.remove();
   expect(mockCast.listeners.onSessionEvent).toHaveLength(0);
+});
+
+test("Play Services report their state and show their dialog while Cast is unavailable", async () => {
+  // Android answers unavailable whenever Play Services are not SUCCESS: this is
+  // the only pairing it produces, and the one both calls are made for.
+  mockCast.available = false;
+  mockCast.playServicesState = "updating";
+
+  expect(playServicesState()).toBe("updating");
+  await showPlayServicesErrorDialog("updating");
+  expect(mockCast.dialogs).toEqual(["playServices:updating"]);
 });
 
 test("addCastChannel registers the receiver listener for its namespace only", async () => {
@@ -208,9 +221,10 @@ test("a message sent while the channel opens reaches its listener", async () => 
     message: "early",
   });
   release();
-  await pending;
+  const channel = await pending;
 
   expect(seen).toEqual(["early"]);
+  await channel.remove();
 });
 
 test("a subscription made while Cast is unavailable hears events once it is", () => {
@@ -245,4 +259,62 @@ test("a client drives its own session only", async () => {
   await client.pause();
   await expect(client.getMediaStatus()).resolves.toBeNull();
   expect(native.pause).toHaveBeenCalledTimes(1);
+});
+
+test("a native addChannel that throws gives its namespace back", async () => {
+  const native = jest.requireMock(
+    "@/modules/mpv-player/src/cast/CastModule",
+  ).CastNative;
+  native.addChannel.mockRejectedValueOnce(
+    new Error("No active service connection"),
+  );
+
+  await expect(addCastChannel(NAMESPACE, () => {})).rejects.toThrow(
+    "No active service connection",
+  );
+
+  // Left with the native side, the namespace would make the next open skip
+  // registering it, and the receiver would go unheard until the session ends.
+  expect(mockCast.removed).toEqual([NAMESPACE]);
+});
+
+// Kept after the tests that open channels: one that leaves its channel open
+// keeps cast.ts's receiver subscription on its own double, and this test then
+// hears nothing.
+test("a channel opened after a failed open hears each receiver message once", async () => {
+  const native = jest.requireMock(
+    "@/modules/mpv-player/src/cast/CastModule",
+  ).CastNative;
+  native.addChannel.mockRejectedValueOnce(
+    new Error("No active service connection"),
+  );
+  const seen: unknown[] = [];
+  const onMessage = (message: unknown) => seen.push(message);
+
+  await expect(addCastChannel(NAMESPACE, onMessage)).rejects.toThrow();
+  const channel = await addCastChannel(NAMESPACE, onMessage);
+  emitCastEvent(mockCast, "onReceiverMessage", {
+    namespace: NAMESPACE,
+    message: '{"type":"playbackstart"}',
+  });
+
+  // jellyfinReceiver hands every open the same callback: a listener left by
+  // the failed open would deliver each message twice.
+  expect(seen).toEqual(['{"type":"playbackstart"}']);
+  await channel.remove();
+});
+
+test("the caller gets the open's error even when giving the namespace back fails", async () => {
+  const native = jest.requireMock(
+    "@/modules/mpv-player/src/cast/CastModule",
+  ).CastNative;
+  native.addChannel.mockRejectedValueOnce(
+    new Error("No active service connection"),
+  );
+  // The session the open failed on may be gone by then.
+  native.removeChannel.mockRejectedValueOnce(new Error("No Cast session"));
+
+  await expect(addCastChannel(NAMESPACE, () => {})).rejects.toThrow(
+    "No active service connection",
+  );
 });
