@@ -51,4 +51,13 @@ enum VideoDeinterlace {
         }
         return plan
     }
+
+    /// The decoder mode to restore before a new file loads, or nil to leave it.
+    ///
+    /// `requested` is the renderer's `hwdec` property, not the decoder in use. Only
+    /// the copying mode this filter asked for is undone, so the next file starts
+    /// on the configured decoder and `plan` decides again from its own height.
+    static func hwdecBeforeLoad(requested: String?, configured: String) -> String? {
+        requested == copyHwdec ? configured : nil
+    }
 }

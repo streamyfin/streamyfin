@@ -56,6 +56,20 @@ enum VideoDeinterlaceTests {
         expect(VideoDeinterlace.plan(height: 1080, configured: vt, active: copy),
                Plan(filterOn: false, hwdec: vt), "HD after SD")
 
+        // Before a new file loads, the copying mode a standard definition file asked for
+        // goes back to zero-copy, so the next file does not start in it.
+        expect(VideoDeinterlace.hwdecBeforeLoad(requested: copy, configured: vt) == vt, true,
+               "load after copying SD")
+        // Anything the filter did not ask for is left alone.
+        expect(VideoDeinterlace.hwdecBeforeLoad(requested: vt, configured: vt) == nil, true,
+               "load after zero-copy")
+        expect(VideoDeinterlace.hwdecBeforeLoad(requested: "no", configured: vt) == nil, true,
+               "load after a decoder reset to software")
+        expect(VideoDeinterlace.hwdecBeforeLoad(requested: "no", configured: "no") == nil, true,
+               "load with software by configuration")
+        expect(VideoDeinterlace.hwdecBeforeLoad(requested: nil, configured: vt) == nil, true,
+               "load with the decoder not known")
+
         print("VideoDeinterlaceTests passed")
     }
 }

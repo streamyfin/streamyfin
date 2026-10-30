@@ -131,8 +131,8 @@ final class MPVLayerRenderer {
     /// software-decode never gets silently promoted back to VideoToolbox.
     private var configuredHwdec = "videotoolbox"
 
-    /// Whether the deinterlacing filter is in mpv's `vf` chain. Only touched while
-    /// handling mpv events (see `updateDeinterlace`), which run on one queue.
+    /// Whether the deinterlacing filter is in mpv's `vf` chain. Only touched on
+    /// `queue`, by the mpv event handlers (see `updateDeinterlace`).
     private var isDeinterlaceFilterOn = false
 
     weak var delegate: MPVLayerRendererDelegate?
@@ -290,6 +290,24 @@ final class MPVLayerRenderer {
     /// decoder in use, which differs from `hwdec` when VideoToolbox could not take
     /// a stream and mpv fell back to software. Setting `vf` rebuilds the filter
     /// chain and reconfigures the video too, so it is only set when it changes.
+    /// Clears what `updateDeinterlace` set for the previous file, as a new file
+    /// starts. The filter chain and decoder mode outlive a `loadfile`, and a filter
+    /// left in place meets the next file's VideoToolbox frames, which it cannot
+    /// take: mpv fails the chain and drops it with errors before the next
+    /// reconfigure turns it off.
+    private func resetDeinterlace(_ handle: OpaquePointer) {
+        if isDeinterlaceFilterOn {
+            isDeinterlaceFilterOn = false
+            commandSync(handle, ["set", "vf", ""])
+        }
+        if let hwdec = VideoDeinterlace.hwdecBeforeLoad(
+            requested: getStringProperty(handle: handle, name: "hwdec"),
+            configured: configuredHwdec
+        ) {
+            commandSync(handle, ["set", "hwdec", hwdec])
+        }
+    }
+
     private func updateDeinterlace() {
         guard let handle = mpv else { return }
         var height: Int64 = 0
@@ -995,6 +1013,13 @@ final class MPVLayerRenderer {
             updateDeinterlace()
             #endif
         case MPV_EVENT_START_FILE:
+            #if os(iOS)
+            // Here and not in load(): the file being replaced still reconfigures
+            // on its way out, with its own height, and would put the filter back.
+            if let handle = mpv {
+                resetDeinterlace(handle)
+            }
+            #endif
             let entryId = event.data?.assumingMemoryBound(to: mpv_event_start_file.self).pointee.playlist_entry_id
             // A load whose reply named no entry falls back to order, so it
             // still becomes current instead of holding every position back.
