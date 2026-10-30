@@ -1,7 +1,8 @@
 name: 🧪 Native tests
 
-# Unit tests of the native modules (JUnit under modules/*/android/src/test). They only run
-# when a module changes: the Android project has to be generated first, which costs minutes.
+# Unit tests of the native modules (JUnit under modules/*/android/src/test), one Gradle task
+# per module that has some: workflows.test.ts fails when one is left out. They only run when
+# a module changes: the Android project has to be generated first, which costs minutes.
 
 on:
   pull_request:
@@ -90,7 +91,12 @@ jobs:
 
       - name: 🧪 Run the module unit tests
         working-directory: android
-        run: ./gradlew :mpv-player:testDebugUnitTest --no-daemon
+        run: |
+          ./gradlew \
+            :mpv-player:testDebugUnitTest \
+            :exoplayer-player:testDebugUnitTest \
+            :background-downloader:testDebugUnitTest \
+            --no-daemon
 
       - name: 📤 Upload test reports
         if: failure()
