@@ -71,6 +71,7 @@ import { OfflineModeProvider } from "@/providers/OfflineModeProvider";
 import { getSubtitlesForItem } from "@/utils/atoms/downloadedSubtitles";
 import { getActivePlayerType, useSettings } from "@/utils/atoms/settings";
 import { getJellyfinHeadersForUrl } from "@/utils/customHeaders";
+import { resolveRouteTrackIndexes } from "@/utils/directPlayer/routeTrackIndexes";
 import {
   isPlaceholderTick,
   resolveSessionPositionTicks,
@@ -236,14 +237,6 @@ export default function DirectPlayerPage() {
 
   const offline = offlineStr === "true";
 
-  // Audio index: use URL param if provided, otherwise use stored index for offline playback
-  // This is computed after downloadedItem is available, see audioIndexResolved below
-  const audioIndexFromUrl = audioIndexStr
-    ? Number.parseInt(audioIndexStr, 10)
-    : undefined;
-  const subtitleIndexFromUrl = subtitleIndexStr
-    ? Number.parseInt(subtitleIndexStr, 10)
-    : undefined;
   const bitrateValue = bitrateValueStr
     ? Number.parseInt(bitrateValueStr, 10)
     : BITRATES[0].value;
@@ -299,21 +292,12 @@ export default function DirectPlayerPage() {
     reportProgressRef.current = playbackManager.reportPlaybackProgress;
   });
 
-  // Resolve audio index: use URL param if provided, otherwise use stored index for offline playback
-  const audioIndex = useMemo(() => {
-    if (audioIndexFromUrl !== undefined) {
-      return audioIndexFromUrl;
-    }
-    if (offline && downloadedItem?.userData?.audioStreamIndex !== undefined) {
-      return downloadedItem.userData.audioStreamIndex;
-    }
-    return undefined;
-  }, [audioIndexFromUrl, offline, downloadedItem?.userData?.audioStreamIndex]);
-
-  const subtitleIndex =
-    subtitleIndexFromUrl ??
-    (offline ? downloadedItem?.userData?.subtitleStreamIndex : undefined) ??
-    -1;
+  const { audioIndex, subtitleIndex } = resolveRouteTrackIndexes({
+    audioIndex: audioIndexStr,
+    subtitleIndex: subtitleIndexStr,
+    offline,
+    downloaded: downloadedItem?.userData,
+  });
 
   // Initialize TV audio/subtitle indices from URL params.
   // No undefined guard: when a new episode's URL omits audioIndex, reset to
