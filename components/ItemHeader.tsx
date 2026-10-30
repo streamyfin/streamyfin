@@ -5,7 +5,6 @@ import { GenreTags } from "./GenreTags";
 import { MoviesTitleHeader } from "./movies/MoviesTitleHeader";
 import { Ratings } from "./Ratings";
 import { EpisodeTitleHeader } from "./series/EpisodeTitleHeader";
-import { ItemActions } from "./series/SeriesActions";
 
 interface Props extends ViewProps {
   item?: BaseItemDto | null;
@@ -27,11 +26,8 @@ export const ItemHeader: React.FC<Props> = ({ item, ...props }) => {
 
   return (
     <View className='flex flex-col' {...props}>
-      <View className='flex flex-col' {...props}>
-        <View className='flex flex-row items-center justify-between'>
-          <Ratings item={item} className='mb-2' />
-          <ItemActions item={item} />
-        </View>
+      <View className='flex flex-col'>
+        <Ratings item={item} className='mb-2' />
         {item.Type === "Episode" && (
           <View>
             <EpisodeTitleHeader item={item} />

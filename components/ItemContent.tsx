@@ -25,6 +25,7 @@ import { PlayedStatus } from "@/components/PlayedStatus";
 import { SimilarItems } from "@/components/SimilarItems";
 import { CurrentSeries } from "@/components/series/CurrentSeries";
 import { SeasonEpisodesCarousel } from "@/components/series/SeasonEpisodesCarousel";
+import { ItemActions } from "@/components/series/SeriesActions";
 import { SyncPlayButton } from "@/components/syncplay/SyncPlayButton";
 import { SyncPlayQueueButton } from "@/components/syncplay/SyncPlayQueueButton";
 import { LOGO_HEIGHT } from "@/constants/Images";
@@ -321,6 +322,13 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
                     colors={itemColors}
                   />
                 )}
+                {/* Last: the options beside Play are for Play. */}
+                <ItemActions
+                  item={item}
+                  color={itemColors.primary}
+                  iconColor={itemColors.text}
+                  leadingGap={12}
+                />
               </View>
             ) : (
               <Text className='mb-2 text-neutral-400'>

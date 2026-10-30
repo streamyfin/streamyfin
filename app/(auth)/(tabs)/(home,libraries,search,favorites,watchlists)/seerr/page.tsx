@@ -260,7 +260,7 @@ const MobilePage: React.FC = () => {
   useEffect(() => {
     if (details) {
       navigation.setOptions({
-        headerRight: () => <ItemActions item={details} />,
+        headerRight: () => <ItemActions item={details} variant='header' />,
       });
     }
   }, [details]);
