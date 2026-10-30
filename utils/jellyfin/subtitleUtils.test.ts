@@ -15,6 +15,7 @@ import {
   resolveAudioSwitch,
   resolveSubtitleTrack,
   sameSubtitleTrack,
+  withPlayerAudioTracks,
 } from "@/utils/jellyfin/subtitleUtils";
 
 // String-enum values as typed literals — avoids a runtime SDK import (see subtitleUtils.ts).
@@ -992,5 +993,99 @@ describe("resolveAudioSwitch", () => {
         4,
       ),
     ).toEqual({ reload: true });
+  });
+});
+
+describe("withPlayerAudioTracks", () => {
+  // A Jellyfin-compatible server that describes a remote file from its name
+  // (AIOStreams serving a Real-Debrid link) lists one audio stream for a MULTi
+  // release that carries three. The player reads the file and finds all three.
+  const named = {
+    MediaStreams: [
+      { Type: "Video", Index: 0, Codec: "hevc" },
+      { Type: "Audio", Index: 0, DisplayTitle: "French DDP 5.1" },
+      { Type: "Subtitle", Index: 0, DisplayTitle: "French" },
+    ] as MediaStream[],
+  };
+  const played = [
+    {
+      id: 1,
+      title: "ENG VO : DDP 5.1",
+      lang: "eng",
+      codec: "eac3",
+      channels: 6,
+    },
+    {
+      id: 2,
+      title: "FR VFF : DDP 5.1",
+      lang: "fre",
+      codec: "eac3",
+      channels: 6,
+    },
+    {
+      id: 3,
+      title: "FR VFQ : DDP 5.1",
+      lang: "fre",
+      codec: "eac3",
+      channels: 6,
+    },
+  ];
+
+  it("lists every track the player found, in the player's order", () => {
+    const merged = withPlayerAudioTracks(named, played);
+    const audio = merged.MediaStreams?.filter((s) => s.Type === "Audio") ?? [];
+    expect(audio.map((s) => s.DisplayTitle)).toEqual([
+      "ENG VO : DDP 5.1",
+      "FR VFF : DDP 5.1",
+      "FR VFQ : DDP 5.1",
+    ]);
+    expect(audio.map((s) => s.Language)).toEqual(["eng", "fre", "fre"]);
+    // The listed stream keeps its index, so the session's current selection
+    // still points at a row; the others get indexes no stream uses.
+    expect(audio[0].Index).toBe(0);
+    expect(new Set(audio.map((s) => s.Index)).size).toBe(3);
+    // Each row selects its own mpv track.
+    expect(audio.map((s) => getMpvAudioId(merged, s.Index, false))).toEqual([
+      1, 2, 3,
+    ]);
+    // Video and subtitles are untouched.
+    expect(merged.MediaStreams?.filter((s) => s.Type !== "Audio")).toEqual(
+      named.MediaStreams.filter((s) => s.Type !== "Audio"),
+    );
+  });
+
+  it("falls back to the language when a track has no title", () => {
+    const merged = withPlayerAudioTracks(named, [{ lang: "eng" }, {}]);
+    expect(
+      merged.MediaStreams?.filter((s) => s.Type === "Audio").map(
+        (s) => s.DisplayTitle,
+      ),
+    ).toEqual(["eng", undefined]);
+  });
+
+  it("keeps the server's list when it already names every track", () => {
+    expect(withPlayerAudioTracks(named, played.slice(0, 1))).toBe(named);
+    expect(withPlayerAudioTracks(named, [])).toBe(named);
+  });
+
+  // A transcode carries only the track the server encoded: the player's single
+  // track says nothing about the file.
+  it("keeps the server's list on a transcode", () => {
+    const transcoded = { ...named, TranscodingUrl: "/master.m3u8" };
+    expect(withPlayerAudioTracks(transcoded, played)).toBe(transcoded);
+  });
+
+  it("keeps external audio streams out of the player's positions", () => {
+    const withExternal = {
+      MediaStreams: [
+        { Type: "Audio", Index: 5, IsExternal: true },
+        ...named.MediaStreams,
+      ] as MediaStream[],
+    };
+    const merged = withPlayerAudioTracks(withExternal, played);
+    const audio = merged.MediaStreams?.filter((s) => s.Type === "Audio") ?? [];
+    expect(audio.filter((s) => s.IsExternal).map((s) => s.Index)).toEqual([5]);
+    expect(audio.filter((s) => !s.IsExternal)).toHaveLength(3);
+    expect(getMpvAudioId(merged, 5, false)).toBeUndefined();
   });
 });

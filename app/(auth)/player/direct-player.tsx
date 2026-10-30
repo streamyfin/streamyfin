@@ -95,7 +95,9 @@ import {
   getExternalSubtitleUrl,
   getMpvAudioId,
   isImageBasedSubtitle,
+  type PlayerAudioTrack,
   resolveAudioSwitch,
+  withPlayerAudioTracks,
 } from "@/utils/jellyfin/subtitleUtils";
 import { logAndCaptureError, writeToLog } from "@/utils/log";
 import {
@@ -463,6 +465,34 @@ export default function DirectPlayerPage() {
   }
 
   const [stream, setStream] = useState<Stream | null>(null);
+
+  // The audio tracks mpv found, for a source that lists fewer (a server that
+  // names tracks from the file name). Kept apart from `stream` so adding them
+  // to the menus never reloads the player's source.
+  const [playerAudioTracks, setPlayerAudioTracks] = useState<
+    PlayerAudioTrack[]
+  >([]);
+  useEffect(() => {
+    setPlayerAudioTracks([]);
+    if (!tracksReady || offline || !videoRef.current) return;
+    let cancelled = false;
+    videoRef.current
+      .getAudioTracks()
+      .then((tracks) => {
+        if (!cancelled) setPlayerAudioTracks(tracks ?? []);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [tracksReady, offline]);
+  // What the menus and the audio switch read; the player source stays as is.
+  const trackMediaSource = useMemo(
+    () =>
+      stream?.mediaSource &&
+      withPlayerAudioTracks(stream.mediaSource, playerAudioTracks),
+    [stream?.mediaSource, playerAudioTracks],
+  );
   const [streamStatus, setStreamStatus] = useState({
     isLoading: true,
     isError: false,
@@ -1280,7 +1310,7 @@ export default function DirectPlayerPage() {
       // into it, and a direct stream never carries an external audio file —
       // either needs the stream re-negotiated with the new index (like the
       // mobile menu's replacePlayer), not an mpv aid change.
-      const target = resolveAudioSwitch(stream?.mediaSource, index);
+      const target = resolveAudioSwitch(trackMediaSource, index);
       if (target.reload) {
         const queryParams = new URLSearchParams({
           itemId: item?.Id ?? "",
@@ -1304,6 +1334,7 @@ export default function DirectPlayerPage() {
       await videoRef.current?.setAudioTrack?.(target.mpvId);
     },
     [
+      trackMediaSource,
       stream?.mediaSource,
       item?.Id,
       currentSubtitleIndex,
@@ -1750,7 +1781,7 @@ export default function DirectPlayerPage() {
       <PlayerProvider
         playerRef={videoRef}
         item={item}
-        mediaSource={stream?.mediaSource}
+        mediaSource={trackMediaSource}
         isVideoLoaded={isVideoLoaded}
         tracksReady={tracksReady}
         downloadedItem={downloadedItem}
@@ -1852,7 +1883,7 @@ export default function DirectPlayerPage() {
               !isPipMode &&
               (Platform.isTV ? (
                 <TVControls
-                  mediaSource={stream?.mediaSource}
+                  mediaSource={trackMediaSource}
                   item={item}
                   togglePlay={togglePlay}
                   isPlaying={isPlaying}
@@ -1887,7 +1918,7 @@ export default function DirectPlayerPage() {
                 />
               ) : (
                 <Controls
-                  mediaSource={stream?.mediaSource}
+                  mediaSource={trackMediaSource}
                   item={item}
                   togglePlay={togglePlay}
                   isPlaying={isPlaying}

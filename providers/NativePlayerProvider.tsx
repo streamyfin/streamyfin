@@ -58,6 +58,7 @@ import {
   type NativePlayerSubtitleSearchResult,
   nativePlayerAddExternalSubtitle,
   nativePlayerDisableSubtitles,
+  nativePlayerGetAudioTracks,
   nativePlayerGetSubtitleTracks,
   nativePlayerPause,
   nativePlayerPlay,
@@ -112,6 +113,7 @@ import {
   pickAutoSubtitleTrack,
   resolveAudioSwitch,
   type SubtitleSelectablePlayer,
+  withPlayerAudioTracks,
 } from "@/utils/jellyfin/subtitleUtils";
 import { logAndCaptureError, writeErrorLog, writeToLog } from "@/utils/log";
 import { applyLoadEvent } from "@/utils/nativePlayer/applyLoadEvent";
@@ -1409,6 +1411,27 @@ const NativePlayerProviderInner: React.FC<{
     [pushTrackMenus],
   );
 
+  /**
+   * Add the audio tracks mpv found to a source that listed fewer (a server
+   * that names tracks from the file name), so the menu offers all of them.
+   * A no-op once the source lists them, so it is safe on every onTracksReady.
+   */
+  const syncPlayerAudioTracks = useCallback(
+    async (session: NativeSession) => {
+      if (session.offline) return;
+      const tracks = await nativePlayerGetAudioTracks().catch(() => []);
+      if (sessionRef.current !== session) return;
+      const mediaSource = withPlayerAudioTracks(
+        session.stream.mediaSource,
+        tracks,
+      );
+      if (mediaSource === session.stream.mediaSource) return;
+      session.stream = { ...session.stream, mediaSource };
+      pushTrackMenus(session);
+    },
+    [pushTrackMenus],
+  );
+
   const handleAudioSelection = useCallback(
     async (
       session: NativeSession,
@@ -1902,6 +1925,7 @@ const NativePlayerProviderInner: React.FC<{
         } else {
           void applySubtitleSelection(session, session.currentSubtitleIndex);
         }
+        void syncPlayerAudioTracks(session);
         // Mirror of the JS player, which waits for tracksReady before letting
         // the automation act: a track picked before mpv has enumerated them
         // would resolve to notFound and pointlessly re-negotiate the stream.
@@ -2178,6 +2202,7 @@ const NativePlayerProviderInner: React.FC<{
     reportNativeProgress,
     applySubtitleSelection,
     applyLocalSubtitleSelection,
+    syncPlayerAudioTracks,
     handleAudioSelection,
     handleSubtitleSelection,
     handleSubtitleSearch,

@@ -790,6 +790,58 @@ export const resolveAudioSwitch = (
   return mpvId === undefined ? { reload: true } : { reload: false, mpvId };
 };
 
+/** The fields of a player audio track the menus can use. */
+export interface PlayerAudioTrack {
+  title?: string;
+  lang?: string;
+  codec?: string;
+  channels?: number;
+}
+
+/**
+ * Lists the audio tracks the player found when the server listed fewer.
+ *
+ * A server that describes a remote file from its name instead of probing it
+ * (AIOStreams serving a debrid link) lists one audio stream for a release that
+ * carries several. The menus are built from `MediaStreams` and reach mpv by
+ * position (see {@link getMpvAudioId}), so every other track was unreachable.
+ * On a direct stream the player reads the file itself, so its list is the
+ * truth: the file's audio streams are rebuilt from it, in its order. Listed
+ * streams keep their index so the current selection still matches a row.
+ *
+ * Returns `mediaSource` itself when there is nothing to add, so callers can
+ * tell a no-op by identity.
+ */
+export const withPlayerAudioTracks = (
+  mediaSource: MediaSourceInfo,
+  playerTracks: PlayerAudioTrack[],
+): MediaSourceInfo => {
+  const streams = mediaSource.MediaStreams ?? [];
+  const isFileAudio = (s: MediaStream) => s.Type === "Audio" && !s.IsExternal;
+  const listed = streams.filter(isFileAudio);
+  // A transcode carries only the track the server encoded.
+  if (mediaSource.TranscodingUrl || playerTracks.length <= listed.length) {
+    return mediaSource;
+  }
+
+  let nextIndex = Math.max(-1, ...streams.map((s) => s.Index ?? -1)) + 1;
+  const audio: MediaStream[] = playerTracks.map((track, position) => ({
+    Type: "Audio",
+    Index: listed[position]?.Index ?? nextIndex++,
+    Title: track.title,
+    Language: track.lang,
+    Codec: track.codec,
+    Channels: track.channels,
+    DisplayTitle: track.title || track.lang,
+    IsDefault: position === 0,
+  }));
+
+  return {
+    ...mediaSource,
+    MediaStreams: [...streams.filter((s) => !isFileAudio(s)), ...audio],
+  };
+};
+
 /**
  * True when switching to this subtitle forces the server to re-process the
  * stream, which cuts playback and reseeks.
