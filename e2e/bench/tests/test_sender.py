@@ -512,3 +512,18 @@ class SenderMainTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SeekPositionTests(unittest.TestCase):
+    def build_seek(self, position):
+        return build_message("Seek", "https://jellyfin.example.test", "tok-123", "user-1", {"position": position})
+
+    def test_a_position_json_cannot_hold_goes_as_null(self):
+        # JSON.stringify writes NaN and the infinities as null; json.dumps would write invalid JSON.
+        for position in (float("nan"), float("inf"), float("-inf")):
+            with self.subTest(position=position):
+                self.assertIsNone(self.build_seek(position)["options"]["position"])
+
+    def test_a_boolean_is_not_a_position(self):
+        # bool is an int in Python; the app sends it as it is.
+        self.assertIs(self.build_seek(True)["options"]["position"], True)

@@ -119,11 +119,16 @@ def build_message(
 def in_whole_seconds(options: dict) -> dict:
     """Seek's position, in seconds, sent whole: the receiver turns it into ticks without rounding, and
     when it reloads the stream from there a fraction becomes a StartTimeTicks the server may reject.
-    Rounded as the app's Math.round does, halves up, where Python's round() goes to even."""
+    Rounded exactly as the app's Math.round does, halves up: adding 0.5 first rounds the sum too, and
+    Python's round() goes to even. JSON has no NaN or infinity, so those go as null, as JSON.stringify
+    writes them; a boolean is not a position, though Python counts it as an int."""
     position = options.get("position")
-    if not isinstance(position, (int, float)):
+    if isinstance(position, bool) or not isinstance(position, (int, float)):
         return options
-    return {**options, "position": math.floor(position + 0.5)}
+    if not math.isfinite(position):
+        return {**options, "position": None}
+    whole = math.floor(position)
+    return {**options, "position": whole + 1 if position - whole >= 0.5 else whole}
 
 
 def to_receiver_device_name(name: str) -> str:
