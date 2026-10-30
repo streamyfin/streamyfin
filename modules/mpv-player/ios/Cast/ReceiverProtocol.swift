@@ -92,7 +92,7 @@ enum ReceiverProtocol {
   static let ticksPerSecond = 10_000_000.0
 
   /// A playlist, an artist or a genre sent first plays through its children, as any folder does.
-  private static let playedThroughChildren: Set<String> = ["Playlist", "MusicArtist", "MusicGenre"]
+  private static let containerTypes: Set<String> = ["Playlist", "MusicArtist", "MusicGenre"]
 
   /// JavaScript's `\s` (the receiver cleans its name with it), as UTF-16 code units: Foundation's
   /// and ICU's whitespace classes differ from it, so the set is written out.
@@ -109,8 +109,8 @@ enum ReceiverProtocol {
   static func message(command: String, server: ReceiverServer, options: [String: Any] = [:]) -> [String: Any] {
     var sent = options
     // Seek takes seconds, and the receiver turns them into ticks unrounded, which the server may reject.
-    if command == "Seek", let position = number(options["position"]) {
-      sent["position"] = clampedInt64((position + 0.5).rounded(.down))
+    if command == "Seek", let position = options["position"] {
+      sent["position"] = wholeSeconds(position)
     }
     var message: [String: Any] = [
       "command": command,
@@ -134,7 +134,8 @@ enum ReceiverProtocol {
     return ReceiverPlayRequest(items: [channel])
   }
 
-  static func playNow(server: ReceiverServer, request: ReceiverPlayRequest) -> [String: Any] {
+  static func playNow(server: ReceiverServer, request: ReceiverPlayRequest) throws -> [String: Any] {
+    if let container = request.items.first(where: isContainer) { throw ReceiverContainerRefused(item: container) }
     let sent = toReceiverRequest(request)
     var options: [String: Any] = [:]
     if let value = sent.startIndex { options["startIndex"] = value }
@@ -225,6 +226,17 @@ enum ReceiverProtocol {
     return Int64(value)
   }
 
+  /// A Seek position in whole seconds, exactly as JavaScript's Math.round (half up): adding 0.5 first
+  /// rounds the sum too, which takes 0.49999999999999994 to 1. JSON has no NaN or infinity, so those go
+  /// as null, as JSON.stringify writes them; anything but a number is sent as it is.
+  private static func wholeSeconds(_ value: Any) -> Any {
+    guard let number = value as? NSNumber, !isBoolean(number) else { return value }
+    let position = number.doubleValue
+    guard position.isFinite else { return NSNull() }
+    let down = position.rounded(.down)
+    return clampedInt64(position - down >= 0.5 ? down + 1 : down)
+  }
+
   private static func clampedInt(_ value: Double) -> Int {
     Int(clamping: clampedInt64(value))
   }
@@ -258,10 +270,21 @@ enum ReceiverProtocol {
     return currentTime + Double(customData.startPositionTicks ?? 0) / ticksPerSecond
   }
 
-  /// Whether the receiver plays this item's children instead of the item.
-  static func playsChildren(_ item: ReceiverItem?) -> Bool {
-    guard let item else { return false }
-    return playedThroughChildren.contains(item.type ?? "") || item.isFolder
+  /// Whether the receiver would play children it picks itself instead of this item.
+  static func isContainer(_ item: ReceiverItem) -> Bool {
+    containerTypes.contains(item.type ?? "") || item.isFolder
+  }
+}
+
+/// A request holding a container, refused before anything is sent: the receiver plays children it
+/// picks itself, and startIndex counts in its own list of them, so no item id tells that load from
+/// the media the TV already plays. Callers send the items to play instead, as music does with its
+/// tracks.
+struct ReceiverContainerRefused: Error, CustomStringConvertible {
+  let item: ReceiverItem
+
+  var description: String {
+    "Cannot cast " + (item.type ?? "item") + " " + (item.id ?? "") + ": the receiver plays a container through children it picks, so cast its items instead"
   }
 }
 
@@ -288,14 +311,12 @@ enum ReceiverLoadOutcome {
 /// play session it did not have before (every load gets a new one, which tells a recast of the item
 /// already playing from the media it replaces). The caller owns the clock and calls `timeOut()`.
 final class ReceiverLoadTracker {
-  private let playsChild: Bool
   private let itemId: String?
   private let previousPlaySessionId: String?
   private(set) var outcome: ReceiverLoadOutcome?
 
   init(request: ReceiverPlayRequest, previousPlaySessionId: String?) {
     let sent = ReceiverProtocol.toReceiverRequest(request)
-    playsChild = ReceiverProtocol.playsChildren(sent.items.first)
     let index = sent.startIndex ?? 0
     itemId = sent.items.indices.contains(index) ? sent.items[index].id : nil
     self.previousPlaySessionId = previousPlaySessionId
@@ -311,14 +332,7 @@ final class ReceiverLoadTracker {
   func onMediaStatus(customData: ReceiverCustomData?, playerState: String?) -> ReceiverLoadOutcome? {
     guard let customData, let playerState else { return nil }
     if let previous = previousPlaySessionId, customData.playSessionId == previous { return nil }
-    let isThisLoad: Bool
-    if playsChild {
-      // The receiver picks the child, and startIndex counts in its own list of them: the first
-      // media it plays under a new play session is this load, whatever its item.
-      isThisLoad = customData.playSessionId != nil && playerState == "playing"
-    } else {
-      isThisLoad = itemId != nil && customData.itemId == itemId && playerState != "idle"
-    }
+    let isThisLoad = itemId != nil && customData.itemId == itemId && playerState != "idle"
     return isThisLoad ? settle(.loaded) : nil
   }
 

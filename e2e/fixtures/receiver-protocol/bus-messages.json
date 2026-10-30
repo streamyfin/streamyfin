@@ -312,6 +312,26 @@
       "expected": {
         "invalid": true
       }
+    },
+    {
+      "name": "an unquoted name and value are not JSON, though a lenient parser takes it",
+      "input": "{type:error}",
+      "expected": { "invalid": true }
+    },
+    {
+      "name": "single quotes are not JSON, though a lenient parser takes it",
+      "input": "{'type':'error'}",
+      "expected": { "invalid": true }
+    },
+    {
+      "name": "a comment after the object is not JSON, though a lenient parser takes it",
+      "input": "{\"type\":\"error\"}//c",
+      "expected": { "invalid": true }
+    },
+    {
+      "name": "text after the object is not JSON, though a lenient parser takes it",
+      "input": "{\"type\":\"error\"} trailing",
+      "expected": { "invalid": true }
     }
   ]
 }

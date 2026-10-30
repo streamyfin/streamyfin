@@ -30,7 +30,6 @@ sealed interface ReceiverLoadOutcome {
  */
 class ReceiverLoadTracker(request: ReceiverPlayRequest, private val previousPlaySessionId: String?) {
     private val sent = ReceiverProtocol.toReceiverRequest(request)
-    private val playsChild = ReceiverProtocol.playsChildren(sent.items.firstOrNull())
     private val itemId = sent.items.getOrNull(sent.startIndex ?: 0)?.id
 
     var outcome: ReceiverLoadOutcome? = null
@@ -46,13 +45,7 @@ class ReceiverLoadTracker(request: ReceiverPlayRequest, private val previousPlay
     fun onMediaStatus(customData: ReceiverCustomData?, playerState: String?): ReceiverLoadOutcome? {
         if (customData == null || playerState == null) return null
         if (previousPlaySessionId != null && customData.playSessionId == previousPlaySessionId) return null
-        val isThisLoad = if (playsChild) {
-            // The receiver picks the child, and startIndex counts in its own list of them: the first
-            // media it plays under a new play session is this load, whatever its item.
-            customData.playSessionId != null && playerState == "playing"
-        } else {
-            itemId != null && customData.itemId == itemId && playerState != "idle"
-        }
+        val isThisLoad = itemId != null && customData.itemId == itemId && playerState != "idle"
         return if (isThisLoad) settle(ReceiverLoadOutcome.Loaded) else null
     }
 

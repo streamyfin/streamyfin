@@ -66,6 +66,20 @@ enum ReceiverProtocolTests {
 		)
 	}
 
+	static let refusalServer = ReceiverServer(serverAddress: "https://jellyfin.example.test", accessToken: "tok-123", userId: "user-1")
+
+	/// A container is refused before anything is built, so nothing can be sent.
+	static func refused(_ raw: [String: Any]) -> Bool {
+		do {
+			_ = try ReceiverProtocol.playNow(server: refusalServer, request: request(raw))
+			return false
+		} catch is ReceiverContainerRefused {
+			return true
+		} catch {
+			return false
+		}
+	}
+
 	static func customDataDictionary(_ data: ReceiverCustomData) -> [String: Any] {
 		func value(_ v: Any?) -> Any { v ?? NSNull() }
 		return [
@@ -83,9 +97,13 @@ enum ReceiverProtocolTests {
 
 		for c in vectors(dir, "play-now.json")["cases"] as! [[String: Any]] {
 			let session = server(c["session"] as! [String: Any])
+			if (c["expected"] as? [String: Any])?["refused"] as? String == "container" {
+				check("play-now.json", c["name"] as! String, refused(c["request"] as! [String: Any]))
+				continue
+			}
 			let sent: [String: Any]
 			if let raw = c["request"] as? [String: Any] {
-				sent = ReceiverProtocol.playNow(server: session, request: request(raw))
+				sent = try! ReceiverProtocol.playNow(server: session, request: request(raw))
 			} else {
 				sent = ReceiverProtocol.message(command: c["command"] as! String, server: session, options: (c["options"] as? [String: Any]) ?? [:])
 			}
@@ -138,7 +156,12 @@ enum ReceiverProtocolTests {
 
 		let outcomes = vectors(dir, "load-outcomes.json")
 		for c in outcomes["cases"] as! [[String: Any]] {
-			let sent = request((c["request"] as? [String: Any]) ?? outcomes["request"] as! [String: Any])
+			let raw = (c["request"] as? [String: Any]) ?? outcomes["request"] as! [String: Any]
+			if (c["expected"] as? [String: Any])?["refused"] as? String == "container" {
+				check("load-outcomes.json", c["name"] as! String, refused(raw))
+				continue
+			}
+			let sent = request(raw)
 			let previous = c["previous"] as? [String: Any]
 			let tracker = ReceiverLoadTracker(request: sent, previousPlaySessionId: previous?["playSessionId"] as? String)
 			for event in c["events"] as! [[String: Any]] {
@@ -175,6 +198,15 @@ enum ReceiverProtocolTests {
 			options: ["position": 1e30]
 		)
 		check("swift", "an out-of-range seek position saturates", (seek["options"] as? [String: Any])?["position"] as? Int64 == Int64.max)
+
+		// JSON has no NaN or infinity: JSON.stringify writes null, where JSONSerialization would raise an
+		// Objective-C exception Swift cannot catch. Anything but a number is sent as it is, as TypeScript
+		// and Kotlin do.
+		let nanSeek = ReceiverProtocol.message(command: "Seek", server: refusalServer, options: ["position": Double.nan])
+		check("swift", "a Seek position JSON cannot hold goes as null", JSONSerialization.isValidJSONObject(nanSeek)
+			&& (nanSeek["options"] as? [String: Any])?["position"] is NSNull)
+		let textSeek = ReceiverProtocol.message(command: "Seek", server: refusalServer, options: ["position": "125.6"])
+		check("swift", "a Seek position that is not a number is sent as it is", (textSeek["options"] as? [String: Any])?["position"] as? String == "125.6")
 
 		if failures.isEmpty {
 			print("PASS: receiver protocol vectors (\(cases) cases)")

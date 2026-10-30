@@ -1,5 +1,9 @@
 package expo.modules.mpvplayer.cast.receiver
 
+import android.util.JsonReader
+import android.util.JsonToken
+import java.io.IOException
+import java.io.StringReader
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
@@ -51,6 +55,16 @@ sealed interface ReceiverMessage {
 }
 
 /** Why the receiver failed a load, named after what its bus message means. */
+/**
+ * A request holding a container, refused before anything is sent: the receiver plays children it
+ * picks itself, and startIndex counts in its own list of them, so no item id tells that load from
+ * the media the TV already plays. Callers send the items to play instead, as music does with its
+ * tracks.
+ */
+class ReceiverContainerRefused(val item: ReceiverItem) : IllegalArgumentException(
+    "Cannot cast ${item.type ?: "item"} ${item.id}: the receiver plays a container through children it picks, so cast its items instead",
+)
+
 enum class ReceiverLoadError(val wireName: String) {
     /** connectionerror: its PlaybackInfo request failed (network, 401, 400, 500). */
     PLAYBACK_INFO_FAILED("playback_info_failed"),
@@ -94,8 +108,8 @@ object ReceiverProtocol {
     const val UNCAPPED_BITRATE = 120_000_000L
     const val TICKS_PER_SECOND = 10_000_000L
 
-    /** A playlist, an artist or a genre sent first plays through its children, as any folder does. */
-    private val PLAYED_THROUGH_CHILDREN = setOf("Playlist", "MusicArtist", "MusicGenre")
+    /** A playlist, an artist or a genre plays through children the receiver picks, as any folder does. */
+    private val CONTAINER_TYPES = setOf("Playlist", "MusicArtist", "MusicGenre")
 
     /**
      * JavaScript's `\s` (the receiver cleans its name with it): Java's and ICU's differ, so the set
@@ -145,6 +159,7 @@ object ReceiverProtocol {
     }
 
     fun playNow(server: ReceiverServer, request: ReceiverPlayRequest): JSONObject {
+        request.items.firstOrNull { isContainer(it) }?.let { throw ReceiverContainerRefused(it) }
         val sent = toReceiverRequest(request)
         val options = JSONObject().apply {
             sent.startIndex?.let { put("startIndex", it) }
@@ -191,11 +206,30 @@ object ReceiverProtocol {
         return if (id.isNotEmpty()) "$FALLBACK_NAME $id" else FALLBACK_NAME
     }
 
-    /** The bridges deliver what the receiver sent as a string; it is JSON unless something broke. */
-    fun parseMessage(raw: String): ReceiverMessage = try {
-        ReceiverMessage.Parsed(JSONObject(raw))
-    } catch (_: JSONException) {
-        ReceiverMessage.Unparsed(raw)
+    /**
+     * The bridges deliver what the receiver sent as a string; it is JSON unless something broke.
+     * org.json takes unquoted names, single quotes, comments and text after the object, which
+     * JSON.parse and JSONSerialization refuse: a strict reader decides first, so all three agree.
+     */
+    fun parseMessage(raw: String): ReceiverMessage {
+        if (!isStrictJsonObject(raw)) return ReceiverMessage.Unparsed(raw)
+        return try {
+            ReceiverMessage.Parsed(JSONObject(raw))
+        } catch (_: JSONException) {
+            ReceiverMessage.Unparsed(raw)
+        }
+    }
+
+    private fun isStrictJsonObject(raw: String): Boolean = try {
+        JsonReader(StringReader(raw)).use { reader ->
+            if (reader.peek() != JsonToken.BEGIN_OBJECT) return false
+            reader.skipValue()
+            reader.peek() == JsonToken.END_DOCUMENT
+        }
+    } catch (_: IOException) {
+        false
+    } catch (_: IllegalStateException) {
+        false
     }
 
     fun loadErrorOf(message: ReceiverMessage): ReceiverLoadError? = when ((message as? ReceiverMessage.Parsed)?.type) {
@@ -243,7 +277,6 @@ object ReceiverProtocol {
             currentTime
         }
 
-    /** Whether the receiver plays this item's children instead of the item. */
-    fun playsChildren(item: ReceiverItem?): Boolean =
-        item != null && (item.type in PLAYED_THROUGH_CHILDREN || item.isFolder)
+    /** Whether the receiver would play children it picks itself instead of this item. */
+    fun isContainer(item: ReceiverItem): Boolean = item.type in CONTAINER_TYPES || item.isFolder
 }

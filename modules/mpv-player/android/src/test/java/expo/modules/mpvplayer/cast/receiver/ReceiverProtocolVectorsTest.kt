@@ -4,6 +4,7 @@ import java.io.File
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -73,12 +74,17 @@ class ReceiverProtocolVectorsTest {
     @Test
     fun playNowVectors() {
         failures("play-now.json", vectors("play-now.json").getJSONArray("cases").objects()) { case ->
-            val sent = if (case.has("request")) {
-                ReceiverProtocol.playNow(server(case.getJSONObject("session")), request(case.getJSONObject("request")))
+            val expected = case.getJSONObject("expected")
+            if (expected.optString("refused") == "container") {
+                assertRefused(case.getJSONObject("request"))
             } else {
-                ReceiverProtocol.message(case.getString("command"), server(case.getJSONObject("session")), case.optJSONObject("options") ?: JSONObject())
+                val sent = if (case.has("request")) {
+                    ReceiverProtocol.playNow(server(case.getJSONObject("session")), request(case.getJSONObject("request")))
+                } else {
+                    ReceiverProtocol.message(case.getString("command"), server(case.getJSONObject("session")), case.optJSONObject("options") ?: JSONObject())
+                }
+                assertEquals(plain(expected), plain(sent))
             }
-            assertEquals(plain(case.getJSONObject("expected")), plain(sent))
         }
     }
 
@@ -123,6 +129,13 @@ class ReceiverProtocolVectorsTest {
         }
     }
 
+    /** A container is refused before anything is built, so nothing can be sent. */
+    private fun assertRefused(raw: JSONObject) {
+        val server = ReceiverServer("https://jellyfin.example.test", "tok-123", "user-1")
+        val refusal = runCatching { ReceiverProtocol.playNow(server, request(raw)) }.exceptionOrNull()
+        assertTrue("expected a container refusal, got $refusal", refusal is ReceiverContainerRefused)
+    }
+
     private fun customDataMap(data: ReceiverCustomData) = mapOf(
         "itemId" to data.itemId,
         "playSessionId" to data.playSessionId,
@@ -158,7 +171,12 @@ class ReceiverProtocolVectorsTest {
     fun loadOutcomeVectors() {
         val file = vectors("load-outcomes.json")
         failures("load-outcomes.json", file.getJSONArray("cases").objects()) { case ->
-            val sent = request(case.optJSONObject("request") ?: file.getJSONObject("request"))
+            val raw = case.optJSONObject("request") ?: file.getJSONObject("request")
+            if (case.getJSONObject("expected").optString("refused") == "container") {
+                assertRefused(raw)
+                return@failures
+            }
+            val sent = request(raw)
             val previous = case.optJSONObject("previous")
             val tracker = ReceiverLoadTracker(sent, previous?.optStringOrNull("playSessionId"))
             for (event in case.getJSONArray("events").objects()) {
