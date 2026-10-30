@@ -20,6 +20,7 @@ import {
   type JellyfinCastCommand,
   playOnJellyfinReceiver,
   queueWindow,
+  ReceiverContainerRefusedError,
   receiverNameFor,
   sendJellyfinCastCommand,
   subscribeToJellyfinReceiverMessages,
@@ -157,6 +158,27 @@ describe("playOnJellyfinReceiver", () => {
     expect(capped.maxBitrate).toBe(2_000_000);
     expect(uncapped.maxBitrate).toBe(RECEIVER_UNCAPPED_BITRATE);
     expect(uncapped).not.toHaveProperty("receiverName");
+  });
+
+  test("refuses a container anywhere in the queue, before anything is sent", async () => {
+    // Handed a playlist, the receiver plays an entry it picks itself, and no
+    // item id tells that load from the media the TV already plays.
+    const refusal = playOnJellyfinReceiver(
+      { api: makeApi(), userId: "user-1" },
+      {
+        items: [
+          { Id: "track-1", Type: "Audio", IsFolder: false },
+          { Id: "playlist-1", Type: "Playlist" },
+        ],
+      },
+    );
+
+    await expect(refusal).rejects.toThrow(ReceiverContainerRefusedError);
+    await expect(refusal).rejects.toMatchObject({
+      name: "ReceiverContainerRefusedError",
+      message: expect.stringContaining("Playlist playlist-1"),
+    });
+    expect(mockCast.channels.flatMap((channel) => channel.sent)).toEqual([]);
   });
 
   test.each<JellyfinCastCommand>(["PlayPause", "NextTrack", "PreviousTrack"])(
@@ -747,6 +769,31 @@ describe("castToJellyfinReceiver", () => {
     await sent();
     client.emit(status("buffering", "item-2", "session-b"));
     expect(await second).toEqual({ status: "loaded" });
+  });
+
+  test("refuses a container without replacing the cast still loading", async () => {
+    // Nothing reaches the TV, so the cast before it is still the one to wait for.
+    const client = makeClient();
+    const first = castToJellyfinReceiver(
+      client as never,
+      session(),
+      { items: [movie] },
+      1_000,
+    );
+    await sent();
+
+    await expect(
+      castToJellyfinReceiver(
+        client as never,
+        session(),
+        { items: [{ Id: "album-1", Type: "MusicAlbum", IsFolder: true }] },
+        1_000,
+      ),
+    ).rejects.toThrow(ReceiverContainerRefusedError);
+    expect(lastChannel().sent).toHaveLength(1);
+
+    client.emit(status("buffering", "item-1", "session-a"));
+    expect(await first).toEqual({ status: "loaded" });
   });
 
   test("rejects when the command cannot be sent", async () => {

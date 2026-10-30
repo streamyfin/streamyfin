@@ -212,6 +212,56 @@
         "maxBitrate": 120000000,
         "options": { "position": 126 }
       }
+    },
+    {
+      "name": "a container is refused",
+      "session": {
+        "basePath": "https://jellyfin.example.test",
+        "accessToken": "tok-123",
+        "userId": "user-1",
+        "receiverName": "Living Room TV"
+      },
+      "command": "PlayNow",
+      "request": {
+        "items": [
+          {
+            "Id": "playlist-1",
+            "Name": "Road trip",
+            "Type": "Playlist",
+            "MediaType": "Audio"
+          }
+        ]
+      },
+      "expected": { "refused": "container" }
+    },
+    {
+      "name": "a container anywhere in the queue is refused, and any folder is one whatever its type",
+      "session": {
+        "basePath": "https://jellyfin.example.test",
+        "accessToken": "tok-123",
+        "userId": "user-1",
+        "receiverName": "Living Room TV"
+      },
+      "command": "PlayNow",
+      "request": {
+        "items": [
+          {
+            "Id": "track-1",
+            "Name": "A track",
+            "Type": "Audio",
+            "MediaType": "Audio",
+            "IsFolder": false
+          },
+          {
+            "Id": "album-1",
+            "Name": "An album",
+            "Type": "MusicAlbum",
+            "IsFolder": true
+          }
+        ],
+        "startIndex": 0
+      },
+      "expected": { "refused": "container" }
     }
   ]
 }

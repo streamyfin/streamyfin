@@ -93,7 +93,7 @@ class FakeReceiver:
     """A Cast device, its media status and the Jellyfin receiver's channel in one object, since the
     sender reaches all three through the cast. Like the receiver, it plays what it is sent under a
     new play session, buffering first, keeps the token of the last message, and answers Identify
-    with a playbackstop while it plays or pauses."""
+    with a playbackstop of its play session while it plays or pauses."""
 
     def __init__(self, app_id: str | None = RECEIVER_APP_ID, status: FakeStatus | None = None, clock: FakeClock | None = None):
         self.app_id = app_id
@@ -157,7 +157,11 @@ class FakeReceiver:
         elif command == "Unpause" and self.status.player_state == "PAUSED":
             self.status.player_state = "PLAYING"
         elif command == "Identify" and self.status.player_state in ("PLAYING", "PAUSED"):
-            state = {"PositionTicks": round(self.status.current_time * 10_000_000), "IsPaused": self.status.player_state == "PAUSED"}
+            state = {
+                "PlaySessionId": (self.status.media_custom_data or {}).get("playSessionId"),
+                "PositionTicks": round(self.status.current_time * 10_000_000),
+                "IsPaused": self.status.player_state == "PAUSED",
+            }
             self.bus.append(BusMessage(type="playbackstop", data={"PlayState": state}))
 
 
