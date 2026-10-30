@@ -14,8 +14,12 @@
       "!e2e/.venv",
       "!e2e/reports",
       "!e2e/**/__pycache__",
+      "!e2e/bench/config.local.json",
+      "!e2e/bench/receiver-tokens.local.json",
       "!e2e/suites/syncplay/.state",
       "!e2e/suites/syncplay/artifacts",
+      "!e2e/syncplay/.state",
+      "!e2e/syncplay/artifacts",
       "!docs/jellyfin-openapi-stable.json",
       "!**/*.svg",
       "!.reassure"

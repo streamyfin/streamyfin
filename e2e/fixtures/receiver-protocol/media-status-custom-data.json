@@ -58,7 +58,7 @@
         "audioStreamIndex": "2",
         "subtitleStreamIndex": "-1",
         "runtimeTicks": "600000000",
-        "playMethod": "DirectPlay"
+        "playMethod": "DirectStream"
       },
       "expected": {
         "itemId": "item-3",
@@ -66,7 +66,7 @@
         "audioStreamIndex": 2,
         "subtitleStreamIndex": -1,
         "mediaSourceId": null,
-        "playMethod": "DirectPlay",
+        "playMethod": "DirectStream",
         "runtimeTicks": 600000000,
         "startPositionTicks": null,
         "canSeek": null,
