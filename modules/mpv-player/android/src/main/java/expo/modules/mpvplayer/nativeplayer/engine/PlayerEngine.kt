@@ -38,6 +38,9 @@ interface PlayerEngine : TransportEngine, RenderingEngine, QueueEngine {
     /** Process-level player slot; mapped onto the shared single-player gate. */
     enum class Owner { EMBEDDED_VIEW, NATIVE_SESSION }
 
-    /** The transport delegate under the name the chrome and the local engines use. */
+    /**
+     * The transport delegate under the name its implementers use (the chrome's view model and
+     * the embedded view); the engines hold it as [TransportEngine.Delegate].
+     */
     interface Delegate : TransportEngine.Delegate
 }

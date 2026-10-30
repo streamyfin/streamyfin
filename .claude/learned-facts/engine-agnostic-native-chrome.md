@@ -30,8 +30,10 @@ that picks the Jellyfin device profile. Consequences:
   `PlayerEngineProtocols.swift`, with `PlayerEngine = TransportEngine &
   RenderingEngine & QueueEngine` and the delegate typed on the transport face.
   A remote engine (Cast, later Play On and AirPlay) implements transport and
-  queue only, so the chrome in remote mode reaches rendering members through a
-  cast (`engine as? RenderingEngine`) and treats their absence as "none", as the
-  iOS view model already does for picture in picture.
+  queue only. Today every engine the chrome holds is local and typed
+  `PlayerEngine`; the remote mode will hold `TransportEngine & QueueEngine` and
+  reach rendering members through a cast (`engine as? RenderingEngine`),
+  treating their absence as "none". The iOS view model already reads picture in
+  picture that way.
 - A Swift file added to the module joins the Pods target only after the pods
   are installed again; until then xcodebuild fails on the types it declares.
