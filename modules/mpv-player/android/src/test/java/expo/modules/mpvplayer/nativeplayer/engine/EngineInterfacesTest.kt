@@ -16,6 +16,7 @@ class EngineInterfacesTest {
         override var duration = 0.0
         override val isTv = false
         var played = 0
+        val seeks = mutableListOf<String>()
         override fun start(owner: PlayerEngine.Owner, onStarted: () -> Unit) = onStarted()
         override fun stop() {}
         override fun load(config: VideoLoadConfig) {}
@@ -23,7 +24,12 @@ class EngineInterfacesTest {
         override fun play() { played += 1 }
         override fun pause() {}
         override fun togglePause() {}
-        override fun seekTo(seconds: Double) {}
+        override fun seekTo(seconds: Double) { seeks += "seekTo $seconds" }
+        // Recorded, then left to the interface default, which goes through seekTo.
+        override fun seekToExact(seconds: Double) {
+            seeks += "seekToExact $seconds"
+            super.seekToExact(seconds)
+        }
         override fun seekBy(seconds: Double) {}
         override fun setSpeed(speed: Double) {}
         override fun getSpeed() = 1.0
@@ -65,6 +71,7 @@ class EngineInterfacesTest {
     fun seekToTrackedKeepsItsDefault() {
         val engine = RemoteOnlyEngine()
         engine.seekToTracked(12.0, exact = true, requestId = 7)
-        assertEquals(0.0, engine.currentPosition, 0.0)
+        engine.seekToTracked(3.0, exact = false, requestId = 8)
+        assertEquals(listOf("seekToExact 12.0", "seekTo 12.0", "seekTo 3.0"), engine.seeks)
     }
 }
