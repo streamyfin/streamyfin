@@ -8,7 +8,7 @@
       "match": { "code": "V01" },
       "note": "H.264 High 8 bits 1080p, AAC stereo, MKV",
       "expect": {
-        "chromecast-gen3": "DirectStream",
+        "chromecast-gen3": "Transcode",
         "google-tv-streamer": "DirectStream",
         "apple-tv": "DirectPlay"
       }
