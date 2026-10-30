@@ -1,6 +1,8 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { act, renderHook } from "@testing-library/react-native";
 import { Alert } from "react-native";
+import { AUTO_BITRATE_VALUE } from "@/constants/Bitrate";
+import type { BitrateRequest } from "@/utils/bitrate";
 import { usePlayMedia } from "./usePlayMedia";
 
 const mockPush = jest.fn();
@@ -45,10 +47,13 @@ jest.mock("react-i18next", () => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }));
 
-const play = async (item: BaseItemDto) => {
+const play = async (item: BaseItemDto, bitrateValue?: BitrateRequest) => {
   const { result } = await renderHook(() => usePlayMedia());
   await act(async () => {
-    await result.current({ itemId: item.Id!, offline: false }, { item });
+    await result.current(
+      { itemId: item.Id!, offline: false, bitrateValue },
+      { item },
+    );
   });
 };
 
@@ -177,5 +182,39 @@ describe("usePlayMedia", () => {
 
     expect(mockPresentFromRequest).not.toHaveBeenCalled();
     expect(mockPush).not.toHaveBeenCalled();
+  });
+
+  // Live TV plays without a cap whatever the default quality, as the guide and
+  // the channel grid do: Auto never measures for it.
+  test("plays live television without a cap under Auto", async () => {
+    await play({ Id: "channel-1", Type: "TvChannel" }, AUTO_BITRATE_VALUE);
+
+    expect(mockPush).toHaveBeenCalledWith(
+      expect.stringContaining("bitrateValue=max"),
+    );
+  });
+
+  test("plays live television without a cap when no quality is given", async () => {
+    await play({ Id: "program-1", Type: "Program" });
+
+    expect(mockPush).toHaveBeenCalledWith(
+      expect.stringContaining("bitrateValue=max"),
+    );
+  });
+
+  test("keeps a bitrate picked by hand for live television", async () => {
+    await play({ Id: "channel-1", Type: "TvChannel" }, 4_000_000);
+
+    expect(mockPush).toHaveBeenCalledWith(
+      expect.stringContaining("bitrateValue=4000000"),
+    );
+  });
+
+  test("keeps Auto for anything but live television", async () => {
+    await play({ Id: "movie-1", Type: "Movie" }, AUTO_BITRATE_VALUE);
+
+    expect(mockPush).toHaveBeenCalledWith(
+      expect.stringContaining("bitrateValue=auto"),
+    );
   });
 });

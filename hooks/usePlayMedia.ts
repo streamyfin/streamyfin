@@ -3,6 +3,7 @@ import { useSetAtom } from "jotai";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert } from "react-native";
+import { AUTO_BITRATE_VALUE, MAX_BITRATE_VALUE } from "@/constants/Bitrate";
 import useRouter from "@/hooks/useAppRouter";
 import { isNativePlayerPresented } from "@/modules/mpv-player";
 import { useNativePlayer } from "@/providers/NativePlayerProvider";
@@ -117,7 +118,15 @@ export const usePlayMedia = () => {
         return;
       }
 
-      router.push(`/player/direct-player?${toDirectPlayerQuery(req)}`);
+      // Live TV plays without a cap unless a bitrate was picked by hand, as
+      // the guide and the channel grid do: Auto never measures for it.
+      const routeReq: PlayRequest =
+        isLiveTv &&
+        (req.bitrateValue === undefined ||
+          req.bitrateValue === AUTO_BITRATE_VALUE)
+          ? { ...req, bitrateValue: MAX_BITRATE_VALUE }
+          : req;
+      router.push(`/player/direct-player?${toDirectPlayerQuery(routeReq)}`);
     },
     [router, settings, setShuffleQueue, presentFromRequest, syncPlay, t],
   );
