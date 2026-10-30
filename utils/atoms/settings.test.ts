@@ -15,14 +15,16 @@ import {
   PLUGIN_SETTINGS_KEY,
   SETTINGS_KEY,
 } from "@/utils/storedSettings";
+import type { PluginLockableSettings } from "./settings";
 
 jest.mock(
   "react-native-mmkv",
   () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
 );
-// BitrateSelector is a React component module; only the BITRATES table matters.
-jest.mock("@/components/BitrateSelector", () => ({
-  BITRATES: [{ key: "Max", value: undefined }],
+// The real BITRATES table: which quality is the default, and what the plugin's
+// keys resolve to, are under test. Only the dropdown it ships with is native.
+jest.mock("@/components/PlatformDropdown", () => ({
+  PlatformDropdown: () => null,
 }));
 // The api atoms read react-native-device-info (native at test time);
 // settings.ts only reads the atoms.
@@ -786,5 +788,65 @@ describe("the stop playback confirmation", () => {
     // Jellyfin's Android TV app, Wholphin, Swiftfin and Plex all leave
     // playback on Back without asking.
     expect(defaultValues.confirmBeforeStoppingPlayback).toBe(false);
+  });
+});
+
+describe("the default quality", () => {
+  const store = getDefaultStore();
+  const effectiveQuality = () =>
+    store.get(effectiveSettingsAtom).defaultBitrate;
+
+  afterEach(() => {
+    store.set(pluginSettingsAtom, undefined);
+    store.set(settingsAtom, null);
+  });
+
+  test("is Auto", () => {
+    expect(defaultValues.defaultBitrate).toEqual({
+      key: "Auto",
+      value: undefined,
+    });
+  });
+
+  test("is Auto when the plugin sends Auto as its key", () => {
+    store.set(pluginSettingsAtom, {
+      defaultBitrate: { locked: true, value: "Auto" },
+    } as unknown as PluginLockableSettings);
+
+    expect(effectiveQuality()).toEqual({ key: "Auto", value: undefined });
+  });
+
+  // Jellyfin leaves a null out of the plugin's JSON, so the plugin's "no cap"
+  // comes without a value. Auto, listed before Max, has no value either.
+  test("is Max when the plugin locks it without a value", () => {
+    store.set(pluginSettingsAtom, {
+      defaultBitrate: { locked: true },
+    } as unknown as PluginLockableSettings);
+
+    expect(effectiveQuality()).toEqual({ key: "Max", value: undefined });
+  });
+
+  test("is the one the plugin locks, over the user's Auto", () => {
+    store.set(settingsAtom, {
+      defaultBitrate: { key: "Auto", value: undefined },
+    });
+    store.set(pluginSettingsAtom, {
+      defaultBitrate: { locked: true, value: 8_000_000 },
+    } as unknown as PluginLockableSettings);
+
+    expect(effectiveQuality()).toEqual(
+      expect.objectContaining({ key: "8 Mb/s", value: 8_000_000 }),
+    );
+  });
+
+  test("is Max when the plugin locks Max over the user's Auto", () => {
+    store.set(settingsAtom, {
+      defaultBitrate: { key: "Auto", value: undefined },
+    });
+    store.set(pluginSettingsAtom, {
+      defaultBitrate: { locked: true, value: "Max" },
+    } as unknown as PluginLockableSettings);
+
+    expect(effectiveQuality()).toEqual({ key: "Max", value: undefined });
   });
 });

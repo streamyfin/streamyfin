@@ -26,6 +26,7 @@ import { lacksMediaSource } from "@/providers/Downloads/downloadRequest";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { queueAtom } from "@/utils/atoms/queue";
 import { useSettings } from "@/utils/atoms/settings";
+import { toDownloadBitrate } from "@/utils/bitrate";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { getDownloadStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import { logAndCaptureError, writeToLog } from "@/utils/log";
@@ -132,10 +133,12 @@ export const DownloadItems: React.FC<DownloadProps> = ({
 
   const {
     defaultAudioIndex,
-    defaultBitrate,
+    defaultBitrate: defaultPlaybackBitrate,
     defaultMediaSource,
     defaultSubtitleIndex,
   } = useDefaultPlaySettings(optionsItem, settings);
+  // The sheet offers no Auto: a download is made at Max instead.
+  const defaultBitrate = toDownloadBitrate(defaultPlaybackBitrate);
 
   // Initialize selectedOptions with default values
   useEffect(() => {

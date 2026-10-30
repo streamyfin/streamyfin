@@ -29,6 +29,11 @@ import { PLAYBACK_SPEEDS } from "@/components/PlaybackSpeedSelector";
 import useRouter from "@/hooks/useAppRouter";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { useSettings } from "@/utils/atoms/settings";
+import {
+  bitrateLabel,
+  routeBitrateParam,
+  toBitrateParam,
+} from "@/utils/bitrate";
 import { usePlayerContext } from "../contexts/PlayerContext";
 import { useVideoContext } from "../contexts/VideoContext";
 import { PlaybackSpeedScope } from "../utils/playback-speed-settings";
@@ -303,17 +308,19 @@ const DropdownView = ({
   const optionGroups = useMemo<OptionGroup[]>(() => {
     const groups: OptionGroup[] = [];
 
-    // Quality Section
+    // Quality Section. A route that names no quality plays at the default
+    // one, marked as such.
     if (!isOffline) {
+      const playing = routeBitrateParam(bitrateValue, settings.defaultBitrate);
       groups.push({
         title: t("player.menu.quality"),
         options:
           BITRATES?.map((bitrate) => ({
             type: "radio" as const,
-            label: bitrate.key,
-            value: bitrate.value?.toString() ?? "",
-            selected: bitrateValue === (bitrate.value?.toString() ?? ""),
-            onPress: () => changeBitrate(bitrate.value?.toString() ?? ""),
+            label: bitrateLabel(t, bitrate),
+            value: toBitrateParam(bitrate),
+            selected: playing === toBitrateParam(bitrate),
+            onPress: () => changeBitrate(toBitrateParam(bitrate)),
           })) || [],
       });
     }
@@ -410,6 +417,7 @@ const DropdownView = ({
     t,
     isOffline,
     bitrateValue,
+    settings.defaultBitrate,
     changeBitrate,
     subtitleTracksKey,
     audioTracksKey,

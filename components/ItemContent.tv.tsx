@@ -20,7 +20,7 @@ import { useTranslation } from "react-i18next";
 import { Alert, Dimensions, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AwardsBadge } from "@/components/AwardsBadge";
-import { BITRATES, type Bitrate } from "@/components/BitrateSelector";
+import { type Bitrate, bitrateOptions } from "@/components/BitrateSelector";
 import { ItemImage } from "@/components/common/ItemImage";
 import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
@@ -63,6 +63,7 @@ import { useSyncPlay } from "@/providers/SyncPlayProvider";
 import { getSubtitlesForItem } from "@/utils/atoms/downloadedSubtitles";
 import { useSettings } from "@/utils/atoms/settings";
 import type { TVOptionItem } from "@/utils/atoms/tvOptionModal";
+import { bitrateLabel, toBitrateRequest } from "@/utils/bitrate";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
 import { getPrimaryImageUrlById } from "@/utils/jellyfin/image/getPrimaryImageUrlById";
 import { isPlayableItem } from "@/utils/jellyfin/media/isPlayableItem";
@@ -219,7 +220,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
             audioIndex: selectedOptions.audioIndex,
             subtitleIndex: selectedOptions.subtitleIndex,
             mediaSourceId: selectedOptions.mediaSource?.Id ?? undefined,
-            bitrateValue: selectedOptions.bitrate?.value ?? undefined,
+            bitrateValue: toBitrateRequest(selectedOptions.bitrate),
             offline: isOffline,
             playbackPositionTicks: Number.isFinite(positionTicks)
               ? positionTicks
@@ -401,13 +402,10 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
     }, [mediaSources, selectedOptions?.mediaSource?.Id]);
 
     // Quality/bitrate options for selector
-    const qualityOptions: TVOptionItem<Bitrate>[] = useMemo(() => {
-      return BITRATES.map((bitrate) => ({
-        label: bitrate.key,
-        value: bitrate,
-        selected: bitrate.value === selectedOptions?.bitrate?.value,
-      }));
-    }, [selectedOptions?.bitrate?.value]);
+    const qualityOptions: TVOptionItem<Bitrate>[] = useMemo(
+      () => bitrateOptions(t, selectedOptions?.bitrate),
+      [t, selectedOptions?.bitrate],
+    );
 
     // Handlers for option changes. A pick here is as deliberate as one made
     // inside the player, so it feeds the per-series memory the same way —
@@ -553,9 +551,13 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
       return videoStream?.DisplayTitle || source.Name || t("item_card.video");
     }, [selectedOptions?.mediaSource, t]);
 
-    const selectedQualityLabel = useMemo(() => {
-      return selectedOptions?.bitrate?.key || t("item_card.quality");
-    }, [selectedOptions?.bitrate?.key, t]);
+    const selectedQualityLabel = useMemo(
+      () =>
+        selectedOptions?.bitrate
+          ? bitrateLabel(t, selectedOptions.bitrate)
+          : t("item_card.quality"),
+      [selectedOptions?.bitrate, t],
+    );
 
     // Format year and duration
     const year = item?.ProductionYear;
