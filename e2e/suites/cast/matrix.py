@@ -221,7 +221,7 @@ class CastDriver:
         before = self.sender.refresh_status(self.cast)
         self.bus_start = len(self.controller.bus)
         load = Load(item_id=item["Id"], previous_session=before.play_session_id, bus_start=self.bus_start)
-        options = {"items": [self.sender.slim_item(item)], "startIndex": 0, "startPositionTicks": 0}
+        options = self.sender.play_now_options([item])
         self.controller.send(self.sender.build_message("PlayNow", self.server_url, self.session.token, self.session.user_id, options, self.receiver_name))
         samples = [before, self.sender.wait_for_playing(self.cast, load, self.controller.bus)]
         samples.extend(self.sender.watch(self.cast, self.watch_seconds))

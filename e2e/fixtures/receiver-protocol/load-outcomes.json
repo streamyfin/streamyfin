@@ -71,7 +71,7 @@
       "expected": { "status": "timed_out" }
     },
     {
-      "name": "a playlist sent first plays one of its entries: a new play session playing counts, whatever its item",
+      "name": "a playlist is refused: the queue already on the TV moving to its next track is never its load",
       "request": {
         "items": [
           {
@@ -81,21 +81,21 @@
           }
         ]
       },
-      "previous": { "itemId": "item-9", "playSessionId": "ps-0" },
+      "previous": { "itemId": "track-3", "playSessionId": "ps-3" },
       "events": [
         {
           "status": {
             "itemId": "track-4",
-            "playSessionId": "ps-1",
+            "playSessionId": "ps-4",
             "playerState": "playing"
           }
         },
         { "timeout": true }
       ],
-      "expected": { "status": "loaded" }
+      "expected": { "refused": "container" }
     },
     {
-      "name": "an artist sent first plays one of its tracks",
+      "name": "an artist is refused: with no status read before the send, the media already on the TV is never its load",
       "request": {
         "items": [
           {
@@ -116,10 +116,10 @@
         },
         { "timeout": true }
       ],
-      "expected": { "status": "loaded" }
+      "expected": { "refused": "container" }
     },
     {
-      "name": "a genre sent first plays one of its tracks",
+      "name": "a genre is refused",
       "request": {
         "items": [
           {
@@ -140,10 +140,10 @@
         },
         { "timeout": true }
       ],
-      "expected": { "status": "loaded" }
+      "expected": { "refused": "container" }
     },
     {
-      "name": "a folder sent first, an album here, plays one of the media under it",
+      "name": "a folder is refused whatever its type, an album here",
       "request": {
         "items": [
           {
@@ -165,55 +165,7 @@
         },
         { "timeout": true }
       ],
-      "expected": { "status": "loaded" }
-    },
-    {
-      "name": "a playlist's entry still playing under the play session it had before is not the load",
-      "request": {
-        "items": [
-          {
-            "Id": "playlist-1",
-            "Name": "Road trip",
-            "Type": "Playlist"
-          }
-        ]
-      },
-      "previous": { "itemId": "track-4", "playSessionId": "ps-0" },
-      "events": [
-        {
-          "status": {
-            "itemId": "track-4",
-            "playSessionId": "ps-0",
-            "playerState": "playing"
-          }
-        },
-        { "timeout": true }
-      ],
-      "expected": { "status": "timed_out" }
-    },
-    {
-      "name": "a playlist's entry that only buffers has not loaded yet",
-      "request": {
-        "items": [
-          {
-            "Id": "playlist-1",
-            "Name": "Road trip",
-            "Type": "Playlist"
-          }
-        ]
-      },
-      "previous": null,
-      "events": [
-        {
-          "status": {
-            "itemId": "track-4",
-            "playSessionId": "ps-1",
-            "playerState": "buffering"
-          }
-        },
-        { "timeout": true }
-      ],
-      "expected": { "status": "timed_out" }
+      "expected": { "refused": "container" }
     },
     {
       "name": "a playback error fails the load",

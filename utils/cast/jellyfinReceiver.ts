@@ -83,6 +83,10 @@ export interface JellyfinCastSession {
 }
 
 export interface JellyfinCastPlayRequest {
+  /**
+   * The media to play. A container among them is refused before anything is
+   * sent: see `ReceiverContainerRefusedError`.
+   */
   items: BaseItemDto[];
   startIndex?: number;
   startPositionTicks?: number;
@@ -330,10 +334,42 @@ const toReceiverRequest = (
   };
 };
 
+/**
+ * Handed one of these first, or any folder, the receiver plays children it
+ * picks itself (a playlist's entries, an artist's or a genre's tracks, the
+ * media under the folder) and drops the other items sent; one further down
+ * the queue goes to its PlaybackInfo as it is, and fails there.
+ */
+const CONTAINER_TYPES = new Set(["Playlist", "MusicArtist", "MusicGenre"]);
+
+const isContainer = (item: BaseItemDto): boolean =>
+  CONTAINER_TYPES.has(item.Type ?? "") || !!item.IsFolder;
+
+/**
+ * A request holding a container, refused before anything is sent. The
+ * receiver picks the child itself, and startIndex counts in its own list of
+ * them, so no item id tells that load from the media the TV already plays.
+ * Callers send the items to play instead, as music does with its tracks.
+ */
+export class ReceiverContainerRefusedError extends Error {
+  constructor(item: BaseItemDto) {
+    super(
+      `Cannot cast ${item.Type ?? "item"} ${item.Id}: the receiver plays a container through children it picks, so cast its items instead`,
+    );
+    this.name = "ReceiverContainerRefusedError";
+  }
+}
+
+const refuseContainers = (items: BaseItemDto[]): void => {
+  const container = items.find(isContainer);
+  if (container) throw new ReceiverContainerRefusedError(container);
+};
+
 export const playOnJellyfinReceiver = async (
   session: JellyfinCastSession,
   request: JellyfinCastPlayRequest,
 ): Promise<void> => {
+  refuseContainers(request.items);
   const { items, ...rest } = toReceiverRequest(request);
 
   await sendJellyfinCastCommand("PlayNow", session, {
@@ -529,28 +565,14 @@ const receiverMediaData = (
   };
 };
 
-/**
- * Handed one of these first, or any folder, the receiver plays its children
- * instead (a playlist's entries, an artist's or a genre's tracks, the media
- * under the folder) and drops the other items sent.
- */
-const PLAYED_THROUGH_CHILDREN = new Set([
-  "Playlist",
-  "MusicArtist",
-  "MusicGenre",
-]);
-
-const playsChildrenOf = (item: BaseItemDto | undefined): boolean =>
-  !!item && (PLAYED_THROUGH_CHILDREN.has(item.Type ?? "") || !!item.IsFolder);
-
 let supersedeCurrentCast: (() => void) | null = null;
 /** Counts casts, so that one a newer cast overtook can tell. */
 let castCount = 0;
 
 /**
  * Casts and resolves once the receiver has a media session for the requested
- * item (for a container, one of its children playing), has sent a load error
- * back, or has done neither within `timeoutMs`.
+ * item, has sent a load error back, or has done neither within `timeoutMs`.
+ * A request holding a container is refused before anything is sent.
  *
  * Sending PlayNow only means the message left the phone. A receiver that
  * cannot reach the server fails on its first request without a word back, and
@@ -563,11 +585,13 @@ export const castToJellyfinReceiver = async (
   request: JellyfinCastPlayRequest,
   timeoutMs: number,
 ): Promise<ReceiverLoadOutcome> => {
+  // Refused before it counts as a cast: nothing reaches the TV, so the cast
+  // still loading there is not replaced.
+  refuseContainers(request.items);
   const cast = ++castCount;
   supersedeCurrentCast?.();
 
   const sent = toReceiverRequest(request);
-  const playsChild = playsChildrenOf(sent.items[0]);
   const itemId = sent.items[sent.startIndex ?? 0]?.Id;
   // Every load gets a new play session, which is what tells a recast of the
   // item already on the TV from the media it replaces.
@@ -586,15 +610,6 @@ export const castToJellyfinReceiver = async (
       media.playSessionId === previous.playSessionId
     ) {
       return false;
-    }
-    // The receiver picks the child, and startIndex counts in its own list of
-    // them, so there is no item id to wait for: the first media it plays
-    // under a new play session is this load.
-    if (playsChild) {
-      return (
-        !!media.playSessionId &&
-        status.playerState === CastMediaPlayerState.PLAYING
-      );
     }
     return (
       !!itemId &&
