@@ -18,8 +18,9 @@ server log, the session the server records, the receiver on the TV.
 - **Tier 0, unit.** Jest (`bun run test:unit`, which includes the shared protocol
   vectors), the bench's own tests (`bun run e2e:bench:test`, that is
   `python3 -m unittest discover -s e2e -t e2e`), and the native module tests
-  (`./gradlew :mpv-player:testDebugUnitTest` in a prebuilt `android/`; in CI,
-  `.github/workflows/native-tests.yml` on changes under `modules/`).
+  (`./gradlew :<module>:testDebugUnitTest` in a prebuilt `android/`, for each module with
+  tests under `android/src/test`; in CI, `.github/workflows/native-tests.yml` on changes
+  under `modules/`).
 - **Tier 1, simulators and emulators.** Maestro flows against a build that embeds the JS
   bundle, which on Android is the release APK (`bun run build:android:local`); a debug build
   is an Expo dev client waiting for Metro. Run `bun run e2e:smoke`, or
