@@ -10,11 +10,12 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import sys
 import threading
 import time
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
 
@@ -25,6 +26,10 @@ FALLBACK_ID_LENGTH = 8
 CAST_PORT = 8009
 PLAYER_STATE_PLAYING = "PLAYING"
 TICKS_PER_SECOND = 10_000_000
+# What the receiver sends on its channel when a load fails: the media, the server, or the message.
+ERROR_TYPES = ("playbackerror", "connectionerror", "error")
+# The token each receiver was handed, kept between runs. It holds live tokens: git and Biome ignore it.
+TOKENS_PATH = Path(__file__).resolve().parent / "receiver-tokens.local.json"
 
 
 class SenderTimeout(Exception):
@@ -38,6 +43,18 @@ class BusMessage:
     type: str
     message: str | None = None
     data: str | None = None
+
+
+def describe_error(message: BusMessage) -> str:
+    return f"{message.type}: {message.message or ''}".rstrip(": ")
+
+
+class LoadFailed(Exception):
+    """The receiver said on its channel that the load failed."""
+
+    def __init__(self, message: BusMessage):
+        super().__init__(describe_error(message))
+        self.message = message
 
 
 def parse_bus_message(raw: str) -> BusMessage:
@@ -91,6 +108,30 @@ class MediaSample:
     current_time: float
     custom_data: dict
 
+    @property
+    def item_id(self) -> str | None:
+        return self.custom_data.get("itemId")
+
+    @property
+    def play_session_id(self) -> str | None:
+        return self.custom_data.get("playSessionId")
+
+
+@dataclass(frozen=True)
+class Load:
+    """One PlayNow, told apart from the media it replaces: the receiver plays every load under a new
+    play session, so the item asked for under the session it had before the send is still the old
+    media. `bus_start` is where the receiver's messages about this load begin."""
+
+    item_id: str
+    previous_session: str | None = None
+    bus_start: int = 0
+
+    def owns(self, status: MediaSample) -> bool:
+        if status.item_id != self.item_id:
+            return False
+        return self.previous_session is None or status.play_session_id != self.previous_session
+
 
 def sample(cast: Any) -> MediaSample:
     status = cast.media_controller.status
@@ -110,20 +151,33 @@ def refresh_status(cast: Any, timeout: float = 5.0) -> MediaSample:
     return sample(cast)
 
 
-def wait_for(cast: Any, predicate: Callable[[MediaSample], bool], timeout: float, what: str, every: float = 0.5) -> MediaSample:
+def wait_for(
+    cast: Any, predicate: Callable[[MediaSample], bool], timeout: float, what: str, every: float = 0.5, check: Callable[[], None] | None = None
+) -> MediaSample:
+    # The status pychromecast holds can still be the one of the media played before the send, so
+    # every test reads a status the receiver has just answered with.
     deadline = time.monotonic() + timeout
     while True:
-        current = sample(cast)
+        current = refresh_status(cast, timeout=every)
         if predicate(current):
             return current
+        if check is not None:
+            check()
         if time.monotonic() >= deadline:
             raise SenderTimeout(what)
         time.sleep(every)
-        refresh_status(cast, timeout=every)
 
 
-def wait_for_playing(cast: Any, timeout: float = 45.0, every: float = 0.5) -> MediaSample:
-    return wait_for(cast, lambda s: s.player_state == PLAYER_STATE_PLAYING, timeout, "playing", every)
+def wait_for_playing(cast: Any, load: Load, bus: list[BusMessage] | tuple = (), timeout: float = 45.0, every: float = 0.5) -> MediaSample:
+    """Waits until the receiver plays this load. Other media, or the media being replaced, never
+    count; an error the receiver sends about the load ends the wait at once, not at the deadline."""
+
+    def failed() -> None:
+        for message in bus[load.bus_start :]:
+            if message.type in ERROR_TYPES:
+                raise LoadFailed(message)
+
+    return wait_for(cast, lambda s: s.player_state == PLAYER_STATE_PLAYING and load.owns(s), timeout, "playing", every, failed)
 
 
 def watch(cast: Any, seconds: float, every: float = 2.0, on_sample: Callable[[MediaSample], None] | None = None) -> list[MediaSample]:
@@ -155,12 +209,57 @@ ACTIVE_STATES = frozenset({"PLAYING", "BUFFERING", "PAUSED"})
 
 
 def should_sign_out(action: str, final_state: str | None) -> bool:
-    """The receiver keeps the sender's token for its own requests; a sign-out while it still
-    plays would break its progress reports and its transcoded stream. Only a stop, or a receiver
-    that is not playing, lets the run revoke the token."""
+    """Whether the token a run handed the receiver can be revoked. The receiver keeps the token of
+    the last message for its own requests, and a sign-out while it still plays would break its
+    progress reports and its transcoded stream. Only a stop, or a receiver seen idle, lets it go:
+    a state the run could not read after sending, cut short by Ctrl-C say, keeps the token."""
     if action == "stop":
         return True
-    return final_state not in ACTIVE_STATES
+    return final_state is not None and final_state not in ACTIVE_STATES
+
+
+class ReceiverTokens:
+    """The token each receiver was handed, per server, profile and target, kept between runs.
+
+    The run that hands a receiver its token cannot revoke it while the receiver plays, so the
+    next command to that receiver reuses it, and a stop, or a run that finds the receiver idle,
+    revokes it. Without this, every run left a token alive for good."""
+
+    def __init__(self, path: Path | None = None):
+        self.path = Path(path or TOKENS_PATH)
+
+    def _read(self) -> dict:
+        try:
+            return json.loads(self.path.read_text())
+        except FileNotFoundError:
+            return {}
+
+    def _write(self, data: dict) -> None:
+        # Owner only from the first byte: the file holds live tokens.
+        descriptor = os.open(self.path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(descriptor, "w") as file:
+            file.write(json.dumps(data, indent=2) + "\n")
+
+    def get(self, server: str, profile: str, target: str):
+        from bench.jellyfin import AuthSession
+
+        entry = self._read().get(server, {}).get(profile, {}).get(target)
+        return AuthSession(token=entry["token"], user_id=entry["userId"]) if entry else None
+
+    def put(self, server: str, profile: str, target: str, session) -> None:
+        data = self._read()
+        data.setdefault(server, {}).setdefault(profile, {})[target] = {"token": session.token, "userId": session.user_id}
+        self._write(data)
+
+    def drop(self, server: str, profile: str, target: str) -> None:
+        data = self._read()
+        if data.get(server, {}).get(profile, {}).pop(target, None) is None:
+            return
+        if not data[server][profile]:
+            del data[server][profile]
+        if not data[server]:
+            del data[server]
+        self._write(data)
 
 
 def summarize_bus(bus: list[BusMessage]) -> dict:
@@ -178,8 +277,8 @@ def summarize_bus(bus: list[BusMessage]) -> dict:
                 "playMethod": state.get("PlayMethod"),
                 "isPaused": state.get("IsPaused"),
             }
-        if message.type in ("playbackerror", "connectionerror", "error"):
-            errors.append(f"{message.type}: {message.message or ''}".rstrip(": "))
+        if message.type in ERROR_TYPES:
+            errors.append(describe_error(message))
     return {"counts": counts, "lastProgress": last_progress, "errors": errors}
 
 
@@ -210,13 +309,23 @@ def connect(target, timeout: float = 10.0):
     return cast
 
 
-def launch(cast, timeout: float = 20.0) -> None:
+def launch(cast, timeout: float = 20.0, fresh: bool = False) -> None:
+    """Starts the receiver unless it runs. `fresh` quits a running one first: the receiver keeps the
+    device name and the bitrate cap of the first message it gets, so a receiver another sender
+    started would be measured under that sender's name and cap."""
+    if fresh and cast.app_id == RECEIVER_APP_ID:
+        cast.quit_app(timeout=timeout)
+        _wait_until(lambda: cast.app_id != RECEIVER_APP_ID, timeout, f"receiver app {RECEIVER_APP_ID} to quit")
     if cast.app_id != RECEIVER_APP_ID:
         cast.start_app(RECEIVER_APP_ID, timeout=timeout)
+    _wait_until(lambda: cast.app_id == RECEIVER_APP_ID, timeout, f"receiver app {RECEIVER_APP_ID}")
+
+
+def _wait_until(condition: Callable[[], bool], timeout: float, what: str) -> None:
     deadline = time.monotonic() + timeout
-    while cast.app_id != RECEIVER_APP_ID:
+    while not condition():
         if time.monotonic() >= deadline:
-            raise SenderTimeout(f"receiver app {RECEIVER_APP_ID}")
+            raise SenderTimeout(what)
         time.sleep(0.5)
 
 
@@ -226,15 +335,6 @@ def attach(cast, timeout: float = 10.0):
     cast.register_handler(controller)
     cast.media_controller.block_until_active(timeout=timeout)
     return controller
-
-
-@dataclass
-class Journal:
-    steps: list[dict] = field(default_factory=list)
-
-    def note(self, step: str, **data) -> None:
-        self.steps.append({"step": step, "at": time.strftime("%H:%M:%S"), **data})
-        print(json.dumps(self.steps[-1], default=str))
 
 
 def slim_item(item: dict) -> dict:
@@ -264,7 +364,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     from bench.config import BenchConfigError, load_config
-    from bench.jellyfin import JellyfinClient
+    from bench.jellyfin import JellyfinClient, JellyfinHttpError
     from bench.report import Report
 
     try:
@@ -275,46 +375,92 @@ def main(argv: list[str] | None = None) -> int:
     except BenchConfigError as error:
         print(f"sender: {error}", file=sys.stderr)
         return 2
+    tokens = ReceiverTokens()
+    key = (args.server, args.profile, args.target)
+    held = tokens.get(*key)
     client = JellyfinClient(server.url)
-    session = client.authenticate(account)
-    journal = Journal()
-    report = Report(f"sender-{args.action}", redact=config.redact + [session.token])
+    # The run's own token reads the server; messages carry the one the receiver already holds, if any.
+    own = client.authenticate(account)
+    report = Report(f"sender-{args.action}", redact=config.redact + [own.token] + ([held.token] if held else []))
+
+    def note(step: str, **data) -> None:
+        # Each step goes in the report when it happens, so its time is the time of the step.
+        report.add(step, **data)
+        print(json.dumps({"step": step, "at": report.steps[-1]["at"], **data}, default=str))
+
+    def revoke(session, reason: str) -> bool:
+        try:
+            client.logout(session)
+        except (JellyfinHttpError, OSError) as error:
+            # A token the server no longer knows is as good as revoked.
+            if not (isinstance(error, JellyfinHttpError) and error.status == 401):
+                note("sign-out failed", reason=reason, error=str(error))
+                return False
+        return True
+
+    def revoke_held(reason: str) -> None:
+        nonlocal held
+        if revoke(held, reason):
+            tokens.drop(*key)
+            note("token revoked", reason=reason)
+        held = None
+
     receiver_name = receiver_name_for({"friendlyName": target.name, "deviceId": None})
     exit_code = 0
     final_state: str | None = None
+    # The token this run's messages carried, from the moment one may have reached the receiver.
+    handed = None
     try:
         cast = connect(target)
-        journal.note("connected", target=target.name, app=cast.app_display_name)
-        launch(cast)
+        note("connected", target=target.name, app=cast.app_display_name)
+        # Only a play starts the receiver: any other action would close what the TV shows for nothing.
+        if args.action == "play-now":
+            launch(cast)
+        if cast.app_id != RECEIVER_APP_ID:
+            note("receiver", running=False)
+            if held is not None:
+                revoke_held("receiver not running")
+            cast.disconnect(timeout=5)
+            return 0 if args.action in ("status", "stop") else 1
         controller = attach(cast)
-        journal.note("receiver", app_id=cast.app_id)
+        before = refresh_status(cast)
+        note("receiver", app_id=cast.app_id, state=before.player_state)
+        if held is not None and before.player_state not in ACTIVE_STATES:
+            revoke_held(f"receiver {before.player_state}")
+        session = held or own
 
         def send(command: str, options: dict | None = None, max_bitrate: int | None = None) -> None:
+            nonlocal handed
+            handed = session
             controller.send(build_message(command, server.url, session.token, session.user_id, options or {}, receiver_name, max_bitrate))
-            journal.note("sent", command=command, options=options or {})
+            note("sent", command=command, options=options or {})
 
         if args.action == "play-now":
             if args.channel:
-                item = next((c for c in client.channels(session) if c.get("Name") == args.item), None)
+                item = next((c for c in client.channels(own) if c.get("Name") == args.item), None)
             else:
-                item = client.find_item(session, args.item)
+                item = client.find_item(own, args.item)
             if item is None:
-                journal.note("item", found=False, query=args.item)
+                note("item", found=False, query=args.item)
                 return 2
-            journal.note("item", found=True, id=item["Id"], name=item["Name"])
+            note("item", found=True, id=item["Id"], name=item["Name"])
             options = {"items": [slim_item(item)], "startIndex": 0, "startPositionTicks": int(args.start_seconds * TICKS_PER_SECOND)}
+            load = Load(item_id=item["Id"], previous_session=before.play_session_id, bus_start=len(controller.bus))
             sent_at = time.monotonic()
             send("PlayNow", options, args.max_bitrate)
             try:
-                first = wait_for_playing(cast)
-                journal.note("playing", after_seconds=round(first.at - sent_at, 1), custom_data=first.custom_data)
+                first = wait_for_playing(cast, load, controller.bus)
+                note("playing", after_seconds=round(first.at - sent_at, 1), custom_data=first.custom_data)
             except SenderTimeout as timeout:
-                journal.note("timeout", what=timeout.what, bus=summarize_bus(controller.bus))
+                note("timeout", what=timeout.what, bus=summarize_bus(controller.bus))
+                exit_code = 1
+            except LoadFailed as failure:
+                note("load failed", error=str(failure), bus=summarize_bus(controller.bus))
                 exit_code = 1
             else:
 
                 def note_sample(item_sample: MediaSample) -> None:
-                    journal.note("sample", state=item_sample.player_state, time=round(item_sample.current_time, 1), play_method=item_sample.custom_data.get("playMethod"))
+                    note("sample", state=item_sample.player_state, time=round(item_sample.current_time, 1), play_method=item_sample.custom_data.get("playMethod"))
 
                 watch(cast, args.watch, on_sample=note_sample)
         elif args.action == "seek":
@@ -330,18 +476,25 @@ def main(argv: list[str] | None = None) -> int:
         time.sleep(2)
         final = refresh_status(cast)
         final_state = final.player_state
-        journal.note("final", state=final.player_state, time=round(final.current_time, 1), custom_data=final.custom_data, bus=summarize_bus(controller.bus))
+        note("final", state=final.player_state, time=round(final.current_time, 1), custom_data=final.custom_data, bus=summarize_bus(controller.bus))
         cast.disconnect(timeout=5)
     finally:
-        # The evidence is written whatever the sign-out does: a failed one must not cost the run its journal.
+        # The evidence is written whatever the sign-out does: a failed one must not cost the run its report.
         try:
-            if should_sign_out(args.action, final_state):
-                client.logout(session)
-            else:
-                journal.note("token kept", reason=f"receiver still {final_state}; run the stop action to revoke it")
+            if handed is not own:
+                # Never handed to the receiver, so nothing else uses it.
+                revoke(own, "not handed to the receiver")
+            if handed is not None:
+                if not should_sign_out(args.action, final_state):
+                    tokens.put(*key, handed)
+                    state = "state unknown after sending" if final_state is None else f"still {final_state}"
+                    note("token kept", reason=f"receiver {state}; the next command to {target.name} reuses it, stop revokes it")
+                elif revoke(handed, f"receiver {final_state} after {args.action}"):
+                    tokens.drop(*key)
+                else:
+                    # Still valid on the server: the next run to this receiver revokes it.
+                    tokens.put(*key, handed)
         finally:
-            for step in journal.steps:
-                report.add(step["step"], **{k: v for k, v in step.items() if k != "step"})
             paths = report.save()
             if args.keep:
                 report.keep(args.keep, config.keep_dir)

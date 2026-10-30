@@ -123,12 +123,9 @@ describe("resolveCredentials", () => {
     ).rejects.toThrow("syncplay-guest");
   });
 
-  test("reads the item codes from the environment", async () => {
-    const resolved = await resolveCredentials(
-      {
-        E2E_BENCH_CONFIG: "/private/bench.json",
-        E2E_SYNCPLAY_ITEMS: "E01, V02",
-      },
+  const withItems = (items: string) =>
+    resolveCredentials(
+      { E2E_BENCH_CONFIG: "/private/bench.json", E2E_SYNCPLAY_ITEMS: items },
       reader({
         "bench.json": benchConfig({
           "syncplay-host": { username: "test", password: "p1" },
@@ -137,6 +134,23 @@ describe("resolveCredentials", () => {
       }),
       "/repo/e2e/suites/syncplay",
     );
-    expect(resolved.itemCodes).toEqual(["E01", "V02"]);
+
+  test("reads the item codes from the environment", async () => {
+    const resolved = await withItems("E01, V02, V03");
+    expect(resolved.itemCodes).toEqual(["E01", "V02", "V03"]);
+  });
+
+  test("refuses anything but three distinct item codes before any step runs", async () => {
+    // Two codes used to pass here and stop the run on "Invalid SyncPlay queue request", after a
+    // dozen steps had already run against the shared server.
+    for (const items of ["E01, V02", "E01, V02, V03, V06", "E01, V02, V02"]) {
+      await expect(withItems(items)).rejects.toThrow(
+        `E2E_SYNCPLAY_ITEMS must name 3 distinct lab codes, one per queue item; got "${items}"`,
+      );
+    }
+  });
+
+  test("falls back to the default codes when the variable is empty", async () => {
+    expect((await withItems(" , ")).itemCodes).toEqual(["V01", "V03", "V06"]);
   });
 });

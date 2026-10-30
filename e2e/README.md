@@ -62,11 +62,18 @@ e2e/.venv/bin/python e2e/suites/cast/matrix.py --server beta13 --target "Living 
 ```
 
 Each bench client signs in with its own device id and signs out when it is done, so runs
-never log each other out and leave no device behind on the server.
+never log each other out and leave no device behind on the server. The one exception is the
+token the sender hands a receiver: the receiver keeps using it for its progress reports and
+its stream, so it is kept in `e2e/bench/receiver-tokens.local.json` (ignored by git and Biome)
+per server, profile and target, reused by the next command to that receiver, and revoked by
+`stop` or by a later run that finds the receiver idle. Only `play-now` starts the receiver;
+the other actions leave whatever the TV shows alone.
 
 ## Where results go
 
-Each run writes a JSON file and a redacted Markdown file under
-`e2e/reports/<date>/`. A run worth keeping as evidence is copied to the `keep_dir`
-of the configuration with `--keep <subject>`; the Markdown copy is the one that can
-be quoted in an issue.
+Each run writes a JSON file and a redacted Markdown file under `e2e/reports/<date>/`, named
+after the tool, the time to the second and a short suffix, so two runs never share a file. A
+run worth keeping as evidence is copied to the `keep_dir` of the configuration with
+`--keep <subject>`, under a name that starts with its date; the Markdown copy is the one that
+can be quoted in an issue. The sessions observer only puts in it the sessions of the bench's
+own accounts, or of the devices named with `--device`, never the other users of the server.
