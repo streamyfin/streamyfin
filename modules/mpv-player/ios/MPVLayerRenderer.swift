@@ -319,15 +319,21 @@ final class MPVLayerRenderer {
             configured: configuredHwdec,
             active: getStringProperty(handle: handle, name: "hwdec-current")
         )
+        let switchDecoder = {
+            guard let hwdec = plan.hwdec else { return }
+            Logger.shared.log("Deinterlace decoder \(hwdec) at \(height) lines", type: "Info")
+            self.commandSync(handle, ["set", "hwdec", hwdec])
+        }
+        // The filter cannot take VideoToolbox frames, and mpv drops it for good if
+        // one reaches it. Going on, leave zero-copy first; going off, remove the
+        // filter first.
+        if plan.filterOn { switchDecoder() }
         if plan.filterOn != isDeinterlaceFilterOn {
             isDeinterlaceFilterOn = plan.filterOn
             Logger.shared.log("Deinterlace \(plan.filterOn ? "on" : "off") at \(height) lines", type: "Info")
             commandSync(handle, ["set", "vf", plan.filterOn ? VideoDeinterlace.filter : ""])
         }
-        if let hwdec = plan.hwdec {
-            Logger.shared.log("Deinterlace decoder \(hwdec) at \(height) lines", type: "Info")
-            commandSync(handle, ["set", "hwdec", hwdec])
-        }
+        if !plan.filterOn { switchDecoder() }
     }
 
     #if os(iOS)
