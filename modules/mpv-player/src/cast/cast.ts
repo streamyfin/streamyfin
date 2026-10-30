@@ -15,7 +15,7 @@ import { CastNative, type CastNativeModule } from "./CastModule";
 
 const UNAVAILABLE = "Cast is not available on this platform";
 
-/** The module when it can cast, else null: every call below turns into a no-op. */
+/** The module when it can cast, else null: every call through it turns into a no-op. */
 const native = (): CastNativeModule | null =>
   CastNative?.isAvailable() ? CastNative : null;
 
@@ -24,13 +24,15 @@ export const isCastAvailable = (): boolean => native() !== null;
 export const castState = (): CastStateValue | null =>
   native()?.getCastState() ?? null;
 
+// The module itself, not native(): Android answers unavailable for as long as
+// Play Services are not SUCCESS, which is exactly when these two are needed.
 export const playServicesState = (): PlayServicesStateValue | null =>
-  native()?.getPlayServicesState() ?? null;
+  CastNative?.getPlayServicesState() ?? null;
 
 export const showPlayServicesErrorDialog = (
   state: PlayServicesStateValue,
 ): Promise<void> =>
-  native()?.showPlayServicesErrorDialog(state) ?? Promise.resolve();
+  CastNative?.showPlayServicesErrorDialog?.(state) ?? Promise.resolve();
 
 export const castDevices = (): CastDevice[] => native()?.getDevices() ?? [];
 
@@ -149,6 +151,10 @@ export const addCastChannel = async (
     info = await module.addChannel(namespace);
   } catch (error) {
     subscription.remove();
+    // A namespace the native side kept from the failed open would make the
+    // next open skip registering it, and the receiver would go unheard. The
+    // caller still gets why the open failed, whatever the removal does.
+    await module.removeChannel(namespace).catch(() => {});
     throw error;
   }
 

@@ -55,7 +55,7 @@ class CastModule : Module() {
     // JS asked for discovery; it pauses while the app is in the background and resumes with it.
     private var discoveryWanted = false
     private var mediaClient: RemoteMediaClient? = null
-    private val channels = mutableSetOf<String>()
+    private val channels = CastChannels()
 
     private val stateListener = CastStateListener { state -> updateState(state) }
 
@@ -188,7 +188,7 @@ class CastModule : Module() {
 
         AsyncFunction("addChannel") { namespace: String ->
             val session = currentSession() ?: return@AsyncFunction mapOf("namespace" to namespace, "connected" to false)
-            if (channels.add(namespace)) {
+            channels.register(namespace) {
                 session.setMessageReceivedCallbacks(namespace) { _: CastDevice, received: String, message: String ->
                     sendEvent("onReceiverMessage", mapOf("namespace" to received, "message" to message))
                 }

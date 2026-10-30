@@ -13,7 +13,8 @@ export declare class CastNativeModule extends NativeModule<CastNativeEvents> {
   isAvailable(): boolean;
   getCastState(): CastStateValue | null;
   getPlayServicesState(): PlayServicesStateValue | null;
-  showPlayServicesErrorDialog(state: PlayServicesStateValue): Promise<void>;
+  /** Absent from the tvOS stub, and called without isAvailable() first. */
+  showPlayServicesErrorDialog?(state: PlayServicesStateValue): Promise<void>;
   getDevices(): CastDevice[];
   startDiscovery(): Promise<void>;
   stopDiscovery(): Promise<void>;

@@ -30,6 +30,10 @@ enum CastMappingTests {
         precondition(CastMapping.receiverAppId(fromInfoPlist: ["StreamyfinCastReceiverAppId": "ABCD1234"]) == "ABCD1234")
         precondition(CastMapping.receiverAppId(fromInfoPlist: ["StreamyfinCastReceiverAppId": ""]) == "F007D354")
 
-        print("PASS: Cast state, player state, session end error and receiver id mapping")
+        // Tapping the playing media in the Cast dialog opens the SDK's expanded controls, as it did
+        // with react-native-google-cast; false would only post a notification nothing observes.
+        precondition(CastMapping.useDefaultExpandedMediaControls == true)
+
+        print("PASS: Cast state, player state, session end error, receiver id and expanded controls")
     }
 }

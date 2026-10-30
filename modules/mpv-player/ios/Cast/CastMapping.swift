@@ -5,6 +5,9 @@ import Foundation
 enum CastMapping {
   static let receiverAppIdKey = "StreamyfinCastReceiverAppId"
   static let defaultReceiverAppId = "F007D354"
+  /// Lets the SDK present its expanded controls when the user taps the playing media in the Cast
+  /// dialog or the mini controller, as react-native-google-cast set it.
+  static let useDefaultExpandedMediaControls = true
 
   /// GCKCastState: noDevicesAvailable 0, notConnected 1, connecting 2, connected 3.
   static func castStateName(_ rawValue: Int) -> String? {
