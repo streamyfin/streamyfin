@@ -172,6 +172,8 @@
         "show_home_backdrop": "Dynamic home backdrop",
         "show_hero_carousel": "Hero carousel",
         "show_hero_carousel_hint": "Show the large swipeable carousel at the top of the home screen.",
+        "show_live_tv_tab": "Show Live TV tab",
+        "show_live_tv_tab_hint": "Only shown when your server has Live TV.",
         "show_series_poster_on_episode": "Show series poster on episodes",
         "theme_music": "Theme music",
         "display_size": "Display size",
@@ -1067,6 +1069,8 @@
     "page_of": "Page {{current}} of {{total}}",
     "no_programs": "No programs available",
     "no_channels": "No channels available",
+    "channels_load_failed": "Couldn't load the channels",
+    "go_to_now": "Go to now",
     "tabs": {
       "programs": "Programs",
       "guide": "Guide",

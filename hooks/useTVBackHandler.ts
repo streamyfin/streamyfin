@@ -14,6 +14,7 @@ export const TAB_ROUTES = [
   "(home)",
   "(search)",
   "(favorites)",
+  "(livetv)",
   "(libraries)",
   "(watchlists)",
   "(custom-links)",

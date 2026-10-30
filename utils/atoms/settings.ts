@@ -535,6 +535,7 @@ export type Settings = {
   // Appearance
   hideRemoteSessionButton: boolean;
   hideWatchlistsTab: boolean;
+  showLiveTvTab: boolean;
   // Audio look-ahead caching
   audioLookaheadEnabled: boolean;
   audioLookaheadCount: number;
@@ -715,6 +716,7 @@ export const defaultValues: Settings = {
   // Appearance
   hideRemoteSessionButton: false,
   hideWatchlistsTab: false,
+  showLiveTvTab: true,
   // Audio look-ahead caching defaults
   audioLookaheadEnabled: true,
   audioLookaheadCount: 1,

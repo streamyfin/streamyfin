@@ -178,12 +178,18 @@ export const getStreamUrl = async ({
   let sessionId: string | null | undefined;
 
   // Please do not remove this we need this for live TV to be working correctly.
-  if (item.Type === BaseItemKind.Program) {
-    console.log("Item is of type program...");
+  // Note: Jellyfin may return "TvChannel" or "LiveTvChannel" depending on the API endpoint used.
+  if (
+    item.Type === BaseItemKind.Program ||
+    item.Type === BaseItemKind.TvChannel ||
+    item.Type === BaseItemKind.LiveTvChannel
+  ) {
+    const channelId =
+      item.Type === BaseItemKind.Program ? item.ChannelId! : item.Id!;
     const res = await getMediaInfoApi(api).getPostedPlaybackInfo(
       {
         userId,
-        itemId: item.ChannelId!,
+        itemId: channelId,
         startTimeTicks: 0,
         autoOpenLiveStream: true,
         maxStreamingBitrate,
@@ -211,7 +217,7 @@ export const getStreamUrl = async ({
         ),
       );
     }
-    const url = getPlaybackUrl(api, item.ChannelId!, mediaSource, {
+    const url = getPlaybackUrl(api, channelId, mediaSource, {
       subtitleStreamIndex,
       audioStreamIndex,
       deviceId,
