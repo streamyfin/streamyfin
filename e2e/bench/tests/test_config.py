@@ -70,6 +70,28 @@ class LoadConfigTests(unittest.TestCase):
         self.assertIn("Living room", str(caught.exception))
         self.assertEqual(config.chromecast("Living room").kind, "chromecast-gen3")
 
+    def test_redact_must_be_a_list_of_strings(self):
+        # A string used to be masked letter by letter, and null raised a TypeError that the
+        # tools' BenchConfigError handlers let through.
+        for value in ("example.test", None, ["example.test", 3]):
+            data = json.loads(EXAMPLE.read_text())
+            data["redact"] = value
+            with self.subTest(redact=value), tempfile.TemporaryDirectory() as tmp:
+                path = Path(tmp) / "config.json"
+                path.write_text(json.dumps(data))
+                with self.assertRaises(BenchConfigError) as caught:
+                    load_config(path)
+                self.assertIn("field redact", str(caught.exception))
+                self.assertIn(str(path), str(caught.exception))
+
+    def test_redact_may_be_left_out(self):
+        data = example_without("redact")
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "config.json"
+            path.write_text(json.dumps(data))
+            config = load_config(path)
+        self.assertIn("beta.example.test", config.redact)
+
     def test_environment_variable_selects_the_file(self):
         with mock.patch.dict(os.environ, {"E2E_BENCH_CONFIG": str(EXAMPLE)}):
             config = load_config()

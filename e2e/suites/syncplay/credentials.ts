@@ -31,6 +31,8 @@ export interface SyncPlayCredentials {
 
 export const DEFAULT_BENCH_SERVER = "beta1011";
 export const DEFAULT_ITEM_CODES = ["V01", "V03", "V06"];
+// The queue steps play, append, insert and reorder exactly this many distinct items.
+const ITEM_COUNT = DEFAULT_ITEM_CODES.length;
 const HOST_PROFILE = "syncplay-host";
 const GUEST_PROFILE = "syncplay-guest";
 
@@ -63,6 +65,25 @@ const benchAccount = (
   return { name: account.username, password: account.password };
 };
 
+/**
+ * Fewer codes, or a code twice, used to fail late with "Invalid SyncPlay queue request", after
+ * a dozen steps had already run against the shared server.
+ */
+const itemCodes = (raw: string | undefined): string[] => {
+  const codes =
+    raw
+      ?.split(",")
+      .map((code) => code.trim())
+      .filter(Boolean) ?? [];
+  if (!codes.length) return DEFAULT_ITEM_CODES;
+  if (codes.length !== ITEM_COUNT || new Set(codes).size !== ITEM_COUNT) {
+    throw new Error(
+      `E2E_SYNCPLAY_ITEMS must name ${ITEM_COUNT} distinct lab codes, one per queue item; got "${raw}"`,
+    );
+  }
+  return codes;
+};
+
 const fromBench = async (
   env: Env,
   readFile: ReadFile,
@@ -76,15 +97,12 @@ const fromBench = async (
       `bench config has no server ${server}; known: ${Object.keys(config.servers).join(", ")}`,
     );
   }
-  const codes = env.E2E_SYNCPLAY_ITEMS?.split(",")
-    .map((code) => code.trim())
-    .filter(Boolean);
   return {
     source: "bench",
     url: config.servers[server].url.replace(/\/$/, ""),
     host: benchAccount(config, server, HOST_PROFILE),
     guest: benchAccount(config, server, GUEST_PROFILE),
-    itemCodes: codes?.length ? codes : DEFAULT_ITEM_CODES,
+    itemCodes: itemCodes(env.E2E_SYNCPLAY_ITEMS),
   };
 };
 
