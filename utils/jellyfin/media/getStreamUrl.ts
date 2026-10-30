@@ -354,14 +354,17 @@ export const getDownloadStreamUrl = async ({
     return null;
   }
 
-  // Without a transcoding URL the server sends the file itself, whatever was asked.
-  const transcoded =
-    mode === "transcode" && Boolean(mediaSource.TranscodingUrl);
+  if (mode === "original") {
+    return getDownloadUrl(api, asOriginalFile(mediaSource), sessionId);
+  }
+  // The original would ignore the quality, codec and burn-in that were picked.
+  if (!mediaSource.TranscodingUrl) {
+    console.warn("Server offered no transcode for download");
+    return null;
+  }
   return getDownloadUrl(
     api,
-    transcoded
-      ? withSubtitleBurnedIn(mediaSource, subtitleStreamIndex)
-      : asOriginalFile(mediaSource),
+    withSubtitleBurnedIn(mediaSource, subtitleStreamIndex),
     sessionId,
   );
 };
@@ -399,8 +402,9 @@ const withSubtitleBurnedIn = (
 const asOriginalFile = (mediaSource: MediaSourceInfo): MediaSourceInfo => ({
   ...mediaSource,
   TranscodingUrl: null,
+  // A file next to it on the server is not in the download.
   MediaStreams: mediaSource.MediaStreams?.map((stream) =>
-    stream.DeliveryMethod === "Encode"
+    stream.DeliveryMethod === "Encode" && !stream.IsExternal
       ? { ...stream, DeliveryMethod: "Embed" }
       : stream,
   ),

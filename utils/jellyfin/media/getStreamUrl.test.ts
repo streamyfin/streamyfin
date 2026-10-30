@@ -144,6 +144,12 @@ describe("getDownloadStreamUrl", () => {
             { Index: 0, Type: "Video" },
             { Index: 1, Type: "Subtitle", DeliveryMethod: "Encode" },
             { Index: 2, Type: "Subtitle", DeliveryMethod: "External" },
+            {
+              Index: 3,
+              Type: "Subtitle",
+              DeliveryMethod: "Encode",
+              IsExternal: true,
+            },
           ],
         },
       ],
@@ -178,9 +184,30 @@ describe("getDownloadStreamUrl", () => {
       });
 
       expect(result?.mediaSource?.TranscodingUrl).toBeFalsy();
+      expect(result?.mediaSource?.MediaStreams?.[1].DeliveryMethod).toBe(
+        "Embed",
+      );
+    });
+
+    // Marked Embed, it would count as one of the file's tracks and shift the
+    // player's mapping of the real ones.
+    test("does not count an image subtitle stored next to the file as one of its tracks", async () => {
+      const api = makeApi();
+      api.mock
+        .onPost("https://jellyfin.example.com/Items/item-1/PlaybackInfo")
+        .reply(200, serverWouldTranscode);
+
+      const result = await getDownloadStreamUrl({
+        api,
+        item: { Id: "item-1", Type: "Movie" },
+        userId: "user-1",
+        mediaSourceId: "media-1",
+        mode: "original",
+      });
+
       expect(
         result?.mediaSource?.MediaStreams?.map((s) => s.DeliveryMethod),
-      ).toEqual([undefined, "Embed", "External"]);
+      ).toEqual([undefined, "Embed", "External", "Encode"]);
     });
 
     test("leaves direct play to the server", async () => {
@@ -247,23 +274,12 @@ describe("getDownloadStreamUrl", () => {
       MediaSources: [{ Id: "media-1" }],
     };
 
-    // The download profile marks every image subtitle Encode, which offline
-    // reads as burned in: none of the file's own image tracks could be picked.
-    test("keeps the file's image subtitles as tracks when a transcode gets the file itself", async () => {
+    // The original would ignore the quality, codec and burn-in that were picked.
+    test("turns down a transcode the server will not make", async () => {
       const api = makeApi();
       api.mock
         .onPost("https://jellyfin.example.com/Items/item-1/PlaybackInfo")
-        .reply(200, {
-          PlaySessionId: "session-1",
-          MediaSources: [
-            {
-              Id: "media-1",
-              MediaStreams: [
-                { Index: 1, Type: "Subtitle", DeliveryMethod: "Encode" },
-              ],
-            },
-          ],
-        });
+        .reply(200, playerCanPlayTheOriginal);
 
       const result = await getDownloadStreamUrl({
         api,
@@ -273,10 +289,7 @@ describe("getDownloadStreamUrl", () => {
         mode: "transcode",
       });
 
-      expect(new URL(result!.url!).pathname).toBe("/Items/media-1/Download");
-      expect(result?.mediaSource?.MediaStreams?.[0].DeliveryMethod).toBe(
-        "Embed",
-      );
+      expect(result).toBeNull();
     });
 
     test("downloads the original file when the user picks Max quality", async () => {
@@ -288,7 +301,7 @@ describe("getDownloadStreamUrl", () => {
         )
         .reply(200, playerCanPlayTheOriginal);
 
-      const url = await download(api, MAX);
+      const url = await download(api, MAX, "original");
 
       expect(url.pathname).toBe("/Items/media-1/Download");
     });
@@ -305,7 +318,7 @@ describe("getDownloadStreamUrl", () => {
         )
         .reply(200, playerCanPlayTheOriginal);
 
-      const url = await download(api, LIMITED);
+      const url = await download(api, LIMITED, "original");
 
       expect(url.pathname).toBe("/Items/media-1/Download");
     });
@@ -319,7 +332,7 @@ describe("getDownloadStreamUrl", () => {
         )
         .reply(200, playerCanPlayTheOriginal);
 
-      await download(api, MAX);
+      await download(api, MAX, "original");
 
       const negotiatedCaps = api.mock.history.post.map((request) => {
         const profile = JSON.parse(request.data).DeviceProfile;
@@ -342,7 +355,7 @@ describe("getDownloadStreamUrl", () => {
         )
         .reply(200, playerCanPlayTheOriginal);
 
-      const url = await download(api, MAX);
+      const url = await download(api, MAX, "original");
 
       expect(url.searchParams.get("ApiKey")).toBe("SECRET_TOKEN");
     });
