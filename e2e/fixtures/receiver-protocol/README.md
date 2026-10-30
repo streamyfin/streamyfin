@@ -26,5 +26,10 @@ reader serializes it the way the wire and the native bridges deliver it; a strin
 is a payload as received. Status messages show the keys a sender reads: the receiver puts
 more of the item in `NowPlayingItem`.
 
+The native readers replay every case of every file: JUnit
+(`modules/mpv-player/android/src/test/java/expo/modules/mpvplayer/cast/receiver/ReceiverProtocolVectorsTest.kt`,
+on Kotlin's `ReceiverProtocol`) and the Swift check (`scripts/ios/test-receiver-protocol.sh`,
+on `modules/mpv-player/ios/Cast/ReceiverProtocol.swift`).
+
 Add a case here first, then make every reader pass it. A reader that cannot express a
 case skips it by name and says so in its own test.
