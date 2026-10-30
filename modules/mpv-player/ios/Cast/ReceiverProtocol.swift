@@ -110,7 +110,7 @@ enum ReceiverProtocol {
     var sent = options
     // Seek takes seconds, and the receiver turns them into ticks unrounded, which the server may reject.
     if command == "Seek", let position = number(options["position"]) {
-      sent["position"] = Int64((position + 0.5).rounded(.down))
+      sent["position"] = clampedInt64((position + 0.5).rounded(.down))
     }
     var message: [String: Any] = [
       "command": command,
@@ -217,6 +217,18 @@ enum ReceiverProtocol {
     return nil
   }
 
+  /// Swift's integer initializers trap outside their range, where Kotlin's `toInt()` and `toLong()`
+  /// saturate: a value from the receiver is clamped the same way rather than crashing the app.
+  private static func clampedInt64(_ value: Double) -> Int64 {
+    if value >= Double(Int64.max) { return .max }
+    if value <= Double(Int64.min) { return .min }
+    return Int64(value)
+  }
+
+  private static func clampedInt(_ value: Double) -> Int {
+    Int(clamping: clampedInt64(value))
+  }
+
   private static func boolean(_ value: Any?) -> Bool? {
     guard let value, isBoolean(value) else { return nil }
     return (value as? NSNumber)?.boolValue
@@ -227,12 +239,12 @@ enum ReceiverProtocol {
     return ReceiverCustomData(
       itemId: data["itemId"] as? String,
       playSessionId: data["playSessionId"] as? String,
-      audioStreamIndex: number(data["audioStreamIndex"]).map { Int($0) },
-      subtitleStreamIndex: number(data["subtitleStreamIndex"]).map { Int($0) },
+      audioStreamIndex: number(data["audioStreamIndex"]).map(clampedInt),
+      subtitleStreamIndex: number(data["subtitleStreamIndex"]).map(clampedInt),
       mediaSourceId: data["mediaSourceId"] as? String,
       playMethod: data["playMethod"] as? String,
-      runtimeTicks: number(data["runtimeTicks"]).map { Int64($0) },
-      startPositionTicks: number(data["startPositionTicks"]).map { Int64($0) },
+      runtimeTicks: number(data["runtimeTicks"]).map(clampedInt64),
+      startPositionTicks: number(data["startPositionTicks"]).map(clampedInt64),
       canSeek: boolean(data["canSeek"]),
       canClientSeek: boolean(data["canClientSeek"]),
       liveStreamId: data["liveStreamId"] as? String

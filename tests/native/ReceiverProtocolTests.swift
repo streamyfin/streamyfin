@@ -161,6 +161,21 @@ enum ReceiverProtocolTests {
 			check("load-outcomes.json", c["name"] as! String, ok)
 		}
 
+		// Not a shared vector: TypeScript and Python keep any number, while Swift's integer initializers
+		// trap outside their range. A receiver's out-of-range value saturates, as Kotlin's toInt() and
+		// toLong() do, instead of crashing the app.
+		let huge = ReceiverProtocol.parseCustomData([
+			"runtimeTicks": 1e30, "startPositionTicks": -1e30, "audioStreamIndex": "1e30", "subtitleStreamIndex": -1e300,
+		])
+		check("swift", "out-of-range customData numbers saturate", huge.runtimeTicks == Int64.max
+			&& huge.startPositionTicks == Int64.min && huge.audioStreamIndex == Int.max && huge.subtitleStreamIndex == Int.min)
+		let seek = ReceiverProtocol.message(
+			command: "Seek",
+			server: ReceiverServer(serverAddress: "http://server", accessToken: "token", userId: "user"),
+			options: ["position": 1e30]
+		)
+		check("swift", "an out-of-range seek position saturates", (seek["options"] as? [String: Any])?["position"] as? Int64 == Int64.max)
+
 		if failures.isEmpty {
 			print("PASS: receiver protocol vectors (\(cases) cases)")
 		} else {

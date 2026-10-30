@@ -102,9 +102,9 @@ object ReceiverProtocol {
      * is written out.
      */
     private val JS_WHITESPACE: Set<Char> = buildSet {
-        addAll(listOf('\t', '\n', '\u000B', '\u000C', '\r', ' ', ' ', ' '))
-        addAll(' '..' ')
-        addAll(listOf(' ', ' ', ' ', ' ', '　', '﻿'))
+        addAll(listOf('\t', '\n', '\u000B', '\u000C', '\r', ' ', '\u00A0', '\u1680'))
+        addAll('\u2000'..'\u200A')
+        addAll(listOf('\u2028', '\u2029', '\u202F', '\u205F', '\u3000', '\uFEFF'))
     }
 
     private fun isAsciiWord(char: Char) = char in 'a'..'z' || char in 'A'..'Z' || char in '0'..'9' || char == '_'
