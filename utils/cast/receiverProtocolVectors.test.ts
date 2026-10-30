@@ -23,6 +23,7 @@ import {
   queueWindow,
   type ReceiverMessage,
   receiverNameFor,
+  receiverPositionInItem,
   sendJellyfinCastCommand,
   subscribeToJellyfinReceiverMessages,
   toReceiverDeviceName,
@@ -142,11 +143,18 @@ describe("media-status-custom-data.json", () => {
   });
 });
 
+describe("media-position.json", () => {
+  const { cases } = vectors("media-position.json");
+  test.each(table(cases))("%s", (_name, vector) => {
+    const { currentTime, customData } = vector.input;
+    expect(
+      receiverPositionInItem(currentTime, parseReceiverCustomData(customData)),
+    ).toBe(vector.expected);
+  });
+});
+
 describe("load-outcomes.json", () => {
   const file = vectors("load-outcomes.json");
-  const request = {
-    items: [{ Id: file.request.itemId, Name: "Item" } as BaseItemDto],
-  };
   const statusOf = (data: Record<string, unknown>) => ({
     playerState: data.playerState,
     mediaInfo: { customData: { ...data, playerState: undefined } },
@@ -164,6 +172,7 @@ describe("load-outcomes.json", () => {
   };
 
   test.each(table(file.cases))("%s", async (_name, vector) => {
+    const request: { items: BaseItemDto[] } = vector.request ?? file.request;
     let listener: ((status: unknown) => void) | undefined;
     const client = {
       getMediaStatus: async () =>

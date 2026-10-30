@@ -1,4 +1,7 @@
-import { RECEIVER_CHANNEL_OPEN_ATTEMPTS } from "@/constants/Cast";
+import {
+  RECEIVER_CHANNEL_OPEN_ATTEMPTS,
+  RECEIVER_UNCAPPED_BITRATE,
+} from "@/constants/Cast";
 import type { CastSessionEvent } from "@/modules/mpv-player/src/cast";
 import {
   castDoubleDevice,
@@ -14,6 +17,7 @@ import {
   castToJellyfinReceiver,
   currentReceiverName,
   JELLYFIN_CAST_NAMESPACE,
+  type JellyfinCastCommand,
   playOnJellyfinReceiver,
   queueWindow,
   receiverNameFor,
@@ -66,6 +70,7 @@ describe("playOnJellyfinReceiver", () => {
         mediaSourceId: "source-1",
         audioStreamIndex: 2,
         subtitleStreamIndex: 5,
+        liveStreamId: "live-1",
       },
     );
 
@@ -90,6 +95,7 @@ describe("playOnJellyfinReceiver", () => {
         mediaSourceId: "source-1",
         audioStreamIndex: 2,
         subtitleStreamIndex: 5,
+        liveStreamId: "live-1",
       },
     });
   });
@@ -130,13 +136,40 @@ describe("playOnJellyfinReceiver", () => {
     });
   });
 
-  test("leaves out the receiver name and bitrate when there are none", async () => {
-    await sendJellyfinCastCommand("Stop", { api: makeApi(), userId: "user-1" });
+  test("sends the uncapped bitrate when none is picked, which lifts an earlier cap", async () => {
+    // The receiver keeps the last cap it was given while its app runs: a cast
+    // on "Max", or of music, that left the field out played under the cap of
+    // the cast before it.
+    const api = makeApi();
+    await playOnJellyfinReceiver(
+      { api, userId: "user-1", maxBitrate: 2_000_000 },
+      { items: [{ Id: "item-1", Type: "Movie" }] },
+    );
+    await playOnJellyfinReceiver(
+      { api, userId: "user-1" },
+      { items: [{ Id: "item-2", Type: "Movie" }] },
+    );
 
-    const message = sentOn(lastChannel())[0] as Record<string, unknown>;
-    expect(message).not.toHaveProperty("receiverName");
-    expect(message).not.toHaveProperty("maxBitrate");
+    const [capped, uncapped] = sentOn(lastChannel()) as Record<
+      string,
+      unknown
+    >[];
+    expect(capped.maxBitrate).toBe(2_000_000);
+    expect(uncapped.maxBitrate).toBe(RECEIVER_UNCAPPED_BITRATE);
+    expect(uncapped).not.toHaveProperty("receiverName");
   });
+
+  test.each<JellyfinCastCommand>(["PlayPause", "NextTrack", "PreviousTrack"])(
+    "sends %s, a command the receiver acts on",
+    async (command) => {
+      await sendJellyfinCastCommand(command, {
+        api: makeApi(),
+        userId: "user-1",
+      });
+
+      expect(sentOn(lastChannel())[0]).toMatchObject({ command, options: {} });
+    },
+  );
 });
 
 describe("receiver channel", () => {
@@ -332,18 +365,20 @@ describe("watchReceiverLoadErrors", () => {
     watchReceiverLoadErrors((error) => errors.push(error), 1_000);
 
     receiveOnChannel(mockCast, lastChannel(), '{"type":"playbackprogress"}');
+    // A failed PlaybackInfo request: the receiver always follows it with a
+    // NoCompatibleStream that only says the request came back empty.
     receiveOnChannel(
       mockCast,
       lastChannel(),
-      '{"type":"connectionerror","message":""}',
+      '{"message":"","type":"connectionerror"}',
     );
     receiveOnChannel(
       mockCast,
       lastChannel(),
-      '{"type":"playbackerror","message":"NoStream"}',
+      '{"message":"NoCompatibleStream","type":"playbackerror"}',
     );
 
-    expect(errors).toEqual(["server_unreachable"]);
+    expect(errors).toEqual(["playback_info_failed"]);
   });
 
   test("only reports for the latest cast command", async () => {

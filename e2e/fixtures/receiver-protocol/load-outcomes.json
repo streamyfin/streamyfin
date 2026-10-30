@@ -1,7 +1,9 @@
 {
   "version": 1,
   "timeoutMs": 30000,
-  "request": { "itemId": "item-1" },
+  "request": {
+    "items": [{ "Id": "item-1", "Name": "A film", "Type": "Movie" }]
+  },
   "cases": [
     {
       "name": "loaded once the receiver plays the item under a new play session",
@@ -69,29 +71,187 @@
       "expected": { "status": "timed_out" }
     },
     {
+      "name": "a playlist sent first plays one of its entries: a new play session playing counts, whatever its item",
+      "request": {
+        "items": [
+          {
+            "Id": "playlist-1",
+            "Name": "Road trip",
+            "Type": "Playlist"
+          }
+        ]
+      },
+      "previous": { "itemId": "item-9", "playSessionId": "ps-0" },
+      "events": [
+        {
+          "status": {
+            "itemId": "track-4",
+            "playSessionId": "ps-1",
+            "playerState": "playing"
+          }
+        },
+        { "timeout": true }
+      ],
+      "expected": { "status": "loaded" }
+    },
+    {
+      "name": "an artist sent first plays one of its tracks",
+      "request": {
+        "items": [
+          {
+            "Id": "artist-1",
+            "Name": "An artist",
+            "Type": "MusicArtist"
+          }
+        ]
+      },
+      "previous": null,
+      "events": [
+        {
+          "status": {
+            "itemId": "track-1",
+            "playSessionId": "ps-1",
+            "playerState": "playing"
+          }
+        },
+        { "timeout": true }
+      ],
+      "expected": { "status": "loaded" }
+    },
+    {
+      "name": "a genre sent first plays one of its tracks",
+      "request": {
+        "items": [
+          {
+            "Id": "genre-1",
+            "Name": "Jazz",
+            "Type": "MusicGenre"
+          }
+        ]
+      },
+      "previous": null,
+      "events": [
+        {
+          "status": {
+            "itemId": "track-2",
+            "playSessionId": "ps-1",
+            "playerState": "playing"
+          }
+        },
+        { "timeout": true }
+      ],
+      "expected": { "status": "loaded" }
+    },
+    {
+      "name": "a folder sent first, an album here, plays one of the media under it",
+      "request": {
+        "items": [
+          {
+            "Id": "album-1",
+            "Name": "An album",
+            "Type": "MusicAlbum",
+            "IsFolder": true
+          }
+        ]
+      },
+      "previous": null,
+      "events": [
+        {
+          "status": {
+            "itemId": "track-3",
+            "playSessionId": "ps-1",
+            "playerState": "playing"
+          }
+        },
+        { "timeout": true }
+      ],
+      "expected": { "status": "loaded" }
+    },
+    {
+      "name": "a playlist's entry still playing under the play session it had before is not the load",
+      "request": {
+        "items": [
+          {
+            "Id": "playlist-1",
+            "Name": "Road trip",
+            "Type": "Playlist"
+          }
+        ]
+      },
+      "previous": { "itemId": "track-4", "playSessionId": "ps-0" },
+      "events": [
+        {
+          "status": {
+            "itemId": "track-4",
+            "playSessionId": "ps-0",
+            "playerState": "playing"
+          }
+        },
+        { "timeout": true }
+      ],
+      "expected": { "status": "timed_out" }
+    },
+    {
+      "name": "a playlist's entry that only buffers has not loaded yet",
+      "request": {
+        "items": [
+          {
+            "Id": "playlist-1",
+            "Name": "Road trip",
+            "Type": "Playlist"
+          }
+        ]
+      },
+      "previous": null,
+      "events": [
+        {
+          "status": {
+            "itemId": "track-4",
+            "playSessionId": "ps-1",
+            "playerState": "buffering"
+          }
+        },
+        { "timeout": true }
+      ],
+      "expected": { "status": "timed_out" }
+    },
+    {
       "name": "a playback error fails the load",
       "previous": null,
       "events": [
         {
           "message": {
-            "type": "playbackerror",
-            "message": "Unable to load media"
+            "message": "NotAllowed",
+            "type": "playbackerror"
           }
         }
       ],
       "expected": { "status": "failed", "error": "playback_failed" }
     },
     {
-      "name": "a connection error means the receiver cannot reach the server",
+      "name": "a failed PlaybackInfo request is a connection error then NoCompatibleStream, and the load fails on the first",
       "previous": null,
-      "events": [{ "message": { "type": "connectionerror" } }],
-      "expected": { "status": "failed", "error": "server_unreachable" }
+      "events": [
+        { "message": { "message": "", "type": "connectionerror" } },
+        {
+          "message": {
+            "message": "NoCompatibleStream",
+            "type": "playbackerror"
+          }
+        }
+      ],
+      "expected": { "status": "failed", "error": "playback_info_failed" }
     },
     {
       "name": "a rejected message fails the load as rejected",
       "previous": null,
       "events": [
-        { "message": { "type": "error", "message": "invalid command" } }
+        {
+          "message": {
+            "message": "Missing one or more required params - command,options,userId,accessToken,serverAddress",
+            "type": "error"
+          }
+        }
       ],
       "expected": { "status": "failed", "error": "rejected" }
     },
@@ -102,7 +262,7 @@
       "expected": { "status": "superseded" }
     },
     {
-      "name": "silence until the deadline times out",
+      "name": "a receiver that cannot reach the server says nothing, so the load times out",
       "previous": null,
       "events": [{ "timeout": true }],
       "expected": { "status": "timed_out" }

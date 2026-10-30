@@ -8,7 +8,7 @@ const t = ((key: string) => key) as unknown as TFunction;
 
 describe("receiverLoadErrorMessage", () => {
   test.each([
-    ["server_unreachable", "player.chromecast_server_unreachable"],
+    ["playback_info_failed", "player.chromecast_server_unreachable"],
     ["playback_failed", "player.chromecast_playback_failed"],
     ["rejected", "player.could_not_create_stream_for_chromecast"],
   ] as const)("names a %s error", (error, key) => {
@@ -21,8 +21,8 @@ describe("castNotStartedMessage", () => {
     expect(
       castNotStartedMessage(t, {
         status: "failed",
-        error: "server_unreachable",
-        message: { type: "connectionerror" },
+        error: "playback_info_failed",
+        message: { message: "", type: "connectionerror" },
       }),
     ).toBe("player.chromecast_server_unreachable");
   });

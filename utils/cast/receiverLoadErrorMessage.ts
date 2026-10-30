@@ -10,7 +10,7 @@ export const receiverLoadErrorMessage = (
   error: ReceiverLoadError,
 ): string => {
   switch (error) {
-    case "server_unreachable":
+    case "playback_info_failed":
       return t("player.chromecast_server_unreachable");
     case "playback_failed":
       return t("player.chromecast_playback_failed");

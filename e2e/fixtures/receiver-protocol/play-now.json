@@ -55,7 +55,7 @@
       }
     },
     {
-      "name": "no receiver name and no bitrate",
+      "name": "no bitrate picked sends the uncapped one, which lifts a cap the receiver kept from an earlier message",
       "session": {
         "basePath": "https://jellyfin.example.test",
         "accessToken": "tok-123",
@@ -77,6 +77,7 @@
         "serverAddress": "https://jellyfin.example.test",
         "accessToken": "tok-123",
         "userId": "user-1",
+        "maxBitrate": 120000000,
         "options": {
           "items": [
             {
@@ -117,6 +118,7 @@
         "accessToken": "tok-123",
         "userId": "user-1",
         "receiverName": "Living Room TV",
+        "maxBitrate": 120000000,
         "options": {
           "items": [
             {
@@ -131,7 +133,50 @@
       }
     },
     {
-      "name": "a plain command carries the server on every message",
+      "name": "a live stream already open goes with its media source, for the receiver's PlaybackInfo",
+      "session": {
+        "basePath": "https://jellyfin.example.test",
+        "accessToken": "tok-123",
+        "userId": "user-1",
+        "receiverName": "Living Room TV"
+      },
+      "command": "PlayNow",
+      "request": {
+        "items": [
+          {
+            "Id": "channel-1",
+            "Name": "1 Films libres",
+            "Type": "TvChannel",
+            "MediaType": "Video"
+          }
+        ],
+        "mediaSourceId": "ms-live-1",
+        "liveStreamId": "live-1"
+      },
+      "expected": {
+        "command": "PlayNow",
+        "serverAddress": "https://jellyfin.example.test",
+        "accessToken": "tok-123",
+        "userId": "user-1",
+        "receiverName": "Living Room TV",
+        "maxBitrate": 120000000,
+        "options": {
+          "mediaSourceId": "ms-live-1",
+          "liveStreamId": "live-1",
+          "items": [
+            {
+              "Id": "channel-1",
+              "Name": "1 Films libres",
+              "Type": "TvChannel",
+              "MediaType": "Video",
+              "IsFolder": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "a plain command carries the server and the bitrate cap on every message",
       "session": {
         "basePath": "https://jellyfin.example.test",
         "accessToken": "tok-123",
@@ -146,24 +191,26 @@
         "accessToken": "tok-123",
         "userId": "user-1",
         "receiverName": "Living Room TV",
+        "maxBitrate": 120000000,
         "options": {}
       }
     },
     {
-      "name": "seek carries its position in the options",
+      "name": "seek takes its position in seconds, sent whole: the receiver makes ticks of it unrounded, which the server may reject",
       "session": {
         "basePath": "https://jellyfin.example.test",
         "accessToken": "tok-123",
         "userId": "user-1"
       },
       "command": "Seek",
-      "options": { "position": 125 },
+      "options": { "position": 125.6 },
       "expected": {
         "command": "Seek",
         "serverAddress": "https://jellyfin.example.test",
         "accessToken": "tok-123",
         "userId": "user-1",
-        "options": { "position": 125 }
+        "maxBitrate": 120000000,
+        "options": { "position": 126 }
       }
     }
   ]

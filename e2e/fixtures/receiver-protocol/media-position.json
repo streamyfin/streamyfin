@@ -1,0 +1,70 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "name": "a stream the receiver can seek in already counts from the start of the item",
+      "input": {
+        "currentTime": 754.5,
+        "customData": {
+          "audioStreamIndex": 1,
+          "canClientSeek": true,
+          "canSeek": true,
+          "itemId": "item-1",
+          "liveStreamId": null,
+          "mediaSourceId": "ms-1",
+          "playMethod": "Transcode",
+          "playSessionId": "ps-1",
+          "runtimeTicks": 60000000000,
+          "startPositionTicks": 150000000,
+          "subtitleStreamIndex": 3
+        }
+      },
+      "expected": 754.5
+    },
+    {
+      "name": "a stream it cannot seek in counts from the position it was loaded at, which is added",
+      "input": {
+        "currentTime": 12.5,
+        "customData": {
+          "audioStreamIndex": 0,
+          "canClientSeek": false,
+          "canSeek": true,
+          "itemId": "track-1",
+          "liveStreamId": null,
+          "mediaSourceId": "track-1",
+          "playMethod": "Transcode",
+          "playSessionId": "ps-3",
+          "runtimeTicks": 2400000000,
+          "startPositionTicks": 300000000,
+          "subtitleStreamIndex": null
+        }
+      },
+      "expected": 42.5
+    },
+    {
+      "name": "a live channel it cannot seek in, loaded at 0, keeps the position it reports",
+      "input": {
+        "currentTime": 95,
+        "customData": {
+          "audioStreamIndex": 1,
+          "canClientSeek": false,
+          "canSeek": false,
+          "itemId": "channel-1",
+          "liveStreamId": "live-9",
+          "mediaSourceId": "ms-live-1",
+          "playMethod": "Transcode",
+          "playSessionId": "ps-4",
+          "runtimeTicks": null,
+          "startPositionTicks": 0,
+          "subtitleStreamIndex": null
+        }
+      },
+      "expected": 95
+    },
+    {
+      "name": "media without custom data, which another sender loaded, keeps the position it reports",
+      "input": { "currentTime": 30, "customData": null },
+      "expected": 30
+    }
+  ]
+}

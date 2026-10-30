@@ -2,91 +2,165 @@
   "version": 1,
   "cases": [
     {
-      "name": "a transcoded movie",
+      "name": "a transcoded movie, HLS, which the receiver can seek in",
       "input": {
-        "itemId": "item-1",
-        "playSessionId": "ps-1",
         "audioStreamIndex": 1,
-        "subtitleStreamIndex": 3,
+        "canClientSeek": true,
+        "canSeek": true,
+        "itemId": "item-1",
+        "liveStreamId": null,
         "mediaSourceId": "ms-1",
         "playMethod": "Transcode",
+        "playSessionId": "ps-1",
         "runtimeTicks": 60000000000,
         "startPositionTicks": 150000000,
-        "canSeek": true,
-        "liveStreamId": null
+        "subtitleStreamIndex": 3
       },
       "expected": {
-        "itemId": "item-1",
-        "playSessionId": "ps-1",
         "audioStreamIndex": 1,
-        "subtitleStreamIndex": 3,
+        "canClientSeek": true,
+        "canSeek": true,
+        "itemId": "item-1",
+        "liveStreamId": null,
         "mediaSourceId": "ms-1",
         "playMethod": "Transcode",
+        "playSessionId": "ps-1",
         "runtimeTicks": 60000000000,
         "startPositionTicks": 150000000,
-        "canSeek": true,
-        "liveStreamId": null
+        "subtitleStreamIndex": 3
       }
     },
     {
-      "name": "a live channel cannot seek and carries its live stream",
+      "name": "a direct stream started from the beginning has a start position of 0, never null",
       "input": {
-        "itemId": "channel-1",
-        "playSessionId": "ps-2",
-        "playMethod": "Transcode",
-        "canSeek": false,
-        "liveStreamId": "live-9"
-      },
-      "expected": {
-        "itemId": "channel-1",
-        "playSessionId": "ps-2",
-        "audioStreamIndex": null,
-        "subtitleStreamIndex": null,
-        "mediaSourceId": null,
-        "playMethod": "Transcode",
-        "runtimeTicks": null,
-        "startPositionTicks": null,
-        "canSeek": false,
-        "liveStreamId": "live-9"
-      }
-    },
-    {
-      "name": "indexes sent as strings are read as numbers",
-      "input": {
-        "itemId": "item-3",
-        "playSessionId": "ps-3",
-        "audioStreamIndex": "2",
-        "subtitleStreamIndex": "-1",
-        "runtimeTicks": "600000000",
-        "playMethod": "DirectStream"
-      },
-      "expected": {
-        "itemId": "item-3",
-        "playSessionId": "ps-3",
-        "audioStreamIndex": 2,
-        "subtitleStreamIndex": -1,
-        "mediaSourceId": null,
+        "audioStreamIndex": 1,
+        "canClientSeek": true,
+        "canSeek": true,
+        "itemId": "item-2",
+        "liveStreamId": null,
+        "mediaSourceId": "item-2",
         "playMethod": "DirectStream",
-        "runtimeTicks": 600000000,
-        "startPositionTicks": null,
-        "canSeek": null,
-        "liveStreamId": null
+        "playSessionId": "ps-2",
+        "runtimeTicks": 54000000000,
+        "startPositionTicks": 0,
+        "subtitleStreamIndex": null
+      },
+      "expected": {
+        "audioStreamIndex": 1,
+        "canClientSeek": true,
+        "canSeek": true,
+        "itemId": "item-2",
+        "liveStreamId": null,
+        "mediaSourceId": "item-2",
+        "playMethod": "DirectStream",
+        "playSessionId": "ps-2",
+        "runtimeTicks": 54000000000,
+        "startPositionTicks": 0,
+        "subtitleStreamIndex": null
       }
     },
     {
-      "name": "no custom data gives an empty reading",
+      "name": "transcoded music the receiver cannot seek in, its audio stream at index 0",
+      "input": {
+        "audioStreamIndex": 0,
+        "canClientSeek": false,
+        "canSeek": true,
+        "itemId": "track-1",
+        "liveStreamId": null,
+        "mediaSourceId": "track-1",
+        "playMethod": "Transcode",
+        "playSessionId": "ps-3",
+        "runtimeTicks": 2400000000,
+        "startPositionTicks": 300000000,
+        "subtitleStreamIndex": null
+      },
+      "expected": {
+        "audioStreamIndex": 0,
+        "canClientSeek": false,
+        "canSeek": true,
+        "itemId": "track-1",
+        "liveStreamId": null,
+        "mediaSourceId": "track-1",
+        "playMethod": "Transcode",
+        "playSessionId": "ps-3",
+        "runtimeTicks": 2400000000,
+        "startPositionTicks": 300000000,
+        "subtitleStreamIndex": null
+      }
+    },
+    {
+      "name": "a live channel has a media source and its live stream, no runtime, and cannot seek",
+      "input": {
+        "audioStreamIndex": 1,
+        "canClientSeek": false,
+        "canSeek": false,
+        "itemId": "channel-1",
+        "liveStreamId": "live-9",
+        "mediaSourceId": "ms-live-1",
+        "playMethod": "Transcode",
+        "playSessionId": "ps-4",
+        "runtimeTicks": null,
+        "startPositionTicks": 0,
+        "subtitleStreamIndex": null
+      },
+      "expected": {
+        "audioStreamIndex": 1,
+        "canClientSeek": false,
+        "canSeek": false,
+        "itemId": "channel-1",
+        "liveStreamId": "live-9",
+        "mediaSourceId": "ms-live-1",
+        "playMethod": "Transcode",
+        "playSessionId": "ps-4",
+        "runtimeTicks": null,
+        "startPositionTicks": 0,
+        "subtitleStreamIndex": null
+      }
+    },
+    {
+      "name": "bridge robustness, not a receiver shape: numbers that reach the sender as strings are read as numbers",
+      "input": {
+        "audioStreamIndex": "2",
+        "canClientSeek": true,
+        "canSeek": true,
+        "itemId": "item-3",
+        "liveStreamId": null,
+        "mediaSourceId": "item-3",
+        "playMethod": "DirectStream",
+        "playSessionId": "ps-5",
+        "runtimeTicks": "600000000",
+        "startPositionTicks": "0",
+        "subtitleStreamIndex": "-1"
+      },
+      "expected": {
+        "audioStreamIndex": 2,
+        "canClientSeek": true,
+        "canSeek": true,
+        "itemId": "item-3",
+        "liveStreamId": null,
+        "mediaSourceId": "item-3",
+        "playMethod": "DirectStream",
+        "playSessionId": "ps-5",
+        "runtimeTicks": 600000000,
+        "startPositionTicks": 0,
+        "subtitleStreamIndex": -1
+      }
+    },
+    {
+      "name": "no custom data, as on media another sender loaded, gives an empty reading",
       "input": null,
       "expected": {
-        "itemId": null,
-        "playSessionId": null,
         "audioStreamIndex": null,
-        "subtitleStreamIndex": null,
+        "canClientSeek": null,
+        "canSeek": null,
+        "itemId": null,
+        "liveStreamId": null,
         "mediaSourceId": null,
         "playMethod": null,
+        "playSessionId": null,
         "runtimeTicks": null,
         "startPositionTicks": null,
-        "canSeek": null,
-        "liveStreamId": null
+        "subtitleStreamIndex": null
       }
     }
   ]
