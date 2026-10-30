@@ -4,6 +4,10 @@ name: 🎯 E2E tier 1 (Android)
 # the JS bundle (a debug build is an Expo dev client that waits for Metro). Cast discovery
 # does not work on emulators, so the cast flows will drive fake engines switched on at build
 # time; this workflow only runs on pull requests that touch cast code or the bench itself.
+# Cast code is every file that uses the Cast API, and workflows.test.ts fails when the filter
+# below misses one. package.json and bun.lock stay out of it, Cast library bumps included:
+# they change with every dependency update, and the emulator job would add half an hour to
+# each of those pull requests.
 
 on:
   pull_request:
@@ -38,9 +42,12 @@ jobs:
             cast:
               - 'modules/mpv-player/**'
               - 'utils/cast/**'
+              - 'constants/Cast.ts'
               - 'components/Chromecast.tsx'
-              - 'components/cast/**'
+              - 'components/JellyfinCastStopReporter.tsx'
+              - 'components/PlayButton.tsx'
               - 'hooks/useMusicCast.ts'
+              - 'app/(auth)/now-playing.tsx'
               - 'app.config.ts'
               - 'plugins/withCast*.ts'
               - 'e2e/**'
@@ -131,6 +138,11 @@ jobs:
         id: maestro-run
         # The failure is kept for the retry step below, which fails the job for real.
         continue-on-error: true
+        # A hung attempt has to fail, not run into the job's timeout: a cancelled job skips the
+        # retry and the upload. maestro.py stops a stalled flow after 5 minutes, and the runner
+        # then shuts the emulator down. This bound covers the boot and the install too, and keeps
+        # both attempts within the job: the steps before them take about 28 minutes.
+        timeout-minutes: 10
         uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
         with:
           api-level: 34
@@ -140,11 +152,12 @@ jobs:
           disable-animations: true
           script: |
             adb install -r android/app/build/outputs/apk/release/app-release.apk
-            maestro test e2e/suites/cast/flows/smoke-launch.yml
+            python3 e2e/bench/maestro.py --flow e2e/suites/cast/flows/smoke-launch.yml --timeout 300
 
       - name: 📱 Retry the smoke flow once
         # A cold emulator sometimes misses the first launch; the flow is idempotent.
         if: steps.maestro-run.outcome == 'failure'
+        timeout-minutes: 10
         uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
         with:
           api-level: 34
@@ -154,7 +167,7 @@ jobs:
           disable-animations: true
           script: |
             adb install -r android/app/build/outputs/apk/release/app-release.apk
-            maestro test e2e/suites/cast/flows/smoke-launch.yml
+            python3 e2e/bench/maestro.py --flow e2e/suites/cast/flows/smoke-launch.yml --timeout 300
 
       - name: 📤 Upload Maestro artifacts
         if: failure()
