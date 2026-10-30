@@ -7,11 +7,14 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Api } from "@jellyfin/sdk";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import type { RemoteMediaClient } from "react-native-google-cast";
+import type { CastClient } from "@/modules/mpv-player/src/cast";
 import {
   createCastDoubleState,
   lastCastChannel,
-} from "@/test-utils/googleCast";
+  receiveOnChannel,
+  sentOn,
+  setCastSession,
+} from "@/test-utils/cast";
 import {
   castToJellyfinReceiver,
   type JellyfinCastSession,
@@ -26,10 +29,11 @@ import {
 } from "./jellyfinReceiver";
 
 const mockCast = createCastDoubleState();
-jest.mock("react-native-google-cast", () =>
+jest.mock("@/modules/mpv-player/src/cast/CastModule", () => ({
+  __esModule: true,
   // The factory runs before this file's body, so the state is read lazily.
-  require("@/test-utils/googleCast").castDoubleModule(() => mockCast),
-);
+  CastNative: require("@/test-utils/cast").castDoubleModule(() => mockCast),
+}));
 
 type Vector = any;
 
@@ -64,7 +68,7 @@ const sessionFrom = (raw: {
 let session = 0;
 beforeEach(() => {
   session += 1;
-  mockCast.sessionId = `session-${session}`;
+  setCastSession(mockCast, `session-${session}`);
   mockCast.channels = [];
   mockCast.connectOnAdd = true;
 });
@@ -82,9 +86,7 @@ describe("play-now.json", () => {
         vector.options,
       );
     }
-    expect(lastCastChannel(mockCast).sendMessage).toHaveBeenCalledWith(
-      vector.expected,
-    );
+    expect(sentOn(lastCastChannel(mockCast))[0]).toEqual(vector.expected);
   });
 });
 
@@ -123,7 +125,7 @@ describe("bus-messages.json", () => {
       "Identify",
       sessionFrom(vectors("play-now.json").cases[0].session),
     );
-    lastCastChannel(mockCast).receive(vector.input);
+    receiveOnChannel(mockCast, lastCastChannel(mockCast), vector.input);
     unsubscribe();
     if (vector.expected.invalid) {
       expect(received).toEqual([vector.input]);
@@ -175,7 +177,7 @@ describe("load-outcomes.json", () => {
         listener = handler;
         return { remove: () => {} };
       },
-    } as unknown as RemoteMediaClient;
+    } as unknown as CastClient;
     const castSession = sessionFrom(vectors("play-now.json").cases[1].session);
     const outcome = castToJellyfinReceiver(
       client,
@@ -187,7 +189,11 @@ describe("load-outcomes.json", () => {
     for (const event of vector.events) {
       if (event.status) listener?.(statusOf(event.status));
       if (event.message)
-        lastCastChannel(mockCast).receive(JSON.stringify(event.message));
+        receiveOnChannel(
+          mockCast,
+          lastCastChannel(mockCast),
+          JSON.stringify(event.message),
+        );
       if (event.timeout) jest.advanceTimersByTime(file.timeoutMs);
       if (event.supersede) {
         void castToJellyfinReceiver(

@@ -89,6 +89,11 @@ Three rules keep mocks from becoming the thing that breaks:
   `fakeFiles.deleted()` and `fakeFiles.downloads()` read it back.
 - `customHeadersModule()` stands for the `@/utils/customHeaders` barrel, with the pure
   helpers for real and the native side stubbed; `setJellyfinHeaders()` sets what it reports.
+- `castDoubleModule()` stands for the native Cast module behind
+  `@/modules/mpv-player/src/cast/CastModule`, driven by a `createCastDoubleState()` state:
+  availability, devices, session, media status, channels and what was sent on them;
+  `emitCastEvent()` and `emitCastSessionEvent()` fire its listeners as the module would. The
+  JS side of the module runs for real on top of it.
 - `reanimatedModule` stands for `react-native-reanimated` when a spec renders a component
   that holds shared values. Reanimated's own Jest mock returns a new shared value on
   every render, which re-runs any effect that depends on one.

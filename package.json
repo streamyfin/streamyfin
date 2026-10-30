@@ -103,7 +103,6 @@
     "react-native-draggable-flatlist": "^4.0.3",
     "react-native-edge-to-edge": "1.8.1",
     "react-native-gesture-handler": "~2.32.0",
-    "react-native-google-cast": "^4.9.1",
     "react-native-image-colors": "2.6.0",
     "react-native-mmkv": "4.3.2",
     "react-native-nitro-modules": "0.37.1",
@@ -152,7 +151,6 @@
     "doctor": {
       "reactNativeDirectoryCheck": {
         "exclude": [
-          "react-native-google-cast",
           "react-native-udp",
           "react-native-track-player",
           "@jellyfin/sdk"

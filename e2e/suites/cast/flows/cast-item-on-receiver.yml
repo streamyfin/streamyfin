@@ -1,0 +1,66 @@
+appId: com.fredrikburmester.streamyfin
+# Casts one item on a receiver from a signed-in app, then stops casting from the SDK's expanded controls.
+# Needs ITEM_NAME (the item's title, as the search shows it) and CAST_NAME (the receiver's name in the Cast dialog),
+# a phone emulator on the receiver's network, and the release build installed (the module's Cast support is native).
+# Taps by position are for the 1080x2400 phone emulator of the bench (Review_Phone).
+---
+- launchApp
+- extendedWaitUntil:
+    visible: "Home"
+    timeout: 60000
+# The search tab by position: its header search bar is collapsed after a launch, the magnifier expands it.
+- tapOn:
+    point: "30%,93%"
+- tapOn:
+    text: "Navigate up"
+    optional: true
+- extendedWaitUntil:
+    visible: "Discover"
+    timeout: 30000
+- tapOn:
+    point: "93%,6%"
+- inputText: ${ITEM_NAME}
+- pressKey: Enter
+- extendedWaitUntil:
+    visible: "Movies"
+    timeout: 30000
+- tapOn:
+    point: "18%,29%"
+- extendedWaitUntil:
+    visible: "Play button"
+    timeout: 30000
+# The header Cast button opens the SDK dialog; the receivers come from the module's own discovery.
+- tapOn: "Cast button"
+- extendedWaitUntil:
+    visible: ${CAST_NAME}
+    timeout: 30000
+- takeScreenshot: cast-dialog
+- tapOn: ${CAST_NAME}
+- extendedWaitUntil:
+    notVisible: "Cast to"
+    timeout: 30000
+# The play pill shows its cast glyph once the session is connected.
+- extendedWaitUntil:
+    visible:
+      id: "play-button-cast"
+    timeout: 45000
+- takeScreenshot: cast-connected
+- tapOn: "Play button"
+- extendedWaitUntil:
+    visible: "Chromecast"
+    timeout: 10000
+- tapOn: "Chromecast"
+# The SDK expanded controls cover the item page; their toolbar Cast button is the way to stop casting.
+- extendedWaitUntil:
+    notVisible: "Play button"
+    timeout: 30000
+- takeScreenshot: cast-expanded-controls
+- tapOn: "Cast. Connected"
+- extendedWaitUntil:
+    visible: "Stop casting"
+    timeout: 15000
+- tapOn: "Stop casting"
+- extendedWaitUntil:
+    visible: "Play button"
+    timeout: 30000
+- takeScreenshot: cast-stopped

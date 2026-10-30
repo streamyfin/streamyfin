@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Jellyfin's own Cast receiver; the app's config plugin writes the same key, which wins over this default. -->
+    <string name="streamyfin_cast_receiver_app_id" translatable="false">F007D354</string>
+</resources>

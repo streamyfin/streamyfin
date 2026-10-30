@@ -1,12 +1,14 @@
 {
   "platforms": ["apple", "android", "web"],
   "apple": {
-    "modules": ["MpvPlayerModule", "NativePlayerModule"]
+    "modules": ["MpvPlayerModule", "NativePlayerModule", "CastModule"],
+    "appDelegateSubscribers": ["CastAppDelegate"]
   },
   "android": {
     "modules": [
       "expo.modules.mpvplayer.MpvPlayerModule",
-      "expo.modules.mpvplayer.nativeplayer.NativePlayerModule"
+      "expo.modules.mpvplayer.nativeplayer.NativePlayerModule",
+      "expo.modules.mpvplayer.cast.CastModule"
     ]
   }
 }

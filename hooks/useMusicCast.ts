@@ -3,17 +3,20 @@ import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert } from "react-native";
-import CastContext, {
-  CastState,
-  PlayServicesState,
-  useCastDevice,
-  useCastState,
-  useRemoteMediaClient,
-} from "react-native-google-cast";
 import {
   RECEIVER_LOAD_TIMEOUT_MS,
   RECEIVER_MAX_QUEUE_ITEMS,
 } from "@/constants/Cast";
+import {
+  CastState,
+  PlayServicesState,
+  playServicesState,
+  showExpandedControls,
+  showPlayServicesErrorDialog,
+  useCastClient,
+  useCastDevice,
+  useCastState,
+} from "@/modules/mpv-player/src/cast";
 import {
   castToJellyfinReceiver,
   currentReceiverName,
@@ -38,7 +41,7 @@ interface CastQueueOptions {
  */
 export const useMusicCast = ({ api, userId }: UseMusicCastOptions) => {
   const { t } = useTranslation();
-  const client = useRemoteMediaClient();
+  const client = useCastClient();
   const castState = useCastState();
   const castDeviceName = receiverNameFor(useCastDevice());
 
@@ -57,9 +60,9 @@ export const useMusicCast = ({ api, userId }: UseMusicCastOptions) => {
 
       try {
         // Check Play Services state (Android)
-        const state = await CastContext.getPlayServicesState();
+        const state = playServicesState();
         if (state && state !== PlayServicesState.SUCCESS) {
-          CastContext.showPlayServicesErrorDialog(state);
+          showPlayServicesErrorDialog(state);
           return false;
         }
 
@@ -91,7 +94,7 @@ export const useMusicCast = ({ api, userId }: UseMusicCastOptions) => {
         }
         if (outcome.status !== "loaded") return false;
 
-        CastContext.showExpandedControls();
+        showExpandedControls();
         return true;
       } catch (error) {
         logAndCaptureError("Casting music queue failed", error);
