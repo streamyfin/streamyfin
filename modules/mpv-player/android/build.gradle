@@ -56,6 +56,12 @@ android {
   lintOptions {
     abortOnError false
   }
+  testOptions {
+    unitTests.all {
+      // The receiver protocol vectors live at the repository root, shared with Jest and the bench.
+      systemProperty "receiverProtocolVectors", file("../../../e2e/fixtures/receiver-protocol").absolutePath
+    }
+  }
   sourceSets {
     main {
       jniLibs.srcDirs = ['libs']
