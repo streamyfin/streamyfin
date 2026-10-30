@@ -15,6 +15,7 @@ from pathlib import Path
 from unittest import mock
 
 from bench.jellyfin import AuthSession, JellyfinHttpError
+from bench.sender import BusMessage
 
 EXAMPLE_CONFIG = Path(__file__).resolve().parents[1] / "config.example.json"
 RECEIVER_APP_ID = "F007D354"
@@ -91,7 +92,8 @@ class FakeStatus:
 class FakeReceiver:
     """A Cast device, its media status and the Jellyfin receiver's channel in one object, since the
     sender reaches all three through the cast. Like the receiver, it plays what it is sent under a
-    new play session, buffering first, and keeps the token of the last message."""
+    new play session, buffering first, keeps the token of the last message, and answers Identify
+    with a playbackstop while it plays or pauses."""
 
     def __init__(self, app_id: str | None = RECEIVER_APP_ID, status: FakeStatus | None = None, clock: FakeClock | None = None):
         self.app_id = app_id
@@ -154,6 +156,9 @@ class FakeReceiver:
             self.status.player_state = "PAUSED"
         elif command == "Unpause" and self.status.player_state == "PAUSED":
             self.status.player_state = "PLAYING"
+        elif command == "Identify" and self.status.player_state in ("PLAYING", "PAUSED"):
+            state = {"PositionTicks": round(self.status.current_time * 10_000_000), "IsPaused": self.status.player_state == "PAUSED"}
+            self.bus.append(BusMessage(type="playbackstop", data={"PlayState": state}))
 
 
 def playing(item_id: str, play_session: str = "ps-0", position: float = 10.0) -> FakeStatus:

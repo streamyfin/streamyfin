@@ -152,10 +152,10 @@ class EvaluateTests(unittest.TestCase):
         self.assertEqual(transcoded.verdict, "ok")
 
     def test_evaluate_reports_receiver_error_from_bus(self):
-        bus = [BusMessage(type="playbackerror", message="Unable to load media")]
+        bus = [BusMessage(type="playbackerror", message="NoCompatibleStream")]
         row = evaluate(case(), "chromecast-gen3", samples([BEFORE]), None, bus, item_id=ITEM)
         self.assertEqual(row.verdict, "ko")
-        self.assertIn("playbackerror: Unable to load media", row.errors)
+        self.assertIn("playbackerror: NoCompatibleStream", row.errors)
 
     def test_evaluate_ko_when_playback_never_started(self):
         row = evaluate(case(), "chromecast-gen3", samples([BEFORE, status("BUFFERING", 0)]), None, [], item_id=ITEM)
@@ -164,10 +164,10 @@ class EvaluateTests(unittest.TestCase):
         self.assertIsNone(row.startup_seconds)
 
     def test_evaluate_ko_on_timeout_keeps_the_receiver_error(self):
-        bus = [BusMessage(type="playbackerror", message="Could not start")]
+        bus = [BusMessage(type="playbackerror", message="NotAllowed")]
         row = evaluate(case(), "chromecast-gen3", [], None, bus, item_id=ITEM)
         self.assertEqual(row.verdict, "ko")
-        self.assertIn("playbackerror: Could not start", row.errors)
+        self.assertIn("playbackerror: NotAllowed", row.errors)
         self.assertIn("playback never started", row.errors)
 
     def test_evaluate_ko_on_timeout_without_bus_or_session(self):

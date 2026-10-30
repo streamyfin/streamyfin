@@ -277,8 +277,8 @@ def main(argv: list[str] | None = None) -> int:
     controller = None
     try:
         cast = sender.connect(target)
-        # The receiver keeps the name and the bitrate cap of the first sender that reached it: a
-        # running one is restarted so that the server session and the stream are the matrix's own.
+        # The receiver keeps the name of the first sender that reached it: a running one is
+        # restarted so that the server session is the matrix's own.
         report.add("receiver", restarted=cast.app_id == sender.RECEIVER_APP_ID)
         sender.launch(cast, fresh=True)
         controller = sender.attach(cast)
