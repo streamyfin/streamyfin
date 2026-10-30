@@ -1,3 +1,5 @@
+import type { AudioTranscodeModeType } from "@/utils/profiles/native";
+
 /**
  * Heartbeat cadence, in ms, for the periodic playback progress report. The
  * players tick once a second, but the server only needs the position often
@@ -46,3 +48,21 @@ export const NEXT_EPISODE_COUNTDOWN_MS = 10_000;
  * settles would hold every later report, the Stop included.
  */
 export const PLAYBACK_REPORT_TIMEOUT_MS = 15_000;
+
+/** The audio transcoding choices, as `AudioTranscodeMode` names them. */
+export const AUDIO_TRANSCODE_MODES: readonly AudioTranscodeModeType[] = [
+  "auto",
+  "stereo",
+  "5.1",
+  "passthrough",
+];
+
+export const AUDIO_TRANSCODE_MODE_LABEL_KEYS: Record<
+  AudioTranscodeModeType,
+  string
+> = {
+  auto: "home.settings.audio.transcode_mode.auto",
+  stereo: "home.settings.audio.transcode_mode.stereo",
+  "5.1": "home.settings.audio.transcode_mode.5_1",
+  passthrough: "home.settings.audio.transcode_mode.passthrough",
+};

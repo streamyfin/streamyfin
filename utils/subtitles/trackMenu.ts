@@ -56,7 +56,7 @@ export interface LocalSubtitleFile {
   filePath: string;
 }
 
-const defaultLabel = (stream: MediaStream): string =>
+export const defaultLabel = (stream: MediaStream): string =>
   stream.DisplayTitle || streamLanguageName(stream) || `Track ${stream.Index}`;
 
 /**
@@ -114,14 +114,17 @@ export const buildSubtitleMenu = (
       s.Type === "Subtitle" && typeof s.Index === "number",
   );
 
-  // An image subtitle burned into a transcoded download is in the pixels: it
-  // cannot be turned off or swapped, so offering "Off" or any alternative would
+  // A subtitle burned into a transcoded download is in the pixels: it cannot
+  // be turned off or swapped, so offering "Off" or any alternative would
   // advertise controls that cannot affect it.
   if (offlineTranscoded?.burnedInIndex !== undefined) {
     const burned = subtitleStreams.find(
       (s) => s.Index === offlineTranscoded.burnedInIndex,
     );
-    if (burned && isImageBasedSubtitle(burned)) {
+    if (
+      burned &&
+      (isImageBasedSubtitle(burned) || isBurnedInSubtitle(burned))
+    ) {
       return [
         {
           index: burned.Index,

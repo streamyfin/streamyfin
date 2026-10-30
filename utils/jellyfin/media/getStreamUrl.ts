@@ -5,6 +5,7 @@ import type {
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { BaseItemKind } from "@jellyfin/sdk/lib/generated-client/models/base-item-kind";
 import { getMediaInfoApi } from "@jellyfin/sdk/lib/utils/api";
+import type { DownloadMode, DownloadVideoCodec } from "@/constants/Downloads";
 import { markExpectedError } from "../../errors";
 import { generateDownloadProfile } from "../../profiles/download";
 import type { AudioTranscodeModeType } from "../../profiles/native";
@@ -284,6 +285,8 @@ export const getDownloadStreamUrl = async ({
   subtitleStreamIndex = undefined,
   mediaSourceId,
   audioMode = "auto",
+  mode,
+  videoCodec,
 }: {
   api: Api | null | undefined;
   item: BaseItemDto | null | undefined;
@@ -293,6 +296,8 @@ export const getDownloadStreamUrl = async ({
   subtitleStreamIndex?: number;
   mediaSourceId?: string | null;
   audioMode?: AudioTranscodeModeType;
+  mode: DownloadMode;
+  videoCodec?: DownloadVideoCodec;
 }): Promise<{
   url: string | null;
   sessionId: string | null;
@@ -311,7 +316,7 @@ export const getDownloadStreamUrl = async ({
       method: "POST",
       data: {
         userId,
-        deviceProfile: generateDownloadProfile(audioMode),
+        deviceProfile: generateDownloadProfile(audioMode, videoCodec),
         subtitleStreamIndex,
         startTimeTicks: 0,
         isPlayback: true,
@@ -319,6 +324,10 @@ export const getDownloadStreamUrl = async ({
         maxStreamingBitrate,
         audioStreamIndex,
         mediaSourceId,
+        ...(mode === "transcode" && {
+          enableDirectPlay: false,
+          enableDirectStream: false,
+        }),
       },
     },
   );
@@ -334,5 +343,54 @@ export const getDownloadStreamUrl = async ({
     return null;
   }
 
-  return getDownloadUrl(api, mediaSource, sessionId);
+  // Without a transcoding URL the server sends the file itself, whatever was asked.
+  const transcoded =
+    mode === "transcode" && Boolean(mediaSource.TranscodingUrl);
+  return getDownloadUrl(
+    api,
+    transcoded
+      ? withSubtitleBurnedIn(mediaSource, subtitleStreamIndex)
+      : asOriginalFile(mediaSource),
+    sessionId,
+  );
 };
+
+/** The server sends a text subtitle as a file; the URL makes it burn that one in too. */
+const withSubtitleBurnedIn = (
+  mediaSource: MediaSourceInfo,
+  subtitleStreamIndex: number | undefined,
+): MediaSourceInfo => {
+  const subtitle = mediaSource.MediaStreams?.find(
+    (stream) =>
+      stream.Type === "Subtitle" && stream.Index === subtitleStreamIndex,
+  );
+  if (
+    !mediaSource.TranscodingUrl ||
+    !subtitle ||
+    subtitle.DeliveryMethod === "Encode"
+  ) {
+    return mediaSource;
+  }
+  const [path, query = ""] = mediaSource.TranscodingUrl.split("?");
+  const params = new URLSearchParams(query);
+  params.set("SubtitleStreamIndex", String(subtitleStreamIndex));
+  params.set("SubtitleMethod", "Encode");
+  return {
+    ...mediaSource,
+    TranscodingUrl: `${path}?${params}`,
+    MediaStreams: mediaSource.MediaStreams?.map((stream) =>
+      stream === subtitle ? { ...stream, DeliveryMethod: "Encode" } : stream,
+    ),
+  };
+};
+
+/** The raw file keeps its image subtitles as tracks, which the profile marks burned in. */
+const asOriginalFile = (mediaSource: MediaSourceInfo): MediaSourceInfo => ({
+  ...mediaSource,
+  TranscodingUrl: null,
+  MediaStreams: mediaSource.MediaStreams?.map((stream) =>
+    stream.DeliveryMethod === "Encode"
+      ? { ...stream, DeliveryMethod: "Embed" }
+      : stream,
+  ),
+});

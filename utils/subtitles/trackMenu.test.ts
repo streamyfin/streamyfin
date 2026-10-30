@@ -168,6 +168,26 @@ describe("buildSubtitleMenu", () => {
       expect(rows[0].selected).toBe(true);
     });
 
+    // A text subtitle burned in on request (for a player that reads no
+    // sidecar files) is in the pixels just the same.
+    test("shows a text sub the download burned in as its only row", () => {
+      const rows = buildSubtitleMenu(
+        [sub(1, { DisplayTitle: "English", DeliveryMethod: "Encode" }), sub(2)],
+        { ...base, offlineTranscoded: { burnedInIndex: 1 } },
+      );
+      expect(rows.map((r) => [r.kind, r.label])).toEqual([
+        ["burnedIn", "English (burned in)"],
+      ]);
+    });
+
+    test("keeps the text subs switchable when the preferred one came down as a file", () => {
+      const rows = buildSubtitleMenu(
+        [sub(1, { DeliveryMethod: "External" }), sub(2)],
+        { ...base, offlineTranscoded: { burnedInIndex: 1 } },
+      );
+      expect(rows.map((r) => r.kind)).toEqual(["off", "server", "server"]);
+    });
+
     test("keeps text subs switchable and drops image subs otherwise", () => {
       const rows = buildSubtitleMenu(
         [sub(1, { IsTextSubtitleStream: false }), sub(2, { Language: "eng" })],
