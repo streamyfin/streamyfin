@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { getItemsApi, getUserLibraryApi } from "@jellyfin/sdk/lib/utils/api";
+import { getLibraryApi } from "@jellyfin/sdk/lib/utils/api";
 import { FlashList } from "@shopify/flash-list";
 import { useQuery } from "@tanstack/react-query";
 import { useLocalSearchParams, useNavigation } from "expo-router";
@@ -55,7 +55,7 @@ export default function ArtistDetailScreen() {
   const { data: artist, isLoading: loadingArtist } = useQuery({
     queryKey: ["music-artist", artistId, user?.Id],
     queryFn: async () => {
-      const response = await getUserLibraryApi(api!).getItem({
+      const response = await getLibraryApi(api!).getItem({
         userId: user?.Id,
         itemId: artistId!,
       });
@@ -67,7 +67,7 @@ export default function ArtistDetailScreen() {
   const { data: albums, isLoading: loadingAlbums } = useQuery({
     queryKey: ["music-artist-albums", artistId, user?.Id],
     queryFn: async () => {
-      const response = await getItemsApi(api!).getItems({
+      const response = await getLibraryApi(api!).getItems({
         userId: user?.Id,
         artistIds: [artistId!],
         includeItemTypes: ["MusicAlbum"],
@@ -83,7 +83,7 @@ export default function ArtistDetailScreen() {
   const { data: topTracks, isLoading: loadingTracks } = useQuery({
     queryKey: ["music-artist-top-tracks", artistId, user?.Id],
     queryFn: async () => {
-      const response = await getItemsApi(api!).getItems({
+      const response = await getLibraryApi(api!).getItems({
         userId: user?.Id,
         artistIds: [artistId!],
         includeItemTypes: ["Audio"],

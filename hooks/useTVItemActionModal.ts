@@ -62,6 +62,7 @@ export const useTVItemActionModal = () => {
                 return {
                   ...old,
                   UserData: {
+                    Key: "",
                     ...old.UserData,
                     Played: !isPlayed,
                     PlaybackPositionTicks: 0,

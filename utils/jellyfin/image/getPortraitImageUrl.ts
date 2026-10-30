@@ -1,6 +1,7 @@
 import type { Api } from "@jellyfin/sdk";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { getPrimaryImageUrl } from "./getPrimaryImageUrl";
+import { itemImageUrl } from "./itemImageUrl";
 
 /**
  * Portrait (10:15) poster image for an item, as used by the poster cards.
@@ -24,14 +25,11 @@ export const getPortraitImageUrl = ({
 
   if (item.Type === "Episode" && item.SeriesId) {
     // The same request the series' own card makes, so the two share one image.
-    const params = new URLSearchParams({
-      fillWidth: String(width),
-      quality: "80",
+    return itemImageUrl(api, item.SeriesId, "Primary", {
+      fillWidth: width,
+      quality: 80,
+      tag: item.SeriesPrimaryImageTag ?? undefined,
     });
-    if (item.SeriesPrimaryImageTag) {
-      params.set("tag", item.SeriesPrimaryImageTag);
-    }
-    return `${api.basePath}/Items/${item.SeriesId}/Images/Primary?${params.toString()}`;
   }
 
   return getPrimaryImageUrl({ api, item, width }) ?? undefined;

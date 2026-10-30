@@ -1,4 +1,4 @@
-import { getTvShowsApi } from "@jellyfin/sdk/lib/utils/api";
+import { getShowApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import { useLocalSearchParams, useNavigation } from "expo-router";
 import { useAtom } from "jotai";
@@ -38,6 +38,7 @@ import {
 import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
 import { toImagePixels } from "@/utils/jellyfin/image/imagePixels";
+import { isJellyfinItem, refetchUnlessItem } from "@/utils/jellyfin/jellyfin";
 import { getUserItemData } from "@/utils/jellyfin/user-library/getUserItemData";
 import { storage } from "@/utils/mmkv";
 import { getSeriesPlaybackTarget } from "@/utils/seriesPlaybackTarget";
@@ -88,6 +89,10 @@ const page: React.FC = () => {
         itemId: seriesId,
       });
     },
+    // A cache saved by an earlier version can hold an answer that was not an
+    // item: read as none, and fetched again on mount even while fresh.
+    select: (data) => (isJellyfinItem(data) ? data : null),
+    refetchOnMount: refetchUnlessItem,
     staleTime: isOffline ? Infinity : 60 * 1000,
     refetchInterval: !isOffline && Platform.isTV ? 60 * 1000 : undefined,
     enabled: isOffline || (!!api && !!user?.Id),
@@ -137,7 +142,7 @@ const page: React.FC = () => {
       }
       if (!api || !user?.Id) return [];
 
-      const res = await getTvShowsApi(api).getEpisodes({
+      const res = await getShowApi(api).getEpisodes({
         seriesId: seriesId,
         userId: user.Id,
         enableUserData: true,

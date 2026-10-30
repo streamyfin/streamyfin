@@ -15,10 +15,11 @@ import { admitHttpFailure } from "@/utils/httpFailureGate";
 
 // Every React Query failure funnels through here instead of needing per-call
 // handlers. Skipped: anything while offline, aborted requests, the user's
-// environment — no HTTP response, a gateway error or a gateway's own refusal,
-// axios or fetch — (an unreachable server is not an app bug), what a call site
-// marked as an expected outcome or already reported itself, and 401s (session
-// expiry has its own interceptor in JellyfinProvider).
+// environment (no HTTP response, a gateway error, a gateway's own refusal or
+// its page in the server's place, axios or fetch alike: an unreachable server
+// is not an app bug), what a call site marked as an expected outcome or
+// already reported itself, and 401s (session expiry has its own interceptor
+// in JellyfinProvider).
 export const shouldReportDataError = (error: unknown): boolean => {
   if (!onlineManager.isOnline()) return false;
   if (isExpectedError(error) || isErrorReported(error)) return false;

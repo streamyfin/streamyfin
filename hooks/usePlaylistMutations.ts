@@ -1,4 +1,4 @@
-import { getLibraryApi, getPlaylistsApi } from "@jellyfin/sdk/lib/utils/api";
+import { getLibraryApi, getPlaylistApi } from "@jellyfin/sdk/lib/utils/api";
 import { useMutation } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
 import { useTranslation } from "react-i18next";
@@ -27,7 +27,7 @@ export const useCreatePlaylist = () => {
         throw new Error("API not configured");
       }
 
-      const response = await getPlaylistsApi(api).createPlaylist({
+      const response = await getPlaylistApi(api).createPlaylist({
         createPlaylistDto: {
           Name: name,
           Ids: trackIds,
@@ -75,7 +75,7 @@ export const useAddToPlaylist = () => {
         throw new Error("API not configured");
       }
 
-      await getPlaylistsApi(api).addItemToPlaylist({
+      await getPlaylistApi(api).addItemToPlaylist({
         playlistId,
         ids: trackIds,
         userId: user.Id,
@@ -125,7 +125,7 @@ export const useRemoveFromPlaylist = () => {
         throw new Error("API not configured");
       }
 
-      await getPlaylistsApi(api).removeItemFromPlaylist({
+      await getPlaylistApi(api).removeItemFromPlaylist({
         playlistId,
         entryIds,
       });

@@ -14,8 +14,9 @@ jest.mock("react-native-safe-area-context", () => ({
 }));
 jest.mock("@/providers/JellyfinProvider", () => {
   const { atom } = jest.requireActual("jotai");
-  // The cards are built from the api's base path; nothing is requested.
-  return { apiAtom: atom({ basePath: "http://server" }) };
+  const { makeApi } = jest.requireActual("@/test-utils/jellyfinApi");
+  // The cards build their image URLs from the api; nothing is requested.
+  return { apiAtom: atom(makeApi()) };
 });
 jest.mock("expo-router", () => ({ useSegments: () => [] }));
 jest.mock("@/hooks/useAppRouter", () => ({

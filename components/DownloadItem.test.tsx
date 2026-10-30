@@ -296,7 +296,7 @@ describe("DownloadItems, sending one episode of a season", () => {
   // source or tracks then, and each episode resolves its own. Pinned so a
   // later change to which item the sheet follows does not pull this case in.
   test("downloads the one left by the unwatched only switch with its own media source", async () => {
-    const watched = { ...episode(1), UserData: { Played: true } };
+    const watched = { ...episode(1), UserData: { Key: "", Played: true } };
     await renderSeasonDownload([watched, episode(2)]);
 
     await fireEvent(screen.getByRole("switch"), "valueChange", true);

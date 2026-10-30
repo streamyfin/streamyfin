@@ -1,0 +1,46 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+
+# Everything not set here keeps coming from the CodeRabbit UI settings.
+inheritance: true
+
+reviews:
+  # CodeRabbit applies the labels it suggests. Without a list it picks from the
+  # labels used on earlier PRs, and applying one that no longer exists creates it
+  # again. That is how `🏗️ eas-build` came back after it was deleted, and the Expo
+  # GitHub App starts a production EAS build pair, billed and failing, for every
+  # PR event while a PR carries a label named like that. Never list one here.
+  labeling_instructions:
+    - label: "🐛 bug"
+      instructions: Fixes something that does not work as intended.
+    - label: "🎬 media-player"
+      instructions: Touches playback, the player screens or controls, or the mpv and ExoPlayer native modules.
+    - label: "🎨 ui/ux"
+      instructions: Changes what the user sees or how they interact with it.
+    - label: "📱 expo"
+      instructions: Touches Expo config, Expo modules or SDK packages, or config plugins.
+    - label: "🏗️ eas"
+      instructions: Changes eas.json, the EAS build configs in .eas/, or how EAS builds and submissions run.
+    - label: "📦 dependencies"
+      instructions: Adds, removes, upgrades or patches a dependency.
+    - label: "📚 documentation"
+      instructions: Changes docs, READMEs, CLAUDE.md or other written guidance.
+    - label: "🧹 cleanup"
+      instructions: Refactors, removes dead code, or tidies up without changing behaviour.
+    - label: "⚙️ ci"
+      instructions: Changes CI workflows, build pipelines or repository tooling.
+    - label: "🤖 github-actions"
+      instructions: Changes files under .github/workflows or .github/actions.
+    - label: "🎭 jellyseerr"
+      instructions: Touches the Seerr (Jellyseerr) integration.
+    - label: "⬇️ downloads"
+      instructions: Touches offline downloads or the background downloader.
+    - label: "🏠 home-screen"
+      instructions: Touches the home screen or its sections.
+    - label: "📡 chromecast"
+      instructions: Touches casting.
+    - label: "🔔 notifications"
+      instructions: Touches notifications.
+    - label: "🧪 experimental"
+      instructions: Adds or changes a feature behind an experimental setting.
+    - label: "🚀 release"
+      instructions: Prepares a release, such as a version bump or release notes.

@@ -1,4 +1,4 @@
-import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
+import { getLibraryApi } from "@jellyfin/sdk/lib/utils/api";
 import { FlashList } from "@shopify/flash-list";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useLocalSearchParams } from "expo-router";
@@ -37,7 +37,7 @@ export default function AlbumsScreen() {
   } = useInfiniteQuery({
     queryKey: ["music-albums", libraryId, user?.Id],
     queryFn: async ({ pageParam = 0 }) => {
-      const response = await getItemsApi(api!).getItems({
+      const response = await getLibraryApi(api!).getItems({
         userId: user?.Id,
         parentId: libraryId,
         includeItemTypes: ["MusicAlbum"],

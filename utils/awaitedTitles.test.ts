@@ -33,9 +33,9 @@ const matrix: AwaitedTitle = {
 const fakeApi = () => {
   const answer = { data: [matrix] };
   return {
-    get: jest.fn(async () => answer),
-    post: jest.fn(async () => answer),
-    delete: jest.fn(async () => answer),
+    pluginGet: jest.fn(async () => answer),
+    pluginPost: jest.fn(async () => answer),
+    pluginDelete: jest.fn(async () => answer),
   };
 };
 
@@ -44,7 +44,7 @@ describe("the routes", () => {
     const api = fakeApi();
 
     expect(await getAwaitedTitles(api as never)).toEqual([matrix]);
-    expect(api.get).toHaveBeenCalledWith(ROUTE);
+    expect(api.pluginGet).toHaveBeenCalledWith(ROUTE);
   });
 
   test("adds a title with what the plugin needs to match it", async () => {
@@ -58,7 +58,7 @@ describe("the routes", () => {
     } as const;
 
     expect(await awaitTitle(api as never, request)).toEqual([matrix]);
-    expect(api.post).toHaveBeenCalledWith(ROUTE, request);
+    expect(api.pluginPost).toHaveBeenCalledWith(ROUTE, request);
   });
 
   test("takes a title off by its kind and its TMDB id", async () => {
@@ -67,7 +67,7 @@ describe("the routes", () => {
     expect(await stopAwaitingTitle(api as never, "movie", 603)).toEqual([
       matrix,
     ]);
-    expect(api.delete).toHaveBeenCalledWith(`${ROUTE}/movie/603`);
+    expect(api.pluginDelete).toHaveBeenCalledWith(`${ROUTE}/movie/603`);
   });
 });
 
