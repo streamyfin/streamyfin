@@ -7,6 +7,8 @@ final class RemoteOnlyEngine: TransportEngine, QueueEngine {
 	weak var delegate: PlayerEngineDelegate?
 	private(set) var intendedPlayState = false
 	var played = 0
+	var seeksTo: [(position: Double, exact: Bool)] = []
+	var seeksBy: [Double] = []
 
 	func start() throws {}
 	func loadVideo(config: VideoLoadConfig, force: Bool) {}
@@ -14,8 +16,8 @@ final class RemoteOnlyEngine: TransportEngine, QueueEngine {
 	func pause() { intendedPlayState = false }
 	func destroy() {}
 	func shutdown() {}
-	func seekTo(position: Double, exact: Bool) {}
-	func seekBy(offset: Double) {}
+	func seekTo(position: Double, exact: Bool) { seeksTo.append((position, exact)) }
+	func seekBy(offset: Double) { seeksBy.append(offset) }
 	func requestSeek(to position: Double) {}
 	func requestPlaying(_ playing: Bool) {}
 	func requestSeek(by offset: Double) {}
@@ -42,7 +44,6 @@ final class RemoteOnlyEngine: TransportEngine, QueueEngine {
 
 // A host that keeps no position bookkeeping lets the engine seek: the delegate's defaults.
 final class RecordingHost: PlayerEngineDelegate {
-	var seeks: [Double] = []
 	func engine(_ engine: TransportEngine, didLoad config: VideoLoadConfig) {}
 	func engine(_ engine: TransportEngine, didUpdateProgress position: Double, duration: Double, cacheSeconds: Double) {}
 	func engine(_ engine: TransportEngine, didChangePause isPaused: Bool) {}
@@ -78,6 +79,13 @@ enum EngineProtocolsTests {
 		host.engine(engine, requestsPlaying: false)
 		precondition(engine.isPaused() == true)
 
-		print("PASS: transport, rendering and queue faces, queue defaults, delegate defaults")
+		// So do its seek defaults: the lock screen, Control Center and picture in picture reach
+		// the RN-embedded player through them, an absolute seek and a relative one.
+		host.engine(engine, requestsSeekTo: 12)
+		host.engine(engine, requestsSeekBy: -10)
+		precondition(engine.seeksTo.count == 1 && engine.seeksTo[0].position == 12 && engine.seeksTo[0].exact == false)
+		precondition(engine.seeksBy == [-10])
+
+		print("PASS: transport, rendering and queue faces, queue defaults, delegate play and seek defaults")
 	}
 }

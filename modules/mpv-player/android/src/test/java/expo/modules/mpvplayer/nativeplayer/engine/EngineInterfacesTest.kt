@@ -2,7 +2,6 @@ package expo.modules.mpvplayer.nativeplayer.engine
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
 import org.junit.Test
 
 // A remote engine carries transport and queue, never a surface: this double compiles
@@ -54,7 +53,6 @@ class EngineInterfacesTest {
         val engine = RemoteOnlyEngine()
         engine.play()
         assertEquals(1, engine.played)
-        assertTrue(engine !is RenderingEngine)
     }
 
     @Test
