@@ -35,5 +35,3 @@ that picks the Jellyfin device profile. Consequences:
   reach rendering members through a cast (`engine as? RenderingEngine`),
   treating their absence as "none". The iOS view model already reads picture in
   picture that way.
-- A Swift file added to the module joins the Pods target only after the pods
-  are installed again; until then xcodebuild fails on the types it declares.
