@@ -10,7 +10,7 @@ export interface PlayRequest {
   audioIndex?: number;
   subtitleIndex?: number;
   mediaSourceId?: string;
-  /** Missing means no cap, Max. */
+  /** Missing means the default quality, from the settings. */
   bitrateValue?: BitrateRequest;
   offline: boolean;
   playbackPositionTicks?: number;

@@ -4,6 +4,7 @@ import {
   AUTO_BITRATE_KEY,
   AUTO_BITRATE_VALUE,
   MAX_BITRATE_KEY,
+  MAX_BITRATE_VALUE,
   NATIVE_AUTO_QUALITY_INDEX,
   NATIVE_MAX_QUALITY_INDEX,
 } from "@/constants/Bitrate";
@@ -28,41 +29,65 @@ export const MAX_BITRATE: Bitrate = { key: MAX_BITRATE_KEY, value: undefined };
 
 /**
  * A quality as a play request carries it to the player: a bitrate in bit/s,
- * or Auto until the player measures it. Max carries nothing, it has no cap.
+ * Auto until the player measures it, or Max, no cap. A request that carries
+ * none plays at the default quality.
  */
-export type BitrateRequest = number | typeof AUTO_BITRATE_VALUE;
+export type BitrateRequest =
+  | number
+  | typeof AUTO_BITRATE_VALUE
+  | typeof MAX_BITRATE_VALUE;
 
 /** Told by its key: Auto has no bitrate of its own, and neither has Max. */
 export const isAutoBitrate = (bitrate?: Pick<Bitrate, "key"> | null) =>
   bitrate?.key === AUTO_BITRATE_KEY;
 
-export const toBitrateRequest = (
-  bitrate?: Bitrate | null,
-): BitrateRequest | undefined =>
-  isAutoBitrate(bitrate) ? AUTO_BITRATE_VALUE : bitrate?.value;
+/** A quality without a bitrate that is not Auto sets no cap. */
+export const toBitrateRequest = (bitrate: Bitrate): BitrateRequest => {
+  if (isAutoBitrate(bitrate)) return AUTO_BITRATE_VALUE;
+  return bitrate.value ?? MAX_BITRATE_VALUE;
+};
 
-/** The quality as the player's route writes it, "" for Max. */
-export const toBitrateParam = (bitrate?: Bitrate | null): string =>
-  toBitrateRequest(bitrate)?.toString() ?? "";
+/** The quality as the player's route writes it. */
+export const toBitrateParam = (bitrate: Bitrate): string =>
+  toBitrateRequest(bitrate).toString();
 
+/** Undefined when the route names no quality. */
 export const parseBitrateParam = (
   param?: string | null,
 ): BitrateRequest | undefined => {
-  if (param === AUTO_BITRATE_VALUE) return AUTO_BITRATE_VALUE;
+  if (param === AUTO_BITRATE_VALUE || param === MAX_BITRATE_VALUE) {
+    return param;
+  }
   const bitrate = param ? Number.parseInt(param, 10) : Number.NaN;
   return Number.isFinite(bitrate) ? bitrate : undefined;
 };
 
-export const toNativeQualityIndex = (request?: BitrateRequest): number =>
-  request === AUTO_BITRATE_VALUE
-    ? NATIVE_AUTO_QUALITY_INDEX
-    : (request ?? NATIVE_MAX_QUALITY_INDEX);
+/**
+ * The quality a playback plays at: the one it was started with, or the
+ * default from the settings when it was started with none, as a Play command
+ * from another client, a Top Shelf tile or a SyncPlay group are.
+ */
+export const withDefaultBitrate = (
+  request: BitrateRequest | undefined,
+  defaultBitrate: Bitrate | null | undefined,
+): BitrateRequest =>
+  request ?? toBitrateRequest(defaultBitrate ?? AUTO_BITRATE);
 
-export const fromNativeQualityIndex = (
-  index: number,
-): BitrateRequest | undefined => {
+/** The quality the player's route plays at, as its quality menus mark it. */
+export const routeBitrateParam = (
+  param: string | null | undefined,
+  defaultBitrate: Bitrate | null | undefined,
+): string =>
+  withDefaultBitrate(parseBitrateParam(param), defaultBitrate).toString();
+
+export const toNativeQualityIndex = (request: BitrateRequest): number => {
+  if (request === AUTO_BITRATE_VALUE) return NATIVE_AUTO_QUALITY_INDEX;
+  return request === MAX_BITRATE_VALUE ? NATIVE_MAX_QUALITY_INDEX : request;
+};
+
+export const fromNativeQualityIndex = (index: number): BitrateRequest => {
   if (index === NATIVE_AUTO_QUALITY_INDEX) return AUTO_BITRATE_VALUE;
-  return index === NATIVE_MAX_QUALITY_INDEX ? undefined : index;
+  return index === NATIVE_MAX_QUALITY_INDEX ? MAX_BITRATE_VALUE : index;
 };
 
 /** A download is a file, with no connection to adapt to: Auto is Max there. */

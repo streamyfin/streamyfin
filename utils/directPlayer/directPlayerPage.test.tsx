@@ -62,7 +62,7 @@ let mockSeekReaction:
 let mockTranscodingUrl: string | undefined;
 /** The max streaming bitrate of each stream the page asked the server for. */
 const mockAskedBitrates: (number | undefined)[] = [];
-const mockSettings = {};
+const mockSettings: { defaultBitrate?: { key: string; value?: number } } = {};
 const mockNoop = () => {};
 
 jest.mock("expo-router", () => ({
@@ -671,6 +671,7 @@ describe("direct player quality", () => {
     screen.unmount();
     await waitFor(() => expect(stopReports()).toHaveLength(1));
     mockParams.bitrateValue = "";
+    delete mockSettings.defaultBitrate;
     jest.restoreAllMocks();
   });
 
@@ -682,10 +683,32 @@ describe("direct player quality", () => {
     expect(mockAskedBitrates).toEqual([12_000_000]);
   });
 
+  // What Live TV asks for, whatever the default quality.
   test("asks for no cap under Max", async () => {
+    mockSettings.defaultBitrate = { key: "8 Mb/s", value: 8_000_000 };
+    mockParams.bitrateValue = "max";
+
     await openPlayer();
 
     expect(mockAskedBitrates).toEqual([undefined]);
+  });
+
+  // A Play command from another client, or a Top Shelf or TV recommendation
+  // tile where the native player is off, opens the route with no quality.
+  test("asks for the default quality when the route names none", async () => {
+    mockSettings.defaultBitrate = { key: "8 Mb/s", value: 8_000_000 };
+
+    await openPlayer();
+
+    expect(mockAskedBitrates).toEqual([8_000_000]);
+  });
+
+  test("measures the default quality when it is Auto", async () => {
+    mockSettings.defaultBitrate = { key: "Auto", value: undefined };
+
+    await openPlayer();
+
+    expect(mockAskedBitrates).toEqual([12_000_000]);
   });
 
   test("asks for a fixed quality as it is", async () => {

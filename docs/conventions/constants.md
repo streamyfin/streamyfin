@@ -36,7 +36,7 @@ cadence meant knowing both existed, and nothing would have failed if only one ha
 | `constants/TVTypography.ts` | TV type scale and the `useScaledTVTypography` hook |
 | `constants/TVPosterSizes.ts` | TV poster size keys |
 | `constants/Playback.ts` | Playback policy shared by the JS and native players (progress report cadence, next-episode countdown window, play queue size cap), how long a remote repeat or shuffle change waits to be confirmed, and how often the stats overlay polls the transcode progress |
-| `constants/Bitrate.ts` | Streaming quality: the keys of Auto and Max, how Auto travels to the players, and how it is measured (jellyfin-web's speed tests, their sizes and thresholds, the share of the rate kept, the in-network floor, how long a measure is reused) |
+| `constants/Bitrate.ts` | Streaming quality: the keys of Auto and Max and how both travel to the players, the cast receiver's own ceiling, and how Auto is measured (jellyfin-web's speed tests, their sizes and thresholds, the share of the rate kept, the in-network floor, how long a measure is reused) |
 | `constants/Logs.ts` | App log storage key and how many entries it keeps |
 | `constants/Privacy.ts` | What stands in for a secret in anything the app writes out (log, Sentry) |
 | `constants/Music.ts` | Music player policy: the volume normalization modes, their default, and the gain ceiling; the storage key of the stored tracks index |

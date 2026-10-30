@@ -24,6 +24,7 @@ import { Text } from "@/components/common/Text";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { liveTvPlayerPath } from "./liveTvPlayerPath";
 import { TVGuideChannelRow } from "./TVGuideChannelRow";
 import { TVGuidePageNavigation } from "./TVGuidePageNavigation";
 import { TVGuideTimeHeader } from "./TVGuideTimeHeader";
@@ -204,14 +205,7 @@ export const TVLiveTVGuide: React.FC = () => {
   const handleProgramPress = useCallback(
     (program: BaseItemDto) => {
       // Navigate to play the program/channel
-      const queryParams = new URLSearchParams({
-        itemId: program.Id ?? "",
-        audioIndex: "",
-        subtitleIndex: "",
-        mediaSourceId: "",
-        bitrateValue: "",
-      });
-      router.push(`/player/direct-player?${queryParams.toString()}`);
+      router.push(liveTvPlayerPath(program.Id ?? ""));
     },
     [router],
   );

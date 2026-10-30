@@ -182,7 +182,12 @@ describe("the native player's exit confirmation", () => {
 });
 
 describe("the native player's quality", () => {
-  const build = async (bitrateValue?: number | "auto") => {
+  const AUTO = { key: "Auto", value: undefined };
+
+  const build = async (
+    bitrateValue?: number | "auto" | "max",
+    defaultBitrate: Settings["defaultBitrate"] = AUTO,
+  ) => {
     jest.mocked(getStreamUrl).mockResolvedValue({
       url: `${SERVER}/Videos/1/stream.mkv`,
       sessionId: "session-1",
@@ -195,6 +200,7 @@ describe("the native player's quality", () => {
       settings: {
         playbackSpeedPerShow: {},
         playbackSpeedPerMedia: {},
+        defaultBitrate,
       } as Settings,
       req: { itemId: "item-1", offline: false, bitrateValue },
       getDownloadedItemById: () => undefined,
@@ -251,7 +257,7 @@ describe("the native player's quality", () => {
   });
 
   test("asks for no cap under Max, without measuring", async () => {
-    const built = await build(undefined);
+    const built = await build("max");
 
     expect(mockDetectBitrate).not.toHaveBeenCalled();
     expect(askedBitrate()).toBeUndefined();
@@ -265,5 +271,76 @@ describe("the native player's quality", () => {
 
     expect(mockDetectBitrate).not.toHaveBeenCalled();
     expect(askedBitrate()).toBe(8_000_000);
+  });
+
+  // Auto then behaves as Max does.
+  test("asks for no cap when Auto measures nothing", async () => {
+    mockDetectBitrate.mockRejectedValueOnce(new Error("nothing measured"));
+
+    await build("auto");
+
+    expect(askedBitrate()).toBeUndefined();
+  });
+});
+
+// A Play command from another client, a Top Shelf or TV recommendation tile and
+// a SyncPlay group all present the native player with no quality.
+describe("the native player's quality, when the request names none", () => {
+  const build = (defaultBitrate: Settings["defaultBitrate"]) => {
+    jest.mocked(getStreamUrl).mockResolvedValue({
+      url: `${SERVER}/Videos/1/stream.mkv`,
+      sessionId: "session-1",
+      mediaSource: { Id: "source-1", MediaStreams: [] },
+    } as Awaited<ReturnType<typeof getStreamUrl>>);
+
+    return buildNativePlayerConfig({
+      api,
+      userId: "user-1",
+      settings: {
+        playbackSpeedPerShow: {},
+        playbackSpeedPerMedia: {},
+        defaultBitrate,
+      } as Settings,
+      req: { itemId: "item-1", offline: false },
+      getDownloadedItemById: () => undefined,
+      strings: {} as NativePlayerStrings,
+      originalLabel: "Original",
+      autoQualityLabel: "Auto",
+      item,
+    });
+  };
+
+  const askedBitrate = () =>
+    jest.mocked(getStreamUrl).mock.calls.at(-1)?.[0].maxStreamingBitrate;
+
+  beforeEach(() => {
+    jest.mocked(getStreamUrl).mockClear();
+    mockDetectBitrate.mockClear();
+  });
+
+  test("is the default one, measured when it is Auto", async () => {
+    const built = await build({ key: "Auto", value: undefined });
+
+    expect(mockDetectBitrate).toHaveBeenCalledWith(api);
+    expect(askedBitrate()).toBe(12_000_000);
+    expect(built?.seed.bitrateValue).toBe("auto");
+  });
+
+  test("is the default one when it is a fixed quality", async () => {
+    const built = await build({ key: "8 Mb/s", value: 8_000_000 });
+
+    expect(mockDetectBitrate).not.toHaveBeenCalled();
+    expect(askedBitrate()).toBe(8_000_000);
+    expect(built?.config.tracks?.quality?.[2]).toEqual(
+      expect.objectContaining({ label: "8 Mb/s", selected: true }),
+    );
+  });
+
+  test("is no cap when the default is Max", async () => {
+    const built = await build({ key: "Max", value: undefined });
+
+    expect(mockDetectBitrate).not.toHaveBeenCalled();
+    expect(askedBitrate()).toBeUndefined();
+    expect(built?.seed.bitrateValue).toBe("max");
   });
 });

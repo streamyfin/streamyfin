@@ -9,6 +9,7 @@ import { Text } from "@/components/common/Text";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { liveTvPlayerPath } from "./liveTvPlayerPath";
 import { TVChannelCard } from "./TVChannelCard";
 
 const HORIZONTAL_PADDING = 60;
@@ -46,14 +47,7 @@ export const TVChannelsGrid: React.FC = () => {
     (channelId: string | undefined) => {
       if (channelId) {
         // Navigate directly to the player to start the channel
-        const queryParams = new URLSearchParams({
-          itemId: channelId,
-          audioIndex: "",
-          subtitleIndex: "",
-          mediaSourceId: "",
-          bitrateValue: "",
-        });
-        router.push(`/player/direct-player?${queryParams.toString()}`);
+        router.push(liveTvPlayerPath(channelId));
       }
     },
     [router],

@@ -151,11 +151,21 @@ describe("casting from the item page", () => {
     expect(mockDetectBitrate).not.toHaveBeenCalled();
   });
 
-  test("hands the receiver no cap under Max", async () => {
+  // A cast that names no bitrate leaves the receiver on the cap of the cast
+  // before it: Max is said as the receiver's own ceiling.
+  test("hands the receiver its own ceiling under Max", async () => {
     await play(MAX, "Chromecast");
 
-    expect(await castBitrate()).toBeUndefined();
+    expect(await castBitrate()).toBe(120_000_000);
     expect(mockDetectBitrate).not.toHaveBeenCalled();
+  });
+
+  test("hands the receiver its own ceiling when Auto measures nothing", async () => {
+    mockDetectBitrate.mockRejectedValueOnce(new Error("nothing measured"));
+
+    await play(AUTO, "Chromecast");
+
+    expect(await castBitrate()).toBe(120_000_000);
   });
 });
 
@@ -174,12 +184,15 @@ describe("playing on the device from the item page", () => {
     expect(mockDetectBitrate).not.toHaveBeenCalled();
   });
 
-  test("hands the player no cap under Max", async () => {
+  // Naming no quality would play at the default one.
+  test("hands the player Max as Max", async () => {
     await play(MAX, "Device");
 
-    await waitFor(() => expect(mockPlayMedia).toHaveBeenCalled());
-    expect(mockPlayMedia.mock.calls[0][0]).toEqual(
-      expect.objectContaining({ bitrateValue: undefined }),
+    await waitFor(() =>
+      expect(mockPlayMedia).toHaveBeenCalledWith(
+        expect.objectContaining({ bitrateValue: "max" }),
+        { item: MOVIE },
+      ),
     );
   });
 });

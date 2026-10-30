@@ -57,6 +57,7 @@ import {
   type BitrateRequest,
   bitrateLabel,
   parseBitrateParam,
+  routeBitrateParam,
   toBitrateParam,
 } from "@/utils/bitrate";
 import { resolveStartTicks } from "@/utils/directPlayer/sessionPosition";
@@ -354,15 +355,17 @@ export const Controls: FC<Props> = ({
   );
 
   // Quality options mirror the mobile menu: value is the max bitrate as a
-  // string, "" meaning Max (no limit) and "auto" Auto — same encoding as the
+  // string, "max" Max (no limit) and "auto" Auto — same encoding as the
   // bitrateValue route param, so selection matching is a plain string compare.
+  // A route that names none plays at the default quality, marked as such.
   const bitrateOptions: TVOptionItem<string>[] = useMemo(() => {
+    const playing = routeBitrateParam(bitrateValue, settings.defaultBitrate);
     return BITRATES.map((bitrate) => ({
       label: bitrateLabel(t, bitrate),
       value: toBitrateParam(bitrate),
-      selected: (bitrateValue ?? "") === toBitrateParam(bitrate),
+      selected: playing === toBitrateParam(bitrate),
     }));
-  }, [bitrateValue, t]);
+  }, [bitrateValue, settings.defaultBitrate, t]);
 
   const handleBitrateChange = useCallback(
     (value: string) => {

@@ -1214,8 +1214,8 @@ const NativePlayerProviderInner: React.FC<{
         audioIndex?: number;
         subtitleIndex?: number;
         positionTicks?: number;
-        /** New max bitrate; null = "Max" (no cap). Omit to keep the current. */
-        bitrateValue?: BitrateRequest | null;
+        /** New quality. Omit to keep the current. */
+        bitrateValue?: BitrateRequest;
       },
     ): Promise<boolean> => {
       const req: PlayRequest = {
@@ -1223,10 +1223,7 @@ const NativePlayerProviderInner: React.FC<{
         audioIndex: overrides.audioIndex ?? session.currentAudioIndex,
         subtitleIndex: overrides.subtitleIndex ?? session.currentSubtitleIndex,
         mediaSourceId: session.mediaSourceId,
-        bitrateValue:
-          overrides.bitrateValue === undefined
-            ? session.bitrateValue
-            : (overrides.bitrateValue ?? undefined),
+        bitrateValue: overrides.bitrateValue ?? session.bitrateValue,
         offline: session.offline,
         playbackPositionTicks:
           overrides.positionTicks ?? msToTicks(session.positionMs),
@@ -2083,10 +2080,9 @@ const NativePlayerProviderInner: React.FC<{
       addNativePlayerListener("onQualitySelected", (payload) => {
         const session = sessionRef.current;
         if (!session || session.awaitingLoad || session.offline) return;
-        // The "Max" entry is no bitrate cap (null here, undefined in the
-        // request), and "Auto" stays Auto, measured by the re-negotiation.
-        const requested = fromNativeQualityIndex(payload.bitrateValue) ?? null;
-        if (requested === (session.bitrateValue ?? null)) return;
+        // "Auto" stays Auto, measured by the re-negotiation.
+        const requested = fromNativeQualityIndex(payload.bitrateValue);
+        if (requested === session.bitrateValue) return;
         void replaceStream(session, {
           bitrateValue: requested,
           positionTicks: msToTicks(payload.positionSec * 1000),

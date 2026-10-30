@@ -1,5 +1,5 @@
 import type { Api } from "@jellyfin/sdk";
-import { AUTO_BITRATE_VALUE } from "@/constants/Bitrate";
+import { AUTO_BITRATE_VALUE, MAX_BITRATE_VALUE } from "@/constants/Bitrate";
 import type { BitrateRequest } from "@/utils/bitrate";
 import { writeToLog } from "@/utils/log";
 import { detectBitrate } from "./bitrateTest";
@@ -7,12 +7,13 @@ import { detectBitrate } from "./bitrateTest";
 /**
  * The max streaming bitrate to ask the server for a quality: its own, none
  * for Max, and for Auto what the connection to the server measures. Auto that
- * cannot be measured sets no cap, as Max, the default before it, did.
+ * cannot be measured sets no cap, as Max does.
  */
 export const resolveMaxStreamingBitrate = async (
   api: Api | null | undefined,
-  request: BitrateRequest | undefined,
+  request: BitrateRequest,
 ): Promise<number | undefined> => {
+  if (request === MAX_BITRATE_VALUE) return undefined;
   if (request !== AUTO_BITRATE_VALUE) return request;
   if (!api) return undefined;
   try {

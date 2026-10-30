@@ -5,8 +5,11 @@ import { makeApi } from "@/test-utils/jellyfinApi";
 
 /** What the server does with one speed test, in the order the tests ask. */
 type Answer =
-  /** Sends the body over `ms`, after `wait` ms for the headers. */
-  | { ms: number; wait?: number }
+  /**
+   * Sends the body in `parts` equal parts over `ms`, after `wait` ms for the
+   * headers.
+   */
+  | { ms: number; wait?: number; parts?: number }
   /** Answers with an error of its own. */
   | { status: number }
   /** Never answers. */
@@ -15,10 +18,37 @@ type Answer =
   | "fail";
 
 const mockAnswers: Answer[] = [];
+/** How many bodies were cancelled while they were still coming. */
+let mockCanceledBodies = 0;
 
 const canceled = () => new Error("fetch request has been canceled");
 
-const mockFetch = jest.fn(async (_url: string, init: RequestInit) => {
+/** A body read the way a stream reads it, part after part. */
+const streamedBody = (size: number, ms: number, parts: number) => {
+  let sent = 0;
+  let stopped = false;
+  return {
+    getReader: () => ({
+      read: async () => {
+        if (!stopped && sent < parts) {
+          jest.advanceTimersByTime(ms / parts);
+          // The deadline came while this part was on its way: it never does.
+          if (!stopped) {
+            sent += 1;
+            return { done: false, value: new Uint8Array(size / parts) };
+          }
+        }
+        return { done: true, value: undefined };
+      },
+      cancel: async () => {
+        if (!stopped && sent < parts) mockCanceledBodies += 1;
+        stopped = true;
+      },
+    }),
+  };
+};
+
+const mockFetch = jest.fn(async (url: string, init: RequestInit) => {
   const answer = mockAnswers.shift() ?? "fail";
   const signal = init.signal as AbortSignal;
   if (answer === "fail") {
@@ -30,19 +60,15 @@ const mockFetch = jest.fn(async (_url: string, init: RequestInit) => {
     );
   }
   if ("status" in answer) {
-    return { ok: false, status: answer.status, arrayBuffer: async () => null };
+    return { ok: false, status: answer.status, body: null };
   }
   jest.advanceTimersByTime(answer.wait ?? 0);
   if (signal.aborted) throw canceled();
+  const size = Number(/[?&]Size=(\d+)/.exec(url)?.[1]);
   return {
     ok: true,
     status: 200,
-    arrayBuffer: async () => {
-      jest.advanceTimersByTime(answer.ms);
-      // expo/fetch cancels the body too when the request is aborted.
-      if (signal.aborted) throw canceled();
-      return new ArrayBuffer(0);
-    },
+    body: streamedBody(size, answer.ms, answer.parts ?? 1),
   };
 });
 
@@ -89,6 +115,7 @@ beforeEach(() => {
     require("@/test-utils/customHeaders") as typeof import("@/test-utils/customHeaders"));
   mockFetch.mockClear();
   mockAnswers.length = 0;
+  mockCanceledBodies = 0;
   api = makeApi();
 });
 
@@ -124,8 +151,8 @@ describe("the speed tests", () => {
     expect(requestedSizes()).toEqual(TEST_SIZES);
   });
 
-  // The first test stops under 500 kb/s, but 500 kB that take more than its
-  // 5 s fail instead: one that finishes always measured 800 kb/s or more.
+  // 500 kB that arrive within the 5 s of the first test came at 800 kb/s or
+  // more, over its 500 kb/s floor.
   test("go on after a first test that finishes, even at the slowest", async () => {
     answerEndpoint(false);
     mockAnswers.push({ ms: 4_999 }, ...bodiesAt(100, 100, 100).slice(1));
@@ -226,6 +253,52 @@ describe("the detected bitrate", () => {
   });
 });
 
+// On a slow link a test runs out of time before its body is in: what arrived
+// by then is the only measure there is.
+describe("a test still running at its 5 s", () => {
+  // 500 kB at 500 kb/s take 8 s. By the 5 s, 49 parts of 6.25 kB are in: the
+  // 50th was due at the deadline.
+  test("is measured on what arrived, and under 500 kb/s ends at the first test", async () => {
+    answerEndpoint(false);
+    mockAnswers.push({ ms: 8_000, parts: 80 });
+
+    await expect(detectBitrate(api)).resolves.toBe(343_000);
+
+    expect(requestedSizes()).toEqual([500_000]);
+    expect(mockCanceledBodies).toBe(1);
+  });
+
+  // The 1 MB test starts 40 ms in, once the first one is done: 49 parts of
+  // 12.5 kB arrive in its 5 s, 980 kb/s.
+  test("is measured on what arrived, and under 20 Mb/s ends at the second test", async () => {
+    answerEndpoint(false);
+    mockAnswers.push(...bodiesAt(100), { ms: 8_000, parts: 80 });
+
+    await expect(detectBitrate(api)).resolves.toBe(686_000);
+
+    expect(requestedSizes()).toEqual([500_000, 1_000_000]);
+    expect(mockCanceledBodies).toBe(1);
+  });
+
+  // Headers 4 s late leave the body 1 s: 9 parts of 50 kB, 3.6 Mb/s.
+  test("is measured over the time since its headers came", async () => {
+    answerEndpoint(false);
+    mockAnswers.push(...bodiesAt(100), { wait: 4_000, ms: 2_000, parts: 20 });
+
+    await expect(detectBitrate(api)).resolves.toBe(2_520_000);
+  });
+
+  // A rate of nothing would ask the server for a stream at no bitrate at all.
+  test("has failed when nothing of its body arrived", async () => {
+    answerEndpoint(false);
+    mockAnswers.push(...bodiesAt(100), { wait: 4_950, ms: 2_000 });
+
+    await expect(detectBitrate(api)).resolves.toBe(70_000_000);
+
+    expect(requestedSizes()).toEqual([500_000, 1_000_000]);
+  });
+});
+
 describe("a failed test", () => {
   test("hands back the rate measured before it", async () => {
     answerEndpoint(false);
@@ -243,7 +316,7 @@ describe("a failed test", () => {
     await expect(detectBitrate(api)).resolves.toBe(70_000_000);
   });
 
-  test("is one that takes more than 5 s", async () => {
+  test("is one whose headers do not come within 5 s", async () => {
     answerEndpoint(false);
     mockAnswers.push(...bodiesAt(100), "hang");
 
@@ -259,13 +332,6 @@ describe("a failed test", () => {
 
     await jest.advanceTimersByTimeAsync(1);
     expect(detected).toBe(70_000_000);
-  });
-
-  test("whose body takes more than 5 s fails as well", async () => {
-    answerEndpoint(false);
-    mockAnswers.push(...bodiesAt(100), { ms: 5_001 });
-
-    await expect(detectBitrate(api)).resolves.toBe(70_000_000);
   });
 
   test("hands back the bitrate detected before when it is the first", async () => {

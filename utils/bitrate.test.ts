@@ -5,10 +5,12 @@ import {
   fromNativeQualityIndex,
   MAX_BITRATE,
   parseBitrateParam,
+  routeBitrateParam,
   toBitrateParam,
   toBitrateRequest,
   toDownloadBitrate,
   toNativeQualityIndex,
+  withDefaultBitrate,
 } from "./bitrate";
 
 const EIGHT_MBPS = { key: "8 Mb/s", value: 8_000_000 };
@@ -20,10 +22,11 @@ describe("a quality on its way to the player", () => {
     expect(parseBitrateParam("auto")).toBe("auto");
   });
 
-  test("carries no cap for Max", () => {
-    expect(toBitrateRequest(MAX_BITRATE)).toBeUndefined();
-    expect(toBitrateParam(MAX_BITRATE)).toBe("");
-    expect(parseBitrateParam("")).toBeUndefined();
+  // Saying nothing now asks for the default quality, so no cap is said.
+  test("says Max, which sets no cap", () => {
+    expect(toBitrateRequest(MAX_BITRATE)).toBe("max");
+    expect(toBitrateParam(MAX_BITRATE)).toBe("max");
+    expect(parseBitrateParam("max")).toBe("max");
   });
 
   test("carries a fixed quality in bit/s", () => {
@@ -31,7 +34,8 @@ describe("a quality on its way to the player", () => {
     expect(parseBitrateParam(toBitrateParam(EIGHT_MBPS))).toBe(8_000_000);
   });
 
-  test("is read as no cap when the route holds no number", () => {
+  test("is left to the default when the route names none", () => {
+    expect(parseBitrateParam("")).toBeUndefined();
     expect(parseBitrateParam(undefined)).toBeUndefined();
     expect(parseBitrateParam("Max")).toBeUndefined();
   });
@@ -40,11 +44,39 @@ describe("a quality on its way to the player", () => {
   // for Max: Auto needs one of its own to come back as Auto.
   test("tells Auto from Max in the native player's quality menu", () => {
     expect(toNativeQualityIndex("auto")).toBe(-2);
-    expect(toNativeQualityIndex(undefined)).toBe(-1);
+    expect(toNativeQualityIndex("max")).toBe(-1);
     expect(toNativeQualityIndex(8_000_000)).toBe(8_000_000);
     expect(fromNativeQualityIndex(-2)).toBe("auto");
-    expect(fromNativeQualityIndex(-1)).toBeUndefined();
+    expect(fromNativeQualityIndex(-1)).toBe("max");
     expect(fromNativeQualityIndex(8_000_000)).toBe(8_000_000);
+  });
+});
+
+// A Play command from another client, a Top Shelf tile and a SyncPlay group
+// start an item without a quality.
+describe("a playback that names no quality", () => {
+  test("plays at the default one", () => {
+    expect(withDefaultBitrate(undefined, AUTO_BITRATE)).toBe("auto");
+    expect(withDefaultBitrate(undefined, MAX_BITRATE)).toBe("max");
+    expect(withDefaultBitrate(undefined, EIGHT_MBPS)).toBe(8_000_000);
+  });
+
+  test("plays at Auto, the app's default, before the settings are read", () => {
+    expect(withDefaultBitrate(undefined, undefined)).toBe("auto");
+  });
+
+  test("leaves a quality that is named as it is", () => {
+    expect(withDefaultBitrate("max", AUTO_BITRATE)).toBe("max");
+    expect(withDefaultBitrate("auto", MAX_BITRATE)).toBe("auto");
+    expect(withDefaultBitrate(4_000_000, AUTO_BITRATE)).toBe(4_000_000);
+  });
+
+  // The players' quality menus read the route: one that names no quality
+  // marks the default.
+  test("is marked at the default quality in the player's menu", () => {
+    expect(routeBitrateParam("", AUTO_BITRATE)).toBe("auto");
+    expect(routeBitrateParam(undefined, EIGHT_MBPS)).toBe("8000000");
+    expect(routeBitrateParam("max", AUTO_BITRATE)).toBe("max");
   });
 });
 

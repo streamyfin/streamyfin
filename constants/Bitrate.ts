@@ -10,11 +10,21 @@ export const AUTO_BITRATE_KEY = "Auto";
 export const MAX_BITRATE_KEY = "Max";
 
 /**
- * Auto in a play request, the player's route and its quality menu, where a
- * quality is otherwise a bitrate in bit/s, or nothing for Max. The players
- * measure it before asking the server for a stream, which never sees it.
+ * Auto and Max in a play request, the player's route and its quality menu,
+ * where a quality is otherwise a bitrate in bit/s. A request that names none
+ * plays at the default quality. The players measure Auto before asking the
+ * server for a stream, which never sees either.
  */
 export const AUTO_BITRATE_VALUE = "auto";
+export const MAX_BITRATE_VALUE = "max";
+
+/**
+ * The Jellyfin receiver's own ceiling, what a cast asks for when it sets no
+ * cap: under Max, or when Auto could measure nothing. A cast always names a
+ * bitrate, since one that names none leaves the receiver on the cap of the
+ * cast before it.
+ */
+export const RECEIVER_MAX_BITRATE = 120_000_000;
 
 /**
  * The native player's quality menu hands back the index of the entry picked,
@@ -35,7 +45,8 @@ export const BITRATE_DETECTION_TTL_MS = 60 * 60 * 1000;
 
 /**
  * How long each request of a detection may take, the body of a speed test
- * included. A test still running then has failed: playback waits on it.
+ * included: playback waits on it. A speed test whose body is still coming then
+ * is measured on what has arrived, one whose headers have not has failed.
  */
 export const BITRATE_REQUEST_TIMEOUT_MS = 5_000;
 

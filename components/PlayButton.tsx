@@ -23,6 +23,7 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
+import { RECEIVER_MAX_BITRATE } from "@/constants/Bitrate";
 import { RECEIVER_LOAD_TIMEOUT_MS } from "@/constants/Cast";
 import { useHaptic } from "@/hooks/useHaptic";
 import type { ThemeColors } from "@/hooks/useImageColorsReturn";
@@ -94,12 +95,13 @@ export const PlayButton: React.FC<Props> = ({
     async (positionTicks: number) => {
       if (!item) return;
 
+      const bitrateValue = toBitrateRequest(selectedOptions.bitrate);
       const playRequest: PlayRequest = {
         itemId: item.Id!,
         audioIndex: selectedOptions.audioIndex,
         subtitleIndex: selectedOptions.subtitleIndex,
         mediaSourceId: selectedOptions.mediaSource?.Id ?? undefined,
-        bitrateValue: toBitrateRequest(selectedOptions.bitrate),
+        bitrateValue,
         offline: isOffline,
         playbackPositionTicks: positionTicks,
       };
@@ -173,11 +175,14 @@ export const PlayButton: React.FC<Props> = ({
                           (await currentReceiverName()) ??
                           receiverNameFor(castDevice),
                         // The receiver negotiates the stream itself and knows
-                        // no Auto: it is handed the bitrate measured here.
-                        maxBitrate: await resolveMaxStreamingBitrate(
-                          api,
-                          playRequest.bitrateValue,
-                        ),
+                        // no Auto: it is handed the bitrate measured here, and
+                        // its own ceiling for no cap, since a cast that names
+                        // none leaves it on the cap of the one before.
+                        maxBitrate:
+                          (await resolveMaxStreamingBitrate(
+                            api,
+                            bitrateValue,
+                          )) ?? RECEIVER_MAX_BITRATE,
                       },
                       {
                         items: [item],

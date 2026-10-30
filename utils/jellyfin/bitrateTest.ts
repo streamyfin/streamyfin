@@ -47,13 +47,18 @@ const toBitsPerSecond = (bytes: number, ms: number) =>
  * headers and streams the body after them, where the SDK's axios and React
  * Native's own fetch only hand the response over once all of it is in.
  *
+ * The body is read as it comes, so one still coming at the deadline is cut off
+ * there and measured on what has arrived of it: on a slow link that is the
+ * only measure there is. Headers that have not come by then fail the test.
+ *
  * Sent with the headers of every request to the server, the user's custom
  * ones included: a gateway in front of it turns away what lacks them.
  */
 const measureRate = async (api: Api, bytes: number): Promise<number> => {
   const url = api.getUri(BITRATE_TEST_PATH, { Size: bytes });
   const abort = new AbortController();
-  const timeout = setTimeout(() => abort.abort(), BITRATE_REQUEST_TIMEOUT_MS);
+  let atDeadline = () => abort.abort();
+  const deadline = setTimeout(() => atDeadline(), BITRATE_REQUEST_TIMEOUT_MS);
   try {
     const response = await fetch(url, {
       signal: abort.signal,
@@ -63,18 +68,36 @@ const measureRate = async (api: Api, bytes: number): Promise<number> => {
         ...getJellyfinHeadersForUrl(url, api.basePath),
       },
     });
-    if (!response.ok) {
+    if (!response.ok || !response.body) {
       throw new Error(`The bitrate test answered ${response.status}`);
     }
     const start = performance.now();
-    await response.arrayBuffer();
-    return toBitsPerSecond(bytes, performance.now() - start);
+    const reader = response.body.getReader();
+    const cut: { at?: number } = {};
+    atDeadline = () => {
+      cut.at = performance.now();
+      reader.cancel().catch(() => {});
+    };
+    let received = 0;
+    while (cut.at === undefined) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      received += value.byteLength;
+    }
+    if (cut.at === undefined) {
+      return toBitsPerSecond(bytes, performance.now() - start);
+    }
+    // A rate of nothing would ask the server for a stream at no bitrate.
+    if (received === 0) {
+      throw new Error("The bitrate test sent nothing before its deadline");
+    }
+    return toBitsPerSecond(received, cut.at - start);
   } finally {
-    clearTimeout(timeout);
+    clearTimeout(deadline);
   }
 };
 
-/** What the last test to finish measured, if one did. */
+/** What the last test measured, if one did. */
 const runTests = async (api: Api): Promise<number | undefined> => {
   let rate: number | undefined;
   for (const test of BITRATE_TESTS) {

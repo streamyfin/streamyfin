@@ -69,7 +69,11 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { OfflineModeProvider } from "@/providers/OfflineModeProvider";
 import { getSubtitlesForItem } from "@/utils/atoms/downloadedSubtitles";
 import { getActivePlayerType, useSettings } from "@/utils/atoms/settings";
-import { type BitrateRequest, parseBitrateParam } from "@/utils/bitrate";
+import {
+  type BitrateRequest,
+  parseBitrateParam,
+  withDefaultBitrate,
+} from "@/utils/bitrate";
 import { getJellyfinHeadersForUrl } from "@/utils/customHeaders";
 import {
   isPlaceholderTick,
@@ -245,9 +249,14 @@ export default function DirectPlayerPage() {
   const subtitleIndex = subtitleIndexStr
     ? Number.parseInt(subtitleIndexStr, 10)
     : -1;
-  // Auto stays Auto in the route, so every stream asked for, the next
-  // episode's included, is asked at what the connection measures then.
-  const bitrateValue = parseBitrateParam(bitrateValueStr);
+  // A route that names no quality (a Play command from another client, a Top
+  // Shelf tile) plays at the default one. Auto stays Auto in the route, so
+  // every stream asked for, the next episode's included, is asked at what the
+  // connection measures then.
+  const bitrateValue = withDefaultBitrate(
+    parseBitrateParam(bitrateValueStr),
+    settings.defaultBitrate,
+  );
 
   const [item, setItem] = useState<BaseItemDto | null>(null);
   const initialSeekDoneRef = useRef(false);

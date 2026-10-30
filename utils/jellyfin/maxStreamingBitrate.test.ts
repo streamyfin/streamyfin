@@ -46,7 +46,7 @@ describe("resolveMaxStreamingBitrate", () => {
 
   test("measures nothing for Max, which sets no cap", async () => {
     await expect(
-      resolveMaxStreamingBitrate(api, undefined),
+      resolveMaxStreamingBitrate(api, "max"),
     ).resolves.toBeUndefined();
     expect(mockDetectBitrate).not.toHaveBeenCalled();
   });

@@ -28,6 +28,7 @@ import {
   isAutoBitrate,
   toBitrateRequest,
   toNativeQualityIndex,
+  withDefaultBitrate,
 } from "@/utils/bitrate";
 import {
   getJellyfinHeaders,
@@ -85,7 +86,7 @@ export interface NativePlayerSessionSeed {
   stream: NativePlayerStreamSeed;
   mediaSourceId?: string;
   /** Kept as Auto, which every re-negotiation measures again. */
-  bitrateValue?: BitrateRequest;
+  bitrateValue: BitrateRequest;
   audioIndex?: number;
   subtitleIndex: number;
   startTicks: number;
@@ -305,8 +306,8 @@ export const buildTrackMenus = (options: {
   originalLabel: string;
   /** Localized name of the Auto quality. */
   autoQualityLabel: string;
-  /** Current max streaming bitrate (undefined = Max). */
-  bitrateValue?: BitrateRequest;
+  /** The quality the stream plays at, marked in the quality menu. */
+  bitrateValue: BitrateRequest;
   /** Client-side downloaded sidecar subtitle, listed after the server tracks. */
   localSubtitle?: { label: string; selected: boolean };
 }): NativePlayerTrackMenus => {
@@ -460,7 +461,12 @@ export async function buildNativePlayerConfig(params: {
       mediaSourceId: req.mediaSourceId,
     },
   });
-  const bitrateValue = req.bitrateValue;
+  // A request that names no quality (a Play command from another client, a
+  // Top Shelf tile, a SyncPlay group) plays at the default one.
+  const bitrateValue = withDefaultBitrate(
+    req.bitrateValue,
+    settings.defaultBitrate,
+  );
 
   // 2. Stream (offline: local file; online: PlaybackInfo negotiation with the
   // mpv device profile — the native player renders through the MPV engine)

@@ -29,6 +29,7 @@ const menus = (streams: Jellyfin12MediaStream[]) =>
     offLabel: "None",
     originalLabel: "Original",
     autoQualityLabel: "Auto",
+    bitrateValue: "max",
   });
 
 describe("buildTrackMenus", () => {
