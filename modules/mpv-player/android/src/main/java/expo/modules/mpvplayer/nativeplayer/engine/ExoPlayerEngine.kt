@@ -72,7 +72,7 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
         private const val SIDELOAD_ID_PREFIX = "sideload:"
     }
 
-    override var delegate: PlayerEngine.Delegate? = null
+    override var delegate: TransportEngine.Delegate? = null
 
     private val mainHandler = Handler(Looper.getMainLooper())
 

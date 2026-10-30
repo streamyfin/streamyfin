@@ -5,57 +5,6 @@ import ExpoModulesCore
 import MediaPlayer
 import UIKit
 
-/// Configuration for loading a video
-struct VideoLoadConfig {
-	let url: URL
-	/// The URL as JS asked for it. `url` is Foundation's parse of it, which can
-	/// spell it differently (punycode hosts, percent encoding), so JS
-	/// recognizes its own stream in onLoad only by this string.
-	var requestedURL: String?
-	var headers: [String: String]?
-	var externalSubtitles: [String]?
-	var startPosition: Double?
-	var autoplay: Bool
-	/// MPV subtitle track ID to select on start (1-based, -1 to disable, nil to use default)
-	var initialSubtitleId: Int?
-	/// MPV audio track ID to select on start (1-based, nil to use default)
-	var initialAudioId: Int?
-	var loop: Bool
-	/// Cache/buffer settings
-	var cacheEnabled: String?  // "auto", "yes", or "no"
-	var cacheSeconds: Int?     // Seconds of video to buffer
-	var demuxerMaxBytes: Int?  // Max cache size in MB
-	var demuxerMaxBackBytes: Int?  // Max backward cache size in MB
-
-	init(
-		url: URL,
-		headers: [String: String]? = nil,
-		externalSubtitles: [String]? = nil,
-		startPosition: Double? = nil,
-		autoplay: Bool = true,
-		initialSubtitleId: Int? = nil,
-		initialAudioId: Int? = nil,
-		loop: Bool = false,
-		cacheEnabled: String? = nil,
-		cacheSeconds: Int? = nil,
-		demuxerMaxBytes: Int? = nil,
-		demuxerMaxBackBytes: Int? = nil
-	) {
-		self.url = url
-		self.headers = headers
-		self.externalSubtitles = externalSubtitles
-		self.startPosition = startPosition
-		self.autoplay = autoplay
-		self.initialSubtitleId = initialSubtitleId
-		self.initialAudioId = initialAudioId
-		self.loop = loop
-		self.cacheEnabled = cacheEnabled
-		self.cacheSeconds = cacheSeconds
-		self.demuxerMaxBytes = demuxerMaxBytes
-		self.demuxerMaxBackBytes = demuxerMaxBackBytes
-	}
-}
-
 // This view will be used as a native component. Make sure to inherit from `ExpoView`
 // to apply the proper styling (e.g. border radius and shadows).
 //
@@ -65,7 +14,7 @@ struct VideoLoadConfig {
 // job is only RN embedding: layer hosting, layout, and mapping engine delegate
 // callbacks 1:1 onto the JS EventDispatchers.
 class MpvPlayerView: ExpoView {
-	private let engine = MPVPlayerEngine()
+	private let engine: PlayerEngine = MPVPlayerEngine()
 	private var videoContainer: UIView!
 	let onLoad = EventDispatcher()
 	let onPlaybackStateChange = EventDispatcher()
@@ -317,14 +266,14 @@ class MpvPlayerView: ExpoView {
 	}
 }
 
-// MARK: - MPVPlayerEngineDelegate
+// MARK: - PlayerEngineDelegate
 
-extension MpvPlayerView: MPVPlayerEngineDelegate {
-	func engine(_ engine: MPVPlayerEngine, didLoad config: VideoLoadConfig) {
+extension MpvPlayerView: PlayerEngineDelegate {
+	func engine(_ engine: TransportEngine, didLoad config: VideoLoadConfig) {
 		onLoad(["url": config.url.absoluteString])
 	}
 
-	func engine(_ engine: MPVPlayerEngine, didUpdateProgress position: Double, duration: Double, cacheSeconds: Double) {
+	func engine(_ engine: TransportEngine, didUpdateProgress position: Double, duration: Double, cacheSeconds: Double) {
 		onProgress([
 			"position": position,
 			"duration": duration,
@@ -333,44 +282,44 @@ extension MpvPlayerView: MPVPlayerEngineDelegate {
 		])
 	}
 
-	func engine(_ engine: MPVPlayerEngine, didChangePause isPaused: Bool) {
+	func engine(_ engine: TransportEngine, didChangePause isPaused: Bool) {
 		onPlaybackStateChange([
 			"isPaused": isPaused,
 			"isPlaying": !isPaused,
 		])
 	}
 
-	func engine(_ engine: MPVPlayerEngine, didChangeLoading isLoading: Bool) {
+	func engine(_ engine: TransportEngine, didChangeLoading isLoading: Bool) {
 		onPlaybackStateChange([
 			"isLoading": isLoading,
 		])
 	}
 
-	func engine(_ engine: MPVPlayerEngine, didBecomeReadyToSeek ready: Bool) {
+	func engine(_ engine: TransportEngine, didBecomeReadyToSeek ready: Bool) {
 		onPlaybackStateChange([
 			"isReadyToSeek": ready,
 		])
 	}
 
-	func engine(_ engine: MPVPlayerEngine, didBecomeTracksReady ready: Bool) {
+	func engine(_ engine: TransportEngine, didBecomeTracksReady ready: Bool) {
 		onTracksReady([:])
 	}
 
-	func engine(_ engine: MPVPlayerEngine, didChangePictureInPicture isActive: Bool) {
+	func engine(_ engine: TransportEngine, didChangePictureInPicture isActive: Bool) {
 		onPictureInPictureChange(["isActive": isActive])
 	}
 
-	func engine(_ engine: MPVPlayerEngine, didFailWithError message: String) {
+	func engine(_ engine: TransportEngine, didFailWithError message: String) {
 		onError(["error": message])
 	}
 
-	func engine(_ engine: MPVPlayerEngine, didDetectHDRMode mode: HDRMode, fps: Double) {
+	func engine(_ engine: TransportEngine, didDetectHDRMode mode: HDRMode, fps: Double) {
 		#if os(tvOS)
 		setDisplayCriteria(for: mode, fps: Float(fps))
 		#endif
 	}
 
-	func engineDidReachEnd(_ engine: MPVPlayerEngine) {
+	func engineDidReachEnd(_ engine: TransportEngine) {
 		// EOF is only consumed by the presented native player (auto-advance /
 		// auto-close). The RN-embedded player's JS layer derives end-of-video
 		// from onProgress, so this is intentionally a no-op here.
