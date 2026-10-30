@@ -14,6 +14,7 @@ import { atom, useAtom, useAtomValue, useStore } from "jotai";
 import { useCallback, useEffect } from "react";
 import { Platform } from "react-native";
 import { BITRATES, type Bitrate } from "@/components/BitrateSelector";
+import type { DownloadMode, DownloadVideoCodec } from "@/constants/Downloads";
 import {
   DEFAULT_MUSIC_NORMALIZATION_MODE,
   type MusicNormalizationMode,
@@ -27,6 +28,7 @@ import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { apiAtom } from "@/utils/atoms/api";
 import { isExpectedError } from "@/utils/errors";
 import { logAndCaptureError, writeInfoLog } from "@/utils/log";
+import type { AudioTranscodeModeType } from "@/utils/profiles/native";
 import {
   coerceStillWatchingPreset,
   stillWatchingPresetFromEpisodeCount,
@@ -51,13 +53,6 @@ import {
 
 const _STREAMYFIN_PLUGIN_ID = "1e9e5d386e6746158719e98a5c34f004";
 const STREAMYFIN_PLUGIN_SETTINGS = PLUGIN_SETTINGS_KEY;
-
-export type DownloadQuality = "original" | "high" | "low";
-
-export type DownloadOption = {
-  label: string;
-  value: DownloadQuality;
-};
 
 export const ScreenOrientationEnum: Record<
   (typeof ScreenOrientation.OrientationLock)[keyof typeof ScreenOrientation.OrientationLock],
@@ -84,21 +79,6 @@ export const ScreenOrientationEnum: Record<
   [ScreenOrientation.OrientationLock.UNKNOWN]:
     "home.settings.other.orientations.UNKNOWN",
 };
-
-export const DownloadOptions: DownloadOption[] = [
-  {
-    label: "Original quality",
-    value: "original",
-  },
-  {
-    label: "High quality",
-    value: "high",
-  },
-  {
-    label: "Small file size",
-    value: "low",
-  },
-];
 
 export type LibraryOptions = {
   display: "row" | "list";
@@ -419,7 +399,12 @@ export type Settings = {
   streamyStatsMovieRecommendations?: boolean;
   streamyStatsSeriesRecommendations?: boolean;
   streamyStatsPromotedWatchlists?: boolean;
-  downloadQuality?: DownloadOption;
+  downloadMode: DownloadMode;
+  /** Apart from defaultBitrate, so a streaming cap does not shrink every download. */
+  defaultDownloadBitrate?: Bitrate;
+  downloadVideoCodec: DownloadVideoCodec;
+  /** Unset follows audioTranscodeMode. */
+  downloadAudioTranscodeMode?: AudioTranscodeModeType;
   /** iOS only: show a Lock Screen / Dynamic Island Live Activity while a download runs. */
   showDownloadLiveActivity: boolean;
   defaultBitrate?: Bitrate;
@@ -622,7 +607,9 @@ export const defaultValues: Settings = {
   streamyStatsMovieRecommendations: false,
   streamyStatsSeriesRecommendations: false,
   streamyStatsPromotedWatchlists: false,
-  downloadQuality: DownloadOptions[0],
+  downloadMode: "original",
+  defaultDownloadBitrate: BITRATES[0],
+  downloadVideoCodec: "auto",
   showDownloadLiveActivity: true,
   defaultBitrate: BITRATES[0],
   libraryOptions: {

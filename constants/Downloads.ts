@@ -15,3 +15,22 @@ export const DOWNLOAD_PART_FILE_SUFFIX = ".part";
 // A failed download's toast says why and what to do in two or three lines, more than the four
 // seconds the Toaster gives a toast leave time to read.
 export const DOWNLOAD_FAILURE_TOAST_DURATION_MS = 8000;
+
+export const DOWNLOAD_MODES = ["original", "transcode"] as const;
+export type DownloadMode = (typeof DOWNLOAD_MODES)[number];
+export const DOWNLOAD_MODE_LABEL_KEYS: Record<DownloadMode, string> = {
+  original: "item_card.download.mode_original",
+  transcode: "item_card.download.mode_transcode",
+};
+
+// Auto leaves the codec to the device profile, which adds AV1 where it decodes.
+export const DOWNLOAD_VIDEO_CODECS = ["auto", "h264", "hevc"] as const;
+export type DownloadVideoCodec = (typeof DOWNLOAD_VIDEO_CODECS)[number];
+// Codec names read the same in every language; only Auto is translated.
+export const DOWNLOAD_VIDEO_CODEC_NAMES: Record<
+  Exclude<DownloadVideoCodec, "auto">,
+  string
+> = {
+  h264: "H.264",
+  hevc: "HEVC",
+};

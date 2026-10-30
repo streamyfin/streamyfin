@@ -7,6 +7,7 @@ import type {
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { BaseItemKind } from "@jellyfin/sdk/lib/generated-client/models/base-item-kind";
 import { getLibraryApi, getMediaInfoApi } from "@jellyfin/sdk/lib/utils/api";
+import type { DownloadMode, DownloadVideoCodec } from "@/constants/Downloads";
 import { redactCredentials } from "@/utils/redactCredentials";
 import { markExpectedError } from "../../errors";
 import { generateDownloadProfile } from "../../profiles/download";
@@ -305,6 +306,8 @@ export const getDownloadStreamUrl = async ({
   subtitleStreamIndex = undefined,
   mediaSourceId,
   audioMode = "auto",
+  mode,
+  videoCodec,
 }: {
   api: Api | null | undefined;
   item: BaseItemDto | null | undefined;
@@ -314,6 +317,8 @@ export const getDownloadStreamUrl = async ({
   subtitleStreamIndex?: number;
   mediaSourceId?: string | null;
   audioMode?: AudioTranscodeModeType;
+  mode: DownloadMode;
+  videoCodec?: DownloadVideoCodec;
 }): Promise<{
   url: string | null;
   sessionId: string | null;
@@ -324,21 +329,29 @@ export const getDownloadStreamUrl = async ({
     return null;
   }
 
-  const playbackInfoDto: PlaybackInfoRequest = {
-    UserId: userId,
-    DeviceProfile: generateDownloadProfile(audioMode),
-    SubtitleStreamIndex: subtitleStreamIndex,
-    StartTimeTicks: 0,
-    isPlayback: true,
-    AutoOpenLiveStream: true,
-    MaxStreamingBitrate: maxStreamingBitrate,
-    AudioStreamIndex: audioStreamIndex,
-    MediaSourceId: mediaSourceId,
-  };
-  const res = await getMediaInfoApi(api).getPostedPlaybackInfo({
-    itemId: item.Id,
-    playbackInfoDto,
-  });
+  const res = await getMediaInfoApi(api).getPlaybackInfo(
+    {
+      itemId: item.Id!,
+    },
+    {
+      method: "POST",
+      data: {
+        userId,
+        deviceProfile: generateDownloadProfile(audioMode, videoCodec),
+        subtitleStreamIndex,
+        startTimeTicks: 0,
+        isPlayback: true,
+        autoOpenLiveStream: true,
+        maxStreamingBitrate,
+        audioStreamIndex,
+        mediaSourceId,
+        ...(mode === "transcode" && {
+          enableDirectPlay: false,
+          enableDirectStream: false,
+        }),
+      },
+    },
+  );
 
   if (res.status !== 200) {
     console.error("Error getting playback info:", res.status, res.statusText);
@@ -351,5 +364,54 @@ export const getDownloadStreamUrl = async ({
     return null;
   }
 
-  return getDownloadUrl(api, mediaSource, sessionId);
+  // Without a transcoding URL the server sends the file itself, whatever was asked.
+  const transcoded =
+    mode === "transcode" && Boolean(mediaSource.TranscodingUrl);
+  return getDownloadUrl(
+    api,
+    transcoded
+      ? withSubtitleBurnedIn(mediaSource, subtitleStreamIndex)
+      : asOriginalFile(mediaSource),
+    sessionId,
+  );
 };
+
+/** The server sends a text subtitle as a file; the URL makes it burn that one in too. */
+const withSubtitleBurnedIn = (
+  mediaSource: MediaSourceInfo,
+  subtitleStreamIndex: number | undefined,
+): MediaSourceInfo => {
+  const subtitle = mediaSource.MediaStreams?.find(
+    (stream) =>
+      stream.Type === "Subtitle" && stream.Index === subtitleStreamIndex,
+  );
+  if (
+    !mediaSource.TranscodingUrl ||
+    !subtitle ||
+    subtitle.DeliveryMethod === "Encode"
+  ) {
+    return mediaSource;
+  }
+  const [path, query = ""] = mediaSource.TranscodingUrl.split("?");
+  const params = new URLSearchParams(query);
+  params.set("SubtitleStreamIndex", String(subtitleStreamIndex));
+  params.set("SubtitleMethod", "Encode");
+  return {
+    ...mediaSource,
+    TranscodingUrl: `${path}?${params}`,
+    MediaStreams: mediaSource.MediaStreams?.map((stream) =>
+      stream === subtitle ? { ...stream, DeliveryMethod: "Encode" } : stream,
+    ),
+  };
+};
+
+/** The raw file keeps its image subtitles as tracks, which the profile marks burned in. */
+const asOriginalFile = (mediaSource: MediaSourceInfo): MediaSourceInfo => ({
+  ...mediaSource,
+  TranscodingUrl: null,
+  MediaStreams: mediaSource.MediaStreams?.map((stream) =>
+    stream.DeliveryMethod === "Encode"
+      ? { ...stream, DeliveryMethod: "Embed" }
+      : stream,
+  ),
+});
