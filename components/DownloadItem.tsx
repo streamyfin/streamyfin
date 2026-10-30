@@ -478,13 +478,30 @@ export const DownloadItems: React.FC<DownloadProps> = ({
                     <MediaSourceSelector
                       item={optionsItem}
                       onChange={(val) =>
-                        setSelectedOptions(
-                          (prev) =>
-                            prev && {
-                              ...prev,
-                              mediaSource: val,
-                            },
-                        )
+                        setSelectedOptions((prev) => {
+                          if (!prev) return prev;
+                          // Stream indexes are per version, so the tracks are
+                          // resolved again on the new one, keeping the picked
+                          // languages where it has them.
+                          const { audioIndex, subtitleIndex } =
+                            getDefaultPlaySettings(
+                              { ...optionsItem, MediaSources: [val] },
+                              settings,
+                              prev.mediaSource && {
+                                source: prev.mediaSource,
+                                indexes: {
+                                  audioIndex: prev.audioIndex,
+                                  subtitleIndex: prev.subtitleIndex,
+                                },
+                              },
+                            );
+                          return {
+                            ...prev,
+                            mediaSource: val,
+                            audioIndex,
+                            subtitleIndex: subtitleIndex ?? -1,
+                          };
+                        })
                       }
                       selected={selectedOptions?.mediaSource}
                     />
