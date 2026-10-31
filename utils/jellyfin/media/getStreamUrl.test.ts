@@ -143,11 +143,22 @@ describe("getDownloadStreamUrl", () => {
           MediaStreams: [
             { Index: 0, Type: "Video" },
             { Index: 1, Type: "Subtitle", DeliveryMethod: "Encode" },
-            { Index: 2, Type: "Subtitle", DeliveryMethod: "External" },
+            {
+              Index: 2,
+              Type: "Subtitle",
+              DeliveryMethod: "External",
+              IsExternal: false,
+            },
             {
               Index: 3,
               Type: "Subtitle",
               DeliveryMethod: "Encode",
+              IsExternal: true,
+            },
+            {
+              Index: 4,
+              Type: "Subtitle",
+              DeliveryMethod: "External",
               IsExternal: true,
             },
           ],
@@ -205,9 +216,31 @@ describe("getDownloadStreamUrl", () => {
         mode: "original",
       });
 
+      expect(result?.mediaSource?.MediaStreams?.[3].DeliveryMethod).toBe(
+        "Encode",
+      );
+    });
+
+    // The download profile asks for text subtitles as sidecars, so the server
+    // marks the file's own ones External. Counted as sidecars, they shifted the
+    // player's mapping of the file's other tracks.
+    test("counts a text subtitle in the file as one of its tracks", async () => {
+      const api = makeApi();
+      api.mock
+        .onPost("https://jellyfin.example.com/Items/item-1/PlaybackInfo")
+        .reply(200, serverWouldTranscode);
+
+      const result = await getDownloadStreamUrl({
+        api,
+        item: { Id: "item-1", Type: "Movie" },
+        userId: "user-1",
+        mediaSourceId: "media-1",
+        mode: "original",
+      });
+
       expect(
         result?.mediaSource?.MediaStreams?.map((s) => s.DeliveryMethod),
-      ).toEqual([undefined, "Embed", "External", "Encode"]);
+      ).toEqual([undefined, "Embed", "Embed", "Encode", "External"]);
     });
 
     test("leaves direct play to the server", async () => {

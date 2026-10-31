@@ -167,6 +167,31 @@ describe("burning in a subtitle", () => {
     ).toEqual({ requested: 1, playedOffline: 1 });
   });
 
+  // It is a file next to the original, not in it, and an image one is not
+  // downloaded on its own: offline it would show as burned in and stay on.
+  test("an original drops a preferred image subtitle stored next to the file", () => {
+    expect(
+      downloadSubtitleIndexes({
+        mode: "original",
+        mediaSource: {
+          ...source,
+          MediaStreams: [
+            ...(source.MediaStreams ?? []),
+            {
+              Type: "Subtitle",
+              Index: 4,
+              Codec: "PGSSUB",
+              IsTextSubtitleStream: false,
+              IsExternal: true,
+            },
+          ],
+        },
+        preferredIndex: 4,
+        burnInIndex: -1,
+      }),
+    ).toEqual({ requested: -1, playedOffline: -1 });
+  });
+
   test("a transcode asks for the subtitle to burn in and plays it", () => {
     expect(
       downloadSubtitleIndexes({

@@ -116,13 +116,16 @@ export const downloadSubtitleIndexes = ({
   preferredIndex: number;
   burnInIndex: number;
 }): { requested: number; playedOffline: number } => {
+  const preferred = findSubtitle(mediaSource, preferredIndex);
   if (mode === "original") {
-    return { requested: preferredIndex, playedOffline: preferredIndex };
+    // An image subtitle next to the file is neither in it nor downloaded.
+    return preferred?.IsExternal && isImageBasedSubtitle(preferred)
+      ? { requested: SUBTITLES_OFF, playedOffline: SUBTITLES_OFF }
+      : { requested: preferredIndex, playedOffline: preferredIndex };
   }
   if (burnInIndex !== SUBTITLES_OFF) {
     return { requested: burnInIndex, playedOffline: burnInIndex };
   }
-  const preferred = findSubtitle(mediaSource, preferredIndex);
   return {
     requested: SUBTITLES_OFF,
     playedOffline:

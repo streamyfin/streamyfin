@@ -398,13 +398,16 @@ const withSubtitleBurnedIn = (
   };
 };
 
-/** The raw file keeps its image subtitles as tracks, which the profile marks burned in. */
+/**
+ * The raw file keeps its own subtitles as tracks, which the profile marks
+ * burned in (image) or sidecar (text).
+ */
 const asOriginalFile = (mediaSource: MediaSourceInfo): MediaSourceInfo => ({
   ...mediaSource,
   TranscodingUrl: null,
   // A file next to it on the server is not in the download.
   MediaStreams: mediaSource.MediaStreams?.map((stream) =>
-    stream.DeliveryMethod === "Encode" && !stream.IsExternal
+    stream.Type === "Subtitle" && !stream.IsExternal
       ? { ...stream, DeliveryMethod: "Embed" }
       : stream,
   ),
