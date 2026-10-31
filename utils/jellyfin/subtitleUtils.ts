@@ -843,6 +843,25 @@ export const withPlayerAudioTracks = (
 };
 
 /**
+ * The audio index the server is told about: `index` when the server's own
+ * list has it, undefined for a track only the player found (see
+ * {@link withPlayerAudioTracks}). The server resolves an index it does not
+ * list against its own streams and silently plays one of those instead, so
+ * it is asked for its default and the player puts mpv back on the track.
+ * A source with no list at all cannot tell, so the index goes through.
+ */
+export const serverAudioIndex = (
+  serverSource: MediaSourceInfo | null | undefined,
+  index: number | undefined,
+): number | undefined => {
+  const streams = serverSource?.MediaStreams;
+  if (!streams?.length) return index;
+  return streams.some((s) => s.Type === "Audio" && s.Index === index)
+    ? index
+    : undefined;
+};
+
+/**
  * True when switching to this subtitle forces the server to re-process the
  * stream, which cuts playback and reseeks.
  *

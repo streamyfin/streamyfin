@@ -15,6 +15,7 @@ import {
   resolveAudioSwitch,
   resolveSubtitleTrack,
   sameSubtitleTrack,
+  serverAudioIndex,
   withPlayerAudioTracks,
 } from "@/utils/jellyfin/subtitleUtils";
 
@@ -1087,5 +1088,19 @@ describe("withPlayerAudioTracks", () => {
     expect(audio.filter((s) => s.IsExternal).map((s) => s.Index)).toEqual([5]);
     expect(audio.filter((s) => !s.IsExternal)).toHaveLength(3);
     expect(getMpvAudioId(merged, 5, false)).toBeUndefined();
+  });
+
+  // A re-negotiated stream is asked for with the current audio index; one the
+  // server never listed would make it pick a stream of its own.
+  it("keeps a track only the player found out of what the server is asked for", () => {
+    const merged = withPlayerAudioTracks(named, played);
+    const [listed, ...playerOnly] =
+      merged.MediaStreams?.filter((s) => s.Type === "Audio") ?? [];
+    expect(serverAudioIndex(named, listed.Index)).toBe(listed.Index);
+    expect(playerOnly).toHaveLength(2);
+    for (const s of playerOnly) {
+      expect(serverAudioIndex(named, s.Index)).toBeUndefined();
+    }
+    expect(serverAudioIndex({}, 7)).toBe(7);
   });
 });

@@ -97,6 +97,7 @@ import {
   isImageBasedSubtitle,
   type PlayerAudioTrack,
   resolveAudioSwitch,
+  serverAudioIndex,
   withPlayerAudioTracks,
 } from "@/utils/jellyfin/subtitleUtils";
 import { logAndCaptureError, writeToLog } from "@/utils/log";
@@ -493,6 +494,15 @@ export default function DirectPlayerPage() {
       withPlayerAudioTracks(stream.mediaSource, playerAudioTracks),
     [stream?.mediaSource, playerAudioTracks],
   );
+  // A stream re-negotiated for a subtitle or a bitrate is asked for without
+  // a track the server does not list (serverAudioIndex), so mpv starts it on
+  // the default track: put it back on the selected one once the merged list
+  // says which that is.
+  useEffect(() => {
+    if (!tracksReady || currentAudioIndex === undefined) return;
+    const target = resolveAudioSwitch(trackMediaSource, currentAudioIndex);
+    if (!target.reload) void videoRef.current?.setAudioTrack?.(target.mpvId);
+  }, [trackMediaSource]);
   const [streamStatus, setStreamStatus] = useState({
     isLoading: true,
     isError: false,
@@ -613,7 +623,12 @@ export default function DirectPlayerPage() {
             item,
             startTimeTicks: startTicks,
             userId: user.Id,
-            audioStreamIndex: audioIndex,
+            // The server's own list is not in yet; the item's is the same one.
+            audioStreamIndex: serverAudioIndex(
+              item.MediaSources?.find((s) => s.Id === mediaSourceId) ??
+                item.MediaSources?.[0],
+              audioIndex,
+            ),
             maxStreamingBitrate: bitrateValue,
             mediaSourceId: mediaSourceId,
             subtitleStreamIndex: subtitleIndex,
@@ -868,7 +883,7 @@ export default function DirectPlayerPage() {
       // Report the live selection so server-side session/resume state reflects
       // mid-playback track changes. Note: index 0 is valid (don't treat as
       // falsy); -1 means "off" and is reported as-is.
-      AudioStreamIndex: currentAudioIndex,
+      AudioStreamIndex: serverAudioIndex(stream.mediaSource, currentAudioIndex),
       SubtitleStreamIndex: currentSubtitleIndex,
       MediaSourceId: mediaSourceId,
       PositionTicks: getSessionPositionTicks(),
