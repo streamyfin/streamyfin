@@ -163,6 +163,8 @@
         "download_live_activity_hint": "Muestra el progreso de las descargas en la pantalla bloqueada y en la Dynamic Island.",
         "merge_next_up_continue_watching": "Fusionar continuar viendo y siguiente",
         "merge_next_up_continue_watching_hint": "Combina Seguir viendo y A continuación en una sola fila de la pantalla de inicio.",
+        "show_upcoming_on_home": "Próximos episodios en el inicio",
+        "show_upcoming_on_home_hint": "Añade al inicio una fila con los episodios que están a punto de emitirse en tus bibliotecas de series.",
         "use_episode_images_next_up": "Usar imágenes del episodio en A continuación y Seguir viendo",
         "use_episode_images_next_up_hint": "Muestra la miniatura propia de cada episodio en las filas A continuación y Seguir viendo en lugar de la imagen de la serie.",
         "hide_remote_session_button": "Ocultar botón de sesión remota",
@@ -225,8 +227,11 @@
         "enter_the_quick_connect_code": "Introduce el código de conexión rápida...",
         "success": "Hecho",
         "quick_connect_authorized": "Conexión rápida autorizada",
+        "quick_connect_authorized_for": "Conexión rápida autorizada para {{username}}",
+        "user": "Usuario",
+        "selected_user_unavailable": "El usuario seleccionado ya no está disponible",
         "invalid_code": "Código inválido",
-        "disabled": "Quick Connect is turned off on this server. An administrator can turn it on in the server's dashboard.",
+        "disabled": "La conexión rápida está desactivada en este servidor. Un administrador puede activarla en el panel de control del servidor.",
         "authorize": "Autorizar",
         "paste_code": "Pegar código"
       },
@@ -389,10 +394,18 @@
         "select_libraries_you_want_to_hide": "Selecciona las bibliotecas que quieres ocultar de la pestaña Bibliotecas y de Inicio.",
         "disable_haptic_feedback": "Desactivar feedback háptico",
         "resume_dialog": "Preguntar si reanudar o empezar de nuevo",
+        "confirm_before_stopping_playback": "Confirmar antes de detener la reproducción",
         "default_quality": "Calidad por defecto",
         "default_playback_speed": "Velocidad de reproducción predeterminada",
         "auto_play_next_episode": "Reproducir automáticamente el siguiente episodio",
-        "max_auto_play_episode_count": "Máximo número de episodios de Auto Play",
+        "still_watching": "Preguntar «¿Sigues ahí?»",
+        "still_watching_hint": "Antes de reproducir automáticamente el siguiente episodio, comprueba que alguien sigue viendo tras una sesión larga.",
+        "still_watching_presets": {
+          "short": "Corto",
+          "default": "Predeterminado",
+          "long": "Largo",
+          "veryLong": "Muy largo"
+        },
         "segment_skip_settings": "Ajustes de salto de segmentos",
         "segment_skip_settings_description": "Configura cómo se saltan las intros, los créditos y otros segmentos",
         "skip_intro": "Saltar intro",
@@ -415,6 +428,11 @@
         "playback_title": "Reproducir",
         "playback_description": "Configurar cómo se reproduce la música.",
         "prefer_downloaded": "Preferir las canciones descargadas",
+        "normalization": "Normalización del volumen",
+        "normalization_hint": "Reproduce las canciones con una sonoridad igualada.",
+        "normalization_off": "Desactivada",
+        "normalization_track": "Pista",
+        "normalization_album": "Álbum",
         "caching_title": "Almacenando en caché",
         "caching_description": "Almacena con antelación las próximas canciones de la cola. Las más antiguas se eliminan al alcanzar el límite de tamaño.",
         "lookahead_enabled": "Activar el look-Ahead Cache",
@@ -507,10 +525,10 @@
         "music_cache_title": "Caché de música",
         "music_cache_description": "Las canciones quedan guardadas en caché automáticamente durante la reproducción. Vaciar la caché libera espacio sin afectar tus canciones descargadas.",
         "clear_music_cache": "Borrar Caché de Música",
-        "music_cache_size": "Caché {{Tamaño}}",
+        "music_cache_size": "{{size}} en caché",
         "music_cache_cleared": "Caché de música eliminado",
         "delete_all_downloaded_songs": "Eliminar todas las descargas",
-        "downloaded_songs_size": "{{tamaño}} descargado",
+        "downloaded_songs_size": "{{size}} descargados",
         "downloaded_songs_deleted": "Canciones descargadas eliminadas",
         "clear_all_cache": "Borrar toda la caché",
         "clear_all_cache_confirm": "¿Borrar toda la caché?",
@@ -553,13 +571,93 @@
           "4_hours": "4 horas",
           "24_hours": "24 horas"
         }
+      },
+      "notifications": {
+        "title": "Notificaciones",
+        "save_failed": "No se pudieron guardar tus preferencias de notificaciones. Inténtalo de nuevo.",
+        "channels": {
+          "new_content": "Novedades en el servidor",
+          "requests": "Tus solicitudes",
+          "account": "Tu cuenta",
+          "server_alerts": "Alertas del servidor"
+        },
+        "actions": {
+          "pause": "Pausar durante 8 horas",
+          "mute_show": "Desactivar para esta serie",
+          "paused": "Notificaciones pausadas durante 8 horas",
+          "muted": "Notificaciones desactivadas para esta serie"
+        },
+        "unsupported": "El plugin de Streamyfin de tu servidor aún no ofrece preferencias de notificaciones.",
+        "load_failed": "No se pudieron cargar tus preferencias de notificaciones.",
+        "try_again": "Reintentar",
+        "events": {
+          "item_added": "Nuevas películas y episodios",
+          "seerr_requests": "Tus solicitudes",
+          "seerr_requests_help": "Aprobadas, rechazadas o disponibles",
+          "awaited_title": "Llega un título que esperas",
+          "awaited_title_help": "Uno del que pediste que te avisaran desde su página de Seerr",
+          "user_locked_out": "Tu cuenta se bloquea",
+          "seerr_pending": "Nuevas solicitudes",
+          "seerr_pending_help": "Pendientes de aprobación, aprobadas automáticamente o fallidas",
+          "session_started": "Alguien inicia sesión",
+          "playback_started": "Alguien empieza a reproducir",
+          "sign_in_failed": "Falla un inicio de sesión",
+          "task_failed": "Falla una tarea programada",
+          "plugin_changed": "Cambia un plugin",
+          "plugin_changed_help": "Instalado, actualizado o eliminado"
+        },
+        "groups": {
+          "new": "Novedades en el servidor",
+          "follow": "Series que sigues",
+          "muted": "Series desactivadas",
+          "yours": "Tus solicitudes y tu cuenta",
+          "awaited": "Títulos que esperas",
+          "server": "Alertas del servidor"
+        },
+        "libraries_footer": "Nuevas películas y episodios de estas bibliotecas.",
+        "follow": {
+          "favorites": "Tus series favoritas",
+          "favorites_help": "Un nuevo episodio de una serie que marcaste como favorita",
+          "started": "Series que has empezado",
+          "started_help": "Un nuevo episodio de una serie que has empezado a ver",
+          "footer": "Estas llegan aunque las nuevas películas y episodios estén desactivados."
+        },
+        "muted": {
+          "turn_back_on": "Volver a activar"
+        },
+        "awaited": {
+          "stop": "Dejar de esperar",
+          "arrived": "Ya está aquí, te avisaremos cuando termine tu pausa"
+        },
+        "pause": {
+          "title": "Pausar notificaciones",
+          "off": "No",
+          "one_hour": "1 hora",
+          "eight_hours": "8 horas",
+          "one_day": "24 horas",
+          "until_on": "Hasta que las vuelva a activar",
+          "until": "Hasta {{when}}"
+        },
+        "blocked": {
+          "title": "Las notificaciones están desactivadas para Streamyfin",
+          "body": "Tu teléfono las bloquea, elijas lo que elijas abajo.",
+          "open": "Abrir ajustes"
+        },
+        "sound": {
+          "title": "Sonido y vibración",
+          "help": "Para cada tipo de notificación, en los ajustes de Android"
+        },
+        "account_footer": "Estas preferencias siguen a tu cuenta en todos tus dispositivos."
       }
     },
     "sessions": {
       "title": "Sesiones",
       "no_active_sessions": "No hay sesiones activas",
       "select_session": "Seleccionar sesión",
-      "now_playing": "Reproduciendo:"
+      "now_playing": "Reproduciendo:",
+      "repeat_off": "Repetición desactivada",
+      "repeat_all": "Repetir todo",
+      "repeat_one": "Repetir uno"
     },
     "downloads": {
       "downloads_title": "Descargas",
@@ -609,7 +707,7 @@
         "all_files_deleted": "Todas las descargas eliminadas correctamente",
         "files_deleted_by_type": "{{count}} {{type}} eliminado",
         "could_not_get_download_url_for_item": "No se pudo obtener la URL de descarga para {{itemName}}",
-        "no_media_source_to_download": "This item cannot be downloaded",
+        "no_media_source_to_download": "Este elemento no se puede descargar",
         "file_deleted": "{{item}} eliminado"
       }
     }
@@ -625,6 +723,7 @@
     "mark_as_not_played": "Marcar como no reproducido",
     "none": "Nada",
     "track": "Pista",
+    "original_audio": "Original",
     "cancel": "Cancelar",
     "stop": "Detener",
     "open_menu": "Abrir menú",
@@ -685,6 +784,15 @@
   "library": {
     "no_results": "Sin resultados",
     "no_libraries_found": "No se han encontrado bibliotecas",
+    "jump_to_letter": "Saltar a la letra",
+    "sort": "Ordenar",
+    "letters": "A–Z",
+    "tabs": {
+      "items": "Elementos",
+      "collections": "Colecciones",
+      "playlists": "Listas de reproducción"
+    },
+    "play_all": "Reproducir todo",
     "item_types": {
       "movies": "Películas",
       "series": "Series",
@@ -710,11 +818,24 @@
       "filter_by": "Filtrar por",
       "sort_order": "Ordenar",
       "tags": "Etiquetas",
+      "official_ratings": "Clasificaciones por edad",
+      "audio_languages": "Idiomas de audio",
+      "subtitle_languages": "Idiomas de subtítulos",
+      "selected_count": "Seleccionados: {{count}}",
       "all": "Todo",
+      "title": "Filtros",
+      "title_count": "Filtros · {{count}}",
       "reset": "Restablecer",
       "asc": "Ascendente",
       "desc": "Descendente"
     }
+  },
+  "upcoming": {
+    "title": "Próximamente",
+    "no_episodes": "No hay próximos episodios",
+    "yesterday": "Ayer",
+    "today": "Hoy",
+    "tomorrow": "Mañana"
   },
   "favorites": {
     "series": "Series",
@@ -728,7 +849,7 @@
   },
   "custom_links": {
     "no_links": "Sin enlaces",
-    "could_not_open_link": "Could not open this link"
+    "could_not_open_link": "No se pudo abrir este enlace"
   },
   "player": {
     "live": "EN DIRECTO",
@@ -757,6 +878,9 @@
       "buffer_seconds": "Búfer: {{seconds}}s",
       "vo": "VO:",
       "dropped_frames": "Perdidos: {{count}} fotogramas",
+      "transcode_progress": "Transcodificado: {{percent}} %",
+      "transcode_speed": "Velocidad de transcodificación: {{fps}} fps",
+      "transcode_hardware": "Aceleración por hardware: {{type}}",
       "loading": "Cargando..."
     },
     "mpv_player_title": "Reproductor MPV",
@@ -771,8 +895,11 @@
     "client_error": "Error del cliente",
     "could_not_create_stream_for_chromecast": "No se pudo crear el Steam para Chromecast",
     "chromecast_playback_failed": "Chromecast no pudo reproducir este stream",
+    "chromecast_server_unreachable": "Chromecast no pudo conectar con tu servidor Jellyfin",
+    "chromecast_did_not_start": "El Chromecast no empezó a reproducir. Asegúrate de que puede conectar con tu servidor Jellyfin.",
     "message_from_server": "Mensaje del servidor: {{message}}",
     "next_episode": "Siguiente episodio",
+    "up_next": "A continuación",
     "continue_watching": "Continuar viendo",
     "go_back": "Volver",
     "downloaded_file_title": "Ya tienes este archivo descargado",
@@ -844,10 +971,13 @@
     "view_season": "Ver temporada",
     "select_season": "Seleccionar temporada",
     "no_episodes_for_this_season": "No hay episodios para esta temporada",
+    "missing": "Falta",
+    "not_yet_aired": "Aún no emitido",
     "overview": "Resumen",
     "more_with": "Más con {{name}}",
     "similar_items": "Ítems similares",
     "no_similar_items_found": "No se han encontrado ítems similares",
+    "collections": "Colecciones",
     "video": "Vídeo",
     "more_details": "Más detalles",
     "media_options": "Opciones de medios",
@@ -861,8 +991,46 @@
     "show_more": "Mostrar más",
     "show_less": "Mostrar menos",
     "left": "restantes",
-    "director": "Director",
     "cast": "Reparto",
+    "credits": {
+      "Director_one": "Dirección",
+      "Director_other": "Dirección",
+      "Writer_one": "Guion",
+      "Writer_other": "Guion",
+      "Creator_one": "Creador",
+      "Creator_other": "Creadores",
+      "Author_one": "Autor",
+      "Author_other": "Autores",
+      "Narrator_one": "Narrador",
+      "Narrator_other": "Narradores"
+    },
+    "person_kind": {
+      "Actor": "Actor",
+      "Director": "Director",
+      "Composer": "Compositor",
+      "Writer": "Guionista",
+      "GuestStar": "Estrella invitada",
+      "Producer": "Productor",
+      "Conductor": "Director de orquesta",
+      "Lyricist": "Letrista",
+      "Arranger": "Arreglista",
+      "Engineer": "Ingeniero de sonido",
+      "Mixer": "Mezclador",
+      "Remixer": "Remezclador",
+      "Creator": "Creador",
+      "Artist": "Artista",
+      "AlbumArtist": "Artista del álbum",
+      "Author": "Autor",
+      "Illustrator": "Ilustrador",
+      "Penciller": "Lapicista",
+      "Inker": "Entintador",
+      "Colorist": "Colorista",
+      "Letterer": "Rotulista",
+      "CoverArtist": "Artista de portada",
+      "Editor": "Editor",
+      "Translator": "Traductor",
+      "Narrator": "Narrador"
+    },
     "technical_details": "Detalles técnicos",
     "appeared_in": "Apareció en",
     "movies": "Películas",
@@ -909,6 +1077,14 @@
     }
   },
   "seerr": {
+    "awaited": {
+      "notify_me": "Avisarme cuando esté disponible",
+      "waiting": "Te avisaremos",
+      "stop_hint": "Deja de esperar este título",
+      "already_here": "Este título ya está en el servidor",
+      "too_many": "Ya estás esperando el máximo de títulos posible",
+      "failed": "No se pudieron cambiar los títulos que esperas"
+    },
     "cancel": "Cancelar",
     "whats_wrong": "¿Qué pasa?",
     "issue_type": "Tipo de problema",
@@ -1185,10 +1361,10 @@
     "pairing_tv_connecting": "La TV se está conectando a tu cuenta",
     "error_title": "Error de autorización",
     "error_invalid_qr": "Código QR no válido. Escanea el código de emparejamiento de la TV.",
-    "error_old_tv": "This TV runs an older version of Streamyfin. Update it, then try again.",
-    "error_code_not_waiting": "This code is not waiting on {{server}}. Check that the TV uses the same server as this phone, then start Quick Connect again on the TV.",
-    "error_quick_connect_disabled": "Quick Connect is turned off on {{server}}. An administrator can turn it on in the server's dashboard.",
-    "error_other_server": "This TV is connecting to another server, {{server}}. Sign in to that server in this app, then scan again.",
+    "error_old_tv": "Esta TV usa una versión antigua de Streamyfin. Actualízala y vuelve a intentarlo.",
+    "error_code_not_waiting": "Este código no está en espera en {{server}}. Comprueba que la TV usa el mismo servidor que este teléfono y vuelve a iniciar la conexión rápida en la TV.",
+    "error_quick_connect_disabled": "La conexión rápida está desactivada en {{server}}. Un administrador puede activarla en el panel de control del servidor.",
+    "error_other_server": "Esta TV se está conectando a otro servidor, {{server}}. Inicia sesión en ese servidor en esta aplicación y vuelve a escanear.",
     "error_generic": "Algo salió mal. Inténtalo de nuevo.",
     "error_permission_denied": "Se necesita permiso de cámara para escanear códigos QR.",
     "login_as": "¿Iniciar sesión como {{username}}?",
@@ -1198,11 +1374,11 @@
   "pairing": {
     "pair_with_phone": "Emparejar con el teléfono",
     "pair_with_phone_title": "Iniciar sesión en la TV",
-    "scan_quick_connect": "Scan the QR code with the Streamyfin app or your phone's camera.",
-    "code_expired": "This code has expired.",
-    "get_new_code": "Get a new code",
-    "scan_with_app": "Scan the QR code with the Streamyfin app on your phone.",
-    "account_that_approves": "The account that approves the code",
+    "scan_quick_connect": "Escanea el código QR con la aplicación Streamyfin o la cámara de tu teléfono.",
+    "code_expired": "Este código ha caducado.",
+    "get_new_code": "Obtener un código nuevo",
+    "scan_with_app": "Escanea el código QR con la aplicación Streamyfin en tu teléfono.",
+    "account_that_approves": "La cuenta que aprueba el código",
     "logging_in": "Iniciando sesión...",
     "logging_in_description": "Conectando con tu servidor"
   },
@@ -1234,5 +1410,82 @@
     "header_count_one": "{{count}} cabecera",
     "header_count_other": "{{count}} cabeceras",
     "header_count": "{{count}} cabeceras"
+  },
+  "syncplay": {
+    "pause": "Pausa",
+    "play": "Reproducir",
+    "online_video_only": "SyncPlay solo admite vídeos en línea. Sal del grupo para ver vídeos descargados o enviarlos con Cast.",
+    "title": "SyncPlay",
+    "watch": "Ver",
+    "new_group": "Nuevo grupo",
+    "new_group_queues": "Pone en cola {{title}} · {{count}} vídeos",
+    "new_group_queues_one": "Pone en cola {{title}}",
+    "new_group_queues_other": "Pone en cola {{title}} · {{count}} vídeos",
+    "groups_on_server": "Grupos en este servidor",
+    "join": "Unirse",
+    "play_for_everyone": "Reproducir para todos",
+    "stop_for_everyone": "Detener para todos",
+    "back_to_group": "Volver a {{name}}",
+    "how_to_play": "En un grupo, pulsar Reproducir en cualquier vídeo lo reproduce para todos.",
+    "play_next": "Reproducir siguiente",
+    "add_to_queue": "Añadir a la cola",
+    "added_to_queue": "Añadido a la cola del grupo",
+    "default_group_name": "Grupo de {{name}}",
+    "switch_group": "Cambiar a otro grupo",
+    "ignore_wait_setting_hint": "Los grupos a los que te unes empiezan y se reanudan sin esperar a este dispositivo. Se aplica cada vez que te unes; puedes cambiarlo en el reproductor.",
+    "description": "Mira contenido sincronizado con amigos que usan Jellyfin en el mismo servidor.",
+    "current_group": "Tu grupo",
+    "available_groups": "Grupos disponibles",
+    "leave": "Abandonar grupo",
+    "refresh": "Actualizar",
+    "retry": "Reintentar",
+    "no_groups": "Aún no hay otros grupos. Crea un grupo e invita a tus amigos a unirse.",
+    "no_participants": "Esperando participantes",
+    "unavailable": "SyncPlay no está disponible para esta cuenta. Pide al administrador de tu servidor que lo active.",
+    "disconnected": "Conéctate a tu servidor para usar SyncPlay. Los grupos estarán disponibles cuando vuelva la conexión.",
+    "reconnecting": "Reconectando…",
+    "error": "SyncPlay no pudo completar la solicitud",
+    "states": {
+      "Idle": "Listo para ver",
+      "Waiting": "Esperando a todos",
+      "Paused": "En pausa",
+      "Playing": "Reproduciendo"
+    },
+    "errors": {
+      "disconnected": "Se perdió la conexión con el servidor. Vuelve a conectarte para seguir viendo juntos.",
+      "request_failed": "La solicitud falló. Inténtalo de nuevo.",
+      "create_denied": "Esta cuenta no tiene permiso para crear grupos de SyncPlay.",
+      "join_denied": "Esta cuenta no tiene permiso para unirse a este grupo.",
+      "group_missing": "Este grupo ya no está disponible. Actualiza la lista de grupos.",
+      "library_denied": "Esta cuenta no tiene acceso al vídeo elegido por el grupo.",
+      "disabled": "SyncPlay está desactivado para esta cuenta.",
+      "playback_failed": "No se pudo reproducir el vídeo del grupo. Elige otro vídeo o inténtalo de nuevo.",
+      "invalid_name": "Introduce un nombre de grupo.",
+      "timeout": "El servidor no respondió a tiempo. Inténtalo de nuevo."
+    },
+    "queue": "Cola compartida",
+    "playback_options": "Opciones de reproducción",
+    "repeat": "Repetir",
+    "repeat_modes": {
+      "RepeatNone": "Desactivado",
+      "RepeatAll": "Todos los vídeos",
+      "RepeatOne": "Un vídeo"
+    },
+    "shuffle": "Aleatorio",
+    "ignore_wait": "No esperar a este dispositivo",
+    "ignore_wait_hint": "El grupo puede empezar o reanudarse sin esperar a que este dispositivo esté listo. Este ajuste solo se aplica a tu sesión actual.",
+    "on": "Activado",
+    "off": "Desactivado",
+    "empty_queue": "La cola está vacía. Añade un vídeo abajo o reproduce uno de tu biblioteca.",
+    "unavailable_video": "Vídeo no disponible",
+    "now_playing": "Vídeo actual",
+    "move_up": "Subir",
+    "move_down": "Bajar",
+    "remove": "Quitar",
+    "clear_upcoming": "Mantener solo el vídeo actual",
+    "clear_all": "Vaciar la cola y detener",
+    "play_now": "Reproducir ahora",
+    "refresh_group": "Actualizar grupo",
+    "close": "Cerrar"
   }
 }

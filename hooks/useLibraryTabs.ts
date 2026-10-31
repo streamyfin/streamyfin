@@ -1,5 +1,5 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
+import { getLibraryApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQueries } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
 import { useCallback, useMemo, useState } from "react";
@@ -57,7 +57,7 @@ export function useLibraryTabs(library: BaseItemDto | null | undefined) {
       ],
       queryFn: async (): Promise<number> => {
         if (!api || !library) return 0;
-        const response = await getItemsApi(api).getItems({
+        const response = await getLibraryApi(api).getItems({
           userId: user?.Id,
           parentId: library.Id,
           recursive: true,

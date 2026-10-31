@@ -1,6 +1,6 @@
 import type { Api } from "@jellyfin/sdk";
 import type { GroupInfoDto } from "@jellyfin/sdk/lib/generated-client";
-import { getSyncPlayApi, getTimeSyncApi } from "@jellyfin/sdk/lib/utils/api";
+import { getSyncPlayApi, getSystemApi } from "@jellyfin/sdk/lib/utils/api";
 import { SYNCPLAY_REQUEST_TIMEOUT_MS } from "@/constants/SyncPlay";
 import type { SyncPlayGroup, SyncPlayTransport } from "./types";
 
@@ -47,7 +47,7 @@ export const createSyncPlayTransport = (api: Api): SyncPlayTransport => {
     leaveGroup: async () => {
       await sync.syncPlayLeaveGroup(options);
     },
-    getTime: async () => (await getTimeSyncApi(api).getUtcTime(options)).data,
+    getTime: async () => (await getSystemApi(api).getUtcTime(options)).data,
     ping: async (pingMs) => {
       await sync.syncPlayPing({ pingRequestDto: { Ping: pingMs } }, options);
     },

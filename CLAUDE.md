@@ -52,6 +52,8 @@ Navigation:
 - `intro-modal-trigger-location` | Trigger in Home.tsx, not tabs _layout.tsx
 - `expo-router-top-tabs-runtime-peers` | js-top-tabs requires react-native-tab-view (+ pager-view) at runtime; no import shows it, removing them crashes on launch
 - `ios27-sdk-tab-bar-items-display-order` | linked against the iOS 27 SDK, UITabBar.items is in display order (search last) and the detached button is TabRole.prominent; patched in react-native-bottom-tabs
+- `swiftui-foreach-evicts-hidden-tabs` | SwiftUI evicts a ForEach element no tab retains, and a tvOS focus selection past it rebuilds it outside an update and traps (REACT-NATIVE-24); hidden tabs stay out of the ForEach, patched in react-native-bottom-tabs
+- `foreign-link-lands-on-library-route` | the library route is /[libraryId], so an unknown one-word link opens it with that word as the id; the music notification's trackplayer://notification.click did, and app/+native-intent.ts drops it
 
 UI and headers:
 - `macos-header-buttons-fix` | macOS Catalyst: use RNGH Pressable, not RN TouchableOpacity
@@ -143,7 +145,7 @@ bun run ios:install-metal-toolchain   # Fixes "missing Metal Toolchain" build er
 - **Framework**: Expo SDK 57, React 19, `react-native-tvos`
 - **Language**: TypeScript, strict mode
 - **State**: Jotai for global state, React Query for server state
-- **API**: Jellyfin SDK (`@jellyfin/sdk`)
+- **API**: Jellyfin SDK 1.0 (`@jellyfin/sdk`)
 - **Navigation**: Expo Router, file based
 - **Lint and format**: Biome
 - **Tests**: Jest with the `jest-expo` preset, React Native Testing Library
@@ -187,7 +189,20 @@ bun run ios:install-metal-toolchain   # Fixes "missing Metal Toolchain" build er
 
 **Jellyfin API**
 - Authenticated calls use `apiAtom`, the current user comes from `userAtom`.
-- Prefer the SDK helpers from `@jellyfin/sdk/lib/utils/api` over hand rolled requests.
+- Use SDK operations from `@jellyfin/sdk/lib/utils/api` for core Jellyfin requests:
+  `getLibraryApi` for items/latest/resume, `getShowApi` for seasons/episodes,
+  `getUserDataApi` for watched/favorite state, `getSessionApi` for playback reports,
+  and `getAuthenticationApi` for sign-in and Quick Connect.
+- Direct HTTP is reserved for endpoints outside the SDK: Streamyfin and
+  intro-skipper plugins, Web's static configuration, configurable custom sections,
+  and external services (Seerr, StreamyStats, Marlin, OpenSubtitles, Wikidata).
+  The SDK itself uses Axios; keep its custom-header transport and error handling.
+  Plugin requests use the explicitly named `pluginGet` / `pluginPost` /
+  `pluginPut` / `pluginDelete` extensions, not generic `Api.get` / `post` /
+  `put` / `delete`.
+- Native images, players and downloads need URLs rather than response bodies.
+  Use SDK URL helpers where available, retaining server-supplied streaming URLs
+  and protocol-specific playback parameters.
 
 **Navigation**
 - File based routing under `app/`.

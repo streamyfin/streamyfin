@@ -50,7 +50,11 @@ let held: Record<string, unknown> | undefined;
 const apiAt = (basePath: string) =>
   ({
     basePath,
-    post: (path: string, body: Record<string, unknown>, config?: unknown) =>
+    pluginPost: (
+      path: string,
+      body: Record<string, unknown>,
+      config?: unknown,
+    ) =>
       new Promise((resolve, reject) => {
         const request: Request = {
           path,

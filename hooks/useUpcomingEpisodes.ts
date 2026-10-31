@@ -1,6 +1,6 @@
 import type { Api } from "@jellyfin/sdk";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { getTvShowsApi } from "@jellyfin/sdk/lib/utils/api";
+import { getShowApi } from "@jellyfin/sdk/lib/utils/api";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
 import { useMemo } from "react";
@@ -21,7 +21,7 @@ export const fetchUpcomingEpisodes = async (
     limit: number;
   },
 ): Promise<BaseItemDto[]> => {
-  const response = await getTvShowsApi(api).getUpcomingEpisodes({
+  const response = await getShowApi(api).getUpcomingEpisodes({
     ...params,
     // The series' air time. The server only fills it in where it knows one.
     fields: ["AirTime"],

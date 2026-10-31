@@ -27,8 +27,8 @@ jest.mock("@/providers/JellyfinProvider", () => {
   return {
     apiAtom: atom({
       basePath: "https://jellyfin.example.com",
-      get: (...args: unknown[]) => mockGet(...args),
-      put: (...args: unknown[]) => mockPut(...args),
+      pluginGet: (...args: unknown[]) => mockGet(...args),
+      pluginPut: (...args: unknown[]) => mockPut(...args),
     }),
     userAtom: atom({ Id: "alice" }),
   };

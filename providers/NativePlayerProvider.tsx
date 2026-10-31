@@ -5,10 +5,10 @@ import {
   RepeatMode,
 } from "@jellyfin/sdk/lib/generated-client";
 import {
+  getLibraryApi,
   getMediaInfoApi,
-  getPlaystateApi,
-  getTvShowsApi,
-  getUserLibraryApi,
+  getSessionApi,
+  getShowApi,
 } from "@jellyfin/sdk/lib/utils/api";
 import { router } from "expo-router";
 import { useAtomValue } from "jotai";
@@ -640,7 +640,7 @@ const NativePlayerProviderInner: React.FC<{
         IsPaused: syncRef.current.enabled,
         PositionTicks: session.startTicks,
       };
-      const playstate = getPlaystateApi(currentApi);
+      const playstate = getSessionApi(currentApi);
       reportQueue
         .enqueue(session, "start", playbackStartInfo, (info, signal) =>
           playstate.reportPlaybackStart(
@@ -708,7 +708,7 @@ const NativePlayerProviderInner: React.FC<{
         // Required to release the server-side live stream's tuner slot.
         LiveStreamId: session.stream.mediaSource?.LiveStreamId ?? undefined,
       };
-      const playstate = getPlaystateApi(currentApi);
+      const playstate = getSessionApi(currentApi);
       try {
         await reportQueue.enqueue(
           session,
@@ -868,7 +868,7 @@ const NativePlayerProviderInner: React.FC<{
                 (a.IndexNumber ?? 0) - (b.IndexNumber ?? 0),
             );
         } else if (apiRef.current) {
-          const res = await getTvShowsApi(apiRef.current).getEpisodes({
+          const res = await getShowApi(apiRef.current).getEpisodes({
             seriesId: item.SeriesId,
             seasonId: item.SeasonId ?? undefined,
             userId: userRef.current?.Id,
@@ -1638,7 +1638,7 @@ const NativePlayerProviderInner: React.FC<{
       for (let attempt = 0; attempt < 8; attempt++) {
         await new Promise((resolve) => setTimeout(resolve, 1500));
         if (sessionRef.current !== session || !apiRef.current) return undefined;
-        const res = await getUserLibraryApi(apiRef.current)
+        const res = await getLibraryApi(apiRef.current)
           .getItem({ itemId: session.item.Id!, userId: userRef.current?.Id })
           .catch(() => null);
         const source =
@@ -2061,7 +2061,7 @@ const NativePlayerProviderInner: React.FC<{
             target = downloadUtils.getDownloadedItemById(payload.itemId)
               ?.item as BaseItemDto | undefined;
           } else if (apiRef.current) {
-            const res = await getUserLibraryApi(apiRef.current)
+            const res = await getLibraryApi(apiRef.current)
               .getItem({ itemId: payload.itemId, userId: userRef.current?.Id })
               .catch(() => null);
             target = res?.data;

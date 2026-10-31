@@ -3,7 +3,7 @@ import type {
   BaseItemDto,
   CollectionType,
 } from "@jellyfin/sdk/lib/generated-client/models";
-import { getItemsApi, getUserViewsApi } from "@jellyfin/sdk/lib/utils/api";
+import { getLibraryApi, getUserViewApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
@@ -251,7 +251,7 @@ export const TVLibraries: React.FC = () => {
   const { data: userViews, isLoading: viewsLoading } = useQuery({
     queryKey: ["user-views", user?.Id],
     queryFn: async () => {
-      const response = await getUserViewsApi(api!).getUserViews({
+      const response = await getUserViewApi(api!).getUserViews({
         userId: user?.Id,
       });
       return response.data.Items || [];
@@ -285,7 +285,7 @@ export const TVLibraries: React.FC = () => {
           const isPlaylistsLib = library.CollectionType === "playlists";
 
           // Fetch count
-          const countResponse = await getItemsApi(api!).getItems({
+          const countResponse = await getLibraryApi(api!).getItems({
             userId: user?.Id,
             parentId: library.Id,
             recursive: true,
@@ -295,7 +295,7 @@ export const TVLibraries: React.FC = () => {
           });
 
           // Fetch preview items with backdrops
-          const previewResponse = await getItemsApi(api!).getItems({
+          const previewResponse = await getLibraryApi(api!).getItems({
             userId: user?.Id,
             parentId: library.Id,
             recursive: true,
