@@ -1089,6 +1089,42 @@ describe("withPlayerAudioTracks", () => {
     expect(getMpvAudioId(merged, 1, false)).toBe(2);
   });
 
+  it("keeps two listed streams of one language in position over an untagged first track", () => {
+    const twice = {
+      MediaStreams: [
+        { Type: "Audio", Index: 1, Language: "eng" },
+        { Type: "Audio", Index: 2, Language: "eng" },
+      ] as MediaStream[],
+    };
+    const merged = withPlayerAudioTracks(twice, [
+      {},
+      { lang: "eng" },
+      { lang: "fre" },
+    ]);
+    expect(
+      merged.MediaStreams?.filter((s) => s.Type === "Audio").map(
+        (s) => s.Index,
+      ),
+    ).toEqual([1, 2, PLAYER_AUDIO_INDEX_BASE + 2]);
+  });
+
+  it("puts a listed regional variant on the track that names it, not the bare language", () => {
+    const brazil = {
+      MediaStreams: [
+        { Type: "Audio", Index: 1, Language: "pt-BR" },
+      ] as MediaStream[],
+    };
+    const merged = withPlayerAudioTracks(brazil, [
+      { lang: "pt" },
+      { lang: "pt-BR" },
+    ]);
+    expect(
+      merged.MediaStreams?.filter((s) => s.Type === "Audio").map(
+        (s) => s.Index,
+      ),
+    ).toEqual([PLAYER_AUDIO_INDEX_BASE, 1]);
+  });
+
   it("falls back to the language when a track has no title", () => {
     const merged = withPlayerAudioTracks(named, [{ lang: "eng" }, {}]);
     expect(

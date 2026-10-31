@@ -810,7 +810,8 @@ export interface PlayerAudioTrack {
  * streams keep their index so the current selection still matches a row: on
  * the player track of their language when the tags say which (such a server
  * lists "French" for a file whose first track is English, and a preference
- * that picked it should play French), by position otherwise. The other tracks
+ * that picked it should play French; "pt-BR" goes to a "pt-BR" track before a
+ * bare "pt" one), by position otherwise. The other tracks
  * get an index from {@link PLAYER_AUDIO_INDEX_BASE} by position, the same
  * whatever the server lists, so a selection survives a stream re-negotiated
  * after the server gained a stream (a downloaded subtitle).
@@ -835,19 +836,26 @@ export const withPlayerAudioTracks = (
 
   // Player position -> the index of the listed stream it carries.
   const indexAt = new Map<number, number>();
-  listed.forEach((stream, k) => {
-    const byLanguage = playerTracks.findIndex(
-      (t, i) => !indexAt.has(i) && !!t.lang && langEq(t.lang, stream.Language),
-    );
-    const position =
-      byLanguage >= 0
-        ? byLanguage
-        : indexAt.has(k)
-          ? playerTracks.findIndex((_, i) => !indexAt.has(i))
-          : k;
-    if (position >= 0 && stream.Index !== undefined) {
+  const positions = playerTracks.map((_, i) => i);
+  const free = () => positions.filter((i) => !indexAt.has(i));
+  const closestTo = (stream: MediaStream, among: number[]) =>
+    closestLanguageMatches(among, stream.Language, (i) => playerTracks[i].lang);
+  const claim = (stream: MediaStream, position: number | undefined) => {
+    if (position !== undefined && stream.Index !== undefined) {
       indexAt.set(position, stream.Index);
     }
+  };
+  // A stream whose own position is one of its closest tracks keeps it first,
+  // so two streams of one language cannot swap over an untagged track.
+  const keepsOwn = (stream: MediaStream, k: number) =>
+    closestTo(stream, positions).includes(k);
+  listed.forEach((stream, k) => {
+    if (keepsOwn(stream, k)) claim(stream, k);
+  });
+  listed.forEach((stream, k) => {
+    if (keepsOwn(stream, k)) return;
+    const byLanguage = closestTo(stream, free())[0];
+    claim(stream, byLanguage ?? (indexAt.has(k) ? free()[0] : k));
   });
   const audio: MediaStream[] = playerTracks.map((track, position) => ({
     Type: "Audio",
