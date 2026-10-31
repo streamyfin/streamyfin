@@ -3,6 +3,7 @@ import type {
   BaseItemDto,
   DeviceProfile,
   MediaSourceInfo,
+  MediaStream,
   PlaybackInfoDto,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { BaseItemKind } from "@jellyfin/sdk/lib/generated-client/models/base-item-kind";
@@ -355,19 +356,45 @@ export const getDownloadStreamUrl = async ({
   }
 
   if (mode === "original") {
-    return getDownloadUrl(api, asOriginalFile(mediaSource), sessionId);
+    // A file next to it on the server comes down only when sent as one.
+    const original = filterSubtitleStreams(
+      asOriginalFile(mediaSource),
+      (subtitle) =>
+        !subtitle.IsExternal || subtitle.DeliveryMethod === "External",
+    );
+    return getDownloadUrl(api, original, sessionId);
   }
   // The original would ignore the quality, codec and burn-in that were picked.
   if (!mediaSource.TranscodingUrl) {
     console.warn("Server offered no transcode for download");
     return null;
   }
-  return getDownloadUrl(
-    api,
-    withSubtitleBurnedIn(mediaSource, subtitleStreamIndex),
-    sessionId,
+  // A burned-in subtitle leaves no use for any other; without one, only the
+  // subtitles downloaded as files come down.
+  const burnsIn = mediaSource.MediaStreams?.some(
+    (stream) =>
+      stream.Type === "Subtitle" && stream.Index === subtitleStreamIndex,
   );
+  const transcode = filterSubtitleStreams(
+    withSubtitleBurnedIn(mediaSource, subtitleStreamIndex),
+    (subtitle) =>
+      burnsIn
+        ? subtitle.Index === subtitleStreamIndex
+        : subtitle.DeliveryMethod === "External",
+  );
+  return getDownloadUrl(api, transcode, sessionId);
 };
+
+/** Offline offers every subtitle the source lists, so it lists only those on the device. */
+const filterSubtitleStreams = (
+  mediaSource: MediaSourceInfo,
+  keep: (subtitle: MediaStream) => boolean,
+): MediaSourceInfo => ({
+  ...mediaSource,
+  MediaStreams: mediaSource.MediaStreams?.filter(
+    (stream) => stream.Type !== "Subtitle" || keep(stream),
+  ),
+});
 
 /** The server sends a text subtitle as a file; the URL makes it burn that one in too. */
 const withSubtitleBurnedIn = (

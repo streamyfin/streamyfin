@@ -200,9 +200,9 @@ describe("getDownloadStreamUrl", () => {
       );
     });
 
-    // Marked Embed, it would count as one of the file's tracks and shift the
-    // player's mapping of the real ones.
-    test("does not count an image subtitle stored next to the file as one of its tracks", async () => {
+    // It is neither in the file nor downloaded, so offline it could only be
+    // offered as a track that does nothing.
+    test("leaves out an image subtitle stored next to the file", async () => {
       const api = makeApi();
       api.mock
         .onPost("https://jellyfin.example.com/Items/item-1/PlaybackInfo")
@@ -216,9 +216,9 @@ describe("getDownloadStreamUrl", () => {
         mode: "original",
       });
 
-      expect(result?.mediaSource?.MediaStreams?.[3].DeliveryMethod).toBe(
-        "Encode",
-      );
+      expect(result?.mediaSource?.MediaStreams?.map((s) => s.Index)).toEqual([
+        0, 1, 2, 4,
+      ]);
     });
 
     // The download profile asks for text subtitles as sidecars, so the server
@@ -240,7 +240,7 @@ describe("getDownloadStreamUrl", () => {
 
       expect(
         result?.mediaSource?.MediaStreams?.map((s) => s.DeliveryMethod),
-      ).toEqual([undefined, "Embed", "Embed", "Encode", "External"]);
+      ).toEqual([undefined, "Embed", "Embed", "External"]);
     });
 
     test("leaves direct play to the server", async () => {
@@ -521,12 +521,19 @@ describe("getDownloadStreamUrl, burning in a subtitle", () => {
     expect(url.searchParams.get("PlaySessionId")).toBe("session-1");
   });
 
-  test("marks only the burned-in text subtitle, so the others still come down as files", async () => {
+  // The burned-in one is in the picture, so another would only cover it.
+  test("keeps only the burned-in text subtitle, so no other is downloaded", async () => {
     const result = await transcodeAskingFor(transcodeWith("External"), 2);
 
     expect(
-      result?.mediaSource?.MediaStreams?.map((s) => s.DeliveryMethod),
-    ).toEqual([undefined, "Encode", "External"]);
+      result?.mediaSource?.MediaStreams?.map((s) => [
+        s.Index,
+        s.DeliveryMethod,
+      ]),
+    ).toEqual([
+      [0, undefined],
+      [2, "Encode"],
+    ]);
   });
 
   test("leaves an image subtitle the server already burns in as it sent it", async () => {
@@ -535,5 +542,22 @@ describe("getDownloadStreamUrl, burning in a subtitle", () => {
     expect(result?.url).toBe(
       "https://jellyfin.example.com/videos/media-1/stream.mp4?PlaySessionId=session-1",
     );
+  });
+
+  test("keeps only the burned-in image subtitle, so no other is downloaded", async () => {
+    const result = await transcodeAskingFor(transcodeWith("Encode"), 2);
+
+    expect(result?.mediaSource?.MediaStreams?.map((s) => s.Index)).toEqual([
+      0, 2,
+    ]);
+  });
+
+  // An image subtitle the server would burn in only if asked is not in the file.
+  test("keeps only the subtitles downloaded as files when none is burned in", async () => {
+    const result = await transcodeAskingFor(transcodeWith("Encode"), -1);
+
+    expect(result?.mediaSource?.MediaStreams?.map((s) => s.Index)).toEqual([
+      0, 3,
+    ]);
   });
 });
