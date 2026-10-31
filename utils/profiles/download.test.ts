@@ -64,6 +64,16 @@ describe("generateDownloadProfile", () => {
     });
   });
 
+  // HEVC encoding is off on a server until its admin turns it on.
+  test("an HEVC download keeps H.264 behind it for a server that cannot encode HEVC", () => {
+    const video = generateDownloadProfile(
+      "auto",
+      "hevc",
+    ).TranscodingProfiles?.find((p) => p.Type === "Video");
+
+    expect(video?.VideoCodec).toBe("hevc,h264");
+  });
+
   test("transcoded downloads honor the audioTranscodeMode channel limit", () => {
     const channels = (mode: Parameters<typeof generateDownloadProfile>[0]) =>
       generateDownloadProfile(mode).TranscodingProfiles?.find(

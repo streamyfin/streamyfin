@@ -11,3 +11,22 @@ export const DOWNLOAD_TRICKPLAY_DIR_SUFFIX = "_trickplay";
 // Android stages the transfer in `<destination>.part` and renames it once it is complete
 // (OkHttpDownloadManager.kt). The native side owns the value; this mirrors it.
 export const DOWNLOAD_PART_FILE_SUFFIX = ".part";
+
+export const DOWNLOAD_MODES = ["original", "transcode"] as const;
+export type DownloadMode = (typeof DOWNLOAD_MODES)[number];
+export const DOWNLOAD_MODE_LABEL_KEYS: Record<DownloadMode, string> = {
+  original: "item_card.download.mode_original",
+  transcode: "item_card.download.mode_transcode",
+};
+
+// Auto leaves the codec to the device profile, which adds AV1 where it decodes.
+export const DOWNLOAD_VIDEO_CODECS = ["auto", "h264", "hevc"] as const;
+export type DownloadVideoCodec = (typeof DOWNLOAD_VIDEO_CODECS)[number];
+// Codec names read the same in every language; only Auto is translated.
+export const DOWNLOAD_VIDEO_CODEC_NAMES: Record<
+  Exclude<DownloadVideoCodec, "auto">,
+  string
+> = {
+  h264: "H.264",
+  hevc: "HEVC",
+};

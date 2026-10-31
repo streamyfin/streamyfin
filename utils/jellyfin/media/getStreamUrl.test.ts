@@ -6,6 +6,7 @@ jest.mock("expo", () => ({
   requireOptionalNativeModule: () => null,
 }));
 
+import type { DownloadMode } from "@/constants/Downloads";
 import { bodyContaining, makeApi } from "@/test-utils/jellyfinApi";
 import { isExpectedError } from "@/utils/errors";
 import { getDownloadStreamUrl, getStreamUrl } from "./getStreamUrl";
@@ -117,6 +118,7 @@ describe("getDownloadStreamUrl", () => {
   const download = async (
     api: ReturnType<typeof makeApi>,
     quality: { key: string; value: number | undefined },
+    mode: DownloadMode = "transcode",
   ) => {
     const result = await getDownloadStreamUrl({
       api,
@@ -126,9 +128,157 @@ describe("getDownloadStreamUrl", () => {
       maxStreamingBitrate: quality.value,
       audioStreamIndex: 0,
       subtitleStreamIndex: 0,
+      mode,
     });
     return new URL(result!.url!);
   };
+
+  describe("an original download", () => {
+    const serverWouldTranscode = {
+      PlaySessionId: "session-1",
+      MediaSources: [
+        {
+          Id: "media-1",
+          TranscodingUrl: "/videos/media-1/stream.mp4?PlaySessionId=session-1",
+          MediaStreams: [
+            { Index: 0, Type: "Video" },
+            { Index: 1, Type: "Subtitle", DeliveryMethod: "Encode" },
+            {
+              Index: 2,
+              Type: "Subtitle",
+              DeliveryMethod: "External",
+              IsExternal: false,
+            },
+            {
+              Index: 3,
+              Type: "Subtitle",
+              DeliveryMethod: "Encode",
+              IsExternal: true,
+            },
+            {
+              Index: 4,
+              Type: "Subtitle",
+              DeliveryMethod: "External",
+              IsExternal: true,
+            },
+          ],
+        },
+      ],
+    };
+
+    test("downloads the file itself even when the server would transcode it", async () => {
+      const api = makeApi();
+      api.mock
+        .onPost("https://jellyfin.example.com/Items/item-1/PlaybackInfo")
+        .reply(200, serverWouldTranscode);
+
+      const url = await download(api, MAX, "original");
+
+      expect(url.pathname).toBe("/Items/media-1/Download");
+    });
+
+    // The offline player reads a transcoding URL as a transcoded file, with one
+    // audio track and an image subtitle burned in. The file has all of them.
+    test("keeps the downloaded source free of the transcode it did not use", async () => {
+      const api = makeApi();
+      api.mock
+        .onPost("https://jellyfin.example.com/Items/item-1/PlaybackInfo")
+        .reply(200, serverWouldTranscode);
+
+      const result = await getDownloadStreamUrl({
+        api,
+        item: { Id: "item-1", Type: "Movie" },
+        userId: "user-1",
+        mediaSourceId: "media-1",
+        subtitleStreamIndex: 1,
+        mode: "original",
+      });
+
+      expect(result?.mediaSource?.TranscodingUrl).toBeFalsy();
+      expect(result?.mediaSource?.MediaStreams?.[1].DeliveryMethod).toBe(
+        "Embed",
+      );
+    });
+
+    // It is neither in the file nor downloaded, so offline it could only be
+    // offered as a track that does nothing.
+    test("leaves out an image subtitle stored next to the file", async () => {
+      const api = makeApi();
+      api.mock
+        .onPost("https://jellyfin.example.com/Items/item-1/PlaybackInfo")
+        .reply(200, serverWouldTranscode);
+
+      const result = await getDownloadStreamUrl({
+        api,
+        item: { Id: "item-1", Type: "Movie" },
+        userId: "user-1",
+        mediaSourceId: "media-1",
+        mode: "original",
+      });
+
+      expect(result?.mediaSource?.MediaStreams?.map((s) => s.Index)).toEqual([
+        0, 1, 2, 4,
+      ]);
+    });
+
+    // The download profile asks for text subtitles as sidecars, so the server
+    // marks the file's own ones External. Counted as sidecars, they shifted the
+    // player's mapping of the file's other tracks.
+    test("counts a text subtitle in the file as one of its tracks", async () => {
+      const api = makeApi();
+      api.mock
+        .onPost("https://jellyfin.example.com/Items/item-1/PlaybackInfo")
+        .reply(200, serverWouldTranscode);
+
+      const result = await getDownloadStreamUrl({
+        api,
+        item: { Id: "item-1", Type: "Movie" },
+        userId: "user-1",
+        mediaSourceId: "media-1",
+        mode: "original",
+      });
+
+      expect(
+        result?.mediaSource?.MediaStreams?.map((s) => s.DeliveryMethod),
+      ).toEqual([undefined, "Embed", "Embed", "External"]);
+    });
+
+    test("leaves direct play to the server", async () => {
+      const api = makeApi();
+      api.mock
+        .onPost("https://jellyfin.example.com/Items/item-1/PlaybackInfo")
+        .reply(200, serverWouldTranscode);
+
+      await download(api, MAX, "original");
+
+      const body = JSON.parse(api.mock.history.post[0].data);
+      expect(body.EnableDirectPlay).toBeUndefined();
+      expect(body.EnableDirectStream).toBeUndefined();
+    });
+  });
+
+  test("a transcoded download asks the server to transcode even a file it could send as it is", async () => {
+    const api = makeApi();
+    api.mock
+      .onPost(
+        "https://jellyfin.example.com/Items/item-1/PlaybackInfo",
+        bodyContaining({ EnableDirectPlay: false, EnableDirectStream: false }),
+      )
+      .reply(200, {
+        PlaySessionId: "session-1",
+        MediaSources: [
+          {
+            Id: "media-1",
+            TranscodingUrl:
+              "/videos/media-1/stream.mp4?PlaySessionId=session-1",
+          },
+        ],
+      });
+
+    const url = await download(api, MAX, "transcode");
+
+    expect(url.pathname).toBe("/videos/media-1/stream.mp4");
+  });
 
   test("returns null when the server offers no media source", async () => {
     const api = makeApi();
@@ -145,6 +295,7 @@ describe("getDownloadStreamUrl", () => {
       userId: "user-1",
       audioStreamIndex: 0,
       subtitleStreamIndex: -1,
+      mode: "original",
     });
 
     expect(result).toBeNull();
@@ -156,6 +307,24 @@ describe("getDownloadStreamUrl", () => {
       MediaSources: [{ Id: "media-1" }],
     };
 
+    // The original would ignore the quality, codec and burn-in that were picked.
+    test("turns down a transcode the server will not make", async () => {
+      const api = makeApi();
+      api.mock
+        .onPost("https://jellyfin.example.com/Items/item-1/PlaybackInfo")
+        .reply(200, playerCanPlayTheOriginal);
+
+      const result = await getDownloadStreamUrl({
+        api,
+        item: { Id: "item-1", Type: "Movie" },
+        userId: "user-1",
+        mediaSourceId: "media-1",
+        mode: "transcode",
+      });
+
+      expect(result).toBeNull();
+    });
+
     test("downloads the original file when the user picks Max quality", async () => {
       const api = makeApi();
       api.mock
@@ -165,7 +334,7 @@ describe("getDownloadStreamUrl", () => {
         )
         .reply(200, playerCanPlayTheOriginal);
 
-      const url = await download(api, MAX);
+      const url = await download(api, MAX, "original");
 
       expect(url.pathname).toBe("/Items/media-1/Download");
     });
@@ -182,7 +351,7 @@ describe("getDownloadStreamUrl", () => {
         )
         .reply(200, playerCanPlayTheOriginal);
 
-      const url = await download(api, LIMITED);
+      const url = await download(api, LIMITED, "original");
 
       expect(url.pathname).toBe("/Items/media-1/Download");
     });
@@ -196,7 +365,7 @@ describe("getDownloadStreamUrl", () => {
         )
         .reply(200, playerCanPlayTheOriginal);
 
-      await download(api, MAX);
+      await download(api, MAX, "original");
 
       const negotiatedCaps = api.mock.history.post.map((request) => {
         const profile = JSON.parse(request.data).DeviceProfile;
@@ -219,7 +388,7 @@ describe("getDownloadStreamUrl", () => {
         )
         .reply(200, playerCanPlayTheOriginal);
 
-      const url = await download(api, MAX);
+      const url = await download(api, MAX, "original");
 
       expect(url.searchParams.get("ApiKey")).toBe("SECRET_TOKEN");
     });
@@ -281,6 +450,7 @@ describe("getDownloadStreamUrl", () => {
         mediaSourceId: "media-1",
         audioStreamIndex: 0,
         subtitleStreamIndex: -1,
+        mode: "transcode",
       });
 
       expect(result?.url).toBe(
@@ -303,5 +473,91 @@ describe("getDownloadStreamUrl", () => {
         "https://jellyfin.example.com/videos/media-1/stream.mp4?DeviceId=device-1&PlaySessionId=session-1",
       );
     });
+  });
+});
+
+describe("getDownloadStreamUrl, burning in a subtitle", () => {
+  const transcodeWith = (subtitleDelivery: string) => ({
+    PlaySessionId: "session-1",
+    MediaSources: [
+      {
+        Id: "media-1",
+        TranscodingUrl: "/videos/media-1/stream.mp4?PlaySessionId=session-1",
+        MediaStreams: [
+          { Index: 0, Type: "Video" },
+          { Index: 2, Type: "Subtitle", DeliveryMethod: subtitleDelivery },
+          { Index: 3, Type: "Subtitle", DeliveryMethod: "External" },
+        ],
+      },
+    ],
+  });
+
+  const transcodeAskingFor = async (
+    response: ReturnType<typeof transcodeWith>,
+    subtitleStreamIndex: number,
+  ) => {
+    const api = makeApi();
+    api.mock
+      .onPost("https://jellyfin.example.com/Items/item-1/PlaybackInfo")
+      .reply(200, response);
+    return getDownloadStreamUrl({
+      api,
+      item: { Id: "item-1", Type: "Movie" },
+      userId: "user-1",
+      mediaSourceId: "media-1",
+      subtitleStreamIndex,
+      mode: "transcode",
+    });
+  };
+
+  // The server sends a text subtitle as a file of its own; a player that
+  // reads no sidecar files needs it in the picture.
+  test("burns in a text subtitle the server would send as a file", async () => {
+    const result = await transcodeAskingFor(transcodeWith("External"), 2);
+
+    const url = new URL(result!.url!);
+    expect(url.searchParams.get("SubtitleStreamIndex")).toBe("2");
+    expect(url.searchParams.get("SubtitleMethod")).toBe("Encode");
+    expect(url.searchParams.get("PlaySessionId")).toBe("session-1");
+  });
+
+  // The burned-in one is in the picture, so another would only cover it.
+  test("keeps only the burned-in text subtitle, so no other is downloaded", async () => {
+    const result = await transcodeAskingFor(transcodeWith("External"), 2);
+
+    expect(
+      result?.mediaSource?.MediaStreams?.map((s) => [
+        s.Index,
+        s.DeliveryMethod,
+      ]),
+    ).toEqual([
+      [0, undefined],
+      [2, "Encode"],
+    ]);
+  });
+
+  test("leaves an image subtitle the server already burns in as it sent it", async () => {
+    const result = await transcodeAskingFor(transcodeWith("Encode"), 2);
+
+    expect(result?.url).toBe(
+      "https://jellyfin.example.com/videos/media-1/stream.mp4?PlaySessionId=session-1",
+    );
+  });
+
+  test("keeps only the burned-in image subtitle, so no other is downloaded", async () => {
+    const result = await transcodeAskingFor(transcodeWith("Encode"), 2);
+
+    expect(result?.mediaSource?.MediaStreams?.map((s) => s.Index)).toEqual([
+      0, 2,
+    ]);
+  });
+
+  // An image subtitle the server would burn in only if asked is not in the file.
+  test("keeps only the subtitles downloaded as files when none is burned in", async () => {
+    const result = await transcodeAskingFor(transcodeWith("Encode"), -1);
+
+    expect(result?.mediaSource?.MediaStreams?.map((s) => s.Index)).toEqual([
+      0, 3,
+    ]);
   });
 });
