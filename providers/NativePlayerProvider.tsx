@@ -303,7 +303,7 @@ const rememberSeriesSelection = (
   // A sidecar has no server-side stream to read a language off, so there is
   // nothing to remember for the next episode.
   if (isLocalSubtitleIndex(jellyfinIndex)) return;
-  const streams = session.stream.mediaSource.MediaStreams;
+  const streams = trackSource(session).MediaStreams;
   if (kind === "audio") {
     if (!settings?.rememberAudioSelections) return;
     const lang = streams?.find(

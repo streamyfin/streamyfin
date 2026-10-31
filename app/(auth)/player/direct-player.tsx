@@ -1486,8 +1486,7 @@ export default function DirectPlayerPage() {
   // would never see the spoken language and could choose the wrong one.
   const currentAudioLanguage = useMemo(() => {
     const audioStreams =
-      stream?.mediaSource?.MediaStreams?.filter((s) => s.Type === "Audio") ??
-      [];
+      trackMediaSource?.MediaStreams?.filter((s) => s.Type === "Audio") ?? [];
     if (audioStreams.length === 0) return undefined;
 
     const selected =
@@ -1502,7 +1501,7 @@ export default function DirectPlayerPage() {
       audioStreams.find((s) => s.IsDefault)?.Language ??
       audioStreams[0]?.Language
     );
-  }, [stream?.mediaSource, currentAudioIndex]);
+  }, [trackMediaSource, currentAudioIndex]);
 
   const { notice: autoSubtitleNotice, clearNotice: clearAutoSubtitleNotice } =
     useAutoSubtitlesOnMute({
