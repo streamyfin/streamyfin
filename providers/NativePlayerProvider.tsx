@@ -58,6 +58,7 @@ import {
   type NativePlayerSubtitleSearchResult,
   nativePlayerAddExternalSubtitle,
   nativePlayerDisableSubtitles,
+  nativePlayerGetAudioTracks,
   nativePlayerGetSubtitleTracks,
   nativePlayerPause,
   nativePlayerPlay,
@@ -109,9 +110,12 @@ import {
   findSubtitleTrackIdentity,
   getExternalSubtitleUrl,
   isImageBasedSubtitle,
+  type PlayerAudioTrack,
   pickAutoSubtitleTrack,
   resolveAudioSwitch,
   type SubtitleSelectablePlayer,
+  serverAudioIndex,
+  withPlayerAudioTracks,
 } from "@/utils/jellyfin/subtitleUtils";
 import { logAndCaptureError, writeErrorLog, writeToLog } from "@/utils/log";
 import { applyLoadEvent } from "@/utils/nativePlayer/applyLoadEvent";
@@ -164,6 +168,10 @@ import { useVideoSession } from "@/utils/videoSession";
 
 const NEXT_EPISODE_COUNTDOWN_SECONDS = NEXT_EPISODE_COUNTDOWN_MS / 1000;
 
+/** The server's source plus the audio tracks only mpv found: what the menus and the audio switch read. */
+const trackSource = (session: NativeSession) =>
+  withPlayerAudioTracks(session.stream.mediaSource, session.playerAudioTracks);
+
 /**
  * One presented native-player session. Mirrors the ref discipline of
  * direct-player.tsx: everything the event handlers read must live here, not
@@ -175,6 +183,12 @@ interface NativeSession extends NativePlayerSessionSeed {
   syncPlaylistItemId?: string;
   currentAudioIndex: number | undefined;
   currentSubtitleIndex: number;
+  /**
+   * The audio tracks mpv found when the server listed fewer. `stream` keeps
+   * the server's own source, which is what a re-negotiation and the progress
+   * reports may name tracks from; the menus read {@link trackSource}.
+   */
+  playerAudioTracks: PlayerAudioTrack[];
   positionMs: number;
   isPlaying: boolean;
   hasPlaybackStarted: boolean;
@@ -289,7 +303,7 @@ const rememberSeriesSelection = (
   // A sidecar has no server-side stream to read a language off, so there is
   // nothing to remember for the next episode.
   if (isLocalSubtitleIndex(jellyfinIndex)) return;
-  const streams = session.stream.mediaSource.MediaStreams;
+  const streams = trackSource(session).MediaStreams;
   if (kind === "audio") {
     if (!settings?.rememberAudioSelections) return;
     const lang = streams?.find(
@@ -607,7 +621,10 @@ const NativePlayerProviderInner: React.FC<{
       ItemId: session.item.Id!,
       // Live selections so server-side session/resume state reflects
       // mid-playback track changes; 0 is valid, -1 means "off".
-      AudioStreamIndex: session.currentAudioIndex,
+      AudioStreamIndex: serverAudioIndex(
+        session.stream.mediaSource,
+        session.currentAudioIndex,
+      ),
       SubtitleStreamIndex: session.currentSubtitleIndex,
       MediaSourceId: session.mediaSourceId,
       PositionTicks: msToTicks(session.positionMs),
@@ -982,6 +999,7 @@ const NativePlayerProviderInner: React.FC<{
         syncPlaylistItemId: built.config.syncPlay?.currentPlaylistItemId,
         currentAudioIndex: built.seed.audioIndex,
         currentSubtitleIndex: built.seed.subtitleIndex,
+        playerAudioTracks: [],
         positionMs: built.seed.startTicks / 10_000,
         isPlaying: false,
         hasPlaybackStarted: false,
@@ -1018,6 +1036,19 @@ const NativePlayerProviderInner: React.FC<{
         session.subtitleSearchResults = previous.subtitleSearchResults;
         if (previous.localSubtitle?.active) {
           session.localSubtitle = previous.localSubtitle;
+        }
+        // A track only mpv found has no server index, so the new stream was
+        // asked for without one (replaceStream); the selection stays and
+        // syncPlayerAudioTracks puts mpv back on it once it lists the tracks.
+        if (
+          req.audioIndex === undefined &&
+          previous.currentAudioIndex !== undefined &&
+          serverAudioIndex(
+            previous.stream.mediaSource,
+            previous.currentAudioIndex,
+          ) === undefined
+        ) {
+          session.currentAudioIndex = previous.currentAudioIndex;
         }
       }
 
@@ -1213,7 +1244,12 @@ const NativePlayerProviderInner: React.FC<{
     ): Promise<boolean> => {
       const req: PlayRequest = {
         itemId: session.item.Id!,
-        audioIndex: overrides.audioIndex ?? session.currentAudioIndex,
+        audioIndex:
+          overrides.audioIndex ??
+          serverAudioIndex(
+            session.stream.mediaSource,
+            session.currentAudioIndex,
+          ),
         subtitleIndex: overrides.subtitleIndex ?? session.currentSubtitleIndex,
         mediaSourceId: session.mediaSourceId,
         bitrateValue:
@@ -1347,7 +1383,7 @@ const NativePlayerProviderInner: React.FC<{
     (session: NativeSession) => {
       void updateNativePlayerTrackMenus(
         buildTrackMenus({
-          mediaSource: session.stream.mediaSource,
+          mediaSource: trackSource(session),
           audioIndex: session.currentAudioIndex,
           // While the local sidecar is active no server stream (nor "Off")
           // may show a checkmark — a sidecar index matches no server row.
@@ -1409,6 +1445,38 @@ const NativePlayerProviderInner: React.FC<{
     [pushTrackMenus],
   );
 
+  /**
+   * Add the audio tracks mpv found to a source that listed fewer (a server
+   * that names tracks from the file name), so the menu offers all of them,
+   * and put mpv back on the selected one: a stream re-negotiated for a
+   * subtitle or a bitrate is asked for without a track the server does not
+   * list (serverAudioIndex), so mpv starts it on the default track. A no-op
+   * once the tracks are known, so it is safe on every onTracksReady.
+   */
+  const syncPlayerAudioTracks = useCallback(
+    async (session: NativeSession) => {
+      if (session.offline) return;
+      const tracks = await nativePlayerGetAudioTracks().catch(() => []);
+      if (sessionRef.current !== session) return;
+      if (tracks.length === session.playerAudioTracks.length) return;
+      const mediaSource = withPlayerAudioTracks(
+        session.stream.mediaSource,
+        tracks,
+      );
+      if (mediaSource === session.stream.mediaSource) return;
+      session.playerAudioTracks = tracks;
+      if (session.currentAudioIndex !== undefined) {
+        const target = resolveAudioSwitch(
+          mediaSource,
+          session.currentAudioIndex,
+        );
+        if (!target.reload) await nativePlayerSetAudioTrack(target.mpvId);
+      }
+      pushTrackMenus(session);
+    },
+    [pushTrackMenus],
+  );
+
   const handleAudioSelection = useCallback(
     async (
       session: NativeSession,
@@ -1418,10 +1486,7 @@ const NativePlayerProviderInner: React.FC<{
       // A track the stream does not carry (any other on a transcode, an
       // external audio file on a direct stream) needs a re-negotiated stream
       // (mirror of handleAudioIndexChange).
-      const target = resolveAudioSwitch(
-        session.stream.mediaSource,
-        jellyfinIndex,
-      );
+      const target = resolveAudioSwitch(trackSource(session), jellyfinIndex);
       if (target.reload) {
         await replaceStream(session, {
           audioIndex: jellyfinIndex,
@@ -1510,7 +1575,7 @@ const NativePlayerProviderInner: React.FC<{
       const settings = settingsRef.current;
       if (!settings?.subtitlesOnMute) return;
 
-      const streams = session.stream.mediaSource.MediaStreams ?? [];
+      const streams = trackSource(session).MediaStreams ?? [];
       const subtitleStreams = streams.filter((s) => s.Type === "Subtitle");
       // A client-side sidecar shows without a server index. Report it in the
       // sentinel block so the policy sees "a subtitle is already on" rather
@@ -1890,7 +1955,7 @@ const NativePlayerProviderInner: React.FC<{
         }
       }),
 
-      addNativePlayerListener("onTracksReady", () => {
+      addNativePlayerListener("onTracksReady", async () => {
         const session = sessionRef.current;
         if (!session || session.awaitingLoad) return;
         // Re-apply the current selection on every fire — it fires again after
@@ -1902,6 +1967,10 @@ const NativePlayerProviderInner: React.FC<{
         } else {
           void applySubtitleSelection(session, session.currentSubtitleIndex);
         }
+        // Before the automation: it picks the subtitle from the language of
+        // the audio track playing, which the merge may be the only list of.
+        await syncPlayerAudioTracks(session);
+        if (sessionRef.current !== session) return;
         // Mirror of the JS player, which waits for tracksReady before letting
         // the automation act: a track picked before mpv has enumerated them
         // would resolve to notFound and pointlessly re-negotiate the stream.
@@ -2178,6 +2247,7 @@ const NativePlayerProviderInner: React.FC<{
     reportNativeProgress,
     applySubtitleSelection,
     applyLocalSubtitleSelection,
+    syncPlayerAudioTracks,
     handleAudioSelection,
     handleSubtitleSelection,
     handleSubtitleSearch,

@@ -790,6 +790,109 @@ export const resolveAudioSwitch = (
   return mpvId === undefined ? { reload: true } : { reload: false, mpvId };
 };
 
+/** The fields of a player audio track the menus can use. */
+export interface PlayerAudioTrack {
+  title?: string;
+  lang?: string;
+  codec?: string;
+  channels?: number;
+}
+
+/**
+ * Lists the audio tracks the player found when the server listed fewer.
+ *
+ * A server that describes a remote file from its name instead of probing it
+ * (AIOStreams serving a debrid link) lists one audio stream for a release that
+ * carries several. The menus are built from `MediaStreams` and reach mpv by
+ * position (see {@link getMpvAudioId}), so every other track was unreachable.
+ * On a direct stream the player reads the file itself, so its list is the
+ * truth: the file's audio streams are rebuilt from it, in its order. Listed
+ * streams keep their index so the current selection still matches a row: on
+ * the player track of their language when the tags say which (such a server
+ * lists "French" for a file whose first track is English, and a preference
+ * that picked it should play French; "pt-BR" goes to a "pt-BR" track before a
+ * bare "pt" one), by position otherwise. The other tracks
+ * get an index from {@link PLAYER_AUDIO_INDEX_BASE} by position, the same
+ * whatever the server lists, so a selection survives a stream re-negotiated
+ * after the server gained a stream (a downloaded subtitle).
+ *
+ * Returns `mediaSource` itself when there is nothing to add, so callers can
+ * tell a no-op by identity.
+ */
+/** Far above any index a server gives its streams. */
+export const PLAYER_AUDIO_INDEX_BASE = 1000;
+
+export const withPlayerAudioTracks = (
+  mediaSource: MediaSourceInfo,
+  playerTracks: PlayerAudioTrack[],
+): MediaSourceInfo => {
+  const streams = mediaSource.MediaStreams ?? [];
+  const isFileAudio = (s: MediaStream) => s.Type === "Audio" && !s.IsExternal;
+  const listed = streams.filter(isFileAudio);
+  // A transcode carries only the track the server encoded.
+  if (mediaSource.TranscodingUrl || playerTracks.length <= listed.length) {
+    return mediaSource;
+  }
+
+  // Player position -> the index of the listed stream it carries.
+  const indexAt = new Map<number, number>();
+  const positions = playerTracks.map((_, i) => i);
+  const free = () => positions.filter((i) => !indexAt.has(i));
+  const closestTo = (stream: MediaStream, among: number[]) =>
+    closestLanguageMatches(among, stream.Language, (i) => playerTracks[i].lang);
+  const claim = (stream: MediaStream, position: number | undefined) => {
+    if (position !== undefined && stream.Index !== undefined) {
+      indexAt.set(position, stream.Index);
+    }
+  };
+  // A stream whose own position is one of its closest tracks keeps it first,
+  // so two streams of one language cannot swap over an untagged track.
+  const keepsOwn = (stream: MediaStream, k: number) =>
+    closestTo(stream, positions).includes(k);
+  listed.forEach((stream, k) => {
+    if (keepsOwn(stream, k)) claim(stream, k);
+  });
+  listed.forEach((stream, k) => {
+    if (keepsOwn(stream, k)) return;
+    const byLanguage = closestTo(stream, free())[0];
+    claim(stream, byLanguage ?? (indexAt.has(k) ? free()[0] : k));
+  });
+  const audio: MediaStream[] = playerTracks.map((track, position) => ({
+    Type: "Audio",
+    Index: indexAt.get(position) ?? PLAYER_AUDIO_INDEX_BASE + position,
+    Title: track.title,
+    Language: track.lang,
+    Codec: track.codec,
+    Channels: track.channels,
+    DisplayTitle: track.title || track.lang,
+    IsDefault: position === 0,
+  }));
+
+  return {
+    ...mediaSource,
+    MediaStreams: [...streams.filter((s) => !isFileAudio(s)), ...audio],
+  };
+};
+
+/**
+ * The audio index the server is told about: `index` when the server's own
+ * list has it, undefined for a track only the player found (see
+ * {@link withPlayerAudioTracks}). The server resolves an index it does not
+ * list against its own streams and silently plays one of those instead, so
+ * it is asked for its default and the player puts mpv back on the track.
+ * A source with no list at all cannot tell, so the index goes through.
+ */
+export const serverAudioIndex = (
+  serverSource: MediaSourceInfo | null | undefined,
+  index: number | undefined,
+): number | undefined => {
+  const streams = serverSource?.MediaStreams;
+  if (!streams?.length) return index;
+  return streams.some((s) => s.Type === "Audio" && s.Index === index)
+    ? index
+    : undefined;
+};
+
 /**
  * True when switching to this subtitle forces the server to re-process the
  * stream, which cuts playback and reseeks.
