@@ -313,6 +313,49 @@ describe("DownloadSingleItem, picking a version", () => {
       }),
     );
   });
+
+  // A's default "off" was carried over as if the user had turned subtitles
+  // off, so B's own default subtitle was dropped.
+  test("keeps the default subtitle of the version picked when none was picked", async () => {
+    mockSettings = { rememberSubtitleSelections: true };
+    const subtitle = (index: number) => ({
+      Type: "Subtitle" as const,
+      Index: index,
+      Language: "eng",
+      DisplayTitle: `English ${index}`,
+    });
+    await render(
+      <DownloadSingleItem
+        item={{
+          ...MOVIE,
+          MediaSources: [
+            {
+              Id: "source-a",
+              Name: "Version A",
+              DefaultSubtitleStreamIndex: -1,
+              MediaStreams: [{ Type: "Video", Index: 0 }, subtitle(1)],
+            },
+            {
+              Id: "source-b",
+              Name: "Version B",
+              DefaultSubtitleStreamIndex: 4,
+              MediaStreams: [{ Type: "Video", Index: 0 }, subtitle(4)],
+            },
+          ],
+        }}
+      />,
+    );
+
+    await fireEvent.press(screen.getByText("Version B"));
+    await confirmDownload();
+
+    expect(getDownloadStreamUrl).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mediaSourceId: "source-b",
+        subtitleStreamIndex: 4,
+      }),
+    );
+  });
 });
 
 describe("DownloadItems, sending one episode of a season", () => {

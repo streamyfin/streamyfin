@@ -96,6 +96,11 @@ export const DownloadItems: React.FC<DownloadProps> = ({
   const [selectedOptions, setSelectedOptions] = useState<
     SelectedOptions | undefined
   >(undefined);
+  // A default is not a choice, so only a picked track follows a version change.
+  const [pickedTracks, setPickedTracks] = useState({
+    audio: false,
+    subtitle: false,
+  });
 
   const userCanDownload = useMemo(
     () => user?.Policy?.EnableContentDownloading,
@@ -145,6 +150,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
       subtitleIndex: defaultSubtitleIndex ?? -1,
       audioIndex: defaultAudioIndex,
     }));
+    setPickedTracks({ audio: false, subtitle: false });
   }, [
     defaultAudioIndex,
     defaultBitrate,
@@ -490,8 +496,12 @@ export const DownloadItems: React.FC<DownloadProps> = ({
                               prev.mediaSource && {
                                 source: prev.mediaSource,
                                 indexes: {
-                                  audioIndex: prev.audioIndex,
-                                  subtitleIndex: prev.subtitleIndex,
+                                  audioIndex: pickedTracks.audio
+                                    ? prev.audioIndex
+                                    : undefined,
+                                  subtitleIndex: pickedTracks.subtitle
+                                    ? prev.subtitleIndex
+                                    : undefined,
                                 },
                               },
                             );
@@ -518,6 +528,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
                                 audioIndex: val,
                               },
                           );
+                          setPickedTracks((prev) => ({ ...prev, audio: true }));
                         }}
                         selected={selectedOptions.audioIndex}
                       />
@@ -531,6 +542,10 @@ export const DownloadItems: React.FC<DownloadProps> = ({
                                 subtitleIndex: val,
                               },
                           );
+                          setPickedTracks((prev) => ({
+                            ...prev,
+                            subtitle: true,
+                          }));
                         }}
                         selected={selectedOptions.subtitleIndex}
                       />
