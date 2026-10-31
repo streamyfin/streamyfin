@@ -356,6 +356,75 @@ describe("DownloadSingleItem, picking a version", () => {
       }),
     );
   });
+
+  describe("with a subtitle picked on the first version", () => {
+    const subtitle = (index: number, language: string, title: string) => ({
+      Type: "Subtitle" as const,
+      Index: index,
+      Language: language,
+      DisplayTitle: title,
+    });
+    // B numbers its subtitles from 3 and defaults to English.
+    const subtitledVersions: BaseItemDto = {
+      ...MOVIE,
+      MediaSources: [
+        {
+          Id: "source-a",
+          Name: "Version A",
+          DefaultSubtitleStreamIndex: 1,
+          MediaStreams: [
+            { Type: "Video", Index: 0 },
+            subtitle(1, "eng", "English A"),
+            subtitle(2, "fre", "French A"),
+          ],
+        },
+        {
+          Id: "source-b",
+          Name: "Version B",
+          DefaultSubtitleStreamIndex: 3,
+          MediaStreams: [
+            { Type: "Video", Index: 0 },
+            subtitle(3, "eng", "English B"),
+            subtitle(4, "fre", "French B"),
+          ],
+        },
+      ],
+    };
+
+    beforeEach(() => {
+      mockSettings = { rememberSubtitleSelections: true };
+    });
+
+    test("keeps that subtitle's language", async () => {
+      await render(<DownloadSingleItem item={subtitledVersions} />);
+
+      await fireEvent.press(screen.getByText("French A"));
+      await fireEvent.press(screen.getByText("Version B"));
+      await confirmDownload();
+
+      expect(getDownloadStreamUrl).toHaveBeenCalledWith(
+        expect.objectContaining({
+          mediaSourceId: "source-b",
+          subtitleStreamIndex: 4,
+        }),
+      );
+    });
+
+    test("keeps subtitles off when they were turned off", async () => {
+      await render(<DownloadSingleItem item={subtitledVersions} />);
+
+      await fireEvent.press(screen.getByText("item_card.none"));
+      await fireEvent.press(screen.getByText("Version B"));
+      await confirmDownload();
+
+      expect(getDownloadStreamUrl).toHaveBeenCalledWith(
+        expect.objectContaining({
+          mediaSourceId: "source-b",
+          subtitleStreamIndex: -1,
+        }),
+      );
+    });
+  });
 });
 
 describe("DownloadItems, sending one episode of a season", () => {
