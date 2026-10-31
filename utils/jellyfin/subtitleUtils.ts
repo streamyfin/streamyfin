@@ -807,11 +807,17 @@ export interface PlayerAudioTrack {
  * position (see {@link getMpvAudioId}), so every other track was unreachable.
  * On a direct stream the player reads the file itself, so its list is the
  * truth: the file's audio streams are rebuilt from it, in its order. Listed
- * streams keep their index so the current selection still matches a row.
+ * streams keep their index so the current selection still matches a row; the
+ * others get one from {@link PLAYER_AUDIO_INDEX_BASE} by position, the same
+ * whatever the server lists, so a selection survives a stream re-negotiated
+ * after the server gained a stream (a downloaded subtitle).
  *
  * Returns `mediaSource` itself when there is nothing to add, so callers can
  * tell a no-op by identity.
  */
+/** Far above any index a server gives its streams. */
+export const PLAYER_AUDIO_INDEX_BASE = 1000;
+
 export const withPlayerAudioTracks = (
   mediaSource: MediaSourceInfo,
   playerTracks: PlayerAudioTrack[],
@@ -824,10 +830,9 @@ export const withPlayerAudioTracks = (
     return mediaSource;
   }
 
-  let nextIndex = Math.max(-1, ...streams.map((s) => s.Index ?? -1)) + 1;
   const audio: MediaStream[] = playerTracks.map((track, position) => ({
     Type: "Audio",
-    Index: listed[position]?.Index ?? nextIndex++,
+    Index: listed[position]?.Index ?? PLAYER_AUDIO_INDEX_BASE + position,
     Title: track.title,
     Language: track.lang,
     Codec: track.codec,

@@ -1042,9 +1042,22 @@ describe("withPlayerAudioTracks", () => {
     ]);
     expect(audio.map((s) => s.Language)).toEqual(["eng", "fre", "fre"]);
     // The listed stream keeps its index, so the session's current selection
-    // still points at a row; the others get indexes no stream uses.
+    // still points at a row; the others get indexes no stream uses, and the
+    // same ones once the server has gained a stream (a downloaded subtitle),
+    // so a selection carried across a re-negotiation still names its track.
     expect(audio[0].Index).toBe(0);
     expect(new Set(audio.map((s) => s.Index)).size).toBe(3);
+    const grown = {
+      MediaStreams: [
+        ...named.MediaStreams,
+        { Type: "Subtitle", Index: 1001, DisplayTitle: "English" },
+      ] as MediaStream[],
+    };
+    expect(
+      withPlayerAudioTracks(grown, played)
+        .MediaStreams?.filter((s) => s.Type === "Audio")
+        .map((s) => s.Index),
+    ).toEqual(audio.map((s) => s.Index));
     // Each row selects its own mpv track.
     expect(audio.map((s) => getMpvAudioId(merged, s.Index, false))).toEqual([
       1, 2, 3,
