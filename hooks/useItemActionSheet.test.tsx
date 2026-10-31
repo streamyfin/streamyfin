@@ -13,7 +13,7 @@ const mockShowActionSheet = jest.fn<
 >();
 const mockMarkAsPlayed = jest.fn(async (_played: boolean) => {});
 
-jest.mock("@expo/react-native-action-sheet", () => ({
+jest.mock("@/hooks/useActionSheet", () => ({
   useActionSheet: () => ({ showActionSheetWithOptions: mockShowActionSheet }),
 }));
 jest.mock("react-i18next", () => ({

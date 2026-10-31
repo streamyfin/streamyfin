@@ -1,7 +1,6 @@
-import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { useCallback, useState } from "react";
 import { Platform } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { SheetScrollView } from "@/components/common/SheetContent";
 import { SyncPlayPanel } from "@/components/syncplay/SyncPlayPanel";
 import useRouter from "@/hooks/useAppRouter";
 import { useGlobalModal } from "@/providers/GlobalModalProvider";
@@ -9,30 +8,28 @@ import { tvSyncPlayModalAtom } from "@/utils/atoms/tvSyncPlayModal";
 import { store } from "@/utils/store";
 import type { SyncPlaySeed } from "@/utils/syncplay/types";
 
+/** The SyncPlay panel, scrollable inside the sheet. */
 function SyncPlaySheetContent({
   seed,
   onClose,
-  bottomInset,
 }: {
   seed?: SyncPlaySeed;
   onClose: () => void;
-  bottomInset: number;
 }) {
   // The sheet stands still while a queue entry is dragged: on iOS its own
   // pan would otherwise take the drag and scroll instead.
   const [dragging, setDragging] = useState(false);
   return (
-    <BottomSheetScrollView
+    <SheetScrollView
       keyboardShouldPersistTaps='handled'
       scrollEnabled={!dragging}
-      contentContainerStyle={{ padding: 16, paddingBottom: bottomInset + 24 }}
     >
       <SyncPlayPanel
         seed={seed}
         onClose={onClose}
         onQueueDragChange={setDragging}
       />
-    </BottomSheetScrollView>
+    </SheetScrollView>
   );
 }
 
@@ -43,7 +40,6 @@ function SyncPlaySheetContent({
 export const useSyncPlaySheet = () => {
   const { showModal, hideModal } = useGlobalModal();
   const router = useRouter();
-  const insets = useSafeAreaInsets();
 
   return useCallback(
     (seed?: SyncPlaySeed) => {
@@ -54,15 +50,11 @@ export const useSyncPlaySheet = () => {
         return;
       }
       showModal(
-        <SyncPlaySheetContent
-          seed={seed}
-          onClose={hideModal}
-          bottomInset={insets.bottom}
-        />,
+        <SyncPlaySheetContent seed={seed} onClose={hideModal} />,
         // Dragging a queue row must reorder the queue, not move the sheet.
         { enableContentPanningGesture: false },
       );
     },
-    [showModal, hideModal, router, insets.bottom],
+    [showModal, hideModal, router],
   );
 };

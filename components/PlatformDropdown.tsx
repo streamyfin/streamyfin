@@ -1,9 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
-import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import React, { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Platform, StyleSheet, TouchableOpacity, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { SheetScrollView } from "@/components/common/SheetContent";
 import { Text } from "@/components/common/Text";
 import { useGlobalModal } from "@/providers/GlobalModalProvider";
 
@@ -147,8 +146,6 @@ const BottomSheetContent: React.FC<{
   onOptionSelect?: (value?: any) => void;
   onClose?: () => void;
 }> = ({ title, groups, onOptionSelect, onClose }) => {
-  const insets = useSafeAreaInsets();
-
   // Wrap the groups to call onOptionSelect when an option is pressed
   const wrappedGroups = groups.map((group) => ({
     ...group,
@@ -186,18 +183,12 @@ const BottomSheetContent: React.FC<{
   }));
 
   return (
-    <BottomSheetScrollView
-      className='px-4 pb-8 pt-2'
-      style={{
-        paddingLeft: Math.max(16, insets.left),
-        paddingRight: Math.max(16, insets.right),
-      }}
-    >
+    <SheetScrollView>
       {title && <Text className='font-bold text-2xl mb-6'>{title}</Text>}
       {wrappedGroups.map((group, index) => (
         <OptionGroupComponent key={index} group={group} />
       ))}
-    </BottomSheetScrollView>
+    </SheetScrollView>
   );
 };
 
