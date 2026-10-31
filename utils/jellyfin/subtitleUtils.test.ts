@@ -9,6 +9,7 @@ import {
   getMpvAudioId,
   isExternalSubtitle,
   langEq,
+  PLAYER_AUDIO_INDEX_BASE,
   type PlayerSubtitleTrack,
   pickAutoSubtitleTrack,
   requiresStreamRestart,
@@ -1066,6 +1067,26 @@ describe("withPlayerAudioTracks", () => {
     expect(merged.MediaStreams?.filter((s) => s.Type !== "Audio")).toEqual(
       named.MediaStreams.filter((s) => s.Type !== "Audio"),
     );
+  });
+
+  // The server's one row says "French" because the file name does; the file
+  // opens on English. A preference that picked that row should play French.
+  it("keeps a listed stream's index on the player track of its language", () => {
+    const tagged = {
+      MediaStreams: [
+        { Type: "Video", Index: 0 },
+        { Type: "Audio", Index: 1, Language: "fre", DisplayTitle: "French" },
+      ] as MediaStream[],
+    };
+    const merged = withPlayerAudioTracks(tagged, played);
+    const audio = merged.MediaStreams?.filter((s) => s.Type === "Audio") ?? [];
+    expect(audio.map((s) => s.Language)).toEqual(["eng", "fre", "fre"]);
+    expect(audio.map((s) => s.Index)).toEqual([
+      PLAYER_AUDIO_INDEX_BASE,
+      1,
+      PLAYER_AUDIO_INDEX_BASE + 2,
+    ]);
+    expect(getMpvAudioId(merged, 1, false)).toBe(2);
   });
 
   it("falls back to the language when a track has no title", () => {

@@ -807,8 +807,11 @@ export interface PlayerAudioTrack {
  * position (see {@link getMpvAudioId}), so every other track was unreachable.
  * On a direct stream the player reads the file itself, so its list is the
  * truth: the file's audio streams are rebuilt from it, in its order. Listed
- * streams keep their index so the current selection still matches a row; the
- * others get one from {@link PLAYER_AUDIO_INDEX_BASE} by position, the same
+ * streams keep their index so the current selection still matches a row: on
+ * the player track of their language when the tags say which (such a server
+ * lists "French" for a file whose first track is English, and a preference
+ * that picked it should play French), by position otherwise. The other tracks
+ * get an index from {@link PLAYER_AUDIO_INDEX_BASE} by position, the same
  * whatever the server lists, so a selection survives a stream re-negotiated
  * after the server gained a stream (a downloaded subtitle).
  *
@@ -830,9 +833,25 @@ export const withPlayerAudioTracks = (
     return mediaSource;
   }
 
+  // Player position -> the index of the listed stream it carries.
+  const indexAt = new Map<number, number>();
+  listed.forEach((stream, k) => {
+    const byLanguage = playerTracks.findIndex(
+      (t, i) => !indexAt.has(i) && !!t.lang && langEq(t.lang, stream.Language),
+    );
+    const position =
+      byLanguage >= 0
+        ? byLanguage
+        : indexAt.has(k)
+          ? playerTracks.findIndex((_, i) => !indexAt.has(i))
+          : k;
+    if (position >= 0 && stream.Index !== undefined) {
+      indexAt.set(position, stream.Index);
+    }
+  });
   const audio: MediaStream[] = playerTracks.map((track, position) => ({
     Type: "Audio",
-    Index: listed[position]?.Index ?? PLAYER_AUDIO_INDEX_BASE + position,
+    Index: indexAt.get(position) ?? PLAYER_AUDIO_INDEX_BASE + position,
     Title: track.title,
     Language: track.lang,
     Codec: track.codec,
