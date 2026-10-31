@@ -60,6 +60,8 @@ let mockSeekReaction:
   | null = null;
 /** Set to have the server answer with a transcode instead of a direct stream. */
 let mockTranscodingUrl: string | undefined;
+let mockDownloads: Record<string, unknown> = {};
+const mockApplySubtitleSelection = jest.fn(async (..._args: unknown[]) => {});
 const mockSettings = {};
 const mockNoop = () => {};
 
@@ -93,7 +95,7 @@ jest.mock("@/providers/JellyfinProvider", () => {
 jest.mock("@/providers/DownloadProvider", () => ({
   useDownload: () => ({
     getDownloadedItems: () => [],
-    getDownloadedItemById: () => undefined,
+    getDownloadedItemById: (id: string) => mockDownloads[id],
   }),
 }));
 jest.mock("@/providers/InactivityProvider", () => ({
@@ -164,6 +166,11 @@ jest.mock("@/utils/jellyfin/media/getStreamUrl", () => ({
     sessionId: `session-${item.Id}`,
     url: `https://jellyfin.example.com/Videos/${item.Id}/stream.mkv`,
   }),
+}));
+jest.mock("@/utils/jellyfin/subtitleUtils", () => ({
+  ...jest.requireActual("@/utils/jellyfin/subtitleUtils"),
+  applyMpvSubtitleSelection: (...args: unknown[]) =>
+    mockApplySubtitleSelection(...args),
 }));
 jest.mock("@/utils/subtitles/subtitleStyle", () => ({
   applySubtitleStyle: async () => {},
@@ -637,5 +644,61 @@ describe("direct player stop report", () => {
     } finally {
       mockParams.playbackPosition = String(RESUME_TICKS);
     }
+  });
+});
+
+describe("direct player subtitles", () => {
+  beforeEach(() => {
+    jest.spyOn(console, "log").mockImplementation(() => {});
+    mockApplySubtitleSelection.mockClear();
+    mockDownloads = {
+      "item-1": {
+        item: { Id: "item-1", Type: "Episode", RunTimeTicks: RUNTIME_TICKS },
+        mediaSource: { Id: "source-1", MediaStreams: [] },
+        videoFilePath: "file:///downloads/item-1.mkv",
+        userData: {
+          audioStreamIndex: 1,
+          subtitleStreamIndex: 2,
+          isTranscoded: false,
+        },
+      },
+    };
+    mockParams.offline = "true";
+  });
+
+  afterEach(() => {
+    mockDownloads = {};
+    mockParams.offline = "false";
+    mockParams.subtitleIndex = "";
+  });
+
+  /** Opens the player and lets MPV announce its track list. */
+  const openWithTracks = async () => {
+    await render(<DirectPlayerPage />);
+    await waitFor(() => expect(screen.getByTestId("mpv-view")).toBeTruthy());
+    await act(async () => {
+      mockPlayerProps?.onTracksReady?.({ nativeEvent: {} } as Parameters<
+        NonNullable<MpvPlayerViewProps["onTracksReady"]>
+      >[0]);
+    });
+  };
+
+  test("starts a download on the subtitle it was downloaded with", async () => {
+    await openWithTracks();
+
+    expect(mockApplySubtitleSelection).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.objectContaining({ jellyfinSubtitleIndex: 2 }),
+    );
+  });
+
+  test("starts a download on the subtitle the route asks for", async () => {
+    mockParams.subtitleIndex = "-1";
+    await openWithTracks();
+
+    expect(mockApplySubtitleSelection).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.objectContaining({ jellyfinSubtitleIndex: -1 }),
+    );
   });
 });
