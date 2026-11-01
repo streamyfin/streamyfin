@@ -34,7 +34,7 @@ import {
   updatePendingDownload,
 } from "../pendingDownloads";
 import type { JobStatus } from "../types";
-import { generateFilename, uriToFilePath } from "../utils";
+import { generateFilename, getDownloadToastId, uriToFilePath } from "../utils";
 
 /**
  * Starts that have not finished handing their download to native yet, by item id.
@@ -273,6 +273,7 @@ export function useDownloadOperations({
           t("home.downloads.toasts.download_started_for_item", {
             item: item.Name,
           }),
+          { id: getDownloadToastId(processId) },
         );
       } catch (error) {
         // The user cancelled this start and has been told so. cancelDownload cleaned up, and

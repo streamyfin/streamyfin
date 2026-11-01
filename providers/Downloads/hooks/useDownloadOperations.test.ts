@@ -57,6 +57,7 @@ jest.mock("sonner-native", () => ({
 
 import { toast } from "sonner-native";
 import { getPendingDownload, savePendingDownload } from "../pendingDownloads";
+import { getDownloadToastId } from "../utils";
 import { useDownloadOperations } from "./useDownloadOperations";
 
 const SUBTITLE = `${DOCUMENTS}/show_s01e01_subtitle_2.subrip`;
@@ -421,6 +422,21 @@ describe("startBackgroundDownload", () => {
     );
     expect(getPendingDownload("../escape")?.videoFileName).toBe(
       "___escape.mp4",
+    );
+  });
+
+  // A download that fails right away put its failure under the toast that said it started, and
+  // the two overlapped: the failure takes that toast's place, by its id.
+  it("names the toast that says the download started after the item", async () => {
+    const { operations } = await renderOperations();
+
+    await act(() =>
+      operations.startBackgroundDownload(url, item, mediaSource, maxBitrate),
+    );
+
+    expect(toast.success).toHaveBeenCalledWith(
+      "home.downloads.toasts.download_started_for_item",
+      { id: getDownloadToastId("item-1") },
     );
   });
 

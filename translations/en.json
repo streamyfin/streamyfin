@@ -699,7 +699,6 @@
         "could_not_delete_download": "Could not delete download",
         "download_completed": "Download completed",
         "download_failed": "Download failed",
-        "download_failed_for_item": "Download failed for {{item}}: {{error}}",
         "download_completed_for_item": "Download completed for {{item}}",
         "download_started_for_item": "Download started for {{item}}",
         "failed_to_start_download": "Failed to start download",
@@ -709,6 +708,13 @@
         "could_not_get_download_url_for_item": "Could not get download URL for {{itemName}}",
         "no_media_source_to_download": "This item cannot be downloaded",
         "file_deleted": "{{item}} deleted"
+      },
+      "failure": {
+        "conversion": "The server could not convert {{item}} for download. Try again, or download it at Max quality.",
+        "refused": "The server refused to send {{item}} (HTTP {{status}}).",
+        "no_space": "There is not enough free space on this device for {{item}}.",
+        "connection": "The connection to the server dropped while downloading {{item}}.",
+        "other": "Something went wrong while downloading {{item}}. The app logs have the details."
       }
     }
   },
