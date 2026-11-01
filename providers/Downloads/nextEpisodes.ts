@@ -70,8 +70,10 @@ export const withLocalPlayState = (
     }
     return {
       ...episode,
+      // The copy's user data stands in when the server sent none: it carries
+      // the Key the type requires.
       UserData: {
-        ...episode.UserData,
+        ...(episode.UserData ?? userData),
         Played: userData.Played,
         LastPlayedDate: userData.LastPlayedDate,
       },

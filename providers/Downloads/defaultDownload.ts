@@ -3,7 +3,7 @@ import type {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
-import { getUserLibraryApi } from "@jellyfin/sdk/lib/utils/api";
+import { getLibraryApi } from "@jellyfin/sdk/lib/utils/api";
 import type { Bitrate } from "@/components/BitrateSelector";
 import type { Settings } from "@/utils/atoms/settings";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
@@ -39,7 +39,7 @@ export const resolveDefaultDownload = async ({
   /** A quality picked for this download, over the user's default one. */
   bitrate?: Bitrate;
 }): Promise<DefaultDownload | null> => {
-  const { data: item } = await getUserLibraryApi(api).getItem({
+  const { data: item } = await getLibraryApi(api).getItem({
     itemId,
     userId,
   });

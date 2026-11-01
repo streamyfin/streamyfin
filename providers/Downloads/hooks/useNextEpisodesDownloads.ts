@@ -1,6 +1,6 @@
 import type { Api } from "@jellyfin/sdk";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { getTvShowsApi } from "@jellyfin/sdk/lib/utils/api";
+import { getShowApi } from "@jellyfin/sdk/lib/utils/api";
 import { getSessionApi } from "@jellyfin/sdk/lib/utils/api/session-api";
 import NetInfo from "@react-native-community/netinfo";
 import { useAtomValue, useStore } from "jotai";
@@ -120,7 +120,7 @@ export function useNextEpisodesDownloads({
       playingIds: Set<string> | null,
       deleteAnyDownload: boolean,
     ) => {
-      const { data } = await getTvShowsApi(api).getEpisodes({
+      const { data } = await getShowApi(api).getEpisodes({
         seriesId: rule.seriesId,
         userId,
         isMissing: false,

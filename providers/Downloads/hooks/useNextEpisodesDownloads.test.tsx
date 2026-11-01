@@ -18,7 +18,7 @@ jest.mock(
 
 const mockGetEpisodes = jest.fn();
 jest.mock("@jellyfin/sdk/lib/utils/api", () => ({
-  getTvShowsApi: () => ({ getEpisodes: mockGetEpisodes }),
+  getShowApi: () => ({ getEpisodes: mockGetEpisodes }),
 }));
 const mockGetSessions = jest.fn();
 jest.mock("@jellyfin/sdk/lib/utils/api/session-api", () => ({
@@ -98,7 +98,7 @@ const episode = (index: number, played = false): BaseItemDto => ({
   ParentIndexNumber: 1,
   IndexNumber: index,
   LocationType: "FileSystem",
-  UserData: { Played: played },
+  UserData: { Key: `user-data-${index}`, Played: played },
 });
 
 const download = (item: BaseItemDto): DownloadedItem => ({

@@ -28,7 +28,7 @@ const episode = (
   SeriesId: "series-1",
   ParentIndexNumber: season,
   LocationType: virtual ? "Virtual" : "FileSystem",
-  UserData: { Played: played, LastPlayedDate: lastPlayed },
+  UserData: { Key: id, Played: played, LastPlayedDate: lastPlayed },
 });
 
 const ids = (episodes: BaseItemDto[]) => episodes.map((e) => e.Id);
