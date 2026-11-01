@@ -56,6 +56,8 @@ jest.mock("sonner-native", () => ({
 }));
 
 import { toast } from "sonner-native";
+import { logAndCaptureError } from "@/utils/log";
+import * as pendingDownloads from "../pendingDownloads";
 import {
   getPendingDownload,
   savePendingDownload,
@@ -560,6 +562,76 @@ describe("the extras of a download", () => {
 
     await extrasStored();
     expect(mockDownloadAdditionalAssets).toHaveBeenCalledTimes(1);
+  });
+
+  // The device's storage can refuse them: the record keeps waiting, so the next run fetches them
+  // again, and nothing is left to reject unhandled.
+  it("leave the download waiting for them when they cannot be stored", async () => {
+    const store = jest
+      .spyOn(pendingDownloads, "storeDownloadAssets")
+      .mockImplementationOnce(() => {
+        throw new Error("disk full");
+      });
+    savePendingDownload({
+      itemId: "item-1",
+      status: "downloading",
+      taskId: 3,
+      enqueuedAt: "2026-11-01T10:00:00.000Z",
+      inputUrl: url,
+      videoFileName: "show_s01e01.mp4",
+      item,
+      mediaSource,
+      maxBitrate,
+      deviceId: "device",
+      assetsPending: true,
+    });
+
+    await renderOperations();
+
+    await waitFor(() =>
+      expect(logAndCaptureError).toHaveBeenCalledWith(
+        "Storing the extras of a download failed",
+        expect.any(Error),
+        { itemType: "Episode" },
+      ),
+    );
+    expect(getPendingDownload("item-1")).toMatchObject({
+      assetsPending: true,
+    });
+    store.mockRestore();
+  });
+
+  // As a completion that cannot be finalized: the download goes, with its card, rather than stay
+  // a record that no longer waits for anything.
+  it("drop the download when they cannot finalize it", async () => {
+    setPendingDownloadFinalizer(() => {
+      throw new Error("database");
+    });
+    savePendingDownload({
+      itemId: "item-1",
+      status: "downloading",
+      taskId: 3,
+      enqueuedAt: "2026-11-01T10:00:00.000Z",
+      inputUrl: url,
+      videoFileName: "show_s01e01.mp4",
+      item,
+      mediaSource,
+      maxBitrate,
+      deviceId: "device",
+      assetsPending: true,
+      videoFileSize: 1000,
+    });
+
+    const { removeProcess } = await renderOperations();
+
+    await waitFor(() => expect(getPendingDownload("item-1")).toBeUndefined());
+    expect(logAndCaptureError).toHaveBeenCalledWith(
+      "Handling download completion failed",
+      expect.any(Error),
+      { itemType: "Episode" },
+    );
+    expect(removeProcess).toHaveBeenCalledWith("item-1");
+    setPendingDownloadFinalizer(undefined);
   });
 
   it("finalize a download whose video finished first", async () => {

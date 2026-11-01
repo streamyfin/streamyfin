@@ -245,6 +245,8 @@ export function useNextEpisodesDownloads({
           console.warn(`[NextEpisodes] No stream for ${episode.Name}`);
           continue;
         }
+        // The user can remove the rule while the stream resolves: its episodes go with it.
+        if (!store.get(nextEpisodesRulesAtom)[userId]?.[seriesId]) continue;
         await latest.current.startBackgroundDownload(
           download.url,
           download.item,

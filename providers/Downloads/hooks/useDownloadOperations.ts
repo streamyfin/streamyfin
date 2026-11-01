@@ -168,15 +168,39 @@ export function useDownloadOperations({
             return;
           }
 
-          const ready = storeDownloadAssets(itemId, extras);
-          if (ready) finalizeWhenReady(ready);
+          let ready: PendingDownload | undefined;
+          try {
+            ready = storeDownloadAssets(itemId, extras);
+          } catch (error) {
+            // The record still waits for them, so the next run fetches them again.
+            logAndCaptureError(
+              "Storing the extras of a download failed",
+              error,
+              {
+                itemType: item.Type,
+              },
+            );
+            return;
+          }
+          if (!ready) return;
+          try {
+            finalizeWhenReady(ready);
+          } catch (error) {
+            // As a completion that cannot be finalized: the download goes, with its card, rather
+            // than stay a record that no longer waits for anything.
+            logAndCaptureError("Handling download completion failed", error, {
+              itemType: item.Type,
+            });
+            removePendingDownload(itemId);
+            removeProcess(itemId);
+          }
         } finally {
           giveExtrasSlot();
           extrasInFlight.delete(key);
         }
       })();
     },
-    [api, saveImage, saveSeriesPrimaryImage],
+    [api, saveImage, saveSeriesPrimaryImage, removeProcess],
   );
 
   // A run can end before the extras of its downloads are in, while native keeps downloading the

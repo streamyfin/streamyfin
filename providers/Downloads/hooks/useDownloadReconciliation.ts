@@ -176,6 +176,7 @@ export function useDownloadReconciliation({
           console.log(
             `[RECONCILE] Completed while app was dead: ${record.item.Name}`,
           );
+          let finished = record;
           if (record.assetsPending) {
             // Its extras were not in when the app closed. useDownloadOperations fetches them
             // again, and they finalize the download once stored; the card waits at 99%.
@@ -187,8 +188,11 @@ export function useDownloadReconciliation({
               });
               continue;
             }
+            // They were stored while this run waited on native: the record read before that
+            // wait does not have them.
+            finished = ready;
           }
-          finalizePendingDownload(record, file.size ?? 0);
+          finalizePendingDownload(finished, file.size ?? 0);
           onDataChange?.();
           continue;
         }

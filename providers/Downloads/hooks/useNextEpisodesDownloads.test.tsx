@@ -77,7 +77,11 @@ import {
   getDownloadedItemById,
 } from "../database";
 import { nextEpisodesHoldAtom } from "../nextEpisodesHold";
-import { nextEpisodesRulesAtom, withRule } from "../nextEpisodesRules";
+import {
+  nextEpisodesRulesAtom,
+  withoutRule,
+  withRule,
+} from "../nextEpisodesRules";
 import {
   removePendingDownload,
   savePendingDownload,
@@ -253,6 +257,28 @@ describe("useNextEpisodesDownloads", () => {
         bitrate: { key: "4 Mb/s", value: 4000000 },
       }),
     );
+  });
+
+  // The user can remove the rule while the check waits on the server for an episode's stream.
+  test("starts nothing for a series whose rule was removed during the check", async () => {
+    const setup = setUp({ count: 2 });
+    mockResolveDefaultDownload.mockImplementationOnce(
+      async ({ itemId }: { itemId: string }) => {
+        setup.store.set(nextEpisodesRulesAtom, (rules) =>
+          withoutRule(rules, "user-1", "series-1"),
+        );
+        return {
+          url: `https://jellyfin.example/${itemId}`,
+          item: episode(2),
+          mediaSource: { Id: itemId },
+          bitrate: { key: "Max", value: undefined },
+        };
+      },
+    );
+
+    await renderKeeper(setup);
+
+    expect(setup.startBackgroundDownload).not.toHaveBeenCalled();
   });
 
   test("remembers which episodes it downloaded", async () => {
