@@ -437,6 +437,9 @@
         "caching_description": "Store upcoming queue songs ahead of time. The oldest ones are removed once the size limit is reached.",
         "lookahead_enabled": "Enable look-ahead caching",
         "lookahead_count": "Songs to pre-cache",
+        "lookahead_songs_one": "{{count}} song",
+        "lookahead_songs_other": "{{count}} songs",
+        "lookahead_songs": "{{count}} songs",
         "max_cache_size": "Max cache size"
       },
       "plugins": {
