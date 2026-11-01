@@ -111,15 +111,25 @@ describe("sendDownloadNotification", () => {
     expect(mockSchedule).not.toHaveBeenCalled();
   });
 
+  // expo-notifications takes the Android channel from the trigger: a null trigger posted every
+  // download notification to its fallback channel, whatever the content said.
   it("posts to the Android channel when it is on", async () => {
     jest.replaceProperty(Platform, "OS", "android");
     mockGetChannel.mockResolvedValue({ importance: 5 });
     mockSchedule.mockResolvedValue("id");
 
     await expect(sendDownloadNotification("title", "body")).resolves.toBe(true);
-    expect(mockSchedule.mock.calls[0][0].content.channelId).toBe(
-      DOWNLOAD_NOTIFICATION_CHANNEL,
-    );
+    expect(mockSchedule.mock.calls[0][0].trigger).toEqual({
+      channelId: DOWNLOAD_NOTIFICATION_CHANNEL,
+    });
+  });
+
+  it("shows the notification at once on iOS", async () => {
+    mockSchedule.mockResolvedValue("id");
+
+    await sendDownloadNotification("title", "body");
+
+    expect(mockSchedule.mock.calls[0][0].trigger).toBeNull();
   });
 
   it("says the notification was not scheduled when the system refuses it", async () => {

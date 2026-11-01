@@ -95,11 +95,12 @@ export async function sendDownloadNotification(
         title,
         body,
         data: data || {}, // iOS requires data to be an object, not undefined
-        ...(Platform.OS === "android" && {
-          channelId: DOWNLOAD_NOTIFICATION_CHANNEL,
-        }),
       },
-      trigger: null,
+      // At once. Android takes the channel from the trigger, never from the content.
+      trigger:
+        Platform.OS === "android"
+          ? { channelId: DOWNLOAD_NOTIFICATION_CHANNEL }
+          : null,
     });
     return true;
   } catch (error) {
