@@ -20,8 +20,14 @@ export const SEERR_DISCOVER_ROW_GAP = 16;
 export const SEERR_IMAGE_QUALITY = 75;
 
 /**
+ * How long the server's public settings stand before they are asked again: the images follow
+ * its cacheImages, the request sheets its specials and partial requests.
+ */
+export const SEERR_PUBLIC_SETTINGS_STALE_MS = 10 * 60 * 1000;
+
+/**
  * An episode still, drawn 128 points wide: TMDB's size asked for, and the
- * width Seerr's resizer brings it to.
+ * width Seerr's resizer brings TheTVDB's artwork to.
  */
 export const SEERR_STILL_SIZE = "w300";
 export const SEERR_STILL_WIDTH = 640;

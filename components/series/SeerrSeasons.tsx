@@ -33,7 +33,6 @@ import {
 import { useSeerr } from "@/hooks/useSeerr";
 import { useSeerrPublicSettings } from "@/hooks/useSeerrPublicSettings";
 import { formatSeerrDate, seerrLocaleTag } from "@/utils/seerr/dates";
-import { episodeStillUrl } from "@/utils/seerr/images";
 import { seasonsWithStatus, unrequestedSeasons } from "@/utils/seerr/seasons";
 import type {
   MediaRequestBody,
@@ -73,7 +72,6 @@ const SeasonEpisodes: React.FC<{
 
   if (isLoading) return <Loader />;
 
-  const baseUrl = seerrApi?.axios.defaults.baseURL ?? "";
   const tag = seerrLocaleTag(locale, region);
 
   return (
@@ -87,7 +85,7 @@ const SeasonEpisodes: React.FC<{
           )}
           <EpisodeRow
             episode={episode}
-            still={episodeStillUrl(baseUrl, episode.stillPath)}
+            still={seerrApi?.episodeStill(episode.stillPath)}
             airDate={formatSeerrDate(episode.airDate, tag)}
           />
         </View>

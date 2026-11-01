@@ -593,7 +593,8 @@ export default function SearchPage() {
           mediaTitle: item.title,
           releaseYear: String(new Date(item.releaseDate || "").getFullYear()),
           canRequest: "true",
-          posterSrc: seerrApi?.imageProxy(item.posterPath) || "",
+          posterSrc:
+            seerrApi?.imageProxy(item.posterPath, "w600_and_h900_bestv2") || "",
           mediaType: MediaType.MOVIE,
           id: String(item.id),
           backdropPath: item.backdropPath || "",
@@ -612,7 +613,8 @@ export default function SearchPage() {
           mediaTitle: item.name,
           releaseYear: String(new Date(item.firstAirDate || "").getFullYear()),
           canRequest: "true",
-          posterSrc: seerrApi?.imageProxy(item.posterPath) || "",
+          posterSrc:
+            seerrApi?.imageProxy(item.posterPath, "w600_and_h900_bestv2") || "",
           mediaType: MediaType.TV,
           id: String(item.id),
           backdropPath: item.backdropPath || "",

@@ -1,6 +1,9 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { renderHook, waitFor } from "@testing-library/react-native";
 import type { AxiosAdapter } from "axios";
+import type React from "react";
 import { DiscoverSliderType } from "@/utils/seerr/types";
-import { SeerrApi } from "./useSeerr";
+import { SeerrApi, useSeerrImageCache } from "./useSeerr";
 
 jest.mock(
   "react-native-mmkv",
@@ -109,5 +112,78 @@ describe("SeerrApi.test", () => {
       requiresPass: false,
     });
     expect(mockToastError).not.toHaveBeenCalled();
+  });
+});
+
+describe("SeerrApi.imageProxy", () => {
+  // Seerr's own app loads TMDB images through the server's image cache when its admin turned
+  // caching on, and from TMDB otherwise, at the size in the URL.
+  test("follows the server's image cache", () => {
+    const api = new SeerrApi("https://seerr.example");
+
+    expect(api.imageProxy("/abc.jpg", "w342")).toBe(
+      "https://image.tmdb.org/t/p/w342/abc.jpg",
+    );
+    api.cacheImages = true;
+    expect(api.imageProxy("/abc.jpg", "w342")).toBe(
+      "https://seerr.example/imageproxy/tmdb/t/p/w342/abc.jpg",
+    );
+  });
+
+  test("goes the same way for an episode still", () => {
+    const api = new SeerrApi("https://seerr.example");
+    api.cacheImages = true;
+
+    expect(
+      api.episodeStill("https://image.tmdb.org/t/p/original//abc.jpg"),
+    ).toBe("https://seerr.example/imageproxy/tmdb/t/p/w300/abc.jpg");
+  });
+});
+
+describe("useSeerrImageCache", () => {
+  // No garbage collection timer, so Jest can exit when the spec ends.
+  const wrapper = ({ children }: { children: React.ReactNode }) => (
+    <QueryClientProvider
+      client={
+        new QueryClient({
+          defaultOptions: { queries: { gcTime: Number.POSITIVE_INFINITY } },
+        })
+      }
+    >
+      {children}
+    </QueryClientProvider>
+  );
+
+  test("sets the client's image cache from the server's public settings", async () => {
+    const api = new SeerrApi("https://seerr.example");
+    jest
+      .spyOn(api, "publicSettings")
+      .mockResolvedValue({ cacheImages: true } as never);
+
+    const { result } = await renderHook(() => useSeerrImageCache(api), {
+      wrapper,
+    });
+
+    await waitFor(() => expect(result.current?.cacheImages).toBe(true));
+    expect(result.current?.imageProxy("/abc.jpg", "w342")).toBe(
+      "https://seerr.example/imageproxy/tmdb/t/p/w342/abc.jpg",
+    );
+    // Another client, for the readers that keep a URL until the client changes.
+    expect(result.current).not.toBe(api);
+  });
+
+  // Seerr's default, until the server says otherwise.
+  test("loads from TMDB while the settings are not in", async () => {
+    const api = new SeerrApi("https://seerr.example");
+    jest
+      .spyOn(api, "publicSettings")
+      .mockReturnValue(new Promise(() => {}) as never);
+
+    const { result } = await renderHook(() => useSeerrImageCache(api), {
+      wrapper,
+    });
+
+    expect(result.current).toBe(api);
+    expect(api.cacheImages).toBe(false);
   });
 });

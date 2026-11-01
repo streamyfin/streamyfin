@@ -84,11 +84,7 @@ export const useSeerrRequestCard = (request: MediaRequest) => {
     posterSrc:
       seerrApi?.imageProxy(details?.posterPath, "w300_and_h450_face") ?? "",
     backdropSrc: details?.backdropPath
-      ? seerrApi?.imageProxy(
-          details.backdropPath,
-          "w1920_and_h800_multi_faces",
-          640,
-        )
+      ? seerrApi?.imageProxy(details.backdropPath, "w1920_and_h800_multi_faces")
       : undefined,
   };
 };
