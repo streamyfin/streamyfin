@@ -7,6 +7,7 @@ import { Platform, RefreshControl, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
+import { watchlistTypeLabel } from "@/components/watchlists/watchlistOptions";
 import useRouter from "@/hooks/useAppRouter";
 import {
   useStreamystatsEnabled,
@@ -64,16 +65,13 @@ const WatchlistCard: React.FC<WatchlistCardProps> = ({
         <View className='flex-row items-center gap-1'>
           <Ionicons name='film-outline' size={14} color='#9ca3af' />
           <Text className='text-neutral-400 text-sm'>
-            {watchlist.itemCount ?? 0}{" "}
-            {(watchlist.itemCount ?? 0) === 1
-              ? t("watchlists.item")
-              : t("watchlists.items")}
+            {t("watchlists.item_count", { count: watchlist.itemCount ?? 0 })}
           </Text>
         </View>
         {watchlist.allowedItemType && (
           <View className='bg-neutral-800 px-2 py-0.5 rounded'>
             <Text className='text-neutral-400 text-xs'>
-              {watchlist.allowedItemType}
+              {watchlistTypeLabel(t, watchlist.allowedItemType)}
             </Text>
           </View>
         )}
