@@ -56,7 +56,11 @@ jest.mock("sonner-native", () => ({
 }));
 
 import { toast } from "sonner-native";
-import { getPendingDownload, savePendingDownload } from "../pendingDownloads";
+import {
+  getPendingDownload,
+  savePendingDownload,
+  setPendingDownloadFinalizer,
+} from "../pendingDownloads";
 import { useDownloadOperations } from "./useDownloadOperations";
 
 const SUBTITLE = `${DOCUMENTS}/show_s01e01_subtitle_2.subrip`;
@@ -109,7 +113,13 @@ const hold = <T>() => {
   return { promise, release };
 };
 
-/** What downloadAdditionalAssets does before the video is handed to native. */
+/** Until the extras of item-1 are stored in its pending record. */
+const extrasStored = () =>
+  waitFor(() =>
+    expect(getPendingDownload("item-1")?.assetsPending).toBe(false),
+  );
+
+/** What downloadAdditionalAssets writes, now that the video is handed to native first. */
 const writeSidecars = () => {
   fakeFiles.add(...SIDECARS);
   return {
@@ -140,6 +150,7 @@ describe("cancelDownload", () => {
     await act(() =>
       operations.startBackgroundDownload(url, item, mediaSource, maxBitrate),
     );
+    await extrasStored();
     expect(fakeFiles.remaining()).toEqual(SIDECARS);
 
     await act(() => operations.cancelDownload("item-1"));
@@ -270,6 +281,7 @@ describe("cancelDownload", () => {
       await act(() => cancelled);
       nextStaging.release(undefined);
       await act(() => next);
+      await extrasStored();
 
       expect(mockDownloader.enqueueDownload).toHaveBeenCalledTimes(1);
       expect(getPendingDownload("item-1")).toMatchObject({ taskId: 7 });
@@ -321,6 +333,7 @@ describe("cancelDownload", () => {
       await act(() =>
         operations.startBackgroundDownload(url, item, mediaSource, maxBitrate),
       );
+      await extrasStored();
 
       expect(mockDownloader.enqueueDownload).toHaveBeenCalledTimes(1);
       expect(getPendingDownload("item-1")).toMatchObject({ taskId: 7 });
@@ -357,26 +370,27 @@ describe("startBackgroundDownload", () => {
     expect(fakeFiles.remaining()).toEqual([]);
   });
 
-  // The pending record is only saved once every sidecar is in place, so a failure before that
-  // has no record to say what was written.
-  it("removes what it wrote when it fails before the record is saved", async () => {
-    mockDownloadAdditionalAssets.mockImplementation(async () => {
-      writeSidecars();
-      throw new Error("disk full");
+  // The extras come in after the video is handed to native. Without them a download plays
+  // offline all the same, short of its scrubbing previews, sidecar subtitles and skip buttons.
+  it("keeps downloading the video when its extras fail", async () => {
+    mockDownloadAdditionalAssets.mockRejectedValue(new Error("disk full"));
+
+    expect(await start()).toBeUndefined();
+    await extrasStored();
+
+    expect(mockDownloader.enqueueDownload).toHaveBeenCalledTimes(1);
+    expect(getPendingDownload("item-1")).toMatchObject({
+      taskId: 7,
+      mediaSource,
     });
-
-    expect(await start()).toEqual(new Error("disk full"));
-
-    expect(mockDownloader.enqueueDownload).not.toHaveBeenCalled();
-    expect(fakeFiles.remaining()).toEqual([]);
   });
 
-  // Until its assets are written a start has neither a card nor a pending record, so a second
-  // start of the item got through. A cancel then only reached one of the two, and the other
-  // enqueued a download that ran with no card.
+  // Until its Live Activity poster is staged a start has a card but no pending record, so a
+  // second start of the item got through. A cancel then only reached one of the two, and the
+  // other enqueued a download that ran with no card.
   it("refuses a second start of an item that is still being prepared", async () => {
-    const assets = hold<ReturnType<typeof writeSidecars>>();
-    mockDownloadAdditionalAssets.mockReturnValueOnce(assets.promise);
+    const staging = hold<undefined>();
+    mockBuildDownloadActivityMetadata.mockReturnValueOnce(staging.promise);
     const { operations, setProcesses } = await renderOperations();
 
     const first = operations.startBackgroundDownload(
@@ -385,9 +399,7 @@ describe("startBackgroundDownload", () => {
       mediaSource,
       maxBitrate,
     );
-    await waitFor(() =>
-      expect(mockDownloadAdditionalAssets).toHaveBeenCalled(),
-    );
+    await waitFor(() => expect(setProcesses).toHaveBeenCalled());
     await act(() =>
       operations.startBackgroundDownload(url, item, mediaSource, maxBitrate),
     );
@@ -395,8 +407,9 @@ describe("startBackgroundDownload", () => {
       "home.downloads.toasts.item_already_downloading",
     );
 
-    assets.release(writeSidecars());
+    staging.release(undefined);
     await act(() => first);
+    await extrasStored();
 
     expect(mockDownloadAdditionalAssets).toHaveBeenCalledTimes(1);
     expect(setProcesses).toHaveBeenCalledTimes(1);
@@ -442,5 +455,139 @@ describe("startBackgroundDownload", () => {
 
     expect(mockDownloadAdditionalAssets).not.toHaveBeenCalled();
     expect(fakeFiles.deleted()).toEqual([]);
+  });
+});
+
+// A start used to download every extra (trickplay sheets, subtitles, segments, covers) before
+// its card showed and its video began: 54 s of spinner for a 6-hour film over a slow link.
+describe("the extras of a download", () => {
+  const otherItem = (id: string): BaseItemDto => ({
+    ...item,
+    Id: id,
+    IndexNumber: 2,
+  });
+
+  it("come in after the card shows and the video is handed to native", async () => {
+    const extras = hold<ReturnType<typeof writeSidecars>>();
+    mockDownloadAdditionalAssets.mockReturnValueOnce(extras.promise);
+    const { operations, setProcesses } = await renderOperations();
+
+    await act(() =>
+      operations.startBackgroundDownload(url, item, mediaSource, maxBitrate),
+    );
+
+    expect(setProcesses).toHaveBeenCalledTimes(1);
+    expect(mockDownloader.enqueueDownload).toHaveBeenCalledTimes(1);
+    expect(toast.success).toHaveBeenCalled();
+    expect(getPendingDownload("item-1")).toMatchObject({
+      taskId: 7,
+      assetsPending: true,
+    });
+
+    extras.release(writeSidecars());
+    await extrasStored();
+    expect(getPendingDownload("item-1")).toMatchObject({
+      trickPlayData: { path: `${TRICKPLAY}/`, size: 1 },
+    });
+  });
+
+  // A season started in one go would otherwise open every episode's requests together.
+  it("are fetched for two downloads at a time", async () => {
+    const holds = [1, 2, 3].map(() => hold<ReturnType<typeof writeSidecars>>());
+    for (const each of holds) {
+      mockDownloadAdditionalAssets.mockReturnValueOnce(each.promise);
+    }
+    const { operations } = await renderOperations();
+
+    for (const id of ["a", "b", "c"]) {
+      await act(() =>
+        operations.startBackgroundDownload(
+          url,
+          otherItem(id),
+          mediaSource,
+          maxBitrate,
+        ),
+      );
+    }
+    expect(mockDownloader.enqueueDownload).toHaveBeenCalledTimes(3);
+    expect(mockDownloadAdditionalAssets).toHaveBeenCalledTimes(2);
+
+    holds[0].release({ updatedMediaSource: mediaSource } as never);
+    await waitFor(() =>
+      expect(mockDownloadAdditionalAssets).toHaveBeenCalledTimes(3),
+    );
+    holds[1].release({ updatedMediaSource: mediaSource } as never);
+    holds[2].release({ updatedMediaSource: mediaSource } as never);
+    await waitFor(() =>
+      expect(getPendingDownload("c")?.assetsPending).toBe(false),
+    );
+  });
+
+  // cancelDownload removes what is there when it runs. Extras still coming in land after it.
+  it("are removed when they come in after the download was cancelled", async () => {
+    const extras = hold<ReturnType<typeof writeSidecars>>();
+    mockDownloadAdditionalAssets.mockReturnValueOnce(extras.promise);
+    const { operations } = await renderOperations();
+    await act(() =>
+      operations.startBackgroundDownload(url, item, mediaSource, maxBitrate),
+    );
+
+    await act(() => operations.cancelDownload("item-1"));
+    extras.release(writeSidecars());
+
+    await waitFor(() => expect(fakeFiles.remaining()).toEqual([]));
+    expect(getPendingDownload("item-1")).toBeUndefined();
+  });
+
+  // The app can close before they are in. The video keeps downloading natively, and nothing
+  // else would fetch them.
+  it("are fetched for a download a previous run left without them", async () => {
+    savePendingDownload({
+      itemId: "item-1",
+      status: "downloading",
+      taskId: 3,
+      enqueuedAt: "2026-11-01T10:00:00.000Z",
+      inputUrl: url,
+      videoFileName: "show_s01e01.mp4",
+      item,
+      mediaSource,
+      maxBitrate,
+      deviceId: "device",
+      assetsPending: true,
+    });
+
+    await renderOperations();
+
+    await extrasStored();
+    expect(mockDownloadAdditionalAssets).toHaveBeenCalledTimes(1);
+  });
+
+  it("finalize a download whose video finished first", async () => {
+    const finalize = jest.fn();
+    setPendingDownloadFinalizer(finalize);
+    savePendingDownload({
+      itemId: "item-1",
+      status: "downloading",
+      taskId: 3,
+      enqueuedAt: "2026-11-01T10:00:00.000Z",
+      inputUrl: url,
+      videoFileName: "show_s01e01.mp4",
+      item,
+      mediaSource,
+      maxBitrate,
+      deviceId: "device",
+      assetsPending: true,
+      videoFileSize: 1000,
+    });
+
+    await renderOperations();
+
+    await waitFor(() => expect(finalize).toHaveBeenCalledTimes(1));
+    expect(finalize.mock.calls[0][0]).toMatchObject({
+      videoFileSize: 1000,
+      assetsPending: false,
+      trickPlayData: { size: 1 },
+    });
+    setPendingDownloadFinalizer(undefined);
   });
 });

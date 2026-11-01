@@ -10,6 +10,7 @@ import {
   finalizePendingDownload,
   getPendingDownload,
   getPendingDownloads,
+  markVideoDone,
   type PendingDownload,
   pendingDownloadFileUri,
   removePendingDownload,
@@ -175,6 +176,18 @@ export function useDownloadReconciliation({
           console.log(
             `[RECONCILE] Completed while app was dead: ${record.item.Name}`,
           );
+          if (record.assetsPending) {
+            // Its extras were not in when the app closed. useDownloadOperations fetches them
+            // again, and they finalize the download once stored; the card waits at 99%.
+            const ready = markVideoDone(record.itemId, file.size ?? 0);
+            if (!ready) {
+              restored.push({
+                ...jobFromRecord(record, "downloading"),
+                progress: 99,
+              });
+              continue;
+            }
+          }
           finalizePendingDownload(record, file.size ?? 0);
           onDataChange?.();
           continue;

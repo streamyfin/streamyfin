@@ -1,5 +1,5 @@
 import { File } from "expo-file-system";
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import type {
   DownloadCompleteEvent,
@@ -21,7 +21,10 @@ import {
 import {
   finalizePendingDownload,
   getPendingDownload,
+  markVideoDone,
+  type PendingDownload,
   removePendingDownload,
+  setPendingDownloadFinalizer,
   updatePendingDownload,
 } from "../pendingDownloads";
 import type { JobStatus } from "../types";
@@ -192,6 +195,70 @@ export function useDownloadEventHandlers({
     return () => progressSub.remove();
   }, [updateProcess, processes]);
 
+  /**
+   * Turns a download whose video and extras are both in into a downloads-database entry, and
+   * tells the user. The video can finish before the extras (they come in after it is handed to
+   * native), so this runs from the completion event or from the extras, whichever is second.
+   */
+  const finish = useCallback(
+    async (
+      record: PendingDownload,
+      videoFileSize: number,
+      isTranscoding?: boolean,
+    ) => {
+      const itemId = record.itemId;
+      try {
+        finalizePendingDownload(record, videoFileSize, isTranscoding);
+
+        updateProcess(itemId, {
+          status: "completed",
+          progress: 100,
+        });
+
+        const notificationContent = getNotificationContent(
+          record.item,
+          true,
+          t,
+        );
+        await sendDownloadNotification(
+          notificationContent.title,
+          notificationContent.body,
+        );
+
+        onSuccess?.();
+        onDataChange?.();
+
+        // Clean up speed data when download completes
+        clearSpeedData(itemId);
+
+        // Remove process after short delay
+        setTimeout(() => {
+          removeProcess(itemId);
+        }, 2000);
+      } catch (error) {
+        // A download that finished on disk gets discarded here — one of
+        // the worst silent failures the app has, so always report it.
+        // (`record` from the caller — the pending store may already have
+        // been cleared by finalizePendingDownload.)
+        logAndCaptureError("Handling download completion failed", error, {
+          itemType: record.item?.Type,
+        });
+        removePendingDownload(itemId);
+        updateProcess(itemId, { status: "error" });
+        clearSpeedData(itemId);
+        removeProcess(itemId);
+      }
+    },
+    [updateProcess, removeProcess, onSuccess, onDataChange, t],
+  );
+
+  useEffect(() => {
+    setPendingDownloadFinalizer((record) => {
+      void finish(record, record.videoFileSize ?? 0, record.videoTranscoded);
+    });
+    return () => setPendingDownloadFinalizer(undefined);
+  }, [finish]);
+
   // Handle download completion events
   useEffect(() => {
     const completeSub = BackgroundDownloader.addCompleteListener(
@@ -199,7 +266,7 @@ export function useDownloadEventHandlers({
         const itemId = event.itemId;
         if (!itemId) return;
 
-        const record = getPendingDownload(itemId);
+        let record = getPendingDownload(itemId);
         // The record belongs to another transfer when it is waiting on a different task: the
         // item was cancelled and started again before the first transfer reported back.
         const isStale =
@@ -212,53 +279,11 @@ export function useDownloadEventHandlers({
           return;
         }
 
+        let videoFileSize: number;
         try {
-          const videoFile = new File(filePathToUri(event.filePath));
-          const videoFileSize = videoFile.info().size || 0;
-
-          console.log(
-            `[COMPLETE] Video download complete (${videoFileSize} bytes) for ${record.item.Name}`,
-          );
-
-          // In-memory process may carry a live isTranscoding signal derived from progress events;
-          // finalize falls back to the media source when it is gone (e.g. after a relaunch).
-          const process = processes.find((p) => p.id === itemId);
-          finalizePendingDownload(
-            record,
-            videoFileSize,
-            process?.isTranscoding,
-          );
-
-          updateProcess(itemId, {
-            status: "completed",
-            progress: 100,
-          });
-
-          const notificationContent = getNotificationContent(
-            record.item,
-            true,
-            t,
-          );
-          await sendDownloadNotification(
-            notificationContent.title,
-            notificationContent.body,
-          );
-
-          onSuccess?.();
-          onDataChange?.();
-
-          // Clean up speed data when download completes
-          clearSpeedData(itemId);
-
-          // Remove process after short delay
-          setTimeout(() => {
-            removeProcess(itemId);
-          }, 2000);
+          videoFileSize =
+            new File(filePathToUri(event.filePath)).info().size || 0;
         } catch (error) {
-          // A download that finished on disk gets discarded here — one of
-          // the worst silent failures the app has, so always report it.
-          // (`record` from the top of the handler — the pending store may
-          // already have been cleared by finalizePendingDownload.)
           logAndCaptureError("Handling download completion failed", error, {
             itemType: record.item?.Type,
           });
@@ -266,12 +291,37 @@ export function useDownloadEventHandlers({
           updateProcess(itemId, { status: "error" });
           clearSpeedData(itemId);
           removeProcess(itemId);
+          return;
         }
+
+        console.log(
+          `[COMPLETE] Video download complete (${videoFileSize} bytes) for ${record.item.Name}`,
+        );
+
+        // In-memory process may carry a live isTranscoding signal derived from progress events;
+        // finalize falls back to the media source when it is gone (e.g. after a relaunch).
+        const process = processes.find((p) => p.id === itemId);
+
+        if (record.assetsPending) {
+          // The extras are still coming in: they finalize the download once they are stored.
+          const ready = markVideoDone(
+            itemId,
+            videoFileSize,
+            process?.isTranscoding,
+          );
+          if (!ready) {
+            updateProcess(itemId, { progress: 99 });
+            return;
+          }
+          record = ready;
+        }
+
+        await finish(record, videoFileSize, process?.isTranscoding);
       },
     );
 
     return () => completeSub.remove();
-  }, [processes, updateProcess, removeProcess, onSuccess, onDataChange, t]);
+  }, [processes, updateProcess, removeProcess, finish]);
 
   // Handle download error events
   useEffect(() => {

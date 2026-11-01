@@ -50,7 +50,27 @@ export interface PendingDownload {
   subtitleStreamIndex?: number;
   /** Metadata originally handed to native; reused when re-enqueueing after a relaunch. */
   activityMetadata?: DownloadActivityMetadata;
+  /**
+   * The extras (trickplay sheets, subtitles, segments, covers) are still coming in. The video is
+   * handed to native first, so the download is only finalized once they are stored as well.
+   */
+  assetsPending?: boolean;
+  /** Size of the video once native reported it finished, while the extras were still pending. */
+  videoFileSize?: number;
+  /** Whether the finished video was transcoded, as the progress events told. */
+  videoTranscoded?: boolean;
 }
+
+/** What downloadAdditionalAssets brings back for a download. */
+export type DownloadAssets = {
+  updatedMediaSource: MediaSourceInfo;
+  trickPlayData?: TrickPlayData;
+  introSegments?: MediaTimeSegment[];
+  creditSegments?: MediaTimeSegment[];
+  recapSegments?: MediaTimeSegment[];
+  commercialSegments?: MediaTimeSegment[];
+  previewSegments?: MediaTimeSegment[];
+};
 
 const PENDING_DOWNLOADS_KEY = "downloads.pending.v1.json";
 
@@ -103,6 +123,66 @@ export function updatePendingDownload(
   if (!existing) return;
   records[itemId] = { ...existing, ...patch };
   writeAll(records);
+}
+
+/**
+ * Notes that native finished the video of a pending download. Returns the record when its
+ * extras are in too, and it can be finalized; undefined while they are still coming, or when
+ * the download is gone.
+ */
+export function markVideoDone(
+  itemId: string,
+  videoFileSize: number,
+  videoTranscoded?: boolean,
+): PendingDownload | undefined {
+  updatePendingDownload(itemId, { videoFileSize, videoTranscoded });
+  const record = getPendingDownload(itemId);
+  return record && !record.assetsPending ? record : undefined;
+}
+
+/**
+ * Stores the extras of a pending download. Returns the record when its video already finished,
+ * and it can be finalized; undefined while the video is still coming, or when the download is
+ * gone (cancelled meanwhile).
+ */
+export function storeDownloadAssets(
+  itemId: string,
+  assets: DownloadAssets,
+): PendingDownload | undefined {
+  const { updatedMediaSource, ...rest } = assets;
+  updatePendingDownload(itemId, {
+    ...rest,
+    mediaSource: updatedMediaSource,
+    assetsPending: false,
+  });
+  const record = getPendingDownload(itemId);
+  return record?.videoFileSize !== undefined ? record : undefined;
+}
+
+type PendingDownloadFinalizer = (record: PendingDownload) => void;
+let finalizer: PendingDownloadFinalizer | undefined;
+
+/**
+ * Who finalizes a download whose extras came in after its video: the download event handlers,
+ * which own the card, the notification and the refresh that follow.
+ */
+export function setPendingDownloadFinalizer(
+  next: PendingDownloadFinalizer | undefined,
+): void {
+  finalizer = next;
+}
+
+/** Finalizes a download whose video and extras are both in. */
+export function finalizeWhenReady(record: PendingDownload): void {
+  if (finalizer) {
+    finalizer(record);
+    return;
+  }
+  finalizePendingDownload(
+    record,
+    record.videoFileSize ?? 0,
+    record.videoTranscoded,
+  );
 }
 
 export function removePendingDownload(itemId: string): void {

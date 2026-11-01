@@ -11,6 +11,10 @@ export const DOWNLOAD_TRICKPLAY_DIR_SUFFIX = "_trickplay";
 // Android stages the transfer in `<destination>.part` and renames it once it is complete
 // (OkHttpDownloadManager.kt). The native side owns the value; this mirrors it.
 export const DOWNLOAD_PART_FILE_SUFFIX = ".part";
+// How many downloads fetch their extras (trickplay sheets, subtitles, segments, covers) at once.
+// They come in after the video is handed to native, and a season started in one go would
+// otherwise open every episode's requests together.
+export const DOWNLOAD_EXTRAS_CONCURRENCY = 2;
 
 // "Keep next episodes downloaded": the counts a series rule offers, and the one a new rule
 // starts with unless the user or the server admin chose another.
