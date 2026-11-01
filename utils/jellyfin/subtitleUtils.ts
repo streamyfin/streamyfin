@@ -836,26 +836,41 @@ export const withPlayerAudioTracks = (
 
   // Player position -> the index of the listed stream it carries.
   const indexAt = new Map<number, number>();
-  const positions = playerTracks.map((_, i) => i);
-  const free = () => positions.filter((i) => !indexAt.has(i));
-  const closestTo = (stream: MediaStream, among: number[]) =>
-    closestLanguageMatches(among, stream.Language, (i) => playerTracks[i].lang);
-  const claim = (stream: MediaStream, position: number | undefined) => {
-    if (position !== undefined && stream.Index !== undefined) {
-      indexAt.set(position, stream.Index);
-    }
+  const placed = new Set<number>();
+  const claim = (k: number, position: number | undefined) => {
+    const index = listed[k].Index;
+    if (placed.has(k) || position === undefined || index === undefined) return;
+    if (indexAt.has(position)) return;
+    indexAt.set(position, index);
+    placed.add(k);
   };
-  // A stream whose own position is one of its closest tracks keeps it first,
-  // so two streams of one language cannot swap over an untagged track.
-  const keepsOwn = (stream: MediaStream, k: number) =>
-    closestTo(stream, positions).includes(k);
-  listed.forEach((stream, k) => {
-    if (keepsOwn(stream, k)) claim(stream, k);
-  });
-  listed.forEach((stream, k) => {
-    if (keepsOwn(stream, k)) return;
-    const byLanguage = closestTo(stream, free())[0];
-    claim(stream, byLanguage ?? (indexAt.has(k) ? free()[0] : k));
+  // Every stream/track pair that agrees on language, closest first, so an
+  // exact "pt-BR" wins its track over a bare "pt". A stream's own position
+  // breaks a tie, so two streams of one language keep their order over an
+  // untagged track.
+  const pairs = listed
+    .flatMap((stream, k) =>
+      playerTracks.map((track, i) => ({
+        k,
+        i,
+        affinity: langAffinity(track.lang, stream.Language),
+      })),
+    )
+    .filter((pair) => pair.affinity > 0)
+    .sort(
+      (a, b) =>
+        b.affinity - a.affinity ||
+        Number(b.i === b.k) - Number(a.i === a.k) ||
+        a.k - b.k ||
+        a.i - b.i,
+    );
+  for (const pair of pairs) claim(pair.k, pair.i);
+  // The rest keep their position, or the first free one when it is taken.
+  listed.forEach((_, k) => {
+    claim(
+      k,
+      indexAt.has(k) ? playerTracks.findIndex((_, i) => !indexAt.has(i)) : k,
+    );
   });
   const audio: MediaStream[] = playerTracks.map((track, position) => ({
     Type: "Audio",

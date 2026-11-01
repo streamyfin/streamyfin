@@ -1125,6 +1125,25 @@ describe("withPlayerAudioTracks", () => {
     ).toEqual([PLAYER_AUDIO_INDEX_BASE, 1]);
   });
 
+  it("gives an exact regional match its track before a bare language at its own position", () => {
+    const portuguese = {
+      MediaStreams: [
+        { Type: "Audio", Index: 1, Language: "pt" },
+        { Type: "Audio", Index: 2, Language: "pt-BR" },
+      ] as MediaStream[],
+    };
+    const merged = withPlayerAudioTracks(portuguese, [
+      { lang: "pt-BR" },
+      { lang: "eng" },
+      { lang: "pt-PT" },
+    ]);
+    expect(
+      merged.MediaStreams?.filter((s) => s.Type === "Audio").map(
+        (s) => s.Index,
+      ),
+    ).toEqual([2, PLAYER_AUDIO_INDEX_BASE + 1, 1]);
+  });
+
   it("falls back to the language when a track has no title", () => {
     const merged = withPlayerAudioTracks(named, [{ lang: "eng" }, {}]);
     expect(
