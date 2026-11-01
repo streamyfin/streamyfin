@@ -22,7 +22,7 @@ jest.mock("@expo/ui/swift-ui", () => {
       children: React.ReactNode;
     }) => (
       <Box>
-        {label}
+        <Box testID='menu-label'>{label}</Box>
         {children}
       </Box>
     ),
@@ -75,15 +75,33 @@ describe("PlatformDropdown on iOS", () => {
   // The Quick Connect user picker sits above a code field that holds the
   // keyboard up. SwiftUI kept the Menu clear of that keyboard, which in a Host
   // the size of its trigger left nothing to tap: the picker drew and never
-  // opened. Nothing in JS shows it, so the prop is what there is to pin.
-  test("keeps the menu tappable while a keyboard is up", async () => {
+  // opened. A Host passing under a bar was pushed the same way, so it ignores
+  // every safe area. Nothing in JS shows it, so the prop is what there is to
+  // pin.
+  test("keeps the menu where its trigger is, keyboard or bar", async () => {
     await render(
       <PlatformDropdown groups={groups} trigger={<Text>Pick</Text>} />,
     );
 
     expect(mockHost).toHaveBeenCalledWith(
-      expect.objectContaining({ ignoreSafeArea: "keyboard" }),
+      expect.objectContaining({ ignoreSafeArea: "all" }),
     );
+  });
+
+  // A React Native trigger inside the Menu is hosted in a view whose frame
+  // both layout engines set; a caller with a SwiftUI label skips that host.
+  test("labels the menu with the native label it is given", async () => {
+    await render(
+      <PlatformDropdown
+        groups={groups}
+        trigger={<Text>Pick</Text>}
+        nativeLabel={<Text>Native</Text>}
+      />,
+    );
+
+    const label = screen.getByTestId("menu-label");
+    expect(label).toHaveTextContent("Native");
+    expect(label).not.toHaveTextContent("Pick");
   });
 
   test("offers every option and reports the one picked", async () => {

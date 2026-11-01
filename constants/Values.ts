@@ -14,6 +14,12 @@ export const SHEET_MAX_HEIGHT_RATIO = 0.85;
 /** A poster's width over its height, as TMDB's artwork is cut. */
 export const POSTER_ASPECT_RATIO = 10 / 15;
 
+/** The round media options button next to an item's play button, in points. */
+export const MEDIA_OPTIONS_BUTTON_SIZE = 48;
+
+/** How opaque the poster's color is under that button's symbol. */
+export const MEDIA_OPTIONS_BUTTON_FILL_OPACITY = 0.7;
+
 /**
  * MMKV key for the collection type and server of each hidden singleton view
  * (Live TV, Collections, Playlists), which is what carries a hidden view over
