@@ -1,6 +1,8 @@
 import type { Api } from "@jellyfin/sdk";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { getUserLibraryApi } from "@jellyfin/sdk/lib/utils/api";
+import { getLibraryApi } from "@jellyfin/sdk/lib/utils/api";
+import { AxiosError } from "axios";
+import { isJellyfinItem } from "@/utils/jellyfin/jellyfin";
 
 /**
  *  Fetches the media info for a given item.
@@ -23,5 +25,19 @@ export const getUserItemData = async ({
   if (!api || !itemId || !userId) {
     return null;
   }
-  return (await getUserLibraryApi(api).getItem({ itemId, userId })).data;
+  const response = await getLibraryApi(api).getItem({ itemId, userId });
+  // Resolved with, such an answer was cached and saved on the device as the
+  // item, and a page reading it as one threw (Sentry REACT-NATIVE-NY). Thrown
+  // with the response, it fails the query, which keeps the item it had and
+  // retries, and the app's reporting describes the answer.
+  if (!isJellyfinItem(response.data)) {
+    throw new AxiosError(
+      "Response is not an item",
+      AxiosError.ERR_BAD_RESPONSE,
+      response.config,
+      response.request,
+      response,
+    );
+  }
+  return response.data;
 };

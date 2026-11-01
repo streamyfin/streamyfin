@@ -12,12 +12,16 @@ import { useTranslation } from "react-i18next";
 import { TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { toast } from "sonner-native";
+import type { QuickConnectStatus } from "@/hooks/useQuickConnect";
 import { Button } from "../Button";
 import { Text } from "../common/Text";
 
 interface Props {
   /** The Quick Connect code to display, or null when hidden. */
   code: string | null;
+  status: QuickConnectStatus;
+  serverName: string;
+  onNewCode: () => void;
   onClose: () => void;
 }
 
@@ -27,12 +31,28 @@ interface Props {
  * session is authorized — a native alert has no programmatic dismiss and
  * lingers over the app after login completes.
  */
-export const QuickConnectCodeModal: React.FC<Props> = ({ code, onClose }) => {
+export const QuickConnectCodeModal: React.FC<Props> = ({
+  code,
+  status,
+  serverName,
+  onNewCode,
+  onClose,
+}) => {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
   const snapPoints = useMemo(() => ["50%"], []);
   const isPresentedRef = useRef(false);
+  // Stop resets the provider to idle. Preserve the message while dismissing,
+  // or while a replacement code is on its way, rather than flashing a dead code.
+  const lastStatusRef = useRef(status);
+  if (status !== "idle") lastStatusRef.current = status;
+  const displayStatus = status === "idle" ? lastStatusRef.current : status;
+  const expired = displayStatus === "expired";
+  const disabled = displayStatus === "disabled";
+  const signingIn =
+    displayStatus === "authenticating" || displayStatus === "signed-in";
+  const showCode = !expired && !disabled && !signingIn;
 
   // Keep the last code around so the dismiss animation doesn't flash empty
   // when the parent clears the code to close the sheet.
@@ -104,31 +124,50 @@ export const QuickConnectCodeModal: React.FC<Props> = ({ code, onClose }) => {
           <Text className='font-bold text-2xl text-neutral-100'>
             {t("login.quick_connect")}
           </Text>
-          <TouchableOpacity
-            className='mt-6 p-6 border border-neutral-800 rounded-xl bg-neutral-900 flex flex-row items-center justify-center'
-            onPress={copyCode}
-          >
-            <Text
-              className='text-center font-bold text-5xl text-neutral-100'
-              style={{ letterSpacing: 10 }}
-            >
-              {code ?? lastCodeRef.current}
+          {showCode ? (
+            <>
+              <TouchableOpacity
+                className='mt-6 p-6 border border-neutral-800 rounded-xl bg-neutral-900 flex flex-row items-center justify-center'
+                onPress={copyCode}
+              >
+                <Text
+                  className='text-center font-bold text-5xl text-neutral-100'
+                  style={{ letterSpacing: 10 }}
+                >
+                  {code ?? lastCodeRef.current}
+                </Text>
+                <Ionicons
+                  name='copy-outline'
+                  size={22}
+                  color='white'
+                  style={{ opacity: 0.4, marginLeft: 16 }}
+                />
+              </TouchableOpacity>
+              <Text className='mt-2 text-neutral-500 text-center text-xs'>
+                {t("login.tap_code_to_copy")}
+              </Text>
+              <Text className='mt-3 mb-5 text-neutral-400 text-center px-4'>
+                {t("login.quick_connect_instructions")}
+              </Text>
+            </>
+          ) : (
+            <Text className='mt-6 mb-5 text-neutral-400 text-center px-4'>
+              {disabled
+                ? t("companion_login.error_quick_connect_disabled", {
+                    server: serverName,
+                  })
+                : signingIn
+                  ? t("common.loading")
+                  : t("pairing.code_expired")}
             </Text>
-            <Ionicons
-              name='copy-outline'
-              size={22}
-              color='white'
-              style={{ opacity: 0.4, marginLeft: 16 }}
-            />
-          </TouchableOpacity>
-          <Text className='mt-2 text-neutral-500 text-center text-xs'>
-            {t("login.tap_code_to_copy")}
-          </Text>
-          <Text className='mt-3 mb-5 text-neutral-400 text-center px-4'>
-            {t("login.quick_connect_instructions")}
-          </Text>
+          )}
+          {expired && (
+            <Button className='mb-3' color='purple' onPress={onNewCode}>
+              {t("pairing.get_new_code")}
+            </Button>
+          )}
           <Button className='mt-auto' color='purple' onPress={onClose}>
-            {t("login.got_it")}
+            {showCode ? t("login.got_it") : t("common.close")}
           </Button>
         </View>
       </BottomSheetView>

@@ -219,6 +219,53 @@ describe("reportDataError", () => {
     });
   });
 
+  // REACT-NATIVE-1N: a 200 without the list the query asked for, thrown with
+  // the answer by utils/jellyfin/queryResult.ts. Reported as "data is
+  // undefined", it said nothing of the route or of what came back.
+  test("a 200 that is not the list is described, once per route", () => {
+    const server = newServer();
+    const notAList = () =>
+      httpError(
+        server,
+        "/Shows/a1b2c3d4e5f60718293a4b5c6d7e8f90/Episodes",
+        200,
+        { "content-type": "application/json; charset=utf-8" },
+        { TotalRecordCount: 0 },
+      );
+    reportDataError("query", ["episodes", "season-1", false], notAList());
+    reportDataError("query", ["episodes", "season-1", false], notAList());
+    expect(mockCaptured).toHaveLength(1);
+    expect(mockCaptured[0].fingerprint).toEqual([
+      "data-layer",
+      "query",
+      "episodes",
+      "GET",
+      "/Shows/:id/Episodes",
+      "200",
+    ]);
+    expect(mockCaptured[0].contexts.http_response).toEqual({
+      status: 200,
+      contentType: "application/json; charset=utf-8",
+      bodyKind: "json",
+      bodyKeys: ["TotalRecordCount"],
+    });
+  });
+
+  test("a 200 that is a captive portal's or a proxy's page is not reported", () => {
+    reportDataError(
+      "query",
+      ["episodes", "season-1", false],
+      httpError(
+        newServer(),
+        "/Shows/a1b2c3d4e5f60718293a4b5c6d7e8f90/Episodes",
+        200,
+        {},
+        "<!DOCTYPE html><html><head><title>Sign in</title></head>",
+      ),
+    );
+    expect(mockCaptured).toHaveLength(0);
+  });
+
   test("a failure with no HTTP response is reported once per query", () => {
     reportDataError("mutation", ["play"], new TypeError("x is undefined"));
     reportDataError("mutation", ["play"], new TypeError("x is undefined"));

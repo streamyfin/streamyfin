@@ -155,6 +155,8 @@ export const sortOrderOptions: {
 ];
 
 export const genreFilterAtom = atom<string[]>([]);
+// Ratings as the server spells them ("PG-13", "TV-MA"), not a normalized scale.
+export const officialRatingFilterAtom = atom<string[]>([]);
 export const tagsFilterAtom = atom<string[]>([]);
 export const yearFilterAtom = atom<string[]>([]);
 // Language tags as Filters2 reports them, not display names (Jellyfin 12+).
@@ -166,7 +168,7 @@ export const sortOrderAtom = atom<SortOrderOption[]>([
 ]);
 export const filterByAtom = atom<FilterByOption[]>([]);
 
-// The six atoms above are shared by every library and collection screen, and
+// The filter atoms above are shared by every library and collection screen, and
 // the stack keeps several of those mounted at once. This names the screen
 // whose selection they hold right now: a screen writes its id here together
 // with its filters, and reads them back through useLibraryFilters, which hands
@@ -185,7 +187,7 @@ export interface FilterPreference {
   [libraryId: string]: FilterByOption;
 }
 
-// Genres, years, tags and the two language filters are multi-select, so each
+// Genres, official ratings, years, tags and the two language filters are multi-select, so each
 // library remembers a list.
 export interface MultiFilterPreference {
   [libraryId: string]: string[];
@@ -259,6 +261,13 @@ export const genrePreferenceAtom = atomWithStorage<MultiFilterPreference>(
   defaultMultiFilterPreference,
   mmkvStorage<MultiFilterPreference>(),
 );
+
+export const officialRatingPreferenceAtom =
+  atomWithStorage<MultiFilterPreference>(
+    "officialRatingPreference",
+    defaultMultiFilterPreference,
+    mmkvStorage<MultiFilterPreference>(),
+  );
 
 export const yearPreferenceAtom = atomWithStorage<MultiFilterPreference>(
   "yearPreference",

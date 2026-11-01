@@ -18,3 +18,6 @@ export const DEFAULT_MUSIC_NORMALIZATION_MODE: MusicNormalizationMode = "off";
  * track the server wants louder plays untouched instead.
  */
 export const MUSIC_NORMALIZATION_MAX_VOLUME = 1;
+
+/** MMKV key of the index of stored tracks: user downloads and the look-ahead cache. */
+export const AUDIO_STORAGE_INDEX_KEY = "audio_storage.v1.json";

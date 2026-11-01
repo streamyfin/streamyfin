@@ -3,7 +3,7 @@ import type {
   BaseItemDto,
   BaseItemKind,
 } from "@jellyfin/sdk/lib/generated-client";
-import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
+import { getLibraryApi } from "@jellyfin/sdk/lib/utils/api";
 import { FlashList } from "@shopify/flash-list";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { Stack, useLocalSearchParams } from "expo-router";
@@ -71,7 +71,7 @@ export default function FavoritesSeeAllScreen() {
     async ({ pageParam }: { pageParam: number }): Promise<BaseItemDto[]> => {
       if (!api || !user?.Id || !itemType) return [];
 
-      const response = await getItemsApi(api as Api).getItems({
+      const response = await getLibraryApi(api as Api).getItems({
         userId: user.Id,
         sortBy: ["SeriesSortName", "SortName"],
         sortOrder: ["Ascending"],

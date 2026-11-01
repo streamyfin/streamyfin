@@ -39,7 +39,7 @@ cadence meant knowing both existed, and nothing would have failed if only one ha
 | `constants/Downloads.ts` | Downloads: size estimates, the names of what a download writes next to its video, and the "keep next episodes downloaded" counts, free space floor and storage key |
 | `constants/Logs.ts` | App log storage key and how many entries it keeps |
 | `constants/Privacy.ts` | What stands in for a secret in anything the app writes out (log, Sentry) |
-| `constants/Music.ts` | Music player policy: the volume normalization modes, their default, and the gain ceiling |
+| `constants/Music.ts` | Music player policy: the volume normalization modes, their default, and the gain ceiling; the storage key of the stored tracks index |
 | `constants/Search.ts` | Library search: results asked for per section, the person types the People section leaves out, a studio page's size |
 | `constants/StillWatching.ts` | The "Still watching?" presets, jellyfin-web 12's episode counts and session minutes |
 | `constants/Sentry.ts` | Error reporting policy: which builds report, the per session dedupe cap, the failure storm window |
@@ -48,7 +48,7 @@ cadence meant knowing both existed, and nothing would have failed if only one ha
 | `constants/TVDiscovery.ts` | TV home screen tiles: Top Shelf and Android TV recommendations (play link lookup timeout) |
 | `constants/Recommendations.ts` | Similar item rows: how many items a detail page asks the server for, and for which kinds of item |
 | `constants/Notifications.ts` | Push notifications: the plugin route a device registers at and is deleted from on sign out |
-| `constants/QuickConnect.ts` | Quick Connect: how long a code the TV shows stays valid |
+| `constants/QuickConnect.ts` | Quick Connect: how long a code stays valid, the wait between two polls of it, and how long one request may take |
 | `constants/Cast.ts` | Official Jellyfin Cast receiver: its session client name, the name it gets for a TV whose own name it cannot take, how long a cast waits for the TV to start, how many times its channel is tried, and the window and waits used to tell a stopped receiver from a live one |
 
 Add a new domain file when a group grows its own identity (playback, downloads,
