@@ -28,7 +28,6 @@ export const SEARCH_TAB_ROW_HEIGHT = 40;
 
 /** Room for the sort button's host, beside the tabs. */
 export const SEARCH_SORT_BUTTON_WIDTH = 50;
-
 /**
  * MMKV key for the collection type and server of each hidden singleton view
  * (Live TV, Collections, Playlists), which is what carries a hidden view over
