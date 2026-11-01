@@ -1,9 +1,12 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react-native";
+import { act, render, screen } from "@testing-library/react-native";
+import i18n from "i18next";
 import type React from "react";
+import { initReactI18next } from "react-i18next";
 // Number.prototype.bytesToReadable, which the app loads at startup.
 import "@/augmentations/number";
 import MusicSettingsPage from "@/app/(auth)/(tabs)/(home)/settings/music/page";
+import en from "@/translations/en.json";
 
 const mockSettings = {
   audioLookaheadCount: 3,
@@ -54,13 +57,32 @@ jest.mock("@/components/PlatformDropdown", () => ({
     );
   },
 }));
-// The key, and its values when there are some, stand for the translation.
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({
-    t: (key: string, values?: object) =>
-      values ? `${key} ${JSON.stringify(values)}` : key,
+// Loaded as the app loads them, so the labels go through the catalogue and i18next's plural
+// rules. French stands for a Crowdin catalogue: a label written in English in the code would
+// read the same in both languages.
+beforeAll(() =>
+  i18n.use(initReactI18next).init({
+    lng: "en",
+    compatibilityJSON: "v4",
+    resources: {
+      en: { translation: en },
+      fr: {
+        translation: {
+          home: {
+            settings: {
+              music: {
+                lookahead_songs_one: "{{count}} chanson",
+                lookahead_songs_other: "{{count}} chansons",
+              },
+            },
+          },
+        },
+      },
+    },
+    interpolation: { escapeValue: false },
   }),
-}));
+);
+afterEach(() => act(() => i18n.changeLanguage("en")));
 
 // No garbage collection timer, so Jest can exit when the spec ends.
 const renderPage = () =>
@@ -76,18 +98,23 @@ const renderPage = () =>
     </QueryClientProvider>,
   );
 
-const songs = (count: number) =>
-  `home.settings.music.lookahead_songs {"count":${count}}`;
-
 describe("MusicSettingsPage", () => {
-  // The songs to pre-cache read "1 song", "3 songs" in English, whatever the app's language.
-  it("counts the songs to pre-cache in the app's language", async () => {
+  it("counts the songs to pre-cache in English, one song and more", async () => {
     await renderPage();
 
-    for (const count of [1, 2, 3, 5]) {
-      expect(screen.getAllByText(songs(count)).length).toBeGreaterThan(0);
+    expect(screen.getAllByText("1 song").length).toBeGreaterThan(0);
+    for (const count of [2, 5]) {
+      expect(screen.getAllByText(`${count} songs`).length).toBeGreaterThan(0);
     }
     // The current choice, shown on the dropdown's trigger, and its option.
-    expect(screen.getAllByText(songs(3))).toHaveLength(2);
+    expect(screen.getAllByText("3 songs")).toHaveLength(2);
+  });
+
+  it("counts the songs to pre-cache in the app's language", async () => {
+    await act(() => i18n.changeLanguage("fr"));
+    await renderPage();
+
+    expect(screen.getAllByText("1 chanson").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("3 chansons")).toHaveLength(2);
   });
 });
