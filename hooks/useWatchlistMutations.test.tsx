@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook } from "@testing-library/react-native";
+import { AxiosError, type AxiosResponse } from "axios";
 import type React from "react";
 import { toast } from "sonner-native";
 import {
@@ -70,6 +71,16 @@ const run = async <V,>(
   });
 };
 
+/** An HTTP error as Axios rejects it, with the body the server sent. */
+const httpError = (status: number, data: unknown) =>
+  new AxiosError(
+    `Request failed with status code ${status}`,
+    "ERR_BAD_RESPONSE",
+    undefined,
+    undefined,
+    { status, data } as AxiosResponse,
+  );
+
 beforeEach(() => {
   jest.clearAllMocks();
   mockSettings = { streamyStatsServerUrl: "http://stats" };
@@ -116,6 +127,28 @@ describe("watchlist toasts", () => {
     await run(useCreateWatchlist, { name: "Sunday films" });
 
     expect(toast.error).toHaveBeenCalledWith("watchlists.toasts.create_failed");
+  });
+
+  // Axios rejects an HTTP error with its own English message, which stood in
+  // for the translated fallback.
+  test("fall back to their own words for an HTTP error the server left unexplained", async () => {
+    mockApi.createWatchlist.mockRejectedValue(httpError(500, ""));
+
+    await run(useCreateWatchlist, { name: "Sunday films" });
+
+    expect(toast.error).toHaveBeenCalledWith("watchlists.toasts.create_failed");
+  });
+
+  test("say what the server said when it explains the error", async () => {
+    mockApi.updateWatchlist.mockRejectedValue(
+      httpError(409, { error: "A watchlist with that name exists" }),
+    );
+
+    await run(useUpdateWatchlist, { watchlistId: 1, data: { name: "x" } });
+
+    expect(toast.error).toHaveBeenCalledWith(
+      "A watchlist with that name exists",
+    );
   });
 
   test("tell the user Streamystats is not set up", async () => {

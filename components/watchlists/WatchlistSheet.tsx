@@ -3,7 +3,7 @@ import {
   BottomSheetBackdrop,
   type BottomSheetBackdropProps,
   BottomSheetModal,
-  BottomSheetView,
+  BottomSheetScrollView,
 } from "@gorhom/bottom-sheet";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import React, {
@@ -309,11 +309,15 @@ export const WatchlistSheet = forwardRef<WatchlistSheetRef, object>(
           backgroundColor: "#171717",
         }}
       >
-        <BottomSheetView style={{ paddingBottom: insets.bottom }}>
+        {/* Rows can outgrow the sheet's height, two lines of description
+            each: past it, the list scrolls. */}
+        <BottomSheetScrollView
+          contentContainerStyle={{ paddingBottom: insets.bottom }}
+        >
           {currentItem && (
             <WatchlistSheetContent item={currentItem} onClose={handleClose} />
           )}
-        </BottomSheetView>
+        </BottomSheetScrollView>
       </BottomSheetModal>
     );
   },

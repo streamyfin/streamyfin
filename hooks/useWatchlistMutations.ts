@@ -1,4 +1,5 @@
 import { useMutation } from "@tanstack/react-query";
+import { isAxiosError } from "axios";
 import { t } from "i18next";
 import { useAtomValue } from "jotai";
 import { useCallback } from "react";
@@ -12,6 +13,20 @@ import type {
   StreamystatsWatchlist,
   UpdateWatchlistRequest,
 } from "@/utils/streamystats/types";
+
+/**
+ * What a failed call says to the user: the server's own message when it sent
+ * one, else `fallback`, in the app's language. Axios rejects an HTTP error
+ * with an English message of its own, which is not the server's.
+ */
+const errorMessage = (error: Error, fallback: string): string => {
+  if (isAxiosError(error)) {
+    const sent = (error.response?.data as { error?: unknown } | undefined)
+      ?.error;
+    return typeof sent === "string" && sent ? sent : fallback;
+  }
+  return error.message || fallback;
+};
 
 /**
  * Hook to create a new watchlist
@@ -47,7 +62,7 @@ export const useCreateWatchlist = () => {
       toast.success(t("watchlists.toasts.created"));
     },
     onError: (error: Error) => {
-      toast.error(error.message || t("watchlists.toasts.create_failed"));
+      toast.error(errorMessage(error, t("watchlists.toasts.create_failed")));
     },
   });
 
@@ -95,7 +110,7 @@ export const useUpdateWatchlist = () => {
       toast.success(t("watchlists.toasts.updated"));
     },
     onError: (error: Error) => {
-      toast.error(error.message || t("watchlists.toasts.update_failed"));
+      toast.error(errorMessage(error, t("watchlists.toasts.update_failed")));
     },
   });
 
@@ -136,7 +151,7 @@ export const useDeleteWatchlist = () => {
       toast.success(t("watchlists.toasts.deleted"));
     },
     onError: (error: Error) => {
-      toast.error(error.message || t("watchlists.toasts.delete_failed"));
+      toast.error(errorMessage(error, t("watchlists.toasts.delete_failed")));
     },
   });
 
@@ -199,7 +214,7 @@ export const useAddToWatchlist = () => {
       }
     },
     onError: (error: Error) => {
-      toast.error(error.message || t("watchlists.toasts.add_failed"));
+      toast.error(errorMessage(error, t("watchlists.toasts.add_failed")));
     },
   });
 
@@ -264,7 +279,7 @@ export const useRemoveFromWatchlist = () => {
       }
     },
     onError: (error: Error) => {
-      toast.error(error.message || t("watchlists.toasts.remove_failed"));
+      toast.error(errorMessage(error, t("watchlists.toasts.remove_failed")));
     },
   });
 

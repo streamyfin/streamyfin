@@ -1,5 +1,10 @@
-import { render, screen } from "@testing-library/react-native";
-import { WatchlistRow } from "@/components/watchlists/WatchlistSheet";
+import { act, render, screen } from "@testing-library/react-native";
+import { createRef } from "react";
+import {
+  WatchlistRow,
+  WatchlistSheet,
+  type WatchlistSheetRef,
+} from "@/components/watchlists/WatchlistSheet";
 import type { StreamystatsWatchlist } from "@/utils/streamystats/types";
 
 jest.mock("@gorhom/bottom-sheet", () =>
@@ -9,9 +14,13 @@ jest.mock(
   "react-native-mmkv",
   () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
 );
+jest.mock("react-native-safe-area-context", () => ({
+  useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
+}));
+let mockWatchlists: StreamystatsWatchlist[] = [];
 jest.mock("@/hooks/useWatchlists", () => ({
   useItemInWatchlists: () => ({ data: [] }),
-  useMyWatchlistsQuery: () => ({ data: [] }),
+  useMyWatchlistsQuery: () => ({ data: mockWatchlists, isLoading: false }),
 }));
 jest.mock("@/hooks/useWatchlistMutations", () => ({
   useAddToWatchlist: () => ({ mutateAsync: jest.fn() }),
@@ -67,5 +76,26 @@ describe("WatchlistRow", () => {
     expect(screen.getByText(WATCHLIST.description!).props.numberOfLines).toBe(
       2,
     );
+  });
+});
+
+describe("WatchlistSheet", () => {
+  // Two lines of description make each row taller, and the sheet stops at a
+  // fixed height: a list that outgrows it has to scroll to its last rows.
+  test("scrolls its rows when they outgrow the sheet", async () => {
+    mockWatchlists = [WATCHLIST];
+    const ref = createRef<WatchlistSheetRef>();
+    await render(<WatchlistSheet ref={ref} />);
+
+    await act(async () => {
+      ref.current?.open({ Id: "movie", Type: "Movie" });
+    });
+
+    type HostNode = { type: unknown; parent: HostNode | null };
+    let node: HostNode | null = screen.getByText(
+      WATCHLIST.name,
+    ) as unknown as HostNode;
+    while (node && node.type !== "RCTScrollView") node = node.parent;
+    expect(node).not.toBeNull();
   });
 });
