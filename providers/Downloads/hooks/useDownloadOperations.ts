@@ -191,14 +191,20 @@ export function useDownloadOperations({
             logAndCaptureError("Handling download completion failed", error, {
               itemType: item.Type,
             });
-            removePendingDownload(itemId);
+            // The card first: the storage that just failed can fail again.
             removeProcess(itemId);
+            removePendingDownload(itemId);
           }
         } finally {
           giveExtrasSlot();
           extrasInFlight.delete(key);
         }
-      })();
+      })().catch((error) => {
+        // Nothing above is meant to throw this far; a stray rejection is still reported.
+        logAndCaptureError("Fetching the extras of a download failed", error, {
+          itemType: item.Type,
+        });
+      });
     },
     [api, saveImage, saveSeriesPrimaryImage, removeProcess],
   );
