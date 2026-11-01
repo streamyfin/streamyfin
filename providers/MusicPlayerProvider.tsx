@@ -377,7 +377,7 @@ const applyShuffle = (
     ...prev,
     shuffleEnabled: false,
     queue: prev.originalQueue,
-    queueIndex: newIndex >= 0 ? newIndex : 0,
+    queueIndex: Math.max(newIndex, 0),
   };
 };
 
@@ -391,7 +391,7 @@ const filterQueueForOffline = (
   const newStartIndex = downloadedOnly.findIndex((t) => t.Id === startItem?.Id);
   return {
     queue: downloadedOnly,
-    startIndex: newStartIndex >= 0 ? newStartIndex : 0,
+    startIndex: Math.max(newStartIndex, 0),
   };
 };
 
@@ -1129,7 +1129,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
 
       const newQueue = queue || [track];
       const queueIndex = newQueue.findIndex((t) => t.Id === track.Id);
-      loadAndPlayQueue(newQueue, queueIndex >= 0 ? queueIndex : 0);
+      loadAndPlayQueue(newQueue, Math.max(queueIndex, 0));
     },
     [
       state.currentTrack,
@@ -1645,7 +1645,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       setState((prev) => ({
         ...prev,
         queue: newQueue,
-        queueIndex: newIndex >= 0 ? newIndex : 0,
+        queueIndex: Math.max(newIndex, 0),
         currentTrack: newIndex >= 0 ? newQueue[newIndex] : prev.currentTrack,
       }));
     },

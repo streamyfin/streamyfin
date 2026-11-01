@@ -1,6 +1,5 @@
 import axios, { type AxiosError, type AxiosInstance } from "axios";
-import { atom, useAtomValue } from "jotai";
-import { useAtom } from "jotai/index";
+import { atom, useAtom, useAtomValue } from "jotai";
 import inRange from "lodash/inRange";
 import { Image } from "react-native";
 import {

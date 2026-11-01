@@ -65,7 +65,7 @@ jobs:
             # ubuntu-26.04 defaults to JDK 25, which breaks the RN/AGP native build
             # (Kotlin falls back to JVM_23, the foojay toolchain + CMake configure
             # fail). Pin Temurin 17 for a deterministic Android build.
-            uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+            uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
             with:
               distribution: temurin
               java-version: "17"
@@ -116,7 +116,7 @@ jobs:
         run: echo "DATE_TAG=$(date +%d-%m-%Y_%H-%M-%S)" >> $GITHUB_ENV
 
       - name: 📤 Upload APK artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: streamyfin-android-phone-apk-${{ env.DATE_TAG }}
           path: |
@@ -165,7 +165,7 @@ jobs:
             # ubuntu-26.04 defaults to JDK 25, which breaks the RN/AGP native build
             # (Kotlin falls back to JVM_23, the foojay toolchain + CMake configure
             # fail). Pin Temurin 17 for a deterministic Android build.
-            uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+            uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
             with:
               distribution: temurin
               java-version: "17"
@@ -215,7 +215,7 @@ jobs:
         run: echo "DATE_TAG=$(date +%d-%m-%Y_%H-%M-%S)" >> $GITHUB_ENV
 
       - name: 📤 Upload APK artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: streamyfin-android-tv-apk-${{ env.DATE_TAG }}
           path: |
@@ -249,7 +249,7 @@ jobs:
               bun-version: "1.4.4"
 
           - name: 🏗️ Setup EAS
-            uses: expo/expo-github-action@eab7a230208c952974db8c3245cfd78402c7b385 # main
+            uses: expo/expo-github-action@9da89d3617bb88139671bad31b09c65714c2ee06 # main
             with:
               eas-version: latest
               token: ${{ secrets.EXPO_TOKEN }}
@@ -281,7 +281,7 @@ jobs:
         run: echo "DATE_TAG=$(date +%d-%m-%Y_%H-%M-%S)" >> $GITHUB_ENV
 
       - name: 📤 Upload IPA artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: streamyfin-ios-phone-ipa-${{ env.DATE_TAG }}
           path: build-*.ipa
@@ -336,7 +336,7 @@ jobs:
         run: echo "DATE_TAG=$(date +%d-%m-%Y_%H-%M-%S)" >> $GITHUB_ENV
 
       - name: 📤 Upload IPA artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: streamyfin-ios-phone-unsigned-ipa-${{ env.DATE_TAG }}
           path: build/*.ipa
@@ -373,7 +373,7 @@ jobs:
               bun-version: "1.4.4"
 
           - name: 🏗️ Setup EAS
-            uses: expo/expo-github-action@eab7a230208c952974db8c3245cfd78402c7b385 # main
+            uses: expo/expo-github-action@9da89d3617bb88139671bad31b09c65714c2ee06 # main
             with:
               eas-version: latest
               token: ${{ secrets.EXPO_TOKEN }}
@@ -403,7 +403,7 @@ jobs:
         run: echo "DATE_TAG=$(date +%d-%m-%Y_%H-%M-%S)" >> $GITHUB_ENV
 
       - name: 📤 Upload IPA artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: streamyfin-ios-tv-ipa-${{ env.DATE_TAG }}
           path: build-*.ipa
@@ -458,7 +458,7 @@ jobs:
         run: echo "DATE_TAG=$(date +%d-%m-%Y_%H-%M-%S)" >> $GITHUB_ENV
 
       - name: 📤 Upload IPA artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: streamyfin-ios-tv-unsigned-ipa-${{ env.DATE_TAG }}
           path: build/*.ipa
