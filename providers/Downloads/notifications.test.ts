@@ -3,11 +3,16 @@ import type { TFunction } from "i18next";
 
 const mockSchedule = jest.fn();
 const mockGetPermissions = jest.fn();
+const mockGetChannel = jest.fn();
 jest.mock("expo-notifications", () => ({
+  AndroidImportance: { NONE: 2, DEFAULT: 5 },
   getPermissionsAsync: () => mockGetPermissions(),
+  getNotificationChannelAsync: (id: string) => mockGetChannel(id),
   scheduleNotificationAsync: (...args: unknown[]) => mockSchedule(...args),
 }));
 
+import { Platform } from "react-native";
+import { DOWNLOAD_NOTIFICATION_CHANNEL } from "@/constants/Notifications";
 import {
   getNotificationContent,
   sendDownloadNotification,
@@ -69,8 +74,11 @@ describe("sendDownloadNotification", () => {
   beforeEach(() => {
     mockSchedule.mockReset();
     mockGetPermissions.mockReset().mockResolvedValue({ status: "granted" });
+    mockGetChannel.mockReset();
     jest.spyOn(console, "error").mockImplementation(() => {});
   });
+  // The Android cases replace Platform.OS, which nothing else puts back.
+  afterEach(() => jest.restoreAllMocks());
 
   it("says the notification was scheduled", async () => {
     mockSchedule.mockResolvedValue("id");
@@ -88,6 +96,30 @@ describe("sendDownloadNotification", () => {
       );
     }
     expect(mockSchedule).not.toHaveBeenCalled();
+  });
+
+  // Android lets the downloads channel be turned off on its own, the app's notifications left
+  // on: what is posted to it is never shown.
+  it("says the notification will not be shown when its Android channel is off", async () => {
+    jest.replaceProperty(Platform, "OS", "android");
+    mockGetChannel.mockResolvedValue({ importance: 2 });
+
+    await expect(sendDownloadNotification("title", "body")).resolves.toBe(
+      false,
+    );
+    expect(mockGetChannel).toHaveBeenCalledWith(DOWNLOAD_NOTIFICATION_CHANNEL);
+    expect(mockSchedule).not.toHaveBeenCalled();
+  });
+
+  it("posts to the Android channel when it is on", async () => {
+    jest.replaceProperty(Platform, "OS", "android");
+    mockGetChannel.mockResolvedValue({ importance: 5 });
+    mockSchedule.mockResolvedValue("id");
+
+    await expect(sendDownloadNotification("title", "body")).resolves.toBe(true);
+    expect(mockSchedule.mock.calls[0][0].content.channelId).toBe(
+      DOWNLOAD_NOTIFICATION_CHANNEL,
+    );
   });
 
   it("says the notification was not scheduled when the system refuses it", async () => {

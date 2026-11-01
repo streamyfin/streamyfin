@@ -262,6 +262,10 @@ export function useDownloadOperations({
           return;
         }
 
+        // Native can report a failure before this answer comes back: the error handler then
+        // removed the record and put the reason under the toast id this one would take over.
+        if (!getPendingDownload(processId)) return;
+
         if (taskId !== -1) {
           updatePendingDownload(processId, {
             status: "downloading",

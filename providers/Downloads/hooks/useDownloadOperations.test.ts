@@ -56,7 +56,11 @@ jest.mock("sonner-native", () => ({
 }));
 
 import { toast } from "sonner-native";
-import { getPendingDownload, savePendingDownload } from "../pendingDownloads";
+import {
+  getPendingDownload,
+  removePendingDownload,
+  savePendingDownload,
+} from "../pendingDownloads";
 import { getDownloadToastId } from "../utils";
 import { useDownloadOperations } from "./useDownloadOperations";
 
@@ -427,6 +431,23 @@ describe("startBackgroundDownload", () => {
 
   // A download that fails right away put its failure under the toast that said it started, and
   // the two overlapped: the failure takes that toast's place, by its id.
+  // Native can report a failure before enqueueDownload's answer comes back: the error handler
+  // then removed the record and put the reason under the item's toast id, which a "started"
+  // toast would take over.
+  it("does not say a download started once it has failed", async () => {
+    mockDownloader.enqueueDownload.mockImplementationOnce(async () => {
+      removePendingDownload("item-1");
+      return 7;
+    });
+    const { operations } = await renderOperations();
+
+    await act(() =>
+      operations.startBackgroundDownload(url, item, mediaSource, maxBitrate),
+    );
+
+    expect(toast.success).not.toHaveBeenCalled();
+  });
+
   it("names the toast that says the download started after the item", async () => {
     const { operations } = await renderOperations();
 

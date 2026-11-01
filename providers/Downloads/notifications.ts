@@ -2,6 +2,7 @@ import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import type * as NotificationsType from "expo-notifications";
 import type { TFunction } from "i18next";
 import { Platform } from "react-native";
+import { DOWNLOAD_NOTIFICATION_CHANNEL } from "@/constants/Notifications";
 import type { DownloadFailureReason } from "./downloadErrors";
 
 // Conditionally import expo-notifications only on non-TV platforms
@@ -76,13 +77,27 @@ export async function sendDownloadNotification(
     // Android drops a notification the user has not allowed without an error: ask first.
     const { status } = await Notifications.getPermissionsAsync();
     if (status !== "granted") return false;
+    // Android lets the user turn the downloads channel off on its own.
+    if (Platform.OS === "android") {
+      const channel = await Notifications.getNotificationChannelAsync(
+        DOWNLOAD_NOTIFICATION_CHANNEL,
+      );
+      if (
+        !channel ||
+        channel.importance === Notifications.AndroidImportance.NONE
+      ) {
+        return false;
+      }
+    }
 
     await Notifications.scheduleNotificationAsync({
       content: {
         title,
         body,
         data: data || {}, // iOS requires data to be an object, not undefined
-        ...(Platform.OS === "android" && { channelId: "downloads" }),
+        ...(Platform.OS === "android" && {
+          channelId: DOWNLOAD_NOTIFICATION_CHANNEL,
+        }),
       },
       trigger: null,
     });
