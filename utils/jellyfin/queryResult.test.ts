@@ -1,4 +1,4 @@
-import { getTvShowsApi } from "@jellyfin/sdk/lib/utils/api";
+import { getShowApi } from "@jellyfin/sdk/lib/utils/api";
 import { AxiosError } from "axios";
 import { makeApi } from "@/test-utils/jellyfinApi";
 import { describeHttpError } from "@/utils/errors";
@@ -10,7 +10,7 @@ const EPISODE = { Id: "episode-1", Type: "Episode" };
 const answered = (body: unknown, headers: Record<string, string> = {}) => {
   const api = makeApi();
   api.mock.onGet(/\/Shows\/[^/]+\/Episodes/).reply(200, body, headers);
-  return getTvShowsApi(api).getEpisodes({
+  return getShowApi(api).getEpisodes({
     seriesId: "series-1",
     seasonId: "season-1",
     userId: "user-1",

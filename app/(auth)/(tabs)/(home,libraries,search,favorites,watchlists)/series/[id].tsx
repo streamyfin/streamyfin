@@ -1,4 +1,4 @@
-import { getTvShowsApi } from "@jellyfin/sdk/lib/utils/api";
+import { getShowApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import { useLocalSearchParams, useNavigation } from "expo-router";
 import { useAtom } from "jotai";
@@ -142,7 +142,7 @@ const page: React.FC = () => {
       }
       if (!api || !user?.Id) return [];
 
-      const res = await getTvShowsApi(api).getEpisodes({
+      const res = await getShowApi(api).getEpisodes({
         seriesId: seriesId,
         userId: user.Id,
         enableUserData: true,
