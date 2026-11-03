@@ -80,8 +80,10 @@ per server, profile and target, reused by the next command to that receiver, and
 `stop` or by a later run that finds the receiver idle. The bitrate cap of the session is kept
 with it: `play-now` sets it, uncapped without `--max-bitrate`, and every later command states
 it again, since the receiver applies the cap of each message to the loads after it. A later
-command given `--max-bitrate` changes it for the rest of the session. Only `play-now` starts
-the receiver; the other actions leave whatever the TV shows alone.
+command given `--max-bitrate` changes it for the rest of the session. A session whose cap is
+unknown, one the bench did not start or one kept with no cap on record, needs `--max-bitrate` on
+every command but `stop` and `status`. Only `play-now` starts the receiver; the other actions
+leave whatever the TV shows alone.
 
 ## Where results go
 
