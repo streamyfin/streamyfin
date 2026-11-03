@@ -141,7 +141,12 @@ const ListItemContent = ({
             </Text>
           </View>
         )}
-        {children && <View className='ml-auto pl-3'>{children}</View>}
+        {/* Capped so a control that sizes to its content, a text field
+            holding a URL, cannot squeeze the label, which wraps, to a column
+            of single letters. */}
+        {children && (
+          <View className='ml-auto pl-3 max-w-[70%]'>{children}</View>
+        )}
         {showArrow && (
           <View className={children ? "ml-1" : "ml-auto"}>
             <Ionicons name='chevron-forward' size={18} color='#5A5960' />
