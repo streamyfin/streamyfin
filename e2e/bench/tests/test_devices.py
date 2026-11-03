@@ -5,7 +5,19 @@ from unittest import mock
 
 from bench.config import CastTarget
 from bench.config import BenchConfigError
-from bench.devices import Device, adb_path, chromecasts, configured_targets, inventory, parse_adb_devices, parse_avds, parse_devicectl, parse_simctl
+from bench.devices import (
+    Device,
+    DiscoveryFailed,
+    adb_path,
+    chromecasts,
+    configured_targets,
+    inventory,
+    ios_devices,
+    parse_adb_devices,
+    parse_avds,
+    parse_devicectl,
+    parse_simctl,
+)
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
 
@@ -131,6 +143,16 @@ class DiscoveryFailureTests(unittest.TestCase):
         self.assertIn("adb devices -l", errors)
         self.assertIn("failed to start daemon", errors)
         self.assertIn("xcrun simctl list devices --json", errors)
+
+    def test_a_devicectl_that_fails_is_reported(self):
+        # An iPhone used to vanish from the list without a word when devicectl failed.
+        import subprocess
+
+        failed = subprocess.CompletedProcess(["xcrun"], 1, stdout="", stderr="devicectl: unable to list devices\n")
+        with mock.patch("bench.devices.subprocess.run", return_value=failed), self.assertRaises(DiscoveryFailed) as caught:
+            ios_devices()
+        self.assertIn("devicectl", str(caught.exception))
+        self.assertIn("unable to list devices", str(caught.exception))
 
     def test_a_missing_tool_is_reported(self):
         errors = self.inventory_errors(side_effect=FileNotFoundError(2, "No such file or directory"))
