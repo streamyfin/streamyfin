@@ -1,10 +1,13 @@
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
+import { Colors } from "@/constants/Colors";
 import {
+  CastState,
   showCastDialog,
   showExpandedControls,
   startCastDiscovery,
   useCastMediaStatus,
+  useCastState,
 } from "@/modules/mpv-player/src/cast";
 import { logAndCaptureError } from "@/utils/log";
 import { HeaderButton, type HeaderButtonProps } from "./common/HeaderButton";
@@ -19,6 +22,7 @@ type Props = Omit<HeaderButtonProps, "onPress" | "children">;
 export function Chromecast(props: Props) {
   const { t } = useTranslation();
   const mediaStatus = useCastMediaStatus();
+  const connected = useCastState() === CastState.CONNECTED;
 
   useEffect(() => {
     // Discovery is asked of the module directly; Android no longer needs a mounted
@@ -33,13 +37,20 @@ export function Chromecast(props: Props) {
     <HeaderButton
       accessibilityRole='button'
       accessibilityLabel={t("accessibility.cast_button")}
+      // The name stays the same: the bench's flows tap the button by it.
+      accessibilityValue={
+        connected ? { text: t("accessibility.cast_connected") } : undefined
+      }
       onPress={() => {
         if (mediaStatus?.currentItemId) showExpandedControls();
         else showCastDialog();
       }}
       {...props}
     >
-      <HeaderIcon name='cast' />
+      <HeaderIcon
+        name={connected ? "castConnected" : "cast"}
+        tintColor={connected ? Colors.primary : undefined}
+      />
     </HeaderButton>
   );
 }

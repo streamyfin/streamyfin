@@ -7,8 +7,9 @@ import { useLocalSearchParams, useNavigation } from "expo-router";
 import { useAtom } from "jotai";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Dimensions, TouchableOpacity, View } from "react-native";
+import { Dimensions, Platform, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { HeaderButtonGroup } from "@/components/common/HeaderButton";
 import { HorizontalScroll } from "@/components/common/HorizontalScroll";
 import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
@@ -24,6 +25,9 @@ import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const ARTWORK_SIZE = SCREEN_WIDTH * 0.4;
+
+// Cast is off on TV.
+const Chromecast = Platform.isTV ? null : require("@/components/Chromecast");
 
 export default function ArtistDetailScreen() {
   const { artistId } = useLocalSearchParams<{ artistId: string }>();
@@ -104,6 +108,13 @@ export default function ArtistDetailScreen() {
       headerTransparent: true,
       headerStyle: { backgroundColor: "transparent" },
       headerShadowVisible: false,
+      headerRight: Chromecast
+        ? () => (
+            <HeaderButtonGroup>
+              <Chromecast.Chromecast />
+            </HeaderButtonGroup>
+          )
+        : undefined,
     });
   }, [artist?.Name, navigation]);
 
