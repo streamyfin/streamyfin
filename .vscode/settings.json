@@ -19,7 +19,9 @@
   "[json]": {
     "editor.defaultFormatter": "biomejs.biome"
   },
-  "typescript.tsdk": "node_modules/typescript/lib",
+  // node_modules/typescript is @typescript/typescript6, which has no tsserver;
+  // the TypeScript 6 it installs is @typescript/old
+  "typescript.tsdk": "node_modules/@typescript/old/lib",
   "typescript.enablePromptUseWorkspaceTsdk": true,
   "editor.formatOnSaveMode": "file"
 }
