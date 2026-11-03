@@ -1111,16 +1111,28 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         loadingTrackId: targetItem?.Id ?? null,
       }));
 
+      // A bail clears only the spinner this call put up: the start that
+      // superseded it shows its own track's.
+      const bailIfStale = () => {
+        if (!isStale()) return false;
+        setState((prev) =>
+          prev.loadingTrackId === (targetItem?.Id ?? null)
+            ? { ...prev, isLoading: false, loadingTrackId: null }
+            : prev,
+        );
+        return true;
+      };
+
       try {
         // Wait for the setup before preparing, not after: the starts waiting
         // on it resume together, and the sequence check drops all but the
         // last of them.
         await ensurePlayerReady();
-        if (isStale()) return;
+        if (bailIfStale()) return;
 
         // PHASE 1: Prepare and play the target track immediately
         const targetTrackResult = await prepareTrack(targetItem, preferLocal);
-        if (isStale()) return;
+        if (bailIfStale()) return;
 
         if (!targetTrackResult) {
           setState((prev) => ({
@@ -1139,7 +1151,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         setMusicNormalizationTrack(targetTrackResult.track);
         await TrackPlayer.add(targetTrackResult.track);
         await TrackPlayer.play();
-        if (isStale()) {
+        if (bailIfStale()) {
           await TrackPlayer.reset().catch(() => {});
           return;
         }
@@ -1885,11 +1897,9 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       // Finding it and skipping to it is one edit: the background load must
       // not put a track in front of it in between.
       const jumped = await editNativeQueue(async () => {
-        const nativeIndex = nativeIndexOf(
-          await TrackPlayer.getQueue(),
-          targetId,
-          index,
-        );
+        const nativeQueue = await TrackPlayer.getQueue();
+        if (isStale()) return false;
+        const nativeIndex = nativeIndexOf(nativeQueue, targetId, index);
         if (nativeIndex >= 0) await TrackPlayer.skip(nativeIndex);
         return nativeIndex >= 0;
       });
