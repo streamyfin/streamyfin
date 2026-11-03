@@ -14,6 +14,7 @@ import sys
 import tempfile
 from dataclasses import asdict, dataclass
 from pathlib import Path
+from typing import Callable
 
 if __name__ == "__main__":
     # Run as `python3 e2e/bench/devices.py`: put `e2e/` on the path so `bench.*` imports work.
@@ -45,8 +46,20 @@ def emulator_path() -> Path:
     return adb_path().parents[1] / "emulator" / "emulator"
 
 
+class DiscoveryFailed(Exception):
+    """A device tool that could not list its devices, named with its error: listing none instead
+    read as nothing attached."""
+
+
 def _run(command: list[str]) -> str:
-    result = subprocess.run(command, capture_output=True, text=True, timeout=COMMAND_TIMEOUT, check=False)
+    shown = " ".join([Path(command[0]).name, *command[1:]])
+    try:
+        result = subprocess.run(command, capture_output=True, text=True, timeout=COMMAND_TIMEOUT, check=False)
+    except (OSError, subprocess.SubprocessError) as error:
+        raise DiscoveryFailed(f"{shown}: {error}") from error
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout).strip()
+        raise DiscoveryFailed(f"{shown}: exit {result.returncode}" + (f", {detail.splitlines()[0]}" if detail else ""))
     return result.stdout
 
 
@@ -162,13 +175,22 @@ def configured_targets(load=None) -> list[CastTarget]:
         return []
 
 
-def inventory(targets: list[CastTarget], cast_timeout: float = 5.0) -> list[Device]:
+def collect(*sources: Callable[[], list[Device]]) -> tuple[list[Device], list[str]]:
+    """What the sources list, and the error of each one that could not list anything."""
     found: list[Device] = []
-    for collect in (android_devices, lambda: ios_simulators(booted_only=False), ios_devices):
+    problems: list[str] = []
+    for source in sources:
         try:
-            found.extend(collect())
-        except (OSError, subprocess.SubprocessError, ValueError):
-            continue
+            found.extend(source())
+        except (DiscoveryFailed, ValueError) as error:
+            problems.append(str(error))
+    return found, problems
+
+
+def inventory(targets: list[CastTarget], cast_timeout: float = 5.0) -> list[Device]:
+    found, problems = collect(android_devices, lambda: ios_simulators(booted_only=False), ios_devices)
+    for problem in problems:
+        print(f"devices: {problem}; its devices are not listed", file=sys.stderr)
     found.extend(chromecasts(targets, timeout=cast_timeout))
     return found
 

@@ -9,16 +9,23 @@ parts (message building, names, bus parsing, waiting) work without it.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import math
 import os
 import re
 import sys
+import tempfile
 import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
+
+try:
+    import fcntl
+except ImportError:  # Windows has no flock: there the token store goes unlocked.
+    fcntl = None
 
 RECEIVER_APP_ID = "F007D354"
 RECEIVER_NAMESPACE = "urn:x-cast:com.connectsdk"
@@ -249,13 +256,12 @@ class BusCollector:
 ACTIVE_STATES = frozenset({"PLAYING", "BUFFERING", "PAUSED"})
 
 
-def should_sign_out(action: str, final_state: str | None) -> bool:
+def should_sign_out(final_state: str | None) -> bool:
     """Whether the token a run handed the receiver can be revoked. The receiver keeps the token of
     the last message for its own requests, and a sign-out while it still plays would break its
-    progress reports and its transcoded stream. Only a stop, or a receiver seen idle, lets it go:
-    a state the run could not read after sending, cut short by Ctrl-C say, keeps the token."""
-    if action == "stop":
-        return True
+    progress reports and its transcoded stream. Only a receiver seen idle lets it go, after a stop
+    too, which may have been lost or ignored: a state the run could not read after sending, cut
+    short by Ctrl-C say, keeps the token for the next run to revoke."""
     return final_state is not None and final_state not in ACTIVE_STATES
 
 
@@ -273,6 +279,17 @@ class ReceiverTokens:
 
     def __init__(self, path: Path | None = None):
         self.path = Path(path or TOKENS_PATH)
+        # The file is replaced on every write, so the lock lives beside it, ignored by git as well.
+        self.lock_path = self.path.with_suffix(".lock")
+
+    @contextlib.contextmanager
+    def _locked(self):
+        """Held from a read to the write after it: two runs ending together started from the same
+        file, and the later write dropped the token of the other."""
+        with open(self.lock_path, "a") as lock:
+            if fcntl is not None:
+                fcntl.flock(lock, fcntl.LOCK_EX)
+            yield
 
     def _read(self) -> dict:
         try:
@@ -281,10 +298,17 @@ class ReceiverTokens:
             return {}
 
     def _write(self, data: dict) -> None:
-        # Owner only from the first byte: the file holds live tokens.
-        descriptor = os.open(self.path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-        with os.fdopen(descriptor, "w") as file:
-            file.write(json.dumps(data, indent=2) + "\n")
+        # Written beside the file, owner only from the first byte since it holds live tokens, then
+        # moved over it: an interrupted write leaves the previous tokens, never a truncated file.
+        descriptor, temporary = tempfile.mkstemp(dir=self.path.parent, prefix=f"{self.path.stem}.", suffix=".tmp")
+        try:
+            with os.fdopen(descriptor, "w") as file:
+                file.write(json.dumps(data, indent=2) + "\n")
+            os.replace(temporary, self.path)
+        except BaseException:
+            with contextlib.suppress(FileNotFoundError):
+                os.unlink(temporary)
+            raise
 
     def get(self, server: str, profile: str, target: str):
         from bench.jellyfin import AuthSession
@@ -297,22 +321,24 @@ class ReceiverTokens:
         return entry.get("maxBitrate") if entry else None
 
     def put(self, server: str, profile: str, target: str, session, max_bitrate: int | None = None) -> None:
-        data = self._read()
-        entry = {"token": session.token, "userId": session.user_id}
-        if max_bitrate:
-            entry["maxBitrate"] = max_bitrate
-        data.setdefault(server, {}).setdefault(profile, {})[target] = entry
-        self._write(data)
+        with self._locked():
+            data = self._read()
+            entry = {"token": session.token, "userId": session.user_id}
+            if max_bitrate:
+                entry["maxBitrate"] = max_bitrate
+            data.setdefault(server, {}).setdefault(profile, {})[target] = entry
+            self._write(data)
 
     def drop(self, server: str, profile: str, target: str) -> None:
-        data = self._read()
-        if data.get(server, {}).get(profile, {}).pop(target, None) is None:
-            return
-        if not data[server][profile]:
-            del data[server][profile]
-        if not data[server]:
-            del data[server]
-        self._write(data)
+        with self._locked():
+            data = self._read()
+            if data.get(server, {}).get(profile, {}).pop(target, None) is None:
+                return
+            if not data[server][profile]:
+                del data[server][profile]
+            if not data[server]:
+                del data[server]
+            self._write(data)
 
 
 def play_session_of(message: BusMessage) -> str | None:
@@ -498,10 +524,12 @@ def main(argv: list[str] | None = None) -> int:
 
     def revoke_held(reason: str) -> None:
         nonlocal held
+        # A token whose sign-out failed is still valid on the server: it stays recorded, and in use,
+        # since forgotten here it was overwritten in the store and stayed alive for good.
         if revoke(held, reason):
             tokens.drop(*key)
             note("token revoked", reason=reason)
-        held = None
+            held = None
 
     receiver_name = receiver_name_for({"friendlyName": target.name, "deviceId": None})
     exit_code = 0
@@ -593,7 +621,7 @@ def main(argv: list[str] | None = None) -> int:
                 # Never handed to the receiver, so nothing else uses it.
                 revoke(own, "not handed to the receiver")
             if handed is not None:
-                if not should_sign_out(args.action, final_state):
+                if not should_sign_out(final_state):
                     tokens.put(*key, handed, max_bitrate)
                     state = "state unknown after sending" if final_state is None else f"still {final_state}"
                     note("token kept", reason=f"receiver {state}; the next command to {target.name} reuses it, stop revokes it")

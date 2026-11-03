@@ -116,14 +116,24 @@ class CheckTests(unittest.TestCase):
         self.assertIn("paused", check([view(id="a"), view(id="b", is_paused=False)], expect_active=2, max_skew_seconds=2)[0])
 
     def test_check_members_from_groups(self):
-        groups = [{"GroupId": "g", "Participants": ["a"]}]
-        self.assertIn("members 1", check([], expect_active=0, expect_members=2, groups=groups)[0])
-        self.assertEqual(check([], expect_active=0, expect_members=1, groups=groups), [])
+        groups = [{"GroupId": "g", "Participants": ["host"]}]
+        self.assertIn("members 1", check([view(user="host")], expect_active=0, expect_members=2, groups=groups)[0])
+        self.assertEqual(check([view(user="host")], expect_active=0, expect_members=1, groups=groups), [])
+
+    def test_members_are_counted_in_the_group_of_the_observed_sessions(self):
+        # Sessions carry no group id, so the group is the one their users take part in: a bigger
+        # group of other users on a shared server used to pass the bench's joined step.
+        groups = [{"GroupId": "other", "Participants": ["alice", "bob"]}, {"GroupId": "bench", "Participants": ["syncplay-host"]}]
+        idle = [view(user="syncplay-host", item_id=None, position_seconds=None, is_paused=None)]
+        self.assertEqual(check(idle, expect_active=0, expect_members=2, groups=groups), ["Group members 1, expected 2"])
 
     def test_joined_group_with_nothing_playing_passes(self):
         # The "joined" step of the SyncPlay README: both members are in the group and nothing plays
         # yet. The minimum of two active sessions failed it, and a plain snapshot as well.
-        idle = [view(id="a", item_id=None, position_seconds=None, is_paused=None), view(id="b", item_id=None, position_seconds=None, is_paused=None)]
+        idle = [
+            view(id="a", user="host", item_id=None, position_seconds=None, is_paused=None),
+            view(id="b", user="guest", item_id=None, position_seconds=None, is_paused=None),
+        ]
         groups = [{"GroupId": "g", "Participants": ["host", "guest"]}]
         self.assertEqual(check(idle, expect_active=2, expect_members=2, groups=groups), [])
         self.assertEqual(check(idle, expect_active=2), [])
@@ -147,7 +157,7 @@ class CheckOptionsTests(unittest.TestCase):
             options,
             {"expect_item": None, "expect_paused": True, "expect_play_method": None, "expect_active": 2, "max_skew_seconds": 2.0, "expect_members": 2},
         )
-        self.assertEqual(check([view(id="a"), view(id="b")], **options, groups=[{"Participants": ["a", "b"]}]), [])
+        self.assertEqual(check([view(id="a", user="a"), view(id="b", user="b")], **options, groups=[{"Participants": ["a", "b"]}]), [])
 
 
 def ui_session(device: str, item: dict | None = None, user: str = "syncplay-host") -> dict:
@@ -163,7 +173,10 @@ class ObserveTests(unittest.TestCase):
 
     def test_joined_step_passes_with_two_members_and_nothing_playing(self):
         observe = self.load_observe()
-        server = FakeServer(sessions=[ui_session("host"), ui_session("guest")], groups=[{"GroupId": "g", "Participants": ["host", "guest"]}])
+        server = FakeServer(
+            sessions=[ui_session("host"), ui_session("guest", user="syncplay-guest")],
+            groups=[{"GroupId": "g", "Participants": ["syncplay-host", "syncplay-guest"]}],
+        )
         token = server.client("http://127.0.0.1:18096").authenticate(None).token
         with tempfile.TemporaryDirectory() as tmp:
             state = Path(tmp) / ".state"
@@ -208,6 +221,23 @@ class MainTests(unittest.TestCase):
             self.assertNotIn(private, markdown)
         self.assertIn("Salon", markdown)
         self.assertIn('"otherSessions": 1', markdown)
+
+    def test_without_a_device_only_the_bench_sessions_are_judged(self):
+        # Another user of a shared server watches something else: the expectations, the skew and
+        # the failures that the published copy carries are the bench sessions' alone.
+        sessions = [
+            raw_session(Id="s1", UserName="test", DeviceName="Salon"),
+            raw_session(Id="s2", UserName="alice", DeviceName="Alice phone", NowPlayingItem={"Id": "item-z", "Name": "Holiday film"}),
+        ]
+        with bench_run(FakeServer(sessions=sessions)) as run:
+            from bench.sessions import main
+
+            code = main(["--server", "beta13", "--expect-item", "item-a"])
+            markdown = run.report_text()
+        self.assertEqual(code, 0)
+        self.assertIn('"failures": []', markdown)
+        self.assertIn('"skewSeconds": null', markdown)
+        self.assertNotIn("item-z", markdown)
 
     def test_named_devices_are_all_observed(self):
         sessions = [raw_session(Id="s1", DeviceName="Salon"), raw_session(Id="s2", DeviceName="Cuisine"), raw_session(Id="s3", DeviceName="Bureau")]

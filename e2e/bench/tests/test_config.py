@@ -1,5 +1,6 @@
 import json
 import os
+import shutil
 import tempfile
 import unittest
 from pathlib import Path
@@ -93,9 +94,69 @@ class LoadConfigTests(unittest.TestCase):
         self.assertIn("beta.example.test", config.redact)
 
     def test_environment_variable_selects_the_file(self):
-        with mock.patch.dict(os.environ, {"E2E_BENCH_CONFIG": str(EXAMPLE)}):
-            config = load_config()
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "bench.json"
+            shutil.copy(EXAMPLE, path)
+            with mock.patch.dict(os.environ, {"E2E_BENCH_CONFIG": str(path)}):
+                config = load_config()
         self.assertIn("beta13", config.servers)
+
+    def test_server_url_must_be_http_or_https_with_a_host(self):
+        # A bad address used to pass, then failed in urllib with no field to name.
+        for url in ("", "beta.example.test", "ftp://beta.example.test", "https://"):
+            data = json.loads(EXAMPLE.read_text())
+            data["servers"]["beta13"]["url"] = url
+            with self.subTest(url=url), tempfile.TemporaryDirectory() as tmp:
+                path = Path(tmp) / "config.json"
+                path.write_text(json.dumps(data))
+                with self.assertRaises(BenchConfigError) as caught:
+                    load_config(path)
+                self.assertIn("servers.beta13.url", str(caught.exception))
+
+    def test_cast_target_names_are_unique(self):
+        # A target is selected by name: a second one under the same name could never be reached.
+        data = json.loads(EXAMPLE.read_text())
+        first = data["targets"]["chromecasts"][0]
+        data["targets"]["chromecasts"].append({**first, "host": "192.0.2.99"})
+        index = len(data["targets"]["chromecasts"]) - 1
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "config.json"
+            path.write_text(json.dumps(data))
+            with self.assertRaises(BenchConfigError) as caught:
+                load_config(path)
+        self.assertIn(f"targets.chromecasts[{index}].name", str(caught.exception))
+
+
+class CheckoutTests(unittest.TestCase):
+    """E2E_BENCH_CONFIG may point anywhere: inside the checkout, a file git does not ignore would
+    go into the next `git add` with its passwords, so the bench refuses it."""
+
+    def setUp(self):
+        if shutil.which("git") is None or not (BENCH.parents[1] / ".git").exists():
+            self.skipTest("not a git checkout")
+
+    def load_from(self, path: Path):
+        with mock.patch.dict(os.environ, {"E2E_BENCH_CONFIG": str(path)}):
+            return load_config()
+
+    def scratch_copy(self, suffix: str) -> Path:
+        handle, name = tempfile.mkstemp(dir=BENCH, prefix="bench-config-test-", suffix=suffix)
+        os.close(handle)
+        path = Path(name)
+        self.addCleanup(path.unlink, missing_ok=True)
+        shutil.copy(EXAMPLE, path)
+        return path
+
+    def test_a_file_git_would_commit_is_refused(self):
+        for path in (self.scratch_copy(".json"), EXAMPLE):
+            with self.subTest(path=path.name):
+                with self.assertRaises(BenchConfigError) as caught:
+                    self.load_from(path)
+                self.assertIn("E2E_BENCH_CONFIG", str(caught.exception))
+                self.assertIn(".local.json", str(caught.exception))
+
+    def test_an_ignored_file_of_the_checkout_loads(self):
+        self.assertIn("beta13", self.load_from(self.scratch_copy(".local.json")).servers)
 
 
 if __name__ == "__main__":
