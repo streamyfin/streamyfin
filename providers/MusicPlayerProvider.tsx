@@ -1151,10 +1151,13 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       isTranscoding: false,
     }));
   }, []);
+  // The receiver plays on through a drop of the phone's own network: only the
+  // end of the Cast session hands the queue back.
   const remote = useMusicCastRemote({
     api,
     userId: user?.Id,
-    castConnected,
+    ownerKey: sessionKey,
+    connected: castState === CastState.CONNECTED,
     onHandBack: handBackFromReceiver,
   });
   const { begin: beginOnReceiver, end: endOnReceiver } = remote;
@@ -1163,12 +1166,14 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   // stops so that one place plays. The player shows the queue from the send.
   const castOnReceiver = useCallback(
     async (queue: BaseItemDto[], startIndex: number) => {
+      // Read before the pause: the account can switch while the phone stops.
+      const generation = sessionGenerationRef.current;
+      const isStale = () => generation !== sessionGenerationRef.current;
       if (TrackPlayer && state.isPlaying) {
         await TrackPlayer.pause();
         setState((prev) => ({ ...prev, isPlaying: false }));
       }
-      const generation = sessionGenerationRef.current;
-      const isStale = () => generation !== sessionGenerationRef.current;
+      if (isStale()) return;
       const sent = beginOnReceiver(queue, startIndex);
       const started = await castQueue({ queue, startIndex, isStale });
       if (!started) endOnReceiver(sent);
@@ -1354,6 +1359,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
           api,
           preferLocal,
         );
+        loadedOutOfOrderRef.current = false;
         await TrackPlayer.reset();
         setMusicNormalizationTrack(track);
         await TrackPlayer.add(track);
@@ -1365,6 +1371,15 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
           playSessionId: result.sessionId,
           isPlaying: true,
         }));
+        // A queue restored at launch or handed back by the receiver: the rest
+        // of it loads behind the track, as for a queue played from a page.
+        if (state.queue.length > 1) {
+          void loadRemainingTracksInBackground(
+            state.queue,
+            state.queueIndex,
+            preferLocal,
+          );
+        }
       }
     } else {
       await TrackPlayer.play();
@@ -1376,7 +1391,10 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     state.streamUrl,
     state.currentTrack,
     state.progress,
+    state.queue,
+    state.queueIndex,
     settings?.preferLocalAudio,
+    loadRemainingTracksInBackground,
   ]);
 
   const togglePlayPause = useCallback(async () => {
@@ -2044,6 +2062,8 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     previous: previousRemote,
     seek: seekRemote,
     stop: stopOnReceiver,
+    setRepeat: setRepeatOnReceiver,
+    enqueue: enqueueOnReceiver,
   } = remote;
   const togglePlayPauseRemote = useCallback(
     () => (remotePlaying ? pauseRemote() : resumeRemote()),
@@ -2053,6 +2073,26 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     await stopOnReceiver();
     await stop();
   }, [stopOnReceiver, stop]);
+  const setRepeatModeRemote = useCallback(
+    (mode: RepeatMode) => {
+      setRepeatMode(mode);
+      void setRepeatOnReceiver(mode);
+    },
+    [setRepeatMode, setRepeatOnReceiver],
+  );
+  const playNextRemote = useCallback(
+    (tracks: BaseItemDto | BaseItemDto[]) =>
+      enqueueOnReceiver("PlayNext", Array.isArray(tracks) ? tracks : [tracks]),
+    [enqueueOnReceiver],
+  );
+  const addToQueueRemote = useCallback(
+    (tracks: BaseItemDto | BaseItemDto[]) =>
+      enqueueOnReceiver("PlayLast", Array.isArray(tracks) ? tracks : [tracks]),
+    [enqueueOnReceiver],
+  );
+  // The receiver has no command to take a track out, move one or shuffle its
+  // queue: while it has the queue, those edits are left out.
+  const ignoreOnReceiver = useCallback(() => {}, []);
   const jumpOnReceiver = useCallback(
     (index: number) => {
       if (!remoteQueue || index === remoteIndex) return;
@@ -2077,15 +2117,15 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       previous: remoteView ? previousRemote : previous,
       seek: remoteView ? seekRemote : seek,
       stop: remoteView ? stopRemote : stop,
-      addToQueue,
-      playNext,
-      removeFromQueue,
-      moveInQueue,
-      reorderQueue,
-      clearQueue,
+      addToQueue: remoteView ? addToQueueRemote : addToQueue,
+      playNext: remoteView ? playNextRemote : playNext,
+      removeFromQueue: remoteView ? ignoreOnReceiver : removeFromQueue,
+      moveInQueue: remoteView ? ignoreOnReceiver : moveInQueue,
+      reorderQueue: remoteView ? ignoreOnReceiver : reorderQueue,
+      clearQueue: remoteView ? ignoreOnReceiver : clearQueue,
       jumpToIndex: remoteView ? jumpOnReceiver : jumpToIndex,
-      setRepeatMode,
-      toggleShuffle,
+      setRepeatMode: remoteView ? setRepeatModeRemote : setRepeatMode,
+      toggleShuffle: remoteView ? ignoreOnReceiver : toggleShuffle,
       setProgress,
       setDuration,
       setIsPlaying,
@@ -2124,7 +2164,11 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       jumpToIndex,
       jumpOnReceiver,
       setRepeatMode,
+      setRepeatModeRemote,
       toggleShuffle,
+      addToQueueRemote,
+      playNextRemote,
+      ignoreOnReceiver,
       setProgress,
       setDuration,
       setIsPlaying,
