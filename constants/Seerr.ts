@@ -1,3 +1,5 @@
+import { Platform } from "react-native";
+
 /** MMKV: the signed-in Seerr user. */
 export const SEERR_USER_STORAGE_KEY = "SEERR_USER";
 
@@ -24,6 +26,24 @@ export const SEERR_IMAGE_QUALITY = 75;
  * its cacheImages, the request sheets its specials and partial requests.
  */
 export const SEERR_PUBLIC_SETTINGS_STALE_MS = 10 * 60 * 1000;
+
+/**
+ * The TMDB size of a backdrop drawn across the screen. A phone draws it at most 1206 pixels wide
+ * (402 points at 3x): the face-aware crop of Seerr's web app at 1000 pixels weighs 112 kB on
+ * average on a test server's titles, where Seerr's web size, w1920_and_h800_multi_faces, weighs
+ * 343 kB, and what Seerr's resizer used to send 150 kB. TMDB's crops come out the same through
+ * Seerr's image cache, where its plain sizes did not (w1280: 185 kB from TMDB, 259 kB through the
+ * cache). A TV draws it full screen.
+ */
+export const SEERR_BACKDROP_SIZE = Platform.isTV
+  ? "w1920_and_h800_multi_faces"
+  : "w1000_and_h450_multi_faces";
+
+/**
+ * The TMDB size of a request card's backdrop, drawn under a fade 320 points wide on a phone and 640
+ * on a TV: 38.5 kB on average, where Seerr's resizer sent 640 pixels at 23 kB.
+ */
+export const SEERR_CARD_BACKDROP_SIZE = "w500_and_h282_face";
 
 /**
  * An episode still, drawn 128 points wide: TMDB's size asked for, and the

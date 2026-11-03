@@ -1,6 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { SEERR_DOWNLOAD_REFRESH_MS } from "@/constants/Seerr";
+import {
+  SEERR_CARD_BACKDROP_SIZE,
+  SEERR_DOWNLOAD_REFRESH_MS,
+} from "@/constants/Seerr";
 import { useSeerr } from "@/hooks/useSeerr";
 import { useSeerrCanRequest } from "@/hooks/useSeerrCanRequest";
 import { useSeerrTitleDetails } from "@/hooks/useSeerrDiscoverData";
@@ -84,7 +87,7 @@ export const useSeerrRequestCard = (request: MediaRequest) => {
     posterSrc:
       seerrApi?.imageProxy(details?.posterPath, "w300_and_h450_face") ?? "",
     backdropSrc: details?.backdropPath
-      ? seerrApi?.imageProxy(details.backdropPath, "w1920_and_h800_multi_faces")
+      ? seerrApi?.imageProxy(details.backdropPath, SEERR_CARD_BACKDROP_SIZE)
       : undefined,
   };
 };
