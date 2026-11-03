@@ -28,8 +28,8 @@ server log, the session the server records, the receiver on the TV.
   Expo dev client waiting for Metro. Then run `bun run e2e:smoke`, or
   `python3 e2e/bench/maestro.py --flow <flow> --device <id>`. Without `--device`, a flow runs on
   the one emulator or simulator running and never on a phone: the smoke flow clears the app's
-  data. In CI only on pull requests that touch cast code
-  (`.github/workflows/e2e-tier1-android.yml`).
+  data. In CI on pull requests that touch cast code, the bench (`e2e/**`) or the screen the
+  smoke flow drives, and on demand (`.github/workflows/e2e-tier1-android.yml`).
 - **Tier 2, real devices.** Driven from a developer machine against the test server:
   Chromecast, Google TV, Apple TV, phones and tablets. The Python sender talks to the
   Jellyfin receiver directly, so the receiver and the server can be tested without the
