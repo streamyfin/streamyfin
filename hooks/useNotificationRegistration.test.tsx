@@ -2,7 +2,10 @@ import { act, renderHook } from "@testing-library/react-native";
 import { createStore, Provider as JotaiProvider } from "jotai";
 import type { ReactNode } from "react";
 import { Platform } from "react-native";
-import { registerBackgroundFetchAsyncSessions } from "@/utils/background-tasks";
+import {
+  registerBackgroundFetchAsyncSessions,
+  unregisterBackgroundFetchAsyncSessions,
+} from "@/utils/background-tasks";
 import { offerSettingsLinkOnce } from "@/utils/notificationPermissions";
 import { useNotificationRegistration } from "./useNotificationRegistration";
 
@@ -15,6 +18,7 @@ const mockNotifications = {
   setNotificationChannelAsync: jest.fn(),
   addNotificationReceivedListener: jest.fn(),
   addNotificationResponseReceivedListener: jest.fn(),
+  addPushTokenListener: jest.fn(),
   AndroidImportance: { DEFAULT: 3 },
 };
 
@@ -30,6 +34,7 @@ jest.mock("@/providers/JellyfinProvider", () => {
 });
 jest.mock("@/utils/background-tasks", () => ({
   registerBackgroundFetchAsyncSessions: jest.fn(async () => {}),
+  unregisterBackgroundFetchAsyncSessions: jest.fn(async () => {}),
 }));
 jest.mock("@/utils/notificationPermissions", () => ({
   offerSettingsLinkOnce: jest.fn(async () => {}),
@@ -80,6 +85,9 @@ beforeEach(() => {
     remove: jest.fn(),
   });
   mockNotifications.addNotificationResponseReceivedListener.mockReturnValue({
+    remove: jest.fn(),
+  });
+  mockNotifications.addPushTokenListener.mockReturnValue({
     remove: jest.fn(),
   });
 });
@@ -205,6 +213,43 @@ test("a tapped notification opens its route through the latest router", async ()
   });
 
   expect(mockPush).toHaveBeenCalledTimes(1);
+});
+
+test("a non-admin account unregisters the sessions task", async () => {
+  await signIn(admin("u1"));
+  await renderHook(() => useNotificationRegistration(), { wrapper });
+  await settle();
+  expect(registerBackgroundFetchAsyncSessions).toHaveBeenCalledTimes(1);
+
+  await signIn({ Id: "u2" });
+  await settle();
+
+  expect(unregisterBackgroundFetchAsyncSessions).toHaveBeenCalledTimes(1);
+});
+
+test("a rolled device token refreshes the expo token", async () => {
+  mockNotifications.getExpoPushTokenAsync
+    .mockResolvedValueOnce({ data: "tok" })
+    .mockResolvedValueOnce({ data: "tok2" });
+  const { result } = await renderHook(() => useNotificationRegistration(), {
+    wrapper,
+  });
+  await settle();
+  expect(result.current?.data).toBe("tok");
+
+  const listener = mockNotifications.addPushTokenListener.mock.calls[0][0];
+  await act(async () => {
+    listener({ type: "ios", data: "device-token-2" });
+    await Promise.resolve();
+  });
+  await settle();
+
+  expect(mockNotifications.getExpoPushTokenAsync).toHaveBeenLastCalledWith(
+    expect.objectContaining({
+      devicePushToken: { type: "ios", data: "device-token-2" },
+    }),
+  );
+  expect(result.current?.data).toBe("tok2");
 });
 
 test("does nothing on TV", async () => {

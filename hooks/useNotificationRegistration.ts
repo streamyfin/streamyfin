@@ -4,7 +4,10 @@ import type {
   Notification,
   NotificationResponse,
 } from "expo-notifications/build/Notifications.types";
-import type { ExpoPushToken } from "expo-notifications/build/Tokens.types";
+import type {
+  DevicePushToken,
+  ExpoPushToken,
+} from "expo-notifications/build/Tokens.types";
 import { useAtomValue } from "jotai";
 import { useEffect, useRef, useState } from "react";
 import { Platform } from "react-native";
@@ -14,7 +17,10 @@ import {
 } from "@/constants/Notifications";
 import useRouter from "@/hooks/useAppRouter";
 import { userAtom } from "@/providers/JellyfinProvider";
-import { registerBackgroundFetchAsyncSessions } from "@/utils/background-tasks";
+import {
+  registerBackgroundFetchAsyncSessions,
+  unregisterBackgroundFetchAsyncSessions,
+} from "@/utils/background-tasks";
 import { writeErrorLog, writeInfoLog, writeToLog } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
 import { offerSettingsLinkOnce } from "@/utils/notificationPermissions";
@@ -131,9 +137,28 @@ export const useNotificationRegistration = (): ExpoPushToken | undefined => {
         },
       );
 
+    // The device push token can roll while the app runs, and the Expo token
+    // built from the old one stops delivering.
+    const pushToken: EventSubscription = Notifications.addPushTokenListener(
+      (devicePushToken: DevicePushToken) => {
+        Notifications.getExpoPushTokenAsync({
+          projectId: "e79219d1-797f-4fbe-9fa1-cfd360690a68",
+          devicePushToken,
+        })
+          .then((token: ExpoPushToken) => {
+            tokenFetch.current = "done";
+            setExpoPushToken(token);
+          })
+          .catch((reason: any) => {
+            writeErrorLog("Failed to refresh Expo push token", reason);
+          });
+      },
+    );
+
     return () => {
       received?.remove();
       response?.remove();
+      pushToken?.remove();
     };
   }, []);
 
@@ -166,6 +191,10 @@ export const useNotificationRegistration = (): ExpoPushToken | undefined => {
 
       if (isAdministrator) {
         await registerBackgroundFetchAsyncSessions();
+      } else {
+        // The task survives an admin signing out or switching to a non-admin
+        // account, and would keep polling sessions under the wrong one.
+        await unregisterBackgroundFetchAsyncSessions();
       }
 
       // only create push token for real devices (pointless for emulators)
