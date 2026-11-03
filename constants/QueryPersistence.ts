@@ -11,6 +11,8 @@
 export const PERSISTED_QUERY_FAMILIES: readonly string[] = [
   // Home's sections, hero and favourites rows.
   "home",
+  // The Favorites tab's see-all grids; the tab's rows come from `home`.
+  "favorites",
   // Home's Streamystats rows wait for the server info before they render.
   "jellyfin",
   "streamystats",
