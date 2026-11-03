@@ -3,7 +3,9 @@ package expo.modules.mpvplayer.cast.engine
 import expo.modules.mpvplayer.cast.ReceiverBusListener
 import expo.modules.mpvplayer.cast.ReceiverChannelHub
 import expo.modules.mpvplayer.cast.ReceiverSubscription
+import expo.modules.mpvplayer.cast.receiver.ReceiverContainerRefused
 import expo.modules.mpvplayer.cast.receiver.ReceiverCustomData
+import expo.modules.mpvplayer.cast.receiver.ReceiverLoadError
 import expo.modules.mpvplayer.cast.receiver.ReceiverItem
 import expo.modules.mpvplayer.cast.receiver.ReceiverLoadOutcome
 import expo.modules.mpvplayer.cast.receiver.ReceiverLoadTracker
@@ -11,6 +13,7 @@ import expo.modules.mpvplayer.cast.receiver.ReceiverMessage
 import expo.modules.mpvplayer.cast.receiver.ReceiverPlayRequest
 import expo.modules.mpvplayer.cast.receiver.ReceiverProtocol
 import expo.modules.mpvplayer.cast.receiver.ReceiverServer
+import expo.modules.mpvplayer.nativeplayer.PlayerConstants
 import expo.modules.mpvplayer.nativeplayer.engine.PlayerEngine
 import expo.modules.mpvplayer.nativeplayer.engine.QueueEngine
 import expo.modules.mpvplayer.nativeplayer.engine.TransportEngine
@@ -55,6 +58,15 @@ class CastEngine(
     @Volatile private var volume: Double? = null
     @Volatile private var currentAudio = -1
     @Volatile private var currentSubtitle = -1
+    @Volatile private var identity: Boolean? = null
+
+    /**
+     * Whether the receiver's Jellyfin identity is this sender's: it keeps the one of the first message
+     * since its app started, and this connection started the app when the SDK says so. Null when it
+     * does not (spec §5.4).
+     */
+    val receiverIdentityIsOurs: Boolean?
+        get() = identity
 
     // The customData does not follow a track change (spec §3.3): the latest of what the bus reported
     // and what was sent wins, until the next play session brings its own.
@@ -77,16 +89,41 @@ class CastEngine(
 
     private var reload: Reload? = null
 
+    private class PendingLoad(val tracker: ReceiverLoadTracker, val onResult: (CastLoadResult) -> Unit) {
+        var cancelTimer: () -> Unit = {}
+    }
+
+    private var pendingLoad: PendingLoad? = null
+
+    // Set once a load went out: the receiver sends its bus to the last sender that spoke, so after a
+    // resume this engine speaks first to hear it again (spec §8, risk 6).
+    private var busClaimed = false
+    private var suspended = false
+
+    // After IDLE + FINISHED the receiver fetches the next item before it buffers: the end waits.
+    private var endWait: (() -> Unit)? = null
+
+    // A failed PlaybackInfo comes as a connection error, then a NoCompatibleStream playbackerror that
+    // belongs to the same failure.
+    private var noCompatibleStreamFollows = false
+
     private val busListener = object : ReceiverBusListener {
         override fun onMessage(raw: String) = onBusMessage(ReceiverProtocol.parseMessage(raw))
+
+        override fun onReady(sessionId: String) = onBusReady(sessionId)
+
+        // The session listener ends the binding, with the SDK's reason: the hub's end carries none.
+        override fun onLost(sessionId: String?, ended: Boolean) {
+            if (!ended) suspendBinding()
+        }
     }
 
     private val sessionListener = object : CastSessionListener {
-        override fun onSuspended(sessionId: String?) = Unit
+        override fun onSuspended(sessionId: String?) = suspendBinding()
 
-        override fun onResumed(session: CastSessionPort) = Unit
+        override fun onResumed(session: CastSessionPort) = resumeBinding(session)
 
-        override fun onEnded(sessionId: String?, error: String?) = Unit
+        override fun onEnded(sessionId: String?, error: String?) = loseBinding(error)
 
         override fun onVolumeChanged(volume: Double, muted: Boolean) {
             this@CastEngine.volume = volume
@@ -122,6 +159,7 @@ class CastEngine(
     private fun bind(session: CastSessionPort) {
         this.session = session
         volume = session.volume
+        identity = session.wasLaunched
         sessions.setListener(sessionListener)
         bus = hub.subscribe(ReceiverProtocol.NAMESPACE, busListener)
         attachMedia(session.media)
@@ -136,6 +174,7 @@ class CastEngine(
     }
 
     private fun detach() {
+        pendingLoad?.let { load -> load.tracker.supersede()?.let { settleLoad(load, it) } }
         media?.setListener(null, CastEngineConstants.PROGRESS_INTERVAL_MS)
         media = null
         bus?.remove()
@@ -143,8 +182,50 @@ class CastEngine(
         sessions.setListener(null)
         reload?.cancelTimer?.invoke()
         reload = null
+        cancelEndWait()
+        suspended = false
         session?.let { log("detached from session ${it.sessionId}") }
         session = null
+    }
+
+    // A suspended session keeps the state and the pending load, whose timer runs on (spec §2.4).
+    private fun suspendBinding() {
+        val bound = session ?: return
+        if (suspended) return
+        suspended = true
+        setLoading(true)
+        log("session ${bound.sessionId} suspended")
+    }
+
+    // A resume rebuilt the Cast client: the media channel is a new one, and nothing of the old counts.
+    private fun resumeBinding(resumed: CastSessionPort) {
+        val bound = session ?: return
+        if (resumed.sessionId != bound.sessionId) {
+            loseBinding(SESSION_REPLACED_ERROR)
+            return
+        }
+        suspended = false
+        session = resumed
+        volume = resumed.volume
+        resumed.wasLaunched?.let { identity = it }
+        attachMedia(resumed.media)
+        log("session ${resumed.sessionId} resumed")
+    }
+
+    private fun loseBinding(error: String?) {
+        val sessionId = session?.sessionId ?: return
+        detach()
+        bindingListener?.onBindingLost(sessionId, error)
+    }
+
+    private fun onBusReady(sessionId: String) {
+        val bound = session ?: return
+        if (sessionId != bound.sessionId) {
+            loseBinding(SESSION_REPLACED_ERROR)
+            return
+        }
+        // An inert command: SetVolume without a level changes nothing on the receiver.
+        if (busClaimed) send("SetVolume", JSONObject())
     }
 
     // Loading
@@ -155,8 +236,57 @@ class CastEngine(
         delegate?.onError(URL_LOAD_ERROR)
     }
 
-    // Reloading the item where it is arrives with the load path.
-    override fun reloadCurrentItem() = Unit
+    /**
+     * Plays [request] on the receiver, the way JS does (spec §5.2): one PlayNow, settled by what the
+     * receiver reports, the first event winning, or never sent. A newer load supersedes this one.
+     */
+    fun load(server: ReceiverServer, request: ReceiverPlayRequest, onResult: (CastLoadResult) -> Unit) = runOnMain {
+        if (session?.isConnected != true) {
+            onResult(CastLoadResult.NotSent(NO_SESSION_ERROR))
+            return@runOnMain
+        }
+        val message = try {
+            ReceiverProtocol.playNow(server, request)
+        } catch (refused: ReceiverContainerRefused) {
+            onResult(CastLoadResult.NotSent(refused.message ?: CONTAINER_ERROR))
+            return@runOnMain
+        }
+        this.server = server
+        reload?.cancelTimer?.invoke()
+        reload = null
+        cancelEndWait()
+        noCompatibleStreamFollows = false
+        // The media on the TV now, read at the send: a status of its play session is never this load.
+        val load = PendingLoad(ReceiverLoadTracker(request, ours?.playSessionId), onResult)
+        val previous = pendingLoad
+        // The new load is pending before the old one settles, so loading never blinks off between them.
+        pendingLoad = load
+        previous?.let { it.tracker.supersede()?.let { outcome -> settleLoad(it, outcome) } }
+        load.cancelTimer = schedule(CastEngineConstants.LOAD_TIMEOUT_MS) {
+            if (pendingLoad === load) load.tracker.timeOut()?.let { settleLoad(load, it) }
+        }
+        setLoading(true)
+        log("send PlayNow")
+        hub.send(ReceiverProtocol.NAMESPACE, message.toString()) { error ->
+            if (error == null) {
+                busClaimed = true
+                return@send
+            }
+            if (pendingLoad !== load) return@send
+            log("PlayNow not sent: $error")
+            load.cancelTimer()
+            pendingLoad = null
+            setLoading(isBuffering())
+            onResult(CastLoadResult.NotSent(error))
+        }
+    }
+
+    // The item again where it is, with the tracks it plays: also how a quality change applies the
+    // envelope's new cap.
+    override fun reloadCurrentItem() = runOnMain {
+        val data = loadedItem() ?: return@runOnMain
+        playAgain(data, currentAudio.takeIf { it >= 0 }, currentSubtitle)
+    }
 
     // Transport
 
@@ -234,18 +364,22 @@ class CastEngine(
         if (index >= 0 && media?.status?.hasTextTracks == false) {
             // No text track loaded: the receiver would name the index in its reports and show
             // nothing, so the item plays again where it is with that subtitle.
-            val request = ReceiverPlayRequest(
-                items = listOf(ReceiverItem(id = data.itemId)),
-                startPositionTicks = (position * ReceiverProtocol.TICKS_PER_SECOND).roundToLong(),
-                mediaSourceId = data.mediaSourceId,
-                audioStreamIndex = currentAudio.takeIf { it >= 0 },
-                subtitleStreamIndex = index,
-                liveStreamId = data.liveStreamId,
-            )
-            startReload(position, null, data) { failed -> sendMessage("PlayNow", ReceiverProtocol.playNow(server, request), failed) }
+            playAgain(data, currentAudio.takeIf { it >= 0 }, index)
             return
         }
         send("SetSubtitleStreamIndex", JSONObject().put("index", index))
+    }
+
+    private fun playAgain(data: ReceiverCustomData, audio: Int?, subtitle: Int?) {
+        val request = ReceiverPlayRequest(
+            items = listOf(ReceiverItem(id = data.itemId)),
+            startPositionTicks = (position * ReceiverProtocol.TICKS_PER_SECOND).roundToLong(),
+            mediaSourceId = data.mediaSourceId,
+            audioStreamIndex = audio,
+            subtitleStreamIndex = subtitle,
+            liveStreamId = data.liveStreamId,
+        )
+        startReload(position, null, data) { failed -> sendMessage("PlayNow", ReceiverProtocol.playNow(server, request), failed) }
     }
 
     // Local-only processing: the receiver has no such controls.
@@ -274,6 +408,28 @@ class CastEngine(
     override val currentItemId: String?
         get() = ours?.itemId
 
+    // The queue lives on the receiver, which the sender does not see; it announces no QUEUE_NEXT, so
+    // the bus carries these.
+
+    override fun skipToNext() = runOnMain {
+        if (loadedItem() != null) send("NextTrack", JSONObject())
+    }
+
+    // The receiver never goes back to the start of the item it plays: past the chrome's threshold,
+    // the engine seeks there instead.
+    override fun skipToPrevious() = runOnMain {
+        if (loadedItem() == null) return@runOnMain
+        if (position > PlayerConstants.CHAPTER_RESTART_THRESHOLD_SEC) seek(0.0, null) else send("PreviousTrack", JSONObject())
+    }
+
+    // A Cast message holds 64 KB: the items go a window at a time.
+    override fun enqueue(itemIds: List<String>) = runOnMain {
+        if (session == null) return@runOnMain
+        itemIds.chunked(CastEngineConstants.MAX_QUEUE_ITEMS).forEach { window ->
+            sendMessage("PlayLast", ReceiverProtocol.playLast(server, window))
+        }
+    }
+
     override val targetVolume: Double?
         get() = volume
 
@@ -284,16 +440,22 @@ class CastEngine(
     private fun onStatus(port: CastMediaPort) {
         val status = port.status
         if (status == null || !status.hasMedia) {
+            val finished = status?.playerState == IDLE && status.idleReason == FINISHED
+            if (finished && !(playerState == IDLE && idleReason == FINISHED)) armEndWait()
             clearMedia(status?.playerState ?: IDLE)
+            idleReason = status?.idleReason
             return
         }
         val data = status.customData?.let(ReceiverProtocol::parseCustomData)
+        pendingLoad?.let { load -> load.tracker.onMediaStatus(data, status.playerState)?.let { settleLoad(load, it) } }
         val settled = reload?.let { pending -> pending.tracker.onMediaStatus(data, status.playerState)?.let { pending to it } }
         settled?.let { (pending, outcome) -> settleReload(pending, outcome, recompute = false) }
         if (data?.playSessionId != playSessionId) {
             playSessionId = data?.playSessionId
             chosenAudio = null
             chosenSubtitle = null
+            // The next item: what ended was not the end.
+            if (data?.playSessionId != null) cancelEndWait()
         }
         ours = data
         hasMedia = true
@@ -319,7 +481,26 @@ class CastEngine(
             if (state.has("SubtitleStreamIndex")) chosenSubtitle = intOrNull(state.opt("SubtitleStreamIndex"))
             updateTracks()
         }
-        reload?.let { pending -> pending.tracker.onMessage(message)?.let { settleReload(pending, it, recompute = true) } }
+        val error = ReceiverProtocol.loadErrorOf(message) ?: return
+        pendingLoad?.let { load ->
+            load.tracker.onMessage(message)?.let { outcome ->
+                noCompatibleStreamFollows = error == ReceiverLoadError.PLAYBACK_INFO_FAILED
+                settleLoad(load, outcome)
+                return
+            }
+        }
+        reload?.let { pending ->
+            pending.tracker.onMessage(message)?.let { outcome ->
+                noCompatibleStreamFollows = error == ReceiverLoadError.PLAYBACK_INFO_FAILED
+                settleReload(pending, outcome, recompute = true)
+                return
+            }
+        }
+        if (noCompatibleStreamFollows && error == ReceiverLoadError.PLAYBACK_FAILED) {
+            noCompatibleStreamFollows = false
+            return
+        }
+        delegate?.onError(error.wireName)
     }
 
     private fun clearMedia(state: String) {
@@ -335,16 +516,17 @@ class CastEngine(
 
     private fun reportState(state: String, reason: String, data: ReceiverCustomData?) {
         val wasError = playerState == IDLE && idleReason == ERROR
+        val wasFinished = playerState == IDLE && idleReason == FINISHED
         playerState = state
         idleReason = reason
         when (state) {
             PLAYING -> {
                 setPause(false)
-                setLoading(reload != null)
+                setLoading(awaitingReceiver())
             }
             PAUSED -> {
                 setPause(true)
-                setLoading(reload != null)
+                setLoading(awaitingReceiver())
             }
             BUFFERING, LOADING -> setLoading(true)
             IDLE -> {
@@ -353,6 +535,7 @@ class CastEngine(
                     ERROR -> if (!wasError) delegate?.onError(PLAYBACK_ERROR)
                     // A stream change for the same item: a new play session follows.
                     INTERRUPTED -> setLoading(true)
+                    FINISHED -> if (!wasFinished) armEndWait()
                 }
             }
         }
@@ -361,6 +544,30 @@ class CastEngine(
             readyToSeekFor = playSession
             delegate?.onReadyToSeek()
         }
+    }
+
+    private fun awaitingReceiver() = reload != null || pendingLoad != null || suspended
+
+    private fun isBuffering() = playerState == BUFFERING || playerState == LOADING || awaitingReceiver()
+
+    private fun armEndWait() {
+        cancelEndWait()
+        endWait = schedule(CastEngineConstants.NEXT_ITEM_WAIT_MS) {
+            endWait = null
+            delegate?.onPlaybackEnded()
+        }
+    }
+
+    private fun cancelEndWait() {
+        endWait?.invoke()
+        endWait = null
+    }
+
+    private fun settleLoad(load: PendingLoad, outcome: ReceiverLoadOutcome) {
+        load.cancelTimer()
+        if (pendingLoad === load) pendingLoad = null
+        if (outcome != ReceiverLoadOutcome.Loaded) setLoading(isBuffering())
+        load.onResult(CastLoadResult.Settled(outcome))
     }
 
     private fun setPause(paused: Boolean) {
@@ -414,7 +621,7 @@ class CastEngine(
         val port = media ?: return
         if (!hasMedia) return
         position = ReceiverProtocol.positionInItem(port.approximatePositionMs / 1000.0, ours ?: ReceiverCustomData())
-        setLoading(playerState == BUFFERING || playerState == LOADING)
+        setLoading(isBuffering())
         delegate?.onPositionChanged(position, itemDuration, 0.0)
     }
 
@@ -470,6 +677,7 @@ class CastEngine(
         const val URL_LOAD_ERROR = "The Cast engine plays Jellyfin items, not URLs"
         const val PLAYBACK_ERROR = "The receiver stopped on a playback error"
         const val SESSION_REPLACED_ERROR = "The Cast session was replaced"
+        private const val CONTAINER_ERROR = "Cannot cast a container"
 
         // CastMapping's names for the player state and the idle reason.
         private const val PLAYING = "playing"
@@ -480,5 +688,6 @@ class CastEngine(
         private const val UNKNOWN = "unknown"
         private const val ERROR = "error"
         private const val INTERRUPTED = "interrupted"
+        private const val FINISHED = "finished"
     }
 }

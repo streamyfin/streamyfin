@@ -3,6 +3,7 @@ package expo.modules.mpvplayer.cast.engine
 import expo.modules.mpvplayer.cast.FakeChannelPort
 import expo.modules.mpvplayer.cast.ReceiverChannelHub
 import expo.modules.mpvplayer.cast.receiver.ReceiverItem
+import expo.modules.mpvplayer.cast.receiver.ReceiverLoadOutcome
 import expo.modules.mpvplayer.cast.receiver.ReceiverPlayRequest
 import expo.modules.mpvplayer.cast.receiver.ReceiverProtocol
 import expo.modules.mpvplayer.nativeplayer.engine.PlayerEngine
@@ -359,5 +360,202 @@ class CastEngineTest {
         assertTrue(port.sent.isNotEmpty())
         assertTrue(logs.isNotEmpty())
         assertFalse(logs.any { "tok-123" in it })
+    }
+
+    // Loading
+
+    private val request = ReceiverPlayRequest(items = listOf(ReceiverItem(id = "item-1", name = "A film", type = "Movie")))
+
+    private fun CastEngine.loadRecorded(): MutableList<CastLoadResult> =
+        mutableListOf<CastLoadResult>().also { results -> load(SERVER, request) { results += it } }
+
+    @Test
+    fun aLoadSendsOnePlayNowBuiltByTheProtocol() {
+        engine().loadRecorded()
+        assertEquals(listOf(ReceiverProtocol.playNow(SERVER, request).toString()), port.sent.map { it.second })
+        assertEquals(listOf(true), delegate.loadings)
+        assertFalse(logs.any { "tok-123" in it })
+    }
+
+    @Test
+    fun aLoadWithoutSessionIsNotSent() {
+        source.current = null
+        val results = engine().loadRecorded()
+        assertEquals(listOf(CastLoadResult.NotSent("No connected Cast session")), results)
+        assertEquals(emptyList<Pair<String, String>>(), port.sent)
+    }
+
+    @Test
+    fun aLoadTheChannelCannotSendIsNotSentAndLeavesNoTimer() {
+        port.sendError = "receiver busy"
+        val results = engine().loadRecorded()
+        assertEquals(listOf(CastLoadResult.NotSent("receiver busy")), results)
+        assertEquals(0, scheduler.pending)
+    }
+
+    @Test
+    fun aPendingLoadIsLoadingUntilItSettles() {
+        val results = engine().loadRecorded()
+        assertEquals(listOf(true), delegate.loadings)
+        media.report(snapshot())
+        assertEquals(listOf(CastLoadResult.Settled(ReceiverLoadOutcome.Loaded)), results)
+        assertEquals(listOf(true, false), delegate.loadings)
+    }
+
+    @Test
+    fun aBusErrorOutsideALoadReportsItsWireName() {
+        playing()
+        port.deliver("""{"type":"playbackerror","message":"NotAllowed"}""")
+        assertEquals(listOf("playback_failed"), delegate.errors)
+    }
+
+    // Reloads and the queue
+
+    @Test
+    fun reloadCurrentItemPlaysTheItemAgainWhereItIs() {
+        val engine = playing(42_500)
+        port.deliver("""{"type":"playbackprogress","data":{"PlayState":{"AudioStreamIndex":2,"SubtitleStreamIndex":5}}}""")
+        engine.reloadCurrentItem()
+        val expected = ReceiverProtocol.playNow(
+            SERVER,
+            ReceiverPlayRequest(
+                items = listOf(ReceiverItem(id = "item-1")),
+                startPositionTicks = 425_000_000,
+                mediaSourceId = "ms-1",
+                audioStreamIndex = 2,
+                subtitleStreamIndex = 5,
+            ),
+        )
+        assertEquals(listOf(expected.toString()), port.sent.map { it.second })
+    }
+
+    @Test
+    fun queueCommandsReachTheReceiver() {
+        val engine = playing(2_000)
+        engine.skipToNext()
+        engine.skipToPrevious()
+        assertEquals(listOf("NextTrack" to "{}", "PreviousTrack" to "{}"), commands())
+        engine.enqueue((0 until 250).map { "id-$it" })
+        val appended = port.sent.drop(2).map { JSONObject(it.second) }
+        assertEquals(listOf("PlayLast", "PlayLast", "PlayLast"), appended.map { it.getString("command") })
+        assertEquals(listOf(100, 100, 50), appended.map { it.getJSONObject("options").getJSONArray("items").length() })
+        assertEquals("""{"Id":"id-0","IsFolder":false}""", appended.first().getJSONObject("options").getJSONArray("items").getJSONObject(0).toString())
+    }
+
+    // The receiver never goes back to the start of the item it plays: past three seconds the engine
+    // seeks there, as the chrome's own previous does.
+    @Test
+    fun aPreviousPastThreeSecondsRestartsTheItem() {
+        val engine = playing(42_500)
+        engine.skipToPrevious()
+        assertEquals(listOf(0L), media.seeks)
+        assertEquals(emptyList<Pair<String, String>>(), port.sent)
+    }
+
+    // The end of an item
+
+    // Vigilance 4: after IDLE + FINISHED the receiver fetches the next item before it buffers.
+    @Test
+    fun aFinishedItemWithNoNextEndsAfterFifteenSeconds() {
+        playing()
+        media.report(snapshot(playerState = "idle", idleReason = "finished"))
+        scheduler.advance(14_999)
+        assertEquals(0, delegate.ended)
+        scheduler.advance(1)
+        assertEquals(1, delegate.ended)
+    }
+
+    @Test
+    fun aNextItemWithinTheWaitCancelsTheEnd() {
+        playing()
+        media.report(snapshot(playerState = "idle", idleReason = "finished"))
+        scheduler.advance(5_000)
+        media.report(snapshot(playerState = "buffering", customData = ours("itemId" to "item-2", "playSessionId" to "ps-2")))
+        scheduler.advance(15_000)
+        assertEquals(0, delegate.ended)
+    }
+
+    // The session's life
+
+    @Test
+    fun aSuspendKeepsTheStateAndShowsLoading() {
+        val engine = playing()
+        val results = engine.loadRecorded()
+        source.listener!!.onSuspended("session-1")
+        assertTrue(delegate.loadings.last())
+        assertEquals("item-1", engine.currentItemId)
+        assertEquals(emptyList<CastLoadResult>(), results)
+    }
+
+    @Test
+    fun aResumeRebindsTheNewMediaClientAndRefreshes() {
+        playing()
+        source.listener!!.onSuspended("session-1")
+        val media2 = FakeMedia()
+        source.listener!!.onResumed(FakeSession(media = media2))
+        assertNull(media.listener)
+        assertTrue(media2.listener != null)
+        assertEquals(1, media2.statusRequests)
+    }
+
+    // Vigilance 1: a status the replaced media client had queued arrives after the new binding.
+    @Test
+    fun aStatusFromTheMediaClientBeforeTheResumeIsIgnored() {
+        val engine = playing()
+        val pausesBefore = delegate.pauses.toList()
+        val stale = media.listener!!
+        source.listener!!.onResumed(FakeSession(media = FakeMedia()))
+        media.status = snapshot(customData = ours("playSessionId" to "ps-9"), playerState = "paused")
+        stale.onStatusUpdated()
+        assertEquals(pausesBefore, delegate.pauses)
+        assertEquals("item-1", engine.currentItemId)
+    }
+
+    // The receiver sends its bus to the last sender that spoke: after a resume, a load's engine has
+    // to speak first to hear the receiver again (spec §8, risk 6).
+    @Test
+    fun aResumeAfterALoadReclaimsTheBusWithAnInertCommand() {
+        engine().loadRecorded()
+        hub.suspend()
+        val port2 = FakeChannelPort()
+        hub.attach(port2)
+        assertEquals(listOf("SetVolume" to "{}"), port2.sent.map { (_, text) -> JSONObject(text).let { it.getString("command") to it.getJSONObject("options").toString() } })
+    }
+
+    @Test
+    fun aResumeWithoutALoadSendsNothing() {
+        playing()
+        hub.suspend()
+        val port2 = FakeChannelPort()
+        hub.attach(port2)
+        assertEquals(emptyList<Pair<String, String>>(), port2.sent)
+    }
+
+    @Test
+    fun aResumeOnAnotherSessionLosesTheBinding() {
+        val engine = playing()
+        val lost = mutableListOf<Pair<String?, String?>>()
+        engine.bindingListener = CastBindingListener { sessionId, error -> lost += sessionId to error }
+        source.listener!!.onResumed(FakeSession(sessionId = "session-2"))
+        assertEquals(listOf<Pair<String?, String?>>("session-1" to "The Cast session was replaced"), lost)
+    }
+
+    @Test
+    fun theSessionEndingSupersedesThePendingLoadAndLosesTheBinding() {
+        val engine = playing()
+        val lost = mutableListOf<Pair<String?, String?>>()
+        engine.bindingListener = CastBindingListener { sessionId, error -> lost += sessionId to error }
+        val results = engine.loadRecorded()
+        source.listener!!.onEnded("session-1", null)
+        assertEquals(listOf(CastLoadResult.Settled(ReceiverLoadOutcome.Superseded)), results)
+        assertEquals(listOf<Pair<String?, String?>>("session-1" to null), lost)
+    }
+
+    @Test
+    fun receiverIdentityFollowsWhoLaunchedTheReceiverApp() {
+        for (launched in listOf(true, false, null)) {
+            source.current = FakeSession(media = FakeMedia(), wasLaunched = launched)
+            assertEquals(launched, engine().receiverIdentityIsOurs)
+        }
     }
 }
