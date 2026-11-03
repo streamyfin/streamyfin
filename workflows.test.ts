@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { type Dirent, existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, posix } from "node:path";
 import ignore from "ignore";
 
@@ -101,21 +101,27 @@ const repositoryFiles = (
   const inScope = existsSync(gitignore)
     ? [...rules, { dir, ignore: ignore().add(readFileSync(gitignore, "utf8")) }]
     : rules;
-  return readdirSync(join(root, dir), { withFileTypes: true }).flatMap(
-    (entry) => {
-      const path = posix.join(dir, entry.name);
-      const directory = entry.isDirectory();
-      const ignored =
-        entry.name === ".git" ||
-        inScope.some((rule) =>
-          rule.ignore.ignores(
-            `${rule.dir ? posix.relative(rule.dir, path) : path}${directory ? "/" : ""}`,
-          ),
-        );
-      if (ignored) return [];
-      return directory ? repositoryFiles(path, inScope) : [path];
-    },
-  );
+  let entries: Dirent[];
+  try {
+    entries = readdirSync(join(root, dir), { withFileTypes: true });
+  } catch (error) {
+    // Gone since its parent was listed: another test's temporary directory.
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
+    throw error;
+  }
+  return entries.flatMap((entry) => {
+    const path = posix.join(dir, entry.name);
+    const directory = entry.isDirectory();
+    const ignored =
+      entry.name === ".git" ||
+      inScope.some((rule) =>
+        rule.ignore.ignores(
+          `${rule.dir ? posix.relative(rule.dir, path) : path}${directory ? "/" : ""}`,
+        ),
+      );
+    if (ignored) return [];
+    return directory ? repositoryFiles(path, inScope) : [path];
+  });
 };
 
 // The Cast API: the library, the receiver constants, and the module's own cast
@@ -156,20 +162,34 @@ const usesCastApi = (file: string, source: string) =>
   );
 
 /**
- * The source files among `files` that use the Cast API. A file gone by the time
- * it is read, another test's temporary one, is not part of the repository.
+ * A source file of the walk, read now. A file gone by the time it is read,
+ * another test's temporary one, is not part of the repository: undefined.
  */
+const sourceOf = (file: string) => {
+  if (!SOURCE_FILE.test(file) || SPEC_OR_DOUBLE.test(file)) return undefined;
+  try {
+    return readFileSync(join(root, file), "utf8");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
+    throw error;
+  }
+};
+
+/** The source files among `files` that use the Cast API. */
 const castCodeIn = (files: string[]) =>
   files.filter((file) => {
-    if (!SOURCE_FILE.test(file) || SPEC_OR_DOUBLE.test(file)) return false;
-    let source: string;
-    try {
-      source = readFileSync(join(root, file), "utf8");
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === "ENOENT") return false;
-      throw error;
-    }
-    return usesCastApi(file, source);
+    const source = sourceOf(file);
+    return source !== undefined && usesCastApi(file, source);
+  });
+
+/** The source files among `files` that carry one of the test ids `ids`. */
+const screensDrivenBy = (ids: string[], files: string[]) =>
+  files.filter((file) => {
+    const source = sourceOf(file);
+    return (
+      source !== undefined &&
+      ids.some((id) => source.includes(`testID='${id}'`))
+    );
   });
 
 const escapeRegExp = (text: string) =>
@@ -227,6 +247,18 @@ describe("e2e-tier1-android.yml", () => {
       expect(castCodeIn(["components/tv/.lint-probe-gone/Probe.tsx"])).toEqual(
         [],
       );
+      expect(
+        screensDrivenBy(
+          ["server-url"],
+          ["components/tv/.lint-probe-gone/Probe.tsx"],
+        ),
+      ).toEqual([]);
+    });
+
+    // The same probe's directory can go between the listing of components/tv/
+    // and its own.
+    test("passes over a directory removed between the walk and its read", () => {
+      expect(repositoryFiles("components/tv/.lint-probe-gone")).toEqual([]);
     });
 
     test("covers every file that uses the Cast API", () => {
@@ -244,14 +276,7 @@ describe("e2e-tier1-android.yml", () => {
         "utf8",
       );
       const ids = [...flow.matchAll(/id: "([^"]+)"/g)].map((match) => match[1]);
-      const screens = files.filter(
-        (file) =>
-          SOURCE_FILE.test(file) &&
-          !SPEC_OR_DOUBLE.test(file) &&
-          ids.some((id) =>
-            readFileSync(join(root, file), "utf8").includes(`testID='${id}'`),
-          ),
-      );
+      const screens = screensDrivenBy(ids, files);
       expect(screens).not.toEqual([]);
       expect(
         screens.filter((file) => !rules.some((rule) => matches(rule, file))),
