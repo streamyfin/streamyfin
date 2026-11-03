@@ -16,6 +16,7 @@ import { TVPINEntryModal } from "@/components/login/TVPINEntryModal";
 import { stillWatchingPresetLabel } from "@/components/settings/stillWatchingPresetLabel";
 import type { TVOptionItem } from "@/components/tv";
 import {
+  TVBelowTabBar,
   TVCustomHeadersSection,
   TVLogoutButton,
   TVSectionHeader,
@@ -31,6 +32,7 @@ import {
   type StillWatchingPreset,
 } from "@/constants/StillWatching";
 import { useScaledTVTypography } from "@/constants/TVTypography";
+import { TV_TOP_TAB_BAR_CLEARANCE } from "@/constants/Values";
 import { useMediaPreferences } from "@/hooks/useMediaPreferences";
 import { useTVOptionModal } from "@/hooks/useTVOptionModal";
 import { useTVUserSwitchModal } from "@/hooks/useTVUserSwitchModal";
@@ -809,11 +811,12 @@ export default function SettingsTV() {
 
   return (
     <View style={{ flex: 1, backgroundColor: "#000000" }}>
-      <View style={{ flex: 1 }}>
+      <TVBelowTabBar>
         <ScrollView
           style={{ flex: 1 }}
           contentContainerStyle={{
-            paddingTop: insets.top + 120,
+            // The title rests where it did, the area itself starting below the tab bar.
+            paddingTop: 120 - TV_TOP_TAB_BAR_CLEARANCE,
             paddingBottom: insets.bottom + 60,
             paddingHorizontal: insets.left + 80,
           }}
@@ -1517,7 +1520,7 @@ export default function SettingsTV() {
             <TVLogoutButton onPress={logout} />
           </View>
         </ScrollView>
-      </View>
+      </TVBelowTabBar>
 
       {/* PIN Entry Modal */}
       <TVPINEntryModal

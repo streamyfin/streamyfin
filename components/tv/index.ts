@@ -11,6 +11,7 @@ export type { TVActorCardProps } from "./TVActorCard";
 export { TVActorCard } from "./TVActorCard";
 export type { TVBackdropProps } from "./TVBackdrop";
 export { TVBackdrop } from "./TVBackdrop";
+export { TVBelowTabBar } from "./TVBelowTabBar";
 // Core components
 export type { TVButtonProps } from "./TVButton";
 export { TVButton } from "./TVButton";
