@@ -1,12 +1,12 @@
 import * as Sentry from "@sentry/react-native";
 import { useQuery } from "@tanstack/react-query";
 import { isAxiosError } from "axios";
-import { useFocusEffect } from "expo-router";
 import type React from "react";
 import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
 } from "react";
@@ -254,7 +254,7 @@ export function useLog() {
     throw new Error("useLog must be used within a LogProvider");
   }
   const { watch } = context;
-  useFocusEffect(useCallback(() => watch(), [watch]));
+  useEffect(() => watch(), [watch]);
   return { logs: context.logs };
 }
 

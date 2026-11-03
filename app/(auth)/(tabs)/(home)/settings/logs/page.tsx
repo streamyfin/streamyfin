@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { File, Paths } from "expo-file-system";
 import { requireOptionalNativeModule } from "expo-modules-core";
-import { useNavigation } from "expo-router";
+import { useFocusEffect, useNavigation } from "expo-router";
 import type * as SharingType from "expo-sharing";
 import { useCallback, useEffect, useId, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -20,7 +20,7 @@ const Sharing = Platform.isTV
   ? null
   : (require("expo-sharing") as typeof SharingType);
 
-export default function Page() {
+function LogsScreen() {
   const navigation = useNavigation();
   const { logs } = useLog();
   const { t } = useTranslation();
@@ -213,4 +213,18 @@ export default function Page() {
       </View>
     </ScrollView>
   );
+}
+
+// Watchers subscribe while the component is mounted, but this screen keeps
+// living under its tab after it loses focus. Mount the logs view only while
+// it is on screen, or the one-second reads keep polling.
+export default function Page() {
+  const [focused, setFocused] = useState(true);
+  useFocusEffect(
+    useCallback(() => {
+      setFocused(true);
+      return () => setFocused(false);
+    }, []),
+  );
+  return focused ? <LogsScreen /> : null;
 }
