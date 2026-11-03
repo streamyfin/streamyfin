@@ -125,7 +125,6 @@
     "@types/lodash": "4.17.27",
     "@types/node": "26.6.6",
     "@types/react": "19.3.0",
-    "@typescript/native": "npm:typescript@7.0.2",
     "axios-mock-adapter": "2.1.0",
     "cross-env": "10.1.0",
     "expo-doctor": "1.21.5",
@@ -137,7 +136,7 @@
     "openapi-typescript": "7.13.0",
     "reassure": "1.6.1",
     "tsx": "4.23.15",
-    "typescript": "npm:@typescript/typescript6@6.0.2"
+    "typescript": "6.0.3"
   },
   "expo": {
     "doctor": {
@@ -163,8 +162,7 @@
         "react-native-safe-area-context",
         "react-native-svg",
         "@sentry/react-native",
-        "react-native-gesture-handler",
-        "typescript"
+        "react-native-gesture-handler"
       ]
     }
   },
