@@ -84,8 +84,9 @@ beforeEach(() => {
 // The recent requests are asked again on each visit: a card asks Seerr for
 // its request again only to follow a download, which the list does not.
 describe("useSeerrRequestCard", () => {
-  // The card draws its backdrop under a fade, 320 points wide on a phone and 640 on a TV: a 500
-  // pixel crop, where Seerr's web size weighs nine times as much.
+  // The card draws its backdrop under a fade, 320 points wide on a phone and 640 on a TV: a crop
+  // at least as wide as the 640 pixels Seerr's resizer sent, where Seerr's web size weighs five
+  // times as much.
   test("asks for the card's backdrop at a card's size", async () => {
     mockDetails.data = {
       posterPath: "/poster.jpg",
@@ -97,7 +98,7 @@ describe("useSeerrRequestCard", () => {
     expect(result.current.backdropSrc).toBe(
       `${SEERR_CARD_BACKDROP_SIZE}/backdrop.jpg`,
     );
-    expect(SEERR_CARD_BACKDROP_SIZE).toBe("w500_and_h282_face");
+    expect(SEERR_CARD_BACKDROP_SIZE).toBe("w710_and_h400_multi_faces");
   });
 
   test("asks Seerr nothing for a request without a download", async () => {

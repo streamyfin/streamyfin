@@ -41,9 +41,11 @@ export const SEERR_BACKDROP_SIZE = Platform.isTV
 
 /**
  * The TMDB size of a request card's backdrop, drawn under a fade 320 points wide on a phone and 640
- * on a TV: 38.5 kB on average, where Seerr's resizer sent 640 pixels at 23 kB.
+ * on a TV: a face-aware crop 710 pixels wide, wider than the 640 Seerr's resizer sent. It weighs
+ * 70 kB on average on a test server's titles, where the resizer sent 23 kB, the 500-pixel crop
+ * 38.5 kB and Seerr's web size, w1920_and_h800_multi_faces, 343 kB.
  */
-export const SEERR_CARD_BACKDROP_SIZE = "w500_and_h282_face";
+export const SEERR_CARD_BACKDROP_SIZE = "w710_and_h400_multi_faces";
 
 /**
  * An episode still, drawn 128 points wide: TMDB's size asked for, and the
