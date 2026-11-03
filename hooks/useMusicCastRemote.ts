@@ -380,6 +380,8 @@ export const useMusicCastRemote = ({
     view,
     /** The receiver stopped the queue and plays nothing: play casts it again. */
     stopped: view !== null && (gone || idle),
+    /** The cast the receiver has played, from its first report on; null before. */
+    reportedQueueId: wasReported && current ? current.id : null,
     begin,
     end,
     pause,
