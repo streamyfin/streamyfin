@@ -972,6 +972,7 @@
     "view_season": "View season",
     "select_season": "Select season",
     "no_episodes_for_this_season": "No episodes for this season",
+    "episodes_load_failed": "Couldn't load the episodes.",
     "missing": "Missing",
     "not_yet_aired": "Not yet aired",
     "overview": "Overview",

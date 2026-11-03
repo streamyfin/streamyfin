@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ItemImage } from "@/components/common/ItemImage";
 import { Text } from "@/components/common/Text";
 import { getItemNavigation } from "@/components/common/TouchableItemRouter";
+import { episodeRowState } from "@/components/series/episodeRowState";
 import { seasonIndexAtom } from "@/components/series/SeasonPicker";
 import { TVEpisodeList } from "@/components/series/TVEpisodeList";
 import { TVSeriesHeader } from "@/components/series/TVSeriesHeader";
@@ -42,7 +43,7 @@ import {
   getDownloadedEpisodesForSeason,
 } from "@/utils/downloads/offline-series";
 import { scaleSize } from "@/utils/scaleSize";
-import { seasonLabel } from "@/utils/seasonLabel";
+import { seasonHeading, seasonLabel } from "@/utils/seasonLabel";
 import { replacementSeason } from "@/utils/seasonSelection";
 import { getSeriesPlaybackTarget } from "@/utils/seriesPlaybackTarget";
 
@@ -115,7 +116,7 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
   }, []);
 
   // Fetch seasons
-  const { data: seasons = [], isLoading: seasonsLoading } = useQuery({
+  const seasonsQuery = useQuery({
     queryKey: ["seasons", item.Id, isOffline, downloadedItems.length],
     queryFn: async () => {
       if (isOffline) {
@@ -134,6 +135,7 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
     refetchInterval: !isOffline ? 60 * 1000 : undefined,
     enabled: isOffline || (!!api && !!user?.Id && !!item.Id),
   });
+  const { data: seasons = [] } = seasonsQuery;
 
   // Resolve which season is showing. A series may have no season 1 at all
   // (specials-only, or seasons starting at 2+), so the default must come from
@@ -217,6 +219,7 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
       : !!api && !!user?.Id && !!item.Id && !!selectedSeasonId,
   });
   const episodesForSeason = episodesQuery.data ?? [];
+  const episodeRow = episodeRowState(seasonsQuery, episodesQuery);
 
   // Find next unwatched episode
   const nextUnwatchedEpisode = useMemo(
@@ -225,14 +228,10 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
   );
 
   // Get season name for button
-  const selectedSeasonName = useMemo(() => {
-    const season = seasons.find(
-      (s: BaseItemDto) =>
-        s.IndexNumber === selectedSeasonIndex ||
-        s.Name === String(selectedSeasonIndex),
-    );
-    return seasonLabel(t, season?.Name, selectedSeasonIndex);
-  }, [seasons, selectedSeasonIndex, t]);
+  const selectedSeasonName = useMemo(
+    () => seasonHeading(t, seasonsQuery.data, selectedSeasonIndex),
+    [seasonsQuery.data, selectedSeasonIndex, t],
+  );
 
   const handlePersonPress = useCallback(
     (personId: string) => {
@@ -276,7 +275,7 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
     const options: TVOptionItem<"season" | "series">[] = [];
     if (episodesForSeason.length > 0) {
       options.push({
-        label: selectedSeasonName,
+        label: selectedSeasonName ?? "",
         sublabel: t("player.episode_count", {
           count: episodesForSeason.length,
         }),
@@ -558,7 +557,9 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
               marginLeft: SCALE_PADDING,
             }}
           >
-            {selectedSeasonName}
+            {/* A blank line while the seasons are unknown, so the row
+                does not move when the name arrives. */}
+            {selectedSeasonName ?? "\u00a0"}
           </Text>
 
           {/* Bidirectional focus guides - stacked together above the list */}
@@ -586,10 +587,12 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
             onBlur={handleEpisodeBlur}
             scrollViewRef={episodeListRef}
             firstEpisodeRefSetter={setFirstEpisodeRef}
-            emptyText={t("item_card.no_episodes_for_this_season")}
-            // Until the seasons arrive no season is picked and the episodes
-            // are not asked for: neither wait is an empty season.
-            isLoading={seasonsLoading || episodesQuery.isLoading}
+            emptyText={
+              episodeRow === "failed"
+                ? t("item_card.episodes_load_failed")
+                : t("item_card.no_episodes_for_this_season")
+            }
+            isLoading={episodeRow === "loading"}
             horizontalPadding={HORIZONTAL_PADDING}
           />
         </View>
