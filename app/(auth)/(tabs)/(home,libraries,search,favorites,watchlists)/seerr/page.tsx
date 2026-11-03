@@ -262,13 +262,16 @@ const MobilePage: React.FC = () => {
     if (
       autoRequestedRef.current ||
       autoRequest !== "true" ||
+      // Only series ever carry the flag; on a movie it would send the
+      // request outright for someone without advanced permission.
+      mediaType !== MediaType.TV ||
       !isFetchedAfterMount ||
       !offersRequest
     )
       return;
     autoRequestedRef.current = true;
     request();
-  }, [autoRequest, isFetchedAfterMount, offersRequest, request]);
+  }, [autoRequest, mediaType, isFetchedAfterMount, offersRequest, request]);
 
   const isAnime = useMemo(
     () =>

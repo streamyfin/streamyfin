@@ -395,23 +395,21 @@ export const TVSeerrPage: React.FC = () => {
     if (
       autoRequestedRef.current ||
       autoRequest !== "true" ||
+      // Only series ever carry the flag; on a movie the fallback would send
+      // the request outright for someone without advanced permission.
+      mediaType !== MediaType.TV ||
       !isFetchedAfterMount ||
       !offersRequest
     )
       return;
     autoRequestedRef.current = true;
-    if (mediaType === MediaType.TV) {
-      handleOpenSeasonSelectModal();
-    } else {
-      handleRequest();
-    }
+    handleOpenSeasonSelectModal();
   }, [
     autoRequest,
     isFetchedAfterMount,
     offersRequest,
     mediaType,
     handleOpenSeasonSelectModal,
-    handleRequest,
   ]);
 
   // Android TV restores focus to nothing when a modal route closes. The row
