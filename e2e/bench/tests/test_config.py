@@ -103,7 +103,7 @@ class LoadConfigTests(unittest.TestCase):
 
     def test_server_url_must_be_http_or_https_with_a_host(self):
         # A bad address used to pass, then failed in urllib with no field to name.
-        for url in ("", "beta.example.test", "ftp://beta.example.test", "https://"):
+        for url in ("", "beta.example.test", "ftp://beta.example.test", "https://", "https://[broken", "https://beta.example.test:port"):
             data = json.loads(EXAMPLE.read_text())
             data["servers"]["beta13"]["url"] = url
             with self.subTest(url=url), tempfile.TemporaryDirectory() as tmp:
@@ -157,6 +157,16 @@ class CheckoutTests(unittest.TestCase):
 
     def test_an_ignored_file_of_the_checkout_loads(self):
         self.assertIn("beta13", self.load_from(self.scratch_copy(".local.json")).servers)
+
+    def test_a_git_that_does_not_answer_refuses_the_file(self):
+        # A timeout read as "no git": a file git was never asked about loaded, passwords and all.
+        import subprocess
+
+        path = self.scratch_copy(".local.json")
+        with mock.patch("bench.config.subprocess.run", side_effect=subprocess.TimeoutExpired("git", 10)):
+            with self.assertRaises(BenchConfigError) as caught:
+                self.load_from(path)
+        self.assertIn("could not check", str(caught.exception))
 
 
 if __name__ == "__main__":

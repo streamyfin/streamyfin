@@ -92,6 +92,14 @@ class DeviceChoiceTests(unittest.TestCase):
         for identifier in ("emulator-5554", "emulator-5556", "0F1E2D3C-UDID"):
             self.assertIn(identifier, str(caught.exception))
 
+    def test_only_a_simulator_the_app_runs_on_is_picked(self):
+        # A booted watchOS simulator was picked, and the flow ran on a device without the app.
+        watch = Device(kind="watchos-simulator", id="WATCH-UDID", name="Apple Watch", state="booted", platform="watchos")
+        tv = Device(kind="tvos-simulator", id="TV-UDID", name="Apple TV 4K", state="booted", platform="tvos")
+        with self.assertRaises(NoDevice):
+            pick_device([watch])
+        self.assertEqual(pick_device([watch, tv]), "TV-UDID")
+
     def test_an_emulator_not_ready_does_not_count(self):
         with self.assertRaises(NoDevice):
             pick_device([Device(kind="android-emulator", id="emulator-5554", name="sdk", state="offline", platform="android")])
