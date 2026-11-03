@@ -42,6 +42,12 @@ const routes = [
   "music/album/[albumId]",
   "music/artist/[artistId]",
   "music/playlist/[playlistId]",
+  // The Seerr page opens from library series pages too, not only from search —
+  // an undeclared screen falls back to the route name as its title.
+  "seerr/page",
+  "seerr/person/[personId]",
+  "seerr/company/[companyId]",
+  "seerr/genre/[genreId]",
 ];
 
 export const nestedTabPageScreenOptions: Record<string, ICommonScreenOptions> =

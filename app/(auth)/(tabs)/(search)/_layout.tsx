@@ -2,7 +2,6 @@ import { Stack } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { Platform } from "react-native";
 import {
-  commonScreenOptions,
   nestedTabPageScreenOptions,
   stackScreenOptions,
 } from "@/components/stacks/NestedTabPageStack";
@@ -33,19 +32,6 @@ export default function SearchLayout() {
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
         }}
-      />
-      <Stack.Screen name='seerr/page' options={commonScreenOptions} />
-      <Stack.Screen
-        name='seerr/person/[personId]'
-        options={commonScreenOptions}
-      />
-      <Stack.Screen
-        name='seerr/company/[companyId]'
-        options={commonScreenOptions}
-      />
-      <Stack.Screen
-        name='seerr/genre/[genreId]'
-        options={commonScreenOptions}
       />
     </Stack>
   );
