@@ -392,10 +392,15 @@ export const TVSeerrPage: React.FC = () => {
   // predate Seerr's latest state; the sheet keeps the snapshot it opened
   // with, so it must never open on stale ones.
   const autoRequestedRef = useRef(false);
+  // The page stays mounted under a pushed screen, so a cast tap plus a slow
+  // refetch would open the sheet over the person page; the focus gate
+  // defers it until this screen is visible again.
+  const isFocused = useIsFocused();
   useEffect(() => {
     if (
       autoRequestedRef.current ||
       autoRequest !== "true" ||
+      !isFocused ||
       // Only series ever carry the flag; on a movie the fallback would send
       // the request outright for someone without advanced permission.
       mediaType !== MediaType.TV ||
@@ -410,6 +415,7 @@ export const TVSeerrPage: React.FC = () => {
     handleOpenSeasonSelectModal();
   }, [
     autoRequest,
+    isFocused,
     isFetchedAfterMount,
     isError,
     offersRequest,
@@ -424,7 +430,6 @@ export const TVSeerrPage: React.FC = () => {
   // modal's close() nulls it before router.back(), while its focus trap is
   // still mounted — so the remount also waits for the screen's focus, which
   // only lands once the pop has finished.
-  const isFocused = useIsFocused();
   const seasonModalOpen = useAtomValue(tvSeasonSelectModalAtom) !== null;
   const requestModalOpen = useAtomValue(tvRequestModalAtom) !== null;
   const issueModalOpen = useAtomValue(tvIssueModalAtom) !== null;

@@ -8,7 +8,7 @@ import {
 } from "@gorhom/bottom-sheet";
 import type { BottomSheetModalMethods } from "@gorhom/bottom-sheet/lib/typescript/types";
 import { useQuery } from "@tanstack/react-query";
-import { useLocalSearchParams, useNavigation } from "expo-router";
+import { useIsFocused, useLocalSearchParams, useNavigation } from "expo-router";
 import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -259,10 +259,15 @@ const MobilePage: React.FC = () => {
   // because the cache can hold details that predate Seerr's latest state;
   // opening the picker on them would strand it on an unrequestable series.
   const autoRequestedRef = useRef(false);
+  // The page stays mounted under a pushed screen, so a cast tap plus a slow
+  // refetch would present the picker over the person page; the focus gate
+  // defers it until this screen is visible again.
+  const isFocused = useIsFocused();
   useEffect(() => {
     if (
       autoRequestedRef.current ||
       autoRequest !== "true" ||
+      !isFocused ||
       // Only series ever carry the flag; on a movie it would send the
       // request outright for someone without advanced permission.
       mediaType !== MediaType.TV ||
@@ -277,6 +282,7 @@ const MobilePage: React.FC = () => {
     request();
   }, [
     autoRequest,
+    isFocused,
     mediaType,
     isFetchedAfterMount,
     isError,
