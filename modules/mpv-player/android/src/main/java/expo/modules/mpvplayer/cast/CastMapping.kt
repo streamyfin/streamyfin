@@ -2,6 +2,7 @@ package expo.modules.mpvplayer.cast
 
 import com.google.android.gms.cast.CastStatusCodes
 import com.google.android.gms.cast.MediaStatus
+import com.google.android.gms.cast.framework.CastReasonCodes
 import com.google.android.gms.cast.framework.CastState
 import com.google.android.gms.common.ConnectionResult
 
@@ -37,10 +38,12 @@ object CastMapping {
     }
 
     /**
-     * Null only when the user ended the session (the SDK reports success), which also closes
-     * the receiver app; any other end may leave the TV playing and the stop reporter checks.
+     * Null only when casting was stopped from this phone, which also closes the receiver app;
+     * any other end may leave the TV playing and the stop reporter checks. The SDK reports that
+     * stop as success or under a status code of its own (2154 on 22.3.1), which `reasonCode`,
+     * CastContext's reading of it, gives as CASTING_STOPPED.
      */
-    fun sessionEndError(errorCode: Int): String? =
-        if (errorCode == CastStatusCodes.SUCCESS) null
+    fun sessionEndError(errorCode: Int, reasonCode: Int): String? =
+        if (errorCode == CastStatusCodes.SUCCESS || reasonCode == CastReasonCodes.CASTING_STOPPED) null
         else "${CastStatusCodes.getStatusCodeString(errorCode)} ($errorCode)"
 }
