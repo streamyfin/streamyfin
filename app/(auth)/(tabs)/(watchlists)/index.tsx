@@ -7,6 +7,7 @@ import { Platform, RefreshControl, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
+import { Loader } from "@/components/Loader";
 import useRouter from "@/hooks/useAppRouter";
 import {
   useStreamystatsEnabled,
@@ -197,6 +198,19 @@ export default function WatchlistsScreen() {
 
   if (!streamystatsEnabled) {
     return <NotConfiguredState />;
+  }
+
+  // The list is empty until the Streamystats server answers, which left a
+  // blank page. Covered by components/watchlists/watchlistsPage.test.tsx.
+  if (isLoading && !watchlists) {
+    return (
+      <View
+        testID='watchlists-loading'
+        className='flex-1 items-center justify-center'
+      >
+        <Loader />
+      </View>
+    );
   }
 
   if (!isLoading && (!watchlists || watchlists.length === 0)) {
