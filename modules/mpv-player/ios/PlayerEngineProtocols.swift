@@ -210,3 +210,15 @@ extension QueueEngine {
 typealias ChromeEngine = TransportEngine & QueueEngine
 /// A local engine: all three faces.
 typealias PlayerEngine = ChromeEngine & RenderingEngine
+
+/// Whether the chrome offers picture in picture: only an engine with a screen that can float.
+func pictureInPictureSupported(by engine: ChromeEngine?) -> Bool {
+	(engine as? RenderingEngine)?.isPictureInPictureSupported() == true
+}
+
+/// The engine's technical info, for the overlay and JS. An engine without a screen answers with
+/// an empty table rather than not at all, so the overlay clears and the JS promise settles.
+func readTechnicalInfo(from engine: ChromeEngine?, completion: @escaping ([String: Any]) -> Void) {
+	guard let rendering = engine as? RenderingEngine else { return completion([:]) }
+	rendering.getTechnicalInfo(completion: completion)
+}
