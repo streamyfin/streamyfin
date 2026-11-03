@@ -31,13 +31,14 @@ const ASSET_REQUIRE = /require\(\s*["']@\/(assets\/[^"']+)["']\s*\)/g;
 
 const sourceFiles = (dir: string): string[] =>
   readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
-    // A hidden folder holds no source. The TV font size spec writes its probe in
-    // components/tv/.lint-probe-*, and removes it while this scan, in another
-    // worker, may be reading it: the suite then failed on ENOENT.
-    if (entry.name.startsWith(".")) return [];
     const path = join(dir, entry.name);
     if (entry.isDirectory()) {
-      return entry.name === "node_modules" ? [] : sourceFiles(path);
+      // A hidden folder holds no source. The TV font size spec writes its probe in
+      // components/tv/.lint-probe-*, and removes it while this scan, in another
+      // worker, may be reading it: the suite then failed on ENOENT.
+      return entry.name === "node_modules" || entry.name.startsWith(".")
+        ? []
+        : sourceFiles(path);
     }
     return SOURCE_FILE.test(entry.name) ? [path] : [];
   });
