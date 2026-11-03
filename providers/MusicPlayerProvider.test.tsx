@@ -92,6 +92,23 @@ jest.mock(
         }
         return index;
       },
+      remove: async (indexes: number | number[]) => {
+        const sorted = (Array.isArray(indexes) ? indexes : [indexes]).sort(
+          (a, b) => b - a,
+        );
+        for (const index of sorted) {
+          if (index < 0 || index > mockNative.queue.length - 1) {
+            throw mockNative.outOfBounds();
+          }
+          mockNative.queue.splice(index, 1);
+          if (
+            mockNative.activeIndex !== undefined &&
+            index < mockNative.activeIndex
+          ) {
+            mockNative.activeIndex -= 1;
+          }
+        }
+      },
       skip: async (index: number) => {
         if (index < 0 || index > mockNative.queue.length - 1) {
           throw mockNative.outOfBounds();
@@ -643,6 +660,54 @@ describe("MusicPlayerProvider and a Cast session", () => {
     ]);
   });
 
+  // Until the receiver reports the queue, its commands are held back: the
+  // player would show a mode the receiver does not play in.
+  test("repeat stays as it was when the receiver is not told", async () => {
+    mockCast.castState = "connected";
+    setCastSession(mockCast, "session-1");
+    await mount();
+    await run((p) => p.playQueue(ALBUM, 1));
+    const before = player.repeatMode;
+
+    await run((p) => p.setRepeatMode(before === "all" ? "one" : "all"));
+
+    expect(player.repeatMode).toBe(before);
+    expect(receiverCommands()).toEqual([]);
+    // Settles the cast, which would otherwise wait on into the next test.
+    await receiverStatus("t1", "playing");
+  });
+
+  // The receiver has no command to take a track out or move one, so the
+  // queue screen offers none while it has the queue.
+  test("the queue cannot be edited while the receiver has it", async () => {
+    await castAlbum();
+    expect(player.canEditQueue).toBe(false);
+
+    await disconnectCast();
+    await settle();
+    expect(player.canEditQueue).toBe(true);
+  });
+
+  // Stopped from the TV's remote, the receiver keeps the session and reports
+  // the track it stopped on as idle, its media session over: play sends the
+  // queue again from that track, where a play on the receiver did nothing.
+  test("play casts the queue again from where the receiver stopped", async () => {
+    await castAlbum();
+    await receiverStatus("t1", "idle", 0);
+    expect(player.isPlaying).toBe(false);
+    expect(player.currentTrack?.Id).toBe("t1");
+
+    await run((p) => p.togglePlayPause());
+
+    expect(playNows()).toHaveLength(2);
+    expect(playNows()[1].options.items.map((item) => item.Id)).toEqual(
+      ALBUM.map((item) => item.Id),
+    );
+    expect(playNows()[1].options.startIndex).toBe(1);
+    await receiverStatus("t1", "playing", 0, "ps-2");
+    expect(player.isPlaying).toBe(true);
+  });
+
   // The receiver adds both at the end of its queue, and the player shows its order.
   test("tracks added during a cast go to the receiver's queue", async () => {
     await castAlbum();
@@ -904,6 +969,57 @@ describe("MusicPlayerProvider and the native queue", () => {
     expect(nativeIds()).toEqual([]);
     expect(player.currentTrack).toBeNull();
     expect(player.isLoading).toBe(false);
+  });
+
+  // The rest of a resumed queue loads one track at a time: a queue played
+  // meanwhile resets the player, and the old load must not add to the new one.
+  test("a queue played while a resumed one still loads keeps only its own tracks", async () => {
+    persistQueue(ALBUM, 0);
+    await mount();
+    holdStreams("t2");
+    await run((p) => p.resume());
+    expect(nativeIds()).toEqual(["t0", "t1"]);
+
+    await run((p) => p.playQueue(["n0", "n1"].map(track), 0));
+    await releaseStreams();
+
+    expect(nativeIds()).toEqual(["n0", "n1"]);
+    expect(player.queue.map((item) => item.Id)).toEqual(["n0", "n1"]);
+  });
+
+  test("a queue played while another still loads keeps only its own tracks", async () => {
+    await mount();
+    holdStreams("t2");
+    await run((p) => p.playQueue(ALBUM, 0));
+    expect(nativeIds()).toEqual(["t0", "t1"]);
+
+    await run((p) => p.playQueue(["n0", "n1"].map(track), 0));
+    await releaseStreams();
+
+    expect(nativeIds()).toEqual(["n0", "n1"]);
+  });
+
+  test("a stopped player gets no tracks from the load that was running", async () => {
+    await mount();
+    holdStreams("t2");
+    await run((p) => p.playQueue(ALBUM, 0));
+
+    await run((p) => p.stop());
+    await releaseStreams();
+
+    expect(nativeIds()).toEqual([]);
+  });
+
+  test("a cleared queue gets no tracks from the load that was running", async () => {
+    await mount();
+    holdStreams("t2");
+    await run((p) => p.playQueue(ALBUM, 0));
+
+    await run((p) => p.clearQueue());
+    await releaseStreams();
+
+    expect(nativeIds()).toEqual(["t0"]);
+    expect(player.queue.map((item) => item.Id)).toEqual(["t0"]);
   });
 
   // Same report, the other way in: a queue restored after a restart is only
