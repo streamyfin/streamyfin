@@ -7,11 +7,13 @@ describe("Plugin settings performance", () => {
     await measureRenders(<PluginSettings />, {
       scenario: async () => {
         const switches = await screen.findAllByRole("switch");
+        // Explicit values: the host switch carries `value` on iOS only (Android
+        // gets `on`), and all three settings start on.
         for (const toggle of switches) {
-          await fireEvent(toggle, "valueChange", !toggle.props.value);
+          await fireEvent(toggle, "valueChange", false);
         }
         for (const toggle of switches) {
-          await fireEvent(toggle, "valueChange", !toggle.props.value);
+          await fireEvent(toggle, "valueChange", true);
         }
         await act(async () => {
           jest.advanceTimersByTime(500);
