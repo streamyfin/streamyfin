@@ -1,11 +1,13 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import React, { useCallback } from "react";
 import { ScrollView, View } from "react-native";
+import { Text } from "@/components/common/Text";
 import { TVHorizontalList } from "@/components/tv/TVHorizontalList";
 import { TVPosterCard } from "@/components/tv/TVPosterCard";
 import { TVPosterPill } from "@/components/tv/TVPosterPill";
 import { TV_SKELETON } from "@/constants/Colors";
-import { useScaledTVPosterSizes } from "@/constants/TVPosterSizes";
+import { useScaledTVPosterSizes } from "@/constants/TVSizes";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 import { useEpisodeAirLabels } from "@/hooks/useEpisodeAirLabels";
 import { scaleSize } from "@/utils/scaleSize";
 
@@ -98,22 +100,44 @@ export const TVEpisodeList: React.FC<TVEpisodeListProps> = ({
   const keyExtractor = useCallback((episode: BaseItemDto) => episode.Id!, []);
 
   // While the episodes load, cards in their shape hold the row: an empty row
-  // read as nothing happening.
+  // read as nothing happening. The shape includes the label line and the
+  // title TVPosterCard draws under an episode, in the same type, so the row
+  // keeps its height when the cards arrive.
   const posterSizes = useScaledTVPosterSizes();
-  const renderSkeleton = useCallback(
-    () => (
-      <View
-        testID='tv-episode-skeleton'
-        style={{
-          width: posterSizes.episode,
-          aspectRatio: 16 / 9,
-          borderRadius: scaleSize(24),
-          backgroundColor: TV_SKELETON,
-        }}
-      />
-    ),
-    [posterSizes.episode],
-  );
+  const typography = useScaledTVTypography();
+  const renderSkeleton = useCallback(() => {
+    const line = {
+      fontSize: typography.callout,
+      color: TV_SKELETON,
+      backgroundColor: TV_SKELETON,
+      borderRadius: 6,
+      overflow: "hidden" as const,
+    };
+    return (
+      <View style={{ width: posterSizes.episode }}>
+        <View
+          testID='tv-episode-skeleton'
+          style={{
+            width: posterSizes.episode,
+            aspectRatio: 16 / 9,
+            borderRadius: scaleSize(24),
+            backgroundColor: TV_SKELETON,
+          }}
+        />
+        <View
+          testID='tv-episode-skeleton-text'
+          style={{
+            marginTop: scaleSize(12),
+            paddingHorizontal: scaleSize(4),
+            alignItems: "flex-start",
+          }}
+        >
+          <Text style={line}>S1:E1 • 45 min</Text>
+          <Text style={[line, { marginTop: scaleSize(4) }]}>Episode title</Text>
+        </View>
+      </View>
+    );
+  }, [posterSizes.episode, typography.callout]);
 
   return (
     <TVHorizontalList

@@ -126,3 +126,17 @@ test("holds the row with card placeholders while the episodes load", async () =>
   expect(screen.queryByTestId("tv-episode-skeleton")).toBeNull();
   expect(screen.getByText("Pilot")).toBeTruthy();
 });
+
+// The cards that replace the placeholders carry a label line and a title under
+// the image: a placeholder of the image alone made the row grow, and the
+// sections below it jump, when the episodes arrived.
+test("the placeholders hold the label and title lines of the cards too", async () => {
+  await render(
+    <TVEpisodeList onEpisodePress={() => {}} episodes={[]} isLoading />,
+  );
+
+  const cards = screen.getAllByTestId("tv-episode-skeleton");
+  expect(screen.getAllByTestId("tv-episode-skeleton-text")).toHaveLength(
+    cards.length,
+  );
+});
