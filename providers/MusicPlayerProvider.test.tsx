@@ -1154,4 +1154,43 @@ describe("MusicPlayerProvider native player setup", () => {
       seekSpy.mockRestore();
     }
   });
+
+  // Two starts that both wait on the setup resume together behind it. The
+  // sequence in isStale drops the first, or its phase-two adds land inside
+  // the second start's queue.
+  test("a second start wins when two wait on the same setup", async () => {
+    mockNative.setupDelayMs = 40;
+    mockStream.delayMs = 5;
+    await mount();
+
+    await act(async () => {
+      player.playQueue(ALBUM, 0);
+      player.playQueue([track("s0"), track("s1")], 0);
+      await new Promise((resolve) => setTimeout(resolve, 80));
+    });
+    await settle();
+
+    expect(player.currentTrack?.Id).toBe("s0");
+    expect(nativeIds()).toEqual(["s0", "s1"]);
+  });
+
+  // The setup wait sits before jumpToIndex reads its generation. A switch of
+  // account during it must stop the jump, or the old account's track goes
+  // into the player the teardown just reset.
+  test("a jump that outlives its account does not load the track", async () => {
+    mockNative.setupDelayMs = 20;
+    persistQueue(ALBUM, 2);
+    await mount();
+
+    const jumping = act(async () => {
+      await player.jumpToIndex(3);
+    });
+    await act(async () => {
+      getDefaultStore().set(userAtom, { Id: "other", ServerId: "server" });
+    });
+    await jumping;
+    await settle();
+
+    expect(nativeIds()).toEqual([]);
+  });
 });

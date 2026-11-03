@@ -539,6 +539,10 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   const sessionKey = sessionKeyFor(user);
   const sessionKeyRef = useRef<string | null>(null);
   const sessionGenerationRef = useRef(0);
+  // A playback start that is still waiting on the player loses to the next
+  // one: they resume together when setup finishes, and only the last may
+  // reach the native queue.
+  const startSequenceRef = useRef(0);
 
   // Set once jumpToIndex has loaded a track ahead of the background load. From
   // then on that load can no longer append: it has to place each track, and
@@ -1070,9 +1074,14 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
 
       // Preparing a track is a network round trip; a session switch during it
       // would otherwise let this call re-add the previous account's track and
-      // report a playback start against the wrong server.
+      // report a playback start against the wrong server. A later start
+      // supersedes one still preparing: both would resume behind the same
+      // setup and interleave their resets and adds.
       const generation = sessionGenerationRef.current;
-      const isStale = () => generation !== sessionGenerationRef.current;
+      const startSequence = ++startSequenceRef.current;
+      const isStale = () =>
+        generation !== sessionGenerationRef.current ||
+        startSequence !== startSequenceRef.current;
 
       const preferLocal = settings?.preferLocalAudio ?? true;
 
@@ -1101,9 +1110,9 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       }));
 
       try {
-        // Wait for the setup before preparing, not after: two starts that both
-        // finish preparing while it runs would resume together and each reset
-        // and add behind the other. Waiting first spreads them by the network.
+        // Wait for the setup before preparing, not after: the starts waiting
+        // on it resume together, and the sequence check drops all but the
+        // last of them.
         await ensurePlayerReady();
         if (isStale()) return;
 
@@ -1800,7 +1809,16 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
 
   const jumpToIndex = useCallback(
     async (index: number) => {
-      if (!TrackPlayer || !(await playerReadyForControl())) return;
+      // A session that switches account resets the player, and nothing of the
+      // previous account may go back into it. Captured before the setup wait:
+      // a switch during it hands this call the new generation. Checked after
+      // every wait, and inside a turn on the native queue right before the
+      // call that changes it: the teardown bumps the generation before it
+      // resets the player, so a call that passes the check is ahead of that
+      // reset.
+      const generation = sessionGenerationRef.current;
+      const isStale = () => generation !== sessionGenerationRef.current;
+      if (!TrackPlayer || !(await playerReadyForControl()) || isStale()) return;
       if (
         index < 0 ||
         index >= state.queue.length ||
@@ -1811,14 +1829,6 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       const targetItem = state.queue[index];
       const targetId = targetItem?.Id;
       if (!targetId) return;
-
-      // A session that switches account resets the player, and nothing of the
-      // previous account may go back into it. Checked after every wait, and
-      // inside a turn on the native queue right before the call that changes
-      // it: the teardown bumps the generation before it resets the player, so
-      // a call that passes the check is ahead of that reset.
-      const generation = sessionGenerationRef.current;
-      const isStale = () => generation !== sessionGenerationRef.current;
 
       // `index` is a position in the queue on screen. The native queue only
       // holds what has been loaded so far, so look the track up there by id.
