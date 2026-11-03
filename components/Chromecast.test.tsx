@@ -5,6 +5,7 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react-native";
+import { Colors } from "@/constants/Colors";
 import {
   type CastDoubleState,
   createCastDoubleState,
@@ -22,10 +23,55 @@ jest.mock("react-i18next", () => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }));
 jest.mock("@/utils/log", () => ({ logAndCaptureError: jest.fn() }));
-jest.mock("./common/HeaderIcon", () => ({ HeaderIcon: () => null }));
+/** The glyphs the button drew, latest last. */
+const mockIcons: { name: string; tintColor?: string }[] = [];
+jest.mock("./common/HeaderIcon", () => ({
+  HeaderIcon: (props: { name: string; tintColor?: string }) => {
+    mockIcons.push(props);
+    return null;
+  },
+}));
 
 beforeEach(() => {
   mockCast = createCastDoubleState();
+  mockIcons.length = 0;
+});
+
+// Connected, the button takes the app's purple and the connected glyph, as the
+// SDK's own button did, and a screen reader hears the state with its name.
+test("a connected session shows the connected glyph in the app's purple", async () => {
+  await render(<Chromecast />);
+  expect(mockIcons.at(-1)).toEqual({
+    name: "castConnected",
+    tintColor: Colors.primary,
+  });
+  expect(
+    screen.getByLabelText("accessibility.cast_button").props.accessibilityValue,
+  ).toEqual({ text: "accessibility.cast_connected" });
+});
+
+test("without a session the button keeps the plain glyph", async () => {
+  mockCast.castState = "notConnected";
+  setCastSession(mockCast, null);
+  await render(<Chromecast />);
+  expect(mockIcons.at(-1)).toEqual({ name: "cast" });
+  expect(
+    screen.getByLabelText("accessibility.cast_button").props.accessibilityValue,
+  ).toBeUndefined();
+});
+
+test("the glyph follows the session as it connects", async () => {
+  mockCast.castState = "notConnected";
+  setCastSession(mockCast, null);
+  await render(<Chromecast />);
+  await waitFor(() =>
+    expect(mockCast.listeners.onCastStateChanged.length).toBeGreaterThan(0),
+  );
+  await act(async () => {
+    mockCast.castState = "connected";
+    emitCastEvent(mockCast, "onCastStateChanged", { state: "connected" });
+  });
+  expect(mockIcons.at(-1)?.name).toBe("castConnected");
 });
 
 // The header shows a bare glyph: a screen reader needs the button's name, and
