@@ -450,7 +450,8 @@ class SenderMainTests(unittest.TestCase):
         server = FakeServer()
         receiver = BufferingUntilIdentify(status=FakeStatus("BUFFERING", 0.0, custom("item-1", "ps-1")))
         with bench_run(server, receiver) as run:
-            self.assertEqual(sender_main("identify"), 0)
+            # Started elsewhere, the session's cap is unknown and the command states one.
+            self.assertEqual(sender_main("identify", "--max-bitrate", "8000000"), 0)
             [report] = run.reports(".json")
             steps = json.loads(report.read_text())["steps"]
         bus = next(step["data"]["bus"] for step in steps if step["step"] == "final")
@@ -566,6 +567,35 @@ class SenderMainTests(unittest.TestCase):
             self.assertEqual(sender_main("seek", "--seconds", "60", "--max-bitrate", "2000000"), 0)
             self.assertEqual(sender_main("stop"), 0)
         self.assertEqual([(m["command"], m["maxBitrate"]) for m in receiver.received], [("PlayNow", 3000000), ("Seek", 2000000), ("Stop", 2000000)])
+
+    def test_a_session_started_elsewhere_has_an_unknown_cap(self):
+        # The app may have started the playback under a cap, and an uncapped seek from the bench
+        # lifted it: without a kept session, a command states the cap, as for a kept one without.
+        server = FakeServer()
+        receiver = FakeReceiver(status=playing("item-1", "ps-1"))
+        with bench_run(server, receiver) as run:
+            self.assertEqual(sender_main("seek", "--seconds", "60"), 2)
+            self.assertEqual(receiver.received, [])
+            self.assertIn("--max-bitrate", run.stdout.getvalue())
+            self.assertEqual(sender_main("seek", "--seconds", "60", "--max-bitrate", "2000000"), 0)
+        self.assertEqual([(m["command"], m["maxBitrate"]) for m in receiver.received], [("Seek", 2000000)])
+
+    def test_a_stop_under_an_unknown_cap_leaves_it_unknown(self):
+        # A stop needs no cap and goes out uncapped: kept as the session's when the playback
+        # outlived the stop, that guess let the next command lift a cap the bench never knew.
+        server = FakeServer(items={"V01": V01})
+        receiver = FakeReceiver()
+        with bench_run(server, receiver) as run:
+            sender_main("play-now", "--item", "V01", "--watch", "0", "--max-bitrate", "3000000")
+            path = run.root / "receiver-tokens.local.json"
+            stored = json.loads(path.read_text())
+            del stored["beta13"]["test"]["Living room"]["maxBitrate"]
+            path.write_text(json.dumps(stored))
+            # The receiver takes the Stop and plays on.
+            with mock.patch.object(receiver, "send", side_effect=receiver.received.append):
+                self.assertEqual(sender_main("stop"), 0)
+            self.assertEqual(sender_main("seek", "--seconds", "60"), 2)
+        self.assertEqual([m["command"] for m in receiver.received], ["PlayNow", "Stop"])
 
     def test_an_uncapped_session_is_kept_as_uncapped(self):
         # Without a cap on record, an uncapped session read as one whose cap is unknown.
