@@ -589,23 +589,28 @@ def main(argv: list[str] | None = None) -> int:
         # The cap this run's messages carry, and its session's from then on: a play starts the session
         # under the one it asks for, a later command keeps the kept session's unless it asks for
         # another. A kept session whose cap is unknown, kept before caps were or after a send that
-        # failed, needs one stated: guessed, it could lift the cap of the loads to come. A stop
-        # starts no load, and status sends nothing.
+        # failed, needs one stated: guessed, it could lift the cap of the loads to come. So does a
+        # session the bench did not start, the app's say. A stop starts no load, and status sends
+        # nothing.
         asked = getattr(args, "max_bitrate", None)
         if held is not None:
             session_cap = tokens.max_bitrate(*key)
-        if asked is None and held is not None and session_cap is None and args.action not in ("play-now", "stop", "status"):
+        if asked is None and session_cap is None and args.action not in ("play-now", "stop", "status"):
             note("refused", error=f"the bitrate cap of the session on {target.name} is unknown: pass --max-bitrate, or start it again with play-now")
             cast.disconnect(timeout=5)
             return 2
         max_bitrate = asked or (session_cap if args.action != "play-now" else None) or UNCAPPED_BITRATE
+        # A stop under an unknown cap goes out uncapped, yet the session's cap stays unknown:
+        # recorded, that guess would let the next command lift a cap the bench never knew.
+        cap_known = args.action == "play-now" or asked is not None or session_cap is not None
 
         def send(command: str, options: dict | None = None) -> None:
             nonlocal handed, session_cap
             handed = session
             message = build_message(command, server.url, session.token, session.user_id, options or {}, receiver_name, max_bitrate)
             controller.send(message)
-            session_cap = message["maxBitrate"]
+            if cap_known:
+                session_cap = message["maxBitrate"]
             note("sent", command=command, options=options or {}, max_bitrate=message["maxBitrate"])
 
         identified_at = None
