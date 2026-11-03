@@ -11,6 +11,4 @@ enum CastEngineConstants {
   static let nextItemWaitMs: Double = 15_000
   /// Same value as RECEIVER_MAX_QUEUE_ITEMS: a Cast message is capped at 64 KB, so PlayLast pages a long queue.
   static let maxQueueItems = 100
-  /// Past this far into an item, previous goes back to its start, as the chrome's chapterRestartThreshold does.
-  static let previousRestartSeconds: Double = 3
 }

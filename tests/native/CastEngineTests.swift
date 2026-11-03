@@ -294,6 +294,17 @@ enum CastEngineTests {
       check("startWithoutAConnectedSessionThrows", thrown && bench.media.listener == nil)
     }
 
+    // A second bind would subscribe and ask for a status again.
+    do {
+      let bench = Bench()
+      let engine = bench.engine()
+      try? engine.start()
+      check(
+        "aSecondStartBindsNothingMore",
+        bench.media.statusRequests == 1 && bench.logs.filter { $0.hasPrefix("bound to session") }.count == 1
+      )
+    }
+
     do {
       let bench = Bench()
       _ = bench.engine()
@@ -309,6 +320,15 @@ enum CastEngineTests {
       _ = bench.playing()
       bench.media.report(snapshot(playerState: "idle", idleReason: "error"))
       check("anIdleErrorReportsThePlaybackError", bench.delegate.errors == ["The receiver stopped on a playback error"])
+    }
+
+    // Nothing plays once the receiver stops: a stall it stopped on ends the loading.
+    do {
+      let bench = Bench()
+      _ = bench.playing()
+      bench.media.report(snapshot(playerState: "buffering"))
+      bench.media.report(snapshot(playerState: "idle", idleReason: "error"))
+      check("aStallTheReceiverStopsOnEndsTheLoading", bench.delegate.loadings == [false, true, false])
     }
 
     do {
@@ -417,6 +437,17 @@ enum CastEngineTests {
         "aSeekTheReceiverCannotDoHoldsTheTargetUntilTheNewPlaySession",
         before && sent && held && stillHeld && close(engine.getCurrentPosition(), 126.5) && bench.delegate.loadings.last == false
       )
+    }
+
+    // A stream change for the same item: the status that interrupts the old stream still carries its
+    // customData, while the time is the new stream's. The position holds until the new play session.
+    do {
+      let bench = Bench()
+      let engine = bench.playing(12.5, reloadable)
+      bench.media.report(snapshot(playerState: "idle", idleReason: "interrupted", customData: ours(reloadable), streamPosition: 0))
+      let held = close(engine.getCurrentPosition(), 42.5)
+      bench.clock.advance(1_000)
+      check("anInterruptedStatusHoldsThePosition", held && close(engine.getCurrentPosition(), 42.5))
     }
 
     // iOS has no tracked seek: a seek shows up as the position of the next status, the target's.
@@ -549,6 +580,20 @@ enum CastEngineTests {
       let engine = bench.playing()
       engine.loadVideo(config: VideoLoadConfig(url: URL(string: "https://jellyfin.example.test/stream")!), force: false)
       check("aUrlLoadIsRefused", bench.delegate.errors == ["The Cast engine plays Jellyfin items, not URLs"])
+    }
+
+    // A track change the channel could not send: the getters keep the track the receiver plays, and
+    // the host hears why.
+    do {
+      let bench = Bench()
+      let engine = bench.playing()
+      bench.port.sendError = "receiver busy"
+      engine.setSubtitleTrack(5)
+      engine.setAudioTrack(2)
+      check(
+        "aTrackChangeTheChannelCannotSendIsUndoneAndReported",
+        subtitle(engine) == 3 && audio(engine) == 1 && bench.delegate.errors == ["receiver busy", "receiver busy"]
+      )
     }
 
     // Volume, identity and detaching
@@ -737,11 +782,32 @@ enum CastEngineTests {
       )
     }
 
+    // The host acts on Loaded from the status that settled it, which is the engine's by then.
+    do {
+      let bench = Bench()
+      let engine = bench.engine()
+      engine.load(server: server, request: request) { result in
+        if case .settled(.loaded) = result { engine.seekTo(position: 30) }
+      }
+      bench.media.report(snapshot())
+      check("aLoadSettlesOnceItsStatusIsTheEngines", bench.media.seeks == [30])
+    }
+
     do {
       let bench = Bench()
       _ = bench.playing()
       bench.port.deliver(#"{"type":"playbackerror","message":"NotAllowed"}"#)
       check("aBusErrorOutsideALoadReportsItsWireName", bench.delegate.errors == ["playback_failed"])
+    }
+
+    // A failed PlaybackInfo comes as a connectionerror, then as the NoCompatibleStream playbackerror of
+    // the same failure: one error, whether a load waits for it or not.
+    do {
+      let bench = Bench()
+      _ = bench.playing()
+      bench.port.deliver(#"{"type":"connectionerror","message":"Request failed"}"#)
+      bench.port.deliver(#"{"type":"playbackerror","message":"NoCompatibleStream"}"#)
+      check("aPlaybackInfoFailureOutsideALoadReportsOneError", bench.delegate.errors == ["playback_info_failed"])
     }
 
     // Reloads and the queue
@@ -758,6 +824,66 @@ enum CastEngineTests {
       let expected = (try? ReceiverProtocol.playNow(server: server, request: replay)) ?? [:]
       let sent = bench.sentMessages()
       check("reloadCurrentItemPlaysTheItemAgainWhereItIs", sent.count == 1 && NSDictionary(dictionary: sent[0]).isEqual(to: expected))
+    }
+
+    // The receiver's PlayNow replaces its queue: a reload sends the queue the engine cast, from the
+    // item the receiver plays.
+    do {
+      let bench = Bench()
+      let engine = bench.engine()
+      let album = ReceiverPlayRequest(items: ["t-1", "t-2", "t-3"].map { ReceiverItem(id: $0, type: "Audio") })
+      engine.load(server: server, request: album) { _ in }
+      bench.media.report(snapshot(customData: ours(["itemId": "t-1"])), position: 0)
+      engine.enqueue(itemIds: ["t-4"])
+      bench.media.report(snapshot(customData: ours(["itemId": "t-2", "playSessionId": "ps-2"])), position: 5)
+      engine.reloadCurrentItem()
+      let options = bench.sentMessages().last?["options"] as? [String: Any] ?? [:]
+      let ids = (options["items"] as? [[String: Any]] ?? []).map { $0["Id"] as? String }
+      check(
+        "aReloadKeepsTheQueueTheEngineCast",
+        ids == ["t-1", "t-2", "t-3", "t-4"] && options["startIndex"] as? Int == 1
+          && (options["startPositionTicks"] as? NSNumber)?.int64Value == 50_000_000
+      )
+    }
+
+    // A stop from the TV leaves an idle status that still carries the media, which play() on the
+    // media channel cannot resume: Play casts the item again where it stopped.
+    do {
+      let bench = Bench()
+      let engine = bench.playing(42.5)
+      bench.media.report(snapshot(playerState: "idle", idleReason: "cancelled", streamPosition: 42.5))
+      engine.play()
+      let sent = bench.sentMessages()
+      let options = sent.first?["options"] as? [String: Any] ?? [:]
+      let ids = (options["items"] as? [[String: Any]] ?? []).map { $0["Id"] as? String }
+      check(
+        "playAfterAStopFromTheTvCastsTheItemAgain",
+        sent.count == 1 && sent[0]["command"] as? String == "PlayNow" && ids == ["item-1"]
+          && (options["startPositionTicks"] as? NSNumber)?.int64Value == 425_000_000 && bench.media.calls.isEmpty
+      )
+    }
+
+    do {
+      let bench = Bench()
+      let engine = bench.playing(42.5)
+      bench.media.report(snapshot(playerState: "idle", idleReason: "finished", streamPosition: 60))
+      engine.play()
+      let options = bench.sentMessages().first?["options"] as? [String: Any] ?? [:]
+      let fromStart = (options["startPositionTicks"] as? NSNumber)?.int64Value == 0
+      // Played again: the end it waited for is not one.
+      bench.clock.advance(CastEngineConstants.nextItemWaitMs)
+      check("playAfterTheItemEndedStartsItAgainFromTheStart", fromStart && bench.delegate.ended == 0)
+    }
+
+    // A quality change: the item again where it is, under the envelope's new cap.
+    do {
+      let bench = Bench()
+      let engine = bench.playing(42.5)
+      var capped = server
+      capped.maxBitrate = 4_000_000
+      engine.reloadCurrentItem(server: capped)
+      let sent = bench.sentMessages()
+      check("reloadCurrentItemWithAServerSendsItsCap", sent.count == 1 && (sent[0]["maxBitrate"] as? NSNumber)?.int64Value == 4_000_000)
     }
 
     do {
@@ -784,6 +910,24 @@ enum CastEngineTests {
       let engine = bench.playing(42.5)
       engine.skipToPrevious()
       check("aPreviousPastThreeSecondsRestartsTheItem", bench.media.seeks == [0] && bench.port.sent.isEmpty)
+    }
+
+    // An item the receiver cannot seek in has no start to go back to: Previous goes to the item before.
+    do {
+      let bench = Bench()
+      let engine = bench.playing(42.5, ["canSeek": false])
+      engine.skipToPrevious()
+      check("aPreviousOnAnItemThatCannotSeekGoesToTheItemBefore", bench.commands() == ["PreviousTrack {}"])
+    }
+
+    do {
+      let bench = Bench()
+      let engine = bench.playing(2)
+      bench.port.sendError = "receiver busy"
+      engine.skipToNext()
+      engine.skipToPrevious()
+      engine.enqueue(itemIds: ["id-1"])
+      check("aQueueCommandTheChannelCannotSendIsReported", bench.delegate.errors == Array(repeating: "receiver busy", count: 3))
     }
 
     // The end of an item
@@ -832,6 +976,16 @@ enum CastEngineTests {
         "aResumeRebindsTheNewMediaClientAndRefreshes",
         bench.media.listener == nil && media2.listener != nil && media2.statusRequests == 1
       )
+    }
+
+    do {
+      let bench = Bench()
+      _ = bench.playing()
+      bench.source.listener?.castSessionDidSuspend(sessionId: "session-1")
+      let media2 = FakeMedia()
+      bench.source.listener?.castSessionDidResume(FakeSession(media: media2))
+      media2.report(snapshot(playerState: "idle", customData: nil, hasMedia: false))
+      check("aResumeOntoAReceiverThatStoppedEndsTheLoading", bench.delegate.loadings == [false, true, false])
     }
 
     // Vigilance 1: a status the replaced media client had queued arrives after the new binding.
@@ -935,6 +1089,21 @@ enum CastEngineTests {
       )
     }
 
+    // A report without an id is the bound session's only once that session forgot its own: iOS reports
+    // a session that failed to start without one.
+    do {
+      let bench = Bench()
+      let engine = bench.playing()
+      let binding = RecordingBinding()
+      engine.bindingListener = binding
+      bench.source.listener?.castSessionDidSuspend(sessionId: nil)
+      bench.source.listener?.castSessionDidEnd(sessionId: nil, error: "Failed to start")
+      check(
+        "aSuspendOrEndWithoutAnIdLeavesABindingWhoseSessionKeepsItsId",
+        binding.lost.isEmpty && bench.delegate.loadings == [false]
+      )
+    }
+
     // The device proof reads these lines (e2e/suites/cast/README.md): transitions, never a message.
     do {
       let bench = Bench()
@@ -957,8 +1126,8 @@ enum CastEngineTests {
           "reload settled loaded",
           "status playing playSession=ps-2 playMethod=Transcode canClientSeek=true",
           "send PlayNow",
-          "load settled loaded",
           "status playing playSession=ps-3 playMethod=Transcode canClientSeek=false",
+          "load settled loaded",
           "seek 20.0 path=bus",
           "send Seek",
           "idle finished, waiting for the next item",

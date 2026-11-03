@@ -77,6 +77,17 @@ class CastEngineTest {
         assertEquals(0, started)
     }
 
+    // A second bind would add the bus listener again, and one stop removes only one of them.
+    @Test
+    fun aSecondStartBindsNothingMore() {
+        val engine = engine()
+        engine.start(PlayerEngine.Owner.NATIVE_SESSION) { started += 1 }
+        engine.stop()
+        port.deliver("""{"type":"playbackerror","message":"NotAllowed"}""")
+        assertEquals(emptyList<String>(), delegate.errors)
+        assertEquals(1, started)
+    }
+
     @Test
     fun playingPausedAndBufferingReachTheDelegateOnce() {
         engine()
@@ -90,6 +101,15 @@ class CastEngineTest {
         playing()
         media.report(snapshot(playerState = "idle", idleReason = "error"))
         assertEquals(listOf("The receiver stopped on a playback error"), delegate.errors)
+    }
+
+    // Nothing plays once the receiver stops: a stall it stopped on ends the loading.
+    @Test
+    fun aStallTheReceiverStopsOnEndsTheLoading() {
+        playing()
+        media.report(snapshot(playerState = "buffering"))
+        media.report(snapshot(playerState = "idle", idleReason = "error"))
+        assertEquals(listOf(false, true, false), delegate.loadings)
     }
 
     @Test
@@ -178,6 +198,17 @@ class CastEngineTest {
         assertFalse(delegate.loadings.last())
     }
 
+    // A stream change for the same item: the status that interrupts the old stream still carries its
+    // customData, while the time is the new stream's. The position holds until the new play session.
+    @Test
+    fun anInterruptedStatusHoldsThePosition() {
+        val engine = playing(12_500, *reloadable)
+        media.report(snapshot(playerState = "idle", idleReason = "interrupted", customData = ours(*reloadable)), 0)
+        assertEquals(42.5, engine.currentPosition, 1e-9)
+        media.tick(0)
+        assertEquals(42.5, engine.currentPosition, 1e-9)
+    }
+
     @Test
     fun seekToTrackedCompletesWithItsRequestId() {
         val engine = playing()
@@ -191,6 +222,16 @@ class CastEngineTest {
         engine.seekToTracked(126.5, false, 8)
         media.report(snapshot(customData = ours(*reloadable, "playSessionId" to "ps-4", "startPositionTicks" to 1_260_000_000L)), 500)
         assertEquals(listOf(7L to 125.6, 8L to 126.5), delegate.seeksCompleted)
+    }
+
+    // Play Services hands a seek's result over after the status that answered it.
+    @Test
+    fun aTrackedSeekAnsweredBeforeItsResultCompletesAtTheResult() {
+        val engine = playing()
+        engine.seekToTracked(125.6, false, 7)
+        media.report(snapshot(), 125_600)
+        media.finishSeek(true)
+        assertEquals(listOf(7L to 125.6), delegate.seeksCompleted)
     }
 
     @Test
@@ -253,6 +294,19 @@ class CastEngineTest {
         assertTrue(delegate.loadings.last())
         media.report(snapshot(customData = ours("playSessionId" to "ps-2", "audioStreamIndex" to 2)))
         assertFalse(delegate.loadings.last())
+    }
+
+    // A track change the channel could not send: the getters keep the track the receiver plays, and
+    // the host hears why.
+    @Test
+    fun aTrackChangeTheChannelCannotSendIsUndoneAndReported() {
+        val engine = playing()
+        port.sendError = "No Cast session to send on"
+        engine.setSubtitleTrack(5)
+        engine.setAudioTrack(2)
+        assertEquals(3, engine.getCurrentSubtitleTrack())
+        assertEquals(1, engine.getCurrentAudioTrack())
+        assertEquals(List(2) { "No Cast session to send on" }, delegate.errors)
     }
 
     @Test
@@ -402,11 +456,30 @@ class CastEngineTest {
         assertEquals(listOf(true, false), delegate.loadings)
     }
 
+    // The host acts on Loaded from the status that settled it, which is the engine's by then.
+    @Test
+    fun aLoadSettlesOnceItsStatusIsTheEngines() {
+        val engine = engine()
+        engine.load(SERVER, request) { if (it == CastLoadResult.Settled(ReceiverLoadOutcome.Loaded)) engine.seekTo(30.0) }
+        media.report(snapshot())
+        assertEquals(listOf(30_000L), media.seeks)
+    }
+
     @Test
     fun aBusErrorOutsideALoadReportsItsWireName() {
         playing()
         port.deliver("""{"type":"playbackerror","message":"NotAllowed"}""")
         assertEquals(listOf("playback_failed"), delegate.errors)
+    }
+
+    // A failed PlaybackInfo comes as a connectionerror, then as the NoCompatibleStream playbackerror of
+    // the same failure: one error, whether a load waits for it or not.
+    @Test
+    fun aPlaybackInfoFailureOutsideALoadReportsOneError() {
+        playing()
+        port.deliver("""{"type":"connectionerror","message":"Request failed"}""")
+        port.deliver("""{"type":"playbackerror","message":"NoCompatibleStream"}""")
+        assertEquals(listOf("playback_info_failed"), delegate.errors)
     }
 
     // Reloads and the queue
@@ -427,6 +500,57 @@ class CastEngineTest {
             ),
         )
         assertEquals(listOf(expected.toString()), port.sent.map { it.second })
+    }
+
+    // A quality change: the item again where it is, under the envelope's new cap.
+    @Test
+    fun reloadCurrentItemWithAServerSendsItsCap() {
+        val engine = playing(42_500)
+        engine.reloadCurrentItem(SERVER.copy(maxBitrate = 4_000_000))
+        assertEquals(4_000_000L, JSONObject(port.sent.single().second).getLong("maxBitrate"))
+    }
+
+    // The receiver's PlayNow replaces its queue: a reload sends the queue the engine cast, from the
+    // item the receiver plays.
+    @Test
+    fun aReloadKeepsTheQueueTheEngineCast() {
+        val engine = engine()
+        val album = ReceiverPlayRequest(items = listOf("t-1", "t-2", "t-3").map { ReceiverItem(id = it, type = "Audio") })
+        engine.load(SERVER, album) {}
+        media.report(snapshot(customData = ours("itemId" to "t-1")), 0)
+        engine.enqueue(listOf("t-4"))
+        media.report(snapshot(customData = ours("itemId" to "t-2", "playSessionId" to "ps-2")), 5_000)
+        engine.reloadCurrentItem()
+        val options = JSONObject(port.sent.last().second).getJSONObject("options")
+        val items = options.getJSONArray("items")
+        assertEquals(listOf("t-1", "t-2", "t-3", "t-4"), (0 until items.length()).map { items.getJSONObject(it).getString("Id") })
+        assertEquals(1, options.getInt("startIndex"))
+        assertEquals(50_000_000L, options.getLong("startPositionTicks"))
+    }
+
+    // A stop from the TV leaves an idle status that still carries the media, which play() on the
+    // media channel cannot resume: Play casts the item again where it stopped.
+    @Test
+    fun playAfterAStopFromTheTvCastsTheItemAgain() {
+        val engine = playing(42_500)
+        media.report(snapshot(playerState = "idle", idleReason = "cancelled"), 42_500)
+        engine.play()
+        val sent = JSONObject(port.sent.single().second)
+        assertEquals("PlayNow", sent.getString("command"))
+        assertEquals("item-1", sent.getJSONObject("options").getJSONArray("items").getJSONObject(0).getString("Id"))
+        assertEquals(425_000_000L, sent.getJSONObject("options").getLong("startPositionTicks"))
+        assertEquals(emptyList<String>(), media.calls)
+    }
+
+    @Test
+    fun playAfterTheItemEndedStartsItAgainFromTheStart() {
+        val engine = playing(42_500)
+        media.report(snapshot(playerState = "idle", idleReason = "finished"), 60_000)
+        engine.togglePause()
+        assertEquals(0L, JSONObject(port.sent.single().second).getJSONObject("options").getLong("startPositionTicks"))
+        // Played again: the end it waited for is not one.
+        scheduler.advance(CastEngineConstants.NEXT_ITEM_WAIT_MS)
+        assertEquals(0, delegate.ended)
     }
 
     @Test
@@ -450,6 +574,24 @@ class CastEngineTest {
         engine.skipToPrevious()
         assertEquals(listOf(0L), media.seeks)
         assertEquals(emptyList<Pair<String, String>>(), port.sent)
+    }
+
+    // An item the receiver cannot seek in has no start to go back to: Previous goes to the item before.
+    @Test
+    fun aPreviousOnAnItemThatCannotSeekGoesToTheItemBefore() {
+        val engine = playing(42_500, "canSeek" to false)
+        engine.skipToPrevious()
+        assertEquals(listOf("PreviousTrack" to "{}"), commands())
+    }
+
+    @Test
+    fun aQueueCommandTheChannelCannotSendIsReported() {
+        val engine = playing(2_000)
+        port.sendError = "No Cast session to send on"
+        engine.skipToNext()
+        engine.skipToPrevious()
+        engine.enqueue(listOf("id-1"))
+        assertEquals(List(3) { "No Cast session to send on" }, delegate.errors)
     }
 
     // The end of an item
@@ -496,6 +638,16 @@ class CastEngineTest {
         assertNull(media.listener)
         assertTrue(media2.listener != null)
         assertEquals(1, media2.statusRequests)
+    }
+
+    @Test
+    fun aResumeOntoAReceiverThatStoppedEndsTheLoading() {
+        playing()
+        source.listener!!.onSuspended("session-1")
+        val media2 = FakeMedia()
+        source.listener!!.onResumed(FakeSession(media = media2))
+        media2.report(snapshot(playerState = "idle", customData = null, hasMedia = false))
+        assertEquals(listOf(false, true, false), delegate.loadings)
     }
 
     // Vigilance 1: a status the replaced media client had queued arrives after the new binding.
@@ -588,6 +740,19 @@ class CastEngineTest {
         assertTrue(media.listener != null)
     }
 
+    // A report without an id is the bound session's only once that session forgot its own: iOS reports
+    // a session that failed to start without one.
+    @Test
+    fun aSuspendOrEndWithoutAnIdLeavesABindingWhoseSessionKeepsItsId() {
+        val engine = playing()
+        val lost = mutableListOf<Pair<String?, String?>>()
+        engine.bindingListener = CastBindingListener { sessionId, error -> lost += sessionId to error }
+        source.listener!!.onSuspended(null)
+        source.listener!!.onEnded(null, "Failed to start")
+        assertEquals(emptyList<Pair<String?, String?>>(), lost)
+        assertEquals(listOf(false), delegate.loadings)
+    }
+
     // The device proof reads these lines (e2e/suites/cast/README.md): transitions, never a message.
     @Test
     fun logsEachTransitionTheDeviceProofReads() {
@@ -609,8 +774,8 @@ class CastEngineTest {
                 "reload settled loaded",
                 "status playing playSession=ps-2 playMethod=Transcode canClientSeek=true",
                 "send PlayNow",
-                "load settled loaded",
                 "status playing playSession=ps-3 playMethod=Transcode canClientSeek=false",
+                "load settled loaded",
                 "seek 20.0 path=bus",
                 "send Seek",
                 "idle finished, waiting for the next item",

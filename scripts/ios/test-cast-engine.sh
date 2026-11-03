@@ -10,6 +10,7 @@ swiftc -module-cache-path "$test_dir/modules" \
   modules/mpv-player/ios/Cast/CastMapping.swift \
   modules/mpv-player/ios/Cast/ReceiverProtocol.swift \
   modules/mpv-player/ios/Cast/CastEngineConstants.swift \
+  modules/mpv-player/ios/NativePlayer/PlayerConstants.swift \
   modules/mpv-player/ios/Cast/ReceiverChannelHub.swift \
   modules/mpv-player/ios/Cast/CastPorts.swift \
   modules/mpv-player/ios/Cast/CastEngine.swift \

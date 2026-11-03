@@ -10,6 +10,9 @@ enum CastEngineError: Error {
 ///
 /// It runs on the main thread, as its port and hub callbacks do; the getters read a copy of the state
 /// under a lock, so a host may call them from anywhere.
+///
+/// Track ids are Jellyfin MediaStream indexes, not the bridge-facing ids TransportEngine names: the
+/// receiver picks its streams by index, and the chrome already emits that index (spec §3.3).
 final class CastEngine: TransportEngine, QueueEngine {
   /// Runs a block after a delay in milliseconds and returns what cancels it: the progress tick, the
   /// reload deadline. The main queue in the app, a manual clock in the checks.
@@ -90,6 +93,10 @@ final class CastEngine: TransportEngine, QueueEngine {
 
   private var pendingLoad: PendingLoad?
 
+  // What this engine cast, the load's items then the enqueued ones: the receiver's PlayNow replaces
+  // its whole queue, so a reload sends it again.
+  private var queue: [ReceiverItem] = []
+
   // Set once a load went out: the receiver sends its bus to the last sender that spoke, so after a
   // resume this engine speaks first to hear it again (spec §8, risk 6).
   private var busClaimed = false
@@ -131,6 +138,8 @@ final class CastEngine: TransportEngine, QueueEngine {
 
   func start() throws {
     onMain()
+    // Bound already: binding again would subscribe and ask for a status a second time.
+    guard session == nil else { return }
     guard let current = sessions.current, current.isConnected else { throw CastEngineError.noSession }
     bind(current)
   }
@@ -207,8 +216,14 @@ final class CastEngine: TransportEngine, QueueEngine {
     boundSessionId = nil
   }
 
-  // The SDK reports every session: only the bound one's suspend or end concerns the engine.
-  private func isBound(_ sessionId: String?) -> Bool { sessionId == nil || sessionId == boundSessionId }
+  // The SDK reports every session: only the bound one's suspend or end concerns the engine. Android's
+  // CastSession answers null once ended, and a session that failed to start has no id: a report
+  // without one is the bound session's only if it forgot its own.
+  private func isBound(_ sessionId: String?) -> Bool {
+    guard let bound = session else { return false }
+    guard let sessionId else { return bound.sessionId == nil }
+    return sessionId == boundSessionId
+  }
 
   // A suspended session keeps the state and the pending load, whose deadline runs on (spec §2.4).
   fileprivate func suspendBinding(sessionId: String?) {
@@ -282,6 +297,7 @@ final class CastEngine: TransportEngine, QueueEngine {
       return
     }
     self.server = server
+    queue = ReceiverProtocol.toReceiverRequest(request).items
     reload?.cancelTimer()
     reload = nil
     endWait(false)
@@ -306,10 +322,20 @@ final class CastEngine: TransportEngine, QueueEngine {
     }
   }
 
-  /// The item again where it is, with the tracks it plays: also how a quality change applies the
-  /// envelope's new cap.
+  /// The item again where it is, with the tracks it plays.
   func reloadCurrentItem() {
     onMain()
+    reloadCurrent()
+  }
+
+  /// The item again where it is, under `server`: how a quality change applies the envelope's new cap.
+  func reloadCurrentItem(server: ReceiverServer) {
+    onMain()
+    self.server = server
+    reloadCurrent()
+  }
+
+  private func reloadCurrent() {
     guard let data = loadedItem() else { return }
     let state = read { $0 }
     playAgain(data, audio: state.audio >= 0 ? state.audio : nil, subtitle: state.subtitle)
@@ -319,7 +345,7 @@ final class CastEngine: TransportEngine, QueueEngine {
     log("load settled \(outcome.wireName)")
     load.cancelTimer()
     if pendingLoad === load { pendingLoad = nil }
-    if case .loaded = outcome {} else { setLoading(isBuffering()) }
+    setLoading(isBuffering())
     load.completion(.settled(outcome))
   }
 
@@ -327,9 +353,24 @@ final class CastEngine: TransportEngine, QueueEngine {
 
   func play() {
     onMain()
+    if let stopped = stoppedItem() {
+      intendedPlayState = true
+      playStopped(stopped)
+      return
+    }
     guard let media else { return }
     intendedPlayState = true
     media.play()
+  }
+
+  // A stop from the TV leaves an idle status that still carries the media, with no media session left
+  // to resume: the item plays again where it stopped, or from its start once it ended.
+  private func playStopped(_ data: ReceiverCustomData) {
+    if idleReason == Reason.finished { position = 0 }
+    // Played again: what ended is not the end.
+    endWait(false)
+    let state = read { $0 }
+    playAgain(data, audio: state.audio >= 0 ? state.audio : nil, subtitle: state.subtitle)
   }
 
   func pause() {
@@ -425,10 +466,15 @@ final class CastEngine: TransportEngine, QueueEngine {
   func setAudioTrack(_ trackId: Int) {
     onMain()
     guard let data = loadedItem() else { return }
+    let previous = chosenAudio
     chosenAudio = trackId
     publishState()
+    let undo = { [weak self] in
+      guard let self, self.chosenAudio == trackId else { return }
+      self.chosenAudio = previous
+    }
     // The receiver always reloads for an audio change, under a new play session.
-    startReload(target: position, data: data) { failed in
+    startReload(target: position, data: data, undo: undo) { failed in
       self.send("SetAudioStreamIndex", ["index": trackId], failed: failed)
     }
   }
@@ -437,21 +483,39 @@ final class CastEngine: TransportEngine, QueueEngine {
 
   private func selectSubtitle(_ index: Int) {
     guard let data = loadedItem() else { return }
+    let previous = chosenSubtitle
     chosenSubtitle = index
     publishState()
+    let undo = { [weak self] in
+      guard let self, self.chosenSubtitle == index else { return }
+      self.chosenSubtitle = previous
+    }
     if index >= 0, media?.status?.hasTextTracks == false {
       // No text track loaded: the receiver would name the index in its reports and show nothing,
       // so the item plays again where it is with that subtitle.
       let audio = read { $0.audio }
-      playAgain(data, audio: audio >= 0 ? audio : nil, subtitle: index)
+      playAgain(data, audio: audio >= 0 ? audio : nil, subtitle: index, undo: undo)
       return
     }
-    send("SetSubtitleStreamIndex", ["index": index])
+    send("SetSubtitleStreamIndex", ["index": index]) { [weak self] error in
+      guard let self else { return }
+      undo()
+      self.publishState()
+      self.delegate?.engine(self, didFailWithError: error)
+    }
   }
 
-  private func playAgain(_ data: ReceiverCustomData, audio: Int?, subtitle: Int?) {
+  // PlayNow replaces the receiver's queue: the one this engine cast goes again from the item the
+  // receiver plays, in the window that fits one message, or that item alone when the queue is
+  // someone else's.
+  private func playAgain(_ data: ReceiverCustomData, audio: Int?, subtitle: Int?, undo: @escaping () -> Void = {}) {
+    let index = queue.firstIndex { $0.id == data.itemId }
+    let window = ReceiverProtocol.queueWindow(
+      index == nil ? [ReceiverItem(id: data.itemId)] : queue, selectedIndex: index ?? 0, maxItems: CastEngineConstants.maxQueueItems
+    )
     let request = ReceiverPlayRequest(
-      items: [ReceiverItem(id: data.itemId)],
+      items: window.items,
+      startIndex: window.startIndex > 0 ? window.startIndex : nil,
       startPositionTicks: Int64((position * ReceiverProtocol.ticksPerSecond).rounded()),
       mediaSourceId: data.mediaSourceId,
       audioStreamIndex: audio,
@@ -459,7 +523,7 @@ final class CastEngine: TransportEngine, QueueEngine {
       liveStreamId: data.liveStreamId
     )
     guard let message = try? ReceiverProtocol.playNow(server: server, request: request) else { return }
-    startReload(target: position, data: data) { failed in self.sendMessage("PlayNow", message, failed: failed) }
+    startReload(target: position, data: data, undo: undo) { failed in self.sendMessage("PlayNow", message, failed: failed) }
   }
 
   // Local-only processing: the receiver has no such controls.
@@ -475,15 +539,19 @@ final class CastEngine: TransportEngine, QueueEngine {
 
   func skipToNext() {
     onMain()
-    if loadedItem() != nil { send("NextTrack", [:]) }
+    if loadedItem() != nil { send("NextTrack", [:], failed: reportFailure) }
   }
 
   // The receiver never goes back to the start of the item it plays: past the chrome's threshold, the
-  // engine seeks there instead.
+  // engine seeks there instead, when the item can seek.
   func skipToPrevious() {
     onMain()
-    guard loadedItem() != nil else { return }
-    if position > CastEngineConstants.previousRestartSeconds { seek(0) } else { send("PreviousTrack", [:]) }
+    guard let data = loadedItem() else { return }
+    if position > PlayerConstants.chapterRestartThreshold, data.canSeek != false {
+      seek(0)
+    } else {
+      send("PreviousTrack", [:], failed: reportFailure)
+    }
   }
 
   // A Cast message holds 64 KB: the items go a window at a time.
@@ -492,7 +560,8 @@ final class CastEngine: TransportEngine, QueueEngine {
     guard session != nil else { return }
     stride(from: 0, to: itemIds.count, by: CastEngineConstants.maxQueueItems).forEach { start in
       let window = Array(itemIds[start..<min(start + CastEngineConstants.maxQueueItems, itemIds.count)])
-      sendMessage("PlayLast", ReceiverProtocol.playLast(server: server, itemIds: window))
+      queue += window.map { ReceiverItem(id: $0) }
+      sendMessage("PlayLast", ReceiverProtocol.playLast(server: server, itemIds: window), failed: reportFailure)
     }
   }
 
@@ -517,9 +586,9 @@ final class CastEngine: TransportEngine, QueueEngine {
       return
     }
     let data = status.customData.map(ReceiverProtocol.parseCustomData)
-    if let load = pendingLoad, let outcome = load.tracker.onMediaStatus(customData: data, playerState: status.playerState) {
-      settleLoad(load, outcome)
-    }
+    // Settled at the end, once this status is the engine's: the host acts on the result from it.
+    let load = pendingLoad
+    let loadOutcome = load?.tracker.onMediaStatus(customData: data, playerState: status.playerState)
     if let pending = reload, let outcome = pending.tracker.onMediaStatus(customData: data, playerState: status.playerState) {
       settleReload(pending, outcome, recompute: false)
     }
@@ -534,7 +603,7 @@ final class CastEngine: TransportEngine, QueueEngine {
     ours = data
     hasMedia = true
     itemDuration = Self.duration(of: data, streamDuration: status.streamDuration)
-    if reload == nil { position = currentPosition(of: status, port: port, data: data) }
+    if !holdsPosition(status.playerState, status.idleReason) { position = currentPosition(of: status, port: port, data: data) }
     if newPlaySession || status.playerState != playerState {
       let canClientSeek = data?.canClientSeek.map { "\($0)" } ?? "nil"
       log("status \(status.playerState) playSession=\(data?.playSessionId ?? "nil") playMethod=\(data?.playMethod ?? "nil") canClientSeek=\(canClientSeek)")
@@ -543,6 +612,13 @@ final class CastEngine: TransportEngine, QueueEngine {
     publishState()
     delegate?.engine(self, didUpdateProgress: position, duration: itemDuration, cacheSeconds: 0)
     if cancelTick == nil { scheduleTick() }
+    if let load, let loadOutcome { settleLoad(load, loadOutcome) }
+  }
+
+  // The position stays on its target through a reload, and through the status that interrupts a
+  // stream for another of the same item, which carries the old customData with the new stream's time.
+  private func holdsPosition(_ state: String, _ reason: String?) -> Bool {
+    reload != nil || (state == State.idle && reason == Reason.interrupted)
   }
 
   private func scheduleTick() {
@@ -555,7 +631,7 @@ final class CastEngine: TransportEngine, QueueEngine {
   // No progress listener on iOS: the engine reads the media channel every second while it has media.
   private func tick() {
     guard hasMedia, let port = media, let status = port.status, status.hasMedia else { return }
-    if reload == nil { position = currentPosition(of: status, port: port, data: ours) }
+    if !holdsPosition(playerState, idleReason) { position = currentPosition(of: status, port: port, data: ours) }
     publishState()
     delegate?.engine(self, didUpdateProgress: position, duration: itemDuration, cacheSeconds: 0)
     scheduleTick()
@@ -593,6 +669,7 @@ final class CastEngine: TransportEngine, QueueEngine {
       noCompatibleStreamFollows = false
       return
     }
+    noCompatibleStreamFollows = error == .playbackInfoFailed
     delegate?.engine(self, didFailWithError: error.rawValue)
   }
 
@@ -610,6 +687,7 @@ final class CastEngine: TransportEngine, QueueEngine {
     chosenSubtitle = nil
     stopTicking()
     setPause(true)
+    setLoading(awaitingReceiver())
     publishState()
   }
 
@@ -632,9 +710,9 @@ final class CastEngine: TransportEngine, QueueEngine {
     case State.idle:
       setPause(true)
       if reason == Reason.error, !wasError { delegate?.engine(self, didFailWithError: Self.playbackError) }
-      // A stream change for the same item: a new play session follows.
-      if reason == Reason.interrupted { setLoading(true) }
       if reason == Reason.finished, !wasFinished { endWait(true) }
+      // A stream change for the same item: a new play session follows. Any other idle is a stop.
+      setLoading(reason == Reason.interrupted || awaitingReceiver())
     default:
       break
     }
@@ -675,7 +753,9 @@ final class CastEngine: TransportEngine, QueueEngine {
 
   // MARK: - Reloads
 
-  private func startReload(target: Double, data: ReceiverCustomData, send: (@escaping (String) -> Void) -> Void) {
+  private func startReload(
+    target: Double, data: ReceiverCustomData, undo: @escaping () -> Void = {}, send: (@escaping (String) -> Void) -> Void
+  ) {
     reload?.cancelTimer()
     let tracker = ReceiverLoadTracker(request: ReceiverPlayRequest(items: [ReceiverItem(id: data.itemId)]), previousPlaySessionId: data.playSessionId)
     let cancelTimer = deliver(CastEngineConstants.loadTimeoutMs) { [weak self] in
@@ -692,6 +772,8 @@ final class CastEngine: TransportEngine, QueueEngine {
       guard let self, let pending = self.reload, pending.tracker === tracker else { return }
       pending.cancelTimer()
       self.reload = nil
+      undo()
+      self.publishState()
       self.delegate?.engine(self, didFailWithError: error)
       self.recomputePosition()
     }
@@ -719,6 +801,14 @@ final class CastEngine: TransportEngine, QueueEngine {
   }
 
   // MARK: - Sending, never logged: every message carries the access token
+
+  // What a command the channel could not send tells the host.
+  private var reportFailure: (String) -> Void {
+    { [weak self] error in
+      guard let self else { return }
+      self.delegate?.engine(self, didFailWithError: error)
+    }
+  }
 
   private func send(_ command: String, _ options: [String: Any], failed: @escaping (String) -> Void = { _ in }) {
     sendMessage(command, ReceiverProtocol.message(command: command, server: server, options: options), failed: failed)
@@ -750,6 +840,13 @@ final class CastEngine: TransportEngine, QueueEngine {
   // Our item, loaded and not stopped: the receiver's commands need one (spec §4).
   private func loadedItem() -> ReceiverCustomData? {
     guard hasMedia, playerState != State.idle, let data = ours, data.itemId != nil else { return nil }
+    return data
+  }
+
+  // Our item, stopped with its media still in the status, and nothing on its way to replace it.
+  private func stoppedItem() -> ReceiverCustomData? {
+    guard hasMedia, playerState == State.idle, idleReason != Reason.interrupted, !awaitingReceiver(), let data = ours, data.itemId != nil
+    else { return nil }
     return data
   }
 
