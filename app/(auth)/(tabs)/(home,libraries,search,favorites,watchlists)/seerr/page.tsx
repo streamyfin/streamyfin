@@ -102,6 +102,7 @@ const MobilePage: React.FC = () => {
 
   const {
     data: details,
+    dataUpdatedAt,
     isError,
     isFetching,
     isFetchedAfterMount,
@@ -261,13 +262,33 @@ const MobilePage: React.FC = () => {
   const autoRequestedRef = useRef(false);
   // The page stays mounted under a pushed screen, so a cast tap plus a slow
   // refetch would present the picker over the person page; the focus gate
-  // defers it until this screen is visible again.
+  // defers it until this screen is visible again. The picker also keeps the
+  // snapshot it opens with, so on focus regain the details are refetched and
+  // the picker may only open on data fetched since this page became visible.
   const isFocused = useIsFocused();
+  const focusRegainedAtRef = useRef(Date.now());
+  const wasUnfocusedRef = useRef(false);
+  useEffect(() => {
+    if (!isFocused) {
+      wasUnfocusedRef.current = true;
+      return;
+    }
+    focusRegainedAtRef.current = Date.now();
+    if (
+      wasUnfocusedRef.current &&
+      autoRequest === "true" &&
+      !autoRequestedRef.current
+    ) {
+      wasUnfocusedRef.current = false;
+      refetch();
+    }
+  }, [isFocused, autoRequest, refetch]);
   useEffect(() => {
     if (
       autoRequestedRef.current ||
       autoRequest !== "true" ||
       !isFocused ||
+      dataUpdatedAt < focusRegainedAtRef.current ||
       // Only series ever carry the flag; on a movie it would send the
       // request outright for someone without advanced permission.
       mediaType !== MediaType.TV ||
@@ -283,6 +304,7 @@ const MobilePage: React.FC = () => {
   }, [
     autoRequest,
     isFocused,
+    dataUpdatedAt,
     mediaType,
     isFetchedAfterMount,
     isError,

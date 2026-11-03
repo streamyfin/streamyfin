@@ -209,6 +209,7 @@ export const TVSeerrPage: React.FC = () => {
 
   const {
     data: details,
+    dataUpdatedAt,
     isError,
     isFetching,
     isFetchedAfterMount,
@@ -394,13 +395,33 @@ export const TVSeerrPage: React.FC = () => {
   const autoRequestedRef = useRef(false);
   // The page stays mounted under a pushed screen, so a cast tap plus a slow
   // refetch would open the sheet over the person page; the focus gate
-  // defers it until this screen is visible again.
+  // defers it until this screen is visible again. The sheet also keeps the
+  // snapshot it opens with, so on focus regain the details are refetched and
+  // the sheet may only open on data fetched since this page became visible.
   const isFocused = useIsFocused();
+  const focusRegainedAtRef = useRef(Date.now());
+  const wasUnfocusedRef = useRef(false);
+  useEffect(() => {
+    if (!isFocused) {
+      wasUnfocusedRef.current = true;
+      return;
+    }
+    focusRegainedAtRef.current = Date.now();
+    if (
+      wasUnfocusedRef.current &&
+      autoRequest === "true" &&
+      !autoRequestedRef.current
+    ) {
+      wasUnfocusedRef.current = false;
+      refetch();
+    }
+  }, [isFocused, autoRequest, refetch]);
   useEffect(() => {
     if (
       autoRequestedRef.current ||
       autoRequest !== "true" ||
       !isFocused ||
+      dataUpdatedAt < focusRegainedAtRef.current ||
       // Only series ever carry the flag; on a movie the fallback would send
       // the request outright for someone without advanced permission.
       mediaType !== MediaType.TV ||
@@ -416,6 +437,7 @@ export const TVSeerrPage: React.FC = () => {
   }, [
     autoRequest,
     isFocused,
+    dataUpdatedAt,
     isFetchedAfterMount,
     isError,
     offersRequest,
