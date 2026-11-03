@@ -1388,10 +1388,14 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       if (liveIndex >= 0) {
         await TrackPlayer.play();
         setState((prev) => {
+          // prev.queue is the queue now: a shuffle during the waits may have
+          // reordered the one this render captured.
+          const index = activeTrack?.id
+            ? prev.queue.findIndex((t) => t.Id === activeTrack.id)
+            : -1;
+          if (index < 0) return prev;
           const base =
-            liveIndex === prev.queueIndex
-              ? prev
-              : withRestoredTrack(prev, liveIndex);
+            index === prev.queueIndex ? prev : withRestoredTrack(prev, index);
           return {
             ...base,
             streamUrl: activeTrack?.url ?? null,

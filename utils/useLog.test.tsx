@@ -3,6 +3,10 @@ import { act, render, waitFor } from "@testing-library/react-native";
 import type { ReactNode } from "react";
 import { queryDehydrateOptions } from "./queryPersistence";
 
+jest.mock("expo-router", () => ({
+  useFocusEffect: (cb: () => undefined | (() => void)) =>
+    require("react").useEffect(cb, [cb]),
+}));
 jest.mock("@sentry/react-native", () => ({ addBreadcrumb: () => {} }));
 jest.mock("./logStorage", () => ({
   readFromLog: jest.fn(() => []),
