@@ -3,6 +3,12 @@ import { act, render, screen, waitFor } from "@testing-library/react-native";
 import { getDefaultStore } from "jotai";
 import { Text } from "react-native";
 import { userAtom } from "@/providers/JellyfinProvider";
+import {
+  type CastDoubleState,
+  createCastDoubleState,
+  emitCastEvent,
+  setCastSession,
+} from "@/test-utils/cast";
 import type { makeApi } from "@/test-utils/jellyfinApi";
 import { clearMmkv } from "@/test-utils/mmkv";
 import { storage } from "@/utils/mmkv";
@@ -120,7 +126,18 @@ jest.mock(
   () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
 );
 // The log module loads Sentry and its timers. Nothing on the path under test logs.
-jest.mock("@/utils/log", () => ({ logAndCaptureError: () => undefined }));
+jest.mock("@/utils/log", () => ({
+  logAndCaptureError: () => undefined,
+  writeErrorLog: () => undefined,
+}));
+let mockCast: CastDoubleState = createCastDoubleState();
+jest.mock("@/modules/mpv-player/src/cast/CastModule", () => ({
+  __esModule: true,
+  CastNative: require("@/test-utils/cast").castDoubleModule(() => mockCast),
+}));
+jest.mock("react-i18next", () => ({
+  useTranslation: () => ({ t: (key: string) => key }),
+}));
 jest.mock("@/utils/customHeaders", () => ({
   getJellyfinHeadersForUrl: () => undefined,
 }));
@@ -276,6 +293,94 @@ beforeEach(() => {
   getDefaultStore().set(userAtom, { Id: "user", ServerId: "server" });
   api.mock.reset();
   api.mock.onPost().reply(204);
+  // No Cast session unless a test opens one: the player plays on the phone.
+  mockCast = createCastDoubleState();
+  mockCast.castState = "notConnected";
+  setCastSession(mockCast, null);
+});
+
+/** The PlayNow messages sent to the receiver, parsed. */
+const playNows = () =>
+  mockCast.sent
+    .map(
+      (entry) =>
+        JSON.parse(entry.message) as {
+          command: string;
+          options: { items: { Id: string }[]; startIndex?: number };
+        },
+    )
+    .filter((message) => message.command === "PlayNow");
+
+/** A Cast session that connects, as the module reports it. */
+const connectCast = () =>
+  act(async () => {
+    mockCast.castState = "connected";
+    setCastSession(mockCast, "session-1");
+    emitCastEvent(mockCast, "onCastStateChanged", { state: "connected" });
+  });
+
+/** The receiver loading an item, which settles the cast. */
+const receiverLoads = async (itemId: string) => {
+  await act(async () => {
+    emitCastEvent(mockCast, "onMediaStatusChanged", {
+      status: {
+        playerState: "buffering",
+        currentItemId: 1,
+        streamPosition: 0,
+        playbackRate: 1,
+        volume: 1,
+        isMuted: false,
+        mediaInfo: { customData: { itemId, playSessionId: "ps-cast" } },
+        customData: null,
+      } as never,
+    });
+  });
+  await settle();
+};
+
+describe("MusicPlayerProvider and a Cast session", () => {
+  test("plays a queue on the receiver while a session is connected, not on the phone", async () => {
+    mockCast.castState = "connected";
+    setCastSession(mockCast, "session-1");
+    await mount();
+
+    await run((p) => p.playQueue(ALBUM, 1));
+
+    expect(playNows()).toHaveLength(1);
+    expect(playNows()[0].options.items.map((item) => item.Id)).toEqual(
+      ALBUM.map((item) => item.Id),
+    );
+    expect(playNows()[0].options.startIndex).toBe(1);
+    expect(nativeIds()).toEqual([]);
+    await receiverLoads("t1");
+  });
+
+  test("sends the queue the phone plays to the receiver when a session connects", async () => {
+    await mount();
+    await run((p) => p.playQueue(ALBUM, 0));
+    expect(player.isPlaying).toBe(true);
+
+    await connectCast();
+    await settle();
+
+    expect(playNows()).toHaveLength(1);
+    expect(playNows()[0].options.items.map((item) => item.Id)).toEqual(
+      ALBUM.map((item) => item.Id),
+    );
+    expect(player.isPlaying).toBe(false);
+    await receiverLoads("t0");
+  });
+
+  // A queue restored at launch waits paused: the session may well be for a film.
+  test("leaves a paused queue on the phone when a session connects", async () => {
+    persistQueue(ALBUM, 2);
+    await mount();
+
+    await connectCast();
+    await settle();
+
+    expect(playNows()).toEqual([]);
+  });
 });
 
 describe("MusicPlayerProvider and the native queue", () => {

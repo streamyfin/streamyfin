@@ -31,6 +31,7 @@ const HEADER_ICONS = {
   // AirPlay, which the app offers separately in now-playing. iOS falls back to
   // the Feather glyph below; Android has the real mark in Material Symbols.
   cast: { android: "cast" },
+  castConnected: { android: "cast_connected" },
   sessions: { ios: "play.circle", android: "play_circle" },
   settings: { ios: "gearshape", android: "settings" },
   // `downloaded` is the filled counterpart of `downloads`, not a checkmark —
@@ -73,6 +74,7 @@ const FALLBACK_GLYPHS: Partial<
   Record<HeaderIconName, keyof typeof Feather.glyphMap>
 > = {
   cast: "cast",
+  castConnected: "cast",
 };
 
 interface Props {
