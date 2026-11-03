@@ -2,12 +2,20 @@ import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
-import { useLocalSearchParams } from "expo-router";
-import React, { useCallback, useMemo, useState } from "react";
+import { useIsFocused, useLocalSearchParams } from "expo-router";
+import { useAtomValue } from "jotai";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useTranslation } from "react-i18next";
 import {
   Animated,
   Dimensions,
+  InteractionManager,
   Pressable,
   ScrollView,
   TVFocusGuideView,
@@ -32,6 +40,8 @@ import { useSeerrRequestOffer } from "@/hooks/useSeerrRequestOffer";
 import { useTVIssueModal } from "@/hooks/useTVIssueModal";
 import { useTVRequestModal } from "@/hooks/useTVRequestModal";
 import { useTVSeasonSelectModal } from "@/hooks/useTVSeasonSelectModal";
+import { tvRequestModalAtom } from "@/utils/atoms/tvRequestModal";
+import { tvSeasonSelectModalAtom } from "@/utils/atoms/tvSeasonSelectModal";
 import { hasPermission, Permission } from "@/utils/seerr/permissions";
 import { seasonsWithStatus } from "@/utils/seerr/seasons";
 import type {
@@ -171,6 +181,7 @@ export const TVSeerrPage: React.FC = () => {
     releaseYear: yearParam,
     posterSrc,
     mediaType,
+    autoRequest,
     ...result
   } = params as unknown as {
     mediaTitle: string;
@@ -178,6 +189,7 @@ export const TVSeerrPage: React.FC = () => {
     canRequest: string;
     posterSrc: string;
     mediaType: MediaType;
+    autoRequest?: string;
   } & Partial<MovieResult | TvResult | MovieDetails | TvDetails>;
 
   const {
@@ -389,6 +401,58 @@ export const TVSeerrPage: React.FC = () => {
       t,
     ],
   );
+
+  // "Request more" from a library series means the request itself, not the
+  // page: open the same season sheet the request button opens, once details
+  // arrive.
+  const autoRequestedRef = useRef(false);
+  useEffect(() => {
+    if (
+      autoRequestedRef.current ||
+      autoRequest !== "true" ||
+      !details ||
+      !offersRequest
+    )
+      return;
+    autoRequestedRef.current = true;
+    if (mediaType === MediaType.TV) {
+      handleOpenSeasonSelectModal();
+    } else {
+      handleRequest();
+    }
+  }, [
+    autoRequest,
+    details,
+    offersRequest,
+    mediaType,
+    handleOpenSeasonSelectModal,
+    handleRequest,
+  ]);
+
+  // Android TV restores focus to nothing when a modal route closes. The row
+  // remounts once the modal is gone — hasTVPreferredFocus is only reliably
+  // honored at mount, so a remount pulls the focus where a requestTVFocus on
+  // an existing view is refused. The trigger is the modal open→closed
+  // transition itself: the atoms only go null once the modal unmounts, so the
+  // remount never races a still-mounted focus trap.
+  const isFocused = useIsFocused();
+  const seasonModalOpen = useAtomValue(tvSeasonSelectModalAtom) !== null;
+  const requestModalOpen = useAtomValue(tvRequestModalAtom) !== null;
+  const modalOpen = seasonModalOpen || requestModalOpen;
+  const modalWasOpenRef = useRef(false);
+  const [focusEpoch, setFocusEpoch] = useState(0);
+  useEffect(() => {
+    if (modalOpen) {
+      modalWasOpenRef.current = true;
+      return;
+    }
+    if (!modalWasOpenRef.current || !isFocused) return;
+    modalWasOpenRef.current = false;
+    const task = InteractionManager.runAfterInteractions(() =>
+      setFocusEpoch((epoch) => epoch + 1),
+    );
+    return () => task.cancel();
+  }, [isFocused, modalOpen]);
 
   const handlePlay = useCallback(() => {
     const jellyfinMediaId = details?.mediaInfo?.jellyfinMediaId;
@@ -619,8 +683,10 @@ export const TVSeerrPage: React.FC = () => {
               </BlurView>
             )}
 
-            {/* Action buttons */}
+            {/* Action buttons. Keyed by focusEpoch so a closed modal can
+                remount the row and let preferred focus land natively. */}
             <View
+              key={focusEpoch}
               style={{
                 flexDirection: "row",
                 gap: 16,

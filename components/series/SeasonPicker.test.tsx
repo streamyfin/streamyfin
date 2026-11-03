@@ -54,6 +54,9 @@ jest.mock("@/components/syncplay/SyncPlayQueueButton", () => ({
 jest.mock("../PlatformDropdown", () => ({
   PlatformDropdown: ({ trigger }: { trigger: React.ReactNode }) => trigger,
 }));
+jest.mock("@/hooks/useSeerrSeriesRequest", () => ({
+  useSeerrSeriesRequest: () => undefined,
+}));
 
 const SERIES: BaseItemDto = { Id: "series-1", Type: "Series", Name: "Show" };
 

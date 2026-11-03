@@ -27,6 +27,7 @@ import { TVCastCrewText } from "@/components/tv/TVCastCrewText";
 import { TVFavoriteButton } from "@/components/tv/TVFavoriteButton";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
+import { useSeerrSeriesRequest } from "@/hooks/useSeerrSeriesRequest";
 import { useShuffleQueue } from "@/hooks/useShuffleQueue";
 import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
 import { useTVOptionModal } from "@/hooks/useTVOptionModal";
@@ -79,6 +80,7 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
   const { showSeasonModal } = useTVSeriesSeasonModal();
   const { showItemActions } = useTVItemActionModal();
   const { startShuffle } = useShuffleQueue();
+  const requestMore = useSeerrSeriesRequest(item);
   const { showOptions } = useTVOptionModal();
   const seasonModalState = useAtomValue(tvSeriesSeasonModalAtom);
   const isSeasonModalVisible = seasonModalState !== null;
@@ -510,6 +512,30 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
                     }}
                   >
                     {t("player.shuffle")}
+                  </Text>
+                </TVButton>
+              )}
+
+              {requestMore && (
+                <TVButton
+                  onPress={requestMore}
+                  disabled={isSeasonModalVisible}
+                  variant='primary'
+                >
+                  <Ionicons
+                    name='download-outline'
+                    size={scaleSize(28)}
+                    color='#000000'
+                    style={{ marginRight: scaleSize(10) }}
+                  />
+                  <Text
+                    style={{
+                      fontSize: typography.callout,
+                      fontWeight: "bold",
+                      color: "#000000",
+                    }}
+                  >
+                    {t("seerr.request_more")}
                   </Text>
                 </TVButton>
               )}

@@ -67,14 +67,21 @@ const MobilePage: React.FC = () => {
   const { t } = useTranslation();
   const router = useRouter();
 
-  const { mediaTitle, releaseYear, posterSrc, mediaType, ...result } =
-    params as unknown as {
-      mediaTitle: string;
-      releaseYear: number;
-      canRequest: string;
-      posterSrc: string;
-      mediaType: MediaType;
-    } & Partial<MovieResult | TvResult | MovieDetails | TvDetails>;
+  const {
+    mediaTitle,
+    releaseYear,
+    posterSrc,
+    mediaType,
+    autoRequest,
+    ...result
+  } = params as unknown as {
+    mediaTitle: string;
+    releaseYear: number;
+    canRequest: string;
+    posterSrc: string;
+    mediaType: MediaType;
+    autoRequest?: string;
+  } & Partial<MovieResult | TvResult | MovieDetails | TvDetails>;
 
   const navigation = useNavigation();
   const { seerrApi, seerrUser, requestMedia, refreshAfterRequest } = useSeerr();
@@ -231,6 +238,22 @@ const MobilePage: React.FC = () => {
     mediaType,
   ]);
 
+  // "Request more" from a library series means the request itself, not the
+  // page: present the same season picker the Request button opens, once the
+  // details fetch that fills its tvdbId has landed.
+  const autoRequestedRef = useRef(false);
+  useEffect(() => {
+    if (
+      autoRequestedRef.current ||
+      autoRequest !== "true" ||
+      !details ||
+      !offersRequest
+    )
+      return;
+    autoRequestedRef.current = true;
+    request();
+  }, [autoRequest, details, offersRequest, request]);
+
   const isAnime = useMemo(
     () =>
       (details?.keywords.some((k) => k.id === ANIME_KEYWORD_ID) || false) &&
@@ -281,7 +304,7 @@ const MobilePage: React.FC = () => {
         headerHeight={300}
         headerImage={
           <View>
-            {result.backdropPath ? (
+            {result.backdropPath || details?.backdropPath ? (
               <Image
                 cachePolicy={"memory-disk"}
                 transition={BACKGROUND_IMAGE_TRANSITION_DURATION}
@@ -291,7 +314,7 @@ const MobilePage: React.FC = () => {
                 }}
                 source={{
                   uri: seerrApi?.imageProxy(
-                    result.backdropPath,
+                    (result.backdropPath ?? details?.backdropPath)!,
                     "w1920_and_h800_multi_faces",
                   ),
                 }}
@@ -344,7 +367,7 @@ const MobilePage: React.FC = () => {
                   cachePolicy={"memory-disk"}
                   transition={BACKGROUND_IMAGE_TRANSITION_DURATION}
                   source={{
-                    uri: posterSrc,
+                    uri: posterSrc || seerrApi?.imageProxy(details?.posterPath),
                   }}
                 />
               </View>
