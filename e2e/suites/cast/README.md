@@ -106,10 +106,17 @@ direct stream, and after `capped-reload` on MUSIC-FLAC for a transcode:
 e2e/.venv/bin/python e2e/bench/sessions.py --server beta13 --device "Living room" --expect-play-method DirectStream --expect-paused false --expect-active 1
 ```
 
-Two checks are left for a run that does them: cutting the phone's Wi-Fi for 10 s, which
-should log `session <id> suspended` then `session <id> resumed` with the same id and bus
-messages again within 5 s; and stopping the cast from the Cast dialog, which should log
-`binding lost session=<id> error=<code>`.
+Stopping the cast from the Cast dialog logs `binding lost session=<id> error=null`,
+`detached from session <id>` and `disarmed`. After a cast the SDK's expanded controls are
+open: their toolbar Cast button, read as `Cast. Connected`, opens that dialog; the app's
+header button reads `Cast button, Connected`.
+
+Cutting the phone's network ended the session on the emulator, within a second of the cut,
+after a suspend of about 16 s, or once right after a resume over its mobile link. The
+engine logs `binding lost session=<id> error=<code>`, status 2155 when the SDK gives one,
+then `detached from session <id>`. A phone that gets its Wi-Fi back within the SDK's window
+should log `session <id> suspended`, then `session <id> resumed` with the same id and bus
+messages again within 5 s: that check is left for a phone on the receiver's Wi-Fi.
 
 **iOS.** Pass the launch argument `-CastEngineProbe YES`, from the Xcode scheme or with
 `xcrun devicectl device process launch --console --terminate-existing --device <iPhone>
