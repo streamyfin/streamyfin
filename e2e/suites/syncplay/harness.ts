@@ -4,7 +4,11 @@
  */
 
 import type { Api } from "@jellyfin/sdk";
-import { getSessionApi, getUserApi } from "@jellyfin/sdk/lib/utils/api";
+import {
+  getAuthenticationApi,
+  getSessionApi,
+  getUserApi,
+} from "@jellyfin/sdk/lib/utils/api";
 
 /** A harness client, signed in under its own device id. */
 export interface SignedInClient {
@@ -14,6 +18,49 @@ export interface SignedInClient {
 
 const reason = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
+
+/**
+ * Signs a harness client in, and hands it to `signedIn` as soon as it holds a token: the
+ * capabilities post after it may still fail, and the cleanup signs out every token of the run.
+ */
+export async function signIn(
+  name: string,
+  api: Api,
+  account: { readonly name: string; readonly password: string },
+  signedIn: SignedInClient[],
+): Promise<void> {
+  // SDK 1.0 moved the sign-in from the user API to the authentication API.
+  const response = await getAuthenticationApi(api).authenticateUserByName({
+    authenticateUserByName: { Username: account.name, Pw: account.password },
+  });
+  api.update({ accessToken: response.data.AccessToken ?? "" });
+  signedIn.push({ name, api });
+  await getSessionApi(api).postFullCapabilities({
+    clientCapabilitiesDto: {
+      PlayableMediaTypes: ["Video"],
+      SupportsMediaControl: true,
+      SupportedCommands: ["Play"],
+    },
+  });
+}
+
+/**
+ * The item codes must name as many movies: the next and previous waits match on the item id, so a
+ * movie tagged with two of the codes would let them pass before playback moved.
+ */
+export function assertDistinctMovies(
+  items: readonly { readonly id: string; readonly name: string }[],
+  codes: readonly string[],
+): void {
+  items.forEach((item, index) => {
+    const first = items.findIndex((other) => other.id === item.id);
+    if (first !== index) {
+      throw new Error(
+        `${codes[first]} and ${codes[index]} tag the same movie, ${item.name}; tag a different movie with each code`,
+      );
+    }
+  });
+}
 
 /**
  * Ends what a run leaves on the server: a token stays valid until it is signed out, so every run
@@ -54,13 +101,26 @@ export async function cleanUp(
 
 /**
  * What Ctrl-C runs. Bun exits on SIGINT without running `finally` blocks, which left the tokens
- * and the restricted account behind; the handler runs the same cleanup, then exits as SIGINT would.
+ * and the restricted account behind; the handler runs the same cleanup, says what it could not
+ * clean up, as the run's own `finally` does, then exits as SIGINT would.
  */
 export const interruptHandler =
   (cleanUpRun: () => Promise<unknown>, exit: (code: number) => void) =>
   (): void => {
     process.stderr.write("Interrupted: cleaning up the run before exiting\n");
-    void cleanUpRun().finally(() => exit(130));
+    void cleanUpRun()
+      .then(
+        (failures) => {
+          if (!Array.isArray(failures)) return;
+          for (const failure of failures) {
+            process.stderr.write(`FAIL cleanup ${failure}\n`);
+          }
+        },
+        (error) => {
+          process.stderr.write(`FAIL cleanup ${reason(error)}\n`);
+        },
+      )
+      .finally(() => exit(130));
   };
 
 /**

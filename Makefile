@@ -1,10 +1,10 @@
 .PHONY: e2e e2e-setup
 
-# Phony, or make finds the e2e/ folder up to date and runs nothing. adb get-state fails as soon as
-# two devices are attached, so the guard asks for at least one device in the "device" state.
+# Phony, or make finds the e2e/ folder up to date and runs nothing. maestro.py picks the one
+# emulator or simulator running, never a phone, since the smoke flow clears the app's data:
+# DEVICE=<adb serial or udid> runs it on any other device.
 e2e:
-	@adb devices | awk 'NR > 1 && $$2 == "device" { found = 1 } END { exit !found }' || (echo "e2e: start an emulator or connect a device first (adb devices)" && exit 1)
-	python3 e2e/bench/maestro.py --flow e2e/suites/cast/flows/smoke-launch.yml
+	python3 e2e/bench/maestro.py --flow e2e/suites/cast/flows/smoke-launch.yml$(if $(DEVICE), --device "$(DEVICE)")
 
 e2e-setup:
 	curl -fsSL "https://get.maestro.mobile.dev" | bash
