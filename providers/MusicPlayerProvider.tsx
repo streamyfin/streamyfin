@@ -145,6 +145,11 @@ interface MusicPlayerContextType extends MusicPlayerState {
   reorderQueue: (newQueue: BaseItemDto[]) => void;
   clearQueue: () => void;
   jumpToIndex: (index: number) => void;
+  /**
+   * Whether tracks can be taken out of the queue, moved or shuffled: not while
+   * a Cast receiver plays it, which has no command for any of those.
+   */
+  canEditQueue: boolean;
 
   // Modes
   setRepeatMode: (mode: RepeatMode) => void;
@@ -224,6 +229,7 @@ const TVMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     reorderQueue: noop,
     clearQueue: noop,
     jumpToIndex: noop,
+    canEditQueue: false,
     setRepeatMode: noop,
     toggleShuffle: noop,
     setProgress: noop,
@@ -525,6 +531,11 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   // skip the one that is already there. Read and written inside
   // editNativeQueue, so the load sees it together with the track it stands for.
   const loadedOutOfOrderRef = useRef(false);
+
+  // Moves on whenever the native queue is dropped: another queue played, the
+  // player stopped or the queue cleared. The background load of the queue
+  // before then stops there instead of adding its tracks to what replaced it.
+  const queueGenerationRef = useRef(0);
 
   const [state, setState] = useState<MusicPlayerState>({
     currentTrack: null,
@@ -892,13 +903,17 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
 
       // This runs for a long time, one network round trip per track. If the
       // session switches meanwhile, every remaining track belongs to an account
-      // that is no longer signed in, so stop instead of adding them.
+      // that is no longer signed in, so stop instead of adding them; and if
+      // the queue is dropped, the remaining tracks are not in what replaced it.
       // Checked again inside every turn on the native queue, right before the
       // call that adds: the turn may have waited behind another edit, and the
       // session teardown bumps the generation before it resets the player, so
       // an add that passes the check is ahead of that reset.
       const generation = sessionGenerationRef.current;
-      const isStale = () => generation !== sessionGenerationRef.current;
+      const queueGeneration = queueGenerationRef.current;
+      const isStale = () =>
+        generation !== sessionGenerationRef.current ||
+        queueGeneration !== queueGenerationRef.current;
 
       const mediaInfoMap: Record<string, TrackMediaInfo> = {};
       const failedItemIds: string[] = []; // Track items that failed to prepare
@@ -1065,6 +1080,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
 
         // Reset and start playback immediately with just the target track
         loadedOutOfOrderRef.current = false;
+        queueGenerationRef.current += 1;
         await TrackPlayer.reset();
         // Before the first sample: the track change event that also sets the
         // volume reaches JS only once the track is already loading.
@@ -1131,6 +1147,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   // restored at launch, and the native queue of before is dropped so next and
   // previous do not walk it.
   const handBackFromReceiver = useCallback((view: MusicCastRemoteView) => {
+    queueGenerationRef.current += 1;
     TrackPlayer?.reset().catch((error: unknown) =>
       logAndCaptureError("Resetting the player after a cast failed", error),
     );
@@ -1360,6 +1377,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
           preferLocal,
         );
         loadedOutOfOrderRef.current = false;
+        queueGenerationRef.current += 1;
         await TrackPlayer.reset();
         setMusicNormalizationTrack(track);
         await TrackPlayer.add(track);
@@ -1509,6 +1527,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       );
     }
 
+    queueGenerationRef.current += 1;
     try {
       await TrackPlayer.reset();
     } finally {
@@ -1762,6 +1781,8 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
 
   const clearQueue = useCallback(async () => {
     if (!TrackPlayer) return;
+    // Before reading the queue: the background load stops adding to it.
+    queueGenerationRef.current += 1;
     const currentIndex = await TrackPlayer.getActiveTrackIndex();
     const queue = await TrackPlayer.getQueue();
 
@@ -2056,8 +2077,9 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   const remoteQueue = remoteView?.queue;
   const remoteIndex = remoteView?.queueIndex;
   const {
+    stopped: stoppedOnReceiver,
     pause: pauseRemote,
-    resume: resumeRemote,
+    resume: resumeOnReceiver,
     next: nextRemote,
     previous: previousRemote,
     seek: seekRemote,
@@ -2065,6 +2087,22 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     setRepeat: setRepeatOnReceiver,
     enqueue: enqueueOnReceiver,
   } = remote;
+  // A receiver that stopped the queue plays nothing to resume: play sends the
+  // queue again from the track it stopped on.
+  const resumeRemote = useCallback(async () => {
+    if (stoppedOnReceiver && remoteQueue && remoteIndex !== undefined) {
+      // As for a pick in the queue: the cast settles once the receiver loads.
+      void castOnReceiver(remoteQueue, remoteIndex);
+      return;
+    }
+    await resumeOnReceiver();
+  }, [
+    stoppedOnReceiver,
+    remoteQueue,
+    remoteIndex,
+    castOnReceiver,
+    resumeOnReceiver,
+  ]);
   const togglePlayPauseRemote = useCallback(
     () => (remotePlaying ? pauseRemote() : resumeRemote()),
     [remotePlaying, pauseRemote, resumeRemote],
@@ -2073,10 +2111,11 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     await stopOnReceiver();
     await stop();
   }, [stopOnReceiver, stop]);
+  // The mode shows once the receiver has it: a command held back or lost
+  // would leave the player showing one the receiver does not play in.
   const setRepeatModeRemote = useCallback(
-    (mode: RepeatMode) => {
-      setRepeatMode(mode);
-      void setRepeatOnReceiver(mode);
+    async (mode: RepeatMode) => {
+      if (await setRepeatOnReceiver(mode)) setRepeatMode(mode);
     },
     [setRepeatMode, setRepeatOnReceiver],
   );
@@ -2124,6 +2163,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       reorderQueue: remoteView ? ignoreOnReceiver : reorderQueue,
       clearQueue: remoteView ? ignoreOnReceiver : clearQueue,
       jumpToIndex: remoteView ? jumpOnReceiver : jumpToIndex,
+      canEditQueue: !remoteView,
       setRepeatMode: remoteView ? setRepeatModeRemote : setRepeatMode,
       toggleShuffle: remoteView ? ignoreOnReceiver : toggleShuffle,
       setProgress,

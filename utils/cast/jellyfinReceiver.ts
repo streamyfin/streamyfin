@@ -394,11 +394,15 @@ export const queueOnJellyfinReceiver = async (
   command: "PlayNext" | "PlayLast",
   session: JellyfinCastSession,
   items: BaseItemDto[],
-): Promise<void> => {
+  isStale?: () => boolean,
+): Promise<boolean> => {
   refuseContainers(items);
-  await sendJellyfinCastCommand(command, session, {
-    items: items.map(slimItem),
-  });
+  return sendJellyfinCastCommand(
+    command,
+    session,
+    { items: items.map(slimItem) },
+    isStale,
+  );
 };
 
 /**

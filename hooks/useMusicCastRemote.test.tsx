@@ -230,3 +230,181 @@ test("an account switch drops the queue and hands nothing back", async () => {
   });
   expect(props.onHandBack).not.toHaveBeenCalled();
 });
+
+/** A status as the module reports it, null once the receiver has no media. */
+const rawStatus = (status: unknown) =>
+  act(async () => {
+    mockCast.mediaStatus = status as never;
+    emitCastEvent(mockCast, "onMediaStatusChanged", {
+      status: status as never,
+    });
+  });
+
+/** Keeps the receiver channel from opening until the returned release runs. */
+const holdChannel = () => {
+  let release = () => {};
+  mockCast.holdAdd = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  return () => act(async () => release());
+};
+
+const sentCommands = () =>
+  mockCast.sent.map(
+    (entry) => (JSON.parse(entry.message) as { command: string }).command,
+  );
+
+// Media loaded by a sender that is not Jellyfin carries none of the receiver's
+// own data: the queue is gone from the receiver, nothing to show or take back.
+test("lets go of the queue once the receiver plays media another sender loaded", async () => {
+  const { result, rerender } = await mountRemote();
+  await settle();
+
+  await act(async () => {
+    result.current.begin(ALBUM, 0);
+  });
+  await receiverStatus("b", "ps-1", "playing", 30);
+  await rawStatus({
+    playerState: "playing",
+    currentItemId: 7,
+    streamPosition: 4,
+    playbackRate: 1,
+    volume: 1,
+    isMuted: false,
+    mediaInfo: { customData: null },
+    customData: null,
+  });
+  expect(result.current.view).toBeNull();
+
+  await act(async () => {
+    rerender({ ...props, connected: false });
+  });
+  expect(props.onHandBack).not.toHaveBeenCalled();
+});
+
+// Stopped from the TV's remote, say: the receiver keeps the session and plays
+// nothing. The player shows where it stopped, not the queue loading from its
+// first track.
+test("shows where the receiver stopped once it plays nothing", async () => {
+  const { result, rerender } = await mountRemote();
+  await settle();
+
+  await act(async () => {
+    result.current.begin(ALBUM, 0);
+  });
+  await receiverStatus("b", "ps-1", "playing", 30);
+  await rawStatus(null);
+
+  expect(result.current.view?.currentTrack.Id).toBe("b");
+  expect(result.current.view?.queueIndex).toBe(1);
+  expect(result.current.view?.isPlaying).toBe(false);
+  expect(result.current.view?.progress).toBeCloseTo(30, 0);
+  expect(result.current.stopped).toBe(true);
+
+  await act(async () => {
+    rerender({ ...props, connected: false });
+  });
+  const view = (props.onHandBack as jest.Mock).mock
+    .calls[0]?.[0] as MusicCastRemoteView;
+  expect(view.currentTrack.Id).toBe("b");
+  expect(view.progress).toBeCloseTo(30, 0);
+});
+
+// What a Google TV Streamer did on 2026-11-03 after a Stop from its remote:
+// the sender keeps the last track's status, idle. Its media session is over,
+// so a play there does nothing.
+test("an idle receiver counts as stopped on the track it reports", async () => {
+  const { result } = await mountRemote();
+  await settle();
+
+  await act(async () => {
+    result.current.begin(ALBUM, 0);
+  });
+  await receiverStatus("b", "ps-1", "playing", 30);
+  expect(result.current.stopped).toBe(false);
+  await receiverStatus("b", "ps-1", "idle", 0);
+
+  expect(result.current.view?.currentTrack.Id).toBe("b");
+  expect(result.current.view?.isPlaying).toBe(false);
+  expect(result.current.stopped).toBe(true);
+});
+
+// The receiver appends what it is sent to the queue it plays then, so the
+// tracks go to the queue that was there when they were sent, or nowhere.
+test("an enqueue that lands after another cast began leaves that queue alone", async () => {
+  const { result } = await mountRemote();
+  await settle();
+  const first = [track("x"), track("y")];
+
+  await act(async () => {
+    result.current.begin(first, 0);
+  });
+  await receiverStatus("x", "ps-1");
+  const release = holdChannel();
+  let enqueued: Promise<unknown> = Promise.resolve();
+  await act(async () => {
+    enqueued = result.current.enqueue("PlayLast", [track("n1")]);
+  });
+  await act(async () => {
+    result.current.begin(ALBUM, 0);
+  });
+  await release();
+  await act(async () => {
+    await enqueued;
+  });
+
+  expect(result.current.view?.queue.map((item) => item.Id)).toEqual(
+    ALBUM.map((item) => item.Id),
+  );
+});
+
+// Every message carries the account's credentials, and the receiver signs in
+// with the last ones it got.
+test("a command still waiting on the channel when the account switched sends nothing", async () => {
+  const { result, rerender } = await mountRemote();
+  await settle();
+
+  await act(async () => {
+    result.current.begin(ALBUM, 0);
+  });
+  await receiverStatus("a", "ps-1");
+  const release = holdChannel();
+  let pending: Promise<unknown>[] = [];
+  await act(async () => {
+    pending = [
+      result.current.enqueue("PlayLast", [track("n1")]),
+      result.current.next(),
+      result.current.setRepeat("all"),
+    ];
+  });
+  await act(async () => {
+    rerender({ ...props, userId: "other", ownerKey: "server:other" });
+  });
+  await release();
+  await act(async () => {
+    await Promise.all(pending);
+  });
+
+  expect(sentCommands()).toEqual([]);
+});
+
+test("a repeat change reports whether the receiver was told", async () => {
+  const { result } = await mountRemote();
+  await settle();
+
+  await act(async () => {
+    result.current.begin(ALBUM, 0);
+  });
+  let sent: boolean | undefined;
+  await act(async () => {
+    sent = await result.current.setRepeat("all");
+  });
+  expect(sent).toBe(false);
+
+  await receiverStatus("a", "ps-1");
+  await act(async () => {
+    sent = await result.current.setRepeat("all");
+  });
+  expect(sent).toBe(true);
+  expect(sentCommands()).toEqual(["SetRepeatMode"]);
+});

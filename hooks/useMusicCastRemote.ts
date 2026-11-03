@@ -121,6 +121,21 @@ export const useMusicCastRemote = ({
   if (current && index >= 0) shown.current = { id: current.id, index };
   const reported = fresh && index >= 0;
 
+  // Once the receiver has played the queue, a status without it no longer
+  // means the queue is loading. Media another sender loaded carries none of
+  // the receiver's own data; no media at all is the queue gone with the
+  // session still up.
+  const reportedId = useRef<number | null>(null);
+  if (current && reported) reportedId.current = current.id;
+  const wasReported = current !== null && reportedId.current === current.id;
+  const foreignMedia =
+    wasReported && !!status?.mediaInfo && media.playSessionId === null;
+  const gone = wasReported && !fresh && !foreignMedia;
+  // Stopped from the TV's remote, or at the end of the queue, the receiver
+  // reports the track it stopped on as idle: its media session is over, and a
+  // play there does nothing until it is sent the queue again.
+  const idle = reported && status?.playerState === CastMediaPlayerState.IDLE;
+
   // The status gives the position only when something changes: in between,
   // the position counts on from it while the receiver plays.
   const statusSeen = useRef<{ status: typeof status; at: number }>({
@@ -143,8 +158,14 @@ export const useMusicCastRemote = ({
     return () => clearInterval(timer);
   }, [playing]);
 
+  // What the phone takes back when the session ends: the last place the
+  // receiver reported, not a cast still loading.
+  const lastView = useRef<MusicCastRemoteView | null>(null);
+
   let view: MusicCastRemoteView | null = null;
-  if (connected && current && (!fresh || index >= 0)) {
+  if (connected && current && gone) {
+    view = lastView.current ? { ...lastView.current, isPlaying: false } : null;
+  } else if (connected && current && (!fresh || index >= 0)) {
     const queueIndex = index >= 0 ? index : current.startIndex;
     const currentTrack = current.queue[queueIndex];
     const duration =
@@ -172,14 +193,12 @@ export const useMusicCastRemote = ({
     }
   }
 
-  // What the phone takes back when the session ends: the last place the
-  // receiver reported, not a cast still loading.
-  const lastView = useRef<MusicCastRemoteView | null>(null);
   if (connected && reported && view) lastView.current = view;
 
   // A film cast from its page, or another sender's media, replaced the queue;
   // or the account switched under it.
-  const replaced = connected && fresh && !!media.itemId && index < 0;
+  const replaced =
+    connected && ((fresh && !!media.itemId && index < 0) || foreignMedia);
   const foreign = sent !== null && sent.owner !== ownerKey;
   useEffect(() => {
     if (!replaced && !foreign) return;
@@ -233,18 +252,35 @@ export const useMusicCastRemote = ({
   const reportedRef = useRef(reported);
   reportedRef.current = reported;
   // A transport call that fails leaves the receiver as it was; the player
-  // keeps showing what the receiver reports.
+  // keeps showing what the receiver reports. Resolves to what the call
+  // returned, undefined when it did not run or failed.
   const transport = useCallback(
-    async (label: string, action: () => Promise<unknown> | undefined) => {
-      if (!reportedRef.current) return;
+    async <T>(
+      label: string,
+      action: () => Promise<T> | undefined,
+    ): Promise<T | undefined> => {
+      if (!reportedRef.current) return undefined;
       try {
-        await action();
+        return await action();
       } catch (error) {
         logAndCaptureError(`Cast music ${label} failed`, error);
+        return undefined;
       }
     },
     [],
   );
+
+  // A command waits for the channel to open, and the account can switch
+  // meanwhile: every message carries credentials, and the receiver signs in
+  // with the last ones it gets, so a command of the old account is not sent.
+  const ownerKeyRef = useRef(ownerKey);
+  ownerKeyRef.current = ownerKey;
+  const staleOnSwitch = useCallback(() => {
+    const owner = ownerKeyRef.current;
+    return () => ownerKeyRef.current !== owner;
+  }, []);
+  const sentRef = useRef(sent);
+  sentRef.current = sent;
 
   const pause = useCallback(
     () => transport("pause", () => client?.pause()),
@@ -257,54 +293,82 @@ export const useMusicCastRemote = ({
   const next = useCallback(
     () =>
       transport("next", () =>
-        session ? sendJellyfinCastCommand("NextTrack", session) : undefined,
+        session
+          ? sendJellyfinCastCommand("NextTrack", session, {}, staleOnSwitch())
+          : undefined,
       ),
-    [transport, session],
+    [transport, session, staleOnSwitch],
   );
   const previous = useCallback(
     () =>
       transport("previous", () =>
-        session ? sendJellyfinCastCommand("PreviousTrack", session) : undefined,
+        session
+          ? sendJellyfinCastCommand(
+              "PreviousTrack",
+              session,
+              {},
+              staleOnSwitch(),
+            )
+          : undefined,
       ),
-    [transport, session],
+    [transport, session, staleOnSwitch],
   );
   // A stream the receiver cannot seek in, transcoded music, is reloaded from
   // the new position, which only the receiver's own Seek does.
   const cannotSeekInStream = media.canClientSeek === false;
   const seek = useCallback(
     (position: number) =>
-      transport("seek", () =>
+      transport<unknown>("seek", () =>
         cannotSeekInStream
           ? session
-            ? sendJellyfinCastCommand("Seek", session, { position })
+            ? sendJellyfinCastCommand(
+                "Seek",
+                session,
+                { position },
+                staleOnSwitch(),
+              )
             : undefined
           : client?.seek(position),
       ),
-    [transport, client, session, cannotSeekInStream],
+    [transport, client, session, cannotSeekInStream, staleOnSwitch],
   );
+  /** Resolves to whether the receiver was told: the player shows the mode only then. */
   const setRepeat = useCallback(
-    (mode: MusicRepeatMode) =>
-      transport("repeat", () =>
+    async (mode: MusicRepeatMode): Promise<boolean> =>
+      (await transport("repeat", () =>
         session
-          ? sendJellyfinCastCommand("SetRepeatMode", session, {
-              RepeatMode: toJellyfinRepeatMode(mode),
-            })
+          ? sendJellyfinCastCommand(
+              "SetRepeatMode",
+              session,
+              { RepeatMode: toJellyfinRepeatMode(mode) },
+              staleOnSwitch(),
+            )
           : undefined,
-      ),
-    [transport, session],
+      )) === true,
+    [transport, session, staleOnSwitch],
   );
-  // The receiver appends both at the end of its queue, and so does the queue
-  // the player shows.
+  // The receiver appends both at the end of the queue it plays when the
+  // message lands, and so does the queue the player shows: the tracks go to
+  // the queue that was there when they were sent, not to a cast begun since.
   const enqueue = useCallback(
     (command: "PlayNext" | "PlayLast", items: BaseItemDto[]) =>
       transport("queue", async () => {
         if (!session || items.length === 0) return;
-        await queueOnJellyfinReceiver(command, session, items);
+        const queueId = sentRef.current?.id;
+        const queued = await queueOnJellyfinReceiver(
+          command,
+          session,
+          items,
+          staleOnSwitch(),
+        );
+        if (!queued) return;
         setSent((value) =>
-          value ? { ...value, queue: [...value.queue, ...items] } : value,
+          value && value.id === queueId
+            ? { ...value, queue: [...value.queue, ...items] }
+            : value,
         );
       }),
-    [transport, session],
+    [transport, session, staleOnSwitch],
   );
   const stop = useCallback(async () => {
     await transport("stop", () => client?.stop());
@@ -314,6 +378,8 @@ export const useMusicCastRemote = ({
 
   return {
     view,
+    /** The receiver stopped the queue and plays nothing: play casts it again. */
+    stopped: view !== null && (gone || idle),
     begin,
     end,
     pause,

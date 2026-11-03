@@ -36,6 +36,11 @@ interface Props {
   disabled?: boolean;
   /** Whether the playing row can be removed. Music cannot drop its own track. */
   canRemoveCurrent?: boolean;
+  /**
+   * Off when rows cannot be moved or removed, as while a Cast receiver plays
+   * the music queue: the rows then show no handle and no remove button.
+   */
+  editable?: boolean;
   testID?: string;
   onPressRow: (index: number) => void;
   onRemoveRow: (index: number) => void;
@@ -68,6 +73,7 @@ export const DraggableQueueList: React.FC<Props> = ({
   scrollable = true,
   disabled = false,
   canRemoveCurrent = false,
+  editable = true,
   testID,
   onPressRow,
   onRemoveRow,
@@ -85,7 +91,7 @@ export const DraggableQueueList: React.FC<Props> = ({
           testID={testID ? `${testID}-row-${item.key}` : undefined}
           onPress={() => onPressRow(index)}
           // Only where the list scrolls itself: see dragHitSlop below.
-          onLongPress={scrollable ? drag : undefined}
+          onLongPress={scrollable && editable ? drag : undefined}
           disabled={isActive || disabled}
           className='flex-row items-center px-4 py-3'
           style={{
@@ -97,18 +103,21 @@ export const DraggableQueueList: React.FC<Props> = ({
                 : "#121212",
           }}
         >
-          <TouchableOpacity
-            onPressIn={drag}
-            disabled={isActive || disabled}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            className='pr-2'
-          >
-            <Ionicons
-              name='reorder-three'
-              size={20}
-              color={isActive ? ACCENT : "#666"}
-            />
-          </TouchableOpacity>
+          {editable && (
+            <TouchableOpacity
+              testID={testID ? `${testID}-handle-${item.key}` : undefined}
+              onPressIn={drag}
+              disabled={isActive || disabled}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              className='pr-2'
+            >
+              <Ionicons
+                name='reorder-three'
+                size={20}
+                color={isActive ? ACCENT : "#666"}
+              />
+            </TouchableOpacity>
+          )}
 
           <View
             className={`rounded overflow-hidden bg-neutral-800 mr-3 ${
@@ -145,7 +154,7 @@ export const DraggableQueueList: React.FC<Props> = ({
 
           {isCurrent && <Ionicons name={icon} size={16} color={ACCENT} />}
 
-          {(!isCurrent || canRemoveCurrent) && (
+          {editable && (!isCurrent || canRemoveCurrent) && (
             <TouchableOpacity
               testID={testID ? `${testID}-remove-${item.key}` : undefined}
               onPress={() => onRemoveRow(index)}
@@ -163,6 +172,7 @@ export const DraggableQueueList: React.FC<Props> = ({
       currentIndex,
       disabled,
       canRemoveCurrent,
+      editable,
       icon,
       artwork,
       testID,
