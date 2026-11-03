@@ -1210,4 +1210,56 @@ describe("MusicPlayerProvider native player setup", () => {
 
     expect(nativeIds()).toEqual([]);
   });
+
+  // A restored queue lives in state only: the controls that walk it need no
+  // player, so a failed setup must not dead them.
+  test("next and seek move a restored queue while the setup fails", async () => {
+    mockNative.setupError = nativeError(
+      "android_cannot_setup_player_in_background",
+    );
+    persistQueue(ALBUM, 2);
+    await mount();
+
+    await run((p) => p.next());
+    expect(player.currentTrack?.Id).toBe("t3");
+    expect(player.queueIndex).toBe(3);
+
+    await run((p) => p.seek(30));
+    expect(player.progress).toBe(30);
+  });
+
+  // A service that kept the restored track answers getActiveTrack with it:
+  // the tap is a resume, and a reset would restart the stream it still has.
+  test("resume plays the track a surviving service already holds", async () => {
+    persistQueue(ALBUM, 2);
+    await mount();
+
+    mockNative.queue = [{ id: "t2" }];
+    mockNative.activeIndex = 0;
+
+    await run((p) => p.resume());
+
+    expect(mockNative.calls).not.toContain("reset");
+    expect(mockNative.calls).not.toContain("add");
+    expect(player.isPlaying).toBe(true);
+  });
+
+  // A start waiting on the setup would otherwise resume behind the reset a
+  // stop just ran and play a queue that no longer exists.
+  test("a stop cancels a start still waiting on the setup", async () => {
+    mockNative.setupDelayMs = 40;
+    mockStream.delayMs = 5;
+    await mount();
+
+    await act(async () => {
+      player.playQueue(ALBUM, 0);
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      await player.stop();
+      await new Promise((resolve) => setTimeout(resolve, 80));
+    });
+    await settle();
+
+    expect(nativeIds()).toEqual([]);
+    expect(player.currentTrack).toBeNull();
+  });
 });

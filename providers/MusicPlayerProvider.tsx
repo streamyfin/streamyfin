@@ -728,7 +728,9 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       // to it now, or audio plays on with no way to pause it from the app's own
       // UI (the media notification still can). A failure here must not
       // surface: the next playback start retries the setup.
-      ensurePlayerReady().catch(() => {});
+      ensurePlayerReady().catch((error) =>
+        console.warn("[MusicPlayer] Failed to reattach on restore:", error),
+      );
     }
   }, [api, user?.Id, user?.ServerId, sessionKey, ensurePlayerReady]);
 
@@ -1331,7 +1333,10 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   }, [playerReadyForControl]);
 
   const resume = useCallback(async () => {
-    if (!TrackPlayer || !(await playerReadyForControl())) return;
+    if (!TrackPlayer) return;
+    const generation = sessionGenerationRef.current;
+    const isStale = () => generation !== sessionGenerationRef.current;
+    if (!(await playerReadyForControl()) || isStale()) return;
     if (!state.streamUrl && state.currentTrack && api && user?.Id) {
       // Need to load the track first (e.g., after app restart)
       const result = await getAudioStreamUrl(
@@ -1339,26 +1344,41 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         user.Id,
         state.currentTrack.Id!,
       );
-      if (result) {
-        const preferLocal = settings?.preferLocalAudio ?? true;
-        const track = itemToTrack(
-          state.currentTrack,
-          result.url,
-          api,
-          preferLocal,
-        );
-        await TrackPlayer.reset();
-        setMusicNormalizationTrack(track);
-        await TrackPlayer.add(track);
-        await TrackPlayer.seekTo(state.progress);
+      if (!result || isStale()) return;
+
+      // An Android service that outlived a swipe-away can still hold this
+      // track: playing it is the resume the tap asked for, and a reset would
+      // restart the stream at the saved position.
+      const activeTrack = await TrackPlayer.getActiveTrack();
+      if (isStale()) return;
+      if (activeTrack?.id === state.currentTrack.Id) {
         await TrackPlayer.play();
-        setState((prev) => ({
-          ...prev,
-          streamUrl: result.url,
-          playSessionId: result.sessionId,
-          isPlaying: true,
-        }));
+        setState((prev) => ({ ...prev, isPlaying: true }));
+        return;
       }
+
+      const preferLocal = settings?.preferLocalAudio ?? true;
+      const track = itemToTrack(
+        state.currentTrack,
+        result.url,
+        api,
+        preferLocal,
+      );
+      await TrackPlayer.reset();
+      setMusicNormalizationTrack(track);
+      await TrackPlayer.add(track);
+      await TrackPlayer.seekTo(state.progress);
+      await TrackPlayer.play();
+      if (isStale()) {
+        await TrackPlayer.reset().catch(() => {});
+        return;
+      }
+      setState((prev) => ({
+        ...prev,
+        streamUrl: result.url,
+        playSessionId: result.sessionId,
+        isPlaying: true,
+      }));
     } else {
       await TrackPlayer.play();
       setState((prev) => ({ ...prev, isPlaying: true }));
@@ -1382,27 +1402,41 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   }, [state.isPlaying, pause, resume]);
 
   const next = useCallback(async () => {
-    if (!TrackPlayer || !(await playerReadyForControl())) return;
-    const currentIndex = await TrackPlayer.getActiveTrackIndex();
-    const nativeQueue: Track[] = await TrackPlayer.getQueue();
-    const queueLength = nativeQueue.length;
+    if (!TrackPlayer) return;
 
-    // A queue restored after a restart is only on screen: nothing is loaded
-    // natively to skip to, so next walks the queue it has.
-    if (
-      !state.isLoading &&
-      !state.streamUrl &&
-      queueLength === 0 &&
-      state.queue.length > 0
-    ) {
+    // A queue restored after a restart is only on screen until playback
+    // resumes: it can be walked without the player, and must be when setup
+    // is still running or has failed. A service that kept its tracks answers
+    // getQueue with them and takes the native path below instead.
+    const restoredOnly =
+      !state.isLoading && !state.streamUrl && state.queue.length > 0;
+    const advanceRestored = () => {
       let nextIndex = state.queueIndex + 1;
       if (nextIndex >= state.queue.length) {
         if (state.repeatMode !== "all") return;
         nextIndex = 0;
       }
+      // The save effect skips a zero progress, so write it here or the
+      // previous track's position survives onto this one.
+      saveProgress(0);
       setState((prev) => withRestoredTrack(prev, nextIndex));
-      return;
+    };
+
+    let nativeQueue: Track[];
+    if (restoredOnly) {
+      const ready = playerReadyRef.current || (await playerReadyForControl());
+      nativeQueue = ready ? await TrackPlayer.getQueue() : [];
+      if (nativeQueue.length === 0) {
+        advanceRestored();
+        return;
+      }
+    } else {
+      if (!(await playerReadyForControl())) return;
+      nativeQueue = await TrackPlayer.getQueue();
     }
+
+    const currentIndex = await TrackPlayer.getActiveTrackIndex();
+    const queueLength = nativeQueue.length;
 
     if (currentIndex !== undefined && currentIndex < queueLength - 1) {
       if (state.currentTrack && state.playSessionId) {
@@ -1494,23 +1528,33 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
 
   const seek = useCallback(
     async (position: number) => {
-      if (!TrackPlayer || !(await playerReadyForControl())) return;
+      if (!TrackPlayer) return;
       // A restored queue has nothing loaded: resume seeds seekTo from
-      // state.progress when it loads the track, so only state moves here. The
-      // native side answers this — streamUrl cannot, staying null after a
-      // reattach or a jumpToIndex load.
-      if ((await TrackPlayer.getActiveTrackIndex()) === undefined) {
-        setState((prev) => ({ ...prev, progress: position }));
-        return;
-      }
+      // state.progress when it loads the track, so only state moves — even
+      // while setup is still running or has failed. Once something is loaded
+      // the native side says so, where streamUrl cannot: it stays null after
+      // a reattach or a jumpToIndex load.
+      if (!state.streamUrl && state.currentTrack) {
+        const ready = playerReadyRef.current || (await playerReadyForControl());
+        if (!ready || (await TrackPlayer.getActiveTrackIndex()) === undefined) {
+          // The save effect skips a zero progress, so write it directly.
+          saveProgress(position);
+          setState((prev) => ({ ...prev, progress: position }));
+          return;
+        }
+      } else if (!(await playerReadyForControl())) return;
       await TrackPlayer.seekTo(position);
       setState((prev) => ({ ...prev, progress: position }));
     },
-    [playerReadyForControl],
+    [playerReadyForControl, state.streamUrl, state.currentTrack],
   );
 
   const stop = useCallback(async () => {
     if (!TrackPlayer) return;
+    // Starts and queue edits waiting behind a wait check the generation
+    // before touching the player: a stop must cancel them too, or one behind
+    // the setup would play after the queue it stood for is gone.
+    sessionGenerationRef.current += 1;
     if (state.currentTrack && state.playSessionId) {
       reportPlaybackStopped(
         state.currentTrack,
@@ -1564,11 +1608,13 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       const tracksArray = Array.isArray(tracks) ? tracks : [tracks];
       const preferLocal = settings?.preferLocalAudio ?? true;
 
-      if (!(await playerReadyForControl())) return;
+      const generation = sessionGenerationRef.current;
+      const isStale = () => generation !== sessionGenerationRef.current;
+      if (!(await playerReadyForControl()) || isStale()) return;
 
       // Add to TrackPlayer queue
       for (const item of tracksArray) {
-        if (!item.Id) continue;
+        if (!item.Id || isStale()) continue;
         const cachedUrl = getLocalPath(item.Id);
         const result = await getAudioStreamUrl(api, user.Id, item.Id);
         if (result) {
@@ -1599,12 +1645,14 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       const tracksArray = Array.isArray(tracks) ? tracks : [tracks];
       const preferLocal = settings?.preferLocalAudio ?? true;
 
-      if (!(await playerReadyForControl())) return;
+      const generation = sessionGenerationRef.current;
+      const isStale = () => generation !== sessionGenerationRef.current;
+      if (!(await playerReadyForControl()) || isStale()) return;
 
       // Add to TrackPlayer queue after current track
       for (let i = tracksArray.length - 1; i >= 0; i--) {
         const item = tracksArray[i];
-        if (!item.Id) continue;
+        if (!item.Id || isStale()) continue;
         const cachedUrl = getLocalPath(item.Id);
         const result = await getAudioStreamUrl(api, user.Id, item.Id);
         // Read where to insert after the network round trip, not before it: a
