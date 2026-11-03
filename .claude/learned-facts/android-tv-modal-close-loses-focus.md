@@ -18,14 +18,13 @@ and the toolbar calls `requestTVFocus()` on the opening button after 300 ms.
 That recipe is not universal. On the Seerr page (`TVSeerrPage.tsx`), 30
 `requestTVFocus()` calls spread over ~500 ms after the modal unmounted were
 all refused — verified with a real D-pad on a Shield. What worked there:
-watch the modal's atom for the open→closed transition (it goes null only on
-unmount, so the request can't fire into the still-mounted focus trap), then
-bump a `key` to remount the action row; `hasTVPreferredFocus` is honored at
-mount and pulls the focus natively. Two timing traps found on the way: a
-refocus flag set when the modal is *pushed* is consumed while the page is
-still focused, before the modal even mounts; and the modal atom also goes
-null in its `close()` just before `router.back()`, so gate on the screen's
-focus too.
+watch the modal's atom for the open→closed transition, gate on the screen's
+focus, then bump a `key` to remount the action row; `hasTVPreferredFocus` is
+honored at mount and pulls the focus natively. Two timing traps found on the
+way: a refocus flag set when the modal is *pushed* is consumed while the
+page is still focused, before the modal even mounts; and a modal's `close()`
+nulls its atom before `router.back()`, while its focus trap is still
+mounted — the screen-focus gate is what keeps the remount from racing it.
 
 Two more Android TV traps from the same work:
 

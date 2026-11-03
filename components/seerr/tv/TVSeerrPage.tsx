@@ -40,10 +40,10 @@ import { useSeerrRequestOffer } from "@/hooks/useSeerrRequestOffer";
 import { useTVIssueModal } from "@/hooks/useTVIssueModal";
 import { useTVRequestModal } from "@/hooks/useTVRequestModal";
 import { useTVSeasonSelectModal } from "@/hooks/useTVSeasonSelectModal";
+import { tvIssueModalAtom } from "@/utils/atoms/tvIssueModal";
 import { tvRequestModalAtom } from "@/utils/atoms/tvRequestModal";
 import { tvSeasonSelectModalAtom } from "@/utils/atoms/tvSeasonSelectModal";
 import { hasPermission, Permission } from "@/utils/seerr/permissions";
-import { seasonsWithStatus } from "@/utils/seerr/seasons";
 import type {
   MediaRequest,
   MediaRequestBody,
@@ -52,11 +52,7 @@ import type {
   TvDetails,
   TvResult,
 } from "@/utils/seerr/types";
-import {
-  MediaRequestStatus,
-  MediaStatus,
-  MediaType,
-} from "@/utils/seerr/types";
+import { MediaRequestStatus, MediaType } from "@/utils/seerr/types";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -248,20 +244,6 @@ export const TVSeerrPage: React.FC = () => {
     );
   }, [details]);
 
-  // Get seasons with status for TV shows
-  const seasons = useMemo(
-    () =>
-      details && mediaType === MediaType.TV
-        ? seasonsWithStatus(details as TvDetails)
-        : [],
-    [details, mediaType],
-  );
-
-  const _allSeasonsAvailable = useMemo(
-    () => seasons.every((season) => season.status === MediaStatus.AVAILABLE),
-    [seasons],
-  );
-
   // Get cast
   const cast = useMemo(() => {
     return details?.credits?.cast?.slice(0, 10) ?? [];
@@ -269,7 +251,7 @@ export const TVSeerrPage: React.FC = () => {
 
   // Backdrop URL
   const backdropUrl = useMemo(() => {
-    const path = details?.backdropPath || result.backdropPath;
+    const path = result.backdropPath || details?.backdropPath;
     return path
       ? seerrApi?.imageProxy(path, "w1920_and_h800_multi_faces")
       : null;
@@ -432,13 +414,15 @@ export const TVSeerrPage: React.FC = () => {
   // Android TV restores focus to nothing when a modal route closes. The row
   // remounts once the modal is gone — hasTVPreferredFocus is only reliably
   // honored at mount, so a remount pulls the focus where a requestTVFocus on
-  // an existing view is refused. The trigger is the modal open→closed
-  // transition itself: the atoms only go null once the modal unmounts, so the
-  // remount never races a still-mounted focus trap.
+  // an existing view is refused. The atom is the open→closed signal, but a
+  // modal's close() nulls it before router.back(), while its focus trap is
+  // still mounted — so the remount also waits for the screen's focus, which
+  // only lands once the pop has finished.
   const isFocused = useIsFocused();
   const seasonModalOpen = useAtomValue(tvSeasonSelectModalAtom) !== null;
   const requestModalOpen = useAtomValue(tvRequestModalAtom) !== null;
-  const modalOpen = seasonModalOpen || requestModalOpen;
+  const issueModalOpen = useAtomValue(tvIssueModalAtom) !== null;
+  const modalOpen = seasonModalOpen || requestModalOpen || issueModalOpen;
   const modalWasOpenRef = useRef(false);
   const [focusEpoch, setFocusEpoch] = useState(0);
   useEffect(() => {

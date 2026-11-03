@@ -208,7 +208,7 @@ const MobilePage: React.FC = () => {
       _setRequestBody(body);
       advancedReqModalRef?.current?.present?.();
     },
-    [requestBody, _setRequestBody, advancedReqModalRef],
+    [_setRequestBody, advancedReqModalRef],
   );
 
   const request = useCallback(async () => {
@@ -236,6 +236,7 @@ const MobilePage: React.FC = () => {
     mediaTitle,
     refetch,
     mediaType,
+    setRequestBody,
   ]);
 
   // "Request more" from a library series means the request itself, not the
