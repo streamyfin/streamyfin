@@ -132,10 +132,10 @@ def check(
             if skew is None or skew > max_skew_seconds:
                 failures.append(f"Playback skew {skew}, maximum {max_skew_seconds}s")
     if expect_members is not None:
-        # A session does not say which group it is in, so the group is the one its user takes part
-        # in: another group on a shared server must not answer for the bench's.
+        # A session does not say which group it is in, so the group is the one every observed user
+        # takes part in: another group on a shared server, or one the guest left, must not answer.
         users = {v.user for v in views if v.user}
-        ours = [group for group in groups or [] if users & set(group.get("Participants") or [])]
+        ours = [group for group in groups or [] if users and users <= set(group.get("Participants") or [])]
         actual = max((len(group.get("Participants") or []) for group in ours), default=0)
         if actual != expect_members:
             failures.append(f"Group members {actual}, expected {expect_members}")
