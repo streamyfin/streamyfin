@@ -908,6 +908,39 @@ enum CastEngineTests {
       )
     }
 
+    // The device proof reads these lines (e2e/suites/cast/README.md): transitions, never a message.
+    do {
+      let bench = Bench()
+      let engine = bench.playing()
+      engine.seekTo(position: 10, exact: false)
+      engine.setAudioTrack(2)
+      bench.media.report(snapshot(customData: ours(["playSessionId": "ps-2", "audioStreamIndex": 2])), position: 10)
+      engine.load(server: server, request: ReceiverPlayRequest(items: [ReceiverItem(id: "item-2")])) { _ in }
+      bench.media.report(snapshot(customData: ours(["itemId": "item-2", "playSessionId": "ps-3", "canClientSeek": false])))
+      engine.seekTo(position: 20, exact: false)
+      bench.media.report(snapshot(playerState: "idle", idleReason: "finished", customData: nil, hasMedia: false))
+      bench.source.listener?.castSessionDidEnd(sessionId: "session-1", error: nil)
+      check(
+        "logsEachTransitionTheDeviceProofReads",
+        bench.logs == [
+          "bound to session session-1",
+          "status playing playSession=ps-1 playMethod=Transcode canClientSeek=true",
+          "seek 10.0 path=media",
+          "send SetAudioStreamIndex",
+          "reload settled loaded",
+          "status playing playSession=ps-2 playMethod=Transcode canClientSeek=true",
+          "send PlayNow",
+          "load settled loaded",
+          "status playing playSession=ps-3 playMethod=Transcode canClientSeek=false",
+          "seek 20.0 path=bus",
+          "send Seek",
+          "idle finished, waiting for the next item",
+          "binding lost session=session-1 error=nil",
+          "detached from session session-1",
+        ]
+      )
+    }
+
     // iOS cannot tell who launched the receiver app: media there at the binding means another sender
     // spoke first, nothing there means it is not known (spec §5.4).
     do {
@@ -918,6 +951,80 @@ enum CastEngineTests {
       check(
         "identityIsUnknownOnAnEmptyReceiverAndNotOursWhenMediaWasThere",
         unknown && taken.engine().receiverIdentityIsOurs == false
+      )
+    }
+
+    // The debug probe on the real engine and fake ports: each step reaches the receiver through the
+    // channel the engine picks for it, in the order and at the offsets the device proof reads them.
+    do {
+      let bench = Bench()
+      let engine = bench.playing()
+      let script = CastEngineProbeScript(engine: engine, server: server, deliver: bench.clock.deliver, log: { [unowned bench] in bench.logs.append($0) })
+      withExtendedLifetime(script) {
+        script.run()
+        bench.clock.advance(80_000)
+      }
+      let sent = bench.sentMessages()
+      let volumes = bench.session.volumes
+      check(
+        "runsEveryStepOnTheRealEngineInOrder",
+        bench.media.calls == ["pause", "play"]
+          // No status follows the reloads, so the position they hold stays at 42.5.
+          && bench.media.seeks == [72.5, 72.5]
+          && volumes.count == 2 && close(volumes[0], 0.4) && close(volumes[1], 0.5)
+          && sent.map { $0["command"] as? String ?? "?" } == ["SetAudioStreamIndex", "SetSubtitleStreamIndex", "PlayNow", "NextTrack"]
+          && (sent[2]["maxBitrate"] as? NSNumber)?.int64Value == 192_000
+          && bench.media.listener == nil
+          && bench.logs.filter { $0.hasPrefix("step ") } == CastEngineProbeScript.steps.map { "step \($0.1)" }
+          && !bench.logs.contains { $0.contains("tok-123") }
+      )
+    }
+
+    // The probe arms on the hub: the first PlayNow JS sends binds one engine, on the server the
+    // message named, and the script starts at the first playing of that item.
+    do {
+      let bench = Bench()
+      bench.hub.attach(bench.port)
+      var made: [ReceiverServer] = []
+      let probe = CastEngineProbe(
+        hub: bench.hub,
+        makeEngine: { [unowned bench] in
+          made.append($0)
+          return CastEngine(server: $0, sessions: bench.source, hub: bench.hub, deliver: bench.clock.deliver, log: { bench.logs.append($0) })
+        },
+        deliver: bench.clock.deliver,
+        log: { [unowned bench] in bench.logs.append($0) }
+      )
+      let playNow = json((try? ReceiverProtocol.playNow(server: server, request: ReceiverPlayRequest(items: [ReceiverItem(id: "item-1")]))) ?? [:])
+      var bound = false
+      var waited = false
+      var started = false
+      withExtendedLifetime(probe) {
+        probe.arm()
+        bench.hub.send(namespace: ReceiverProtocol.namespace, text: playNow) { _ in }
+        bench.hub.send(namespace: ReceiverProtocol.namespace, text: playNow) { _ in }
+        bench.clock.advance(0)
+        // One engine per arming, on the server the message named.
+        bound = made.count == 1 && made[0].serverAddress == server.serverAddress && made[0].accessToken == server.accessToken
+          && made[0].userId == server.userId && made[0].receiverName == server.receiverName && made[0].maxBitrate == server.maxBitrate
+          && bench.media.listener != nil
+        // What the TV played before is not the item JS loads.
+        bench.media.report(snapshot(customData: ours(["itemId": "item-0", "playSessionId": "ps-0"])), position: 10)
+        bench.clock.advance(5_000)
+        waited = bench.media.calls.isEmpty
+        bench.media.report(snapshot(), position: 42.5)
+        bench.clock.advance(5_000)
+        started = bench.media.calls == ["pause"]
+        bench.clock.advance(75_000)
+      }
+      check(
+        "theFirstPlayNowJsSendsBindsOneEngineThatRunsTheScriptAtThatItem",
+        bound && waited && started
+          // The detach step ends the run: the engine lets go and the hub stops reporting sends.
+          && bench.media.listener == nil && bench.hub.sendObserver == nil
+          && bench.logs.filter { $0.hasPrefix("bus sent ") }
+            == ["PlayNow", "PlayNow", "SetAudioStreamIndex", "SetSubtitleStreamIndex", "PlayNow", "NextTrack"].map { "bus sent \($0)" }
+          && !bench.logs.contains { $0.contains("tok-123") }
       )
     }
 

@@ -172,4 +172,35 @@ class ReceiverChannelHubTest {
         assertNull(error)
         assertEquals(listOf(ns to "x"), observed)
     }
+
+    // What the hub does with the session reaches its log, and never a message: the debug probe reads it.
+    @Test
+    fun logsWhatItDoesWithTheSessionButNeverAMessage() {
+        val hub = ReceiverChannelHub()
+        val port = FakeChannelPort()
+        val logs = mutableListOf<String>()
+        hub.log = { logs += it }
+        hub.subscribe(ns, Recording())
+        hub.attach(port)
+        hub.subscribe(ns, Recording())
+        hub.send(ns, "{\"accessToken\":\"tok-123\"}") {}
+        port.deliver("{\"type\":\"playbackprogress\"}")
+        hub.suspend()
+        port.refuse = true
+        hub.attach(port)
+        hub.end()
+        assertEquals(
+            listOf(
+                "subscribed $ns subscribers=1",
+                "attached session=session-1",
+                "registered $ns session=session-1 subscribers=1",
+                "subscribed $ns subscribers=2",
+                "suspended session=session-1",
+                "attached session=session-1",
+                "register refused $ns session=session-1",
+                "ended session=session-1",
+            ),
+            logs,
+        )
+    }
 }

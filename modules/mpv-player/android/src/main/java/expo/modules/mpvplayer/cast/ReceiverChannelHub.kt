@@ -36,6 +36,9 @@ class ReceiverChannelHub {
     /** Sees every message sent, before it goes; the debug probe arms on the first PlayNow. */
     var sendObserver: ((namespace: String, text: String) -> Unit)? = null
 
+    /** Hears what the hub does with the session, and never a message; the debug probe logs it. */
+    var log: ((String) -> Unit)? = null
+
     private val subscribers = mutableMapOf<String, MutableList<ReceiverBusListener>>()
     private val registered = mutableSetOf<String>()
     private var port: ReceiverChannelPort? = null
@@ -52,6 +55,7 @@ class ReceiverChannelHub {
         lastSessionId = port.sessionId
         generation += 1
         registered.clear()
+        log?.invoke("attached session=${port.sessionId}")
         subscribers.keys.toList().forEach(::register)
     }
 
@@ -60,7 +64,9 @@ class ReceiverChannelHub {
     fun end() = detach(ended = true)
 
     fun subscribe(namespace: String, listener: ReceiverBusListener): ReceiverSubscription {
-        subscribers.getOrPut(namespace) { mutableListOf() } += listener
+        val listeners = subscribers.getOrPut(namespace) { mutableListOf() }
+        listeners += listener
+        log?.invoke("subscribed $namespace subscribers=${listeners.size}")
         register(namespace)
         return ReceiverSubscription { unsubscribe(namespace, listener) }
     }
@@ -85,8 +91,12 @@ class ReceiverChannelHub {
         val accepted = port.register(namespace) { raw ->
             if (this.port === port && generation == registeredAt) deliver(namespace, raw)
         }
-        if (!accepted) return
+        if (!accepted) {
+            log?.invoke("register refused $namespace session=${port.sessionId}")
+            return
+        }
         registered += namespace
+        log?.invoke("registered $namespace session=${port.sessionId} subscribers=${subscribers[namespace]?.size ?: 0}")
         val sessionId = port.sessionId ?: return
         subscribers[namespace]?.toList()?.forEach { it.onReady(sessionId) }
     }
@@ -109,6 +119,7 @@ class ReceiverChannelHub {
         port = null
         generation += 1
         registered.clear()
+        log?.invoke("${if (ended) "ended" else "suspended"} session=$sessionId")
         notifyLost(sessionId, ended)
     }
 

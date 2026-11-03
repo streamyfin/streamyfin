@@ -50,6 +50,9 @@ final class ReceiverChannelHub {
   /// Sees every message sent, before it goes; the debug probe arms on the first PlayNow.
   var sendObserver: ((_ namespace: String, _ text: String) -> Void)?
 
+  /// Hears what the hub does with the session, and never a message; the debug probe logs it.
+  var log: ((String) -> Void)?
+
   private struct Subscriber {
     let token: Int
     weak var listener: ReceiverBusListener?
@@ -76,6 +79,7 @@ final class ReceiverChannelHub {
     generation += 1
     registered.removeAll()
     connected.removeAll()
+    log?("attached session=\(port.sessionId ?? "nil")")
     Array(subscribers.keys).forEach { register($0) }
   }
 
@@ -91,6 +95,7 @@ final class ReceiverChannelHub {
     lastToken += 1
     let token = lastToken
     subscribers[namespace, default: []].append(Subscriber(token: token, listener: listener))
+    log?("subscribed \(namespace) subscribers=\(subscribers[namespace]?.count ?? 0)")
     register(namespace)
     return ReceiverSubscription { [weak self] in
       self?.unsubscribe(namespace: namespace, token: token)
@@ -126,8 +131,12 @@ final class ReceiverChannelHub {
         self.announceConnected(namespace)
       }
     )
-    guard accepted else { return }
+    guard accepted else {
+      log?("register refused \(namespace) session=\(port.sessionId ?? "nil")")
+      return
+    }
     registered.insert(namespace)
+    log?("registered \(namespace) session=\(port.sessionId ?? "nil") subscribers=\(subscribers[namespace]?.count ?? 0)")
     if port.isChannelConnected(namespace: namespace) {
       announceConnected(namespace)
     }
@@ -165,6 +174,7 @@ final class ReceiverChannelHub {
     generation += 1
     registered.removeAll()
     connected.removeAll()
+    log?("\(ended ? "ended" : "suspended") session=\(sessionId ?? "nil")")
     notifyLost(sessionId: sessionId, ended: ended)
   }
 

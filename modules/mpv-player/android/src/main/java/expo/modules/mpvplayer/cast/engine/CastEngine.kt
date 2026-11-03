@@ -168,7 +168,7 @@ class CastEngine(
         sessions.setListener(sessionListener)
         bus = hub.subscribe(ReceiverProtocol.NAMESPACE, busListener)
         attachMedia(session.media)
-        log("bound to session ${session.sessionId}")
+        log("bound to session ${session.sessionId} launched=${session.wasLaunched}")
     }
 
     private fun attachMedia(port: CastMediaPort?) {
@@ -221,6 +221,7 @@ class CastEngine(
 
     private fun loseBinding(error: String?) {
         val sessionId = session?.sessionId ?: return
+        log("binding lost session=$sessionId error=$error")
         detach()
         bindingListener?.onBindingLost(sessionId, error)
     }
@@ -316,6 +317,7 @@ class CastEngine(
         if (!hasMedia || playerState == IDLE || data?.canSeek == false) return
         val target = if (itemDuration > 0) seconds.coerceIn(0.0, itemDuration) else seconds.coerceAtLeast(0.0)
         if (data == null || data.canClientSeek != false) {
+            log("seek $target path=media")
             port.seek((target * 1000).roundToLong()) { succeeded ->
                 if (succeeded) {
                     seekToComplete = requestId
@@ -326,6 +328,7 @@ class CastEngine(
             return
         }
         // The receiver cannot seek in this stream (transcoded music, live TV): Seek reloads it there.
+        log("seek $target path=bus")
         startReload(target, requestId, data) { send("Seek", JSONObject().put("position", target), it) }
     }
 
@@ -457,7 +460,8 @@ class CastEngine(
         pendingLoad?.let { load -> load.tracker.onMediaStatus(data, status.playerState)?.let { settleLoad(load, it) } }
         val settled = reload?.let { pending -> pending.tracker.onMediaStatus(data, status.playerState)?.let { pending to it } }
         settled?.let { (pending, outcome) -> settleReload(pending, outcome, recompute = false) }
-        if (data?.playSessionId != playSessionId) {
+        val newPlaySession = data?.playSessionId != playSessionId
+        if (newPlaySession) {
             playSessionId = data?.playSessionId
             chosenAudio = null
             chosenSubtitle = null
@@ -469,6 +473,9 @@ class CastEngine(
         itemDuration = durationOf(data, status.streamDurationMs)
         updateTracks()
         if (reload == null) position = ReceiverProtocol.positionInItem(port.approximatePositionMs / 1000.0, data ?: ReceiverCustomData())
+        if (newPlaySession || status.playerState != playerState) {
+            log("status ${status.playerState} playSession=${data?.playSessionId} playMethod=${data?.playMethod} canClientSeek=${data?.canClientSeek}")
+        }
         reportState(status.playerState, status.idleReason, data)
         delegate?.onPositionChanged(position, itemDuration, 0.0)
         val completed = settled?.takeIf { it.second == ReceiverLoadOutcome.Loaded }?.first?.requestId ?: seekToComplete
@@ -559,6 +566,7 @@ class CastEngine(
 
     private fun armEndWait() {
         cancelEndWait()
+        log("idle finished, waiting for the next item")
         endWait = schedule(CastEngineConstants.NEXT_ITEM_WAIT_MS) {
             endWait = null
             delegate?.onPlaybackEnded()
@@ -571,6 +579,7 @@ class CastEngine(
     }
 
     private fun settleLoad(load: PendingLoad, outcome: ReceiverLoadOutcome) {
+        log("load settled ${outcome.wireName}")
         load.cancelTimer()
         if (pendingLoad === load) pendingLoad = null
         if (outcome != ReceiverLoadOutcome.Loaded) setLoading(isBuffering())
@@ -613,6 +622,7 @@ class CastEngine(
     }
 
     private fun settleReload(pending: Reload, outcome: ReceiverLoadOutcome, recompute: Boolean) {
+        log("reload settled ${outcome.wireName}")
         pending.cancelTimer()
         reload = null
         when (outcome) {

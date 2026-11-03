@@ -236,6 +236,7 @@ final class CastEngine: TransportEngine, QueueEngine {
 
   fileprivate func loseBinding(_ error: String?) {
     guard let sessionId = session?.sessionId else { return }
+    log("binding lost session=\(sessionId) error=\(error ?? "nil")")
     detach()
     bindingListener?.castEngineDidLoseBinding(sessionId: sessionId, error: error)
   }
@@ -309,6 +310,7 @@ final class CastEngine: TransportEngine, QueueEngine {
   }
 
   private func settleLoad(_ load: PendingLoad, _ outcome: ReceiverLoadOutcome) {
+    log("load settled \(outcome.wireName)")
     load.cancelTimer()
     if pendingLoad === load { pendingLoad = nil }
     if case .loaded = outcome {} else { setLoading(isBuffering()) }
@@ -362,6 +364,7 @@ final class CastEngine: TransportEngine, QueueEngine {
     guard hasMedia, playerState != State.idle, data?.canSeek != false else { return }
     let target = itemDuration > 0 ? min(max(seconds, 0), itemDuration) : max(seconds, 0)
     guard let data, data.canClientSeek == false else {
+      log("seek \(target) path=media")
       port.seek(to: target) { [weak self] succeeded in
         guard let self, !succeeded else { return }
         self.delegate?.engine(self, didUpdateProgress: self.position, duration: self.itemDuration, cacheSeconds: 0)
@@ -369,6 +372,7 @@ final class CastEngine: TransportEngine, QueueEngine {
       return
     }
     // The receiver cannot seek in this stream (transcoded music, live TV): Seek reloads it there.
+    log("seek \(target) path=bus")
     startReload(target: target, data: data) { failed in self.send("Seek", ["position": target], failed: failed) }
   }
 
@@ -513,7 +517,8 @@ final class CastEngine: TransportEngine, QueueEngine {
     if let pending = reload, let outcome = pending.tracker.onMediaStatus(customData: data, playerState: status.playerState) {
       settleReload(pending, outcome, recompute: false)
     }
-    if data?.playSessionId != playSessionId {
+    let newPlaySession = data?.playSessionId != playSessionId
+    if newPlaySession {
       playSessionId = data?.playSessionId
       chosenAudio = nil
       chosenSubtitle = nil
@@ -524,6 +529,10 @@ final class CastEngine: TransportEngine, QueueEngine {
     hasMedia = true
     itemDuration = Self.duration(of: data, streamDuration: status.streamDuration)
     if reload == nil { position = currentPosition(of: status, port: port, data: data) }
+    if newPlaySession || status.playerState != playerState {
+      let canClientSeek = data?.canClientSeek.map { "\($0)" } ?? "nil"
+      log("status \(status.playerState) playSession=\(data?.playSessionId ?? "nil") playMethod=\(data?.playMethod ?? "nil") canClientSeek=\(canClientSeek)")
+    }
     reportState(status.playerState, reason: status.idleReason, data: data)
     publishState()
     delegate?.engine(self, didUpdateProgress: position, duration: itemDuration, cacheSeconds: 0)
@@ -638,6 +647,7 @@ final class CastEngine: TransportEngine, QueueEngine {
     cancelEndWait?()
     cancelEndWait = nil
     guard armed else { return }
+    log("idle finished, waiting for the next item")
     cancelEndWait = deliver(CastEngineConstants.nextItemWaitMs) { [weak self] in
       guard let self else { return }
       self.cancelEndWait = nil
@@ -682,6 +692,7 @@ final class CastEngine: TransportEngine, QueueEngine {
   }
 
   private func settleReload(_ pending: Reload, _ outcome: ReceiverLoadOutcome, recompute: Bool) {
+    log("reload settled \(outcome.wireName)")
     pending.cancelTimer()
     reload = nil
     switch outcome {

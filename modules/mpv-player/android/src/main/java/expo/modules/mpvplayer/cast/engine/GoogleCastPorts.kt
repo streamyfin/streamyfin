@@ -48,15 +48,21 @@ fun CastEngine.Companion.create(context: Context, server: ReceiverServer): CastE
         server = server,
         sessions = GoogleCastSessionSource(cast.sessionManager),
         hub = ReceiverChannelHub.shared,
-        schedule = { delayMs, run ->
-            val task = Runnable(run)
-            main.postDelayed(task, delayMs)
-            val cancel: () -> Unit = { main.removeCallbacks(task) }
-            cancel
-        },
+        schedule = mainLooperSchedule(),
         runOnMain = { block -> if (Looper.myLooper() == Looper.getMainLooper()) block() else main.post(block) },
         log = { Log.i(TAG, it) },
     )
+}
+
+/** Timers on the main looper, cancellable, as the engine and the debug probe run theirs. */
+internal fun mainLooperSchedule(): (Long, () -> Unit) -> (() -> Unit) {
+    val main = Handler(Looper.getMainLooper())
+    return { delayMs, run ->
+        val task = Runnable(run)
+        main.postDelayed(task, delayMs)
+        val cancel: () -> Unit = { main.removeCallbacks(task) }
+        cancel
+    }
 }
 
 /** The session manager as the engine sees it: the current session, and what happens to sessions. */

@@ -2,7 +2,7 @@ import Foundation
 
 // The SDK takes one generic channel per namespace per session: the JS relay and the native engine
 // share it through the hub, which also follows the session through suspends, resumes and ends. The
-// same ten cases as ReceiverChannelHubTest.kt, plus the two that only iOS has.
+// same eleven cases as ReceiverChannelHubTest.kt, plus the two that only iOS has.
 @main
 enum ReceiverChannelHubTests {
   static var failures: [String] = []
@@ -189,6 +189,36 @@ enum ReceiverChannelHubTests {
       released = nil
       port.deliver("after")
       check("aReleasedListenerIsDropped", releasedRef == nil && staying.messages == ["after"])
+    }
+
+    // What the hub does with the session reaches its log, and never a message: the debug probe reads it.
+    do {
+      let hub = ReceiverChannelHub()
+      let port = FakeChannelPort()
+      let first = Recording()
+      let second = Recording()
+      var logs: [String] = []
+      hub.log = { logs.append($0) }
+      withExtendedLifetime((first, second)) {
+        _ = hub.subscribe(namespace: ns, listener: first)
+        hub.attach(port)
+        _ = hub.subscribe(namespace: ns, listener: second)
+        hub.send(namespace: ns, text: "{\"accessToken\":\"tok-123\"}") { _ in }
+        port.deliver("{\"type\":\"playbackprogress\"}")
+        hub.suspend()
+        port.refuse = true
+        hub.attach(port)
+        hub.end()
+      }
+      check(
+        "logsWhatItDoesWithTheSessionButNeverAMessage",
+        logs == [
+          "subscribed \(ns) subscribers=1", "attached session=session-1",
+          "registered \(ns) session=session-1 subscribers=1", "subscribed \(ns) subscribers=2",
+          "suspended session=session-1", "attached session=session-1",
+          "register refused \(ns) session=session-1", "ended session=session-1",
+        ]
+      )
     }
 
     if failures.isEmpty {

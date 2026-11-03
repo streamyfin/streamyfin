@@ -564,6 +564,39 @@ class CastEngineTest {
         assertTrue(media.listener != null)
     }
 
+    // The device proof reads these lines (e2e/suites/cast/README.md): transitions, never a message.
+    @Test
+    fun logsEachTransitionTheDeviceProofReads() {
+        val engine = playing()
+        engine.seekTo(10.0)
+        engine.setAudioTrack(2)
+        media.report(snapshot(customData = ours("playSessionId" to "ps-2", "audioStreamIndex" to 2)), 10_000)
+        engine.load(SERVER, ReceiverPlayRequest(items = listOf(ReceiverItem(id = "item-2")))) {}
+        media.report(snapshot(customData = ours("itemId" to "item-2", "playSessionId" to "ps-3", "canClientSeek" to false)))
+        engine.seekTo(20.0)
+        media.report(snapshot(playerState = "idle", idleReason = "finished", customData = null, hasMedia = false))
+        source.listener!!.onEnded("session-1", null)
+        assertEquals(
+            listOf(
+                "bound to session session-1 launched=null",
+                "status playing playSession=ps-1 playMethod=Transcode canClientSeek=true",
+                "seek 10.0 path=media",
+                "send SetAudioStreamIndex",
+                "reload settled loaded",
+                "status playing playSession=ps-2 playMethod=Transcode canClientSeek=true",
+                "send PlayNow",
+                "load settled loaded",
+                "status playing playSession=ps-3 playMethod=Transcode canClientSeek=false",
+                "seek 20.0 path=bus",
+                "send Seek",
+                "idle finished, waiting for the next item",
+                "binding lost session=session-1 error=null",
+                "detached from session session-1",
+            ),
+            logs,
+        )
+    }
+
     @Test
     fun receiverIdentityFollowsWhoLaunchedTheReceiverApp() {
         for (launched in listOf(true, false, null)) {

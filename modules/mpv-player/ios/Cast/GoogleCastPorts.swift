@@ -265,6 +265,13 @@ private final class SeekWatcher: NSObject, GCKRequestDelegate {
   func request(_ request: GCKRequest, didAbortWith abortReason: GCKRequestAbortReason) { done(self, false) }
 }
 
+/// Timers on the main queue, cancellable, as the engine and the debug probe run theirs.
+private let mainQueueDelivery: CastEngine.Delivery = { delayMs, run in
+  let work = DispatchWorkItem(block: run)
+  DispatchQueue.main.asyncAfter(deadline: .now() + delayMs / 1000, execute: work)
+  return { work.cancel() }
+}
+
 extension CastEngine {
   /// The engine for this device on the shared receiver channel hub, its timers on the main queue.
   /// Nil until the Cast context exists.
@@ -276,13 +283,30 @@ extension CastEngine {
       server: server,
       sessions: GoogleCastSessionSource(),
       hub: .shared,
-      deliver: { delayMs, run in
-        let work = DispatchWorkItem(block: run)
-        DispatchQueue.main.asyncAfter(deadline: .now() + delayMs / 1000, execute: work)
-        return { work.cancel() }
-      },
+      deliver: mainQueueDelivery,
       log: { Logger.shared.log($0, type: "CastEngine") }
     )
   }
 }
+
+#if DEBUG
+extension CastEngineProbe {
+  private static var current: CastEngineProbe?
+
+  /// One probe at a time on the app's hub. Debug builds log through Logger, which prints each line
+  /// with its type, so the console reads [CastEngine], [CastEngineProbe] and [ReceiverChannelHub].
+  static func arm() {
+    guard current?.isActive != true else { return }
+    ReceiverChannelHub.shared.log = { Logger.shared.log($0, type: "ReceiverChannelHub") }
+    let probe = CastEngineProbe(
+      hub: .shared,
+      makeEngine: { CastEngine.make(server: $0) },
+      deliver: mainQueueDelivery,
+      log: { Logger.shared.log($0, type: "CastEngineProbe") }
+    )
+    current = probe
+    probe.arm()
+  }
+}
+#endif
 #endif

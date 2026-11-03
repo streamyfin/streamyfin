@@ -13,6 +13,7 @@ swiftc -module-cache-path "$test_dir/modules" \
   modules/mpv-player/ios/Cast/ReceiverChannelHub.swift \
   modules/mpv-player/ios/Cast/CastPorts.swift \
   modules/mpv-player/ios/Cast/CastEngine.swift \
+  modules/mpv-player/ios/Cast/CastEngineProbe.swift \
   tests/native/FakeChannelPort.swift \
   tests/native/CastEngineTests.swift \
   -o "$test_dir/test"
