@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import {
   useStreamystatsEnabled,
@@ -128,20 +129,44 @@ const NotConfiguredState: React.FC = () => {
   );
 };
 
-const LoadFailedState: React.FC<{ onRetry: () => void }> = ({ onRetry }) => {
+const LoadFailedState: React.FC<{
+  onRetry: () => void;
+  retrying: boolean;
+}> = ({ onRetry, retrying }) => {
   const { t } = useTranslation();
+  const typography = useScaledTVTypography();
+  // docs/conventions/tv.md: no purple accent on TV, and TV text follows the
+  // TV type scale. The TV home's own Retry is drawn the same way.
+  const isTV = Platform.isTV;
 
   return (
     <View className='flex-1 items-center justify-center px-8'>
       <Ionicons name='cloud-offline-outline' size={64} color='#4b5563' />
-      <Text className='text-xl font-semibold mt-4 text-center'>
+      <Text
+        className='text-xl font-semibold mt-4 text-center'
+        style={isTV ? { fontSize: typography.heading } : undefined}
+      >
         {t("watchlists.load_failed_title")}
       </Text>
-      <Text className='text-neutral-400 text-center mt-2 mb-6'>
+      <Text
+        className='text-neutral-400 text-center mt-2 mb-6'
+        style={isTV ? { fontSize: typography.body } : undefined}
+      >
         {t("watchlists.load_failed_description")}
       </Text>
-      <Button onPress={onRetry} className='px-6'>
-        <Text className='font-semibold'>{t("home.retry")}</Text>
+      {/* Stays mounted while the lists are asked for again, so the focus
+          a TV gave it stays on it. */}
+      <Button
+        onPress={onRetry}
+        loading={retrying}
+        color={isTV ? "black" : undefined}
+        className='px-6'
+      >
+        {isTV && retrying ? (
+          <Loader />
+        ) : (
+          <Text className='font-semibold'>{t("home.retry")}</Text>
+        )}
       </Button>
     </View>
   );
@@ -156,9 +181,14 @@ export default function WatchlistsScreen() {
   const {
     data: watchlists,
     isLoading,
-    isError,
+    isFetching,
+    errorUpdateCount,
     refetch,
   } = useWatchlistsQuery();
+  // A query that failed with no list stays failed while it is asked for
+  // again: query-core puts it back to pending meanwhile, and swapping the
+  // page for the loader unmounted the Retry a TV had focused.
+  const failed = !watchlists && errorUpdateCount > 0;
   const [refreshing, setRefreshing] = useState(false);
 
   const handleRefresh = useCallback(async () => {
@@ -224,6 +254,14 @@ export default function WatchlistsScreen() {
     return <NotConfiguredState />;
   }
 
+  // A query that gave up has no list either: without this the page said the
+  // server had none. Covered by components/watchlists/watchlistsPage.test.tsx.
+  if (failed) {
+    return (
+      <LoadFailedState onRetry={() => void refetch()} retrying={isFetching} />
+    );
+  }
+
   // The list is empty until the Streamystats server answers, which left a
   // blank page. Covered by components/watchlists/watchlistsPage.test.tsx.
   if (isLoading && !watchlists) {
@@ -235,12 +273,6 @@ export default function WatchlistsScreen() {
         <Loader />
       </View>
     );
-  }
-
-  // A query that gave up has no list either: without this the page said the
-  // server had none. Covered by components/watchlists/watchlistsPage.test.tsx.
-  if (isError && !watchlists) {
-    return <LoadFailedState onRetry={() => void refetch()} />;
   }
 
   if (!isLoading && (!watchlists || watchlists.length === 0)) {

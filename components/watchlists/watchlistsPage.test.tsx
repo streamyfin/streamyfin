@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
+import { Platform, StyleSheet } from "react-native";
 import WatchlistsPage from "@/app/(auth)/(tabs)/(watchlists)/index";
 
 /** What the watchlists query answers, set by each test. */
@@ -6,6 +7,8 @@ let mockQuery: {
   data: unknown[] | undefined;
   isLoading: boolean;
   isError?: boolean;
+  isFetching?: boolean;
+  errorUpdateCount?: number;
   refetch: () => Promise<unknown>;
 };
 
@@ -34,6 +37,9 @@ jest.mock("react-i18next", () => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }));
 jest.mock("@expo/vector-icons", () => ({ Ionicons: () => null }));
+jest.mock("@/constants/TVTypography", () => ({
+  useScaledTVTypography: () => ({ heading: 42, body: 24, callout: 20 }),
+}));
 // Its own imports reach the app's settings and device modules; a press is enough here.
 jest.mock("@/components/Button", () => {
   const React = jest.requireActual("react");
@@ -42,10 +48,17 @@ jest.mock("@/components/Button", () => {
     Button: ({
       children,
       onPress,
+      color = "purple",
     }: {
       children: React.ReactNode;
       onPress?: () => void;
-    }) => React.createElement(Pressable, { onPress }, children),
+      color?: string;
+    }) =>
+      React.createElement(
+        Pressable,
+        { onPress, testID: `button-${color}` },
+        children,
+      ),
   };
 });
 
@@ -73,7 +86,13 @@ test("says there is no watchlist once none came back", async () => {
 // watchlist once the query gave up (seen on an Android TV, 2026-11-03).
 test("says the watchlists could not be loaded, and asks for them again on Retry", async () => {
   const refetch = jest.fn(async () => undefined);
-  mockQuery = { data: undefined, isLoading: false, isError: true, refetch };
+  mockQuery = {
+    data: undefined,
+    isLoading: false,
+    isError: true,
+    errorUpdateCount: 1,
+    refetch,
+  };
 
   await render(<WatchlistsPage />);
 
@@ -81,4 +100,52 @@ test("says the watchlists could not be loaded, and asks for them again on Retry"
   expect(screen.queryByText("watchlists.empty_title")).toBeNull();
   fireEvent.press(screen.getByText("home.retry"));
   expect(refetch).toHaveBeenCalledTimes(1);
+});
+
+// Retry asks again, and query-core puts a query with no data back to pending
+// while it does (episodeRowState.test.ts shows it on a real query): the page
+// swapped the failure for the loader, which on a TV unmounted the Retry that
+// had the focus, and the failure came back with nothing focused.
+test("keeps the failure and its Retry on screen while it is retried", async () => {
+  mockQuery = {
+    data: undefined,
+    isLoading: true,
+    isFetching: true,
+    isError: false,
+    errorUpdateCount: 1,
+    refetch: async () => {},
+  };
+
+  await render(<WatchlistsPage />);
+
+  expect(screen.getByText("watchlists.load_failed_title")).toBeTruthy();
+  expect(screen.getByTestId("button-purple")).toBeTruthy();
+  expect(screen.queryByTestId("watchlists-loading")).toBeNull();
+});
+
+// docs/conventions/tv.md: no purple accent on TV, and TV text follows the TV
+// type scale.
+test("on TV the failure has a black Retry and TV-sized text", async () => {
+  jest.spyOn(Platform, "isTV", "get").mockReturnValue(true);
+  mockQuery = {
+    data: undefined,
+    isLoading: false,
+    isError: true,
+    errorUpdateCount: 1,
+    refetch: async () => {},
+  };
+
+  await render(<WatchlistsPage />);
+
+  expect(screen.getByTestId("button-black")).toBeTruthy();
+  expect(
+    StyleSheet.flatten(
+      screen.getByText("watchlists.load_failed_title").props.style,
+    ).fontSize,
+  ).toBe(42);
+  expect(
+    StyleSheet.flatten(
+      screen.getByText("watchlists.load_failed_description").props.style,
+    ).fontSize,
+  ).toBe(24);
 });
