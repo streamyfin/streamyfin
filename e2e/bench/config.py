@@ -104,8 +104,13 @@ def _parse_accounts(raw: dict, path: str, file: Path) -> dict[str, Account]:
 def _parse_url(entry: dict, path: str, file: Path) -> str:
     # Checked here, where the field can be named: the tools reach urllib outside their config handler.
     url = _require(entry, "url", path, file).rstrip("/")
-    parsed = urlparse(url)
-    if parsed.scheme not in ("http", "https") or not parsed.hostname:
+    try:
+        parsed = urlparse(url)
+        # Reading the port is what checks it: a port that is not a number raises there.
+        _ = parsed.port
+    except ValueError:
+        parsed = None
+    if parsed is None or parsed.scheme not in ("http", "https") or not parsed.hostname:
         raise BenchConfigError(f"{file}: field {path}.url must be an http or https URL with a host")
     return url
 
@@ -155,6 +160,9 @@ def committable(file: Path, root: Path = REPO_ROOT) -> bool:
         return False
     try:
         result = subprocess.run(["git", "-C", str(root), "check-ignore", "-q", str(file.resolve())], capture_output=True, timeout=10, check=False)
+    except subprocess.TimeoutExpired:
+        # A git that does not answer cannot vouch for the file.
+        return True
     except (OSError, subprocess.SubprocessError):
         return False
     # 0: ignored, 1: not ignored, 128: not a git checkout.
@@ -170,7 +178,8 @@ def load_config(path: Path | None = None) -> BenchConfig:
     # The default path is ignored by git; a file named by the variable may not be, and holds the passwords.
     if path is None and os.environ.get(ENV_VAR) and committable(file):
         raise BenchConfigError(
-            f"{file}: {ENV_VAR} points at a file of the checkout that git does not ignore, which a git add would commit with its passwords; "
+            f"{file}: {ENV_VAR} points at a file of the checkout that git does not ignore, or could not check, which a git add could commit "
+            "with its passwords; "
             "move it out of the repository or name it e2e/bench/<name>.local.json"
         )
     try:

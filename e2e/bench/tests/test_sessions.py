@@ -127,6 +127,12 @@ class CheckTests(unittest.TestCase):
         idle = [view(user="syncplay-host", item_id=None, position_seconds=None, is_paused=None)]
         self.assertEqual(check(idle, expect_active=0, expect_members=2, groups=groups), ["Group members 1, expected 2"])
 
+    def test_the_counted_group_holds_every_observed_user(self):
+        # The host sharing a group with someone else passed a two-member check with the guest outside.
+        users = [view(id="a", user="host", item_id=None), view(id="b", user="guest", item_id=None)]
+        groups = [{"GroupId": "g", "Participants": ["host", "alice"]}]
+        self.assertEqual(check(users, expect_active=0, expect_members=2, groups=groups), ["Group members 0, expected 2"])
+
     def test_joined_group_with_nothing_playing_passes(self):
         # The "joined" step of the SyncPlay README: both members are in the group and nothing plays
         # yet. The minimum of two active sessions failed it, and a plain snapshot as well.

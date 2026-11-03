@@ -65,6 +65,10 @@ def describe_command(command: list[str]) -> str:
     return " ".join(shown)
 
 
+# The simulators the app is built for: a watchOS or visionOS one would run the flow without it.
+APP_SIMULATORS = ("ios-simulator", "tvos-simulator")
+
+
 class NoDevice(Exception):
     """No device to run a flow on without --device: no emulator or simulator, or several."""
 
@@ -79,7 +83,7 @@ def discover() -> tuple[list[Device], list[str]]:
 def pick_device(found: list[Device]) -> str:
     """The one emulator or simulator ready, for a run that names no device. A flow may clear the
     app's data, as the smoke flow does at launch, so a phone is used only when --device names it."""
-    ready = [d for d in found if (d.kind == "android-emulator" and d.state == "device") or (d.kind.endswith("-simulator") and d.state == "booted")]
+    ready = [d for d in found if (d.kind == "android-emulator" and d.state == "device") or (d.kind in APP_SIMULATORS and d.state == "booted")]
     if len(ready) == 1:
         return ready[0].id
     if ready:
