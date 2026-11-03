@@ -27,7 +27,8 @@ export const seerrSeriesPageParams = ({
   if (item.Type !== "Series") return undefined;
 
   const tmdbId = item.ProviderIds?.Tmdb?.trim();
-  if (!tmdbId || !/^\d+$/.test(tmdbId)) return undefined;
+  // Zero is a valid regex hit but never a TMDB series; the page would 404.
+  if (!tmdbId || !/^[1-9]\d*$/.test(tmdbId)) return undefined;
 
   return {
     id: tmdbId,

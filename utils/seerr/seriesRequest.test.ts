@@ -47,6 +47,13 @@ describe("seerrSeriesPageParams", () => {
         posterSrc: "",
       }),
     ).toBeUndefined();
+    // Zero parses as a number but identifies no TMDB series.
+    expect(
+      seerrSeriesPageParams({
+        item: { ...series, ProviderIds: { Tmdb: "0" } },
+        posterSrc: "",
+      }),
+    ).toBeUndefined();
   });
 
   // Movies are requested whole from Discover; this is for missing seasons.

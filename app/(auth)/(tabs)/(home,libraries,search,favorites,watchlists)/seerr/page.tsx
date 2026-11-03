@@ -68,8 +68,8 @@ const MobilePage: React.FC = () => {
   const router = useRouter();
 
   const {
-    mediaTitle,
-    releaseYear,
+    mediaTitle: titleParam,
+    releaseYear: yearParam,
     posterSrc,
     mediaType,
     autoRequest,
@@ -84,7 +84,14 @@ const MobilePage: React.FC = () => {
   } & Partial<MovieResult | TvResult | MovieDetails | TvDetails>;
 
   const navigation = useNavigation();
-  const { seerrApi, seerrUser, requestMedia, refreshAfterRequest } = useSeerr();
+  const {
+    seerrApi,
+    seerrUser,
+    requestMedia,
+    refreshAfterRequest,
+    getTitle,
+    getYear,
+  } = useSeerr();
 
   const [issueType, setIssueType] = useState<IssueType>();
   const [issueMessage, setIssueMessage] = useState<string>();
@@ -96,6 +103,7 @@ const MobilePage: React.FC = () => {
   const {
     data: details,
     isFetching,
+    isFetchedAfterMount,
     isLoading,
     refetch,
   } = useQuery({
@@ -113,6 +121,11 @@ const MobilePage: React.FC = () => {
         : seerrApi?.tvDetails(result.id!);
     },
   });
+
+  // Route params can be blank when the entry point never had them; the TV
+  // page already prefers the fetched title and year for the same reason.
+  const mediaTitle = getTitle(details) || titleParam;
+  const releaseYear = getYear(details) || yearParam;
 
   // Request, or Seerr's Request more on a series it knows with seasons left.
   const { hasAdvancedRequestPermission, requestMore, offersRequest } =
@@ -241,19 +254,21 @@ const MobilePage: React.FC = () => {
 
   // "Request more" from a library series means the request itself, not the
   // page: present the same season picker the Request button opens, once the
-  // details fetch that fills its tvdbId has landed.
+  // details fetch that fills its tvdbId has landed. isFetchedAfterMount
+  // because the cache can hold details that predate Seerr's latest state;
+  // opening the picker on them would strand it on an unrequestable series.
   const autoRequestedRef = useRef(false);
   useEffect(() => {
     if (
       autoRequestedRef.current ||
       autoRequest !== "true" ||
-      !details ||
+      !isFetchedAfterMount ||
       !offersRequest
     )
       return;
     autoRequestedRef.current = true;
     request();
-  }, [autoRequest, details, offersRequest, request]);
+  }, [autoRequest, isFetchedAfterMount, offersRequest, request]);
 
   const isAnime = useMemo(
     () =>

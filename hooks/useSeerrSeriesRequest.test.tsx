@@ -5,6 +5,7 @@ import { useSeerrSeriesRequest } from "./useSeerrSeriesRequest";
 const mockPush = jest.fn();
 let mockSeerrApi: object | undefined = {};
 let mockOffline = false;
+let mockConnected = true;
 let mockSegments = ["(auth)", "(tabs)", "(libraries)"];
 
 jest.mock("expo-router", () => ({ useSegments: () => mockSegments }));
@@ -18,6 +19,9 @@ jest.mock("@/hooks/useSeerr", () => ({
 }));
 jest.mock("@/providers/OfflineModeProvider", () => ({
   useOfflineMode: () => mockOffline,
+}));
+jest.mock("@/hooks/useNetworkStatus", () => ({
+  useNetworkStatus: () => ({ isConnected: mockConnected }),
 }));
 jest.mock("@/providers/JellyfinProvider", () => {
   const { atom } = jest.requireActual("jotai");
@@ -36,6 +40,7 @@ beforeEach(() => {
   mockPush.mockClear();
   mockSeerrApi = {};
   mockOffline = false;
+  mockConnected = true;
   mockSegments = ["(auth)", "(tabs)", "(libraries)"];
 });
 
@@ -75,6 +80,13 @@ describe("useSeerrSeriesRequest", () => {
   // A downloaded series can be opened with no connection to Seerr at all.
   test("offers nothing offline", async () => {
     mockOffline = true;
+    const { result } = await renderHook(() => useSeerrSeriesRequest(series));
+    expect(result.current).toBeUndefined();
+  });
+
+  // Outside an offline route, a lost connection still cannot reach Seerr.
+  test("offers nothing with no connection", async () => {
+    mockConnected = false;
     const { result } = await renderHook(() => useSeerrSeriesRequest(series));
     expect(result.current).toBeUndefined();
   });

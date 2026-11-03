@@ -210,6 +210,7 @@ export const TVSeerrPage: React.FC = () => {
   const {
     data: details,
     isFetching,
+    isFetchedAfterMount,
     isLoading,
     refetch,
   } = useQuery({
@@ -386,13 +387,15 @@ export const TVSeerrPage: React.FC = () => {
 
   // "Request more" from a library series means the request itself, not the
   // page: open the same season sheet the request button opens, once details
-  // arrive.
+  // arrive. isFetchedAfterMount because the cache can hold details that
+  // predate Seerr's latest state; the sheet keeps the snapshot it opened
+  // with, so it must never open on stale ones.
   const autoRequestedRef = useRef(false);
   useEffect(() => {
     if (
       autoRequestedRef.current ||
       autoRequest !== "true" ||
-      !details ||
+      !isFetchedAfterMount ||
       !offersRequest
     )
       return;
@@ -404,7 +407,7 @@ export const TVSeerrPage: React.FC = () => {
     }
   }, [
     autoRequest,
-    details,
+    isFetchedAfterMount,
     offersRequest,
     mediaType,
     handleOpenSeasonSelectModal,

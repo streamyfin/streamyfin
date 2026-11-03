@@ -3,6 +3,7 @@ import { useSegments } from "expo-router";
 import { useAtomValue } from "jotai";
 import { useMemo } from "react";
 import useRouter from "@/hooks/useAppRouter";
+import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { useSeerr } from "@/hooks/useSeerr";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
@@ -20,6 +21,9 @@ export const useSeerrSeriesRequest = (
   const { seerrApi } = useSeerr();
   const api = useAtomValue(apiAtom);
   const isOffline = useOfflineMode();
+  // Offline mode is a route flag, not connectivity: without a connection the
+  // Seerr page this opens can never answer its details query.
+  const { isConnected } = useNetworkStatus();
   const router = useRouter();
   const segments = useSegments();
   const segment = (segments as string[])[2];
@@ -34,7 +38,7 @@ export const useSeerrSeriesRequest = (
       : "(home)";
 
   return useMemo(() => {
-    if (!seerrApi || isOffline) return undefined;
+    if (!seerrApi || isOffline || !isConnected) return undefined;
 
     const params = seerrSeriesPageParams({
       item,
@@ -47,5 +51,5 @@ export const useSeerrSeriesRequest = (
         pathname: `/(auth)/(tabs)/${from}/seerr/page`,
         params: { ...params },
       });
-  }, [seerrApi, isOffline, item, api, router, from]);
+  }, [seerrApi, isOffline, isConnected, item, api, router, from]);
 };
