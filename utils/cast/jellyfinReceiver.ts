@@ -584,6 +584,8 @@ export const castToJellyfinReceiver = async (
   session: JellyfinCastSession,
   request: JellyfinCastPlayRequest,
   timeoutMs: number,
+  /** True once the caller moved on, an account switch say: nothing is sent. */
+  isStale?: () => boolean,
 ): Promise<ReceiverLoadOutcome> => {
   // Refused before it counts as a cast: nothing reaches the TV, so the cast
   // still loading there is not replaced.
@@ -600,7 +602,7 @@ export const castToJellyfinReceiver = async (
   );
   // A cast started while this one read the media status owns the TV now:
   // sending this one after it would replace it there.
-  if (cast !== castCount) return { status: "superseded" };
+  if (cast !== castCount || isStale?.()) return { status: "superseded" };
 
   const isThisLoad = (status: CastMediaStatus | null): boolean => {
     const media = receiverMediaData(status);
