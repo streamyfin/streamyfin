@@ -48,6 +48,8 @@ jobs:
               - 'components/PlayButton.tsx'
               - 'hooks/useMusicCast.ts'
               - 'app/(auth)/now-playing.tsx'
+              # The server screen the smoke flow finds by its test ids.
+              - 'components/login/Login.tsx'
               - 'app.config.ts'
               - 'plugins/withCast*.ts'
               - 'e2e/**'

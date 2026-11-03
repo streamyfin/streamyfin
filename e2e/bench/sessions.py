@@ -32,6 +32,7 @@ class SessionView:
     # Whether the server runs a transcoding job for the session. The play method is only what the
     # client reported, and the server turns a Transcode without a job into DirectPlay.
     is_transcoding: bool = False
+    user_id: str | None = None
 
     @property
     def is_playing_something(self) -> bool:
@@ -87,6 +88,7 @@ def snapshot(sessions: list[dict], device: str | list[str] | None = None) -> lis
                 last_activity=parse_timestamp(session.get("LastActivityDate")),
                 group_id=session.get("SyncPlayGroupId"),
                 is_transcoding=bool(session.get("TranscodingInfo")),
+                user_id=session.get("UserId"),
             )
         )
     return views
@@ -130,7 +132,11 @@ def check(
             if skew is None or skew > max_skew_seconds:
                 failures.append(f"Playback skew {skew}, maximum {max_skew_seconds}s")
     if expect_members is not None:
-        actual = max((len(group.get("Participants") or []) for group in groups or []), default=0)
+        # A session does not say which group it is in, so the group is the one its user takes part
+        # in: another group on a shared server must not answer for the bench's.
+        users = {v.user for v in views if v.user}
+        ours = [group for group in groups or [] if users & set(group.get("Participants") or [])]
+        actual = max((len(group.get("Participants") or []) for group in ours), default=0)
         if actual != expect_members:
             failures.append(f"Group members {actual}, expected {expect_members}")
     return failures
@@ -184,19 +190,20 @@ def main(argv: list[str] | None = None) -> int:
     session = client.authenticate(account)
     try:
         views = snapshot(client.sessions(session.token), device=args.device)
-        groups = client.get("/SyncPlay/List", token=session.token) if args.expect_members is not None else None
-        failures = check(views, groups=groups, **check_options(args))
-        # The Markdown copy is the one quoted in issues: without a device to name them, only the
-        # sessions of the bench's own accounts go in, never the other users of the server.
+        # Without a device to name them, only the sessions of the bench's own accounts are judged and
+        # published: the other users of a shared server never count, nor reach the Markdown copy
+        # quoted in issues, failures included.
         bench_users = {entry.username for entry in server.accounts.values()}
         under_test = views if args.device else [v for v in views if v.user in bench_users]
+        groups = client.get("/SyncPlay/List", token=session.token) if args.expect_members is not None else None
+        failures = check(under_test, groups=groups, **check_options(args))
         observation = {
             "label": args.label,
             "capturedAt": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             "server": args.server,
             "sessions": [{**asdict(v), "last_activity": v.last_activity.isoformat() if v.last_activity else None} for v in under_test],
             "otherSessions": len(views) - len(under_test),
-            "skewSeconds": skew_seconds(views),
+            "skewSeconds": skew_seconds(under_test),
             "failures": failures,
         }
         report = Report(f"sessions-{args.label}", redact=config.redact)

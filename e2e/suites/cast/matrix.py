@@ -16,12 +16,13 @@ from pathlib import Path
 if __name__ == "__main__":
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from bench.sender import BusMessage, Load, LoadFailed, MediaSample, summarize_bus  # noqa: E402
+from bench.sender import ERROR_TYPES, BusMessage, Load, LoadFailed, MediaSample, describe_error, summarize_bus  # noqa: E402
 from bench.sessions import SessionView  # noqa: E402
 
 CASES_PATH = Path(__file__).resolve().parents[2] / "fixtures" / "media.json"
 PLAYING = "PLAYING"
-ERROR_TYPES = ("playbackerror", "connectionerror", "error")
+# Audio tracks asked of the server per request, while looking for a container.
+AUDIO_PAGE_SIZE = 500
 # The receiver writes DirectStream for a static stream and Transcode otherwise, never DirectPlay,
 # and the server turns a Transcode without a job into DirectPlay. Direct against transcoded is the
 # one axis both sides express, so the verdict judges that and the row keeps the raw values.
@@ -84,7 +85,7 @@ def evaluate(
     # Only an item the server does not have is skipped; a play that timed out is a failure with its evidence.
     if missing_item:
         return Row(case["id"], expected, None, None, None, None, [], ["no item on the server"], "skipped")
-    errors = [f"{m.type}: {m.message or ''}".rstrip(": ") for m in bus if m.type in ERROR_TYPES]
+    errors = [describe_error(m) for m in bus if m.type in ERROR_TYPES]
     observed_server = session.play_method if session else None
     server_transcoding = session.is_transcoding if session else None
     # Transcoding reasons explain the server's choice; they are information, not a failure.
@@ -210,10 +211,17 @@ class CastDriver:
         if "channel" in match:
             return next((c for c in self.client.channels(self.session) if c.get("Name") == match["channel"]), None)
         if "audioContainer" in match:
-            result = self.client.get("/Items", params={"IncludeItemTypes": "Audio", "Recursive": "true", "Fields": "MediaSources", "userId": self.session.user_id, "Limit": "500"}, token=self.session.token)
-            for item in result.get("Items", []):
-                if (item.get("MediaSources") or [{}])[0].get("Container") == match["audioContainer"]:
-                    return item
+            # Page through the whole library: a track past the first page is on the server all the same.
+            start = 0
+            while True:
+                params = {"IncludeItemTypes": "Audio", "Recursive": "true", "Fields": "MediaSources", "userId": self.session.user_id, "StartIndex": str(start), "Limit": str(AUDIO_PAGE_SIZE)}
+                page = self.client.get("/Items", params=params, token=self.session.token).get("Items", [])
+                for item in page:
+                    if (item.get("MediaSources") or [{}])[0].get("Container") == match["audioContainer"]:
+                        return item
+                if len(page) < AUDIO_PAGE_SIZE:
+                    return None
+                start += len(page)
         return None
 
     def play(self, item: dict, case: dict) -> list[MediaSample]:
@@ -231,9 +239,12 @@ class CastDriver:
         from bench.sender import to_receiver_device_name
         from bench.sessions import snapshot
 
-        # The receiver registers with the server under the cleaned-up name, not the one sent.
+        # The receiver registers with the server under the cleaned-up name, not the one sent, and under
+        # this run's user: on a shared server, someone else may cast the same item to a namesake.
         device = to_receiver_device_name(self.receiver_name)
-        views = [v for v in snapshot(self.client.sessions(self.session.token), device=device) if v.item_id == item.get("Id")]
+        views = [
+            v for v in snapshot(self.client.sessions(self.session.token), device=device) if v.item_id == item.get("Id") and v.user_id == self.session.user_id
+        ]
         return views[0] if views else None
 
     def bus_since_play(self) -> list[BusMessage]:
@@ -301,7 +312,10 @@ def main(argv: list[str] | None = None) -> int:
                 report.keep(args.keep, config.keep_dir)
             print(f"report: {paths.markdown}")
         finally:
-            client.logout(session)
+            try:
+                client.logout(session)
+            except Exception as error:  # noqa: BLE001 - a failed sign-out only leaves the token behind
+                print(f"matrix: sign-out failed, the token stays on the server ({error})", file=sys.stderr)
     return exit_code(rows)
 
 
