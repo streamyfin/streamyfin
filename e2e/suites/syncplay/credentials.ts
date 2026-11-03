@@ -99,7 +99,7 @@ const fromBench = async (
   }
   return {
     source: "bench",
-    url: config.servers[server].url.replace(/\/$/, ""),
+    url: config.servers[server].url.replace(/\/+$/, ""),
     host: benchAccount(config, server, HOST_PROFILE),
     guest: benchAccount(config, server, GUEST_PROFILE),
     itemCodes: itemCodes(env.E2E_SYNCPLAY_ITEMS),

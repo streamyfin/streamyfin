@@ -6,6 +6,7 @@ from __future__ import annotations
 import contextlib
 import io
 import os
+import shutil
 import tempfile
 import time
 import types
@@ -199,7 +200,10 @@ def bench_run(server: FakeServer, receiver: FakeReceiver | None = None, clock: F
     previous = os.getcwd()
     with tempfile.TemporaryDirectory() as tmp, contextlib.ExitStack() as stack:
         root = Path(tmp)
-        stack.enter_context(mock.patch.dict(os.environ, {"E2E_BENCH_CONFIG": str(EXAMPLE_CONFIG)}))
+        # A copy, outside the checkout: the bench refuses a configuration git would commit.
+        config = root / "bench-config.json"
+        shutil.copy(EXAMPLE_CONFIG, config)
+        stack.enter_context(mock.patch.dict(os.environ, {"E2E_BENCH_CONFIG": str(config)}))
         stack.enter_context(mock.patch("bench.jellyfin.JellyfinClient", server.client))
         stack.enter_context(mock.patch("bench.report.REPORTS_DIR", root / "e2e" / "reports", create=True))
         stack.enter_context(mock.patch("bench.sender.TOKENS_PATH", root / "receiver-tokens.local.json", create=True))

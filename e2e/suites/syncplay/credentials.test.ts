@@ -109,6 +109,24 @@ describe("resolveCredentials", () => {
     expect(resolved.itemCodes).toEqual(["V01", "V03", "V06"]);
   });
 
+  test("strips every trailing slash from the bench server address", async () => {
+    // One was stripped and the SDK took off another: a third left request paths
+    // starting with //, which a server or proxy may not route.
+    const config = JSON.parse(
+      benchConfig({
+        "syncplay-host": { username: "test", password: "p1" },
+        "syncplay-guest": { username: "standard", password: "p2" },
+      }),
+    );
+    config.servers.beta1011.url = "http://beta.example.test:8110/jellyfin///";
+    const resolved = await resolveCredentials(
+      { E2E_BENCH_CONFIG: "/private/bench.json" },
+      reader({ "bench.json": JSON.stringify(config) }),
+      "/repo/e2e/suites/syncplay",
+    );
+    expect(resolved.url).toBe("http://beta.example.test:8110/jellyfin");
+  });
+
   test("names the missing SyncPlay account", async () => {
     await expect(
       resolveCredentials(
