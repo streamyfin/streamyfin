@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import {
   Animated,
   Easing,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -298,7 +299,10 @@ export const TVSaveAccountModal: React.FC<TVSaveAccountModalProps> = ({
             trapFocusLeft
             trapFocusRight
             testID='tv-save-account-panel'
-            style={styles.content}
+            style={[
+              styles.content,
+              Platform.OS === "android" && styles.androidBacking,
+            ]}
           >
             {/* Header */}
             <View style={styles.header}>
@@ -423,12 +427,15 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   content: {
-    // Android TV only tints behind a BlurView: without a backing of its own,
-    // the sign-in form's buttons showed through the sheet.
-    backgroundColor: TV_PANEL_BACKING,
     paddingTop: scaleSize(24),
     paddingBottom: scaleSize(50),
     overflow: "visible",
+  },
+  // Android TV only tints behind a BlurView: without a backing of its own, the
+  // sign-in form's buttons showed through the sheet. Apple TV really blurs, so
+  // its sheet stays frosted glass like the other sign-in sheets.
+  androidBacking: {
+    backgroundColor: TV_PANEL_BACKING,
   },
   header: {
     paddingHorizontal: scaleSize(48),
