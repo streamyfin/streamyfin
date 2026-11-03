@@ -12,6 +12,7 @@ import { useAtomValue } from "jotai";
 import { useEffect, useRef, useState } from "react";
 import { Platform } from "react-native";
 import {
+  EXPO_PROJECT_ID,
   NOTIFICATION_PERMISSIONS,
   PERMISSION_ASKED_KEY,
 } from "@/constants/Notifications";
@@ -142,7 +143,7 @@ export const useNotificationRegistration = (): ExpoPushToken | undefined => {
     const pushToken: EventSubscription = Notifications.addPushTokenListener(
       (devicePushToken: DevicePushToken) => {
         Notifications.getExpoPushTokenAsync({
-          projectId: "e79219d1-797f-4fbe-9fa1-cfd360690a68",
+          projectId: EXPO_PROJECT_ID,
           devicePushToken,
         })
           .then((token: ExpoPushToken) => {
@@ -201,7 +202,7 @@ export const useNotificationRegistration = (): ExpoPushToken | undefined => {
       if (Device.isDevice && tokenFetch.current === "idle") {
         tokenFetch.current = "pending";
         Notifications.getExpoPushTokenAsync({
-          projectId: "e79219d1-797f-4fbe-9fa1-cfd360690a68",
+          projectId: EXPO_PROJECT_ID,
         })
           .then((token: ExpoPushToken) => {
             if (token) {
