@@ -3,7 +3,9 @@
  * Centralizes common filtering patterns to reduce duplication.
  */
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
+import i18next from "i18next";
 import type { DownloadedItem } from "@/providers/Downloads/types";
+import { seasonLabel } from "@/utils/seasonLabel";
 
 /** Sort episodes by season then episode number */
 const sortByEpisodeOrder = (a: BaseItemDto, b: BaseItemDto) =>
@@ -86,7 +88,7 @@ export function buildOfflineSeasons(
     return {
       Id: `offline-season-${seasonNum}`,
       IndexNumber: seasonNum,
-      Name: firstEpisode?.SeasonName || `Season ${seasonNum}`,
+      Name: seasonLabel(i18next.t, firstEpisode?.SeasonName, seasonNum),
       SeriesId: seriesId,
     } as BaseItemDto;
   });

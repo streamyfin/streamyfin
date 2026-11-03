@@ -42,6 +42,7 @@ import {
   getDownloadedEpisodesForSeason,
 } from "@/utils/downloads/offline-series";
 import { scaleSize } from "@/utils/scaleSize";
+import { seasonLabel } from "@/utils/seasonLabel";
 import { replacementSeason } from "@/utils/seasonSelection";
 import { getSeriesPlaybackTarget } from "@/utils/seriesPlaybackTarget";
 
@@ -230,8 +231,8 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
         s.IndexNumber === selectedSeasonIndex ||
         s.Name === String(selectedSeasonIndex),
     );
-    return season?.Name || `Season ${selectedSeasonIndex}`;
-  }, [seasons, selectedSeasonIndex]);
+    return seasonLabel(t, season?.Name, selectedSeasonIndex);
+  }, [seasons, selectedSeasonIndex, t]);
 
   const handlePersonPress = useCallback(
     (personId: string) => {
@@ -328,13 +329,13 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
   // Season options for the modal
   const seasonOptions = useMemo(() => {
     return seasons.map((season: BaseItemDto) => ({
-      label: season.Name || `Season ${season.IndexNumber}`,
+      label: seasonLabel(t, season.Name, season.IndexNumber),
       value: season.IndexNumber ?? 0,
       selected:
         season.IndexNumber === selectedSeasonIndex ||
         season.Name === String(selectedSeasonIndex),
     }));
-  }, [seasons, selectedSeasonIndex]);
+  }, [seasons, selectedSeasonIndex, t]);
 
   // Open season modal
   const handleOpenSeasonModal = useCallback(() => {

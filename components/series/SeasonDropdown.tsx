@@ -2,6 +2,7 @@ import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { t } from "i18next";
 import { useEffect, useMemo, useState } from "react";
 import { Platform, TouchableOpacity, View } from "react-native";
+import { seasonLabel } from "@/utils/seasonLabel";
 import { Text } from "../common/Text";
 import { PlatformDropdown } from "../PlatformDropdown";
 
@@ -63,7 +64,7 @@ export const SeasonDropdown: React.FC<Props> = ({
       {
         options:
           seasons?.sort(sortByIndex).map((season: any) => {
-            const title = season.Name || `Season ${season.IndexNumber}`;
+            const title = seasonLabel(t, season.Name, season.IndexNumber);
             return {
               type: "radio" as const,
               label: title,
