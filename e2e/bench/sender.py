@@ -275,7 +275,8 @@ class ReceiverTokens:
     The bitrate cap of the session goes with it. The receiver applies the cap of every message to
     the loads after it, an audio change, a burned-in subtitle or a seek it cannot do in place among
     them, so each command of the session states it again: sent uncapped, a later command lifted the
-    cap the session was started with."""
+    cap the session was started with. An uncapped session is kept with UNCAPPED_BITRATE, and an
+    entry without a cap is one whose cap is unknown."""
 
     def __init__(self, path: Path | None = None):
         self.path = Path(path or TOKENS_PATH)
@@ -454,6 +455,22 @@ def play_now_options(items: list[dict], start_position_ticks: int = 0) -> dict:
     return {"items": [slim_item(item) for item in items], "startIndex": 0, "startPositionTicks": start_position_ticks}
 
 
+def bitrate(text: str) -> int:
+    """A cap in bit/s: 0 read as no cap and went out uncapped, a negative one went out as it was."""
+    value = int(text)
+    if value <= 0:
+        raise argparse.ArgumentTypeError(f"{text} is not a positive number of bit/s")
+    return value
+
+
+def seconds(text: str) -> float:
+    """A number of seconds: nan and inf passed as floats, then raised in the rounding."""
+    value = float(text)
+    if not math.isfinite(value) or value < 0:
+        raise argparse.ArgumentTypeError(f"{text} is not a finite number of seconds, zero or more")
+    return value
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--server", required=True)
@@ -464,21 +481,23 @@ def main(argv: list[str] | None = None) -> int:
     play = sub.add_parser("play-now")
     play.add_argument("--item", required=True, help="Lab code or name prefix, or a channel name with --channel")
     play.add_argument("--channel", action="store_true")
-    play.add_argument("--start-seconds", type=float, default=0.0)
-    play.add_argument("--watch", type=float, default=20.0)
-    play.add_argument("--max-bitrate", type=int, help="Cap in bit/s of the session this play starts; uncapped otherwise")
+    play.add_argument("--start-seconds", type=seconds, default=0.0)
+    play.add_argument("--watch", type=seconds, default=20.0)
+    play.add_argument("--max-bitrate", type=bitrate, help="Cap in bit/s of the session this play starts; uncapped otherwise")
     # Every command after a play carries a cap too, the session's own unless it asks for another.
     commands = [sub.add_parser(name) for name in ("identify", "pause", "unpause", "stop")]
     sub.add_parser("status")
     seek = sub.add_parser("seek")
-    seek.add_argument("--seconds", type=float, required=True, help="Position in seconds, sent rounded to whole seconds")
+    seek.add_argument("--seconds", type=seconds, required=True, help="Position in seconds, sent rounded to whole seconds")
     commands.append(seek)
     for name in ("subtitle", "audio"):
         track = sub.add_parser(name)
         track.add_argument("--index", type=int, required=True)
         commands.append(track)
     for command in commands:
-        command.add_argument("--max-bitrate", type=int, help="Cap in bit/s the session runs under from this command on; the session's own otherwise")
+        command.add_argument(
+            "--max-bitrate", type=bitrate, help="Cap in bit/s the session runs under from this command on; the session's own otherwise, needed when it is unknown"
+        )
     args = parser.parse_args(argv)
 
     from bench.config import BenchConfigError, load_config
@@ -496,12 +515,6 @@ def main(argv: list[str] | None = None) -> int:
     tokens = ReceiverTokens()
     key = (args.server, args.profile, args.target)
     held = tokens.get(*key)
-    # The cap this run's messages carry, and its session's from then on: a play starts the session
-    # under the one it asks for, a later command keeps the session's own unless it asks for another.
-    # Status sends nothing and takes none.
-    max_bitrate = getattr(args, "max_bitrate", None)
-    if max_bitrate is None and args.action != "play-now":
-        max_bitrate = tokens.max_bitrate(*key)
     client = JellyfinClient(server.url)
     # The run's own token reads the server; messages carry the one the receiver already holds, if any.
     own = client.authenticate(account)
@@ -536,7 +549,26 @@ def main(argv: list[str] | None = None) -> int:
     final_state: str | None = None
     # The token this run's messages carried, from the moment one may have reached the receiver.
     handed = None
+    # The cap the receiver's session runs under as far as the run knows: the kept one, then that of
+    # each message once sent. None when unknown, kept so for the next command to state one.
+    session_cap: int | None = None
     try:
+        if args.action == "play-now":
+            # Looked up and checked before the receiver starts: a missing or refused item must not
+            # close what the TV shows.
+            if args.channel:
+                item = next((c for c in client.channels(own) if c.get("Name") == args.item), None)
+            else:
+                item = client.find_item(own, args.item)
+            if item is None:
+                note("item", found=False, query=args.item)
+                return 2
+            note("item", found=True, id=item["Id"], name=item["Name"])
+            try:
+                options = play_now_options([item], int(args.start_seconds * TICKS_PER_SECOND))
+            except ContainerRefused as refused:
+                note("refused", error=str(refused))
+                return 2
         cast = connect(target)
         note("connected", target=target.name, app=cast.app_display_name)
         # Only a play starts the receiver: any other action would close what the TV shows for nothing.
@@ -554,29 +586,30 @@ def main(argv: list[str] | None = None) -> int:
         if held is not None and before.player_state not in ACTIVE_STATES:
             revoke_held(f"receiver {before.player_state}")
         session = held or own
+        # The cap this run's messages carry, and its session's from then on: a play starts the session
+        # under the one it asks for, a later command keeps the kept session's unless it asks for
+        # another. A kept session whose cap is unknown, kept before caps were or after a send that
+        # failed, needs one stated: guessed, it could lift the cap of the loads to come. A stop
+        # starts no load, and status sends nothing.
+        asked = getattr(args, "max_bitrate", None)
+        if held is not None:
+            session_cap = tokens.max_bitrate(*key)
+        if asked is None and held is not None and session_cap is None and args.action not in ("play-now", "stop", "status"):
+            note("refused", error=f"the bitrate cap of the session on {target.name} is unknown: pass --max-bitrate, or start it again with play-now")
+            cast.disconnect(timeout=5)
+            return 2
+        max_bitrate = asked or (session_cap if args.action != "play-now" else None) or UNCAPPED_BITRATE
 
         def send(command: str, options: dict | None = None) -> None:
-            nonlocal handed
+            nonlocal handed, session_cap
             handed = session
             message = build_message(command, server.url, session.token, session.user_id, options or {}, receiver_name, max_bitrate)
             controller.send(message)
+            session_cap = message["maxBitrate"]
             note("sent", command=command, options=options or {}, max_bitrate=message["maxBitrate"])
 
         identified_at = None
         if args.action == "play-now":
-            if args.channel:
-                item = next((c for c in client.channels(own) if c.get("Name") == args.item), None)
-            else:
-                item = client.find_item(own, args.item)
-            if item is None:
-                note("item", found=False, query=args.item)
-                return 2
-            note("item", found=True, id=item["Id"], name=item["Name"])
-            try:
-                options = play_now_options([item], int(args.start_seconds * TICKS_PER_SECOND))
-            except ContainerRefused as refused:
-                note("refused", error=str(refused))
-                return 2
             load = Load(item_id=item["Id"], previous_session=before.play_session_id, bus_start=len(controller.bus))
             sent_at = time.monotonic()
             send("PlayNow", options)
@@ -622,14 +655,14 @@ def main(argv: list[str] | None = None) -> int:
                 revoke(own, "not handed to the receiver")
             if handed is not None:
                 if not should_sign_out(final_state):
-                    tokens.put(*key, handed, max_bitrate)
+                    tokens.put(*key, handed, session_cap)
                     state = "state unknown after sending" if final_state is None else f"still {final_state}"
                     note("token kept", reason=f"receiver {state}; the next command to {target.name} reuses it, stop revokes it")
                 elif revoke(handed, f"receiver {final_state} after {args.action}"):
                     tokens.drop(*key)
                 else:
                     # Still valid on the server: the next run to this receiver revokes it.
-                    tokens.put(*key, handed, max_bitrate)
+                    tokens.put(*key, handed, session_cap)
         finally:
             paths = report.save()
             if args.keep:

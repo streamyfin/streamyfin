@@ -549,6 +549,87 @@ class SenderMainTests(unittest.TestCase):
         self.assertEqual(stored["beta13"]["test"]["Living room"]["token"], "tok1")
         self.assertEqual(receiver.received[-1]["accessToken"], "tok1")
 
+    def test_a_kept_session_whose_cap_is_unknown_takes_one_from_the_command(self):
+        # Kept before the caps were, a session has none on record: sent uncapped, a seek lifted the
+        # cap it may have been started with, so the command must state one. A stop needs none.
+        server = FakeServer(items={"V01": V01})
+        receiver = FakeReceiver()
+        with bench_run(server, receiver) as run:
+            sender_main("play-now", "--item", "V01", "--watch", "0", "--max-bitrate", "3000000")
+            path = run.root / "receiver-tokens.local.json"
+            stored = json.loads(path.read_text())
+            del stored["beta13"]["test"]["Living room"]["maxBitrate"]
+            path.write_text(json.dumps(stored))
+            self.assertEqual(sender_main("seek", "--seconds", "60"), 2)
+            self.assertEqual([m["command"] for m in receiver.received], ["PlayNow"])
+            self.assertIn("--max-bitrate", run.stdout.getvalue())
+            self.assertEqual(sender_main("seek", "--seconds", "60", "--max-bitrate", "2000000"), 0)
+            self.assertEqual(sender_main("stop"), 0)
+        self.assertEqual([(m["command"], m["maxBitrate"]) for m in receiver.received], [("PlayNow", 3000000), ("Seek", 2000000), ("Stop", 2000000)])
+
+    def test_an_uncapped_session_is_kept_as_uncapped(self):
+        # Without a cap on record, an uncapped session read as one whose cap is unknown.
+        server = FakeServer(items={"V01": V01})
+        receiver = FakeReceiver()
+        with bench_run(server, receiver) as run:
+            sender_main("play-now", "--item", "V01", "--watch", "0")
+            stored = json.loads((run.root / "receiver-tokens.local.json").read_text())
+            self.assertEqual(sender_main("pause"), 0)
+        self.assertEqual(stored["beta13"]["test"]["Living room"]["maxBitrate"], sender.UNCAPPED_BITRATE)
+        self.assertEqual(receiver.received[-1]["maxBitrate"], sender.UNCAPPED_BITRATE)
+
+    def test_a_cap_is_kept_only_once_its_message_went_out(self):
+        # The cap was recorded before the send: a send that failed left on record a cap the
+        # receiver never had, and the next command restated it.
+        server = FakeServer(items={"V01": V01})
+        receiver = FakeReceiver()
+        with bench_run(server, receiver) as run:
+            sender_main("play-now", "--item", "V01", "--watch", "0", "--max-bitrate", "3000000")
+            with mock.patch.object(receiver, "send", side_effect=OSError("connection lost")), self.assertRaises(OSError):
+                sender_main("seek", "--seconds", "60", "--max-bitrate", "1500000")
+            stored = json.loads((run.root / "receiver-tokens.local.json").read_text())
+        self.assertEqual(stored["beta13"]["test"]["Living room"]["maxBitrate"], 3000000)
+
+    def test_a_cap_must_be_a_positive_number_of_bits(self):
+        # 0 read as no cap and went out uncapped, and a negative cap went out as it was.
+        import contextlib
+        import io
+
+        for argv in (("play-now", "--item", "V01", "--max-bitrate", "0"), ("seek", "--seconds", "1", "--max-bitrate", "-5")):
+            with self.subTest(argv=argv), contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as caught:
+                sender_main(*argv)
+            self.assertEqual(caught.exception.code, 2)
+
+    def test_seconds_must_be_finite_and_not_below_zero(self):
+        # nan and inf passed the parser, then raised in the rounding with a traceback.
+        import contextlib
+        import io
+
+        for argv in (
+            ("seek", "--seconds", "nan"),
+            ("seek", "--seconds", "inf"),
+            ("seek", "--seconds", "-1"),
+            ("play-now", "--item", "V01", "--start-seconds", "nan"),
+            ("play-now", "--item", "V01", "--watch", "inf"),
+        ):
+            with self.subTest(argv=argv), contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as caught:
+                sender_main(*argv)
+            self.assertEqual(caught.exception.code, 2)
+
+    def test_an_item_the_receiver_cannot_play_leaves_the_tv_alone(self):
+        # The receiver started before the item was looked up: a refused or missing item still
+        # closed what the TV showed.
+        items = {"P01": {"Id": "playlist-1", "Name": "Road trip", "Type": "Playlist", "IsFolder": True}}
+        for query in ("P01", "NOPE"):
+            with self.subTest(item=query):
+                server = FakeServer(items=items)
+                receiver = FakeReceiver(app_id=OTHER_APP_ID)
+                with bench_run(server, receiver):
+                    self.assertEqual(sender_main("play-now", "--item", query), 2)
+                self.assertNotIn("start", receiver.events)
+                self.assertEqual(receiver.app_id, OTHER_APP_ID)
+                self.assertEqual(server.live, [])
+
     def test_report_steps_carry_the_time_they_happened(self):
         clock = FakeClock()
         server = FakeServer(items={"V01": V01})
