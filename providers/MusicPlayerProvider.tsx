@@ -543,6 +543,9 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   // one: they resume together when setup finishes, and only the last may
   // reach the native queue.
   const startSequenceRef = useRef(0);
+  // The latest written position: a resume finishing its own waits seeks to
+  // this, not to what its render saw.
+  const progressRef = useRef(0);
 
   // Set once jumpToIndex has loaded a track ahead of the background load. From
   // then on that load can no longer append: it has to place each track, and
@@ -568,6 +571,10 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     isTranscoding: false,
     trackMediaInfoMap: {},
   });
+
+  useEffect(() => {
+    progressRef.current = state.progress;
+  }, [state.progress]);
 
   const lastReportRef = useRef<number>(0);
 
@@ -1358,14 +1365,29 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       );
       if (!result || isStale()) return;
 
-      // An Android service that outlived a swipe-away can still hold this
-      // track: playing it is the resume the tap asked for, and a reset would
-      // restart the stream at the saved position.
+      // An Android service that outlived a swipe-away can still hold a track
+      // of the restored queue — maybe not the one this render saw last.
+      // Playing what it holds is the resume the tap asked for; a reset would
+      // restart the stream it still has. The live track's own url fills
+      // streamUrl, which is what marks playback live for the remote commands.
       const activeTrack = await TrackPlayer.getActiveTrack();
       if (isStale()) return;
-      if (activeTrack?.id === state.currentTrack.Id) {
+      const liveIndex = activeTrack?.id
+        ? state.queue.findIndex((t) => t.Id === activeTrack.id)
+        : -1;
+      if (liveIndex >= 0) {
         await TrackPlayer.play();
-        setState((prev) => ({ ...prev, isPlaying: true }));
+        setState((prev) => {
+          const base =
+            liveIndex === prev.queueIndex
+              ? prev
+              : withRestoredTrack(prev, liveIndex);
+          return {
+            ...base,
+            streamUrl: activeTrack?.url ?? null,
+            isPlaying: true,
+          };
+        });
         return;
       }
 
@@ -1377,9 +1399,12 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         preferLocal,
       );
       await TrackPlayer.reset();
+      if (isStale()) return;
       setMusicNormalizationTrack(track);
       await TrackPlayer.add(track);
-      await TrackPlayer.seekTo(state.progress);
+      // The ref, not the render's state: a seek during the waits above moved
+      // the saved position this call has not seen.
+      await TrackPlayer.seekTo(progressRef.current);
       await TrackPlayer.play();
       if (isStale()) {
         await TrackPlayer.reset().catch(() => {});
@@ -1400,7 +1425,8 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     user?.Id,
     state.streamUrl,
     state.currentTrack,
-    state.progress,
+    state.queue,
+    state.queueIndex,
     settings?.preferLocalAudio,
     playerReadyForControl,
   ]);
@@ -1547,11 +1573,14 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       // the native side says so, where streamUrl cannot: it stays null after
       // a reattach or a jumpToIndex load.
       if (!state.streamUrl && state.currentTrack) {
+        // The save effect skips a zero progress, so write it directly — and
+        // write before the wait: the labels and a resume that reads
+        // state.progress see the new position even while setup runs, and no
+        // stop can slip a clear in between.
+        saveProgress(position);
+        setState((prev) => ({ ...prev, progress: position }));
         const ready = playerReadyRef.current || (await playerReadyForControl());
         if (!ready || (await TrackPlayer.getActiveTrackIndex()) === undefined) {
-          // The save effect skips a zero progress, so write it directly.
-          saveProgress(position);
-          setState((prev) => ({ ...prev, progress: position }));
           return;
         }
       } else if (!(await playerReadyForControl())) return;
@@ -1621,7 +1650,12 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       const preferLocal = settings?.preferLocalAudio ?? true;
 
       const generation = sessionGenerationRef.current;
-      const isStale = () => generation !== sessionGenerationRef.current;
+      const startSequence = startSequenceRef.current;
+      // A stop or account switch bumps the generation; a new queue start
+      // bumps the sequence. Both supersede an edit for what was playing.
+      const isStale = () =>
+        generation !== sessionGenerationRef.current ||
+        startSequence !== startSequenceRef.current;
       if (!(await playerReadyForControl()) || isStale()) return;
 
       // Add to TrackPlayer queue
@@ -1641,6 +1675,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         }
       }
 
+      if (isStale()) return;
       setState((prev) => ({
         ...prev,
         queue: [...prev.queue, ...tracksArray],
@@ -1658,7 +1693,12 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       const preferLocal = settings?.preferLocalAudio ?? true;
 
       const generation = sessionGenerationRef.current;
-      const isStale = () => generation !== sessionGenerationRef.current;
+      const startSequence = startSequenceRef.current;
+      // A stop or account switch bumps the generation; a new queue start
+      // bumps the sequence. Both supersede an edit for what was playing.
+      const isStale = () =>
+        generation !== sessionGenerationRef.current ||
+        startSequence !== startSequenceRef.current;
       if (!(await playerReadyForControl()) || isStale()) return;
 
       // Add to TrackPlayer queue after current track
@@ -1688,6 +1728,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         }
       }
 
+      if (isStale()) return;
       setState((prev) => {
         const stateInsertIndex = prev.queueIndex + 1;
         const newQueue = [...prev.queue];
