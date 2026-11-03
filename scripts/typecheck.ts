@@ -1,5 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { createRequire } from "node:module";
+import { dirname, join } from "node:path";
 import process from "node:process";
 
 const require = createRequire(import.meta.url);
@@ -158,7 +159,13 @@ function runTypeCheck(): { ok: boolean } {
   ];
   let execArgs: { cmd: string; args: string[] };
   try {
-    const tscBin = require.resolve("typescript/bin/tsc");
+    // TypeScript 7's compiler, installed as @typescript/native: the typescript
+    // package is TypeScript 6, kept for the tools that use its JavaScript API
+    const tscBin = join(
+      dirname(require.resolve("@typescript/native/package.json")),
+      "bin",
+      "tsc",
+    );
     execArgs = { cmd: process.execPath, args: [tscBin, ...runnerArgs] };
   } catch {
     // fallback to PATH tsc (reuse runnerArgs so --pretty false is preserved)
