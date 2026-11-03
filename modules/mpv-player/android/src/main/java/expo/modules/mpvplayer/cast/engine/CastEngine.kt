@@ -114,16 +114,21 @@ class CastEngine(
 
         // The session listener ends the binding, with the SDK's reason: the hub's end carries none.
         override fun onLost(sessionId: String?, ended: Boolean) {
-            if (!ended) suspendBinding()
+            if (!ended && isBound(sessionId)) suspendBinding()
         }
     }
 
+    // The SDK reports every session: only the bound one's suspend or end concerns the engine.
     private val sessionListener = object : CastSessionListener {
-        override fun onSuspended(sessionId: String?) = suspendBinding()
+        override fun onSuspended(sessionId: String?) {
+            if (isBound(sessionId)) suspendBinding()
+        }
 
         override fun onResumed(session: CastSessionPort) = resumeBinding(session)
 
-        override fun onEnded(sessionId: String?, error: String?) = loseBinding(error)
+        override fun onEnded(sessionId: String?, error: String?) {
+            if (isBound(sessionId)) loseBinding(error)
+        }
 
         override fun onVolumeChanged(volume: Double, muted: Boolean) {
             this@CastEngine.volume = volume
@@ -187,6 +192,8 @@ class CastEngine(
         session?.let { log("detached from session ${it.sessionId}") }
         session = null
     }
+
+    private fun isBound(sessionId: String?) = sessionId == null || sessionId == session?.sessionId
 
     // A suspended session keeps the state and the pending load, whose timer runs on (spec §2.4).
     private fun suspendBinding() {

@@ -551,6 +551,19 @@ class CastEngineTest {
         assertEquals(listOf<Pair<String?, String?>>("session-1" to null), lost)
     }
 
+    // The SDK reports every session: another one's suspend or end leaves this binding alone.
+    @Test
+    fun anotherSessionsSuspendOrEndLeavesTheBinding() {
+        val engine = playing()
+        val lost = mutableListOf<Pair<String?, String?>>()
+        engine.bindingListener = CastBindingListener { sessionId, error -> lost += sessionId to error }
+        source.listener!!.onSuspended("session-9")
+        source.listener!!.onEnded("session-9", "Network error (7)")
+        assertEquals(emptyList<Pair<String?, String?>>(), lost)
+        assertEquals(listOf(false), delegate.loadings)
+        assertTrue(media.listener != null)
+    }
+
     @Test
     fun receiverIdentityFollowsWhoLaunchedTheReceiverApp() {
         for (launched in listOf(true, false, null)) {

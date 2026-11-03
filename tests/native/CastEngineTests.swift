@@ -894,6 +894,20 @@ enum CastEngineTests {
       )
     }
 
+    // The SDK reports every session: another one's suspend or end leaves this binding alone.
+    do {
+      let bench = Bench()
+      let engine = bench.playing()
+      let binding = RecordingBinding()
+      engine.bindingListener = binding
+      bench.source.listener?.castSessionDidSuspend(sessionId: "session-9")
+      bench.source.listener?.castSessionDidEnd(sessionId: "session-9", error: "Network error")
+      check(
+        "anotherSessionsSuspendOrEndLeavesTheBinding",
+        binding.lost.isEmpty && bench.delegate.loadings == [false] && bench.media.listener != nil
+      )
+    }
+
     // iOS cannot tell who launched the receiver app: media there at the binding means another sender
     // spoke first, nothing there means it is not known (spec §5.4).
     do {

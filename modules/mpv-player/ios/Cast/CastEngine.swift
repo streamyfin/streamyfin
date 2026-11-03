@@ -202,9 +202,12 @@ final class CastEngine: TransportEngine, QueueEngine {
     session = nil
   }
 
+  // The SDK reports every session: only the bound one's suspend or end concerns the engine.
+  private func isBound(_ sessionId: String?) -> Bool { sessionId == nil || sessionId == session?.sessionId }
+
   // A suspended session keeps the state and the pending load, whose deadline runs on (spec §2.4).
-  fileprivate func suspendBinding() {
-    guard let bound = session, !suspended else { return }
+  fileprivate func suspendBinding(sessionId: String?) {
+    guard isBound(sessionId), let bound = session, !suspended else { return }
     suspended = true
     stopTicking()
     setLoading(true)
@@ -224,6 +227,11 @@ final class CastEngine: TransportEngine, QueueEngine {
     attachMedia(resumed.media)
     publishState()
     log("session \(resumed.sessionId ?? "?") resumed")
+  }
+
+  fileprivate func endBinding(sessionId: String?, error: String?) {
+    guard isBound(sessionId) else { return }
+    loseBinding(error)
   }
 
   fileprivate func loseBinding(_ error: String?) {
@@ -819,7 +827,7 @@ private final class BusEar: ReceiverBusListener {
 
   // The session listener ends the binding, with the SDK's reason: the hub's end carries none.
   func receiverBusDidLose(sessionId: String?, ended: Bool) {
-    if !ended { engine?.suspendBinding() }
+    if !ended { engine?.suspendBinding(sessionId: sessionId) }
   }
 }
 
@@ -828,8 +836,8 @@ private final class SessionEar: CastSessionListener {
 
   init(engine: CastEngine) { self.engine = engine }
 
-  func castSessionDidSuspend(sessionId: String?) { engine?.suspendBinding() }
+  func castSessionDidSuspend(sessionId: String?) { engine?.suspendBinding(sessionId: sessionId) }
   func castSessionDidResume(_ session: CastSessionPort) { engine?.resumeBinding(session) }
-  func castSessionDidEnd(sessionId: String?, error: String?) { engine?.loseBinding(error) }
+  func castSessionDidEnd(sessionId: String?, error: String?) { engine?.endBinding(sessionId: sessionId, error: error) }
   func castSessionDidReceiveVolume(_ volume: Double, muted: Bool) { engine?.onVolume(volume) }
 }
