@@ -102,6 +102,7 @@ const MobilePage: React.FC = () => {
 
   const {
     data: details,
+    isError,
     isFetching,
     isFetchedAfterMount,
     isLoading,
@@ -265,13 +266,23 @@ const MobilePage: React.FC = () => {
       // Only series ever carry the flag; on a movie it would send the
       // request outright for someone without advanced permission.
       mediaType !== MediaType.TV ||
+      // isFetchedAfterMount also flips on a failed refetch, where details
+      // stay whatever the cache held.
       !isFetchedAfterMount ||
+      isError ||
       !offersRequest
     )
       return;
     autoRequestedRef.current = true;
     request();
-  }, [autoRequest, mediaType, isFetchedAfterMount, offersRequest, request]);
+  }, [
+    autoRequest,
+    mediaType,
+    isFetchedAfterMount,
+    isError,
+    offersRequest,
+    request,
+  ]);
 
   const isAnime = useMemo(
     () =>

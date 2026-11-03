@@ -209,6 +209,7 @@ export const TVSeerrPage: React.FC = () => {
 
   const {
     data: details,
+    isError,
     isFetching,
     isFetchedAfterMount,
     isLoading,
@@ -398,7 +399,10 @@ export const TVSeerrPage: React.FC = () => {
       // Only series ever carry the flag; on a movie the fallback would send
       // the request outright for someone without advanced permission.
       mediaType !== MediaType.TV ||
+      // isFetchedAfterMount also flips on a failed refetch, where details
+      // stay whatever the cache held.
       !isFetchedAfterMount ||
+      isError ||
       !offersRequest
     )
       return;
@@ -407,6 +411,7 @@ export const TVSeerrPage: React.FC = () => {
   }, [
     autoRequest,
     isFetchedAfterMount,
+    isError,
     offersRequest,
     mediaType,
     handleOpenSeasonSelectModal,
