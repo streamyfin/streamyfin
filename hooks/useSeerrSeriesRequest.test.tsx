@@ -40,13 +40,21 @@ beforeEach(() => {
 });
 
 describe("useSeerrSeriesRequest", () => {
-  test("opens the series' Seerr page in the tab it was opened from", async () => {
+  test.each([
+    ["(libraries)", "(libraries)"],
+    ["(search)", "(search)"],
+    ["(favorites)", "(favorites)"],
+    ["(watchlists)", "(watchlists)"],
+    // A group without the route falls back to home's copy of it.
+    ["(settings)", "(home)"],
+  ])("opens the series' Seerr page through %s as %s", async (segment, tab) => {
+    mockSegments = ["(auth)", "(tabs)", segment];
     const { result } = await renderHook(() => useSeerrSeriesRequest(series));
 
     result.current?.();
 
     expect(mockPush).toHaveBeenCalledWith({
-      pathname: "/(auth)/(tabs)/(libraries)/seerr/page",
+      pathname: `/(auth)/(tabs)/${tab}/seerr/page`,
       params: {
         id: "2190",
         mediaType: "tv",
