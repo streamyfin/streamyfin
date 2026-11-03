@@ -57,7 +57,25 @@ test("without a session the button keeps the plain glyph", async () => {
   expect(mockIcons.at(-1)).toEqual({ name: "cast" });
   expect(
     screen.getByLabelText("accessibility.cast_button").props.accessibilityValue,
-  ).toBeUndefined();
+  ).toEqual({ text: "accessibility.cast_not_connected" });
+});
+
+// React Native Android clears the whole content description when the value
+// goes back to undefined, so a disconnect used to leave the button nameless.
+test("a disconnect keeps a value on the button, so Android keeps its name", async () => {
+  await render(<Chromecast />);
+  await waitFor(() =>
+    expect(mockCast.listeners.onCastStateChanged.length).toBeGreaterThan(0),
+  );
+  await act(async () => {
+    mockCast.castState = "notConnected";
+    setCastSession(mockCast, null);
+    emitCastEvent(mockCast, "onCastStateChanged", { state: "notConnected" });
+  });
+  expect(mockIcons.at(-1)?.name).toBe("cast");
+  expect(
+    screen.getByLabelText("accessibility.cast_button").props.accessibilityValue,
+  ).toEqual({ text: "accessibility.cast_not_connected" });
 });
 
 test("the glyph follows the session as it connects", async () => {
