@@ -4,7 +4,10 @@ import { ScrollView, View } from "react-native";
 import { TVHorizontalList } from "@/components/tv/TVHorizontalList";
 import { TVPosterCard } from "@/components/tv/TVPosterCard";
 import { TVPosterPill } from "@/components/tv/TVPosterPill";
+import { TV_SKELETON } from "@/constants/Colors";
+import { useScaledTVPosterSizes } from "@/constants/TVPosterSizes";
 import { useEpisodeAirLabels } from "@/hooks/useEpisodeAirLabels";
+import { scaleSize } from "@/utils/scaleSize";
 
 interface TVEpisodeListProps {
   episodes: BaseItemDto[];
@@ -94,6 +97,24 @@ export const TVEpisodeList: React.FC<TVEpisodeListProps> = ({
 
   const keyExtractor = useCallback((episode: BaseItemDto) => episode.Id!, []);
 
+  // While the episodes load, cards in their shape hold the row: an empty row
+  // read as nothing happening.
+  const posterSizes = useScaledTVPosterSizes();
+  const renderSkeleton = useCallback(
+    () => (
+      <View
+        testID='tv-episode-skeleton'
+        style={{
+          width: posterSizes.episode,
+          aspectRatio: 16 / 9,
+          borderRadius: scaleSize(24),
+          backgroundColor: TV_SKELETON,
+        }}
+      />
+    ),
+    [posterSizes.episode],
+  );
+
   return (
     <TVHorizontalList
       data={episodes}
@@ -101,6 +122,7 @@ export const TVEpisodeList: React.FC<TVEpisodeListProps> = ({
       renderItem={renderItem}
       emptyText={emptyText}
       isLoading={isLoading}
+      renderSkeleton={renderSkeleton}
       scrollViewRef={scrollViewRef}
       horizontalPadding={horizontalPadding}
     />

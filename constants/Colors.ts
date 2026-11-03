@@ -21,6 +21,9 @@ export const Colors = {
  */
 export const TV_PANEL_BACKING = "rgba(18, 18, 20, 0.96)";
 
+/** The placeholders a TV row or page draws in the shape of its content while it loads. */
+export const TV_SKELETON = "#262626";
+
 /**
  * What a Seerr status reads as wherever it is spelled out: available in
  * green, pending in amber, requested (approved and on its way) in indigo.

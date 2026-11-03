@@ -6,6 +6,7 @@ import { Platform, ScrollView, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { TVDiscover } from "@/components/seerr/discover/TVDiscover";
+import { TV_SKELETON } from "@/constants/Colors";
 import { useScaledTVSizes } from "@/constants/TVSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import { TvSearchView } from "@/modules/tv-search";
@@ -45,7 +46,7 @@ const TVLoadingSkeleton: React.FC = () => {
         style={{
           width: itemWidth,
           height: typography.heading,
-          backgroundColor: "#262626",
+          backgroundColor: TV_SKELETON,
           borderRadius: 8,
           marginBottom: 20,
           marginLeft: sizes.padding.horizontal,
@@ -63,7 +64,7 @@ const TVLoadingSkeleton: React.FC = () => {
           <View key={i} style={{ width: itemWidth }}>
             <View
               style={{
-                backgroundColor: "#262626",
+                backgroundColor: TV_SKELETON,
                 width: itemWidth,
                 aspectRatio: 10 / 15,
                 borderRadius: scaleSize(24),
@@ -79,8 +80,8 @@ const TVLoadingSkeleton: React.FC = () => {
             >
               <Text
                 style={{
-                  color: "#262626",
-                  backgroundColor: "#262626",
+                  color: TV_SKELETON,
+                  backgroundColor: TV_SKELETON,
                   borderRadius: 6,
                   fontSize: typography.callout,
                 }}

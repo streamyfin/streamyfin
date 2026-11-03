@@ -10,6 +10,7 @@ jest.mock("@/constants/TVTypography", () => ({
 }));
 jest.mock("@/constants/TVSizes", () => ({
   useScaledTVSizes: () => ({ padding: { scale: 0 }, gaps: { item: 0 } }),
+  useScaledTVPosterSizes: () => ({ poster: 200, episode: 300 }),
 }));
 // An episode shows up as its name, with whatever the list draws over it.
 jest.mock("@/components/tv/TVPosterCard", () => ({
@@ -103,4 +104,25 @@ test("says nothing about an empty season while its episodes load", async () => {
     />,
   );
   expect(screen.getByText("No episodes")).toBeTruthy();
+});
+
+// An empty row read as nothing happening: while the episodes load, cards in
+// their shape hold the row.
+test("holds the row with card placeholders while the episodes load", async () => {
+  const view = await render(
+    <TVEpisodeList onEpisodePress={() => {}} episodes={[]} isLoading />,
+  );
+  expect(screen.getAllByTestId("tv-episode-skeleton").length).toBeGreaterThan(
+    0,
+  );
+
+  await view.rerender(
+    <TVEpisodeList
+      onEpisodePress={() => {}}
+      episodes={[episode("Pilot", { LocationType: "FileSystem" })]}
+      isLoading={false}
+    />,
+  );
+  expect(screen.queryByTestId("tv-episode-skeleton")).toBeNull();
+  expect(screen.getByText("Pilot")).toBeTruthy();
 });
