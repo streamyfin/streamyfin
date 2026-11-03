@@ -419,6 +419,16 @@ const receiverCommands = () =>
     )
     .filter((message) => message.command !== "PlayNow");
 
+/**
+ * What a cast tells the receiver first once it plays the queue: the phone's
+ * repeat mode, off unless the test saved another one.
+ */
+const repeatOnStart = (RepeatMode = "RepeatNone") =>
+  expect.objectContaining({
+    command: "SetRepeatMode",
+    options: { RepeatMode },
+  });
+
 /** An album cast to a connected session, its second track playing there at 12 s. */
 const castAlbum = async () => {
   mockCast.castState = "connected";
@@ -543,6 +553,7 @@ describe("MusicPlayerProvider and a Cast session", () => {
     await run((p) => p.previous());
 
     expect(receiverCommands().map((message) => message.command)).toEqual([
+      "SetRepeatMode",
       "NextTrack",
       "PreviousTrack",
     ]);
@@ -569,6 +580,7 @@ describe("MusicPlayerProvider and a Cast session", () => {
 
     expect(castNative().seek).not.toHaveBeenCalled();
     expect(receiverCommands()).toEqual([
+      repeatOnStart(),
       expect.objectContaining({ command: "Seek", options: { position: 42 } }),
     ]);
   });
@@ -653,11 +665,19 @@ describe("MusicPlayerProvider and a Cast session", () => {
 
     expect(player.repeatMode).toBe("all");
     expect(receiverCommands()).toEqual([
-      expect.objectContaining({
-        command: "SetRepeatMode",
-        options: { RepeatMode: "RepeatAll" },
-      }),
+      repeatOnStart(),
+      repeatOnStart("RepeatAll"),
     ]);
+  });
+
+  // The receiver keeps one repeat mode for as long as its app runs, whatever
+  // it is sent to play: a cast tells it the phone's.
+  test("a cast tells the receiver the phone's repeat mode", async () => {
+    storage.set("music_player_repeat_mode", "all");
+    await castAlbum();
+
+    expect(player.repeatMode).toBe("all");
+    expect(receiverCommands()).toEqual([repeatOnStart("RepeatAll")]);
   });
 
   // Until the receiver reports the queue, its commands are held back: the
@@ -715,8 +735,10 @@ describe("MusicPlayerProvider and a Cast session", () => {
     await run((p) => p.playNext(track("n1")));
     await run((p) => p.addToQueue(track("l1")));
 
+    const [repeat, ...queued] = receiverCommands();
+    expect(repeat).toEqual(repeatOnStart());
     expect(
-      receiverCommands().map((message) => [
+      queued.map((message) => [
         message.command,
         (message.options.items as { Id: string }[]).map((item) => item.Id),
       ]),
@@ -747,7 +769,7 @@ describe("MusicPlayerProvider and a Cast session", () => {
       ALBUM.map((item) => item.Id),
     );
     expect(player.shuffleEnabled).toBe(shuffled);
-    expect(receiverCommands()).toEqual([]);
+    expect(receiverCommands()).toEqual([repeatOnStart()]);
   });
 
   test("a queue handed back plays on with the rest of it", async () => {

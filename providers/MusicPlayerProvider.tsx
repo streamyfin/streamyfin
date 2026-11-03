@@ -2119,6 +2119,17 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     },
     [setRepeatMode, setRepeatOnReceiver],
   );
+  // The receiver keeps one repeat mode for as long as its app runs, whatever
+  // it is sent to play: once it plays a cast, it is told the phone's.
+  const reportedQueueId = remote.reportedQueueId;
+  const repeatModeRef = useRef(state.repeatMode);
+  repeatModeRef.current = state.repeatMode;
+  const setRepeatOnReceiverRef = useRef(setRepeatOnReceiver);
+  setRepeatOnReceiverRef.current = setRepeatOnReceiver;
+  useEffect(() => {
+    if (reportedQueueId === null) return;
+    void setRepeatOnReceiverRef.current(repeatModeRef.current);
+  }, [reportedQueueId]);
   const playNextRemote = useCallback(
     (tracks: BaseItemDto | BaseItemDto[]) =>
       enqueueOnReceiver("PlayNext", Array.isArray(tracks) ? tracks : [tracks]),
