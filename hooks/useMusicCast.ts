@@ -34,6 +34,11 @@ interface UseMusicCastOptions {
 interface CastQueueOptions {
   queue: BaseItemDto[];
   startIndex: number;
+  /**
+   * True once the cast is out of date, the account switched say: checked
+   * after each wait, so a queue of the previous account is never sent.
+   */
+  isStale?: () => boolean;
 }
 
 /**
@@ -52,7 +57,11 @@ export const useMusicCast = ({ api, userId }: UseMusicCastOptions) => {
    * moves through it on its own.
    */
   const castQueue = useCallback(
-    async ({ queue, startIndex }: CastQueueOptions): Promise<boolean> => {
+    async ({
+      queue,
+      startIndex,
+      isStale,
+    }: CastQueueOptions): Promise<boolean> => {
       if (!client || !api || !userId) {
         console.warn("Cannot cast: missing client, api, or userId");
         return false;
@@ -78,12 +87,14 @@ export const useMusicCast = ({ api, userId }: UseMusicCastOptions) => {
         // Auto-cast fires on the render the session connects, before the
         // device hook has resolved, so the name is read from the session.
         const receiverName = (await currentReceiverName()) ?? castDeviceName;
+        if (isStale?.()) return false;
 
         const outcome = await castToJellyfinReceiver(
           client,
           { api, userId, receiverName },
           queueToSend,
           RECEIVER_LOAD_TIMEOUT_MS,
+          isStale,
         );
 
         const notStarted = castNotStartedMessage(t, outcome);

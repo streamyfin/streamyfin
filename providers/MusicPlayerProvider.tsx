@@ -19,6 +19,10 @@ import { Platform } from "react-native";
 import { DEFAULT_MUSIC_NORMALIZATION_MODE } from "@/constants/Music";
 import { PROGRESS_REPORT_INTERVAL } from "@/constants/Playback";
 import { useMusicCast } from "@/hooks/useMusicCast";
+import {
+  type MusicCastRemoteView,
+  useMusicCastRemote,
+} from "@/hooks/useMusicCastRemote";
 import { CastState } from "@/modules/mpv-player/src/cast";
 import {
   downloadTrack,
@@ -1122,17 +1126,54 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     ],
   );
 
+  // When the session ends, the queue comes back to the phone paused where the
+  // receiver was. Nothing loads: resume loads the track, as for a queue
+  // restored at launch, and the native queue of before is dropped so next and
+  // previous do not walk it.
+  const handBackFromReceiver = useCallback((view: MusicCastRemoteView) => {
+    TrackPlayer?.reset().catch((error: unknown) =>
+      logAndCaptureError("Resetting the player after a cast failed", error),
+    );
+    setState((prev) => ({
+      ...prev,
+      queue: view.queue,
+      originalQueue: view.queue,
+      queueIndex: view.queueIndex,
+      currentTrack: view.currentTrack,
+      isPlaying: false,
+      isLoading: false,
+      loadingTrackId: null,
+      progress: view.progress,
+      duration: view.duration,
+      streamUrl: null,
+      playSessionId: null,
+      mediaSource: null,
+      isTranscoding: false,
+    }));
+  }, []);
+  const remote = useMusicCastRemote({
+    api,
+    userId: user?.Id,
+    castConnected,
+    onHandBack: handBackFromReceiver,
+  });
+  const { begin: beginOnReceiver, end: endOnReceiver } = remote;
+
   // A connected Cast session plays the music on the receiver, and the phone
-  // stops so that one place plays.
+  // stops so that one place plays. The player shows the queue from the send.
   const castOnReceiver = useCallback(
     async (queue: BaseItemDto[], startIndex: number) => {
       if (TrackPlayer && state.isPlaying) {
         await TrackPlayer.pause();
         setState((prev) => ({ ...prev, isPlaying: false }));
       }
-      await castQueue({ queue, startIndex });
+      const generation = sessionGenerationRef.current;
+      const isStale = () => generation !== sessionGenerationRef.current;
+      const sent = beginOnReceiver(queue, startIndex);
+      const started = await castQueue({ queue, startIndex, isStale });
+      if (!started) endOnReceiver(sent);
     },
-    [castQueue, state.isPlaying],
+    [castQueue, state.isPlaying, beginOnReceiver, endOnReceiver],
   );
 
   // Connecting while the phone plays moves the queue to the receiver. A queue
@@ -1990,27 +2031,59 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     settings?.audioLookaheadCount,
   ]);
 
+  // While the receiver has the queue, it is the player the screens show and
+  // drive. Queue edits stay on the phone's queue.
+  const remoteView = remote.view;
+  const remotePlaying = remoteView?.isPlaying ?? false;
+  const remoteQueue = remoteView?.queue;
+  const remoteIndex = remoteView?.queueIndex;
+  const {
+    pause: pauseRemote,
+    resume: resumeRemote,
+    next: nextRemote,
+    previous: previousRemote,
+    seek: seekRemote,
+    stop: stopOnReceiver,
+  } = remote;
+  const togglePlayPauseRemote = useCallback(
+    () => (remotePlaying ? pauseRemote() : resumeRemote()),
+    [remotePlaying, pauseRemote, resumeRemote],
+  );
+  const stopRemote = useCallback(async () => {
+    await stopOnReceiver();
+    await stop();
+  }, [stopOnReceiver, stop]);
+  const jumpOnReceiver = useCallback(
+    (index: number) => {
+      if (!remoteQueue || index === remoteIndex) return;
+      if (index < 0 || index >= remoteQueue.length) return;
+      void castOnReceiver(remoteQueue, index);
+    },
+    [remoteQueue, remoteIndex, castOnReceiver],
+  );
+
   const value = useMemo(
     () => ({
       ...state,
+      ...(remoteView ?? {}),
       playTrack,
       playQueue,
       playAlbum,
       playPlaylist,
-      pause,
-      resume,
-      togglePlayPause,
-      next,
-      previous,
-      seek,
-      stop,
+      pause: remoteView ? pauseRemote : pause,
+      resume: remoteView ? resumeRemote : resume,
+      togglePlayPause: remoteView ? togglePlayPauseRemote : togglePlayPause,
+      next: remoteView ? nextRemote : next,
+      previous: remoteView ? previousRemote : previous,
+      seek: remoteView ? seekRemote : seek,
+      stop: remoteView ? stopRemote : stop,
       addToQueue,
       playNext,
       removeFromQueue,
       moveInQueue,
       reorderQueue,
       clearQueue,
-      jumpToIndex,
+      jumpToIndex: remoteView ? jumpOnReceiver : jumpToIndex,
       setRepeatMode,
       toggleShuffle,
       setProgress,
@@ -2023,6 +2096,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     }),
     [
       state,
+      remoteView,
       playTrack,
       playQueue,
       playAlbum,
@@ -2034,6 +2108,13 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       previous,
       seek,
       stop,
+      pauseRemote,
+      resumeRemote,
+      togglePlayPauseRemote,
+      nextRemote,
+      previousRemote,
+      seekRemote,
+      stopRemote,
       addToQueue,
       playNext,
       removeFromQueue,
@@ -2041,6 +2122,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       reorderQueue,
       clearQueue,
       jumpToIndex,
+      jumpOnReceiver,
       setRepeatMode,
       toggleShuffle,
       setProgress,
