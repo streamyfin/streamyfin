@@ -18,6 +18,12 @@ internal final class InvalidStreamUrlException: Exception, @unchecked Sendable {
 	}
 }
 
+internal final class UnsupportedEngineException: GenericException<String>, @unchecked Sendable {
+	override var reason: String {
+		"The native player does not run the engine \"\(param)\""
+	}
+}
+
 /// Module-level (non-view) player: presents a full-screen native
 /// UIViewController with SwiftUI controls over the shared MPVPlayerEngine.
 /// Compiles for both iOS and tvOS; the view controller hosts the platform's
@@ -53,6 +59,10 @@ public class NativePlayerModule: Module {
 			}
 			guard config.stream.toVideoLoadConfig() != nil else {
 				promise.reject(InvalidStreamUrlException())
+				return
+			}
+			guard NativeEngineKind(configName: config.engine) != nil else {
+				promise.reject(UnsupportedEngineException(config.engine ?? ""))
 				return
 			}
 			let session = NativePlayerSession(
