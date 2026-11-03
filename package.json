@@ -136,7 +136,7 @@
     "openapi-typescript": "7.13.0",
     "reassure": "1.6.1",
     "tsx": "4.23.15",
-    "typescript": "7.0.2"
+    "typescript": "6.0.3"
   },
   "expo": {
     "doctor": {
@@ -162,8 +162,7 @@
         "react-native-safe-area-context",
         "react-native-svg",
         "@sentry/react-native",
-        "react-native-gesture-handler",
-        "typescript"
+        "react-native-gesture-handler"
       ]
     }
   },
