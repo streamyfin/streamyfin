@@ -100,6 +100,10 @@ class CastEngine(
     private var busClaimed = false
     private var suspended = false
 
+    // The id the binding was made with. A CastSession answers null once the SDK has ended it, after
+    // a suspend it could not resume (Task 14, run 4), so the end is matched and reported under this.
+    private var boundSessionId: String? = null
+
     // After IDLE + FINISHED the receiver fetches the next item before it buffers: the end waits.
     private var endWait: (() -> Unit)? = null
 
@@ -163,12 +167,13 @@ class CastEngine(
 
     private fun bind(session: CastSessionPort) {
         this.session = session
+        boundSessionId = session.sessionId
         volume = session.volume
         identity = session.wasLaunched
         sessions.setListener(sessionListener)
         bus = hub.subscribe(ReceiverProtocol.NAMESPACE, busListener)
         attachMedia(session.media)
-        log("bound to session ${session.sessionId} launched=${session.wasLaunched}")
+        log("bound to session $boundSessionId launched=${session.wasLaunched}")
     }
 
     private fun attachMedia(port: CastMediaPort?) {
@@ -189,25 +194,26 @@ class CastEngine(
         reload = null
         cancelEndWait()
         suspended = false
-        session?.let { log("detached from session ${it.sessionId}") }
+        if (session != null) log("detached from session $boundSessionId")
         session = null
+        boundSessionId = null
     }
 
-    private fun isBound(sessionId: String?) = sessionId == null || sessionId == session?.sessionId
+    private fun isBound(sessionId: String?) =
+        session != null && (sessionId == null || sessionId == boundSessionId)
 
     // A suspended session keeps the state and the pending load, whose timer runs on (spec §2.4).
     private fun suspendBinding() {
-        val bound = session ?: return
-        if (suspended) return
+        if (session == null || suspended) return
         suspended = true
         setLoading(true)
-        log("session ${bound.sessionId} suspended")
+        log("session $boundSessionId suspended")
     }
 
     // A resume rebuilt the Cast client: the media channel is a new one, and nothing of the old counts.
     private fun resumeBinding(resumed: CastSessionPort) {
-        val bound = session ?: return
-        if (resumed.sessionId != bound.sessionId) {
+        if (session == null) return
+        if (resumed.sessionId != boundSessionId) {
             loseBinding(SESSION_REPLACED_ERROR)
             return
         }
@@ -220,15 +226,16 @@ class CastEngine(
     }
 
     private fun loseBinding(error: String?) {
-        val sessionId = session?.sessionId ?: return
+        if (session == null) return
+        val sessionId = boundSessionId
         log("binding lost session=$sessionId error=$error")
         detach()
         bindingListener?.onBindingLost(sessionId, error)
     }
 
     private fun onBusReady(sessionId: String) {
-        val bound = session ?: return
-        if (sessionId != bound.sessionId) {
+        if (session == null) return
+        if (sessionId != boundSessionId) {
             loseBinding(SESSION_REPLACED_ERROR)
             return
         }

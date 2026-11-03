@@ -551,6 +551,30 @@ class CastEngineTest {
         assertEquals(listOf<Pair<String?, String?>>("session-1" to null), lost)
     }
 
+    // Seen on a device (Task 14, run 4): a CastSession forgets its id once the SDK ends it, after a
+    // suspend it could not resume. The end may come without an id or with the one the binding had.
+    @Test
+    fun aSessionThatForgetsItsIdWhenItEndsStillLosesTheBinding() {
+        val engine = playing()
+        val lost = mutableListOf<Pair<String?, String?>>()
+        engine.bindingListener = CastBindingListener { sessionId, error -> lost += sessionId to error }
+        source.listener!!.onSuspended("session-1")
+        (source.current as FakeSession).sessionId = null
+        source.listener!!.onEnded(null, "Network error (7)")
+        assertEquals(listOf<Pair<String?, String?>>("session-1" to "Network error (7)"), lost)
+        assertTrue(media.listener == null)
+    }
+
+    @Test
+    fun anEndUnderTheBoundIdLosesTheBindingOnceTheSessionForgotIt() {
+        val engine = playing()
+        val lost = mutableListOf<Pair<String?, String?>>()
+        engine.bindingListener = CastBindingListener { sessionId, error -> lost += sessionId to error }
+        (source.current as FakeSession).sessionId = null
+        source.listener!!.onEnded("session-1", "Network error (7)")
+        assertEquals(listOf<Pair<String?, String?>>("session-1" to "Network error (7)"), lost)
+    }
+
     // The SDK reports every session: another one's suspend or end leaves this binding alone.
     @Test
     fun anotherSessionsSuspendOrEndLeavesTheBinding() {

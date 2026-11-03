@@ -36,6 +36,9 @@ final class CastEngine: TransportEngine, QueueEngine {
   private let log: (String) -> Void
 
   private var session: CastSessionPort?
+  // The id the binding was made with. Android's CastSession answers null once the SDK has ended it,
+  // after a suspend it could not resume (Task 14, run 4), so the end is matched and reported under this.
+  private var boundSessionId: String?
   private var media: CastMediaPort?
   private var bus: ReceiverSubscription?
   // The hub, the session source and the media client hold their listeners weakly: the engine keeps them.
@@ -157,6 +160,7 @@ final class CastEngine: TransportEngine, QueueEngine {
 
   private func bind(_ session: CastSessionPort) {
     self.session = session
+    boundSessionId = session.sessionId
     volume = session.volume
     if let status = session.media?.status, status.hasMedia || status.customData != nil { receiverIdentityIsOurs = false }
     let sessionEar = SessionEar(engine: self)
@@ -167,7 +171,7 @@ final class CastEngine: TransportEngine, QueueEngine {
     bus = hub.subscribe(namespace: ReceiverProtocol.namespace, listener: busEar)
     attachMedia(session.media)
     publishState()
-    log("bound to session \(session.sessionId ?? "?")")
+    log("bound to session \(boundSessionId ?? "?")")
   }
 
   private func attachMedia(_ port: CastMediaPort?) {
@@ -198,26 +202,27 @@ final class CastEngine: TransportEngine, QueueEngine {
     stopTicking()
     reload?.cancelTimer()
     reload = nil
-    if let session { log("detached from session \(session.sessionId ?? "?")") }
+    if session != nil { log("detached from session \(boundSessionId ?? "?")") }
     session = nil
+    boundSessionId = nil
   }
 
   // The SDK reports every session: only the bound one's suspend or end concerns the engine.
-  private func isBound(_ sessionId: String?) -> Bool { sessionId == nil || sessionId == session?.sessionId }
+  private func isBound(_ sessionId: String?) -> Bool { sessionId == nil || sessionId == boundSessionId }
 
   // A suspended session keeps the state and the pending load, whose deadline runs on (spec §2.4).
   fileprivate func suspendBinding(sessionId: String?) {
-    guard isBound(sessionId), let bound = session, !suspended else { return }
+    guard isBound(sessionId), session != nil, !suspended else { return }
     suspended = true
     stopTicking()
     setLoading(true)
-    log("session \(bound.sessionId ?? "?") suspended")
+    log("session \(boundSessionId ?? "?") suspended")
   }
 
   // A resume hands a new session object under the same id, with a new media client.
   fileprivate func resumeBinding(_ resumed: CastSessionPort) {
-    guard let bound = session else { return }
-    guard resumed.sessionId == bound.sessionId else {
+    guard session != nil else { return }
+    guard resumed.sessionId == boundSessionId else {
       loseBinding(Self.sessionReplacedError)
       return
     }
@@ -235,15 +240,16 @@ final class CastEngine: TransportEngine, QueueEngine {
   }
 
   fileprivate func loseBinding(_ error: String?) {
-    guard let sessionId = session?.sessionId else { return }
-    log("binding lost session=\(sessionId) error=\(error ?? "nil")")
+    guard session != nil else { return }
+    let sessionId = boundSessionId
+    log("binding lost session=\(sessionId ?? "nil") error=\(error ?? "nil")")
     detach()
     bindingListener?.castEngineDidLoseBinding(sessionId: sessionId, error: error)
   }
 
   fileprivate func onBusReady(sessionId: String) {
-    guard let bound = session else { return }
-    guard sessionId == bound.sessionId else {
+    guard session != nil else { return }
+    guard sessionId == boundSessionId else {
       loseBinding(Self.sessionReplacedError)
       return
     }

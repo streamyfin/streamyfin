@@ -37,7 +37,8 @@ final class FakeMedia: CastMediaPort {
 }
 
 final class FakeSession: CastSessionPort {
-  let sessionId: String?
+  /// A var: Android's CastSession answers null once the SDK has ended it, so a session may forget its id.
+  var sessionId: String?
   let isConnected: Bool
   var media: CastMediaPort?
   var volume: Double? = 0.5
@@ -892,6 +893,32 @@ enum CastEngineTests {
         "theSessionEndingSupersedesThePendingLoadAndLosesTheBinding",
         results() == ["settled superseded"] && binding.lost == ["session-1 nil"]
       )
+    }
+
+    // Seen on an Android device (Task 14, run 4): a session forgets its id once the SDK ends it, after a
+    // suspend it could not resume. The end may come without an id or with the one the binding had.
+    do {
+      let bench = Bench()
+      let engine = bench.playing()
+      let binding = RecordingBinding()
+      engine.bindingListener = binding
+      bench.source.listener?.castSessionDidSuspend(sessionId: "session-1")
+      bench.session.sessionId = nil
+      bench.source.listener?.castSessionDidEnd(sessionId: nil, error: "Network error")
+      check(
+        "aSessionThatForgetsItsIdWhenItEndsStillLosesTheBinding",
+        binding.lost == ["session-1 Network error"] && bench.media.listener == nil
+      )
+    }
+
+    do {
+      let bench = Bench()
+      let engine = bench.playing()
+      let binding = RecordingBinding()
+      engine.bindingListener = binding
+      bench.session.sessionId = nil
+      bench.source.listener?.castSessionDidEnd(sessionId: "session-1", error: "Network error")
+      check("anEndUnderTheBoundIdLosesTheBindingOnceTheSessionForgotIt", binding.lost == ["session-1 Network error"])
     }
 
     // The SDK reports every session: another one's suspend or end leaves this binding alone.

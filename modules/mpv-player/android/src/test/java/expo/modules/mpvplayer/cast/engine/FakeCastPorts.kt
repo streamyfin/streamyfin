@@ -92,7 +92,8 @@ class FakeMedia : CastMediaPort {
 }
 
 class FakeSession(
-    override val sessionId: String? = "session-1",
+    /** A var: the SDK's CastSession answers null once the session has ended. */
+    override var sessionId: String? = "session-1",
     override val isConnected: Boolean = true,
     override var media: CastMediaPort? = FakeMedia(),
     override val wasLaunched: Boolean? = null,
