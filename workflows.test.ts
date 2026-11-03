@@ -192,6 +192,28 @@ describe("e2e-tier1-android.yml", () => {
       ).toEqual([]);
     });
 
+    test("covers the screen the smoke flow drives", () => {
+      // The smoke flow finds the server screen by its test ids: a change to
+      // that screen would otherwise skip the flow that depends on it.
+      const flow = readFileSync(
+        join(root, "e2e/suites/cast/flows/smoke-launch.yml"),
+        "utf8",
+      );
+      const ids = [...flow.matchAll(/id: "([^"]+)"/g)].map((match) => match[1]);
+      const screens = files.filter(
+        (file) =>
+          SOURCE_FILE.test(file) &&
+          !SPEC_OR_DOUBLE.test(file) &&
+          ids.some((id) =>
+            readFileSync(join(root, file), "utf8").includes(`testID='${id}'`),
+          ),
+      );
+      expect(screens).not.toEqual([]);
+      expect(
+        screens.filter((file) => !rules.some((rule) => matches(rule, file))),
+      ).toEqual([]);
+    });
+
     test("names only rules that match a file", () => {
       // A non-empty list here names rules left behind by a typo or a move.
       expect(
