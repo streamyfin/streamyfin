@@ -2,10 +2,6 @@ import { Platform } from "react-native";
 
 export const TAB_HEIGHT = Platform.OS === "android" ? 58 : 74;
 
-// Where the TV top tab bar ends, in points below the safe area. The bar has no
-// background, so a TV page that scrolls text starts its scroll area there.
-export const TV_TOP_TAB_BAR_CLEARANCE = 70;
-
 // Matches `w-28` poster cards (approx 112px wide, 10/15 aspect ratio) + 2 lines of text.
 export const POSTER_CAROUSEL_HEIGHT = 220;
 

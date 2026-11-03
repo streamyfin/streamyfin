@@ -25,6 +25,7 @@ import {
   TVSettingsStepper,
   TVSettingsTextInput,
   TVSettingsToggle,
+  useTVBelowTabBarContentTop,
 } from "@/components/tv";
 import { PERMISSION_ASKED_KEY } from "@/constants/Notifications";
 import {
@@ -32,7 +33,6 @@ import {
   type StillWatchingPreset,
 } from "@/constants/StillWatching";
 import { useScaledTVTypography } from "@/constants/TVTypography";
-import { TV_TOP_TAB_BAR_CLEARANCE } from "@/constants/Values";
 import { useMediaPreferences } from "@/hooks/useMediaPreferences";
 import { useTVOptionModal } from "@/hooks/useTVOptionModal";
 import { useTVUserSwitchModal } from "@/hooks/useTVUserSwitchModal";
@@ -90,6 +90,8 @@ const SEGMENT_SKIP_ROWS: {
 export default function SettingsTV() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
+  // The title rests where it did, whether or not the area starts below a tab bar.
+  const contentTop = useTVBelowTabBarContentTop(120);
   const { settings, updateSettings, pluginSettings } = useSettings();
   const { available: syncPlayAvailable } = useSyncPlay();
   const { logout, loginWithSavedCredential, loginWithPassword } = useJellyfin();
@@ -815,8 +817,7 @@ export default function SettingsTV() {
         <ScrollView
           style={{ flex: 1 }}
           contentContainerStyle={{
-            // The title rests where it did, the area itself starting below the tab bar.
-            paddingTop: 120 - TV_TOP_TAB_BAR_CLEARANCE,
+            paddingTop: contentTop,
             paddingBottom: insets.bottom + 60,
             paddingHorizontal: insets.left + 80,
           }}
