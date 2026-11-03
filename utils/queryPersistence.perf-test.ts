@@ -1,10 +1,19 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { dehydrate, QueryClient } from "@tanstack/react-query";
+import {
+  type DehydrateOptions,
+  dehydrate,
+  QueryClient,
+} from "@tanstack/react-query";
 import { measureFunction } from "reassure";
 import { queryDehydrateOptions } from "./queryPersistence";
 
-// Baseline for saving the query cache (.scratchpad tv-performance ticket 01).
-// The persister turns the whole dehydrated cache into one JSON string on the
+// What the app wrote before only the launch and offline families were kept.
+const everythingSuccessful: DehydrateOptions = {
+  shouldDehydrateQuery: (query) =>
+    query.state.status === "success" && query.options.gcTime !== 0,
+};
+
+// Baseline for saving the query cache. The persister turns the whole dehydrated cache into one JSON string on the
 // JS thread, at most once a second while queries change. This measures that
 // work on a cache shaped like a TV session: the Home screen, a library browsed
 // ten pages deep, and a few item pages.
@@ -83,12 +92,34 @@ const sessionCache = () => {
   for (let index = 0; index < 20; index++) {
     client.setQueryData(["item", `detail-${index}`], item(`detail-${index}`));
   }
+  for (let index = 0; index < 5; index++) {
+    client.setQueryData(["search", "movies", `query-${index}`], {
+      Items: items(`search-${index}`, 24),
+    });
+  }
   return client;
 };
 
 // One save takes a fraction of a millisecond in Node. Fifty make a run of 10 ms
 // or so, where the PR comment's 1 ms floor is a 10% change, not a 50% one.
 const SAVES_PER_RUN = 50;
+
+const save = (client: QueryClient, options: DehydrateOptions) =>
+  JSON.stringify({
+    buster: "",
+    timestamp: Date.now(),
+    clientState: dehydrate(client, options),
+  });
+
+test("the allowlist leaves a fraction of the cache to write and parse", () => {
+  const client = sessionCache();
+  const before = save(client, everythingSuccessful).length;
+  const after = save(client, queryDehydrateOptions).length;
+  // Reassure reports time only; the size is what a launch parses.
+  console.log(`persisted cache: ${before} -> ${after} characters`);
+  expect(after).toBeLessThan(before / 2);
+  client.clear();
+});
 
 test("saving the query cache of a TV session fifty times", async () => {
   const client = sessionCache();
@@ -97,12 +128,8 @@ test("saving the query cache of a TV session fifty times", async () => {
   // then serialise for MMKV.
   await measureFunction(
     () => {
-      for (let save = 0; save < SAVES_PER_RUN; save++) {
-        JSON.stringify({
-          buster: "",
-          timestamp: Date.now(),
-          clientState: dehydrate(client, queryDehydrateOptions),
-        });
+      for (let index = 0; index < SAVES_PER_RUN; index++) {
+        save(client, queryDehydrateOptions);
       }
     },
     // measureRenders collects garbage after each run and measureFunction does
@@ -110,5 +137,17 @@ test("saving the query cache of a TV session fifty times", async () => {
     { beforeEach: () => globalThis.gc?.() },
   );
   // Its garbage collection timers would keep Jest from exiting.
+  client.clear();
+});
+
+test("restoring the query cache of a TV session fifty times", async () => {
+  const client = sessionCache();
+  const blob = save(client, queryDehydrateOptions);
+
+  await measureFunction(() => {
+    for (let restore = 0; restore < SAVES_PER_RUN; restore++) {
+      JSON.parse(blob);
+    }
+  });
   client.clear();
 });

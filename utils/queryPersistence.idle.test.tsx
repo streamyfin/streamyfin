@@ -1,0 +1,132 @@
+import { persistQueryClientSubscribe } from "@tanstack/query-persist-client-core";
+import {
+  QueryClient,
+  QueryClientProvider,
+  useQuery,
+} from "@tanstack/react-query";
+import type { Persister } from "@tanstack/react-query-persist-client";
+import { act, render } from "@testing-library/react-native";
+import type { ReactNode } from "react";
+import { queryDehydrateOptions } from "./queryPersistence";
+
+jest.mock("@sentry/react-native", () => ({ addBreadcrumb: () => {} }));
+jest.mock("./logStorage", () => ({
+  readFromLog: jest.fn(() => []),
+  storeLogEntry: jest.fn(),
+}));
+
+import { LogProvider } from "./log";
+
+// The persister saves the whole dehydrated cache on every cache event, so
+// each cache event is a full rewrite into MMKV. A query with a `refetchInterval`
+// emits events on every tick even when its data never changes, and
+// `LogProvider` did exactly that for the whole session. This pins that an app
+// at rest writes nothing, using the real subscription and the real dehydrate
+// options with a persister that only counts. The polling control proves the
+// counter can see the failure. See
+// `.claude/learned-facts/polling-query-rewrites-persisted-cache.md`.
+
+const REPRESENTATIVE_KEYS: string[][] = [
+  ["home", "continue-watching"],
+  ["home", "next-up"],
+  ["user-views"],
+  ["library", "movies"],
+  ["music-latest"],
+];
+
+const RestingQuery = ({ queryKey }: { queryKey: string[] }) => {
+  useQuery({ queryKey, queryFn: async () => ({ key: queryKey }) });
+  return null;
+};
+
+const PollingQuery = () => {
+  useQuery({
+    queryKey: ["home", "polling"],
+    queryFn: async () => ({ polled: true }),
+    refetchInterval: 1000,
+  });
+  return null;
+};
+
+const Tree = ({
+  client,
+  children,
+}: {
+  client: QueryClient;
+  children?: ReactNode;
+}) => (
+  <QueryClientProvider client={client}>
+    <LogProvider>
+      {REPRESENTATIVE_KEYS.map((queryKey) => (
+        <RestingQuery key={queryKey.join("/")} queryKey={queryKey} />
+      ))}
+      {children}
+    </LogProvider>
+  </QueryClientProvider>
+);
+
+const tick = (ms: number) =>
+  act(async () => {
+    await jest.advanceTimersByTimeAsync(ms);
+  });
+
+describe("persisted query cache at rest", () => {
+  let writes: number;
+  let unsubscribe: () => void;
+  let client: QueryClient;
+  let view: Awaited<ReturnType<typeof render>> | undefined;
+
+  beforeEach(() => {
+    jest.useFakeTimers();
+    writes = 0;
+    client = new QueryClient();
+    const persister: Persister = {
+      persistClient: () => {
+        writes += 1;
+      },
+      restoreClient: async () => undefined,
+      removeClient: async () => undefined,
+    };
+    unsubscribe = persistQueryClientSubscribe({
+      queryClient: client,
+      persister,
+      dehydrateOptions: queryDehydrateOptions,
+    });
+  });
+
+  afterEach(() => {
+    view?.unmount();
+    view = undefined;
+    unsubscribe();
+    client.clear();
+    jest.useRealTimers();
+  });
+
+  it("writes nothing while settled queries and an unread LogProvider sit idle", async () => {
+    view = await render(<Tree client={client} />);
+    await tick(5_000);
+    for (const queryKey of REPRESENTATIVE_KEYS) {
+      expect(client.getQueryState(queryKey)?.status).toBe("success");
+    }
+    const settled = writes;
+    expect(settled).toBeGreaterThan(0);
+
+    await tick(60_000);
+
+    expect(writes).toBe(settled);
+  });
+
+  it("writes on every tick of a query with a refetchInterval", async () => {
+    view = await render(
+      <Tree client={client}>
+        <PollingQuery />
+      </Tree>,
+    );
+    await tick(5_000);
+    const settled = writes;
+
+    await tick(60_000);
+
+    expect(writes - settled).toBeGreaterThanOrEqual(60);
+  });
+});

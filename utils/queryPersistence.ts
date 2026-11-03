@@ -1,10 +1,58 @@
 import type { DehydrateOptions } from "@tanstack/react-query";
 import type { Persister } from "@tanstack/react-query-persist-client";
+import {
+  MAX_PERSISTED_PAGES,
+  PERSISTED_QUERY_FAMILIES,
+  UNTRIMMED_INFINITE_FAMILIES,
+} from "@/constants/QueryPersistence";
 
-/** What the query cache writes to disk. */
+const families = new Set(PERSISTED_QUERY_FAMILIES);
+const untrimmedFamilies = new Set(UNTRIMMED_INFINITE_FAMILIES);
+
+// serializeData receives the data and not the query, so shouldDehydrateQuery
+// marks the data of the families that keep every page.
+const untrimmedData = new WeakSet<object>();
+
+const isInfiniteData = (
+  data: unknown,
+): data is { pages: unknown[]; pageParams: unknown[] } =>
+  typeof data === "object" &&
+  data !== null &&
+  Array.isArray((data as { pages?: unknown }).pages) &&
+  Array.isArray((data as { pageParams?: unknown }).pageParams);
+
+/**
+ * What the query cache writes to disk. A save snapshots the whole cache, so a
+ * query this rejects is gone from disk at the first save after an update, while
+ * the restored copy keeps serving the session that restored it.
+ */
 export const queryDehydrateOptions: DehydrateOptions = {
-  shouldDehydrateQuery: (query) =>
-    query.state.status === "success" && query.options.gcTime !== 0,
+  // gcTime 0 is how a query keeps itself off disk, and must stay excluded.
+  shouldDehydrateQuery: (query) => {
+    const persisted =
+      query.state.status === "success" &&
+      query.options.gcTime !== 0 &&
+      families.has(String(query.queryKey[0]));
+    const data: unknown = query.state.data;
+    if (
+      persisted &&
+      typeof data === "object" &&
+      data !== null &&
+      untrimmedFamilies.has(String(query.queryKey[0]))
+    ) {
+      untrimmedData.add(data);
+    }
+    return persisted;
+  },
+  // Runs on the copy being written, never on the query in memory.
+  serializeData: (data) =>
+    isInfiniteData(data) && !untrimmedData.has(data)
+      ? {
+          ...data,
+          pages: data.pages.slice(0, MAX_PERSISTED_PAGES),
+          pageParams: data.pageParams.slice(0, MAX_PERSISTED_PAGES),
+        }
+      : data,
   // TanStack persists paused mutations by default, the ones started while
   // offline. A restored mutation only gets its mutationFn back from
   // setMutationDefaults, which the app never calls, so resuming one after a
