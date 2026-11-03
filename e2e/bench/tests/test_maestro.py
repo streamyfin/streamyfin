@@ -1,7 +1,15 @@
+import io
 import unittest
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
+from unittest import mock
 
-from bench.maestro import build_command, describe_command, maestro_path, resolve_java_home, run_flow
+from bench.devices import Device
+from bench.maestro import NoDevice, build_command, describe_command, main, maestro_path, pick_device, resolve_java_home, run_flow
+
+PHONE = Device(kind="android-device", id="R58M12ABCDE", name="SM_G973F", state="device", platform="android")
+EMULATOR = Device(kind="android-emulator", id="emulator-5554", name="sdk_gphone64", state="device", platform="android")
+SIMULATOR = Device(kind="ios-simulator", id="0F1E2D3C-UDID", name="iPhone 17", state="booted", platform="ios")
 
 
 class BuildCommandTests(unittest.TestCase):
@@ -62,6 +70,51 @@ class JavaHomeTests(unittest.TestCase):
 
     def test_returns_none_without_any_jdk(self):
         self.assertIsNone(resolve_java_home({}, candidates=[Path("/nonexistent/jdk")]))
+
+
+class DeviceChoiceTests(unittest.TestCase):
+    # The smoke flow launches with clearState: on a phone attached by habit, that wiped the user's
+    # own Streamyfin data. Without --device, only an emulator or a simulator is ever picked.
+    def test_the_one_emulator_or_simulator_running_is_picked(self):
+        self.assertEqual(pick_device([PHONE, EMULATOR]), "emulator-5554")
+        self.assertEqual(pick_device([SIMULATOR]), "0F1E2D3C-UDID")
+
+    def test_a_phone_is_never_picked(self):
+        with self.assertRaises(NoDevice) as caught:
+            pick_device([PHONE])
+        self.assertIn("--device", str(caught.exception))
+        self.assertIn("R58M12ABCDE", str(caught.exception))
+
+    def test_several_emulators_need_a_choice(self):
+        other = Device(kind="android-emulator", id="emulator-5556", name="tv", state="device", platform="android")
+        with self.assertRaises(NoDevice) as caught:
+            pick_device([EMULATOR, other, SIMULATOR])
+        for identifier in ("emulator-5554", "emulator-5556", "0F1E2D3C-UDID"):
+            self.assertIn(identifier, str(caught.exception))
+
+    def test_an_emulator_not_ready_does_not_count(self):
+        with self.assertRaises(NoDevice):
+            pick_device([Device(kind="android-emulator", id="emulator-5554", name="sdk", state="offline", platform="android")])
+
+    def test_main_passes_the_picked_device_to_maestro(self):
+        with mock.patch("bench.maestro.discover", return_value=([PHONE, EMULATOR], [])), mock.patch("bench.maestro.run_flow", return_value=0) as run, redirect_stdout(io.StringIO()):
+            self.assertEqual(main(["--flow", "e2e/suites/cast/flows/smoke-launch.yml"]), 0)
+        command = run.call_args[0][0]
+        self.assertEqual(command[command.index("--device") + 1], "emulator-5554")
+
+    def test_main_runs_nothing_without_a_device_to_use(self):
+        errors = io.StringIO()
+        with mock.patch("bench.maestro.discover", return_value=([PHONE], ["xcrun simctl list devices --json: not found"])), mock.patch("bench.maestro.run_flow") as run, redirect_stderr(errors):
+            self.assertEqual(main(["--flow", "e2e/suites/cast/flows/smoke-launch.yml"]), 2)
+        run.assert_not_called()
+        self.assertIn("R58M12ABCDE", errors.getvalue())
+        self.assertIn("xcrun simctl", errors.getvalue())
+
+    def test_a_named_device_is_used_without_looking(self):
+        with mock.patch("bench.maestro.discover") as discover, mock.patch("bench.maestro.run_flow", return_value=0) as run, redirect_stdout(io.StringIO()):
+            self.assertEqual(main(["--flow", "f.yml", "--device", "R58M12ABCDE"]), 0)
+        discover.assert_not_called()
+        self.assertIn("R58M12ABCDE", run.call_args[0][0])
 
 
 if __name__ == "__main__":

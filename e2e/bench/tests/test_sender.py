@@ -139,19 +139,20 @@ class WatchTests(unittest.TestCase):
     # The receiver keeps the token of the last message for its own requests (progress,
     # transcoded segments); a sign-out while it still plays would cut them off.
     def test_sign_out_waits_for_the_receiver_to_stop(self):
-        self.assertFalse(should_sign_out("play-now", "PLAYING"))
-        self.assertFalse(should_sign_out("pause", "PAUSED"))
-        self.assertFalse(should_sign_out("seek", "BUFFERING"))
-        self.assertTrue(should_sign_out("stop", "IDLE"))
-        self.assertTrue(should_sign_out("play-now", "IDLE"))
-        self.assertTrue(should_sign_out("stop", "PLAYING"))
+        self.assertFalse(should_sign_out("PLAYING"))
+        self.assertFalse(should_sign_out("PAUSED"))
+        self.assertFalse(should_sign_out("BUFFERING"))
+        self.assertTrue(should_sign_out("IDLE"))
+
+    def test_a_stop_the_receiver_did_not_obey_keeps_the_token(self):
+        # A Stop lost on the way, or ignored, leaves the receiver playing with the token: revoking
+        # it after any stop cut the stream on the TV.
+        self.assertFalse(should_sign_out("PLAYING"))
 
     def test_a_state_unread_after_sending_keeps_the_token(self):
         # A Ctrl-C during the watch, or a lost connection, leaves the state unknown while the
         # receiver may well play with the token: revoking it broke the playback on the TV.
-        self.assertFalse(should_sign_out("play-now", None))
-        self.assertFalse(should_sign_out("seek", None))
-        self.assertTrue(should_sign_out("stop", None))
+        self.assertFalse(should_sign_out(None))
 
     def test_watch_raises_named_timeout_when_never_playing(self):
         cast = FakeCast([("IDLE", 0.0, {})])
@@ -333,6 +334,41 @@ class ReceiverTokensTests(unittest.TestCase):
             tokens.drop("beta13", "test", "Kitchen")
             self.assertEqual(json.loads(path.read_text()), {})
 
+    def test_an_interrupted_write_leaves_the_previous_tokens(self):
+        # The file was truncated as it opened: a Ctrl-C before the write ended left it empty, and
+        # the next run failed on it with every token it held lost.
+        from bench.jellyfin import AuthSession
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "tokens.local.json"
+            tokens = sender.ReceiverTokens(path)
+            tokens.put("beta13", "test", "Living room", AuthSession("tok1", "user-1"))
+            with mock.patch("bench.sender.json.dumps", side_effect=KeyboardInterrupt), self.assertRaises(KeyboardInterrupt):
+                tokens.put("beta13", "test", "Kitchen", AuthSession("tok2", "user-1"))
+            self.assertEqual(sender.ReceiverTokens(path).get("beta13", "test", "Living room"), AuthSession("tok1", "user-1"))
+            self.assertEqual([entry.name for entry in Path(tmp).iterdir() if entry.suffix == ".tmp"], [])
+
+    def test_a_write_waits_for_another_run_to_finish_its_own(self):
+        # Two runs ending together read the same file, and the later write dropped the other's
+        # token: alive on the server with no record left to revoke it.
+        import fcntl
+        import threading
+
+        from bench.jellyfin import AuthSession
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "tokens.local.json"
+            tokens = sender.ReceiverTokens(path)
+            writer = threading.Thread(target=tokens.put, args=("beta13", "test", "Kitchen", AuthSession("tok2", "user-1")))
+            with open(tokens.lock_path, "a") as other_run:
+                fcntl.flock(other_run, fcntl.LOCK_EX)
+                writer.start()
+                writer.join(0.3)
+                self.assertTrue(writer.is_alive())
+                self.assertFalse(path.exists())
+            writer.join(5)
+            self.assertEqual(tokens.get("beta13", "test", "Kitchen"), AuthSession("tok2", "user-1"))
+
     def test_the_file_lives_where_git_and_biome_ignore_it(self):
         self.assertEqual(sender.TOKENS_PATH, Path(__file__).resolve().parents[1] / "receiver-tokens.local.json")
 
@@ -494,6 +530,104 @@ class SenderMainTests(unittest.TestCase):
                 self.assertNotIn("quit", receiver.events)
                 self.assertEqual(receiver.app_id, OTHER_APP_ID)
                 self.assertEqual(receiver.received, [])
+                self.assertEqual(server.live, [])
+
+    def test_a_held_token_whose_sign_out_fails_stays_recorded(self):
+        # Its sign-out failing, the old token stays valid on the server: dropped from the run, it was
+        # overwritten in the store by the run's own token and stayed alive for good.
+        from urllib.error import URLError
+
+        server = FakeServer(items={"V01": V01})
+        receiver = FakeReceiver()
+        with bench_run(server, receiver) as run:
+            sender_main("play-now", "--item", "V01", "--watch", "0")
+            # The movie ends on the TV, and the server cannot be reached for the sign-out.
+            receiver.status = FakeStatus()
+            server.logout_error = URLError("server away")
+            sender_main("play-now", "--item", "V01", "--watch", "0")
+            stored = json.loads((run.root / "receiver-tokens.local.json").read_text())
+        self.assertEqual(stored["beta13"]["test"]["Living room"]["token"], "tok1")
+        self.assertEqual(receiver.received[-1]["accessToken"], "tok1")
+
+    def test_a_kept_session_whose_cap_is_unknown_takes_one_from_the_command(self):
+        # Kept before the caps were, a session has none on record: sent uncapped, a seek lifted the
+        # cap it may have been started with, so the command must state one. A stop needs none.
+        server = FakeServer(items={"V01": V01})
+        receiver = FakeReceiver()
+        with bench_run(server, receiver) as run:
+            sender_main("play-now", "--item", "V01", "--watch", "0", "--max-bitrate", "3000000")
+            path = run.root / "receiver-tokens.local.json"
+            stored = json.loads(path.read_text())
+            del stored["beta13"]["test"]["Living room"]["maxBitrate"]
+            path.write_text(json.dumps(stored))
+            self.assertEqual(sender_main("seek", "--seconds", "60"), 2)
+            self.assertEqual([m["command"] for m in receiver.received], ["PlayNow"])
+            self.assertIn("--max-bitrate", run.stdout.getvalue())
+            self.assertEqual(sender_main("seek", "--seconds", "60", "--max-bitrate", "2000000"), 0)
+            self.assertEqual(sender_main("stop"), 0)
+        self.assertEqual([(m["command"], m["maxBitrate"]) for m in receiver.received], [("PlayNow", 3000000), ("Seek", 2000000), ("Stop", 2000000)])
+
+    def test_an_uncapped_session_is_kept_as_uncapped(self):
+        # Without a cap on record, an uncapped session read as one whose cap is unknown.
+        server = FakeServer(items={"V01": V01})
+        receiver = FakeReceiver()
+        with bench_run(server, receiver) as run:
+            sender_main("play-now", "--item", "V01", "--watch", "0")
+            stored = json.loads((run.root / "receiver-tokens.local.json").read_text())
+            self.assertEqual(sender_main("pause"), 0)
+        self.assertEqual(stored["beta13"]["test"]["Living room"]["maxBitrate"], sender.UNCAPPED_BITRATE)
+        self.assertEqual(receiver.received[-1]["maxBitrate"], sender.UNCAPPED_BITRATE)
+
+    def test_a_cap_is_kept_only_once_its_message_went_out(self):
+        # The cap was recorded before the send: a send that failed left on record a cap the
+        # receiver never had, and the next command restated it.
+        server = FakeServer(items={"V01": V01})
+        receiver = FakeReceiver()
+        with bench_run(server, receiver) as run:
+            sender_main("play-now", "--item", "V01", "--watch", "0", "--max-bitrate", "3000000")
+            with mock.patch.object(receiver, "send", side_effect=OSError("connection lost")), self.assertRaises(OSError):
+                sender_main("seek", "--seconds", "60", "--max-bitrate", "1500000")
+            stored = json.loads((run.root / "receiver-tokens.local.json").read_text())
+        self.assertEqual(stored["beta13"]["test"]["Living room"]["maxBitrate"], 3000000)
+
+    def test_a_cap_must_be_a_positive_number_of_bits(self):
+        # 0 read as no cap and went out uncapped, and a negative cap went out as it was.
+        import contextlib
+        import io
+
+        for argv in (("play-now", "--item", "V01", "--max-bitrate", "0"), ("seek", "--seconds", "1", "--max-bitrate", "-5")):
+            with self.subTest(argv=argv), contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as caught:
+                sender_main(*argv)
+            self.assertEqual(caught.exception.code, 2)
+
+    def test_seconds_must_be_finite_and_not_below_zero(self):
+        # nan and inf passed the parser, then raised in the rounding with a traceback.
+        import contextlib
+        import io
+
+        for argv in (
+            ("seek", "--seconds", "nan"),
+            ("seek", "--seconds", "inf"),
+            ("seek", "--seconds", "-1"),
+            ("play-now", "--item", "V01", "--start-seconds", "nan"),
+            ("play-now", "--item", "V01", "--watch", "inf"),
+        ):
+            with self.subTest(argv=argv), contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as caught:
+                sender_main(*argv)
+            self.assertEqual(caught.exception.code, 2)
+
+    def test_an_item_the_receiver_cannot_play_leaves_the_tv_alone(self):
+        # The receiver started before the item was looked up: a refused or missing item still
+        # closed what the TV showed.
+        items = {"P01": {"Id": "playlist-1", "Name": "Road trip", "Type": "Playlist", "IsFolder": True}}
+        for query in ("P01", "NOPE"):
+            with self.subTest(item=query):
+                server = FakeServer(items=items)
+                receiver = FakeReceiver(app_id=OTHER_APP_ID)
+                with bench_run(server, receiver):
+                    self.assertEqual(sender_main("play-now", "--item", query), 2)
+                self.assertNotIn("start", receiver.events)
+                self.assertEqual(receiver.app_id, OTHER_APP_ID)
                 self.assertEqual(server.live, [])
 
     def test_report_steps_carry_the_time_they_happened(self):

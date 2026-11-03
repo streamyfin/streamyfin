@@ -1,10 +1,8 @@
 """The repository files the bench depends on: what git and Biome leave alone, and `make e2e`."""
 
 import json
-import os
 import shutil
 import subprocess
-import tempfile
 import unittest
 from pathlib import Path
 
@@ -35,7 +33,11 @@ class IgnoreTests(unittest.TestCase):
             self.skipTest("not a git checkout")
         paths = (
             "e2e/bench/config.local.json",
+            "e2e/bench/staging.local.json",
             "e2e/bench/receiver-tokens.local.json",
+            # The token store's lock and the file it writes before replacing the old one.
+            "e2e/bench/receiver-tokens.local.lock",
+            "e2e/bench/receiver-tokens.local.k2j4x9.tmp",
             # The SyncPlay suite ran from e2e/syncplay/ before it moved: its leftovers stay ignored.
             "e2e/syncplay/.state/config/data/jellyfin.db",
             "e2e/syncplay/artifacts/controller-integration.json",
@@ -51,38 +53,21 @@ class MakeTests(unittest.TestCase):
         if shutil.which("make") is None:
             self.skipTest("make is not installed")
 
-    def recipe(self) -> list[str]:
-        result = subprocess.run(["make", "-n", "-C", str(REPO), "--no-print-directory", "e2e"], capture_output=True, text=True, check=False)
+    def recipe(self, *variables: str) -> list[str]:
+        result = subprocess.run(["make", "-n", "-C", str(REPO), "--no-print-directory", "e2e", *variables], capture_output=True, text=True, check=False)
         return [line for line in result.stdout.splitlines() if line.strip()]
 
     def test_make_e2e_runs_its_recipe_although_an_e2e_folder_exists(self):
         lines = self.recipe()
         self.assertTrue(any("maestro.py" in line for line in lines), lines)
 
-    def test_the_device_guard_accepts_several_devices_and_refuses_none(self):
-        # adb get-state fails with "more than one device/emulator" as soon as two are attached.
-        guard = self.recipe()[0]
-        listings = {
-            "List of devices attached\nemulator-5554\tdevice\nR58M12ABCDE\tdevice\n\n": 0,
-            "List of devices attached\nemulator-5554\tdevice\n\n": 0,
-            "List of devices attached\n0A1B2C3D\toffline\n9Z8Y7X6W\tunauthorized\n\n": 1,
-            "List of devices attached\n\n": 1,
-        }
-        for listing, expected in listings.items():
-            with self.subTest(listing=listing), tempfile.TemporaryDirectory() as tmp:
-                adb = Path(tmp) / "adb"
-                devices = len([line for line in listing.splitlines()[1:] if line.endswith("\tdevice")])
-                adb.write_text(
-                    "#!/bin/sh\n"
-                    f'if [ "$1" = devices ]; then printf "%b" "{listing.encode("unicode_escape").decode()}"; exit 0; fi\n'
-                    f'if [ {devices} -gt 1 ]; then echo "error: more than one device/emulator" >&2; exit 1; fi\n'
-                    f'[ {devices} -eq 1 ] && echo device && exit 0\n'
-                    "exit 1\n"
-                )
-                adb.chmod(0o755)
-                env = {**os.environ, "PATH": f"{tmp}{os.pathsep}{os.environ.get('PATH', '')}"}
-                result = subprocess.run(["sh", "-c", guard], env=env, capture_output=True, text=True, check=False)
-                self.assertEqual(result.returncode, expected, result.stdout + result.stderr)
+    def test_maestro_py_picks_the_device_unless_device_names_one(self):
+        # A phone used to pass the guard, and the smoke flow cleared its app data; several devices
+        # left the choice to Maestro. maestro.py now picks the one emulator or simulator.
+        [run] = [line for line in self.recipe() if "maestro.py" in line]
+        self.assertNotIn("--device", run)
+        [run] = [line for line in self.recipe("DEVICE=R58M12ABCDE") if "maestro.py" in line]
+        self.assertIn('--device "R58M12ABCDE"', run)
 
 
 if __name__ == "__main__":

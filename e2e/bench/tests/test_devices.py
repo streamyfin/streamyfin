@@ -5,7 +5,7 @@ from unittest import mock
 
 from bench.config import CastTarget
 from bench.config import BenchConfigError
-from bench.devices import Device, adb_path, chromecasts, configured_targets, parse_adb_devices, parse_avds, parse_devicectl, parse_simctl
+from bench.devices import Device, adb_path, chromecasts, configured_targets, inventory, parse_adb_devices, parse_avds, parse_devicectl, parse_simctl
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
 
@@ -110,6 +110,32 @@ class ChromecastSetupTests(unittest.TestCase):
         with redirect_stderr(errors):
             self.assertEqual(configured_targets(load=missing), [])
         self.assertIn("Cast targets are skipped", errors.getvalue())
+
+
+class DiscoveryFailureTests(unittest.TestCase):
+    # adb or simctl failing used to print an empty list, as if nothing was attached.
+    def inventory_errors(self, **run) -> str:
+        import io
+        from contextlib import redirect_stderr
+
+        errors = io.StringIO()
+        with mock.patch("bench.devices.subprocess.run", **run), mock.patch("bench.devices.ios_devices", return_value=[]), redirect_stderr(errors):
+            self.assertEqual(inventory([]), [])
+        return errors.getvalue()
+
+    def test_a_tool_that_fails_is_reported_with_its_error(self):
+        import subprocess
+
+        failed = subprocess.CompletedProcess(["adb"], 1, stdout="", stderr="adb: failed to start daemon\n")
+        errors = self.inventory_errors(return_value=failed)
+        self.assertIn("adb devices -l", errors)
+        self.assertIn("failed to start daemon", errors)
+        self.assertIn("xcrun simctl list devices --json", errors)
+
+    def test_a_missing_tool_is_reported(self):
+        errors = self.inventory_errors(side_effect=FileNotFoundError(2, "No such file or directory"))
+        self.assertIn("adb devices -l", errors)
+        self.assertIn("No such file or directory", errors)
 
 if __name__ == "__main__":
     unittest.main()

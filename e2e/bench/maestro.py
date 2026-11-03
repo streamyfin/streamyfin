@@ -8,6 +8,10 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from bench.devices import Device
 
 
 MASK = "[masqué]"
@@ -61,6 +65,31 @@ def describe_command(command: list[str]) -> str:
     return " ".join(shown)
 
 
+class NoDevice(Exception):
+    """No device to run a flow on without --device: no emulator or simulator, or several."""
+
+
+def discover() -> tuple[list[Device], list[str]]:
+    """The Android devices and the booted simulators, with the error of each tool that failed."""
+    from bench.devices import android_devices, collect, ios_simulators
+
+    return collect(android_devices, lambda: ios_simulators(booted_only=True))
+
+
+def pick_device(found: list[Device]) -> str:
+    """The one emulator or simulator ready, for a run that names no device. A flow may clear the
+    app's data, as the smoke flow does at launch, so a phone is used only when --device names it."""
+    ready = [d for d in found if (d.kind == "android-emulator" and d.state == "device") or (d.kind.endswith("-simulator") and d.state == "booted")]
+    if len(ready) == 1:
+        return ready[0].id
+    if ready:
+        raise NoDevice(f"several emulators and simulators are running ({', '.join(d.id for d in ready)}): name one with --device")
+    phones = [d.id for d in found if not d.kind.endswith(("-emulator", "-simulator"))]
+    if phones:
+        raise NoDevice(f"no emulator or simulator is running, and {', '.join(phones)} runs a flow only when --device names it: a flow may clear the app's data")
+    raise NoDevice("no emulator or simulator is running: start one, or name a device with --device")
+
+
 def run_flow(command: list[str], env: dict[str, str], timeout: float) -> int:
     """Runs Maestro with a bound on its time; a stall ends with 124, as timeout(1) would."""
     try:
@@ -73,12 +102,22 @@ def run_flow(command: list[str], env: dict[str, str], timeout: float) -> int:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--flow", required=True, type=Path)
-    parser.add_argument("--device", help="adb serial or simulator udid; Maestro picks the only connected device otherwise")
+    parser.add_argument("--device", help="adb serial or simulator udid; the one emulator or simulator running otherwise, never a phone")
     parser.add_argument("--env", action="append", default=[], metavar="KEY=VALUE")
     parser.add_argument("--timeout", type=float, default=DEFAULT_TIMEOUT_SECONDS, help="seconds before a stalled Maestro is stopped")
     args = parser.parse_args(argv)
     env = dict(entry.split("=", 1) for entry in args.env)
-    command = build_command(args.flow, args.device, env)
+    device = args.device
+    if not device:
+        found, problems = discover()
+        try:
+            device = pick_device(found)
+        except NoDevice as error:
+            print(f"maestro: {error}", file=sys.stderr)
+            for problem in problems:
+                print(f"maestro: {problem}", file=sys.stderr)
+            return 2
+    command = build_command(args.flow, device, env)
     process_env = dict(os.environ)
     java_home = resolve_java_home(process_env)
     if java_home:
