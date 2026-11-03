@@ -253,15 +253,16 @@ const NATIVE_SDK_OPTIONS = {
   enableReportNonFullyBlockingAppHangs: false,
 } as Partial<Parameters<typeof Sentry.init>[0]>;
 
-// The cast library's own hooks (useMediaStatus, useCastDevice, mounted on
-// every screen by components/Chromecast.tsx) ask the native side for the
-// media status and the device as soon as the session manager names a
-// session, with `.then()` and no catch. On Android that includes the session
-// the Cast SDK is still trying to resume from the previous launch: it is not
-// connected yet, the native side has no session to ask, and it rejects with
-// IllegalStateException("No session"). That is an unhandled rejection a few
-// seconds after launch which no app code can catch, about a state the hooks
-// correct themselves on the next session event.
+// The cast library asks the native side for its state with `.then()` and no
+// catch. On Android that includes the session the Cast SDK is still trying to
+// resume from the previous launch: it is not connected yet, the native side
+// has no session to ask, and it rejects with IllegalStateException("No
+// session"). That is an unhandled rejection a few seconds after launch which
+// no app code can catch, about a state the library corrects itself on the
+// next session event. patches/react-native-google-cast@4.9.1.patch handles it
+// in the two hooks the app mounts (useMediaStatus, useCastDevice), its spec
+// failing should the patch stop applying; this still drops the rejections of
+// the library's other calls.
 const CAST_NATIVE_PACKAGE = "com.reactnative.googlecast.";
 const CAST_NO_SESSION_MESSAGE = "No session";
 

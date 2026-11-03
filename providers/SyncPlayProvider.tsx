@@ -1,5 +1,5 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
-import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
+import { getLibraryApi } from "@jellyfin/sdk/lib/utils/api";
 import { useAtomValue } from "jotai";
 import {
   createContext,
@@ -146,7 +146,7 @@ export function SyncPlayProvider({ children }: { children: ReactNode }) {
       if (!api || !user?.Id || ids.length === 0) return [];
       const pages = await Promise.all(
         syncPlayLookupChunks(ids).map((chunk) =>
-          getItemsApi(api).getItems({ userId: user.Id, ids: chunk }),
+          getLibraryApi(api).getItems({ userId: user.Id, ids: chunk }),
         ),
       );
       return pages.flatMap((page) => page.data.Items ?? []);

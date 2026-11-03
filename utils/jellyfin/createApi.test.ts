@@ -199,7 +199,9 @@ describe("createApiWithCustomHeaders", () => {
     test("goes out with the convenience methods too", async () => {
       // `api.get` and friends replace the request's headers with
       // `Authorization` alone, so a language the caller set would be dropped.
-      const headers = await sentBy((api) => api.get("/Streamyfin/config"));
+      const headers = await sentBy((api) =>
+        api.pluginGet("/Streamyfin/config"),
+      );
 
       expect(headers.get("Accept-Language")).toBe("sv");
       expect(headers.get("Authorization")).toContain('Token="token"');

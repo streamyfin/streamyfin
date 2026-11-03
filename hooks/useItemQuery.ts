@@ -1,5 +1,5 @@
 import { ItemFields } from "@jellyfin/sdk/lib/generated-client/models";
-import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
+import { getLibraryApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import { useAtom } from "jotai";
 import { Platform } from "react-native";
@@ -49,7 +49,7 @@ export const useItemQuery = (
 
       if (!api || !user) return null;
 
-      const response = await getItemsApi(api).getItems({
+      const response = await getLibraryApi(api).getItems({
         ids: [itemId],
         userId: user.Id,
         ...(finalFields && { fields: finalFields }),

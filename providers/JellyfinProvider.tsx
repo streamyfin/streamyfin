@@ -1,7 +1,7 @@
 import "@/augmentations";
 import { type Api, Jellyfin } from "@jellyfin/sdk";
 import type { UserDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { getUserApi } from "@jellyfin/sdk/lib/utils/api";
+import { getAuthenticationApi, getUserApi } from "@jellyfin/sdk/lib/utils/api";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import { useSegments } from "expo-router";
@@ -462,7 +462,15 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
 
       try {
         writeInfoLog(`Login: authenticating against ${api.basePath}`);
-        const auth = await api.authenticateUserByName(username, password);
+        // Authenticating writes the token into the Api that asked (SDK 1.0),
+        // so sign in on an instance of its own: the one apiAtom holds must not
+        // change before the new session is published below.
+        const loginApi = createApiWithCustomHeaders(jellyfin, api.basePath);
+        const auth = await getAuthenticationApi(
+          loginApi,
+        ).authenticateUserByName({
+          authenticateUserByName: { Username: username, Pw: password },
+        });
 
         if (auth.data.AccessToken && auth.data.User) {
           // Held from before the session is set: SeerrAutoLogin starts as soon
@@ -636,7 +644,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       // a registration still on its way, which would otherwise bring the row back.
       if (api) {
         inRegistrationOrder(() =>
-          api.delete(`${PUSH_DEVICE_PATH}/${deviceId}`, {
+          api.pluginDelete(`${PUSH_DEVICE_PATH}/${deviceId}`, {
             timeout: PUSH_REGISTRATION_TIMEOUT_MS,
           }),
         )
@@ -792,8 +800,10 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
 
       // Authenticate with password
       writeInfoLog(`Login (saved server): authenticating against ${serverUrl}`);
-      const auth = await apiInstance
-        .authenticateUserByName(username, password)
+      const auth = await getAuthenticationApi(apiInstance)
+        .authenticateUserByName({
+          authenticateUserByName: { Username: username, Pw: password },
+        })
         .catch((error) => {
           writeToLog(
             axios.isAxiosError(error) &&

@@ -34,7 +34,7 @@ const server = (
   const asked: string[] = [];
   const api: PluginSettingsReader = {
     basePath,
-    get: async <T>(url: string) => {
+    pluginGet: async <T>(url: string) => {
       asked.push(url);
       if (!(url in routes)) throw httpError(404);
       const answer = routes[url];
