@@ -1677,6 +1677,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         if (!item.Id || isStale()) continue;
         const cachedUrl = getLocalPath(item.Id);
         const result = await getAudioStreamUrl(api, user.Id, item.Id);
+        if (isStale()) continue;
         if (result) {
           await TrackPlayer.add(
             itemToTrack(item, result.url, api, preferLocal),
