@@ -1,5 +1,5 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
+import { getLibraryApi } from "@jellyfin/sdk/lib/utils/api";
 import {
   type QueryFunction,
   type QueryKey,
@@ -55,7 +55,7 @@ export const MediaListSection: React.FC<Props> = ({
     async ({ pageParam }: { pageParam: number }): Promise<BaseItemDto[]> => {
       if (!api || !user?.Id || !collectionId) return [];
 
-      const response = await getItemsApi(api).getItems({
+      const response = await getLibraryApi(api).getItems({
         userId: user.Id,
         parentId: collectionId,
         startIndex: pageParam,

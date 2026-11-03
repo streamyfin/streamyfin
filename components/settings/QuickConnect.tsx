@@ -6,7 +6,7 @@ import {
   BottomSheetView,
 } from "@gorhom/bottom-sheet";
 import type { UserDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { getQuickConnectApi, getUserApi } from "@jellyfin/sdk/lib/utils/api";
+import { getAuthenticationApi, getUserApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import { requireOptionalNativeModule } from "expo-modules-core";
 import { useAtom } from "jotai";
@@ -209,7 +209,7 @@ export const QuickConnect: React.FC<Props> = ({ ...props }) => {
         // The sheet may have been opened again during the check: an attempt
         // it left behind sends no approval.
         if (!current()) return;
-        const res = await getQuickConnectApi(api).authorizeQuickConnect(
+        const res = await getAuthenticationApi(api).authorizeQuickConnect(
           { code, userId: targetUser?.Id },
           { signal: controller.signal },
         );

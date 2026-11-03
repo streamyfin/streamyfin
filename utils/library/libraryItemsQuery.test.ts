@@ -1,4 +1,4 @@
-import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
+import { getLibraryApi } from "@jellyfin/sdk/lib/utils/api";
 import { PLAY_QUEUE_MAX_ITEMS } from "@/constants/Playback";
 import { makeApi } from "@/test-utils/jellyfinApi";
 import {
@@ -79,7 +79,7 @@ describe("library items query", () => {
   test("leaves the ratings out of the request when none are selected", async () => {
     const api = makeApi({ Items: [] });
 
-    await getItemsApi(api).getItems(
+    await getLibraryApi(api).getItems(
       buildLibraryItemsQuery({ ...horrorMovies, officialRatings: [] }),
     );
 
