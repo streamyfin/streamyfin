@@ -158,6 +158,18 @@ class CheckoutTests(unittest.TestCase):
     def test_an_ignored_file_of_the_checkout_loads(self):
         self.assertIn("beta13", self.load_from(self.scratch_copy(".local.json")).servers)
 
+    def test_a_git_that_cannot_start_refuses_the_file(self):
+        # Only a missing git means no commit to fear: one that exists and fails to start cannot vouch.
+        path = self.scratch_copy(".local.json")
+        with mock.patch("bench.config.subprocess.run", side_effect=PermissionError(13, "Permission denied")):
+            with self.assertRaises(BenchConfigError) as caught:
+                self.load_from(path)
+        self.assertIn("could not check", str(caught.exception))
+
+    def test_without_git_a_file_of_the_checkout_loads(self):
+        with mock.patch("bench.config.subprocess.run", side_effect=FileNotFoundError(2, "No such file or directory", "git")):
+            self.assertIn("beta13", self.load_from(self.scratch_copy(".json")).servers)
+
     def test_a_git_that_does_not_answer_refuses_the_file(self):
         # A timeout read as "no git": a file git was never asked about loaded, passwords and all.
         import subprocess
