@@ -7,6 +7,9 @@
  * lab code against that server.
  */
 
+import { spawnSync } from "node:child_process";
+import { resolve, sep } from "node:path";
+
 export interface SyncPlayAccount {
   name: string;
   password: string;
@@ -84,13 +87,37 @@ const itemCodes = (raw: string | undefined): string[] => {
   return codes;
 };
 
+/**
+ * Whether a `git add` in the checkout would take this file: it lies inside and git does not
+ * ignore it, which the Python bench refuses too. A git that does not answer counts as yes.
+ */
+export const gitCommittable =
+  (root: string) =>
+  (path: string): boolean => {
+    const file = resolve(path);
+    if (!file.startsWith(`${resolve(root)}${sep}`)) return false;
+    const result = spawnSync("git", ["-C", root, "check-ignore", "-q", file], {
+      timeout: 10_000,
+    });
+    if (result.error) {
+      return (result.error as NodeJS.ErrnoException).code === "ETIMEDOUT";
+    }
+    // 0: ignored, 1: not ignored, 128: not a git checkout.
+    return result.status === 1;
+  };
+
 const fromBench = async (
   env: Env,
   readFile: ReadFile,
+  committable: (path: string) => boolean,
 ): Promise<SyncPlayCredentials> => {
-  const config = JSON.parse(
-    await readFile(env.E2E_BENCH_CONFIG as string),
-  ) as BenchConfig;
+  const path = env.E2E_BENCH_CONFIG as string;
+  if (committable(path)) {
+    throw new Error(
+      `${path}: E2E_BENCH_CONFIG points at a file of the checkout that git does not ignore, or could not check, which a git add could commit with its passwords; move it out of the repository or name it e2e/bench/<name>.local.json`,
+    );
+  }
+  const config = JSON.parse(await readFile(path)) as BenchConfig;
   const server = env.E2E_BENCH_SERVER ?? DEFAULT_BENCH_SERVER;
   if (!config.servers[server]) {
     throw new Error(
@@ -154,7 +181,10 @@ export const resolveCredentials = (
   env: Env,
   readFile: ReadFile,
   benchDir: string,
+  committable: (path: string) => boolean = gitCommittable(
+    resolve(benchDir, "../../.."),
+  ),
 ): Promise<SyncPlayCredentials> =>
   env.E2E_BENCH_CONFIG
-    ? fromBench(env, readFile)
+    ? fromBench(env, readFile, committable)
     : fromLocal(readFile, benchDir);
