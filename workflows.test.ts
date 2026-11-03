@@ -132,6 +132,23 @@ const usesCastApi = (file: string, source: string) =>
     importsCastApi(file, specifier),
   );
 
+/**
+ * The source files among `files` that use the Cast API. A file gone by the time
+ * it is read, another test's temporary one, is not part of the repository.
+ */
+const castCodeIn = (files: string[]) =>
+  files.filter((file) => {
+    if (!SOURCE_FILE.test(file) || SPEC_OR_DOUBLE.test(file)) return false;
+    let source: string;
+    try {
+      source = readFileSync(join(root, file), "utf8");
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return false;
+      throw error;
+    }
+    return usesCastApi(file, source);
+  });
+
 const escapeRegExp = (text: string) =>
   text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
@@ -174,15 +191,19 @@ describe("e2e-tier1-android.yml", () => {
     // a phone mounts: a change there would have skipped the smoke flow.
     const rules = listUnder(workflow, "cast");
     const files = repositoryFiles();
-    const castCode = files.filter(
-      (file) =>
-        SOURCE_FILE.test(file) &&
-        !SPEC_OR_DOUBLE.test(file) &&
-        usesCastApi(file, readFileSync(join(root, file), "utf8")),
-    );
+    const castCode = castCodeIn(files);
 
     test("runs on its own workflow", () => {
       expect(rules).toContain(".github/workflows/e2e-tier1-android.yml");
+    });
+
+    // The TV font size rule's test writes a probe under components/tv/ and
+    // removes it, and Jest runs the two files at once: the walk listed the
+    // probe, then reading it failed with ENOENT (seen 2026-11-03).
+    test("passes over a file removed between the walk and its read", () => {
+      expect(castCodeIn(["components/tv/.lint-probe-gone/Probe.tsx"])).toEqual(
+        [],
+      );
     });
 
     test("covers every file that uses the Cast API", () => {
