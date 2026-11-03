@@ -6,13 +6,7 @@ import type {
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { useAtom } from "jotai";
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -40,11 +34,7 @@ import { TrackOptionsSheet } from "@/components/music/TrackOptionsSheet";
 import useRouter from "@/hooks/useAppRouter";
 import { useFavorite } from "@/hooks/useFavorite";
 import { useMusicCast } from "@/hooks/useMusicCast";
-import {
-  CastButton,
-  CastState,
-  type CastStateValue,
-} from "@/modules/mpv-player/src/cast";
+import { CastButton } from "@/modules/mpv-player/src/cast";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import {
   type RepeatMode,
@@ -87,11 +77,7 @@ export default function NowPlayingScreen() {
   const [playlistPickerOpen, setPlaylistPickerOpen] = useState(false);
   const [createPlaylistOpen, setCreatePlaylistOpen] = useState(false);
 
-  const {
-    isConnected: isCastConnected,
-    castQueue,
-    castState,
-  } = useMusicCast({
+  const { isConnected: isCastConnected } = useMusicCast({
     api,
     userId: user?.Id,
   });
@@ -118,7 +104,6 @@ export default function NowPlayingScreen() {
     removeFromQueue,
     reorderQueue,
     stop,
-    pause,
   } = useMusicPlayer();
 
   const { isFavorite, toggleFavorite } = useFavorite(
@@ -136,21 +121,6 @@ export default function NowPlayingScreen() {
   useEffect(() => {
     sliderMax.value = duration > 0 ? duration : 1;
   }, [duration, sliderMax]);
-
-  // Auto-cast queue when Chromecast becomes connected and pause local playback
-  const prevCastState = useRef<CastStateValue | null | undefined>(null);
-  useEffect(() => {
-    if (
-      castState === CastState.CONNECTED &&
-      prevCastState.current !== CastState.CONNECTED &&
-      queue.length > 0
-    ) {
-      // Just connected - pause local playback and cast the queue
-      pause();
-      castQueue({ queue, startIndex: queueIndex });
-    }
-    prevCastState.current = castState;
-  }, [castState, queue, queueIndex, castQueue, pause]);
 
   const imageUrl = useMemo(() => {
     if (!api || !currentTrack) return null;

@@ -1208,6 +1208,7 @@
     "play_button": "Play button",
     "play_hint": "Tap to play the media",
     "cast_button": "Cast button",
+    "cast_connected": "Connected",
     "toggle_orientation": "Toggle screen orientation",
     "toggle_orientation_hint": "Toggles the screen orientation between portrait and landscape"
   },
