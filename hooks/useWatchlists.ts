@@ -2,7 +2,7 @@ import type {
   BaseItemDto,
   PublicSystemInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
-import { getItemsApi, getSystemApi } from "@jellyfin/sdk/lib/utils/api";
+import { getLibraryApi, getSystemApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
 import { useMemo } from "react";
@@ -184,7 +184,7 @@ export const useWatchlistItemsQuery = (
       }
 
       // Fetch full item details from Jellyfin
-      const response = await getItemsApi(api).getItems({
+      const response = await getLibraryApi(api).getItems({
         userId: user.Id,
         ids: itemIds,
         fields: [

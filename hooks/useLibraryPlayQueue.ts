@@ -1,4 +1,4 @@
-import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
+import { getLibraryApi } from "@jellyfin/sdk/lib/utils/api";
 import { NavigationContext } from "expo-router/react-navigation";
 import { useAtomValue } from "jotai";
 import { useCallback, useContext, useRef, useState } from "react";
@@ -33,7 +33,7 @@ export const useLibraryPlayQueue = (filter: LibraryItemsFilter | null) => {
       startingRef.current = true;
       setIsStarting(true);
       try {
-        const response = await getItemsApi(api).getItems(
+        const response = await getLibraryApi(api).getItems(
           buildLibraryQueueQuery(filter, { shuffle }),
           libraryLanguageOptions(filter),
         );

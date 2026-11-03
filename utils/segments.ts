@@ -1,10 +1,9 @@
 import { Api } from "@jellyfin/sdk";
 import { MediaSegmentType } from "@jellyfin/sdk/lib/generated-client/models/media-segment-type";
-import { getMediaSegmentsApi } from "@jellyfin/sdk/lib/utils/api/media-segments-api";
+import { getMediaSegmentApi } from "@jellyfin/sdk/lib/utils/api/media-segment-api";
 import { useQuery } from "@tanstack/react-query";
 import React from "react";
 import { DownloadedItem, MediaTimeSegment } from "@/providers/Downloads/types";
-import { getAuthHeaders } from "./jellyfin/jellyfin";
 
 export interface SegmentBuckets {
   introSegments: MediaTimeSegment[];
@@ -115,7 +114,7 @@ const fetchMediaSegments = async (
   api: Api,
 ): Promise<SegmentBuckets | null> => {
   try {
-    const response = await getMediaSegmentsApi(api).getItemSegments({
+    const response = await getMediaSegmentApi(api).getItemSegments({
       itemId,
       includeSegmentTypes: [
         MediaSegmentType.Intro,
@@ -181,9 +180,8 @@ const fetchLegacySegments = async (
   const buckets = emptyBuckets();
 
   try {
-    const { data } = await api.axiosInstance.get<LegacyTimestamps>(
-      `${api.basePath}/Episode/${itemId}/Timestamps`,
-      { headers: getAuthHeaders(api) },
+    const { data } = await api.pluginGet<LegacyTimestamps>(
+      `/Episode/${itemId}/Timestamps`,
     );
 
     const push = (

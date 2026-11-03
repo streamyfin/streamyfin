@@ -1,5 +1,6 @@
 import type { Api } from "@jellyfin/sdk";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
+import { itemImageUrl } from "./itemImageUrl";
 
 /**
  * Landscape (16:9-ish) image for an item, as used by the continue-watching
@@ -33,12 +34,13 @@ export const getWideImageUrl = ({
   // With both sides the server returns the smallest image that fills the box,
   // whichever side binds. A Thumb is as wide as the card, so its height is
   // enough; a Primary image is whatever shape the item's artwork has.
-  const primaryBox = fillWidth
-    ? `fillWidth=${fillWidth}&fillHeight=${fillHeight}`
-    : `fillHeight=${fillHeight}`;
-  const primary = `${api.basePath}/Items/${item.Id}/Images/Primary?${primaryBox}&quality=${quality}`;
+  const primary = itemImageUrl(api, item.Id, "Primary", {
+    fillWidth,
+    fillHeight,
+    quality,
+  });
   const thumb = (itemId: string, tag: string) =>
-    `${api.basePath}/Items/${itemId}/Images/Thumb?fillHeight=${fillHeight}&quality=${quality}&tag=${tag}`;
+    itemImageUrl(api, itemId, "Thumb", { fillHeight, quality, tag });
 
   if (item.Type === "Episode") {
     if (useEpisodePoster) return primary;

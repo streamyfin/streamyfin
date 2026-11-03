@@ -24,18 +24,18 @@ jest.mock("@jellyfin/sdk/lib/utils/api", () => ({
       data: { Version: mockServerVersion },
     }),
   }),
-  getUserLibraryApi: () => ({ getItem: mockGetItem }),
+  getLibraryApi: () => ({ getItem: mockGetItem }),
 }));
 
 const primary: BaseItemDto = {
   Id: "primary",
   Type: "Movie",
-  UserData: { PlaybackPositionTicks: 100, Played: false },
+  UserData: { Key: "", PlaybackPositionTicks: 100, Played: false },
 };
 const alternate: BaseItemDto = {
   Id: "alt",
   Type: "Movie",
-  UserData: { PlaybackPositionTicks: 900, Played: false },
+  UserData: { Key: "", PlaybackPositionTicks: 900, Played: false },
 };
 
 const versions = [{ Id: "primary" }, { Id: "alt" }];
@@ -185,7 +185,9 @@ test("the played toggle's optimistic update reaches the version item", async () 
   await waitFor(() => expect(result.current).toEqual(alternate));
   await act(async () => {
     client.setQueriesData<BaseItemDto>({ queryKey: ["item", "alt"] }, (old) =>
-      old ? { ...old, UserData: { ...old.UserData, Played: true } } : old,
+      old
+        ? { ...old, UserData: { Key: "", ...old.UserData, Played: true } }
+        : old,
     );
   });
   await waitFor(() => expect(result.current?.UserData?.Played).toBe(true));

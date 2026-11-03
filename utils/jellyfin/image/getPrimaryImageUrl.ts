@@ -4,7 +4,8 @@ import type {
   BaseItemPerson,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { isBaseItemDto } from "../jellyfin";
-import { fillHeightParams } from "./imagePixels";
+import { fillHeightImageParams } from "./imagePixels";
+import { itemImageUrl } from "./itemImageUrl";
 
 /**
  * Retrieves the primary image URL for a given item.
@@ -30,33 +31,25 @@ export const getPrimaryImageUrl = ({
   width?: number | null;
   height?: number | null;
 }) => {
-  if (!item || !api) {
+  // Every URL below is built from the item's Id: without one there is no
+  // image to ask for, whatever was handed over (an answer that is not an
+  // item, restored from an older cache, is a string).
+  if (!api || !item?.Id) {
     return null;
   }
 
   if (!isBaseItemDto(item)) {
-    return `${api?.basePath}/Items/${item?.Id}/Images/Primary`;
+    return itemImageUrl(api, item.Id, "Primary");
   }
 
   const primaryTag = item.ImageTags?.Primary;
   const backdropTag = item.BackdropImageTags?.[0];
   const parentBackdropTag = item.ParentBackdropImageTags?.[0];
 
-  const params = new URLSearchParams({
-    fillWidth: width ? String(width) : "500",
-    quality: quality ? String(quality) : "80",
-    ...(height ? fillHeightParams(height) : null),
+  return itemImageUrl(api, item.Id, "Primary", {
+    fillWidth: width || 500,
+    quality: quality || 80,
+    tag: primaryTag || backdropTag || parentBackdropTag || undefined,
+    ...(height ? fillHeightImageParams(height) : null),
   });
-
-  if (primaryTag) {
-    params.set("tag", primaryTag);
-  } else if (backdropTag) {
-    params.set("tag", backdropTag);
-  } else if (parentBackdropTag) {
-    params.set("tag", parentBackdropTag);
-  }
-
-  return `${api?.basePath}/Items/${
-    item.Id
-  }/Images/Primary?${params.toString()}`;
 };

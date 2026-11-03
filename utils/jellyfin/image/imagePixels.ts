@@ -20,8 +20,18 @@ export const toImagePixels = (layoutSize: number) =>
  * scaled up to cover. The two maximums then bound what that can cost: the
  * server applies them first and never scales back up to reach the box.
  */
-export const fillHeightParams = (height: number) => ({
-  fillHeight: String(Math.round(height)),
-  maxWidth: String(MAX_IMAGE_SIDE_PX),
-  maxHeight: String(MAX_IMAGE_SIDE_PX),
+export const fillHeightImageParams = (height: number) => ({
+  fillHeight: Math.round(height),
+  maxWidth: MAX_IMAGE_SIDE_PX,
+  maxHeight: MAX_IMAGE_SIDE_PX,
 });
+
+/** {@link fillHeightImageParams} as query string values. */
+export const fillHeightParams = (height: number) => {
+  const { fillHeight, maxWidth, maxHeight } = fillHeightImageParams(height);
+  return {
+    fillHeight: String(fillHeight),
+    maxWidth: String(maxWidth),
+    maxHeight: String(maxHeight),
+  };
+};
