@@ -1153,16 +1153,23 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
           return;
         }
 
-        // Reset and start playback immediately with just the target track
+        // Reset and start playback immediately with just the target track.
+        // One turn on the native queue: a superseding or superseded start
+        // cannot interleave between the reset and the add.
         loadedOutOfOrderRef.current = false;
-        await TrackPlayer.reset();
-        // Before the first sample: the track change event that also sets the
-        // volume reaches JS only once the track is already loading.
-        setMusicNormalizationTrack(targetTrackResult.track);
-        await TrackPlayer.add(targetTrackResult.track);
-        await TrackPlayer.play();
-        if (bailIfStale()) {
-          await TrackPlayer.reset().catch(() => {});
+        const played = await editNativeQueue(async () => {
+          if (isStale()) return false;
+          await TrackPlayer.reset();
+          if (isStale()) return false;
+          // Before the first sample: the track change event that also sets
+          // the volume reaches JS only once the track is already loading.
+          setMusicNormalizationTrack(targetTrackResult.track);
+          await TrackPlayer.add(targetTrackResult.track);
+          await TrackPlayer.play();
+          return !isStale();
+        });
+        if (!played) {
+          bailIfStale();
           return;
         }
 
