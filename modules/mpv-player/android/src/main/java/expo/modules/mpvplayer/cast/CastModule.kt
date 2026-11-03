@@ -11,6 +11,7 @@ import androidx.mediarouter.media.MediaRouter
 import com.google.android.gms.cast.CastDevice
 import com.google.android.gms.cast.MediaSeekOptions
 import com.google.android.gms.cast.framework.CastContext
+import com.google.android.gms.cast.framework.CastReasonCodes
 import com.google.android.gms.cast.framework.CastSession
 import com.google.android.gms.cast.framework.CastStateListener
 import com.google.android.gms.cast.framework.SessionManagerListener
@@ -78,7 +79,7 @@ class CastModule : Module() {
         }
 
         override fun onSessionStartFailed(session: CastSession, error: Int) =
-            emitSession("startFailed", session, CastMapping.sessionEndError(error))
+            emitSession("startFailed", session, endError(error))
 
         override fun onSessionSuspended(session: CastSession, reason: Int) {
             detachMedia()
@@ -94,7 +95,7 @@ class CastModule : Module() {
         }
 
         override fun onSessionResumeFailed(session: CastSession, error: Int) =
-            emitSession("startFailed", session, CastMapping.sessionEndError(error))
+            emitSession("startFailed", session, endError(error))
 
         override fun onSessionEnding(session: CastSession) = emitSession("ending", session, null)
 
@@ -103,7 +104,7 @@ class CastModule : Module() {
             // The JS side opens its channels again on the next session's first command.
             removeJsSubscriptions()
             updateSession(null)
-            emitSession("ended", session, CastMapping.sessionEndError(error))
+            emitSession("ended", session, endError(error))
         }
     }
 
@@ -282,6 +283,13 @@ class CastModule : Module() {
     private fun updateSession(session: CastSession?) {
         cachedSession = CastRecords.session(session)
     }
+
+    // The SDK reports "Stop casting" under a status code of its own (2154 on 22.3.1), which only
+    // the context resolves to CASTING_STOPPED, as react-native-google-cast read it.
+    private fun endError(error: Int): String? = CastMapping.sessionEndError(
+        error,
+        castContext?.getCastReasonCodeForCastStatusCode(error) ?: CastReasonCodes.UNKNOWN_REASON,
+    )
 
     private fun emitSession(event: String, session: CastSession, error: String?) {
         sendEvent("onSessionEvent", mapOf("event" to event, "sessionId" to session.sessionId, "error" to error))

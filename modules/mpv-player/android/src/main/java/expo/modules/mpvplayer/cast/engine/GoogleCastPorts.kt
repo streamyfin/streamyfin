@@ -8,6 +8,7 @@ import androidx.annotation.MainThread
 import com.google.android.gms.cast.Cast
 import com.google.android.gms.cast.MediaSeekOptions
 import com.google.android.gms.cast.framework.CastContext
+import com.google.android.gms.cast.framework.CastReasonCodes
 import com.google.android.gms.cast.framework.CastSession
 import com.google.android.gms.cast.framework.SessionManager
 import com.google.android.gms.cast.framework.SessionManagerListener
@@ -46,7 +47,10 @@ fun CastEngine.Companion.create(context: Context, server: ReceiverServer): CastE
     val main = Handler(Looper.getMainLooper())
     return CastEngine(
         server = server,
-        sessions = GoogleCastSessionSource(cast.sessionManager),
+        sessions = GoogleCastSessionSource(cast.sessionManager) { code ->
+            sdk("getCastReasonCodeForCastStatusCode") { cast.getCastReasonCodeForCastStatusCode(code) }
+                ?: CastReasonCodes.UNKNOWN_REASON
+        },
         hub = ReceiverChannelHub.shared,
         schedule = mainLooperSchedule(),
         runOnMain = { block -> if (Looper.myLooper() == Looper.getMainLooper()) block() else main.post(block) },
@@ -65,8 +69,14 @@ internal fun mainLooperSchedule(): (Long, () -> Unit) -> (() -> Unit) {
     }
 }
 
-/** The session manager as the engine sees it: the current session, and what happens to sessions. */
-internal class GoogleCastSessionSource(private val sessionManager: SessionManager) : CastSessionSource {
+/**
+ * The session manager as the engine sees it: the current session, and what happens to sessions.
+ * `reasonFor` is CastContext's reading of a status code, which alone tells a stop from a failure.
+ */
+internal class GoogleCastSessionSource(
+    private val sessionManager: SessionManager,
+    private val reasonFor: (Int) -> Int,
+) : CastSessionSource {
     private var listener: CastSessionListener? = null
     private var listening = false
 
@@ -111,11 +121,11 @@ internal class GoogleCastSessionSource(private val sessionManager: SessionManage
         }
 
         override fun onSessionResumeFailed(session: CastSession, error: Int) {
-            listener?.onEnded(session.sessionId, CastMapping.sessionEndError(error))
+            listener?.onEnded(session.sessionId, CastMapping.sessionEndError(error, reasonFor(error)))
         }
 
         override fun onSessionEnded(session: CastSession, error: Int) {
-            listener?.onEnded(session.sessionId, CastMapping.sessionEndError(error))
+            listener?.onEnded(session.sessionId, CastMapping.sessionEndError(error, reasonFor(error)))
         }
 
         override fun onSessionStarting(session: CastSession) = Unit

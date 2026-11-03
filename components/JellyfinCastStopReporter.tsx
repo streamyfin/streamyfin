@@ -91,7 +91,7 @@ export function JellyfinCastStopReporter() {
         api,
         userId: user.Id,
         deviceName: last.deviceName,
-        // The SDK leaves `error` out only when casting was stopped, which
+        // The module leaves `error` out only when casting was stopped, which
         // closes the receiver app; anything else may leave the TV playing.
         receiverClosed: !error,
         itemId: last.itemId,
