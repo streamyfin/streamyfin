@@ -107,13 +107,13 @@ def ios_simulators(booted_only: bool = False) -> list[Device]:
 
 
 def ios_devices() -> list[Device]:
-    """Physical Apple devices known to Xcode (devicectl); empty when the tool is unavailable."""
+    """Physical Apple devices known to Xcode (devicectl), which writes its list to a file."""
     with tempfile.NamedTemporaryFile(suffix=".json") as output:
+        _run(["xcrun", "devicectl", "list", "devices", "--json-output", output.name])
         try:
-            subprocess.run(["xcrun", "devicectl", "list", "devices", "--json-output", output.name], capture_output=True, timeout=COMMAND_TIMEOUT, check=False)
             payload = json.loads(Path(output.name).read_text() or "{}")
-        except (OSError, ValueError, subprocess.SubprocessError):
-            return []
+        except ValueError as error:
+            raise DiscoveryFailed(f"xcrun devicectl list devices: unreadable list ({error})") from error
     return parse_devicectl(payload)
 
 

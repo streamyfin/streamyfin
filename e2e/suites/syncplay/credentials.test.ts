@@ -1,4 +1,10 @@
-import { assertCanManageUsers, resolveCredentials } from "./credentials";
+import { rmSync, writeFileSync } from "node:fs";
+import { join, resolve } from "node:path";
+import {
+  assertCanManageUsers,
+  gitCommittable,
+  resolveCredentials,
+} from "./credentials";
 
 const localCredentials = (url: string) =>
   JSON.stringify({
@@ -127,6 +133,18 @@ describe("resolveCredentials", () => {
     expect(resolved.url).toBe("http://beta.example.test:8110/jellyfin");
   });
 
+  test("refuses a bench config that git would commit", async () => {
+    // The Python bench refused such a file and this reader took it, passwords and all.
+    await expect(
+      resolveCredentials(
+        { E2E_BENCH_CONFIG: "/repo/e2e/bench/mine.json" },
+        reader({ "mine.json": benchConfig({}) }),
+        "/repo/e2e/suites/syncplay",
+        () => true,
+      ),
+    ).rejects.toThrow("git does not ignore");
+  });
+
   test("names the missing SyncPlay account", async () => {
     await expect(
       resolveCredentials(
@@ -170,5 +188,24 @@ describe("resolveCredentials", () => {
 
   test("falls back to the default codes when the variable is empty", async () => {
     expect((await withItems(" , ")).itemCodes).toEqual(["V01", "V03", "V06"]);
+  });
+});
+
+describe("gitCommittable", () => {
+  const root = resolve(__dirname, "../../..");
+  const committable = gitCommittable(root);
+
+  test("says which files of the checkout a git add would take", () => {
+    const stem = join(root, `e2e/bench/committable-test-${process.pid}`);
+    try {
+      writeFileSync(`${stem}.json`, "{}");
+      writeFileSync(`${stem}.local.json`, "{}");
+      expect(committable(`${stem}.json`)).toBe(true);
+      expect(committable(`${stem}.local.json`)).toBe(false);
+      expect(committable("/private/bench.json")).toBe(false);
+    } finally {
+      rmSync(`${stem}.json`, { force: true });
+      rmSync(`${stem}.local.json`, { force: true });
+    }
   });
 });
