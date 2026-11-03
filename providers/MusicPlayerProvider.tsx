@@ -546,6 +546,9 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   // The latest written position: a resume finishing its own waits seeks to
   // this, not to what its render saw.
   const progressRef = useRef(0);
+  // Which start put the spinner up: two starts of the same track share its
+  // loadingTrackId, so the id alone cannot tell them apart.
+  const loadingStartSeqRef = useRef(0);
 
   // Set once jumpToIndex has loaded a track ahead of the background load. From
   // then on that load can no longer append: it has to place each track, and
@@ -1112,21 +1115,25 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       }
 
       const targetItem = finalQueue[finalIndex];
+      loadingStartSeqRef.current = startSequence;
       setState((prev) => ({
         ...prev,
         isLoading: true,
         loadingTrackId: targetItem?.Id ?? null,
       }));
 
-      // A bail clears only the spinner this call put up: the start that
-      // superseded it shows its own track's.
-      const bailIfStale = () => {
-        if (!isStale()) return false;
+      // A bail clears only the spinner this call put up: a superseding start
+      // shows its own, which may be for the same track.
+      const clearOwnLoading = () =>
         setState((prev) =>
-          prev.loadingTrackId === (targetItem?.Id ?? null)
+          prev.loadingTrackId === (targetItem?.Id ?? null) &&
+          loadingStartSeqRef.current === startSequence
             ? { ...prev, isLoading: false, loadingTrackId: null }
             : prev,
         );
+      const bailIfStale = () => {
+        if (!isStale()) return false;
+        clearOwnLoading();
         return true;
       };
 
@@ -1142,11 +1149,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         if (bailIfStale()) return;
 
         if (!targetTrackResult) {
-          setState((prev) => ({
-            ...prev,
-            isLoading: false,
-            loadingTrackId: null,
-          }));
+          clearOwnLoading();
           return;
         }
 
