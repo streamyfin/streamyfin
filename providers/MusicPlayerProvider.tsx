@@ -497,6 +497,27 @@ const withCurrentTrack = (
   };
 };
 
+// Moves a queue that exists only on screen — restored after a restart, with
+// nothing loaded natively — to another one of its tracks.
+const withRestoredTrack = (
+  prev: MusicPlayerState,
+  index: number,
+): MusicPlayerState => {
+  const track = prev.queue[index];
+  if (!track) return prev;
+  return {
+    ...prev,
+    queueIndex: index,
+    currentTrack: track,
+    progress: 0,
+    duration: track.RunTimeTicks
+      ? Math.floor(track.RunTimeTicks / 10000000)
+      : 0,
+    mediaSource: null,
+    isTranscoding: false,
+  };
+};
+
 // Full implementation for non-TV platforms
 const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   children,
@@ -1301,8 +1322,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   }, [playerReadyForControl]);
 
   const resume = useCallback(async () => {
-    if (!TrackPlayer) return;
-    await ensurePlayerReady();
+    if (!TrackPlayer || !(await playerReadyForControl())) return;
     if (!state.streamUrl && state.currentTrack && api && user?.Id) {
       // Need to load the track first (e.g., after app restart)
       const result = await getAudioStreamUrl(
@@ -1341,7 +1361,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     state.currentTrack,
     state.progress,
     settings?.preferLocalAudio,
-    ensurePlayerReady,
+    playerReadyForControl,
   ]);
 
   const togglePlayPause = useCallback(async () => {
@@ -1357,6 +1377,23 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     const currentIndex = await TrackPlayer.getActiveTrackIndex();
     const nativeQueue: Track[] = await TrackPlayer.getQueue();
     const queueLength = nativeQueue.length;
+
+    // A queue restored after a restart is only on screen: nothing is loaded
+    // natively to skip to, so next walks the queue it has.
+    if (
+      !state.isLoading &&
+      !state.streamUrl &&
+      queueLength === 0 &&
+      state.queue.length > 0
+    ) {
+      let nextIndex = state.queueIndex + 1;
+      if (nextIndex >= state.queue.length) {
+        if (state.repeatMode !== "all") return;
+        nextIndex = 0;
+      }
+      setState((prev) => withRestoredTrack(prev, nextIndex));
+      return;
+    }
 
     if (currentIndex !== undefined && currentIndex < queueLength - 1) {
       if (state.currentTrack && state.playSessionId) {
@@ -1387,6 +1424,10 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     state.playSessionId,
     state.progress,
     state.repeatMode,
+    state.queue,
+    state.queueIndex,
+    state.isLoading,
+    state.streamUrl,
     reportPlaybackStopped,
     playerReadyForControl,
   ]);
@@ -1445,10 +1486,16 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   const seek = useCallback(
     async (position: number) => {
       if (!TrackPlayer || !(await playerReadyForControl())) return;
+      // A restored queue has nothing loaded: resume seeds seekTo from
+      // state.progress when it loads the track, so only state moves here.
+      if (!state.streamUrl && state.currentTrack) {
+        setState((prev) => ({ ...prev, progress: position }));
+        return;
+      }
       await TrackPlayer.seekTo(position);
       setState((prev) => ({ ...prev, progress: position }));
     },
-    [playerReadyForControl],
+    [playerReadyForControl, state.streamUrl, state.currentTrack],
   );
 
   const stop = useCallback(async () => {
@@ -1506,7 +1553,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       const tracksArray = Array.isArray(tracks) ? tracks : [tracks];
       const preferLocal = settings?.preferLocalAudio ?? true;
 
-      await ensurePlayerReady();
+      if (!(await playerReadyForControl())) return;
 
       // Add to TrackPlayer queue
       for (const item of tracksArray) {
@@ -1531,7 +1578,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         originalQueue: [...prev.originalQueue, ...tracksArray],
       }));
     },
-    [api, user?.Id, settings?.preferLocalAudio, ensurePlayerReady],
+    [api, user?.Id, settings?.preferLocalAudio, playerReadyForControl],
   );
 
   const playNext = useCallback(
@@ -1541,7 +1588,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       const tracksArray = Array.isArray(tracks) ? tracks : [tracks];
       const preferLocal = settings?.preferLocalAudio ?? true;
 
-      await ensurePlayerReady();
+      if (!(await playerReadyForControl())) return;
 
       // Add to TrackPlayer queue after current track
       for (let i = tracksArray.length - 1; i >= 0; i--) {
@@ -1585,7 +1632,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         };
       });
     },
-    [api, user?.Id, settings?.preferLocalAudio, ensurePlayerReady],
+    [api, user?.Id, settings?.preferLocalAudio, playerReadyForControl],
   );
 
   const removeFromQueue = useCallback(
