@@ -14,6 +14,7 @@ import {
 import { Text } from "@/components/common/Text";
 import { TVPinInput, type TVPinInputRef } from "@/components/inputs/TVPinInput";
 import { TVOptionCard, useTVFocusAnimation } from "@/components/tv";
+import { TV_PANEL_BACKING } from "@/constants/Colors";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import { scaleSize } from "@/utils/scaleSize";
 import type { AccountSecurityType } from "@/utils/secureCredentials";
@@ -296,6 +297,7 @@ export const TVSaveAccountModal: React.FC<TVSaveAccountModalProps> = ({
             trapFocusDown
             trapFocusLeft
             trapFocusRight
+            testID='tv-save-account-panel'
             style={styles.content}
           >
             {/* Header */}
@@ -421,6 +423,9 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   content: {
+    // Android TV only tints behind a BlurView: without a backing of its own,
+    // the sign-in form's buttons showed through the sheet.
+    backgroundColor: TV_PANEL_BACKING,
     paddingTop: scaleSize(24),
     paddingBottom: scaleSize(50),
     overflow: "visible",
