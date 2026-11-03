@@ -288,7 +288,7 @@ const MobilePage: React.FC = () => {
       autoRequestedRef.current ||
       autoRequest !== "true" ||
       !isFocused ||
-      dataUpdatedAt < focusRegainedAtRef.current ||
+      dataUpdatedAt <= focusRegainedAtRef.current ||
       // Only series ever carry the flag; on a movie it would send the
       // request outright for someone without advanced permission.
       mediaType !== MediaType.TV ||

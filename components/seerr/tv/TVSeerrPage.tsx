@@ -421,7 +421,7 @@ export const TVSeerrPage: React.FC = () => {
       autoRequestedRef.current ||
       autoRequest !== "true" ||
       !isFocused ||
-      dataUpdatedAt < focusRegainedAtRef.current ||
+      dataUpdatedAt <= focusRegainedAtRef.current ||
       // Only series ever carry the flag; on a movie the fallback would send
       // the request outright for someone without advanced permission.
       mediaType !== MediaType.TV ||
