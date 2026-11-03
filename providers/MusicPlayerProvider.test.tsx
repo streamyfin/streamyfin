@@ -564,16 +564,54 @@ describe("MusicPlayerProvider and the native queue", () => {
     expect(player.queueIndex).toBe(4);
   });
 
-  test("next leaves a restored queue alone until something is loaded", async () => {
-    storage.set("music_player_repeat_mode", "all");
+  // A queue restored after a restart is only on screen until playback
+  // resumes: nothing is loaded natively to skip to, so next walks the queue
+  // it has and leaves the native side alone.
+  test("next walks a restored queue while nothing is loaded", async () => {
+    storage.set("music_player_progress", "42");
+    persistQueue(
+      ALBUM.map((t, i) => ({ ...t, RunTimeTicks: (i + 1) * 600_000_000 })),
+      2,
+    );
+    await mount();
+    expect(player.progress).toBe(42);
+    expect(player.duration).toBe(180);
+
+    const tp = jest.requireMock("react-native-track-player").default;
+    const skipSpy = jest.spyOn(tp, "skip");
+    const skipToNextSpy = jest.spyOn(tp, "skipToNext");
+    try {
+      await run((p) => p.next());
+
+      expect(nativeIds()).toEqual([]);
+      expect(player.currentTrack?.Id).toBe("t3");
+      expect(player.queueIndex).toBe(3);
+      expect(player.progress).toBe(0);
+      expect(player.duration).toBe(240);
+      expect(skipSpy).not.toHaveBeenCalled();
+      expect(skipToNextSpy).not.toHaveBeenCalled();
+    } finally {
+      skipSpy.mockRestore();
+      skipToNextSpy.mockRestore();
+    }
+  });
+
+  // The restored queue's position lives in state until resume loads the track
+  // and seeks to it, so a seek before that moves only state.
+  test("seek on a restored queue moves the position without a loaded track", async () => {
     persistQueue(ALBUM, 2);
     await mount();
 
-    await run((p) => p.next());
+    const tp = jest.requireMock("react-native-track-player").default;
+    const seekSpy = jest.spyOn(tp, "seekTo");
+    try {
+      await run((p) => p.seek(30));
 
-    expect(nativeIds()).toEqual([]);
-    expect(player.currentTrack?.Id).toBe("t2");
-    expect(player.queueIndex).toBe(2);
+      expect(player.progress).toBe(30);
+      expect(seekSpy).not.toHaveBeenCalled();
+    } finally {
+      seekSpy.mockRestore();
+    }
   });
 
   // The insert position used to be read before the stream URL request, and a
