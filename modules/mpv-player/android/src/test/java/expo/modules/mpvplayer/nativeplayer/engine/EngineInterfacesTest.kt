@@ -1,13 +1,14 @@
 package expo.modules.mpvplayer.nativeplayer.engine
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Test
 
 // A remote engine carries transport and queue, never a surface: this double compiles
 // against the two interfaces only, which is the whole point of the split.
 class EngineInterfacesTest {
-    private class RemoteOnlyEngine : TransportEngine, QueueEngine {
+    private class RemoteOnlyEngine : ChromeEngine {
         override var delegate: TransportEngine.Delegate? = null
         override var playbackResumeIntent = false
         override var isPausedState = true
@@ -53,6 +54,13 @@ class EngineInterfacesTest {
         val engine = RemoteOnlyEngine()
         engine.play()
         assertEquals(1, engine.played)
+    }
+
+    // The chrome holds a ChromeEngine: a local engine is one already, with no adapter.
+    @Test
+    fun aLocalEngineIsAChromeEngine() {
+        val widen: (PlayerEngine) -> ChromeEngine = { it }
+        assertNotNull(widen)
     }
 
     @Test

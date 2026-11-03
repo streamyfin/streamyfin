@@ -205,5 +205,8 @@ extension QueueEngine {
 	func setTargetVolume(_ level: Double) {}
 }
 
-/// A local engine: all three faces. A remote one is `TransportEngine & QueueEngine`.
-typealias PlayerEngine = TransportEngine & RenderingEngine & QueueEngine
+/// What the native chrome holds, whatever the engine. A remote engine has no screen: the chrome
+/// reaches rendering through `engine as? RenderingEngine` and treats its absence as "none".
+typealias ChromeEngine = TransportEngine & QueueEngine
+/// A local engine: all three faces.
+typealias PlayerEngine = ChromeEngine & RenderingEngine

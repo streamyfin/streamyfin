@@ -68,6 +68,12 @@ enum EngineProtocolsTests {
 		precondition(engine.isPaused() == false)
 		precondition((engine as AnyObject) is RenderingEngine == false, "a remote engine must not carry the rendering face")
 
+		// What the chrome holds: the remote double is a ChromeEngine, and so is any local engine.
+		let chrome: ChromeEngine = engine
+		precondition(chrome as? RenderingEngine == nil, "the chrome reaches rendering only through a cast")
+		let widen: (PlayerEngine) -> ChromeEngine = { $0 }
+		_ = widen
+
 		// The queue has nothing by default: the local engines never answer it.
 		precondition(engine.currentItemId == nil)
 		precondition(engine.targetVolume == nil)
@@ -86,6 +92,6 @@ enum EngineProtocolsTests {
 		precondition(engine.seeksTo.count == 1 && engine.seeksTo[0].position == 12 && engine.seeksTo[0].exact == false)
 		precondition(engine.seeksBy == [-10])
 
-		print("PASS: transport, rendering and queue faces, queue defaults, delegate play and seek defaults")
+		print("PASS: transport, rendering and queue faces, the chrome engine, queue defaults, delegate play and seek defaults")
 	}
 }
