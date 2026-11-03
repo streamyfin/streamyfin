@@ -26,8 +26,8 @@ import {
   DraggableQueueList,
   type QueueRow,
 } from "@/components/common/DraggableQueueList";
-import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
+import { ArtworkImage } from "@/components/music/ArtworkImage";
 import { CreatePlaylistModal } from "@/components/music/CreatePlaylistModal";
 import { PlaylistPickerSheet } from "@/components/music/PlaylistPickerSheet";
 import { TrackOptionsSheet } from "@/components/music/TrackOptionsSheet";
@@ -450,7 +450,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
         }}
       >
         {imageUrl ? (
-          <Image
+          <ArtworkImage
             source={{ uri: imageUrl }}
             style={{ width: "100%", height: "100%" }}
             contentFit='cover'
