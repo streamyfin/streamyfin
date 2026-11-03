@@ -59,9 +59,9 @@ export interface CastSessionEventPayload {
   event: CastSessionEvent;
   sessionId: string | null;
   /**
-   * Why the session ended, or null when the user ended it: the SDK reports
-   * no error only for a stop asked from this phone, which also closes the
-   * receiver app.
+   * Why the session ended, or null when the user ended it: the module
+   * reports no error only for a stop asked from this phone, which also
+   * closes the receiver app.
    */
   error: string | null;
 }
