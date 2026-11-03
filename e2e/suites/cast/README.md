@@ -59,3 +59,64 @@ python3 e2e/bench/maestro.py --flow e2e/suites/cast/flows/cast-item-on-receiver.
 Its taps by position are laid out for the bench's 1080x2400 phone emulator. What the server
 recorded for the receiver during the flow is read with `e2e/bench/sessions.py`, as for the
 matrix.
+
+## Cast engine probe
+
+Debug builds carry a probe that drives a real receiver through the native Cast engine, so
+what the engine does on a TV is read from the device log rather than inferred. It binds an
+engine to the session of the first PlayNow the app sends, then, once that item plays, runs a
+fixed script through the engine's transport.
+
+It needs a Chromecast or a Google TV on the phone's network with the default Jellyfin
+receiver, and a debug build signed in to a test server, Metro running.
+
+**Android.** Read the log, arm the probe, then cast an item from its page with the header
+Cast button, which is the app's own path:
+
+```sh
+adb logcat -c && adb logcat -v time -s CastEngine:I CastEngineProbe:I ReceiverChannelHub:I StreamyfinCast:W
+adb shell am broadcast -n com.fredrikburmester.streamyfin/expo.modules.mpvplayer.cast.engine.CastEngineProbeReceiver -a expo.modules.mpvplayer.CAST_ENGINE_PROBE
+```
+
+The broadcast needs the `DUMP` permission, which `adb shell` has. The log then reads:
+
+- `CastEngineProbe: armed`, then `engine bound, waiting for the item to play` and
+  `item playing, running the script`.
+- `ReceiverChannelHub: attached session=<id>` and `registered urn:x-cast:com.connectsdk
+  session=<id> subscribers=<n>`: the app's JS and the engine share one channel.
+- `CastEngine: bound to session <id> launched=<bool>`, then a line per state change,
+  `status <state> playSession=<id> playMethod=<DirectStream|Transcode> canClientSeek=<bool>`.
+- `CastEngineProbe: position <s>/<duration>` every second, the receiver's messages as
+  `bus type=<type> PlayMethod=… PositionTicks=… AudioStreamIndex=… SubtitleStreamIndex=…`
+  (the `PlayState` fields only), and `bus sent <command>` for what the app's JS sent.
+- One `step <name>` per step, timed from the first playing status: `pause` (5 s), `play`
+  (8 s), `seek+30` (12 s), `volume-0.1` (20 s), `volume-back` (23 s), `audio-reload` (26 s),
+  `subtitles-off` (40 s), `capped-reload` (45 s, the item loaded again under a 192 kb/s cap),
+  `seek+30` (60 s), `next` (70 s), `detach` (80 s). The TV pauses and plays on, shows its
+  volume banner twice, and keeps playing after `detach`. In the log: `seek <s> path=media` on
+  a stream the receiver seeks in and `path=bus` on one it cannot, a transcode after the capped
+  reload; `reload settled loaded`; `send SetSubtitleStreamIndex`; `load outcome=loaded`;
+  `send NextTrack`; `detached from session <id>` and `disarmed`.
+- `idle finished, waiting for the next item` at the end of a track with more to come.
+
+What the server recorded for the receiver is read with `sessions.py`, during V03 for a
+direct stream, and after `capped-reload` on MUSIC-FLAC for a transcode:
+
+```sh
+e2e/.venv/bin/python e2e/bench/sessions.py --server beta13 --device "Living room" --expect-play-method DirectStream --expect-paused false --expect-active 1
+```
+
+Two checks are left for a run that does them: cutting the phone's Wi-Fi for 10 s, which
+should log `session <id> suspended` then `session <id> resumed` with the same id and bus
+messages again within 5 s; and stopping the cast from the Cast dialog, which should log
+`binding lost session=<id> error=<code>`.
+
+**iOS.** Pass the launch argument `-CastEngineProbe YES`, from the Xcode scheme or with
+`xcrun devicectl device process launch --console --terminate-existing --device <iPhone>
+<bundle identifier> -CastEngineProbe YES`, and read the same lines on the console. For the
+resume, put the app in the background for 10 s.
+
+Receiver 1.3.2 starts a transcode it cannot seek in at twice the position asked
+(jellyfin/jellyfin-chromecast#971): the second `seek+30` on MUSIC-FLAC shows it. Keep the
+evidence with `sessions.py --keep <subject>` and quote only that redacted copy: a raw log
+holds addresses.
