@@ -35,6 +35,19 @@ test("the row waits for the season's episodes", () => {
   expect(episodeRowState(loaded, pending)).toBe("loading");
 });
 
+// Phone, first open of a series: the seasons are in, but the default season
+// is picked by an effect one render later, and its episodes are not asked
+// for until then. The empty text flashed under the spinner.
+test("the row waits while a season is being picked", () => {
+  const notAskedYet = {
+    data: undefined,
+    isLoading: false,
+    errorUpdateCount: 0,
+  };
+  expect(episodeRowState(loaded, notAskedYet, true)).toBe("loading");
+  expect(episodeRowState(loaded, notAskedYet)).toBe("ready");
+});
+
 test("a season whose episodes came back empty is an empty season", () => {
   expect(
     episodeRowState(loaded, {

@@ -192,4 +192,51 @@ describe("SeasonPicker online", () => {
       ).toBeTruthy(),
     );
   });
+
+  // The episodes are only asked for once a season is picked: with no season
+  // to pick, or seasons that failed, the spinner stayed for good with the
+  // empty text under it.
+  test("a series with no seasons says so, without a spinner", async () => {
+    mockShowApi.getSeasons.mockResolvedValue({ data: { Items: [] } });
+    const store = createStore();
+    store.set(userAtom, { Id: "user" });
+
+    await renderPicker(store);
+    await waitFor(() =>
+      expect(
+        screen.getByText("item_card.no_episodes_for_this_season"),
+      ).toBeTruthy(),
+    );
+    expect(screen.queryByTestId("season-episodes-loading")).toBeNull();
+  });
+
+  test("seasons that failed to load say so, without a spinner", async () => {
+    mockShowApi.getSeasons.mockRejectedValue(new Error("503"));
+    const store = createStore();
+    store.set(userAtom, { Id: "user" });
+
+    await renderPicker(store);
+    await waitFor(() =>
+      expect(screen.getByText("item_card.episodes_load_failed")).toBeTruthy(),
+    );
+    expect(screen.queryByTestId("season-episodes-loading")).toBeNull();
+    expect(
+      screen.queryByText("item_card.no_episodes_for_this_season"),
+    ).toBeNull();
+  });
+
+  test("episodes that failed to load say so, not an empty season", async () => {
+    mockShowApi.getEpisodes.mockRejectedValue(new Error("503"));
+    const store = createStore();
+    store.set(userAtom, { Id: "user" });
+    store.set(seasonIndexAtom, { [SERIES.Id!]: 1 });
+
+    await renderPicker(store);
+    await waitFor(() =>
+      expect(screen.getByText("item_card.episodes_load_failed")).toBeTruthy(),
+    );
+    expect(
+      screen.queryByText("item_card.no_episodes_for_this_season"),
+    ).toBeNull();
+  });
 });
