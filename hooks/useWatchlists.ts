@@ -65,7 +65,7 @@ export const useWatchlistsQuery = () => {
       settings?.streamyStatsServerUrl,
       user?.Id,
     ],
-    queryFn: async (): Promise<StreamystatsWatchlist[]> => {
+    queryFn: async ({ signal }): Promise<StreamystatsWatchlist[]> => {
       if (!settings?.streamyStatsServerUrl || !api?.accessToken) {
         return [];
       }
@@ -75,7 +75,7 @@ export const useWatchlistsQuery = () => {
         jellyfinToken: api.accessToken,
       });
 
-      const response = await streamystatsApi.getWatchlists();
+      const response = await streamystatsApi.getWatchlists(signal);
       return response.data || [];
     },
     enabled: streamystatsEnabled && Boolean(api?.accessToken),
