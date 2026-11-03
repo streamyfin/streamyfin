@@ -51,7 +51,7 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
     [item, seasonIndexState],
   );
 
-  const { data: seasons = [] } = useQuery({
+  const { data: seasons = [], isLoading: seasonsLoading } = useQuery({
     queryKey: ["seasons", item.Id, isOffline, downloadedItems.length],
     queryFn: async () => {
       if (isOffline) {
@@ -108,7 +108,11 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
     return season?.IndexNumber ?? null;
   }, [isOffline, seasons, seasonIndex]);
 
-  const { data: episodes, isPending } = useQuery({
+  const {
+    data: episodes,
+    isPending,
+    isLoading,
+  } = useQuery({
     queryKey: [
       "episodes",
       item.Id,
@@ -280,7 +284,9 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
             </View>
           ))
         )}
-        {(episodes?.length || 0) === 0 ? (
+        {/* Not while the seasons or the episodes are on their way: the
+            spinner says that. */}
+        {!seasonsLoading && !isLoading && (episodes?.length || 0) === 0 ? (
           <View className='flex flex-col'>
             <Text className='text-neutral-500'>
               {t("item_card.no_episodes_for_this_season")}

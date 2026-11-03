@@ -80,3 +80,27 @@ test("shows each episode with its own image", async () => {
   expect(screen.getAllByText("episode-image-preferred")).toHaveLength(2);
   expect(screen.queryByText("series-image-preferred")).toBeNull();
 });
+
+// A season said it had no episodes while they were still on their way (seen
+// on an Android TV, 2026-11-03), then showed them.
+test("says nothing about an empty season while its episodes load", async () => {
+  const view = await render(
+    <TVEpisodeList
+      onEpisodePress={() => {}}
+      episodes={[]}
+      isLoading
+      emptyText='No episodes'
+    />,
+  );
+  expect(screen.queryByText("No episodes")).toBeNull();
+
+  await view.rerender(
+    <TVEpisodeList
+      onEpisodePress={() => {}}
+      episodes={[]}
+      isLoading={false}
+      emptyText='No episodes'
+    />,
+  );
+  expect(screen.getByText("No episodes")).toBeTruthy();
+});

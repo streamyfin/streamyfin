@@ -26,6 +26,8 @@ interface TVEpisodeListProps {
   firstEpisodeRefSetter?: (ref: View | null) => void;
   /** Text to show when episodes array is empty */
   emptyText?: string;
+  /** The episodes are still on their way: an empty list is not an empty season yet. */
+  isLoading?: boolean;
   /** Horizontal padding for the list content */
   horizontalPadding?: number;
 }
@@ -41,6 +43,7 @@ export const TVEpisodeList: React.FC<TVEpisodeListProps> = ({
   scrollViewRef,
   firstEpisodeRefSetter,
   emptyText,
+  isLoading = false,
   horizontalPadding,
 }) => {
   const { availabilityLabel } = useEpisodeAirLabels();
@@ -97,6 +100,7 @@ export const TVEpisodeList: React.FC<TVEpisodeListProps> = ({
       keyExtractor={keyExtractor}
       renderItem={renderItem}
       emptyText={emptyText}
+      isLoading={isLoading}
       scrollViewRef={scrollViewRef}
       horizontalPadding={horizontalPadding}
     />

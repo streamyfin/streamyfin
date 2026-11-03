@@ -3,9 +3,20 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react-native";
 import { createStore, Provider as JotaiProvider } from "jotai";
 import type { DownloadedItem } from "@/providers/Downloads/types";
+import { userAtom } from "@/providers/JellyfinProvider";
 import { SeasonPicker, seasonIndexAtom } from "./SeasonPicker";
 
 let mockDownloads: DownloadedItem[] = [];
+let mockOffline = true;
+/** What the show API answers online: a season, and episodes held until released. */
+const mockShowApi = {
+  getSeasons: jest.fn(),
+  getEpisodes: jest.fn(),
+};
+
+jest.mock("@jellyfin/sdk/lib/utils/api", () => ({
+  getShowApi: () => mockShowApi,
+}));
 
 jest.mock("@/providers/DownloadProvider", () => ({
   useDownload: () => ({
@@ -22,7 +33,7 @@ jest.mock("@/providers/JellyfinProvider", () => {
   };
 });
 jest.mock("@/providers/OfflineModeProvider", () => ({
-  useOfflineMode: () => true,
+  useOfflineMode: () => mockOffline,
 }));
 jest.mock("react-i18next", () => ({
   useTranslation: () => ({ t: (key: string) => key }),
@@ -105,5 +116,80 @@ describe("SeasonPicker offline", () => {
     await waitFor(() => expect(screen.getByText("Return")).toBeTruthy());
     expect(screen.queryByText("Pilot")).toBeNull();
     expect(store.get(seasonIndexAtom)[SERIES.Id!]).toBe(2);
+  });
+});
+
+describe("SeasonPicker online", () => {
+  beforeEach(() => {
+    mockOffline = false;
+    mockShowApi.getSeasons.mockResolvedValue({
+      data: { Items: [{ Id: "season-1", IndexNumber: 1, Name: "Season 1" }] },
+    });
+  });
+  afterEach(() => {
+    mockOffline = true;
+  });
+
+  // The season said it had no episodes while they were still on their way,
+  // under the spinner, on a slow server.
+  test("says nothing about an empty season while its episodes load", async () => {
+    let release = () => {};
+    mockShowApi.getEpisodes.mockReturnValue(
+      new Promise((resolve) => {
+        release = () => resolve({ data: { Items: [], TotalRecordCount: 0 } });
+      }),
+    );
+    const store = createStore();
+    store.set(userAtom, { Id: "user" });
+    store.set(seasonIndexAtom, { [SERIES.Id!]: 1 });
+
+    await renderPicker(store);
+    await waitFor(() => expect(mockShowApi.getEpisodes).toHaveBeenCalled());
+    expect(
+      screen.queryByText("item_card.no_episodes_for_this_season"),
+    ).toBeNull();
+
+    release();
+    await waitFor(() =>
+      expect(
+        screen.getByText("item_card.no_episodes_for_this_season"),
+      ).toBeTruthy(),
+    );
+  });
+
+  // Before the seasons arrive no season is picked, so the episodes are not
+  // even asked for yet: that wait is no empty season either (seen on an
+  // Android TV, 2026-11-03, after the episodes wait was covered).
+  test("says nothing about an empty season while the seasons load", async () => {
+    let release = () => {};
+    mockShowApi.getSeasons.mockReturnValue(
+      new Promise((resolve) => {
+        release = () =>
+          resolve({
+            data: {
+              Items: [{ Id: "season-1", IndexNumber: 1, Name: "Season 1" }],
+            },
+          });
+      }),
+    );
+    mockShowApi.getEpisodes.mockResolvedValue({
+      data: { Items: [], TotalRecordCount: 0 },
+    });
+    const store = createStore();
+    store.set(userAtom, { Id: "user" });
+    store.set(seasonIndexAtom, { [SERIES.Id!]: 1 });
+
+    await renderPicker(store);
+    await waitFor(() => expect(mockShowApi.getSeasons).toHaveBeenCalled());
+    expect(
+      screen.queryByText("item_card.no_episodes_for_this_season"),
+    ).toBeNull();
+
+    release();
+    await waitFor(() =>
+      expect(
+        screen.getByText("item_card.no_episodes_for_this_season"),
+      ).toBeTruthy(),
+    );
   });
 });

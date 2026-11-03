@@ -114,7 +114,7 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
   }, []);
 
   // Fetch seasons
-  const { data: seasons = [] } = useQuery({
+  const { data: seasons = [], isLoading: seasonsLoading } = useQuery({
     queryKey: ["seasons", item.Id, isOffline, downloadedItems.length],
     queryFn: async () => {
       if (isOffline) {
@@ -182,7 +182,7 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
   }, [isOffline, seasons, selectedSeasonIndex]);
 
   // Fetch episodes for selected season
-  const { data: episodesForSeason = [] } = useQuery({
+  const episodesQuery = useQuery({
     queryKey: [
       "episodes",
       item.Id,
@@ -215,6 +215,7 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
       ? !!item.Id && selectedSeasonNumber !== null
       : !!api && !!user?.Id && !!item.Id && !!selectedSeasonId,
   });
+  const episodesForSeason = episodesQuery.data ?? [];
 
   // Find next unwatched episode
   const nextUnwatchedEpisode = useMemo(
@@ -585,6 +586,9 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
             scrollViewRef={episodeListRef}
             firstEpisodeRefSetter={setFirstEpisodeRef}
             emptyText={t("item_card.no_episodes_for_this_season")}
+            // Until the seasons arrive no season is picked and the episodes
+            // are not asked for: neither wait is an empty season.
+            isLoading={seasonsLoading || episodesQuery.isLoading}
             horizontalPadding={HORIZONTAL_PADDING}
           />
         </View>
