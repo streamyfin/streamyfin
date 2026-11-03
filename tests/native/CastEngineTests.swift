@@ -203,6 +203,49 @@ final class Bench {
 
 func close(_ a: Double, _ b: Double) -> Bool { abs(a - b) < 1e-9 }
 
+let request = ReceiverPlayRequest(items: [ReceiverItem(id: "item-1", name: "A film", type: "Movie")])
+
+func describe(_ result: CastLoadResult) -> String {
+  switch result {
+  case .settled(let outcome):
+    if case .failed(let error, _) = outcome { return "settled failed \(error.rawValue)" }
+    return "settled \(outcome.wireName)"
+  case .notSent(let error):
+    return "notSent \(error)"
+  }
+}
+
+final class RecordingBinding: CastBindingListener {
+  var lost: [String] = []
+  func castEngineDidLoseBinding(sessionId: String?, error: String?) {
+    lost.append("\(sessionId ?? "nil") \(error ?? "nil")")
+  }
+}
+
+extension CastEngine {
+  /// Loads the common request and keeps what it settles as.
+  func loadRecorded() -> () -> [String] {
+    var results: [String] = []
+    load(server: server, request: request) { results.append(describe($0)) }
+    return { results }
+  }
+}
+
+func json(_ object: [String: Any]) -> String {
+  (try? JSONSerialization.data(withJSONObject: object)).flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
+}
+
+func playRequest(_ raw: [String: Any]) -> ReceiverPlayRequest {
+  let items = (raw["items"] as? [[String: Any]] ?? []).map { item in
+    ReceiverItem(
+      id: item["Id"] as? String, name: item["Name"] as? String, type: item["Type"] as? String,
+      isFolder: item["IsFolder"] as? Bool ?? false, channelId: item["ChannelId"] as? String,
+      channelName: item["ChannelName"] as? String
+    )
+  }
+  return ReceiverPlayRequest(items: items, startIndex: raw["startIndex"] as? Int)
+}
+
 func subtitle(_ engine: CastEngine) -> Int {
   var value = -2
   engine.getCurrentSubtitleTrack { value = $0 }
@@ -606,6 +649,261 @@ enum CastEngineTests {
       check(
         "requestsGoThroughTheHost",
         bench.delegate.seekRequests == [12] && bench.delegate.playingRequests == [false] && bench.media.seeks.isEmpty && bench.media.calls.isEmpty
+      )
+    }
+
+    // Loading
+
+    do {
+      let bench = Bench()
+      _ = bench.engine().loadRecorded()
+      let expected = (try? ReceiverProtocol.playNow(server: server, request: request)) ?? [:]
+      let sent = bench.sentMessages()
+      check(
+        "aLoadSendsOnePlayNowBuiltByTheProtocol",
+        sent.count == 1 && NSDictionary(dictionary: sent[0]).isEqual(to: expected) && bench.delegate.loadings == [true]
+          && !bench.logs.contains { $0.contains("tok-123") }
+      )
+    }
+
+    // Each case of load-outcomes.json through the engine's own deadline, port and media channel.
+    do {
+      let url = URL(fileURLWithPath: vectors).appendingPathComponent("load-outcomes.json")
+      let file = (try? JSONSerialization.jsonObject(with: Data(contentsOf: url))) as? [String: Any] ?? [:]
+      var all = file["timeoutMs"] as? Double == CastEngineConstants.loadTimeoutMs
+      for outcomeCase in file["cases"] as? [[String: Any]] ?? [] {
+        let name = outcomeCase["name"] as? String ?? "?"
+        let sent = playRequest(outcomeCase["request"] as? [String: Any] ?? file["request"] as? [String: Any] ?? [:])
+        let bench = Bench()
+        let engine = bench.engine()
+        if let previous = outcomeCase["previous"] as? [String: Any] { bench.media.report(snapshot(customData: previous)) }
+        var results: [CastLoadResult] = []
+        engine.load(server: server, request: sent) { results.append($0) }
+        let expected = outcomeCase["expected"] as? [String: Any] ?? [:]
+        if expected["refused"] as? String == "container" {
+          let refused: Bool
+          if case .notSent = results.first { refused = results.count == 1 } else { refused = false }
+          if !refused || !bench.port.sent.isEmpty {
+            all = false
+            print("load-outcomes.json: \(name) was not refused")
+          }
+          continue
+        }
+        for event in outcomeCase["events"] as? [[String: Any]] ?? [] {
+          if let status = event["status"] as? [String: Any] {
+            bench.media.report(snapshot(playerState: status["playerState"] as? String ?? "unknown", customData: status))
+          } else if let message = event["message"] as? [String: Any] {
+            bench.port.deliver(json(message))
+          } else if event["timeout"] as? Bool == true {
+            bench.clock.advance(CastEngineConstants.loadTimeoutMs)
+          } else if event["supersede"] as? Bool == true {
+            engine.load(server: server, request: sent) { _ in }
+          }
+        }
+        var want = "settled \(expected["status"] as? String ?? "?")"
+        if let error = expected["error"] as? String { want = "settled failed \(error)" }
+        let got = results.first.map(describe) ?? "nothing"
+        if got != want {
+          all = false
+          print("load-outcomes.json: \(name) gave \(got), expected \(want)")
+        }
+      }
+      check("loadOutcomesThroughTheEngine", all)
+    }
+
+    do {
+      let bench = Bench()
+      bench.source.current = nil
+      let results = bench.engine().loadRecorded()
+      check("aLoadWithoutSessionIsNotSent", results() == ["notSent No connected Cast session"] && bench.port.sent.isEmpty)
+    }
+
+    do {
+      let bench = Bench()
+      bench.port.sendError = "receiver busy"
+      let results = bench.engine().loadRecorded()
+      check("aLoadTheChannelCannotSendIsNotSentAndLeavesNoTimer", results() == ["notSent receiver busy"] && bench.clock.pending == 0)
+    }
+
+    do {
+      let bench = Bench()
+      let results = bench.engine().loadRecorded()
+      let loading = bench.delegate.loadings == [true]
+      bench.media.report(snapshot())
+      check(
+        "aPendingLoadIsLoadingUntilItSettles",
+        loading && results() == ["settled loaded"] && bench.delegate.loadings == [true, false]
+      )
+    }
+
+    do {
+      let bench = Bench()
+      _ = bench.playing()
+      bench.port.deliver(#"{"type":"playbackerror","message":"NotAllowed"}"#)
+      check("aBusErrorOutsideALoadReportsItsWireName", bench.delegate.errors == ["playback_failed"])
+    }
+
+    // Reloads and the queue
+
+    do {
+      let bench = Bench()
+      let engine = bench.playing(42.5)
+      bench.port.deliver(#"{"type":"playbackprogress","data":{"PlayState":{"AudioStreamIndex":2,"SubtitleStreamIndex":5}}}"#)
+      engine.reloadCurrentItem()
+      let replay = ReceiverPlayRequest(
+        items: [ReceiverItem(id: "item-1")], startPositionTicks: 425_000_000, mediaSourceId: "ms-1",
+        audioStreamIndex: 2, subtitleStreamIndex: 5
+      )
+      let expected = (try? ReceiverProtocol.playNow(server: server, request: replay)) ?? [:]
+      let sent = bench.sentMessages()
+      check("reloadCurrentItemPlaysTheItemAgainWhereItIs", sent.count == 1 && NSDictionary(dictionary: sent[0]).isEqual(to: expected))
+    }
+
+    do {
+      let bench = Bench()
+      let engine = bench.playing(2)
+      engine.skipToNext()
+      engine.skipToPrevious()
+      let skips = bench.commands() == ["NextTrack {}", "PreviousTrack {}"]
+      engine.enqueue(itemIds: (0..<250).map { "id-\($0)" })
+      let appended = Array(bench.sentMessages().dropFirst(2))
+      let sizes = appended.map { (($0["options"] as? [String: Any])?["items"] as? [Any])?.count ?? -1 }
+      let first = ((appended.first?["options"] as? [String: Any])?["items"] as? [[String: Any]])?.first ?? [:]
+      check(
+        "queueCommandsReachTheReceiver",
+        skips && appended.map { $0["command"] as? String } == ["PlayLast", "PlayLast", "PlayLast"] && sizes == [100, 100, 50]
+          && NSDictionary(dictionary: first).isEqual(to: ["Id": "id-0", "IsFolder": false])
+      )
+    }
+
+    // The receiver never goes back to the start of the item it plays: past three seconds the engine
+    // seeks there, as the chrome's own previous does.
+    do {
+      let bench = Bench()
+      let engine = bench.playing(42.5)
+      engine.skipToPrevious()
+      check("aPreviousPastThreeSecondsRestartsTheItem", bench.media.seeks == [0] && bench.port.sent.isEmpty)
+    }
+
+    // The end of an item
+
+    // Vigilance 4: after IDLE + FINISHED the receiver fetches the next item before it buffers.
+    do {
+      let bench = Bench()
+      _ = bench.playing()
+      bench.media.report(snapshot(playerState: "idle", idleReason: "finished"))
+      bench.clock.advance(14_999)
+      let notYet = bench.delegate.ended == 0
+      bench.clock.advance(1)
+      check("aFinishedItemWithNoNextEndsAfterFifteenSeconds", notYet && bench.delegate.ended == 1)
+    }
+
+    do {
+      let bench = Bench()
+      _ = bench.playing()
+      bench.media.report(snapshot(playerState: "idle", idleReason: "finished"))
+      bench.clock.advance(5_000)
+      bench.media.report(snapshot(playerState: "buffering", customData: ours(["itemId": "item-2", "playSessionId": "ps-2"])))
+      bench.clock.advance(15_000)
+      check("aNextItemWithinTheWaitCancelsTheEnd", bench.delegate.ended == 0)
+    }
+
+    // The session's life
+
+    do {
+      let bench = Bench()
+      let engine = bench.playing()
+      let results = engine.loadRecorded()
+      bench.source.listener?.castSessionDidSuspend(sessionId: "session-1")
+      check(
+        "aSuspendKeepsTheStateAndShowsLoading",
+        bench.delegate.loadings.last == true && engine.currentItemId == "item-1" && results().isEmpty
+      )
+    }
+
+    do {
+      let bench = Bench()
+      _ = bench.playing()
+      bench.source.listener?.castSessionDidSuspend(sessionId: "session-1")
+      let media2 = FakeMedia()
+      bench.source.listener?.castSessionDidResume(FakeSession(media: media2))
+      check(
+        "aResumeRebindsTheNewMediaClientAndRefreshes",
+        bench.media.listener == nil && media2.listener != nil && media2.statusRequests == 1
+      )
+    }
+
+    // Vigilance 1: a status the replaced media client had queued arrives after the new binding.
+    do {
+      let bench = Bench()
+      let engine = bench.playing()
+      let pausesBefore = bench.delegate.pauses
+      let stale = bench.media.listener
+      bench.source.listener?.castSessionDidResume(FakeSession(media: FakeMedia()))
+      bench.media.status = snapshot(playerState: "paused", customData: ours(["playSessionId": "ps-9"]))
+      stale?.castMediaDidUpdateStatus()
+      check(
+        "aStatusFromTheMediaClientBeforeTheResumeIsIgnored",
+        stale != nil && bench.delegate.pauses == pausesBefore && engine.currentItemId == "item-1"
+      )
+    }
+
+    // The receiver sends its bus to the last sender that spoke: after a resume, a load's engine has
+    // to speak first to hear the receiver again (spec §8, risk 6).
+    do {
+      let bench = Bench()
+      _ = bench.engine().loadRecorded()
+      bench.hub.suspend()
+      let port2 = FakeChannelPort()
+      bench.hub.attach(port2)
+      let sent = port2.sent.compactMap { try? JSONSerialization.jsonObject(with: Data($0.text.utf8)) as? [String: Any] }
+      check(
+        "aResumeAfterALoadReclaimsTheBusWithAnInertCommand",
+        sent.count == 1 && sent[0]["command"] as? String == "SetVolume" && (sent[0]["options"] as? [String: Any])?.isEmpty == true
+      )
+    }
+
+    do {
+      let bench = Bench()
+      _ = bench.playing()
+      bench.hub.suspend()
+      let port2 = FakeChannelPort()
+      bench.hub.attach(port2)
+      check("aResumeWithoutALoadSendsNothing", port2.sent.isEmpty)
+    }
+
+    do {
+      let bench = Bench()
+      let engine = bench.playing()
+      let binding = RecordingBinding()
+      engine.bindingListener = binding
+      bench.source.listener?.castSessionDidResume(FakeSession(sessionId: "session-2"))
+      check("aResumeOnAnotherSessionLosesTheBinding", binding.lost == ["session-1 The Cast session was replaced"])
+    }
+
+    do {
+      let bench = Bench()
+      let engine = bench.playing()
+      let binding = RecordingBinding()
+      engine.bindingListener = binding
+      let results = engine.loadRecorded()
+      bench.source.listener?.castSessionDidEnd(sessionId: "session-1", error: nil)
+      check(
+        "theSessionEndingSupersedesThePendingLoadAndLosesTheBinding",
+        results() == ["settled superseded"] && binding.lost == ["session-1 nil"]
+      )
+    }
+
+    // iOS cannot tell who launched the receiver app: media there at the binding means another sender
+    // spoke first, nothing there means it is not known (spec §5.4).
+    do {
+      let empty = Bench()
+      let unknown = empty.engine().receiverIdentityIsOurs == nil
+      let taken = Bench()
+      taken.media.status = snapshot(customData: ours())
+      check(
+        "identityIsUnknownOnAnEmptyReceiverAndNotOursWhenMediaWasThere",
+        unknown && taken.engine().receiverIdentityIsOurs == false
       )
     }
 

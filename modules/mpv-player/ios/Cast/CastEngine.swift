@@ -24,6 +24,11 @@ final class CastEngine: TransportEngine, QueueEngine {
   weak var bindingListener: CastBindingListener?
   private(set) var intendedPlayState = false
 
+  /// Whether the receiver's Jellyfin identity is this sender's: it keeps the one of the first message
+  /// since its app started, and nothing on iOS says who started it. Media there at the binding means
+  /// another sender spoke first; otherwise it is not known (spec §5.4).
+  private(set) var receiverIdentityIsOurs: Bool?
+
   private var server: ReceiverServer
   private let sessions: CastSessionSource
   private let hub: ReceiverChannelHub
@@ -68,6 +73,31 @@ final class CastEngine: TransportEngine, QueueEngine {
   }
 
   private var reload: Reload?
+
+  private final class PendingLoad {
+    let tracker: ReceiverLoadTracker
+    let completion: (CastLoadResult) -> Void
+    var cancelTimer: () -> Void = {}
+
+    init(tracker: ReceiverLoadTracker, completion: @escaping (CastLoadResult) -> Void) {
+      self.tracker = tracker
+      self.completion = completion
+    }
+  }
+
+  private var pendingLoad: PendingLoad?
+
+  // Set once a load went out: the receiver sends its bus to the last sender that spoke, so after a
+  // resume this engine speaks first to hear it again (spec §8, risk 6).
+  private var busClaimed = false
+  private var suspended = false
+
+  // After IDLE + FINISHED the receiver fetches the next item before it buffers: the end waits.
+  private var cancelEndWait: (() -> Void)?
+
+  // A failed PlaybackInfo comes as a connection error, then a NoCompatibleStream playbackerror that
+  // belongs to the same failure.
+  private var noCompatibleStreamFollows = false
 
   // The state the getters read, copied after each change.
   private struct Published {
@@ -128,6 +158,7 @@ final class CastEngine: TransportEngine, QueueEngine {
   private func bind(_ session: CastSessionPort) {
     self.session = session
     volume = session.volume
+    if let status = session.media?.status, status.hasMedia || status.customData != nil { receiverIdentityIsOurs = false }
     let sessionEar = SessionEar(engine: self)
     self.sessionEar = sessionEar
     sessions.listener = sessionEar
@@ -153,6 +184,9 @@ final class CastEngine: TransportEngine, QueueEngine {
   }
 
   private func detach() {
+    if let load = pendingLoad, let outcome = load.tracker.supersede() { settleLoad(load, outcome) }
+    endWait(false)
+    suspended = false
     media?.listener = nil
     media = nil
     mediaEar = nil
@@ -168,6 +202,46 @@ final class CastEngine: TransportEngine, QueueEngine {
     session = nil
   }
 
+  // A suspended session keeps the state and the pending load, whose deadline runs on (spec §2.4).
+  fileprivate func suspendBinding() {
+    guard let bound = session, !suspended else { return }
+    suspended = true
+    stopTicking()
+    setLoading(true)
+    log("session \(bound.sessionId ?? "?") suspended")
+  }
+
+  // A resume hands a new session object under the same id, with a new media client.
+  fileprivate func resumeBinding(_ resumed: CastSessionPort) {
+    guard let bound = session else { return }
+    guard resumed.sessionId == bound.sessionId else {
+      loseBinding(Self.sessionReplacedError)
+      return
+    }
+    suspended = false
+    session = resumed
+    volume = resumed.volume
+    attachMedia(resumed.media)
+    publishState()
+    log("session \(resumed.sessionId ?? "?") resumed")
+  }
+
+  fileprivate func loseBinding(_ error: String?) {
+    guard let sessionId = session?.sessionId else { return }
+    detach()
+    bindingListener?.castEngineDidLoseBinding(sessionId: sessionId, error: error)
+  }
+
+  fileprivate func onBusReady(sessionId: String) {
+    guard let bound = session else { return }
+    guard sessionId == bound.sessionId else {
+      loseBinding(Self.sessionReplacedError)
+      return
+    }
+    // An inert command: SetVolume without a level changes nothing on the receiver.
+    if busClaimed { send("SetVolume", [:]) }
+  }
+
   // MARK: - Loading
 
   // VideoLoadConfig carries a URL only, and the receiver plays Jellyfin items.
@@ -175,6 +249,62 @@ final class CastEngine: TransportEngine, QueueEngine {
     onMain()
     log("refused a URL load")
     delegate?.engine(self, didFailWithError: Self.urlLoadError)
+  }
+
+  /// Plays `request` on the receiver, the way JS does (spec §5.2): one PlayNow, settled by what the
+  /// receiver reports, the first event winning, or never sent. A newer load supersedes this one.
+  func load(server: ReceiverServer, request: ReceiverPlayRequest, completion: @escaping (CastLoadResult) -> Void) {
+    onMain()
+    guard session?.isConnected == true else {
+      completion(.notSent(Self.noSessionError))
+      return
+    }
+    let message: [String: Any]
+    do {
+      message = try ReceiverProtocol.playNow(server: server, request: request)
+    } catch {
+      completion(.notSent(String(describing: error)))
+      return
+    }
+    self.server = server
+    reload?.cancelTimer()
+    reload = nil
+    endWait(false)
+    noCompatibleStreamFollows = false
+    // The media on the TV now, read at the send: a status of its play session is never this load.
+    let load = PendingLoad(tracker: ReceiverLoadTracker(request: request, previousPlaySessionId: ours?.playSessionId), completion: completion)
+    let previous = pendingLoad
+    // The new load is pending before the old one settles, so loading never blinks off between them.
+    pendingLoad = load
+    if let previous, let outcome = previous.tracker.supersede() { settleLoad(previous, outcome) }
+    load.cancelTimer = deliver(CastEngineConstants.loadTimeoutMs) { [weak self] in
+      guard let self, self.pendingLoad === load, let outcome = load.tracker.timeOut() else { return }
+      self.settleLoad(load, outcome)
+    }
+    setLoading(true)
+    sendMessage("PlayNow", message, sent: { [weak self] in self?.busClaimed = true }) { [weak self] error in
+      guard let self, self.pendingLoad === load else { return }
+      load.cancelTimer()
+      self.pendingLoad = nil
+      self.setLoading(self.isBuffering())
+      load.completion(.notSent(error))
+    }
+  }
+
+  /// The item again where it is, with the tracks it plays: also how a quality change applies the
+  /// envelope's new cap.
+  func reloadCurrentItem() {
+    onMain()
+    guard let data = loadedItem() else { return }
+    let state = read { $0 }
+    playAgain(data, audio: state.audio >= 0 ? state.audio : nil, subtitle: state.subtitle)
+  }
+
+  private func settleLoad(_ load: PendingLoad, _ outcome: ReceiverLoadOutcome) {
+    load.cancelTimer()
+    if pendingLoad === load { pendingLoad = nil }
+    if case .loaded = outcome {} else { setLoading(isBuffering()) }
+    load.completion(.settled(outcome))
   }
 
   // MARK: - Transport
@@ -322,6 +452,32 @@ final class CastEngine: TransportEngine, QueueEngine {
 
   // MARK: - Queue face
 
+  // The queue lives on the receiver, which the sender does not see; it announces no QUEUE_NEXT, so
+  // the bus carries these.
+
+  func skipToNext() {
+    onMain()
+    if loadedItem() != nil { send("NextTrack", [:]) }
+  }
+
+  // The receiver never goes back to the start of the item it plays: past the chrome's threshold, the
+  // engine seeks there instead.
+  func skipToPrevious() {
+    onMain()
+    guard loadedItem() != nil else { return }
+    if position > CastEngineConstants.previousRestartSeconds { seek(0) } else { send("PreviousTrack", [:]) }
+  }
+
+  // A Cast message holds 64 KB: the items go a window at a time.
+  func enqueue(itemIds: [String]) {
+    onMain()
+    guard session != nil else { return }
+    stride(from: 0, to: itemIds.count, by: CastEngineConstants.maxQueueItems).forEach { start in
+      let window = Array(itemIds[start..<min(start + CastEngineConstants.maxQueueItems, itemIds.count)])
+      sendMessage("PlayLast", ReceiverProtocol.playLast(server: server, itemIds: window))
+    }
+  }
+
   var currentItemId: String? { read { $0.itemId } }
 
   var targetVolume: Double? { read { $0.volume } }
@@ -336,10 +492,16 @@ final class CastEngine: TransportEngine, QueueEngine {
   fileprivate func onStatus(from port: CastMediaPort) {
     guard port === media else { return }
     guard let status = port.status, status.hasMedia else {
+      let finished = port.status?.playerState == State.idle && port.status?.idleReason == Reason.finished
+      if finished, !(playerState == State.idle && idleReason == Reason.finished) { endWait(true) }
       clearMedia(port.status?.playerState ?? State.idle)
+      idleReason = port.status?.idleReason
       return
     }
     let data = status.customData.map(ReceiverProtocol.parseCustomData)
+    if let load = pendingLoad, let outcome = load.tracker.onMediaStatus(customData: data, playerState: status.playerState) {
+      settleLoad(load, outcome)
+    }
     if let pending = reload, let outcome = pending.tracker.onMediaStatus(customData: data, playerState: status.playerState) {
       settleReload(pending, outcome, recompute: false)
     }
@@ -347,6 +509,8 @@ final class CastEngine: TransportEngine, QueueEngine {
       playSessionId = data?.playSessionId
       chosenAudio = nil
       chosenSubtitle = nil
+      // The next item: what ended was not the end.
+      if data?.playSessionId != nil { endWait(false) }
     }
     ours = data
     hasMedia = true
@@ -391,9 +555,22 @@ final class CastEngine: TransportEngine, QueueEngine {
       if let value = state["SubtitleStreamIndex"] { chosenSubtitle = (value as? NSNumber)?.intValue }
       publishState()
     }
-    if let pending = reload, let outcome = pending.tracker.onMessage(message) {
-      settleReload(pending, outcome, recompute: true)
+    guard let error = ReceiverProtocol.loadErrorOf(message) else { return }
+    if let load = pendingLoad, let outcome = load.tracker.onMessage(message) {
+      noCompatibleStreamFollows = error == .playbackInfoFailed
+      settleLoad(load, outcome)
+      return
     }
+    if let pending = reload, let outcome = pending.tracker.onMessage(message) {
+      noCompatibleStreamFollows = error == .playbackInfoFailed
+      settleReload(pending, outcome, recompute: true)
+      return
+    }
+    if noCompatibleStreamFollows, error == .playbackFailed {
+      noCompatibleStreamFollows = false
+      return
+    }
+    delegate?.engine(self, didFailWithError: error.rawValue)
   }
 
   fileprivate func onVolume(_ volume: Double) {
@@ -415,17 +592,18 @@ final class CastEngine: TransportEngine, QueueEngine {
 
   private func reportState(_ state: String, reason: String, data: ReceiverCustomData?) {
     let wasError = playerState == State.idle && idleReason == Reason.error
+    let wasFinished = playerState == State.idle && idleReason == Reason.finished
     playerState = state
     idleReason = reason
     switch state {
     case State.playing:
       intendedPlayState = true
       setPause(false)
-      setLoading(reload != nil)
+      setLoading(awaitingReceiver())
     case State.paused:
       intendedPlayState = false
       setPause(true)
-      setLoading(reload != nil)
+      setLoading(awaitingReceiver())
     case State.buffering, State.loading:
       setLoading(true)
     case State.idle:
@@ -433,12 +611,29 @@ final class CastEngine: TransportEngine, QueueEngine {
       if reason == Reason.error, !wasError { delegate?.engine(self, didFailWithError: Self.playbackError) }
       // A stream change for the same item: a new play session follows.
       if reason == Reason.interrupted { setLoading(true) }
+      if reason == Reason.finished, !wasFinished { endWait(true) }
     default:
       break
     }
     if data?.canSeek == true, let playSession = data?.playSessionId, playSession != readyToSeekFor {
       readyToSeekFor = playSession
       delegate?.engine(self, didBecomeReadyToSeek: true)
+    }
+  }
+
+  private func awaitingReceiver() -> Bool { reload != nil || pendingLoad != nil || suspended }
+
+  private func isBuffering() -> Bool { playerState == State.buffering || playerState == State.loading || awaitingReceiver() }
+
+  /// Arms the wait for the next item, or cancels it.
+  private func endWait(_ armed: Bool) {
+    cancelEndWait?()
+    cancelEndWait = nil
+    guard armed else { return }
+    cancelEndWait = deliver(CastEngineConstants.nextItemWaitMs) { [weak self] in
+      guard let self else { return }
+      self.cancelEndWait = nil
+      self.delegate?.engineDidReachEnd(self)
     }
   }
 
@@ -493,7 +688,7 @@ final class CastEngine: TransportEngine, QueueEngine {
   private func recomputePosition() {
     guard hasMedia, let port = media, let status = port.status else { return }
     position = currentPosition(of: status, port: port, data: ours)
-    setLoading(playerState == State.buffering || playerState == State.loading)
+    setLoading(isBuffering())
     publishState()
     delegate?.engine(self, didUpdateProgress: position, duration: itemDuration, cacheSeconds: 0)
   }
@@ -504,7 +699,9 @@ final class CastEngine: TransportEngine, QueueEngine {
     sendMessage(command, ReceiverProtocol.message(command: command, server: server, options: options), failed: failed)
   }
 
-  private func sendMessage(_ command: String, _ message: [String: Any], failed: @escaping (String) -> Void = { _ in }) {
+  private func sendMessage(
+    _ command: String, _ message: [String: Any], sent: @escaping () -> Void = {}, failed: @escaping (String) -> Void = { _ in }
+  ) {
     guard
       let data = try? JSONSerialization.data(withJSONObject: message, options: [.sortedKeys, .withoutEscapingSlashes]),
       let text = String(data: data, encoding: .utf8)
@@ -514,7 +711,10 @@ final class CastEngine: TransportEngine, QueueEngine {
     }
     log("send \(command)")
     hub.send(namespace: ReceiverProtocol.namespace, text: text) { [weak self] error in
-      guard let error else { return }
+      guard let error else {
+        sent()
+        return
+      }
       self?.log("\(command) not sent: \(error)")
       failed(error)
     }
@@ -589,6 +789,7 @@ final class CastEngine: TransportEngine, QueueEngine {
   private enum Reason {
     static let error = "error"
     static let interrupted = "interrupted"
+    static let finished = "finished"
   }
 }
 
@@ -614,8 +815,12 @@ private final class BusEar: ReceiverBusListener {
   init(engine: CastEngine) { self.engine = engine }
 
   func receiverBusDidReceive(_ raw: String) { engine?.onBusMessage(ReceiverProtocol.parseMessage(raw)) }
-  func receiverBusDidBecomeReady(sessionId: String) {}
-  func receiverBusDidLose(sessionId: String?, ended: Bool) {}
+  func receiverBusDidBecomeReady(sessionId: String) { engine?.onBusReady(sessionId: sessionId) }
+
+  // The session listener ends the binding, with the SDK's reason: the hub's end carries none.
+  func receiverBusDidLose(sessionId: String?, ended: Bool) {
+    if !ended { engine?.suspendBinding() }
+  }
 }
 
 private final class SessionEar: CastSessionListener {
@@ -623,8 +828,8 @@ private final class SessionEar: CastSessionListener {
 
   init(engine: CastEngine) { self.engine = engine }
 
-  func castSessionDidSuspend(sessionId: String?) {}
-  func castSessionDidResume(_ session: CastSessionPort) {}
-  func castSessionDidEnd(sessionId: String?, error: String?) {}
+  func castSessionDidSuspend(sessionId: String?) { engine?.suspendBinding() }
+  func castSessionDidResume(_ session: CastSessionPort) { engine?.resumeBinding(session) }
+  func castSessionDidEnd(sessionId: String?, error: String?) { engine?.loseBinding(error) }
   func castSessionDidReceiveVolume(_ volume: Double, muted: Bool) { engine?.onVolume(volume) }
 }
