@@ -1,6 +1,6 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { t } from "i18next";
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Platform, TouchableOpacity, View } from "react-native";
 import { seasonLabel } from "@/utils/seasonLabel";
 import { Text } from "../common/Text";
@@ -33,6 +33,8 @@ export const SeasonDropdown: React.FC<Props> = ({
 }) => {
   const isTv = Platform.isTV;
   const [open, setOpen] = useState(false);
+  // The hook's t changes with the language, which renames the options.
+  const { t } = useTranslation();
 
   const keys = useMemo<SeasonKeys>(
     () =>
@@ -76,7 +78,7 @@ export const SeasonDropdown: React.FC<Props> = ({
           }) || [],
       },
     ],
-    [seasons, seasonIndex, onSelect],
+    [seasons, seasonIndex, onSelect, t],
   );
 
   useEffect(() => {

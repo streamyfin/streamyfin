@@ -2,7 +2,6 @@ import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { getShowApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import i18next from "i18next";
 import { atom, useAtom } from "jotai";
 import { useEffect, useMemo } from "react";
 import { TouchableOpacity, View } from "react-native";
@@ -23,7 +22,6 @@ import {
   getDownloadedSeasonNumbers,
 } from "@/utils/downloads/offline-series";
 import { getUserItemData } from "@/utils/jellyfin/user-library/getUserItemData";
-import { seasonLabel } from "@/utils/seasonLabel";
 import { runtimeTicksToSeconds } from "@/utils/time";
 import { HEADER_LAYOUT, ICON_SIZES } from "./constants";
 
@@ -76,11 +74,11 @@ export const EpisodeList: React.FC<Props> = ({ item, close, goToItem }) => {
           getDownloadedItems(),
           item.SeriesId,
         );
-        // Create fake season objects
+        // Fake season objects, unnamed: SeasonDropdown names them in the
+        // app's language, which a name cached here would not follow.
         return seasonNumbers.map((seasonNumber) => ({
           Id: seasonNumber?.toString(),
           IndexNumber: seasonNumber,
-          Name: seasonLabel(i18next.t, undefined, seasonNumber),
           SeriesId: item.SeriesId,
         }));
       }
