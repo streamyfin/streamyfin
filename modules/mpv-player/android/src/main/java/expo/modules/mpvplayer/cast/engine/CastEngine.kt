@@ -543,7 +543,7 @@ class CastEngine(
         hasMedia = true
         itemDuration = durationOf(data, status.streamDurationMs)
         updateTracks()
-        if (!holdsPosition(status.playerState, status.idleReason)) {
+        if (!holdsPosition(status.playerState)) {
             position = ReceiverProtocol.positionInItem(port.approximatePositionMs / 1000.0, data ?: ReceiverCustomData())
         }
         if (newPlaySession || status.playerState != playerState) {
@@ -557,13 +557,14 @@ class CastEngine(
         loaded?.let { (load, outcome) -> settleLoad(load, outcome) }
     }
 
-    // The position stays on its target through a reload, and through the status that interrupts a
-    // stream for another of the same item, which carries the old customData with the new stream's time.
-    private fun holdsPosition(state: String, reason: String?) = reload != null || (state == IDLE && reason == INTERRUPTED)
+    // The position stays on its target through a reload, and where it was on an idle status: the SDK
+    // reports the stream at 0 once the receiver stopped (Task 14, run 12), and the status that interrupts
+    // a stream for another of the same item carries the old customData with the new stream's time.
+    private fun holdsPosition(state: String) = reload != null || state == IDLE
 
     private fun onTick(positionMs: Long) {
         if (!hasMedia) return
-        if (!holdsPosition(playerState, idleReason)) position = ReceiverProtocol.positionInItem(positionMs / 1000.0, ours ?: ReceiverCustomData())
+        if (!holdsPosition(playerState)) position = ReceiverProtocol.positionInItem(positionMs / 1000.0, ours ?: ReceiverCustomData())
         delegate?.onPositionChanged(position, itemDuration, 0.0)
     }
 

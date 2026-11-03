@@ -847,18 +847,20 @@ enum CastEngineTests {
     }
 
     // A stop from the TV leaves an idle status that still carries the media, which play() on the
-    // media channel cannot resume: Play casts the item again where it stopped.
+    // media channel cannot resume: Play casts the item again where it stopped. Android's SDK reports
+    // the stream at 0 on that status (Task 14, run 12), so the engine keeps its own position there.
     do {
       let bench = Bench()
       let engine = bench.playing(42.5)
-      bench.media.report(snapshot(playerState: "idle", idleReason: "cancelled", streamPosition: 42.5))
+      bench.media.report(snapshot(playerState: "idle", idleReason: "cancelled", streamPosition: 0), position: 0)
+      let held = close(engine.getCurrentPosition(), 42.5)
       engine.play()
       let sent = bench.sentMessages()
       let options = sent.first?["options"] as? [String: Any] ?? [:]
       let ids = (options["items"] as? [[String: Any]] ?? []).map { $0["Id"] as? String }
       check(
         "playAfterAStopFromTheTvCastsTheItemAgain",
-        sent.count == 1 && sent[0]["command"] as? String == "PlayNow" && ids == ["item-1"]
+        held && sent.count == 1 && sent[0]["command"] as? String == "PlayNow" && ids == ["item-1"]
           && (options["startPositionTicks"] as? NSNumber)?.int64Value == 425_000_000 && bench.media.calls.isEmpty
       )
     }

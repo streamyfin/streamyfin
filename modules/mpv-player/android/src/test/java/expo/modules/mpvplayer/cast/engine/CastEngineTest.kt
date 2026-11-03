@@ -529,11 +529,13 @@ class CastEngineTest {
     }
 
     // A stop from the TV leaves an idle status that still carries the media, which play() on the
-    // media channel cannot resume: Play casts the item again where it stopped.
+    // media channel cannot resume: Play casts the item again where it stopped. The SDK reports the
+    // stream at 0 on that status (Task 14, run 12), so the engine keeps its own position there.
     @Test
     fun playAfterAStopFromTheTvCastsTheItemAgain() {
         val engine = playing(42_500)
-        media.report(snapshot(playerState = "idle", idleReason = "cancelled"), 42_500)
+        media.report(snapshot(playerState = "idle", idleReason = "cancelled"), 0)
+        assertEquals(42.5, engine.currentPosition, 1e-9)
         engine.play()
         val sent = JSONObject(port.sent.single().second)
         assertEquals("PlayNow", sent.getString("command"))

@@ -603,7 +603,7 @@ final class CastEngine: TransportEngine, QueueEngine {
     ours = data
     hasMedia = true
     itemDuration = Self.duration(of: data, streamDuration: status.streamDuration)
-    if !holdsPosition(status.playerState, status.idleReason) { position = currentPosition(of: status, port: port, data: data) }
+    if !holdsPosition(status.playerState) { position = currentPosition(of: status, port: port, data: data) }
     if newPlaySession || status.playerState != playerState {
       let canClientSeek = data?.canClientSeek.map { "\($0)" } ?? "nil"
       log("status \(status.playerState) playSession=\(data?.playSessionId ?? "nil") playMethod=\(data?.playMethod ?? "nil") canClientSeek=\(canClientSeek)")
@@ -615,11 +615,10 @@ final class CastEngine: TransportEngine, QueueEngine {
     if let load, let loadOutcome { settleLoad(load, loadOutcome) }
   }
 
-  // The position stays on its target through a reload, and through the status that interrupts a
-  // stream for another of the same item, which carries the old customData with the new stream's time.
-  private func holdsPosition(_ state: String, _ reason: String?) -> Bool {
-    reload != nil || (state == State.idle && reason == Reason.interrupted)
-  }
+  // The position stays on its target through a reload, and where it was on an idle status: Android's
+  // SDK reports the stream at 0 once the receiver stopped (Task 14, run 12), and the status that
+  // interrupts a stream for another of the same item carries the old customData with the new stream's time.
+  private func holdsPosition(_ state: String) -> Bool { reload != nil || state == State.idle }
 
   private func scheduleTick() {
     cancelTick = deliver(CastEngineConstants.progressIntervalMs) { [weak self] in
@@ -631,7 +630,7 @@ final class CastEngine: TransportEngine, QueueEngine {
   // No progress listener on iOS: the engine reads the media channel every second while it has media.
   private func tick() {
     guard hasMedia, let port = media, let status = port.status, status.hasMedia else { return }
-    if !holdsPosition(playerState, idleReason) { position = currentPosition(of: status, port: port, data: ours) }
+    if !holdsPosition(playerState) { position = currentPosition(of: status, port: port, data: ours) }
     publishState()
     delegate?.engine(self, didUpdateProgress: position, duration: itemDuration, cacheSeconds: 0)
     scheduleTick()
