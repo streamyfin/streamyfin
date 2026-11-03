@@ -8,6 +8,7 @@
  */
 
 import { spawnSync } from "node:child_process";
+import { realpathSync } from "node:fs";
 import { resolve, sep } from "node:path";
 
 export interface SyncPlayAccount {
@@ -89,18 +90,33 @@ const itemCodes = (raw: string | undefined): string[] => {
 
 /**
  * Whether a `git add` in the checkout would take this file: it lies inside and git does not
- * ignore it, which the Python bench refuses too. A git that does not answer counts as yes.
+ * ignore it, which the Python bench refuses too. A link is followed to its file, and only a
+ * missing git counts as no: one that does not start or answer cannot vouch for the file.
  */
 export const gitCommittable =
-  (root: string) =>
+  (
+    root: string,
+    spawn: (
+      command: string,
+      args: string[],
+      options: { timeout: number },
+    ) => { error?: Error; status: number | null } = spawnSync,
+  ) =>
   (path: string): boolean => {
-    const file = resolve(path);
-    if (!file.startsWith(`${resolve(root)}${sep}`)) return false;
-    const result = spawnSync("git", ["-C", root, "check-ignore", "-q", file], {
+    const real = (target: string) => {
+      try {
+        return realpathSync(target);
+      } catch {
+        return resolve(target);
+      }
+    };
+    const file = real(path);
+    if (!file.startsWith(`${real(root)}${sep}`)) return false;
+    const result = spawn("git", ["-C", root, "check-ignore", "-q", file], {
       timeout: 10_000,
     });
     if (result.error) {
-      return (result.error as NodeJS.ErrnoException).code === "ETIMEDOUT";
+      return (result.error as NodeJS.ErrnoException).code !== "ENOENT";
     }
     // 0: ignored, 1: not ignored, 128: not a git checkout.
     return result.status === 1;
