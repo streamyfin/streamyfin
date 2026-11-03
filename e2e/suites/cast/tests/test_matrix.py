@@ -2,6 +2,7 @@ import json
 import unittest
 from pathlib import Path
 from unittest import mock
+from urllib.error import URLError
 
 from bench.config import CAST_KINDS
 from bench.jellyfin import JellyfinHttpError
@@ -222,18 +223,63 @@ class ServerViewTests(unittest.TestCase):
     def test_server_view_matches_the_receiver_device_name_as_jellyfin_records_it(self):
         # The receiver strips punctuation from the name it is given before registering with
         # the server: "Salon - Chromecast" becomes "Salon  Chromecast" in the sessions list.
-        sessions = [{"Id": "s1", "DeviceName": "Salon  Chromecast", "Client": "Chromecast", "NowPlayingItem": {"Id": "id-V01"}, "PlayState": {"PlayMethod": "Transcode"}, "TranscodingInfo": {"TranscodeReasons": ["ContainerNotSupported"]}}]
-
-        class Client:
-            def sessions(self, token):
-                return sessions
-
-        driver = CastDriver(Client(), session=type("S", (), {"token": "t", "user_id": "u"})(), cast=None, controller=None, receiver_name="Salon - Chromecast", server_url="http://x", watch_seconds=1)
-        found = driver.server_view({"Id": "id-V01"})
+        sessions = [receiver_session(UserId="u", PlayState={"PlayMethod": "Transcode"}, TranscodingInfo={"TranscodeReasons": ["ContainerNotSupported"]})]
+        found = driver_on(sessions).server_view({"Id": "id-V01"})
         self.assertIsNotNone(found)
         self.assertEqual(found.play_method, "Transcode")
         self.assertEqual(found.transcoding_reasons, ["ContainerNotSupported"])
         self.assertTrue(found.is_transcoding)
+
+    def test_another_users_session_on_the_receiver_is_not_this_run(self):
+        # A shared server: someone else casts the same item to a receiver of the same name. Its
+        # play method must not judge the case, with or without this run's own session.
+        theirs = receiver_session(Id="s0", UserId="someone-else", PlayState={"PlayMethod": "DirectPlay"})
+        ours = receiver_session(Id="s1", UserId="u", PlayState={"PlayMethod": "Transcode"})
+        self.assertIsNone(driver_on([theirs]).server_view({"Id": "id-V01"}))
+        self.assertEqual(driver_on([theirs, ours]).server_view({"Id": "id-V01"}).id, "s1")
+
+
+def receiver_session(**overrides) -> dict:
+    # The receiver strips punctuation from the name it is given before registering with the server.
+    session = {"Id": "s1", "DeviceName": "Salon  Chromecast", "Client": "Chromecast", "UserId": "u", "NowPlayingItem": {"Id": "id-V01"}, "PlayState": {}}
+    session.update(overrides)
+    return session
+
+
+def driver_on(sessions=(), items=()) -> CastDriver:
+    """A driver whose server answers with these sessions, and these audio tracks a page at a time."""
+    requests = []
+
+    class Client:
+        def sessions(self, token):
+            return list(sessions)
+
+        def get(self, path, params=None, token=None):
+            requests.append(dict(params or {}))
+            start, limit = int(params.get("StartIndex", "0")), int(params["Limit"])
+            return {"Items": list(items)[start : start + limit], "TotalRecordCount": len(items)}
+
+    driver = CastDriver(Client(), session=type("S", (), {"token": "t", "user_id": "u"})(), cast=None, controller=None, receiver_name="Salon - Chromecast", server_url="http://x", watch_seconds=1)
+    driver.requests = requests
+    return driver
+
+
+class ResolveTests(unittest.TestCase):
+    def test_an_audio_container_is_looked_for_past_the_first_page(self):
+        # A FLAC track beyond the first page was reported as missing from the server.
+        tracks = [{"Id": f"mp3-{n}", "MediaSources": [{"Container": "mp3"}]} for n in range(5)] + [{"Id": "flac-1", "MediaSources": [{"Container": "flac"}]}]
+        driver = driver_on(items=tracks)
+        with mock.patch.object(matrix, "AUDIO_PAGE_SIZE", 2):
+            found = driver.resolve({"id": "MUSIC-FLAC", "match": {"audioContainer": "flac"}})
+        self.assertEqual(found["Id"], "flac-1")
+        self.assertEqual([request["StartIndex"] for request in driver.requests], ["0", "2", "4"])
+
+    def test_an_audio_container_the_library_lacks_is_missing_after_the_last_page(self):
+        tracks = [{"Id": f"mp3-{n}", "MediaSources": [{"Container": "mp3"}]} for n in range(4)]
+        driver = driver_on(items=tracks)
+        with mock.patch.object(matrix, "AUDIO_PAGE_SIZE", 2):
+            self.assertIsNone(driver.resolve({"id": "MUSIC-FLAC", "match": {"audioContainer": "flac"}}))
+        self.assertEqual([request["StartIndex"] for request in driver.requests], ["0", "2", "4"])
 
 
 class RunTests(unittest.TestCase):
@@ -387,6 +433,14 @@ class MatrixMainTests(unittest.TestCase):
         code, _ = self.main(FakeDriver(missing={"V01", "V03"}), "--cases", "V01,V03")
         self.assertNotEqual(code, 0)
         self.assertEqual(code, matrix.EXIT_NOTHING_PLAYED)
+
+    def test_a_failed_sign_out_keeps_the_verdict(self):
+        # The sign-out comes last: its error used to replace the run's exit code with a traceback.
+        server = FakeServer(logout_error=URLError("server away"))
+        with bench_run(server, FakeReceiver()) as result, mock.patch.object(matrix, "CastDriver", lambda *_args, **_kwargs: FakeDriver()):
+            code = matrix.main(["--server", "beta13", "--target", "Living room", "--cases", "V01"])
+        self.assertEqual(code, 0)
+        self.assertIn("sign-out failed", result.stderr.getvalue())
 
     def test_the_table_reaches_the_published_copy_as_a_table(self):
         code, result = self.main(FakeDriver(), "--cases", "V01,V03")

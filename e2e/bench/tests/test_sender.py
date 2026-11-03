@@ -104,19 +104,20 @@ class WatchTests(unittest.TestCase):
     # The receiver keeps the token of the last message for its own requests (progress,
     # transcoded segments); a sign-out while it still plays would cut them off.
     def test_sign_out_waits_for_the_receiver_to_stop(self):
-        self.assertFalse(should_sign_out("play-now", "PLAYING"))
-        self.assertFalse(should_sign_out("pause", "PAUSED"))
-        self.assertFalse(should_sign_out("seek", "BUFFERING"))
-        self.assertTrue(should_sign_out("stop", "IDLE"))
-        self.assertTrue(should_sign_out("play-now", "IDLE"))
-        self.assertTrue(should_sign_out("stop", "PLAYING"))
+        self.assertFalse(should_sign_out("PLAYING"))
+        self.assertFalse(should_sign_out("PAUSED"))
+        self.assertFalse(should_sign_out("BUFFERING"))
+        self.assertTrue(should_sign_out("IDLE"))
+
+    def test_a_stop_the_receiver_did_not_obey_keeps_the_token(self):
+        # A Stop lost on the way, or ignored, leaves the receiver playing with the token: revoking
+        # it after any stop cut the stream on the TV.
+        self.assertFalse(should_sign_out("PLAYING"))
 
     def test_a_state_unread_after_sending_keeps_the_token(self):
         # A Ctrl-C during the watch, or a lost connection, leaves the state unknown while the
         # receiver may well play with the token: revoking it broke the playback on the TV.
-        self.assertFalse(should_sign_out("play-now", None))
-        self.assertFalse(should_sign_out("seek", None))
-        self.assertTrue(should_sign_out("stop", None))
+        self.assertFalse(should_sign_out(None))
 
     def test_watch_raises_named_timeout_when_never_playing(self):
         cast = FakeCast([("IDLE", 0.0, {})])
@@ -247,6 +248,41 @@ class ReceiverTokensTests(unittest.TestCase):
             tokens.drop("beta13", "test", "Kitchen")
             self.assertEqual(json.loads(path.read_text()), {})
 
+    def test_an_interrupted_write_leaves_the_previous_tokens(self):
+        # The file was truncated as it opened: a Ctrl-C before the write ended left it empty, and
+        # the next run failed on it with every token it held lost.
+        from bench.jellyfin import AuthSession
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "tokens.local.json"
+            tokens = sender.ReceiverTokens(path)
+            tokens.put("beta13", "test", "Living room", AuthSession("tok1", "user-1"))
+            with mock.patch("bench.sender.json.dumps", side_effect=KeyboardInterrupt), self.assertRaises(KeyboardInterrupt):
+                tokens.put("beta13", "test", "Kitchen", AuthSession("tok2", "user-1"))
+            self.assertEqual(sender.ReceiverTokens(path).get("beta13", "test", "Living room"), AuthSession("tok1", "user-1"))
+            self.assertEqual([entry.name for entry in Path(tmp).iterdir() if entry.suffix == ".tmp"], [])
+
+    def test_a_write_waits_for_another_run_to_finish_its_own(self):
+        # Two runs ending together read the same file, and the later write dropped the other's
+        # token: alive on the server with no record left to revoke it.
+        import fcntl
+        import threading
+
+        from bench.jellyfin import AuthSession
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "tokens.local.json"
+            tokens = sender.ReceiverTokens(path)
+            writer = threading.Thread(target=tokens.put, args=("beta13", "test", "Kitchen", AuthSession("tok2", "user-1")))
+            with open(tokens.lock_path, "a") as other_run:
+                fcntl.flock(other_run, fcntl.LOCK_EX)
+                writer.start()
+                writer.join(0.3)
+                self.assertTrue(writer.is_alive())
+                self.assertFalse(path.exists())
+            writer.join(5)
+            self.assertEqual(tokens.get("beta13", "test", "Kitchen"), AuthSession("tok2", "user-1"))
+
     def test_the_file_lives_where_git_and_biome_ignore_it(self):
         self.assertEqual(sender.TOKENS_PATH, Path(__file__).resolve().parents[1] / "receiver-tokens.local.json")
 
@@ -325,6 +361,23 @@ class SenderMainTests(unittest.TestCase):
                 self.assertEqual(receiver.app_id, OTHER_APP_ID)
                 self.assertEqual(receiver.received, [])
                 self.assertEqual(server.live, [])
+
+    def test_a_held_token_whose_sign_out_fails_stays_recorded(self):
+        # Its sign-out failing, the old token stays valid on the server: dropped from the run, it was
+        # overwritten in the store by the run's own token and stayed alive for good.
+        from urllib.error import URLError
+
+        server = FakeServer(items={"V01": V01})
+        receiver = FakeReceiver()
+        with bench_run(server, receiver) as run:
+            sender_main("play-now", "--item", "V01", "--watch", "0")
+            # The movie ends on the TV, and the server cannot be reached for the sign-out.
+            receiver.status = FakeStatus()
+            server.logout_error = URLError("server away")
+            sender_main("play-now", "--item", "V01", "--watch", "0")
+            stored = json.loads((run.root / "receiver-tokens.local.json").read_text())
+        self.assertEqual(stored["beta13"]["test"]["Living room"]["token"], "tok1")
+        self.assertEqual(receiver.received[-1]["accessToken"], "tok1")
 
     def test_report_steps_carry_the_time_they_happened(self):
         clock = FakeClock()

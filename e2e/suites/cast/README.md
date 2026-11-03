@@ -40,7 +40,9 @@ Maestro flows for simulators and emulators live in `flows/`. They need a build t
 the JS bundle (the release APK on Android); see `e2e/README.md`. On a fresh emulator the
 build only assembles it: `bun run build:android:local`, then
 `adb install -r android/app/build/outputs/apk/release/app-release.apk`, then
-`bun run e2e:smoke` (or `make e2e`, which checks that a device is running first).
+`bun run e2e:smoke` (or `make e2e`). Both run on the one emulator or simulator running, never
+on a phone, since the flow clears the app's data: `make e2e DEVICE=<adb serial>`, or
+`--device` for `e2e/bench/maestro.py`, names another device.
 
 `flows/cast-item-on-receiver.yml` goes further than the smoke flow: from a signed-in app on
 the phone emulator it finds an item by name, connects to a receiver through the header Cast

@@ -8,12 +8,14 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
 BENCH_DIR = Path(__file__).resolve().parent
+REPO_ROOT = BENCH_DIR.parents[1]
 EXAMPLE_PATH = BENCH_DIR / "config.example.json"
 DEFAULT_PATH = BENCH_DIR / "config.local.json"
 ENV_VAR = "E2E_BENCH_CONFIG"
@@ -99,13 +101,22 @@ def _parse_accounts(raw: dict, path: str, file: Path) -> dict[str, Account]:
     return accounts
 
 
+def _parse_url(entry: dict, path: str, file: Path) -> str:
+    # Checked here, where the field can be named: the tools reach urllib outside their config handler.
+    url = _require(entry, "url", path, file).rstrip("/")
+    parsed = urlparse(url)
+    if parsed.scheme not in ("http", "https") or not parsed.hostname:
+        raise BenchConfigError(f"{file}: field {path}.url must be an http or https URL with a host")
+    return url
+
+
 def _parse_servers(raw: dict, file: Path) -> dict[str, Server]:
     servers = {}
     for name, entry in raw.items():
         path = f"servers.{name}"
         servers[name] = Server(
             name=name,
-            url=_require(entry, "url", path, file).rstrip("/"),
+            url=_parse_url(entry, path, file),
             label=_require(entry, "label", path, file),
             accounts=_parse_accounts(_require(entry, "accounts", path, file, dict), f"{path}.accounts", file),
         )
@@ -119,7 +130,11 @@ def _parse_targets(raw: dict, file: Path) -> Targets:
         kind = _require(entry, "kind", path, file)
         if kind not in CAST_KINDS:
             raise BenchConfigError(f"{file}: field {path}.kind must be one of {', '.join(CAST_KINDS)}")
-        chromecasts.append(CastTarget(name=_require(entry, "name", path, file), host=_require(entry, "host", path, file), kind=kind))
+        name = _require(entry, "name", path, file)
+        # A target is selected by its name: a second one under the same name could never be reached.
+        if any(target.name == name for target in chromecasts):
+            raise BenchConfigError(f"{file}: field {path}.name repeats the cast target {name!r}; each target needs its own name")
+        chromecasts.append(CastTarget(name=name, host=_require(entry, "host", path, file), kind=kind))
     return Targets(chromecasts=chromecasts)
 
 
@@ -131,11 +146,32 @@ def resolve_path(path: Path | None = None) -> Path:
     return DEFAULT_PATH
 
 
+def committable(file: Path, root: Path = REPO_ROOT) -> bool:
+    """Whether a `git add` in the checkout would take this file: it lies inside and git does not
+    ignore it, tracked files included. Without git there is no commit to fear."""
+    try:
+        file.resolve().relative_to(root.resolve())
+    except ValueError:
+        return False
+    try:
+        result = subprocess.run(["git", "-C", str(root), "check-ignore", "-q", str(file.resolve())], capture_output=True, timeout=10, check=False)
+    except (OSError, subprocess.SubprocessError):
+        return False
+    # 0: ignored, 1: not ignored, 128: not a git checkout.
+    return result.returncode == 1
+
+
 def load_config(path: Path | None = None) -> BenchConfig:
     file = resolve_path(path)
     if not file.is_file():
         raise BenchConfigError(
             f"{file}: bench configuration not found; copy {EXAMPLE_PATH} to this path, or point {ENV_VAR} at your file"
+        )
+    # The default path is ignored by git; a file named by the variable may not be, and holds the passwords.
+    if path is None and os.environ.get(ENV_VAR) and committable(file):
+        raise BenchConfigError(
+            f"{file}: {ENV_VAR} points at a file of the checkout that git does not ignore, which a git add would commit with its passwords; "
+            "move it out of the repository or name it e2e/bench/<name>.local.json"
         )
     try:
         raw = json.loads(file.read_text())

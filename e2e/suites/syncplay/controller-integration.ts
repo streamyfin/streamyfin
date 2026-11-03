@@ -14,8 +14,7 @@ import {
   ItemFields,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import {
-  getItemsApi,
-  getSessionApi,
+  getLibraryApi,
   getSystemApi,
   getUserApi,
 } from "@jellyfin/sdk/lib/utils/api";
@@ -33,7 +32,14 @@ import {
   type SyncPlayAccount,
   type SyncPlayItem,
 } from "./credentials";
-import { cleanUp, interruptHandler, syncPlayEndpoint } from "./harness";
+import {
+  assertDistinctMovies,
+  cleanUp,
+  interruptHandler,
+  type SignedInClient,
+  signIn,
+  syncPlayEndpoint,
+} from "./harness";
 
 const directory = import.meta.dir;
 const credentials = await resolveCredentials(
@@ -80,6 +86,8 @@ const endpoints = [
 ].map((action) => `/SyncPlay/${action}`);
 let scenario = "connect";
 const clients: Client[] = [];
+// Every client that holds a token, from its sign-in on, whether or not its setup went through.
+const signedIn: SignedInClient[] = [];
 let temporaryUserId: string | undefined;
 // Never the administrator's: the account outlives the run if its delete fails.
 const temporaryPassword = randomUUID();
@@ -92,7 +100,7 @@ const cleanUpOnce = () =>
   (cleaning ??= (async () => {
     for (const client of clients) client.dispose();
     await sleep(150);
-    return cleanUp(clients, admin, temporaryUserId);
+    return cleanUp(signedIn, admin, temporaryUserId);
   })());
 process.once(
   "SIGINT",
@@ -228,7 +236,7 @@ async function resolveItems(
   const found: SyncPlayItem[] = [];
   for (const code of codes) {
     // Jellyfin 10.11 does not search tags; the Tags filter works on every version.
-    const response = await getItemsApi(api).getItems({
+    const response = await getLibraryApi(api).getItems({
       tags: [code],
       recursive: true,
       includeItemTypes: [BaseItemKind.Movie],
@@ -245,6 +253,7 @@ async function resolveItems(
       durationTicks: item.RunTimeTicks,
     });
   }
+  assertDistinctMovies(found, codes);
   return found;
 }
 
@@ -267,17 +276,7 @@ async function client(account: SyncPlayAccount, label: string) {
     }
     return response;
   });
-  const response = await getUserApi(api).authenticateUserByName({
-    authenticateUserByName: { Username: account.name, Pw: account.password },
-  });
-  api.accessToken = response.data.AccessToken ?? "";
-  await getSessionApi(api).postFullCapabilities({
-    clientCapabilitiesDto: {
-      PlayableMediaTypes: ["Video"],
-      SupportsMediaControl: true,
-      SupportedCommands: ["Play"],
-    },
-  });
+  await signIn(label, api, account, signedIn);
   const instance = new Client(label, api);
   clients.push(instance);
   await instance.connect();
@@ -988,9 +987,12 @@ try {
       createUserByName: { Name: name, Password: temporaryPassword },
     });
     temporaryUserId = response.data.Id!;
+    // The whole policy goes back: the update replaces it, provider ids included.
+    const policy = response.data.Policy;
+    if (!policy) throw new Error(`the server returned no policy for ${name}`);
     await getUserApi(host.api).updateUserPolicy({
       userId: temporaryUserId,
-      userPolicy: { ...response.data.Policy, SyncPlayAccess: "None" },
+      userPolicy: { ...policy, SyncPlayAccess: "None" },
     });
     const restricted = await client(
       { name, password: temporaryPassword },
