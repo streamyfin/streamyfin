@@ -8,6 +8,7 @@ import expo.modules.kotlin.functions.Queues
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 import expo.modules.mpvplayer.nativeplayer.engine.NativeEngineKind
+import expo.modules.mpvplayer.nativeplayer.engine.technicalInfoOf
 
 class PlayerAlreadyPresentedException :
     CodedException("A native player is already presented; call load() to swap the stream instead")
@@ -249,7 +250,7 @@ class NativePlayerModule : Module() {
                 return@AsyncFunction
             }
             propsHandler.post {
-                val info = r.getTechnicalInfo()
+                val info = technicalInfoOf(r)
                 promise.resolve(info)
             }
         }

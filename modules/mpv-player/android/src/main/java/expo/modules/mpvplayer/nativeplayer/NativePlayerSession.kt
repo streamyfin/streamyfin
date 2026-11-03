@@ -44,9 +44,11 @@ import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import expo.modules.kotlin.Promise
 import expo.modules.mpvplayer.DeviceKind
 import expo.modules.mpvplayer.MPVLayerRenderer
+import expo.modules.mpvplayer.nativeplayer.engine.ChromeEngine
 import expo.modules.mpvplayer.nativeplayer.engine.ExoPlayerEngine
 import expo.modules.mpvplayer.nativeplayer.engine.NativeEngineKind
 import expo.modules.mpvplayer.nativeplayer.engine.PlayerEngine
+import expo.modules.mpvplayer.nativeplayer.engine.RenderingEngine
 import expo.modules.mpvplayer.nativeplayer.ui.PlayerScreen
 import expo.modules.mpvplayer.nativeplayer.ui.PlayerTheme
 import expo.modules.mpvplayer.nativeplayer.ui.tv.TvPlayerScreen
@@ -67,7 +69,11 @@ class NativePlayerSession(
     }
 
     val viewModel = PlayerViewModel()
-    var engine: PlayerEngine? = null
+    var engine: ChromeEngine? = null
+
+    // The screen of a local engine; null for one without, whose surface paths do not run.
+    private val rendering: RenderingEngine?
+        get() = engine as? RenderingEngine
     private var mediaSessionController: MediaSessionController? = null
 
     private var hostActivity: Activity? = null
@@ -293,7 +299,7 @@ class NativePlayerSession(
         // Engine-provided layer (e.g. the Exo SubtitleView) sits between the
         // video surface and the chrome so cues render over video but under
         // the controls. mpv provides none (subtitles render in-surface).
-        engine?.subtitleOverlay?.let { overlay ->
+        rendering?.subtitleOverlay?.let { overlay ->
             overlay.layoutParams = FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT
@@ -448,7 +454,7 @@ class NativePlayerSession(
         if (!rendererStarted) return
         if (viewModel.isPipActive) return
         val surface = surfaceView?.holder?.surface?.takeIf { it.isValid }
-        val videoBroken = engine?.isVideoOutputBroken() ?: false
+        val videoBroken = rendering?.isVideoOutputBroken() ?: false
         val playing = viewModel.isPlaying
         if (playing && !videoBroken) {
             Log.i(TAG, "[Recover] onResume recovery — playing and pipeline healthy, skipping")
@@ -461,7 +467,7 @@ class NativePlayerSession(
         // Preserve position/tracks/loop/external subs across the reload and
         // follow the user's play intent afterwards.
         engine?.playbackResumeIntent = playing
-        engine?.recoverVideoOutput(surface)
+        rendering?.recoverVideoOutput(surface)
     }
 
     private fun registerLifecycleCallbacks() {
@@ -694,7 +700,7 @@ class NativePlayerSession(
         }
 
         viewModel.setSpeed(config.ui.initialPlaybackSpeed)
-        engine?.setSubtitleDelay(viewModel.subtitleDelay)
+        rendering?.setSubtitleDelay(viewModel.subtitleDelay)
         engine?.setAudioDelay(viewModel.audioDelay)
         engine?.setVolumeBoost(viewModel.volumeBoostPercent)
         engine?.setDialogueBoost(viewModel.dialogueBoostEnabled)
@@ -726,12 +732,12 @@ class NativePlayerSession(
         style.font?.let { appearance["font"] = it }
         style.background?.let { appearance["background"] = it }
         style.backgroundPadding?.let { appearance["backgroundPadding"] = it }
-        engine?.setSubtitleStyle(appearance)
+        rendering?.setSubtitleStyle(appearance)
 
         viewModel.applySubtitleGeometry()
-        style.alignX?.let { engine?.setSubtitleAlignX(it) }
-        style.alignY?.let { engine?.setSubtitleAlignY(it) }
-        style.assOverride?.let { engine?.setSubtitleAssOverride(it) }
+        style.alignX?.let { rendering?.setSubtitleAlignX(it) }
+        style.alignY?.let { rendering?.setSubtitleAlignY(it) }
+        style.assOverride?.let { rendering?.setSubtitleAssOverride(it) }
     }
 
     private fun syncSurfaceSize() {
@@ -745,14 +751,14 @@ class NativePlayerSession(
     }
 
     private fun updateSurfaceGeometry(width: Int, height: Int) {
-        engine?.updateSurfaceSize(width, height)
+        rendering?.updateSurfaceSize(width, height)
         viewModel.updateSubtitleGeometry(width, height)
     }
 
     // MARK: - SurfaceHolder.Callback
     override fun surfaceCreated(holder: SurfaceHolder) {
         surfaceReady = true
-        surfaceView?.let { engine?.attachSurfaceView(it) }
+        surfaceView?.let { rendering?.attachSurfaceView(it) }
         syncSurfaceSize()
 
         if (rendererStarted) {
@@ -773,7 +779,7 @@ class NativePlayerSession(
 
     override fun surfaceDestroyed(holder: SurfaceHolder) {
         surfaceReady = false
-        engine?.detachSurface()
+        rendering?.detachSurface()
     }
 
     // MARK: - Teardown
