@@ -7,9 +7,17 @@ import { useLocalSearchParams, useNavigation } from "expo-router";
 import { useAtom } from "jotai";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ActivityIndicator, TouchableOpacity, View } from "react-native";
+import {
+  ActivityIndicator,
+  Platform,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { HeaderButton } from "@/components/common/HeaderButton";
+import {
+  HeaderButton,
+  HeaderButtonGroup,
+} from "@/components/common/HeaderButton";
 import { HeaderIcon } from "@/components/common/HeaderIcon";
 import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
@@ -29,6 +37,9 @@ import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { runtimeTicksToMinutes } from "@/utils/time";
 
 const ARTWORK_SIZE = 120;
+
+// Cast is off on TV.
+const Chromecast = Platform.isTV ? null : require("@/components/Chromecast");
 
 export default function PlaylistDetailScreen() {
   const { playlistId } = useLocalSearchParams<{ playlistId: string }>();
@@ -101,9 +112,12 @@ export default function PlaylistDetailScreen() {
       headerStyle: { backgroundColor: "transparent" },
       headerShadowVisible: false,
       headerRight: () => (
-        <HeaderButton onPress={() => setPlaylistOptionsOpen(true)}>
-          <HeaderIcon name='more' />
-        </HeaderButton>
+        <HeaderButtonGroup>
+          {Chromecast && <Chromecast.Chromecast />}
+          <HeaderButton onPress={() => setPlaylistOptionsOpen(true)}>
+            <HeaderIcon name='more' />
+          </HeaderButton>
+        </HeaderButtonGroup>
       ),
     });
   }, [playlist?.Name, navigation]);

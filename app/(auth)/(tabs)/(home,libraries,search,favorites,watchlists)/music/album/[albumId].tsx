@@ -10,10 +10,12 @@ import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
   Dimensions,
+  Platform,
   TouchableOpacity,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { HeaderButtonGroup } from "@/components/common/HeaderButton";
 import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
@@ -34,6 +36,9 @@ import { runtimeTicksToMinutes } from "@/utils/time";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const ARTWORK_SIZE = SCREEN_WIDTH * 0.5;
+
+// Cast is off on TV.
+const Chromecast = Platform.isTV ? null : require("@/components/Chromecast");
 
 export default function AlbumDetailScreen() {
   const { albumId } = useLocalSearchParams<{ albumId: string }>();
@@ -95,6 +100,13 @@ export default function AlbumDetailScreen() {
       headerTransparent: true,
       headerStyle: { backgroundColor: "transparent" },
       headerShadowVisible: false,
+      headerRight: Chromecast
+        ? () => (
+            <HeaderButtonGroup>
+              <Chromecast.Chromecast />
+            </HeaderButtonGroup>
+          )
+        : undefined,
     });
   }, [album?.Name, navigation]);
 
