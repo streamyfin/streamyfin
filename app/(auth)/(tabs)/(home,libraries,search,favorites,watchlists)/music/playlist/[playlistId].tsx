@@ -19,9 +19,9 @@ import {
   HeaderButtonGroup,
 } from "@/components/common/HeaderButton";
 import { HeaderIcon } from "@/components/common/HeaderIcon";
-import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
+import { ArtworkImage } from "@/components/music/ArtworkImage";
 import { CreatePlaylistModal } from "@/components/music/CreatePlaylistModal";
 import { MusicTrackItem } from "@/components/music/MusicTrackItem";
 import { PlaylistOptionsSheet } from "@/components/music/PlaylistOptionsSheet";
@@ -225,7 +225,7 @@ export default function PlaylistDetailScreen() {
             }}
           >
             {imageUrl ? (
-              <Image
+              <ArtworkImage
                 source={{ uri: imageUrl }}
                 style={{ width: "100%", height: "100%" }}
                 contentFit='cover'

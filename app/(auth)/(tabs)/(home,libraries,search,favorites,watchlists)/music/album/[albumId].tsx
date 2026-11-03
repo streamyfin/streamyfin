@@ -16,9 +16,9 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { HeaderButtonGroup } from "@/components/common/HeaderButton";
-import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
+import { ArtworkImage } from "@/components/music/ArtworkImage";
 import { CreatePlaylistModal } from "@/components/music/CreatePlaylistModal";
 import { MusicTrackItem } from "@/components/music/MusicTrackItem";
 import { PlaylistPickerSheet } from "@/components/music/PlaylistPickerSheet";
@@ -211,7 +211,7 @@ export default function AlbumDetailScreen() {
             }}
           >
             {imageUrl ? (
-              <Image
+              <ArtworkImage
                 source={{ uri: imageUrl }}
                 style={{ width: "100%", height: "100%" }}
                 contentFit='cover'
