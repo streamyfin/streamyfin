@@ -2,6 +2,7 @@ import json
 import stat
 import tempfile
 import time
+import types
 import unittest
 from dataclasses import dataclass
 from pathlib import Path
@@ -288,6 +289,14 @@ class BusCollectorTests(unittest.TestCase):
                 self.assertEqual(summary["counts"], {"playbackprogress": 1, "playbackstop": 1})
                 self.assertFalse(summary["identifyAnswered"])
 
+    def test_a_position_that_is_not_a_number_does_not_stop_the_summary(self):
+        # Every status message's position is read; a malformed one raised a TypeError that cost the
+        # run its final note and the matrix its report.
+        message = BusMessage(type="playbackprogress", data={"PlayState": {"PositionTicks": "10000000", "PlayMethod": "DirectStream"}})
+        summary = summarize_bus([message])
+        self.assertIsNone(summary["lastProgress"]["positionSeconds"])
+        self.assertEqual(summary["lastProgress"]["playMethod"], "DirectStream")
+
     def test_an_identify_left_unanswered_says_so(self):
         # Idle, the receiver shows its waiting screen and sends nothing back.
         collector = BusCollector()
@@ -393,6 +402,32 @@ class BufferingUntilIdentify(FakeReceiver):
         super().send(message)
 
 
+class LateIdentifyAnswer(FakeReceiver):
+    """A receiver whose answer to Identify reaches the sender only once its status was read after the
+    send, as a socket can deliver it."""
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.held: list = []
+        self.read_after_identify = False
+
+    def send(self, message: dict) -> None:
+        before = len(self.bus)
+        super().send(message)
+        if message["command"] == "Identify":
+            self.held.extend(self.bus[before:])
+            del self.bus[before:]
+
+    def update_status(self, callback_function=None) -> None:
+        super().update_status(callback_function)
+        self.read_after_identify = bool(self.held)
+
+    def deliver(self) -> None:
+        if self.read_after_identify:
+            self.bus.extend(self.held)
+            self.held.clear()
+
+
 class SenderMainTests(unittest.TestCase):
     def test_an_interrupted_play_keeps_the_token_the_receiver_plays_with(self):
         server = FakeServer(items={"V01": V01})
@@ -458,6 +493,33 @@ class SenderMainTests(unittest.TestCase):
         self.assertEqual([message.type for message in receiver.bus], ["playbackstop"])
         self.assertNotIn("playbackstop", bus["counts"])
         self.assertTrue(bus["identifyAnswered"])
+
+    def test_identify_answered_after_the_status_read_is_still_seen(self):
+        # A fixed wait then one status read summed the bus up before a late answer: reported as
+        # unanswered, and the answer counted as a stop.
+        server = FakeServer(items={"V01": V01})
+        receiver = LateIdentifyAnswer()
+        waits = types.SimpleNamespace(sleep=lambda _seconds: receiver.deliver(), monotonic=time.monotonic, strftime=time.strftime)
+        with bench_run(server, receiver) as run:
+            sender_main("play-now", "--item", "V01", "--watch", "0")
+            with mock.patch("bench.sender.time", waits):
+                self.assertEqual(sender_main("identify"), 0)
+            [report] = [path for path in run.reports(".json") if "identify" in path.name]
+            steps = json.loads(report.read_text())["steps"]
+        bus = next(step["data"]["bus"] for step in steps if step["step"] == "final")
+        self.assertTrue(bus["identifyAnswered"])
+        self.assertNotIn("playbackstop", bus["counts"])
+
+    def test_a_start_too_large_for_ticks_is_a_usage_error(self):
+        # Above about 1.8e301 seconds the tick count overflows to inf, and int() raised an
+        # OverflowError past main instead of a usage error.
+        import contextlib
+        import io
+
+        server = FakeServer(items={"V01": V01})
+        with bench_run(server, FakeReceiver()), contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as caught:
+            sender_main("play-now", "--item", "V01", "--start-seconds", "1e302")
+        self.assertEqual(caught.exception.code, 2)
 
     def test_a_later_command_carries_the_cap_the_play_started_with(self):
         # The receiver applies the cap of every message to the loads after it, and an audio change
