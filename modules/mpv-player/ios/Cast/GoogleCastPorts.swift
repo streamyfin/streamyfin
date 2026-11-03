@@ -112,4 +112,177 @@ enum GoogleCastChannelBinding {
     }
   }
 }
+
+/// The session manager as the engine sees it: the current session, and what happens to sessions. The
+/// manager holds its listeners weakly; the engine holds this source.
+final class GoogleCastSessionSource: NSObject, CastSessionSource, GCKSessionManagerListener {
+  weak var listener: CastSessionListener?
+  private let manager = GCKCastContext.sharedInstance().sessionManager
+
+  override init() {
+    super.init()
+    manager.add(self)
+  }
+
+  var current: CastSessionPort? {
+    manager.currentCastSession.map { GoogleCastSessionPort(session: $0) }
+  }
+
+  func sessionManager(_ sessionManager: GCKSessionManager, didSuspend session: GCKSession, with reason: GCKConnectionSuspendReason) {
+    listener?.castSessionDidSuspend(sessionId: session.sessionID)
+  }
+
+  // The resumed object is a new one under the same id: it gets a port of its own.
+  func sessionManager(_ sessionManager: GCKSessionManager, didResumeSession session: GCKSession) {
+    guard let cast = session as? GCKCastSession else { return }
+    listener?.castSessionDidResume(GoogleCastSessionPort(session: cast))
+  }
+
+  func sessionManager(_ sessionManager: GCKSessionManager, didEnd session: GCKSession, withError error: Error?) {
+    listener?.castSessionDidEnd(sessionId: session.sessionID, error: CastMapping.sessionEndError(error))
+  }
+
+  func sessionManager(_ sessionManager: GCKSessionManager, didFailToStart session: GCKSession, withError error: Error) {
+    listener?.castSessionDidEnd(sessionId: session.sessionID, error: CastMapping.sessionEndError(error))
+  }
+
+  func sessionManager(_ sessionManager: GCKSessionManager, session: GCKSession, didReceiveDeviceVolume volume: Float, muted: Bool) {
+    listener?.castSessionDidReceiveVolume(Double(volume), muted: muted)
+  }
+}
+
+final class GoogleCastSessionPort: CastSessionPort {
+  private let session: GCKCastSession
+  private var mediaPort: GoogleCastMediaPort?
+
+  init(session: GCKCastSession) {
+    self.session = session
+  }
+
+  var sessionId: String? { session.sessionID }
+
+  var isConnected: Bool { session.connectionState == .connected }
+
+  // A new remote media client gets a new port.
+  var media: CastMediaPort? {
+    guard let client = session.remoteMediaClient else { return nil }
+    if let port = mediaPort, port.client === client { return port }
+    let port = GoogleCastMediaPort(client: client)
+    mediaPort = port
+    return port
+  }
+
+  var volume: Double? { Double(session.currentDeviceVolume) }
+
+  func setVolume(_ level: Double) {
+    session.setDeviceVolume(Float(level))
+  }
+
+  func setMute(_ muted: Bool) {
+    session.setDeviceMuted(muted)
+  }
+}
+
+final class GoogleCastMediaPort: NSObject, CastMediaPort, GCKRemoteMediaClientListener {
+  let client: GCKRemoteMediaClient
+  private weak var ear: CastMediaListener?
+  // A request holds its delegate weakly: the port keeps each until its seek completes.
+  private var seeks: [SeekWatcher] = []
+
+  init(client: GCKRemoteMediaClient) {
+    self.client = client
+  }
+
+  var listener: CastMediaListener? {
+    get { ear }
+    set {
+      let wasListening = ear != nil
+      ear = newValue
+      if newValue != nil, !wasListening { client.add(self) }
+      if newValue == nil, wasListening { client.remove(self) }
+    }
+  }
+
+  // The receiver writes its customData on the media information, not on the status (spec §3.2).
+  var status: CastMediaSnapshot? {
+    guard let status = client.mediaStatus else { return nil }
+    let info = status.mediaInformation
+    let duration = info?.streamDuration ?? 0
+    return CastMediaSnapshot(
+      playerState: CastMapping.playerStateName(status.playerState.rawValue),
+      idleReason: CastMapping.idleReasonName(status.idleReason.rawValue),
+      hasMedia: info != nil,
+      streamPosition: status.streamPosition,
+      playbackRate: Double(status.playbackRate),
+      customData: info?.customData as? [String: Any],
+      // Live media has an infinite duration.
+      streamDuration: duration.isFinite ? duration : 0,
+      hasTextTracks: CastMapping.hasTextTracks(info?.mediaTracks?.map { $0.type.rawValue } ?? [])
+    )
+  }
+
+  var approximatePosition: TimeInterval { client.approximateStreamPosition() }
+
+  func play() {
+    client.play()
+  }
+
+  func pause() {
+    client.pause()
+  }
+
+  func seek(to position: TimeInterval, completion: @escaping (Bool) -> Void) {
+    let options = GCKMediaSeekOptions()
+    options.interval = position
+    options.resumeState = .unchanged
+    let request = client.seek(with: options)
+    let watcher = SeekWatcher { [weak self] watcher, succeeded in
+      self?.seeks.removeAll { $0 === watcher }
+      completion(succeeded)
+    }
+    seeks.append(watcher)
+    request.delegate = watcher
+  }
+
+  func requestStatus() {
+    client.requestStatus()
+  }
+
+  func remoteMediaClient(_ client: GCKRemoteMediaClient, didUpdate mediaStatus: GCKMediaStatus?) {
+    ear?.castMediaDidUpdateStatus()
+  }
+}
+
+private final class SeekWatcher: NSObject, GCKRequestDelegate {
+  private let done: (SeekWatcher, Bool) -> Void
+
+  init(done: @escaping (SeekWatcher, Bool) -> Void) {
+    self.done = done
+  }
+
+  func requestDidComplete(_ request: GCKRequest) { done(self, true) }
+  func request(_ request: GCKRequest, didFailWithError error: GCKError) { done(self, false) }
+  func request(_ request: GCKRequest, didAbortWith abortReason: GCKRequestAbortReason) { done(self, false) }
+}
+
+extension CastEngine {
+  /// The engine for this device on the shared receiver channel hub, its timers on the main queue.
+  /// Nil until the Cast context exists.
+  static func make(server: ReceiverServer) -> CastEngine? {
+    CastContextBootstrap.initializeIfNeeded()
+    guard GCKCastContext.isSharedInstanceInitialized() else { return nil }
+    GoogleCastChannelBinding.install()
+    return CastEngine(
+      server: server,
+      sessions: GoogleCastSessionSource(),
+      hub: .shared,
+      deliver: { delayMs, run in
+        let work = DispatchWorkItem(block: run)
+        DispatchQueue.main.asyncAfter(deadline: .now() + delayMs / 1000, execute: work)
+        return { work.cancel() }
+      },
+      log: { Logger.shared.log($0, type: "CastEngine") }
+    )
+  }
+}
 #endif
