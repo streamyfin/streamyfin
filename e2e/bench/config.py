@@ -153,18 +153,18 @@ def resolve_path(path: Path | None = None) -> Path:
 
 def committable(file: Path, root: Path = REPO_ROOT) -> bool:
     """Whether a `git add` in the checkout would take this file: it lies inside and git does not
-    ignore it, tracked files included. Without git there is no commit to fear."""
+    ignore it, tracked files included. Only a missing git means no commit to fear: one that does not
+    start or answer cannot vouch for the file."""
     try:
         file.resolve().relative_to(root.resolve())
     except ValueError:
         return False
     try:
         result = subprocess.run(["git", "-C", str(root), "check-ignore", "-q", str(file.resolve())], capture_output=True, timeout=10, check=False)
-    except subprocess.TimeoutExpired:
-        # A git that does not answer cannot vouch for the file.
-        return True
-    except (OSError, subprocess.SubprocessError):
+    except FileNotFoundError:
         return False
+    except (OSError, subprocess.SubprocessError):
+        return True
     # 0: ignored, 1: not ignored, 128: not a git checkout.
     return result.returncode == 1
 
