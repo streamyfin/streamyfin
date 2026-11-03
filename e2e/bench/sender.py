@@ -49,6 +49,9 @@ NOT_KEPT_BY_RECEIVER = re.compile(rf"[^A-Za-z0-9_{JS_WHITESPACE}]")
 ERROR_TYPES = ("playbackerror", "connectionerror", "error")
 # The states in which the receiver answers Identify with a playbackstop, and plays on.
 IDENTIFY_ANSWERED_STATES = frozenset({"PLAYING", "PAUSED"})
+# How long the summary waits for that answer once the status says one comes, polling every step.
+IDENTIFY_ANSWER_WAIT_SECONDS = 5.0
+IDENTIFY_ANSWER_POLL_SECONDS = 0.1
 # What the receiver plays through children it picks itself when handed one first, as it does any folder.
 CONTAINER_TYPES = frozenset({"Playlist", "MusicArtist", "MusicGenre"})
 # The token each receiver was handed and the bitrate cap of its session, kept between runs. It holds
@@ -347,6 +350,32 @@ def play_session_of(message: BusMessage) -> str | None:
     return state.get("PlaySessionId") if isinstance(state, dict) else None
 
 
+def answers_identify(final: MediaSample | None) -> bool:
+    """Whether a receiver in this status answers Identify: it plays or pauses, under a play session."""
+    return final is not None and final.player_state in IDENTIFY_ANSWERED_STATES and bool(final.play_session_id)
+
+
+def identify_answer(bus: list[BusMessage], identified_at: int | None, final: MediaSample | None) -> int | None:
+    """Where the playbackstop answering an Identify sits in the bus, or None: it carries the play
+    session the final status names."""
+    if identified_at is None or not answers_identify(final):
+        return None
+    return next(
+        (index for index in range(identified_at, len(bus)) if bus[index].type == "playbackstop" and play_session_of(bus[index]) == final.play_session_id),
+        None,
+    )
+
+
+def wait_for_identify_answer(bus: list[BusMessage], identified_at: int | None, final: MediaSample | None) -> None:
+    """The answer can reach the bus after the status read: waits for it a little, when the status says
+    one comes, so the summary does not report it unanswered and count it as a stop."""
+    if identified_at is None or not answers_identify(final):
+        return
+    deadline = time.monotonic() + IDENTIFY_ANSWER_WAIT_SECONDS
+    while identify_answer(bus, identified_at, final) is None and time.monotonic() < deadline:
+        time.sleep(IDENTIFY_ANSWER_POLL_SECONDS)
+
+
 def summarize_bus(bus: list[BusMessage], identified_at: int | None = None, final: MediaSample | None = None) -> dict:
     """Counts per message type, the last position the receiver reported, and every error: what a proof
     needs. Every status message carries the receiver's state, not only the progress reports.
@@ -356,12 +385,7 @@ def summarize_bus(bus: list[BusMessage], identified_at: int | None = None, final
     play session among it, and plays on. So when the final status still plays or pauses, the
     playbackstop of its play session is that answer, reported as `identifyAnswered` and not counted as
     a stop. The state read before the send does not tell: it can change before the Identify arrives."""
-    answer = None
-    if identified_at is not None and final is not None and final.player_state in IDENTIFY_ANSWERED_STATES and final.play_session_id:
-        answer = next(
-            (index for index in range(identified_at, len(bus)) if bus[index].type == "playbackstop" and play_session_of(bus[index]) == final.play_session_id),
-            None,
-        )
+    answer = identify_answer(bus, identified_at, final)
     counts: dict[str, int] = {}
     last_progress = None
     errors = []
@@ -372,7 +396,8 @@ def summarize_bus(bus: list[BusMessage], identified_at: int | None = None, final
         if isinstance(state, dict):
             ticks = state.get("PositionTicks")
             last_progress = {
-                "positionSeconds": ticks / TICKS_PER_SECOND if ticks is not None else None,
+                # A malformed position must not cost the run its summary.
+                "positionSeconds": ticks / TICKS_PER_SECOND if isinstance(ticks, (int, float)) else None,
                 "playMethod": state.get("PlayMethod"),
                 "isPaused": state.get("IsPaused"),
             }
@@ -464,9 +489,10 @@ def bitrate(text: str) -> int:
 
 
 def seconds(text: str) -> float:
-    """A number of seconds: nan and inf passed as floats, then raised in the rounding."""
+    """A number of seconds: nan and inf passed as floats, then raised in the rounding, and so did a value
+    whose count of ticks overflows."""
     value = float(text)
-    if not math.isfinite(value) or value < 0:
+    if not math.isfinite(value) or value < 0 or not math.isfinite(value * TICKS_PER_SECOND):
         raise argparse.ArgumentTypeError(f"{text} is not a finite number of seconds, zero or more")
     return value
 
@@ -650,6 +676,7 @@ def main(argv: list[str] | None = None) -> int:
         time.sleep(2)
         final = refresh_status(cast)
         final_state = final.player_state
+        wait_for_identify_answer(controller.bus, identified_at, final)
         note("final", state=final.player_state, time=round(final.current_time, 1), custom_data=final.custom_data, bus=summarize_bus(controller.bus, identified_at, final))
         cast.disconnect(timeout=5)
     finally:
