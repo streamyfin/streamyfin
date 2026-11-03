@@ -1,4 +1,5 @@
-import { rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import {
   assertCanManageUsers,
@@ -207,5 +208,32 @@ describe("gitCommittable", () => {
       rmSync(`${stem}.json`, { force: true });
       rmSync(`${stem}.local.json`, { force: true });
     }
+  });
+
+  test("follows a link to the file it points at, as the Python bench does", () => {
+    // A link of the checkout to a config kept outside it was refused here and taken there.
+    const outside = mkdtempSync(join(tmpdir(), "bench-config-"));
+    const link = join(root, `e2e/bench/committable-link-${process.pid}.json`);
+    try {
+      writeFileSync(join(outside, "bench.json"), "{}");
+      symlinkSync(join(outside, "bench.json"), link);
+      expect(committable(link)).toBe(false);
+    } finally {
+      rmSync(link, { force: true });
+      rmSync(outside, { recursive: true, force: true });
+    }
+  });
+
+  test("counts a git that cannot start as a yes, and only a missing git as a no", () => {
+    // A git that exists and fails to start let the file load.
+    const failing = (code: string) =>
+      gitCommittable(root, () => ({
+        error: Object.assign(new Error(code), { code }),
+        status: null,
+      }));
+    const inside = join(root, "e2e/bench/anything.json");
+    expect(failing("EACCES")(inside)).toBe(true);
+    expect(failing("ETIMEDOUT")(inside)).toBe(true);
+    expect(failing("ENOENT")(inside)).toBe(false);
   });
 });
