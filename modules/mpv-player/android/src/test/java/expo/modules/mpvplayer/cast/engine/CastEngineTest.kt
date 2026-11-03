@@ -309,6 +309,28 @@ class CastEngineTest {
         assertEquals(List(2) { "No Cast session to send on" }, delegate.errors)
     }
 
+    // The receiver could not reload for the new audio track, or never said so: the getters go back
+    // to the track it plays.
+    @Test
+    fun anAudioChangeTheReceiverDoesNotLoadIsUndone() {
+        val engine = playing()
+        engine.setAudioTrack(2)
+        port.deliver("""{"type":"connectionerror","message":"Request failed"}""")
+        assertEquals(1, engine.getCurrentAudioTrack())
+        engine.setAudioTrack(2)
+        scheduler.advance(CastEngineConstants.LOAD_TIMEOUT_MS)
+        assertEquals(1, engine.getCurrentAudioTrack())
+    }
+
+    @Test
+    fun aReloadThatSettlesWithoutMediaEndsTheLoading() {
+        val engine = playing()
+        engine.setAudioTrack(2)
+        media.report(snapshot(playerState = "idle", customData = null, hasMedia = false))
+        scheduler.advance(CastEngineConstants.LOAD_TIMEOUT_MS)
+        assertFalse(delegate.loadings.last())
+    }
+
     @Test
     fun trackCommandsWithoutOurMediaSendNothing() {
         val engine = engine()
@@ -553,6 +575,20 @@ class CastEngineTest {
         // Played again: the end it waited for is not one.
         scheduler.advance(CastEngineConstants.NEXT_ITEM_WAIT_MS)
         assertEquals(0, delegate.ended)
+    }
+
+    // A window the channel could not send is not on the receiver: a reload leaves it out.
+    @Test
+    fun aPlayLastTheChannelCannotSendStaysOutOfTheReplayQueue() {
+        val engine = engine()
+        engine.load(SERVER, ReceiverPlayRequest(items = listOf("t-1", "t-2").map { ReceiverItem(id = it, type = "Audio") })) {}
+        media.report(snapshot(customData = ours("itemId" to "t-1")), 0)
+        port.sendError = "No Cast session to send on"
+        engine.enqueue(listOf("t-3"))
+        port.sendError = null
+        engine.reloadCurrentItem()
+        val items = JSONObject(port.sent.last().second).getJSONObject("options").getJSONArray("items")
+        assertEquals(listOf("t-1", "t-2"), (0 until items.length()).map { items.getJSONObject(it).getString("Id") })
     }
 
     @Test

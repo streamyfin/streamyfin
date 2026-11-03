@@ -76,6 +76,8 @@ final class CastEngine: TransportEngine, QueueEngine {
   private struct Reload {
     let tracker: ReceiverLoadTracker
     let cancelTimer: () -> Void
+    // What the request changed that the receiver has to confirm: the chosen track.
+    let undo: () -> Void
   }
 
   private var reload: Reload?
@@ -560,8 +562,11 @@ final class CastEngine: TransportEngine, QueueEngine {
     guard session != nil else { return }
     stride(from: 0, to: itemIds.count, by: CastEngineConstants.maxQueueItems).forEach { start in
       let window = Array(itemIds[start..<min(start + CastEngineConstants.maxQueueItems, itemIds.count)])
-      queue += window.map { ReceiverItem(id: $0) }
-      sendMessage("PlayLast", ReceiverProtocol.playLast(server: server, itemIds: window), failed: reportFailure)
+      // A window joins the replay queue once the channel took it.
+      sendMessage(
+        "PlayLast", ReceiverProtocol.playLast(server: server, itemIds: window),
+        sent: { [weak self] in self?.queue += window.map { ReceiverItem(id: $0) } }, failed: reportFailure
+      )
     }
   }
 
@@ -761,7 +766,7 @@ final class CastEngine: TransportEngine, QueueEngine {
       guard let self, let pending = self.reload, pending.tracker === tracker, let outcome = tracker.timeOut() else { return }
       self.settleReload(pending, outcome, recompute: true)
     }
-    reload = Reload(tracker: tracker, cancelTimer: cancelTimer)
+    reload = Reload(tracker: tracker, cancelTimer: cancelTimer, undo: undo)
     position = target
     setLoading(true)
     publishState()
@@ -771,7 +776,7 @@ final class CastEngine: TransportEngine, QueueEngine {
       guard let self, let pending = self.reload, pending.tracker === tracker else { return }
       pending.cancelTimer()
       self.reload = nil
-      undo()
+      pending.undo()
       self.publishState()
       self.delegate?.engine(self, didFailWithError: error)
       self.recomputePosition()
@@ -782,9 +787,16 @@ final class CastEngine: TransportEngine, QueueEngine {
     log("reload settled \(outcome.wireName)")
     pending.cancelTimer()
     reload = nil
+    // Nothing reloaded on a failure or a timeout: the tracks go back to what the receiver plays.
     switch outcome {
-    case .failed(let error, _): delegate?.engine(self, didFailWithError: error.rawValue)
-    case .timedOut: delegate?.engine(self, didFailWithError: outcome.wireName)
+    case .failed(let error, _):
+      pending.undo()
+      publishState()
+      delegate?.engine(self, didFailWithError: error.rawValue)
+    case .timedOut:
+      pending.undo()
+      publishState()
+      delegate?.engine(self, didFailWithError: outcome.wireName)
     case .loaded, .superseded: break
     }
     if recompute { recomputePosition() }
@@ -792,7 +804,10 @@ final class CastEngine: TransportEngine, QueueEngine {
 
   // Outside a status: back to the formula of the last one, with the media channel's own estimate.
   private func recomputePosition() {
-    guard hasMedia, let port = media, let status = port.status else { return }
+    guard hasMedia, let port = media, let status = port.status else {
+      setLoading(isBuffering())
+      return
+    }
     position = currentPosition(of: status, port: port, data: ours)
     setLoading(isBuffering())
     publishState()

@@ -88,7 +88,14 @@ class CastEngine(
     // A reload the receiver runs for a Seek it cannot do in place or a track change. The position stays
     // on its target until the new play session reports: the old customData with the new currentTime
     // would land on the old start plus the new time.
-    private class Reload(val tracker: ReceiverLoadTracker, val target: Double, val requestId: Long?, val cancelTimer: () -> Unit)
+    private class Reload(
+        val tracker: ReceiverLoadTracker,
+        val target: Double,
+        val requestId: Long?,
+        val cancelTimer: () -> Unit,
+        // What the request changed that the receiver has to confirm: the chosen track.
+        val undo: () -> Unit,
+    )
 
     private var reload: Reload? = null
 
@@ -504,8 +511,12 @@ class CastEngine(
     override fun enqueue(itemIds: List<String>) = runOnMain {
         if (session == null) return@runOnMain
         itemIds.chunked(CastEngineConstants.MAX_QUEUE_ITEMS).forEach { window ->
-            queue = queue + window.map { ReceiverItem(id = it) }
-            sendMessage("PlayLast", ReceiverProtocol.playLast(server, window)) { delegate?.onError(it) }
+            sendMessage(
+                "PlayLast",
+                ReceiverProtocol.playLast(server, window),
+                failed = { delegate?.onError(it) },
+                sent = { queue = queue + window.map { ReceiverItem(id = it) } },
+            )
         }
     }
 
@@ -693,7 +704,7 @@ class CastEngine(
         val cancelTimer = schedule(CastEngineConstants.LOAD_TIMEOUT_MS) {
             reload?.takeIf { it.tracker === tracker }?.let { pending -> pending.tracker.timeOut()?.let { settleReload(pending, it, recompute = true) } }
         }
-        reload = Reload(tracker, target, requestId, cancelTimer)
+        reload = Reload(tracker, target, requestId, cancelTimer, undo)
         position = target
         setLoading(true)
         delegate?.onPositionChanged(position, itemDuration, 0.0)
@@ -702,7 +713,7 @@ class CastEngine(
             reload?.takeIf { it.tracker === tracker }?.let { pending ->
                 pending.cancelTimer()
                 reload = null
-                undo()
+                pending.undo()
                 updateTracks()
                 delegate?.onError(error)
                 recomputePosition()
@@ -714,6 +725,11 @@ class CastEngine(
         log("reload settled ${outcome.wireName}")
         pending.cancelTimer()
         reload = null
+        if (outcome is ReceiverLoadOutcome.Failed || outcome == ReceiverLoadOutcome.TimedOut) {
+            // Nothing reloaded: the tracks go back to what the receiver plays.
+            pending.undo()
+            updateTracks()
+        }
         when (outcome) {
             is ReceiverLoadOutcome.Failed -> delegate?.onError(outcome.error.wireName)
             ReceiverLoadOutcome.TimedOut -> delegate?.onError(outcome.wireName)
@@ -724,8 +740,11 @@ class CastEngine(
 
     // Outside a status: back to the formula of the last one, with the media channel's own estimate.
     private fun recomputePosition() {
-        val port = media ?: return
-        if (!hasMedia) return
+        val port = media
+        if (port == null || !hasMedia) {
+            setLoading(isBuffering())
+            return
+        }
         position = ReceiverProtocol.positionInItem(port.approximatePositionMs / 1000.0, ours ?: ReceiverCustomData())
         setLoading(isBuffering())
         delegate?.onPositionChanged(position, itemDuration, 0.0)
@@ -736,10 +755,13 @@ class CastEngine(
     private fun send(command: String, options: JSONObject, failed: (String) -> Unit = {}) =
         sendMessage(command, ReceiverProtocol.message(command, server, options), failed)
 
-    private fun sendMessage(command: String, message: JSONObject, failed: (String) -> Unit = {}) {
+    private fun sendMessage(command: String, message: JSONObject, failed: (String) -> Unit = {}, sent: () -> Unit = {}) {
         log("send $command")
         hub.send(ReceiverProtocol.NAMESPACE, message.toString()) { error ->
-            if (error == null) return@send
+            if (error == null) {
+                sent()
+                return@send
+            }
             log("$command not sent: $error")
             failed(error)
         }
