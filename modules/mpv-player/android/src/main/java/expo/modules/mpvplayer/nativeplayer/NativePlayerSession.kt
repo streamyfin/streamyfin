@@ -45,6 +45,7 @@ import expo.modules.kotlin.Promise
 import expo.modules.mpvplayer.DeviceKind
 import expo.modules.mpvplayer.MPVLayerRenderer
 import expo.modules.mpvplayer.nativeplayer.engine.ExoPlayerEngine
+import expo.modules.mpvplayer.nativeplayer.engine.NativeEngineKind
 import expo.modules.mpvplayer.nativeplayer.engine.PlayerEngine
 import expo.modules.mpvplayer.nativeplayer.ui.PlayerScreen
 import expo.modules.mpvplayer.nativeplayer.ui.PlayerTheme
@@ -228,14 +229,15 @@ class NativePlayerSession(
     }
 
     /**
-     * Build the engine the chrome drives, from the config's `engine` field.
-     * An absent/unknown engine falls back to mpv (older JS configs, mobile,
-     * iOS — where ExoPlayer doesn't ship).
+     * Build the engine the chrome drives, from the config's `engine` field: no field means
+     * mpv (older JS configs). The module refuses a name the chrome does not build, so an
+     * unknown one never starts mpv in its place.
      */
     private fun createEngine(activity: Activity, config: PlayerPresentConfigRecord): PlayerEngine {
-        return when (config.engine?.lowercase()) {
-            "exoplayer" -> ExoPlayerEngine(activity)
-            else -> MPVLayerRenderer(activity, voDriver = "gpu-next")
+        val kind = NativeEngineKind.of(config.engine) ?: throw UnsupportedEngineException(config.engine)
+        return when (kind) {
+            NativeEngineKind.MPV -> MPVLayerRenderer(activity, voDriver = "gpu-next")
+            NativeEngineKind.EXOPLAYER -> ExoPlayerEngine(activity)
         }
     }
 

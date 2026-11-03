@@ -7,6 +7,7 @@ import expo.modules.kotlin.exception.CodedException
 import expo.modules.kotlin.functions.Queues
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
+import expo.modules.mpvplayer.nativeplayer.engine.NativeEngineKind
 
 class PlayerAlreadyPresentedException :
     CodedException("A native player is already presented; call load() to swap the stream instead")
@@ -16,6 +17,9 @@ class NoActivePlayerException :
 
 class InvalidStreamUrlException :
     CodedException("The stream config contains an unparseable URL")
+
+class UnsupportedEngineException(name: String?) :
+    CodedException("The native player does not run the engine \"$name\"")
 
 class NativePlayerModule : Module() {
 
@@ -49,6 +53,10 @@ class NativePlayerModule : Module() {
             }
             if (config.stream.toVideoLoadConfig() == null) {
                 promise.reject(InvalidStreamUrlException())
+                return@AsyncFunction
+            }
+            if (NativeEngineKind.of(config.engine) == null) {
+                promise.reject(UnsupportedEngineException(config.engine))
                 return@AsyncFunction
             }
 
