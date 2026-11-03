@@ -30,7 +30,8 @@ appId: com.fredrikburmester.streamyfin
     visible: "Play button"
     timeout: 30000
 # The header Cast button opens the SDK dialog; the receivers come from the module's own discovery.
-- tapOn: "Cast button"
+# Android reads the button's state after its name ("Cast button, Not connected").
+- tapOn: "Cast button.*"
 - extendedWaitUntil:
     visible: ${CAST_NAME}
     timeout: 30000

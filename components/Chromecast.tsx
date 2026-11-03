@@ -37,10 +37,15 @@ export function Chromecast(props: Props) {
     <HeaderButton
       accessibilityRole='button'
       accessibilityLabel={t("accessibility.cast_button")}
-      // The name stays the same: the bench's flows tap the button by it.
-      accessibilityValue={
-        connected ? { text: t("accessibility.cast_connected") } : undefined
-      }
+      // Always a value: React Native Android clears the whole content
+      // description, label included, once the value turns undefined. Android
+      // joins the two ("Cast button, Connected"), so flows match the name as a
+      // prefix.
+      accessibilityValue={{
+        text: connected
+          ? t("accessibility.cast_connected")
+          : t("accessibility.cast_not_connected"),
+      }}
       onPress={() => {
         if (mediaStatus?.currentItemId) showExpandedControls();
         else showCastDialog();
