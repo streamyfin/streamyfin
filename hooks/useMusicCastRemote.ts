@@ -11,10 +11,15 @@ import {
 import {
   type JellyfinCastSession,
   parseReceiverCustomData,
+  queueOnJellyfinReceiver,
   receiverNameFor,
   receiverPositionInItem,
   sendJellyfinCastCommand,
 } from "@/utils/cast/jellyfinReceiver";
+import {
+  type MusicRepeatMode,
+  toJellyfinRepeatMode,
+} from "@/utils/jellyfin/playbackModes";
 import { logAndCaptureError } from "@/utils/log";
 
 /** What the music player shows while the receiver plays the queue it was sent. */
@@ -29,16 +34,23 @@ export interface MusicCastRemoteView {
 
 interface SentQueue {
   id: number;
+  /** The account that sent it. */
+  owner: string | null;
   queue: BaseItemDto[];
   startIndex: number;
   /** The play session on the receiver when the queue was sent: its status is the media being replaced. */
   replacedPlaySession: string | null;
+  /** What the receiver had before, put back if this cast does not start. */
+  previous: SentQueue | null;
 }
 
 interface UseMusicCastRemoteOptions {
   api: Api | null;
   userId: string | undefined;
-  castConnected: boolean;
+  /** The account the player belongs to: a queue another one sent is dropped. */
+  ownerKey: string | null;
+  /** Whether a Cast session is connected, whatever the phone's own network does. */
+  connected: boolean;
   /** The session ended while the receiver had the queue: where it was, for the phone to take it back. */
   onHandBack: (view: MusicCastRemoteView) => void;
 }
@@ -52,6 +64,28 @@ const PLAYING_STATES: readonly string[] = [
 const TICKS_PER_SECOND = 10_000_000;
 
 /**
+ * Where an item the receiver reports sits in the queue. The status names the
+ * item, not its place, so a track queued twice resolves to the copy at the
+ * place last shown, else the next one after it, else the last one before.
+ */
+const placeOf = (
+  queue: BaseItemDto[],
+  itemId: string | null,
+  near: number,
+): number => {
+  if (!itemId) return -1;
+  if (queue[near]?.Id === itemId) return near;
+  const after = queue.findIndex(
+    (item, index) => index > near && item.Id === itemId,
+  );
+  if (after >= 0) return after;
+  for (let index = Math.min(near, queue.length) - 1; index >= 0; index--) {
+    if (queue[index].Id === itemId) return index;
+  }
+  return -1;
+};
+
+/**
  * While a Cast session plays the queue the phone sent, the receiver is the
  * player: the music player shows what it plays and where, and its transport
  * drives it, so the phone stays silent.
@@ -59,7 +93,8 @@ const TICKS_PER_SECOND = 10_000_000;
 export const useMusicCastRemote = ({
   api,
   userId,
-  castConnected,
+  ownerKey,
+  connected,
   onHandBack,
 }: UseMusicCastRemoteOptions) => {
   const client = useCastClient();
@@ -68,16 +103,23 @@ export const useMusicCastRemote = ({
   const [sent, setSent] = useState<SentQueue | null>(null);
   const sentCount = useRef(0);
 
+  // A queue another account sent is not this account's to show or hand back.
+  const current = sent && sent.owner === ownerKey ? sent : null;
   const media = parseReceiverCustomData(status?.mediaInfo?.customData);
   // A status of the media the queue replaced says nothing about the queue yet.
   const fresh =
-    sent !== null &&
+    current !== null &&
     media.playSessionId !== null &&
-    media.playSessionId !== sent.replacedPlaySession;
+    media.playSessionId !== current.replacedPlaySession;
+  const shown = useRef<{ id: number; index: number } | null>(null);
+  const near =
+    current && shown.current?.id === current.id
+      ? shown.current.index
+      : (current?.startIndex ?? 0);
   const index =
-    sent && fresh
-      ? sent.queue.findIndex((item) => item.Id === media.itemId)
-      : -1;
+    current && fresh ? placeOf(current.queue, media.itemId, near) : -1;
+  if (current && index >= 0) shown.current = { id: current.id, index };
+  const reported = fresh && index >= 0;
 
   // The status gives the position only when something changes: in between,
   // the position counts on from it while the receiver plays.
@@ -91,7 +133,7 @@ export const useMusicCastRemote = ({
   const statusAt = statusSeen.current.at;
   const [, setTick] = useState(0);
   const playing =
-    fresh && !!status && status.playerState === CastMediaPlayerState.PLAYING;
+    reported && !!status && status.playerState === CastMediaPlayerState.PLAYING;
   useEffect(() => {
     if (!playing) return;
     const timer = setInterval(
@@ -102,9 +144,9 @@ export const useMusicCastRemote = ({
   }, [playing]);
 
   let view: MusicCastRemoteView | null = null;
-  if (castConnected && sent && (!fresh || index >= 0)) {
-    const queueIndex = index >= 0 ? index : sent.startIndex;
-    const currentTrack = sent.queue[queueIndex];
+  if (connected && current && (!fresh || index >= 0)) {
+    const queueIndex = index >= 0 ? index : current.startIndex;
+    const currentTrack = current.queue[queueIndex];
     const duration =
       (currentTrack?.RunTimeTicks ?? media.runtimeTicks ?? 0) /
       TICKS_PER_SECOND;
@@ -112,16 +154,16 @@ export const useMusicCastRemote = ({
       ? ((Date.now() - statusAt) / 1000) * (status?.playbackRate || 1)
       : 0;
     const position =
-      fresh && status
+      reported && status
         ? receiverPositionInItem(status.streamPosition, media) + elapsed
         : 0;
     if (currentTrack) {
       view = {
-        queue: sent.queue,
+        queue: current.queue,
         queueIndex,
         currentTrack,
         // Until the receiver reports on the queue, it is loading it.
-        isPlaying: fresh
+        isPlaying: reported
           ? PLAYING_STATES.includes(status?.playerState ?? "")
           : true,
         progress: duration > 0 ? Math.min(position, duration) : position,
@@ -130,40 +172,55 @@ export const useMusicCastRemote = ({
     }
   }
 
-  // A film cast from its page, or another sender's media, replaced the queue.
-  const replaced = castConnected && fresh && !!media.itemId && index < 0;
+  // What the phone takes back when the session ends: the last place the
+  // receiver reported, not a cast still loading.
+  const lastView = useRef<MusicCastRemoteView | null>(null);
+  if (connected && reported && view) lastView.current = view;
+
+  // A film cast from its page, or another sender's media, replaced the queue;
+  // or the account switched under it.
+  const replaced = connected && fresh && !!media.itemId && index < 0;
+  const foreign = sent !== null && sent.owner !== ownerKey;
   useEffect(() => {
-    if (replaced) setSent(null);
-  }, [replaced]);
+    if (!replaced && !foreign) return;
+    lastView.current = null;
+    setSent(null);
+  }, [replaced, foreign]);
 
   // As on Spotify: when the session ends, the queue comes back to the phone,
   // paused where the receiver was.
-  const lastView = useRef<MusicCastRemoteView | null>(null);
-  if (castConnected) lastView.current = view;
   const handBack = useRef(onHandBack);
   handBack.current = onHandBack;
   useEffect(() => {
-    if (castConnected) return;
+    if (connected) return;
     const last = lastView.current;
     lastView.current = null;
     setSent(null);
     if (last) handBack.current(last);
-  }, [castConnected]);
+  }, [connected]);
 
   // What the receiver shows when a queue is sent is the media it replaces.
   const shownPlaySession = media.playSessionId;
   const begin = useCallback(
     (queue: BaseItemDto[], startIndex: number): number => {
       const id = ++sentCount.current;
-      setSent({ id, queue, startIndex, replacedPlaySession: shownPlaySession });
+      setSent((previous) => ({
+        id,
+        owner: ownerKey,
+        queue,
+        startIndex,
+        replacedPlaySession: shownPlaySession,
+        // One step back is enough: the queue the receiver had before this cast.
+        previous: previous ? { ...previous, previous: null } : null,
+      }));
       return id;
     },
-    [shownPlaySession],
+    [ownerKey, shownPlaySession],
   );
 
-  /** Lets go of the queue sent as `id`, unless a later one replaced it. */
+  /** A cast that did not start: the receiver still has what it had before. */
   const end = useCallback((id: number) => {
-    setSent((current) => (current?.id === id ? null : current));
+    setSent((value) => (value?.id === id ? value.previous : value));
   }, []);
 
   const session = useMemo<JellyfinCastSession | null>(
@@ -171,10 +228,15 @@ export const useMusicCastRemote = ({
     [api, userId, receiverName],
   );
 
+  // The controls act on the queue only once the receiver plays it: before,
+  // they would pause or skip the media it is replacing.
+  const reportedRef = useRef(reported);
+  reportedRef.current = reported;
   // A transport call that fails leaves the receiver as it was; the player
   // keeps showing what the receiver reports.
   const transport = useCallback(
-    async (label: string, action: () => Promise<void> | undefined) => {
+    async (label: string, action: () => Promise<unknown> | undefined) => {
+      if (!reportedRef.current) return;
       try {
         await action();
       } catch (error) {
@@ -220,10 +282,47 @@ export const useMusicCastRemote = ({
       ),
     [transport, client, session, cannotSeekInStream],
   );
+  const setRepeat = useCallback(
+    (mode: MusicRepeatMode) =>
+      transport("repeat", () =>
+        session
+          ? sendJellyfinCastCommand("SetRepeatMode", session, {
+              RepeatMode: toJellyfinRepeatMode(mode),
+            })
+          : undefined,
+      ),
+    [transport, session],
+  );
+  // The receiver appends both at the end of its queue, and so does the queue
+  // the player shows.
+  const enqueue = useCallback(
+    (command: "PlayNext" | "PlayLast", items: BaseItemDto[]) =>
+      transport("queue", async () => {
+        if (!session || items.length === 0) return;
+        await queueOnJellyfinReceiver(command, session, items);
+        setSent((value) =>
+          value ? { ...value, queue: [...value.queue, ...items] } : value,
+        );
+      }),
+    [transport, session],
+  );
   const stop = useCallback(async () => {
-    setSent(null);
     await transport("stop", () => client?.stop());
+    lastView.current = null;
+    setSent(null);
   }, [transport, client]);
 
-  return { view, begin, end, pause, resume, next, previous, seek, stop };
+  return {
+    view,
+    begin,
+    end,
+    pause,
+    resume,
+    next,
+    previous,
+    seek,
+    setRepeat,
+    enqueue,
+    stop,
+  };
 };

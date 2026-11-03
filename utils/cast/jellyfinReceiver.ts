@@ -290,8 +290,12 @@ export const sendJellyfinCastCommand = async (
   command: JellyfinCastCommand,
   session: JellyfinCastSession,
   options: Record<string, unknown> = {},
-): Promise<void> => {
+  /** True once the caller moved on: nothing is sent. */
+  isStale?: () => boolean,
+): Promise<boolean> => {
   const target = await getChannel();
+  // Opening the channel is a native round trip: the account may have switched.
+  if (isStale?.()) return false;
 
   // The receiver rejects any message missing command/serverAddress/accessToken,
   // and it re-reads the server info on every message, so they all carry it.
@@ -306,6 +310,7 @@ export const sendJellyfinCastCommand = async (
     maxBitrate: session.maxBitrate || RECEIVER_UNCAPPED_BITRATE,
     options: receiverOptions(command, options),
   });
+  return true;
 };
 
 /**
@@ -368,12 +373,30 @@ const refuseContainers = (items: BaseItemDto[]): void => {
 export const playOnJellyfinReceiver = async (
   session: JellyfinCastSession,
   request: JellyfinCastPlayRequest,
-): Promise<void> => {
+  isStale?: () => boolean,
+): Promise<boolean> => {
   refuseContainers(request.items);
   const { items, ...rest } = toReceiverRequest(request);
 
-  await sendJellyfinCastCommand("PlayNow", session, {
-    ...rest,
+  return sendJellyfinCastCommand(
+    "PlayNow",
+    session,
+    { ...rest, items: items.map(slimItem) },
+    isStale,
+  );
+};
+
+/**
+ * Adds items to the queue the receiver plays. The receiver appends both at
+ * the end of it, PlayNext included.
+ */
+export const queueOnJellyfinReceiver = async (
+  command: "PlayNext" | "PlayLast",
+  session: JellyfinCastSession,
+  items: BaseItemDto[],
+): Promise<void> => {
+  refuseContainers(items);
+  await sendJellyfinCastCommand(command, session, {
     items: items.map(slimItem),
   });
 };
@@ -651,8 +674,10 @@ export const castToJellyfinReceiver = async (
       timeoutMs,
     );
 
-    playOnJellyfinReceiver(session, request).catch((error) =>
-      settle(() => reject(error)),
-    );
+    playOnJellyfinReceiver(session, request, isStale)
+      .then((sent) => {
+        if (!sent) settle(() => resolve({ status: "superseded" }));
+      })
+      .catch((error) => settle(() => reject(error)));
   });
 };
