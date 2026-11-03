@@ -1496,15 +1496,17 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     async (position: number) => {
       if (!TrackPlayer || !(await playerReadyForControl())) return;
       // A restored queue has nothing loaded: resume seeds seekTo from
-      // state.progress when it loads the track, so only state moves here.
-      if (!state.streamUrl && state.currentTrack) {
+      // state.progress when it loads the track, so only state moves here. The
+      // native side answers this — streamUrl cannot, staying null after a
+      // reattach or a jumpToIndex load.
+      if ((await TrackPlayer.getActiveTrackIndex()) === undefined) {
         setState((prev) => ({ ...prev, progress: position }));
         return;
       }
       await TrackPlayer.seekTo(position);
       setState((prev) => ({ ...prev, progress: position }));
     },
-    [playerReadyForControl, state.streamUrl, state.currentTrack],
+    [playerReadyForControl],
   );
 
   const stop = useCallback(async () => {

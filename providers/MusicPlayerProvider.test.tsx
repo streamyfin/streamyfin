@@ -614,6 +614,23 @@ describe("MusicPlayerProvider and the native queue", () => {
     }
   });
 
+  // streamUrl is never persisted, so a reattached or jump-loaded track has
+  // none while the native side does. seek asks the player, not the flag.
+  test("seek reaches the native player once a track is loaded", async () => {
+    await startPlaying();
+
+    const tp = jest.requireMock("react-native-track-player").default;
+    const seekSpy = jest.spyOn(tp, "seekTo");
+    try {
+      await run((p) => p.seek(30));
+
+      expect(seekSpy).toHaveBeenCalledWith(30);
+      expect(player.progress).toBe(30);
+    } finally {
+      seekSpy.mockRestore();
+    }
+  });
+
   // The insert position used to be read before the stream URL request, and a
   // queue started during that request is shorter than the position.
   test("plays next after the track that is playing once the stream URL arrives", async () => {
