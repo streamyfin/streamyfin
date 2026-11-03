@@ -1,10 +1,10 @@
 import type { Api } from "@jellyfin/sdk";
-import { getQuickConnectApi } from "@jellyfin/sdk/lib/utils/api";
+import { getAuthenticationApi } from "@jellyfin/sdk/lib/utils/api";
 import axios from "axios";
 
 /** Whether the Jellyfin server has Quick Connect turned on. */
 export const isQuickConnectEnabled = async (api: Api): Promise<boolean> =>
-  (await getQuickConnectApi(api).getQuickConnectEnabled()).data === true;
+  (await getAuthenticationApi(api).getQuickConnectEnabled()).data === true;
 
 /**
  * Approves a Quick Connect code as the user this client is signed in as.
@@ -21,7 +21,7 @@ export const approveQuickConnectCode = async (
   code: string,
 ): Promise<"approved" | "unknown-code" | "refused"> => {
   try {
-    const { data } = await getQuickConnectApi(api).authorizeQuickConnect({
+    const { data } = await getAuthenticationApi(api).authorizeQuickConnect({
       code,
     });
     return data ? "approved" : "refused";

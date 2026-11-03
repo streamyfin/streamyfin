@@ -449,7 +449,7 @@ describe("getAdjacentStartTicks", () => {
   const resumed = (sources: MediaSourceInfo[]): BaseItemDto => ({
     Id: "ep-2",
     MediaSources: sources,
-    UserData: { PlaybackPositionTicks: 600 },
+    UserData: { Key: "", PlaybackPositionTicks: 600 },
   });
 
   test("the primary version resumes at the item's position", () => {

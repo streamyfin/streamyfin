@@ -1,6 +1,7 @@
 import type { Api } from "@jellyfin/sdk";
 import { type BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { fillHeightParams } from "./imagePixels";
+import { fillHeightImageParams } from "./imagePixels";
+import { itemImageUrl } from "./itemImageUrl";
 
 /**
  * Retrieves the backdrop image URL of an item's parent: the series backdrop
@@ -34,14 +35,11 @@ export const getParentBackdropImageUrl = ({
   const parentId = item.ParentBackdropItemId;
   const tag = item.ParentBackdropImageTags?.[0] || "";
 
-  const params = new URLSearchParams({
-    fillWidth: width ? String(width) : "500",
-    quality: quality ? String(quality) : "80",
-    tag: tag,
-    ...(height ? fillHeightParams(height) : null),
+  return itemImageUrl(api, parentId!, "Backdrop", {
+    fillWidth: width || 500,
+    quality: quality || 80,
+    tag,
+    imageIndex: 0,
+    ...(height ? fillHeightImageParams(height) : null),
   });
-
-  return `${
-    api?.basePath
-  }/Items/${parentId}/Images/Backdrop/0?${params.toString()}`;
 };

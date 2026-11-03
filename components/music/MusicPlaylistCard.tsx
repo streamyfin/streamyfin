@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
+import { getLibraryApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import { useAtom } from "jotai";
 import React, { useCallback, useMemo } from "react";
@@ -33,7 +33,7 @@ export const MusicPlaylistCard: React.FC<Props> = ({ playlist }) => {
   const { data: tracks } = useQuery({
     queryKey: ["playlist-tracks-status", playlist.Id, user?.Id],
     queryFn: async () => {
-      const response = await getItemsApi(api!).getItems({
+      const response = await getLibraryApi(api!).getItems({
         userId: user?.Id,
         parentId: playlist.Id,
         fields: ["MediaSources"],

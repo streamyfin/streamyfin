@@ -1,0 +1,157 @@
+diff --git a/lib/commonjs/api/useCastDevice.js b/lib/commonjs/api/useCastDevice.js
+index 974a2f0fbfcb5e2d306be8172ae1a8e02c6a6673..a83f363a06ef7f3bf5e7eda3aa8893972000c427 100644
+--- a/lib/commonjs/api/useCastDevice.js
++++ b/lib/commonjs/api/useCastDevice.js
+@@ -29,7 +29,19 @@ function useCastDevice(options) {
+   const [device, setDevice] = (0, _react.useState)(null);
+   const session = (0, _useCastSession.default)(options);
+   (0, _react.useEffect)(() => {
+-    if (!session) setDevice(null);else session.getCastDevice().then(setDevice);
++    if (!session) {
++      setDevice(null);
++      return;
++    }
++    let current = true;
++    session.getCastDevice().then(device => {
++      if (current) setDevice(device);
++    }, () => {
++      if (current) setDevice(null);
++    });
++    return () => {
++      current = false;
++    };
+   }, [session]);
+   return device;
+ }
+diff --git a/lib/commonjs/api/useMediaStatus.js b/lib/commonjs/api/useMediaStatus.js
+index 50c8c4160af009bf3356e7d9241fb23b0b9abece..38516ca48bc0d04db4de122cc9480a59590ac01d 100644
+--- a/lib/commonjs/api/useMediaStatus.js
++++ b/lib/commonjs/api/useMediaStatus.js
+@@ -23,9 +23,15 @@ function useMediaStatus() {
+       setMediaStatus(null);
+       return;
+     }
+-    client.getMediaStatus().then(setMediaStatus);
++    let current = true;
++    client.getMediaStatus().then(status => {
++      if (current) setMediaStatus(status);
++    }, () => {
++      if (current) setMediaStatus(null);
++    });
+     const subscription = client.onMediaStatusUpdated(setMediaStatus);
+     return () => {
++      current = false;
+       subscription.remove();
+     };
+   }, [client]);
+diff --git a/lib/module/api/useCastDevice.js b/lib/module/api/useCastDevice.js
+index a8b6042f4253af9036308b93b9cfa98945cca904..c43ef9318429e531ab226848498bff63aa8accf8 100644
+--- a/lib/module/api/useCastDevice.js
++++ b/lib/module/api/useCastDevice.js
+@@ -23,7 +23,19 @@ export default function useCastDevice(options) {
+   const [device, setDevice] = useState(null);
+   const session = useCastSession(options);
+   useEffect(() => {
+-    if (!session) setDevice(null);else session.getCastDevice().then(setDevice);
++    if (!session) {
++      setDevice(null);
++      return;
++    }
++    let current = true;
++    session.getCastDevice().then(device => {
++      if (current) setDevice(device);
++    }, () => {
++      if (current) setDevice(null);
++    });
++    return () => {
++      current = false;
++    };
+   }, [session]);
+   return device;
+ }
+diff --git a/lib/module/api/useMediaStatus.js b/lib/module/api/useMediaStatus.js
+index a128ef0e8ca0875b23c2b47d7a0d6f2c5424e5b2..a2496821df37ff821e13c5361fcff402c6f10499 100644
+--- a/lib/module/api/useMediaStatus.js
++++ b/lib/module/api/useMediaStatus.js
+@@ -17,9 +17,15 @@ export default function useMediaStatus() {
+       setMediaStatus(null);
+       return;
+     }
+-    client.getMediaStatus().then(setMediaStatus);
++    let current = true;
++    client.getMediaStatus().then(status => {
++      if (current) setMediaStatus(status);
++    }, () => {
++      if (current) setMediaStatus(null);
++    });
+     const subscription = client.onMediaStatusUpdated(setMediaStatus);
+     return () => {
++      current = false;
+       subscription.remove();
+     };
+   }, [client]);
+diff --git a/src/api/useCastDevice.ts b/src/api/useCastDevice.ts
+index 96baf166b92a1139a2901a12b17d73af7750a466..1aeb14a60e144229ccbb30db1b26bc04903cf7cc 100644
+--- a/src/api/useCastDevice.ts
++++ b/src/api/useCastDevice.ts
+@@ -27,8 +27,28 @@ export default function useCastDevice(
+   const session = useCastSession(options)
+ 
+   useEffect(() => {
+-    if (!session) setDevice(null)
+-    else session.getCastDevice().then(setDevice)
++    if (!session) {
++      setDevice(null)
++      return
++    }
++
++    // The native side can answer after this effect was replaced by another
++    // session's, or reject because the session ended in the meantime
++    // (Android: "No session"). A late answer is dropped, a rejection leaves
++    // no device rather than an unhandled rejection.
++    let current = true
++    session.getCastDevice().then(
++      (device) => {
++        if (current) setDevice(device)
++      },
++      () => {
++        if (current) setDevice(null)
++      }
++    )
++
++    return () => {
++      current = false
++    }
+   }, [session])
+ 
+   return device
+diff --git a/src/api/useMediaStatus.ts b/src/api/useMediaStatus.ts
+index f5862e6ac3d1ff8a70a507b6f72cf77635be4309..d9fcfe0febe3de9d613bccfd771eb36094747834 100644
+--- a/src/api/useMediaStatus.ts
++++ b/src/api/useMediaStatus.ts
+@@ -20,11 +20,24 @@ export default function useMediaStatus() {
+       return
+     }
+ 
+-    client.getMediaStatus().then(setMediaStatus)
++    // The native side can answer after this effect was replaced by another
++    // session's, or reject because the session ended in the meantime
++    // (Android: "No session"). A late answer is dropped, a rejection leaves
++    // no status rather than an unhandled rejection.
++    let current = true
++    client.getMediaStatus().then(
++      (status) => {
++        if (current) setMediaStatus(status)
++      },
++      () => {
++        if (current) setMediaStatus(null)
++      }
++    )
+ 
+     const subscription = client.onMediaStatusUpdated(setMediaStatus)
+ 
+     return () => {
++      current = false
+       subscription.remove()
+     }
+   }, [client])

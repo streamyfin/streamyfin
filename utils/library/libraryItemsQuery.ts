@@ -1,4 +1,4 @@
-import type { ItemsApiGetItemsRequest } from "@jellyfin/sdk/lib/generated-client/api/items-api";
+import type { LibraryApiGetItemsRequest } from "@jellyfin/sdk/lib/generated-client/api/library-api";
 import type {
   BaseItemDto,
   BaseItemKind,
@@ -94,7 +94,7 @@ export const buildLibraryItemsQuery = ({
   years,
   tags,
   serverVersion,
-}: LibraryItemsFilter): ItemsApiGetItemsRequest => {
+}: LibraryItemsFilter): LibraryApiGetItemsRequest => {
   return {
     userId,
     parentId: libraryId,
@@ -148,7 +148,7 @@ export const isQueueableLibrary = (collectionType: CollectionType): boolean =>
 export const buildLibraryQueueQuery = (
   filter: LibraryItemsFilter,
   { shuffle }: { shuffle: boolean },
-): ItemsApiGetItemsRequest => {
+): LibraryApiGetItemsRequest => {
   const query = buildLibraryItemsQuery(filter);
 
   return {

@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
+import { getLibraryApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSegments } from "expo-router";
@@ -84,7 +84,7 @@ export const TVActorPage: React.FC<TVActorPageProps> = ({ personId }) => {
     queryFn: async () => {
       if (!api || !user?.Id) return [];
 
-      const response = await getItemsApi(api).getItems({
+      const response = await getLibraryApi(api).getItems({
         userId: user.Id,
         personIds: [personId],
         startIndex: 0,
@@ -109,7 +109,7 @@ export const TVActorPage: React.FC<TVActorPageProps> = ({ personId }) => {
     queryFn: async () => {
       if (!api || !user?.Id) return [];
 
-      const response = await getItemsApi(api).getItems({
+      const response = await getLibraryApi(api).getItems({
         userId: user.Id,
         personIds: [personId],
         startIndex: 0,
