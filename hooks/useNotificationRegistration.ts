@@ -100,6 +100,9 @@ export const useNotificationRegistration = (): ExpoPushToken | undefined => {
 
   const [expoPushToken, setExpoPushToken] = useState<ExpoPushToken>();
   const tokenFetch = useRef<"idle" | "pending" | "done">("idle");
+  // A newer registration run supersedes one still awaiting: only the latest
+  // may register or unregister the sessions task.
+  const registrationRunRef = useRef(0);
 
   useEffect(() => {
     if (Platform.isTV) return;
@@ -168,6 +171,7 @@ export const useNotificationRegistration = (): ExpoPushToken | undefined => {
     const Notifications = require("expo-notifications");
 
     const registerNotifications = async () => {
+      const run = ++registrationRunRef.current;
       if (Platform.OS === "android") {
         await Notifications.setNotificationChannelAsync("default", {
           name: "default",
@@ -189,13 +193,18 @@ export const useNotificationRegistration = (): ExpoPushToken | undefined => {
         );
         return;
       }
+      // A newer run started while the permission check was out: it owns
+      // whatever comes next.
+      if (run !== registrationRunRef.current) return;
 
       if (isAdministrator) {
         await registerBackgroundFetchAsyncSessions();
       } else {
         // The task survives an admin signing out or switching to a non-admin
         // account, and would keep polling sessions under the wrong one.
-        await unregisterBackgroundFetchAsyncSessions();
+        if (!(await unregisterBackgroundFetchAsyncSessions())) {
+          console.warn("Failed to unregister the sessions background task");
+        }
       }
 
       // only create push token for real devices (pointless for emulators)
@@ -205,6 +214,9 @@ export const useNotificationRegistration = (): ExpoPushToken | undefined => {
           projectId: EXPO_PROJECT_ID,
         })
           .then((token: ExpoPushToken) => {
+            // The roll listener may already have refreshed it: that token is
+            // newer than the one this fetch was started with.
+            if (tokenFetch.current === "done") return;
             if (token) {
               console.log("Expo push token obtained:", token.data);
               tokenFetch.current = "done";
