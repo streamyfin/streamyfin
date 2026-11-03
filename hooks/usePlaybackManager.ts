@@ -2,7 +2,11 @@ import type {
   BaseItemDto,
   PlaybackProgressInfo,
 } from "@jellyfin/sdk/lib/generated-client";
-import { getPlaystateApi, getTvShowsApi } from "@jellyfin/sdk/lib/utils/api";
+import {
+  getSessionApi,
+  getShowApi,
+  getUserDataApi,
+} from "@jellyfin/sdk/lib/utils/api";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
 import { useMemo } from "react";
@@ -94,7 +98,7 @@ export const usePlaybackManager = ({
         return null;
       }
 
-      const res = await getTvShowsApi(api).getEpisodes({
+      const res = await getShowApi(api).getEpisodes({
         seriesId: item.SeriesId,
         adjacentTo: item.Id,
         limit: 3,
@@ -219,6 +223,9 @@ export const usePlaybackManager = ({
         item: {
           ...localItem.item,
           UserData: {
+            // SDK 1.0 requires Key; local-only state has none yet. Preserve
+            // a real key when present, and never send this default to Jellyfin.
+            Key: "",
             ...localItem.item.UserData,
             PlaybackPositionTicks:
               isItemConsideredPlayed || !shouldSaveProgress
@@ -246,7 +253,7 @@ export const usePlaybackManager = ({
   ) => {
     if (isOnline && api) {
       try {
-        await getPlaystateApi(api).reportPlaybackProgress(
+        await getSessionApi(api).reportPlaybackProgress(
           { playbackProgressInfo },
           { signal },
         );
@@ -288,6 +295,7 @@ export const usePlaybackManager = ({
         item: {
           ...localItem.item,
           UserData: {
+            Key: "",
             ...localItem.item.UserData,
             Played: true,
             PlaybackPositionTicks: 0,
@@ -304,7 +312,7 @@ export const usePlaybackManager = ({
     // Handle remote state update if online
     if (isOnline && api && user) {
       try {
-        await getPlaystateApi(api).markPlayedItem({
+        await getUserDataApi(api).markPlayedItem({
           itemId,
           userId: user.Id,
         });
@@ -333,6 +341,7 @@ export const usePlaybackManager = ({
         item: {
           ...localItem.item,
           UserData: {
+            Key: "",
             ...localItem.item.UserData,
             Played: false,
             PlaybackPositionTicks: 0,
@@ -349,7 +358,7 @@ export const usePlaybackManager = ({
     // Handle remote state update if online
     if (isOnline && api && user) {
       try {
-        await getPlaystateApi(api).markUnplayedItem({
+        await getUserDataApi(api).markUnplayedItem({
           itemId,
           userId: user.Id,
         });

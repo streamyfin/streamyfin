@@ -80,7 +80,7 @@ const items = (prefix: string, type: "Movie" | "Episode"): BaseItemDto[] =>
     SeriesName: type === "Episode" ? `${prefix} series ${index}` : undefined,
     ImageTags: { Primary: `tag-${prefix}-${index}` },
     BackdropImageTags: [`backdrop-${prefix}-${index}`],
-    UserData: { PlayedPercentage: 40 },
+    UserData: { Key: "", PlayedPercentage: 40 },
   }));
 
 const stubServer = () => {

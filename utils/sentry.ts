@@ -253,53 +253,6 @@ const NATIVE_SDK_OPTIONS = {
   enableReportNonFullyBlockingAppHangs: false,
 } as Partial<Parameters<typeof Sentry.init>[0]>;
 
-// The cast library's own hooks (useMediaStatus, useCastDevice, mounted on
-// every screen by components/Chromecast.tsx) ask the native side for the
-// media status and the device as soon as the session manager names a
-// session, with `.then()` and no catch. On Android that includes the session
-// the Cast SDK is still trying to resume from the previous launch: it is not
-// connected yet, the native side has no session to ask, and it rejects with
-// IllegalStateException("No session"). That is an unhandled rejection a few
-// seconds after launch which no app code can catch, about a state the hooks
-// correct themselves on the next session event.
-const CAST_NATIVE_PACKAGE = "com.reactnative.googlecast.";
-const CAST_NO_SESSION_MESSAGE = "No session";
-
-const isCastNoSessionRejection = (
-  event: Sentry.ErrorEvent,
-  cause: unknown,
-): boolean => {
-  const exceptions = event.exception?.values ?? [];
-  // Only the rejection nobody handled. The same error caught at a call site
-  // of the app's own (loadMedia, stop) is a failed user action and reports.
-  if (!exceptions.some((e) => e.mechanism?.type === "onunhandledrejection")) {
-    return false;
-  }
-  const causeRecord =
-    cause !== null && typeof cause === "object"
-      ? (cause as { message?: unknown; nativeStackAndroid?: unknown })
-      : undefined;
-  const saysNoSession =
-    causeRecord?.message === CAST_NO_SESSION_MESSAGE ||
-    exceptions.some((e) => e.value === CAST_NO_SESSION_MESSAGE);
-  if (!saysNoSession) return false;
-  const nativeStack = Array.isArray(causeRecord?.nativeStackAndroid)
-    ? (causeRecord.nativeStackAndroid as { class?: unknown }[])
-    : [];
-  return (
-    nativeStack.some(
-      (frame) =>
-        typeof frame?.class === "string" &&
-        frame.class.startsWith(CAST_NATIVE_PACKAGE),
-    ) ||
-    exceptions.some((e) =>
-      e.stacktrace?.frames?.some((frame) =>
-        frame.module?.startsWith(CAST_NATIVE_PACKAGE),
-      ),
-    )
-  );
-};
-
 /**
  * The last line of defence for axios failures that reach Sentry OUTSIDE the
  * explicit capture paths (a floating promise → onunhandledrejection): those
@@ -307,10 +260,7 @@ const isCastNoSessionRejection = (
  * and logAndCaptureError paths attach, so every such failure — any endpoint,
  * any status — regroups into one stackless issue. Apply the same rules here:
  * environment/aborted/expected failures never leave the app, and the rest
- * are fingerprinted by route and status.
- *
- * It is also where a rejection inside a dependency is dropped when no call
- * site of the app's could have caught it. Exported for tests.
+ * are fingerprinted by route and status. Exported for tests.
  */
 export const classifyOutgoingEvent = (
   event: Sentry.ErrorEvent,
@@ -318,7 +268,6 @@ export const classifyOutgoingEvent = (
   hint: { originalException?: unknown } | undefined,
 ): Sentry.ErrorEvent | null => {
   const cause = hint?.originalException;
-  if (isCastNoSessionRejection(event, cause)) return null;
   if (!isAxiosError(cause)) return event;
   if (
     isAbortLikeError(cause) ||

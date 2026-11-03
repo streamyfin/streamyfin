@@ -98,7 +98,7 @@ describe("useCardGrid press handlers", () => {
     // Page two arrives, and "a" comes back refetched, now played.
     const refetched: BaseItemDto = {
       ...movie("a", "Alpha"),
-      UserData: { Played: true },
+      UserData: { Key: "", Played: true },
     };
     const second = [refetched, first[1], movie("c", "Charlie")];
     await view.rerender(

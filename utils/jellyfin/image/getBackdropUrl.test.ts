@@ -28,7 +28,7 @@ describe("getBackdropUrl", () => {
   test("asks for an image that covers the whole box when given its height", () => {
     const url = getBackdropUrl({ api, item: movie, width: 1233, height: 1500 });
 
-    expect(url).toContain("/Items/movie-1/Images/Backdrop/0?");
+    expect(url).toContain("/Items/movie-1/Images/Backdrop?");
     expect(sizeOf(url)).toEqual({
       fillWidth: "1233",
       fillHeight: "1500",
@@ -41,7 +41,7 @@ describe("getBackdropUrl", () => {
     const url = getBackdropUrl({ api, item: movie, quality: 90, width: 1920 });
 
     expect(url).toBe(
-      `${api.basePath}/Items/movie-1/Images/Backdrop/0?quality=90&fillWidth=1920&tag=backdrop-tag`,
+      `${api.basePath}/Items/movie-1/Images/Backdrop?quality=90&fillWidth=1920&tag=backdrop-tag&imageIndex=0`,
     );
   });
 
@@ -66,6 +66,15 @@ describe("getBackdropUrl", () => {
       maxHeight: "1920",
     });
   });
+
+  // REACT-NATIVE-NY: the series page got a text answer where it expected an
+  // item, and building its header image threw "right operand of 'in' is not
+  // an object", taking the page down.
+  test("gives no image, without throwing, for an answer that is not an item", () => {
+    const notAnItem = "<!doctype html>" as unknown as BaseItemDto;
+
+    expect(getBackdropUrl({ api, item: notAnItem, width: 1179 })).toBeNull();
+  });
 });
 
 describe("getParentBackdropImageUrl", () => {
@@ -84,7 +93,7 @@ describe("getParentBackdropImageUrl", () => {
       height: 1170,
     });
 
-    expect(url).toContain("/Items/series-1/Images/Backdrop/0?");
+    expect(url).toContain("/Items/series-1/Images/Backdrop?");
     expect(sizeOf(url)).toEqual({
       fillWidth: "1017",
       fillHeight: "1170",
@@ -102,7 +111,7 @@ describe("getParentBackdropImageUrl", () => {
         width: 678,
       }),
     ).toBe(
-      `${api.basePath}/Items/series-1/Images/Backdrop/0?fillWidth=678&quality=80&tag=series-backdrop-tag`,
+      `${api.basePath}/Items/series-1/Images/Backdrop?fillWidth=678&quality=80&tag=series-backdrop-tag&imageIndex=0`,
     );
   });
 });

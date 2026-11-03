@@ -38,13 +38,13 @@ export type AwaitTitleRequest = {
 };
 
 export const getAwaitedTitles = async (api: Api): Promise<AwaitedTitle[]> =>
-  (await api.get<AwaitedTitle[]>(MY_AWAITED_TITLES_PATH)).data;
+  (await api.pluginGet<AwaitedTitle[]>(MY_AWAITED_TITLES_PATH)).data;
 
 export const awaitTitle = async (
   api: Api,
   request: AwaitTitleRequest,
 ): Promise<AwaitedTitle[]> =>
-  (await api.post<AwaitedTitle[]>(MY_AWAITED_TITLES_PATH, request)).data;
+  (await api.pluginPost<AwaitedTitle[]>(MY_AWAITED_TITLES_PATH, request)).data;
 
 export const stopAwaitingTitle = async (
   api: Api,
@@ -52,7 +52,7 @@ export const stopAwaitingTitle = async (
   tmdbId: number,
 ): Promise<AwaitedTitle[]> =>
   (
-    await api.delete<AwaitedTitle[]>(
+    await api.pluginDelete<AwaitedTitle[]>(
       `${MY_AWAITED_TITLES_PATH}/${mediaType}/${tmdbId}`,
     )
   ).data;
