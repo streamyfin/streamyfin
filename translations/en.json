@@ -1319,6 +1319,8 @@
     "not_configured_title": "Streamystats not configured",
     "not_configured_description": "Configure Streamystats in settings to use watchlists",
     "go_to_settings": "Go to Settings",
+    "load_failed_title": "Couldn't load your watchlists",
+    "load_failed_description": "The Streamystats server didn't answer. Check that it can be reached, then retry.",
     "add_to_watchlist": "Add to watchlist",
     "remove_from_watchlist": "Remove from watchlist",
     "select_watchlist": "Select watchlist",

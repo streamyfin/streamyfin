@@ -128,13 +128,37 @@ const NotConfiguredState: React.FC = () => {
   );
 };
 
+const LoadFailedState: React.FC<{ onRetry: () => void }> = ({ onRetry }) => {
+  const { t } = useTranslation();
+
+  return (
+    <View className='flex-1 items-center justify-center px-8'>
+      <Ionicons name='cloud-offline-outline' size={64} color='#4b5563' />
+      <Text className='text-xl font-semibold mt-4 text-center'>
+        {t("watchlists.load_failed_title")}
+      </Text>
+      <Text className='text-neutral-400 text-center mt-2 mb-6'>
+        {t("watchlists.load_failed_description")}
+      </Text>
+      <Button onPress={onRetry} className='px-6'>
+        <Text className='font-semibold'>{t("home.retry")}</Text>
+      </Button>
+    </View>
+  );
+};
+
 export default function WatchlistsScreen() {
   const { t } = useTranslation();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const user = useAtomValue(userAtom);
   const streamystatsEnabled = useStreamystatsEnabled();
-  const { data: watchlists, isLoading, refetch } = useWatchlistsQuery();
+  const {
+    data: watchlists,
+    isLoading,
+    isError,
+    refetch,
+  } = useWatchlistsQuery();
   const [refreshing, setRefreshing] = useState(false);
 
   const handleRefresh = useCallback(async () => {
@@ -211,6 +235,12 @@ export default function WatchlistsScreen() {
         <Loader />
       </View>
     );
+  }
+
+  // A query that gave up has no list either: without this the page said the
+  // server had none. Covered by components/watchlists/watchlistsPage.test.tsx.
+  if (isError && !watchlists) {
+    return <LoadFailedState onRetry={() => void refetch()} />;
   }
 
   if (!isLoading && (!watchlists || watchlists.length === 0)) {

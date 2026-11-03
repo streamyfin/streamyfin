@@ -1,11 +1,12 @@
-import { render, screen } from "@testing-library/react-native";
+import { fireEvent, render, screen } from "@testing-library/react-native";
 import WatchlistsPage from "@/app/(auth)/(tabs)/(watchlists)/index";
 
 /** What the watchlists query answers, set by each test. */
 let mockQuery: {
   data: unknown[] | undefined;
   isLoading: boolean;
-  refetch: () => Promise<void>;
+  isError?: boolean;
+  refetch: () => Promise<unknown>;
 };
 
 jest.mock(
@@ -34,9 +35,19 @@ jest.mock("react-i18next", () => ({
 }));
 jest.mock("@expo/vector-icons", () => ({ Ionicons: () => null }));
 // Its own imports reach the app's settings and device modules; a press is enough here.
-jest.mock("@/components/Button", () => ({
-  Button: ({ children }: { children: React.ReactNode }) => children,
-}));
+jest.mock("@/components/Button", () => {
+  const React = jest.requireActual("react");
+  const { Pressable } = jest.requireActual("react-native");
+  return {
+    Button: ({
+      children,
+      onPress,
+    }: {
+      children: React.ReactNode;
+      onPress?: () => void;
+    }) => React.createElement(Pressable, { onPress }, children),
+  };
+});
 
 // The tab stayed blank while the lists were on their way, for as long as the
 // Streamystats server took to answer (seen on an Android TV, 2026-11-03).
@@ -56,4 +67,18 @@ test("says there is no watchlist once none came back", async () => {
 
   expect(screen.getByText("watchlists.empty_title")).toBeTruthy();
   expect(screen.queryByTestId("watchlists-loading")).toBeNull();
+});
+
+// With the Streamystats server out of reach, the tab said there was no
+// watchlist once the query gave up (seen on an Android TV, 2026-11-03).
+test("says the watchlists could not be loaded, and asks for them again on Retry", async () => {
+  const refetch = jest.fn(async () => undefined);
+  mockQuery = { data: undefined, isLoading: false, isError: true, refetch };
+
+  await render(<WatchlistsPage />);
+
+  expect(screen.getByText("watchlists.load_failed_title")).toBeTruthy();
+  expect(screen.queryByText("watchlists.empty_title")).toBeNull();
+  fireEvent.press(screen.getByText("home.retry"));
+  expect(refetch).toHaveBeenCalledTimes(1);
 });
