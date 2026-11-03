@@ -20,9 +20,13 @@ server log, the session the server records, the receiver on the TV.
   `python3 -m unittest discover -s e2e -t e2e`), and the native module tests
   (`./gradlew :mpv-player:testDebugUnitTest` in a prebuilt `android/`).
 - **Tier 1, simulators and emulators.** Maestro flows against a build that embeds the JS
-  bundle, which on Android is the release APK (`bun run build:android:local`); a debug build
-  is an Expo dev client waiting for Metro. Run `bun run e2e:smoke`, or
-  `python3 e2e/bench/maestro.py --flow <flow> --device <id>`.
+  bundle, which on Android is the release APK: `bun run build:android:local` only assembles
+  it, so install it with
+  `adb install -r android/app/build/outputs/apk/release/app-release.apk`. A debug build is an
+  Expo dev client waiting for Metro. Then run `bun run e2e:smoke`, or
+  `python3 e2e/bench/maestro.py --flow <flow> --device <id>`. Without `--device`, a flow runs on
+  the one emulator or simulator running and never on a phone: the smoke flow clears the app's
+  data.
 - **Tier 2, real devices.** Driven from a developer machine against the test server:
   Chromecast, Google TV, Apple TV, phones and tablets. The Python sender talks to the
   Jellyfin receiver directly, so the receiver and the server can be tested without the
@@ -36,6 +40,10 @@ The bench reads one private JSON file, never committed:
 cp e2e/bench/config.example.json e2e/bench/config.local.json
 # or point E2E_BENCH_CONFIG at the file
 ```
+
+`E2E_BENCH_CONFIG` may point outside the checkout, or at any `e2e/bench/<name>.local.json`,
+which git ignores: the bench refuses a file of the checkout that the next `git add` would
+commit.
 
 It holds the test server addresses, one account per profile (the `syncplay-host` and
 `syncplay-guest` profiles are what the SyncPlay suite signs in with), and the cast targets
