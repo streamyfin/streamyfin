@@ -596,6 +596,28 @@ enum CastEngineTests {
       )
     }
 
+    // The receiver could not reload for the new audio track, or never said so: the getters go back to
+    // the track it plays.
+    do {
+      let bench = Bench()
+      let engine = bench.playing()
+      engine.setAudioTrack(2)
+      bench.port.deliver(#"{"type":"connectionerror","message":"Request failed"}"#)
+      let afterFailure = audio(engine) == 1
+      engine.setAudioTrack(2)
+      bench.clock.advance(CastEngineConstants.loadTimeoutMs)
+      check("anAudioChangeTheReceiverDoesNotLoadIsUndone", afterFailure && audio(engine) == 1)
+    }
+
+    do {
+      let bench = Bench()
+      let engine = bench.playing()
+      engine.setAudioTrack(2)
+      bench.media.report(snapshot(playerState: "idle", customData: nil, hasMedia: false))
+      bench.clock.advance(CastEngineConstants.loadTimeoutMs)
+      check("aReloadThatSettlesWithoutMediaEndsTheLoading", bench.delegate.loadings.last == false)
+    }
+
     // Volume, identity and detaching
 
     do {
@@ -888,6 +910,21 @@ enum CastEngineTests {
       check("reloadCurrentItemWithAServerSendsItsCap", sent.count == 1 && (sent[0]["maxBitrate"] as? NSNumber)?.int64Value == 4_000_000)
     }
 
+    // A window the channel could not send is not on the receiver: a reload leaves it out.
+    do {
+      let bench = Bench()
+      let engine = bench.engine()
+      engine.load(server: server, request: ReceiverPlayRequest(items: ["t-1", "t-2"].map { ReceiverItem(id: $0, type: "Audio") })) { _ in }
+      bench.media.report(snapshot(customData: ours(["itemId": "t-1"])), position: 0)
+      bench.port.sendError = "receiver busy"
+      engine.enqueue(itemIds: ["t-3"])
+      bench.port.sendError = nil
+      engine.reloadCurrentItem()
+      let options = bench.sentMessages().last?["options"] as? [String: Any] ?? [:]
+      let ids = (options["items"] as? [[String: Any]] ?? []).map { $0["Id"] as? String }
+      check("aPlayLastTheChannelCannotSendStaysOutOfTheReplayQueue", ids == ["t-1", "t-2"])
+    }
+
     do {
       let bench = Bench()
       let engine = bench.playing(2)
@@ -1172,10 +1209,34 @@ enum CastEngineTests {
           && volumes.count == 2 && close(volumes[0], 0.4) && close(volumes[1], 0.5)
           && sent.map { $0["command"] as? String ?? "?" } == ["SetAudioStreamIndex", "SetSubtitleStreamIndex", "PlayNow", "NextTrack"]
           && (sent[2]["maxBitrate"] as? NSNumber)?.int64Value == 192_000
+          && (sent[2]["options"] as? [String: Any])?["mediaSourceId"] as? String == "ms-1"
           && bench.media.listener == nil
           && bench.logs.filter { $0.hasPrefix("step ") } == CastEngineProbeScript.steps.map { "step \($0.1)" }
           && !bench.logs.contains { $0.contains("tok-123") }
       )
+    }
+
+    // Without an item in the PlayNow, nothing tells the TV's media from what JS loaded: no script.
+    do {
+      let bench = Bench()
+      bench.hub.attach(bench.port)
+      let probe = CastEngineProbe(
+        hub: bench.hub,
+        makeEngine: { [unowned bench] in
+          CastEngine(server: $0, sessions: bench.source, hub: bench.hub, deliver: bench.clock.deliver, log: { bench.logs.append($0) })
+        },
+        deliver: bench.clock.deliver,
+        log: { [unowned bench] in bench.logs.append($0) }
+      )
+      let playNow = json(ReceiverProtocol.message(command: "PlayNow", server: server, options: ["items": [Any]()]))
+      withExtendedLifetime(probe) {
+        probe.arm()
+        bench.hub.send(namespace: ReceiverProtocol.namespace, text: playNow) { _ in }
+        bench.clock.advance(0)
+        bench.media.report(snapshot(customData: nil), position: 10)
+        bench.clock.advance(10_000)
+      }
+      check("aPlayNowWithoutAnItemNeverStartsTheScript", !bench.logs.contains { $0.hasPrefix("step ") })
     }
 
     // The probe arms on the hub: the first PlayNow JS sends binds one engine, on the server the

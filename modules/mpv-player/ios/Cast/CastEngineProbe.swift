@@ -64,32 +64,12 @@ final class CastEngineProbeScript {
     }
   }
 
-  // A quality change as the receiver takes it: the item again where it is, under a lower cap.
+  // A quality change as the engine applies it: the item again where it is, with its source, tracks
+  // and queue, under a lower cap.
   private func reloadCapped() {
-    guard let itemId = engine.currentItemId else { return }
-    var audio = -1
-    var subtitle = -1
-    engine.getCurrentAudioTrack { audio = $0 }
-    engine.getCurrentSubtitleTrack { subtitle = $0 }
     var capped = server
     capped.maxBitrate = Self.cappedBitrate
-    let request = ReceiverPlayRequest(
-      items: [ReceiverItem(id: itemId)],
-      startPositionTicks: Int64((engine.getCurrentPosition() * ReceiverProtocol.ticksPerSecond).rounded()),
-      audioStreamIndex: audio >= 0 ? audio : nil,
-      subtitleStreamIndex: subtitle
-    )
-    engine.load(server: capped, request: request) { [log] in log("load outcome=\(Self.describe($0))") }
-  }
-
-  private static func describe(_ result: CastLoadResult) -> String {
-    switch result {
-    case .notSent(let error):
-      return "not_sent \(error)"
-    case .settled(let outcome):
-      if case .failed(let error, _) = outcome { return "failed \(error.rawValue)" }
-      return outcome.wireName
-    }
+    engine.reloadCurrentItem(server: capped)
   }
 }
 
@@ -173,7 +153,7 @@ final class CastEngineProbe: PlayerEngineDelegate, CastBindingListener {
 
   // The TV may still show what it played before: the script waits for the item JS loaded.
   private func startWhenPlaying() {
-    guard let engine, !started, !paused, !loading, engine.currentItemId == itemId else { return }
+    guard let engine, !started, !paused, !loading, itemId != nil, engine.currentItemId == itemId else { return }
     started = true
     log("item playing, running the script")
     script?.run()
