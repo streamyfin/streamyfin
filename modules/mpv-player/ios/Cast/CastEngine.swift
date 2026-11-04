@@ -113,11 +113,14 @@ final class CastEngine: TransportEngine, QueueEngine {
   private var suspended = false
 
   // The receiver applies the envelope of every message, whatever its command: after a resume the bus
-  // is reclaimed for what this engine cast, the play session the TV played when the channel came back
-  // or the load a status settles. An item of its queue proves nothing: another sender can cast the
-  // same one, and the receiver would take this envelope for that playback.
+  // is reclaimed only for a playback this engine cast. An item of its queue proves nothing, nor does the
+  // TV's last play session: another sender can cast the same item, or be what played last, and the
+  // receiver would take this envelope for that playback.
   private var reclaimPending = false
-  private var reclaimFor: String?
+
+  // The play session this engine knows it cast: one its load or reload settled on, or the next of its
+  // queue the receiver went on to after an end of its own. It outlives a binding, as the TV plays on.
+  private var ownPlaySession: String?
 
   // After IDLE + FINISHED the receiver fetches the next item before it buffers: the end waits.
   private var cancelEndWait: (() -> Void)?
@@ -241,7 +244,6 @@ final class CastEngine: TransportEngine, QueueEngine {
     reload?.cancelTimer()
     reload = nil
     reclaimPending = false
-    reclaimFor = nil
     // What was reported was reported to this host: the next one starts from nothing.
     reportedPause = nil
     reportedLoading = nil
@@ -306,7 +308,6 @@ final class CastEngine: TransportEngine, QueueEngine {
     // SetVolume without a level changes no volume, but the receiver takes its envelope: it waits for
     // a status that shows what this engine cast.
     reclaimPending = busClaimed
-    reclaimFor = playSessionId
   }
 
   // MARK: - Loading
@@ -666,8 +667,18 @@ final class CastEngine: TransportEngine, QueueEngine {
     // Settled at the end, once this status is the engine's: the host acts on the result from it.
     let load = pendingLoad
     let loadOutcome = load?.tracker.onMediaStatus(customData: data, playerState: status.playerState)
+    var reloadOutcome: ReceiverLoadOutcome?
     if let pending = reload, let outcome = pending.tracker.onMediaStatus(customData: data, playerState: status.playerState) {
+      reloadOutcome = outcome
       settleReload(pending, outcome, recompute: false)
+    }
+    if let playSession = data?.playSessionId {
+      var ownLoad = false
+      if case .loaded? = loadOutcome { ownLoad = true }
+      if case .loaded? = reloadOutcome { ownLoad = true }
+      let ownQueueWentOn = wentOn && ownPlaySession != nil && playSessionId == ownPlaySession
+        && queue.indices.contains(playingIndex) && queue[playingIndex].id == data?.itemId
+      if ownLoad || ownQueueWentOn { ownPlaySession = playSession }
     }
     let newPlaySession = data?.playSessionId != playSessionId
     if newPlaySession {
@@ -686,10 +697,7 @@ final class CastEngine: TransportEngine, QueueEngine {
       log("status \(status.playerState) playSession=\(data?.playSessionId ?? "nil") playMethod=\(data?.playMethod ?? "nil") canClientSeek=\(canClientSeek)")
     }
     reportState(status.playerState, reason: status.idleReason, data: data)
-    var settlesTheLoad = false
-    if case .loaded? = loadOutcome { settlesTheLoad = true }
-    let castHere = data?.playSessionId != nil && (data?.playSessionId == reclaimFor || settlesTheLoad)
-    if reclaimPending, castHere {
+    if reclaimPending, let playSession = data?.playSessionId, playSession == ownPlaySession {
       reclaimPending = false
       let binding = boundSessionId
       // Not taken: nothing was reclaimed, and the next status of that playback tries again.

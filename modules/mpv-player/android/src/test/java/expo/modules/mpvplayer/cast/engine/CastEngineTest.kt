@@ -1046,6 +1046,50 @@ class CastEngineTest {
         assertEquals(emptyList<Pair<String, String>>(), port2.sent)
     }
 
+    // Nor is the TV's last play session: another sender's, seen before the channel came back, got the
+    // reclaim and this engine's envelope.
+    @Test
+    fun aResumeOntoAnotherSendersPlaybackSeenBeforeItReclaimsNothing() {
+        engine().loadRecorded()
+        media.report(snapshot(), 0)
+        media.report(snapshot(customData = ours("itemId" to "item-9", "playSessionId" to "ps-9")), 0)
+        hub.suspend()
+        val port2 = FakeChannelPort()
+        hub.attach(port2)
+        media.report(snapshot(customData = ours("itemId" to "item-9", "playSessionId" to "ps-9")), 1_000)
+        assertEquals(emptyList<Pair<String, String>>(), port2.sent)
+    }
+
+    // What the receiver went on to through the queue this engine cast is this engine's playback too.
+    @Test
+    fun aResumeOntoTheItemItsQueueWentOnToReclaimsTheBus() {
+        val engine = engine()
+        val album = ReceiverPlayRequest(items = listOf("t-1", "t-2").map { ReceiverItem(id = it, type = "Audio") })
+        engine.load(SERVER, album) {}
+        media.report(snapshot(customData = ours("itemId" to "t-1", "playSessionId" to "ps-1")), 0)
+        media.report(snapshot(customData = ours("itemId" to "t-1", "playSessionId" to "ps-1"), playerState = "idle", idleReason = "finished"), 0)
+        media.report(snapshot(customData = ours("itemId" to "t-2", "playSessionId" to "ps-2")), 0)
+        hub.suspend()
+        val port2 = FakeChannelPort()
+        hub.attach(port2)
+        media.report(snapshot(customData = ours("itemId" to "t-2", "playSessionId" to "ps-2")), 1_000)
+        assertEquals(listOf("SetVolume"), port2.sent.map { JSONObject(it.second).getString("command") })
+    }
+
+    @Test
+    fun aResumeOntoThePlaySessionItsReloadSettledOnReclaimsTheBus() {
+        val engine = engine()
+        engine.loadRecorded()
+        media.report(snapshot(), 0)
+        engine.setAudioTrack(2)
+        media.report(snapshot(customData = ours("playSessionId" to "ps-2", "audioStreamIndex" to 2)), 0)
+        hub.suspend()
+        val port2 = FakeChannelPort()
+        hub.attach(port2)
+        media.report(snapshot(customData = ours("playSessionId" to "ps-2", "audioStreamIndex" to 2)), 1_000)
+        assertEquals(listOf("SetVolume"), port2.sent.map { JSONObject(it.second).getString("command") })
+    }
+
     @Test
     fun aResumeOntoThePlaybackItLeftReclaimsTheBus() {
         engine().loadRecorded()

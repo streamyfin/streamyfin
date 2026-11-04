@@ -1559,6 +1559,50 @@ enum CastEngineTests {
       check("aResumeOntoThePlaybackItLeftReclaimsTheBus", commandsSent(on: port2) == ["SetVolume"])
     }
 
+    // Nor is the TV's last play session: another sender's, seen before the channel came back, got the
+    // reclaim and this engine's envelope.
+    do {
+      let bench = Bench()
+      _ = bench.engine().loadRecorded()
+      bench.media.report(snapshot(), position: 0)
+      bench.media.report(snapshot(customData: ours(["itemId": "item-9", "playSessionId": "ps-9"])), position: 0)
+      bench.hub.suspend()
+      let port2 = FakeChannelPort()
+      bench.hub.attach(port2)
+      bench.media.report(snapshot(customData: ours(["itemId": "item-9", "playSessionId": "ps-9"])), position: 1)
+      check("aResumeOntoAnotherSendersPlaybackSeenBeforeItReclaimsNothing", port2.sent.isEmpty)
+    }
+
+    // What the receiver went on to through the queue this engine cast is this engine's playback too.
+    do {
+      let bench = Bench()
+      let engine = bench.engine()
+      let album = ReceiverPlayRequest(items: ["t-1", "t-2"].map { ReceiverItem(id: $0, type: "Audio") })
+      engine.load(server: server, request: album) { _ in }
+      bench.media.report(snapshot(customData: ours(["itemId": "t-1", "playSessionId": "ps-1"])), position: 0)
+      bench.media.report(snapshot(playerState: "idle", idleReason: "finished", customData: ours(["itemId": "t-1", "playSessionId": "ps-1"])), position: 0)
+      bench.media.report(snapshot(customData: ours(["itemId": "t-2", "playSessionId": "ps-2"])), position: 0)
+      bench.hub.suspend()
+      let port2 = FakeChannelPort()
+      bench.hub.attach(port2)
+      bench.media.report(snapshot(customData: ours(["itemId": "t-2", "playSessionId": "ps-2"])), position: 1)
+      check("aResumeOntoTheItemItsQueueWentOnToReclaimsTheBus", commandsSent(on: port2) == ["SetVolume"])
+    }
+
+    do {
+      let bench = Bench()
+      let engine = bench.engine()
+      _ = engine.loadRecorded()
+      bench.media.report(snapshot(), position: 0)
+      engine.setAudioTrack(2)
+      bench.media.report(snapshot(customData: ours(["playSessionId": "ps-2", "audioStreamIndex": 2])), position: 0)
+      bench.hub.suspend()
+      let port2 = FakeChannelPort()
+      bench.hub.attach(port2)
+      bench.media.report(snapshot(customData: ours(["playSessionId": "ps-2", "audioStreamIndex": 2])), position: 1)
+      check("aResumeOntoThePlaySessionItsReloadSettledOnReclaimsTheBus", commandsSent(on: port2) == ["SetVolume"])
+    }
+
     // destroy() dropped a reload the receiver had not answered without saying the loading was over: the
     // host kept its spinner until a later status.
     do {
