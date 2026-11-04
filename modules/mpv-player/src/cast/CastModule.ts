@@ -5,6 +5,7 @@ import type {
   CastNativeEvents,
   CastSessionInfo,
   CastStateValue,
+  OutputPickerOptions,
   PlayServicesStateValue,
   RemoteTargetState,
 } from "./Cast.types";
@@ -30,6 +31,9 @@ export declare class CastNativeModule extends NativeModule<CastNativeEvents> {
   setTargetMuted(muted: boolean): Promise<void>;
   showCastDialog(): Promise<boolean>;
   showExpandedControls(): Promise<boolean>;
+  /** The output sheet: true once on screen, false on a TV or a Mac, which have none. */
+  presentOutputPicker(options: OutputPickerOptions): Promise<boolean>;
+  dismissOutputPicker(): Promise<void>;
   addChannel(
     namespace: string,
   ): Promise<{ namespace: string; connected: boolean }>;

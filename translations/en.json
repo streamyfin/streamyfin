@@ -1213,6 +1213,37 @@
     "toggle_orientation": "Toggle screen orientation",
     "toggle_orientation_hint": "Toggles the screen orientation between portrait and landscape"
   },
+  "cast": {
+    "output": {
+      "title": "Play on",
+      "this_phone": "This phone",
+      "this_tablet": "This tablet",
+      "this_iphone": "This iPhone",
+      "this_ipad": "This iPad",
+      "playing": "Playing",
+      "cast_caption": "Chromecast",
+      "searching": "Looking for devices",
+      "no_devices": "No devices found",
+      "play_services_missing": "Casting needs Google Play services",
+      "play_services_update": "Casting needs an update of Google Play services",
+      "play_services_action": "Get it",
+      "connecting": "Connecting",
+      "connected": "Chromecast, connected",
+      "reconnecting": "Reconnecting",
+      "change": "Change",
+      "mute": "Mute",
+      "unmute": "Unmute",
+      "volume": "Volume",
+      "remote": "Remote",
+      "disconnect": "Disconnect",
+      "device_gone": "This device is no longer on the network",
+      "receiver_unavailable": "The Jellyfin receiver could not start on this device",
+      "network": "The connection to this device was lost",
+      "failed": "The connection failed",
+      "airplay": "AirPlay…",
+      "airplay_caption": "System picker"
+    }
+  },
   "not_found": {
     "title": "This screen doesn't exist.",
     "go_home": "Go to home screen!"

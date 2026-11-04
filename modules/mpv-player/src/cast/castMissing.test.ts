@@ -9,6 +9,7 @@ import {
   isCastAvailable,
   onCastSessionEvent,
   onRemoteTargetChanged,
+  presentOutputPicker,
   remoteTarget,
   setRemoteTargetMuted,
   setRemoteTargetVolume,
@@ -49,4 +50,8 @@ test("no remote target can exist when the native module is missing", async () =>
 test("setRemoteTargetVolume and setRemoteTargetMuted both do nothing without the module", async () => {
   await expect(setRemoteTargetVolume(0.5)).resolves.toBeUndefined();
   await expect(setRemoteTargetMuted(true)).resolves.toBeUndefined();
+});
+
+test("presentOutputPicker resolves false without the module", async () => {
+  await expect(presentOutputPicker({ strings: {} })).resolves.toBe(false);
 });
