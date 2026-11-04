@@ -132,7 +132,7 @@ bun run test:unit            # Jest, the whole suite
 bun run test:coverage        # Jest plus a coverage report in coverage/
 bun run perf                 # Reassure performance scenarios (*.perf-test.tsx)
 bun run perf:baseline        # Reassure baseline to compare `bun run perf` against
-bun run test                 # The full gate: typecheck, unit, lint, format, i18n, doctor
+bun run test                 # The full gate: typecheck, unit, e2e bench, lint, format, i18n, doctor
 
 # iOS specific
 bun run ios:install-metal-toolchain   # Fixes "missing Metal Toolchain" build errors
