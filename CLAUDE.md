@@ -52,6 +52,8 @@ Navigation:
 - `intro-modal-trigger-location` | Trigger in Home.tsx, not tabs _layout.tsx
 - `expo-router-top-tabs-runtime-peers` | js-top-tabs requires react-native-tab-view (+ pager-view) at runtime; no import shows it, removing them crashes on launch
 - `ios27-sdk-tab-bar-items-display-order` | linked against the iOS 27 SDK, UITabBar.items is in display order (search last) and the detached button is TabRole.prominent; patched in react-native-bottom-tabs
+- `swiftui-foreach-evicts-hidden-tabs` | SwiftUI evicts a ForEach element no tab retains, and a tvOS focus selection past it rebuilds it outside an update and traps (REACT-NATIVE-24); hidden tabs stay out of the ForEach, patched in react-native-bottom-tabs
+- `foreign-link-lands-on-library-route` | the library route is /[libraryId], so an unknown one-word link opens it with that word as the id; the music notification's trackplayer://notification.click did, and app/+native-intent.ts drops it
 
 UI and headers:
 - `macos-header-buttons-fix` | macOS Catalyst: use RNGH Pressable, not RN TouchableOpacity
@@ -82,6 +84,7 @@ Native modules:
 - `foreground-service-start-must-be-answered` | every startForegroundService() needs startForeground() first in onStartCommand, unconditionally; a refused call still answers it, a skipped one kills the process
 - `keychain-accessibility-set-at-creation` | a SecureStore item keeps the accessibility it was created with, `setItem` over it changes only the data; a default item throws on read when iOS launches the app on a locked phone
 - `track-player-queue-is-not-the-app-queue` | the native music queue only holds the tracks loaded so far, so a state queue index does not address it; on iOS `add` past the end rejects with the same message as `skip`
+- `android-js-timers-pause-in-background` | Delayed timers don't fire while the Android app is paused (incl. under the Cast expanded controls); zero-delay ones and fetch still do
 
 TV platform:
 - `tv-modals-must-use-navigation-pattern` | Use atom+router.push(), never overlay/absolute modals
@@ -142,7 +145,7 @@ bun run ios:install-metal-toolchain   # Fixes "missing Metal Toolchain" build er
 - **Framework**: Expo SDK 57, React 19, `react-native-tvos`
 - **Language**: TypeScript, strict mode
 - **State**: Jotai for global state, React Query for server state
-- **API**: Jellyfin SDK (`@jellyfin/sdk`)
+- **API**: Jellyfin SDK 1.0 (`@jellyfin/sdk`)
 - **Navigation**: Expo Router, file based
 - **Lint and format**: Biome
 - **Tests**: Jest with the `jest-expo` preset, React Native Testing Library
@@ -166,8 +169,10 @@ bun run ios:install-metal-toolchain   # Fixes "missing Metal Toolchain" build er
 | `patches/` | Patch package overrides |
 | `augmentations/` | Type augmentations |
 | `test-utils/` | Shared test doubles: Jellyfin API, MMKV, the file system, custom headers, React Native, Reanimated |
+| `tests/native/` | Standalone native checks (subtitle geometry, app container paths), each run by its script in `scripts/ios/`, and subtitle playback fixtures |
 | `translations/` | i18n catalogues, `en.json` is the only source |
 | `scripts/` | Repo tooling run through bun |
+| `biome-plugins/` | Custom Biome (Grit) lint rules, wired up in `biome.json` |
 | `docs/` | Conventions and deep dives |
 | `e2e/` | Manual end to end fixtures that need Docker, never run in CI (a local Jellyfin for SyncPlay) |
 
@@ -177,12 +182,27 @@ bun run ios:install-metal-toolchain   # Fixes "missing Metal Toolchain" build er
 - Global state is Jotai atoms in `utils/atoms/`.
 - `settingsAtom` in `utils/atoms/settings.ts` holds app settings. A new setting must also
   be toggleable in the settings UI, mobile or TV depending on its scope, or it is dead.
-- `apiAtom` and `userAtom` in `providers/JellyfinProvider.tsx` hold auth state.
+- `apiAtom` and `userAtom` in `utils/atoms/api.ts` hold auth state. The provider
+  re-exports them, but code the provider imports, `utils/atoms/` among it, reads
+  them from `@/utils/atoms/api`: going through the provider is a require cycle.
 - Server state goes through React Query.
 
 **Jellyfin API**
 - Authenticated calls use `apiAtom`, the current user comes from `userAtom`.
-- Prefer the SDK helpers from `@jellyfin/sdk/lib/utils/api` over hand rolled requests.
+- Use SDK operations from `@jellyfin/sdk/lib/utils/api` for core Jellyfin requests:
+  `getLibraryApi` for items/latest/resume, `getShowApi` for seasons/episodes,
+  `getUserDataApi` for watched/favorite state, `getSessionApi` for playback reports,
+  and `getAuthenticationApi` for sign-in and Quick Connect.
+- Direct HTTP is reserved for endpoints outside the SDK: Streamyfin and
+  intro-skipper plugins, Web's static configuration, configurable custom sections,
+  and external services (Seerr, StreamyStats, Marlin, OpenSubtitles, Wikidata).
+  The SDK itself uses Axios; keep its custom-header transport and error handling.
+  Plugin requests use the explicitly named `pluginGet` / `pluginPost` /
+  `pluginPut` / `pluginDelete` extensions, not generic `Api.get` / `post` /
+  `put` / `delete`.
+- Native images, players and downloads need URLs rather than response bodies.
+  Use SDK URL helpers where available, retaining server-supplied streaming URLs
+  and protocol-specific playback parameters.
 
 **Navigation**
 - File based routing under `app/`.
@@ -235,6 +255,7 @@ PersistQueryClientProvider
 
 **Native modules** in `modules/`: `mpv-player` (the native player, iOS and Android),
 `exoplayer-player`, `background-downloader`, `glass-poster`, `hero-carousel`,
+`notification-settings-link` (the iOS Settings link to the Notifications screen),
 `system-volume`, `top-shelf-cache`, `tv-recommendations`, `tv-search`, `tv-user-profile`,
 `wifi-ssid`.
 
@@ -242,7 +263,7 @@ PersistQueryClientProvider
 
 ```typescript
 import { useSettings } from "@/utils/atoms/settings";
-import { apiAtom } from "@/providers/JellyfinProvider";
+import { apiAtom } from "@/utils/atoms/api";
 ```
 
 ## Coding standards

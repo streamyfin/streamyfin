@@ -73,30 +73,6 @@ export const getExternalSubtitleUrl = (
 };
 
 /**
- * The URL a cast receiver fetches a sidecar subtitle from. The receiver sends
- * no auth headers, so the token rides in the URL — as `ApiKey`, the query
- * parameter Jellyfin still accepts: `api_key` is legacy authorization, which
- * Jellyfin 12 turns off by default.
- *
- * Only a server-relative URL gets the token. An `IsExternalUrl` sub lives on
- * a third-party host that must never see the Jellyfin access token, and a URL
- * the server already signed is left as it came.
- */
-export const getCastSubtitleUrl = (
-  sub: MediaStream,
-  opts: { basePath?: string | null; accessToken?: string | null },
-): string | undefined => {
-  const url = getExternalSubtitleUrl(sub, {
-    offline: false,
-    basePath: opts.basePath,
-  });
-  if (!url) return undefined;
-  if (sub.IsExternalUrl || !opts.accessToken) return url;
-  if (/[?&]api_?key=/i.test(url)) return url;
-  return `${url}${url.includes("?") ? "&" : "?"}ApiKey=${encodeURIComponent(opts.accessToken)}`;
-};
-
-/**
  * Order subtitle MediaStreams for the selection menu exactly like jellyfin-web's
  * `itemHelper.sortTracks`: in-container tracks first then external, and within
  * each group forced first, then default, then `Index` ascending. Callers prepend
@@ -766,7 +742,8 @@ export const applyMpvSubtitleSelection = async (
  * @param mediaSource - The media source containing audio streams
  * @param jellyfinAudioIndex - The Jellyfin server-side audio index
  * @param isTranscoding - Whether the stream is being transcoded
- * @returns MPV track ID (1-based), or undefined if not found
+ * @returns MPV track ID (1-based), or undefined if not found, or for an
+ *   external stream, which a direct stream never carries
  */
 export const getMpvAudioId = (
   mediaSource: MediaSourceInfo | null | undefined,
@@ -783,12 +760,34 @@ export const getMpvAudioId = (
     return undefined;
   }
 
+  // mpv numbers only the file's own tracks; no player loads an external
+  // audio file, which Jellyfin lists ahead of them.
   const allAudio =
-    mediaSource?.MediaStreams?.filter((s) => s.Type === "Audio") || [];
+    mediaSource?.MediaStreams?.filter(
+      (s) => s.Type === "Audio" && !s.IsExternal,
+    ) || [];
 
   // Find position in audio list (1-based for MPV)
   const position = allAudio.findIndex((a) => a.Index === jellyfinAudioIndex);
   return position >= 0 ? position + 1 : undefined;
+};
+
+/**
+ * How to switch to a Jellyfin audio stream while one plays: set mpv's own
+ * track when the stream carries it, or reload the stream when it does not. A
+ * transcoded stream carries only the track the server encoded, and a direct
+ * stream never carries an external audio file; the server muxes either in.
+ */
+export const resolveAudioSwitch = (
+  mediaSource: MediaSourceInfo | null | undefined,
+  jellyfinAudioIndex: number,
+): { reload: true } | { reload: false; mpvId: number } => {
+  const mpvId = getMpvAudioId(
+    mediaSource,
+    jellyfinAudioIndex,
+    Boolean(mediaSource?.TranscodingUrl),
+  );
+  return mpvId === undefined ? { reload: true } : { reload: false, mpvId };
 };
 
 /**

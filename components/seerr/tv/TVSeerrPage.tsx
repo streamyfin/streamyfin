@@ -25,6 +25,7 @@ import { TVSeerrSeasons } from "@/components/seerr/tv/TVSeerrSeasons";
 import { TVButton } from "@/components/tv";
 import { useTVFocusAnimation } from "@/components/tv/hooks/useTVFocusAnimation";
 import { useScaledTVTypography } from "@/constants/TVTypography";
+import { BACKGROUND_IMAGE_TRANSITION_DURATION } from "@/constants/Values";
 import useRouter from "@/hooks/useAppRouter";
 import { useSeerr } from "@/hooks/useSeerr";
 import { useSeerrRequestOffer } from "@/hooks/useSeerrRequestOffer";
@@ -141,7 +142,7 @@ const TVCastCard: React.FC<TVCastCardProps> = ({
         {person.character && (
           <Text
             style={{
-              fontSize: 14,
+              fontSize: typography.callout,
               color: focused
                 ? "rgba(255,255,255,0.7)"
                 : "rgba(255,255,255,0.5)",
@@ -448,7 +449,7 @@ export const TVSeerrPage: React.FC = () => {
             style={{ width: "100%", height: "100%" }}
             contentFit='cover'
             cachePolicy='memory-disk'
-            transition={300}
+            transition={BACKGROUND_IMAGE_TRANSITION_DURATION}
           />
         ) : (
           <View style={{ flex: 1, backgroundColor: "#1a1a1a" }} />

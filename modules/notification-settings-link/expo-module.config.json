@@ -1,0 +1,9 @@
+{
+  "name": "notification-settings-link",
+  "version": "1.0.0",
+  "platforms": ["ios"],
+  "ios": {
+    "modules": ["NotificationSettingsLinkModule"],
+    "appDelegateSubscribers": ["NotificationSettingsLinkAppDelegate"]
+  }
+}

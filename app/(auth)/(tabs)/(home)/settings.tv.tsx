@@ -25,6 +25,7 @@ import {
   TVSettingsTextInput,
   TVSettingsToggle,
 } from "@/components/tv";
+import { PERMISSION_ASKED_KEY } from "@/constants/Notifications";
 import {
   STILL_WATCHING_PRESET_ORDER,
   type StillWatchingPreset,
@@ -266,7 +267,7 @@ export default function SettingsTV() {
                 "user",
                 "deviceId",
                 "previousServers",
-                "hasAskedForNotificationPermission",
+                PERMISSION_ASKED_KEY,
                 "hasShownIntro",
                 "multiAccountMigrated",
                 "selectedTVServer",
@@ -849,6 +850,7 @@ export default function SettingsTV() {
                 onToggle={(value) =>
                   updateSettings({ syncPlayIgnoreWait: value })
                 }
+                isFirst={!hasOtherAccounts}
               />
             </>
           )}
@@ -866,6 +868,7 @@ export default function SettingsTV() {
                   updateSettings({ inactivityTimeout: value }),
               })
             }
+            isFirst={!hasOtherAccounts && !syncPlayAvailable}
           />
 
           {/* Video Player Section */}
@@ -940,6 +943,14 @@ export default function SettingsTV() {
             label={t("home.settings.other.resume_dialog")}
             value={settings.showResumeDialog}
             onToggle={(value) => updateSettings({ showResumeDialog: value })}
+          />
+
+          <TVSettingsToggle
+            label={t("home.settings.other.confirm_before_stopping_playback")}
+            value={settings.confirmBeforeStoppingPlayback}
+            onToggle={(value) =>
+              updateSettings({ confirmBeforeStoppingPlayback: value })
+            }
           />
 
           {/* Only the native TV players ask "Still watching?", and only
@@ -1484,7 +1495,6 @@ export default function SettingsTV() {
             label={t("home.settings.storage.clear_all_cache")}
             value=''
             onPress={handleClearCache}
-            isFirst
           />
 
           {/* User Section */}

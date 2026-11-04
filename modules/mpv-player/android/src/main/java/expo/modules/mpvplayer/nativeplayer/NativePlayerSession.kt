@@ -568,8 +568,6 @@ class NativePlayerSession(
                 dismissing = isDismissing
             )) suspendSyncPlayInBackground("picture in picture closed")
         if (isInPiP) {
-            engine?.setSubtitleUseMargins(false)
-            engine?.setSubtitleScaleWithWindow(false)
             viewModel.applySubtitleGeometry()
             viewModel.controlsVisible = false
             mainHandler.postDelayed({ syncSurfaceSize() }, 100)
@@ -711,8 +709,13 @@ class NativePlayerSession(
         // `delegate?.engine(self, didLoad:)` at the end of load().
         // Mute rides along: it is a device/session state, not a stream one, so
         // JS has no other way to learn it for a player opened while already
-        // muted — no transition happens, so no onMuteStateChanged fires.
-        emit("onLoad", mapOf("url" to loadConfig.url, "muted" to viewModel.isMuted))
+        // muted — no transition happens, so no onMuteStateChanged fires. The
+        // play state rides along for the same reason: a stream swapped in while
+        // the player plays never pauses or resumes.
+        emit(
+            "onLoad",
+            mapOf("url" to loadConfig.url, "muted" to viewModel.isMuted, "isPlaying" to loadConfig.autoplay),
+        )
     }
 
     private fun applySubtitleStyle(style: SubtitleStyleRecord) {
@@ -741,9 +744,6 @@ class NativePlayerSession(
 
     private fun updateSurfaceGeometry(width: Int, height: Int) {
         engine?.updateSurfaceSize(width, height)
-        val useLandscapeMargins = !viewModel.isPipActive && width > height
-        engine?.setSubtitleUseMargins(useLandscapeMargins)
-        engine?.setSubtitleScaleWithWindow(useLandscapeMargins && !viewModel.isTvChrome)
         viewModel.updateSubtitleGeometry(width, height)
     }
 

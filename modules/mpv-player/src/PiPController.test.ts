@@ -82,8 +82,16 @@ describe("iOS automatic PiP lifecycle", () => {
   });
 
   test("rejects readiness from older loads without disabling manual PiP", () => {
+    // A start is matched to its load by the playlist entry mpv names, which
+    // the loadfile reply (tagged with the load's generation) recorded.
     expect(rendererSource).toMatch(
-      /case MPV_EVENT_START_FILE:[\s\S]*activeLoadGeneration = pendingLoadGenerations\.removeFirst\(\)/,
+      /\["loadfile", target, "replace"\], replyUserdata: UInt64\(loadGeneration\)/,
+    );
+    expect(rendererSource).toMatch(
+      /case MPV_EVENT_COMMAND_REPLY:[\s\S]*pendingLoads\[index\]\.entryId = Self\.playlistEntryId\(in: reply\.result\)/,
+    );
+    expect(rendererSource).toMatch(
+      /case MPV_EVENT_START_FILE:[\s\S]*playlist_entry_id[\s\S]*pendingLoads\.firstIndex\(where: \{ \$0\.entryId == entryId \}\)[\s\S]*activeLoadGeneration = pendingLoads\[index\]\.generation/,
     );
     expect(playbackRestartMethod).toMatch(
       /loadGeneration: UInt[\s\S]*guard loadGeneration == self\.loadGeneration/,

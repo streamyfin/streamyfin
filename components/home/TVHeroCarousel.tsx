@@ -23,7 +23,11 @@ import { ProgressBar } from "@/components/common/ProgressBar";
 import { Image, prefetchServerImage } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { getItemNavigation } from "@/components/common/TouchableItemRouter";
-import { type ScaledTVSizes, useScaledTVSizes } from "@/constants/TVSizes";
+import {
+  type ScaledTVSizes,
+  TV_BACKDROP_DEBOUNCE_MS,
+  useScaledTVSizes,
+} from "@/constants/TVSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import {
@@ -209,10 +213,7 @@ const HeroCard: React.FC<HeroCardProps> = React.memo(
   },
 );
 
-// Debounce delay to prevent rapid backdrop changes when navigating fast
-const BACKDROP_DEBOUNCE_MS = 300;
-
-export const TVHeroCarousel: React.FC<TVHeroCarouselProps> = ({
+const TVHeroCarouselComponent: React.FC<TVHeroCarouselProps> = ({
   items,
   onItemFocus,
   onItemLongPress,
@@ -334,7 +335,7 @@ export const TVHeroCarousel: React.FC<TVHeroCarouselProps> = ({
       debounceTimerRef.current = setTimeout(() => {
         setActiveItem(item);
         onItemFocus?.(item);
-      }, BACKDROP_DEBOUNCE_MS);
+      }, TV_BACKDROP_DEBOUNCE_MS);
     },
     [onItemFocus],
   );
@@ -686,3 +687,5 @@ export const TVHeroCarousel: React.FC<TVHeroCarouselProps> = ({
     </View>
   );
 };
+
+export const TVHeroCarousel = React.memo(TVHeroCarouselComponent);

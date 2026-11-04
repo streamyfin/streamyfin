@@ -6,6 +6,7 @@ import {
   TextInput,
   type TextInputProps,
 } from "react-native";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 import { scaleSize } from "@/utils/scaleSize";
 
 interface TVInputProps extends TextInputProps {
@@ -22,6 +23,7 @@ export const TVInput: React.FC<TVInputProps> = ({
   style,
   ...props
 }) => {
+  const typography = useScaledTVTypography();
   const [isFocused, setIsFocused] = useState(false);
   const inputRef = useRef<TextInput>(null);
   const scale = useRef(new Animated.Value(1)).current;
@@ -74,8 +76,10 @@ export const TVInput: React.FC<TVInputProps> = ({
           allowFontScaling={false}
           style={[
             {
-              height: scaleSize(64),
-              fontSize: scaleSize(22),
+              // A floor, not a fixed height: Android pads a TextInput inside
+              // its height, which cut the top off the larger text sizes.
+              minHeight: scaleSize(64),
+              fontSize: typography.heading,
               color: "#FFFFFF",
               paddingHorizontal: scaleSize(20),
             },

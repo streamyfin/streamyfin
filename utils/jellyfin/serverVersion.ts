@@ -75,6 +75,20 @@ export const supportsNameBounds = (version?: string | null) => {
 };
 
 /**
+ * Whether the server sorts by `SeriesDatePlayed` quickly. Jellyfin 10.11.3 to
+ * 10.11.11 run it as one subquery per series row (jellyfin/jellyfin#15587
+ * measured 67 s for a page with about 19k played items) until 12.0
+ * pre-aggregates it (jellyfin/jellyfin#16062), and 10.11.0 to 10.11.2 do not
+ * map it at all. 10.10 and earlier compute it in SQL. An unknown version gets
+ * the plain key.
+ */
+export const sortsSeriesDatePlayedQuickly = (version?: string | null) => {
+  const [major, minor] = (version ?? "").split(".", 2);
+  if (!/^\d+$/.test(major ?? "") || !/^\d+$/.test(minor ?? "")) return false;
+  return Number(major) >= 12 || (Number(major) === 10 && Number(minor) <= 10);
+};
+
+/**
  * Each version of a multi-version item keeps its own UserData from Jellyfin
  * 12 on (jellyfin/jellyfin#16828); before that the primary item carries it.
  */

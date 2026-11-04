@@ -136,6 +136,9 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
     mediaSource?.MediaStreams?.filter((s) => s.Type === "Subtitle") || [];
   const allAudio =
     mediaSource?.MediaStreams?.filter((s) => s.Type === "Audio") || [];
+  // mpv lists only the file's own audio; the external streams Jellyfin lists
+  // ahead of them never reach it.
+  const fileAudio = allAudio.filter((s) => !s.IsExternal);
 
   const isTranscoding = Boolean(mediaSource?.TranscodingUrl);
 
@@ -354,18 +357,21 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
         originalLabel: originalAudioLabel,
       }).map((row) => {
         // mpv ids come from the player's own enumeration, so position against
-        // the unfiltered stream list — not the row list, which drops streams
+        // the file's own audio streams — not the row list, which drops streams
         // with no Index and would shift every id below the gap.
-        const position = allAudio.findIndex((a) => a.Index === row.index);
-        const mpvId = playerAudio[position]?.id ?? position + 1;
+        const position = fileAudio.findIndex((a) => a.Index === row.index);
+        const mpvId =
+          position < 0
+            ? undefined
+            : (playerAudio[position]?.id ?? position + 1);
 
         return {
           name: row.label,
           index: row.index,
-          mpvIndex: mpvId,
+          mpvIndex: mpvId ?? -1,
           setTrack: () => {
             rememberRef.current("audio", row);
-            if (row.requiresReload) {
+            if (row.requiresReload || mpvId === undefined) {
               replacePlayer({ audioIndex: String(row.index) });
               return;
             }

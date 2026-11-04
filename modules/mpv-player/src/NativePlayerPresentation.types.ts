@@ -260,6 +260,8 @@ export type NativePlayerUIOptions = {
   pinchToZoomEnabled?: boolean;
   /** true enables double tap on the video halves to seek (settings.enableDoubleTapToSeek). */
   doubleTapToSeekEnabled?: boolean;
+  /** false skips the "Stop playback?" dialog on Back/Menu (settings.confirmBeforeStoppingPlayback). TV only. */
+  confirmExitEnabled?: boolean;
   /** Remote subtitle search entry in the subtitles menu (online only). */
   subtitleSearchEnabled?: boolean;
   /** ISO 639-2 codes + localized display names for the language picker. */
@@ -409,8 +411,15 @@ export type NativePlayerDismissPayload = {
 
 export type NativePlayerEvents = {
   onSyncPlayAction: (payload: NativePlayerSyncPlayAction) => void;
-  /** `muted` is the combined device-volume + player mute at load time. */
-  onLoad: (payload: { url: string; muted?: boolean }) => void;
+  /**
+   * `muted` is the combined device-volume + player mute at load time, and
+   * `isPlaying` the play state the engine was just given.
+   */
+  onLoad: (payload: {
+    url: string;
+    muted?: boolean;
+    isPlaying?: boolean;
+  }) => void;
   onProgress: (payload: NativePlayerProgressPayload) => void;
   onPlaybackStateChange: (payload: NativePlayerStateChangePayload) => void;
   onError: (payload: { error: string }) => void;

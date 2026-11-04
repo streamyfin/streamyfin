@@ -125,8 +125,8 @@ const reportedNativeFailures = new Set<string>();
  *
  * Every failure reaches the local log. What reaches Sentry is narrower:
  * - expected outcomes, aborted requests and the user's environment (no HTTP
- *   response, a gateway error, a gateway's own refusal) are never sent: an
- *   unreachable server is not an app bug
+ *   response, a gateway error, a gateway's own refusal or page) are never
+ *   sent: an unreachable server is not an app bug
  * - nor is an id the server no longer has, a library renamed or deleted
  *   (isStaleIdError)
  * - an error is sent once, however many layers catch and log it

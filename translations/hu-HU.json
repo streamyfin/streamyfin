@@ -163,6 +163,8 @@
         "download_live_activity_hint": "A letöltés állapotának megjelenítése a zárolási képernyőn és a Dynamic Islanden.",
         "merge_next_up_continue_watching": "A Folytatás és a Következő összevonása",
         "merge_next_up_continue_watching_hint": "Egyetlen sorba vonja össze a Folytatás és a Következő elemeket a főoldalon.",
+        "show_upcoming_on_home": "Közelgő epizódok a kezdőlapon",
+        "show_upcoming_on_home_hint": "Egy sort ad a kezdőlaphoz a sorozatkönyvtáraidban hamarosan adásba kerülő epizódokkal.",
         "use_episode_images_next_up": "Epizódképek használata a Következő és a Folytatás soroknál",
         "use_episode_images_next_up_hint": "A Következő és a Folytatás sorokban az egyes epizódok saját előnézeti képét mutatja a sorozatkép helyett.",
         "hide_remote_session_button": "Távoli munkamenetek gombjának elrejtése",
@@ -225,8 +227,11 @@
         "enter_the_quick_connect_code": "Add meg a gyors csatlakozási kódot...",
         "success": "Siker",
         "quick_connect_authorized": "Gyorscsatlakozás Engedélyezve",
+        "quick_connect_authorized_for": "Gyorscsatlakozás engedélyezve: {{username}}",
+        "user": "Felhasználó",
+        "selected_user_unavailable": "A kiválasztott felhasználó már nem érhető el",
         "invalid_code": "Érvénytelen Kód",
-        "disabled": "Quick Connect is turned off on this server. An administrator can turn it on in the server's dashboard.",
+        "disabled": "A Gyorscsatlakozás ki van kapcsolva ezen a szerveren. Egy adminisztrátor bekapcsolhatja a szerver vezérlőpultján.",
         "authorize": "Engedélyezés",
         "paste_code": "Kód Beillesztése"
       },
@@ -389,10 +394,18 @@
         "select_libraries_you_want_to_hide": "Válaszd ki azokat a könyvtárakat, amelyeket el szeretnél rejteni a Könyvtár fülön és a kezdőlapon.",
         "disable_haptic_feedback": "Haptikus Visszajelzés Letiltása",
         "resume_dialog": "Kérdezzen rá a folytatásra vagy az újrakezdésre",
+        "confirm_before_stopping_playback": "Megerősítés a lejátszás leállítása előtt",
         "default_quality": "Alapértelmezett Minőség",
         "default_playback_speed": "Alapértelmezett lejátszási sebesség",
         "auto_play_next_episode": "Következő epizód automatikus lejátszása",
-        "max_auto_play_episode_count": "Max. Auto. Epizódlejátszás",
+        "still_watching": "Kérdezze meg: „Még mindig nézed?”",
+        "still_watching_hint": "Hosszú nézés után a következő epizód automatikus lejátszása előtt ellenőrzi, hogy néz-e még valaki.",
+        "still_watching_presets": {
+          "short": "Rövid",
+          "default": "Alapértelmezett",
+          "long": "Hosszú",
+          "veryLong": "Nagyon hosszú"
+        },
         "segment_skip_settings": "Szakaszok átugrása",
         "segment_skip_settings_description": "Az átugrás beállítása a főcímeknél, a stáblistáknál és más szakaszoknál",
         "skip_intro": "Főcím átugrása",
@@ -415,6 +428,11 @@
         "playback_title": "Lejátszás",
         "playback_description": "Állítsd be, hogyan szóljon a zene.",
         "prefer_downloaded": "A letöltött számok előnyben részesítése",
+        "normalization": "Hangerő-normalizálás",
+        "normalization_hint": "Kiegyenlített hangosságon játssza le a dalokat.",
+        "normalization_off": "Ki",
+        "normalization_track": "Sáv",
+        "normalization_album": "Album",
         "caching_title": "Gyorsítótárazás",
         "caching_description": "Előre gyorsítótárazza a lejátszási sor következő számait. A legrégebbieket törli, amint eléri a méretkorlátot.",
         "lookahead_enabled": "Előretöltés bekapcsolása",
@@ -553,13 +571,93 @@
           "4_hours": "4 óra",
           "24_hours": "24 óra"
         }
+      },
+      "notifications": {
+        "title": "Értesítések",
+        "save_failed": "Nem sikerült menteni az értesítési beállításaidat. Próbáld újra.",
+        "channels": {
+          "new_content": "Újdonságok a szerveren",
+          "requests": "Kéréseid",
+          "account": "Fiókod",
+          "server_alerts": "Szerverriasztások"
+        },
+        "actions": {
+          "pause": "Szüneteltetés 8 órára",
+          "mute_show": "Kikapcsolás ennél a sorozatnál",
+          "paused": "Értesítések szüneteltetve 8 órára",
+          "muted": "A sorozat értesítései kikapcsolva"
+        },
+        "unsupported": "A szervered Streamyfin bővítménye még nem kínál értesítési beállításokat.",
+        "load_failed": "Nem sikerült betölteni az értesítési beállításaidat.",
+        "try_again": "Próbáld újra",
+        "events": {
+          "item_added": "Új filmek és epizódok",
+          "seerr_requests": "Kéréseid",
+          "seerr_requests_help": "Jóváhagyva, elutasítva vagy elérhető",
+          "awaited_title": "Megérkezik egy cím, amire vársz",
+          "awaited_title_help": "Olyan, amelyről a Seerr-oldalán kértél értesítést",
+          "user_locked_out": "A fiókod zárolva lesz",
+          "seerr_pending": "Új kérések",
+          "seerr_pending_help": "Jóváhagyásra vár, automatikusan jóváhagyva vagy sikertelen",
+          "session_started": "Valaki bejelentkezik",
+          "playback_started": "Valaki lejátszást indít",
+          "sign_in_failed": "Egy bejelentkezés sikertelen",
+          "task_failed": "Egy ütemezett feladat sikertelen",
+          "plugin_changed": "Egy bővítmény megváltozik",
+          "plugin_changed_help": "Telepítve, frissítve vagy eltávolítva"
+        },
+        "groups": {
+          "new": "Újdonságok a szerveren",
+          "follow": "Követett sorozatok",
+          "muted": "Kikapcsolt sorozatok",
+          "yours": "Kéréseid és fiókod",
+          "awaited": "Címek, amikre vársz",
+          "server": "Szerverriasztások"
+        },
+        "libraries_footer": "Új filmek és epizódok ezekből a könyvtárakból.",
+        "follow": {
+          "favorites": "Kedvenc sorozataid",
+          "favorites_help": "Új epizód egy kedvencként megjelölt sorozatból",
+          "started": "Elkezdett sorozatok",
+          "started_help": "Új epizód egy sorozatból, amelynek nézését elkezdted",
+          "footer": "Ezek akkor is megérkeznek, ha az új filmek és epizódok ki vannak kapcsolva."
+        },
+        "muted": {
+          "turn_back_on": "Visszakapcsolás"
+        },
+        "awaited": {
+          "stop": "Várakozás leállítása",
+          "arrived": "Már itt van, értesítünk, amikor a szüneteltetés véget ér"
+        },
+        "pause": {
+          "title": "Értesítések szüneteltetése",
+          "off": "Nincs",
+          "one_hour": "1 óra",
+          "eight_hours": "8 óra",
+          "one_day": "24 óra",
+          "until_on": "Amíg vissza nem kapcsolom",
+          "until": "Eddig: {{when}}"
+        },
+        "blocked": {
+          "title": "Az értesítések ki vannak kapcsolva a Streamyfin számára",
+          "body": "A telefonod letiltja őket, bármit is választasz lent.",
+          "open": "Beállítások megnyitása"
+        },
+        "sound": {
+          "title": "Hang és rezgés",
+          "help": "Minden értesítéstípushoz, az Android beállításaiban"
+        },
+        "account_footer": "Ezek a beállítások a fiókodhoz tartoznak, minden eszközön."
       }
     },
     "sessions": {
       "title": "Munkamenetek",
       "no_active_sessions": "Nincsenek Aktív Munkamenetek",
       "select_session": "Munkamenet Kiválasztása",
-      "now_playing": "Most lejátszva:"
+      "now_playing": "Most lejátszva:",
+      "repeat_off": "Ismétlés ki",
+      "repeat_all": "Összes ismétlése",
+      "repeat_one": "Egy ismétlése"
     },
     "downloads": {
       "downloads_title": "Letöltések",
@@ -609,7 +707,7 @@
         "all_files_deleted": "Az összes letöltés törölve",
         "files_deleted_by_type": "{{count}} {{type}} törölve",
         "could_not_get_download_url_for_item": "Nem sikerült lekérni a(z) {{itemName}} letöltési címét",
-        "no_media_source_to_download": "This item cannot be downloaded",
+        "no_media_source_to_download": "Ez az elem nem tölthető le",
         "file_deleted": "{{item}} törölve"
       }
     }
@@ -625,6 +723,7 @@
     "mark_as_not_played": "Megjelölés lejátszatlanként",
     "none": "Nincs",
     "track": "Sáv",
+    "original_audio": "Eredeti",
     "cancel": "Mégse",
     "stop": "Leállítás",
     "open_menu": "Menü Megnyitása",
@@ -685,6 +784,15 @@
   "library": {
     "no_results": "Nincs Eredmény",
     "no_libraries_found": "Nem Található Könyvtár",
+    "jump_to_letter": "Ugrás betűhöz",
+    "sort": "Rendezés",
+    "letters": "A–Z",
+    "tabs": {
+      "items": "Elemek",
+      "collections": "Gyűjtemények",
+      "playlists": "Lejátszási listák"
+    },
+    "play_all": "Összes lejátszása",
     "item_types": {
       "movies": "Filmek",
       "series": "Sorozatok",
@@ -710,11 +818,24 @@
       "filter_by": "Szűrés",
       "sort_order": "Rendezés Iránya",
       "tags": "Címkék",
+      "official_ratings": "Korhatár-besorolások",
+      "audio_languages": "Hangsávnyelvek",
+      "subtitle_languages": "Feliratnyelvek",
+      "selected_count": "{{count}} kiválasztva",
       "all": "Összes",
+      "title": "Szűrők",
+      "title_count": "Szűrők · {{count}}",
       "reset": "Alaphelyzet",
       "asc": "Növekvő",
       "desc": "Csökkenő"
     }
+  },
+  "upcoming": {
+    "title": "Hamarosan",
+    "no_episodes": "Nincsenek közelgő epizódok",
+    "yesterday": "Tegnap",
+    "today": "Ma",
+    "tomorrow": "Holnap"
   },
   "favorites": {
     "series": "Sorozatok",
@@ -728,7 +849,7 @@
   },
   "custom_links": {
     "no_links": "Nincsenek Linkek",
-    "could_not_open_link": "Could not open this link"
+    "could_not_open_link": "Nem sikerült megnyitni ezt a hivatkozást"
   },
   "player": {
     "live": "ÉLŐ",
@@ -757,6 +878,9 @@
       "buffer_seconds": "Puffer: {{seconds}}mp",
       "vo": "VO:",
       "dropped_frames": "Eldobva: {{count}} képkocka",
+      "transcode_progress": "Átkódolva: {{percent}}%",
+      "transcode_speed": "Átkódolási sebesség: {{fps}} fps",
+      "transcode_hardware": "Hardveres gyorsítás: {{type}}",
       "loading": "Betöltés..."
     },
     "mpv_player_title": "MPV lejátszó",
@@ -771,8 +895,11 @@
     "client_error": "Kliens Hiba",
     "could_not_create_stream_for_chromecast": "A Chromecast stream létrehozása sikertelen volt",
     "chromecast_playback_failed": "A Chromecast nem tudta lejátszani ezt a streamet",
+    "chromecast_server_unreachable": "A Chromecast nem érte el a Jellyfin-szerveredet",
+    "chromecast_did_not_start": "A Chromecast nem indította el a lejátszást. Győződj meg róla, hogy eléri a Jellyfin-szerveredet.",
     "message_from_server": "Üzenet a szervertől: {{message}}",
     "next_episode": "Következő Epizód",
+    "up_next": "Következő",
     "continue_watching": "Folytatás",
     "go_back": "Vissza",
     "downloaded_file_title": "Ez a fájl már le van töltve",
@@ -844,10 +971,13 @@
     "view_season": "Évad megtekintése",
     "select_season": "Évad kiválasztása",
     "no_episodes_for_this_season": "Ehhez az évadhoz nincs epizód",
+    "missing": "Hiányzik",
+    "not_yet_aired": "Még nem került adásba",
     "overview": "Áttekintés",
     "more_with": "További {{name}} Alkotások",
     "similar_items": "Hasonló Elemek",
     "no_similar_items_found": "Nincs Hasonló Elem",
+    "collections": "Gyűjtemények",
     "video": "Videó",
     "more_details": "További Részletek",
     "media_options": "Médiabeállítások",
@@ -861,8 +991,46 @@
     "show_more": "Több Megjelenítése",
     "show_less": "Kevesebb Megjelenítése",
     "left": "van hátra",
-    "director": "Rendező",
     "cast": "Szereplők",
+    "credits": {
+      "Director_one": "Rendező",
+      "Director_other": "Rendezők",
+      "Writer_one": "Forgatókönyvíró",
+      "Writer_other": "Forgatókönyvírók",
+      "Creator_one": "Alkotó",
+      "Creator_other": "Alkotók",
+      "Author_one": "Szerző",
+      "Author_other": "Szerzők",
+      "Narrator_one": "Narrátor",
+      "Narrator_other": "Narrátorok"
+    },
+    "person_kind": {
+      "Actor": "Színész",
+      "Director": "Rendező",
+      "Composer": "Zeneszerző",
+      "Writer": "Forgatókönyvíró",
+      "GuestStar": "Vendégszereplő",
+      "Producer": "Producer",
+      "Conductor": "Karmester",
+      "Lyricist": "Szövegíró",
+      "Arranger": "Hangszerelő",
+      "Engineer": "Hangmérnök",
+      "Mixer": "Keverőmérnök",
+      "Remixer": "Remixelő",
+      "Creator": "Alkotó",
+      "Artist": "Előadó",
+      "AlbumArtist": "Albumelőadó",
+      "Author": "Szerző",
+      "Illustrator": "Illusztrátor",
+      "Penciller": "Rajzoló",
+      "Inker": "Tusoló",
+      "Colorist": "Színező",
+      "Letterer": "Betűző",
+      "CoverArtist": "Borítóművész",
+      "Editor": "Szerkesztő",
+      "Translator": "Fordító",
+      "Narrator": "Narrátor"
+    },
     "technical_details": "Technikai részletek",
     "appeared_in": "Megjelent:",
     "movies": "Filmek",
@@ -909,6 +1077,14 @@
     }
   },
   "seerr": {
+    "awaited": {
+      "notify_me": "Értesíts, ha megérkezik",
+      "waiting": "Értesítést kapsz",
+      "stop_hint": "Leállítja a várakozást erre a címre",
+      "already_here": "Ez a cím már a szerveren van",
+      "too_many": "Már a lehető legtöbb címre vársz",
+      "failed": "Nem sikerült módosítani a címeket, amikre vársz"
+    },
     "cancel": "Mégse",
     "whats_wrong": "Mi a Probléma?",
     "issue_type": "Probléma Típusa",
@@ -1185,10 +1361,10 @@
     "pairing_tv_connecting": "A tévé csatlakozik a fiókodhoz",
     "error_title": "Az engedélyezés sikertelen",
     "error_invalid_qr": "Érvénytelen QR-kód. Olvasd be a tévén megjelenő párosítási kódot.",
-    "error_old_tv": "This TV runs an older version of Streamyfin. Update it, then try again.",
-    "error_code_not_waiting": "This code is not waiting on {{server}}. Check that the TV uses the same server as this phone, then start Quick Connect again on the TV.",
-    "error_quick_connect_disabled": "Quick Connect is turned off on {{server}}. An administrator can turn it on in the server's dashboard.",
-    "error_other_server": "This TV is connecting to another server, {{server}}. Sign in to that server in this app, then scan again.",
+    "error_old_tv": "Ezen a tévén a Streamyfin egy régebbi verziója fut. Frissítsd, majd próbáld újra.",
+    "error_code_not_waiting": "Ez a kód nem vár a(z) {{server}} szerveren. Ellenőrizd, hogy a tévé ugyanazt a szervert használja-e, mint ez a telefon, majd indítsd újra a Gyorscsatlakozást a tévén.",
+    "error_quick_connect_disabled": "A Gyorscsatlakozás ki van kapcsolva a(z) {{server}} szerveren. Egy adminisztrátor bekapcsolhatja a szerver vezérlőpultján.",
+    "error_other_server": "Ez a tévé egy másik szerverhez csatlakozik: {{server}}. Jelentkezz be erre a szerverre ebben az alkalmazásban, majd szkenneld be újra.",
     "error_generic": "Valami hiba történt. Próbáld újra.",
     "error_permission_denied": "A QR-kódok beolvasásához kamerahozzáférés szükséges.",
     "login_as": "Bejelentkezés {{username}} néven?",
@@ -1198,11 +1374,11 @@
   "pairing": {
     "pair_with_phone": "Párosítás telefonnal",
     "pair_with_phone_title": "Bejelentkezés a tévén",
-    "scan_quick_connect": "Scan the QR code with the Streamyfin app or your phone's camera.",
-    "code_expired": "This code has expired.",
-    "get_new_code": "Get a new code",
-    "scan_with_app": "Scan the QR code with the Streamyfin app on your phone.",
-    "account_that_approves": "The account that approves the code",
+    "scan_quick_connect": "Szkenneld be a QR-kódot a Streamyfin alkalmazással vagy a telefonod kamerájával.",
+    "code_expired": "Ez a kód lejárt.",
+    "get_new_code": "Új kód kérése",
+    "scan_with_app": "Szkenneld be a QR-kódot a telefonodon lévő Streamyfin alkalmazással.",
+    "account_that_approves": "A kódot jóváhagyó fiók",
     "logging_in": "Bejelentkezés...",
     "logging_in_description": "Csatlakozás a kiszolgálódhoz"
   },
@@ -1234,5 +1410,82 @@
     "header_count_one": "{{count}} fejléc",
     "header_count_other": "{{count}} fejléc",
     "header_count": "{{count}} fejléc"
+  },
+  "syncplay": {
+    "pause": "Szünet",
+    "play": "Lejátszás",
+    "online_video_only": "A SyncPlay csak online videókat támogat. Lépj ki a csoportból letöltött videók nézéséhez vagy Casthoz.",
+    "title": "SyncPlay",
+    "watch": "Nézés",
+    "new_group": "Új csoport",
+    "new_group_queues": "Sorba állítja: {{title}} · {{count}} videó",
+    "new_group_queues_one": "Sorba állítja: {{title}}",
+    "new_group_queues_other": "Sorba állítja: {{title}} · {{count}} videó",
+    "groups_on_server": "Csoportok ezen a szerveren",
+    "join": "Csatlakozás",
+    "play_for_everyone": "Lejátszás mindenkinek",
+    "stop_for_everyone": "Leállítás mindenkinek",
+    "back_to_group": "Vissza ide: {{name}}",
+    "how_to_play": "Csoportban bármelyik videónál a Lejátszás gomb mindenkinek elindítja azt.",
+    "play_next": "Lejátszás következőként",
+    "add_to_queue": "Hozzáadás a sorhoz",
+    "added_to_queue": "Hozzáadva a csoport sorához",
+    "default_group_name": "{{name}} csoportja",
+    "switch_group": "Váltás másik csoportra",
+    "ignore_wait_setting_hint": "Az általad választott csoportok anélkül indulnak és folytatódnak, hogy erre az eszközre várnának. Minden csatlakozáskor érvényes; a lejátszóban továbbra is módosíthatod.",
+    "description": "Nézz szinkronban barátokkal, akik ugyanazon a szerveren használják a Jellyfint.",
+    "current_group": "Csoportod",
+    "available_groups": "Elérhető csoportok",
+    "leave": "Csoport elhagyása",
+    "refresh": "Frissítés",
+    "retry": "Újra",
+    "no_groups": "Még nincs más csoport. Hozz létre egy csoportot, és hívd meg a barátaidat.",
+    "no_participants": "Résztvevőkre vár",
+    "unavailable": "A SyncPlay nem érhető el ennél a fióknál. Kérd meg a szerver adminisztrátorát, hogy engedélyezze.",
+    "disconnected": "A SyncPlay használatához csatlakozz a szerveredhez. A csoportok a kapcsolat helyreállása után lesznek elérhetők.",
+    "reconnecting": "Újracsatlakozás…",
+    "error": "A SyncPlay nem tudta teljesíteni a kérést",
+    "states": {
+      "Idle": "Nézésre kész",
+      "Waiting": "Mindenkire vár",
+      "Paused": "Szüneteltetve",
+      "Playing": "Lejátszás folyamatban"
+    },
+    "errors": {
+      "disconnected": "Megszakadt a kapcsolat a szerverrel. Csatlakozz újra a közös nézés folytatásához.",
+      "request_failed": "A kérés sikertelen. Próbáld újra.",
+      "create_denied": "Ennek a fióknak nincs jogosultsága SyncPlay-csoportok létrehozására.",
+      "join_denied": "Ennek a fióknak nincs jogosultsága ehhez a csoporthoz csatlakozni.",
+      "group_missing": "Ez a csoport már nem érhető el. Frissítsd a csoportlistát.",
+      "library_denied": "Ennek a fióknak nincs hozzáférése a csoport által választott videóhoz.",
+      "disabled": "A SyncPlay le van tiltva ennél a fióknál.",
+      "playback_failed": "A csoport videóját nem sikerült lejátszani. Válassz másik videót, vagy próbáld újra.",
+      "invalid_name": "Adj meg egy csoportnevet.",
+      "timeout": "A szerver nem válaszolt időben. Próbáld újra."
+    },
+    "queue": "Közös sor",
+    "playback_options": "Lejátszási beállítások",
+    "repeat": "Ismétlés",
+    "repeat_modes": {
+      "RepeatNone": "Ki",
+      "RepeatAll": "Összes videó",
+      "RepeatOne": "Egy videó"
+    },
+    "shuffle": "Véletlenszerű",
+    "ignore_wait": "Ne várjon erre az eszközre",
+    "ignore_wait_hint": "A csoport anélkül indulhat vagy folytatódhat, hogy megvárná, amíg ez az eszköz kész. Ez a beállítás csak az aktuális munkamenetre vonatkozik.",
+    "on": "Be",
+    "off": "Ki",
+    "empty_queue": "A sor üres. Adj hozzá egy videót lent, vagy játssz le egyet a könyvtáradból.",
+    "unavailable_video": "A videó nem érhető el",
+    "now_playing": "Aktuális videó",
+    "move_up": "Mozgatás fel",
+    "move_down": "Mozgatás le",
+    "remove": "Eltávolítás",
+    "clear_upcoming": "Csak az aktuális videó megtartása",
+    "clear_all": "Sor ürítése és leállítás",
+    "play_now": "Lejátszás most",
+    "refresh_group": "Csoport frissítése",
+    "close": "Bezárás"
   }
 }

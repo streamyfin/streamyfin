@@ -195,6 +195,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	private(set) var holdToSpeedRate: Double = 2.0
 	private(set) var pinchToZoomEnabled = true
 	private(set) var doubleTapToSeekEnabled = false
+	private(set) var confirmExitEnabled = true
 	private(set) var subtitleSearchEnabled = false
 	private(set) var subtitleSearchLanguages: [SubtitleSearchLanguageRecord] = []
 	private(set) var videoWidth: Int?
@@ -527,6 +528,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		holdToSpeedRate = config.ui.holdToSpeedRate
 		pinchToZoomEnabled = config.ui.pinchToZoomEnabled
 		doubleTapToSeekEnabled = config.ui.doubleTapToSeekEnabled
+		confirmExitEnabled = config.ui.confirmExitEnabled
 		subtitleSearchEnabled = config.ui.subtitleSearchEnabled
 		subtitleSearchLanguages = config.ui.subtitleSearchLanguages
 		subtitleScale = config.subtitleStyle?.scale ?? 1.0
@@ -1025,14 +1027,11 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		pinchActionTaken = false
 	}
 
-	/// Applies the zoom mode + burned-in-subtitle position compensation to the
-	/// engine (mirror of direct-player.tsx handleZoomToggle). Also called after
-	/// an in-place stream swap so a persisted zoom compensates for the NEW
-	/// video's aspect ratio.
+	/// Zoom changes video framing; the renderer keeps subtitle layout inside
+	/// the visible viewport without overwriting the selected style.
 	func applyZoomState() {
 		guard let engine else { return }
 		engine.setZoomedToFill(isZoomedToFill)
-		engine.setSubtitlePosition(100)
 		applySubtitleScale()
 	}
 
@@ -1054,20 +1053,6 @@ final class PlayerViewModel: NSObject, ObservableObject {
 			if containScale > 0, containScale < 1 {
 				effectiveScale *= min(1 / containScale, 3)
 			}
-			// In portrait the subtitle CALayer follows aspect-fill, so undo
-			// the same extra zoom. Landscape keeps that layer aspect-fitted.
-			if isZoomedToFill, surface.height > surface.width {
-				effectiveScale *= containScale / max(widthScale, heightScale)
-			}
-		}
-		engine.setSubtitleScale((effectiveScale * 100).rounded() / 100)
-		#elseif os(tvOS)
-		var effectiveScale = subtitleScale
-		if isZoomedToFill, let videoWidth, let videoHeight, videoWidth > 0, videoHeight > 0 {
-			let surface = UIScreen.main.bounds.size
-			let widthScale = Double(surface.width) / Double(videoWidth)
-			let heightScale = Double(surface.height) / Double(videoHeight)
-			effectiveScale *= min(widthScale, heightScale) / max(widthScale, heightScale)
 		}
 		engine.setSubtitleScale((effectiveScale * 100).rounded() / 100)
 		#else
@@ -1660,11 +1645,17 @@ final class PlayerViewModel: NSObject, ObservableObject {
 // MARK: - MPVPlayerEngineDelegate
 
 extension PlayerViewModel: MPVPlayerEngineDelegate {
-	func engine(_ engine: MPVPlayerEngine, didLoad url: URL) {
+	func engine(_ engine: MPVPlayerEngine, didLoad config: VideoLoadConfig) {
 		// Mute rides along: it is a device/session state, not a stream one, so
 		// JS has no other way to learn it for a player opened while already
-		// muted — no transition happens, so no onMuteStateChanged fires.
-		emit?("onLoad", ["url": url.absoluteString, "muted": isMuted])
+		// muted — no transition happens, so no onMuteStateChanged fires. The
+		// play state rides along for the same reason: a stream swapped in while
+		// the player plays never pauses or resumes.
+		emit?("onLoad", [
+			"url": config.requestedURL ?? config.url.absoluteString,
+			"muted": isMuted,
+			"isPlaying": engine.intendedPlayState,
+		])
 	}
 
 	func engine(_ engine: MPVPlayerEngine, didUpdateProgress position: Double, duration: Double, cacheSeconds: Double) {

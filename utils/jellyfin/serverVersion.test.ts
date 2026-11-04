@@ -1,5 +1,6 @@
 import {
   honoursExcludedPersonTypes,
+  sortsSeriesDatePlayedQuickly,
   supportsItemCollections,
   supportsLanguageFilters,
   supportsLibraryCollectionsAndPlaylists,
@@ -111,4 +112,16 @@ test("per-version UserData follows the Jellyfin 12 cut", () => {
   expect(supportsPerVersionUserData("10.11.11")).toBe(false);
   expect(supportsPerVersionUserData("12.0.0")).toBe(true);
   expect(supportsPerVersionUserData(undefined)).toBe(false);
+});
+
+test("sorts by the series date played only where the server does it quickly", () => {
+  expect(sortsSeriesDatePlayedQuickly("10.8.13")).toBe(true);
+  expect(sortsSeriesDatePlayedQuickly("10.10.7")).toBe(true);
+  expect(sortsSeriesDatePlayedQuickly("10.11.0")).toBe(false);
+  expect(sortsSeriesDatePlayedQuickly("10.11.3")).toBe(false);
+  expect(sortsSeriesDatePlayedQuickly("10.11.11")).toBe(false);
+  expect(sortsSeriesDatePlayedQuickly("12.0.0-rc1")).toBe(true);
+  expect(sortsSeriesDatePlayedQuickly("12.2.0")).toBe(true);
+  expect(sortsSeriesDatePlayedQuickly(undefined)).toBe(false);
+  expect(sortsSeriesDatePlayedQuickly("")).toBe(false);
 });

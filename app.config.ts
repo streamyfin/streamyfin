@@ -50,9 +50,20 @@ export default ({ config }: ConfigContext): ExpoConfig => {
   if (process.env.EXPO_TV !== "1") {
     config.plugins?.push("expo-background-task");
 
+    // Has iOS stop the receiver when casting is stopped, as Android does. Mods
+    // run in reverse order, so this edits the cast options the library's
+    // plugin below writes.
+    config.plugins?.push("./plugins/withCastStopReceiverOnEnd.ts");
+
+    // F007D354 is Jellyfin's own Cast receiver: unlike the default Google
+    // receiver it authenticates against the server and reports playback, so a
+    // cast shows up in the dashboard and in the user's watch history.
     config.plugins?.push([
       "react-native-google-cast",
-      { useDefaultExpandedMediaControls: true },
+      {
+        useDefaultExpandedMediaControls: true,
+        receiverAppId: "F007D354",
+      },
     ]);
 
     config.plugins?.push([

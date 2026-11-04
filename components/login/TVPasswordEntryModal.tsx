@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import { Text } from "@/components/common/Text";
 import { useTVFocusAnimation } from "@/components/tv";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 import { useTVBackPress } from "@/hooks/useTVBackPress";
 import { scaleSize } from "@/utils/scaleSize";
 
@@ -31,6 +32,7 @@ const TVSubmitButton: React.FC<{
   loading?: boolean;
   disabled?: boolean;
 }> = ({ onPress, label, loading = false, disabled = false }) => {
+  const typography = useScaledTVTypography();
   const { focused, handleFocus, handleBlur, animatedStyle } =
     useTVFocusAnimation({ scaleAmount: 1.05, duration: 120 });
 
@@ -76,7 +78,7 @@ const TVSubmitButton: React.FC<{
             />
             <Text
               style={{
-                fontSize: scaleSize(16),
+                fontSize: typography.callout,
                 color: focused ? "#000" : "#fff",
                 fontWeight: "600",
               }}
@@ -104,6 +106,7 @@ const TVPasswordInput: React.FC<{
   onSubmitEditing,
   hasTVPreferredFocus,
 }) => {
+  const typography = useScaledTVTypography();
   const { focused, handleFocus, handleBlur, animatedStyle } =
     useTVFocusAnimation({ scaleAmount: 1.02, duration: 120 });
   const inputRef = useRef<TextInput>(null);
@@ -142,7 +145,7 @@ const TVPasswordInput: React.FC<{
           autoCorrect={false}
           style={{
             color: "#fff",
-            fontSize: scaleSize(18),
+            fontSize: typography.callout,
           }}
           onSubmitEditing={onSubmitEditing}
           returnKeyType='done'
@@ -158,6 +161,7 @@ export const TVPasswordEntryModal: React.FC<TVPasswordEntryModalProps> = ({
   onSubmit,
   username,
 }) => {
+  const typography = useScaledTVTypography();
   const { t } = useTranslation();
   const [isReady, setIsReady] = useState(false);
   const [password, setPassword] = useState("");
@@ -249,8 +253,10 @@ export const TVPasswordEntryModal: React.FC<TVPasswordEntryModalProps> = ({
           >
             {/* Header */}
             <View style={styles.header}>
-              <Text style={styles.title}>{t("password.enter_password")}</Text>
-              <Text style={styles.subtitle}>
+              <Text style={[styles.title, { fontSize: typography.body }]}>
+                {t("password.enter_password")}
+              </Text>
+              <Text style={[styles.subtitle, { fontSize: typography.callout }]}>
                 {t("password.enter_password_for", { username })}
               </Text>
             </View>
@@ -258,7 +264,9 @@ export const TVPasswordEntryModal: React.FC<TVPasswordEntryModalProps> = ({
             {/* Password Input */}
             {isReady && (
               <View style={styles.inputContainer}>
-                <Text style={styles.inputLabel}>
+                <Text
+                  style={[styles.inputLabel, { fontSize: typography.callout }]}
+                >
                   {t("login.password_placeholder")}
                 </Text>
                 <TVPasswordInput
@@ -271,7 +279,13 @@ export const TVPasswordEntryModal: React.FC<TVPasswordEntryModalProps> = ({
                   onSubmitEditing={handleSubmit}
                   hasTVPreferredFocus
                 />
-                {error && <Text style={styles.errorText}>{error}</Text>}
+                {error && (
+                  <Text
+                    style={[styles.errorText, { fontSize: typography.callout }]}
+                  >
+                    {error}
+                  </Text>
+                )}
               </View>
             )}
 
@@ -322,13 +336,11 @@ const styles = StyleSheet.create({
     marginBottom: scaleSize(24),
   },
   title: {
-    fontSize: scaleSize(28),
     fontWeight: "bold",
     color: "#fff",
     marginBottom: scaleSize(4),
   },
   subtitle: {
-    fontSize: scaleSize(16),
     color: "rgba(255,255,255,0.6)",
   },
   inputContainer: {
@@ -336,13 +348,11 @@ const styles = StyleSheet.create({
     marginBottom: scaleSize(20),
   },
   inputLabel: {
-    fontSize: scaleSize(14),
     color: "rgba(255,255,255,0.6)",
     marginBottom: scaleSize(8),
   },
   errorText: {
     color: "#ef4444",
-    fontSize: scaleSize(14),
     marginTop: scaleSize(8),
   },
   buttonContainer: {

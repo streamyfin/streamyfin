@@ -1,4 +1,4 @@
-import { pushRegistrationKey, pushRegistrationStep } from "./pushRegistration";
+import { inRegistrationOrder, pushRegistrationKey } from "./pushRegistration";
 
 describe("pushRegistrationKey", () => {
   test("is null while any of the three parts is missing", () => {
@@ -23,37 +23,90 @@ describe("pushRegistrationKey", () => {
   });
 });
 
-describe("pushRegistrationStep", () => {
-  test("posts the first time, and not again for the same server, user and token", () => {
-    const first = pushRegistrationStep(null, "https://jf", "u", "t");
-    expect(first.post).toBe(true);
+describe("the language in the key", () => {
+  test("changing the app's language changes the key", () => {
+    const english = pushRegistrationKey("https://jf", "u", "t", "en");
 
-    const again = pushRegistrationStep(first.key, "https://jf", "u", "t");
-    expect(again.post).toBe(false);
-    expect(again.key).toBe(first.key);
+    expect(pushRegistrationKey("https://jf", "u", "t", "fr")).not.toBe(english);
+    expect(pushRegistrationKey("https://jf", "u", "t", "en")).toBe(english);
   });
 
-  test("posts again after a different user, server or token", () => {
-    const { key } = pushRegistrationStep(null, "https://jf", "u", "t");
+  test("no language is a key of its own, not a missing session", () => {
+    const key = pushRegistrationKey("https://jf", "u", "t", undefined);
 
-    expect(pushRegistrationStep(key, "https://jf", "v", "t").post).toBe(true);
-    expect(pushRegistrationStep(key, "https://other", "u", "t").post).toBe(
-      true,
-    );
-    expect(pushRegistrationStep(key, "https://jf", "u", "s").post).toBe(true);
+    expect(key).not.toBeNull();
+    expect(key).not.toBe(pushRegistrationKey("https://jf", "u", "t", "fr"));
   });
+});
 
-  // Sign out deletes the device on the server and clears the session, so the same
-  // sign in afterwards has to post again.
-  test("forgets the key when the session ends, so the same sign in posts again", () => {
-    const { key } = pushRegistrationStep(null, "https://jf", "u", "t");
-
-    const signedOut = pushRegistrationStep(key, undefined, undefined, "t");
-    expect(signedOut.key).toBeNull();
-    expect(signedOut.post).toBe(false);
-
+describe("the poster's address in the key", () => {
+  // A server behind custom headers is sent no address, and setting the headers
+  // up after the first registration has to reach the plugin.
+  test("leaving the address out changes the key", () => {
     expect(
-      pushRegistrationStep(signedOut.key, "https://jf", "u", "t").post,
-    ).toBe(true);
+      pushRegistrationKey("https://jf", "u", "t", "en", undefined),
+    ).not.toBe(pushRegistrationKey("https://jf", "u", "t", "en", "https://jf"));
+  });
+});
+
+describe("what the device can show, in the key", () => {
+  // A build that starts showing channels or buttons registers again, or the plugin would
+  // keep sending it messages without them.
+  test("changes the key when it changes", () => {
+    const before = pushRegistrationKey(
+      "https://jf",
+      "u",
+      "t",
+      "en",
+      undefined,
+      {
+        channels: 0,
+        categories: 0,
+      },
+    );
+    const after = pushRegistrationKey("https://jf", "u", "t", "en", undefined, {
+      channels: 1,
+      categories: 1,
+    });
+
+    expect(before).not.toBe(after);
+  });
+});
+
+// A post still in flight could land after the sign out's delete and bring the row
+// of a signed out device back, so every write waits for the one before it.
+describe("the writes of this device's registration", () => {
+  test("run one after the other, in the order they were asked for", async () => {
+    const order: string[] = [];
+    let land = () => {};
+    const post = inRegistrationOrder(
+      () =>
+        new Promise<void>((resolve) => {
+          land = () => {
+            order.push("post");
+            resolve();
+          };
+        }),
+    );
+    const remove = inRegistrationOrder(async () => {
+      order.push("delete");
+    });
+
+    await Promise.resolve();
+    expect(order).toEqual([]);
+
+    land();
+    await Promise.all([post, remove]);
+    expect(order).toEqual(["post", "delete"]);
+  });
+
+  test("go on after one that fails, which still fails for its caller", async () => {
+    const failed = inRegistrationOrder(() =>
+      Promise.reject(new Error("refused")),
+    );
+    const next = inRegistrationOrder(async () => "deleted");
+
+    await expect(failed).rejects.toThrow("refused");
+    await expect(next).resolves.toBe("deleted");
   });
 });

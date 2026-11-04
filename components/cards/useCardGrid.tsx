@@ -103,10 +103,8 @@ export function useCardGrid({
           card={item}
           kind={kind}
           width={cardWidth}
-          onPress={() => handlePress(item.id)}
-          onLongPress={
-            handleLongPress ? () => handleLongPress(item.id) : undefined
-          }
+          onPress={handlePress}
+          onLongPress={handleLongPress}
         />
       </View>
     ),

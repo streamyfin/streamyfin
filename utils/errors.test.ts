@@ -1,8 +1,8 @@
 import type { CollectionType } from "@jellyfin/sdk/lib/generated-client/models";
 import {
   getFilterApi,
-  getItemsApi,
-  getTvShowsApi,
+  getLibraryApi,
+  getShowApi,
 } from "@jellyfin/sdk/lib/utils/api";
 import { AxiosError, type AxiosResponse } from "axios";
 import { FetchError } from "expo/src/winter/fetch/FetchErrors";
@@ -20,6 +20,7 @@ import {
   isConnectivityError,
   isEnvironmentError,
   isGatewayBlockError,
+  isGatewayPageError,
   isGatewayStatus,
   isStaleIdError,
   templateRequestPath,
@@ -582,8 +583,53 @@ describe("isGatewayBlockError — Cloudflare's own error as JSON", () => {
   });
 });
 
+// REACT-NATIVE-1N: the season's episodes answered with a 200 that had no
+// Items, which a call site reading the body throws with the response
+// (utils/jellyfin/queryResult.ts).
+describe("isGatewayPageError", () => {
+  const PAGE = "<!DOCTYPE html><html><head><title>Sign in</title></head>";
+  const page = (data: unknown, contentType?: string, status = 200) =>
+    isGatewayPageError(
+      httpError(status, {
+        headers: contentType ? { "content-type": contentType } : {},
+        data,
+      }),
+    );
+
+  test("a page answered with a success status is a gateway's", () => {
+    expect(page(PAGE, "text/html; charset=utf-8")).toBe(true);
+    expect(page(PAGE)).toBe(true);
+    expect(page(PAGE, "text/plain")).toBe(true);
+    expect(page(`\n  ${PAGE}`, undefined, 203)).toBe(true);
+    expect(page("", "text/html")).toBe(true);
+  });
+
+  // Not a page: whatever answered, it can still be the app reading the wrong
+  // thing, which is worth a report.
+  test("any other body is left to be reported", () => {
+    expect(page("")).toBe(false);
+    expect(page(null, "application/json")).toBe(false);
+    expect(page({ TotalRecordCount: 0 }, "application/json")).toBe(false);
+    expect(page("OK", "text/plain")).toBe(false);
+    expect(page("Sign in <html>")).toBe(false);
+  });
+
+  // A page with an error status is isGatewayBlockError's to judge.
+  test("a page under an error status is not", () => {
+    expect(page(PAGE, "text/html", 403)).toBe(false);
+    expect(page(PAGE, "text/html", 404)).toBe(false);
+    expect(page(PAGE, "text/html", 500)).toBe(false);
+  });
+
+  test("is false for anything that is not an HTTP response", () => {
+    expect(isGatewayPageError(httpError(undefined))).toBe(false);
+    expect(isGatewayPageError(new Error(PAGE))).toBe(false);
+    expect(isGatewayPageError(PAGE)).toBe(false);
+  });
+});
+
 describe("isEnvironmentError", () => {
-  test("covers an unreachable server and a gateway's refusal", () => {
+  test("covers an unreachable server and a gateway's refusal or page", () => {
     expect(isEnvironmentError(httpError(undefined))).toBe(true);
     expect(isEnvironmentError(httpError(530))).toBe(true);
     expect(
@@ -596,12 +642,18 @@ describe("isEnvironmentError", () => {
         httpError(403, { data: "<!DOCTYPE html><html><body>Blocked" }),
       ),
     ).toBe(true);
+    expect(
+      isEnvironmentError(
+        httpError(200, { data: "<!DOCTYPE html><html><body>Sign in" }),
+      ),
+    ).toBe(true);
   });
 
   test("leaves the answers of the server itself alone", () => {
     expect(isEnvironmentError(httpError(403))).toBe(false);
     expect(isEnvironmentError(httpError(404))).toBe(false);
     expect(isEnvironmentError(httpError(500))).toBe(false);
+    expect(isEnvironmentError(httpError(200, { data: "" }))).toBe(false);
     expect(isEnvironmentError(new Error("boom"))).toBe(false);
   });
 });
@@ -1167,7 +1219,7 @@ describe("isStaleIdError", () => {
       // The library page's request, with a sort and a year picked.
       const items = await failure(
         (api) =>
-          getItemsApi(api).getItems({
+          getLibraryApi(api).getItems({
             userId: "u1",
             parentId: STALE,
             recursive: true,
@@ -1182,7 +1234,7 @@ describe("isStaleIdError", () => {
       // A library card's count.
       const count = await failure(
         (api) =>
-          getItemsApi(api).getItems({
+          getLibraryApi(api).getItems({
             userId: "u1",
             parentId: STALE,
             recursive: true,
@@ -1213,8 +1265,7 @@ describe("isStaleIdError", () => {
     // them apart.
     test("a series' 404 is not: Jellyfin sends it for an id of another kind too", async () => {
       const allEpisodes = await failure(
-        (api) =>
-          getTvShowsApi(api).getEpisodes({ seriesId: STALE, userId: "u1" }),
+        (api) => getShowApi(api).getEpisodes({ seriesId: STALE, userId: "u1" }),
         404,
         "Series not found",
         JSON_BODY,
@@ -1222,7 +1273,7 @@ describe("isStaleIdError", () => {
       // A season the series no longer has.
       const seasonEpisodes = await failure(
         (api) =>
-          getTvShowsApi(api).getEpisodes({
+          getShowApi(api).getEpisodes({
             seriesId: STALE,
             userId: "u1",
             seasonId: SEASON,
@@ -1248,7 +1299,7 @@ describe("isStaleIdError", () => {
 
     test("the same answer to a request that named no parent is not", async () => {
       const error = await failure(
-        (api) => getItemsApi(api).getItems({ userId: "u1", recursive: true }),
+        (api) => getLibraryApi(api).getItems({ userId: "u1", recursive: true }),
         400,
         REASON,
       );
@@ -1259,7 +1310,7 @@ describe("isStaleIdError", () => {
     // validation details: that one is the app's to hear about.
     test("a parentId the server could not read is not", async () => {
       const error = await failure(
-        (api) => getItemsApi(api).getItems({ userId: "u1", parentId: "abc" }),
+        (api) => getLibraryApi(api).getItems({ userId: "u1", parentId: "abc" }),
         400,
         {
           title: "One or more validation errors occurred.",
@@ -1276,7 +1327,7 @@ describe("isStaleIdError", () => {
     test("a request that also sent what Jellyfin rejects that way is not", async () => {
       const nanYear = await failure(
         (api) =>
-          getItemsApi(api).getItems({
+          getLibraryApi(api).getItems({
             userId: "u1",
             parentId: STALE,
             years: [Number.NaN],
@@ -1286,7 +1337,7 @@ describe("isStaleIdError", () => {
       );
       const extraSortOrder = await failure(
         (api) =>
-          getItemsApi(api).getItems({
+          getLibraryApi(api).getItems({
             userId: "u1",
             parentId: STALE,
             sortBy: ["SortName"],
@@ -1305,7 +1356,7 @@ describe("isStaleIdError", () => {
     test("the empty GUID as a parent is not", async () => {
       const error = await failure(
         (api) =>
-          getItemsApi(api).getItems({ userId: "u1", parentId: EMPTY_GUID }),
+          getLibraryApi(api).getItems({ userId: "u1", parentId: EMPTY_GUID }),
         400,
         REASON,
       );
@@ -1332,10 +1383,11 @@ describe("isStaleIdError", () => {
               sortOrder: "Ascending",
               filterBy: [],
               genres: [],
+              officialRatings: [],
               years: [],
               tags: [],
             });
-            return getItemsApi(api).getItems({
+            return getLibraryApi(api).getItems({
               userId: query.userId,
               parentId: query.parentId,
               recursive: query.recursive,

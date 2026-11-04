@@ -5,6 +5,7 @@ import { useAtom } from "jotai";
 import { type FC, useMemo } from "react";
 import { View, type ViewProps } from "react-native";
 import { Image } from "@/components/common/ServerImage";
+import { BACKGROUND_IMAGE_TRANSITION_DURATION } from "@/constants/Values";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getItemImage } from "@/utils/getItemImage";
 
@@ -76,7 +77,7 @@ export const ItemImage: FC<Props> = ({
   return (
     <Image
       cachePolicy={"memory-disk"}
-      transition={300}
+      transition={BACKGROUND_IMAGE_TRANSITION_DURATION}
       placeholder={{
         blurhash: source?.blurhash,
       }}

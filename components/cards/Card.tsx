@@ -1,4 +1,6 @@
 import { LinearGradient } from "expo-linear-gradient";
+import { isEqual } from "lodash";
+import { memo, useCallback } from "react";
 import { TouchableOpacity, View } from "react-native";
 import { Text } from "@/components/common/Text";
 import { Colors } from "@/constants/Colors";
@@ -22,8 +24,8 @@ type CardProps = {
    */
   textPlacement?: "over" | "below";
   slots?: Pick<CardSlots, "overlay" | "footer">;
-  onPress: () => void;
-  onLongPress?: () => void;
+  onPress: (id: string) => void;
+  onLongPress?: (id: string) => void;
 };
 
 /**
@@ -31,7 +33,7 @@ type CardProps = {
  * band at the bottom, and the progress bar under them but still on the card.
  * Everything it draws comes from `CardData` — see `buildItemCards`.
  */
-export const Card: React.FC<CardProps> = ({
+const CardComponent: React.FC<CardProps> = ({
   card,
   kind,
   width,
@@ -45,6 +47,14 @@ export const Card: React.FC<CardProps> = ({
   const height = cardWidth / (card.aspectRatio ?? layout.aspectRatio);
   const progress = Math.min(Math.max(card.progress ?? 0, 0), 1);
   const isOver = textPlacement === "over";
+
+  const handlePress = useCallback(() => {
+    onPress(card.id);
+  }, [onPress, card.id]);
+
+  const handleLongPress = useCallback(() => {
+    onLongPress?.(card.id);
+  }, [onLongPress, card.id]);
 
   const progressBar = progress > 0 && (
     <View
@@ -68,8 +78,8 @@ export const Card: React.FC<CardProps> = ({
 
   return (
     <TouchableOpacity
-      onPress={onPress}
-      onLongPress={onLongPress}
+      onPress={handlePress}
+      onLongPress={onLongPress ? handleLongPress : undefined}
       style={{ width: cardWidth, opacity: card.dimmed ? 0.5 : 1 }}
     >
       <View>
@@ -159,3 +169,5 @@ export const Card: React.FC<CardProps> = ({
     </TouchableOpacity>
   );
 };
+
+export const Card = memo(CardComponent, isEqual);

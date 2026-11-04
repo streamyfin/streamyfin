@@ -1,4 +1,4 @@
-import { getTvShowsApi } from "@jellyfin/sdk/lib/utils/api";
+import { getShowApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import { useAtom } from "jotai";
 import type React from "react";
@@ -16,7 +16,7 @@ export const NextUp: React.FC<{ seriesId: string }> = ({ seriesId }) => {
     queryFn: async () => {
       if (!api) return null;
       return (
-        await getTvShowsApi(api).getNextUp({
+        await getShowApi(api).getNextUp({
           userId: user?.Id,
           seriesId,
           fields: ["MediaSourceCount"],

@@ -1,0 +1,17 @@
+language js
+
+or {
+  `fontSize: $size`,
+  `"fontSize": $size`,
+  `'fontSize': $size`
+} where {
+  $size <: and { or {
+    r"^[-+]?[0-9][0-9_.]*$",
+    `scaleSize($_)`,
+    `$_ * $_`,
+    `$_ + $_`,
+    `$_ - $_`
+  },
+  not contains `typography` },
+  register_diagnostic(span=$size, message="Never hardcode font sizes on TV. Use useScaledTVTypography() from @/constants/TVTypography.", severity="error")
+}

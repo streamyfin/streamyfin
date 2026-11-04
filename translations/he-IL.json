@@ -163,6 +163,8 @@
         "download_live_activity_hint": "הצגת התקדמות ההורדה במסך הנעילה וב-Dynamic Island.",
         "merge_next_up_continue_watching": "איחוד «המשך צפייה» ו«הבא בתור»",
         "merge_next_up_continue_watching_hint": "מאחד את «המשך צפייה» ו«הבא בתור» לשורה אחת במסך הבית.",
+        "show_upcoming_on_home": "פרקים קרובים בדף הבית",
+        "show_upcoming_on_home_hint": "מוסיף לדף הבית שורה עם הפרקים שעומדים לעלות לשידור בספריות הסדרות שלך.",
         "use_episode_images_next_up": "שימוש בתמונות הפרקים ב«הבא בתור» וב«המשך צפייה»",
         "use_episode_images_next_up_hint": "מציג את התמונה הממוזערת של כל פרק בשורות «הבא בתור» ו«המשך צפייה» במקום תמונת הסדרה.",
         "hide_remote_session_button": "הסתרת כפתור ההפעלות המרוחקות",
@@ -225,8 +227,11 @@
         "enter_the_quick_connect_code": "הקלד את קוד ההתחברות המהירה...",
         "success": "הצלחה",
         "quick_connect_authorized": "חיבור מהיר אושר",
+        "quick_connect_authorized_for": "התחברות מהירה אושרה עבור {{username}}",
+        "user": "משתמש",
+        "selected_user_unavailable": "המשתמש שנבחר כבר אינו זמין",
         "invalid_code": "קוד שגוי",
-        "disabled": "Quick Connect is turned off on this server. An administrator can turn it on in the server's dashboard.",
+        "disabled": "התחברות מהירה כבויה בשרת זה. מנהל יכול להפעיל אותה בלוח הבקרה של השרת.",
         "authorize": "אשר",
         "paste_code": "הדבק קוד"
       },
@@ -389,10 +394,18 @@
         "select_libraries_you_want_to_hide": "בחר את הספריות שתרצה להסתיר ממסך הספריות וגם ממסך הבית.",
         "disable_haptic_feedback": "בטל משוב רטט",
         "resume_dialog": "לשאול אם להמשיך או להתחיל מחדש",
+        "confirm_before_stopping_playback": "אישור לפני עצירת הניגון",
         "default_quality": "איכות ברירת מחדל",
         "default_playback_speed": "מהירות ניגון ברירת מחדל",
         "auto_play_next_episode": "ניגון אוטומטי של הפרק הבא",
-        "max_auto_play_episode_count": "כמות פרקים מקסימלית לניגון אוטומטי",
+        "still_watching": "לשאול \"האם אתה עדיין צופה?\"",
+        "still_watching_hint": "לפני הפעלה אוטומטית של הפרק הבא, בודק אחרי צפייה ארוכה שמישהו עדיין צופה.",
+        "still_watching_presets": {
+          "short": "קצר",
+          "default": "ברירת מחדל",
+          "long": "ארוך",
+          "veryLong": "ארוך מאוד"
+        },
         "segment_skip_settings": "הגדרות דילוג על קטעים",
         "segment_skip_settings_description": "הגדירו כיצד לדלג על פתיחים, קטעי סיום וקטעים אחרים",
         "skip_intro": "דילוג על הפתיח",
@@ -415,6 +428,11 @@
         "playback_title": "השמעה",
         "playback_description": "הגדירו כיצד תושמע המוזיקה.",
         "prefer_downloaded": "העדפת שירים שהורדו",
+        "normalization": "נרמול עוצמת שמע",
+        "normalization_hint": "מנגן שירים בעוצמה מאוזנת.",
+        "normalization_off": "כבוי",
+        "normalization_track": "רצועה",
+        "normalization_album": "אלבום",
         "caching_title": "מטמון",
         "caching_description": "שומר מראש את השירים הבאים בתור. השירים הישנים ביותר מוסרים כאשר מגיעים למגבלת הנפח.",
         "lookahead_enabled": "הפעלת טעינה מראש",
@@ -553,13 +571,93 @@
           "4_hours": "4 שעות",
           "24_hours": "24 שעות"
         }
+      },
+      "notifications": {
+        "title": "התראות",
+        "save_failed": "לא ניתן היה לשמור את בחירות ההתראות שלך. נסה שוב.",
+        "channels": {
+          "new_content": "חדש בשרת",
+          "requests": "הבקשות שלך",
+          "account": "החשבון שלך",
+          "server_alerts": "התראות שרת"
+        },
+        "actions": {
+          "pause": "השהה ל-8 שעות",
+          "mute_show": "כבה עבור סדרה זו",
+          "paused": "ההתראות הושהו ל-8 שעות",
+          "muted": "ההתראות עבור סדרה זו כובו"
+        },
+        "unsupported": "תוסף Streamyfin בשרת שלך עדיין לא מציע בחירות התראות.",
+        "load_failed": "לא ניתן היה לטעון את בחירות ההתראות שלך.",
+        "try_again": "נסה שוב",
+        "events": {
+          "item_added": "סרטים ופרקים חדשים",
+          "seerr_requests": "הבקשות שלך",
+          "seerr_requests_help": "אושרו, נדחו או זמינות",
+          "awaited_title": "כותר שאתה מחכה לו מגיע",
+          "awaited_title_help": "כותר שביקשת לקבל עליו עדכון מדף ה-Seerr שלו",
+          "user_locked_out": "החשבון שלך ננעל",
+          "seerr_pending": "בקשות חדשות",
+          "seerr_pending_help": "ממתינות לאישור, אושרו אוטומטית או נכשלו",
+          "session_started": "מישהו מתחבר",
+          "playback_started": "מישהו מתחיל לנגן",
+          "sign_in_failed": "התחברות נכשלת",
+          "task_failed": "משימה מתוזמנת נכשלת",
+          "plugin_changed": "תוסף משתנה",
+          "plugin_changed_help": "הותקן, עודכן או הוסר"
+        },
+        "groups": {
+          "new": "חדש בשרת",
+          "follow": "סדרות שאתה עוקב אחריהן",
+          "muted": "סדרות שכובו",
+          "yours": "הבקשות והחשבון שלך",
+          "awaited": "כותרים שאתה מחכה להם",
+          "server": "התראות שרת"
+        },
+        "libraries_footer": "סרטים ופרקים חדשים מהספריות האלה.",
+        "follow": {
+          "favorites": "הסדרות המועדפות שלך",
+          "favorites_help": "פרק חדש בסדרה שסימנת כמועדפת",
+          "started": "סדרות שהתחלת",
+          "started_help": "פרק חדש בסדרה שהתחלת לצפות בה",
+          "footer": "התראות אלה מגיעות גם כשסרטים ופרקים חדשים כבויים."
+        },
+        "muted": {
+          "turn_back_on": "הפעל מחדש"
+        },
+        "awaited": {
+          "stop": "הפסק לחכות",
+          "arrived": "כבר כאן, תקבל עדכון כשההשהיה שלך תסתיים"
+        },
+        "pause": {
+          "title": "השהיית התראות",
+          "off": "לא",
+          "one_hour": "שעה אחת",
+          "eight_hours": "8 שעות",
+          "one_day": "24 שעות",
+          "until_on": "עד שאפעיל אותן מחדש",
+          "until": "עד {{when}}"
+        },
+        "blocked": {
+          "title": "ההתראות כבויות עבור Streamyfin",
+          "body": "הטלפון שלך חוסם אותן, לא משנה מה תבחר למטה.",
+          "open": "פתיחת ההגדרות"
+        },
+        "sound": {
+          "title": "צליל ורטט",
+          "help": "לכל סוג התראה, בהגדרות של Android"
+        },
+        "account_footer": "הבחירות האלה חלות על החשבון שלך בכל המכשירים."
       }
     },
     "sessions": {
       "title": "חיבורים",
       "no_active_sessions": "אין חיבורים פעילים",
       "select_session": "בחירת חיבור",
-      "now_playing": "מתנגן כעת:"
+      "now_playing": "מתנגן כעת:",
+      "repeat_off": "חזרה כבויה",
+      "repeat_all": "חזרה על הכל",
+      "repeat_one": "חזרה על אחד"
     },
     "downloads": {
       "downloads_title": "הורדות",
@@ -609,7 +707,7 @@
         "all_files_deleted": "כל ההורדות נמחקו בהצלחה",
         "files_deleted_by_type": "{{type}} שנמחקו: {{count}}",
         "could_not_get_download_url_for_item": "לא היה ניתן להשיג את קישור ההורדה של {{itemName}}",
-        "no_media_source_to_download": "This item cannot be downloaded",
+        "no_media_source_to_download": "לא ניתן להוריד פריט זה",
         "file_deleted": "{{item}} נמחק"
       }
     }
@@ -625,6 +723,7 @@
     "mark_as_not_played": "סמן כלא נוגן",
     "none": "ללא",
     "track": "רצועה",
+    "original_audio": "מקורי",
     "cancel": "ביטול",
     "stop": "עצור",
     "open_menu": "פתח תפריט",
@@ -685,6 +784,15 @@
   "library": {
     "no_results": "לא נמצאו תוצאות",
     "no_libraries_found": "לא נמצאו ספריות",
+    "jump_to_letter": "קפיצה לאות",
+    "sort": "מיון",
+    "letters": "A–Z",
+    "tabs": {
+      "items": "פריטים",
+      "collections": "אוספים",
+      "playlists": "רשימות השמעה"
+    },
+    "play_all": "נגן הכל",
     "item_types": {
       "movies": "סרטים",
       "series": "סדרות",
@@ -710,11 +818,24 @@
       "filter_by": "סינון לפי",
       "sort_order": "סדר מיון",
       "tags": "תגים",
+      "official_ratings": "סיווגי גיל",
+      "audio_languages": "שפות שמע",
+      "subtitle_languages": "שפות כתוביות",
+      "selected_count": "נבחרו: {{count}}",
       "all": "הכול",
+      "title": "מסננים",
+      "title_count": "מסננים · {{count}}",
       "reset": "איפוס",
       "asc": "בסדר עולה",
       "desc": "בסדר יורד"
     }
+  },
+  "upcoming": {
+    "title": "בקרוב",
+    "no_episodes": "אין פרקים קרובים",
+    "yesterday": "אתמול",
+    "today": "היום",
+    "tomorrow": "מחר"
   },
   "favorites": {
     "series": "סדרות",
@@ -728,7 +849,7 @@
   },
   "custom_links": {
     "no_links": "אין קישורים",
-    "could_not_open_link": "Could not open this link"
+    "could_not_open_link": "לא ניתן לפתוח קישור זה"
   },
   "player": {
     "live": "שידור חי",
@@ -757,6 +878,9 @@
       "buffer_seconds": "באפר: {{seconds}}שנ'",
       "vo": "VO:",
       "dropped_frames": "פריימים שהושמטו: {{count}}",
+      "transcode_progress": "הומר: {{percent}}%",
+      "transcode_speed": "מהירות המרה: {{fps}} fps",
+      "transcode_hardware": "האצת חומרה: {{type}}",
       "loading": "טוען..."
     },
     "mpv_player_title": "נגן MPV",
@@ -771,8 +895,11 @@
     "client_error": "שגיאת לקוח",
     "could_not_create_stream_for_chromecast": "נכשל ביצירת זרם עבור Chromecast",
     "chromecast_playback_failed": "לא ניתן היה לנגן את הזרם הזה ב-Chromecast",
+    "chromecast_server_unreachable": "ה-Chromecast לא הצליח להגיע לשרת ה-Jellyfin שלך",
+    "chromecast_did_not_start": "ה-Chromecast לא התחיל לנגן. ודא שהוא יכול להגיע לשרת ה-Jellyfin שלך.",
     "message_from_server": "הודעה מהשרת: {{message}}",
     "next_episode": "הפרק הבא",
+    "up_next": "הבא בתור",
     "continue_watching": "המשך לצפות",
     "go_back": "חזור",
     "downloaded_file_title": "הקובץ הזה כבר הורד",
@@ -844,10 +971,13 @@
     "view_season": "הצגת העונה",
     "select_season": "בחירת עונה",
     "no_episodes_for_this_season": "אין פרקים בעונה זו",
+    "missing": "חסר",
+    "not_yet_aired": "טרם שודר",
     "overview": "סקירה",
     "more_with": "עוד עם {{name}}",
     "similar_items": "פריטים דומים",
     "no_similar_items_found": "לא נמצאו פריטים דומים",
+    "collections": "אוספים",
     "video": "וידאו",
     "more_details": "פרטים נוספים",
     "media_options": "אפשרויות מדיה",
@@ -861,8 +991,46 @@
     "show_more": "הצג עוד",
     "show_less": "הצג פחות",
     "left": "נותרו",
-    "director": "במאי",
     "cast": "שחקנים",
+    "credits": {
+      "Director_one": "במאי",
+      "Director_other": "במאים",
+      "Writer_one": "תסריטאי",
+      "Writer_other": "תסריטאים",
+      "Creator_one": "יוצר",
+      "Creator_other": "יוצרים",
+      "Author_one": "מחבר",
+      "Author_other": "מחברים",
+      "Narrator_one": "קריין",
+      "Narrator_other": "קריינים"
+    },
+    "person_kind": {
+      "Actor": "שחקן",
+      "Director": "במאי",
+      "Composer": "מלחין",
+      "Writer": "תסריטאי",
+      "GuestStar": "כוכב אורח",
+      "Producer": "מפיק",
+      "Conductor": "מנצח",
+      "Lyricist": "תמלילן",
+      "Arranger": "מעבד מוזיקלי",
+      "Engineer": "מהנדס סאונד",
+      "Mixer": "מהנדס מיקס",
+      "Remixer": "רמיקסר",
+      "Creator": "יוצר",
+      "Artist": "אמן",
+      "AlbumArtist": "אמן האלבום",
+      "Author": "מחבר",
+      "Illustrator": "מאייר",
+      "Penciller": "מאייר בעיפרון",
+      "Inker": "מדייק בדיו",
+      "Colorist": "צבען",
+      "Letterer": "כתבן",
+      "CoverArtist": "אמן העטיפה",
+      "Editor": "עורך",
+      "Translator": "מתרגם",
+      "Narrator": "קריין"
+    },
     "technical_details": "פרטים טכניים",
     "appeared_in": "הופיע ב-",
     "movies": "סרטים",
@@ -909,6 +1077,14 @@
     }
   },
   "seerr": {
+    "awaited": {
+      "notify_me": "עדכן אותי כשזה מגיע",
+      "waiting": "תקבל עדכון",
+      "stop_hint": "מפסיק לחכות לכותר הזה",
+      "already_here": "כותר זה כבר נמצא בשרת",
+      "too_many": "אתה כבר מחכה למספר המרבי של כותרים",
+      "failed": "לא ניתן היה לשנות את הכותרים שאתה מחכה להם"
+    },
     "cancel": "ביטול",
     "whats_wrong": "מה קרה?",
     "issue_type": "סוג התקלה",
@@ -1185,10 +1361,10 @@
     "pairing_tv_connecting": "הטלוויזיה מתחברת לחשבון שלכם",
     "error_title": "האישור נכשל",
     "error_invalid_qr": "קוד QR לא תקין. סרקו את קוד ההתאמה שבטלוויזיה.",
-    "error_old_tv": "This TV runs an older version of Streamyfin. Update it, then try again.",
-    "error_code_not_waiting": "This code is not waiting on {{server}}. Check that the TV uses the same server as this phone, then start Quick Connect again on the TV.",
-    "error_quick_connect_disabled": "Quick Connect is turned off on {{server}}. An administrator can turn it on in the server's dashboard.",
-    "error_other_server": "This TV is connecting to another server, {{server}}. Sign in to that server in this app, then scan again.",
+    "error_old_tv": "בטלוויזיה זו מותקנת גרסה ישנה של Streamyfin. עדכן אותה ונסה שוב.",
+    "error_code_not_waiting": "קוד זה אינו ממתין ב-{{server}}. ודא שהטלוויזיה משתמשת באותו שרת כמו הטלפון הזה, ואז הפעל שוב את ההתחברות המהירה בטלוויזיה.",
+    "error_quick_connect_disabled": "התחברות מהירה כבויה ב-{{server}}. מנהל יכול להפעיל אותה בלוח הבקרה של השרת.",
+    "error_other_server": "טלוויזיה זו מתחברת לשרת אחר, {{server}}. התחבר לשרת הזה באפליקציה, ואז סרוק שוב.",
     "error_generic": "משהו השתבש. נסו שוב.",
     "error_permission_denied": "נדרשת הרשאת מצלמה כדי לסרוק קודי QR.",
     "login_as": "להתחבר בתור {{username}}?",
@@ -1198,11 +1374,11 @@
   "pairing": {
     "pair_with_phone": "התאמה לטלפון",
     "pair_with_phone_title": "התחברות בטלוויזיה",
-    "scan_quick_connect": "Scan the QR code with the Streamyfin app or your phone's camera.",
-    "code_expired": "This code has expired.",
-    "get_new_code": "Get a new code",
-    "scan_with_app": "Scan the QR code with the Streamyfin app on your phone.",
-    "account_that_approves": "The account that approves the code",
+    "scan_quick_connect": "סרוק את קוד ה-QR עם אפליקציית Streamyfin או עם המצלמה של הטלפון.",
+    "code_expired": "תוקף הקוד הזה פג.",
+    "get_new_code": "קבלת קוד חדש",
+    "scan_with_app": "סרוק את קוד ה-QR עם אפליקציית Streamyfin בטלפון שלך.",
+    "account_that_approves": "החשבון שמאשר את הקוד",
     "logging_in": "מתחבר...",
     "logging_in_description": "מתחבר לשרת שלכם"
   },
@@ -1234,5 +1410,82 @@
     "header_count_one": "{{count}} כותרת",
     "header_count_other": "{{count}} כותרות",
     "header_count": "{{count}} כותרות"
+  },
+  "syncplay": {
+    "pause": "השהה",
+    "play": "נגן",
+    "online_video_only": "SyncPlay תומך רק בסרטונים מקוונים. צא מהקבוצה כדי לצפות בסרטונים שהורדו או לשדר אותם ב-Cast.",
+    "title": "SyncPlay",
+    "watch": "צפה",
+    "new_group": "קבוצה חדשה",
+    "new_group_queues": "מוסיף לתור את {{title}} · סרטונים: {{count}}",
+    "new_group_queues_one": "מוסיף לתור את {{title}}",
+    "new_group_queues_other": "מוסיף לתור את {{title}} · סרטונים: {{count}}",
+    "groups_on_server": "קבוצות בשרת זה",
+    "join": "הצטרף",
+    "play_for_everyone": "נגן לכולם",
+    "stop_for_everyone": "עצור לכולם",
+    "back_to_group": "חזרה אל {{name}}",
+    "how_to_play": "בקבוצה, לחיצה על נגן בכל סרטון מנגנת אותו לכולם.",
+    "play_next": "נגן אחר כך",
+    "add_to_queue": "הוספה לתור",
+    "added_to_queue": "נוסף לתור של הקבוצה",
+    "default_group_name": "הקבוצה של {{name}}",
+    "switch_group": "מעבר לקבוצה אחרת",
+    "ignore_wait_setting_hint": "קבוצות שאתה מצטרף אליהן מתחילות וממשיכות בלי לחכות למכשיר הזה. חל בכל הצטרפות; עדיין אפשר לשנות זאת בנגן.",
+    "description": "צפה בסנכרון עם חברים שמשתמשים ב-Jellyfin באותו שרת.",
+    "current_group": "הקבוצה שלך",
+    "available_groups": "קבוצות זמינות",
+    "leave": "עזוב קבוצה",
+    "refresh": "רענון",
+    "retry": "נסה שוב",
+    "no_groups": "אין עדיין קבוצות אחרות. צור קבוצה והזמן חברים להצטרף.",
+    "no_participants": "ממתין למשתתפים",
+    "unavailable": "SyncPlay אינו זמין לחשבון זה. בקש ממנהל השרת להפעיל אותו.",
+    "disconnected": "התחבר לשרת שלך כדי להשתמש ב-SyncPlay. הקבוצות יהיו זמינות כשהחיבור יחזור.",
+    "reconnecting": "מתחבר מחדש…",
+    "error": "SyncPlay לא הצליח להשלים את הבקשה",
+    "states": {
+      "Idle": "מוכן לצפייה",
+      "Waiting": "ממתין לכולם",
+      "Paused": "מושהה",
+      "Playing": "מתנגן"
+    },
+    "errors": {
+      "disconnected": "החיבור לשרת אבד. התחבר מחדש כדי להמשיך לצפות יחד.",
+      "request_failed": "הבקשה נכשלה. נסה שוב.",
+      "create_denied": "לחשבון זה אין הרשאה ליצור קבוצות SyncPlay.",
+      "join_denied": "לחשבון זה אין הרשאה להצטרף לקבוצה זו.",
+      "group_missing": "קבוצה זו כבר אינה זמינה. רענן את רשימת הקבוצות.",
+      "library_denied": "לחשבון זה אין גישה לסרטון שהקבוצה בחרה.",
+      "disabled": "SyncPlay מושבת עבור חשבון זה.",
+      "playback_failed": "לא ניתן היה לנגן את סרטון הקבוצה. בחר סרטון אחר או נסה שוב.",
+      "invalid_name": "הזן שם לקבוצה.",
+      "timeout": "השרת לא הגיב בזמן. נסה שוב."
+    },
+    "queue": "תור משותף",
+    "playback_options": "אפשרויות הפעלה",
+    "repeat": "חזרה",
+    "repeat_modes": {
+      "RepeatNone": "כבוי",
+      "RepeatAll": "כל הסרטונים",
+      "RepeatOne": "סרטון אחד"
+    },
+    "shuffle": "ערבוב",
+    "ignore_wait": "לא לחכות למכשיר הזה",
+    "ignore_wait_hint": "הקבוצה יכולה להתחיל או להמשיך בלי לחכות שהמכשיר הזה יהיה מוכן. הגדרה זו חלה רק על ההפעלה הנוכחית שלך.",
+    "on": "פועל",
+    "off": "כבוי",
+    "empty_queue": "התור ריק. הוסף סרטון למטה או נגן סרטון מהספרייה שלך.",
+    "unavailable_video": "הסרטון אינו זמין",
+    "now_playing": "הסרטון הנוכחי",
+    "move_up": "הזז למעלה",
+    "move_down": "הזז למטה",
+    "remove": "הסרה",
+    "clear_upcoming": "השאר רק את הסרטון הנוכחי",
+    "clear_all": "נקה את התור ועצור",
+    "play_now": "נגן עכשיו",
+    "refresh_group": "רענן קבוצה",
+    "close": "סגירה"
   }
 }

@@ -70,6 +70,10 @@ export const TVEpisodeList: React.FC<TVEpisodeListProps> = ({
           overlay={
             unavailable ? <TVPosterPill label={unavailable} /> : undefined
           }
+          // Each episode's own image, as on the phone's series and episode
+          // pages; the Next up setting is for the Next Up and Continue
+          // Watching rows.
+          preferEpisodeImage
         />
       );
     },

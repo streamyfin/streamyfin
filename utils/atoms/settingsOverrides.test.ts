@@ -209,13 +209,8 @@ describe("pendingPluginDefaults", () => {
 });
 
 describe("pluginRefreshOverlay", () => {
-  test("computes the overlay against the settings passed in", () => {
-    // The caller must pass the atom's value at write time. The refresh runs
-    // while the user can be toggling (the intro sheet is up during login),
-    // and the old merge from a render-time snapshot resurrected the value
-    // the user had just overwritten.
+  test("writes the defaults the admin declared and records them", () => {
     const result = pluginRefreshOverlay(
-      { sentryEnabled: false } as Partial<Settings>,
       plugin({
         sentryEnabled: { locked: false, value: true },
         forwardSkipTime: { locked: false, value: 45 },
@@ -242,7 +237,6 @@ describe("pluginRefreshOverlay", () => {
 
     expect(
       pluginRefreshOverlay(
-        { seerrServerUrl: "http://mine.example", autoLoginSeerr: false },
         plugin({
           seerrServerUrl: { locked: false, value: "http://seerr.example" },
           autoLoginSeerr: { locked: false, value: true },
@@ -254,7 +248,6 @@ describe("pluginRefreshOverlay", () => {
 
     expect(
       pluginRefreshOverlay(
-        {} as Partial<Settings>,
         plugin({
           seerrServerUrl: { locked: false, value: "http://seerr.example" },
           forwardSkipTime: { locked: false, value: 45 },
@@ -270,21 +263,15 @@ describe("pluginRefreshOverlay", () => {
   });
 
   test("returns null when there is nothing to write", () => {
-    const result = pluginRefreshOverlay(
-      {} as Partial<Settings>,
-      undefined,
-      {},
-      identity,
-    );
+    const result = pluginRefreshOverlay(undefined, {}, identity);
     expect(result).toBeNull();
   });
 
-  test("a streamystats-only refresh leaves the applied record untouched", () => {
-    // Recording applied defaults for a write that seeded nothing would mark
-    // pending defaults as done without ever writing them. The URL here is
-    // already applied, so the only outstanding write is the search engine.
+  // The search engine is a lockable setting like any other: an admin who
+  // wants Streamystats search declares it. Inferring it from the address
+  // turned the user's choice back on at every refresh, without saying so.
+  test("a Streamystats address alone does not turn Streamystats search on", () => {
     const result = pluginRefreshOverlay(
-      { searchEngine: "Jellyfin" } as Partial<Settings>,
       plugin({
         streamyStatsServerUrl: {
           locked: false,
@@ -294,10 +281,7 @@ describe("pluginRefreshOverlay", () => {
       { streamyStatsServerUrl: "https://stats.example" },
       identity,
     );
-    expect(result).toEqual({
-      overlay: { searchEngine: "Streamystats" },
-      applied: null,
-    });
+    expect(result).toBeNull();
   });
 });
 

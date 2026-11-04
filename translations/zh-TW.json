@@ -163,6 +163,8 @@
         "download_live_activity_hint": "在鎖定畫面和動態島上顯示下載進度。",
         "merge_next_up_continue_watching": "合併「繼續觀看」和「接下來」",
         "merge_next_up_continue_watching_hint": "將「繼續觀看」和「接下來」合併為首頁上的一列。",
+        "show_upcoming_on_home": "在首頁顯示即將播出的集數",
+        "show_upcoming_on_home_hint": "在首頁新增一列，顯示電視節目媒體庫中即將播出的集數。",
         "use_episode_images_next_up": "在「接下來」和「繼續觀看」中使用單集圖片",
         "use_episode_images_next_up_hint": "在「接下來」和「繼續觀看」列中顯示每集自己的縮圖，而不是影集圖片。",
         "hide_remote_session_button": "隱藏遠端工作階段按鈕",
@@ -225,8 +227,11 @@
         "enter_the_quick_connect_code": "輸入快速連接代碼...",
         "success": "成功",
         "quick_connect_authorized": "已授權 Quick Connect",
+        "quick_connect_authorized_for": "已授權 {{username}} 使用快速連線",
+        "user": "使用者",
+        "selected_user_unavailable": "所選的使用者已無法使用",
         "invalid_code": "無效代碼",
-        "disabled": "Quick Connect is turned off on this server. An administrator can turn it on in the server's dashboard.",
+        "disabled": "此伺服器已關閉快速連線。管理員可以在伺服器控制台中開啟。",
         "authorize": "授權",
         "paste_code": "貼上代碼"
       },
@@ -389,10 +394,18 @@
         "select_libraries_you_want_to_hide": "選擇您想從媒體庫分頁和首頁區塊中隱藏的媒體庫。",
         "disable_haptic_feedback": "禁用觸覺回饋",
         "resume_dialog": "詢問繼續播放還是從頭開始",
+        "confirm_before_stopping_playback": "停止播放前先確認",
         "default_quality": "預設品質",
         "default_playback_speed": "預設播放速度",
         "auto_play_next_episode": "自動播放下一集",
-        "max_auto_play_episode_count": "自動播放劇集的最大次數",
+        "still_watching": "詢問「您還在觀看嗎？」",
+        "still_watching_hint": "長時間觀看後，在自動播放下一集前確認是否仍有人觀看。",
+        "still_watching_presets": {
+          "short": "短",
+          "default": "預設",
+          "long": "長",
+          "veryLong": "很長"
+        },
         "segment_skip_settings": "片段略過設定",
         "segment_skip_settings_description": "設定片頭、片尾及其他片段的略過方式",
         "skip_intro": "略過片頭",
@@ -415,6 +428,11 @@
         "playback_title": "播放",
         "playback_description": "設定音樂的播放方式。",
         "prefer_downloaded": "優先使用已下載的歌曲",
+        "normalization": "音量標準化",
+        "normalization_hint": "以一致的音量播放歌曲。",
+        "normalization_off": "關閉",
+        "normalization_track": "曲目",
+        "normalization_album": "專輯",
         "caching_title": "快取",
         "caching_description": "提前將佇列中即將播放的歌曲快取下來。達到容量上限後，最早快取的歌曲會被清除。",
         "lookahead_enabled": "啟用預先快取",
@@ -518,7 +536,7 @@
         "clear_all_cache_error_desc": "清除快取時發生錯誤。"
       },
       "intro": {
-        "title": "片頭",
+        "title": "簡介",
         "show_intro": "顯示介紹",
         "reset_intro": "重置介紹"
       },
@@ -553,13 +571,93 @@
           "4_hours": "4 小時",
           "24_hours": "24 小時"
         }
+      },
+      "notifications": {
+        "title": "通知",
+        "save_failed": "無法儲存您的通知選項，請再試一次。",
+        "channels": {
+          "new_content": "伺服器上的新內容",
+          "requests": "您的要求",
+          "account": "您的帳號",
+          "server_alerts": "伺服器警示"
+        },
+        "actions": {
+          "pause": "暫停 8 小時",
+          "mute_show": "關閉此節目的通知",
+          "paused": "通知已暫停 8 小時",
+          "muted": "已關閉此節目的通知"
+        },
+        "unsupported": "您伺服器上的 Streamyfin 外掛程式尚未提供通知選項。",
+        "load_failed": "無法載入您的通知選項。",
+        "try_again": "再試一次",
+        "events": {
+          "item_added": "新電影和新集數",
+          "seerr_requests": "您的要求",
+          "seerr_requests_help": "已核准、已拒絕或可觀看",
+          "awaited_title": "您等待的作品已上架",
+          "awaited_title_help": "您在其 Seerr 頁面上要求通知的作品",
+          "user_locked_out": "您的帳號遭到鎖定",
+          "seerr_pending": "新的要求",
+          "seerr_pending_help": "等待核准、已自動核准或失敗",
+          "session_started": "有人登入",
+          "playback_started": "有人開始播放",
+          "sign_in_failed": "登入失敗",
+          "task_failed": "排程工作失敗",
+          "plugin_changed": "外掛程式有所變更",
+          "plugin_changed_help": "已安裝、已更新或已移除"
+        },
+        "groups": {
+          "new": "伺服器上的新內容",
+          "follow": "您追蹤的節目",
+          "muted": "已關閉通知的節目",
+          "yours": "您的要求和帳號",
+          "awaited": "您等待的作品",
+          "server": "伺服器警示"
+        },
+        "libraries_footer": "來自這些媒體庫的新電影和新集數。",
+        "follow": {
+          "favorites": "您最愛的節目",
+          "favorites_help": "您標為最愛的節目推出新的一集",
+          "started": "您已開始觀看的節目",
+          "started_help": "您已開始觀看的節目推出新的一集",
+          "footer": "即使關閉新電影和新集數的通知，仍會收到這些通知。"
+        },
+        "muted": {
+          "turn_back_on": "重新開啟"
+        },
+        "awaited": {
+          "stop": "停止等待",
+          "arrived": "已上架，暫停結束時會通知您"
+        },
+        "pause": {
+          "title": "暫停通知",
+          "off": "不暫停",
+          "one_hour": "1 小時",
+          "eight_hours": "8 小時",
+          "one_day": "24 小時",
+          "until_on": "直到我重新開啟",
+          "until": "直到 {{when}}"
+        },
+        "blocked": {
+          "title": "Streamyfin 的通知已關閉",
+          "body": "無論您在下方如何選擇，手機都會封鎖這些通知。",
+          "open": "開啟設定"
+        },
+        "sound": {
+          "title": "音效與震動",
+          "help": "在 Android 設定中為每種通知分別設定"
+        },
+        "account_footer": "這些選項會跟著您的帳號同步到所有裝置。"
       }
     },
     "sessions": {
       "title": "會話",
       "no_active_sessions": "沒有使用中的會話",
       "select_session": "選擇工作階段",
-      "now_playing": "正在播放："
+      "now_playing": "正在播放：",
+      "repeat_off": "關閉重複播放",
+      "repeat_all": "全部重複播放",
+      "repeat_one": "單曲重複播放"
     },
     "downloads": {
       "downloads_title": "下載",
@@ -609,7 +707,7 @@
         "all_files_deleted": "已成功刪除所有下載",
         "files_deleted_by_type": "已刪除 {{count}} 個{{type}}",
         "could_not_get_download_url_for_item": "無法取得 {{itemName}} 的下載網址",
-        "no_media_source_to_download": "This item cannot be downloaded",
+        "no_media_source_to_download": "無法下載此項目",
         "file_deleted": "已刪除 {{item}}"
       }
     }
@@ -625,6 +723,7 @@
     "mark_as_not_played": "標記為未播放",
     "none": "無",
     "track": "音軌",
+    "original_audio": "原始音軌",
     "cancel": "取消",
     "stop": "停止",
     "open_menu": "開啟選單",
@@ -685,6 +784,15 @@
   "library": {
     "no_results": "沒有結果",
     "no_libraries_found": "未找到媒體庫",
+    "jump_to_letter": "跳至字母",
+    "sort": "排序",
+    "letters": "A–Z",
+    "tabs": {
+      "items": "項目",
+      "collections": "合輯",
+      "playlists": "播放清單"
+    },
+    "play_all": "全部播放",
     "item_types": {
       "movies": "電影",
       "series": "系列",
@@ -710,11 +818,24 @@
       "filter_by": "篩選依據",
       "sort_order": "排序順序",
       "tags": "標籤",
+      "official_ratings": "內容分級",
+      "audio_languages": "音訊語言",
+      "subtitle_languages": "字幕語言",
+      "selected_count": "已選取 {{count}} 項",
       "all": "全部",
+      "title": "篩選條件",
+      "title_count": "篩選條件 · {{count}}",
       "reset": "重設",
       "asc": "遞增",
       "desc": "遞減"
     }
+  },
+  "upcoming": {
+    "title": "即將播出",
+    "no_episodes": "沒有即將播出的集數",
+    "yesterday": "昨天",
+    "today": "今天",
+    "tomorrow": "明天"
   },
   "favorites": {
     "series": "系列",
@@ -728,7 +849,7 @@
   },
   "custom_links": {
     "no_links": "無鏈接",
-    "could_not_open_link": "Could not open this link"
+    "could_not_open_link": "無法開啟此連結"
   },
   "player": {
     "live": "直播",
@@ -757,6 +878,9 @@
       "buffer_seconds": "緩衝：{{seconds}}s",
       "vo": "VO:",
       "dropped_frames": "丟棄：{{count}}影格",
+      "transcode_progress": "已轉碼：{{percent}}%",
+      "transcode_speed": "轉碼速度：{{fps}} fps",
+      "transcode_hardware": "硬體加速：{{type}}",
       "loading": "載入中..."
     },
     "mpv_player_title": "MPV 播放器",
@@ -771,8 +895,11 @@
     "client_error": "客戶端錯誤",
     "could_not_create_stream_for_chromecast": "無法為 Chromecast 建立串流",
     "chromecast_playback_failed": "Chromecast 無法播放此串流",
+    "chromecast_server_unreachable": "Chromecast 無法連線至您的 Jellyfin 伺服器",
+    "chromecast_did_not_start": "Chromecast 沒有開始播放。請確認它能連線至您的 Jellyfin 伺服器。",
     "message_from_server": "來自伺服器的訊息：{{message}}",
     "next_episode": "下一集",
+    "up_next": "接下來播放",
     "continue_watching": "繼續觀看",
     "go_back": "返回",
     "downloaded_file_title": "您已下載此檔案",
@@ -844,10 +971,13 @@
     "view_season": "檢視本季",
     "select_season": "選擇季",
     "no_episodes_for_this_season": "本季無劇集",
+    "missing": "缺少檔案",
+    "not_yet_aired": "尚未播出",
     "overview": "概覽",
     "more_with": "更多 {{name}} 的作品",
     "similar_items": "類似項目",
     "no_similar_items_found": "未找到類似項目",
+    "collections": "合輯",
     "video": "影片",
     "more_details": "更多詳情",
     "media_options": "媒體選項",
@@ -861,8 +991,46 @@
     "show_more": "顯示更多",
     "show_less": "顯示更少",
     "left": "剩餘",
-    "director": "導演",
     "cast": "演員",
+    "credits": {
+      "Director_one": "導演",
+      "Director_other": "導演",
+      "Writer_one": "編劇",
+      "Writer_other": "編劇",
+      "Creator_one": "原創者",
+      "Creator_other": "原創者",
+      "Author_one": "作者",
+      "Author_other": "作者",
+      "Narrator_one": "旁白",
+      "Narrator_other": "旁白"
+    },
+    "person_kind": {
+      "Actor": "演員",
+      "Director": "導演",
+      "Composer": "作曲",
+      "Writer": "編劇",
+      "GuestStar": "客串演員",
+      "Producer": "製作人",
+      "Conductor": "指揮",
+      "Lyricist": "作詞",
+      "Arranger": "編曲",
+      "Engineer": "錄音工程師",
+      "Mixer": "混音師",
+      "Remixer": "重混音師",
+      "Creator": "原創者",
+      "Artist": "藝人",
+      "AlbumArtist": "專輯藝人",
+      "Author": "作者",
+      "Illustrator": "插畫家",
+      "Penciller": "鉛筆稿畫師",
+      "Inker": "描線師",
+      "Colorist": "上色師",
+      "Letterer": "嵌字師",
+      "CoverArtist": "封面畫家",
+      "Editor": "編輯",
+      "Translator": "譯者",
+      "Narrator": "旁白"
+    },
     "technical_details": "技術細節",
     "appeared_in": "出現於",
     "movies": "電影",
@@ -909,6 +1077,14 @@
     }
   },
   "seerr": {
+    "awaited": {
+      "notify_me": "上架時通知我",
+      "waiting": "上架後會通知您",
+      "stop_hint": "停止等待此作品",
+      "already_here": "此作品已在伺服器上",
+      "too_many": "您等待的作品數量已達上限",
+      "failed": "無法變更您等待的作品"
+    },
     "cancel": "取消",
     "whats_wrong": "出了什麼問題？",
     "issue_type": "問題類型",
@@ -1185,10 +1361,10 @@
     "pairing_tv_connecting": "電視正在連線到您的帳戶",
     "error_title": "授權失敗",
     "error_invalid_qr": "QR code 無效。請掃描電視上的配對碼。",
-    "error_old_tv": "This TV runs an older version of Streamyfin. Update it, then try again.",
-    "error_code_not_waiting": "This code is not waiting on {{server}}. Check that the TV uses the same server as this phone, then start Quick Connect again on the TV.",
-    "error_quick_connect_disabled": "Quick Connect is turned off on {{server}}. An administrator can turn it on in the server's dashboard.",
-    "error_other_server": "This TV is connecting to another server, {{server}}. Sign in to that server in this app, then scan again.",
+    "error_old_tv": "這台電視使用的是舊版 Streamyfin。請更新後再試一次。",
+    "error_code_not_waiting": "{{server}} 上沒有等待授權的此代碼。請確認電視與這支手機使用相同的伺服器，然後在電視上重新啟動快速連線。",
+    "error_quick_connect_disabled": "{{server}} 已關閉快速連線。管理員可以在伺服器控制台中開啟。",
+    "error_other_server": "這台電視正在連線至另一台伺服器 {{server}}。請在此應用程式中登入該伺服器，然後重新掃描。",
     "error_generic": "發生問題，請重試。",
     "error_permission_denied": "掃描 QR code 需要相機權限。",
     "login_as": "以 {{username}} 身分登入？",
@@ -1198,11 +1374,11 @@
   "pairing": {
     "pair_with_phone": "與手機配對",
     "pair_with_phone_title": "在電視上登入",
-    "scan_quick_connect": "Scan the QR code with the Streamyfin app or your phone's camera.",
-    "code_expired": "This code has expired.",
-    "get_new_code": "Get a new code",
-    "scan_with_app": "Scan the QR code with the Streamyfin app on your phone.",
-    "account_that_approves": "The account that approves the code",
+    "scan_quick_connect": "使用 Streamyfin 應用程式或手機相機掃描 QR code。",
+    "code_expired": "此代碼已過期。",
+    "get_new_code": "取得新代碼",
+    "scan_with_app": "使用手機上的 Streamyfin 應用程式掃描 QR code。",
+    "account_that_approves": "核准此代碼的帳號",
     "logging_in": "登入中...",
     "logging_in_description": "正在連線到您的伺服器"
   },
@@ -1234,5 +1410,82 @@
     "header_count_one": "{{count}} 個標頭",
     "header_count_other": "{{count}} 個標頭",
     "header_count": "{{count}} 個標頭"
+  },
+  "syncplay": {
+    "pause": "暫停",
+    "play": "播放",
+    "online_video_only": "SyncPlay 僅支援線上影片。若要觀看已下載的影片或投放，請先離開群組。",
+    "title": "SyncPlay",
+    "watch": "觀看",
+    "new_group": "新群組",
+    "new_group_queues": "將 {{title}} 加入播放佇列 · {{count}} 部影片",
+    "new_group_queues_one": "將 {{title}} 加入播放佇列",
+    "new_group_queues_other": "將 {{title}} 加入播放佇列 · {{count}} 部影片",
+    "groups_on_server": "此伺服器上的群組",
+    "join": "加入",
+    "play_for_everyone": "為所有人播放",
+    "stop_for_everyone": "為所有人停止播放",
+    "back_to_group": "返回 {{name}}",
+    "how_to_play": "在群組中，對任何影片按下播放，就會為所有人播放。",
+    "play_next": "接著播放",
+    "add_to_queue": "加入播放佇列",
+    "added_to_queue": "已加入群組的播放佇列",
+    "default_group_name": "{{name}} 的群組",
+    "switch_group": "切換至其他群組",
+    "ignore_wait_setting_hint": "您加入的群組開始或繼續播放時，不會等待此裝置。每次加入群組時都會套用，您仍可在播放器中變更。",
+    "description": "與使用同一台 Jellyfin 伺服器的朋友同步觀看。",
+    "current_group": "您的群組",
+    "available_groups": "可加入的群組",
+    "leave": "離開群組",
+    "refresh": "重新整理",
+    "retry": "重試",
+    "no_groups": "目前沒有其他群組。建立群組並邀請朋友加入。",
+    "no_participants": "等待參與者",
+    "unavailable": "此帳號無法使用 SyncPlay。請聯絡伺服器管理員啟用。",
+    "disconnected": "請連線至伺服器以使用 SyncPlay。連線恢復後即可使用群組。",
+    "reconnecting": "正在重新連線…",
+    "error": "SyncPlay 無法完成要求",
+    "states": {
+      "Idle": "準備好觀看",
+      "Waiting": "等待所有人",
+      "Paused": "已暫停",
+      "Playing": "播放中"
+    },
+    "errors": {
+      "disconnected": "與伺服器的連線已中斷。請重新連線以繼續一起觀看。",
+      "request_failed": "要求失敗，請再試一次。",
+      "create_denied": "此帳號沒有建立 SyncPlay 群組的權限。",
+      "join_denied": "此帳號沒有加入此群組的權限。",
+      "group_missing": "此群組已無法使用。請重新整理群組清單。",
+      "library_denied": "此帳號無權存取群組所選的影片。",
+      "disabled": "此帳號已停用 SyncPlay。",
+      "playback_failed": "無法播放群組的影片。請選擇其他影片或再試一次。",
+      "invalid_name": "請輸入群組名稱。",
+      "timeout": "伺服器未及時回應，請再試一次。"
+    },
+    "queue": "共用播放佇列",
+    "playback_options": "播放選項",
+    "repeat": "重複播放",
+    "repeat_modes": {
+      "RepeatNone": "關閉",
+      "RepeatAll": "所有影片",
+      "RepeatOne": "單部影片"
+    },
+    "shuffle": "隨機播放",
+    "ignore_wait": "不等待此裝置",
+    "ignore_wait_hint": "群組可直接開始或繼續播放，無須等待此裝置就緒。此設定僅適用於目前的工作階段。",
+    "on": "開啟",
+    "off": "關閉",
+    "empty_queue": "播放佇列是空的。請在下方新增影片，或從媒體庫播放影片。",
+    "unavailable_video": "影片無法使用",
+    "now_playing": "目前播放的影片",
+    "move_up": "上移",
+    "move_down": "下移",
+    "remove": "移除",
+    "clear_upcoming": "只保留目前的影片",
+    "clear_all": "清空播放佇列並停止播放",
+    "play_now": "立即播放",
+    "refresh_group": "重新整理群組",
+    "close": "關閉"
   }
 }

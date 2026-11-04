@@ -6,6 +6,7 @@ import { Text } from "@/components/common/Text";
 import { TVButton } from "@/components/tv/TVButton";
 import { QUICK_CONNECT_CODE_LIFETIME_MS } from "@/constants/QuickConnect";
 import { useScaledTVTypography } from "@/constants/TVTypography";
+import type { QuickConnectStatus } from "@/hooks/useQuickConnect";
 import { useTVBackPress } from "@/hooks/useTVBackPress";
 import { quickConnectPairingUrl } from "@/utils/quickConnectPairing";
 import { scaleSize } from "@/utils/scaleSize";
@@ -17,6 +18,9 @@ interface TVQRCodeDisplayProps {
   code: string;
   /** The server's id, for the phone to tell a TV on another server apart. */
   serverId?: string;
+  /** The server's name, for the turned-off message; its address without one. */
+  serverName?: string;
+  status: QuickConnectStatus;
   /** Asks the server for a new code once this one has expired. */
   onNewCode: () => void;
   onBack?: () => void;
@@ -31,12 +35,16 @@ export const TVQRCodeDisplay: React.FC<TVQRCodeDisplayProps> = ({
   serverUrl,
   code,
   serverId,
+  serverName,
+  status,
   onNewCode,
   onBack,
 }) => {
   const typography = useScaledTVTypography();
 
   // The server drops the request after its lifetime; a new code restarts it.
+  // Counted from when the code is shown, whatever the polling is doing: a
+  // stopped attempt must not leave a dead code up for good.
   const [expired, setExpired] = useState(false);
   useEffect(() => {
     setExpired(false);
@@ -46,6 +54,12 @@ export const TVQRCodeDisplay: React.FC<TVQRCodeDisplayProps> = ({
     );
     return () => clearTimeout(timer);
   }, [code]);
+  useEffect(() => {
+    if (status === "expired") setExpired(true);
+  }, [status]);
+
+  const signingIn = status === "authenticating" || status === "signed-in";
+  const disabled = status === "disabled";
 
   const qrSize = scaleSize(280);
   const cardPadding = scaleSize(16);
@@ -98,7 +112,37 @@ export const TVQRCodeDisplay: React.FC<TVQRCodeDisplayProps> = ({
             {t("login.quick_connect")}
           </Text>
 
-          {expired ? (
+          {disabled || signingIn ? (
+            <>
+              <Text
+                style={{
+                  fontSize: typography.callout,
+                  color: "#9CA3AF",
+                  marginVertical: scaleSize(16),
+                  textAlign: "center",
+                }}
+              >
+                {disabled
+                  ? t("companion_login.error_quick_connect_disabled", {
+                      server: serverName || serverUrl,
+                    })
+                  : t("common.loading")}
+              </Text>
+              {disabled && onBack && (
+                <TVButton onPress={onBack} hasTVPreferredFocus>
+                  <Text
+                    style={{
+                      fontSize: typography.callout,
+                      fontWeight: "600",
+                      color: "#000000",
+                    }}
+                  >
+                    {t("common.back")}
+                  </Text>
+                </TVButton>
+              )}
+            </>
+          ) : expired || status === "expired" ? (
             <>
               <Text
                 style={{

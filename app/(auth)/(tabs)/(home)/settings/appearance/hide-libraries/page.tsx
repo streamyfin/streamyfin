@@ -1,4 +1,4 @@
-import { getUserViewsApi } from "@jellyfin/sdk/lib/utils/api";
+import { getUserViewApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
 import { useTranslation } from "react-i18next";
@@ -24,7 +24,7 @@ export default function AppearanceHideLibrariesPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["user-views", user?.Id],
     queryFn: async () => {
-      const response = await getUserViewsApi(api!).getUserViews({
+      const response = await getUserViewApi(api!).getUserViews({
         userId: user?.Id,
       });
 

@@ -24,6 +24,34 @@ export const bitrateToString = (bitrate: number): string => {
   return `${mbps} Mb/s`;
 };
 
+// `in` throws on anything that is not an object, and server data reaches here
+// unchecked: a proxy's page in place of an item is a string.
 export function isBaseItemDto(item: any): item is BaseItemDto {
-  return item && "BackdropImageTags" in item && "ImageTags" in item;
+  return (
+    typeof item === "object" &&
+    item !== null &&
+    "BackdropImageTags" in item &&
+    "ImageTags" in item
+  );
 }
+
+/**
+ * Whether a value is an item as Jellyfin sends one: an object with its Id.
+ * What else answers 200 in the server's place (a captive portal or a proxy's
+ * sign-in page, which axios hands over as a string, an empty body, JSON of
+ * another shape) is not.
+ */
+export const isJellyfinItem = (value: unknown): value is BaseItemDto =>
+  typeof value === "object" &&
+  value !== null &&
+  !Array.isArray(value) &&
+  typeof (value as { Id?: unknown }).Id === "string";
+
+/**
+ * refetchOnMount for a query whose data should be an item: a cached value
+ * that is not one is fetched again on mount even while it is still fresh,
+ * which refetchOnMount: true alone would leave until its staleTime runs out.
+ */
+export const refetchUnlessItem = (query: {
+  state: { data: unknown };
+}): boolean | "always" => (isJellyfinItem(query.state.data) ? true : "always");

@@ -3,11 +3,7 @@ import type {
   BaseItemDtoQueryResult,
   ItemFilter,
 } from "@jellyfin/sdk/lib/generated-client/models";
-import {
-  getFilterApi,
-  getItemsApi,
-  getUserLibraryApi,
-} from "@jellyfin/sdk/lib/utils/api";
+import { getFilterApi, getLibraryApi } from "@jellyfin/sdk/lib/utils/api";
 import { FlashList } from "@shopify/flash-list";
 import {
   keepPreviousData,
@@ -46,6 +42,7 @@ import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { getItemNavigation } from "@/components/common/TouchableItemRouter";
 import { FilterButton } from "@/components/filters/FilterButton";
+import { OfficialRatingsFilterButton } from "@/components/filters/OfficialRatingsFilterButton";
 import { ResetFiltersButton } from "@/components/filters/ResetFiltersButton";
 import { Loader } from "@/components/Loader";
 import { AlphabetRail } from "@/components/library/AlphabetRail";
@@ -67,6 +64,7 @@ import { useLanguageFilters } from "@/hooks/useLanguageFilters";
 import { useLibraryFilters } from "@/hooks/useLibraryFilters";
 import { useLibraryPlayQueue } from "@/hooks/useLibraryPlayQueue";
 import { useLibraryTabs } from "@/hooks/useLibraryTabs";
+import { useOfficialRatingOptions } from "@/hooks/useOfficialRatingOptions";
 import { useOrientation } from "@/hooks/useOrientation";
 import { useRefreshLibraryOnFocus } from "@/hooks/useRefreshLibraryOnFocus";
 import { useServerVersion } from "@/hooks/useServerVersion";
@@ -86,6 +84,8 @@ import {
   getMultiFilterPreference,
   getSortByPreference,
   getSortOrderPreference,
+  officialRatingFilterAtom,
+  officialRatingPreferenceAtom,
   SortByOption,
   SortOrderOption,
   sortByAtom,
@@ -129,6 +129,7 @@ import {
   isLibraryTabCountQueryKey,
   libraryTabUsesFilterBar,
 } from "@/utils/library/libraryTabs";
+import { withSelectedRatings } from "@/utils/library/officialRatings";
 import { store } from "@/utils/store";
 
 /** Items per request of the grid; more load as the list is scrolled. */
@@ -179,6 +180,9 @@ const Page = () => {
   const { width: screenWidth } = useWindowDimensions();
 
   const [selectedGenres, setSelectedGenres] = useAtom(genreFilterAtom);
+  const [selectedOfficialRatings, setSelectedOfficialRatings] = useAtom(
+    officialRatingFilterAtom,
+  );
   const [selectedYears, setSelectedYears] = useAtom(yearFilterAtom);
   const [selectedTags, setSelectedTags] = useAtom(tagsFilterAtom);
   const [selectedAudioLanguages, setSelectedAudioLanguages] = useAtom(
@@ -205,6 +209,9 @@ const Page = () => {
     sortOrderPreferenceAtom,
   );
   const [genrePreference, setGenrePreference] = useAtom(genrePreferenceAtom);
+  const [officialRatingPreference, setOfficialRatingPreference] = useAtom(
+    officialRatingPreferenceAtom,
+  );
   const [yearPreference, setYearPreference] = useAtom(yearPreferenceAtom);
   const [tagPreference, setTagPreference] = useAtom(tagPreferenceAtom);
   const [audioLanguagePreference, setAudioLanguagePreference] = useAtom(
@@ -335,9 +342,12 @@ const Page = () => {
         _setFilterBy(fp ? [fp] : []);
       }
 
-      // Genres / years / tags / languages have no URL params, only the
+      // Genres / ratings / years / tags / languages have no URL params, only the
       // per-library memory.
       setSelectedGenres(getMultiFilterPreference(libraryId, genrePreference));
+      setSelectedOfficialRatings(
+        getMultiFilterPreference(libraryId, officialRatingPreference),
+      );
       setSelectedYears(getMultiFilterPreference(libraryId, yearPreference));
       setSelectedTags(getMultiFilterPreference(libraryId, tagPreference));
       setSelectedAudioLanguages(
@@ -358,11 +368,13 @@ const Page = () => {
       filterByPreference,
       _setFilterBy,
       genrePreference,
+      officialRatingPreference,
       yearPreference,
       tagPreference,
       audioLanguagePreference,
       subtitleLanguagePreference,
       setSelectedGenres,
+      setSelectedOfficialRatings,
       setSelectedYears,
       setSelectedTags,
       setSelectedAudioLanguages,
@@ -465,6 +477,19 @@ const Page = () => {
     [libraryId, setSubtitleLanguagePreference, setSelectedSubtitleLanguages],
   );
 
+  // Functional, like the language setters: the phone chip's sheet stays open
+  // across picks and keeps calling the setter of the render that opened it.
+  const setOfficialRatings = useCallback(
+    (ratings: string[]) => {
+      setOfficialRatingPreference((saved) => ({
+        ...saved,
+        [libraryId]: ratings,
+      }));
+      setSelectedOfficialRatings(ratings);
+    },
+    [libraryId, setOfficialRatingPreference, setSelectedOfficialRatings],
+  );
+
   const nrOfCols = useMemo(() => {
     if (Platform.isTV) {
       // TV uses flexWrap, so nrOfCols is just for mobile
@@ -482,7 +507,7 @@ const Page = () => {
     queryKey: ["library", libraryId],
     queryFn: async () => {
       if (!api) return null;
-      const response = await getUserLibraryApi(api).getItem({
+      const response = await getLibraryApi(api).getItem({
         itemId: libraryId,
         userId: user?.Id,
       });
@@ -507,6 +532,21 @@ const Page = () => {
   const languageFilters = useLanguageFilters(library);
   // Shared with the language filters above: one request for both.
   const serverVersion = useServerVersion();
+
+  // The TV sheet's ratings; the phone chip reads the same query itself (see
+  // OfficialRatingsFilterButton). A saved pick the server no longer lists
+  // still filters the grid, so it stays among the choices, where it can be
+  // taken back.
+  const officialRatingOptions = useOfficialRatingOptions(
+    libraryId,
+    library?.CollectionType,
+    Platform.isTV && !!library,
+  );
+  const officialRatings = useMemo(
+    () =>
+      withSelectedRatings(officialRatingOptions ?? [], selectedOfficialRatings),
+    [officialRatingOptions, selectedOfficialRatings],
+  );
 
   // Only a TV library has episodes still to air. `/Shows/Upcoming` answers for
   // any parent, with nothing.
@@ -553,6 +593,7 @@ const Page = () => {
     hasFilterBar && ownFilters
       ? [
           ownFilters.genres,
+          ownFilters.officialRatings,
           ownFilters.years,
           ownFilters.tags,
           ownFilters.audioLanguages,
@@ -625,12 +666,14 @@ const Page = () => {
         sortOrder: ownFilters.sortOrder[0],
         filterBy: ownFilters.filterBy as ItemFilter[],
         genres: ownFilters.genres,
+        officialRatings: ownFilters.officialRatings,
         years: ownFilters.years,
         tags: ownFilters.tags,
         audioLanguages: ownFilters.audioLanguages,
         subtitleLanguages: ownFilters.subtitleLanguages,
+        serverVersion,
       },
-    [user?.Id, libraryId, library?.CollectionType, ownFilters],
+    [user?.Id, libraryId, library?.CollectionType, ownFilters, serverVersion],
   );
 
   const fetchItems = useCallback(
@@ -645,19 +688,12 @@ const Page = () => {
       // the two cannot drift apart. A collections or playlists tab swaps it,
       // and the item type, for its own.
       const itemsQuery = buildLibraryItemsQuery(libraryFilter);
-      const response = await getItemsApi(api).getItems(
+      const response = await getLibraryApi(api).getItems(
         {
           userId: itemsQuery.userId,
           parentId: itemsQuery.parentId,
           recursive: itemsQuery.recursive,
-          ...getLibraryTabFilters(activeTab, {
-            sortBy: itemsQuery.sortBy,
-            sortOrder: itemsQuery.sortOrder,
-            filters: itemsQuery.filters,
-            genres: itemsQuery.genres,
-            tags: itemsQuery.tags,
-            years: itemsQuery.years,
-          }),
+          ...getLibraryTabFilters(activeTab, itemsQuery),
           ...getLibraryTabQuery(activeTab, library, Platform.isTV),
           ...jumpParams,
           limit: PAGE_SIZE,
@@ -684,6 +720,8 @@ const Page = () => {
         activeTab,
         ...filterKey,
         jumpParams,
+        // Which sort key goes to the server can depend on its version.
+        serverVersion,
       ],
       queryFn: fetchItems,
       // A jump moves within the list already on screen, so that list stays up
@@ -963,6 +1001,19 @@ const Page = () => {
               />
             ),
           },
+          {
+            key: "officialRatings",
+            component: (
+              <OfficialRatingsFilterButton
+                libraryId={libraryId}
+                collectionType={library?.CollectionType}
+                enabled={!!library}
+                set={setOfficialRatings}
+                values={selectedOfficialRatings}
+                title={t("library.filters.official_ratings")}
+              />
+            ),
+          },
           ...languageFilterEntries.map((filter) => ({
             key: filter.key,
             component: (
@@ -1049,6 +1100,9 @@ const Page = () => {
       setYears,
       selectedTags,
       setTags,
+      library,
+      selectedOfficialRatings,
+      setOfficialRatings,
       languageFilterEntries,
       sortBy,
       setSortBy,
@@ -1114,6 +1168,22 @@ const Page = () => {
       })),
     ],
     [tvTagOptions, selectedTags, t],
+  );
+
+  const tvOfficialRatingFilterOptions = useMemo(
+    (): TVOptionItem<string>[] => [
+      {
+        label: t("library.filters.all"),
+        value: ALL_OPTION,
+        selected: selectedOfficialRatings.length === 0,
+      },
+      ...officialRatings.map((rating) => ({
+        label: rating,
+        value: rating,
+        selected: selectedOfficialRatings.includes(rating),
+      })),
+    ],
+    [officialRatings, selectedOfficialRatings, t],
   );
 
   const tvSortByOptions = useMemo(
@@ -1191,6 +1261,12 @@ const Page = () => {
       group("tags", t("library.filters.tags"), tvTagFilterOptions, (v) =>
         setTags(toggled(selectedTags, v)),
       ),
+      group(
+        "officialRatings",
+        t("library.filters.official_ratings"),
+        tvOfficialRatingFilterOptions,
+        (v) => setOfficialRatings(toggled(selectedOfficialRatings, v)),
+      ),
       ...languageFilterEntries.map((filter) =>
         group(
           filter.key,
@@ -1225,14 +1301,17 @@ const Page = () => {
     tvGenreFilterOptions,
     tvYearFilterOptions,
     tvTagFilterOptions,
+    tvOfficialRatingFilterOptions,
     tvFilterByOptions,
     languageFilterEntries,
     selectedGenres,
     selectedYears,
     selectedTags,
+    selectedOfficialRatings,
     setGenres,
     setYears,
     setTags,
+    setOfficialRatings,
     setFilter,
   ]);
 

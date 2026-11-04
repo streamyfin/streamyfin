@@ -22,29 +22,35 @@ const catalogTargetSdk = Number(
 
 const appJson = JSON.parse(readFileSync(join(__dirname, "app.json"), "utf8"));
 
-/** The targetSdkVersion pinned in the resolved config; the last entry wins at prebuild. */
-const pinnedTargetSdk = (tv: boolean): number | undefined => {
+/** The plugins of the resolved config, for a phone or a TV build. */
+const resolvedPlugins = (tv: boolean) => {
   const previous = process.env.EXPO_TV;
   process.env.EXPO_TV = tv ? "1" : "0";
   try {
-    const { plugins = [] } = resolveConfig({
-      config: structuredClone(appJson.expo),
-    } as ConfigContext);
-    const pins = plugins
-      .filter(
-        (
-          plugin,
-        ): plugin is [string, { android?: { targetSdkVersion?: number } }] =>
-          Array.isArray(plugin) && plugin[0] === "expo-build-properties",
-      )
-      .map(([, options]) => options?.android?.targetSdkVersion)
-      .filter((value) => value !== undefined);
-    return pins.at(-1);
+    return (
+      resolveConfig({
+        config: structuredClone(appJson.expo),
+      } as ConfigContext).plugins ?? []
+    );
   } finally {
     // Assigning undefined would store the string "undefined".
     if (previous === undefined) delete process.env.EXPO_TV;
     else process.env.EXPO_TV = previous;
   }
+};
+
+/** The targetSdkVersion pinned in the resolved config; the last entry wins at prebuild. */
+const pinnedTargetSdk = (tv: boolean): number | undefined => {
+  const pins = resolvedPlugins(tv)
+    .filter(
+      (
+        plugin,
+      ): plugin is [string, { android?: { targetSdkVersion?: number } }] =>
+        Array.isArray(plugin) && plugin[0] === "expo-build-properties",
+    )
+    .map(([, options]) => options?.android?.targetSdkVersion)
+    .filter((value) => value !== undefined);
+  return pins.at(-1);
 };
 
 describe.each([
@@ -63,6 +69,20 @@ describe.each([
       catalogTargetSdk,
     );
   });
+});
+
+// Mods run in reverse order of registration. Registered after
+// react-native-google-cast, the edit ran before that plugin wrote the cast
+// options and found nothing to change, so iOS kept the TV playing again
+// without any build error.
+test("edits the iOS cast options after the Cast plugin has written them", () => {
+  const names = resolvedPlugins(false).map((plugin) =>
+    Array.isArray(plugin) ? plugin[0] : plugin,
+  );
+  const edit = names.indexOf("./plugins/withCastStopReceiverOnEnd.ts");
+
+  expect(edit).toBeGreaterThanOrEqual(0);
+  expect(edit).toBeLessThan(names.indexOf("react-native-google-cast"));
 });
 
 // app.config.ts registers the tsx require hook for the Expo CLI. Registered

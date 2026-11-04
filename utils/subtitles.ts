@@ -91,7 +91,6 @@ export const getSubtitleBaseScaleMultiplier = (
  * @param videoHeight    Video frame height in pixels.
  * @param screenWidth    Player surface width in pixels.
  * @param screenHeight   Player surface height in pixels.
- * @param fitMode        How the video is fitted inside the player surface.
  * @param playerType     Native subtitle renderer receiving the scale.
  */
 export const getEffectiveSubtitleScale = (
@@ -100,7 +99,6 @@ export const getEffectiveSubtitleScale = (
   videoHeight?: number | null,
   screenWidth: number = 0,
   screenHeight: number = 0,
-  fitMode: "contain" | "cover" = "contain",
   playerType: "mpv" | "exoplayer" = "mpv",
 ): number => {
   const scaled = baseScale * getSubtitleBaseScaleMultiplier(playerType);
@@ -125,18 +123,9 @@ export const getEffectiveSubtitleScale = (
   const boost =
     containScale < 1 ? Math.min(1 / containScale, MAX_SUBTITLE_BOOST) : 1;
 
-  // Cover zoom scales MPV's subtitle plane with the video. Undo only that
-  // extra zoom so subtitle size stays unchanged when toggling fit/fill.
-  const zoomCompensation =
-    fitMode === "cover"
-      ? getZoomSubtitleScaleRatio(
-          videoWidth,
-          videoHeight,
-          screenWidth,
-          screenHeight,
-        )
-      : 1;
-  return Math.round(scaled * boost * zoomCompensation * 100) / 100;
+  // Video zoom is not a subtitle-style input. Native renderers map this
+  // calibrated size into their visible viewport exactly once.
+  return Math.round(scaled * boost * 100) / 100;
 };
 
 export const getDisplayVideoDimensions = (
@@ -148,17 +137,6 @@ export const getDisplayVideoDimensions = (
   return normalizedRotation === 90 || normalizedRotation === 270
     ? { width: height ?? undefined, height: width ?? undefined }
     : { width: width ?? undefined, height: height ?? undefined };
-};
-
-export const getZoomSubtitleScaleRatio = (
-  videoWidth: number,
-  videoHeight: number,
-  screenWidth: number,
-  screenHeight: number,
-): number => {
-  const widthScale = screenWidth / videoWidth;
-  const heightScale = screenHeight / videoHeight;
-  return Math.min(widthScale, heightScale) / Math.max(widthScale, heightScale);
 };
 
 export const getEffectiveSubtitleMarginY = (margin: number): number => {

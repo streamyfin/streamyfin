@@ -1,3 +1,6 @@
+import { Configuration } from "@jellyfin/sdk/lib/generated-client/configuration";
+import { ImageUrlsApi } from "@jellyfin/sdk/lib/utils/api/image-urls-api";
+
 /**
  * Retrieves the profile image URL for a Jellyfin user.
  *
@@ -22,11 +25,14 @@ export const getUserImageUrl = ({
     return null;
   }
 
-  const params = new URLSearchParams({
-    tag: primaryImageTag,
-    quality: "90",
-    width: String(width),
-  });
-
-  return `${serverAddress}/Users/${userId}/Images/Primary?${params.toString()}`;
+  // Login can display public user images before an authenticated Api exists.
+  const images = new ImageUrlsApi(
+    new Configuration({ basePath: serverAddress }),
+  );
+  return (
+    images.getUserImageUrl(
+      { Id: userId, PrimaryImageTag: primaryImageTag },
+      { quality: 90, width },
+    ) ?? null
+  );
 };

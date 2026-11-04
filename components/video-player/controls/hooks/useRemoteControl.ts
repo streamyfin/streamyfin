@@ -4,6 +4,7 @@ import { type SharedValue, useSharedValue } from "react-native-reanimated";
 import { useTVBackPress } from "@/hooks/useTVBackPress";
 import { useTVEventHandler } from "@/hooks/useTVEventHandler";
 import i18n from "@/i18n";
+import { useSettings } from "@/utils/atoms/settings";
 
 interface UseRemoteControlProps {
   showControls: boolean;
@@ -80,6 +81,11 @@ export function useRemoteControl({
   onWillExit,
   onCancelExit,
 }: UseRemoteControlProps) {
+  const { settings } = useSettings();
+  const confirmBeforeStoppingRef = useRef(
+    settings.confirmBeforeStoppingPlayback,
+  );
+
   // Keep these for backward compatibility with the component
   const remoteScrubProgress = useSharedValue<number | null>(null);
   const isRemoteScrubbing = useSharedValue(false);
@@ -102,6 +108,7 @@ export function useRemoteControl({
     videoTitleRef.current = videoTitle;
     onWillExitRef.current = onWillExit;
     onCancelExitRef.current = onCancelExit;
+    confirmBeforeStoppingRef.current = settings.confirmBeforeStoppingPlayback;
   }, [
     showControls,
     onHideControls,
@@ -109,6 +116,7 @@ export function useRemoteControl({
     videoTitle,
     onWillExit,
     onCancelExit,
+    settings.confirmBeforeStoppingPlayback,
   ]);
 
   // BackHandler owns player exit: Android TV sends hardware back here, and
@@ -122,6 +130,11 @@ export function useRemoteControl({
     if (onBackRef.current) {
       // Signal Controls that exit is imminent (pauses countdown, sets guard)
       onWillExitRef.current?.();
+
+      if (!confirmBeforeStoppingRef.current) {
+        onBackRef.current();
+        return true;
+      }
 
       // Controls are hidden, so confirm before leaving playback.
       Alert.alert(
