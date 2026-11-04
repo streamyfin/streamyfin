@@ -61,3 +61,15 @@ test("a season without a name is named from its number", () => {
     }),
   ).toBe("Doctor Who - Saison 2 Épisode 3");
 });
+
+// An episode without its series' name read "undefined - Saison 2 Épisode 3".
+test("an episode without a series name leaves the series out", () => {
+  expect(
+    episodeSubtitle(i18next.t, {
+      SeasonName: "Saison 2",
+      ParentIndexNumber: 2,
+      IndexNumber: 3,
+    }),
+  ).toBe("Saison 2 Épisode 3");
+  expect(episodeSubtitle(i18next.t, {})).toBe("");
+});

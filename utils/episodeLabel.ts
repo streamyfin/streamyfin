@@ -35,5 +35,7 @@ export const episodeSubtitle = (
   ]
     .filter(Boolean)
     .join(" ");
-  return where ? `${episode.SeriesName} - ${where}` : `${episode.SeriesName}`;
+  const series = episode.SeriesName ?? "";
+  if (!where) return series;
+  return series ? `${series} - ${where}` : where;
 };
