@@ -257,6 +257,27 @@ const TVCastCard: React.FC<TVCastCardProps> = ({
 />
 ```
 
+## Axis-Scoped Trapping for Page Content
+
+`trapFocus*` is not only for modals. A focusable row spanning the full page
+width above a centred grid — a toolbar or tab row — is seen by Android's focus
+finder as **one** candidate reaching further sideways than any centred row: a
+left or right press with no card in the beam (a grid edge) lands on it, however
+far it sits above. Trap the grid's own directions so horizontal presses stop at
+the edge:
+
+```typescript
+<TVFocusGuideView autoFocus trapFocusLeft trapFocusRight>
+  {cards}
+</TVFocusGuideView>
+```
+
+Keep the vertical directions free so the toolbar stays reachable from the grid.
+Only do this when nothing focusable sits beside the grid — a trap blocks every
+horizontal exit. The mechanism and the boundary condition are written up in
+`.claude/learned-facts/android-focus-guide-row-steals-horizontal-edge-presses.md`.
+Reference implementation: `app/(auth)/(tabs)/(libraries)/[libraryId].tsx`.
+
 ## Tips and Gotchas
 
 1. **Guard against null refs**: Only render the focus guide when the ref is set:
