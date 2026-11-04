@@ -12,14 +12,17 @@
  *     CastNative: require("@/test-utils/cast").castDoubleModule(() => mockCast),
  *   }));
  */
-import type {
-  CastDevice,
-  CastMediaStatus,
-  CastNativeEvents,
-  CastSessionEvent,
-  CastSessionInfo,
-  CastStateValue,
-  PlayServicesStateValue,
+import {
+  type CastDevice,
+  type CastMediaStatus,
+  type CastNativeEvents,
+  type CastSessionEvent,
+  type CastSessionInfo,
+  type CastStateValue,
+  NO_REMOTE_TARGET,
+  type PlayServicesStateValue,
+  type RemoteTargetPhase,
+  type RemoteTargetState,
 } from "@/modules/mpv-player/src/cast/Cast.types";
 
 /** One channel `addChannel` created; a send goes to the latest open one of its namespace. */
@@ -54,6 +57,14 @@ export interface CastDoubleState {
   holdAdd: Promise<void> | null;
   /** When true, `addChannel` moves the session on, as a Cast session change would. */
   renewSessionOnAdd: boolean;
+  /** What `getRemoteTarget()` answers; none until a test sets it, whatever the session says. */
+  remoteTarget: RemoteTargetState;
+  /** What `connectToDevice` answers: false is a device discovery does not know. */
+  connectAnswer: boolean;
+  /** Device ids handed to `connectToDevice`, in order. */
+  connectRequests: string[];
+  /** The `stopPlayback` of each `disconnect` call, in order. */
+  disconnectCalls: boolean[];
   /** Listeners registered through `addListener`, by event. */
   listeners: { [K in keyof CastNativeEvents]: CastNativeEvents[K][] };
 }
@@ -81,14 +92,44 @@ export const createCastDoubleState = (): CastDoubleState => ({
   connectOnAdd: true,
   holdAdd: null,
   renewSessionOnAdd: false,
+  remoteTarget: NO_REMOTE_TARGET,
+  connectAnswer: true,
+  connectRequests: [],
+  disconnectCalls: [],
   listeners: {
     onCastStateChanged: [],
     onDevicesChanged: [],
     onSessionEvent: [],
     onMediaStatusChanged: [],
     onReceiverMessage: [],
+    onRemoteTargetChanged: [],
   },
 });
+
+/** The double's device as a Cast target in the given phase, as the module publishes it. */
+export const castDoubleTarget = (
+  phase: Exclude<RemoteTargetPhase, "none">,
+  device: CastDevice = castDoubleDevice(),
+): RemoteTargetState => ({
+  state: phase,
+  target: {
+    kind: "cast",
+    id: device.deviceId,
+    name: device.friendlyName,
+    capabilities: { volume: true },
+  },
+  reconnecting: false,
+  error: null,
+});
+
+/** Moves the module's target state on and publishes it, as the native hub does on a change. */
+export const emitRemoteTarget = (
+  state: CastDoubleState,
+  target: RemoteTargetState,
+): void => {
+  state.remoteTarget = target;
+  emitCastEvent(state, "onRemoteTargetChanged", target);
+};
 
 /** Moves the double onto a session; the device stays unless given (null for a session without one). */
 export const setCastSession = (
@@ -179,6 +220,15 @@ export const castDoubleModule = (state: () => CastDoubleState) => ({
   getCurrentSession: jest.fn(() => {
     const session = state().session;
     return session ? { ...session } : null;
+  }),
+  // A fresh object per call, as the native bridge hands one over.
+  getRemoteTarget: jest.fn(() => ({ ...state().remoteTarget })),
+  connectToDevice: jest.fn(async (deviceId: string) => {
+    state().connectRequests.push(deviceId);
+    return state().connectAnswer;
+  }),
+  disconnect: jest.fn(async (stopPlayback: boolean) => {
+    state().disconnectCalls.push(stopPlayback);
   }),
   showCastDialog: jest.fn(async () => {
     state().dialogs.push("cast");

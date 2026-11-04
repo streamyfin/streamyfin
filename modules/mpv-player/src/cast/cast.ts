@@ -10,7 +10,9 @@ import type {
   CastSubscription,
   PlayServicesStateValue,
   ReceiverMessage,
+  RemoteTargetState,
 } from "./Cast.types";
+import { NO_REMOTE_TARGET } from "./Cast.types";
 import { CastNative, type CastNativeModule } from "./CastModule";
 
 const UNAVAILABLE = "Cast is not available on this platform";
@@ -45,6 +47,25 @@ export const stopCastDiscovery = (): Promise<void> =>
 export const currentCastSession = (): CastSessionInfo | null =>
   native()?.getCurrentSession() ?? null;
 
+export const remoteTarget = (): RemoteTargetState =>
+  native()?.getRemoteTarget() ?? NO_REMOTE_TARGET;
+
+/**
+ * Asks for a connection to a device discovery lists, without the SDK's dialog.
+ * False when Cast is unavailable or the device is unknown; otherwise the
+ * outcome arrives through onRemoteTargetChanged.
+ */
+export const connectToCastDevice = (deviceId: string): Promise<boolean> =>
+  native()?.connectToDevice(deviceId) ?? Promise.resolve(false);
+
+/** Ends the session; `stopPlayback` (true unless set) also closes the receiver app. */
+export const disconnectRemoteTarget = ({
+  stopPlayback = true,
+}: {
+  stopPlayback?: boolean;
+} = {}): Promise<void> =>
+  native()?.disconnect(stopPlayback) ?? Promise.resolve();
+
 export const showCastDialog = (): Promise<boolean> =>
   native()?.showCastDialog() ?? Promise.resolve(false);
 
@@ -60,6 +81,7 @@ const listeners: { [K in EventName]: Set<Listener<K>> } = {
   onSessionEvent: new Set(),
   onMediaStatusChanged: new Set(),
   onReceiverMessage: new Set(),
+  onRemoteTargetChanged: new Set(),
 };
 const nativeSubscriptions: Partial<Record<EventName, CastSubscription>> = {};
 
@@ -120,6 +142,11 @@ export const onCastMediaStatusChanged = (
   listener: (status: CastMediaStatus | null) => void,
 ): CastSubscription =>
   subscribe("onMediaStatusChanged", ({ status }) => listener(status));
+
+export const onRemoteTargetChanged = (
+  listener: (state: RemoteTargetState) => void,
+): CastSubscription =>
+  subscribe("onRemoteTargetChanged", (state) => listener(state));
 
 /**
  * Opens a custom channel on the current session and hands every message the

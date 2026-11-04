@@ -6,6 +6,7 @@ import type {
   CastSessionInfo,
   CastStateValue,
   PlayServicesStateValue,
+  RemoteTargetState,
 } from "./Cast.types";
 
 export declare class CastNativeModule extends NativeModule<CastNativeEvents> {
@@ -19,6 +20,11 @@ export declare class CastNativeModule extends NativeModule<CastNativeEvents> {
   startDiscovery(): Promise<void>;
   stopDiscovery(): Promise<void>;
   getCurrentSession(): CastSessionInfo | null;
+  getRemoteTarget(): RemoteTargetState;
+  /** False when discovery does not know the device; otherwise the state follows the session events. */
+  connectToDevice(deviceId: string): Promise<boolean>;
+  /** Ends the session, or a connection the SDK has not started yet. */
+  disconnect(stopPlayback: boolean): Promise<void>;
   showCastDialog(): Promise<boolean>;
   showExpandedControls(): Promise<boolean>;
   addChannel(
