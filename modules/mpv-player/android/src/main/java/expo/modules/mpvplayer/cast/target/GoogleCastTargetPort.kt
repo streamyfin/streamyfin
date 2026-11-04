@@ -29,10 +29,18 @@ internal class GoogleCastTargetPort(
 ) : TargetPort {
     private var events: TargetPortEvents? = null
     private var discovering = false
+    // The receiver a switch is taking the session from, until the SDK reports that session's end, and the
+    // one asked back meanwhile. Its route is selected only after that end: selected before, the SDK's
+    // cleanup of the old session saw its route selected again and selected the default route over it.
+    private var leaving: TargetDevice? = null
+    private var afterLeaving: TargetDevice? = null
 
     override fun start(events: TargetPortEvents) {
         this.events = events
-        watchSessions { event, device, error -> this.events?.sessionEvent(event, device, error) }
+        watchSessions { event, device, error ->
+            this.events?.sessionEvent(event, device, error)
+            sessionChanged(event, device)
+        }
         // A session that was there before the port (a JS reload, the SDK's own reconnection at launch).
         runningSession()?.let { session ->
             events.sessionEvent(if (session.connected) "resumed" else "resuming", session.device, null)
@@ -40,6 +48,8 @@ internal class GoogleCastTargetPort(
     }
 
     override fun stop() {
+        leaving = null
+        afterLeaving = null
         stopDiscovery()
         watchSessions(null)
         events = null
@@ -61,6 +71,16 @@ internal class GoogleCastTargetPort(
     }
 
     override fun connect(device: TargetDevice) {
+        if (device.id == leaving?.id) {
+            afterLeaving = device
+            return
+        }
+        afterLeaving = null
+        runningSession()?.device?.takeIf { it.id != device.id }?.let { leaving = it }
+        select(device)
+    }
+
+    private fun select(device: TargetDevice) {
         val route = routes().firstOrNull { it.device.id == device.id }
         if (route == null) {
             events?.sessionEvent("startFailed", device, RECEIVER_GONE)
@@ -76,6 +96,7 @@ internal class GoogleCastTargetPort(
     }
 
     override fun disconnect(stopPlayback: Boolean) {
+        afterLeaving = null
         if (runningSession() != null) {
             endSession(stopPlayback)
             return
@@ -83,6 +104,18 @@ internal class GoogleCastTargetPort(
         // Asked before the SDK started a session: nothing would end, so the request ends here.
         unselectRoute()
         events?.sessionEvent("ended", null, null)
+    }
+
+    private fun sessionChanged(event: String, device: TargetDevice?) {
+        val left = leaving ?: return
+        if (event != "ended" && event != "startFailed") return
+        if (device != null && device.id != left.id) return
+        leaving = null
+        // The old session is gone: the receiver asked back can be selected now.
+        afterLeaving?.let {
+            afterLeaving = null
+            select(it)
+        }
     }
 
     companion object {
