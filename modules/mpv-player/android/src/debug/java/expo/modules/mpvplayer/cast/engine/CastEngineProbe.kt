@@ -52,8 +52,10 @@ internal class CastEngineProbeScript(
                 engine.setTargetVolume(it - VOLUME_STEP)
             }
             "volume-back" -> volumeBefore?.let(engine::setTargetVolume)
-            // The same track: the receiver reloads for any audio change, under a new play session.
-            "audio-reload" -> engine.setAudioTrack(engine.getCurrentAudioTrack())
+            // The same track: the receiver reloads for any audio change, under a new play session. A direct
+            // stream of a FLAC track reports none, and track -1 stops the receiver on a playback error.
+            "audio-reload" -> engine.getCurrentAudioTrack().takeIf { it >= 0 }?.let(engine::setAudioTrack)
+                ?: log("audio-reload skipped, no audio track known")
             "subtitles-off" -> engine.disableSubtitles()
             "capped-reload" -> reloadCapped()
             "next" -> engine.skipToNext()

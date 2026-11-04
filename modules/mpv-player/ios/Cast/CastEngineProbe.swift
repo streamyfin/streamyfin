@@ -54,8 +54,12 @@ final class CastEngineProbeScript {
     case "volume-back":
       if let volumeBefore { engine.setTargetVolume(volumeBefore) }
     case "audio-reload":
-      // The same track: the receiver reloads for any audio change, under a new play session.
-      engine.getCurrentAudioTrack { [engine] in engine.setAudioTrack($0) }
+      // The same track: the receiver reloads for any audio change, under a new play session. A direct
+      // stream of a FLAC track reports none, and track -1 stops the receiver on a playback error.
+      engine.getCurrentAudioTrack { [engine, log] track in
+        guard track >= 0 else { return log("audio-reload skipped, no audio track known") }
+        engine.setAudioTrack(track)
+      }
     case "subtitles-off": engine.disableSubtitles()
     case "capped-reload": reloadCapped()
     case "next": engine.skipToNext()

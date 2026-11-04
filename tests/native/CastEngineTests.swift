@@ -1243,6 +1243,23 @@ enum CastEngineTests {
       )
     }
 
+    // A direct stream of a FLAC track reports no audio index (Google TV Streamer, run 17): the step asked the
+    // receiver for track -1, and it stopped on a playback error that left the rest of the run nothing to drive.
+    do {
+      let bench = Bench()
+      let engine = bench.playing(42.5, ["audioStreamIndex": NSNull()])
+      let script = CastEngineProbeScript(engine: engine, server: server, deliver: bench.clock.deliver, log: { [unowned bench] in bench.logs.append($0) })
+      withExtendedLifetime(script) {
+        script.run()
+        bench.clock.advance(30_000)
+      }
+      check(
+        "anItemWithoutAKnownAudioTrackSkipsTheAudioReload",
+        !commandsSent(on: bench.port).contains("SetAudioStreamIndex")
+          && bench.logs.contains("audio-reload skipped, no audio track known")
+      )
+    }
+
     // Without an item in the PlayNow, nothing tells the TV's media from what JS loaded: no script.
     do {
       let bench = Bench()

@@ -61,6 +61,20 @@ class CastEngineProbeTest {
         assertFalse(logs.any { "tok-123" in it })
     }
 
+    // A direct stream of a FLAC track reports no audio index (Google TV Streamer, run 17): the step asked the
+    // receiver for track -1, and it stopped on a playback error that left the rest of the run nothing to drive.
+    @Test
+    fun anItemWithoutAKnownAudioTrackSkipsTheAudioReload() {
+        hub.attach(port)
+        val engine = engine().also { it.start(PlayerEngine.Owner.NATIVE_SESSION) {} }
+        media.report(snapshot(customData = ours("audioStreamIndex" to null)), 42_500)
+        CastEngineProbeScript(engine, SERVER, scheduler.schedule, logs::add).run()
+        runFor(30_000)
+
+        assertFalse(port.sent.any { (_, text) -> JSONObject(text).getString("command") == "SetAudioStreamIndex" })
+        assertTrue("audio-reload skipped, no audio track known" in logs)
+    }
+
     // Without an item in the PlayNow, nothing tells the TV's media from what JS loaded: no script.
     @Test
     fun aPlayNowWithoutAnItemNeverStartsTheScript() {
