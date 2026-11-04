@@ -84,6 +84,7 @@ Native modules:
 - `keychain-accessibility-set-at-creation` | a SecureStore item keeps the accessibility it was created with, `setItem` over it changes only the data; a default item throws on read when iOS launches the app on a locked phone
 - `track-player-queue-is-not-the-app-queue` | the native music queue only holds the tracks loaded so far, so a state queue index does not address it; on iOS `add` past the end rejects with the same message as `skip`
 - `android-js-timers-pause-in-background` | Delayed timers don't fire while the Android app is paused (incl. under the Cast expanded controls); zero-delay ones and fetch still do
+- `native-player-presented-after-dismiss` | iOS keeps the player session until the cross-dissolve ends, so present() right after onDismiss is refused; a new player waits for the closing one, and a swap whose player closed is dropped unless its stream ended and another item was asked for
 
 TV platform:
 - `tv-modals-must-use-navigation-pattern` | Use atom+router.push(), never overlay/absolute modals
