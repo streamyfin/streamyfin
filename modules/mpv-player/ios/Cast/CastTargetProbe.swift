@@ -19,6 +19,8 @@ final class CastTargetProbe: RemoteTargetListener {
   static let volumeArgument = "CastTargetProbeVolume"
   /// YES or NO, set once connected after the level; the receiver's report of it is logged.
   static let muteArgument = "CastTargetProbeMute"
+  /// YES opens the output sheet as the probe starts, for its screenshots.
+  static let sheetArgument = "CastTargetProbeSheet"
   static let discoveryTimeoutMs = 15_000.0
   static let partialMatchSettleMs = 3_000.0
   // Longer than the SDK's own connection timeout, which answers startFailed first.
@@ -35,6 +37,8 @@ final class CastTargetProbe: RemoteTargetListener {
   private let stop: Bool
   private let volume: Double?
   private let mute: Bool?
+  /// Opens the output sheet at arming, for its screenshots; nil leaves it closed.
+  private let presentSheet: (() -> Bool)?
   private let schedule: (Double, @escaping () -> Void) -> (() -> Void)
   private let log: (String) -> Void
   private(set) var isActive = false
@@ -50,9 +54,10 @@ final class CastTargetProbe: RemoteTargetListener {
 
   init(
     hub: RemoteTargetHub, deviceName: String, keep: Bool, holdMs: Double = CastTargetProbe.connectedHoldMs,
-    back: Bool = false, stop: Bool = true, volume: Double? = nil, mute: Bool? = nil,
+    back: Bool = false, stop: Bool = true, volume: Double? = nil, mute: Bool? = nil, presentSheet: (() -> Bool)? = nil,
     schedule: @escaping (Double, @escaping () -> Void) -> (() -> Void), log: @escaping (String) -> Void
   ) {
+    self.presentSheet = presentSheet
     self.holdMs = holdMs
     self.back = back
     self.stop = stop
@@ -87,6 +92,9 @@ final class CastTargetProbe: RemoteTargetListener {
     let current = hub.snapshot
     last = current
     log("armed for \"\(deviceName)\" \(Self.describe(current))")
+    if let present = presentSheet {
+      log(present() ? "presenting the output sheet" : "no view controller for the output sheet")
+    }
     if current.phase == .connected { leaving = current.target }
     // A whole name only: a part of one may name another receiver than the connected one.
     if current.phase == .connected, let target = current.target,

@@ -811,7 +811,7 @@ enum RemoteTargetTests {
     func run(
       _ name: String, keep: Bool = false, holdMs: Double = CastTargetProbe.connectedHoldMs, back: Bool = false,
       stop: Bool = true, volume: Double? = nil, mute: Bool? = nil, port: FakeTargetPort,
-      before: (RemoteTargetHub) -> Void = { _ in }
+      presentSheet: (() -> Bool)? = nil, before: (RemoteTargetHub) -> Void = { _ in }
     ) -> (CastTargetProbe, Clock, () -> [String]) {
       let hub = RemoteTargetHub()
       hub.install(port)
@@ -820,7 +820,7 @@ enum RemoteTargetTests {
       var logs: [String] = []
       let probe = CastTargetProbe(
         hub: hub, deviceName: name, keep: keep, holdMs: holdMs, back: back, stop: stop, volume: volume, mute: mute,
-        schedule: clock.schedule
+        presentSheet: presentSheet, schedule: clock.schedule
       ) { logs.append($0) }
       probe.start()
       return (probe, clock, { logs })
@@ -1027,6 +1027,13 @@ enum RemoteTargetTests {
         "aProbeAskedNotToStopLeavesTheReceiver",
         port.disconnects == [false] && logs().last == "disconnecting without stopping the receiver" && probe.isActive
       )
+    }
+
+    do {
+      let port = FakeTargetPort(known: [chromecast])
+      var presented = 0
+      let (_, _, logs) = run("Living room", port: port, presentSheet: { presented += 1; return true })
+      check("aProbeAskedForTheSheetPresentsIt", presented == 1 && logs().dropFirst().first == "presenting the output sheet")
     }
 
     do {

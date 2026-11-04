@@ -190,8 +190,11 @@ receiver reports nothing, so cast something before.
 **The output sheet.** `--ez sheet true` presents the output sheet over whatever the app shows
 (`presenting the output sheet`) as the probe starts, so its states can be captured while the
 probe connects. With `--es device none`, a name no receiver has, the probe connects to nothing
-and the sheet is left to drive by hand. The sheet stays up after the probe ends: back closes it. With no Cast context (Play Services
-missing) the probe still presents it before giving up. Android only for now.
+and the sheet is left to drive by hand. The sheet stays up after the probe ends: back closes it.
+With no Cast context (Play Services missing) the probe still presents it before giving up. On
+iOS, `-CastTargetProbeSheet YES` does the same once the app is active. A relaunch meets the SDK
+resuming the session it had: arm `none` then, since a probe that connects while the SDK resumes
+leaves the SDK holding two sessions, and the volume reports of the resumed one are dropped.
 
 **iOS.** Pass `-CastTargetProbe "<name>"`, `-CastTargetProbeKeep YES` to leave the session
 up and `-CastTargetProbeHold <ms>` to hold it, as launch arguments; the same lines come out
