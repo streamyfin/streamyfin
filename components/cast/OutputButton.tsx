@@ -23,7 +23,7 @@ import {
 } from "@/modules/mpv-player/src/cast";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { apiAtom, userAtom } from "@/utils/atoms/api";
-import { measureInWindow } from "@/utils/cast/measureInWindow";
+import { measureInWindow, nativeTagOf } from "@/utils/cast/measureInWindow";
 import { buildOutputPickerStrings } from "@/utils/cast/outputPickerStrings";
 import { musicPlayingHere } from "@/utils/cast/playingHere";
 import { logAndCaptureError } from "@/utils/log";
@@ -80,6 +80,7 @@ export function OutputButton({
       await presentOutputPicker({
         strings: buildOutputPickerStrings(t),
         anchor: frame,
+        anchorTag: nativeTagOf(anchor.current),
         playingHere,
       });
     } catch (error) {

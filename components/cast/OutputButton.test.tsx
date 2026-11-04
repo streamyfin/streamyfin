@@ -37,8 +37,10 @@ jest.mock("@/utils/cast/playingHere", () => ({
   musicPlayingHere: jest.fn(async () => mockPlayingHere),
 }));
 const mockAnchor = { x: 312, y: 48, width: 44, height: 44 };
+const MOCK_TAG = 42;
 jest.mock("@/utils/cast/measureInWindow", () => ({
   measureInWindow: jest.fn(async () => mockAnchor),
+  nativeTagOf: jest.fn(() => MOCK_TAG),
 }));
 /** The glyphs the button drew, latest last. */
 const mockIcons: { name: string; tintColor?: string }[] = [];
@@ -134,6 +136,13 @@ test("passes its window position as the anchor", async () => {
   expect(mockCast.outputPickerCalls).toHaveLength(1);
   expect(mockCast.outputPickerCalls[0].anchor).toEqual(mockAnchor);
   expect(mockCast.outputPickerCalls[0].strings.title).toBe("cast.output.title");
+});
+
+// The popover follows the button's own view when the window turns; the frame is the fallback.
+test("passes its native view for the popover to follow", async () => {
+  await render(<OutputButton />);
+  await act(async () => fireEvent.press(screen.getByLabelText(LABEL)));
+  expect(mockCast.outputPickerCalls[0].anchorTag).toBe(MOCK_TAG);
 });
 
 test("passes what the music player plays here", async () => {
