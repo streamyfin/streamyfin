@@ -97,10 +97,11 @@ final class CastTargetProbe: RemoteTargetListener {
     if current.phase == .connected, let target = current.target,
       target.name.caseInsensitiveCompare(deviceName) == .orderedSame
     {
-      showSheet()
       log("already connected to \(target.name)")
-      // The session the probe holds, for the hold's check.
+      // The session the probe holds, for the hold's check; held before the sheet, whose discovery could list a
+      // namesake first.
       device = TargetDevice(id: target.id, name: target.name, model: nil)
+      showSheet()
       onConnected()
       return
     }
@@ -108,6 +109,8 @@ final class CastTargetProbe: RemoteTargetListener {
     // started there sets its own wait, which this one must not replace.
     wait(Self.discoveryTimeoutMs, failure: "no device named \"\(deviceName)\"")
     showSheet()
+    // A refusal inside the sheet's discovery can have ended the probe already.
+    guard isActive else { return }
     hub.startDiscovery(owner: RemoteTargetHub.probeDiscovery)
     remoteTargetDevicesDidChange(hub.devices)
   }

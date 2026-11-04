@@ -331,6 +331,21 @@ enum OutputSheetTests {
       check("aSwitchRefusedAtOnceShowsItsFailure", failed)
     }
 
+    // Back to the receiver a switch was leaving: the asked one goes back to idle.
+    do {
+      let port = port()
+      let sheet = sheet(port, clock: Clock())
+      port.emit("started", livingRoom)
+      sheet.change()
+      sheet.tap(deviceRow(sheet, bedroom))
+      let asked = status(sheet.state, bedroom)
+      sheet.tap(deviceRow(sheet, livingRoom))
+      sheet.change()
+      check(
+        "goingBackDuringASwitchForgetsTheAskedReceiver", asked == .connecting && status(sheet.state, bedroom) == .idle
+      )
+    }
+
     // Discovery can lose the receiver that holds the session; its row still leads back to its panel.
     do {
       let port = port()

@@ -208,6 +208,23 @@ class OutputSheetControllerTest {
         assertTrue(row(sheet, bedroom).status is DeviceStatus.Failed)
     }
 
+    // Back to the receiver a switch was leaving: the asked one goes back to idle.
+    @Test
+    fun goingBackDuringASwitchForgetsTheAskedReceiver() {
+        val port = port()
+        val sheet = sheet(hubWith(port))
+        port.emit("started", livingRoom)
+        sheet.change()
+        sheet.tap(row(sheet, bedroom))
+        val asked = row(sheet, bedroom).status
+
+        sheet.tap(row(sheet, livingRoom))
+        sheet.change()
+
+        assertEquals(DeviceStatus.Connecting, asked)
+        assertEquals(DeviceStatus.Idle, row(sheet, bedroom).status)
+    }
+
     // Discovery can lose the receiver that holds the session; its row still leads back to its panel.
     @Test
     fun theConnectedRowLeadsBackToItsPanelOnceDiscoveryLostIt() {
