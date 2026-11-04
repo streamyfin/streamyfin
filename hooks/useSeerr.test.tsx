@@ -1,9 +1,18 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+  QueryClient,
+  QueryClientProvider,
+  useQuery,
+} from "@tanstack/react-query";
 import { renderHook, waitFor } from "@testing-library/react-native";
 import type { AxiosAdapter } from "axios";
 import type React from "react";
 import { DiscoverSliderType } from "@/utils/seerr/types";
-import { Endpoints, SeerrApi, useSeerrImageCache } from "./useSeerr";
+import {
+  Endpoints,
+  SeerrApi,
+  seerrPublicSettingsQuery,
+  useSeerrImageCache,
+} from "./useSeerr";
 
 jest.mock(
   "react-native-mmkv",
@@ -209,6 +218,29 @@ describe("useSeerrImageCache", () => {
     });
 
     expect(result.current).toBe(api);
+    expect(api.cacheImages).toBe(false);
+  });
+
+  // A server that serves its images from TMDB: the client stays the same one.
+  test("keeps loading from TMDB when the server does not cache images", async () => {
+    const api = new SeerrApi("https://seerr.example");
+    jest
+      .spyOn(api, "publicSettings")
+      .mockResolvedValue({ cacheImages: false } as never);
+
+    const { result } = await renderHook(
+      () => ({
+        client: useSeerrImageCache(api),
+        // Read in the same render, so the client below has seen the settings.
+        settings: useQuery(seerrPublicSettingsQuery(api)).data,
+      }),
+      { wrapper },
+    );
+
+    await waitFor(() =>
+      expect(result.current.settings).toEqual({ cacheImages: false }),
+    );
+    expect(result.current.client).toBe(api);
     expect(api.cacheImages).toBe(false);
   });
 });
