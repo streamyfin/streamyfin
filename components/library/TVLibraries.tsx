@@ -3,7 +3,11 @@ import type {
   BaseItemDto,
   CollectionType,
 } from "@jellyfin/sdk/lib/generated-client/models";
-import { getLibraryApi, getUserViewApi } from "@jellyfin/sdk/lib/utils/api";
+import {
+  getLibraryApi,
+  getLiveTvApi,
+  getUserViewApi,
+} from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
@@ -108,6 +112,7 @@ const TVLibraryRow: React.FC<{
       return t("library.item_types.playlists");
     if (library.CollectionType === "music")
       return t("library.item_types.items");
+    if (library.CollectionType === "livetv") return t("live_tv.tabs.channels");
     return t("library.item_types.items");
   }, [library.CollectionType, t]);
 
@@ -275,6 +280,21 @@ export const TVLibraries: React.FC = () => {
     queryFn: async () => {
       const results: LibraryWithPreview[] = await Promise.all(
         libraries.map(async (library) => {
+          // Channels aren't children of the Live TV view, so getItems counts 0,
+          // and the view has no backdrop to preview.
+          if (library.CollectionType === "livetv") {
+            const channels = await getLiveTvApi(api!).getLiveTvChannels({
+              userId: user?.Id,
+              limit: 1,
+              addCurrentProgram: false,
+            });
+            return {
+              ...library,
+              itemCount: channels.data.TotalRecordCount,
+              previewItems: [],
+            };
+          }
+
           let itemType: string | undefined;
           if (library.CollectionType === "movies") itemType = "Movie";
           else if (library.CollectionType === "tvshows") itemType = "Series";
