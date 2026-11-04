@@ -697,7 +697,8 @@ final class CastEngine: TransportEngine, QueueEngine {
       log("status \(status.playerState) playSession=\(data?.playSessionId ?? "nil") playMethod=\(data?.playMethod ?? "nil") canClientSeek=\(canClientSeek)")
     }
     reportState(status.playerState, reason: status.idleReason, data: data)
-    if reclaimPending, let playSession = data?.playSessionId, playSession == ownPlaySession {
+    // A load on its way carries the envelope of its own server: the reclaim waits for it to settle.
+    if reclaimPending, pendingLoad == nil, let playSession = data?.playSessionId, playSession == ownPlaySession {
       reclaimPending = false
       let binding = boundSessionId
       // Not taken: nothing was reclaimed, and the next status of that playback tries again.
