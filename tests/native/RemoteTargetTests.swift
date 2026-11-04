@@ -36,6 +36,180 @@ enum RemoteTargetTests {
     return entry
   }
 
+  final class Recording: RemoteTargetListener {
+    var targets: [RemoteTargetSnapshot] = []
+    var deviceLists: [[TargetDevice]] = []
+    var onTarget: (RemoteTargetSnapshot) -> Void = { _ in }
+
+    func remoteTargetDidChange(_ snapshot: RemoteTargetSnapshot) {
+      targets.append(snapshot)
+      onTarget(snapshot)
+    }
+
+    func remoteTargetDevicesDidChange(_ devices: [TargetDevice]) { deviceLists.append(devices) }
+  }
+
+  static func connectedHub(_ port: FakeTargetPort) -> RemoteTargetHub {
+    let hub = RemoteTargetHub()
+    hub.install(port)
+    port.emit("started", livingRoom)
+    return hub
+  }
+
+  // The hub holds the target for the whole process and talks to the SDK through a port: the same
+  // cases as RemoteTargetHubTest.kt.
+  static func hubCases() {
+    do {
+      let hub = RemoteTargetHub()
+      hub.install(FakeTargetPort(atStart: [("resumed", livingRoom, nil)]))
+      check(
+        "aSessionAlreadyRunningAtInstallIsConnected",
+        hub.snapshot.phase == .connected && hub.snapshot.target == cast(livingRoom)
+      )
+    }
+
+    do {
+      let hub = RemoteTargetHub()
+      let port = FakeTargetPort(known: [livingRoom])
+      hub.install(port)
+      let listener = Recording()
+      _ = hub.addListener(listener)
+      let accepted = hub.connect(deviceId: "missing")
+      check(
+        "anUnknownDeviceIsRefusedWithoutAStateChange",
+        !accepted && port.connects.isEmpty && listener.targets.isEmpty && hub.snapshot == .none
+      )
+    }
+
+    do {
+      let hub = RemoteTargetHub()
+      let port = FakeTargetPort(known: [livingRoom, bedroom])
+      hub.install(port)
+      let listener = Recording()
+      var askedBeforeTheAnnounce: [Int] = []
+      listener.onTarget = { _ in askedBeforeTheAnnounce.append(port.connects.count) }
+      _ = hub.addListener(listener)
+      let accepted = hub.connect(deviceId: bedroom.id)
+      check(
+        "connectingAKnownDeviceAnnouncesItThenAsksThePort",
+        accepted && listener.targets == [state(.connecting, cast(bedroom))] && askedBeforeTheAnnounce == [0]
+          && port.connects == [bedroom]
+      )
+    }
+
+    do {
+      let port = FakeTargetPort(known: [livingRoom, bedroom])
+      let hub = connectedHub(port)
+      let accepted = hub.connect(deviceId: bedroom.id)
+      check(
+        "anotherDeviceWhileConnectedGoesToThePortAndTheSdkEventsFollow",
+        accepted && port.connects == [bedroom] && hub.snapshot.target == cast(livingRoom)
+      )
+    }
+
+    do {
+      let port = FakeTargetPort(known: [livingRoom])
+      let hub = connectedHub(port)
+      let accepted = hub.connect(deviceId: livingRoom.id)
+      check("theDeviceAlreadyConnectedAsksNothing", accepted && port.connects.isEmpty)
+    }
+
+    do {
+      let hub = RemoteTargetHub()
+      let port = FakeTargetPort()
+      hub.install(port)
+      let listener = Recording()
+      _ = hub.addListener(listener)
+      port.emit("starting", livingRoom)
+      port.emit("starting", livingRoom)
+      check("onlyChangesReachTheListeners", listener.targets.count == 1)
+    }
+
+    do {
+      let hub = RemoteTargetHub()
+      let port = FakeTargetPort()
+      hub.install(port)
+      let listener = Recording()
+      _ = hub.addListener(listener)
+      port.discover([livingRoom, bedroom])
+      port.discover([livingRoom, bedroom])
+      check(
+        "devicesFollowThePort",
+        hub.devices == [livingRoom, bedroom] && listener.deviceLists == [[livingRoom, bedroom]]
+      )
+    }
+
+    do {
+      let port = FakeTargetPort(known: [livingRoom])
+      let hub = connectedHub(port)
+      hub.disconnect(stopPlayback: true)
+      check(
+        "disconnectGoesToThePortAndWaitsForItsEvents",
+        port.disconnects == [true] && hub.snapshot.phase == .connected
+      )
+    }
+
+    do {
+      let hub = RemoteTargetHub()
+      let port = FakeTargetPort()
+      hub.install(port)
+      hub.startDiscovery()
+      let started = port.discovering
+      hub.stopDiscovery()
+      check("discoveryGoesToThePort", started && !port.discovering)
+    }
+
+    do {
+      let hub = RemoteTargetHub()
+      let port = FakeTargetPort()
+      hub.install(port)
+      let listener = Recording()
+      let remove = hub.addListener(listener)
+      remove()
+      port.emit("started", livingRoom)
+      check("aRemovedListenerHearsNothing", listener.targets.isEmpty)
+    }
+
+    do {
+      let hub = RemoteTargetHub()
+      let port = FakeTargetPort()
+      hub.install(port)
+      hub.install(port)
+      check("theSamePortInstalledTwiceStartsOnce", port.starts == 1)
+    }
+
+    do {
+      let first = FakeTargetPort(atStart: [("started", livingRoom, nil)])
+      let second = FakeTargetPort()
+      let hub = RemoteTargetHub()
+      hub.install(first)
+      let listener = Recording()
+      _ = hub.addListener(listener)
+      let stale = first.events
+      hub.install(second)
+      stale?.sessionEvent("started", device: bedroom, error: nil)
+      check(
+        "aNewPortReplacesTheOldOneAndItsTarget",
+        first.stopped && second.starts == 1 && hub.snapshot == .none && listener.targets == [.none]
+      )
+    }
+
+    // iOS only: the hub holds its listeners weakly, like the receiver hub.
+    do {
+      let hub = RemoteTargetHub()
+      let port = FakeTargetPort()
+      hub.install(port)
+      weak var released: Recording?
+      do {
+        let listener = Recording()
+        released = listener
+        _ = hub.addListener(listener)
+      }
+      port.emit("started", livingRoom)
+      check("aReleasedListenerIsLetGo", released == nil && hub.snapshot.phase == .connected)
+    }
+  }
+
   static func main() {
     do {
       let machine = RemoteTargetMachine()
@@ -132,6 +306,8 @@ enum RemoteTargetTests {
           && value(none, "target") == nil
       )
     }
+
+    hubCases()
 
     if failures.isEmpty {
       print("PASS: remote target (" + String(cases) + " cases)")
