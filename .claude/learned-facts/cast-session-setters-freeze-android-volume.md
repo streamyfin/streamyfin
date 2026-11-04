@@ -16,8 +16,9 @@ set, the same session follows every outside change.
 The selected MediaRouter route keeps following (`onRouteVolumeChanged` with the new step), and
 setting the level through it does not freeze the session:
 
-- **Level**: `router.selectedRoute.requestSetVolume(step)`, the route of the Cast session,
-  `volumeMax` steps (20 on a Chromecast). The Cast dialog's slider and the system Output Switcher
+- **Level**: `requestSetVolume(step)` on the route of the Cast session's receiver, found by its
+  device id and not taken as the selected route, which a switch moves to the next receiver before
+  the old session ends; `volumeMax` steps (20 on a Chromecast), none on a route with no maximum. The Cast dialog's slider and the system Output Switcher
   do the same. The published level is still the session's, which keeps its full precision.
 - **Mute**: there is no route mute. The app mutes the playing stream,
   `RemoteMediaClient.setStreamMute`, as the SDK's expanded controls do. It silences the media
