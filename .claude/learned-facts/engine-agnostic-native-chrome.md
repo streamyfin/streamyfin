@@ -2,8 +2,9 @@
 
 The native player chrome on Android (NativePlayerSession + PlayerViewModel +
 Compose UI in modules/mpv-player; Android TV, and phones with the Native
-video player) never touches MPV directly — it consumes the
-`PlayerEngine` interface (nativeplayer/engine/PlayerEngine.kt). Which engine is
+video player) never touches MPV directly: it holds a `ChromeEngine`
+(nativeplayer/engine/ChromeEngine.kt, the transport and queue faces), and reaches
+rendering, which only a local `PlayerEngine` has, through a cast. Which engine is
 built comes from `PlayerPresentConfigRecord.engine` ("mpv" default, "exoplayer"),
 which buildNativePlayerConfig sets from `getActivePlayerType` — the same resolver
 that picks the Jellyfin device profile. Consequences:
