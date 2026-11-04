@@ -94,8 +94,10 @@ export const withoutRedundantSaves = (persister: Persister): Persister => {
     persistClient: (persisted) => {
       const written = persisted.clientState.queries
         .map(
+          // The count as well: setQueryData stamps dataUpdatedAt with
+          // Date.now(), so two writes in one millisecond share it.
           ({ queryHash, state }) =>
-            `${queryHash}@${state.dataUpdatedAt}${state.isInvalidated ? "!" : ""}`,
+            `${queryHash}@${state.dataUpdatedAt}.${state.dataUpdateCount}${state.isInvalidated ? "!" : ""}`,
         )
         .join("|");
       if (written === lastWritten) return;

@@ -206,3 +206,29 @@ describe("saves of the persisted cache", () => {
     expect(writes - settled).toBeGreaterThanOrEqual(60);
   });
 });
+
+// setQueryData stamps dataUpdatedAt with Date.now(): two writes in one
+// millisecond share it, and only the update count tells them apart.
+test("a second write in the same millisecond is still saved", async () => {
+  const saved: unknown[] = [];
+  const persister = withoutRedundantSaves({
+    persistClient: (persisted) => {
+      saved.push(persisted.clientState.queries[0]?.state.data);
+    },
+    restoreClient: async () => undefined,
+    removeClient: async () => undefined,
+  });
+  const client = new QueryClient();
+  const now = jest.spyOn(Date, "now").mockReturnValue(1_000);
+  const unsubscribe = persistQueryClientSubscribe({
+    queryClient: client,
+    persister,
+    dehydrateOptions: queryDehydrateOptions,
+  });
+  client.setQueryData(["home", "row"], "first");
+  client.setQueryData(["home", "row"], "second");
+  unsubscribe();
+  now.mockRestore();
+
+  expect(saved.at(-1)).toBe("second");
+});

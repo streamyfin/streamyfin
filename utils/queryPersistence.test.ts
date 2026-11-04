@@ -266,8 +266,14 @@ describe("which query families are persisted", () => {
     "app/(auth)/(tabs)/(libraries)/music/[libraryId]/playlists.tsx",
     // The download badge of each playlist card.
     "components/music/MusicPlaylistCard.tsx",
+    // Settings > Audio & Subtitles, mobile and TV.
+    "hooks/useMediaPreferences.ts",
   ])("%s only reads persisted query families", (file) => {
-    const source = readFileSync(join(__dirname, "..", file), "utf8");
+    // An invalidation names a key without reading it.
+    const source = readFileSync(join(__dirname, "..", file), "utf8").replace(
+      /\.(invalidateQueries|refetchQueries|removeQueries|cancelQueries|resetQueries)\(\{[^}]*\}\)/g,
+      "",
+    );
     const families = [...source.matchAll(/queryKey: *\[\s*"([^"]+)"/g)].map(
       (match) => match[1],
     );
