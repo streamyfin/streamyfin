@@ -1,5 +1,6 @@
 package expo.modules.mpvplayer.cast.target
 
+import androidx.mediarouter.media.MediaRouter
 import expo.modules.mpvplayer.cast.engine.ManualScheduler
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -202,6 +203,17 @@ class GoogleCastTargetPortTest {
         assertTrue(GoogleCastTargetPort.receiverMuted(device = true, stream = null))
         assertFalse(GoogleCastTargetPort.receiverMuted(device = false, stream = null))
         assertFalse(GoogleCastTargetPort.receiverMuted(device = false, stream = false))
+    }
+
+    // A Google TV whose sound the TV sets through HDMI-CEC reports 0 on a route MediaRouter marks fixed: that
+    // is no level, and nothing for the sheet's slider (bench, 04/11: the Streamer fixed, the Chromecast variable
+    // from its session's start).
+    @Test
+    fun aFixedVolumeReceiverReportsNoLevel() {
+        assertNull(GoogleCastTargetPort.reportedLevel(0.0, false, MediaRouter.RouteInfo.PLAYBACK_VOLUME_FIXED))
+        assertEquals(0.86 to true, GoogleCastTargetPort.reportedLevel(0.86, true, MediaRouter.RouteInfo.PLAYBACK_VOLUME_VARIABLE))
+        // No route found for the session: its level still counts, as before.
+        assertEquals(0.4 to false, GoogleCastTargetPort.reportedLevel(0.4, false, null))
     }
 
     @Test

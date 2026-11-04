@@ -23,6 +23,12 @@ final class GoogleCastTargetPort: TargetPort {
   static let endRefused = "The Cast SDK did not end the session a switch had to end"
   static let disconnectRefused = "The Cast SDK did not end the session"
 
+  /// The receiver's level, or none for a fixed-volume session: a Google TV whose sound the TV sets through
+  /// HDMI-CEC reports 0 there, which is no level a sender can set.
+  static func reportedLevel(_ level: Double, muted: Bool, fixedVolume: Bool) -> (Double, Bool)? {
+    fixedVolume ? nil : (level, muted)
+  }
+
   private let routes: () -> [CastTargetRoute]
   private let runningSession: () -> RunningTargetSession?
   /// Answers the SDK's endSessionAndStopCasting: false when it kept the session.
@@ -230,7 +236,10 @@ extension GoogleCastTargetPort {
       discovery: { on in on ? discoveryManager.startDiscovery() : discoveryManager.stopDiscovery() },
       sessionVolume: {
         guard let session = sessionManager.currentCastSession else { return nil }
-        return (Double(session.currentDeviceVolume), session.currentDeviceMuted)
+        return reportedLevel(
+          Double(session.currentDeviceVolume), muted: session.currentDeviceMuted,
+          fixedVolume: session.traits?.isFixedVolume() == true
+        )
       },
       setSessionVolume: { level in sessionManager.currentCastSession?.setDeviceVolume(Float(level)) },
       setSessionMuted: { muted in sessionManager.currentCastSession?.setDeviceMuted(muted) },
@@ -333,8 +342,12 @@ private final class TargetSessionListener: NSObject, GCKSessionManagerListener {
     didReceiveDeviceVolume volume: Float, muted: Bool
   ) {
     // A report still queued from a session a switch left is not the current receiver's level.
-    guard session === sessionManager.currentCastSession else { return }
-    self.volume(Double(volume), muted)
+    guard session === sessionManager.currentCastSession,
+      let (level, muted) = GoogleCastTargetPort.reportedLevel(
+        Double(volume), muted: muted, fixedVolume: session.traits?.isFixedVolume() == true
+      )
+    else { return }
+    self.volume(level, muted)
   }
 
   private func device(_ session: GCKSession) -> TargetDevice? {
