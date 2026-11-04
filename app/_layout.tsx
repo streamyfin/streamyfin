@@ -64,6 +64,7 @@ import {
   queryDehydrateOptions,
   withoutPersistedMutations,
 } from "@/utils/queryPersistence";
+import { shouldRetryQuery } from "@/utils/queryRetry";
 import { reportDataError } from "@/utils/reportDataError";
 
 const Notifications = !Platform.isTV ? require("expo-notifications") : null;
@@ -328,10 +329,7 @@ const queryClient = new QueryClient({
       refetchOnMount: true, // Refetch when component mounts
       refetchOnReconnect: true, // Refetch when network reconnects
       refetchOnWindowFocus: false, // Not needed for mobile
-      retry: (failureCount) => {
-        if (!onlineManager.isOnline()) return false;
-        return failureCount < 3;
-      },
+      retry: shouldRetryQuery, // Never offline, nor for a stale id
     },
     mutations: {
       networkMode: "online", // Only run mutations when online
