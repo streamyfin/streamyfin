@@ -138,7 +138,6 @@ import { store } from "@/utils/store";
 const PAGE_SIZE = 36;
 const TV_ITEM_GAP = 20;
 const TV_HORIZONTAL_PADDING = 60;
-const _TV_SCALE_PADDING = 20;
 const TV_PLAYLIST_SQUARE_SIZE = 180;
 const OUTGOING_LIST_OPACITY = 0.4;
 /**
@@ -1669,8 +1668,19 @@ const LibraryPage = () => {
       ) : (
         // A focus guide as wide as the page: tvOS only moves the focus to what
         // lies straight ahead, and a short grid is narrower than the toolbar.
+        //
+        // trapFocusLeft/trapFocusRight: the toolbar above is a focus guide too,
+        // and on Android a guide that does not hold the focus counts as one
+        // candidate spanning its whole row. The rows here are centred, so each
+        // one ends short of the toolbar on both sides, and a left or right
+        // press with no card in the beam (a row edge) finds the toolbar as the
+        // nearest candidate however far it sits above. Trapped, horizontal
+        // presses search the cards only and stop at the edge; up and down stay
+        // free, so the toolbar keeps its own way in.
         <TVFocusGuideView
           autoFocus
+          trapFocusLeft
+          trapFocusRight
           style={{
             flexDirection: "row",
             flexWrap: "wrap",
