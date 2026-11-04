@@ -23,6 +23,17 @@ Pod::Spec.new do |s|
   if fake_cast_devices && eas_build_profile.start_with?('production')
     raise "STREAMYFIN_FAKE_CAST_DEVICES is set for the store profile '#{eas_build_profile}': fake Cast receivers never ship"
   end
+  # The define stays in the Pods configuration until `pod install` runs again, and an archive
+  # skips the check above: a tier 1 install refuses any archive (Xcode archives with ACTION=install).
+  # Tier 1 runs on simulators, which build without archiving.
+  if fake_cast_devices
+    s.script_phase = {
+      name: 'Refuse fake Cast receivers in an archive',
+      execution_position: :before_compile,
+      always_out_of_date: '1',
+      script: 'if [ "$ACTION" = "install" ]; then echo "error: fake Cast receivers never ship: run pod install again without STREAMYFIN_FAKE_CAST_DEVICES"; exit 1; fi'
+    }
+  end
 
   s.pod_target_xcconfig = {
     'DEFINES_MODULE' => 'YES',

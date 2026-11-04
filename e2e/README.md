@@ -48,12 +48,16 @@ still reads the real network.
   one command, for example
   `ORG_GRADLE_PROJECT_streamyfinFakeCastDevices=true bun run build:android:local`. It sets
   `BuildConfig.FAKE_CAST_DEVICES` in the mpv-player module, in every variant. Do not export it.
-- **iOS**: `STREAMYFIN_FAKE_CAST_DEVICES=1 pod install` (and the same prefix on
-  `expo run:ios`, which may install the pods again) adds `FAKE_CAST_DEVICES` to the module's
-  Swift conditions. Run `pod install` again without it before any other build.
+- **iOS**: `STREAMYFIN_FAKE_CAST_DEVICES=1 pod install --project-directory=ios` from the
+  repository root (the Podfile is the one `expo prebuild` writes in `ios/`), and the same prefix
+  on `expo run:ios`, which may install the pods again, adds `FAKE_CAST_DEVICES` to the module's
+  Swift conditions. Run `pod install --project-directory=ios` again without it before any other
+  build.
 
 A store profile refuses both: with `EAS_BUILD_PROFILE` starting with `production`, Gradle and
-the podspec stop the build. A build that has them logs
+the podspec stop the build. On iOS the define stays in the Pods configuration until the next
+`pod install`, so a tier 1 install also stops any archive, whatever its profile, on the build
+phase `Refuse fake Cast receivers in an archive`: tier 1 runs on simulators, which never archive. A build that has them logs
 `Fake Cast receivers in place of the Cast SDK's: this is a tier 1 build` when the module
 starts. In a debug build, the remote target probe (`e2e/suites/cast/README.md`) shows which
 receivers it has: `--es device "Bench TV"` connects in a fake build, and ends with
