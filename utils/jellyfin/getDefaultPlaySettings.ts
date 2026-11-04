@@ -15,7 +15,8 @@ import type {
   MediaStream,
 } from "@jellyfin/sdk/lib/generated-client";
 import { SubtitlePlaybackMode } from "@jellyfin/sdk/lib/generated-client";
-import { BITRATES } from "@/components/BitrateSelector";
+import type { Bitrate } from "@/components/BitrateSelector";
+import { AUTO_BITRATE } from "@/utils/bitrate";
 import { closestLanguageMatches, langEq } from "@/utils/jellyfin/subtitleUtils";
 import { getSeriesTrackMemory } from "@/utils/seriesTrackMemory";
 import { type Settings } from "../atoms/settings";
@@ -29,7 +30,8 @@ import { ORIGINAL_LANGUAGE, supportsPerVersionUserData } from "./serverVersion";
 
 export interface PlaySettings {
   item: BaseItemDto;
-  bitrate: (typeof BITRATES)[0];
+  /** Auto stays Auto: the player measures it when it asks for the stream. */
+  bitrate: Bitrate;
   mediaSource?: MediaSourceInfo | null;
   audioIndex?: number;
   subtitleIndex?: number;
@@ -218,7 +220,7 @@ export function getDefaultPlaySettings(
     offline?: boolean;
   },
 ): PlaySettings {
-  const bitrate = settings?.defaultBitrate ?? BITRATES[0];
+  const bitrate = settings?.defaultBitrate ?? AUTO_BITRATE;
 
   // Handle undefined/null item
   if (!item) {

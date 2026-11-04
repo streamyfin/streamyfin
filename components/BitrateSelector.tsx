@@ -1,6 +1,13 @@
+import type { TFunction } from "i18next";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Platform, TouchableOpacity, View } from "react-native";
+import {
+  AUTO_BITRATE,
+  bitrateLabel,
+  isAutoBitrate,
+  MAX_BITRATE,
+} from "@/utils/bitrate";
 import { Text } from "./common/Text";
 import { type OptionGroup, PlatformDropdown } from "./PlatformDropdown";
 
@@ -10,41 +17,57 @@ export type Bitrate = {
 };
 
 export const BITRATES: Bitrate[] = [
-  {
-    key: "Max",
-    value: undefined,
-  },
-  {
-    key: "8 Mb/s",
-    value: 8000000,
-    height: 1080,
-  },
-  {
-    key: "4 Mb/s",
-    value: 4000000,
-    height: 1080,
-  },
-  {
-    key: "2 Mb/s",
-    value: 2000000,
-  },
-  {
-    key: "1 Mb/s",
-    value: 1000000,
-  },
-  {
-    key: "500 Kb/s",
-    value: 500000,
-  },
-  {
-    key: "250 Kb/s",
-    value: 250000,
-  },
-].sort(
-  (a, b) =>
-    (b.value || Number.POSITIVE_INFINITY) -
-    (a.value || Number.POSITIVE_INFINITY),
-);
+  // The default, measured on the connection to the server when a stream is
+  // asked for (utils/jellyfin/bitrateTest.ts).
+  AUTO_BITRATE,
+  ...[
+    MAX_BITRATE,
+    {
+      key: "8 Mb/s",
+      value: 8000000,
+      height: 1080,
+    },
+    {
+      key: "4 Mb/s",
+      value: 4000000,
+      height: 1080,
+    },
+    {
+      key: "2 Mb/s",
+      value: 2000000,
+    },
+    {
+      key: "1 Mb/s",
+      value: 1000000,
+    },
+    {
+      key: "500 Kb/s",
+      value: 500000,
+    },
+    {
+      key: "250 Kb/s",
+      value: 250000,
+    },
+  ].sort(
+    (a, b) =>
+      (b.value || Number.POSITIVE_INFINITY) -
+      (a.value || Number.POSITIVE_INFINITY),
+  ),
+];
+
+/**
+ * The qualities as the settings and the item pages offer them, on the phone
+ * and on TV. Told apart by key: neither Auto nor Max carries a bitrate.
+ */
+export const bitrateOptions = (
+  t: TFunction,
+  selected?: Pick<Bitrate, "key"> | null,
+) =>
+  BITRATES.map((bitrate) => ({
+    label: bitrateLabel(t, bitrate),
+    value: bitrate,
+    selected: bitrate.key === selected?.key,
+  }));
 
 interface Props extends React.ComponentProps<typeof View> {
   onChange: (value: Bitrate) => void;
@@ -63,13 +86,16 @@ export const BitrateSelector: React.FC<Props> = ({
   const { t } = useTranslation();
 
   const sorted = useMemo(() => {
+    // Only the download sheet picks from here, and a download is a file: it
+    // has no connection to measure, so it is not offered Auto.
+    const qualities = BITRATES.filter((bitrate) => !isAutoBitrate(bitrate));
     if (inverted)
-      return BITRATES.slice().sort(
+      return qualities.sort(
         (a, b) =>
           (a.value || Number.POSITIVE_INFINITY) -
           (b.value || Number.POSITIVE_INFINITY),
       );
-    return BITRATES.slice().sort(
+    return qualities.sort(
       (a, b) =>
         (b.value || Number.POSITIVE_INFINITY) -
         (a.value || Number.POSITIVE_INFINITY),
@@ -83,7 +109,7 @@ export const BitrateSelector: React.FC<Props> = ({
           type: "radio" as const,
           label: bitrate.key,
           value: bitrate,
-          selected: bitrate.value === selected?.value,
+          selected: bitrate.key === selected?.key,
           onPress: () => onChange(bitrate),
         })),
       },
@@ -107,7 +133,7 @@ export const BitrateSelector: React.FC<Props> = ({
         onPress={() => setOpen(true)}
       >
         <Text numberOfLines={1}>
-          {BITRATES.find((b) => b.value === selected?.value)?.key}
+          {BITRATES.find((b) => b.key === selected?.key)?.key}
         </Text>
       </TouchableOpacity>
     </View>

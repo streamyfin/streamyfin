@@ -97,7 +97,7 @@ struct TrackMenusRecord: Record {
 	@Field var subtitles: [TrackMenuItemRecord] = []
 	@Field var audio: [TrackMenuItemRecord] = []
 	/// Max-bitrate options (online only; empty offline). jellyfinIndex carries
-	/// the bitrate in bps, -1 = "Max". Selecting always re-negotiates in JS.
+	/// the bitrate in bps, -1 = "Max", -2 = "Auto". Selecting always re-negotiates in JS.
 	@Field var quality: [TrackMenuItemRecord] = []
 }
 

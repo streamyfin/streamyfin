@@ -433,7 +433,7 @@ export type NativePlayerEvents = {
     payload: NativePlayerTrackSelectionRequest,
   ) => void;
   onSpeedChange: (payload: { speed: number }) => void;
-  /** Quality menu tap; bitrateValue in bps, -1 = "Max" (no limit). */
+  /** Quality menu tap; bitrateValue in bps, -1 = "Max" (no limit), -2 = "Auto". */
   onQualitySelected: (payload: {
     bitrateValue: number;
     positionSec: number;
