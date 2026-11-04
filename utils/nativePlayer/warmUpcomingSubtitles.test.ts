@@ -4,6 +4,7 @@ import type {
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client";
 import { CACHE, fakeFiles } from "@/test-utils/fileSystem";
+import { generateDeviceProfile } from "@/utils/profiles/native";
 
 jest.mock(
   "expo-file-system",
@@ -31,7 +32,8 @@ const item = {
   Name: "Next",
 } as unknown as BaseItemDto;
 const api = { basePath: "https://jf.example" } as unknown as Api;
-const deviceProfile = { MaxStreamingBitrate: 1 };
+// The real profile builder, exactly what the swap's negotiation passes.
+const deviceProfile = generateDeviceProfile({ player: "mpv" });
 
 const mediaSourceWithExternalSub = (): MediaSourceInfo =>
   ({
