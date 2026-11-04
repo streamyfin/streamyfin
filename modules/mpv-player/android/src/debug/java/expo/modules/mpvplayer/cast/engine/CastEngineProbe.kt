@@ -8,9 +8,6 @@ import androidx.annotation.MainThread
 import expo.modules.mpvplayer.cast.ReceiverBusListener
 import expo.modules.mpvplayer.cast.ReceiverChannelHub
 import expo.modules.mpvplayer.cast.ReceiverSubscription
-import expo.modules.mpvplayer.cast.receiver.ReceiverItem
-import expo.modules.mpvplayer.cast.receiver.ReceiverLoadOutcome
-import expo.modules.mpvplayer.cast.receiver.ReceiverPlayRequest
 import expo.modules.mpvplayer.cast.receiver.ReceiverProtocol
 import expo.modules.mpvplayer.cast.receiver.ReceiverServer
 import expo.modules.mpvplayer.nativeplayer.engine.PlayerEngine
@@ -18,7 +15,6 @@ import expo.modules.mpvplayer.nativeplayer.engine.TransportEngine
 import org.json.JSONException
 import org.json.JSONObject
 import java.util.Locale
-import kotlin.math.roundToLong
 
 // The device proof of the Cast engine, in debug builds only (e2e/suites/cast/README.md, "Cast engine
 // probe"): armed by a broadcast, it waits for the first PlayNow JS sends, binds an engine to that
@@ -65,25 +61,9 @@ internal class CastEngineProbeScript(
         }
     }
 
-    // A quality change as the receiver takes it: the item again where it is, under a lower cap.
-    private fun reloadCapped() {
-        val itemId = engine.currentItemId ?: return
-        val request = ReceiverPlayRequest(
-            items = listOf(ReceiverItem(id = itemId)),
-            startPositionTicks = (engine.currentPosition * ReceiverProtocol.TICKS_PER_SECOND).roundToLong(),
-            audioStreamIndex = engine.getCurrentAudioTrack().takeIf { it >= 0 },
-            subtitleStreamIndex = engine.getCurrentSubtitleTrack(),
-        )
-        engine.load(server.copy(maxBitrate = CAPPED_BITRATE), request) { log("load outcome=${describe(it)}") }
-    }
-
-    private fun describe(result: CastLoadResult): String = when (result) {
-        is CastLoadResult.NotSent -> "not_sent ${result.error}"
-        is CastLoadResult.Settled -> when (val outcome = result.outcome) {
-            is ReceiverLoadOutcome.Failed -> "failed ${outcome.error.wireName}"
-            else -> outcome.wireName
-        }
-    }
+    // A quality change as the engine applies it: the item again where it is, with its source, tracks
+    // and queue, under a lower cap.
+    private fun reloadCapped() = engine.reloadCurrentItem(server.copy(maxBitrate = CAPPED_BITRATE))
 
     companion object {
         const val CAPPED_BITRATE = 192_000L
@@ -163,14 +143,21 @@ internal class CastEngineProbe(
             bus = hub.subscribe(ReceiverProtocol.NAMESPACE, BusLogger(log))
             log("engine bound, waiting for the item to play")
         }
+        // An item the receiver never plays (a PlaybackInfo error, a TV that cannot reach the server)
+        // gets as long as a load, or the probe stays armed until the session ends.
+        cancelEnd = schedule(CastEngineConstants.LOAD_TIMEOUT_MS) {
+            log("item never played")
+            disarm()
+        }
     }
 
     // The TV may still show what it played before: the script waits for the item JS loaded.
     private fun startWhenPlaying() {
         val engine = engine ?: return
-        if (started || paused || loading || engine.currentItemId != itemId) return
+        if (started || paused || loading || itemId == null || engine.currentItemId != itemId) return
         started = true
         log("item playing, running the script")
+        cancelEnd?.invoke()
         script?.run()
         cancelEnd = schedule(DETACH_AT_MS) { disarm() }
     }
@@ -181,6 +168,7 @@ internal class CastEngineProbe(
         script?.cancel()
         cancelEnd?.invoke()
         cancelEnd = null
+        engine?.stop()
         bus?.remove()
         bus = null
         hub.sendObserver = null

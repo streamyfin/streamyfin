@@ -88,7 +88,15 @@ class CastEngine(
     // A reload the receiver runs for a Seek it cannot do in place or a track change. The position stays
     // on its target until the new play session reports: the old customData with the new currentTime
     // would land on the old start plus the new time.
-    private class Reload(val tracker: ReceiverLoadTracker, val target: Double, val requestId: Long?, val cancelTimer: () -> Unit)
+    private class Reload(
+        val tracker: ReceiverLoadTracker,
+        val target: Double,
+        val requestId: Long?,
+        val cancelTimer: () -> Unit,
+        // What the request changed that the receiver has to confirm: the chosen track.
+        val undo: () -> Unit,
+        val itemId: String?,
+    )
 
     private var reload: Reload? = null
 
@@ -102,6 +110,13 @@ class CastEngine(
     // its whole queue, so a reload sends it again.
     private var queue: List<ReceiverItem> = emptyList()
 
+    // Where in [queue] the receiver plays: it names the item, not which copy of one queued twice.
+    private var playingIndex = -1
+
+    // Bumped by each load: Play Services hands a send's result over later, and a result that comes
+    // back after a newer load no longer describes the receiver's queue.
+    private var queueGeneration = 0L
+
     // Statuses seen so far: Play Services hands a seek's result over after the status that answered it.
     private var statusCount = 0L
 
@@ -109,6 +124,10 @@ class CastEngine(
     // resume this engine speaks first to hear it again (spec §8, risk 6).
     private var busClaimed = false
     private var suspended = false
+
+    // The receiver applies the envelope of every message, whatever its command: after a resume the
+    // bus is reclaimed once a status shows an item this engine cast, never over another sender's.
+    private var reclaimPending = false
 
     // The id the binding was made with. A CastSession answers null once the SDK has ended it, after
     // a suspend it could not resume (Task 14, run 4), so the end is matched and reported under this.
@@ -170,22 +189,29 @@ class CastEngine(
             delegate?.onError(NO_SESSION_ERROR)
             return@runOnMain
         }
-        bind(current)
-        onStarted()
+        if (bind(current)) onStarted()
     }
 
     // The TV plays on: detaching sends nothing, and never ends the session.
     override fun stop() = runOnMain { detach() }
 
-    private fun bind(session: CastSessionPort) {
+    private fun bind(session: CastSessionPort): Boolean {
         this.session = session
         boundSessionId = session.sessionId
         volume = session.volume
         identity = session.wasLaunched
         sessions.setListener(sessionListener)
-        bus = hub.subscribe(ReceiverProtocol.NAMESPACE, busListener)
+        val subscription = hub.subscribe(ReceiverProtocol.NAMESPACE, busListener)
+        // The hub, still on a session the SDK replaced, announces that one's ready inside the
+        // subscribe, which loses this binding: nothing is left to listen to.
+        if (this.session !== session) {
+            subscription.remove()
+            return false
+        }
+        bus = subscription
         attachMedia(session.media)
         log("bound to session $boundSessionId launched=${session.wasLaunched}")
+        return true
     }
 
     private fun attachMedia(port: CastMediaPort?) {
@@ -206,6 +232,11 @@ class CastEngine(
         reload = null
         cancelEndWait()
         suspended = false
+        reclaimPending = false
+        // What was reported was reported to this host: the next one starts from nothing.
+        reportedPause = null
+        reportedLoading = null
+        readyToSeekFor = null
         if (session != null) log("detached from session $boundSessionId")
         session = null
         boundSessionId = null
@@ -236,7 +267,9 @@ class CastEngine(
         suspended = false
         session = resumed
         volume = resumed.volume
-        resumed.wasLaunched?.let { identity = it }
+        // A resume joins the receiver app it already had, and the SDK then says it did not launch it:
+        // who launched it is what the binding learned first.
+        if (identity == null) identity = resumed.wasLaunched
         attachMedia(resumed.media)
         log("session ${resumed.sessionId} resumed")
     }
@@ -255,8 +288,9 @@ class CastEngine(
             loseBinding(SESSION_REPLACED_ERROR)
             return
         }
-        // An inert command: SetVolume without a level changes nothing on the receiver.
-        if (busClaimed) send("SetVolume", JSONObject())
+        // SetVolume without a level changes no volume, but the receiver takes its envelope: it waits
+        // for a status that shows an item this engine cast.
+        reclaimPending = busClaimed
     }
 
     // Loading
@@ -282,8 +316,14 @@ class CastEngine(
             onResult(CastLoadResult.NotSent(refused.message ?: CONTAINER_ERROR))
             return@runOnMain
         }
+        val previousServer = this.server
+        val previousQueue = queue
+        val previousIndex = playingIndex
+        val generation = ++queueGeneration
+        val receiverRequest = ReceiverProtocol.toReceiverRequest(request)
         this.server = server
-        queue = ReceiverProtocol.toReceiverRequest(request).items
+        queue = receiverRequest.items
+        playingIndex = receiverRequest.startIndex ?: 0
         reload?.cancelTimer?.invoke()
         reload = null
         cancelEndWait()
@@ -303,6 +343,12 @@ class CastEngine(
             if (error == null) {
                 busClaimed = true
                 return@send
+            }
+            // Never sent: the receiver keeps its queue, under its server.
+            if (generation == queueGeneration) {
+                this.server = previousServer
+                queue = previousQueue
+                playingIndex = previousIndex
             }
             if (pendingLoad !== load) return@send
             log("PlayNow not sent: $error")
@@ -357,6 +403,8 @@ class CastEngine(
     override fun seekBy(seconds: Double) = runOnMain { seek(position + seconds, null) }
 
     private fun seek(seconds: Double, requestId: Long?) {
+        // A load on its way replaces the item: a seek would reach the old one.
+        if (pendingLoad != null) return
         val port = media ?: return
         val data = ours
         // Nothing loaded, stopped, or live: a Seek by reload would restart a stopped item.
@@ -441,7 +489,7 @@ class CastEngine(
     // receiver plays, in the window that fits one message, or that item alone when the queue is
     // someone else's.
     private fun playAgain(data: ReceiverCustomData, audio: Int?, subtitle: Int?, undo: () -> Unit = {}) {
-        val index = queue.indexOfFirst { it.id == data.itemId }
+        val index = if (queue.getOrNull(playingIndex)?.id == data.itemId) playingIndex else queue.indexOfFirst { it.id == data.itemId }
         val items = if (index >= 0) queue else listOf(ReceiverItem(id = data.itemId))
         val window = ReceiverProtocol.queueWindow(items, index.coerceAtLeast(0), CastEngineConstants.MAX_QUEUE_ITEMS)
         val request = ReceiverPlayRequest(
@@ -503,9 +551,14 @@ class CastEngine(
     // A Cast message holds 64 KB: the items go a window at a time.
     override fun enqueue(itemIds: List<String>) = runOnMain {
         if (session == null) return@runOnMain
+        val generation = queueGeneration
         itemIds.chunked(CastEngineConstants.MAX_QUEUE_ITEMS).forEach { window ->
-            queue = queue + window.map { ReceiverItem(id = it) }
-            sendMessage("PlayLast", ReceiverProtocol.playLast(server, window)) { delegate?.onError(it) }
+            sendMessage(
+                "PlayLast",
+                ReceiverProtocol.playLast(server, window),
+                failed = { delegate?.onError(it) },
+                sent = { if (generation == queueGeneration) queue = queue + window.map { ReceiverItem(id = it) } },
+            )
         }
     }
 
@@ -527,6 +580,13 @@ class CastEngine(
             return
         }
         val data = status.customData?.let(ReceiverProtocol::parseCustomData)
+        // The receiver moved to another item (a skip, the queue going on, another sender): a reload of
+        // the old one never settles on its statuses, and held the position for thirty seconds.
+        reload?.let { pending ->
+            if (data?.itemId != null && data.itemId != pending.itemId) settleReload(pending, ReceiverLoadOutcome.Superseded, recompute = false)
+        }
+        // Until a load settles, its start is the place: a status of what played before is not the queue moving.
+        if (pendingLoad == null) followQueue(data?.itemId)
         // Settled at the end, once this status is the engine's: the host acts on the result from it.
         val loaded = pendingLoad?.let { load -> load.tracker.onMediaStatus(data, status.playerState)?.let { load to it } }
         val settled = reload?.let { pending -> pending.tracker.onMediaStatus(data, status.playerState)?.let { pending to it } }
@@ -550,6 +610,10 @@ class CastEngine(
             log("status ${status.playerState} playSession=${data?.playSessionId} playMethod=${data?.playMethod} canClientSeek=${data?.canClientSeek}")
         }
         reportState(status.playerState, status.idleReason, data)
+        if (reclaimPending && data?.itemId != null && queue.any { it.id == data.itemId }) {
+            reclaimPending = false
+            send("SetVolume", JSONObject())
+        }
         delegate?.onPositionChanged(position, itemDuration, 0.0)
         val completed = settled?.takeIf { it.second == ReceiverLoadOutcome.Loaded }?.first?.requestId ?: seekToComplete
         seekToComplete = null
@@ -688,12 +752,15 @@ class CastEngine(
         undo: () -> Unit = {},
         send: (failed: (String) -> Unit) -> Unit,
     ) {
-        reload?.cancelTimer?.invoke()
+        val previous = reload
+        previous?.cancelTimer?.invoke()
+        // A reload the receiver has not answered: when this one fails, what that one chose goes too.
+        val undoAll = if (previous == null) undo else ({ undo(); previous.undo() })
         val tracker = ReceiverLoadTracker(ReceiverPlayRequest(items = listOf(ReceiverItem(id = data.itemId))), data.playSessionId)
         val cancelTimer = schedule(CastEngineConstants.LOAD_TIMEOUT_MS) {
             reload?.takeIf { it.tracker === tracker }?.let { pending -> pending.tracker.timeOut()?.let { settleReload(pending, it, recompute = true) } }
         }
-        reload = Reload(tracker, target, requestId, cancelTimer)
+        reload = Reload(tracker, target, requestId, cancelTimer, undoAll, data.itemId)
         position = target
         setLoading(true)
         delegate?.onPositionChanged(position, itemDuration, 0.0)
@@ -702,7 +769,7 @@ class CastEngine(
             reload?.takeIf { it.tracker === tracker }?.let { pending ->
                 pending.cancelTimer()
                 reload = null
-                undo()
+                pending.undo()
                 updateTracks()
                 delegate?.onError(error)
                 recomputePosition()
@@ -714,6 +781,11 @@ class CastEngine(
         log("reload settled ${outcome.wireName}")
         pending.cancelTimer()
         reload = null
+        if (outcome is ReceiverLoadOutcome.Failed || outcome == ReceiverLoadOutcome.TimedOut) {
+            // Nothing reloaded: the tracks go back to what the receiver plays.
+            pending.undo()
+            updateTracks()
+        }
         when (outcome) {
             is ReceiverLoadOutcome.Failed -> delegate?.onError(outcome.error.wireName)
             ReceiverLoadOutcome.TimedOut -> delegate?.onError(outcome.wireName)
@@ -724,8 +796,11 @@ class CastEngine(
 
     // Outside a status: back to the formula of the last one, with the media channel's own estimate.
     private fun recomputePosition() {
-        val port = media ?: return
-        if (!hasMedia) return
+        val port = media
+        if (port == null || !hasMedia) {
+            setLoading(isBuffering())
+            return
+        }
         position = ReceiverProtocol.positionInItem(port.approximatePositionMs / 1000.0, ours ?: ReceiverCustomData())
         setLoading(isBuffering())
         delegate?.onPositionChanged(position, itemDuration, 0.0)
@@ -736,10 +811,13 @@ class CastEngine(
     private fun send(command: String, options: JSONObject, failed: (String) -> Unit = {}) =
         sendMessage(command, ReceiverProtocol.message(command, server, options), failed)
 
-    private fun sendMessage(command: String, message: JSONObject, failed: (String) -> Unit = {}) {
+    private fun sendMessage(command: String, message: JSONObject, failed: (String) -> Unit = {}, sent: () -> Unit = {}) {
         log("send $command")
         hub.send(ReceiverProtocol.NAMESPACE, message.toString()) { error ->
-            if (error == null) return@send
+            if (error == null) {
+                sent()
+                return@send
+            }
             log("$command not sent: $error")
             failed(error)
         }
@@ -748,11 +826,25 @@ class CastEngine(
     // Helpers
 
     // Our item, loaded and not stopped: the receiver's commands need one (spec §4).
-    private fun loadedItem(): ReceiverCustomData? = ours?.takeIf { hasMedia && playerState != IDLE && it.itemId != null }
+    // A load on its way replaces it: a command would act on the old item.
+    private fun loadedItem(): ReceiverCustomData? = ours?.takeIf { hasMedia && playerState != IDLE && it.itemId != null && pendingLoad == null }
 
     // Our item, stopped with its media still in the status, and nothing on its way to replace it.
     private fun stoppedItem(): ReceiverCustomData? = ours?.takeIf {
-        hasMedia && playerState == IDLE && idleReason != INTERRUPTED && it.itemId != null && !awaitingReceiver()
+        hasMedia && playerState == IDLE && idleReason != INTERRUPTED && it.itemId != null && !awaitingReceiver() && !nextItemComing()
+    }
+
+    // A finished item the receiver goes on from: the queue this engine cast has one after it, which the
+    // receiver fetches while the end waits. Play then would race it with the finished item.
+    private fun nextItemComing() = endWait != null && playingIndex in 0 until queue.size - 1
+
+    // The receiver names the item it plays, not which copy of one queued twice: the copy where the
+    // engine is in the queue, else the one after it (the queue went on), else the one before (it went
+    // back), else the first.
+    private fun followQueue(itemId: String?) {
+        if (itemId == null) return
+        playingIndex = listOf(playingIndex, playingIndex + 1, playingIndex - 1).firstOrNull { queue.getOrNull(it)?.id == itemId }
+            ?: queue.indexOfFirst { it.id == itemId }
     }
 
     private fun updateTracks() {

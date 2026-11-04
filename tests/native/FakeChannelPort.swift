@@ -37,9 +37,20 @@ final class FakeChannelPort: ReceiverChannelPort {
     channelConnected
   }
 
+  /// Holds each send's result until `releaseResults()`, as Android's Play Services hands it over later.
+  var holdResults = false
+  private var heldResults: [() -> Void] = []
+
   func send(namespace: String, text: String, completion: @escaping (String?) -> Void) {
     sent.append((namespace, text))
-    completion(sendError)
+    let error = sendError
+    if holdResults { heldResults.append { completion(error) } } else { completion(error) }
+  }
+
+  func releaseResults() {
+    let held = heldResults
+    heldResults = []
+    held.forEach { $0() }
   }
 
   /// A message from the receiver, handed to the last callback registered here.
