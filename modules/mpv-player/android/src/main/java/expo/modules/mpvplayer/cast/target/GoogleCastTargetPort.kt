@@ -163,6 +163,13 @@ internal class GoogleCastTargetPort(
         /** The app mutes the playing stream; another sender may have muted the device itself. */
         fun receiverMuted(device: Boolean, stream: Boolean?) = device || stream == true
 
+        /**
+         * The receiver's level, or none on a route MediaRouter marks fixed: a Google TV whose sound the TV sets
+         * through HDMI-CEC reports 0 there, which is no level a sender can set.
+         */
+        fun reportedLevel(level: Double, muted: Boolean, volumeHandling: Int?): Pair<Double, Boolean>? =
+            if (volumeHandling == MediaRouter.RouteInfo.PLAYBACK_VOLUME_FIXED) null else level to muted
+
         /** The route of the session's receiver, by its device id: on a switch the selected route is the next one. */
         fun <R> sessionRoute(sessionDeviceId: String?, routes: List<Pair<String?, R>>): R? =
             sessionDeviceId?.let { id -> routes.firstOrNull { it.first == id }?.second }
@@ -174,8 +181,27 @@ internal class GoogleCastTargetPort(
             var sessionListener: SessionManagerListener<CastSession>? = null
             var routerCallback: MediaRouter.Callback? = null
             var volumeRelay: ((Double, Boolean) -> Unit)? = null
+            // The session's own setters are not used: after CastSession.setVolume or setMute the session no longer
+            // follows the receiver, a level or a mute set elsewhere never reaches it (bench, 04/11). Google's Android
+            // surfaces do the same: the Cast dialog's slider sets the selected route's volume, the SDK's expanded
+            // controls mute the stream.
+            // MediaRouter selects a switch's next route before the old session has ended: the level goes to the
+            // route of the session's own receiver.
+            fun sessionCastRoute(): MediaRouter.RouteInfo? {
+                val selector = cast.mergedSelector ?: return null
+                val routes = router.routes
+                    .filter { it.matchesSelector(selector) && it.volumeMax > 0 }
+                    .map { CastDevice.getFromBundle(it.extras)?.deviceId to it }
+                return sessionRoute(sessions.currentCastSession?.castDevice?.deviceId, routes)
+            }
+            // The route is variable from the session's start on a Chromecast, and fixed for good on a Google TV that
+            // leaves its sound to the TV (bench, 04/11).
             fun levelOf(session: CastSession) =
-                session.volume to receiverMuted(session.isMute, session.remoteMediaClient?.mediaStatus?.isMute)
+                reportedLevel(
+                    session.volume,
+                    receiverMuted(session.isMute, session.remoteMediaClient?.mediaStatus?.isMute),
+                    sessionCastRoute()?.volumeHandling,
+                )
             fun relayVolume() {
                 sessions.currentCastSession?.let(::levelOf)?.let { (level, muted) -> volumeRelay?.invoke(level, muted) }
             }
@@ -199,20 +225,6 @@ internal class GoogleCastTargetPort(
                 session.removeCastListener(volumeListener)
                 session.remoteMediaClient?.unregisterCallback(streamListener)
             }
-            // The session's own setters are not used: after CastSession.setVolume or setMute the session no longer
-            // follows the receiver, a level or a mute set elsewhere never reaches it (bench, 04/11). Google's Android
-            // surfaces do the same: the Cast dialog's slider sets the selected route's volume, the SDK's expanded
-            // controls mute the stream.
-            // MediaRouter selects a switch's next route before the old session has ended: the level goes to the
-            // route of the session's own receiver.
-            fun sessionCastRoute(): MediaRouter.RouteInfo? {
-                val selector = cast.mergedSelector ?: return null
-                val routes = router.routes
-                    .filter { it.matchesSelector(selector) && it.volumeMax > 0 }
-                    .map { CastDevice.getFromBundle(it.extras)?.deviceId to it }
-                return sessionRoute(sessions.currentCastSession?.castDevice?.deviceId, routes)
-            }
-
             fun castRoutes(): List<CastRoute> {
                 val selector = cast.mergedSelector ?: return emptyList()
                 return router.routes

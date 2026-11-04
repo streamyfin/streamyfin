@@ -33,3 +33,10 @@ the right level at the start.
 
 Phone volume buttons do not change the TV's level during a session on the Android emulator (two
 presses, level unchanged); B4 owns them.
+
+A Google TV that leaves its sound to the TV through HDMI-CEC (the Google TV Streamer on the bench) is a
+fixed-volume receiver: its receiver status reads `control=fixed` and level 0, and no sender sets it. On
+Android its MediaRouter route stays `PLAYBACK_VOLUME_FIXED` during the session, while a Chromecast's route
+turns variable by the session's start (every Cast route reads fixed before a session, so discovery cannot
+tell them apart); on iOS the session's `traits.isFixedVolume()` says it. The port publishes no level for
+such a session, so the sheet shows no slider instead of one stuck at 0.

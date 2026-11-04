@@ -689,6 +689,14 @@ enum RemoteTargetTests {
       check("aDeviceWithoutVideoOutSaysSo", !speaker.videoOut && value(speaker.toDictionary(), "videoOut") as? Bool == false)
     }
 
+    // A Google TV whose sound the TV sets through HDMI-CEC is a fixed-volume session reporting 0: that is no level,
+    // and nothing for the sheet's slider (bench, 04/11).
+    do {
+      let fixed = GoogleCastTargetPort.reportedLevel(0, muted: false, fixedVolume: true)
+      let variable = GoogleCastTargetPort.reportedLevel(0.86, muted: true, fixedVolume: false)
+      check("aFixedVolumeReceiverReportsNoLevel", fixed == nil && variable?.0 == 0.86 && variable?.1 == true)
+    }
+
     // Asked again before its session ended for a switch: the receiver starts again once that end comes,
     // and the one the switch asked for never does.
     do {
