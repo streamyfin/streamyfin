@@ -111,11 +111,19 @@ final class CastTargetProbe: RemoteTargetListener {
     settle = nil
     device = found
     log("found \(found.name)")
+    let left = back ? leaving.flatMap { $0.id == found.id ? nil : $0 } : nil
+    // Asking back needs the receiver it leaves in the list, or the switch would run with nothing after it.
+    if let left, !hub.devices.contains(where: { $0.id == left.id }) {
+      fail("\(left.name) is not listed, nothing to go back to")
+      return
+    }
     guard hub.connect(deviceId: found.id) else {
       fail("the hub refused \(found.name)")
       return
     }
-    if back, let left = leaving, left.id != found.id {
+    // A refusal can end the probe inside the request.
+    guard isActive else { return }
+    if let left {
       // Before the switch has ended the held session: the last request must win.
       log("asking \(left.name) again")
       device = TargetDevice(id: left.id, name: left.name, model: nil)
@@ -142,7 +150,12 @@ final class CastTargetProbe: RemoteTargetListener {
     switch snapshot.phase {
     case .connected:
       // Only the receiver it found: the SDK can resume another session meanwhile, after a relaunch.
-      if !connected, let device, snapshot.target?.id == device.id { onConnected() }
+      if !connected, let device, snapshot.target?.id == device.id {
+        onConnected()
+      } else if !connected, device != nil, let error = snapshot.error {
+        // A switch the port refused at once: the receiver holding the session stays, with the cause.
+        fail("connection failed error=\(error)")
+      }
     case .none:
       // A none without an error before the connection is a switch's old session ending: the asked
       // receiver comes next, or the connection wait says it never did.
@@ -165,6 +178,12 @@ final class CastTargetProbe: RemoteTargetListener {
     }
     cancelWait = schedule(holdMs) { [weak self] in
       guard let self else { return }
+      // Another receiver took the session meanwhile: it is not the probe's to end.
+      let holder = hub.snapshot.target
+      guard holder?.id == device?.id else {
+        fail("the session went to \(holder?.name ?? "none")")
+        return
+      }
       log("disconnecting")
       wait(Self.endTimeoutMs, failure: "never ended")
       hub.disconnect(stopPlayback: true)

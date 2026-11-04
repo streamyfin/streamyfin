@@ -139,7 +139,11 @@ export interface RemoteTargetState {
   target: RemoteTarget | null;
   /** The SDK is reaching a session it lost, or one it resumes after a relaunch. */
   reconnecting: boolean;
-  /** Why the last session ended; null while none has, or when the user ended it. */
+  /**
+   * Why the last session ended, or why a request the native side refused at once
+   * left the target as it was; null when nothing went wrong, or when the user
+   * ended the session.
+   */
   error: string | null;
 }
 

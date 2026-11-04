@@ -79,12 +79,19 @@ internal class CastTargetProbe(
         settle = null
         device = found
         log("found ${found.name}")
+        val left = leaving?.takeIf { back && it.id != found.id }
+        // Asking back needs the receiver it leaves in the list, or the switch would run with nothing after it.
+        if (left != null && hub.devices.none { it.id == left.id }) {
+            fail("${left.name} is not listed, nothing to go back to")
+            return
+        }
         if (!hub.connect(found.id)) {
             fail("the hub refused ${found.name}")
             return
         }
-        val left = leaving
-        if (back && left != null && left.id != found.id) {
+        // A refusal can end the probe inside the request.
+        if (!isActive) return
+        if (left != null) {
             // Before the switch has ended the held session: the last request must win.
             log("asking ${left.name} again")
             device = TargetDevice(left.id, left.name)
@@ -110,7 +117,11 @@ internal class CastTargetProbe(
         log(describe(snapshot))
         when (snapshot.phase) {
             // Only the receiver it found: the SDK can resume another session meanwhile, after a relaunch.
-            TargetPhase.CONNECTED -> if (!connected && device != null && snapshot.target?.id == device?.id) onConnected()
+            TargetPhase.CONNECTED -> when {
+                !connected && device != null && snapshot.target?.id == device?.id -> onConnected()
+                // A switch the port refused at once: the receiver holding the session stays, with the cause.
+                !connected && device != null && snapshot.error != null -> fail("connection failed error=${snapshot.error}")
+            }
             // A none without an error before the connection is a switch's old session ending: the
             // asked receiver comes next, or the connection wait says it never did.
             TargetPhase.NONE -> when {
@@ -129,6 +140,12 @@ internal class CastTargetProbe(
             return
         }
         cancelWait = schedule(holdMs) {
+            // Another receiver took the session meanwhile: it is not the probe's to end.
+            val holder = hub.snapshot.target
+            if (holder?.id != device?.id) {
+                fail("the session went to ${holder?.name ?: "none"}")
+                return@schedule
+            }
             log("disconnecting")
             wait(END_TIMEOUT_MS, "never ended")
             hub.disconnect(stopPlayback = true)

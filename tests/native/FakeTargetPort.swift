@@ -6,6 +6,8 @@ final class FakeTargetPort: TargetPort {
   var known: [TargetDevice]
   /// Lists `known` inside startDiscovery, as the Android SDK port does with the routes MediaRouter has.
   private let listsOnDiscovery: Bool
+  /// Devices whose connection the port answers at once with startFailed, as a disabled route is.
+  private let refuses: Set<String>
   // Kept after stop, so a test can play a stale port talking to the hub.
   var events: TargetPortEvents?
   var starts = 0
@@ -14,10 +16,14 @@ final class FakeTargetPort: TargetPort {
   var connects: [TargetDevice] = []
   var disconnects: [Bool] = []
 
-  init(atStart: [(String, TargetDevice?, String?)] = [], known: [TargetDevice] = [], listsOnDiscovery: Bool = false) {
+  init(
+    atStart: [(String, TargetDevice?, String?)] = [], known: [TargetDevice] = [], listsOnDiscovery: Bool = false,
+    refuses: Set<String> = []
+  ) {
     self.atStart = atStart
     self.known = known
     self.listsOnDiscovery = listsOnDiscovery
+    self.refuses = refuses
   }
 
   func start(events: TargetPortEvents) {
@@ -39,7 +45,10 @@ final class FakeTargetPort: TargetPort {
 
   func stopDiscovery() { discovering = false }
 
-  func connect(_ device: TargetDevice) { connects.append(device) }
+  func connect(_ device: TargetDevice) {
+    connects.append(device)
+    if refuses.contains(device.id) { events?.sessionEvent("startFailed", device: device, error: "refused") }
+  }
 
   func disconnect(stopPlayback: Bool) { disconnects.append(stopPlayback) }
 

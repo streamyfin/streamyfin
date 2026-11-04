@@ -507,6 +507,22 @@ enum RemoteTargetTests {
       check("aSecondRequestDuringASwitchEndsTheOldSessionOnce", endedOnce && sdk.started == [kitchen])
     }
 
+    // A disconnect the SDK refuses keeps the session, and says why instead of resolving in silence.
+    do {
+      let sdk = Sdk()
+      sdk.receivers = [chromecast]
+      sdk.running = RunningTargetSession(device: chromecast, connected: true)
+      sdk.endAccepted = false
+      let events = PortEventsRecording()
+      let port = sdk.port()
+      port.start(events: events)
+      port.disconnect(stopPlayback: true)
+      check(
+        "aDisconnectTheSdkRefusesSaysSo",
+        events.sessions.last == "endRefused device-a " + GoogleCastTargetPort.disconnectRefused
+      )
+    }
+
     // endSessionAndStopCasting answering NO keeps the session: the switch cannot start, and says so,
     // and a later end of that session does not start it either.
     do {
@@ -791,6 +807,54 @@ enum RemoteTargetTests {
       )
     }
 
+    // A refused switch used to publish nothing: the probe waited 30 s and said "never connected".
+    do {
+      let port = FakeTargetPort(known: [chromecast, streamer], refuses: [streamer.id])
+      let (probe, _, logs) = run("Bedroom", port: port) { _ in port.emit("started", chromecast) }
+      port.discover([chromecast, streamer])
+      check(
+        "aRefusedSwitchFailsTheProbeWithItsCause",
+        !probe.isActive && logs().last == "failed: connection failed error=refused"
+      )
+    }
+
+    // Finished inside its first request, the probe must not go on to ask the receiver it was leaving.
+    do {
+      let port = FakeTargetPort(known: [chromecast, streamer], refuses: [streamer.id])
+      let (probe, _, _) = run("Bedroom", back: true, port: port) { _ in port.emit("started", chromecast) }
+      port.discover([chromecast, streamer])
+      check("aProbeThatFinishedInsideTheRequestAsksNothingMore", port.connects == [streamer] && !probe.isActive)
+    }
+
+    do {
+      let port = FakeTargetPort(known: [chromecast, streamer])
+      let (probe, _, logs) = run("Bedroom", back: true, port: port) { _ in port.emit("started", chromecast) }
+      port.discover([streamer])
+      check(
+        "aBackWithTheHeldReceiverUnlistedAsksNothing",
+        port.connects.isEmpty && !probe.isActive
+          && logs().last == "failed: Living room is not listed, nothing to go back to"
+      )
+    }
+
+    // The app switched receivers during the hold: the session is no longer the probe's to end.
+    do {
+      let port = FakeTargetPort(known: [chromecast, streamer])
+      var hub: RemoteTargetHub?
+      let (probe, clock, logs) = run("Living room", port: port) { hub = $0 }
+      port.discover([chromecast, streamer])
+      port.emit("started", chromecast)
+      _ = hub?.connect(deviceId: streamer.id)
+      port.emit("ending", chromecast)
+      port.emit("ended", chromecast, error: "Cast session status code 2155 (2155)")
+      port.emit("started", streamer)
+      clock.advance(CastTargetProbe.connectedHoldMs)
+      check(
+        "theHoldLeavesASessionTheProbeDidNotOpen",
+        port.disconnects.isEmpty && !probe.isActive && logs().last == "failed: the session went to Bedroom"
+      )
+    }
+
     // A part of a name whose receiver left before the settle ended must not keep a later one waiting.
     do {
       let port = FakeTargetPort()
@@ -1040,12 +1104,34 @@ enum RemoteTargetTests {
     do {
       let machine = connected(to: livingRoom)
       _ = machine.connectRequested(bedroom)
+      // A switch the port refuses at once (a disabled route, an end the SDK keeps) leaves the receiver
+      // that holds the session, with the cause: silence there left the sheet, and the probe, waiting.
       let refused = machine.sessionEvent("startFailed", device: bedroom, error: "busy")
-      let kept = machine.snapshot == state(.connected, cast(livingRoom))
+      let kept = machine.snapshot == state(.connected, cast(livingRoom), error: "busy")
       let ended = machine.sessionEvent("ended", device: livingRoom, error: nil)
       check(
-        "aSwitchRefusedBeforeTheOldEndKeepsTheOldReceiver",
-        !refused && kept && ended && machine.snapshot == .none
+        "aSwitchRefusedBeforeTheOldEndKeepsTheOldReceiverAndSaysWhy",
+        refused && kept && ended && machine.snapshot == .none
+      )
+    }
+
+    // The only start in flight during a switch is the asked receiver's: a start failure without its device
+    // is that one's, and ends the switch instead of leaving it connecting.
+    do {
+      let machine = connected(to: livingRoom)
+      _ = machine.connectRequested(bedroom)
+      _ = machine.sessionEvent("ended", device: livingRoom, error: "Cast session status code 2155 (2155)")
+      let changed = machine.sessionEvent("startFailed", device: nil, error: "gone")
+      check("aDeviceLessStartFailureDuringASwitchEndsWithItsError", changed && machine.snapshot == state(.none, nil, error: "gone"))
+    }
+
+    do {
+      let machine = connected(to: livingRoom)
+      machine.disconnectRequested()
+      let changed = machine.sessionEvent("endRefused", device: livingRoom, error: "kept")
+      check(
+        "aRefusedEndKeepsTheReceiverAndSaysWhy",
+        changed && machine.snapshot == state(.connected, cast(livingRoom), error: "kept")
       )
     }
 

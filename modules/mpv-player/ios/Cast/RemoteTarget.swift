@@ -45,8 +45,13 @@ struct RemoteTargetSnapshot: Equatable {
   let phase: TargetPhase
   let target: RemoteTarget?
   let reconnecting: Bool
-  /// Why the last session ended; nil when it did not end, or when the user ended it.
+  /// Why the last session ended, or why a request the port refused at once did not move the session
+  /// that holds; nil when nothing went wrong, or when the user ended it.
   let error: String?
+
+  func withError(_ error: String?) -> RemoteTargetSnapshot {
+    RemoteTargetSnapshot(phase: phase, target: target, reconnecting: reconnecting, error: error)
+  }
 
   func toDictionary() -> [String: Any?] {
     [
@@ -95,15 +100,19 @@ final class RemoteTargetMachine {
   /// True when the state changed. An event without its device keeps the target already known.
   func sessionEvent(_ event: String, device: TargetDevice?, error: String?) -> Bool {
     let failure = event == "ended" || event == "startFailed"
-    if failure, let switching = switchingTo, device?.id == switching.id {
+    // The only start in flight during a switch is the asked receiver's, so a start failure without its
+    // device is that one's.
+    let askedFailed = device?.id == switchingTo?.id || (device == nil && event == "startFailed")
+    if failure, let switching = switchingTo, askedFailed {
       let held = snapshot.target?.id == switching.id
       // Asked back while a switch ended its session: that end leads to it again.
       if held && snapshot.phase != .connecting {
         return update(RemoteTargetSnapshot(phase: .connecting, target: .cast(switching), reconnecting: false, error: nil))
       }
-      // The asked receiver failed: once the old session ended it was the target, before that nothing moves.
+      // The asked receiver failed. Once the old session ended it was the target; before that, the port
+      // refused it at once, and the receiver holding the session stays, with the cause.
       switchingTo = nil
-      guard held else { return false }
+      guard held else { return update(snapshot.withError(error)) }
       return update(RemoteTargetSnapshot(phase: .none, target: nil, reconnecting: false, error: error))
     }
     if Self.endEvents.contains(event), let device, heldOtherThan(device) { return false }
@@ -127,6 +136,10 @@ final class RemoteTargetMachine {
       next = RemoteTargetSnapshot(phase: .ending, target: snapshot.target, reconnecting: false, error: nil)
     case "ended", "startFailed":
       next = RemoteTargetSnapshot(phase: .none, target: nil, reconnecting: false, error: error)
+    case "endRefused":
+      // The SDK kept a session it was asked to end: it stays, with the cause.
+      guard snapshot.phase != .none else { return false }
+      next = snapshot.withError(error)
     default:
       return false
     }

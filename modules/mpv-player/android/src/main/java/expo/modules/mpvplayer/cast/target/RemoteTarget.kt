@@ -28,7 +28,8 @@ data class RemoteTargetSnapshot(
     val phase: TargetPhase,
     val target: RemoteTarget?,
     val reconnecting: Boolean,
-    // Why the last session ended; null when it did not end, or when the user ended it.
+    // Why the last session ended, or why a request the port refused at once did not move the session
+    // that holds; null when nothing went wrong, or when the user ended it.
     val error: String?,
 ) {
     fun toMap(): Map<String, Any?> = mapOf(
@@ -86,15 +87,19 @@ class RemoteTargetMachine {
     fun sessionEvent(event: String, device: TargetDevice?, error: String?): Boolean {
         val switching = switchingTo
         val failure = event == "ended" || event == "startFailed"
-        if (failure && switching != null && device?.id == switching.id) {
+        // The only start in flight during a switch is the asked receiver's, so a start failure without
+        // its device is that one's.
+        val askedFailed = device?.id == switching?.id || (device == null && event == "startFailed")
+        if (failure && switching != null && askedFailed) {
             val held = snapshot.target?.id == switching.id
             // Asked back while a switch ended its session: that end leads to it again.
             if (held && snapshot.phase != TargetPhase.CONNECTING) {
                 return update(RemoteTargetSnapshot(TargetPhase.CONNECTING, RemoteTarget.cast(switching), reconnecting = false, error = null))
             }
-            // The asked receiver failed: once the old session ended it was the target, before that nothing moves.
+            // The asked receiver failed. Once the old session ended it was the target; before that, the port
+            // refused it at once, and the receiver holding the session stays, with the cause.
             switchingTo = null
-            if (!held) return false
+            if (!held) return update(snapshot.copy(error = error))
             return update(RemoteTargetSnapshot(TargetPhase.NONE, null, reconnecting = false, error = error))
         }
         if (event in END_EVENTS && device != null && heldOtherThan(device)) return false
@@ -111,6 +116,8 @@ class RemoteTargetMachine {
             "resuming" -> RemoteTargetSnapshot(TargetPhase.CONNECTING, target, reconnecting = true, error = null)
             "ending" -> RemoteTargetSnapshot(TargetPhase.ENDING, snapshot.target, reconnecting = false, error = null)
             "ended", "startFailed" -> RemoteTargetSnapshot(TargetPhase.NONE, null, reconnecting = false, error = error)
+            // The SDK kept a session it was asked to end: it stays, with the cause.
+            "endRefused" -> if (snapshot.phase == TargetPhase.NONE) return false else snapshot.copy(error = error)
             else -> return false
         }
         return update(next)
