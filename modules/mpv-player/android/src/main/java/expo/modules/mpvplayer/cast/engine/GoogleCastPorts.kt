@@ -101,11 +101,12 @@ internal class GoogleCastSessionSource(
     }
 
     private fun portFor(session: CastSession): CastSessionPort {
-        castListeners.ensure(session) {
+        castListeners.ensure(session) { current ->
             object : Cast.Listener() {
                 override fun onVolumeChanged() {
-                    val volume = sdk("getVolume") { session.volume } ?: return
-                    listener?.onVolumeChanged(volume, sdk("isMute") { session.isMute } ?: false)
+                    val live = current() ?: return
+                    val volume = sdk("getVolume") { live.volume } ?: return
+                    listener?.onVolumeChanged(volume, sdk("isMute") { live.isMute } ?: false)
                 }
             }
         }

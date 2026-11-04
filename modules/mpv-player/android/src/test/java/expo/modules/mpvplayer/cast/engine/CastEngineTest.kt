@@ -1016,4 +1016,114 @@ class CastEngineTest {
         engine.reloadCurrentItem()
         assertEquals(2, JSONObject(port.sent.last().second).getJSONObject("options").getInt("startIndex"))
     }
+
+    // A SetVolume the channel did not take reclaimed nothing, and the engine stayed deaf to the bus
+    // until its next command: the next status of the play session it left tries again.
+    @Test
+    fun aBusReclaimTheChannelRefusedIsTriedAgain() {
+        engine().loadRecorded()
+        media.report(snapshot(), 0)
+        hub.suspend()
+        val port2 = FakeChannelPort()
+        hub.attach(port2)
+        port2.sendError = "receiver busy"
+        media.report(snapshot(), 1_000)
+        port2.sendError = null
+        media.report(snapshot(), 2_000)
+        assertEquals(listOf("SetVolume", "SetVolume"), port2.sent.map { JSONObject(it.second).getString("command") })
+    }
+
+    // Another sender cast the same item while this engine was away, under its own play session: an item
+    // of the queue proved nothing, and the SetVolume gave that playback this engine's server and token.
+    @Test
+    fun aResumeOntoItsItemUnderAnotherPlaySessionReclaimsNothing() {
+        engine().loadRecorded()
+        media.report(snapshot(), 0)
+        hub.suspend()
+        val port2 = FakeChannelPort()
+        hub.attach(port2)
+        media.report(snapshot(customData = ours("playSessionId" to "ps-9")), 0)
+        assertEquals(emptyList<Pair<String, String>>(), port2.sent)
+    }
+
+    @Test
+    fun aResumeOntoThePlaybackItLeftReclaimsTheBus() {
+        engine().loadRecorded()
+        media.report(snapshot(), 0)
+        hub.suspend()
+        val port2 = FakeChannelPort()
+        hub.attach(port2)
+        media.report(snapshot(), 1_000)
+        assertEquals(listOf("SetVolume"), port2.sent.map { JSONObject(it.second).getString("command") })
+    }
+
+    // A tracked seek still unanswered when a load went out: its late answer completed the old request at
+    // the new item's first status, and the chrome took that item's place for where the seek landed.
+    @Test
+    fun aTrackedSeekANewLoadSupersedesNeverCompletes() {
+        val engine = playing()
+        engine.seekToTracked(100.0, exact = true, requestId = 7)
+        engine.load(SERVER, ReceiverPlayRequest(items = listOf(ReceiverItem(id = "b-1")))) {}
+        media.finishSeek(true)
+        media.report(snapshot(customData = ours("itemId" to "b-1", "playSessionId" to "ps-2")), 0)
+        assertEquals(emptyList<Pair<Long, Double>>(), delegate.seeksCompleted)
+    }
+
+    @Test
+    fun aTrackedSeekAnsweredBeforeANewLoadIsNotCompletedByIt() {
+        val engine = playing()
+        engine.seekToTracked(100.0, exact = true, requestId = 7)
+        media.finishSeek(true)
+        engine.load(SERVER, ReceiverPlayRequest(items = listOf(ReceiverItem(id = "b-1")))) {}
+        media.report(snapshot(customData = ours("itemId" to "b-1", "playSessionId" to "ps-2")), 0)
+        assertEquals(emptyList<Pair<Long, Double>>(), delegate.seeksCompleted)
+    }
+
+    // An item queued twice in a row: when the first copy ended the receiver went on to the second, the
+    // engine stayed on the first, and a reload played the first copy again from the second's place.
+    @Test
+    fun theQueueGoingOnToTheNextCopyOfAnItemFollowsIt() {
+        val engine = engine()
+        val queue = listOf("A", "A", "B").map { ReceiverItem(id = it, type = "Audio") }
+        engine.load(SERVER, ReceiverPlayRequest(items = queue)) {}
+        media.report(snapshot(customData = ours("itemId" to "A", "playSessionId" to "ps-1")), 0)
+        media.report(snapshot(customData = ours("itemId" to "A", "playSessionId" to "ps-1"), playerState = "idle", idleReason = "finished"), 0)
+        media.report(snapshot(customData = ours("itemId" to "A", "playSessionId" to "ps-2")), 0)
+        engine.reloadCurrentItem()
+        assertEquals(1, JSONObject(port.sent.last().second).getJSONObject("options").optInt("startIndex", 0))
+    }
+
+    // The windows of a long enqueue went out at once and joined the queue as their results came back,
+    // while the receiver queued them in the order sent; a window refused left a gap the next one filled.
+    @Test
+    fun aLongEnqueueSendsItsNextWindowOnceTheChannelTookTheLast() {
+        val engine = engine()
+        port.holdResults = true
+        engine.enqueue((1..150).map { "t-$it" })
+        assertEquals(1, playLasts())
+        port.releaseResults()
+        assertEquals(2, playLasts())
+    }
+
+    @Test
+    fun aWindowTheChannelRefusedEndsTheEnqueue() {
+        val engine = engine()
+        port.sendError = "receiver busy"
+        engine.enqueue((1..150).map { "t-$it" })
+        assertEquals(1, playLasts())
+        assertEquals(listOf("receiver busy"), delegate.errors)
+    }
+
+    // A load replaces the receiver's queue: the windows left would join the new one.
+    @Test
+    fun aLoadBetweenTwoWindowsKeepsTheRestOutOfTheNewQueue() {
+        val engine = engine()
+        port.holdResults = true
+        engine.enqueue((1..150).map { "t-$it" })
+        engine.load(SERVER, ReceiverPlayRequest(items = listOf(ReceiverItem(id = "b-1")))) {}
+        port.releaseResults()
+        assertEquals(1, playLasts())
+    }
+
+    private fun playLasts() = port.sent.count { JSONObject(it.second).getString("command") == "PlayLast" }
 }

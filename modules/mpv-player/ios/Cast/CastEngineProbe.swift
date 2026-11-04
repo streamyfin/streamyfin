@@ -12,7 +12,7 @@ final class CastEngineProbeScript {
   static let steps: [(Double, String)] = [
     (5_000, "pause"), (8_000, "play"), (12_000, "seek+30"), (20_000, "volume-0.1"),
     (23_000, "volume-back"), (26_000, "audio-reload"), (40_000, "subtitles-off"),
-    (45_000, "capped-reload"), (60_000, "seek+30"), (70_000, "next"), (80_000, "detach"),
+    (45_000, "next"), (55_000, "capped-reload"), (65_000, "seek+30"), (80_000, "detach"),
   ]
   private static let seekSeconds = 30.0
   private static let volumeStep = 0.1
@@ -64,8 +64,9 @@ final class CastEngineProbeScript {
     }
   }
 
-  // A quality change as the engine applies it: the item again where it is, with its source, tracks
-  // and queue, under a lower cap.
+  // A quality change as the engine applies it: the item again where it is, with its source and tracks,
+  // under a lower cap. The probe's engine never loaded, so it has no queue and the receiver keeps that
+  // item alone: next goes before it, while the receiver still has the queue JS cast.
   private func reloadCapped() {
     var capped = server
     capped.maxBitrate = Self.cappedBitrate
@@ -138,6 +139,13 @@ final class CastEngineProbe: PlayerEngineDelegate, CastBindingListener {
     engine.delegate = self
     engine.bindingListener = self
     script = CastEngineProbeScript(engine: engine, server: server, deliver: deliver, log: log)
+    // An item the receiver never plays (a PlaybackInfo error, a TV that cannot reach the server) gets
+    // as long as a load, or the probe stays armed until the session ends. Set before the start: a status
+    // handed over inside it can start the script, whose end then replaces this wait.
+    cancelEnd = deliver(CastEngineConstants.loadTimeoutMs) { [weak self] in
+      self?.log("item never played")
+      self?.disarm()
+    }
     do {
       try engine.start()
     } catch {
@@ -149,12 +157,6 @@ final class CastEngineProbe: PlayerEngineDelegate, CastBindingListener {
     self.busLogger = busLogger
     bus = hub.subscribe(namespace: ReceiverProtocol.namespace, listener: busLogger)
     log("engine bound, waiting for the item to play")
-    // An item the receiver never plays (a PlaybackInfo error, a TV that cannot reach the server) gets
-    // as long as a load, or the probe stays armed until the session ends.
-    cancelEnd = deliver(CastEngineConstants.loadTimeoutMs) { [weak self] in
-      self?.log("item never played")
-      self?.disarm()
-    }
   }
 
   // The TV may still show what it played before: the script waits for the item JS loaded.

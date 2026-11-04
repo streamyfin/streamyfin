@@ -61,8 +61,9 @@ internal class CastEngineProbeScript(
         }
     }
 
-    // A quality change as the engine applies it: the item again where it is, with its source, tracks
-    // and queue, under a lower cap.
+    // A quality change as the engine applies it: the item again where it is, with its source and tracks,
+    // under a lower cap. The probe's engine never loaded, so it has no queue and the receiver keeps that
+    // item alone: next goes before it, while the receiver still has the queue JS cast.
     private fun reloadCapped() = engine.reloadCurrentItem(server.copy(maxBitrate = CAPPED_BITRATE))
 
     companion object {
@@ -70,7 +71,7 @@ internal class CastEngineProbeScript(
         val STEPS: List<Pair<Long, String>> = listOf(
             5_000L to "pause", 8_000L to "play", 12_000L to "seek+30", 20_000L to "volume-0.1",
             23_000L to "volume-back", 26_000L to "audio-reload", 40_000L to "subtitles-off",
-            45_000L to "capped-reload", 60_000L to "seek+30", 70_000L to "next", 80_000L to "detach",
+            45_000L to "next", 55_000L to "capped-reload", 65_000L to "seek+30", 80_000L to "detach",
         )
         private const val SEEK_SECONDS = 30.0
         private const val VOLUME_STEP = 0.1
@@ -139,15 +140,16 @@ internal class CastEngineProbe(
         engine.delegate = this
         engine.bindingListener = this
         script = CastEngineProbeScript(engine, server, schedule, log)
-        engine.start(PlayerEngine.Owner.NATIVE_SESSION) {
-            bus = hub.subscribe(ReceiverProtocol.NAMESPACE, BusLogger(log))
-            log("engine bound, waiting for the item to play")
-        }
         // An item the receiver never plays (a PlaybackInfo error, a TV that cannot reach the server)
-        // gets as long as a load, or the probe stays armed until the session ends.
+        // gets as long as a load, or the probe stays armed until the session ends. Set before the start:
+        // a status handed over inside it can start the script, whose end then replaces this wait.
         cancelEnd = schedule(CastEngineConstants.LOAD_TIMEOUT_MS) {
             log("item never played")
             disarm()
+        }
+        engine.start(PlayerEngine.Owner.NATIVE_SESSION) {
+            bus = hub.subscribe(ReceiverProtocol.NAMESPACE, BusLogger(log))
+            log("engine bound, waiting for the item to play")
         }
     }
 
