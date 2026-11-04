@@ -24,6 +24,7 @@ import useRouter from "@/hooks/useAppRouter";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
+import { writeErrorLog } from "@/utils/log";
 import { scaleSize } from "@/utils/scaleSize";
 
 const HORIZONTAL_PADDING = scaleSize(80);
@@ -281,18 +282,24 @@ export const TVLibraries: React.FC = () => {
       const results: LibraryWithPreview[] = await Promise.all(
         libraries.map(async (library) => {
           // Channels aren't children of the Live TV view, so getItems counts 0,
-          // and the view has no backdrop to preview.
+          // and the view has no backdrop to preview. A failed count leaves only
+          // this row without one: the other rows don't depend on Live TV.
           if (library.CollectionType === "livetv") {
-            const channels = await getLiveTvApi(api!).getLiveTvChannels({
-              userId: user?.Id,
-              limit: 1,
-              addCurrentProgram: false,
-            });
-            return {
-              ...library,
-              itemCount: channels.data.TotalRecordCount,
-              previewItems: [],
-            };
+            try {
+              const channels = await getLiveTvApi(api!).getLiveTvChannels({
+                userId: user?.Id,
+                limit: 1,
+                addCurrentProgram: false,
+              });
+              return {
+                ...library,
+                itemCount: channels.data.TotalRecordCount,
+                previewItems: [],
+              };
+            } catch (error) {
+              writeErrorLog("Failed to count the Live TV channels", error);
+              return { ...library, previewItems: [] };
+            }
           }
 
           let itemType: string | undefined;
