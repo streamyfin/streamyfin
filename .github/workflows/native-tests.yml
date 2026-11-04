@@ -126,6 +126,7 @@ jobs:
         with:
           show-progress: false
 
-      # Each check compiles its sources with swiftc alone: no pods, no simulator.
+      # Each check compiles its sources with swiftc alone, or reads a podspec through the runner's
+      # CocoaPods: no pods installed, no simulator.
       - name: 🧪 Run the standalone Swift checks
         run: bash scripts/ios/run-native-checks.sh
