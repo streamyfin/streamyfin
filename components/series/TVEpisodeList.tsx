@@ -124,8 +124,12 @@ export const TVEpisodeList: React.FC<TVEpisodeListProps> = ({
             backgroundColor: TV_SKELETON,
           }}
         />
+        {/* Text there for its height only: read aloud, it named an episode
+            that is not there. */}
         <View
           testID='tv-episode-skeleton-text'
+          accessibilityElementsHidden
+          importantForAccessibility='no-hide-descendants'
           style={{
             marginTop: scaleSize(12),
             paddingHorizontal: scaleSize(4),

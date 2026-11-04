@@ -136,7 +136,21 @@ test("the placeholders hold the label and title lines of the cards too", async (
   );
 
   const cards = screen.getAllByTestId("tv-episode-skeleton");
-  expect(screen.getAllByTestId("tv-episode-skeleton-text")).toHaveLength(
-    cards.length,
+  // Hidden from spoken feedback, as the next test shows: still drawn.
+  expect(
+    screen.getAllByTestId("tv-episode-skeleton-text", {
+      includeHiddenElements: true,
+    }),
+  ).toHaveLength(cards.length);
+});
+
+// The placeholder lines are text, there only for their height: read aloud, they
+// named an episode that is not there.
+test("the placeholders' text is not read out", async () => {
+  await render(
+    <TVEpisodeList onEpisodePress={() => {}} episodes={[]} isLoading />,
   );
+
+  expect(screen.queryByText("S1:E1 • 45 min")).toBeNull();
+  expect(screen.queryByText("Episode title")).toBeNull();
 });
