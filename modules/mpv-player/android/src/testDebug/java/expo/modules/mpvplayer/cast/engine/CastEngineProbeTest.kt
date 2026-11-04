@@ -51,12 +51,28 @@ class CastEngineProbeTest {
         assertEquals(0.4, session.volumes[0], 1e-9)
         assertEquals(0.5, session.volumes[1], 1e-9)
         val sent = port.sent.map { (_, text) -> JSONObject(text) }
-        assertEquals(listOf("SetAudioStreamIndex", "SetSubtitleStreamIndex", "PlayNow", "NextTrack"), sent.map { it.getString("command") })
-        assertEquals(192_000L, sent[2].getLong("maxBitrate"))
-        assertEquals("ms-1", sent[2].getJSONObject("options").getString("mediaSourceId"))
+        // Next before the capped reload: the probe's engine has no queue, so that PlayNow leaves the
+        // receiver its item alone.
+        assertEquals(listOf("SetAudioStreamIndex", "SetSubtitleStreamIndex", "NextTrack", "PlayNow"), sent.map { it.getString("command") })
+        assertEquals(192_000L, sent[3].getLong("maxBitrate"))
+        assertEquals("ms-1", sent[3].getJSONObject("options").getString("mediaSourceId"))
         assertNull(media.listener)
         assertEquals(CastEngineProbeScript.STEPS.map { "step ${it.second}" }, logs.filter { it.startsWith("step ") })
         assertFalse(logs.any { "tok-123" in it })
+    }
+
+    // A direct stream of a FLAC track reports no audio index (Google TV Streamer, run 17): the step asked the
+    // receiver for track -1, and it stopped on a playback error that left the rest of the run nothing to drive.
+    @Test
+    fun anItemWithoutAKnownAudioTrackSkipsTheAudioReload() {
+        hub.attach(port)
+        val engine = engine().also { it.start(PlayerEngine.Owner.NATIVE_SESSION) {} }
+        media.report(snapshot(customData = ours("audioStreamIndex" to null)), 42_500)
+        CastEngineProbeScript(engine, SERVER, scheduler.schedule, logs::add).run()
+        runFor(30_000)
+
+        assertFalse(port.sent.any { (_, text) -> JSONObject(text).getString("command") == "SetAudioStreamIndex" })
+        assertTrue("audio-reload skipped, no audio track known" in logs)
     }
 
     // Without an item in the PlayNow, nothing tells the TV's media from what JS loaded: no script.
@@ -97,10 +113,26 @@ class CastEngineProbeTest {
         assertNull(media.listener)
         assertNull(hub.sendObserver)
         assertEquals(
-            listOf("PlayNow", "PlayNow", "SetAudioStreamIndex", "SetSubtitleStreamIndex", "PlayNow", "NextTrack").map { "bus sent $it" },
+            listOf("PlayNow", "PlayNow", "SetAudioStreamIndex", "SetSubtitleStreamIndex", "NextTrack", "PlayNow").map { "bus sent $it" },
             logs.filter { it.startsWith("bus sent ") },
         )
         assertFalse(logs.any { "tok-123" in it })
+    }
+
+    // A status the SDK hands over inside the engine's start: the script started there, and the wait for
+    // an item that never plays, set after the start, took the place of the run's end.
+    @Test
+    fun aScriptStartedInsideTheEngineStartRunsToItsEnd() {
+        hub.attach(port)
+        val probe = CastEngineProbe(hub, { server -> engine(server) }, scheduler.schedule, logs::add)
+        probe.arm()
+        media.statusOnRequest = snapshot()
+        hub.send(ns, ReceiverProtocol.playNow(SERVER, ReceiverPlayRequest(items = listOf(ReceiverItem(id = "item-1")))).toString()) {}
+        scheduler.advance(0)
+        runFor(CastEngineConstants.LOAD_TIMEOUT_MS + 5_000)
+
+        assertTrue(probe.isActive)
+        assertFalse("item never played" in logs)
     }
 
     // An item the receiver never plays (a PlaybackInfo error, a TV that cannot reach the server) left

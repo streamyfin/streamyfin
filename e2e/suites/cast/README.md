@@ -93,14 +93,15 @@ The broadcast needs the `DUMP` permission, which `adb shell` has. The log then r
   (the `PlayState` fields only), and `bus sent <command>` for what the app's JS sent.
 - One `step <name>` per step, timed from the first playing status: `pause` (5 s), `play`
   (8 s), `seek+30` (12 s), `volume-0.1` (20 s), `volume-back` (23 s), `audio-reload` (26 s),
-  `subtitles-off` (40 s), `capped-reload` (45 s, the item played again where it is under a
-  192 kb/s cap, as a quality change does through `reloadCurrentItem`),
-  `seek+30` (60 s), `next` (70 s), `detach` (80 s). The TV pauses and plays on, shows its
-  volume banner twice, and keeps playing after `detach`. In the log: `seek <s> path=media` on
+  `subtitles-off` (40 s), `next` (45 s, to the next item when JS cast a queue),
+  `capped-reload` (55 s, the item played again where it is under a 192 kb/s cap, as a quality
+  change does through `reloadCurrentItem`; the probe's engine never loaded, so the receiver
+  keeps that item alone, hence `next` first), `seek+30` (65 s), `detach` (80 s). The TV pauses
+  and plays on, shows its volume banner twice, and keeps playing after `detach`. In the log: `seek <s> path=media` on
   a stream the receiver seeks in and `path=bus` on one it cannot, a transcode after the capped
-  reload; `reload settled loaded`; `send SetSubtitleStreamIndex`; `send PlayNow` and
+  reload; `reload settled loaded`; `send SetSubtitleStreamIndex`; `send NextTrack`; `send PlayNow` and
   `reload settled loaded` for the capped reload;
-  `send NextTrack`; `detached from session <id>` and `disarmed`.
+  `detached from session <id>` and `disarmed`.
 - `idle finished, waiting for the next item` at the end of a track with more to come.
 
 What the server recorded for the receiver is read with `sessions.py`, during V03 for a

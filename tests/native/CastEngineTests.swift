@@ -12,6 +12,8 @@ final class FakeMedia: CastMediaPort {
   private(set) var calls: [String] = []
   private(set) var seeks: [Double] = []
   private(set) var statusRequests = 0
+  /// A status the SDK hands over inside the request for one, as a cached one could be.
+  var statusOnRequest: CastMediaSnapshot?
   private var seeksInFlight: [(Bool) -> Void] = []
 
   func play() { calls.append("play") }
@@ -22,7 +24,10 @@ final class FakeMedia: CastMediaPort {
     seeksInFlight.append(completion)
   }
 
-  func requestStatus() { statusRequests += 1 }
+  func requestStatus() {
+    statusRequests += 1
+    if let statusOnRequest { report(statusOnRequest) }
+  }
 
   /// The receiver reporting a status: the SDK updates the media status, then calls back.
   func report(_ status: CastMediaSnapshot, position: TimeInterval? = nil) {
@@ -257,6 +262,10 @@ func audio(_ engine: CastEngine) -> Int {
   var value = -2
   engine.getCurrentAudioTrack { value = $0 }
   return value
+}
+
+func commandsSent(on port: FakeChannelPort) -> [String] {
+  port.sent.compactMap { ((try? JSONSerialization.jsonObject(with: Data($0.text.utf8))) as? [String: Any])?["command"] as? String }
 }
 
 @main
@@ -1223,12 +1232,31 @@ enum CastEngineTests {
           // No status follows the reloads, so the position they hold stays at 42.5.
           && bench.media.seeks == [72.5, 72.5]
           && volumes.count == 2 && close(volumes[0], 0.4) && close(volumes[1], 0.5)
-          && sent.map { $0["command"] as? String ?? "?" } == ["SetAudioStreamIndex", "SetSubtitleStreamIndex", "PlayNow", "NextTrack"]
-          && (sent[2]["maxBitrate"] as? NSNumber)?.int64Value == 192_000
-          && (sent[2]["options"] as? [String: Any])?["mediaSourceId"] as? String == "ms-1"
+          // Next before the capped reload: the probe's engine has no queue, so that PlayNow leaves the
+          // receiver its item alone.
+          && sent.map { $0["command"] as? String ?? "?" } == ["SetAudioStreamIndex", "SetSubtitleStreamIndex", "NextTrack", "PlayNow"]
+          && (sent[3]["maxBitrate"] as? NSNumber)?.int64Value == 192_000
+          && (sent[3]["options"] as? [String: Any])?["mediaSourceId"] as? String == "ms-1"
           && bench.media.listener == nil
           && bench.logs.filter { $0.hasPrefix("step ") } == CastEngineProbeScript.steps.map { "step \($0.1)" }
           && !bench.logs.contains { $0.contains("tok-123") }
+      )
+    }
+
+    // A direct stream of a FLAC track reports no audio index (Google TV Streamer, run 17): the step asked the
+    // receiver for track -1, and it stopped on a playback error that left the rest of the run nothing to drive.
+    do {
+      let bench = Bench()
+      let engine = bench.playing(42.5, ["audioStreamIndex": NSNull()])
+      let script = CastEngineProbeScript(engine: engine, server: server, deliver: bench.clock.deliver, log: { [unowned bench] in bench.logs.append($0) })
+      withExtendedLifetime(script) {
+        script.run()
+        bench.clock.advance(30_000)
+      }
+      check(
+        "anItemWithoutAKnownAudioTrackSkipsTheAudioReload",
+        !commandsSent(on: bench.port).contains("SetAudioStreamIndex")
+          && bench.logs.contains("audio-reload skipped, no audio track known")
       )
     }
 
@@ -1298,7 +1326,7 @@ enum CastEngineTests {
           // The detach step ends the run: the engine lets go and the hub stops reporting sends.
           && bench.media.listener == nil && bench.hub.sendObserver == nil
           && bench.logs.filter { $0.hasPrefix("bus sent ") }
-            == ["PlayNow", "PlayNow", "SetAudioStreamIndex", "SetSubtitleStreamIndex", "PlayNow", "NextTrack"].map { "bus sent \($0)" }
+            == ["PlayNow", "PlayNow", "SetAudioStreamIndex", "SetSubtitleStreamIndex", "NextTrack", "PlayNow"].map { "bus sent \($0)" }
           && !bench.logs.contains { $0.contains("tok-123") }
       )
     }
@@ -1506,6 +1534,177 @@ enum CastEngineTests {
       engine.reloadCurrentItem()
       let options = bench.sentMessages().last?["options"] as? [String: Any]
       check("aStatusOfThePreviousItemKeepsTheLoadsPlaceInTheQueue", (options?["startIndex"] as? NSNumber)?.intValue == 2)
+    }
+
+    // A SetVolume the channel did not take reclaimed nothing, and the engine stayed deaf to the bus
+    // until its next command: the next status of the play session it left tries again.
+    do {
+      let bench = Bench()
+      _ = bench.engine().loadRecorded()
+      bench.media.report(snapshot(), position: 0)
+      bench.hub.suspend()
+      let port2 = FakeChannelPort()
+      bench.hub.attach(port2)
+      port2.sendError = "receiver busy"
+      bench.media.report(snapshot(), position: 1)
+      port2.sendError = nil
+      bench.media.report(snapshot(), position: 2)
+      check("aBusReclaimTheChannelRefusedIsTriedAgain", commandsSent(on: port2) == ["SetVolume", "SetVolume"])
+    }
+
+    // Another sender cast the same item while this engine was away, under its own play session: an item
+    // of the queue proved nothing, and the SetVolume gave that playback this engine's server and token.
+    do {
+      let bench = Bench()
+      _ = bench.engine().loadRecorded()
+      bench.media.report(snapshot(), position: 0)
+      bench.hub.suspend()
+      let port2 = FakeChannelPort()
+      bench.hub.attach(port2)
+      bench.media.report(snapshot(customData: ours(["playSessionId": "ps-9"])), position: 0)
+      check("aResumeOntoItsItemUnderAnotherPlaySessionReclaimsNothing", port2.sent.isEmpty)
+    }
+
+    do {
+      let bench = Bench()
+      _ = bench.engine().loadRecorded()
+      bench.media.report(snapshot(), position: 0)
+      bench.hub.suspend()
+      let port2 = FakeChannelPort()
+      bench.hub.attach(port2)
+      bench.media.report(snapshot(), position: 1)
+      check("aResumeOntoThePlaybackItLeftReclaimsTheBus", commandsSent(on: port2) == ["SetVolume"])
+    }
+
+    // Nor is the TV's last play session: another sender's, seen before the channel came back, got the
+    // reclaim and this engine's envelope.
+    do {
+      let bench = Bench()
+      _ = bench.engine().loadRecorded()
+      bench.media.report(snapshot(), position: 0)
+      bench.media.report(snapshot(customData: ours(["itemId": "item-9", "playSessionId": "ps-9"])), position: 0)
+      bench.hub.suspend()
+      let port2 = FakeChannelPort()
+      bench.hub.attach(port2)
+      bench.media.report(snapshot(customData: ours(["itemId": "item-9", "playSessionId": "ps-9"])), position: 1)
+      check("aResumeOntoAnotherSendersPlaybackSeenBeforeItReclaimsNothing", port2.sent.isEmpty)
+    }
+
+    // What the receiver went on to through the queue this engine cast is this engine's playback too.
+    do {
+      let bench = Bench()
+      let engine = bench.engine()
+      let album = ReceiverPlayRequest(items: ["t-1", "t-2"].map { ReceiverItem(id: $0, type: "Audio") })
+      engine.load(server: server, request: album) { _ in }
+      bench.media.report(snapshot(customData: ours(["itemId": "t-1", "playSessionId": "ps-1"])), position: 0)
+      bench.media.report(snapshot(playerState: "idle", idleReason: "finished", customData: ours(["itemId": "t-1", "playSessionId": "ps-1"])), position: 0)
+      bench.media.report(snapshot(customData: ours(["itemId": "t-2", "playSessionId": "ps-2"])), position: 0)
+      bench.hub.suspend()
+      let port2 = FakeChannelPort()
+      bench.hub.attach(port2)
+      bench.media.report(snapshot(customData: ours(["itemId": "t-2", "playSessionId": "ps-2"])), position: 1)
+      check("aResumeOntoTheItemItsQueueWentOnToReclaimsTheBus", commandsSent(on: port2) == ["SetVolume"])
+    }
+
+    do {
+      let bench = Bench()
+      let engine = bench.engine()
+      _ = engine.loadRecorded()
+      bench.media.report(snapshot(), position: 0)
+      engine.setAudioTrack(2)
+      bench.media.report(snapshot(customData: ours(["playSessionId": "ps-2", "audioStreamIndex": 2])), position: 0)
+      bench.hub.suspend()
+      let port2 = FakeChannelPort()
+      bench.hub.attach(port2)
+      bench.media.report(snapshot(customData: ours(["playSessionId": "ps-2", "audioStreamIndex": 2])), position: 1)
+      check("aResumeOntoThePlaySessionItsReloadSettledOnReclaimsTheBus", commandsSent(on: port2) == ["SetVolume"])
+    }
+
+    // destroy() dropped a reload the receiver had not answered without saying the loading was over: the
+    // host kept its spinner until a later status.
+    do {
+      let bench = Bench()
+      let engine = bench.playing()
+      engine.setAudioTrack(2)
+      let loadingDuringReload = bench.delegate.loadings.last == true
+      engine.destroy()
+      check("destroyEndsTheLoadingOfAReloadItDrops", loadingDuringReload && bench.delegate.loadings.last == false)
+    }
+
+    // An item queued twice in a row: when the first copy ended the receiver went on to the second, the
+    // engine stayed on the first, and a reload played the first copy again from the second's place.
+    do {
+      let bench = Bench()
+      let engine = bench.engine()
+      let queue = ["A", "A", "B"].map { ReceiverItem(id: $0, type: "Audio") }
+      engine.load(server: server, request: ReceiverPlayRequest(items: queue)) { _ in }
+      bench.media.report(snapshot(customData: ours(["itemId": "A", "playSessionId": "ps-1"])), position: 0)
+      bench.media.report(snapshot(playerState: "idle", idleReason: "finished", customData: ours(["itemId": "A", "playSessionId": "ps-1"])), position: 0)
+      bench.media.report(snapshot(customData: ours(["itemId": "A", "playSessionId": "ps-2"])), position: 0)
+      engine.reloadCurrentItem()
+      let options = bench.sentMessages().last?["options"] as? [String: Any]
+      check("theQueueGoingOnToTheNextCopyOfAnItemFollowsIt", (options?["startIndex"] as? NSNumber)?.intValue == 1)
+    }
+
+    // The windows of a long enqueue went out at once and joined the queue as their results came back,
+    // while the receiver queued them in the order sent; a window refused left a gap the next one filled.
+    do {
+      let bench = Bench()
+      let engine = bench.engine()
+      bench.port.holdResults = true
+      engine.enqueue(itemIds: (1...150).map { "t-\($0)" })
+      let first = commandsSent(on: bench.port).filter { $0 == "PlayLast" }.count
+      bench.port.releaseResults()
+      let second = commandsSent(on: bench.port).filter { $0 == "PlayLast" }.count
+      check("aLongEnqueueSendsItsNextWindowOnceTheChannelTookTheLast", first == 1 && second == 2)
+    }
+
+    do {
+      let bench = Bench()
+      let engine = bench.engine()
+      bench.port.sendError = "receiver busy"
+      engine.enqueue(itemIds: (1...150).map { "t-\($0)" })
+      check(
+        "aWindowTheChannelRefusedEndsTheEnqueue",
+        commandsSent(on: bench.port).filter { $0 == "PlayLast" }.count == 1 && bench.delegate.errors == ["receiver busy"]
+      )
+    }
+
+    // A load replaces the receiver's queue: the windows left would join the new one.
+    do {
+      let bench = Bench()
+      let engine = bench.engine()
+      bench.port.holdResults = true
+      engine.enqueue(itemIds: (1...150).map { "t-\($0)" })
+      engine.load(server: server, request: ReceiverPlayRequest(items: [ReceiverItem(id: "b-1")])) { _ in }
+      bench.port.releaseResults()
+      check("aLoadBetweenTwoWindowsKeepsTheRestOutOfTheNewQueue", commandsSent(on: bench.port).filter { $0 == "PlayLast" }.count == 1)
+    }
+
+    // A status the SDK hands over inside the engine's start: the script started there, and the wait for
+    // an item that never plays, set after the start, took the place of the run's end.
+    do {
+      let bench = Bench()
+      bench.hub.attach(bench.port)
+      let probe = CastEngineProbe(
+        hub: bench.hub,
+        makeEngine: { [unowned bench] in
+          CastEngine(server: $0, sessions: bench.source, hub: bench.hub, deliver: bench.clock.deliver, log: { bench.logs.append($0) })
+        },
+        deliver: bench.clock.deliver,
+        log: { [unowned bench] in bench.logs.append($0) }
+      )
+      let playNow = json((try? ReceiverProtocol.playNow(server: server, request: ReceiverPlayRequest(items: [ReceiverItem(id: "item-1")]))) ?? [:])
+      var active = false
+      withExtendedLifetime(probe) {
+        probe.arm()
+        bench.media.statusOnRequest = snapshot()
+        bench.hub.send(namespace: ReceiverProtocol.namespace, text: playNow) { _ in }
+        bench.clock.advance(0)
+        bench.clock.advance(CastEngineConstants.loadTimeoutMs + 5_000)
+        active = probe.isActive
+      }
+      check("aScriptStartedInsideTheEngineStartRunsToItsEnd", active && !bench.logs.contains("item never played"))
     }
 
     if failures.isEmpty {

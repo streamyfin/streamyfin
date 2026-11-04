@@ -46,6 +46,9 @@ class FakeMedia : CastMediaPort {
     val seeks = mutableListOf<Long>()
     var statusRequests = 0
         private set
+
+    /** A status the SDK hands over inside the request for one, as a cached one could be. */
+    var statusOnRequest: CastMediaSnapshot? = null
     private val seeksInFlight = mutableListOf<(Boolean) -> Unit>()
 
     override fun setListener(listener: CastMediaListener?, progressIntervalMs: Long) {
@@ -72,6 +75,7 @@ class FakeMedia : CastMediaPort {
 
     override fun requestStatus() {
         statusRequests += 1
+        statusOnRequest?.let { report(it) }
     }
 
     /** The receiver reporting a status: the SDK updates the media status, then calls back. */

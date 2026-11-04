@@ -113,8 +113,14 @@ final class CastEngine: TransportEngine, QueueEngine {
   private var suspended = false
 
   // The receiver applies the envelope of every message, whatever its command: after a resume the bus
-  // is reclaimed once a status shows an item this engine cast, never over another sender's.
+  // is reclaimed only for a playback this engine cast. An item of its queue proves nothing, nor does the
+  // TV's last play session: another sender can cast the same item, or be what played last, and the
+  // receiver would take this envelope for that playback.
   private var reclaimPending = false
+
+  // The play session this engine knows it cast: one its load or reload settled on, or the next of its
+  // queue the receiver went on to after an end of its own. It outlives a binding, as the TV plays on.
+  private var ownPlaySession: String?
 
   // After IDLE + FINISHED the receiver fetches the next item before it buffers: the end waits.
   private var cancelEndWait: (() -> Void)?
@@ -170,6 +176,7 @@ final class CastEngine: TransportEngine, QueueEngine {
     if let load = pendingLoad, let outcome = load.tracker.supersede() { settleLoad(load, outcome) }
     reload?.cancelTimer()
     reload = nil
+    setLoading(isBuffering())
     // What ended is forgotten with the item: its end would come fifteen seconds later.
     endWait(false)
     stopTicking()
@@ -299,7 +306,7 @@ final class CastEngine: TransportEngine, QueueEngine {
       return
     }
     // SetVolume without a level changes no volume, but the receiver takes its envelope: it waits for
-    // a status that shows an item this engine cast.
+    // a status that shows what this engine cast.
     reclaimPending = busClaimed
   }
 
@@ -605,19 +612,26 @@ final class CastEngine: TransportEngine, QueueEngine {
   func enqueue(itemIds: [String]) {
     onMain()
     guard session != nil else { return }
-    let generation = queueGeneration
-    stride(from: 0, to: itemIds.count, by: CastEngineConstants.maxQueueItems).forEach { start in
-      let window = Array(itemIds[start..<min(start + CastEngineConstants.maxQueueItems, itemIds.count)])
-      // A window joins the replay queue once the channel took it.
-      sendMessage(
-        "PlayLast", ReceiverProtocol.playLast(server: server, itemIds: window),
-        sent: { [weak self] in
-          guard let self, generation == self.queueGeneration else { return }
-          self.queue += window.map { ReceiverItem(id: $0) }
-        },
-        failed: reportFailure
-      )
+    let windows = stride(from: 0, to: itemIds.count, by: CastEngineConstants.maxQueueItems).map { start in
+      Array(itemIds[start..<min(start + CastEngineConstants.maxQueueItems, itemIds.count)])
     }
+    enqueueWindows(windows[...], generation: queueGeneration)
+  }
+
+  // Each window once the channel took the one before: the queue then holds them in the order the
+  // receiver does, a window refused ends the enqueue with no gap, and a load meanwhile ends it too,
+  // its PlayNow having replaced the queue the rest was for.
+  private func enqueueWindows(_ windows: ArraySlice<[String]>, generation: Int) {
+    guard let window = windows.first else { return }
+    sendMessage(
+      "PlayLast", ReceiverProtocol.playLast(server: server, itemIds: window),
+      sent: { [weak self] in
+        guard let self, generation == self.queueGeneration else { return }
+        self.queue += window.map { ReceiverItem(id: $0) }
+        self.enqueueWindows(windows.dropFirst(), generation: generation)
+      },
+      failed: reportFailure
+    )
   }
 
   var currentItemId: String? { read { $0.itemId } }
@@ -647,12 +661,24 @@ final class CastEngine: TransportEngine, QueueEngine {
       settleReload(pending, .superseded, recompute: false)
     }
     // Until a load settles, its start is the place: a status of what played before is not the queue moving.
-    if pendingLoad == nil { followQueue(data?.itemId) }
+    // A new play session after an end is the queue going on, to the next copy of an item queued twice.
+    let wentOn = cancelEndWait != nil && data?.playSessionId != nil && data?.playSessionId != playSessionId
+    if pendingLoad == nil { followQueue(data?.itemId, wentOn: wentOn) }
     // Settled at the end, once this status is the engine's: the host acts on the result from it.
     let load = pendingLoad
     let loadOutcome = load?.tracker.onMediaStatus(customData: data, playerState: status.playerState)
+    var reloadOutcome: ReceiverLoadOutcome?
     if let pending = reload, let outcome = pending.tracker.onMediaStatus(customData: data, playerState: status.playerState) {
+      reloadOutcome = outcome
       settleReload(pending, outcome, recompute: false)
+    }
+    if let playSession = data?.playSessionId {
+      var ownLoad = false
+      if case .loaded? = loadOutcome { ownLoad = true }
+      if case .loaded? = reloadOutcome { ownLoad = true }
+      let ownQueueWentOn = wentOn && ownPlaySession != nil && playSessionId == ownPlaySession
+        && queue.indices.contains(playingIndex) && queue[playingIndex].id == data?.itemId
+      if ownLoad || ownQueueWentOn { ownPlaySession = playSession }
     }
     let newPlaySession = data?.playSessionId != playSessionId
     if newPlaySession {
@@ -671,9 +697,14 @@ final class CastEngine: TransportEngine, QueueEngine {
       log("status \(status.playerState) playSession=\(data?.playSessionId ?? "nil") playMethod=\(data?.playMethod ?? "nil") canClientSeek=\(canClientSeek)")
     }
     reportState(status.playerState, reason: status.idleReason, data: data)
-    if reclaimPending, let itemId = data?.itemId, queue.contains(where: { $0.id == itemId }) {
+    if reclaimPending, let playSession = data?.playSessionId, playSession == ownPlaySession {
       reclaimPending = false
-      send("SetVolume", [:])
+      let binding = boundSessionId
+      // Not taken: nothing was reclaimed, and the next status of that playback tries again.
+      send("SetVolume", [:]) { [weak self] _ in
+        guard let self, self.session != nil, self.boundSessionId == binding else { return }
+        self.reclaimPending = true
+      }
     }
     publishState()
     delegate?.engine(self, didUpdateProgress: position, duration: itemDuration, cacheSeconds: 0)
@@ -936,10 +967,11 @@ final class CastEngine: TransportEngine, QueueEngine {
 
   // The receiver names the item it plays, not which copy of one queued twice: the copy where the engine
   // is in the queue, else the one after it (the queue went on), else the one before (it went back),
-  // else the first.
-  private func followQueue(_ itemId: String?) {
+  // else the first. After an end the queue went on: the one after it comes first.
+  private func followQueue(_ itemId: String?, wentOn: Bool) {
     guard let itemId else { return }
-    let near = [playingIndex, playingIndex + 1, playingIndex - 1].first { queue.indices.contains($0) && queue[$0].id == itemId }
+    let order = wentOn ? [playingIndex + 1, playingIndex, playingIndex - 1] : [playingIndex, playingIndex + 1, playingIndex - 1]
+    let near = order.first { queue.indices.contains($0) && queue[$0].id == itemId }
     playingIndex = near ?? queue.firstIndex { $0.id == itemId } ?? -1
   }
 
