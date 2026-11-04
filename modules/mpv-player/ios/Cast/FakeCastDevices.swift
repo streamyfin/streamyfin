@@ -79,8 +79,10 @@ final class FakeCastDevices: TargetPort {
 /// Gives the shared hub its port: the fake receivers in a build that asked for them, the Cast SDK's
 /// everywhere else (installDefault, iOS only, in GoogleCastTargetPort.swift).
 enum RemoteTargets {
-  /// Set by `STREAMYFIN_FAKE_CAST_DEVICES=1` at `pod install` for tier 1 builds (e2e/README.md); no
-  /// store build sets it.
+  static let fakeReceiversWarning = "Fake Cast receivers in place of the Cast SDK's: this is a tier 1 build"
+
+  /// Set by `STREAMYFIN_FAKE_CAST_DEVICES=1` at `pod install` for tier 1 builds (e2e/README.md); store
+  /// profiles refuse it.
   static let fakeDevices: Bool = {
     #if FAKE_CAST_DEVICES
       return true
@@ -89,9 +91,13 @@ enum RemoteTargets {
     #endif
   }()
 
+  /// The fake receivers in a build that asked for them, said out loud, and the Cast SDK everywhere else.
   static func portFor(
-    fake: Bool, real: () -> TargetPort, schedule: @escaping (Double, @escaping () -> Void) -> (() -> Void)
+    fake: Bool, real: () -> TargetPort, schedule: @escaping (Double, @escaping () -> Void) -> (() -> Void),
+    warn: (String) -> Void
   ) -> TargetPort {
-    fake ? FakeCastDevices(schedule: schedule) : real()
+    guard fake else { return real() }
+    warn(fakeReceiversWarning)
+    return FakeCastDevices(schedule: schedule)
   }
 }

@@ -39,21 +39,24 @@ server log, the session the server records, the receiver on the TV.
 
 Tier 1 has no Chromecast, so a build can ask for two fake receivers in place of the Cast SDK's:
 "Bench TV" and "Bench Speaker". They list on discovery, connect 600 ms after a request and end
-300 ms after a disconnection (`RemoteTargetConstants`), ending one session before starting
-another, as the SDK does. Only the target the module publishes (`getRemoteTarget`,
-`connectToDevice`, `onRemoteTargetChanged`) goes through them: no media plays, and the SDK's
-own Cast button still reads the real network.
+300 ms after a disconnection (`RemoteTargetConstants`), and a switch ends one session before
+the next starts. Only the target the module publishes (`getRemoteTarget`, `connectToDevice`,
+`onRemoteTargetChanged`) goes through them: no media plays, and the SDK's own Cast button
+still reads the real network.
 
-- **Android**: build with `-PstreamyfinFakeCastDevices=true`, or
-  `ORG_GRADLE_PROJECT_streamyfinFakeCastDevices=true` in the environment, which also reaches
-  `bun run android` and `bun run build:android:local`. It sets `BuildConfig.FAKE_CAST_DEVICES`
-  in the mpv-player module, in every variant.
-- **iOS**: `STREAMYFIN_FAKE_CAST_DEVICES=1 pod install` (and the same variable on
+- **Android**: `./gradlew … -PstreamyfinFakeCastDevices=true`, or the variable as a prefix of
+  one command, for example
+  `ORG_GRADLE_PROJECT_streamyfinFakeCastDevices=true bun run build:android:local`. It sets
+  `BuildConfig.FAKE_CAST_DEVICES` in the mpv-player module, in every variant. Do not export it.
+- **iOS**: `STREAMYFIN_FAKE_CAST_DEVICES=1 pod install` (and the same prefix on
   `expo run:ios`, which may install the pods again) adds `FAKE_CAST_DEVICES` to the module's
   Swift conditions. Run `pod install` again without it before any other build.
 
-No store build sets either. The remote target probe (`e2e/suites/cast/README.md`) shows which
-receivers a build has: `--es device "Bench TV"` connects in a fake build, and ends with
+A store profile refuses both: with `EAS_BUILD_PROFILE` starting with `production`, Gradle and
+the podspec stop the build. A build that has them logs
+`Fake Cast receivers in place of the Cast SDK's: this is a tier 1 build` when the module
+starts. In a debug build, the remote target probe (`e2e/suites/cast/README.md`) shows which
+receivers it has: `--es device "Bench TV"` connects in a fake build, and ends with
 `failed: no device named "Bench TV"` in any other.
 
 ## Configuration

@@ -767,10 +767,14 @@ enum RemoteTargetTests {
       let real = FakeTargetPort()
       let schedule = Clock().schedule
       check("theBuildHasFakeDevicesOnlyWhenItAskedForThem", RemoteTargets.fakeDevices == expectFake)
+      var warnings: [String] = []
+      let realPort = RemoteTargets.portFor(fake: false, real: { real }, schedule: schedule) { warnings.append($0) }
+      let quiet = warnings.isEmpty
+      let fakePort = RemoteTargets.portFor(fake: true, real: { real }, schedule: schedule) { warnings.append($0) }
+      // A build that should not have them shows it in the device log.
       check(
         "theRealPortUnlessTheBuildAskedForFakes",
-        RemoteTargets.portFor(fake: false, real: { real }, schedule: schedule) === real
-          && RemoteTargets.portFor(fake: true, real: { real }, schedule: schedule) is FakeCastDevices
+        realPort === real && quiet && fakePort is FakeCastDevices && warnings == [RemoteTargets.fakeReceiversWarning]
       )
     }
   }

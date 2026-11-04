@@ -42,6 +42,11 @@ if (useManagedAndroidSdkVersions) {
 // Passed as -PstreamyfinFakeCastDevices=true, or ORG_GRADLE_PROJECT_streamyfinFakeCastDevices=true; no
 // store build sets it.
 def fakeCastDevices = (findProperty("streamyfinFakeCastDevices") ?: "false").toString().toBoolean()
+// A store build refuses them, whatever lingers in its environment: EAS names the profile it builds.
+def easBuildProfile = System.getenv("EAS_BUILD_PROFILE") ?: ""
+if (fakeCastDevices && easBuildProfile.startsWith("production")) {
+  throw new GradleException("streamyfinFakeCastDevices is set for the store profile '${easBuildProfile}': fake Cast receivers never ship")
+}
 
 android {
   namespace "expo.modules.mpvplayer"

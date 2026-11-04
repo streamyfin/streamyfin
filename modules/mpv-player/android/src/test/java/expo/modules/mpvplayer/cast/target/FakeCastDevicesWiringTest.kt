@@ -30,8 +30,12 @@ class FakeCastDevicesWiringTest {
     @Test
     fun theRealPortUnlessTheBuildAskedForFakes() {
         val real = FakeTargetPort()
+        val warnings = mutableListOf<String>()
 
-        assertSame(real, RemoteTargets.portFor(fake = false, real = { real }, schedule = schedule))
-        assertTrue(RemoteTargets.portFor(fake = true, real = { real }, schedule = schedule) is FakeCastDevices)
+        assertSame(real, RemoteTargets.portFor(fake = false, real = { real }, schedule = schedule, warn = warnings::add))
+        assertTrue(warnings.isEmpty())
+        assertTrue(RemoteTargets.portFor(fake = true, real = { real }, schedule = schedule, warn = warnings::add) is FakeCastDevices)
+        // A build that should not have them shows it in the device log.
+        assertEquals(listOf(RemoteTargets.FAKE_RECEIVERS_WARNING), warnings)
     }
 }
